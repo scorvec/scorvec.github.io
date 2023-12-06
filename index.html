@@ -1,0 +1,105 @@
+   <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Image Animation</title>
+      
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+
+      #image-container {
+        position: relative;
+        overflow: hidden;
+      }
+
+      #image-container img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+
+      #control-container {
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 2px solid #ddd;
+        padding: 10px;
+        border-radius: 10px;
+      }
+
+      #control-container button {
+        margin: 0 5px;
+        cursor: pointer;
+      }
+    </style>
+  
+    </head>
+    <body>
+
+    <div id="image-container">
+      <!-- Images will be dynamically loaded here -->
+    </div>
+
+    <div id="control-container">
+      <button onclick="changeSpeed(1)">Increase Speed</button>
+      <button onclick="changeSpeed(-1)">Decrease Speed</button>
+      <button onclick="prevImage()">Previous</button>
+      <button onclick="togglePlayPause()">Play/Pause</button>
+      <button onclick="nextImage()">Next</button>
+    </div>
+
+    <script>
+      const images = ["Southeast_1kmref_2023-12-02-19_0.png","Northeast_1kmref_2023-12-02-19_0.png","Southeast_1kmref_2023-12-02-19_1.png","Northeast_1kmref_2023-12-02-19_1.png","Southeast_1kmref_2023-12-02-19_2.png","Northeast_1kmref_2023-12-02-19_2.png","Southeast_1kmref_2023-12-02-19_3.png","Northeast_1kmref_2023-12-02-19_3.png","Southeast_1kmref_2023-12-02-19_4.png","Northeast_1kmref_2023-12-02-19_4.png","Southeast_1kmref_2023-12-02-19_5.png","Northeast_1kmref_2023-12-02-19_5.png","Southeast_1kmref_2023-12-02-19_6.png","Northeast_1kmref_2023-12-02-19_6.png","Southeast_1kmref_2023-12-02-19_7.png","Northeast_1kmref_2023-12-02-19_7.png","Southeast_1kmref_2023-12-02-19_8.png","Northeast_1kmref_2023-12-02-19_8.png","Southeast_1kmref_2023-12-02-19_9.png","Northeast_1kmref_2023-12-02-19_9.png","Southeast_1kmref_2023-12-02-19_10.png","Northeast_1kmref_2023-12-02-19_10.png","Southeast_1kmref_2023-12-02-19_11.png","Northeast_1kmref_2023-12-02-19_11.png","Southeast_1kmref_2023-12-02-19_12.png","Northeast_1kmref_2023-12-02-19_12.png","Southeast_1kmref_2023-12-02-19_13.png","Northeast_1kmref_2023-12-02-19_13.png","Southeast_1kmref_2023-12-02-19_14.png","Northeast_1kmref_2023-12-02-19_14.png","Southeast_1kmref_2023-12-02-19_15.png","Northeast_1kmref_2023-12-02-19_15.png","Southeast_1kmref_2023-12-02-19_16.png","Northeast_1kmref_2023-12-02-19_16.png","Southeast_1kmref_2023-12-02-19_17.png","Northeast_1kmref_2023-12-02-19_17.png","Southeast_1kmref_2023-12-02-19_18.png","Northeast_1kmref_2023-12-02-19_18.png"];
+      let currentIndex = 0;
+      let intervalId;
+      let speed = 1000; // Default speed in milliseconds
+
+      function loadImages() {
+        const imageContainer = document.getElementById('image-container');
+        imageContainer.innerHTML = ""; // Clear previous images
+        const img = document.createElement('img');
+        img.src = images[currentIndex];
+        imageContainer.appendChild(img);
+      }
+
+      function nextImage() {
+        currentIndex = (currentIndex + 1) % images.length;
+        loadImages();
+      }
+
+      function prevImage() {
+        currentIndex = (currentIndex - 1 + images.length) % images.length;
+        loadImages();
+      }
+
+      function togglePlayPause() {
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        } else {
+          intervalId = setInterval(nextImage, speed);
+        }
+      }
+
+      function changeSpeed(amount) {
+        speed += amount * -100; // Increase or decrease speed by 100 milliseconds
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = setInterval(nextImage, speed);
+        }
+      }
+
+      loadImages();
+    </script>
+
+    </body>
+    </html>
