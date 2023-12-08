@@ -130,7 +130,7 @@ function generateHTML(imagesBySubdirectory) {
     </html>
   `;
 
-  fs.writeFileSync('index.html', htmlContent);
+  fs.writeFileSync('anim.html', htmlContent);
 }
 
 const imagesBySubdirectory = getImagesInDirectory(currentDirectory);
