@@ -1,0 +1,98 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Image Animation</title>
+      
+    <style>
+      /* Your existing styles remain unchanged */
+
+      #subdirectory-dropdown {
+        margin-bottom: 10px;
+      }
+    </style>
+  
+    </head>
+    <body>
+
+    <!-- Add the subdirectory dropdown -->
+    <label for="subdirectory-dropdown">Select Subdirectory:</label>
+    <select id="subdirectory-dropdown">
+      <option value="Northeast">Northeast</option><option value="Northwest">Northwest</option><option value="Southeast">Southeast</option><option value="Southwest">Southwest</option>
+    </select>
+
+    <div id="image-container">
+      <!-- Images will be dynamically loaded here -->
+    </div>
+
+    <div id="control-container">
+      <button onclick="changeSpeed(1)">Increase Speed</button>
+      <button onclick="changeSpeed(-1)">Decrease Speed</button>
+      <button onclick="prevImage()">Previous</button>
+      <button onclick="togglePlayPause()">Play/Pause</button>
+      <button onclick="nextImage()">Next</button>
+    </div>
+
+    <script>
+      const imagesBySubdirectory = {"Northeast":["/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_0.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_1.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_10.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_11.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_12.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_13.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_14.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_15.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_16.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_17.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_18.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_2.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_3.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_4.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_5.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_6.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_7.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_8.png","/home/shawn/1km_ref/Northeast/1kmref_2023-12-07-21_9.png"],"Northwest":["/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_0.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_1.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_10.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_11.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_12.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_13.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_14.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_15.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_16.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_17.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_18.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_2.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_3.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_4.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_5.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_6.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_7.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_8.png","/home/shawn/1km_ref/Northwest/1kmref_2023-12-07-21_9.png"],"Southeast":["/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_0.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_1.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_10.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_11.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_12.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_13.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_14.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_15.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_16.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_17.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_18.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_2.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_3.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_4.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_5.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_6.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_7.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_8.png","/home/shawn/1km_ref/Southeast/1kmref_2023-12-07-21_9.png"],"Southwest":["/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_0.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_1.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_10.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_11.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_12.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_13.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_14.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_15.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_16.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_17.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_18.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_2.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_3.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_4.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_5.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_6.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_7.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_8.png","/home/shawn/1km_ref/Southwest/1kmref_2023-12-07-21_9.png"]};
+      let currentIndex = 0;
+      let intervalId;
+      let speed = 1000; // Default speed in milliseconds
+
+      // Populate the subdirectory dropdown dynamically
+      const subdirectoryDropdown = document.getElementById('subdirectory-dropdown');
+
+      // Event listener for the subdirectory dropdown
+      subdirectoryDropdown.addEventListener('change', function () {
+        const selectedSubdirectory = subdirectoryDropdown.value;
+        currentIndex = 0;
+        loadImages(imagesBySubdirectory[selectedSubdirectory]);
+      });
+
+      function loadImages(images) {
+        const imageContainer = document.getElementById('image-container');
+        imageContainer.innerHTML = ""; // Clear previous images
+        const img = document.createElement('img');
+        img.src = images[currentIndex];
+        imageContainer.appendChild(img);
+      }
+
+      function nextImage() {
+        const selectedSubdirectory = subdirectoryDropdown.value;
+        currentIndex = (currentIndex + 1) % imagesBySubdirectory[selectedSubdirectory].length;
+        loadImages(imagesBySubdirectory[selectedSubdirectory]);
+      }
+
+      function prevImage() {
+        const selectedSubdirectory = subdirectoryDropdown.value;
+        currentIndex = (currentIndex - 1 + imagesBySubdirectory[selectedSubdirectory].length) % imagesBySubdirectory[selectedSubdirectory].length;
+        loadImages(imagesBySubdirectory[selectedSubdirectory]);
+      }
+
+      function togglePlayPause() {
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        } else {
+          intervalId = setInterval(nextImage, speed);
+        }
+      }
+
+      function changeSpeed(amount) {
+        speed += amount * -100; // Increase or decrease speed by 100 milliseconds
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = setInterval(nextImage, speed);
+        }
+      }
+
+      // Load initial images based on the selected subdirectory
+      const initialSubdirectory = subdirectoryDropdown.value;
+      loadImages(imagesBySubdirectory[initialSubdirectory]);
+    </script>
+
+    </body>
+    </html>
+  
