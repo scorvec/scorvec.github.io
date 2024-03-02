@@ -6,7 +6,7 @@ layout: home
 ---
 
 <div class="container">
-    <img src="./docs/assets/images/image3.jpeg" alt="Morraine Lake" style="max-width: 600px;>
+    <img src="./docs/assets/images/image3.jpeg" alt="Morraine Lake">
     <div class="links">
        <a href="https://github.com/scorvec/">GitHub</a>
        <a href="https://www.linkedin.com/in/shawn-c-35895b231/">LinkedIn</a>
