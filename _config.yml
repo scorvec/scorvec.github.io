@@ -14,11 +14,11 @@ x# Welcome to Jekyll!
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 title: Shawn Corvec
+github_username:  scorvec
+linkedin_username: shawn-c-35895b231
 description: >- # My useless little website
 baseurl: "/index" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
-github_username:  scorvec
-linkedin_username: shawn-c-35895b231
 
 # Build settings
 markdown: kramdown
