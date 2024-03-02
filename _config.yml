@@ -18,6 +18,7 @@ description: >- # My useless little website
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  scorvec
+linkedin_username: shawn-c-35895b231
 
 # Build settings
 markdown: kramdown
