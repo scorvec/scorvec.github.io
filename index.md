@@ -4,8 +4,10 @@
 
 layout: home
 ---
-<div class="links">
-    <a href="https://github.com/your_username">GitHub</a>
-    <a href="https://scholar.google.com/citations?user=your_google_scholar_id">Google Scholar</a>
+<div class="container">
+    <img src="./docs/assets/images/image3.jpeg" alt="Morraine Lake">
+    <div class="links">
+       <a href="https://github.com/your_username">GitHub</a>
+       <a href="https://scholar.google.com/citations?user=your_google_scholar_id">Google Scholar</a>
+    </div>
 </div>
-![test](./docs/assets/images/image3.jpeg)
