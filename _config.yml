@@ -19,7 +19,7 @@ baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  scorvec
 linkedin_username: shawn-c-35895b231
-![Test](/least-github-pages/assets/image3.jpeg)
+<img class="image" src="assets/images/image3.jpeg">
 # Build settings
 markdown: kramdown
 theme: minima
