@@ -4,4 +4,4 @@
 
 layout: home
 ---
-![test](./assets/images/image3.jpeg)
+![test](./docs/assets/images/image3.jpeg)
