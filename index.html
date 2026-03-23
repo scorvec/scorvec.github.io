@@ -149,10 +149,10 @@
 </footer>
 
 <script>
-  fetch('https://counterapi.dev/api/scorvec.com/visits/hit')
+  fetch('https://api.counterapi.dev/v1/scorvec.com/visits/up')
     .then(res => res.json())
     .then(data => {
-      document.getElementById('count').textContent = data.count.toLocaleString();
+      document.getElementById('count').textContent = data.value.toLocaleString();
     })
     .catch(() => {
       document.getElementById('count').textContent = '—';
