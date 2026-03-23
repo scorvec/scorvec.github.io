@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shawn Corvec</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav-name { font-family: var(--serif); font-weight: 400; font-size: 1rem; text-decoration: none; color: var(--ink); }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em; text-decoration: none; color: var(--muted); transition: color 0.2s; }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  .home {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 6rem 3rem 4rem;
+  }
+  .home-inner {
+    display: flex; align-items: center; gap: 5rem;
+    max-width: 860px; width: 100%;
+  }
+  .photo-wrap {
+    flex-shrink: 0; width: 240px; height: 300px;
+    background: #dddbd4; overflow: hidden;
+  }
+  .photo-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-placeholder {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 0.6rem; color: #999;
+  }
+  .photo-placeholder span { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.5; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 2.4rem; line-height: 1.2; margin-bottom: 0.5rem; }
+  .title { font-size: 0.8rem; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 1.6rem; }
+  .home-text p { font-size: 0.96rem; font-weight: 300; line-height: 1.85; color: #555; max-width: 44ch; margin-bottom: 0.8rem; }
+  .home-links { display: flex; gap: 1rem; margin-top: 2rem; }
+  .btn {
+    display: inline-block; font-size: 0.76rem; font-weight: 500; letter-spacing: 0.07em;
+    text-transform: uppercase; text-decoration: none;
+    padding: 0.7rem 1.5rem; border: 1px solid var(--ink); color: var(--ink);
+    transition: all 0.2s;
+  }
+  .btn:hover { background: var(--ink); color: var(--bg); }
+
+  @media (max-width: 680px) {
+    nav { padding: 1rem 1.5rem; }
+    .home { padding: 5rem 1.5rem 3rem; }
+    .home-inner { flex-direction: column; gap: 2rem; }
+    .photo-wrap { width: 100%; height: 240px; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html" class="active">Home</a></li>
+    <li><a href="resume.html">Resume</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+  </ul>
+</nav>
+<div class="home">
+  <div class="home-inner">
+    <div class="photo-wrap">
+      <!-- Replace with: <img src="photo.jpg" alt="Shawn Corvec"> -->
+      <div class="photo-placeholder">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span>Your photo</span>
+      </div>
+    </div>
+    <div class="home-text">
+      <h1>Shawn Corvec</h1>
+      <div class="title">Meteorologist · Atmospheric Scientist</div>
+      <p>Quantitative meteorologist with 15+ years of experience in numerical weather prediction, operational forecasting, and energy markets.</p>
+      <p>Currently at bp in Houston, providing weather intelligence for North American gas and power trading.</p>
+      <div class="home-links">
+        <a href="resume.html" class="btn">Resume</a>
+        <a href="mailto:scorvec@outlook.com" class="btn">Contact</a>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
