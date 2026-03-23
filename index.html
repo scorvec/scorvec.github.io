@@ -1,43 +1,133 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2685.4">
-  <style type="text/css">
-    body {background-color: #f9f9f6}
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Helvetica Neue'; color: #151514; -webkit-text-stroke: #151514}
-    p.p4 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px 'Helvetica Neue'; color: #878787; -webkit-text-stroke: #878787; min-height: 15.0px}
-    p.p5 {margin: 0.0px 0.0px 0.0px 0.0px; font: 8.4px 'Helvetica Neue'; color: #878787; -webkit-text-stroke: #878787}
-    p.p7 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.6px 'Helvetica Neue'; color: #22385f; -webkit-text-stroke: #22385f}
-    p.p8 {margin: 0.0px 0.0px 9.6px 0.0px; font: 11.5px 'Helvetica Neue'; color: #434343; -webkit-text-stroke: #434343}
-    p.p9 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.1px 'Helvetica Neue'; color: #151514; -webkit-text-stroke: #151514}
-    li.li2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.8px 'Helvetica Neue'; color: #151514; -webkit-text-stroke: #151514}
-    li.li3 {margin: 0.0px 0.0px 0.0px 0.0px; font: 9.8px 'Helvetica Neue'; color: #75726d; -webkit-text-stroke: #75726d}
-    span.s1 {font-kerning: none; background-color: rgba(249, 249, 246, 0.95)}
-    span.s2 {font-kerning: none}
-    span.s3 {background-color: rgba(249, 249, 246, 0.95); -webkit-text-stroke: 0px #000000}
-    span.s4 {font-kerning: none; color: #75726d}
-    span.s5 {font-kerning: none; background-color: #d5d3ca}
-    span.s6 {font: 9.1px 'Helvetica Neue'; font-kerning: none; background-color: transparent}
-    ul.ul1 {list-style-type: disc}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shawn Corvec</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  /* CENTERED LAYOUT */
+  .home {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 6rem 2rem 4rem;
+  }
+  .home-inner {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; max-width: 480px; width: 100%;
+  }
+
+  /* PHOTO */
+  .photo-wrap {
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: #dddbd4;
+    overflow: hidden; margin-bottom: 2rem;
+  }
+  .photo-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-placeholder {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    color: #aaa;
+  }
+
+  /* TEXT */
+  h1 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: 2rem; margin-bottom: 0.3rem;
+  }
+  .title {
+    font-size: 0.78rem; font-weight: 400; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent);
+    margin-bottom: 1.4rem;
+  }
+  .bio {
+    font-size: 0.93rem; font-weight: 300; line-height: 1.85;
+    color: #666; margin-bottom: 2rem;
+  }
+
+  /* LINKS */
+  .home-links { display: flex; gap: 1rem; justify-content: center; }
+  .btn {
+    display: inline-block; font-size: 0.76rem; font-weight: 500;
+    letter-spacing: 0.07em; text-transform: uppercase; text-decoration: none;
+    padding: 0.65rem 1.5rem; border: 1px solid var(--ink); color: var(--ink);
+    transition: all 0.2s;
+  }
+  .btn:hover { background: var(--ink); color: var(--bg); }
+
+  @media (max-width: 480px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { gap: 1.2rem; }
+  }
+</style>
 </head>
 <body>
-<p class="p1"><span class="s1"><a href="file:///Users/shawn/Downloads/index.html">Shawn Corvec<span class="s2"></span></a></span></p>
-<ul class="ul1">
-  <li class="li2"><span class="s3"><a href="file:///Users/shawn/Downloads/index.html"><span class="s2">Home</span></a></span></li>
-  <li class="li3"><span class="s3"><a href="file:///Users/shawn/Downloads/resume.html"><span class="s4">Resume</span></a></span></li>
-  <li class="li3"><span class="s3"><a href="file:///Users/shawn/Downloads/gallery.html"><span class="s4">Gallery</span></a></span></li>
-</ul>
-<p class="p4"><span class="s2"></span><br></p>
-<p class="p5"><span class="s5">YOUR PHOTO</span></p>
-<h1 style="margin: 0.0px 0.0px 6.0px 0.0px; font: 28.8px 'Helvetica Neue'; color: #151514; -webkit-text-stroke: #151514"><span class="s2">Shawn Corvec</span></h1>
-<p class="p7"><span class="s2">METEOROLOGIST · ATMOSPHERIC SCIENTIST</span></p>
-<p class="p8"><span class="s2">Quantitative meteorologist with 15+ years of experience in numerical weather prediction, operational forecasting, and energy markets.</span></p>
-<p class="p9"><span class="s2"><a href="file:///Users/shawn/Downloads/resume.html">RESUME<span class="s6"></span></a></span></p>
-<p class="p9"><span class="s2"><a href="mailto:scorvec@outlook.com">CONTACT<span class="s6"></span></a></span></p>
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html" class="active">Home</a></li>
+    <li><a href="resume.html">Resume</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+  </ul>
+</nav>
+
+<div class="home">
+  <div class="home-inner">
+    <div class="photo-wrap">
+      <!-- Replace with: <img src="photo.jpg" alt="Shawn Corvec"> -->
+      <div class="photo-placeholder">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      </div>
+    </div>
+
+    <h1>Shawn Corvec</h1>
+    <div class="title">Meteorologist · Atmospheric Scientist</div>
+    <p class="bio">Quantitative meteorologist with experience in numerical weather prediction, operational forecasting, and energy markets.</p>
+
+    <div class="home-links">
+      <a href="resume.html" class="btn">Resume</a>
+      <a href="gallery.html" class="btn">Gallery</a>
+    </div>
+  </div>
+</div>
 </body>
 </html>
