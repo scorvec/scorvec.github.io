@@ -30,4 +30,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update ERCOT load vs temperature plot [skip ci]"
-          file_pattern: assets/ercot_load_temp.png
+          file_pattern: assets/ercot_load_temp.png assets/ercot_curves.png
