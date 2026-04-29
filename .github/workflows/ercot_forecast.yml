@@ -1,0 +1,37 @@
+name: ERCOT Load Forecast
+
+on:
+  schedule:
+    - cron: '30 2  * * *'   # ~90 min after 00Z HRRR
+    - cron: '30 8  * * *'   # ~90 min after 06Z HRRR
+    - cron: '30 14 * * *'   # ~90 min after 12Z HRRR
+    - cron: '30 20 * * *'   # ~90 min after 18Z HRRR
+  workflow_dispatch:         # manual trigger
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install eccodes (required by Herbie / cfgrib)
+        run: sudo apt-get install -y libeccodes-dev eccodes
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/forecast_requirements.txt
+
+      - name: Run forecast
+        run: python scripts/ercot_forecast.py
+
+      - name: Commit forecast chart
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update ERCOT load forecast [skip ci]"
+          file_pattern: assets/ercot_forecast.png
