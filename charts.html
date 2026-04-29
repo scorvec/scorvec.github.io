@@ -181,8 +181,8 @@
 <main>
   <div class="page-header">
     <h1>Charts &amp; Analysis</h1>
-    <p>Automated daily plots at the intersection of meteorology and energy markets. Built with Python and updated every morning via GitHub Actions.</p>
-    <div class="update-badge">Updated daily · 9am CT</div>
+    <p>Automated daily charts and a live 48-hour load forecast at the intersection of meteorology and energy markets. Powered by a LightGBM model trained on 3 years of ERCOT demand and ASOS weather observations, with forecasts driven by NOAA HRRR NWP output.</p>
+    <div class="update-badge">Charts daily · Forecast 4× daily</div>
   </div>
 
   <div class="chart-grid">
@@ -191,10 +191,10 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>ERCOT Load vs. Temperature</h2>
-        <p>Hourly ERCOT system demand plotted against a population-weighted average temperature across Texas, colored by hour of day. The characteristic U-shaped curve reflects heating and cooling demand on either side of the thermal neutral point (~65°F).</p>
+        <p>Three years of hourly ERCOT system demand plotted against population-weighted temperature across nine Texas cities, colored by hour of day. The characteristic U-shape reflects heating demand below ~55°F and cooling demand above ~70°F, with the afternoon peak hours showing the steepest slope.</p>
         <div class="chart-meta">
           <span class="meta-tag accent">Daily</span>
-          <span class="meta-tag">365 Days</span>
+          <span class="meta-tag">3 Years</span>
           <span class="meta-tag">ERCOT</span>
           <span class="meta-tag">Energy Meteorology</span>
         </div>
@@ -210,26 +210,95 @@
       </div>
     </div>
 
-    <!-- ERCOT HOURLY CURVES -->
+    <!-- DIURNAL LOAD CYCLE -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Load–Temperature Curves by Hour</h2>
-        <p>A cubic polynomial fitted independently to each of the 24 hours of the day, revealing how the load-temperature relationship evolves from the flat, low overnight hours through the steep afternoon peak. The spread between curves at any given temperature reflects diurnal demand variability independent of weather.</p>
+        <h2>Diurnal Load Cycle by Day of Week</h2>
+        <p>Average ERCOT system load for each hour of the day broken out by day of week, computed over 3 years of observations. The shaded band shows ±1 standard deviation. The pronounced gap between weekday and weekend profiles — and the different shape of the morning ramp — is one of the key signals the LightGBM model exploits.</p>
         <div class="chart-meta">
           <span class="meta-tag accent">Daily</span>
-          <span class="meta-tag">365 Days</span>
-          <span class="meta-tag">Cubic Fit</span>
+          <span class="meta-tag">3 Years</span>
           <span class="meta-tag">ERCOT</span>
         </div>
       </div>
       <div class="chart-img-wrap">
+        <img src="assets/ercot_diurnal.png"
+             alt="ERCOT average diurnal load cycle by day of week"
+             loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">EIA Open Data (ERCOT demand)</span>
+        <span class="chart-updated" id="last-updated-diurnal">—</span>
+      </div>
+    </div>
+
+    <!-- LIGHTGBM ACTUAL VS PREDICTED -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>LightGBM: Actual vs Predicted Load</h2>
+        <p>Out-of-sample performance of the LightGBM load model on a held-out 90-day test set, with 5-fold time-series cross-validation used during training. Each point is one hour of actual ERCOT demand vs the model's prediction, coloured by hour of day. The model uses 9 features: hour of day, day of week, month, temperature, dewpoint, wind speed, cloud cover, a load growth trend, and a weekend flag.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">Daily</span>
+          <span class="meta-tag">3 Years Training</span>
+          <span class="meta-tag">90-Day Test Set</span>
+          <span class="meta-tag">5-Fold CV</span>
+          <span class="meta-tag">LightGBM</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap">
         <img src="assets/ercot_curves.png"
-             alt="ERCOT load-temperature cubic polynomial curves by hour of day"
+             alt="LightGBM actual vs predicted ERCOT load on test set"
              loading="lazy">
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">EIA Open Data · Iowa State Mesonet (ASOS)</span>
         <span class="chart-updated" id="last-updated-2">—</span>
+      </div>
+    </div>
+
+    <!-- FEATURE IMPORTANCE -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>LightGBM Feature Importances</h2>
+        <p>Relative importance of each of the 9 input features to the load model, measured by LightGBM's split gain metric. Weather variables — temperature, dewpoint, wind speed, and cloud cover — are fed in separately so the model can learn their interactions directly. The days-since-start trend variable captures multi-year load growth driven by economic and population expansion in Texas.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">Daily</span>
+          <span class="meta-tag">9 Features</span>
+          <span class="meta-tag">LightGBM</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap" style="background:#0f0f0d; padding: 1rem 0;">
+        <img src="assets/ercot_feature_importance.png"
+             alt="LightGBM feature importances for ERCOT load model"
+             loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">EIA Open Data · Iowa State Mesonet (ASOS)</span>
+        <span class="chart-updated" id="last-updated-fi">—</span>
+      </div>
+    </div>
+
+    <!-- ERCOT LOAD FORECAST -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>48-Hour ERCOT Load Forecast</h2>
+        <p>A LightGBM-powered load forecast updated after each 00Z, 06Z, 12Z, and 18Z HRRR model run. For each forecast hour, HRRR 2m temperature, 2m dewpoint, 10m wind speed, and total cloud cover are extracted at nine Texas cities, population-weighted, and fed directly into the trained model. Line colour reflects hour of day.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">4× Daily</span>
+          <span class="meta-tag">48 Hours</span>
+          <span class="meta-tag">HRRR</span>
+          <span class="meta-tag">LightGBM</span>
+          <span class="meta-tag">ERCOT</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap">
+        <img src="assets/ercot_forecast.png"
+             alt="ERCOT 48-hour load forecast from HRRR"
+             loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA HRRR · LightGBM load model · EIA Open Data</span>
+        <span class="chart-updated" id="last-updated-3">—</span>
       </div>
     </div>
 
@@ -246,6 +315,9 @@
   const fmt = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   document.getElementById("last-updated").textContent  = "Updated " + fmt;
   document.getElementById("last-updated-2").textContent = "Updated " + fmt;
+  document.getElementById("last-updated-3").textContent = "Updated " + fmt;
+  document.getElementById("last-updated-diurnal").textContent = "Updated " + fmt;
+  document.getElementById("last-updated-fi").textContent = "Updated " + fmt;
 
   // Visitor counter
   fetch('https://api.counterapi.dev/v1/scorvec/visits/up')
