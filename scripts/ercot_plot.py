@@ -9,6 +9,7 @@ Outputs: assets/ercot_load_temp.png
 """
 
 import os
+import time
 import requests
 import numpy as np
 import pandas as pd
@@ -124,6 +125,7 @@ def weighted_temperature(stations, start, end):
             total_weight += weight
         except Exception as e:
             print(f"  WARNING: could not fetch {station}: {e}")
+        time.sleep(3)   # be polite to Iowa State's servers
 
     # Normalise in case any stations failed
     weighted_temp = weighted_sum / total_weight
