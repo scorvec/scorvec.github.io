@@ -193,6 +193,99 @@ def make_plot(df):
     print(f"Plot saved → {OUT_PATH}")
 
 
+# ── 4. POLYNOMIAL CURVE PLOT ─────────────────────────────────────────────
+def make_curve_plot(df):
+    """
+    For each hour of day, fit a degree-3 polynomial to load vs temp,
+    then plot each fitted curve colored by hour. Scatter is faint in background.
+    """
+    df = df.copy()
+    df["hour"] = (df.index.hour - 6) % 24
+
+    # Filter outliers
+    df = df[(df["load_gw"] > 20) & (df["load_gw"] < 90)]
+    df = df[(df["temp_f"]  >  0) & (df["temp_f"]  < 115)]
+
+    BG, PANEL, LIGHT, MUTED = "#0f0f0d", "#181816", "#e8e6e0", "#5a5855"
+
+    fig, ax = plt.subplots(figsize=(11, 7))
+    fig.patch.set_facecolor(BG)
+    ax.set_facecolor(PANEL)
+
+    cmap = cm.twilight_shifted
+    norm = mcolors.Normalize(vmin=0, vmax=23)
+
+    # Faint scatter background
+    ax.scatter(
+        df["temp_f"], df["load_gw"],
+        c=df["hour"], cmap=cmap, norm=norm,
+        s=2, alpha=0.12, linewidths=0, rasterized=True,
+    )
+
+    # Temperature range for smooth curve evaluation
+    t_min = df["temp_f"].quantile(0.01)
+    t_max = df["temp_f"].quantile(0.99)
+    t_range = np.linspace(t_min, t_max, 300)
+
+    # Fit and plot a degree-3 polynomial for each hour
+    for hour in range(24):
+        subset = df[df["hour"] == hour]
+        if len(subset) < 30:
+            continue
+
+        # Only plot over the temperature range observed for this hour
+        h_tmin = subset["temp_f"].quantile(0.05)
+        h_tmax = subset["temp_f"].quantile(0.95)
+        t_plot  = np.linspace(h_tmin, h_tmax, 200)
+
+        try:
+            coeffs = np.polyfit(subset["temp_f"], subset["load_gw"], deg=3)
+            poly   = np.poly1d(coeffs)
+            y_plot = poly(t_plot)
+
+            # Clip obviously bad extrapolations
+            y_plot = np.clip(y_plot, 20, 90)
+
+            color = cmap(norm(hour))
+            ax.plot(t_plot, y_plot, color=color, linewidth=1.5, alpha=0.85)
+        except Exception:
+            continue
+
+    # Colorbar
+    sm   = cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=ax, pad=0.02, fraction=0.03)
+    cbar.set_label("Hour of Day (CT)", color=LIGHT, fontsize=9, labelpad=10)
+    cbar.set_ticks([0, 6, 12, 18, 23])
+    cbar.set_ticklabels(["Midnight", "6 AM", "Noon", "6 PM", "11 PM"])
+    cbar.ax.yaxis.set_tick_params(color=MUTED)
+    plt.setp(cbar.ax.yaxis.get_ticklabels(), color=MUTED, fontsize=8)
+    cbar.outline.set_edgecolor(MUTED)
+
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#2a2a28")
+    ax.tick_params(colors=MUTED, labelsize=9)
+    ax.set_xlabel("Population-Weighted Temperature (°F)", color=LIGHT, fontsize=10, labelpad=8)
+    ax.set_ylabel("ERCOT System Load (GW)",               color=LIGHT, fontsize=10, labelpad=8)
+    ax.grid(color="#2a2a28", linewidth=0.5, linestyle="--", alpha=0.7)
+
+    date_str = datetime.now(timezone.utc).strftime("Updated %B %d, %Y")
+    ax.set_title(
+        "ERCOT Load–Temperature Curves by Hour  ·  Last 365 Days",
+        color=LIGHT, fontsize=13, fontweight="normal", loc="left", pad=14,
+    )
+    ax.text(0.99, 1.012, date_str,
+            transform=ax.transAxes, ha="right", va="bottom", color=MUTED, fontsize=8)
+    ax.text(0.99, -0.09,
+            "Cubic polynomial fit per hour of day  ·  EIA Open Data · Iowa State Mesonet",
+            transform=ax.transAxes, ha="right", va="top", color=MUTED, fontsize=7.5)
+
+    out_path = "assets/ercot_curves.png"
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight", facecolor=BG)
+    plt.close(fig)
+    print(f"Plot saved → {out_path}")
+
+
 # ── MAIN ─────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     if not EIA_KEY:
@@ -206,4 +299,5 @@ if __name__ == "__main__":
 
     print(f"\nMerged dataset: {len(df)} hourly points.")
     make_plot(df)
+    make_curve_plot(df)
     print("Done.")
