@@ -210,6 +210,29 @@
       </div>
     </div>
 
+    <!-- ERCOT HOURLY CURVES -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Load–Temperature Curves by Hour</h2>
+        <p>A cubic polynomial fitted independently to each of the 24 hours of the day, revealing how the load-temperature relationship evolves from the flat, low overnight hours through the steep afternoon peak. The spread between curves at any given temperature reflects diurnal demand variability independent of weather.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">Daily</span>
+          <span class="meta-tag">365 Days</span>
+          <span class="meta-tag">Cubic Fit</span>
+          <span class="meta-tag">ERCOT</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap">
+        <img src="assets/ercot_curves.png"
+             alt="ERCOT load-temperature cubic polynomial curves by hour of day"
+             loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">EIA Open Data · Iowa State Mesonet (ASOS)</span>
+        <span class="chart-updated" id="last-updated-2">—</span>
+      </div>
+    </div>
+
   </div>
 </main>
 
@@ -221,7 +244,8 @@
   // Show today's date as the last updated timestamp
   const d = new Date();
   const fmt = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  document.getElementById("last-updated").textContent = "Updated " + fmt;
+  document.getElementById("last-updated").textContent  = "Updated " + fmt;
+  document.getElementById("last-updated-2").textContent = "Updated " + fmt;
 
   // Visitor counter
   fetch('https://api.counterapi.dev/v1/scorvec/visits/up')
