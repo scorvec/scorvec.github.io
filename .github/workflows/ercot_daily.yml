@@ -1,12 +1,12 @@
-name: Daily ERCOT Plot
+name: Daily ERCOT Model + Charts
 
 on:
   schedule:
     - cron: '0 15 * * *'   # 9am CT (UTC-6) every day
-  workflow_dispatch:        # allows manual trigger from GitHub UI
+  workflow_dispatch:        # manual trigger
 
 jobs:
-  generate-plot:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,13 +21,19 @@ jobs:
       - name: Install dependencies
         run: pip install -r scripts/requirements.txt
 
-      - name: Generate ERCOT plot
+      - name: Train model and generate charts
         env:
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
         run: python scripts/ercot_plot.py
 
-      - name: Commit and push plot
+      - name: Commit outputs
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: update ERCOT load vs temperature plot [skip ci]"
-          file_pattern: assets/ercot_load_temp.png assets/ercot_curves.png
+          commit_message: "chore: retrain model and update charts [skip ci]"
+          file_pattern: >
+            assets/ercot_load_temp.png
+            assets/ercot_diurnal.png
+            assets/ercot_curves.png
+            assets/ercot_feature_importance.png
+            assets/lgbm_model.pkl
+            assets/model_meta.json
