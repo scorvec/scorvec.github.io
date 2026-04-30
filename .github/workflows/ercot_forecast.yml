@@ -23,6 +23,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libeccodes-dev libeccodes-tools
 
+      - name: Verify eccodes linkage
+        run: |
+          python -c "import eccodes; print('eccodes ok:', eccodes.__version__)"
+          python -c "import cfgrib; print('cfgrib ok:', cfgrib.__version__)"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
