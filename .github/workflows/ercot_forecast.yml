@@ -25,8 +25,9 @@ jobs:
 
       - name: Verify eccodes linkage
         run: |
-          python -c "import eccodes; print('eccodes ok:', eccodes.__version__)"
           python -c "import cfgrib; print('cfgrib ok:', cfgrib.__version__)"
+        env:
+          ECCODES_DEFINITION_PATH: /usr/share/eccodes/definitions
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -38,6 +39,8 @@ jobs:
 
       - name: Run forecast
         run: python scripts/ercot_forecast.py
+        env:
+          ECCODES_DEFINITION_PATH: /usr/share/eccodes/definitions
 
       - name: Commit forecast chart
         uses: stefanzweifel/git-auto-commit-action@v5
