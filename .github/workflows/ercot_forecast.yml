@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so rebase works cleanly
 
       - name: Install eccodes (required by Herbie / cfgrib)
         run: sudo apt-get install -y libeccodes-dev eccodes
@@ -34,4 +36,5 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update ERCOT load forecast [skip ci]"
+          push_options: '--force-with-lease'
           file_pattern: assets/ercot_forecast.png
