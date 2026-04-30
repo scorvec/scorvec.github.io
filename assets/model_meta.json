@@ -1,6 +1,6 @@
 {
-  "training_start": "2023-04-30",
-  "training_end": "2026-04-29",
+  "training_start": "2023-05-01",
+  "training_end": "2026-04-30",
   "features": [
     "hour_ct",
     "dow",
@@ -12,18 +12,18 @@
     "days_since_start",
     "is_weekend"
   ],
-  "train_r2": 0.984,
-  "test_r2": 0.8303,
+  "train_r2": 0.962,
+  "test_r2": 0.7982,
   "cv_r2_folds": [
-    -0.1431,
-    0.7749,
-    0.8703,
-    0.874,
-    0.8015
+    -0.1846,
+    0.7914,
+    0.8727,
+    0.8739,
+    0.7307
   ],
-  "cv_r2_mean": 0.6355,
-  "cv_r2_std": 0.3912,
-  "n_train": 24096,
+  "cv_r2_mean": 0.6168,
+  "cv_r2_std": 0.4043,
+  "n_train": 24103,
   "n_test": 2160,
-  "best_iteration": 157
+  "best_iteration": 56
 }
