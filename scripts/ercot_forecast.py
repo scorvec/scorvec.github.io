@@ -1,24 +1,25 @@
 """
-ERCOT 48-Hour Load Forecast — LightGBM
-----------------------------------------
-Loads trained LightGBM model, downloads HRRR F00–F48:
-  - 2 m temperature + dewpoint   (TMP, DPT)
-  - 10 m wind components         (UGRD, VGRD) → wind speed in mph
-  - Total cloud cover, entire atmosphere (TCDC)
-Builds feature vector and runs inference for each forecast hour.
+ERCOT 48-Hour Load Forecast — LightGBM + Open-Meteo
+-----------------------------------------------------
+Uses Open-Meteo API (free, no key, HRRR-based) to fetch point forecasts
+at nine Texas stations, then runs the trained LightGBM model.
 
-Reads:  assets/lgbm_model.pkl     (written by ercot_plot.py)
-        assets/model_meta.json    (training metadata)
+Replaces Herbie/cfgrib/GRIB approach — no native library dependencies,
+no memory issues, much faster.
+
+Reads:  assets/lgbm_model.pkl
+        assets/model_meta.json
 Writes: assets/ercot_forecast.png
 
 Usage:
   python scripts/ercot_forecast.py
-  python scripts/ercot_forecast.py --run 12
+  python scripts/ercot_forecast.py --run 12   # ignored, kept for CLI compat
 """
 
 import os
 import json
 import argparse
+import requests
 import joblib
 import numpy as np
 import pandas as pd
@@ -29,7 +30,6 @@ import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 import matplotlib.dates as mdates
 from datetime import datetime, timedelta, timezone
-from herbie import Herbie
 
 # ── CONFIG ───────────────────────────────────────────────────────────────
 STATIONS = {
@@ -44,114 +44,95 @@ STATIONS = {
     "KBRO": {"lat": 25.906, "lon": -97.432, "weight": 0.05},
 }
 
+# Open-Meteo variables → our column names
+OM_VARIABLES = "temperature_2m,dewpoint_2m,windspeed_10m,cloudcover"
+
 MODEL_PATH = "assets/lgbm_model.pkl"
 META_PATH  = "assets/model_meta.json"
 OUT_PATH   = "assets/ercot_forecast.png"
 BG, PANEL, LIGHT, MUTED = "#0f0f0d", "#181816", "#e8e6e0", "#5a5855"
 
 
-# ── 1. HRRR RUN DETECTION ────────────────────────────────────────────────
-def get_hrrr_run(force_run_hour=None):
-    now = datetime.now(timezone.utc)
-    if force_run_hour is not None:
-        run_dt = now.replace(hour=force_run_hour, minute=0, second=0, microsecond=0)
-        if run_dt > now:
-            run_dt -= timedelta(days=1)
-        return run_dt
-    for run_hour in [18, 12, 6, 0]:
-        run_dt = now.replace(hour=run_hour, minute=0, second=0, microsecond=0)
-        if (now - run_dt).total_seconds() >= 90 * 60:
-            return run_dt
-    yesterday = now - timedelta(days=1)
-    return yesterday.replace(hour=18, minute=0, second=0, microsecond=0)
+# ── 1. FETCH OPEN-METEO FORECASTS ─────────────────────────────────────────
+def fetch_open_meteo(station_name, lat, lon):
+    """
+    Fetch 48-hour HRRR-based hourly forecast from Open-Meteo.
+    Returns DataFrame indexed by UTC time with columns:
+      temp_f, dwpt_f, wind_mph, cloud_pct
+    """
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude":          lat,
+        "longitude":         lon,
+        "hourly":            OM_VARIABLES,
+        "temperature_unit":  "fahrenheit",
+        "windspeed_unit":    "mph",
+        "forecast_days":     3,          # covers 48+ hours
+        "models":            "hrrr_conus",
+        "timezone":          "UTC",
+    }
+    r = requests.get(url, params=params, timeout=30)
+    r.raise_for_status()
+    data = r.json()["hourly"]
 
+    df = pd.DataFrame({
+        "time":      pd.to_datetime(data["time"], utc=True),
+        "temp_f":    data["temperature_2m"],
+        "dwpt_f":    data["dewpoint_2m"],
+        "wind_mph":  data["windspeed_10m"],
+        "cloud_pct": data["cloudcover"],
+    }).set_index("time")
 
-# ── 2. HRRR DOWNLOAD ─────────────────────────────────────────────────────
-def _nearest_value(ds, lat, lon, var=None):
-    """Return the nearest-grid-point scalar; auto-selects the first data var if var is None."""
-    lats = ds.latitude.values
-    lons  = ds.longitude.values
-    dist = np.sqrt((lats - lat)**2 + (lons - lon)**2)
-    idx  = np.unravel_index(dist.argmin(), dist.shape)
-    if var is None:
-        var = list(ds.data_vars)[0]
-    return float(ds[var].values[idx])
-
-
-def extract_at_point(ds, lat, lon, var):
-    """Extract a field stored in Kelvin and return degrees Fahrenheit."""
-    return (_nearest_value(ds, lat, lon, var) - 273.15) * 9/5 + 32
-
-
-def fetch_hrrr(run_dt):
-    print(f"Downloading HRRR {run_dt.strftime('%Y-%m-%d %H')}Z  F00–F48...")
-    records = []
-    for fxx in range(49):
-        valid_time = run_dt + timedelta(hours=fxx)
-        row = {"valid_time": valid_time, "fxx": fxx}
-        try:
-            H     = Herbie(run_dt.replace(tzinfo=None), model="hrrr", fxx=fxx, verbose=False)
-            ds_t  = H.xarray("TMP:2 m above ground")
-            ds_d  = H.xarray("DPT:2 m above ground")
-            ds_u  = H.xarray("UGRD:10 m above ground")
-            ds_v  = H.xarray("VGRD:10 m above ground")
-            ds_tc = H.xarray("TCDC:entire atmosphere")
-            for name, info in STATIONS.items():
-                t_f  = extract_at_point(ds_t, info["lat"], info["lon"], "t2m")
-                d_f  = extract_at_point(ds_d, info["lat"], info["lon"], "d2m")
-                u_ms = _nearest_value(ds_u,  info["lat"], info["lon"], "u10")
-                v_ms = _nearest_value(ds_v,  info["lat"], info["lon"], "v10")
-                tcdc = _nearest_value(ds_tc, info["lat"], info["lon"])
-                row[f"{name}_t"]    = t_f
-                row[f"{name}_d"]    = d_f
-                row[f"{name}_wspd"] = np.sqrt(u_ms**2 + v_ms**2) * 2.23694  # m/s → mph
-                row[f"{name}_tcdc"] = tcdc
-            print(f"  F{fxx:02d} ✓")
-        except Exception as e:
-            print(f"  F{fxx:02d} ✗  {e}")
-            for name in STATIONS:
-                row[f"{name}_t"]    = np.nan
-                row[f"{name}_d"]    = np.nan
-                row[f"{name}_wspd"] = np.nan
-                row[f"{name}_tcdc"] = np.nan
-        records.append(row)
-
-    df = pd.DataFrame(records).set_index("valid_time")
-    df.index = pd.DatetimeIndex(df.index, tz="UTC")
     return df
 
 
-# ── 3. FEATURE BUILDER ────────────────────────────────────────────────────
-def build_forecast_features(hrrr_df, training_start, features):
-    """Build the same feature vector used during training."""
-    total_w = sum(v["weight"] for v in STATIONS.values())
-    wt     = sum(hrrr_df[f"{n}_t"]    * i["weight"] for n, i in STATIONS.items()) / total_w
-    wd     = sum(hrrr_df[f"{n}_d"]    * i["weight"] for n, i in STATIONS.items()) / total_w
-    wspd   = sum(hrrr_df[f"{n}_wspd"] * i["weight"] for n, i in STATIONS.items()) / total_w
-    wcloud = sum(hrrr_df[f"{n}_tcdc"] * i["weight"] for n, i in STATIONS.items()) / total_w
+def fetch_all_stations():
+    """
+    Fetch forecasts for all stations and return population-weighted means.
+    """
+    print("Fetching Open-Meteo HRRR forecasts...")
+    weighted = None
+    total_w  = 0.0
 
+    for name, info in STATIONS.items():
+        try:
+            df  = fetch_open_meteo(name, info["lat"], info["lon"])
+            w   = info["weight"]
+            wdf = df * w
+            weighted = wdf if weighted is None else weighted.add(wdf, fill_value=0)
+            total_w += w
+            print(f"  {name}: OK ({len(df)} hours)")
+        except Exception as e:
+            print(f"  {name}: SKIPPED — {e}")
+
+    result = weighted / total_w
+    print(f"  Done — {len(result)} weighted hourly values.")
+    return result
+
+
+# ── 2. BUILD FEATURES ─────────────────────────────────────────────────────
+def build_features(obs_df, training_start, features):
     origin = pd.Timestamp(training_start, tz="UTC")
-    df = pd.DataFrame(index=hrrr_df.index)
+    df = pd.DataFrame(index=obs_df.index)
     df["hour_ct"]          = (df.index.hour - 5) % 24
     df["dow"]              = df.index.dayofweek
     df["month"]            = df.index.month
-    df["temp_f"]           = wt
-    df["dwpt_f"]           = wd
-    df["wind_mph"]         = wspd
-    df["cloud_pct"]        = wcloud
+    df["temp_f"]           = obs_df["temp_f"]
+    df["dwpt_f"]           = obs_df["dwpt_f"]
+    df["wind_mph"]         = obs_df["wind_mph"]
+    df["cloud_pct"]        = obs_df["cloud_pct"]
     df["days_since_start"] = (df.index - origin).days
     df["is_weekend"]       = (df["dow"] >= 5).astype(int)
-
     return df[features]
 
 
-# ── 4. PLOT ───────────────────────────────────────────────────────────────
+# ── 3. PLOT ───────────────────────────────────────────────────────────────
 def make_forecast_plot(load_fcst, run_dt, meta):
     fig, ax = plt.subplots(figsize=(13, 6))
     fig.patch.set_facecolor(BG); ax.set_facecolor(PANEL)
 
-    cmap = cm.twilight_shifted
-    norm = mcolors.Normalize(vmin=0, vmax=23)
+    cmap     = cm.twilight_shifted
+    norm     = mcolors.Normalize(vmin=0, vmax=23)
     ct_hours = (load_fcst.index.hour - 5) % 24
     times    = load_fcst.index
     values   = load_fcst.values
@@ -165,13 +146,15 @@ def make_forecast_plot(load_fcst, run_dt, meta):
 
     now = datetime.now(timezone.utc)
     ax.axvline(now, color=LIGHT, linewidth=0.8, linestyle=":", alpha=0.5)
+    ax.text(now, ax.get_ylim()[1] if ax.get_ylim()[1] != 1.0 else 75,
+            "  Now", color=LIGHT, fontsize=7.5, va="top", alpha=0.55)
 
-    day_start = times[0].normalize()
-    for d in range(3):
+    day_start = pd.Timestamp(times[0].date(), tz="UTC")
+    for d in range(4):
         ds = day_start + pd.Timedelta(days=d)
         de = ds + pd.Timedelta(days=1)
         if d % 2 == 0:
-            ax.axvspan(ds, de, color="#1a1a18", alpha=0.4, zorder=0)
+            ax.axvspan(ds, de, color="#1a1a18", alpha=0.35, zorder=0)
 
     sm   = cm.ScalarMappable(cmap=cmap, norm=norm)
     cbar = fig.colorbar(sm, ax=ax, pad=0.01, fraction=0.025)
@@ -192,19 +175,19 @@ def make_forecast_plot(load_fcst, run_dt, meta):
 
     valid = values[~np.isnan(values)]
     if len(valid):
-        ax.set_ylim(max(20, valid.min()-3), min(90, valid.max()+3))
+        ax.set_ylim(max(20, valid.min() - 3), min(90, valid.max() + 3))
 
-    run_str = run_dt.strftime("%Y-%m-%d %H")
-    test_r2 = meta.get("test_r2", "—")
+    run_str  = run_dt.strftime("%Y-%m-%d %H")
+    test_r2  = meta.get("test_r2", "—")
     ax.set_title(
-        f"ERCOT 48-Hour Load Forecast  ·  HRRR {run_str}Z  ·  "
+        f"ERCOT 48-Hour Load Forecast  ·  HRRR via Open-Meteo  ·  "
         f"Model Test R² = {test_r2}",
         color=LIGHT, fontsize=12, fontweight="normal", loc="left", pad=14)
     ax.text(0.99, 1.012,
             datetime.now(timezone.utc).strftime("Generated %B %d, %Y %H:%MZ"),
             transform=ax.transAxes, ha="right", va="bottom", color=MUTED, fontsize=8)
     ax.text(0.99, -0.12,
-            "LightGBM · HRRR 2m temp + dewpoint · 10m wind speed · total cloud cover",
+            "LightGBM · Open-Meteo HRRR · 2m temp + dewpoint · 10m wind · cloud cover",
             transform=ax.transAxes, ha="right", va="top", color=MUTED, fontsize=7.5)
 
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
@@ -218,7 +201,7 @@ def make_forecast_plot(load_fcst, run_dt, meta):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--run", type=int, default=None,
-                        help="Force HRRR run hour (0, 6, 12, or 18)")
+                        help="HRRR run hour (ignored — Open-Meteo always serves latest)")
     args = parser.parse_args()
 
     if not os.path.exists(MODEL_PATH):
@@ -226,21 +209,25 @@ if __name__ == "__main__":
     model = joblib.load(MODEL_PATH)
     with open(META_PATH) as f:
         meta = json.load(f)
-
     print(f"Model loaded — Test R² = {meta['test_r2']}  "
           f"(trained on {meta['n_train']:,} hours)")
 
-    run_dt  = get_hrrr_run(force_run_hour=args.run)
-    hrrr_df = fetch_hrrr(run_dt)
+    # Fetch forecasts
+    obs_df = fetch_all_stations()
 
-    X_fcst = build_forecast_features(hrrr_df, meta["training_start"], meta["features"])
+    # Trim to 48 hours from now
+    now    = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    end_dt = now + timedelta(hours=48)
+    obs_df = obs_df[(obs_df.index >= now) & (obs_df.index <= end_dt)]
 
-    load_pred = np.clip(model.predict(X_fcst), 20, 90)
-    load_fcst = pd.Series(load_pred, index=hrrr_df.index, name="load_gw_fcst")
+    # Build features and run model
+    X = build_features(obs_df, meta["training_start"], meta["features"])
+    load_pred = np.clip(model.predict(X), 20, 90)
+    load_fcst = pd.Series(load_pred, index=obs_df.index, name="load_gw_fcst")
 
     valid = load_fcst.dropna()
-    print(f"Forecast range: {valid.min():.1f} – {valid.max():.1f} GW  "
-          f"({len(valid)} hours)")
+    print(f"Forecast: {valid.min():.1f} – {valid.max():.1f} GW  ({len(valid)} hours)")
 
+    run_dt = now
     make_forecast_plot(load_fcst, run_dt, meta)
     print("Done.")
