@@ -19,7 +19,9 @@ jobs:
           fetch-depth: 0   # full history so rebase works cleanly
 
       - name: Install eccodes (required by Herbie / cfgrib)
-        run: sudo apt-get install -y libeccodes-dev eccodes
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libeccodes-dev libeccodes-tools
 
       - name: Set up Python
         uses: actions/setup-python@v5
