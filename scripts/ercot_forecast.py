@@ -44,8 +44,8 @@ STATIONS = {
     "KBRO": {"lat": 25.906, "lon": -97.432, "weight": 0.05},
 }
 
-# Open-Meteo variables (updated names as of 2024 API)
-OM_VARIABLES = "temperature_2m,dewpoint_2m,wind_speed_10m,cloud_cover"
+# Open-Meteo variables (correct names per docs)
+OM_VARIABLES = "temperature_2m,dew_point_2m,wind_speed_10m,cloud_cover"
 
 MODEL_PATH = "assets/lgbm_model.pkl"
 META_PATH  = "assets/model_meta.json"
@@ -56,20 +56,20 @@ BG, PANEL, LIGHT, MUTED = "#0f0f0d", "#181816", "#e8e6e0", "#5a5855"
 # ── 1. FETCH OPEN-METEO FORECASTS ─────────────────────────────────────────
 def fetch_open_meteo(station_name, lat, lon):
     """
-    Fetch 48-hour HRRR-based hourly forecast from Open-Meteo.
+    Fetch HRRR-driven point forecast from Open-Meteo's /v1/gfs endpoint,
+    which automatically uses HRRR (3 km, hourly updates) for US locations.
     Returns DataFrame indexed by UTC time with columns:
       temp_f, dwpt_f, wind_mph, cloud_pct
     """
-    url = "https://api.open-meteo.com/v1/forecast"
+    url = "https://api.open-meteo.com/v1/gfs"
     params = {
-        "latitude":          lat,
-        "longitude":         lon,
-        "hourly":            OM_VARIABLES,
-        "temperature_unit":  "fahrenheit",
-        "windspeed_unit":    "mph",
-        "forecast_days":     3,          # covers 48+ hours
-        "models":            "hrrr_conus",
-        "timezone":          "UTC",
+        "latitude":         lat,
+        "longitude":        lon,
+        "hourly":           OM_VARIABLES,
+        "temperature_unit": "fahrenheit",
+        "wind_speed_unit":  "mph",
+        "forecast_days":    2,
+        "timezone":         "UTC",
     }
     r = requests.get(url, params=params, timeout=30)
     r.raise_for_status()
@@ -78,7 +78,7 @@ def fetch_open_meteo(station_name, lat, lon):
     df = pd.DataFrame({
         "time":      pd.to_datetime(data["time"], utc=True),
         "temp_f":    data["temperature_2m"],
-        "dwpt_f":    data["dewpoint_2m"],
+        "dwpt_f":    data["dew_point_2m"],
         "wind_mph":  data["wind_speed_10m"],
         "cloud_pct": data["cloud_cover"],
     }).set_index("time")
@@ -133,11 +133,16 @@ def make_forecast_plot(load_fcst, run_dt, meta):
     fig, ax = plt.subplots(figsize=(13, 6))
     fig.patch.set_facecolor(BG); ax.set_facecolor(PANEL)
 
+    # Convert index to Central Time for display, then strip tz so matplotlib
+    # doesn't try to convert back to UTC
+    load_fcst_ct = load_fcst.copy()
+    load_fcst_ct.index = load_fcst_ct.index.tz_convert("America/Chicago").tz_localize(None)
+
     cmap     = cm.twilight_shifted
     norm     = mcolors.Normalize(vmin=0, vmax=23)
-    ct_hours = (load_fcst.index.hour - 5) % 24
-    times    = load_fcst.index
-    values   = load_fcst.values
+    ct_hours = load_fcst_ct.index.hour
+    times    = load_fcst_ct.index
+    values   = load_fcst_ct.values
 
     for i in range(len(times) - 1):
         if np.isnan(values[i]) or np.isnan(values[i+1]):
@@ -146,12 +151,14 @@ def make_forecast_plot(load_fcst, run_dt, meta):
                 color=cmap(norm(ct_hours[i])), linewidth=2.5,
                 solid_capstyle="round")
 
-    now = datetime.now(timezone.utc)
-    ax.axvline(now, color=LIGHT, linewidth=0.8, linestyle=":", alpha=0.5)
-    ax.text(now, ax.get_ylim()[1] if ax.get_ylim()[1] != 1.0 else 75,
+    # "Now" line in Central Time, also tz-naive
+    now_ct = pd.Timestamp.now(tz="America/Chicago").tz_localize(None)
+    ax.axvline(now_ct, color=LIGHT, linewidth=0.8, linestyle=":", alpha=0.5)
+    ax.text(now_ct, ax.get_ylim()[1] if ax.get_ylim()[1] != 1.0 else 75,
             "  Now", color=LIGHT, fontsize=7.5, va="top", alpha=0.55)
 
-    day_start = pd.Timestamp(times[0].date(), tz="UTC")
+    # Day shading also tz-naive
+    day_start = pd.Timestamp(times[0].date())
     for d in range(4):
         ds = day_start + pd.Timedelta(days=d)
         de = ds + pd.Timedelta(days=1)
@@ -169,24 +176,25 @@ def make_forecast_plot(load_fcst, run_dt, meta):
 
     for spine in ax.spines.values(): spine.set_edgecolor("#2a2a28")
     ax.tick_params(colors=MUTED, labelsize=9)
-    ax.set_xlabel("Date / Time (UTC)", color=LIGHT, fontsize=10, labelpad=8)
+    ax.set_xlabel("Date / Time (Central)", color=LIGHT, fontsize=10, labelpad=8)
     ax.set_ylabel("ERCOT Load Forecast (GW)", color=LIGHT, fontsize=10, labelpad=8)
     ax.grid(color="#2a2a28", linewidth=0.5, linestyle="--", alpha=0.7)
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%-m/%-d\n%HZ"))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%-m/%-d\n%-I %p"))
     ax.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 6, 12, 18]))
 
     valid = values[~np.isnan(values)]
     if len(valid):
         ax.set_ylim(max(20, valid.min() - 3), min(90, valid.max() + 3))
 
-    run_str  = run_dt.strftime("%Y-%m-%d %H")
-    test_r2  = meta.get("test_r2", "—")
+    run_dt_ct = run_dt.astimezone(pd.Timestamp.now("America/Chicago").tz)
+    run_str   = run_dt_ct.strftime("%Y-%m-%d %-I %p %Z")
+    test_r2   = meta.get("test_r2", "—")
     ax.set_title(
-        f"ERCOT 48-Hour Load Forecast  ·  HRRR via Open-Meteo  ·  "
+        f"ERCOT 48-Hour Load Forecast  ·  Generated {run_str}  ·  "
         f"Model Test R² = {test_r2}",
         color=LIGHT, fontsize=12, fontweight="normal", loc="left", pad=14)
     ax.text(0.99, 1.012,
-            datetime.now(timezone.utc).strftime("Generated %B %d, %Y %H:%MZ"),
+            pd.Timestamp.now("America/Chicago").strftime("Updated %B %d, %Y · %-I:%M %p %Z"),
             transform=ax.transAxes, ha="right", va="bottom", color=MUTED, fontsize=8)
     ax.text(0.99, -0.12,
             "LightGBM · Open-Meteo HRRR · 2m temp + dewpoint · 10m wind · cloud cover",
