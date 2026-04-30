@@ -6,7 +6,7 @@ on:
     - cron: '30 8  * * *'   # ~90 min after 06Z HRRR
     - cron: '30 14 * * *'   # ~90 min after 12Z HRRR
     - cron: '30 20 * * *'   # ~90 min after 18Z HRRR
-  workflow_dispatch:         # manual trigger
+  workflow_dispatch:
 
 jobs:
   forecast:
@@ -18,22 +18,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          channels: conda-forge,defaults
-          channel-priority: strict
-          auto-activate-base: true
 
-      - name: Install dependencies via conda + pip
-        shell: bash -el {0}
-        run: |
-          conda install -y -c conda-forge eccodes cfgrib xarray
-          pip install herbie-data==2024.8.0 pandas==2.2.2 matplotlib==3.8.4 lightgbm==4.3.0 joblib==1.4.0
+      - name: Install dependencies
+        run: pip install requests pandas numpy matplotlib lightgbm joblib
 
       - name: Run forecast
-        shell: bash -el {0}
         run: python scripts/ercot_forecast.py
 
       - name: Commit forecast chart
