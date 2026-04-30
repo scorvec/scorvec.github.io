@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so rebase works cleanly
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,6 +32,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: retrain model and update charts [skip ci]"
+          push_options: '--force-with-lease'
           file_pattern: >
             assets/ercot_load_temp.png
             assets/ercot_diurnal.png
