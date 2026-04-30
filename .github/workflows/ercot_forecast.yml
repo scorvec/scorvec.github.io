@@ -16,31 +16,25 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history so rebase works cleanly
+          fetch-depth: 0
 
-      - name: Install eccodes (required by Herbie / cfgrib)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libeccodes-dev libeccodes-tools
-
-      - name: Verify eccodes linkage
-        run: |
-          python -c "import cfgrib; print('cfgrib ok:', cfgrib.__version__)"
-        env:
-          ECCODES_DEFINITION_PATH: /usr/share/eccodes/definitions
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
         with:
           python-version: '3.11'
+          channels: conda-forge,defaults
+          channel-priority: strict
+          auto-activate-base: true
 
-      - name: Install dependencies
-        run: pip install -r scripts/forecast_requirements.txt
+      - name: Install dependencies via conda + pip
+        shell: bash -el {0}
+        run: |
+          conda install -y -c conda-forge eccodes cfgrib xarray
+          pip install herbie-data==2024.8.0 pandas==2.2.2 matplotlib==3.8.4 lightgbm==4.3.0 joblib==1.4.0
 
       - name: Run forecast
+        shell: bash -el {0}
         run: python scripts/ercot_forecast.py
-        env:
-          ECCODES_DEFINITION_PATH: /usr/share/eccodes/definitions
 
       - name: Commit forecast chart
         uses: stefanzweifel/git-auto-commit-action@v5
