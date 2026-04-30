@@ -44,8 +44,8 @@ STATIONS = {
     "KBRO": {"lat": 25.906, "lon": -97.432, "weight": 0.05},
 }
 
-# Open-Meteo variables → our column names
-OM_VARIABLES = "temperature_2m,dewpoint_2m,windspeed_10m,cloudcover"
+# Open-Meteo variables (updated names as of 2024 API)
+OM_VARIABLES = "temperature_2m,dewpoint_2m,wind_speed_10m,cloud_cover"
 
 MODEL_PATH = "assets/lgbm_model.pkl"
 META_PATH  = "assets/model_meta.json"
@@ -79,8 +79,8 @@ def fetch_open_meteo(station_name, lat, lon):
         "time":      pd.to_datetime(data["time"], utc=True),
         "temp_f":    data["temperature_2m"],
         "dwpt_f":    data["dewpoint_2m"],
-        "wind_mph":  data["windspeed_10m"],
-        "cloud_pct": data["cloudcover"],
+        "wind_mph":  data["wind_speed_10m"],
+        "cloud_pct": data["cloud_cover"],
     }).set_index("time")
 
     return df
@@ -105,6 +105,8 @@ def fetch_all_stations():
         except Exception as e:
             print(f"  {name}: SKIPPED — {e}")
 
+    if weighted is None:
+        raise SystemExit("ERROR: All stations failed — cannot build forecast.")
     result = weighted / total_w
     print(f"  Done — {len(result)} weighted hourly values.")
     return result
