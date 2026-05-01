@@ -24,14 +24,16 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests pandas==2.2.2 numpy==1.26.4 matplotlib==3.8.4 lightgbm==4.3.0 scikit-learn==1.4.2 joblib==1.4.0
+        run: pip install requests pandas==2.2.2 numpy==1.26.4 matplotlib==3.8.4 lightgbm==4.3.0 scikit-learn==1.4.2 joblib==1.4.0 plotly==5.22.0 gridstatus==0.30.0
 
       - name: Run forecast
         run: python scripts/ercot_forecast.py
 
-      - name: Commit forecast chart
+      - name: Commit forecast outputs
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update ERCOT load forecast [skip ci]"
           push_options: '--force-with-lease'
-          file_pattern: assets/ercot_forecast.png
+          file_pattern: >
+            assets/ercot_forecast.png
+            assets/ercot_forecast.html
