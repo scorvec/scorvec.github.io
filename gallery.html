@@ -75,8 +75,13 @@
   .gallery-item img {
     display: block;
     width: 100%;
+    height: auto;
     transition: transform 0.4s ease, filter 0.4s ease;
     filter: brightness(0.97);
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: high-quality;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
   }
   .gallery-item:hover img {
     transform: scale(1.02);
