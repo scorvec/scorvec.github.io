@@ -1,243 +1,330 @@
-"""
-ERCOT 48-Hour Load Forecast — LightGBM + Open-Meteo
------------------------------------------------------
-Uses Open-Meteo API (free, no key, HRRR-based) to fetch point forecasts
-at nine Texas stations, then runs the trained LightGBM model.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Charts · Shawn Corvec</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
 
-Replaces Herbie/cfgrib/GRIB approach — no native library dependencies,
-no memory issues, much faster.
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
 
-Reads:  assets/lgbm_model.pkl
-        assets/model_meta.json
-Writes: assets/ercot_forecast.png
+  /* PAGE */
+  main {
+    flex: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 7.5rem 2rem 5rem;
+    width: 100%;
+  }
 
-Usage:
-  python scripts/ercot_forecast.py
-  python scripts/ercot_forecast.py --run 12   # ignored, kept for CLI compat
-"""
+  /* HEADER */
+  .page-header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .page-header p {
+    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+    max-width: 580px;
+  }
+  .update-badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    margin-top: 1rem;
+    font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-light);
+    padding: 0.3rem 0.75rem; border-radius: 2px;
+  }
+  .update-badge::before {
+    content: '';
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
 
-import os
-import json
-import argparse
-import requests
-import joblib
-import numpy as np
-import pandas as pd
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import matplotlib.cm as cm
-import matplotlib.dates as mdates
-from datetime import datetime, timedelta, timezone
+  /* CHART GRID */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(560px, 1fr));
+    gap: 2.5rem;
+  }
 
-# ── CONFIG ───────────────────────────────────────────────────────────────
-STATIONS = {
-    "KIAH": {"lat": 29.984, "lon": -95.368, "weight": 0.28},
-    "KHOU": {"lat": 29.645, "lon": -95.279, "weight": 0.08},
-    "KDFW": {"lat": 32.897, "lon": -97.044, "weight": 0.22},
-    "KSAT": {"lat": 29.534, "lon": -98.470, "weight": 0.14},
-    "KAUS": {"lat": 30.194, "lon": -97.670, "weight": 0.12},
-    "KELP": {"lat": 31.807, "lon": -106.376,"weight": 0.05},
-    "KCRP": {"lat": 27.770, "lon": -97.511, "weight": 0.03},
-    "KAMA": {"lat": 35.219, "lon": -101.706,"weight": 0.03},
-    "KBRO": {"lat": 25.906, "lon": -97.432, "weight": 0.05},
-}
+  /* CHART CARD */
+  .chart-card {
+    border: 1px solid var(--rule);
+    background: #fff;
+    overflow: hidden;
+  }
+  .chart-card-header {
+    padding: 1.4rem 1.6rem 1rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.05rem;
+    margin-bottom: 0.3rem; color: var(--ink);
+  }
+  .chart-card-header p {
+    font-size: 0.78rem; color: var(--muted); line-height: 1.6;
+  }
+  .chart-meta {
+    display: flex; align-items: center; gap: 1rem;
+    margin-top: 0.75rem; flex-wrap: wrap;
+  }
+  .meta-tag {
+    font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--rule); color: var(--muted); border-radius: 2px;
+  }
+  .meta-tag.accent {
+    border-color: var(--accent-light); color: var(--accent);
+    background: var(--accent-light);
+  }
+  .chart-img-wrap {
+    padding: 0;
+    background: #0f0f0d;
+  }
+  .chart-img-wrap img {
+    display: block; width: 100%; height: auto;
+  }
+  .chart-card-footer {
+    padding: 0.85rem 1.6rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .chart-sources {
+    font-size: 0.68rem; color: var(--muted);
+  }
+  .chart-updated {
+    font-size: 0.68rem; color: var(--muted);
+    white-space: nowrap;
+  }
 
-# Open-Meteo variables (correct names per docs)
-OM_VARIABLES = "temperature_2m,dew_point_2m,wind_speed_10m,cloud_cover"
+  /* FOOTER */
+  footer {
+    padding: 1.2rem 3rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
 
-MODEL_PATH = "assets/lgbm_model.pkl"
-META_PATH  = "assets/model_meta.json"
-OUT_PATH   = "assets/ercot_forecast.png"
-BG, PANEL, LIGHT, MUTED = "#0f0f0d", "#181816", "#e8e6e0", "#5a5855"
+  @media (max-width: 640px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { gap: 1.2rem; }
+    main { padding: 6rem 1.5rem 3rem; }
+    .chart-grid { grid-template-columns: 1fr; }
+    footer { padding: 1rem 1.5rem; }
+  }
+</style>
+</head>
+<body>
 
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="resume.html">Resume</a></li>
+    <li><a href="research.html">Research</a></li>
+    <li><a href="charts.html" class="active">Charts</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+  </ul>
+</nav>
 
-# ── 1. FETCH OPEN-METEO FORECASTS ─────────────────────────────────────────
-def fetch_open_meteo(station_name, lat, lon):
-    """
-    Fetch HRRR-driven point forecast from Open-Meteo's /v1/gfs endpoint,
-    which automatically uses HRRR (3 km, hourly updates) for US locations.
-    Returns DataFrame indexed by UTC time with columns:
-      temp_f, dwpt_f, wind_mph, cloud_pct
-    """
-    url = "https://api.open-meteo.com/v1/gfs"
-    params = {
-        "latitude":         lat,
-        "longitude":        lon,
-        "hourly":           OM_VARIABLES,
-        "temperature_unit": "fahrenheit",
-        "wind_speed_unit":  "mph",
-        "forecast_days":    2,
-        "timezone":         "UTC",
-    }
-    r = requests.get(url, params=params, timeout=30)
-    r.raise_for_status()
-    data = r.json()["hourly"]
+<main>
+  <div class="page-header">
+    <h1>Charts &amp; Analysis</h1>
+    <p>Automated daily charts and a live 48-hour load forecast at the intersection of meteorology and energy markets. Powered by a LightGBM model trained on 3 years of ERCOT demand and ASOS weather observations, with forecasts driven by NOAA HRRR NWP output.</p>
+    <div class="update-badge">Charts daily · Forecast 4× daily</div>
+  </div>
 
-    df = pd.DataFrame({
-        "time":      pd.to_datetime(data["time"], utc=True),
-        "temp_f":    data["temperature_2m"],
-        "dwpt_f":    data["dew_point_2m"],
-        "wind_mph":  data["wind_speed_10m"],
-        "cloud_pct": data["cloud_cover"],
-    }).set_index("time")
+  <div class="chart-grid">
 
-    return df
+    <!-- ERCOT LOAD VS TEMP -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>ERCOT Load vs. Temperature</h2>
+        <p>Three years of hourly ERCOT system demand plotted against population-weighted temperature across nine Texas cities, colored by hour of day. The characteristic U-shape reflects heating demand below ~55°F and cooling demand above ~70°F, with the afternoon peak hours showing the steepest slope.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">Daily</span>
+          <span class="meta-tag">3 Years</span>
+          <span class="meta-tag">ERCOT</span>
+          <span class="meta-tag">Energy Meteorology</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap">
+        <img src="assets/ercot_load_temp.png"
+             alt="ERCOT hourly load vs population-weighted temperature, colored by hour of day"
+             loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">EIA Open Data · Iowa State Mesonet (ASOS)</span>
+        <span class="chart-updated" id="last-updated">—</span>
+      </div>
+    </div>
 
+    <!-- DIURNAL LOAD CYCLE -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Diurnal Load Cycle by Day of Week</h2>
+        <p>Average ERCOT system load for each hour of the day broken out by day of week, computed over 3 years of observations. The shaded band shows ±1 standard deviation. The pronounced gap between weekday and weekend profiles — and the different shape of the morning ramp — is one of the key signals the LightGBM model exploits.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">Daily</span>
+          <span class="meta-tag">3 Years</span>
+          <span class="meta-tag">ERCOT</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap">
+        <img src="assets/ercot_diurnal.png"
+             alt="ERCOT average diurnal load cycle by day of week"
+             loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">EIA Open Data (ERCOT demand)</span>
+        <span class="chart-updated" id="last-updated-diurnal">—</span>
+      </div>
+    </div>
 
-def fetch_all_stations():
-    """
-    Fetch forecasts for all stations and return population-weighted means.
-    """
-    print("Fetching Open-Meteo HRRR forecasts...")
-    weighted = None
-    total_w  = 0.0
+    <!-- LIGHTGBM ACTUAL VS PREDICTED -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>LightGBM: Actual vs Predicted Load</h2>
+        <p>Out-of-sample performance of the LightGBM load model on a held-out 90-day test set, with 5-fold time-series cross-validation used during training. Each point is one hour of actual ERCOT demand vs the model's prediction, coloured by hour of day. The model uses 9 features: hour of day, day of week, month, temperature, dewpoint, wind speed, cloud cover, a load growth trend, and a weekend flag.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">Daily</span>
+          <span class="meta-tag">3 Years Training</span>
+          <span class="meta-tag">90-Day Test Set</span>
+          <span class="meta-tag">5-Fold CV</span>
+          <span class="meta-tag">LightGBM</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap">
+        <img src="assets/ercot_curves.png"
+             alt="LightGBM actual vs predicted ERCOT load on test set"
+             loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">EIA Open Data · Iowa State Mesonet (ASOS)</span>
+        <span class="chart-updated" id="last-updated-2">—</span>
+      </div>
+    </div>
 
-    for name, info in STATIONS.items():
-        try:
-            df  = fetch_open_meteo(name, info["lat"], info["lon"])
-            w   = info["weight"]
-            wdf = df * w
-            weighted = wdf if weighted is None else weighted.add(wdf, fill_value=0)
-            total_w += w
-            print(f"  {name}: OK ({len(df)} hours)")
-        except Exception as e:
-            print(f"  {name}: SKIPPED — {e}")
+    <!-- FEATURE IMPORTANCE -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>LightGBM Feature Importances</h2>
+        <p>Relative importance of each of the 9 input features to the load model, measured by LightGBM's split gain metric. Weather variables — temperature, dewpoint, wind speed, and cloud cover — are fed in separately so the model can learn their interactions directly. The days-since-start trend variable captures multi-year load growth driven by economic and population expansion in Texas.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">Daily</span>
+          <span class="meta-tag">9 Features</span>
+          <span class="meta-tag">LightGBM</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap" style="background:#0f0f0d; padding: 1rem 0;">
+        <img src="assets/ercot_feature_importance.png"
+             alt="LightGBM feature importances for ERCOT load model"
+             loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">EIA Open Data · Iowa State Mesonet (ASOS)</span>
+        <span class="chart-updated" id="last-updated-fi">—</span>
+      </div>
+    </div>
 
-    if weighted is None:
-        raise SystemExit("ERROR: All stations failed — cannot build forecast.")
-    result = weighted / total_w
-    print(f"  Done — {len(result)} weighted hourly values.")
-    return result
+    <!-- ERCOT LOAD FORECAST -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>48-Hour ERCOT Load Forecast</h2>
+        <p>A LightGBM-powered load forecast updated after each 00Z, 06Z, 12Z, and 18Z HRRR model run, overlaid with the last 24 hours of 5-minute actuals pulled directly from ERCOT. For each forecast hour, HRRR 2m temperature, 2m dewpoint, 10m wind speed, and total cloud cover are extracted at nine Texas cities, population-weighted, and fed into the trained model. Hover over the chart to see exact values.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">4× Daily</span>
+          <span class="meta-tag">48 Hours</span>
+          <span class="meta-tag">HRRR</span>
+          <span class="meta-tag">LightGBM</span>
+          <span class="meta-tag">ERCOT</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap" style="background:#0f0f0d;">
+        <iframe src="assets/ercot_forecast.html"
+                style="width:100%; height:520px; border:0; display:block;"
+                title="ERCOT 48-hour load forecast (interactive)"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA HRRR · LightGBM load model · EIA Open Data · <a href="assets/ercot_forecast.png" target="_blank" style="color:var(--accent); text-decoration:none;">view static</a></span>
+        <span class="chart-updated" id="last-updated-3">—</span>
+      </div>
+    </div>
 
+  </div>
+</main>
 
-# ── 2. BUILD FEATURES ─────────────────────────────────────────────────────
-def build_features(obs_df, training_start, features):
-    origin = pd.Timestamp(training_start, tz="UTC")
-    df = pd.DataFrame(index=obs_df.index)
-    df["hour_ct"]          = (df.index.hour - 5) % 24
-    df["dow"]              = df.index.dayofweek
-    df["month"]            = df.index.month
-    df["temp_f"]           = obs_df["temp_f"]
-    df["dwpt_f"]           = obs_df["dwpt_f"]
-    df["wind_mph"]         = obs_df["wind_mph"]
-    df["cloud_pct"]        = obs_df["cloud_pct"]
-    df["days_since_start"] = (df.index - origin).days
-    df["is_weekend"]       = (df["dow"] >= 5).astype(int)
-    return df[features]
+<footer>
+  <p class="counter">Visitors: <span id="count">—</span></p>
+</footer>
 
+<script>
+  // Show today's date as the last updated timestamp
+  const d = new Date();
+  const fmt = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  document.getElementById("last-updated").textContent  = "Updated " + fmt;
+  document.getElementById("last-updated-2").textContent = "Updated " + fmt;
+  document.getElementById("last-updated-3").textContent = "Updated " + fmt;
+  document.getElementById("last-updated-diurnal").textContent = "Updated " + fmt;
+  document.getElementById("last-updated-fi").textContent = "Updated " + fmt;
 
-# ── 3. PLOT ───────────────────────────────────────────────────────────────
-def make_forecast_plot(load_fcst, run_dt, meta):
-    fig, ax = plt.subplots(figsize=(13, 6))
-    fig.patch.set_facecolor(BG); ax.set_facecolor(PANEL)
-
-    # Convert index to Central Time for display, then strip tz so matplotlib
-    # doesn't try to convert back to UTC
-    load_fcst_ct = load_fcst.copy()
-    load_fcst_ct.index = load_fcst_ct.index.tz_convert("America/Chicago").tz_localize(None)
-
-    cmap     = cm.twilight_shifted
-    norm     = mcolors.Normalize(vmin=0, vmax=23)
-    ct_hours = load_fcst_ct.index.hour
-    times    = load_fcst_ct.index
-    values   = load_fcst_ct.values
-
-    for i in range(len(times) - 1):
-        if np.isnan(values[i]) or np.isnan(values[i+1]):
-            continue
-        ax.plot([times[i], times[i+1]], [values[i], values[i+1]],
-                color=cmap(norm(ct_hours[i])), linewidth=2.5,
-                solid_capstyle="round")
-
-    # "Now" line in Central Time, also tz-naive
-    now_ct = pd.Timestamp.now(tz="America/Chicago").tz_localize(None)
-    ax.axvline(now_ct, color=LIGHT, linewidth=0.8, linestyle=":", alpha=0.5)
-    ax.text(now_ct, ax.get_ylim()[1] if ax.get_ylim()[1] != 1.0 else 75,
-            "  Now", color=LIGHT, fontsize=7.5, va="top", alpha=0.55)
-
-    # Day shading also tz-naive
-    day_start = pd.Timestamp(times[0].date())
-    for d in range(4):
-        ds = day_start + pd.Timedelta(days=d)
-        de = ds + pd.Timedelta(days=1)
-        if d % 2 == 0:
-            ax.axvspan(ds, de, color="#1a1a18", alpha=0.35, zorder=0)
-
-    sm   = cm.ScalarMappable(cmap=cmap, norm=norm)
-    cbar = fig.colorbar(sm, ax=ax, pad=0.01, fraction=0.025)
-    cbar.set_label("Hour of Day (CT)", color=LIGHT, fontsize=9, labelpad=10)
-    cbar.set_ticks([0, 6, 12, 18, 23])
-    cbar.set_ticklabels(["Midnight","6 AM","Noon","6 PM","11 PM"])
-    cbar.ax.yaxis.set_tick_params(color=MUTED)
-    plt.setp(cbar.ax.yaxis.get_ticklabels(), color=MUTED, fontsize=8)
-    cbar.outline.set_edgecolor(MUTED)
-
-    for spine in ax.spines.values(): spine.set_edgecolor("#2a2a28")
-    ax.tick_params(colors=MUTED, labelsize=9)
-    ax.set_xlabel("Date / Time (Central)", color=LIGHT, fontsize=10, labelpad=8)
-    ax.set_ylabel("ERCOT Load Forecast (GW)", color=LIGHT, fontsize=10, labelpad=8)
-    ax.grid(color="#2a2a28", linewidth=0.5, linestyle="--", alpha=0.7)
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%-m/%-d\n%-I %p"))
-    ax.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 6, 12, 18]))
-
-    valid = values[~np.isnan(values)]
-    if len(valid):
-        ax.set_ylim(max(20, valid.min() - 3), min(90, valid.max() + 3))
-
-    run_dt_ct = run_dt.astimezone(pd.Timestamp.now("America/Chicago").tz)
-    run_str   = run_dt_ct.strftime("%Y-%m-%d %-I %p %Z")
-    test_r2   = meta.get("test_r2", "—")
-    ax.set_title(
-        f"ERCOT 48-Hour Load Forecast  ·  Generated {run_str}  ·  "
-        f"Model Test R² = {test_r2}",
-        color=LIGHT, fontsize=12, fontweight="normal", loc="left", pad=14)
-    ax.text(0.99, 1.012,
-            pd.Timestamp.now("America/Chicago").strftime("Updated %B %d, %Y · %-I:%M %p %Z"),
-            transform=ax.transAxes, ha="right", va="bottom", color=MUTED, fontsize=8)
-    ax.text(0.99, -0.12,
-            "LightGBM · Open-Meteo HRRR · 2m temp + dewpoint · 10m wind · cloud cover",
-            transform=ax.transAxes, ha="right", va="top", color=MUTED, fontsize=7.5)
-
-    os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
-    fig.tight_layout()
-    fig.savefig(OUT_PATH, dpi=150, bbox_inches="tight", facecolor=BG)
-    plt.close(fig)
-    print(f"Forecast saved → {OUT_PATH}")
-
-
-# ── MAIN ─────────────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--run", type=int, default=None,
-                        help="HRRR run hour (ignored — Open-Meteo always serves latest)")
-    args = parser.parse_args()
-
-    if not os.path.exists(MODEL_PATH):
-        raise SystemExit(f"ERROR: {MODEL_PATH} not found. Run ercot_plot.py first.")
-    model = joblib.load(MODEL_PATH)
-    with open(META_PATH) as f:
-        meta = json.load(f)
-    print(f"Model loaded — Test R² = {meta['test_r2']}  "
-          f"(trained on {meta['n_train']:,} hours)")
-
-    # Fetch forecasts
-    obs_df = fetch_all_stations()
-
-    # Trim to 48 hours from now
-    now    = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-    end_dt = now + timedelta(hours=48)
-    obs_df = obs_df[(obs_df.index >= now) & (obs_df.index <= end_dt)]
-
-    # Build features and run model
-    X = build_features(obs_df, meta["training_start"], meta["features"])
-    load_pred = np.clip(model.predict(X), 20, 90)
-    load_fcst = pd.Series(load_pred, index=obs_df.index, name="load_gw_fcst")
-
-    valid = load_fcst.dropna()
-    print(f"Forecast: {valid.min():.1f} – {valid.max():.1f} GW  ({len(valid)} hours)")
-
-    run_dt = now
-    make_forecast_plot(load_fcst, run_dt, meta)
-    print("Done.")
+  // Visitor counter
+  fetch('https://api.counterapi.dev/v1/scorvec/visits/up')
+    .then(r => r.json())
+    .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
+    .catch(() => { document.getElementById('count').textContent = '—'; });
+</script>
+</body>
+</html>
