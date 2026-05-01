@@ -282,7 +282,7 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>48-Hour ERCOT Load Forecast</h2>
-        <p>A LightGBM-powered load forecast updated after each 00Z, 06Z, 12Z, and 18Z HRRR model run. For each forecast hour, HRRR 2m temperature, 2m dewpoint, 10m wind speed, and total cloud cover are extracted at nine Texas cities, population-weighted, and fed directly into the trained model. Line colour reflects hour of day.</p>
+        <p>A LightGBM-powered load forecast updated after each 00Z, 06Z, 12Z, and 18Z HRRR model run. For each forecast hour, HRRR 2m temperature, 2m dewpoint, 10m wind speed, and total cloud cover are extracted at nine Texas cities, population-weighted, and fed directly into the trained model. Hover over the chart to see exact values.</p>
         <div class="chart-meta">
           <span class="meta-tag accent">4× Daily</span>
           <span class="meta-tag">48 Hours</span>
@@ -291,13 +291,14 @@
           <span class="meta-tag">ERCOT</span>
         </div>
       </div>
-      <div class="chart-img-wrap">
-        <img src="assets/ercot_forecast.png"
-             alt="ERCOT 48-hour load forecast from HRRR"
-             loading="lazy">
+      <div class="chart-img-wrap" style="background:#0f0f0d;">
+        <iframe src="assets/ercot_forecast.html"
+                style="width:100%; height:520px; border:0; display:block;"
+                title="ERCOT 48-hour load forecast (interactive)"
+                loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
-        <span class="chart-sources">NOAA HRRR · LightGBM load model · EIA Open Data</span>
+        <span class="chart-sources">NOAA HRRR · LightGBM load model · EIA Open Data · <a href="assets/ercot_forecast.png" target="_blank" style="color:var(--accent); text-decoration:none;">view static</a></span>
         <span class="chart-updated" id="last-updated-3">—</span>
       </div>
     </div>
