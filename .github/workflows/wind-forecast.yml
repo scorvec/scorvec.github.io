@@ -56,7 +56,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends libeccodes0
 
       - name: Install Python dependencies
-        run: pip install -r requirements-wind.txt
+        run: pip install -r requirements-wind.txt gridstatusio
 
       - name: Download USWTDB
         run: |
@@ -154,12 +154,33 @@ jobs:
           ls -t capacity_iso_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
           ls -t capacity_ba_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
 
+      - name: Update verification dashboard
+        env:
+          GRIDSTATUS_API_KEY: ${{ secrets.GRIDSTATUS_API_KEY }}
+        run: |
+          if [ -z "$GRIDSTATUS_API_KEY" ]; then
+            echo "GRIDSTATUS_API_KEY secret not set; skipping verification update."
+            exit 0
+          fi
+          # update_verification.py writes:
+          #   ../assets/wind_verification.html
+          #   ../assets/wind_forecast_data/verification.csv
+          # Failures here should NOT fail the whole workflow — the live
+          # forecast is the primary deliverable. Verification is best-effort.
+          python update_verification.py || {
+            echo "Verification update failed; continuing anyway."
+            exit 0
+          }
+
       - name: Commit and push dashboard
         working-directory: .
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add assets/wind_forecast.html assets/wind_forecast_data/
+          # Add verification files if they exist (the verification step is
+          # best-effort and may have been skipped or failed)
+          [ -f assets/wind_verification.html ] && git add assets/wind_verification.html
           if git diff --staged --quiet; then
             echo "No changes; skipping commit."
           else
