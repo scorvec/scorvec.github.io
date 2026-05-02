@@ -1,0 +1,18 @@
+# Core scientific stack
+numpy>=1.24
+pandas>=2.0
+scipy>=1.11
+
+# Geospatial / GRIB
+xarray>=2023.0
+cfgrib>=0.9.10
+eccodes>=1.6
+herbie-data>=2024.0.0
+
+# Power-curve catalog
+windpowerlib>=0.2.2
+
+# Output
+pyarrow>=14.0
+openpyxl>=3.1
+plotly>=5.18
