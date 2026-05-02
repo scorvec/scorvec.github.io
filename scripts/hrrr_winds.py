@@ -39,13 +39,37 @@ and nearest-neighbor matches what most operational shops do).
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Iterable, Optional
 
 import numpy as np
 import pandas as pd
 
 log = logging.getLogger(__name__)
+
+
+def _to_naive_utc(dt: datetime) -> datetime:
+    """Herbie expects naive UTC datetimes; coerce."""
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
+def _strip_scalar_coords(da):
+    """Drop non-dimensional scalar coordinates from a DataArray.
+
+    cfgrib attaches scalar coords for the GRIB level (`heightAboveGround`,
+    `surface`, `isobaricInhPa`), `step`, `time`, and `valid_time`. When we
+    merge variables read at *different* levels (80m wind, 2m temp, surface
+    pressure) into one Dataset, those scalars conflict (80 vs 2 vs 0).
+    Drop everything that isn't a dimension; keep `latitude`/`longitude`
+    which are 2-D over (y, x) and survive the test.
+    """
+    scalar_non_dim = [name for name, c in da.coords.items()
+                      if c.ndim == 0 and name not in da.dims]
+    if scalar_non_dim:
+        da = da.drop_vars(scalar_non_dim)
+    return da
 
 
 def fetch_hrrr_winds(cycle_dt: datetime, fxx: int):
@@ -72,24 +96,32 @@ def fetch_hrrr_winds(cycle_dt: datetime, fxx: int):
         ) from e
     import xarray as xr  # noqa: WPS433
 
-    H = Herbie(cycle_dt, model="hrrr", product="sfc", fxx=fxx)
+    H = Herbie(_to_naive_utc(cycle_dt), model="hrrr", product="sfc", fxx=fxx)
 
     # Pull each field separately — Herbie's xarray() supports a search regex.
-    # Note: Herbie returns a list of datasets when multiple GRIB messages
-    # match different `typeOfLevel` values; we pluck what we need from each.
+    # Each call returns a Dataset whose variables carry scalar coords for
+    # the GRIB level (heightAboveGround=80, =2, surface=0). We strip those
+    # scalars before combining, otherwise xarray refuses to merge.
     ds_uv = H.xarray(r":[UV]GRD:80 m above ground:")
     ds_t2 = H.xarray(r":TMP:2 m above ground:")
     ds_ps = H.xarray(r":PRES:surface:")
     ds_hg = H.xarray(r":HGT:surface:")
 
+    def _pick(ds, *candidates):
+        for name in candidates:
+            if name in ds:
+                return ds[name]
+        # Fallback: first data variable
+        return list(ds.data_vars.values())[0]
+
+    u80 = _strip_scalar_coords(_pick(ds_uv, "u", "u80", "10u")).rename("u80")
+    v80 = _strip_scalar_coords(_pick(ds_uv, "v", "v80", "10v")).rename("v80")
+    t2m = _strip_scalar_coords(_pick(ds_t2, "t2m", "2t")).rename("t2m")
+    psfc = _strip_scalar_coords(_pick(ds_ps, "sp", "psfc", "pres")).rename("psfc")
+    hgt = _strip_scalar_coords(_pick(ds_hg, "orog", "hgt", "h")).rename("hgt")
+
     out = xr.Dataset(
-        data_vars=dict(
-            u80=ds_uv["u"].rename("u80") if "u" in ds_uv else ds_uv["u80"],
-            v80=ds_uv["v"].rename("v80") if "v" in ds_uv else ds_uv["v80"],
-            t2m=ds_t2["t2m"] if "t2m" in ds_t2 else list(ds_t2.data_vars.values())[0],
-            psfc=ds_ps["sp"] if "sp" in ds_ps else list(ds_ps.data_vars.values())[0],
-            hgt=ds_hg["orog"] if "orog" in ds_hg else list(ds_hg.data_vars.values())[0],
-        ),
+        data_vars=dict(u80=u80, v80=v80, t2m=t2m, psfc=psfc, hgt=hgt),
         attrs=dict(
             cycle=cycle_dt.isoformat(),
             fxx=fxx,
@@ -104,10 +136,11 @@ def fetch_hrrr_forecast(cycle_dt: datetime,
                         fxx_range: Iterable[int]):
     """Concat multiple forecast hours into a single dataset along a `fxx` dim."""
     import xarray as xr
+    cycle_naive = _to_naive_utc(cycle_dt)
     pieces = []
     for fxx in fxx_range:
         ds = fetch_hrrr_winds(cycle_dt, fxx)
-        ds = ds.expand_dims(valid_time=[pd.Timestamp(cycle_dt) +
+        ds = ds.expand_dims(valid_time=[pd.Timestamp(cycle_naive) +
                                         pd.Timedelta(hours=fxx)])
         pieces.append(ds)
     return xr.concat(pieces, dim="valid_time")
