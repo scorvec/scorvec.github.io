@@ -27,6 +27,11 @@ jobs:
     defaults:
       run:
         working-directory: scripts
+    env:
+      # Belt-and-suspenders: ensure scripts/ is on Python's import path,
+      # so run.py can `from wf_pipeline import ...` regardless of how
+      # the runner invokes Python.
+      PYTHONPATH: ${{ github.workspace }}/scripts
 
     steps:
       - name: Checkout
@@ -138,10 +143,15 @@ jobs:
              "../assets/wind_forecast_data/forecast_iso_${{ steps.cycle.outputs.compact }}.csv"
           cp "output/forecast_ba_${{ steps.cycle.outputs.compact }}.csv" \
              "../assets/wind_forecast_data/forecast_ba_${{ steps.cycle.outputs.compact }}.csv"
+          # Capacity files (one per aggregation level) for dashboard reference lines
+          cp output/capacity_*_${{ steps.cycle.outputs.compact }}.csv \
+             ../assets/wind_forecast_data/ 2>/dev/null || true
           # Keep only the last 14 cycles (~3.5 days) of archived CSVs
           cd ../assets/wind_forecast_data
           ls -t forecast_iso_*.csv 2>/dev/null | tail -n +15 | xargs -r rm
           ls -t forecast_ba_*.csv  2>/dev/null | tail -n +15 | xargs -r rm
+          ls -t capacity_iso_*.csv 2>/dev/null | tail -n +15 | xargs -r rm
+          ls -t capacity_ba_*.csv  2>/dev/null | tail -n +15 | xargs -r rm
 
       - name: Commit and push dashboard
         working-directory: .
