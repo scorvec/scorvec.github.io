@@ -303,6 +303,31 @@
       </div>
     </div>
 
+    <!-- US WIND GENERATION FORECAST -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>48-Hour US Wind Generation Forecast</h2>
+        <p>Per-turbine wind power forecast for every wind turbine in the United States, summed by ISO and balancing authority. The pipeline starts from ~75,000 turbine locations in the USGS Wind Turbine Database, samples HRRR 80-meter wind speeds at each turbine's exact lat/lon, applies a model-specific power curve (windpowerlib catalog where available, NREL WIND Toolkit specific-power generic curves otherwise), and corrects for hub-height and air density. The forecast represents potential generation; observed output is typically lower due to transmission curtailment and outages.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">4× Daily</span>
+          <span class="meta-tag">48 Hours</span>
+          <span class="meta-tag">HRRR</span>
+          <span class="meta-tag">USWTDB</span>
+          <span class="meta-tag">All ISOs</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap" style="background:#0f0f0d;">
+        <iframe src="assets/wind_forecast.html"
+                style="width:100%; height:660px; border:0; display:block;"
+                title="US wind generation forecast (interactive)"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA HRRR · USGS USWTDB · EIA-860 · windpowerlib · NREL WIND Toolkit</span>
+        <span class="chart-updated" id="last-updated-wind">—</span>
+      </div>
+    </div>
+
   </div>
 </main>
 
@@ -319,6 +344,7 @@
   document.getElementById("last-updated-3").textContent = "Updated " + fmt;
   document.getElementById("last-updated-diurnal").textContent = "Updated " + fmt;
   document.getElementById("last-updated-fi").textContent = "Updated " + fmt;
+  document.getElementById("last-updated-wind").textContent = "Updated " + fmt;
 
   // Visitor counter
   fetch('https://api.counterapi.dev/v1/scorvec/visits/up')
