@@ -76,7 +76,8 @@ def build_dashboard(csv_path: Path,
                     default_region: str = "National",
                     title: Optional[str] = None,
                     plotly_js: str = "inline",
-                    theme: str = "light") -> None:
+                    theme: str = "light",
+                    capacity_csv: Optional[Path] = None) -> None:
     """Read a forecast CSV and write an interactive HTML dashboard.
 
     plotly_js : {"inline", "cdn", "directory"}
@@ -86,6 +87,12 @@ def build_dashboard(csv_path: Path,
         Use "cdn" for web hosting.
     theme : {"light", "dark"}
         Visual theme. "dark" matches a #0f0f0d iframe wrapper.
+    capacity_csv : Path, optional
+        CSV with columns (region, capacity_MW). When provided, draws a
+        dashed horizontal reference line for the selected region's
+        installed capacity. If not provided, dashboard auto-detects a
+        sibling file named like the forecast CSV but with prefix
+        `capacity_` instead of `forecast_`.
     """
     df = pd.read_csv(csv_path, parse_dates=["valid_time"])
     group_col = detect_group_col(df)
@@ -119,16 +126,44 @@ def build_dashboard(csv_path: Path,
         else:
             title = "US Wind Generation Forecast"
 
-    # Capacity context: annotate each trace's max
+    # Load capacity reference data, if available.
+    # Auto-detect: forecast_iso_<tag>.csv → capacity_iso_<tag>.csv
+    capacity_lookup: dict = {}
+    if capacity_csv is None:
+        guess = csv_path.parent / csv_path.name.replace("forecast_", "capacity_", 1)
+        if guess.exists():
+            capacity_csv = guess
+    if capacity_csv is not None and Path(capacity_csv).exists():
+        cap_df = pd.read_csv(capacity_csv)
+        if {"region", "capacity_MW"}.issubset(cap_df.columns):
+            capacity_lookup = dict(zip(cap_df["region"].astype(str),
+                                       cap_df["capacity_MW"].astype(float)))
+            # Also compute National = sum, since the capacity CSV may not
+            # include it explicitly (it does at the iso level via run.py,
+            # but be safe)
+            if "National" not in capacity_lookup:
+                capacity_lookup["National"] = float(cap_df["capacity_MW"].sum())
+            print(f"  Loaded capacity reference for {len(capacity_lookup)} regions")
+        else:
+            print(f"  Warning: capacity CSV missing required columns: {capacity_csv}")
+
+    # Each region produces TWO traces: forecast (solid line) and capacity
+    # (dashed horizontal reference). They share visibility; toggling a
+    # region in the dropdown shows/hides both.
     fig = go.Figure()
+    n_per_region = 2  # forecast + capacity reference
+
     for region in ordered:
         y = pivot[region].to_numpy()
+        is_default = (region == default_region)
+
+        # Trace 1: forecast
         fig.add_trace(go.Scatter(
             x=pivot.index, y=y,
             name=region,
             mode="lines",
             line=dict(width=2),
-            visible=(region == default_region),
+            visible=is_default,
             hovertemplate=(
                 "<b>" + region + "</b><br>" +
                 "%{x|%Y-%m-%d %H:%M} UTC<br>" +
@@ -136,32 +171,83 @@ def build_dashboard(csv_path: Path,
             ),
         ))
 
+        # Trace 2: installed capacity (horizontal line)
+        cap_mw = capacity_lookup.get(region)
+        if cap_mw is not None and cap_mw > 0:
+            fig.add_trace(go.Scatter(
+                x=[pivot.index.min(), pivot.index.max()],
+                y=[cap_mw, cap_mw],
+                name=f"{region} installed capacity",
+                mode="lines",
+                line=dict(width=1.2, dash="dash",
+                          color="rgba(150,150,150,0.7)"),
+                visible=is_default,
+                hovertemplate=(
+                    f"<b>{region} installed capacity</b><br>" +
+                    f"{cap_mw:,.0f} MW<extra></extra>"
+                ),
+                showlegend=False,
+            ))
+        else:
+            # Add a dummy invisible trace so the trace-index math stays
+            # consistent (every region has exactly n_per_region traces).
+            fig.add_trace(go.Scatter(
+                x=[pivot.index.min()], y=[None],
+                mode="lines", visible=False, showlegend=False,
+                hoverinfo="skip", name=f"{region}_no_capacity",
+            ))
+
+    def visibility_for(regions_visible: set) -> list:
+        """Build per-trace visibility list given a set of visible regions."""
+        vis = []
+        for region in ordered:
+            on = region in regions_visible
+            vis.append(on)               # forecast trace
+            vis.append(on)               # capacity trace
+        return vis
+
     # Dropdown: one button per region; "Show all ISOs" makes every ISO
     # visible at once for visual comparison.
     buttons = []
     for region in ordered:
-        visibility = [r == region for r in ordered]
+        # Build subtitle with capacity context
+        cap = capacity_lookup.get(region)
+        if cap and cap > 0:
+            peak = float(pivot[region].max())
+            subtitle = (f"{region} &middot; {cap:,.0f} MW installed &middot; "
+                        f"peak forecast {peak:,.0f} MW "
+                        f"({100 * peak / cap:.0f}% CF)")
+        else:
+            subtitle = region
         buttons.append(dict(
             label=region, method="update",
-            args=[{"visible": visibility},
-                  {"title.text": f"{title}<br><sub>{region}</sub>"}],
+            args=[{"visible": visibility_for({region})},
+                  {"title.text": f"{title}<br><sub>{subtitle}</sub>"}],
         ))
 
-    iso_set = set(ISO_ORDER)
-    show_all_iso_vis = [r in iso_set for r in ordered]
-    if any(show_all_iso_vis):
+    iso_set = set(ISO_ORDER) & set(ordered)
+    if iso_set:
         buttons.append(dict(
             label="── All ISOs (overlay) ──", method="update",
-            args=[{"visible": show_all_iso_vis},
+            args=[{"visible": visibility_for(iso_set)},
                   {"title.text": f"{title}<br><sub>All ISOs</sub>"}],
         ))
 
-    show_all_vis = [True] * len(ordered)
     buttons.append(dict(
         label="── Everything (overlay) ──", method="update",
-        args=[{"visible": show_all_vis},
+        args=[{"visible": visibility_for(set(ordered))},
               {"title.text": f"{title}<br><sub>All regions</sub>"}],
     ))
+
+    # Default subtitle (matches the dropdown's first button)
+    cap_def = capacity_lookup.get(default_region)
+    if cap_def and cap_def > 0:
+        peak_def = float(pivot[default_region].max())
+        default_subtitle = (f"{default_region} &middot; {cap_def:,.0f} MW installed "
+                            f"&middot; peak forecast {peak_def:,.0f} MW "
+                            f"({100 * peak_def / cap_def:.0f}% CF)")
+    else:
+        default_subtitle = default_region
 
     from datetime import datetime, timezone
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -183,7 +269,7 @@ def build_dashboard(csv_path: Path,
 
     fig.update_layout(
         title=dict(
-            text=f"{title}<br><sub>{default_region}</sub>",
+            text=f"{title}<br><sub>{default_subtitle}</sub>",
             x=0.02, xanchor="left",
         ),
         xaxis=dict(title="Valid Time (UTC)", showgrid=True,
@@ -257,6 +343,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--theme", default="light",
                    choices=["light", "dark"],
                    help="Color theme. Use 'dark' to match a dark iframe wrapper.")
+    p.add_argument("--capacity-csv", type=Path, default=None,
+                   help="Path to capacity_<level>_<cycle>.csv with columns "
+                        "(region, capacity_MW). If omitted, dashboard "
+                        "auto-detects a sibling file alongside the forecast CSV.")
 
     args = p.parse_args(argv)
 
@@ -270,6 +360,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         title=args.title,
         plotly_js=args.plotly_js,
         theme=args.theme,
+        capacity_csv=args.capacity_csv,
     )
     return 0
 
