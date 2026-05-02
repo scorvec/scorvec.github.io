@@ -181,133 +181,17 @@
 <main>
   <div class="page-header">
     <h1>Charts &amp; Analysis</h1>
-    <p>Automated daily charts and a live 48-hour load forecast at the intersection of meteorology and energy markets. Powered by a LightGBM model trained on 3 years of ERCOT demand and ASOS weather observations, with forecasts driven by NOAA HRRR NWP output.</p>
-    <div class="update-badge">Charts daily · Forecast 4× daily</div>
+    <p>A live wind generation forecast for the United States, updated four times daily after each extended HRRR run. Coverage by individual wind turbine, aggregated to balancing authority and ISO.</p>
+    <div class="update-badge">Forecast 4× daily</div>
   </div>
 
   <div class="chart-grid">
-
-    <!-- ERCOT LOAD VS TEMP -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>ERCOT Load vs. Temperature</h2>
-        <p>Three years of hourly ERCOT system demand plotted against population-weighted temperature across nine Texas cities, colored by hour of day. The characteristic U-shape reflects heating demand below ~55°F and cooling demand above ~70°F, with the afternoon peak hours showing the steepest slope.</p>
-        <div class="chart-meta">
-          <span class="meta-tag accent">Daily</span>
-          <span class="meta-tag">3 Years</span>
-          <span class="meta-tag">ERCOT</span>
-          <span class="meta-tag">Energy Meteorology</span>
-        </div>
-      </div>
-      <div class="chart-img-wrap">
-        <img src="assets/ercot_load_temp.png"
-             alt="ERCOT hourly load vs population-weighted temperature, colored by hour of day"
-             loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">EIA Open Data · Iowa State Mesonet (ASOS)</span>
-        <span class="chart-updated" id="last-updated">—</span>
-      </div>
-    </div>
-
-    <!-- DIURNAL LOAD CYCLE -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Diurnal Load Cycle by Day of Week</h2>
-        <p>Average ERCOT system load for each hour of the day broken out by day of week, computed over 3 years of observations. The shaded band shows ±1 standard deviation. The pronounced gap between weekday and weekend profiles — and the different shape of the morning ramp — is one of the key signals the LightGBM model exploits.</p>
-        <div class="chart-meta">
-          <span class="meta-tag accent">Daily</span>
-          <span class="meta-tag">3 Years</span>
-          <span class="meta-tag">ERCOT</span>
-        </div>
-      </div>
-      <div class="chart-img-wrap">
-        <img src="assets/ercot_diurnal.png"
-             alt="ERCOT average diurnal load cycle by day of week"
-             loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">EIA Open Data (ERCOT demand)</span>
-        <span class="chart-updated" id="last-updated-diurnal">—</span>
-      </div>
-    </div>
-
-    <!-- LIGHTGBM ACTUAL VS PREDICTED -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>LightGBM: Actual vs Predicted Load</h2>
-        <p>Out-of-sample performance of the LightGBM load model on a held-out 90-day test set, with 5-fold time-series cross-validation used during training. Each point is one hour of actual ERCOT demand vs the model's prediction, coloured by hour of day. The model uses 9 features: hour of day, day of week, month, temperature, dewpoint, wind speed, cloud cover, a load growth trend, and a weekend flag.</p>
-        <div class="chart-meta">
-          <span class="meta-tag accent">Daily</span>
-          <span class="meta-tag">3 Years Training</span>
-          <span class="meta-tag">90-Day Test Set</span>
-          <span class="meta-tag">5-Fold CV</span>
-          <span class="meta-tag">LightGBM</span>
-        </div>
-      </div>
-      <div class="chart-img-wrap">
-        <img src="assets/ercot_curves.png"
-             alt="LightGBM actual vs predicted ERCOT load on test set"
-             loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">EIA Open Data · Iowa State Mesonet (ASOS)</span>
-        <span class="chart-updated" id="last-updated-2">—</span>
-      </div>
-    </div>
-
-    <!-- FEATURE IMPORTANCE -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>LightGBM Feature Importances</h2>
-        <p>Relative importance of each of the 9 input features to the load model, measured by LightGBM's split gain metric. Weather variables — temperature, dewpoint, wind speed, and cloud cover — are fed in separately so the model can learn their interactions directly. The days-since-start trend variable captures multi-year load growth driven by economic and population expansion in Texas.</p>
-        <div class="chart-meta">
-          <span class="meta-tag accent">Daily</span>
-          <span class="meta-tag">9 Features</span>
-          <span class="meta-tag">LightGBM</span>
-        </div>
-      </div>
-      <div class="chart-img-wrap" style="background:#0f0f0d; padding: 1rem 0;">
-        <img src="assets/ercot_feature_importance.png"
-             alt="LightGBM feature importances for ERCOT load model"
-             loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">EIA Open Data · Iowa State Mesonet (ASOS)</span>
-        <span class="chart-updated" id="last-updated-fi">—</span>
-      </div>
-    </div>
-
-    <!-- ERCOT LOAD FORECAST -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>48-Hour ERCOT Load Forecast</h2>
-        <p>A LightGBM-powered load forecast updated after each 00Z, 06Z, 12Z, and 18Z HRRR model run. For each forecast hour, HRRR 2m temperature, 2m dewpoint, 10m wind speed, and total cloud cover are extracted at nine Texas cities, population-weighted, and fed directly into the trained model. Hover over the chart to see exact values.</p>
-        <div class="chart-meta">
-          <span class="meta-tag accent">4× Daily</span>
-          <span class="meta-tag">48 Hours</span>
-          <span class="meta-tag">HRRR</span>
-          <span class="meta-tag">LightGBM</span>
-          <span class="meta-tag">ERCOT</span>
-        </div>
-      </div>
-      <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/ercot_forecast.html"
-                style="width:100%; height:520px; border:0; display:block;"
-                title="ERCOT 48-hour load forecast (interactive)"
-                loading="lazy"></iframe>
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">NOAA HRRR · LightGBM load model · EIA Open Data · <a href="assets/ercot_forecast.png" target="_blank" style="color:var(--accent); text-decoration:none;">view static</a></span>
-        <span class="chart-updated" id="last-updated-3">—</span>
-      </div>
-    </div>
 
     <!-- US WIND GENERATION FORECAST -->
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>48-Hour US Wind Generation Forecast</h2>
-        <p>Per-turbine wind power forecast for every wind turbine in the United States, summed by ISO and balancing authority. The pipeline starts from ~75,000 turbine locations in the USGS Wind Turbine Database, samples HRRR 80-meter wind speeds at each turbine's exact lat/lon, applies a model-specific power curve (windpowerlib catalog where available, NREL WIND Toolkit specific-power generic curves otherwise), and corrects for hub-height and air density. The forecast represents potential generation; observed output is typically lower due to transmission curtailment and outages.</p>
+        <p>Per-turbine wind power forecast for every wind turbine in the United States, summed by ISO and balancing authority. The pipeline starts from ~75,000 turbine locations in the USGS Wind Turbine Database, samples HRRR 80-meter wind speeds at each turbine's exact lat/lon, applies a model-specific power curve (windpowerlib catalog where available, NREL WIND Toolkit specific-power generic curves otherwise), and corrects for hub-height and air density. The forecast represents potential generation; observed output is typically lower due to curtailment and outages.</p>
         <div class="chart-meta">
           <span class="meta-tag accent">4× Daily</span>
           <span class="meta-tag">48 Hours</span>
@@ -339,11 +223,6 @@
   // Show today's date as the last updated timestamp
   const d = new Date();
   const fmt = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  document.getElementById("last-updated").textContent  = "Updated " + fmt;
-  document.getElementById("last-updated-2").textContent = "Updated " + fmt;
-  document.getElementById("last-updated-3").textContent = "Updated " + fmt;
-  document.getElementById("last-updated-diurnal").textContent = "Updated " + fmt;
-  document.getElementById("last-updated-fi").textContent = "Updated " + fmt;
   document.getElementById("last-updated-wind").textContent = "Updated " + fmt;
 
   // Visitor counter
