@@ -114,6 +114,48 @@ def setup_logging(verbose: bool) -> None:
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
+def _write_capacity_files(inv: pd.DataFrame, outd: Path, cycle_tag: str,
+                          aggregation_levels: Iterable[str]) -> list:
+    """Write per-region installed capacity (in MW) for each aggregation level.
+
+    Used by the dashboard to draw reference lines. The grouping columns
+    here MUST match what aggregation.aggregate() uses, otherwise the
+    dashboard's join won't line up.
+    """
+    written = []
+    level_to_keys = {
+        "plant":    ["eia_id", "p_name"],
+        "ba":       ["ba_code"],
+        "iso":      ["iso"],
+        "state":    ["t_state"],
+        "national": [],
+    }
+    for level in aggregation_levels:
+        keys = level_to_keys.get(level)
+        if keys is None:
+            continue
+        if not keys:
+            cap = pd.DataFrame({"region": ["National"],
+                                "capacity_MW": [inv["t_cap"].sum() / 1000.0]})
+        else:
+            grouped = inv.groupby(keys, dropna=False)["t_cap"].sum() / 1000.0
+            cap = grouped.reset_index()
+            # Combine multi-key indices into a single 'region' label that
+            # matches the forecast CSV's grouping column.
+            if len(keys) == 1:
+                cap = cap.rename(columns={keys[0]: "region",
+                                          "t_cap": "capacity_MW"})
+            else:
+                cap["region"] = cap[keys].astype(str).agg(" / ".join, axis=1)
+                cap = cap[["region", "t_cap"]].rename(
+                    columns={"t_cap": "capacity_MW"})
+        cap = cap.dropna(subset=["region"])
+        cap_path = outd / f"capacity_{level}_{cycle_tag}.csv"
+        cap.to_csv(cap_path, index=False)
+        written.append(cap_path)
+    return written
+
+
 def check_dependencies() -> None:
     """Fail fast with a useful message if a required library is missing."""
     missing = []
@@ -226,6 +268,13 @@ def run(uswtdb_path: str | Path,
             csv_path = outd / f"forecast_{level}_{cycle_tag}.csv"
             df.to_csv(csv_path, index=False)
             log.info("Wrote %s (%d rows)", csv_path, len(df))
+
+        # Per-region installed capacity, for the dashboard's reference lines.
+        # Each aggregation level (iso, ba, etc) gets its own capacity file.
+        capacity_files = _write_capacity_files(inv, outd, cycle_tag,
+                                               aggregation_levels)
+        for cap_path in capacity_files:
+            log.info("Wrote %s", cap_path)
 
         # Curve assignment audit
         from curve_assignment import assignment_summary
