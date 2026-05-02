@@ -57,18 +57,33 @@ jobs:
         run: |
           mkdir -p data
           cd data
+          # Skip download if the file is already committed to the repo
+          if [ -f uswtdb.csv ]; then
+            echo "Using committed uswtdb.csv ($(wc -l < uswtdb.csv) rows)"
+            exit 0
+          fi
           curl -L --fail --silent --show-error \
                -o uswtdbCSV.zip \
                "https://energy.usgs.gov/uswtdb/assets/data/uswtdbCSV.zip"
           unzip -o uswtdbCSV.zip
-          # USWTDB versions the filename like uswtdb_v8_3_20260325.csv;
-          # rename to a stable name for run.py
-          mv uswtdb_v*.csv uswtdb.csv
+          # USWTDB versions the filename like uswtdb_V8_3_20260325.csv;
+          # rename to a stable name. Case-insensitive glob in case USGS
+          # changes the convention.
+          shopt -s nullglob nocaseglob
+          for f in uswtdb_v*.csv; do
+            mv "$f" uswtdb.csv
+            break
+          done
           ls -lh uswtdb.csv
 
       - name: Download EIA-860
         run: |
           cd data
+          # Skip download if a Plant_Y*.xlsx is already committed
+          if ls 2___Plant_Y*.xlsx >/dev/null 2>&1; then
+            echo "Using committed EIA-860: $(ls 2___Plant_Y*.xlsx)"
+            exit 0
+          fi
           curl -L --fail --silent --show-error \
                -A "Mozilla/5.0" \
                -o eia860.zip \
@@ -96,9 +111,11 @@ jobs:
 
       - name: Run forecast pipeline
         run: |
+          EIA860=$(ls data/2___Plant_Y*.xlsx | head -1)
+          echo "Using EIA-860: $EIA860"
           python run.py \
             --uswtdb data/uswtdb.csv \
-            --eia860 data/2___Plant_Y2024.xlsx \
+            --eia860 "$EIA860" \
             --cycle "${{ steps.cycle.outputs.cycle }}" \
             --fxx-end 48 \
             --output-dir output/ \
