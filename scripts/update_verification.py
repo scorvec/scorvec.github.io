@@ -37,6 +37,9 @@ import pandas as pd
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
+elif sys.path[0] != _HERE:
+    sys.path.remove(_HERE)
+    sys.path.insert(0, _HERE)
 
 
 # ---------------------------------------------------------------------------
@@ -311,20 +314,33 @@ def main() -> int:
 
 def _build_dashboard(ver: pd.DataFrame) -> None:
     """Generate the historical verification HTML."""
-    from verification_dashboard import build_verification_dashboard
     if ver is None or ver.empty:
         print("No data to build dashboard from")
+        return
+    try:
+        from verification_dashboard import build_verification_dashboard
+    except ImportError as e:
+        print(f"WARNING: verification_dashboard.py not found ({e}); "
+              f"CSV was written but dashboard HTML was not built.")
+        print(f"  __file__ = {__file__}")
+        print(f"  _HERE    = {_HERE}")
+        print(f"  cwd      = {os.getcwd()}")
+        print(f"  sys.path[0:5] = {sys.path[:5]}")
+        print(f"  Files in _HERE: {sorted(os.listdir(_HERE))[:10]}…")
         return
     print(f"\nBuilding dashboard: {DASHBOARD_PATH}")
     # Ensure the CSV exists for the dashboard builder
     ver.to_csv(VER_PATH, index=False)
-    build_verification_dashboard(
-        csv_path=VER_PATH,
-        output_html=DASHBOARD_PATH,
-        default_region="ERCOT",
-        plotly_js="cdn",
-        theme="dark",
-    )
+    try:
+        build_verification_dashboard(
+            csv_path=VER_PATH,
+            output_html=DASHBOARD_PATH,
+            default_region="ERCOT",
+            plotly_js="cdn",
+            theme="dark",
+        )
+    except Exception as e:
+        print(f"WARNING: dashboard build failed: {e}")
 
 
 if __name__ == "__main__":
