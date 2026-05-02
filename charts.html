@@ -180,14 +180,14 @@
 
 <main>
   <div class="page-header">
-    <h1>National wind forecast from the HRRR model</h1>
-    <p>A live wind generation forecast for the United States, updated four times daily after each extended HRRR run. Coverage by individual wind turbine, aggregated to balancing authority and ISO.</p>
+    <h1>Charts &amp; Analysis</h1>
+    <p>A live wind generation forecast for the United States, updated four times daily after each extended HRRR run, alongside a 14-day rolling view of how the model is performing in ERCOT, SPP, and CAISO against actual generation and reported curtailment.</p>
     <div class="update-badge">Forecast 4× daily</div>
   </div>
 
   <div class="chart-grid">
 
-    <!-- US WIND GENERATION FORECAST -->
+    <!-- LIVE FORECAST -->
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>48-Hour US Wind Generation Forecast</h2>
@@ -212,6 +212,30 @@
       </div>
     </div>
 
+    <!-- HISTORICAL PERFORMANCE -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Model Performance vs. Actuals (14-day rolling)</h2>
+        <p>Day-ahead forecasts from this model (12–24 hour lead) plotted against actual generation and reported curtailment for the three ISOs that publish curtailment data. The blue line is the model's potential-generation forecast; the green dashed line subtracts ISO-reported curtailment to give the deliverable expectation; the red line is what actually showed up on the grid. Persistent gap between the green and red lines indicates residual model error after accounting for curtailment.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">Daily Update</span>
+          <span class="meta-tag">14 Days</span>
+          <span class="meta-tag">Day-Ahead</span>
+          <span class="meta-tag">ERCOT · SPP · CAISO</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap" style="background:#0f0f0d;">
+        <iframe src="assets/wind_verification.html"
+                style="width:100%; height:660px; border:0; display:block;"
+                title="Historical model vs actual generation (interactive)"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Model + gridstatus.io (actual generation, curtailment)</span>
+        <span class="chart-updated" id="last-updated-verif">—</span>
+      </div>
+    </div>
+
   </div>
 </main>
 
@@ -224,6 +248,7 @@
   const d = new Date();
   const fmt = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   document.getElementById("last-updated-wind").textContent = "Updated " + fmt;
+  document.getElementById("last-updated-verif").textContent = "Updated " + fmt;
 
   // Visitor counter
   fetch('https://api.counterapi.dev/v1/scorvec/visits/up')
