@@ -146,12 +146,13 @@ jobs:
           # Capacity files (one per aggregation level) for dashboard reference lines
           cp output/capacity_*_${{ steps.cycle.outputs.compact }}.csv \
              ../assets/wind_forecast_data/ 2>/dev/null || true
-          # Keep only the last 14 cycles (~3.5 days) of archived CSVs
+          # Keep the last 56 cycles (~14 days at 4 extended cycles/day) so the
+          # historical verification card has enough archive depth.
           cd ../assets/wind_forecast_data
-          ls -t forecast_iso_*.csv 2>/dev/null | tail -n +15 | xargs -r rm
-          ls -t forecast_ba_*.csv  2>/dev/null | tail -n +15 | xargs -r rm
-          ls -t capacity_iso_*.csv 2>/dev/null | tail -n +15 | xargs -r rm
-          ls -t capacity_ba_*.csv  2>/dev/null | tail -n +15 | xargs -r rm
+          ls -t forecast_iso_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t forecast_ba_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t capacity_iso_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t capacity_ba_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
 
       - name: Commit and push dashboard
         working-directory: .
