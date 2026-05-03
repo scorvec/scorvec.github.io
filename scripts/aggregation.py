@@ -140,8 +140,19 @@ def load_eia860_ba_map(path: str | Path) -> pd.DataFrame:
 
 
 def attach_ba_iso(inventory: pd.DataFrame,
-                  eia860_map: pd.DataFrame | None) -> pd.DataFrame:
-    """Add ba_code, iso, ba_source columns to the inventory."""
+                  eia860_map: pd.DataFrame | None,
+                  overrides_csv: str | Path | None = "plant_overrides.csv"
+                  ) -> pd.DataFrame:
+    """Add ba_code, iso, ba_source columns to the inventory.
+
+    Resolution order per turbine:
+      1. plant_overrides.csv (manual eia_id → ba_code mapping, audited)
+      2. EIA-860 plant_code → balancing_authority_code
+      3. State-level default BA fallback
+
+    Each row carries a `ba_source` provenance label so misroutes are
+    easy to find later.
+    """
     out = inventory.copy()
 
     if eia860_map is not None and not eia860_map.empty:
@@ -159,6 +170,27 @@ def attach_ba_iso(inventory: pd.DataFrame,
     miss = out["ba_code"].isna()
     out.loc[miss, "ba_code"] = out.loc[miss, "t_state"].map(STATE_DEFAULT_BA)
     out.loc[miss & out["ba_code"].notna(), "ba_source"] = "state_fallback"
+
+    # Apply manual overrides last so they win over both EIA-860 and state
+    if overrides_csv is not None:
+        ov_path = Path(overrides_csv)
+        if ov_path.exists():
+            try:
+                ov = pd.read_csv(ov_path, comment="#")
+            except Exception as e:
+                log.warning("Could not read overrides %s: %s", ov_path, e)
+                ov = pd.DataFrame()
+            if not ov.empty and {"eia_id", "ba_code"}.issubset(ov.columns):
+                ov_map = dict(zip(ov["eia_id"].astype("Int64"),
+                                  ov["ba_code"].astype(str)))
+                override_mask = out["eia_id"].isin(ov_map.keys())
+                if override_mask.any():
+                    out.loc[override_mask, "ba_code"] = out.loc[override_mask,
+                                                                "eia_id"].map(ov_map)
+                    out.loc[override_mask, "ba_source"] = "override"
+                    log.info("Applied %d plant override(s) covering %d turbines",
+                             len(ov_map), int(override_mask.sum()))
+
     out["iso"] = out["ba_code"].map(BA_TO_ISO).fillna("NON-ISO")
 
     return out
