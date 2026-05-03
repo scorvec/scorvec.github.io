@@ -1,0 +1,21 @@
+# Manual BA overrides for plants where EIA-860 / state-fallback assigns
+# the wrong BA. Format:
+#
+#   eia_id,ba_code,note
+#
+# eia_id matches USWTDB's `eia_id` column. ba_code overrides whatever
+# attach_ba_iso() would have assigned.
+#
+# This file lives in scripts/ and is read at inventory-build time. It's
+# intended to be small (10-30 entries) and grow only with audit findings.
+#
+# Sources to consult before adding entries:
+#   - EIA's plant locator: https://atlas.eia.gov/datasets/eia::power-plants/
+#   - SPP transmission service queue (for which BA dispatches a plant)
+#   - ERCOT registered resource list (rule of thumb: ERCOT is everything
+#     in ERCOT's footprint, which excludes the Texas Panhandle north of
+#     ~Lubbock and the El Paso area)
+#
+eia_id,ba_code,note
+64666,SWPP,Great Prairie Wind 2 (Floyd Co. TX Panhandle - SPP not ERCOT)
+64667,SWPP,Great Prairie Wind 3 (Floyd Co. TX Panhandle - SPP not ERCOT)
