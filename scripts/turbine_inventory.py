@@ -40,11 +40,84 @@ REQUIRED_COLS = [
 ]
 
 
+# Names that match non-grid, demonstration, or educational installations.
+# These appear in USWTDB but aren't ERCOT/SPP dispatched generation, so they
+# should be excluded from forecasting. Patterns are matched as case-insensitive
+# substrings against p_name.
+NON_UTILITY_PATTERNS = (
+    "museum",                      # American Windmill Museum, Sustainable Tech Museum
+    "stadium",                     # Apogee Stadium Wind
+    "test facility",               # UL Advanced Wind Turbine Test Facility
+    "advanced wind turbine test",  # variants of the above
+    "noresco",                     # NORESCO behind-the-meter installs
+    "wtamu",                       # West Texas A&M
+    "texas tech",                  # Texas Tech research turbines
+    "special utility district",    # Mountain Peak SUD
+)
+
+
+def _flag_non_utility(p_name: pd.Series) -> pd.Series:
+    """Return a boolean mask of rows whose p_name matches a non-utility pattern."""
+    s = p_name.astype(str).str.lower()
+    mask = pd.Series(False, index=p_name.index)
+    for pat in NON_UTILITY_PATTERNS:
+        mask |= s.str.contains(pat, na=False, regex=False)
+    return mask
+
+
+def _backfill_orphan_eia_ids(df: pd.DataFrame) -> pd.DataFrame:
+    """Attach orphan turbines to their parent plant by name.
+
+    USWTDB sometimes has a few turbines at an existing plant without an
+    eia_id while the rest of the plant's turbines have one. If exactly one
+    eia_id is associated with a (p_name, t_state) pair across the dataset,
+    inherit it for the orphans. Plants where every turbine is an orphan
+    (e.g. brand-new 2025 plants not yet in EIA-860) are left alone — they
+    still get correct BA routing via state fallback downstream.
+    """
+    df = df.copy()
+    has_id = df["eia_id"].notna()
+    # For each (p_name, t_state) bucket, count distinct eia_ids among the
+    # cataloged turbines.
+    cataloged = df[has_id]
+    parent_map = (
+        cataloged.groupby(["p_name", "t_state"])["eia_id"]
+        .nunique()
+        .reset_index(name="n_distinct")
+    )
+    # Only inherit from buckets with exactly one eia_id (avoid ambiguity).
+    unambiguous = parent_map[parent_map["n_distinct"] == 1][["p_name", "t_state"]]
+    eia_lookup = (
+        cataloged.merge(unambiguous, on=["p_name", "t_state"])
+        .drop_duplicates(["p_name", "t_state"])
+        .set_index(["p_name", "t_state"])["eia_id"]
+    )
+
+    orphan_mask = ~has_id
+    if orphan_mask.any() and not eia_lookup.empty:
+        keys = list(zip(df.loc[orphan_mask, "p_name"],
+                        df.loc[orphan_mask, "t_state"]))
+        inherited = pd.Series(
+            [eia_lookup.get(k, np.nan) for k in keys],
+            index=df.index[orphan_mask],
+        )
+        n_filled = inherited.notna().sum()
+        if n_filled > 0:
+            df.loc[inherited.notna().reindex(df.index, fill_value=False),
+                   "eia_id"] = inherited
+            log.info("Backfilled eia_id for %d orphan turbine row(s) "
+                     "via name match to parent plant", int(n_filled))
+    return df
+
+
 def load_uswtdb(path: str | Path) -> pd.DataFrame:
     """Load USWTDB CSV (or shapefile-derived CSV) into a DataFrame.
 
     Coerces numerics, drops rows with no nameplate or no coordinates
-    (those are unusable for forecasting). Computes `specific_power_W_m2`.
+    (those are unusable for forecasting), excludes non-grid generators
+    (museums, university test sites, stadiums), and backfills missing
+    eia_ids for orphan turbines whose parent plant is unambiguously
+    identifiable by name. Computes `specific_power_W_m2`.
     """
     df = pd.read_csv(path, low_memory=False)
     missing = [c for c in REQUIRED_COLS if c not in df.columns]
@@ -69,7 +142,20 @@ def load_uswtdb(path: str | Path) -> pd.DataFrame:
     n0 = len(df)
     df = df.dropna(subset=["t_cap", "xlong", "ylat"])
     df = df[df["t_cap"] > 0]
-    log.info("Loaded USWTDB: %d → %d turbines after dropping invalid rows",
+
+    # Drop non-utility installations (museums, university test sites, etc.)
+    nu_mask = _flag_non_utility(df["p_name"])
+    if nu_mask.any():
+        nu_mw = df.loc[nu_mask, "t_cap"].sum() / 1000.0
+        log.info("Dropped %d non-utility turbine row(s) (%.2f MW): %s",
+                 int(nu_mask.sum()), nu_mw,
+                 sorted(df.loc[nu_mask, "p_name"].unique().tolist()))
+        df = df[~nu_mask].copy()
+
+    # Backfill orphan eia_ids via parent plant name
+    df = _backfill_orphan_eia_ids(df)
+
+    log.info("Loaded USWTDB: %d → %d turbines after filtering",
              n0, len(df))
 
     # Specific power
