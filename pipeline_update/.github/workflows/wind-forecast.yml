@@ -1,0 +1,243 @@
+name: Wind generation forecast
+
+# Run ~3h after each extended HRRR cycle (00/06/12/18Z) lands on AWS.
+# That gives the full f00..f48 set time to be written to the public bucket.
+on:
+  schedule:
+    - cron: '0 3,9,15,21 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: 'HRRR cycle (UTC ISO, e.g. 2026-04-30T18:00). Empty = latest.'
+        required: false
+        default: ''
+
+# Required so the job can commit wind/index.html back to the repo
+permissions:
+  contents: write
+
+concurrency:
+  group: wind-forecast
+  cancel-in-progress: false
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: scripts
+    env:
+      # Belt-and-suspenders: ensure scripts/ is on Python's import path,
+      # so run.py can `from wf_pipeline import ...` regardless of how
+      # the runner invokes Python.
+      PYTHONPATH: ${{ github.workspace }}/scripts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('scripts/requirements-wind.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install eccodes (GRIB decoder)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-wind.txt gridstatusio
+
+      - name: Download USWTDB
+        run: |
+          mkdir -p data
+          cd data
+          # Skip download if the file is already committed to the repo
+          if [ -f uswtdb.csv ]; then
+            echo "Using committed uswtdb.csv ($(wc -l < uswtdb.csv) rows)"
+            exit 0
+          fi
+          curl -L --fail --silent --show-error \
+               -o uswtdbCSV.zip \
+               "https://energy.usgs.gov/uswtdb/assets/data/uswtdbCSV.zip"
+          unzip -o uswtdbCSV.zip
+          # USWTDB versions the filename like uswtdb_V8_3_20260325.csv;
+          # rename to a stable name. Case-insensitive glob in case USGS
+          # changes the convention.
+          shopt -s nullglob nocaseglob
+          for f in uswtdb_v*.csv; do
+            mv "$f" uswtdb.csv
+            break
+          done
+          ls -lh uswtdb.csv
+
+      - name: Download EIA-860
+        run: |
+          cd data
+          # Skip download if a Plant_Y*.xlsx is already committed
+          if ls 2___Plant_Y*.xlsx >/dev/null 2>&1; then
+            echo "Using committed EIA-860: $(ls 2___Plant_Y*.xlsx)"
+            exit 0
+          fi
+          curl -L --fail --silent --show-error \
+               -A "Mozilla/5.0" \
+               -o eia860.zip \
+               "https://www.eia.gov/electricity/data/eia860/xls/eia8602024.zip"
+          unzip -o eia860.zip "2___Plant_Y2024.xlsx"
+          ls -lh "2___Plant_Y2024.xlsx"
+
+      - name: Choose HRRR cycle
+        id: cycle
+        run: |
+          if [ -n "${{ inputs.cycle }}" ]; then
+            CYCLE="${{ inputs.cycle }}"
+            echo "Using manually-specified cycle: $CYCLE"
+          else
+            CYCLE=$(python find_latest_extended_cycle.py)
+            echo "Latest extended cycle: $CYCLE"
+          fi
+          COMPACT=$(python -c "
+          from datetime import datetime
+          dt = datetime.fromisoformat('$CYCLE')
+          print(dt.strftime('%Y%m%dT%HZ'))
+          ")
+          echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+          echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+
+      - name: Run forecast pipeline
+        run: |
+          EIA860=$(ls data/2___Plant_Y*.xlsx | head -1)
+          echo "Using EIA-860: $EIA860"
+          python run.py \
+            --uswtdb data/uswtdb.csv \
+            --eia860 "$EIA860" \
+            --cycle "${{ steps.cycle.outputs.cycle }}" \
+            --fxx-end 48 \
+            --output-dir output/ \
+            -v
+
+      - name: Build dashboard
+        run: |
+          python dashboard.py \
+            "output/forecast_iso_${{ steps.cycle.outputs.compact }}.csv" \
+            --plotly-js cdn \
+            --theme dark \
+            --title "US Wind Generation Forecast" \
+            -o ../assets/wind_forecast.html
+          ls -lh ../assets/wind_forecast.html
+
+      - name: Archive forecast CSV
+        run: |
+          mkdir -p ../assets/wind_forecast_data
+          cp "output/forecast_iso_${{ steps.cycle.outputs.compact }}.csv" \
+             "../assets/wind_forecast_data/forecast_iso_${{ steps.cycle.outputs.compact }}.csv"
+          cp "output/forecast_ba_${{ steps.cycle.outputs.compact }}.csv" \
+             "../assets/wind_forecast_data/forecast_ba_${{ steps.cycle.outputs.compact }}.csv"
+          # Capacity files (one per aggregation level) for dashboard reference lines
+          cp output/capacity_*_${{ steps.cycle.outputs.compact }}.csv \
+             ../assets/wind_forecast_data/ 2>/dev/null || true
+          # Keep the last 56 cycles (~14 days at 4 extended cycles/day) so the
+          # historical verification card has enough archive depth.
+          cd ../assets/wind_forecast_data
+          ls -t forecast_iso_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t forecast_ba_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t capacity_iso_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t capacity_ba_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
+
+      - name: Update verification dashboard
+        env:
+          GRIDSTATUS_API_KEY: ${{ secrets.GRIDSTATUS_API_KEY }}
+        run: |
+          if [ -z "$GRIDSTATUS_API_KEY" ]; then
+            echo "GRIDSTATUS_API_KEY secret not set; skipping verification update."
+            exit 0
+          fi
+          # update_verification.py writes:
+          #   ../assets/wind_verification.html
+          #   ../assets/wind_forecast_data/verification.csv
+          # Failures here should NOT fail the whole workflow — the live
+          # forecast is the primary deliverable. Verification is best-effort.
+          python update_verification.py || {
+            echo "Verification update failed; continuing anyway."
+            exit 0
+          }
+
+      - name: Stamp cache-buster into charts.html
+        run: |
+          # Replace whatever cycle/date is currently stamped into the iframe
+          # src= URLs and the visible labels with the latest values. Works
+          # whether charts.html still has the __WIND_CYCLE__ placeholder
+          # (first run after deploying the template) or has a previously-
+          # stamped cycle string (every subsequent run).
+          CYCLE='${{ steps.cycle.outputs.compact }}'
+          TODAY=$(date -u +'%Y-%m-%d %H:%MZ')
+          CHARTS="${{ github.workspace }}/charts.html"
+          if [ ! -f "$CHARTS" ]; then
+            echo "ERROR: $CHARTS not found"
+            ls -la "${{ github.workspace }}/" | head -20
+            exit 1
+          fi
+          # Iframe cache-buster: replace ?v=<anything> after the wind dashboards.
+          # Matches both the literal __WIND_CYCLE__ placeholder and any prior
+          # YYYYMMDDTHHZ stamp.
+          sed -i -E "s|(wind_forecast\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(wind_verification\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
+          # Visible labels: "Cycle XXX" and "Updated YYYY-MM-DD HH:MMZ"
+          sed -i -E "s|(id=\"last-updated-wind\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(id=\"last-updated-verif\">Updated )[^<]*|\1${TODAY}|g" "$CHARTS"
+          # Sanity check
+          N=$(grep -c "v=${CYCLE}" "$CHARTS" || true)
+          echo "Stamped CYCLE=${CYCLE} into iframe URLs in $N place(s)"
+          echo "Charts file head:"
+          grep -n "wind_forecast.html\|wind_verification.html\|last-updated" "$CHARTS" | head -10
+
+      - name: Commit and push dashboard
+        run: |
+          cd "${{ github.workspace }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Stage everything we might have changed. Use `git add -A` on the
+          # relevant directories so untracked + modified are both picked up.
+          git add charts.html
+          git add assets/wind_forecast.html
+          git add assets/wind_forecast_data/
+          # Verification is best-effort: only add if the file exists
+          if [ -f assets/wind_verification.html ]; then
+            git add assets/wind_verification.html
+            echo "Staged: assets/wind_verification.html"
+          else
+            echo "WARNING: assets/wind_verification.html not found; skipping"
+          fi
+          # Show what's actually staged so the log is useful
+          echo "--- Staged files ---"
+          git diff --staged --name-only
+          echo "--------------------"
+          if git diff --staged --quiet; then
+            echo "No changes; skipping commit."
+          else
+            git commit -m "wind forecast: cycle ${{ steps.cycle.outputs.compact }}"
+            git push
+          fi
+
+      - name: Forecast summary
+        if: always()
+        run: |
+          echo "### Forecast summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Cycle: \`${{ steps.cycle.outputs.cycle }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Dashboard: [/charts.html](https://scorvec.github.io/charts.html)" >> $GITHUB_STEP_SUMMARY
+          if [ -f output/curve_assignment_${{ steps.cycle.outputs.compact }}.csv ]; then
+            echo "- Curve assignment summary:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -20 "output/curve_assignment_${{ steps.cycle.outputs.compact }}.csv" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
