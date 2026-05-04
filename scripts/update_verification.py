@@ -236,8 +236,17 @@ def main() -> int:
         print(f"Existing verification: {len(existing):,} rows "
               f"({existing['valid_time'].min()} → {existing['valid_time'].max()})")
 
-    # Compute date range we still need actuals for
-    if not existing.empty:
+    # Compute date range we still need actuals for. A (region, valid_time)
+    # pair counts as "already have" only if it exists AND has a non-null
+    # actual_MW — otherwise the row was inserted before gridstatus had
+    # published the actual, and we need to retry.
+    if not existing.empty and "actual_MW" in existing.columns:
+        resolved = existing[existing["actual_MW"].notna()]
+        already_have = set(zip(resolved["region"], resolved["valid_time"]))
+        needed_mask = ~fc_da.apply(
+            lambda r: (r["region"], r["valid_time"]) in already_have, axis=1)
+        needed = fc_da[needed_mask]
+    elif not existing.empty:
         already_have = set(zip(existing["region"], existing["valid_time"]))
         needed_mask = ~fc_da.apply(
             lambda r: (r["region"], r["valid_time"]) in already_have, axis=1)
