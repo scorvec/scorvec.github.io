@@ -164,6 +164,38 @@ def load_uswtdb(path: str | Path) -> pd.DataFrame:
     df.loc[~np.isfinite(df["specific_power_W_m2"]),
            "specific_power_W_m2"] = np.nan
 
+    # Merge in synthetic plants if they exist alongside the USWTDB file.
+    # These are real operating plants that USWTDB hasn't yet attributed
+    # (e.g. brand-new projects whose turbines USGS detected via aerial
+    # imagery but hasn't yet linked to a permitting record). Format
+    # matches USWTDB columns; see data/synthetic_plants.csv.
+    syn_path = Path(path).parent / "synthetic_plants.csv"
+    if syn_path.exists():
+        try:
+            syn = pd.read_csv(syn_path, low_memory=False)
+            # Coerce numerics same way as the main USWTDB load
+            for c in ("t_cap", "t_hh", "t_rd", "p_tnum", "p_year",
+                      "xlong", "ylat", "eia_id"):
+                if c in syn.columns:
+                    syn[c] = pd.to_numeric(syn[c], errors="coerce")
+            # Filter same way (must have nameplate and coords)
+            syn = syn.dropna(subset=["t_cap", "xlong", "ylat"])
+            syn = syn[syn["t_cap"] > 0]
+            if not syn.empty:
+                # Compute specific power for synthetic rows too
+                syn_area = np.pi * (syn["t_rd"].astype(float) / 2.0) ** 2
+                syn["specific_power_W_m2"] = 1000.0 * syn["t_cap"] / syn_area
+                # Append, keeping all columns aligned. Missing columns
+                # from either side become NaN, which is fine — the
+                # downstream code tolerates it.
+                df = pd.concat([df, syn], ignore_index=True)
+                log.info("Merged %d synthetic turbine row(s) (%.0f MW) "
+                         "from %s",
+                         len(syn), syn["t_cap"].sum() / 1000.0, syn_path.name)
+        except Exception as e:
+            log.warning("Failed to load synthetic plants from %s: %s",
+                        syn_path, e)
+
     return df.reset_index(drop=True)
 
 
