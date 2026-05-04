@@ -173,28 +173,45 @@ jobs:
           }
 
       - name: Stamp cache-buster into charts.html
-        working-directory: .
         run: |
           # Substitute the cycle into iframe src= URLs so the browser
           # actually fetches the new dashboard instead of serving the
           # cached one. Also fills the visible "last updated" labels.
           CYCLE='${{ steps.cycle.outputs.compact }}'
           TODAY=$(date -u +'%Y-%m-%d %H:%MZ')
-          # macOS sed differs from GNU sed; this works on the ubuntu runner
-          sed -i "s/__WIND_CYCLE__/${CYCLE}/g" charts.html
-          sed -i "s/__VERIF_DATE__/${TODAY}/g" charts.html
-          # Sanity check the substitutions actually happened
-          grep -c "${CYCLE}" charts.html | xargs -I {} echo "Stamped CYCLE in {} place(s)"
+          CHARTS="${{ github.workspace }}/charts.html"
+          if [ ! -f "$CHARTS" ]; then
+            echo "ERROR: $CHARTS not found"
+            ls -la "${{ github.workspace }}/" | head -20
+            exit 1
+          fi
+          sed -i "s/__WIND_CYCLE__/${CYCLE}/g" "$CHARTS"
+          sed -i "s/__VERIF_DATE__/${TODAY}/g" "$CHARTS"
+          # Sanity check
+          N=$(grep -c "${CYCLE}" "$CHARTS" || true)
+          echo "Stamped CYCLE in $N place(s) in $CHARTS"
 
       - name: Commit and push dashboard
-        working-directory: .
         run: |
+          cd "${{ github.workspace }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/wind_forecast.html assets/wind_forecast_data/ charts.html
-          # Add verification files if they exist (the verification step is
-          # best-effort and may have been skipped or failed)
-          [ -f assets/wind_verification.html ] && git add assets/wind_verification.html
+          # Stage everything we might have changed. Use `git add -A` on the
+          # relevant directories so untracked + modified are both picked up.
+          git add charts.html
+          git add assets/wind_forecast.html
+          git add assets/wind_forecast_data/
+          # Verification is best-effort: only add if the file exists
+          if [ -f assets/wind_verification.html ]; then
+            git add assets/wind_verification.html
+            echo "Staged: assets/wind_verification.html"
+          else
+            echo "WARNING: assets/wind_verification.html not found; skipping"
+          fi
+          # Show what's actually staged so the log is useful
+          echo "--- Staged files ---"
+          git diff --staged --name-only
+          echo "--------------------"
           if git diff --staged --quiet; then
             echo "No changes; skipping commit."
           else
