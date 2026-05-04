@@ -201,14 +201,14 @@
         </div>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/wind_forecast.html?v=20260503T18Z"
+        <iframe src="assets/wind_forecast.html?v=__WIND_CYCLE__"
                 style="width:100%; height:660px; border:0; display:block;"
                 title="US wind generation forecast (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USWTDB · EIA-860 · windpowerlib · NREL WIND Toolkit</span>
-        <span class="chart-updated" id="last-updated-wind">Cycle 20260503T18Z</span>
+        <span class="chart-updated" id="last-updated-wind">Cycle __WIND_CYCLE__</span>
       </div>
     </div>
 
@@ -225,14 +225,14 @@
         </div>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/wind_verification.html?v=20260503T18Z"
+        <iframe src="assets/wind_verification.html?v=__WIND_CYCLE__"
                 style="width:100%; height:660px; border:0; display:block;"
                 title="Historical model vs actual generation (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">Model + gridstatus.io (actual generation, curtailment)</span>
-        <span class="chart-updated" id="last-updated-verif">Updated 2026-05-04 00:08Z</span>
+        <span class="chart-updated" id="last-updated-verif">Updated __VERIF_DATE__</span>
       </div>
     </div>
 
@@ -244,11 +244,9 @@
 </footer>
 
 <script>
-  // Show today's date as the last updated timestamp
-  const d = new Date();
-  const fmt = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  document.getElementById("last-updated-wind").textContent = "Updated " + fmt;
-  document.getElementById("last-updated-verif").textContent = "Updated " + fmt;
+  // The "Updated" labels above are stamped server-side by the
+  // wind-forecast workflow (charts.html is rewritten on each run with
+  // the actual cycle and update time). Don't overwrite from JS.
 
   // Visitor counter
   fetch('https://api.counterapi.dev/v1/scorvec/visits/up')
