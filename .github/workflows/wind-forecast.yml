@@ -174,9 +174,11 @@ jobs:
 
       - name: Stamp cache-buster into charts.html
         run: |
-          # Substitute the cycle into iframe src= URLs so the browser
-          # actually fetches the new dashboard instead of serving the
-          # cached one. Also fills the visible "last updated" labels.
+          # Replace whatever cycle/date is currently stamped into the iframe
+          # src= URLs and the visible labels with the latest values. Works
+          # whether charts.html still has the __WIND_CYCLE__ placeholder
+          # (first run after deploying the template) or has a previously-
+          # stamped cycle string (every subsequent run).
           CYCLE='${{ steps.cycle.outputs.compact }}'
           TODAY=$(date -u +'%Y-%m-%d %H:%MZ')
           CHARTS="${{ github.workspace }}/charts.html"
@@ -185,11 +187,19 @@ jobs:
             ls -la "${{ github.workspace }}/" | head -20
             exit 1
           fi
-          sed -i "s/__WIND_CYCLE__/${CYCLE}/g" "$CHARTS"
-          sed -i "s/__VERIF_DATE__/${TODAY}/g" "$CHARTS"
+          # Iframe cache-buster: replace ?v=<anything> after the wind dashboards.
+          # Matches both the literal __WIND_CYCLE__ placeholder and any prior
+          # YYYYMMDDTHHZ stamp.
+          sed -i -E "s|(wind_forecast\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(wind_verification\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
+          # Visible labels: "Cycle XXX" and "Updated YYYY-MM-DD HH:MMZ"
+          sed -i -E "s|(id=\"last-updated-wind\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(id=\"last-updated-verif\">Updated )[^<]*|\1${TODAY}|g" "$CHARTS"
           # Sanity check
-          N=$(grep -c "${CYCLE}" "$CHARTS" || true)
-          echo "Stamped CYCLE in $N place(s) in $CHARTS"
+          N=$(grep -c "v=${CYCLE}" "$CHARTS" || true)
+          echo "Stamped CYCLE=${CYCLE} into iframe URLs in $N place(s)"
+          echo "Charts file head:"
+          grep -n "wind_forecast.html\|wind_verification.html\|last-updated" "$CHARTS" | head -10
 
       - name: Commit and push dashboard
         run: |
