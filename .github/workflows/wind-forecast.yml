@@ -172,12 +172,26 @@ jobs:
             exit 0
           }
 
+      - name: Stamp cache-buster into charts.html
+        working-directory: .
+        run: |
+          # Substitute the cycle into iframe src= URLs so the browser
+          # actually fetches the new dashboard instead of serving the
+          # cached one. Also fills the visible "last updated" labels.
+          CYCLE='${{ steps.cycle.outputs.compact }}'
+          TODAY=$(date -u +'%Y-%m-%d %H:%MZ')
+          # macOS sed differs from GNU sed; this works on the ubuntu runner
+          sed -i "s/__WIND_CYCLE__/${CYCLE}/g" charts.html
+          sed -i "s/__VERIF_DATE__/${TODAY}/g" charts.html
+          # Sanity check the substitutions actually happened
+          grep -c "${CYCLE}" charts.html | xargs -I {} echo "Stamped CYCLE in {} place(s)"
+
       - name: Commit and push dashboard
         working-directory: .
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/wind_forecast.html assets/wind_forecast_data/
+          git add assets/wind_forecast.html assets/wind_forecast_data/ charts.html
           # Add verification files if they exist (the verification step is
           # best-effort and may have been skipped or failed)
           [ -f assets/wind_verification.html ] && git add assets/wind_verification.html
