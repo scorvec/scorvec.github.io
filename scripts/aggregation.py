@@ -196,6 +196,17 @@ def attach_ba_iso(inventory: pd.DataFrame,
     return out
 
 
+# Project-level breakouts. Plants in this map appear as standalone regions
+# in the `iso` aggregation in addition to being summed into their parent ISO
+# total. This is for headline projects that are interesting to track on
+# their own (e.g. SunZia at 1+ GW exported from NM into CAISO).
+#
+# Maps eia_id -> display name shown in the dashboard dropdown.
+PROJECT_BREAKOUTS: dict[int, str] = {
+    99001: "SunZia (CAISO)",
+}
+
+
 def aggregate(forecast_df: pd.DataFrame,
               level: str = "ba",
               power_col: str = "power_net_kW") -> pd.DataFrame:
@@ -209,9 +220,16 @@ def aggregate(forecast_df: pd.DataFrame,
     power_col : str
         Column to sum (default net power after losses).
 
+    For `level="iso"`, also emits one row per project listed in
+    PROJECT_BREAKOUTS — these are treated as their own region in the
+    output (so the dashboard dropdown lists them), but their generation
+    is still included in the parent ISO total. This is useful for
+    isolated visibility into headline projects without breaking the
+    ISO-level apples-to-apples comparison against gridstatus actuals.
+
     Returns
     -------
-    DataFrame indexed by (group_key, valid_time) with column `MW`.
+    DataFrame with the group-key column(s), `valid_time`, and `MW`.
     """
     keys = {
         "plant":    ["eia_id", "p_name"],
@@ -224,4 +242,18 @@ def aggregate(forecast_df: pd.DataFrame,
     group_cols = keys + ["valid_time"]
     agg = (forecast_df.groupby(group_cols)[power_col].sum() / 1000.0)
     agg.name = "MW"
-    return agg.reset_index()
+    out = agg.reset_index()
+
+    # Project breakouts at iso level only
+    if level == "iso" and PROJECT_BREAKOUTS:
+        for eia_id, label in PROJECT_BREAKOUTS.items():
+            mask = forecast_df["eia_id"] == eia_id
+            if not mask.any():
+                continue
+            proj = (forecast_df.loc[mask].groupby("valid_time")[power_col]
+                    .sum() / 1000.0).reset_index()
+            proj["iso"] = label
+            proj = proj.rename(columns={power_col: "MW"})[["iso", "valid_time", "MW"]]
+            out = pd.concat([out, proj], ignore_index=True)
+
+    return out
