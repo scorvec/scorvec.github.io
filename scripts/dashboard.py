@@ -44,7 +44,8 @@ except ImportError:
 
 
 # Region ordering: ISOs first (largest first), then notable non-ISO BAs
-ISO_ORDER = ["ERCOT", "MISO", "SPP", "PJM", "CAISO", "NYISO", "ISO-NE"]
+ISO_ORDER = ["ERCOT", "MISO", "SPP", "PJM", "CAISO", "SunZia (CAISO)",
+             "NYISO", "ISO-NE"]
 
 
 def detect_group_col(df: pd.DataFrame) -> str:
