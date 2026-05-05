@@ -320,14 +320,43 @@ def build_map(forecast_csv: Path, capacity_csv: Path, output_path: Path,
         )],
     )
 
+    # Pack per-plant time series for the click handler. The browser-side
+    # JS will read these to render the time-series chart on click.
+    # Format: list aligned with marker indices, each element is a dict with
+    # name, capacity, and parallel arrays of timestamps + MW values.
+    timeseries_data = []
+    timestep_strs = [pd.Timestamp(t).strftime("%Y-%m-%d %H:%MZ")
+                     for t in timesteps]
+    for p_idx, row in enumerate(inv_records):
+        timeseries_data.append({
+            "name":        row.get("p_name", "Unknown"),
+            "capacity_MW": float(row.get("capacity_MW", 0)),
+            "ba":          str(row.get("ba_code", "?")),
+            "state":       str(row.get("t_state", "")),
+            "county":      str(row.get("county", "")),
+            "year":        (int(row.get("p_year"))
+                            if pd.notna(row.get("p_year")) else None),
+            "n_turbines":  int(row.get("n_turbines", 0)),
+            "mw":  [float(x) for x in mw_arr[p_idx]],
+            "cf":  [float(x) for x in cf_arr[p_idx]],
+        })
+
+    # Get the figure as a JSON-serializable dict (compact form)
+    import json
+    import plotly.io as pio
+    fig_json = pio.to_json(fig, validate=False)
+
+    # Custom HTML wrapper: two Plotly divs (map + time-series), a click
+    # handler that swaps in per-plant data when a marker is clicked.
+    html = _build_html(fig_json, timeseries_data, timestep_strs,
+                       theme=theme, bg_color=bg_color, font_color=font_color,
+                       slider_active=slider_active,
+                       slider_bg=slider_bg,
+                       slider_border=slider_border)
+
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(
-        str(output_path),
-        include_plotlyjs="cdn",
-        full_html=True,
-        config=dict(displayModeBar=False, responsive=True),
-    )
+    output_path.write_text(html, encoding="utf-8")
     print(f"\n✓ Wrote {output_path}")
     size_kb = output_path.stat().st_size / 1024
     print(f"  File size: {size_kb:,.0f} KB")
@@ -336,6 +365,188 @@ def build_map(forecast_csv: Path, capacity_csv: Path, output_path: Path,
     print(f"  Initial:   frame {initial_frame_idx} "
           f"({timesteps[initial_frame_idx]}, "
           f"mean CF {mean_cf_per_frame[initial_frame_idx]:.0f}%)")
+
+
+def _build_html(fig_json: str, timeseries_data: list, timestep_strs: list,
+                *, theme: str, bg_color: str, font_color: str,
+                slider_active: str, slider_bg: str,
+                slider_border: str) -> str:
+    """Wrap the map in HTML with a click-to-timeseries panel below it.
+
+    The map is rendered into #map-div, and the time-series chart into
+    #ts-div. A Plotly `plotly_click` handler updates the time-series div
+    when the user clicks a marker. All per-plant time-series data is
+    embedded as a JSON blob in the page so no server round-trips are
+    needed.
+    """
+    import json
+
+    # Hint text shown in the time series panel before any plant is clicked
+    hint_color = "rgba(255,255,255,0.4)" if theme == "dark" else "rgba(0,0,0,0.35)"
+
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body {{
+    margin: 0; padding: 0;
+    background: {bg_color};
+    color: {font_color};
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    width: 100%; height: 100%;
+  }}
+  #wrap {{
+    display: flex; flex-direction: column;
+    width: 100%; height: 100vh;
+  }}
+  #map-div {{
+    flex: 1 1 auto;
+    min-height: 0;       /* lets flex shrink below content size */
+  }}
+  #ts-panel {{
+    flex: 0 0 220px;
+    border-top: 1px solid {slider_border};
+    background: {bg_color};
+    position: relative;
+  }}
+  #ts-div {{
+    width: 100%; height: 100%;
+  }}
+  #ts-hint {{
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: {hint_color};
+    font-size: 13px;
+    pointer-events: none;
+    text-align: center;
+    padding: 1rem;
+  }}
+  #ts-hint.hidden {{ display: none; }}
+</style>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+<div id="wrap">
+  <div id="map-div"></div>
+  <div id="ts-panel">
+    <div id="ts-div"></div>
+    <div id="ts-hint">Click a plant on the map to see its 48-hour forecast.</div>
+  </div>
+</div>
+
+<script>
+  const figData = {fig_json};
+  const tsData = {json.dumps(timeseries_data)};
+  const timestepLabels = {json.dumps(timestep_strs)};
+
+  // Common config for both maps and charts
+  const mapConfig = {{
+    displayModeBar: true,
+    displaylogo: false,
+    modeBarButtonsToRemove: ['lasso2d', 'select2d', 'toImage'],
+    scrollZoom: true,
+    responsive: true,
+  }};
+  const tsConfig = {{
+    displayModeBar: false,
+    responsive: true,
+  }};
+
+  Plotly.newPlot('map-div', figData.data, figData.layout, mapConfig)
+    .then(function(gd) {{
+      // Click handler: when a marker is clicked, render that plant's time series
+      gd.on('plotly_click', function(eventData) {{
+        if (!eventData || !eventData.points || !eventData.points.length) return;
+        const p = eventData.points[0];
+        const idx = p.pointIndex;
+        const plant = tsData[idx];
+        if (!plant) return;
+        renderTimeseries(plant);
+      }});
+      // Animation frames need to be added explicitly
+      if (figData.frames && figData.frames.length) {{
+        Plotly.addFrames('map-div', figData.frames);
+      }}
+    }});
+
+  function renderTimeseries(plant) {{
+    document.getElementById('ts-hint').classList.add('hidden');
+
+    const trace = {{
+      x: timestepLabels,
+      y: plant.mw,
+      type: 'scatter',
+      mode: 'lines',
+      line: {{ color: '{slider_active}', width: 2.5, shape: 'spline', smoothing: 0.7 }},
+      fill: 'tozeroy',
+      fillcolor: '{slider_active}33',  // 20% opacity
+      hovertemplate: '%{{x}}<br><b>%{{y:,.0f}} MW</b><extra></extra>',
+      name: 'Forecast MW',
+    }};
+
+    const meta_bits = [];
+    if (plant.county) meta_bits.push(plant.county + ', ' + plant.state);
+    else if (plant.state) meta_bits.push(plant.state);
+    if (plant.ba && plant.ba !== '?' && plant.ba !== 'nan') meta_bits.push('BA: ' + plant.ba);
+    if (plant.year) meta_bits.push('Built: ' + plant.year);
+    if (plant.n_turbines) meta_bits.push(plant.n_turbines + ' turbines');
+    const subtitle = meta_bits.join(' · ');
+
+    const peakMW = Math.max.apply(null, plant.mw);
+    const peakCF = Math.max.apply(null, plant.cf);
+
+    const layout = {{
+      title: {{
+        text: '<b>' + plant.name + '</b>'
+              + '<br><span style="font-size:11px;color:{font_color}99">'
+              + subtitle + '  ·  ' + plant.capacity_MW.toLocaleString(undefined, {{maximumFractionDigits: 0}}) + ' MW capacity'
+              + '  ·  Peak forecast: ' + peakMW.toFixed(0) + ' MW (' + peakCF.toFixed(0) + '%)'
+              + '</span>',
+        font: {{ size: 13, color: '{font_color}' }},
+        x: 0.02, y: 0.92, xanchor: 'left',
+      }},
+      paper_bgcolor: '{bg_color}',
+      plot_bgcolor: '{bg_color}',
+      font: {{ color: '{font_color}', family: 'Inter, system-ui, sans-serif' }},
+      margin: {{ l: 50, r: 30, t: 55, b: 30 }},
+      xaxis: {{
+        showgrid: false,
+        tickfont: {{ size: 10 }},
+        nticks: 8,
+      }},
+      yaxis: {{
+        title: {{ text: 'MW', font: {{ size: 11 }} }},
+        showgrid: true,
+        gridcolor: '{slider_border}',
+        zerolinecolor: '{slider_border}',
+        rangemode: 'tozero',
+        range: [0, plant.capacity_MW * 1.05],
+        tickfont: {{ size: 10 }},
+      }},
+      shapes: [{{
+        type: 'line',
+        xref: 'paper', x0: 0, x1: 1,
+        yref: 'y', y0: plant.capacity_MW, y1: plant.capacity_MW,
+        line: {{ color: '{font_color}', width: 1, dash: 'dot' }},
+        opacity: 0.4,
+      }}],
+      annotations: [{{
+        xref: 'paper', x: 0.99,
+        yref: 'y', y: plant.capacity_MW,
+        text: 'Capacity (' + plant.capacity_MW.toFixed(0) + ' MW)',
+        showarrow: false, xanchor: 'right', yanchor: 'bottom',
+        font: {{ size: 9, color: '{font_color}99' }},
+      }}],
+      hovermode: 'x unified',
+    }};
+
+    Plotly.react('ts-div', [trace], layout, tsConfig);
+  }}
+</script>
+</body>
+</html>
+"""
 
 
 def main() -> int:
