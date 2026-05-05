@@ -134,6 +134,33 @@ def _write_capacity_files(inv: pd.DataFrame, outd: Path, cycle_tag: str,
         keys = level_to_keys.get(level)
         if keys is None:
             continue
+
+        # Special handling for plant level: write the full plant inventory
+        # (one row per eia_id+name) including geographic and BA metadata
+        # so map_dashboard.py can render markers without re-loading
+        # USWTDB. Schema is a superset of the simple region/capacity_MW
+        # so existing consumers keep working — they just see extra columns.
+        if level == "plant":
+            agg_dict = {
+                "capacity_MW": ("t_cap", lambda s: s.sum() / 1000.0),
+                "n_turbines":  ("t_cap", "size"),
+                "ylat":        ("ylat", "mean"),
+                "xlong":       ("xlong", "mean"),
+            }
+            for col in ("ba_code", "iso", "t_state", "p_year"):
+                if col in inv.columns:
+                    agg_dict[col] = (col, "first")
+            if "t_county" in inv.columns:
+                agg_dict["county"] = ("t_county", "first")
+            grouped = (inv.groupby(["eia_id", "p_name"], dropna=False)
+                          .agg(**agg_dict).reset_index())
+            grouped["region"] = grouped["p_name"]
+            cap = grouped.dropna(subset=["xlong", "ylat"])
+            cap_path = outd / f"capacity_{level}_{cycle_tag}.csv"
+            cap.to_csv(cap_path, index=False)
+            written.append(cap_path)
+            continue
+
         if not keys:
             cap = pd.DataFrame({"region": ["National"],
                                 "capacity_MW": [inv["t_cap"].sum() / 1000.0]})
@@ -212,7 +239,7 @@ def run(uswtdb_path: str | Path,
         use_oedb: bool = True,
         output_dir: Optional[str | Path] = None,
         save_per_turbine: bool = False,
-        aggregation_levels: Iterable[str] = ("ba", "iso"),
+        aggregation_levels: Iterable[str] = ("ba", "iso", "plant"),
         ) -> dict[str, pd.DataFrame]:
     """End-to-end runner. Returns a dict of {level: aggregated_df}.
 
@@ -349,7 +376,7 @@ def build_argparser() -> argparse.ArgumentParser:
 
     p.add_argument("--no-oedb", action="store_true",
                    help="Skip Tier-1 oedb catalog (use NREL generic only)")
-    p.add_argument("--aggregation", default="ba,iso",
+    p.add_argument("--aggregation", default="ba,iso,plant",
                    help="Comma-separated aggregation levels: "
                         "plant, ba, iso, state, national")
 
