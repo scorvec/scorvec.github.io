@@ -150,6 +150,21 @@ def _write_capacity_files(inv: pd.DataFrame, outd: Path, cycle_tag: str,
                 cap = cap[["region", "t_cap"]].rename(
                     columns={"t_cap": "capacity_MW"})
         cap = cap.dropna(subset=["region"])
+
+        # Add project-breakout capacity rows at the iso level so the
+        # dashboard's reference line is correct when SunZia (or any
+        # other breakout project) is selected. Mirrors the logic in
+        # aggregation.aggregate(level="iso").
+        if level == "iso":
+            from aggregation import PROJECT_BREAKOUTS
+            for eia_id, label in PROJECT_BREAKOUTS.items():
+                proj_cap_kW = inv.loc[inv["eia_id"] == eia_id, "t_cap"].sum()
+                if proj_cap_kW > 0:
+                    cap = pd.concat([cap, pd.DataFrame({
+                        "region": [label],
+                        "capacity_MW": [proj_cap_kW / 1000.0],
+                    })], ignore_index=True)
+
         cap_path = outd / f"capacity_{level}_{cycle_tag}.csv"
         cap.to_csv(cap_path, index=False)
         written.append(cap_path)
