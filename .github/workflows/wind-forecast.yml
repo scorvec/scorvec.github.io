@@ -143,16 +143,42 @@ jobs:
              "../assets/wind_forecast_data/forecast_iso_${{ steps.cycle.outputs.compact }}.csv"
           cp "output/forecast_ba_${{ steps.cycle.outputs.compact }}.csv" \
              "../assets/wind_forecast_data/forecast_ba_${{ steps.cycle.outputs.compact }}.csv"
+          # Plant-level forecast for the interactive map (best-effort —
+          # only present if the plant aggregation level was enabled).
+          cp "output/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
+             "../assets/wind_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
+             2>/dev/null || true
           # Capacity files (one per aggregation level) for dashboard reference lines
           cp output/capacity_*_${{ steps.cycle.outputs.compact }}.csv \
              ../assets/wind_forecast_data/ 2>/dev/null || true
           # Keep the last 56 cycles (~14 days at 4 extended cycles/day) so the
           # historical verification card has enough archive depth.
           cd ../assets/wind_forecast_data
-          ls -t forecast_iso_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
-          ls -t forecast_ba_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
-          ls -t capacity_iso_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
-          ls -t capacity_ba_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t forecast_iso_*.csv   2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t forecast_ba_*.csv    2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t forecast_plant_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t capacity_iso_*.csv   2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t capacity_ba_*.csv    2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t capacity_plant_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
+
+      - name: Build plant-level map
+        run: |
+          # Plant-level interactive map with time slider. Best-effort —
+          # if plant CSV missing or rendering fails, don't fail the
+          # workflow (forecast is the primary deliverable).
+          if [ ! -f "../assets/wind_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" ]; then
+            echo "Plant-level CSV not found; skipping map build."
+            exit 0
+          fi
+          python map_dashboard.py \
+            "../assets/wind_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
+            --capacity "../assets/wind_forecast_data/capacity_plant_${{ steps.cycle.outputs.compact }}.csv" \
+            --output ../assets/wind_map.html \
+            --theme dark || {
+              echo "Map build failed; continuing anyway."
+              exit 0
+            }
+          ls -lh ../assets/wind_map.html || true
 
       - name: Update verification dashboard
         env:
@@ -192,6 +218,7 @@ jobs:
           # YYYYMMDDTHHZ stamp.
           sed -i -E "s|(wind_forecast\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
           sed -i -E "s|(wind_verification\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(wind_map\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
           # Visible labels: "Cycle XXX" and "Updated YYYY-MM-DD HH:MMZ"
           sed -i -E "s|(id=\"last-updated-wind\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
           sed -i -E "s|(id=\"last-updated-verif\">Updated )[^<]*|\1${TODAY}|g" "$CHARTS"
@@ -217,6 +244,13 @@ jobs:
             echo "Staged: assets/wind_verification.html"
           else
             echo "WARNING: assets/wind_verification.html not found; skipping"
+          fi
+          # Map is also best-effort
+          if [ -f assets/wind_map.html ]; then
+            git add assets/wind_map.html
+            echo "Staged: assets/wind_map.html"
+          else
+            echo "WARNING: assets/wind_map.html not found; skipping"
           fi
           # Show what's actually staged so the log is useful
           echo "--- Staged files ---"
