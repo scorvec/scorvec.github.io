@@ -143,6 +143,22 @@ def load_uswtdb(path: str | Path) -> pd.DataFrame:
     df = df.dropna(subset=["t_cap", "xlong", "ylat"])
     df = df[df["t_cap"] > 0]
 
+    # CONUS-only filter. HRRR is the L48 + a buffer; turbines in HI, AK,
+    # PR, GU, VI either don't get sampled at all or pick up domain-edge
+    # artifacts. Drop them at load time so they never hit HRRR sampling
+    # or aggregation. Keep DC (which doesn't have wind farms anyway).
+    NON_CONUS = {"HI", "AK", "PR", "GU", "VI", "AS", "MP"}
+    nc_mask = df["t_state"].isin(NON_CONUS)
+    if nc_mask.any():
+        nc_mw = df.loc[nc_mask, "t_cap"].sum() / 1000.0
+        nc_summary = (df.loc[nc_mask].groupby("t_state")["t_cap"]
+                      .agg(["size", "sum"]).to_dict("index"))
+        log.info("Dropped %d non-CONUS turbine row(s) (%.0f MW total): %s",
+                 int(nc_mask.sum()), nc_mw,
+                 {s: f"{v['size']} turbines, {v['sum']/1000:.0f} MW"
+                  for s, v in nc_summary.items()})
+        df = df[~nc_mask].copy()
+
     # Drop non-utility installations (museums, university test sites, etc.)
     nu_mask = _flag_non_utility(df["p_name"])
     if nu_mask.any():
