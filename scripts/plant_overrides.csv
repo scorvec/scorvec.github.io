@@ -5,3 +5,4 @@ eia_id,ba_code,note
 64666,SWPP,Great Prairie Wind 2 - Panhandle plant in TX state-fallback wrongly assigned ERCO
 64667,SWPP,Great Prairie Wind 3 - Panhandle plant in TX state-fallback wrongly assigned ERCO
 99001,CISO,SunZia Wind Phase 1 - NM wind exported to CAISO via SunZia HVDC line; gridstatus reports it as CAISO wind
+65561,ISNE,Vineyard Wind 1 - offshore Massachusetts; USWTDB has NaN t_state for offshore plants so state fallback fails
