@@ -146,13 +146,19 @@ def build_map(forecast_csv: Path, capacity_csv: Path, output_path: Path,
     fc_key = list(zip(fc["eia_id"], fc["p_name"]))
     inv_key = list(zip(inv["eia_id"], inv["p_name"]))
     fc = fc.assign(_join_key=fc_key)
-    pivot = (fc.pivot_table(index="_join_key", columns="valid_time",
-                            values="MW", aggfunc="sum")
-               .reindex(timesteps, axis=1))  # ensure column ordering
 
-    # Align with inventory; plants in inv but not fc get all-zero rows.
-    pivot = pivot.reindex(inv_key)
-    pivot = pivot.fillna(0.0)
+    def _pivot(col: str) -> pd.DataFrame:
+        return (fc.pivot_table(index="_join_key", columns="valid_time",
+                               values=col, aggfunc="sum"
+                                       if col in ("MW", "MW_gross") else "mean")
+                  .reindex(timesteps, axis=1)
+                  .reindex(inv_key)
+                  .fillna(0.0))
+
+    pivot = _pivot("MW_gross") if "MW_gross" in fc.columns else _pivot("MW")
+    pivot_net = _pivot("MW")
+    pivot_ws = _pivot("ws_hh") if "ws_hh" in fc.columns else None
+    pivot_rho = _pivot("rho_hh") if "rho_hh" in fc.columns else None
 
     # Pre-compute capacity factor for each (plant, timestep). Clamp MW at
     # plant capacity to prevent display values exceeding nameplate — the
@@ -166,6 +172,14 @@ def build_map(forecast_csv: Path, capacity_csv: Path, output_path: Path,
     mw_arr = np.maximum(mw_arr, 0.0)               # no negative
     cf_arr = 100.0 * mw_arr / np.maximum(cap_arr[:, None], 1e-6)
     cf_arr = np.clip(cf_arr, 0.0, 100.0)
+
+    # Net MW for the time-series detail (post-loss). Also clamp.
+    mw_net_arr = pivot_net.to_numpy(dtype=float)
+    mw_net_arr = np.clip(mw_net_arr, 0.0, cap_arr[:, None])
+
+    # Optional weather diagnostics for the click panel
+    ws_arr  = pivot_ws.to_numpy(dtype=float)  if pivot_ws  is not None else None
+    rho_arr = pivot_rho.to_numpy(dtype=float) if pivot_rho is not None else None
 
     # Find the most-interesting frame to show first (highest mean CF)
     mean_cf_per_frame = cf_arr.mean(axis=0)
@@ -343,7 +357,7 @@ def build_map(forecast_csv: Path, capacity_csv: Path, output_path: Path,
     timestep_strs = [pd.Timestamp(t).strftime("%Y-%m-%d %H:%MZ")
                      for t in timesteps]
     for p_idx, row in enumerate(inv_records):
-        timeseries_data.append({
+        entry = {
             "name":        row.get("p_name", "Unknown"),
             "capacity_MW": float(row.get("capacity_MW", 0)),
             "ba":          str(row.get("ba_code", "?")),
@@ -352,9 +366,15 @@ def build_map(forecast_csv: Path, capacity_csv: Path, output_path: Path,
             "year":        (int(row.get("p_year"))
                             if pd.notna(row.get("p_year")) else None),
             "n_turbines":  int(row.get("n_turbines", 0)),
-            "mw":  [float(x) for x in mw_arr[p_idx]],
-            "cf":  [float(x) for x in cf_arr[p_idx]],
-        })
+            "mw":      [float(x) for x in mw_arr[p_idx]],       # gross
+            "mw_net":  [float(x) for x in mw_net_arr[p_idx]],   # post-loss
+            "cf":      [float(x) for x in cf_arr[p_idx]],
+        }
+        if ws_arr is not None:
+            entry["ws_hh"] = [float(x) for x in ws_arr[p_idx]]
+        if rho_arr is not None:
+            entry["rho_hh"] = [float(x) for x in rho_arr[p_idx]]
+        timeseries_data.append(entry)
 
     # Get the figure as a JSON-serializable dict (compact form)
     import json
@@ -420,7 +440,7 @@ def _build_html(fig_json: str, timeseries_data: list, timestep_strs: list,
     min-height: 0;       /* lets flex shrink below content size */
   }}
   #ts-panel {{
-    flex: 0 0 220px;
+    flex: 0 0 280px;
     border-top: 1px solid {slider_border};
     background: {bg_color};
     position: relative;
@@ -488,17 +508,68 @@ def _build_html(fig_json: str, timeseries_data: list, timestep_strs: list,
   function renderTimeseries(plant) {{
     document.getElementById('ts-hint').classList.add('hidden');
 
-    const trace = {{
+    const traces = [];
+
+    // Primary: gross MW (solid, filled) — what the turbines are physically producing
+    traces.push({{
       x: timestepLabels,
       y: plant.mw,
       type: 'scatter',
       mode: 'lines',
       line: {{ color: '{slider_active}', width: 2.5, shape: 'spline', smoothing: 0.7 }},
       fill: 'tozeroy',
-      fillcolor: '{slider_active}33',  // 20% opacity
-      hovertemplate: '%{{x}}<br><b>%{{y:,.0f}} MW</b><extra></extra>',
-      name: 'Forecast MW',
-    }};
+      fillcolor: '{slider_active}33',
+      name: 'Gross MW',
+      hovertemplate: '<b>%{{y:,.0f}} MW</b> gross<extra></extra>',
+      yaxis: 'y',
+    }});
+
+    // Net MW (post-loss, ~16% lower) — what the model expects on the grid.
+    // Only plot if the data is present and meaningfully different from gross.
+    if (plant.mw_net && plant.mw_net.length === plant.mw.length) {{
+      traces.push({{
+        x: timestepLabels,
+        y: plant.mw_net,
+        type: 'scatter',
+        mode: 'lines',
+        line: {{ color: '{slider_active}', width: 1.5, dash: 'dot', shape: 'spline', smoothing: 0.7 }},
+        name: 'Net MW (post-loss)',
+        hovertemplate: '<b>%{{y:,.0f}} MW</b> net<extra></extra>',
+        yaxis: 'y',
+      }});
+    }}
+
+    // Secondary axis: hub-height wind speed (m/s)
+    if (plant.ws_hh && plant.ws_hh.length) {{
+      traces.push({{
+        x: timestepLabels,
+        y: plant.ws_hh,
+        type: 'scatter',
+        mode: 'lines',
+        line: {{ color: '#7ab8d6', width: 1.5, shape: 'spline', smoothing: 0.4 }},
+        name: 'Hub-height wind (m/s)',
+        hovertemplate: '<b>%{{y:.1f}} m/s</b> hub-height<extra></extra>',
+        yaxis: 'y2',
+      }});
+    }}
+
+    // Air density on hover only — same axis as wind speed but very different
+    // scale, so plot with extreme transparency or tuck into custom hover.
+    // Cleanest: a hidden trace with customdata so it shows on the unified
+    // hover but doesn't clutter the chart.
+    if (plant.rho_hh && plant.rho_hh.length) {{
+      traces.push({{
+        x: timestepLabels,
+        y: plant.rho_hh.map(function(r) {{ return r * 1; }}),
+        type: 'scatter',
+        mode: 'lines',
+        line: {{ color: '#c79b7a', width: 1, dash: 'dash' }},
+        name: 'Air density (kg/m³)',
+        hovertemplate: '<b>%{{y:.3f}} kg/m³</b> air density<extra></extra>',
+        yaxis: 'y3',
+        opacity: 0.55,
+      }});
+    }}
 
     const meta_bits = [];
     if (plant.county) meta_bits.push(plant.county + ', ' + plant.state);
@@ -511,33 +582,61 @@ def _build_html(fig_json: str, timeseries_data: list, timestep_strs: list,
     const peakMW = Math.max.apply(null, plant.mw);
     const peakCF = Math.max.apply(null, plant.cf);
 
+    // Wind axis range: cut-in to a reasonable upper bound; expand if data exceeds
+    let wsMax = 25;
+    if (plant.ws_hh && plant.ws_hh.length) {{
+      wsMax = Math.max(25, Math.ceil(Math.max.apply(null, plant.ws_hh) * 1.1));
+    }}
+
     const layout = {{
       title: {{
         text: '<b>' + plant.name + '</b>'
               + '<br><span style="font-size:11px;color:{font_color}99">'
               + subtitle + '  ·  ' + plant.capacity_MW.toLocaleString(undefined, {{maximumFractionDigits: 0}}) + ' MW capacity'
-              + '  ·  Peak forecast: ' + peakMW.toFixed(0) + ' MW (' + peakCF.toFixed(0) + '%)'
+              + '  ·  Peak gross: ' + peakMW.toFixed(0) + ' MW (' + peakCF.toFixed(0) + '%)'
               + '</span>',
         font: {{ size: 13, color: '{font_color}' }},
-        x: 0.02, y: 0.92, xanchor: 'left',
+        x: 0.02, y: 0.96, xanchor: 'left',
       }},
       paper_bgcolor: '{bg_color}',
       plot_bgcolor: '{bg_color}',
       font: {{ color: '{font_color}', family: 'Inter, system-ui, sans-serif' }},
-      margin: {{ l: 50, r: 30, t: 55, b: 30 }},
+      margin: {{ l: 55, r: 60, t: 55, b: 30 }},
       xaxis: {{
         showgrid: false,
         tickfont: {{ size: 10 }},
         nticks: 8,
+        domain: [0, 1],
       }},
       yaxis: {{
-        title: {{ text: 'MW', font: {{ size: 11 }} }},
+        title: {{ text: 'MW', font: {{ size: 11, color: '{slider_active}' }} }},
         showgrid: true,
         gridcolor: '{slider_border}',
         zerolinecolor: '{slider_border}',
         rangemode: 'tozero',
         range: [0, plant.capacity_MW * 1.05],
-        tickfont: {{ size: 10 }},
+        tickfont: {{ size: 10, color: '{slider_active}' }},
+        side: 'left',
+      }},
+      yaxis2: {{
+        title: {{ text: 'Wind (m/s)', font: {{ size: 11, color: '#7ab8d6' }} }},
+        overlaying: 'y',
+        side: 'right',
+        showgrid: false,
+        rangemode: 'tozero',
+        range: [0, wsMax],
+        tickfont: {{ size: 10, color: '#7ab8d6' }},
+      }},
+      yaxis3: {{
+        // Air density axis — exists so the trace can hover, but hidden visually
+        overlaying: 'y',
+        side: 'right',
+        position: 1,
+        showgrid: false,
+        showticklabels: false,
+        showline: false,
+        zeroline: false,
+        range: [0.7, 1.4],
       }},
       shapes: [{{
         type: 'line',
@@ -553,10 +652,20 @@ def _build_html(fig_json: str, timeseries_data: list, timestep_strs: list,
         showarrow: false, xanchor: 'right', yanchor: 'bottom',
         font: {{ size: 9, color: '{font_color}99' }},
       }}],
+      legend: {{
+        orientation: 'h', x: 0, y: 1.0, yanchor: 'bottom',
+        font: {{ size: 10, color: '{font_color}' }},
+        bgcolor: 'rgba(0,0,0,0)',
+      }},
       hovermode: 'x unified',
+      hoverlabel: {{
+        bgcolor: '{bg_color}',
+        bordercolor: '{slider_active}',
+        font: {{ size: 11, color: '{font_color}' }},
+      }},
     }};
 
-    Plotly.react('ts-div', [trace], layout, tsConfig);
+    Plotly.react('ts-div', traces, layout, tsConfig);
   }}
 </script>
 </body>
