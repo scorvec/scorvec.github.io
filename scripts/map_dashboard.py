@@ -136,21 +136,36 @@ def build_map(forecast_csv: Path, capacity_csv: Path, output_path: Path,
     n_frames = len(timesteps)
     print(f"  {n_frames} animation frames")
 
-    # Build a wide table: rows = plants (in inv order), cols = timesteps.
-    # This is faster than per-frame merging.
-    pivot = (fc.pivot_table(index="eia_id", columns="valid_time",
+    # Build a wide table: rows = plants, cols = timesteps. Key on the
+    # full (eia_id, p_name) tuple — some real plants share an eia_id
+    # across phases (e.g. Vineyard Wind, multi-build wind farms in
+    # USWTDB), and keying on eia_id alone would collapse them, then
+    # reindex would assign all of one row's MW to whichever phase
+    # sorted first and zero to the other. Keying on the tuple keeps
+    # them separate.
+    fc_key = list(zip(fc["eia_id"], fc["p_name"]))
+    inv_key = list(zip(inv["eia_id"], inv["p_name"]))
+    fc = fc.assign(_join_key=fc_key)
+    pivot = (fc.pivot_table(index="_join_key", columns="valid_time",
                             values="MW", aggfunc="sum")
                .reindex(timesteps, axis=1))  # ensure column ordering
 
     # Align with inventory; plants in inv but not fc get all-zero rows.
-    pivot = pivot.reindex(inv["eia_id"].tolist())
+    pivot = pivot.reindex(inv_key)
     pivot = pivot.fillna(0.0)
 
-    # Pre-compute capacity factor for each (plant, timestep)
+    # Pre-compute capacity factor for each (plant, timestep). Clamp MW at
+    # plant capacity to prevent display values exceeding nameplate — the
+    # density correction in forecast.py preserves the rated-power flat-top
+    # via min(P(ws_hh), P(ws_eq)), but small numerical excursions can
+    # still push values fractionally above rated under cold/dense
+    # conditions. Hard clamp protects the map's visual integrity.
     cap_arr = inv["capacity_MW"].to_numpy(dtype=float)
     mw_arr = pivot.to_numpy(dtype=float)
+    mw_arr = np.minimum(mw_arr, cap_arr[:, None])  # cap at nameplate
+    mw_arr = np.maximum(mw_arr, 0.0)               # no negative
     cf_arr = 100.0 * mw_arr / np.maximum(cap_arr[:, None], 1e-6)
-    cf_arr = np.clip(cf_arr, 0.0, 105.0)  # 105 cap allows for rounding
+    cf_arr = np.clip(cf_arr, 0.0, 100.0)
 
     # Find the most-interesting frame to show first (highest mean CF)
     mean_cf_per_frame = cf_arr.mean(axis=0)
