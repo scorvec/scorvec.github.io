@@ -1,6 +1,4 @@
 eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,county,region
-90.0,Nome,0.75,15,64.56748313333334,-165.42981466666666,,NON-ISO,AK,2008.0,Nome Census Area,Nome
-90.0,Nome Newton Peak,1.8,2,64.5685005,-165.4288635,,NON-ISO,AK,2013.0,Nome Census Area,Nome Newton Peak
 508.0,Lamar III,1.5,1,37.362293,-102.650894,PSCO,PSCo,CO,2004.0,Baca County,Lamar III
 508.0,Lamar Municipal,6.0,4,38.032696,-102.5335275,PSCO,PSCo,CO,2004.0,Prowers County,Lamar Municipal
 692.0,Medicine Bow,6.27,9,41.83471922222222,-106.24306144444444,WAUW,WAPA-UM,WY,2015.0,Carbon County,Medicine Bow
@@ -11,22 +9,11 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 1998.0,Mountain Lake Wind,1.2,1,43.940548,-94.943382,MISO,MISO,MN,2007.0,Cottonwood County,Mountain Lake Wind
 2022.0,Willmar,4.0,2,45.158009,-95.0074615,MISO,MISO,MN,2009.0,Kandiyohi County,Willmar
 2024.0,Missouri River Energy Services (MRES),5.5,6,43.6213415,-95.67885833333334,MISO,MISO,MN,2002.0,Nobles County,Missouri River Energy Services (MRES)
-6299.0,Unalakleet,0.6,6,63.909593,-160.77014666666665,,NON-ISO,AK,2009.0,Nome Census Area,Unalakleet
-6304.0,Kotzebue Wind Project,1.9,3,66.835106,-162.56023666666667,,NON-ISO,AK,2012.0,Northwest Arctic Borough,Kotzebue Wind Project
-6304.0,Kotzebue Wind Project Phase I,0.39,6,66.8392055,-162.557378,,NON-ISO,AK,1997.0,Northwest Arctic Borough,Kotzebue Wind Project Phase I
-6304.0,Kotzebue Wind Project Phases II & III,0.25,5,66.838222,-162.557373,,NON-ISO,AK,1999.0,Northwest Arctic Borough,Kotzebue Wind Project Phases II & III
-6304.0,Kotzubue Wind Project,0.195,3,66.83640533333333,-162.55933133333335,,NON-ISO,AK,2006.0,Northwest Arctic Borough,Kotzubue Wind Project
-6311.0,Chevak,0.4,4,61.52481175,-165.6081505,,NON-ISO,AK,2009.0,Wade Hampton Census Area,Chevak
-6319.0,Hooper Bay,0.3,3,61.535768,-166.09654233333333,,NON-ISO,AK,2008.0,Wade Hampton Census Area,Hooper Bay
-6338.0,St. Mary's Wind Turbine,0.9,1,62.034767,-163.250778,,NON-ISO,AK,2019.0,Wade Hampton Census Area,St. Mary's Wind Turbine
-6341.0,Selawik Wind Project,0.26,4,66.60807625,-160.01811974999998,,NON-ISO,AK,2004.0,Northwest Arctic Borough,Selawik Wind Project
-6566.0,Bethel Wind Turbine,0.9,1,60.780571,-161.886581,,NON-ISO,AK,2018.0,Bethel Census Area,Bethel Wind Turbine
 7381.0,Green Mountain Power,6.05,11,42.86176336363636,-72.96306327272727,ISNE,ISO-NE,VT,1997.0,Bennington County,Green Mountain Power
 7501.0,Princeton Municipal Light and Water Plant,3.0,2,42.47789,-71.8996965,ISNE,ISO-NE,MA,2009.0,Worcester County,Princeton Municipal Light and Water Plant
 7526.0,Solano IV Repower,85.5,19,38.10092542105264,-121.79647905263157,CISO,CAISO,CA,2024.0,Solano County,Solano IV Repower
 7526.0,Solano Phase IIA,24.0,8,38.10142,-121.774747625,CISO,CAISO,CA,2006.0,Solano County,Solano Phase IIA
 7526.0,Solano Wind Project,63.0,21,38.101324,-121.7666117142857,CISO,CAISO,CA,2007.0,Solano County,Solano Wind Project
-7769.0,Lalamilo Wells Repowering,3.3,5,19.9874356,-155.7657898,,NON-ISO,HI,2017.0,Hawaii County,Lalamilo Wells Repowering
 7771.0,Springview II Wind Facility,3.0,2,42.826494,-99.776089,SWPP,SPP,NE,2011.0,Keya Paha County,Springview II Wind Facility
 7855.0,Moorhead,1.5,2,46.8951265,-96.7310755,SWPP,SPP,MN,1999.0,Clay County,Moorhead
 7886.0,Rosiere Wind Farm,11.22,17,44.65479841176471,-87.64168047058824,MISO,MISO,WI,1999.0,Kewaunee County,Rosiere Wind Farm
@@ -194,7 +181,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 56371.0,Cedar Creek,300.5,274,40.884233459854016,-104.02227181021898,PSCO,PSCo,CO,2007.0,Weld County,Cedar Creek
 56372.0,Sweetwater V,80.5,35,32.2310794,-100.48027074285714,ERCO,ERCOT,TX,2007.0,Nolan County,Sweetwater V
 56377.0,Judith Gap,135.0,90,46.570206033333335,-109.75113691111112,NWMT,NorthWestern,MT,2005.0,Wheatland County,Judith Gap
-56378.0,Pakini Nui (KA'ALUALU),21.0,14,18.971339714285712,-155.68959571428573,,NON-ISO,HI,2007.0,Hawaii County,Pakini Nui (KA'ALUALU)
 56379.0,Victory(Carroll),104.2,66,42.13371439393939,-95.12309054545455,MISO,MISO,IA,2017.0,Crawford County,Victory(Carroll)
 56380.0,Centennial Wind Farm,120.0,80,36.6443484,-99.616877425,SWPP,SPP,OK,2007.0,Harper County,Centennial Wind Farm
 56383.0,Top of Iowa II,46.0,23,43.34417165217391,-93.31178726086956,MISO,MISO,IA,2008.0,Worth County,Top of Iowa II
@@ -225,9 +211,7 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 56442.0,Thousand Springs,12.0,8,42.881740375,-114.966805,IPCO,Idaho Power,ID,2011.0,Twin Falls County,Thousand Springs
 56443.0,Tuana Gulch,10.5,7,42.836908,-114.969284,IPCO,Idaho Power,ID,2011.0,Twin Falls County,Tuana Gulch
 56446.0,Buena Vista,38.0,38,37.800947842105266,-121.65827681578948,CISO,CAISO,CA,2006.0,Contra Costa County,Buena Vista
-56447.0,Hawi Renewable,10.56,16,20.2563014375,-155.8506718125,,NON-ISO,HI,2006.0,Hawaii County,Hawi Renewable
 56448.0,Mars Hill,42.0,28,46.54421732142857,-67.81106542857142,NBSO,NON-ISO,ME,2006.0,Aroostook County,Mars Hill
-56449.0,Kaheawa (Maalaea),30.0,20,20.81413625,-156.5505264,,NON-ISO,HI,2006.0,Maui County,Kaheawa (Maalaea)
 56450.0,GSG Repower,88.4,26,41.63819734615385,-89.1480768076923,PJM,PJM,IL,2007.0,LaSalle County,GSG Repower
 56451.0,Allegheny Ridge,46.0,23,40.375994695652174,-78.58581213043477,PJM,PJM,PA,2007.0,Cambria County,Allegheny Ridge
 56451.0,North Allegheny,34.0,17,40.35948658823529,-78.59328729411766,PJM,PJM,PA,2009.0,Cambria County,North Allegheny
@@ -472,14 +456,10 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 57048.0,Merricourt,150.0,75,46.113811586666664,-99.04653956,MISO,MISO,ND,2020.0,McIntosh County,Merricourt
 57049.0,Glacier I,106.5,71,48.51377252112676,-112.11887507042253,GWA,NON-ISO,MT,2008.0,Toole County,Glacier I
 57050.0,Glacier Wind II,103.5,69,48.54109807246377,-112.19326552173914,GWA,NON-ISO,MT,2009.0,Glacier County,Glacier Wind II
-57052.0,Savoonga,0.2,2,63.6919025,-170.4981765,,NON-ISO,AK,2008.0,Nome Census Area,Savoonga
-57067.0,Toksook Bay,0.3,3,60.526514999999996,-165.11281866666667,,NON-ISO,AK,2010.0,Bethel Census Area,Toksook Bay
 57078.0,Steel Winds II,15.0,6,42.807241833333336,-78.861697,NYIS,NYISO,NY,2012.0,Erie County,Steel Winds II
 57079.0,Milford Phase I,203.5,97,38.53568075257732,-112.93481364948452,LDWP,NON-ISO,UT,2009.0,Beaver County,Milford Phase I
 57080.0,Sheffield,40.0,16,44.6759743125,-72.1012550625,ISNE,ISO-NE,VT,2011.0,Caledonia County,Sheffield
-57082.0,Kaheawa Wind II,21.0,14,20.79466135714286,-156.535833,,NON-ISO,HI,2012.0,Maui County,Kaheawa Wind II
 57083.0,Bull Hill,34.2,19,44.71700136842105,-68.15921063157894,ISNE,ISO-NE,ME,2012.0,Hancock County,Bull Hill
-57087.0,Kahuku,30.0,12,21.6809635,-157.97470475,,NON-ISO,HI,2011.0,Honolulu County,Kahuku
 57090.0,Campbell Hill,99.0,66,43.01491875757576,-106.00087807575758,PACE,PacifiCorp-East,WY,2009.0,Converse County,Campbell Hill
 57091.0,Silver Sage,42.0,20,41.13031765,-105.02793879999999,WAUW,WAPA-UM,WY,2009.0,Laramie County,Silver Sage
 57093.0,Casper Wind Farm,16.5,11,42.887266000000004,-106.2186979090909,PACE,PacifiCorp-East,WY,2009.0,Natrona County,Casper Wind Farm
@@ -524,8 +504,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 57176.0,University of Delaware,2.0,1,38.78289,-75.164902,PJM,PJM,DE,2010.0,Sussex County,University of Delaware
 57177.0,Meadow Lake IV,98.7,47,40.67732453191489,-87.0365820212766,PJM,PJM,IN,2010.0,White County,Meadow Lake IV
 57182.0,Turkey Hill Frey Farm,3.2,2,39.9590915,-76.45589849999999,PJM,PJM,PA,2011.0,Lancaster County,Turkey Hill Frey Farm
-57187.0,Kodiak Island Wind Project,4.5,3,57.786765,-152.44327766666666,,NON-ISO,AK,2009.0,Kodiak Island Borough,Kodiak Island Wind Project
-57187.0,Pillar Mountain II,4.5,3,57.78459933333334,-152.45514433333332,,NON-ISO,AK,2012.0,Kodiak Island Borough,Pillar Mountain II
 57188.0,Vantage Point,90.0,60,46.95391605,-120.16181291666666,PSEI,Puget Sound,WA,2010.0,Kittitas County,Vantage Point
 57189.0,Lost Creek Ridge Wind Farm,150.0,100,39.98894686,-94.50754508,AECI,Associated Electric,MO,2010.0,DeKalb County,Lost Creek Ridge Wind Farm
 57192.0,Spring Valley,151.8,66,39.09651853030303,-114.48927628787878,NEVP,NON-ISO,NV,2012.0,White Pine County,Spring Valley
@@ -651,7 +629,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 57526.0,North Hurlburt,11.0,4,45.773052,-120.05523825,BPAT,BPA,OR,2012.0,Gilliam County,North Hurlburt
 57526.0,Shepherds Flat,11.0,4,45.7540445,-120.05700875,BPAT,BPA,OR,2011.0,Gilliam County,Shepherds Flat
 57526.0,South Hurlburt,268.0,98,45.66903880612245,-120.05339644897958,BPAT,BPA,OR,2011.0,Gilliam County,South Hurlburt
-57529.0,Kawailoa Wind,69.0,30,21.608477,-158.0419235,,NON-ISO,HI,2012.0,Honolulu County,Kawailoa Wind
 57530.0,Palouse,104.4,58,47.13493189655173,-117.3270775862069,AVA,Avista,WA,2012.0,Whitman County,Palouse
 57531.0,Bingham Wind,184.8,56,45.12696841071429,-69.69904194642858,ISNE,ISO-NE,ME,2016.0,Somerset County,Bingham Wind
 57547.0,Winona,0.75,1,44.115391,-91.920692,MISO,MISO,MN,2011.0,Winona County,Winona
@@ -762,7 +739,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 57890.0,Horse Butte,57.6,32,43.404834625,-111.73945378125,BPAT,BPA,ID,2012.0,Bonneville County,Horse Butte
 57913.0,Tule,131.1,57,32.76318375438596,-116.29788994736842,CISO,CAISO,CA,2018.0,San Diego County,Tule
 57927.0,Baffin,202.0,101,27.171901653465348,-97.58823323762375,ERCO,ERCOT,TX,2015.0,Kenedy County,Baffin
-57935.0,Eva Creek,24.6,12,64.06485708333334,-148.90285875,,NON-ISO,AK,2012.0,Denali Borough,Eva Creek
 57947.0,Macho Springs Wind Farm I,50.4,28,32.555684642857145,-107.50901232142857,EPE,El Paso Electric,NM,2011.0,Luna County,Macho Springs Wind Farm I
 57956.0,Minco II,100.8,63,35.329236825396826,-98.05861103174604,SWPP,SPP,OK,2011.0,Grady County,Minco II
 57962.0,Brookfield Tehachapi 1 (CCDLP),78.0,26,35.05993357692308,-118.32547907692309,CISO,CAISO,CA,2012.0,Kern County,Brookfield Tehachapi 1 (CCDLP)
@@ -784,7 +760,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 57987.0,Canadian Hills,298.45,135,35.65963656296296,-98.09293302222223,SWPP,SPP,OK,2012.0,Canadian County,Canadian Hills
 57991.0,Highland North,75.0,30,40.32184556666667,-78.6784971,PJM,PJM,PA,2012.0,Cambria County,Highland North
 57995.0,Rim Rock,189.0,126,48.828587468253964,-112.10639913492064,WWA,NON-ISO,MT,2012.0,Toole County,Rim Rock
-57996.0,Auwahi Wind,24.0,8,20.59638475,-156.31828675,,NON-ISO,HI,2012.0,Maui County,Auwahi Wind
 57998.0,Twin Ridges,139.4,68,39.76643802941176,-78.87061597058823,PJM,PJM,PA,2012.0,Somerset County,Twin Ridges
 57999.0,Patton Wind Farm,30.0,15,40.637958133333335,-78.69193366666667,PJM,PJM,PA,2012.0,Cambria County,Patton Wind Farm
 58000.0,Anacacho,99.0,55,29.190197527272726,-100.19209812727273,ERCO,ERCOT,TX,2012.0,Kinney County,Anacacho
@@ -855,7 +830,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 58416.0,Headwaters,200.0,100,40.08429843,-85.01431064,PJM,PJM,IN,2014.0,Randolph County,Headwaters
 58416.0,Headwaters II,178.8,44,40.07623075,-85.1736885909091,PJM,PJM,IN,2021.0,Randolph County,Headwaters II
 58424.0,Harbor Wind,9.0,6,27.831808499999998,-97.43915033333333,ERCO,ERCOT,TX,2012.0,Nueces County,Harbor Wind
-58425.0,Fire Island Project,17.6,11,61.13030727272728,-150.2414870909091,,NON-ISO,AK,2012.0,Matanuska-Susitna Borough,Fire Island Project
 58441.0,Swauk Valley,4.25,5,47.1416336,-120.75446480000001,PSEI,Puget Sound,WA,2012.0,Kittitas County,Swauk Valley
 58444.0,Junction Hilltop Wind,8.0,5,42.098493,-94.2690324,MISO,MISO,IA,2012.0,Greene County,Junction Hilltop Wind
 58456.0,Cumberland Rose,1.6,1,41.227093,-94.434891,MISO,MISO,IA,2012.0,Adair County,Cumberland Rose
@@ -867,7 +841,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 58464.0,"Brahms Wind, LLC",9.9,6,34.74593016666667,-103.32507566666668,SWPP,SPP,NM,2014.0,Curry County,"Brahms Wind, LLC"
 58465.0,"Brahms Wind, LLC",9.9,6,34.747814,-103.28146733333334,SWPP,SPP,NM,2014.0,Curry County,"Brahms Wind, LLC"
 58474.0,Buffalo Dunes,249.75,135,37.63753567407407,-101.08983866666667,SWPP,SPP,KS,2013.0,Haskell County,Buffalo Dunes
-58511.0,Delta Junction,1.9,3,64.014272,-145.59630366666667,,NON-ISO,AK,2009.0,Southeast Fairbanks Census Area,Delta Junction
 58548.0,Huerfano River,8.0,4,37.7751505,-104.83057600000001,WACM,WAPA-RM,CO,2013.0,Huerfano County,Huerfano River
 58571.0,Tucannon River,266.8,116,46.433366060344824,-118.0465194224138,PGE,Portland GE,WA,2014.0,Columbia County,Tucannon River
 58580.0,Pheasant Run I,74.8,44,43.77030959090909,-83.31563811363637,MISO,MISO,MI,2013.0,Huron County,Pheasant Run I
@@ -912,7 +885,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 58830.0,Cross Winds Energy Park III,75.9,33,43.618553818181816,-83.37600863636364,MISO,MISO,MI,2019.0,Tuscola County,Cross Winds Energy Park III
 58833.0,Red Horse 2,30.0,15,32.288584066666665,-110.08839880000001,TEPC,NON-ISO,AZ,2015.0,Cochise County,Red Horse 2
 58836.0,Lakeswind,48.0,32,46.7136091875,-96.23815296875,MISO,MISO,MN,2014.0,Clay County,Lakeswind
-58837.0,Na Pua Makani,27.6,8,21.667064375,-157.95991525,,NON-ISO,HI,2020.0,Honolulu County,Na Pua Makani
 58838.0,Keechi,110.0,55,33.14851049090909,-98.16408741818182,ERCO,ERCOT,TX,2015.0,Jack County,Keechi
 58872.0,Bison Wind 4,204.8,64,47.0204974375,-101.630471453125,MISO,MISO,ND,2014.0,Oliver County,Bison Wind 4
 58883.0,Highland I,495.006,211,43.058125933649286,-95.58762925592417,MISO,MISO,IA,2015.0,O'Brien County,Highland I
@@ -1123,7 +1095,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 61002.0,WED Portsmouth 1,1.5,1,41.614353,-71.25132,ISNE,ISO-NE,RI,2016.0,Newport County,WED Portsmouth 1
 61004.0,Whirlpool Corp. Ottawa Wind Farm,1.5,1,41.002811,-84.033714,PJM,PJM,OH,2017.0,Putnam County,Whirlpool Corp. Ottawa Wind Farm
 61005.0,Whirlpool Corp. Marion Wind Farm,4.5,3,40.59116,-83.178871,PJM,PJM,OH,2017.0,Marion County,Whirlpool Corp. Marion Wind Farm
-61014.0,Santa Isabel,101.2,44,17.984862636363633,-66.39032075,,NON-ISO,PR,2012.0,Santa Isabel Municipio,Santa Isabel
 61032.0,Heart of Texas,179.88,64,31.2406419375,-99.42167628125,ERCO,ERCOT,TX,2020.0,McCulloch County,Heart of Texas
 61039.0,Deerfield Wind,30.0,15,42.865262933333334,-72.97933813333333,ISNE,ISO-NE,VT,2017.0,Bennington County,Deerfield Wind
 61040.0,Twin Buttes II,75.0,36,37.77495013888889,-102.52360855555555,WACM,WAPA-RM,CO,2017.0,Prowers County,Twin Buttes II
@@ -1141,13 +1112,11 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 61079.0,Beaver Creek,170.0,85,42.10395584705883,-94.16040835294118,MISO,MISO,IA,2017.0,Greene County,Beaver Creek
 61100.0,Northern Divide (Burke),193.24,74,48.80805681081081,-102.85981713513515,SWPP,SPP,ND,2020.0,Burke County,Northern Divide (Burke)
 61106.0,Pine River,161.3,65,43.47878670769231,-84.66021526153845,MISO,MISO,MI,2019.0,Gratiot County,Pine River
-61132.0,Punta Lima Repower,26.0,13,18.19492953846154,-65.69699207692308,,NON-ISO,PR,2024.0,Naguabo Municipio,Punta Lima Repower
 61155.0,Big Timber,25.06,14,45.83571928571428,-109.6524185,NWMT,NorthWestern,MT,2018.0,Sweet Grass County,Big Timber
 61161.0,Broadlands,199.8,48,39.8577799375,-88.00763410416666,MISO,MISO,IL,2020.0,Douglas County,Broadlands
 61212.0,Flat Top,200.0,100,31.63196858,-98.57041462,ERCO,ERCOT,TX,2018.0,Mills County,Flat Top
 61221.0,Redbed Plains,99.1,48,35.27630933333334,-97.87380520833334,SWPP,SPP,OK,2017.0,Grady County,Redbed Plains
 61222.0,Golden Hills North,46.0,20,37.769680449999996,-121.64045875,CISO,CAISO,CA,2017.0,Alameda County,Golden Hills North
-61254.0,Ft Buchanan Energy Savings Performance Contract,0.825,3,18.351577666666667,-65.95152833333333,,NON-ISO,PR,2013.0,Ceiba Municipio,Ft Buchanan Energy Savings Performance Contract
 61261.0,Rock Falls,154.575,60,36.91548698333334,-97.47639008333334,SWPP,SPP,OK,2017.0,Grant County,Rock Falls
 61269.0,Thunder Ranch,297.8,120,36.572364558333334,-97.306297175,SWPP,SPP,OK,2017.0,Noble County,Thunder Ranch
 61270.0,Red Dirt,299.25,95,36.04751036842105,-97.77619665263157,SWPP,SPP,OK,2017.0,Kingfisher County,Red Dirt
@@ -1511,7 +1480,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 ,Aurora Wal-Mart,0.05,1,39.760796,-104.773087,PSCO,PSCo,CO,2005.0,Adams County,Aurora Wal-Mart
 ,BLM-JCI,0.1,1,41.797478,-107.241638,PACE,PacifiCorp-East,WY,2010.0,Carbon County,BLM-JCI
 ,BTI Wind,0.05,1,37.606895,-99.269791,SWPP,SPP,KS,2010.0,Kiowa County,BTI Wind
-,Bacardi Puerto Rico,0.5,2,18.458972,-66.13878249999999,,NON-ISO,PR,,Catano Municipio,Bacardi Puerto Rico
 ,Barstow Marine Logistics Base,1.5,1,34.862396,-116.959785,CISO,CAISO,CA,2009.0,San Bernardino County,Barstow Marine Logistics Base
 ,Beaver Creek Wind (PSE),248.16,88,45.91573193181818,-109.4514930568182,NWMT,NorthWestern,MT,2025.0,Stillwater County,Beaver Creek Wind (PSE)
 ,Bellevue High School,0.1,1,41.282417,-82.846031,PJM,PJM,OH,2010.0,Sandusky County,Bellevue High School
@@ -1549,7 +1517,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 ,Dynapower,0.1,1,44.442989,-73.155098,ISNE,ISO-NE,VT,2010.0,Chittenden County,Dynapower
 ,Dynapower 1,0.05,1,44.44249,-73.151596,ISNE,ISO-NE,VT,1997.0,Chittenden County,Dynapower 1
 ,Eldora-New Providence Schools,0.75,1,42.354755,-93.115601,MISO,MISO,IA,2002.0,Hardin County,Eldora-New Providence Schools
-,Emmonak 1,0.4,4,62.7835005,-164.5596045,,NON-ISO,AK,2011.0,Wade Hampton Census Area,Emmonak 1
 ,Erie Industrial Park,0.9,1,41.545433,-83.035461,PJM,PJM,OH,2014.0,Ottawa County,Erie Industrial Park
 ,Evansville WWTP,0.1,1,42.777645,-89.280045,MISO,MISO,WI,2010.0,Rock County,Evansville WWTP
 ,F.E. Warren Air Force Base,1.32,2,41.1752435,-104.88103849999999,PACE,PacifiCorp-East,WY,2005.0,Laramie County,F.E. Warren Air Force Base
@@ -1563,12 +1530,10 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 ,GSA,0.2,2,45.803518,-70.39565250000001,ISNE,ISO-NE,ME,2010.0,Somerset County,GSA
 ,"GWE, LLC",4.0,2,42.0017605,-93.4790535,MISO,MISO,IA,2012.0,Story County,"GWE, LLC"
 ,Gaines Cavern Wind Project,2.0,1,32.688553,-103.062454,ERCO,ERCOT,TX,2012.0,Gaines County,Gaines Cavern Wind Project
-,Gambell Wind,0.3,3,63.778802000000006,-171.71160899999998,,NON-ISO,AK,2010.0,Nome Census Area,Gambell Wind
 ,Glenrock III,1.5,1,42.986614,-105.813393,PACE,PacifiCorp-East,WY,2009.0,Converse County,Glenrock III
 ,GobNob,0.9,1,39.438492,-89.628593,PJM,PJM,IL,2009.0,Montgomery County,GobNob
 ,Great Lakes Science Center,0.225,1,41.506691,-81.696793,PJM,PJM,OH,2006.0,Cuyahoga County,Great Lakes Science Center
 ,Great River Energy Headquarters,0.225,1,45.09507,-93.435242,MISO,MISO,MN,2008.0,Hennepin County,Great River Energy Headquarters
-,Guam Power Authority Wind Turbine,0.275,1,13.389381,144.722656,,NON-ISO,GU,2016.0,Guam,Guam Power Authority Wind Turbine
 ,Guthrie WWTP,0.1,1,35.902508,-97.435349,SWPP,SPP,OK,2001.0,Logan County,Guthrie WWTP
 ,Half Hollow Nursery,0.1,1,40.969059,-72.570854,NYIS,NYISO,NY,2010.0,Suffolk County,Half Hollow Nursery
 ,Hasslebach Meats,0.1,1,41.389515,-82.572746,PJM,PJM,OH,2010.0,Erie County,Hasslebach Meats
@@ -1591,10 +1556,8 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 ,IBEW local 103,0.1,1,42.304691,-71.0541,ISNE,ISO-NE,MA,2005.0,Suffolk County,IBEW local 103
 ,Iowa State Fair Wind Project,0.66,1,41.595093,-93.548897,MISO,MISO,IA,2007.0,Polk County,Iowa State Fair Wind Project
 ,JJN Wind Farm,1.5,1,44.280891,-96.391891,MISO,MISO,MN,2004.0,Lincoln County,JJN Wind Farm
-,Kasigluk,0.3,3,60.870474333333334,-162.51328,,NON-ISO,AK,2006.0,Bethel Census Area,Kasigluk
 ,Kenston School District,0.75,1,41.39389,-81.305298,PJM,PJM,OH,2012.0,Geauga County,Kenston School District
 ,Kingston,2.0,1,41.97879,-70.715897,ISNE,ISO-NE,MA,2012.0,Plymouth County,Kingston
-,Klondike I,1.5,1,60.126122,-149.432159,,NON-ISO,AK,2001.0,Kenai Peninsula Borough,Klondike I
 ,LLC 2,0.2,2,39.4182815,-88.386681,PJM,PJM,IL,2012.0,Coles County,LLC 2
 ,LWSC Wind Turbine,0.6,1,42.45269,-70.956688,ISNE,ISO-NE,MA,2014.0,Essex County,LWSC Wind Turbine
 ,Lac qui Parle Valley School,0.23,1,45.073418,-96.056168,MISO,MISO,MN,1997.0,Lac qui Parle County,Lac qui Parle Valley School
@@ -1647,7 +1610,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 ,Porta High School,0.6,1,40.016724,-89.863617,PJM,PJM,IL,2009.0,Menard County,Porta High School
 ,Portsmouth Abbey School,0.66,1,41.599091,-71.2687,ISNE,ISO-NE,RI,2006.0,Newport County,Portsmouth Abbey School
 ,Presque Isle,0.6,1,46.667389,-68.020203,ISNE,ISO-NE,ME,2009.0,Aroostook County,Presque Isle
-,Quinhagak,0.3,3,59.73996733333333,-161.91438300000002,,NON-ISO,AK,2010.0,Bethel Census Area,Quinhagak
 ,Revolution Wind,286.0,26,41.137572192307694,-70.97920484615385,,NON-ISO,,2025.0,,Revolution Wind
 ,Richland Community College,0.1,1,39.88662,-88.895363,PJM,PJM,IL,2009.0,Macon County,Richland Community College
 ,Rock Creek Wind Energy Center I,195.2,32,41.5746754375,-106.05228978125,PACE,PacifiCorp-East,WY,2025.0,Albany County,Rock Creek Wind Energy Center I
@@ -1657,18 +1619,14 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 ,San Clemente Island,0.675,3,32.98632799999999,-118.55217499999999,CISO,CAISO,CA,1999.0,Los Angeles County,San Clemente Island
 ,San Gorgonio Farms Wind Farm,1.12,3,33.928199666666664,-116.62185666666666,CISO,CAISO,CA,2016.0,Riverside County,San Gorgonio Farms Wind Farm
 ,San Gorgonio Farms Wind Farm Repower,0.5,1,33.925438,-116.610519,CISO,CAISO,CA,2015.0,Riverside County,San Gorgonio Farms Wind Farm Repower
-,Sand Point,1.0,2,55.3442,-160.48983,,NON-ISO,AK,2012.0,Aleutians East Borough,Sand Point
 ,Sandywoods,0.275,1,41.620491,-71.1539,ISNE,ISO-NE,RI,2012.0,Newport County,Sandywoods
 ,Sentral Community School,0.065,1,43.210556,-94.388573,MISO,MISO,IA,1995.0,Kossuth County,Sentral Community School
-,Shaktoolik,0.2,2,64.360546,-161.203018,,NON-ISO,AK,2012.0,Nome Census Area,Shaktoolik
 ,Shaokatan Power Partners,1.6,2,44.397892,-96.41824299999999,MISO,MISO,MN,2003.0,Lincoln County,Shaokatan Power Partners
 ,Shenandoah School Corporation,0.9,1,40.010242,-85.523666,MISO,MISO,IN,2013.0,Henry County,Shenandoah School Corporation
 ,Sherrard High School,0.6,1,41.344524,-90.528229,PJM,PJM,IL,2009.0,Rock Island County,Sherrard High School
 ,Sibley Hills,0.66,1,43.404591,-95.651093,MISO,MISO,IA,2003.0,Osceola County,Sibley Hills
 ,Sky River,0.225,1,35.076496,-118.25499,CISO,CAISO,CA,1991.0,Kern County,Sky River
 ,Spirit Lake,1.0,2,43.4113675,-95.099838,MISO,MISO,IA,2001.0,Dickinson County,Spirit Lake
-,St. Paul Island I,0.225,1,57.157486,-170.235947,,NON-ISO,AK,1999.0,Aleutians West Census Area,St. Paul Island I
-,St. Paul Island II,0.45,2,57.157298999999995,-170.23629,,NON-ISO,AK,2007.0,Aleutians West Census Area,St. Paul Island II
 ,Story County,3.0,2,42.136843,-93.307144,MISO,MISO,IA,2008.0,Story County,Story County
 ,TJ Automation,0.1,1,41.459095,-84.30851,PJM,PJM,OH,2010.0,Henry County,TJ Automation
 ,Talbot County DPW,0.3,3,38.81840033333334,-76.032519,PJM,PJM,MD,2010.0,Talbot County,Talbot County DPW
@@ -1677,13 +1635,10 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 ,Tholen & Petersen,13.2,8,44.099577249999996,-96.11732875,MISO,MISO,MN,2005.0,Pipestone County,Tholen & Petersen
 ,Three D Metals Corporation,0.1,1,41.248146,-81.883057,PJM,PJM,OH,2009.0,Medina County,Three D Metals Corporation
 ,Time Factory Wind,0.05,1,39.871094,-86.236496,MISO,MISO,IN,2008.0,Marion County,Time Factory Wind
-,Tin City Long Range Radar Station,0.225,1,65.568611,-167.962418,,NON-ISO,AK,2008.0,Nome Census Area,Tin City Long Range Radar Station
 ,Tjaden Farms,0.45,1,43.156551,-92.623489,MISO,MISO,IA,2006.0,Floyd County,Tjaden Farms
-,Toksook Bay Expansion,0.1,1,60.526302,-165.116974,,NON-ISO,AK,2010.0,Bethel Census Area,Toksook Bay Expansion
 ,Town of Richland,0.1,1,43.565189,-76.036995,NYIS,NYISO,NY,2010.0,Oswego County,Town of Richland
 ,Trondhjem (Wind-Solar Hybrid),2.3,1,46.506741,-96.161751,MISO,MISO,MN,2018.0,Otter Tail County,Trondhjem (Wind-Solar Hybrid)
 ,Tuana Springs,16.8,8,42.89324475,-115.017151875,IPCO,Idaho Power,ID,2010.0,Twin Falls County,Tuana Springs
-,Tuntutuliak,0.475,5,60.337339199999995,-162.6626374,,NON-ISO,AK,2012.0,Bethel Census Area,Tuntutuliak
 ,Turbine EVE,2.5,1,41.637596,-89.245003,PJM,PJM,IL,2012.0,Lee County,Turbine EVE
 ,Turtle Mountain College,0.66,1,48.884693,-99.751793,MISO,MISO,ND,2008.0,Rolette County,Turtle Mountain College
 ,University of Massachusetts Dartmouth,0.6,1,41.62669,-71.010597,ISNE,ISO-NE,MA,2012.0,Bristol County,University of Massachusetts Dartmouth
@@ -1691,7 +1646,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 ,Upper Scioto Valley School,0.2,2,40.6901285,-83.789295,PJM,PJM,OH,2009.0,Hardin County,Upper Scioto Valley School
 ,Victorville Wind Project,0.75,1,34.557693,-117.358292,CISO,CAISO,CA,2005.0,San Bernardino County,Victorville Wind Project
 ,Vineyard Wind,429.0,33,41.058478787878784,-70.43609439393938,,NON-ISO,,2025.0,,Vineyard Wind
-,Wales Wind Energy Project,0.1,2,65.61578,-168.08732600000002,,NON-ISO,AK,2000.0,Nome Census Area,Wales Wind Energy Project
 ,Wall Lake Municipal Utilities,0.66,1,42.281982,-95.094162,MISO,MISO,IA,2003.0,Sac County,Wall Lake Municipal Utilities
 ,Wausau High School,0.1,1,44.979424,-89.596634,MISO,MISO,WI,2009.0,Marathon County,Wausau High School
 ,West Central School Corporation,0.9,1,41.027817,-86.885483,MISO,MISO,IN,2012.0,Pulaski County,West Central School Corporation
@@ -1708,7 +1662,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 ,Zachary Ridge,4.0,2,43.405956,-95.65625,MISO,MISO,IA,2010.0,Osceola County,Zachary Ridge
 ,unknown Addison County,0.1,1,44.002792,-73.310699,ISNE,ISO-NE,VT,2013.0,Addison County,unknown Addison County
 ,unknown Erie County,0.1,1,42.977005,-78.931122,NYIS,NYISO,NY,2016.0,Erie County,unknown Erie County
-,unknown Kotzebue Wind Project,0.13,2,66.836113,-162.554451,,NON-ISO,AK,2003.0,Northwest Arctic Borough,unknown Kotzebue Wind Project
 ,unknown McLean County,2.8,1,40.512859,-89.049507,PJM,PJM,IL,2023.0,McLean County,unknown McLean County
 ,unknown Riverside County,10.65,3,33.890994,-116.554329,CISO,CAISO,CA,2020.0,Riverside County,unknown Riverside County
 ,unknown Sandusky County,0.1,1,41.44075,-83.134529,PJM,PJM,OH,,Sandusky County,unknown Sandusky County
