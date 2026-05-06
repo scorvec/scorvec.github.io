@@ -990,7 +990,7 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 59655.0,Campbell County,93.5,55,45.78931663636363,-100.27516132727273,SWPP,SPP,SD,2015.0,Campbell County,Campbell County
 59684.0,Lindahl,150.0,75,48.526087733333334,-102.96785454666666,SWPP,SPP,ND,2017.0,Williams County,Lindahl
 59692.0,Field's Point Wastewater Treatment Facility,4.5,3,41.79422366666667,-71.38906633333333,ISNE,ISO-NE,RI,2012.0,Providence County,Field's Point Wastewater Treatment Facility
-59693.0,Coastal Virginia Offshore Wind,6.0,1,36.886841,-75.491577,PJM,PJM,,2020.0,,Coastal Virginia Offshore Wind
+59693.0,Coastal Virginia Offshore Wind,12.0,2,36.891577,-75.4916075,PJM,PJM,,2020.0,,Coastal Virginia Offshore Wind
 59712.0,San Roman,93.0,31,26.111246387096774,-97.36886216129032,ERCO,ERCOT,TX,2016.0,Cameron County,San Roman
 59724.0,Scituate Wind,1.5,1,42.175091,-70.7285,ISNE,ISO-NE,MA,2012.0,Plymouth County,Scituate Wind
 59725.0,Fairhaven Wind,3.0,2,41.6381415,-70.872799,ISNE,ISO-NE,MA,2012.0,Bristol County,Fairhaven Wind
@@ -1398,8 +1398,8 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 65522.0,Number Three Wind Farm,99.5,27,43.842779444444446,-75.59923611111111,NYIS,NYISO,NY,2023.0,Lewis County,Number Three Wind Farm
 65525.0,Salinas Valley State Prison,1.7,1,36.474236,-121.37075,CISO,CAISO,CA,2018.0,Monterey County,Salinas Valley State Prison
 65546.0,Inertia Wind Project,301.26,108,33.18213575925926,-99.56026287037038,ERCO,ERCOT,TX,2023.0,Haskell County,Inertia Wind Project
-65561.0,South Fork Wind Farm,132.0,12,41.09292025,-71.14812725,NYIS,NYISO,,2024.0,,South Fork Wind Farm
-65561.0,Vineyard Wind,13.0,1,41.103092,-70.507248,NYIS,NYISO,,2025.0,,Vineyard Wind
+65561.0,South Fork Wind Farm,132.0,12,41.09292025,-71.14812725,ISNE,ISO-NE,,2024.0,,South Fork Wind Farm
+65561.0,Vineyard Wind,442.0,34,41.059790941176466,-70.43818714705883,ISNE,ISO-NE,,2025.0,,Vineyard Wind
 65577.0,Clearwater Energy Project 1A,365.52,131,46.83075813740458,-106.40616389312977,PSEI,Puget Sound,MT,2022.0,Garfield County,Clearwater Energy Project 1A
 65704.0,Gruver Wind,155.1,55,36.531386872727275,-101.40709439999999,SWPP,SPP,OK,2022.0,Texas County,Gruver Wind
 65713.0,Rock Aetna,21.76,8,44.038258375,-96.05407625,MISO,MISO,MN,2022.0,Murray County,Rock Aetna
@@ -1502,7 +1502,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 ,Clark Thompson 1,0.9,1,42.208092,-93.592392,MISO,MISO,IA,2009.0,Story County,Clark Thompson 1
 ,Clay High School,0.9,1,41.657192,-83.413498,PJM,PJM,OH,2012.0,Lucas County,Clay High School
 ,Cloud Power,0.1,1,39.54911,-97.664314,SWPP,SPP,KS,2010.0,Cloud County,Cloud Power
-,Coastal Virginia Offshore Wind,6.0,1,36.896313,-75.491638,,NON-ISO,,2020.0,,Coastal Virginia Offshore Wind
 ,Conneaut Middle School,0.6,1,41.926193,-80.559395,PJM,PJM,OH,2010.0,Ashtabula County,Conneaut Middle School
 ,Conneaut Waste Water Treatment,0.4,1,41.968792,-80.552094,PJM,PJM,OH,2010.0,Ashtabula County,Conneaut Waste Water Treatment
 ,Corn Plus,4.2,2,43.761996999999994,-94.14152150000001,MISO,MISO,MN,2008.0,Faribault County,Corn Plus
@@ -1645,7 +1644,6 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 ,University of Toledo Wind Turbine,0.08,1,41.643692,-83.595192,PJM,PJM,OH,2009.0,Lucas County,University of Toledo Wind Turbine
 ,Upper Scioto Valley School,0.2,2,40.6901285,-83.789295,PJM,PJM,OH,2009.0,Hardin County,Upper Scioto Valley School
 ,Victorville Wind Project,0.75,1,34.557693,-117.358292,CISO,CAISO,CA,2005.0,San Bernardino County,Victorville Wind Project
-,Vineyard Wind,429.0,33,41.058478787878784,-70.43609439393938,,NON-ISO,,2025.0,,Vineyard Wind
 ,Wall Lake Municipal Utilities,0.66,1,42.281982,-95.094162,MISO,MISO,IA,2003.0,Sac County,Wall Lake Municipal Utilities
 ,Wausau High School,0.1,1,44.979424,-89.596634,MISO,MISO,WI,2009.0,Marathon County,Wausau High School
 ,West Central School Corporation,0.9,1,41.027817,-86.885483,MISO,MISO,IN,2012.0,Pulaski County,West Central School Corporation
