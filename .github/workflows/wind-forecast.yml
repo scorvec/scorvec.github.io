@@ -222,6 +222,7 @@ jobs:
           # Visible labels: "Cycle XXX" and "Updated YYYY-MM-DD HH:MMZ"
           sed -i -E "s|(id=\"last-updated-wind\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
           sed -i -E "s|(id=\"last-updated-verif\">Updated )[^<]*|\1${TODAY}|g" "$CHARTS"
+          sed -i -E "s|(id=\"last-updated-map\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
           # Sanity check
           N=$(grep -c "v=${CYCLE}" "$CHARTS" || true)
           echo "Stamped CYCLE=${CYCLE} into iframe URLs in $N place(s)"
