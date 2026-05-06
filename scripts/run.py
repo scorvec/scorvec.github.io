@@ -297,7 +297,47 @@ def run(uswtdb_path: str | Path,
     # 5. Aggregations
     results: dict[str, pd.DataFrame] = {}
     for level in aggregation_levels:
-        results[level] = aggregate(fc, level=level)
+        if level == "plant":
+            # Plant level gets a richer aggregation than the generic
+            # aggregate() function: we include both gross (pre-loss) and
+            # net (post-loss) MW, plus capacity-weighted mean hub-height
+            # wind speed and air density. The map dashboard uses gross
+            # MW so plants can visually hit 100% CF at peak winds, but
+            # net MW is also carried through so verification stays
+            # apples-to-apples with gridstatus actuals.
+            #
+            # ws_hh and rho_hh are weighted by t_cap (kW) — bigger
+            # turbines pull the mean toward their conditions, since
+            # they dominate the plant's electrical output.
+            grp = fc.groupby(["eia_id", "p_name", "valid_time"])
+            agg_dict = {
+                "MW":       ("power_net_kW", lambda s: s.sum() / 1000.0),
+                "MW_gross": ("power_kW",     lambda s: s.sum() / 1000.0),
+            }
+            base = grp.agg(**agg_dict).reset_index()
+
+            # Capacity-weighted ws_hh and rho_hh in a separate pass so we
+            # can use the right weights. (groupby.apply is slower; this
+            # approach is O(N) and parallelizable.)
+            fc_wt = fc.assign(
+                _w=fc["t_cap"].astype(float),
+                _ws_w=fc["ws_hh"].astype(float) * fc["t_cap"].astype(float),
+                _rho_w=fc["rho_hh"].astype(float) * fc["t_cap"].astype(float),
+            )
+            wgrp = fc_wt.groupby(["eia_id", "p_name", "valid_time"])
+            ws_rho = wgrp.agg(
+                _ws_sum=("_ws_w", "sum"),
+                _rho_sum=("_rho_w", "sum"),
+                _w_sum=("_w", "sum"),
+            ).reset_index()
+            ws_rho["ws_hh"] = ws_rho["_ws_sum"] / ws_rho["_w_sum"]
+            ws_rho["rho_hh"] = ws_rho["_rho_sum"] / ws_rho["_w_sum"]
+            ws_rho = ws_rho[["eia_id", "p_name", "valid_time",
+                             "ws_hh", "rho_hh"]]
+            results[level] = base.merge(
+                ws_rho, on=["eia_id", "p_name", "valid_time"], how="left")
+        else:
+            results[level] = aggregate(fc, level=level)
         log.info("Aggregated to '%s': %d rows", level, len(results[level]))
 
     # 6. Output
