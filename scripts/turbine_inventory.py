@@ -68,45 +68,94 @@ def _flag_non_utility(p_name: pd.Series) -> pd.Series:
 def _backfill_orphan_eia_ids(df: pd.DataFrame) -> pd.DataFrame:
     """Attach orphan turbines to their parent plant by name.
 
-    USWTDB sometimes has a few turbines at an existing plant without an
-    eia_id while the rest of the plant's turbines have one. If exactly one
-    eia_id is associated with a (p_name, t_state) pair across the dataset,
-    inherit it for the orphans. Plants where every turbine is an orphan
-    (e.g. brand-new 2025 plants not yet in EIA-860) are left alone — they
-    still get correct BA routing via state fallback downstream.
+    USWTDB sometimes has turbines at an existing plant without an eia_id
+    while the rest of the plant's turbines have one. If exactly one
+    eia_id is associated with a (p_name, t_state) pair across the
+    dataset, inherit it for the orphans.
+
+    Two-stage matching:
+      1. Match on (p_name, t_state). NaN t_state is treated as a
+         sentinel (offshore plants have NaN state in USWTDB; a plain
+         pandas groupby would silently drop those rows since NaN != NaN).
+      2. Name-only fallback for plants where the cataloged turbine and
+         the orphans both have NaN state. Used by offshore plants like
+         Vineyard Wind where USWTDB matched 1 of N turbines to EIA but
+         all rows have NaN state.
+
+    Plants where every turbine is an orphan (e.g. brand-new 2025 plants
+    not yet in EIA-860) are left alone — they get BA routing via state
+    fallback downstream, or via plant_overrides.csv for the new ones.
     """
     df = df.copy()
     has_id = df["eia_id"].notna()
-    # For each (p_name, t_state) bucket, count distinct eia_ids among the
-    # cataloged turbines.
-    cataloged = df[has_id]
+    cataloged = df[has_id].copy()
+
+    # Sentinel-fill NaN t_state so groupby/lookup work
+    NAN_SENTINEL = "__OFFSHORE__"
+    cataloged["_state_key"] = cataloged["t_state"].fillna(NAN_SENTINEL)
+
     parent_map = (
-        cataloged.groupby(["p_name", "t_state"])["eia_id"]
+        cataloged.groupby(["p_name", "_state_key"])["eia_id"]
         .nunique()
         .reset_index(name="n_distinct")
     )
-    # Only inherit from buckets with exactly one eia_id (avoid ambiguity).
-    unambiguous = parent_map[parent_map["n_distinct"] == 1][["p_name", "t_state"]]
+    unambiguous = parent_map[parent_map["n_distinct"] == 1][["p_name", "_state_key"]]
     eia_lookup = (
-        cataloged.merge(unambiguous, on=["p_name", "t_state"])
-        .drop_duplicates(["p_name", "t_state"])
-        .set_index(["p_name", "t_state"])["eia_id"]
+        cataloged.merge(unambiguous, on=["p_name", "_state_key"])
+        .drop_duplicates(["p_name", "_state_key"])
+        .set_index(["p_name", "_state_key"])["eia_id"]
+        .to_dict()
+    )
+
+    # Stage 2: name-only lookup. Useful when cataloged turbine and orphans
+    # all have NaN state (offshore plants).
+    name_map = (
+        cataloged.groupby("p_name")["eia_id"]
+        .nunique()
+        .reset_index(name="n_distinct")
+    )
+    name_unambiguous = name_map[name_map["n_distinct"] == 1]["p_name"]
+    name_lookup = (
+        cataloged[cataloged["p_name"].isin(name_unambiguous)]
+        .drop_duplicates("p_name")
+        .set_index("p_name")["eia_id"]
+        .to_dict()
     )
 
     orphan_mask = ~has_id
-    if orphan_mask.any() and not eia_lookup.empty:
-        keys = list(zip(df.loc[orphan_mask, "p_name"],
-                        df.loc[orphan_mask, "t_state"]))
-        inherited = pd.Series(
-            [eia_lookup.get(k, np.nan) for k in keys],
-            index=df.index[orphan_mask],
-        )
+    if orphan_mask.any() and (eia_lookup or name_lookup):
+        orphan_idx = df.index[orphan_mask]
+        names = df.loc[orphan_mask, "p_name"]
+        states = df.loc[orphan_mask, "t_state"].fillna(NAN_SENTINEL)
+
+        inherited = []
+        backfill_source = []
+        for n, s in zip(names, states):
+            v = eia_lookup.get((n, s))
+            if pd.notna(v):
+                inherited.append(v)
+                backfill_source.append("name_state")
+                continue
+            v = name_lookup.get(n)
+            if pd.notna(v):
+                inherited.append(v)
+                backfill_source.append("name_only")
+                continue
+            inherited.append(np.nan)
+            backfill_source.append(None)
+
+        inherited = pd.Series(inherited, index=orphan_idx)
         n_filled = inherited.notna().sum()
         if n_filled > 0:
-            df.loc[inherited.notna().reindex(df.index, fill_value=False),
-                   "eia_id"] = inherited
-            log.info("Backfilled eia_id for %d orphan turbine row(s) "
-                     "via name match to parent plant", int(n_filled))
+            n_state = sum(1 for x in backfill_source if x == "name_state")
+            n_name = sum(1 for x in backfill_source if x == "name_only")
+            mw_filled = (df.loc[orphan_idx[inherited.notna()], "t_cap"].sum()
+                         / 1000.0)
+            log.info("Backfilled eia_id for %d orphan turbines (%.0f MW): "
+                     "%d via name+state, %d via name-only (offshore)",
+                     int(n_filled), mw_filled, n_state, n_name)
+            df.loc[orphan_idx, "eia_id"] = (
+                df.loc[orphan_idx, "eia_id"].combine_first(inherited))
     return df
 
 
