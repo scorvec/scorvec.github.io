@@ -45,12 +45,13 @@ jobs:
         run: |
           python << 'PYEOF'
           import pandas as pd
+          import numpy as np
           import glob
 
           fc_files = sorted(glob.glob('../assets/wind_forecast_data/forecast_plant_*.csv'))
           cap_files = sorted(glob.glob('../assets/wind_forecast_data/capacity_plant_*.csv'))
           if not fc_files or not cap_files:
-              print('ERROR: no plant-level CSVs found in assets/wind_forecast_data')
+              print('ERROR: no plant-level CSVs found')
               exit(1)
           print(f'Using forecast: {fc_files[-1]}')
           print(f'Using capacity: {cap_files[-1]}')
@@ -58,49 +59,72 @@ jobs:
 
           fc = pd.read_csv(fc_files[-1])
           cap = pd.read_csv(cap_files[-1])
-          inv = pd.read_csv('data/uswtdb.csv', low_memory=False)
 
-          # Plants with all-zero forecast across the full horizon
-          plant_max = fc.groupby(['eia_id', 'p_name'])['MW'].max().reset_index()
-          zero_plants = plant_max[plant_max['MW'] < 0.01]
-          print(f'Plants with zero MW across full horizon: {len(zero_plants)} of {len(plant_max)}')
-          if 'MW_gross' in fc.columns:
-              gross_max = fc.groupby(['eia_id', 'p_name'])['MW_gross'].max().reset_index()
-              zero_gross = gross_max[gross_max['MW_gross'] < 0.01]
-              print(f'Plants with zero MW_gross (pre-loss): {len(zero_gross)}')
+          # --- Replicate the map's join logic exactly ---
+          # Filter capacity like map_dashboard does
+          MIN_MW = 5.0
+          cap = cap.dropna(subset=['xlong', 'ylat', 'capacity_MW']).copy()
+          cap = cap[cap['capacity_MW'] >= MIN_MW]
+          print(f'Capacity rows passing filter: {len(cap):,}')
+          print(f'Forecast rows: {len(fc):,}')
+          print(f'Forecast unique (eia_id, p_name) tuples: '
+                f'{fc.groupby(["eia_id","p_name"]).ngroups:,}')
           print()
 
-          zero_with_meta = zero_plants.merge(cap, on=['eia_id', 'p_name'], how='left',
-                                              suffixes=('', '_cap'))
-          print('Top 20 zero-output plants by capacity:')
-          cols = ['p_name', 'eia_id', 'capacity_MW', 'n_turbines',
-                  'ba_code', 't_state', 'xlong', 'ylat']
-          available = [c for c in cols if c in zero_with_meta.columns]
-          print(zero_with_meta.nlargest(20, 'capacity_MW')[available].to_string(index=False))
-          print()
-          print('Zero plants by state:')
-          if 't_state' in zero_with_meta.columns:
-              print(zero_with_meta.groupby('t_state', dropna=False).agg(
-                  n=('p_name', 'size'),
-                  mw=('capacity_MW', 'sum'),
-              ).sort_values('mw', ascending=False).head(15).to_string())
+          # Build the join keys exactly the way map_dashboard.py does
+          fc_keys = set(zip(fc['eia_id'], fc['p_name']))
+          cap_keys = set(zip(cap['eia_id'], cap['p_name']))
+
+          missing_in_fc = cap_keys - fc_keys
+          missing_in_cap = fc_keys - cap_keys
+
+          print(f'In capacity but NOT in forecast: {len(missing_in_fc):,} plants')
+          print(f'In forecast but NOT in capacity: {len(missing_in_cap):,} plants')
           print()
 
-          # Inspect raw USWTDB rows for the top zero plants
-          print('=== Raw USWTDB rows for top 5 zero plants ===')
-          for _, row in zero_with_meta.nlargest(5, 'capacity_MW').iterrows():
-              eia = row['eia_id']; name = row['p_name']
-              sub = inv[(inv['eia_id']==eia) & (inv['p_name']==name)]
-              if sub.empty:
-                  sub = inv[inv['p_name']==name]
-              print(f'\n--- {name} (eia_id={eia}, {row["capacity_MW"]:.0f} MW) ---')
-              print(sub[['t_state', 't_manu', 't_model', 't_cap',
-                         't_hh', 't_rd', 'xlong', 'ylat']].head(3).to_string(index=False))
-              print(f'  rows: {len(sub)}')
-              print(f'  t_hh: unique={list(sub["t_hh"].unique())[:5]}, '
-                    f'NaN count={sub["t_hh"].isna().sum()}/{len(sub)}')
-              print(f'  t_rd: unique={list(sub["t_rd"].unique())[:5]}, '
-                    f'NaN count={sub["t_rd"].isna().sum()}/{len(sub)}')
+          # Show details of the cap-only plants — these are the ones on the map
+          # showing zero output
+          if missing_in_fc:
+              cap_only = cap[
+                  cap.apply(lambda r: (r['eia_id'], r['p_name']) in missing_in_fc, axis=1)
+              ].sort_values('capacity_MW', ascending=False)
+              print('Plants in capacity but NOT forecast (these show as 0 on map):')
+              cols = ['eia_id', 'p_name', 'capacity_MW', 'n_turbines',
+                      'ba_code', 't_state', 'xlong', 'ylat']
+              avail = [c for c in cols if c in cap_only.columns]
+              print(cap_only[avail].head(30).to_string(index=False))
+              print()
+              print(f'Total capacity affected: {cap_only["capacity_MW"].sum():.0f} MW')
+              if 't_state' in cap_only.columns:
+                  print('\nBy state:')
+                  print(cap_only.groupby('t_state', dropna=False).agg(
+                      n=('p_name', 'size'),
+                      mw=('capacity_MW', 'sum'),
+                  ).sort_values('mw', ascending=False).head(10).to_string())
+
+          # Also check for join-key dtype mismatches (a common gotcha)
+          print()
+          print('Type check — eia_id dtype in each CSV:')
+          print(f'  forecast: {fc["eia_id"].dtype}')
+          print(f'  capacity: {cap["eia_id"].dtype}')
+          print(f'  forecast first non-null: {fc["eia_id"].dropna().iloc[0]!r}')
+          print(f'  capacity first non-null: {cap["eia_id"].dropna().iloc[0]!r}')
+
+          # Whitespace check
+          fc_names = set(fc['p_name'].astype(str).unique())
+          cap_names = set(cap['p_name'].astype(str).unique())
+          fc_only_names = fc_names - cap_names
+          cap_only_names = cap_names - fc_names
+          if fc_only_names or cap_only_names:
+              print(f'\nName-level differences (could be whitespace/case):')
+              print(f'  in forecast only: {len(fc_only_names)} names')
+              print(f'  in capacity only: {len(cap_only_names)} names')
+              # Look for near-matches
+              import difflib
+              for n in list(cap_only_names)[:5]:
+                  matches = difflib.get_close_matches(n, fc_names, n=2, cutoff=0.85)
+                  if matches:
+                      print(f'  {n!r} — possible matches in forecast: {matches}')
           PYEOF
 
       - name: Run diagnostic — inventory_health
