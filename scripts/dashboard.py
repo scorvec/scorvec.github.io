@@ -215,7 +215,7 @@ def build_dashboard(csv_path: Path,
         cap = capacity_lookup.get(region)
         if cap and cap > 0:
             peak = float(pivot[region].max())
-            subtitle = (f"{region} &middot; {cap:,.0f} MW installed &middot; "
+            subtitle = (f"{region} · {cap:,.0f} MW installed · "
                         f"peak forecast {peak:,.0f} MW "
                         f"({100 * peak / cap:.0f}% CF)")
         else:
@@ -244,8 +244,8 @@ def build_dashboard(csv_path: Path,
     cap_def = capacity_lookup.get(default_region)
     if cap_def and cap_def > 0:
         peak_def = float(pivot[default_region].max())
-        default_subtitle = (f"{default_region} &middot; {cap_def:,.0f} MW installed "
-                            f"&middot; peak forecast {peak_def:,.0f} MW "
+        default_subtitle = (f"{default_region} · {cap_def:,.0f} MW installed "
+                            f"· peak forecast {peak_def:,.0f} MW "
                             f"({100 * peak_def / cap_def:.0f}% CF)")
     else:
         default_subtitle = default_region
@@ -300,8 +300,8 @@ def build_dashboard(csv_path: Path,
                 font=dict(size=12),
             ),
             dict(
-                text=(f"Generated {generated_at} &middot; "
-                      "USWTDB + HRRR &middot; "
+                text=(f"Generated {generated_at} · "
+                      "USWTDB + HRRR · "
                       "physics-only (no curtailment correction)"),
                 showarrow=False,
                 x=0.5, y=-0.22, xref="paper", yref="paper",
