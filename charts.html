@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Charts · Shawn Corvec</title>
+<title>HRRR Wind Forecast · Shawn Corvec</title>
+<meta name="description" content="Live US wind generation forecast driven by NOAA HRRR. Per-turbine forecasts for ~75,000 turbines summed by ISO and balancing authority, updated four times daily, with rolling verification against actual ERCOT/SPP/CAISO generation.">
+<link rel="canonical" href="https://scorvec.com/charts.html">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -173,15 +175,15 @@
     <li><a href="index.html">Home</a></li>
     <li><a href="resume.html">Resume</a></li>
     <li><a href="research.html">Research</a></li>
-    <li><a href="charts.html" class="active">Charts</a></li>
+    <li><a href="charts.html" class="active">Wind Forecast</a></li>
     <li><a href="gallery.html">Gallery</a></li>
   </ul>
 </nav>
 
 <main>
   <div class="page-header">
-    <h1>Charts &amp; Analysis</h1>
-    <p>A live wind generation forecast for the United States, updated four times daily after each extended HRRR run, alongside a 14-day rolling view of how the model is performing in ERCOT, SPP, and CAISO against actual generation and reported curtailment.</p>
+    <h1>HRRR Wind Generation Forecast</h1>
+    <p>A live wind generation forecast for the United States, driven by NOAA's High-Resolution Rapid Refresh (HRRR) model and updated four times daily after each extended HRRR cycle. The pipeline samples HRRR's 80-meter wind speeds at each of ~75,000 turbine locations, applies model-specific power curves, and aggregates to ISO and balancing-authority totals. A 14-day rolling verification view shows how the model performs against actual generation in ERCOT, SPP, and CAISO. A plant-level interactive map exposes every wind farm individually.</p>
     <div class="update-badge">Forecast 4× daily</div>
   </div>
 
@@ -201,14 +203,14 @@
         </div>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/wind_forecast.html?v=20260507T12Z"
+        <iframe src="assets/wind_forecast.html?v=__WIND_CYCLE__"
                 style="width:100%; height:660px; border:0; display:block;"
                 title="US wind generation forecast (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USWTDB · EIA-860 · windpowerlib · NREL WIND Toolkit</span>
-        <span class="chart-updated" id="last-updated-wind">Cycle 20260507T12Z</span>
+        <span class="chart-updated" id="last-updated-wind">Cycle __WIND_CYCLE__</span>
       </div>
     </div>
 
@@ -225,14 +227,14 @@
         </div>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/wind_verification.html?v=20260507T12Z"
+        <iframe src="assets/wind_verification.html?v=__WIND_CYCLE__"
                 style="width:100%; height:660px; border:0; display:block;"
                 title="Historical model vs actual generation (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">Model + gridstatus.io (actual generation, curtailment)</span>
-        <span class="chart-updated" id="last-updated-verif">Updated 2026-05-07 16:04Z</span>
+        <span class="chart-updated" id="last-updated-verif">Updated __VERIF_DATE__</span>
       </div>
     </div>
 
@@ -248,14 +250,14 @@
         </div>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/wind_map.html?v=20260507T12Z"
+        <iframe src="assets/wind_map.html?v=__WIND_CYCLE__"
                 style="width:100%; height:900px; border:0; display:block;"
                 title="Plant-level wind generation forecast map (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USWTDB · CartoDB tiles · Plotly</span>
-        <span class="chart-updated" id="last-updated-map">Cycle 20260507T12Z</span>
+        <span class="chart-updated" id="last-updated-map">Cycle __WIND_CYCLE__</span>
       </div>
     </div>
 
