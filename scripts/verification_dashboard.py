@@ -158,12 +158,12 @@ def build_verification_dashboard(csv_path: Path,
         if has_curtailment:
             ea = (sub["forecast_minus_curtail_MW"] - sub["actual_MW"]).dropna()
             bias_after = ea.mean() if len(ea) else None
-            sub_text = (f"{region} &middot; physics bias "
+            sub_text = (f"{region} · physics bias "
                         f"{bias:+,.0f} MW")
             if bias_after is not None:
-                sub_text += f" &middot; after curtailment {bias_after:+,.0f} MW"
+                sub_text += f" · after curtailment {bias_after:+,.0f} MW"
         else:
-            sub_text = f"{region} &middot; physics bias {bias:+,.0f} MW"
+            sub_text = f"{region} · physics bias {bias:+,.0f} MW"
 
         buttons.append(dict(
             label=region, method="update",
@@ -176,11 +176,11 @@ def build_verification_dashboard(csv_path: Path,
     sub = df[df["region"] == default_region]
     e = (sub["forecast_MW"] - sub["actual_MW"]).dropna()
     default_bias = e.mean() if len(e) else 0
-    default_sub = f"{default_region} &middot; physics bias {default_bias:+,.0f} MW"
+    default_sub = f"{default_region} · physics bias {default_bias:+,.0f} MW"
     if has_curtailment:
         ea = (sub["forecast_minus_curtail_MW"] - sub["actual_MW"]).dropna()
         if len(ea):
-            default_sub += f" &middot; after curtailment {ea.mean():+,.0f} MW"
+            default_sub += f" · after curtailment {ea.mean():+,.0f} MW"
 
     from datetime import datetime, timezone
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -213,7 +213,7 @@ def build_verification_dashboard(csv_path: Path,
                       + "  <span style='color:" + C_ACTUAL + "'>━ Actual generation</span>"),
                  showarrow=False, x=0.5, y=-0.15, xref="paper", yref="paper",
                  xanchor="center", yanchor="top", font=dict(size=12)),
-            dict(text=f"Day-ahead forecast (12–24h lead) &middot; "
+            dict(text=f"Day-ahead forecast (12–24h lead) · "
                       f"Updated {generated_at}",
                  showarrow=False, x=0.5, y=-0.22, xref="paper", yref="paper",
                  xanchor="center", yanchor="top",
