@@ -143,8 +143,19 @@ def build_map(forecast_csv: Path, capacity_csv: Path, output_path: Path,
     # reindex would assign all of one row's MW to whichever phase
     # sorted first and zero to the other. Keying on the tuple keeps
     # them separate.
-    fc_key = list(zip(fc["eia_id"], fc["p_name"]))
-    inv_key = list(zip(inv["eia_id"], inv["p_name"]))
+    # Build NaN-safe join keys. Python's NaN != NaN means that
+    # (NaN, "Big Sampson Wind") in fc would never match
+    # (NaN, "Big Sampson Wind") in inv even though they're "equal" by
+    # any reasonable definition. Replace NaN eia_id with a sentinel so
+    # tuple comparisons work — this matters for new plants USWTDB has
+    # but EIA-860 hasn't yet attributed (Big Sampson, Monte Cristo,
+    # Lane City, Revolution Wind, etc.) and for repowers like Brazos
+    # Wind Repower and Mountain View Power Partners Repower.
+    NAN_SENTINEL = -999999
+    fc_eia = fc["eia_id"].fillna(NAN_SENTINEL).astype("int64")
+    inv_eia = inv["eia_id"].fillna(NAN_SENTINEL).astype("int64")
+    fc_key = list(zip(fc_eia, fc["p_name"]))
+    inv_key = list(zip(inv_eia, inv["p_name"]))
     fc = fc.assign(_join_key=fc_key)
 
     def _pivot(col: str) -> pd.DataFrame:
