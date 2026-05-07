@@ -1,0 +1,169 @@
+name: Diagnose pipeline
+
+# Manual-trigger only. Use this to run ad-hoc diagnostics on the most
+# recent forecast cycle and inventory data, with all dependencies
+# already installed. Output is in the workflow log.
+on:
+  workflow_dispatch:
+    inputs:
+      diagnostic:
+        description: 'Which diagnostic to run'
+        required: true
+        type: choice
+        default: zero_plants
+        options:
+          - zero_plants
+          - inventory_health
+          - curve_coverage
+          - hrrr_sample_test
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-wind.txt
+
+      - name: Run diagnostic — zero_plants
+        if: ${{ github.event.inputs.diagnostic == 'zero_plants' }}
+        run: |
+          python << 'PYEOF'
+          import pandas as pd
+          import glob
+
+          fc_files = sorted(glob.glob('../assets/wind_forecast_data/forecast_plant_*.csv'))
+          cap_files = sorted(glob.glob('../assets/wind_forecast_data/capacity_plant_*.csv'))
+          if not fc_files or not cap_files:
+              print('ERROR: no plant-level CSVs found in assets/wind_forecast_data')
+              exit(1)
+          print(f'Using forecast: {fc_files[-1]}')
+          print(f'Using capacity: {cap_files[-1]}')
+          print()
+
+          fc = pd.read_csv(fc_files[-1])
+          cap = pd.read_csv(cap_files[-1])
+          inv = pd.read_csv('data/uswtdb.csv', low_memory=False)
+
+          # Plants with all-zero forecast across the full horizon
+          plant_max = fc.groupby(['eia_id', 'p_name'])['MW'].max().reset_index()
+          zero_plants = plant_max[plant_max['MW'] < 0.01]
+          print(f'Plants with zero MW across full horizon: {len(zero_plants)} of {len(plant_max)}')
+          if 'MW_gross' in fc.columns:
+              gross_max = fc.groupby(['eia_id', 'p_name'])['MW_gross'].max().reset_index()
+              zero_gross = gross_max[gross_max['MW_gross'] < 0.01]
+              print(f'Plants with zero MW_gross (pre-loss): {len(zero_gross)}')
+          print()
+
+          zero_with_meta = zero_plants.merge(cap, on=['eia_id', 'p_name'], how='left',
+                                              suffixes=('', '_cap'))
+          print('Top 20 zero-output plants by capacity:')
+          cols = ['p_name', 'eia_id', 'capacity_MW', 'n_turbines',
+                  'ba_code', 't_state', 'xlong', 'ylat']
+          available = [c for c in cols if c in zero_with_meta.columns]
+          print(zero_with_meta.nlargest(20, 'capacity_MW')[available].to_string(index=False))
+          print()
+          print('Zero plants by state:')
+          if 't_state' in zero_with_meta.columns:
+              print(zero_with_meta.groupby('t_state', dropna=False).agg(
+                  n=('p_name', 'size'),
+                  mw=('capacity_MW', 'sum'),
+              ).sort_values('mw', ascending=False).head(15).to_string())
+          print()
+
+          # Inspect raw USWTDB rows for the top zero plants
+          print('=== Raw USWTDB rows for top 5 zero plants ===')
+          for _, row in zero_with_meta.nlargest(5, 'capacity_MW').iterrows():
+              eia = row['eia_id']; name = row['p_name']
+              sub = inv[(inv['eia_id']==eia) & (inv['p_name']==name)]
+              if sub.empty:
+                  sub = inv[inv['p_name']==name]
+              print(f'\n--- {name} (eia_id={eia}, {row["capacity_MW"]:.0f} MW) ---')
+              print(sub[['t_state', 't_manu', 't_model', 't_cap',
+                         't_hh', 't_rd', 'xlong', 'ylat']].head(3).to_string(index=False))
+              print(f'  rows: {len(sub)}')
+              print(f'  t_hh: unique={list(sub["t_hh"].unique())[:5]}, '
+                    f'NaN count={sub["t_hh"].isna().sum()}/{len(sub)}')
+              print(f'  t_rd: unique={list(sub["t_rd"].unique())[:5]}, '
+                    f'NaN count={sub["t_rd"].isna().sum()}/{len(sub)}')
+          PYEOF
+
+      - name: Run diagnostic — inventory_health
+        if: ${{ github.event.inputs.diagnostic == 'inventory_health' }}
+        run: |
+          python << 'PYEOF'
+          import pandas as pd
+          inv = pd.read_csv('data/uswtdb.csv', low_memory=False)
+          print(f'Total rows: {len(inv):,}')
+          for col in ('t_cap', 't_hh', 't_rd', 't_manu', 't_model',
+                      'eia_id', 't_state', 'xlong', 'ylat'):
+              if col in inv.columns:
+                  na = inv[col].isna().sum()
+                  print(f'  {col}: {na:,} NaN ({100*na/len(inv):.1f}%)')
+                  if col in ('t_hh', 't_rd', 't_cap'):
+                      zero = (inv[col] == 0).sum()
+                      print(f'    zero count: {zero:,}')
+          print()
+          missing_hh = inv[inv['t_hh'].isna() | (inv['t_hh']==0)]
+          print(f'Plants with missing/zero t_hh: '
+                f'{missing_hh["p_name"].nunique()} unique plants, '
+                f'{missing_hh["t_cap"].sum()/1000:.0f} MW total')
+          print('  Top 10 by capacity:')
+          print(missing_hh.groupby('p_name').agg(
+              n=('t_cap','size'), mw=('t_cap', lambda s: s.sum()/1000),
+              year=('p_year','first'), state=('t_state','first')
+          ).nlargest(10, 'mw').to_string())
+          PYEOF
+
+      - name: Run diagnostic — curve_coverage
+        if: ${{ github.event.inputs.diagnostic == 'curve_coverage' }}
+        run: |
+          python curve_assignment_check.py --states TX CA OK KS NM ND IA
+
+      - name: Run diagnostic — hrrr_sample_test
+        if: ${{ github.event.inputs.diagnostic == 'hrrr_sample_test' }}
+        run: |
+          python << 'PYEOF'
+          # Spot-check HRRR sampling at a few points: ones we know work
+          # (West TX) and ones from the zero-plant list.
+          import pandas as pd
+          import glob
+
+          fc_files = sorted(glob.glob('../assets/wind_forecast_data/forecast_plant_*.csv'))
+          cap_files = sorted(glob.glob('../assets/wind_forecast_data/capacity_plant_*.csv'))
+          fc = pd.read_csv(fc_files[-1])
+          cap = pd.read_csv(cap_files[-1])
+
+          plant_max = fc.groupby(['eia_id', 'p_name'])['MW'].max().reset_index()
+          zero_plants = plant_max[plant_max['MW'] < 0.01].merge(cap, on=['eia_id','p_name'])
+
+          # Pick 3 zero-plant coordinates and 3 working-plant coordinates
+          zero_coords = zero_plants.nlargest(3, 'capacity_MW')[['p_name','xlong','ylat']]
+          work_coords = (plant_max[plant_max['MW'] > 100]
+                          .merge(cap, on=['eia_id','p_name'])
+                          .nlargest(3, 'capacity_MW')[['p_name','xlong','ylat']])
+
+          print('Zero-output plant coords to test:')
+          print(zero_coords.to_string(index=False))
+          print('\nWorking-plant coords to test:')
+          print(work_coords.to_string(index=False))
+          print('\nNote: a full HRRR sample-test would need to fetch a recent')
+          print('cycle and call interp_to_points; that takes ~5min and isnt')
+          print('automated here. Compare these coords on the wind_map to see')
+          print('if zeros are spatially adjacent to working plants.')
+          PYEOF
