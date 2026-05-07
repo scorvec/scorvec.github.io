@@ -1459,7 +1459,7 @@ eia_id,p_name,capacity_MW,n_turbines,ylat,xlong,ba_code,iso,t_state,p_year,count
 68193.0,Prosperity Wind (Goose Creek),300.0,50,40.18876668,-88.58436856,MISO,MISO,IL,2025.0,Piatt County,Prosperity Wind (Goose Creek)
 68318.0,Dakota Range I and II,305.6,72,45.18553555555556,-97.02801655555555,MISO,MISO,SD,2022.0,Grant County,Dakota Range I and II
 69003.0,Minnesota Wind Share,5.4,3,43.959059333333336,-95.98049133333335,MISO,MISO,MN,2006.0,Murray County,Minnesota Wind Share
-99001.0,SunZia Wind Phase 1,1038.6,278,34.652068021582735,-105.99713169064748,CISO,CAISO,NM,2026.0,Torrance,SunZia Wind Phase 1
+99001.0,SunZia Wind Phase 1,3168.0,836,34.64721471291866,-106.00354816985646,CISO,CAISO,NM,2026.0,Torrance,SunZia Wind Phase 1
 ,30 MW Iowa DG Portfolio,30.0,10,42.0065709,-93.44978569999999,MISO,MISO,IA,2017.0,Story County,30 MW Iowa DG Portfolio
 ,AG Land 1,1.6,1,42.20639,-93.325691,MISO,MISO,IA,2012.0,Story County,AG Land 1
 ,AG Land 2,1.6,1,42.146091,-93.428093,MISO,MISO,IA,2012.0,Story County,AG Land 2
