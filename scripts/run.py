@@ -309,7 +309,12 @@ def run(uswtdb_path: str | Path,
             # ws_hh and rho_hh are weighted by t_cap (kW) — bigger
             # turbines pull the mean toward their conditions, since
             # they dominate the plant's electrical output.
-            grp = fc.groupby(["eia_id", "p_name", "valid_time"])
+            # dropna=False so plants with NaN eia_id (newly-built plants
+            # not yet in EIA-860, repowers, distributed-portfolio sites)
+            # survive aggregation. The capacity-CSV writer also uses
+            # dropna=False; if these don't match, plants show as zero on
+            # the map.
+            grp = fc.groupby(["eia_id", "p_name", "valid_time"], dropna=False)
             agg_dict = {
                 "MW":       ("power_net_kW", lambda s: s.sum() / 1000.0),
                 "MW_gross": ("power_kW",     lambda s: s.sum() / 1000.0),
@@ -324,7 +329,7 @@ def run(uswtdb_path: str | Path,
                 _ws_w=fc["ws_hh"].astype(float) * fc["t_cap"].astype(float),
                 _rho_w=fc["rho_hh"].astype(float) * fc["t_cap"].astype(float),
             )
-            wgrp = fc_wt.groupby(["eia_id", "p_name", "valid_time"])
+            wgrp = fc_wt.groupby(["eia_id", "p_name", "valid_time"], dropna=False)
             ws_rho = wgrp.agg(
                 _ws_sum=("_ws_w", "sum"),
                 _rho_sum=("_rho_w", "sum"),
