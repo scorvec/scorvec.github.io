@@ -69,31 +69,16 @@
   }
   .page-header p {
     font-size: 0.88rem; color: var(--muted); line-height: 1.7;
-    max-width: 580px;
+    max-width: 640px;
   }
-  .update-badge {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    margin-top: 1rem;
-    font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase;
-    color: var(--accent); background: var(--accent-light);
-    padding: 0.3rem 0.75rem; border-radius: 2px;
+  .page-header p + p {
+    margin-top: 0.8rem;
   }
-  .update-badge::before {
-    content: '';
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-
-  /* CHART GRID */
-  .chart-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(560px, 1fr));
-    gap: 2.5rem;
+  /* CHART STACK */
+  .chart-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
   }
 
   /* CHART CARD */
@@ -103,28 +88,21 @@
     overflow: hidden;
   }
   .chart-card-header {
-    padding: 1.4rem 1.6rem 1rem;
+    padding: 1.5rem 1.8rem 1.3rem;
     border-bottom: 1px solid var(--rule);
   }
   .chart-card-header h2 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.05rem;
-    margin-bottom: 0.3rem; color: var(--ink);
+    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
+    margin-bottom: 0.6rem; color: var(--ink);
   }
   .chart-card-header p {
-    font-size: 0.78rem; color: var(--muted); line-height: 1.6;
+    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
   }
-  .chart-meta {
-    display: flex; align-items: center; gap: 1rem;
-    margin-top: 0.75rem; flex-wrap: wrap;
+  .chart-card-header p + p {
+    margin-top: 0.7rem;
   }
-  .meta-tag {
-    font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase;
-    padding: 0.2rem 0.55rem;
-    border: 1px solid var(--rule); color: var(--muted); border-radius: 2px;
-  }
-  .meta-tag.accent {
-    border-color: var(--accent-light); color: var(--accent);
-    background: var(--accent-light);
+  .chart-card-header b {
+    color: var(--ink); font-weight: 500;
   }
   .chart-img-wrap {
     padding: 0;
@@ -134,9 +112,10 @@
     display: block; width: 100%; height: auto;
   }
   .chart-card-footer {
-    padding: 0.85rem 1.6rem;
+    padding: 0.85rem 1.8rem;
     border-top: 1px solid var(--rule);
     display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
   }
   .chart-sources {
     font-size: 0.68rem; color: var(--muted);
@@ -145,6 +124,22 @@
     font-size: 0.68rem; color: var(--muted);
     white-space: nowrap;
   }
+
+  /* COLOPHON */
+  .colophon {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+    max-width: 640px;
+  }
+  .colophon h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    color: var(--ink); margin-bottom: 0.5rem;
+  }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .colophon a:hover { border-bottom-color: var(--accent); }
 
   /* FOOTER */
   footer {
@@ -162,7 +157,6 @@
     nav { padding: 1rem 1.5rem; }
     .nav-links { gap: 1.2rem; }
     main { padding: 6rem 1.5rem 3rem; }
-    .chart-grid { grid-template-columns: 1fr; }
     footer { padding: 1rem 1.5rem; }
   }
 </style>
@@ -183,34 +177,29 @@
 <main>
   <div class="page-header">
     <h1>HRRR Wind Generation Forecast</h1>
-    <p>A live wind generation forecast for the United States, driven by NOAA's High-Resolution Rapid Refresh (HRRR) model and updated four times daily after each extended HRRR cycle. The pipeline samples HRRR's 80-meter wind speeds at each of ~75,000 turbine locations, applies model-specific power curves, and aggregates to ISO and balancing-authority totals. A 14-day rolling verification view shows how the model performs against actual generation in ERCOT, SPP, and CAISO. A plant-level interactive map exposes every wind farm individually.</p>
-    <div class="update-badge">Forecast 4× daily</div>
+    <p>A live wind generation forecast for the United States, driven by NOAA's High-Resolution Rapid Refresh (HRRR) model. Every six hours, when a new HRRR extended cycle becomes available, the pipeline samples 80-meter winds at every utility-scale wind turbine in the country, applies model-specific power curves to each, and aggregates to ISO and balancing-authority totals.</p>
+    <p>The three charts below show the same forecast at three scales: aggregated 48-hour ISO totals, a 14-day rolling comparison against actual generation, and a plant-by-plant interactive map.</p>
   </div>
 
-  <div class="chart-grid">
+  <div class="chart-stack">
 
     <!-- LIVE FORECAST -->
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>48-Hour US Wind Generation Forecast</h2>
-        <p>Per-turbine wind power forecast for every wind turbine in the United States, summed by ISO and balancing authority. The pipeline starts from ~75,000 turbine locations in the USGS Wind Turbine Database, samples HRRR 80-meter wind speeds at each turbine's exact lat/lon, applies a model-specific power curve (windpowerlib catalog where available, NREL WIND Toolkit specific-power generic curves otherwise), and corrects for hub-height and air density. The forecast represents potential generation; observed output is typically lower due to curtailment and outages.</p>
-        <div class="chart-meta">
-          <span class="meta-tag accent">4× Daily</span>
-          <span class="meta-tag">48 Hours</span>
-          <span class="meta-tag">HRRR</span>
-          <span class="meta-tag">USWTDB</span>
-          <span class="meta-tag">All ISOs</span>
-        </div>
+        <p>Wind power forecast aggregated by ISO and balancing authority, updated four times daily after each extended HRRR cycle. The dropdown lets you switch between regions or view the national total.</p>
+        <p><b>How it's built:</b> The pipeline starts from the USGS Wind Turbine Database (~75,000 turbines with coordinates, hub heights, rotor diameters, and manufacturer/model strings). For each turbine, HRRR's 80-meter U and V wind components are sampled at the turbine's exact lat/lon, then scaled to the turbine's hub height using a 1/7 power-law shear correction. Air density is computed from HRRR's surface temperature and pressure and used to apply an IEC 61400-12 density correction.</p>
+        <p><b>Power curves</b> come from three tiers: a curated registry of OEM curves digitized from manufacturer datasheets (covers ~45% of US capacity, including the GE 2.x-127, GE 3.6-154, Vestas V100-V110, and Siemens SWT families), the windpowerlib oedb catalog (Vestas V126, Nordex N131, etc.), and 12 specific-power-binned NREL generic curves as a fallback. A 16% global loss factor (NREL ATB benchmark) accounts for wake, electrical, and availability losses across the fleet. The forecast represents potential deliverable generation; observed output is typically lower due to curtailment and outages not modeled here.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/wind_forecast.html?v=20260511T18Z"
+        <iframe src="assets/wind_forecast.html?v=__WIND_CYCLE__"
                 style="width:100%; height:660px; border:0; display:block;"
                 title="US wind generation forecast (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USWTDB · EIA-860 · windpowerlib · NREL WIND Toolkit</span>
-        <span class="chart-updated" id="last-updated-wind">Cycle 20260511T18Z</span>
+        <span class="chart-updated" id="last-updated-wind">Cycle __WIND_CYCLE__</span>
       </div>
     </div>
 
@@ -218,49 +207,50 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Model Performance vs. Actuals (14-day rolling)</h2>
-        <p>Day-ahead forecasts from this model (12–24 hour lead) plotted against actual generation and reported curtailment for the three ISOs that publish curtailment data. The blue line is the model's potential-generation forecast; the green dashed line subtracts ISO-reported curtailment to give the deliverable expectation; the red line is what actually showed up on the grid. Persistent gap between the green and red lines indicates residual model error after accounting for curtailment.</p>
-        <div class="chart-meta">
-          <span class="meta-tag accent">Daily Update</span>
-          <span class="meta-tag">14 Days</span>
-          <span class="meta-tag">Day-Ahead</span>
-          <span class="meta-tag">ERCOT · SPP · CAISO</span>
-        </div>
+        <p>How the model has been doing. Day-ahead forecasts (12–24 hour lead time) plotted against actual generation for the three ISOs where reliable real-time data is available: ERCOT, SPP, and CAISO.</p>
+        <p><b>How to read it:</b> The blue line is the model's potential-generation forecast issued 12-24 hours before each hour shown. The green dashed line subtracts ISO-reported curtailment, giving the deliverable expectation. The red line is actual generation that showed up on the grid, as reported by the ISO. A persistent gap between the green forecast and red actual indicates residual model error after accounting for known curtailment.</p>
+        <p><b>How it's built:</b> Each forecast cycle is archived to a CSV, and an update step queries gridstatus.io for actual generation and curtailment values as they're published (typically 12–48 hours after the forecast was made). The chart re-renders on each cycle from the rolling 14-day archive.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/wind_verification.html?v=20260511T18Z"
+        <iframe src="assets/wind_verification.html?v=__WIND_CYCLE__"
                 style="width:100%; height:660px; border:0; display:block;"
                 title="Historical model vs actual generation (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">Model + gridstatus.io (actual generation, curtailment)</span>
-        <span class="chart-updated" id="last-updated-verif">Updated 2026-05-11 21:20Z</span>
+        <span class="chart-updated" id="last-updated-verif">Updated __VERIF_DATE__</span>
       </div>
     </div>
 
+    <!-- PLANT MAP -->
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Plant-Level Forecast Map</h2>
-        <p>Every utility-scale wind plant in the US fleet (≥5 MW) shown on a map, colored by capacity factor and sized by nameplate. Drag the slider to step through the 48-hour forecast, or hit play to animate. Hover any plant for current generation and details. <b>Click a plant to see its full 48-hour time-series</b> in the panel below the map. Pinch or scroll to zoom; drag to pan. Useful for spotting regional ramps, identifying which plants drive ISO totals, and seeing how a weather pattern plays across the fleet.</p>
-        <div class="chart-meta">
-          <span class="meta-tag accent">6-hourly Update</span>
-          <span class="meta-tag">48-hour Horizon</span>
-          <span class="meta-tag">~700 Plants</span>
-          <span class="meta-tag">CONUS</span>
-        </div>
+        <p>Every utility-scale wind plant in the lower 48 (≥5 MW, ~700 plants) plotted on a map, colored by forecast capacity factor and sized by nameplate. The slider at the bottom steps through the 48-hour forecast horizon; press play to animate.</p>
+        <p><b>How to use it:</b> Hover any plant for its name, current MW output, capacity factor, balancing authority, and turbine count. <b>Click a plant</b> to see its full 48-hour time series in the panel below the map, including gross and net MW, hub-height wind speed, and air density. Scroll or pinch to zoom; drag to pan.</p>
+        <p><b>How it's built:</b> Each forecast cycle aggregates the per-turbine output to the plant level (weighted-mean wind speed and density per plant, summed MW). The map data is built into a self-contained HTML file with all per-plant time series embedded as JSON, so the click handler works without server round-trips. Useful for spotting regional ramps, identifying which plants drive ISO totals, and seeing how a weather pattern plays across the fleet.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/wind_map.html?v=20260511T18Z"
+        <iframe src="assets/wind_map.html?v=__WIND_CYCLE__"
                 style="width:100%; height:900px; border:0; display:block;"
                 title="Plant-level wind generation forecast map (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USWTDB · CartoDB tiles · Plotly</span>
-        <span class="chart-updated" id="last-updated-map">Cycle 20260511T18Z</span>
+        <span class="chart-updated" id="last-updated-map">Cycle __WIND_CYCLE__</span>
       </div>
     </div>
 
+  </div>
+
+  <!-- COLOPHON -->
+  <div class="colophon">
+    <h3>About this project</h3>
+    <p>This forecasting pipeline was designed and built collaboratively with Anthropic's Claude. The methodology choices, edge-case handling, and engineering decisions came out of long working sessions debugging real verification data, tracking down obscure USWTDB quirks (offshore plants without state codes, newly-built wind farms missing EIA IDs, multi-phase repowers sharing single plant codes), and iterating on the physics — curve assignment hierarchies, density correction, hub-height shear, BA-mapping fallbacks.</p>
+    <p>Claude wrote most of the Python; I provided the meteorological judgment, the operational priorities, and the verification feedback. The result is a working production pipeline that runs four times daily, archives its own performance, and surfaces its own limitations rather than hiding them.</p>
+    <p>The full source is on <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">GitHub</a>.</p>
   </div>
 </main>
 
