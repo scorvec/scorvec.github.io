@@ -174,7 +174,7 @@ jobs:
             "../assets/wind_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
             --capacity "../assets/wind_forecast_data/capacity_plant_${{ steps.cycle.outputs.compact }}.csv" \
             --output ../assets/wind_map.html \
-            --theme dark || {
+            --theme light || {
               echo "Map build failed; continuing anyway."
               exit 0
             }
@@ -217,21 +217,35 @@ jobs:
             ls -la "${{ github.workspace }}/" | head -20
             exit 1
           fi
-          # Iframe cache-buster: replace ?v=<anything> after the wind dashboards.
-          # Matches both the literal __WIND_CYCLE__ placeholder and any prior
-          # YYYYMMDDTHHZ stamp.
+          # Per-iframe cache-busters. The forecast and map use the cycle
+          # string, but the verification iframe gets its own stamp based
+          # on the verification file's content hash. Why: verification
+          # data can update independently of forecast cycles (e.g. when
+          # we refetch previously-NaN actuals from an ISO that
+          # previously failed). If we used the cycle string for all
+          # three iframes, browsers would serve cached verification
+          # content even after the file changed.
+          VER_FILE="${{ github.workspace }}/assets/wind_verification.html"
+          if [ -f "$VER_FILE" ]; then
+            VER_STAMP=$(md5sum "$VER_FILE" | cut -c1-12)
+          else
+            VER_STAMP="${CYCLE}"
+          fi
+          echo "Forecast/map cycle stamp: ${CYCLE}"
+          echo "Verification file hash:   ${VER_STAMP}"
+          # Iframe cache-buster: replace ?v=<anything> after each dashboard
           sed -i -E "s|(wind_forecast\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
-          sed -i -E "s|(wind_verification\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(wind_verification\.html\?v=)[^\"]*|\1${VER_STAMP}|g" "$CHARTS"
           sed -i -E "s|(wind_map\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
           # Visible labels: "Cycle XXX" and "Updated YYYY-MM-DD HH:MMZ"
           sed -i -E "s|(id=\"last-updated-wind\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
           sed -i -E "s|(id=\"last-updated-verif\">Updated )[^<]*|\1${TODAY}|g" "$CHARTS"
           sed -i -E "s|(id=\"last-updated-map\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
           # Sanity check
-          N=$(grep -c "v=${CYCLE}" "$CHARTS" || true)
-          echo "Stamped CYCLE=${CYCLE} into iframe URLs in $N place(s)"
+          N=$(grep -c "?v=" "$CHARTS" || true)
+          echo "Total iframe ?v= stamps in $CHARTS: ${N}"
           echo "Charts file head:"
-          grep -n "wind_forecast.html\|wind_verification.html\|last-updated" "$CHARTS" | head -10
+          grep -n "wind_forecast.html\|wind_verification.html\|wind_map.html\|last-updated" "$CHARTS" | head -10
 
       - name: Commit and push dashboard
         run: |
