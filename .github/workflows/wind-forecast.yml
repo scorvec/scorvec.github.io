@@ -4,7 +4,7 @@ name: Wind generation forecast
 # That gives the full f00..f48 set time to be written to the public bucket.
 on:
   schedule:
-    - cron: '0 2,8,14,20 * * *'
+    - cron: '0 3,9,15,21 * * *'
   workflow_dispatch:
     inputs:
       cycle:
@@ -56,7 +56,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends libeccodes0
 
       - name: Install Python dependencies
-        run: pip install -r requirements-wind.txt gridstatusio
+        run: pip install -r requirements-wind.txt gridstatus gridstatusio
 
       - name: Download USWTDB
         run: |
@@ -183,10 +183,14 @@ jobs:
       - name: Update verification dashboard
         env:
           GRIDSTATUS_API_KEY: ${{ secrets.GRIDSTATUS_API_KEY }}
+          # Try direct-from-ISO fetchers first (free, no rate limit);
+          # fall back to gridstatusio only for curtailment and when a
+          # direct fetcher fails. Cuts paid-API quota use by ~80-95%.
+          USE_ISO_DIRECT: "1"
         run: |
           if [ -z "$GRIDSTATUS_API_KEY" ]; then
-            echo "GRIDSTATUS_API_KEY secret not set; skipping verification update."
-            exit 0
+            echo "GRIDSTATUS_API_KEY not set; direct ISO fetchers will still"
+            echo "provide actuals, but curtailment data will be unavailable."
           fi
           # update_verification.py writes:
           #   ../assets/wind_verification.html
