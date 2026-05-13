@@ -16,3 +16,11 @@ windpowerlib>=0.2.2
 pyarrow>=14.0
 openpyxl>=3.1
 plotly>=5.18
+
+# Verification: actuals from ISOs
+# - gridstatus is the open-source library that scrapes ISO public sites
+#   directly (no API key, no rate limit). Used for SPP and CAISO actuals.
+# - gridstatusio is the paid hosted API. Still needed for curtailment
+#   data that isn't easily scrapable from individual ISO sites.
+gridstatus>=0.30
+gridstatusio>=0.10
