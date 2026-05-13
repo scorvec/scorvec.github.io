@@ -265,13 +265,41 @@ def main() -> int:
     print(f"Need to fetch: {start_str} → {end_str} "
           f"({len(needed):,} (region, valid_time) rows)")
 
-    from gridstatusio import GridStatusClient
-    client = GridStatusClient()
+    # Try direct-from-ISO fetchers first — they're free and don't burn
+    # gridstatus rate-limit quota. Only fall back to gridstatus for
+    # regions where the direct fetch came up empty.
+    print("\nFetching actuals (direct from ISOs):")
+    from iso_direct_fetchers import pull_actuals_direct
+    actuals_direct = pull_actuals_direct(DASHBOARD_REGIONS, start_str, end_str)
 
-    print("\nFetching actuals:")
-    actuals_new = pull_actuals(client, DASHBOARD_REGIONS, start_str, end_str)
-    print("\nFetching curtailment:")
-    curtail_new = pull_curtailment(client, DASHBOARD_REGIONS, start_str, end_str)
+    direct_regions = set(actuals_direct["region"].unique()) if not actuals_direct.empty else set()
+    fallback_regions = [r for r in DASHBOARD_REGIONS if r not in direct_regions]
+
+    actuals_new = actuals_direct
+    curtail_new = pd.DataFrame()
+
+    # gridstatus fallback only for what we couldn't get direct, plus
+    # always for curtailment (since the ISO-direct paths don't carry it)
+    use_gridstatus = bool(fallback_regions) or True  # always for curtailment
+    if use_gridstatus:
+        try:
+            from gridstatusio import GridStatusClient
+            client = GridStatusClient()
+
+            if fallback_regions:
+                print(f"\nFetching actuals from gridstatus "
+                      f"(fallback for {fallback_regions}):")
+                gs_actuals = pull_actuals(client, fallback_regions,
+                                           start_str, end_str)
+                if not gs_actuals.empty:
+                    actuals_new = pd.concat([actuals_new, gs_actuals],
+                                             ignore_index=True)
+
+            print("\nFetching curtailment (gridstatus only):")
+            curtail_new = pull_curtailment(client, DASHBOARD_REGIONS,
+                                            start_str, end_str)
+        except Exception as e:
+            print(f"  gridstatus call failed ({e}); proceeding without it")
 
     # Build new verification rows
     ver_new = needed[["region", "valid_time", "MW", "cycle", "lead_hours"]].rename(
