@@ -135,7 +135,9 @@ def fetch_spp_actual_wind(start: str, end: str) -> pd.DataFrame:
         return pd.DataFrame()
 
     try:
-        df = iso.get_fuel_mix(start=start, end=end)
+        # gridstatus SPP class signature: get_fuel_mix(date, end=None).
+        # Using positional date with end kwarg works across versions.
+        df = iso.get_fuel_mix(start, end=end)
     except Exception as e:
         print(f"  SPP (direct)... FAILED ({e})")
         return pd.DataFrame()
@@ -183,7 +185,14 @@ def fetch_caiso_actual_wind(start: str, end: str) -> pd.DataFrame:
         return pd.DataFrame()
 
     try:
-        df = iso.get_fuel_mix(start=start, end=end)
+        # gridstatus CAISO class signature: get_fuel_mix(date, end=None).
+        # Cap end at "today" (Pacific) since tomorrow's file doesn't
+        # exist yet and produces a noisy 404 from the library.
+        from datetime import date as _date
+        today_pt = pd.Timestamp.now(tz="America/Los_Angeles").normalize()
+        end_capped = min(pd.to_datetime(end),
+                         today_pt.tz_localize(None) + pd.Timedelta(days=1))
+        df = iso.get_fuel_mix(start, end=end_capped.strftime("%Y-%m-%d"))
     except Exception as e:
         print(f"  CAISO (direct)... FAILED ({e})")
         return pd.DataFrame()
