@@ -202,13 +202,27 @@ def pull_curtailment(client, regions: list[str], start: str, end: str) -> pd.Dat
 # ---------------------------------------------------------------------------
 
 def main() -> int:
-    if "GRIDSTATUS_API_KEY" not in os.environ:
-        print("ERROR: set GRIDSTATUS_API_KEY environment variable")
-        return 1
-
     print("=" * 70)
     print("Verification updater")
     print("=" * 70)
+
+    # Environment diagnostic — helps debug "library not installed" issues
+    import sys
+    print(f"Python: {sys.executable}")
+    try:
+        import gridstatus as _gs
+        print(f"gridstatus library: v{_gs.__version__} (open-source, direct ISO scraping)")
+    except ImportError as e:
+        print(f"gridstatus library: NOT INSTALLED ({e})")
+    try:
+        import gridstatusio as _gsio
+        print(f"gridstatusio library: v{_gsio.__version__} (paid hosted API)")
+    except ImportError as e:
+        print(f"gridstatusio library: NOT INSTALLED ({e})")
+
+    if "GRIDSTATUS_API_KEY" not in os.environ:
+        print("Note: GRIDSTATUS_API_KEY not set; direct ISO fetchers will provide")
+        print("      actuals, but curtailment data will be unavailable.")
 
     # Forecast archive
     fc = load_forecast_archive(ARCHIVE_DIR)
@@ -268,9 +282,19 @@ def main() -> int:
     # Try direct-from-ISO fetchers first — they're free and don't burn
     # gridstatus rate-limit quota. Only fall back to gridstatus for
     # regions where the direct fetch came up empty.
-    print("\nFetching actuals (direct from ISOs):")
-    from iso_direct_fetchers import pull_actuals_direct
-    actuals_direct = pull_actuals_direct(DASHBOARD_REGIONS, start_str, end_str)
+    # NOTE: ISO-direct fetchers are experimental and currently disabled
+    # by default since they need schema validation against live data.
+    # Set USE_ISO_DIRECT=1 to enable. To re-enable: validate each
+    # fetcher locally first, then set the env var in the workflow.
+    actuals_direct = pd.DataFrame()
+    if os.environ.get("USE_ISO_DIRECT", "0") == "1":
+        print("\nFetching actuals (direct from ISOs):")
+        try:
+            from iso_direct_fetchers import pull_actuals_direct
+            actuals_direct = pull_actuals_direct(DASHBOARD_REGIONS,
+                                                  start_str, end_str)
+        except Exception as e:
+            print(f"  ISO-direct fetchers errored ({e}); skipping")
 
     direct_regions = set(actuals_direct["region"].unique()) if not actuals_direct.empty else set()
     fallback_regions = [r for r in DASHBOARD_REGIONS if r not in direct_regions]
