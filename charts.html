@@ -192,14 +192,14 @@
         <p><b>Power curves</b> come from three tiers: a curated registry of OEM curves digitized from manufacturer datasheets (covers ~45% of US capacity, including the GE 2.x-127, GE 3.6-154, Vestas V100-V110, and Siemens SWT families), the windpowerlib oedb catalog (Vestas V126, Nordex N131, etc.), and 12 specific-power-binned NREL generic curves as a fallback. A 16% global loss factor (NREL ATB benchmark) accounts for wake, electrical, and availability losses across the fleet. The forecast represents potential deliverable generation; observed output is typically lower due to curtailment and outages not modeled here.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/wind_forecast.html?v=20260517T18Z"
+        <iframe src="assets/wind_forecast.html?v=20260518T00Z"
                 style="width:100%; height:660px; border:0; display:block;"
                 title="US wind generation forecast (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USWTDB · EIA-860 · windpowerlib · NREL WIND Toolkit</span>
-        <span class="chart-updated" id="last-updated-wind">Cycle 20260517T18Z</span>
+        <span class="chart-updated" id="last-updated-wind">Cycle 20260518T00Z</span>
       </div>
     </div>
 
@@ -212,14 +212,14 @@
         <p><b>How it's built:</b> Each forecast cycle is archived to a CSV, and an update step queries gridstatus.io for actual generation and curtailment values as they're published (typically 12–48 hours after the forecast was made). The chart re-renders on each cycle from the rolling 14-day archive.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/wind_verification.html?v=fdc943051c19"
+        <iframe src="assets/wind_verification.html?v=a2f7f317bd3a"
                 style="width:100%; height:660px; border:0; display:block;"
                 title="Historical model vs actual generation (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">Model + gridstatus.io (actual generation, curtailment)</span>
-        <span class="chart-updated" id="last-updated-verif">Updated 2026-05-17 22:14Z</span>
+        <span class="chart-updated" id="last-updated-verif">Updated 2026-05-18 07:12Z</span>
       </div>
     </div>
 
@@ -232,14 +232,14 @@
         <p><b>How it's built:</b> Each forecast cycle aggregates the per-turbine output to the plant level (weighted-mean wind speed and density per plant, summed MW). The map data is built into a self-contained HTML file with all per-plant time series embedded as JSON, so the click handler works without server round-trips. Useful for spotting regional ramps, identifying which plants drive ISO totals, and seeing how a weather pattern plays across the fleet.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/wind_map.html?v=20260517T18Z"
+        <iframe src="assets/wind_map.html?v=20260518T00Z"
                 style="width:100%; height:900px; border:0; display:block;"
                 title="Plant-level wind generation forecast map (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USWTDB · CartoDB tiles · Plotly</span>
-        <span class="chart-updated" id="last-updated-map">Cycle 20260517T18Z</span>
+        <span class="chart-updated" id="last-updated-map">Cycle 20260518T00Z</span>
       </div>
     </div>
 
