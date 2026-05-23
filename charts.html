@@ -4,8 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HRRR Wind Forecast · Shawn Corvec</title>
-<meta name="description" content="Live US wind generation forecast driven by NOAA HRRR. Per-turbine forecasts for ~75,000 turbines summed by ISO and balancing authority, updated four times daily, with rolling verification against actual ERCOT/SPP/CAISO generation.">
-<link rel="canonical" href="https://scorvec.com/charts.html">
+<meta name="description" content="Live US wind and solar generation forecasts driven by NOAA HRRR. Per-turbine and per-plant forecasts for ~75,000 turbines and ~6,500 solar plants, summed by ISO and balancing authority, updated four times daily, with rolling verification against actual ERCOT/SPP/CAISO generation."><link rel="canonical" href="https://scorvec.com/charts.html">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -176,7 +175,7 @@
 
 <main>
   <div class="page-header">
-    <h1>HRRR Wind Generation Forecast</h1>
+    <h1>HRRR Wind and Solar Generation Forecasts</h1>
     <p>A live wind generation forecast for the United States, driven by NOAA's High-Resolution Rapid Refresh (HRRR) model. Every six hours, when a new HRRR extended cycle becomes available, the pipeline samples 80-meter winds at every utility-scale wind turbine in the country, applies model-specific power curves to each, and aggregates to ISO and balancing-authority totals.</p>
     <p>The three charts below show the same forecast at three scales: aggregated 48-hour ISO totals, a 14-day rolling comparison against actual generation, and a plant-by-plant interactive map.</p>
   </div>
@@ -192,14 +191,22 @@
         <p><b>Power curves</b> come from three tiers: a curated registry of OEM curves digitized from manufacturer datasheets (covers ~45% of US capacity, including the GE 2.x-127, GE 3.6-154, Vestas V100-V110, and Siemens SWT families), the windpowerlib oedb catalog (Vestas V126, Nordex N131, etc.), and 12 specific-power-binned NREL generic curves as a fallback. A 16% global loss factor (NREL ATB benchmark) accounts for wake, electrical, and availability losses across the fleet. The forecast represents potential deliverable generation; observed output is typically lower due to curtailment and outages not modeled here.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
+<<<<<<< HEAD
         <iframe src="assets/wind_forecast.html?v=20260523T12Z"
+=======
+        <iframe src="assets/wind_forecast.html?v=__WIND_CYCLE__"
+>>>>>>> ad328dd (add solar forecast)
                 style="width:100%; height:660px; border:0; display:block;"
                 title="US wind generation forecast (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USWTDB · EIA-860 · windpowerlib · NREL WIND Toolkit</span>
+<<<<<<< HEAD
         <span class="chart-updated" id="last-updated-wind">Cycle 20260523T12Z</span>
+=======
+        <span class="chart-updated" id="last-updated-wind">Cycle __WIND_CYCLE__</span>
+>>>>>>> ad328dd (add solar forecast)
       </div>
     </div>
 
@@ -212,14 +219,22 @@
         <p><b>How it's built:</b> Each forecast cycle is archived to a CSV, and an update step queries gridstatus.io for actual generation and curtailment values as they're published (typically 12–48 hours after the forecast was made). The chart re-renders on each cycle from the rolling 14-day archive.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
+<<<<<<< HEAD
         <iframe src="assets/wind_verification.html?v=926853ecafda"
+=======
+        <iframe src="assets/wind_verification.html?v=__WIND_CYCLE__"
+>>>>>>> ad328dd (add solar forecast)
                 style="width:100%; height:660px; border:0; display:block;"
                 title="Historical model vs actual generation (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">Model + gridstatus.io (actual generation, curtailment)</span>
+<<<<<<< HEAD
         <span class="chart-updated" id="last-updated-verif">Updated 2026-05-23 16:17Z</span>
+=======
+        <span class="chart-updated" id="last-updated-verif">Updated __VERIF_DATE__</span>
+>>>>>>> ad328dd (add solar forecast)
       </div>
     </div>
 
@@ -232,14 +247,62 @@
         <p><b>How it's built:</b> Each forecast cycle aggregates the per-turbine output to the plant level (weighted-mean wind speed and density per plant, summed MW). The map data is built into a self-contained HTML file with all per-plant time series embedded as JSON, so the click handler works without server round-trips. Useful for spotting regional ramps, identifying which plants drive ISO totals, and seeing how a weather pattern plays across the fleet.</p>
       </div>
       <div class="chart-img-wrap" style="background:#fafaf8;">
+<<<<<<< HEAD
         <iframe src="assets/wind_map.html?v=20260523T12Z"
+=======
+        <iframe src="assets/wind_map.html?v=__WIND_CYCLE__"
+>>>>>>> ad328dd (add solar forecast)
                 style="width:100%; height:900px; border:0; display:block;"
                 title="Plant-level wind generation forecast map (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USWTDB · CartoDB tiles · Plotly</span>
+<<<<<<< HEAD
         <span class="chart-updated" id="last-updated-map">Cycle 20260523T12Z</span>
+=======
+        <span class="chart-updated" id="last-updated-map">Cycle __WIND_CYCLE__</span>
+      </div>
+    </div>
+
+    <!-- ============== SOLAR ============== -->
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>HRRR Solar Generation Forecast</h2>
+        <p>48-hour solar power forecast for the six largest US generation regions, derived from NOAA's HRRR (High-Resolution Rapid Refresh) numerical weather prediction model. Shows total MW output per region for each forecast hour. Updated four times daily at the 00, 06, 12, and 18Z HRRR extended cycles.</p>
+        <p><b>What you're looking at:</b> Six panels, one per region. The amber line is forecast solar generation; the dashed gray line is total installed nameplate AC capacity. Solar output follows a strong diurnal cycle — zero overnight, peaks at local midday. Cloudy days produce visible dips even at peak hours.</p>
+        <p><b>How it's built:</b> The pipeline starts from the USGS US Large-Scale Photovoltaic Database (~6,500 utility-scale plants ≥1 MW with coordinates, capacity, tracking type, and tilt/azimuth). For each plant, HRRR's downward shortwave radiation (DSWRF), beam (VBDSF) and diffuse (VDDSF) components, and 2-meter air temperature are sampled at the plant's location. Sun position is computed from latitude/longitude/UTC time. For single-axis tracking plants (73% of the US fleet by capacity), pvlib computes the tracker rotation angle that points the panels toward the sun, including backtracking when the sun is low. Plane-of-array irradiance is calculated using HRRR's actual beam/diffuse split (no empirical decomposition). Cell temperature is computed from air temperature plus heating from absorbed irradiance, then a temperature derate is applied to DC power output. Finally, AC power is computed with inverter efficiency and clipping at the AC nameplate.</p>
+      </div>
+      <div class="chart-img-wrap" style="background:#0f0f0d;">
+        <iframe src="assets/solar_forecast.html?v=__SOLAR_CYCLE__"
+                style="width:100%; height:680px; border:0; display:block;"
+                title="48-hour HRRR-based solar generation forecast"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA HRRR · USGS USPVDB · pvlib · Plotly</span>
+        <span class="chart-updated" id="last-updated-solar">Cycle __SOLAR_CYCLE__</span>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Plant-Level Solar Forecast Map</h2>
+        <p>Every utility-scale solar plant in the lower 48 (≥5 MW, ~6,200 plants) plotted on a map, colored by forecast capacity factor and sized by nameplate AC capacity. The slider at the bottom steps through the 48-hour forecast horizon; press play to animate.</p>
+        <p><b>How to use it:</b> Hover any plant for its name, current MW output, capacity factor, state, and tracking type. <b>Click a plant</b> to see its full 48-hour time series in the panel below the map. Scroll or pinch to zoom; drag to pan. The animation shows the diurnal dawn-to-dusk sweep across the country.</p>
+        <p><b>How it's built:</b> Each forecast cycle computes per-plant AC power using the same physics chain as the regional chart above — sun position, tracker geometry, plane-of-array irradiance, temperature derate, and inverter clipping. The map embeds all per-plant time series as JSON, so clicks render the time-series chart instantly with no server round-trip. Useful for spotting how cloud cover patterns affect individual plants, comparing tracking vs fixed-tilt design choices, and watching the sun sweep across the continent.</p>
+      </div>
+      <div class="chart-img-wrap" style="background:#fafaf8;">
+        <iframe src="assets/solar_map.html?v=__SOLAR_CYCLE__"
+                style="width:100%; height:900px; border:0; display:block;"
+                title="Plant-level solar generation forecast map (interactive)"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA HRRR · USGS USPVDB · pvlib · CartoDB tiles · Plotly</span>
+        <span class="chart-updated" id="last-updated-solar-map">Cycle __SOLAR_CYCLE__</span>
+>>>>>>> ad328dd (add solar forecast)
       </div>
     </div>
 
