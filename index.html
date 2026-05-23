@@ -101,7 +101,7 @@
     display: flex; align-items: center; justify-content: center;
     padding: 6rem 2rem 4rem;
     position: relative;
-    background: url('IMG_4939.png') center center / cover no-repeat;
+    background: url('IMG_2253.JPEG') center center / cover no-repeat;
     min-height: calc(100vh - 57px - 57px);
   }
   .home::before {
@@ -117,7 +117,7 @@
   .home-inner {
     position: relative; z-index: 1;
     display: flex; flex-direction: column; align-items: center;
-    text-align: center; max-width: 480px; width: 100%;
+    text-align: center; max-width: 520px; width: 100%;
   }
 
   /* PHOTO */
@@ -163,6 +163,46 @@
   .btn:hover { background: rgba(255,255,255,0.2); border-color: #fff; }
   .btn svg { flex-shrink: 0; }
 
+  /* FEATURED CALLOUT — live forecasts */
+  .featured {
+    display: flex; flex-direction: column; align-items: center;
+    margin: 0 0 2rem;
+    padding: 1.5rem 1.8rem;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.22);
+    backdrop-filter: blur(4px);
+    text-decoration: none; color: #fff;
+    max-width: 100%;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .featured:hover {
+    background: rgba(255,255,255,0.14);
+    border-color: rgba(255,255,255,0.45);
+  }
+  .featured-label {
+    font-size: 0.68rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(220,180,100,0.95);
+    margin-bottom: 0.45rem;
+  }
+  .featured-title {
+    font-family: var(--serif); font-weight: 400;
+    font-size: 1.2rem; color: #fff;
+    margin-bottom: 0.45rem;
+  }
+  .featured-desc {
+    font-size: 0.85rem; font-weight: 300; line-height: 1.55;
+    color: rgba(255,255,255,0.78);
+    max-width: 38ch;
+  }
+  .featured-arrow {
+    font-size: 0.85rem; margin-left: 0.4rem;
+    transition: transform 0.2s;
+    display: inline-block;
+  }
+  .featured:hover .featured-arrow { transform: translateX(3px); }
+
   /* FOOTER */
   footer {
     padding: 1.2rem 3rem;
@@ -189,7 +229,6 @@
     <li><a href="index.html" class="active">Home</a></li>
     <li><a href="resume.html">Resume</a></li>
     <li><a href="research.html">Research</a></li>
-    <li><a href="charts.html">Wind Forecast</a></li>
     <li><a href="gallery.html">Gallery</a></li>
   </ul>
 </nav>
@@ -202,7 +241,13 @@
 
     <h1>Shawn Corvec</h1>
     <div class="title">Meteorologist · Atmospheric Scientist</div>
-    <p class="bio">Quantitative meteorologist working at the intersection of numerical weather prediction, operational forecasting, and energy markets.</p>
+    <p class="bio">Quantitative meteorologist working at the intersection of numerical weather prediction, operational forecasting, and energy markets. I build operational wind generation forecasts and study how atmospheric science can sharpen energy decisions.</p>
+
+    <a href="charts.html" class="featured">
+      <div class="featured-label">Live · updated 4× daily</div>
+      <div class="featured-title">HRRR Renewable Forecasts<span class="featured-arrow">→</span></div>
+      <div class="featured-desc">48-hour wind and solar generation forecasts for the US, derived from NOAA HRRR. Per-plant detail, interactive maps, and rolling verification against ISO actuals.</div>
+    </a>
 
     <div class="home-links">
       <a href="resume.html" class="btn">Resume</a>
