@@ -81,18 +81,31 @@ jobs:
             CYCLE="${{ inputs.cycle }}"
             echo "Using manually-specified cycle: $CYCLE"
           else
-            # Default: walk back to most recent 00/06/12/18Z that's published
+            # Default: walk back to most recent 00/06/12/18Z that's published.
+            # Herbie may emit a config-file banner to stdout on first run in
+            # a fresh CI environment, so we redirect its noise to stderr and
+            # only print the cycle string we care about.
             CYCLE=$(python -c "
+          import sys, os
           from datetime import datetime, timedelta, timezone
-          from herbie import Herbie
+          # Suppress Herbie's verbose first-run banner by redirecting
+          # stdout temporarily during import (the banner goes to print()
+          # via the herbie config init).
+          import io, contextlib
+          buf = io.StringIO()
+          with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+              from herbie import Herbie
           now = datetime.now(timezone.utc).replace(minute=0, second=0,
                                                     microsecond=0, tzinfo=None)
           for hours_back in range(2, 24):
               candidate = now - timedelta(hours=hours_back)
               if candidate.hour in (0, 6, 12, 18):
                   try:
-                      H = Herbie(candidate, model='hrrr', product='sfc', fxx=0)
-                      if H.grib is not None:
+                      with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                          H = Herbie(candidate, model='hrrr', product='sfc', fxx=0)
+                          ok = H.grib is not None
+                      if ok:
+                          # Only this print reaches real stdout
                           print(candidate.strftime('%Y-%m-%d %H'))
                           break
                   except Exception:
