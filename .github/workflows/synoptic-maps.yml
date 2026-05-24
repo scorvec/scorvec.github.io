@@ -1,0 +1,161 @@
+name: Synoptic maps
+
+# Run ~30 min after the latest extended HRRR cycle lands. The wind and
+# solar forecast workflows run at :00 and :15 of the same hour
+# respectively; we go at :30 so all forecast data is fresh and committed
+# before we render maps that overlay it.
+on:
+  schedule:
+    - cron: '30 3,9,15,21 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: 'HRRR cycle (UTC, YYYY-MM-DD HH). Empty = latest.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: synoptic-maps
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: scripts/synoptic
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts/synoptic
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('scripts/synoptic/requirements-synoptic.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libeccodes0 \
+            libgeos-dev \
+            libproj-dev \
+            proj-bin
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-synoptic.txt
+
+      - name: Determine cycle
+        id: cycle
+        run: |
+          if [ -n "${{ inputs.cycle }}" ]; then
+            CYCLE="${{ inputs.cycle }}"
+            echo "Using manually-specified cycle: $CYCLE"
+          else
+            CYCLE=$(python -c "
+          import io, contextlib
+          buf = io.StringIO()
+          with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+              from herbie import Herbie
+          from datetime import datetime, timedelta, timezone
+          now = datetime.now(timezone.utc).replace(minute=0, second=0,
+                                                    microsecond=0, tzinfo=None)
+          for hours_back in range(2, 24):
+              candidate = now - timedelta(hours=hours_back)
+              if candidate.hour in (0, 6, 12, 18):
+                  try:
+                      with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                          H = Herbie(candidate, model='hrrr', product='sfc', fxx=0)
+                          ok = H.grib is not None
+                      if ok:
+                          print(candidate.strftime('%Y-%m-%d %H'))
+                          break
+                  except Exception:
+                      continue
+          ")
+            echo "Latest extended cycle: $CYCLE"
+          fi
+          COMPACT=$(python -c "
+          from datetime import datetime
+          parts = '$CYCLE'.split()
+          dt = datetime.strptime(parts[0] + ' ' + parts[1], '%Y-%m-%d %H')
+          print(dt.strftime('%Y%m%dT%HZ'))
+          ")
+          echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+          echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+
+      - name: Render maps
+        run: |
+          CYCLE='${{ steps.cycle.outputs.cycle }}'
+          DATE_PART=$(echo "$CYCLE" | awk '{print $1}')
+          HOUR_PART=$(echo "$CYCLE" | awk '{print $2}')
+          python render_maps.py "$DATE_PART" "$HOUR_PART"
+
+      - name: Place viewer pages
+        run: |
+          # Copy the player HTML into wind/ and solar/ output dirs
+          # so they're served at /assets/synoptic/wind/ and
+          # /assets/synoptic/solar/
+          cp viewer.html ../../assets/synoptic/wind/viewer.html
+          cp viewer.html ../../assets/synoptic/solar/viewer.html
+
+      - name: Stamp cycle into charts.html
+        run: |
+          # Update the visible "Cycle ..." label for the synoptic cards.
+          # No iframe cache-busters needed here since the viewer loads
+          # manifest.json which is overwritten on each cycle.
+          CYCLE='${{ steps.cycle.outputs.compact }}'
+          CHARTS="${{ github.workspace }}/charts.html"
+          if [ -f "$CHARTS" ]; then
+            sed -i -E "s|(id=\"last-updated-wind-synoptic\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
+            sed -i -E "s|(id=\"last-updated-solar-synoptic\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
+          fi
+
+      - name: Commit and push
+        run: |
+          cd "${{ github.workspace }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase || echo "Pull/rebase failed; continuing"
+          git add assets/synoptic/
+          git add charts.html
+          echo "--- Staged files ---"
+          git diff --staged --name-only | head -30
+          echo "--------------------"
+          if git diff --staged --quiet; then
+            echo "No changes; skipping commit."
+          else
+            git commit -m "synoptic maps: cycle ${{ steps.cycle.outputs.compact }}"
+            for i in 1 2 3; do
+              if git push; then
+                break
+              else
+                echo "Push attempt $i failed; pulling and retrying..."
+                git pull --rebase
+              fi
+            done
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Synoptic maps summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Cycle: \`${{ steps.cycle.outputs.cycle }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Viewer URLs:" >> $GITHUB_STEP_SUMMARY
+          echo "  - [Wind](https://scorvec.github.io/assets/synoptic/wind/viewer.html)" >> $GITHUB_STEP_SUMMARY
+          echo "  - [Solar](https://scorvec.github.io/assets/synoptic/solar/viewer.html)" >> $GITHUB_STEP_SUMMARY

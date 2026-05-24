@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HRRR Synoptic Map Viewer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f0f0d;
+    color: #e6e4dd;
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    padding: 0;
+    overflow: hidden;
+  }
+  #wrap {
+    display: flex; flex-direction: column;
+    height: 100vh;
+  }
+  #img-wrap {
+    flex: 1 1 auto;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: #181816;
+    padding: 0;
+  }
+  #img-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto; height: auto;
+    display: block;
+  }
+  #status {
+    color: #888580;
+    font-size: 14px;
+    text-align: center;
+  }
+  #controls {
+    flex: 0 0 auto;
+    padding: 12px 20px 14px;
+    background: rgba(20,20,18,0.96);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex; flex-direction: column;
+    gap: 10px;
+  }
+  .row {
+    display: flex; align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .frame-label {
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    color: #b8b6b0;
+    min-width: 230px;
+  }
+  .cycle-label {
+    margin-left: auto;
+    font-size: 12px;
+    color: #888580;
+  }
+  button.ctrl {
+    background: rgba(255,255,255,0.08);
+    color: #e6e4dd;
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 5px 11px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.12s;
+    line-height: 1.2;
+    min-width: 36px;
+  }
+  button.ctrl:hover {
+    background: rgba(255,255,255,0.18);
+    border-color: rgba(255,255,255,0.32);
+  }
+  button.ctrl:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  button.ctrl.play {
+    min-width: 50px;
+    background: #f6c453;
+    color: #1a1a17;
+    border-color: #f6c453;
+    font-weight: 500;
+  }
+  button.ctrl.play:hover {
+    background: #ffd470;
+    border-color: #ffd470;
+  }
+  #scrubber {
+    flex: 1;
+    min-width: 180px;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  #scrubber::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #f6c453;
+    cursor: pointer;
+    border: 2px solid #1a1a17;
+  }
+  #scrubber::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #f6c453;
+    cursor: pointer;
+    border: 2px solid #1a1a17;
+  }
+  select.dropdown {
+    background: rgba(255,255,255,0.08);
+    color: #e6e4dd;
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 5px 8px;
+    font-family: inherit;
+    font-size: 12px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  select.region {
+    min-width: 180px;
+  }
+  .region-label {
+    color: #888580;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .help {
+    font-size: 11px;
+    color: #6a6864;
+  }
+  kbd {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.16);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 10px;
+    color: #b8b6b0;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="img-wrap">
+    <div id="status">Loading…</div>
+    <img id="frame" alt="" style="display:none;">
+  </div>
+  <div id="controls">
+    <div class="row">
+      <button class="ctrl" id="btn-rewind" title="Jump to start">⏮</button>
+      <button class="ctrl" id="btn-back" title="Previous frame (←)">◀</button>
+      <button class="ctrl play" id="btn-play" title="Play/pause (space)">▶</button>
+      <button class="ctrl" id="btn-forward" title="Next frame (→)">▶</button>
+      <button class="ctrl" id="btn-end" title="Jump to end">⏭</button>
+      <input type="range" id="scrubber" min="0" max="0" value="0" step="1">
+      <select class="dropdown" id="speed">
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+        <option value="4">4×</option>
+        <option value="8">8×</option>
+      </select>
+    </div>
+    <div class="row">
+      <span class="region-label">Region:</span>
+      <select class="dropdown region" id="region"></select>
+      <div class="frame-label" id="frame-label">—</div>
+      <div class="help">
+        <kbd>←</kbd> <kbd>→</kbd> step  ·
+        <kbd>Space</kbd> play  ·
+        <kbd>Home</kbd> <kbd>End</kbd> jump
+      </div>
+      <div class="cycle-label" id="cycle-label"></div>
+    </div>
+  </div>
+</div>
+<script>
+  // The viewer lives in /assets/synoptic/{wind,solar}/ — regions.json
+  // is a sibling, and per-region manifests live in subdirs.
+  const REGIONS_URL = "regions.json";
+
+  let regions = [];
+  let currentRegion = null;
+  let frames = [];
+  let cycleLabel = "";
+  let variable = "";
+  let currentIdx = 0;
+  let playing = false;
+  let speed = 1;
+  let timer = null;
+  const baseFps = 4;
+
+  const imgEl = document.getElementById("frame");
+  const statusEl = document.getElementById("status");
+  const labelEl = document.getElementById("frame-label");
+  const cycleEl = document.getElementById("cycle-label");
+  const scrubberEl = document.getElementById("scrubber");
+  const speedEl = document.getElementById("speed");
+  const regionEl = document.getElementById("region");
+  const btnPlay = document.getElementById("btn-play");
+  const btnBack = document.getElementById("btn-back");
+  const btnForward = document.getElementById("btn-forward");
+  const btnRewind = document.getElementById("btn-rewind");
+  const btnEnd = document.getElementById("btn-end");
+
+  function preloadFrames() {
+    for (const f of frames) {
+      const img = new Image();
+      img.src = currentRegion.id + "/" + f.file;
+    }
+  }
+
+  function showFrame(idx) {
+    if (idx < 0 || idx >= frames.length) return;
+    currentIdx = idx;
+    const f = frames[idx];
+    imgEl.src = currentRegion.id + "/" + f.file;
+    imgEl.style.display = "block";
+    statusEl.style.display = "none";
+    scrubberEl.value = idx;
+    labelEl.textContent = `F${String(f.fxx).padStart(2, "0")} · ${f.valid_label}`;
+  }
+
+  function step(delta) {
+    let next = currentIdx + delta;
+    if (next < 0) next = frames.length - 1;
+    if (next >= frames.length) next = 0;
+    showFrame(next);
+  }
+
+  function play() {
+    if (playing) return;
+    playing = true;
+    btnPlay.textContent = "⏸";
+    const interval = 1000 / (baseFps * speed);
+    timer = setInterval(() => step(1), interval);
+  }
+
+  function pause() {
+    playing = false;
+    btnPlay.textContent = "▶";
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+
+  function togglePlay() { playing ? pause() : play(); }
+
+  async function loadRegion(region) {
+    pause();
+    currentRegion = region;
+    statusEl.style.display = "block";
+    statusEl.textContent = "Loading " + region.label + "…";
+    imgEl.style.display = "none";
+    try {
+      const r = await fetch(region.id + "/manifest.json", {cache: "no-cache"});
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      frames = data.frames || [];
+      cycleLabel = data.cycle || "";
+      variable = data.variable || "";
+      cycleEl.textContent = `Cycle ${cycleLabel}  ·  ${variable}`;
+      scrubberEl.max = Math.max(0, frames.length - 1);
+      // Preserve current frame index if possible (clamped to new length)
+      let savedIdx = Math.min(currentIdx, frames.length - 1);
+      if (savedIdx < 0) savedIdx = 0;
+      preloadFrames();
+      showFrame(savedIdx);
+    } catch (e) {
+      statusEl.textContent = "Could not load " + region.label + ": " + e;
+    }
+  }
+
+  // Boot: load regions, populate dropdown, then load default region
+  fetch(REGIONS_URL, {cache: "no-cache"})
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then(data => {
+      regions = data.regions || [];
+      if (regions.length === 0) {
+        statusEl.textContent = "No regions defined.";
+        return;
+      }
+      regionEl.innerHTML = "";
+      for (const reg of regions) {
+        const opt = document.createElement("option");
+        opt.value = reg.id;
+        opt.textContent = reg.label;
+        if (reg.default) opt.selected = true;
+        regionEl.appendChild(opt);
+      }
+      const startRegion = regions.find(r => r.default) || regions[0];
+      loadRegion(startRegion);
+    })
+    .catch(err => {
+      statusEl.textContent = "Could not load regions.json: " + err;
+    });
+
+  // Controls
+  scrubberEl.addEventListener("input", (e) => {
+    pause();
+    showFrame(parseInt(e.target.value, 10));
+  });
+
+  speedEl.addEventListener("change", () => {
+    speed = parseFloat(speedEl.value);
+    if (playing) { pause(); play(); }
+  });
+
+  regionEl.addEventListener("change", () => {
+    const reg = regions.find(r => r.id === regionEl.value);
+    if (reg) loadRegion(reg);
+  });
+
+  btnPlay.addEventListener("click", togglePlay);
+  btnBack.addEventListener("click", () => { pause(); step(-1); });
+  btnForward.addEventListener("click", () => { pause(); step(1); });
+  btnRewind.addEventListener("click", () => { pause(); showFrame(0); });
+  btnEnd.addEventListener("click", () => { pause(); showFrame(frames.length - 1); });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+    switch (e.key) {
+      case "ArrowLeft":  e.preventDefault(); pause(); step(-1); break;
+      case "ArrowRight": e.preventDefault(); pause(); step(1); break;
+      case " ":          e.preventDefault(); togglePlay(); break;
+      case "Home":       e.preventDefault(); pause(); showFrame(0); break;
+      case "End":        e.preventDefault(); pause(); showFrame(frames.length - 1); break;
+    }
+  });
+</script>
+</body>
+</html>

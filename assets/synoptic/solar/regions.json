@@ -1,0 +1,39 @@
+{
+  "regions": [
+    {
+      "id": "national",
+      "label": "National (CONUS)",
+      "default": true
+    },
+    {
+      "id": "ercot",
+      "label": "ERCOT (Texas)",
+      "default": false
+    },
+    {
+      "id": "caiso",
+      "label": "CAISO (California)",
+      "default": false
+    },
+    {
+      "id": "se",
+      "label": "Southeast",
+      "default": false
+    },
+    {
+      "id": "isone",
+      "label": "ISO-NE (New England)",
+      "default": false
+    },
+    {
+      "id": "miso",
+      "label": "MISO (Midwest)",
+      "default": false
+    },
+    {
+      "id": "pjm",
+      "label": "PJM (Mid-Atlantic)",
+      "default": false
+    }
+  ]
+}
