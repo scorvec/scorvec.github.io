@@ -1,9 +1,9 @@
 """Solar forecast dashboard.
 
-Builds a multi-panel Plotly HTML chart showing 48-hour solar forecast
-for each of the dashboard regions (ERCOT, CAISO, MISO, PJM, SPP,
-Southeast). Each panel has the forecast generation line and a dashed
-nameplate capacity reference.
+Builds an interactive Plotly chart with a dropdown selector to switch
+between the national total, individual regions (ERCOT, CAISO, MISO,
+PJM, SPP, Southeast), or overlay views. Mirrors the wind dashboard
+UX pattern.
 
 Output: assets/solar_forecast.html
 
@@ -14,13 +14,13 @@ Usage:
 from __future__ import annotations
 
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 from solar_aggregation import (
     DATA_DIR, DASHBOARD_REGIONS, get_latest_cycle,
@@ -31,17 +31,28 @@ from solar_aggregation import (
 ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "assets"
 OUTPUT_HTML = ASSETS_DIR / "solar_forecast.html"
 
+# Regions to surface in the dropdown, in the order shown (largest first
+# generally, but ordering matches DASHBOARD_REGIONS from solar_aggregation).
+# "National" is computed as the sum of all of these.
+NATIONAL_LABEL = "National"
 
-# Dark theme to match wind dashboard
-DARK_TEMPLATE = "plotly_dark"
-DARK_BG = "#0f0f0d"
-DARK_PAPER = "#0f0f0d"
-LINE_COLOR = "#f6c453"     # warm amber, evokes sunlight (matches site palette)
-CAPACITY_COLOR = "rgba(150,150,150,0.6)"
+# Colors for each region's line — warm/amber-based palette to evoke
+# sunlight, with enough variation to distinguish overlaid lines
+REGION_COLORS = {
+    NATIONAL_LABEL: "#f6c453",   # bright sunlight yellow
+    "CAISO":        "#e8893a",   # warm orange (California sun)
+    "ERCOT":        "#c75d3a",   # saturated red-orange (Texas sun)
+    "Southeast":    "#7fb069",   # warm green (Florida/SE foliage)
+    "MISO":         "#6a9aae",   # cool blue-gray (Great Lakes/Plains)
+    "PJM":          "#a87fb0",   # muted purple (Mid-Atlantic)
+    "SPP":          "#d4b85b",   # warm gold (Plains harvest)
+    "ISO-NE":       "#4a8c8c",   # deep teal (New England coast)
+    "NYISO":        "#d97658",   # muted terracotta (autumn leaves)
+}
 
 
 def build_dashboard(cycle_str: str, theme: str = "dark") -> None:
-    """Build the solar forecast dashboard HTML."""
+    """Build the solar forecast dashboard HTML with dropdown selector."""
     forecast_path = DATA_DIR / f"forecast_region_{cycle_str}.csv"
     if not forecast_path.exists():
         raise FileNotFoundError(
@@ -52,128 +63,194 @@ def build_dashboard(cycle_str: str, theme: str = "dark") -> None:
     df = pd.read_csv(forecast_path, parse_dates=["valid_time"])
     print(f"  Loaded {len(df):,} rows for {df['region'].nunique()} regions")
 
-    # Capacity lookup (use first value per region; constant within cycle)
-    capacity = (df.groupby("region")["capacity_MW"]
-                  .first().to_dict())
-
-    # Pivot to wide format: rows=valid_time, cols=region, values=MW_AC
+    # Pivot to wide format: index=valid_time, cols=region, values=MW
     pivot = df.pivot_table(index="valid_time", columns="region",
                             values="MW_AC", aggfunc="sum").sort_index()
-    # Fill missing hours with 0 (nighttime gaps from row-pruning in forecast)
     full_index = pd.date_range(pivot.index.min(), pivot.index.max(), freq="h")
     pivot = pivot.reindex(full_index).fillna(0.0)
 
-    # Order regions: by capacity descending, only including DASHBOARD_REGIONS
-    available = [r for r in DASHBOARD_REGIONS if r in pivot.columns]
-    if not available:
+    # Capacity per region
+    capacity_lookup = (df.groupby("region")["capacity_MW"]
+                         .first().to_dict())
+
+    # Build the National column = sum of all dashboard regions present
+    available_regions = [r for r in DASHBOARD_REGIONS if r in pivot.columns]
+    if not available_regions:
         raise RuntimeError(
-            f"No dashboard regions found in data. Available regions: "
-            f"{sorted(pivot.columns)}; expected: {DASHBOARD_REGIONS}"
+            f"No dashboard regions found. Got: {sorted(pivot.columns)}; "
+            f"expected: {DASHBOARD_REGIONS}"
         )
-    available = sorted(available, key=lambda r: -capacity.get(r, 0))
-
-    # 6 panels in a 3×2 grid (or 2×3 — wider screens look better with 3 cols)
-    n = len(available)
-    n_cols = 3
-    n_rows = (n + n_cols - 1) // n_cols
-
-    # Each subplot title includes region name + capacity
-    titles = []
-    for r in available:
-        cap = capacity.get(r, 0)
-        titles.append(f"<b>{r}</b> · {cap:,.0f} MW capacity")
-
-    fig = make_subplots(
-        rows=n_rows, cols=n_cols,
-        subplot_titles=titles,
-        shared_xaxes=True,
-        horizontal_spacing=0.06,
-        vertical_spacing=0.12,
+    pivot[NATIONAL_LABEL] = pivot[available_regions].sum(axis=1)
+    capacity_lookup[NATIONAL_LABEL] = sum(
+        capacity_lookup.get(r, 0) for r in available_regions
     )
 
-    for i, region in enumerate(available):
-        row = (i // n_cols) + 1
-        col = (i % n_cols) + 1
-        cap = capacity.get(region, 0)
+    # Ordered list: National first, then individual regions sorted by capacity
+    ordered = [NATIONAL_LABEL] + sorted(
+        available_regions,
+        key=lambda r: -capacity_lookup.get(r, 0),
+    )
+    print(f"  Series: {ordered}")
 
-        # Forecast line
+    # Build figure with one Scatter per region (forecast) + per region (capacity)
+    fig = go.Figure()
+
+    # Forecast traces — start with only National visible
+    default_region = NATIONAL_LABEL
+    for region in ordered:
+        color = REGION_COLORS.get(region, "#888888")
         y = pivot[region].to_numpy()
-        fig.add_trace(
-            go.Scatter(
-                x=pivot.index, y=y,
-                mode="lines",
-                name=region,
-                line=dict(width=2, color=LINE_COLOR),
-                hovertemplate=(
-                    f"<b>{region}</b><br>"
-                    "%{x|%Y-%m-%d %H:%M} UTC<br>"
-                    "%{y:,.0f} MW<extra></extra>"
-                ),
-                showlegend=False,
+        fig.add_trace(go.Scatter(
+            x=pivot.index, y=y,
+            mode="lines",
+            name=region,
+            line=dict(width=2.5, color=color),
+            visible=(region == default_region),
+            hovertemplate=(
+                f"<b>{region}</b><br>"
+                "%{x|%Y-%m-%d %H:%M} UTC<br>"
+                "%{y:,.0f} MW<extra></extra>"
             ),
-            row=row, col=col,
-        )
-
-        # Capacity reference (dashed horizontal)
+        ))
+        # Capacity reference (dashed horizontal at nameplate)
+        cap = capacity_lookup.get(region, 0)
         if cap > 0:
-            fig.add_trace(
-                go.Scatter(
-                    x=[pivot.index.min(), pivot.index.max()],
-                    y=[cap, cap],
-                    mode="lines",
-                    line=dict(width=1.2, dash="dash", color=CAPACITY_COLOR),
-                    showlegend=False,
-                    hoverinfo="skip",
-                ),
-                row=row, col=col,
-            )
+            fig.add_trace(go.Scatter(
+                x=[pivot.index.min(), pivot.index.max()],
+                y=[cap, cap],
+                mode="lines",
+                line=dict(width=1.2, dash="dash", color=color),
+                opacity=0.5,
+                name=f"{region} capacity",
+                visible=(region == default_region),
+                hovertemplate=f"{region} nameplate: {cap:,.0f} MW<extra></extra>",
+                showlegend=False,
+            ))
+        else:
+            # Placeholder trace so visibility list stays consistent across regions
+            fig.add_trace(go.Scatter(
+                x=[pivot.index.min()], y=[None],
+                mode="lines", visible=False, showlegend=False,
+                hoverinfo="skip", name=f"{region}_no_capacity",
+            ))
 
-        # Y-axis: 0 to capacity (with 5% headroom)
-        fig.update_yaxes(
-            range=[0, cap * 1.05] if cap > 0 else None,
-            row=row, col=col,
-            title_text="MW" if col == 1 else None,
-            gridcolor="rgba(255,255,255,0.08)",
-            zerolinecolor="rgba(255,255,255,0.15)",
-        )
-        fig.update_xaxes(
-            row=row, col=col,
-            gridcolor="rgba(255,255,255,0.08)",
-            zerolinecolor="rgba(255,255,255,0.15)",
-        )
+    def visibility_for(regions_visible: set) -> list:
+        """Build per-trace visibility list given a set of visible regions."""
+        vis = []
+        for region in ordered:
+            on = region in regions_visible
+            vis.append(on)   # forecast trace
+            vis.append(on)   # capacity trace
+        return vis
 
-    # Theme & layout
+    # Build dropdown buttons
+    buttons = []
+    for region in ordered:
+        cap = capacity_lookup.get(region)
+        if cap and cap > 0:
+            peak = float(pivot[region].max())
+            subtitle = (f"{region} · {cap:,.0f} MW installed · "
+                        f"peak forecast {peak:,.0f} MW "
+                        f"({100 * peak / cap:.0f}% CF)")
+        else:
+            subtitle = region
+        buttons.append(dict(
+            label=region, method="update",
+            args=[{"visible": visibility_for({region})},
+                  {"title.text": f"__TITLE__<br><sub>{subtitle}</sub>"}],
+        ))
+
+    # "All regions overlay" button — everything except National
+    buttons.append(dict(
+        label="── All regions (overlay) ──", method="update",
+        args=[{"visible": visibility_for(set(available_regions))},
+              {"title.text": "__TITLE__<br><sub>All regions overlaid</sub>"}],
+    ))
+
+    # "Everything overlay" button — National plus all regions
+    buttons.append(dict(
+        label="── Everything (overlay) ──", method="update",
+        args=[{"visible": visibility_for(set(ordered))},
+              {"title.text": "__TITLE__<br><sub>National + all regions</sub>"}],
+    ))
+
+    # Title and default subtitle
+    cycle_dt = pd.to_datetime(cycle_str, format="%Y%m%dT%HZ")
+    title = (f"<b>HRRR Solar Generation Forecast</b> · "
+             f"Cycle {cycle_dt.strftime('%Y-%m-%d %HZ')} · 48 hours")
+    # Substitute placeholder in buttons (so all buttons keep the title)
+    for b in buttons:
+        if "title.text" in b["args"][1]:
+            b["args"][1]["title.text"] = b["args"][1]["title.text"].replace(
+                "__TITLE__", title)
+
+    cap_def = capacity_lookup.get(default_region, 0)
+    peak_def = float(pivot[default_region].max())
+    default_subtitle = (f"{default_region} · {cap_def:,.0f} MW installed · "
+                        f"peak forecast {peak_def:,.0f} MW "
+                        f"({100 * peak_def / cap_def:.0f}% CF)"
+                        if cap_def > 0 else default_region)
+
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    # Theme
     if theme == "dark":
-        plotly_template = DARK_TEMPLATE
-        paper_bg = DARK_PAPER
-        plot_bg = DARK_BG
-        font_color = "#e8e4d8"
+        plotly_template = "plotly_dark"
+        bg_color = "#0f0f0d"
+        gridcolor = "rgba(255,255,255,0.08)"
+        footer_color = "rgba(255,255,255,0.5)"
+        dropdown_bg = "rgba(30,30,28,0.95)"
+        dropdown_border = "rgba(255,255,255,0.2)"
     else:
         plotly_template = "plotly_white"
-        paper_bg = "#fafaf8"
-        plot_bg = "#fafaf8"
-        font_color = "#1a1a17"
-
-    # Parse cycle for title
-    cycle_dt = pd.to_datetime(cycle_str, format="%Y%m%dT%HZ")
-    title_str = (f"<b>HRRR Solar Generation Forecast</b> · "
-                 f"Cycle {cycle_dt.strftime('%Y-%m-%d %HZ')} · 48 hours")
+        bg_color = "white"
+        gridcolor = "rgba(0,0,0,0.06)"
+        footer_color = "rgba(0,0,0,0.5)"
+        dropdown_bg = "white"
+        dropdown_border = "rgba(0,0,0,0.2)"
 
     fig.update_layout(
-        title=dict(text=title_str, font=dict(size=18), x=0.02, xanchor="left"),
-        template=plotly_template,
-        paper_bgcolor=paper_bg,
-        plot_bgcolor=plot_bg,
-        font=dict(color=font_color, family="Inter, sans-serif"),
-        height=620,
-        margin=dict(l=70, r=30, t=80, b=50),
+        title=dict(
+            text=f"{title}<br><sub>{default_subtitle}</sub>",
+            x=0.02, xanchor="left",
+        ),
+        xaxis=dict(title="Valid Time (UTC)", showgrid=True,
+                   gridcolor=gridcolor),
+        yaxis=dict(title="Forecast Generation (MW)", rangemode="tozero",
+                   showgrid=True, gridcolor=gridcolor),
         hovermode="x unified",
+        template=plotly_template,
+        paper_bgcolor=bg_color,
+        plot_bgcolor=bg_color,
+        margin=dict(l=70, r=30, t=120, b=110),
+        height=620,
+        legend=dict(orientation="h", yanchor="top", y=-0.12,
+                    xanchor="center", x=0.5),
+        updatemenus=[dict(
+            active=ordered.index(default_region),
+            buttons=buttons,
+            x=1.0, y=1.18, xanchor="right", yanchor="top",
+            bgcolor=dropdown_bg,
+            bordercolor=dropdown_border,
+        )],
+        annotations=[
+            dict(
+                text="<b>Region:</b>", showarrow=False,
+                x=1.0, y=1.24, xref="paper", yref="paper",
+                xanchor="right", yanchor="bottom",
+                font=dict(size=12),
+            ),
+            dict(
+                text=(f"Generated {generated_at} · USPVDB + HRRR · "
+                      "pvlib physics (sun position, tracker geometry, "
+                      "temperature derate, inverter clipping)"),
+                showarrow=False,
+                x=0.5, y=-0.22, xref="paper", yref="paper",
+                xanchor="center", yanchor="top",
+                font=dict(size=11, color=footer_color),
+            ),
+        ],
     )
-
-    # Subplot title color
-    for annotation in fig.layout.annotations:
-        annotation.font.color = font_color
-        annotation.font.size = 12
 
     # Write HTML
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
@@ -181,14 +258,13 @@ def build_dashboard(cycle_str: str, theme: str = "dark") -> None:
         OUTPUT_HTML,
         include_plotlyjs="cdn",
         full_html=True,
-        config=dict(
-            displayModeBar=False,
-            responsive=True,
-        ),
+        config=dict(displayModeBar=False, responsive=True),
     )
     print(f"  Wrote {OUTPUT_HTML}")
     sz = OUTPUT_HTML.stat().st_size / 1024
     print(f"  File size: {sz:.0f} KB")
+    print(f"  Default view: {default_region}")
+    print(f"  Peak {default_region}: {pivot[default_region].max():,.0f} MW")
 
 
 def main():
@@ -196,7 +272,7 @@ def main():
     print("Solar forecast dashboard")
     print("=" * 70)
 
-    if len(sys.argv) >= 2:
+    if len(sys.argv) >= 2 and not sys.argv[1].startswith("--"):
         cycle_str = sys.argv[1]
     else:
         cycle_str = get_latest_cycle()
