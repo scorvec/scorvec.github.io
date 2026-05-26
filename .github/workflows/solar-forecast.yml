@@ -1,10 +1,12 @@
 name: Solar generation forecast
 
 # Run ~3h after each extended HRRR cycle (00/06/12/18Z) lands on AWS.
-# Offset by 15 minutes from wind workflow to spread the AWS download load.
+# Offset by 30 minutes from the wind workflow to give wind time to finish
+# before solar starts. Both workflows touch charts.html, so we want to
+# minimize concurrent runs.
 on:
   schedule:
-    - cron: '15 3,9,15,21 * * *'
+    - cron: '30 3,9,15,21 * * *'
   workflow_dispatch:
     inputs:
       cycle:
@@ -12,7 +14,6 @@ on:
         required: false
         default: ''
 
-# Required so the job can commit dashboards back to the repo
 permissions:
   contents: write
 
@@ -28,7 +29,6 @@ jobs:
       run:
         working-directory: scripts/solar
     env:
-      # Make scripts/ on import path so solar modules can find common code
       PYTHONPATH: ${{ github.workspace }}/scripts/solar
 
     steps:
@@ -81,16 +81,9 @@ jobs:
             CYCLE="${{ inputs.cycle }}"
             echo "Using manually-specified cycle: $CYCLE"
           else
-            # Default: walk back to most recent 00/06/12/18Z that's published.
-            # Herbie may emit a config-file banner to stdout on first run in
-            # a fresh CI environment, so we redirect its noise to stderr and
-            # only print the cycle string we care about.
             CYCLE=$(python -c "
           import sys, os
           from datetime import datetime, timedelta, timezone
-          # Suppress Herbie's verbose first-run banner by redirecting
-          # stdout temporarily during import (the banner goes to print()
-          # via the herbie config init).
           import io, contextlib
           buf = io.StringIO()
           with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
@@ -105,7 +98,6 @@ jobs:
                           H = Herbie(candidate, model='hrrr', product='sfc', fxx=0)
                           ok = H.grib is not None
                       if ok:
-                          # Only this print reaches real stdout
                           print(candidate.strftime('%Y-%m-%d %H'))
                           break
                   except Exception:
@@ -113,7 +105,6 @@ jobs:
           ")
             echo "Latest extended cycle: $CYCLE"
           fi
-          # Parse "YYYY-MM-DD HH" → compact form
           COMPACT=$(python -c "
           from datetime import datetime
           parts = '$CYCLE'.split()
@@ -125,7 +116,6 @@ jobs:
 
       - name: Run solar forecast pipeline
         run: |
-          # solar_forecast.py reads cycle as "YYYY-MM-DD HH" two args
           CYCLE='${{ steps.cycle.outputs.cycle }}'
           DATE_PART=$(echo "$CYCLE" | awk '{print $1}')
           HOUR_PART=$(echo "$CYCLE" | awk '{print $2}')
@@ -144,8 +134,6 @@ jobs:
 
       - name: Build plant-level map
         run: |
-          # Plant-level interactive map with time slider. Best-effort —
-          # don't fail the whole workflow if just the map breaks.
           if [ ! -f "../../assets/solar_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" ]; then
             echo "Plant-level CSV not found; skipping map build."
             exit 0
@@ -162,7 +150,6 @@ jobs:
 
       - name: Prune old forecast CSVs
         run: |
-          # Keep the last 56 cycles (~14 days) for future verification work
           cd ../../assets/solar_forecast_data
           ls -t forecast_plant_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
           ls -t forecast_region_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
@@ -170,8 +157,6 @@ jobs:
 
       - name: Stamp cache-buster into charts.html
         run: |
-          # Same pattern as wind workflow: update the ?v= cache-buster on
-          # iframe URLs and the visible "Cycle XXX" labels.
           CYCLE='${{ steps.cycle.outputs.compact }}'
           TODAY=$(date -u +'%Y-%m-%d %H:%MZ')
           CHARTS="${{ github.workspace }}/charts.html"
@@ -179,22 +164,18 @@ jobs:
             echo "ERROR: $CHARTS not found"
             exit 1
           fi
-          # Iframe cache-busters for solar dashboards
           sed -i -E "s|(solar_forecast\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
           sed -i -E "s|(solar_map\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
-          # Visible labels
           sed -i -E "s|(id=\"last-updated-solar\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
           sed -i -E "s|(id=\"last-updated-solar-map\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
-          # Sanity check
           N=$(grep -c "solar_forecast.html\|solar_map.html" "$CHARTS" || true)
           echo "Solar iframe references in charts.html: ${N}"
 
       - name: Commit and push dashboard
+        working-directory: ${{ github.workspace }}
         run: |
-          cd "${{ github.workspace }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Pull first to avoid conflicts with concurrent wind workflow
           git pull --rebase || echo "Pull/rebase failed; continuing"
           git add charts.html || true
           git add assets/solar_forecast.html
@@ -210,7 +191,6 @@ jobs:
             echo "No changes; skipping commit."
           else
             git commit -m "solar forecast: cycle ${{ steps.cycle.outputs.compact }}"
-            # Retry on push conflicts (wind workflow may push concurrently)
             for i in 1 2 3; do
               if git push; then
                 break
@@ -223,13 +203,15 @@ jobs:
 
       - name: Forecast summary
         if: always()
+        working-directory: ${{ github.workspace }}
         run: |
           echo "### Solar forecast summary" >> $GITHUB_STEP_SUMMARY
           echo "- Cycle: \`${{ steps.cycle.outputs.cycle }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- Dashboard: [/charts.html](https://scorvec.github.io/charts.html)" >> $GITHUB_STEP_SUMMARY
-          if [ -f ../../assets/solar_forecast_data/forecast_region_${{ steps.cycle.outputs.compact }}.csv ]; then
+          REGION_CSV="assets/solar_forecast_data/forecast_region_${{ steps.cycle.outputs.compact }}.csv"
+          if [ -f "$REGION_CSV" ]; then
             echo "- Region summary:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            head -15 "../../assets/solar_forecast_data/forecast_region_${{ steps.cycle.outputs.compact }}.csv" >> $GITHUB_STEP_SUMMARY
+            head -15 "$REGION_CSV" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
