@@ -1,12 +1,13 @@
 name: Synoptic maps
 
-# Run ~30 min after the latest extended HRRR cycle lands. The wind and
-# solar forecast workflows run at :00 and :15 of the same hour
-# respectively; we go at :30 so all forecast data is fresh and committed
-# before we render maps that overlay it.
+# Run after both the wind and solar forecast workflows complete, so the
+# plant overlay CSVs are up-to-date before we render maps that use them.
+# Avoiding the cron-based parallel schedule prevents the three workflows
+# from contending for the same charts.html and git push.
 on:
-  schedule:
-    - cron: '30 3,9,15,21 * * *'
+  workflow_run:
+    workflows: ["US wind generation forecast", "Solar generation forecast"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       cycle:
@@ -23,8 +24,11 @@ concurrency:
 
 jobs:
   render:
+    # Only run if the upstream workflow succeeded (skip on failure).
+    # Manual workflow_dispatch invocations bypass this check.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: scripts/synoptic
@@ -106,24 +110,18 @@ jobs:
           HOUR_PART=$(echo "$CYCLE" | awk '{print $2}')
           python render_maps.py "$DATE_PART" "$HOUR_PART"
 
-      - name: Place viewer pages
+      - name: Place viewer page
         run: |
-          # Copy the player HTML into wind/ and solar/ output dirs
-          # so they're served at /assets/synoptic/wind/ and
-          # /assets/synoptic/solar/
-          cp viewer.html ../../assets/synoptic/wind/viewer.html
-          cp viewer.html ../../assets/synoptic/solar/viewer.html
+          # The unified viewer lives at the synoptic root and reads
+          # variables.json + regions.json to populate its dropdowns.
+          cp viewer.html ../../assets/synoptic/viewer.html
 
       - name: Stamp cycle into charts.html
         run: |
-          # Update the visible "Cycle ..." label for the synoptic cards.
-          # No iframe cache-busters needed here since the viewer loads
-          # manifest.json which is overwritten on each cycle.
           CYCLE='${{ steps.cycle.outputs.compact }}'
           CHARTS="${{ github.workspace }}/charts.html"
           if [ -f "$CHARTS" ]; then
-            sed -i -E "s|(id=\"last-updated-wind-synoptic\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
-            sed -i -E "s|(id=\"last-updated-solar-synoptic\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
+            sed -i -E "s|(id=\"last-updated-synoptic\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
           fi
 
       - name: Commit and push
@@ -153,9 +151,8 @@ jobs:
 
       - name: Summary
         if: always()
+        working-directory: ${{ github.workspace }}
         run: |
           echo "### Synoptic maps summary" >> $GITHUB_STEP_SUMMARY
           echo "- Cycle: \`${{ steps.cycle.outputs.cycle }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Viewer URLs:" >> $GITHUB_STEP_SUMMARY
-          echo "  - [Wind](https://scorvec.github.io/assets/synoptic/wind/viewer.html)" >> $GITHUB_STEP_SUMMARY
-          echo "  - [Solar](https://scorvec.github.io/assets/synoptic/solar/viewer.html)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Viewer](https://scorvec.github.io/assets/synoptic/viewer.html)" >> $GITHUB_STEP_SUMMARY
