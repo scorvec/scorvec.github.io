@@ -1,7 +1,7 @@
 {
   "cycle": "2026-05-27 18Z",
   "cycle_compact": "20260527T18Z",
-  "generated": "2026-05-27 21:34 UTC",
+  "generated": "2026-05-27 23:33 UTC",
   "variable_id": "wind",
   "variable_label": "80m Wind Speed",
   "units": "m/s",
