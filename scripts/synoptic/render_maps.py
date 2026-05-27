@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import multiprocessing
 import os
 import sys
 import time as time_module
@@ -50,6 +51,36 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap, BoundaryNorm
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+
+
+def _prewarm_cartopy_cache() -> None:
+    """Force cartopy to download its Natural Earth shapefiles in the main
+    process before workers start. Without this, each worker downloads
+    independently the first time it touches a feature, which is slow
+    on CI (4 workers × ~150 MB of shapefiles, downloaded serially within
+    each worker) and pollutes logs with DownloadWarning messages.
+    """
+    import warnings
+    print("  warming cartopy shapefile cache (one-time, ~150 MB)...",
+          flush=True)
+    t0 = time_module.time()
+    for feature, scale in [
+        (cfeature.STATES, "50m"),
+        (cfeature.COASTLINE, "50m"),
+        (cfeature.BORDERS, "50m"),
+        (cfeature.LAKES, "50m"),
+    ]:
+        f = feature.with_scale(scale)
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                # Touching .geometries() triggers the download
+                list(f.geometries())[:1]
+        except Exception as e:
+            print(f"    warn: cartopy prewarm failed for {f}: {e}",
+                  file=sys.stderr)
+    print(f"  cartopy cache warmed in {time_module.time()-t0:.0f}s",
+          flush=True)
 
 
 # ============================================================================
@@ -824,13 +855,24 @@ def main():
                 })
 
     print(f"  {len(tasks)} render tasks queued ({n_workers} workers)")
+
+    # Pre-warm cartopy's shapefile cache in the main process so workers
+    # don't each download independently (each worker would otherwise
+    # download ~150 MB the first time it draws a coastline/state border).
+    _prewarm_cartopy_cache()
+
     t_render = time_module.time()
     n_done = 0
     n_failed = 0
     progress_every = max(1, len(tasks) // 40)
 
+    # Use "spawn" context to avoid fork-related SharedMemory resource-tracker
+    # issues. With fork, workers inherit the parent's resource tracker, which
+    # can cause SHM blocks to be cleaned up early when one worker exits.
+    # Spawn starts each worker fresh, no inheritance.
+    mp_ctx = multiprocessing.get_context("spawn")
     try:
-        with ProcessPoolExecutor(max_workers=n_workers) as pool:
+        with ProcessPoolExecutor(max_workers=n_workers, mp_context=mp_ctx) as pool:
             futures = {pool.submit(_render_task, t): t for t in tasks}
             for future in as_completed(futures):
                 task = futures[future]
@@ -852,7 +894,8 @@ def main():
                     rate = n_done / max(time_module.time() - t_render, 1)
                     eta = (len(tasks) - n_done) / max(rate, 0.1)
                     print(f"    {n_done}/{len(tasks)} ({pct:.0f}%) "
-                          f"rate={rate:.1f}/s eta={eta:.0f}s")
+                          f"rate={rate:.1f}/s eta={eta:.0f}s",
+                          flush=True)
     finally:
         print(f"  releasing {len(shm_names_to_release)} shared-memory blocks...")
         _release_shared(shm_names_to_release)
