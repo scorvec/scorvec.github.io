@@ -625,17 +625,15 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
 def _render_task(args: dict) -> str:
     """Worker-side entry point.
 
-    `args` contains shared-memory references rather than actual arrays.
-    We attach the SHM blocks, render, then close the handles. The main
-    process unlinks the blocks at end-of-run.
+    `args["values"]` is the per-field ndarray, passed via task pickling.
+    Grid arrays are shared via SharedMemory and attached here.
     """
-    # Attach the three input arrays from shared memory
-    values_arr, values_shm = _attach_array(args["values_ref"])
+    # Attach shared grid arrays (these are reused across all 2,205 tasks)
     grid_lats_arr, lats_shm = _attach_array(args["grid_lats_ref"])
     grid_lons_arr, lons_shm = _attach_array(args["grid_lons_ref"])
     try:
         render_map(
-            values=values_arr,
+            values=args["values"],
             grid_lats=grid_lats_arr,
             grid_lons=grid_lons_arr,
             valid_time=args["valid_time"],
@@ -648,8 +646,6 @@ def _render_task(args: dict) -> str:
             overlay_mw_at_time=args.get("overlay_mw_at_time"),
         )
     finally:
-        # Detach (don't unlink — main process owns lifecycle)
-        values_shm.close()
         lats_shm.close()
         lons_shm.close()
     return args["variable_id"]
@@ -715,19 +711,21 @@ def main():
     t_total = time_module.time()
 
     # PHASE 1: Fetch all HRRR fields up front, sequentially.
-    # Each fetch is ~1-2 sec from Herbie cache after the first download.
     print(f"\n[1/2] Fetching {len(variables) * len(FORECAST_HOURS)} field-hours...")
     t_fetch = time_module.time()
 
-    # Shared memory tracking: we'll put each fetched field array into a
-    # SharedMemory block exactly once. Tasks will reference these by
-    # name. grid_lats and grid_lons are identical across all fields
-    # (HRRR grid is fixed), so we put each in shared memory once
-    # globally and reuse the reference.
-    field_refs = {}     # (variable_id, fxx) → values_ref dict
+    # Memory strategy:
+    #   - Grid lats/lons are identical across all 245 (variable, hour) pairs,
+    #     so we put them in shared memory ONCE and reference them in every
+    #     task. Saves 245x duplication.
+    #   - Each field's data array is passed as a regular task argument
+    #     (pickled per task). With bounded worker queue, only a few tasks
+    #     are in flight at once, so this caps memory naturally and avoids
+    #     /dev/shm size limits (typically 64 MB on Linux containers).
+    field_cache = {}   # (variable_id, fxx) → values ndarray (float32)
     grid_lats_ref = None
     grid_lons_ref = None
-    shm_names_to_release = []   # collect for cleanup at end
+    shm_names_to_release = []
 
     n_fetched = 0
     n_skipped = 0
@@ -741,16 +739,16 @@ def main():
                     break
                 fields[search] = arr
             if fields is None:
-                field_refs[(variable.id, fxx)] = None
+                field_cache[(variable.id, fxx)] = None
                 n_skipped += 1
                 continue
             combined = variable.combine(fields, variable.grib_searches)
             if combined is None:
-                field_refs[(variable.id, fxx)] = None
+                field_cache[(variable.id, fxx)] = None
                 n_skipped += 1
                 continue
 
-            # Lazily build grid_lats_ref and grid_lons_ref the first time
+            # Shared-memory grid (built lazily on first fetch)
             if grid_lats_ref is None:
                 grid_lats = np.ascontiguousarray(combined.latitude.values,
                                                   dtype=np.float32)
@@ -762,14 +760,14 @@ def main():
                 grid_lons_ref = _share_array(grid_lons)
                 shm_names_to_release.append(grid_lats_ref["name"])
                 shm_names_to_release.append(grid_lons_ref["name"])
+                print(f"  shared-memory grid: {grid_lats.shape} "
+                      f"({(grid_lats.nbytes + grid_lons.nbytes) / 1e6:.1f} MB)")
 
-            # Put the data values into shared memory; float32 is plenty
-            # for HRRR's effective precision and halves the bytes vs
-            # the typical float64 we'd otherwise get.
+            # Per-field values: keep in main-process memory only.
+            # Will be passed through pickling to workers (cheap with
+            # bounded queue depth).
             values = np.ascontiguousarray(combined.values, dtype=np.float32)
-            values_ref = _share_array(values)
-            shm_names_to_release.append(values_ref["name"])
-            field_refs[(variable.id, fxx)] = values_ref
+            field_cache[(variable.id, fxx)] = values
             n_fetched += 1
 
         if (fxx + 1) % 12 == 0:
@@ -778,12 +776,10 @@ def main():
 
     print(f"  fetched in {time_module.time() - t_fetch:.0f}s "
           f"({n_fetched} OK, {n_skipped} skipped)")
-    # Memory accounting
-    n_unique = len(shm_names_to_release)
-    print(f"  shared-memory blocks: {n_unique} "
-          f"(~{(n_fetched * 7.5 + 14):.0f} MB total estimated)")
+    main_mem_mb = sum(v.nbytes for v in field_cache.values() if v is not None) / 1e6
+    print(f"  main-process field cache: {main_mem_mb:.0f} MB across {n_fetched} arrays")
 
-    # PHASE 2: Build the task list, dispatch all to the pool.
+    # PHASE 2: Build task list, dispatch to pool.
     print(f"\n[2/2] Rendering all (variable × region × hour) PNGs in parallel...")
 
     mw_by_hour = {}
@@ -803,17 +799,19 @@ def main():
                             else solar_plants if variable.overlay == "solar"
                             else None)
         for fxx in FORECAST_HOURS:
-            values_ref = field_refs.get((variable.id, fxx))
-            if values_ref is None:
+            values = field_cache.get((variable.id, fxx))
+            if values is None:
                 continue
             valid_time = cycle + timedelta(hours=fxx)
             for region in regions:
                 tasks.append({
-                    # Small reference dicts instead of full arrays:
-                    "values_ref": values_ref,
+                    # Per-task: each gets a reference to the same in-memory
+                    # array (no copy until pickling, which happens
+                    # per-submit by ProcessPoolExecutor). With a bounded
+                    # worker queue, only a few tasks are pickled at once.
+                    "values": values,
                     "grid_lats_ref": grid_lats_ref,
                     "grid_lons_ref": grid_lons_ref,
-                    # The rest stays the same
                     "valid_time": valid_time,
                     "fxx": fxx,
                     "variable_id": variable.id,
@@ -856,7 +854,6 @@ def main():
                     print(f"    {n_done}/{len(tasks)} ({pct:.0f}%) "
                           f"rate={rate:.1f}/s eta={eta:.0f}s")
     finally:
-        # Always clean up shared memory blocks, even on error/interrupt
         print(f"  releasing {len(shm_names_to_release)} shared-memory blocks...")
         _release_shared(shm_names_to_release)
 
