@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 from herbie import Herbie
 
-from solar_inventory import load_uspvdb
+from solar_inventory import load_solar_inventory
 from solar_grid_indices import build_grid_indices
 from solar_power_model import compute_plant_power, resolve_plant_config
 
@@ -99,7 +99,7 @@ def main():
 
     # 2. Load inventory + grid indices
     print("\n[1/4] Loading inventory and grid indices...")
-    inv = load_uspvdb()
+    inv = load_solar_inventory()
     grid_idx = build_grid_indices(force=False)
     # Join inventory with indices by case_id
     inv = inv.merge(grid_idx[["case_id", "iy", "ix"]], on="case_id", how="left")

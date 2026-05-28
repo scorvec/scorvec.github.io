@@ -204,13 +204,101 @@ def load_uspvdb(force_download: bool = False) -> pd.DataFrame:
     return df
 
 
+def load_solar_inventory(
+    force_download: bool = False,
+    use_eia860m: bool = True,
+) -> pd.DataFrame:
+    """Load USPVDB plus optional EIA-860M supplement for newer plants.
+
+    This is the preferred entry point for the forecast pipeline. It
+    returns a DataFrame combining:
+      - USPVDB (primary): authoritative plant geometry, tracking, etc.
+      - EIA-860M (supplement): plants commissioned since USPVDB release,
+                                with default geometry (assumes single-axis)
+
+    Set use_eia860m=False to skip supplement (useful for debugging or
+    if EIA download fails).
+    """
+    uspvdb = load_uspvdb(force_download=force_download)
+
+    if not use_eia860m:
+        uspvdb["source"] = "USPVDB"
+        return uspvdb
+
+    # Import here to keep solar_eia860m optional
+    try:
+        # Try both layouts: scripts/solar/solar_eia860m.py and
+        # scripts/solar_eia860m.py (depending on where this gets installed)
+        try:
+            from solar.solar_eia860m import load_eia860m_supplement
+        except ImportError:
+            from solar_eia860m import load_eia860m_supplement
+    except ImportError as e:
+        print(f"  Could not import solar_eia860m: {e}")
+        print(f"  Skipping EIA-860M supplement; using USPVDB only.")
+        uspvdb["source"] = "USPVDB"
+        return uspvdb
+
+    # Get the set of EIA Plant IDs already covered by USPVDB
+    uspvdb_eia_ids = set(uspvdb["eia_id"].dropna().astype(int).tolist())
+    print(f"\n  USPVDB covers {len(uspvdb_eia_ids):,} unique EIA plant IDs")
+
+    print(f"\n  Loading EIA-860M supplement...")
+    try:
+        supplement = load_eia860m_supplement(uspvdb_eia_ids=uspvdb_eia_ids)
+    except Exception as e:
+        print(f"  EIA-860M supplement failed: {e}", file=sys.stderr)
+        print(f"  Continuing with USPVDB only.")
+        uspvdb["source"] = "USPVDB"
+        return uspvdb
+
+    if supplement.empty:
+        uspvdb["source"] = "USPVDB"
+        return uspvdb
+
+    # Tag USPVDB rows for downstream provenance tracking
+    uspvdb = uspvdb.copy()
+    uspvdb["source"] = "USPVDB"
+
+    # Align columns: take the union, add missing columns as NaN
+    all_cols = sorted(set(uspvdb.columns) | set(supplement.columns))
+    for col in all_cols:
+        if col not in uspvdb.columns:
+            uspvdb[col] = np.nan
+        if col not in supplement.columns:
+            supplement[col] = np.nan
+
+    combined = pd.concat([uspvdb[all_cols], supplement[all_cols]],
+                          ignore_index=True)
+    print(f"\n  Combined inventory: {len(combined):,} plants "
+          f"({combined['p_cap_ac'].sum():,.0f} MW)")
+
+    # Compare to USPVDB alone
+    delta_n = len(combined) - len(uspvdb)
+    delta_mw = combined["p_cap_ac"].sum() - uspvdb["p_cap_ac"].sum()
+    print(f"    Added {delta_n:,} plants, {delta_mw:,.0f} MW vs USPVDB alone")
+
+    # State breakdown including supplement
+    print(f"\n  Top 10 states by MW (USPVDB + EIA-860M):")
+    by_state = (combined.groupby("p_state")["p_cap_ac"].sum()
+                  .sort_values(ascending=False).head(10))
+    for state, mw in by_state.items():
+        eia_mw = supplement[supplement["p_state"] == state]["p_cap_ac"].sum()
+        if eia_mw > 0:
+            print(f"    {state}: {mw:,.0f} MW (+{eia_mw:,.0f} from EIA-860M)")
+        else:
+            print(f"    {state}: {mw:,.0f} MW")
+
+    return combined
+
+
 if __name__ == "__main__":
     print("=" * 70)
     print("USPVDB solar inventory loader")
     print("=" * 70)
-    df = load_uspvdb()
+    df = load_solar_inventory()
     print()
     print("Sample (5 random plants):")
     print(df.sample(min(5, len(df)), random_state=42)[
-        ["case_id", "p_name", "p_state", "p_cap_ac", "p_axis", "xlong", "ylat"]
+        ["case_id", "p_name", "p_state", "p_cap_ac", "p_axis", "source"]
     ].to_string(index=False))

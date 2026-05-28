@@ -19,6 +19,9 @@ pvlib>=0.10
 # Web/data
 requests>=2.31
 
+# Excel reading (for EIA-860M monthly data supplement)
+openpyxl>=3.1
+
 # Output
 pyarrow>=14.0
 plotly>=5.18

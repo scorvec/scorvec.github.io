@@ -18,7 +18,7 @@ import pandas as pd
 from herbie import Herbie
 from datetime import datetime, timedelta, timezone
 
-from solar_inventory import load_uspvdb
+from solar_inventory import load_solar_inventory
 
 
 HERE = Path(__file__).resolve().parent
@@ -51,8 +51,8 @@ def build_grid_indices(force: bool = False) -> pd.DataFrame:
         print(f"  Cached: {GRID_INDEX_CSV}")
         return pd.read_csv(GRID_INDEX_CSV)
 
-    print(f"  Building HRRR grid indices for USPVDB plants...")
-    inv = load_uspvdb()
+    print(f"  Building HRRR grid indices for solar plants...")
+    inv = load_solar_inventory()
     print()
     print(f"  Loading HRRR grid from recent cycle...")
     cycle = find_recent_cycle()
