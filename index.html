@@ -102,7 +102,7 @@
     padding: 6rem 2rem 4rem;
     position: relative;
     background: url('IMG_2253.JPEG') center center / cover no-repeat;
-    min-height: calc(100vh - 57px - 57px);
+    min-height: calc(100dvh - 57px - 57px);
   }
   .home::before {
     content: '';
@@ -215,10 +215,56 @@
   }
   .counter span { color: var(--ink); font-weight: 500; }
 
-  @media (max-width: 480px) {
+  /* TABLET */
+  @media (max-width: 768px) {
     nav { padding: 1rem 1.5rem; }
-    .nav-links { gap: 1.2rem; }
+    .nav-links { gap: 1.3rem; }
+    .home { padding: 5rem 1.5rem 3rem; }
     footer { padding: 1rem 1.5rem; }
+  }
+
+  /* PHONE */
+  @media (max-width: 480px) {
+    nav {
+      padding: 0.85rem 1.1rem;
+      flex-wrap: wrap; gap: 0.5rem;
+    }
+    .nav-name { font-size: 0.95rem; }
+    .nav-links { gap: 1rem; }
+    .nav-links a { font-size: 0.78rem; }
+
+    .home { padding: 4.5rem 1.2rem 2.5rem; }
+    .photo-wrap {
+      width: 120px; height: 120px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.6rem; }
+    .title { font-size: 0.72rem; margin-bottom: 1.2rem; }
+    .bio { font-size: 0.9rem; line-height: 1.75; }
+
+    .home-links { gap: 0.6rem; }
+    .btn {
+      font-size: 0.72rem;
+      padding: 0.6rem 1.1rem;
+    }
+
+    .featured { padding: 1.2rem 1.3rem; }
+    .featured-title { font-size: 1.1rem; }
+    .featured-desc { font-size: 0.82rem; }
+
+    footer { padding: 0.9rem 1.1rem; }
+  }
+
+  /* VERY NARROW (older/small phones) */
+  @media (max-width: 360px) {
+    .nav-links { gap: 0.8rem; }
+    .nav-links a { font-size: 0.72rem; }
+    h1 { font-size: 1.45rem; }
+    .btn {
+      font-size: 0.68rem;
+      padding: 0.55rem 0.9rem;
+      letter-spacing: 0.05em;
+    }
   }
 </style>
 </head>
