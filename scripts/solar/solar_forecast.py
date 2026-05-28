@@ -101,6 +101,14 @@ def main():
     print("\n[1/4] Loading inventory and grid indices...")
     inv = load_solar_inventory()
     grid_idx = build_grid_indices(force=False)
+    # case_id can be a mix of int (USPVDB) and str (EIA_*). When written
+    # to / read from CSV the column becomes string, but the in-memory
+    # inventory keeps USPVDB ids as ints. Normalize BOTH sides to string
+    # so the merge matches. (Without this, all USPVDB plants get NaN
+    # indices and are silently dropped — leaving only EIA plants.)
+    inv["case_id"] = inv["case_id"].astype(str)
+    grid_idx = grid_idx.copy()
+    grid_idx["case_id"] = grid_idx["case_id"].astype(str)
     # Join inventory with indices by case_id
     inv = inv.merge(grid_idx[["case_id", "iy", "ix"]], on="case_id", how="left")
     missing = inv["iy"].isna().sum()

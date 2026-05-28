@@ -112,6 +112,8 @@ def main():
 
     forecast = pd.read_csv(forecast_path, parse_dates=["valid_time"])
     capacity = pd.read_csv(capacity_path)
+    forecast["case_id"] = forecast["case_id"].astype(str)
+    capacity["case_id"] = capacity["case_id"].astype(str)
     print(f"  Loaded forecast: {len(forecast):,} rows")
     print(f"  Loaded capacity: {len(capacity):,} plants")
 
