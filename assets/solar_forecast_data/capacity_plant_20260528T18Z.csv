@@ -1,0 +1,641 @@
+case_id,p_name,p_state,p_cap_ac,p_axis,p_sys_type,ylat,xlong,eia_id
+EIA_141,Agua Fria,AZ,0.2,single-axis,ground-mounted,33.5561,-112.2153,141
+EIA_960,North Ninth Street,IL,0.3,single-axis,ground-mounted,41.9093,-89.0498,960
+EIA_1172,Osage (IA),IA,0.8,single-axis,ground-mounted,43.279722,-92.81056,1172
+EIA_1187,State Center,IA,0.8,single-axis,ground-mounted,42.01667,-93.16333,1187
+EIA_10224,Merck Rahway Power Plant,NJ,0.5,single-axis,ground-mounted,40.615616,-74.26529,10224
+EIA_10823,Deer Island Treatment Plant,MA,0.1,single-axis,ground-mounted,42.353333,-70.96278,10823
+EIA_50026,Corpus Refinery,TX,27.5,single-axis,ground-mounted,27.8322,-97.5281,50026
+EIA_50061,San Diego State University,CA,0.7999999999999999,single-axis,ground-mounted,32.778225,-117.0701,50061
+EIA_56322,Wild Horse,WA,0.5,single-axis,ground-mounted,47.036269,-120.2065,56322
+EIA_57775,Kingman 1,AZ,0.5,single-axis,ground-mounted,35.145833,-114.0675,57775
+EIA_57785,RE Bruceville 3 LLC,CA,5.0,single-axis,ground-mounted,38.3475,-121.4128,57785
+EIA_57806,RE Dillard 4 LLC,CA,0.4,single-axis,ground-mounted,38.461944,-121.1803,57806
+EIA_58173,BMW Manufacturing Co,SC,0.1,single-axis,ground-mounted,34.894167,-82.17833,58173
+EIA_58413,Copper Crossing Energy and Research Cent,AZ,54.400000000000006,single-axis,ground-mounted,33.15512,-111.48359999999998,58413
+EIA_58422,CSU Northridge Plant,CA,1.3,single-axis,ground-mounted,34.243333,-118.5306,58422
+EIA_58556,"Indy Solar II, LLC",IN,10.1,single-axis,ground-mounted,39.662778,-85.98556,58556
+EIA_58689,Blue Sky One,NM,1.3,single-axis,ground-mounted,36.907778,-105.9853,58689
+EIA_58899,Prosperity Energy Storage Facility Hybri,NM,0.5,single-axis,ground-mounted,35.001944,-106.6372,58899
+EIA_59133,EAFB - South Base,CA,1.0,single-axis,ground-mounted,34.917222,-117.9003,59133
+EIA_59272,Victor Mesa Linda E2,CA,1.5,single-axis,ground-mounted,34.508056,-117.3872,59272
+EIA_59776,Heartland Community College,IL,0.2,single-axis,ground-mounted,40.537,-89.019,59776
+EIA_59786,Fiddler's Canyon #2,UT,3.0,single-axis,ground-mounted,37.794678,-113.2837,59786
+EIA_59988,Decatur Co. Solar RES (IN),IN,1.1,single-axis,ground-mounted,39.337893,-85.5064,59988
+EIA_60452,Calverton,NY,3.0,single-axis,ground-mounted,40.921086,-72.7437,60452
+EIA_61703,Sikorsky Aircraft CHP,CT,0.1,single-axis,ground-mounted,41.250009,-73.09865,61703
+EIA_61796,LeGore Bridge Solar Center,MD,20.0,single-axis,ground-mounted,39.572402,-77.30787,61796
+EIA_61820,IKEA New Haven Rooftop PV & Fuel Cell,CT,0.8,single-axis,ground-mounted,41.295715,-72.91995,61820
+EIA_61822,"Princeton Energy Center, LLC",NJ,0.2,single-axis,ground-mounted,40.339838,-74.62393,61822
+EIA_61852,Eagle Shadow Mountain Solar Farm,NV,300.0,single-axis,ground-mounted,36.629761,-114.684,61852
+EIA_61910,Yeoman Creek,IL,7.0,single-axis,ground-mounted,42.391136,-87.84941,61910
+EIA_61967,Norton Solar Farm,TX,125.0,single-axis,ground-mounted,31.534768,-100.1138,61967
+EIA_61990,TAC-Distributed Energy Resource Hybrid,IL,0.1,single-axis,ground-mounted,40.089797,-88.24357,61990
+EIA_62027,Caldwell Wastewater Treatment Plant Hybr,NJ,0.7,single-axis,ground-mounted,40.838568,-74.31248,62027
+EIA_62186,Chapman Solar,SC,2.0,single-axis,ground-mounted,34.369819,-80.02481,62186
+EIA_62344,Washington Solar II (SC),SC,2.0,single-axis,ground-mounted,34.238081,-79.25195,62344
+EIA_62397,Runway Solar Farm,SC,2.0,single-axis,ground-mounted,33.667675,-78.91799,62397
+EIA_62442,"Lake Region Community Hybrid, LLC",MN,0.5,single-axis,ground-mounted,46.505052,-96.15728,62442
+EIA_62494,Skeleton Creek Energy Center Hybrid,OK,250.0,single-axis,ground-mounted,36.521428,-98.03436,62494
+EIA_62545,Renew Solar ABC Sacramento LLC,CA,1.7,single-axis,ground-mounted,38.39945,-121.2932,62545
+EIA_62737,West Valley West,NY,5.0,single-axis,ground-mounted,42.442927,-78.63214,62737
+EIA_62797,Bluebird Solar LLC,KY,100.0,single-axis,ground-mounted,38.299894,-84.38349,62797
+EIA_63122,Sherburne Community Solar One LLC CSG,MN,1.0,single-axis,ground-mounted,45.53199,-94.13578,63122
+EIA_63194,Delilah Solar Energy LLC,TX,300.0,single-axis,ground-mounted,33.284418,-95.16356,63194
+EIA_63211,Samson Solar Energy,TX,250.0,single-axis,ground-mounted,33.25102,-95.19343,63211
+EIA_63221,USS Steamboat Solar LLC CSG,MN,1.0,single-axis,ground-mounted,44.41301,-94.9858,63221
+EIA_63507,Bakeoven Solar,OR,60.0,single-axis,ground-mounted,45.131793,-120.8807,63507
+EIA_63518,Twin Rivers Solar Power Plant,FL,74.9,single-axis,ground-mounted,30.466428,-82.96872,63518
+EIA_63542,Enter Solar,MN,1.0,single-axis,ground-mounted,44.141576,-93.7077,63542
+EIA_63882,Samson Solar Energy II LLC,TX,200.0,single-axis,ground-mounted,33.458,-95.349,63882
+EIA_63884,Delilah Solar Energy II LLC,TX,310.0,single-axis,ground-mounted,33.481551,-95.26925,63884
+EIA_63946,"Vermilion Solar 1, LLC CSG",IL,2.0,single-axis,ground-mounted,40.12437,-87.6292,63946
+EIA_64117,Meadowlark Solar,NC,4.9,single-axis,ground-mounted,35.329706,-78.61443,64117
+EIA_64132,Oak Hill - Dry Creek,TX,200.0,single-axis,ground-mounted,32.212257,-94.73632,64132
+EIA_64210,Bellefield Solar and Energy Storage Farm,CA,500.0,single-axis,ground-mounted,35.062965,-118.0878,64210
+EIA_64222,Burt County Solar Hybrid,NE,0.7,single-axis,ground-mounted,41.863778,-96.23217,64222
+EIA_64223,Dodge County Solar Hybrid,NE,0.7,single-axis,ground-mounted,41.612,-96.752,64223
+EIA_64430,American Beech Solar LLC,NC,140.0,single-axis,ground-mounted,36.144761,-77.50952,64430
+EIA_64442,Mt Pleasant Community Center,NY,0.5,single-axis,ground-mounted,41.09999,-73.77155,64442
+EIA_64446,Arlington Microgrid,WA,0.5,single-axis,ground-mounted,48.15614,-122.1502,64446
+EIA_64509,South River H4 Solar Energy Storage,NC,0.5,single-axis,ground-mounted,35.04247,-78.58698,64509
+EIA_64512,Hamlet Solar Energy Storage,NC,0.5,single-axis,ground-mounted,34.846047,-79.73401,64512
+EIA_64513,Wake RJ3 Solar Energy Storage,NC,0.5,single-axis,ground-mounted,35.953947,-78.42402,64513
+EIA_64536,Prairie Solar LLC,IL,135.0,single-axis,ground-mounted,40.010442,-88.05794,64536
+EIA_64564,Arlington Energy Center III,CA,131.0,single-axis,ground-mounted,33.69088,-114.7749,64564
+EIA_64567,"Cement City Solar, LLC",MI,20.0,single-axis,ground-mounted,42.084451,-84.13528,64567
+EIA_64729,Novel Milbradt Solar LLC,MN,1.0,single-axis,ground-mounted,44.651132,-95.33955,64729
+EIA_64745,Black Hollow Sun,CO,150.0,single-axis,ground-mounted,40.616742,-104.8489,64745
+EIA_64858,Dolores Canyon Solar,CO,110.0,single-axis,ground-mounted,37.705,-108.755,64858
+EIA_65006,Novel Bo Hu 1 Solar (CSG),MN,1.0,single-axis,ground-mounted,44.41552,-93.15442,65006
+EIA_65024,Novel Brock Solar LLC CSG,MN,1.0,single-axis,ground-mounted,44.791225,-95.76654,65024
+EIA_65072,Fremont CA AutoFactory,CA,0.3,single-axis,ground-mounted,37.49254,-121.9446,65072
+EIA_65139,Woodstock Solar One,CT,3.0,single-axis,ground-mounted,41.923166,-71.9614,65139
+EIA_65149,East Windsor Solar Two,CT,4.0,single-axis,ground-mounted,41.894366,-72.53211,65149
+EIA_65279,Fairhaven E,MA,2.0,single-axis,ground-mounted,42.642,-72.896,65279
+EIA_65401,Newton Solar BESS LLC,IL,51.8,single-axis,ground-mounted,38.9361,-88.2781,65401
+EIA_65405,"Flint Hills Resources Pine Bend, LLC",MN,45.0,single-axis,ground-mounted,44.45483,-93.02119,65405
+EIA_65442,USS Mesa Solar LLC,MN,1.0,single-axis,ground-mounted,44.47093,-95.05092,65442
+EIA_65443,USS Wells Creek Solar LLC,MN,1.0,single-axis,ground-mounted,44.234,-92.36531,65443
+EIA_65445,Ridgely Energy Farm,TN,177.0,single-axis,ground-mounted,36.306319,-89.46202,65445
+EIA_65463,Hornet Solar (TX),TX,600.0,single-axis,ground-mounted,34.485162,-101.9714,65463
+EIA_65468,Highland Park Borough Solar,NJ,0.5,single-axis,ground-mounted,40.4966,-74.41746,65468
+EIA_65480,Axial Basin Solar,CO,145.0,single-axis,ground-mounted,40.327892,-107.7533,65480
+EIA_65507,Verizon Comms Garage Top Solar Project,CA,2.3,single-axis,ground-mounted,37.354492,-121.9315,65507
+EIA_65508,Mendota Rich Dev CSG,IL,2.0,single-axis,ground-mounted,41.541339,-89.14808,65508
+EIA_65515,Dodge Renewables 1,MN,1.0,single-axis,ground-mounted,44.01862,-92.86606,65515
+EIA_65516,Dodge Renewables 2,MN,1.0,single-axis,ground-mounted,44.02037,-92.86973,65516
+EIA_65527,CA-Ventura County CCD-Ventura College,CA,2.5,single-axis,ground-mounted,34.25,-119.25,65527
+EIA_65572,Muskegon Solar,MI,250.0,single-axis,ground-mounted,43.232797,-85.99345,65572
+EIA_65616,CA - Amazon - SMF6,CA,2.6,single-axis,ground-mounted,38.75,-121.55,65616
+EIA_65644,Lumina II Solar Project,TX,326.6,single-axis,ground-mounted,32.883528,-100.7464,65644
+EIA_65659,ENGIE 2020 ProjectCo-WI1 LLC,WI,1.0,single-axis,ground-mounted,43.735027,-88.47378,65659
+EIA_65827,Halsey Lane Solar Community Solar,NY,5.0,single-axis,ground-mounted,42.603975,-76.83834,65827
+EIA_65849,Oriana Solar LLC,TX,180.0,single-axis,ground-mounted,28.905346,-96.97808,65849
+EIA_65885,Boardwalk,FL,74.5,single-axis,ground-mounted,26.483507,-81.46766,65885
+EIA_65887,Price Creek,FL,74.5,single-axis,ground-mounted,30.160723,-82.55836,65887
+EIA_65888,Kayak,FL,74.5,single-axis,ground-mounted,30.415143,-86.4233,65888
+EIA_65891,Orange Grove,TX,131.0,single-axis,ground-mounted,27.918286,-97.98045,65891
+EIA_65894,Stillhouse Solar,TX,210.0,single-axis,ground-mounted,30.967591,-97.16511,65894
+EIA_65905,Mare Branch,FL,74.5,single-axis,ground-mounted,27.30365,-81.76741,65905
+EIA_65911,Mitchell Creek,FL,74.5,single-axis,ground-mounted,30.92851,-87.26414,65911
+EIA_65913,Speckled Perch,FL,74.5,single-axis,ground-mounted,27.278413,-80.80238,65913
+EIA_65940,Shasta College PH2 Solar Project,CA,1.5,single-axis,ground-mounted,40.62524,-122.314,65940
+EIA_66027,Wolfskin Solar,GA,38.0,single-axis,ground-mounted,33.881462,-83.24668,66027
+EIA_66107,"Blue Elk I Solar, LLC",MI,20.0,single-axis,ground-mounted,41.919,-83.996,66107
+EIA_66256,Source Power Company - Aldrich,NY,5.0,single-axis,ground-mounted,44.534193,-75.65947,66256
+EIA_66352,Longleaf Pine Solar LLC,NC,5.0,single-axis,ground-mounted,35.97964,-80.45767,66352
+EIA_66356,Williams Solar LLC,NC,5.0,single-axis,ground-mounted,35.27917,-78.3704,66356
+EIA_66432,USS Fruita Solar LLC CSG,CO,2.0,single-axis,ground-mounted,39.09194,-108.4231,66432
+EIA_66433,USS Fair Park Solar LLC (CSG),MN,1.0,single-axis,ground-mounted,44.19168,-93.19052,66433
+EIA_66435,USS Cosmo Solar LLC (CSG),MN,1.0,single-axis,ground-mounted,44.47057,-95.06007,66435
+EIA_66449,Northline Solar CSG,NY,4.0,single-axis,ground-mounted,42.8691,-73.6153,66449
+EIA_66495,Magruder Solar Community Solar,NY,5.0,single-axis,ground-mounted,41.602936,-74.1377,66495
+EIA_66520,TX Sunnyvale 367 Long Creek Road Solar,TX,2.0,single-axis,ground-mounted,32.77442,-96.56668,66520
+EIA_66523,NY Beaver Dams Dix 1239 Duvall Rd Solar,NY,5.0,single-axis,ground-mounted,42.294646,-76.94717,66523
+EIA_66647,Elkhart County Solar Project,IN,100.0,single-axis,ground-mounted,41.498,-85.69,66647
+EIA_66649,"Long Lake Solar, LLC",AR,200.0,single-axis,ground-mounted,34.468646,-90.61511,66649
+EIA_66654,KDC Solar CV Central MD Regional Transit,MD,2.0,single-axis,ground-mounted,39.311,-76.978,66654
+EIA_66656,KDC Solar CV O'Donnell Property LLC,MD,2.0,single-axis,ground-mounted,39.311,-76.978,66656
+EIA_66670,Harquahala Sun Solar Project,AZ,150.0,single-axis,ground-mounted,33.44065,-113.1352,66670
+EIA_66681,Sterlington Solar,LA,49.0,single-axis,ground-mounted,32.6926,-92.06645,66681
+EIA_66688,"Bright Arrow Solar, LLC",TX,300.0,single-axis,ground-mounted,33.22392,-95.73077,66688
+EIA_66739,Oak Leaf - CSG Portfolio (OL 39),CO,1.5,single-axis,ground-mounted,39.65528,-104.5285,66739
+EIA_66740,Oak Leaf - CSG Portfolio (OL 44),CO,1.5,single-axis,ground-mounted,39.78308,-104.5839,66740
+EIA_66756,Genesee Solar Project,MI,40.8,single-axis,ground-mounted,43.086377,-83.66512,66756
+EIA_66760,Lemonweir (Oak 1),WI,3.0,single-axis,ground-mounted,43.738226,-90.01303,66760
+EIA_66774,Ash Creek Solar,TX,408.9,single-axis,ground-mounted,31.900806,-97.03373,66774
+EIA_66775,Morrow Lake Solar,TX,200.0,single-axis,ground-mounted,28.947973,-99.06719,66775
+EIA_66827,FFP - NY Burch CSG,NY,2.5,single-axis,ground-mounted,43.32265,-73.46798,66827
+EIA_66840,Egypt Road Solar,MD,51.1,single-axis,ground-mounted,38.530674,-76.10036,66840
+EIA_66842,Jones Farm Solar,MD,64.0,single-axis,ground-mounted,39.232046,-75.77228,66842
+EIA_66844,Spring Grove Solar 2,VA,150.0,single-axis,ground-mounted,37.16738,-76.92423,66844
+EIA_66860,Marion County Solar Project,OH,100.0,single-axis,ground-mounted,40.624518,-83.13615,66860
+EIA_66872,"Estonian Solar Project, LLC",TX,204.5,single-axis,ground-mounted,33.457143,-95.6679,66872
+EIA_66886,Elk Street Solar,NY,2.4,single-axis,ground-mounted,42.85,-78.85,66886
+EIA_66890,"SF Azalea, LLC",CA,60.0,single-axis,ground-mounted,35.767393,-119.8945,66890
+EIA_66892,Conflitti Solar,CA,4.4,single-axis,ground-mounted,36.6281,-120.5708,66892
+EIA_66897,"Midpoint Solar, LLC",TX,97.5,single-axis,ground-mounted,32.116002,-97.34352,66897
+EIA_66899,Marlowe Solar,WV,5.8,single-axis,ground-mounted,39.589315,-77.83555,66899
+EIA_66903,"BT Hickerson Solar, LLC",TX,310.0,single-axis,ground-mounted,31.819958,-97.51749,66903
+EIA_66951,Scarlet II Hybrid,CA,200.0,single-axis,ground-mounted,36.60369,-120.3757,66951
+EIA_66983,MDU / NVSS-II,NV,13.5,single-axis,ground-mounted,36.274825,-115.9724,66983
+EIA_67007,"Cardinal Solar, LLC",PA,20.0,single-axis,ground-mounted,41.34002,-79.72372,67007
+EIA_67022,CPV Backbone Solar,MD,175.0,single-axis,ground-mounted,39.442372,-79.20164,67022
+EIA_67033,3715 Oxford RD,NY,3.8,single-axis,ground-mounted,43.039,-75.283,67033
+EIA_67038,"Quartz Solar, LLC",AR,135.0,single-axis,ground-mounted,35.20851,-90.7912,67038
+EIA_67046,Grimes County Solar,TX,210.0,single-axis,ground-mounted,30.651189,-96.09134,67046
+EIA_67075,Forgeview Solar,AR,200.0,single-axis,ground-mounted,35.945918,-89.86902,67075
+EIA_67076,Flat Fork Solar,AR,200.0,single-axis,ground-mounted,34.882829,-91.10409,67076
+EIA_67080,"SR Clarksville II, LLC",TN,4.8,single-axis,ground-mounted,36.52119,-87.31507,67080
+EIA_67086,Spano Solar - Belmar Wall,NJ,1.8,single-axis,ground-mounted,40.15,-74.05,67086
+EIA_67124,"SR Blount, LLC",TN,1.5,single-axis,ground-mounted,35.76013,-84.00258,67124
+EIA_67125,"SR Christiana, LLC",TN,3.3,single-axis,ground-mounted,35.700485,-86.36604,67125
+EIA_67126,"SR Albany, LLC",TN,4.3,single-axis,ground-mounted,36.243794,-82.90936,67126
+EIA_67129,"SR Lambert I, LLC",SC,100.0,single-axis,ground-mounted,33.332969,-79.56353,67129
+EIA_67133,"SR Monroe, LLC",TN,4.8,single-axis,ground-mounted,36.44055,-85.25356,67133
+EIA_67135,"SR West Marshall, LLC",MS,4.8,single-axis,ground-mounted,34.958436,-89.70122,67135
+EIA_67158,"SR Marion, LLC",TN,1.3,single-axis,ground-mounted,35.39048,-85.38391,67158
+EIA_67169,Bear Creek Solar (Orinda),CA,5.0,single-axis,ground-mounted,37.919197,-122.1863,67169
+EIA_67174,Chihuahuan Desert Solar,TX,10.0,single-axis,ground-mounted,31.560528,-106.2586,67174
+EIA_67177,Felina,TX,153.0,single-axis,ground-mounted,31.5446,-106.0376,67177
+EIA_67201,DIA 9,CO,9.8,single-axis,ground-mounted,39.84666,-104.6643,67201
+EIA_67204,Quail Ranch Solar and BESS,NM,100.0,single-axis,ground-mounted,35.199081,-106.8566,67204
+EIA_67216,"Shifting Sands Solar, LLC",VA,18.8,single-axis,ground-mounted,36.616243,-79.84936,67216
+EIA_67217,"Sunny Rock Solar, LLC",VA,20.0,single-axis,ground-mounted,36.608705,-79.87988,67217
+EIA_67218,"River Trail Solar, LLC",VA,20.0,single-axis,ground-mounted,36.709453,-80.88508,67218
+EIA_67219,Prairie Solar (VA),VA,20.0,single-axis,ground-mounted,36.880181,-76.60931,67219
+EIA_67234,Lara 2 Hybrid,CA,0.7,single-axis,ground-mounted,36.989444,-120.8781,67234
+EIA_67254,Stockbridge,NY,2.0,single-axis,ground-mounted,43.01082,-75.6068,67254
+EIA_67255,Tully 1,IL,2.0,single-axis,ground-mounted,41.30302,-88.50709,67255
+EIA_67256,Lobelia 1,IL,2.0,single-axis,ground-mounted,42.46209,-88.61188,67256
+EIA_67277,Bishop Ranch - BR 15-DD,CA,0.6000000000000001,single-axis,ground-mounted,37.7729,-121.9595,67277
+EIA_67288,Foster Clean Power A,CA,3.0,single-axis,ground-mounted,40.882295,-124.1012,67288
+EIA_67322,Mamm Creek,CO,11.2,single-axis,ground-mounted,39.5266,-107.698,67322
+EIA_67374,"TPE Whitmell Solar, LLC",VA,5.0,single-axis,ground-mounted,36.727159,-79.50649,67374
+EIA_67391,KE73 CSG,DE,4.0,single-axis,ground-mounted,39.2348,-75.56284,67391
+EIA_67412,Geer Road Solar 2 CSG,NY,5.0,single-axis,ground-mounted,43.36,-73.563,67412
+EIA_67421,Cavalier Solar A2,VA,84.4,single-axis,ground-mounted,37.018,-76.7358,67421
+EIA_67437,North Woods (CSG),NY,5.0,single-axis,ground-mounted,44.6177,-75.1622,67437
+EIA_67447,Pomham Islander (CSG),RI,2.5,single-axis,ground-mounted,41.95397,-71.52153,67447
+EIA_67469,"GSPP NESV, LLC",MA,1.1,single-axis,ground-mounted,41.9267,-71.31772,67469
+EIA_67474,Harquahala 2,AZ,300.0,single-axis,ground-mounted,33.46,-113.11,67474
+EIA_67490,Spectrum Solar Hybrid,MD,5.6,single-axis,ground-mounted,38.95,-76.95,67490
+EIA_67497,"Hornshadow Solar, LLC",UT,100.0,single-axis,ground-mounted,39.182429,-110.9772,67497
+EIA_67503,Serrano,AZ,170.0,single-axis,ground-mounted,32.502375,-111.3037,67503
+EIA_67511,"Hornshadow Solar II, LLC",UT,200.0,single-axis,ground-mounted,39.182429,-110.9772,67511
+EIA_67528,Milagro Solar I,NM,150.0,single-axis,ground-mounted,31.796,-106.642,67528
+EIA_67532,"Fairfield Lee Solar, LLC Community Solar",VA,5.0,single-axis,ground-mounted,37.878085,-79.39692,67532
+EIA_67539,Nortera Customer Hosted Solar,WI,1.6,single-axis,ground-mounted,43.736243,-88.86204,67539
+EIA_67540,UW Kegonsa Customer Hosted Solar,WI,2.3,single-axis,ground-mounted,42.95762,-89.29236,67540
+EIA_67546,USS Golden Spike Solar LLC CSG,MN,1.0,single-axis,ground-mounted,45.624209,-94.06363,67546
+EIA_67554,Cedarville (IL),IL,2.0,single-axis,ground-mounted,42.3676,-89.6329,67554
+EIA_67583,DC Water,DC,1.3,single-axis,ground-mounted,38.91,-76.99,67583
+EIA_67584,Oneida East,NY,4.8,single-axis,ground-mounted,43.19,-75.21,67584
+EIA_67597,Portage Solar Plant,WI,11.8,single-axis,ground-mounted,43.60706,-89.24341,67597
+EIA_67600,NY ALTONA MAYOTT - Environomics P2,NY,5.0,single-axis,ground-mounted,44.878445,-73.58349,67600
+EIA_67623,"Lilly Pond Road Solar 1, LLC",IL,2.0,single-axis,ground-mounted,42.27654,-88.38677,67623
+EIA_67624,Freeport 18th Solar,IL,2.0,single-axis,ground-mounted,42.288085,-89.58712,67624
+EIA_67628,Trinity Freeport,IL,2.0,single-axis,ground-mounted,42.274477,-89.56024,67628
+EIA_67644,Towanda,IL,5.0,single-axis,ground-mounted,40.434241,-89.06233,67644
+EIA_67675,Northumberland Solar,PA,65.0,single-axis,ground-mounted,40.987206,-76.83401,67675
+EIA_67678,White Tail Solar,MI,140.0,single-axis,ground-mounted,42.125582,-83.65358,67678
+EIA_67684,SV CSG Bishop 1 LLC,IL,2.0,single-axis,ground-mounted,37.79441,-89.04892,67684
+EIA_67686,DeKalb Taylor LLC,IL,4.9,single-axis,ground-mounted,41.934706,-88.71142,67686
+EIA_67687,SV CSG German Valley 1 LLC,IL,2.0,single-axis,ground-mounted,42.215173,-89.48113,67687
+EIA_67688,SV CSG Wagner A LLC,IL,2.0,single-axis,ground-mounted,38.161252,-89.70291,67688
+EIA_67703,Grinnell Customer Hosted Solar,IA,5.0,single-axis,ground-mounted,41.74614,-92.74071,67703
+EIA_67704,Rock County Customer Hosted Solar,WI,1.4,single-axis,ground-mounted,42.72317,-89.02271,67704
+EIA_67705,Janesville Community Solar,WI,2.3,single-axis,ground-mounted,42.723717,-89.02271,67705
+EIA_67713,IL Joliet 1101 Cherry Hl Rd,IL,4.0,single-axis,ground-mounted,41.507951,-88.02602,67713
+EIA_67714,IL Rochelle 975 S. Caron Rd,IL,1.5,single-axis,ground-mounted,41.909729,-89.04429,67714
+EIA_67715,Vermilion Solar II LLC CSG,IL,2.0,single-axis,ground-mounted,40.8563,-88.6015,67715
+EIA_67716,Vermilion Solar I LLC CSG,IL,1.9,single-axis,ground-mounted,40.858134,-88.60202,67716
+EIA_67717,Triple S Solar I LLC CSG,IL,2.0,single-axis,ground-mounted,39.540291,-87.97652,67717
+EIA_67718,"AES Bend Solar II, LLC CSG",IL,1.9,single-axis,ground-mounted,42.33787,-89.08264,67718
+EIA_67719,"AES Bend Solar I, LLC CSG",IL,2.0,single-axis,ground-mounted,42.336378,-89.08286,67719
+EIA_67727,"Caledonia Solar WI, LLC",WI,6.0,single-axis,ground-mounted,42.797719,-87.96506,67727
+EIA_67728,"Hackbarth Solar WI, LLC",WI,5.0,single-axis,ground-mounted,42.88773,-88.87717,67728
+EIA_67735,"Sebree Solar, LLC",KY,250.0,single-axis,ground-mounted,37.693,-87.549,67735
+EIA_67751,DG Harlem Solar,IL,2.0,single-axis,ground-mounted,42.172941,-89.41336,67751
+EIA_67762,Stampede Solar Hybrid,TX,255.9,single-axis,ground-mounted,33.201315,-95.31923,67762
+EIA_67765,Compadre Solar,TX,150.0,single-axis,ground-mounted,33.457356,-97.28961,67765
+EIA_67793,Open Sky Ranch Inc,CA,1.7,single-axis,ground-mounted,36.46052,-120.0305,67793
+EIA_67797,Babacomari Solar,AZ,160.0,single-axis,ground-mounted,31.656605,-110.4134,67797
+EIA_67804,Harmony Solar Project,IL,2.0,single-axis,ground-mounted,42.366,-89.78,67804
+EIA_67822,Unity Solar Project (IL),IL,2.0,single-axis,ground-mounted,42.369,-89.78,67822
+EIA_67823,Roadrunner Solar and BESS,AZ,235.0,single-axis,ground-mounted,32.086149,-109.9353,67823
+EIA_67834,Great Bend Solar Project,OH,48.0,single-axis,ground-mounted,39.003333,-81.77111,67834
+EIA_67850,Arrowleaf Solar and Storage,CA,42.0,single-axis,ground-mounted,33.0157,-115.5129,67850
+EIA_67859,Foster Clean Power B,CA,4.0,single-axis,ground-mounted,40.882295,-124.1012,67859
+EIA_67864,McIntosh Solar,GA,10.0,single-axis,ground-mounted,32.350833,-81.17194,67864
+EIA_67867,Liberty Hybrid Solar and Storage Project,TX,67.2,single-axis,ground-mounted,30.009659,-95.04083,67867
+EIA_67872,RATTS 1,IN,150.0,single-axis,ground-mounted,38.52543,-87.18622,67872
+EIA_67873,Heirloom Solar,IN,60.0,single-axis,ground-mounted,38.514913,-87.19207,67873
+EIA_67900,Oak Leaf Solar XVII Community Solar,MA,3.2,single-axis,ground-mounted,42.421787,-73.2925,67900
+EIA_67901,Oak Leaf Solar XVI Community Solar,MA,1.2,single-axis,ground-mounted,42.421787,-73.2925,67901
+EIA_67930,Crossroads Solar (IN),IN,200.0,single-axis,ground-mounted,40.128928,-87.29279,67930
+EIA_67943,"Sherburne Solar Holdings, LLC",MN,3.0,single-axis,ground-mounted,45.54325,-93.59362,67943
+EIA_67957,East Atmore Solar,AL,80.0,single-axis,ground-mounted,31.020358,-87.35839,67957
+EIA_67964,Agave,AZ,150.0,single-axis,ground-mounted,33.32389,-112.8397,67964
+EIA_67965,Clinton Schools,IA,1.3,single-axis,ground-mounted,41.82718,-90.22335,67965
+EIA_67969,Two Hearted Solar,NC,22.0,single-axis,ground-mounted,36.235367,-80.56279,67969
+EIA_67979,Brookhaven Landfill Solar Farm 1,NY,5.0,single-axis,ground-mounted,40.799699,-72.92396,67979
+EIA_67997,Apex NC Solar,NC,28.9,single-axis,ground-mounted,35.415022,-81.47812,67997
+EIA_68008,Above Grid Montour Solar LLC,NY,5.0,single-axis,ground-mounted,42.330348,-76.83241,68008
+EIA_68010,Johnson City Solar,NY,5.0,single-axis,ground-mounted,42.200933,-75.97879,68010
+EIA_68023,BCE Seal Beach,CA,12.0,single-axis,ground-mounted,33.732761,-118.0445,68023
+EIA_68025,SL JAMESTOWN ARRAY 1,NY,3.0,single-axis,ground-mounted,42.047778,-79.28278,68025
+EIA_68026,SL JAMESTOWN ARRAY 2,NY,4.8,single-axis,ground-mounted,42.0475,-79.28417,68026
+EIA_68037,NY Selkirk S Albany RD - Hemlock Hills S,NY,5.0,single-axis,ground-mounted,42.548056,-73.83611,68037
+EIA_68060,Catalina Solar (SC),SC,75.0,single-axis,ground-mounted,33.902945,-81.60149,68060
+EIA_68077,North Ridge Solar,VA,20.0,single-axis,ground-mounted,37.535275,-77.82396,68077
+EIA_68088,Twelvemile Solar 1,OK,152.0,single-axis,ground-mounted,36.331569,-95.22931,68088
+EIA_68096,SR Brownsville,TN,3.0,single-axis,ground-mounted,35.59013,-89.23283,68096
+EIA_68102,SR Forked Deer,TN,2.5,single-axis,ground-mounted,35.708522,-89.50989,68102
+EIA_68106,SR Lambert II,SC,100.0,single-axis,ground-mounted,33.332969,-79.56353,68106
+EIA_68107,SR Lexington,TN,6.5,single-axis,ground-mounted,35.720616,-88.36943,68107
+EIA_68108,SR Maryville East,TN,7.5,single-axis,ground-mounted,35.77527,-83.91361,68108
+EIA_68109,SR Maryville,TN,1.3,single-axis,ground-mounted,35.688025,-84.02035,68109
+EIA_68113,SR Trenton,TN,2.3,single-axis,ground-mounted,35.941786,-88.94845,68113
+EIA_68114,SR Trezevant,TN,6.5,single-axis,ground-mounted,36.001402,-88.61944,68114
+EIA_68157,MN CSG 2019-60,MN,1.0,single-axis,ground-mounted,44.7328,-94.6044,68157
+EIA_68163,Coventry Solar Site 3,NY,5.0,single-axis,ground-mounted,42.18,-75.402,68163
+EIA_68188,Trousdale Solar I,NY,5.0,single-axis,ground-mounted,42.97,-78.147,68188
+EIA_68190,Trousdale Solar II,NY,5.0,single-axis,ground-mounted,42.966,-78.141,68190
+EIA_68200,Sequoia 1,TX,401.4,single-axis,ground-mounted,32.438238,-99.15766,68200
+EIA_68223,Beaverdam Renewable Energy Center,SC,40.8,single-axis,ground-mounted,34.64611,-82.03086,68223
+EIA_68235,Romeoville 34 - SLCHI234 - BSCHI234,IL,1.1,single-axis,ground-mounted,41.597,-88.11,68235
+EIA_68259,Oneida 2 CDG,NY,3.3,single-axis,ground-mounted,43.196874,-75.43545,68259
+EIA_68276,Swamp Cabbage,FL,74.5,single-axis,ground-mounted,26.762014,-81.25302,68276
+EIA_68279,NCS FCPA LLC,DC,1.1,single-axis,ground-mounted,38.89146,-76.9403,68279
+EIA_68281,Box Canyon (AZ),AZ,300.0,single-axis,ground-mounted,33.160564,-111.3692,68281
+EIA_68286,Kennett Solar,MO,4.9,single-axis,ground-mounted,36.207917,-90.05722,68286
+EIA_68327,CP East Hampton I & II Solar,CT,2.0,single-axis,ground-mounted,41.4,-72.42,68327
+EIA_68372,Bronson Solar,FL,74.5,single-axis,ground-mounted,29.464985,-82.6239,68372
+EIA_68398,Lake Hallie,WI,5.0,single-axis,ground-mounted,44.899592,-91.38375,68398
+EIA_68418,Keydet Solar Center,VA,120.0,single-axis,ground-mounted,37.4371,-77.1587,68418
+EIA_68427,Ardagh Solar,CA,12.9,single-axis,ground-mounted,36.921281,-120.1083,68427
+EIA_68431,Cadence Solar Energy Center,OH,240.0,single-axis,ground-mounted,40.378008,-83.43687,68431
+EIA_68436,WPR RE Holdings,CA,2.9,single-axis,ground-mounted,35.7832,-119.8652,68436
+EIA_68442,Ellis Creek Solar,CA,4.0,single-axis,ground-mounted,38.2223,-122.5737,68442
+EIA_68458,"Roaring Springs, LLC",TX,250.0,single-axis,ground-mounted,33.877514,-100.8902,68458
+EIA_68470,Azalea Springs Solar Park,TX,180.0,single-axis,ground-mounted,31.403914,-94.8719,68470
+EIA_68472,Long Branch Solar,FL,74.9,single-axis,ground-mounted,27.62574,-82.17134,68472
+EIA_68482,Clinton Solar (OH),OH,49.9,single-axis,ground-mounted,39.34098,-83.76907,68482
+EIA_68483,"Diver Solar, LLC",TX,225.0,single-axis,ground-mounted,31.25,-96.39,68483
+EIA_68488,Garnet Mesa Solar,CO,80.0,single-axis,ground-mounted,38.740617,-107.9825,68488
+EIA_68489,IL BEDFORD PARK 7035 W 65TH ST,IL,2.0,single-axis,ground-mounted,41.772468,-87.79725,68489
+EIA_68516,Wildwood Solar Plant,MS,100.0,single-axis,ground-mounted,33.934776,-90.33862,68516
+EIA_68523,Bishop Ranch - BR 8-Q,CA,0.7,single-axis,ground-mounted,37.768711,-121.9684,68523
+EIA_68524,Bishop Ranch - BR 15-AA,CA,0.7,single-axis,ground-mounted,37.77538,-121.9613,68524
+EIA_68525,Bishop Ranch - BR 15-CC,CA,0.7,single-axis,ground-mounted,37.773323,-121.9602,68525
+EIA_68530,Agrimony 2,IL,2.0,single-axis,ground-mounted,42.48231,-89.99143,68530
+EIA_68534,Wheatland,IN,150.0,single-axis,ground-mounted,38.692248,-87.28772,68534
+EIA_68536,Optimist,MS,200.0,single-axis,ground-mounted,33.643544,-88.59398,68536
+EIA_68537,Swift Air Solar I,TX,145.0,single-axis,ground-mounted,31.7688,-102.696,68537
+EIA_68538,IL University Park 450 Central Ave,IL,2.3,single-axis,ground-mounted,41.453676,-87.75003,68538
+EIA_68540,Bayer Oxnard - Meter# 4719,CA,1.3,single-axis,ground-mounted,34.20337,-119.1394,68540
+EIA_68544,IL Bedford Park 6901 W 65th St,IL,2.0,single-axis,ground-mounted,41.772696,-87.79431,68544
+EIA_68550,Kelly Creek Solar,OR,2.3,single-axis,ground-mounted,42.133852,-123.6303,68550
+EIA_68551,Cottonmouth Ranch Solar,FL,74.5,single-axis,ground-mounted,27.654491,-82.29003,68551
+EIA_68587,Swift Air Solar II,TX,100.0,single-axis,ground-mounted,31.723088,-102.5196,68587
+EIA_68588,Swift Air Solar III,TX,100.0,single-axis,ground-mounted,31.723088,-102.5196,68588
+EIA_68595,Whistling Duck I,FL,75.0,single-axis,ground-mounted,29.472222,-82.43088,68595
+EIA_68615,"ADP Roseland, NJ",NJ,2.4,single-axis,ground-mounted,40.815661,-74.31015,68615
+EIA_68670,Walker Springs I,AL,80.0,single-axis,ground-mounted,31.435022,-87.70473,68670
+EIA_68674,East Windsor,CT,4.0,single-axis,ground-mounted,41.85,-72.55,68674
+EIA_68682,Glastonbury Solar One,CT,3.0,single-axis,ground-mounted,41.75,-72.55,68682
+EIA_68706,City of Clarksville,AR,10.0,single-axis,ground-mounted,35.467464,-93.51518,68706
+EIA_68708,Hindsville,AR,5.0,single-axis,ground-mounted,36.155318,-93.89012,68708
+EIA_68729,XNA (NW AR Natnl Airport),AR,3.0,single-axis,ground-mounted,36.263575,-94.30998,68729
+EIA_68754,USS Origami Solar,IL,4.3,single-axis,ground-mounted,41.8344,-90.1452,68754
+EIA_68756,USS Ducks Solar CSG,IL,5.0,single-axis,ground-mounted,42.0142,-89.351,68756
+EIA_68757,USS Beard Solar,IL,3.5,single-axis,ground-mounted,39.9895,-90.3538,68757
+EIA_68776,Sherco Solar II,MN,237.1,single-axis,ground-mounted,45.371517,-93.86754,68776
+EIA_68791,Chatsworth Industrial Center 1-SLLAX601,CA,1.1,single-axis,ground-mounted,34.241957,-118.6029,68791
+EIA_68794,Tracy 18 - SLCVA418,CA,1.5,single-axis,ground-mounted,37.753015,-121.3883,68794
+EIA_68795,IPC 16 - SLCVA516,CA,1.7,single-axis,ground-mounted,37.738366,-121.5348,68795
+EIA_68796,Stockton 6 - SLEBA202,CA,1.1,single-axis,ground-mounted,37.896708,-121.2602,68796
+EIA_68803,Westtown School Solar,PA,1.5,single-axis,ground-mounted,39.94,-75.534,68803
+EIA_68817,Mallard,FL,74.5,single-axis,ground-mounted,27.832062,-80.68207,68817
+EIA_68820,Big Brook,FL,74.5,single-axis,ground-mounted,30.443398,-85.2618,68820
+EIA_68822,Flatford,FL,74.5,single-axis,ground-mounted,27.389575,-82.09888,68822
+EIA_68823,Goldenrod,FL,74.5,single-axis,ground-mounted,26.480745,-81.49189,68823
+EIA_68838,Hecate Energy Outpost Solar LLC,TX,515.0,single-axis,ground-mounted,27.85923,-99.16174,68838
+EIA_68846,Edwards Sanborn 1C,CA,148.0,single-axis,ground-mounted,35.026182,-118.1529,68846
+EIA_68856,Tyson Nick,TX,90.5,single-axis,ground-mounted,33.644897,-95.62704,68856
+EIA_68880,Pleasantville Solar Park,IL,150.0,single-axis,ground-mounted,40.354122,-90.34819,68880
+EIA_68885,"Elam Road Solar, LLC",VA,3.0,single-axis,ground-mounted,37.27604,-78.61845,68885
+EIA_68886,"Sandale Solar, LLC",VA,3.0,single-axis,ground-mounted,37.67491,-76.41144,68886
+EIA_68892,Airport Commons 7-slbal210,MD,1.4,single-axis,ground-mounted,39.182941,-76.70536,68892
+EIA_68894,Riverstart Solar Park IV,IN,150.0,single-axis,ground-mounted,40.12115,-85.17476,68894
+EIA_68906,Pine Forest Solar I,TX,300.0,single-axis,ground-mounted,33.100779,-95.39229,68906
+EIA_68919,Macon County IL S1,IL,2.0,single-axis,ground-mounted,39.91707,-88.89615,68919
+EIA_68921,Tazewell County IL S1,IL,2.0,single-axis,ground-mounted,40.378299,-89.5225,68921
+EIA_68927,"Adelite Solar, LLC",MO,25.0,single-axis,ground-mounted,39.75533,-94.01234,68927
+EIA_68928,"Richland Township Solar II, LLC",IL,10.8,single-axis,ground-mounted,40.94425,-89.26966,68928
+EIA_68941,BH CSG 3,CO,1.5,single-axis,ground-mounted,37.983521,-103.5762,68941
+EIA_68943,Pivot Solar 20,CO,5.0,single-axis,ground-mounted,40.31766,-104.9309,68943
+EIA_68944,Pivot Solar 21,CO,5.0,single-axis,ground-mounted,39.728452,-104.769,68944
+EIA_68945,Pivot Solar 37,CO,2.5,single-axis,ground-mounted,40.620759,-103.2344,68945
+EIA_68957,Pivot Solar 30,CO,5.0,single-axis,ground-mounted,40.434751,-104.6459,68957
+EIA_68960,LaSalle Solar 1,IL,2.0,single-axis,ground-mounted,41.166034,-88.63338,68960
+EIA_68964,Pivot Solar 35,CO,3.9,single-axis,ground-mounted,40.32734,-104.7518,68964
+EIA_68966,Windsor Solar One,CT,3.0,single-axis,ground-mounted,41.85,-72.65,68966
+EIA_68971,Moseley Hermon Solar,VA,5.0,single-axis,ground-mounted,37.46754,-77.73352,68971
+EIA_68991,Pivot Solar 32,CO,5.0,single-axis,ground-mounted,40.27482,-103.6344,68991
+EIA_68998,Long Point Solar,TX,120.0,single-axis,ground-mounted,29.244,-95.676,68998
+EIA_69002,Brattleboro (Windham Landfill),VT,5.0,single-axis,ground-mounted,42.89335,-72.54054,69002
+EIA_69009,Madison Solar (NE),NE,2.0,single-axis,ground-mounted,41.847718,-97.4452,69009
+EIA_69014,North Franklin Solar,CT,5.0,single-axis,ground-mounted,41.65,-72.15,69014
+EIA_69015,Bureau Solar 1,IL,5.0,single-axis,ground-mounted,41.442306,-89.48587,69015
+EIA_69016,Pivot Solar 34,CO,4.5,single-axis,ground-mounted,40.082241,-105.1669,69016
+EIA_69017,Pivot Solar 52,CO,3.7,single-axis,ground-mounted,40.2728,-103.6341,69017
+EIA_69018,Pivot Solar NY 10,NY,5.0,single-axis,ground-mounted,44.673387,-75.48876,69018
+EIA_69027,"Stoneridge Solar, LLC",TX,100.0,single-axis,ground-mounted,30.569447,-97.11043,69027
+EIA_69031,"Nuby Run Solar, LLC",VA,2.0,single-axis,ground-mounted,36.884447,-76.69121,69031
+EIA_69032,LaSalle Solar 6,IL,3.6,single-axis,ground-mounted,41.41779,-88.83754,69032
+EIA_69033,Peoria Solar 3,IL,4.9,single-axis,ground-mounted,40.811998,-89.69964,69033
+EIA_69039,Sutter Home Winery Westside,CA,2.3,single-axis,ground-mounted,38.152145,-121.4022,69039
+EIA_69042,Kit Carson Co-Op,NM,10.8,single-axis,ground-mounted,36.969882,-105.4369,69042
+EIA_69043,Big Creek Solar (IL) (CSG),IL,5.0,single-axis,ground-mounted,39.070944,-90.13983,69043
+EIA_69046,Grant,IL,2.0,single-axis,ground-mounted,42.25282,-88.67917,69046
+EIA_69048,MN CSG 2019-113,MN,1.0,single-axis,ground-mounted,44.9834,-95.7118,69048
+EIA_69051,Chaberton Solar Blackburn,DE,3.0,single-axis,ground-mounted,39.066233,-75.47778,69051
+EIA_69061,ASG-4 Community Solar,NM,5.0,single-axis,ground-mounted,34.609944,-106.8156,69061
+EIA_69062,ASG-8,NM,5.0,single-axis,ground-mounted,34.656861,-106.8152,69062
+EIA_69063,Appleseed Solar,IN,200.0,single-axis,ground-mounted,40.70551,-86.249,69063
+EIA_69066,Goldenrod (IL),IL,5.0,single-axis,ground-mounted,41.20946,-90.58643,69066
+EIA_69068,"CA - Fresno, City of - SE Surface WTP",CA,3.0,single-axis,ground-mounted,36.75,-119.65,69068
+EIA_69070,Anacott,IL,5.0,single-axis,ground-mounted,39.14763,-89.4496,69070
+EIA_69078,Green Acres (VA),VA,5.0,single-axis,ground-mounted,36.782222,-79.94778,69078
+EIA_69086,SP-425 Memphis,NY,5.0,single-axis,ground-mounted,43.09582,-76.38432,69086
+EIA_69095,Day Hollow,NY,5.0,single-axis,ground-mounted,42.1129,-76.17569,69095
+EIA_69096,Jericho,NY,5.0,single-axis,ground-mounted,42.24172,-77.78193,69096
+EIA_69100,Rocky Mountain Solar,CO,325.0,single-axis,ground-mounted,38.15319,-104.5763,69100
+EIA_69101,Millers Branch Solar,TX,200.0,single-axis,ground-mounted,33.22132,-99.58652,69101
+EIA_69103,ASG-2 Community Solar,NM,5.0,single-axis,ground-mounted,35.24175,-106.8145,69103
+EIA_69104,SLO-1 Community Solar,NM,5.0,single-axis,ground-mounted,34.784861,-106.654,69104
+EIA_69106,SLO-3 Community Solar,NM,5.0,single-axis,ground-mounted,32.433,-106.6862,69106
+EIA_69107,XCEL-1 Community Solar,NM,5.0,single-axis,ground-mounted,33.326556,-104.536,69107
+EIA_69109,CCBC Essex,MD,1.4,single-axis,ground-mounted,39.351597,-76.48306,69109
+EIA_69112,Deptford Solar Farm,NJ,1.3,single-axis,ground-mounted,39.8161,-75.1282,69112
+EIA_69113,Uniqlo Phase 1 Solar Farm,NJ,2.7,single-axis,ground-mounted,40.7,-75.2,69113
+EIA_69114,Amazon Visalia (FAT2),CA,3.5,single-axis,ground-mounted,36.35914,-119.3869,69114
+EIA_69115,DIVOCSG 11  - Sherburne,MN,1.0,single-axis,ground-mounted,45.404645,-93.96943,69115
+EIA_69116,Lime Bluff 1,PA,2.5,single-axis,ground-mounted,41.232116,-76.75509,69116
+EIA_69117,Lime Bluff 2,PA,1.0,single-axis,ground-mounted,41.232594,-76.75304,69117
+EIA_69118,LL Scranton PA,PA,1.1,single-axis,ground-mounted,41.399167,-75.67194,69118
+EIA_69123,1519 Crandall Road,RI,3.5,single-axis,ground-mounted,41.579338,-71.1398,69123
+EIA_69124,BWC Mystic River,MA,1.0,single-axis,ground-mounted,42.115229,-71.55016,69124
+EIA_69125,BWC Origination 19,MA,1.0,single-axis,ground-mounted,42.111032,-71.50615,69125
+EIA_69126,BWC Origination 8 LLC Sturbridge 1,MA,1.0,single-axis,ground-mounted,42.123325,-72.06027,69126
+EIA_69127,BWC Origination 8 LLC Sturbridge 2,MA,1.0,single-axis,ground-mounted,42.11888,-72.06975,69127
+EIA_69129,Dudley Landfill Solar LLC,MA,1.3,single-axis,ground-mounted,42.036241,-71.91281,69129
+EIA_69130,ESNY-Yorktown,NY,4.0,single-axis,ground-mounted,41.21595,-73.80604,69130
+EIA_69131,Hampden Landfill Solar LLC,MA,1.9,single-axis,ground-mounted,42.064097,-72.39751,69131
+EIA_69132,KP Ontario Vineyard Solar,CA,1.7,single-axis,ground-mounted,34.032177,-117.6088,69132
+EIA_69133,Manville Hill Road Solar,RI,4.5,single-axis,ground-mounted,41.972496,-71.46998,69133
+EIA_69134,Penobscot Narrows Solar I,ME,5.0,single-axis,ground-mounted,44.590083,-68.80834,69134
+EIA_69135,Reston Town Center Solar 1,VA,1.0,single-axis,ground-mounted,38.959906,-77.35767,69135
+EIA_69137,Althea Avenue Solar,CA,5.0,single-axis,ground-mounted,36.893121,-120.6569,69137
+EIA_69140,Uniqlo NJ CS Ph 2 CSG,NJ,1.3,single-axis,ground-mounted,40.695378,-75.16338,69140
+EIA_69141,DE-ECA CS Hartly,DE,4.0,single-axis,ground-mounted,39.186235,-75.73084,69141
+EIA_69142,Novel Stumpf 1 Solar CSG,MN,1.0,single-axis,ground-mounted,44.517319,-92.51089,69142
+EIA_69143,Eldorado Solar II,IL,120.0,single-axis,ground-mounted,37.8688,-88.4259,69143
+EIA_69145,GIUD Solar I,NE,1.0,single-axis,ground-mounted,40.925157,-98.31439,69145
+EIA_69153,NSF Edmeston Site 1,NY,5.0,single-axis,ground-mounted,42.67956,-75.31425,69153
+EIA_69154,NSF Edmeston Site 2,NY,4.7,single-axis,ground-mounted,42.679736,-75.31302,69154
+EIA_69161,SV CSG Gander Farms 1 A,IL,2.0,single-axis,ground-mounted,37.75086,-89.03886,69161
+EIA_69163,10601 Seymour Ave East 2 CSG,IL,2.0,single-axis,ground-mounted,41.949194,-87.893,69163
+EIA_69164,Tilden Solar,IL,150.0,single-axis,ground-mounted,38.190651,-89.68408,69164
+EIA_69166,"New Madrid Solar, LLC",MO,200.0,single-axis,ground-mounted,36.5004,-89.6357,69166
+EIA_69172,Red Bud Solar Plant,NC,80.0,single-axis,ground-mounted,36.077414,-78.02241,69172
+EIA_69179,Chester,NY,5.0,single-axis,ground-mounted,41.375398,-74.27752,69179
+EIA_69183,SAE Ottawa IL,IL,2.0,single-axis,ground-mounted,41.335883,-88.86978,69183
+EIA_69187,Big Bend 1 Solar and Battery Storage,FL,19.8,single-axis,ground-mounted,27.78529,-82.38471,69187
+EIA_69188,10701 Seymour Ave East 1 CSG,IL,2.9,single-axis,ground-mounted,41.949124,-87.89545,69188
+EIA_69190,"GreenStruxure BBU004, LLC",CA,1.6,single-axis,ground-mounted,34.007486,-118.12,69190
+EIA_69192,AETS Old Michigan Solar LLC,TX,10.0,single-axis,ground-mounted,31.826508,-104.2103,69192
+EIA_69193,KaneSolar03 LLC,IL,2.5,single-axis,ground-mounted,41.893158,-88.55198,69193
+EIA_69201,KA361,IL,2.0,single-axis,ground-mounted,41.267199,-87.77736,69201
+EIA_69210,Salem Henningsen,OR,1.1,single-axis,ground-mounted,44.890515,-122.972,69210
+EIA_69212,Ransom,NY,5.0,single-axis,ground-mounted,42.174955,-75.92147,69212
+EIA_69213,Sawyer,IL,5.0,single-axis,ground-mounted,41.78285,-89.95483,69213
+EIA_69214,Shoddy Hollow,NY,5.0,single-axis,ground-mounted,41.476229,-74.50891,69214
+EIA_69216,State Route 42,NY,5.0,single-axis,ground-mounted,41.548989,-74.74971,69216
+EIA_69219,Wedge NY,NY,3.0,single-axis,ground-mounted,42.206071,-76.77013,69219
+EIA_69221,Edison 0203 Community Solar - SLNNJ203,NJ,1.2,single-axis,ground-mounted,40.522685,-74.4184,69221
+EIA_69227,MEVS Clark LLC,ME,5.0,single-axis,ground-mounted,45.06377,-69.88589,69227
+EIA_69228,Mound City Solar,IL,5.0,single-axis,ground-mounted,37.090121,-89.17606,69228
+EIA_69230,Pope Creek Solar PV,IL,5.0,single-axis,ground-mounted,41.204012,-90.73258,69230
+EIA_69233,CA- US Foods- Sacramento (McClellan),CA,1.0,single-axis,ground-mounted,38.649095,-121.4122,69233
+EIA_69235,Blairs Valley Solar Project,PA,20.0,single-axis,ground-mounted,39.8034,-77.9216,69235
+EIA_69236,Vandalia Renewable Energy Center,MO,50.0,single-axis,ground-mounted,39.27,-91.506,69236
+EIA_69240,Rocky Mountain Elk Solar Community Solar,IL,5.0,single-axis,ground-mounted,41.364,-89.685,69240
+EIA_69241,Buckheart Creek Solar I Community Solar,IL,4.5,single-axis,ground-mounted,40.53985,-90.02651,69241
+EIA_69243,REG Mason City Solar,IA,2.6,single-axis,ground-mounted,43.136174,-93.26386,69243
+EIA_69247,Prologis Meadowlands 9305 - SLNNJ305,NJ,1.3,single-axis,ground-mounted,40.838076,-74.06259,69247
+EIA_69248,Speedway North Bldg 1-sllas701,NV,1.0,single-axis,ground-mounted,36.201946,-115.1202,69248
+EIA_69261,Malakoff Solar Project,TX,10.0,single-axis,ground-mounted,32.183314,-96.01754,69261
+EIA_69263,Fairfield Solar Project,TX,10.0,single-axis,ground-mounted,31.714249,-96.18668,69263
+EIA_69264,CFF Rice Mill Solar Plant,CA,3.5,single-axis,ground-mounted,39.04162,-122.0666,69264
+EIA_69265,Talco Solar Project,TX,7.5,single-axis,ground-mounted,33.3516,-95.1732,69265
+EIA_69273,Danton XI Solar LLC,MA,1.8,single-axis,ground-mounted,42.720174,-71.21103,69273
+EIA_69280,NY 5 King LLC,NY,5.0,single-axis,ground-mounted,43.140227,-73.68773,69280
+EIA_69281,NY 24 Sherman LLC,NY,5.0,single-axis,ground-mounted,43.14137,-73.69206,69281
+EIA_69284,NY 262 Libertyville LLC,NY,2.9,single-axis,ground-mounted,41.724601,-74.12949,69284
+EIA_69285,NY Country Road 67 and Majorana,NY,2.8,single-axis,ground-mounted,42.35322,-74.02442,69285
+EIA_69287,"Wheeler Gulch Solar, LLC",CO,9.9,single-axis,ground-mounted,39.48234,-108.1005,69287
+EIA_69288,Palm Springs DAC PV,CA,1.6,single-axis,ground-mounted,33.825324,-116.4847,69288
+EIA_69289,EDFR Bluebonnet,TX,9.9,single-axis,ground-mounted,31.411854,-97.42367,69289
+EIA_69303,Enterprise MN - Buscho CSG,MN,1.0,single-axis,ground-mounted,44.12187,-93.26694,69303
+EIA_69304,Enterprise MN - Ferche CSG,MN,1.0,single-axis,ground-mounted,45.389816,-94.71178,69304
+EIA_69306,Costen Solar,MD,8.8,single-axis,ground-mounted,38.0978,-75.6108,69306
+EIA_69307,Enterprise MN - Hu's on First CSG,MN,1.0,single-axis,ground-mounted,44.417036,-93.15033,69307
+EIA_69314,Cenergy IL - Zion CSG,IL,2.0,single-axis,ground-mounted,42.46445,-87.84902,69314
+EIA_69315,NL IL - 241 North CSG,IL,5.0,single-axis,ground-mounted,41.289917,-87.8115,69315
+EIA_69316,NL IL - 1875 North Road CSG,IL,5.0,single-axis,ground-mounted,40.894923,-88.65766,69316
+EIA_69317,NL IL - 2000 North Road CSG,IL,5.0,single-axis,ground-mounted,41.149011,-87.78951,69317
+EIA_69319,Kelso Solar,MO,200.0,single-axis,ground-mounted,37.05,-89.52,69319
+EIA_69320,Parliament Solar,TX,480.0,single-axis,ground-mounted,29.979,-95.943,69320
+EIA_69321,Kelso 2 Solar,MO,149.0,single-axis,ground-mounted,37.05,-89.52,69321
+EIA_69325,NL IL - Piatt 1 - East CSG,IL,2.0,single-axis,ground-mounted,40.118044,-88.67347,69325
+EIA_69326,NL IL - Piatt 2 - West CSG,IL,2.0,single-axis,ground-mounted,40.118044,-88.67347,69326
+EIA_69328,V Street Solar,DC,4.1,single-axis,ground-mounted,38.917755,-76.99072,69328
+EIA_69330,Cenergy IL - BA Family CSG,IL,5.0,single-axis,ground-mounted,41.126242,-87.98852,69330
+EIA_69354,Rattler Solar Plant,FL,74.9,single-axis,ground-mounted,28.634293,-82.2887,69354
+EIA_69355,Half Moon Solar Plant,FL,74.9,single-axis,ground-mounted,28.955619,-82.15959,69355
+EIA_69368,Tinta Wita 5 MW Solar PV System,MN,4.5,single-axis,ground-mounted,44.632,-92.643,69368
+EIA_69370,RP Minnesota Solar,CA,1.8,single-axis,ground-mounted,34.20017,-118.9281,69370
+EIA_69374,Liverpool Solar Partners,PA,1.5,single-axis,ground-mounted,40.582768,-76.98408,69374
+EIA_69378,RP SCG Texas Solar,TX,1.5,single-axis,ground-mounted,30.427708,-97.74735,69378
+EIA_69379,NSF Chateaugay Site 1,NY,5.0,single-axis,ground-mounted,44.93,-74.032,69379
+EIA_69380,NSF Chateaugay Site 2,NY,4.4,single-axis,ground-mounted,44.95,-74.05,69380
+EIA_69381,Kelso Community Solar I,MD,1.6,single-axis,ground-mounted,39.32652,-76.48507,69381
+EIA_69382,Kelso Community Solar II,MD,1.4,single-axis,ground-mounted,39.32681,-76.48878,69382
+EIA_69386,NL MA - Copicut,MA,5.0,single-axis,ground-mounted,41.772597,-71.07385,69386
+EIA_69387,Beecher (IL),IL,5.0,single-axis,ground-mounted,41.340311,-87.68268,69387
+EIA_69388,"Apple River Solar, LLC",WI,100.0,single-axis,ground-mounted,45.381166,-92.30209,69388
+EIA_69389,O'Brien 1,NY,5.0,single-axis,ground-mounted,42.410513,-76.2185,69389
+EIA_69390,O'Brien 2,NY,5.0,single-axis,ground-mounted,42.410513,-76.2185,69390
+EIA_69391,Broadlea,NY,4.9,single-axis,ground-mounted,41.382356,-74.28659,69391
+EIA_69395,Blue Barns,NY,2.3,single-axis,ground-mounted,42.891,-73.886,69395
+EIA_69396,Chenunda Creek,NY,2.4,single-axis,ground-mounted,42.08547,-77.81913,69396
+EIA_69397,Gougar,IL,2.0,single-axis,ground-mounted,41.3864,-87.99722,69397
+EIA_69398,Green Haven,NY,3.2,single-axis,ground-mounted,41.579885,-73.7108,69398
+EIA_69399,Guyer,NY,3.5,single-axis,ground-mounted,42.894497,-73.89087,69399
+EIA_69400,Independence North,NY,5.0,single-axis,ground-mounted,42.07463,-77.79626,69400
+EIA_69401,Jeffery,IL,5.0,single-axis,ground-mounted,41.092129,-87.9844,69401
+EIA_69402,Oak Orchard,NY,5.0,single-axis,ground-mounted,40.712749,-74.00599,69402
+EIA_69405,NSF Marshall Site 2,NY,5.0,single-axis,ground-mounted,42.936,-75.419,69405
+EIA_69406,NSF Marshall Site 1,NY,5.0,single-axis,ground-mounted,42.938,-75.426,69406
+EIA_69408,Burlingame Solar Community Solar,OR,2.1,single-axis,ground-mounted,44.387836,-123.0126,69408
+EIA_69409,"NSF Danby Site 1, LLC",NY,5.0,single-axis,ground-mounted,42.35211,-76.49782,69409
+EIA_69410,"NSF Danby Site 2, LLC",NY,5.0,single-axis,ground-mounted,42.35311,-76.49364,69410
+EIA_69412,"NSF Danby Site 3, LLC",NY,3.0,single-axis,ground-mounted,42.35308,-76.49364,69412
+EIA_69414,Blevins Solar & Storage,TX,270.0,single-axis,ground-mounted,31.211152,-97.18508,69414
+EIA_69419,NE IL - Esmen West,IL,5.0,single-axis,ground-mounted,40.94816,-88.67369,69419
+EIA_69420,NL IL - Kiwi,IL,2.0,single-axis,ground-mounted,38.090082,-89.32463,69420
+EIA_69421,"South Belleville Solar, LLC",IL,5.0,single-axis,ground-mounted,38.481308,-89.98829,69421
+EIA_69425,NSF Marshall Site 3,NY,3.0,single-axis,ground-mounted,42.937,-75.419,69425
+EIA_69428,Petersburg Energy Center,IN,250.0,single-axis,ground-mounted,38.461606,-87.29524,69428
+EIA_69430,"Spring Brook Solar WI, LLC",WI,6.0,single-axis,ground-mounted,42.786466,-88.7536,69430
+EIA_69431,"Rock LakeSolar WI, LLC",WI,5.0,single-axis,ground-mounted,43.113153,-88.97524,69431
+EIA_69432,"Antigo Solar Partners, LLC",WI,6.0,single-axis,ground-mounted,45.152419,-89.16997,69432
+EIA_69433,"La Grange Solar Partners, LLC",WI,6.0,single-axis,ground-mounted,42.79717,-88.58368,69433
+EIA_69434,Gourmet Lane - SLNNJ480,NJ,2.0,single-axis,ground-mounted,40.52556,-74.36584,69434
+EIA_69439,Medanos Solar LLC,IL,5.0,single-axis,ground-mounted,40.041163,-87.95006,69439
+EIA_69440,Drummer Creek I Solar LLC,IL,5.0,single-axis,ground-mounted,40.448185,-88.37912,69440
+EIA_69441,Water Lily Solar LLC,IL,2.6,single-axis,ground-mounted,41.485723,-88.26931,69441
+EIA_69442,Beckham Solar LLC,IL,5.0,single-axis,ground-mounted,41.029463,-88.49735,69442
+EIA_69443,Union Solar LLC,NJ,2.3,single-axis,ground-mounted,40.707921,-74.24851,69443
+EIA_69447,Bilton Solar,CT,2.0,single-axis,ground-mounted,42.034,-72.5051,69447
+EIA_69448,Ava Solar,MA,4.0,single-axis,ground-mounted,42.2657,-72.3151,69448
+EIA_69476,Renegade Solar Energy LLC,MI,100.0,single-axis,ground-mounted,45.99731,-87.22625,69476
+EIA_69483,Pivot Solar 40,CO,2.8,single-axis,ground-mounted,40.318083,-104.9277,69483
+EIA_69484,Bancroft (MN),MN,3.0,single-axis,ground-mounted,43.689214,-93.38914,69484
+EIA_69485,Bridge Creek,WI,2.5,single-axis,ground-mounted,44.723711,-91.158,69485
+EIA_69486,Bright Future,WI,2.5,single-axis,ground-mounted,44.961373,-92.44342,69486
+EIA_69487,Douglas (IA),IA,2.5,single-axis,ground-mounted,43.357753,-92.59386,69487
+EIA_69488,Elk Mound (PV),WI,2.5,single-axis,ground-mounted,44.901566,-91.61363,69488
+EIA_69489,Grand Meadow (PV),MN,3.0,single-axis,ground-mounted,43.659418,-92.57697,69489
+EIA_69490,Greenfield,WI,2.5,single-axis,ground-mounted,43.730622,-91.09268,69490
+EIA_69491,Hannibal,WI,2.5,single-axis,ground-mounted,45.257985,-90.7749,69491
+EIA_69492,Little Cedar,IA,2.5,single-axis,ground-mounted,43.382652,-92.73294,69492
+EIA_69493,Luck,WI,2.5,single-axis,ground-mounted,45.612524,-92.48349,69493
+EIA_69494,Next Generation,WI,2.5,single-axis,ground-mounted,44.910349,-92.31375,69494
+EIA_69495,Viola,WI,2.5,single-axis,ground-mounted,45.825848,-92.26411,69495
+EIA_69498,Quakertown Solar Farm II,NJ,8.8,single-axis,ground-mounted,40.523,-74.938,69498
+EIA_69499,Mousam River Solar,ME,20.0,single-axis,ground-mounted,43.432236,-70.72726,69499
+EIA_69500,Pittsylvania CSG LLC,VA,3.8,single-axis,ground-mounted,36.857981,-79.39841,69500
+EIA_69501,"Bristol Woods Solar WI, LLC",WI,6.0,single-axis,ground-mounted,42.526689,-87.99353,69501
+EIA_69502,Adams Road Solar,WI,4.0,single-axis,ground-mounted,42.774153,-87.91919,69502
+EIA_69503,"Perch Solar WI, LLC",WI,6.0,single-axis,ground-mounted,44.109735,-88.51583,69503
+EIA_69505,NSF Union,NY,14.8,single-axis,ground-mounted,42.13,-76.076,69505
+EIA_69518,Pilot Rock Solar 1,OR,2.0,single-axis,ground-mounted,45.505603,-118.8308,69518
+EIA_69519,Pilot Rock Solar 2,OR,3.0,single-axis,ground-mounted,45.506575,-118.8302,69519
+EIA_69525,Pennsville Landfill (CSG),NJ,4.3,single-axis,ground-mounted,39.637595,-75.54404,69525
+EIA_69526,NL IL - Maples Road,IL,5.0,single-axis,ground-mounted,41.852588,-89.4049,69526
+EIA_69527,NL IL - McConnell Road,IL,5.0,single-axis,ground-mounted,42.425623,-89.46585,69527
+EIA_69528,Pluma - Curry Road North,NM,3.0,single-axis,ground-mounted,34.380407,-103.2316,69528
+EIA_69529,Pluma - Pino,NM,5.0,single-axis,ground-mounted,35.632083,-105.2281,69529
+EIA_69530,Emi NM Bent Bow,NM,5.0,single-axis,ground-mounted,32.735792000000004,-107.2411,69530
+EIA_69531,REDP - Trenton,ME,5.0,single-axis,ground-mounted,44.484539,-68.36707,69531
+EIA_69532,Pluma - SLT Las Cruces,NM,5.0,single-axis,ground-mounted,32.427319,-106.7088,69532
+EIA_69536,"DMAT Denso - SEAT Solar Holdings, LLC",TN,5.3,single-axis,ground-mounted,35.481807,-84.64314,69536
+EIA_69538,Twelvemile Solar 2,OK,52.2,single-axis,ground-mounted,36.331569,-95.22931,69538
+EIA_69542,Fairfax Landfill,VA,5.0,single-axis,ground-mounted,38.69017,-77.24049,69542
+EIA_69543,Great Valley Gernatt,NY,3.3,single-axis,ground-mounted,42.204,-78.642,69543
+EIA_69544,0 Middle,MA,2.5,single-axis,ground-mounted,41.690131,-70.00878,69544
+EIA_69545,15 Lincoln,MA,1.0,single-axis,ground-mounted,42.13199,-71.30249,69545
+EIA_69546,Broadhead,ME,4.9,single-axis,ground-mounted,44.52169,-69.67441,69546
+EIA_69550,"Dodson Creek Solar, LLC",OH,117.0,single-axis,ground-mounted,39.181498,-83.76753,69550
+EIA_69557,Pluma - Reynolds (CSG),NM,5.0,single-axis,ground-mounted,33.051876,-106.008,69557
+EIA_69561,Sunrise Solar Lincoln DE (CSG),DE,4.0,single-axis,ground-mounted,38.853476,-75.40124,69561
+EIA_69563,Las Positas College,CA,2.3,single-axis,ground-mounted,37.71076,-121.8001,69563
+EIA_69564,Gillespie Street Solar,NC,1.9,single-axis,ground-mounted,34.975834,-78.91213,69564
+EIA_69565,Rockfish Solar,NC,4.9,single-axis,ground-mounted,34.963091,-78.8395,69565
+EIA_69567,NL VA - Dry Fork,VA,3.0,single-axis,ground-mounted,36.767191,-79.39009,69567
+EIA_69568,NL MA - Division,MA,1.0,single-axis,ground-mounted,41.562832,-71.03095,69568
+EIA_69569,TJA MA Wakeby Road,MA,5.0,single-axis,ground-mounted,41.667,-70.453,69569
+EIA_69570,Kieffer Funk,MD,12.0,single-axis,ground-mounted,39.62498,-77.6435,69570
+EIA_69571,Cambridge Solar,NY,5.0,single-axis,ground-mounted,43.07872,-73.37509,69571
+EIA_69572,Beebalm Solar,IL,5.0,single-axis,ground-mounted,41.033046,-88.64122,69572
+EIA_69573,Geranium Solar,IL,5.0,single-axis,ground-mounted,41.335006,-89.22322,69573
+EIA_69580,Lone Wolfe Phase One,TX,1.1,single-axis,ground-mounted,32.390278,-100.7243,69580
+EIA_69581,MEVS Waterhouse,ME,2.0,single-axis,ground-mounted,45.585492,-70.39778,69581
+EIA_69587,Pekin Community High School,IL,1.4,single-axis,ground-mounted,40.4615,-89.62079,69587
+EIA_69596,Owens 1,NY,4.0,single-axis,ground-mounted,41.417025,-74.36646,69596
+EIA_69597,Owens 2,NY,5.0,single-axis,ground-mounted,41.420849,-74.36924,69597
+EIA_69598,Trenton East Phase 2,IL,2.0,single-axis,ground-mounted,38.582644,-89.6769,69598
+EIA_69599,Trenton West Phase 2,IL,2.0,single-axis,ground-mounted,38.582406,-89.70014,69599
+EIA_69600,Route 19N,NY,5.0,single-axis,ground-mounted,43.00129,-77.98421,69600
+EIA_69601,Route 19W,NY,2.0,single-axis,ground-mounted,42.99731,-77.98625,69601
+EIA_69604,"CZ Solar Warren, LLC",OH,19.9,single-axis,ground-mounted,39.410999,-84.32,69604
+EIA_69612,USS Great Plains Solar LLC,CO,5.0,single-axis,ground-mounted,39.653269,-104.7254,69612
+EIA_69613,USS Hampden Solar LLC,CO,5.0,single-axis,ground-mounted,39.665453,-104.7164,69613
+EIA_69615,USS Raptor Solar LLC,CO,5.0,single-axis,ground-mounted,39.657753,-104.7163,69615
+EIA_69617,Rice Lake II,WI,2.8,single-axis,ground-mounted,45.525787,-91.75617,69617
+EIA_69618,Winema Solar Partners,NY,5.0,single-axis,ground-mounted,43.086667,-75.59158,69618
+EIA_69621,Bethlehem,NY,5.0,single-axis,ground-mounted,42.58,-73.79,69621
+EIA_69622,New Hartford,NY,5.0,single-axis,ground-mounted,43.06,-75.32,69622
+EIA_69623,Rose Hill Road Solar 2 - Spafford 2,NY,2.0,single-axis,ground-mounted,42.87,-76.34,69623
+EIA_69624,Rose Hill Road Solar 1 - Spafford 1,NY,5.0,single-axis,ground-mounted,42.87,-76.34,69624
+EIA_69630,USS Man Solar LLC,IL,1.0,single-axis,ground-mounted,41.063431,-88.75117,69630
+EIA_69645,Princeton Solar,IL,1.0,single-axis,ground-mounted,41.389993,-89.49146,69645
+EIA_69646,Marshall Solar (IL),IL,1.0,single-axis,ground-mounted,39.394347,-87.68416,69646
+EIA_69651,S-Pulaski Solar,IL,2.0,single-axis,ground-mounted,41.83108,-87.72158,69651
+EIA_69652,Illinois PV Knox 2A,IL,2.0,single-axis,ground-mounted,40.931085,-90.33609,69652
+EIA_69653,Illinois PV Knox 2B,IL,2.0,single-axis,ground-mounted,40.931085,-90.33609,69653
+EIA_69655,Oreana Renewables,IL,5.0,single-axis,ground-mounted,39.953571,-88.83941,69655
+EIA_69656,950th Sun 2,IL,2.3,single-axis,ground-mounted,38.991226,-87.69546,69656
+EIA_69675,"Emily Solar, LLC",IL,273.6,single-axis,ground-mounted,39.372,-88.014,69675
+EIA_69676,"Lafitte Solar, LLC",LA,100.0,single-axis,ground-mounted,32.400791,-92.10807,69676
+EIA_69680,BHER Ravenswood Solar 1,WV,113.1,single-axis,ground-mounted,38.914833,-81.82619,69680
+EIA_69682,Goodling Community Solar,OR,1.0,single-axis,ground-mounted,45.590001,-122.6345,69682
+EIA_69683,Solvita,OH,1.3,single-axis,ground-mounted,39.724313,-84.11629,69683
+EIA_69686,"RE Solar, LLC",SD,8.3,single-axis,ground-mounted,44.923852,-98.50219,69686
+EIA_69692,ILSOLAR05 LLC,IL,5.0,single-axis,ground-mounted,41.950444,-88.48855,69692
+EIA_69693,Lisbon CSG LLC,ME,1.0,single-axis,ground-mounted,44.031012,-70.09402,69693
+EIA_69696,Mount Olive Solar 3 LLC,NJ,2.2,single-axis,ground-mounted,40.898308,-74.72232,69696
+EIA_69700,"Skaneateles PV, LLC",NY,4.7,single-axis,ground-mounted,42.908908,-76.43289,69700
+EIA_69703,Sussex CSG 2 LLC,DE,3.3,single-axis,ground-mounted,38.521663,-75.24609,69703
+EIA_69705,Turner CSG LLC,ME,1.0,single-axis,ground-mounted,44.27755,-70.27138,69705
+EIA_69707,USS Weld Solar LLC,ME,1.0,single-axis,ground-mounted,44.630025,-70.30748,69707
+EIA_69709,"Water Line Solar, LLC",ME,1.0,single-axis,ground-mounted,43.823755,-70.23083,69709
+EIA_69712,San Diego Sockers,CA,0.6,single-axis,ground-mounted,33.207588,-117.3147,69712
+EIA_69714,Avon CSG 1 LLC,NY,3.6,single-axis,ground-mounted,42.873687,-77.71747,69714
+EIA_69715,"Boundary Line Solar, LLC",ME,1.0,single-axis,ground-mounted,43.809056,-70.23504,69715
+EIA_69716,Franklin Solar 3 LLC,NJ,4.0,single-axis,ground-mounted,40.480055,-74.49904,69716
+EIA_69717,Geneva CSG 1 LLC,NY,5.0,single-axis,ground-mounted,42.865056,-77.01783,69717
+EIA_69718,Geneva CSG 2 LLC,NY,4.8,single-axis,ground-mounted,42.865056,-77.01783,69718
+EIA_69719,Upper Macungie CSG 1 LLC,PA,2.8,single-axis,ground-mounted,40.591962,-75.61298,69719
+EIA_69729,Stanley Black & Decker,MA,3.0,single-axis,ground-mounted,42.055415,-72.5208,69729
+EIA_69730,Amazon - SAN5,CA,2.9,single-axis,ground-mounted,32.568741,-116.9252,69730
+EIA_69731,Bystronic Manufacturing,IL,1.3,single-axis,ground-mounted,42.067981,-88.13475,69731
+EIA_69732,Fort Polk (fka Johnson) - Chaffee East,LA,5.0,single-axis,ground-mounted,31.099924,-93.19611,69732
+EIA_69733,Fort Polk (fka Johnson) - Chaffee West,LA,4.5,single-axis,ground-mounted,31.099349,-93.1984,69733
+EIA_69734,Legoland CA Phase I,CA,1.4,single-axis,ground-mounted,33.126734,-117.3081,69734
+EIA_69735,Marathon Petroleum - Robinson Refinery,IL,5.0,single-axis,ground-mounted,39.003586,-87.727,69735
+EIA_69736,New Britain - 142 Deming Rd,CT,1.2,single-axis,ground-mounted,41.638123,-72.74504,69736
+EIA_69737,Pacific Aviation,CA,2.5,single-axis,ground-mounted,34.214404,-118.5006,69737
+EIA_69739,Toyota Boshoku,IL,4.8,single-axis,ground-mounted,38.721952,-87.63615,69739
+EIA_69740,Tucson - CAVSARP,AZ,7.2,single-axis,ground-mounted,32.246736,-111.2553,69740
+EIA_69744,"Altamont Road Solar, LLC",NY,5.0,single-axis,ground-mounted,42.653654,-73.96058,69744
+EIA_69746,"Brodhead Solar, LLC",NY,2.0,single-axis,ground-mounted,41.65819,-74.11358,69746
+EIA_69748,Faraday Solar,UT,525.0,single-axis,ground-mounted,40.0936,-112.0833,69748
+EIA_69754,Moores Hill,NY,2.5,single-axis,ground-mounted,41.478998,-74.09117,69754
+EIA_69757,Netflix ABQ System A,NM,2.6,single-axis,ground-mounted,34.998,-106.611,69757
+EIA_69758,Netflix ABQ System B,NM,2.0,single-axis,ground-mounted,34.998,-106.611,69758
+EIA_69759,Tracy Linne,CA,1.4,single-axis,ground-mounted,37.692858,-121.4102,69759
+EIA_69774,CBEP Solar 3,CO,2.4,single-axis,ground-mounted,40.590104,-104.9952,69774
+EIA_69800,Oreana Solar,IL,5.0,single-axis,ground-mounted,39.935097,-88.89152,69800
+EIA_69801,Lebanon West Lebanon Solar 1,ME,2.0,single-axis,ground-mounted,43.379,-70.943,69801
+EIA_69802,Berwick Hubbard Solar 1,ME,3.5,single-axis,ground-mounted,43.328,-70.911,69802
+EIA_69822,Holtsville Coast Solar Project,NY,1.0,single-axis,ground-mounted,40.797381,-73.03351,69822
+EIA_69824,Blackwater Rd Solar,NH,2.0,single-axis,ground-mounted,43.24719,-70.8808,69824
+EIA_69856,Morongo CRS 1,CA,3.0,single-axis,ground-mounted,33.55265,-116.476,69856
+EIA_69863,Galva Landfill,IL,3.7,single-axis,ground-mounted,41.177203,-90.0335,69863
+EIA_69875,"Sycamore Creek Solar, LLC",OH,117.0,single-axis,ground-mounted,40.953,-82.859,69875
