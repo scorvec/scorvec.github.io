@@ -413,8 +413,11 @@ def fetch_hrrr_field(cycle: datetime, fxx: int, search: str):
 
 
 def marker_size_wind(cap_mw: np.ndarray, region: Region) -> np.ndarray:
-    base = 0.32 if region.id == "national" else 0.55
-    return np.clip(base * np.sqrt(np.maximum(cap_mw, 1.0)), 3.5, 9.0) ** 2
+    # Smaller markers (esp. the minimum) so densely-clustered wind regions
+    # like the TX Panhandle / OK don't merge into solid black blobs. The
+    # rings are meant to be a light location overlay, not obscure the field.
+    base = 0.26 if region.id == "national" else 0.42
+    return np.clip(base * np.sqrt(np.maximum(cap_mw, 1.0)), 2.0, 7.0) ** 2
 
 
 def marker_size_solar(cap_mw: np.ndarray, region: Region) -> np.ndarray:
@@ -508,8 +511,8 @@ def _overlay_wind_plants(ax, plants, region):
     ax.scatter(
         p["xlong"].values, p["ylat"].values,
         s=sizes, facecolors="none",
-        edgecolors="#0a1a2c", linewidths=0.45,
-        alpha=0.85, zorder=5, transform=PC,
+        edgecolors="#0a1a2c", linewidths=0.35,
+        alpha=0.55, zorder=5, transform=PC,
     )
 
 
