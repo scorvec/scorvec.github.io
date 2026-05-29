@@ -118,19 +118,19 @@ class Region:
 
 REGIONS = [
     Region("national", "National (CONUS)",
-           extent=(-125, -66, 24, 50), proj_lon=-96.0, figsize=(16, 9.2)),
+           extent=(-125, -66, 24, 50), proj_lon=-96.0, figsize=(15.4, 8.0)),
     Region("northwest", "Northwest",
            extent=(-125, -94, 38.5, 50), proj_lon=-109.5,
-           standard_parallels=(41, 48), figsize=(14, 8.5)),
+           standard_parallels=(41, 48), figsize=(16.0, 8.0)),
     Region("southwest", "Southwest",
            extent=(-125, -94, 24, 38.5), proj_lon=-109.5,
-           standard_parallels=(28, 36), figsize=(14, 8)),
+           standard_parallels=(28, 36), figsize=(15.4, 8.0)),
     Region("northeast", "Northeast",
-           extent=(-94, -66, 38.5, 50), proj_lon=-80.0,
-           standard_parallels=(41, 48), figsize=(13.5, 8)),
+           extent=(-94, -66, 34, 50), proj_lon=-80.0,
+           standard_parallels=(38, 47), figsize=(11.0, 8.0)),
     Region("southeast", "Southeast",
            extent=(-94, -75, 24, 38.5), proj_lon=-84.5,
-           standard_parallels=(28, 36), figsize=(11.5, 8)),
+           standard_parallels=(28, 36), figsize=(9.6, 8.0)),
 ]
 
 
@@ -624,7 +624,8 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
         _overlay_solar_plants(ax, overlay_records, overlay_mw_at_time, region)
 
     cbar = plt.colorbar(im, ax=ax, orientation="vertical",
-                        pad=0.02, shrink=0.85, format=variable.cbar_format)
+                        pad=0.015, shrink=0.92, fraction=0.040,
+                        format=variable.cbar_format)
     cbar.set_label(f"{variable.label} ({variable.units})", fontsize=10)
     cbar.ax.tick_params(labelsize=9)
 
@@ -633,15 +634,18 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
     ax.set_title(
         f"{variable.title} · {region.label}\n"
         f"Cycle {cycle_str}  ·  F{fxx:02d}  ·  Valid {valid_str}",
-        fontsize=12, loc="left", pad=10,
+        fontsize=12, loc="left", pad=8,
     )
 
-    # Explicit subplot padding (faster than bbox_inches='tight')
-    fig.subplots_adjust(left=0.02, right=0.98, top=0.92, bottom=0.04)
-    # WebP output: ~30% smaller than PNG for these maps. quality=82 is
-    # visually indistinguishable from lossless for flat-color fields.
+    # bbox_inches="tight" crops the saved image to actual content (map +
+    # colorbar + title), eliminating surrounding white canvas from any
+    # figsize/extent aspect-ratio mismatch. With figsizes now matched to
+    # each region's geographic ratio, there's little to trim, so the cost
+    # is small. pad_inches keeps a thin uniform border.
+    # WebP @ quality 82 is visually lossless for these flat-color maps.
     fig.savefig(out_path, dpi=100,
                 facecolor="white", edgecolor="none",
+                bbox_inches="tight", pad_inches=0.08,
                 pil_kwargs={"quality": 82, "method": 6})
     plt.close(fig)
 
