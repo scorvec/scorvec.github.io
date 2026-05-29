@@ -28,6 +28,8 @@ from typing import Optional
 
 import pandas as pd
 
+from mobile_html import write_responsive_html
+
 try:
     import plotly.graph_objects as go
 except ImportError:
@@ -222,7 +224,7 @@ def build_verification_dashboard(csv_path: Path,
     )
 
     output_html.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(str(output_html), include_plotlyjs=plotly_js, full_html=True)
+    write_responsive_html(fig, output_html, plotly_js=plotly_js)
     print(f"Wrote {output_html}")
     print(f"  Regions: {regions}")
     print(f"  Rows: {len(df):,}")

@@ -22,6 +22,8 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
+from mobile_html import write_select_dashboard_html
+
 from solar_aggregation import (
     DATA_DIR, DASHBOARD_REGIONS, get_latest_cycle,
 )
@@ -160,29 +162,10 @@ def build_dashboard(cycle_str: str, theme: str = "dark") -> None:
                   {"title.text": f"__TITLE__<br><sub>{subtitle}</sub>"}],
         ))
 
-    # "All regions overlay" button — everything except National
-    buttons.append(dict(
-        label="── All regions (overlay) ──", method="update",
-        args=[{"visible": visibility_for(set(available_regions))},
-              {"title.text": "__TITLE__<br><sub>All regions overlaid</sub>"}],
-    ))
-
-    # "Everything overlay" button — National plus all regions
-    buttons.append(dict(
-        label="── Everything (overlay) ──", method="update",
-        args=[{"visible": visibility_for(set(ordered))},
-              {"title.text": "__TITLE__<br><sub>National + all regions</sub>"}],
-    ))
-
     # Title and default subtitle
     cycle_dt = pd.to_datetime(cycle_str, format="%Y%m%dT%HZ")
-    title = (f"<b>HRRR Solar Generation Forecast</b> · "
+    title = (f"HRRR Solar Generation Forecast · "
              f"Cycle {cycle_dt.strftime('%Y-%m-%d %HZ')} · 48 hours")
-    # Substitute placeholder in buttons (so all buttons keep the title)
-    for b in buttons:
-        if "title.text" in b["args"][1]:
-            b["args"][1]["title.text"] = b["args"][1]["title.text"].replace(
-                "__TITLE__", title)
 
     cap_def = capacity_lookup.get(default_region, 0)
     peak_def = float(pivot[default_region].max())
@@ -198,22 +181,14 @@ def build_dashboard(cycle_str: str, theme: str = "dark") -> None:
         plotly_template = "plotly_dark"
         bg_color = "#0f0f0d"
         gridcolor = "rgba(255,255,255,0.08)"
-        footer_color = "rgba(255,255,255,0.5)"
-        dropdown_bg = "rgba(30,30,28,0.95)"
-        dropdown_border = "rgba(255,255,255,0.2)"
     else:
         plotly_template = "plotly_white"
         bg_color = "white"
         gridcolor = "rgba(0,0,0,0.06)"
-        footer_color = "rgba(0,0,0,0.5)"
-        dropdown_bg = "white"
-        dropdown_border = "rgba(0,0,0,0.2)"
 
+    # Layout WITHOUT updatemenus — switching handled by a native HTML
+    # <select> in the wrapper template (reliable on touch devices).
     fig.update_layout(
-        title=dict(
-            text=f"{title}<br><sub>{default_subtitle}</sub>",
-            x=0.02, xanchor="left",
-        ),
         xaxis=dict(title="Valid Time (UTC)", showgrid=True,
                    gridcolor=gridcolor),
         yaxis=dict(title="Forecast Generation (MW)", rangemode="tozero",
@@ -222,43 +197,52 @@ def build_dashboard(cycle_str: str, theme: str = "dark") -> None:
         template=plotly_template,
         paper_bgcolor=bg_color,
         plot_bgcolor=bg_color,
-        margin=dict(l=70, r=30, t=120, b=110),
-        height=620,
+        margin=dict(l=60, r=20, t=20, b=70),
         legend=dict(orientation="h", yanchor="top", y=-0.12,
                     xanchor="center", x=0.5),
-        updatemenus=[dict(
-            active=ordered.index(default_region),
-            buttons=buttons,
-            x=1.0, y=1.18, xanchor="right", yanchor="top",
-            bgcolor=dropdown_bg,
-            bordercolor=dropdown_border,
-        )],
-        annotations=[
-            dict(
-                text="<b>Region:</b>", showarrow=False,
-                x=1.0, y=1.24, xref="paper", yref="paper",
-                xanchor="right", yanchor="bottom",
-                font=dict(size=12),
-            ),
-            dict(
-                text=(f"Generated {generated_at} · USPVDB + HRRR · "
-                      "pvlib physics (sun position, tracker geometry, "
-                      "temperature derate, inverter clipping)"),
-                showarrow=False,
-                x=0.5, y=-0.22, xref="paper", yref="paper",
-                xanchor="center", yanchor="top",
-                font=dict(size=11, color=footer_color),
-            ),
-        ],
     )
+
+    # Build option list + JS visibility/subtitle maps
+    select_options = list(ordered)
+    visibility_map: dict = {}
+    subtitle_map: dict = {}
+    for region in ordered:
+        visibility_map[region] = visibility_for({region})
+        cap = capacity_lookup.get(region, 0)
+        if cap and cap > 0:
+            peak = float(pivot[region].max())
+            subtitle_map[region] = (f"{region} · {cap:,.0f} MW installed · "
+                                     f"peak forecast {peak:,.0f} MW "
+                                     f"({100 * peak / cap:.0f}% CF)")
+        else:
+            subtitle_map[region] = region
+
+    key_all_regions = "── All regions (overlay) ──"
+    select_options.append(key_all_regions)
+    visibility_map[key_all_regions] = visibility_for(set(available_regions))
+    subtitle_map[key_all_regions] = "All regions overlaid"
+
+    key_everything = "── Everything (overlay) ──"
+    select_options.append(key_everything)
+    visibility_map[key_everything] = visibility_for(set(ordered))
+    subtitle_map[key_everything] = "National + all regions"
+
+    footer_text = (f"Generated {generated_at} · USPVDB + HRRR · "
+                   "pvlib physics (sun position, tracker geometry, "
+                   "temperature derate, inverter clipping)")
 
     # Write HTML
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-    fig.write_html(
-        OUTPUT_HTML,
-        include_plotlyjs="cdn",
-        full_html=True,
-        config=dict(displayModeBar=False, responsive=True),
+    write_select_dashboard_html(
+        fig=fig,
+        output_html=OUTPUT_HTML,
+        options=select_options,
+        visibility_map=visibility_map,
+        subtitle_map=subtitle_map,
+        title=title,
+        default_key=default_region,
+        footer_text=footer_text,
+        theme=theme,
     )
     print(f"  Wrote {OUTPUT_HTML}")
     sz = OUTPUT_HTML.stat().st_size / 1024

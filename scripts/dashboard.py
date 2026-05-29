@@ -36,6 +36,8 @@ from typing import Optional
 
 import pandas as pd
 
+from mobile_html import write_responsive_html, write_select_dashboard_html
+
 try:
     import plotly.graph_objects as go
 except ImportError:
@@ -240,7 +242,7 @@ def build_dashboard(csv_path: Path,
               {"title.text": f"{title}<br><sub>All regions</sub>"}],
     ))
 
-    # Default subtitle (matches the dropdown's first button)
+    # Default subtitle (matches the default selection)
     cap_def = capacity_lookup.get(default_region)
     if cap_def and cap_def > 0:
         peak_def = float(pivot[default_region].max())
@@ -257,22 +259,15 @@ def build_dashboard(csv_path: Path,
         plotly_template = "plotly_dark"
         bg_color = "#0f0f0d"
         gridcolor = "rgba(255,255,255,0.08)"
-        footer_color = "rgba(255,255,255,0.5)"
-        dropdown_bg = "rgba(30,30,28,0.95)"
-        dropdown_border = "rgba(255,255,255,0.2)"
     else:
         plotly_template = "plotly_white"
         bg_color = "white"
         gridcolor = "rgba(0,0,0,0.06)"
-        footer_color = "rgba(0,0,0,0.5)"
-        dropdown_bg = "white"
-        dropdown_border = "rgba(0,0,0,0.2)"
 
+    # Layout WITHOUT updatemenus — region switching is handled by a native
+    # HTML <select> in the wrapper template (mobile-friendly). Plotly's
+    # own dropdown is unreliable on touch devices.
     fig.update_layout(
-        title=dict(
-            text=f"{title}<br><sub>{default_subtitle}</sub>",
-            x=0.02, xanchor="left",
-        ),
         xaxis=dict(title="Valid Time (UTC)", showgrid=True,
                    gridcolor=gridcolor),
         yaxis=dict(title="Forecast Generation (MW)", rangemode="tozero",
@@ -281,41 +276,54 @@ def build_dashboard(csv_path: Path,
         template=plotly_template,
         paper_bgcolor=bg_color,
         plot_bgcolor=bg_color,
-        margin=dict(l=70, r=30, t=120, b=110),
-        height=620,
+        margin=dict(l=60, r=20, t=20, b=70),
         legend=dict(orientation="h", yanchor="top", y=-0.12,
                     xanchor="center", x=0.5),
-        updatemenus=[dict(
-            active=ordered.index(default_region),
-            buttons=buttons,
-            x=1.0, y=1.18, xanchor="right", yanchor="top",
-            bgcolor=dropdown_bg,
-            bordercolor=dropdown_border,
-        )],
-        annotations=[
-            dict(
-                text="<b>Region:</b>", showarrow=False,
-                x=1.0, y=1.24, xref="paper", yref="paper",
-                xanchor="right", yanchor="bottom",
-                font=dict(size=12),
-            ),
-            dict(
-                text=(f"Generated {generated_at} · "
-                      "USWTDB + HRRR · "
-                      "physics-only (no curtailment correction)"),
-                showarrow=False,
-                x=0.5, y=-0.22, xref="paper", yref="paper",
-                xanchor="center", yanchor="top",
-                font=dict(size=11, color=footer_color),
-            ),
-        ],
     )
 
+    # Build the option list and the JS-side visibility + subtitle maps.
+    # Options mirror the old dropdown: each region, then the two overlays.
+    select_options = list(ordered)
+
+    visibility_map: dict = {}
+    subtitle_map: dict = {}
+    for region in ordered:
+        visibility_map[region] = visibility_for({region})
+        cap = capacity_lookup.get(region)
+        if cap and cap > 0:
+            peak = float(pivot[region].max())
+            subtitle_map[region] = (f"{region} · {cap:,.0f} MW installed · "
+                                     f"peak forecast {peak:,.0f} MW "
+                                     f"({100 * peak / cap:.0f}% CF)")
+        else:
+            subtitle_map[region] = region
+
+    iso_set = set(ISO_ORDER) & set(ordered)
+    if iso_set:
+        key = "── All ISOs (overlay) ──"
+        select_options.append(key)
+        visibility_map[key] = visibility_for(iso_set)
+        subtitle_map[key] = "All ISOs"
+
+    key_all = "── Everything (overlay) ──"
+    select_options.append(key_all)
+    visibility_map[key_all] = visibility_for(set(ordered))
+    subtitle_map[key_all] = "All regions"
+
+    footer_text = (f"Generated {generated_at} · USWTDB + HRRR · "
+                   "physics-only (no curtailment correction)")
+
     output_html.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(
-        str(output_html),
-        include_plotlyjs=plotly_js,
-        full_html=True,
+    write_select_dashboard_html(
+        fig=fig,
+        output_html=output_html,
+        options=select_options,
+        visibility_map=visibility_map,
+        subtitle_map=subtitle_map,
+        title=title,
+        default_key=default_region,
+        footer_text=footer_text,
+        theme=theme,
     )
 
     print(f"Wrote {output_html}")

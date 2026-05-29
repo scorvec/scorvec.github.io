@@ -387,6 +387,7 @@ def _build_html(fig_json: str, timeseries_data: list, timestep_strs: list,
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   html, body {{
     margin: 0; padding: 0;
@@ -422,6 +423,10 @@ def _build_html(fig_json: str, timeseries_data: list, timestep_strs: list,
   .hint {{
     color: {hint_color};
     font-style: italic;
+  }}
+  @media (max-width: 640px) {{
+    #ts-panel {{ height: 190px; }}
+    #ts-header {{ font-size: 12px; }}
   }}
 </style>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
