@@ -69,6 +69,10 @@ def _prewarm_cartopy_cache() -> None:
         (cfeature.COASTLINE, "50m"),
         (cfeature.BORDERS, "50m"),
         (cfeature.LAKES, "50m"),
+        (cfeature.STATES, "110m"),
+        (cfeature.COASTLINE, "110m"),
+        (cfeature.BORDERS, "110m"),
+        (cfeature.LAKES, "110m"),
     ]:
         f = feature.with_scale(scale)
         try:
@@ -463,18 +467,23 @@ def load_solar_plants(cycle_str: str):
 # Map rendering — generic
 # ============================================================================
 
-def _draw_features(ax, dark_borders: bool = True):
+def _draw_features(ax, dark_borders: bool = True, scale: str = "50m"):
     """Draw state/coastline/border features. Dark for light-background maps
-    (wind, ceiling, vis), lighter for dark-background maps (solar)."""
+    (wind, ceiling, vis), lighter for dark-background maps (solar).
+
+    `scale` controls Natural Earth resolution: "110m" is much faster to
+    draw (fewer vertices) and looks fine at the national zoom; "50m" gives
+    crisper coastlines for the zoomed regional views.
+    """
     state_color = "#222222" if dark_borders else "#aaaaaa"
     line_color = "#000000" if dark_borders else "#dddddd"
-    ax.add_feature(cfeature.STATES.with_scale("50m"),
+    ax.add_feature(cfeature.STATES.with_scale(scale),
                    edgecolor=state_color, linewidth=0.5, zorder=2)
-    ax.add_feature(cfeature.COASTLINE.with_scale("50m"),
+    ax.add_feature(cfeature.COASTLINE.with_scale(scale),
                    edgecolor=line_color, linewidth=0.7, zorder=3)
-    ax.add_feature(cfeature.BORDERS.with_scale("50m"),
+    ax.add_feature(cfeature.BORDERS.with_scale(scale),
                    edgecolor=line_color, linewidth=0.6, zorder=3)
-    ax.add_feature(cfeature.LAKES.with_scale("50m"),
+    ax.add_feature(cfeature.LAKES.with_scale(scale),
                    facecolor="#cfdce6", edgecolor=line_color,
                    linewidth=0.3, zorder=2)
 
@@ -581,11 +590,14 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
     """Generic map renderer. Plain numpy arrays in, WebP out.
 
     Optimizations:
+      - per-region array slicing: zoomed regions process ~25-40% of the
+        full grid instead of 100% (national uses the full grid)
       - WebP @ quality 82: ~30% smaller than equivalent PNG, lossless-ish
         for these flat-color maps, allows higher DPI without bloat
-      - dpi=100 with larger figsizes: bigger, sharper plots
-      - no bbox_inches='tight': skips an expensive layout pass at save time
-      - cached projection objects per (region_id): saves ~50-100ms per call
+      - 110m Natural Earth features for national, 50m for zoomed regions
+      - cached projection + slice objects per region
+      - bbox_inches="tight" crops residual whitespace (cheap now that
+        figsizes match each region's geographic aspect ratio)
     """
     variable = next(v for v in VARIABLES if v.id == variable_id)
     region = next(r for r in REGIONS if r.id == region_id)
@@ -597,9 +609,20 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
                             subplot_kw=dict(projection=proj))
     ax.set_extent(region.extent, crs=PC)
 
+    # For zoomed regions, slice the field + grid to the region's index
+    # bounding box so pcolormesh processes far fewer cells (the full CONUS
+    # grid is ~1.9M cells; a quadrant is ~25-40% of that). National uses
+    # the full grid. Slicing also yields a writable copy, so the masking
+    # below won't mutate shared memory.
+    sl = _get_region_slice(region_id, grid_lats, grid_lons)
+    if sl is not None:
+        values = values[sl]
+        grid_lats = grid_lats[sl]
+        grid_lons = grid_lons[sl]
+
     # Ceiling has sentinel values (~20000 m) where no ceiling exists.
-    # We need a writable local copy since `values` may be a view into
-    # shared memory we don't want to mutate for other workers.
+    # (np.where returns a fresh array, so this is safe even for the
+    # national view where `values` is still a shared-memory view.)
     if variable.id == "ceiling":
         values = np.where(values > 6500, np.nan, values)
 
@@ -616,7 +639,8 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
         rasterized=True, zorder=1,
     )
 
-    _draw_features(ax)
+    feat_scale = "110m" if region.id == "national" else "50m"
+    _draw_features(ax, scale=feat_scale)
 
     if variable.overlay == "wind" and overlay_records is not None:
         _overlay_wind_plants(ax, overlay_records, region)
@@ -664,6 +688,49 @@ def _get_projection(region_id: str):
             standard_parallels=region.standard_parallels,
         )
     return _PROJ_CACHE[region_id]
+
+
+# Per-region index-slice cache. HRRR's grid is curvilinear (2D lat/lon),
+# so a geographic bbox maps to a skewed region of index space — we take
+# the index bounding box that contains all in-extent cells, plus a margin
+# so edge quads render fully. Computed once per region from the (fixed)
+# grid, then reused for every frame of that region. Zoomed regions end up
+# processing ~25-40% of the full grid instead of 100%.
+_SLICE_CACHE = {}
+
+
+def _get_region_slice(region_id: str, grid_lats: np.ndarray,
+                      grid_lons: np.ndarray):
+    """Return (row_slice, col_slice) bounding the region's extent in the
+    grid index space, or None for the national view (use full grid).
+
+    Cached per region. `grid_lats`/`grid_lons` are the full 2D arrays.
+    """
+    if region_id == "national":
+        return None
+    if region_id in _SLICE_CACHE:
+        return _SLICE_CACHE[region_id]
+
+    region = next(r for r in REGIONS if r.id == region_id)
+    w, e, s, n = region.extent
+    # Margin in degrees so edge cells/quads aren't clipped at the border.
+    mlon, mlat = 1.0, 1.0
+    inside = (
+        (grid_lons >= w - mlon) & (grid_lons <= e + mlon) &
+        (grid_lats >= s - mlat) & (grid_lats <= n + mlat)
+    )
+    if not inside.any():
+        # Fallback: no cells matched (shouldn't happen) — use full grid
+        _SLICE_CACHE[region_id] = None
+        return None
+
+    rows = np.any(inside, axis=1)
+    cols = np.any(inside, axis=0)
+    r0, r1 = np.argmax(rows), len(rows) - np.argmax(rows[::-1])
+    c0, c1 = np.argmax(cols), len(cols) - np.argmax(cols[::-1])
+    sl = (slice(r0, r1), slice(c0, c1))
+    _SLICE_CACHE[region_id] = sl
+    return sl
 
 
 def _render_task(args: dict) -> str:
