@@ -11,7 +11,7 @@ modern multicore machine since matplotlib/cartopy rendering is the
 dominant cost and is embarrassingly parallel.
 
 Output:
-    assets/synoptic/<variable>/<region>/F00.png ... F48.png
+    assets/synoptic/<variable>/<region>/F00.webp ... F48.webp
     assets/synoptic/<variable>/<region>/manifest.json
     assets/synoptic/variables.json       (list of variables for viewer dropdown)
     assets/synoptic/regions.json         (list of regions for viewer dropdown)
@@ -118,19 +118,19 @@ class Region:
 
 REGIONS = [
     Region("national", "National (CONUS)",
-           extent=(-125, -66, 24, 50), proj_lon=-96.0, figsize=(13, 7.5)),
+           extent=(-125, -66, 24, 50), proj_lon=-96.0, figsize=(16, 9.2)),
     Region("northwest", "Northwest",
-           extent=(-125, -100, 38.5, 50), proj_lon=-112.5,
-           standard_parallels=(41, 48), figsize=(11, 7)),
+           extent=(-125, -94, 38.5, 50), proj_lon=-109.5,
+           standard_parallels=(41, 48), figsize=(14, 8.5)),
     Region("southwest", "Southwest",
-           extent=(-125, -93, 24, 38.5), proj_lon=-109.0,
-           standard_parallels=(28, 36), figsize=(12, 6.5)),
+           extent=(-125, -94, 24, 38.5), proj_lon=-109.5,
+           standard_parallels=(28, 36), figsize=(14, 8)),
     Region("northeast", "Northeast",
-           extent=(-100, -66, 38.5, 50), proj_lon=-83.0,
-           standard_parallels=(41, 48), figsize=(13, 6.5)),
+           extent=(-94, -66, 38.5, 50), proj_lon=-80.0,
+           standard_parallels=(41, 48), figsize=(13.5, 8)),
     Region("southeast", "Southeast",
-           extent=(-100, -75, 24, 38.5), proj_lon=-87.5,
-           standard_parallels=(28, 36), figsize=(11, 6.5)),
+           extent=(-94, -75, 24, 38.5), proj_lon=-84.5,
+           standard_parallels=(28, 36), figsize=(11.5, 8)),
 ]
 
 
@@ -578,10 +578,12 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
                variable_id: str, region_id: str, cycle: datetime,
                out_path: Path, overlay_records=None,
                overlay_mw_at_time=None) -> None:
-    """Generic map renderer. Plain numpy arrays in, PNG out.
+    """Generic map renderer. Plain numpy arrays in, WebP out.
 
     Optimizations:
-      - dpi=88 (vs 110): ~25% faster, ~35% smaller PNGs, still crisp for web
+      - WebP @ quality 82: ~30% smaller than equivalent PNG, lossless-ish
+        for these flat-color maps, allows higher DPI without bloat
+      - dpi=100 with larger figsizes: bigger, sharper plots
       - no bbox_inches='tight': skips an expensive layout pass at save time
       - cached projection objects per (region_id): saves ~50-100ms per call
     """
@@ -591,7 +593,7 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
     cmap = variable.cmap_factory()
     proj = _get_projection(region_id)
 
-    fig, ax = plt.subplots(figsize=region.figsize, dpi=88,
+    fig, ax = plt.subplots(figsize=region.figsize, dpi=100,
                             subplot_kw=dict(projection=proj))
     ax.set_extent(region.extent, crs=PC)
 
@@ -600,6 +602,12 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
     # shared memory we don't want to mutate for other workers.
     if variable.id == "ceiling":
         values = np.where(values > 6500, np.nan, values)
+
+    # Reflectivity: mask out "no echo" (low dBZ) so those areas render as
+    # the white background instead of faint blue. Standard radar displays
+    # show no-precip as blank. 5 dBZ is the conventional threshold.
+    if variable.id == "reflectivity":
+        values = np.where(values < 5.0, np.nan, values)
 
     im = ax.pcolormesh(
         grid_lons, grid_lats, values,
@@ -630,8 +638,11 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
 
     # Explicit subplot padding (faster than bbox_inches='tight')
     fig.subplots_adjust(left=0.02, right=0.98, top=0.92, bottom=0.04)
-    fig.savefig(out_path, dpi=88,
-                facecolor="white", edgecolor="none")
+    # WebP output: ~30% smaller than PNG for these maps. quality=82 is
+    # visually indistinguishable from lossless for flat-color fields.
+    fig.savefig(out_path, dpi=100,
+                facecolor="white", edgecolor="none",
+                pil_kwargs={"quality": 82, "method": 6})
     plt.close(fig)
 
 
@@ -842,7 +853,7 @@ def main():
                     "variable_id": variable.id,
                     "region_id": region.id,
                     "cycle": cycle,
-                    "out_path": ASSETS / variable.id / region.id / f"F{fxx:02d}.png",
+                    "out_path": ASSETS / variable.id / region.id / f"F{fxx:02d}.webp",
                     "overlay_records": overlay_records,
                     "overlay_mw_at_time": (mw_by_hour[fxx]
                                             if variable.overlay == "solar" else None),
@@ -882,7 +893,7 @@ def main():
                         "fxx": task["fxx"],
                         "valid_time": task["valid_time"].isoformat() + "Z",
                         "valid_label": task["valid_time"].strftime("%a %m/%d %H:%MZ"),
-                        "file": f"F{task['fxx']:02d}.png",
+                        "file": f"F{task['fxx']:02d}.webp",
                     })
                 except Exception as e:
                     n_failed += 1
