@@ -1,7 +1,7 @@
 {
-  "cycle": "2026-05-28 18Z",
-  "cycle_compact": "20260528T18Z",
-  "generated": "2026-05-28 23:26 UTC",
+  "cycle": "2026-05-29 00Z",
+  "cycle_compact": "20260529T00Z",
+  "generated": "2026-05-29 07:49 UTC",
   "variable_id": "wind",
   "variable_label": "80m Wind Speed",
   "units": "m/s",
@@ -10,296 +10,296 @@
   "frames": [
     {
       "fxx": 0,
-      "valid_time": "2026-05-28T18:00:00Z",
-      "valid_label": "Thu 05/28 18:00Z",
+      "valid_time": "2026-05-29T00:00:00Z",
+      "valid_label": "Fri 05/29 00:00Z",
       "file": "F00.png"
     },
     {
       "fxx": 1,
-      "valid_time": "2026-05-28T19:00:00Z",
-      "valid_label": "Thu 05/28 19:00Z",
+      "valid_time": "2026-05-29T01:00:00Z",
+      "valid_label": "Fri 05/29 01:00Z",
       "file": "F01.png"
     },
     {
       "fxx": 2,
-      "valid_time": "2026-05-28T20:00:00Z",
-      "valid_label": "Thu 05/28 20:00Z",
+      "valid_time": "2026-05-29T02:00:00Z",
+      "valid_label": "Fri 05/29 02:00Z",
       "file": "F02.png"
     },
     {
       "fxx": 3,
-      "valid_time": "2026-05-28T21:00:00Z",
-      "valid_label": "Thu 05/28 21:00Z",
+      "valid_time": "2026-05-29T03:00:00Z",
+      "valid_label": "Fri 05/29 03:00Z",
       "file": "F03.png"
     },
     {
       "fxx": 4,
-      "valid_time": "2026-05-28T22:00:00Z",
-      "valid_label": "Thu 05/28 22:00Z",
+      "valid_time": "2026-05-29T04:00:00Z",
+      "valid_label": "Fri 05/29 04:00Z",
       "file": "F04.png"
     },
     {
       "fxx": 5,
-      "valid_time": "2026-05-28T23:00:00Z",
-      "valid_label": "Thu 05/28 23:00Z",
+      "valid_time": "2026-05-29T05:00:00Z",
+      "valid_label": "Fri 05/29 05:00Z",
       "file": "F05.png"
     },
     {
       "fxx": 6,
-      "valid_time": "2026-05-29T00:00:00Z",
-      "valid_label": "Fri 05/29 00:00Z",
+      "valid_time": "2026-05-29T06:00:00Z",
+      "valid_label": "Fri 05/29 06:00Z",
       "file": "F06.png"
     },
     {
       "fxx": 7,
-      "valid_time": "2026-05-29T01:00:00Z",
-      "valid_label": "Fri 05/29 01:00Z",
+      "valid_time": "2026-05-29T07:00:00Z",
+      "valid_label": "Fri 05/29 07:00Z",
       "file": "F07.png"
     },
     {
       "fxx": 8,
-      "valid_time": "2026-05-29T02:00:00Z",
-      "valid_label": "Fri 05/29 02:00Z",
+      "valid_time": "2026-05-29T08:00:00Z",
+      "valid_label": "Fri 05/29 08:00Z",
       "file": "F08.png"
     },
     {
       "fxx": 9,
-      "valid_time": "2026-05-29T03:00:00Z",
-      "valid_label": "Fri 05/29 03:00Z",
+      "valid_time": "2026-05-29T09:00:00Z",
+      "valid_label": "Fri 05/29 09:00Z",
       "file": "F09.png"
     },
     {
       "fxx": 10,
-      "valid_time": "2026-05-29T04:00:00Z",
-      "valid_label": "Fri 05/29 04:00Z",
+      "valid_time": "2026-05-29T10:00:00Z",
+      "valid_label": "Fri 05/29 10:00Z",
       "file": "F10.png"
     },
     {
       "fxx": 11,
-      "valid_time": "2026-05-29T05:00:00Z",
-      "valid_label": "Fri 05/29 05:00Z",
+      "valid_time": "2026-05-29T11:00:00Z",
+      "valid_label": "Fri 05/29 11:00Z",
       "file": "F11.png"
     },
     {
       "fxx": 12,
-      "valid_time": "2026-05-29T06:00:00Z",
-      "valid_label": "Fri 05/29 06:00Z",
+      "valid_time": "2026-05-29T12:00:00Z",
+      "valid_label": "Fri 05/29 12:00Z",
       "file": "F12.png"
     },
     {
       "fxx": 13,
-      "valid_time": "2026-05-29T07:00:00Z",
-      "valid_label": "Fri 05/29 07:00Z",
+      "valid_time": "2026-05-29T13:00:00Z",
+      "valid_label": "Fri 05/29 13:00Z",
       "file": "F13.png"
     },
     {
       "fxx": 14,
-      "valid_time": "2026-05-29T08:00:00Z",
-      "valid_label": "Fri 05/29 08:00Z",
+      "valid_time": "2026-05-29T14:00:00Z",
+      "valid_label": "Fri 05/29 14:00Z",
       "file": "F14.png"
     },
     {
       "fxx": 15,
-      "valid_time": "2026-05-29T09:00:00Z",
-      "valid_label": "Fri 05/29 09:00Z",
+      "valid_time": "2026-05-29T15:00:00Z",
+      "valid_label": "Fri 05/29 15:00Z",
       "file": "F15.png"
     },
     {
       "fxx": 16,
-      "valid_time": "2026-05-29T10:00:00Z",
-      "valid_label": "Fri 05/29 10:00Z",
+      "valid_time": "2026-05-29T16:00:00Z",
+      "valid_label": "Fri 05/29 16:00Z",
       "file": "F16.png"
     },
     {
       "fxx": 17,
-      "valid_time": "2026-05-29T11:00:00Z",
-      "valid_label": "Fri 05/29 11:00Z",
+      "valid_time": "2026-05-29T17:00:00Z",
+      "valid_label": "Fri 05/29 17:00Z",
       "file": "F17.png"
     },
     {
       "fxx": 18,
-      "valid_time": "2026-05-29T12:00:00Z",
-      "valid_label": "Fri 05/29 12:00Z",
+      "valid_time": "2026-05-29T18:00:00Z",
+      "valid_label": "Fri 05/29 18:00Z",
       "file": "F18.png"
     },
     {
       "fxx": 19,
-      "valid_time": "2026-05-29T13:00:00Z",
-      "valid_label": "Fri 05/29 13:00Z",
+      "valid_time": "2026-05-29T19:00:00Z",
+      "valid_label": "Fri 05/29 19:00Z",
       "file": "F19.png"
     },
     {
       "fxx": 20,
-      "valid_time": "2026-05-29T14:00:00Z",
-      "valid_label": "Fri 05/29 14:00Z",
+      "valid_time": "2026-05-29T20:00:00Z",
+      "valid_label": "Fri 05/29 20:00Z",
       "file": "F20.png"
     },
     {
       "fxx": 21,
-      "valid_time": "2026-05-29T15:00:00Z",
-      "valid_label": "Fri 05/29 15:00Z",
+      "valid_time": "2026-05-29T21:00:00Z",
+      "valid_label": "Fri 05/29 21:00Z",
       "file": "F21.png"
     },
     {
       "fxx": 22,
-      "valid_time": "2026-05-29T16:00:00Z",
-      "valid_label": "Fri 05/29 16:00Z",
+      "valid_time": "2026-05-29T22:00:00Z",
+      "valid_label": "Fri 05/29 22:00Z",
       "file": "F22.png"
     },
     {
       "fxx": 23,
-      "valid_time": "2026-05-29T17:00:00Z",
-      "valid_label": "Fri 05/29 17:00Z",
+      "valid_time": "2026-05-29T23:00:00Z",
+      "valid_label": "Fri 05/29 23:00Z",
       "file": "F23.png"
     },
     {
       "fxx": 24,
-      "valid_time": "2026-05-29T18:00:00Z",
-      "valid_label": "Fri 05/29 18:00Z",
+      "valid_time": "2026-05-30T00:00:00Z",
+      "valid_label": "Sat 05/30 00:00Z",
       "file": "F24.png"
     },
     {
       "fxx": 25,
-      "valid_time": "2026-05-29T19:00:00Z",
-      "valid_label": "Fri 05/29 19:00Z",
+      "valid_time": "2026-05-30T01:00:00Z",
+      "valid_label": "Sat 05/30 01:00Z",
       "file": "F25.png"
     },
     {
       "fxx": 26,
-      "valid_time": "2026-05-29T20:00:00Z",
-      "valid_label": "Fri 05/29 20:00Z",
+      "valid_time": "2026-05-30T02:00:00Z",
+      "valid_label": "Sat 05/30 02:00Z",
       "file": "F26.png"
     },
     {
       "fxx": 27,
-      "valid_time": "2026-05-29T21:00:00Z",
-      "valid_label": "Fri 05/29 21:00Z",
+      "valid_time": "2026-05-30T03:00:00Z",
+      "valid_label": "Sat 05/30 03:00Z",
       "file": "F27.png"
     },
     {
       "fxx": 28,
-      "valid_time": "2026-05-29T22:00:00Z",
-      "valid_label": "Fri 05/29 22:00Z",
+      "valid_time": "2026-05-30T04:00:00Z",
+      "valid_label": "Sat 05/30 04:00Z",
       "file": "F28.png"
     },
     {
       "fxx": 29,
-      "valid_time": "2026-05-29T23:00:00Z",
-      "valid_label": "Fri 05/29 23:00Z",
+      "valid_time": "2026-05-30T05:00:00Z",
+      "valid_label": "Sat 05/30 05:00Z",
       "file": "F29.png"
     },
     {
       "fxx": 30,
-      "valid_time": "2026-05-30T00:00:00Z",
-      "valid_label": "Sat 05/30 00:00Z",
+      "valid_time": "2026-05-30T06:00:00Z",
+      "valid_label": "Sat 05/30 06:00Z",
       "file": "F30.png"
     },
     {
       "fxx": 31,
-      "valid_time": "2026-05-30T01:00:00Z",
-      "valid_label": "Sat 05/30 01:00Z",
+      "valid_time": "2026-05-30T07:00:00Z",
+      "valid_label": "Sat 05/30 07:00Z",
       "file": "F31.png"
     },
     {
       "fxx": 32,
-      "valid_time": "2026-05-30T02:00:00Z",
-      "valid_label": "Sat 05/30 02:00Z",
+      "valid_time": "2026-05-30T08:00:00Z",
+      "valid_label": "Sat 05/30 08:00Z",
       "file": "F32.png"
     },
     {
       "fxx": 33,
-      "valid_time": "2026-05-30T03:00:00Z",
-      "valid_label": "Sat 05/30 03:00Z",
+      "valid_time": "2026-05-30T09:00:00Z",
+      "valid_label": "Sat 05/30 09:00Z",
       "file": "F33.png"
     },
     {
       "fxx": 34,
-      "valid_time": "2026-05-30T04:00:00Z",
-      "valid_label": "Sat 05/30 04:00Z",
+      "valid_time": "2026-05-30T10:00:00Z",
+      "valid_label": "Sat 05/30 10:00Z",
       "file": "F34.png"
     },
     {
       "fxx": 35,
-      "valid_time": "2026-05-30T05:00:00Z",
-      "valid_label": "Sat 05/30 05:00Z",
+      "valid_time": "2026-05-30T11:00:00Z",
+      "valid_label": "Sat 05/30 11:00Z",
       "file": "F35.png"
     },
     {
       "fxx": 36,
-      "valid_time": "2026-05-30T06:00:00Z",
-      "valid_label": "Sat 05/30 06:00Z",
+      "valid_time": "2026-05-30T12:00:00Z",
+      "valid_label": "Sat 05/30 12:00Z",
       "file": "F36.png"
     },
     {
       "fxx": 37,
-      "valid_time": "2026-05-30T07:00:00Z",
-      "valid_label": "Sat 05/30 07:00Z",
+      "valid_time": "2026-05-30T13:00:00Z",
+      "valid_label": "Sat 05/30 13:00Z",
       "file": "F37.png"
     },
     {
       "fxx": 38,
-      "valid_time": "2026-05-30T08:00:00Z",
-      "valid_label": "Sat 05/30 08:00Z",
+      "valid_time": "2026-05-30T14:00:00Z",
+      "valid_label": "Sat 05/30 14:00Z",
       "file": "F38.png"
     },
     {
       "fxx": 39,
-      "valid_time": "2026-05-30T09:00:00Z",
-      "valid_label": "Sat 05/30 09:00Z",
+      "valid_time": "2026-05-30T15:00:00Z",
+      "valid_label": "Sat 05/30 15:00Z",
       "file": "F39.png"
     },
     {
       "fxx": 40,
-      "valid_time": "2026-05-30T10:00:00Z",
-      "valid_label": "Sat 05/30 10:00Z",
+      "valid_time": "2026-05-30T16:00:00Z",
+      "valid_label": "Sat 05/30 16:00Z",
       "file": "F40.png"
     },
     {
       "fxx": 41,
-      "valid_time": "2026-05-30T11:00:00Z",
-      "valid_label": "Sat 05/30 11:00Z",
+      "valid_time": "2026-05-30T17:00:00Z",
+      "valid_label": "Sat 05/30 17:00Z",
       "file": "F41.png"
     },
     {
       "fxx": 42,
-      "valid_time": "2026-05-30T12:00:00Z",
-      "valid_label": "Sat 05/30 12:00Z",
+      "valid_time": "2026-05-30T18:00:00Z",
+      "valid_label": "Sat 05/30 18:00Z",
       "file": "F42.png"
     },
     {
       "fxx": 43,
-      "valid_time": "2026-05-30T13:00:00Z",
-      "valid_label": "Sat 05/30 13:00Z",
+      "valid_time": "2026-05-30T19:00:00Z",
+      "valid_label": "Sat 05/30 19:00Z",
       "file": "F43.png"
     },
     {
       "fxx": 44,
-      "valid_time": "2026-05-30T14:00:00Z",
-      "valid_label": "Sat 05/30 14:00Z",
+      "valid_time": "2026-05-30T20:00:00Z",
+      "valid_label": "Sat 05/30 20:00Z",
       "file": "F44.png"
     },
     {
       "fxx": 45,
-      "valid_time": "2026-05-30T15:00:00Z",
-      "valid_label": "Sat 05/30 15:00Z",
+      "valid_time": "2026-05-30T21:00:00Z",
+      "valid_label": "Sat 05/30 21:00Z",
       "file": "F45.png"
     },
     {
       "fxx": 46,
-      "valid_time": "2026-05-30T16:00:00Z",
-      "valid_label": "Sat 05/30 16:00Z",
+      "valid_time": "2026-05-30T22:00:00Z",
+      "valid_label": "Sat 05/30 22:00Z",
       "file": "F46.png"
     },
     {
       "fxx": 47,
-      "valid_time": "2026-05-30T17:00:00Z",
-      "valid_label": "Sat 05/30 17:00Z",
+      "valid_time": "2026-05-30T23:00:00Z",
+      "valid_label": "Sat 05/30 23:00Z",
       "file": "F47.png"
     },
     {
       "fxx": 48,
-      "valid_time": "2026-05-30T18:00:00Z",
-      "valid_label": "Sat 05/30 18:00Z",
+      "valid_time": "2026-05-31T00:00:00Z",
+      "valid_label": "Sun 05/31 00:00Z",
       "file": "F48.png"
     }
   ]
