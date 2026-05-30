@@ -1,15 +1,13 @@
 name: Solar generation forecast
 
-# Run ~3h after each extended HRRR cycle (00/06/12/18Z) lands on AWS.
-# Offset by 30 minutes from the wind workflow to give wind time to finish
-# before solar starts. Both workflows touch charts.html, so we want to
-# minimize concurrent runs.
+# POLLING STRATEGY (see wind-forecast.yml for rationale): poll hourly at
+# :32 (off the top-of-hour stampede, 15 min behind wind's :17 poll). A
+# lightweight check job decides whether a new extended cycle needs
+# processing; the heavy forecast job runs only when there's new work.
+# Self-healing against GitHub's delayed/dropped scheduled ticks.
 on:
   schedule:
-    # HRRR extended (48h) cycles run at 00/06/12/18Z. Trigger 3h after
-    # each cycle (30 min behind the wind workflow, to stagger AWS load).
-    # +3h is comfortably past when the full extended set is posted.
-    - cron: '0 3,9,15,21 * * *'
+    - cron: '32 * * * *'
   workflow_dispatch:
     inputs:
       cycle:
@@ -25,7 +23,70 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Lightweight gate: latest available cycle + have we already produced
+  # its output? Runs in ~20s on idle polls.
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      cycle: ${{ steps.decide.outputs.cycle }}
+      compact: ${{ steps.decide.outputs.compact }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Decide whether a new cycle needs processing
+        id: decide
+        run: |
+          # Manual dispatch with an explicit cycle always runs.
+          if [ -n "${{ inputs.cycle }}" ]; then
+            CYCLE_RAW="${{ inputs.cycle }}"
+            # Accept either "YYYY-MM-DD HH" or ISO; normalize to both forms.
+            COMPACT=$(python -c "
+          from datetime import datetime
+          s = '$CYCLE_RAW'.replace('T', ' ')
+          parts = s.split()
+          dt = datetime.strptime(parts[0] + ' ' + parts[1][:2], '%Y-%m-%d %H')
+          print(dt.strftime('%Y%m%dT%HZ'))
+          ")
+            CYCLE=$(python -c "
+          from datetime import datetime
+          s = '$CYCLE_RAW'.replace('T', ' ')
+          parts = s.split()
+          dt = datetime.strptime(parts[0] + ' ' + parts[1][:2], '%Y-%m-%d %H')
+          print(dt.strftime('%Y-%m-%d %H'))
+          ")
+            echo "Manual cycle requested: $CYCLE ($COMPACT)"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+            echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # Latest available extended cycle (time-latency based). Solar's
+          # downstream expects the "YYYY-MM-DD HH" (space) form for cycle.
+          CYCLE=$(python scripts/find_latest_extended_cycle.py --format iso | sed 's/T/ /;s/:00$//')
+          COMPACT=$(python scripts/find_latest_extended_cycle.py --format compact)
+          echo "Latest available cycle: $CYCLE ($COMPACT)"
+          SENTINEL="assets/solar_forecast_data/forecast_plant_${COMPACT}.csv"
+          if [ -f "$SENTINEL" ]; then
+            echo "Already processed ($SENTINEL exists) — skipping."
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          else
+            echo "Not yet processed ($SENTINEL missing) — will run."
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          fi
+          echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+          echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+
   forecast:
+    needs: check
+    if: ${{ needs.check.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -80,40 +141,10 @@ jobs:
       - name: Determine cycle
         id: cycle
         run: |
-          if [ -n "${{ inputs.cycle }}" ]; then
-            CYCLE="${{ inputs.cycle }}"
-            echo "Using manually-specified cycle: $CYCLE"
-          else
-            CYCLE=$(python -c "
-          import sys, os
-          from datetime import datetime, timedelta, timezone
-          import io, contextlib
-          buf = io.StringIO()
-          with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-              from herbie import Herbie
-          now = datetime.now(timezone.utc).replace(minute=0, second=0,
-                                                    microsecond=0, tzinfo=None)
-          for hours_back in range(2, 24):
-              candidate = now - timedelta(hours=hours_back)
-              if candidate.hour in (0, 6, 12, 18):
-                  try:
-                      with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-                          H = Herbie(candidate, model='hrrr', product='sfc', fxx=0)
-                          ok = H.grib is not None
-                      if ok:
-                          print(candidate.strftime('%Y-%m-%d %H'))
-                          break
-                  except Exception:
-                      continue
-          ")
-            echo "Latest extended cycle: $CYCLE"
-          fi
-          COMPACT=$(python -c "
-          from datetime import datetime
-          parts = '$CYCLE'.split()
-          dt = datetime.strptime(parts[0] + ' ' + parts[1], '%Y-%m-%d %H')
-          print(dt.strftime('%Y%m%dT%HZ'))
-          ")
+          # Use the cycle the check job already resolved.
+          CYCLE="${{ needs.check.outputs.cycle }}"
+          COMPACT="${{ needs.check.outputs.compact }}"
+          echo "Using cycle from check job: $CYCLE ($COMPACT)"
           echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
           echo "compact=$COMPACT" >> $GITHUB_OUTPUT
 

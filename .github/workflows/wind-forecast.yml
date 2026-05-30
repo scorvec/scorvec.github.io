@@ -1,13 +1,15 @@
 name: Wind generation forecast
 
-# Run ~3h after each extended HRRR cycle (00/06/12/18Z) lands on AWS.
+# POLLING STRATEGY: GitHub Actions cron is best-effort and frequently
+# delayed or dropped under load, so we don't rely on a single well-timed
+# fire. Instead we poll hourly (at :17, off the top-of-hour stampede) and
+# a lightweight "check" job decides whether a NEW extended cycle is
+# available that we haven't processed yet. The heavy forecast job runs
+# only when there's new work. A delayed/dropped tick just means the next
+# hourly poll picks the cycle up — self-healing.
 on:
   schedule:
-    # HRRR extended (48h) cycles run at 00/06/12/18Z and take ~2.5h to
-    # reliably finish posting to AWS. Trigger 2.5h after each cycle.
-    # (+2h was occasionally too early — the new cycle wasn't up yet and
-    # the run fell back to the previous one.) Solar runs 30 min later.
-    - cron: '30 2,8,14,20 * * *'
+    - cron: '17 * * * *'
   workflow_dispatch:
     inputs:
       cycle:
@@ -23,7 +25,55 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Lightweight gate: figure out the latest available cycle and whether
+  # we've already produced its output. Runs in ~20s on idle polls.
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      cycle: ${{ steps.decide.outputs.cycle }}
+      compact: ${{ steps.decide.outputs.compact }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Decide whether a new cycle needs processing
+        id: decide
+        run: |
+          # Manual dispatch with an explicit cycle always runs.
+          if [ -n "${{ inputs.cycle }}" ]; then
+            CYCLE="${{ inputs.cycle }}"
+            COMPACT=$(python -c "from datetime import datetime; print(datetime.fromisoformat('$CYCLE').strftime('%Y%m%dT%HZ'))")
+            echo "Manual cycle requested: $CYCLE ($COMPACT)"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+            echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # Otherwise: latest available extended cycle (time-latency based).
+          CYCLE=$(python scripts/find_latest_extended_cycle.py --format iso)
+          COMPACT=$(python scripts/find_latest_extended_cycle.py --format compact)
+          echo "Latest available cycle: $CYCLE ($COMPACT)"
+          SENTINEL="assets/wind_forecast_data/forecast_iso_${COMPACT}.csv"
+          if [ -f "$SENTINEL" ]; then
+            echo "Already processed ($SENTINEL exists) — skipping."
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          else
+            echo "Not yet processed ($SENTINEL missing) — will run."
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          fi
+          echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+          echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+
   forecast:
+    needs: check
+    if: ${{ needs.check.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 50
     defaults:
@@ -93,18 +143,11 @@ jobs:
       - name: Choose HRRR cycle
         id: cycle
         run: |
-          if [ -n "${{ inputs.cycle }}" ]; then
-            CYCLE="${{ inputs.cycle }}"
-            echo "Using manually-specified cycle: $CYCLE"
-          else
-            CYCLE=$(python find_latest_extended_cycle.py)
-            echo "Latest extended cycle: $CYCLE"
-          fi
-          COMPACT=$(python -c "
-          from datetime import datetime
-          dt = datetime.fromisoformat('$CYCLE')
-          print(dt.strftime('%Y%m%dT%HZ'))
-          ")
+          # Use the cycle the check job already resolved, so both jobs
+          # agree even if the polling hour rolled over between them.
+          CYCLE="${{ needs.check.outputs.cycle }}"
+          COMPACT="${{ needs.check.outputs.compact }}"
+          echo "Using cycle from check job: $CYCLE ($COMPACT)"
           echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
           echo "compact=$COMPACT" >> $GITHUB_OUTPUT
 

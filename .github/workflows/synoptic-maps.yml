@@ -1,12 +1,14 @@
 name: Synoptic maps
 
-# Run after both the wind and solar forecast workflows complete, so the
-# plant overlay CSVs are up-to-date before we render maps that use them.
-# Avoiding the cron-based parallel schedule prevents the three workflows
-# from contending for the same charts.html and git push.
+# Triggered after wind/solar complete (their plant-overlay CSVs feed the
+# maps). Because those workflows now POLL hourly and usually complete as
+# cheap no-ops, this workflow's own `check` job compares the latest
+# available cycle against what's already rendered (the national wind
+# manifest's cycle_compact) and skips if there's nothing new — so we
+# don't re-render on every idle upstream poll.
 on:
   workflow_run:
-    workflows: ["US wind generation forecast", "Solar generation forecast"]
+    workflows: ["Wind generation forecast", "Solar generation forecast"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -23,10 +25,69 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  render:
-    # Only run if the upstream workflow succeeded (skip on failure).
-    # Manual workflow_dispatch invocations bypass this check.
+  # Gate: skip unless there's a newer cycle than what's already rendered.
+  check:
+    # Only proceed if upstream succeeded (or this is a manual run).
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      cycle: ${{ steps.decide.outputs.cycle }}
+      compact: ${{ steps.decide.outputs.compact }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Decide whether maps need re-rendering
+        id: decide
+        run: |
+          if [ -n "${{ inputs.cycle }}" ]; then
+            CYCLE_RAW="${{ inputs.cycle }}"
+            COMPACT=$(python -c "
+          from datetime import datetime
+          s = '$CYCLE_RAW'.replace('T',' '); p = s.split()
+          print(datetime.strptime(p[0]+' '+p[1][:2], '%Y-%m-%d %H').strftime('%Y%m%dT%HZ'))
+          ")
+            CYCLE=$(python -c "
+          from datetime import datetime
+          s = '$CYCLE_RAW'.replace('T',' '); p = s.split()
+          print(datetime.strptime(p[0]+' '+p[1][:2], '%Y-%m-%d %H').strftime('%Y-%m-%d %H'))
+          ")
+            echo "Manual cycle requested: $CYCLE ($COMPACT)"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+            echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          CYCLE=$(python scripts/find_latest_extended_cycle.py --format iso | sed 's/T/ /;s/:00$//')
+          COMPACT=$(python scripts/find_latest_extended_cycle.py --format compact)
+          echo "Latest available cycle: $CYCLE ($COMPACT)"
+          # Compare against what's already rendered (national wind manifest).
+          MANIFEST="assets/synoptic/wind/national/manifest.json"
+          RENDERED=""
+          if [ -f "$MANIFEST" ]; then
+            RENDERED=$(python -c "import json; print(json.load(open('$MANIFEST')).get('cycle_compact',''))" 2>/dev/null || echo "")
+          fi
+          echo "Already rendered cycle: '${RENDERED:-<none>}'"
+          if [ "$RENDERED" = "$COMPACT" ]; then
+            echo "Maps already current for $COMPACT — skipping."
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          else
+            echo "Newer cycle $COMPACT — will render."
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          fi
+          echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+          echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+
+  render:
+    needs: check
+    if: ${{ needs.check.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     defaults:
@@ -67,39 +128,9 @@ jobs:
       - name: Determine cycle
         id: cycle
         run: |
-          if [ -n "${{ inputs.cycle }}" ]; then
-            CYCLE="${{ inputs.cycle }}"
-            echo "Using manually-specified cycle: $CYCLE"
-          else
-            CYCLE=$(python -c "
-          import io, contextlib
-          buf = io.StringIO()
-          with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-              from herbie import Herbie
-          from datetime import datetime, timedelta, timezone
-          now = datetime.now(timezone.utc).replace(minute=0, second=0,
-                                                    microsecond=0, tzinfo=None)
-          for hours_back in range(2, 24):
-              candidate = now - timedelta(hours=hours_back)
-              if candidate.hour in (0, 6, 12, 18):
-                  try:
-                      with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
-                          H = Herbie(candidate, model='hrrr', product='sfc', fxx=0)
-                          ok = H.grib is not None
-                      if ok:
-                          print(candidate.strftime('%Y-%m-%d %H'))
-                          break
-                  except Exception:
-                      continue
-          ")
-            echo "Latest extended cycle: $CYCLE"
-          fi
-          COMPACT=$(python -c "
-          from datetime import datetime
-          parts = '$CYCLE'.split()
-          dt = datetime.strptime(parts[0] + ' ' + parts[1], '%Y-%m-%d %H')
-          print(dt.strftime('%Y%m%dT%HZ'))
-          ")
+          CYCLE="${{ needs.check.outputs.cycle }}"
+          COMPACT="${{ needs.check.outputs.compact }}"
+          echo "Using cycle from check job: $CYCLE ($COMPACT)"
           echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
           echo "compact=$COMPACT" >> $GITHUB_OUTPUT
 
