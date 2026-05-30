@@ -580,8 +580,8 @@ def _overlay_wind_plants(ax, plants, region):
     ax.scatter(
         p["xlong"].values, p["ylat"].values,
         s=sizes, facecolors="none",
-        edgecolors="#0a1a2c", linewidths=0.4,
-        alpha=0.7, zorder=5, transform=PC,
+        edgecolors="#0a1a2c", linewidths=0.35,
+        alpha=0.55, zorder=5, transform=PC,
     )
 
 
