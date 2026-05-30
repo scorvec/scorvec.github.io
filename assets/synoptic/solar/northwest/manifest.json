@@ -1,7 +1,7 @@
 {
   "cycle": "2026-05-29 18Z",
   "cycle_compact": "20260529T18Z",
-  "generated": "2026-05-29 20:37 UTC",
+  "generated": "2026-05-30 00:04 UTC",
   "variable_id": "solar",
   "variable_label": "Surface Shortwave (DSWRF)",
   "units": "W/m\u00b2",
