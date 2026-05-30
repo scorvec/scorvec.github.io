@@ -1,13 +1,18 @@
-name: Wind generation forecast
+name: Solar generation forecast
 
 # Run ~3h after each extended HRRR cycle (00/06/12/18Z) lands on AWS.
+# Offset by 30 minutes from the wind workflow to give wind time to finish
+# before solar starts. Both workflows touch charts.html, so we want to
+# minimize concurrent runs.
 on:
   schedule:
-    - cron: '0 3,9,15,21 * * *'
+    # HRRR extended (48h) cycles run at 00/06/12/18Z. Trigger 2.5h after
+    # each cycle (30 min behind the wind workflow, to stagger AWS load).
+    - cron: '30 2,8,14,20 * * *'
   workflow_dispatch:
     inputs:
       cycle:
-        description: 'HRRR cycle (UTC ISO, e.g. 2026-04-30T18:00). Empty = latest.'
+        description: 'HRRR cycle (UTC, YYYY-MM-DD HH). Empty = latest.'
         required: false
         default: ''
 
@@ -15,18 +20,18 @@ permissions:
   contents: write
 
 concurrency:
-  group: wind-forecast
+  group: solar-forecast
   cancel-in-progress: false
 
 jobs:
   forecast:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 60
     defaults:
       run:
-        working-directory: scripts
+        working-directory: scripts/solar
     env:
-      PYTHONPATH: ${{ github.workspace }}/scripts
+      PYTHONPATH: ${{ github.workspace }}/scripts/solar
 
     steps:
       - name: Checkout
@@ -41,7 +46,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ hashFiles('scripts/requirements-wind.txt') }}
+          key: pip-${{ runner.os }}-${{ hashFiles('scripts/solar/requirements-solar.txt') }}
           restore-keys: |
             pip-${{ runner.os }}-
 
@@ -51,130 +56,106 @@ jobs:
           sudo apt-get install -y --no-install-recommends libeccodes0
 
       - name: Install Python dependencies
-        run: pip install -r requirements-wind.txt gridstatus gridstatusio
+        run: pip install -r requirements-solar.txt
 
-      - name: Download USWTDB
+      - name: Ensure USPVDB inventory is present
         run: |
-          mkdir -p data
-          cd data
-          if [ -f uswtdb.csv ]; then
-            echo "Using committed uswtdb.csv ($(wc -l < uswtdb.csv) rows)"
-            exit 0
+          if [ -f data/uspvdb.csv ]; then
+            echo "USPVDB inventory found: $(wc -l < data/uspvdb.csv) lines"
+          else
+            echo "USPVDB inventory missing; downloading via API..."
+            python solar_inventory.py
           fi
-          curl -L --fail --silent --show-error \
-               -o uswtdbCSV.zip \
-               "https://energy.usgs.gov/uswtdb/assets/data/uswtdbCSV.zip"
-          unzip -o uswtdbCSV.zip
-          shopt -s nullglob nocaseglob
-          for f in uswtdb_v*.csv; do
-            mv "$f" uswtdb.csv
-            break
-          done
-          ls -lh uswtdb.csv
 
-      - name: Download EIA-860
+      - name: Ensure HRRR grid indices are present
         run: |
-          cd data
-          if ls 2___Plant_Y*.xlsx >/dev/null 2>&1; then
-            echo "Using committed EIA-860: $(ls 2___Plant_Y*.xlsx)"
-            exit 0
+          if [ -f data/uspvdb_grid_indices.csv ]; then
+            echo "Grid indices found: $(wc -l < data/uspvdb_grid_indices.csv) lines"
+          else
+            echo "Grid indices missing; building..."
+            python solar_grid_indices.py
           fi
-          curl -L --fail --silent --show-error \
-               -A "Mozilla/5.0" \
-               -o eia860.zip \
-               "https://www.eia.gov/electricity/data/eia860/xls/eia8602024.zip"
-          unzip -o eia860.zip "2___Plant_Y2024.xlsx"
-          ls -lh "2___Plant_Y2024.xlsx"
 
-      - name: Choose HRRR cycle
+      - name: Determine cycle
         id: cycle
         run: |
           if [ -n "${{ inputs.cycle }}" ]; then
             CYCLE="${{ inputs.cycle }}"
             echo "Using manually-specified cycle: $CYCLE"
           else
-            CYCLE=$(python find_latest_extended_cycle.py)
+            CYCLE=$(python -c "
+          import sys, os
+          from datetime import datetime, timedelta, timezone
+          import io, contextlib
+          buf = io.StringIO()
+          with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+              from herbie import Herbie
+          now = datetime.now(timezone.utc).replace(minute=0, second=0,
+                                                    microsecond=0, tzinfo=None)
+          for hours_back in range(2, 24):
+              candidate = now - timedelta(hours=hours_back)
+              if candidate.hour in (0, 6, 12, 18):
+                  try:
+                      with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                          H = Herbie(candidate, model='hrrr', product='sfc', fxx=0)
+                          ok = H.grib is not None
+                      if ok:
+                          print(candidate.strftime('%Y-%m-%d %H'))
+                          break
+                  except Exception:
+                      continue
+          ")
             echo "Latest extended cycle: $CYCLE"
           fi
           COMPACT=$(python -c "
           from datetime import datetime
-          dt = datetime.fromisoformat('$CYCLE')
+          parts = '$CYCLE'.split()
+          dt = datetime.strptime(parts[0] + ' ' + parts[1], '%Y-%m-%d %H')
           print(dt.strftime('%Y%m%dT%HZ'))
           ")
           echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
           echo "compact=$COMPACT" >> $GITHUB_OUTPUT
 
-      - name: Run forecast pipeline
+      - name: Run solar forecast pipeline
         run: |
-          EIA860=$(ls data/2___Plant_Y*.xlsx | head -1)
-          echo "Using EIA-860: $EIA860"
-          python run.py \
-            --uswtdb data/uswtdb.csv \
-            --eia860 "$EIA860" \
-            --cycle "${{ steps.cycle.outputs.cycle }}" \
-            --fxx-end 48 \
-            --output-dir output/ \
-            -v
+          CYCLE='${{ steps.cycle.outputs.cycle }}'
+          DATE_PART=$(echo "$CYCLE" | awk '{print $1}')
+          HOUR_PART=$(echo "$CYCLE" | awk '{print $2}')
+          python solar_forecast.py "$DATE_PART" "$HOUR_PART"
 
-      - name: Build dashboard
+      - name: Aggregate to regions
         run: |
-          python dashboard.py \
-            "output/forecast_iso_${{ steps.cycle.outputs.compact }}.csv" \
-            --plotly-js cdn \
-            --theme dark \
-            --title "US Wind Generation Forecast" \
-            -o ../assets/wind_forecast.html
-          ls -lh ../assets/wind_forecast.html
+          python solar_aggregation.py "${{ steps.cycle.outputs.compact }}"
 
-      - name: Archive forecast CSV
+      - name: Build forecast dashboard
         run: |
-          mkdir -p ../assets/wind_forecast_data
-          cp "output/forecast_iso_${{ steps.cycle.outputs.compact }}.csv" \
-             "../assets/wind_forecast_data/forecast_iso_${{ steps.cycle.outputs.compact }}.csv"
-          cp "output/forecast_ba_${{ steps.cycle.outputs.compact }}.csv" \
-             "../assets/wind_forecast_data/forecast_ba_${{ steps.cycle.outputs.compact }}.csv"
-          cp "output/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
-             "../assets/wind_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
-             2>/dev/null || true
-          cp output/capacity_*_${{ steps.cycle.outputs.compact }}.csv \
-             ../assets/wind_forecast_data/ 2>/dev/null || true
-          cd ../assets/wind_forecast_data
-          ls -t forecast_iso_*.csv   2>/dev/null | tail -n +57 | xargs -r rm
-          ls -t forecast_ba_*.csv    2>/dev/null | tail -n +57 | xargs -r rm
-          ls -t forecast_plant_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
-          ls -t capacity_iso_*.csv   2>/dev/null | tail -n +57 | xargs -r rm
-          ls -t capacity_ba_*.csv    2>/dev/null | tail -n +57 | xargs -r rm
-          ls -t capacity_plant_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
+          python solar_dashboard.py \
+            "${{ steps.cycle.outputs.compact }}" \
+            --theme dark
+          ls -lh ../../assets/solar_forecast.html
 
       - name: Build plant-level map
         run: |
-          if [ ! -f "../assets/wind_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" ]; then
+          if [ ! -f "../../assets/solar_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" ]; then
             echo "Plant-level CSV not found; skipping map build."
             exit 0
           fi
-          python map_dashboard.py \
-            "../assets/wind_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
-            --capacity "../assets/wind_forecast_data/capacity_plant_${{ steps.cycle.outputs.compact }}.csv" \
-            --output ../assets/wind_map.html \
+          python solar_map_dashboard.py \
+            "../../assets/solar_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
+            --capacity "../../assets/solar_forecast_data/capacity_plant_${{ steps.cycle.outputs.compact }}.csv" \
+            --output ../../assets/solar_map.html \
             --theme light || {
-              echo "Map build failed; continuing anyway."
+              echo "Solar map build failed; continuing anyway."
               exit 0
             }
-          ls -lh ../assets/wind_map.html || true
+          ls -lh ../../assets/solar_map.html || true
 
-      - name: Update verification dashboard
-        env:
-          GRIDSTATUS_API_KEY: ${{ secrets.GRIDSTATUS_API_KEY }}
-          USE_ISO_DIRECT: "1"
+      - name: Prune old forecast CSVs
         run: |
-          if [ -z "$GRIDSTATUS_API_KEY" ]; then
-            echo "GRIDSTATUS_API_KEY not set; direct ISO fetchers will still"
-            echo "provide actuals, but curtailment data will be unavailable."
-          fi
-          python update_verification.py || {
-            echo "Verification update failed; continuing anyway."
-            exit 0
-          }
+          cd ../../assets/solar_forecast_data
+          ls -t forecast_plant_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t forecast_region_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t capacity_plant_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
 
       - name: Stamp cache-buster into charts.html
         run: |
@@ -183,49 +164,27 @@ jobs:
           CHARTS="${{ github.workspace }}/charts.html"
           if [ ! -f "$CHARTS" ]; then
             echo "ERROR: $CHARTS not found"
-            ls -la "${{ github.workspace }}/" | head -20
             exit 1
           fi
-          VER_FILE="${{ github.workspace }}/assets/wind_verification.html"
-          if [ -f "$VER_FILE" ]; then
-            VER_STAMP=$(md5sum "$VER_FILE" | cut -c1-12)
-          else
-            VER_STAMP="${CYCLE}"
-          fi
-          echo "Forecast/map cycle stamp: ${CYCLE}"
-          echo "Verification file hash:   ${VER_STAMP}"
-          sed -i -E "s|(wind_forecast\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
-          sed -i -E "s|(wind_verification\.html\?v=)[^\"]*|\1${VER_STAMP}|g" "$CHARTS"
-          sed -i -E "s|(wind_map\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
-          sed -i -E "s|(id=\"last-updated-wind\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
-          sed -i -E "s|(id=\"last-updated-verif\">Updated )[^<]*|\1${TODAY}|g" "$CHARTS"
-          sed -i -E "s|(id=\"last-updated-map\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
-          N=$(grep -c "?v=" "$CHARTS" || true)
-          echo "Total iframe ?v= stamps in $CHARTS: ${N}"
-          echo "Charts file head:"
-          grep -n "wind_forecast.html\|wind_verification.html\|wind_map.html\|last-updated" "$CHARTS" | head -10
+          sed -i -E "s|(solar_forecast\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(solar_map\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(id=\"last-updated-solar\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(id=\"last-updated-solar-map\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
+          N=$(grep -c "solar_forecast.html\|solar_map.html" "$CHARTS" || true)
+          echo "Solar iframe references in charts.html: ${N}"
 
       - name: Commit and push dashboard
         working-directory: ${{ github.workspace }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Pull first, in case another workflow pushed concurrently
           git pull --rebase || echo "Pull/rebase failed; continuing"
-          git add charts.html
-          git add assets/wind_forecast.html
-          git add assets/wind_forecast_data/
-          if [ -f assets/wind_verification.html ]; then
-            git add assets/wind_verification.html
-            echo "Staged: assets/wind_verification.html"
-          else
-            echo "WARNING: assets/wind_verification.html not found; skipping"
-          fi
-          if [ -f assets/wind_map.html ]; then
-            git add assets/wind_map.html
-            echo "Staged: assets/wind_map.html"
-          else
-            echo "WARNING: assets/wind_map.html not found; skipping"
+          git add charts.html || true
+          git add assets/solar_forecast.html
+          git add assets/solar_forecast_data/
+          if [ -f assets/solar_map.html ]; then
+            git add assets/solar_map.html
+            echo "Staged: assets/solar_map.html"
           fi
           echo "--- Staged files ---"
           git diff --staged --name-only
@@ -233,9 +192,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes; skipping commit."
           else
-            git commit -m "wind forecast: cycle ${{ steps.cycle.outputs.compact }}"
-            # Retry on push conflicts (solar/synoptic workflows may have
-            # pushed concurrently and changed the remote)
+            git commit -m "solar forecast: cycle ${{ steps.cycle.outputs.compact }}"
             for i in 1 2 3; do
               if git push; then
                 break
@@ -250,13 +207,13 @@ jobs:
         if: always()
         working-directory: ${{ github.workspace }}
         run: |
-          echo "### Forecast summary" >> $GITHUB_STEP_SUMMARY
+          echo "### Solar forecast summary" >> $GITHUB_STEP_SUMMARY
           echo "- Cycle: \`${{ steps.cycle.outputs.cycle }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- Dashboard: [/charts.html](https://scorvec.github.io/charts.html)" >> $GITHUB_STEP_SUMMARY
-          CURVE_CSV="scripts/output/curve_assignment_${{ steps.cycle.outputs.compact }}.csv"
-          if [ -f "$CURVE_CSV" ]; then
-            echo "- Curve assignment summary:" >> $GITHUB_STEP_SUMMARY
+          REGION_CSV="assets/solar_forecast_data/forecast_region_${{ steps.cycle.outputs.compact }}.csv"
+          if [ -f "$REGION_CSV" ]; then
+            echo "- Region summary:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            head -20 "$CURVE_CSV" >> $GITHUB_STEP_SUMMARY
+            head -15 "$REGION_CSV" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi

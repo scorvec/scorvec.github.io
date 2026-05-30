@@ -6,7 +6,9 @@ name: Solar generation forecast
 # minimize concurrent runs.
 on:
   schedule:
-    - cron: '30 3,9,15,21 * * *'
+    # HRRR extended (48h) cycles run at 00/06/12/18Z. Trigger 2.5h after
+    # each cycle (30 min behind the wind workflow, to stagger AWS load).
+    - cron: '30 2,8,14,20 * * *'
   workflow_dispatch:
     inputs:
       cycle:
