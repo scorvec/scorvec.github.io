@@ -144,25 +144,44 @@ jobs:
           cd "${{ github.workspace }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git pull --rebase || echo "Pull/rebase failed; continuing"
+
+          # Stage the freshly-rendered maps FIRST so they're a commit we
+          # can rebase. -A captures deletions (e.g. stale PNGs).
           git add -A assets/synoptic/
           git add charts.html
           echo "--- Staged files ---"
           git diff --staged --name-only | head -30
           echo "--------------------"
+
           if git diff --staged --quiet; then
             echo "No changes; skipping commit."
-          else
-            git commit -m "synoptic maps: cycle ${{ steps.cycle.outputs.compact }}"
-            for i in 1 2 3; do
-              if git push; then
-                break
-              else
-                echo "Push attempt $i failed; pulling and retrying..."
-                git pull --rebase
-              fi
-            done
+            exit 0
           fi
+          git commit -m "synoptic maps: cycle ${{ steps.cycle.outputs.compact }}"
+
+          # Push with conflict-proof retry. Generated files — keep OUR
+          # freshly-rendered version on conflict (`-X theirs` during a
+          # rebase keeps the replayed side, i.e. ours). Abort + hard-sync
+          # fallback so we never get stuck half-rebased.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "Pushed on attempt $i."
+              exit 0
+            fi
+            echo "Push attempt $i rejected; rebasing onto latest origin/main..."
+            git fetch origin main
+            if ! git rebase -X theirs origin/main; then
+              echo "Rebase hit an unresolvable state; aborting and retrying."
+              git rebase --abort || true
+              git reset --hard origin/main
+              git add -A assets/synoptic/ || true
+              git add charts.html || true
+              git diff --staged --quiet || git commit -m "synoptic maps: cycle ${{ steps.cycle.outputs.compact }} (re-applied)"
+            fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
 
       - name: Summary
         if: always()
