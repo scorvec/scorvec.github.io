@@ -3,10 +3,11 @@ name: Wind generation forecast
 # Run ~3h after each extended HRRR cycle (00/06/12/18Z) lands on AWS.
 on:
   schedule:
-    # HRRR extended (48h) cycles run at 00/06/12/18Z and take ~2h to
-    # fully post to AWS. Trigger 2h after each cycle. Solar runs 30 min
-    # later (02:30/...) to stagger AWS load and runner contention.
-    - cron: '0 2,8,14,20 * * *'
+    # HRRR extended (48h) cycles run at 00/06/12/18Z and take ~2.5h to
+    # reliably finish posting to AWS. Trigger 2.5h after each cycle.
+    # (+2h was occasionally too early — the new cycle wasn't up yet and
+    # the run fell back to the previous one.) Solar runs 30 min later.
+    - cron: '30 2,8,14,20 * * *'
   workflow_dispatch:
     inputs:
       cycle:
