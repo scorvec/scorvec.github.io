@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import multiprocessing
 import os
 import sys
@@ -157,6 +158,7 @@ class Variable:
     grib_searches: list           # list of search regexes
     combine: Optional[Callable] = None    # callback that builds a single field from multiple
     overlay: str = "none"         # "none", "wind", or "solar"
+    wind_vectors: bool = False    # draw U/V direction arrows over the field
     title: str = ""               # display title for the figure
     vmin: float = 0.0
     vmax: float = 100.0
@@ -165,16 +167,29 @@ class Variable:
     cbar_format: str = "%g"
 
 
+# Approximate number of wind arrows across the frame width. The array
+# stride is derived from this and the sliced grid shape so arrow spacing
+# looks consistent regardless of region zoom.
+WIND_ARROW_COLS = 52
+
+
 # Composite functions for variables computed from multiple GRIB messages
 
 def _combine_wind_speed(fields: dict, searches: list):
-    """Compute scalar wind speed from U and V components."""
+    """Compute scalar wind speed from U and V components.
+
+    Also stashes the raw U/V arrays in the returned array's .attrs so the
+    driver can cache them for direction arrows, without breaking the
+    single-field return contract the rest of the pipeline expects.
+    """
     u = fields.get(searches[0])
     v = fields.get(searches[1])
     if u is None or v is None:
         return None
     out = u.copy()
     out.values = np.sqrt(u.values ** 2 + v.values ** 2)
+    out.attrs["_wind_u"] = np.ascontiguousarray(u.values, dtype=np.float32)
+    out.attrs["_wind_v"] = np.ascontiguousarray(v.values, dtype=np.float32)
     return out
 
 
@@ -330,6 +345,7 @@ VARIABLES = [
         ],
         combine=_combine_wind_speed,
         overlay="wind",
+        wind_vectors=True,
         vmin=0, vmax=25,
         cmap_factory=wind_speed_cmap,
     ),
@@ -491,6 +507,59 @@ def _draw_features(ax, dark_borders: bool = True, scale: str = "50m"):
                    linewidth=0.3, zorder=2)
 
 
+# HRRR CONUS Lambert Conformal grid parameters (from GRIB metadata).
+# GRIB U/V winds are GRID-relative, not earth-relative. Speed is
+# rotation-invariant (so the speed field is fine), but direction arrows
+# must rotate U/V to earth-relative or they point up to ~20deg wrong near
+# the grid edges. Convergence angle gamma = cone * (lon - LoV), with the
+# tangent-cone constant = sin(reference latitude).
+_HRRR_LOV = -97.5
+_HRRR_CONE = math.sin(math.radians(38.5))
+
+
+def _grid_to_earth_winds(u, v, lons):
+    """Rotate grid-relative (u, v) to earth-relative using the Lambert
+    grid convergence angle at each point's longitude."""
+    gamma = np.radians(_HRRR_CONE * (lons - _HRRR_LOV))
+    cosg = np.cos(gamma)
+    sing = np.sin(gamma)
+    u_e = u * cosg - v * sing
+    v_e = u * sing + v * cosg
+    return u_e, v_e
+
+
+def _overlay_wind_arrows(ax, u, v, grid_lats, grid_lons):
+    """Draw wind direction arrows (quiver) over the speed field.
+
+    Subsamples the grid to ~WIND_ARROW_COLS arrows across the frame width
+    so the arrow density looks consistent whether the region is national
+    or a zoomed quadrant. Arrow length scales gently with wind speed; the
+    field color already conveys magnitude, so arrows mainly show flow.
+    """
+    ny, nx = u.shape
+    # Stride from target column count; same stride both axes keeps arrows
+    # on a square-ish lattice in index space.
+    stride = max(1, int(round(nx / WIND_ARROW_COLS)))
+    us = u[::stride, ::stride]
+    vs = v[::stride, ::stride]
+    lons = grid_lons[::stride, ::stride]
+    lats = grid_lats[::stride, ::stride]
+
+    # Rotate grid-relative winds to earth-relative so arrows point true.
+    us, vs = _grid_to_earth_winds(us, vs, lons)
+
+    ax.quiver(
+        lons, lats, us, vs,
+        transform=PC, zorder=4,
+        color="#1a1a1a", alpha=0.55,
+        scale=840,            # larger scale → shorter arrows
+        scale_units="width",
+        width=0.0011,         # shaft thickness (fraction of axes width)
+        headwidth=4, headlength=4.5, headaxislength=4,
+        minshaft=1.5, minlength=0,
+    )
+
+
 def _overlay_wind_plants(ax, plants, region):
     p = plants_within_extent(plants, region.extent)
     if p.empty:
@@ -511,8 +580,8 @@ def _overlay_wind_plants(ax, plants, region):
     ax.scatter(
         p["xlong"].values, p["ylat"].values,
         s=sizes, facecolors="none",
-        edgecolors="#0a1a2c", linewidths=0.35,
-        alpha=0.55, zorder=5, transform=PC,
+        edgecolors="#0a1a2c", linewidths=0.4,
+        alpha=0.7, zorder=5, transform=PC,
     )
 
 
@@ -589,7 +658,7 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
                valid_time: datetime, fxx: int,
                variable_id: str, region_id: str, cycle: datetime,
                out_path: Path, overlay_records=None,
-               overlay_mw_at_time=None) -> None:
+               overlay_mw_at_time=None, wind_uv=None) -> None:
     """Generic map renderer. Plain numpy arrays in, WebP out.
 
     Optimizations:
@@ -623,6 +692,14 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
         grid_lats = grid_lats[sl]
         grid_lons = grid_lons[sl]
 
+    # Slice the wind U/V components the same way (for direction arrows).
+    u_arr = v_arr = None
+    if wind_uv is not None:
+        u_arr, v_arr = wind_uv
+        if sl is not None:
+            u_arr = u_arr[sl]
+            v_arr = v_arr[sl]
+
     # Ceiling has sentinel values (~20000 m) where no ceiling exists.
     # (np.where returns a fresh array, so this is safe even for the
     # national view where `values` is still a shared-memory view.)
@@ -644,6 +721,11 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
 
     feat_scale = "110m" if region.id == "national" else "50m"
     _draw_features(ax, scale=feat_scale)
+
+    # Wind direction arrows over the speed field. Subsampled to a fixed
+    # ~visual density so spacing looks consistent across region zooms.
+    if u_arr is not None and v_arr is not None:
+        _overlay_wind_arrows(ax, u_arr, v_arr, grid_lats, grid_lons)
 
     if variable.overlay == "wind" and overlay_records is not None:
         _overlay_wind_plants(ax, overlay_records, region)
@@ -758,6 +840,7 @@ def _render_task(args: dict) -> str:
             out_path=args["out_path"],
             overlay_records=args.get("overlay_records"),
             overlay_mw_at_time=args.get("overlay_mw_at_time"),
+            wind_uv=args.get("wind_uv"),
         )
     finally:
         lats_shm.close()
@@ -837,6 +920,7 @@ def main():
     #     are in flight at once, so this caps memory naturally and avoids
     #     /dev/shm size limits (typically 64 MB on Linux containers).
     field_cache = {}   # (variable_id, fxx) → values ndarray (float32)
+    wind_uv_cache = {} # (variable_id, fxx) → (u_arr, v_arr) for arrows
     grid_lats_ref = None
     grid_lons_ref = None
     shm_names_to_release = []
@@ -882,6 +966,12 @@ def main():
             # bounded queue depth).
             values = np.ascontiguousarray(combined.values, dtype=np.float32)
             field_cache[(variable.id, fxx)] = values
+            # If this variable draws direction arrows, stash its U/V too.
+            if variable.wind_vectors:
+                u = combined.attrs.get("_wind_u")
+                v = combined.attrs.get("_wind_v")
+                if u is not None and v is not None:
+                    wind_uv_cache[(variable.id, fxx)] = (u, v)
             n_fetched += 1
 
         if (fxx + 1) % 12 == 0:
@@ -916,10 +1006,12 @@ def main():
             values = field_cache.get((variable.id, fxx))
             if values is None:
                 continue
+            uv = wind_uv_cache.get((variable.id, fxx))  # None unless wind
             valid_time = cycle + timedelta(hours=fxx)
             for region in regions:
                 tasks.append({
                     "values": values,
+                    "wind_uv": uv,
                     "grid_lats_ref": grid_lats_ref,
                     "grid_lons_ref": grid_lons_ref,
                     "valid_time": valid_time,
