@@ -31,9 +31,10 @@ def latest_run() -> tuple[str, str]:
     import datetime
     import tempfile
     client = Client(source="ecmwf")
+    today_utc = datetime.datetime.now(datetime.timezone.utc).date()
     for offset in range(0, 4):
         for run_time in ("12", "00"):
-            date = datetime.date.today() - datetime.timedelta(days=offset)
+            date = today_utc - datetime.timedelta(days=offset)
             date_str = date.strftime("%Y%m%d")
             try:
                 with tempfile.NamedTemporaryFile(suffix=".grib2", delete=True) as tmp:
