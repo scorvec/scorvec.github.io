@@ -1,0 +1,88 @@
+name: SST anomalies & RONI (El Niño monitor)
+
+# NOAA OISST updates daily (1–2 day latency). We rebuild once a day; the script
+# always uses the latest available day, so a late update is simply picked up by
+# the next run. Manual dispatch with --force re-downloads regardless.
+on:
+  schedule:
+    - cron: '23 14 * * *'   # ~14 UTC, after OISST daily files post
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Re-download OISST even if cached'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sst-roni
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+
+      - name: Install cartopy system libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libgeos-dev libproj-dev proj-bin
+
+      - name: Install Python dependencies
+        run: pip install -r scripts/sst/requirements-sst.txt
+
+      - name: Build SST maps, RONI, and animation
+        run: |
+          FORCE=""
+          [ "${{ inputs.force }}" = "true" ] && FORCE="--force"
+          python scripts/sst/sst-roni.py $FORCE
+
+      - name: Commit & push (generated outputs)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sst.html assets/sst/
+          if git diff --staged --quiet; then
+            echo "No changes; skipping commit."; exit 0
+          fi
+          DAY=$(python -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])")
+          git commit -m "SST/RONI update: OISST ${DAY}"
+          for i in 1 2 3 4 5; do
+            if git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; rebasing onto origin/main (keep our generated files)…"
+            git fetch origin main
+            if ! git rebase -X theirs origin/main; then
+              git rebase --abort || true
+              git reset --hard origin/main
+              git add sst.html assets/sst/
+              git diff --staged --quiet || git commit -m "SST/RONI update: OISST ${DAY} (re-applied)"
+            fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### SST / RONI" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/sst.html](https://scorvec.com/sst.html)" >> "$GITHUB_STEP_SUMMARY"
+          [ -f assets/sst/manifest.json ] && \
+            echo "- $(python -c "import json;m=json.load(open('assets/sst/manifest.json'));print('OISST',m['sst_valid_day'],'· RONI',m['roni_latest_value'],'°C')" )" >> "$GITHUB_STEP_SUMMARY" || true

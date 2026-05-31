@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sea-Surface Temperature Anomalies & RONI · Shawn Corvec</title>
+<meta name="description" content="Daily global and tropical Pacific sea-surface temperature anomalies from NOAA OISST v2.1, plus the Relative Oceanic Niño Index (RONI) computed from the same analysis.">
+<link rel="canonical" href="https://scorvec.com/sst.html">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  main {
+    flex: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 7.5rem 2.5rem 5rem;
+    width: 100%;
+  }
+
+  .page-header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .page-header p {
+    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+  }
+  .page-header p + p { margin-top: 0.8rem; }
+
+  .chart-stack { display: flex; flex-direction: column; gap: 3rem; }
+
+  .chart-card {
+    border: 1px solid var(--rule);
+    background: #fff;
+    overflow: hidden;
+  }
+  .chart-card-header {
+    padding: 1.5rem 1.8rem 1.3rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
+    margin-bottom: 0.6rem; color: var(--ink);
+  }
+  .chart-card-header p {
+    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
+  }
+  .chart-card-header p + p { margin-top: 0.7rem; }
+  .chart-card-header b { color: var(--ink); font-weight: 500; }
+
+  .img-wrap { padding: 1rem 1.2rem; background: #fff; }
+  .img-wrap + .img-wrap { padding-top: 0; }
+  .img-wrap img { display: block; width: 100%; height: auto; }
+  .img-label {
+    font-size: 0.72rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 0 0 0.4rem 0.2rem;
+  }
+
+  .chart-card-footer {
+    padding: 0.85rem 1.8rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .chart-sources { font-size: 0.68rem; color: var(--muted); }
+  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+
+  .colophon {
+    margin-top: 4rem; padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+  }
+  .colophon h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    color: var(--ink); margin-bottom: 0.5rem;
+  }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .colophon a:hover { border-bottom-color: var(--accent); }
+
+  footer {
+    padding: 1.2rem 3rem; border-top: 1px solid var(--rule);
+    display: flex; justify-content: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { gap: 1.3rem; }
+    main { padding: 6.5rem 1.5rem 3.5rem; }
+    .page-header { margin-bottom: 2.2rem; padding-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.6rem; }
+    .chart-stack { gap: 2.2rem; }
+    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
+    .chart-card-footer { padding: 0.75rem 1.3rem; }
+    footer { padding: 1rem 1.5rem; }
+  }
+  @media (max-width: 480px) {
+    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .nav-name { font-size: 0.95rem; }
+    .nav-links { gap: 1rem; }
+    .nav-links a { font-size: 0.78rem; }
+    main { padding: 5.5rem 1rem 3rem; }
+    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
+    .chart-card-header h2 { font-size: 1.02rem; }
+    .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
+    .img-wrap { padding: 0.7rem 0.7rem; }
+    .chart-card-footer { padding: 0.7rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+    footer { padding: 0.9rem 1.1rem; }
+  }
+  @media (max-width: 360px) {
+    .nav-links { gap: 0.8rem; }
+    .nav-links a { font-size: 0.72rem; }
+    .page-header h1 { font-size: 1.28rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="resume.html">Resume</a></li>
+    <li><a href="research.html">Research</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+  </ul>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>Sea-Surface Temperature Anomalies &amp; RONI</h1>
+    <p>Daily sea-surface temperature anomalies from NOAA's Optimum Interpolation SST (OISST v2.1), the standard 1/4&deg; daily blended satellite-and-in-situ analysis. Anomalies are relative to the 1991&ndash;2020 climatology. Updated once daily as new OISST data lands (roughly a one-day latency).</p>
+    <p>The maps show the current global anomaly field and a tropical Pacific zoom where ENSO signals are clearest. Below, the Relative Oceanic Ni&ntilde;o Index (RONI) tracks ENSO after removing the background tropical-mean warming.</p>
+  </div>
+
+  <div class="chart-stack">
+
+    <!-- SST ANOMALY MAPS -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Global &amp; Tropical Pacific SST Anomalies</h2>
+        <p>The blue&ndash;white&ndash;red field is the departure of sea-surface temperature from the 1991&ndash;2020 average for the most recent available day. Reds are warmer than normal, blues cooler.</p>
+        <p><b>What to look for:</b> The tropical Pacific cold tongue (an east&ndash;west band along the equator) reveals ENSO state &mdash; a warm anomaly there points toward El Ni&ntilde;o, a cool one toward La Ni&ntilde;a. Elsewhere, marine heatwaves show up as intense localized warm pools, and western boundary currents (Gulf Stream, Kuroshio) are often anomalously warm.</p>
+      </div>
+      <div class="img-wrap">
+        <div class="img-label">Global</div>
+        <img src="assets/sst/global_sst_anom.webp?v=__CACHE__"
+             alt="Global sea-surface temperature anomaly" loading="lazy">
+      </div>
+      <div class="img-wrap">
+        <div class="img-label">Tropical Pacific</div>
+        <img src="assets/sst/tropical_sst_anom.webp?v=__CACHE__"
+             alt="Tropical Pacific sea-surface temperature anomaly" loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; base 1991&ndash;2020 &middot; cartopy &middot; <a href="sst_anim.html" style="color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-light);">&#9654; View 60-day animation</a></span>
+        <span class="chart-updated" id="sst-updated">__SST_DAY__</span>
+      </div>
+    </div>
+
+    <!-- RONI -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Relative Oceanic Ni&ntilde;o Index (RONI)</h2>
+        <p>RONI is an ENSO index that subtracts the tropical-mean SST anomaly (20&deg;S&ndash;20&deg;N) from the Ni&ntilde;o-3.4 anomaly, then applies a 3-month running mean. By removing the slowly-rising tropical background, it isolates the ENSO signal more cleanly than the conventional ONI &mdash; increasingly useful as overall ocean temperatures trend upward.</p>
+        <p><b>How to read it:</b> Red bars (positive) lean El Ni&ntilde;o, blue bars (negative) lean La Ni&ntilde;a; the dashed lines mark the &plusmn;0.5&deg;C guides. This index is computed directly from OISST and shown in &deg;C &mdash; it captures the shape and timing of CPC's RONI but is not their standardized published value.</p>
+      </div>
+      <div class="img-wrap">
+        <img src="assets/sst/roni.webp?v=__CACHE__"
+             alt="Relative Oceanic Niño Index time series" loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Computed from NOAA OISST v2.1 &middot; Ni&ntilde;o-3.4 minus tropical-mean &middot; 3-mo running mean</span>
+        <span class="chart-updated" id="roni-updated">__RONI_MONTH__</span>
+      </div>
+    </div>
+
+    <!-- DAILY 3-METRIC -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Daily Equatorial Pacific SST Indices</h2>
+        <p>All three daily metrics on one axis: the Ni&ntilde;o-3.4 anomaly (the basis of ONI), the tropical-mean anomaly (20&deg;S&ndash;20&deg;N), and their difference &mdash; the daily relative index that underlies RONI. These are single-day values, so they are noisier than the 3-month running indices above, but they show the most recent evolution.</p>
+        <p><b>What to look for:</b> When the red (Ni&ntilde;o-3.4) and green (tropical-mean) lines move together, the blue relative line stays flat &mdash; that's background warming, not ENSO. The blue line separating from zero is the genuine ENSO signal.</p>
+      </div>
+      <div class="img-wrap">
+        <img src="assets/sst/daily_indices.webp?v=__CACHE__"
+             alt="Daily Niño-3.4, tropical-mean, and relative SST indices" loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Daily, computed from NOAA OISST v2.1 &middot; year-to-date</span>
+        <span class="chart-updated" id="daily-updated">__SST_DAY__</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="colophon">
+    <h3>About these plots</h3>
+    <p>All three images are regenerated once daily by a scheduled job that pulls the latest OISST anomaly fields from NOAA PSL, renders the maps, computes the relative Ni&ntilde;o index from the same data, and commits the results. The RONI is calculated rather than fetched: it is the cosine-latitude-weighted Ni&ntilde;o-3.4 box-mean anomaly minus the 20&deg;S&ndash;20&deg;N tropical-mean anomaly, smoothed with a 3-month running mean.</p>
+    <p>Source on <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">GitHub</a>.</p>
+  </div>
+</main>
+
+<footer>
+  <p class="counter">Visitors: <span id="count">&mdash;</span></p>
+</footer>
+
+<script>
+  fetch('https://api.counterapi.dev/v1/scorvec/visits/up')
+    .then(r => r.json())
+    .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
+    .catch(() => { document.getElementById('count').textContent = '\u2014'; });
+</script>
+</body>
+</html>
