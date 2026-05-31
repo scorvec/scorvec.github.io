@@ -27,8 +27,15 @@ STEPS = list(range(6, 361, 6))
 
 
 def latest_run() -> tuple[str, str]:
-    """Return (date, time) for the most recent available AIFS-ENS run."""
+    """Return (date, time) for the most recent available AIFS-ENS run.
+
+    The ecmwf-opendata client prints an attribution banner / progress to stdout
+    on each retrieve; we suppress stdout during the probe so callers that parse
+    this function's output get only what *they* print.
+    """
+    import contextlib
     import datetime
+    import os
     import tempfile
     client = Client(source="ecmwf")
     today_utc = datetime.datetime.now(datetime.timezone.utc).date()
@@ -37,7 +44,9 @@ def latest_run() -> tuple[str, str]:
             date = today_utc - datetime.timedelta(days=offset)
             date_str = date.strftime("%Y%m%d")
             try:
-                with tempfile.NamedTemporaryFile(suffix=".grib2", delete=True) as tmp:
+                with tempfile.NamedTemporaryFile(suffix=".grib2", delete=True) as tmp, \
+                        open(os.devnull, "w") as _dn, \
+                        contextlib.redirect_stdout(_dn):
                     client.retrieve(
                         model="aifs-ens",
                         date=date_str,
@@ -53,7 +62,7 @@ def latest_run() -> tuple[str, str]:
                 return date_str, run_time
             except Exception:
                 continue
-    raise RuntimeError("Could not find a recent available AIFS-ENS run (checked last 3 days)")
+    raise RuntimeError("Could not find a recent available AIFS-ENS run (checked last 4 days)")
 
 
 def download(date: str, time: str, out_dir: Path) -> None:

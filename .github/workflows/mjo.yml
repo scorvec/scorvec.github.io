@@ -51,10 +51,18 @@ jobs:
             DATE="${{ inputs.date }}"; TIME="${{ inputs.time }}"
             echo "Manual dispatch: $DATE ${TIME}Z"
           else
-            cd scripts/mjo/src
-            read DATE TIME < <(python -c "from download_aifs import latest_run; d,t=latest_run(); print(d,t)")
-            cd "$GITHUB_WORKSPACE"
+            # Emit a prefixed line and parse only that, so any banner/progress
+            # text the open-data client writes can't corrupt the cycle.
+            OUT=$(cd scripts/mjo/src && python -c \
+              "from download_aifs import latest_run; d,t=latest_run(); print('CYCLE',d,t)" \
+              2>/dev/null | grep '^CYCLE ' | tail -1)
+            DATE=$(echo "$OUT" | awk '{print $2}')
+            TIME=$(echo "$OUT" | awk '{print $3}')
             echo "Latest available AIFS-ENS: $DATE ${TIME}Z"
+          fi
+          if ! echo "$DATE" | grep -qE '^[0-9]{8}$' || ! echo "$TIME" | grep -qE '^(00|12)$'; then
+            echo "ERROR: could not determine cycle (DATE='$DATE' TIME='$TIME')" >&2
+            exit 1
           fi
           COMPACT="${DATE}_${TIME}z"
           if [ -f "assets/mjo/rmm_${COMPACT}.png" ]; then
