@@ -461,10 +461,20 @@ def load_wind_plants(cycle_str: str) -> pd.DataFrame:
     capacity_csv = (HERE.parent.parent / "assets" / "wind_forecast_data"
                     / f"capacity_plant_{cycle_str}.csv")
     if capacity_csv.exists():
-        return pd.read_csv(capacity_csv)
-    if WIND_INV_CSV.exists():
-        df = pd.read_csv(WIND_INV_CSV, low_memory=False)
-        return df.rename(columns={"t_cap": "p_cap_kw"})
+        df = pd.read_csv(capacity_csv)
+        print(f"  wind overlay: loaded {len(df):,} plants "
+              f"from {capacity_csv.name}", flush=True)
+        return df
+    # IMPORTANT: do NOT fall back to the raw turbine inventory
+    # (uswtdb.csv, ~75k turbines). That database is per-TURBINE with a
+    # 't_cap' (kW) column, not per-PLANT, so plotting it dumps tens of
+    # thousands of mis-sized rings that blob the whole map. A missing
+    # per-cycle CSV means the wind run hasn't committed it yet (an
+    # ordering race) — better to render the field + arrows with NO plant
+    # rings than to render obviously-wrong ones.
+    print(f"  WARN: {capacity_csv.name} not found — rendering wind maps "
+          f"WITHOUT plant rings (wind run may not have committed it yet).",
+          file=sys.stderr, flush=True)
     return pd.DataFrame()
 
 
@@ -474,11 +484,16 @@ def load_solar_plants(cycle_str: str):
     capacity_csv = (HERE.parent.parent / "assets" / "solar_forecast_data"
                     / f"capacity_plant_{cycle_str}.csv")
     if not (forecast_csv.exists() and capacity_csv.exists()):
-        if SOLAR_INV_CSV.exists():
-            return pd.read_csv(SOLAR_INV_CSV, low_memory=False), None
+        # Don't fall back to the static inventory — skip the overlay so we
+        # never render a cycle's maps with mismatched plant data.
+        print(f"  WARN: solar per-cycle CSVs for {cycle_str} not found — "
+              f"rendering solar maps WITHOUT plant markers.",
+              file=sys.stderr, flush=True)
         return pd.DataFrame(), None
     cap = pd.read_csv(capacity_csv)
     fc = pd.read_csv(forecast_csv, parse_dates=["valid_time"])
+    print(f"  solar overlay: loaded {len(cap):,} plants "
+          f"from {capacity_csv.name}", flush=True)
     pivot = fc.pivot_table(index="case_id", columns="valid_time",
                             values="MW_AC", aggfunc="sum")
     return cap, pivot
