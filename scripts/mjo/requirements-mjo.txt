@@ -1,0 +1,13 @@
+numpy
+scipy
+pandas
+xarray
+dask
+netcdf4
+h5netcdf
+cfgrib
+eccodes
+matplotlib
+eofs
+requests
+ecmwf-opendata

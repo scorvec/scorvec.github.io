@@ -1,0 +1,141 @@
+name: MJO RMM (AIFS-ENS)
+
+# Self-healing poll: GitHub cron is best-effort, and AIFS-ENS open-data lands a
+# few hours after each cycle, so we poll across the likely windows and a light
+# "check" job decides whether the latest available cycle still needs plotting.
+# The sentinel (the cycle's PNG in assets/mjo/) skips already-processed cycles,
+# so a dropped tick is picked up by the next poll, and both 00Z and 12Z get
+# done as they appear.
+on:
+  schedule:
+    - cron: '37 8-12 * * *'    # morning window — catch the 00Z cycle
+    - cron: '37 19-23 * * *'   # evening window — catch the 12Z cycle
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Init date YYYYMMDD (empty = latest available)'
+        required: false
+        default: ''
+      time:
+        description: 'Init hour 00 or 12 (empty = latest available)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mjo-rmm
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      date: ${{ steps.decide.outputs.date }}
+      time: ${{ steps.decide.outputs.time }}
+      compact: ${{ steps.decide.outputs.compact }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install open-data client
+        run: pip install ecmwf-opendata
+      - name: Decide target cycle
+        id: decide
+        run: |
+          if [ -n "${{ inputs.date }}" ] && [ -n "${{ inputs.time }}" ]; then
+            DATE="${{ inputs.date }}"; TIME="${{ inputs.time }}"
+            echo "Manual dispatch: $DATE ${TIME}Z"
+          else
+            cd scripts/mjo/src
+            read DATE TIME < <(python -c "from download_aifs import latest_run; d,t=latest_run(); print(d,t)")
+            cd "$GITHUB_WORKSPACE"
+            echo "Latest available AIFS-ENS: $DATE ${TIME}Z"
+          fi
+          COMPACT="${DATE}_${TIME}z"
+          if [ -f "assets/mjo/rmm_${COMPACT}.png" ]; then
+            echo "Already plotted (assets/mjo/rmm_${COMPACT}.png) — skipping."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not yet plotted — will run."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "time=$TIME" >> "$GITHUB_OUTPUT"
+          echo "compact=$COMPACT" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: check
+    if: ${{ needs.check.outputs.should_run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Install eccodes (GRIB decoder)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Run RMM pipeline (downloads AIFS-ENS, computes, plots)
+        working-directory: scripts/mjo
+        run: |
+          python run_rmm.py --date "${{ needs.check.outputs.date }}" \
+                            --time "${{ needs.check.outputs.time }}"
+
+      - name: Publish plot to assets/mjo
+        run: |
+          mkdir -p assets/mjo
+          cp "scripts/mjo/plots/rmm_${{ needs.check.outputs.compact }}.png" \
+             "assets/mjo/rmm_${{ needs.check.outputs.compact }}.png"
+          # keep the most recent 60 archived plots
+          ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
+
+      - name: Regenerate MJO page
+        run: python scripts/mjo/generate_page.py
+
+      - name: Commit & push (generated outputs)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc
+          if git diff --staged --quiet; then
+            echo "No changes; skipping commit."; exit 0
+          fi
+          git commit -m "MJO RMM: ${{ needs.check.outputs.compact }}"
+          for i in 1 2 3 4 5; do
+            if git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; rebasing onto origin/main (keep our generated files)…"
+            git fetch origin main
+            if ! git rebase -X theirs origin/main; then
+              git rebase --abort || true
+              git reset --hard origin/main
+              git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc
+              git diff --staged --quiet || git commit -m "MJO RMM: ${{ needs.check.outputs.compact }} (re-applied)"
+            fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### MJO RMM ${{ needs.check.outputs.compact }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/mjo.html](https://scorvec.com/mjo.html)" >> "$GITHUB_STEP_SUMMARY"

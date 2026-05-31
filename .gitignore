@@ -4,3 +4,9 @@
 # Python bytecode caches
 __pycache__/
 *.pyc
+
+# MJO pipeline runtime artifacts (large / regenerated; reference .nc are kept)
+scripts/mjo/data/aifs/
+scripts/mjo/plots/
+scripts/mjo/data/reference/era5_recent/
+scripts/mjo/data/reference/ncep_recent/
