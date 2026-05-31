@@ -165,13 +165,13 @@
 
   /* FEATURE BUTTONS — live monitors, larger, above the small links */
   .feature-links {
-    display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center;
-    margin-bottom: 1.4rem; width: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
+    margin-bottom: 1.5rem; width: 100%;
   }
   .feature-btn {
     display: flex; flex-direction: column; align-items: center; text-align: center;
     text-decoration: none; color: #fff;
-    padding: 1.05rem 2rem; min-width: 240px;
+    padding: 1rem 2rem; min-width: 300px;
     background: rgba(255,255,255,0.10);
     border: 1px solid rgba(255,255,255,0.42);
     backdrop-filter: blur(4px);
@@ -304,6 +304,7 @@
     <li><a href="gallery.html">Gallery</a></li>
     <li><a href="mjo.html">MJO</a></li>
     <li><a href="sst.html">El Niño</a></li>
+    <li><a href="assets/synoptic/viewer.html">HRRR</a></li>
   </ul>
 </nav>
 
@@ -332,6 +333,10 @@
       <a href="mjo.html" class="feature-btn">
         <span class="fb-label">Live &middot; 2&times; daily</span>
         <span class="fb-title">AIFS-ENS MJO Forecast</span>
+      </a>
+      <a href="assets/synoptic/viewer.html" class="feature-btn">
+        <span class="fb-label">Live &middot; hourly</span>
+        <span class="fb-title">HRRR Surface Fields Viewer</span>
       </a>
     </div>
 
