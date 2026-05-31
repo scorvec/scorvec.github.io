@@ -192,17 +192,32 @@
       </div>
       <div class="img-wrap">
         <div class="img-label">Global</div>
-        <img src="assets/sst/global_sst_anom.webp?v=202605312055"
+        <img src="assets/sst/global_sst_anom.webp?v=202605312136"
              alt="Global sea-surface temperature anomaly" loading="lazy">
       </div>
       <div class="img-wrap">
         <div class="img-label">Tropical Pacific</div>
-        <img src="assets/sst/tropical_sst_anom.webp?v=202605312055"
+        <img src="assets/sst/tropical_sst_anom.webp?v=202605312136"
              alt="Tropical Pacific sea-surface temperature anomaly" loading="lazy">
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; base 1991&ndash;2020 &middot; cartopy &middot; <a href="sst_anim.html" style="color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-light);">&#9654; View 60-day animation</a></span>
         <span class="chart-updated" id="sst-updated">OISST 2026-05-30</span>
+      </div>
+    </div>
+
+    <!-- SUBSURFACE CROSS-SECTION -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Pacific Subsurface Temperature</h2>
+        <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed.</p>
+        <p><b>What to look for:</b> The thermocline (here the 26&deg;C and 28&deg;C isotherms) tilts upward toward the east. Subsurface warm or cool anomalies along the thermocline often <i>lead</i> the surface ENSO signal &mdash; watch them build and propagate eastward in the animation.</p>
+      </div>
+      <img src="assets/sst/equatorial_xsection.webp?v=202605312136"
+           alt="Equatorial Pacific subsurface temperature and anomaly cross-section" loading="lazy">
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; <a href="sst_anim.html#equatorial" style="color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-light);">&#9654; View 120-day animation</a></span>
+        <span class="chart-updated" id="subsurface-updated">TAO 2026-05-29</span>
       </div>
     </div>
 
@@ -214,7 +229,7 @@
         <p><b>How to read it:</b> Red bars (positive) lean El Ni&ntilde;o, blue bars (negative) lean La Ni&ntilde;a; the dashed lines mark the &plusmn;0.5&deg;C guides. This index is computed directly from OISST and shown in &deg;C &mdash; it captures the shape and timing of CPC's RONI but is not their standardized published value.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/roni.webp?v=202605312055"
+        <img src="assets/sst/roni.webp?v=202605312136"
              alt="Relative Oceanic Niño Index time series" loading="lazy">
       </div>
       <div class="chart-card-footer">
@@ -231,7 +246,7 @@
         <p><b>What to look for:</b> When the red (Ni&ntilde;o-3.4) and green (tropical-mean) lines move together, the blue relative line stays flat &mdash; that's background warming, not ENSO. The blue line separating from zero is the genuine ENSO signal.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/daily_indices.webp?v=202605312055"
+        <img src="assets/sst/daily_indices.webp?v=202605312136"
              alt="Daily Niño-3.4, tropical-mean, and relative SST indices" loading="lazy">
       </div>
       <div class="chart-card-footer">

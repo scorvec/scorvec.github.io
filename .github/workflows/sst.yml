@@ -5,7 +5,7 @@ name: SST anomalies & RONI (El Niño monitor)
 # the next run. Manual dispatch with --force re-downloads regardless.
 on:
   schedule:
-    - cron: '23 14 * * *'   # ~14 UTC, after OISST daily files post
+    - cron: '23 12 * * *'   # ~12 UTC daily
   workflow_dispatch:
     inputs:
       force:
@@ -48,11 +48,20 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r scripts/sst/requirements-sst.txt
 
-      - name: Build SST maps, RONI, and animation
+      - name: Build SST maps, RONI, and animation (OISST)
         run: |
           FORCE=""
           [ "${{ inputs.force }}" = "true" ] && FORCE="--force"
           python scripts/sst/sst-roni.py $FORCE
+
+      - name: Fetch TAO equatorial subsurface temperature (recent 120 days)
+        run: |
+          python scripts/sst/tao_subsurface.py --days 120 \
+            --out scripts/sst/data/tao_eq_recent.nc \
+            --ascii scripts/sst/data/tao_eq_recent.ascii
+
+      - name: Build equatorial subsurface cross-section + animation
+        run: python scripts/sst/sst_subsurface.py
 
       - name: Commit & push (generated outputs)
         run: |

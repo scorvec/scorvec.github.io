@@ -206,6 +206,21 @@
       </div>
     </div>
 
+    <!-- SUBSURFACE CROSS-SECTION -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Pacific Subsurface Temperature</h2>
+        <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed.</p>
+        <p><b>What to look for:</b> The thermocline (here the 26&deg;C and 28&deg;C isotherms) tilts upward toward the east. Subsurface warm or cool anomalies along the thermocline often <i>lead</i> the surface ENSO signal &mdash; watch them build and propagate eastward in the animation.</p>
+      </div>
+      <img src="assets/sst/equatorial_xsection.webp?v=__CACHE__"
+           alt="Equatorial Pacific subsurface temperature and anomaly cross-section" loading="lazy">
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; <a href="sst_anim.html#equatorial" style="color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-light);">&#9654; View 120-day animation</a></span>
+        <span class="chart-updated" id="subsurface-updated">__TAO_DAY__</span>
+      </div>
+    </div>
+
     <!-- RONI -->
     <div class="chart-card">
       <div class="chart-card-header">

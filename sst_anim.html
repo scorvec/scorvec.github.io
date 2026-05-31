@@ -145,6 +145,8 @@ async function init() {
     regSel.appendChild(opt);
   });
   region = regSel.value;
+  const hash = location.hash.replace("#", "");
+  if (hash && manifest.regions[hash]) { region = hash; regSel.value = hash; }
   regSel.addEventListener("change", () => { switchRegion(regSel.value); });
 
   setupRegion();
