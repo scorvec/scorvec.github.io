@@ -15,6 +15,7 @@ Usage:
 """
 
 import argparse
+import os
 from pathlib import Path
 
 from ecmwf.opendata import Client
@@ -24,6 +25,25 @@ DATA_DIR = Path(__file__).parent.parent / "data" / "aifs"
 
 # 6-hourly steps to day 15
 STEPS = list(range(6, 361, 6))
+
+# Prefer the cloud mirrors: the main ECMWF portal enforces a connection limit
+# (HTTP 429) that throttles the 4 GB ensemble download; the AWS/Azure mirrors
+# are not connection-limited and are much faster. Override with AIFS_SOURCES.
+SOURCES = [s.strip() for s in
+           os.environ.get("AIFS_SOURCES", "aws,azure,ecmwf").split(",") if s.strip()]
+
+
+def _retrieve(req: dict, target: str) -> str:
+    """Retrieve a request, trying each source in SOURCES until one works.
+    Returns the source that succeeded; raises the last error if all fail."""
+    last = None
+    for src in SOURCES:
+        try:
+            Client(source=src).retrieve(target=target, **req)
+            return src
+        except Exception as e:  # noqa: BLE001 — try the next mirror
+            last = e
+    raise last if last is not None else RuntimeError("AIFS retrieve failed (no sources)")
 
 
 def latest_run() -> tuple[str, str]:
@@ -35,9 +55,7 @@ def latest_run() -> tuple[str, str]:
     """
     import contextlib
     import datetime
-    import os
     import tempfile
-    client = Client(source="ecmwf")
     today_utc = datetime.datetime.now(datetime.timezone.utc).date()
     for offset in range(0, 4):
         for run_time in ("12", "00"):
@@ -47,18 +65,9 @@ def latest_run() -> tuple[str, str]:
                 with tempfile.NamedTemporaryFile(suffix=".grib2", delete=True) as tmp, \
                         open(os.devnull, "w") as _dn, \
                         contextlib.redirect_stdout(_dn):
-                    client.retrieve(
-                        model="aifs-ens",
-                        date=date_str,
-                        time=int(run_time),
-                        stream="enfo",
-                        type="cf",
-                        levtype="pl",
-                        levelist=[850],
-                        param="u",
-                        step=6,
-                        target=tmp.name,
-                    )
+                    _retrieve(dict(model="aifs-ens", date=date_str, time=int(run_time),
+                                   stream="enfo", type="cf", levtype="pl",
+                                   levelist=[850], param="u", step=6), tmp.name)
                 return date_str, run_time
             except Exception:
                 continue
@@ -69,8 +78,7 @@ def download(date: str, time: str, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = f"aifs_{date}_{time}z"
 
-    client = Client(source="ecmwf")
-    print(f"Downloading AIFS-ENS {date} {time}Z …")
+    print(f"Downloading AIFS-ENS {date} {time}Z (sources: {','.join(SOURCES)}) …")
 
     common = dict(
         model="aifs-ens",
@@ -86,16 +94,16 @@ def download(date: str, time: str, out_dir: Path) -> None:
     # Perturbed forecasts
     pf_path = out_dir / f"{stem}.pf.u.grib2"
     if not pf_path.exists():
-        client.retrieve(**common, type="pf", target=str(pf_path))
-        print(f"  pf u-wind saved: {pf_path.name}")
+        src = _retrieve({**common, "type": "pf"}, str(pf_path))
+        print(f"  pf u-wind saved via {src}: {pf_path.name}")
     else:
         print(f"  {pf_path.name}: already exists, skipping")
 
     # Control forecast
     cf_path = out_dir / f"{stem}.cf.u.grib2"
     if not cf_path.exists():
-        client.retrieve(**common, type="cf", target=str(cf_path))
-        print(f"  cf u-wind saved: {cf_path.name}")
+        src = _retrieve({**common, "type": "cf"}, str(cf_path))
+        print(f"  cf u-wind saved via {src}: {cf_path.name}")
     else:
         print(f"  {cf_path.name}: already exists, skipping")
 
