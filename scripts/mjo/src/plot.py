@@ -31,12 +31,13 @@ PHASE_ANGLES = {
 }
 
 # Region labels: (text, x, y, rotation)
-# Placed along the four edges of the diagram.
+# Placed inside the diagram near the axes (kept off the edge so they do not
+# collide with the RMM1/RMM2 axis labels).
 REGION_LABELS = [
-    ("West. Hem.\nand Africa",  -4.6,  0.0,  90),
-    ("Indian Ocean",             0.0, -4.6,   0),
-    ("Maritime\nContinent",      4.6,  0.0, -90),
-    ("Western Pacific",          0.0,  4.6,   0),
+    ("West. Hem.\nand Africa",  -3.4,  0.0,  90),
+    ("Indian Ocean",             0.0, -3.4,   0),
+    ("Maritime\nContinent",      3.4,  0.0, -90),
+    ("Western Pacific",          0.0,  3.4,   0),
 ]
 
 
@@ -95,23 +96,14 @@ def draw_phase_wheel(ax: plt.Axes, radius: float = 4.0,
 def plot_rmm(
     rmm: xr.Dataset,
     obs: xr.Dataset | None = None,
-    truth: xr.Dataset | None = None,
     out_path: Path | None = None,
 ) -> plt.Figure:
     date  = rmm.attrs.get("init_date", "")
     rtime = rmm.attrs.get("init_time", "00")
     init  = pd.Timestamp(f"{date}T{rtime}:00") if date else None
 
-    # Observed track day-offsets relative to init (negative → before init).
+    # Observed history (the growing AIFS-analysis 'truth' archive).
     has_obs = obs is not None and obs.sizes.get("time", 0) > 0
-    if has_obs:
-        obs_off = (pd.to_datetime(obs["time"].values) - init).days
-        obs_src = obs.attrs.get("source", "analysis")
-
-    # Archived AIFS-analysis 'truth' history (zero-lag, self-consistent).
-    has_truth = truth is not None and truth.sizes.get("time", 0) > 0
-    if has_truth:
-        truth_off = (pd.to_datetime(truth["time"].values) - init).days
 
     rmm1 = rmm["rmm1"].values   # (member, lead_day)
     rmm2 = rmm["rmm2"].values
@@ -158,18 +150,29 @@ def plot_rmm(
         )
         ax.add_patch(ell)
 
-    # Observed tail (NCEP wind-only analysis, leading into init)
+    # Observed history (AIFS analysis archive): faint connecting line, points
+    # coloured by calendar month, with the start date marked and labelled.
     if has_obs:
-        ax.plot(obs["rmm1"].values, obs["rmm2"].values,
-                "k-", lw=1.8, zorder=5, label=f"Observed ({obs_src}, wind-only)")
-        ax.plot(obs["rmm1"].values[-1], obs["rmm2"].values[-1],
-                "ko", ms=6, zorder=6)
+        o1 = obs["rmm1"].values
+        o2 = obs["rmm2"].values
+        ot = pd.to_datetime(obs["time"].values)
+        ax.plot(o1, o2, color="0.55", lw=1.0, alpha=0.7, zorder=5)
 
-    # AIFS-analysis archive ('truth') — accumulates one point per run
-    if has_truth:
-        ax.plot(truth["rmm1"].values, truth["rmm2"].values,
-                "-s", color="darkorange", ms=4, lw=1.2, zorder=6,
-                label="AIFS analysis (archive)")
+        months = ot.to_period("M")
+        uniq = list(dict.fromkeys(months))          # unique months, in order
+        mcmap = plt.get_cmap("tab10")
+        for k, mo in enumerate(uniq):
+            sel = months == mo
+            ax.scatter(o1[sel], o2[sel], s=20, zorder=6,
+                       color=mcmap(k % 10), edgecolor="0.3", linewidth=0.3,
+                       label=f"Obs {mo.strftime('%b %Y')}")
+
+        # Start-of-history indicator + date label
+        ax.scatter(o1[0], o2[0], s=90, facecolor="none", edgecolor="black",
+                   lw=1.5, zorder=8)
+        ax.annotate(f"start {ot[0].strftime('%b %d')}", (o1[0], o2[0]),
+                    textcoords="offset points", xytext=(7, 7),
+                    fontsize=8, fontweight="bold", color="black", zorder=8)
 
     # Mark day-0 and last day
     ax.scatter(mean_rmm1[0], mean_rmm2[0], c="green", s=60, zorder=7, label="Day 0 (mean)")
