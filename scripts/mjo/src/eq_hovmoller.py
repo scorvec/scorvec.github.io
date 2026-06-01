@@ -101,19 +101,19 @@ ANOM_LIM = 6.0
 ABS_LIM = 10.0
 
 
-def _ref_map(ax):
-    """Plain tropical-belt basemap (no data) spanning the column longitudes,
-    for geographic orientation of the Hovmöller longitudes."""
-    ax.set_extent([LON_VIEW[0], LON_VIEW[1], -20, 20], crs=ccrs.PlateCarree())
+def _ref_map(ax, title):
+    """Small tropical-belt basemap (no data) atop one column — same longitude
+    span as that column's Hovmöller, stretched to fill the column width so the
+    geography lines up with the data below."""
+    ax.set_extent([LON_VIEW[0], LON_VIEW[1], -15, 15], crs=ccrs.PlateCarree())
+    ax.set_aspect("auto")                          # fill column width (align longitude)
     ax.add_feature(cfeature.LAND.with_scale("110m"), facecolor="#d9d6cf", zorder=2)
     ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#555",
-                   linewidth=0.4, zorder=3)
-    # mark the 5°S–5°N averaging band
+                   linewidth=0.3, zorder=3)
     ax.add_patch(plt.Rectangle((LON_VIEW[0], -5), LON_VIEW[1] - LON_VIEW[0], 10,
                  transform=ccrs.PlateCarree(), facecolor="none",
-                 edgecolor="k", lw=0.8, ls="--", zorder=4))
-    ax.set_title("Tropical Pacific — geographic reference (dashed = 5°S–5°N average)",
-                 fontsize=9, loc="left")
+                 edgecolor="k", lw=0.6, ls="--", zorder=4))
+    ax.set_title(title, fontsize=9)
 
 
 def plot(data: dict, valid: np.ndarray, init: pd.Timestamp, out: Path):
@@ -128,31 +128,30 @@ def plot(data: dict, valid: np.ndarray, init: pd.Timestamp, out: Path):
         cols += [(k, "anom"), (k, "abs")]
     ncol = len(cols)
 
-    fig = plt.figure(figsize=(3.35 * ncol, 8.6))
-    gs = fig.add_gridspec(2, ncol, height_ratios=[1.0, 6.5], hspace=0.16,
+    fig = plt.figure(figsize=(3.35 * ncol, 8.8))
+    gs = fig.add_gridspec(2, ncol, height_ratios=[0.85, 6.5], hspace=0.05,
                           wspace=0.10, left=0.06, right=0.9, top=0.9, bottom=0.07)
-    _ref_map(fig.add_subplot(gs[0, :],
-             projection=ccrs.PlateCarree(central_longitude=180)))
     fig.suptitle(f"Equatorial Pacific 10 m zonal wind forecast — init {init:%Y-%m-%d %HZ}\n"
                  f"ensemble mean · 5°S–5°N · anomaly vs ERA5 1991–2020",
                  fontsize=12, fontweight="bold")
 
     imA = imB = None
     for j, (k, kind) in enumerate(cols):
+        kind_lab = "anomaly" if kind == "anom" else "absolute u10"
+        _ref_map(fig.add_subplot(gs[0, j],
+                 projection=ccrs.PlateCarree(central_longitude=180)),
+                 f"{MODELS[k]['label']}\n{kind_lab}")
         ax = fig.add_subplot(gs[1, j])
         fld = data[k][kind][:, m]
         if kind == "anom":
             imA = ax.contourf(lons, lead, fld, levels=np.arange(-ANOM_LIM, ANOM_LIM + .01, .5),
                               cmap="RdBu_r", extend="both",
                               norm=mcolors.TwoSlopeNorm(0, -ANOM_LIM, ANOM_LIM))
-            ax.contour(lons, lead, fld, levels=[0], colors="k", linewidths=0.5, alpha=0.5)
-            ax.set_title(f"{MODELS[k]['label']}\nanomaly", fontsize=9)
         else:
             imB = ax.contourf(lons, lead, fld, levels=np.arange(-ABS_LIM, ABS_LIM + .01, 1),
                               cmap="RdBu_r", extend="both",
                               norm=mcolors.TwoSlopeNorm(0, -ABS_LIM, ABS_LIM))
-            ax.contour(lons, lead, fld, levels=[0], colors="k", linewidths=0.5, alpha=0.5)
-            ax.set_title(f"{MODELS[k]['label']}\nabsolute u10", fontsize=9)
+        ax.contour(lons, lead, fld, levels=[0], colors="k", linewidths=0.5, alpha=0.5)
         ax.set_ylim(lead.max(), lead.min())
         ax.set_xticks(*_lon_ticks())
         ax.tick_params(labelsize=7.5)
