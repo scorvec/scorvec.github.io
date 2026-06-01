@@ -136,13 +136,16 @@ def plot(obs: pd.DataFrame, normals: dict, diff: xr.DataArray,
     # 30-day running SOI per member: observed tail (shared) + member forecast
     full = pd.date_range(init_d - pd.Timedelta(days=WIN - 1), fdates[-1], freq="D")
     obs_d = obs_soi.reindex(full)
+    # min_periods < WIN tolerates the 1–few-day gap between the last observation
+    # and the first forecast day (init+24h) — otherwise that hole blanks every
+    # forecast window. A 30-day mean from ≥25 days is fine.
     run_fc = []
     for j in range(fc.shape[0]):
         s = obs_d.copy()
         s.loc[fdates] = fc[j]
-        run_fc.append(s.rolling(WIN, min_periods=WIN).mean())
+        run_fc.append(s.rolling(WIN, min_periods=WIN - 5).mean())
     run_fc = pd.DataFrame(run_fc).T                              # index=full, cols=member
-    run_obs = obs_soi.rolling(WIN, min_periods=WIN).mean()
+    run_obs = obs_soi.rolling(WIN, min_periods=WIN - 5).mean()
 
     p0 = init_d - pd.Timedelta(days=PAST_DAYS)
     fig, ax = plt.subplots(figsize=(11, 5.6))
