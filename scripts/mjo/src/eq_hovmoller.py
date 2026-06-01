@@ -26,7 +26,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 sys.path.insert(0, str(Path(__file__).parent))
-from download_aifs import _retrieve            # aws/azure/ecmwf mirror fallback
+from download_aifs import _retrieve, retrieve_parallel   # mirror fallback + parallel pf
 from build_eq_wind_clim import eval_clim
 
 DAILY_STEPS = list(range(24, 361, 24))          # forecast days 1..15
@@ -49,9 +49,9 @@ def download(model_key: str, date: str, time: str, out_dir: Path) -> dict:
         p = out_dir / f"u10_{model_key}_{date}_{time}z_{typ}.grib2"
         if not p.exists():
             print(f"  {model_key}/{typ}: downloading 10u (daily steps) …", flush=True)
-            _retrieve(dict(model=cfg["model"], date=date, time=int(time),
-                           stream="enfo", type=typ, levtype="sfc",
-                           param="10u", step=DAILY_STEPS), str(p))
+            req = dict(model=cfg["model"], date=date, time=int(time), stream="enfo",
+                       type=typ, levtype="sfc", param="10u", step=DAILY_STEPS)
+            (retrieve_parallel if typ == "pf" else _retrieve)(req, str(p))
         paths[typ] = p
     return paths
 

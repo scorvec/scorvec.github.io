@@ -29,7 +29,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 sys.path.insert(0, str(Path(__file__).parent))
-from download_aifs import _retrieve            # aws/azure/ecmwf mirror fallback
+from download_aifs import _retrieve, retrieve_parallel   # mirror fallback + parallel pf
 
 SOI_URL = ("https://data.longpaddock.qld.gov.au/SeasonalClimateOutlook/"
            "SouthernOscillationIndex/SOIDataFiles/DailySOI1933-1992Base.txt")
@@ -93,9 +93,9 @@ def download_msl(cfg: dict, date: str, time: str, out_dir: Path) -> dict:
         p = out_dir / f"msl_{cfg['model']}_{date}_{time}z_{typ}.grib2"
         if not p.exists():
             print(f"  {cfg['model']}/{typ}: downloading msl (daily steps) …", flush=True)
-            _retrieve(dict(model=cfg["model"], date=date, time=int(time),
-                           stream="enfo", type=typ, levtype="sfc",
-                           param="msl", step=DAILY_STEPS), str(p))
+            req = dict(model=cfg["model"], date=date, time=int(time), stream="enfo",
+                       type=typ, levtype="sfc", param="msl", step=DAILY_STEPS)
+            (retrieve_parallel if typ == "pf" else _retrieve)(req, str(p))
         paths[typ] = p
     return paths
 

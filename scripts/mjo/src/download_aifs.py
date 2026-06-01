@@ -54,6 +54,41 @@ def _retrieve(req: dict, target: str) -> str:
     raise last if last is not None else RuntimeError("AIFS retrieve failed (no sources)")
 
 
+# Open-data per-connection bandwidth is the bottleneck (~0.85 MB/s), but the link
+# has headroom — splitting the ensemble across N concurrent streams is ~3x faster.
+DL_WORKERS = int(os.environ.get("AIFS_DL_WORKERS", "4"))
+PF_MEMBERS = 50                                  # AIFS-ENS / IFS-ENS enfo pf count
+
+
+def retrieve_parallel(req: dict, target: str, members=None, workers: int = None) -> str:
+    """Retrieve a perturbed-forecast request by fetching member-groups over
+    several concurrent connections, then concatenating the GRIB messages (they
+    are self-contained, so cat just works and cfgrib reads the result). Falls
+    back to a single stream for tiny requests."""
+    import shutil
+    from concurrent.futures import ThreadPoolExecutor
+    workers = workers or DL_WORKERS
+    members = list(members) if members is not None else list(range(1, PF_MEMBERS + 1))
+    if workers < 2 or len(members) < 2:
+        return _retrieve({**req, "number": members}, target)
+    groups = [members[i::workers] for i in range(workers)]       # round-robin split
+    groups = [g for g in groups if g]
+    parts = [f"{target}.part{i}" for i in range(len(groups))]
+
+    def _work(args):
+        g, p = args
+        _retrieve({**req, "number": g}, p)
+        return p
+    with ThreadPoolExecutor(max_workers=len(groups)) as ex:
+        list(ex.map(_work, zip(groups, parts)))
+    with open(target, "wb") as out:                              # concatenate parts
+        for p in parts:
+            with open(p, "rb") as f:
+                shutil.copyfileobj(f, out)
+            os.remove(p)
+    return f"parallel×{len(groups)}"
+
+
 def latest_run() -> tuple[str, str]:
     """Return (date, time) for the most recent available AIFS-ENS run.
 
@@ -99,10 +134,10 @@ def download(date: str, time: str, out_dir: Path) -> None:
         step=STEPS,
     )
 
-    # Perturbed forecasts
+    # Perturbed forecasts (parallel member streams — ~3x faster)
     pf_path = out_dir / f"{stem}.pf.u.grib2"
     if not pf_path.exists():
-        src = _retrieve({**common, "type": "pf"}, str(pf_path))
+        src = retrieve_parallel({**common, "type": "pf"}, str(pf_path))
         print(f"  pf u-wind saved via {src}: {pf_path.name}")
     else:
         print(f"  {pf_path.name}: already exists, skipping")
