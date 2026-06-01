@@ -8,8 +8,8 @@ name: MJO RMM (AIFS-ENS)
 # done as they appear.
 on:
   schedule:
-    - cron: '37 8-12 * * *'    # morning window — catch the 00Z cycle
-    - cron: '37 19-23 * * *'   # evening window — catch the 12Z cycle
+    - cron: '37 8-12/2 * * *'   # morning: 08/10/12Z — catch the 00Z cycle
+    - cron: '37 19-23/2 * * *'  # evening: 19/21/23Z — catch the 12Z cycle
   workflow_dispatch:
     inputs:
       date:
