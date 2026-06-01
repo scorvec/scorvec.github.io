@@ -23,7 +23,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     env:
       MPLBACKEND: Agg
       SST_SITE_ROOT: ${{ github.workspace }}

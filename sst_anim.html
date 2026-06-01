@@ -95,7 +95,7 @@
     <span class="hint">Space play &middot; &larr; &rarr; step &middot; Home/End jump</span>
   </div>
   <div class="controls-row">
-    <label class="ctl-label">Region</label>
+    <label class="ctl-label" id="regionLabel">Region</label>
     <select id="region"></select>
     <input type="range" class="slider" id="slider" min="0" max="0" value="0">
     <span class="speed">
@@ -144,9 +144,17 @@ async function init() {
     opt.textContent = rdata.label;
     regSel.appendChild(opt);
   });
-  region = regSel.value;
-  const hash = location.hash.replace("#", "");
-  if (hash && manifest.regions[hash]) { region = hash; regSel.value = hash; }
+  // Region from ?region= or #hash; ?embed=1 strips chrome for inline iframes.
+  const params = new URLSearchParams(location.search);
+  const want = params.get("region") || location.hash.replace("#", "");
+  region = (want && manifest.regions[want]) ? want : regSel.value;
+  regSel.value = region;
+  if (params.has("embed")) {
+    document.body.style.padding = "0";
+    const b = document.querySelector(".back"); if (b) b.style.display = "none";
+    const rl = document.getElementById("regionLabel"); if (rl) rl.style.display = "none";
+    regSel.style.display = "none";
+  }
   regSel.addEventListener("change", () => { switchRegion(regSel.value); });
 
   setupRegion();

@@ -93,6 +93,13 @@
   .img-wrap { padding: 1rem 1.2rem; background: #fff; }
   .img-wrap + .img-wrap { padding-top: 0; }
   .img-wrap img { display: block; width: 100%; height: auto; }
+  .anim-embed { width: 100%; border: 0; display: block; background: #0f0f0d;
+                aspect-ratio: 27 / 25; }
+  .anim-embed.subsurface { aspect-ratio: 1 / 1; }
+  @media (max-width: 768px) {
+    .anim-embed { aspect-ratio: 1 / 1.08; }
+    .anim-embed.subsurface { aspect-ratio: 1 / 1.12; }
+  }
   .img-label {
     font-size: 0.72rem; color: var(--muted);
     text-transform: uppercase; letter-spacing: 0.06em;
@@ -190,19 +197,39 @@
         <p>The blue&ndash;white&ndash;red field is the departure of sea-surface temperature from the 1991&ndash;2020 average for the most recent available day. Reds are warmer than normal, blues cooler.</p>
         <p><b>What to look for:</b> The tropical Pacific cold tongue (an east&ndash;west band along the equator) reveals ENSO state &mdash; a warm anomaly there points toward El Ni&ntilde;o, a cool one toward La Ni&ntilde;a. Elsewhere, marine heatwaves show up as intense localized warm pools, and western boundary currents (Gulf Stream, Kuroshio) are often anomalously warm.</p>
       </div>
-      <div class="img-wrap">
-        <div class="img-label">Global</div>
-        <img src="assets/sst/global_sst_anom.webp?v=__CACHE__"
-             alt="Global sea-surface temperature anomaly" loading="lazy">
-      </div>
-      <div class="img-wrap">
-        <div class="img-label">Tropical Pacific</div>
-        <img src="assets/sst/tropical_sst_anom.webp?v=__CACHE__"
-             alt="Tropical Pacific sea-surface temperature anomaly" loading="lazy">
-      </div>
+      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
+              title="Global and tropical Pacific SST anomaly animation" loading="lazy"></iframe>
       <div class="chart-card-footer">
-        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; base 1991&ndash;2020 &middot; cartopy &middot; <a href="sst_anim.html" style="color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-light);">&#9654; View 60-day animation</a></span>
+        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; base 1991&ndash;2020 &middot; 60-day animation, latest day shown</span>
         <span class="chart-updated" id="sst-updated">__SST_DAY__</span>
+      </div>
+    </div>
+
+    <!-- ABSOLUTE SST -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Absolute Sea-Surface Temperature</h2>
+        <p>The actual SST field (not anomaly), global and tropical Pacific. The warm pool, equatorial cold tongue, and western boundary currents are visible directly; watch them shift day to day.</p>
+      </div>
+      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=absolute"
+              title="Absolute SST animation" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; absolute SST &middot; 60-day animation</span>
+        <span class="chart-updated">__SST_DAY__</span>
+      </div>
+    </div>
+
+    <!-- RELATIVE SST (global-mean removed) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>SST Anomaly &mdash; Global-Mean Removed</h2>
+        <p>The anomaly with the area-weighted global-mean SST anomaly subtracted at every point. This strips out the uniform background-warming signal and isolates the <i>pattern</i> of warming and cooling &mdash; the El Ni&ntilde;o footprint stands out against a more balanced global ocean.</p>
+      </div>
+      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=relative"
+              title="Global-mean-removed SST anomaly animation" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; anomaly minus global-mean anomaly &middot; 60-day animation</span>
+        <span class="chart-updated">__SST_DAY__</span>
       </div>
     </div>
 
@@ -213,10 +240,10 @@
         <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed.</p>
         <p><b>What to look for:</b> The thermocline (here the 26&deg;C and 28&deg;C isotherms) tilts upward toward the east. Subsurface warm or cool anomalies along the thermocline often <i>lead</i> the surface ENSO signal &mdash; watch them build and propagate eastward in the animation.</p>
       </div>
-      <img src="assets/sst/equatorial_xsection.webp?v=__CACHE__"
-           alt="Equatorial Pacific subsurface temperature and anomaly cross-section" loading="lazy">
+      <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial"
+              title="Equatorial Pacific subsurface temperature animation" loading="lazy"></iframe>
       <div class="chart-card-footer">
-        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; <a href="sst_anim.html#equatorial" style="color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-light);">&#9654; View 120-day animation</a></span>
+        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
         <span class="chart-updated" id="subsurface-updated">__TAO_DAY__</span>
       </div>
     </div>

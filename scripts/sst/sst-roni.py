@@ -61,6 +61,7 @@ HTML_OUT = SITE_ROOT / "sst.html"
 
 PSL_BASE = "https://downloads.psl.noaa.gov/Datasets/noaa.oisst.v2.highres"
 DAILY_ANOM_URL = PSL_BASE + "/sst.day.anom.{year}.nc"
+DAILY_MEAN_URL = PSL_BASE + "/sst.day.mean.{year}.nc"
 
 PC = ccrs.PlateCarree()
 
@@ -265,6 +266,91 @@ def render_anim_frames(full_anom, la, lo, region_id, extent, central_lon,
         })
     print(f"  region '{region_id}': {n} frames -> {out_dir}")
     return frames
+
+
+# ----------------------------------------------------------------------
+# Two-panel (global + tropical Pacific) animated products
+# ----------------------------------------------------------------------
+PRODUCTS = {
+    "anomaly":  dict(kind="anom", label="SST Anomaly — Global & Tropical Pacific"),
+    "absolute": dict(kind="abs",  label="Absolute SST — Global & Tropical Pacific"),
+    "relative": dict(kind="rel",  label="SST Anomaly (global-mean removed)"),
+}
+_KIND_TITLE = {"anom": "SST Anomaly", "abs": "Absolute SST",
+               "rel": "SST Anomaly (global-mean removed)"}
+
+
+def _kind_style(kind):
+    if kind == "abs":
+        return dict(cmap=plt.get_cmap("turbo"), vmin=-2.0, vmax=32.0,
+                    cbar="SST (°C)")
+    return dict(cmap=sst_anom_cmap(), vmin=-5.0, vmax=5.0,
+                cbar="SST anomaly (°C)")
+
+
+def _draw_map_ax(ax, field, la, lo, extent, style, nino_box):
+    ax.set_extent(extent, crs=PC)
+    im = ax.pcolormesh(field[lo].values, field[la].values, field.values,
+                       cmap=style["cmap"], vmin=style["vmin"], vmax=style["vmax"],
+                       transform=PC, shading="auto", rasterized=True, zorder=1)
+    ax.add_feature(cfeature.LAND.with_scale("110m"), facecolor="#d9d6cf", zorder=2)
+    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#555",
+                   linewidth=0.4, zorder=3)
+    if nino_box:
+        _draw_nino34_box(ax)
+    return im
+
+
+def render_2panel_frame(field, la, lo, kind, title, out_path):
+    """Global (top) + tropical Pacific (bottom) map of one field in one figure."""
+    style = _kind_style(kind)
+    fig = plt.figure(figsize=(10.5, 8.4), dpi=88)
+    gs = fig.add_gridspec(2, 1, height_ratios=[7.0, 5.2], hspace=0.06,
+                          left=0.02, right=0.9, top=0.92, bottom=0.04)
+    ax1 = fig.add_subplot(gs[0], projection=ccrs.PlateCarree(central_longitude=GLOBAL_CENTRAL_LON))
+    ax2 = fig.add_subplot(gs[1], projection=ccrs.PlateCarree(central_longitude=TROPICAL_CENTRAL_LON))
+    im = _draw_map_ax(ax1, field, la, lo, GLOBAL_EXTENT, style, nino_box=False)
+    _draw_map_ax(ax2, field, la, lo, TROPICAL_EXTENT, style, nino_box=True)
+    ax1.set_title("Global", fontsize=9, loc="left")
+    ax2.set_title("Tropical Pacific", fontsize=9, loc="left")
+    fig.suptitle(title, fontsize=12, fontweight="bold", x=0.02, ha="left")
+    cax = fig.add_axes([0.915, 0.12, 0.016, 0.74])
+    cb = fig.colorbar(im, cax=cax, extend="both")
+    cb.set_label(style["cbar"], fontsize=9)
+    cb.ax.tick_params(labelsize=8)
+    fig.savefig(out_path, dpi=88, facecolor="white",
+                pil_kwargs={"quality": 82, "method": 6})
+    plt.close(fig)
+
+
+def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS):
+    cfg = PRODUCTS[product_id]
+    out_dir = ASSETS / "anim" / product_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for old in out_dir.glob("F*.webp"):
+        old.unlink()
+    times = pd.to_datetime(field_full["time"].values)
+    n = min(n_days, len(times))
+    sel = field_full.isel(time=slice(len(times) - n, len(times)))
+    st = pd.to_datetime(sel["time"].values)
+    pfx = _KIND_TITLE[cfg["kind"]]
+    frames = []
+    for i in range(n):
+        out = out_dir / f"F{i:02d}.webp"
+        render_2panel_frame(sel.isel(time=i), la, lo, cfg["kind"],
+                            f"{pfx} — {st[i]:%Y-%m-%d}", out)
+        frames.append({"idx": i, "file": f"F{i:02d}.webp",
+                       "date": f"{st[i]:%Y-%m-%d}", "label": f"{st[i]:%a %b %d, %Y}"})
+    print(f"  product '{product_id}': {n} frames", flush=True)
+    return frames
+
+
+def global_mean_removed(full, la, lo):
+    """Per-time field minus its cosine-weighted ocean-area global mean."""
+    w = np.cos(np.deg2rad(full[la]))
+    valid = full.notnull()
+    gmean = (full * w).sum(dim=(la, lo), skipna=True) / (w * valid).sum(dim=(la, lo))
+    return full - gmean
 
 
 # ----------------------------------------------------------------------
@@ -506,6 +592,19 @@ def main(argv=None) -> int:
     valid = pd.to_datetime(dsd["time"].values[-1])
     print(f"  latest day: {valid:%Y-%m-%d}")
 
+    # --- Absolute SST (sst.day.mean) for the absolute-SST animation ---
+    print("Daily absolute SST (sst.day.mean):")
+    full_abs = None
+    try:
+        mean_path = DATA / f"sst.day.mean.{year}.nc"
+        _download(DAILY_MEAN_URL.format(year=year), mean_path, force=args.force)
+        dsm = xr.open_dataset(mean_path)
+        full_abs = dsm[_find_var(dsm, candidates=("sst", "anom"))]
+        if float(full_abs[lo].min()) < 0:
+            full_abs = full_abs.assign_coords({lo: (full_abs[lo] % 360)}).sortby(lo)
+    except Exception as e:
+        print(f"  absolute SST unavailable ({e}); skipping that product", file=sys.stderr)
+
     # Daily 'current conditions' readout (single-day values).
     day_n34, day_trop, day_rel = daily_nino_readout(latest, la, lo)
     print(f"  daily Nino-3.4 (ONI-like) {day_n34:+.2f} degC, "
@@ -558,34 +657,35 @@ def main(argv=None) -> int:
     render_daily_three_metrics(full, la, lo,
                                ASSETS / "daily_indices.webp")
 
-    # --- Animation frames (last ANIM_DAYS days, ANIM_REGIONS only) ---
-    print(f"Animation frames (last {ANIM_DAYS} days):")
+    # --- Two-panel animated products: anomaly, absolute, relative ---
+    print(f"Two-panel animations (last {ANIM_DAYS} days):")
+    full_rel = global_mean_removed(full, la, lo)
+    fields = {"anomaly": full, "relative": full_rel}
+    if full_abs is not None:
+        fields["absolute"] = full_abs
     anim_manifest = {"days": ANIM_DAYS, "regions": {}}
-    for rid in ANIM_REGIONS:
-        rcfg = REGIONS[rid]
-        frames = render_anim_frames(
-            full, la, lo, rid, rcfg["extent"], rcfg["central_lon"],
-            rcfg["figsize"], n_days=ANIM_DAYS)
-        anim_manifest["regions"][rid] = {
-            "label": rcfg["label"],
-            "n_frames": len(frames),
+    for pid in ("anomaly", "absolute", "relative"):
+        if pid not in fields:
+            continue
+        frames = render_product_anim(fields[pid], la, lo, pid, n_days=ANIM_DAYS)
+        anim_manifest["regions"][pid] = {
+            "label": PRODUCTS[pid]["label"], "n_frames": len(frames),
             "frames": frames,
         }
-    # Remove stale anim frame dirs for regions we no longer animate.
-    anim_root = ASSETS / "anim"
-    if anim_root.exists():
-        for sub in anim_root.iterdir():
-            if sub.is_dir() and sub.name not in ANIM_REGIONS:
-                for f in sub.glob("F*.webp"):
-                    f.unlink()
-                try:
-                    sub.rmdir()
-                    print(f"  removed stale anim dir: {sub.name}")
-                except OSError:
-                    pass
-    (anim_root / "manifest.json").write_text(
+    # Drop the retired single-panel 'tropical' region dir if present.
+    old_trop = ASSETS / "anim" / "tropical"
+    if old_trop.exists():
+        for f in old_trop.glob("F*.webp"):
+            f.unlink()
+        try:
+            old_trop.rmdir()
+        except OSError:
+            pass
+    # Overwrite manifest with our products; sst_subsurface.py merges
+    # 'equatorial' afterwards (the workflow runs it after this script).
+    (ASSETS / "anim" / "manifest.json").write_text(
         json.dumps(anim_manifest, indent=2))
-    print(f"  wrote anim/manifest.json")
+    print("  wrote anim/manifest.json (anomaly, absolute, relative)")
 
     # --- Manifest ---
     manifest = {
