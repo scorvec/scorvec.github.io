@@ -63,6 +63,17 @@ jobs:
       - name: Build equatorial subsurface cross-section + animation
         run: python scripts/sst/sst_subsurface.py
 
+      - name: Build daily ASCAT equatorial-Pacific wind map (Copernicus Marine)
+        working-directory: scripts/sst
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: |
+          if [ -z "$COPERNICUSMARINE_SERVICE_USERNAME" ]; then
+            echo "Copernicus Marine credentials not set; skipping wind map."; exit 0
+          fi
+          python sst_ascat_winds.py || echo "ASCAT wind map failed; continuing"
+
       - name: Commit & push (generated outputs)
         run: |
           git config user.name "github-actions[bot]"
