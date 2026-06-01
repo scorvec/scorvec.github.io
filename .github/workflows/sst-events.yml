@@ -1,8 +1,10 @@
 name: SST event comparisons (weekly)
 
-# The OISST monthly file (~2.2 GB) updates monthly, so these El Niño
-# event-comparison products only need a weekly refresh — kept out of the daily
-# SST workflow to avoid the bulk download.
+# These El Niño event-comparison products compare the current ENSO evolution
+# against the 1997/2015/2023 analogs at 7-day (weekly) resolution, built from
+# the OISST daily-anomaly per-year files for just the event years (~3 GB of
+# downloads). They change slowly, so a weekly refresh is enough — kept out of
+# the daily SST workflow to avoid the bulk download.
 on:
   schedule:
     - cron: '41 13 * * 1'      # Mondays ~13 UTC
@@ -40,7 +42,7 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r scripts/sst/requirements-sst.txt
 
-      - name: Build event-comparison products (downloads monthly OISST)
+      - name: Build event-comparison products (downloads OISST daily-anom event years)
         run: python scripts/sst/sst_events.py
 
       - name: Commit & push

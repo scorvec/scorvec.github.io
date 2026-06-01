@@ -23,15 +23,20 @@ from ecmwf.opendata import Client
 
 DATA_DIR = Path(__file__).parent.parent / "data" / "aifs"
 
-# 6-hourly steps to day 15
-STEPS = list(range(6, 361, 6))
+# Sub-daily steps to day 15. Default 6-hourly (4 samples/day → clean daily means
+# for the RMM). The download is ~1 MB/s-bandwidth-bound from the ECMWF mirrors,
+# so on a slow link set AIFS_STEP_HOURS=12 to halve the bytes (RMM is computed
+# from daily means via step//24 groupby, so coarser sampling is transparent).
+_STEP_HOURS = int(os.environ.get("AIFS_STEP_HOURS", "6"))
+STEPS = list(range(_STEP_HOURS, 361, _STEP_HOURS))
 
 # Prefer the cloud mirrors over the main ECMWF portal (which enforces a
 # connection limit / HTTP 429 that throttles the 4 GB ensemble download).
-# Google Cloud is consistently the fastest in practice, then AWS/Azure, with
-# the portal last. Override with the AIFS_SOURCES env var.
+# NOTE: the "google" source 400s for aifs-ens pressure-level data (it doesn't
+# host this product), so it's excluded — AWS/Azure first, portal last.
+# Override with the AIFS_SOURCES env var.
 SOURCES = [s.strip() for s in
-           os.environ.get("AIFS_SOURCES", "google,aws,azure,ecmwf").split(",") if s.strip()]
+           os.environ.get("AIFS_SOURCES", "aws,azure,ecmwf").split(",") if s.strip()]
 
 
 def _retrieve(req: dict, target: str) -> str:
