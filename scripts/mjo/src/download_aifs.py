@@ -27,8 +27,10 @@ DATA_DIR = Path(__file__).parent.parent / "data" / "aifs"
 # (it builds daily means via step//24 groupby, so one sample/day is enough), and
 # daily steps cut the ~1 MB/s-bandwidth-bound download ~4x (≈4 GB → ≈1 GB).
 # Set AIFS_STEP_HOURS=6 for the old 4-samples/day behavior if ever needed.
+# Step 0 (the analysis) is included so lead_day 0 exists — the zero-lag "truth"
+# point archived to obs_history (daily steps otherwise start at lead_day 1).
 _STEP_HOURS = int(os.environ.get("AIFS_STEP_HOURS", "24"))
-STEPS = list(range(_STEP_HOURS, 361, _STEP_HOURS))
+STEPS = [0] + list(range(_STEP_HOURS, 361, _STEP_HOURS))
 
 # Prefer the cloud mirrors over the main ECMWF portal (which enforces a
 # connection limit / HTTP 429 that throttles the 4 GB ensemble download).

@@ -64,8 +64,10 @@ def main() -> None:
     rmm_path = Path("data/aifs") / f"rmm_{args.date}_{args.time}z.nc"
     rmm.to_netcdf(rmm_path)
 
-    # 3. Extend the observed history with today's AIFS analysis (control day 0)
-    cf0 = rmm.sel(member="cf", lead_day=0)
+    # 3. Extend the observed history with today's AIFS analysis (control, earliest
+    #    lead). lead_day 0 if step 0 was downloaded, else the first forecast day —
+    #    .isel keeps this robust to the daily-vs-6-hourly step choice.
+    cf0 = rmm.sel(member="cf").isel(lead_day=0)
     archive_truth.append_truth(init, float(cf0["rmm1"]), float(cf0["rmm2"]))
     obs = archive_truth.load_truth(days=60)
 
