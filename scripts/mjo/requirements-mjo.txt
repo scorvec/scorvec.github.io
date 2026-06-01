@@ -11,3 +11,6 @@ matplotlib
 eofs
 requests
 ecmwf-opendata
+cartopy>=0.22
+shapely>=2.0
+pyproj>=3.5

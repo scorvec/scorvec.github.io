@@ -97,7 +97,7 @@ jobs:
       - name: Install eccodes (GRIB decoder)
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends libeccodes0
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
       - name: Install Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 

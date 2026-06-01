@@ -22,6 +22,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 
 sys.path.insert(0, str(Path(__file__).parent))
 from download_aifs import _retrieve            # aws/azure/ecmwf mirror fallback
@@ -95,36 +97,76 @@ def _lon_ticks():
     return ticks, labs
 
 
-def plot(anoms: dict, valid: np.ndarray, init: pd.Timestamp, out: Path,
-         lim: float = 6.0):
+ANOM_LIM = 6.0
+ABS_LIM = 10.0
+
+
+def _ref_map(ax):
+    """Plain tropical-belt basemap (no data) spanning the column longitudes,
+    for geographic orientation of the Hovmöller longitudes."""
+    ax.set_extent([LON_VIEW[0], LON_VIEW[1], -20, 20], crs=ccrs.PlateCarree())
+    ax.add_feature(cfeature.LAND.with_scale("110m"), facecolor="#d9d6cf", zorder=2)
+    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#555",
+                   linewidth=0.4, zorder=3)
+    # mark the 5°S–5°N averaging band
+    ax.add_patch(plt.Rectangle((LON_VIEW[0], -5), LON_VIEW[1] - LON_VIEW[0], 10,
+                 transform=ccrs.PlateCarree(), facecolor="none",
+                 edgecolor="k", lw=0.8, ls="--", zorder=4))
+    ax.set_title("Tropical Pacific — geographic reference (dashed = 5°S–5°N average)",
+                 fontsize=9, loc="left")
+
+
+def plot(data: dict, valid: np.ndarray, init: pd.Timestamp, out: Path):
+    """data: {model: {'anom': (step,lon), 'abs': (step,lon)}}.
+    Columns grouped by model: <model> anomaly, <model> absolute u10. A tropical-
+    belt reference map sits above the columns."""
     lead = np.array([(pd.Timestamp(v) - init) / pd.Timedelta(days=1) for v in valid])
     m = (LON_GRID >= LON_VIEW[0]) & (LON_GRID <= LON_VIEW[1])
     lons = LON_GRID[m]
-    levels = np.arange(-lim, lim + 0.001, 0.5)
-    keys = list(anoms.keys())
+    cols = []
+    for k in data:                                  # aifs, ifs (insertion order)
+        cols += [(k, "anom"), (k, "abs")]
+    ncol = len(cols)
 
-    fig, axes = plt.subplots(1, len(keys), figsize=(5.0 * len(keys), 7.2),
-                             sharey=True)
-    if len(keys) == 1:
-        axes = [axes]
-    fig.suptitle(f"Equatorial Pacific (5°S–5°N) 10 m zonal-wind anomaly forecast\n"
-                 f"Ensemble mean · anomaly vs ERA5 1991–2020 · init "
-                 f"{init:%Y-%m-%d %HZ}", fontsize=11, fontweight="bold")
-    cf = None
-    for ax, k in zip(axes, keys):
-        cf = ax.contourf(lons, lead, anoms[k][:, m], levels=levels,
-                         cmap="RdBu_r", extend="both",
-                         norm=mcolors.TwoSlopeNorm(0, -lim, lim))
-        ax.contour(lons, lead, anoms[k][:, m], levels=[0], colors="k", linewidths=0.5, alpha=0.5)
-        ax.set_title(MODELS[k]["label"], fontsize=10)
+    fig = plt.figure(figsize=(3.35 * ncol, 8.6))
+    gs = fig.add_gridspec(2, ncol, height_ratios=[1.0, 6.5], hspace=0.16,
+                          wspace=0.10, left=0.06, right=0.9, top=0.9, bottom=0.07)
+    _ref_map(fig.add_subplot(gs[0, :],
+             projection=ccrs.PlateCarree(central_longitude=180)))
+    fig.suptitle(f"Equatorial Pacific 10 m zonal wind forecast — init {init:%Y-%m-%d %HZ}\n"
+                 f"ensemble mean · 5°S–5°N · anomaly vs ERA5 1991–2020",
+                 fontsize=12, fontweight="bold")
+
+    imA = imB = None
+    for j, (k, kind) in enumerate(cols):
+        ax = fig.add_subplot(gs[1, j])
+        fld = data[k][kind][:, m]
+        if kind == "anom":
+            imA = ax.contourf(lons, lead, fld, levels=np.arange(-ANOM_LIM, ANOM_LIM + .01, .5),
+                              cmap="RdBu_r", extend="both",
+                              norm=mcolors.TwoSlopeNorm(0, -ANOM_LIM, ANOM_LIM))
+            ax.contour(lons, lead, fld, levels=[0], colors="k", linewidths=0.5, alpha=0.5)
+            ax.set_title(f"{MODELS[k]['label']}\nanomaly", fontsize=9)
+        else:
+            imB = ax.contourf(lons, lead, fld, levels=np.arange(-ABS_LIM, ABS_LIM + .01, 1),
+                              cmap="RdBu_r", extend="both",
+                              norm=mcolors.TwoSlopeNorm(0, -ABS_LIM, ABS_LIM))
+            ax.contour(lons, lead, fld, levels=[0], colors="k", linewidths=0.5, alpha=0.5)
+            ax.set_title(f"{MODELS[k]['label']}\nabsolute u10", fontsize=9)
+        ax.set_ylim(lead.max(), lead.min())
         ax.set_xticks(*_lon_ticks())
-        ax.tick_params(labelsize=8)
+        ax.tick_params(labelsize=7.5)
         ax.axvline(180, color="0.5", lw=0.5, ls=":")
-        ax.set_xlabel("Longitude")
-    axes[0].set_ylabel("Forecast lead (days)")
-    axes[0].set_ylim(lead.max(), lead.min())               # day 0/1 at top
-    fig.colorbar(cf, ax=axes, label="10 m U anomaly (m s⁻¹)",
-                 fraction=0.025, pad=0.02)
+        ax.set_xlabel("Longitude", fontsize=8)
+        ax.set_ylabel("Forecast lead (days)" if j == 0 else "")
+        if j > 0:
+            ax.set_yticklabels([])
+    if imA is not None:
+        c = fig.colorbar(imA, cax=fig.add_axes([0.915, 0.52, 0.013, 0.34]), extend="both")
+        c.set_label("u anomaly (m s⁻¹)", fontsize=8); c.ax.tick_params(labelsize=7)
+    if imB is not None:
+        c = fig.colorbar(imB, cax=fig.add_axes([0.915, 0.09, 0.013, 0.34]), extend="both")
+        c.set_label("u10 (m s⁻¹)", fontsize=8); c.ax.tick_params(labelsize=7)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight")
     plt.close(fig)
@@ -141,19 +183,19 @@ def main() -> int:
     args = ap.parse_args()
 
     init = pd.Timestamp(f"{args.date}T{args.time}:00")
-    anoms, valid = {}, None
+    data, valid = {}, None
     for k in args.models.split(","):
         print(f"== {k} ==", flush=True)
         try:
             paths = download(k, args.date, args.time, Path(args.data_dir))
             ens = ensemble_mean_band(paths)
             a, valid = anomalize(ens, init)
-            anoms[k] = a
+            data[k] = {"anom": a, "abs": ens.values}
         except Exception as e:                      # e.g. that cycle not yet on a model
             print(f"  {k}: skipped ({repr(e)[:90]})", flush=True)
-    if not anoms:
+    if not data:
         raise SystemExit("no model data available for the Hovmöller")
-    plot(anoms, valid, init, Path(args.out))
+    plot(data, valid, init, Path(args.out))
     return 0
 
 
