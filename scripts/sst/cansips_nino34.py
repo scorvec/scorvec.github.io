@@ -146,31 +146,51 @@ def latest_issue() -> str:
     raise SystemExit("no recent CanSIPS forecast issue found")
 
 
+def _roll3(arr):                                      # centered 3-month mean along lead
+    return (arr[:, :-2] + arr[:, 1:-1] + arr[:, 2:]) / 3.0
+
+
+def _panel(ax, cv, cdat, pv, pdat, title, cur_lab, prev_lab):
+    ax.plot(pv, pdat.mean(0), color="#888", lw=1.8, ls="--",
+            label=f"{prev_lab:%b %Y} (mean)", zorder=3)
+    lo, hi = np.percentile(pdat, [10, 90], axis=0)
+    ax.fill_between(pv, lo, hi, color="#888", alpha=0.12, zorder=1)
+    ax.plot(cv, cdat.T, color="#d62728", lw=0.4, alpha=0.18, zorder=2)
+    ax.plot(cv, cdat.mean(0), color="#d62728", lw=2.6,
+            label=f"{cur_lab:%b %Y} (mean)", zorder=4)
+    ax.axhline(0, color="0.5", lw=0.8)
+    for g in (0.5, -0.5):
+        ax.axhline(g, color="0.7", lw=0.7, ls=":")
+    ax.set_title(title, fontsize=10.5, fontweight="bold")
+    ax.grid(True, alpha=0.2); ax.legend(fontsize=8, loc="upper left")
+
+
 def plot(cur_ym, prev_ym, out: Path):
+    import matplotlib.dates as mdates
     cv, ctrad, crel = issue_anoms(cur_ym)
     pv, ptrad, prel = issue_anoms(prev_ym)
     cur_lab = pd.Timestamp(int(cur_ym[:4]), int(cur_ym[4:]), 1)
     prev_lab = pd.Timestamp(int(prev_ym[:4]), int(prev_ym[4:]), 1)
+    c3, p3 = cv[1:-1], pv[1:-1]                        # centered 3-month valid months
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5.2), sharex=True)
-    for ax, cdat, pdat, title in ((axes[0], ctrad, ptrad, "Traditional (Niño-3.4 anomaly)"),
-                                  (axes[1], crel, prel, "Relative (minus 20°S–20°N mean)")):
-        ax.plot(pv, pdat.mean(0), color="#888", lw=1.8, ls="--",
-                label=f"{prev_lab:%b %Y} issue (mean)", zorder=3)
-        lo, hi = np.percentile(pdat, [10, 90], axis=0)
-        ax.fill_between(pv, lo, hi, color="#888", alpha=0.12, zorder=1)
-        ax.plot(cv, cdat.T, color="#d62728", lw=0.4, alpha=0.18, zorder=2)
-        ax.plot(cv, cdat.mean(0), color="#d62728", lw=2.8,
-                label=f"{cur_lab:%b %Y} issue (mean)", zorder=4)
-        ax.axhline(0, color="0.5", lw=0.8)
-        for g in (0.5, -0.5):
-            ax.axhline(g, color="0.7", lw=0.7, ls=":")
-        ax.set_title(title, fontsize=11, fontweight="bold")
-        ax.grid(True, alpha=0.2); ax.legend(fontsize=8.5, loc="upper left")
-    axes[0].set_ylabel("SST anomaly (°C)")
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8.6), sharex=True)
+    _panel(axes[0, 0], cv, ctrad, pv, ptrad, "Traditional — monthly", cur_lab, prev_lab)
+    _panel(axes[0, 1], cv, crel, pv, prel, "Relative — monthly", cur_lab, prev_lab)
+    _panel(axes[1, 0], c3, _roll3(ctrad), p3, _roll3(ptrad),
+           "Traditional — 3-month running mean", cur_lab, prev_lab)
+    _panel(axes[1, 1], c3, _roll3(crel), p3, _roll3(prel),
+           "Relative — 3-month running mean", cur_lab, prev_lab)
+    for ax in axes[:, 0]:
+        ax.set_ylabel("SST anomaly (°C)")
+    for ax in axes.ravel():                            # label every month as "Oct 2026"
+        ax.xaxis.set_major_locator(mdates.MonthLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+    for ax in axes[1, :]:
+        for lab in ax.get_xticklabels():
+            lab.set_rotation(45); lab.set_ha("right"); lab.set_fontsize(7.5)
     fig.suptitle(f"CanSIPS GEM-NEMO Niño-3.4 forecast (members 1–20) — issued {cur_lab:%b %Y}, "
                  f"vs. previous issue", fontsize=12.5, fontweight="bold")
-    fig.autofmt_xdate(); fig.tight_layout()
+    fig.tight_layout()
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight"); plt.close(fig)
     print(f"saved {out} (current {cur_ym} mean@lead0 trad {ctrad.mean(0)[0]:+.2f}°C)")
