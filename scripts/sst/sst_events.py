@@ -6,10 +6,14 @@ El Niño event-comparison products: track the current ENSO evolution against the
 Data: OISST daily anomaly files (already anomalies vs 1991-2020) for just the
 event years — small, reliable (no OPeNDAP), 7-day-smoothed.
 
+The warming background is removed so events decades apart are comparable:
+indices subtract the 20°S–20°N tropical-mean anomaly (RONI-style "relative"
+index); the global maps subtract the area-weighted global-mean anomaly.
+
 Products (assets/sst/):
-  events_nino34.webp   Niño-3.4 weekly evolution overlay (current vs analogs)
-  events_bars.webp     Niño-1+2/3/3.4/4 same-phase flavor bars
-  events_maps.webp     matching-phase global anomaly maps (current vs analogs)
+  events_nino34.webp   Niño-3.4 weekly overlay — RONI (bold) + raw ONI (faint)
+  events_bars.webp     relative Niño-1+2/3/3.4/4 same-phase flavor bars
+  events_maps.webp     matching-phase global anomaly maps (global-mean removed)
 """
 from __future__ import annotations
 
@@ -69,13 +73,37 @@ def _open(years):
     return ds, var, la, lo
 
 
-def region_daily(ds, var, la, lo, region) -> pd.Series:
+def _latslice(ds, la, lo_lat):
+    """lat slice honoring the file's latitude ordering (OISST is N→S)."""
+    return (slice(lo_lat[1], lo_lat[0]) if float(ds[la][0]) > float(ds[la][-1])
+            else slice(lo_lat[0], lo_lat[1]))
+
+
+_TM_CACHE: dict = {}
+
+
+def tropical_mean_series(ds, var, la, lo) -> pd.Series:
+    """Area-weighted 20°S–20°N mean anomaly (7-day smoothed). Subtracting this
+    from a Niño box gives the RELATIVE index (RONI-style): it removes the slowly
+    rising tropical background so events decades apart are comparable."""
+    key = id(ds)
+    if key not in _TM_CACHE:
+        sub = ds[var].sel({la: _latslice(ds, la, (-20, 20))}).isel({lo: slice(None, None, 2)})
+        w = np.cos(np.deg2rad(sub[la]))
+        tm = sub.weighted(w).mean((la, lo)).compute()
+        s = pd.Series(tm.values, index=pd.to_datetime(tm.time.values)).dropna()
+        _TM_CACHE[key] = s.rolling(SMOOTH, center=True, min_periods=3).mean()
+    return _TM_CACHE[key]
+
+
+def region_daily(ds, var, la, lo, region, relative=False) -> pd.Series:
     b = NINO[region]
-    latsel = (slice(b["lat"][1], b["lat"][0]) if float(ds[la][0]) > float(ds[la][-1])
-              else slice(b["lat"][0], b["lat"][1]))
-    box = ds[var].sel({la: latsel, lo: slice(*b["lon"])}).mean((la, lo)).compute()
+    box = ds[var].sel({la: _latslice(ds, la, b["lat"]), lo: slice(*b["lon"])}).mean((la, lo)).compute()
     s = pd.Series(box.values, index=pd.to_datetime(box.time.values)).dropna()
-    return s.rolling(SMOOTH, center=True, min_periods=3).mean()      # weekly-smoothed
+    s = s.rolling(SMOOTH, center=True, min_periods=3).mean()         # weekly-smoothed
+    if relative:                                                      # minus 20°S–20°N mean
+        s = (s - tropical_mean_series(ds, var, la, lo).reindex(s.index)).dropna()
+    return s
 
 
 # ── 1. Niño-3.4 weekly evolution overlay ──────────────────────────────────────
@@ -83,18 +111,20 @@ def overlay_nino34(out: Path):
     y0 = current_year()
     years = [y for yr in ANALOGS for y in (yr, yr + 1)] + [y0]
     ds, var, la, lo = _open(years)
-    s = region_daily(ds, var, la, lo, "3.4")
+    roni = region_daily(ds, var, la, lo, "3.4", relative=True)   # RONI (primary)
+    oni = region_daily(ds, var, la, lo, "3.4")                   # raw ONI (reference)
 
     fig, ax = plt.subplots(figsize=(9, 5.2))
     def devdays(idx, yr):
         return (idx - pd.Timestamp(yr, 1, 1)).days
+    def draw(s, yr, col, lw, **kw):
+        seg = s[f"{yr}":f"{yr+1}"] if yr in ANALOGS else s[f"{yr}":]
+        ax.plot(devdays(seg.index, yr), seg.values, color=col, lw=lw, **kw)
     for yr in ANALOGS:
-        seg = s[f"{yr}":f"{yr+1}"]
-        ax.plot(devdays(seg.index, yr), seg.values, color=ANALOG_COLORS[yr],
-                lw=1.6, label=f"{yr}–{str(yr+1)[2:]}")
-    cur = s[f"{y0}":]
-    ax.plot(devdays(cur.index, y0), cur.values, color="#d62728", lw=3.0,
-            label=f"{y0} (current)", zorder=5)
+        draw(oni, yr, ANALOG_COLORS[yr], 0.9, ls=":", alpha=0.6)            # ONI faint
+        draw(roni, yr, ANALOG_COLORS[yr], 1.8, label=f"{yr}–{str(yr+1)[2:]}")  # RONI bold
+    draw(oni, y0, "#d62728", 1.3, ls=":", alpha=0.6, zorder=5)
+    draw(roni, y0, "#d62728", 3.0, label=f"{y0} (current)", zorder=6)
     ax.axhline(0, color="0.6", lw=0.8)
     for g in (0.5, -0.5):
         ax.axhline(g, color="0.7", lw=0.7, ls="--")
@@ -105,8 +135,13 @@ def overlay_nino34(out: Path):
     ax.set_xticklabels([f"{m}\nYr0" for m in ("Jan", "Apr", "Jul", "Oct")] +
                        [f"{m}\nYr1" for m in ("Jan", "Apr", "Jul", "Oct")], fontsize=8)
     ax.set_xlim(0, 730)
-    ax.set_ylabel("Niño-3.4 SST anomaly (°C)")
-    ax.set_title("Niño-3.4 evolution (7-day mean): current vs. 1997, 2015, 2023",
+    ax.set_ylabel("Niño-3.4 index (°C)")
+    # style legend: solid = RONI, dotted = ONI
+    style_h = [plt.Line2D([], [], color="0.35", lw=2.2, label="RONI (relative)"),
+               plt.Line2D([], [], color="0.35", lw=1.0, ls=":", label="ONI (raw)")]
+    leg2 = ax.legend(handles=style_h, fontsize=8, loc="lower right", framealpha=0.9)
+    ax.add_artist(leg2)
+    ax.set_title("Niño-3.4 evolution (7-day mean): RONI vs. ONI — current vs. 1997, 2015, 2023",
                  fontsize=12, fontweight="bold", loc="left")
     ax.legend(fontsize=9, loc="upper left", framealpha=0.9)
     ax.grid(True, alpha=0.25)
@@ -114,7 +149,8 @@ def overlay_nino34(out: Path):
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight")
     plt.close(fig)
-    print(f"wrote {out} (latest {s.dropna().index[-1]:%Y-%m-%d} {s.dropna().iloc[-1]:+.2f}°C)")
+    print(f"wrote {out} (latest {roni.index[-1]:%Y-%m-%d} RONI {roni.iloc[-1]:+.2f} / "
+          f"ONI {oni.reindex([roni.index[-1]]).iloc[0]:+.2f}°C)")
 
 
 # ── 2. Multi-region flavor bars ───────────────────────────────────────────────
@@ -122,7 +158,7 @@ def bars_multiregion(out: Path):
     y0 = current_year()
     ds, var, la, lo = _open([y0] + ANALOGS)
     regions = list(NINO)
-    series = {r: region_daily(ds, var, la, lo, r) for r in regions}
+    series = {r: region_daily(ds, var, la, lo, r, relative=True) for r in regions}
     latest = series["3.4"].dropna().index[-1]
     doy = latest.dayofyear
 
@@ -139,8 +175,8 @@ def bars_multiregion(out: Path):
                color=col, label=lab)
     ax.axhline(0, color="0.5", lw=0.8)
     ax.set_xticks(x); ax.set_xticklabels([f"Niño-{r}" for r in regions])
-    ax.set_ylabel("SST anomaly (°C)")
-    ax.set_title(f"Niño-region anomalies at the same phase (~{latest:%b %d}) — current vs. analogs",
+    ax.set_ylabel("Relative SST anomaly (°C)\n(minus 20°S–20°N mean)")
+    ax.set_title(f"Relative Niño-region anomalies at the same phase (~{latest:%b %d}) — current vs. analogs",
                  fontsize=12, fontweight="bold", loc="left")
     ax.legend(fontsize=8.5, ncol=2); ax.grid(True, axis="y", alpha=0.25)
     fig.tight_layout()
@@ -161,12 +197,13 @@ def matching_phase_maps(out: Path):
 
     def week_map(yr):
         end = pd.Timestamp(yr, 1, 1) + pd.Timedelta(days=int(doy) - 1)
-        sl = ds[var].sel(time=slice(end - pd.Timedelta(days=SMOOTH - 1), end)).mean("time")
-        return sl.compute()
+        sl = ds[var].sel(time=slice(end - pd.Timedelta(days=SMOOTH - 1), end)).mean("time").compute()
+        gm = float(sl.weighted(np.cos(np.deg2rad(sl[la]))).mean((la, lo)))  # area-wtd global mean
+        return sl - gm                                                       # detrended (relative)
 
     PC = ccrs.PlateCarree(); proj = ccrs.PlateCarree(central_longitude=180)
     fig, axes = plt.subplots(2, 2, figsize=(12, 6.4), subplot_kw=dict(projection=proj))
-    fig.suptitle(f"Global SST anomaly — week ending ~{latest:%b %d} of each event",
+    fig.suptitle(f"Relative SST anomaly (global-mean removed) — week ending ~{latest:%b %d} of each event",
                  fontsize=13, fontweight="bold")
     im = None
     for ax, yr, lab in zip(axes.ravel(), years, labels):
@@ -178,7 +215,7 @@ def matching_phase_maps(out: Path):
         ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#555", linewidth=0.3)
         ax.set_title(lab, fontsize=10)
     fig.colorbar(im, cax=fig.add_axes([0.92, 0.15, 0.014, 0.7]),
-                 extend="both").set_label("SST anomaly (°C)", fontsize=9)
+                 extend="both").set_label("SST anomaly − global mean (°C)", fontsize=9)
     fig.subplots_adjust(left=0.02, right=0.9, top=0.9, bottom=0.04, wspace=0.05, hspace=0.15)
     fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
     print(f"wrote {out} (week ending ~{latest:%b %d})")

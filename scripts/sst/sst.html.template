@@ -296,30 +296,30 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>This Event vs. 1997, 2015 &amp; 2023</h2>
-        <p>Niño-3.4 anomaly (7-day running mean) through each event's development year and the following year &mdash; the current event (bold red) overlaid on the three most recent strong/super El Niños.</p>
+        <p>Niño-3.4 evolution (7-day running mean) through each event's development year and the next. Bold lines are <b>RONI</b> &mdash; the relative index (Niño-3.4 minus the 20&deg;S&ndash;20&deg;N tropical-mean anomaly), which removes the rising warming background so events decades apart are comparable; faint dotted lines are the raw <b>ONI</b> for reference. The current event is red. Note how 2015's record ONI shrinks toward 1997 once the background is removed.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/events_nino34.webp?v=__CACHE__" alt="Niño-3.4 evolution: current event vs 1997/2015/2023" loading="lazy"></div>
-      <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; anomaly vs 1991&ndash;2020</span></div>
+      <div class="img-wrap"><img src="assets/sst/events_nino34.webp?v=__CACHE__" alt="Niño-3.4 RONI vs ONI evolution: current event vs 1997/2015/2023" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; RONI = Niño-3.4 &minus; 20&deg;S&ndash;20&deg;N mean</span></div>
     </div>
 
     <!-- EVENT COMPARISON: multi-region flavor bars -->
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>El Niño Flavor &mdash; Niño Regions vs. Analogs</h2>
-        <p>Niño-1+2 / 3 / 3.4 / 4 anomalies (7-day mean) at the same calendar day as the latest data, for the current event and the three analogs. Strong eastern (1+2, 3) relative to central (4) marks an East-Pacific-flavored event.</p>
+        <p>Relative Niño-1+2 / 3 / 3.4 / 4 anomalies (7-day mean, each minus the 20&deg;S&ndash;20&deg;N tropical mean) at the same calendar day as the latest data, for the current event and the three analogs. Removing the tropical background makes the regions comparable across events; strong eastern (1+2, 3) relative to central (4) marks an East-Pacific-flavored event.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/events_bars.webp?v=__CACHE__" alt="Niño-region anomalies, current event vs analogs" loading="lazy"></div>
-      <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; same-phase comparison</span></div>
+      <div class="img-wrap"><img src="assets/sst/events_bars.webp?v=__CACHE__" alt="Relative Niño-region anomalies, current event vs analogs" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; relative to 20&deg;S&ndash;20&deg;N mean</span></div>
     </div>
 
     <!-- EVENT COMPARISON: matching-phase maps -->
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Matching-Phase SST Anomaly Maps</h2>
-        <p>Global SST anomaly for the latest available week vs. the same calendar week in 1997, 2015 and 2023. Note how much warmer the global baseline is now than in 1997 &mdash; the same ENSO state now sits on a hotter ocean.</p>
+        <p>Relative SST anomaly &mdash; the area-weighted global-mean anomaly removed from each map &mdash; for the latest available week vs. the same calendar week in 1997, 2015 and 2023. Stripping the global mean removes the secular warming trend, so the ENSO spatial pattern is comparable across events that sat on very different baselines.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/events_maps.webp?v=__CACHE__" alt="Matching-phase global SST anomaly maps" loading="lazy"></div>
-      <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; anomaly vs 1991&ndash;2020</span></div>
+      <div class="img-wrap"><img src="assets/sst/events_maps.webp?v=__CACHE__" alt="Matching-phase relative SST anomaly maps (global-mean removed)" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; global-mean removed</span></div>
     </div>
 
   </div>
