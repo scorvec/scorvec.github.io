@@ -304,14 +304,14 @@
         <p><b>How it's built:</b> The pipeline starts from the USGS US Large-Scale Photovoltaic Database (~6,500 utility-scale plants ≥1 MW with coordinates, capacity, tracking type, and tilt/azimuth). For each plant, HRRR's downward shortwave radiation (DSWRF), beam (VBDSF) and diffuse (VDDSF) components, and 2-meter air temperature are sampled at the plant's location. Sun position is computed from latitude/longitude/UTC time. For single-axis tracking plants (73% of the US fleet by capacity), pvlib computes the tracker rotation angle that points the panels toward the sun, including backtracking when the sun is low. Plane-of-array irradiance is calculated using HRRR's actual beam/diffuse split (no empirical decomposition). Cell temperature is computed from air temperature plus heating from absorbed irradiance, then a temperature derate is applied to DC power output. Finally, AC power is computed with inverter efficiency and clipping at the AC nameplate.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/solar_forecast.html?v=20260601T12Z"
+        <iframe src="assets/solar_forecast.html?v=20260601T18Z"
                 class="chart-frame"
                 title="48-hour HRRR-based solar generation forecast"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USPVDB · pvlib · Plotly</span>
-        <span class="chart-updated" id="last-updated-solar">Cycle 20260601T12Z</span>
+        <span class="chart-updated" id="last-updated-solar">Cycle 20260601T18Z</span>
       </div>
     </div>
 
@@ -323,14 +323,14 @@
         <p><b>How it's built:</b> Each forecast cycle computes per-plant AC power using the same physics chain as the regional chart above — sun position, tracker geometry, plane-of-array irradiance, temperature derate, and inverter clipping. The map embeds all per-plant time series as JSON, so clicks render the time-series chart instantly with no server round-trip. Useful for spotting how cloud cover patterns affect individual plants, comparing tracking vs fixed-tilt design choices, and watching the sun sweep across the continent.</p>
       </div>
       <div class="chart-img-wrap" style="background:#fafaf8;">
-        <iframe src="assets/solar_map.html?v=20260601T12Z"
+        <iframe src="assets/solar_map.html?v=20260601T18Z"
                 class="chart-frame map"
                 title="Plant-level solar generation forecast map (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USPVDB · pvlib · CartoDB tiles · Plotly</span>
-        <span class="chart-updated" id="last-updated-solar-map">Cycle 20260601T12Z</span>
+        <span class="chart-updated" id="last-updated-solar-map">Cycle 20260601T18Z</span>
       </div>
     </div>
 
