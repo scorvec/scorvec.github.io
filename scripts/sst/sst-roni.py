@@ -298,9 +298,10 @@ def _draw_map_ax(ax, field, la, lo, extent, style, nino_box,
     ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#555",
                    linewidth=0.4, zorder=3)
     if isotherms is not None:
-        ax.contour(field[lo].values, field[la].values, field.values,
-                   levels=isotherms, colors="k", linewidths=0.6,
-                   transform=PC, zorder=4)
+        cs = ax.contour(field[lo].values, field[la].values, field.values,
+                        levels=isotherms, colors="k", linewidths=0.6,
+                        transform=PC, zorder=4)
+        ax.clabel(cs, fmt="%d°C", fontsize=7, inline=True, inline_spacing=2)
     if nino_box:
         _draw_nino34_box(ax)
     if annotation:
