@@ -1,15 +1,15 @@
 name: MJO RMM (AIFS-ENS)
 
-# Self-healing poll: GitHub cron is best-effort, and AIFS-ENS open-data lands a
-# few hours after each cycle, so we poll across the likely windows and a light
-# "check" job decides whether the latest available cycle still needs plotting.
-# The sentinel (the cycle's PNG in assets/mjo/) skips already-processed cycles,
-# so a dropped tick is picked up by the next poll, and both 00Z and 12Z get
-# done as they appear.
+# FALLBACK builder. The primary builder is a local launchd job on Shawn's laptop
+# (scripts/mjo/run_local.sh, ~09:30 & 18:00 ET) which does the heavy ~3 GB ENS
+# download off GitHub's queue. These polls fire a few hours AFTER that window, so
+# on normal days the laptop has already pushed the cycle and the light "check"
+# job just skips (sentinel = the cycle's PNG in assets/mjo/). When the laptop is
+# off, this picks the cycle up and does the full build itself.
 on:
   schedule:
-    - cron: '37 8-12/2 * * *'   # morning: 08/10/12Z — catch the 00Z cycle
-    - cron: '37 19-23/2 * * *'  # evening: 19/21/23Z — catch the 12Z cycle
+    - cron: '37 16,18 * * *'    # after the laptop's morning window — 00Z cycle
+    - cron: '37 0,2 * * *'      # after the laptop's evening window — 12Z cycle
   workflow_dispatch:
     inputs:
       date:
