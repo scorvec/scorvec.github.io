@@ -16,3 +16,7 @@ scripts/sst/data/
 
 # Hovmöller 10u download cache
 scripts/mjo/data/u10/
+
+# SOI msl download cache + LongPaddock SOI text
+scripts/mjo/data/msl/
+scripts/mjo/data/soi/

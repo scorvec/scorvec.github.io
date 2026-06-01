@@ -101,10 +101,17 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
-      - name: Run RMM pipeline (downloads AIFS-ENS, computes, plots)
+      - name: Fetch ENS cycle (all params — RMM u + Hovmöller 10u + SOI msl)
         working-directory: scripts/mjo
         run: |
-          python run_rmm.py --date "${{ needs.check.outputs.date }}" \
+          python src/ens_cycle.py --date "${{ needs.check.outputs.date }}" \
+                                  --time "${{ needs.check.outputs.time }}"
+
+      - name: Run RMM pipeline (computes + plots from the cached cycle)
+        working-directory: scripts/mjo
+        run: |
+          python run_rmm.py --skip-download \
+                            --date "${{ needs.check.outputs.date }}" \
                             --time "${{ needs.check.outputs.time }}"
 
       - name: Publish plot to assets/mjo
