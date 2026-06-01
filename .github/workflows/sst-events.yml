@@ -45,11 +45,16 @@ jobs:
       - name: Build event-comparison products (downloads OISST daily-anom event years)
         run: python scripts/sst/sst_events.py
 
+      - name: Build subsurface analog comparison (TAO moorings, 1997/2015/2023)
+        working-directory: scripts/sst
+        run: python sst_subsurface_events.py || echo "subsurface analog build failed; continuing"
+
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/sst/events_nino34.webp assets/sst/events_bars.webp assets/sst/events_maps.webp
+          git add assets/sst/events_nino34.webp assets/sst/events_bars.webp assets/sst/events_maps.webp \
+                  assets/sst/subsurface_events_hc.webp assets/sst/subsurface_events_xsec.webp
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "SST event comparisons: weekly refresh"
           for i in 1 2 3 4 5; do
