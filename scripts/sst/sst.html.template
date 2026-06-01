@@ -247,6 +247,17 @@
       </div>
     </div>
 
+    <!-- EQUATORIAL 10m WIND HOVMÖLLER -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Pacific 10 m Wind Forecast</h2>
+        <p>Forecast 10 m zonal-wind anomaly (5&deg;S&ndash;5&deg;N), longitude &times; forecast day, from the AIFS-ENS (AI) and ECMWF IFS-ENS (physics) ensemble means vs. the ERA5 1991&ndash;2020 climatology.</p>
+        <p><b>What to look for:</b> Westerly (red) anomalies along the equator push warm water eastward and favor El Ni&ntilde;o development; easterly (blue) anomalies favor La Ni&ntilde;a. Agreement between the AI and physics ensembles raises confidence.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/eq_wind_hovmoller.webp?v=__CACHE__" alt="Equatorial Pacific 10 m zonal-wind anomaly Hovmöller forecast (AIFS-ENS and IFS-ENS)" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS &amp; IFS-ENS (open data) &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
+    </div>
+
     <!-- RONI -->
     <div class="chart-card">
       <div class="chart-card-header">

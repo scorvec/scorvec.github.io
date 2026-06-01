@@ -13,3 +13,6 @@ scripts/mjo/data/reference/ncep_recent/
 
 # SST pipeline data cache (large OISST netCDFs, re-downloaded each run)
 scripts/sst/data/
+
+# Hovmöller 10u download cache
+scripts/mjo/data/u10/

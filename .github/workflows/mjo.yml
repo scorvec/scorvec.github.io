@@ -118,11 +118,22 @@ jobs:
       - name: Regenerate MJO page
         run: python scripts/mjo/generate_page.py
 
+      - name: Build equatorial 10m-wind Hovmöller (El Niño page)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst
+          python src/eq_hovmoller.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --data-dir data/u10 \
+            --out ../../assets/sst/eq_wind_hovmoller.webp \
+            || echo "Hovmöller build failed; continuing"
+
       - name: Commit & push (generated outputs)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc
+          git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc assets/sst/eq_wind_hovmoller.webp
           if git diff --staged --quiet; then
             echo "No changes; skipping commit."; exit 0
           fi
@@ -134,7 +145,7 @@ jobs:
             if ! git rebase -X theirs origin/main; then
               git rebase --abort || true
               git reset --hard origin/main
-              git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc
+              git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc assets/sst/eq_wind_hovmoller.webp
               git diff --staged --quiet || git commit -m "MJO RMM: ${{ needs.check.outputs.compact }} (re-applied)"
             fi
             sleep 5
