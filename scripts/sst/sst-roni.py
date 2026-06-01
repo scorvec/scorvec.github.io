@@ -288,7 +288,8 @@ def _kind_style(kind):
                 cbar="SST anomaly (°C)")
 
 
-def _draw_map_ax(ax, field, la, lo, extent, style, nino_box):
+def _draw_map_ax(ax, field, la, lo, extent, style, nino_box,
+                 isotherms=None, annotation=None):
     ax.set_extent(extent, crs=PC)
     im = ax.pcolormesh(field[lo].values, field[la].values, field.values,
                        cmap=style["cmap"], vmin=style["vmin"], vmax=style["vmax"],
@@ -296,28 +297,42 @@ def _draw_map_ax(ax, field, la, lo, extent, style, nino_box):
     ax.add_feature(cfeature.LAND.with_scale("110m"), facecolor="#d9d6cf", zorder=2)
     ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#555",
                    linewidth=0.4, zorder=3)
+    if isotherms is not None:
+        ax.contour(field[lo].values, field[la].values, field.values,
+                   levels=isotherms, colors="k", linewidths=0.6,
+                   transform=PC, zorder=4)
     if nino_box:
         _draw_nino34_box(ax)
+    if annotation:
+        ax.text(0.012, 0.05, annotation, transform=ax.transAxes, fontsize=8.5,
+                va="bottom", ha="left", family="monospace", zorder=6,
+                bbox=dict(boxstyle="round,pad=0.35", facecolor="white",
+                          edgecolor="#bbb", alpha=0.85))
     return im
 
 
-def render_2panel_frame(field, la, lo, kind, title, out_path):
-    """Global (top) + tropical Pacific (bottom) map of one field in one figure."""
+def render_2panel_frame(field, la, lo, kind, title, out_path, annotation=None):
+    """Global (top) + tropical Pacific (bottom) map of one field in one figure.
+    Equal-height panels; absolute SST gets 26/28/30 °C isotherm contours; the
+    anomaly product shows the ONI/tropical-mean/RONI readout on the tropical panel."""
     style = _kind_style(kind)
-    fig = plt.figure(figsize=(10.5, 8.4), dpi=88)
-    gs = fig.add_gridspec(2, 1, height_ratios=[7.0, 5.2], hspace=0.06,
-                          left=0.02, right=0.9, top=0.92, bottom=0.04)
+    isos = [26, 28, 30] if kind == "abs" else None
+    fig = plt.figure(figsize=(10.5, 8.2), dpi=88)
+    gs = fig.add_gridspec(2, 1, height_ratios=[1, 1], hspace=0.10,
+                          left=0.02, right=0.9, top=0.92, bottom=0.03)
     ax1 = fig.add_subplot(gs[0], projection=ccrs.PlateCarree(central_longitude=GLOBAL_CENTRAL_LON))
     ax2 = fig.add_subplot(gs[1], projection=ccrs.PlateCarree(central_longitude=TROPICAL_CENTRAL_LON))
-    im = _draw_map_ax(ax1, field, la, lo, GLOBAL_EXTENT, style, nino_box=False)
-    _draw_map_ax(ax2, field, la, lo, TROPICAL_EXTENT, style, nino_box=True)
-    ax1.set_title("Global", fontsize=9, loc="left")
-    ax2.set_title("Tropical Pacific", fontsize=9, loc="left")
-    fig.suptitle(title, fontsize=12, fontweight="bold", x=0.02, ha="left")
+    im = _draw_map_ax(ax1, field, la, lo, GLOBAL_EXTENT, style,
+                      nino_box=False, isotherms=isos)
+    _draw_map_ax(ax2, field, la, lo, TROPICAL_EXTENT, style,
+                 nino_box=True, isotherms=isos, annotation=annotation)
+    ax1.set_title("Global", fontsize=10, loc="left")
+    ax2.set_title("Tropical Pacific", fontsize=10, loc="left")
+    fig.suptitle(title, fontsize=13, fontweight="bold", x=0.02, ha="left")
     cax = fig.add_axes([0.915, 0.12, 0.016, 0.74])
     cb = fig.colorbar(im, cax=cax, extend="both")
-    cb.set_label(style["cbar"], fontsize=9)
-    cb.ax.tick_params(labelsize=8)
+    cb.set_label(style["cbar"], fontsize=10)
+    cb.ax.tick_params(labelsize=9)
     fig.savefig(out_path, dpi=88, facecolor="white",
                 pil_kwargs={"quality": 82, "method": 6})
     plt.close(fig)
@@ -337,8 +352,14 @@ def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS):
     frames = []
     for i in range(n):
         out = out_dir / f"F{i:02d}.webp"
+        ann = None
+        if cfg["kind"] == "anom":
+            n34, trop, rel = daily_nino_readout(sel.isel(time=i), la, lo)
+            ann = (f"Daily ONI:  {n34:+.2f} °C\n"
+                   f"Trop-mean:  {trop:+.2f} °C\n"
+                   f"Daily RONI: {rel:+.2f} °C")
         render_2panel_frame(sel.isel(time=i), la, lo, cfg["kind"],
-                            f"{pfx} — {st[i]:%Y-%m-%d}", out)
+                            f"{pfx} — {st[i]:%Y-%m-%d}", out, annotation=ann)
         frames.append({"idx": i, "file": f"F{i:02d}.webp",
                        "date": f"{st[i]:%Y-%m-%d}", "label": f"{st[i]:%a %b %d, %Y}"})
     print(f"  product '{product_id}': {n} frames", flush=True)

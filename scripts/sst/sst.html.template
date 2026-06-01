@@ -19,6 +19,7 @@
     --serif: 'Lora', Georgia, serif;
     --sans: 'Inter', sans-serif;
   }
+  html { font-size: 17.5px; }   /* nudge the whole page up from the 16px default */
   html, body { height: 100%; }
   body {
     background: var(--bg);
@@ -194,8 +195,6 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Global &amp; Tropical Pacific SST Anomalies</h2>
-        <p>The blue&ndash;white&ndash;red field is the departure of sea-surface temperature from the 1991&ndash;2020 average for the most recent available day. Reds are warmer than normal, blues cooler.</p>
-        <p><b>What to look for:</b> The tropical Pacific cold tongue (an east&ndash;west band along the equator) reveals ENSO state &mdash; a warm anomaly there points toward El Ni&ntilde;o, a cool one toward La Ni&ntilde;a. Elsewhere, marine heatwaves show up as intense localized warm pools, and western boundary currents (Gulf Stream, Kuroshio) are often anomalously warm.</p>
       </div>
       <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
               title="Global and tropical Pacific SST anomaly animation" loading="lazy"></iframe>

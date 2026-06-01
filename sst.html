@@ -19,6 +19,7 @@
     --serif: 'Lora', Georgia, serif;
     --sans: 'Inter', sans-serif;
   }
+  html { font-size: 17.5px; }   /* nudge the whole page up from the 16px default */
   html, body { height: 100%; }
   body {
     background: var(--bg);
@@ -194,8 +195,6 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Global &amp; Tropical Pacific SST Anomalies</h2>
-        <p>The blue&ndash;white&ndash;red field is the departure of sea-surface temperature from the 1991&ndash;2020 average for the most recent available day. Reds are warmer than normal, blues cooler.</p>
-        <p><b>What to look for:</b> The tropical Pacific cold tongue (an east&ndash;west band along the equator) reveals ENSO state &mdash; a warm anomaly there points toward El Ni&ntilde;o, a cool one toward La Ni&ntilde;a. Elsewhere, marine heatwaves show up as intense localized warm pools, and western boundary currents (Gulf Stream, Kuroshio) are often anomalously warm.</p>
       </div>
       <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
               title="Global and tropical Pacific SST anomaly animation" loading="lazy"></iframe>
@@ -256,7 +255,7 @@
         <p><b>How to read it:</b> Red bars (positive) lean El Ni&ntilde;o, blue bars (negative) lean La Ni&ntilde;a; the dashed lines mark the &plusmn;0.5&deg;C guides. This index is computed directly from OISST and shown in &deg;C &mdash; it captures the shape and timing of CPC's RONI but is not their standardized published value.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/roni.webp?v=202606011216"
+        <img src="assets/sst/roni.webp?v=202606011233"
              alt="Relative Oceanic Niño Index time series" loading="lazy">
       </div>
       <div class="chart-card-footer">
@@ -273,7 +272,7 @@
         <p><b>What to look for:</b> When the red (Ni&ntilde;o-3.4) and green (tropical-mean) lines move together, the blue relative line stays flat &mdash; that's background warming, not ENSO. The blue line separating from zero is the genuine ENSO signal.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/daily_indices.webp?v=202606011216"
+        <img src="assets/sst/daily_indices.webp?v=202606011233"
              alt="Daily Niño-3.4, tropical-mean, and relative SST indices" loading="lazy">
       </div>
       <div class="chart-card-footer">
