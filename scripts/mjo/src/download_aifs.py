@@ -23,11 +23,11 @@ from ecmwf.opendata import Client
 
 DATA_DIR = Path(__file__).parent.parent / "data" / "aifs"
 
-# Sub-daily steps to day 15. Default 6-hourly (4 samples/day → clean daily means
-# for the RMM). The download is ~1 MB/s-bandwidth-bound from the ECMWF mirrors,
-# so on a slow link set AIFS_STEP_HOURS=12 to halve the bytes (RMM is computed
-# from daily means via step//24 groupby, so coarser sampling is transparent).
-_STEP_HOURS = int(os.environ.get("AIFS_STEP_HOURS", "6"))
+# Steps to day 15. Default DAILY (24-hourly): the RMM only needs daily values
+# (it builds daily means via step//24 groupby, so one sample/day is enough), and
+# daily steps cut the ~1 MB/s-bandwidth-bound download ~4x (≈4 GB → ≈1 GB).
+# Set AIFS_STEP_HOURS=6 for the old 4-samples/day behavior if ever needed.
+_STEP_HOURS = int(os.environ.get("AIFS_STEP_HOURS", "24"))
 STEPS = list(range(_STEP_HOURS, 361, _STEP_HOURS))
 
 # Prefer the cloud mirrors over the main ECMWF portal (which enforces a
