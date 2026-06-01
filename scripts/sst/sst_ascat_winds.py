@@ -65,12 +65,13 @@ def plot(dsd: xr.Dataset, day: pd.Timestamp, out: Path):
     fig, ax = plt.subplots(figsize=(13, 3.4), subplot_kw=dict(projection=proj))
     ax.set_extent([LON[0], LON[1], LAT[0], LAT[1]], crs=PC)
 
-    cf = ax.contourf(lon, lat, spd, levels=np.arange(0, SPEED_MAX + .01, 1.0),
+    # levels start at 1 m/s so calm areas (<1) stay unfilled → white background
+    cf = ax.contourf(lon, lat, spd, levels=np.arange(1.0, SPEED_MAX + .01, 1.0),
                      cmap="YlGnBu", extend="max", transform=PC)
-    # subsample vectors (~every 1.5°) for legibility
-    s = max(1, int(round(1.5 / float(np.diff(lon).mean()))))
+    # sparser (~every 2.5°), smaller arrows for legibility
+    s = max(1, int(round(2.5 / float(np.diff(lon).mean()))))
     q = ax.quiver(lon[::s], lat[::s], u[::s, ::s], v[::s, ::s], transform=PC,
-                  scale=300, width=0.0016, color="0.15", zorder=4)
+                  scale=460, width=0.0012, color="0.15", zorder=4)
     ax.quiverkey(q, 0.92, 1.18, 10, "10 m s⁻¹", labelpos="E", fontproperties={"size": 8})
 
     ax.add_feature(cfeature.LAND.with_scale("50m"), facecolor="#d9d6cf", zorder=3)
