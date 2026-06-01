@@ -26,11 +26,12 @@ DATA_DIR = Path(__file__).parent.parent / "data" / "aifs"
 # 6-hourly steps to day 15
 STEPS = list(range(6, 361, 6))
 
-# Prefer the cloud mirrors: the main ECMWF portal enforces a connection limit
-# (HTTP 429) that throttles the 4 GB ensemble download; the AWS/Azure mirrors
-# are not connection-limited and are much faster. Override with AIFS_SOURCES.
+# Prefer the cloud mirrors over the main ECMWF portal (which enforces a
+# connection limit / HTTP 429 that throttles the 4 GB ensemble download).
+# Google Cloud is consistently the fastest in practice, then AWS/Azure, with
+# the portal last. Override with the AIFS_SOURCES env var.
 SOURCES = [s.strip() for s in
-           os.environ.get("AIFS_SOURCES", "aws,azure,ecmwf").split(",") if s.strip()]
+           os.environ.get("AIFS_SOURCES", "google,aws,azure,ecmwf").split(",") if s.strip()]
 
 
 def _retrieve(req: dict, target: str) -> str:
