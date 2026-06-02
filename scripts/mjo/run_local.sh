@@ -59,6 +59,13 @@ ls -t "$REPO"/assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
   --ts-out "$REPO/assets/sst/torque_timeseries.webp" \
   --ranges-out "$REPO/assets/sst/torque_ranges.webp" || echo "torque budget failed; continuing"
 
+# meridional mass streamfunction Ψ′ (Hadley/Ferrel cells vs ERA5 clim) from the
+# 0-h analysis; appends to a rolling history + re-renders the animator each cycle.
+"$PY" src/mmsf.py --date "$DATE" --time "$TIME" --data-dir data/mmsf \
+  --anim-dir "$REPO/assets/sst/anim/mmsf" \
+  --manifest "$REPO/assets/sst/anim/mmsf_manifest.json" \
+  --out "$REPO/assets/sst/mmsf_anom.webp" || echo "MMSF failed; continuing"
+
 # prune GRIBs older than a week. The archive hard-links share inodes with the
 # working data dirs, so disk is freed only when both links go — delete from both.
 # Only *.grib2 is matched, so committed reference *.nc files are never touched.
@@ -68,8 +75,10 @@ find "$MJO_GRIB_ARCHIVE" -type d -empty -delete 2>/dev/null
 cd "$REPO"
 git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc \
         scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
+        scripts/mjo/data/reference/mmsf_vbar_history.nc \
         assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/aam.webp assets/sst/aam_trend.webp \
-        assets/sst/anim/torque/ assets/sst/anim/torque_manifest.json assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp
+        assets/sst/anim/torque/ assets/sst/anim/torque_manifest.json assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp \
+        assets/sst/anim/mmsf/ assets/sst/anim/mmsf_manifest.json assets/sst/mmsf_anom.webp
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
 git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
     commit -m "MJO RMM: ${COMPACT} (local)"

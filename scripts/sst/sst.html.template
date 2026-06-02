@@ -102,6 +102,7 @@
                 aspect-ratio: 27 / 25; }
   .anim-embed.subsurface { aspect-ratio: 1 / 1; }
   .anim-embed.torque { aspect-ratio: 1069 / 1040; }
+  .anim-embed.mmsf { aspect-ratio: 1040 / 560; }
   @media (max-width: 768px) {
     .anim-embed { aspect-ratio: 1 / 1.08; }
     .anim-embed.subsurface { aspect-ratio: 1 / 1.12; }
@@ -407,7 +408,7 @@
         <p>Atmospheric angular momentum only changes through torques the Earth exerts on the atmosphere. With $M$ the relative (wind) AAM, the budget has two resolved terms &mdash; <b>friction</b> (surface wind stress) and <b>mountain</b> (pressure on topography):</p>
         <p style="text-align:center;font-size:0.95rem">$$M=\frac{a^3}{g}\iiint u\cos^2\!\phi\;d\lambda\,d\phi\,dp,\qquad \frac{dM}{dt}=T_{\text{fric}}+T_{\text{mtn}}\;(+\,T_{\text{gw}})$$</p>
         <p style="text-align:center;font-size:0.95rem">$$T_{\text{mtn}}=-a^2\!\iint p_s\,\frac{\partial h_s}{\partial\lambda}\,\cos\phi\;d\lambda\,d\phi,\qquad T_{\text{fric}}=-a^3\!\iint \tau_\lambda\,\cos^2\!\phi\;d\lambda\,d\phi$$</p>
-        <p>The two panels show the torque <b>anomalies</b> (vs the forecast-period mean), which removes the persistent, terrain-locked background and leaves the synoptic signal. The mountain term is the form drag <b>h&thinsp;&part;p_s/&part;&lambda;</b> (terrain height &times; east&ndash;west pressure gradient); the grey contours are the <b>surface-pressure anomaly</b> &mdash; the very field the torque uses (solid +, dashed &minus;) &mdash; so colours and contours read together (no surface-vs-sea-level mismatch). <b>Top &mdash; friction</b> ($\tau_\lambda\!\approx\!\rho\,C_d\,|V_{10}|\,u_{10}$): trade-wind and jet stress anomalies (e.g. western-Pacific westerly bursts). <b>Bottom &mdash; mountain</b> (form drag $h_s\,\partial p_s/\partial\lambda$, the same net torque as $-p_s\,\partial h_s/\partial\lambda$ but without the cross-ridge dipole): synoptic pressure systems crossing the Andes, Rockies, Himalaya/Tibet and Greenland. Insets are the ±60&deg; cos&phi;-weighted zonal-mean anomaly; AIFS-ENS ensemble mean of all 51 members (friction averaged per-member; mountain, MSLP &amp; the d(AAM)/dt overlay are linear), ~5&deg;. (The sub-grid gravity-wave-drag term $T_{\text{gw}}$ appears only as the residual.)</p>
+        <p>The two panels show the torque <b>anomalies</b> (vs the ERA5 1991&ndash;2020 climatology, evaluated by day-of-year), so the <i>standing</i> departure from normal &mdash; the El Niño signal &mdash; shows alongside the day-to-day synoptic systems. The mountain term is the form drag <b>h&thinsp;&part;p_s/&part;&lambda;</b> (terrain height &times; east&ndash;west pressure gradient); the grey contours are the <b>surface-pressure anomaly</b> &mdash; the very field the torque uses (solid +, dashed &minus;) &mdash; so colours and contours read together (no surface-vs-sea-level mismatch). <b>Top &mdash; friction</b> ($\tau_\lambda\!\approx\!\rho\,C_d\,|V_{10}|\,u_{10}$): trade-wind and jet stress anomalies (e.g. western-Pacific westerly bursts). <b>Bottom &mdash; mountain</b> (form drag $h_s\,\partial p_s/\partial\lambda$, the same net torque as $-p_s\,\partial h_s/\partial\lambda$ but without the cross-ridge dipole): synoptic pressure systems crossing the Andes, Rockies, Himalaya/Tibet and Greenland. Insets are the ±60&deg; cos&phi;-weighted zonal-mean anomaly; AIFS-ENS ensemble mean of all 51 members (friction averaged per-member; mountain, MSLP &amp; the d(AAM)/dt overlay are linear), ~5&deg;. (The sub-grid gravity-wave-drag term $T_{\text{gw}}$ appears only as the residual.)</p>
       </div>
       <iframe class="anim-embed torque" src="sst_anim.html?embed=1&amp;manifest=torque_manifest.json&amp;region=torque"
               title="AAM surface-torque anomaly animation (friction + mountain) over the AIFS-ENS forecast" loading="lazy"></iframe>
@@ -416,6 +417,19 @@
       <div class="img-wrap"><img src="assets/sst/torque_seasonal.webp?v=__CACHE__" alt="Seasonal cycle of the three AAM surface-torque terms (friction, mountain, GWD) by latitude, ERA5 1991-2020" loading="lazy"></div>
       <div class="img-wrap"><img src="assets/sst/torque_seasonal_ts.webp?v=__CACHE__" alt="Seasonal cycle of the integrated AAM torque terms (friction, mountain, GWD, sum) for Global/NH/SH, ERA5 1991-2020" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS surface pressure (open data, CC BY 4.0) &middot; ERA5 orography + 1991–2020 torque climatology (Copernicus C3S, seasonal-cycle panel) &middot; daily means &middot; updated daily</span></div>
+    </div>
+
+    <!-- MERIDIONAL MASS STREAMFUNCTION (Hadley cell response) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Meridional Overturning &mdash; the Hadley Cell Response</h2>
+        <p>The zonal-mean meridional mass streamfunction $\Psi(\phi,p)$ traces the overturning cells &mdash; Hadley, Ferrel, polar &mdash; from the AIFS-ENS 0-h analysis:</p>
+        <p style="text-align:center;font-size:0.95rem">$$\Psi(\phi,p)=\frac{2\pi a\cos\phi}{g}\int_0^p [v]\,dp',\qquad [v]=\text{zonal-mean }v$$</p>
+        <p>Shown as the <b>anomaly</b> $\Psi'$ from the ERA5 1991&ndash;2020 harmonic climatology (mean + annual + semiannual, by day-of-year) &mdash; how the overturning departs from its normal seasonal state. <b>Red</b> = anomalous clockwise cell (rising / northward aloft), <b>blue</b> = counter-clockwise; the strong equatorial signal tracks the El Niño Walker/Hadley response. Each new 0-h analysis is stashed into a rolling animation with a fixed colour scale, so the cells can be watched as the event evolves.</p>
+      </div>
+      <iframe class="anim-embed mmsf" src="sst_anim.html?embed=1&amp;manifest=mmsf_manifest.json&amp;region=mmsf"
+              title="Meridional mass streamfunction anomaly animation from the AIFS-ENS 0-h analysis" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 0-h analysis meridional wind (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 &Psi; climatology (Copernicus C3S) &middot; updated each cycle</span></div>
     </div>
 
   </div>
