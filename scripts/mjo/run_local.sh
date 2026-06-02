@@ -55,6 +55,12 @@ if [ "$TIME" = "00" ]; then
     --ts-out "$REPO/assets/sst/torque_timeseries.webp" || echo "torque budget failed; continuing"
 fi
 
+# prune GRIBs older than a week. The archive hard-links share inodes with the
+# working data dirs, so disk is freed only when both links go — delete from both.
+# Only *.grib2 is matched, so committed reference *.nc files are never touched.
+find "$MJO_GRIB_ARCHIVE" "$REPO/scripts/mjo/data" -name '*.grib2' -type f -mtime +7 -delete 2>/dev/null
+find "$MJO_GRIB_ARCHIVE" -type d -empty -delete 2>/dev/null
+
 cd "$REPO"
 git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc \
         scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
