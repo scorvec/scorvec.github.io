@@ -1,15 +1,15 @@
 name: Synoptic maps
 
-# Triggered after wind/solar complete (their plant-overlay CSVs feed the
-# maps). Because those workflows now POLL hourly and usually complete as
-# cheap no-ops, this workflow's own `check` job compares the latest
-# available cycle against what's already rendered (the national wind
-# manifest's cycle_compact) and skips if there's nothing new — so we
-# don't re-render on every idle upstream poll.
+# FALLBACK ONLY. The primary path is the laptop launchd job
+# scripts/synoptic/run_local_synoptic.sh (18-core render, lands maps minutes
+# after the overlay CSVs). This scheduled run covers the laptop-is-off case:
+# it fires ~5 h after each extended cycle (00/06/12/18Z, by when the wind/solar
+# plant-overlay CSVs have landed) and its `check` job compares the latest
+# available cycle against what's already rendered (national wind manifest's
+# cycle_compact), so when the laptop already rendered the cycle it no-ops.
 on:
-  workflow_run:
-    workflows: ["Wind generation forecast", "Solar generation forecast"]
-    types: [completed]
+  schedule:
+    - cron: '0 5,11,17,23 * * *'
   workflow_dispatch:
     inputs:
       cycle:
@@ -27,8 +27,8 @@ concurrency:
 jobs:
   # Gate: skip unless there's a newer cycle than what's already rendered.
   check:
-    # Only proceed if upstream succeeded (or this is a manual run).
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    # Scheduled fallback or manual run; the heavy render below is self-gated.
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:

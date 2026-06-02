@@ -41,3 +41,6 @@ scripts/mjo/src/build_aam_clim.py
 scripts/mjo/src/build_torque_clim.py
 scripts/mjo/src/build_mmsf_clim.py
 scripts/mjo/src/build_torque_map_clim.py
+
+# Local synoptic builder logs
+scripts/synoptic/*.log

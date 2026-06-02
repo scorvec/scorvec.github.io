@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LaunchAgent: local synoptic-maps builder (primary). Install with:
+       cp scripts/synoptic/com.scorvec.synoptic.plist ~/Library/LaunchAgents/
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.synoptic.plist
+     Reload after edits:
+       launchctl bootout gui/$(id -u)/com.scorvec.synoptic 2>/dev/null
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.synoptic.plist
+     Run once now (test):
+       launchctl kickstart -k gui/$(id -u)/com.scorvec.synoptic
+
+     Polls every 30 min. Each poll is a cheap no-op (git pull + cycle/CSV check)
+     until there's a NEW extended cycle (00/06/12/18Z) whose wind+solar plant
+     overlays have landed — then it renders F00–F48 on all cores (~minutes) and
+     pushes. Idempotent + sentinel-gated, so it's safe to poll and to run alongside
+     the scheduled Action fallback (whoever lands the cycle first wins). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.scorvec.synoptic</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/shawn/scorvec.github.io/scripts/synoptic/run_local_synoptic.sh</string>
+  </array>
+  <key>StartInterval</key><integer>1800</integer>
+  <key>StandardOutPath</key><string>/Users/shawn/scorvec.github.io/scripts/synoptic/launchd.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/shawn/scorvec.github.io/scripts/synoptic/launchd.err.log</string>
+  <key>RunAtLoad</key><false/>
+  <key>ProcessType</key><string>Background</string>
+  <key>LowPriorityIO</key><true/>
+  <key>Nice</key><integer>5</integer>
+</dict>
+</plist>
