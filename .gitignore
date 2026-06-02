@@ -32,3 +32,12 @@ scripts/mjo/data/torque/
 
 # Local SST builder logs
 scripts/sst/*.log
+
+# Laptop-only code (kept private in ~/mjo, not pushed to the public site repo)
+scripts/mjo/src/aam.py
+scripts/mjo/src/torque_map_anim.py
+scripts/mjo/src/mmsf.py
+scripts/mjo/src/build_aam_clim.py
+scripts/mjo/src/build_torque_clim.py
+scripts/mjo/src/build_mmsf_clim.py
+scripts/mjo/src/build_torque_map_clim.py
