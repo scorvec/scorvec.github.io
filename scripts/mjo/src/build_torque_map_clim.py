@@ -20,15 +20,20 @@ import gcsfs
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OROG = REF / "era5_orography.nc"
 OUT = REF / "torque_map_clim_coeffs.nc"
+CACHE = Path.home() / "mjo" / "era5_cache"          # reduced ERA5 samples, kept for re-use
 STORE = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 A = 6.371e6; RHO = 1.225; CD = 1.3e-3; COARSEN = 20
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--stride", type=int, default=5)
-    ap.add_argument("--y0", type=int, default=1991); ap.add_argument("--y1", type=int, default=2020)
-    a = ap.parse_args()
+def _samples(a):
+    """Coarsened (5°) friction + mountain torque-density samples — from the local
+    cache if present, else streamed from ARCO-ERA5 and SAVED so we never re-download."""
+    CACHE.mkdir(parents=True, exist_ok=True)
+    cpath = CACHE / f"torque_density_{a.y0}-{a.y1}_s{a.stride}.nc"
+    if cpath.exists():
+        print(f"reusing cached ERA5 samples: {cpath}", flush=True)
+        c = xr.open_dataset(cpath)
+        return c["fric"].values, c["mtn"].values, c.latitude.values, c.longitude.values, pd.to_datetime(c.time.values)
     o = xr.open_dataarray(OROG); lat = o.latitude.values; lon = o.longitude.values
     cosphi = np.cos(np.deg2rad(lat))[:, None]; dlam = np.deg2rad(abs(lon[1] - lon[0]))
     fs = gcsfs.GCSFileSystem(token="anon")
@@ -41,7 +46,7 @@ def main() -> int:
         da = xr.DataArray(field2d, dims=("latitude", "longitude"), coords={"latitude": lat, "longitude": lon})
         return da.coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean()
 
-    clat = clon = None; XtX = np.zeros((5, 5)); Xtf = Xtm = None
+    flist, mlist, tlist, clat, clon = [], [], [], None, None
     for n, t in enumerate(times):
         try:
             u = ds["10m_u_component_of_wind"].sel(time=t).reindex(latitude=lat, longitude=lon, method="nearest").values
@@ -51,20 +56,30 @@ def main() -> int:
             print(f"  skip {t:%Y-%m-%d}: {e}"); continue
         fric = -RHO * CD * np.hypot(u, v) * u * (A * cosphi)
         dpd = (np.roll(sp, -1, axis=1) - np.roll(sp, 1, axis=1)) / (2 * dlam)   # periodic ∂p_s/∂λ
-        mtn = o.values * dpd
-        fa = coarse(fric); ma = coarse(mtn)
+        fa = coarse(fric); ma = coarse(o.values * dpd)
         if clat is None:
             clat = fa.latitude.values; clon = fa.longitude.values
-            Xtf = np.zeros((5, len(clat), len(clon))); Xtm = np.zeros_like(Xtf)
-        w = 2 * np.pi * t.dayofyear / 365.25
-        x = np.array([1.0, np.cos(w), np.sin(w), np.cos(2 * w), np.sin(2 * w)])
-        XtX += np.outer(x, x)
-        Xtf += x[:, None, None] * fa.values[None]; Xtm += x[:, None, None] * ma.values[None]
+        flist.append(fa.values); mlist.append(ma.values); tlist.append(t)
         if n % 200 == 0:
             print(f"  {n}/{len(times)} … {t:%Y-%m-%d}", flush=True)
+    fr = np.stack(flist); mt = np.stack(mlist)
+    xr.Dataset({"fric": (("time", "latitude", "longitude"), fr), "mtn": (("time", "latitude", "longitude"), mt)},
+               coords={"time": pd.DatetimeIndex(tlist), "latitude": clat, "longitude": clon}
+               ).to_netcdf(cpath)
+    print(f"saved ERA5 samples → {cpath}  ({(fr.nbytes+mt.nbytes)/1e6:.0f} MB)", flush=True)
+    return fr, mt, clat, clon, pd.DatetimeIndex(tlist)
 
-    cf = np.linalg.solve(XtX, Xtf.reshape(5, -1)).reshape(5, len(clat), len(clon))
-    cm = np.linalg.solve(XtX, Xtm.reshape(5, -1)).reshape(5, len(clat), len(clon))
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--stride", type=int, default=5)
+    ap.add_argument("--y0", type=int, default=1991); ap.add_argument("--y1", type=int, default=2020)
+    a = ap.parse_args()
+    fr, mt, clat, clon, times = _samples(a)
+    doy = times.dayofyear.values; w = 2 * np.pi * doy / 365.25
+    X = np.column_stack([np.ones_like(w), np.cos(w), np.sin(w), np.cos(2 * w), np.sin(2 * w)])
+    cf = np.linalg.lstsq(X, fr.reshape(len(fr), -1), rcond=None)[0].reshape(5, len(clat), len(clon))
+    cm = np.linalg.lstsq(X, mt.reshape(len(mt), -1), rcond=None)[0].reshape(5, len(clat), len(clon))
     xr.Dataset({"friction": (("coef", "latitude", "longitude"), cf),
                 "mountain": (("coef", "latitude", "longitude"), cm)},
                coords={"coef": np.arange(5), "latitude": clat, "longitude": clon},
