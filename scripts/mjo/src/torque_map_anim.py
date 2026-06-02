@@ -152,7 +152,7 @@ def main() -> int:
         e = int(np.floor(np.log10(zlim))) if zlim > 0 else 0; s = 10.0 ** e
         zi.set_xticks([-zlim, 0, zlim])
         zi.set_xticklabels([f"{-zlim / s:.0f}", "0", f"{zlim / s:.0f}"], fontsize=6.5)
-        zi.set_title(f"zonal mean·cosφ\n(×10$^{{{e}}}$)", fontsize=7.5); zi.grid(True, alpha=0.25)
+        zi.set_title(f"zonal-mean anom\n·cosφ (×10$^{{{e}}}$)", fontsize=7.3); zi.grid(True, alpha=0.25)
 
     def hl_centers(F, mode, size=64, n=9, latcap=72):
         """Synoptic high/low pressure centres: local extrema of the smoothed MSLP,
@@ -238,8 +238,9 @@ def main() -> int:
     axes[0].set_ylabel("torque (Hadley = 10¹⁸ N m)")
     fig.suptitle(f"AAM torque budget — AIFS-ENS init {init:%Y-%m-%d %HZ}", fontsize=12.5, fontweight="bold")
     fig.text(0.5, -0.02,
-             "Only the GLOBAL budget closes from surface torques: friction + mountain + implied gravity-wave/form drag (residual) = d(AAM)/dt.  "
-             "Each hemisphere's gap between net surface torque (black) and observed d(AAM)/dt (dashed) is cross-equatorial momentum transport (+ GWD) — an internal flux, not a torque.",
+             "These are the full (absolute) torques — the maps above show anomalies vs the forecast-period mean, so a day's torque can be negative here yet show a positive anomaly on the map.  "
+             "Only the GLOBAL budget closes: friction + mountain + implied gravity-wave/form drag (residual) = d(AAM)/dt;  "
+             "each hemisphere's gap between net surface torque (black) and observed d(AAM)/dt (dashed) is cross-equatorial momentum transport (+ GWD), an internal flux — not a torque.",
              ha="center", fontsize=8, color="0.35")
     fig.tight_layout()
     Path(args.ts_out).parent.mkdir(parents=True, exist_ok=True)
