@@ -290,6 +290,18 @@
       <div class="chart-card-footer"><span class="chart-sources">ECCC CanSIPS GEM-NEMO (datamart) &middot; anomaly vs 1991&ndash;2020 model hindcast &middot; updated monthly</span></div>
     </div>
 
+    <!-- ATMOSPHERIC ANGULAR MOMENTUM -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Atmospheric Angular Momentum</h2>
+        <p>Relative AAM is the angular momentum carried by the winds &mdash; the atmosphere's total westerly momentum, &int;&nbsp;u&middot;cos&sup2;&phi; over the whole globe. It's dominated by the upper-tropospheric subtropical jets and the deep tropics (largest moment arm), shown here for the globe and each hemisphere from the AIFS-ENS 13-level winds.</p>
+        <p><b>How to read it:</b> <i>top</i> &mdash; this year's observed AAM (black) and the 15-day forecast (red) on the climatological annual cycle. The hemispheres are strongly out of phase (each peaks in its own winter), so much of the absolute rise/fall is just the season. <i>Bottom</i> &mdash; the anomaly (departure from the 1991&ndash;2020 normal), which removes the seasonal cycle, with a &ldquo;% of climatology&rdquo; axis.</p>
+        <p><b>Why it matters for ENSO:</b> El&nbsp;Ni&ntilde;o shifts tropical convection east, strengthens the subtropical jets and weakens the trade winds &mdash; so the atmosphere holds <b>more</b> westerly momentum. AAM also ties to the MJO / Global Wind Oscillation and to <b>length of day</b> (more atmospheric momentum &rarr; the solid Earth spins fractionally slower).</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/aam.webp?v=202606011832" alt="Global and hemispheric atmospheric angular momentum: observed + AIFS-ENS forecast, absolute and anomaly" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Forecast: ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; climatology &amp; this-year observed: ERA5 (Copernicus C3S / ECMWF) &middot; updated daily</span></div>
+    </div>
+
     <!-- RONI -->
     <div class="chart-card">
       <div class="chart-card-header">
@@ -380,6 +392,7 @@
   <div class="colophon">
     <h3>About these plots</h3>
     <p>All three images are regenerated once daily by a scheduled job that pulls the latest OISST anomaly fields from NOAA PSL, renders the maps, computes the relative Ni&ntilde;o index from the same data, and commits the results. The RONI is calculated rather than fetched: it is the cosine-latitude-weighted Ni&ntilde;o-3.4 box-mean anomaly minus the 20&deg;S&ndash;20&deg;N tropical-mean anomaly, smoothed with a 3-month running mean.</p>
+    <p><b>Data &amp; acknowledgments:</b> ECMWF AIFS-ENS and IFS-ENS forecasts (wind Hovm&ouml;ller, SOI, atmospheric angular momentum) are used under the ECMWF open-data licence (CC&nbsp;BY&nbsp;4.0, &copy;&nbsp;ECMWF). Climatologies and the reanalysis-based fields use <b>ERA5</b> from the Copernicus Climate Change Service (C3S) / ECMWF &mdash; generated using Copernicus Climate Change Service information; neither the European Commission nor ECMWF is responsible for any use of the data. Other sources: NOAA OISST &amp; PSL, NOAA/PMEL TAO/TRITON, Copernicus Marine Service (ASCAT winds), the Australian Bureau of Meteorology / Queensland Govt LongPaddock (SOI), and Environment and Climate Change Canada (CanSIPS).</p>
     <p>Source on <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">GitHub</a>.</p>
   </div>
 </main>

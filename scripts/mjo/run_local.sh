@@ -42,9 +42,16 @@ ls -t "$REPO"/assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
 "$PY" src/soi_forecast.py --date "$DATE" --time "$TIME" --data-dir data/msl \
   --out "$REPO/assets/sst/soi_forecast.webp" || echo "SOI failed; continuing"
 
+# AAM is a heavy ~3 GB (13-level) download — once daily, on the 00Z cycle only.
+if [ "$TIME" = "00" ]; then
+  "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
+    --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
+fi
+
 cd "$REPO"
 git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc \
-        assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp
+        scripts/mjo/data/reference/aam_history.nc \
+        assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/aam.webp
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
 git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
     commit -m "MJO RMM: ${COMPACT} (local)"

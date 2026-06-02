@@ -23,3 +23,6 @@ scripts/mjo/data/soi/
 
 # Local MJO builder logs
 scripts/mjo/*.log
+
+# AAM 13-level download cache
+scripts/mjo/data/aam/
