@@ -135,9 +135,10 @@ def main() -> int:
     clon = fa.longitude.values; clat = fa.latitude.values
     fl = float(np.nanpercentile(np.abs(fa.values), 99)); ml = float(np.nanpercentile(np.abs(ma.values), 99))
     mm = (clat >= -60) & (clat <= 60)
+    cosw = np.cos(np.deg2rad(clat[mm]))                         # cosφ area weight (budget impact)
     # fixed zonal-mean inset x-axis (consistent across frames), per term
-    zf = float(np.nanpercentile(np.abs(np.nanmean(fa.values, axis=2)[:, mm]), 98)) or fl
-    zm = float(np.nanpercentile(np.abs(np.nanmean(ma.values, axis=2)[:, mm]), 98)) or ml
+    zf = float(np.nanpercentile(np.abs(np.nanmean(fa.values, axis=2)[:, mm] * cosw), 98)) or fl
+    zm = float(np.nanpercentile(np.abs(np.nanmean(ma.values, axis=2)[:, mm] * cosw), 98)) or ml
     if msl is not None:                                         # smoothed MSLP (hPa) for contours
         import scipy.ndimage as ndi
         mslS = np.stack([ndi.gaussian_filter(s, sigma=6, mode="wrap") for s in (msl.sel(day=days).values / 100.0)])
@@ -151,7 +152,7 @@ def main() -> int:
         e = int(np.floor(np.log10(zlim))) if zlim > 0 else 0; s = 10.0 ** e
         zi.set_xticks([-zlim, 0, zlim])
         zi.set_xticklabels([f"{-zlim / s:.0f}", "0", f"{zlim / s:.0f}"], fontsize=6.5)
-        zi.set_title(f"zonal mean\n(×10$^{{{e}}}$)", fontsize=7.5); zi.grid(True, alpha=0.25)
+        zi.set_title(f"zonal mean·cosφ\n(×10$^{{{e}}}$)", fontsize=7.5); zi.grid(True, alpha=0.25)
 
     def hl_centers(F, mode, size=64, n=9, latcap=72):
         """Synoptic high/low pressure centres: local extrema of the smoothed MSLP,
@@ -175,8 +176,9 @@ def main() -> int:
     entries = []
     for k, d in enumerate(days):
         hl = {"H": hl_centers(mslS[k], "H"), "L": hl_centers(mslS[k], "L")} if msl is not None else None
-        fig = plt.figure(figsize=(11, 8))
-        gs = GridSpec(2, 2, width_ratios=[6, 1], wspace=0.04, hspace=0.18)
+        fig = plt.figure(figsize=(11, 9.4))
+        gs = GridSpec(2, 2, width_ratios=[7, 1], wspace=0.03, hspace=0.09,
+                      left=0.015, right=0.985, top=0.935, bottom=0.05)
         for row, (arr, lim, zlim, ttl) in enumerate(
                 [(fa.sel(day=d).values, fl, zf, "Friction-torque density anomaly  (−ρC$_d$|V|u·a cosφ)"),
                  (ma.sel(day=d).values, ml, zm, "Mountain-torque density anomaly  (−p$_s$ ∂h/∂λ)")]):
@@ -197,10 +199,13 @@ def main() -> int:
                                 path_effects=[pe.withStroke(linewidth=1.2, foreground="white")])
             ax.coastlines(resolution="110m", lw=0.4, color="0.35"); ax.set_global()
             ax.set_title(ttl, fontsize=10.5, fontweight="bold")
-            inset(fig.add_subplot(gs[row, 1]), np.nanmean(arr, axis=1)[mm], zlim)
+            inset(fig.add_subplot(gs[row, 1]), np.nanmean(arr, axis=1)[mm] * cosw, zlim)
         valid = init + pd.Timedelta(days=d)
-        sub = "  ·  grey = MSLP contours, H/L = pressure centres" if msl is not None else ""
-        fig.suptitle(f"AAM surface-torque anomalies — {valid:%Y-%m-%d} (day {d}){sub}", fontsize=12, fontweight="bold")
+        fig.suptitle(f"AIFS-ENS · AAM surface-torque anomalies — {valid:%Y-%m-%d} (forecast day {d})",
+                     fontsize=12.5, fontweight="bold", y=0.99)
+        if msl is not None:
+            fig.text(0.5, 0.013, "grey = smoothed MSLP contours · H / L = pressure centres (hPa)",
+                     ha="center", va="bottom", fontsize=8.5, color="0.4")
         fp = anim / f"F{k:02d}.webp"
         fig.savefig(fp, dpi=104, bbox_inches="tight"); plt.close(fig)
         entries.append({"idx": k, "file": fp.name, "date": valid.strftime("%Y-%m-%d"),
