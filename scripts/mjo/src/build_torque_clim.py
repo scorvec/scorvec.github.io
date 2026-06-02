@@ -115,6 +115,26 @@ def main() -> int:
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=120, bbox_inches="tight"); plt.close(fig)
     print(f"saved {args.out}")
+
+    # --- collapsed: each term integrated over Global / NH / SH, vs month ---
+    figts, axts = plt.subplots(1, 3, figsize=(14, 4.6), sharey=True)
+    doms = [("Global", np.ones_like(lat, bool)), ("Northern Hemisphere", lat > 0), ("Southern Hemisphere", lat < 0)]
+    series = [("friction", "friction", "#2166ac"), ("mountain", "mountain", "#b2182b"),
+              ("gwd", "GWD", "#1b7837"), ("sum", "sum", "k")]
+    for ax, (dn, dm) in zip(axts, doms):
+        for key, lbl, col in series:
+            ts = (data[key][:, dm] * dphi).sum(1)               # integrate over the domain → Hadley
+            ax.plot(months, ts, color=col, lw=2.6 if key == "sum" else 1.9, label=lbl)
+        ax.axhline(0, color="0.5", lw=0.8); ax.grid(True, alpha=0.25)
+        ax.set_title(dn, fontsize=11, fontweight="bold")
+        ax.set_xticks(months); ax.set_xticklabels(["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"], fontsize=8)
+    axts[0].set_ylabel("torque (Hadley = 10¹⁸ N m)"); axts[0].legend(fontsize=8.5, loc="best")
+    figts.suptitle(f"Seasonal cycle of the integrated AAM surface-torque terms — ERA5 {args.y0}–{args.y1}",
+                   fontsize=12.5, fontweight="bold")
+    figts.tight_layout()
+    tsout = str(Path(args.out).with_name("torque_seasonal_ts.webp"))
+    figts.savefig(tsout, dpi=120, bbox_inches="tight"); plt.close(figts)
+    print(f"saved {tsout}")
     return 0
 
 
