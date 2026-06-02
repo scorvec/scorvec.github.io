@@ -7,6 +7,10 @@
 <meta name="description" content="Daily global and tropical Pacific sea-surface temperature anomalies from NOAA OISST v2.1, plus the Relative Oceanic Niño Index (RONI) computed from the same analysis.">
 <link rel="canonical" href="https://scorvec.com/sst.html">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -308,6 +312,19 @@
       </div>
       <div class="img-wrap"><img src="assets/sst/aam_trend.webp?v=202606011832" alt="Run-to-run trend of AIFS-ENS ensemble-mean AAM anomaly forecasts, global and hemispheric" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 (Copernicus C3S) &middot; archived each cycle</span></div>
+    </div>
+
+    <!-- AAM TORQUE BUDGET -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>What Drives AAM &mdash; the Torque Budget</h2>
+        <p>Atmospheric angular momentum only changes through torques the Earth exerts on the atmosphere. With $M$ the relative (wind) AAM, the budget has two resolved terms &mdash; <b>friction</b> (surface wind stress) and <b>mountain</b> (pressure on topography):</p>
+        <p style="text-align:center;font-size:0.95rem">$$M=\frac{a^3}{g}\iiint u\cos^2\!\phi\;d\lambda\,d\phi\,dp,\qquad \frac{dM}{dt}=T_{\text{fric}}+T_{\text{mtn}}\;(+\,T_{\text{gw}})$$</p>
+        <p style="text-align:center;font-size:0.95rem">$$T_{\text{mtn}}=-a^2\!\iint p_s\,\frac{\partial h_s}{\partial\lambda}\,\cos\phi\;d\lambda\,d\phi,\qquad T_{\text{fric}}=-a^3\!\iint \tau_\lambda\,\cos^2\!\phi\;d\lambda\,d\phi$$</p>
+        <p>The map is the <b>mountain-torque density</b> $-p_s\,\partial h_s/\partial\lambda$ (daily-mean control forecast, ~2.5&deg;): surface pressure pushing on topography. The red/blue dipoles over the Andes, Rockies, Himalaya/Tibet and Greenland are where the atmosphere exchanges the most angular momentum with the solid Earth; the inset is the zonal mean. The friction term (trade winds / jets, $\tau_\lambda\!\approx\!\rho\,C_d\,|V_{10}|\,u_{10}$) and the sub-grid gravity-wave-drag term $T_{\text{gw}}$ complete the budget.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/torque_anim.webp?v=202606011832" alt="Animated mountain-torque-density map over the AIFS-ENS forecast, with zonal-mean inset" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS surface pressure (open data, CC BY 4.0) &middot; ERA5 orography (Copernicus C3S) &middot; daily means &middot; updated daily</span></div>
     </div>
 
     <!-- RONI -->

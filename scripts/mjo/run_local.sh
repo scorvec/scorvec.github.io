@@ -46,6 +46,8 @@ ls -t "$REPO"/assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
 if [ "$TIME" = "00" ]; then
   "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
     --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
+  "$PY" src/torque_map_anim.py --date "$DATE" --time "$TIME" --data-dir data/torque \
+    --out "$REPO/assets/sst/torque_anim.webp" || echo "torque map failed; continuing"
 fi
 
 cd "$REPO"
