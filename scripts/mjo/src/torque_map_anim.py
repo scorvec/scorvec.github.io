@@ -149,7 +149,7 @@ def main() -> int:
     def inset(zi, prof, zlim):
         zi.plot(prof, clat[mm], color="#444", lw=1.3)
         zi.axvline(0, color="0.6", lw=0.7); zi.set_ylim(-60, 60)
-        zi.set_yticks([-60, -30, 0, 30, 60]); zi.tick_params(labelsize=7)
+        zi.set_yticks([-60, -30, 0, 30, 60]); zi.yaxis.tick_right(); zi.tick_params(labelsize=7)
         zi.set_xlim(-zlim, zlim)
         e = int(np.floor(np.log10(zlim))) if zlim > 0 else 0; s = 10.0 ** e
         zi.set_xticks([-zlim, 0, zlim])
@@ -179,23 +179,23 @@ def main() -> int:
     for k, d in enumerate(days):
         hl = {"H": hl_centers(mslS[k], "H"), "L": hl_centers(mslS[k], "L")} if msl is not None else None
         fig = plt.figure(figsize=(11, 9.4))
-        gs = GridSpec(2, 3, width_ratios=[7, 0.22, 1], wspace=0.05, hspace=0.09,
-                      left=0.015, right=0.975, top=0.935, bottom=0.05)
+        gs = GridSpec(2, 2, width_ratios=[7, 1], wspace=0.11, hspace=0.09,
+                      left=0.012, right=0.965, top=0.935, bottom=0.05)
         for row, (arr, lim, zlim, ttl) in enumerate(
                 [(fa.sel(day=d).values, fl, zf, "Friction-torque density anomaly  (−ρC$_d$|V|u·a cosφ)"),
                  (ma.sel(day=d).values, ml, zm, "Mountain-torque density anomaly  (−p$_s$ ∂h/∂λ)")]):
             ax = fig.add_subplot(gs[row, 0], projection=ccrs.PlateCarree(central_longitude=180))
             pm = ax.pcolormesh(clon, clat, arr, cmap="RdBu_r", vmin=-lim, vmax=lim,
                           transform=ccrs.PlateCarree(), shading="auto", rasterized=True)
-            cax = fig.add_subplot(gs[row, 1])
+            cax = ax.inset_axes([1.015, 0.0, 0.02, 1.0])           # colourbar hugging the map
             ec = int(np.floor(np.log10(lim))) if lim > 0 else 0; sc = 10.0 ** ec
             cb = fig.colorbar(pm, cax=cax, ticks=[-lim, 0, lim])
             cb.ax.set_yticklabels([f"{-lim / sc:.0f}", "0", f"{lim / sc:.0f}"], fontsize=6.5)
             cb.ax.set_title(f"×10$^{{{ec}}}$", fontsize=6.5); cb.outline.set_linewidth(0.4)
             if msl is not None:
                 cyc, cl = add_cyclic_point(mslS[k], coord=lon)
-                ax.contour(cl, lat, cyc, levels=mlevs, colors="0.2", linewidths=0.35,
-                           alpha=0.55, transform=ccrs.PlateCarree())
+                ax.contour(cl, lat, cyc, levels=mlevs, colors="0.1", linewidths=0.55,
+                           alpha=0.75, transform=ccrs.PlateCarree())
                 for sym, col in (("H", "#b2182b"), ("L", "#2166ac")):
                     for plat, plon, pval in hl[sym]:
                         ax.text(plon, plat, sym, color=col, fontsize=11, fontweight="bold",
@@ -206,7 +206,7 @@ def main() -> int:
                                 path_effects=[pe.withStroke(linewidth=1.2, foreground="white")])
             ax.coastlines(resolution="110m", lw=0.4, color="0.35"); ax.set_global()
             ax.set_title(ttl, fontsize=10.5, fontweight="bold")
-            inset(fig.add_subplot(gs[row, 2]), np.nanmean(arr, axis=1)[mm] * cosw, zlim)
+            inset(fig.add_subplot(gs[row, 1]), np.nanmean(arr, axis=1)[mm] * cosw, zlim)
         valid = init + pd.Timedelta(days=d)
         fig.suptitle(f"AIFS-ENS · AAM surface-torque anomalies — {valid:%Y-%m-%d} (forecast day {d})",
                      fontsize=12.5, fontweight="bold", y=0.99)
