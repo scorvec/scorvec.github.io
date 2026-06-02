@@ -413,7 +413,8 @@
               title="AAM surface-torque anomaly animation (friction + mountain) over the AIFS-ENS forecast" loading="lazy"></iframe>
       <div class="img-wrap"><img src="assets/sst/torque_timeseries.webp?v=__CACHE__" alt="Hemispheric AAM torque budget time series (friction, mountain, sum) for NH and SH" loading="lazy"></div>
       <div class="img-wrap"><img src="assets/sst/torque_ranges.webp?v=__CACHE__" alt="Mountain-torque anomaly broken down by range (Himalaya, Rockies, Andes, Greenland, Antarctica, Alps)" loading="lazy"></div>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS surface pressure (open data, CC BY 4.0) &middot; ERA5 orography (Copernicus C3S) &middot; daily means &middot; updated daily</span></div>
+      <div class="img-wrap"><img src="assets/sst/torque_seasonal.webp?v=__CACHE__" alt="Seasonal cycle of the three AAM surface-torque terms (friction, mountain, GWD) by latitude, ERA5 1991-2020" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS surface pressure (open data, CC BY 4.0) &middot; ERA5 orography + 1991–2020 torque climatology (Copernicus C3S, seasonal-cycle panel) &middot; daily means &middot; updated daily</span></div>
     </div>
 
   </div>
