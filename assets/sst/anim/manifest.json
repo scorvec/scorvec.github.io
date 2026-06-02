@@ -1101,7 +1101,7 @@
     },
     "equatorial": {
       "label": "Equatorial Pacific T(z) cross-section",
-      "n_frames": 119,
+      "n_frames": 120,
       "frames": [
         {
           "idx": 0,
@@ -1816,6 +1816,12 @@
           "file": "F118.webp",
           "date": "2026-05-31",
           "label": "Sun May 31, 2026"
+        },
+        {
+          "idx": 119,
+          "file": "F119.webp",
+          "date": "2026-06-01",
+          "label": "Mon Jun 01, 2026"
         }
       ]
     }
