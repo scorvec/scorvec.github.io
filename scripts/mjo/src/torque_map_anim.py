@@ -33,6 +33,7 @@ import xarray as xr
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
 from matplotlib.gridspec import GridSpec
 import cartopy.crs as ccrs
 from cartopy.util import add_cyclic_point
@@ -152,9 +153,28 @@ def main() -> int:
         zi.set_xticklabels([f"{-zlim / s:.0f}", "0", f"{zlim / s:.0f}"], fontsize=6.5)
         zi.set_title(f"zonal mean\n(×10$^{{{e}}}$)", fontsize=7.5); zi.grid(True, alpha=0.25)
 
+    def hl_centers(F, mode, size=64, n=9, latcap=72):
+        """Synoptic high/low pressure centres: local extrema of the smoothed MSLP,
+        thinned so picks aren't clustered. -> list of (lat, lon) value pairs."""
+        import scipy.ndimage as ndi
+        flt = (ndi.maximum_filter if mode == "H" else ndi.minimum_filter)(F, size=size, mode="wrap")
+        ys, xs = np.where(F == flt)
+        order = np.argsort(F[ys, xs])[::-1] if mode == "H" else np.argsort(F[ys, xs])
+        picks = []
+        for i in order:
+            y, x = ys[i], xs[i]
+            if abs(lat[y]) > latcap:
+                continue
+            if all(abs(lat[y] - py) > 12 or abs(((lon[x] - px + 180) % 360) - 180) > 18 for py, px, _ in picks):
+                picks.append((lat[y], lon[x], F[y, x]))
+            if len(picks) >= n:
+                break
+        return picks
+
     anim = Path(args.anim_dir); anim.mkdir(parents=True, exist_ok=True)
     entries = []
     for k, d in enumerate(days):
+        hl = {"H": hl_centers(mslS[k], "H"), "L": hl_centers(mslS[k], "L")} if msl is not None else None
         fig = plt.figure(figsize=(11, 8))
         gs = GridSpec(2, 2, width_ratios=[6, 1], wspace=0.04, hspace=0.18)
         for row, (arr, lim, zlim, ttl) in enumerate(
@@ -167,11 +187,19 @@ def main() -> int:
                 cyc, cl = add_cyclic_point(mslS[k], coord=lon)
                 ax.contour(cl, lat, cyc, levels=mlevs, colors="0.2", linewidths=0.35,
                            alpha=0.55, transform=ccrs.PlateCarree())
+                for sym, col in (("H", "#b2182b"), ("L", "#2166ac")):
+                    for plat, plon, pval in hl[sym]:
+                        ax.text(plon, plat, sym, color=col, fontsize=11, fontweight="bold",
+                                ha="center", va="center", transform=ccrs.PlateCarree(), clip_on=True,
+                                path_effects=[pe.withStroke(linewidth=1.8, foreground="white")])
+                        ax.text(plon, plat - 3.5, f"{pval:.0f}", color=col, fontsize=5.5,
+                                ha="center", va="top", transform=ccrs.PlateCarree(), clip_on=True,
+                                path_effects=[pe.withStroke(linewidth=1.2, foreground="white")])
             ax.coastlines(resolution="110m", lw=0.4, color="0.35"); ax.set_global()
             ax.set_title(ttl, fontsize=10.5, fontweight="bold")
             inset(fig.add_subplot(gs[row, 1]), np.nanmean(arr, axis=1)[mm], zlim)
         valid = init + pd.Timedelta(days=d)
-        sub = "  ·  thin grey = smoothed MSLP" if msl is not None else ""
+        sub = "  ·  grey = MSLP contours, H/L = pressure centres" if msl is not None else ""
         fig.suptitle(f"AAM surface-torque anomalies — {valid:%Y-%m-%d} (day {d}){sub}", fontsize=12, fontweight="bold")
         fp = anim / f"F{k:02d}.webp"
         fig.savefig(fp, dpi=104, bbox_inches="tight"); plt.close(fig)
@@ -184,31 +212,29 @@ def main() -> int:
 
     # --- budget time-series (Global | NH | SH) ---
     valid = [init + pd.Timedelta(days=d) for d in days]
-    titles = {"G": "Global budget  (friction + mountain + GWD = dM/dt)",
-              "NH": "NH net surface torque", "SH": "SH net surface torque"}
+    titles = {"G": "Global budget", "NH": "Northern Hemisphere", "SH": "Southern Hemisphere"}
     obs_by_day = {}
     if obs is not None:
         odays, dmdt = obs
-        obs_by_day = {int(dd_): dmdt["G"][i] for i, dd_ in enumerate(odays)}
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.6), sharey=True)
+        obs_by_day = {h: {int(dd_): dmdt[h][i] for i, dd_ in enumerate(odays)} for h in ("G", "NH", "SH")}
+    fig, axes = plt.subplots(1, 3, figsize=(15.5, 4.8), sharey=True)
     for ax, hemi in zip(axes, ("G", "NH", "SH")):
-        ax.plot(valid, rows[hemi]["fric"], color="#2166ac", lw=1.8, label="friction torque")
-        ax.plot(valid, rows[hemi]["mtn"], color="#b2182b", lw=1.8, label="mountain torque")
-        if hemi == "G" and obs_by_day:
-            odm = np.array([obs_by_day.get(d, np.nan) for d in days])         # observed dM/dt
-            resid = odm - rows["G"]["sum"]                                    # implied GWD / form drag
-            ax.plot(valid, resid, color="#1b7837", lw=1.8, label="implied GWD (residual)")
-            ax.plot(valid, odm, color="k", lw=2.4, ls="--", label="observed d(AAM)/dt")
-        else:
-            ax.plot(valid, rows[hemi]["sum"], color="k", lw=2.6, label="net surface torque")
+        ax.plot(valid, rows[hemi]["fric"], color="#2166ac", lw=1.7, label="friction torque")
+        ax.plot(valid, rows[hemi]["mtn"], color="#b2182b", lw=1.7, label="mountain torque")
+        ax.plot(valid, rows[hemi]["sum"], color="k", lw=2.4, label="friction + mountain")
+        if obs_by_day:
+            odm = np.array([obs_by_day[hemi].get(d, np.nan) for d in days])      # observed dM/dt
+            if hemi == "G":
+                ax.plot(valid, odm - rows["G"]["sum"], color="#1b7837", lw=1.7, label="implied GWD (residual)")
+            ax.plot(valid, odm, color="0.35", lw=2.2, ls="--", label="observed d(AAM)/dt")
         ax.axhline(0, color="0.5", lw=0.8); ax.grid(True, alpha=0.25)
-        ax.set_title(titles[hemi], fontsize=11, fontweight="bold")
+        ax.set_title(titles[hemi], fontsize=11, fontweight="bold"); ax.legend(fontsize=7.8, loc="best")
         for lb in ax.get_xticklabels(): lb.set_rotation(45); lb.set_ha("right"); lb.set_fontsize(7.5)
-    axes[0].set_ylabel("torque (Hadley = 10¹⁸ N m)"); axes[0].legend(fontsize=8.5, loc="best")
+    axes[0].set_ylabel("torque (Hadley = 10¹⁸ N m)")
     fig.suptitle(f"AAM torque budget — AIFS-ENS init {init:%Y-%m-%d %HZ}", fontsize=12.5, fontweight="bold")
     fig.text(0.5, -0.02,
-             "Global: friction + mountain + implied gravity-wave/form drag (residual) close the observed d(AAM)/dt.  "
-             "Hemispheric panels are surface torque only — a hemisphere's AAM also changes via cross-equatorial momentum transport.",
+             "Only the GLOBAL budget closes from surface torques: friction + mountain + implied gravity-wave/form drag (residual) = d(AAM)/dt.  "
+             "Each hemisphere's gap between net surface torque (black) and observed d(AAM)/dt (dashed) is cross-equatorial momentum transport (+ GWD) — an internal flux, not a torque.",
              ha="center", fontsize=8, color="0.35")
     fig.tight_layout()
     Path(args.ts_out).parent.mkdir(parents=True, exist_ok=True)

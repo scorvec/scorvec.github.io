@@ -1,13 +1,13 @@
 name: CanSIPS Niño-3.4 forecast (monthly)
 
-# CanSIPS issues a new seasonal forecast early each month. We run a few days in
-# (data is posted by then) plus a mid-month backup. The model hindcast
-# climatology per start-month is cached/committed (cansips_nino34_clim.nc), so
-# only a never-seen start-month triggers the ~1.4 GB hindcast download.
+# CanSIPS issues a new seasonal forecast on the 1st of each month, so we run on
+# the 1st (plus a same-day retry). The model hindcast climatology per start-month
+# is cached/committed (cansips_nino34_clim.nc), so only a never-seen start-month
+# triggers the ~1.4 GB hindcast download.
 on:
   schedule:
-    - cron: '23 13 6 * *'     # 6th of month
-    - cron: '23 13 11 * *'    # mid-month backup
+    - cron: '23 13 1 * *'     # 1st of month (data lands on the 1st)
+    - cron: '23 21 1 * *'     # same-day retry
   workflow_dispatch:
 
 permissions:
