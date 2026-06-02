@@ -115,7 +115,6 @@ def main() -> int:
 
     o = xr.open_dataarray(OROG); lat = o.latitude.values; lon = o.longitude.values
     cosphi = np.cos(np.deg2rad(lat))[:, None]
-    dhdlam = np.gradient(o.values, np.deg2rad(lon), axis=1)
     dlam = np.deg2rad(abs(lon[1] - lon[0])); dphi = np.deg2rad(abs(lat[1] - lat[0]))
 
     def grid(da):
@@ -134,7 +133,12 @@ def main() -> int:
     fricN = (-RHO * CD * np.hypot(u10, v10) * u10 * (A * cosn)).mean("number")
     fric = grid(fricN).sel(step=fricN.step).load()                       # (step,lat,lon) ens-mean
     spm = grid(sp.mean("number")).load(); mslm = grid(msl.mean("number")).load()
-    mtn = (-spm * dhdlam[None, :, :])                                    # ens-mean (linear)
+    # mountain (form-drag) torque density as h·∂p_s/∂λ — identical net to -p_s ∂h/∂λ
+    # (integration by parts in λ) but NO dipole: single-signed over each range, reading
+    # directly with the cross-mountain pressure gradient (high-west/low-east ⇒ blue/braking).
+    lonax = spm.get_axis_num("longitude")
+    dpdlam = (np.roll(spm.values, -1, axis=lonax) - np.roll(spm.values, 1, axis=lonax)) / (2 * dlam)  # periodic
+    mtn = spm.copy(data=o.values[None] * dpdlam)
 
     def by_day(arr):
         a = arr.assign_coords(day=("step", (arr.step / np.timedelta64(1, "h")).values.astype(int) // 24))
@@ -199,7 +203,7 @@ def main() -> int:
                       left=0.012, right=0.965, top=0.935, bottom=0.05)
         for row, (arr, lim, zlim, ttl) in enumerate(
                 [(fa.sel(day=d).values, fl, zf, "Friction-torque density anomaly  (−ρC$_d$|V|u·a cosφ)"),
-                 (ma.sel(day=d).values, ml, zm, "Mountain-torque density anomaly  (−p$_s$ ∂h/∂λ)")]):
+                 (ma.sel(day=d).values, ml, zm, "Mountain-torque density anomaly  (h ∂p$_s$/∂λ)")]):
             ax = fig.add_subplot(gs[row, 0], projection=ccrs.PlateCarree(central_longitude=180))
             pm = ax.pcolormesh(clon, clat, arr, cmap="RdBu_r", vmin=-lim, vmax=lim,
                                transform=ccrs.PlateCarree(), shading="auto", rasterized=True)
