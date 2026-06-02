@@ -185,8 +185,6 @@
 <main>
   <div class="page-header">
     <h1>Global SST and El Ni&ntilde;o/La Ni&ntilde;a Monitor</h1>
-    <p>Daily sea-surface temperature anomalies from NOAA's Optimum Interpolation SST (OISST v2.1), the standard 1/4&deg; daily blended satellite-and-in-situ analysis. Anomalies are relative to the 1991&ndash;2020 climatology. Updated once daily as new OISST data lands (roughly a one-day latency).</p>
-    <p>The maps show the current global anomaly field and a tropical Pacific zoom where ENSO signals are clearest. Below, the Relative Oceanic Ni&ntilde;o Index (RONI) tracks ENSO after removing the background tropical-mean warming.</p>
   </div>
 
   <div class="chart-stack">
@@ -391,7 +389,7 @@
 
   <div class="colophon">
     <h3>About these plots</h3>
-    <p>All three images are regenerated once daily by a scheduled job that pulls the latest OISST anomaly fields from NOAA PSL, renders the maps, computes the relative Ni&ntilde;o index from the same data, and commits the results. The RONI is calculated rather than fetched: it is the cosine-latitude-weighted Ni&ntilde;o-3.4 box-mean anomaly minus the 20&deg;S&ndash;20&deg;N tropical-mean anomaly, smoothed with a 3-month running mean.</p>
+    <p>This page pulls together a range of ENSO and tropical-climate diagnostics, each computed from public source data (not screen-scraped) and regenerated automatically on its own schedule, then committed to the site's GitHub repository. <b>Daily:</b> the global and tropical-Pacific SST anomaly maps, RONI, and indices (NOAA OISST); the equatorial subsurface-temperature cross-section (NOAA/PMEL TAO/TRITON moorings); observed equatorial surface winds (Copernicus Marine scatterometer / ASCAT); and &mdash; from the ECMWF AIFS-ENS / IFS-ENS ensembles &mdash; the equatorial wind Hovm&ouml;ller, the Southern Oscillation Index forecast, and atmospheric angular momentum. <b>Monthly:</b> the CanSIPS Ni&ntilde;o-3.4 seasonal forecast (Environment and Climate Change Canada). <b>Weekly:</b> the El Ni&ntilde;o analog comparisons against 1997, 2015 and 2023. RONI is computed directly &mdash; the cosine-latitude-weighted Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N tropical mean, 3-month smoothed &mdash; rather than fetched.</p>
     <p><b>Data &amp; acknowledgments:</b> ECMWF AIFS-ENS and IFS-ENS forecasts (wind Hovm&ouml;ller, SOI, atmospheric angular momentum) are used under the ECMWF open-data licence (CC&nbsp;BY&nbsp;4.0, &copy;&nbsp;ECMWF). Climatologies and the reanalysis-based fields use <b>ERA5</b> from the Copernicus Climate Change Service (C3S) / ECMWF &mdash; generated using Copernicus Climate Change Service information; neither the European Commission nor ECMWF is responsible for any use of the data. Other sources: NOAA OISST &amp; PSL, NOAA/PMEL TAO/TRITON, Copernicus Marine Service (ASCAT winds), the Australian Bureau of Meteorology / Queensland Govt LongPaddock (SOI), and Environment and Climate Change Canada (CanSIPS).</p>
     <p>Source on <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">GitHub</a>.</p>
   </div>
