@@ -227,7 +227,10 @@ def main():
     if "eia_id" in inv.columns:
         capacity_df["eia_id"] = inv["eia_id"].values
 
-    capacity_path = OUTPUT_DIR / f"capacity_plant_{cycle_str}.csv"
+    # Canonical (unstamped) filename: the plant fleet is static, so overwriting
+    # the same path each cycle lets git commit it ONCE and skip the otherwise
+    # 6-hourly duplicate (only forecast_plant_<cycle>.csv is genuinely per-cycle).
+    capacity_path = OUTPUT_DIR / "capacity_plant.csv"
     capacity_df.to_csv(capacity_path, index=False)
     print(f"  Wrote {len(capacity_df):,} plants → {capacity_path}")
 

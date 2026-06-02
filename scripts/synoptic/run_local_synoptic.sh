@@ -43,12 +43,13 @@ if [ "$RENDERED" = "$COMPACT" ]; then
   echo "maps already current for $COMPACT — nothing to do."; exit 0
 fi
 
-# Require the per-cycle wind+solar plant overlays before rendering, so we never
-# render a cycle's maps WITHOUT the plant rings (render_maps deliberately skips the
-# raw inventory). A missing CSV means the wind/solar runs haven't committed yet —
-# skip; the next poll renders once they land.
-WIND_CSV="assets/wind_forecast_data/capacity_plant_${COMPACT}.csv"
-SOLAR_CSV="assets/solar_forecast_data/capacity_plant_${COMPACT}.csv"
+# Require the plant overlays before rendering, so we never render a cycle's maps
+# WITHOUT the rings (render_maps deliberately skips the raw inventory). Wind capacity
+# is a canonical static-fleet file; solar's per-cycle signal is its forecast_plant.
+# A missing file means the wind/solar runs haven't committed yet — skip; the next
+# poll renders once they land.
+WIND_CSV="assets/wind_forecast_data/capacity_plant.csv"
+SOLAR_CSV="assets/solar_forecast_data/forecast_plant_${COMPACT}.csv"
 if [ ! -f "$WIND_CSV" ] || [ ! -f "$SOLAR_CSV" ]; then
   echo "new cycle $COMPACT but plant overlays not ready (wind:$([ -f "$WIND_CSV" ] && echo y || echo n) solar:$([ -f "$SOLAR_CSV" ] && echo y || echo n)) — skipping."
   exit 0

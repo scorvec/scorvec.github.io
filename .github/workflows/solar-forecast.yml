@@ -174,7 +174,7 @@ jobs:
           fi
           python solar_map_dashboard.py \
             "../../assets/solar_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
-            --capacity "../../assets/solar_forecast_data/capacity_plant_${{ steps.cycle.outputs.compact }}.csv" \
+            --capacity "../../assets/solar_forecast_data/capacity_plant.csv" \
             --output ../../assets/solar_map.html \
             --theme light || {
               echo "Solar map build failed; continuing anyway."
@@ -187,7 +187,7 @@ jobs:
           cd ../../assets/solar_forecast_data
           ls -t forecast_plant_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
           ls -t forecast_region_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
-          ls -t capacity_plant_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
+          # capacity_plant is now a single canonical (unstamped) file — nothing to prune.
 
       - name: Stamp cache-buster into charts.html
         run: |

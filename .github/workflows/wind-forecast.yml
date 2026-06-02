@@ -183,15 +183,21 @@ jobs:
           cp "output/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
              "../assets/wind_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
              2>/dev/null || true
-          cp output/capacity_*_${{ steps.cycle.outputs.compact }}.csv \
+          cp output/capacity_iso_${{ steps.cycle.outputs.compact }}.csv \
              ../assets/wind_forecast_data/ 2>/dev/null || true
+          cp output/capacity_ba_${{ steps.cycle.outputs.compact }}.csv \
+             ../assets/wind_forecast_data/ 2>/dev/null || true
+          # capacity_plant is a STATIC fleet snapshot — commit it under one
+          # canonical (unstamped) name so git dedups it instead of storing a
+          # byte-identical copy every cycle.
+          cp output/capacity_plant_${{ steps.cycle.outputs.compact }}.csv \
+             ../assets/wind_forecast_data/capacity_plant.csv 2>/dev/null || true
           cd ../assets/wind_forecast_data
           ls -t forecast_iso_*.csv   2>/dev/null | tail -n +57 | xargs -r rm
           ls -t forecast_ba_*.csv    2>/dev/null | tail -n +57 | xargs -r rm
           ls -t forecast_plant_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
           ls -t capacity_iso_*.csv   2>/dev/null | tail -n +57 | xargs -r rm
           ls -t capacity_ba_*.csv    2>/dev/null | tail -n +57 | xargs -r rm
-          ls -t capacity_plant_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
 
       - name: Build plant-level map
         run: |
@@ -201,7 +207,7 @@ jobs:
           fi
           python map_dashboard.py \
             "../assets/wind_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
-            --capacity "../assets/wind_forecast_data/capacity_plant_${{ steps.cycle.outputs.compact }}.csv" \
+            --capacity "../assets/wind_forecast_data/capacity_plant.csv" \
             --output ../assets/wind_map.html \
             --theme light || {
               echo "Map build failed; continuing anyway."

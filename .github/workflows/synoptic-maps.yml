@@ -68,22 +68,22 @@ jobs:
           CYCLE=$(python scripts/find_latest_extended_cycle.py --format iso | sed 's/T/ /;s/:00$//')
           COMPACT=$(python scripts/find_latest_extended_cycle.py --format compact)
           echo "Latest available cycle: $CYCLE ($COMPACT)"
-          # Require the upstream per-cycle plant CSVs to exist before
-          # rendering. If they're not committed yet (wind/solar run hasn't
-          # finished/propagated), skip — the next trigger renders once
-          # they're present. This prevents render_maps from falling back to
-          # the raw turbine inventory and blobbing the maps.
-          WIND_CSV="assets/wind_forecast_data/capacity_plant_${COMPACT}.csv"
-          SOLAR_CSV="assets/solar_forecast_data/capacity_plant_${COMPACT}.csv"
+          # Require the plant overlays before rendering, else skip (the next
+          # trigger renders once they land) so render_maps never falls back to
+          # the raw turbine inventory and blobs the maps. Wind capacity is now a
+          # canonical static-fleet file; solar's per-cycle signal is its
+          # forecast_plant (capacity is static there too).
+          WIND_CSV="assets/wind_forecast_data/capacity_plant.csv"
+          SOLAR_CSV="assets/solar_forecast_data/forecast_plant_${COMPACT}.csv"
           if [ ! -f "$WIND_CSV" ]; then
-            echo "Wind plant CSV missing ($WIND_CSV) — upstream not ready, skipping."
+            echo "Wind capacity CSV missing ($WIND_CSV) — upstream not ready, skipping."
             echo "should_run=false" >> $GITHUB_OUTPUT
             echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
             echo "compact=$COMPACT" >> $GITHUB_OUTPUT
             exit 0
           fi
           if [ ! -f "$SOLAR_CSV" ]; then
-            echo "Solar plant CSV missing ($SOLAR_CSV) — upstream not ready, skipping."
+            echo "Solar forecast CSV missing ($SOLAR_CSV) — upstream not ready, skipping."
             echo "should_run=false" >> $GITHUB_OUTPUT
             echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
             echo "compact=$COMPACT" >> $GITHUB_OUTPUT

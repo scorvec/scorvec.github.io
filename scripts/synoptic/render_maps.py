@@ -458,8 +458,12 @@ def plants_within_extent(plants: pd.DataFrame, extent: tuple) -> pd.DataFrame:
 # ============================================================================
 
 def load_wind_plants(cycle_str: str) -> pd.DataFrame:
-    capacity_csv = (HERE.parent.parent / "assets" / "wind_forecast_data"
-                    / f"capacity_plant_{cycle_str}.csv")
+    base = HERE.parent.parent / "assets" / "wind_forecast_data"
+    # Canonical static-fleet file (overwritten each cycle, so git dedups it);
+    # fall back to the legacy cycle-stamped name for back-compat.
+    capacity_csv = base / "capacity_plant.csv"
+    if not capacity_csv.exists():
+        capacity_csv = base / f"capacity_plant_{cycle_str}.csv"
     if capacity_csv.exists():
         df = pd.read_csv(capacity_csv)
         print(f"  wind overlay: loaded {len(df):,} plants "
@@ -479,10 +483,12 @@ def load_wind_plants(cycle_str: str) -> pd.DataFrame:
 
 
 def load_solar_plants(cycle_str: str):
-    forecast_csv = (HERE.parent.parent / "assets" / "solar_forecast_data"
-                    / f"forecast_plant_{cycle_str}.csv")
-    capacity_csv = (HERE.parent.parent / "assets" / "solar_forecast_data"
-                    / f"capacity_plant_{cycle_str}.csv")
+    base = HERE.parent.parent / "assets" / "solar_forecast_data"
+    forecast_csv = base / f"forecast_plant_{cycle_str}.csv"   # genuinely per-cycle
+    # Canonical static-fleet capacity (git-deduped); legacy stamped fallback.
+    capacity_csv = base / "capacity_plant.csv"
+    if not capacity_csv.exists():
+        capacity_csv = base / f"capacity_plant_{cycle_str}.csv"
     if not (forecast_csv.exists() and capacity_csv.exists()):
         # Don't fall back to the static inventory — skip the overlay so we
         # never render a cycle's maps with mismatched plant data.

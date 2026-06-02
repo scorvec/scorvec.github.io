@@ -100,9 +100,12 @@ def main():
 
     print(f"\nCycle: {cycle_str}")
 
-    # 2. Load forecast + capacity CSVs
+    # 2. Load forecast + capacity CSVs. Capacity is now the canonical static-fleet
+    #    file (unstamped); fall back to the legacy cycle-stamped name for back-compat.
     forecast_path = DATA_DIR / f"forecast_plant_{cycle_str}.csv"
-    capacity_path = DATA_DIR / f"capacity_plant_{cycle_str}.csv"
+    capacity_path = DATA_DIR / "capacity_plant.csv"
+    if not capacity_path.exists():
+        capacity_path = DATA_DIR / f"capacity_plant_{cycle_str}.csv"
     if not forecast_path.exists():
         print(f"ERROR: {forecast_path} not found")
         return 1
