@@ -156,9 +156,10 @@ def main() -> int:
         rows[nm]["sum"] = rows[nm]["fric"] + rows[nm]["mtn"]
     obs = _aam_dmdt(D, T)
 
-    # --- map frames (anomaly vs period mean, coarsened) ---
-    fa = (fricD - fricD.mean("day")).coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean()
-    ma = (mtnD - mtnD.mean("day")).coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean()
+    # --- map frames (ABSOLUTE torque, coarsened) — reads directly with the isobars;
+    #     the h·∂p_s/∂λ mountain form animates with the synoptic pressure pattern ---
+    fa = fricD.coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean()
+    ma = mtnD.coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean()
     clon = fa.longitude.values; clat = fa.latitude.values
     fl = float(np.nanpercentile(np.abs(fa.values), 99)) * 1.6
     ml = float(np.nanpercentile(np.abs(ma.values), 99)) * 1.6
@@ -177,7 +178,7 @@ def main() -> int:
         e = int(np.floor(np.log10(zlim))) if zlim > 0 else 0; s = 10.0 ** e
         zi.set_xticks([-zlim, 0, zlim])
         zi.set_xticklabels([f"{-zlim / s:.0f}", "0", f"{zlim / s:.0f}"], fontsize=6.5)
-        zi.set_title(f"zonal-mean anom\n·cosφ (×10$^{{{e}}}$)", fontsize=7.3); zi.grid(True, alpha=0.25)
+        zi.set_title(f"zonal mean\n·cosφ (×10$^{{{e}}}$)", fontsize=7.3); zi.grid(True, alpha=0.25)
 
     def hl_centers(F, mode, size=64, n=9, latcap=72):
         flt = (ndi.maximum_filter if mode == "H" else ndi.minimum_filter)(F, size=size, mode="wrap")
@@ -202,8 +203,8 @@ def main() -> int:
         gs = GridSpec(2, 2, width_ratios=[7, 1], wspace=0.11, hspace=0.09,
                       left=0.012, right=0.965, top=0.935, bottom=0.05)
         for row, (arr, lim, zlim, ttl) in enumerate(
-                [(fa.sel(day=d).values, fl, zf, "Friction-torque density anomaly  (−ρC$_d$|V|u·a cosφ)"),
-                 (ma.sel(day=d).values, ml, zm, "Mountain form-drag torque anomaly  (h ∂p$_s$/∂λ — terrain height × east–west pressure gradient)")]):
+                [(fa.sel(day=d).values, fl, zf, "Friction torque density  (−ρC$_d$|V|u·a cosφ)"),
+                 (ma.sel(day=d).values, ml, zm, "Mountain form-drag torque  (h ∂p$_s$/∂λ — terrain height × east–west pressure gradient)")]):
             ax = fig.add_subplot(gs[row, 0], projection=ccrs.PlateCarree(central_longitude=180))
             pm = ax.pcolormesh(clon, clat, arr, cmap="RdBu_r", vmin=-lim, vmax=lim,
                                transform=ccrs.PlateCarree(), shading="auto", rasterized=True)
@@ -238,10 +239,10 @@ def main() -> int:
             ax.set_title(ttl, fontsize=10.5, fontweight="bold")
             inset(fig.add_subplot(gs[row, 1]), np.nanmean(arr, axis=1)[mm] * cosw, zlim)
         valid = init + pd.Timedelta(days=d)
-        fig.suptitle(f"AIFS-ENS (ensemble mean) · AAM surface-torque anomalies — {valid:%Y-%m-%d} (forecast day {d})",
+        fig.suptitle(f"AIFS-ENS (ensemble mean) · AAM surface torques — {valid:%Y-%m-%d} (forecast day {d})",
                      fontsize=12, fontweight="bold", y=0.99)
         fig.text(0.5, 0.013,
-                 "red = anomalous torque adding westerly AAM (spin-up) · blue = removing it (spin-down), vs the forecast-period mean"
+                 "red = torque adding westerly AAM (spin-up) · blue = removing it (spin-down)"
                  "   ·   grey = ensemble-mean MSLP, H / L = centres (hPa)",
                  ha="center", va="bottom", fontsize=8.2, color="0.4")
         fp = anim / f"F{k:02d}.webp"
