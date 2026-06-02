@@ -156,10 +156,13 @@ def main() -> int:
         rows[nm]["sum"] = rows[nm]["fric"] + rows[nm]["mtn"]
     obs = _aam_dmdt(D, T)
 
-    # --- map frames (ABSOLUTE torque, coarsened) — reads directly with the isobars;
-    #     the h·∂p_s/∂λ mountain form animates with the synoptic pressure pattern ---
-    fa = fricD.coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean()
-    ma = mtnD.coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean()
+    # --- map frames (torque ANOMALY vs forecast-period mean, coarsened) — subtracting
+    #     the time mean removes the persistent terrain-locked background (and any static
+    #     AIFS-vs-ERA5 topography mismatch), leaving the synoptic signal. Contoured against
+    #     the SAME surface-pressure anomaly (sp') the mountain torque uses — so colours and
+    #     contours share one pressure field (no surface-vs-sea-level mismatch). ---
+    fa = (fricD - fricD.mean("day")).coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean()
+    ma = (mtnD - mtnD.mean("day")).coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean()
     clon = fa.longitude.values; clat = fa.latitude.values
     fl = float(np.nanpercentile(np.abs(fa.values), 99)) * 1.6
     ml = float(np.nanpercentile(np.abs(ma.values), 99)) * 1.6
@@ -167,8 +170,11 @@ def main() -> int:
     zf = float(np.nanpercentile(np.abs(np.nanmean(fa.values, axis=2)[:, mm] * cosw), 98)) or fl
     zm = float(np.nanpercentile(np.abs(np.nanmean(ma.values, axis=2)[:, mm] * cosw), 98)) or ml
     import scipy.ndimage as ndi
-    mslS = np.stack([ndi.gaussian_filter(s, sigma=6, mode="wrap") for s in (mslD.values / 100.0)])
-    mlevs = np.arange(940, 1052, 4)                                 # 4-hPa isobars
+    spmD = by_day(spm)                                              # ens-mean surface pressure, per day
+    spaD = (spmD - spmD.mean("day")).values / 100.0                # surface-pressure ANOMALY (hPa)
+    spaS = np.stack([ndi.gaussian_filter(s, sigma=6, mode="wrap") for s in spaD])
+    plevs = np.array([2, 4, 6, 8, 12, 16, 20, 24])                 # ± hPa anomaly contours
+    uwa = uwc - uwc.mean("day")                                    # zonal-wind anomaly (friction arrows)
 
     def inset(zi, prof, zlim):
         zi.plot(prof, clat[mm], color="#444", lw=1.3)
@@ -178,7 +184,7 @@ def main() -> int:
         e = int(np.floor(np.log10(zlim))) if zlim > 0 else 0; s = 10.0 ** e
         zi.set_xticks([-zlim, 0, zlim])
         zi.set_xticklabels([f"{-zlim / s:.0f}", "0", f"{zlim / s:.0f}"], fontsize=6.5)
-        zi.set_title(f"zonal mean\n·cosφ (×10$^{{{e}}}$)", fontsize=7.3); zi.grid(True, alpha=0.25)
+        zi.set_title(f"zonal-mean anom\n·cosφ (×10$^{{{e}}}$)", fontsize=7.3); zi.grid(True, alpha=0.25)
 
     def hl_centers(F, mode, size=64, n=9, latcap=72):
         flt = (ndi.maximum_filter if mode == "H" else ndi.minimum_filter)(F, size=size, mode="wrap")
@@ -198,13 +204,13 @@ def main() -> int:
     anim = Path(args.anim_dir); anim.mkdir(parents=True, exist_ok=True)
     entries = []
     for k, d in enumerate(days):
-        hl = {"H": hl_centers(mslS[k], "H"), "L": hl_centers(mslS[k], "L")}
+        hl = {"H": hl_centers(spaS[k], "H"), "L": hl_centers(spaS[k], "L")}
         fig = plt.figure(figsize=(11, 9.4))
         gs = GridSpec(2, 2, width_ratios=[7, 1], wspace=0.11, hspace=0.09,
                       left=0.012, right=0.965, top=0.935, bottom=0.05)
         for row, (arr, lim, zlim, ttl) in enumerate(
-                [(fa.sel(day=d).values, fl, zf, "Friction torque density  (−ρC$_d$|V|u·a cosφ)"),
-                 (ma.sel(day=d).values, ml, zm, "Mountain form-drag torque  (h ∂p$_s$/∂λ — terrain height × east–west pressure gradient)")]):
+                [(fa.sel(day=d).values, fl, zf, "Friction torque density anomaly  (−ρC$_d$|V|u·a cosφ)"),
+                 (ma.sel(day=d).values, ml, zm, "Mountain form-drag torque anomaly  (h ∂p$_s$/∂λ — terrain height × east–west pressure gradient)")]):
             ax = fig.add_subplot(gs[row, 0], projection=ccrs.PlateCarree(central_longitude=180))
             pm = ax.pcolormesh(clon, clat, arr, cmap="RdBu_r", vmin=-lim, vmax=lim,
                                transform=ccrs.PlateCarree(), shading="auto", rasterized=True)
@@ -213,22 +219,24 @@ def main() -> int:
             cb = fig.colorbar(pm, cax=cax, ticks=[-lim, 0, lim])
             cb.ax.set_yticklabels([f"{-lim / sc:.0f}", "0", f"{lim / sc:.0f}"], fontsize=6.5)
             cb.ax.set_title(f"×10$^{{{ec}}}$", fontsize=6.5); cb.outline.set_linewidth(0.4)
-            cyc, cl = add_cyclic_point(mslS[k], coord=lon)
-            ax.contour(cl, lat, cyc, levels=mlevs, colors="0.1", linewidths=0.55,
-                       alpha=0.75, transform=ccrs.PlateCarree())
+            cyc, cl = add_cyclic_point(spaS[k], coord=lon)
+            ax.contour(cl, lat, cyc, levels=plevs, colors="0.12", linewidths=0.5,
+                       linestyles="solid", alpha=0.8, transform=ccrs.PlateCarree())          # + anomaly
+            ax.contour(cl, lat, cyc, levels=-plevs[::-1], colors="0.12", linewidths=0.5,
+                       linestyles="dashed", alpha=0.8, transform=ccrs.PlateCarree())          # − anomaly
             for sym, col in (("H", "#b2182b"), ("L", "#2166ac")):
                 for plat, plon, pval in hl[sym]:
-                    ax.text(plon, plat, sym, color=col, fontsize=11, fontweight="bold",
+                    ax.text(plon, plat, sym + "′", color=col, fontsize=11, fontweight="bold",
                             ha="center", va="center", transform=ccrs.PlateCarree(), clip_on=True,
                             path_effects=[pe.withStroke(linewidth=1.8, foreground="white")])
-                    ax.text(plon, plat - 3.5, f"{pval:.0f}", color=col, fontsize=5.5,
+                    ax.text(plon, plat - 3.5, f"{pval:+.0f}", color=col, fontsize=5.5,
                             ha="center", va="top", transform=ccrs.PlateCarree(), clip_on=True,
                             path_effects=[pe.withStroke(linewidth=1.2, foreground="white")])
             qs = 3; qln = clon[::qs]; qlt = clat[::qs]
-            if row == 0:                                           # friction: zonal (u) 10-m wind only
-                uq = uwc.sel(day=d).values[::qs, ::qs]
+            if row == 0:                                           # friction: zonal (u) 10-m wind anomaly
+                uq = uwa.sel(day=d).values[::qs, ::qs]
                 ax.quiver(qln, qlt, uq, np.zeros_like(uq),
-                          transform=ccrs.PlateCarree(), color="0.2", scale=420, width=0.0014,
+                          transform=ccrs.PlateCarree(), color="0.2", scale=140, width=0.0014,
                           headwidth=4, headlength=4.5, alpha=0.7, zorder=5, pivot="middle")
             else:                                                  # mountain: east/west, scaled by |torque|
                 Uq = (arr / lim)[::qs, ::qs]
@@ -239,12 +247,12 @@ def main() -> int:
             ax.set_title(ttl, fontsize=10.5, fontweight="bold")
             inset(fig.add_subplot(gs[row, 1]), np.nanmean(arr, axis=1)[mm] * cosw, zlim)
         valid = init + pd.Timedelta(days=d)
-        fig.suptitle(f"AIFS-ENS (ensemble mean) · AAM surface torques — {valid:%Y-%m-%d} (forecast day {d})",
+        fig.suptitle(f"AIFS-ENS (ensemble mean) · AAM surface-torque anomalies — {valid:%Y-%m-%d} (forecast day {d})",
                      fontsize=12, fontweight="bold", y=0.99)
         fig.text(0.5, 0.013,
-                 "red = torque adding westerly AAM (spin-up) · blue = removing it (spin-down)"
-                 "   ·   grey = ensemble-mean MSLP, H / L = centres (hPa)",
-                 ha="center", va="bottom", fontsize=8.2, color="0.4")
+                 "red = anomalous torque adding westerly AAM (spin-up) · blue = removing it (spin-down), vs the forecast-period mean"
+                 "   ·   grey = surface-pressure anomaly (solid +, dashed −), H′ / L′ = anomaly centres (hPa)",
+                 ha="center", va="bottom", fontsize=8.0, color="0.4")
         fp = anim / f"F{k:02d}.webp"
         fig.savefig(fp, dpi=104, bbox_inches="tight"); plt.close(fig)
         entries.append({"idx": k, "file": fp.name, "date": valid.strftime("%Y-%m-%d"),
