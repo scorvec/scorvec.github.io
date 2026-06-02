@@ -48,8 +48,11 @@ ls -t "$REPO"/assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
 if [ "$TIME" = "00" ]; then
   "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
     --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
+  # ensemble mean — reuses sp (data/aam), 10u (data/u10), msl (data/msl) already
+  # downloaded above; fetches only 10v into data/torque. Must run after aam.py
+  # (sp + AAM archive for the dM/dt overlay), eq_hovmoller (10u) and soi (msl).
   "$PY" src/torque_map_anim.py --date "$DATE" --time "$TIME" --data-dir data/torque \
-    --aam-dir data/aam \
+    --sp-dir data/aam --u10-dir data/u10 --msl-dir data/msl \
     --anim-dir "$REPO/assets/sst/anim/torque" \
     --manifest "$REPO/assets/sst/anim/torque_manifest.json" \
     --ts-out "$REPO/assets/sst/torque_timeseries.webp" || echo "torque budget failed; continuing"
