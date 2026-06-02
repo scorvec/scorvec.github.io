@@ -140,9 +140,8 @@ def main() -> int:
         a = arr.assign_coords(day=("step", (arr.step / np.timedelta64(1, "h")).values.astype(int) // 24))
         return a.swap_dims({"step": "day"}).sel(day=days)
     fricD = by_day(fric); mtnD = by_day(mtn); mslD = by_day(mslm)
-    # ens-mean 10-m wind (linear → member mean) for the friction-panel vectors
+    # ens-mean 10-m ZONAL wind (the AAM-relevant component) for the friction-panel vectors
     uwc = by_day(grid(u10.mean("number"))).coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean().load()
-    vwc = by_day(grid(v10.mean("number"))).coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean().load()
 
     # --- torque totals (Hadley) over Global / each hemi ---
     dA = (A**2) * cosphi * dlam * dphi
@@ -221,10 +220,11 @@ def main() -> int:
                             ha="center", va="top", transform=ccrs.PlateCarree(), clip_on=True,
                             path_effects=[pe.withStroke(linewidth=1.2, foreground="white")])
             qs = 3; qln = clon[::qs]; qlt = clat[::qs]
-            if row == 0:                                           # friction: ens-mean 10-m wind
-                ax.quiver(qln, qlt, uwc.sel(day=d).values[::qs, ::qs], vwc.sel(day=d).values[::qs, ::qs],
+            if row == 0:                                           # friction: zonal (u) 10-m wind only
+                uq = uwc.sel(day=d).values[::qs, ::qs]
+                ax.quiver(qln, qlt, uq, np.zeros_like(uq),
                           transform=ccrs.PlateCarree(), color="0.2", scale=420, width=0.0014,
-                          headwidth=4, headlength=4.5, alpha=0.7, zorder=5)
+                          headwidth=4, headlength=4.5, alpha=0.7, zorder=5, pivot="middle")
             else:                                                  # mountain: east/west, scaled by |torque|
                 Uq = (arr / lim)[::qs, ::qs]
                 ax.quiver(qln, qlt, Uq, np.zeros_like(Uq), transform=ccrs.PlateCarree(),
