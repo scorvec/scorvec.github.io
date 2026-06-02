@@ -44,7 +44,7 @@ import aam
 
 OROG = Path(__file__).resolve().parent.parent / "data" / "reference" / "era5_orography.nc"
 STEPS_6H = list(range(0, 361, 6))
-COARSEN = 10                                    # ~2.5°
+COARSEN = 20                                    # ~5°
 A = 6.371e6; RHO = 1.225; CD = 1.3e-3; HU = 1e18   # Hadley unit
 
 
@@ -133,7 +133,9 @@ def main() -> int:
     fa = (fricD - fricD.mean("day")).coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean()
     ma = (mtnD - mtnD.mean("day")).coarsen(latitude=COARSEN, longitude=COARSEN, boundary="trim").mean()
     clon = fa.longitude.values; clat = fa.latitude.values
-    fl = float(np.nanpercentile(np.abs(fa.values), 99)); ml = float(np.nanpercentile(np.abs(ma.values), 99))
+    # wide colour range so only significant events saturate (eye drawn to extremes)
+    fl = float(np.nanpercentile(np.abs(fa.values), 99)) * 1.6
+    ml = float(np.nanpercentile(np.abs(ma.values), 99)) * 1.6
     mm = (clat >= -60) & (clat <= 60)
     cosw = np.cos(np.deg2rad(clat[mm]))                         # cosφ area weight (budget impact)
     # fixed zonal-mean inset x-axis (consistent across frames), per term
@@ -177,14 +179,19 @@ def main() -> int:
     for k, d in enumerate(days):
         hl = {"H": hl_centers(mslS[k], "H"), "L": hl_centers(mslS[k], "L")} if msl is not None else None
         fig = plt.figure(figsize=(11, 9.4))
-        gs = GridSpec(2, 2, width_ratios=[7, 1], wspace=0.03, hspace=0.09,
-                      left=0.015, right=0.985, top=0.935, bottom=0.05)
+        gs = GridSpec(2, 3, width_ratios=[7, 0.22, 1], wspace=0.05, hspace=0.09,
+                      left=0.015, right=0.975, top=0.935, bottom=0.05)
         for row, (arr, lim, zlim, ttl) in enumerate(
                 [(fa.sel(day=d).values, fl, zf, "Friction-torque density anomaly  (−ρC$_d$|V|u·a cosφ)"),
                  (ma.sel(day=d).values, ml, zm, "Mountain-torque density anomaly  (−p$_s$ ∂h/∂λ)")]):
             ax = fig.add_subplot(gs[row, 0], projection=ccrs.PlateCarree(central_longitude=180))
-            ax.pcolormesh(clon, clat, arr, cmap="RdBu_r", vmin=-lim, vmax=lim,
+            pm = ax.pcolormesh(clon, clat, arr, cmap="RdBu_r", vmin=-lim, vmax=lim,
                           transform=ccrs.PlateCarree(), shading="auto", rasterized=True)
+            cax = fig.add_subplot(gs[row, 1])
+            ec = int(np.floor(np.log10(lim))) if lim > 0 else 0; sc = 10.0 ** ec
+            cb = fig.colorbar(pm, cax=cax, ticks=[-lim, 0, lim])
+            cb.ax.set_yticklabels([f"{-lim / sc:.0f}", "0", f"{lim / sc:.0f}"], fontsize=6.5)
+            cb.ax.set_title(f"×10$^{{{ec}}}$", fontsize=6.5); cb.outline.set_linewidth(0.4)
             if msl is not None:
                 cyc, cl = add_cyclic_point(mslS[k], coord=lon)
                 ax.contour(cl, lat, cyc, levels=mlevs, colors="0.2", linewidths=0.35,
@@ -199,7 +206,7 @@ def main() -> int:
                                 path_effects=[pe.withStroke(linewidth=1.2, foreground="white")])
             ax.coastlines(resolution="110m", lw=0.4, color="0.35"); ax.set_global()
             ax.set_title(ttl, fontsize=10.5, fontweight="bold")
-            inset(fig.add_subplot(gs[row, 1]), np.nanmean(arr, axis=1)[mm] * cosw, zlim)
+            inset(fig.add_subplot(gs[row, 2]), np.nanmean(arr, axis=1)[mm] * cosw, zlim)
         valid = init + pd.Timedelta(days=d)
         fig.suptitle(f"AIFS-ENS · AAM surface-torque anomalies — {valid:%Y-%m-%d} (forecast day {d})",
                      fontsize=12.5, fontweight="bold", y=0.99)
@@ -215,33 +222,46 @@ def main() -> int:
     Path(args.manifest).write_text(json.dumps(mani))
     print(f"wrote {len(entries)} frames + {args.manifest}")
 
-    # --- budget time-series (Global | NH | SH) ---
+    # --- budget time-series: 2 rows (absolute | anomaly) × 3 cols (Global|NH|SH) ---
     valid = [init + pd.Timedelta(days=d) for d in days]
+    cols = ("G", "NH", "SH")
     titles = {"G": "Global budget", "NH": "Northern Hemisphere", "SH": "Southern Hemisphere"}
     obs_by_day = {}
     if obs is not None:
         odays, dmdt = obs
-        obs_by_day = {h: {int(dd_): dmdt[h][i] for i, dd_ in enumerate(odays)} for h in ("G", "NH", "SH")}
-    fig, axes = plt.subplots(1, 3, figsize=(15.5, 4.8), sharey=True)
-    for ax, hemi in zip(axes, ("G", "NH", "SH")):
-        ax.plot(valid, rows[hemi]["fric"], color="#2166ac", lw=1.7, label="friction torque")
-        ax.plot(valid, rows[hemi]["mtn"], color="#b2182b", lw=1.7, label="mountain torque")
-        ax.plot(valid, rows[hemi]["sum"], color="k", lw=2.4, label="friction + mountain")
-        if obs_by_day:
-            odm = np.array([obs_by_day[hemi].get(d, np.nan) for d in days])      # observed dM/dt
-            if hemi == "G":
-                ax.plot(valid, odm - rows["G"]["sum"], color="#1b7837", lw=1.7, label="implied GWD (residual)")
-            ax.plot(valid, odm, color="0.35", lw=2.2, ls="--", label="observed d(AAM)/dt")
-        ax.axhline(0, color="0.5", lw=0.8); ax.grid(True, alpha=0.25)
-        ax.set_title(titles[hemi], fontsize=11, fontweight="bold"); ax.legend(fontsize=7.8, loc="best")
-        for lb in ax.get_xticklabels(): lb.set_rotation(45); lb.set_ha("right"); lb.set_fontsize(7.5)
-    axes[0].set_ylabel("torque (Hadley = 10¹⁸ N m)")
-    fig.suptitle(f"AAM torque budget — AIFS-ENS init {init:%Y-%m-%d %HZ}", fontsize=12.5, fontweight="bold")
-    fig.text(0.5, -0.02,
-             "These are the full (absolute) torques — the maps above show anomalies vs the forecast-period mean, so a day's torque can be negative here yet show a positive anomaly on the map.  "
-             "Only the GLOBAL budget closes: friction + mountain + implied gravity-wave/form drag (residual) = d(AAM)/dt;  "
-             "each hemisphere's gap between net surface torque (black) and observed d(AAM)/dt (dashed) is cross-equatorial momentum transport (+ GWD), an internal flux — not a torque.",
-             ha="center", fontsize=8, color="0.35")
+        obs_by_day = {h: {int(dd_): dmdt[h][i] for i, dd_ in enumerate(odays)} for h in cols}
+
+    def da(v, anom):                                   # anomaly vs forecast-period mean
+        return v - np.nanmean(v) if anom else v
+
+    fig, axes = plt.subplots(2, 3, figsize=(14.5, 9.2), sharex=True, sharey="row")
+    for r, anom in enumerate((False, True)):
+        for c, hemi in enumerate(cols):
+            ax = axes[r, c]
+            ax.plot(valid, da(rows[hemi]["fric"], anom), color="#2166ac", lw=1.7, label="friction torque")
+            ax.plot(valid, da(rows[hemi]["mtn"], anom), color="#b2182b", lw=1.7, label="mountain torque")
+            ax.plot(valid, da(rows[hemi]["sum"], anom), color="k", lw=2.4, label="friction + mountain")
+            if obs_by_day:
+                odm = np.array([obs_by_day[hemi].get(d, np.nan) for d in days])
+                if hemi == "G":
+                    ax.plot(valid, da(odm - rows["G"]["sum"], anom), color="#1b7837", lw=1.7, label="implied GWD (residual)")
+                ax.plot(valid, da(odm, anom), color="0.35", lw=2.2, ls="--", label="observed d(AAM)/dt")
+            ax.axhline(0, color="0.5", lw=0.8); ax.grid(True, alpha=0.25)
+            if r == 0:
+                ax.set_title(titles[hemi], fontsize=11, fontweight="bold")
+            if r == 0 and c == 0:
+                ax.legend(fontsize=7.6, loc="best")
+            for lb in ax.get_xticklabels():
+                lb.set_rotation(45); lb.set_ha("right"); lb.set_fontsize(7.5)
+    axes[0, 0].set_ylabel("absolute torque\n(Hadley = 10¹⁸ N m)", fontsize=9)
+    axes[1, 0].set_ylabel("anomaly vs period mean\n(Hadley)", fontsize=9)
+    fig.suptitle(f"AAM torque budget — AIFS-ENS init {init:%Y-%m-%d %HZ}   ·   top row: absolute   ·   bottom row: anomaly",
+                 fontsize=12.5, fontweight="bold")
+    fig.text(0.5, -0.005,
+             "Top: full (absolute) torques.   Bottom: anomalies vs the forecast-period mean (the framing the maps use).\n"
+             "Only the GLOBAL budget closes: friction + mountain + implied gravity-wave/form drag (residual) = d(AAM)/dt.\n"
+             "Each hemisphere's gap between net surface torque (black) and observed d(AAM)/dt (dashed) is cross-equatorial momentum transport (+ GWD) — an internal flux, not a torque.",
+             ha="center", va="top", fontsize=8.5, color="0.35")
     fig.tight_layout()
     Path(args.ts_out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.ts_out, dpi=120, bbox_inches="tight"); plt.close(fig)

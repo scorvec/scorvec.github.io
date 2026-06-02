@@ -5,7 +5,7 @@ name: SST anomalies & RONI (El Niño monitor)
 # the next run. Manual dispatch with --force re-downloads regardless.
 on:
   schedule:
-    - cron: '23 14 * * *'   # 14:23 UTC — fallback after the laptop primary (run_local_sst.sh ~12:35 UTC)
+    - cron: '23 16 * * *'   # 16:23 UTC — fallback after the laptop primary (run_local_sst.sh ~15:30 UTC)
   workflow_dispatch:
     inputs:
       force:

@@ -7,8 +7,8 @@
        launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.sst.plist
      Run once now (test):
        launchctl kickstart -k gui/$(id -u)/com.scorvec.sst
-     Runs at 08:35 & 13:35 local (ET) — soon after the day's OISST lands (~12 UTC);
-     the second attempt and the GitHub Action fallback (14:23 UTC) no-op if the
+     Runs at 11:30 & 16:30 local (ET) — soon after the day's OISST/TAO land (~15 UTC);
+     the second attempt and the GitHub Action fallback (16:23 UTC) no-op if the
      OISST day is already committed (commit-if-changed). -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -21,8 +21,8 @@
   </array>
   <key>StartCalendarInterval</key>
   <array>
-    <dict><key>Hour</key><integer>8</integer><key>Minute</key><integer>35</integer></dict>
-    <dict><key>Hour</key><integer>13</integer><key>Minute</key><integer>35</integer></dict>
+    <dict><key>Hour</key><integer>11</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Hour</key><integer>16</integer><key>Minute</key><integer>30</integer></dict>
   </array>
   <key>StandardOutPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/launchd.out.log</string>
   <key>StandardErrorPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/launchd.err.log</string>
