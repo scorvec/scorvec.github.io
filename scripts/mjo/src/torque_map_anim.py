@@ -45,6 +45,15 @@ OROG = REF / "era5_orography.nc"
 AAM_ARCHIVE = REF / "aam_forecast_archive.nc"
 DAILY_STEPS = list(range(24, 361, 24))          # days 1..15 (matches reused 10u/msl)
 COARSEN = 20                                    # ~5°
+# major orographic barriers (lon0, lon1, lat0, lat1) on 0..360°E — for the by-range breakdown
+RANGES = {
+    "Himalaya/Tibet": (70, 105, 25, 45),
+    "Rockies/W. N.America": (232, 258, 30, 62),
+    "Andes": (282, 296, -56, 12),
+    "Greenland": (300, 345, 58, 84),
+    "Antarctica": (0, 360, -90, -66),
+    "Alps/Europe": (0, 45, 36, 50),
+}
 A = 6.371e6; RHO = 1.225; CD = 1.3e-3; HU = 1e18; AAM_SCALE = 1e25   # Hadley unit; archive units
 
 
@@ -108,6 +117,7 @@ def main() -> int:
     ap.add_argument("--anim-dir", default="assets/sst/anim/torque")
     ap.add_argument("--manifest", default="assets/sst/anim/torque_manifest.json")
     ap.add_argument("--ts-out", default="assets/sst/torque_timeseries.webp")
+    ap.add_argument("--ranges-out", default="assets/sst/torque_ranges.webp")
     args = ap.parse_args()
     init = pd.Timestamp(f"{args.date}T{args.time}:00")
     dd = Path(args.data_dir); dd.mkdir(parents=True, exist_ok=True)
@@ -303,6 +313,31 @@ def main() -> int:
     fig.savefig(args.ts_out, dpi=120, bbox_inches="tight"); plt.close(fig)
     print(f"saved {args.ts_out} (Global net {rows['G']['sum'][0]:+.0f}→{rows['G']['sum'][-1]:+.0f} Hadley; "
           f"obs dM/dt {'overlaid' if obs else 'n/a (run aam.py first)'})")
+
+    # --- mountain-torque ANOMALY by range (each barrier's contribution, overlaid) ---
+    mt = mtnD.values; mt_anom = mt - mt.mean(0)                      # (day,lat,lon) anomaly vs period mean
+    def box_net(field, b):                                          # net torque over a lon/lat box, Hadley
+        lo0, lo1, la0, la1 = b
+        ym = (lat >= la0) & (lat <= la1); xm = (lon >= lo0) & (lon <= lo1)
+        return (field * dA[None])[:, ym][:, :, xm].sum((1, 2)) / HU
+    fig, ax = plt.subplots(figsize=(11, 5.2))
+    cmap = plt.cm.tab10
+    for i, (nm, b) in enumerate(RANGES.items()):
+        ax.plot(valid, box_net(mt_anom, b), lw=2.0, color=cmap(i), label=nm)
+    ax.plot(valid, box_net(mt_anom, (0, 360, -90, 90)), lw=2.8, color="k", ls="--", label="Global total")
+    ax.axhline(0, color="0.5", lw=0.8); ax.grid(True, alpha=0.25)
+    ax.set_ylabel("mountain-torque anomaly (Hadley = 10¹⁸ N m)")
+    ax.legend(fontsize=8.5, ncol=2, loc="best")
+    ax.set_title(f"Mountain-torque anomaly by range — AIFS-ENS ensemble mean, init {init:%Y-%m-%d %HZ}",
+                 fontsize=12, fontweight="bold")
+    for lb in ax.get_xticklabels():
+        lb.set_rotation(45); lb.set_ha("right"); lb.set_fontsize(8)
+    fig.text(0.5, -0.02, "Net form-drag torque anomaly integrated over each barrier (the terrain-locked dipole cancels in the box, "
+             "leaving the synoptic signal); the ranges sum toward the global total.", ha="center", fontsize=8, color="0.4")
+    fig.tight_layout()
+    Path(args.ranges_out).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(args.ranges_out, dpi=120, bbox_inches="tight"); plt.close(fig)
+    print(f"saved {args.ranges_out}")
     return 0
 
 

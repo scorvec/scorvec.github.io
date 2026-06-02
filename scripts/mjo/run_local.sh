@@ -55,7 +55,8 @@ if [ "$TIME" = "00" ]; then
     --sp-dir data/aam --u10-dir data/u10 --msl-dir data/msl \
     --anim-dir "$REPO/assets/sst/anim/torque" \
     --manifest "$REPO/assets/sst/anim/torque_manifest.json" \
-    --ts-out "$REPO/assets/sst/torque_timeseries.webp" || echo "torque budget failed; continuing"
+    --ts-out "$REPO/assets/sst/torque_timeseries.webp" \
+    --ranges-out "$REPO/assets/sst/torque_ranges.webp" || echo "torque budget failed; continuing"
 fi
 
 # prune GRIBs older than a week. The archive hard-links share inodes with the
@@ -68,7 +69,7 @@ cd "$REPO"
 git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc \
         scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
         assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/aam.webp assets/sst/aam_trend.webp \
-        assets/sst/anim/torque/ assets/sst/anim/torque_manifest.json assets/sst/torque_timeseries.webp
+        assets/sst/anim/torque/ assets/sst/anim/torque_manifest.json assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
 git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
     commit -m "MJO RMM: ${COMPACT} (local)"
