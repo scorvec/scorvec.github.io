@@ -92,21 +92,26 @@ def main() -> int:
     import scipy.ndimage as ndi
     data = {k: ndi.gaussian_filter1d(acc[k], 1.6, axis=1) for k in TERMS}   # smooth in latitude for clean contours
     data["sum"] = sum(data[k] for k in TERMS)
-    lim = float(np.nanpercentile(np.abs(np.concatenate([data[k][:, mm] for k, _ in panels])), 99))
-    fig, axes = plt.subplots(1, 4, figsize=(16, 5.2), sharey=True)
+    dphi = abs(lat[1] - lat[0])
+    # PER-PANEL scale: GWD's density is ~15% of friction's, so a shared scale washes
+    # it out — but its broad integral (∫) is a real budget term. Each panel its own
+    # colourbar; the ∫ annotation gives the global tendency so magnitudes stay honest.
+    fig, axes = plt.subplots(1, 4, figsize=(16, 5.6), sharey=True)
     for ax, (k, ttl) in zip(axes, panels):
+        lim = float(np.nanpercentile(np.abs(data[k][:, mm]), 99.5)) or 1e-9
+        gint = float(np.nanmean(np.nansum(data[k], axis=1)) * dphi)         # annual-mean global tendency, Hadley
         pc = ax.contourf(months, lat[mm], data[k][:, mm].T, levels=np.linspace(-lim, lim, 21),
                          cmap="RdBu_r", extend="both")
         ax.contour(months, lat[mm], data[k][:, mm].T, levels=[0], colors="0.3", linewidths=0.6)
-        ax.set_title(ttl, fontsize=10.5, fontweight="bold")
+        ax.set_title(f"{ttl}\n∫ ≈ {gint:+.0f} Hadley (annual)", fontsize=10, fontweight="bold")
         ax.set_xticks(months); ax.set_xticklabels(["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"], fontsize=8)
         ax.axhline(0, color="0.5", lw=0.7); ax.set_yticks([-60, -30, 0, 30, 60])
+        cb = fig.colorbar(pc, ax=ax, orientation="horizontal", fraction=0.05, pad=0.13)
+        cb.set_label("Hadley/°lat", fontsize=7); cb.ax.tick_params(labelsize=6)
     axes[0].set_ylabel("latitude")
-    cb = fig.colorbar(pc, ax=axes, fraction=0.012, pad=0.01)
-    cb.set_label("eastward torque on the atmosphere  (Hadley per °lat)\nred = adds westerly AAM · blue = removes it", fontsize=8.5)
-    cb.ax.tick_params(labelsize=7)
-    fig.suptitle(f"Seasonal cycle of the AAM surface-torque terms by latitude — ERA5 {args.y0}–{args.y1}",
-                 fontsize=13, fontweight="bold")
+    fig.suptitle(f"Seasonal cycle of the AAM surface-torque terms by latitude — ERA5 {args.y0}–{args.y1}"
+                 "   (each panel own scale · red = adds westerly AAM · ∫ = global tendency)",
+                 fontsize=12.5, fontweight="bold")
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=120, bbox_inches="tight"); plt.close(fig)
     print(f"saved {args.out}")
