@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OROG = REF / "era5_orography.nc"
 NC_OUT = REF / "torque_seasonal.nc"
+CACHE = Path.home() / "mjo" / "era5_cache"          # reduced ERA5 samples, kept for re-use
 STORE = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 A = 6.371e6; HU = 1e18; DEG = np.pi / 180.0
 TERMS = ("friction", "mountain", "gwd")
@@ -41,46 +42,51 @@ def main() -> int:
     args = ap.parse_args()
 
     o = xr.open_dataarray(OROG); lat = o.latitude.values; lon = o.longitude.values
-    cos = np.cos(np.deg2rad(lat))
-    dlam = np.deg2rad(abs(float(lon[1] - lon[0])))
-    dhdlam = np.gradient(o.values, np.deg2rad(lon), axis=1)            # (lat,lon)
+    cos = np.cos(np.deg2rad(lat)); dlam = np.deg2rad(abs(float(lon[1] - lon[0])))
+    cpath = CACHE / f"torque_seasonal_terms_{args.y0}-{args.y1}_s{args.stride}.nc"
+    if cpath.exists():
+        print(f"reusing cached ERA5 samples: {cpath}", flush=True)
+        c = xr.open_dataset(cpath)
+        fr, gw, mt = c["friction"].values, c["gwd"].values, c["mountain"].values   # (time, lat)
+        months_of = pd.to_datetime(c.time.values).month.values
+    else:
+        fs = gcsfs.GCSFileSystem(token="anon")
+        ds = xr.open_zarr(fs.get_mapper(STORE), chunks={"time": 1})
+        def on_grid(da): return da.reindex(latitude=lat, longitude=lon, method="nearest").values
+        want = pd.date_range(f"{args.y0}-01-01", f"{args.y1}-12-31", freq=f"{args.stride}D") + pd.Timedelta(hours=12)
+        times = want[want.isin(pd.to_datetime(ds.time.values))]
+        print(f"sampling {len(times)} ERA5 times ({args.stride}-day stride, {args.y0}-{args.y1})", flush=True)
+        frl, gwl, mtl, tl = [], [], [], []
+        for n, t in enumerate(times):
+            try:
+                ew = on_grid(ds["mean_eastward_turbulent_surface_stress"].sel(time=t))
+                gwf = on_grid(ds["mean_eastward_gravity_wave_surface_stress"].sel(time=t))
+                sp = on_grid(ds["surface_pressure"].sel(time=t))
+            except Exception as e:                                    # noqa: BLE001
+                print(f"  skip {t:%Y-%m-%d}: {e}"); continue
+            dpdlam = (np.roll(sp, -1, axis=1) - np.roll(sp, 1, axis=1)) / (2 * dlam)   # periodic ∂p_s/∂λ
+            frl.append(-(A**3) * cos**2 * (ew * dlam).sum(1) * DEG / HU)
+            gwl.append(-(A**3) * cos**2 * (gwf * dlam).sum(1) * DEG / HU)
+            mtl.append((A**2) * cos * (o.values * dpdlam).sum(1) * dlam * DEG / HU)   # +h·∂p_s/∂λ (periodic)
+            tl.append(t)
+            if n % 200 == 0:
+                print(f"  {n}/{len(times)} … {t:%Y-%m-%d}", flush=True)
+        fr, gw, mt = np.stack(frl), np.stack(gwl), np.stack(mtl)
+        CACHE.mkdir(parents=True, exist_ok=True)
+        xr.Dataset({"friction": (("time", "latitude"), fr), "gwd": (("time", "latitude"), gw),
+                    "mountain": (("time", "latitude"), mt)},
+                   coords={"time": pd.DatetimeIndex(tl), "latitude": lat}).to_netcdf(cpath)
+        print(f"saved ERA5 samples → {cpath}  ({(fr.nbytes+gw.nbytes+mt.nbytes)/1e6:.0f} MB)", flush=True)
+        months_of = pd.DatetimeIndex(tl).month.values
 
-    fs = gcsfs.GCSFileSystem(token="anon")
-    ds = xr.open_zarr(fs.get_mapper(STORE), chunks={"time": 1})
-    # align ERA5 grid to the orography grid (both 0.25° ARCO; reindex guards any offset)
-    def on_grid(da):
-        da = da.reindex(latitude=lat, longitude=lon, method="nearest")
-        return da.values
-
-    want = pd.date_range(f"{args.y0}-01-01", f"{args.y1}-12-31", freq=f"{args.stride}D") + pd.Timedelta(hours=12)
-    have = pd.to_datetime(ds.time.values)
-    times = want[want.isin(have)]
-    print(f"sampling {len(times)} ERA5 times ({args.stride}-day stride, {args.y0}-{args.y1})", flush=True)
-
-    acc = {k: np.zeros((12, len(lat))) for k in TERMS}
-    cnt = np.zeros(12)
-    for n, t in enumerate(times):
-        try:
-            ew = on_grid(ds["mean_eastward_turbulent_surface_stress"].sel(time=t))
-            gw = on_grid(ds["mean_eastward_gravity_wave_surface_stress"].sel(time=t))
-            sp = on_grid(ds["surface_pressure"].sel(time=t))
-        except Exception as e:                                        # noqa: BLE001
-            print(f"  skip {t:%Y-%m-%d}: {e}"); continue
-        m = t.month - 1
-        # zonal-integrated torque per latitude, Hadley per degree latitude
-        acc["friction"][m] += -(A**3) * cos**2 * (ew * dlam).sum(1) * DEG / HU
-        acc["gwd"][m]      += -(A**3) * cos**2 * (gw * dlam).sum(1) * DEG / HU
-        acc["mountain"][m] += -(A**2) * cos * (sp * dhdlam).sum(1) * dlam * DEG / HU
-        cnt[m] += 1
-        if n % 200 == 0:
-            print(f"  {n}/{len(times)} … {t:%Y-%m-%d}", flush=True)
-
+    acc = {k: np.zeros((12, len(lat))) for k in TERMS}; cnt = np.zeros(12)
+    for i, mo in enumerate(months_of):
+        acc["friction"][mo - 1] += fr[i]; acc["gwd"][mo - 1] += gw[i]; acc["mountain"][mo - 1] += mt[i]; cnt[mo - 1] += 1
     for k in TERMS:
         acc[k] /= cnt[:, None]
     clim = xr.Dataset({k: (("month", "latitude"), acc[k]) for k in TERMS},
                       coords={"month": np.arange(1, 13), "latitude": lat})
-    clim.attrs["units"] = "Hadley (1e18 N m) per degree latitude"
-    clim.attrs["note"] = f"ERA5 {args.y0}-{args.y1}, {args.stride}-day stride; torque ON the atmosphere"
+    clim.attrs["note"] = f"ERA5 {args.y0}-{args.y1}; torque ON atmosphere; mountain = +h ∂p_s/∂λ (periodic)"
     clim.to_netcdf(NC_OUT)
     print(f"wrote {NC_OUT}  (counts/month: {cnt.astype(int)})")
 
