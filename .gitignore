@@ -29,3 +29,6 @@ scripts/mjo/data/aam/
 
 # torque 6-hourly sp cache
 scripts/mjo/data/torque/
+
+# Local SST builder logs
+scripts/sst/*.log
