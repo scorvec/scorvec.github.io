@@ -47,7 +47,9 @@ if [ "$TIME" = "00" ]; then
   "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
     --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
   "$PY" src/torque_map_anim.py --date "$DATE" --time "$TIME" --data-dir data/torque \
-    --out "$REPO/assets/sst/torque_anim.webp" || echo "torque map failed; continuing"
+    --anim-dir "$REPO/assets/sst/anim/torque" \
+    --manifest "$REPO/assets/sst/anim/torque_manifest.json" \
+    --ts-out "$REPO/assets/sst/torque_timeseries.webp" || echo "torque budget failed; continuing"
 fi
 
 cd "$REPO"

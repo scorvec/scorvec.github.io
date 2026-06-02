@@ -128,7 +128,8 @@ const loadingEl = $("loading");
 
 async function init() {
   try {
-    const r = await fetch(`${ANIM_BASE}/manifest.json?v=${Date.now()}`);
+    const MF = new URLSearchParams(location.search).get("manifest") || "manifest.json";
+    const r = await fetch(`${ANIM_BASE}/${MF}?v=${Date.now()}`);
     manifest = await r.json();
   } catch (e) {
     dateEl.textContent = "Failed to load animation manifest.";
