@@ -44,20 +44,20 @@ ls -t "$REPO"/assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
 "$PY" src/soi_forecast.py --date "$DATE" --time "$TIME" --data-dir data/msl \
   --out "$REPO/assets/sst/soi_forecast.webp" || echo "SOI failed; continuing"
 
-# AAM is a heavy ~3 GB (13-level) download — once daily, on the 00Z cycle only.
-if [ "$TIME" = "00" ]; then
-  "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
-    --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
-  # ensemble mean — reuses sp (data/aam), 10u (data/u10), msl (data/msl) already
-  # downloaded above; fetches only 10v into data/torque. Must run after aam.py
-  # (sp + AAM archive for the dM/dt overlay), eq_hovmoller (10u) and soi (msl).
-  "$PY" src/torque_map_anim.py --date "$DATE" --time "$TIME" --data-dir data/torque \
-    --sp-dir data/aam --u10-dir data/u10 --msl-dir data/msl \
-    --anim-dir "$REPO/assets/sst/anim/torque" \
-    --manifest "$REPO/assets/sst/anim/torque_manifest.json" \
-    --ts-out "$REPO/assets/sst/torque_timeseries.webp" \
-    --ranges-out "$REPO/assets/sst/torque_ranges.webp" || echo "torque budget failed; continuing"
-fi
+# AAM + torque budget — BOTH cycles (00Z & 12Z) for a twice-daily, denser run-to-run
+# trend. Heavy (~7 GB 13-level perturbed-u pull each time); the GRIB archive prune
+# keeps disk bounded.
+"$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
+  --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
+# ensemble mean — reuses sp (data/aam), 10u (data/u10), msl (data/msl) already
+# downloaded above; fetches only 10v into data/torque. Must run after aam.py
+# (sp + AAM archive for the dM/dt overlay), eq_hovmoller (10u) and soi (msl).
+"$PY" src/torque_map_anim.py --date "$DATE" --time "$TIME" --data-dir data/torque \
+  --sp-dir data/aam --u10-dir data/u10 --msl-dir data/msl \
+  --anim-dir "$REPO/assets/sst/anim/torque" \
+  --manifest "$REPO/assets/sst/anim/torque_manifest.json" \
+  --ts-out "$REPO/assets/sst/torque_timeseries.webp" \
+  --ranges-out "$REPO/assets/sst/torque_ranges.webp" || echo "torque budget failed; continuing"
 
 # prune GRIBs older than a week. The archive hard-links share inodes with the
 # working data dirs, so disk is freed only when both links go — delete from both.
