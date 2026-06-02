@@ -45,6 +45,8 @@ def _daily(path, data_dir, date, time, param):
                        type="cf", levtype="sfc", param=param, step=STEPS_6H), str(p))
     ds = xr.open_dataset(p, engine="cfgrib", backend_kwargs={"indexpath": ""})
     da = ds[[v for v in ds.data_vars][0]].sortby("latitude")
+    if float(da.longitude.min()) < 0:                # AIFS is −180…180; match orog 0…360
+        da = da.assign_coords(longitude=da.longitude % 360).sortby("longitude")
     hrs = (da.step / np.timedelta64(1, "h")).values.astype(int)
     return da.assign_coords(day=("step", hrs // 24)).groupby("day").mean()
 
