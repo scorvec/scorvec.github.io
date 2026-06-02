@@ -47,6 +47,7 @@ if [ "$TIME" = "00" ]; then
   "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
     --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
   "$PY" src/torque_map_anim.py --date "$DATE" --time "$TIME" --data-dir data/torque \
+    --aam-dir data/aam \
     --anim-dir "$REPO/assets/sst/anim/torque" \
     --manifest "$REPO/assets/sst/anim/torque_manifest.json" \
     --ts-out "$REPO/assets/sst/torque_timeseries.webp" || echo "torque budget failed; continuing"
@@ -55,7 +56,8 @@ fi
 cd "$REPO"
 git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc \
         scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
-        assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/aam.webp assets/sst/aam_trend.webp
+        assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/aam.webp assets/sst/aam_trend.webp \
+        assets/sst/anim/torque/ assets/sst/anim/torque_manifest.json assets/sst/torque_timeseries.webp
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
 git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
     commit -m "MJO RMM: ${COMPACT} (local)"
