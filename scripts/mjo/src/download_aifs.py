@@ -41,6 +41,26 @@ SOURCES = [s.strip() for s in
            os.environ.get("AIFS_SOURCES", "aws,azure,ecmwf").split(",") if s.strip()]
 
 
+def _archive_grib(target: str, req: dict) -> None:
+    """If MJO_GRIB_ARCHIVE is set (laptop only), keep a copy of each downloaded
+    GRIB under <archive>/<date>_<time>z/ for easy access. Skips concat chunks."""
+    arch = os.environ.get("MJO_GRIB_ARCHIVE")
+    if not arch or ".part" in os.path.basename(target) or not os.path.exists(target):
+        return
+    try:
+        d = str(req.get("date", "unknown")); t = f"{int(req.get('time', 0)):02d}"
+        dest_dir = Path(arch) / f"{d}_{t}z"; dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / os.path.basename(target)
+        if dest.exists():
+            return
+        try:
+            os.link(target, dest)                  # hard link — no extra disk on same volume
+        except OSError:
+            import shutil; shutil.copy2(target, dest)   # cross-device fallback
+    except Exception as e:  # noqa: BLE001 — archiving must never break a build
+        print(f"  (grib archive skipped: {e})", flush=True)
+
+
 def _retrieve(req: dict, target: str) -> str:
     """Retrieve a request, trying each source in SOURCES until one works.
     Returns the source that succeeded; raises the last error if all fail."""
@@ -48,6 +68,7 @@ def _retrieve(req: dict, target: str) -> str:
     for src in SOURCES:
         try:
             Client(source=src).retrieve(target=target, **req)
+            _archive_grib(target, req)
             return src
         except Exception as e:  # noqa: BLE001 — try the next mirror
             last = e
@@ -86,6 +107,7 @@ def retrieve_parallel(req: dict, target: str, members=None, workers: int = None)
             with open(p, "rb") as f:
                 shutil.copyfileobj(f, out)
             os.remove(p)
+    _archive_grib(target, req)
     return f"parallel×{len(groups)}"
 
 

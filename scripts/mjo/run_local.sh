@@ -11,6 +11,8 @@ set -uo pipefail
 PY="${MJO_PY:-/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python}"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 export MPLBACKEND=Agg PATH="$(dirname "$PY"):/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
+# keep a copy of every GRIB we download, organised by cycle, for easy local access
+export MJO_GRIB_ARCHIVE="${MJO_GRIB_ARCHIVE:-$HOME/mjo/grib_archive}"
 cd "$REPO/scripts/mjo" || exit 1
 
 LOG="$REPO/scripts/mjo/run_local.log"
