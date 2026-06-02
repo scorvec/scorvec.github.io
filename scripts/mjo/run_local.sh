@@ -50,8 +50,8 @@ fi
 
 cd "$REPO"
 git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc \
-        scripts/mjo/data/reference/aam_history.nc \
-        assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/aam.webp
+        scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
+        assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/aam.webp assets/sst/aam_trend.webp
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
 git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
     commit -m "MJO RMM: ${COMPACT} (local)"

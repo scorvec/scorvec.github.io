@@ -13,6 +13,7 @@ differs) ensemble → an absolute forecast plume.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -225,6 +226,69 @@ def plot(data, steps_h, init, hist, out: Path):
     print(f"saved {out} (global AAM init {g0[0]:.1f} → day15 {g0[-1]:.1f} ×10²⁵)")
 
 
+ARCHIVE_PATH = Path(__file__).resolve().parent.parent / "data" / "reference" / "aam_forecast_archive.nc"
+
+
+def archive_forecast(init, data, steps_h):
+    """Append this run's ensemble-mean AAM (per lead, per region) to the archive,
+    so successive forecasts can be overlaid to show the run-to-run trend."""
+    leads = (np.array(steps_h) / 24.0).round().astype(int)
+    means = np.stack([data[k].mean(0) for k in ("global", "nh", "sh")])      # (region, lead)
+    new = xr.Dataset({"fc_mean": (("region", "lead"), means)},
+                     coords={"region": ["global", "nh", "sh"], "lead": leads,
+                             "init": pd.Timestamp(init)}).expand_dims("init")
+    if ARCHIVE_PATH.exists():
+        with xr.open_dataset(ARCHIVE_PATH) as ds:
+            old = ds.load()
+        if pd.Timestamp(init) in pd.to_datetime(old.init.values):
+            old = old.drop_sel(init=pd.Timestamp(init))
+        new = xr.concat([old, new], dim="init").sortby("init")
+    ARCHIVE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = ARCHIVE_PATH.with_suffix(".tmp.nc"); new.to_netcdf(tmp); os.replace(tmp, ARCHIVE_PATH)
+    print(f"  archived forecast {pd.Timestamp(init):%Y-%m-%d %HZ} ({new.sizes['init']} runs total)")
+
+
+def plot_trend(out: Path, n_runs: int = 14):
+    """Overlay the last n_runs ensemble-mean AAM-anomaly forecasts (per region),
+    coloured by init date (newest bold) — the run-to-run forecast trend."""
+    import matplotlib.dates as mdates
+    from matplotlib import cm, colors as mcolors
+    if not ARCHIVE_PATH.exists():
+        return
+    arch = xr.open_dataset(ARCHIVE_PATH)
+    clim = xr.open_dataset(CLIM_PATH) if CLIM_PATH.exists() else None
+    inits = pd.to_datetime(arch.init.values)[-n_runs:]
+    nums = mdates.date2num(inits)
+    norm = mcolors.Normalize(nums.min(), nums.max() + 1e-6)
+    cmap = cm.plasma
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.7))
+    for j, (key, title) in enumerate(REG):
+        ax = axes[j]
+        coef = clim["coeffs"].sel(region=key).values if clim is not None else None
+        for i, it in enumerate(inits):
+            fc = arch["fc_mean"].sel(region=key, init=it).values
+            valid = pd.to_datetime([it + pd.Timedelta(days=int(l)) for l in arch.lead.values])
+            y = fc - eval_clim(coef, np.array([d.dayofyear for d in valid])) if coef is not None else fc
+            newest = i == len(inits) - 1
+            ax.plot(valid, y, color=cmap(norm(nums[i])), lw=2.8 if newest else 1.1,
+                    alpha=1.0 if newest else 0.7, zorder=5 if newest else 2)
+        ax.axhline(0, color="0.5", lw=0.8); ax.grid(True, alpha=0.2)
+        ax.set_title(title, fontsize=11, fontweight="bold")
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
+        for lab in ax.get_xticklabels():
+            lab.set_rotation(45); lab.set_ha("right"); lab.set_fontsize(7.5)
+    axes[0].set_ylabel("AAM anomaly (10²⁵ kg m² s⁻¹)")
+    sm = cm.ScalarMappable(norm=norm, cmap=cmap); sm.set_array([])
+    cb = fig.colorbar(sm, ax=axes, fraction=0.012, pad=0.01)
+    cb.ax.yaxis.set_major_formatter(mdates.DateFormatter("%m-%d %HZ"))
+    cb.set_label("forecast init", fontsize=8); cb.ax.tick_params(labelsize=7)
+    fig.suptitle("AAM anomaly forecast trend — successive AIFS-ENS ensemble-mean runs "
+                 "(newest = bold)", fontsize=12, fontweight="bold")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=120, bbox_inches="tight"); plt.close(fig)
+    print(f"saved {out} ({len(inits)} runs)")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
@@ -237,6 +301,8 @@ def main() -> int:
     data, steps_h = compute(paths)
     hist = observed_history(init.year)
     plot(data, steps_h, init, hist, Path(args.out))
+    archive_forecast(init, data, steps_h)
+    plot_trend(Path(args.out).with_name("aam_trend.webp"))
     return 0
 
 
