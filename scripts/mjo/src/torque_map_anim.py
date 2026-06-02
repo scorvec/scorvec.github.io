@@ -167,7 +167,7 @@ def main() -> int:
     zm = float(np.nanpercentile(np.abs(np.nanmean(ma.values, axis=2)[:, mm] * cosw), 98)) or ml
     import scipy.ndimage as ndi
     mslS = np.stack([ndi.gaussian_filter(s, sigma=6, mode="wrap") for s in (mslD.values / 100.0)])
-    mlevs = np.arange(940, 1052, 8)
+    mlevs = np.arange(940, 1052, 4)                                 # 4-hPa isobars
 
     def inset(zi, prof, zlim):
         zi.plot(prof, clat[mm], color="#444", lw=1.3)
@@ -203,7 +203,7 @@ def main() -> int:
                       left=0.012, right=0.965, top=0.935, bottom=0.05)
         for row, (arr, lim, zlim, ttl) in enumerate(
                 [(fa.sel(day=d).values, fl, zf, "Friction-torque density anomaly  (−ρC$_d$|V|u·a cosφ)"),
-                 (ma.sel(day=d).values, ml, zm, "Mountain-torque density anomaly  (h ∂p$_s$/∂λ)")]):
+                 (ma.sel(day=d).values, ml, zm, "Mountain form-drag torque anomaly  (h ∂p$_s$/∂λ — terrain height × east–west pressure gradient)")]):
             ax = fig.add_subplot(gs[row, 0], projection=ccrs.PlateCarree(central_longitude=180))
             pm = ax.pcolormesh(clon, clat, arr, cmap="RdBu_r", vmin=-lim, vmax=lim,
                                transform=ccrs.PlateCarree(), shading="auto", rasterized=True)
