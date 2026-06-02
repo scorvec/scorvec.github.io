@@ -258,10 +258,9 @@ def plot_trend(out: Path, n_runs: int = 14):
     arch = xr.open_dataset(ARCHIVE_PATH)
     clim = xr.open_dataset(CLIM_PATH) if CLIM_PATH.exists() else None
     inits = pd.to_datetime(arch.init.values)[-n_runs:]
-    nums = mdates.date2num(inits)
-    norm = mcolors.Normalize(nums.min(), nums.max() + 1e-6)
-    cmap = cm.plasma
+    n = len(inits); cmap = cm.plasma
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.7))
+    handles = []
     for j, (key, title) in enumerate(REG):
         ax = axes[j]
         coef = clim["coeffs"].sel(region=key).values if clim is not None else None
@@ -269,19 +268,21 @@ def plot_trend(out: Path, n_runs: int = 14):
             fc = arch["fc_mean"].sel(region=key, init=it).values
             valid = pd.to_datetime([it + pd.Timedelta(days=int(l)) for l in arch.lead.values])
             y = fc - eval_clim(coef, np.array([d.dayofyear for d in valid])) if coef is not None else fc
-            newest = i == len(inits) - 1
-            ax.plot(valid, y, color=cmap(norm(nums[i])), lw=2.8 if newest else 1.1,
-                    alpha=1.0 if newest else 0.7, zorder=5 if newest else 2)
+            newest = i == n - 1
+            ln, = ax.plot(valid, y, color=cmap(i / max(n - 1, 1)), lw=2.8 if newest else 1.1,
+                          alpha=1.0 if newest else 0.75, zorder=5 if newest else 2,
+                          label=f"{it:%b %d} {it:%H}Z" + ("  (latest)" if newest else ""))
+            if j == 0:
+                handles.append(ln)
         ax.axhline(0, color="0.5", lw=0.8); ax.grid(True, alpha=0.2)
         ax.set_title(title, fontsize=11, fontweight="bold")
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
         for lab in ax.get_xticklabels():
             lab.set_rotation(45); lab.set_ha("right"); lab.set_fontsize(7.5)
     axes[0].set_ylabel("AAM anomaly (10²⁵ kg m² s⁻¹)")
-    sm = cm.ScalarMappable(norm=norm, cmap=cmap); sm.set_array([])
-    cb = fig.colorbar(sm, ax=axes, fraction=0.012, pad=0.01)
-    cb.ax.yaxis.set_major_formatter(mdates.DateFormatter("%m-%d %HZ"))
-    cb.set_label("forecast init", fontsize=8); cb.ax.tick_params(labelsize=7)
+    fig.legend(handles[::-1], [h.get_label() for h in handles[::-1]], loc="center left",
+               bbox_to_anchor=(0.995, 0.5), fontsize=7.5, framealpha=0.9,
+               title="forecast init", title_fontsize=8)
     fig.suptitle("AAM anomaly forecast trend — successive AIFS-ENS ensemble-mean runs "
                  "(newest = bold)", fontsize=12, fontweight="bold")
     out.parent.mkdir(parents=True, exist_ok=True)
