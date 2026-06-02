@@ -1,15 +1,16 @@
 name: MJO RMM (AIFS-ENS)
 
 # FALLBACK builder. The primary builder is a local launchd job on Shawn's laptop
-# (scripts/mjo/run_local.sh, ~09:30 & 18:00 ET) which does the heavy ~3 GB ENS
-# download off GitHub's queue. These polls fire a few hours AFTER that window, so
-# on normal days the laptop has already pushed the cycle and the light "check"
-# job just skips (sentinel = the cycle's PNG in assets/mjo/). When the laptop is
-# off, this picks the cycle up and does the full build itself.
+# (scripts/mjo/run_local.sh, ~02:45 ET for 00Z and ~14:45 ET for 12Z — soon after
+# each cycle's data lands ~06Z/~18Z) which does the heavy ENS download off
+# GitHub's queue. These polls fire a couple hours AFTER that, so on normal days
+# the laptop has already pushed the cycle and the light "check" job just skips
+# (sentinel = the cycle's PNG in assets/mjo/). When the laptop slept through its
+# window, this picks the cycle up promptly and does the full build itself.
 on:
   schedule:
-    - cron: '37 16,18 * * *'    # after the laptop's morning window — 00Z cycle
-    - cron: '37 0,2 * * *'      # after the laptop's evening window — 12Z cycle
+    - cron: '37 8,11 * * *'     # 00Z cycle (data lands ~06Z) — fallback after laptop ~02:45 ET
+    - cron: '37 20,23 * * *'    # 12Z cycle (data lands ~18Z) — fallback after laptop ~14:45 ET
   workflow_dispatch:
     inputs:
       date:
