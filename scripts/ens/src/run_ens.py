@@ -9,6 +9,7 @@ then render each (variable, product) as a Day 0–15 lead-slider animation.
 from __future__ import annotations
 import argparse, sys
 from pathlib import Path
+import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -52,23 +53,30 @@ def main() -> int:
         if not meds:
             print(f"  no ensembles for {var}; skipping"); continue
 
-        # Archive each run's median FIRST so change products can look back to it later,
-        # and re-runs of the same init replace cleanly.
+        # All-ensemble (mega) mean: average the available model medians, pointwise.
+        models = list(meds)
+        meds["allmean"] = np.nanmean(np.stack([meds[e] for e in models]), axis=0).astype("float32")
+
+        # Archive each run's median FIRST (incl. allmean) so change products can look
+        # back to it later, and re-runs of the same init replace cleanly.
         for e in meds:
             A.archive_run(e, var, init, meds[e])
 
         for prod in prods:
-            adir = out / f"{var}_{prod}"; mani = out / f"{var}_{prod}_manifest.json"
-            if prod in R.PRODUCTS:
-                R.render_product(meds, var, prod, init, adir, mani)
-            else:                                            # change product
-                hours_back = R.CHANGE[prod][0]
-                fields = {e: ch for e in meds
-                          if (ch := A.change_fields(e, var, init, meds[e], hours_back)) is not None}
-                if fields:
-                    R.render_change(fields, meds, var, prod, init, adir, mani)
-                else:
-                    print(f"  {prod}: no run {hours_back}h earlier archived yet — skipping", flush=True)
+            # 4-panel comparison of the models, + a separate single-panel all-ens mean.
+            for tag, keys in [("", models), ("_mean", ["allmean"])]:
+                adir = out / f"{var}_{prod}{tag}"; mani = out / f"{var}_{prod}{tag}_manifest.json"
+                sub = {e: meds[e] for e in keys}
+                if prod in R.PRODUCTS:
+                    R.render_product(sub, var, prod, init, adir, mani)
+                else:                                        # change product
+                    hb = R.CHANGE[prod][0]
+                    fields = {e: ch for e in keys
+                              if (ch := A.change_fields(e, var, init, sub[e], hb)) is not None}
+                    if fields:
+                        R.render_change(fields, sub, var, prod, init, adir, mani)
+                    else:
+                        print(f"  {prod}{tag}: no run {hb}h earlier archived yet — skipping", flush=True)
     return 0
 
 

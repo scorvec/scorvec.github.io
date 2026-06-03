@@ -6,7 +6,7 @@ grid, for each forecast lead. Returns an array (lead, lat, lon) in clim units
     python src/fetch.py --ensemble gefs --var z500 --date 20260603 --run 00   # smoke test
 """
 from __future__ import annotations
-import argparse, sys, warnings
+import argparse, os, sys, tempfile, time, warnings
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import numpy as np
@@ -72,7 +72,127 @@ def fetch_gefs(date: str, run: str, var: str, workers: int = 12) -> np.ndarray:
     return med
 
 
-FETCHERS = {"gefs": fetch_gefs}
+def _open_grib(path: str) -> xr.Dataset:
+    return xr.open_dataset(path, engine="cfgrib", backend_kwargs={"indexpath": ""})
+
+
+def _members_da(path: str) -> xr.DataArray:
+    """Open an ensemble GRIB that mixes control (cf) + perturbed (pf) members (which
+    cfgrib can't merge in one Dataset) and return the DataArray that carries the
+    'number' member dimension."""
+    import cfgrib
+    dss = cfgrib.open_datasets(path, backend_kwargs={"indexpath": ""})
+    cand = [ds for ds in dss if "number" in ds.dims] or dss
+    ds = cand[0]
+    return ds[list(ds.data_vars)[0]]
+
+
+def _ecmwf_retrieve(client, retries: int = 5, **kw) -> None:
+    """retrieve with backoff on S3 503/SlowDown (the ECMWF open-data rate limit)."""
+    for k in range(retries):
+        try:
+            client.retrieve(**kw); return
+        except Exception as e:                                # noqa: BLE001
+            if k == retries - 1:
+                raise
+            print(f"    ecmwf retry {k+1}/{retries} ({repr(e)[:50]})", flush=True)
+            time.sleep(6 * (k + 1))
+
+
+def _ecmwf_kw(date: str, run: str, v: dict, step) -> dict:
+    kw = dict(date=f"{date[:4]}-{date[4:6]}-{date[6:8]}", time=int(run),
+              stream="enfo", param=v["ecmwf_param"], step=step)
+    if v["ecmwf_levtype"] == "pl":
+        kw["levelist"] = [str(x) for x in v["ecmwf_levelist"]]
+    return kw
+
+
+# ─────────────────── IFS-ENS (ECMWF open data, ensemble MEAN) ───────────────────
+def fetch_ifs(date: str, run: str, var: str) -> np.ndarray:
+    """IFS-ENS via the native ensemble-mean product (type=em): one small field per
+    step, all steps in a single retrieve — sidesteps the 51-member S3 rate limit."""
+    from ecmwf.opendata import Client
+    v = VARS[var]; lat, lon = grid(var)
+    c = Client(source="aws", model="ifs")
+    out = np.full((len(LEADS), len(lat), len(lon)), np.nan, "float32")
+    tgt = tempfile.mktemp(suffix=".grib2")
+    try:
+        _ecmwf_retrieve(c, **_ecmwf_kw(date, run, v, list(LEADS)), type="em", target=tgt)
+        da = _open_grib(tgt); da = da[list(da.data_vars)[0]]
+        steps_h = [int(s / np.timedelta64(1, "h")) for s in np.atleast_1d(da.step.values)]
+        for i, ld in enumerate(LEADS):
+            if ld in steps_h:
+                fld = da.isel(step=steps_h.index(ld)) if "step" in da.dims else da
+                out[i] = _to_common(fld, v["model_scale"], lat, lon)
+            print(f"  IFS-ENS {var} f{ld:03d}: {'em' if ld in steps_h else 'MISSING'}", flush=True)
+    finally:
+        if os.path.exists(tgt):
+            os.remove(tgt)
+    return out
+
+
+# ─────────────────── AIFS-ENS (ECMWF open data, CONTROL member) ─────────────────
+def fetch_aifs(date: str, run: str, var: str) -> np.ndarray:
+    """AIFS-ENS has no ensemble-mean product, and its per-step perturbed file is ~4 GB
+    (byte-ranging 50 members gets S3-throttled). So use the CONTROL forecast (cf) — one
+    small field per step, all steps in a single retrieve. AIFS keys 500 mb as 'z'
+    (geopotential, m²/s²), so it has its own param/scale."""
+    from ecmwf.opendata import Client
+    v = VARS[var]; lat, lon = grid(var)
+    c = Client(source="aws", model="aifs-ens")
+    kw = dict(date=f"{date[:4]}-{date[4:6]}-{date[6:8]}", time=int(run), stream="enfo",
+              param=v["aifs_param"], step=list(LEADS))
+    if v["ecmwf_levtype"] == "pl":
+        kw["levelist"] = [str(x) for x in v["ecmwf_levelist"]]
+    out = np.full((len(LEADS), len(lat), len(lon)), np.nan, "float32")
+    tgt = tempfile.mktemp(suffix=".grib2")
+    try:
+        _ecmwf_retrieve(c, **kw, type="cf", target=tgt)
+        da = _open_grib(tgt); da = da[list(da.data_vars)[0]]
+        steps_h = [int(s / np.timedelta64(1, "h")) for s in np.atleast_1d(da.step.values)]
+        for i, ld in enumerate(LEADS):
+            if ld in steps_h:
+                fld = da.isel(step=steps_h.index(ld)) if "step" in da.dims else da
+                out[i] = _to_common(fld, v["aifs_scale"], lat, lon)
+            print(f"  AIFS-ENS {var} f{ld:03d}: {'cf' if ld in steps_h else 'MISSING'}", flush=True)
+    finally:
+        if os.path.exists(tgt):
+            os.remove(tgt)
+    return out
+
+
+# ─────────────────────── GEPS / CMC (MSC datamart, members) ─────────────────────
+_GEPS_BASE = "https://dd.weather.gc.ca"
+
+
+def fetch_geps(date: str, run: str, var: str) -> np.ndarray:
+    """GEPS via MSC datamart: one all-members GRIB per (var, step) → member median.
+    A single download per step (no byte-range fan-out), so no rate-limit issues."""
+    import requests
+    v = VARS[var]; lat, lon = grid(var); param = v["geps"]; init = f"{date}{run}"
+    out = np.full((len(LEADS), len(lat), len(lon)), np.nan, "float32")
+    for i, ld in enumerate(LEADS):
+        url = (f"{_GEPS_BASE}/{date}/WXO-DD/ensemble/geps/grib2/raw/{run}/{ld:03d}/"
+               f"CMC_geps-raw_{param}_latlon0p5x0p5_{init}_P{ld:03d}_allmbrs.grib2")
+        tgt = tempfile.mktemp(suffix=".grib2")
+        try:
+            r = requests.get(url, timeout=180); r.raise_for_status()
+            with open(tgt, "wb") as f:
+                f.write(r.content)
+            da = _members_da(tgt)
+            n = da.sizes.get("number", 1)
+            fld = da.median(dim="number") if "number" in da.dims else da
+            out[i] = _to_common(fld, v["model_scale"], lat, lon)
+            print(f"  GEPS {var} f{ld:03d}: {n} members", flush=True)
+        except Exception as e:                                # noqa: BLE001
+            print(f"  GEPS {var} f{ld:03d}: FAILED ({repr(e)[:50]})", flush=True)
+        finally:
+            if os.path.exists(tgt):
+                os.remove(tgt)
+    return out
+
+
+FETCHERS = {"gefs": fetch_gefs, "ifs": fetch_ifs, "aifs": fetch_aifs, "geps": fetch_geps}
 
 
 def fetch(ensemble: str, date: str, run: str, var: str) -> np.ndarray:

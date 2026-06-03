@@ -55,14 +55,16 @@ VARS = {
                  clim_store=WB2_15,                                               # 1.5° (smooth field)
                  model_scale=0.1,                                                 # model gpm → dam
                  gefs_search=r":HGT:500 mb:", ecmwf_param="gh", ecmwf_levtype="pl", ecmwf_levelist=[500],
+                 aifs_param="z", aifs_scale=1.0 / G / 10.0,                       # AIFS uses z (m²/s²)
                  geps="HGT_ISBL_0500"),
     "t2m": dict(label="2 m temperature", units="K",
                 era5="2m_temperature", era5_level=None, era5_scale=1.0, model_scale=1.0,
                 clim_store=ARCO,                                                  # 0.25° native (surface)
                 gefs_search=r":TMP:2 m above ground:", ecmwf_param="2t", ecmwf_levtype="sfc",
-                ecmwf_levelist=None, geps="TMP_TGL_2m"),
+                ecmwf_levelist=None, aifs_param="2t", aifs_scale=1.0, geps="TMP_TGL_2m"),
 }
 
 PERIODS = {"30yr": (1991, 2020), "10yr": (2014, 2023)}
-ENSEMBLES = ["gefs", "ifs", "aifs", "geps"]
-ENS_LABEL = {"gefs": "GEFS", "ifs": "ECMWF IFS-ENS", "aifs": "AIFS-ENS", "geps": "GEPS (CMC)"}
+ENSEMBLES = ["gefs", "ifs", "aifs", "geps"]                 # the fetched models (panel order)
+ENS_LABEL = {"gefs": "GEFS", "ifs": "ECMWF IFS-ENS", "aifs": "AIFS-ENS", "geps": "GEPS (CMC)",
+             "allmean": "All-Ensemble Mean"}                # derived consensus (not fetched)
