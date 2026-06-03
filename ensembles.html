@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ensemble Anomalies — 500 mb &amp; 2 m Temperature · Shawn Corvec</title>
+<meta name="description" content="500 mb height and 2 m temperature anomalies over North America from the GEFS, ECMWF IFS-ENS, AIFS-ENS and GEPS ensembles (median), vs ERA5 10- and 30-year norms, with run-to-run and 48-hour trends.">
+<link rel="canonical" href="https://scorvec.com/ensembles.html">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#fafaf8; --ink:#1c1c1a; --muted:#888580; --accent:#2c4a72; --rule:#e4e2dc;
+          --serif:'Lora',Georgia,serif; --sans:'Inter',sans-serif; }
+  html { font-size: 17.5px; } html, body { height: 100%; }
+  body { background:var(--bg); color:var(--ink); font-family:var(--sans);
+         -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; }
+  nav { position:fixed; top:0; left:0; right:0; z-index:10; display:flex;
+        justify-content:space-between; align-items:center; padding:1.2rem 3rem;
+        background:rgba(250,250,248,0.95); backdrop-filter:blur(8px); border-bottom:1px solid var(--rule); }
+  .nav-name { font-family:var(--serif); font-weight:400; font-size:1rem; text-decoration:none; color:var(--ink); }
+  .nav-links { display:flex; gap:2rem; list-style:none; }
+  .nav-links a { font-size:0.82rem; letter-spacing:0.04em; text-decoration:none; color:var(--muted); transition:color 0.2s; }
+  .nav-links a:hover, .nav-links a.active { color:var(--ink); }
+  main { flex:1; max-width:1400px; margin:0 auto; padding:7.5rem 2.5rem 5rem; width:100%; }
+  .page-header { margin-bottom:3rem; padding-bottom:2rem; border-bottom:1px solid var(--rule); }
+  .page-header h1 { font-family:var(--serif); font-weight:400; font-size:1.9rem; margin-bottom:0.5rem; }
+  .page-header p { font-size:0.88rem; color:var(--muted); line-height:1.7; }
+  .chart-stack { display:flex; flex-direction:column; gap:3rem; }
+  .chart-card { border:1px solid var(--rule); background:#fff; overflow:hidden; }
+  .chart-card-header { padding:1.5rem 1.8rem 1.3rem; border-bottom:1px solid var(--rule); }
+  .chart-card-header h2 { font-family:var(--serif); font-weight:400; font-size:1.15rem; margin-bottom:0.6rem; }
+  .chart-card-header p { font-size:0.85rem; color:var(--muted); line-height:1.7; }
+  .chart-card-header b { color:var(--ink); font-weight:500; }
+  .anim-embed { width:100%; border:0; display:block; background:#0f0f0d; aspect-ratio:1100/1020; }
+  .chart-card-footer { padding:0.85rem 1.8rem; border-top:1px solid var(--rule); }
+  .chart-sources { font-size:0.68rem; color:var(--muted); }
+  footer { padding:1.2rem 3rem; border-top:1px solid var(--rule); display:flex; justify-content:center; }
+  .counter { font-size:0.72rem; letter-spacing:0.08em; color:var(--muted); text-transform:uppercase; }
+  @media (max-width:768px){ nav{padding:1rem 1.5rem;} .nav-links{gap:1.3rem;} main{padding:6.5rem 1.5rem 3.5rem;} }
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="sst.html">SST / ENSO</a></li>
+    <li><a href="mjo.html">MJO</a></li>
+    <li><a href="ensembles.html" class="active">Ensembles</a></li>
+  </ul>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>Ensemble Anomalies — 500 mb Height &amp; 2 m Temperature</h1>
+    <p>Ensemble <b>median</b> anomalies over North America from the four main global ensembles —
+       <b>GEFS</b>, <b>ECMWF IFS-ENS</b>, <b>AIFS-ENS</b> and <b>GEPS (CMC)</b> — as a Day 0–15
+       lead-slider animation. Anomalies are vs ERA5 norms (10- and 30-year); run-to-run change and the
+       48-hour trend compare the forecast for the same valid time across cycles.</p>
+  </div>
+
+  <div class="chart-stack">
+
+    <!-- z500 anomaly vs 30-yr -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>500 mb Height Anomaly — vs ERA5 1991–2020</h2>
+        <p>Ensemble-median 500 mb geopotential-height anomaly (dam) vs the 30-year ERA5 normal for each
+           forecast day's valid date. Red = ridge (above normal), blue = trough. Drag the slider to step
+           Day 0 → 15.</p>
+      </div>
+      <iframe class="anim-embed" loading="lazy"
+              src="sst_anim.html?embed=1&amp;base=assets/ens/anim&amp;manifest=z500_anom30_manifest.json&amp;region=z500_anom30"
+              title="500 mb height anomaly vs ERA5 1991-2020, ensemble median"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">GEFS (Herbie/AWS) · ECMWF IFS-ENS &amp; AIFS-ENS (open data, CC BY 4.0) · GEPS (ECCC MSC datamart) · anomaly vs ERA5 (Copernicus C3S) · ensemble median · updated each cycle</span></div>
+    </div>
+
+  </div>
+</main>
+<footer><span class="counter">Ensemble anomaly monitor</span></footer>
+</body>
+</html>
