@@ -44,3 +44,6 @@ scripts/mjo/src/build_torque_map_clim.py
 
 # Local synoptic builder logs
 scripts/synoptic/*.log
+
+# ens change-product archive (local run-to-run state, regenerable)
+scripts/ens/data/archive/
