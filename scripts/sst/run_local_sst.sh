@@ -23,12 +23,25 @@ LOG="$REPO/scripts/sst/run_local_sst.log"
 exec >> "$LOG" 2>&1
 echo "===================== $(date) ====================="
 
+DAY_Q='import json,os;p="assets/sst/manifest.json";print(json.load(open(p)).get("sst_valid_day","") if os.path.exists(p) else "")'
+PREV_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
 "$PY" scripts/sst/sst-roni.py || { echo "sst-roni failed"; exit 1; }
+NEW_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
 "$PY" scripts/sst/tao_subsurface.py --days 120 \
   --out scripts/sst/data/tao_eq_recent.nc \
   --ascii scripts/sst/data/tao_eq_recent.ascii || echo "TAO failed; continuing"
 "$PY" scripts/sst/sst_subsurface.py || echo "subsurface failed; continuing"
 ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_ascat_winds.py ) || echo "ASCAT failed; continuing"
+
+# Analog comparison charts (current vs 1997/2015/2023 El Niño) — rebuild ONLY when the
+# OISST day advanced. sst_events loads the ~3.8 GB cached analog-year files + renders
+# global maps, so the 4-hourly no-op polls skip it. Keeps the analogs current daily
+# without that cost on every poll.
+if [ -n "$NEW_DAY" ] && [ "$NEW_DAY" != "$PREV_DAY" ]; then
+  echo "OISST advanced ${PREV_DAY:-none} → $NEW_DAY; rebuilding analog comparison charts"
+  SST_SITE_ROOT="$REPO" "$PY" scripts/sst/sst_events.py || echo "sst_events failed; continuing"
+  ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_subsurface_events.py ) || echo "subsurface analog failed; continuing"
+fi
 
 git add sst.html assets/sst/
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
