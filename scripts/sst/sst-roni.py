@@ -33,6 +33,7 @@ import argparse
 import json
 import sys
 import urllib.request
+import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -93,18 +94,58 @@ ANIM_DAYS = 60
 # ----------------------------------------------------------------------
 # Download helpers
 # ----------------------------------------------------------------------
-def _download(url: str, dest: Path, force: bool = False) -> Path:
+def _remote_is_newer(url: str, dest: Path) -> bool:
+    """HEAD the URL: True only if its Last-Modified is newer than the cached file
+    (so we should refresh). Any failure → False = keep the cache. This is what makes
+    the daily/monthly PSL files download once and then reuse until PSL appends new
+    data, instead of re-pulling ~240 MB on every (4-hourly) run."""
+    try:
+        from email.utils import parsedate_to_datetime
+        req = urllib.request.Request(url, method="HEAD")
+        with urllib.request.urlopen(req, timeout=30) as h:
+            lm = h.headers.get("Last-Modified")
+        if not lm:
+            return False
+        return parsedate_to_datetime(lm).timestamp() > dest.stat().st_mtime + 60
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def _download(url: str, dest: Path, force: bool = False, tries: int = 4) -> Path:
+    """Download with streaming + retry. A genuine 404 raises immediately (so the
+    caller's year fallback only fires when the file is truly absent); transient
+    failures (IncompleteRead, timeouts, dropped connections) retry — they must NOT
+    fall through to a stale prior-year file."""
+    import shutil, time, http.client, urllib.error
     DATA.mkdir(parents=True, exist_ok=True)
     if dest.exists() and not force:
-        print(f"  cached: {dest.name} ({dest.stat().st_size/1e6:.1f} MB)")
-        return dest
-    print(f"  downloading {url} ...")
+        if not _remote_is_newer(url, dest):
+            print(f"  cached: {dest.name} ({dest.stat().st_size/1e6:.1f} MB; PSL not newer)")
+            return dest
+        print(f"  {dest.name}: PSL published newer data → refreshing", flush=True)
+    print(f"  downloading {url} ...", flush=True)
     tmp = dest.with_suffix(dest.suffix + ".tmp")
-    with urllib.request.urlopen(url, timeout=300) as r, open(tmp, "wb") as f:
-        f.write(r.read())
-    tmp.replace(dest)
-    print(f"  saved {dest.name} ({dest.stat().st_size/1e6:.1f} MB)")
-    return dest
+    last = None
+    for attempt in range(1, tries + 1):
+        try:
+            with urllib.request.urlopen(url, timeout=120) as r, open(tmp, "wb") as f:
+                shutil.copyfileobj(r, f, 1 << 20)            # stream in 1 MB chunks
+            if tmp.stat().st_size < 1_000_000:               # guard against a truncated/empty body
+                raise IOError(f"suspiciously small download ({tmp.stat().st_size} B)")
+            tmp.replace(dest)
+            print(f"  saved {dest.name} ({dest.stat().st_size/1e6:.1f} MB)")
+            return dest
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise                                        # truly absent → let caller try year-1
+            last = e
+        except (http.client.IncompleteRead, urllib.error.URLError, TimeoutError, IOError, OSError) as e:
+            last = e
+        print(f"  download attempt {attempt}/{tries} failed ({repr(last)[:80]}); retrying in 5s…", flush=True)
+        try: tmp.unlink()
+        except OSError: pass
+        time.sleep(5)
+    raise last if last is not None else RuntimeError(f"download failed: {url}")
 
 
 def _find_var(ds: xr.Dataset, candidates=("anom", "sst", "anomaly")) -> str:
@@ -594,10 +635,13 @@ def main(argv=None) -> int:
     try:
         _download(DAILY_ANOM_URL.format(year=year), daily_path,
                   force=args.force)
-    except Exception as e:
-        # Early-January edge case: this year's file may not exist yet.
-        print(f"  {year} daily file failed ({e}); trying {year-1}",
-              file=sys.stderr)
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            raise
+        # Only when this year's file is genuinely absent (early-January edge case)
+        # do we use last year's — NEVER as a fallback for a transient network drop,
+        # which would silently serve stale data. _download already retries those.
+        print(f"  {year} daily file not found (404); using {year-1}", file=sys.stderr)
         year -= 1
         daily_path = DATA / f"sst.day.anom.{year}.nc"
         _download(DAILY_ANOM_URL.format(year=year), daily_path,

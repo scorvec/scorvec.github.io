@@ -7,8 +7,10 @@
 # / alongside the Action is safe (whoever lands the new OISST day first wins; the
 # other run no-ops). Invoked daily by ~/Library/LaunchAgents/com.scorvec.sst.plist.
 #
-# NOTE: uses --force on sst-roni so the locally-cached OISST file is re-downloaded
-# each run (the Action always starts from a clean checkout, so it never caches).
+# OISST/PSL files are CACHED and only re-downloaded when PSL publishes newer data
+# (sst-roni HEAD-checks Last-Modified), so the 4-hourly polls don't re-pull the full
+# ~240 MB annual file each time — just when a new day actually lands. The GitHub
+# Action runs from a clean checkout, so it has no cache to reuse.
 set -uo pipefail
 
 PY="${SST_PY:-/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python}"
@@ -21,7 +23,7 @@ LOG="$REPO/scripts/sst/run_local_sst.log"
 exec >> "$LOG" 2>&1
 echo "===================== $(date) ====================="
 
-"$PY" scripts/sst/sst-roni.py --force || { echo "sst-roni failed"; exit 1; }
+"$PY" scripts/sst/sst-roni.py || { echo "sst-roni failed"; exit 1; }
 "$PY" scripts/sst/tao_subsurface.py --days 120 \
   --out scripts/sst/data/tao_eq_recent.nc \
   --ascii scripts/sst/data/tao_eq_recent.ascii || echo "TAO failed; continuing"
