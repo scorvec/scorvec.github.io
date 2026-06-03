@@ -15,7 +15,9 @@ Usage:
 """
 
 import argparse
+import glob
 import os
+import threading
 from pathlib import Path
 
 from ecmwf.opendata import Client
@@ -61,54 +63,119 @@ def _archive_grib(target: str, req: dict) -> None:
         print(f"  (grib archive skipped: {e})", flush=True)
 
 
-def _retrieve(req: dict, target: str) -> str:
-    """Retrieve a request, trying each source in SOURCES until one works.
-    Returns the source that succeeded; raises the last error if all fail."""
-    last = None
-    for src in SOURCES:
-        try:
-            Client(source=src).retrieve(target=target, **req)
-            _archive_grib(target, req)
-            return src
-        except Exception as e:  # noqa: BLE001 — try the next mirror
-            last = e
-    raise last if last is not None else RuntimeError("AIFS retrieve failed (no sources)")
-
-
-# Open-data per-connection bandwidth is the bottleneck (~0.85 MB/s), but the link
-# has headroom — splitting the ensemble across N concurrent streams is ~3x faster.
+# ── robust retrieval: per-attempt mirror rotation + a throughput watchdog ──
+# Open-data per-connection bandwidth is the bottleneck (~0.85 MB/s) but the link
+# has headroom, so the perturbed ensemble is split across N concurrent streams
+# (~3x faster). A connection can also HANG at a trickle without ever erroring
+# (seen: 1.6 kB/s for hours); the watchdog aborts any download that sustains
+# < DL_MIN_RATE for DL_STALL_SECS and retries with fresh streams on the next
+# mirror, so one stalled stream can no longer wedge the whole pipeline.
 DL_WORKERS = int(os.environ.get("AIFS_DL_WORKERS", "4"))
 PF_MEMBERS = 50                                  # AIFS-ENS / IFS-ENS enfo pf count
+DL_MIN_RATE = float(os.environ.get("AIFS_DL_MIN_RATE", "40000"))   # bytes/s; sustained-below ⇒ stalled
+DL_STALL_SECS = int(os.environ.get("AIFS_DL_STALL_SECS", "75"))    # tolerate slow this long, then retry
+DL_TRIES = int(os.environ.get("AIFS_DL_TRIES", "4"))
 
 
-def retrieve_parallel(req: dict, target: str, members=None, workers: int = None) -> str:
-    """Retrieve a perturbed-forecast request by fetching member-groups over
-    several concurrent connections, then concatenating the GRIB messages (they
-    are self-contained, so cat just works and cfgrib reads the result). Falls
-    back to a single stream for tiny requests."""
+def _dl_bytes(target: str) -> int:
+    return sum(os.path.getsize(p) for p in [target, *glob.glob(target + ".part*")] if os.path.exists(p))
+
+
+def _clean(target: str) -> None:
+    for p in [target, *glob.glob(target + ".part*")]:
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+
+
+def _single(req: dict, target: str, src: str) -> None:
+    Client(source=src).retrieve(target=target, **req)
+
+
+def _parallel_once(req: dict, target: str, src: str, members, workers: int) -> None:
+    """Fetch a perturbed request over `workers` concurrent member-group streams
+    (one mirror), then concatenate the self-contained GRIB messages."""
     import shutil
     from concurrent.futures import ThreadPoolExecutor
-    workers = workers or DL_WORKERS
-    members = list(members) if members is not None else list(range(1, PF_MEMBERS + 1))
-    if workers < 2 or len(members) < 2:
-        return _retrieve({**req, "number": members}, target)
-    groups = [members[i::workers] for i in range(workers)]       # round-robin split
-    groups = [g for g in groups if g]
+    groups = [g for g in (members[i::workers] for i in range(workers)) if g]
     parts = [f"{target}.part{i}" for i in range(len(groups))]
-
-    def _work(args):
-        g, p = args
-        _retrieve({**req, "number": g}, p)
-        return p
     with ThreadPoolExecutor(max_workers=len(groups)) as ex:
-        list(ex.map(_work, zip(groups, parts)))
+        list(ex.map(lambda gp: _single({**req, "number": gp[0]}, gp[1], src), zip(groups, parts)))
     with open(target, "wb") as out:                              # concatenate parts
         for p in parts:
             with open(p, "rb") as f:
                 shutil.copyfileobj(f, out)
             os.remove(p)
-    _archive_grib(target, req)
-    return f"parallel×{len(groups)}"
+
+
+def _watch(do_fn, target: str):
+    """Run do_fn() (writes target [+ .partN]) in a daemon thread; return (ok, err).
+    ok=False if throughput stays < DL_MIN_RATE for DL_STALL_SECS — the stalled
+    connection is abandoned; its now-unlinked partials write to discarded inodes
+    (unix), so the retry's fresh streams never collide."""
+    done = threading.Event(); box = {"e": None}
+
+    def _run():
+        try:
+            do_fn()
+        except Exception as e:                              # noqa: BLE001
+            box["e"] = e
+        finally:
+            done.set()
+    threading.Thread(target=_run, daemon=True).start()
+    last = 0; slow = 0
+    while not done.wait(15):
+        cur = _dl_bytes(target); rate = (cur - last) / 15.0; last = cur
+        slow = slow + 15 if rate < DL_MIN_RATE else 0
+        if slow >= DL_STALL_SECS:
+            return False, TimeoutError(f"stalled <{DL_MIN_RATE / 1000:.0f} kB/s for {DL_STALL_SECS}s")
+    return box["e"] is None, box["e"]
+
+
+def _robust(req: dict, target: str, parallel: bool, members=None, workers: int = None) -> str:
+    label = os.path.basename(target)
+    workers = workers or DL_WORKERS
+    members = list(members) if members is not None else list(range(1, PF_MEMBERS + 1))
+    use_parallel = parallel and workers >= 2 and len(members) >= 2
+    err = None
+    for attempt in range(1, DL_TRIES + 1):
+        src = SOURCES[(attempt - 1) % len(SOURCES)]          # rotate mirror each retry
+        _clean(target)
+        if use_parallel:
+            do = lambda s=src: _parallel_once(req, target, s, members, workers)
+        elif parallel:                                       # tiny pf request → single stream
+            do = lambda s=src: _single({**req, "number": members}, target, s)
+        else:
+            do = lambda s=src: _single(req, target, s)
+        ok, err = _watch(do, target)
+        if ok:
+            _archive_grib(target, req)
+            return f"{src}×{workers}" if use_parallel else src
+        print(f"  {label}: {repr(err)[:60]} — retry {attempt}/{DL_TRIES} (mirror rotate)", flush=True)
+    _clean(target)
+    raise err if err is not None else RuntimeError(f"{label}: failed after {DL_TRIES} tries")
+
+
+def _retrieve(req: dict, target: str) -> str:
+    """Robust single-stream retrieve (watchdog + mirror-rotating retry)."""
+    return _robust(req, target, parallel=False)
+
+
+def retrieve_parallel(req: dict, target: str, members=None, workers: int = None) -> str:
+    """Robust parallel (multi-member-stream) retrieve."""
+    return _robust(req, target, parallel=True, members=members, workers=workers)
+
+
+def _retrieve_probe(req: dict, target: str) -> None:
+    """Single-shot probe (no watchdog/retry), used by latest_run."""
+    last = None
+    for src in SOURCES:
+        try:
+            _single(req, target, src); return
+        except Exception as e:                              # noqa: BLE001
+            last = e
+    raise last if last is not None else RuntimeError("probe failed")
 
 
 def latest_run() -> tuple[str, str]:
@@ -130,9 +197,9 @@ def latest_run() -> tuple[str, str]:
                 with tempfile.NamedTemporaryFile(suffix=".grib2", delete=True) as tmp, \
                         open(os.devnull, "w") as _dn, \
                         contextlib.redirect_stdout(_dn):
-                    _retrieve(dict(model="aifs-ens", date=date_str, time=int(run_time),
-                                   stream="enfo", type="cf", levtype="pl",
-                                   levelist=[850], param="u", step=6), tmp.name)
+                    _retrieve_probe(dict(model="aifs-ens", date=date_str, time=int(run_time),
+                                         stream="enfo", type="cf", levtype="pl",
+                                         levelist=[850], param="u", step=6), tmp.name)
                 return date_str, run_time
             except Exception:
                 continue
