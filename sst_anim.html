@@ -194,7 +194,7 @@ function preload(rid) {
   if (preloaded[rid]) return;
   preloaded[rid] = manifest.regions[rid].frames.map(f => {
     const im = new Image();
-    im.src = `${ANIM_BASE}/${rid}/${f.file}?v=${f.date}`;   // bust cache when sliding-window content changes
+    im.src = `${ANIM_BASE}/${rid}/${f.file}?v=${f.date}.${manifest.ver||""}`;   // bust cache when sliding-window content changes
     return im;
   });
   // hide the loading overlay once the first frame of the region is ready
@@ -206,7 +206,7 @@ function preload(rid) {
 function showFrame(i) {
   idx = (i + frames.length) % frames.length;
   const f = frames[idx];
-  imgEl.src = `${ANIM_BASE}/${region}/${f.file}?v=${f.date}`;
+  imgEl.src = `${ANIM_BASE}/${region}/${f.file}?v=${f.date}.${manifest.ver||""}`;
   dateEl.textContent = f.label;
   slider.value = idx;
 }
