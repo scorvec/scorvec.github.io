@@ -130,7 +130,9 @@ def plot(obs: pd.DataFrame, normals: dict, diff: xr.DataArray,
     # bias-correct forecast daily SOI to the recent observed level (gridpoint↔station)
     obs_soi = obs["SOI"]
     recent = obs_soi.loc[:init_d].iloc[-10:].median()
-    bias = np.median(fc[:, :5]) - recent
+    # nan-robust: some ensemble members can have missing MSL at early steps (seen in
+    # AIFS-ENS open data), which would otherwise turn np.median → NaN and blank the run.
+    bias = np.nanmedian(fc[:, :5]) - recent
     fc -= bias
 
     # 30-day running SOI per member: observed tail (shared) + member forecast
@@ -168,10 +170,10 @@ def plot(obs: pd.DataFrame, normals: dict, diff: xr.DataArray,
     ax.plot(fwin.index, fwin.values, color="#1f77b4", lw=0.4, alpha=0.05)
     ax.plot(fwin.index, fwin.mean(axis=1).values, color="#d62728", lw=2.6,
             label="Forecast 30-day SOI (ens. mean)")
-    lo, hi = np.percentile(fc, [10, 90], axis=0)
+    lo, hi = np.nanpercentile(fc, [10, 90], axis=0)
     ax.fill_between(fdates, lo, hi, color="#d62728", alpha=0.12,
                     label="Forecast daily SOI (10–90%)")
-    ax.plot(fdates, fc.mean(axis=0), color="#d62728", lw=0.9, ls=":", alpha=0.8)
+    ax.plot(fdates, np.nanmean(fc, axis=0), color="#d62728", lw=0.9, ls=":", alpha=0.8)
     ax.axvline(init_d, color="0.4", lw=0.8, ls=":")
 
     ax.set_xlim(p0, fdates[-1])

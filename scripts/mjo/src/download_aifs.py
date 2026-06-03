@@ -133,11 +133,41 @@ def _watch(do_fn, target: str):
     return box["e"] is None, box["e"]
 
 
+def _count_msgs(target: str) -> int:
+    """Number of GRIB messages in a file (fast, no decode)."""
+    import eccodes as ec
+    n = 0
+    with open(target, "rb") as f:
+        while True:
+            g = ec.codes_grib_new_from_file(f)
+            if g is None:
+                break
+            n += 1; ec.codes_release(g)
+    return n
+
+
+def _expected_msgs(req: dict, members) -> int:
+    """Messages a complete retrieve must contain = members × steps × params × levels.
+    A throttled parallel stream can silently drop messages (e.g. one worker's early
+    steps), leaving all-NaN fields downstream — this lets _robust detect that."""
+    exp = len(members) if members else 1
+    for k in ("step", "param", "levelist"):
+        v = req.get(k)
+        exp *= len(v) if isinstance(v, (list, tuple)) else (1 if v is not None else 1)
+    return exp
+
+
 def _robust(req: dict, target: str, parallel: bool, members=None, workers: int = None) -> str:
     label = os.path.basename(target)
     workers = workers or DL_WORKERS
     members = list(members) if members is not None else list(range(1, PF_MEMBERS + 1))
     use_parallel = parallel and workers >= 2 and len(members) >= 2
+    # expected message count (members carry through for the parallel/tiny-pf paths;
+    # a non-member single retrieve falls back to whatever req["number"] implies).
+    exp_members = members if parallel else ([req["number"]] if "number" in req
+                                            and not isinstance(req["number"], (list, tuple))
+                                            else req.get("number"))
+    expected = _expected_msgs(req, exp_members)
     err = None
     for attempt in range(1, DL_TRIES + 1):
         src = SOURCES[(attempt - 1) % len(SOURCES)]          # rotate mirror each retry
@@ -149,9 +179,15 @@ def _robust(req: dict, target: str, parallel: bool, members=None, workers: int =
         else:
             do = lambda s=src: _single(req, target, s)
         ok, err = _watch(do, target)
-        if ok:
-            _archive_grib(target, req)
-            return f"{src}×{workers}" if use_parallel else src
+        if ok:                                               # verify completeness, not just no-error
+            try:
+                got = _count_msgs(target)
+            except Exception:                                # noqa: BLE001
+                got = -1
+            if got >= expected:
+                _archive_grib(target, req)
+                return f"{src}×{workers}" if use_parallel else src
+            err = RuntimeError(f"incomplete GRIB: {got}/{expected} messages")
         print(f"  {label}: {repr(err)[:60]} — retry {attempt}/{DL_TRIES} (mirror rotate)", flush=True)
     _clean(target)
     raise err if err is not None else RuntimeError(f"{label}: failed after {DL_TRIES} tries")
