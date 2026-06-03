@@ -33,14 +33,21 @@ NEW_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
 "$PY" scripts/sst/sst_subsurface.py || echo "subsurface failed; continuing"
 ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_ascat_winds.py ) || echo "ASCAT failed; continuing"
 
-# Analog comparison charts (current vs 1997/2015/2023 El Niño) — rebuild ONLY when the
-# OISST day advanced. sst_events loads the ~3.8 GB cached analog-year files + renders
-# global maps, so the 4-hourly no-op polls skip it. Keeps the analogs current daily
-# without that cost on every poll.
-if [ -n "$NEW_DAY" ] && [ "$NEW_DAY" != "$PREV_DAY" ]; then
-  echo "OISST advanced ${PREV_DAY:-none} → $NEW_DAY; rebuilding analog comparison charts"
-  SST_SITE_ROOT="$REPO" "$PY" scripts/sst/sst_events.py || echo "sst_events failed; continuing"
-  ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_subsurface_events.py ) || echo "subsurface analog failed; continuing"
+# Analog comparison charts (current vs 1997/2015/2023 El Niño) — rebuild ONCE PER
+# CALENDAR DAY (or whenever OISST advances). The subsurface analog tracks TAO, which
+# can advance independently of OISST (OISST has ~1–2 day PSL latency), so gating purely
+# on OISST left the subsurface cross-section a day stale. A per-day stamp keeps the
+# 4-hourly polls cheap (only the first poll of a new day rebuilds) while ensuring the
+# analogs refresh every day. sst_events loads the ~3.8 GB cached analog-year files.
+ANALOG_STAMP="$REPO/scripts/sst/data/.analog_built_day"
+TODAY_UTC=$(date -u +%Y-%m-%d)
+LAST_ANALOG=$(cat "$ANALOG_STAMP" 2>/dev/null || echo "")
+if [ "$TODAY_UTC" != "$LAST_ANALOG" ] || { [ -n "$NEW_DAY" ] && [ "$NEW_DAY" != "$PREV_DAY" ]; }; then
+  echo "rebuilding analog charts (day ${LAST_ANALOG:-none}→$TODAY_UTC; OISST ${PREV_DAY:-none}→${NEW_DAY:-none})"
+  ok=1
+  SST_SITE_ROOT="$REPO" "$PY" scripts/sst/sst_events.py || { echo "sst_events failed; continuing"; ok=0; }
+  ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_subsurface_events.py ) || { echo "subsurface analog failed; continuing"; ok=0; }
+  [ "$ok" = 1 ] && echo "$TODAY_UTC" > "$ANALOG_STAMP"     # stamp only on full success → retry next poll otherwise
 fi
 
 git add sst.html assets/sst/

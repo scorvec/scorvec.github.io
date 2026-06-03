@@ -59,7 +59,12 @@ def current_ds() -> xr.Dataset:
     now = datetime.now(timezone.utc)
     EVDIR.mkdir(parents=True, exist_ok=True)
     ap = EVDIR / f"tao_{now.year}_cur.ascii"
-    if not (ap.exists() and ap.stat().st_size > 0):
+    # Re-fetch the current-year TAO once per UTC day — skip-if-exists would otherwise
+    # pin the analog's "current" panel to a stale date while DISDEL (and the main TAO
+    # plot) advance. (The analog-year ascii files are fixed history, so they stay cached.)
+    fresh = (ap.exists() and ap.stat().st_size > 0 and
+             datetime.fromtimestamp(ap.stat().st_mtime, timezone.utc).date() >= now.date())
+    if not fresh:
         tao.deliver(datetime(now.year, 1, 1), now, ap)
     return tao.parse(ap)
 
