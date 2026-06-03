@@ -7,9 +7,10 @@
        launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.sst.plist
      Run once now (test):
        launchctl kickstart -k gui/$(id -u)/com.scorvec.sst
-     Runs at 11:30 & 16:30 local (ET) — soon after the day's OISST/TAO land (~15 UTC);
-     the second attempt and the GitHub Action fallback (16:23 UTC) no-op if the
-     OISST day is already committed (commit-if-changed). -->
+     Polls every 4 h (StartInterval — macOS silently skips wall-clock StartCalendarInterval
+     under power-management/App-Nap even while awake). run_local_sst commits only when
+     the OISST day changes, so the ~6 polls/day are cheap no-ops bar the one after new
+     OISST lands. GitHub Action (16:23 UTC) stays the laptop-off fallback. -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -19,11 +20,7 @@
     <string>/bin/bash</string>
     <string>/Users/shawn/scorvec.github.io/scripts/sst/run_local_sst.sh</string>
   </array>
-  <key>StartCalendarInterval</key>
-  <array>
-    <dict><key>Hour</key><integer>11</integer><key>Minute</key><integer>30</integer></dict>
-    <dict><key>Hour</key><integer>16</integer><key>Minute</key><integer>30</integer></dict>
-  </array>
+  <key>StartInterval</key><integer>14400</integer>
   <key>StandardOutPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/launchd.out.log</string>
   <key>StandardErrorPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/launchd.err.log</string>
   <key>RunAtLoad</key><false/>
