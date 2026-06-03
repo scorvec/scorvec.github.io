@@ -39,7 +39,7 @@ commit_push () {            # $1 = message; commits staged changes (if any) + pu
   if git diff --staged --quiet; then echo "  ($1: nothing to commit)"; return 0; fi
   git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" commit -m "$1"
   for i in 1 2 3 4 5; do
-    if git pull --rebase -X theirs && git push; then echo "  pushed: $1 (attempt $i)"; return 0; fi
+    if git pull --rebase --autostash -X theirs && git push; then echo "  pushed: $1 (attempt $i)"; return 0; fi
     echo "  push attempt $i failed; retrying…"; sleep 5
   done
   echo "  ERROR: could not push: $1 (left as a local commit; the next run will carry it)"; return 1
