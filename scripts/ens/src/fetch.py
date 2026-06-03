@@ -67,8 +67,8 @@ def fetch_gefs(date: str, run: str, var: str, workers: int = 12) -> np.ndarray:
     med = np.full((len(LEADS), len(lat), len(lon)), np.nan, "float32")
     for i, ld in enumerate(LEADS):
         if stacks[ld]:
-            med[i] = np.median(np.stack(stacks[ld]), axis=0)
-        print(f"  GEFS {var} f{ld:03d}: {len(stacks[ld])} members", flush=True)
+            med[i] = np.nanmean(np.stack(stacks[ld]), axis=0)    # ens MEAN (smoother than median)
+        print(f"  GEFS {var} f{ld:03d}: {len(stacks[ld])} members (mean)", flush=True)
     return med
 
 
@@ -131,30 +131,34 @@ def fetch_ifs(date: str, run: str, var: str) -> np.ndarray:
     return out
 
 
-# ─────────────────── AIFS-ENS (ECMWF open data, CONTROL member) ─────────────────
+# ─────────────────── AIFS-ENS (ECMWF open data, ensemble MEAN) ──────────────────
 def fetch_aifs(date: str, run: str, var: str) -> np.ndarray:
-    """AIFS-ENS has no ensemble-mean product, and its per-step perturbed file is ~4 GB
-    (byte-ranging 50 members gets S3-throttled). So use the CONTROL forecast (cf) — one
-    small field per step, all steps in a single retrieve. AIFS keys 500 mb as 'z'
-    (geopotential, m²/s²), so it has its own param/scale."""
-    from ecmwf.opendata import Client
+    """AIFS-ENS has no ensemble-mean product and its per-step perturbed file is huge, so
+    byte-ranging the 50 members gets S3-throttled. We reuse the mjo pipeline's hardened
+    AIFS downloader (parallel member streams + throughput watchdog + mirror-rotating
+    retry + the GRIB completeness check) to pull just z@500 / 2t for all members, then
+    take the mean. AIFS keys 500 mb as 'z' (geopotential, m²/s²) → its own param/scale."""
     v = VARS[var]; lat, lon = grid(var)
-    c = Client(source="aws", model="aifs-ens")
-    kw = dict(date=f"{date[:4]}-{date[4:6]}-{date[6:8]}", time=int(run), stream="enfo",
-              param=v["aifs_param"], step=list(LEADS))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mjo" / "src"))
+    from download_aifs import retrieve_parallel
+    req = dict(model="aifs-ens", date=f"{date[:4]}-{date[4:6]}-{date[6:8]}", time=int(run),
+               stream="enfo", levtype=v["ecmwf_levtype"], param=v["aifs_param"],
+               step=list(LEADS), type="pf")
     if v["ecmwf_levtype"] == "pl":
-        kw["levelist"] = [str(x) for x in v["ecmwf_levelist"]]
+        req["levelist"] = [int(x) for x in v["ecmwf_levelist"]]
     out = np.full((len(LEADS), len(lat), len(lon)), np.nan, "float32")
     tgt = tempfile.mktemp(suffix=".grib2")
     try:
-        _ecmwf_retrieve(c, **kw, type="cf", target=tgt)
-        da = _open_grib(tgt); da = da[list(da.data_vars)[0]]
-        steps_h = [int(s / np.timedelta64(1, "h")) for s in np.atleast_1d(da.step.values)]
+        retrieve_parallel(req, tgt)                          # robust parallel member pull
+        da = _members_da(tgt)                                # (number, step, lat, lon)
+        nm = da.sizes.get("number", 1)
+        mean = da.mean(dim="number") if "number" in da.dims else da   # ens MEAN
+        steps_h = [int(s / np.timedelta64(1, "h")) for s in np.atleast_1d(mean.step.values)]
         for i, ld in enumerate(LEADS):
             if ld in steps_h:
-                fld = da.isel(step=steps_h.index(ld)) if "step" in da.dims else da
+                fld = mean.isel(step=steps_h.index(ld)) if "step" in mean.dims else mean
                 out[i] = _to_common(fld, v["aifs_scale"], lat, lon)
-            print(f"  AIFS-ENS {var} f{ld:03d}: {'cf' if ld in steps_h else 'MISSING'}", flush=True)
+            print(f"  AIFS-ENS {var} f{ld:03d}: {nm if ld in steps_h else 'MISSING'} members (mean)", flush=True)
     finally:
         if os.path.exists(tgt):
             os.remove(tgt)
@@ -181,9 +185,9 @@ def fetch_geps(date: str, run: str, var: str) -> np.ndarray:
                 f.write(r.content)
             da = _members_da(tgt)
             n = da.sizes.get("number", 1)
-            fld = da.median(dim="number") if "number" in da.dims else da
+            fld = da.mean(dim="number") if "number" in da.dims else da   # ens MEAN
             out[i] = _to_common(fld, v["model_scale"], lat, lon)
-            print(f"  GEPS {var} f{ld:03d}: {n} members", flush=True)
+            print(f"  GEPS {var} f{ld:03d}: {n} members (mean)", flush=True)
         except Exception as e:                                # noqa: BLE001
             print(f"  GEPS {var} f{ld:03d}: FAILED ({repr(e)[:50]})", flush=True)
         finally:

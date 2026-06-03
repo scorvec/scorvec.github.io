@@ -159,7 +159,7 @@ def _render_frames(fields: dict, overlay: dict, var: str, product: str, kind: st
         fig.savefig(fp, dpi=115); plt.close(fig)
         frames.append({"idx": i, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
                        "label": f"Day {ld // 24} · valid {valid:%a %b %d}"})
-    region = f"{var}_{product}"
+    region = anim_dir.name                                 # match the frame directory
     mani = {"ver": int(pd.Timestamp.now().timestamp()), "days": len(frames),
             "regions": {region: {"label": f"{_SHORT[var]} — {cbl}",
                                  "n_frames": len(frames), "frames": frames}}}
