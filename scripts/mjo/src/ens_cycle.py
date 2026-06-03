@@ -54,8 +54,40 @@ def fetch(date: str, time: str, data_root: Path) -> None:
         except Exception as e:                              # noqa: BLE001
             print(f"  msl/{cfg['model']}: skipped ({repr(e)[:70]})", flush=True)
 
-    total = sum(_size(data_root / d) for d in ("aifs", "u10", "msl"))
-    print(f"Cycle cache ready ({total:.2f} GB across aifs/u10/msl).")
+    # Heavy SST-page atmospheric fields (AAM / torque / MMSF). These builders are
+    # laptop-only (not in the public Action checkout), so guard the imports: where
+    # they're absent the downloads are simply skipped. Best-effort — a miss here
+    # must not abort the cycle (each builder also degrades gracefully on its own).
+    dirs = ["aifs", "u10", "msl"]
+    try:
+        import aam
+        print("== sp + u@13lev (AAM) ==", flush=True)
+        aam.download(date, time, data_root / "aam"); dirs.append("aam")
+    except ImportError:
+        pass
+    except Exception as e:                                  # noqa: BLE001
+        print(f"  AAM fields: skipped ({repr(e)[:70]})", flush=True)
+    try:
+        import torque_map_anim as _tma
+        print("== 10v (surface torque) ==", flush=True)
+        for typ in ("cf", "pf"):
+            _tma._dl(data_root / "torque", date, time, "10v", typ)
+        dirs.append("torque")
+    except ImportError:
+        pass
+    except Exception as e:                                  # noqa: BLE001
+        print(f"  10v: skipped ({repr(e)[:70]})", flush=True)
+    try:
+        import mmsf
+        print("== v@13lev step0 (MMSF) ==", flush=True)
+        mmsf.download_v(date, time, data_root / "mmsf"); dirs.append("mmsf")
+    except ImportError:
+        pass
+    except Exception as e:                                  # noqa: BLE001
+        print(f"  v field: skipped ({repr(e)[:70]})", flush=True)
+
+    total = sum(_size(data_root / d) for d in dirs)
+    print(f"Cycle cache ready ({total:.2f} GB across {'/'.join(dirs)}).")
 
 
 def main() -> int:
