@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ensemble Anomalies — 500 mb &amp; 2 m Temperature · Shawn Corvec</title>
-<meta name="description" content="500 mb height and 2 m temperature anomalies over North America from the GEFS, ECMWF IFS-ENS, AIFS-ENS and GEPS ensembles (median), vs ERA5 10- and 30-year norms, with run-to-run and 48-hour trends.">
+<title>Ensembles — 500 mb Height &amp; Temperature Plumes · Shawn Corvec</title>
+<meta name="description" content="500 mb height anomalies over the Northern Hemisphere from the GEFS, ECMWF IFS-ENS, AIFS-ENS and GEPS ensembles plus an all-ensemble mean, with run-to-run and 48-hour trends, and mega-ensemble temperature plumes for US cities.">
 <link rel="canonical" href="https://scorvec.com/ensembles.html">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -22,18 +22,23 @@
   .nav-links a { font-size:0.82rem; letter-spacing:0.04em; text-decoration:none; color:var(--muted); transition:color 0.2s; }
   .nav-links a:hover, .nav-links a.active { color:var(--ink); }
   main { flex:1; max-width:1400px; margin:0 auto; padding:7.5rem 2.5rem 5rem; width:100%; }
-  .page-header { margin-bottom:3rem; padding-bottom:2rem; border-bottom:1px solid var(--rule); }
+  .page-header { margin-bottom:2.5rem; padding-bottom:2rem; border-bottom:1px solid var(--rule); }
   .page-header h1 { font-family:var(--serif); font-weight:400; font-size:1.9rem; margin-bottom:0.5rem; }
-  .page-header p { font-size:0.88rem; color:var(--muted); line-height:1.7; }
-  .chart-stack { display:flex; flex-direction:column; gap:3rem; }
+  .page-header p { font-size:0.88rem; color:var(--muted); line-height:1.7; max-width:60rem; }
+  .section-head { font-family:var(--serif); font-weight:400; font-size:1.4rem; margin:2.5rem 0 0.3rem; }
+  .section-sub { font-size:0.82rem; color:var(--muted); margin-bottom:1.6rem; }
+  .chart-stack { display:flex; flex-direction:column; gap:2.5rem; }
   .chart-card { border:1px solid var(--rule); background:#fff; overflow:hidden; }
-  .chart-card-header { padding:1.5rem 1.8rem 1.3rem; border-bottom:1px solid var(--rule); }
-  .chart-card-header h2 { font-family:var(--serif); font-weight:400; font-size:1.15rem; margin-bottom:0.6rem; }
-  .chart-card-header p { font-size:0.85rem; color:var(--muted); line-height:1.7; }
+  .chart-card-header { padding:1.4rem 1.8rem 1.2rem; border-bottom:1px solid var(--rule); }
+  .chart-card-header h2 { font-family:var(--serif); font-weight:400; font-size:1.12rem; margin-bottom:0.5rem; }
+  .chart-card-header p { font-size:0.84rem; color:var(--muted); line-height:1.65; }
   .chart-card-header b { color:var(--ink); font-weight:500; }
   .anim-embed { width:100%; border:0; display:block; background:#0f0f0d; aspect-ratio:1100/1020; }
-  .chart-card-footer { padding:0.85rem 1.8rem; border-top:1px solid var(--rule); }
+  .anim-embed.four { aspect-ratio:1180/1040; }
+  .static-chart { width:100%; display:block; background:#fff; }
+  .chart-card-footer { padding:0.8rem 1.8rem; border-top:1px solid var(--rule); }
   .chart-sources { font-size:0.68rem; color:var(--muted); }
+  .note { font-size:0.7rem; color:var(--muted); font-style:italic; margin-top:0.4rem; }
   footer { padding:1.2rem 3rem; border-top:1px solid var(--rule); display:flex; justify-content:center; }
   .counter { font-size:0.72rem; letter-spacing:0.08em; color:var(--muted); text-transform:uppercase; }
   @media (max-width:768px){ nav{padding:1rem 1.5rem;} .nav-links{gap:1.3rem;} main{padding:6.5rem 1.5rem 3.5rem;} }
@@ -52,31 +57,92 @@
 
 <main>
   <div class="page-header">
-    <h1>Ensemble Anomalies — 500 mb Height &amp; 2 m Temperature</h1>
-    <p>Ensemble <b>median</b> anomalies over North America from the four main global ensembles —
-       <b>GEFS</b>, <b>ECMWF IFS-ENS</b>, <b>AIFS-ENS</b> and <b>GEPS (CMC)</b> — as a Day 0–15
-       lead-slider animation. Anomalies are vs ERA5 norms (10- and 30-year); run-to-run change and the
-       48-hour trend compare the forecast for the same valid time across cycles.</p>
+    <h1>Ensembles — 500 mb Height &amp; Temperature Plumes</h1>
+    <p>The four main global ensembles — <b>GEFS</b>, <b>ECMWF IFS-ENS</b>, <b>AIFS-ENS</b> and
+       <b>GEPS&nbsp;(CMC)</b> — over the <b>Northern Hemisphere</b>, as a Day&nbsp;0–15 lead-slider
+       animation. 500&nbsp;mb height anomalies are vs the 30-year ERA5 normal (1991–2020); black
+       contours are the ensemble-mean height. Run-to-run change and the 48-hour trend compare the
+       same valid time across cycles. Temperature plumes pool the members into a mega-ensemble for
+       selected US cities.</p>
   </div>
+
+  <h2 class="section-head">500 mb Height</h2>
+  <p class="section-sub">Drag the slider to step Day&nbsp;0&nbsp;→&nbsp;15. Red = ridge (above normal), blue = trough.</p>
 
   <div class="chart-stack">
 
-    <!-- z500 anomaly vs 30-yr -->
+    <!-- all-ensemble mean -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>500 mb Height Anomaly — vs ERA5 1991–2020</h2>
-        <p>Ensemble-median 500 mb geopotential-height anomaly (dam) vs the 30-year ERA5 normal for each
-           forecast day's valid date. Red = ridge (above normal), blue = trough. Drag the slider to step
-           Day 0 → 15.</p>
+        <h2>All-Ensemble Mean — anomaly vs ERA5 1991–2020</h2>
+        <p>The <b>consensus</b> 500&nbsp;mb height anomaly: the four ensemble means averaged together,
+           with the mean height field contoured. The cleanest single view of the large-scale pattern.</p>
       </div>
       <iframe class="anim-embed" loading="lazy"
+              src="sst_anim.html?embed=1&amp;base=assets/ens/anim&amp;manifest=z500_anom30_mean_manifest.json&amp;region=z500_anom30_mean"
+              title="500 mb height anomaly, all-ensemble mean"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">GEFS · ECMWF IFS-ENS &amp; AIFS-ENS (open data, CC BY 4.0) · GEPS (ECCC MSC datamart) · anomaly vs ERA5 (Copernicus C3S) · updated each cycle</span></div>
+    </div>
+
+    <!-- 4-panel comparison -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Four-Model Comparison — anomaly vs ERA5 1991–2020</h2>
+        <p>The same anomaly, model by model, to eyeball <b>agreement and spread</b>. All shown as the
+           ensemble <b>mean</b>: GEFS (31), ECMWF IFS-ENS (native mean), AIFS-ENS (50), GEPS (20).</p>
+      </div>
+      <iframe class="anim-embed four" loading="lazy"
               src="sst_anim.html?embed=1&amp;base=assets/ens/anim&amp;manifest=z500_anom30_manifest.json&amp;region=z500_anom30"
-              title="500 mb height anomaly vs ERA5 1991-2020, ensemble median"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">GEFS (Herbie/AWS) · ECMWF IFS-ENS &amp; AIFS-ENS (open data, CC BY 4.0) · GEPS (ECCC MSC datamart) · anomaly vs ERA5 (Copernicus C3S) · ensemble median · updated each cycle</span></div>
+              title="500 mb height anomaly, four-model comparison"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">GEFS · ECMWF IFS-ENS &amp; AIFS-ENS (open data, CC BY 4.0) · GEPS (ECCC MSC datamart) · anomaly vs ERA5 (Copernicus C3S)</span></div>
+    </div>
+
+    <!-- change vs previous run -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Change vs Previous Run</h2>
+        <p>How the forecast for each valid time <b>shifted from the previous day's cycle</b> — a quick read
+           on model "trends." Red = run trended the height up, blue = down.</p>
+      </div>
+      <iframe class="anim-embed" loading="lazy"
+              src="sst_anim.html?embed=1&amp;base=assets/ens/anim&amp;manifest=z500_dprev_manifest.json&amp;region=z500_dprev"
+              title="500 mb height change vs previous run"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">Same-valid-time difference vs the run 24&nbsp;h earlier<span class="note"> — populates per model as cycles archive; currently GEFS where history exists.</span></span></div>
+    </div>
+
+    <!-- 48-hour trend -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>48-Hour Trend</h2>
+        <p>The forecast for each valid time minus the run <b>48&nbsp;h earlier</b> — a longer-baseline view of
+           how the solution is drifting.</p>
+      </div>
+      <iframe class="anim-embed" loading="lazy"
+              src="sst_anim.html?embed=1&amp;base=assets/ens/anim&amp;manifest=z500_d48_manifest.json&amp;region=z500_d48"
+              title="500 mb height 48-hour trend"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">Same-valid-time difference vs the run 48&nbsp;h earlier</span></div>
     </div>
 
   </div>
+
+  <h2 class="section-head">Temperature Plumes</h2>
+  <p class="section-sub">Pooled mega-ensemble 2&nbsp;m temperature distribution for selected US cities (demo).</p>
+
+  <div class="chart-stack">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>2 m Temperature — Mega-Ensemble Plumes</h2>
+        <p>The <b>GEFS + GEPS members pooled</b> (~51) into one distribution per city, Day&nbsp;0–15.
+           Shaded bands are min–max, 10–90% and 25–75%; the dark line is the median. Spread widens with
+           lead time as forecast uncertainty grows.</p>
+      </div>
+      <img class="static-chart" loading="lazy" src="assets/ens/plumes_demo.webp?v=20260603a"
+           alt="2 m temperature mega-ensemble plumes for NYC, Chicago, Denver, Los Angeles">
+      <div class="chart-card-footer"><span class="chart-sources">GEFS (Herbie/AWS) + GEPS (ECCC MSC datamart) members · 2&nbsp;m temperature (°F)<span class="note"> — demo: daily 00Z steps (no diurnal range yet); IFS/AIFS members omitted.</span></span></div>
+    </div>
+  </div>
+
 </main>
-<footer><span class="counter">Ensemble anomaly monitor</span></footer>
+<footer><span class="counter">Ensemble monitor</span></footer>
 </body>
 </html>
