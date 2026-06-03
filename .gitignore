@@ -47,3 +47,6 @@ scripts/synoptic/*.log
 
 # ens change-product archive (local run-to-run state, regenerable)
 scripts/ens/data/archive/
+
+# ens climatology netCDFs — large, build/keep LOCAL only (README stays tracked)
+scripts/ens/data/reference/*.nc
