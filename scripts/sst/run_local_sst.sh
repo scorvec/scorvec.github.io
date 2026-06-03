@@ -34,7 +34,7 @@ DAY=$("$PY" -c "import json; print(json.load(open('assets/sst/manifest.json'))['
 git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
     commit -m "SST/RONI update: OISST ${DAY} (local)"
 for i in 1 2 3 4 5; do
-  if git pull --rebase -X theirs && git push; then echo "pushed (attempt $i)"; exit 0; fi
+  if git pull --rebase --autostash -X theirs && git push; then echo "pushed (attempt $i)"; exit 0; fi
   echo "push attempt $i failed; retrying…"; sleep 5
 done
 echo "ERROR: could not push after 5 attempts."; exit 1

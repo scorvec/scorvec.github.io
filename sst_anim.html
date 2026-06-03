@@ -126,7 +126,7 @@
 </div>
 
 <script>
-const ANIM_BASE = "assets/sst/anim";
+const ANIM_BASE = new URLSearchParams(location.search).get("base") || "assets/sst/anim";
 let manifest = null;
 let region = null;
 let frames = [];
