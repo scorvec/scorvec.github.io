@@ -408,7 +408,6 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>AAM Forecast Trend (run-to-run)</h2>
-        <p>Each line is one AIFS-ENS run's ensemble-mean AAM <i>anomaly</i> forecast &mdash; for the globe and each hemisphere &mdash; with successive runs coloured oldest&rarr;newest (newest bold). Watching the lines shift run-to-run shows whether the outlook is trending more or less anomalous, and how consistent (or jumpy) the forecast is. The archive grows with each daily run.</p>
       </div>
       <div class="img-wrap"><img src="assets/sst/aam_trend.webp?v=__CACHE__" alt="Run-to-run trend of AIFS-ENS ensemble-mean AAM anomaly forecasts, global and hemispheric" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 (Copernicus C3S) &middot; archived each cycle</span></div>
