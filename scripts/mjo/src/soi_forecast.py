@@ -156,7 +156,7 @@ def plot(obs: pd.DataFrame, normals: dict, diff: xr.DataArray,
 
     # observed: faint daily + bold 30-day
     od = obs_soi.loc[p0:init_d]
-    ax.plot(od.index, od.values, color="0.42", lw=1.1, alpha=0.9, label="Observed daily SOI")
+    ax.plot(od.index, od.values, color="#5577a6", lw=1.5, alpha=0.95, label="Observed daily SOI")
     ro = run_obs.loc[p0:init_d]
     ax.plot(ro.index, ro.values, color="k", lw=2.4, label="Observed 30-day SOI")
 
