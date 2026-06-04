@@ -32,6 +32,13 @@ from aam import A, G, _vert_weights
 
 DENS = 1e20          # plot density unit: 10²⁰ kg m² s⁻¹ per (° lat · hPa)
 TOT = 1e24           # global/marginal totals unit: 10²⁴ kg m² s⁻¹
+CLIM = Path(__file__).resolve().parent.parent / "data" / "reference" / "aam_density_clim.nc"
+
+
+def _interp_lat(field, lat_src, lat_dst):
+    """Interp (lev, lat_src) → (lev, lat_dst) along latitude (np.interp needs ascending)."""
+    o = np.argsort(lat_src); ls = lat_src[o]
+    return np.stack([np.interp(lat_dst, ls, field[i][o]) for i in range(field.shape[0])])
 
 
 def zonal_aam_density(up: Path, sp_path: Path):
@@ -80,63 +87,61 @@ def _xsec(ax, lat, p_hpa, dens, ubar, lim, label):
     return cf
 
 
-def _frame(aam, p_hpa, lat, ubar_zm, k, init, steps_h, lims, out_fp):
-    """Render one lead's frame (fixed figsize + colour limits, no tight bbox so every
-    frame is identical-size for the slider)."""
-    dlat_deg = abs(float(lat[1] - lat[0]))
-    layer = np.abs(np.gradient(p_hpa))
-    cell = dlat_deg * layer[:, None]
-    lim_a, lim_c, lim_pl = lims
-    absd = aam[k] / cell / DENS
-    dA = aam[k] - aam[0]
-    chgd = dA / cell / DENS
-    perlat = dA.sum(axis=0) / TOT
-    total = dA.sum() / TOT
-    glob = aam[k].sum() / TOT
-
-    fig = plt.figure(figsize=(9.4, 9.0))
-    gs = GridSpec(3, 1, height_ratios=[0.8, 3, 3], hspace=0.17,
-                  left=0.10, right=0.87, top=0.905, bottom=0.065)
-    axt = fig.add_subplot(gs[0]); axa = fig.add_subplot(gs[1], sharex=axt)
-    axc = fig.add_subplot(gs[2], sharex=axt)
-
-    axt.bar(lat, perlat, width=dlat_deg, color=np.where(perlat >= 0, "#c0392b", "#2c5aa0"))
-    axt.axhline(0, color="0.5", lw=0.6); axt.tick_params(labelbottom=False, labelsize=7)
-    axt.set_ylim(-lim_pl, lim_pl); axt.margins(x=0)
-    axt.set_ylabel("ΔAAM per °lat\n(10²⁴)", fontsize=7)
-    axt.set_title("vertical integral of the change below — where the global ΔAAM comes from",
-                  fontsize=7.5, color="0.4", pad=3)
-
-    cfa = _xsec(axa, lat, p_hpa, absd, ubar_zm[k], lim_a, "ABSOLUTE  (forecast)")
-    cfc = _xsec(axc, lat, p_hpa, chgd, ubar_zm[k], lim_c, "CHANGE  vs analysis (tendency)")
-    axc.set_xlabel("Latitude", fontsize=8); axc.tick_params(labelsize=7); axa.tick_params(labelbottom=False)
-    fig.colorbar(cfa, cax=fig.add_axes([0.89, 0.42, 0.016, 0.20]), extend="both"
+def _frame(fields, lat, p_hpa, ubar, lims, head, out_fp):
+    """2×2 frame: absolute & tendency (left) + their anomalies vs climatology (right).
+    `fields` = [absolute, abs_anomaly, tendency, tendency_anomaly] density arrays.
+    Fixed figsize + colour limits (no tight bbox) so every frame is identical-size."""
+    lim_a, lim_d = lims
+    labels = ["ABSOLUTE  (forecast)", "ANOMALY  vs 1991–2020",
+              "CHANGE  vs analysis (tendency)", "TENDENCY  ANOMALY  vs clim"]
+    lim4 = [lim_a, lim_d, lim_d, lim_d]
+    fig = plt.figure(figsize=(12.8, 8.6))
+    gs = GridSpec(2, 2, left=0.065, right=0.9, top=0.90, bottom=0.075, wspace=0.10, hspace=0.16)
+    axes = [fig.add_subplot(gs[i, j]) for i in range(2) for j in range(2)]
+    cfs = []
+    for ax, fld, lab, lm in zip(axes, fields, labels, lim4):
+        cfs.append(_xsec(ax, lat, p_hpa, fld, ubar, lm, lab))
+    for ax in (axes[0], axes[1]):                            # top row: no x label
+        ax.tick_params(labelbottom=False)
+    for ax in (axes[1], axes[3]):                            # right col: no y label
+        ax.set_ylabel("")
+    for ax in (axes[2], axes[3]):
+        ax.set_xlabel("Latitude", fontsize=8)
+    fig.colorbar(cfs[0], cax=fig.add_axes([0.915, 0.55, 0.013, 0.33]), extend="both"
                  ).set_label("abs (10²⁰/°·hPa)", fontsize=7)
-    fig.colorbar(cfc, cax=fig.add_axes([0.89, 0.10, 0.016, 0.20]), extend="both"
-                 ).set_label("Δ (10²⁰/°·hPa)", fontsize=7)
-
-    valid = init + pd.Timedelta(hours=int(steps_h[k]))
-    sgn = "+" if total >= 0 else "−"
-    fig.suptitle(f"AIFS-ENS relative angular momentum — absolute vs forecast change\n"
-                 f"init {init:%Y-%m-%d %HZ}  ·  Day {steps_h[k]//24} (valid {valid:%a %d %b})  ·  "
-                 f"global AAM {glob:.0f} ·  ΔAAM = {sgn}{abs(total):.1f}  (10²⁴ kg m² s⁻¹)",
-                 fontsize=11, fontweight="bold")
-    fig.savefig(out_fp, dpi=120); plt.close(fig)
-    return total
+    fig.colorbar(cfs[1], cax=fig.add_axes([0.915, 0.10, 0.013, 0.33]), extend="both"
+                 ).set_label("departure (10²⁰/°·hPa)", fontsize=7)
+    fig.suptitle(head, fontsize=11, fontweight="bold")
+    fig.savefig(out_fp, dpi=110); plt.close(fig)
 
 
 def animate(aam, p_hpa, lat, steps_h, ubar_zm, init, anim_dir: Path, manifest: Path):
-    """Render every lead as a frame (fixed colour scale) + a viewer manifest."""
+    """Render every lead as a 2×2 frame (fixed colour scale) + viewer manifest."""
     dlat_deg = abs(float(lat[1] - lat[0]))
     layer = np.abs(np.gradient(p_hpa)); cell = dlat_deg * layer[:, None]
     print(f"  abs global AAM (analysis) = {aam[0].sum()/TOT:.0f}×10²⁴  (expect ~150)")
-    # FIXED limits across all leads so the change visibly grows frame to frame
-    absd_all = aam / cell[None] / DENS
-    chgd_all = (aam - aam[0]) / cell[None] / DENS
-    perlat_all = (aam - aam[0]).sum(axis=1) / TOT
-    lims = (float(np.nanpercentile(np.abs(absd_all), 99.5)) or 1.0,
-            float(np.nanpercentile(np.abs(chgd_all), 99.5)) or 1.0,
-            float(np.nanpercentile(np.abs(perlat_all), 100)) * 1.05 or 1.0)
+    densf = aam / cell[None] / DENS                          # forecast density (step,lev,lat)
+
+    # climatological density at the init & each valid day-of-year, interp to forecast grid
+    clim = xr.open_dataarray(CLIM)                           # (doy,lev,latc) per-band 1.5°
+    latc = clim.latitude.values; dlatc = abs(float(latc[1] - latc[0]))
+    cellc = dlatc * layer[:, None]
+    doy0 = int(init.dayofyear)
+    doys = [int((init + pd.Timedelta(hours=int(h))).dayofyear) for h in steps_h]
+
+    def cden(doy):                                           # clim density on forecast lat
+        cb = clim.sel(dayofyear=doy).values / cellc / DENS
+        return _interp_lat(cb, latc, lat)
+    c0 = cden(doy0)
+    clead = np.stack([cden(d) for d in doys])                # (step,lev,lat)
+
+    absd = densf
+    anom = densf - clead                                     # absolute anomaly
+    tend = densf - densf[0]                                  # change vs analysis
+    tanom = tend - (clead - c0)                              # tendency anomaly (de-seasonalised)
+
+    lim_a = float(np.nanpercentile(np.abs(absd), 99.5)) or 1.0
+    lim_d = float(np.nanpercentile(np.abs(np.concatenate([anom, tend, tanom])), 99.5)) or 1.0
 
     anim_dir = Path(anim_dir); anim_dir.mkdir(parents=True, exist_ok=True)
     for old in anim_dir.glob("F*.webp"):
@@ -144,12 +149,20 @@ def animate(aam, p_hpa, lat, steps_h, ubar_zm, init, anim_dir: Path, manifest: P
     frames = []
     for k in range(len(steps_h)):
         fp = anim_dir / f"F{k:02d}.webp"
-        total = _frame(aam, p_hpa, lat, ubar_zm, k, init, steps_h, lims, fp)
+        glob = aam[k].sum() / TOT
+        dAAM = (aam[k] - aam[0]).sum() / TOT
+        aAAM = float(((densf[k] - clead[k]) * cell * DENS).sum()) / TOT   # global AAM anomaly
         valid = init + pd.Timedelta(hours=int(steps_h[k]))
+        sgn = lambda x: f"{x:+.1f}"
+        head = (f"AIFS-ENS relative angular momentum — absolute, tendency & anomalies\n"
+                f"init {init:%Y-%m-%d %HZ} · Day {steps_h[k]//24} (valid {valid:%a %d %b}) · "
+                f"AAM {glob:.0f} · anomaly {sgn(aAAM)} · ΔAAM {sgn(dAAM)}  (10²⁴ kg m² s⁻¹)")
+        _frame([absd[k], anom[k], tend[k], tanom[k]], lat, p_hpa, ubar_zm[k],
+               (lim_a, lim_d), head, fp)
         frames.append({"idx": k, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
-                       "label": f"Day {steps_h[k]//24} · ΔAAM {total:+.1f}"})
+                       "label": f"Day {steps_h[k]//24} · anom {sgn(aAAM)} · ΔAAM {sgn(dAAM)}"})
     mani = {"ver": int(pd.Timestamp.now().timestamp()), "days": len(frames),
-            "regions": {"aam_zonal": {"label": "AAM anatomy — absolute & forecast change",
+            "regions": {"aam_zonal": {"label": "AAM anatomy — absolute, tendency & anomalies",
                                       "n_frames": len(frames), "frames": frames}}}
     Path(manifest).parent.mkdir(parents=True, exist_ok=True)
     Path(manifest).write_text(json.dumps(mani))

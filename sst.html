@@ -103,7 +103,7 @@
   .anim-embed.subsurface { aspect-ratio: 1 / 1; }
   .anim-embed.torque { aspect-ratio: 1306 / 1055; }
   .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
-  .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
+  .anim-embed.aam-zonal { aspect-ratio: 1408 / 946; }
   @media (max-width: 768px) {
     .anim-embed { aspect-ratio: 1 / 1.08; }
     .anim-embed.subsurface { aspect-ratio: 1 / 1.12; }
@@ -426,7 +426,7 @@
         <h2>Where the AAM Lives &mdash; and Where It&rsquo;s Changing</h2>
         <p>The torques above change the <i>global</i> AAM; this shows <b>where</b> that angular momentum actually sits in the atmosphere and how the forecast moves it &mdash; a latitude&ndash;pressure cross-section of the relative-AAM density whose integral over latitude and pressure is the global AAM:</p>
         <p style="text-align:center;font-size:0.95rem">$$m(\phi,p)=\frac{a^3}{g}\,[\,u\,]\,\cos^2\!\phi,\qquad M=\iint m\,d\phi\,dp$$</p>
-        <p><b>Top panel &mdash; absolute</b>: where the AAM resides, dominated by the <b>subtropical jets</b> (the winter hemisphere&rsquo;s is strongest). <b>Bottom &mdash; change vs the 0-h analysis</b>: where the forecast is <b>adding</b> (red) or <b>removing</b> (blue) angular momentum, with the per-latitude breakdown of the global &Delta;AAM along the top strip. Black contours are the zonal-mean zonal wind (bold = zero). The whole bottom panel integrates to the &Delta;AAM in the title, tying it back to the torque budget above. AIFS-ENS 50-member ensemble mean; the slider steps the forecast Day&nbsp;0&ndash;15, so the change grows from zero.</p>
+        <p>Four panels &mdash; the <b>left column</b> is the raw field, the <b>right column</b> is its <b>anomaly vs the 1991&ndash;2020 ERA5 normal</b> (the El&nbsp;Niño signal). <b>Top-left, absolute</b>: where the AAM resides, dominated by the <b>subtropical jets</b> (the winter hemisphere&rsquo;s is strongest). <b>Top-right, anomaly</b>: where the AAM departs from normal &mdash; the standing ENSO signature. <b>Bottom-left, change vs the 0-h analysis</b>: where the forecast is <b>adding</b> (red) or <b>removing</b> (blue) angular momentum. <b>Bottom-right, tendency anomaly</b>: that change with the climatological seasonal drift removed. Black contours are the zonal-mean zonal wind (bold = zero); the integral of each field is printed in the title (global <b>AAM &middot; anomaly &middot; &Delta;AAM</b>), tying back to the torque budget above. AIFS-ENS 50-member ensemble mean; the slider steps the forecast Day&nbsp;0&ndash;15.</p>
       </div>
       <iframe class="anim-embed aam-zonal" src="sst_anim.html?embed=1&amp;manifest=aam_zonal_manifest.json&amp;region=aam_zonal"
               title="AIFS-ENS relative AAM anatomy: absolute and forecast change by latitude and pressure" loading="lazy"></iframe>
