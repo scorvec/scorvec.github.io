@@ -31,9 +31,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import urllib.request
 import urllib.error
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -89,6 +91,8 @@ REGIONS = {
 # Which regions get an animation (the others still get a static map).
 ANIM_REGIONS = ["tropical"]
 ANIM_DAYS = 60
+# Animation frames are independent cartopy renders → render them in a process pool.
+RENDER_WORKERS = int(os.environ.get("SST_RENDER_WORKERS", str(min(os.cpu_count() or 4, 8))))
 
 
 # ----------------------------------------------------------------------
@@ -380,6 +384,15 @@ def render_2panel_frame(field, la, lo, kind, title, out_path, annotation=None):
     plt.close(fig)
 
 
+def _frame_task(args):
+    """Process-pool worker: rebuild a light DataArray from the passed arrays and render
+    one 2-panel frame. (Passing raw numpy + coords avoids pickling lazy/dask DataArrays.)"""
+    vals, lat_vals, lon_vals, la, lo, kind, title, out, ann = args
+    import xarray as xr
+    field = xr.DataArray(vals, dims=(la, lo), coords={la: lat_vals, lo: lon_vals})
+    render_2panel_frame(field, la, lo, kind, title, out, annotation=ann)
+
+
 def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS):
     cfg = PRODUCTS[product_id]
     out_dir = ASSETS / "anim" / product_id
@@ -388,23 +401,25 @@ def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS):
         old.unlink()
     times = pd.to_datetime(field_full["time"].values)
     n = min(n_days, len(times))
-    sel = field_full.isel(time=slice(len(times) - n, len(times)))
+    sel = field_full.isel(time=slice(len(times) - n, len(times))).load()   # eager (pool-safe)
     st = pd.to_datetime(sel["time"].values)
     pfx = _KIND_TITLE[cfg["kind"]]
-    frames = []
+    lat_vals, lon_vals = sel[la].values, sel[lo].values
+    tasks, frames = [], []
     for i in range(n):
-        out = out_dir / f"F{i:02d}.webp"
         ann = None
         if cfg["kind"] == "anom":
             n34, trop, rel = daily_nino_readout(sel.isel(time=i), la, lo)
             ann = (f"Daily ONI:  {n34:+.2f} °C\n"
                    f"Trop-mean:  {trop:+.2f} °C\n"
                    f"Daily RONI: {rel:+.2f} °C")
-        render_2panel_frame(sel.isel(time=i), la, lo, cfg["kind"],
-                            f"{pfx} — {st[i]:%Y-%m-%d}", out, annotation=ann)
+        tasks.append((sel.isel(time=i).values, lat_vals, lon_vals, la, lo, cfg["kind"],
+                      f"{pfx} — {st[i]:%Y-%m-%d}", str(out_dir / f"F{i:02d}.webp"), ann))
         frames.append({"idx": i, "file": f"F{i:02d}.webp",
                        "date": f"{st[i]:%Y-%m-%d}", "label": f"{st[i]:%a %b %d, %Y}"})
-    print(f"  product '{product_id}': {n} frames", flush=True)
+    with ProcessPoolExecutor(max_workers=RENDER_WORKERS) as ex:
+        list(ex.map(_frame_task, tasks))
+    print(f"  product '{product_id}': {n} frames ({RENDER_WORKERS} workers)", flush=True)
     return frames
 
 
