@@ -349,6 +349,17 @@
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; 14-day mean &middot; coverage varies by year</span></div>
     </div>
 
+    <!-- 850 hPa WIND ANALOG HOVMÖLLERS -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Low-Level Wind vs. Analogs &mdash; 850 hPa Hovm&ouml;ller</h2>
+        <p>Equatorial (5&deg;S&ndash;5&deg;N) 850 hPa zonal wind through the <b>developing year</b> (Jan&rarr;Nov of year 0) of each El Ni&ntilde;o, aligned by calendar so the current event sits beside its analogs at the same phase. Westerly anomalies (red) over the Indian Ocean&ndash;west Pacific push warm water east and sustain a developing event; the historical analogs show those westerlies expanding eastward through the year. Left: detrended anomaly (long-term trend removed). Right: absolute wind (easterly trades vs. westerly bursts). 5-day smoothed.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/u850_analogs_anom.webp?v=__CACHE__" alt="850 hPa equatorial zonal-wind detrended-anomaly Hovmöllers: current 2026 vs 1982/1997/2015 developing years" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/u850_analogs_abs.webp?v=__CACHE__" alt="850 hPa equatorial zonal-wind absolute Hovmöllers: current 2026 vs 1982/1997/2015 developing years" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ERA5 &mdash; WeatherBench2 1.5&deg; (1959&ndash;2023) + ARCO 0.25&deg; (current year) &middot; 5&deg;S&ndash;5&deg;N &middot; detrended vs day-of-year climatology &middot; updated daily</span></div>
+    </div>
+
     <!-- OBSERVED ASCAT EQUATORIAL WINDS -->
     <div class="chart-card">
       <div class="chart-card-header">

@@ -53,3 +53,7 @@ scripts/ens/data/reference/*.nc
 
 # shared ECMWF GRIB cache (large, regenerable per cycle)
 scripts/ecmwf/cache/
+
+# u850 analog Hovmöller band series (large, local-only; rebuilt by build_u850_bandseries.py)
+scripts/mjo/data/reference/eq_u850_bandseries.nc
+scripts/mjo/data/reference/eq_u850_*_arco.nc

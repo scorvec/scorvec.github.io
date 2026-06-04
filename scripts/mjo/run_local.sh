@@ -83,6 +83,23 @@ fi
   --manifest "$REPO/assets/sst/anim/mmsf_manifest.json" \
   --out "$REPO/assets/sst/mmsf_anom.webp" || echo "MMSF failed; continuing"
 
+# 850 hPa wind analog Hovmöllers (current developing year vs 1982/97/2015). Refresh the
+# current-year ARCO tail (1×/day, ~3 min) + re-render, once per calendar day. The WB2
+# 1959-2023 band series is laptop-only (large, gitignored), so this whole block no-ops on
+# the Action's clean checkout — the committed webps just carry over from the last local run.
+U850_SERIES="data/reference/eq_u850_bandseries.nc"
+U850_STAMP="data/.u850_analogs_day"
+if [ -f "$U850_SERIES" ] && [ "$(cat "$U850_STAMP" 2>/dev/null)" != "$(date -u +%Y-%m-%d)" ]; then
+  YR=$(date -u +%Y)
+  if ARCO_HOURS=12 "$PY" src/build_u850_bandseries.py --source arco --start "$YR" --end "$YR" \
+        --out "data/reference/eq_u850_${YR}_arco.nc" \
+     && "$PY" src/eq_u850_analogs.py \
+        --out-anom "$REPO/assets/sst/u850_analogs_anom.webp" \
+        --out-abs  "$REPO/assets/sst/u850_analogs_abs.webp"; then
+    date -u +%Y-%m-%d > "$U850_STAMP"
+  else echo "u850 analogs failed; continuing"; fi
+fi
+
 # prune GRIBs older than a week. Archive hard-links share inodes with the working
 # data dirs, so disk frees only when both links go — delete from both. Only *.grib2
 # is matched, so committed reference *.nc files are never touched.
@@ -94,7 +111,7 @@ find "$MJO_GRIB_ARCHIVE" -type d -empty -delete 2>/dev/null
 # builder, so MJO-updated images would serve stale from cache between SST runs;
 # the torque/MMSF animator iframes self-bust via their manifest "ver".)
 CB=$(date -u +%Y%m%d%H%M)
-perl -0pi -e "s/((?:aam|aam_trend|torque_timeseries|torque_ranges|eq_wind_hovmoller|soi_forecast)\.webp)\?v=\d+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
+perl -0pi -e "s/((?:aam|aam_trend|torque_timeseries|torque_ranges|eq_wind_hovmoller|soi_forecast|u850_analogs_anom|u850_analogs_abs)\.webp)\?v=\d+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
 
 ( cd "$REPO" && git add \
     scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
@@ -103,6 +120,7 @@ perl -0pi -e "s/((?:aam|aam_trend|torque_timeseries|torque_ranges|eq_wind_hovmol
     assets/sst/anim/torque/ assets/sst/anim/torque_manifest.json assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp \
     assets/sst/anim/mmsf/ assets/sst/anim/mmsf_manifest.json assets/sst/mmsf_anom.webp \
     assets/sst/anim/aam_zonal/ assets/sst/anim/aam_zonal_manifest.json \
+    assets/sst/u850_analogs_anom.webp assets/sst/u850_analogs_abs.webp \
     && commit_push "MJO atmospheric products (wind/SOI + AAM/torque/MMSF/zonal): ${COMPACT} (local)" )
 
 touch "$DONE_MARKER"
