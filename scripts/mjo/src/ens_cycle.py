@@ -31,6 +31,8 @@ import eq_hovmoller
 import soi_forecast
 from download_aifs import latest_run
 
+RETAIN_DAYS = 7        # store cache retention — raw gribs dropped after this many days
+
 
 def fetch(date: str, time: str, data_root: Path) -> None:
     # RMM is the core product — let a failure here propagate (fail the cycle).
@@ -52,6 +54,17 @@ def fetch(date: str, time: str, data_root: Path) -> None:
             soi_forecast.download_msl(cfg, date, time, data_root / "msl")
         except Exception as e:                              # noqa: BLE001
             print(f"  msl/{cfg['model']}: skipped ({repr(e)[:70]})", flush=True)
+
+    # z500 + 2 m temperature (full cf+pf ensemble) — kept in the store for the
+    # ensembles page and general later reuse. Best-effort.
+    print("== AIFS-ENS z@500 + 2t (ensemble store) ==", flush=True)
+    cyc = store.Cycle(date, time); S = tuple(store.STEPS)
+    for param, levtype, levels in (("z", "pl", (500,)), ("2t", "sfc", ())):
+        for typ in ("cf", "pf"):
+            try:
+                store.ensure(cyc, store.Spec("aifs-ens", typ, param, levtype, levels, S))
+            except Exception as e:                          # noqa: BLE001
+                print(f"  {param}/{typ}: skipped ({repr(e)[:70]})", flush=True)
 
     # Heavy SST-page atmospheric fields (AAM / torque / MMSF). These builders are
     # laptop-only (not in the public Action checkout), so guard the imports: where
@@ -90,6 +103,13 @@ def fetch(date: str, time: str, data_root: Path) -> None:
     total = (sum(f.stat().st_size for f in cyc_dir.rglob("*.grib2")) / 1e9
              if cyc_dir.exists() else 0.0)
     print(f"Cycle cache ready ({total:.2f} GB in {cyc_dir}).")
+
+    # Retention: drop store cycles older than 7 days (the raw gribs aren't needed
+    # once each product's processed history/archive is written).
+    store.prune(days=RETAIN_DAYS)
+    cache_gb = sum(f.stat().st_size for f in store.CACHE.rglob("*.grib2")) / 1e9
+    print(f"Store cache now {cache_gb:.1f} GB across "
+          f"{len(list(store.CACHE.glob('*z')))} cycle(s) (≤{RETAIN_DAYS}-day retention).")
 
 
 def main() -> int:

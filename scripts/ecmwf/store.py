@@ -338,15 +338,38 @@ def registry() -> list[Spec]:
         Spec("aifs-ens", "cf", "10v", "sfc", (), F),
         # MMSF — AIFS analysis (step 0) meridional wind @ 13 levels
         Spec("aifs-ens", "cf", "v", "pl", LEVELS_AAM, (0,)),
-        # ensembles page — AIFS z @ 500 + 2 m temperature (with analysis Day 0)
+        # ensembles page + general reuse — AIFS z @ 500 + 2 m temperature, full
+        # ensemble (cf control + 50 pf members), with the analysis Day 0.
         Spec("aifs-ens", "pf", "z", "pl", (500,), S),
+        Spec("aifs-ens", "cf", "z", "pl", (500,), S),
         Spec("aifs-ens", "pf", "2t", "sfc", (), S),
+        Spec("aifs-ens", "cf", "2t", "sfc", (), S),
     ]
 
 
-def prune(keep: int) -> None:
+def _cycle_init(tag: str):
+    """datetime of a cache cycle dir name like '2026060400z' (UTC, tz-naive)."""
+    from datetime import datetime
+    return datetime.strptime(tag[:10], "%Y%m%d%H")
+
+
+def prune(keep: int = 0, days: float = 0) -> None:
+    """Drop old cycle dirs. keep>0 keeps the N newest; days>0 drops cycles whose
+    init time is more than `days` old (the default retention policy)."""
+    from datetime import datetime, timedelta
     cycles = sorted([d for d in CACHE.glob("*z") if d.is_dir()])
-    for d in cycles[:-keep] if keep > 0 else []:
+    drop = set()
+    if keep > 0:
+        drop |= set(cycles[:-keep])
+    if days > 0:
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        for d in cycles:
+            try:
+                if _cycle_init(d.name) < cutoff:
+                    drop.add(d)
+            except ValueError:
+                pass                                       # not a cycle dir — leave it
+    for d in sorted(drop):
         shutil.rmtree(d, ignore_errors=True)
         print(f"  pruned {d.name}", flush=True)
 
@@ -355,6 +378,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True); ap.add_argument("--time", default="00")
     ap.add_argument("--prune", type=int, default=0, help="keep N newest cycles (0 = no prune)")
+    ap.add_argument("--prune-days", type=float, default=0, help="drop cycles older than D days")
     a = ap.parse_args()
     cyc = Cycle(a.date, a.time)
     print(f"== ECMWF store: stocking {cyc.tag} → {CACHE} ==", flush=True)
@@ -365,8 +389,8 @@ def main() -> int:
         except Exception as e:                             # noqa: BLE001
             print(f"  {spec.model}/{spec.filename}: FAILED ({repr(e)[:70]})", flush=True)
     print(f"stocked {ok}/{len(registry())} specs for {cyc.tag}", flush=True)
-    if a.prune:
-        prune(a.prune)
+    if a.prune or a.prune_days:
+        prune(a.prune, a.prune_days)
     return 0
 
 
