@@ -17,7 +17,7 @@ level); the corner prints the global ΔAAM (which matches the AAM timeseries).
         --out ../../assets/sst/aam_zonal.webp
 """
 from __future__ import annotations
-import argparse, sys
+import argparse, json, sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -63,82 +63,112 @@ def zonal_aam_density(up: Path, sp_path: Path):
     return aam, p_hpa, lat, steps_h, ubar_zm
 
 
-def plot(aam, p_hpa, lat, steps_h, ubar_zm, lead_h: int, init: pd.Timestamp, out: Path):
-    k = int(np.argmin(np.abs(steps_h - lead_h)))
-    dA = aam[k] - aam[0]                                        # (lev,lat) AAM change [kg m² s⁻¹]
-    dlat_deg = abs(float(lat[1] - lat[0]))
-    layer = np.abs(np.gradient(p_hpa))                         # ~layer thickness per level [hPa]
-
-    # exact marginals & global total (these integrate the per-band AAM, not a density)
-    perlat = dA.sum(axis=0) / TOT                              # ΔAAM in each lat band
-    perlev = dA.sum(axis=1) / TOT                              # ΔAAM at each level
-    total = dA.sum() / TOT
-    print(f"  abs global AAM (analysis) = {aam[0].sum()/TOT:.0f}×10²⁴  (expect ~150)")
-
-    # display density per (°lat·hPa) so colours are resolution/level-thickness independent
-    dens = dA / (dlat_deg * layer[:, None]) / DENS
-    lim = float(np.nanpercentile(np.abs(dens), 99)) or 1.0
+def _xsec(ax, lat, p_hpa, dens, ubar, lim, label):
+    """One latitude–pressure cross-section: filled density + zonal-mean-u contours."""
     levels = np.linspace(-lim, lim, 21)
+    cf = ax.contourf(lat, p_hpa, dens, levels=levels, cmap="RdBu_r", extend="both")
+    cs = ax.contour(lat, p_hpa, ubar, levels=np.arange(-60, 61, 10), colors="k", linewidths=0.45)
+    ax.clabel(cs, levels=cs.levels[::2], fmt="%d", fontsize=5.5)
+    ax.contour(lat, p_hpa, ubar, levels=[0], colors="k", linewidths=1.0)
+    ax.set_yscale("log"); ax.invert_yaxis()
+    ax.set_yticks([1000, 850, 700, 500, 300, 200, 100, 50])
+    ax.set_yticklabels([1000, 850, 700, 500, 300, 200, 100, 50], fontsize=7)
+    ax.set_xlim(-90, 90); ax.set_xticks(np.arange(-90, 91, 30))
+    ax.set_ylabel("Pressure (hPa)", fontsize=8)
+    ax.text(0.012, 0.91, label, transform=ax.transAxes, fontsize=9, fontweight="bold",
+            bbox=dict(fc="white", ec="0.7", alpha=0.85, pad=2))
+    return cf
 
-    fig = plt.figure(figsize=(10.5, 7.2))
-    gs = GridSpec(2, 2, width_ratios=[4, 1], height_ratios=[1, 4],
-                  wspace=0.04, hspace=0.04, left=0.09, right=0.97, top=0.88, bottom=0.12)
-    axm = fig.add_subplot(gs[1, 0]); axt = fig.add_subplot(gs[0, 0], sharex=axm)
-    axr = fig.add_subplot(gs[1, 1], sharey=axm)
 
-    cf = axm.contourf(lat, p_hpa, dens, levels=levels, cmap="RdBu_r", extend="both")
-    cs = axm.contour(lat, p_hpa, ubar_zm[k], levels=np.arange(-60, 61, 10),
-                     colors="k", linewidths=0.5)
-    axm.clabel(cs, levels=cs.levels[::2], fmt="%d", fontsize=6)
-    axm.contour(lat, p_hpa, ubar_zm[k], levels=[0], colors="k", linewidths=1.1)
-    axm.set_yscale("log"); axm.invert_yaxis()
-    axm.set_yticks([1000, 850, 700, 500, 300, 200, 100, 50])
-    axm.set_yticklabels([1000, 850, 700, 500, 300, 200, 100, 50])
-    axm.set_xlim(-90, 90); axm.set_xticks(np.arange(-90, 91, 30))
-    axm.set_xlabel("Latitude"); axm.set_ylabel("Pressure (hPa)")
+def _frame(aam, p_hpa, lat, ubar_zm, k, init, steps_h, lims, out_fp):
+    """Render one lead's frame (fixed figsize + colour limits, no tight bbox so every
+    frame is identical-size for the slider)."""
+    dlat_deg = abs(float(lat[1] - lat[0]))
+    layer = np.abs(np.gradient(p_hpa))
+    cell = dlat_deg * layer[:, None]
+    lim_a, lim_c, lim_pl = lims
+    absd = aam[k] / cell / DENS
+    dA = aam[k] - aam[0]
+    chgd = dA / cell / DENS
+    perlat = dA.sum(axis=0) / TOT
+    total = dA.sum() / TOT
+    glob = aam[k].sum() / TOT
+
+    fig = plt.figure(figsize=(9.4, 9.0))
+    gs = GridSpec(3, 1, height_ratios=[0.8, 3, 3], hspace=0.17,
+                  left=0.10, right=0.87, top=0.905, bottom=0.065)
+    axt = fig.add_subplot(gs[0]); axa = fig.add_subplot(gs[1], sharex=axt)
+    axc = fig.add_subplot(gs[2], sharex=axt)
 
     axt.bar(lat, perlat, width=dlat_deg, color=np.where(perlat >= 0, "#c0392b", "#2c5aa0"))
     axt.axhline(0, color="0.5", lw=0.6); axt.tick_params(labelbottom=False, labelsize=7)
-    axt.set_ylabel("ΔAAM per lat\n(10²⁴ kg m² s⁻¹)", fontsize=7)
-    axt.margins(x=0)
-    axr.barh(p_hpa, perlev, height=layer, color=np.where(perlev >= 0, "#c0392b", "#2c5aa0"))
-    axr.axvline(0, color="0.5", lw=0.6); axr.tick_params(labelleft=False, labelsize=7)
-    axr.set_xlabel("ΔAAM per level\n(10²⁴)", fontsize=7)
+    axt.set_ylim(-lim_pl, lim_pl); axt.margins(x=0)
+    axt.set_ylabel("ΔAAM per °lat\n(10²⁴)", fontsize=7)
+    axt.set_title("vertical integral of the change below — where the global ΔAAM comes from",
+                  fontsize=7.5, color="0.4", pad=3)
 
-    cax = fig.add_axes([0.09, 0.045, 0.4, 0.013])
-    fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both",
-                 label="Δ AAM density  (10²⁰ kg m² s⁻¹ per °lat · hPa)").ax.tick_params(labelsize=6)
+    cfa = _xsec(axa, lat, p_hpa, absd, ubar_zm[k], lim_a, "ABSOLUTE  (forecast)")
+    cfc = _xsec(axc, lat, p_hpa, chgd, ubar_zm[k], lim_c, "CHANGE  vs analysis (tendency)")
+    axc.set_xlabel("Latitude", fontsize=8); axc.tick_params(labelsize=7); axa.tick_params(labelbottom=False)
+    fig.colorbar(cfa, cax=fig.add_axes([0.89, 0.42, 0.016, 0.20]), extend="both"
+                 ).set_label("abs (10²⁰/°·hPa)", fontsize=7)
+    fig.colorbar(cfc, cax=fig.add_axes([0.89, 0.10, 0.016, 0.20]), extend="both"
+                 ).set_label("Δ (10²⁰/°·hPa)", fontsize=7)
+
     valid = init + pd.Timedelta(hours=int(steps_h[k]))
-    sign = "+" if total >= 0 else "−"
-    fig.suptitle(f"AIFS-ENS relative AAM — where the forecast change happens\n"
+    sgn = "+" if total >= 0 else "−"
+    fig.suptitle(f"AIFS-ENS relative angular momentum — absolute vs forecast change\n"
                  f"init {init:%Y-%m-%d %HZ}  ·  Day {steps_h[k]//24} (valid {valid:%a %d %b})  ·  "
-                 f"global ΔAAM = {sign}{abs(total):.1f}×10²⁴ kg m² s⁻¹ vs analysis",
+                 f"global AAM {glob:.0f} ·  ΔAAM = {sgn}{abs(total):.1f}  (10²⁴ kg m² s⁻¹)",
                  fontsize=11, fontweight="bold")
-    axt.text(0.01, 0.80, "red = AAM gained · blue = lost   (black = zonal-mean u, m s⁻¹)",
-             transform=axt.transAxes, fontsize=6.5, color="0.4")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=125); plt.close(fig)
-    print(f"wrote {out}  (Day {steps_h[k]//24}, global ΔAAM {total:+.1f}×10²⁴)")
+    fig.savefig(out_fp, dpi=120); plt.close(fig)
+    return total
+
+
+def animate(aam, p_hpa, lat, steps_h, ubar_zm, init, anim_dir: Path, manifest: Path):
+    """Render every lead as a frame (fixed colour scale) + a viewer manifest."""
+    dlat_deg = abs(float(lat[1] - lat[0]))
+    layer = np.abs(np.gradient(p_hpa)); cell = dlat_deg * layer[:, None]
+    print(f"  abs global AAM (analysis) = {aam[0].sum()/TOT:.0f}×10²⁴  (expect ~150)")
+    # FIXED limits across all leads so the change visibly grows frame to frame
+    absd_all = aam / cell[None] / DENS
+    chgd_all = (aam - aam[0]) / cell[None] / DENS
+    perlat_all = (aam - aam[0]).sum(axis=1) / TOT
+    lims = (float(np.nanpercentile(np.abs(absd_all), 99.5)) or 1.0,
+            float(np.nanpercentile(np.abs(chgd_all), 99.5)) or 1.0,
+            float(np.nanpercentile(np.abs(perlat_all), 100)) * 1.05 or 1.0)
+
+    anim_dir = Path(anim_dir); anim_dir.mkdir(parents=True, exist_ok=True)
+    for old in anim_dir.glob("F*.webp"):
+        old.unlink()
+    frames = []
+    for k in range(len(steps_h)):
+        fp = anim_dir / f"F{k:02d}.webp"
+        total = _frame(aam, p_hpa, lat, ubar_zm, k, init, steps_h, lims, fp)
+        valid = init + pd.Timedelta(hours=int(steps_h[k]))
+        frames.append({"idx": k, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
+                       "label": f"Day {steps_h[k]//24} · ΔAAM {total:+.1f}"})
+    mani = {"ver": int(pd.Timestamp.now().timestamp()), "days": len(frames),
+            "regions": {"aam_zonal": {"label": "AAM anatomy — absolute & forecast change",
+                                      "n_frames": len(frames), "frames": frames}}}
+    Path(manifest).parent.mkdir(parents=True, exist_ok=True)
+    Path(manifest).write_text(json.dumps(mani))
+    print(f"wrote {len(frames)} frames + {Path(manifest).name}")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True); ap.add_argument("--time", default="00")
     ap.add_argument("--data-dir", default="data/aam")
-    ap.add_argument("--lead", type=int, default=-1, help="forecast hour (default: max |ΔAAM|)")
-    ap.add_argument("--out", default="../../assets/sst/aam_zonal.webp")
+    ap.add_argument("--anim-dir", default="../../assets/sst/anim/aam_zonal")
+    ap.add_argument("--manifest", default="../../assets/sst/anim/aam_zonal_manifest.json")
     a = ap.parse_args()
     dd = Path(a.data_dir)
     up = dd / f"u_{a.date}_{a.time}z_pf.grib2"; sp = dd / f"sp_{a.date}_{a.time}z_pf.grib2"
     init = pd.Timestamp(f"{a.date}T{a.time}:00")
     print("== AAM zonal anatomy (AIFS-ENS ens-mean) ==", flush=True)
     m, p_hpa, lat, steps_h, ubar_zm = zonal_aam_density(up, sp)
-    if a.lead < 0:                                              # pick the biggest swing
-        dlat = abs(float(lat[1] - lat[0]))
-        tot = [np.nansum((m[k] - m[0]) * np.abs(np.gradient(p_hpa))[:, None] * dlat)
-               for k in range(len(steps_h))]
-        a.lead = int(steps_h[int(np.argmax(np.abs(tot)))])
-    plot(m, p_hpa, lat, steps_h, ubar_zm, a.lead, init, Path(a.out))
+    animate(m, p_hpa, lat, steps_h, ubar_zm, init, Path(a.anim_dir), Path(a.manifest))
     return 0
 
 

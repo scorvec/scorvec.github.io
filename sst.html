@@ -103,6 +103,7 @@
   .anim-embed.subsurface { aspect-ratio: 1 / 1; }
   .anim-embed.torque { aspect-ratio: 1306 / 1055; }
   .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
+  .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
   @media (max-width: 768px) {
     .anim-embed { aspect-ratio: 1 / 1.08; }
     .anim-embed.subsurface { aspect-ratio: 1 / 1.12; }
@@ -417,6 +418,19 @@
       <div class="img-wrap"><img src="assets/sst/torque_seasonal.webp?v=202606032040" alt="Seasonal cycle of the three AAM surface-torque terms (friction, mountain, GWD) by latitude, ERA5 1991-2020" loading="lazy"></div>
       <div class="img-wrap"><img src="assets/sst/torque_seasonal_ts.webp?v=202606032040" alt="Seasonal cycle of the integrated AAM torque terms (friction, mountain, GWD, sum) for Global/NH/SH, ERA5 1991-2020" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS surface pressure (open data, CC BY 4.0) &middot; ERA5 orography + 1991–2020 torque climatology (Copernicus C3S, seasonal-cycle panel) &middot; daily means &middot; updated daily</span></div>
+    </div>
+
+    <!-- AAM ZONAL ANATOMY (where the AAM lives & where it changes) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Where the AAM Lives &mdash; and Where It&rsquo;s Changing</h2>
+        <p>The torques above change the <i>global</i> AAM; this shows <b>where</b> that angular momentum actually sits in the atmosphere and how the forecast moves it &mdash; a latitude&ndash;pressure cross-section of the relative-AAM density whose integral over latitude and pressure is the global AAM:</p>
+        <p style="text-align:center;font-size:0.95rem">$$m(\phi,p)=\frac{a^3}{g}\,[\,u\,]\,\cos^2\!\phi,\qquad M=\iint m\,d\phi\,dp$$</p>
+        <p><b>Top panel &mdash; absolute</b>: where the AAM resides, dominated by the <b>subtropical jets</b> (the winter hemisphere&rsquo;s is strongest). <b>Bottom &mdash; change vs the 0-h analysis</b>: where the forecast is <b>adding</b> (red) or <b>removing</b> (blue) angular momentum, with the per-latitude breakdown of the global &Delta;AAM along the top strip. Black contours are the zonal-mean zonal wind (bold = zero). The whole bottom panel integrates to the &Delta;AAM in the title, tying it back to the torque budget above. AIFS-ENS 50-member ensemble mean; the slider steps the forecast Day&nbsp;0&ndash;15, so the change grows from zero.</p>
+      </div>
+      <iframe class="anim-embed aam-zonal" src="sst_anim.html?embed=1&amp;manifest=aam_zonal_manifest.json&amp;region=aam_zonal"
+              title="AIFS-ENS relative AAM anatomy: absolute and forecast change by latitude and pressure" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind + surface pressure (open data, CC BY 4.0) &middot; ensemble mean &middot; updated daily</span></div>
     </div>
 
     <!-- MERIDIONAL MASS STREAMFUNCTION (Hadley cell response) -->

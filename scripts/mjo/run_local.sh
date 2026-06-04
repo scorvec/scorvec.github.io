@@ -69,6 +69,9 @@ fi
   --out "$REPO/assets/sst/soi_forecast.webp" || echo "SOI failed; continuing"
 "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
   --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
+"$PY" src/aam_zonal.py --date "$DATE" --time "$TIME" --data-dir data/aam \
+  --anim-dir "$REPO/assets/sst/anim/aam_zonal" \
+  --manifest "$REPO/assets/sst/anim/aam_zonal_manifest.json" || echo "AAM zonal failed; continuing"
 "$PY" src/torque_map_anim.py --date "$DATE" --time "$TIME" --data-dir data/torque \
   --sp-dir data/aam --u10-dir data/u10 --msl-dir data/msl \
   --anim-dir "$REPO/assets/sst/anim/torque" \
@@ -99,7 +102,8 @@ perl -0pi -e "s/((?:aam|aam_trend|torque_timeseries|torque_ranges|eq_wind_hovmol
     assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/aam.webp assets/sst/aam_trend.webp \
     assets/sst/anim/torque/ assets/sst/anim/torque_manifest.json assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp \
     assets/sst/anim/mmsf/ assets/sst/anim/mmsf_manifest.json assets/sst/mmsf_anom.webp \
-    && commit_push "MJO atmospheric products (wind/SOI + AAM/torque/MMSF): ${COMPACT} (local)" )
+    assets/sst/anim/aam_zonal/ assets/sst/anim/aam_zonal_manifest.json \
+    && commit_push "MJO atmospheric products (wind/SOI + AAM/torque/MMSF/zonal): ${COMPACT} (local)" )
 
 touch "$DONE_MARKER"
 ls -t data/.cycle_done_* 2>/dev/null | tail -n +9 | xargs -r rm   # keep last 8 markers
