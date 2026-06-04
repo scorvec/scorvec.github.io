@@ -53,6 +53,7 @@ def load_aifs_uwnd(path: Path) -> tuple[xr.DataArray, xr.DataArray]:
         raise ValueError(f"Variable u not found in {path}")
 
     da = ds["u"]
+    da = da.sel(isobaricInhPa=[850, 200])   # the file now carries all 13 AAM levels; keep 2
     if "number" in da.dims:
         da = da.chunk({"number": 1})   # process one ensemble member at a time
 

@@ -289,12 +289,13 @@ def download(date: str, time: str, out_dir: Path) -> None:
 
     print(f"Downloading AIFS-ENS {date} {time}Z via shared store …")
 
-    # u@200/850 for the RMM, fetched + verified once through the shared ECMWF store
-    # (robust fallbacks, atomic, deduped with any other consumer). The RMM reader
-    # expects data/aifs/<stem>.{pf,cf}.u.grib2, so hardlink the cache file there.
-    cyc = ecmwf.Cycle(date, time); steps = tuple(STEPS)
+    # u on the full 13 AAM levels, fetched + verified once through the shared store — the
+    # RMM reads only 200/850 from it, and the AAM/zonal builders reuse the very same cache
+    # file (no separate u@200/850 download). The RMM reader expects data/aifs/<stem>.{pf,cf}
+    # .u.grib2, so hardlink the cache file there.
+    cyc = ecmwf.Cycle(date, time); steps = tuple(ecmwf.STEPS)
     for typ in ("pf", "cf"):
-        src = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl", (200, 850), steps))
+        src = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl", ecmwf.LEVELS_AAM, steps))
         dst = out_dir / f"{stem}.{typ}.u.grib2"
         if dst.exists():
             dst.unlink()

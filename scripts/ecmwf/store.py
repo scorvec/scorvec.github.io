@@ -385,10 +385,8 @@ def registry() -> list[Spec]:
     S = tuple(STEPS)        # 0..360 (with analysis) — RMM, AAM, MMSF, ens
     F = tuple(STEPS_FC)     # 24..360 (forecast only) — SOI, Hovmöller
     return [
-        # MJO RMM — AIFS u @ 200/850
-        Spec("aifs-ens", "pf", "u", "pl", (200, 850), S),
-        Spec("aifs-ens", "cf", "u", "pl", (200, 850), S),
-        # AAM / torque / zonal — AIFS u @ 13 levels + surface pressure
+        # AIFS u @ 13 levels — serves BOTH the RMM (reads 200/850) and the AAM/zonal
+        # builders from one download (no separate u@200/850).
         Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM, S),
         Spec("aifs-ens", "cf", "u", "pl", LEVELS_AAM, S),
         Spec("aifs-ens", "pf", "sp", "sfc", (), S),
