@@ -24,6 +24,8 @@ import time as _time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
+import store
 import download_aifs
 import eq_hovmoller
 import soi_forecast
@@ -31,9 +33,6 @@ from download_aifs import latest_run
 
 
 def fetch(date: str, time: str, data_root: Path) -> None:
-    def _size(d: Path) -> float:
-        return sum(f.stat().st_size for f in d.glob("*.grib2")) / 1e9 if d.exists() else 0.0
-
     # RMM is the core product — let a failure here propagate (fail the cycle).
     print("== AIFS-ENS u@200/850 (RMM) ==", flush=True)
     download_aifs.download(date, time, data_root / "aifs")
@@ -68,10 +67,11 @@ def fetch(date: str, time: str, data_root: Path) -> None:
     except Exception as e:                                  # noqa: BLE001
         print(f"  AAM fields: skipped ({repr(e)[:70]})", flush=True)
     try:
-        import torque_map_anim as _tma
+        import torque_map_anim as _tma                      # gate on the private builder
         print("== 10v (surface torque) ==", flush=True)
+        cyc = store.Cycle(date, time); steps = tuple(_tma.DAILY_STEPS)
         for typ in ("cf", "pf"):
-            _tma._dl(data_root / "torque", date, time, "10v", typ)
+            store.ensure(cyc, store.Spec("aifs-ens", typ, "10v", "sfc", (), steps))
         dirs.append("torque")
     except ImportError:
         pass
@@ -86,8 +86,10 @@ def fetch(date: str, time: str, data_root: Path) -> None:
     except Exception as e:                                  # noqa: BLE001
         print(f"  v field: skipped ({repr(e)[:70]})", flush=True)
 
-    total = sum(_size(data_root / d) for d in dirs)
-    print(f"Cycle cache ready ({total:.2f} GB across {'/'.join(dirs)}).")
+    cyc_dir = store.CACHE / store.Cycle(date, time).tag
+    total = (sum(f.stat().st_size for f in cyc_dir.rglob("*.grib2")) / 1e9
+             if cyc_dir.exists() else 0.0)
+    print(f"Cycle cache ready ({total:.2f} GB in {cyc_dir}).")
 
 
 def main() -> int:

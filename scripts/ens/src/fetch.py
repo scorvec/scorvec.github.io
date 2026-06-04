@@ -139,29 +139,22 @@ def fetch_aifs(date: str, run: str, var: str) -> np.ndarray:
     retry + the GRIB completeness check) to pull just z@500 / 2t for all members, then
     take the mean. AIFS keys 500 mb as 'z' (geopotential, m²/s²) → its own param/scale."""
     v = VARS[var]; lat, lon = grid(var)
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mjo" / "src"))
-    from download_aifs import retrieve_parallel
-    req = dict(model="aifs-ens", date=f"{date[:4]}-{date[4:6]}-{date[6:8]}", time=int(run),
-               stream="enfo", levtype=v["ecmwf_levtype"], param=v["aifs_param"],
-               step=list(LEADS), type="pf")
-    if v["ecmwf_levtype"] == "pl":
-        req["levelist"] = [int(x) for x in v["ecmwf_levelist"]]
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
+    import store as ecmwf                                    # shared ECMWF download manager
+    levels = tuple(int(x) for x in v["ecmwf_levelist"]) if v["ecmwf_levtype"] == "pl" else ()
+    cyc = ecmwf.Cycle(date, run)
+    tgt = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", v["aifs_param"],
+                                       v["ecmwf_levtype"], levels, tuple(LEADS)))
     out = np.full((len(LEADS), len(lat), len(lon)), np.nan, "float32")
-    tgt = tempfile.mktemp(suffix=".grib2")
-    try:
-        retrieve_parallel(req, tgt)                          # robust parallel member pull
-        da = _members_da(tgt)                                # (number, step, lat, lon)
-        nm = da.sizes.get("number", 1)
-        mean = da.mean(dim="number") if "number" in da.dims else da   # ens MEAN
-        steps_h = [int(s / np.timedelta64(1, "h")) for s in np.atleast_1d(mean.step.values)]
-        for i, ld in enumerate(LEADS):
-            if ld in steps_h:
-                fld = mean.isel(step=steps_h.index(ld)) if "step" in mean.dims else mean
-                out[i] = _to_common(fld, v["aifs_scale"], lat, lon)
-            print(f"  AIFS-ENS {var} f{ld:03d}: {nm if ld in steps_h else 'MISSING'} members (mean)", flush=True)
-    finally:
-        if os.path.exists(tgt):
-            os.remove(tgt)
+    da = _members_da(str(tgt))                           # (number, step, lat, lon)
+    nm = da.sizes.get("number", 1)
+    mean = da.mean(dim="number") if "number" in da.dims else da   # ens MEAN
+    steps_h = [int(s / np.timedelta64(1, "h")) for s in np.atleast_1d(mean.step.values)]
+    for i, ld in enumerate(LEADS):
+        if ld in steps_h:
+            fld = mean.isel(step=steps_h.index(ld)) if "step" in mean.dims else mean
+            out[i] = _to_common(fld, v["aifs_scale"], lat, lon)
+        print(f"  AIFS-ENS {var} f{ld:03d}: {nm if ld in steps_h else 'MISSING'} members (mean)", flush=True)
     return out
 
 

@@ -29,7 +29,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 sys.path.insert(0, str(Path(__file__).parent))
-from download_aifs import _retrieve, retrieve_parallel   # mirror fallback + parallel pf
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
+import store as ecmwf                                    # shared ECMWF download manager
 
 SOI_URL = ("https://data.longpaddock.qld.gov.au/SeasonalClimateOutlook/"
            "SouthernOscillationIndex/SOIDataFiles/DailySOI1933-1992Base.txt")
@@ -86,18 +87,12 @@ def soi_of(diff_hpa: np.ndarray, months: np.ndarray, normals: dict) -> np.ndarra
 
 
 # ── forecast: ensemble Tahiti−Darwin MSL ──────────────────────────────────────
-def download_msl(cfg: dict, date: str, time: str, out_dir: Path) -> dict:
-    out_dir.mkdir(parents=True, exist_ok=True)
-    paths = {}
-    for typ in cfg["types"]:
-        p = out_dir / f"msl_{cfg['model']}_{date}_{time}z_{typ}.grib2"
-        if not p.exists():
-            print(f"  {cfg['model']}/{typ}: downloading msl (daily steps) …", flush=True)
-            req = dict(model=cfg["model"], date=date, time=int(time), stream="enfo",
-                       type=typ, levtype="sfc", param="msl", step=DAILY_STEPS)
-            (retrieve_parallel if typ == "pf" else _retrieve)(req, str(p))
-        paths[typ] = p
-    return paths
+def download_msl(cfg: dict, date: str, time: str, out_dir: Path = None) -> dict:
+    """Ensure msl (forecast days) for this model via the shared store; AIFS cf+pf is
+    deduped with the torque budget. Returns {typ: cache_path}."""
+    cyc = ecmwf.Cycle(date, time); steps = tuple(DAILY_STEPS)
+    return {typ: ecmwf.ensure(cyc, ecmwf.Spec(cfg["model"], typ, "msl", "sfc", (), steps))
+            for typ in cfg["types"]}
 
 
 def member_diff(paths: dict) -> xr.DataArray:

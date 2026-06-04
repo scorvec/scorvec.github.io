@@ -45,8 +45,10 @@ MIN_RATE = float(os.environ.get("ECMWF_DL_MIN_RATE", "40000"))   # B/s; below �
 STALL_SECS = int(os.environ.get("ECMWF_DL_STALL_SECS", "240"))
 TRIES = int(os.environ.get("ECMWF_DL_TRIES", "4"))
 
-# standard daily forecast steps (analysis + Day 1..15); a few products go to 360h
+# Daily steps. STEPS = analysis + Day 1..15 (used by RMM/AAM/MMSF, which want the 0-h
+# analysis). STEPS_FC = forecast days only (used by the SOI/Hovmöller, which don't).
 STEPS = [0] + list(range(24, 361, 24))
+STEPS_FC = list(range(24, 361, 24))
 LEVELS_AAM = (50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000)
 
 
@@ -76,7 +78,11 @@ class Spec:
     @property
     def filename(self) -> str:
         lv = "-".join(str(x) for x in self.levelist) if self.levelist else self.levtype
-        return f"{self.type}_{self.param}_{lv}.grib2"
+        # step signature so two consumers wanting the same param but DIFFERENT step sets
+        # (e.g. SOI's 24-360 vs AAM's 0-360) don't collide on one file
+        s = self.steps
+        sig = f"s{int(s[0])}-{int(s[-1])}x{len(s)}"
+        return f"{self.type}_{self.param}_{lv}_{sig}.grib2"
 
     def members(self):               # member set for the message-count expectation
         return list(range(1, PF_MEMBERS + 1)) if self.type == "pf" else None
@@ -308,7 +314,8 @@ def open_members(cycle: Cycle, spec: Spec):
 
 # ── registry: everything a 00Z/12Z cycle needs (for the pre-fetcher) ─────────────
 def registry() -> list[Spec]:
-    S = tuple(STEPS)
+    S = tuple(STEPS)        # 0..360 (with analysis) — RMM, AAM, MMSF, ens
+    F = tuple(STEPS_FC)     # 24..360 (forecast only) — SOI, Hovmöller
     return [
         # MJO RMM — AIFS u @ 200/850
         Spec("aifs-ens", "pf", "u", "pl", (200, 850), S),
@@ -318,17 +325,20 @@ def registry() -> list[Spec]:
         Spec("aifs-ens", "cf", "u", "pl", LEVELS_AAM, S),
         Spec("aifs-ens", "pf", "sp", "sfc", (), S),
         Spec("aifs-ens", "cf", "sp", "sfc", (), S),
-        # MMSF — AIFS v @ 13 levels (analysis-driven, but fetch full for consistency)
-        Spec("aifs-ens", "pf", "v", "pl", LEVELS_AAM, S),
-        # Hovmöller — AIFS + IFS 10u
-        Spec("aifs-ens", "pf", "10u", "sfc", (), S),
-        Spec("aifs-ens", "cf", "10u", "sfc", (), S),
-        Spec("ifs", "pf", "10u", "sfc", (), S),
-        # SOI — AIFS + IFS msl
-        Spec("aifs-ens", "pf", "msl", "sfc", (), S),
-        Spec("aifs-ens", "cf", "msl", "sfc", (), S),
-        Spec("ifs", "pf", "msl", "sfc", (), S),
-        # ensembles page — AIFS z @ 500 + 2 m temperature
+        # Hovmöller — AIFS + IFS 10u (forecast days only)
+        Spec("aifs-ens", "pf", "10u", "sfc", (), F),
+        Spec("aifs-ens", "cf", "10u", "sfc", (), F),
+        Spec("ifs", "pf", "10u", "sfc", (), F),
+        # SOI — AIFS + IFS msl (forecast days only)
+        Spec("aifs-ens", "pf", "msl", "sfc", (), F),
+        Spec("aifs-ens", "cf", "msl", "sfc", (), F),
+        Spec("ifs", "pf", "msl", "sfc", (), F),
+        # torque map — AIFS 10v (forecast days; 10u/msl/sp above are reused)
+        Spec("aifs-ens", "pf", "10v", "sfc", (), F),
+        Spec("aifs-ens", "cf", "10v", "sfc", (), F),
+        # MMSF — AIFS analysis (step 0) meridional wind @ 13 levels
+        Spec("aifs-ens", "cf", "v", "pl", LEVELS_AAM, (0,)),
+        # ensembles page — AIFS z @ 500 + 2 m temperature (with analysis Day 0)
         Spec("aifs-ens", "pf", "z", "pl", (500,), S),
         Spec("aifs-ens", "pf", "2t", "sfc", (), S),
     ]

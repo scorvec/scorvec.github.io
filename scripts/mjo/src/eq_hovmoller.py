@@ -26,7 +26,8 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 sys.path.insert(0, str(Path(__file__).parent))
-from download_aifs import _retrieve, retrieve_parallel   # mirror fallback + parallel pf
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
+import store as ecmwf                                    # shared ECMWF download manager
 from build_eq_wind_clim import eval_clim
 
 DAILY_STEPS = list(range(24, 361, 24))          # forecast days 1..15
@@ -41,19 +42,13 @@ MODELS = {
 }
 
 
-def download(model_key: str, date: str, time: str, out_dir: Path) -> dict:
+def download(model_key: str, date: str, time: str, out_dir: Path = None) -> dict:
+    """Ensure 10u (forecast days) for this model via the shared store; AIFS cf+pf is
+    deduped with the torque budget. Returns {typ: cache_path}."""
     cfg = MODELS[model_key]
-    out_dir.mkdir(parents=True, exist_ok=True)
-    paths = {}
-    for typ in cfg["types"]:
-        p = out_dir / f"u10_{model_key}_{date}_{time}z_{typ}.grib2"
-        if not p.exists():
-            print(f"  {model_key}/{typ}: downloading 10u (daily steps) …", flush=True)
-            req = dict(model=cfg["model"], date=date, time=int(time), stream="enfo",
-                       type=typ, levtype="sfc", param="10u", step=DAILY_STEPS)
-            (retrieve_parallel if typ == "pf" else _retrieve)(req, str(p))
-        paths[typ] = p
-    return paths
+    cyc = ecmwf.Cycle(date, time); steps = tuple(DAILY_STEPS)
+    return {typ: ecmwf.ensure(cyc, ecmwf.Spec(cfg["model"], typ, "10u", "sfc", (), steps))
+            for typ in cfg["types"]}
 
 
 def ensemble_mean_band(paths: dict) -> xr.DataArray:

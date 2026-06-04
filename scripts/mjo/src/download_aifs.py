@@ -18,10 +18,14 @@ import argparse
 import glob
 import os
 import shutil
+import sys
 import threading
 from pathlib import Path
 
 from ecmwf.opendata import Client
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
+import store as ecmwf                                    # shared ECMWF download manager
 
 
 DATA_DIR = Path(__file__).parent.parent / "data" / "aifs"
@@ -283,34 +287,22 @@ def download(date: str, time: str, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = f"aifs_{date}_{time}z"
 
-    print(f"Downloading AIFS-ENS {date} {time}Z (sources: {','.join(SOURCES)}) …")
+    print(f"Downloading AIFS-ENS {date} {time}Z via shared store …")
 
-    common = dict(
-        model="aifs-ens",
-        date=date,
-        time=int(time),
-        stream="enfo",
-        levtype="pl",
-        levelist=[200, 850],
-        param="u",
-        step=STEPS,
-    )
-
-    # Perturbed forecasts (parallel member streams — ~3x faster)
-    pf_path = out_dir / f"{stem}.pf.u.grib2"
-    if not pf_path.exists():
-        src = retrieve_parallel({**common, "type": "pf"}, str(pf_path))
-        print(f"  pf u-wind saved via {src}: {pf_path.name}")
-    else:
-        print(f"  {pf_path.name}: already exists, skipping")
-
-    # Control forecast
-    cf_path = out_dir / f"{stem}.cf.u.grib2"
-    if not cf_path.exists():
-        src = _retrieve({**common, "type": "cf"}, str(cf_path))
-        print(f"  cf u-wind saved via {src}: {cf_path.name}")
-    else:
-        print(f"  {cf_path.name}: already exists, skipping")
+    # u@200/850 for the RMM, fetched + verified once through the shared ECMWF store
+    # (robust fallbacks, atomic, deduped with any other consumer). The RMM reader
+    # expects data/aifs/<stem>.{pf,cf}.u.grib2, so hardlink the cache file there.
+    cyc = ecmwf.Cycle(date, time); steps = tuple(STEPS)
+    for typ in ("pf", "cf"):
+        src = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl", (200, 850), steps))
+        dst = out_dir / f"{stem}.{typ}.u.grib2"
+        if dst.exists():
+            dst.unlink()
+        try:
+            os.link(src, dst)                       # free same-filesystem pointer
+        except OSError:
+            shutil.copy2(src, dst)
+        print(f"  {typ} u-wind: {dst.name} -> {Path(src).name}")
 
     print("Download complete.")
 

@@ -172,12 +172,16 @@ def animate(aam, p_hpa, lat, steps_h, ubar_zm, init, anim_dir: Path, manifest: P
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True); ap.add_argument("--time", default="00")
-    ap.add_argument("--data-dir", default="data/aam")
     ap.add_argument("--anim-dir", default="../../assets/sst/anim/aam_zonal")
     ap.add_argument("--manifest", default="../../assets/sst/anim/aam_zonal_manifest.json")
     a = ap.parse_args()
-    dd = Path(a.data_dir)
-    up = dd / f"u_{a.date}_{a.time}z_pf.grib2"; sp = dd / f"sp_{a.date}_{a.time}z_pf.grib2"
+    # shared store: the same AIFS u@13-levels + sp the AAM plot pulls (fetch-once)
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
+    import store as ecmwf
+    from aam import LEVELS, DAILY_STEPS
+    cyc = ecmwf.Cycle(a.date, a.time); steps = tuple(DAILY_STEPS)
+    up = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", tuple(LEVELS), steps))
+    sp = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "sp", "sfc", (), steps))
     init = pd.Timestamp(f"{a.date}T{a.time}:00")
     print("== AAM zonal anatomy (AIFS-ENS ens-mean) ==", flush=True)
     m, p_hpa, lat, steps_h, ubar_zm = zonal_aam_density(up, sp)
