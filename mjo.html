@@ -47,6 +47,10 @@
                border-radius: 4px; transition: border-color .15s; }
   .thumb:hover img { border-color: var(--accent); }
   .thumb span { display: block; margin-top: 0.35rem; }
+  .anim-embed { width: 100%; max-width: 720px; margin: 0 auto; display: block;
+               border: 1px solid var(--rule); border-radius: 6px; background: #0f0f0d;
+               aspect-ratio: 1259 / 1235; }
+  @media (max-width: 768px) { .anim-embed { aspect-ratio: 1259 / 1330; } }
   .meta { color: var(--muted); font-size: 0.8rem; margin-top: 2.5rem;
           border-top: 1px solid var(--rule); padding-top: 1rem; }
   .empty { color: var(--muted); padding: 3rem 0; text-align: center; }
@@ -75,18 +79,9 @@
   <figcaption>Latest init: <strong>2026-06-04 12Z</strong></figcaption>
 </figure>
     <h2>Recent runs</h2>
-  <div class="grid">
-    <a class="thumb" href="assets/mjo/rmm_20260604_00z.png?v=2026060412"><img src="assets/mjo/rmm_20260604_00z.png?v=2026060412" loading="lazy" alt="RMM 2026-06-04 00Z"><span>2026-06-04 00Z</span></a>
-    <a class="thumb" href="assets/mjo/rmm_20260603_12z.png?v=2026060412"><img src="assets/mjo/rmm_20260603_12z.png?v=2026060412" loading="lazy" alt="RMM 2026-06-03 12Z"><span>2026-06-03 12Z</span></a>
-    <a class="thumb" href="assets/mjo/rmm_20260603_00z.png?v=2026060412"><img src="assets/mjo/rmm_20260603_00z.png?v=2026060412" loading="lazy" alt="RMM 2026-06-03 00Z"><span>2026-06-03 00Z</span></a>
-    <a class="thumb" href="assets/mjo/rmm_20260602_12z.png?v=2026060412"><img src="assets/mjo/rmm_20260602_12z.png?v=2026060412" loading="lazy" alt="RMM 2026-06-02 12Z"><span>2026-06-02 12Z</span></a>
-    <a class="thumb" href="assets/mjo/rmm_20260602_00z.png?v=2026060412"><img src="assets/mjo/rmm_20260602_00z.png?v=2026060412" loading="lazy" alt="RMM 2026-06-02 00Z"><span>2026-06-02 00Z</span></a>
-    <a class="thumb" href="assets/mjo/rmm_20260601_12z.png?v=2026060412"><img src="assets/mjo/rmm_20260601_12z.png?v=2026060412" loading="lazy" alt="RMM 2026-06-01 12Z"><span>2026-06-01 12Z</span></a>
-    <a class="thumb" href="assets/mjo/rmm_20260601_00z.png?v=2026060412"><img src="assets/mjo/rmm_20260601_00z.png?v=2026060412" loading="lazy" alt="RMM 2026-06-01 00Z"><span>2026-06-01 00Z</span></a>
-    <a class="thumb" href="assets/mjo/rmm_20260531_12z.png?v=2026060412"><img src="assets/mjo/rmm_20260531_12z.png?v=2026060412" loading="lazy" alt="RMM 2026-05-31 12Z"><span>2026-05-31 12Z</span></a>
-    <a class="thumb" href="assets/mjo/rmm_20260530_12z.png?v=2026060412"><img src="assets/mjo/rmm_20260530_12z.png?v=2026060412" loading="lazy" alt="RMM 2026-05-30 12Z"><span>2026-05-30 12Z</span></a>
-  </div>
-  <p class="meta">Updated 2026-06-04 21:02Z · Auto-generated from the AIFS-ENS open-data
+  <p class="lede" style="margin-bottom:1rem">Drag the slider to step through successive forecast runs (oldest → latest) and watch the predicted MJO track evolve.</p>
+  <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>
+  <p class="meta">Updated 2026-06-04 21:10Z · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed.</p>
 </main>

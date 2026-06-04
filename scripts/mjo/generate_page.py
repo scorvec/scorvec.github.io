@@ -8,12 +8,14 @@ Shows the most recent plot as the hero, the latest 00Z and 12Z, and a dated
 archive grid. Styled to match the rest of scorvec.com.
 """
 
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 ASSETS = Path("assets/mjo")
 OUT = Path("mjo.html")
+MANIFEST = ASSETS / "rmm_manifest.json"
 RE = re.compile(r"rmm_(\d{8})_(\d{2})z\.png$")
 
 NAV = """<nav>
@@ -44,6 +46,19 @@ def label(date, hh):
     return f"{date[:4]}-{date[4:6]}-{date[6:8]} {hh}Z"
 
 
+def write_manifest(items):
+    """Animator manifest for the sst_anim viewer: successive RMM runs, oldest→newest
+    (the slider then defaults to the latest). Frames live in assets/mjo/ → base=assets,
+    region=mjo, so the viewer loads assets/mjo/<file>."""
+    frames = [{"idx": i, "file": p.name,
+               "date": f"{d[:4]}-{d[4:6]}-{d[6:8]}", "label": label(d, h)}
+              for i, (d, h, p) in enumerate(reversed(items))]
+    manifest = {"ver": int(datetime.now(timezone.utc).timestamp()), "days": len(frames),
+                "regions": {"mjo": {"label": "AIFS-ENS RMM — successive forecast runs",
+                                    "n_frames": len(frames), "frames": frames}}}
+    MANIFEST.write_text(json.dumps(manifest))
+
+
 def main():
     items = discover()
     updated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%MZ")
@@ -55,14 +70,14 @@ def main():
                 f'  <img src="{p.as_posix()}?v={ver}" alt="AIFS-ENS RMM {label(d,h)}" loading="eager">\n'
                 f'  <figcaption>Latest init: <strong>{label(d, h)}</strong></figcaption>\n'
                 f'</figure>')
-        cards = "\n".join(
-            f'    <a class="thumb" href="{p.as_posix()}?v={ver}">'
-            f'<img src="{p.as_posix()}?v={ver}" loading="lazy" alt="RMM {label(d,h)}">'
-            f'<span>{label(d, h)}</span></a>'
-            for d, h, p in items[1:31]
-        )
-        archive = (f'  <h2>Recent runs</h2>\n  <div class="grid">\n{cards}\n  </div>'
-                   if cards else "")
+        write_manifest(items)
+        archive = ('  <h2>Recent runs</h2>\n'
+                   '  <p class="lede" style="margin-bottom:1rem">Drag the slider to step through '
+                   'successive forecast runs (oldest → latest) and watch the predicted MJO track evolve.</p>\n'
+                   '  <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets'
+                   '&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" '
+                   'title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>'
+                   if len(items) > 1 else "")
     else:
         hero = '<p class="empty">No forecasts yet — the first scheduled run will populate this page.</p>'
         archive = ""
@@ -116,6 +131,10 @@ def main():
                border-radius: 4px; transition: border-color .15s; }}
   .thumb:hover img {{ border-color: var(--accent); }}
   .thumb span {{ display: block; margin-top: 0.35rem; }}
+  .anim-embed {{ width: 100%; max-width: 720px; margin: 0 auto; display: block;
+               border: 1px solid var(--rule); border-radius: 6px; background: #0f0f0d;
+               aspect-ratio: 1259 / 1235; }}
+  @media (max-width: 768px) {{ .anim-embed {{ aspect-ratio: 1259 / 1330; }} }}
   .meta {{ color: var(--muted); font-size: 0.8rem; margin-top: 2.5rem;
           border-top: 1px solid var(--rule); padding-top: 1rem; }}
   .empty {{ color: var(--muted); padding: 3rem 0; text-align: center; }}
