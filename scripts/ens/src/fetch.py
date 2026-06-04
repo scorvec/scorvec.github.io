@@ -76,12 +76,15 @@ def _open_grib(path: str) -> xr.Dataset:
     return xr.open_dataset(path, engine="cfgrib", backend_kwargs={"indexpath": ""})
 
 
-def _members_da(path: str) -> xr.DataArray:
+def _members_da(path: str, short: str = None) -> xr.DataArray:
     """Open an ensemble GRIB that mixes control (cf) + perturbed (pf) members (which
     cfgrib can't merge in one Dataset) and return the DataArray that carries the
-    'number' member dimension."""
+    'number' member dimension. `short` filters one field out of a batched file."""
     import cfgrib
-    dss = cfgrib.open_datasets(path, backend_kwargs={"indexpath": ""})
+    bk = {"indexpath": ""}
+    if short:
+        bk["filter_by_keys"] = {"shortName": short}
+    dss = cfgrib.open_datasets(path, backend_kwargs=bk)
     cand = [ds for ds in dss if "number" in ds.dims] or dss
     ds = cand[0]
     return ds[list(ds.data_vars)[0]]
@@ -141,12 +144,15 @@ def fetch_aifs(date: str, run: str, var: str) -> np.ndarray:
     v = VARS[var]; lat, lon = grid(var)
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
     import store as ecmwf                                    # shared ECMWF download manager
-    levels = tuple(int(x) for x in v["ecmwf_levelist"]) if v["ecmwf_levtype"] == "pl" else ()
     cyc = ecmwf.Cycle(date, run)
-    tgt = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", v["aifs_param"],
-                                       v["ecmwf_levtype"], levels, tuple(LEADS)))
+    if v["ecmwf_levtype"] == "sfc":                       # 2t comes from the batched surface file
+        tgt = ecmwf.sfc_path(cyc, "aifs-ens", "pf", v["aifs_param"])
+        da = _members_da(str(tgt), short=v["aifs_param"])
+    else:
+        levels = tuple(int(x) for x in v["ecmwf_levelist"])
+        tgt = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", v["aifs_param"], "pl", levels, tuple(LEADS)))
+        da = _members_da(str(tgt))                       # (number, step, lat, lon)
     out = np.full((len(LEADS), len(lat), len(lon)), np.nan, "float32")
-    da = _members_da(str(tgt))                           # (number, step, lat, lon)
     nm = da.sizes.get("number", 1)
     mean = da.mean(dim="number") if "number" in da.dims else da   # ens MEAN
     steps_h = [int(s / np.timedelta64(1, "h")) for s in np.atleast_1d(mean.step.values)]

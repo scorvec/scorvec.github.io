@@ -55,16 +55,18 @@ def fetch(date: str, time: str, data_root: Path) -> None:
         except Exception as e:                              # noqa: BLE001
             print(f"  msl/{cfg['model']}: skipped ({repr(e)[:70]})", flush=True)
 
-    # z500 + 2 m temperature (full cf+pf ensemble) — kept in the store for the
-    # ensembles page and general later reuse. Best-effort.
-    print("== AIFS-ENS z@500 + 2t (ensemble store) ==", flush=True)
+    # z@500 (pl) + the analysis surface batch (sp + 2t) — for the ensembles page / AAM /
+    # general reuse. The forecast surface batch (10u/10v/msl) was already pulled above by
+    # the Hovmöller/SOI downloads. Best-effort.
+    print("== AIFS-ENS z@500 + surface analysis batch (sp/2t) ==", flush=True)
     cyc = store.Cycle(date, time); S = tuple(store.STEPS)
-    for param, levtype, levels in (("z", "pl", (500,)), ("2t", "sfc", ())):
-        for typ in ("cf", "pf"):
-            try:
-                store.ensure(cyc, store.Spec("aifs-ens", typ, param, levtype, levels, S))
-            except Exception as e:                          # noqa: BLE001
-                print(f"  {param}/{typ}: skipped ({repr(e)[:70]})", flush=True)
+    specs = [store.Spec("aifs-ens", t, "z", "pl", (500,), S) for t in ("cf", "pf")]
+    specs += [store.sfc_spec("aifs-ens", t, "an") for t in ("cf", "pf")]
+    for sp in specs:
+        try:
+            store.ensure(cyc, sp)
+        except Exception as e:                              # noqa: BLE001
+            print(f"  {sp.filename}: skipped ({repr(e)[:60]})", flush=True)
 
     # Heavy SST-page atmospheric fields (AAM / torque / MMSF). These builders are
     # laptop-only (not in the public Action checkout), so guard the imports: where
@@ -80,16 +82,16 @@ def fetch(date: str, time: str, data_root: Path) -> None:
     except Exception as e:                                  # noqa: BLE001
         print(f"  AAM fields: skipped ({repr(e)[:70]})", flush=True)
     try:
-        import torque_map_anim as _tma                      # gate on the private builder
-        print("== 10v (surface torque) ==", flush=True)
-        cyc = store.Cycle(date, time); steps = tuple(_tma.DAILY_STEPS)
-        for typ in ("cf", "pf"):
-            store.ensure(cyc, store.Spec("aifs-ens", typ, "10v", "sfc", (), steps))
+        import torque_map_anim                              # gate on the private builder
+        print("== surface forecast batch (10u/10v/msl — torque needs 10v) ==", flush=True)
+        cyc = store.Cycle(date, time)
+        for typ in ("cf", "pf"):                            # mostly a cache hit (Hovmöller pulled it)
+            store.ensure(cyc, store.sfc_spec("aifs-ens", typ, "fc"))
         dirs.append("torque")
     except ImportError:
         pass
     except Exception as e:                                  # noqa: BLE001
-        print(f"  10v: skipped ({repr(e)[:70]})", flush=True)
+        print(f"  surface-fc (10v): skipped ({repr(e)[:70]})", flush=True)
     try:
         import mmsf
         print("== v@13lev step0 (MMSF) ==", flush=True)

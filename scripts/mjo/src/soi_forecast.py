@@ -90,9 +90,8 @@ def soi_of(diff_hpa: np.ndarray, months: np.ndarray, normals: dict) -> np.ndarra
 def download_msl(cfg: dict, date: str, time: str, out_dir: Path = None) -> dict:
     """Ensure msl (forecast days) for this model via the shared store; AIFS cf+pf is
     deduped with the torque budget. Returns {typ: cache_path}."""
-    cyc = ecmwf.Cycle(date, time); steps = tuple(DAILY_STEPS)
-    return {typ: ecmwf.ensure(cyc, ecmwf.Spec(cfg["model"], typ, "msl", "sfc", (), steps))
-            for typ in cfg["types"]}
+    cyc = ecmwf.Cycle(date, time)
+    return {typ: ecmwf.sfc_path(cyc, cfg["model"], typ, "msl") for typ in cfg["types"]}
 
 
 def member_diff(paths: dict) -> xr.DataArray:
@@ -100,7 +99,8 @@ def member_diff(paths: dict) -> xr.DataArray:
     parts = []
     for p in paths.values():
         ds = xr.open_dataset(p, engine="cfgrib",
-                             backend_kwargs={"indexpath": ""}, chunks={"number": 1})
+                             backend_kwargs={"filter_by_keys": {"shortName": "msl"}, "indexpath": ""},
+                             chunks={"number": 1})       # msl out of the batched surface file
         msl = ds[[v for v in ds.data_vars][0]]
         if float(msl.longitude.min()) < 0:
             msl = msl.assign_coords(longitude=msl.longitude % 360).sortby("longitude")

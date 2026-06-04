@@ -112,10 +112,14 @@ class Cycle:
 class Spec:
     model: str                       # "aifs-ens" | "ifs"
     type: str                        # "pf" | "cf" | "em"
-    param: str                       # "u" | "z" | "2t" | "10u" | "10v" | "msl" | "sp"
+    param: object                    # one param str, or a tuple of params batched in 1 retrieve
     levtype: str                     # "pl" | "sfc"
     levelist: tuple = ()             # () for sfc
     steps: tuple = tuple(STEPS)
+
+    @property
+    def params(self) -> tuple:       # normalise to a tuple
+        return self.param if isinstance(self.param, tuple) else (self.param,)
 
     @property
     def filename(self) -> str:
@@ -124,7 +128,7 @@ class Spec:
         # (e.g. SOI's 24-360 vs AAM's 0-360) don't collide on one file
         s = self.steps
         sig = f"s{int(s[0])}-{int(s[-1])}x{len(s)}"
-        return f"{self.type}_{self.param}_{lv}_{sig}.grib2"
+        return f"{self.type}_{'-'.join(self.params)}_{lv}_{sig}.grib2"
 
     def members(self):               # member set for the message-count expectation
         return list(range(1, PF_MEMBERS + 1)) if self.type == "pf" else None
@@ -133,6 +137,7 @@ class Spec:
         n = len(self.members()) if self.type == "pf" else 1
         n *= len(self.steps)
         n *= len(self.levelist) if self.levtype == "pl" else 1
+        n *= len(self.params)
         return n
 
 
@@ -313,7 +318,7 @@ def _robust_chunked(req: dict, target: str, parallel: bool, members) -> str:
 
 def _msgs_for(req: dict, members) -> int:
     n = len(members) if members else 1
-    for k in ("step", "levelist"):
+    for k in ("step", "levelist", "param"):
         v = req.get(k)
         if isinstance(v, (list, tuple)):
             n *= len(v)
@@ -333,8 +338,10 @@ def _lock(p: Path):
 
 
 def _to_req(cycle: Cycle, spec: Spec) -> dict:
+    pm = list(spec.params)
     r = dict(model=spec.model, date=cycle.iso, time=int(cycle.time), stream="enfo",
-             type=spec.type, param=spec.param, levtype=spec.levtype, step=list(spec.steps))
+             type=spec.type, param=pm if len(pm) > 1 else pm[0],
+             levtype=spec.levtype, step=list(spec.steps))
     if spec.levtype == "pl":
         r["levelist"] = [int(x) for x in spec.levelist]
     return r
@@ -380,36 +387,50 @@ def open_members(cycle: Cycle, spec: Spec):
     return cand[0][list(cand[0].data_vars)[0]]
 
 
+# ── surface-field batches ─────────────────────────────────────────────────────
+# One retrieve per (model, type) per step-class, instead of a separate pull per field.
+# A single retrieve carries one step set, so split by step-class: forecast-step fields
+# (10u/10v/msl — Hovmöller/SOI/torque) vs analysis-included fields (sp/2t — AAM/ens).
+# Consumers open the batch with backend_kwargs={"filter_by_keys": {"shortName": <field>}}.
+SFC_FC = ("10u", "10v", "msl")        # forecast steps (24..360)
+SFC_AN = ("sp", "2t")                 # incl the 0-h analysis (0..360)
+SFC_IFS = ("10u", "msl")              # IFS only feeds the Hovmöller + SOI
+
+
+def sfc_spec(model: str, typ: str, kind: str) -> Spec:
+    """Batched surface Spec. kind='fc' (forecast steps) | 'an' (incl analysis)."""
+    if model == "ifs":
+        return Spec("ifs", typ, SFC_IFS, "sfc", (), tuple(STEPS_FC))
+    if kind == "an":
+        return Spec(model, typ, SFC_AN, "sfc", (), tuple(STEPS))
+    return Spec(model, typ, SFC_FC, "sfc", (), tuple(STEPS_FC))
+
+
+def sfc_path(cycle: Cycle, model: str, typ: str, short: str) -> Path:
+    """Ensure the surface batch that carries `short` (10u/10v/msl/sp/2t) and return its
+    path. Open it filtered, e.g. backend_kwargs={'filter_by_keys': {'shortName': short}}."""
+    kind = "an" if short in SFC_AN else "fc"
+    return ensure(cycle, sfc_spec(model, typ, kind))
+
+
 # ── registry: everything a 00Z/12Z cycle needs (for the pre-fetcher) ─────────────
 def registry() -> list[Spec]:
     S = tuple(STEPS)        # 0..360 (with analysis) — RMM, AAM, MMSF, ens
-    F = tuple(STEPS_FC)     # 24..360 (forecast only) — SOI, Hovmöller
     return [
         # AIFS u @ 13 levels — serves BOTH the RMM (reads 200/850) and the AAM/zonal
         # builders from one download (no separate u@200/850).
         Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM, S),
         Spec("aifs-ens", "cf", "u", "pl", LEVELS_AAM, S),
-        Spec("aifs-ens", "pf", "sp", "sfc", (), S),
-        Spec("aifs-ens", "cf", "sp", "sfc", (), S),
-        # Hovmöller — AIFS + IFS 10u (forecast days only)
-        Spec("aifs-ens", "pf", "10u", "sfc", (), F),
-        Spec("aifs-ens", "cf", "10u", "sfc", (), F),
-        Spec("ifs", "pf", "10u", "sfc", (), F),
-        # SOI — AIFS + IFS msl (forecast days only)
-        Spec("aifs-ens", "pf", "msl", "sfc", (), F),
-        Spec("aifs-ens", "cf", "msl", "sfc", (), F),
-        Spec("ifs", "pf", "msl", "sfc", (), F),
-        # torque map — AIFS 10v (forecast days; 10u/msl/sp above are reused)
-        Spec("aifs-ens", "pf", "10v", "sfc", (), F),
-        Spec("aifs-ens", "cf", "10v", "sfc", (), F),
+        # batched surface fields — forecast-step (10u/10v/msl) + analysis (sp/2t), one
+        # retrieve each per type; consumers filter their field by shortName.
+        sfc_spec("aifs-ens", "pf", "fc"), sfc_spec("aifs-ens", "cf", "fc"),
+        sfc_spec("aifs-ens", "pf", "an"), sfc_spec("aifs-ens", "cf", "an"),
+        sfc_spec("ifs", "pf", "fc"),
         # MMSF — AIFS analysis (step 0) meridional wind @ 13 levels
         Spec("aifs-ens", "cf", "v", "pl", LEVELS_AAM, (0,)),
-        # ensembles page + general reuse — AIFS z @ 500 + 2 m temperature, full
-        # ensemble (cf control + 50 pf members), with the analysis Day 0.
+        # ensembles page + general reuse — AIFS z @ 500 (2t is in the surface batch above).
         Spec("aifs-ens", "pf", "z", "pl", (500,), S),
         Spec("aifs-ens", "cf", "z", "pl", (500,), S),
-        Spec("aifs-ens", "pf", "2t", "sfc", (), S),
-        Spec("aifs-ens", "cf", "2t", "sfc", (), S),
     ]
 
 

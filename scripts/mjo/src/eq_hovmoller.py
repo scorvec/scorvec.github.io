@@ -46,9 +46,8 @@ def download(model_key: str, date: str, time: str, out_dir: Path = None) -> dict
     """Ensure 10u (forecast days) for this model via the shared store; AIFS cf+pf is
     deduped with the torque budget. Returns {typ: cache_path}."""
     cfg = MODELS[model_key]
-    cyc = ecmwf.Cycle(date, time); steps = tuple(DAILY_STEPS)
-    return {typ: ecmwf.ensure(cyc, ecmwf.Spec(cfg["model"], typ, "10u", "sfc", (), steps))
-            for typ in cfg["types"]}
+    cyc = ecmwf.Cycle(date, time)
+    return {typ: ecmwf.sfc_path(cyc, cfg["model"], typ, "10u") for typ in cfg["types"]}
 
 
 def ensemble_mean_band(paths: dict) -> xr.DataArray:
@@ -57,8 +56,8 @@ def ensemble_mean_band(paths: dict) -> xr.DataArray:
     for p in paths.values():
         # chunk per member AT OPEN so cfgrib reads one member at a time
         ds = xr.open_dataset(p, engine="cfgrib",
-                             backend_kwargs={"indexpath": ""},
-                             chunks={"number": 1})
+                             backend_kwargs={"filter_by_keys": {"shortName": "10u"}, "indexpath": ""},
+                             chunks={"number": 1})       # 10u out of the batched surface file
         u = ds[[v for v in ds.data_vars][0]]            # u10
         u = u.sortby("latitude").sel(latitude=slice(-8, 8))
         if float(u.longitude.min()) < 0:
