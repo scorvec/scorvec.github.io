@@ -35,15 +35,49 @@ from ecmwf.opendata import Client
 CACHE = Path(os.environ.get("ECMWF_CACHE",
                             str(Path(__file__).resolve().parent / "cache")))
 SOURCES = os.environ.get("ECMWF_SOURCES", "aws,azure,ecmwf").split(",")
-# 2 streams (not 4): fewer concurrent byte-ranges → far less likely to trip S3 SlowDown
-# in the first place. Per-step chunking already bounds the rest.
+MULTISOURCE = os.environ.get("ECMWF_MULTISOURCE", "1") != "0"   # spread steps across mirrors
 WORKERS = int(os.environ.get("ECMWF_DL_WORKERS", "2"))      # parallel member streams (pf)
+PER_SRC = int(os.environ.get("ECMWF_DL_PER_SRC", "2"))      # hard cap: in-flight retrieves / mirror
 PF_MEMBERS = 50
 MIN_RATE = float(os.environ.get("ECMWF_DL_MIN_RATE", "40000"))   # B/s; below ⇒ stalled
-# 240 s: multiurl recovers from a 503 with a ~120 s backoff, so the watchdog must be
-# more patient than that — otherwise it aborts mid-recovery and re-triggers the throttle.
-STALL_SECS = int(os.environ.get("ECMWF_DL_STALL_SECS", "240"))
-TRIES = int(os.environ.get("ECMWF_DL_TRIES", "4"))
+# With fail-fast retries (below) a throttled mirror raises in ~30 s and we rotate, so the
+# watchdog no longer has to out-wait multiurl's old 120 s backoff.
+STALL_SECS = int(os.environ.get("ECMWF_DL_STALL_SECS", "120"))
+TRIES = int(os.environ.get("ECMWF_DL_TRIES", "6"))          # store-level mirror rotations
+
+# ── fail-fast the multiurl inner retry ────────────────────────────────────────
+# ecmwf-opendata → multiurl.download wraps every byte-range GET in robust(maximum_tries=
+# 500, retry_after=120): on a 503/429 it sleeps 120 s and retries the SAME mirror up to
+# 500× (~16 h), so our own mirror-rotation never gets a turn. Clamp it hard so a throttled
+# mirror is abandoned in seconds and _robust() rotates to a fresh one immediately.
+FAILFAST_TRIES = int(os.environ.get("ECMWF_FAILFAST_TRIES", "2"))
+FAILFAST_WAIT = int(os.environ.get("ECMWF_FAILFAST_WAIT", "12"))
+try:
+    import multiurl, multiurl.http, multiurl.downloader
+    import ecmwf.opendata.client as _eoc
+    _ORIG_ROBUST = multiurl.http.robust
+    def _failfast_robust(call, maximum_tries=500, retry_after=120, mirrors=None):
+        return _ORIG_ROBUST(call, min(maximum_tries, FAILFAST_TRIES),
+                            min(retry_after, FAILFAST_WAIT), mirrors)
+    # `robust` is bound in FOUR places, all pointing at the same original. ecmwf-opendata
+    # fetches the .index via its OWN `multiurl.robust` binding (the real 500×/120s culprit),
+    # and the byte-range data via the HTTP downloader. Replace the name everywhere it's bound.
+    for _m in (multiurl, multiurl.http, multiurl.downloader, _eoc):
+        if getattr(_m, "robust", None) is _ORIG_ROBUST:
+            _m.robust = _failfast_robust
+    # And clamp every downloader INSTANCE too (data layer), independent of binding.
+    _ORIG_INIT = multiurl.http.HTTPDownloaderBase.__init__
+    def _failfast_init(self, *a, **k):
+        _ORIG_INIT(self, *a, **k)
+        self.maximum_retries = min(getattr(self, "maximum_retries", 500), FAILFAST_TRIES)
+        self.retry_after = min(getattr(self, "retry_after", 120), FAILFAST_WAIT)
+    multiurl.http.HTTPDownloaderBase.__init__ = _failfast_init
+except Exception:                                           # noqa: BLE001 — patch best-effort
+    pass
+
+# One semaphore per mirror → never more than PER_SRC concurrent retrieves on a source,
+# however many steps/mirrors the multi-source fan-out is juggling.
+_SEM = {s: threading.Semaphore(PER_SRC) for s in SOURCES}
 
 # Daily steps. STEPS = analysis + Day 1..15 (used by RMM/AAM/MMSF, which want the 0-h
 # analysis). STEPS_FC = forecast days only (used by the SOI/Hovmöller, which don't).
@@ -151,7 +185,8 @@ def _clean(target: str) -> None:
 
 
 def _single(req: dict, target: str, src: str) -> None:
-    Client(source=src).retrieve(target=target, **req)
+    with _SEM.get(src, contextlib.nullcontext()):          # cap in-flight retrieves / mirror
+        Client(source=src).retrieve(target=target, **req)
 
 
 def _parallel_once(req: dict, target: str, src: str, members, workers: int) -> None:
@@ -196,12 +231,12 @@ def _mark_src(target: str, src: str, attempt: int) -> None:
         pass
 
 
-def _robust(req: dict, target: str, parallel: bool, members, expected: int) -> str:
+def _robust(req: dict, target: str, parallel: bool, members, expected: int, start: int = 0) -> str:
     label = os.path.basename(target)
     use_parallel = parallel and WORKERS >= 2 and members and len(members) >= 2
     err = None
     for attempt in range(1, TRIES + 1):
-        src = SOURCES[(attempt - 1) % len(SOURCES)]
+        src = SOURCES[(attempt - 1 + start) % len(SOURCES)]   # start offset spreads steps across mirrors
         _mark_src(target, src, attempt)
         _clean(target)
         if use_parallel:
@@ -226,32 +261,43 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int) -> s
 
 def _robust_chunked(req: dict, target: str, parallel: bool, members) -> str:
     """Per-step download with resume: each step → its own part file (kept if complete),
-    stall re-fetches only that step, parts assembled in order at the end. Only the heavy
-    member (pf) pulls are chunked — cf/em are small enough that one retrieve beats the
-    per-step connection overhead."""
+    stall re-fetches only that step, parts assembled in order at the end. The heavy pf
+    pulls fetch several steps CONCURRENTLY, each pinned to a different mirror (round-robin
+    aws/azure/ecmwf) so no single source is rate-limited — the per-source semaphore caps
+    in-flight retrieves per mirror. cf/em are single-shot (one retrieve beats the overhead)."""
     steps = req.get("step")
     if not parallel or not isinstance(steps, (list, tuple)) or len(steps) <= 1:
         exp = _msgs_for(req, members)
         return _robust(req, target, parallel, members, exp)
     cdir = Path(f"{target}.parts"); cdir.mkdir(parents=True, exist_ok=True)
-    parts, src = [], None
-    for st in steps:
+    nsrc = len(SOURCES)
+
+    def _fetch(i_st):
+        i, st = i_st
         pf = cdir / f"s{int(st):03d}.grib2"
         exp = _msgs_for({**req, "step": [st]}, members)
         if pf.exists():
             try:
                 if count_msgs(str(pf)) >= exp:
-                    parts.append(pf); continue
+                    return SOURCES[i % nsrc]               # already complete
             except Exception:                              # noqa: BLE001
                 pass
-        src = _robust({**req, "step": st}, str(pf), parallel, members, exp)
-        parts.append(pf)
-    with open(target, "wb") as out:
-        for p in parts:
-            with open(p, "rb") as f:
+        return _robust({**req, "step": st}, str(pf), parallel, members, exp, start=i % nsrc)
+
+    if MULTISOURCE and nsrc > 1 and len(steps) > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=nsrc) as ex:   # ≤ nsrc steps in flight (1 per mirror)
+            used = list(ex.map(_fetch, enumerate(steps)))
+    else:
+        used = [_fetch((i, st)) for i, st in enumerate(steps)]
+
+    with open(target, "wb") as out:                        # assemble in original step order
+        for st in steps:
+            with open(cdir / f"s{int(st):03d}.grib2", "rb") as f:
                 shutil.copyfileobj(f, out)
     shutil.rmtree(cdir, ignore_errors=True)
-    return src or "chunked"
+    srcs = sorted(set(used))
+    return "+".join(srcs) if len(srcs) > 1 else (srcs[0] if srcs else "chunked")
 
 
 def _msgs_for(req: dict, members) -> int:

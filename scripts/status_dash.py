@@ -97,6 +97,52 @@ def _age(secs: float) -> str:
     return f"{secs/86400:.1f}d ago"
 
 
+def _rate(b: float) -> str:
+    return f"{b/1e6:.1f} MB/s" if b >= 1e5 else (f"{b/1e3:.0f} kB/s" if b > 0 else "—")
+
+
+_PREV_DL = {}                         # download key -> (ts, bytes), for per-download rate
+_NET_HIST = []                        # [(ts, bytes_recv)] ring buffer, for the throughput graph
+_NET_MAX = 150
+
+
+def _dl_rate(key: str, cur: int) -> float:
+    """Bytes/s for an active download, from the delta since the previous page render.
+    Reuses the last value if <2 s have passed (rapid refreshes would divide by ~0)."""
+    now = time.time(); prev = _PREV_DL.get(key)
+    if prev and now - prev[0] < 2.0:
+        return prev[2]
+    rate = (cur - prev[1]) / (now - prev[0]) if (prev and now > prev[0] and cur >= prev[1]) else 0.0
+    _PREV_DL[key] = (now, cur, rate)
+    return rate
+
+
+def collect_net() -> dict:
+    """System RX throughput history (MB/s) sampled once per render, via psutil."""
+    try:
+        import psutil
+        now = time.time(); rx = psutil.net_io_counters().bytes_recv
+    except Exception:                                  # noqa: BLE001
+        return dict(points=[], cur=0.0, peak=0.0)
+    _NET_HIST.append((now, rx))
+    del _NET_HIST[:-_NET_MAX]
+    pts = []
+    for i in range(1, len(_NET_HIST)):
+        (t0, b0), (t1, b1) = _NET_HIST[i - 1], _NET_HIST[i]
+        if t1 > t0 and b1 >= b0:
+            pts.append(max(0.0, (b1 - b0) / (t1 - t0) / 1e6))   # MB/s
+    return dict(points=pts, cur=pts[-1] if pts else 0.0, peak=max(pts) if pts else 0.0)
+
+
+def _log_tail(path: Path, n: int = 7) -> list[str]:
+    """Last n meaningful lines of a run log (drop tqdm progress-bar spam + blanks)."""
+    if not path.exists():
+        return []
+    keep = [l.rstrip() for l in path.read_text(errors="ignore").splitlines()
+            if l.strip() and "%|" not in l and "[A" not in l]
+    return keep[-n:]
+
+
 # ── collectors ────────────────────────────────────────────────────────────────
 def collect_pipelines(jobs: dict) -> list[dict]:
     rows = []
@@ -211,6 +257,7 @@ def collect_downloads() -> dict:
                     idle = time.time() - mtime
                     active.append(dict(cycle=cyc.name, model=model.name, spec=spec,
                                        cur=cur, want=want, src=_read_src(st),
+                                       rate=_dl_rate(f"{cyc.name}/{model.name}/{spec}", cur),
                                        pct=min(100, 100 * cur / want) if want else None,
                                        idle=idle, stalled=idle > STALL_S))
             cycles.append(dict(name=cyc.name, models=models,
@@ -238,6 +285,8 @@ def collect() -> dict:
     return dict(ts=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ"),
                 pipelines=collect_pipelines(jobs),
                 downloads=collect_downloads(),
+                net=collect_net(),
+                log=_log_tail(REPO / "scripts/mjo/run_local.log"),
                 misc=collect_jobs_misc())
 
 
@@ -279,12 +328,14 @@ def render(s: dict) -> str:
         sz = _human(a["cur"]) + (f' / {_human(a["want"])}' if a["want"] else "")
         src = f'<div class="sub">via {html.escape(a["src"])}</div>' if a.get("src") else \
               '<div class="sub muted">source —</div>'
+        rate = _rate(a.get("rate", 0))
         A.append(f"""<tr><td class="mono">{html.escape(a['cycle'])}<div class="sub">{html.escape(a['model'])}</div></td>
           <td class="mono sub">{html.escape(a['spec'])}{src}</td>
           <td class="barcell">{_bar(a['pct'], stalled=a['stalled'])}</td>
-          <td class="mono">{sz}</td><td>{flag}</td></tr>""")
+          <td class="mono">{sz}<div class="sub" style="color:#58a6ff">{rate}</div></td><td>{flag}</td></tr>""")
     if not A:
         A.append('<tr><td colspan="5" class="muted" style="text-align:center;padding:1.4em">no active downloads</td></tr>')
+    logtail = "\n".join(html.escape(l) for l in s.get("log", [])) or "(no recent log)"
 
     # full registry queue for the active cycle
     Q = []
@@ -318,6 +369,21 @@ def render(s: dict) -> str:
     pulls = "<br>".join(html.escape(p) for p in m["pulls"]) or '<span class="muted">none running</span>'
     gitlog = "<br>".join(f'<span class="mono sub">{html.escape(l)}</span>' for l in m["git_log"])
     disk_pct = 100 * (1 - m["disk_free"] / m["disk_total"])
+
+    net = s.get("net", {})
+    npts = net.get("points", [])
+    if len(npts) >= 2:
+        W, H, n = 1000, 150, len(npts)
+        ymax = max(npts + [0.5])
+        pl = " ".join(f"{i/(n-1)*W:.1f},{H-(v/ymax)*(H-10)-5:.1f}" for i, v in enumerate(npts))
+        net_svg = (f'<svg viewBox="0 0 {W} {H}" preserveAspectRatio="none" style="width:100%;height:170px;display:block">'
+                   f'<polygon points="0,{H} {pl} {W},{H}" fill="#58a6ff1f"/>'
+                   f'<polyline points="{pl}" fill="none" stroke="#58a6ff" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>')
+        net_label = (f'now <b style="color:#58a6ff">{net.get("cur",0):.1f} MB/s</b> · '
+                     f'peak {net.get("peak",0):.1f} MB/s · ~{max(1, n*REFRESH_S//60)} min window · system RX')
+    else:
+        net_svg = '<div class="muted" style="padding:1.6em 0">collecting samples… (one per 5 s refresh)</div>'
+        net_label = "system RX"
     return f"""<!doctype html><html><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="{REFRESH_S}"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>scorvec status</title><style>
@@ -339,6 +405,7 @@ table{{border-collapse:collapse;width:100%}} td{{padding:.7em 1em;border-bottom:
 .sub{{color:#8b949e;font-size:.82em}} .muted{{color:#6e7681}} .mono{{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85em}}
 .track{{position:relative;background:#21262d;border-radius:8px;height:2.1em;overflow:hidden}}
 .fill{{height:100%;border-radius:8px;transition:width .4s}} .pct{{position:absolute;right:.6em;top:0;font-size:.8em;line-height:2.6em;color:#c9d1d9;font-weight:600}}
+.logbox{{white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8em;line-height:1.55;color:#aeb6c0;margin:0;max-height:14em;overflow:auto}}
 b{{color:#e6edf3}}
 </style></head><body>
 <h1>scorvec.com — pipeline &amp; download status</h1>
@@ -349,6 +416,9 @@ b{{color:#e6edf3}}
 
 <h2>Active downloads</h2>
 <div class="tile full"><table>{''.join(A)}</table></div>
+
+<h2>Download log <span class="sub" style="text-transform:none;letter-spacing:0">— scripts/mjo/run_local.log</span></h2>
+<div class="tile full"><pre class="logbox">{logtail}</pre></div>
 
 <h2>Download queue — {html.escape(s['downloads'].get('active_cycle','')) or 'n/a'} · {ndone}/{len(qd)} done</h2>
 <div class="tile full"><table>{''.join(Q) or '<tr><td class=muted>registry unavailable</td></tr>'}</table></div>
@@ -361,6 +431,9 @@ b{{color:#e6edf3}}
     <div class="sub" style="margin-top:.5em">{html.escape(m['git_branch'])}</div></div>
   <div class="tile"><div class="thead"><b>Background pulls</b></div><span class="mono sub">{pulls}</span></div>
 </div>
+
+<h2>Network throughput</h2>
+<div class="tile full">{net_svg}<div class="sub" style="margin-top:.5em">{net_label}</div></div>
 </body></html>"""
 
 
