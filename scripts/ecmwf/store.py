@@ -44,6 +44,14 @@ MIN_RATE = float(os.environ.get("ECMWF_DL_MIN_RATE", "40000"))   # B/s; below �
 # watchdog no longer has to out-wait multiurl's old 120 s backoff.
 STALL_SECS = int(os.environ.get("ECMWF_DL_STALL_SECS", "120"))
 TRIES = int(os.environ.get("ECMWF_DL_TRIES", "6"))          # store-level mirror rotations
+# Speed-based mirror switching: a per-step transfer steadily below SLOW_RATE for SLOW_SECS
+# (past a SLOW_GRACE ramp-up) is abandoned so _robust rotates to a hopefully-faster mirror.
+# Only honoured while we still have an untried mirror this spec — after sampling them all we
+# accept the best available rather than churn (or fail) when every mirror is just busy.
+SLOW_RATE = float(os.environ.get("ECMWF_DL_SLOW_RATE", "250000"))   # B/s, per step
+SLOW_SECS = int(os.environ.get("ECMWF_DL_SLOW_SECS", "35"))
+SLOW_GRACE = int(os.environ.get("ECMWF_DL_SLOW_GRACE", "18"))
+WATCH_TICK = int(os.environ.get("ECMWF_DL_WATCH_TICK", "9"))
 
 # ── fail-fast the multiurl inner retry ────────────────────────────────────────
 # ecmwf-opendata → multiurl.download wraps every byte-range GET in robust(maximum_tries=
@@ -202,7 +210,7 @@ def _parallel_once(req: dict, target: str, src: str, members, workers: int) -> N
             os.remove(p)
 
 
-def _watch(do_fn, target: str):
+def _watch(do_fn, target: str, slow_ok: bool = False):
     done = threading.Event(); box = {"e": None}
 
     def _run():
@@ -213,12 +221,15 @@ def _watch(do_fn, target: str):
         finally:
             done.set()
     threading.Thread(target=_run, daemon=True).start()
-    last = 0; slow = 0
-    while not done.wait(15):
-        cur = _dl_bytes(target); rate = (cur - last) / 15.0; last = cur
-        slow = slow + 15 if rate < MIN_RATE else 0
-        if slow >= STALL_SECS:
+    last = 0; stalled = 0; slow = 0; elapsed = 0
+    while not done.wait(WATCH_TICK):
+        cur = _dl_bytes(target); rate = (cur - last) / WATCH_TICK; last = cur; elapsed += WATCH_TICK
+        stalled = stalled + WATCH_TICK if rate < MIN_RATE else 0
+        slow = slow + WATCH_TICK if rate < SLOW_RATE else 0
+        if stalled >= STALL_SECS:
             return False, TimeoutError(f"stalled <{MIN_RATE/1000:.0f} kB/s for {STALL_SECS}s")
+        if slow_ok and elapsed > SLOW_GRACE and slow >= SLOW_SECS:
+            return False, TimeoutError(f"slow <{SLOW_RATE/1000:.0f} kB/s for {SLOW_SECS}s — switching mirror")
     return box["e"] is None, box["e"]
 
 
@@ -245,7 +256,7 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int, star
             do = lambda s=src: _single({**req, "number": members}, target, s)
         else:
             do = lambda s=src: _single(req, target, s)
-        ok, err = _watch(do, target)
+        ok, err = _watch(do, target, slow_ok=(attempt <= len(SOURCES)))
         if ok:
             try:
                 got = count_msgs(target)
