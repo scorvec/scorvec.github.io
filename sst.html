@@ -226,7 +226,7 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>SST Anomaly &mdash; Global-Mean Removed</h2>
-        <p>The anomaly with the area-weighted global-mean SST anomaly subtracted at every point. This strips out the uniform background-warming signal and isolates the <i>pattern</i> of warming and cooling &mdash; the El Ni&ntilde;o footprint stands out against a more balanced global ocean.</p>
+        <p>SST anomalies with global mean removed. Removes signature of global warming to better see relative differentials in SST anomalies.</p>
       </div>
       <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=relative"
               title="Global-mean-removed SST anomaly animation" loading="lazy"></iframe>
@@ -241,7 +241,6 @@
       <div class="chart-card-header">
         <h2>Equatorial Pacific Subsurface Temperature</h2>
         <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed.</p>
-        <p><b>What to look for:</b> The thermocline (here the 26&deg;C and 28&deg;C isotherms) tilts upward toward the east. Subsurface warm or cool anomalies along the thermocline often <i>lead</i> the surface ENSO signal &mdash; watch them build and propagate eastward in the animation.</p>
       </div>
       <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial"
               title="Equatorial Pacific subsurface temperature animation" loading="lazy"></iframe>
@@ -255,8 +254,8 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Relative Oceanic Ni&ntilde;o Index (RONI)</h2>
-        <p>RONI is an ENSO index that subtracts the tropical-mean SST anomaly (20&deg;S&ndash;20&deg;N) from the Ni&ntilde;o-3.4 anomaly, then applies a 3-month running mean. By removing the slowly-rising tropical background, it isolates the ENSO signal more cleanly than the conventional ONI &mdash; increasingly useful as overall ocean temperatures trend upward.</p>
-        <p><b>How to read it:</b> Red bars (positive) lean El Ni&ntilde;o, blue bars (negative) lean La Ni&ntilde;a; the dashed lines mark the &plusmn;0.5&deg;C guides. This index is computed directly from OISST and shown in &deg;C &mdash; it captures the shape and timing of CPC's RONI but is not their standardized published value.</p>
+        <p>RONI is now the official benchmark for measuring El Ni&ntilde;o strength (3-month mean) from NOAA. This removes the tropical mean, which is generally increasing over time as the oceans warm.</p>
+        <p>The impact of ENSO on the atmosphere is driven by <i>relative</i> zonal SST differences in the tropics, so this is a better measure of the strength of ENSO events.</p>
       </div>
       <div class="img-wrap">
         <img src="assets/sst/roni.webp?v=202606041353"
@@ -272,8 +271,6 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Daily Equatorial Pacific SST Indices</h2>
-        <p>All three daily metrics on one axis: the Ni&ntilde;o-3.4 anomaly (the basis of ONI), the tropical-mean anomaly (20&deg;S&ndash;20&deg;N), and their difference &mdash; the daily relative index that underlies RONI. These are single-day values, so they are noisier than the 3-month running indices above, but they show the most recent evolution.</p>
-        <p><b>What to look for:</b> When the red (Ni&ntilde;o-3.4) and green (tropical-mean) lines move together, the blue relative line stays flat &mdash; that's background warming, not ENSO. The blue line separating from zero is the genuine ENSO signal.</p>
       </div>
       <div class="img-wrap">
         <img src="assets/sst/daily_indices.webp?v=202606041353"
