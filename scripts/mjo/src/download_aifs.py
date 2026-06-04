@@ -17,6 +17,7 @@ Usage:
 import argparse
 import glob
 import os
+import shutil
 import threading
 from pathlib import Path
 
@@ -193,14 +194,50 @@ def _robust(req: dict, target: str, parallel: bool, members=None, workers: int =
     raise err if err is not None else RuntimeError(f"{label}: failed after {DL_TRIES} tries")
 
 
+def _robust_chunked(req: dict, target: str, parallel: bool, members=None, workers=None) -> str:
+    """Download a multi-step request ONE STEP AT A TIME, keeping each completed step's
+    GRIB on disk. A stalled/throttled stream then only re-fetches the step it died on
+    (~200 MB) instead of restarting the whole ~3 GB pull — and, because the per-step
+    parts persist (the chunk dir is removed only on full success), a failed cycle
+    RESUMES from where it left off on the next attempt/run. Single-step (or scalar-step)
+    requests fall straight through to _robust."""
+    steps = req.get("step")
+    if not isinstance(steps, (list, tuple)) or len(steps) <= 1:
+        return _robust(req, target, parallel, members, workers)
+    mem = (list(members) if members is not None else list(range(1, PF_MEMBERS + 1))) if parallel else \
+          ([req["number"]] if "number" in req and not isinstance(req["number"], (list, tuple))
+           else req.get("number"))
+    cdir = Path(f"{target}.parts"); cdir.mkdir(parents=True, exist_ok=True)
+    parts, src_used = [], None
+    for st in steps:
+        pf = cdir / f"s{int(st):03d}.grib2"
+        exp = _expected_msgs({**req, "step": [st]}, mem)
+        if pf.exists():
+            try:
+                if _count_msgs(str(pf)) >= exp:
+                    parts.append(pf); continue                 # already have this step
+            except Exception:                                  # noqa: BLE001
+                pass
+        src_used = _robust({**req, "step": st}, str(pf), parallel, members, workers)
+        parts.append(pf)
+    with open(target, "wb") as out:                            # assemble in step order
+        for p in parts:
+            with open(p, "rb") as f:
+                shutil.copyfileobj(f, out)
+    if _count_msgs(target) >= _expected_msgs(req, mem):
+        shutil.rmtree(cdir, ignore_errors=True)                # success → drop the parts
+        return src_used or "chunked"
+    raise RuntimeError(f"{os.path.basename(target)}: chunked assembly incomplete")
+
+
 def _retrieve(req: dict, target: str) -> str:
-    """Robust single-stream retrieve (watchdog + mirror-rotating retry)."""
-    return _robust(req, target, parallel=False)
+    """Robust single-stream retrieve (watchdog + mirror-rotating retry; per-step resume)."""
+    return _robust_chunked(req, target, parallel=False)
 
 
 def retrieve_parallel(req: dict, target: str, members=None, workers: int = None) -> str:
-    """Robust parallel (multi-member-stream) retrieve."""
-    return _robust(req, target, parallel=True, members=members, workers=workers)
+    """Robust parallel (multi-member-stream) retrieve; per-step resume on stall."""
+    return _robust_chunked(req, target, parallel=True, members=members, workers=workers)
 
 
 def _retrieve_probe(req: dict, target: str) -> None:
