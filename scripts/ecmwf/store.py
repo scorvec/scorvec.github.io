@@ -187,12 +187,22 @@ def _watch(do_fn, target: str):
     return box["e"] is None, box["e"]
 
 
+def _mark_src(target: str, src: str, attempt: int) -> None:
+    """Breadcrumb the mirror currently being tried, so the status dashboard can show it."""
+    try:
+        with open(f"{target}.src", "w") as fh:
+            fh.write(f"{src} {attempt}/{TRIES}")
+    except OSError:
+        pass
+
+
 def _robust(req: dict, target: str, parallel: bool, members, expected: int) -> str:
     label = os.path.basename(target)
     use_parallel = parallel and WORKERS >= 2 and members and len(members) >= 2
     err = None
     for attempt in range(1, TRIES + 1):
         src = SOURCES[(attempt - 1) % len(SOURCES)]
+        _mark_src(target, src, attempt)
         _clean(target)
         if use_parallel:
             do = lambda s=src: _parallel_once(req, target, s, members, WORKERS)
@@ -284,6 +294,7 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
             return p
         stage = p.parent / (".stage_" + p.name)
         _clean(str(stage)); shutil.rmtree(f"{stage}.parts", ignore_errors=True)
+        Path(f"{stage}.src").unlink(missing_ok=True)       # stale source breadcrumb
         print(f"  ECMWF {cycle.tag} {spec.model}/{spec.filename}: fetching "
               f"({expected} msgs) …", flush=True)
         src = _robust_chunked(_to_req(cycle, spec), str(stage), spec.type == "pf", spec.members())
