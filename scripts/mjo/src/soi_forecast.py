@@ -162,13 +162,13 @@ def plot(obs: pd.DataFrame, normals: dict, diff: xr.DataArray,
 
     # forecast: member plume (30-day running) + ensemble mean; daily 10–90% band
     fwin = run_fc.loc[init_d:]
-    ax.plot(fwin.index, fwin.values, color="#1f77b4", lw=0.4, alpha=0.05)
-    ax.plot(fwin.index, fwin.mean(axis=1).values, color="#d62728", lw=2.6,
+    ax.plot(fwin.index, fwin.values, color="#1f77b4", lw=0.9, alpha=0.18)   # member plume — legible
+    ax.plot(fwin.index, fwin.mean(axis=1).values, color="#d62728", lw=2.8,
             label="Forecast 30-day SOI (ens. mean)")
     lo, hi = np.nanpercentile(fc, [10, 90], axis=0)
     ax.fill_between(fdates, lo, hi, color="#d62728", alpha=0.12,
                     label="Forecast daily SOI (10–90%)")
-    ax.plot(fdates, np.nanmean(fc, axis=0), color="#d62728", lw=0.9, ls=":", alpha=0.8)
+    ax.plot(fdates, np.nanmean(fc, axis=0), color="#d62728", lw=1.6, ls=":", alpha=0.9)
     ax.axvline(init_d, color="0.4", lw=0.8, ls=":")
 
     ax.set_xlim(p0, fdates[-1])
