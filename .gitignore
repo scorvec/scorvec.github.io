@@ -50,3 +50,6 @@ scripts/ens/data/archive/
 
 # ens climatology netCDFs — large, build/keep LOCAL only (README stays tracked)
 scripts/ens/data/reference/*.nc
+
+# shared ECMWF GRIB cache (large, regenerable per cycle)
+scripts/ecmwf/cache/
