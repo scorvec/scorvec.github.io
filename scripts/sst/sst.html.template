@@ -103,9 +103,11 @@
   .anim-embed.subsurface { aspect-ratio: 1 / 1; }
   .anim-embed.torque { aspect-ratio: 1306 / 1055; }
   .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
+  .anim-embed.ascat { aspect-ratio: 1429 / 374; }
   @media (max-width: 768px) {
     .anim-embed { aspect-ratio: 1 / 1.08; }
     .anim-embed.subsurface { aspect-ratio: 1 / 1.12; }
+    .anim-embed.ascat { aspect-ratio: 1429 / 520; }
   }
   .img-label {
     font-size: 0.72rem; color: var(--muted);
@@ -351,10 +353,10 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Observed Equatorial Pacific Surface Wind</h2>
-        <p>Latest daily 10&deg;S&ndash;10&deg;N surface wind &mdash; speed (shaded) with direction arrows &mdash; from the gap-filled gridded scatterometer (ASCAT) analysis. The observed companion to the wind forecast below: persistent easterly trades are the neutral/La&nbsp;Ni&ntilde;a state, while westerly bursts along the equator push warm water east and favor El&nbsp;Ni&ntilde;o.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/ascat_winds.webp?v=__CACHE__" alt="Daily 10°S–10°N Pacific surface wind speed and vectors (ASCAT)" loading="lazy"></div>
-      <div class="chart-card-footer"><span class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; ~1&ndash;2 day latency &middot; updated daily</span></div>
+      <iframe class="anim-embed ascat" src="sst_anim.html?embed=1&amp;manifest=ascat_manifest.json&amp;region=ascat"
+              title="Daily 10°S–10°N Pacific surface wind speed and direction (ASCAT) animated over time" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; ~1&ndash;2 day latency &middot; updated daily &middot; drag the slider for recent days</span></div>
     </div>
 
     <!-- EQUATORIAL 10m WIND HOVMÖLLER -->
