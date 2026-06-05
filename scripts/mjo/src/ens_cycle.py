@@ -19,6 +19,7 @@ Run once per cycle, then build everything from cache:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time as _time
 from pathlib import Path
@@ -55,13 +56,15 @@ def fetch(date: str, time: str, data_root: Path) -> None:
         except Exception as e:                              # noqa: BLE001
             print(f"  msl/{cfg['model']}: skipped ({repr(e)[:70]})", flush=True)
 
-    # z@500 (pl) + the analysis surface batch (sp + 2t) — for the ensembles page / AAM /
-    # general reuse. The forecast surface batch (10u/10v/msl) was already pulled above by
-    # the Hovmöller/SOI downloads. Best-effort.
-    print("== AIFS-ENS z@500 + surface analysis batch (sp/2t) ==", flush=True)
+    # Analysis surface batch (sp + 2t) — sp is REQUIRED by AAM/torque (2t rides along in
+    # the same batch). z@500 is PAUSED for now (ensembles page pivoted z500 → t2m); set
+    # ENS_FETCH_Z500=1 to re-enable. The forecast surface batch (10u/10v/msl) was already
+    # pulled above by the Hovmöller/SOI downloads. Best-effort.
+    print("== AIFS-ENS surface analysis batch (sp/2t) ==", flush=True)
     cyc = store.Cycle(date, time); S = tuple(store.STEPS)
-    specs = [store.Spec("aifs-ens", t, "z", "pl", (500,), S) for t in ("cf", "pf")]
-    specs += [store.sfc_spec("aifs-ens", t, "an") for t in ("cf", "pf")]
+    specs = [store.sfc_spec("aifs-ens", t, "an") for t in ("cf", "pf")]
+    if os.environ.get("ENS_FETCH_Z500") == "1":
+        specs += [store.Spec("aifs-ens", t, "z", "pl", (500,), S) for t in ("cf", "pf")]
     for sp in specs:
         try:
             store.ensure(cyc, sp)
