@@ -34,11 +34,63 @@ from ecmwf.opendata import Client
 # ── config ──────────────────────────────────────────────────────────────────────
 CACHE = Path(os.environ.get("ECMWF_CACHE",
                             str(Path(__file__).resolve().parent / "cache")))
-# aws/azure/ecmwf. NOTE: google is intentionally EXCLUDED — it mirrors the latest
-# cycle only PARTIALLY/with lag (it serves some control+surface fields but 400s on the
-# perturbed sp/2t, z500 and pressure-level data it hasn't synced yet), so it just adds
-# retry noise on the daily latest-cycle pulls. Re-add via ECMWF_SOURCES if ever useful.
-SOURCES = os.environ.get("ECMWF_SOURCES", "aws,azure,ecmwf").split(",")
+# Mirror pool: aws/azure/ecmwf. google is EXCLUDED — it mirrors the latest cycle only
+# PARTIALLY/with lag (400s on the perturbed sp/2t, z500 & pl it hasn't synced), so it
+# just adds retry noise on daily latest-cycle pulls.
+#
+# AUTO-ROTATION: the order is rotated once per pipeline run (round-robin) AND any mirror
+# that threw 503s last run is demoted to the end — so the pipeline spreads load and
+# self-steers away from a throttling mirror without manual intervention. The runner
+# calls next_mirror_order() and exports ECMWF_SOURCES; an explicit ECMWF_SOURCES env
+# always wins (manual override). Module import is read-only (uses the last order) so
+# non-download importers (dashboard, consumers) don't advance the rotation.
+_BASE_MIRRORS = ["aws", "azure", "ecmwf"]
+_ROT_STATE = Path(__file__).resolve().parent / ".mirror_rotation.json"
+_ROT_LOCK = threading.Lock()
+
+
+def _read_rot() -> tuple[list, set]:
+    try:
+        st = json.loads(_ROT_STATE.read_text())
+        order = [m for m in st.get("order", []) if m in _BASE_MIRRORS]
+        return (order or list(_BASE_MIRRORS)), set(st.get("throttled", []))
+    except Exception:                                           # noqa: BLE001
+        return list(_BASE_MIRRORS), set()
+
+
+def next_mirror_order() -> str:
+    """Advance the per-run rotation: round-robin by one, then demote any mirror that
+    threw 503s last run to the end. Resets the throttle flags. Returns the comma-joined
+    order for ECMWF_SOURCES. The RUNNER calls this once per pipeline run."""
+    order, bad = _read_rot()
+    order = order[1:] + order[:1]                               # round-robin
+    order = [m for m in order if m not in bad] + [m for m in order if m in bad]  # demote throttled
+    try:
+        _ROT_STATE.write_text(json.dumps({"order": order, "throttled": []}))
+    except Exception:                                           # noqa: BLE001
+        pass
+    return ",".join(order)
+
+
+def _note_throttle_src(src: str) -> None:
+    """Record that `src` threw a 503 this run → next run's rotation demotes it."""
+    if not src or src not in _BASE_MIRRORS:
+        return
+    try:
+        with _ROT_LOCK:
+            st = json.loads(_ROT_STATE.read_text()) if _ROT_STATE.exists() else \
+                {"order": list(_BASE_MIRRORS), "throttled": []}
+            t = st.setdefault("throttled", [])
+            if src not in t:
+                t.append(src); _ROT_STATE.write_text(json.dumps(st))
+    except Exception:                                           # noqa: BLE001
+        pass
+
+
+if os.environ.get("ECMWF_SOURCES"):
+    SOURCES = os.environ["ECMWF_SOURCES"].split(",")           # explicit override wins
+else:
+    SOURCES, _ = _read_rot()                                   # read-only: last order (no advance)
 MULTISOURCE = os.environ.get("ECMWF_MULTISOURCE", "1") != "0"   # spread steps across mirrors
 WORKERS = int(os.environ.get("ECMWF_DL_WORKERS", "1"))      # parallel member streams (pf)
                                                             # 1 by default: fewer concurrent
@@ -320,8 +372,9 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int, star
                 return src
             err = RuntimeError(f"incomplete GRIB: {got}/{expected} msgs")
         if _is_throttle(err):                              # 503/SlowDown → global back-off
+            _note_throttle_src(src)                        # demote this mirror next run
             wait = _throttle_bump()
-            print(f"    {label}: 503 throttle — backing off {wait:.0f}s — retry {attempt}/{TRIES}", flush=True)
+            print(f"    {label}: 503 throttle ({src}) — backing off {wait:.0f}s — retry {attempt}/{TRIES}", flush=True)
             time.sleep(wait)
         else:
             print(f"    {label}: {repr(err)[:55]} — retry {attempt}/{TRIES} (mirror)", flush=True)

@@ -36,6 +36,14 @@ if [ -f "$COOLDOWN" ] && [ "$(date +%s)" -lt "$(cat "$COOLDOWN" 2>/dev/null || e
   exit 0
 fi
 
+# Auto-rotate the ECMWF mirrors for this run (round-robin + demote whichever threw 503s
+# last run), unless ECMWF_SOURCES is set explicitly. Self-steers away from a throttling
+# mirror without manual intervention.
+if [ -z "${ECMWF_SOURCES:-}" ]; then
+  export ECMWF_SOURCES="$("$PY" -c "import sys; sys.path.insert(0,'$REPO/scripts/ecmwf'); import store; print(store.next_mirror_order())" 2>/dev/null)"
+  echo "mirrors this run: ${ECMWF_SOURCES:-<default>}"
+fi
+
 read -r DATE TIME < <("$PY" -c \
   "import sys; sys.path.insert(0,'src'); from download_aifs import latest_run; d,t=latest_run(); print(d,t)" \
   2>/dev/null)
