@@ -34,7 +34,10 @@ from ecmwf.opendata import Client
 # ── config ──────────────────────────────────────────────────────────────────────
 CACHE = Path(os.environ.get("ECMWF_CACHE",
                             str(Path(__file__).resolve().parent / "cache")))
-SOURCES = os.environ.get("ECMWF_SOURCES", "aws,azure,ecmwf").split(",")
+# aws/azure/ecmwf/google — google now serves AIFS-ENS pressure-level too (it used to
+# 400 on pl), so all four are full mirrors; spreading across more of them lightens the
+# per-mirror request rate and reduces S3-style throttling.
+SOURCES = os.environ.get("ECMWF_SOURCES", "aws,azure,ecmwf,google").split(",")
 MULTISOURCE = os.environ.get("ECMWF_MULTISOURCE", "1") != "0"   # spread steps across mirrors
 WORKERS = int(os.environ.get("ECMWF_DL_WORKERS", "1"))      # parallel member streams (pf)
                                                             # 1 by default: fewer concurrent

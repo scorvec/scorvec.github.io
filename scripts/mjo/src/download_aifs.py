@@ -39,13 +39,12 @@ DATA_DIR = Path(__file__).parent.parent / "data" / "aifs"
 _STEP_HOURS = int(os.environ.get("AIFS_STEP_HOURS", "24"))
 STEPS = [0] + list(range(_STEP_HOURS, 361, _STEP_HOURS))
 
-# Prefer the cloud mirrors over the main ECMWF portal (which enforces a
-# connection limit / HTTP 429 that throttles the 4 GB ensemble download).
-# NOTE: the "google" source 400s for aifs-ens pressure-level data (it doesn't
-# host this product), so it's excluded — AWS/Azure first, portal last.
-# Override with the AIFS_SOURCES env var.
+# Spread across all four mirrors — aws/azure/google blobs + the ECMWF portal (which
+# enforces a connection limit / HTTP 429). google NOW serves aifs-ens pressure-level
+# too (it used to 400 on pl), so it's a full mirror again; more mirrors = lower per-
+# mirror request rate = less throttling. Override with the AIFS_SOURCES env var.
 SOURCES = [s.strip() for s in
-           os.environ.get("AIFS_SOURCES", "aws,azure,ecmwf").split(",") if s.strip()]
+           os.environ.get("AIFS_SOURCES", "aws,azure,ecmwf,google").split(",") if s.strip()]
 
 
 def _archive_grib(target: str, req: dict) -> None:
