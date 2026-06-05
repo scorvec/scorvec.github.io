@@ -484,25 +484,35 @@ def open_members(cycle: Cycle, spec: Spec):
 # A single retrieve carries one step set, so split by step-class: forecast-step fields
 # (10u/10v/msl — Hovmöller/SOI/torque) vs analysis-included fields (sp/2t — AAM/ens).
 # Consumers open the batch with backend_kwargs={"filter_by_keys": {"shortName": <field>}}.
-SFC_FC = ("10u", "10v", "msl")        # forecast steps (24..360)
-SFC_AN = ("sp", "2t")                 # incl the 0-h analysis (0..360)
+# ALL AIFS surface fields in ONE batch (steps 0..360 — sp needs the 0-h analysis).
+# 2t is dropped (the ensembles t2m page is paused; re-add "2t" here to fetch it again).
+SFC = ("sp", "10u", "10v", "msl")
 SFC_IFS = ("10u", "msl")              # IFS only feeds the Hovmöller + SOI
+# Legacy pre-consolidation batches — kept ONLY for the sfc_path fallback, so a cycle that
+# already fetched the old fc/an batches before the merge isn't needlessly re-downloaded.
+_SFC_FC_LEGACY = ("10u", "10v", "msl")
+_SFC_AN_LEGACY = ("sp", "2t")
 
 
-def sfc_spec(model: str, typ: str, kind: str) -> Spec:
-    """Batched surface Spec. kind='fc' (forecast steps) | 'an' (incl analysis)."""
+def sfc_spec(model: str, typ: str) -> Spec:
+    """The single batched surface Spec for a model (all fields, steps 0..360)."""
     if model == "ifs":
         return Spec("ifs", typ, SFC_IFS, "sfc", (), tuple(STEPS_FC))
-    if kind == "an":
-        return Spec(model, typ, SFC_AN, "sfc", (), tuple(STEPS))
-    return Spec(model, typ, SFC_FC, "sfc", (), tuple(STEPS_FC))
+    return Spec(model, typ, SFC, "sfc", (), tuple(STEPS))
 
 
 def sfc_path(cycle: Cycle, model: str, typ: str, short: str) -> Path:
-    """Ensure the surface batch that carries `short` (10u/10v/msl/sp/2t) and return its
-    path. Open it filtered, e.g. backend_kwargs={'filter_by_keys': {'shortName': short}}."""
-    kind = "an" if short in SFC_AN else "fc"
-    return ensure(cycle, sfc_spec(model, typ, kind))
+    """Ensure the surface batch carrying `short` (sp/10u/10v/msl) and return its path.
+    Open it filtered, e.g. backend_kwargs={'filter_by_keys': {'shortName': short}}."""
+    spec = sfc_spec(model, typ)
+    if model != "ifs" and not _complete(path(cycle, spec), spec.n_expected()):
+        # transition fallback: reuse a legacy fc/an batch already complete in this cycle
+        for legacy, steps in ((_SFC_FC_LEGACY, STEPS_FC), (_SFC_AN_LEGACY, STEPS)):
+            if short in legacy:
+                lspec = Spec(model, typ, legacy, "sfc", (), tuple(steps))
+                if _complete(path(cycle, lspec), lspec.n_expected()):
+                    return path(cycle, lspec)
+    return ensure(cycle, spec)
 
 
 # ── registry: everything a 00Z/12Z cycle needs (for the pre-fetcher) ─────────────
@@ -515,11 +525,10 @@ def registry() -> list[Spec]:
         Spec("aifs-ens", "cf", "u", "pl", LEVELS_RMM, S),
         Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM_REST, S),
         Spec("aifs-ens", "cf", "u", "pl", LEVELS_AAM_REST, S),
-        # batched surface fields — forecast-step (10u/10v/msl) + analysis (sp/2t), one
-        # retrieve each per type; consumers filter their field by shortName.
-        sfc_spec("aifs-ens", "pf", "fc"), sfc_spec("aifs-ens", "cf", "fc"),
-        sfc_spec("aifs-ens", "pf", "an"), sfc_spec("aifs-ens", "cf", "an"),
-        sfc_spec("ifs", "pf", "fc"),
+        # ALL surface fields (sp/10u/10v/msl) in ONE batch per type; consumers filter by
+        # shortName. IFS carries just 10u/msl (its Hovmöller + SOI feed).
+        sfc_spec("aifs-ens", "pf"), sfc_spec("aifs-ens", "cf"),
+        sfc_spec("ifs", "pf"),
         # MMSF — AIFS analysis (step 0) meridional wind @ 13 levels
         Spec("aifs-ens", "cf", "v", "pl", LEVELS_AAM, (0,)),
         # ensembles page + general reuse — AIFS z @ 500 (2t is in the surface batch above).

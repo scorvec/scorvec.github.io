@@ -62,7 +62,7 @@ def fetch(date: str, time: str, data_root: Path) -> None:
     # pulled above by the Hovmöller/SOI downloads. Best-effort.
     print("== AIFS-ENS surface analysis batch (sp/2t) ==", flush=True)
     cyc = store.Cycle(date, time); S = tuple(store.STEPS)
-    specs = [store.sfc_spec("aifs-ens", t, "an") for t in ("cf", "pf")]
+    specs = [store.sfc_spec("aifs-ens", t) for t in ("cf", "pf")]
     if os.environ.get("ENS_FETCH_Z500") == "1":
         specs += [store.Spec("aifs-ens", t, "z", "pl", (500,), S) for t in ("cf", "pf")]
     for sp in specs:
@@ -89,7 +89,7 @@ def fetch(date: str, time: str, data_root: Path) -> None:
         print("== surface forecast batch (10u/10v/msl — torque needs 10v) ==", flush=True)
         cyc = store.Cycle(date, time)
         for typ in ("cf", "pf"):                            # mostly a cache hit (Hovmöller pulled it)
-            store.ensure(cyc, store.sfc_spec("aifs-ens", typ, "fc"))
+            store.ensure(cyc, store.sfc_spec("aifs-ens", typ))
         dirs.append("torque")
     except ImportError:
         pass
