@@ -36,7 +36,9 @@ CACHE = Path(os.environ.get("ECMWF_CACHE",
                             str(Path(__file__).resolve().parent / "cache")))
 SOURCES = os.environ.get("ECMWF_SOURCES", "aws,azure,ecmwf").split(",")
 MULTISOURCE = os.environ.get("ECMWF_MULTISOURCE", "1") != "0"   # spread steps across mirrors
-WORKERS = int(os.environ.get("ECMWF_DL_WORKERS", "2"))      # parallel member streams (pf)
+WORKERS = int(os.environ.get("ECMWF_DL_WORKERS", "1"))      # parallel member streams (pf)
+                                                            # 1 by default: fewer concurrent
+                                                            # range-requests → fewer S3 503s
 PER_SRC = int(os.environ.get("ECMWF_DL_PER_SRC", "2"))      # hard cap: in-flight retrieves / mirror
 PF_MEMBERS = 50
 MIN_RATE = float(os.environ.get("ECMWF_DL_MIN_RATE", "40000"))   # B/s; below ⇒ stalled
@@ -92,6 +94,11 @@ _SEM = {s: threading.Semaphore(PER_SRC) for s in SOURCES}
 STEPS = [0] + list(range(24, 361, 24))
 STEPS_FC = list(range(24, 361, 24))
 LEVELS_AAM = (50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000)
+LEVELS_RMM = (200, 850)                                        # the MJO/RMM task downloads these
+LEVELS_AAM_REST = tuple(l for l in LEVELS_AAM if l not in LEVELS_RMM)   # AAM downloads the other 11
+#   The RMM (200/850) and AAM (the other 11) u-downloads are kept SEPARATE so the light RMM
+#   critical-path isn't blocked behind the ~6 GB AAM pull, with NO duplicate level: 200/850 is
+#   fetched once (by RMM) and the AAM builder concatenates the two files back to 13 levels.
 
 
 @dataclass(frozen=True)
@@ -417,10 +424,12 @@ def sfc_path(cycle: Cycle, model: str, typ: str, short: str) -> Path:
 def registry() -> list[Spec]:
     S = tuple(STEPS)        # 0..360 (with analysis) — RMM, AAM, MMSF, ens
     return [
-        # AIFS u @ 13 levels — serves BOTH the RMM (reads 200/850) and the AAM/zonal
-        # builders from one download (no separate u@200/850).
-        Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM, S),
-        Spec("aifs-ens", "cf", "u", "pl", LEVELS_AAM, S),
+        # AIFS u — RMM levels (200/850) FIRST so the light MJO critical path is never
+        # stuck behind the heavy AAM pull; then the other 11 levels for AAM (no dup).
+        Spec("aifs-ens", "pf", "u", "pl", LEVELS_RMM, S),
+        Spec("aifs-ens", "cf", "u", "pl", LEVELS_RMM, S),
+        Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM_REST, S),
+        Spec("aifs-ens", "cf", "u", "pl", LEVELS_AAM_REST, S),
         # batched surface fields — forecast-step (10u/10v/msl) + analysis (sp/2t), one
         # retrieve each per type; consumers filter their field by shortName.
         sfc_spec("aifs-ens", "pf", "fc"), sfc_spec("aifs-ens", "cf", "fc"),

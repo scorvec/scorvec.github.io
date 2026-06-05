@@ -41,13 +41,17 @@ def _interp_lat(field, lat_src, lat_dst):
     return np.stack([np.interp(lat_dst, ls, field[i][o]) for i in range(field.shape[0])])
 
 
-def zonal_aam_density(up: Path, sp_path: Path):
+def zonal_aam_density(up_rest: Path, up_rmm: Path, sp_path: Path):
     """Ensemble-mean AAM per (step, lev, lat) zonal band [kg m² s⁻¹], computed exactly
     as aam.py so Σ_lev,lat = the global AAM. Also returns zonal-mean u for the jet
     contour. (a³/g)·cos²φ·dλ·dφ · Σ_lon(u·Δp), dλ/dφ in radians, Δp surface-clipped."""
-    du = xr.open_dataset(up, engine="cfgrib", backend_kwargs={"indexpath": ""}, chunks={"number": 1})
-    dsp = xr.open_dataset(sp_path, engine="cfgrib", backend_kwargs={"indexpath": ""}, chunks={"number": 1})
-    u = du["u"].sortby("isobaricInhPa")
+    kw = dict(engine="cfgrib", backend_kwargs={"indexpath": ""}, chunks={"number": 1})
+    du_rest = xr.open_dataset(up_rest, **kw)             # 11 AAM-only levels
+    du_rmm = xr.open_dataset(up_rmm, **kw)               # 200/850 (shared with the RMM)
+    dsp = xr.open_dataset(sp_path, engine="cfgrib",
+                          backend_kwargs={"filter_by_keys": {"shortName": "sp"}, "indexpath": ""},
+                          chunks={"number": 1})          # sp out of the batched surface file
+    u = xr.concat([du_rest["u"], du_rmm["u"]], dim="isobaricInhPa").sortby("isobaricInhPa")
     p_hpa = u.isobaricInhPa.values.astype(float)
     p_pa = p_hpa * 100.0
     lat = u.latitude.values
@@ -175,16 +179,18 @@ def main() -> int:
     ap.add_argument("--anim-dir", default="../../assets/sst/anim/aam_zonal")
     ap.add_argument("--manifest", default="../../assets/sst/anim/aam_zonal_manifest.json")
     a = ap.parse_args()
-    # shared store: the same AIFS u@13-levels + sp the AAM plot pulls (fetch-once)
+    # shared store: the AAM-only 11 u-levels + the RMM 200/850 file (concatenated back to
+    # 13 in zonal_aam_density) + sp — fetch-once, no duplicate of 200/850.
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
     import store as ecmwf
-    from aam import LEVELS, DAILY_STEPS
+    from aam import DAILY_STEPS
     cyc = ecmwf.Cycle(a.date, a.time); steps = tuple(DAILY_STEPS)
-    up = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", tuple(LEVELS), steps))
-    sp = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "sp", "sfc", (), steps))
+    up_rest = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", ecmwf.LEVELS_AAM_REST, steps))
+    up_rmm = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", ecmwf.LEVELS_RMM, steps))
+    sp = ecmwf.sfc_path(cyc, "aifs-ens", "pf", "sp")   # sp out of the batched surface file
     init = pd.Timestamp(f"{a.date}T{a.time}:00")
     print("== AAM zonal anatomy (AIFS-ENS ens-mean) ==", flush=True)
-    m, p_hpa, lat, steps_h, ubar_zm = zonal_aam_density(up, sp)
+    m, p_hpa, lat, steps_h, ubar_zm = zonal_aam_density(up_rest, up_rmm, sp)
     animate(m, p_hpa, lat, steps_h, ubar_zm, init, Path(a.anim_dir), Path(a.manifest))
     return 0
 

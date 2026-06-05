@@ -379,6 +379,9 @@ def render_2panel_frame(field, la, lo, kind, title, out_path, annotation=None):
     cb = fig.colorbar(im, cax=cax, extend="both")
     cb.set_label(style["cbar"], fontsize=10)
     cb.ax.tick_params(labelsize=9)
+    # defensive: a concurrent pipeline's `git reset --hard` can briefly remove the anim
+    # dir mid-render — recreate it so the worker never dies with FileNotFoundError.
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=88, facecolor="white",
                 pil_kwargs={"quality": 82, "method": 6})
     plt.close(fig)

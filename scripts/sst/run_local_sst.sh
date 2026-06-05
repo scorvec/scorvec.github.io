@@ -23,6 +23,19 @@ LOG="$REPO/scripts/sst/run_local_sst.log"
 exec >> "$LOG" 2>&1
 echo "===================== $(date) ====================="
 
+# Single-instance lock: a slow run (TAO/OISST fetch) must not overlap the next
+# scheduled fire — concurrent renders + the push-retry `git reset --hard` race and
+# wipe each other's in-flight frames. mkdir is atomic; a >3 h-old lock is stale.
+LOCK="$REPO/scripts/sst/.run.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +180 2>/dev/null)" ]; then
+    echo "stale lock (>3h) — taking over"; rmdir "$LOCK" 2>/dev/null; mkdir "$LOCK" 2>/dev/null
+  else
+    echo "another SST run in progress — skipping this fire"; exit 0
+  fi
+fi
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+
 DAY_Q='import json,os;p="assets/sst/manifest.json";print(json.load(open(p)).get("sst_valid_day","") if os.path.exists(p) else "")'
 PREV_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
 "$PY" scripts/sst/sst-roni.py || { echo "sst-roni failed"; exit 1; }
