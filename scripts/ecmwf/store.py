@@ -85,6 +85,40 @@ try:
 except Exception:                                           # noqa: BLE001 — patch best-effort
     pass
 
+# ── adaptive global back-off on S3 throttling (503 / SlowDown) ────────────────────
+# A 503 is a per-IP request-RATE limit, not bandwidth — retrying FAST just keeps it
+# tripped. So every download thread shares ONE penalty that grows (×2) on each throttle
+# (capped) and decays on success; each retry sleeps the current penalty, collectively
+# cutting the request rate until S3's limit resets. FETCH_TRIES re-pulls a whole spec
+# (per-step resume) if a throttled mirror dropped messages, rather than aborting.
+BACKOFF_BASE = float(os.environ.get("ECMWF_BACKOFF_BASE", "8"))    # s — first throttle wait
+BACKOFF_MAX = float(os.environ.get("ECMWF_BACKOFF_MAX", "240"))   # s — cap
+FETCH_TRIES = int(os.environ.get("ECMWF_FETCH_TRIES", "3"))
+_THROTTLE = {"pen": 0.0}
+_THROTTLE_LOCK = threading.Lock()
+
+
+def _is_throttle(err) -> bool:
+    s = repr(err).lower()
+    return any(k in s for k in ("503", "slow down", "slowdown", "reduce your request", "429"))
+
+
+def _throttle_pen() -> float:
+    with _THROTTLE_LOCK:
+        return _THROTTLE["pen"]
+
+
+def _throttle_bump() -> float:
+    with _THROTTLE_LOCK:
+        _THROTTLE["pen"] = min(BACKOFF_MAX, max(BACKOFF_BASE, _THROTTLE["pen"] * 2))
+        return _THROTTLE["pen"]
+
+
+def _throttle_ease() -> None:
+    with _THROTTLE_LOCK:
+        _THROTTLE["pen"] = 0.0 if _THROTTLE["pen"] < 2.0 else _THROTTLE["pen"] * 0.5
+
+
 # One semaphore per mirror → never more than PER_SRC concurrent retrieves on a source,
 # however many steps/mirrors the multi-source fan-out is juggling.
 _SEM = {s: threading.Semaphore(PER_SRC) for s in SOURCES}
@@ -275,9 +309,15 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int, star
             except Exception:                              # noqa: BLE001
                 got = -1
             if got >= expected:
+                _throttle_ease()
                 return src
             err = RuntimeError(f"incomplete GRIB: {got}/{expected} msgs")
-        print(f"    {label}: {repr(err)[:55]} — retry {attempt}/{TRIES} (mirror)", flush=True)
+        if _is_throttle(err):                              # 503/SlowDown → global back-off
+            wait = _throttle_bump()
+            print(f"    {label}: 503 throttle — backing off {wait:.0f}s — retry {attempt}/{TRIES}", flush=True)
+            time.sleep(wait)
+        else:
+            print(f"    {label}: {repr(err)[:55]} — retry {attempt}/{TRIES} (mirror)", flush=True)
     _clean(target)
     raise err if err is not None else RuntimeError(f"{label}: failed after {TRIES} tries")
 
@@ -318,9 +358,29 @@ def _robust_chunked(req: dict, target: str, parallel: bool, members) -> str:
         for st in steps:
             with open(cdir / f"s{int(st):03d}.grib2", "rb") as f:
                 shutil.copyfileobj(f, out)
-    shutil.rmtree(cdir, ignore_errors=True)
+    # NB: keep cdir (the per-step parts) until ensure() has verified the assembled total —
+    # if a throttled mirror dropped messages, ensure re-fetches only the short steps from here.
     srcs = sorted(set(used))
     return "+".join(srcs) if len(srcs) > 1 else (srcs[0] if srcs else "chunked")
+
+
+def _short_steps(parts_dir: str, req: dict, members) -> list[tuple]:
+    """Steps whose stored part file is short of its expected msg count → (hour, got, exp).
+    Lets ensure() report exactly what's missing and resume only those steps."""
+    out = []
+    d = Path(parts_dir)
+    if not d.is_dir():
+        return out
+    for st in (req.get("step") or []):
+        exp = _msgs_for({**req, "step": [st]}, members)
+        pf = d / f"s{int(st):03d}.grib2"
+        try:
+            got = count_msgs(str(pf)) if pf.exists() else 0
+        except Exception:                                  # noqa: BLE001
+            got = 0
+        if got < exp:
+            out.append((int(st), got, exp))
+    return out
 
 
 def _msgs_for(req: dict, members) -> int:
@@ -368,11 +428,29 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
         Path(f"{stage}.src").unlink(missing_ok=True)       # stale source breadcrumb
         print(f"  ECMWF {cycle.tag} {spec.model}/{spec.filename}: fetching "
               f"({expected} msgs) …", flush=True)
-        src = _robust_chunked(_to_req(cycle, spec), str(stage), spec.type == "pf", spec.members())
-        got = count_msgs(str(stage))
+        req = _to_req(cycle, spec); members = spec.members()
+        got, src = 0, None
+        for ftry in range(1, FETCH_TRIES + 1):
+            if ftry == FETCH_TRIES:                        # last resort: clean-slate pull
+                shutil.rmtree(f"{stage}.parts", ignore_errors=True)
+            src = _robust_chunked(req, str(stage), spec.type == "pf", members)
+            got = count_msgs(str(stage))
+            if got >= expected:
+                break
+            # incomplete → say exactly which steps are short, then resume just those
+            short = _short_steps(f"{stage}.parts", req, members)
+            Path(str(stage)).unlink(missing_ok=True)       # drop the bad assembly; KEEP .parts to resume
+            if not short:                                  # per-step counts OK but total short → clean slate next
+                shutil.rmtree(f"{stage}.parts", ignore_errors=True)
+            miss = ", ".join(f"{h}h {g}/{e}" for h, g, e in short) or "mid-file corruption"
+            wait = max(BACKOFF_BASE, _throttle_pen())
+            print(f"  {spec.filename}: incomplete {got}/{expected} — missing [{miss}] — "
+                  f"re-fetch {ftry}/{FETCH_TRIES} after {wait:.0f}s", flush=True)
+            time.sleep(wait)
         if got < expected:
-            _clean(str(stage))
-            raise RuntimeError(f"{spec.filename}: incomplete after fetch ({got}/{expected})")
+            _clean(str(stage)); shutil.rmtree(f"{stage}.parts", ignore_errors=True)
+            raise RuntimeError(f"{spec.filename}: still incomplete after {FETCH_TRIES} fetches ({got}/{expected})")
+        shutil.rmtree(f"{stage}.parts", ignore_errors=True)   # verified complete → drop the parts
         _sidecar(stage, got, src)
         os.replace(stage.with_suffix(stage.suffix + ".json"), p.with_suffix(p.suffix + ".json"))
         os.replace(stage, p)                               # atomic publish
