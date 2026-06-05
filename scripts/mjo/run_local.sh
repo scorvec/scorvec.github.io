@@ -90,7 +90,7 @@ fi
   --out "$REPO/assets/sst/soi_forecast.webp" || echo "SOI failed; continuing"
 "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
   --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
-"$PY" src/aam_zonal.py --date "$DATE" --time "$TIME" --data-dir data/aam \
+"$PY" src/aam_zonal.py --date "$DATE" --time "$TIME" \
   --anim-dir "$REPO/assets/sst/anim/aam_zonal" \
   --manifest "$REPO/assets/sst/anim/aam_zonal_manifest.json" || echo "AAM zonal failed; continuing"
 "$PY" src/torque_map_anim.py --date "$DATE" --time "$TIME" --data-dir data/torque \
