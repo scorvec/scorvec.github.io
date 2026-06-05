@@ -39,12 +39,12 @@ DATA_DIR = Path(__file__).parent.parent / "data" / "aifs"
 _STEP_HOURS = int(os.environ.get("AIFS_STEP_HOURS", "24"))
 STEPS = [0] + list(range(_STEP_HOURS, 361, _STEP_HOURS))
 
-# Spread across all four mirrors — aws/azure/google blobs + the ECMWF portal (which
-# enforces a connection limit / HTTP 429). google NOW serves aifs-ens pressure-level
-# too (it used to 400 on pl), so it's a full mirror again; more mirrors = lower per-
-# mirror request rate = less throttling. Override with the AIFS_SOURCES env var.
+# aws/azure blobs + the ECMWF portal (which enforces a connection limit / HTTP 429).
+# google is EXCLUDED: it only partially/laggingly mirrors the latest cycle (400s on the
+# perturbed sp/2t, z500 and pl data it hasn't synced yet) → just retry noise on daily
+# latest-cycle pulls. Override with the AIFS_SOURCES env var.
 SOURCES = [s.strip() for s in
-           os.environ.get("AIFS_SOURCES", "aws,azure,ecmwf,google").split(",") if s.strip()]
+           os.environ.get("AIFS_SOURCES", "aws,azure,ecmwf").split(",") if s.strip()]
 
 
 def _archive_grib(target: str, req: dict) -> None:
