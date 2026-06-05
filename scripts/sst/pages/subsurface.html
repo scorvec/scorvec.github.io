@@ -1,0 +1,40 @@
+<main>
+  <div class="page-header">
+    <h1>Equatorial Pacific Subsurface Temperature</h1>
+    <p>Depth&ndash;longitude cross-sections along the equator from the TAO/TRITON moored-buoy array. The subsurface warm reservoir along the thermocline often <i>leads</i> the surface ENSO signal.</p>
+  </div>
+
+  <div class="chart-stack">
+
+    <!-- SUBSURFACE CROSS-SECTION -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Pacific Subsurface Temperature</h2>
+        <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed.</p>
+        <p><b>What to look for:</b> The thermocline (here the 26&deg;C and 28&deg;C isotherms) tilts upward toward the east. Subsurface warm or cool anomalies along the thermocline often <i>lead</i> the surface ENSO signal &mdash; watch them build and propagate eastward in the animation.</p>
+      </div>
+      <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial"
+              title="Equatorial Pacific subsurface temperature animation" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
+        <span class="chart-updated" id="subsurface-updated">__TAO_DAY__</span>
+      </div>
+    </div>
+
+    <!-- SUBSURFACE CROSS-SECTION — DE-TRENDED COMPANION -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Subsurface Temperature &mdash; Climate Trend Removed</h2>
+        <p>The same equatorial cross-section, comparing the anomaly versus the 1991&ndash;2020 average (top) with the same anomaly after the <b>secular climate trend is removed</b> (bottom). The trend is a per-depth, per-longitude linear fit over the 1991&ndash;2020 TAO record, so de-trending strips the slowly-evolving background and isolates the ENSO signal.</p>
+        <p><b>What to look for:</b> Where the two panels differ is where the background trend lives &mdash; notably subsurface warming in the far west and cooling along the eastern thermocline.</p>
+      </div>
+      <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial_dt"
+              title="Equatorial Pacific subsurface anomaly, raw vs de-trended" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; trend fit 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
+        <span class="chart-updated">__TAO_DAY__</span>
+      </div>
+    </div>
+
+  </div>
+</main>

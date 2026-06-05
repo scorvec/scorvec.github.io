@@ -1,0 +1,111 @@
+<main>
+  <div class="page-header">
+    <h1>Global SST and El Ni&ntilde;o/La Ni&ntilde;a Monitor</h1>
+    <p>Daily sea-surface temperature anomalies and ENSO indices from NOAA OISST v2.1, with subsurface, analog, forecast and atmospheric diagnostics. Use the tabs above &mdash; or the topics below &mdash; to dig into each theme.</p>
+  </div>
+
+  <div class="topic-grid">
+    <a class="topic-card" href="enso-subsurface.html">
+      <h3>Subsurface</h3>
+      <p>Equatorial Pacific depth&ndash;longitude temperature cross-sections &mdash; the warm reservoir that leads the surface.</p>
+    </a>
+    <a class="topic-card" href="enso-analogs.html">
+      <h3>Analogs</h3>
+      <p>This event measured against 1997, 2015 and 2023 &mdash; surface, subsurface and low-level wind.</p>
+    </a>
+    <a class="topic-card" href="enso-forecasts.html">
+      <h3>Forecasts</h3>
+      <p>CanSIPS seasonal Ni&ntilde;o-3.4 outlook and the ensemble Southern Oscillation Index forecast.</p>
+    </a>
+    <a class="topic-card" href="enso-atmosphere.html">
+      <h3>Atmosphere &amp; Winds</h3>
+      <p>Observed and forecast equatorial winds, atmospheric angular momentum and the overturning circulation.</p>
+    </a>
+  </div>
+
+  <div class="chart-stack">
+
+    <!-- SST ANOMALY MAPS -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Global &amp; Tropical Pacific SST Anomalies</h2>
+      </div>
+      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
+              title="Global and tropical Pacific SST anomaly animation" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; base 1991&ndash;2020 &middot; 60-day animation, latest day shown</span>
+        <span class="chart-updated" id="sst-updated">__SST_DAY__</span>
+      </div>
+    </div>
+
+    <!-- ABSOLUTE SST -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Absolute Sea-Surface Temperature</h2>
+        <p>The actual SST field (not anomaly), global and tropical Pacific. The warm pool, equatorial cold tongue, and western boundary currents are visible directly; watch them shift day to day.</p>
+      </div>
+      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=absolute"
+              title="Absolute SST animation" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; absolute SST &middot; 60-day animation</span>
+        <span class="chart-updated">__SST_DAY__</span>
+      </div>
+    </div>
+
+    <!-- RELATIVE SST (global-mean removed) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>SST Anomaly &mdash; Global-Mean Removed</h2>
+        <p>The anomaly with the area-weighted global-mean SST anomaly subtracted at every point. This strips out the uniform background-warming signal and isolates the <i>pattern</i> of warming and cooling &mdash; the El Ni&ntilde;o footprint stands out against a more balanced global ocean.</p>
+      </div>
+      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=relative"
+              title="Global-mean-removed SST anomaly animation" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; anomaly minus global-mean anomaly &middot; 60-day animation</span>
+        <span class="chart-updated">__SST_DAY__</span>
+      </div>
+    </div>
+
+    <!-- RONI -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Relative Oceanic Ni&ntilde;o Index (RONI)</h2>
+        <p>RONI is an ENSO index that subtracts the tropical-mean SST anomaly (20&deg;S&ndash;20&deg;N) from the Ni&ntilde;o-3.4 anomaly, then applies a 3-month running mean. By removing the slowly-rising tropical background, it isolates the ENSO signal more cleanly than the conventional ONI &mdash; increasingly useful as overall ocean temperatures trend upward.</p>
+        <p><b>How to read it:</b> Red bars (positive) lean El Ni&ntilde;o, blue bars (negative) lean La Ni&ntilde;a; the dashed lines mark the &plusmn;0.5&deg;C guides. This index is computed directly from OISST and shown in &deg;C &mdash; it captures the shape and timing of CPC's RONI but is not their standardized published value.</p>
+      </div>
+      <div class="img-wrap">
+        <img src="assets/sst/roni.webp?v=__CACHE__"
+             alt="Relative Oceanic Niño Index time series" loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Computed from NOAA OISST v2.1 &middot; Ni&ntilde;o-3.4 minus tropical-mean &middot; 3-mo running mean</span>
+        <span class="chart-updated" id="roni-updated">__RONI_MONTH__</span>
+      </div>
+    </div>
+
+    <!-- DAILY 3-METRIC -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Daily Equatorial Pacific SST Indices</h2>
+        <p>All three daily metrics on one axis: the Ni&ntilde;o-3.4 anomaly (the basis of ONI), the tropical-mean anomaly (20&deg;S&ndash;20&deg;N), and their difference &mdash; the daily relative index that underlies RONI. These are single-day values, so they are noisier than the 3-month running indices above, but they show the most recent evolution.</p>
+        <p><b>What to look for:</b> When the red (Ni&ntilde;o-3.4) and green (tropical-mean) lines move together, the blue relative line stays flat &mdash; that's background warming, not ENSO. The blue line separating from zero is the genuine ENSO signal.</p>
+      </div>
+      <div class="img-wrap">
+        <img src="assets/sst/daily_indices.webp?v=__CACHE__"
+             alt="Daily Niño-3.4, tropical-mean, and relative SST indices" loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Daily, computed from NOAA OISST v2.1 &middot; year-to-date</span>
+        <span class="chart-updated" id="daily-updated">__SST_DAY__</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="colophon">
+    <h3>About these plots</h3>
+    <p>This monitor pulls together a range of ENSO and tropical-climate diagnostics, each computed from public source data (not screen-scraped) and regenerated automatically on its own schedule, then committed to the site's GitHub repository. <b>Daily:</b> the global and tropical-Pacific SST anomaly maps, RONI, and indices (NOAA OISST); the equatorial subsurface-temperature cross-section (NOAA/PMEL TAO/TRITON moorings); observed equatorial surface winds (Copernicus Marine scatterometer / ASCAT); and &mdash; from the ECMWF AIFS-ENS / IFS-ENS ensembles &mdash; the equatorial wind Hovm&ouml;ller, the Southern Oscillation Index forecast, and atmospheric angular momentum. <b>Monthly:</b> the CanSIPS Ni&ntilde;o-3.4 seasonal forecast (Environment and Climate Change Canada). <b>Weekly:</b> the El Ni&ntilde;o analog comparisons against 1997, 2015 and 2023. RONI is computed directly &mdash; the cosine-latitude-weighted Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N tropical mean, 3-month smoothed &mdash; rather than fetched.</p>
+    <p><b>Data &amp; acknowledgments:</b> ECMWF AIFS-ENS and IFS-ENS forecasts (wind Hovm&ouml;ller, SOI, atmospheric angular momentum) are used under the ECMWF open-data licence (CC&nbsp;BY&nbsp;4.0, &copy;&nbsp;ECMWF). Climatologies and the reanalysis-based fields use <b>ERA5</b> from the Copernicus Climate Change Service (C3S) / ECMWF &mdash; generated using Copernicus Climate Change Service information; neither the European Commission nor ECMWF is responsible for any use of the data. Other sources: NOAA OISST &amp; PSL, NOAA/PMEL TAO/TRITON, Copernicus Marine Service (ASCAT winds), the Australian Bureau of Meteorology / Queensland Govt LongPaddock (SOI), and Environment and Climate Change Canada (CanSIPS).</p>
+    <p>Source on <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">GitHub</a>.</p>
+  </div>
+</main>

@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Global SST and El Ni&ntilde;o/La Ni&ntilde;a Monitor &middot; Shawn Corvec</title>
-<meta name="description" content="Daily global and tropical Pacific sea-surface temperature anomalies from NOAA OISST v2.1, plus the Relative Oceanic Niño Index (RONI) and ENSO subsurface, analog, forecast and atmospheric diagnostics.">
-<link rel="canonical" href="https://scorvec.com/sst.html">
+<title>ENSO Forecasts &middot; El Ni&ntilde;o Monitor</title>
+<meta name="description" content="CanSIPS seasonal Niño-3.4 outlook and the AIFS-ENS/IFS-ENS Southern Oscillation Index forecast.">
+<link rel="canonical" href="https://scorvec.com/enso-forecasts.html">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
@@ -229,122 +229,43 @@
     </ul>
   </nav>
   <div class="enso-subnav">
-    <a href="sst.html" class="active">Overview</a>
+    <a href="sst.html" class="">Overview</a>
     <a href="enso-subsurface.html" class="">Subsurface</a>
     <a href="enso-analogs.html" class="">Analogs</a>
-    <a href="enso-forecasts.html" class="">Forecasts</a>
+    <a href="enso-forecasts.html" class="active">Forecasts</a>
     <a href="enso-atmosphere.html" class="">Atmosphere &amp; Winds</a>
   </div>
 </header>
 <main>
   <div class="page-header">
-    <h1>Global SST and El Ni&ntilde;o/La Ni&ntilde;a Monitor</h1>
-    <p>Daily sea-surface temperature anomalies and ENSO indices from NOAA OISST v2.1, with subsurface, analog, forecast and atmospheric diagnostics. Use the tabs above &mdash; or the topics below &mdash; to dig into each theme.</p>
-  </div>
-
-  <div class="topic-grid">
-    <a class="topic-card" href="enso-subsurface.html">
-      <h3>Subsurface</h3>
-      <p>Equatorial Pacific depth&ndash;longitude temperature cross-sections &mdash; the warm reservoir that leads the surface.</p>
-    </a>
-    <a class="topic-card" href="enso-analogs.html">
-      <h3>Analogs</h3>
-      <p>This event measured against 1997, 2015 and 2023 &mdash; surface, subsurface and low-level wind.</p>
-    </a>
-    <a class="topic-card" href="enso-forecasts.html">
-      <h3>Forecasts</h3>
-      <p>CanSIPS seasonal Ni&ntilde;o-3.4 outlook and the ensemble Southern Oscillation Index forecast.</p>
-    </a>
-    <a class="topic-card" href="enso-atmosphere.html">
-      <h3>Atmosphere &amp; Winds</h3>
-      <p>Observed and forecast equatorial winds, atmospheric angular momentum and the overturning circulation.</p>
-    </a>
+    <h1>ENSO Forecasts</h1>
+    <p>Forward-looking ENSO guidance: the CanSIPS seasonal Ni&ntilde;o-3.4 outlook and the ensemble Southern Oscillation Index forecast.</p>
   </div>
 
   <div class="chart-stack">
 
-    <!-- SST ANOMALY MAPS -->
+    <!-- CANSIPS GEM-NEMO NIÑO-3.4 FORECAST -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Global &amp; Tropical Pacific SST Anomalies</h2>
+        <h2>CanSIPS Ni&ntilde;o-3.4 Seasonal Forecast (GEM-NEMO)</h2>
+        <p>Ni&ntilde;o-3.4 SST-anomaly forecast plume from the GEM-NEMO component of Environment Canada's CanSIPS seasonal system (ensemble members 1&ndash;20), out ~11 months. <b>Traditional</b> (left) is the Ni&ntilde;o-3.4 anomaly vs the model's own 1991&ndash;2020 hindcast climatology; <b>relative</b> (right) subtracts the 20&deg;S&ndash;20&deg;N tropical-mean anomaly (RONI-style). Using the model's hindcast climatology removes its drift/bias.</p>
+        <p>Bold red is the current issue's ensemble mean (thin red = members); dashed grey is <b>last month's</b> forecast (with its 10&ndash;90% spread) &mdash; where they overlap you can see how the outlook is trending month-to-month.</p>
       </div>
-      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
-              title="Global and tropical Pacific SST anomaly animation" loading="lazy"></iframe>
-      <div class="chart-card-footer">
-        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; base 1991&ndash;2020 &middot; 60-day animation, latest day shown</span>
-        <span class="chart-updated" id="sst-updated">OISST 2026-06-03</span>
-      </div>
+      <div class="img-wrap"><img src="assets/sst/cansips_nino34.webp?v=TESTCACHE" alt="CanSIPS GEM-NEMO Niño-3.4 forecast plume (traditional + relative), current vs previous issue" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECCC CanSIPS GEM-NEMO (datamart) &middot; anomaly vs 1991&ndash;2020 model hindcast &middot; updated monthly</span></div>
     </div>
 
-    <!-- ABSOLUTE SST -->
+    <!-- SOI FORECAST -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Absolute Sea-Surface Temperature</h2>
-        <p>The actual SST field (not anomaly), global and tropical Pacific. The warm pool, equatorial cold tongue, and western boundary currents are visible directly; watch them shift day to day.</p>
+        <h2>Southern Oscillation Index &mdash; Forecast</h2>
+        <p>The Troup SOI (the standardized Tahiti&minus;Darwin sea-level-pressure difference) tracks the atmospheric side of ENSO. Observed values are from LongPaddock (Queensland Govt / BoM); the forecast is the Tahiti&minus;Darwin MSL from the combined AIFS-ENS + IFS-ENS ensemble (~100 members), bias-corrected to the recent observed level. Bold lines are the 30-day running SOI; the faint daily series and shaded 10&ndash;90% band show the noisier day-to-day spread.</p>
+        <p><b>How to read it:</b> Sustained <b>negative</b> SOI (below &minus;7) is El Ni&ntilde;o-favorable; sustained <b>positive</b> (above +7) is La Ni&ntilde;a-favorable. A forecast that holds the 30-day SOI deep negative reinforces an El Ni&ntilde;o signal.</p>
       </div>
-      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=absolute"
-              title="Absolute SST animation" loading="lazy"></iframe>
-      <div class="chart-card-footer">
-        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; absolute SST &middot; 60-day animation</span>
-        <span class="chart-updated">OISST 2026-06-03</span>
-      </div>
+      <div class="img-wrap"><img src="assets/sst/soi_forecast.webp?v=TESTCACHE" alt="Southern Oscillation Index: observed (LongPaddock/BoM) plus AIFS-ENS/IFS-ENS forecast" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">LongPaddock daily SOI (BoM, 1933&ndash;1992 base) &middot; forecast: ECMWF AIFS-ENS + IFS-ENS MSL &middot; updated each 00/12Z cycle</span></div>
     </div>
 
-    <!-- RELATIVE SST (global-mean removed) -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>SST Anomaly &mdash; Global-Mean Removed</h2>
-        <p>The anomaly with the area-weighted global-mean SST anomaly subtracted at every point. This strips out the uniform background-warming signal and isolates the <i>pattern</i> of warming and cooling &mdash; the El Ni&ntilde;o footprint stands out against a more balanced global ocean.</p>
-      </div>
-      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=relative"
-              title="Global-mean-removed SST anomaly animation" loading="lazy"></iframe>
-      <div class="chart-card-footer">
-        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; anomaly minus global-mean anomaly &middot; 60-day animation</span>
-        <span class="chart-updated">OISST 2026-06-03</span>
-      </div>
-    </div>
-
-    <!-- RONI -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Relative Oceanic Ni&ntilde;o Index (RONI)</h2>
-        <p>RONI is an ENSO index that subtracts the tropical-mean SST anomaly (20&deg;S&ndash;20&deg;N) from the Ni&ntilde;o-3.4 anomaly, then applies a 3-month running mean. By removing the slowly-rising tropical background, it isolates the ENSO signal more cleanly than the conventional ONI &mdash; increasingly useful as overall ocean temperatures trend upward.</p>
-        <p><b>How to read it:</b> Red bars (positive) lean El Ni&ntilde;o, blue bars (negative) lean La Ni&ntilde;a; the dashed lines mark the &plusmn;0.5&deg;C guides. This index is computed directly from OISST and shown in &deg;C &mdash; it captures the shape and timing of CPC's RONI but is not their standardized published value.</p>
-      </div>
-      <div class="img-wrap">
-        <img src="assets/sst/roni.webp?v=TESTCACHE"
-             alt="Relative Oceanic Niño Index time series" loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Computed from NOAA OISST v2.1 &middot; Ni&ntilde;o-3.4 minus tropical-mean &middot; 3-mo running mean</span>
-        <span class="chart-updated" id="roni-updated">RONI thru 2026-06</span>
-      </div>
-    </div>
-
-    <!-- DAILY 3-METRIC -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Daily Equatorial Pacific SST Indices</h2>
-        <p>All three daily metrics on one axis: the Ni&ntilde;o-3.4 anomaly (the basis of ONI), the tropical-mean anomaly (20&deg;S&ndash;20&deg;N), and their difference &mdash; the daily relative index that underlies RONI. These are single-day values, so they are noisier than the 3-month running indices above, but they show the most recent evolution.</p>
-        <p><b>What to look for:</b> When the red (Ni&ntilde;o-3.4) and green (tropical-mean) lines move together, the blue relative line stays flat &mdash; that's background warming, not ENSO. The blue line separating from zero is the genuine ENSO signal.</p>
-      </div>
-      <div class="img-wrap">
-        <img src="assets/sst/daily_indices.webp?v=TESTCACHE"
-             alt="Daily Niño-3.4, tropical-mean, and relative SST indices" loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Daily, computed from NOAA OISST v2.1 &middot; year-to-date</span>
-        <span class="chart-updated" id="daily-updated">OISST 2026-06-03</span>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="colophon">
-    <h3>About these plots</h3>
-    <p>This monitor pulls together a range of ENSO and tropical-climate diagnostics, each computed from public source data (not screen-scraped) and regenerated automatically on its own schedule, then committed to the site's GitHub repository. <b>Daily:</b> the global and tropical-Pacific SST anomaly maps, RONI, and indices (NOAA OISST); the equatorial subsurface-temperature cross-section (NOAA/PMEL TAO/TRITON moorings); observed equatorial surface winds (Copernicus Marine scatterometer / ASCAT); and &mdash; from the ECMWF AIFS-ENS / IFS-ENS ensembles &mdash; the equatorial wind Hovm&ouml;ller, the Southern Oscillation Index forecast, and atmospheric angular momentum. <b>Monthly:</b> the CanSIPS Ni&ntilde;o-3.4 seasonal forecast (Environment and Climate Change Canada). <b>Weekly:</b> the El Ni&ntilde;o analog comparisons against 1997, 2015 and 2023. RONI is computed directly &mdash; the cosine-latitude-weighted Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N tropical mean, 3-month smoothed &mdash; rather than fetched.</p>
-    <p><b>Data &amp; acknowledgments:</b> ECMWF AIFS-ENS and IFS-ENS forecasts (wind Hovm&ouml;ller, SOI, atmospheric angular momentum) are used under the ECMWF open-data licence (CC&nbsp;BY&nbsp;4.0, &copy;&nbsp;ECMWF). Climatologies and the reanalysis-based fields use <b>ERA5</b> from the Copernicus Climate Change Service (C3S) / ECMWF &mdash; generated using Copernicus Climate Change Service information; neither the European Commission nor ECMWF is responsible for any use of the data. Other sources: NOAA OISST &amp; PSL, NOAA/PMEL TAO/TRITON, Copernicus Marine Service (ASCAT winds), the Australian Bureau of Meteorology / Queensland Govt LongPaddock (SOI), and Environment and Climate Change Canada (CanSIPS).</p>
-    <p>Source on <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">GitHub</a>.</p>
   </div>
 </main>
 

@@ -338,12 +338,12 @@ def main() -> int:
     merge_region(frames_dt, dates, label="Equatorial Pacific anomaly — raw vs de-trended",
                  region="equatorial_dt")
 
-    # stamp the TAO date into the page (sst-roni.py fills __CACHE__/__SST_DAY__)
-    html = SITE_ROOT / "sst.html"
-    if html.exists():
-        txt = html.read_text()
-        if "__TAO_DAY__" in txt:
-            html.write_text(txt.replace("__TAO_DAY__", f"TAO {dates[-1]:%Y-%m-%d}"))
+    # stamp the TAO date into every monitor page that shows it (sst-roni.py rendered
+    # the pages with __CACHE__/__SST_DAY__ already filled, leaving __TAO_DAY__ for here)
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import enso_site
+    enso_site.stamp_tao(SITE_ROOT, f"TAO {dates[-1]:%Y-%m-%d}")
 
     print(f"\nDone. {len(frames)} frames, latest {dates[-1]:%Y-%m-%d}.")
     print(f"  static : {ASSETS/'equatorial_xsection.webp'}")

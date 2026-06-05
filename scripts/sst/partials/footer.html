@@ -1,0 +1,13 @@
+
+<footer>
+  <p class="counter">Visitors: <span id="count">&mdash;</span></p>
+</footer>
+
+<script>
+  fetch('https://api.counterapi.dev/v1/scorvec/visits/up')
+    .then(r => r.json())
+    .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
+    .catch(() => { document.getElementById('count').textContent = '—'; });
+</script>
+</body>
+</html>

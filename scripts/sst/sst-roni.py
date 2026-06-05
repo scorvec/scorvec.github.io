@@ -802,21 +802,18 @@ def main(argv=None) -> int:
 
 
 def stamp_html(sst_valid, roni_month):
-    """Write repo-root sst.html from the template with values stamped."""
-    template = HERE / "sst.html.template"
-    out = HTML_OUT
-    if not template.exists():
-        print(f"  WARN: {template} not found; leaving sst.html untouched",
-              file=sys.stderr)
-        return
+    """Render the El Niño Monitor pages (Overview + 4 subpages) from the shared
+    partials/fragments via enso_site, stamping the data tokens (__TAO_DAY__ is
+    filled later by sst_subsurface, once the TAO date is known)."""
+    sys.path.insert(0, str(HERE))
+    import enso_site
     cache = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
-    html = template.read_text()
-    html = (html
-            .replace("__CACHE__", cache)
-            .replace("__SST_DAY__", f"OISST {sst_valid:%Y-%m-%d}")
-            .replace("__RONI_MONTH__", f"RONI thru {roni_month:%Y-%m}"))
-    out.write_text(html)
-    print(f"  wrote {out.name} (cache={cache})")
+    tokens = {"cache": cache,
+              "sst_day": f"OISST {sst_valid:%Y-%m-%d}",
+              "roni_month": f"RONI thru {roni_month:%Y-%m}"}
+    written = enso_site.render_all(tokens, SITE_ROOT)
+    print(f"  wrote {len(written)} pages (cache={cache}): "
+          + ", ".join(p.name for p in written))
 
 
 if __name__ == "__main__":

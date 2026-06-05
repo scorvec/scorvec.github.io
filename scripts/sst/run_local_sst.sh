@@ -50,7 +50,7 @@ if [ "$TODAY_UTC" != "$LAST_ANALOG" ] || { [ -n "$NEW_DAY" ] && [ "$NEW_DAY" != 
   [ "$ok" = 1 ] && echo "$TODAY_UTC" > "$ANALOG_STAMP"     # stamp only on full success → retry next poll otherwise
 fi
 
-git add sst.html assets/sst/
+git add sst.html enso-*.html assets/sst/
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
 DAY=$("$PY" -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])" 2>/dev/null)
 git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
