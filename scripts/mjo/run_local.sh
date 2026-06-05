@@ -27,6 +27,15 @@ LOG="$REPO/scripts/mjo/run_local.log"
 exec > >(grep --line-buffered -avE 'MB/s|kB/s|[0-9]+%\|[█▏▎▍▌▋▊▉ ]|enfo-pf\.grib2: +[0-9]|^[[:space:]]*\[A' > "$LOG") 2>&1
 echo "===================== $(date) ====================="
 
+# Cooldown guard: while data/.cooldown_until holds a FUTURE epoch, skip the run — lets
+# us stop hammering a rate-limited ECMWF S3 for a few hours; launchd keeps firing but
+# no-ops here, then auto-resumes once the window passes. `rm` the file to resume early.
+COOLDOWN="$REPO/scripts/mjo/data/.cooldown_until"
+if [ -f "$COOLDOWN" ] && [ "$(date +%s)" -lt "$(cat "$COOLDOWN" 2>/dev/null || echo 0)" ]; then
+  echo "cooldown active until $(date -r "$(cat "$COOLDOWN" 2>/dev/null || echo 0)" 2>/dev/null) — skipping S3 download"
+  exit 0
+fi
+
 read -r DATE TIME < <("$PY" -c \
   "import sys; sys.path.insert(0,'src'); from download_aifs import latest_run; d,t=latest_run(); print(d,t)" \
   2>/dev/null)
