@@ -39,6 +39,17 @@ DATA_DIR = Path(__file__).parent.parent / "data" / "aifs"
 _STEP_HOURS = int(os.environ.get("AIFS_STEP_HOURS", "24"))
 STEPS = [0] + list(range(_STEP_HOURS, 361, _STEP_HOURS))
 
+
+def rmm_steps(init_time) -> list:
+    """Lead steps that land on 00Z VALID times for any init hour, so the RMM samples one
+    consistent 00Z point per day across BOTH 00Z and 12Z runs (run-to-run comparable —
+    same forecast valid points). 00Z init → 0,24,…,360; 12Z init → 0,12,36,…,348 (forecast
+    leads offset +12 h to reach the next 00Z). Step 0 (the init analysis) is always kept —
+    it's the zero-lag 'truth' archived to obs_history. Same daily resolution / bandwidth."""
+    first = (24 - int(init_time) % 24) % 24                   # 0 for 00Z, 12 for 12Z
+    anchored = list(range(first, 361, 24))                    # forecast leads valid at 00Z
+    return anchored if first == 0 else [0] + anchored         # 12Z: prepend the 12Z analysis
+
 # aws/azure blobs + the ECMWF portal (which enforces a connection limit / HTTP 429).
 # google is EXCLUDED: it only partially/laggingly mirrors the latest cycle (400s on the
 # perturbed sp/2t, z500 and pl data it hasn't synced yet) → just retry noise on daily
@@ -292,7 +303,7 @@ def download(date: str, time: str, out_dir: Path) -> None:
     # heavy 13-level AAM download so the MJO critical path is never blocked behind it. The
     # AAM builder fetches the other 11 levels and concatenates 200/850 back in (no dup).
     # The RMM reader expects data/aifs/<stem>.{pf,cf}.u.grib2, so hardlink the cache file there.
-    cyc = ecmwf.Cycle(date, time); steps = tuple(ecmwf.STEPS)
+    cyc = ecmwf.Cycle(date, time); steps = tuple(rmm_steps(time))   # 00Z-anchored valid times
     for typ in ("pf", "cf"):
         src = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl", ecmwf.LEVELS_RMM, steps))
         dst = out_dir / f"{stem}.{typ}.u.grib2"

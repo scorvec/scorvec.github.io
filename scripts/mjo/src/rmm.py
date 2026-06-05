@@ -106,39 +106,42 @@ def compute_rmm(
     rmm2_members = []
     member_ids = []
 
+    init_dt = pd.Timestamp(f"{date[:4]}-{date[4:6]}-{date[6:8]}T{run_time}:00")
+
     for label, u_path in [("cf", cf_path), ("pf", pf_path)]:
         print(f"  Processing {label} …")
 
         u850, u200 = load_aifs_uwnd(u_path)
 
-        # 6-hourly → daily means
-        def to_daily(da: xr.DataArray) -> xr.DataArray:
-            hours = da.step / np.timedelta64(1, "h")
-            da = da.assign_coords(step=hours.astype(int))
-            day_idx = (da.step.values // 24).astype(int)
-            da = da.assign_coords(day=("step", day_idx))
-            return da.groupby("day").mean()
-
-        u850_d = to_daily(u850)
-        u200_d = to_daily(u200)
-        # Force the heavy lazy pipeline (cfgrib read → interp → daily-mean) to run ONCE,
-        # vectorized over all members. Without this, `.values` inside the per-member loop
-        # below re-triggered the whole dask graph 50× — minutes of scheduling/read overhead.
-        u850_d, u200_d = u850_d.load(), u200_d.load()
+        # The download anchors forecast leads to 00Z VALID times (download_aifs.rmm_steps:
+        # 00Z init → 0,24,…; 12Z init → 0,12,36,…), so 00Z and 12Z runs share ONE 00Z
+        # valid-time grid and their forecast points are directly comparable run-to-run.
+        # Steps are already daily-resolution (one sample per valid day) → use them as-is and
+        # take the valid time as init + the ACTUAL lead. (The old code used init + step//24
+        # days, which silently dropped the +12 h offset on 12Z runs and so plotted them on a
+        # 12Z grid — 12 h off the 00Z runs; that's the run-to-run inconsistency we're fixing.)
+        u850 = u850.sortby("step")
+        u200 = u200.sortby("step")
+        # Force the heavy lazy pipeline (cfgrib read → interp) to run ONCE, vectorized over
+        # all members. Without this, `.values` inside the per-member loop re-triggered the
+        # whole dask graph 50× — minutes of scheduling/read overhead.
+        u850_d, u200_d = u850.load(), u200.load()
 
         def lat_mean_da(da):
             lat = da.latitude if "latitude" in da.coords else da.lat
             mask = (lat >= LAT_MIN) & (lat <= LAT_MAX)
             w = np.cos(np.deg2rad(lat)).where(mask, 0.0)
-            return da.weighted(w).mean(dim=lat.name)
+            # transpose → (lead, lon): the EOF projection below assumes lead is axis 0
+            # (groupby used to guarantee this; now we make it explicit).
+            return da.weighted(w).mean(dim=lat.name).transpose("step", ...)
 
         n_mem = u850_d.sizes.get("number", 1)
         mem_dim = "number" if "number" in u850_d.dims else None
 
-        init_dt = pd.Timestamp(f"{date[:4]}-{date[4:6]}-{date[6:8]}T{run_time}:00")
-        lead_days = u850_d.day.values
-        valid_times = [init_dt + pd.Timedelta(days=int(d)) for d in lead_days]
-        doy = np.array([pd.Timestamp(t).dayofyear for t in valid_times])
+        hours = (u850_d.step / np.timedelta64(1, "h")).round().astype(int).values
+        valid_times = pd.DatetimeIndex([init_dt + pd.Timedelta(hours=int(h)) for h in hours])
+        lead_days = ((valid_times - init_dt) / pd.Timedelta(days=1)).to_numpy()  # actual lead (fractional on 12Z)
+        doy = valid_times.dayofyear.to_numpy()
 
         for m in range(n_mem):
             if mem_dim:
