@@ -117,6 +117,65 @@ def _dl_rate(key: str, cur: int) -> float:
     return rate
 
 
+import re
+_STEP_RE = re.compile(r"(s\d{3})\.grib2(?:\.part(\d+))?$")   # sNNN.grib2 [.partK]
+_SUFX_RE = re.compile(r"_s(\d+)-(\d+)x(\d+)\.grib2$")        # ..._s{lo}-{hi}x{n}.grib2
+
+
+def _spec_steps(spec: str) -> list[int]:
+    """The forecast-step hours a spec covers, decoded from its '_s{lo}-{hi}x{n}' suffix
+    (so PENDING steps, with no file yet, can still be listed)."""
+    m = _SUFX_RE.search(spec)
+    if not m:
+        return []
+    lo, hi, n = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if n <= 1:
+        return [lo]
+    d = (hi - lo) / (n - 1)
+    return [int(round(lo + i * d)) for i in range(n)]
+
+
+def _chunk_rates(cyc: str, model: str, spec: str, parts_dir: Path) -> list[dict]:
+    """FULL per-step breakdown of a chunked stage dir — every step in order, each marked
+    done / downloading / pending, with per-step bytes + rate and per-worker (.partK) rates.
+    A step downloads as sNNN.grib2 (single stream) or sNNN.grib2.partK (one per parallel
+    member-worker), then the parts concatenate into sNNN.grib2."""
+    on_disk: dict[int, dict] = {}
+    try:
+        entries = list(parts_dir.iterdir())
+    except OSError:
+        entries = []
+    for f in entries:
+        m = _STEP_RE.search(f.name)
+        if not m:
+            continue
+        hour, part = int(m.group(1)[1:]), m.group(2)
+        try:
+            sz = f.stat().st_size
+        except OSError:
+            sz = 0
+        d = on_disk.setdefault(hour, {"total": 0, "parts": {}, "whole": 0})
+        d["total"] += sz
+        if part is None:
+            d["whole"] = sz
+        else:
+            d["parts"][part] = sz
+    out = []
+    for hour in (_spec_steps(spec) or sorted(on_disk)):
+        d = on_disk.get(hour)
+        if d is None:                                    # no file yet → not started
+            out.append(dict(hour=hour, status="pending", bytes=0, rate=0.0, workers=[]))
+            continue
+        rate = _dl_rate(f"{cyc}/{model}/{spec}/s{hour:03d}", d["total"])
+        downloading = bool(d["parts"]) or rate > 0
+        status = "active" if downloading else ("done" if d["whole"] > 0 else "pending")
+        workers = [dict(part=p, bytes=d["parts"][p],
+                        rate=_dl_rate(f"{cyc}/{model}/{spec}/s{hour:03d}/p{p}", d["parts"][p]))
+                   for p in sorted(d["parts"])]
+        out.append(dict(hour=hour, status=status, bytes=d["total"], rate=rate, workers=workers))
+    return out
+
+
 def collect_net() -> dict:
     """System RX throughput history (MB/s) sampled once per render, via psutil."""
     try:
@@ -259,7 +318,9 @@ def collect_downloads() -> dict:
                                        cur=cur, want=want, src=_read_src(st),
                                        rate=_dl_rate(f"{cyc.name}/{model.name}/{spec}", cur),
                                        pct=min(100, 100 * cur / want) if want else None,
-                                       idle=idle, stalled=idle > STALL_S))
+                                       idle=idle, stalled=idle > STALL_S,
+                                       chunks=_chunk_rates(cyc.name, model.name, spec, st)
+                                       if st.is_dir() else []))
             cycles.append(dict(name=cyc.name, models=models,
                                size=sum(_dir_size(m) for m in cyc.iterdir() if m.is_dir())))
     queue = collect_queue(cycles[0]["name"] if cycles else "", exp)
@@ -329,10 +390,33 @@ def render(s: dict) -> str:
         src = f'<div class="sub">via {html.escape(a["src"])}</div>' if a.get("src") else \
               '<div class="sub muted">source —</div>'
         rate = _rate(a.get("rate", 0))
+        ch = a.get("chunks", [])
+        nd = sum(1 for c in ch if c["status"] == "done")
+        na = sum(1 for c in ch if c["status"] == "active")
+        rate_extra = (f'<div class="sub muted">{nd}/{len(ch)} steps · {na} live</div>'
+                      if ch else "")
         A.append(f"""<tr><td class="mono">{html.escape(a['cycle'])}<div class="sub">{html.escape(a['model'])}</div></td>
           <td class="mono sub">{html.escape(a['spec'])}{src}</td>
           <td class="barcell">{_bar(a['pct'], stalled=a['stalled'])}</td>
-          <td class="mono">{sz}<div class="sub" style="color:#58a6ff">{rate}</div></td><td>{flag}</td></tr>""")
+          <td class="mono">{sz}<div class="sub" style="color:#58a6ff">{rate}</div>{rate_extra}</td><td>{flag}</td></tr>""")
+        if ch:                                           # full per-step (chunk) breakdown
+            cells = []
+            for c in ch:
+                if c["status"] == "pending":
+                    cells.append(f'<span class="chunk pending">+{c["hour"]}h</span>')
+                elif c["status"] == "done":
+                    cells.append(f'<span class="chunk done">+{c["hour"]}h ✓ '
+                                 f'<span class="muted">{_human(c["bytes"])}</span></span>')
+                else:
+                    wk = ""
+                    if len(c["workers"]) > 1:
+                        wk = ' <span class="wk">(' + " ".join(
+                            f'w{w["part"]} {_rate(w["rate"])}' for w in c["workers"]) + ')</span>'
+                    cells.append(f'<span class="chunk active">+{c["hour"]}h '
+                                 f'<b style="color:#58a6ff">{_rate(c["rate"])}</b> '
+                                 f'<span class="muted">{_human(c["bytes"])}</span>{wk}</span>')
+            A.append(f'<tr class="chunkrow"><td></td><td colspan="4">'
+                     f'<div class="chunkgrid">{"".join(cells)}</div></td></tr>')
     if not A:
         A.append('<tr><td colspan="5" class="muted" style="text-align:center;padding:1.4em">no active downloads</td></tr>')
     logtail = "\n".join(html.escape(l) for l in s.get("log", [])) or "(no recent log)"
@@ -406,6 +490,13 @@ table{{border-collapse:collapse;width:100%}} td{{padding:.7em 1em;border-bottom:
 .track{{position:relative;background:#21262d;border-radius:8px;height:2.1em;overflow:hidden}}
 .fill{{height:100%;border-radius:8px;transition:width .4s}} .pct{{position:absolute;right:.6em;top:0;font-size:.8em;line-height:2.6em;color:#c9d1d9;font-weight:600}}
 .logbox{{white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8em;line-height:1.55;color:#aeb6c0;margin:0;max-height:14em;overflow:auto}}
+.chunkrow td{{padding:.1em 1em .7em 1em;border-bottom:1px solid #21262d}}
+.chunkgrid{{display:flex;flex-wrap:wrap;gap:.35em .8em}}
+.chunk{{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.76em;background:#0d1117;border:1px solid #21262d;border-radius:7px;padding:.2em .55em;white-space:nowrap}}
+.chunk.done{{border-color:#238636aa;color:#3fb950}}
+.chunk.active{{border-color:#58a6ff;background:#0d2233}}
+.chunk.pending{{color:#6e7681;opacity:.7}}
+.chunk .wk{{color:#6e7681;font-size:.92em}}
 b{{color:#e6edf3}}
 </style></head><body>
 <h1>scorvec.com — pipeline &amp; download status</h1>
