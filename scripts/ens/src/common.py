@@ -67,4 +67,5 @@ VARS = {
 PERIODS = {"30yr": (1991, 2020), "10yr": (2014, 2023)}
 ENSEMBLES = ["gefs", "ifs", "aifs", "geps"]                 # the fetched models (panel order)
 ENS_LABEL = {"gefs": "GEFS", "ifs": "ECMWF IFS-ENS", "aifs": "AIFS-ENS", "geps": "GEPS (CMC)",
-             "allmean": "All-Ensemble Mean"}                # derived consensus (not fetched)
+             "allmean": "All-Ensemble Mean",                # derived consensus (not fetched)
+             "combined": "Combined AIFS-ENS + ECMWF IFS-ENS"}

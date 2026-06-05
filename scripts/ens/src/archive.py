@@ -60,6 +60,42 @@ def load_median(ens: str, var: str, init):
     return arch.sel(init=init).values
 
 
+def trend_fields(ens: str, var: str, init, med: np.ndarray,
+                 hours_back: int = 48, step_h: int = 24):
+    """Per-VALID-TIME least-squares slope (units/day) of the forecast across the runs
+    from `init` back to init−hours_back (spaced step_h). For each valid time V = init+
+    lead, the forecast for V from each run is gathered (that run's matching lead) and a
+    line is fit vs run-init time, so the slope is how the forecast for that fixed valid
+    time is TRENDING run-to-run (warmer +, colder −). Returns (nlead,lat,lon) or None if
+    the needed earlier runs aren't all archived; NaN at leads whose lookback exceeds the
+    archived lead range."""
+    p = _path(ens, var)
+    if not p.exists():
+        return None
+    arch = xr.open_dataarray(p).load()
+    inits_have = {pd.Timestamp(t) for t in arch.init.values}
+    backs = list(range(0, hours_back + 1, step_h))                 # 0, 24, 48
+    runs = [pd.Timestamp(init) - pd.Timedelta(hours=h) for h in backs]
+    if not all(r in inits_have for r in runs):
+        return None
+    arch_leads = set(int(x) for x in arch.lead.values)
+    x = -np.array(backs, float) / 24.0                            # run time (days): 0,-1,-2
+    xx = x - x.mean()
+    out = np.full_like(med, np.nan, dtype="float32")
+    for i, ld in enumerate(LEADS):
+        ys, ok = [], True
+        for h, r in zip(backs, runs):
+            rl = ld + h                                           # that run's lead to reach V
+            if rl in arch_leads:
+                ys.append(arch.sel(init=np.datetime64(r), lead=rl).values)
+            else:
+                ok = False; break
+        if ok:
+            Y = np.stack(ys)                                      # (nrun, lat, lon)
+            out[i] = np.tensordot(xx, Y - Y.mean(0), axes=([0], [0])) / (xx ** 2).sum()
+    return out
+
+
 def change_fields(ens: str, var: str, init, med: np.ndarray, hours_back: int):
     """current − (run `hours_back` h earlier) at the SAME VALID TIME, as (nlead,lat,lon).
     Returns None if that earlier run isn't archived; NaN at leads whose matching valid

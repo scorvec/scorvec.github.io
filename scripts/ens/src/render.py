@@ -40,6 +40,7 @@ _LEVELS = {
     ("anom", "z500"): [-32, -28, -24, -20, -16, -12, -8, -4, -2, 2, 4, 8, 12, 16, 20, 24, 28, 32],
     ("chg",  "z500"): [-12, -10, -8, -6, -4, -2, -1, 1, 2, 4, 6, 8, 10, 12],
     ("chg",  "t2m"):  [-8, -6, -4, -3, -2, -1, 1, 2, 3, 4, 6, 8],
+    ("trend","t2m"):  [-5, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 5],   # °C/day, run-to-run
 }
 
 # Median-height contour overlay (z500 only), every 6 dam.
@@ -122,7 +123,8 @@ _SHORT = {"z500": "500 mb height", "t2m": "2 m temperature"}
 
 
 def _render_frames(fields: dict, overlay: dict, var: str, product: str, kind: str,
-                   cbl: str, init: pd.Timestamp, anim_dir: Path, manifest_path: Path) -> int:
+                   cbl: str, init: pd.Timestamp, anim_dir: Path, manifest_path: Path,
+                   units: str | None = None) -> int:
     """Generic per-(var,product) renderer. `fields` = {ensemble:(nlead,lat,lon)} values
     to fill (anomaly OR change); `overlay` = {ensemble:(nlead,lat,lon)} median height to
     contour (or None). Shared by the anomaly and change products."""
@@ -148,7 +150,7 @@ def _render_frames(fields: dict, overlay: dict, var: str, product: str, kind: st
         for ax in axes[len(ens):]:
             ax.axis("off")
         # two-line title that fits the figure width
-        fig.suptitle(f"{_SHORT[var]} — {cbl} ({VARS[var]['units']})\n"
+        fig.suptitle(f"{_SHORT[var]} — {cbl} ({units or VARS[var]['units']})\n"
                      f"init {init:%Y-%m-%d %HZ}  ·  Day {ld // 24}  ·  valid {valid:%a %d %b %Y}",
                      fontsize=9.5, fontweight="bold", linespacing=1.3)
         cax = fig.add_axes([0.25, 0.045, 0.5, 0.016])
@@ -185,3 +187,15 @@ def render_change(fields: dict, meds: dict, var: str, product: str, init: pd.Tim
     _, cbl = CHANGE[product]
     overlay = ({e: meds[e] for e in fields} if var == "z500" else None)
     return _render_frames(fields, overlay, var, product, "chg", cbl, init, anim_dir, manifest_path)
+
+
+# ── 48-h run-to-run forecast trend (how the forecast for each valid time is trending) ─
+def render_trend(trend: np.ndarray, var: str, init: pd.Timestamp,
+                 anim_dir: Path, manifest_path: Path) -> int:
+    """1-panel animation of the combined-ensemble run-to-run trend: for each valid time
+    (lead-slider frame), the least-squares slope (°C/day) of the forecast for that fixed
+    valid time across the last 48 h of runs — which way the forecast is trending."""
+    fields = {"combined": trend}
+    return _render_frames(fields, None, var, "t48trend", "trend",
+                          "48-h run-to-run forecast trend", init, anim_dir, manifest_path,
+                          units="°C/day")
