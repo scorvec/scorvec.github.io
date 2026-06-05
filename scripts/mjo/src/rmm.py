@@ -121,6 +121,10 @@ def compute_rmm(
 
         u850_d = to_daily(u850)
         u200_d = to_daily(u200)
+        # Force the heavy lazy pipeline (cfgrib read → interp → daily-mean) to run ONCE,
+        # vectorized over all members. Without this, `.values` inside the per-member loop
+        # below re-triggered the whole dask graph 50× — minutes of scheduling/read overhead.
+        u850_d, u200_d = u850_d.load(), u200_d.load()
 
         def lat_mean_da(da):
             lat = da.latitude if "latitude" in da.coords else da.lat
