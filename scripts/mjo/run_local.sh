@@ -20,7 +20,11 @@ export MJO_GRIB_ARCHIVE="${MJO_GRIB_ARCHIVE:-$HOME/mjo/grib_archive}"
 cd "$REPO/scripts/mjo" || exit 1
 
 LOG="$REPO/scripts/mjo/run_local.log"
-exec >> "$LOG" 2>&1
+# Fresh log each run (keep one previous as .prev) so stale tracebacks from earlier
+# runs can't pile up and look current; and drop the ecmwf-opendata tqdm download
+# progress spam (carriage-return bars / MB-s ticks) — keep only meaningful lines.
+[ -f "$LOG" ] && mv -f "$LOG" "$LOG.prev"
+exec > >(grep --line-buffered -avE 'MB/s|kB/s|[0-9]+%\|[█▏▎▍▌▋▊▉ ]|enfo-pf\.grib2: +[0-9]|^[[:space:]]*\[A' > "$LOG") 2>&1
 echo "===================== $(date) ====================="
 
 read -r DATE TIME < <("$PY" -c \

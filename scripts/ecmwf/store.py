@@ -115,8 +115,11 @@ def _throttle_bump() -> float:
 
 
 def _throttle_ease() -> None:
+    # Decay GENTLY (×0.85), not a snap-to-zero — otherwise an intermittent success
+    # between 503s keeps resetting the penalty and it never escalates to give S3 a
+    # real break under sustained throttling.
     with _THROTTLE_LOCK:
-        _THROTTLE["pen"] = 0.0 if _THROTTLE["pen"] < 2.0 else _THROTTLE["pen"] * 0.5
+        _THROTTLE["pen"] = 0.0 if _THROTTLE["pen"] < 1.0 else _THROTTLE["pen"] * 0.85
 
 
 # One semaphore per mirror → never more than PER_SRC concurrent retrieves on a source,
