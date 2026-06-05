@@ -254,6 +254,21 @@
       </div>
     </div>
 
+    <!-- SUBSURFACE CROSS-SECTION — DE-TRENDED COMPANION -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Subsurface Temperature &mdash; Climate Trend Removed</h2>
+        <p>The same equatorial cross-section, comparing the anomaly versus the 1991&ndash;2020 average (top) with the same anomaly after the <b>secular climate trend is removed</b> (bottom). The trend is a per-depth, per-longitude linear fit over the 1991&ndash;2020 TAO record, so de-trending strips the slowly-evolving background and isolates the ENSO signal.</p>
+        <p><b>What to look for:</b> Where the two panels differ is where the background trend lives &mdash; notably subsurface warming in the far west and cooling along the eastern thermocline.</p>
+      </div>
+      <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial_dt"
+              title="Equatorial Pacific subsurface anomaly, raw vs de-trended" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; trend fit 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
+        <span class="chart-updated">__TAO_DAY__</span>
+      </div>
+    </div>
+
     <!-- RONI -->
     <div class="chart-card">
       <div class="chart-card-header">
@@ -339,6 +354,16 @@
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; coverage varies by year</span></div>
     </div>
 
+    <!-- SUBSURFACE ANALOG: heat content — DE-TRENDED -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Subsurface Heat Content vs. Analogs &mdash; De-trended</h2>
+        <p>The same heat-content comparison with the 1991&ndash;2020 climate trend removed, so the four events sit on a common baseline. The net 0&ndash;300 m effect is modest &mdash; the subsurface warming and cooling trends largely cancel in the column average &mdash; but it eases the recent events (2023, current) down relative to 1997.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_hc_detrended.webp?v=__CACHE__" alt="Equatorial 0–300 m temperature-anomaly evolution, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; de-trended 1991&ndash;2020 &middot; coverage varies by year</span></div>
+    </div>
+
     <!-- SUBSURFACE ANALOG: matching-phase cross-sections -->
     <div class="chart-card">
       <div class="chart-card-header">
@@ -348,6 +373,17 @@
       </div>
       <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec.webp?v=__CACHE__" alt="Equatorial subsurface temperature-anomaly cross-sections: current vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; 14-day mean &middot; coverage varies by year</span></div>
+    </div>
+
+    <!-- SUBSURFACE ANALOG: cross-sections — DE-TRENDED -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Subsurface Cross-Section vs. Analogs &mdash; De-trended</h2>
+        <p>The matching-phase cross-sections with the 1991&ndash;2020 climate trend removed. Because the trend has real depth&times;longitude structure &mdash; west-Pacific subsurface warming, eastern-thermocline cooling &mdash; de-trending reshapes the pattern more here than in the column-mean heat content above.</p>
+        <p><b>Note:</b> TAO mooring coverage varies by year (triangles mark moorings reporting), so 1997 and 2023 have missing longitudes.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec_detrended.webp?v=__CACHE__" alt="Equatorial subsurface temperature-anomaly cross-sections, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; de-trended 1991&ndash;2020 &middot; 14-day mean &middot; coverage varies by year</span></div>
     </div>
 
     <!-- 850 hPa WIND ANALOG HOVMÖLLERS -->

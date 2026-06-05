@@ -125,6 +125,71 @@ def eval_climatology(coeffs: np.ndarray, doy: np.ndarray) -> np.ndarray:
     return np.einsum("tp,pkj->tkj", X, coeffs)              # (ntime, depth, lon)
 
 
+# ── secular (climate) trend ───────────────────────────────────────────────────
+# A per-(depth, longitude) linear trend in the deseasonalized anomaly, fit over
+# the same 1991–2020 TAO base record the climatology comes from. Removing it lets
+# us compare events across decades (1997 vs 2023 vs now) with the background ocean
+# warming/cooling taken out, isolating the ENSO signal. Referenced to the base-
+# period midpoint so de-trending only tilts the series — it leaves the 1991–2020
+# mean (hence the anomaly zero-line) unchanged.
+TREND_PATH = HERE / "tao_eq_trend_coeffs.nc"   # committed; built once from the base
+TREND_REF = 2005.5                             # midpoint of 1991–2020 (trend pivot)
+TREND_PERIOD = "1991–2020"
+_TREND_MIN_PTS = 365                           # ~1 yr of valid days required to fit
+_TREND_MIN_SPAN = 15.0                         # …spanning ≥15 yr (else leave NaN→0)
+_TREND_DSMOOTH = 5                             # vertical smoothing of the slope (cells)
+
+
+def decimal_year(times) -> np.ndarray:
+    t = pd.to_datetime(times)
+    return (t.year + (t.dayofyear - 1) / 365.25).values.astype(float)
+
+
+def build_trend(base: xr.DataArray, coeffs: np.ndarray) -> xr.DataArray:
+    """Linear slope (°C/yr) per (depth, longitude) of the base-period anomaly."""
+    t = pd.to_datetime(base.time.values)
+    anom = base.values - eval_climatology(coeffs, t.dayofyear.values)   # (time,depth,lon)
+    dy = decimal_year(t) - TREND_REF
+    nd, nl = base.sizes["depth"], base.sizes["longitude"]
+    slope = np.full((nd, nl), np.nan)
+    for k in range(nd):
+        for j in range(nl):
+            y = anom[:, k, j]; m = np.isfinite(y)
+            if m.sum() >= _TREND_MIN_PTS and (dy[m].max() - dy[m].min()) >= _TREND_MIN_SPAN:
+                X = np.column_stack([np.ones(m.sum()), dy[m]])
+                slope[k, j] = np.linalg.lstsq(X, y[m], rcond=None)[0][1]
+    sl = xr.DataArray(slope, dims=("depth", "longitude"),
+                      coords={"depth": base.depth.values, "longitude": base.longitude.values})
+    # light vertical smoothing isolates the climate signal from per-cell TAO noise
+    sl = sl.rolling(depth=_TREND_DSMOOTH, center=True, min_periods=1).mean()
+    sl.attrs.update(ref_year=TREND_REF, period=TREND_PERIOD, units="degC/yr")
+    return sl
+
+
+def load_or_build_trend() -> xr.DataArray:
+    """Trend-slope DataArray(depth, longitude). Loads the committed cache if present,
+    else builds it from data/tao_eq_clim_base.nc (run once locally to create it)."""
+    if TREND_PATH.exists():
+        return xr.open_dataarray(TREND_PATH)
+    print("building 1991–2020 subsurface trend (one-time) …")
+    base = to_depth_grid(xr.open_dataset(DATA / "tao_eq_clim_base.nc"))
+    coeffs = load_or_build_coeffs(base.longitude.values)
+    sl = build_trend(base, coeffs)
+    sl.to_netcdf(TREND_PATH)
+    print(f"  saved {TREND_PATH.name}")
+    return sl
+
+
+def detrend(anom: xr.DataArray) -> xr.DataArray:
+    """Remove the secular climate trend from an anomaly grid (time, depth, longitude).
+    Subtracts slope(depth, lon) × (decimal_year − {ref}); cells without a fitted
+    slope are left unchanged (NaN slope → 0)."""
+    sl = load_or_build_trend().reindex(longitude=anom.longitude, depth=anom.depth).fillna(0.0)
+    dy = xr.DataArray(decimal_year(anom.time.values) - TREND_REF,
+                      dims="time", coords={"time": anom.time})
+    return anom - sl * dy
+
+
 # ── longitude interpolation for smooth contours ──────────────────────────────
 def interp_lon(field2d: np.ndarray, lons: np.ndarray) -> np.ndarray:
     """field2d (depth, lon) on mooring lons -> (depth, LON_GRID)."""
@@ -183,10 +248,40 @@ def plot_frame(temp2d, anom2d, lons, date, out_path):
     plt.close(fig)
 
 
+def plot_anom_pair(araw2d, adt2d, lons, date, out_path):
+    """Companion frame: raw anomaly (top) vs the same with the 1991–2020 climate
+    trend removed (bottom), so the secular signal's footprint is visible directly."""
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 7.6), sharex=True)
+    fig.suptitle(f"Equatorial Pacific (0°N) temperature anomaly — {date:%d %b %Y}",
+                 fontsize=11.5, fontweight="bold")
+    panels = [(ax1, interp_lon(araw2d, lons), "Anomaly (vs 1991–2020)"),
+              (ax2, interp_lon(adt2d, lons), "Anomaly — detrended with data from 1991–2020")]
+    for ax, Ag, title in panels:
+        cf = ax.contourf(LON_GRID, DEPTH_GRID, Ag, levels=ANOM_LEVELS, cmap="RdBu_r",
+                         extend="both", norm=mcolors.TwoSlopeNorm(0, -ANOM_LIM, ANOM_LIM))
+        ax.contour(LON_GRID, DEPTH_GRID, Ag, levels=[0], colors="k", linewidths=1.5)
+        c5 = ax.contour(LON_GRID, DEPTH_GRID, Ag, levels=[-5, 5], colors="k", linewidths=0.8)
+        ax.clabel(c5, fmt="%+d", fontsize=7)
+        ax.set_title(title, fontsize=10, loc="left")
+        fig.colorbar(cf, ax=ax, label="°C", pad=0.02, fraction=0.046)
+        ax.set_ylim(300, 0)
+        ax.set_ylabel("Depth (m)")
+        ax.set_xticks(lons)
+        ax.set_xticklabels([_lon_label(l) for l in lons], fontsize=8)
+        ax.scatter(lons, np.full_like(lons, 4), marker="v", s=18,
+                   color="k", clip_on=False, zorder=5)
+    ax2.set_xlabel("Longitude (mooring sites marked ▾)")
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=110, bbox_inches="tight")
+    plt.close(fig)
+
+
 # ── driver ────────────────────────────────────────────────────────────────────
-def merge_region(frames, dates, label="Equatorial Pacific T(z) cross-section"):
-    """Add/replace the 'equatorial' region in the shared anim manifest.json,
-    preserving any other regions (e.g. 'tropical' written by sst-roni.py)."""
+def merge_region(frames, dates, label="Equatorial Pacific T(z) cross-section",
+                 region="equatorial"):
+    """Add/replace the named region in the shared anim manifest.json, preserving
+    any other regions (e.g. 'tropical' written by sst-roni.py)."""
     mpath = ASSETS / "anim" / "manifest.json"
     manifest = {"regions": {}}
     if mpath.exists():
@@ -195,7 +290,7 @@ def merge_region(frames, dates, label="Equatorial Pacific T(z) cross-section"):
         except Exception:
             pass
     manifest.setdefault("regions", {})
-    manifest["regions"]["equatorial"] = {
+    manifest["regions"][region] = {
         "label": label, "n_frames": len(frames),
         "frames": [{"idx": n, "file": f.name, "date": f"{d:%Y-%m-%d}",
                     "label": f"{d:%a %b %d, %Y}"} for n, (f, d) in enumerate(zip(frames, dates))],
@@ -213,23 +308,35 @@ def main() -> int:
     recent_s = recent.rolling(time=SMOOTH_DAYS, center=True, min_periods=1).mean()
     times = pd.to_datetime(recent_s.time.values)
     anom = recent_s.values - eval_climatology(coeffs, times.dayofyear.values)
+    # de-trended companion anomaly (1991–2020 secular trend removed)
+    anom_da = xr.DataArray(anom, dims=recent_s.dims, coords=recent_s.coords)
+    anom_dt = detrend(anom_da).values
 
     sel = np.arange(max(0, len(times) - ANIM_DAYS), len(times))
     anim_dir = ASSETS / "anim" / "equatorial"
-    if anim_dir.exists():
-        for f in anim_dir.glob("F*.webp"):
-            f.unlink()
+    anim_dt_dir = ASSETS / "anim" / "equatorial_dt"
+    for d in (anim_dir, anim_dt_dir):
+        if d.exists():
+            for f in d.glob("F*.webp"):
+                f.unlink()
 
-    print(f"rendering {len(sel)} frames …")
+    print(f"rendering {len(sel)} frames (+ de-trended companion) …")
     frames, dates = [], []
+    frames_dt = []
     for n, i in enumerate(sel):
         fp = anim_dir / f"F{n:02d}.webp"
         plot_frame(recent_s.values[i], anom[i], lons, times[i], fp)
         frames.append(fp); dates.append(times[i])
+        fpd = anim_dt_dir / f"F{n:02d}.webp"
+        plot_anom_pair(anom[i], anom_dt[i], lons, times[i], fpd)
+        frames_dt.append(fpd)
 
     ASSETS.mkdir(parents=True, exist_ok=True)
     Image.open(frames[-1]).save(ASSETS / "equatorial_xsection.webp")
+    Image.open(frames_dt[-1]).save(ASSETS / "equatorial_xsection_detrended.webp")
     merge_region(frames, dates)
+    merge_region(frames_dt, dates, label="Equatorial Pacific anomaly — raw vs de-trended",
+                 region="equatorial_dt")
 
     # stamp the TAO date into the page (sst-roni.py fills __CACHE__/__SST_DAY__)
     html = SITE_ROOT / "sst.html"

@@ -84,7 +84,7 @@ def event_anom(year: int, cur_year: int, cur_ds: xr.Dataset) -> xr.DataArray:
 
 
 # ── 1. matching-phase cross-sections ──────────────────────────────────────────
-def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path):
+def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path, detr: bool = False):
     years = [cur_year] + ANALOGS
     labels = [f"{cur_year} (current)"] + [f"{y}–{str(y + 1)[2:]}" for y in ANALOGS]
     fig, axes = plt.subplots(2, 2, figsize=(12, 7.4), sharex=True, sharey=True)
@@ -106,9 +106,10 @@ def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path):
         ax.set_xticklabels(["165°E", "180°", "160°W", "140°W", "120°W", "100°W"], fontsize=8)
     for ax in axes[:, 0]:
         ax.set_ylabel("Depth (m)")
-    fig.suptitle(f"Equatorial Pacific subsurface temperature anomaly — week of ~{match:%b %d} "
-                 f"of each event\n(triangles = moorings reporting; TAO coverage varies by year)",
-                 fontsize=12, fontweight="bold")
+    extra = ("\ndetrended with data from 1991–2020" if detr else "")
+    fig.suptitle(f"Equatorial Pacific subsurface temperature anomaly — week of ~{match:%b %d} of each event"
+                 f"{extra}\n(triangles = moorings reporting; TAO coverage varies by year)",
+                 fontsize=11.5, fontweight="bold")
     cb = fig.colorbar(im, ax=axes, fraction=0.025, pad=0.02, extend="both")
     cb.set_label("Temperature anomaly (°C)", fontsize=9)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -118,7 +119,7 @@ def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path):
 
 
 # ── 2. heat-content (0–300 m T anomaly) evolution overlay ─────────────────────
-def heat_content(events: dict, cur_year: int, out: Path):
+def heat_content(events: dict, cur_year: int, out: Path, detr: bool = False):
     def hc(a: xr.DataArray) -> pd.Series:
         col = a.sel(depth=slice(0, 300)).mean("depth", skipna=True)   # (time, lon)
         s = pd.Series(col.mean("longitude", skipna=True).values,
@@ -143,8 +144,14 @@ def heat_content(events: dict, cur_year: int, out: Path):
                        [f"{m}\nYr1" for m in ("Jan", "Apr", "Jul", "Oct")], fontsize=8)
     ax.set_xlim(0, 730)
     ax.set_ylabel("Equatorial 0–300 m temperature anomaly (°C)")
-    ax.set_title("Subsurface heat content (eq. Pacific 0–300 m T anomaly): current vs. 1997, 2015, 2023",
-                 fontsize=11.5, fontweight="bold", loc="left")
+    if detr:
+        title = ("Subsurface heat content (eq. Pacific 0–300 m T anomaly)\n"
+                 "detrended with data from 1991–2020")
+        fs = 10.5
+    else:
+        title = "Subsurface heat content (eq. Pacific 0–300 m T anomaly): current vs. 1997, 2015, 2023"
+        fs = 11.5
+    ax.set_title(title, fontsize=fs, fontweight="bold", loc="left")
     ax.legend(fontsize=9, loc="upper left", framealpha=0.9)
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
@@ -160,6 +167,12 @@ def main() -> int:
     events = {y: event_anom(y, cur_year, cur_ds) for y in [cur_year] + ANALOGS}
     xsec(events, cur_year, match, ASSETS / "subsurface_events_xsec.webp")
     heat_content(events, cur_year, ASSETS / "subsurface_events_hc.webp")
+
+    # de-trended companions: remove the 1991–2020 secular trend so the analog
+    # comparison isolates the ENSO signal from the background ocean warming/cooling.
+    events_dt = {y: ss.detrend(a) for y, a in events.items()}
+    xsec(events_dt, cur_year, match, ASSETS / "subsurface_events_xsec_detrended.webp", detr=True)
+    heat_content(events_dt, cur_year, ASSETS / "subsurface_events_hc_detrended.webp", detr=True)
     return 0
 
 
