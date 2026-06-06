@@ -1,0 +1,72 @@
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AAM torque → jet/teleconnection — figure review</title>
+<style>
+:root{color-scheme:dark}
+body{background:#0d1117;color:#c9d1d9;font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;margin:0 auto;padding:24px clamp(14px,2vw,40px);max-width:1500px}
+h1{font-size:1.5em;margin:0 0 2px} h2{font-size:1.05em;margin:1.6em 0 .5em;border-top:1px solid #21262d;padding-top:.8em;color:#e6edf3}
+.note{color:#8b949e;font-size:.9em;margin-bottom:1.2em}
+.warn{background:#2d2410;border:1px solid #5c4813;color:#e3b341;border-radius:10px;padding:.7em 1em;font-size:.9em;margin-bottom:1.4em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,560px),1fr));gap:18px}
+figure{margin:0;background:#161b22;border:1px solid #21262d;border-radius:14px;padding:10px}
+figure img{width:100%;border-radius:8px;display:block;cursor:zoom-in}
+figcap,figcaption{font-size:.82em;color:#8b949e;margin-top:.5em;text-transform:uppercase;letter-spacing:.05em}
+.full img{max-width:1100px}
+a{color:#58a6ff}
+.evt-wrap{max-height:26em;overflow:auto;border:1px solid #21262d;border-radius:10px;max-width:42em}
+table.evt{border-collapse:collapse;width:100%;font-size:.85em;font-family:ui-monospace,Menlo,monospace}
+table.evt th{position:sticky;top:0;background:#161b22;color:#c9d1d9;text-align:right;padding:.4em .8em;border-bottom:1px solid #30363d}
+table.evt td{text-align:right;padding:.25em .8em;border-bottom:1px solid #1c2128;color:#aeb6c0}
+table.evt tr:hover td{background:#161b22}
+</style></head><body>
+<h1>AAM surface-torque → jet / teleconnection</h1>
+<div class="note">Lag-regression &amp; event-composite of ERA5 u250 (jet) and z500 (teleconnection) on standardized daily torque indices. Click any image to open full-size.</div>
+<div class="warn"><b>1979–1998 (20 winters), Himalaya/Tibet focus.</b> Standardized maps (÷ local σ ≈ correlation r) · absolute-jet + 500-hPa height-<i>anomaly</i> composites · jet lag–longitude Hovmöller. Lags out to +14 d. The downstream Pacific-jet → PNA wave train is now visible at lags 6–9 d. Still extending as more torque years finish building.</div>
+
+<h2>+2σ Himalaya-torque event days <span class="sub" style="font-weight:400;color:#8b949e;font-size:.6em">— NDJFM, peak day per event</span></h2>
+<p style="color:#9aa4af;font-size:.9em;margin:.2em 0 .8em;max-width:48em">
+<b>ENSO check:</b> +2σ days are concentrated in ENSO-neutral winters (66% vs 44% climatology) and <i>under</i>-represented in El Niño (19% vs 29%); corr with Niño-3.4 = −0.01 — the downstream PNA is torque-driven, not an El Niño selection effect.
+Download: <a href="himalaya_torque_events_NDJFM.csv">distinct events CSV</a> · <a href="himalaya_torque_events_NDJFM_daily.csv">daily CSV</a></p>
+<div id="event-table" class="evt-wrap">loading event list…</div>
+<script>
+fetch("himalaya_torque_events_NDJFM.csv?v=" + Date.now()).then(r => r.text()).then(txt => {
+  const rows = txt.trim().split("\n").map(l => l.split(","));
+  const head = rows[0], body = rows.slice(1);
+  const labels = {peak_date:"peak date", peak_sigma:"peak σ", duration_d:"days", nino34:"Niño-3.4"};
+  let h = '<table class="evt"><thead><tr>' +
+          head.map(c => `<th>${labels[c] || c}</th>`).join("") + "</tr></thead><tbody>";
+  for (const r of body) h += "<tr>" + r.map(c => `<td>${c}</td>`).join("") + "</tr>";
+  document.getElementById("event-table").innerHTML = h + "</tbody></table>";
+}).catch(() => { document.getElementById("event-table").textContent = "(could not load CSV)"; });
+</script>
+
+<h2>Relay &amp; autocorrelation diagnostic</h2>
+<div class="grid"><figure class="full"><a href="torque_teleconn_relay_diagnostic.webp"><img src="torque_teleconn_relay_diagnostic.webp"></a><figcaption>Himalaya↔Rockies cross-correlation · index autocorrelations</figcaption></figure></div>
+
+<div id="panels"></div>
+
+<script>
+const INDICES = [["mtn_himalaya","Himalaya/Tibet mountain torque",
+  "+ve Himalaya/Tibet mountain torque injects westerly momentum over Asia (↑ AAM) → accelerates the East-Asian / N-Pacific jet (lag 0–5 d) → downstream Rossby-wave train → PNA-like height response over N. America (lag ~7–14 d). The jet Hovmöller’s eastward tilt is the clearest view of this propagation."]];
+const SEASONS = ["NDJFM","JJA"];
+const METHODS = [
+  ["jet_hovmoller","jet lag–longitude Hovmöller (eastward tilt = extension)"],
+  ["regression_std","standardized regression (correlation r)"],
+  ["composite_std","standardized composite (±2σ events)"],
+  ["composite_abs","absolute jet + 500-hPa height anomaly on +2σ-torque days"],
+];
+const root = document.getElementById("panels");
+for (const [slug,label,desc] of INDICES){
+  const h = document.createElement("h2"); h.textContent = label; root.appendChild(h);
+  if (desc){ const p = document.createElement("p");
+    p.style.cssText = "color:#9aa4af;font-style:italic;margin:.1em 0 .9em;max-width:62em";
+    p.textContent = desc; root.appendChild(p); }
+  const g = document.createElement("div"); g.className = "grid"; root.appendChild(g);
+  for (const s of SEASONS) for (const [m,mlab] of METHODS){
+    const f = `torque_teleconn_${slug}_${s}_${m}.webp`;
+    g.insertAdjacentHTML("beforeend",
+      `<figure><a href="${f}"><img src="${f}" loading="lazy"></a><figcaption>${s} · ${mlab}</figcaption></figure>`);
+  }
+}
+</script>
+</body></html>
