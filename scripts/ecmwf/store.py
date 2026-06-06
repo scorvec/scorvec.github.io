@@ -96,6 +96,13 @@ WORKERS = int(os.environ.get("ECMWF_DL_WORKERS", "1"))      # parallel member st
                                                             # 1 by default: fewer concurrent
                                                             # range-requests → fewer S3 503s
 PER_SRC = int(os.environ.get("ECMWF_DL_PER_SRC", "2"))      # hard cap: in-flight retrieves / mirror
+# The open-data portal caps a client at 500 SIMULTANEOUS connections, and ecmwf-opendata
+# opens ~1 connection per GRIB message — so a single big retrieve (e.g. a 1600- or 3200-
+# message pf request) blows past it on ANY mirror. Cap both: ≤ CHUNK_MSGS messages per
+# retrieve, and ≤ MAX_CONN total connections in flight at once (≈ MAX_CONN/CHUNK_MSGS
+# concurrent retrieves). Kept well under 500 to avoid throttling / IP bans.
+MAX_CONN = int(os.environ.get("ECMWF_MAX_CONN", "400"))
+CHUNK_MSGS = int(os.environ.get("ECMWF_CHUNK_MSGS", "200"))
 PF_MEMBERS = 50
 MIN_RATE = float(os.environ.get("ECMWF_DL_MIN_RATE", "40000"))   # B/s; below ⇒ stalled
 # With fail-fast retries (below) a throttled mirror raises in ~30 s and we rotate, so the
@@ -183,6 +190,10 @@ def _throttle_ease() -> None:
 # One semaphore per mirror → never more than PER_SRC concurrent retrieves on a source,
 # however many steps/mirrors the multi-source fan-out is juggling.
 _SEM = {s: threading.Semaphore(PER_SRC) for s in SOURCES}
+# Global cap on simultaneous retrieves (hence connections): each retrieve is ≤ CHUNK_MSGS
+# connections and at most MAX_CONN//CHUNK_MSGS run at once, shared across ALL specs/threads
+# in this process → total open connections stay under the portal's 500 limit.
+_CONN_SLOTS = threading.Semaphore(max(1, MAX_CONN // CHUNK_MSGS))
 
 # Daily steps. STEPS = analysis + Day 1..15 (used by RMM/AAM/MMSF, which want the 0-h
 # analysis). STEPS_FC = forecast days only (used by the SOI/Hovmöller, which don't).
@@ -380,7 +391,8 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int, star
             do = lambda s=src: _single({**req, "number": members}, target, s)
         else:
             do = lambda s=src: _single(req, target, s)
-        ok, err = _watch(do, target, slow_ok=(attempt <= len(SOURCES)))
+        with _CONN_SLOTS:                                  # global cap → stay under portal's 500 conns
+            ok, err = _watch(do, target, slow_ok=(attempt <= len(SOURCES)))
         if ok:
             try:
                 got = count_msgs(target)
@@ -411,64 +423,90 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int, star
     raise err if err is not None else RuntimeError(f"{label}: failed after {TRIES} tries")
 
 
-def _robust_chunked(req: dict, target: str, parallel: bool, members) -> str:
-    """Per-step download with resume: each step → its own part file (kept if complete),
-    stall re-fetches only that step, parts assembled in order at the end. The heavy pf
-    pulls fetch several steps CONCURRENTLY, each pinned to a different mirror (round-robin
-    aws/azure/ecmwf) so no single source is rate-limited — the per-source semaphore caps
-    in-flight retrieves per mirror. cf/em are single-shot (one retrieve beats the overhead)."""
+def _plan_chunks(req: dict, members) -> list[tuple]:
+    """Split a request into sub-retrieves each ≤ CHUNK_MSGS messages, so no single
+    retrieve exceeds the portal's per-client connection budget. Split by step, then (if a
+    single step still exceeds CHUNK_MSGS — e.g. 13-level pf) by member sub-groups.
+    Returns [(step, member_subgroup_or_None, label), …]."""
     steps = req.get("step")
-    if not parallel or not isinstance(steps, (list, tuple)) or len(steps) <= 1:
-        exp = _msgs_for(req, members)
-        return _robust(req, target, parallel, members, exp)
+    steps = list(steps) if isinstance(steps, (list, tuple)) else [steps]
+    factor = 1                                              # msgs per (step, member): levels × params
+    for k in ("levelist", "param"):
+        v = req.get(k)
+        factor *= len(v) if isinstance(v, (list, tuple)) else 1
+    out = []
+    if members:
+        mper = max(1, CHUNK_MSGS // max(1, factor))         # members per sub-chunk
+        groups = [members[i:i + mper] for i in range(0, len(members), mper)]
+        multi = len(groups) > 1
+        for st in steps:
+            for gi, g in enumerate(groups):
+                out.append((st, g, f"s{int(st):03d}" + (f"_m{gi}" if multi else "")))
+    else:
+        for st in steps:
+            out.append((st, None, f"s{int(st):03d}"))
+    return out
+
+
+def _robust_chunked(req: dict, target: str, parallel: bool, members) -> str:
+    """Resumable chunked download: split into ≤ CHUNK_MSGS sub-retrieves (by step, then
+    members), each → its own part file (kept if complete, so resume re-fetches only the
+    short ones). The global _CONN_SLOTS semaphore (inside _robust) caps how many run at
+    once, so total open connections stay under the portal's 500 limit. Small requests
+    (cf/em, ≤ CHUNK_MSGS) are a single retrieve."""
+    total = _msgs_for(req, members)
+    if total <= CHUNK_MSGS or not isinstance(req.get("step"), (list, tuple)):
+        return _robust(req, target, parallel, members, total)
     cdir = Path(f"{target}.parts"); cdir.mkdir(parents=True, exist_ok=True)
+    plan = _plan_chunks(req, members)
     nsrc = len(SOURCES)
 
-    def _fetch(i_st):
-        i, st = i_st
-        pf = cdir / f"s{int(st):03d}.grib2"
-        exp = _msgs_for({**req, "step": [st]}, members)
+    def _fetch(idx_item):
+        idx, (st, mg, lab) = idx_item
+        pf = cdir / f"{lab}.grib2"
+        sub = {**req, "step": [st]}
+        if mg is not None:
+            sub["number"] = mg
+        exp = _msgs_for(sub, mg if mg is not None else members)
         if pf.exists():
             try:
                 if count_msgs(str(pf)) >= exp:
-                    return SOURCES[i % nsrc]               # already complete
+                    return SOURCES[idx % nsrc]             # already complete (resume)
             except Exception:                              # noqa: BLE001
                 pass
-        return _robust({**req, "step": st}, str(pf), parallel, members, exp, start=i % nsrc)
+        return _robust(sub, str(pf), False, mg, exp, start=idx)   # parallel=False: already chunked
 
-    if MULTISOURCE and nsrc > 1 and len(steps) > 1:
+    if MULTISOURCE and len(plan) > 1:
         from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=nsrc) as ex:   # ≤ nsrc steps in flight (1 per mirror)
-            used = list(ex.map(_fetch, enumerate(steps)))
+        with ThreadPoolExecutor(max_workers=max(1, MAX_CONN // CHUNK_MSGS)) as ex:
+            used = list(ex.map(_fetch, enumerate(plan)))   # _CONN_SLOTS is the real concurrency cap
     else:
-        used = [_fetch((i, st)) for i, st in enumerate(steps)]
+        used = [_fetch(it) for it in enumerate(plan)]
 
-    with open(target, "wb") as out:                        # assemble in original step order
-        for st in steps:
-            with open(cdir / f"s{int(st):03d}.grib2", "rb") as f:
+    with open(target, "wb") as out:                        # assemble in plan order
+        for st, mg, lab in plan:
+            with open(cdir / f"{lab}.grib2", "rb") as f:
                 shutil.copyfileobj(f, out)
-    # NB: keep cdir (the per-step parts) until ensure() has verified the assembled total —
-    # if a throttled mirror dropped messages, ensure re-fetches only the short steps from here.
-    srcs = sorted(set(used))
+    srcs = sorted({u for u in used if u})
     return "+".join(srcs) if len(srcs) > 1 else (srcs[0] if srcs else "chunked")
 
 
 def _short_steps(parts_dir: str, req: dict, members) -> list[tuple]:
-    """Steps whose stored part file is short of its expected msg count → (hour, got, exp).
-    Lets ensure() report exactly what's missing and resume only those steps."""
+    """Sub-chunks whose stored part file is short of its expected msg count →
+    (label, got, exp). Lets ensure() report what's missing and resume only those chunks."""
     out = []
     d = Path(parts_dir)
     if not d.is_dir():
         return out
-    for st in (req.get("step") or []):
-        exp = _msgs_for({**req, "step": [st]}, members)
-        pf = d / f"s{int(st):03d}.grib2"
+    for st, mg, lab in _plan_chunks(req, members):
+        exp = _msgs_for({**req, "step": [st]}, mg if mg is not None else members)
+        pf = d / f"{lab}.grib2"
         try:
             got = count_msgs(str(pf)) if pf.exists() else 0
         except Exception:                                  # noqa: BLE001
             got = 0
         if got < exp:
-            out.append((int(st), got, exp))
+            out.append((lab, got, exp))
     return out
 
 
@@ -531,7 +569,7 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
             Path(str(stage)).unlink(missing_ok=True)       # drop the bad assembly; KEEP .parts to resume
             if not short:                                  # per-step counts OK but total short → clean slate next
                 shutil.rmtree(f"{stage}.parts", ignore_errors=True)
-            miss = ", ".join(f"{h}h {g}/{e}" for h, g, e in short) or "mid-file corruption"
+            miss = ", ".join(f"{h} {g}/{e}" for h, g, e in short) or "mid-file corruption"
             wait = max(BACKOFF_BASE, _throttle_pen())
             print(f"  {spec.filename}: incomplete {got}/{expected} — missing [{miss}] — "
                   f"re-fetch {ftry}/{FETCH_TRIES} after {wait:.0f}s", flush=True)
