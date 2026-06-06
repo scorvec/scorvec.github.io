@@ -72,6 +72,12 @@ def ensemble_mean_band(paths: dict) -> xr.DataArray:
             tot = band if tot is None else tot + band
             cnt += 1
     ens = (tot / cnt).interp(longitude=LON_GRID)
+    # Forecast days 1..15 only: drop the 0-h analysis step. The shared store bundles
+    # AIFS 10u with the torque budget (STEPS = [0] + days 1..15), so AIFS now carries a
+    # step-0 row while IFS does not; without this the two models have different step
+    # counts and plot()'s shared time axis fails (y mismatch z). Days-1..15 also matches
+    # this plot's intent (DAILY_STEPS).
+    ens = ens.isel(step=ens.step.values > np.timedelta64(0))
     return ens.compute()
 
 
