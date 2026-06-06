@@ -484,25 +484,24 @@ def load_wind_plants(cycle_str: str) -> pd.DataFrame:
 
 def load_solar_plants(cycle_str: str):
     base = HERE.parent.parent / "assets" / "solar_forecast_data"
-    forecast_csv = base / f"forecast_plant_{cycle_str}.csv"   # genuinely per-cycle
-    # Canonical static-fleet capacity (git-deduped); legacy stamped fallback.
+    # The solar ring overlay is STATIC: _overlay_solar_plants sizes rings purely
+    # off p_cap_ac (the per-cycle forecast MW is accepted-but-unused). So we load
+    # ONLY the static capacity fleet and never the per-cycle forecast_plant CSV —
+    # the overlay must not gate or slow the render on per-cycle plant data, and the
+    # fleet only changes when it's updated by hand. Returns (cap, None); the None
+    # pivot flows through main() as overlay_mw_at_time=None, which the overlay
+    # ignores anyway. Legacy cycle-stamped capacity name kept as a fallback.
     capacity_csv = base / "capacity_plant.csv"
     if not capacity_csv.exists():
         capacity_csv = base / f"capacity_plant_{cycle_str}.csv"
-    if not (forecast_csv.exists() and capacity_csv.exists()):
-        # Don't fall back to the static inventory — skip the overlay so we
-        # never render a cycle's maps with mismatched plant data.
-        print(f"  WARN: solar per-cycle CSVs for {cycle_str} not found — "
-              f"rendering solar maps WITHOUT plant markers.",
-              file=sys.stderr, flush=True)
+    if not capacity_csv.exists():
+        print(f"  WARN: {capacity_csv.name} not found — rendering solar maps "
+              f"WITHOUT plant markers.", file=sys.stderr, flush=True)
         return pd.DataFrame(), None
     cap = pd.read_csv(capacity_csv)
-    fc = pd.read_csv(forecast_csv, parse_dates=["valid_time"])
     print(f"  solar overlay: loaded {len(cap):,} plants "
-          f"from {capacity_csv.name}", flush=True)
-    pivot = fc.pivot_table(index="case_id", columns="valid_time",
-                            values="MW_AC", aggfunc="sum")
-    return cap, pivot
+          f"from {capacity_csv.name} (static)", flush=True)
+    return cap, None
 
 
 # ============================================================================

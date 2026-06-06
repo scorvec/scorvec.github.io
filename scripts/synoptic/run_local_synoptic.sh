@@ -31,10 +31,14 @@ if ! git pull --rebase --autostash -X theirs >/dev/null 2>&1; then
   echo "git pull failed (dirty tree or conflict?); skipping this poll."; exit 0
 fi
 
-# Latest 00/06/12/18Z extended cycle (latency-based, no network).
-ISO=$("$PY" scripts/find_latest_extended_cycle.py --format iso) || { echo "cycle probe failed"; exit 0; }
-COMPACT=$("$PY" scripts/find_latest_extended_cycle.py --format compact)
-DATE="${ISO%T*}"; HH="${ISO#*T}"; HOUR="${HH%:*}"     # 2026-06-02 / 18
+# Latest 00/06/12/18Z extended cycle whose F48 is actually published on AWS (live
+# Herbie probe). Renders as soon as the full f00..f48 set lands rather than on a
+# fixed latency guess — earlier when AWS is fast, and never on a partial cycle.
+# Exits non-zero when nothing is ready yet → no-op this poll.
+ISO=$("$PY" scripts/synoptic/latest_available_cycle.py --format iso) \
+  || { echo "no extended cycle with F48 on AWS yet — waiting for next poll."; exit 0; }
+DATE="${ISO%T*}"; HH="${ISO#*T}"; HOUR="${HH%:*}"     # 2026-06-06 / 12
+COMPACT="${DATE//-/}T${HOUR}Z"                        # 20260606T12Z
 
 # Already rendered? (national wind manifest carries the rendered cycle_compact)
 RENDERED=$("$PY" -c "import json,sys;\
@@ -43,15 +47,16 @@ if [ "$RENDERED" = "$COMPACT" ]; then
   echo "maps already current for $COMPACT — nothing to do."; exit 0
 fi
 
-# Require the plant overlays before rendering, so we never render a cycle's maps
-# WITHOUT the rings (render_maps deliberately skips the raw inventory). Wind capacity
-# is a canonical static-fleet file; solar's per-cycle signal is its forecast_plant.
-# A missing file means the wind/solar runs haven't committed yet — skip; the next
-# poll renders once they land.
+# Plant overlays are STATIC (locations + capacity); render_maps sizes the rings off
+# these canonical files and never off a per-cycle forecast. Gate only on the static
+# files — both always exist and only change when updated by hand — so the synoptic
+# render is NEVER blocked waiting on a per-cycle plant commit; it renders as soon as
+# HRRR F48 is on AWS. (A missing file here would mean the static fleet CSV itself was
+# removed, not a per-cycle race.)
 WIND_CSV="assets/wind_forecast_data/capacity_plant.csv"
-SOLAR_CSV="assets/solar_forecast_data/forecast_plant_${COMPACT}.csv"
+SOLAR_CSV="assets/solar_forecast_data/capacity_plant.csv"
 if [ ! -f "$WIND_CSV" ] || [ ! -f "$SOLAR_CSV" ]; then
-  echo "new cycle $COMPACT but plant overlays not ready (wind:$([ -f "$WIND_CSV" ] && echo y || echo n) solar:$([ -f "$SOLAR_CSV" ] && echo y || echo n)) — skipping."
+  echo "static plant overlay file(s) missing (wind:$([ -f "$WIND_CSV" ] && echo y || echo n) solar:$([ -f "$SOLAR_CSV" ] && echo y || echo n)) — skipping."
   exit 0
 fi
 
