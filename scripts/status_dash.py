@@ -351,6 +351,24 @@ def collect() -> dict:
                 misc=collect_jobs_misc())
 
 
+def _slug(label: str) -> str:
+    return label.rsplit(".", 1)[-1]                       # com.scorvec.mjo -> mjo
+
+
+def collect_logs(n: int = 40) -> dict:
+    """Per-pipeline live log tails + running state for the /logs poller."""
+    jobs = _launchd()
+    out = {}
+    for p in PIPELINES:
+        j = jobs.get(p["label"])
+        out[_slug(p["label"])] = {
+            "name": p["name"],
+            "text": "\n".join(_log_tail(p["log"], n)) or "(no log yet)",
+            "running": bool(j and j["pid"]),
+        }
+    return out
+
+
 # ── render ────────────────────────────────────────────────────────────────────
 CLR = dict(green="#3fb950", yellow="#d29922", red="#f85149", blue="#58a6ff", muted="#8b949e")
 
@@ -366,6 +384,27 @@ def _bar(pct, color="#58a6ff", stalled=False):
     c = CLR["red"] if stalled else color
     return (f'<div class="track"><div class="fill" style="width:{pct:.0f}%;background:{c}"></div>'
             f'<span class="pct">{pct:.0f}%</span></div>')
+
+
+LIVE_LOG_JS = """<script>
+async function pollLogs(){
+  try{
+    const r = await fetch('/logs?n=40'); const d = await r.json();
+    for(const [slug,info] of Object.entries(d.jobs)){
+      const el = document.getElementById('log-'+slug);
+      if(el && el.textContent !== info.text){
+        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+        el.textContent = info.text;
+        if(atBottom) el.scrollTop = el.scrollHeight;   // follow tail only if already at bottom
+      }
+      const b = document.getElementById('badge-'+slug);
+      if(b){ b.textContent = info.running ? '\\u25cf live' : 'idle';
+             b.className = 'badge ' + (info.running ? 'live' : 'idle'); }
+    }
+  }catch(e){}
+}
+setInterval(pollLogs, 2000); pollLogs();
+</script>"""
 
 
 def render(s: dict) -> str:
@@ -419,7 +458,6 @@ def render(s: dict) -> str:
                      f'<div class="chunkgrid">{"".join(cells)}</div></td></tr>')
     if not A:
         A.append('<tr><td colspan="5" class="muted" style="text-align:center;padding:1.4em">no active downloads</td></tr>')
-    logtail = "\n".join(html.escape(l) for l in s.get("log", [])) or "(no recent log)"
 
     # full registry queue for the active cycle
     Q = []
@@ -468,6 +506,19 @@ def render(s: dict) -> str:
     else:
         net_svg = '<div class="muted" style="padding:1.6em 0">collecting samples… (one per 5 s refresh)</div>'
         net_label = "system RX"
+    runmap = {p["label"]: p["running"] for p in s["pipelines"]}
+    livelogs = ""
+    for p in PIPELINES:
+        slug = _slug(p["label"])
+        run = runmap.get(p["label"], False)
+        tail = html.escape("\n".join(_log_tail(p["log"], 40))) or "(no log yet)"
+        bcls, btxt = ("live", "● live") if run else ("idle", "idle")
+        livelogs += f"""<div class="tile">
+          <div class="thead"><b>{html.escape(p['name'])}</b>&nbsp;<span class="badge {bcls}" id="badge-{slug}">{btxt}</span></div>
+          <div class="sub mono" style="margin-bottom:.45em">{html.escape(str(p['log'].relative_to(REPO)))}</div>
+          <pre class="logbox live" id="log-{slug}">{tail}</pre>
+        </div>"""
+
     return f"""<!doctype html><html><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="{REFRESH_S}"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>scorvec status</title><style>
@@ -490,6 +541,9 @@ table{{border-collapse:collapse;width:100%}} td{{padding:.7em 1em;border-bottom:
 .track{{position:relative;background:#21262d;border-radius:8px;height:2.1em;overflow:hidden}}
 .fill{{height:100%;border-radius:8px;transition:width .4s}} .pct{{position:absolute;right:.6em;top:0;font-size:.8em;line-height:2.6em;color:#c9d1d9;font-weight:600}}
 .logbox{{white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8em;line-height:1.55;color:#aeb6c0;margin:0;max-height:14em;overflow:auto}}
+.logbox.live{{max-height:20em}}
+.badge.live{{background:#0d2233;color:#58a6ff;border:1px solid #2d4f6e}}
+.badge.idle{{background:#161b22;color:#6e7681;border:1px solid #21262d}}
 .chunkrow td{{padding:.1em 1em .7em 1em;border-bottom:1px solid #21262d}}
 .chunkgrid{{display:flex;flex-wrap:wrap;gap:.35em .8em}}
 .chunk{{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.76em;background:#0d1117;border:1px solid #21262d;border-radius:7px;padding:.2em .55em;white-space:nowrap}}
@@ -508,8 +562,8 @@ b{{color:#e6edf3}}
 <h2>Active downloads</h2>
 <div class="tile full"><table>{''.join(A)}</table></div>
 
-<h2>Download log <span class="sub" style="text-transform:none;letter-spacing:0">— scripts/mjo/run_local.log</span></h2>
-<div class="tile full"><pre class="logbox">{logtail}</pre></div>
+<h2>Live logs <span class="sub" style="text-transform:none;letter-spacing:0">— tailing every 2s</span></h2>
+<div class="cards">{livelogs}</div>
 
 <h2>Download queue — {html.escape(s['downloads'].get('active_cycle','')) or 'n/a'} · {ndone}/{len(qd)} done</h2>
 <div class="tile full"><table>{''.join(Q) or '<tr><td class=muted>registry unavailable</td></tr>'}</table></div>
@@ -525,6 +579,7 @@ b{{color:#e6edf3}}
 
 <h2>Network throughput</h2>
 <div class="tile full">{net_svg}<div class="sub" style="margin-top:.5em">{net_label}</div></div>
+{LIVE_LOG_JS}
 </body></html>"""
 
 
@@ -534,7 +589,13 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        if self.path.startswith("/api"):
+        if self.path.startswith("/logs"):
+            from urllib.parse import urlparse, parse_qs
+            q = parse_qs(urlparse(self.path).query)
+            n = max(1, min(200, int(q.get("n", ["40"])[0])))
+            body = json.dumps({"jobs": collect_logs(n)}).encode()
+            ctype = "application/json"
+        elif self.path.startswith("/api"):
             body = json.dumps(collect(), default=str).encode()
             ctype = "application/json"
         else:
