@@ -152,6 +152,8 @@ BACKOFF_MAX = float(os.environ.get("ECMWF_BACKOFF_MAX", "240"))   # s — cap
 FETCH_TRIES = int(os.environ.get("ECMWF_FETCH_TRIES", "3"))
 _THROTTLE = {"pen": 0.0}
 _THROTTLE_LOCK = threading.Lock()
+_THROTTLED_NOW: set = set()       # mirrors that 503'd THIS run — excluded from further retries
+                                  # until every mirror is throttled (then reset after a back-off)
 
 
 def _is_throttle(err) -> bool:
@@ -347,12 +349,29 @@ def _mark_src(target: str, src: str, attempt: int) -> None:
         pass
 
 
+def _next_src(start: int, tried: list) -> str:
+    """Mirror for the next attempt: a healthy (not-throttled-this-run) mirror not yet
+    tried for this step; else round-robin the healthy pool; only fall back to a throttled
+    mirror if EVERY mirror is currently throttled. This is what makes us switch AWAY from
+    a 503'ing mirror mid-run instead of round-robining straight back onto it."""
+    order = [SOURCES[(i + start) % len(SOURCES)] for i in range(len(SOURCES))]
+    with _THROTTLE_LOCK:
+        bad = set(_THROTTLED_NOW)
+    pool = [s for s in order if s not in bad] or order
+    for s in pool:                                         # prefer a healthy mirror we haven't tried yet
+        if s not in tried:
+            return s
+    return pool[len(tried) % len(pool)]                    # else round-robin the healthy pool
+
+
 def _robust(req: dict, target: str, parallel: bool, members, expected: int, start: int = 0) -> str:
     label = os.path.basename(target)
     use_parallel = parallel and WORKERS >= 2 and members and len(members) >= 2
     err = None
+    tried: list = []
     for attempt in range(1, TRIES + 1):
-        src = SOURCES[(attempt - 1 + start) % len(SOURCES)]   # start offset spreads steps across mirrors
+        src = _next_src(start, tried)                      # skip mirrors throttled this run
+        tried.append(src)
         _mark_src(target, src, attempt)
         _clean(target)
         if use_parallel:
@@ -371,11 +390,21 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int, star
                 _throttle_ease()
                 return src
             err = RuntimeError(f"incomplete GRIB: {got}/{expected} msgs")
-        if _is_throttle(err):                              # 503/SlowDown → global back-off
-            _note_throttle_src(src)                        # demote this mirror next run
-            wait = _throttle_bump()
-            print(f"    {label}: 503 throttle ({src}) — backing off {wait:.0f}s — retry {attempt}/{TRIES}", flush=True)
-            time.sleep(wait)
+        if _is_throttle(err):                              # 503/SlowDown
+            _note_throttle_src(src)                        # demote this mirror NEXT run too
+            with _THROTTLE_LOCK:
+                _THROTTLED_NOW.add(src)                    # …and exclude it for the rest of THIS run
+                healthy_left = [s for s in SOURCES if s not in _THROTTLED_NOW]
+            if healthy_left:                               # switch immediately — never sit on a throttled mirror
+                print(f"    {label}: 503 throttle ({src}) → switching mirror "
+                      f"(retry {attempt}/{TRIES}; healthy: {','.join(healthy_left)})", flush=True)
+            else:                                          # everything throttled → one global back-off, then re-probe all
+                wait = _throttle_bump()
+                print(f"    {label}: 503 throttle — ALL mirrors throttled, backing off "
+                      f"{wait:.0f}s (retry {attempt}/{TRIES})", flush=True)
+                time.sleep(wait)
+                with _THROTTLE_LOCK:
+                    _THROTTLED_NOW.clear()                 # reset so the next attempt re-probes every mirror
         else:
             print(f"    {label}: {repr(err)[:55]} — retry {attempt}/{TRIES} (mirror)", flush=True)
     _clean(target)
