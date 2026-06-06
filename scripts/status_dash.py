@@ -46,6 +46,12 @@ PIPELINES = [
     dict(name="Synoptic maps", label="com.scorvec.synoptic",
          log=REPO / "scripts/synoptic/run_local_synoptic.log", cadence=6, markers=None),
 ]
+# Non-launchd ad-hoc jobs to also live-tail; "running" detected by process-name match.
+EXTRA_LOGS = [
+    dict(name="Teleconn ERA5 build", slug="teleconn",
+         log=Path.home() / "mjo" / "teleconn_build.log",
+         proc="build_torque_teleconn_data"),
+]
 ERR_RE = re.compile(r"\b(error|failed|fatal|could not|traceback|exit 1|skipped)\b", re.I)
 OK_RE = re.compile(r"\b(pushed|complete|nothing to do|saved)\b", re.I)
 
@@ -355,18 +361,33 @@ def _slug(label: str) -> str:
     return label.rsplit(".", 1)[-1]                       # com.scorvec.mjo -> mjo
 
 
-def collect_logs(n: int = 40) -> dict:
-    """Per-pipeline live log tails + running state for the /logs poller."""
+def _proc_running(pattern: str) -> bool:
+    try:
+        r = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True)
+        return bool(r.stdout.strip())
+    except Exception:                                     # noqa: BLE001
+        return False
+
+
+def _live_log_entries():
+    """Unified (slug, name, log_path, running) for every monitored log —
+    launchd pipelines plus ad-hoc EXTRA_LOGS (running via process match)."""
     jobs = _launchd()
-    out = {}
+    out = []
     for p in PIPELINES:
         j = jobs.get(p["label"])
-        out[_slug(p["label"])] = {
-            "name": p["name"],
-            "text": "\n".join(_log_tail(p["log"], n)) or "(no log yet)",
-            "running": bool(j and j["pid"]),
-        }
+        out.append((_slug(p["label"]), p["name"], p["log"], bool(j and j["pid"])))
+    for e in EXTRA_LOGS:
+        out.append((e["slug"], e["name"], e["log"], _proc_running(e["proc"])))
     return out
+
+
+def collect_logs(n: int = 40) -> dict:
+    """Per-job live log tails + running state for the /logs poller."""
+    return {slug: {"name": name,
+                   "text": "\n".join(_log_tail(log, n)) or "(no log yet)",
+                   "running": running}
+            for slug, name, log, running in _live_log_entries()}
 
 
 # ── render ────────────────────────────────────────────────────────────────────
@@ -506,16 +527,17 @@ def render(s: dict) -> str:
     else:
         net_svg = '<div class="muted" style="padding:1.6em 0">collecting samples… (one per 5 s refresh)</div>'
         net_label = "system RX"
-    runmap = {p["label"]: p["running"] for p in s["pipelines"]}
     livelogs = ""
-    for p in PIPELINES:
-        slug = _slug(p["label"])
-        run = runmap.get(p["label"], False)
-        tail = html.escape("\n".join(_log_tail(p["log"], 40))) or "(no log yet)"
+    for slug, name, log, run in _live_log_entries():
+        tail = html.escape("\n".join(_log_tail(log, 40))) or "(no log yet)"
+        try:
+            rel = str(log.relative_to(REPO))
+        except ValueError:                               # EXTRA_LOGS may live outside the repo
+            rel = str(log)
         bcls, btxt = ("live", "● live") if run else ("idle", "idle")
         livelogs += f"""<div class="tile">
-          <div class="thead"><b>{html.escape(p['name'])}</b>&nbsp;<span class="badge {bcls}" id="badge-{slug}">{btxt}</span></div>
-          <div class="sub mono" style="margin-bottom:.45em">{html.escape(str(p['log'].relative_to(REPO)))}</div>
+          <div class="thead"><b>{html.escape(name)}</b>&nbsp;<span class="badge {bcls}" id="badge-{slug}">{btxt}</span></div>
+          <div class="sub mono" style="margin-bottom:.45em">{html.escape(rel)}</div>
           <pre class="logbox live" id="log-{slug}">{tail}</pre>
         </div>"""
 
