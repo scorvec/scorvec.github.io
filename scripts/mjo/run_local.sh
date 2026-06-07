@@ -121,6 +121,21 @@ if [ -f "$U850_SERIES" ] && [ "$(cat "$U850_STAMP" 2>/dev/null)" != "$(date -u +
   else echo "u850 analogs failed; continuing"; fi
 fi
 
+# MEI.v2 daily nowcast — regression of the published bimonthly MEI.v2 onto daily Niño3.4
+# (OISST) + SOI (DailySOI) + eq-u850 (the ARCO tail refreshed just above). Cheap (~seconds);
+# laptop-only like the u850 block (needs the gitignored band series + the SST repo's OISST),
+# so it no-ops on the Action's clean checkout and the committed webps carry over.
+mkdir -p data/mei
+for f in "nino.ascii|ersst5.nino.mth.91-20.ascii|NINO3.4|https://www.cpc.ncep.noaa.gov/data/indices/ersst5.nino.mth.91-20.ascii" \
+         "meiv2.data|meiv2.data|MEI|https://psl.noaa.gov/enso/mei/data/meiv2.data"; do
+  IFS='|' read -r dst _ needle url <<< "$f"; tmp=$(mktemp)
+  if curl -s --max-time 60 "$url" -o "$tmp" && grep -q "$needle" "$tmp"; then mv "$tmp" "data/mei/$dst"; else rm -f "$tmp"; fi
+done
+if [ -f data/reference/eq_u850_bandseries.nc ]; then
+  VAL=""; [ -f "$REPO/assets/sst/mei/mei_validation.webp" ] || VAL="--validation"
+  "$PY" src/build_mei_nowcast.py --apply "$(date -u +%Y)" $VAL || echo "MEI nowcast failed; continuing"
+fi
+
 # prune GRIBs older than a week. Archive hard-links share inodes with the working
 # data dirs, so disk frees only when both links go — delete from both. Only *.grib2
 # is matched, so committed reference *.nc files are never touched.
@@ -132,7 +147,7 @@ find "$MJO_GRIB_ARCHIVE" -type d -empty -delete 2>/dev/null
 # builder, so MJO-updated images would serve stale from cache between SST runs;
 # the torque/MMSF animator iframes self-bust via their manifest "ver".)
 CB=$(date -u +%Y%m%d%H%M)
-perl -0pi -e "s/((?:aam|aam_trend|torque_timeseries|torque_ranges|eq_wind_hovmoller|soi_forecast|u850_analogs_anom|u850_analogs_abs)\.webp)\?v=\d+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
+perl -0pi -e "s/((?:aam|aam_trend|torque_timeseries|torque_ranges|eq_wind_hovmoller|soi_forecast|u850_analogs_anom|u850_analogs_abs|mei\/mei_nowcast|mei\/mei_validation)\.webp)\?v=\d+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
 
 ( cd "$REPO" && git add \
     scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
@@ -142,7 +157,8 @@ perl -0pi -e "s/((?:aam|aam_trend|torque_timeseries|torque_ranges|eq_wind_hovmol
     assets/sst/anim/mmsf/ assets/sst/anim/mmsf_manifest.json assets/sst/mmsf_anom.webp \
     assets/sst/anim/aam_zonal/ assets/sst/anim/aam_zonal_manifest.json \
     assets/sst/u850_analogs_anom.webp assets/sst/u850_analogs_abs.webp \
-    && commit_push "MJO atmospheric products (wind/SOI + AAM/torque/MMSF/zonal): ${COMPACT} (local)" )
+    scripts/mjo/data/reference/mei_fit.json assets/sst/mei/mei_nowcast.webp assets/sst/mei/mei_validation.webp \
+    && commit_push "MJO atmospheric products (wind/SOI + AAM/torque/MMSF/zonal + MEI.v2): ${COMPACT} (local)" )
 
 # Self-heal for IFS-ENS latency: the physics model (IFS-ENS) is disseminated ~1-2 h LATER
 # than the AI model (AIFS-ENS), but this run triggers on AIFS availability — so the
