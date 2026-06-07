@@ -43,6 +43,10 @@ const INDICES = [
    desc:"+ve Himalaya/Tibet mountain torque injects westerly momentum over Asia (↑ AAM) → accelerates the East-Asian / N-Pacific jet (lag 0–5 d) → downstream Rossby-wave train → PNA-like height response over N. America (lag ~6–10 d)."},
   {slug:"mtn_rockies", short:"rockies", label:"Rockies mountain torque",
    desc:"+ve Rockies mountain torque adds westerly momentum over W. N. America (↑ AAM) → modulates the N-Pacific jet exit and N-American flow → downstream height response over North America / the N. Atlantic."},
+  {slug:"aam_tendency", short:"tendency", label:"Global AAM tendency dM/dt (whole NH)",
+   desc:"Standardized anomaly of the global AAM tendency (= global mountain + friction torque; GWD omitted). +ve = AAM rising faster than normal → a hemispheric, ~annular response: broad strengthening of the NH subtropical jets and an AO-like height pattern (subtropical ridge / polar trough), building over ~0–8 d — unlike the localized wavetrains of the regional indices."},
+  {slug:"glaam_nh", short:"glaam_nh", label:"NH relative AAM — the STATE (250-hPa proxy)", state:true,
+   desc:"Standardized anomaly of NH relative AAM (cos²φ-weighted 0–87°N integral of the 250-hPa zonal-wind anomaly). This is the absolute STATE (not a lagged response), so instead of a lag sequence we group every day that meets each threshold and map the time-mean circulation — at ±1σ AND ±2σ. Rows = GLAAM +2σ / +1σ / −1σ / −2σ; cols = 250-hPa wind | 500-hPa height; shared scale per column so the ±2σ state reads as a stronger version of ±1σ, and the +/− rows show whether high- and low-AAM patterns are mirror images."},
 ];
 const SEASONS = ["NDJFM","JJA"];
 const METHODS = [
@@ -89,6 +93,18 @@ function buildEvents(host, short, season){
 const root=document.getElementById("sections");
 for(const ix of INDICES){
   root.insertAdjacentHTML("beforeend", `<h2>${ix.label}</h2><p class="desc">${ix.desc}</p>`);
+  if(ix.state){
+    root.insertAdjacentHTML("beforeend", `<h3>Mean state at ±1σ / ±2σ — all qualifying days grouped (no lag)</h3>`);
+    const gs=document.createElement("div"); gs.className="grid"; root.appendChild(gs);
+    for(const s of SEASONS){
+      const f=`torque_teleconn_${ix.slug}_${s}_state.webp`;
+      gs.insertAdjacentHTML("beforeend",
+        `<figure><a href="${f}"><img src="${f}" loading="lazy"></a><figcaption>${s} · mean circulation by GLAAM regime</figcaption></figure>`);
+    }
+    root.insertAdjacentHTML("beforeend", `<h3>+2σ event days (NDJFM)</h3>`);
+    buildEvents(root, ix.short, "NDJFM");
+    continue;
+  }
   root.insertAdjacentHTML("beforeend", `<h3>Jet lag–longitude Hovmöller (NDJFM)</h3>`
     + `<div class="grid"><figure class="full"><a href="torque_teleconn_${ix.slug}_NDJFM_jet_hovmoller.webp">`
     + `<img src="torque_teleconn_${ix.slug}_NDJFM_jet_hovmoller.webp"></a>`

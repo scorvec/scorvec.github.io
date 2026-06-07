@@ -56,7 +56,17 @@ DESCRIPTIONS = {
                   "AAM → stronger / poleward-shifted subtropical jets (strongest at lag 0)",
     "fric_global": "+ve global friction torque = westerly surface-stress torque → the slower, "
                    "ENSO/MJO-modulated branch of the AAM budget → broad subtropical-jet response",
+    "aam_tendency": "Standardized anomaly of the global AAM tendency dM/dt (= global mountain + "
+                    "friction torque; GWD omitted). +ve = global AAM rising faster than normal → "
+                    "stronger / poleward-shifted NH subtropical jets; composite shows the lagged "
+                    "hemispheric jet & height response.",
+    "glaam_nh": "Standardized anomaly of NH relative AAM (cos²φ-weighted 0–87°N integral of the "
+                "250-hPa zonal-wind anomaly — a jet-level proxy for the AAM state, not its tendency). "
+                "±2σ = anomalously strong / weak NH westerlies; composite shows the jet & height "
+                "pattern of a high vs low AAM state.",
 }
+LABELS["aam_tendency"] = "Global AAM tendency dM/dt"
+LABELS["glaam_nh"] = "NH relative AAM (250-hPa proxy)"
 SEASONS = {"NDJFM": [11, 12, 1, 2, 3], "JJA": [6, 7, 8]}
 LAGS = list(range(-3, 13))           # days; predictor leads for τ>0
 LAGS_SHOW = [-2, 0, 2, 4, 6, 8, 10]  # rows in the static panels (t−2 → t+10)
@@ -127,6 +137,15 @@ def composite(Yhi: np.ndarray, Ylo: np.ndarray):
         (vhi / nhi) ** 2 / (nhi - 1) + (vlo / nlo) ** 2 / (nlo - 1))
     p = 2 * stats.t.sf(np.abs(t), np.clip(dof, 1, None))
     return mhi - mlo, p
+
+
+def _slug(index: str) -> str:
+    """File slug: strip a leading mtn_/aam_ prefix only (NOT a substring — glaam_nh
+    contains 'aam_' but must stay 'glaam_nh')."""
+    for pre in ("mtn_", "aam_"):
+        if index.startswith(pre):
+            return index[len(pre):]
+    return index
 
 
 def composite_one(Y):
@@ -285,9 +304,11 @@ def render_composite_anim(Fabs, Fanom, istd, smask, full, pos, pres, lats, lons,
     """Daily composite frames (one per lag, t−2…t+10): absolute 250-hPa jet | 500-hPa
     height anomaly over the N Pacific, on +sigma-torque days. Fixed scales across frames
     so the animation is comparable; writes a manifest the page player reads."""
-    slug = index.split("_", 1)[-1]
+    slug = _slug(index)
     proj = ccrs.PlateCarree(central_longitude=180); pc = ccrs.PlateCarree()
-    if "rockies" in index:                  # Rockies source → downstream N America / Atlantic
+    if "tendency" in index or "glaam" in index:   # hemispheric AAM state / tendency
+        EXTENT_U = [-179.9, 179.9, 0, 87]; EXTENT_Z = [-179.9, 179.9, 0, 87]
+    elif "rockies" in index:                # Rockies source → downstream N America / Atlantic
         EXTENT_U = [180, 320, 12, 74]; EXTENT_Z = [180, 360, 10, 82]
     else:                                   # Himalaya (default): N Pacific → North America
         EXTENT_U = [120, 260, 8, 74]; EXTENT_Z = [130, 308, 8, 82]
@@ -334,6 +355,51 @@ def render_composite_anim(Fabs, Fanom, istd, smask, full, pos, pres, lats, lons,
         {"lags": ANIM_LAGS, "frames": names, "season": season}))
     print(f"  anim: {len(names)} daily frames, ~{int((istd[smask] > sigma).sum())} "
           f"events averaged/frame ({slug}/{season})", flush=True)
+
+
+def render_glaam_state(Fanom, sig_f, istd, smask, lats, lons, index, season):
+    """Time-mean (composite) standardized circulation anomaly for ±1σ / ±2σ states — ALL
+    qualifying days grouped, NO lag. Rows = thresholds, cols = u250 | z500; shared colour
+    scale per field so the ±2σ state reads as a stronger version of ±1σ. Stipple p<0.05."""
+    proj = ccrs.PlateCarree(central_longitude=180)
+    THR = [("+2σ", istd > 2), ("+1σ", istd > 1), ("−1σ", istd < -1), ("−2σ", istd < -2)]
+    nrow, ncol = len(THR), len(FIELDS)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(6.6 * ncol, 1.85 * nrow + 0.5),
+                             subplot_kw={"projection": proj}, layout="constrained")
+    fig.get_layout_engine().set(h_pad=0.01, w_pad=0.0, hspace=0.0, wspace=0.0)
+    axes = np.atleast_2d(axes)
+    cells, lim = {}, {f: [] for f in FIELDS}
+    for ti, (lab, cond) in enumerate(THR):
+        days = np.where(smask & cond)[0]
+        for f in FIELDS:
+            m, p = composite_one(Fanom[f][days])
+            z = m.reshape(lats.size, lons.size) / sig_f[f]
+            cells[(ti, f)] = (z, p.reshape(lats.size, lons.size), len(days))
+            lim[f].append(np.abs(z[np.isfinite(z)]))
+    lim = {f: (float(np.nanpercentile(np.concatenate(lim[f]), 99.5)) or 0.3) * 1.3 for f in FIELDS}
+    col_cf = {}
+    for ti, (lab, cond) in enumerate(THR):
+        for j, f in enumerate(FIELDS):
+            ax = axes[ti, j]; z, p, n = cells[(ti, f)]
+            col_cf[j] = ax.contourf(lons, lats, z, levels=np.linspace(-lim[f], lim[f], 21),
+                                    cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
+            ax.contourf(lons, lats, np.where(p < 0.05, 1.0, np.nan), levels=[0.5, 1.5],
+                        colors="none", hatches=["..."], transform=ccrs.PlateCarree())
+            ax.coastlines(linewidth=0.4, color="0.3")
+            ax.set_extent([-179.9, 179.9, float(lats.min()), float(lats.max())], crs=ccrs.PlateCarree())
+            if j == 0:
+                ax.text(-0.02, 0.5, f"GLAAM {lab}\n(n={n})", transform=ax.transAxes, rotation=90,
+                        va="center", ha="center", fontsize=9, fontweight="bold", clip_on=False)
+            if ti == 0:
+                ax.set_title(FIELDS[f], fontsize=11)
+    for j, f in enumerate(FIELDS):
+        cb = fig.colorbar(col_cf[j], ax=list(axes[:, j]), location="bottom",
+                          shrink=0.55, aspect=32, pad=0.008)
+        cb.set_label("anomaly ÷ local σ", fontsize=9); cb.ax.tick_params(labelsize=7)
+    OUT.mkdir(parents=True, exist_ok=True)
+    fig.savefig(OUT / f"torque_teleconn_{index}_{season}_state.webp", dpi=110, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  saved torque_teleconn_{index}_{season}_state.webp", flush=True)
 
 
 def relay_diagnostic(tor: xr.Dataset, doy: np.ndarray):
@@ -400,7 +466,7 @@ def write_events(index, season, istd, smask, full, sigma, nino):
         v = nino.get((full[i].year, full[i].month))
         return round(v, 2) if v is not None else ""
 
-    slug = index.split("_", 1)[-1]                          # mtn_himalaya → himalaya
+    slug = _slug(index)                                     # mtn_himalaya → himalaya
     OUT.mkdir(parents=True, exist_ok=True)
     rows = sorted((full[g[int(np.argmax(istd[g]))]].strftime("%Y-%m-%d"),
                    round(float(istd[g[int(np.argmax(istd[g]))]]), 2), len(g),
@@ -455,12 +521,30 @@ def main(argv=None) -> int:
     relay_diagnostic(tor, doy)
 
     for index in indices:
-        ia = harmonic_deseason(tor[index].values, doy)         # (ntime,)
+        if index == "glaam_nh":
+            # NH relative-AAM state proxy: cos²φ-weighted NH integral of the 250-hPa u anomaly
+            w2 = (np.cos(np.deg2rad(lats)) ** 2) * (lats > 0)
+            uA = Fanom["u250"].reshape(len(full), lats.size, lons.size)
+            ia_raw = np.nansum(uA * w2[None, :, None], axis=(1, 2))
+        elif index == "aam_tendency":
+            # dM/dt = total torque on the atmosphere (AAM budget) ≈ global mountain + friction
+            ia_raw = tor["mtn_global"].values + tor["fric_global"].values
+        else:
+            ia_raw = tor[index].values
+        ia = harmonic_deseason(ia_raw, doy)                    # (ntime,)
         a1x = float(lag1(ia[pres][:, None])[0])                # predictor autocorr
         for season, months in SEASONS.items():
             smask = np.isin(month, months) & pres
             mu, sd = np.nanmean(ia[smask]), np.nanstd(ia[smask])
             istd = (ia - mu) / sd                              # +σ units
+            if index == "glaam_nh":
+                # absolute STATE: group all qualifying days (±1σ, ±2σ), no lag → mean state
+                sig_f = {f: Fanom[f][smask].std(0).reshape(lats.size, lons.size) for f in FIELDS}
+                render_glaam_state(Fanom, sig_f, istd, smask, lats, lons, index, season)
+                write_events(index, season, istd, smask, full, args.sigma, nino)
+                n_hi = int((istd[smask] > args.sigma).sum()); n_lo = int((istd[smask] < -args.sigma).sum())
+                print(f"{index} / {season}: state composites · {n_hi} +{args.sigma:g}σ, {n_lo} −{args.sigma:g}σ days", flush=True)
+                continue
             reg_maps = {f: {} for f in FIELDS}
             cmp_maps = {f: {} for f in FIELDS}
             pos_maps = {f: {} for f in FIELDS}
