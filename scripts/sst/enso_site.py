@@ -47,7 +47,7 @@ PAGES = [
               "Oscillation Index forecast.",
          canonical="https://scorvec.com/enso-forecasts.html"),
     dict(slug="atmosphere", out="enso-atmosphere.html", active="A_ATMOSPHERE",
-         title="Atmosphere &amp; Winds &middot; El Ni&ntilde;o Monitor",
+         title="Atmospheric Response &middot; El Ni&ntilde;o Monitor",
          desc="Observed and forecast equatorial winds, atmospheric angular momentum and "
               "its torque budget, and the meridional overturning circulation.",
          canonical="https://scorvec.com/enso-atmosphere.html"),
