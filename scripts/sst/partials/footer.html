@@ -9,5 +9,19 @@
     .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
     .catch(() => { document.getElementById('count').textContent = '—'; });
 </script>
+<script>
+  // Size each animation iframe to its embedded content's exact height (image +
+  // controls), so the wide plots fill their cards with no letterboxing on any screen.
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + 'px';
+        fr[i].style.aspectRatio = 'auto';
+      }
+    }
+  });
+</script>
 </body>
 </html>
