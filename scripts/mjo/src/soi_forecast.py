@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Southern Oscillation Index tracker for the El Niño monitor.
 
-Observed SOI from LongPaddock (BoM, 1933-1992 base) plus a COMBINED AIFS-ENS +
+Observed SOI from LongPaddock (BoM standard 1887-1989 base) plus a COMBINED AIFS-ENS +
 IFS-ENS forecast (super-ensemble mean + member plume). Both the 30-day running
 SOI (bold) and the raw daily Troup SOI (faint) are shown on one plot.
 
@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import store as ecmwf                                    # shared ECMWF download manager
 
 SOI_URL = ("https://data.longpaddock.qld.gov.au/SeasonalClimateOutlook/"
-           "SouthernOscillationIndex/SOIDataFiles/DailySOI1933-1992Base.txt")
+           "SouthernOscillationIndex/SOIDataFiles/DailySOI1887-1989Base.txt")
 TAHITI = dict(latitude=-17.5, longitude=210.4)        # 149.6°W
 DARWIN = dict(latitude=-12.4, longitude=130.9)
 DAILY_STEPS = list(range(24, 361, 24))                # forecast days 1..15

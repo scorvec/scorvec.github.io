@@ -64,6 +64,7 @@ U850_LON = (135, 180)              # west-central Pacific westerly box (eq band 
 #   collinear 6-box model (0.294) but the coefficients are interpretable and don't bounce.
 # OLR dropped: PSL interp-OLR ends 2022-12 (no live data) and its fitted coefficient was ~0.
 PREDICTORS = ["n34", "soi", "u850"]
+FIT_Y0 = 1999                          # fit start (satellite era fits MEI.v2 best; CV ≈ 0.30)
 CLIM = (1991, 2020)
 
 
@@ -180,6 +181,8 @@ def fit() -> dict:
 
     rows, seasons = [], []
     for (y, s), mv in sorted(mei.items()):
+        if y < FIT_Y0:                 # the satellite era fits MEI.v2 best; older data degrades CV
+            continue
         ms = _pair(y, s)
         if have(ms):
             rows.append([mv] + feat_of(ms)); seasons.append((y, s))
