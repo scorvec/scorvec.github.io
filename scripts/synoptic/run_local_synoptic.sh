@@ -17,6 +17,7 @@ set -uo pipefail
 
 PY="${SYNOPTIC_PY:-/opt/homebrew/Caskroom/miniconda/base/envs/wx/bin/python}"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+source "$REPO/scripts/lib/gitlock.sh"; trap git_unlock EXIT
 export MPLBACKEND=Agg \
        PATH="$(dirname "$PY"):/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
 cd "$REPO" || exit 1
@@ -27,9 +28,12 @@ echo "===================== $(date) ====================="
 
 # Pull first so we see the latest wind/solar overlay CSVs + rendered manifest that
 # the upstream Actions may have just committed (avoids re-rendering what's done).
+# Under the shared git lock so this pull can't run while another pipeline is committing.
+git_lock || exit 0
 if ! git pull --rebase --autostash -X theirs >/dev/null 2>&1; then
-  echo "git pull failed (dirty tree or conflict?); skipping this poll."; exit 0
+  git_unlock; echo "git pull failed (dirty tree or conflict?); skipping this poll."; exit 0
 fi
+git_unlock
 
 # Latest 00/06/12/18Z extended cycle whose F48 is actually published on AWS (live
 # Herbie probe). Renders as soon as the full f00..f48 set lands rather than on a
@@ -83,10 +87,11 @@ fi
 git add -A assets/synoptic/
 git add charts.html 2>/dev/null || true
 if git diff --staged --quiet; then echo "render produced no changes; nothing to commit."; exit 0; fi
+git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
 git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
     commit -m "synoptic maps: cycle ${COMPACT} (local)"
 for i in 1 2 3 4 5; do
-  if git pull --rebase --autostash -X theirs && git push; then echo "pushed (attempt $i)"; exit 0; fi
+  if git pull --rebase --autostash -X theirs && git push; then echo "pushed (attempt $i)"; git_unlock; exit 0; fi
   echo "push attempt $i failed; retrying…"; sleep 5
 done
-echo "ERROR: could not push after 5 attempts."; exit 1
+echo "ERROR: could not push after 5 attempts."; git_unlock; exit 1

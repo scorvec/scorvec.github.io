@@ -15,6 +15,7 @@ set -uo pipefail
 
 PY="${MJO_PY:-/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python}"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+source "$REPO/scripts/lib/gitlock.sh"; trap git_unlock EXIT
 export MPLBACKEND=Agg PATH="$(dirname "$PY"):/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin"
 export MJO_GRIB_ARCHIVE="${MJO_GRIB_ARCHIVE:-$HOME/mjo/grib_archive}"
 cd "$REPO/scripts/mjo" || exit 1
@@ -58,12 +59,13 @@ echo "building cycle $COMPACT …"
 
 commit_push () {            # $1 = message; commits staged changes (if any) + pushes with retry
   if git diff --staged --quiet; then echo "  ($1: nothing to commit)"; return 0; fi
+  git_lock || return 1     # serialise vs the other site pipelines (sst/synoptic/ens)
   git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" commit -m "$1"
   for i in 1 2 3 4 5; do
-    if git pull --rebase --autostash -X theirs && git push; then echo "  pushed: $1 (attempt $i)"; return 0; fi
+    if git pull --rebase --autostash -X theirs && git push; then echo "  pushed: $1 (attempt $i)"; git_unlock; return 0; fi
     echo "  push attempt $i failed; retrying…"; sleep 5
   done
-  echo "  ERROR: could not push: $1 (left as a local commit; the next run will carry it)"; return 1
+  echo "  ERROR: could not push: $1 (left as a local commit; the next run will carry it)"; git_unlock; return 1
 }
 
 # ── Stage 1: RMM core — publish the MJO forecast first ──

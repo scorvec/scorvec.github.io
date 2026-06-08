@@ -23,10 +23,12 @@ echo "== Ensembles t2m build for ${DATE} ${RUN}Z =="
 
 git add assets/ens ensembles.html
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
+source "$REPO/scripts/lib/gitlock.sh"; trap git_unlock EXIT
+git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
 git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
     commit -q -m "Ensembles t2m update: ${DATE} ${RUN}Z"
 for i in 1 2 3 4 5; do
-  if git push; then echo "pushed on attempt $i"; exit 0; fi
+  if git push; then echo "pushed on attempt $i"; git_unlock; exit 0; fi
   git fetch origin main && { git rebase -X ours origin/main || git rebase --abort; }
   sleep 5
 done

@@ -810,7 +810,17 @@ def stamp_html(sst_valid, roni_month):
     filled later by sst_subsurface, once the TAO date is known)."""
     sys.path.insert(0, str(HERE))
     import enso_site
-    cache = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
+    import hashlib
+    # Cache-buster = content hash of the static page images, NOT a wall-clock stamp, so
+    # the pages are byte-identical between runs when nothing changed (else every poll
+    # rewrote ?v= → a spurious commit). It also flips whenever an MJO-owned image on these
+    # pages changes, so those get cache-busted too. (anim/ frames self-bust via manifest "ver".)
+    h = hashlib.md5()
+    for p in sorted(ASSETS.rglob("*.webp")):
+        if "/anim/" in p.as_posix():
+            continue
+        h.update(p.name.encode()); h.update(p.read_bytes())
+    cache = h.hexdigest()[:12]
     tokens = {"cache": cache,
               "sst_day": f"OISST {sst_valid:%Y-%m-%d}",
               "roni_month": f"RONI thru {roni_month:%Y-%m}"}

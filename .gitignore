@@ -61,3 +61,6 @@ scripts/ecmwf/.mirror_rotation.json
 
 # MEI nowcast cached inputs (regenerated daily; fit json is committed separately)
 scripts/mjo/data/mei/
+
+# shared cross-pipeline git lock (runtime mutex dir)
+.gitlock/
