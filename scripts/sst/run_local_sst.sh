@@ -13,6 +13,14 @@
 # Action runs from a clean checkout, so it has no cache to reuse.
 set -uo pipefail
 
+# Scheduled poll window: the launchd agent fires every 15 min (StartInterval) and passes
+# --poll; only actually check during 09:00–13:59 ET (OISST typically posts ~midday ET), so
+# the other fires exit instantly. Manual runs (no --poll) always proceed.
+if [ "${1:-}" = "--poll" ]; then
+  H=$(TZ=America/New_York date +%H); H=$((10#$H))
+  if [ "$H" -lt 9 ] || [ "$H" -ge 14 ]; then exit 0; fi
+fi
+
 PY="${SST_PY:-/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python}"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 export MPLBACKEND=Agg SST_SITE_ROOT="$REPO" \
