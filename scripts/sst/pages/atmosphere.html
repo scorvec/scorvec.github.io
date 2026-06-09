@@ -16,6 +16,17 @@
       <div class="chart-card-footer"><span class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; ~1&ndash;2 day latency &middot; updated daily &middot; drag the slider for recent days</span></div>
     </div>
 
+    <!-- HOURLY SOI ESTIMATE (Darwin/Tahiti METAR) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Hourly SOI Estimate</h2>
+        <p>The Southern Oscillation Index is a Troup standardisation of the Tahiti-minus-Darwin sea-level-pressure difference &mdash; published only monthly, and even LongPaddock's daily version lags 1&ndash;2 days. This estimates it in near-real time from the hourly QNH in the Darwin (YPDN) and Tahiti / Faa&rsquo;a (NTAA) airport METARs, updated hourly by a GitHub Action.</p>
+        <p><b>How to read it:</b> The grey line is the published LongPaddock daily SOI; the bold red line is our <b>24-hour-mean</b> estimate (the atmospheric tide and weather average out), bias-corrected onto the LongPaddock scale, which runs a day or two ahead of it. The faint blue line is the <b>raw hourly</b> SOI &mdash; very noisy (the semidiurnal pressure tide, passing weather, and 1-hPa METAR rounding), useful only as the live pulse. Negative ⇒ El&nbsp;Ni&ntilde;o-favorable.</p>
+      </div>
+      <div class="img-wrap"><img id="soi-hourly" data-src="assets/sst/soi_hourly.webp" alt="Hourly SOI estimate from Darwin and Tahiti METAR" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Darwin (YPDN) + Tahiti (NTAA) METAR via aviationweather.gov &middot; Troup normals &amp; calibration from LongPaddock (BoM 1887&ndash;1989 base) &middot; updated hourly</span></div>
+    </div>
+
     <!-- EQUATORIAL 10m WIND HOVMÖLLER -->
     <div class="chart-card">
       <div class="chart-card-header">

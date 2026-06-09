@@ -815,9 +815,12 @@ def stamp_html(sst_valid, roni_month):
     # the pages are byte-identical between runs when nothing changed (else every poll
     # rewrote ?v= → a spurious commit). It also flips whenever an MJO-owned image on these
     # pages changes, so those get cache-busted too. (anim/ frames self-bust via manifest "ver".)
+    # images updated out-of-band by their own hourly Actions cache-bust client-side
+    # (see footer.html), so exclude them or they'd churn the page hash every hour.
+    HOURLY = {"soi_hourly.webp", "kiribati_wind.webp"}
     h = hashlib.md5()
     for p in sorted(ASSETS.rglob("*.webp")):
-        if "/anim/" in p.as_posix():
+        if "/anim/" in p.as_posix() or p.name in HOURLY:
             continue
         h.update(p.name.encode()); h.update(p.read_bytes())
     cache = h.hexdigest()[:12]
