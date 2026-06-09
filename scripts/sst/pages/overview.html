@@ -137,13 +137,25 @@
       <div class="chart-card-header">
         <h2>Equatorial Convection &mdash; Synthetic OLR Hovm&ouml;ller</h2>
         <p>Where the deep convection is, and which way it&rsquo;s moving. NOAA&rsquo;s interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N zonal mean is stacked as a longitude &times; time Hovm&ouml;ller.</p>
-        <p><b>How to read it:</b> <span style="color:#3b6">blue = low OLR = deep convection</span>; orange/red = suppressed/clear. An <b>eastward (top→bottom-right) tilt</b> is the MJO / convective envelope propagating east; convection parked at the <b>dateline</b> is the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
+        <p><b>How to read it:</b> <span style="color:#e07b00">yellow/orange/red = low OLR = deep convection</span>; blue = high OLR = suppressed / clear sky. An <b>eastward (top→bottom-right) tilt</b> is the MJO / convective envelope propagating east; convection parked at the <b>dateline</b> is the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
       </div>
       <div class="img-wrap" style="max-width:760px;margin:0 auto"><img id="olr-hovmoller" data-src="assets/sst/olr_hovmoller.webp" alt="Synthetic equatorial OLR Hovmöller from GMGSI longwave IR" loading="lazy"></div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA GMGSI longwave-IR global mosaic &middot; McIDAS T_b + Ohring-Gruber OLR &middot; 5&deg;S&ndash;5&deg;N daily mean</span>
         <span class="chart-updated">updated through the day</span>
       </div>
+    </div>
+
+    <!-- TROPICAL PACIFIC IR SATELLITE LOOP (GMGSI) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Tropical Pacific &mdash; Live IR Satellite Loop</h2>
+        <p>The actual clouds behind the OLR Hovm&ouml;ller. NOAA already blends GOES-East/West, Himawari and Meteosat into the <b>GMGSI</b> global longwave-IR mosaic on a regular lat/lon grid &mdash; so this is seamless and georeferenced (no stitching, no satellite-switch parallax). We crop the tropical Pacific, draw coastlines for orientation, and loop the last 48&nbsp;hours.</p>
+        <p><b>What to look for:</b> <b>white = cold cloud tops = deep convection.</b> Watch the convective clusters near the Maritime Continent and along the ITCZ, and any flare-up east of the dateline &mdash; that&rsquo;s the El&nbsp;Ni&ntilde;o-shifted warm pool firing. Use the slider to step through the loop.</p>
+      </div>
+      <iframe class="anim-embed pacsat" src="sst_anim.html?embed=1&amp;manifest=pacsat_manifest.json&amp;region=pacsat"
+              title="Seamless tropical-Pacific longwave-IR satellite loop from the GMGSI global mosaic" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 48&nbsp;h</span></div>
     </div>
 
   </div>
