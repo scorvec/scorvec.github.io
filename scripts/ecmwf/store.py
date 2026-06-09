@@ -607,7 +607,7 @@ def open_members(cycle: Cycle, spec: Spec):
 # ALL AIFS surface fields in ONE batch (steps 0..360 — sp needs the 0-h analysis).
 # 2t is dropped (the ensembles t2m page is paused; re-add "2t" here to fetch it again).
 SFC = ("sp", "10u", "10v", "msl")
-SFC_IFS = ("10u", "msl")              # IFS only feeds the Hovmöller + SOI
+SFC_IFS = ("10u", "10v", "msl")       # IFS feeds Hovmöller + SOI + super-ensemble MSLP/wind map
 # Legacy pre-consolidation batches — kept ONLY for the sfc_path fallback, so a cycle that
 # already fetched the old fc/an batches before the merge isn't needlessly re-downloaded.
 _SFC_FC_LEGACY = ("10u", "10v", "msl")

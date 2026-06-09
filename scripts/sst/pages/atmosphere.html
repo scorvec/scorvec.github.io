@@ -61,6 +61,18 @@
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS &amp; IFS-ENS (open data) &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
     </div>
 
+    <!-- SUPER-ENSEMBLE MSLP + 10m WIND MAP ANIMATOR -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Super-Ensemble MSLP &amp; 10 m Wind Forecast</h2>
+        <p>The full-field Pacific surface forecast behind the equatorial diagnostics: combined AIFS-ENS&nbsp;+&nbsp;IFS-ENS super-ensemble-mean mean-sea-level pressure (contours, with H/L centres) and 10&nbsp;m wind (speed shaded in knots, plus barbs), animated day&nbsp;1&ndash;15 over the tropical/subtropical Pacific.</p>
+        <p><b>What to look for:</b> the strength and position of the trade winds and the subtropical highs, and any equatorial <b>westerly</b> push (a wind-burst signature) between the Maritime Continent and the dateline. Use the slider to step through the forecast.</p>
+      </div>
+      <iframe class="anim-embed mslp-wind" src="sst_anim.html?embed=1&amp;manifest=mslp_wind_manifest.json&amp;region=mslp_wind"
+              title="Super-ensemble mean MSLP and 10 m wind forecast over the Pacific, animated" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0) &middot; member-weighted super-ensemble mean &middot; updated each 00/12Z cycle</span></div>
+    </div>
+
     <!-- ATMOSPHERIC ANGULAR MOMENTUM -->
     <div class="chart-card">
       <div class="chart-card-header">

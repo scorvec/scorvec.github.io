@@ -105,6 +105,9 @@ fi
   --anim-dir "$REPO/assets/sst/anim/mmsf" \
   --manifest "$REPO/assets/sst/anim/mmsf_manifest.json" \
   --out "$REPO/assets/sst/mmsf_anom.webp" || echo "MMSF failed; continuing"
+"$PY" src/mslp_wind_anim.py --date "$DATE" --time "$TIME" \
+  --anim-dir "$REPO/assets/sst/anim/mslp_wind" \
+  --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
 
 # 850 hPa wind analog Hovmöllers (current developing year vs 1982/97/2015). Refresh the
 # current-year ARCO tail (1×/day, ~3 min) + re-render, once per calendar day. The WB2
@@ -157,6 +160,7 @@ perl -0pi -e "s/((?:aam|aam_trend|torque_timeseries|torque_ranges|eq_wind_hovmol
     assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/aam.webp assets/sst/aam_trend.webp \
     assets/sst/anim/torque/ assets/sst/anim/torque_manifest.json assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp \
     assets/sst/anim/mmsf/ assets/sst/anim/mmsf_manifest.json assets/sst/mmsf_anom.webp \
+    assets/sst/anim/mslp_wind/ assets/sst/anim/mslp_wind_manifest.json \
     assets/sst/anim/aam_zonal/ assets/sst/anim/aam_zonal_manifest.json \
     assets/sst/u850_analogs_anom.webp assets/sst/u850_analogs_abs.webp \
     scripts/mjo/data/reference/mei_fit.json assets/sst/mei/mei_nowcast.webp assets/sst/mei/mei_validation.webp \
