@@ -23,6 +23,7 @@ from scipy.ndimage import gaussian_filter, minimum_filter, maximum_filter
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 from matplotlib.colors import BoundaryNorm, ListedColormap
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -35,10 +36,11 @@ EXTENT = (100, 280, -30, 45)                    # lon0, lon1 (0..360), lat0, lat
 DAILY_STEPS = list(range(24, 361, 24))          # days 1..15
 MS2KT = 1.94384
 PLEVS = np.arange(900, 1064, 4)                 # MSLP contour levels (hPa)
-WLEV = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]   # 10-m wind-speed shading (kt)
-WCOLS = ["#cfe8f3", "#9ecae1", "#5fa6d6", "#4575b4", "#6a51a3", "#8c3b8c",
-         "#c0349b", "#e31a8c", "#f0568a", "#ff922b"]
-WCMAP = ListedColormap(WCOLS); WCMAP.set_under("#ffffff00"); WCMAP.set_over("#f59f00")
+# 10-m wind-speed shading (kt) — starts at 5 kt, finer steps through the tropical range
+WLEV = [5, 8, 11, 14, 17, 20, 23, 27, 31, 36, 41, 47, 53, 60]
+WCOLS = ["#dcefff", "#bfe0f5", "#9ccde9", "#73aedb", "#4a86c5", "#3559a8",
+         "#5a3f9c", "#8036a0", "#a82f9c", "#cf2592", "#e8408a", "#f57247", "#f59f00"]
+WCMAP = ListedColormap(WCOLS); WCMAP.set_under("#ffffff00"); WCMAP.set_over("#d97706")
 WNORM = BoundaryNorm(WLEV, WCMAP.N)
 
 
@@ -115,7 +117,7 @@ def main() -> int:
     msl = msl.sel(**sub); u10 = u10.sel(**sub); v10 = v10.sel(**sub)
     lat = msl.latitude.values; lon = msl.longitude.values
     spd = np.hypot(u10.values, v10.values) * MS2KT       # (step, lat, lon) kt
-    st = (lat[1] - lat[0]); bstride = max(1, int(round(2.5 / abs(st))))   # barbs ~every 2.5°
+    st = (lat[1] - lat[0]); bstride = max(1, int(round(3.5 / abs(st))))   # barbs ~every 3.5°
 
     proj = ccrs.PlateCarree(central_longitude=180)
     anim = Path(args.anim_dir); anim.mkdir(parents=True, exist_ok=True)
@@ -137,8 +139,15 @@ def main() -> int:
                  v10.values[k, ::bstride, ::bstride] * MS2KT,
                  length=4.2, linewidth=0.4, color="#222", transform=ccrs.PlateCarree())
         _hl(p, lat, lon, ax, ccrs.PlateCarree())
-        ax.coastlines(linewidth=0.5, color="0.25")
-        ax.add_feature(cfeature.BORDERS, linewidth=0.25, edgecolor="0.5")
+        ax.add_feature(cfeature.LAND, facecolor="none", edgecolor="0.05", linewidth=1.1, zorder=4)
+        ax.coastlines(linewidth=1.1, color="0.05", zorder=4)
+        ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="0.4", zorder=4)
+        gl = ax.gridlines(draw_labels=True, linewidth=0.4, color="0.45", alpha=0.5,
+                          linestyle=(0, (3, 3)), zorder=3)
+        gl.top_labels = gl.right_labels = False
+        gl.xlocator = mticker.FixedLocator(list(range(-180, 181, 20)))
+        gl.ylocator = mticker.FixedLocator(list(range(-30, 46, 15)))
+        gl.xlabel_style = gl.ylabel_style = {"size": 6, "color": "0.3"}
         cax = fig.add_axes([0.13, 0.06, 0.74, 0.02])
         fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both").set_label(
             "10 m wind speed (kt)", fontsize=8)
