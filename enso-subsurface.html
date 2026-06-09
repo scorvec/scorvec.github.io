@@ -148,6 +148,15 @@
     margin: 0 0 0.4rem 0.2rem;
   }
 
+  /* live wind-arrow widget (Tarawa WWB monitor) */
+  .wwb-arrows {
+    display: flex; justify-content: center; align-items: center; gap: 2.6rem;
+    flex-wrap: wrap; padding: 1.3rem 1.2rem 0.4rem;
+  }
+  .wwb-stn { text-align: center; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+  .wwb-stn svg { display: block; margin: 0 auto 0.35rem; }
+  .wwb-stn b { display: block; color: var(--ink); font-weight: 500; font-size: 0.92rem; }
+
   .chart-card-footer {
     padding: 0.85rem 1.8rem;
     border-top: 1px solid var(--rule);
@@ -305,6 +314,33 @@
     var im = document.getElementById(id);
     if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
   });
+
+  // Live wind-arrow widget for the Tarawa WWB monitor: draw the latest wind at each
+  // station from the hourly kiribati_wind.json (arrow points the way the wind blows TO).
+  (function () {
+    var host = document.getElementById('wwb-arrows'); if (!host) return;
+    fetch('assets/sst/kiribati_wind.json?v=' + new Date().toISOString().slice(0, 13))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.stations) return;
+        var html = '';
+        Object.keys(d.stations).forEach(function (icao) {
+          var s = d.stations[icao], west = s.u_ms > 0, col = west ? '#d62728' : '#1f77b4';
+          var bearing = (s.dir + 180) % 360;             // flow direction (downwind)
+          var lab = Math.abs(s.u_ms) < 0.5 ? 'calm' : (west ? 'westerly' : 'easterly');
+          html += '<div class="wwb-stn"><svg width="92" height="92" viewBox="0 0 100 100">'
+            + '<circle cx="50" cy="50" r="44" fill="none" stroke="#ddd"/>'
+            + '<text x="50" y="13" text-anchor="middle" font-size="9" fill="#bbb">N</text>'
+            + '<g transform="rotate(' + bearing + ' 50 50)">'
+            + '<line x1="50" y1="52" x2="50" y2="24" stroke="' + col + '" stroke-width="4"/>'
+            + '<path d="M50 12 L42 30 L50 25 L58 30 Z" fill="' + col + '"/></g>'
+            + '<circle cx="50" cy="50" r="3.5" fill="' + col + '"/></svg>'
+            + '<b>' + s.name + '</b><span style="color:' + col + '">' + s.dir + '° / '
+            + s.spd_kt + ' kt &middot; ' + lab + '</span></div>';
+        });
+        host.innerHTML = html + '<div class="wwb-stn" style="max-width:9em">updated<br>' + d.updated + '</div>';
+      }).catch(function () {});
+  })();
 </script>
 </body>
 </html>

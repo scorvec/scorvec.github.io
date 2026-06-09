@@ -1,0 +1,39 @@
+name: Hourly Tarawa WWB monitor (METAR)
+
+# Live equatorial westerly-wind-burst monitor from Tarawa (NGTA) + Christmas Is. (PLCH)
+# METAR. Light: one API call + a small plot + a tiny JSON for the live wind-arrow widget.
+# Commits only its own files, so it can't collide with the laptop pipelines.
+on:
+  schedule:
+    - cron: '18 * * * *'        # hourly, at :18
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kiribati-wind
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas matplotlib
+      - run: python scripts/sst/kiribati_wind.py --out assets/sst/kiribati_wind.webp
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          git add assets/sst/kiribati_wind.webp assets/sst/kiribati_wind.json scripts/sst/metar/kiribati_wind.csv
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "Tarawa WWB monitor (METAR): $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash -X ours && git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1
