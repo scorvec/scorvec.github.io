@@ -25,10 +25,12 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 HERE = Path(__file__).resolve().parent
-CACHE = HERE / "metar" / "kiribati_history_monthly.csv"
-ANALOGS = {2009: "#e41a1c", 2015: "#4daf4a", 2023: "#984ea3"}     # onset years (+ current)
+CACHE = HERE / "metar" / "kiribati_history_daily.csv"
+SMOOTH = 7          # running-mean window (days) for the overlaid time series
+ANALOGS = {2015: "#4daf4a", 2023: "#984ea3"}     # onset years with usable Tarawa data (+ current)
 IEM = ("https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?"
        "station=NGTT&station=NGTA&data=drct&data=sknt&"
        "year1={y}&month1=1&day1=1&year2={y}&month2=12&day2=31&"
@@ -55,21 +57,21 @@ def fetch_year(y: int) -> pd.DataFrame | None:
     return None
 
 
-def monthly_stats(df: pd.DataFrame, y: int) -> pd.DataFrame:
+def daily_stats(df: pd.DataFrame, y: int) -> pd.DataFrame:
     u = -df["sknt"] * KT2MS * np.sin(np.deg2rad(df["drct"]))      # eastward; westerly +
-    g = pd.DataFrame({"u": u.values}, index=df["valid"].values)
-    um = g["u"].resample("MS").mean()
-    wf = (g["u"] > 0).resample("MS").mean() * 100.0              # % westerly obs
-    n = g["u"].resample("MS").count()
-    out = pd.DataFrame({"u_mean": um, "west_frac": wf, "n": n}).dropna()
-    out = out[out["n"] >= 50]                                     # need decent monthly sampling
-    out["year"] = y; out["month"] = out.index.month
-    return out[["year", "month", "u_mean", "west_frac", "n"]].reset_index(drop=True)
+    g = pd.DataFrame({"u": u.values}, index=pd.to_datetime(df["valid"].values))
+    dm = g["u"].resample("1D").mean()
+    wf = (g["u"] > 0).resample("1D").mean() * 100.0             # % westerly obs that day
+    n = g["u"].resample("1D").count()
+    out = pd.DataFrame({"u_mean": dm, "west_frac": wf, "n": n}).dropna()
+    out = out[out["n"] >= 3]                                      # need a few obs that day
+    out["year"] = y; out["date"] = out.index.strftime("%Y-%m-%d")
+    return out[["year", "date", "u_mean", "west_frac", "n"]].reset_index(drop=True)
 
 
 def build_table(out_years) -> pd.DataFrame:
     cache = pd.read_csv(CACHE) if CACHE.exists() else pd.DataFrame(
-        columns=["year", "month", "u_mean", "west_frac", "n"])
+        columns=["year", "date", "u_mean", "west_frac", "n"])
     cur = datetime.now(timezone.utc).year
     keep = cache.copy()
     for i, y in enumerate(out_years):
@@ -82,34 +84,48 @@ def build_table(out_years) -> pd.DataFrame:
         if df is None or df.empty:
             print(f"  {y}: no data", flush=True); continue
         keep = keep[keep.year != y]
-        keep = pd.concat([keep, monthly_stats(df, y)], ignore_index=True)
+        keep = pd.concat([keep, daily_stats(df, y)], ignore_index=True)
         print(f"  {y}: {len(df):,} obs", flush=True)
     CACHE.parent.mkdir(parents=True, exist_ok=True)
-    keep.sort_values(["year", "month"]).to_csv(CACHE, index=False)
+    keep.sort_values(["year", "date"]).to_csv(CACHE, index=False)
     return keep
 
 
 def plot(tab: pd.DataFrame, out: Path):
+    """Daily zonal-wind time series from Apr 1, each onset year overlaid on a common
+    (current-year) date axis and smoothed with a SMOOTH-day running mean."""
     cur = datetime.now(timezone.utc).year
     years = sorted(set(ANALOGS) | {cur})
-    fig, axes = plt.subplots(2, 1, figsize=(11, 7.2), sharex=True)
+    tab = tab.copy(); tab["dt"] = pd.to_datetime(tab["date"])
+    for col in ("u_mean", "west_frac"):
+        tab[col] = pd.to_numeric(tab[col], errors="coerce")   # empty-cache concat can be object dtype
+    full = pd.date_range(f"{cur}-04-01", f"{cur}-12-31", freq="D")
+    fig, axes = plt.subplots(2, 1, figsize=(12, 7.4), sharex=True)
     for y in years:
-        sub = tab[tab.year == y].sort_values("month")
+        sub = tab[(tab.year == y) & (tab.dt.dt.month >= 4)].sort_values("dt")
         if sub.empty:
             continue
+        x = pd.to_datetime(dict(year=cur, month=sub.dt.dt.month, day=sub.dt.dt.day))
         c = "#111" if y == cur else ANALOGS.get(y, "#999")
         lw = 2.8 if y == cur else 1.8
         lab = f"{y} (now)" if y == cur else f"{y}–{str(y + 1)[2:]}"
-        axes[0].plot(sub.month, sub.u_mean, color=c, lw=lw, marker="o", ms=3, label=lab)
-        axes[1].plot(sub.month, sub.west_frac, color=c, lw=lw, marker="o", ms=3, label=lab)
+        for ax, col in zip(axes, ("u_mean", "west_frac")):
+            s = pd.Series(sub[col].values, index=x)
+            s = s[~s.index.duplicated()].sort_index()
+            s = s.reindex(s.index.union(full)).interpolate(limit=3).reindex(full)
+            sm = s.rolling(SMOOTH, min_periods=3, center=True).mean()
+            if y == cur:                                    # show the live daily detail too
+                ax.plot(s.index, s.values, color=c, lw=0.6, alpha=0.35)
+            ax.plot(sm.index, sm.values, color=c, lw=lw, label=lab)
     axes[0].axhline(0, color="0.6", lw=0.7)
-    axes[0].set_ylabel("monthly-mean zonal wind\n(m s⁻¹) · westerly +")
-    axes[0].set_title("Tarawa westerly-wind-burst activity across El Niño onsets — "
-                      "monthly METAR wind (IEM)", fontsize=11)
-    axes[1].set_ylabel("westerly obs\n(% of the month)")
-    axes[1].set_xticks(range(1, 13))
-    axes[1].set_xticklabels(list("JFMAMJJASOND"))
-    axes[1].set_xlabel("month of onset year")
+    axes[0].set_ylabel("zonal wind (m s⁻¹)\nwesterly +")
+    axes[0].set_title(f"Tarawa westerly-wind-burst activity since 1 Apr — recent El Niño onsets "
+                      f"(daily METAR · IEM · {SMOOTH}-day mean)", fontsize=11)
+    axes[1].set_ylabel("westerly obs\n(% of day)")
+    axes[1].set_xlabel("date (onset year aligned)")
+    axes[1].set_xlim(full[0], full[-1])
+    axes[1].xaxis.set_major_locator(mdates.MonthLocator())
+    axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%-d %b"))
     for ax in axes:
         ax.grid(alpha=0.15); ax.legend(loc="upper left", fontsize=8.5, ncol=2, framealpha=0.9)
     fig.tight_layout()
