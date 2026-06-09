@@ -24,6 +24,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import matplotlib.patheffects as pe
 from matplotlib.colors import BoundaryNorm, ListedColormap
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -33,6 +34,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import store as ecmwf
 
 EXTENT = (100, 280, -30, 45)                    # lon0, lon1 (0..360), lat0, lat1
+# key ENSO/WWB monitoring stations (lon 0..360, lat) shown on the map for reference
+STATIONS = {"Darwin (YPDN)": (130.9, -12.4), "Tarawa (NGTA)": (173.0, 1.4),
+            "Christmas I. (PLCH)": (202.5, 2.0), "Tahiti (NTAA)": (210.4, -17.5)}
 DAILY_STEPS = list(range(24, 361, 24))          # days 1..15
 MS2KT = 1.94384
 PLEVS = np.arange(900, 1064, 4)                 # MSLP contour levels (hPa)
@@ -148,6 +152,12 @@ def main() -> int:
         gl.xlocator = mticker.FixedLocator(list(range(-180, 181, 20)))
         gl.ylocator = mticker.FixedLocator(list(range(-30, 46, 15)))
         gl.xlabel_style = gl.ylabel_style = {"size": 6, "color": "0.3"}
+        for name, (slon, slat) in STATIONS.items():
+            ax.plot(slon, slat, marker="o", ms=4.5, mfc="#ffd400", mec="k", mew=0.7,
+                    transform=ccrs.PlateCarree(), zorder=7)
+            ax.text(slon, slat + 1.6, name, fontsize=6.2, fontweight="bold", ha="center",
+                    va="bottom", color="k", transform=ccrs.PlateCarree(), zorder=7,
+                    path_effects=[pe.withStroke(linewidth=1.8, foreground="white")])
         cax = fig.add_axes([0.13, 0.06, 0.74, 0.02])
         fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both").set_label(
             "10 m wind speed (kt)", fontsize=8)
