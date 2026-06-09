@@ -1,0 +1,39 @@
+name: Synthetic OLR Hovmöller (GMGSI IR)
+
+# Real-time equatorial OLR Hovmöller derived from the GMGSI global longwave-IR mosaic
+# (AWS). Every 6 h it (re)computes the latest day or two and re-renders. Commits only its
+# own files (tiny daily store + webp).
+on:
+  schedule:
+    - cron: '25 1,7,13,19 * * *'    # ~1h after the 00/06/12/18Z representative hours
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: olr-hovmoller
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray netcdf4 matplotlib
+      - run: python scripts/sst/synthetic_olr.py --out assets/sst/olr_hovmoller.webp
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          git add assets/sst/olr_hovmoller.webp scripts/sst/metar/olr_hov.nc
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "Synthetic OLR Hovmöller (GMGSI): $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash -X ours && git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

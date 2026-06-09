@@ -132,6 +132,20 @@
       </div>
     </div>
 
+    <!-- SYNTHETIC OLR HOVMÖLLER (GMGSI IR) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Convection &mdash; Synthetic OLR Hovm&ouml;ller</h2>
+        <p>Where the deep convection is, and which way it&rsquo;s moving. NOAA&rsquo;s interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N zonal mean is stacked as a longitude &times; time Hovm&ouml;ller.</p>
+        <p><b>How to read it:</b> <span style="color:#3b6">blue = low OLR = deep convection</span>; orange/red = suppressed/clear. An <b>eastward (top→bottom-right) tilt</b> is the MJO / convective envelope propagating east; convection parked at the <b>dateline</b> is the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
+      </div>
+      <div class="img-wrap" style="max-width:760px;margin:0 auto"><img id="olr-hovmoller" data-src="assets/sst/olr_hovmoller.webp" alt="Synthetic equatorial OLR Hovmöller from GMGSI longwave IR" loading="lazy"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA GMGSI longwave-IR global mosaic &middot; McIDAS T_b + Ohring-Gruber OLR &middot; 5&deg;S&ndash;5&deg;N daily mean</span>
+        <span class="chart-updated">updated through the day</span>
+      </div>
+    </div>
+
   </div>
 
   <div class="colophon">

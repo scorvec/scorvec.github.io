@@ -320,7 +320,7 @@
         <p><b>How to read it:</b> Red bars (positive) lean El Ni&ntilde;o, blue bars (negative) lean La Ni&ntilde;a; the dashed lines mark the &plusmn;0.5&deg;C guides. This index is computed directly from OISST and shown in &deg;C &mdash; it captures the shape and timing of CPC's RONI but is not their standardized published value.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/roni.webp?v=202606092236"
+        <img src="assets/sst/roni.webp?v=202606092313"
              alt="Relative Oceanic Niño Index time series" loading="lazy">
       </div>
       <div class="chart-card-footer">
@@ -337,7 +337,7 @@
         <p><b>What to look for:</b> When the red (Ni&ntilde;o-3.4) and green (tropical-mean) lines move together, the blue relative line stays flat &mdash; that's background warming, not ENSO. The blue line separating from zero is the genuine ENSO signal.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/daily_indices.webp?v=202606092236"
+        <img src="assets/sst/daily_indices.webp?v=202606092313"
              alt="Daily Niño-3.4, tropical-mean, and relative SST indices" loading="lazy">
       </div>
       <div class="chart-card-footer">
@@ -354,27 +354,41 @@
         <p><b>How to read it:</b> The grey steps are the official bimonthly MEI.v2; the red line is our daily estimate, which leads the official value by roughly five weeks. The shaded band is the &plusmn;0.30 leave-one-year-out cross-validation error &mdash; the honest out-of-sample skill (the fit reproduces MEI.v2 at R&nbsp;=&nbsp;0.94). <b>Caveat:</b> the model is SST-weighted, so during a fast <i>SST-led</i> transition it can run ahead of MEI's slower atmospheric components &mdash; read a rapidly-rising live value as direction-and-timing rather than exact magnitude.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/mei/mei_nowcast.webp?v=202606092236"
+        <img src="assets/sst/mei/mei_nowcast.webp?v=202606092313"
              alt="Daily nowcast of the Multivariate ENSO Index version 2" loading="lazy">
       </div>
       <div class="img-wrap">
         <p class="img-label">Onset-year analogs &mdash; is the current year tracking the big El Ni&ntilde;os?</p>
-        <img src="assets/sst/mei/mei_analogs.webp?v=202606092236"
+        <img src="assets/sst/mei/mei_analogs.webp?v=202606092313"
              alt="MEI.v2 onset-year analogs: 1982, 1997, 2015, 2023 vs the current nowcast" loading="lazy">
       </div>
       <div class="img-wrap">
         <p class="img-label">Full record since 1980</p>
-        <img src="assets/sst/mei/mei_history.webp?v=202606092236"
+        <img src="assets/sst/mei/mei_history.webp?v=202606092313"
              alt="Full Multivariate ENSO Index v2 record since 1980 with the live nowcast tail" loading="lazy">
       </div>
       <div class="img-wrap">
         <p class="img-label">Out-of-sample skill &mdash; the 2015&ndash;16 El Ni&ntilde;o</p>
-        <img src="assets/sst/mei/mei_validation.webp?v=202606092236"
+        <img src="assets/sst/mei/mei_validation.webp?v=202606092313"
              alt="Validation of the MEI.v2 nowcast over the 2015-16 El Niño" loading="lazy">
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">Regression on NOAA OISST Ni&ntilde;o-3.4 &middot; SOI (BoM) &middot; ERA5 eq-u850 &middot; target: NOAA PSL MEI.v2</span>
         <span class="chart-updated">nowcast &mdash; daily</span>
+      </div>
+    </div>
+
+    <!-- SYNTHETIC OLR HOVMÖLLER (GMGSI IR) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Convection &mdash; Synthetic OLR Hovm&ouml;ller</h2>
+        <p>Where the deep convection is, and which way it&rsquo;s moving. NOAA&rsquo;s interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N zonal mean is stacked as a longitude &times; time Hovm&ouml;ller.</p>
+        <p><b>How to read it:</b> <span style="color:#3b6">blue = low OLR = deep convection</span>; orange/red = suppressed/clear. An <b>eastward (top→bottom-right) tilt</b> is the MJO / convective envelope propagating east; convection parked at the <b>dateline</b> is the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
+      </div>
+      <div class="img-wrap" style="max-width:760px;margin:0 auto"><img id="olr-hovmoller" data-src="assets/sst/olr_hovmoller.webp" alt="Synthetic equatorial OLR Hovmöller from GMGSI longwave IR" loading="lazy"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA GMGSI longwave-IR global mosaic &middot; McIDAS T_b + Ohring-Gruber OLR &middot; 5&deg;S&ndash;5&deg;N daily mean</span>
+        <span class="chart-updated">updated through the day</span>
       </div>
     </div>
 
@@ -414,7 +428,7 @@
   // Hourly-updating images (committed by their own GitHub Actions, not the page build):
   // load with an hour-granular cache-buster so the latest render shows without churning
   // the page HTML. The page's static ?v= can't cover them (they change between page builds).
-  ['soi-hourly', 'kiribati-wind', 'kiribati-history'].forEach(function (id) {
+  ['soi-hourly', 'kiribati-wind', 'kiribati-history', 'olr-hovmoller'].forEach(function (id) {
     var im = document.getElementById(id);
     if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
   });
