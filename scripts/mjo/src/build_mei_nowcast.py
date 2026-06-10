@@ -43,7 +43,8 @@ ROOT = HERE.parent                                   # scripts/mjo
 REF = ROOT / "data" / "reference"
 MEI_IN = ROOT / "data" / "mei"                       # cached external inputs
 CACHE = Path.home() / "mjo" / "era5_cache"
-OISST = Path.home() / "sst" / "data"                 # sst.day.anom.<year>.nc
+OISST = ROOT.parent / "sst" / "data"                 # repo's live OISST cache (scripts/sst/data),
+#                                                      refreshed daily; ~/sst/data was a dead dev mirror
 OUT = ROOT.parent.parent / "assets" / "sst" / "mei"  # repo/assets/sst/mei
 FIT_JSON = REF / "mei_fit.json"
 

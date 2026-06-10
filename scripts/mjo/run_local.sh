@@ -164,6 +164,7 @@ perl -0pi -e "s/((?:aam|aam_trend|torque_timeseries|torque_ranges|eq_wind_hovmol
     assets/sst/anim/aam_zonal/ assets/sst/anim/aam_zonal_manifest.json \
     assets/sst/u850_analogs_anom.webp assets/sst/u850_analogs_abs.webp \
     scripts/mjo/data/reference/mei_fit.json assets/sst/mei/mei_nowcast.webp assets/sst/mei/mei_validation.webp \
+    assets/sst/mei/mei_analogs.webp assets/sst/mei/mei_history.webp \
     && commit_push "MJO atmospheric products (wind/SOI + AAM/torque/MMSF/zonal + MEI.v2): ${COMPACT} (local)" )
 
 # Self-heal for IFS-ENS latency: the physics model (IFS-ENS) is disseminated ~1-2 h LATER
