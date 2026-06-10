@@ -76,17 +76,28 @@ def update_history(new: pd.DataFrame) -> pd.DataFrame:
 
 # ------------------------------------------------------------------- LongPaddock SOI
 def longpaddock():
-    """LongPaddock daily SOI (1887-1989 base): DataFrame[date]→SOI plus Troup normals."""
+    """LongPaddock daily SOI (1887-1989 base): DataFrame[date]→SOI plus Troup normals.
+
+    The file carries daily Tahiti/Darwin MSLP (1991-present) but its SOI is standardised on the
+    1887-1989 base period — so the *sample* mean/SD of the file's daily pressure difference are
+    NOT the Troup normals (the daily spread is far wider than the monthly base-period SD). We
+    instead recover the exact normals by inverting the formula: SOI = 10·(diff−mean)/SD is linear
+    in diff, so a robust (Theil-Sen) regression of the published SOI on the file's own pressure
+    difference, per calendar month, returns SD = 10/slope and mean = −intercept/slope."""
+    from scipy.stats import theilslopes
     txt = urllib.request.urlopen(SOI_URL, timeout=60).read().decode()
     df = pd.read_csv(io.StringIO(txt), sep=r"\s+")
     df["date"] = pd.to_datetime(df["Year"].astype(int).astype(str), format="%Y") + \
         pd.to_timedelta(df["Day"].astype(int) - 1, unit="D")
     df = df.set_index("date").sort_index()
     df["diff"] = df["Tahiti"] - df["Darwin"]
-    # Troup normals: per calendar month, mean and SD of the (MSLP) pressure difference
-    g = df.dropna(subset=["diff"])
-    normals = {m: (sub["diff"].mean(), sub["diff"].std())
-               for m, sub in g.groupby(g.index.month)}
+    g = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["diff", "SOI"])
+    normals = {}
+    for m, sub in g.groupby(g.index.month):
+        if len(sub) < 30:
+            continue
+        slope, intercept, _, _ = theilslopes(sub["SOI"].values, sub["diff"].values)  # SOI = slope·diff + intercept
+        normals[m] = (-intercept / slope, 10.0 / slope)                              # (mean, SD) in hPa
     return df["SOI"], normals
 
 
