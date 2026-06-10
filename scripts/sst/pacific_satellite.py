@@ -55,7 +55,7 @@ ANIM = HERE.parent.parent / "assets" / "sst" / "anim" / "pacsat"
 MANIFEST = HERE.parent.parent / "assets" / "sst" / "anim" / "pacsat_manifest.json"
 S3 = "https://noaa-gmgsi-pds.s3.amazonaws.com"
 EXTENT = (100, 290, -40, 40)          # lon0, lon1 (°E), lat0, lat1
-KEEP_H = 48                            # rolling loop length (hours)
+KEEP_H = 72                            # rolling loop length (hours) — 3-day progression
 
 
 def gmgsi_tb(dt: datetime):
