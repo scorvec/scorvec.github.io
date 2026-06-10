@@ -82,9 +82,9 @@ def longpaddock():
     1887-1989 base period — so the *sample* mean/SD of the file's daily pressure difference are
     NOT the Troup normals (the daily spread is far wider than the monthly base-period SD). We
     instead recover the exact normals by inverting the formula: SOI = 10·(diff−mean)/SD is linear
-    in diff, so a robust (Theil-Sen) regression of the published SOI on the file's own pressure
-    difference, per calendar month, returns SD = 10/slope and mean = −intercept/slope."""
-    from scipy.stats import theilslopes
+    in diff, so a regression (with one outlier-rejection pass) of the published SOI on the file's
+    own pressure difference, per calendar month, returns SD = 10/slope and mean = −intercept/slope.
+    Pure-numpy so the hourly job stays light (no scipy)."""
     txt = urllib.request.urlopen(SOI_URL, timeout=60).read().decode()
     df = pd.read_csv(io.StringIO(txt), sep=r"\s+")
     df["date"] = pd.to_datetime(df["Year"].astype(int).astype(str), format="%Y") + \
@@ -96,8 +96,13 @@ def longpaddock():
     for m, sub in g.groupby(g.index.month):
         if len(sub) < 30:
             continue
-        slope, intercept, _, _ = theilslopes(sub["SOI"].values, sub["diff"].values)  # SOI = slope·diff + intercept
-        normals[m] = (-intercept / slope, 10.0 / slope)                              # (mean, SD) in hPa
+        x, y = sub["diff"].values, sub["SOI"].values
+        a, b = np.polyfit(x, y, 1)                              # SOI = a·diff + b
+        r = y - (a * x + b); s = np.std(r)
+        keep = np.abs(r) <= 2.5 * s if s > 0 else np.ones_like(r, bool)
+        if keep.sum() >= 5:
+            a, b = np.polyfit(x[keep], y[keep], 1)              # refit without outliers
+        normals[m] = (-b / a, 10.0 / a)                         # (mean, SD) in hPa
     return df["SOI"], normals
 
 
