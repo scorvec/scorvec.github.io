@@ -138,7 +138,9 @@ def wk_filter(anom: np.ndarray, wave: str) -> np.ndarray:
     with np.errstate(divide="ignore", invalid="ignore"):
         period = np.where(Fr > 0, 1.0 / Fr, np.inf)
     kmin, kmax = w["k"]; pmin, pmax = w["p"]
-    m = (S >= kmin) & (S <= kmax) & (period >= pmin) & (period <= pmax) & (Fr > 0)
+    # exclude the zonal mean (k=0): it's a longitude-uniform offset, not a spatial pattern — so LF
+    # shows the wavenumber-1..3 standing convective pattern (the warm-pool shift), not a flat stripe.
+    m = (S >= kmin) & (S <= kmax) & (np.abs(S) >= 1) & (period >= pmin) & (period <= pmax) & (Fr > 0)
     if w["h"] is not None:
         hmin, hmax = w["h"]
         if w["n"] is None:                           # Kelvin: depth from (s,f)
@@ -219,7 +221,7 @@ def render(anom: xr.DataArray, end: datetime, days: int, out: Path,
     """Schreck-style global OLR-anomaly Hovmöller (5°S-5°N) with the filtered convectively-
     coupled waves overlaid as ±16 W/m² contours (solid = enhanced convection, dashed = suppressed)."""
     from scipy.ndimage import gaussian_filter
-    from matplotlib.colors import BoundaryNorm
+    from matplotlib.colors import BoundaryNorm, ListedColormap
     filt = {w: wk_filter(anom.values, w) for w in waves}        # filter the whole (global) series
     lon = anom["lon"].values                                    # full globe 0-360
     time = anom["time"].values
@@ -228,7 +230,10 @@ def render(anom: xr.DataArray, end: datetime, days: int, out: Path,
     base = gaussian_filter(anom.values[sel], sigma=(1.4, 1.0))
     fig, ax = plt.subplots(figsize=(7.8, 9.8))
     levels = [-72, -56, -40, -24, -8, 8, 24, 40, 56, 72]        # green = convection, brown = suppressed
-    cmap = plt.get_cmap("BrBG_r")
+    base_cmap = plt.get_cmap("BrBG_r")
+    cols = [base_cmap(x) for x in np.linspace(0, 1, len(levels) - 1)]
+    cols[(len(levels) - 1) // 2] = (1, 1, 1, 1)                 # near-zero (−8…+8 W/m²) → pure white
+    cmap = ListedColormap(cols); cmap.set_under(cols[0]); cmap.set_over(cols[-1])
     pm = ax.contourf(xx, tt, base, levels=levels, cmap=cmap,
                      norm=BoundaryNorm(levels, cmap.N), extend="both")
     for w in waves:
@@ -237,14 +242,21 @@ def render(anom: xr.DataArray, end: datetime, days: int, out: Path,
         c = WAVES[w]["color"]; lw = WAVES[w]["lw"]; cl = WAVES[w].get("clev", 13)
         ax.contour(xx, tt, fw, levels=[-cl], colors=c, linewidths=lw, linestyles="solid")
         ax.contour(xx, tt, fw, levels=[cl], colors=c, linewidths=lw * 0.8, linestyles="dashed")
-    if prelim_days:                                             # flag the taper-affected recent end
-        ax.axhline(np.datetime64(end) - np.timedelta64(prelim_days, "D"), color="0.25", lw=0.8)
-        ax.text(184, np.datetime64(end) - np.timedelta64(prelim_days, "D"), " preliminary →",
-                color="0.25", fontsize=7, va="bottom", ha="center", zorder=6)
+    if prelim_days:                                             # shade the taper-affected recent end
+        y0 = np.datetime64(end) - np.timedelta64(prelim_days, "D")
+        ax.axhspan(y0, tt.max(), color="0.45", alpha=0.13, zorder=5)
+        ax.axhline(y0, color="0.3", lw=0.7, ls=(0, (4, 2)), zorder=5)
+        ax.text(357, y0, "preliminary (filter edge) ", color="0.3", fontsize=6.5,
+                va="bottom", ha="right", zorder=6)
     ax.set_xlim(0, 360); ax.set_xlabel("longitude"); ax.set_ylabel("date"); ax.invert_yaxis()
     ax.set_xticks(range(0, 361, 60))
     ax.set_xticklabels(["0", "60E", "120E", "180", "120W", "60W", "0"])
-    ax.axvline(180, color="0.6", lw=0.4, ls=":")
+    for x in (60, 120, 180, 240, 300):
+        ax.axvline(x, color="0.55", lw=0.3, ls=":", alpha=0.6, zorder=3)
+    # region labels along the top for orientation
+    secax = ax.secondary_xaxis("top"); secax.set_xticks([75, 130, 180, 235, 270])
+    secax.set_xticklabels(["Indian O.", "Maritime\nCont.", "dateline", "central\nPacific", "E. Pacific"],
+                          fontsize=6.5, color="0.4"); secax.tick_params(length=0)
     ax.yaxis.set_major_formatter(DateFormatter("%d %b"))
     ax.set_title("OLR anomaly + convectively-coupled waves  ·  5°S–5°N"
                  + (f"\n{subtitle}" if subtitle else ""), fontsize=10)
