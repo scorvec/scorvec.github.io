@@ -41,13 +41,13 @@ DAY = 86400.0
 
 # Wave bands: (kmin, kmax) planetary zonal wavenumber (+ eastward, − westward),
 # (pmin, pmax) period days, (hmin, hmax) equivalent depth m (None = no dispersion bound).
-# colours follow Carl Schreck's NCICS "OLR with CFS forecasts" convention.
-# clev = ± W/m² contour level (LF/ER are broad, lower-amplitude fields → lower threshold).
+# our own contour palette (distinct from Schreck's blue/red/black/purple), chosen to read on the
+# green-brown-white base. clev = ± W/m² contour level (LF/ER are broad, lower-amplitude → lower).
 WAVES = {
-    "Kelvin": dict(k=(1, 14),   p=(2.5, 30), h=(8, 90),   n=None, color="#1f57d8", lw=1.6, clev=13),
-    "ER":     dict(k=(-10, -1), p=(9.7, 48), h=(8, 90),   n=1,    color="#e8000b", lw=1.6, clev=11),
-    "MJO":    dict(k=(1, 5),    p=(30, 96),  h=None,      n=None, color="#000000", lw=1.8, clev=13),
-    "LF":     dict(k=(-3, 3),   p=(120, 1e9), h=None,     n=None, color="#9b30d0", lw=1.8, clev=8,
+    "Kelvin": dict(k=(1, 14),   p=(2.5, 30), h=(8, 90),   n=None, color="#1565c0", lw=1.6, clev=13),
+    "ER":     dict(k=(-10, -1), p=(9.7, 48), h=(8, 90),   n=1,    color="#e6007e", lw=1.6, clev=11),
+    "MJO":    dict(k=(1, 5),    p=(30, 96),  h=None,      n=None, color="#111111", lw=1.9, clev=13),
+    "LF":     dict(k=(-3, 3),   p=(120, 1e9), h=None,     n=None, color="#f59e0b", lw=2.0, clev=8,
                    label="Low"),               # all periods >120 d incl. interannual ENSO standing envelope
 }
 

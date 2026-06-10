@@ -321,7 +321,7 @@
         <p><b>How to read it:</b> Red bars (positive) lean El Ni&ntilde;o, blue bars (negative) lean La Ni&ntilde;a; the dashed lines mark the &plusmn;0.5&deg;C guides. This index is computed directly from OISST and shown in &deg;C &mdash; it captures the shape and timing of CPC's RONI but is not their standardized published value.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/roni.webp?v=592b6830a719"
+        <img src="assets/sst/roni.webp?v=202606102356"
              alt="Relative Oceanic Niño Index time series" loading="lazy">
       </div>
       <div class="chart-card-footer">
@@ -338,7 +338,7 @@
         <p><b>What to look for:</b> When the red (Ni&ntilde;o-3.4) and green (tropical-mean) lines move together, the blue relative line stays flat &mdash; that's background warming, not ENSO. The blue line separating from zero is the genuine ENSO signal.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/daily_indices.webp?v=592b6830a719"
+        <img src="assets/sst/daily_indices.webp?v=202606102356"
              alt="Daily Niño-3.4, tropical-mean, and relative SST indices" loading="lazy">
       </div>
       <div class="chart-card-footer">
@@ -355,22 +355,22 @@
         <p><b>How to read it:</b> The grey steps are the official bimonthly MEI.v2; the red line is our daily estimate, which leads the official value by roughly five weeks. The shaded band is the &plusmn;0.30 leave-one-year-out cross-validation error &mdash; the honest out-of-sample skill (the fit reproduces MEI.v2 at R&nbsp;=&nbsp;0.94). <b>Caveat:</b> the model is SST-weighted, so during a fast <i>SST-led</i> transition it can run ahead of MEI's slower atmospheric components &mdash; read a rapidly-rising live value as direction-and-timing rather than exact magnitude.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/mei/mei_nowcast.webp?v=202606102050b6830a719"
+        <img src="assets/sst/mei/mei_nowcast.webp?v=202606102356"
              alt="Daily nowcast of the Multivariate ENSO Index version 2" loading="lazy">
       </div>
       <div class="img-wrap">
         <p class="img-label">Onset-year analogs &mdash; is the current year tracking the big El Ni&ntilde;os?</p>
-        <img src="assets/sst/mei/mei_analogs.webp?v=592b6830a719"
+        <img src="assets/sst/mei/mei_analogs.webp?v=202606102356"
              alt="MEI.v2 onset-year analogs: 1982, 1997, 2015, 2023 vs the current nowcast" loading="lazy">
       </div>
       <div class="img-wrap">
         <p class="img-label">Full record since 1980</p>
-        <img src="assets/sst/mei/mei_history.webp?v=592b6830a719"
+        <img src="assets/sst/mei/mei_history.webp?v=202606102356"
              alt="Full Multivariate ENSO Index v2 record since 1980 with the live nowcast tail" loading="lazy">
       </div>
       <div class="img-wrap">
         <p class="img-label">Out-of-sample skill &mdash; the 2015&ndash;16 El Ni&ntilde;o</p>
-        <img src="assets/sst/mei/mei_validation.webp?v=202606102050b6830a719"
+        <img src="assets/sst/mei/mei_validation.webp?v=202606102356"
              alt="Validation of the MEI.v2 nowcast over the 2015-16 El Niño" loading="lazy">
       </div>
       <div class="chart-card-footer">
@@ -405,9 +405,19 @@
       <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
     </div>
 
-    <!-- OLR WHEELER-KILADIS WAVE DECOMPOSITION — hidden for now; tool + Action retained.
-         Re-enable: restore this card, the assets/sst/olr_waves.webp <img id="olr-waves">,
-         and the cron schedule in .github/workflows/olr-waves.yml. -->
+    <!-- OLR WHEELER-KILADIS WAVE DECOMPOSITION -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Convectively-Coupled Waves &mdash; OLR Decomposition</h2>
+        <p>Which tropical waves are driving the convection. The equatorial OLR anomaly (5&deg;S&ndash;5&deg;N, full globe) is bandpass-filtered in <b>wavenumber&ndash;frequency</b> space (Wheeler&ndash;Kiladis) to isolate each convectively-coupled mode, overlaid as contours (solid&nbsp;=&nbsp;enhanced convection, dashed&nbsp;=&nbsp;suppressed). The climatology is NOAA&rsquo;s interpolated-OLR (1979&ndash;2022); the live record is the GMGSI longwave-IR proxy.</p>
+        <p><b>How to read it:</b> <span style="color:#19975a">green&nbsp;=&nbsp;convection</span>, <span style="color:#9a6a18">brown&nbsp;=&nbsp;suppressed</span>. <b style="color:#1565c0">Kelvin</b> (fast eastward), <b>MJO</b> (slow eastward), <b style="color:#e6007e">equatorial&nbsp;Rossby</b> (westward), and the <b style="color:#d98200">low-frequency / ENSO</b> standing envelope. An eastward (top→bottom-right) tilt is a wave propagating into the Pacific; the standing amber pattern is the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom; the shaded band is the filter-edge &ldquo;preliminary&rdquo; window.</p>
+      </div>
+      <div class="img-wrap" style="max-width:680px;margin:0 auto"><img id="olr-waves" data-src="assets/sst/olr_waves.webp" alt="Wheeler-Kiladis wave decomposition of equatorial OLR" loading="lazy"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">GMGSI longwave-IR proxy &middot; Wheeler&ndash;Kiladis k&ndash;&omega; filtering (eq. depth 8&ndash;90&nbsp;m) &middot; climatology NOAA interp-OLR 1979&ndash;2022</span>
+        <span class="chart-updated">daily</span>
+      </div>
+    </div>
 
   </div>
 
