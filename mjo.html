@@ -74,16 +74,22 @@
   ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
   Wheeler &amp; Hendon (2004). Wind-only projection (U850/U200); amplitude is the
   radial distance (rings at 1, 2, 3). Observed track is recent ERA5/AIFS analysis.</p>
-  <figure class="hero">
-  <img src="assets/mjo/rmm_20260610_12z.png?v=2026061012" alt="AIFS-ENS RMM 2026-06-10 12Z" loading="eager">
-  <figcaption>Latest init: <strong>2026-06-10 12Z</strong></figcaption>
-</figure>
-    <h2>Recent runs</h2>
-  <p class="lede" style="margin-bottom:1rem">Drag the slider to step through successive forecast runs (oldest → latest) and watch the predicted MJO track evolve.</p>
+    <p class="lede" style="margin:0.5rem 0 1.2rem">Latest init: <strong>2026-06-10 12Z</strong>. Drag the slider to step through successive forecast runs (oldest → latest) and watch the predicted MJO track evolve.</p>
   <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>
-  <p class="meta">Updated 2026-06-10 18:45Z · Auto-generated from the AIFS-ENS open-data
+  <p class="meta">Updated 2026-06-10 20:54Z · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed.</p>
 </main>
+<script>
+  // Size the animator iframe to its exact content height (plot + slider) so the slider is
+  // never clipped — sst_anim.html posts its height; we match it and drop the fixed aspect-ratio.
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) { fr[i].style.height = d.h + 'px'; fr[i].style.aspectRatio = 'auto'; }
+    }
+  });
+</script>
 </body>
 </html>

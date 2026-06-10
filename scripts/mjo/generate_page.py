@@ -66,21 +66,17 @@ def main():
 
     if items:
         d, h, p = items[0]
-        hero = (f'<figure class="hero">\n'
-                f'  <img src="{p.as_posix()}?v={ver}" alt="AIFS-ENS RMM {label(d,h)}" loading="eager">\n'
-                f'  <figcaption>Latest init: <strong>{label(d, h)}</strong></figcaption>\n'
-                f'</figure>')
         write_manifest(items)
-        archive = ('  <h2>Recent runs</h2>\n'
-                   '  <p class="lede" style="margin-bottom:1rem">Drag the slider to step through '
-                   'successive forecast runs (oldest → latest) and watch the predicted MJO track evolve.</p>\n'
-                   '  <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets'
-                   '&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" '
-                   'title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>'
-                   if len(items) > 1 else "")
+        # Animator only (with the slider) — no separate static hero image. The iframe auto-sizes
+        # to fit the plot + slider via the sstAnimHeight postMessage listener below.
+        body = (f'  <p class="lede" style="margin:0.5rem 0 1.2rem">Latest init: <strong>{label(d, h)}</strong>.'
+                ' Drag the slider to step through successive forecast runs (oldest → latest) and watch the'
+                ' predicted MJO track evolve.</p>\n'
+                '  <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets'
+                '&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" '
+                'title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>')
     else:
-        hero = '<p class="empty">No forecasts yet — the first scheduled run will populate this page.</p>'
-        archive = ""
+        body = '<p class="empty">No forecasts yet — the first scheduled run will populate this page.</p>'
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -149,12 +145,22 @@ def main():
   ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
   Wheeler &amp; Hendon (2004). Wind-only projection (U850/U200); amplitude is the
   radial distance (rings at 1, 2, 3). Observed track is recent ERA5/AIFS analysis.</p>
-  {hero}
-  {archive}
+  {body}
   <p class="meta">Updated {updated} · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed.</p>
 </main>
+<script>
+  // Size the animator iframe to its exact content height (plot + slider) so the slider is
+  // never clipped — sst_anim.html posts its height; we match it and drop the fixed aspect-ratio.
+  addEventListener('message', function (e) {{
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {{
+      if (fr[i].contentWindow === e.source) {{ fr[i].style.height = d.h + 'px'; fr[i].style.aspectRatio = 'auto'; }}
+    }}
+  }});
+</script>
 </body>
 </html>
 """
