@@ -5,8 +5,10 @@ name: OLR wave decomposition (Wheeler-Kiladis)
 # committed climatology (metar/olr_clim.nc, from NOAA interp-OLR 1979-2022) and rolling store
 # (metar/olr_rt.nc) travel with the repo, so CI never needs the 19 MB historical backbone.
 on:
-  schedule:
-    - cron: '40 2 * * *'    # daily, after the prior day's GMGSI is complete
+  # Daily schedule paused while the card is hidden from the site (re-enable when the plot
+  # goes back up). Still runnable on demand to keep the rolling store warm.
+  # schedule:
+  #   - cron: '40 2 * * *'    # daily, after the prior day's GMGSI is complete
   workflow_dispatch:
 
 permissions:

@@ -158,19 +158,9 @@
       <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
     </div>
 
-    <!-- OLR WHEELER-KILADIS WAVE DECOMPOSITION -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Convectively-Coupled Waves &mdash; OLR Decomposition</h2>
-        <p>Which tropical waves are driving the convection. The equatorial OLR anomaly (5&deg;S&ndash;5&deg;N, full globe) is bandpass-filtered in <b>wavenumber&ndash;frequency</b> space (Wheeler&ndash;Kiladis) to isolate each convectively-coupled mode, overlaid as &plusmn;13&nbsp;W&nbsp;m&sup2; contours (solid&nbsp;=&nbsp;enhanced convection, dashed&nbsp;=&nbsp;suppressed). The climatology is NOAA&rsquo;s interpolated-OLR (1979&ndash;2022); the live record is the GMGSI proxy.</p>
-        <p><b>How to read it:</b> <span style="color:#19975a">green&nbsp;=&nbsp;convection</span>, brown&nbsp;=&nbsp;suppressed. <b style="color:#1f57d8">Kelvin</b> (fast eastward), <b>MJO</b> (slow eastward), <b style="color:#e8000b">equatorial&nbsp;Rossby</b> (westward), and the <b style="color:#9b30d0">low-frequency / ENSO</b> standing envelope. Eastward tilt&nbsp;=&nbsp;a wave propagating into the Pacific; the standing purple pattern is the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
-      </div>
-      <div class="img-wrap" style="max-width:680px;margin:0 auto"><img id="olr-waves" data-src="assets/sst/olr_waves.webp" alt="Wheeler-Kiladis wave decomposition of equatorial OLR" loading="lazy"></div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">GMGSI longwave-IR proxy &middot; Wheeler&ndash;Kiladis k&ndash;&omega; filtering (eq. depth 8&ndash;90&nbsp;m) &middot; clim NOAA interp-OLR 1979&ndash;2022 &middot; after Schreck (NCICS)</span>
-        <span class="chart-updated">daily</span>
-      </div>
-    </div>
+    <!-- OLR WHEELER-KILADIS WAVE DECOMPOSITION — hidden for now; tool + Action retained.
+         Re-enable: restore this card, the assets/sst/olr_waves.webp <img id="olr-waves">,
+         and the cron schedule in .github/workflows/olr-waves.yml. -->
 
   </div>
 
