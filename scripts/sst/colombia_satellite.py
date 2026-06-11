@@ -12,15 +12,19 @@ frames (visible is dark at night, so night steps are skipped).
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import io
 import json
 import math
+import re
+import tempfile
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
+import xarray as xr
 from PIL import Image
 
 import matplotlib
@@ -40,6 +44,64 @@ CITIES = {
     "Panama City": (8.98, -79.52),
 }
 LAKES = {"Lake Gatún": (9.18, -79.92)}
+
+GLM_S3 = "https://noaa-goes19.s3.amazonaws.com"   # GOES-East GLM lightning (anonymous S3)
+GLM_WINDOW_MIN = 15                                # accumulate flashes over this trailing window
+
+
+def _glm_keys(dt: datetime) -> list[str]:
+    """GLM-L2-LCFA granule keys whose 20-s window falls in [dt − GLM_WINDOW_MIN, dt]."""
+    keys, lo = [], dt - timedelta(minutes=GLM_WINDOW_MIN)
+    hours = {lo.replace(minute=0, second=0, microsecond=0), dt.replace(minute=0, second=0, microsecond=0)}
+    for h in hours:
+        pre = f"GLM-L2-LCFA/{h:%Y/%j/%H}/"
+        try:
+            xml = urllib.request.urlopen(f"{GLM_S3}/?list-type=2&prefix={pre}&max-keys=400", timeout=30).read().decode()
+        except Exception:                                       # noqa: BLE001
+            continue
+        for k in re.findall(r"<Key>([^<]+)</Key>", xml):
+            m = re.search(r"_s(\d{4})(\d{3})(\d{2})(\d{2})(\d{2})", k)
+            if not m:
+                continue
+            yr, jd, hh, mm, ss = map(int, m.groups())
+            t = datetime(yr, 1, 1, tzinfo=timezone.utc) + timedelta(days=jd - 1, hours=hh, minutes=mm, seconds=ss)
+            if lo <= t <= dt:
+                keys.append(k)
+    return keys
+
+
+def _glm_download(key: str):
+    try:
+        return urllib.request.urlopen(f"{GLM_S3}/{key}", timeout=30).read()
+    except Exception:                                           # noqa: BLE001
+        return None
+
+
+def fetch_glm_flashes(dt: datetime):
+    """All GLM flash (lat, lon) inside the box over the trailing GLM_WINDOW_MIN. Fails soft → empty.
+    Downloads run threaded (I/O), but the NetCDF granules are opened *sequentially* — HDF5 is not
+    thread-safe and opening it from multiple threads segfaults."""
+    keys = _glm_keys(dt)
+    if not keys:
+        return np.array([]), np.array([])
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as ex:
+        blobs = list(ex.map(_glm_download, keys))               # threaded download only
+    las, los = [], []
+    for b in blobs:
+        if not b:
+            continue
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".nc") as tf:
+                tf.write(b); tf.flush()
+                d = xr.open_dataset(tf.name)                    # opened one at a time, main thread
+                la, lo = d["flash_lat"].values, d["flash_lon"].values
+                d.close()
+            m = (lo >= W) & (lo <= E) & (la >= S) & (la <= N)
+            las.append(la[m]); los.append(lo[m])
+        except Exception:                                       # noqa: BLE001
+            continue
+    return (np.concatenate(las) if las else np.array([]),
+            np.concatenate(los) if los else np.array([]))
 ANIM = HERE.parent.parent / "assets" / "sst" / "anim" / "colombia"
 MANIFEST = HERE.parent.parent / "assets" / "sst" / "anim" / "colombia_manifest.json"
 GIBS = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi"
@@ -107,7 +169,13 @@ def render_frame(dt: datetime, arr: np.ndarray, out: Path) -> None:
         ax.plot(lo, la, marker="s", ms=4, mfc="#8fd3ff", mec="black", mew=0.6, transform=proj, zorder=8)
         ax.text(lo, la - 0.2, nm, transform=proj, fontsize=8.5, color="#bfe9ff", va="top", ha="center",
                 zorder=8, fontstyle="italic", path_effects=stroke)
-    ax.text(0.008, 0.992, f"GOES-East true colour  ·  {dt:%Y-%m-%d %H:%MZ}", transform=ax.transAxes,
+    # GLM lightning flashes over the trailing window (bright cyan +)
+    fla, flo = fetch_glm_flashes(dt)
+    if len(fla):
+        ax.scatter(flo, fla, s=13, marker="+", c="#41ffe6", linewidths=0.6, alpha=0.8,
+                   transform=proj, zorder=9)
+    glm = f"  ·  GLM lightning (cyan, last {GLM_WINDOW_MIN} min)" if len(fla) else ""
+    ax.text(0.008, 0.992, f"GOES-East true colour  ·  {dt:%Y-%m-%d %H:%MZ}{glm}", transform=ax.transAxes,
             va="top", ha="left", color="white", fontsize=11, fontweight="bold",
             bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.45))
     fig.savefig(out, dpi=150); plt.close(fig)
