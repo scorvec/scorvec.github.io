@@ -47,8 +47,8 @@ WAVES = {
     "Kelvin": dict(k=(1, 14),   p=(2.5, 30), h=(8, 90),   n=None, color="#1565c0", lw=1.6, clev=13),
     "ER":     dict(k=(-10, -1), p=(9.7, 48), h=(8, 90),   n=1,    color="#e6007e", lw=1.6, clev=11),
     "MJO":    dict(k=(1, 5),    p=(30, 96),  h=None,      n=None, color="#111111", lw=1.9, clev=13),
-    "LF":     dict(k=(-3, 3),   p=(120, 1e9), h=None,     n=None, color="#f59e0b", lw=2.0, clev=8,
-                   label="Low"),               # all periods >120 d incl. interannual ENSO standing envelope
+    "LF":     dict(k=(-3, 3),   p=(120, 1e9), h=None,     n=None, color="#7b1fa2", lw=2.2, clev=8,
+                   label="Low"),               # 120-day low-pass standing envelope (purple; see _lf_lowpass)
 }
 
 
@@ -217,20 +217,17 @@ def _anomaly_rt(rt: xr.Dataset, clim_ds: xr.Dataset, band: str = "15") -> xr.Dat
 
 
 def _lf_lowpass(anom: np.ndarray, cutoff_days: float = 120.0, half: int = 60) -> np.ndarray:
-    """Low-frequency envelope: a Lanczos low-pass in time (periods > cutoff_days) followed by a
-    zonal-wavenumber-1..3 filter. Unlike the brick-wall FFT band it isn't limited to the window's
-    discrete Fourier modes, so it's a smooth > 120-day envelope — seasonal on a short record,
-    interannual (the ENSO standing pattern) on a multi-year one."""
+    """Low-frequency envelope: a Lanczos low-pass in time (periods > cutoff_days), then remove the
+    zonal (longitude) mean at each time so it's the *spatial* standing pattern, not a uniform
+    tropical-mean stripe. Keeps all spatial scales — so the persistent convection stays where it
+    actually is (no wavenumber-1..3 truncation, which spread it into spurious lobes)."""
     from scipy.ndimage import convolve1d
     fc = 1.0 / cutoff_days
     k = np.arange(-half, half + 1)
     w = np.sinc(2 * fc * k) * 2 * fc * np.sinc(k / half)        # Lanczos-windowed ideal low-pass
     w /= w.sum()
     lp = convolve1d(anom, w, axis=0, mode="nearest")            # time low-pass per longitude
-    nx = lp.shape[1]                                            # keep zonal wavenumbers 1..3
-    F = np.fft.rfft(lp, axis=1); kk = np.arange(F.shape[1])
-    F[:, (kk < 1) | (kk > 3)] = 0
-    return np.fft.irfft(F, n=nx, axis=1)
+    return lp - lp.mean(axis=1, keepdims=True)                  # remove zonal mean (k=0)
 
 
 def render(anom: xr.DataArray, end: datetime, days: int, out: Path,
