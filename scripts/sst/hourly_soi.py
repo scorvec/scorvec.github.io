@@ -36,22 +36,44 @@ METAR_API = "https://aviationweather.gov/api/data/metar?ids=YPDN,NTAA&format=jso
 SOI_URL = ("https://data.longpaddock.qld.gov.au/SeasonalClimateOutlook/"
            "SouthernOscillationIndex/SOIDataFiles/DailySOI1887-1989Base.txt")
 STATIONS = {"YPDN": "darwin", "NTAA": "tahiti"}
+ELEV = {"darwin": 30.4, "tahiti": 2.0}                # station elevation (m AMSL): YPDN, NTAA Faa'a
 PLOT_DAYS = 28
+G, RD, LAPSE, T0 = 9.80665, 287.05, 0.0065, 288.15    # ISA constants for the pressure reduction
+
+
+def qnh_to_mslp(qnh: float, temp_c, h: float) -> float:
+    """Altimeter setting (QNH, hPa) → true mean-sea-level pressure using the station's *observed*
+    temperature and elevation. QNH reduces to sea level via the ISA standard atmosphere; MSLP uses
+    the actual temperature — which is what LongPaddock's daily MSLP uses. For these near-sea-level
+    stations the correction is small (≈0.2 hPa at Darwin, ~0 at Tahiti) but removes the
+    temperature-dependent part of the QNH-vs-MSLP mismatch. Falls back to QNH if temp is missing."""
+    if temp_c is None or h is None:
+        return qnh
+    p_sta = qnh * (1.0 - LAPSE * h / T0) ** (G / (RD * LAPSE))   # ISA: sea-level QNH → station pressure
+    t_mean = (temp_c + 273.15) + LAPSE * h / 2.0                 # mean column temp: surface + half-lapse
+    return p_sta * np.exp(G * h / (RD * t_mean))                 # hypsometric reduction → true MSLP
 
 
 # ----------------------------------------------------------------------------- METAR
 def fetch_metar(hours: int = 72) -> pd.DataFrame:
-    """Recent METARs → hourly-mean QNH (hPa) per station, indexed by UTC hour."""
+    """Recent METARs → hourly-mean MSLP (hPa) per station, indexed by UTC hour.
+    Uses the reported SLP if present (it isn't for YPDN/NTAA); otherwise reduces the QNH to true
+    MSLP with the observed temperature + station elevation (see qnh_to_mslp)."""
     import json
     url = METAR_API.format(h=hours)
     obs = json.loads(urllib.request.urlopen(url, timeout=60).read().decode())
     rows = []
     for o in obs:
-        p = o.get("slp") or o.get("altim")             # slp if present (it isn't for these), else QNH
-        if p is None:
+        stn = STATIONS.get(o.get("icaoId"))
+        if stn is None:
             continue
-        rows.append((pd.Timestamp(o["reportTime"]).tz_localize(None),
-                     STATIONS.get(o.get("icaoId")), float(p)))
+        if o.get("slp") is not None:
+            p = float(o["slp"])
+        elif o.get("altim") is not None:
+            p = qnh_to_mslp(float(o["altim"]), o.get("temp"), ELEV[stn])
+        else:
+            continue
+        rows.append((pd.Timestamp(o["reportTime"]).tz_localize(None), stn, p))
     df = pd.DataFrame(rows, columns=["time", "stn", "hpa"]).dropna()
     wide = df.pivot_table(index="time", columns="stn", values="hpa", aggfunc="mean")
     return wide.resample("1h").mean()                  # hourly means (averages the 30-min obs)
