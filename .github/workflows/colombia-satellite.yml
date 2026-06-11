@@ -1,0 +1,39 @@
+name: Colombia/Panama true-colour satellite loop (GOES-East)
+
+# High-res true-colour (visible) GOES-East loop over Colombia/Panama from NASA GIBS GeoColor.
+# Hourly: render any new sunlit frame, trim the rolling 2-day window, rebuild the manifest. Night
+# frames are skipped (visible is dark), so each run only adds a frame during local daylight.
+on:
+  schedule:
+    - cron: '22 * * * *'    # hourly
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: colombia-satellite
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pillow matplotlib cartopy shapely
+      - run: python scripts/sst/colombia_satellite.py
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          git add -A assets/sst/anim/colombia assets/sst/anim/colombia_manifest.json
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "Colombia/Panama true-colour loop: $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash -X ours && git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1
