@@ -78,7 +78,8 @@ fi
 git add sst.html enso-*.html assets/sst/
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
 DAY=$("$PY" -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])" 2>/dev/null)
-source "$REPO/scripts/lib/gitlock.sh"; trap git_unlock EXIT
+source "$REPO/scripts/lib/gitlock.sh"
+trap 'git_unlock; rm -rf "$LOCK" 2>/dev/null' EXIT   # both cleanups (this trap replaces the lock-only one above)
 git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
 git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
     commit -m "SST/RONI update: OISST ${DAY} (local)"
