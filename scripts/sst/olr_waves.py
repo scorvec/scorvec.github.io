@@ -216,19 +216,36 @@ def _anomaly_rt(rt: xr.Dataset, clim_ds: xr.Dataset, band: str = "15") -> xr.Dat
     return xr.DataArray(a, coords={"time": olr["time"], "lon": olr["lon"]}, dims=("time", "lon"))
 
 
+def _lf_lowpass(anom: np.ndarray, cutoff_days: float = 120.0, half: int = 60) -> np.ndarray:
+    """Low-frequency envelope: a Lanczos low-pass in time (periods > cutoff_days) followed by a
+    zonal-wavenumber-1..3 filter. Unlike the brick-wall FFT band it isn't limited to the window's
+    discrete Fourier modes, so it's a smooth > 120-day envelope — seasonal on a short record,
+    interannual (the ENSO standing pattern) on a multi-year one."""
+    from scipy.ndimage import convolve1d
+    fc = 1.0 / cutoff_days
+    k = np.arange(-half, half + 1)
+    w = np.sinc(2 * fc * k) * 2 * fc * np.sinc(k / half)        # Lanczos-windowed ideal low-pass
+    w /= w.sum()
+    lp = convolve1d(anom, w, axis=0, mode="nearest")            # time low-pass per longitude
+    nx = lp.shape[1]                                            # keep zonal wavenumbers 1..3
+    F = np.fft.rfft(lp, axis=1); kk = np.arange(F.shape[1])
+    F[:, (kk < 1) | (kk > 3)] = 0
+    return np.fft.irfft(F, n=nx, axis=1)
+
+
 def render(anom: xr.DataArray, end: datetime, days: int, out: Path,
            waves=("Kelvin", "ER", "MJO", "LF"), prelim_days: int = 0, subtitle: str = "") -> None:
-    """Schreck-style global OLR-anomaly Hovmöller (5°S-5°N) with the filtered convectively-
-    coupled waves overlaid as ±16 W/m² contours (solid = enhanced convection, dashed = suppressed)."""
+    """Global OLR-anomaly Hovmöller (5°S-5°N) with the filtered convectively-coupled waves overlaid
+    as contours (solid = enhanced convection, dashed = suppressed). LF is a 120-day low-pass."""
     from scipy.ndimage import gaussian_filter
     from matplotlib.colors import BoundaryNorm, ListedColormap
-    filt = {w: wk_filter(anom.values, w) for w in waves}        # filter the whole (global) series
+    filt = {w: (_lf_lowpass(anom.values) if w == "LF" else wk_filter(anom.values, w)) for w in waves}
     lon = anom["lon"].values                                    # full globe 0-360
     time = anom["time"].values
     sel = (time <= np.datetime64(end)) & (time > np.datetime64(end) - np.timedelta64(days, "D"))
     tt = time[sel]; xx = lon
     base = gaussian_filter(anom.values[sel], sigma=(1.4, 1.0))
-    fig, ax = plt.subplots(figsize=(7.8, 9.8))
+    fig, ax = plt.subplots(figsize=(7.8, min(3.6 + 0.052 * len(tt), 13.5)))
     levels = [-72, -56, -40, -24, -8, 8, 24, 40, 56, 72]        # green = convection, brown = suppressed
     base_cmap = plt.get_cmap("BrBG_r")
     cols = [base_cmap(x) for x in np.linspace(0, 1, len(levels) - 1)]
@@ -276,7 +293,7 @@ def main(argv=None) -> int:
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--realtime", action="store_true", help="render current period from the GMGSI store")
     ap.add_argument("--hist", help="end date YYYY-MM-DD for a historical demo render")
-    ap.add_argument("--days", type=int, default=150)
+    ap.add_argument("--days", type=int, default=200)
     ap.add_argument("--out", default=str(HERE.parent.parent / "assets" / "sst" / "olr_waves.webp"))
     args = ap.parse_args(argv)
     if args.selftest:
@@ -286,7 +303,7 @@ def main(argv=None) -> int:
         rt = xr.open_dataset(STORE_RT)
         anom = _anomaly_rt(rt, clim, "05")
         end = pd.Timestamp(anom["time"].values[-1]).to_pydatetime()
-        render(anom, end, min(args.days, 120), Path(args.out), prelim_days=14,
+        render(anom, end, min(args.days, 360), Path(args.out), prelim_days=21,
                subtitle="GMGSI longwave-IR proxy · deseasonalised vs interp-OLR 1979-2022")
     else:
         clim = xr.open_dataset(HIST)

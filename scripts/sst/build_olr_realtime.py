@@ -31,7 +31,7 @@ STORE = HERE / "metar" / "olr_rt.nc"            # committed (rolling state for t
 S3 = "https://noaa-gmgsi-pds.s3.amazonaws.com"
 SIGMA = 5.67e-8
 HOURS = (0, 12)                          # day+night sample averaged into each daily mean
-KEEP_DAYS = 400
+KEEP_DAYS = 550                          # ~1.5 yr — margin for the 120-day low-pass + longer display
 BANDS = {"15": 15.0, "05": 5.0}
 GRID = np.arange(0, 360, 2.5)            # interp_OLR longitude centres (144 @ 2.5°)
 
