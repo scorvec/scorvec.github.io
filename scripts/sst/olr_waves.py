@@ -242,7 +242,7 @@ def render(anom: xr.DataArray, end: datetime, days: int, out: Path,
     sel = (time <= np.datetime64(end)) & (time > np.datetime64(end) - np.timedelta64(days, "D"))
     tt = time[sel]; xx = lon
     base = gaussian_filter(anom.values[sel], sigma=(1.4, 1.0))
-    fig, ax = plt.subplots(figsize=(7.8, min(3.6 + 0.052 * len(tt), 13.5)))
+    fig, ax = plt.subplots(figsize=(10.6, min(3.0 + 0.040 * len(tt), 11.5)))
     levels = [-72, -56, -40, -24, -8, 8, 24, 40, 56, 72]        # green = convection, brown = suppressed
     base_cmap = plt.get_cmap("BrBG_r")
     cols = [base_cmap(x) for x in np.linspace(0, 1, len(levels) - 1)]
