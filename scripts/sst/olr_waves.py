@@ -46,7 +46,7 @@ DAY = 86400.0
 WAVES = {
     "Kelvin": dict(k=(1, 14),   p=(2.5, 30), h=(8, 90),   n=None, color="#1565c0", lw=1.6, clev=13),
     "ER":     dict(k=(-10, -1), p=(9.7, 48), h=(8, 90),   n=1,    color="#e6007e", lw=1.6, clev=11),
-    "MJO":    dict(k=(1, 5),    p=(30, 96),  h=None,      n=None, color="#111111", lw=1.9, clev=13),
+    "MJO":    dict(k=(1, 5),    p=(30, 96),  h=None,      n=None, color="#111111", lw=1.9, clev=10),
     "LF":     dict(k=(-3, 3),   p=(120, 1e9), h=None,     n=None, color="#7b1fa2", lw=2.2, clev=8,
                    label="Low"),               # 120-day low-pass standing envelope (purple; see _lf_lowpass)
 }
