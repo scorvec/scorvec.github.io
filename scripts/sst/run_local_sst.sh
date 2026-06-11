@@ -31,18 +31,22 @@ LOG="$REPO/scripts/sst/run_local_sst.log"
 exec >> "$LOG" 2>&1
 echo "===================== $(date) ====================="
 
-# Single-instance lock: a slow run (TAO/OISST fetch) must not overlap the next
-# scheduled fire — concurrent renders + the push-retry `git reset --hard` race and
-# wipe each other's in-flight frames. mkdir is atomic; a >3 h-old lock is stale.
+# Single-instance lock: a slow run (TAO/OISST fetch) must not overlap the next scheduled fire —
+# concurrent renders + the push-retry `git reset --hard` race and wipe each other's in-flight
+# frames. mkdir is atomic; the lock records its owner PID, so an orphaned lock (a run killed or
+# slept without firing its EXIT trap) is reclaimed at once instead of blocking for hours.
 LOCK="$REPO/scripts/sst/.run.lock"
 if ! mkdir "$LOCK" 2>/dev/null; then
-  if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +180 2>/dev/null)" ]; then
-    echo "stale lock (>3h) — taking over"; rmdir "$LOCK" 2>/dev/null; mkdir "$LOCK" 2>/dev/null
-  else
-    echo "another SST run in progress — skipping this fire"; exit 0
+  owner="$(cat "$LOCK/pid" 2>/dev/null)"
+  if { [ -n "$owner" ] && kill -0 "$owner" 2>/dev/null; } \
+     || [ -n "$(find "$LOCK" -maxdepth 0 -mmin -1 2>/dev/null)" ]; then   # owner alive, or <1 min (PID not yet written)
+    echo "another SST run in progress (pid ${owner:-?}) — skipping this fire"; exit 0
   fi
+  echo "stale lock (owner pid ${owner:-none} not running) — taking over"
+  rm -rf "$LOCK"; mkdir "$LOCK" 2>/dev/null || { echo "could not acquire lock"; exit 0; }
 fi
-trap 'rmdir "$LOCK" 2>/dev/null' EXIT
+echo $$ > "$LOCK/pid"
+trap 'rm -rf "$LOCK" 2>/dev/null' EXIT
 
 DAY_Q='import json,os;p="assets/sst/manifest.json";print(json.load(open(p)).get("sst_valid_day","") if os.path.exists(p) else "")'
 PREV_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
