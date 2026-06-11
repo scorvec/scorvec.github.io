@@ -37,7 +37,7 @@ BASIN_GEOJSON = HERE / "metar" / "magdalena_basin.geojson"   # committed (so the
 CITIES = {
     "Bogotá": (4.61, -74.08), "Medellín": (6.25, -75.57), "Cali": (3.44, -76.52),
     "Barranquilla": (10.96, -74.80), "Cartagena": (10.42, -75.51), "Bucaramanga": (7.12, -73.12),
-    "Santa Marta": (11.24, -74.20), "Panama City": (8.98, -79.52),
+    "Panama City": (8.98, -79.52),
 }
 LAKES = {"Lake Gatún": (9.18, -79.92)}
 ANIM = HERE.parent.parent / "assets" / "sst" / "anim" / "colombia"
