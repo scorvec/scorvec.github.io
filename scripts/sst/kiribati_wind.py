@@ -38,9 +38,20 @@ KT2MS = 0.514444
 PLOT_DAYS = 21
 
 
+COLS = [f"{k}_{x}" for k in ("tarawa", "christmas") for x in ("dir", "spd")]
+
+
 def fetch(hours=72) -> pd.DataFrame:
-    """Recent METARs → hourly wind dir/speed (kt) per station."""
-    obs = json.loads(urllib.request.urlopen(API.format(h=hours), timeout=60).read().decode())
+    """Recent METARs → hourly wind dir/speed (kt) per station. Fails soft: a network error,
+    non-JSON response (rate-limit/503), or a station simply not reporting just yields an empty
+    (or partial) frame instead of raising — these remote stations report intermittently."""
+    try:
+        obs = json.loads(urllib.request.urlopen(API.format(h=hours), timeout=60).read().decode())
+        if not isinstance(obs, list):
+            obs = []
+    except Exception as e:                                     # noqa: BLE001
+        print(f"  METAR fetch failed ({repr(e)[:80]}) — keeping prior data", flush=True)
+        obs = []
     rows = []
     for o in obs:
         s = STN.get(o.get("icaoId"))
@@ -53,10 +64,14 @@ def fetch(hours=72) -> pd.DataFrame:
     df["spd"] = pd.to_numeric(df["spd"], errors="coerce")
     out = {}
     for k in ("tarawa", "christmas"):
-        sub = df[df.stn == k].set_index("time").sort_index()
+        sub = df[df.stn == k]
+        if sub.empty:                                          # station not in this batch → empty col
+            out[f"{k}_dir"] = pd.Series(dtype=float); out[f"{k}_spd"] = pd.Series(dtype=float)
+            continue
+        sub = sub.set_index("time").sort_index()
         out[f"{k}_dir"] = sub["dir"].resample("1h").median()
         out[f"{k}_spd"] = sub["spd"].resample("1h").mean()
-    return pd.DataFrame(out)
+    return pd.DataFrame(out).reindex(columns=COLS)
 
 
 def update_history(new: pd.DataFrame) -> pd.DataFrame:
@@ -66,7 +81,7 @@ def update_history(new: pd.DataFrame) -> pd.DataFrame:
         hist = new.combine_first(old); hist.update(new)
     else:
         hist = new
-    hist = hist.sort_index()
+    hist = hist.sort_index().apply(pd.to_numeric, errors="coerce")   # an empty fetch can object-ify cols
     hist.to_csv(CSV)
     return hist
 
@@ -98,6 +113,8 @@ def plot(hist: pd.DataFrame, out: Path):
     h = hist[hist.index >= t0]
     uT = zonal(h["tarawa_dir"], h["tarawa_spd"])
     uC = zonal(h["christmas_dir"], h["christmas_spd"])
+    if zonal(h["tarawa_dir"], h["tarawa_spd"]).dropna().empty:
+        print("  no Tarawa wind in the plot window — skipping render", flush=True); return
     fig, ax = plt.subplots(figsize=(12, 4.8))
     ax.fill_between(uT.index, 0, uT.values, where=(uT.values > 0), interpolate=True,
                     color="#d62728", alpha=0.25, lw=0)
@@ -135,6 +152,10 @@ def main(argv=None) -> int:
     ap.add_argument("--hours", type=int, default=72)
     args = ap.parse_args(argv)
     hist = update_history(fetch(args.hours))
+    if hist.empty or "tarawa_dir" not in hist.columns \
+       or zonal(hist["tarawa_dir"], hist["tarawa_spd"]).dropna().empty:
+        print("  no usable Tarawa wind data — leaving previous outputs in place", flush=True)
+        return 0
     latest = write_json(hist, Path(args.out).with_suffix(".json"))
     plot(hist, Path(args.out))
     print("  latest:", {k: f"{v['dir']:.0f}°/{v['spd_kt']}kt u={v['u_ms']}" for k, v in latest.items()}, flush=True)
