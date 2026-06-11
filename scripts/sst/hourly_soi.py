@@ -154,16 +154,24 @@ def plot(raw, soi24, lp_soi, bias, hist, out: Path):
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=3))
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %-d"))
     ax.legend(loc="upper left", fontsize=8.5, framealpha=0.9); ax.grid(alpha=0.15)
-    # current sea-level pressure at each station (the raw ingredients of the SOI), large + prominent
-    dar = hist["darwin"].dropna(); tah = hist["tahiti"].dropna()
+    # current ingredients (Darwin/Tahiti MSLP) + the latest official LongPaddock daily SOI, prominent
+    dar = hist["darwin"].dropna(); tah = hist["tahiti"].dropna(); lpd = lp_soi.dropna()
+    sub = []
     if len(dar) and len(tah):
-        when = max(dar.index[-1], tah.index[-1])
-        ax.text(0.5, 0.955, f"Darwin {dar.iloc[-1]:.1f} hPa      Tahiti {tah.iloc[-1]:.1f} hPa",
-                transform=ax.transAxes, ha="center", va="top", fontsize=16, fontweight="bold",
+        ax.text(0.5, 0.96, f"Darwin {dar.iloc[-1]:.1f} hPa      Tahiti {tah.iloc[-1]:.1f} hPa",
+                transform=ax.transAxes, ha="center", va="top", fontsize=15.5, fontweight="bold",
                 color="#1a1a1a", zorder=8,
-                bbox=dict(boxstyle="round,pad=0.45", fc="white", ec="0.65", alpha=0.92))
-        ax.text(0.5, 0.83, f"current MSLP · {when:%b %-d %HZ}", transform=ax.transAxes,
-                ha="center", va="top", fontsize=8, color="0.45", zorder=8)
+                bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="0.65", alpha=0.92))
+        sub.append(f"MSLP {max(dar.index[-1], tah.index[-1]):%b %-d %HZ}")
+    if len(lpd):
+        ax.text(0.5, 0.79, f"LongPaddock daily SOI   {lpd.iloc[-1]:+.1f}",
+                transform=ax.transAxes, ha="center", va="top", fontsize=15.5, fontweight="bold",
+                color="#555555", zorder=8,
+                bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="0.7", alpha=0.92))
+        sub.append(f"official SOI {lpd.index[-1]:%b %-d}")
+    if sub:
+        ax.text(0.5, 0.645, "current  ·  " + "   ·   ".join(sub), transform=ax.transAxes,
+                ha="center", va="top", fontsize=7.5, color="0.5", zorder=8)
     fig.tight_layout()
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight"); plt.close(fig)
