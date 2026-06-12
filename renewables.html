@@ -479,16 +479,12 @@
         { x, y: f.map(p => p.solar_GW), name: 'Solar', stackgroup: 'g',
           fillcolor: 'rgba(224,160,32,0.62)', line: { color: '#d99a1a', width: 1 } },
       ];
-      const er = (d.eia_recent || []).filter(p => p.wind_GW != null || p.solar_GW != null);
-      if (er.length) traces.push({ x: er.map(p => etStr(p.period)),
-        y: er.map(p => (p.wind_GW || 0) + (p.solar_GW || 0)),
-        name: 'EIA actual', mode: 'lines', line: { color: '#555', width: 1.5, dash: 'dot' } });
       const nowx = etStr(d.now.valid_time);
       Plotly.newPlot('hero-chart', traces, {
         margin: { l: 46, r: 12, t: 8, b: 36 }, paper_bgcolor: '#fff', plot_bgcolor: '#fff',
         font: { family: 'Inter, sans-serif', size: 11, color: '#5a5855' },
         yaxis: { title: 'GW', gridcolor: '#eee', zeroline: false, rangemode: 'tozero' },
-        xaxis: { gridcolor: '#f4f4f2', title: 'time (ET)' }, hovermode: 'x unified',
+        xaxis: { gridcolor: '#f4f4f2', title: 'time (ET)', range: [x[0], x[x.length - 1]] }, hovermode: 'x unified',
         legend: { orientation: 'h', y: 1.14, x: 0 },
         shapes: [{ type: 'line', x0: nowx, x1: nowx, yref: 'paper', y0: 0, y1: 1,
           line: { color: '#c0792a', width: 1.5, dash: 'dash' } }],
