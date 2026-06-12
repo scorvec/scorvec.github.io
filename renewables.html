@@ -456,13 +456,6 @@
       $('s-split').innerHTML = num(now.wind_GW) + ' / ' + num(now.solar_GW) + ' <small>GW</small>';
       $('s-peak').innerHTML = num(d.peak.combined_GW) + ' <small>GW · ' + etLabel(d.peak.valid_time) + '</small>';
       $('s-name').innerHTML = num(np.combined_GW) + ' <small>GW</small>';
-      if (now.eia_wind_GW != null || now.eia_solar_GW != null) {
-        const ea = (now.eia_wind_GW || 0) + (now.eia_solar_GW || 0);
-        const g = document.createElement('div'); g.className = 'stat';
-        g.innerHTML = '<div class="lab">HRRR vs EIA actual</div><div class="val">' +
-          num(now.combined_GW) + ' <small>/ ' + ea.toFixed(0) + ' GW</small></div>';
-        $('stat-grid').appendChild(g);
-      }
       chart(d);
       $('hero-note').innerHTML =
         'Numerator = HRRR-estimated wind + solar generation (the forecast plotted here); denominator = live ' +
