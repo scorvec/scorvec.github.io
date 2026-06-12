@@ -70,15 +70,18 @@ def render_frame(u: xr.DataArray, t: xr.DataArray, dt: datetime, out: Path) -> N
     U = u.mean("latitude").values; T = t.mean("latitude").values
     fig, ax = plt.subplots(figsize=(12, 5.6))
     pm = ax.contourf(lon, dep, U, levels=np.arange(-1.2, 1.21, 0.15), cmap="RdBu_r", extend="both")
-    cs = ax.contour(lon, dep, T, levels=[20], colors="black", linewidths=2.0); ax.clabel(cs, fmt="20°C", fontsize=8)
-    ax.contour(lon, dep, T, levels=range(12, 30, 2), colors="0.35", linewidths=0.4, alpha=0.6)
+    cs20 = ax.contour(lon, dep, T, levels=[20], colors="black", linewidths=2.0)
+    ax.clabel(cs20, fmt="20°C", fontsize=8)
+    csw = ax.contour(lon, dep, T, levels=[26, 28], colors="black", linewidths=1.1, linestyles="--")
+    ax.clabel(csw, fmt="%d°C", fontsize=7)                       # warm-pool base / upper thermocline
+    ax.contour(lon, dep, T, levels=[12, 14, 16, 18, 22, 24], colors="0.35", linewidths=0.4, alpha=0.6)
     ax.set_ylim(DMAX, 0); ax.set_xlim(LON0, LON1)
     ax.set_xticks([160, 180, 200, 220, 240, 260])
     ax.set_xticklabels(["160E", "180", "160W", "140W", "120W", "100W"])
     ax.set_ylabel("depth (m)"); ax.set_xlabel("longitude")
     ax.axvline(190, color="0.5", lw=0.4, ls=":"); ax.axvline(240, color="0.5", lw=0.4, ls=":")
     ax.set_title(f"Equatorial Pacific zonal current & thermocline (1.5°S–1.5°N)  ·  {dt:%Y-%m-%d}\n"
-                 "red = eastward (incl. the Equatorial Undercurrent); black = 20°C isotherm", fontsize=10, pad=12)
+                 "red = eastward (incl. the Equatorial Undercurrent); black = 20 / 26 / 28 °C isotherms", fontsize=10, pad=12)
     cb = fig.colorbar(pm, ax=ax, orientation="vertical", pad=0.02, aspect=30)
     cb.set_label("zonal current (m s⁻¹)   ·   eastward +")
     fig.tight_layout(); fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
