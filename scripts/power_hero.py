@@ -82,19 +82,22 @@ def main() -> int:
     now = pd.Timestamp.now(tz="UTC")
     eia = json.loads(EIA.read_text()) if EIA.exists() else None
 
-    # Evaluate "now"/penetration at the latest hour EIA also has (else clamp to forecast).
-    if eia and eia.get("latest_period"):
-        t = pd.Timestamp(eia["latest_period"].replace("Z", "+00:00"))
-        eia_total = eia.get("total_GW")
-    else:
-        t = min(max(now, idx[0]), idx[-1])
-        eia_total = None
-    t = min(max(t, idx[0]), idx[-1])
-    cur = _at(combined, t)
-    pen = round(100.0 * cur / eia_total, 1) if (cur is not None and eia_total) else None
-    stale = eia is None or (now - t).total_seconds() > 3 * 3600
+    now_t = min(max(now, idx[0]), idx[-1])            # HRRR nowcast time, clamped to the forecast window
+    cur = _at(combined, now_t)                        # combined GW "now"
 
-    fwd = combined[combined.index >= t].dropna()
+    # Penetration only when the EIA hour falls inside [forecast start, now] — so numerator and
+    # denominator are the SAME hour (the US48 feed can lag; never divide by a stale total).
+    pen = eia_total = None
+    pen_t, stale = now_t, True
+    if eia and eia.get("latest_period") and eia.get("total_GW"):
+        et = pd.Timestamp(eia["latest_period"].replace("Z", "+00:00"))
+        ec = _at(combined, et)
+        if ec is not None and idx[0] <= et <= now + pd.Timedelta(hours=1):
+            pen = round(100.0 * ec / eia["total_GW"], 1)
+            pen_t, eia_total, cur = et, eia["total_GW"], ec   # align the readout to the penetration hour
+            stale = (now - et).total_seconds() > 3 * 3600
+
+    fwd = combined[combined.index >= now_t].dropna()
     peak_t = fwd.idxmax() if not fwd.empty else combined.idxmax()
 
     forecast = [{"valid_time": p.strftime("%Y-%m-%dT%H:%MZ"),
@@ -108,9 +111,10 @@ def main() -> int:
         "wind_cycle": wcyc, "solar_cycle": scyc,
         "nameplate": namep,
         "now": {
-            "valid_time": t.strftime("%Y-%m-%dT%H:%MZ"),
-            "wind_GW": _at(wind, t), "solar_GW": _at(solar, t), "combined_GW": cur,
+            "valid_time": pen_t.strftime("%Y-%m-%dT%H:%MZ"),
+            "wind_GW": _at(wind, pen_t), "solar_GW": _at(solar, pen_t), "combined_GW": cur,
             "penetration_pct": pen,
+            "denominator_kind": eia.get("denominator_kind") if eia else None,
             "eia_total_GW": eia_total,
             "eia_wind_GW": eia.get("wind_actual_GW") if eia else None,
             "eia_solar_GW": eia.get("solar_actual_GW") if eia else None,
