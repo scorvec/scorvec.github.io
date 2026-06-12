@@ -454,6 +454,29 @@ def _box_anomaly_series(anom, la, lo, lat_rng, lon_rng):
     return box.weighted(w).mean(dim=(la, lo), skipna=True)
 
 
+def load_roni_sigma():
+    """Per-calendar-month σ for WMO/CPC-style RONI standardization (built by build_roni_sigma.py).
+
+    Returns {1..12: σ_degC} or {} if the table hasn't been built — callers then leave the
+    standardized RONI as NaN and the °C index is shown alone.
+    """
+    import json
+    p = HERE / "roni_sigma.json"
+    if not p.exists():
+        return {}
+    return {int(k): float(v) for k, v in json.loads(p.read_text())["sigma_by_month"].items()}
+
+
+def standardize_roni(roni_monthly):
+    """RONI(°C) monthly series ÷ its per-center-month σ → standardized (σ units), the WMO/CPC form."""
+    sig = load_roni_sigma()
+    if not sig:
+        return pd.Series(np.nan, index=roni_monthly.index)
+    months = pd.DatetimeIndex(roni_monthly.index).month
+    denom = pd.Series([sig.get(int(m), np.nan) for m in months], index=roni_monthly.index)
+    return roni_monthly / denom
+
+
 def compute_oni_roni(daily_anom, la, lo):
     """Compute ONI and RONI monthly series from the DAILY anomaly field.
 
@@ -486,12 +509,14 @@ def compute_oni_roni(daily_anom, la, lo):
     # year-to-date series min_periods=1 keeps the early/most-recent months.
     oni = oni_raw.rolling(3, center=True, min_periods=1).mean()
     roni = roni_raw.rolling(3, center=True, min_periods=1).mean()
+    roni_std = standardize_roni(roni)                # WMO/CPC standardized (÷ per-month σ); NaN if no table
 
     df = pd.DataFrame({
         "month": pd.to_datetime(oni.index),
         "oni": oni.values,
         "roni": roni.values,
-    }).dropna().reset_index(drop=True)
+        "roni_std": roni_std.values,
+    }).dropna(subset=["oni", "roni"]).reset_index(drop=True)
     return df
 
 
@@ -564,7 +589,7 @@ def render_daily_three_metrics(full_anom, la, lo, out_path, days=None):
 
 
 def render_roni(df: pd.DataFrame, out_path: Path,
-                latest_oni=None, latest_roni=None, latest_month=None):
+                latest_oni=None, latest_roni=None, latest_month=None, latest_roni_std=None):
     fig, ax = plt.subplots(figsize=(12, 4.2), dpi=100)
     roni_vals = df["roni"].values
     months = pd.to_datetime(df["month"])
@@ -588,6 +613,15 @@ def render_roni(df: pd.DataFrame, out_path: Path,
         ax.axhline(y, color=c, lw=0.8, ls="--", alpha=0.6)
     ax.axhline(0, color="#333", lw=0.8)
 
+    # WMO/CPC-style STANDARDIZED RONI (°C ÷ per-calendar-month σ) on a secondary axis,
+    # so the seasonally-varying significance is visible alongside the raw °C bars.
+    has_std = "roni_std" in df.columns and np.isfinite(df["roni_std"].values).any()
+    if has_std:
+        ax2 = ax.twinx()
+        ax2.plot(x, df["roni_std"].values, color="#1a1a1a", lw=1.4, marker="o", ms=3,
+                 zorder=4, label="standardized (σ)")
+        ax2.set_ylabel("standardized RONI (σ)", fontsize=10)
+
     # One labeled tick per month (e.g. "Jan", with year on January).
     ax.set_xticks(x)
     labels = [m.strftime("%b\n%Y") if m.month == 1 or i == 0
@@ -602,30 +636,37 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     hi = max(vmax, 0.6) + 0.15
     lo = min(vmin, -0.6) - 0.15
     ax.set_ylim(lo, hi)
+    if has_std:                                          # scale \u03c3 axis by the same lo:hi ratio \u21d2 zeros align
+        smax = float(np.nanmax(np.abs(df["roni_std"].values)))
+        s = (smax * 1.18) / max(hi, -lo) if smax > 0 else 1.0
+        ax2.set_ylim(lo * s, hi * s)
 
     ax.set_ylabel("RONI (\u00b0C)", fontsize=11)
-    ax.set_title("Relative Oceanic Ni\u00f1o Index (RONI) \u2014 "
-                 "Ni\u00f1o-3.4 minus tropical-mean SST anomaly, "
-                 "3-month running mean",
-                 fontsize=11, loc="left", pad=8)
+    ax.set_title("Relative Oceanic Ni\u00f1o Index (RONI) \u2014 Ni\u00f1o-3.4 minus tropical-mean "
+                 "SST anomaly, 3-month running mean\n\u00b0C bars + WMO standardized "
+                 "(\u00f7 per-month \u03c3) line",
+                 fontsize=10.5, loc="left", pad=8)
     ax.grid(axis="y", alpha=0.2)
 
     # Current-value readout box.
     if latest_roni is not None:
         oni_line = (f"ONI  {latest_oni:+.2f} \u00b0C\n"
                     if latest_oni is not None else "")
+        std_line = (f"\nRONI {latest_roni_std:+.2f} \u03c3 (std.)"
+                    if latest_roni_std is not None and np.isfinite(latest_roni_std) else "")
         txt = (f"latest ({latest_month:%b %Y})\n"
                f"{oni_line}"
-               f"RONI {latest_roni:+.2f} \u00b0C")
+               f"RONI {latest_roni:+.2f} \u00b0C"
+               f"{std_line}")
         ax.text(0.985, 0.05, txt, transform=ax.transAxes, fontsize=9,
-                va="bottom", ha="right", family="monospace",
+                va="bottom", ha="right", family="monospace", zorder=6,
                 bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
                           edgecolor="#bbb", alpha=0.9))
 
     fig.text(0.005, 0.005,
-             "Red >+0.5\u00b0C, blue <\u22120.5\u00b0C, grey neutral. "
-             "Computed from NOAA OISST v2.1 (1991\u20132020 base); "
-             "relative index \u2014 not CPC-standardized.",
+             "Bars = RONI in \u00b0C (red >+0.5, blue <\u22120.5, grey neutral). Black line = "
+             "WMO/CPC-style standardized RONI = \u00b0C \u00f7 per-calendar-month \u03c3 (the "
+             "relative-anomaly variance peaks in boreal winter). NOAA OISST v2.1, 1991\u20132020 base.",
              fontsize=7, color="#888")
 
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
@@ -702,15 +743,22 @@ def main(argv=None) -> int:
     latest_oni = float(idx["oni"].iloc[-1])
     latest_roni = float(idx["roni"].iloc[-1])
     latest_month = idx["month"].iloc[-1]
+    latest_roni_std = float(idx["roni_std"].iloc[-1]) if "roni_std" in idx.columns else float("nan")
+    std_str = f", {latest_roni_std:+.2f} \u03c3" if np.isfinite(latest_roni_std) else ""
     print(f"  latest monthly ONI {latest_oni:+.2f} degC, "
-          f"RONI {latest_roni:+.2f} degC ({latest_month:%Y-%m})")
+          f"RONI {latest_roni:+.2f} degC{std_str} ({latest_month:%Y-%m})")
+
+    # Daily standardized RONI for the map label (single-day relative \u00f7 this month's \u03c3).
+    _sig = load_roni_sigma()
+    day_rel_std = day_rel / _sig.get(int(valid.month), float("nan")) if _sig else float("nan")
+    day_std_str = f" ({day_rel_std:+.2f} \u03c3)" if np.isfinite(day_rel_std) else ""
 
     # Daily current-conditions label for the maps (the three requested
     # lines, using single-day values).
     annotation = (
         f"Current Daily Ocean Ni\u00f1o Index: {day_n34:+.2f} \u00b0C\n"
         f"Current Daily Tropical Mean SST: {day_trop:+.2f} \u00b0C\n"
-        f"Current Daily Relative Oceanic Ni\u00f1o Index: {day_rel:+.2f} \u00b0C"
+        f"Current Daily Relative Oceanic Ni\u00f1o Index: {day_rel:+.2f} \u00b0C{day_std_str}"
     )
 
     # --- Maps (dateline-centered, +/-5 degC scale) ---
@@ -731,9 +779,10 @@ def main(argv=None) -> int:
     dsd.close()
 
     # --- RONI time series chart (monthly, year-to-date) ---
+    latest_roni_std = float(idx["roni_std"].iloc[-1]) if "roni_std" in idx.columns else float("nan")
     render_roni(idx, ASSETS / "roni.webp",
                 latest_oni=latest_oni, latest_roni=latest_roni,
-                latest_month=latest_month)
+                latest_month=latest_month, latest_roni_std=latest_roni_std)
     latest_roni_month = latest_month
 
     # --- Daily 3-metric chart (Nino-3.4, tropical-mean, relative) ---

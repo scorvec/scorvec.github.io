@@ -321,10 +321,10 @@
       <div class="chart-card-header">
         <h2>Relative Oceanic Ni&ntilde;o Index (RONI)</h2>
         <p>RONI is an ENSO index that subtracts the tropical-mean SST anomaly (20&deg;S&ndash;20&deg;N) from the Ni&ntilde;o-3.4 anomaly, then applies a 3-month running mean. By removing the slowly-rising tropical background, it isolates the ENSO signal more cleanly than the conventional ONI &mdash; increasingly useful as overall ocean temperatures trend upward.</p>
-        <p><b>How to read it:</b> Red bars (positive) lean El Ni&ntilde;o, blue bars (negative) lean La Ni&ntilde;a; the dashed lines mark the &plusmn;0.5&deg;C guides. This index is computed directly from OISST and shown in &deg;C &mdash; it captures the shape and timing of CPC's RONI but is not their standardized published value.</p>
+        <p><b>How to read it:</b> Red bars (positive) lean El Ni&ntilde;o, blue bars (negative) lean La Ni&ntilde;a; the dashed lines mark the &plusmn;0.5&deg;C guides. The bars show RONI in <b>&deg;C</b>; the black line overlays the <b>WMO/CPC-style standardized RONI</b> &mdash; the same relative anomaly divided by its <b>standard deviation for that calendar month</b>. Because the relative-anomaly variance has a strong seasonal cycle (largest in boreal winter, smallest in spring), this monthly scaling makes a given value's significance comparable across seasons (it is the form CPC publishes). Both are computed directly from NOAA OISST v2.1 (1991&ndash;2020 base), with the per-month &sigma; derived from the 1991&ndash;2020 OISST record.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/roni.webp?v=b5629d657874"
+        <img src="assets/sst/roni.webp?v=2738cc08c7db"
              alt="Relative Oceanic Niño Index time series" loading="lazy">
       </div>
       <div class="chart-card-footer">
@@ -341,7 +341,7 @@
         <p><b>What to look for:</b> When the red (Ni&ntilde;o-3.4) and green (tropical-mean) lines move together, the blue relative line stays flat &mdash; that's background warming, not ENSO. The blue line separating from zero is the genuine ENSO signal.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/daily_indices.webp?v=b5629d657874"
+        <img src="assets/sst/daily_indices.webp?v=2738cc08c7db"
              alt="Daily Niño-3.4, tropical-mean, and relative SST indices" loading="lazy">
       </div>
       <div class="chart-card-footer">
@@ -358,22 +358,22 @@
         <p><b>How to read it:</b> The grey steps are the official bimonthly MEI.v2; the red line is our daily estimate, which leads the official value by roughly five weeks. The shaded band is the &plusmn;0.30 leave-one-year-out cross-validation error &mdash; the honest out-of-sample skill (the fit reproduces MEI.v2 at R&nbsp;=&nbsp;0.94). <b>Caveat:</b> the model is SST-weighted, so during a fast <i>SST-led</i> transition it can run ahead of MEI's slower atmospheric components &mdash; read a rapidly-rising live value as direction-and-timing rather than exact magnitude.</p>
       </div>
       <div class="img-wrap">
-        <img src="assets/sst/mei/mei_nowcast.webp?v=b5629d657874"
+        <img src="assets/sst/mei/mei_nowcast.webp?v=2738cc08c7db"
              alt="Daily nowcast of the Multivariate ENSO Index version 2" loading="lazy">
       </div>
       <div class="img-wrap">
         <p class="img-label">Onset-year analogs &mdash; is the current year tracking the big El Ni&ntilde;os?</p>
-        <img src="assets/sst/mei/mei_analogs.webp?v=b5629d657874"
+        <img src="assets/sst/mei/mei_analogs.webp?v=2738cc08c7db"
              alt="MEI.v2 onset-year analogs: 1982, 1997, 2015, 2023 vs the current nowcast" loading="lazy">
       </div>
       <div class="img-wrap">
         <p class="img-label">Full record since 1980</p>
-        <img src="assets/sst/mei/mei_history.webp?v=b5629d657874"
+        <img src="assets/sst/mei/mei_history.webp?v=2738cc08c7db"
              alt="Full Multivariate ENSO Index v2 record since 1980 with the live nowcast tail" loading="lazy">
       </div>
       <div class="img-wrap">
         <p class="img-label">Out-of-sample skill &mdash; the 2015&ndash;16 El Ni&ntilde;o</p>
-        <img src="assets/sst/mei/mei_validation.webp?v=b5629d657874"
+        <img src="assets/sst/mei/mei_validation.webp?v=2738cc08c7db"
              alt="Validation of the MEI.v2 nowcast over the 2015-16 El Niño" loading="lazy">
       </div>
       <div class="chart-card-footer">
@@ -438,7 +438,7 @@
 
   <div class="colophon">
     <h3>About these plots</h3>
-    <p>This monitor pulls together a range of ENSO and tropical-climate diagnostics, each computed from public source data (not screen-scraped) and regenerated automatically on its own schedule, then committed to the site's GitHub repository. <b>Daily:</b> the global and tropical-Pacific SST anomaly maps, RONI, and indices (NOAA OISST); the equatorial subsurface-temperature cross-section (NOAA/PMEL TAO/TRITON moorings); observed equatorial surface winds (Copernicus Marine scatterometer / ASCAT); and &mdash; from the ECMWF AIFS-ENS / IFS-ENS ensembles &mdash; the equatorial wind Hovm&ouml;ller, the Southern Oscillation Index forecast, and atmospheric angular momentum. <b>Monthly:</b> the CanSIPS Ni&ntilde;o-3.4 seasonal forecast (Environment and Climate Change Canada). <b>Weekly:</b> the El Ni&ntilde;o analog comparisons against 1997, 2015 and 2023. RONI is computed directly &mdash; the cosine-latitude-weighted Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N tropical mean, 3-month smoothed &mdash; rather than fetched.</p>
+    <p>This monitor pulls together a range of ENSO and tropical-climate diagnostics, each computed from public source data (not screen-scraped) and regenerated automatically on its own schedule, then committed to the site's GitHub repository. <b>Daily:</b> the global and tropical-Pacific SST anomaly maps, RONI, and indices (NOAA OISST); the equatorial subsurface-temperature cross-section (NOAA/PMEL TAO/TRITON moorings); observed equatorial surface winds (Copernicus Marine scatterometer / ASCAT); and &mdash; from the ECMWF AIFS-ENS / IFS-ENS ensembles &mdash; the equatorial wind Hovm&ouml;ller, the Southern Oscillation Index forecast, and atmospheric angular momentum. <b>Monthly:</b> the CanSIPS Ni&ntilde;o-3.4 seasonal forecast (Environment and Climate Change Canada). <b>Weekly:</b> the El Ni&ntilde;o analog comparisons against 1997, 2015 and 2023. RONI is computed directly &mdash; the cosine-latitude-weighted Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N tropical mean, 3-month smoothed &mdash; rather than fetched, and is shown both in &deg;C and as the WMO/CPC-style index standardized by the per-calendar-month standard deviation (1991&ndash;2020 OISST).</p>
     <p><b>Data &amp; acknowledgments:</b> ECMWF AIFS-ENS and IFS-ENS forecasts (wind Hovm&ouml;ller, SOI, atmospheric angular momentum) are used under the ECMWF open-data licence (CC&nbsp;BY&nbsp;4.0, &copy;&nbsp;ECMWF). Climatologies and the reanalysis-based fields use <b>ERA5</b> from the Copernicus Climate Change Service (C3S) / ECMWF &mdash; generated using Copernicus Climate Change Service information; neither the European Commission nor ECMWF is responsible for any use of the data. Other sources: NOAA OISST &amp; PSL, NOAA/PMEL TAO/TRITON, Copernicus Marine Service (ASCAT winds), the Australian Bureau of Meteorology / Queensland Govt LongPaddock (SOI), and Environment and Climate Change Canada (CanSIPS).</p>
     <p>Source on <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">GitHub</a>.</p>
   </div>
