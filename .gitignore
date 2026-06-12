@@ -64,3 +64,11 @@ scripts/mjo/data/mei/
 
 # shared cross-pipeline git lock (runtime mutex dir)
 .gitlock/
+
+# Stray artifacts from scripts run in the wrong cwd (real outputs live under repo-root assets/)
+scripts/sst/assets/
+scripts/mjo/assets/
+scripts/sst/sst.html
+scripts/mjo/run_local.log.prev
+scripts/mjo/data/.cycle_done_*
+scripts/mjo/data/.u850_analogs_day
