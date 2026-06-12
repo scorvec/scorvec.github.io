@@ -1,6 +1,6 @@
 name: Live wind+solar grid tracker
 
-# Builds the charts.html hero: live US wind+solar grid penetration + combined 48h forecast.
+# Builds the renewables.html hero: live US wind+solar grid penetration + combined 48h forecast.
 # Hourly — EIA-930 (the live grid denominator) updates hourly; the per-plant HRRR forecasts
 # refresh per-cycle via the wind/solar workflows, and this job picks up whatever is committed.
 on:

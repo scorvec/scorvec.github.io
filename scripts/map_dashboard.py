@@ -6,7 +6,7 @@ Reads:
   - capacity_plant_<cycle>.csv  (one row per plant with lat/lon, capacity, BA)
 
 Writes:
-  - assets/wind_map.html  (Plotly Mapbox map embedded as iframe in charts.html)
+  - assets/wind_map.html  (Plotly Mapbox map embedded as iframe in renewables.html)
 
 Each plant is a circle marker:
   - position: (lat, lon) from the inventory

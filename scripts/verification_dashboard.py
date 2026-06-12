@@ -15,7 +15,7 @@ Usage
         -o ../assets/wind_verification.html
 
 Pairs with dashboard.py (the operational forecast); the chart card on
-charts.html embeds both via <iframe> tabs.
+renewables.html embeds both via <iframe> tabs.
 """
 
 from __future__ import annotations

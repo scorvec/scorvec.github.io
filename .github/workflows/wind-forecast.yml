@@ -229,11 +229,11 @@ jobs:
             exit 0
           }
 
-      - name: Stamp cache-buster into charts.html
+      - name: Stamp cache-buster into renewables.html
         run: |
           CYCLE='${{ steps.cycle.outputs.compact }}'
           TODAY=$(date -u +'%Y-%m-%d %H:%MZ')
-          CHARTS="${{ github.workspace }}/charts.html"
+          CHARTS="${{ github.workspace }}/renewables.html"
           if [ ! -f "$CHARTS" ]; then
             echo "ERROR: $CHARTS not found"
             ls -la "${{ github.workspace }}/" | head -20
@@ -266,7 +266,7 @@ jobs:
 
           # Stage and commit the freshly-generated outputs FIRST (before
           # touching remote), so they exist as a commit we can rebase.
-          git add charts.html
+          git add renewables.html
           git add assets/wind_forecast.html
           git add assets/wind_forecast_data/
           if [ -f assets/wind_verification.html ]; then
@@ -307,7 +307,7 @@ jobs:
               echo "Rebase hit an unresolvable state; aborting and retrying."
               git rebase --abort || true
               git reset --hard origin/main
-              git add charts.html assets/wind_forecast.html assets/wind_forecast_data/ || true
+              git add renewables.html assets/wind_forecast.html assets/wind_forecast_data/ || true
               [ -f assets/wind_verification.html ] && git add assets/wind_verification.html || true
               [ -f assets/wind_map.html ] && git add assets/wind_map.html || true
               git diff --staged --quiet || git commit -m "wind forecast: cycle ${{ steps.cycle.outputs.compact }} (re-applied)"
@@ -323,7 +323,7 @@ jobs:
         run: |
           echo "### Forecast summary" >> $GITHUB_STEP_SUMMARY
           echo "- Cycle: \`${{ steps.cycle.outputs.cycle }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Dashboard: [/charts.html](https://scorvec.github.io/charts.html)" >> $GITHUB_STEP_SUMMARY
+          echo "- Dashboard: [/renewables.html](https://scorvec.github.io/renewables.html)" >> $GITHUB_STEP_SUMMARY
           CURVE_CSV="scripts/output/curve_assignment_${{ steps.cycle.outputs.compact }}.csv"
           if [ -f "$CURVE_CSV" ]; then
             echo "- Curve assignment summary:" >> $GITHUB_STEP_SUMMARY

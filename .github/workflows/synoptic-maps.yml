@@ -183,10 +183,10 @@ jobs:
           # variables.json + regions.json to populate its dropdowns.
           cp viewer.html ../../assets/synoptic/viewer.html
 
-      - name: Stamp cycle into charts.html
+      - name: Stamp cycle into renewables.html
         run: |
           CYCLE='${{ steps.cycle.outputs.compact }}'
-          CHARTS="${{ github.workspace }}/charts.html"
+          CHARTS="${{ github.workspace }}/renewables.html"
           if [ -f "$CHARTS" ]; then
             sed -i -E "s|(id=\"last-updated-synoptic\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
           fi
@@ -200,7 +200,7 @@ jobs:
           # Stage the freshly-rendered maps FIRST so they're a commit we
           # can rebase. -A captures deletions (e.g. stale PNGs).
           git add -A assets/synoptic/
-          git add charts.html
+          git add renewables.html
           echo "--- Staged files ---"
           git diff --staged --name-only | head -30
           echo "--------------------"
@@ -227,7 +227,7 @@ jobs:
               git rebase --abort || true
               git reset --hard origin/main
               git add -A assets/synoptic/ || true
-              git add charts.html || true
+              git add renewables.html || true
               git diff --staged --quiet || git commit -m "synoptic maps: cycle ${{ steps.cycle.outputs.compact }} (re-applied)"
             fi
             sleep 5

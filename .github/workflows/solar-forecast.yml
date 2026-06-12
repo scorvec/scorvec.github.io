@@ -189,11 +189,11 @@ jobs:
           ls -t forecast_region_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
           # capacity_plant is now a single canonical (unstamped) file — nothing to prune.
 
-      - name: Stamp cache-buster into charts.html
+      - name: Stamp cache-buster into renewables.html
         run: |
           CYCLE='${{ steps.cycle.outputs.compact }}'
           TODAY=$(date -u +'%Y-%m-%d %H:%MZ')
-          CHARTS="${{ github.workspace }}/charts.html"
+          CHARTS="${{ github.workspace }}/renewables.html"
           if [ ! -f "$CHARTS" ]; then
             echo "ERROR: $CHARTS not found"
             exit 1
@@ -203,7 +203,7 @@ jobs:
           sed -i -E "s|(id=\"last-updated-solar\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
           sed -i -E "s|(id=\"last-updated-solar-map\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
           N=$(grep -c "solar_forecast.html\|solar_map.html" "$CHARTS" || true)
-          echo "Solar iframe references in charts.html: ${N}"
+          echo "Solar iframe references in renewables.html: ${N}"
 
       - name: Commit and push dashboard
         working-directory: ${{ github.workspace }}
@@ -213,7 +213,7 @@ jobs:
 
           # Stage and commit the freshly-generated outputs FIRST (before
           # touching remote), so they exist as a commit we can rebase.
-          git add charts.html || true
+          git add renewables.html || true
           git add assets/solar_forecast.html
           git add assets/solar_forecast_data/
           if [ -f assets/solar_map.html ]; then
@@ -249,7 +249,7 @@ jobs:
               # Fallback: hard-sync to remote, then re-apply our generated
               # files on top so our cycle still lands.
               git reset --hard origin/main
-              git add charts.html || true
+              git add renewables.html || true
               git add assets/solar_forecast.html assets/solar_forecast_data/ || true
               [ -f assets/solar_map.html ] && git add assets/solar_map.html || true
               git diff --staged --quiet || git commit -m "solar forecast: cycle ${{ steps.cycle.outputs.compact }} (re-applied)"
@@ -265,7 +265,7 @@ jobs:
         run: |
           echo "### Solar forecast summary" >> $GITHUB_STEP_SUMMARY
           echo "- Cycle: \`${{ steps.cycle.outputs.cycle }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Dashboard: [/charts.html](https://scorvec.github.io/charts.html)" >> $GITHUB_STEP_SUMMARY
+          echo "- Dashboard: [/renewables.html](https://scorvec.github.io/renewables.html)" >> $GITHUB_STEP_SUMMARY
           REGION_CSV="assets/solar_forecast_data/forecast_region_${{ steps.cycle.outputs.compact }}.csv"
           if [ -f "$REGION_CSV" ]; then
             echo "- Region summary:" >> $GITHUB_STEP_SUMMARY

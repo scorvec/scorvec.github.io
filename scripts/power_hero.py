@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Combined national wind+solar tracker for the charts.html hero.
+"""Combined national wind+solar tracker for the renewables.html hero.
 
 Reads the latest committed per-plant HRRR forecasts (wind + solar — independent cycles), the two
 nameplate inventories, and the EIA-930 live feed (eia930_fetch.py), and writes one small JSON the

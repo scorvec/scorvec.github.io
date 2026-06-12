@@ -6,7 +6,7 @@ Reads:
   - capacity_plant_<cycle>.csv  (per-plant lat/lon, capacity, axis, type)
 
 Writes:
-  - assets/solar_map.html  (Plotly Mapbox map embedded as iframe in charts.html)
+  - assets/solar_map.html  (Plotly Mapbox map embedded as iframe in renewables.html)
 
 Each plant is a circle marker:
   - position: (lat, lon) from USPVDB inventory
