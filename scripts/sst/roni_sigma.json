@@ -1,4 +1,18 @@
 {
+  "scale_by_month": {
+    "1": 1.2136912666202606,
+    "2": 1.2410934905504942,
+    "3": 1.2760213338911692,
+    "4": 1.2899632259075282,
+    "5": 1.21371283034876,
+    "6": 1.0797615618966068,
+    "7": 1.0359292274105985,
+    "8": 1.055821816957997,
+    "9": 1.1044652539673565,
+    "10": 1.1527831965133344,
+    "11": 1.1753980683982763,
+    "12": 1.1928298626698925
+  },
   "sigma_by_month": {
     "1": 0.8718182499827093,
     "2": 0.7414519553184756,
@@ -43,5 +57,5 @@
     "12": 30
   },
   "source": "NOAA OISST v2.1 monthly (PSL)",
-  "definition": "standard deviation (ddof=1) of the 3-month-running-mean index per center month \u2014 sigma_by_month: relative Ni\u00f1o-3.4 (RONI); sigma_oni_by_month: raw Ni\u00f1o-3.4 (ONI)"
+  "definition": "RONI = scale_by_month \u00b7 (Ni\u00f1o-3.4 \u2212 tropical[20S-20N]) anomaly (\u00b0C), scale = \u03c3(ONI)/\u03c3(relative) per center month (CPC/ECMWF). \u03c3's are of the 3-month-running-mean indices, 1991\u20132020."
 }

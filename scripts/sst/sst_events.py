@@ -106,17 +106,18 @@ def region_daily(ds, var, la, lo, region, relative=False) -> pd.Series:
     return s
 
 
-def _sigma_doy(key):
-    """Smooth σ(day-of-year 1..366) from the 12 monthly σ in roni_sigma.json (periodic interp).
+def _scale_doy():
+    """Smooth RONI scale s = σ(ONI)/σ(relative) as a function of day-of-year (1..366).
 
-    key = 'sigma_by_month' (RONI) or 'sigma_oni_by_month' (ONI). Returns a length-366 array
-    (indexed by doy−1) or None if the table is absent → the chart falls back to raw °C.
+    Periodic interpolation of the 12 monthly scale_by_month values in roni_sigma.json (placed at
+    mid-month) so there are no month-boundary steps. Returns a length-366 array (indexed by doy−1)
+    or None if the table is absent → the chart falls back to the raw relative anomaly.
     """
     import json
     p = HERE / "roni_sigma.json"
     if not p.exists():
         return None
-    tab = json.loads(p.read_text()).get(key)
+    tab = json.loads(p.read_text()).get("scale_by_month")
     if not tab:
         return None
     months = np.arange(1, 13)
@@ -127,12 +128,12 @@ def _sigma_doy(key):
     return np.interp(np.arange(1, 367), x, y)
 
 
-def _standardize(series, sigma_doy):
-    """Daily series ÷ σ(day-of-year) → standardized (σ units); pass-through if σ unavailable."""
-    if sigma_doy is None:
+def _apply_scale(series, scale_doy):
+    """Relative anomaly × s(day-of-year) → the CPC/ECMWF RONI in °C; pass-through if no table."""
+    if scale_doy is None:
         return series
     doy = pd.DatetimeIndex(series.index).dayofyear.values
-    return series / pd.Series(sigma_doy[doy - 1], index=series.index)
+    return series * pd.Series(scale_doy[doy - 1], index=series.index)
 
 
 # ── 1. Niño-3.4 weekly evolution overlay ──────────────────────────────────────
@@ -143,11 +144,12 @@ def overlay_nino34(out: Path):
     roni = region_daily(ds, var, la, lo, "3.4", relative=True)   # RONI (primary)
     oni = region_daily(ds, var, la, lo, "3.4")                   # raw ONI (reference)
 
-    # Standardize to unitless σ by the per-calendar-month climatological SD (WMO/CPC method),
-    # interpolated to a smooth day-of-year curve so there are no month-boundary steps.
-    sig_r, sig_o = _sigma_doy("sigma_by_month"), _sigma_doy("sigma_oni_by_month")
-    std = sig_r is not None
-    roni, oni = _standardize(roni, sig_r), _standardize(oni, sig_o)
+    # RONI (CPC/ECMWF): relative anomaly × per-month s = σ(ONI)/σ(relative), smoothly interpolated
+    # to day-of-year. The rescaling restores ONI's amplitude, so RONI stays in °C and shares ONI's
+    # ±0.5 °C thresholds. ONI is the raw Niño-3.4 reference (unscaled).
+    scale = _scale_doy()
+    scaled = scale is not None
+    roni = _apply_scale(roni, scale)
 
     fig, ax = plt.subplots(figsize=(9, 5.2))
     def devdays(idx, yr):
@@ -171,30 +173,27 @@ def overlay_nino34(out: Path):
     ax.set_xticklabels([f"{m}\nYr0" for m in ("Jan", "Apr", "Jul", "Oct")] +
                        [f"{m}\nYr1" for m in ("Jan", "Apr", "Jul", "Oct")], fontsize=8)
     ax.set_xlim(0, 730)
-    ax.set_ylabel("standardized index (σ)" if std else "Niño-3.4 index (°C)")
+    ax.set_ylabel("Niño-3.4 index (°C)")
     # style legend: solid = RONI, dotted = ONI
     style_h = [plt.Line2D([], [], color="0.35", lw=2.2, label="RONI (relative)"),
                plt.Line2D([], [], color="0.35", lw=1.6, ls=ODASH, label="ONI (raw)")]
     leg2 = ax.legend(handles=style_h, fontsize=8, loc="lower right", framealpha=0.9)
     ax.add_artist(leg2)
-    title = ("Niño-3.4 evolution (7-day mean): standardized RONI vs ONI — current vs. 1997, 2015, 2023"
-             if std else
-             "Niño-3.4 evolution (7-day mean): RONI vs. ONI — current vs. 1997, 2015, 2023")
-    ax.set_title(title, fontsize=11.5, fontweight="bold", loc="left")
+    ax.set_title("Niño-3.4 evolution (7-day mean): RONI vs ONI — current vs. 1997, 2015, 2023",
+                 fontsize=11.5, fontweight="bold", loc="left")
     ax.legend(fontsize=9, loc="upper left", framealpha=0.9)
     ax.grid(True, alpha=0.25)
-    if std:
+    if scaled:
         fig.text(0.005, 0.002,
-                 "Each index standardized by its per-calendar-month standard deviation "
-                 "(WMO/CPC method, 1991–2020 OISST) → unitless σ, comparable across seasons.",
+                 "RONI = (Niño-3.4 − tropical-mean 20°S–20°N) anomaly rescaled by σ(ONI)/σ(relative) "
+                 "per calendar month (CPC/ECMWF) — in °C, comparable to ONI. NOAA OISST, 1991–2020.",
                  fontsize=7, color="#888")
     fig.tight_layout()
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight")
     plt.close(fig)
-    unit = "σ" if std else "°C"
     print(f"wrote {out} (latest {roni.index[-1]:%Y-%m-%d} RONI {roni.iloc[-1]:+.2f} / "
-          f"ONI {oni.reindex([roni.index[-1]]).iloc[0]:+.2f}{unit})")
+          f"ONI {oni.reindex([roni.index[-1]]).iloc[0]:+.2f}°C)")
 
 
 # ── 2. Multi-region flavor bars ───────────────────────────────────────────────

@@ -66,22 +66,26 @@ def main() -> int:
 
     rel3 = (nino - trop).to_series().sort_index().rolling(3, center=True, min_periods=3).mean()   # RONI
     oni3 = nino.to_series().sort_index().rolling(3, center=True, min_periods=3).mean()            # ONI (raw)
-    sigma = per_month_sigma(rel3)            # RONI σ (used by the °C↔σ readout + chart)
-    sigma_oni = per_month_sigma(oni3)        # ONI σ (raw Niño-3.4), for the standardized analog chart
+    sigma = per_month_sigma(rel3)            # σ of the relative index (Niño-3.4 − TROP)
+    sigma_oni = per_month_sigma(oni3)        # σ of the raw Niño-3.4 (ONI)
+    # CPC/ECMWF RONI scaling: RONI = s·(Niño-3.4 − TROP) with s = σ(ONI)/σ(relative), per month.
+    # s>1 restores the variance lost by removing TROP, so RONI is in °C and ONI-comparable.
+    scale = {m: sigma_oni[m] / sigma[m] for m in range(1, 13)}
     counts = {int(m): int(((rel3.index.year >= BASE[0]) & (rel3.index.year <= BASE[1])
                            & (rel3.index.month == m)).sum()) for m in range(1, 13)}
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({
+        "scale_by_month": scale,
         "sigma_by_month": sigma,
         "sigma_oni_by_month": sigma_oni,
         "base_period": f"{BASE[0]}-{BASE[1]}",
         "n_years_by_month": counts,
         "source": "NOAA OISST v2.1 monthly (PSL)",
-        "definition": ("standard deviation (ddof=1) of the 3-month-running-mean index per center "
-                       "month — sigma_by_month: relative Niño-3.4 (RONI); sigma_oni_by_month: raw Niño-3.4 (ONI)"),
+        "definition": ("RONI = scale_by_month · (Niño-3.4 − tropical[20S-20N]) anomaly (°C), "
+                       "scale = σ(ONI)/σ(relative) per center month (CPC/ECMWF). σ's are of the "
+                       "3-month-running-mean indices, 1991–2020."),
     }, indent=2))
-    print("RONI σ by month (°C):", {m: round(s, 3) for m, s in sigma.items()})
-    print("ONI  σ by month (°C):", {m: round(s, 3) for m, s in sigma_oni.items()})
+    print("RONI scale s=σ(ONI)/σ(rel):", {m: round(v, 3) for m, v in scale.items()})
     print(f"wrote {OUT}")
     return 0
 
