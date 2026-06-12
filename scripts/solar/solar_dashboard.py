@@ -75,16 +75,18 @@ def build_dashboard(cycle_str: str, theme: str = "dark") -> None:
     capacity_lookup = (df.groupby("region")["capacity_MW"]
                          .first().to_dict())
 
-    # Build the National column = sum of all dashboard regions present
+    # National = sum of EVERY region present (not just the listed dashboard
+    # regions) so nothing is ever silently dropped from the headline total.
+    all_regions = list(pivot.columns)
     available_regions = [r for r in DASHBOARD_REGIONS if r in pivot.columns]
     if not available_regions:
         raise RuntimeError(
             f"No dashboard regions found. Got: {sorted(pivot.columns)}; "
             f"expected: {DASHBOARD_REGIONS}"
         )
-    pivot[NATIONAL_LABEL] = pivot[available_regions].sum(axis=1)
+    pivot[NATIONAL_LABEL] = pivot[all_regions].sum(axis=1)
     capacity_lookup[NATIONAL_LABEL] = sum(
-        capacity_lookup.get(r, 0) for r in available_regions
+        capacity_lookup.get(r, 0) for r in all_regions
     )
 
     # Ordered list: National first, then individual regions sorted by capacity

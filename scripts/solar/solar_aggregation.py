@@ -67,9 +67,11 @@ STATE_TO_REGION = {
     "UT": "West", "CO": "West", "AZ": "West", "NM": "West",
 }
 
-# Regions we'll surface on the dashboard
-DASHBOARD_REGIONS = ["ERCOT", "CAISO", "MISO", "PJM", "SPP", "Southeast",
-                     "ISO-NE", "NYISO"]
+# Regions we'll surface on the dashboard. MUST cover every region the
+# state→region map can emit, or the dashboard's "National" (= sum of these)
+# silently undercounts — "West" (AZ/NV/NM/UT/CO, ~24 GW) was missing.
+DASHBOARD_REGIONS = ["ERCOT", "CAISO", "West", "MISO", "Southeast",
+                     "PJM", "SPP", "ISO-NE", "NYISO"]
 
 
 def get_latest_cycle() -> Optional[str]:
