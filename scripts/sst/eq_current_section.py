@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Equatorial Pacific zonal-current & thermocline section animator — Copernicus Marine 1/12° model.
 
-A rolling ~1-month loop of the depth × longitude slice along the equator (1.5°S-1.5°N, 160°E-90°W):
+A rolling ~3.5-month loop of the depth × longitude slice along the equator (1.5°S-1.5°N, 160°E-90°W):
 daily zonal current (shaded; eastward = red) with the 20 °C isotherm (the thermocline) overlaid.
 It resolves the Equatorial Undercurrent (the eastward subsurface jet at ~50-200 m), the surface
 South Equatorial Current, and the thermocline tilt — which flatten/weaken as El Niño matures.
@@ -35,18 +35,31 @@ MANIFEST = HERE.parent.parent / "assets" / "sst" / "anim" / "eq_cur_section_mani
 CUR = "cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m"
 TEM = "cmems_mod_glo_phy-thetao_anfc_0.083deg_P1D-m"
 LON0, LON1, LATB, DMAX = 160, 270, 1.5, 400
-KEEP_DAYS = 31
+KEEP_DAYS = 105                  # rolling ~3.5-month window — long enough to follow a downwelling
+                                 # Kelvin wave crossing the basin (thermocline deepening east)
 
 
 def pull_block(d0: date, d1: date):
+    """Subset uo (current) + thetao (temp) over [d0, d1] in monthly chunks → (uo, thetao).
+
+    Pulled in ≤31-day pieces and concatenated so a long backfill (e.g. since March) is a
+    series of small requests rather than one giant subset; a 1-day daily append is one chunk.
+    """
     CACHE.mkdir(parents=True, exist_ok=True)
-    for ds, var, fn in [(CUR, "uo", "sec_u_block.nc"), (TEM, "thetao", "sec_t_block.nc")]:
-        cm.subset(dataset_id=ds, variables=[var], minimum_longitude=LON0, maximum_longitude=LON1,
-                  minimum_latitude=-LATB, maximum_latitude=LATB, minimum_depth=0, maximum_depth=DMAX,
-                  start_datetime=str(d0), end_datetime=str(d1),
-                  output_filename=fn, output_directory=str(CACHE), overwrite=True)
-    return (xr.open_dataset(CACHE / "sec_u_block.nc")["uo"],
-            xr.open_dataset(CACHE / "sec_t_block.nc")["thetao"])
+    out = {}
+    for ds, var in [(CUR, "uo"), (TEM, "thetao")]:
+        pieces, c0 = [], d0
+        while c0 <= d1:
+            c1 = min(c0 + timedelta(days=30), d1)
+            fn = f"sec_{var}_chunk.nc"
+            cm.subset(dataset_id=ds, variables=[var], minimum_longitude=LON0, maximum_longitude=LON1,
+                      minimum_latitude=-LATB, maximum_latitude=LATB, minimum_depth=0, maximum_depth=DMAX,
+                      start_datetime=str(c0), end_datetime=str(c1),
+                      output_filename=fn, output_directory=str(CACHE), overwrite=True)
+            pieces.append(xr.open_dataset(CACHE / fn)[var].load())   # load before the next chunk overwrites
+            c0 = c1 + timedelta(days=1)
+        out[var] = xr.concat(pieces, dim="time").sortby("time") if len(pieces) > 1 else pieces[0]
+    return out["uo"], out["thetao"]
 
 
 def render_frame(u: xr.DataArray, t: xr.DataArray, dt: datetime, out: Path) -> None:
