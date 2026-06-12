@@ -1,0 +1,47 @@
+name: Live wind+solar grid tracker
+
+# Builds the charts.html hero: live US wind+solar grid penetration + combined 48h forecast.
+# Hourly — EIA-930 (the live grid denominator) updates hourly; the per-plant HRRR forecasts
+# refresh per-cycle via the wind/solar workflows, and this job picks up whatever is committed.
+on:
+  schedule:
+    - cron: '25 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: power-tracker
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet requests pandas numpy
+
+      - name: Fetch EIA-930 live grid feed
+        env:
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        run: python scripts/eia930_fetch.py || echo "EIA-930 fetch failed; tracker keeps prior feed"
+
+      - name: Build combined wind+solar tracker JSON
+        run: python scripts/power_hero.py
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/power_data/
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "power tracker: $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash -X ours && git push; then echo "pushed (attempt $i)"; exit 0; fi
+            echo "push attempt $i failed; retrying…"; sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2; exit 1
