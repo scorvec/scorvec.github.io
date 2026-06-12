@@ -58,6 +58,7 @@ NEW_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
 "$PY" scripts/sst/sst_subsurface.py || echo "subsurface failed; continuing"
 ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_ascat_winds.py ) || echo "ASCAT failed; continuing"
 ( cd scripts/sst && "$PY" eq_current_section.py ) || echo "eq current section failed; continuing"
+( cd scripts/sst && "$PY" eq_current_hovmoller.py ) || echo "eq current hovmoller failed; continuing"
 
 # Analog comparison charts (current vs 1997/2015/2023 El Niño) — rebuild ONCE PER
 # CALENDAR DAY (or whenever OISST advances). The subsurface analog tracks TAO, which
