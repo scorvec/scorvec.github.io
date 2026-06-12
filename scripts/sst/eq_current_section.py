@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Equatorial Pacific zonal-current & thermocline section animator — Copernicus Marine 1/12° model.
 
-A rolling ~3.5-month loop of the depth × longitude slice along the equator (1.5°S-1.5°N, 160°E-90°W):
-daily zonal current (shaded; eastward = red) with the 20 °C isotherm (the thermocline) overlaid.
-It resolves the Equatorial Undercurrent (the eastward subsurface jet at ~50-200 m), the surface
-South Equatorial Current, and the thermocline tilt — which flatten/weaken as El Niño matures.
+A fixed-start loop (every day since 1 Mar 2026) of the depth × longitude slice along the equator
+(1.5°S-1.5°N, 160°E-90°W): daily zonal current (shaded; eastward = red) with the 20 °C isotherm
+(the thermocline) overlaid. It resolves the Equatorial Undercurrent (the eastward subsurface jet
+at ~50-200 m), the surface South Equatorial Current, and the thermocline tilt — which flatten/weaken
+as El Niño matures. The window grows (it is an event archive, NOT a rolling window) so the 2026
+downwelling-Kelvin-wave progression never scrolls off.
 
-Daily frames named by date; the first build backfills the window in one block pull, later runs
+Daily frames named by date; the first build backfills the window in monthly chunks, later runs
 append the new day(s). Feeds sst_anim.html (region "eq_cur_section"). Runs in run_local_sst.
 
-    python scripts/sst/eq_current_section.py            # append new day(s) + refresh the loop
-    python scripts/sst/eq_current_section.py --days 31  # backfill the rolling window
+    python scripts/sst/eq_current_section.py                     # append new day(s) + refresh the loop
+    python scripts/sst/eq_current_section.py --start 2026-03-01  # (re)build from a given start date
 """
 from __future__ import annotations
 
@@ -35,8 +37,9 @@ MANIFEST = HERE.parent.parent / "assets" / "sst" / "anim" / "eq_cur_section_mani
 CUR = "cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m"
 TEM = "cmems_mod_glo_phy-thetao_anfc_0.083deg_P1D-m"
 LON0, LON1, LATB, DMAX = 160, 270, 1.5, 400
-KEEP_DAYS = 105                  # rolling ~3.5-month window — long enough to follow a downwelling
-                                 # Kelvin wave crossing the basin (thermocline deepening east)
+START = date(2026, 3, 1)         # fixed window start — keep every day since 1 Mar 2026 so the 2026
+                                 # downwelling-Kelvin-wave progression never scrolls off. This is an
+                                 # event archive (the window grows), not a rolling window.
 
 
 def pull_block(d0: date, d1: date):
@@ -83,11 +86,12 @@ def render_frame(u: xr.DataArray, t: xr.DataArray, dt: datetime, out: Path) -> N
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--days", type=int, default=KEEP_DAYS, help="ensure frames over the last N days")
+    ap.add_argument("--start", default=str(START), help="window start date (YYYY-MM-DD); keep every day since")
     args = ap.parse_args(argv)
+    start = datetime.strptime(args.start, "%Y-%m-%d").date()
     ANIM.mkdir(parents=True, exist_ok=True)
     today = datetime.now(timezone.utc).date()
-    want = [today - timedelta(days=k) for k in range(min(args.days, KEEP_DAYS) - 1, -1, -1)]
+    want = [start + timedelta(days=k) for k in range((today - start).days + 1)]
     need = [d for d in want if not (ANIM / f"{d:%Y%m%d}.webp").exists()]
     if need:
         u, t = pull_block(min(need), max(need))
@@ -99,14 +103,14 @@ def main(argv=None) -> int:
             render_frame(u.isel(time=i), t.isel(time=i), datetime(d.year, d.month, d.day),
                          ANIM / f"{d:%Y%m%d}.webp")
             print(f"  rendered {d}", flush=True)
-    cutoff = today - timedelta(days=KEEP_DAYS)
+    # drop only frames before the fixed start (e.g. the old rolling-window tail); keep everything since
     entries = []
     for fp in sorted(ANIM.glob("*.webp")):
         try:
             dt = datetime.strptime(fp.stem, "%Y%m%d").date()
         except ValueError:
             continue
-        if dt < cutoff:
+        if dt < start:
             fp.unlink(); continue
         entries.append({"idx": len(entries), "file": fp.name,
                         "date": dt.strftime("%Y-%m-%d"), "label": dt.strftime("%-d %b %Y")})
