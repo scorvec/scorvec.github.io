@@ -8,11 +8,15 @@ at ~50-200 m), the surface South Equatorial Current, and the thermocline tilt �
 as El Niño matures. The window grows (it is an event archive, NOT a rolling window) so the 2026
 downwelling-Kelvin-wave progression never scrolls off.
 
-Daily frames named by date; the first build backfills the window in monthly chunks, later runs
-append the new day(s). Feeds sst_anim.html (region "eq_cur_section"). Runs in run_local_sst.
+The latitude-mean section (uo, thetao on time × depth × longitude) is kept in a persistent local
+NetCDF store, so a daily run downloads only the new day(s) and a full re-render (e.g. a plot-style
+change) costs zero download — it rebuilds the frames straight from the cache. Daily frames named by
+date; later runs append the new day(s). Feeds sst_anim.html (region "eq_cur_section"). Runs in
+run_local_sst.
 
     python scripts/sst/eq_current_section.py                     # append new day(s) + refresh the loop
     python scripts/sst/eq_current_section.py --start 2026-03-01  # (re)build from a given start date
+    python scripts/sst/eq_current_section.py --rerender          # rebuild every frame from the cache (no download)
 """
 from __future__ import annotations
 
@@ -32,6 +36,7 @@ import matplotlib.pyplot as plt
 
 HERE = Path(__file__).resolve().parent
 CACHE = HERE / "data" / "cmems"
+STORE = CACHE / "section_store.nc"   # persistent latitude-mean (time,depth,lon) cache — gitignored
 ANIM = HERE.parent.parent / "assets" / "sst" / "anim" / "eq_cur_section"
 MANIFEST = HERE.parent.parent / "assets" / "sst" / "anim" / "eq_cur_section_manifest.json"
 CUR = "cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m"
@@ -42,11 +47,11 @@ START = date(2026, 3, 1)         # fixed window start — keep every day since 1
                                  # event archive (the window grows), not a rolling window.
 
 
-def pull_block(d0: date, d1: date):
-    """Subset uo (current) + thetao (temp) over [d0, d1] in monthly chunks → (uo, thetao).
+def _pull_reduced(d0: date, d1: date):
+    """Subset uo + thetao over [d0, d1] in ≤31-day chunks, 1.5°S-1.5°N mean → (uo, thetao) as (time,depth,lon).
 
-    Pulled in ≤31-day pieces and concatenated so a long backfill (e.g. since March) is a
-    series of small requests rather than one giant subset; a 1-day daily append is one chunk.
+    The latitude average is taken before anything is kept, so only the small reduced section is held
+    in memory / written to the cache (≈0.23 MB/day vs ≈12 MB/day for the full lat-resolved subset).
     """
     CACHE.mkdir(parents=True, exist_ok=True)
     out = {}
@@ -59,15 +64,43 @@ def pull_block(d0: date, d1: date):
                       minimum_latitude=-LATB, maximum_latitude=LATB, minimum_depth=0, maximum_depth=DMAX,
                       start_datetime=str(c0), end_datetime=str(c1),
                       output_filename=fn, output_directory=str(CACHE), overwrite=True)
-            pieces.append(xr.open_dataset(CACHE / fn)[var].load())   # load before the next chunk overwrites
+            pieces.append(xr.open_dataset(CACHE / fn)[var].mean("latitude").load())
             c0 = c1 + timedelta(days=1)
-        out[var] = xr.concat(pieces, dim="time").sortby("time") if len(pieces) > 1 else pieces[0]
+        out[var] = xr.concat(pieces, dim="time") if len(pieces) > 1 else pieces[0]
     return out["uo"], out["thetao"]
 
 
+def update_store(start: date, today: date) -> xr.Dataset:
+    """Append any days in [start, today] not already in the persistent cache; trim to ≥ start, save.
+
+    Only the missing tail is downloaded, so steady-state daily cost is one day (~0.5 MB). Returns the
+    full cached section (uo, thetao on time × depth × longitude) for rendering — no download needed
+    when every wanted day is already cached (e.g. a plot-style re-render).
+    """
+    ds = xr.open_dataset(STORE) if STORE.exists() else None
+    have = set(pd.to_datetime(ds["time"].values).date) if ds is not None else set()
+    want = [start + timedelta(days=k) for k in range((today - start).days + 1)]
+    need = [d for d in want if d not in have]
+    if need:
+        u, t = _pull_reduced(min(need), max(need))
+        new = xr.Dataset({"uo": u, "thetao": t})
+        ds = new if ds is None else xr.concat([ds, new], dim="time")
+        ds = ds.sortby("time")
+        ds = ds.isel(time=~pd.Index(ds["time"].values).duplicated(keep="last"))     # dedup re-pulled days
+        ds = ds.sel(time=ds["time"] >= np.datetime64(start))                         # honour the fixed start
+        STORE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = STORE.with_suffix(".nc.tmp"); ds.to_netcdf(tmp); tmp.replace(STORE)    # atomic write
+        print(f"  cache: +{len(need)} day(s), {ds.sizes['time']} total "
+              f"({str(ds['time'].values[0])[:10]}→{str(ds['time'].values[-1])[:10]})", flush=True)
+    else:
+        print(f"  cache: hit, {ds.sizes['time']} days (no download)", flush=True)
+    return ds
+
+
 def render_frame(u: xr.DataArray, t: xr.DataArray, dt: datetime, out: Path) -> None:
+    """u, t are the latitude-mean section for one day → (depth, longitude)."""
     lon = u["longitude"].values; dep = u["depth"].values
-    U = u.mean("latitude").values; T = t.mean("latitude").values
+    U = u.values; T = t.values
     fig, ax = plt.subplots(figsize=(12, 5.6))
     pm = ax.contourf(lon, dep, U, levels=np.arange(-1.2, 1.21, 0.15), cmap="RdBu_r", extend="both")
     cs20 = ax.contour(lon, dep, T, levels=[20], colors="black", linewidths=2.0)
@@ -90,22 +123,24 @@ def render_frame(u: xr.DataArray, t: xr.DataArray, dt: datetime, out: Path) -> N
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default=str(START), help="window start date (YYYY-MM-DD); keep every day since")
+    ap.add_argument("--rerender", action="store_true", help="rebuild every frame from the cache (no download)")
     args = ap.parse_args(argv)
     start = datetime.strptime(args.start, "%Y-%m-%d").date()
     ANIM.mkdir(parents=True, exist_ok=True)
     today = datetime.now(timezone.utc).date()
+    store = update_store(start, today)                  # download only the missing tail; cache the rest
+    sdates = pd.to_datetime(store["time"].values).date
     want = [start + timedelta(days=k) for k in range((today - start).days + 1)]
-    need = [d for d in want if not (ANIM / f"{d:%Y%m%d}.webp").exists()]
-    if need:
-        u, t = pull_block(min(need), max(need))
-        bdates = pd.to_datetime(u["time"].values).date
-        for d in need:
-            i = int(np.argmin([abs((bd - d).days) for bd in bdates]))
-            if abs((bdates[i] - d).days) > 1:
-                continue
-            render_frame(u.isel(time=i), t.isel(time=i), datetime(d.year, d.month, d.day),
-                         ANIM / f"{d:%Y%m%d}.webp")
-            print(f"  rendered {d}", flush=True)
+    for d in want:
+        fp = ANIM / f"{d:%Y%m%d}.webp"
+        if fp.exists() and not args.rerender:
+            continue
+        i = int(np.argmin([abs((sd - d).days) for sd in sdates]))
+        if abs((sdates[i] - d).days) > 1:
+            continue                                    # day not in the model output
+        render_frame(store["uo"].isel(time=i), store["thetao"].isel(time=i),
+                     datetime(d.year, d.month, d.day), fp)
+        print(f"  rendered {d}", flush=True)
     # drop only frames before the fixed start (e.g. the old rolling-window tail); keep everything since
     entries = []
     for fp in sorted(ANIM.glob("*.webp")):
