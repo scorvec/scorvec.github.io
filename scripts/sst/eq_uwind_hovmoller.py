@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Equatorial Pacific surface zonal-current Hovmöller (strip) — Copernicus Marine 1/12° model.
+"""Equatorial Pacific surface zonal-wind Hovmöller (strip) — Copernicus Marine ASCAT L4.
 
-A longitude × time strip of the daily surface zonal current averaged 2°S-2°N, 150°E-90°W. Normally
-the equatorial surface flows westward (the South Equatorial Current); as El Niño matures the trades
-relax and downwelling Kelvin waves drive eastward surface-current surges that propagate into the
-east Pacific — they show here as eastward (red) bands tilting down-and-eastward.
+A longitude × time strip of the daily-mean surface zonal wind averaged 5°S-5°N, 130°E-80°W, from
+the same gap-filled scatterometer (ASCAT) L4 product the equatorial wind map uses. Normally the
+equatorial surface wind is easterly (the trades); as El Niño develops, westerly-wind bursts (WWBs)
+punch eastward over the warm pool and drive downwelling Kelvin waves — they show here as eastward
+(red, westerly) bands, often propagating east, that precede the surface-current surges in the
+companion ocean-current strip.
 
-Keeps a small rolling store of the band-mean current (committed); each run pulls only the new days
-(the first build backfills the window in monthly chunks). Runs in run_local_sst.sh (CMEMS creds).
+Keeps a rolling band-mean store (local, gitignored — the webp is the committed artifact); each run
+pulls only the new days (the first build backfills the window in monthly chunks). The hourly product
+is resampled to daily means. Runs locally in run_local_sst.sh (CMEMS creds).
 
-    python scripts/sst/eq_current_hovmoller.py --out assets/sst/eq_current_hov.webp
+    python scripts/sst/eq_uwind_hovmoller.py --out assets/sst/eq_uwind_hov.webp
 """
 from __future__ import annotations
 
@@ -29,30 +32,39 @@ from matplotlib.dates import DateFormatter
 
 HERE = Path(__file__).resolve().parent
 CACHE = HERE / "data" / "cmems"
-STORE = CACHE / "eq_scur_store.nc"               # local rolling band-mean cache (gitignored; webp is the artifact)
-CUR = "cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m"
-LON0, LON1, LATB = 130, 280, 2.0                 # 130°E-80°W band; display 150°E-90°W
+STORE = CACHE / "eq_uwind_store.nc"              # local rolling band-mean cache (gitignored)
+WIND = "cmems_obs-wind_glo_phy_nrt_l4_0.125deg_PT1H"
+LON0, LON1, LATB = 130, 280, 5.0                 # 130°E-80°W band, 5°S-5°N; display 150°E-90°W
 KEEP_DAYS = 300
 PLOT_DAYS = 270
 
 
 def _pull(d0: date, d1: date) -> xr.DataArray | None:
-    """Surface (≈0.5 m) zonal current over [d0, d1], 2°S-2°N mean → (time, lon)."""
+    """Daily-mean eastward (zonal) wind over [d0, d1], 5°S-5°N mean → (time, lon)."""
     CACHE.mkdir(parents=True, exist_ok=True)
-    f = CACHE / "scur_chunk.nc"
+    f = CACHE / "uwind_chunk.nc"
     try:
-        cm.subset(dataset_id=CUR, variables=["uo"], minimum_longitude=LON0, maximum_longitude=LON1,
-                  minimum_latitude=-LATB, maximum_latitude=LATB, minimum_depth=0, maximum_depth=1,
-                  start_datetime=str(d0), end_datetime=str(d1),
+        cm.subset(dataset_id=WIND, variables=["eastward_wind"],
+                  minimum_longitude=LON0, maximum_longitude=LON1,
+                  minimum_latitude=-LATB, maximum_latitude=LATB,
+                  start_datetime=str(d0), end_datetime=f"{d1}T23:59:59",
                   output_filename=f.name, output_directory=str(CACHE), overwrite=True)
-        return xr.open_dataset(f)["uo"].isel(depth=0).mean("latitude").load()   # (time, lon)
-    except Exception as e:                                       # noqa: BLE001
+        da = xr.open_dataset(f)["eastward_wind"]
+        da = da.assign_coords(longitude=da["longitude"] % 360).sortby("longitude")
+        da = da.sel(longitude=slice(LON0, LON1))
+        u = da.mean("latitude").resample(time="1D").mean()        # daily mean of the hourly field
+        return u.load()                                            # (time, lon)
+    except Exception as e:                                         # noqa: BLE001
         print(f"  pull {d0}..{d1} failed: {repr(e)[:90]}", flush=True)
         return None
 
 
 def update_store() -> xr.Dataset:
-    """Append any new days to the rolling band-mean store (monthly-chunked backfill), trimmed."""
+    """Append any new days to the rolling band-mean store (monthly-chunked backfill), trimmed.
+
+    `pull_from` limits the download to the recent tail; the trim uses the full window so the store
+    is never collapsed to the last couple of days (the bug the sibling current Hovmöller once had).
+    """
     ds = xr.open_dataset(STORE) if STORE.exists() else None
     have = set(pd.to_datetime(ds["time"].values).date) if ds is not None else set()
     today = datetime.now(timezone.utc).date()
@@ -60,7 +72,7 @@ def update_store() -> xr.Dataset:
     pull_from = window_start
     if have:
         pull_from = max(window_start, max(have) - timedelta(days=2))   # only re-download the recent tail
-    pieces = [ds["uo"]] if ds is not None else []
+    pieces = [ds["u"]] if ds is not None else []
     d0 = pull_from
     while d0 <= today:
         d1 = min(d0 + timedelta(days=30), today)
@@ -71,11 +83,11 @@ def update_store() -> xr.Dataset:
         d0 = d1 + timedelta(days=1)
     if not pieces:
         return ds if ds is not None else xr.Dataset()
-    uo = xr.concat(pieces, dim="time")
-    uo = uo.sortby("time")
-    uo = uo.isel(time=~pd.Index(uo["time"].values).duplicated(keep="last"))      # dedup
-    uo = uo.sel(time=uo["time"] >= np.datetime64(window_start))                   # trim to the full window
-    out = uo.to_dataset(name="uo")
+    u = xr.concat(pieces, dim="time")
+    u = u.sortby("time")
+    u = u.isel(time=~pd.Index(u["time"].values).duplicated(keep="last"))          # dedup
+    u = u.sel(time=u["time"] >= np.datetime64(window_start))                       # trim to the full window
+    out = u.to_dataset(name="u")
     STORE.parent.mkdir(parents=True, exist_ok=True)
     tmp = STORE.with_suffix(".nc.tmp"); out.to_netcdf(tmp); tmp.replace(STORE)
     print(f"store: {out.sizes['time']} d × {out.sizes['longitude']} lon "
@@ -85,14 +97,14 @@ def update_store() -> xr.Dataset:
 
 def render(ds: xr.Dataset, out: Path) -> None:
     from scipy.ndimage import gaussian_filter
-    uo = ds["uo"]
-    lon = uo["longitude"].values; t = uo["time"].values
+    u = ds["u"]
+    lon = u["longitude"].values; t = u["time"].values
     sel = t > t[-1] - np.timedelta64(PLOT_DAYS, "D")
     lm = (lon >= 150) & (lon <= 270)
     tt = t[sel]; xx = lon[lm]
-    field = gaussian_filter(uo.values[np.ix_(sel, lm)], sigma=(1.0, 2.0))
+    field = gaussian_filter(u.values[np.ix_(sel, lm)], sigma=(1.0, 2.0))
     fig, ax = plt.subplots(figsize=(8.4, 9.6))
-    lim = 0.8
+    lim = 8.0
     pm = ax.contourf(xx, tt, field, levels=np.linspace(-lim, lim, 17), cmap="RdBu_r", extend="both")
     ax.contour(xx, tt, field, levels=[0], colors="0.4", linewidths=0.5)
     ax.set_xlim(150, 270); ax.invert_yaxis()
@@ -101,10 +113,10 @@ def render(ds: xr.Dataset, out: Path) -> None:
     ax.axvline(190, color="0.5", lw=0.3, ls=":"); ax.axvline(240, color="0.5", lw=0.3, ls=":")
     ax.yaxis.set_major_formatter(DateFormatter("%d %b"))
     ax.set_xlabel("longitude"); ax.set_ylabel("date")
-    ax.set_title("Equatorial Pacific surface zonal current (2°S–2°N)\n"
-                 "red = eastward (El Niño-favorable) · blue = westward (trade-driven SEC)", fontsize=10)
+    ax.set_title("Equatorial Pacific surface zonal wind (5°S–5°N)\n"
+                 "red = westerly (El Niño-favorable / WWB) · blue = easterly (trade winds)", fontsize=10)
     cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.05, aspect=40)
-    cb.set_label("surface zonal current (m s⁻¹)   ·   eastward +")
+    cb.set_label("surface zonal wind (m s⁻¹)   ·   westerly +")
     fig.tight_layout(); out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight"); plt.close(fig)
     print(f"wrote {out}", flush=True)
@@ -112,7 +124,7 @@ def render(ds: xr.Dataset, out: Path) -> None:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(HERE.parent.parent / "assets" / "sst" / "eq_current_hov.webp"))
+    ap.add_argument("--out", default=str(HERE.parent.parent / "assets" / "sst" / "eq_uwind_hov.webp"))
     args = ap.parse_args(argv)
     ds = update_store()
     if ds and ds.sizes.get("time"):
