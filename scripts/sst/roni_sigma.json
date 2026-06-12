@@ -13,6 +13,20 @@
     "11": 0.9075561490393275,
     "12": 0.9431066774927193
   },
+  "sigma_oni_by_month": {
+    "1": 1.0581181960841735,
+    "2": 0.9202111953016959,
+    "3": 0.7246829606063647,
+    "4": 0.5471991386337656,
+    "5": 0.46294455364808124,
+    "6": 0.4876773690380096,
+    "7": 0.5924943608054499,
+    "8": 0.6818838701932266,
+    "9": 0.8071928536551776,
+    "10": 0.9401504397456304,
+    "11": 1.0667397445438036,
+    "12": 1.124965808596699
+  },
   "base_period": "1991-2020",
   "n_years_by_month": {
     "1": 30,
@@ -29,5 +43,5 @@
     "12": 30
   },
   "source": "NOAA OISST v2.1 monthly (PSL)",
-  "definition": "standard deviation (ddof=1) of the 3-month-running-mean relative Ni\u00f1o-3.4 index (Ni\u00f1o-3.4 \u2212 tropical[20S-20N] anomaly), per center month"
+  "definition": "standard deviation (ddof=1) of the 3-month-running-mean index per center month \u2014 sigma_by_month: relative Ni\u00f1o-3.4 (RONI); sigma_oni_by_month: raw Ni\u00f1o-3.4 (ONI)"
 }

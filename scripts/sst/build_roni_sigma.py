@@ -59,22 +59,29 @@ def main() -> int:
 
     nino = _box(anom, NINO34)
     trop = _box(anom, TROPICAL)
-    rel = (nino - trop).to_series().sort_index()
-    rel3 = rel.rolling(3, center=True, min_periods=3).mean()     # the RONI 3-month running mean
-    base = rel3[(rel3.index.year >= BASE[0]) & (rel3.index.year <= BASE[1])]
 
-    sigma = {int(m): float(base[base.index.month == m].std(ddof=1)) for m in range(1, 13)}
-    counts = {int(m): int((base.index.month == m).sum()) for m in range(1, 13)}
+    def per_month_sigma(series3):
+        b = series3[(series3.index.year >= BASE[0]) & (series3.index.year <= BASE[1])]
+        return {int(m): float(b[b.index.month == m].std(ddof=1)) for m in range(1, 13)}
+
+    rel3 = (nino - trop).to_series().sort_index().rolling(3, center=True, min_periods=3).mean()   # RONI
+    oni3 = nino.to_series().sort_index().rolling(3, center=True, min_periods=3).mean()            # ONI (raw)
+    sigma = per_month_sigma(rel3)            # RONI σ (used by the °C↔σ readout + chart)
+    sigma_oni = per_month_sigma(oni3)        # ONI σ (raw Niño-3.4), for the standardized analog chart
+    counts = {int(m): int(((rel3.index.year >= BASE[0]) & (rel3.index.year <= BASE[1])
+                           & (rel3.index.month == m)).sum()) for m in range(1, 13)}
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({
         "sigma_by_month": sigma,
+        "sigma_oni_by_month": sigma_oni,
         "base_period": f"{BASE[0]}-{BASE[1]}",
         "n_years_by_month": counts,
         "source": "NOAA OISST v2.1 monthly (PSL)",
-        "definition": ("standard deviation (ddof=1) of the 3-month-running-mean relative "
-                       "Niño-3.4 index (Niño-3.4 − tropical[20S-20N] anomaly), per center month"),
+        "definition": ("standard deviation (ddof=1) of the 3-month-running-mean index per center "
+                       "month — sigma_by_month: relative Niño-3.4 (RONI); sigma_oni_by_month: raw Niño-3.4 (ONI)"),
     }, indent=2))
-    print("σ by month (°C):", {m: round(s, 3) for m, s in sigma.items()})
+    print("RONI σ by month (°C):", {m: round(s, 3) for m, s in sigma.items()})
+    print("ONI  σ by month (°C):", {m: round(s, 3) for m, s in sigma_oni.items()})
     print(f"wrote {OUT}")
     return 0
 

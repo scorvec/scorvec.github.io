@@ -636,9 +636,10 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     hi = max(vmax, 0.6) + 0.15
     lo = min(vmin, -0.6) - 0.15
     ax.set_ylim(lo, hi)
-    if has_std:                                          # scale \u03c3 axis by the same lo:hi ratio \u21d2 zeros align
-        smax = float(np.nanmax(np.abs(df["roni_std"].values)))
-        s = (smax * 1.18) / max(hi, -lo) if smax > 0 else 1.0
+    if has_std:                                          # \u03c3 axis keeps the \u00b0C lo:hi ratio (zeros align),
+        sp = float(np.nanmax(df["roni_std"].values))     # sized so BOTH \u03c3 extremes fit with headroom
+        sn = float(np.nanmin(df["roni_std"].values))
+        s = max(sp / hi if sp > 0 else 0.0, (-sn) / (-lo) if sn < 0 else 0.0, 1e-6) * 1.10
         ax2.set_ylim(lo * s, hi * s)
 
     ax.set_ylabel("RONI (\u00b0C)", fontsize=11)

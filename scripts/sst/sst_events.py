@@ -106,6 +106,35 @@ def region_daily(ds, var, la, lo, region, relative=False) -> pd.Series:
     return s
 
 
+def _sigma_doy(key):
+    """Smooth σ(day-of-year 1..366) from the 12 monthly σ in roni_sigma.json (periodic interp).
+
+    key = 'sigma_by_month' (RONI) or 'sigma_oni_by_month' (ONI). Returns a length-366 array
+    (indexed by doy−1) or None if the table is absent → the chart falls back to raw °C.
+    """
+    import json
+    p = HERE / "roni_sigma.json"
+    if not p.exists():
+        return None
+    tab = json.loads(p.read_text()).get(key)
+    if not tab:
+        return None
+    months = np.arange(1, 13)
+    mid = np.array([pd.Timestamp(2001, m, 15).dayofyear for m in months], float)
+    vals = np.array([tab[str(m)] for m in months], float)
+    x = np.concatenate(([mid[-1] - 365], mid, [mid[0] + 365]))      # periodic wrap (Dec↔Jan)
+    y = np.concatenate(([vals[-1]], vals, [vals[0]]))
+    return np.interp(np.arange(1, 367), x, y)
+
+
+def _standardize(series, sigma_doy):
+    """Daily series ÷ σ(day-of-year) → standardized (σ units); pass-through if σ unavailable."""
+    if sigma_doy is None:
+        return series
+    doy = pd.DatetimeIndex(series.index).dayofyear.values
+    return series / pd.Series(sigma_doy[doy - 1], index=series.index)
+
+
 # ── 1. Niño-3.4 weekly evolution overlay ──────────────────────────────────────
 def overlay_nino34(out: Path):
     y0 = current_year()
@@ -114,16 +143,23 @@ def overlay_nino34(out: Path):
     roni = region_daily(ds, var, la, lo, "3.4", relative=True)   # RONI (primary)
     oni = region_daily(ds, var, la, lo, "3.4")                   # raw ONI (reference)
 
+    # Standardize to unitless σ by the per-calendar-month climatological SD (WMO/CPC method),
+    # interpolated to a smooth day-of-year curve so there are no month-boundary steps.
+    sig_r, sig_o = _sigma_doy("sigma_by_month"), _sigma_doy("sigma_oni_by_month")
+    std = sig_r is not None
+    roni, oni = _standardize(roni, sig_r), _standardize(oni, sig_o)
+
     fig, ax = plt.subplots(figsize=(9, 5.2))
     def devdays(idx, yr):
         return (idx - pd.Timestamp(yr, 1, 1)).days
     def draw(s, yr, col, lw, **kw):
         seg = s[f"{yr}":f"{yr+1}"] if yr in ANALOGS else s[f"{yr}":]
         ax.plot(devdays(seg.index, yr), seg.values, color=col, lw=lw, **kw)
+    ODASH = (0, (2, 1.3))                                          # tighter dots → ONI reads better
     for yr in ANALOGS:
-        draw(oni, yr, ANALOG_COLORS[yr], 0.9, ls=":", alpha=0.6)            # ONI faint
+        draw(oni, yr, ANALOG_COLORS[yr], 1.4, ls=ODASH, alpha=0.85)          # ONI (now clearly visible)
         draw(roni, yr, ANALOG_COLORS[yr], 1.8, label=f"{yr}–{str(yr+1)[2:]}")  # RONI bold
-    draw(oni, y0, "#d62728", 1.3, ls=":", alpha=0.6, zorder=5)
+    draw(oni, y0, "#d62728", 2.0, ls=ODASH, alpha=0.9, zorder=5)
     draw(roni, y0, "#d62728", 3.0, label=f"{y0} (current)", zorder=6)
     ax.axhline(0, color="0.6", lw=0.8)
     for g in (0.5, -0.5):
@@ -135,22 +171,30 @@ def overlay_nino34(out: Path):
     ax.set_xticklabels([f"{m}\nYr0" for m in ("Jan", "Apr", "Jul", "Oct")] +
                        [f"{m}\nYr1" for m in ("Jan", "Apr", "Jul", "Oct")], fontsize=8)
     ax.set_xlim(0, 730)
-    ax.set_ylabel("Niño-3.4 index (°C)")
+    ax.set_ylabel("standardized index (σ)" if std else "Niño-3.4 index (°C)")
     # style legend: solid = RONI, dotted = ONI
     style_h = [plt.Line2D([], [], color="0.35", lw=2.2, label="RONI (relative)"),
-               plt.Line2D([], [], color="0.35", lw=1.0, ls=":", label="ONI (raw)")]
+               plt.Line2D([], [], color="0.35", lw=1.6, ls=ODASH, label="ONI (raw)")]
     leg2 = ax.legend(handles=style_h, fontsize=8, loc="lower right", framealpha=0.9)
     ax.add_artist(leg2)
-    ax.set_title("Niño-3.4 evolution (7-day mean): RONI vs. ONI — current vs. 1997, 2015, 2023",
-                 fontsize=12, fontweight="bold", loc="left")
+    title = ("Niño-3.4 evolution (7-day mean): standardized RONI vs ONI — current vs. 1997, 2015, 2023"
+             if std else
+             "Niño-3.4 evolution (7-day mean): RONI vs. ONI — current vs. 1997, 2015, 2023")
+    ax.set_title(title, fontsize=11.5, fontweight="bold", loc="left")
     ax.legend(fontsize=9, loc="upper left", framealpha=0.9)
     ax.grid(True, alpha=0.25)
+    if std:
+        fig.text(0.005, 0.002,
+                 "Each index standardized by its per-calendar-month standard deviation "
+                 "(WMO/CPC method, 1991–2020 OISST) → unitless σ, comparable across seasons.",
+                 fontsize=7, color="#888")
     fig.tight_layout()
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight")
     plt.close(fig)
+    unit = "σ" if std else "°C"
     print(f"wrote {out} (latest {roni.index[-1]:%Y-%m-%d} RONI {roni.iloc[-1]:+.2f} / "
-          f"ONI {oni.reindex([roni.index[-1]]).iloc[0]:+.2f}°C)")
+          f"ONI {oni.reindex([roni.index[-1]]).iloc[0]:+.2f}{unit})")
 
 
 # ── 2. Multi-region flavor bars ───────────────────────────────────────────────
