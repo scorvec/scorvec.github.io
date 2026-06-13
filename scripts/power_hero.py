@@ -30,6 +30,16 @@ ASSETS = HERE.parent / "assets"
 OUT = ASSETS / "power_data" / "power_hero.json"
 EIA = ASSETS / "power_data" / "eia930_latest.json"
 
+# The combined penetration tracker counts only GRID-SCALE (transmission-
+# connected) solar, so the numerator matches the EIA-930 grid-generation
+# denominator. Plant size is the proxy: ≥10 MW is overwhelmingly
+# transmission-interconnected utility solar; smaller plants are
+# distribution-connected / BTM that the grid meters as reduced load, not
+# generation (e.g. ISO-NE: ~3 GW of the ≥1 MW fleet vs <1 GW grid-reported).
+# ≥10 MW keeps the big transmission BAs matched to grid (CISO/MISO ~1.0×)
+# while pulling ISO-NE down to ~0.7 GW. One-line tunable.
+GRID_SCALE_MIN_MW = 10.0
+
 
 def _cycle(path: str) -> str:
     return Path(path).stem.replace("forecast_plant_", "")
@@ -47,6 +57,36 @@ def _national_gw(data_dir: str, power_col: str):
     return s, _cycle(f)
 
 
+def _solar_gridscale_gw():
+    """Latest solar forecast restricted to GRID-SCALE plants (≥ GRID_SCALE_MIN_MW,
+    BA-assigned) → national GW Series + cycle tag + grid-scale nameplate GW.
+
+    Distribution/BTM-sized plants are excluded so the combined tracker's solar
+    matches grid-reported generation (and the EIA-930 denominator), rather than
+    the full ≥1 MW fleet shown on the standalone solar dashboard."""
+    files = sorted(glob.glob(str(ASSETS / "solar_forecast_data" / "forecast_plant_*.csv")))
+    if not files:
+        return None, None, 0.0
+    f = files[-1]
+    capp = ASSETS / "solar_forecast_data" / "capacity_plant.csv"
+    cap_cols = list(pd.read_csv(capp, nrows=0).columns)
+    use = ["case_id", "p_cap_ac"] + (["BA"] if "BA" in cap_cols else [])
+    cap = pd.read_csv(capp, usecols=use)
+    cap["case_id"] = cap["case_id"].astype(str)
+    mask = cap["p_cap_ac"] >= GRID_SCALE_MIN_MW
+    if "BA" in cap.columns:                       # "from the BA": drop unassigned plants
+        mask &= cap["BA"].notna()
+    keep = set(cap.loc[mask, "case_id"])
+    nameplate_GW = round(float(cap.loc[mask, "p_cap_ac"].sum() / 1000.0), 1)
+
+    df = pd.read_csv(f, usecols=["case_id", "valid_time", "MW_AC"])
+    df["case_id"] = df["case_id"].astype(str)
+    df["valid_time"] = pd.to_datetime(df["valid_time"], utc=True)
+    df = df[df["case_id"].isin(keep)]
+    s = (df.groupby("valid_time")["MW_AC"].sum() / 1000.0).sort_index()   # MW → GW
+    return s, _cycle(f), nameplate_GW
+
+
 def _at(series: pd.Series, t: pd.Timestamp):
     """Series value at time t by nearest hour (within 90 min), else None."""
     if series is None or series.empty:
@@ -60,7 +100,7 @@ def _at(series: pd.Series, t: pd.Timestamp):
 
 def main() -> int:
     wind, wcyc = _national_gw("wind_forecast_data", "MW")
-    solar, scyc = _national_gw("solar_forecast_data", "MW_AC")
+    solar, scyc, solar_namep_GW = _solar_gridscale_gw()   # grid-scale only (≥10 MW, BA-assigned)
     if wind is None or solar is None:
         print("ERROR: missing wind or solar forecast_plant CSVs.")
         return 1
@@ -75,7 +115,7 @@ def main() -> int:
 
     namep = {
         "wind_GW": round(float(pd.read_csv(sorted(glob.glob(str(ASSETS / "wind_forecast_data" / "capacity_ba_*.csv")))[-1])["capacity_MW"].sum() / 1000.0), 1),
-        "solar_GW": round(float(pd.read_csv(ASSETS / "solar_forecast_data" / "capacity_plant.csv")["p_cap_ac"].sum() / 1000.0), 1),
+        "solar_GW": solar_namep_GW,   # grid-scale (≥10 MW) nameplate, matching the tracker numerator
     }
     namep["combined_GW"] = round(namep["wind_GW"] + namep["solar_GW"], 1)
 

@@ -41,15 +41,16 @@ NATIONAL_LABEL = "National"
 # Colors for each region's line — warm/amber-based palette to evoke
 # sunlight, with enough variation to distinguish overlaid lines
 REGION_COLORS = {
-    NATIONAL_LABEL: "#f6c453",   # bright sunlight yellow
-    "CAISO":        "#e8893a",   # warm orange (California sun)
-    "ERCOT":        "#c75d3a",   # saturated red-orange (Texas sun)
-    "Southeast":    "#7fb069",   # warm green (Florida/SE foliage)
-    "MISO":         "#6a9aae",   # cool blue-gray (Great Lakes/Plains)
-    "PJM":          "#a87fb0",   # muted purple (Mid-Atlantic)
-    "SPP":          "#d4b85b",   # warm gold (Plains harvest)
-    "ISO-NE":       "#4a8c8c",   # deep teal (New England coast)
-    "NYISO":        "#d97658",   # muted terracotta (autumn leaves)
+    NATIONAL_LABEL:        "#f6c453",   # bright sunlight yellow
+    "CAISO":               "#e8893a",   # warm orange (California sun)
+    "ERCOT":               "#c75d3a",   # saturated red-orange (Texas sun)
+    "Southeast (non-RTO)": "#7fb069",   # warm green (Florida/SE foliage)
+    "WECC (non-CAISO)":    "#c98f5a",   # desert tan (Mountain West / SW)
+    "MISO":                "#6a9aae",   # cool blue-gray (Great Lakes/Plains)
+    "PJM":                 "#a87fb0",   # muted purple (Mid-Atlantic)
+    "SPP":                 "#d4b85b",   # warm gold (Plains harvest)
+    "ISO-NE":              "#4a8c8c",   # deep teal (New England coast)
+    "NYISO":               "#d97658",   # muted terracotta (autumn leaves)
 }
 
 

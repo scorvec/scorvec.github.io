@@ -52,8 +52,8 @@ STATE_TO_REGION = {
     "WV": "PJM", "OH": "PJM", "DC": "PJM",
 
     # Southeast (non-RTO)
-    "FL": "Southeast", "GA": "Southeast", "NC": "Southeast",
-    "SC": "Southeast", "AL": "Southeast", "TN": "Southeast",
+    "FL": "Southeast (non-RTO)", "GA": "Southeast (non-RTO)", "NC": "Southeast (non-RTO)",
+    "SC": "Southeast (non-RTO)", "AL": "Southeast (non-RTO)", "TN": "Southeast (non-RTO)",
 
     # ISO-NE
     "CT": "ISO-NE", "MA": "ISO-NE", "RI": "ISO-NE", "VT": "ISO-NE",
@@ -63,15 +63,21 @@ STATE_TO_REGION = {
     "NY": "NYISO",
 
     # Other (Western non-CAISO)
-    "WA": "West", "OR": "West", "ID": "West", "WY": "West", "NV": "West",
-    "UT": "West", "CO": "West", "AZ": "West", "NM": "West",
+    "WA": "WECC (non-CAISO)", "OR": "WECC (non-CAISO)", "ID": "WECC (non-CAISO)", "WY": "WECC (non-CAISO)", "NV": "WECC (non-CAISO)",
+    "UT": "WECC (non-CAISO)", "CO": "WECC (non-CAISO)", "AZ": "WECC (non-CAISO)", "NM": "WECC (non-CAISO)",
 }
 
 # Regions we'll surface on the dashboard. MUST cover every region the
 # state→region map can emit, or the dashboard's "National" (= sum of these)
 # silently undercounts — "West" (AZ/NV/NM/UT/CO, ~24 GW) was missing.
-DASHBOARD_REGIONS = ["ERCOT", "CAISO", "West", "MISO", "Southeast",
-                     "PJM", "SPP", "ISO-NE", "NYISO"]
+DASHBOARD_REGIONS = ["ERCOT", "CAISO", "WECC (non-CAISO)", "MISO",
+                     "Southeast (non-RTO)", "PJM", "SPP", "ISO-NE", "NYISO"]
+
+# Grid-scale cut: the dashboard counts only transmission-connected solar
+# (what balancing authorities meter as generation), so totals line up with
+# grid actuals. Smaller distribution/BTM-sized plants show up as reduced
+# demand, not generation. Mirrors GRID_SCALE_MIN_MW in scripts/power_hero.py.
+GRID_SCALE_MIN_MW = 10.0
 
 
 # Balancing-authority code → display region. Preferred over the state map
@@ -84,23 +90,23 @@ BA_TO_REGION = {
     "ERCO": "ERCOT", "CISO": "CAISO", "MISO": "MISO", "PJM": "PJM",
     "SWPP": "SPP", "ISNE": "ISO-NE", "NYIS": "NYISO",
     # Southeast (non-RTO SERC/FRCC)
-    "FPL": "Southeast", "SOCO": "Southeast", "CPLE": "Southeast",
-    "DUK": "Southeast", "FPC": "Southeast", "TVA": "Southeast",
-    "TEC": "Southeast", "SCEG": "Southeast", "SC": "Southeast",
-    "SEPA": "Southeast", "FMPP": "Southeast", "SEC": "Southeast",
-    "TAL": "Southeast", "LGEE": "Southeast", "JEA": "Southeast",
-    "AEC": "Southeast", "GVL": "Southeast", "HST": "Southeast",
+    "FPL": "Southeast (non-RTO)", "SOCO": "Southeast (non-RTO)", "CPLE": "Southeast (non-RTO)",
+    "DUK": "Southeast (non-RTO)", "FPC": "Southeast (non-RTO)", "TVA": "Southeast (non-RTO)",
+    "TEC": "Southeast (non-RTO)", "SCEG": "Southeast (non-RTO)", "SC": "Southeast (non-RTO)",
+    "SEPA": "Southeast (non-RTO)", "FMPP": "Southeast (non-RTO)", "SEC": "Southeast (non-RTO)",
+    "TAL": "Southeast (non-RTO)", "LGEE": "Southeast (non-RTO)", "JEA": "Southeast (non-RTO)",
+    "AEC": "Southeast (non-RTO)", "GVL": "Southeast (non-RTO)", "HST": "Southeast (non-RTO)",
     "SPA": "SPP",
     # West (WECC non-CAISO — incl. non-CAISO California BAs)
-    "NEVP": "West", "PACE": "West", "PSCO": "West", "AZPS": "West",
-    "PNM": "West", "SRP": "West", "LDWP": "West", "IPCO": "West",
-    "WACM": "West", "TEPC": "West", "IID": "West", "EPE": "West",
-    "WALC": "West", "AVRN": "West", "PACW": "West", "BANC": "West",
-    "DOPD": "West", "BPAT": "West", "PGE": "West", "NWMT": "West",
-    "WAUW": "West", "AVA": "West", "PSEI": "West", "SCL": "West",
-    "TIDC": "West", "GCPD": "West", "CHPD": "West", "GWA": "West",
-    "GRID": "West", "DEAA": "West", "HGMA": "West", "GRIF": "West",
-    "WAUE": "West",
+    "NEVP": "WECC (non-CAISO)", "PACE": "WECC (non-CAISO)", "PSCO": "WECC (non-CAISO)", "AZPS": "WECC (non-CAISO)",
+    "PNM": "WECC (non-CAISO)", "SRP": "WECC (non-CAISO)", "LDWP": "WECC (non-CAISO)", "IPCO": "WECC (non-CAISO)",
+    "WACM": "WECC (non-CAISO)", "TEPC": "WECC (non-CAISO)", "IID": "WECC (non-CAISO)", "EPE": "WECC (non-CAISO)",
+    "WALC": "WECC (non-CAISO)", "AVRN": "WECC (non-CAISO)", "PACW": "WECC (non-CAISO)", "BANC": "WECC (non-CAISO)",
+    "DOPD": "WECC (non-CAISO)", "BPAT": "WECC (non-CAISO)", "PGE": "WECC (non-CAISO)", "NWMT": "WECC (non-CAISO)",
+    "WAUW": "WECC (non-CAISO)", "AVA": "WECC (non-CAISO)", "PSEI": "WECC (non-CAISO)", "SCL": "WECC (non-CAISO)",
+    "TIDC": "WECC (non-CAISO)", "GCPD": "WECC (non-CAISO)", "CHPD": "WECC (non-CAISO)", "GWA": "WECC (non-CAISO)",
+    "GRID": "WECC (non-CAISO)", "DEAA": "WECC (non-CAISO)", "HGMA": "WECC (non-CAISO)", "GRIF": "WECC (non-CAISO)",
+    "WAUE": "WECC (non-CAISO)",
 }
 
 
@@ -167,14 +173,24 @@ def main():
         print("  WARN: capacity_plant.csv has no BA column; using state map only")
         capacity["region"] = state_region.fillna("Other")
 
-    # 4. Join + aggregate
+    # 3b. Grid-scale cut — keep only transmission-connected solar (what BAs
+    #     meter as generation) so regional totals line up with grid actuals.
+    #     Distribution/BTM-sized plants (<GRID_SCALE_MIN_MW, or unassigned to a
+    #     BA) are dropped; they appear as reduced demand, not generation.
+    before_n, before_gw = len(capacity), capacity["p_cap_ac"].sum() / 1000
+    gs = capacity["p_cap_ac"] >= GRID_SCALE_MIN_MW
+    if "BA" in capacity.columns:
+        gs &= capacity["BA"].notna()
+    capacity = capacity[gs].copy()
+    print(f"  Grid-scale filter (≥{GRID_SCALE_MIN_MW:.0f} MW): "
+          f"{len(capacity):,}/{before_n:,} plants kept, "
+          f"{capacity['p_cap_ac'].sum() / 1000:.1f}/{before_gw:.1f} GW")
+
+    # 4. Join + aggregate (inner: forecast rows for dropped plants are excluded)
     merged = forecast.merge(
         capacity[["case_id", "region", "p_cap_ac"]],
-        on="case_id", how="left",
+        on="case_id", how="inner",
     )
-    n_unmapped = merged["region"].isna().sum()
-    if n_unmapped > 0:
-        print(f"  WARN: {n_unmapped} forecast rows with no region mapping")
 
     # Aggregate generation by region × valid_time
     agg = (merged.groupby(["region", "valid_time"], dropna=False)["MW_AC"]
