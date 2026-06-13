@@ -157,6 +157,13 @@ def load_uspvdb(force_download: bool = False) -> pd.DataFrame:
         if col not in df.columns:
             df[col] = default
 
+    # Balancing-authority code: USPVDB names it p_pwr_reg. Expose a
+    # unified `BA` column so the combined inventory (USPVDB + EIA-860M,
+    # which carries its own BA Code) aggregates to real BAs, not states.
+    if "p_pwr_reg" not in df.columns:
+        df["p_pwr_reg"] = np.nan
+    df["BA"] = df["p_pwr_reg"]
+
     print(f"  Loaded USPVDB: {len(df):,} facilities")
 
     # All records in USPVDB are operational (LBNL only adds completed

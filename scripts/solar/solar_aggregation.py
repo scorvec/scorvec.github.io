@@ -74,6 +74,36 @@ DASHBOARD_REGIONS = ["ERCOT", "CAISO", "West", "MISO", "Southeast",
                      "PJM", "SPP", "ISO-NE", "NYISO"]
 
 
+# Balancing-authority code → display region. Preferred over the state map
+# because it matches how grid operators actually meter solar (e.g. ISO-NE
+# vs the distribution BTM it excludes; CISO ≠ the non-CAISO California BAs
+# LDWP/BANC/IID, which belong to WECC "West"). Anything not listed falls
+# back to STATE_TO_REGION. Codes are EIA-860M / USPVDB p_pwr_reg BA codes.
+BA_TO_REGION = {
+    # RTOs / ISOs (the BA code is the region)
+    "ERCO": "ERCOT", "CISO": "CAISO", "MISO": "MISO", "PJM": "PJM",
+    "SWPP": "SPP", "ISNE": "ISO-NE", "NYIS": "NYISO",
+    # Southeast (non-RTO SERC/FRCC)
+    "FPL": "Southeast", "SOCO": "Southeast", "CPLE": "Southeast",
+    "DUK": "Southeast", "FPC": "Southeast", "TVA": "Southeast",
+    "TEC": "Southeast", "SCEG": "Southeast", "SC": "Southeast",
+    "SEPA": "Southeast", "FMPP": "Southeast", "SEC": "Southeast",
+    "TAL": "Southeast", "LGEE": "Southeast", "JEA": "Southeast",
+    "AEC": "Southeast", "GVL": "Southeast", "HST": "Southeast",
+    "SPA": "SPP",
+    # West (WECC non-CAISO — incl. non-CAISO California BAs)
+    "NEVP": "West", "PACE": "West", "PSCO": "West", "AZPS": "West",
+    "PNM": "West", "SRP": "West", "LDWP": "West", "IPCO": "West",
+    "WACM": "West", "TEPC": "West", "IID": "West", "EPE": "West",
+    "WALC": "West", "AVRN": "West", "PACW": "West", "BANC": "West",
+    "DOPD": "West", "BPAT": "West", "PGE": "West", "NWMT": "West",
+    "WAUW": "West", "AVA": "West", "PSEI": "West", "SCL": "West",
+    "TIDC": "West", "GCPD": "West", "CHPD": "West", "GWA": "West",
+    "GRID": "West", "DEAA": "West", "HGMA": "West", "GRIF": "West",
+    "WAUE": "West",
+}
+
+
 def get_latest_cycle() -> Optional[str]:
     """Find the most recent forecast file in DATA_DIR."""
     if not DATA_DIR.exists():
@@ -122,11 +152,20 @@ def main():
     print(f"  Loaded forecast: {len(forecast):,} rows")
     print(f"  Loaded capacity: {len(capacity):,} plants")
 
-    # 3. Apply region mapping
-    capacity["region"] = (capacity["p_state"]
-                           .astype(str).str.upper()
-                           .map(STATE_TO_REGION)
-                           .fillna("Other"))
+    # 3. Apply region mapping — prefer the real balancing authority (BA),
+    #    fall back to the state map for any plant without a BA code.
+    state_region = (capacity["p_state"].astype(str).str.upper()
+                                       .map(STATE_TO_REGION))
+    if "BA" in capacity.columns:
+        ba_region = (capacity["BA"].astype(str).str.upper()
+                                   .map(BA_TO_REGION))
+        n_by_ba = ba_region.notna().sum()
+        capacity["region"] = ba_region.fillna(state_region).fillna("Other")
+        print(f"  Region mapping: {n_by_ba:,}/{len(capacity):,} plants via BA, "
+              f"{len(capacity) - n_by_ba:,} via state fallback")
+    else:
+        print("  WARN: capacity_plant.csv has no BA column; using state map only")
+        capacity["region"] = state_region.fillna("Other")
 
     # 4. Join + aggregate
     merged = forecast.merge(

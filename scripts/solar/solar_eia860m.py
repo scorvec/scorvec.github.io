@@ -234,6 +234,12 @@ def load_eia860m_raw(force: bool = False) -> tuple[pd.DataFrame, str]:
                 f"{candidates}, available: {sorted(df.columns)[:20]}..."
             )
 
+    # Balancing Authority Code: optional (present in modern releases).
+    # Carried through so downstream aggregation can use the real BA
+    # instead of a state→region guess.
+    if "Balancing Authority Code" in df.columns:
+        resolved["BA"] = "Balancing Authority Code"
+
     # Filter to Solar PV (Technology field)
     before = len(df)
     df = df[df[resolved["Technology"]].astype(str).str.strip()
@@ -313,14 +319,17 @@ def load_eia860m_supplement(
         return pd.DataFrame()
 
     # Aggregate generators within the same plant (one row per plant)
-    grouped = raw.groupby(cols["Plant ID"], as_index=False).agg({
+    agg_spec = {
         cols["Plant Name"]:            "first",
         cols["State"]:                 "first",
         cols["Latitude"]:              "mean",
         cols["Longitude"]:             "mean",
         cols["Nameplate Capacity"]:    "sum",
         cols["Operating Year"]:        "min",  # earliest commissioning
-    })
+    }
+    if "BA" in cols:
+        agg_spec[cols["BA"]] = "first"
+    grouped = raw.groupby(cols["Plant ID"], as_index=False).agg(agg_spec)
     print(f"  Aggregated to {len(grouped):,} plants "
           f"(total {grouped[cols['Nameplate Capacity']].sum():,.0f} MW)")
 
@@ -332,6 +341,8 @@ def load_eia860m_supplement(
         "eia_id":      grouped[cols["Plant ID"]].astype(int),
         "p_name":      grouped[cols["Plant Name"]].astype(str),
         "p_state":     grouped[cols["State"]].astype(str),
+        # Real balancing authority (from EIA-860M's BA Code column)
+        "BA":          (grouped[cols["BA"]].astype(str) if "BA" in cols else np.nan),
         "ylat":        grouped[cols["Latitude"]].astype(float),
         "xlong":       grouped[cols["Longitude"]].astype(float),
         "p_cap_ac":    grouped[cols["Nameplate Capacity"]].astype(float),
