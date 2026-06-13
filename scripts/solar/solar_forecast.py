@@ -226,6 +226,10 @@ def main():
     # eia_id might not be in inventory; add empty if missing
     if "eia_id" in inv.columns:
         capacity_df["eia_id"] = inv["eia_id"].values
+    # Real balancing-authority code (USPVDB p_pwr_reg / EIA-860M BA Code),
+    # used by solar_aggregation for BA→region rollup instead of the state map.
+    if "BA" in inv.columns:
+        capacity_df["BA"] = inv["BA"].values
 
     # Canonical (unstamped) filename: the plant fleet is static, so overwriting
     # the same path each cycle lets git commit it ONCE and skip the otherwise
