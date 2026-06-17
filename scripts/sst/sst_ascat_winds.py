@@ -166,12 +166,15 @@ def main() -> int:
 
     ANIM_DIR.mkdir(parents=True, exist_ok=True)
     pairs = daily_means(max(1, args.backfill))          # newest first
+    newest = pairs[0][1]
     for dsd, day in pairs:
         archive_data(dsd, day)                          # keep the daily field (local)
         frame = ANIM_DIR / f"{day:%Y-%m-%d}.webp"
-        if not frame.exists():                          # idempotent — only render new days
+        # Re-render the newest day every run (NRT coverage fills in over hours, so a frame first
+        # rendered while the day was partial must be refreshed), and re-render any missing or
+        # broken (tiny → collapsed-map) cached frame. Older complete days stay cached.
+        if day == newest or not frame.exists() or frame.stat().st_size < 10_000:
             plot(dsd, day, frame)
-    newest = pairs[0][1]
     shutil.copy2(ANIM_DIR / f"{newest:%Y-%m-%d}.webp", Path(args.out))   # latest static image
     build_manifest()                                    # refresh the animator manifest
     return 0
