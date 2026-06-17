@@ -1,0 +1,66 @@
+name: SST event comparisons (weekly)
+
+# These El Niño event-comparison products compare the current ENSO evolution
+# against the 1997/2015/2023 analogs at 7-day (weekly) resolution, built from
+# the OISST daily-anomaly per-year files for just the event years (~3 GB of
+# downloads). They change slowly, so a weekly refresh is enough — kept out of
+# the daily SST workflow to avoid the bulk download.
+on:
+  schedule:
+    - cron: '41 13 * * 1'      # Mondays ~13 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sst-events
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+      - name: Install cartopy system libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/sst/requirements-sst.txt
+
+      - name: Build event-comparison products (downloads OISST daily-anom event years)
+        run: python scripts/sst/sst_events.py
+
+      - name: Build subsurface analog comparison (TAO moorings, 1997/2015/2023)
+        working-directory: scripts/sst
+        run: python sst_subsurface_events.py || echo "subsurface analog build failed; continuing"
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/sst/events_nino34.webp assets/sst/events_bars.webp assets/sst/events_maps.webp \
+                  assets/sst/subsurface_events_hc.webp assets/sst/subsurface_events_xsec.webp
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "SST event comparisons: weekly refresh"
+          for i in 1 2 3 4 5; do
+            if git push; then exit 0; fi
+            git fetch origin main
+            git rebase -X theirs origin/main || { git rebase --abort||true; git reset --hard origin/main; git add assets/sst/events_*.webp; git diff --staged --quiet || git commit -m "SST event comparisons: weekly refresh (re-applied)"; }
+            sleep 5
+          done
+          echo "push failed"; exit 1

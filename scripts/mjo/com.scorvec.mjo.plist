@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LaunchAgent: local MJO builder (primary). Install with:
+       cp scripts/mjo/com.scorvec.mjo.plist ~/Library/LaunchAgents/
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.mjo.plist
+     Reload after edits:
+       launchctl bootout gui/$(id -u)/com.scorvec.mjo 2>/dev/null
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.mjo.plist
+     Run once now (test):
+       launchctl kickstart -k gui/$(id -u)/com.scorvec.mjo
+     Polls every 1 h (StartInterval — reliable across sleep/App-Nap, unlike wall-clock
+     StartCalendarInterval). run_local.sh no-ops cheaply via its .cycle_done marker until
+     a new 00Z/12Z cycle lands. The GitHub Action remains the laptop-off fallback. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.scorvec.mjo</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/shawn/scorvec.github.io/scripts/mjo/run_local.sh</string>
+  </array>
+  <key>StartInterval</key><integer>3600</integer>
+  <key>StandardOutPath</key><string>/Users/shawn/scorvec.github.io/scripts/mjo/launchd.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/shawn/scorvec.github.io/scripts/mjo/launchd.err.log</string>
+  <key>RunAtLoad</key><false/>
+  <key>ProcessType</key><string>Background</string>
+</dict>
+</plist>

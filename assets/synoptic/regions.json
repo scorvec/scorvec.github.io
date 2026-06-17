@@ -1,0 +1,29 @@
+{
+  "regions": [
+    {
+      "id": "national",
+      "label": "National (CONUS)",
+      "default": true
+    },
+    {
+      "id": "northwest",
+      "label": "Northwest",
+      "default": false
+    },
+    {
+      "id": "southwest",
+      "label": "Southwest",
+      "default": false
+    },
+    {
+      "id": "northeast",
+      "label": "Northeast",
+      "default": false
+    },
+    {
+      "id": "southeast",
+      "label": "Southeast",
+      "default": false
+    }
+  ]
+}

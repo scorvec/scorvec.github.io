@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atmospheric Response &middot; El Ni&ntilde;o Monitor</title>
+<meta name="description" content="Observed and forecast equatorial winds, atmospheric angular momentum and its torque budget, and the meridional overturning circulation.">
+<link rel="canonical" href="https://scorvec.com/enso-atmosphere.html">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html { font-size: 17.5px; }   /* nudge the whole page up from the 16px default */
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+
+  /* fixed two-row header: site nav + ENSO monitor sub-nav */
+  .site-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  .enso-subnav {
+    display: flex; gap: 1.6rem; align-items: center; flex-wrap: wrap;
+    padding: 0.55rem 3rem 0.7rem;
+    border-top: 1px solid var(--rule);
+  }
+  .enso-subnav a {
+    font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
+    color: var(--muted); padding-bottom: 2px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .enso-subnav a:hover { color: var(--ink); }
+  .enso-subnav a.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+  main {
+    flex: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 9.5rem 2.5rem 5rem;
+    width: 100%;
+  }
+
+  .page-header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .page-header p {
+    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+  }
+  .page-header p + p { margin-top: 0.8rem; }
+
+  /* Overview topic grid (links to the themed subpages) */
+  .topic-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem; margin-bottom: 3rem;
+  }
+  .topic-card {
+    display: block; border: 1px solid var(--rule); background: #fff;
+    padding: 1.2rem 1.3rem; text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .topic-card:hover { border-color: var(--accent); background: var(--accent-light); }
+  .topic-card h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.02rem;
+    color: var(--ink); margin-bottom: 0.3rem;
+  }
+  .topic-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+
+  .chart-stack { display: flex; flex-direction: column; gap: 3rem; }
+
+  .chart-card {
+    border: 1px solid var(--rule);
+    background: #fff;
+    overflow: hidden;
+  }
+  .chart-card-header {
+    padding: 1.5rem 1.8rem 1.3rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
+    margin-bottom: 0.6rem; color: var(--ink);
+  }
+  .chart-card-header p {
+    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
+  }
+  .chart-card-header p + p { margin-top: 0.7rem; }
+  .chart-card-header b { color: var(--ink); font-weight: 500; }
+
+  .img-wrap { padding: 1rem 1.2rem; background: #fff; }
+  .img-wrap + .img-wrap { padding-top: 0; }
+  .img-wrap img { display: block; width: 100%; height: auto; }
+  /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
+     sized to its exact content height via postMessage (see footer.html / sst_anim.html),
+     which fills the card with no letterboxing at any width. */
+  .anim-embed { width: 100%; border: 0; display: block; background: #0f0f0d;
+                aspect-ratio: 27 / 25; }
+  .anim-embed.subsurface { aspect-ratio: 1 / 1; }
+  .anim-embed.torque { aspect-ratio: 1306 / 1055; }
+  .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
+  .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
+  .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
+  .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
+  .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
+  .anim-embed.colombia { aspect-ratio: 1680 / 1850; }   /* image 1680×1800 + controls bar */
+  .anim-embed.eq-cur-map { aspect-ratio: 1217 / 467; }      /* image 1217×412 + controls bar */
+  .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
+  .img-label {
+    font-size: 0.72rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 0 0 0.4rem 0.2rem;
+  }
+
+  /* live wind-arrow widget (Tarawa WWB monitor) */
+  .wwb-arrows {
+    display: flex; justify-content: center; align-items: center; gap: 2.6rem;
+    flex-wrap: wrap; padding: 1.3rem 1.2rem 0.4rem;
+  }
+  .wwb-stn { text-align: center; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+  .wwb-stn svg { display: block; margin: 0 auto 0.35rem; }
+  .wwb-stn b { display: block; color: var(--ink); font-weight: 500; font-size: 0.92rem; }
+
+  .chart-card-footer {
+    padding: 0.85rem 1.8rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .chart-sources { font-size: 0.68rem; color: var(--muted); }
+  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+
+  .colophon {
+    margin-top: 4rem; padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+  }
+  .colophon h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    color: var(--ink); margin-bottom: 0.5rem;
+  }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .colophon a:hover { border-bottom-color: var(--accent); }
+
+  footer {
+    padding: 1.2rem 3rem; border-top: 1px solid var(--rule);
+    display: flex; justify-content: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
+    main { padding: 9rem 1.5rem 3.5rem; }
+    .page-header { margin-bottom: 2.2rem; padding-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.6rem; }
+    .chart-stack { gap: 2.2rem; }
+    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
+    .chart-card-footer { padding: 0.75rem 1.3rem; }
+    footer { padding: 1rem 1.5rem; }
+  }
+  @media (max-width: 480px) {
+    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .nav-name { font-size: 0.95rem; }
+    .nav-links { gap: 1rem; }
+    .nav-links a { font-size: 0.78rem; }
+    .enso-subnav { padding: 0.5rem 1.1rem 0.6rem; gap: 0.85rem; }
+    .enso-subnav a { font-size: 0.74rem; }
+    main { padding: 9.5rem 1rem 3rem; }
+    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
+    .chart-card-header h2 { font-size: 1.02rem; }
+    .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
+    .img-wrap { padding: 0.7rem 0.7rem; }
+    .chart-card-footer { padding: 0.7rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+    footer { padding: 0.9rem 1.1rem; }
+  }
+  @media (max-width: 360px) {
+    .nav-links { gap: 0.8rem; }
+    .nav-links a { font-size: 0.72rem; }
+    .enso-subnav { gap: 0.7rem; }
+    .page-header h1 { font-size: 1.28rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <nav>
+    <a href="index.html" class="nav-name">Shawn Corvec</a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resume.html">Resume</a></li>
+      <li><a href="research.html">Research</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+    </ul>
+  </nav>
+  <div class="enso-subnav">
+    <a href="sst.html" class="">Overview</a>
+    <a href="enso-subsurface.html" class="">Subsurface</a>
+    <a href="enso-analogs.html" class="">Analogs</a>
+    <a href="enso-forecasts.html" class="">Forecasts</a>
+    <a href="enso-atmosphere.html" class="active">Atmospheric Response</a>
+  </div>
+</header>
+<main>
+  <div class="page-header">
+    <h1>Atmospheric Response</h1>
+    <p>The atmospheric side of ENSO: observed and forecast equatorial winds, atmospheric angular momentum and its torque budget, and the meridional overturning circulation.</p>
+  </div>
+
+  <div class="chart-stack">
+
+    <!-- OBSERVED ASCAT EQUATORIAL WINDS -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Observed Equatorial Pacific Surface Wind</h2>
+      </div>
+      <iframe class="anim-embed ascat" src="sst_anim.html?embed=1&amp;manifest=ascat_manifest.json&amp;region=ascat"
+              title="Daily 10°S–10°N Pacific surface wind speed and direction (ASCAT) animated over time" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; ~1&ndash;2 day latency &middot; updated daily &middot; drag the slider for recent days</span></div>
+    </div>
+
+    <!-- OBSERVED ASCAT EQUATORIAL ZONAL-WIND HOVMÖLLER -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Observed Equatorial Zonal Wind &mdash; Strip / Hovm&ouml;ller</h2>
+        <p>Longitude &times; time strip of the daily-mean <b>surface zonal wind</b> averaged 5&deg;S&ndash;5&deg;N, 150&deg;E&ndash;90&deg;W, from the same gap-filled scatterometer (ASCAT) L4 product as the map above. <span style="color:#c0392b">Red = westerly</span> (El&nbsp;Ni&ntilde;o-favorable), <span style="color:#2471a3">blue = easterly</span> (the trade winds); newest day at the bottom.</p>
+        <p><b>What to look for:</b> the normally easterly equatorial Pacific (blue) punctuated by <b>westerly-wind bursts</b> (red) over the warm pool that push eastward &mdash; these force the downwelling Kelvin waves and eastward surface-current surges seen in the ocean-current strip on the subsurface page.</p>
+      </div>
+      <div class="img-wrap" style="max-width:640px;margin:0 auto"><img id="eq-uwind-hov" data-src="assets/sst/eq_uwind_hov.webp" alt="Equatorial Pacific surface zonal-wind Hovmöller (observed ASCAT)" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; 5&deg;S&ndash;5&deg;N daily mean &middot; rolling ~9 months &middot; updated daily</span></div>
+    </div>
+
+    <!-- HOURLY SOI ESTIMATE (Darwin/Tahiti METAR) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Hourly SOI Estimate</h2>
+        <p>The Southern Oscillation Index is a Troup standardisation of the Tahiti-minus-Darwin sea-level-pressure difference &mdash; published only monthly, and even LongPaddock's daily version lags 1&ndash;2 days. This estimates it in near-real time from the hourly QNH in the Darwin (YPDN) and Tahiti / Faa&rsquo;a (NTAA) airport METARs, updated hourly by a GitHub Action.</p>
+        <p><b>The exact formula (Troup, 1965):</b></p>
+        <p style="text-align:center; font-size:1.08em; margin:.35em 0 .15em">
+          SOI = 10 &times; ( P<sub>diff</sub> &minus; <span style="border-top:1px solid; padding-top:1px">P<sub>diff</sub></span> ) &divide; &sigma;<sub>diff</sub>
+        </p>
+        <p style="font-size:.93em">where <b>P<sub>diff</sub></b> = mean-sea-level pressure at <b>Tahiti minus Darwin</b> (monthly mean), <b><span style="border-top:1px solid; padding-top:1px">P<sub>diff</sub></span></b> is the long-term average of that difference for the given <b>calendar month</b>, and <b>&sigma;<sub>diff</sub></b> its standard deviation &mdash; both taken over the <b>1887&ndash;1989</b> base period. The factor of 10 is Troup&rsquo;s scaling (so the index mostly falls within &plusmn;35). Crucially, &sigma;<sub>diff</sub> is the spread of <i>monthly</i> values (&asymp;1.3&ndash;2.1&nbsp;hPa), <i>not</i> the much wider day-to-day spread; we recover the exact monthly mean and &sigma; by regressing LongPaddock&rsquo;s published SOI against its own Tahiti&minus;Darwin pressure record, then apply them to the live METAR pressures.</p>
+        <p><b>How to read it:</b> The grey line is the published LongPaddock daily SOI; the bold red line is our <b>24-hour-mean</b> estimate (the atmospheric tide and weather average out), nudged onto the LongPaddock scale, which runs a day or two ahead of it. The faint blue line is the <b>raw hourly</b> SOI &mdash; very noisy (the semidiurnal pressure tide, passing weather, and 1-hPa METAR rounding), useful only as the live pulse. Negative ⇒ El&nbsp;Ni&ntilde;o-favorable.</p>
+      </div>
+      <div class="img-wrap"><img id="soi-hourly" data-src="assets/sst/soi_hourly.webp" alt="Hourly SOI estimate from Darwin and Tahiti METAR" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Darwin (YPDN) + Tahiti (NTAA) METAR via aviationweather.gov &middot; Troup normals &amp; calibration from LongPaddock (BoM 1887&ndash;1989 base) &middot; updated hourly</span></div>
+    </div>
+
+    <!-- WESTERLY-WIND-BURST MONITOR (Tarawa METAR) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Westerly-Wind-Burst Monitor &mdash; Tarawa</h2>
+        <p>Westerly wind bursts (WWBs) over the west-central equatorial Pacific are a key El&nbsp;Ni&ntilde;o trigger: the easterly trades briefly reverse to <i>westerly</i>, pushing warm water and convection eastward (forcing downwelling Kelvin waves). Tarawa / Bonriki (<b>NGTA, 1.4&deg;N 173&deg;E</b>) sits right in that zone, so its hourly airport wind is a handy live proxy &mdash; with Christmas Island (PLCH, far to the east) shown for contrast.</p>
+        <p><b>How to read it:</b> The arrows show the latest wind at each station (which way it&rsquo;s blowing <i>to</i>; <span style="color:#d62728">red&nbsp;= westerly</span>, <span style="color:#1f77b4">blue&nbsp;= easterly</span>). The chart tracks the <b>zonal wind component</b> at Tarawa &mdash; positive/red is westerly (a burst), negative is the normal easterly trade. A sustained red excursion is an active WWB.</p>
+      </div>
+      <div id="wwb-arrows" class="wwb-arrows"></div>
+      <div class="img-wrap"><img id="kiribati-wind" data-src="assets/sst/kiribati_wind.webp" alt="Tarawa equatorial zonal-wind time series — westerly-wind-burst monitor" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Tarawa / Bonriki (NGTA) + Christmas Is. / Kiritimati (PLCH) METAR via aviationweather.gov &middot; updated hourly</span></div>
+    </div>
+
+    <!-- TARAWA WWB ACTIVITY vs PAST EL NIÑO ONSETS (IEM archive) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>WWB Activity vs Past El Ni&ntilde;o Onsets</h2>
+        <p>Putting the live burst in context: Tarawa&rsquo;s daily airport wind from <b>1&nbsp;April</b> onward through the recent strong-ish El&nbsp;Ni&ntilde;o onset years &mdash; <span style="color:#4daf4a"><b>2015&ndash;16</b></span> (very strong) and <span style="color:#984ea3"><b>2023&ndash;24</b></span> (weaker) &mdash; against <b>the current year</b>, from the Iowa Environmental Mesonet METAR archive (back to 2003; 2009&rsquo;s record is too sparse to use).</p>
+        <p><b>How to read it:</b> both panels are a 7-day running mean of the hourly obs &mdash; top: zonal wind (westerly positive); bottom: the fraction of each day with westerly winds. In a developing El&nbsp;Ni&ntilde;o the easterly trades weaken and westerly bursts become more frequent, so both climb from the negative/low cold-state baseline. So far this year that ramp-up is running <b>well ahead of both 2015 and 2023</b> at the same date &mdash; consistent with the negative SOI and the live burst above.</p>
+      </div>
+      <div class="img-wrap"><img id="kiribati-history" data-src="assets/sst/kiribati_history.webp" alt="Tarawa monthly westerly-wind activity across the 2015, 2023 and current El Niño onsets" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Tarawa (NGTT/NGTA) METAR &middot; Iowa Environmental Mesonet ASOS archive &middot; monthly zonal wind &amp; westerly fraction &middot; refreshed daily</span></div>
+    </div>
+
+    <!-- EQUATORIAL 10m WIND HOVMÖLLER -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Pacific 10 m Wind Forecast</h2>
+        <p>Forecast 10 m zonal-wind anomaly (5&deg;S&ndash;5&deg;N), longitude &times; forecast day, from the AIFS-ENS (AI) and ECMWF IFS-ENS (physics) ensemble means vs. the ERA5 1991&ndash;2020 climatology.</p>
+        <p><b>What to look for:</b> Westerly (red) anomalies along the equator push warm water eastward and favor El Ni&ntilde;o development; easterly (blue) anomalies favor La Ni&ntilde;a. Agreement between the AI and physics ensembles raises confidence.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/eq_wind_hovmoller.webp?v=b4b21cbfff99" alt="Equatorial Pacific 10 m zonal-wind anomaly Hovmöller forecast (AIFS-ENS and IFS-ENS)" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS &amp; IFS-ENS (open data) &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
+    </div>
+
+    <!-- SUPER-ENSEMBLE MSLP + 10m WIND MAP ANIMATOR -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Super-Ensemble MSLP &amp; 10 m Wind Forecast</h2>
+        <p>The full-field Pacific surface forecast behind the equatorial diagnostics: combined AIFS-ENS&nbsp;+&nbsp;IFS-ENS super-ensemble-mean mean-sea-level pressure (contours, with H/L centres) and 10&nbsp;m wind (speed shaded in knots, plus barbs), animated day&nbsp;1&ndash;15 over the tropical/subtropical Pacific.</p>
+        <p><b>What to look for:</b> the strength and position of the trade winds and the subtropical highs, and any equatorial <b>westerly</b> push (a wind-burst signature) between the Maritime Continent and the dateline. Use the slider to step through the forecast.</p>
+      </div>
+      <iframe class="anim-embed mslp-wind" src="sst_anim.html?embed=1&amp;manifest=mslp_wind_manifest.json&amp;region=mslp_wind"
+              title="Super-ensemble mean MSLP and 10 m wind forecast over the Pacific, animated" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0) &middot; member-weighted super-ensemble mean &middot; updated each 00/12Z cycle</span></div>
+    </div>
+
+    <!-- ATMOSPHERIC ANGULAR MOMENTUM -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Atmospheric Angular Momentum</h2>
+        <p>Relative AAM is the angular momentum carried by the winds &mdash; the atmosphere's total westerly momentum, &int;&nbsp;u&middot;cos&sup2;&phi; over the whole globe. It's dominated by the upper-tropospheric subtropical jets and the deep tropics (largest moment arm), shown here for the globe and each hemisphere from the AIFS-ENS 13-level winds.</p>
+        <p><b>How to read it:</b> <i>top</i> &mdash; this year's observed AAM (black) and the 15-day forecast (red) on the climatological annual cycle. The hemispheres are strongly out of phase (each peaks in its own winter), so much of the absolute rise/fall is just the season. <i>Bottom</i> &mdash; the anomaly (departure from the 1991&ndash;2020 normal), which removes the seasonal cycle, with a &ldquo;% of climatology&rdquo; axis.</p>
+        <p><b>Why it matters for ENSO:</b> El&nbsp;Ni&ntilde;o shifts tropical convection east, strengthens the subtropical jets and weakens the trade winds &mdash; so the atmosphere holds <b>more</b> westerly momentum. AAM also ties to the MJO / Global Wind Oscillation and to <b>length of day</b> (more atmospheric momentum &rarr; the solid Earth spins fractionally slower).</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/aam.webp?v=b4b21cbfff99" alt="Global and hemispheric atmospheric angular momentum: observed + AIFS-ENS forecast, absolute and anomaly" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Forecast: ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; climatology &amp; this-year observed: ERA5 (Copernicus C3S / ECMWF) &middot; updated daily</span></div>
+    </div>
+
+    <!-- AAM FORECAST TREND -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>AAM Forecast Trend (run-to-run)</h2>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/aam_trend.webp?v=b4b21cbfff99" alt="Run-to-run trend of AIFS-ENS ensemble-mean AAM anomaly forecasts, global and hemispheric" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 (Copernicus C3S) &middot; archived each cycle</span></div>
+    </div>
+
+    <!-- AAM TORQUE BUDGET -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>What Drives AAM &mdash; the Torque Budget</h2>
+        <p>Atmospheric angular momentum only changes through torques the Earth exerts on the atmosphere. With $M$ the relative (wind) AAM, the budget has two resolved terms &mdash; <b>friction</b> (surface wind stress) and <b>mountain</b> (pressure on topography):</p>
+        <p style="text-align:center;font-size:0.95rem">$$M=\frac{a^3}{g}\iiint u\cos^2\!\phi\;d\lambda\,d\phi\,dp,\qquad \frac{dM}{dt}=T_{\text{fric}}+T_{\text{mtn}}\;(+\,T_{\text{gw}})$$</p>
+        <p style="text-align:center;font-size:0.95rem">$$T_{\text{mtn}}=-a^2\!\iint p_s\,\frac{\partial h_s}{\partial\lambda}\,\cos\phi\;d\lambda\,d\phi,\qquad T_{\text{fric}}=-a^3\!\iint \tau_\lambda\,\cos^2\!\phi\;d\lambda\,d\phi$$</p>
+        <p>The two panels show the torque <b>anomalies</b> (vs the ERA5 1991&ndash;2020 climatology, evaluated by day-of-year), so the <i>standing</i> departure from normal &mdash; the El Niño signal &mdash; shows alongside the day-to-day synoptic systems. The mountain term is the form drag <b>h&thinsp;&part;p_s/&part;&lambda;</b> (terrain height &times; east&ndash;west pressure gradient); the grey contours are the <b>surface-pressure anomaly</b> &mdash; the very field the torque uses (solid +, dashed &minus;) &mdash; so colours and contours read together (no surface-vs-sea-level mismatch). <b>Top &mdash; friction</b> ($\tau_\lambda\!\approx\!\rho\,C_d\,|V_{10}|\,u_{10}$): trade-wind and jet stress anomalies (e.g. western-Pacific westerly bursts). <b>Bottom &mdash; mountain</b> (form drag $h_s\,\partial p_s/\partial\lambda$, the same net torque as $-p_s\,\partial h_s/\partial\lambda$ but without the cross-ridge dipole): synoptic pressure systems crossing the Andes, Rockies, Himalaya/Tibet and Greenland. Insets are the ±60&deg; cos&phi;-weighted zonal-mean anomaly; AIFS-ENS ensemble mean of all 51 members (friction averaged per-member; mountain, MSLP &amp; the d(AAM)/dt overlay are linear), ~5&deg;. (The sub-grid gravity-wave-drag term $T_{\text{gw}}$ appears only as the residual.)</p>
+      </div>
+      <iframe class="anim-embed torque" src="sst_anim.html?embed=1&amp;manifest=torque_manifest.json&amp;region=torque"
+              title="AAM surface-torque anomaly animation (friction + mountain) over the AIFS-ENS forecast" loading="lazy"></iframe>
+      <div class="img-wrap"><img src="assets/sst/torque_timeseries.webp?v=b4b21cbfff99" alt="Hemispheric AAM torque budget time series (friction, mountain, sum) for NH and SH" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/torque_ranges.webp?v=b4b21cbfff99" alt="Mountain-torque anomaly broken down by range (Himalaya, Rockies, Andes, Greenland, Antarctica, Alps)" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/torque_seasonal.webp?v=b4b21cbfff99" alt="Seasonal cycle of the three AAM surface-torque terms (friction, mountain, GWD) by latitude, ERA5 1991-2020" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/torque_seasonal_ts.webp?v=b4b21cbfff99" alt="Seasonal cycle of the integrated AAM torque terms (friction, mountain, GWD, sum) for Global/NH/SH, ERA5 1991-2020" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS surface pressure (open data, CC BY 4.0) &middot; ERA5 orography + 1991–2020 torque climatology (Copernicus C3S, seasonal-cycle panel) &middot; daily means &middot; updated daily</span></div>
+    </div>
+
+    <!-- AAM ZONAL ANATOMY (where the AAM lives & where it changes) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Where the AAM Lives &mdash; and Where It&rsquo;s Changing</h2>
+        <p>The torques above change the <i>global</i> AAM; this shows <b>where</b> that angular momentum actually sits in the atmosphere and how the forecast moves it &mdash; a latitude&ndash;pressure cross-section of the relative-AAM density whose integral over latitude and pressure is the global AAM:</p>
+        <p><b>Top panel &mdash; absolute</b>: where the AAM resides, dominated by the <b>subtropical jets</b> (the winter hemisphere&rsquo;s is strongest). <b>Bottom &mdash; change vs the 0-h analysis</b>: where the forecast is <b>adding</b> (red) or <b>removing</b> (blue) angular momentum, with the per-latitude breakdown of the global &Delta;AAM along the top strip. Black contours are the zonal-mean zonal wind (bold = zero). The whole bottom panel integrates to the &Delta;AAM in the title, tying it back to the torque budget above. AIFS-ENS 50-member ensemble mean; the slider steps the forecast Day&nbsp;0&ndash;15, so the change grows from zero.</p>
+      </div>
+      <iframe class="anim-embed aam-zonal" src="sst_anim.html?embed=1&amp;manifest=aam_zonal_manifest.json&amp;region=aam_zonal"
+              title="AIFS-ENS relative AAM anatomy: absolute and forecast change by latitude and pressure" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind + surface pressure (open data, CC BY 4.0) &middot; ensemble mean &middot; updated daily</span></div>
+    </div>
+
+    <!-- MERIDIONAL MASS STREAMFUNCTION (Hadley cell response) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Meridional Overturning &mdash; the Hadley Cell Response</h2>
+        <p>The zonal-mean meridional mass streamfunction $\Psi(\phi,p)$ traces the overturning cells &mdash; Hadley, Ferrel, polar &mdash; from the AIFS-ENS 0-h analysis:</p>
+        <p style="text-align:center;font-size:0.95rem">$$\Psi(\phi,p)=\frac{2\pi a\cos\phi}{g}\int_0^p [v]\,dp',\qquad [v]=\text{zonal-mean }v$$</p>
+        <p>Shown as the <b>anomaly</b> $\Psi'$ from the ERA5 1991&ndash;2020 harmonic climatology (mean + annual + semiannual, by day-of-year) &mdash; how the overturning departs from its normal seasonal state. The black contours are the absolute $\Psi$ (the actual cells) and the arrows show the vertical motion (up = ascent, scaled by strength); the strong equatorial signal tracks the El Niño Walker/Hadley response. Each new 0-h analysis is stashed into a rolling animation with a fixed colour scale, so the cells can be watched as the event evolves.</p>
+      </div>
+      <iframe class="anim-embed mmsf" src="sst_anim.html?embed=1&amp;manifest=mmsf_manifest.json&amp;region=mmsf"
+              title="Meridional mass streamfunction anomaly animation from the AIFS-ENS 0-h analysis" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 0-h analysis meridional wind (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 &Psi; climatology (Copernicus C3S) &middot; updated each cycle</span></div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <p class="counter">Unique viewers: <span id="count">&mdash;</span></p>
+</footer>
+
+<script>
+  fetch((function(){var k='scorvec_uv',s=localStorage.getItem(k),o=localStorage.getItem('scorvec_owner');if(!o){try{localStorage.setItem(k,'1');}catch(e){}}return 'https://api.counterapi.dev/v1/scorvec/unique'+((s||o)?'/':'/up');})())
+    .then(r => r.json())
+    .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
+    .catch(() => { document.getElementById('count').textContent = '—'; });
+</script>
+<script>
+  // Size each animation iframe to its embedded content's exact height (image +
+  // controls), so the wide plots fill their cards with no letterboxing on any screen.
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + 'px';
+        fr[i].style.aspectRatio = 'auto';
+      }
+    }
+  });
+  // Hourly-updating images (committed by their own GitHub Actions, not the page build):
+  // load with an hour-granular cache-buster so the latest render shows without churning
+  // the page HTML. The page's static ?v= can't cover them (they change between page builds).
+  ['soi-hourly', 'kiribati-wind', 'kiribati-history', 'olr-hovmoller', 'olr-waves', 'eq-current-hov', 'eq-uwind-hov'].forEach(function (id) {
+    var im = document.getElementById(id);
+    if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
+  });
+
+  // Live wind-arrow widget for the Tarawa WWB monitor: draw the latest wind at each
+  // station from the hourly kiribati_wind.json (arrow points the way the wind blows TO).
+  (function () {
+    var host = document.getElementById('wwb-arrows'); if (!host) return;
+    fetch('assets/sst/kiribati_wind.json?v=' + new Date().toISOString().slice(0, 13))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.stations) return;
+        var html = '';
+        Object.keys(d.stations).forEach(function (icao) {
+          var s = d.stations[icao], west = s.u_ms > 0, col = west ? '#d62728' : '#1f77b4';
+          var bearing = (s.dir + 180) % 360;             // flow direction (downwind)
+          var lab = Math.abs(s.u_ms) < 0.5 ? 'calm' : (west ? 'westerly' : 'easterly');
+          html += '<div class="wwb-stn"><svg width="92" height="92" viewBox="0 0 100 100">'
+            + '<circle cx="50" cy="50" r="44" fill="none" stroke="#ddd"/>'
+            + '<text x="50" y="13" text-anchor="middle" font-size="9" fill="#bbb">N</text>'
+            + '<g transform="rotate(' + bearing + ' 50 50)">'
+            + '<line x1="50" y1="52" x2="50" y2="24" stroke="' + col + '" stroke-width="4"/>'
+            + '<path d="M50 12 L42 30 L50 25 L58 30 Z" fill="' + col + '"/></g>'
+            + '<circle cx="50" cy="50" r="3.5" fill="' + col + '"/></svg>'
+            + '<b>' + s.name + '</b><span style="color:' + col + '">' + s.dir + '° / '
+            + s.spd_kt + ' kt &middot; ' + lab + '</span></div>';
+        });
+        host.innerHTML = html + '<div class="wwb-stn" style="max-width:9em">updated<br>' + d.updated + '</div>';
+      }).catch(function () {});
+  })();
+</script>
+</body>
+</html>

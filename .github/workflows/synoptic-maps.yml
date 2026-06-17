@@ -1,0 +1,241 @@
+name: Synoptic maps
+
+# FALLBACK ONLY. The primary path is the laptop launchd job
+# scripts/synoptic/run_local_synoptic.sh (18-core render, lands maps minutes
+# after the overlay CSVs). This scheduled run covers the laptop-is-off case:
+# it fires ~5 h after each extended cycle (00/06/12/18Z, by when the wind/solar
+# plant-overlay CSVs have landed) and its `check` job compares the latest
+# available cycle against what's already rendered (national wind manifest's
+# cycle_compact), so when the laptop already rendered the cycle it no-ops.
+on:
+  schedule:
+    - cron: '0 5,11,17,23 * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: 'HRRR cycle (UTC, YYYY-MM-DD HH). Empty = latest.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: synoptic-maps
+  cancel-in-progress: false
+
+jobs:
+  # Gate: skip unless there's a newer cycle than what's already rendered.
+  check:
+    # Scheduled fallback or manual run; the heavy render below is self-gated.
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      cycle: ${{ steps.decide.outputs.cycle }}
+      compact: ${{ steps.decide.outputs.compact }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Decide whether maps need re-rendering
+        id: decide
+        run: |
+          if [ -n "${{ inputs.cycle }}" ]; then
+            CYCLE_RAW="${{ inputs.cycle }}"
+            COMPACT=$(python -c "
+          from datetime import datetime
+          s = '$CYCLE_RAW'.replace('T',' '); p = s.split()
+          print(datetime.strptime(p[0]+' '+p[1][:2], '%Y-%m-%d %H').strftime('%Y%m%dT%HZ'))
+          ")
+            CYCLE=$(python -c "
+          from datetime import datetime
+          s = '$CYCLE_RAW'.replace('T',' '); p = s.split()
+          print(datetime.strptime(p[0]+' '+p[1][:2], '%Y-%m-%d %H').strftime('%Y-%m-%d %H'))
+          ")
+            echo "Manual cycle requested: $CYCLE ($COMPACT)"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+            echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          CYCLE=$(python scripts/find_latest_extended_cycle.py --format iso | sed 's/T/ /;s/:00$//')
+          COMPACT=$(python scripts/find_latest_extended_cycle.py --format compact)
+          echo "Latest available cycle: $CYCLE ($COMPACT)"
+          # Require the plant overlays before rendering, else skip (the next
+          # trigger renders once they land) so render_maps never falls back to
+          # the raw turbine inventory and blobs the maps. Wind capacity is now a
+          # canonical static-fleet file; solar's per-cycle signal is its
+          # forecast_plant (capacity is static there too).
+          WIND_CSV="assets/wind_forecast_data/capacity_plant.csv"
+          SOLAR_CSV="assets/solar_forecast_data/forecast_plant_${COMPACT}.csv"
+          if [ ! -f "$WIND_CSV" ]; then
+            echo "Wind capacity CSV missing ($WIND_CSV) — upstream not ready, skipping."
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+            echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          if [ ! -f "$SOLAR_CSV" ]; then
+            echo "Solar forecast CSV missing ($SOLAR_CSV) — upstream not ready, skipping."
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+            echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # Compare against what's already rendered (national wind manifest).
+          MANIFEST="assets/synoptic/wind/national/manifest.json"
+          RENDERED=""
+          if [ -f "$MANIFEST" ]; then
+            RENDERED=$(python -c "import json; print(json.load(open('$MANIFEST')).get('cycle_compact',''))" 2>/dev/null || echo "")
+          fi
+          echo "Already rendered cycle: '${RENDERED:-<none>}'"
+          if [ "$RENDERED" = "$COMPACT" ]; then
+            echo "Maps already current for $COMPACT — skipping."
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          else
+            echo "Newer cycle $COMPACT with upstream CSVs present — will render."
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          fi
+          echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+          echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+
+  render:
+    needs: check
+    if: ${{ needs.check.outputs.should_run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: scripts/synoptic
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts/synoptic
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('scripts/synoptic/requirements-synoptic.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libeccodes0 \
+            libgeos-dev \
+            libproj-dev \
+            proj-bin
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-synoptic.txt
+
+      - name: Determine cycle
+        id: cycle
+        run: |
+          CYCLE="${{ needs.check.outputs.cycle }}"
+          COMPACT="${{ needs.check.outputs.compact }}"
+          echo "Using cycle from check job: $CYCLE ($COMPACT)"
+          echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+          echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+
+      - name: Render maps
+        run: |
+          CYCLE='${{ steps.cycle.outputs.cycle }}'
+          DATE_PART=$(echo "$CYCLE" | awk '{print $1}')
+          HOUR_PART=$(echo "$CYCLE" | awk '{print $2}')
+          # Clean up stale outputs before rendering:
+          #  - old PNG frames (we now output WebP)
+          #  - orphan region dirs from the previous 9-region layout
+          # Current regions: national, northwest, southwest, northeast, southeast
+          echo "Cleaning stale PNGs and orphan region dirs..."
+          find ../../assets/synoptic -name "*.png" -delete 2>/dev/null || true
+          for var in wind solar reflectivity visibility ceiling; do
+            for old in caiso spp ercot miso pjm newengland bpa nyiso isone se; do
+              rm -rf "../../assets/synoptic/$var/$old" 2>/dev/null || true
+            done
+          done
+          # CI runner has ~7 GB RAM and 2-4 CPUs. With spawn-context workers
+          # each holding ~800 MB of matplotlib/cartopy state plus the
+          # ~2 GB field cache in the main process, we cap at 2 workers
+          # to avoid OOM.
+          python render_maps.py "$DATE_PART" "$HOUR_PART" --workers 2
+
+      - name: Place viewer page
+        run: |
+          # The unified viewer lives at the synoptic root and reads
+          # variables.json + regions.json to populate its dropdowns.
+          cp viewer.html ../../assets/synoptic/viewer.html
+
+      - name: Stamp cycle into renewables.html
+        run: |
+          CYCLE='${{ steps.cycle.outputs.compact }}'
+          CHARTS="${{ github.workspace }}/renewables.html"
+          if [ -f "$CHARTS" ]; then
+            sed -i -E "s|(id=\"last-updated-synoptic\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
+          fi
+
+      - name: Publish frames (orphan branch) + manifests (main)
+        run: |
+          cd "${{ github.workspace }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          COMPACT='${{ steps.cycle.outputs.compact }}'
+
+          # Heavy frame webp → force-pushed `synoptic-frames` ORPHAN branch (served via jsDelivr),
+          # kept OUT of main's history so the repo doesn't balloon. Build a parent-less commit from
+          # a throwaway index (no history kept), force-push, then purge the CDN edge.
+          IDX="$(mktemp)"
+          GIT_INDEX_FILE="$IDX" git read-tree --empty
+          GIT_INDEX_FILE="$IDX" git add -f assets/synoptic          # -f: frame webp are gitignored on main
+          FTREE="$(GIT_INDEX_FILE="$IDX" git write-tree)"; rm -f "$IDX"
+          FCOMMIT="$(git commit-tree "$FTREE" -m "synoptic frames ${COMPACT}")"
+          git update-ref refs/heads/synoptic-frames "$FCOMMIT"
+          git push -f origin synoptic-frames
+          curl -s "https://purge.jsdelivr.net/gh/scorvec/scorvec.github.io@synoptic-frames/" >/dev/null 2>&1 || true
+
+          # main gets only the small bits: manifests/json + viewer + renewables stamp. Frame webp
+          # are gitignored, so `git add -A assets/synoptic/` never re-stages them into main.
+          git add -A assets/synoptic/
+          git add renewables.html
+          if git diff --staged --quiet; then echo "Frames published; no manifest change."; exit 0; fi
+          git commit -m "synoptic maps: cycle ${COMPACT} (manifests; frames on synoptic-frames)"
+          for i in 1 2 3 4 5; do
+            if git push; then echo "Pushed main on attempt $i."; exit 0; fi
+            echo "Push attempt $i rejected; rebasing onto origin/main..."
+            git fetch origin main
+            if ! git rebase -X theirs origin/main; then
+              git rebase --abort || true
+              git reset --hard origin/main
+              git add -A assets/synoptic/ || true
+              git add renewables.html || true
+              git diff --staged --quiet || git commit -m "synoptic maps: cycle ${COMPACT} (re-applied)"
+            fi
+            sleep 5
+          done
+          echo "ERROR: could not push main after 5 attempts." >&2
+          exit 1
+
+      - name: Summary
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "### Synoptic maps summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Cycle: \`${{ steps.cycle.outputs.cycle }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- [Viewer](https://scorvec.github.io/assets/synoptic/viewer.html)" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,41 @@
+name: Tropical Pacific IR satellite loop (GMGSI)
+
+# Seamless tropical-Pacific enhanced-IR satellite loop from the GMGSI global mosaic (AWS).
+# Hourly: render the newest frame(s), trim the rolling 48-hour window, rebuild the manifest.
+# Each fresh checkout already carries the committed window, so only 1-2 frames render per run.
+on:
+  schedule:
+    - cron: '40 * * * *'    # hourly, after the latest GMGSI hour has posted
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pacific-satellite
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # Pin matplotlib+cartopy: an unpinned upgrade (~2026-06-12) regressed the GeoAxes
+      # `bbox_inches="tight"` crop + dropped the title, blowing up the frame geometry.
+      - run: pip install --quiet numpy xarray netcdf4 matplotlib==3.10.9 cartopy==0.25.0 shapely
+      - run: python scripts/sst/pacific_satellite.py
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          git add -A assets/sst/anim/pacsat assets/sst/anim/pacsat_manifest.json
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "Tropical Pacific IR loop (GMGSI): $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash -X ours && git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

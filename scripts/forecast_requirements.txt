@@ -1,0 +1,9 @@
+herbie-data==2024.8.0
+eccodes-python==1.7.1
+cfgrib==0.9.14.0
+xarray==2024.2.0
+numpy==1.26.4
+pandas==2.2.2
+matplotlib==3.8.4
+lightgbm==4.3.0
+joblib==1.4.0

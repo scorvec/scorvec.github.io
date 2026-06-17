@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Charts · Shawn Corvec</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  /* PAGE */
+  main {
+    flex: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 7.5rem 2rem 5rem;
+    width: 100%;
+  }
+
+  /* HEADER */
+  .page-header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .page-header p {
+    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+    max-width: 580px;
+  }
+  .update-badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    margin-top: 1rem;
+    font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-light);
+    padding: 0.3rem 0.75rem; border-radius: 2px;
+  }
+  .update-badge::before {
+    content: '';
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* CHART GRID */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(560px, 1fr));
+    gap: 2.5rem;
+  }
+
+  /* CHART CARD */
+  .chart-card {
+    border: 1px solid var(--rule);
+    background: #fff;
+    overflow: hidden;
+  }
+  .chart-card-header {
+    padding: 1.4rem 1.6rem 1rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.05rem;
+    margin-bottom: 0.3rem; color: var(--ink);
+  }
+  .chart-card-header p {
+    font-size: 0.78rem; color: var(--muted); line-height: 1.6;
+  }
+  .chart-meta {
+    display: flex; align-items: center; gap: 1rem;
+    margin-top: 0.75rem; flex-wrap: wrap;
+  }
+  .meta-tag {
+    font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--rule); color: var(--muted); border-radius: 2px;
+  }
+  .meta-tag.accent {
+    border-color: var(--accent-light); color: var(--accent);
+    background: var(--accent-light);
+  }
+  .chart-img-wrap {
+    padding: 0;
+    background: #0f0f0d;
+  }
+  .chart-img-wrap img {
+    display: block; width: 100%; height: auto;
+  }
+  .chart-card-footer {
+    padding: 0.85rem 1.6rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .chart-sources {
+    font-size: 0.68rem; color: var(--muted);
+  }
+  .chart-updated {
+    font-size: 0.68rem; color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* FOOTER */
+  footer {
+    padding: 1.2rem 3rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 640px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { gap: 1.2rem; }
+    main { padding: 6rem 1.5rem 3rem; }
+    .chart-grid { grid-template-columns: 1fr; }
+    footer { padding: 1rem 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="resume.html">Resume</a></li>
+    <li><a href="research.html">Research</a></li>
+    <li><a href="charts.html" class="active">Charts</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+  </ul>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>Charts &amp; Analysis</h1>
+    <p>A live wind generation forecast for the United States, updated four times daily after each extended HRRR run, alongside a 14-day rolling view of how the model is performing in ERCOT, SPP, and CAISO against actual generation and reported curtailment.</p>
+    <div class="update-badge">Forecast 4× daily</div>
+  </div>
+
+  <div class="chart-grid">
+
+    <!-- LIVE FORECAST -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>48-Hour US Wind Generation Forecast</h2>
+        <p>Per-turbine wind power forecast for every wind turbine in the United States, summed by ISO and balancing authority. The pipeline starts from ~75,000 turbine locations in the USGS Wind Turbine Database, samples HRRR 80-meter wind speeds at each turbine's exact lat/lon, applies a model-specific power curve (windpowerlib catalog where available, NREL WIND Toolkit specific-power generic curves otherwise), and corrects for hub-height and air density. The forecast represents potential generation; observed output is typically lower due to curtailment and outages.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">4× Daily</span>
+          <span class="meta-tag">48 Hours</span>
+          <span class="meta-tag">HRRR</span>
+          <span class="meta-tag">USWTDB</span>
+          <span class="meta-tag">All ISOs</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap" style="background:#0f0f0d;">
+        <iframe src="assets/wind_forecast.html?v=__WIND_CYCLE__"
+                style="width:100%; height:660px; border:0; display:block;"
+                title="US wind generation forecast (interactive)"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA HRRR · USGS USWTDB · EIA-860 · windpowerlib · NREL WIND Toolkit</span>
+        <span class="chart-updated" id="last-updated-wind">Cycle __WIND_CYCLE__</span>
+      </div>
+    </div>
+
+    <!-- HISTORICAL PERFORMANCE -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Model Performance vs. Actuals (14-day rolling)</h2>
+        <p>Day-ahead forecasts from this model (12–24 hour lead) plotted against actual generation and reported curtailment for the three ISOs that publish curtailment data. The blue line is the model's potential-generation forecast; the green dashed line subtracts ISO-reported curtailment to give the deliverable expectation; the red line is what actually showed up on the grid. Persistent gap between the green and red lines indicates residual model error after accounting for curtailment.</p>
+        <div class="chart-meta">
+          <span class="meta-tag accent">Daily Update</span>
+          <span class="meta-tag">14 Days</span>
+          <span class="meta-tag">Day-Ahead</span>
+          <span class="meta-tag">ERCOT · SPP · CAISO</span>
+        </div>
+      </div>
+      <div class="chart-img-wrap" style="background:#0f0f0d;">
+        <iframe src="assets/wind_verification.html?v=__WIND_CYCLE__"
+                style="width:100%; height:660px; border:0; display:block;"
+                title="Historical model vs actual generation (interactive)"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Model + gridstatus.io (actual generation, curtailment)</span>
+        <span class="chart-updated" id="last-updated-verif">Updated __VERIF_DATE__</span>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <p class="counter">Unique viewers: <span id="count">—</span></p>
+</footer>
+
+<script>
+  // The "Updated" labels above are stamped server-side by the
+  // wind-forecast workflow (charts.html is rewritten on each run with
+  // the actual cycle and update time). Don't overwrite from JS.
+
+  // Visitor counter
+  fetch((function(){var k='scorvec_uv',s=localStorage.getItem(k),o=localStorage.getItem('scorvec_owner');if(!o){try{localStorage.setItem(k,'1');}catch(e){}}return 'https://api.counterapi.dev/v1/scorvec/unique'+((s||o)?'/':'/up');})())
+    .then(r => r.json())
+    .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
+    .catch(() => { document.getElementById('count').textContent = '—'; });
+</script>
+</body>
+</html>

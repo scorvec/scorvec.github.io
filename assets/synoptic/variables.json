@@ -1,0 +1,34 @@
+{
+  "variables": [
+    {
+      "id": "wind",
+      "label": "80m Wind Speed",
+      "units": "m/s",
+      "default": true
+    },
+    {
+      "id": "solar",
+      "label": "Surface Shortwave (DSWRF)",
+      "units": "W/m\u00b2",
+      "default": false
+    },
+    {
+      "id": "reflectivity",
+      "label": "1 km Reflectivity",
+      "units": "dBZ",
+      "default": false
+    },
+    {
+      "id": "visibility",
+      "label": "Surface Visibility",
+      "units": "m",
+      "default": false
+    },
+    {
+      "id": "ceiling",
+      "label": "Cloud Ceiling",
+      "units": "m AGL",
+      "default": false
+    }
+  ]
+}

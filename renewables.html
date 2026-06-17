@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HRRR Wind & Solar Generation · Shawn Corvec</title>
+<meta name="description" content="Live US wind and solar generation forecasts driven by NOAA HRRR. Per-turbine and per-plant forecasts for ~75,000 turbines and ~6,500 solar plants, summed by ISO and balancing authority, updated four times daily, with rolling verification against actual ERCOT/SPP/CAISO generation."><link rel="canonical" href="https://scorvec.com/renewables.html">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html, body { height: 100%; }
+  /* desktop reads a touch small on wide monitors — nudge the root up (mobile unchanged) */
+  @media (min-width: 768px) { html { font-size: 110%; } }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  /* PAGE */
+  main {
+    flex: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 7.5rem 2.5rem 5rem;
+    width: 100%;
+  }
+
+  /* HEADER */
+  .page-header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .page-header p {
+    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+  }
+  .page-header p + p {
+    margin-top: 0.8rem;
+  }
+  /* CHART STACK */
+  .chart-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+  }
+
+  /* CHART CARD */
+  .chart-card {
+    border: 1px solid var(--rule);
+    background: #fff;
+    overflow: hidden;
+  }
+  .chart-card-header {
+    padding: 1.5rem 1.8rem 1.3rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
+    margin-bottom: 0.6rem; color: var(--ink);
+  }
+  .chart-card-header p {
+    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
+  }
+  .chart-card-header p + p {
+    margin-top: 0.7rem;
+  }
+  .chart-card-header b {
+    color: var(--ink); font-weight: 500;
+  }
+  .chart-img-wrap {
+    padding: 0;
+    background: #0f0f0d;
+  }
+  .chart-img-wrap img {
+    display: block; width: 100%; height: auto;
+  }
+  /* Responsive iframe heights via per-type CSS vars.
+     Desktop defaults; overridden in media queries below. */
+  .chart-frame {
+    width: 100%; border: 0; display: block;
+    height: var(--frame-h, 660px);
+  }
+  .chart-frame.map {
+    height: var(--map-h, 900px);
+  }
+  .chart-card-footer {
+    padding: 0.85rem 1.8rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .chart-sources {
+    font-size: 0.68rem; color: var(--muted);
+  }
+  .chart-updated {
+    font-size: 0.68rem; color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* COLOPHON */
+  .colophon {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+  }
+  .colophon h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    color: var(--ink); margin-bottom: 0.5rem;
+  }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .colophon a:hover { border-bottom-color: var(--accent); }
+
+  /* FOOTER */
+  footer {
+    padding: 1.2rem 3rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+
+  /* TABLET */
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { gap: 1.3rem; }
+    main { padding: 6.5rem 1.5rem 3.5rem; }
+    .page-header { margin-bottom: 2.2rem; padding-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.6rem; }
+    .chart-stack { gap: 2.2rem; }
+    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
+    .chart-card-header h2 { font-size: 1.08rem; }
+    .chart-card-footer { padding: 0.75rem 1.3rem; }
+    .chart-frame { height: 480px; }
+    .chart-frame.map { height: 600px; }
+    footer { padding: 1rem 1.5rem; }
+  }
+
+  /* PHONE */
+  @media (max-width: 480px) {
+    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .nav-name { font-size: 0.95rem; }
+    .nav-links { gap: 1rem; }
+    .nav-links a { font-size: 0.78rem; }
+    main { padding: 5.5rem 1rem 3rem; }
+    .page-header { margin-bottom: 1.8rem; padding-bottom: 1.3rem; }
+    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
+    .page-header p { font-size: 0.85rem; }
+    .chart-stack { gap: 1.8rem; }
+    .chart-card-header { padding: 1.1rem 1.1rem 0.9rem; }
+    .chart-card-header h2 { font-size: 1.02rem; }
+    .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
+    .chart-card-footer {
+      padding: 0.7rem 1.1rem;
+      flex-direction: column; align-items: flex-start; gap: 0.4rem;
+    }
+    .chart-frame { height: 460px; }
+    .chart-frame.map { height: 560px; }
+    .colophon { margin-top: 2.5rem; }
+    footer { padding: 0.9rem 1.1rem; }
+  }
+
+  /* VERY NARROW */
+  @media (max-width: 360px) {
+    .nav-links { gap: 0.8rem; }
+    .nav-links a { font-size: 0.72rem; }
+    .page-header h1 { font-size: 1.28rem; }
+  }
+
+  /* ── Live wind+solar grid-penetration hero ── */
+  .hero { background:#fff; border:1px solid var(--rule); border-radius:5px; padding:1.7rem 1.7rem 1.3rem; }
+  .hero-head { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:0.3rem 1rem; margin-bottom:1.2rem; }
+  .hero-head h2 { font-family:var(--serif); font-weight:400; font-size:1.45rem; margin:0; color:var(--ink); }
+  .hero-asof { font-size:0.8rem; color:var(--muted); }
+  .hero-asof .stale { color:#c0792a; }
+  .hero-top { display:flex; gap:2rem; align-items:center; flex-wrap:wrap; }
+  .gauge-wrap { flex:0 0 auto; text-align:center; }
+  .gauge-wrap svg { display:block; }
+  #gauge-arc { transition: stroke-dashoffset 1.3s cubic-bezier(.2,.7,.2,1); }
+  .gauge-sub { font-size:0.78rem; color:var(--muted); margin-top:0.1rem; }
+  .stat-grid { flex:1 1 330px; display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:0.7rem; }
+  .stat { background:var(--accent-light); border-radius:4px; padding:0.7rem 0.9rem; }
+  .stat .lab { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+  .stat .val { font-family:var(--serif); font-size:1.55rem; color:var(--ink); margin-top:0.15rem; line-height:1.15; }
+  .stat .val small { font-size:0.82rem; color:var(--muted); }
+  .hero-chart { margin-top:1.4rem; width:100%; height:310px; }
+  .hero-note { font-size:0.78rem; color:var(--muted); line-height:1.6; margin-top:1rem; padding-top:0.9rem; border-top:1px solid var(--rule); }
+  .section-label { font-family:var(--serif); font-size:1.05rem; color:var(--muted); letter-spacing:0.03em;
+                   border-bottom:1px solid var(--rule); padding-bottom:0.4rem; margin:0.4rem 0 -0.6rem; }
+  @media (max-width:600px){ .hero-top{justify-content:center;} .hero-chart{height:270px;} .hero{padding:1.3rem 1.1rem 1rem;} }
+</style>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="resume.html">Resume</a></li>
+    <li><a href="research.html">Research</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+  </ul>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>HRRR Wind and Solar Generation Forecasts</h1>
+    <p>A vibe-coded side project, built entirely from freely available data (NOAA HRRR, EIA-930, USGS). It estimates how much of the US grid wind and solar are supplying right now, plus the next 48 hours. Hope you enjoy!</p>
+  </div>
+
+  <div class="chart-stack">
+
+    <!-- ============== LIVE COMBINED TRACKER (HERO) ============== -->
+    <div class="hero">
+      <div class="hero-head">
+        <h2>Wind + Solar on the US Grid — Live</h2>
+        <span class="hero-asof" id="hero-asof">loading…</span>
+      </div>
+      <div class="hero-top">
+        <div class="gauge-wrap">
+          <svg viewBox="0 0 240 158" width="230" height="151" role="img" aria-label="grid penetration gauge">
+            <defs>
+              <linearGradient id="gg" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#2c9e5a"/><stop offset="0.55" stop-color="#e0a020"/><stop offset="1" stop-color="#d9402a"/>
+              </linearGradient>
+            </defs>
+            <path d="M 22 132 A 98 98 0 0 1 218 132" fill="none" stroke="#ece9e2" stroke-width="19" stroke-linecap="round"/>
+            <path id="gauge-arc" d="M 22 132 A 98 98 0 0 1 218 132" fill="none" stroke="url(#gg)" stroke-width="19" stroke-linecap="round"/>
+            <text id="gauge-pct" x="120" y="118" text-anchor="middle" font-family="Lora,Georgia,serif" font-size="42" fill="#1c1c1a">—</text>
+            <text x="120" y="146" text-anchor="middle" font-size="11.5" fill="#888580">of the US grid, now</text>
+            <text x="17" y="152" text-anchor="middle" font-size="10" fill="#aaa6a0">0</text>
+            <text x="223" y="152" text-anchor="middle" font-size="10" fill="#aaa6a0">50%</text>
+          </svg>
+          <div class="gauge-sub">live wind + solar share of the grid</div>
+        </div>
+        <div class="stat-grid" id="stat-grid">
+          <div class="stat"><div class="lab">Combined output now</div><div class="val" id="s-combined">— <small>GW</small></div></div>
+          <div class="stat"><div class="lab">Wind / Solar</div><div class="val" id="s-split">—</div></div>
+          <div class="stat"><div class="lab">Peak next 48 h</div><div class="val" id="s-peak">—</div></div>
+          <div class="stat"><div class="lab">Total US demand now</div><div class="val" id="s-demand">— <small>GW</small></div></div>
+          <div class="stat"><div class="lab">Combined nameplate</div><div class="val" id="s-name">— <small>GW</small></div></div>
+        </div>
+      </div>
+      <div class="hero-chart" id="hero-chart"></div>
+      <div class="hero-note" id="hero-note"></div>
+    </div>
+
+    <div class="section-label">Wind</div>
+
+    <!-- LIVE FORECAST -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>48-Hour US Wind Generation Forecast</h2>
+        <p>Wind power forecast aggregated by ISO and balancing authority, updated four times daily after each extended HRRR cycle. The dropdown lets you switch between regions or view the national total.</p>
+        <p><b>How it's built:</b> The pipeline starts from the USGS Wind Turbine Database (~75,000 turbines with coordinates, hub heights, rotor diameters, and manufacturer/model strings). For each turbine, HRRR's 10-meter and 80-meter U and V wind components are sampled at the turbine's exact lat/lon. The 10m and 80m winds are used to fit a per-turbine, per-hour power-law shear exponent (alpha = ln(ws80/ws10) / ln(8)), which captures HRRR's resolved boundary-layer stability — high alpha (~0.3–0.5) on stable nights, low alpha (~0.10–0.15) during well-mixed afternoons. That fitted shear is then used to extrapolate to each turbine's hub height. Air density is computed from HRRR's surface temperature and pressure and used to apply an IEC 61400-12 density correction.</p>
+        <p><b>Power curves</b> come from three tiers: a curated registry of OEM curves digitized from manufacturer datasheets (covers ~45% of US capacity, including the GE 2.x-127, GE 3.6-154, Vestas V100-V110, and Siemens SWT families), the windpowerlib oedb catalog (Vestas V126, Nordex N131, etc.), and 12 specific-power-binned NREL generic curves as a fallback. A 16% global loss factor (NREL ATB benchmark) accounts for wake, electrical, and availability losses across the fleet. The forecast represents potential deliverable generation; observed output is typically lower due to curtailment and outages not modeled here.</p>
+      </div>
+      <div class="chart-img-wrap" style="background:#0f0f0d;">
+        <iframe src="assets/wind_forecast.html?v=20260617T12Z"
+                class="chart-frame"
+                title="US wind generation forecast (interactive)"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA HRRR · USGS USWTDB · EIA-860 · windpowerlib · NREL WIND Toolkit</span>
+        <span class="chart-updated" id="last-updated-wind">Cycle 20260617T12Z</span>
+      </div>
+    </div>
+
+    <!-- HISTORICAL PERFORMANCE — hidden while gridstatus.io curtailment
+         and SPP actuals are unavailable. The verification pipeline keeps
+         running and archiving; to restore this card, delete the comment
+         markers around this block (and confirm wind_verification.html is
+         rendering current data). -->
+    <!--
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Model Performance vs. Actuals (14-day rolling)</h2>
+        <p>How the model has been doing. Day-ahead forecasts (12–24 hour lead time) plotted against actual generation for the three ISOs where reliable real-time data is available: ERCOT, SPP, and CAISO.</p>
+        <p><b>How to read it:</b> The blue line is the model's potential-generation forecast issued 12-24 hours before each hour shown. The green dashed line subtracts ISO-reported curtailment, giving the deliverable expectation. The red line is actual generation that showed up on the grid, as reported by the ISO. A persistent gap between the green forecast and red actual indicates residual model error after accounting for known curtailment.</p>
+        <p><b>How it's built:</b> Each forecast cycle is archived to a CSV, and an update step queries gridstatus.io for actual generation and curtailment values as they're published (typically 12–48 hours after the forecast was made). The chart re-renders on each cycle from the rolling 14-day archive.</p>
+      </div>
+      <div class="chart-img-wrap" style="background:#0f0f0d;">
+        <iframe src="assets/wind_verification.html?v=07e9e130d42d"
+                class="chart-frame"
+                title="Historical model vs actual generation (interactive)"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Model + gridstatus.io (actual generation, curtailment)</span>
+        <span class="chart-updated" id="last-updated-verif">Updated 2026-06-17 17:38Z</span>
+      </div>
+    </div>
+    -->
+
+    <!-- PLANT MAP -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Plant-Level Forecast Map</h2>
+        <p>Every utility-scale wind plant in the lower 48 (≥5 MW, ~700 plants) plotted on a map, colored by forecast capacity factor and sized by nameplate. The slider at the bottom steps through the 48-hour forecast horizon; press play to animate.</p>
+        <p><b>How to use it:</b> Hover any plant for its name, current MW output, capacity factor, balancing authority, and turbine count. <b>Click a plant</b> to see its full 48-hour time series in the panel below the map, including gross and net MW, hub-height wind speed, and air density. Scroll or pinch to zoom; drag to pan.</p>
+        <p><b>How it's built:</b> Each forecast cycle aggregates the per-turbine output to the plant level (weighted-mean wind speed and density per plant, summed MW). The map data is built into a self-contained HTML file with all per-plant time series embedded as JSON, so the click handler works without server round-trips. Useful for spotting regional ramps, identifying which plants drive ISO totals, and seeing how a weather pattern plays across the fleet.</p>
+      </div>
+      <div class="chart-img-wrap" style="background:#fafaf8;">
+        <iframe src="assets/wind_map.html?v=20260617T12Z"
+                class="chart-frame map"
+                title="Plant-level wind generation forecast map (interactive)"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA HRRR · USGS USWTDB · CartoDB tiles · Plotly</span>
+        <span class="chart-updated" id="last-updated-map">Cycle 20260617T12Z</span>
+      </div>
+    </div>
+
+    <!-- ============== SOLAR ============== -->
+    <div class="section-label">Solar</div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>HRRR Solar Generation Forecast</h2>
+        <p>48-hour solar power forecast by US balancing-authority region, derived from NOAA's HRRR (High-Resolution Rapid Refresh) numerical weather prediction model. Shows total MW output per region for each forecast hour. Updated four times daily at the 00, 06, 12, and 18Z HRRR extended cycles.</p>
+        <p><b>What you're looking at:</b> Use the dropdown to pick the national total or a single balancing-authority region. The amber line is forecast solar generation; the dashed gray line is total installed nameplate AC capacity. Solar output follows a strong diurnal cycle — zero overnight, peaks at local midday. Cloudy days produce visible dips even at peak hours.</p>
+        <p><b>How it's built:</b> The pipeline starts from the USGS US Large-Scale Photovoltaic Database (~6,500 utility-scale plants ≥1 MW with coordinates, capacity, tracking type, and tilt/azimuth). For each plant, HRRR's downward shortwave radiation (DSWRF), beam (VBDSF) and diffuse (VDDSF) components, and 2-meter air temperature are sampled at the plant's location. Sun position is computed from latitude/longitude/UTC time. For single-axis tracking plants (73% of the US fleet by capacity), pvlib computes the tracker rotation angle that points the panels toward the sun, including backtracking when the sun is low. Plane-of-array irradiance is calculated using HRRR's actual beam/diffuse split (no empirical decomposition). Cell temperature is computed from air temperature plus heating from absorbed irradiance, then a temperature derate is applied to DC power output. Finally, AC power is computed with inverter efficiency and clipping at the AC nameplate.</p>
+        <p><b>Scope — grid-scale, a floor not a ceiling:</b> These totals count <em>grid-scale</em> solar (plants ≥10 MW assigned to a balancing authority) — what grid operators actually meter as generation — so they line up with reported grid actuals (e.g. CAISO and MISO match within ~5%). They deliberately <em>exclude</em> smaller distribution-connected solar and the large behind-the-meter (BTM) rooftop fleet, which together are the <em>majority</em> of all solar in some regions: in ISO New England on a clear June day, grid-scale solar peaks near 0.8 GW while BTM solar tops 5 GW. So true total US solar generation is substantially <b>higher</b> than shown here — this is the grid-visible slice, by design.</p>
+      </div>
+      <div class="chart-img-wrap" style="background:#0f0f0d;">
+        <iframe src="assets/solar_forecast.html?v=20260617T12Z"
+                class="chart-frame"
+                title="48-hour HRRR-based solar generation forecast"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA HRRR · USGS USPVDB · pvlib · Plotly</span>
+        <span class="chart-updated" id="last-updated-solar">Cycle 20260617T12Z</span>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Plant-Level Solar Forecast Map</h2>
+        <p>Every utility-scale solar plant in the lower 48 (≥5 MW, ~6,200 plants) plotted on a map, colored by forecast capacity factor and sized by nameplate AC capacity. The slider at the bottom steps through the 48-hour forecast horizon; press play to animate.</p>
+        <p><b>How to use it:</b> Hover any plant for its name, current MW output, capacity factor, state, and tracking type. <b>Click a plant</b> to see its full 48-hour time series in the panel below the map. Scroll or pinch to zoom; drag to pan. The animation shows the diurnal dawn-to-dusk sweep across the country.</p>
+        <p><b>How it's built:</b> Each forecast cycle computes per-plant AC power using the same physics chain as the regional chart above — sun position, tracker geometry, plane-of-array irradiance, temperature derate, and inverter clipping. The map embeds all per-plant time series as JSON, so clicks render the time-series chart instantly with no server round-trip. Useful for spotting how cloud cover patterns affect individual plants, comparing tracking vs fixed-tilt design choices, and watching the sun sweep across the continent.</p>
+      </div>
+      <div class="chart-img-wrap" style="background:#fafaf8;">
+        <iframe src="assets/solar_map.html?v=20260617T12Z"
+                class="chart-frame map"
+                title="Plant-level solar generation forecast map (interactive)"
+                loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA HRRR · USGS USPVDB · pvlib · CartoDB tiles · Plotly</span>
+        <span class="chart-updated" id="last-updated-solar-map">Cycle 20260617T12Z</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COLOPHON -->
+  <div class="colophon">
+    <h3>About this project</h3>
+    <p>This forecasting pipeline was designed and built collaboratively with Anthropic's Claude. The methodology choices, edge-case handling, and engineering decisions came out of long working sessions debugging real verification data, tracking down obscure USWTDB quirks (offshore plants without state codes, newly-built wind farms missing EIA IDs, multi-phase repowers sharing single plant codes), and iterating on the physics — curve assignment hierarchies, density correction, hub-height shear, BA-mapping fallbacks.</p>
+    <p>Claude wrote most of the Python; I provided the meteorological judgment, the operational priorities, and the verification feedback. The result is a working production pipeline that runs four times daily, archives its own performance, and surfaces its own limitations rather than hiding them.</p>
+    <p>The full source is on <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">GitHub</a>.</p>
+  </div>
+</main>
+
+<footer>
+  <p class="counter">Unique viewers: <span id="count">—</span></p>
+</footer>
+
+<script>
+  // The "Updated" labels above are stamped server-side by the
+  // wind-forecast workflow (renewables.html is rewritten on each run with
+  // the actual cycle and update time). Don't overwrite from JS.
+
+  // Visitor counter
+  fetch((function(){var k='scorvec_uv',s=localStorage.getItem(k),o=localStorage.getItem('scorvec_owner');if(!o){try{localStorage.setItem(k,'1');}catch(e){}}return 'https://api.counterapi.dev/v1/scorvec/unique'+((s||o)?'/':'/up');})())
+    .then(r => r.json())
+    .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
+    .catch(() => { document.getElementById('count').textContent = '—'; });
+</script>
+
+<script>
+  // ── Live wind+solar grid-penetration hero ──
+  (function () {
+    const $ = id => document.getElementById(id);
+    const GAUGE_MAX = 50;                                  // gauge spans 0–50 %
+    const toDate = t => new Date(t.replace('Z', '') + ':00Z');
+    const etStr = t => new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/New_York',
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+      .format(toDate(t));
+    const etLabel = t => toDate(t).toLocaleString('en-US',
+      { weekday: 'short', hour: 'numeric', timeZone: 'America/New_York' }) + ' ET';
+    const num = v => v == null ? '—' : (+v).toFixed(0);
+
+    fetch('assets/power_data/power_hero.json?v=' + new Date().toISOString().slice(0, 13))
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(render)
+      .catch(() => { $('hero-asof').textContent = 'tracker data unavailable'; });
+
+    function render(d) {
+      const now = d.now, np = d.nameplate, pen = now.penetration_pct;
+      // gauge
+      const arc = $('gauge-arc'), L = arc.getTotalLength();
+      arc.style.strokeDasharray = L; arc.style.strokeDashoffset = L;
+      $('gauge-pct').textContent = pen == null ? '—' : pen.toFixed(0) + '%';
+      requestAnimationFrame(() => {
+        const frac = pen == null ? 0 : Math.max(0, Math.min(1, pen / GAUGE_MAX));
+        arc.style.strokeDashoffset = L * (1 - frac);
+      });
+      // as-of line
+      $('hero-asof').innerHTML = pen == null
+        ? '<span class="stale">live grid total pending (EIA‑930)</span>'
+        : 'as of ' + etLabel(now.valid_time) + (now.stale ? ' <span class="stale">(stale)</span>' : '');
+      // stat cards
+      $('s-combined').innerHTML = num(now.combined_GW) + ' <small>GW</small>';
+      $('s-split').innerHTML = num(now.wind_GW) + ' / ' + num(now.solar_GW) + ' <small>GW</small>';
+      $('s-peak').innerHTML = num(d.peak.combined_GW) + ' <small>GW · ' + etLabel(d.peak.valid_time) + '</small>';
+      $('s-demand').innerHTML = now.eia_total_GW == null ? '—'
+        : num(now.eia_total_GW) + ' <small>GW' + ((now.denominator_kind || '').indexOf('forecast') >= 0 ? ' · est.' : '') + '</small>';
+      $('s-name').innerHTML = num(np.combined_GW) + ' <small>GW</small>';
+      chart(d);
+      $('hero-note').innerHTML =
+        'Numerator = HRRR-estimated grid-scale wind + solar generation (≥10 MW, the forecast plotted here); ' +
+        'denominator = total US electricity demand from EIA-930 (Hourly Electric Grid Monitor, respondent US48) — ' +
+        (now.denominator_kind || 'live total') + ', so the share is for the current hour. Gauge scale 0–50%. ' +
+        'CONUS utility-scale only — excludes behind-the-meter / distribution solar and Alaska / Hawaii. ' +
+        'Wind cycle ' + d.wind_cycle + ' · solar cycle ' + d.solar_cycle + '.';
+    }
+
+    function chart(d) {
+      const f = d.forecast, x = f.map(p => etStr(p.valid_time));
+      const traces = [
+        { x, y: f.map(p => p.wind_GW), name: 'Wind', stackgroup: 'g',
+          fillcolor: 'rgba(44,74,114,0.55)', line: { color: '#2c4a72', width: 1 } },
+        { x, y: f.map(p => p.solar_GW), name: 'Solar', stackgroup: 'g',
+          fillcolor: 'rgba(224,160,32,0.62)', line: { color: '#d99a1a', width: 1 } },
+      ];
+      const nowx = etStr(d.now.valid_time);
+      Plotly.newPlot('hero-chart', traces, {
+        margin: { l: 46, r: 12, t: 8, b: 36 }, paper_bgcolor: '#fff', plot_bgcolor: '#fff',
+        font: { family: 'Inter, sans-serif', size: 11, color: '#5a5855' },
+        yaxis: { title: 'GW', gridcolor: '#eee', zeroline: false, rangemode: 'tozero' },
+        xaxis: { gridcolor: '#f4f4f2', title: 'time (ET)', range: [x[0], x[x.length - 1]] }, hovermode: 'x unified',
+        legend: { orientation: 'h', y: 1.14, x: 0 },
+        shapes: [{ type: 'line', x0: nowx, x1: nowx, yref: 'paper', y0: 0, y1: 1,
+          line: { color: '#c0792a', width: 1.5, dash: 'dash' } }],
+        annotations: [{ x: nowx, yref: 'paper', y: 1.0, text: 'now', showarrow: false,
+          font: { size: 10, color: '#c0792a' }, xanchor: 'left', xshift: 3 }],
+      }, { displayModeBar: false, responsive: true });
+    }
+  })();
+</script>
+</body>
+</html>

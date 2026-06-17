@@ -1,0 +1,39 @@
+name: Daily Tarawa WWB history (IEM)
+
+# Refreshes the Tarawa WWB-vs-onsets comparison. The fixed analog years are cached, so
+# each run re-fetches only the current year from the IEM archive (one gentle request).
+# Commits only its own files.
+on:
+  schedule:
+    - cron: '40 14 * * *'        # daily ~14:40 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kiribati-history
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas matplotlib
+      - run: python scripts/sst/kiribati_history.py --out assets/sst/kiribati_history.webp
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          git add assets/sst/kiribati_history.webp scripts/sst/metar/kiribati_history_daily.csv
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "Tarawa WWB history (IEM): $(date -u +%Y-%m-%d)"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash -X ours && git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

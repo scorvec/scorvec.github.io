@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Ni&ntilde;o Analog Comparisons &middot; El Ni&ntilde;o Monitor</title>
+<meta name="description" content="The current event vs the 1997, 2015 and 2023 El Niños at matching phase — surface, subsurface and 850 hPa low-level wind.">
+<link rel="canonical" href="https://scorvec.com/enso-analogs.html">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html { font-size: 17.5px; }   /* nudge the whole page up from the 16px default */
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+
+  /* fixed two-row header: site nav + ENSO monitor sub-nav */
+  .site-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  .enso-subnav {
+    display: flex; gap: 1.6rem; align-items: center; flex-wrap: wrap;
+    padding: 0.55rem 3rem 0.7rem;
+    border-top: 1px solid var(--rule);
+  }
+  .enso-subnav a {
+    font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
+    color: var(--muted); padding-bottom: 2px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .enso-subnav a:hover { color: var(--ink); }
+  .enso-subnav a.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+  main {
+    flex: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 9.5rem 2.5rem 5rem;
+    width: 100%;
+  }
+
+  .page-header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .page-header p {
+    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+  }
+  .page-header p + p { margin-top: 0.8rem; }
+
+  /* Overview topic grid (links to the themed subpages) */
+  .topic-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem; margin-bottom: 3rem;
+  }
+  .topic-card {
+    display: block; border: 1px solid var(--rule); background: #fff;
+    padding: 1.2rem 1.3rem; text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .topic-card:hover { border-color: var(--accent); background: var(--accent-light); }
+  .topic-card h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.02rem;
+    color: var(--ink); margin-bottom: 0.3rem;
+  }
+  .topic-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+
+  .chart-stack { display: flex; flex-direction: column; gap: 3rem; }
+
+  .chart-card {
+    border: 1px solid var(--rule);
+    background: #fff;
+    overflow: hidden;
+  }
+  .chart-card-header {
+    padding: 1.5rem 1.8rem 1.3rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
+    margin-bottom: 0.6rem; color: var(--ink);
+  }
+  .chart-card-header p {
+    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
+  }
+  .chart-card-header p + p { margin-top: 0.7rem; }
+  .chart-card-header b { color: var(--ink); font-weight: 500; }
+
+  .img-wrap { padding: 1rem 1.2rem; background: #fff; }
+  .img-wrap + .img-wrap { padding-top: 0; }
+  .img-wrap img { display: block; width: 100%; height: auto; }
+  /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
+     sized to its exact content height via postMessage (see footer.html / sst_anim.html),
+     which fills the card with no letterboxing at any width. */
+  .anim-embed { width: 100%; border: 0; display: block; background: #0f0f0d;
+                aspect-ratio: 27 / 25; }
+  .anim-embed.subsurface { aspect-ratio: 1 / 1; }
+  .anim-embed.torque { aspect-ratio: 1306 / 1055; }
+  .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
+  .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
+  .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
+  .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
+  .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
+  .anim-embed.colombia { aspect-ratio: 1680 / 1850; }   /* image 1680×1800 + controls bar */
+  .anim-embed.eq-cur-map { aspect-ratio: 1217 / 467; }      /* image 1217×412 + controls bar */
+  .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
+  .img-label {
+    font-size: 0.72rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 0 0 0.4rem 0.2rem;
+  }
+
+  /* live wind-arrow widget (Tarawa WWB monitor) */
+  .wwb-arrows {
+    display: flex; justify-content: center; align-items: center; gap: 2.6rem;
+    flex-wrap: wrap; padding: 1.3rem 1.2rem 0.4rem;
+  }
+  .wwb-stn { text-align: center; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+  .wwb-stn svg { display: block; margin: 0 auto 0.35rem; }
+  .wwb-stn b { display: block; color: var(--ink); font-weight: 500; font-size: 0.92rem; }
+
+  .chart-card-footer {
+    padding: 0.85rem 1.8rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .chart-sources { font-size: 0.68rem; color: var(--muted); }
+  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+
+  .colophon {
+    margin-top: 4rem; padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+  }
+  .colophon h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    color: var(--ink); margin-bottom: 0.5rem;
+  }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .colophon a:hover { border-bottom-color: var(--accent); }
+
+  footer {
+    padding: 1.2rem 3rem; border-top: 1px solid var(--rule);
+    display: flex; justify-content: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
+    main { padding: 9rem 1.5rem 3.5rem; }
+    .page-header { margin-bottom: 2.2rem; padding-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.6rem; }
+    .chart-stack { gap: 2.2rem; }
+    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
+    .chart-card-footer { padding: 0.75rem 1.3rem; }
+    footer { padding: 1rem 1.5rem; }
+  }
+  @media (max-width: 480px) {
+    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .nav-name { font-size: 0.95rem; }
+    .nav-links { gap: 1rem; }
+    .nav-links a { font-size: 0.78rem; }
+    .enso-subnav { padding: 0.5rem 1.1rem 0.6rem; gap: 0.85rem; }
+    .enso-subnav a { font-size: 0.74rem; }
+    main { padding: 9.5rem 1rem 3rem; }
+    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
+    .chart-card-header h2 { font-size: 1.02rem; }
+    .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
+    .img-wrap { padding: 0.7rem 0.7rem; }
+    .chart-card-footer { padding: 0.7rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+    footer { padding: 0.9rem 1.1rem; }
+  }
+  @media (max-width: 360px) {
+    .nav-links { gap: 0.8rem; }
+    .nav-links a { font-size: 0.72rem; }
+    .enso-subnav { gap: 0.7rem; }
+    .page-header h1 { font-size: 1.28rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <nav>
+    <a href="index.html" class="nav-name">Shawn Corvec</a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resume.html">Resume</a></li>
+      <li><a href="research.html">Research</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+    </ul>
+  </nav>
+  <div class="enso-subnav">
+    <a href="sst.html" class="">Overview</a>
+    <a href="enso-subsurface.html" class="">Subsurface</a>
+    <a href="enso-analogs.html" class="active">Analogs</a>
+    <a href="enso-forecasts.html" class="">Forecasts</a>
+    <a href="enso-atmosphere.html" class="">Atmospheric Response</a>
+  </div>
+</header>
+<main>
+  <div class="page-header">
+    <h1>El Ni&ntilde;o Analog Comparisons</h1>
+    <p>The current event measured against the 1997&ndash;98, 2015&ndash;16 and 2023&ndash;24 El Ni&ntilde;os at matching phase &mdash; surface, subsurface, and low-level wind. Where possible the warming background is removed so events decades apart are comparable.</p>
+  </div>
+
+  <div class="chart-stack">
+
+    <!-- EVENT COMPARISON: Niño-3.4 evolution overlay -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>This Event vs. 1997, 2015 &amp; 2023</h2>
+        <p>Niño-3.4 evolution (7-day running mean) through each event's development year and the next. Bold lines are <b>RONI</b> &mdash; the relative index (Niño-3.4 minus the 20&deg;S&ndash;20&deg;N tropical-mean anomaly), which removes the rising warming background so events decades apart are comparable; faint dotted lines are the raw <b>ONI</b> for reference. The current event is red. Note how 2015's record ONI shrinks toward 1997 once the background is removed.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/events_nino34.webp?v=b4b21cbfff99" alt="Niño-3.4 RONI vs ONI evolution: current event vs 1997/2015/2023" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; RONI = Niño-3.4 &minus; 20&deg;S&ndash;20&deg;N mean</span></div>
+    </div>
+
+    <!-- EVENT COMPARISON: multi-region flavor bars -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>El Niño Flavor &mdash; Niño Regions vs. Analogs</h2>
+        <p>Relative Niño-1+2 / 3 / 3.4 / 4 anomalies (7-day mean, each minus the 20&deg;S&ndash;20&deg;N tropical mean) at the same calendar day as the latest data, for the current event and the three analogs. Removing the tropical background makes the regions comparable across events; strong eastern (1+2, 3) relative to central (4) marks an East-Pacific-flavored event.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/events_bars.webp?v=b4b21cbfff99" alt="Relative Niño-region anomalies, current event vs analogs" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; relative to 20&deg;S&ndash;20&deg;N mean</span></div>
+    </div>
+
+    <!-- EVENT COMPARISON: matching-phase maps -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Matching-Phase SST Anomaly Maps</h2>
+        <p>Relative SST anomaly &mdash; the area-weighted global-mean anomaly removed from each map &mdash; for the latest available week vs. the same calendar week in 1997, 2015 and 2023. Stripping the global mean removes the secular warming trend, so the ENSO spatial pattern is comparable across events that sat on very different baselines.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/events_maps.webp?v=b4b21cbfff99" alt="Matching-phase relative SST anomaly maps (global-mean removed)" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; global-mean removed</span></div>
+    </div>
+
+    <!-- SUBSURFACE ANALOG: heat content -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Subsurface Heat Content vs. Analogs</h2>
+        <p>Equatorial Pacific upper-ocean (0&ndash;300 m) temperature anomaly &mdash; a heat-content proxy that leads the surface &mdash; through each event's development year and the next, current (bold red) overlaid on 1997, 2015 and 2023. The subsurface warm reservoir is the fuel for El Ni&ntilde;o; watch whether the current build-up keeps pace with the analogs.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_hc.webp?v=b4b21cbfff99" alt="Equatorial 0–300 m temperature-anomaly evolution: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; coverage varies by year</span></div>
+    </div>
+
+    <!-- SUBSURFACE ANALOG: heat content — DE-TRENDED -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Subsurface Heat Content vs. Analogs &mdash; De-trended</h2>
+        <p>The same heat-content comparison with the 1991&ndash;2020 climate trend removed, so the four events sit on a common baseline. The net 0&ndash;300 m effect is modest &mdash; the subsurface warming and cooling trends largely cancel in the column average &mdash; but it eases the recent events (2023, current) down relative to 1997.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_hc_detrended.webp?v=b4b21cbfff99" alt="Equatorial 0–300 m temperature-anomaly evolution, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; de-trended 1991&ndash;2020 &middot; coverage varies by year</span></div>
+    </div>
+
+    <!-- SUBSURFACE ANALOG: matching-phase cross-sections -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Subsurface Cross-Section vs. Analogs</h2>
+        <p>Equatorial depth&times;longitude temperature anomaly at the same phase (~the latest data week) of each event. The eastward-deepening warm anomaly along the thermocline is the classic El Ni&ntilde;o subsurface signature; comparing its depth and intensity against 1997/2015/2023 gauges how loaded the ocean is now.</p>
+        <p><b>Note:</b> TAO mooring coverage varies by year (triangles mark moorings reporting), so 1997 and 2023 have missing longitudes.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec.webp?v=b4b21cbfff99" alt="Equatorial subsurface temperature-anomaly cross-sections: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; 14-day mean &middot; coverage varies by year</span></div>
+    </div>
+
+    <!-- SUBSURFACE ANALOG: cross-sections — DE-TRENDED -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Subsurface Cross-Section vs. Analogs &mdash; De-trended</h2>
+        <p>The matching-phase cross-sections with the 1991&ndash;2020 climate trend removed. Because the trend has real depth&times;longitude structure &mdash; west-Pacific subsurface warming, eastern-thermocline cooling &mdash; de-trending reshapes the pattern more here than in the column-mean heat content above.</p>
+        <p><b>Note:</b> TAO mooring coverage varies by year (triangles mark moorings reporting), so 1997 and 2023 have missing longitudes.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec_detrended.webp?v=b4b21cbfff99" alt="Equatorial subsurface temperature-anomaly cross-sections, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; de-trended 1991&ndash;2020 &middot; 14-day mean &middot; coverage varies by year</span></div>
+    </div>
+
+    <!-- 850 hPa WIND ANALOG HOVMÖLLERS -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Low-Level Wind vs. Analogs &mdash; 850 hPa Hovm&ouml;ller</h2>
+        <p>Equatorial (5&deg;S&ndash;5&deg;N) 850 hPa zonal wind through the <b>developing year</b> (Jan&rarr;Nov of year 0) of each El Ni&ntilde;o, aligned by calendar so the current event sits beside its analogs at the same phase. Westerly anomalies (red) over the Indian Ocean&ndash;west Pacific push warm water east and sustain a developing event; the historical analogs show those westerlies expanding eastward through the year. Left: detrended anomaly (long-term trend removed). Right: absolute wind (easterly trades vs. westerly bursts). 5-day smoothed.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/u850_analogs_anom.webp?v=b4b21cbfff99" alt="850 hPa equatorial zonal-wind detrended-anomaly Hovmöllers: current 2026 vs 1982/1997/2015 developing years" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/u850_analogs_abs.webp?v=b4b21cbfff99" alt="850 hPa equatorial zonal-wind absolute Hovmöllers: current 2026 vs 1982/1997/2015 developing years" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ERA5 &mdash; WeatherBench2 1.5&deg; (1959&ndash;2023) + ARCO 0.25&deg; (current year) &middot; 5&deg;S&ndash;5&deg;N &middot; detrended vs day-of-year climatology &middot; updated daily</span></div>
+    </div>
+
+    <!-- U.S. CITY TEMPERATURES vs ANALOGS -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>U.S. City Temperatures vs. Analogs</h2>
+        <p>Surface air temperature for eight U.S. cities through May&rarr;December of each super El&nbsp;Ni&ntilde;o year (1982, 1991, 1997, 2015) and the current 2026 event, from hourly IEM ASOS station observations. For each city, the <b>top panel</b> shows the absolute daily high&ndash;low range (bars) and daily mean (line); the <b>bottom panel</b> recasts it as a <i>detrended anomaly</i> &mdash; departure from that station's trend-adjusted seasonal normal, with the long-term warming trend removed so each El&nbsp;Ni&ntilde;o is measured against its own era's climate. The current 2026 line runs through the latest available day.</p>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header"><h2>Houston &amp; Dallas</h2></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_houston.webp?v=b4b21cbfff99" alt="Houston daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_houston.webp?v=b4b21cbfff99" alt="Houston detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_dallas.webp?v=b4b21cbfff99" alt="Dallas daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_dallas.webp?v=b4b21cbfff99" alt="Dallas detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">IEM ASOS (IAH, DFW) &middot; daily high&ndash;low from hourly obs &middot; anomaly detrended vs trend-adjusted 1973&ndash;present normal</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header"><h2>Phoenix &amp; Washington, DC</h2></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_phoenix.webp?v=b4b21cbfff99" alt="Phoenix daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_phoenix.webp?v=b4b21cbfff99" alt="Phoenix detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_washington_dc.webp?v=b4b21cbfff99" alt="Washington DC daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_washington_dc.webp?v=b4b21cbfff99" alt="Washington DC detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">IEM ASOS (PHX, DCA) &middot; daily high&ndash;low from hourly obs &middot; anomaly detrended vs trend-adjusted 1973&ndash;present normal</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header"><h2>New York City &amp; Boston</h2></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_new_york_city.webp?v=b4b21cbfff99" alt="New York City daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_new_york_city.webp?v=b4b21cbfff99" alt="New York City detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_boston.webp?v=b4b21cbfff99" alt="Boston daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_boston.webp?v=b4b21cbfff99" alt="Boston detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">IEM ASOS (LGA, BOS) &middot; daily high&ndash;low from hourly obs &middot; anomaly detrended vs trend-adjusted 1973&ndash;present normal</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header"><h2>Portland &amp; Seattle</h2></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_portland_or.webp?v=b4b21cbfff99" alt="Portland OR daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_portland_or.webp?v=b4b21cbfff99" alt="Portland OR detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_seattle.webp?v=b4b21cbfff99" alt="Seattle daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_seattle.webp?v=b4b21cbfff99" alt="Seattle detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">IEM ASOS (PDX, SEA) &middot; daily high&ndash;low from hourly obs &middot; anomaly detrended vs trend-adjusted 1973&ndash;present normal</span></div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <p class="counter">Unique viewers: <span id="count">&mdash;</span></p>
+</footer>
+
+<script>
+  fetch((function(){var k='scorvec_uv',s=localStorage.getItem(k),o=localStorage.getItem('scorvec_owner');if(!o){try{localStorage.setItem(k,'1');}catch(e){}}return 'https://api.counterapi.dev/v1/scorvec/unique'+((s||o)?'/':'/up');})())
+    .then(r => r.json())
+    .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
+    .catch(() => { document.getElementById('count').textContent = '—'; });
+</script>
+<script>
+  // Size each animation iframe to its embedded content's exact height (image +
+  // controls), so the wide plots fill their cards with no letterboxing on any screen.
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + 'px';
+        fr[i].style.aspectRatio = 'auto';
+      }
+    }
+  });
+  // Hourly-updating images (committed by their own GitHub Actions, not the page build):
+  // load with an hour-granular cache-buster so the latest render shows without churning
+  // the page HTML. The page's static ?v= can't cover them (they change between page builds).
+  ['soi-hourly', 'kiribati-wind', 'kiribati-history', 'olr-hovmoller', 'olr-waves', 'eq-current-hov', 'eq-uwind-hov'].forEach(function (id) {
+    var im = document.getElementById(id);
+    if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
+  });
+
+  // Live wind-arrow widget for the Tarawa WWB monitor: draw the latest wind at each
+  // station from the hourly kiribati_wind.json (arrow points the way the wind blows TO).
+  (function () {
+    var host = document.getElementById('wwb-arrows'); if (!host) return;
+    fetch('assets/sst/kiribati_wind.json?v=' + new Date().toISOString().slice(0, 13))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.stations) return;
+        var html = '';
+        Object.keys(d.stations).forEach(function (icao) {
+          var s = d.stations[icao], west = s.u_ms > 0, col = west ? '#d62728' : '#1f77b4';
+          var bearing = (s.dir + 180) % 360;             // flow direction (downwind)
+          var lab = Math.abs(s.u_ms) < 0.5 ? 'calm' : (west ? 'westerly' : 'easterly');
+          html += '<div class="wwb-stn"><svg width="92" height="92" viewBox="0 0 100 100">'
+            + '<circle cx="50" cy="50" r="44" fill="none" stroke="#ddd"/>'
+            + '<text x="50" y="13" text-anchor="middle" font-size="9" fill="#bbb">N</text>'
+            + '<g transform="rotate(' + bearing + ' 50 50)">'
+            + '<line x1="50" y1="52" x2="50" y2="24" stroke="' + col + '" stroke-width="4"/>'
+            + '<path d="M50 12 L42 30 L50 25 L58 30 Z" fill="' + col + '"/></g>'
+            + '<circle cx="50" cy="50" r="3.5" fill="' + col + '"/></svg>'
+            + '<b>' + s.name + '</b><span style="color:' + col + '">' + s.dir + '° / '
+            + s.spd_kt + ' kt &middot; ' + lab + '</span></div>';
+        });
+        host.innerHTML = html + '<div class="wwb-stn" style="max-width:9em">updated<br>' + d.updated + '</div>';
+      }).catch(function () {});
+  })();
+</script>
+</body>
+</html>

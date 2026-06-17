@@ -1,0 +1,29 @@
+{
+  "training_start": "2023-05-04",
+  "training_end": "2026-05-03",
+  "features": [
+    "hour_ct",
+    "dow",
+    "month",
+    "temp_f",
+    "dwpt_f",
+    "wind_mph",
+    "cloud_pct",
+    "days_since_start",
+    "is_weekend"
+  ],
+  "train_r2": 0.9636,
+  "test_r2": 0.7758,
+  "cv_r2_folds": [
+    -0.2257,
+    0.8519,
+    0.8793,
+    0.8846,
+    0.74
+  ],
+  "cv_r2_mean": 0.626,
+  "cv_r2_std": 0.4291,
+  "n_train": 24104,
+  "n_test": 2160,
+  "best_iteration": 58
+}

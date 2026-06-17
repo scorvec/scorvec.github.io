@@ -1,0 +1,16 @@
+numpy
+scipy
+pandas
+xarray
+dask
+netcdf4
+h5netcdf
+cfgrib
+eccodes
+matplotlib
+eofs
+requests
+ecmwf-opendata
+cartopy>=0.22
+shapely>=2.0
+pyproj>=3.5

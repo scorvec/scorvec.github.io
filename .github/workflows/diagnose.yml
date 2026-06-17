@@ -1,0 +1,216 @@
+name: Diagnose pipeline
+
+# Manual-trigger only. Use this to run ad-hoc diagnostics on the most
+# recent forecast cycle and inventory data, with all dependencies
+# already installed. Output is in the workflow log.
+on:
+  workflow_dispatch:
+    inputs:
+      diagnostic:
+        description: 'Which diagnostic to run'
+        required: true
+        type: choice
+        default: zero_plants
+        options:
+          - zero_plants
+          - inventory_health
+          - curve_coverage
+          - hrrr_sample_test
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-wind.txt
+
+      - name: Run diagnostic — zero_plants
+        if: ${{ github.event.inputs.diagnostic == 'zero_plants' }}
+        run: |
+          python << 'PYEOF'
+          import pandas as pd
+          import numpy as np
+          import glob
+
+          fc_files = sorted(glob.glob('../assets/wind_forecast_data/forecast_plant_*.csv'))
+          cap_files = sorted(glob.glob('../assets/wind_forecast_data/capacity_plant_*.csv'))
+          if not fc_files or not cap_files:
+              print('ERROR: no plant-level CSVs found')
+              exit(1)
+          print(f'Using forecast: {fc_files[-1]}')
+          print(f'Using capacity: {cap_files[-1]}')
+          print()
+
+          fc = pd.read_csv(fc_files[-1])
+          cap = pd.read_csv(cap_files[-1])
+
+          # Filter capacity like map_dashboard does
+          MIN_MW = 5.0
+          cap = cap.dropna(subset=['xlong', 'ylat', 'capacity_MW']).copy()
+          cap = cap[cap['capacity_MW'] >= MIN_MW].reset_index(drop=True)
+          print(f'Capacity rows passing filter: {len(cap):,}')
+          print(f'Forecast rows: {len(fc):,}')
+          print()
+
+          # Build comparable join keys. Use a sentinel for NaN eia_id since
+          # NaN != NaN in Python set/tuple comparisons. p_name is always
+          # populated by USWTDB so it should be a clean string.
+          NAN_SENTINEL = -999999
+          cap['_key_eia'] = cap['eia_id'].fillna(NAN_SENTINEL).astype(int)
+          fc['_key_eia'] = fc['eia_id'].fillna(NAN_SENTINEL).astype(int)
+          cap['_key'] = list(zip(cap['_key_eia'], cap['p_name']))
+          fc['_key'] = list(zip(fc['_key_eia'], fc['p_name']))
+
+          fc_keys = set(fc['_key'])
+          cap_keys = set(cap['_key'])
+
+          missing_in_fc = cap_keys - fc_keys
+          missing_in_cap = fc_keys - cap_keys
+
+          print(f'Capacity-only (show as 0 on map): {len(missing_in_fc)}')
+          print(f'Forecast-only (missing from map): {len(missing_in_cap)}')
+          print()
+
+          # Detail: plants in capacity but missing from forecast
+          if missing_in_fc:
+              cap_only = cap[cap['_key'].isin(missing_in_fc)].copy()
+              # Also flag whether eia_id was NaN (using the sentinel)
+              cap_only['eia_was_nan'] = cap_only['_key_eia'] == NAN_SENTINEL
+              print('=== Plants in CAPACITY but NOT in FORECAST (show as 0 on map) ===')
+              cols = ['eia_id', 'p_name', 'capacity_MW', 'n_turbines',
+                      'ba_code', 't_state', 'xlong', 'ylat', 'eia_was_nan']
+              avail = [c for c in cols if c in cap_only.columns]
+              print(cap_only.sort_values('capacity_MW', ascending=False)
+                    [avail].to_string(index=False))
+              print()
+              print(f'Total capacity: {cap_only["capacity_MW"].sum():.0f} MW')
+              print(f'Plants with NaN eia_id: {cap_only["eia_was_nan"].sum()} '
+                    f'({cap_only.loc[cap_only["eia_was_nan"],"capacity_MW"].sum():.0f} MW)')
+              print(f'Plants with valid eia_id: {(~cap_only["eia_was_nan"]).sum()} '
+                    f'({cap_only.loc[~cap_only["eia_was_nan"],"capacity_MW"].sum():.0f} MW)')
+              print()
+
+          # Detail: plants in forecast but missing from capacity (might
+          # be the small ones filtered by the >=5 MW threshold)
+          if missing_in_cap:
+              fc_summary = (fc[fc['_key'].isin(missing_in_cap)]
+                            .groupby(['eia_id', 'p_name'], dropna=False)['MW']
+                            .agg(['max', 'mean']).reset_index())
+              fc_summary.columns = ['eia_id', 'p_name', 'peak_MW', 'mean_MW']
+              # Try to find these in the unfiltered capacity CSV (i.e.
+              # before the >=5 MW filter)
+              cap_full = pd.read_csv(cap_files[-1])
+              cap_full['_key_eia'] = cap_full['eia_id'].fillna(NAN_SENTINEL).astype(int)
+              cap_full['_key'] = list(zip(cap_full['_key_eia'], cap_full['p_name']))
+              merged = fc_summary.merge(
+                  cap_full[['_key', 'capacity_MW', 't_state']],
+                  left_on=list(zip(fc_summary['eia_id'].fillna(NAN_SENTINEL).astype(int),
+                                   fc_summary['p_name'])),
+                  right_on='_key', how='left'
+              ) if False else fc_summary  # simpler: just print fc_summary
+              print('=== Plants in FORECAST but NOT in capacity (top 30 by peak MW) ===')
+              print(fc_summary.nlargest(30, 'peak_MW').to_string(index=False))
+              print()
+              print(f'Total — sum of peak MW: {fc_summary["peak_MW"].sum():.0f}')
+              print(f'        sum of mean MW: {fc_summary["mean_MW"].sum():.0f}')
+              # Are these all small plants (filtered out by >=5 MW)?
+              cap_unfilt = pd.read_csv(cap_files[-1])
+              cap_unfilt_keys = set(zip(
+                  cap_unfilt['eia_id'].fillna(NAN_SENTINEL).astype(int),
+                  cap_unfilt['p_name']))
+              in_unfilt = sum(1 for k in missing_in_cap if k in cap_unfilt_keys)
+              print(f'        in unfiltered capacity (so dropped by >=5 MW filter): {in_unfilt}')
+              print(f'        not in capacity at all (mystery): '
+                    f'{len(missing_in_cap) - in_unfilt}')
+
+          # Mountain View Power Partners — explicit dig
+          print()
+          print('=== Mountain View Power Partners family ===')
+          mv_fc = fc[fc['p_name'].str.contains('Mountain View Power', case=False, na=False)]
+          mv_cap = cap[cap['p_name'].str.contains('Mountain View Power', case=False, na=False)]
+          print('Forecast:')
+          print(mv_fc.groupby(['eia_id','p_name'])['MW'].agg(['max','mean']).to_string())
+          print('Capacity:')
+          print(mv_cap[['eia_id','p_name','capacity_MW','n_turbines','t_state']].to_string(index=False))
+          PYEOF
+
+      - name: Run diagnostic — inventory_health
+        if: ${{ github.event.inputs.diagnostic == 'inventory_health' }}
+        run: |
+          python << 'PYEOF'
+          import pandas as pd
+          inv = pd.read_csv('data/uswtdb.csv', low_memory=False)
+          print(f'Total rows: {len(inv):,}')
+          for col in ('t_cap', 't_hh', 't_rd', 't_manu', 't_model',
+                      'eia_id', 't_state', 'xlong', 'ylat'):
+              if col in inv.columns:
+                  na = inv[col].isna().sum()
+                  print(f'  {col}: {na:,} NaN ({100*na/len(inv):.1f}%)')
+                  if col in ('t_hh', 't_rd', 't_cap'):
+                      zero = (inv[col] == 0).sum()
+                      print(f'    zero count: {zero:,}')
+          print()
+          missing_hh = inv[inv['t_hh'].isna() | (inv['t_hh']==0)]
+          print(f'Plants with missing/zero t_hh: '
+                f'{missing_hh["p_name"].nunique()} unique plants, '
+                f'{missing_hh["t_cap"].sum()/1000:.0f} MW total')
+          print('  Top 10 by capacity:')
+          print(missing_hh.groupby('p_name').agg(
+              n=('t_cap','size'), mw=('t_cap', lambda s: s.sum()/1000),
+              year=('p_year','first'), state=('t_state','first')
+          ).nlargest(10, 'mw').to_string())
+          PYEOF
+
+      - name: Run diagnostic — curve_coverage
+        if: ${{ github.event.inputs.diagnostic == 'curve_coverage' }}
+        run: |
+          python curve_assignment_check.py --states TX CA OK KS NM ND IA
+
+      - name: Run diagnostic — hrrr_sample_test
+        if: ${{ github.event.inputs.diagnostic == 'hrrr_sample_test' }}
+        run: |
+          python << 'PYEOF'
+          # Spot-check HRRR sampling at a few points: ones we know work
+          # (West TX) and ones from the zero-plant list.
+          import pandas as pd
+          import glob
+
+          fc_files = sorted(glob.glob('../assets/wind_forecast_data/forecast_plant_*.csv'))
+          cap_files = sorted(glob.glob('../assets/wind_forecast_data/capacity_plant_*.csv'))
+          fc = pd.read_csv(fc_files[-1])
+          cap = pd.read_csv(cap_files[-1])
+
+          plant_max = fc.groupby(['eia_id', 'p_name'])['MW'].max().reset_index()
+          zero_plants = plant_max[plant_max['MW'] < 0.01].merge(cap, on=['eia_id','p_name'])
+
+          # Pick 3 zero-plant coordinates and 3 working-plant coordinates
+          zero_coords = zero_plants.nlargest(3, 'capacity_MW')[['p_name','xlong','ylat']]
+          work_coords = (plant_max[plant_max['MW'] > 100]
+                          .merge(cap, on=['eia_id','p_name'])
+                          .nlargest(3, 'capacity_MW')[['p_name','xlong','ylat']])
+
+          print('Zero-output plant coords to test:')
+          print(zero_coords.to_string(index=False))
+          print('\nWorking-plant coords to test:')
+          print(work_coords.to_string(index=False))
+          print('\nNote: a full HRRR sample-test would need to fetch a recent')
+          print('cycle and call interp_to_points; that takes ~5min and isnt')
+          print('automated here. Compare these coords on the wind_map to see')
+          print('if zeros are spatially adjacent to working plants.')
+          PYEOF
