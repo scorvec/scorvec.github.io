@@ -236,7 +236,13 @@ def render(anom: xr.DataArray, end: datetime, days: int, out: Path,
     as contours (solid = enhanced convection, dashed = suppressed). LF is a 120-day low-pass."""
     from scipy.ndimage import gaussian_filter
     from matplotlib.colors import BoundaryNorm, ListedColormap
-    filt = {w: (_lf_lowpass(anom.values) if w == "LF" else wk_filter(anom.values, w)) for w in waves}
+    # Reflect-pad both ends of the time axis before filtering so the FFT taper/edge effect falls
+    # on padding rather than real data — this carries the wave bandpass right up to the present
+    # (the recent end is "preliminary" but no longer damped to zero). Crop back after.
+    PAD = 30
+    av = anom.values
+    ext = np.concatenate([av[1:PAD + 1][::-1], av, av[-PAD - 1:-1][::-1]], axis=0)
+    filt = {w: (_lf_lowpass(ext) if w == "LF" else wk_filter(ext, w))[PAD:PAD + len(av)] for w in waves}
     lon = anom["lon"].values                                    # full globe 0-360
     time = anom["time"].values
     sel = (time <= np.datetime64(end)) & (time > np.datetime64(end) - np.timedelta64(days, "D"))
@@ -300,7 +306,7 @@ def main(argv=None) -> int:
         rt = xr.open_dataset(STORE_RT)
         anom = _anomaly_rt(rt, clim, "05")
         end = pd.Timestamp(anom["time"].values[-1]).to_pydatetime()
-        render(anom, end, min(args.days, 360), Path(args.out), prelim_days=21,
+        render(anom, end, min(args.days, 360), Path(args.out), prelim_days=7,
                subtitle="GMGSI longwave-IR proxy · deseasonalised vs interp-OLR 1979-2022")
     else:
         clim = xr.open_dataset(HIST)
