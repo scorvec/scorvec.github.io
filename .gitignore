@@ -1,0 +1,84 @@
+# macOS Finder metadata
+.DS_Store
+
+# Python bytecode caches
+__pycache__/
+*.pyc
+
+# MJO pipeline runtime artifacts (large / regenerated; reference .nc are kept)
+scripts/mjo/data/aifs/
+scripts/mjo/plots/
+scripts/mjo/data/reference/era5_recent/
+scripts/mjo/data/reference/ncep_recent/
+
+# SST pipeline data cache (large OISST netCDFs, re-downloaded each run)
+scripts/sst/data/
+
+# Hovmöller 10u download cache
+scripts/mjo/data/u10/
+
+# SOI msl download cache + LongPaddock SOI text
+scripts/mjo/data/msl/
+scripts/mjo/data/soi/
+
+# Local MJO builder logs
+scripts/mjo/*.log
+
+# AAM 13-level download cache
+scripts/mjo/data/aam/
+
+# torque 6-hourly sp cache
+scripts/mjo/data/torque/
+
+# Local SST builder logs
+scripts/sst/*.log
+
+# Laptop-only code (kept private in ~/mjo, not pushed to the public site repo)
+scripts/mjo/src/aam.py
+scripts/mjo/src/torque_map_anim.py
+scripts/mjo/src/mmsf.py
+scripts/mjo/src/build_aam_clim.py
+scripts/mjo/src/build_torque_clim.py
+scripts/mjo/src/build_mmsf_clim.py
+scripts/mjo/src/build_torque_map_clim.py
+
+# Local synoptic builder logs
+scripts/synoptic/*.log
+
+# ens change-product archive (local run-to-run state, regenerable)
+scripts/ens/data/archive/
+
+# ens climatology netCDFs — large, build/keep LOCAL only (README stays tracked)
+scripts/ens/data/reference/*.nc
+
+# shared ECMWF GRIB cache (large, regenerable per cycle)
+scripts/ecmwf/cache/
+
+# u850 analog Hovmöller band series (large, local-only; rebuilt by build_u850_bandseries.py)
+scripts/mjo/data/reference/eq_u850_bandseries.nc
+scripts/mjo/data/reference/eq_u850_*_arco.nc
+scripts/ecmwf/.mirror_rotation.json
+
+# MEI nowcast cached inputs (regenerated daily; fit json is committed separately)
+scripts/mjo/data/mei/
+
+# shared cross-pipeline git lock (runtime mutex dir)
+.gitlock/
+
+# Stray artifacts from scripts run in the wrong cwd (real outputs live under repo-root assets/)
+scripts/sst/assets/
+scripts/mjo/assets/
+scripts/sst/sst.html
+scripts/mjo/run_local.log.prev
+scripts/mjo/data/.cycle_done_*
+scripts/mjo/data/.u850_analogs_day
+
+# IEM raw-pull cache for citytemp_elnino.py (regenerable)
+scripts/sst/citytemp_cache/
+
+assets/sst/enso_maps/
+scripts/sst/enso_tmaps_cache/
+assets/sst/citytemp/
+
+# synoptic frames live on the synoptic-frames orphan branch (CDN), not main
+assets/synoptic/*/*/*.webp

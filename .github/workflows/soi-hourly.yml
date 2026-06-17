@@ -1,0 +1,39 @@
+name: Hourly SOI estimate (Darwin/Tahiti METAR)
+
+# Near-real-time SOI from the Darwin (YPDN) + Tahiti (NTAA) airport METARs. Light:
+# one API call + a small plot. Commits its own files only (rolling CSV + webp), so it
+# never collides with the laptop pipelines.
+on:
+  schedule:
+    - cron: '12 * * * *'        # hourly, at :12
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: soi-hourly
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas matplotlib
+      - run: python scripts/sst/hourly_soi.py --out assets/sst/soi_hourly.webp
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          git add assets/sst/soi_hourly.webp scripts/sst/metar/soi_hourly.csv
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "Hourly SOI estimate (METAR): $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash -X ours && git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

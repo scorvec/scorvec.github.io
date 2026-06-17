@@ -1,0 +1,22 @@
+# Synoptic map rendering — Python requirements.
+
+# Core scientific stack
+numpy>=1.24
+pandas>=2.0
+scipy>=1.11
+
+# HRRR fetch
+xarray>=2023.0
+cfgrib>=0.9.10
+eccodes>=1.6
+herbie-data>=2024.0.0
+
+# Map rendering
+matplotlib>=3.7
+cartopy>=0.22
+shapely>=2.0
+pyproj>=3.5
+pyshp>=2.3
+
+# Image-format helpers
+Pillow>=10.0

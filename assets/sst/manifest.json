@@ -1,0 +1,17 @@
+{
+  "generated": "2026-06-17 18:50 UTC",
+  "sst_valid_day": "2026-06-16",
+  "roni_latest_month": "2026-06",
+  "roni_latest_value": 0.629,
+  "oni_latest_value": 1.344,
+  "daily_nino34_anom": 1.826,
+  "daily_tropical_anom": 0.85,
+  "daily_relative": 0.977,
+  "anim_days": 60,
+  "files": {
+    "global": "global_sst_anom.webp",
+    "tropical": "tropical_sst_anom.webp",
+    "roni": "roni.webp",
+    "daily_indices": "daily_indices.webp"
+  }
+}

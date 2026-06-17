@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Primary SEO metadata -->
+<title>Shawn Corvec — Meteorologist & Atmospheric Scientist</title>
+<meta name="description" content="Shawn Corvec is a meteorologist and atmospheric scientist working in numerical weather prediction, operational forecasting, and energy markets. Personal site, research, and projects.">
+<meta name="author" content="Shawn Corvec">
+<meta name="keywords" content="Shawn Corvec, meteorologist, atmospheric scientist, numerical weather prediction, energy forecasting, wind generation forecast, ERCOT, HRRR">
+<link rel="canonical" href="https://scorvec.com/">
+<meta name="robots" content="index, follow">
+
+<!-- Open Graph (link previews on social, Slack, iMessage) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Shawn Corvec — Meteorologist & Atmospheric Scientist">
+<meta property="og:description" content="Quantitative meteorologist working on numerical weather prediction, operational forecasting, and energy markets.">
+<meta property="og:url" content="https://scorvec.com/">
+<meta property="og:image" content="https://scorvec.com/profile.jpg">
+<meta property="og:image:alt" content="Shawn Corvec">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta property="og:locale" content="en_US">
+
+<!-- Twitter card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Shawn Corvec — Meteorologist & Atmospheric Scientist">
+<meta name="twitter:description" content="Meteorologist working on numerical weather prediction, operational forecasting, and energy markets.">
+<meta name="twitter:image" content="https://scorvec.com/profile.jpg">
+
+<!-- Structured data: tells Google this page is about a person, enables knowledge panel -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Shawn Corvec",
+  "url": "https://scorvec.com",
+  "image": "https://scorvec.com/profile.jpg",
+  "jobTitle": "Meteorologist & Atmospheric Scientist",
+  "description": "Quantitative meteorologist with experience in numerical weather prediction, operational forecasting, and energy markets.",
+  "knowsAbout": [
+    "Numerical weather prediction",
+    "Operational forecasting",
+    "Energy markets",
+    "Atmospheric science",
+    "Wind generation forecasting"
+  ],
+  "sameAs": [
+    "https://www.linkedin.com/in/shawn-corvec-35895b231/",
+    "https://www.researchgate.net/profile/Shawn-Corvec",
+    "https://scholar.google.com/citations?user=EYLRCJIAAAAJ&hl=en",
+    "https://github.com/scorvec"
+  ]
+}
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html, body { height: 100%; }
+  /* desktop reads a touch small on wide monitors — nudge the root up (mobile unchanged) */
+  @media (min-width: 768px) { html { font-size: 110%; } }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  /* HERO BACKGROUND */
+  .home {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    padding: 6rem 2rem 4rem;
+    position: relative;
+    background: url('IMG_2253.JPEG') center center / cover no-repeat;
+    min-height: calc(100dvh - 57px - 57px);
+  }
+  .home::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(10,14,20,0.55) 0%,
+      rgba(10,14,20,0.65) 60%,
+      rgba(10,14,20,0.75) 100%
+    );
+  }
+  .home-inner {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; max-width: 600px; width: 100%;
+  }
+
+  /* PHOTO */
+  .photo-wrap {
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: #dddbd4;
+    overflow: hidden; margin-bottom: 2rem;
+    border: 2px solid rgba(255,255,255,0.2);
+  }
+  .photo-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* TEXT */
+  h1 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: 2rem; margin-bottom: 0.3rem;
+    color: #fff;
+  }
+  .title {
+    font-size: 0.78rem; font-weight: 400; letter-spacing: 0.1em;
+    text-transform: uppercase; color: rgba(180,205,235,0.9);
+    margin-bottom: 1.4rem;
+  }
+  .bio {
+    font-size: 0.93rem; font-weight: 300; line-height: 1.85;
+    color: rgba(255,255,255,0.78); margin-bottom: 2rem;
+  }
+
+  /* LINKS */
+  .home-links {
+    display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.76rem; font-weight: 500;
+    letter-spacing: 0.07em; text-transform: uppercase; text-decoration: none;
+    padding: 0.65rem 1.5rem;
+    border: 1px solid rgba(255,255,255,0.55); color: #fff;
+    transition: all 0.2s;
+    backdrop-filter: blur(4px);
+    background: rgba(255,255,255,0.07);
+  }
+  .btn:hover { background: rgba(255,255,255,0.2); border-color: #fff; }
+  .btn svg { flex-shrink: 0; }
+
+  /* FEATURE BUTTONS — live monitors, larger, above the small links */
+  .feature-links {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 0.8rem;
+    margin-bottom: 1.5rem; width: 100%;
+  }
+  .feature-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    text-decoration: none; color: #fff;
+    padding: 1rem 1.4rem; min-width: 0;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.42);
+    backdrop-filter: blur(4px);
+    transition: all 0.2s;
+  }
+  .feature-btn:hover { background: rgba(255,255,255,0.2); border-color: #fff; }
+  .feature-btn .fb-label {
+    font-size: 0.62rem; font-weight: 500; letter-spacing: 0.15em;
+    text-transform: uppercase; color: rgba(220,180,100,0.95);
+    margin-bottom: 0.35rem;
+  }
+  .feature-btn .fb-title {
+    font-family: var(--serif); font-weight: 400; font-size: 1.08rem;
+  }
+
+  /* FEATURED CALLOUT — live forecasts */
+  .featured {
+    display: flex; flex-direction: column; align-items: center;
+    margin: 0 0 2rem;
+    padding: 1.5rem 1.8rem;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.22);
+    backdrop-filter: blur(4px);
+    text-decoration: none; color: #fff;
+    max-width: 100%;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .featured:hover {
+    background: rgba(255,255,255,0.14);
+    border-color: rgba(255,255,255,0.45);
+  }
+  .featured-label {
+    font-size: 0.68rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(220,180,100,0.95);
+    margin-bottom: 0.45rem;
+  }
+  .featured-title {
+    font-family: var(--serif); font-weight: 400;
+    font-size: 1.2rem; color: #fff;
+    margin-bottom: 0.45rem;
+  }
+  .featured-desc {
+    font-size: 0.85rem; font-weight: 300; line-height: 1.55;
+    color: rgba(255,255,255,0.78);
+    max-width: 38ch;
+  }
+  .featured-arrow {
+    font-size: 0.85rem; margin-left: 0.4rem;
+    transition: transform 0.2s;
+    display: inline-block;
+  }
+  .featured:hover .featured-arrow { transform: translateX(3px); }
+
+  /* FOOTER */
+  footer {
+    padding: 1.2rem 3rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: center; align-items: center;
+  }
+  .counter {
+    font-size: 0.72rem; font-weight: 400; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+
+  /* TABLET */
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { gap: 1.3rem; }
+    .home { padding: 5rem 1.5rem 3rem; }
+    footer { padding: 1rem 1.5rem; }
+  }
+
+  /* PHONE */
+  @media (max-width: 480px) {
+    nav {
+      padding: 0.85rem 1.1rem;
+      flex-wrap: wrap; gap: 0.5rem;
+    }
+    .nav-name { font-size: 0.95rem; }
+    .nav-links { gap: 1rem; }
+    .nav-links a { font-size: 0.78rem; }
+
+    .home { padding: 4.5rem 1.2rem 2.5rem; }
+    .feature-links { flex-direction: column; gap: 0.7rem; }
+    .feature-btn { width: 100%; min-width: 0; padding: 0.9rem 1.2rem; }
+    .photo-wrap {
+      width: 120px; height: 120px;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.6rem; }
+    .title { font-size: 0.72rem; margin-bottom: 1.2rem; }
+    .bio { font-size: 0.9rem; line-height: 1.75; }
+
+    .home-links { gap: 0.6rem; }
+    .btn {
+      font-size: 0.72rem;
+      padding: 0.6rem 1.1rem;
+    }
+
+    .featured { padding: 1.2rem 1.3rem; }
+    .featured-title { font-size: 1.1rem; }
+    .featured-desc { font-size: 0.82rem; }
+
+    footer { padding: 0.9rem 1.1rem; }
+  }
+
+  /* VERY NARROW (older/small phones) */
+  @media (max-width: 360px) {
+    .nav-links { gap: 0.8rem; }
+    .nav-links a { font-size: 0.72rem; }
+    h1 { font-size: 1.45rem; }
+    .btn {
+      font-size: 0.68rem;
+      padding: 0.55rem 0.9rem;
+      letter-spacing: 0.05em;
+    }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html" class="active">Home</a></li>
+    <li><a href="resume.html">Resume</a></li>
+    <li><a href="research.html">Research</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+    <li><a href="mjo.html">MJO</a></li>
+    <li><a href="sst.html">El Niño</a></li>
+    <li><a href="assets/synoptic/viewer.html">HRRR</a></li>
+  </ul>
+</nav>
+
+<main class="home">
+  <div class="home-inner">
+    <div class="photo-wrap">
+      <img src="profile.jpg" alt="Shawn Corvec">
+    </div>
+
+    <h1>Shawn Corvec</h1>
+    <div class="title">Meteorologist · Atmospheric Scientist</div>
+
+    <div class="feature-links">
+      <a href="renewables.html" class="feature-btn">
+        <span class="fb-label">Live &middot; grid penetration</span>
+        <span class="fb-title">HRRR Wind / Solar Forecast</span>
+      </a>
+      <a href="sst.html" class="feature-btn">
+        <span class="fb-label">Live &middot; daily</span>
+        <span class="fb-title">El Ni&ntilde;o / La Ni&ntilde;a Monitor</span>
+      </a>
+      <a href="mjo.html" class="feature-btn">
+        <span class="fb-label">Live &middot; 2&times; daily</span>
+        <span class="fb-title">AIFS-ENS MJO Forecast</span>
+      </a>
+      <a href="assets/synoptic/viewer.html" class="feature-btn">
+        <span class="fb-label">Live &middot; hourly</span>
+        <span class="fb-title">HRRR Surface Fields Viewer</span>
+      </a>
+    </div>
+
+    <div class="home-links">
+      <a href="resume.html" class="btn">Resume</a>
+      <a href="gallery.html" class="btn">Gallery</a>
+      <a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" class="btn" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.37V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.28V1.72C24 .77 23.2 0 22.22 0z"/></svg>
+        LinkedIn
+      </a>
+      <a href="https://www.researchgate.net/profile/Shawn-Corvec" class="btn" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.586 0C16.834 0 14.5 2.31 14.5 5.06v6.92c0 2.75 2.334 5.05 5.086 5.05h.83V12.85h-.83c-.563 0-1.034-.46-1.034-1.02V5.06c0-.56.47-1.02 1.034-1.02h.83V0h-.83zM4.05 24c-1.133 0-2.05-.917-2.05-2.05V2.05C2 .917 2.917 0 4.05 0h7.65v4.05H6.1v15.9h11.7v-3.7h4.1v5.7c0 1.13-.92 2.05-2.05 2.05H4.05z"/></svg>
+        ResearchGate
+      </a>
+      <a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&hl=en" class="btn" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+        Google Scholar
+      </a>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <p class="counter">Unique viewers: <span id="count">—</span></p>
+</footer>
+
+<script>
+  fetch((function(){var k='scorvec_uv',s=localStorage.getItem(k),o=localStorage.getItem('scorvec_owner');if(!o){try{localStorage.setItem(k,'1');}catch(e){}}return 'https://api.counterapi.dev/v1/scorvec/unique'+((s||o)?'/':'/up');})())
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('count').textContent = data.count.toLocaleString();
+    })
+    .catch(() => {
+      document.getElementById('count').textContent = '—';
+    });
+</script>
+</body>
+</html>

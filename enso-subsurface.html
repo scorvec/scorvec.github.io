@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subsurface Temperature &middot; El Ni&ntilde;o Monitor</title>
+<meta name="description" content="Equatorial Pacific depth–longitude subsurface temperature cross-sections (NOAA/PMEL TAO/TRITON), raw and with the 1991–2020 climate trend removed.">
+<link rel="canonical" href="https://scorvec.com/enso-subsurface.html">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html { font-size: 17.5px; }   /* nudge the whole page up from the 16px default */
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+
+  /* fixed two-row header: site nav + ENSO monitor sub-nav */
+  .site-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  .enso-subnav {
+    display: flex; gap: 1.6rem; align-items: center; flex-wrap: wrap;
+    padding: 0.55rem 3rem 0.7rem;
+    border-top: 1px solid var(--rule);
+  }
+  .enso-subnav a {
+    font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
+    color: var(--muted); padding-bottom: 2px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .enso-subnav a:hover { color: var(--ink); }
+  .enso-subnav a.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+  main {
+    flex: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 9.5rem 2.5rem 5rem;
+    width: 100%;
+  }
+
+  .page-header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .page-header p {
+    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+  }
+  .page-header p + p { margin-top: 0.8rem; }
+
+  /* Overview topic grid (links to the themed subpages) */
+  .topic-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem; margin-bottom: 3rem;
+  }
+  .topic-card {
+    display: block; border: 1px solid var(--rule); background: #fff;
+    padding: 1.2rem 1.3rem; text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .topic-card:hover { border-color: var(--accent); background: var(--accent-light); }
+  .topic-card h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.02rem;
+    color: var(--ink); margin-bottom: 0.3rem;
+  }
+  .topic-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+
+  .chart-stack { display: flex; flex-direction: column; gap: 3rem; }
+
+  .chart-card {
+    border: 1px solid var(--rule);
+    background: #fff;
+    overflow: hidden;
+  }
+  .chart-card-header {
+    padding: 1.5rem 1.8rem 1.3rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
+    margin-bottom: 0.6rem; color: var(--ink);
+  }
+  .chart-card-header p {
+    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
+  }
+  .chart-card-header p + p { margin-top: 0.7rem; }
+  .chart-card-header b { color: var(--ink); font-weight: 500; }
+
+  .img-wrap { padding: 1rem 1.2rem; background: #fff; }
+  .img-wrap + .img-wrap { padding-top: 0; }
+  .img-wrap img { display: block; width: 100%; height: auto; }
+  /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
+     sized to its exact content height via postMessage (see footer.html / sst_anim.html),
+     which fills the card with no letterboxing at any width. */
+  .anim-embed { width: 100%; border: 0; display: block; background: #0f0f0d;
+                aspect-ratio: 27 / 25; }
+  .anim-embed.subsurface { aspect-ratio: 1 / 1; }
+  .anim-embed.torque { aspect-ratio: 1306 / 1055; }
+  .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
+  .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
+  .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
+  .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
+  .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
+  .anim-embed.colombia { aspect-ratio: 1680 / 1850; }   /* image 1680×1800 + controls bar */
+  .anim-embed.eq-cur-map { aspect-ratio: 1217 / 467; }      /* image 1217×412 + controls bar */
+  .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
+  .img-label {
+    font-size: 0.72rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 0 0 0.4rem 0.2rem;
+  }
+
+  /* live wind-arrow widget (Tarawa WWB monitor) */
+  .wwb-arrows {
+    display: flex; justify-content: center; align-items: center; gap: 2.6rem;
+    flex-wrap: wrap; padding: 1.3rem 1.2rem 0.4rem;
+  }
+  .wwb-stn { text-align: center; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+  .wwb-stn svg { display: block; margin: 0 auto 0.35rem; }
+  .wwb-stn b { display: block; color: var(--ink); font-weight: 500; font-size: 0.92rem; }
+
+  .chart-card-footer {
+    padding: 0.85rem 1.8rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .chart-sources { font-size: 0.68rem; color: var(--muted); }
+  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+
+  .colophon {
+    margin-top: 4rem; padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+  }
+  .colophon h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    color: var(--ink); margin-bottom: 0.5rem;
+  }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .colophon a:hover { border-bottom-color: var(--accent); }
+
+  footer {
+    padding: 1.2rem 3rem; border-top: 1px solid var(--rule);
+    display: flex; justify-content: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
+    main { padding: 9rem 1.5rem 3.5rem; }
+    .page-header { margin-bottom: 2.2rem; padding-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.6rem; }
+    .chart-stack { gap: 2.2rem; }
+    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
+    .chart-card-footer { padding: 0.75rem 1.3rem; }
+    footer { padding: 1rem 1.5rem; }
+  }
+  @media (max-width: 480px) {
+    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .nav-name { font-size: 0.95rem; }
+    .nav-links { gap: 1rem; }
+    .nav-links a { font-size: 0.78rem; }
+    .enso-subnav { padding: 0.5rem 1.1rem 0.6rem; gap: 0.85rem; }
+    .enso-subnav a { font-size: 0.74rem; }
+    main { padding: 9.5rem 1rem 3rem; }
+    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
+    .chart-card-header h2 { font-size: 1.02rem; }
+    .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
+    .img-wrap { padding: 0.7rem 0.7rem; }
+    .chart-card-footer { padding: 0.7rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+    footer { padding: 0.9rem 1.1rem; }
+  }
+  @media (max-width: 360px) {
+    .nav-links { gap: 0.8rem; }
+    .nav-links a { font-size: 0.72rem; }
+    .enso-subnav { gap: 0.7rem; }
+    .page-header h1 { font-size: 1.28rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <nav>
+    <a href="index.html" class="nav-name">Shawn Corvec</a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resume.html">Resume</a></li>
+      <li><a href="research.html">Research</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+    </ul>
+  </nav>
+  <div class="enso-subnav">
+    <a href="sst.html" class="">Overview</a>
+    <a href="enso-subsurface.html" class="active">Subsurface</a>
+    <a href="enso-analogs.html" class="">Analogs</a>
+    <a href="enso-forecasts.html" class="">Forecasts</a>
+    <a href="enso-atmosphere.html" class="">Atmospheric Response</a>
+  </div>
+</header>
+<main>
+  <div class="page-header">
+    <h1>Equatorial Pacific Subsurface Temperature</h1>
+    <p>Depth&ndash;longitude cross-sections along the equator from the TAO/TRITON moored-buoy array. The subsurface warm reservoir along the thermocline often <i>leads</i> the surface ENSO signal.</p>
+  </div>
+
+  <div class="chart-stack">
+
+    <!-- SUBSURFACE CROSS-SECTION -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Pacific Subsurface Temperature</h2>
+        <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed.</p>
+        <p><b>What to look for:</b> The thermocline (here the 26&deg;C and 28&deg;C isotherms) tilts upward toward the east. Subsurface warm or cool anomalies along the thermocline often <i>lead</i> the surface ENSO signal &mdash; watch them build and propagate eastward in the animation.</p>
+      </div>
+      <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial"
+              title="Equatorial Pacific subsurface temperature animation" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
+        <span class="chart-updated" id="subsurface-updated">TAO 2026-06-15</span>
+      </div>
+    </div>
+
+    <!-- SUBSURFACE CROSS-SECTION — DE-TRENDED COMPANION -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Subsurface Temperature &mdash; Climate Trend Removed</h2>
+        <p>The same equatorial cross-section, comparing the anomaly versus the 1991&ndash;2020 average (top) with the same anomaly after the <b>secular climate trend is removed</b> (bottom). The trend is a per-depth, per-longitude linear fit over the 1991&ndash;2020 TAO record, so de-trending strips the slowly-evolving background and isolates the ENSO signal.</p>
+        <p><b>What to look for:</b> Where the two panels differ is where the background trend lives &mdash; notably subsurface warming in the far west and cooling along the eastern thermocline.</p>
+      </div>
+      <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial_dt"
+              title="Equatorial Pacific subsurface anomaly, raw vs de-trended" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; trend fit 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
+        <span class="chart-updated">TAO 2026-06-15</span>
+      </div>
+    </div>
+
+    <!-- TROPICAL PACIFIC SURFACE-CURRENT SNAPSHOT (Copernicus Marine) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Tropical Pacific Surface Currents</h2>
+        <p>Daily surface-current fields over the last month for the equatorial Pacific (15&deg;S&ndash;15&deg;N, 130&deg;E&ndash;80&deg;W) from the Copernicus Marine 1/12&deg; ocean model: <b>speed shaded</b> (blue&nbsp;slow&nbsp;&rarr;&nbsp;red&nbsp;fast) with <b>streamlines</b> tracing the flow.</p>
+        <p><b>What to look for:</b> the westward <b>South Equatorial Current</b> straddling the equator, the eastward <b>North Equatorial Counter Current</b> near 5&ndash;10&deg;N, the swift western-boundary and Central-American jets, and the eddies / Tropical Instability Waves. As El&nbsp;Ni&ntilde;o matures, watch eastward flow build along the equator. Use the slider to step through the last ~month; updated daily.</p>
+      </div>
+      <iframe class="anim-embed eq-cur-map" src="sst_anim.html?embed=1&amp;manifest=eq_cur_map_manifest.json&amp;region=eq_cur_map"
+              title="Tropical Pacific surface-current animation (speed + streamlines)" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;) &middot; surface (~0.5&nbsp;m)</span>
+        <span class="chart-updated">daily</span>
+      </div>
+    </div>
+
+    <!-- EQUATORIAL ZONAL CURRENT + THERMOCLINE SECTION (Copernicus Marine) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Zonal Current &amp; the Undercurrent</h2>
+        <p>Depth&ndash;longitude slice along the equator (1.5&deg;S&ndash;1.5&deg;N), 160&deg;E&ndash;90&deg;W, from the Copernicus Marine 1/12&deg; global ocean model: <b>zonal current</b> (shaded, eastward&nbsp;=&nbsp;red) with the <b>20&deg;C isotherm</b> (the thermocline) in black. It resolves the <b>Equatorial Undercurrent</b> &mdash; the eastward subsurface jet at ~50&ndash;200&nbsp;m &mdash; the surface-westward South Equatorial Current, and the east&ndash;west thermocline tilt.</p>
+        <p><b>What to look for:</b> as El&nbsp;Ni&ntilde;o matures, relaxing trade winds let the thermocline <b>flatten</b> (deepen in the east), the surface current swings <b>eastward</b>, and the Undercurrent weakens. The loop is pinned to start <b>1&nbsp;March&nbsp;2026</b> and grows daily, so you can follow the full progression of a <b>downwelling Kelvin wave</b> &mdash; a deepening of the 20&deg;C isotherm with an eastward current pulse &mdash; across the basin. Use the slider to step through; updated daily.</p>
+      </div>
+      <iframe class="anim-embed eq-cur-section" src="sst_anim.html?embed=1&amp;manifest=eq_cur_section_manifest.json&amp;region=eq_cur_section"
+              title="Equatorial Pacific zonal current and thermocline animation" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg; Mercator) &middot; equator 1.5&deg;S&ndash;1.5&deg;N mean &middot; since 1 Mar 2026</span>
+        <span class="chart-updated">daily</span>
+      </div>
+    </div>
+
+    <!-- EQUATORIAL SURFACE-CURRENT STRIP / HOVMÖLLER (Copernicus Marine) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Surface Current &mdash; Strip / Hovm&ouml;ller</h2>
+        <p>Longitude &times; time strip of the daily <b>surface zonal current</b> averaged 2&deg;S&ndash;2&deg;N, 150&deg;E&ndash;90&deg;W (same Copernicus Marine model). <span style="color:#c0392b">Red = eastward</span>, <span style="color:#2471a3">blue = westward</span>. Normally the equatorial surface flows westward (the trade-driven South Equatorial Current); newest day at the bottom.</p>
+        <p><b>What to look for:</b> as El&nbsp;Ni&ntilde;o matures the trades relax and downwelling Kelvin waves drive <b>eastward surface-current surges</b> that propagate into the east Pacific &mdash; a swing from blue to red, tilting down-and-eastward. Updated daily.</p>
+      </div>
+      <div class="img-wrap" style="max-width:640px;margin:0 auto"><img id="eq-current-hov" data-src="assets/sst/eq_current_hov.webp" alt="Equatorial Pacific surface zonal current Hovmöller" loading="lazy"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;) &middot; 2&deg;S&ndash;2&deg;N surface mean &middot; rolling ~9 months</span>
+        <span class="chart-updated">daily</span>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <p class="counter">Unique viewers: <span id="count">&mdash;</span></p>
+</footer>
+
+<script>
+  fetch((function(){var k='scorvec_uv',s=localStorage.getItem(k),o=localStorage.getItem('scorvec_owner');if(!o){try{localStorage.setItem(k,'1');}catch(e){}}return 'https://api.counterapi.dev/v1/scorvec/unique'+((s||o)?'/':'/up');})())
+    .then(r => r.json())
+    .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
+    .catch(() => { document.getElementById('count').textContent = '—'; });
+</script>
+<script>
+  // Size each animation iframe to its embedded content's exact height (image +
+  // controls), so the wide plots fill their cards with no letterboxing on any screen.
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + 'px';
+        fr[i].style.aspectRatio = 'auto';
+      }
+    }
+  });
+  // Hourly-updating images (committed by their own GitHub Actions, not the page build):
+  // load with an hour-granular cache-buster so the latest render shows without churning
+  // the page HTML. The page's static ?v= can't cover them (they change between page builds).
+  ['soi-hourly', 'kiribati-wind', 'kiribati-history', 'olr-hovmoller', 'olr-waves', 'eq-current-hov', 'eq-uwind-hov'].forEach(function (id) {
+    var im = document.getElementById(id);
+    if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
+  });
+
+  // Live wind-arrow widget for the Tarawa WWB monitor: draw the latest wind at each
+  // station from the hourly kiribati_wind.json (arrow points the way the wind blows TO).
+  (function () {
+    var host = document.getElementById('wwb-arrows'); if (!host) return;
+    fetch('assets/sst/kiribati_wind.json?v=' + new Date().toISOString().slice(0, 13))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.stations) return;
+        var html = '';
+        Object.keys(d.stations).forEach(function (icao) {
+          var s = d.stations[icao], west = s.u_ms > 0, col = west ? '#d62728' : '#1f77b4';
+          var bearing = (s.dir + 180) % 360;             // flow direction (downwind)
+          var lab = Math.abs(s.u_ms) < 0.5 ? 'calm' : (west ? 'westerly' : 'easterly');
+          html += '<div class="wwb-stn"><svg width="92" height="92" viewBox="0 0 100 100">'
+            + '<circle cx="50" cy="50" r="44" fill="none" stroke="#ddd"/>'
+            + '<text x="50" y="13" text-anchor="middle" font-size="9" fill="#bbb">N</text>'
+            + '<g transform="rotate(' + bearing + ' 50 50)">'
+            + '<line x1="50" y1="52" x2="50" y2="24" stroke="' + col + '" stroke-width="4"/>'
+            + '<path d="M50 12 L42 30 L50 25 L58 30 Z" fill="' + col + '"/></g>'
+            + '<circle cx="50" cy="50" r="3.5" fill="' + col + '"/></svg>'
+            + '<b>' + s.name + '</b><span style="color:' + col + '">' + s.dir + '° / '
+            + s.spd_kt + ' kt &middot; ' + lab + '</span></div>';
+        });
+        host.innerHTML = html + '<div class="wwb-stn" style="max-width:9em">updated<br>' + d.updated + '</div>';
+      }).catch(function () {});
+  })();
+</script>
+</body>
+</html>

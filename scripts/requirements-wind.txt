@@ -1,0 +1,29 @@
+# Core scientific stack
+numpy>=1.24
+pandas>=2.0
+scipy>=1.11
+pytz  # gridstatus 0.34 imports pytz; pandas 3.x doesn't pull it in
+
+# Geospatial / GRIB
+xarray>=2023.0
+cfgrib>=0.9.10
+eccodes>=1.6
+herbie-data>=2024.0.0
+
+# Power-curve catalog
+windpowerlib>=0.2.2
+
+# Output
+pyarrow>=14.0
+openpyxl>=3.1
+plotly>=5.18
+
+# Verification: actuals from ISOs
+# - gridstatus is the open-source library that scrapes ISO public sites
+#   directly (no API key, no rate limit). Used for SPP and CAISO actuals.
+#   Pinned to 0.34 since newer versions have tighter cryptography pins
+#   that conflict with other deps and cause pip backtracking.
+# - gridstatusio is the paid hosted API. Still needed for curtailment
+#   data that isn't easily scrapable from individual ISO sites.
+gridstatus==0.34.0
+gridstatusio>=0.10

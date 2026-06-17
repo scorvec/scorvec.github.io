@@ -1,0 +1,179 @@
+name: MJO RMM (AIFS-ENS)
+
+# FALLBACK builder. The primary builder is a local launchd job on Shawn's laptop
+# (scripts/mjo/run_local.sh, ~02:45 ET for 00Z and ~14:45 ET for 12Z — soon after
+# each cycle's data lands ~06Z/~18Z) which does the heavy ENS download off
+# GitHub's queue. These polls fire a couple hours AFTER that, so on normal days
+# the laptop has already pushed the cycle and the light "check" job just skips
+# (sentinel = the cycle's PNG in assets/mjo/). When the laptop slept through its
+# window, this picks the cycle up promptly and does the full build itself.
+on:
+  schedule:
+    - cron: '37 8,11 * * *'     # 00Z cycle (data lands ~06Z) — fallback after laptop ~02:45 ET
+    - cron: '37 20,23 * * *'    # 12Z cycle (data lands ~18Z) — fallback after laptop ~14:45 ET
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Init date YYYYMMDD (empty = latest available)'
+        required: false
+        default: ''
+      time:
+        description: 'Init hour 00 or 12 (empty = latest available)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mjo-rmm
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      date: ${{ steps.decide.outputs.date }}
+      time: ${{ steps.decide.outputs.time }}
+      compact: ${{ steps.decide.outputs.compact }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install open-data client
+        run: pip install ecmwf-opendata
+      - name: Decide target cycle
+        id: decide
+        run: |
+          if [ -n "${{ inputs.date }}" ] && [ -n "${{ inputs.time }}" ]; then
+            DATE="${{ inputs.date }}"; TIME="${{ inputs.time }}"
+            echo "Manual dispatch: $DATE ${TIME}Z"
+          else
+            # Emit a prefixed line and parse only that, so any banner/progress
+            # text the open-data client writes can't corrupt the cycle.
+            OUT=$(cd scripts/mjo/src && python -c \
+              "from download_aifs import latest_run; d,t=latest_run(); print('CYCLE',d,t)" \
+              2>/dev/null | grep '^CYCLE ' | tail -1)
+            DATE=$(echo "$OUT" | awk '{print $2}')
+            TIME=$(echo "$OUT" | awk '{print $3}')
+            echo "Latest available AIFS-ENS: $DATE ${TIME}Z"
+          fi
+          if ! echo "$DATE" | grep -qE '^[0-9]{8}$' || ! echo "$TIME" | grep -qE '^(00|12)$'; then
+            echo "ERROR: could not determine cycle (DATE='$DATE' TIME='$TIME')" >&2
+            exit 1
+          fi
+          COMPACT="${DATE}_${TIME}z"
+          if [ -f "assets/mjo/rmm_${COMPACT}.png" ]; then
+            echo "Already plotted (assets/mjo/rmm_${COMPACT}.png) — skipping."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not yet plotted — will run."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "time=$TIME" >> "$GITHUB_OUTPUT"
+          echo "compact=$COMPACT" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: check
+    if: ${{ needs.check.outputs.should_run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Install eccodes (GRIB decoder)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Fetch ENS cycle (all params — RMM u + Hovmöller 10u + SOI msl)
+        working-directory: scripts/mjo
+        run: |
+          python src/ens_cycle.py --date "${{ needs.check.outputs.date }}" \
+                                  --time "${{ needs.check.outputs.time }}"
+
+      - name: Run RMM pipeline (computes + plots from the cached cycle)
+        working-directory: scripts/mjo
+        run: |
+          python run_rmm.py --skip-download \
+                            --date "${{ needs.check.outputs.date }}" \
+                            --time "${{ needs.check.outputs.time }}"
+
+      - name: Publish plot to assets/mjo
+        run: |
+          mkdir -p assets/mjo
+          cp "scripts/mjo/plots/rmm_${{ needs.check.outputs.compact }}.png" \
+             "assets/mjo/rmm_${{ needs.check.outputs.compact }}.png"
+          # keep the most recent 60 archived plots
+          ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
+
+      - name: Regenerate MJO page
+        run: python scripts/mjo/generate_page.py
+
+      - name: Build equatorial 10m-wind Hovmöller (El Niño page)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst
+          python src/eq_hovmoller.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --data-dir data/u10 \
+            --out ../../assets/sst/eq_wind_hovmoller.webp \
+            || echo "Hovmöller build failed; continuing"
+
+      - name: Build SOI forecast (El Niño page)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst
+          python src/soi_forecast.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --data-dir data/msl \
+            --out ../../assets/sst/soi_forecast.webp \
+            || echo "SOI build failed; continuing"
+
+      - name: Commit & push (generated outputs)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp
+          if git diff --staged --quiet; then
+            echo "No changes; skipping commit."; exit 0
+          fi
+          git commit -m "MJO RMM: ${{ needs.check.outputs.compact }}"
+          for i in 1 2 3 4 5; do
+            if git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; rebasing onto origin/main (keep our generated files)…"
+            git fetch origin main
+            if ! git rebase -X theirs origin/main; then
+              git rebase --abort || true
+              git reset --hard origin/main
+              git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp
+              git diff --staged --quiet || git commit -m "MJO RMM: ${{ needs.check.outputs.compact }} (re-applied)"
+            fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### MJO RMM ${{ needs.check.outputs.compact }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/mjo.html](https://scorvec.com/mjo.html)" >> "$GITHUB_STEP_SUMMARY"

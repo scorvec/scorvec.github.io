@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resume · Shawn Corvec</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --dark: #131410;
+    --dark-2: #1e1e1a;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  /* LAYOUT */
+  .page {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+    padding-top: 57px;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--dark);
+    color: rgba(255,255,255,0.85);
+    padding: 3.5rem 2.5rem 3rem;
+    position: sticky;
+    top: 57px;
+    height: calc(100vh - 57px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-name {
+    font-family: var(--serif); font-weight: 400;
+    font-size: 1.5rem; line-height: 1.2;
+    margin-bottom: 0.4rem;
+    color: #fff;
+  }
+  .sidebar-title {
+    font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: rgba(255,255,255,0.4); margin-bottom: 2.5rem;
+    line-height: 1.6;
+  }
+  .sidebar-section { margin-bottom: 2.5rem; }
+  .sidebar-section-label {
+    font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(255,255,255,0.3); margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .sidebar-location {
+    font-size: 0.8rem; color: rgba(255,255,255,0.55);
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .sidebar-location svg { opacity: 0.4; flex-shrink: 0; }
+
+  /* SKILLS */
+  .skill-group { margin-bottom: 1.2rem; }
+  .skill-group-name {
+    font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: rgba(255,255,255,0.3); margin-bottom: 0.5rem;
+  }
+  .skill-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .skill-tag {
+    font-size: 0.68rem; padding: 0.25rem 0.6rem;
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.6);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 2px; letter-spacing: 0.02em;
+  }
+
+  /* EDUCATION in sidebar */
+  .edu-item { margin-bottom: 1.2rem; }
+  .edu-degree {
+    font-size: 0.78rem; color: rgba(255,255,255,0.8);
+    font-weight: 500; margin-bottom: 0.15rem;
+    line-height: 1.4;
+  }
+  .edu-school {
+    font-size: 0.72rem; color: rgba(255,255,255,0.4);
+    margin-bottom: 0.1rem;
+  }
+  .edu-year {
+    font-family: var(--mono); font-size: 0.65rem;
+    color: rgba(255,255,255,0.25); letter-spacing: 0.04em;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .sidebar-footer a {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.7rem; color: rgba(255,255,255,0.35);
+    text-decoration: none; margin-bottom: 0.6rem;
+    transition: color 0.2s; letter-spacing: 0.03em;
+  }
+  .sidebar-footer a:hover { color: rgba(255,255,255,0.7); }
+  .sidebar-footer svg { flex-shrink: 0; }
+
+  /* MAIN CONTENT */
+  .content {
+    padding: 3.5rem 3.5rem 5rem;
+    max-width: 720px;
+  }
+
+  .content-section { margin-bottom: 4rem; }
+  .content-section-title {
+    font-family: var(--serif); font-weight: 400;
+    font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 2rem;
+    display: flex; align-items: center; gap: 1rem;
+  }
+  .content-section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--rule);
+  }
+
+  /* TIMELINE */
+  .timeline { position: relative; }
+  .timeline::before {
+    content: '';
+    position: absolute; left: 0; top: 8px; bottom: 0;
+    width: 1px; background: var(--rule);
+  }
+
+  .timeline-item {
+    padding-left: 2rem; margin-bottom: 2.8rem; position: relative;
+    opacity: 0; transform: translateY(16px);
+    animation: fadeUp 0.5s ease forwards;
+  }
+  .timeline-item:nth-child(1) { animation-delay: 0.05s; }
+  .timeline-item:nth-child(2) { animation-delay: 0.12s; }
+  .timeline-item:nth-child(3) { animation-delay: 0.19s; }
+  .timeline-item:nth-child(4) { animation-delay: 0.26s; }
+  .timeline-item:nth-child(5) { animation-delay: 0.33s; }
+  .timeline-item:nth-child(6) { animation-delay: 0.40s; }
+
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .timeline-dot {
+    position: absolute; left: -4px; top: 8px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--bg); border: 2px solid var(--accent);
+  }
+  .timeline-dot.current {
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+  }
+
+  .timeline-header { margin-bottom: 0.6rem; }
+  .timeline-role {
+    font-family: var(--serif); font-weight: 400;
+    font-size: 1.05rem; color: var(--ink); margin-bottom: 0.2rem;
+  }
+  .timeline-meta {
+    display: flex; align-items: center; gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .timeline-company {
+    font-size: 0.8rem; font-weight: 500; color: var(--accent);
+  }
+  .timeline-sep { color: var(--rule); font-size: 0.9rem; }
+  .timeline-period {
+    font-family: var(--mono); font-size: 0.68rem;
+    color: var(--muted); letter-spacing: 0.04em;
+  }
+  .timeline-location {
+    font-size: 0.72rem; color: var(--muted);
+  }
+
+  .timeline-body {
+    font-size: 0.84rem; font-weight: 300; line-height: 1.85;
+    color: #555; margin-top: 0.75rem;
+  }
+  .timeline-body p { margin-bottom: 0.6rem; }
+  .timeline-body p:last-child { margin-bottom: 0; }
+
+  .timeline-highlights {
+    margin-top: 0.9rem; display: flex; flex-wrap: wrap; gap: 0.4rem;
+  }
+  .highlight-tag {
+    font-size: 0.63rem; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 0.2rem 0.55rem; border-radius: 2px;
+    border: 1px solid var(--rule); color: var(--muted);
+  }
+  .highlight-tag.accent {
+    border-color: var(--accent-light); color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  /* FOOTER */
+  footer {
+    padding: 1.2rem 3rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: center; align-items: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { gap: 1.2rem; }
+    .page { grid-template-columns: 1fr; }
+    .sidebar {
+      position: static; height: auto;
+      padding: 2.5rem 1.5rem 2rem;
+    }
+    .content { padding: 2.5rem 1.5rem 3rem; }
+    footer { padding: 1rem 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="resume.html" class="active">Resume</a></li>
+    <li><a href="research.html">Research</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+  </ul>
+</nav>
+
+<div class="page">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-name">Shawn<br>Corvec</div>
+    <div class="sidebar-title">Meteorologist &amp;<br>Atmospheric Scientist</div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Location</div>
+      <div class="sidebar-location">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        USA
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Expertise</div>
+      <div class="skill-group">
+        <div class="skill-group-name">Core</div>
+        <div class="skill-tags">
+          <span class="skill-tag">NWP</span>
+          <span class="skill-tag">Operational Forecasting</span>
+          <span class="skill-tag">Climate Modelling</span>
+          <span class="skill-tag">Energy Meteorology</span>
+        </div>
+      </div>
+      <div class="skill-group">
+        <div class="skill-group-name">Technical</div>
+        <div class="skill-tags">
+          <span class="skill-tag">Python</span>
+          <span class="skill-tag">Fortran</span>
+          <span class="skill-tag">Bash</span>
+          <span class="skill-tag">GEM Model</span>
+          <span class="skill-tag">WRF</span>
+          <span class="skill-tag">HPC</span>
+          <span class="skill-tag">GitLab</span>
+        </div>
+      </div>
+      <div class="skill-group">
+        <div class="skill-group-name">Domains</div>
+        <div class="skill-tags">
+          <span class="skill-tag">Aviation Wx</span>
+          <span class="skill-tag">Severe Weather</span>
+          <span class="skill-tag">Energy Markets</span>
+          <span class="skill-tag">PBL Physics</span>
+          <span class="skill-tag">Mesoscale Wx</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Education</div>
+      <div class="edu-item">
+        <div class="edu-degree">M.Math, Applied Mathematics</div>
+        <div class="edu-school">University of Waterloo</div>
+        <div class="edu-year">2015 – 2017</div>
+      </div>
+      <div class="edu-item">
+        <div class="edu-degree">B.Sc. Physics &amp; Diploma, Meteorology</div>
+        <div class="edu-school">Dalhousie University</div>
+        <div class="edu-year">2007 – 2011</div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <a href="https://www.linkedin.com/in/shawncorvec" target="_blank" rel="noopener">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.37V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.28V1.72C24 .77 23.2 0 22.22 0z"/></svg>
+        linkedin.com/in/shawncorvec
+      </a>
+      <a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&hl=en" target="_blank" rel="noopener">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+        Google Scholar
+      </a>
+      <a href="https://www.researchgate.net/profile/Shawn-Corvec" target="_blank" rel="noopener">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19.586 0c-.818 0-1.508.19-2.073.565-.563.377-.97.936-1.213 1.68A5.63 5.63 0 0 0 16 3.875c0 .669.12 1.24.358 1.713.24.473.552.71.938.71.312 0 .568-.14.766-.422.197-.28.296-.66.296-1.14 0-.303-.034-.566-.103-.79a1.52 1.52 0 0 0-.285-.565.596.596 0 0 0-.45-.222c-.234 0-.427.108-.577.324v-.11c0-.537.1-.963.302-1.278.2-.315.508-.472.921-.472.43 0 .769.188 1.017.563.248.375.373.9.373 1.575 0 .75-.153 1.346-.459 1.788-.306.44-.718.66-1.234.66-.356 0-.65-.11-.883-.33a2.1 2.1 0 0 1-.517-.915 4.45 4.45 0 0 1-.172-1.272H14.5c0 .72.126 1.364.377 1.933.251.569.615 1.013 1.09 1.333.476.32 1.034.48 1.676.48.745 0 1.38-.2 1.904-.6a3.72 3.72 0 0 0 1.167-1.636c.263-.69.394-1.443.394-2.258C21.108 1.388 20.6 0 19.586 0zM9.337 5.49H6.5L3 14.51h2.27l.868-2.472h3.323l.858 2.472H12.6L9.337 5.49zm-.622 5.076H6.782l.966-2.85.967 2.85z"/></svg>
+        ResearchGate
+      </a>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+
+    <section class="content-section">
+      <h2 class="content-section-title">Experience</h2>
+      <div class="timeline">
+
+        <!-- BP -->
+        <div class="timeline-item">
+          <div class="timeline-dot current"></div>
+          <div class="timeline-header">
+            <div class="timeline-role">Meteorologist (Energy)</div>
+            <div class="timeline-meta">
+              <span class="timeline-company">bp</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-period">Apr 2025 – Present</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-location">USA</span>
+            </div>
+          </div>
+          <div class="timeline-body">
+            <p>Working within bp's Supply Trading &amp; Shipping — Analytics and Insights. Provides weather intelligence and decision support for North American gas and power trading, and supports other ST&amp;S teams across North American and international markets.</p>
+            <p>Contributes to quantitative meteorology initiatives including weather and climate data pipelines, internal modeling tools, and integration of meteorological insights into trading and analytics workflows.</p>
+          </div>
+          <div class="timeline-highlights">
+            <span class="highlight-tag accent">Current Role</span>
+            <span class="highlight-tag">Energy Trading</span>
+            <span class="highlight-tag">Gas &amp; Power Markets</span>
+            <span class="highlight-tag">Quantitative Meteorology</span>
+          </div>
+        </div>
+
+        <!-- Tomorrow.io -->
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-header">
+            <div class="timeline-role">Meteorologist</div>
+            <div class="timeline-meta">
+              <span class="timeline-company">Tomorrow.io</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-period">Jun 2023 – Oct 2024</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-location">New York, NY</span>
+            </div>
+          </div>
+          <div class="timeline-body">
+            <p>Supported a major aviation client delivering timely forecasts and operational weather briefings for flight planning and weather-sensitive decisions. Contributed to validation and evaluation of internal NWP and AI-based forecasting models, assessing model performance and forecast quality.</p>
+          </div>
+          <div class="timeline-highlights">
+            <span class="highlight-tag">Aviation Forecasting</span>
+            <span class="highlight-tag">NWP Validation</span>
+            <span class="highlight-tag">AI Model Evaluation</span>
+          </div>
+        </div>
+
+        <!-- ECCC Research -->
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-header">
+            <div class="timeline-role">Research Meteorologist — NWP Model Research</div>
+            <div class="timeline-meta">
+              <span class="timeline-company">Environment and Climate Change Canada</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-period">Aug 2021 – May 2023</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-location">Montréal, QC</span>
+            </div>
+          </div>
+          <div class="timeline-body">
+            <p>Worked within the NWP Research Division of the Atmospheric Science and Technology Directorate, developing and improving physics parameterizations in the GEM atmospheric model. Focused on planetary boundary layer (PBL) and sub-grid orographic drag parameterizations, and model performance for extreme weather events.</p>
+            <p>Developed and tested new Fortran code for the GEM model, leveraged one of Canada's most powerful supercomputing clusters, and built Python/Bash tooling to support simulation and post-processing workflows. Communicated findings through internal presentations and scientific publications.</p>
+          </div>
+          <div class="timeline-highlights">
+            <span class="highlight-tag">GEM Model</span>
+            <span class="highlight-tag">PBL Physics</span>
+            <span class="highlight-tag">Fortran</span>
+            <span class="highlight-tag">HPC</span>
+            <span class="highlight-tag">Python</span>
+          </div>
+        </div>
+
+        <!-- Weather Company -->
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-header">
+            <div class="timeline-role">Senior Aviation Meteorologist</div>
+            <div class="timeline-meta">
+              <span class="timeline-company">The Weather Company (IBM)</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-period">Aug 2020 – Aug 2021</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-location">New York, NY</span>
+            </div>
+          </div>
+          <div class="timeline-body">
+            <p>Embedded within the operations center of a major U.S. airline, providing detailed weather forecasts for winter storms, thunderstorms, fog, turbulence, icing, and tropical cyclones. Delivered actionable intelligence to dispatch, flight operations, and management — including frequent briefings to the CEO during disruptive weather events.</p>
+          </div>
+          <div class="timeline-highlights">
+            <span class="highlight-tag">Aviation Wx</span>
+            <span class="highlight-tag">Severe Weather</span>
+            <span class="highlight-tag">Operational Briefings</span>
+          </div>
+        </div>
+
+        <!-- ECCC Development -->
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-header">
+            <div class="timeline-role">Research Meteorologist — NWP Model Development</div>
+            <div class="timeline-meta">
+              <span class="timeline-company">Environment and Climate Change Canada</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-period">Jul 2017 – Aug 2021</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-location">Montréal, QC</span>
+            </div>
+          </div>
+          <div class="timeline-body">
+            <p>Implemented and tested research innovations within the NWP Development section, ensuring all modifications met operational standards. Led the 2019 upgrade of the Regional Deterministic Prediction System (RDPS) to the GEM5 core — physics, testing, and verification. Contributed to the GEM5 physics package now deployed across most MSC operational NWP systems.</p>
+            <p>Highlights include teaching NWP to new meteorologist interns, and participating in the 2019 Hazardous Weather Testbed Spring Experiment at the NOAA Storm Prediction Center in Norman, OK.</p>
+          </div>
+          <div class="timeline-highlights">
+            <span class="highlight-tag accent">RDPS v7 Lead</span>
+            <span class="highlight-tag">GEM5</span>
+            <span class="highlight-tag">NOAA HWT 2019</span>
+            <span class="highlight-tag">GitLab</span>
+            <span class="highlight-tag">NWP Verification</span>
+          </div>
+        </div>
+
+        <!-- ECCC Operational -->
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-header">
+            <div class="timeline-role">Operational Meteorologist</div>
+            <div class="timeline-meta">
+              <span class="timeline-company">Environment and Climate Change Canada</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-period">Sep 2012 – Aug 2015</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-location">Edmonton, AB</span>
+            </div>
+          </div>
+          <div class="timeline-body">
+            <p>Completed the Meteorological Service of Canada's Operational Meteorologist Development Program. Served as an aviation meteorologist responsible for operational forecasting across Western Canada, with a focus on Southern BC and Vancouver. Responsible for official TAFs for NAV CANADA, most notably Vancouver International Airport.</p>
+          </div>
+          <div class="timeline-highlights">
+            <span class="highlight-tag">TAF Forecasting</span>
+            <span class="highlight-tag">YVR</span>
+            <span class="highlight-tag">Complex Terrain</span>
+            <span class="highlight-tag">Arctic Wx</span>
+          </div>
+        </div>
+
+        <!-- Dynasty -->
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-header">
+            <div class="timeline-role">Meteorologist (Energy)</div>
+            <div class="timeline-meta">
+              <span class="timeline-company">Dynasty Power Inc.</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-period">Sep 2011 – Sep 2012</span>
+              <span class="timeline-sep">·</span>
+              <span class="timeline-location">Calgary, AB</span>
+            </div>
+          </div>
+          <div class="timeline-body">
+            <p>Worked on the trading floor providing weather forecasts to electricity and natural gas traders across PJM, MISO, ERCOT, and other North American energy markets. Developed a wind energy forecasting model for MISO and ERCOT using an in-house WRF configuration. Deeply involved in short-term congestion trading in the virtuals market.</p>
+          </div>
+          <div class="timeline-highlights">
+            <span class="highlight-tag">WRF</span>
+            <span class="highlight-tag">Wind Energy</span>
+            <span class="highlight-tag">PJM / MISO / ERCOT</span>
+            <span class="highlight-tag">Energy Trading</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <p class="counter">Unique viewers: <span id="count">—</span></p>
+</footer>
+
+<script>
+  fetch((function(){var k='scorvec_uv',s=localStorage.getItem(k),o=localStorage.getItem('scorvec_owner');if(!o){try{localStorage.setItem(k,'1');}catch(e){}}return 'https://api.counterapi.dev/v1/scorvec/unique'+((s||o)?'/':'/up');})())
+    .then(res => res.json())
+    .then(data => { document.getElementById('count').textContent = data.count.toLocaleString(); })
+    .catch(() => { document.getElementById('count').textContent = '—'; });
+</script>
+</body>
+</html>

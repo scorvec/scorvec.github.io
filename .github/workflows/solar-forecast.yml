@@ -1,0 +1,275 @@
+name: Solar generation forecast
+
+# POLLING STRATEGY (see wind-forecast.yml for rationale): poll hourly at
+# :32 (off the top-of-hour stampede, 15 min behind wind's :17 poll). A
+# lightweight check job decides whether a new extended cycle needs
+# processing; the heavy forecast job runs only when there's new work.
+# Self-healing against GitHub's delayed/dropped scheduled ticks.
+on:
+  schedule:
+    - cron: '32 * * * *'
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: 'HRRR cycle (UTC, YYYY-MM-DD HH). Empty = latest.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: solar-forecast
+  cancel-in-progress: false
+
+jobs:
+  # Lightweight gate: latest available cycle + have we already produced
+  # its output? Runs in ~20s on idle polls.
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      cycle: ${{ steps.decide.outputs.cycle }}
+      compact: ${{ steps.decide.outputs.compact }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Decide whether a new cycle needs processing
+        id: decide
+        run: |
+          # Manual dispatch with an explicit cycle always runs.
+          if [ -n "${{ inputs.cycle }}" ]; then
+            CYCLE_RAW="${{ inputs.cycle }}"
+            # Accept either "YYYY-MM-DD HH" or ISO; normalize to both forms.
+            COMPACT=$(python -c "
+          from datetime import datetime
+          s = '$CYCLE_RAW'.replace('T', ' ')
+          parts = s.split()
+          dt = datetime.strptime(parts[0] + ' ' + parts[1][:2], '%Y-%m-%d %H')
+          print(dt.strftime('%Y%m%dT%HZ'))
+          ")
+            CYCLE=$(python -c "
+          from datetime import datetime
+          s = '$CYCLE_RAW'.replace('T', ' ')
+          parts = s.split()
+          dt = datetime.strptime(parts[0] + ' ' + parts[1][:2], '%Y-%m-%d %H')
+          print(dt.strftime('%Y-%m-%d %H'))
+          ")
+            echo "Manual cycle requested: $CYCLE ($COMPACT)"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+            echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # Latest available extended cycle (time-latency based). Solar's
+          # downstream expects the "YYYY-MM-DD HH" (space) form for cycle.
+          CYCLE=$(python scripts/find_latest_extended_cycle.py --format iso | sed 's/T/ /;s/:00$//')
+          COMPACT=$(python scripts/find_latest_extended_cycle.py --format compact)
+          echo "Latest available cycle: $CYCLE ($COMPACT)"
+          SENTINEL="assets/solar_forecast_data/forecast_plant_${COMPACT}.csv"
+          if [ -f "$SENTINEL" ]; then
+            echo "Already processed ($SENTINEL exists) — skipping."
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          else
+            echo "Not yet processed ($SENTINEL missing) — will run."
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          fi
+          echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+          echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+
+  forecast:
+    needs: check
+    if: ${{ needs.check.outputs.should_run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: scripts/solar
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts/solar
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('scripts/solar/requirements-solar.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install eccodes (GRIB decoder)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0
+
+      - name: Install Python dependencies
+        run: pip install -r requirements-solar.txt
+
+      - name: Ensure USPVDB inventory is present
+        run: |
+          if [ -f data/uspvdb.csv ]; then
+            echo "USPVDB inventory found: $(wc -l < data/uspvdb.csv) lines"
+          else
+            echo "USPVDB inventory missing; downloading via API..."
+            python solar_inventory.py
+          fi
+
+      - name: Ensure HRRR grid indices are present
+        run: |
+          if [ -f data/uspvdb_grid_indices.csv ]; then
+            echo "Grid indices found: $(wc -l < data/uspvdb_grid_indices.csv) lines"
+          else
+            echo "Grid indices missing; building..."
+            python solar_grid_indices.py
+          fi
+
+      - name: Determine cycle
+        id: cycle
+        run: |
+          # Use the cycle the check job already resolved.
+          CYCLE="${{ needs.check.outputs.cycle }}"
+          COMPACT="${{ needs.check.outputs.compact }}"
+          echo "Using cycle from check job: $CYCLE ($COMPACT)"
+          echo "cycle=$CYCLE" >> $GITHUB_OUTPUT
+          echo "compact=$COMPACT" >> $GITHUB_OUTPUT
+
+      - name: Run solar forecast pipeline
+        run: |
+          CYCLE='${{ steps.cycle.outputs.cycle }}'
+          DATE_PART=$(echo "$CYCLE" | awk '{print $1}')
+          HOUR_PART=$(echo "$CYCLE" | awk '{print $2}')
+          python solar_forecast.py "$DATE_PART" "$HOUR_PART"
+
+      - name: Aggregate to regions
+        run: |
+          python solar_aggregation.py "${{ steps.cycle.outputs.compact }}"
+
+      - name: Build forecast dashboard
+        run: |
+          python solar_dashboard.py \
+            "${{ steps.cycle.outputs.compact }}" \
+            --theme dark
+          ls -lh ../../assets/solar_forecast.html
+
+      - name: Build plant-level map
+        run: |
+          if [ ! -f "../../assets/solar_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" ]; then
+            echo "Plant-level CSV not found; skipping map build."
+            exit 0
+          fi
+          python solar_map_dashboard.py \
+            "../../assets/solar_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
+            --capacity "../../assets/solar_forecast_data/capacity_plant.csv" \
+            --output ../../assets/solar_map.html \
+            --theme light || {
+              echo "Solar map build failed; continuing anyway."
+              exit 0
+            }
+          ls -lh ../../assets/solar_map.html || true
+
+      - name: Prune old forecast CSVs
+        run: |
+          cd ../../assets/solar_forecast_data
+          ls -t forecast_plant_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
+          ls -t forecast_region_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
+          # capacity_plant is now a single canonical (unstamped) file — nothing to prune.
+
+      - name: Stamp cache-buster into renewables.html
+        run: |
+          CYCLE='${{ steps.cycle.outputs.compact }}'
+          TODAY=$(date -u +'%Y-%m-%d %H:%MZ')
+          CHARTS="${{ github.workspace }}/renewables.html"
+          if [ ! -f "$CHARTS" ]; then
+            echo "ERROR: $CHARTS not found"
+            exit 1
+          fi
+          sed -i -E "s|(solar_forecast\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(solar_map\.html\?v=)[^\"]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(id=\"last-updated-solar\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
+          sed -i -E "s|(id=\"last-updated-solar-map\">Cycle )[^<]*|\1${CYCLE}|g" "$CHARTS"
+          N=$(grep -c "solar_forecast.html\|solar_map.html" "$CHARTS" || true)
+          echo "Solar iframe references in renewables.html: ${N}"
+
+      - name: Commit and push dashboard
+        working-directory: ${{ github.workspace }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Stage and commit the freshly-generated outputs FIRST (before
+          # touching remote), so they exist as a commit we can rebase.
+          git add renewables.html || true
+          git add assets/solar_forecast.html
+          git add assets/solar_forecast_data/
+          if [ -f assets/solar_map.html ]; then
+            git add assets/solar_map.html
+            echo "Staged: assets/solar_map.html"
+          fi
+          echo "--- Staged files ---"
+          git diff --staged --name-only
+          echo "--------------------"
+
+          if git diff --staged --quiet; then
+            echo "No changes; skipping commit."
+            exit 0
+          fi
+          git commit -m "solar forecast: cycle ${{ steps.cycle.outputs.compact }}"
+
+          # Push with conflict-proof retry. These are GENERATED files — on
+          # any conflict we keep OUR freshly-built version (the runner just
+          # generated the current cycle). `git rebase -X theirs` during a
+          # rebase keeps the side being replayed (ours). If a rebase still
+          # can't proceed, abort cleanly and retry from a fresh fetch so we
+          # never get stuck half-rebased.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "Pushed on attempt $i."
+              exit 0
+            fi
+            echo "Push attempt $i rejected; rebasing onto latest origin/main..."
+            git fetch origin main
+            if ! git rebase -X theirs origin/main; then
+              echo "Rebase hit an unresolvable state; aborting and retrying."
+              git rebase --abort || true
+              # Fallback: hard-sync to remote, then re-apply our generated
+              # files on top so our cycle still lands.
+              git reset --hard origin/main
+              git add renewables.html || true
+              git add assets/solar_forecast.html assets/solar_forecast_data/ || true
+              [ -f assets/solar_map.html ] && git add assets/solar_map.html || true
+              git diff --staged --quiet || git commit -m "solar forecast: cycle ${{ steps.cycle.outputs.compact }} (re-applied)"
+            fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Forecast summary
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "### Solar forecast summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Cycle: \`${{ steps.cycle.outputs.cycle }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Dashboard: [/renewables.html](https://scorvec.github.io/renewables.html)" >> $GITHUB_STEP_SUMMARY
+          REGION_CSV="assets/solar_forecast_data/forecast_region_${{ steps.cycle.outputs.compact }}.csv"
+          if [ -f "$REGION_CSV" ]; then
+            echo "- Region summary:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -15 "$REGION_CSV" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

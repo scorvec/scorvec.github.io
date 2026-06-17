@@ -1,0 +1,12 @@
+# SST anomaly maps + RONI — Python requirements
+numpy
+pandas
+xarray
+netcdf4
+h5netcdf
+matplotlib
+cartopy>=0.22
+shapely>=2.0
+pyproj>=3.5
+Pillow
+copernicusmarine>=2.0

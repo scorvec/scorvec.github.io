@@ -1,0 +1,61 @@
+
+<footer>
+  <p class="counter">Unique viewers: <span id="count">&mdash;</span></p>
+</footer>
+
+<script>
+  fetch((function(){var k='scorvec_uv',s=localStorage.getItem(k),o=localStorage.getItem('scorvec_owner');if(!o){try{localStorage.setItem(k,'1');}catch(e){}}return 'https://api.counterapi.dev/v1/scorvec/unique'+((s||o)?'/':'/up');})())
+    .then(r => r.json())
+    .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
+    .catch(() => { document.getElementById('count').textContent = '—'; });
+</script>
+<script>
+  // Size each animation iframe to its embedded content's exact height (image +
+  // controls), so the wide plots fill their cards with no letterboxing on any screen.
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + 'px';
+        fr[i].style.aspectRatio = 'auto';
+      }
+    }
+  });
+  // Hourly-updating images (committed by their own GitHub Actions, not the page build):
+  // load with an hour-granular cache-buster so the latest render shows without churning
+  // the page HTML. The page's static ?v= can't cover them (they change between page builds).
+  ['soi-hourly', 'kiribati-wind', 'kiribati-history', 'olr-hovmoller', 'olr-waves', 'eq-current-hov', 'eq-uwind-hov'].forEach(function (id) {
+    var im = document.getElementById(id);
+    if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
+  });
+
+  // Live wind-arrow widget for the Tarawa WWB monitor: draw the latest wind at each
+  // station from the hourly kiribati_wind.json (arrow points the way the wind blows TO).
+  (function () {
+    var host = document.getElementById('wwb-arrows'); if (!host) return;
+    fetch('assets/sst/kiribati_wind.json?v=' + new Date().toISOString().slice(0, 13))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.stations) return;
+        var html = '';
+        Object.keys(d.stations).forEach(function (icao) {
+          var s = d.stations[icao], west = s.u_ms > 0, col = west ? '#d62728' : '#1f77b4';
+          var bearing = (s.dir + 180) % 360;             // flow direction (downwind)
+          var lab = Math.abs(s.u_ms) < 0.5 ? 'calm' : (west ? 'westerly' : 'easterly');
+          html += '<div class="wwb-stn"><svg width="92" height="92" viewBox="0 0 100 100">'
+            + '<circle cx="50" cy="50" r="44" fill="none" stroke="#ddd"/>'
+            + '<text x="50" y="13" text-anchor="middle" font-size="9" fill="#bbb">N</text>'
+            + '<g transform="rotate(' + bearing + ' 50 50)">'
+            + '<line x1="50" y1="52" x2="50" y2="24" stroke="' + col + '" stroke-width="4"/>'
+            + '<path d="M50 12 L42 30 L50 25 L58 30 Z" fill="' + col + '"/></g>'
+            + '<circle cx="50" cy="50" r="3.5" fill="' + col + '"/></svg>'
+            + '<b>' + s.name + '</b><span style="color:' + col + '">' + s.dir + '° / '
+            + s.spd_kt + ' kt &middot; ' + lab + '</span></div>';
+        });
+        host.innerHTML = html + '<div class="wwb-stn" style="max-width:9em">updated<br>' + d.updated + '</div>';
+      }).catch(function () {});
+  })();
+</script>
+</body>
+</html>

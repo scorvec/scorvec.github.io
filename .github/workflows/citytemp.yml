@@ -1,0 +1,46 @@
+name: City temperatures vs El Niño analogs (IEM)
+
+# Refreshes the 8-city "U.S. City Temperatures vs. Analogs" figures on enso-analogs.html.
+# Historical onsets (1982/1991/1997/2015) are cached; each run re-fetches only the current
+# year (hourly) and the daily climatology records, so the 2026 line extends day by day.
+# Commits only its own webp; the analogs page's ?v= cache-buster flips on the next SST
+# page render (which hashes these webp), so the new images go live within a day.
+on:
+  schedule:
+    - cron: '0 9 */2 * *'        # 09:00 UTC, every other day
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: citytemp
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Cache historical IEM pulls
+        uses: actions/cache@v4
+        with:
+          path: scripts/sst/citytemp_cache
+          key: citytemp-iem-cache-v1     # static: historical onsets never change
+      - run: pip install --quiet numpy pandas matplotlib pillow
+      - run: python scripts/sst/citytemp_elnino.py
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          git add assets/sst/citytemp/*.webp
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "City temperatures vs El Niño analogs: $(date -u +%Y-%m-%d)"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash -X ours && git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

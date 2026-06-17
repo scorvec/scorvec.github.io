@@ -1,0 +1,41 @@
+name: OLR wave decomposition (Wheeler-Kiladis)
+
+# Real-time Wheeler-Kiladis decomposition of equatorial OLR (MJO / Kelvin / ER / low-freq).
+# Daily: append the latest GMGSI day to the rolling store, then re-filter + render. The
+# committed climatology (metar/olr_clim.nc, from NOAA interp-OLR 1979-2022) and rolling store
+# (metar/olr_rt.nc) travel with the repo, so CI never needs the 19 MB historical backbone.
+on:
+  schedule:
+    - cron: '40 2 * * *'    # daily, after the prior day's GMGSI is complete
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: olr-waves
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet numpy pandas xarray netcdf4 scipy matplotlib
+      - run: python scripts/sst/build_olr_realtime.py
+      - run: python scripts/sst/olr_waves.py --realtime --out assets/sst/olr_waves.webp
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          git add assets/sst/olr_waves.webp scripts/sst/metar/olr_rt.nc
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "OLR wave decomposition: $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash -X ours && git push; then echo "pushed (attempt $i)"; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

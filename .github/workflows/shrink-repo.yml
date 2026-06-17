@@ -1,0 +1,84 @@
+name: Shrink repo (strip synoptic frame history)
+
+# One-shot, manual. Reclaims the ~10 GB of synoptic frame webp accumulated in main's
+# history (frames now live on the force-pushed `synoptic-frames` orphan branch + jsDelivr).
+# Runs entirely on GitHub's runners so the rewrite + force-push happen on GitHub's network
+# — bypassing a slow/flaky home uplink. DESTRUCTIVE: rewrites main's history + force-pushes.
+# A full pre-rewrite backup bundle exists locally; origin's old objects are GC'd by GitHub.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type SHRINK to confirm the history rewrite + force-push of main'
+        required: true
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shrink-repo
+  cancel-in-progress: false
+
+jobs:
+  shrink:
+    if: ${{ inputs.confirm == 'SHRINK' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # whole history of main, so filter-repo sees every frame blob
+
+      - name: Install git-filter-repo
+        run: pip install git-filter-repo
+
+      - name: Sizes before
+        run: |
+          echo "objects:"; git count-objects -vH | grep -E 'size-pack|in-pack'
+          echo "frame-blob versions in history: $(git rev-list --objects --all | grep -cE 'assets/synoptic/.+/.+/.+\.webp')"
+
+      - name: Strip synoptic frame webp from ALL history
+        run: |
+          git filter-repo --path-glob 'assets/synoptic/*/*/*.webp' --invert-paths --force
+
+      - name: Verify + sizes after
+        run: |
+          left=$(git rev-list --objects --all | grep -cE 'assets/synoptic/.+/.+/.+\.webp' || true)
+          echo "frame-blob versions remaining: $left"
+          if [ "$left" != "0" ]; then echo "::error::frames still present after filter-repo"; exit 1; fi
+          echo "objects after:"; git count-objects -vH | grep -E 'size-pack|in-pack'
+          # sanity: the site still has its viewer + manifests (non-frame synoptic assets)
+          test -f assets/synoptic/viewer.html || { echo "::error::viewer.html missing!"; exit 1; }
+          test -f assets/synoptic/wind/national/manifest.json || { echo "::error::manifest missing!"; exit 1; }
+
+      - name: Collapse to ONE commit + force-push (tiny pack; avoids the server-side 500 on big packs)
+        run: |
+          # Pushing the full rewritten 890-commit history is a large pack and GitHub 500s on it
+          # for this oversized repo. Collapsing to a single root commit makes the force-push a
+          # sub-1 MB pack (one commit + trees; all non-frame blobs already on origin), which the
+          # server accepts. Full pre-collapse history remains in the local backup bundle.
+          git checkout --orphan _slim
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "site (history collapsed; synoptic frames on synoptic-frames orphan branch via jsDelivr)"
+          git branch -D main
+          git branch -m _slim main
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          # Larger HTTPS post buffer + HTTP/1.1: send the pack as one request (some servers/proxies
+          # 500 on chunked transfer-encoding for big packs). Belt-and-suspenders with the collapse.
+          git config http.postBuffer 524288000
+          git config http.version HTTP/1.1
+          git push --force origin main
+          echo "Force-pushed a collapsed slim main. GitHub will GC the orphaned frame blobs over the"
+          echo "next while, shrinking stored size. Re-clone locally for a slim .git."
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Repo shrink" >> $GITHUB_STEP_SUMMARY
+          echo "- Stripped \`assets/synoptic/*/*/*.webp\` from main history and force-pushed." >> $GITHUB_STEP_SUMMARY
+          echo "- Frames continue to serve from the \`synoptic-frames\` orphan branch via jsDelivr." >> $GITHUB_STEP_SUMMARY
+          echo "- **Next:** re-clone the repo locally for a slim \`.git\`." >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,125 @@
+<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AAM torque → jet/teleconnection — figure review</title>
+<style>
+:root{color-scheme:dark}
+body{background:#0d1117;color:#c9d1d9;font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;margin:0 auto;padding:24px clamp(14px,2vw,40px);max-width:1500px}
+h1{font-size:1.5em;margin:0 0 2px}
+h2{font-size:1.15em;margin:1.8em 0 .4em;border-top:2px solid #30363d;padding-top:.8em;color:#e6edf3}
+h3{font-size:1em;color:#c9d1d9;margin:1.1em 0 .35em}
+.note{color:#8b949e;font-size:.9em;margin-bottom:1.2em}
+.warn{background:#11202d;border:1px solid #1c3a52;color:#9fd2f2;border-radius:10px;padding:.7em 1em;font-size:.9em;margin-bottom:1.4em}
+.desc{color:#9aa4af;font-style:italic;margin:.1em 0 .8em;max-width:64em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,560px),1fr));gap:18px}
+figure{margin:0;background:#161b22;border:1px solid #21262d;border-radius:14px;padding:10px}
+figure img{width:100%;border-radius:8px;display:block;cursor:zoom-in}
+figcaption{font-size:.82em;color:#8b949e;margin-top:.5em;text-transform:uppercase;letter-spacing:.05em}
+.full{max-width:1100px}
+a{color:#58a6ff}
+.muted{color:#6e7681}
+.evt-wrap{max-height:24em;overflow:auto;border:1px solid #21262d;border-radius:10px;max-width:42em}
+table.evt{border-collapse:collapse;width:100%;font-size:.85em;font-family:ui-monospace,Menlo,monospace}
+table.evt th{position:sticky;top:0;background:#161b22;color:#c9d1d9;text-align:right;padding:.4em .8em;border-bottom:1px solid #30363d}
+table.evt td{text-align:right;padding:.25em .8em;border-bottom:1px solid #1c2128;color:#aeb6c0}
+table.evt tr:hover td{background:#161b22}
+.anim img{width:100%;max-width:1100px;border-radius:10px;background:#0d1117;display:block}
+.anim-ctrl{display:flex;align-items:center;gap:12px;margin:.6em 0;max-width:1100px}
+.anim-ctrl button{background:#21262d;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:.25em .8em;cursor:pointer;font-size:1.05em}
+.anim-ctrl input[type=range]{flex:1}
+.anim-ctrl .mono{min-width:6em;font-family:ui-monospace,Menlo,monospace}
+</style></head><body>
+<h1>AAM surface-torque → jet / teleconnection</h1>
+<div class="note">Lag-regression &amp; event-composite of ERA5 u250 (jet) and z500 (height) on standardized daily torque indices. Click any image for full size.</div>
+<div class="warn"><b>ERA5 1979–2022 (44 winters).</b> Each mountain-torque index isolated separately. Per index: standardized regression, the (+2σ)−(−2σ) composite, the <b>+2σ and −2σ composites split out</b> (antisymmetry check), a daily composite animation (t−2→t+10), a jet lag–longitude Hovmöller, and the +2σ event list (with Niño-3.4). ENSO-checked: events match climatology (corr ≈ 0).</div>
+
+<h2>Mountain-torque relay &amp; autocorrelation</h2>
+<div class="grid"><figure class="full"><a href="torque_teleconn_relay_diagnostic.webp"><img src="torque_teleconn_relay_diagnostic.webp"></a><figcaption>Himalaya↔Rockies cross-correlation · index autocorrelations</figcaption></figure></div>
+
+<div id="sections"></div>
+
+<script>
+const INDICES = [
+  {slug:"mtn_himalaya", short:"himalaya", label:"Himalaya/Tibet mountain torque",
+   desc:"+ve Himalaya/Tibet mountain torque injects westerly momentum over Asia (↑ AAM) → accelerates the East-Asian / N-Pacific jet (lag 0–5 d) → downstream Rossby-wave train → PNA-like height response over N. America (lag ~6–10 d)."},
+  {slug:"mtn_rockies", short:"rockies", label:"Rockies mountain torque",
+   desc:"+ve Rockies mountain torque adds westerly momentum over W. N. America (↑ AAM) → modulates the N-Pacific jet exit and N-American flow → downstream height response over North America / the N. Atlantic."},
+  {slug:"aam_tendency", short:"tendency", label:"Global AAM tendency dM/dt (whole NH)",
+   desc:"Standardized anomaly of the global AAM tendency (= global mountain + friction torque; GWD omitted). +ve = AAM rising faster than normal → a hemispheric, ~annular response: broad strengthening of the NH subtropical jets and an AO-like height pattern (subtropical ridge / polar trough), building over ~0–8 d — unlike the localized wavetrains of the regional indices."},
+  {slug:"glaam_nh", short:"glaam_nh", label:"NH relative AAM — the STATE (250-hPa proxy)", state:true,
+   desc:"Standardized anomaly of NH relative AAM (cos²φ-weighted 0–87°N integral of the 250-hPa zonal-wind anomaly). This is the absolute STATE (not a lagged response), so instead of a lag sequence we group every day that meets each threshold and map the time-mean circulation — at ±1σ AND ±2σ. Rows = GLAAM +2σ / +1σ / −1σ / −2σ; cols = 250-hPa wind | 500-hPa height; shared scale per column so the ±2σ state reads as a stronger version of ±1σ, and the +/− rows show whether high- and low-AAM patterns are mirror images."},
+];
+const SEASONS = ["NDJFM","JJA"];
+const METHODS = [
+  ["regression_std","standardized regression (≈ r)"],
+  ["composite_std","composite (+2σ) − (−2σ)"],
+  ["composite_pos_std","+2σ composite (alone)"],
+  ["composite_neg_std","−2σ composite (alone)"],
+];
+
+function buildAnim(host, short, season){
+  const wrap = document.createElement("div"); wrap.className = "anim";
+  wrap.innerHTML = '<img alt="frame"><div class="anim-ctrl"><button title="play/pause">⏸</button>'
+                 + '<input type="range" min="0" max="0" value="0"><span class="mono"></span></div>';
+  host.appendChild(wrap);
+  const img=wrap.querySelector("img"), sl=wrap.querySelector("input"),
+        pb=wrap.querySelector("button"), lagEl=wrap.querySelector(".mono");
+  fetch(`anim/${short}_anim_${season}.json?v=`+Date.now()).then(r=>r.json()).then(m=>{
+    const F=m.frames, L=m.lags; F.forEach(f=>{const im=new Image(); im.src="anim/"+f;});
+    sl.max=F.length-1; let i=0, timer=null;
+    const fmt=v=>"lag "+(v===0?"0":(v>0?"+"+v:v))+" d";
+    function show(k){i=(k+F.length)%F.length; img.src="anim/"+F[i]; sl.value=i; lagEl.textContent=fmt(L[i]);}
+    function play(){pb.textContent="⏸"; clearInterval(timer); timer=setInterval(()=>show(i+1),430);}
+    function pause(){pb.textContent="▶"; clearInterval(timer); timer=null;}
+    pb.onclick=()=>timer?pause():play(); sl.oninput=()=>{pause(); show(+sl.value);};
+    show(0); play();
+  }).catch(()=>{wrap.innerHTML="<p class='muted'>(animation unavailable)</p>";});
+}
+
+function buildEvents(host, short, season){
+  const p=document.createElement("p"); p.style.cssText="color:#9aa4af;font-size:.85em;margin:.3em 0 .4em";
+  p.innerHTML=`Download: <a href="${short}_torque_events_${season}.csv">events CSV</a> · `
+             +`<a href="${short}_torque_events_${season}_daily.csv">daily CSV</a> (peak day per event, with Niño-3.4)`;
+  host.appendChild(p);
+  const w=document.createElement("div"); w.className="evt-wrap"; w.textContent="loading…"; host.appendChild(w);
+  fetch(`${short}_torque_events_${season}.csv?v=`+Date.now()).then(r=>r.text()).then(txt=>{
+    const rows=txt.trim().split("\n").map(l=>l.split(","));
+    const lab={peak_date:"peak date",peak_sigma:"peak σ",duration_d:"days",nino34:"Niño-3.4"};
+    let h='<table class="evt"><thead><tr>'+rows[0].map(c=>`<th>${lab[c]||c}</th>`).join("")+"</tr></thead><tbody>";
+    for(const r of rows.slice(1)) h+="<tr>"+r.map(c=>`<td>${c}</td>`).join("")+"</tr>";
+    w.innerHTML=h+"</tbody></table>";
+  }).catch(()=>{w.textContent="(no event list)";});
+}
+
+const root=document.getElementById("sections");
+for(const ix of INDICES){
+  root.insertAdjacentHTML("beforeend", `<h2>${ix.label}</h2><p class="desc">${ix.desc}</p>`);
+  if(ix.state){
+    root.insertAdjacentHTML("beforeend", `<h3>Mean state at ±1σ / ±2σ — all qualifying days grouped (no lag)</h3>`);
+    const gs=document.createElement("div"); gs.className="grid"; root.appendChild(gs);
+    for(const s of SEASONS){
+      const f=`torque_teleconn_${ix.slug}_${s}_state.webp`;
+      gs.insertAdjacentHTML("beforeend",
+        `<figure><a href="${f}"><img src="${f}" loading="lazy"></a><figcaption>${s} · mean circulation by GLAAM regime</figcaption></figure>`);
+    }
+    root.insertAdjacentHTML("beforeend", `<h3>+2σ event days (NDJFM)</h3>`);
+    buildEvents(root, ix.short, "NDJFM");
+    continue;
+  }
+  root.insertAdjacentHTML("beforeend", `<h3>Jet lag–longitude Hovmöller (NDJFM)</h3>`
+    + `<div class="grid"><figure class="full"><a href="torque_teleconn_${ix.slug}_NDJFM_jet_hovmoller.webp">`
+    + `<img src="torque_teleconn_${ix.slug}_NDJFM_jet_hovmoller.webp"></a>`
+    + `<figcaption>eastward tilt = downstream jet extension</figcaption></figure></div>`);
+  root.insertAdjacentHTML("beforeend", `<h3>Daily composite animation (NDJFM) — abs jet | standardized z500 anomaly · t−2→t+10</h3>`);
+  buildAnim(root, ix.short, "NDJFM");
+  root.insertAdjacentHTML("beforeend", `<h3>Static maps — regression &amp; composites (incl. +2σ / −2σ split)</h3>`);
+  const g=document.createElement("div"); g.className="grid"; root.appendChild(g);
+  for(const s of SEASONS) for(const [m,mlab] of METHODS){
+    const f=`torque_teleconn_${ix.slug}_${s}_${m}.webp`;
+    g.insertAdjacentHTML("beforeend",
+      `<figure><a href="${f}"><img src="${f}" loading="lazy"></a><figcaption>${s} · ${mlab}</figcaption></figure>`);
+  }
+  root.insertAdjacentHTML("beforeend", `<h3>+2σ event days (NDJFM)</h3>`);
+  buildEvents(root, ix.short, "NDJFM");
+}
+</script>
+</body></html>

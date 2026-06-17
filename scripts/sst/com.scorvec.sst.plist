@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LaunchAgent: local SST/RONI builder (primary). Install with:
+       cp scripts/sst/com.scorvec.sst.plist ~/Library/LaunchAgents/
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.sst.plist
+     Reload after edits:
+       launchctl bootout gui/$(id -u)/com.scorvec.sst 2>/dev/null
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.sst.plist
+     Run once now (test):
+       launchctl kickstart -k gui/$(id -u)/com.scorvec.sst
+     Fires every 15 min (StartInterval — macOS silently skips wall-clock StartCalendarInterval
+     under power-management/App-Nap even while awake) and passes --poll; run_local_sst then
+     only actually checks during 09:00–13:59 ET (its own guard), so out-of-window fires exit
+     instantly and in-window it HEAD-checks PSL and commits only when the OISST day changes.
+     GitHub Action (16:23 UTC) stays the laptop-off fallback. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.scorvec.sst</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/shawn/scorvec.github.io/scripts/sst/run_local_sst.sh</string>
+    <string>--poll</string>
+  </array>
+  <key>StartInterval</key><integer>900</integer>
+  <key>StandardOutPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/launchd.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/launchd.err.log</string>
+  <key>RunAtLoad</key><false/>
+  <key>ProcessType</key><string>Background</string>
+</dict>
+</plist>
