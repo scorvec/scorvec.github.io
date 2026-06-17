@@ -105,7 +105,10 @@ def daily_means(n_days: int):
             dsd = ds.sel(time=str(day.date())).mean("time").compute()   # daily mean
         except Exception:                               # noqa: BLE001
             continue
-        if np.isfinite(dsd["eastward_wind"].values).any():
+        # Require substantial coverage, not just one finite point: the newest NRT slot is
+        # often a partial swath (a sliver of finite data) that passes an .any() check but
+        # renders as a near-empty, collapsed map. Demand the gap-filled L4 be mostly populated.
+        if np.isfinite(dsd["eastward_wind"].values).mean() > 0.5:
             out.append((dsd, day))
         if len(out) >= n_days:
             break
