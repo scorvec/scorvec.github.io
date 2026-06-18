@@ -82,3 +82,6 @@ assets/sst/citytemp/
 
 # synoptic frames live on the synoptic-frames orphan branch (CDN), not main
 assets/synoptic/*/*/*.webp
+
+# transient: IFS-leg completeness flags for hovmoller/soi self-heal
+assets/sst/*.webp.missing
