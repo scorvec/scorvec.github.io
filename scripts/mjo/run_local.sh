@@ -169,17 +169,21 @@ perl -0pi -e "s/((?:aam|aam_trend|torque_timeseries|torque_ranges|eq_wind_hovmol
     && commit_push "MJO atmospheric products (wind/SOI + AAM/torque/MMSF/zonal + MEI.v2): ${COMPACT} (local)" )
 
 # Self-heal for IFS-ENS latency: the physics model (IFS-ENS) is disseminated ~1-2 h LATER
-# than the AI model (AIFS-ENS), but this run triggers on AIFS availability — so the
-# Hovmöller's IFS leg can miss on the first attempt and render AIFS-only. If the IFS file
-# isn't in the store cache yet AND the cycle is still young enough for IFS to land, DON'T
-# mark the cycle done → the next hourly poll re-runs Stage 2 (mostly cached) and backfills
-# IFS. Give up (mark done, AIFS-only) once the cycle is old enough that IFS clearly isn't coming.
-IFS_DIR="$REPO/scripts/ecmwf/cache/${DATE}${TIME}z/ifs"
+# than the AI model (AIFS-ENS), but this run triggers on AIFS availability — so the IFS leg
+# of the Hovmöller/SOI can miss on the first attempt and render AIFS-only. Key the decision
+# off whether the PRODUCTS actually included IFS (their "<out>.missing" sidecar), NOT mere
+# cache presence: IFS can land mid-run AFTER the products already rendered AIFS-only, which
+# would fool a cache check into marking done with stale products. If IFS is still missing
+# from either product AND the cycle is young enough for IFS to land, DON'T mark done → the
+# next hourly poll re-runs Stage 2 (mostly cached) and backfills IFS once it publishes. Give
+# up (mark done, AIFS-only) once the cycle is old enough that IFS clearly isn't coming.
+HOV_MISS="$REPO/assets/sst/eq_wind_hovmoller.webp.missing"
+SOI_MISS="$REPO/assets/sst/soi_forecast.webp.missing"
 INIT_EPOCH=$(date -j -u -f "%Y%m%d%H" "${DATE}${TIME}" +%s 2>/dev/null || echo 0)
 AGE_H=$(( ( $(date -u +%s) - ${INIT_EPOCH:-0} ) / 3600 ))
 if [ "${INIT_EPOCH:-0}" -gt 0 ] && [ "$AGE_H" -lt 10 ] \
-   && [ -z "$(find "$IFS_DIR" -maxdepth 1 -name 'pf_*.grib2' -size +1c 2>/dev/null)" ]; then
-  echo "IFS-ENS ${COMPACT} not on the portal yet (cycle ${AGE_H}h old; Hovmöller is AIFS-only) — not marking done; a later poll will backfill IFS."
+   && { grep -qxF ifs "$HOV_MISS" 2>/dev/null || grep -qxF ifs "$SOI_MISS" 2>/dev/null; }; then
+  echo "IFS-ENS ${COMPACT} not in the Hovmöller/SOI yet (cycle ${AGE_H}h old; rendered AIFS-only) — not marking done; a later poll will backfill IFS."
   exit 0
 fi
 

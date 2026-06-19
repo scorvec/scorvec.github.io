@@ -195,6 +195,15 @@ def main() -> int:
     if not data:
         raise SystemExit("no model data available for the Hovmöller")
     plot(data, valid, init, Path(args.out))
+    # Record which requested models were skipped (e.g. IFS-ENS not yet on the portal) so the
+    # pipeline knows this render is incomplete and can re-render once the model lands. One
+    # token per line ("aifs"/"ifs") → the run-script greps for an exact "ifs" line.
+    missing = [m for m in args.models.split(",") if m not in data]
+    flag = Path(str(args.out) + ".missing")
+    if missing:
+        flag.write_text("\n".join(missing) + "\n")
+    else:
+        flag.unlink(missing_ok=True)
     return 0
 
 

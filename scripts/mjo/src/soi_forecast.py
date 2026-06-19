@@ -122,9 +122,14 @@ def plot(obs: pd.DataFrame, normals: dict, diff: xr.DataArray,
     fc = np.vstack([soi_of(diff.isel(number=j).values, fdates.month.values, normals)
                     for j in range(diff.sizes["number"])])      # (member, day)
 
-    # bias-correct forecast daily SOI to the recent observed level (gridpoint↔station)
+    # bias-correct forecast daily SOI to the recent observed level (gridpoint↔station).
+    # Anchor to the 30-day RUNNING-MEAN observed SOI (the bold black line we plot), not a
+    # raw 10-day median: the combined ensemble's raw SOI is essentially flat and heavily
+    # biased, so this constant offset sets the whole forecast LEVEL. A 10-day median gets
+    # yanked ~10 pts by a few-day daily swing (e.g. a transient +SOI spike), pushing the
+    # forecast spuriously positive; the 30-day mean ties it to the smoothed observed state.
     obs_soi = obs["SOI"]
-    recent = obs_soi.loc[:init_d].iloc[-10:].median()
+    recent = obs_soi.rolling(WIN, min_periods=WIN - 5).mean().loc[:init_d].iloc[-1]
     # nan-robust: some ensemble members can have missing MSL at early steps (seen in
     # AIFS-ENS open data), which would otherwise turn np.median → NaN and blank the run.
     bias = np.nanmedian(fc[:, :5]) - recent
@@ -201,11 +206,12 @@ def main() -> int:
     obs = fetch_obs(Path("data/soi/DailySOI.txt"))
     normals = troup_normals(obs)
 
-    diffs = []
+    diffs, included = [], []
     for cfg in MODELS:
         try:
             diffs.append(member_diff(download_msl(cfg, args.date, args.time,
                                                   Path(args.data_dir))))
+            included.append(cfg["model"])
         except Exception as e:
             print(f"  {cfg['label']}: skipped ({repr(e)[:80]})", flush=True)
     if not diffs:
@@ -213,6 +219,14 @@ def main() -> int:
     diff = xr.concat(diffs, dim="number")
     diff = diff.assign_coords(number=np.arange(diff.sizes["number"]))
     plot(obs, normals, diff, init, Path(args.out))
+    # Record any skipped model (e.g. IFS-ENS not yet on the portal) so the pipeline knows the
+    # render is incomplete and re-renders once it lands. One token/line ("aifs-ens"/"ifs").
+    missing = [c["model"] for c in MODELS if c["model"] not in included]
+    flag = Path(str(args.out) + ".missing")
+    if missing:
+        flag.write_text("\n".join(missing) + "\n")
+    else:
+        flag.unlink(missing_ok=True)
     return 0
 
 
