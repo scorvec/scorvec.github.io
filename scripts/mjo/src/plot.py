@@ -132,6 +132,15 @@ def plot_rmm(
     # Ensemble mean
     mean_rmm1 = rmm1.mean(axis=0)
     mean_rmm2 = rmm2.mean(axis=0)
+    # Day 0 IS the analysis, so pin the plotted day-0 to the control member's lead-0 —
+    # the exact value run_rmm.append_truth() archives as observed 'truth'. The ensemble
+    # MEAN at lead 0 differs slightly from the control analysis (members are perturbed
+    # at t=0), so without this the green Day-0 dot wouldn't land on next run's orange
+    # history point for the same date. This also anchors the forecast track at the analysis.
+    members = [str(x) for x in rmm["member"].values]
+    cf_idx = members.index("cf") if "cf" in members else 0
+    mean_rmm1[0] = rmm1[cf_idx, 0]
+    mean_rmm2[0] = rmm2[cf_idx, 0]
     for i in range(n_leads - 1):
         color = cmap(norm(i))
         ax.plot(mean_rmm1[i:i+2], mean_rmm2[i:i+2],
@@ -175,7 +184,7 @@ def plot_rmm(
                     fontsize=8, fontweight="bold", color="black", zorder=8)
 
     # Mark day-0 and last day
-    ax.scatter(mean_rmm1[0], mean_rmm2[0], c="green", s=60, zorder=7, label="Day 0 (mean)")
+    ax.scatter(mean_rmm1[0], mean_rmm2[0], c="green", s=60, zorder=7, label="Day 0 (analysis)")
     ax.scatter(mean_rmm1[-1], mean_rmm2[-1], c="red", s=60, zorder=7, label=f"Day {int(lead_days[-1])} (mean)")
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.Normalize(vmin=0, vmax=int(lead_days[-1])))

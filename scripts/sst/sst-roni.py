@@ -368,7 +368,10 @@ def _draw_map_ax(ax, field, la, lo, extent, style, nino_box,
                         transform=PC, zorder=4)
         ax.clabel(cs, fmt="%d°C", fontsize=7, inline=True, inline_spacing=2)
     if nino_box:
-        _draw_nino_boxes(ax, label=False)
+        # label here: in the 2-panel products only the tropical panel passes
+        # nino_box=True (the global panel is nino_box=False), so labels land on the
+        # roomy tropical map and never clutter the global one.
+        _draw_nino_boxes(ax, label=True)
     if annotation:
         ax.text(0.012, 0.05, annotation, transform=ax.transAxes, fontsize=8.5,
                 va="bottom", ha="left", family="monospace", zorder=6,
