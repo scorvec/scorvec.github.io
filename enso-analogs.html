@@ -256,13 +256,152 @@
 
   <div class="chart-stack">
 
+    <!-- INTERACTIVE EXPLORER: Niño metrics, current event vs past El Niños since 1970 -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Interactive Explorer &mdash; Ni&ntilde;o Metrics vs. Past El Ni&ntilde;os (since 1970)</h2>
+        <p>Overlay the current event against any El Ni&ntilde;o since 1970 for any Ni&ntilde;o region (or the ONI). Events are aligned by month relative to their <b>DJF peak</b> &mdash; so the shapes and amplitudes compare directly &mdash; or switch to an <b>ENSO-calendar</b> view (development year &rarr; the following year). The current event (bold black) is aligned to its climatological December peak, so its lead-up sits against where each analog stood before <i>its</i> peak.</p>
+      </div>
+      <div class="nino-controls" style="display:flex;flex-wrap:wrap;gap:1.1rem 1.6rem;align-items:flex-start;margin:.4rem 0 1rem;font-size:.86rem">
+        <label style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Metric</span>
+          <select id="ne-metric" style="padding:.3rem .4rem;border:1px solid #ccc;border-radius:6px">
+            <option value="nino34">Ni&ntilde;o-3.4</option>
+            <option value="nino4">Ni&ntilde;o-4</option>
+            <option value="nino3">Ni&ntilde;o-3</option>
+            <option value="nino12">Ni&ntilde;o-1+2</option>
+            <option value="oni">ONI (Ni&ntilde;o-3.4, 3-mo)</option>
+          </select>
+        </label>
+        <span id="ne-kind" style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Quantity</span>
+          <span style="display:flex;gap:.7rem">
+            <label><input type="radio" name="ne-kind" value="anom" checked> Anomaly</label>
+            <label><input type="radio" name="ne-kind" value="abs"> Absolute</label>
+          </span>
+        </span>
+        <span style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Alignment</span>
+          <span style="display:flex;gap:.7rem">
+            <label><input type="radio" name="ne-mode" value="peak" checked> Peak-aligned</label>
+            <label><input type="radio" name="ne-mode" value="cal"> ENSO calendar</label>
+          </span>
+        </span>
+        <span style="display:flex;flex-direction:column;gap:.25rem;flex:1 1 22rem">
+          <span style="font-weight:600;color:#555">Events <span style="font-weight:400;color:#999">(weak&middot;mod&middot;strong&middot;very strong)</span></span>
+          <span id="ne-events" style="display:flex;flex-wrap:wrap;gap:.15rem .9rem;max-height:7.5rem;overflow:auto"></span>
+        </span>
+      </div>
+      <div id="nino-explorer" style="width:100%;height:520px"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA CPC ERSSTv5 monthly Ni&ntilde;o indices &middot; 1991&ndash;2020 base &middot; ONI = Ni&ntilde;o-3.4 3-month running mean</span>
+        <span class="chart-updated" id="ne-updated"></span>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-basic-dist-min@2.35.2/plotly-basic.min.js"></script>
+    <script>
+    (function () {
+      var DIV = document.getElementById('nino-explorer');
+      if (!DIV) return;
+      var PAL = ['#1f77b4','#2ca02c','#9467bd','#ff7f0e','#8c564b','#e377c2','#17becf','#bcbd22','#7f7f7f','#d62728'];
+      function addMonths(ym, n) {                       // "YYYY-MM" + n months → "YYYY-MM"
+        var p = ym.split('-'), y = +p[0], m = +p[1] - 1 + n;
+        y += Math.floor(m / 12); m = ((m % 12) + 12) % 12;
+        return y + '-' + ('0' + (m + 1)).slice(-2);
+      }
+      var DATA, IDX;
+      fetch('assets/sst/data/nino_history.json?v=' + new Date().toISOString().slice(0, 7))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          DATA = d; IDX = {};
+          d.months.forEach(function (m, i) { IDX[m] = i; });
+          document.getElementById('ne-updated').textContent = 'data thru ' + d.latest_month;
+          buildEvents(); wire(); render();
+        })
+        .catch(function () { DIV.innerHTML = '<p style="color:#999;padding:2rem">Could not load history data.</p>'; });
+
+      function buildEvents() {
+        var host = document.getElementById('ne-events'), html = '';
+        DATA.events.forEach(function (e) {
+          var s = e.peakOni == null ? '' : ' <span style="color:#aaa">(' + e.peakOni.toFixed(1) + ')</span>';
+          html += '<label style="white-space:nowrap"><input type="checkbox" class="ne-ev" value="' + e.id + '"'
+                + (e.default ? ' checked' : '') + '> ' + e.label + s + '</label>';
+        });
+        host.innerHTML = html;
+      }
+      function wire() {
+        DIV.closest('.chart-card').querySelectorAll('select,input').forEach(function (el) {
+          el.addEventListener('change', render);
+        });
+      }
+      function val(name) { return DIV.closest('.chart-card').querySelector('input[name="' + name + '"]:checked').value; }
+
+      function render() {
+        var metric = document.getElementById('ne-metric').value;
+        var isOni = metric === 'oni';
+        var kind = isOni ? 'anom' : val('ne-kind');
+        document.getElementById('ne-kind').style.opacity = isOni ? 0.4 : 1;     // ONI is anomaly-only
+        var mode = val('ne-mode');
+        var ser = DATA.series[metric][kind];
+        var picked = Array.prototype.map.call(document.querySelectorAll('.ne-ev:checked'), function (c) { return c.value; });
+        var byId = {}; DATA.events.forEach(function (e) { byId[e.id] = e; });
+
+        var traces = [], ci = 0;
+        picked.forEach(function (id) {
+          var e = byId[id]; if (!e) return;
+          var xs = [], ys = [], o, m, i, lo, hi, base;
+          if (mode === 'peak') { lo = -16; hi = 18; base = e.peak; }
+          else { lo = 0; hi = 23; base = e.onset + '-01'; }
+          for (o = lo; o <= hi; o++) {
+            m = addMonths(base, o); i = IDX[m];
+            if (i != null && ser[i] != null) { xs.push(o); ys.push(ser[i]); }
+          }
+          if (!xs.length) return;
+          var cur = !!e.current;
+          traces.push({
+            x: xs, y: ys, name: e.label, type: 'scatter', mode: 'lines',
+            line: { width: cur ? 3.6 : 1.8, color: cur ? '#111' : PAL[ci++ % PAL.length] },
+            hovertemplate: '<b>' + e.label + '</b>  %{y:.2f}<extra></extra>'
+          });
+        });
+
+        var ylab = DATA.metrics[metric] + (kind === 'abs' ? ' SST (°C)' : ' anomaly (°C)');
+        var shapes = [], ann = [];
+        if (kind === 'anom') {
+          shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0, line: { color: '#333', width: 1 } });
+          [0.5, -0.5].forEach(function (y) {
+            shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: y, y1: y, line: { color: '#bbb', width: 1, dash: 'dash' } });
+          });
+        }
+        var xaxis;
+        if (mode === 'peak') {
+          shapes.push({ type: 'line', x0: 0, x1: 0, yref: 'paper', y0: 0, y1: 1, line: { color: '#999', width: 1, dash: 'dot' } });
+          ann.push({ x: 0, yref: 'paper', y: 1.02, text: 'DJF peak', showarrow: false, font: { size: 10, color: '#999' } });
+          xaxis = { title: 'months from DJF peak', dtick: 3, zeroline: false };
+        } else {
+          xaxis = {
+            title: 'ENSO development year → following year',
+            tickvals: [0, 3, 6, 9, 12, 15, 18, 21],
+            ticktext: ['Jan', 'Apr', 'Jul', 'Oct', 'Jan⁺¹', 'Apr⁺¹', 'Jul⁺¹', 'Oct⁺¹'], zeroline: false
+          };
+        }
+        Plotly.react(DIV, traces, {
+          margin: { l: 55, r: 18, t: 18, b: 48 }, xaxis: xaxis,
+          yaxis: { title: ylab, zeroline: false }, shapes: shapes, annotations: ann,
+          hovermode: 'x unified', legend: { orientation: 'h', y: -0.18, font: { size: 11 } },
+          font: { family: 'Inter, sans-serif', size: 12 }, plot_bgcolor: '#fff', paper_bgcolor: '#fff'
+        }, { responsive: true, displayModeBar: false });
+      }
+    })();
+    </script>
+
     <!-- EVENT COMPARISON: Niño-3.4 evolution overlay -->
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>This Event vs. 1997, 2015 &amp; 2023</h2>
         <p>Niño-3.4 evolution (7-day running mean) through each event's development year and the next. Bold lines are <b>RONI</b> &mdash; the relative index (Niño-3.4 minus the 20&deg;S&ndash;20&deg;N tropical-mean anomaly), which removes the rising warming background so events decades apart are comparable; faint dotted lines are the raw <b>ONI</b> for reference. The current event is red. Note how 2015's record ONI shrinks toward 1997 once the background is removed.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/events_nino34.webp?v=64d01b79c611" alt="Niño-3.4 RONI vs ONI evolution: current event vs 1997/2015/2023" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/events_nino34.webp?v=556f92d46385" alt="Niño-3.4 RONI vs ONI evolution: current event vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; RONI = Niño-3.4 &minus; 20&deg;S&ndash;20&deg;N mean</span></div>
     </div>
 
@@ -272,7 +411,7 @@
         <h2>El Niño Flavor &mdash; Niño Regions vs. Analogs</h2>
         <p>Relative Niño-1+2 / 3 / 3.4 / 4 anomalies (7-day mean, each minus the 20&deg;S&ndash;20&deg;N tropical mean) at the same calendar day as the latest data, for the current event and the three analogs. Removing the tropical background makes the regions comparable across events; strong eastern (1+2, 3) relative to central (4) marks an East-Pacific-flavored event.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/events_bars.webp?v=64d01b79c611" alt="Relative Niño-region anomalies, current event vs analogs" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/events_bars.webp?v=556f92d46385" alt="Relative Niño-region anomalies, current event vs analogs" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; relative to 20&deg;S&ndash;20&deg;N mean</span></div>
     </div>
 
@@ -282,7 +421,7 @@
         <h2>Matching-Phase SST Anomaly Maps</h2>
         <p>Relative SST anomaly &mdash; the area-weighted global-mean anomaly removed from each map &mdash; for the latest available week vs. the same calendar week in 1997, 2015 and 2023. Stripping the global mean removes the secular warming trend, so the ENSO spatial pattern is comparable across events that sat on very different baselines.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/events_maps.webp?v=64d01b79c611" alt="Matching-phase relative SST anomaly maps (global-mean removed)" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/events_maps.webp?v=556f92d46385" alt="Matching-phase relative SST anomaly maps (global-mean removed)" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">OISST v2.1 daily &middot; 7-day mean &middot; global-mean removed</span></div>
     </div>
 
@@ -292,7 +431,7 @@
         <h2>Subsurface Heat Content vs. Analogs</h2>
         <p>Equatorial Pacific upper-ocean (0&ndash;300 m) temperature anomaly &mdash; a heat-content proxy that leads the surface &mdash; through each event's development year and the next, current (bold red) overlaid on 1997, 2015 and 2023. The subsurface warm reservoir is the fuel for El Ni&ntilde;o; watch whether the current build-up keeps pace with the analogs.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/subsurface_events_hc.webp?v=64d01b79c611" alt="Equatorial 0–300 m temperature-anomaly evolution: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_hc.webp?v=556f92d46385" alt="Equatorial 0–300 m temperature-anomaly evolution: current vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; coverage varies by year</span></div>
     </div>
 
@@ -302,7 +441,7 @@
         <h2>Subsurface Heat Content vs. Analogs &mdash; De-trended</h2>
         <p>The same heat-content comparison with the 1991&ndash;2020 climate trend removed, so the four events sit on a common baseline. The net 0&ndash;300 m effect is modest &mdash; the subsurface warming and cooling trends largely cancel in the column average &mdash; but it eases the recent events (2023, current) down relative to 1997.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/subsurface_events_hc_detrended.webp?v=64d01b79c611" alt="Equatorial 0–300 m temperature-anomaly evolution, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_hc_detrended.webp?v=556f92d46385" alt="Equatorial 0–300 m temperature-anomaly evolution, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; de-trended 1991&ndash;2020 &middot; coverage varies by year</span></div>
     </div>
 
@@ -313,7 +452,7 @@
         <p>Equatorial depth&times;longitude temperature anomaly at the same phase (~the latest data week) of each event. The eastward-deepening warm anomaly along the thermocline is the classic El Ni&ntilde;o subsurface signature; comparing its depth and intensity against 1997/2015/2023 gauges how loaded the ocean is now.</p>
         <p><b>Note:</b> TAO mooring coverage varies by year (triangles mark moorings reporting), so 1997 and 2023 have missing longitudes.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec.webp?v=64d01b79c611" alt="Equatorial subsurface temperature-anomaly cross-sections: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec.webp?v=556f92d46385" alt="Equatorial subsurface temperature-anomaly cross-sections: current vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; 14-day mean &middot; coverage varies by year</span></div>
     </div>
 
@@ -324,7 +463,7 @@
         <p>The matching-phase cross-sections with the 1991&ndash;2020 climate trend removed. Because the trend has real depth&times;longitude structure &mdash; west-Pacific subsurface warming, eastern-thermocline cooling &mdash; de-trending reshapes the pattern more here than in the column-mean heat content above.</p>
         <p><b>Note:</b> TAO mooring coverage varies by year (triangles mark moorings reporting), so 1997 and 2023 have missing longitudes.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec_detrended.webp?v=64d01b79c611" alt="Equatorial subsurface temperature-anomaly cross-sections, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec_detrended.webp?v=556f92d46385" alt="Equatorial subsurface temperature-anomaly cross-sections, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; de-trended 1991&ndash;2020 &middot; 14-day mean &middot; coverage varies by year</span></div>
     </div>
 
@@ -334,8 +473,8 @@
         <h2>Low-Level Wind vs. Analogs &mdash; 850 hPa Hovm&ouml;ller</h2>
         <p>Equatorial (5&deg;S&ndash;5&deg;N) 850 hPa zonal wind through the <b>developing year</b> (Jan&rarr;Nov of year 0) of each El Ni&ntilde;o, aligned by calendar so the current event sits beside its analogs at the same phase. Westerly anomalies (red) over the Indian Ocean&ndash;west Pacific push warm water east and sustain a developing event; the historical analogs show those westerlies expanding eastward through the year. Left: detrended anomaly (long-term trend removed). Right: absolute wind (easterly trades vs. westerly bursts). 5-day smoothed.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/u850_analogs_anom.webp?v=64d01b79c611" alt="850 hPa equatorial zonal-wind detrended-anomaly Hovmöllers: current 2026 vs 1982/1997/2015 developing years" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/u850_analogs_abs.webp?v=64d01b79c611" alt="850 hPa equatorial zonal-wind absolute Hovmöllers: current 2026 vs 1982/1997/2015 developing years" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/u850_analogs_anom.webp?v=556f92d46385" alt="850 hPa equatorial zonal-wind detrended-anomaly Hovmöllers: current 2026 vs 1982/1997/2015 developing years" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/u850_analogs_abs.webp?v=556f92d46385" alt="850 hPa equatorial zonal-wind absolute Hovmöllers: current 2026 vs 1982/1997/2015 developing years" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ERA5 &mdash; WeatherBench2 1.5&deg; (1959&ndash;2023) + ARCO 0.25&deg; (current year) &middot; 5&deg;S&ndash;5&deg;N &middot; detrended vs day-of-year climatology &middot; updated daily</span></div>
     </div>
 
@@ -349,37 +488,37 @@
 
     <div class="chart-card">
       <div class="chart-card-header"><h2>Houston &amp; Dallas</h2></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_houston.webp?v=64d01b79c611" alt="Houston daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_houston.webp?v=64d01b79c611" alt="Houston detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_dallas.webp?v=64d01b79c611" alt="Dallas daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_dallas.webp?v=64d01b79c611" alt="Dallas detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_houston.webp?v=556f92d46385" alt="Houston daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_houston.webp?v=556f92d46385" alt="Houston detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_dallas.webp?v=556f92d46385" alt="Dallas daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_dallas.webp?v=556f92d46385" alt="Dallas detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">IEM ASOS (IAH, DFW) &middot; daily high&ndash;low from hourly obs &middot; anomaly detrended vs trend-adjusted 1973&ndash;present normal</span></div>
     </div>
 
     <div class="chart-card">
       <div class="chart-card-header"><h2>Phoenix &amp; Washington, DC</h2></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_phoenix.webp?v=64d01b79c611" alt="Phoenix daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_phoenix.webp?v=64d01b79c611" alt="Phoenix detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_washington_dc.webp?v=64d01b79c611" alt="Washington DC daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_washington_dc.webp?v=64d01b79c611" alt="Washington DC detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_phoenix.webp?v=556f92d46385" alt="Phoenix daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_phoenix.webp?v=556f92d46385" alt="Phoenix detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_washington_dc.webp?v=556f92d46385" alt="Washington DC daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_washington_dc.webp?v=556f92d46385" alt="Washington DC detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">IEM ASOS (PHX, DCA) &middot; daily high&ndash;low from hourly obs &middot; anomaly detrended vs trend-adjusted 1973&ndash;present normal</span></div>
     </div>
 
     <div class="chart-card">
       <div class="chart-card-header"><h2>New York City &amp; Boston</h2></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_new_york_city.webp?v=64d01b79c611" alt="New York City daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_new_york_city.webp?v=64d01b79c611" alt="New York City detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_boston.webp?v=64d01b79c611" alt="Boston daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_boston.webp?v=64d01b79c611" alt="Boston detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_new_york_city.webp?v=556f92d46385" alt="New York City daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_new_york_city.webp?v=556f92d46385" alt="New York City detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_boston.webp?v=556f92d46385" alt="Boston daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_boston.webp?v=556f92d46385" alt="Boston detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">IEM ASOS (LGA, BOS) &middot; daily high&ndash;low from hourly obs &middot; anomaly detrended vs trend-adjusted 1973&ndash;present normal</span></div>
     </div>
 
     <div class="chart-card">
       <div class="chart-card-header"><h2>Portland &amp; Seattle</h2></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_portland_or.webp?v=64d01b79c611" alt="Portland OR daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_portland_or.webp?v=64d01b79c611" alt="Portland OR detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_seattle.webp?v=64d01b79c611" alt="Seattle daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_seattle.webp?v=64d01b79c611" alt="Seattle detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_portland_or.webp?v=556f92d46385" alt="Portland OR daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_portland_or.webp?v=556f92d46385" alt="Portland OR detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_seattle.webp?v=556f92d46385" alt="Seattle daily temperature across super-El-Niño years vs 2026" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/citytemp/citytemp_anom_seattle.webp?v=556f92d46385" alt="Seattle detrended temperature anomaly across super-El-Niño years vs 2026" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">IEM ASOS (PDX, SEA) &middot; daily high&ndash;low from hourly obs &middot; anomaly detrended vs trend-adjusted 1973&ndash;present normal</span></div>
     </div>
 
