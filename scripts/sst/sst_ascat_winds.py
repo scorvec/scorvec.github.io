@@ -37,6 +37,9 @@ ANIM_DIR = ASSETS / "anim" / "ascat"               # committed daily image frame
 MANIFEST = ASSETS / "anim" / "ascat_manifest.json"
 DATA_DIR = HERE / "data" / "ascat"                 # local-only daily u/v field archive
 KEEP_DAYS = 120                                    # rolling window for frames + data
+MIN_OK_BYTES = 15_000                              # a good frame is ~60 KB; a collapsed
+                                                   # cartopy GeoAxes (colorbar only, seen in
+                                                   # CI) is ~2 KB. Reject anything this small.
 
 DATASET = "cmems_obs-wind_glo_phy_nrt_l4_0.125deg_PT1H"
 LAT = (-10.0, 10.0)
@@ -71,6 +74,8 @@ def build_manifest() -> None:
     _prune(ANIM_DIR, "*.webp")
     dated = []
     for f in sorted(ANIM_DIR.glob("*.webp")):
+        if f.stat().st_size < MIN_OK_BYTES:        # never list a collapsed/empty frame
+            continue
         try:
             dated.append((pd.to_datetime(f.stem), f))
         except Exception:                          # noqa: BLE001
@@ -173,9 +178,26 @@ def main() -> int:
         # Re-render the newest day every run (NRT coverage fills in over hours, so a frame first
         # rendered while the day was partial must be refreshed), and re-render any missing or
         # broken (tiny → collapsed-map) cached frame. Older complete days stay cached.
-        if day == newest or not frame.exists() or frame.stat().st_size < 10_000:
-            plot(dsd, day, frame)
-    shutil.copy2(ANIM_DIR / f"{newest:%Y-%m-%d}.webp", Path(args.out))   # latest static image
+        if day == newest or not frame.exists() or frame.stat().st_size < MIN_OK_BYTES:
+            # Render to a temp file and ACCEPT it only if it isn't a collapsed (colorbar-only)
+            # render. cartopy occasionally collapses the GeoAxes to a ~2 KB image (reproducibly
+            # in CI); without this guard such a render replaced a good committed frame and the
+            # static image, mangling the live page. On a bad render we keep whatever was there.
+            tmp = frame.with_suffix(".tmp.webp")
+            plot(dsd, day, tmp)
+            if tmp.exists() and tmp.stat().st_size >= MIN_OK_BYTES:
+                tmp.replace(frame)
+            else:
+                if tmp.exists():
+                    tmp.unlink()
+                print(f"  collapsed/empty render for {day:%Y-%m-%d} — keeping existing frame")
+    # Static image = the most recent NON-collapsed frame (filenames sort by date), so a bad
+    # newest-day render never becomes the published latest image.
+    good = sorted(p for p in ANIM_DIR.glob("*.webp") if p.stat().st_size >= MIN_OK_BYTES)
+    if good:
+        shutil.copy2(good[-1], Path(args.out))
+    else:
+        print("  no good ASCAT frame available — leaving previous static image in place")
     build_manifest()                                    # refresh the animator manifest
     return 0
 
