@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-19 14:09 UTC",
+  "generated": "2026-06-19 14:32 UTC",
   "sst_valid_day": "2026-06-16",
   "roni_latest_month": "2026-06",
   "roni_latest_value": 0.629,
@@ -12,6 +12,7 @@
     "global": "global_sst_anom.webp",
     "tropical": "tropical_sst_anom.webp",
     "roni": "roni.webp",
-    "daily_indices": "daily_indices.webp"
+    "daily_indices": "daily_indices.webp",
+    "nino_regions": "nino_regions.webp"
   }
 }
