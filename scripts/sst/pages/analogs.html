@@ -6,6 +6,145 @@
 
   <div class="chart-stack">
 
+    <!-- INTERACTIVE EXPLORER: Niño metrics, current event vs past El Niños since 1970 -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Interactive Explorer &mdash; Ni&ntilde;o Metrics vs. Past El Ni&ntilde;os (since 1970)</h2>
+        <p>Overlay the current event against any El Ni&ntilde;o since 1970 for any Ni&ntilde;o region (or the ONI). Events are aligned by month relative to their <b>DJF peak</b> &mdash; so the shapes and amplitudes compare directly &mdash; or switch to an <b>ENSO-calendar</b> view (development year &rarr; the following year). The current event (bold black) is aligned to its climatological December peak, so its lead-up sits against where each analog stood before <i>its</i> peak.</p>
+      </div>
+      <div class="nino-controls" style="display:flex;flex-wrap:wrap;gap:1.1rem 1.6rem;align-items:flex-start;margin:.4rem 0 1rem;font-size:.86rem">
+        <label style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Metric</span>
+          <select id="ne-metric" style="padding:.3rem .4rem;border:1px solid #ccc;border-radius:6px">
+            <option value="nino34">Ni&ntilde;o-3.4</option>
+            <option value="nino4">Ni&ntilde;o-4</option>
+            <option value="nino3">Ni&ntilde;o-3</option>
+            <option value="nino12">Ni&ntilde;o-1+2</option>
+            <option value="oni">ONI (Ni&ntilde;o-3.4, 3-mo)</option>
+          </select>
+        </label>
+        <span id="ne-kind" style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Quantity</span>
+          <span style="display:flex;gap:.7rem">
+            <label><input type="radio" name="ne-kind" value="anom" checked> Anomaly</label>
+            <label><input type="radio" name="ne-kind" value="abs"> Absolute</label>
+          </span>
+        </span>
+        <span style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Alignment</span>
+          <span style="display:flex;gap:.7rem">
+            <label><input type="radio" name="ne-mode" value="peak" checked> Peak-aligned</label>
+            <label><input type="radio" name="ne-mode" value="cal"> ENSO calendar</label>
+          </span>
+        </span>
+        <span style="display:flex;flex-direction:column;gap:.25rem;flex:1 1 22rem">
+          <span style="font-weight:600;color:#555">Events <span style="font-weight:400;color:#999">(weak&middot;mod&middot;strong&middot;very strong)</span></span>
+          <span id="ne-events" style="display:flex;flex-wrap:wrap;gap:.15rem .9rem;max-height:7.5rem;overflow:auto"></span>
+        </span>
+      </div>
+      <div id="nino-explorer" style="width:100%;height:520px"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA CPC ERSSTv5 monthly Ni&ntilde;o indices &middot; 1991&ndash;2020 base &middot; ONI = Ni&ntilde;o-3.4 3-month running mean</span>
+        <span class="chart-updated" id="ne-updated"></span>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-basic-dist-min@2.35.2/plotly-basic.min.js"></script>
+    <script>
+    (function () {
+      var DIV = document.getElementById('nino-explorer');
+      if (!DIV) return;
+      var PAL = ['#1f77b4','#2ca02c','#9467bd','#ff7f0e','#8c564b','#e377c2','#17becf','#bcbd22','#7f7f7f','#d62728'];
+      function addMonths(ym, n) {                       // "YYYY-MM" + n months → "YYYY-MM"
+        var p = ym.split('-'), y = +p[0], m = +p[1] - 1 + n;
+        y += Math.floor(m / 12); m = ((m % 12) + 12) % 12;
+        return y + '-' + ('0' + (m + 1)).slice(-2);
+      }
+      var DATA, IDX;
+      fetch('assets/sst/data/nino_history.json?v=' + new Date().toISOString().slice(0, 7))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          DATA = d; IDX = {};
+          d.months.forEach(function (m, i) { IDX[m] = i; });
+          document.getElementById('ne-updated').textContent = 'data thru ' + d.latest_month;
+          buildEvents(); wire(); render();
+        })
+        .catch(function () { DIV.innerHTML = '<p style="color:#999;padding:2rem">Could not load history data.</p>'; });
+
+      function buildEvents() {
+        var host = document.getElementById('ne-events'), html = '';
+        DATA.events.forEach(function (e) {
+          var s = e.peakOni == null ? '' : ' <span style="color:#aaa">(' + e.peakOni.toFixed(1) + ')</span>';
+          html += '<label style="white-space:nowrap"><input type="checkbox" class="ne-ev" value="' + e.id + '"'
+                + (e.default ? ' checked' : '') + '> ' + e.label + s + '</label>';
+        });
+        host.innerHTML = html;
+      }
+      function wire() {
+        DIV.closest('.chart-card').querySelectorAll('select,input').forEach(function (el) {
+          el.addEventListener('change', render);
+        });
+      }
+      function val(name) { return DIV.closest('.chart-card').querySelector('input[name="' + name + '"]:checked').value; }
+
+      function render() {
+        var metric = document.getElementById('ne-metric').value;
+        var isOni = metric === 'oni';
+        var kind = isOni ? 'anom' : val('ne-kind');
+        document.getElementById('ne-kind').style.opacity = isOni ? 0.4 : 1;     // ONI is anomaly-only
+        var mode = val('ne-mode');
+        var ser = DATA.series[metric][kind];
+        var picked = Array.prototype.map.call(document.querySelectorAll('.ne-ev:checked'), function (c) { return c.value; });
+        var byId = {}; DATA.events.forEach(function (e) { byId[e.id] = e; });
+
+        var traces = [], ci = 0;
+        picked.forEach(function (id) {
+          var e = byId[id]; if (!e) return;
+          var xs = [], ys = [], o, m, i, lo, hi, base;
+          if (mode === 'peak') { lo = -16; hi = 18; base = e.peak; }
+          else { lo = 0; hi = 23; base = e.onset + '-01'; }
+          for (o = lo; o <= hi; o++) {
+            m = addMonths(base, o); i = IDX[m];
+            if (i != null && ser[i] != null) { xs.push(o); ys.push(ser[i]); }
+          }
+          if (!xs.length) return;
+          var cur = !!e.current;
+          traces.push({
+            x: xs, y: ys, name: e.label, type: 'scatter', mode: 'lines',
+            line: { width: cur ? 3.6 : 1.8, color: cur ? '#111' : PAL[ci++ % PAL.length] },
+            hovertemplate: '<b>' + e.label + '</b>  %{y:.2f}<extra></extra>'
+          });
+        });
+
+        var ylab = DATA.metrics[metric] + (kind === 'abs' ? ' SST (°C)' : ' anomaly (°C)');
+        var shapes = [], ann = [];
+        if (kind === 'anom') {
+          shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0, line: { color: '#333', width: 1 } });
+          [0.5, -0.5].forEach(function (y) {
+            shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: y, y1: y, line: { color: '#bbb', width: 1, dash: 'dash' } });
+          });
+        }
+        var xaxis;
+        if (mode === 'peak') {
+          shapes.push({ type: 'line', x0: 0, x1: 0, yref: 'paper', y0: 0, y1: 1, line: { color: '#999', width: 1, dash: 'dot' } });
+          ann.push({ x: 0, yref: 'paper', y: 1.02, text: 'DJF peak', showarrow: false, font: { size: 10, color: '#999' } });
+          xaxis = { title: 'months from DJF peak', dtick: 3, zeroline: false };
+        } else {
+          xaxis = {
+            title: 'ENSO development year → following year',
+            tickvals: [0, 3, 6, 9, 12, 15, 18, 21],
+            ticktext: ['Jan', 'Apr', 'Jul', 'Oct', 'Jan⁺¹', 'Apr⁺¹', 'Jul⁺¹', 'Oct⁺¹'], zeroline: false
+          };
+        }
+        Plotly.react(DIV, traces, {
+          margin: { l: 55, r: 18, t: 18, b: 48 }, xaxis: xaxis,
+          yaxis: { title: ylab, zeroline: false }, shapes: shapes, annotations: ann,
+          hovermode: 'x unified', legend: { orientation: 'h', y: -0.18, font: { size: 11 } },
+          font: { family: 'Inter, sans-serif', size: 12 }, plot_bgcolor: '#fff', paper_bgcolor: '#fff'
+        }, { responsive: true, displayModeBar: false });
+      }
+    })();
+    </script>
+
     <!-- EVENT COMPARISON: Niño-3.4 evolution overlay -->
     <div class="chart-card">
       <div class="chart-card-header">
