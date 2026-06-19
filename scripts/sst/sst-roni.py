@@ -72,6 +72,16 @@ PC = ccrs.PlateCarree()
 NINO34 = dict(lat=(-5, 5), lon=(190, 240))
 TROPICAL = dict(lat=(-20, 20), lon=(0, 360))
 
+# The four canonical CPC ENSO monitoring regions (lon in 0–360°E). Niño-3.4 overlaps
+# Niño-4 and Niño-3 by definition. Each colour is shared between the map box outline
+# and the region time-series lines so the two read together. Insertion order = west→east.
+NINO_REGIONS = {
+    "nino4":  dict(lat=(-5, 5),  lon=(160, 210), label="Niño-4",   color="#6a3d9a"),  # 160°E–150°W
+    "nino34": dict(lat=(-5, 5),  lon=(190, 240), label="Niño-3.4", color="#e31a1c"),  # 170°W–120°W
+    "nino3":  dict(lat=(-5, 5),  lon=(210, 270), label="Niño-3",   color="#33a02c"),  # 150°W–90°W
+    "nino12": dict(lat=(-10, 0), lon=(270, 280), label="Niño-1+2", color="#1f78b4"),  # 90°W–80°W
+}
+
 # Map extents and projection centering. The OISST grid is 0-360 in lon;
 # we center both maps on the dateline (central_longitude=180) so the
 # Pacific (and the ENSO cold tongue) sits in the middle, uninterrupted.
@@ -200,27 +210,37 @@ def sst_anom_cmap():
 # ----------------------------------------------------------------------
 # Map rendering
 # ----------------------------------------------------------------------
-def _draw_nino34_box(ax, label=True):
-    """Outline the Nino-3.4 region (5S-5N, 170W-120W = 190-240 degE).
-
-    Edges are drawn as dense point sequences along the parallels and
-    meridians so the rectangle follows the projection correctly (and
-    doesn't bow) regardless of the map's central longitude.
-    """
-    lon0, lon1 = 190, 240
-    lat0, lat1 = -5, 5
+def _draw_box(ax, lat_rng, lon_rng, color, lw=1.2):
+    """Outline a lat/lon box. Edges are dense point sequences along the parallels
+    and meridians so the rectangle follows the projection (doesn't bow) regardless
+    of the map's central longitude."""
+    lon0, lon1 = lon_rng
+    lat0, lat1 = lat_rng
     lons = np.linspace(lon0, lon1, 100)
     lats = np.linspace(lat0, lat1, 100)
-    edge_lon = np.concatenate([lons, np.full(100, lon1),
-                               lons[::-1], np.full(100, lon0)])
-    edge_lat = np.concatenate([np.full(100, lat0), lats,
-                               np.full(100, lat1), lats[::-1]])
-    ax.plot(edge_lon, edge_lat, transform=PC, color="#111", lw=1.4,
+    edge_lon = np.concatenate([lons, np.full(100, lon1), lons[::-1], np.full(100, lon0)])
+    edge_lat = np.concatenate([np.full(100, lat0), lats, np.full(100, lat1), lats[::-1]])
+    ax.plot(edge_lon, edge_lat, transform=PC, color=color, lw=lw,
             zorder=5, solid_capstyle="round")
-    if label:
-        ax.text(215, lat1 + 1.5, "Ni\u00f1o-3.4", transform=PC,
-                fontsize=8.5, ha="center", va="bottom", color="#111",
-                zorder=6, fontweight="bold")
+
+
+# label vertical offsets (deg lat above each box top) so the three equatorial
+# boxes' labels stagger instead of colliding; Ni\u00f1o-1+2 sits to the south/east.
+_NINO_LAB_DY = {"nino4": 1.3, "nino34": 6.0, "nino3": 1.3, "nino12": 1.3}
+
+
+def _draw_nino_boxes(ax, label=True):
+    """Outline all four CPC ENSO regions (Ni\u00f1o-4/3.4/3/1+2), each in its region
+    colour (matching the time-series chart). Ni\u00f1o-3.4 is drawn slightly heavier as
+    the primary ONI region. 3.4 overlaps 4 and 3 by definition."""
+    for key, r in NINO_REGIONS.items():
+        _draw_box(ax, r["lat"], r["lon"], r["color"],
+                  lw=1.6 if key == "nino34" else 1.1)
+        if label:
+            lon_c = (r["lon"][0] + r["lon"][1]) / 2.0
+            ax.text(lon_c, r["lat"][1] + _NINO_LAB_DY[key], r["label"], transform=PC,
+                    fontsize=7.5, ha="center", va="bottom", color=r["color"],
+                    zorder=6, fontweight="bold")
 
 
 def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
@@ -249,7 +269,7 @@ def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
                    edgecolor="#555", linewidth=0.4, zorder=3)
 
     if nino_box:
-        _draw_nino34_box(ax)
+        _draw_nino_boxes(ax)
 
     cbar = plt.colorbar(im, ax=ax, orientation="vertical",
                         pad=0.015, shrink=0.85, fraction=0.030,
@@ -348,7 +368,7 @@ def _draw_map_ax(ax, field, la, lo, extent, style, nino_box,
                         transform=PC, zorder=4)
         ax.clabel(cs, fmt="%d°C", fontsize=7, inline=True, inline_spacing=2)
     if nino_box:
-        _draw_nino34_box(ax)
+        _draw_nino_boxes(ax, label=False)
     if annotation:
         ax.text(0.012, 0.05, annotation, transform=ax.transAxes, fontsize=8.5,
                 va="bottom", ha="left", family="monospace", zorder=6,
@@ -589,6 +609,79 @@ def render_daily_three_metrics(full_anom, la, lo, out_path, days=None):
     print(f"  wrote {out_path.name}")
 
 
+def render_nino_region_series(full_anom, full_abs, la, lo, out_path, days=120):
+    """Recent daily time series for the four CPC Niño regions, two stacked panels
+    sharing a date axis: top = absolute SST (°C), bottom = SST anomaly (°C). One
+    region-coloured line each (colours match the map boxes); the anomaly panel
+    carries the ±0.5 °C El Niño / La Niña reference lines. If the absolute field is
+    unavailable, only the anomaly panel is drawn."""
+    def _prep(da):
+        if float(da[lo].min()) < 0:
+            da = da.assign_coords({lo: (da[lo] % 360)}).sortby(lo)
+        return da.isel(time=slice(-days, None))
+
+    anom = _prep(full_anom)
+    abso = _prep(full_abs) if full_abs is not None else None
+    a_ser = {k: _box_anomaly_series(anom, la, lo, r["lat"], r["lon"]).to_series()
+             for k, r in NINO_REGIONS.items()}
+    b_ser = ({k: _box_anomaly_series(abso, la, lo, r["lat"], r["lon"]).to_series()
+              for k, r in NINO_REGIONS.items()} if abso is not None else None)
+    ndays = len(a_ser["nino34"])
+
+    npanel = 2 if b_ser is not None else 1
+    fig, axes = plt.subplots(npanel, 1, figsize=(12, 3.1 * npanel + 1.0), dpi=100,
+                             sharex=True, squeeze=False)
+    axes = list(axes[:, 0])
+
+    if b_ser is not None:
+        axA = axes.pop(0)
+        for k, r in NINO_REGIONS.items():
+            s = b_ser[k]
+            axA.plot(s.index, s.values, color=r["color"], lw=1.6, label=r["label"])
+        axA.set_ylabel("Absolute SST (°C)", fontsize=11)
+        axA.grid(axis="y", alpha=0.2)
+        axA.margins(x=0.01)
+        axA.legend(loc="lower left", fontsize=8, framealpha=0.85, ncols=4)
+        axA.set_title(f"Niño-region sea-surface temperature — last {ndays} days",
+                      fontsize=12, loc="left", pad=8)
+
+    axN = axes[0]
+    for k, r in NINO_REGIONS.items():
+        s = a_ser[k]
+        axN.plot(s.index, s.values, color=r["color"], lw=1.6, label=r["label"])
+    for y in (0.5, -0.5):
+        axN.axhline(y, color="#888", lw=0.8, ls="--", alpha=0.6)
+    axN.axhline(0, color="#333", lw=0.8)
+    axN.set_ylabel("SST anomaly (°C)", fontsize=11)
+    axN.grid(axis="y", alpha=0.2)
+    axN.margins(x=0.01)
+    if b_ser is None:
+        axN.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=4)
+        axN.set_title(f"Niño-region SST anomaly — last {ndays} days",
+                      fontsize=12, loc="left", pad=8)
+
+    readout = "   ".join(f"{NINO_REGIONS[k]['label']} {a_ser[k].iloc[-1]:+.1f}"
+                         for k in NINO_REGIONS)
+    axN.text(0.005, 0.04, f"latest anomaly:  {readout}  °C",
+             transform=axN.transAxes, fontsize=8, va="bottom", ha="left", zorder=6,
+             family="monospace",
+             bbox=dict(boxstyle="round,pad=0.35", facecolor="white",
+                       edgecolor="#bbb", alpha=0.85))
+
+    fig.autofmt_xdate()
+    fig.text(0.005, 0.005,
+             "Daily cosine-weighted box means from NOAA OISST v2.1 (1991–2020 base). "
+             "Niño-4 160°E–150°W · 3.4 170–120°W · "
+             "3 150–90°W · 1+2 90–80°W, 0–10°S · "
+             "daily values (noisier than 3-month indices).",
+             fontsize=7, color="#888")
+    fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
+                bbox_inches="tight", pad_inches=0.1,
+                pil_kwargs={"quality": 85, "method": 6})
+    plt.close(fig)
+    print(f"  wrote {out_path.name}")
+
+
 def render_roni(df: pd.DataFrame, out_path: Path,
                 latest_oni=None, latest_roni=None, latest_month=None):
     fig, ax = plt.subplots(figsize=(12, 4.2), dpi=100)
@@ -770,6 +863,11 @@ def main(argv=None) -> int:
     render_daily_three_metrics(full, la, lo,
                                ASSETS / "daily_indices.webp")
 
+    # --- Niño-region recent series: absolute SST + anomaly, all four boxes ---
+    print("Niño-region recent series (absolute + anomaly):")
+    render_nino_region_series(full, full_abs, la, lo,
+                              ASSETS / "nino_regions.webp")
+
     # --- Two-panel animated products: anomaly, absolute, relative ---
     print(f"Two-panel animations (last {ANIM_DAYS} days):")
     full_rel = global_mean_removed(full, la, lo)
@@ -816,6 +914,7 @@ def main(argv=None) -> int:
             "tropical": "tropical_sst_anom.webp",
             "roni": "roni.webp",
             "daily_indices": "daily_indices.webp",
+            "nino_regions": "nino_regions.webp",
         },
     }
     (ASSETS / "manifest.json").write_text(json.dumps(manifest, indent=2))
