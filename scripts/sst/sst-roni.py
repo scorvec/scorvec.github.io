@@ -237,10 +237,14 @@ def _draw_nino_boxes(ax, label=True):
         _draw_box(ax, r["lat"], r["lon"], r["color"],
                   lw=1.6 if key == "nino34" else 1.1)
         if label:
+            import matplotlib.patheffects as mpe
             lon_c = (r["lon"][0] + r["lon"][1]) / 2.0
+            # Black text with a thin white halo so it reads on BOTH the warm absolute-SST
+            # map and the lighter anomaly map (the region colour stays on the box outline).
             ax.text(lon_c, r["lat"][1] + _NINO_LAB_DY[key], r["label"], transform=PC,
-                    fontsize=7.5, ha="center", va="bottom", color=r["color"],
-                    zorder=6, fontweight="bold")
+                    fontsize=7.5, ha="center", va="bottom", color="black",
+                    zorder=6, fontweight="bold",
+                    path_effects=[mpe.withStroke(linewidth=1.6, foreground="white")])
 
 
 def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
