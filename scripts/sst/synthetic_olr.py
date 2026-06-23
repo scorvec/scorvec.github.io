@@ -107,7 +107,7 @@ def build_days(da, dates):
 def render(da, out: Path):
     daily = da.dropna("time", how="all")
     t = pd.to_datetime(daily.time.values); lon = daily.lon.values
-    cmap = plt.get_cmap("Spectral")
+    cmap = plt.get_cmap("Spectral_r")   # low OLR (deep convection) → blue, high OLR → warm
     fig, ax = plt.subplots(figsize=(8.6, 9))
     pm = ax.contourf(lon, t, daily.values, levels=OLR_LEV, cmap=cmap,
                      norm=BoundaryNorm(OLR_LEV, cmap.N), extend="both")
