@@ -144,8 +144,11 @@
   .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
   .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
   .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
-  .anim-embed.samsat { aspect-ratio: 665 / 755; }   /* image 665×700 + controls bar */
-  .anim-embed.glmden { aspect-ratio: 660 / 719; }   /* image 660×664 + controls bar */
+  .anim-embed.samsat { aspect-ratio: 1015 / 1115; }   /* image 1015×1065 + controls */
+  .anim-embed.glmden { aspect-ratio: 591 / 677; }     /* image 591×622 (map + colourbar) + controls */
+  /* near-square Americas maps: cap the whole CARD (image fills it) so it hugs the map and
+     doesn't stretch tall across the wide column — the card centers, page-gray on the sides. */
+  .chart-card.media-narrow { max-width: 640px; margin-inline: auto; }
   .anim-embed.colombia { aspect-ratio: 1680 / 1850; }   /* image 1680×1800 + controls bar */
   .anim-embed.eq-cur-map { aspect-ratio: 1217 / 467; }      /* image 1217×412 + controls bar */
   .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
