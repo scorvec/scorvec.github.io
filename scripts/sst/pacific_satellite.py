@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
-"""Seamless tropical-Pacific IR satellite loop from the GMGSI global mosaic.
+"""Seamless georeferenced IR satellite loops from the GMGSI global mosaic.
 
 NOAA already blends GOES-E/W + Himawari + Meteosat into the GMGSI global mosaic on a
 regular lat/lon grid, so there is no stitching, no seam and no satellite-switch parallax
-to fix — we just crop the tropical Pacific and render it georeferenced (cartopy, with
-coastlines for orientation). The McIDAS byte → brightness-temperature calibration is
-shown as a grayscale IR (cold cloud tops = white = deep convection). Each hourly frame is
-named by timestamp; the rolling last KEEP_H hours feed the sst_anim.html iframe.
+to fix — we just crop a region and render it georeferenced (cartopy, with coastlines for
+orientation). The McIDAS byte → brightness-temperature calibration is shown with an
+enhanced-IR colortable (cold cloud tops = colour/white = deep convection). Each hourly
+frame is named by timestamp; the rolling last KEEP_H hours feed the sst_anim.html iframe.
 
-    python scripts/sst/pacific_satellite.py --hours 24    # render last N hours + manifest
+Region presets (--region): "pacsat" tropical Pacific (default), "samsat" South & Central
+America. Each writes its own anim/<region>/ frames + anim/<region>_manifest.json.
+
+    python scripts/sst/pacific_satellite.py                 # tropical Pacific (default)
+    python scripts/sst/pacific_satellite.py --region samsat # South & Central America
+    python scripts/sst/pacific_satellite.py --hours 24      # render last N hours + manifest
 """
 from __future__ import annotations
 
@@ -29,6 +34,8 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+import cartopy.io.shapereader as shpreader
 
 # Enhanced-IR colortable in the style of tropicaltidbits.com: warm scene (ocean → low/mid
 # cloud) is plain grayscale up to ~ -33 °C, then deep-convective cold tops switch into a
@@ -51,11 +58,50 @@ IR_CMAP = LinearSegmentedColormap.from_list("ir_enh", IR_NODES, N=256)
 IR_NORM = Normalize(vmin=180, vmax=300)
 
 HERE = Path(__file__).resolve().parent
-ANIM = HERE.parent.parent / "assets" / "sst" / "anim" / "pacsat"
-MANIFEST = HERE.parent.parent / "assets" / "sst" / "anim" / "pacsat_manifest.json"
+ANIM_ROOT = HERE.parent.parent / "assets" / "sst" / "anim"
 S3 = "https://noaa-gmgsi-pds.s3.amazonaws.com"
-EXTENT = (100, 290, -40, 40)          # lon0, lon1 (°E), lat0, lat1
 KEEP_H = 72                            # rolling loop length (hours) — 3-day progression
+
+# Region presets. extent = (lon0, lon1 in °E, lat0, lat1); clon = projection central
+# longitude (°E) — pick the region midpoint so the crop stays contiguous (no dateline
+# smear); dlon/dlat = gridline spacing; figsize ≈ the region aspect (+ title room);
+# scale = Natural Earth resolution for coast/borders; borders = draw country boundaries;
+# states = country name whose admin-1 (state/province) outlines to draw (or None).
+REGIONS = {
+    "pacsat": dict(extent=(100, 290, -40, 40), clon=180.0, figsize=(12.4, 5.6),
+                   dlon=20, dlat=20, where="tropical Pacific",
+                   label="Tropical Pacific IR (GMGSI)",
+                   scale="110m", borders=False, states=None),
+    "samsat": dict(extent=(245, 330, -58, 32), clon=287.5, figsize=(8.6, 9.2),
+                   dlon=15, dlat=15, where="South & Central America",
+                   label="South & Central America IR (GMGSI)",
+                   scale="50m", borders=True, states="Brazil"),
+}
+
+
+def _offset(lon, clon):
+    """Longitude (°E) → signed offset (−180,180] from the projection's central meridian,
+    so a region straddling the dateline stays contiguous in plot coordinates."""
+    return ((np.asarray(lon) - clon + 180) % 360) - 180
+
+
+_STATE_GEOMS: dict = {}      # (country, scale) -> list of admin-1 geometries (cached across frames)
+
+
+def _state_geoms(country: str, scale: str):
+    """Admin-1 (state/province) geometries for one country from Natural Earth, cached.
+    Degrades to [] if the dataset can't be fetched, so a frame still renders."""
+    key = (country, scale)
+    if key not in _STATE_GEOMS:
+        try:
+            shp = shpreader.natural_earth(resolution=scale, category="cultural",
+                                          name="admin_1_states_provinces")
+            _STATE_GEOMS[key] = [rec.geometry for rec in shpreader.Reader(shp).records()
+                                 if rec.attributes.get("admin") == country]
+        except Exception as e:                       # noqa: BLE001 — NE download hiccup
+            print(f"  (admin-1 outlines for {country} unavailable: {e})", flush=True)
+            _STATE_GEOMS[key] = []
+    return _STATE_GEOMS[key]
 
 
 def gmgsi_tb(dt: datetime):
@@ -78,30 +124,47 @@ def gmgsi_tb(dt: datetime):
     return Tb, lat, lon
 
 
-def render_frame(dt: datetime, out: Path) -> bool:
+def render_frame(dt: datetime, out: Path, cfg: dict) -> bool:
     r = gmgsi_tb(dt)
     if r is None:
         return False
     Tb, lat, lon = r
-    lo0, lo1, la0, la1 = EXTENT
+    lo0, lo1, la0, la1 = cfg["extent"]
+    clon = cfg["clon"]
     ry = np.where((lat >= la0) & (lat <= la1))[0]
-    order = np.argsort(lon); lon_s = lon[order]; m = (lon_s >= lo0) & (lon_s <= lo1); cx = order[m]
-    sub = Tb[np.ix_(ry, cx)]; latv = lat[ry]; lonv = lon_s[m]
+    # Work in offset-from-central-meridian space so any region (incl. dateline-straddling
+    # tropical Pacific) is a single contiguous strip; o0<0<o1 for a region centred on clon.
+    o0, o1 = _offset(lo0, clon), _offset(lo1, clon)
+    off = _offset(lon, clon)
+    order = np.argsort(off); off_s = off[order]; m = (off_s >= o0) & (off_s <= o1); cx = order[m]
+    sub = Tb[np.ix_(ry, cx)]; latv = lat[ry]; offv = off_s[m]
     if latv[0] > latv[-1]:
         latv = latv[::-1]; sub = sub[::-1]
-    proj = ccrs.PlateCarree(central_longitude=180)
-    fig = plt.figure(figsize=(12.4, 5.6))
+    proj = ccrs.PlateCarree(central_longitude=clon)
+    fig = plt.figure(figsize=cfg["figsize"])
     ax = plt.axes(projection=proj)
-    ax.set_extent([lo0 - 180, lo1 - 180, la0, la1], crs=proj)
-    ax.pcolormesh(lonv - 180, latv, sub, transform=proj, cmap=IR_CMAP, norm=IR_NORM,
+    ax.set_extent([o0, o1, la0, la1], crs=proj)
+    ax.pcolormesh(offv, latv, sub, transform=proj, cmap=IR_CMAP, norm=IR_NORM,
                   shading="auto", rasterized=True)
-    ax.coastlines(linewidth=0.7, color="#cfcfcf")
+    scale = cfg.get("scale", "110m")
+    ax.coastlines(linewidth=0.7, color="#cfcfcf", resolution=scale)
+    if cfg.get("borders"):     # international boundaries
+        ax.add_feature(cfeature.BORDERS.with_scale(scale), linewidth=0.5,
+                       edgecolor="#cfcfcf")
+    if cfg.get("states"):      # admin-1 (state/province) outlines for one country, thinner
+        geoms = _state_geoms(cfg["states"], scale)
+        if geoms:
+            ax.add_geometries(geoms, crs=ccrs.PlateCarree(), facecolor="none",
+                              edgecolor="#9a9a9a", linewidth=0.3, zorder=4)
     gl = ax.gridlines(draw_labels=True, linewidth=0.3, color="0.6", alpha=0.4, linestyle=(0, (3, 3)))
     gl.top_labels = gl.right_labels = False
-    gl.xlocator = mticker.FixedLocator(range(-180, 181, 20))
-    gl.ylocator = mticker.FixedLocator(range(-40, 41, 20))
+    # Gridline locators take TRUE longitudes (−180..180); build them across the region in °E.
+    lon_ticks = [((t + 180) % 360) - 180
+                 for t in range(int(lo0), int(lo1) + 1) if t % cfg["dlon"] == 0]
+    gl.xlocator = mticker.FixedLocator(lon_ticks)
+    gl.ylocator = mticker.FixedLocator(range(int(la0), int(la1) + 1, cfg["dlat"]))
     gl.xlabel_style = gl.ylabel_style = {"size": 7}
-    ax.set_title(f"GMGSI enhanced IR — tropical Pacific  ·  {dt:%Y-%m-%d %HZ}  ·  "
+    ax.set_title(f"GMGSI enhanced IR — {cfg['where']}  ·  {dt:%Y-%m-%d %HZ}  ·  "
                  "colour = deep convection (cold tops)", fontsize=9, loc="left")
     fig.savefig(out, dpi=92, bbox_inches="tight"); plt.close(fig)
     return True
@@ -109,19 +172,24 @@ def render_frame(dt: datetime, out: Path) -> bool:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--region", choices=sorted(REGIONS), default="pacsat",
+                    help="region preset (default: pacsat = tropical Pacific)")
     ap.add_argument("--hours", type=int, default=KEEP_H, help="ensure frames for the last N hours")
     args = ap.parse_args(argv)
-    ANIM.mkdir(parents=True, exist_ok=True)
+    cfg = REGIONS[args.region]
+    anim = ANIM_ROOT / args.region
+    manifest = ANIM_ROOT / f"{args.region}_manifest.json"
+    anim.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     for h in range(min(args.hours, KEEP_H) - 1, -1, -1):       # render only missing frames
         dt = now - timedelta(hours=h)
-        fp = ANIM / f"{dt:%Y%m%d%H}.webp"
-        if not fp.exists() and render_frame(dt, fp):
+        fp = anim / f"{dt:%Y%m%d%H}.webp"
+        if not fp.exists() and render_frame(dt, fp, cfg):
             print(f"  rendered {dt:%Y-%m-%d %HZ}", flush=True)
     # trim frames older than the rolling window + build the manifest from what remains
     cutoff = now - timedelta(hours=KEEP_H)
     entries = []
-    for fp in sorted(ANIM.glob("*.webp")):
+    for fp in sorted(anim.glob("*.webp")):
         try:
             dt = datetime.strptime(fp.stem, "%Y%m%d%H").replace(tzinfo=timezone.utc)
         except ValueError:
@@ -130,10 +198,10 @@ def main(argv=None) -> int:
             fp.unlink(); continue
         entries.append({"idx": len(entries), "file": fp.name,
                         "date": dt.strftime("%Y-%m-%d"), "label": dt.strftime("%-d %b %HZ")})
-    MANIFEST.write_text(json.dumps({"ver": now.strftime("%Y%m%d%H"),
-                                    "regions": {"pacsat": {"label": "Tropical Pacific IR (GMGSI)",
-                                                           "frames": entries}}}))
-    print(f"wrote {len(entries)} frames + {MANIFEST.name}", flush=True)
+    manifest.write_text(json.dumps({"ver": now.strftime("%Y%m%d%H"),
+                                    "regions": {args.region: {"label": cfg["label"],
+                                                              "frames": entries}}}))
+    print(f"wrote {len(entries)} frames + {manifest.name}", flush=True)
     return 0
 
 
