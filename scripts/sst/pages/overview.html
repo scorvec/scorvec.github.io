@@ -175,6 +175,30 @@
       <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
     </div>
 
+    <!-- SOUTH & CENTRAL AMERICA IR SATELLITE LOOP (GMGSI) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>South &amp; Central America &mdash; Live IR Satellite Loop</h2>
+        <p>The same seamless <b>GMGSI</b> longwave-IR mosaic, cropped to the Americas &mdash; from southern Mexico and the Caribbean down to Tierra del Fuego, spanning both the eastern Pacific and the tropical Atlantic. Georeferenced with coastlines (no stitching or satellite-switch parallax), looping the last 72&nbsp;hours.</p>
+        <p><b>What to look for:</b> <b>white/colour = cold cloud tops = deep convection.</b> Watch the <b>ITCZ</b> firing off Central America and northern South America, convection over the <b>Amazon</b>, and frontal cloud bands and cut-off lows sweeping across the Southern Cone. Use the slider to step through the loop.</p>
+      </div>
+      <iframe class="anim-embed samsat" src="sst_anim.html?embed=1&amp;manifest=samsat_manifest.json&amp;region=samsat"
+              title="Seamless South &amp; Central America longwave-IR satellite loop from the GMGSI global mosaic" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
+    </div>
+
+    <!-- TROPICAL SOUTH AMERICA GLM LIGHTNING FLASH-DENSITY LOOP -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Tropical South America &mdash; Lightning Flash Density</h2>
+        <p>Where the lightning has actually been striking, from NOAA&rsquo;s <b>Geostationary Lightning Mapper (GLM)</b> on GOES-East &mdash; the electrical companion to the IR loop above, zoomed on Colombia, Venezuela and Brazil. Each frame accumulates every detected flash over the <b>trailing 3 hours</b>, binned to a 0.1&deg; grid and shown as a log-scaled density (dark = none, bright = intense). Looped over the last 72&nbsp;hours.</p>
+        <p><b>What to look for:</b> the persistent hotspot over <b>Lake Maracaibo</b> (Venezuela) is <i>Catatumbo</i> &mdash; the most lightning-prone place on Earth. Watch convective clusters flare along the <b>ITCZ</b> and over the <b>Amazon</b>, and compare against the cold cloud tops in the IR loop: the brightest lightning marks the most vigorous updrafts.</p>
+      </div>
+      <iframe class="anim-embed glmden" src="sst_anim.html?embed=1&amp;manifest=glmden_manifest.json&amp;region=glmden"
+              title="GOES-East GLM lightning flash-density loop over South &amp; Central America" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA GOES-East GLM L2 (Geostationary Lightning Mapper) &middot; flashes binned to 0.1&deg;, trailing 3&nbsp;h &middot; hourly, rolling 72&nbsp;h</span></div>
+    </div>
+
     <!-- COLOMBIA / PANAMA TRUE-COLOR SATELLITE LOOP (GOES-East via GIBS) -->
     <div class="chart-card">
       <div class="chart-card-header">
