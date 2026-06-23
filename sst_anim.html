@@ -172,16 +172,23 @@ async function init() {
     opt.textContent = rdata.label;
     regSel.appendChild(opt);
   });
-  // Region from ?region= or #hash; ?embed=1 strips chrome for inline iframes.
+  // Region from ?region=, #hash, or the manifest's default; ?embed=1 strips chrome for
+  // inline iframes — but a multi-region manifest (e.g. GLM 1h/3h/24h) keeps the picker so
+  // the viewer can switch. A manifest may relabel the picker via "selectorLabel".
   const params = new URLSearchParams(location.search);
-  const want = params.get("region") || location.hash.replace("#", "");
+  const want = params.get("region") || location.hash.replace("#", "") || manifest.default;
   region = (want && manifest.regions[want]) ? want : regSel.value;
   regSel.value = region;
+  const multiRegion = Object.keys(manifest.regions).length > 1;
+  const regLabel = document.getElementById("regionLabel");
+  if (manifest.selectorLabel && regLabel) regLabel.textContent = manifest.selectorLabel;
   if (params.has("embed")) {
     document.body.classList.add("embed");
     const b = document.querySelector(".back"); if (b) b.style.display = "none";
-    const rl = document.getElementById("regionLabel"); if (rl) rl.style.display = "none";
-    regSel.style.display = "none";
+    if (!multiRegion) {                          // single-region embed: hide the picker
+      if (regLabel) regLabel.style.display = "none";
+      regSel.style.display = "none";
+    }
   }
   regSel.addEventListener("change", () => { switchRegion(regSel.value); });
 
