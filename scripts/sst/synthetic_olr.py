@@ -107,7 +107,7 @@ def build_days(da, dates):
 def render(da, out: Path):
     daily = da.dropna("time", how="all")
     t = pd.to_datetime(daily.time.values); lon = daily.lon.values
-    cmap = plt.get_cmap("Spectral_r")   # low OLR (deep convection) → blue, high OLR → warm
+    cmap = plt.get_cmap("Spectral")   # low OLR (deep convection) → yellow/orange/red, high OLR → blue
     fig, ax = plt.subplots(figsize=(8.6, 9))
     pm = ax.contourf(lon, t, daily.values, levels=OLR_LEV, cmap=cmap,
                      norm=BoundaryNorm(OLR_LEV, cmap.N), extend="both")
@@ -120,7 +120,7 @@ def render(da, out: Path):
     ax.set_xticklabels(["60E", "90E", "120E", "150E", "180", "150W", "120W", "90W"])
     ax.yaxis.set_major_formatter(mdates.DateFormatter("%b %-d"))
     ax.set_title("Synthetic equatorial OLR (5°S–5°N) — GMGSI longwave IR\n"
-                 "low OLR (blue) = deep convection · eastward tilt = MJO", fontsize=10)
+                 "low OLR (yellow/red) = deep convection · eastward tilt = MJO", fontsize=10)
     cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.06, aspect=40, extend="both")
     cb.set_label("OLR (W m⁻²)"); cb.ax.invert_xaxis()
     fig.tight_layout()
