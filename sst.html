@@ -144,8 +144,11 @@
   .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
   .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
   .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
-  .anim-embed.samsat { aspect-ratio: 665 / 755; }   /* image 665×700 + controls bar */
-  .anim-embed.glmden { aspect-ratio: 660 / 719; }   /* image 660×664 + controls bar */
+  .anim-embed.samsat { aspect-ratio: 1015 / 1115; }   /* image 1015×1065 + controls */
+  .anim-embed.glmden { aspect-ratio: 591 / 677; }     /* image 591×622 (map + colourbar) + controls */
+  /* near-square Americas maps: cap the whole CARD (image fills it) so it hugs the map and
+     doesn't stretch tall across the wide column — the card centers, page-gray on the sides. */
+  .chart-card.media-narrow { max-width: 640px; margin-inline: auto; }
   .anim-embed.colombia { aspect-ratio: 1680 / 1850; }   /* image 1680×1800 + controls bar */
   .anim-embed.eq-cur-map { aspect-ratio: 1217 / 467; }      /* image 1217×412 + controls bar */
   .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
@@ -428,7 +431,7 @@
     </div>
 
     <!-- SOUTH & CENTRAL AMERICA IR SATELLITE LOOP (GMGSI) -->
-    <div class="chart-card">
+    <div class="chart-card media-narrow">
       <div class="chart-card-header">
         <h2>South &amp; Central America &mdash; Live IR Satellite Loop</h2>
         <p>The same seamless <b>GMGSI</b> longwave-IR mosaic, cropped to the Americas &mdash; from southern Mexico and the Caribbean down to Tierra del Fuego, spanning both the eastern Pacific and the tropical Atlantic. Georeferenced with coastlines (no stitching or satellite-switch parallax), looping the last 72&nbsp;hours.</p>
@@ -440,15 +443,15 @@
     </div>
 
     <!-- TROPICAL SOUTH AMERICA GLM LIGHTNING FLASH-DENSITY LOOP -->
-    <div class="chart-card">
+    <div class="chart-card media-narrow">
       <div class="chart-card-header">
         <h2>Tropical South America &mdash; Lightning Flash Density</h2>
-        <p>Where the lightning has actually been striking, from NOAA&rsquo;s <b>Geostationary Lightning Mapper (GLM)</b> on GOES-East &mdash; the electrical companion to the IR loop above, zoomed on Colombia, Venezuela and Brazil. Each frame accumulates every detected flash over the <b>trailing 3 hours</b>, binned to a 0.1&deg; grid and shown as a log-scaled density (dark = none, bright = intense). Looped over the last 72&nbsp;hours.</p>
-        <p><b>What to look for:</b> the persistent hotspot over <b>Lake Maracaibo</b> (Venezuela) is <i>Catatumbo</i> &mdash; the most lightning-prone place on Earth. Watch convective clusters flare along the <b>ITCZ</b> and over the <b>Amazon</b>, and compare against the cold cloud tops in the IR loop: the brightest lightning marks the most vigorous updrafts.</p>
+        <p>Where the lightning has actually been striking, from NOAA&rsquo;s <b>Geostationary Lightning Mapper (GLM)</b> on GOES-East &mdash; the electrical companion to the IR loop above, zoomed on Colombia, Venezuela and Brazil. Each frame accumulates every detected flash over a selectable window (<b>1, 3 or 24 hours</b> &mdash; pick it from the <i>Accumulation</i> dropdown), binned to a 0.1&deg; grid and shown as a log-scaled density (see the colour scale). Looped over the last 72&nbsp;hours.</p>
+        <p><b>What to look for:</b> the persistent hotspot over <b>Lake Maracaibo</b> (Venezuela) is <i>Catatumbo</i> &mdash; the most lightning-prone place on Earth, and it blazes in the 24-hour view (it&rsquo;s nocturnal). Watch convective clusters flare along the <b>ITCZ</b> and over the <b>Amazon</b>, and compare against the cold cloud tops in the IR loop: the brightest lightning marks the most vigorous updrafts.</p>
       </div>
-      <iframe class="anim-embed glmden" src="sst_anim.html?embed=1&amp;manifest=glmden_manifest.json&amp;region=glmden"
-              title="GOES-East GLM lightning flash-density loop over South &amp; Central America" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">NOAA GOES-East GLM L2 (Geostationary Lightning Mapper) &middot; flashes binned to 0.1&deg;, trailing 3&nbsp;h &middot; hourly, rolling 72&nbsp;h</span></div>
+      <iframe class="anim-embed glmden" src="sst_anim.html?embed=1&amp;manifest=glmden_manifest.json&amp;region=glm_3h"
+              title="GOES-East GLM lightning flash-density loop over tropical South America (1/3/24-hour accumulation)" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA GOES-East GLM L2 (Geostationary Lightning Mapper) &middot; flashes binned to 0.1&deg; &middot; 1/3/24&nbsp;h accumulation &middot; hourly, rolling 72&nbsp;h</span></div>
     </div>
 
     <!-- COLOMBIA / PANAMA TRUE-COLOR SATELLITE LOOP (GOES-East via GIBS) -->
