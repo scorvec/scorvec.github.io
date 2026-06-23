@@ -78,7 +78,6 @@ scripts/sst/citytemp_cache/
 
 assets/sst/enso_maps/
 scripts/sst/enso_tmaps_cache/
-assets/sst/citytemp/
 
 # synoptic frames live on the synoptic-frames orphan branch (CDN), not main
 assets/synoptic/*/*/*.webp
