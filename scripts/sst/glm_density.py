@@ -35,6 +35,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from matplotlib.colors import LogNorm
+from matplotlib.cm import ScalarMappable
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
@@ -46,9 +47,16 @@ ANIM_ROOT = HERE.parent.parent / "assets" / "sst" / "anim"
 HOURLY_CACHE = HERE / "data" / "glm_hourly"           # per-clock-hour binned grids (gitignored)
 GLM_S3 = "https://noaa-goes19.s3.amazonaws.com"       # GOES-East GLM L2 (anonymous S3)
 BIN = 0.1                                             # density grid spacing (°)
-WIN_H = 3                                             # trailing accumulation window (hours)
 KEEP_H = 72                                           # rolling loop length (hours)
 CACHE_PREFIX = "glmden"                               # hourly-grid cache filename prefix
+# Accumulation windows offered in the animator dropdown: (region id, hours, colorbar vmax,
+# label). Each composes from the shared hourly grids; vmax is per-window (Catatumbo is
+# nocturnal, so the per-cell peak grows only modestly with the window).
+WINDOWS = [("glm_1h", 1, 500, "1 hour"),
+           ("glm_3h", 3, 1000, "3 hours"),
+           ("glm_24h", 24, 2000, "24 hours")]
+DEFAULT_WINDOW = "glm_3h"
+MAX_WIN = max(w[1] for w in WINDOWS)
 
 # GLM region — tighter than the IR loop: focused on Colombia + Brazil (excludes most of
 # Central America to the NW and the southern half of Argentina). extent = (lon0, lon1 °E,
@@ -116,23 +124,24 @@ def _bin_hour(hour: datetime, cfg) -> np.ndarray:
     return grid
 
 
-def trailing_density(frame_hour: datetime, cfg) -> np.ndarray:
-    """Flash-count grid accumulated over the WIN_H complete hours before frame_hour."""
+def trailing_density(frame_hour: datetime, cfg, win_h: int) -> np.ndarray:
+    """Flash-count grid accumulated over the win_h complete hours before frame_hour."""
     lon_e, lat_e = _grid_axes(cfg)
     total = np.zeros((lat_e.size - 1, lon_e.size - 1), dtype=np.int32)
-    for k in range(1, WIN_H + 1):
+    for k in range(1, win_h + 1):
         total += _bin_hour(frame_hour - timedelta(hours=k), cfg)
     return total
 
 
 # ── render ─────────────────────────────────────────────────────────────────────
-def render_frame(frame_hour: datetime, out: Path, cfg) -> bool:
-    dens = trailing_density(frame_hour, cfg)
+def render_frame(frame_hour: datetime, out: Path, cfg, win_h: int, vmax: int) -> bool:
+    dens = trailing_density(frame_hour, cfg, win_h)
     lon_e, lat_e = _grid_axes(cfg)
     lo0, lo1, la0, la1 = cfg["extent"]
     clon = cfg["clon"]; scale = cfg.get("scale", "50m")
     off_e = _offset(lon_e, clon)
     proj = ccrs.PlateCarree(central_longitude=clon)
+    norm = LogNorm(vmin=1, vmax=vmax)                 # FIXED per window → frames comparable
 
     fig = plt.figure(figsize=cfg["figsize"])
     ax = plt.axes(projection=proj)
@@ -142,8 +151,13 @@ def render_frame(frame_hour: datetime, out: Path, cfg) -> bool:
     if total:
         masked = np.ma.masked_where(dens == 0, dens)
         ax.pcolormesh(off_e, lat_e, masked, transform=proj, cmap="inferno",
-                      norm=LogNorm(vmin=1, vmax=max(10, dens.max())),
-                      shading="flat", zorder=2)
+                      norm=norm, shading="flat", zorder=2)
+    # always draw the colour scale (even on a quiet hour) so the legend is stable
+    sm = ScalarMappable(norm=norm, cmap="inferno"); sm.set_array([])
+    cb = fig.colorbar(sm, ax=ax, orientation="horizontal", pad=0.04, aspect=42,
+                      shrink=0.92, extend="max")
+    cb.set_label("flashes per 0.1° cell", fontsize=8)
+    cb.ax.tick_params(labelsize=7)
     ax.coastlines(linewidth=0.7, color="#7a7a7a", resolution=scale)
     if cfg.get("borders"):
         ax.add_feature(cfeature.BORDERS.with_scale(scale), linewidth=0.5, edgecolor="#6f6f6f")
@@ -159,7 +173,7 @@ def render_frame(frame_hour: datetime, out: Path, cfg) -> bool:
     gl.xlocator = mticker.FixedLocator(lon_ticks)
     gl.ylocator = mticker.FixedLocator(range(int(la0), int(la1) + 1, cfg["dlat"]))
     gl.xlabel_style = gl.ylabel_style = {"size": 7}
-    ax.set_title(f"GOES-East GLM lightning — flash density, trailing {WIN_H} h  ·  "
+    ax.set_title(f"GOES-East GLM lightning — flash density, trailing {win_h} h  ·  "
                  f"{frame_hour:%Y-%m-%d %HZ}  ·  {total:,} flashes", fontsize=9, loc="left")
     fig.savefig(out, dpi=92, bbox_inches="tight", facecolor="white"); plt.close(fig)
     return True
@@ -170,41 +184,45 @@ def main(argv=None) -> int:
     ap.add_argument("--hours", type=int, default=KEEP_H, help="ensure frames for the last N hours")
     args = ap.parse_args(argv)
     cfg = CFG
-    anim = ANIM_ROOT / "glmden"
-    manifest = ANIM_ROOT / "glmden_manifest.json"
-    anim.mkdir(parents=True, exist_ok=True)
-    # Frames sit at the top of each complete hour (newest = last full hour).
+    manifest_path = ANIM_ROOT / "glmden_manifest.json"
+    # Frames sit at the top of each complete hour (newest = last full hour). All windows
+    # share the same frame hours and the same hourly-grid cache.
     now_h = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-    for h in range(min(args.hours, KEEP_H) - 1, -1, -1):
-        fh = now_h - timedelta(hours=h)
-        fp = anim / f"{fh:%Y%m%d%H}.webp"
-        if not fp.exists() and render_frame(fh, fp, cfg):
-            print(f"  rendered {fh:%Y-%m-%d %HZ}", flush=True)
-    # prune old frames + hourly cache, rebuild manifest
     cutoff = now_h - timedelta(hours=KEEP_H)
-    entries = []
-    for fp in sorted(anim.glob("*.webp")):
-        try:
-            dt = datetime.strptime(fp.stem, "%Y%m%d%H").replace(tzinfo=timezone.utc)
-        except ValueError:
-            continue
-        if dt < cutoff:
-            fp.unlink(); continue
-        entries.append({"idx": len(entries), "file": fp.name,
-                        "date": dt.strftime("%Y-%m-%d"), "label": dt.strftime("%-d %b %HZ")})
+    regions = {}
+    for region_id, win_h, vmax, label in WINDOWS:
+        anim = ANIM_ROOT / region_id
+        anim.mkdir(parents=True, exist_ok=True)
+        for h in range(min(args.hours, KEEP_H) - 1, -1, -1):
+            fh = now_h - timedelta(hours=h)
+            fp = anim / f"{fh:%Y%m%d%H}.webp"
+            if not fp.exists() and render_frame(fh, fp, cfg, win_h, vmax):
+                print(f"  {region_id}: rendered {fh:%Y-%m-%d %HZ}", flush=True)
+        entries = []
+        for fp in sorted(anim.glob("*.webp")):
+            try:
+                dt = datetime.strptime(fp.stem, "%Y%m%d%H").replace(tzinfo=timezone.utc)
+            except ValueError:
+                continue
+            if dt < cutoff:
+                fp.unlink(); continue
+            entries.append({"idx": len(entries), "file": fp.name,
+                            "date": dt.strftime("%Y-%m-%d"), "label": dt.strftime("%-d %b %HZ")})
+        regions[region_id] = {"label": f"{label} accumulation", "frames": entries}
+    # prune hourly cache beyond the rolling window + the longest accumulation window
     if HOURLY_CACHE.exists():
         for cf in HOURLY_CACHE.glob(f"{CACHE_PREFIX}_*.npy"):
             try:
                 ch = datetime.strptime(cf.stem.split("_")[-1], "%Y%m%d%H").replace(tzinfo=timezone.utc)
-                if ch < cutoff - timedelta(hours=WIN_H):
+                if ch < cutoff - timedelta(hours=MAX_WIN):
                     cf.unlink()
             except ValueError:
                 continue
-    manifest.write_text(json.dumps({"ver": now_h.strftime("%Y%m%d%H"),
-                                    "regions": {"glmden": {
-                                        "label": "Lightning flash density (GLM, trailing 3 h)",
-                                        "frames": entries}}}))
-    print(f"wrote {len(entries)} frames + {manifest.name}", flush=True)
+    manifest_path.write_text(json.dumps({"ver": now_h.strftime("%Y%m%d%H"),
+                                         "selectorLabel": "Accumulation",
+                                         "default": DEFAULT_WINDOW, "regions": regions}))
+    n = len(regions[DEFAULT_WINDOW]["frames"])
+    print(f"wrote {n} frames × {len(WINDOWS)} windows + {manifest_path.name}", flush=True)
     return 0
 
 

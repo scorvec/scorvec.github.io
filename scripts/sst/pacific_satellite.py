@@ -71,11 +71,11 @@ REGIONS = {
     "pacsat": dict(extent=(100, 290, -40, 40), clon=180.0, figsize=(12.4, 5.6),
                    dlon=20, dlat=20, where="tropical Pacific",
                    label="Tropical Pacific IR (GMGSI)",
-                   scale="110m", borders=False, states=None),
+                   scale="110m", borders=False, states=None, dpi=92),
     "samsat": dict(extent=(245, 330, -58, 32), clon=287.5, figsize=(8.6, 9.2),
                    dlon=15, dlat=15, where="South & Central America",
                    label="South & Central America IR (GMGSI)",
-                   scale="50m", borders=True, states="Brazil"),
+                   scale="50m", borders=True, states="Brazil", dpi=140),
 }
 
 
@@ -166,7 +166,8 @@ def render_frame(dt: datetime, out: Path, cfg: dict) -> bool:
     gl.xlabel_style = gl.ylabel_style = {"size": 7}
     ax.set_title(f"GMGSI enhanced IR — {cfg['where']}  ·  {dt:%Y-%m-%d %HZ}  ·  "
                  "colour = deep convection (cold tops)", fontsize=9, loc="left")
-    fig.savefig(out, dpi=92, bbox_inches="tight"); plt.close(fig)
+    fig.savefig(out, dpi=cfg.get("dpi", 92), bbox_inches="tight",
+                pil_kwargs={"quality": 78, "method": 6}); plt.close(fig)
     return True
 
 

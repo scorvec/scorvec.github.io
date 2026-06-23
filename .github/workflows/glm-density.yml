@@ -39,7 +39,7 @@ jobs:
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
-          git add -A assets/sst/anim/glmden assets/sst/anim/glmden_manifest.json
+          git add -A assets/sst/anim/glm_1h assets/sst/anim/glm_3h assets/sst/anim/glm_24h assets/sst/anim/glmden_manifest.json
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "GLM lightning flash-density loop: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do
