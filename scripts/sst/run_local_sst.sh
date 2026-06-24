@@ -63,6 +63,7 @@ NEW_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
 "$PY" scripts/sst/sst_subsurface.py || echo "subsurface failed; continuing"
 ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_ascat_winds.py ) || echo "ASCAT failed; continuing"
 "$PY" scripts/sst/imerg_precip.py || echo "IMERG precip failed; continuing"   # NASA GPM IMERG, ~/.netrc Earthdata auth
+"$PY" scripts/sst/imerg_precip_anom.py || echo "IMERG precip anomaly failed; continuing"   # vs the committed 20-yr clim
 ( cd scripts/sst && "$PY" eq_current_section.py ) || echo "eq current section failed; continuing"
 ( cd scripts/sst && "$PY" eq_current_hovmoller.py ) || echo "eq current hovmoller failed; continuing"
 ( cd scripts/sst && "$PY" eq_uwind_hovmoller.py ) || echo "eq uwind hovmoller failed; continuing"

@@ -211,6 +211,18 @@
       <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 Early run (0.1&deg;) &middot; 1h/24h from half-hourly, 7d/14d from daily &middot; rolling window, updated hourly</span></div>
     </div>
 
+    <!-- IMERG PRECIPITATION ANOMALY LOOPS (vs IMERG's own 20-yr climatology) -->
+    <div class="chart-card media-narrow">
+      <div class="chart-card-header">
+        <h2>Tropical South America &mdash; Precipitation Anomaly</h2>
+        <p>How the recent rainfall compares to <b>normal</b> &mdash; the departure of the IMERG accumulation from its climatological value for the same dates. Crucially, the climatology is <b>reanalysis-free</b>: it&rsquo;s built from IMERG&rsquo;s own 20-year record (GPM IMERG Final daily, 2001&ndash;2020), so this is a self-consistent satellite-only anomaly. Pick the window (<b>7, 14 or 30 days</b>) from the dropdown. <b style="color:#117a4a">Green</b> = wetter than normal, <b style="color:#9c6b1e">brown</b> = drier than normal, white &asymp; normal; the Magdalena River basin (Colombia) is outlined in black.</p>
+        <p><b>What to look for:</b> coherent wet/dry departures that the raw accumulation can&rsquo;t show &mdash; a brown patch over the normally-rainy Chocó means a genuine rainfall deficit there, while green over the dry-season interior flags unusual wet spells. Compare with the accumulation loop above to separate &ldquo;a lot of rain&rdquo; from &ldquo;more rain than usual.&rdquo;</p>
+      </div>
+      <iframe class="anim-embed precip-anom" src="sst_anim.html?embed=1&amp;manifest=precip_anom_manifest.json&amp;region=precip_anom_14d"
+              title="NASA GPM IMERG precipitation-anomaly loops vs the 2001–2020 IMERG climatology (7d/14d/30d)" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 &middot; anomaly = Early accumulation &minus; harmonic day-of-year climatology from IMERG Final daily 2001&ndash;2020 &middot; rolling, updated hourly</span></div>
+    </div>
+
     <!-- COLOMBIA / PANAMA TRUE-COLOR SATELLITE LOOP (GOES-East via GIBS) -->
     <div class="chart-card media-narrow">
       <div class="chart-card-header">
