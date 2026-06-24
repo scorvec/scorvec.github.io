@@ -62,8 +62,17 @@ WINDOWS = [
          label="7 days",   levels=[2, 5, 10, 20, 40, 70, 100, 150, 250, 350, 500]),
     dict(id="precip_14d", kind="daily",  units=14, step_h=24, span_h=504,
          label="14 days",  levels=[5, 10, 20, 40, 70, 100, 175, 275, 400, 550, 750]),
+    # month-to-date: variable length (1st of month → each frame day), daily-based, short loop
+    dict(id="precip_mtd", kind="mtd",    units=31, step_h=24, span_h=240,
+         label="month-to-date", levels=[2, 5, 10, 25, 50, 100, 175, 275, 400, 550, 750]),
 ]
 DEFAULT_WINDOW = "precip_24h"
+
+
+def _units(w: dict, ft: datetime, step: timedelta) -> int:
+    """Trailing step count for a frame. Fixed for normal windows; for month-to-date it's the
+    day-of-month of the last included day (ft − step), i.e. how many days since the 1st."""
+    return (ft - step).day if w["kind"] == "mtd" else w["units"]
 # Per-cadence cache retention = each cadence's deepest reach (span + window) + a small buffer,
 # so hourly grids don't pile up to the 14-day window's depth.
 HOURLY_KEEP_H = max(w["span_h"] + w["units"] for w in WINDOWS if w["kind"] == "hourly") + 6
@@ -277,7 +286,7 @@ def _latest_anchors() -> tuple[datetime, datetime]:
 
 def _frame_times(win: dict, anchor_h: datetime, anchor_day: datetime) -> list[datetime]:
     step = timedelta(hours=win["step_h"]); n = win["span_h"] // win["step_h"]
-    base = anchor_day if win["kind"] == "daily" else anchor_h
+    base = anchor_h if win["kind"] == "hourly" else anchor_day   # daily + mtd sit on day boundaries
     return [base - k * step for k in range(n)][::-1]
 
 
@@ -293,34 +302,39 @@ def main(argv=None) -> int:
     for win in WINDOWS:
         w = dict(win); w["span_h"] = max(w["step_h"], int(w["span_h"] * args.span_scale))
         cache = HOURLY_CACHE if w["kind"] == "hourly" else DAILY_CACHE
-        step = timedelta(hours=24) if w["kind"] == "daily" else timedelta(hours=1)
-        fmt = "%Y%m%d" if w["kind"] == "daily" else "%Y%m%d%H"
+        step = timedelta(hours=1) if w["kind"] == "hourly" else timedelta(hours=24)
+        fmt = "%Y%m%d%H" if w["kind"] == "hourly" else "%Y%m%d"
         ftimes = _frame_times(w, anchor_h, anchor_day)
-        # ensure the grids every frame needs (trailing `units` steps)
+        # ensure the grids every frame needs (its trailing unit count)
         need = set()
         for ft in ftimes:
-            for k in range(1, w["units"] + 1):
+            for k in range(1, _units(w, ft, step) + 1):
                 need.add((ft - k * step).replace(minute=0, second=0, microsecond=0))
-        (ensure_daily if w["kind"] == "daily" else ensure_hourly)(need)
+        (ensure_hourly if w["kind"] == "hourly" else ensure_daily)(need)
 
         anim = ANIM_ROOT / w["id"]; anim.mkdir(parents=True, exist_ok=True)
         entries = []
         for ft in ftimes:
             tag = ft.strftime("%Y%m%d%H")
             fp = anim / f"{tag}.webp"
+            u = _units(w, ft, step)
             if not fp.exists():
-                field = trailing_sum(cache, ft, w["units"], step, fmt)
+                field = trailing_sum(cache, ft, u, step, fmt)
                 if field is None:
                     continue
-                if w["kind"] == "daily":
-                    vlabel = (f"{(ft - timedelta(days=w['units'])):%b %d} – {(ft - step):%b %d, %Y}"
-                              f"  ({w['units']}-day total)")
+                if w["kind"] == "mtd":
+                    e = ft - step                          # last included day
+                    vlabel = f"{e.replace(day=1):%b %-d} – {e:%b %-d, %Y}"
+                elif w["kind"] == "daily":
+                    vlabel = (f"{(ft - timedelta(days=u)):%b %d} – {(ft - step):%b %d, %Y}"
+                              f"  ({u}-day total)")
                 else:
                     vlabel = f"ending {ft:%Y-%m-%d %HZ}"
                 render_frame(field, vlabel, fp, w)
                 print(f"  {w['id']}: rendered {tag}", flush=True)
             d = datetime.strptime(ft.strftime("%Y%m%d%H"), "%Y%m%d%H").replace(tzinfo=timezone.utc)
-            label = (f"{(d - timedelta(days=w['units'])):%b %d} – {(d - step):%b %d}" if w["kind"] == "daily"
+            label = (f"MTD → {(d - step):%b %-d}" if w["kind"] == "mtd"
+                     else f"{(d - timedelta(days=u)):%b %d} – {(d - step):%b %d}" if w["kind"] == "daily"
                      else f"{d:%-d %b %HZ}")
             entries.append({"idx": len(entries), "file": fp.name, "date": f"{d:%Y-%m-%d}", "label": label})
         # prune frames outside this window's span

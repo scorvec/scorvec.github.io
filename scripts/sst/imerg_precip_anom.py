@@ -43,8 +43,15 @@ ANOM_WINDOWS = [
          levels=[10, 20, 40, 70, 120, 200]),
     dict(id="precip_anom_30d", days=30, span=10, label="30-day",
          levels=[15, 30, 60, 110, 180, 300]),
+    dict(id="precip_anom_mtd", days=31, mtd=True, span=10, label="month-to-date",
+         levels=[15, 30, 60, 110, 180, 300]),
 ]
 DEFAULT_WINDOW = "precip_anom_14d"
+
+
+def _n(win: dict, ft) -> int:
+    """N days for a frame — fixed, or day-of-month of the last day for month-to-date."""
+    return (ft - timedelta(days=1)).day if win.get("mtd") else win["days"]
 
 # diverging dry(brown) ↔ wet(blue-green) — white at zero
 _STOPS = ["#5a3410", "#9c6b1e", "#d2a24a", "#ecd9a6", "#ffffff",
@@ -118,7 +125,7 @@ def main(argv=None) -> int:
         ftimes = [anchor_day - k * step for k in range(win["span"])][::-1]
         need = set()
         for ft in ftimes:
-            for k in range(1, win["days"] + 1):
+            for k in range(1, _n(win, ft) + 1):
                 need.add((ft - k * step).replace(hour=0, minute=0, second=0, microsecond=0))
         IP.ensure_daily(need)
         anim = ANIM_ROOT / win["id"]; anim.mkdir(parents=True, exist_ok=True)
@@ -126,15 +133,21 @@ def main(argv=None) -> int:
         for ft in ftimes:
             tag = ft.strftime("%Y%m%d%H")
             fp = anim / f"{tag}.webp"
+            n = _n(win, ft)
             if not fp.exists():
-                recent = IP.trailing_sum(IP.DAILY_CACHE, ft, win["days"], step, "%Y%m%d")
+                recent = IP.trailing_sum(IP.DAILY_CACHE, ft, n, step, "%Y%m%d")
                 if recent is None:
                     continue
-                anom = recent - clim_accum(coef, ft, win["days"])
-                vlabel = f"{(ft - timedelta(days=win['days'])):%b %d} – {(ft - step):%b %d, %Y}"
+                anom = recent - clim_accum(coef, ft, n)
+                if win.get("mtd"):
+                    e = ft - step
+                    vlabel = f"{e.replace(day=1):%b %-d} – {e:%b %-d, %Y}"
+                else:
+                    vlabel = f"{(ft - timedelta(days=n)):%b %d} – {(ft - step):%b %d, %Y}"
                 render_anom(anom, vlabel, fp, win)
                 print(f"  {win['id']}: rendered {tag}", flush=True)
-            label = f"{(ft - timedelta(days=win['days'])):%b %d} – {(ft - step):%b %d}"
+            label = (f"MTD → {(ft - step):%b %-d}" if win.get("mtd")
+                     else f"{(ft - timedelta(days=n)):%b %d} – {(ft - step):%b %d}")
             entries.append({"idx": len(entries), "file": fp.name, "date": f"{ft:%Y-%m-%d}", "label": label})
         keep = {ft.strftime("%Y%m%d%H") for ft in ftimes}
         for old in anim.glob("*.webp"):
