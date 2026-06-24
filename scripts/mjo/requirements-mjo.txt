@@ -14,3 +14,4 @@ ecmwf-opendata
 cartopy>=0.22
 shapely>=2.0
 pyproj>=3.5
+pyshtools>=4.13   # velocity-potential spherical-harmonic inversion (wind200_vpot.py); prebuilt wheels
