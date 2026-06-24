@@ -54,7 +54,7 @@ _VP_STOPS = ["#1b5e20", "#43a047", "#86c98a", "#cfe8cf", "#ffffff",
              "#fbe2bd", "#f0a64b", "#df6a1e", "#a8330f"]
 VP_CMAP = LinearSegmentedColormap.from_list("vpot", _VP_STOPS)
 VP_LEVELS = [-16, -12, -8, -5, -3, -1.5, 1.5, 3, 5, 8, 12, 16]   # ×1e6 m² s⁻¹
-WIND_LEVELS = [30, 40, 50, 60, 70]                               # 200 hPa wind-speed jet contours (m/s)
+WIND_LEVELS = [15, 30, 40, 50, 60, 70]                           # 200 hPa wind-speed jet contours (m/s)
 
 
 def _to_0360(da: xr.DataArray) -> xr.DataArray:
