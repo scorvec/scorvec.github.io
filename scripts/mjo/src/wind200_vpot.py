@@ -45,15 +45,16 @@ LMAX = 106                                              # spherical-harmonic tru
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"   # scripts/mjo/data/reference (committed clims)
 CLIM = REF / "vp200_clim_coeffs.nc"                     # ERA5 1991-2020 χ harmonic coeffs (committed)
 # Which of the 16 rmm_steps to animate. u@200 is reused from the cached RMM pf download (every
-# cycle pulls pf u @ 200/850 at all rmm_steps), so we only ever fetch v@200, and only at these
-# frame steps — a ~daily-spread 6-frame subset that keeps the 50-member v pull light.
-FRAME_IDX = (0, 3, 6, 9, 12, 15)
+# cycle pulls pf u @ 200/850 at all rmm_steps), so we only ever fetch v@200 at these frame steps.
+# The rmm_steps are 00Z-anchored (one per day: analysis + day 1..15), so all 16 = daily frames.
+FRAME_IDX = tuple(range(16))
 
 # velocity-potential ANOMALY shading: green = divergence (χ′<0, convection), orange = convergence
 _VP_STOPS = ["#1b5e20", "#43a047", "#86c98a", "#cfe8cf", "#ffffff",
              "#fbe2bd", "#f0a64b", "#df6a1e", "#a8330f"]
 VP_CMAP = LinearSegmentedColormap.from_list("vpot", _VP_STOPS)
 VP_LEVELS = [-16, -12, -8, -5, -3, -1.5, 1.5, 3, 5, 8, 12, 16]   # ×1e6 m² s⁻¹
+WIND_LEVELS = [30, 40, 50, 60, 70]                               # 200 hPa wind-speed jet contours (m/s)
 
 
 def _to_0360(da: xr.DataArray) -> xr.DataArray:
@@ -93,13 +94,17 @@ def eval_vp_clim(coef: np.ndarray, doy: int) -> np.ndarray:
             + coef[3] * np.cos(2 * w) + coef[4] * np.sin(2 * w))
 
 
-def render(anom, uchi, vchi, dlat, dlon, init, valid, tag: str, out: Path):
+def render(anom, uchi, vchi, ufull, vfull, dlat, dlon, init, valid, tag: str, out: Path):
     fig = plt.figure(figsize=(13.6, 6.6), constrained_layout=True)   # fixed canvas → frames don't jitter
     ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=180))
     ax.set_extent([-180, 180, -75, 75], crs=ccrs.PlateCarree())
     PC = ccrs.PlateCarree()
     cf = ax.contourf(dlon, dlat, anom / 1e6, levels=VP_LEVELS, cmap=VP_CMAP,
                      extend="both", transform=PC)
+    # full 200 hPa wind speed (jet streams) as line contours
+    cj = ax.contour(dlon, dlat, np.hypot(ufull, vfull), levels=WIND_LEVELS, colors="#15356b",
+                    linewidths=0.6, alpha=0.65, transform=PC)
+    ax.clabel(cj, fmt="%d", fontsize=6, inline=True, inline_spacing=2)
     s = max(1, len(dlat) // 26)                         # subsample the irrotational-wind vectors (sparser)
     ax.quiver(dlon[::s], dlat[::s], uchi[::s, ::s], vchi[::s, ::s], transform=PC,
               scale=420, width=0.0014, color="#222")
@@ -110,8 +115,9 @@ def render(anom, uchi, vchi, dlat, dlon, init, valid, tag: str, out: Path):
             transform=ax.transAxes, fontsize=9, va="top", ha="left", family="monospace", zorder=6,
             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8, edgecolor="0.6", linewidth=0.5))
     cb = plt.colorbar(cf, ax=ax, orientation="horizontal", pad=0.05, aspect=55, shrink=0.78)
-    cb.set_label("200 hPa velocity-potential anomaly (m² s⁻¹ × 10⁻⁶)  ·  green = divergence / convection, "
-                 "orange = convergence  ·  vectors = irrotational wind", fontsize=8)
+    cb.set_label("200 hPa velocity-potential anomaly (m² s⁻¹ × 10⁻⁶); green = divergence / convection, "
+                 "orange = convergence  ·  black vectors = irrotational wind  ·  blue contours = wind speed (m s⁻¹)",
+                 fontsize=7.5)
     cb.ax.tick_params(labelsize=7)
     ax.set_title("AIFS-ENS 200 hPa Velocity-Potential Anomaly & Irrotational Wind (ensemble mean)",
                  fontsize=10.5, loc="left")
@@ -161,14 +167,17 @@ def main() -> int:
     for i, sh in enumerate(steps_h):
         valid = init + pd.Timedelta(hours=int(sh))
         lead = int(round(sh / 24))
-        chi, dlat, dlon = velocity_potential(ds["u"].isel(step=i), ds["v"].isel(step=i))
+        u2d, v2d = ds["u"].isel(step=i), ds["v"].isel(step=i)
+        chi, dlat, dlon = velocity_potential(u2d, v2d)
         anom = chi - eval_vp_clim(coef, int(valid.dayofyear))
         uchi, vchi = irrotational_wind(anom, dlat, dlon)
+        uf = _to_0360(u2d).interp(latitude=dlat, longitude=dlon).transpose("latitude", "longitude").values
+        vf = _to_0360(v2d).interp(latitude=dlat, longitude=dlon).transpose("latitude", "longitude").values
         tag = "analysis" if sh == 0 else f"forecast +{lead} d"
         fp = anim / f"F{i:02d}.webp"
-        render(anom, uchi, vchi, dlat, dlon, init, valid, tag, fp)
+        render(anom, uchi, vchi, uf, vf, dlat, dlon, init, valid, tag, fp)
         if sh == 0:
-            render(anom, uchi, vchi, dlat, dlon, init, valid, tag, Path(args.out))
+            render(anom, uchi, vchi, uf, vf, dlat, dlon, init, valid, tag, Path(args.out))
         frames.append({"idx": i, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
                        "label": "analysis" if sh == 0 else f"+{lead} d  ({valid:%a %b %d})"})
         print(f"  rendered {fp.name}  ({tag}, χ′ range {anom.min()/1e6:.0f}..{anom.max()/1e6:.0f})", flush=True)
