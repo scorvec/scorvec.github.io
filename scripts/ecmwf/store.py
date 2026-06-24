@@ -113,7 +113,7 @@ TRIES = int(os.environ.get("ECMWF_DL_TRIES", "6"))          # store-level mirror
 # (past a SLOW_GRACE ramp-up) is abandoned so _robust rotates to a hopefully-faster mirror.
 # Only honoured while we still have an untried mirror this spec — after sampling them all we
 # accept the best available rather than churn (or fail) when every mirror is just busy.
-SLOW_RATE = float(os.environ.get("ECMWF_DL_SLOW_RATE", "250000"))   # B/s, per step
+SLOW_RATE = float(os.environ.get("ECMWF_DL_SLOW_RATE", "1000000"))   # B/s — under 1 MB/s ⇒ try another mirror
 SLOW_SECS = int(os.environ.get("ECMWF_DL_SLOW_SECS", "35"))
 SLOW_GRACE = int(os.environ.get("ECMWF_DL_SLOW_GRACE", "18"))
 WATCH_TICK = int(os.environ.get("ECMWF_DL_WATCH_TICK", "9"))
@@ -415,8 +415,11 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int, star
             do = lambda s=src: _single({**req, "number": members}, target, s)
         else:
             do = lambda s=src: _single(req, target, s)
+        # abandon a < SLOW_RATE mirror only while a fresh, healthy mirror remains to switch to —
+        # once every mirror has been sampled (all just slow), accept rather than churn or fail.
+        fresh = [s for s in SOURCES if s not in _throttled_set() and s not in tried]
         with _CONN_SLOTS:                                  # global cap → stay under portal's 500 conns
-            ok, err = _watch(do, target, slow_ok=(attempt <= len(SOURCES)))
+            ok, err = _watch(do, target, slow_ok=bool(fresh))
         if ok:
             try:
                 got = count_msgs(target)
