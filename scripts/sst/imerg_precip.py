@@ -67,7 +67,9 @@ DEFAULT_WINDOW = "precip_24h"
 # Per-cadence cache retention = each cadence's deepest reach (span + window) + a small buffer,
 # so hourly grids don't pile up to the 14-day window's depth.
 HOURLY_KEEP_H = max(w["span_h"] + w["units"] for w in WINDOWS if w["kind"] == "hourly") + 6
-DAILY_KEEP_H = (max(w["span_h"] // 24 + w["units"] for w in WINDOWS if w["kind"] == "daily") + 2) * 24
+# daily cache must also cover the anomaly product's deepest reach (30-day window + ~10-day loop)
+DAILY_KEEP_H = max((max(w["span_h"] // 24 + w["units"] for w in WINDOWS if w["kind"] == "daily") + 2) * 24,
+                   45 * 24)
 
 # precip palette: deep blue → blue → teal → green → yellow → orange → red → magenta → white
 _STOPS = ["#2b3a6b", "#3b76c4", "#3fb0b0", "#52c452", "#c8d63f",
@@ -230,10 +232,10 @@ def render_frame(field: np.ndarray, valid_label: str, out: Path, win: dict):
         if geoms:
             ax.add_geometries(geoms, crs=ccrs.PlateCarree(), facecolor="none",
                               edgecolor="#8f8f8f", linewidth=0.4, zorder=3)
-    basin = _magdalena_geom()                              # Magdalena River basin (Colombia), cyan
-    if basin:
+    basin = _magdalena_geom()                              # Magdalena River basin (Colombia)
+    if basin:                                              # white reads cleanly over the dark blues
         ax.add_geometries(basin, crs=ccrs.PlateCarree(), facecolor="none",
-                          edgecolor="#19e0ff", linewidth=1.0, zorder=4)
+                          edgecolor="#ffffff", linewidth=1.1, zorder=4)
     gl = ax.gridlines(draw_labels=True, linewidth=0.3, color="0.5", alpha=0.35, linestyle=(0, (3, 3)))
     gl.top_labels = gl.right_labels = False
     gl.xlocator = mticker.FixedLocator([((t + 180) % 360) - 180
