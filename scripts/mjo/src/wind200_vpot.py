@@ -110,7 +110,7 @@ def render(anom, uchi, vchi, dlat, dlon, init, valid, tag: str, out: Path):
             transform=ax.transAxes, fontsize=9, va="top", ha="left", family="monospace", zorder=6,
             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8, edgecolor="0.6", linewidth=0.5))
     cb = plt.colorbar(cf, ax=ax, orientation="horizontal", pad=0.05, aspect=55, shrink=0.78)
-    cb.set_label("200 hPa velocity-potential anomaly (10⁶ m² s⁻¹)  ·  green = divergence / convection, "
+    cb.set_label("200 hPa velocity-potential anomaly (m² s⁻¹ × 10⁻⁶)  ·  green = divergence / convection, "
                  "orange = convergence  ·  vectors = irrotational wind", fontsize=8)
     cb.ax.tick_params(labelsize=7)
     ax.set_title("AIFS-ENS 200 hPa Velocity-Potential Anomaly & Irrotational Wind (ensemble mean)",
