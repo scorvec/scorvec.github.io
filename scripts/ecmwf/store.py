@@ -163,8 +163,20 @@ _THROTTLE_LOCK = threading.Lock()
 # transient per-IP rate limit, so a demoted mirror usually recovers in minutes; permanently
 # excluding it for the whole run funnels every retrieve onto the one survivor (slow). Map of
 # mirror → epoch it may be retried again; expired entries are dropped (so the mirror is re-probed).
-THROTTLE_COOLDOWN = float(os.environ.get("ECMWF_THROTTLE_COOLDOWN", "240"))   # s before a 503'd mirror is re-tried
+THROTTLE_COOLDOWN = float(os.environ.get("ECMWF_THROTTLE_COOLDOWN", "240"))   # s — base re-probe wait
+THROTTLE_COOLDOWN_MAX = float(os.environ.get("ECMWF_THROTTLE_COOLDOWN_MAX", "1800"))   # s — cap
 _THROTTLED_UNTIL: dict = {}
+_THROTTLE_STREAK: dict = {}       # mirror → consecutive-503 count (drives the exponential cooldown)
+
+
+def _cooldown_for(src: str) -> float:
+    """Re-probe wait for a mirror that just 503'd, growing exponentially with its consecutive-503
+    streak (240 s → 480 → 960 → … capped). A transiently-throttled mirror recovers on its next
+    success and resets to the base wait; a persistently rate-limited one is re-probed less and less
+    often, so we stop hammering it (and stop logging a 503 every 240 s)."""
+    n = _THROTTLE_STREAK.get(src, 0) + 1
+    _THROTTLE_STREAK[src] = n
+    return min(THROTTLE_COOLDOWN * (2 ** (n - 1)), THROTTLE_COOLDOWN_MAX)
 
 
 def _throttled_set() -> set:
@@ -412,21 +424,24 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int, star
                 got = -1
             if got >= expected:
                 _throttle_ease()
+                with _THROTTLE_LOCK:
+                    _THROTTLE_STREAK[src] = 0              # mirror healthy again → reset its backoff
                 return src
             err = RuntimeError(f"incomplete GRIB: {got}/{expected} msgs")
         if _is_throttle(err):                              # 503/SlowDown
             _note_throttle_src(src)                        # demote this mirror NEXT run too
-            with _THROTTLE_LOCK:                           # …and cool it down for THIS run (re-probed after COOLDOWN)
-                _THROTTLED_UNTIL[src] = time.time() + THROTTLE_COOLDOWN
+            with _THROTTLE_LOCK:                           # …and cool it down (exponential per consecutive 503)
+                wait = _cooldown_for(src)
+                _THROTTLED_UNTIL[src] = time.time() + wait
             healthy_left = [s for s in SOURCES if s not in _throttled_set()]
             if healthy_left:                               # switch immediately — never sit on a throttled mirror
-                print(f"    {label}: 503 throttle ({src}) → switching mirror "
+                print(f"    {label}: 503 throttle ({src}, cooldown {wait:.0f}s) → switching mirror "
                       f"(retry {attempt}/{TRIES}; healthy: {','.join(healthy_left)})", flush=True)
             else:                                          # everything cooling down → one global back-off, then re-probe all
-                wait = _throttle_bump()
+                gwait = _throttle_bump()
                 print(f"    {label}: 503 throttle — ALL mirrors cooling down, backing off "
-                      f"{wait:.0f}s (retry {attempt}/{TRIES})", flush=True)
-                time.sleep(wait)
+                      f"{gwait:.0f}s (retry {attempt}/{TRIES})", flush=True)
+                time.sleep(gwait)
                 with _THROTTLE_LOCK:
                     _THROTTLED_UNTIL.clear()               # reset so the next attempt re-probes every mirror
         else:
