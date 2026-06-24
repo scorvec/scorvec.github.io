@@ -93,23 +93,28 @@ def eval_vp_clim(coef: np.ndarray, doy: int) -> np.ndarray:
             + coef[3] * np.cos(2 * w) + coef[4] * np.sin(2 * w))
 
 
-def render(anom: np.ndarray, uchi: np.ndarray, vchi: np.ndarray, dlat, dlon, title: str, out: Path):
+def render(anom, uchi, vchi, dlat, dlon, init, valid, tag: str, out: Path):
     fig = plt.figure(figsize=(13.6, 6.6), constrained_layout=True)   # fixed canvas → frames don't jitter
     ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=180))
     ax.set_extent([-180, 180, -75, 75], crs=ccrs.PlateCarree())
     PC = ccrs.PlateCarree()
     cf = ax.contourf(dlon, dlat, anom / 1e6, levels=VP_LEVELS, cmap=VP_CMAP,
                      extend="both", transform=PC)
-    s = max(1, len(dlat) // 36)                         # subsample the irrotational-wind vectors
+    s = max(1, len(dlat) // 26)                         # subsample the irrotational-wind vectors (sparser)
     ax.quiver(dlon[::s], dlat[::s], uchi[::s, ::s], vchi[::s, ::s], transform=PC,
               scale=420, width=0.0014, color="#222")
     ax.coastlines(linewidth=0.5, color="0.35")
     ax.axhline(0, color="0.55", lw=0.4, ls=":")
+    # run / valid-time label on the map (persists through the animator embed)
+    ax.text(0.006, 0.97, f"Init: {init:%HZ %a %d %b %Y}\nValid: {valid:%HZ %a %d %b %Y}  ({tag})",
+            transform=ax.transAxes, fontsize=9, va="top", ha="left", family="monospace", zorder=6,
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8, edgecolor="0.6", linewidth=0.5))
     cb = plt.colorbar(cf, ax=ax, orientation="horizontal", pad=0.05, aspect=55, shrink=0.78)
     cb.set_label("200 hPa velocity-potential anomaly (10⁶ m² s⁻¹)  ·  green = divergence / convection, "
                  "orange = convergence  ·  vectors = irrotational wind", fontsize=8)
     cb.ax.tick_params(labelsize=7)
-    ax.set_title(title, fontsize=10.5, loc="left")
+    ax.set_title("AIFS-ENS 200 hPa Velocity-Potential Anomaly & Irrotational Wind (ensemble mean)",
+                 fontsize=10.5, loc="left")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=110); plt.close(fig)          # fixed size (no tight bbox) so every frame matches
 
@@ -159,13 +164,11 @@ def main() -> int:
         chi, dlat, dlon = velocity_potential(ds["u"].isel(step=i), ds["v"].isel(step=i))
         anom = chi - eval_vp_clim(coef, int(valid.dayofyear))
         uchi, vchi = irrotational_wind(anom, dlat, dlon)
-        tag = "analysis" if sh == 0 else f"forecast day {lead}"
-        title = (f"AIFS-ENS 200 hPa velocity-potential anomaly & irrotational wind (ensemble mean) — "
-                 f"{tag}  ·  valid {valid:%Y-%m-%d %HZ}  (init {init:%m-%d %HZ})")
+        tag = "analysis" if sh == 0 else f"forecast +{lead} d"
         fp = anim / f"F{i:02d}.webp"
-        render(anom, uchi, vchi, dlat, dlon, title, fp)
+        render(anom, uchi, vchi, dlat, dlon, init, valid, tag, fp)
         if sh == 0:
-            render(anom, uchi, vchi, dlat, dlon, title, Path(args.out))
+            render(anom, uchi, vchi, dlat, dlon, init, valid, tag, Path(args.out))
         frames.append({"idx": i, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
                        "label": "analysis" if sh == 0 else f"+{lead} d  ({valid:%a %b %d})"})
         print(f"  rendered {fp.name}  ({tag}, χ′ range {anom.min()/1e6:.0f}..{anom.max()/1e6:.0f})", flush=True)
