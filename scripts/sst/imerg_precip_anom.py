@@ -95,7 +95,7 @@ def render_anom(field: np.ndarray, vlabel: str, out: Path, win: dict):
     gl.ylocator = mticker.FixedLocator(range(int(la0), int(la1) + 1, CFG["dlat"]))
     gl.xlabel_style = gl.ylabel_style = {"size": 7}
     cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.04, aspect=42, extend="both")
-    cb.set_label("precip anomaly vs 2001–2020 climatology (mm)", fontsize=8); cb.ax.tick_params(labelsize=7)
+    cb.set_label("precip anomaly vs 2001–2025 climatology (mm)", fontsize=8); cb.ax.tick_params(labelsize=7)
     ax.set_title(f"IMERG — {win['label']} precipitation anomaly  ·  {vlabel}", fontsize=9.5, loc="left")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight", facecolor="white",

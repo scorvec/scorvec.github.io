@@ -35,7 +35,7 @@ warnings.filterwarnings("ignore")
 HERE = Path(__file__).resolve().parent
 ACCUM = HERE / "data" / "imerg" / "clim_accum.npz"         # resumable checkpoint (gitignored)
 OUT = HERE / "imerg_precip_clim.nc"                        # harmonic coeffs (committed, like the other SST clim files)
-BASE_YEARS = range(2001, 2021)                             # 20-year climatology baseline
+BASE_YEARS = range(2001, 2026)                             # 25-year climatology baseline (2001–2025)
 NHARM = 4                                                  # annual harmonics (annual+semi+...)
 WORKERS = 12
 # region edges in −180..180 for the OPeNDAP .sel()
