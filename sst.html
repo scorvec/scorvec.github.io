@@ -258,17 +258,17 @@
 <main>
   <div class="page-header">
     <h1>Global SST and El Ni&ntilde;o/La Ni&ntilde;a Monitor</h1>
-    <p>Daily sea-surface temperature anomalies and ENSO indices from NOAA OISST v2.1, with subsurface, analog, forecast and atmospheric diagnostics. Use the tabs above &mdash; or the topics below &mdash; to dig into each theme.</p>
+    <p>Daily sea-surface temperature anomalies and ENSO indices from NOAA OISST v2.1, with subsurface, analog, forecast and atmospheric diagnostics. Use the tabs above or the topics below to explore each theme.</p>
   </div>
 
   <div class="topic-grid">
     <a class="topic-card" href="enso-subsurface.html">
       <h3>Subsurface</h3>
-      <p>Equatorial Pacific depth&ndash;longitude temperature cross-sections &mdash; the warm reservoir that leads the surface.</p>
+      <p>Equatorial Pacific depth&ndash;longitude temperature cross-sections: the warm reservoir that leads the surface.</p>
     </a>
     <a class="topic-card" href="enso-analogs.html">
       <h3>Analogs</h3>
-      <p>This event measured against 1997, 2015 and 2023 &mdash; surface, subsurface and low-level wind.</p>
+      <p>The current event measured against 1997, 2015 and 2023 in surface, subsurface and low-level wind.</p>
     </a>
     <a class="topic-card" href="enso-forecasts.html">
       <h3>Forecasts</h3>
@@ -286,6 +286,7 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Global &amp; Tropical Pacific SST Anomalies</h2>
+        <p>Daily sea-surface temperature anomaly relative to the 1991&ndash;2020 base, global and tropical Pacific, as a 60-day animation.</p>
       </div>
       <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
               title="Global and tropical Pacific SST anomaly animation" loading="lazy"></iframe>
@@ -299,7 +300,7 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Absolute Sea-Surface Temperature</h2>
-        <p>The actual SST field (not anomaly), global and tropical Pacific. The warm pool, equatorial cold tongue, and western boundary currents are visible directly; watch them shift day to day.</p>
+        <p>The actual SST field (not the anomaly), global and tropical Pacific. The warm pool, equatorial cold tongue and western boundary currents are visible directly.</p>
       </div>
       <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=absolute"
               title="Absolute SST animation" loading="lazy"></iframe>
@@ -312,8 +313,8 @@
     <!-- RELATIVE SST (global-mean removed) -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>SST Anomaly &mdash; Global-Mean Removed</h2>
-        <p>The anomaly with the area-weighted global-mean SST anomaly subtracted at every point. This strips out the uniform background-warming signal and isolates the <i>pattern</i> of warming and cooling &mdash; the El Ni&ntilde;o footprint stands out against a more balanced global ocean.</p>
+        <h2>SST Anomaly, Global-Mean Removed</h2>
+        <p>The anomaly with the area-weighted global-mean SST anomaly subtracted at every point. This removes the uniform background-warming signal and isolates the pattern of warming and cooling, so the El Ni&ntilde;o footprint stands out against a more balanced global ocean.</p>
       </div>
       <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=relative"
               title="Global-mean-removed SST anomaly animation" loading="lazy"></iframe>
@@ -327,8 +328,7 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Relative Oceanic Ni&ntilde;o Index (RONI)</h2>
-        <p>RONI is an ENSO index that subtracts the tropical-mean SST anomaly (20&deg;S&ndash;20&deg;N) from the Ni&ntilde;o-3.4 anomaly, then applies a 3-month running mean. By removing the slowly-rising tropical background, it isolates the ENSO signal more cleanly than the conventional ONI &mdash; increasingly useful as overall ocean temperatures trend upward.</p>
-        <p><b>How to read it:</b> Red bars (positive) lean El Ni&ntilde;o, blue bars (negative) lean La Ni&ntilde;a; the dashed lines mark the &plusmn;0.5&deg;C guides. Following the <b>NOAA-CPC / ECMWF</b> method, the relative anomaly is rescaled by a per-calendar-month factor <b>s = &sigma;(ONI) / &sigma;(relative)</b> &mdash; which restores the variance lost by removing the tropical mean, so RONI stays in <b>&deg;C and is directly comparable to the conventional ONI</b> (same &plusmn;0.5&deg;C thresholds). That factor has a strong seasonal cycle &mdash; largest in spring (~1.3, when removing the tropical background strips the most signal) and near 1 in mid-summer. Computed directly from NOAA OISST v2.1 (1991&ndash;2020 base).</p>
+        <p>The Ni&ntilde;o-3.4 SST anomaly minus the tropical-mean anomaly (20&deg;S&ndash;20&deg;N), as a 3-month running mean. Removing the tropical background isolates the ENSO signal more cleanly than the conventional ONI as the oceans warm. The relative anomaly is rescaled by a per-calendar-month factor, s&nbsp;=&nbsp;&sigma;(ONI)&nbsp;/&nbsp;&sigma;(relative), following the NOAA-CPC / ECMWF method, so RONI stays in &deg;C and is directly comparable to ONI (same &plusmn;0.5&deg;C thresholds). Positive (red) leans El Ni&ntilde;o, negative (blue) leans La Ni&ntilde;a.</p>
       </div>
       <div class="img-wrap">
         <img src="assets/sst/roni.webp?v=d1814b61b76c"
@@ -344,8 +344,7 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Daily Equatorial Pacific SST Indices</h2>
-        <p>All three daily metrics on one axis: the Ni&ntilde;o-3.4 anomaly (the basis of ONI), the tropical-mean anomaly (20&deg;S&ndash;20&deg;N), and their difference &mdash; the daily relative index that underlies RONI. These are single-day values, so they are noisier than the 3-month running indices above, but they show the most recent evolution.</p>
-        <p><b>What to look for:</b> When the red (Ni&ntilde;o-3.4) and green (tropical-mean) lines move together, the blue relative line stays flat &mdash; that's background warming, not ENSO. The blue line separating from zero is the genuine ENSO signal.</p>
+        <p>Three daily metrics on one axis: the Ni&ntilde;o-3.4 anomaly (the basis of ONI), the tropical-mean anomaly (20&deg;S&ndash;20&deg;N), and their difference, the daily relative index underlying RONI. These are single-day values, noisier than the 3-month running indices above but showing the most recent evolution.</p>
       </div>
       <div class="img-wrap">
         <img src="assets/sst/daily_indices.webp?v=d1814b61b76c"
@@ -360,9 +359,8 @@
     <!-- NIÑO REGION SERIES -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Ni&ntilde;o Regions &mdash; Absolute SST &amp; Anomaly</h2>
-        <p>Daily sea-surface temperature for the four standard CPC ENSO regions &mdash; <b style="color:#6a3d9a">Ni&ntilde;o-4</b> (160&deg;E&ndash;150&deg;W), <b style="color:#e31a1c">Ni&ntilde;o-3.4</b> (170&ndash;120&deg;W), <b style="color:#33a02c">Ni&ntilde;o-3</b> (150&ndash;90&deg;W) and <b style="color:#1f78b4">Ni&ntilde;o-1+2</b> (90&ndash;80&deg;W, 0&ndash;10&deg;S). The top panel is absolute SST; the bottom is the anomaly vs the 1991&ndash;2020 base, with the &plusmn;0.5&nbsp;&deg;C El Ni&ntilde;o / La Ni&ntilde;a reference lines. The same colours outline these boxes on the maps above.</p>
-        <p><b>What to look for:</b> the west&ndash;east spread of the anomalies. Warming concentrated in the east (Ni&ntilde;o-3 / 1+2) is the classic East-Pacific El Ni&ntilde;o signature; warming biased west (Ni&ntilde;o-4) leans Modoki / Central-Pacific. The absolute panel shows the cold tongue &mdash; Ni&ntilde;o-1+2 runs much cooler and swings most with the seasons.</p>
+        <h2>Ni&ntilde;o Regions: Absolute SST &amp; Anomaly</h2>
+        <p>Daily sea-surface temperature for the four standard CPC ENSO regions: <b style="color:#6a3d9a">Ni&ntilde;o-4</b> (160&deg;E&ndash;150&deg;W), <b style="color:#e31a1c">Ni&ntilde;o-3.4</b> (170&ndash;120&deg;W), <b style="color:#33a02c">Ni&ntilde;o-3</b> (150&ndash;90&deg;W) and <b style="color:#1f78b4">Ni&ntilde;o-1+2</b> (90&ndash;80&deg;W, 0&ndash;10&deg;S). The top panel is absolute SST; the bottom is the anomaly versus the 1991&ndash;2020 base, with the &plusmn;0.5&nbsp;&deg;C El Ni&ntilde;o / La Ni&ntilde;a reference lines. The same colours outline these boxes on the maps above.</p>
       </div>
       <div class="img-wrap">
         <img src="assets/sst/nino_regions.webp?v=d1814b61b76c"
@@ -378,15 +376,14 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>MEI.v2 Daily Nowcast</h2>
-        <p>NOAA PSL's Multivariate ENSO Index v2 is the leading combined-EOF of five tropical-Pacific fields (sea-level pressure, SST, surface zonal &amp; meridional wind, and OLR), but it is published only as an overlapping <i>bimonthly</i> value with a ~5-week lag. This is a daily nowcast of it: a regression of the published MEI.v2 onto freely-available daily ENSO components &mdash; the Ni&ntilde;o-3.4 SST anomaly, the Southern Oscillation Index, and the equatorial 850-hPa zonal wind &mdash; driven forward each day. Two trailing windows are shown: a faithful 30-day curve and a responsive 14-day &ldquo;leading edge&rdquo;.</p>
-        <p><b>How to read it:</b> The grey steps are the official bimonthly MEI.v2; the red line is our daily estimate, which leads the official value by roughly five weeks. The shaded band is the &plusmn;0.30 leave-one-year-out cross-validation error &mdash; the honest out-of-sample skill (the fit reproduces MEI.v2 at R&nbsp;=&nbsp;0.94). <b>Caveat:</b> the model is SST-weighted, so during a fast <i>SST-led</i> transition it can run ahead of MEI's slower atmospheric components &mdash; read a rapidly-rising live value as direction-and-timing rather than exact magnitude.</p>
+        <p>NOAA PSL's Multivariate ENSO Index v2 is the leading combined-EOF of five tropical-Pacific fields (sea-level pressure, SST, surface zonal and meridional wind, and OLR), but it is published only as an overlapping bimonthly value with a roughly five-week lag. This is a daily nowcast of it: a regression of the published MEI.v2 onto freely-available daily ENSO components (the Ni&ntilde;o-3.4 SST anomaly, the Southern Oscillation Index, and the equatorial 850-hPa zonal wind), driven forward each day. The grey steps are the official bimonthly MEI.v2; the red line is the daily estimate, with a &plusmn;0.30 leave-one-year-out cross-validation band (the fit reproduces MEI.v2 at R&nbsp;=&nbsp;0.94). The model is SST-weighted, so during a fast SST-led transition it can lead MEI's slower atmospheric components.</p>
       </div>
       <div class="img-wrap">
         <img src="assets/sst/mei/mei_nowcast.webp?v=d1814b61b76c"
              alt="Daily nowcast of the Multivariate ENSO Index version 2" loading="lazy">
       </div>
       <div class="img-wrap">
-        <p class="img-label">Onset-year analogs &mdash; is the current year tracking the big El Ni&ntilde;os?</p>
+        <p class="img-label">Onset-year analogs: the current year against the major El Ni&ntilde;os</p>
         <img src="assets/sst/mei/mei_analogs.webp?v=d1814b61b76c"
              alt="MEI.v2 onset-year analogs: 1982, 1997, 2015, 2023 vs the current nowcast" loading="lazy">
       </div>
@@ -396,22 +393,21 @@
              alt="Full Multivariate ENSO Index v2 record since 1980 with the live nowcast tail" loading="lazy">
       </div>
       <div class="img-wrap">
-        <p class="img-label">Out-of-sample skill &mdash; the 2015&ndash;16 El Ni&ntilde;o</p>
+        <p class="img-label">Out-of-sample skill: the 2015&ndash;16 El Ni&ntilde;o</p>
         <img src="assets/sst/mei/mei_validation.webp?v=d1814b61b76c"
              alt="Validation of the MEI.v2 nowcast over the 2015-16 El Niño" loading="lazy">
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">Regression on NOAA OISST Ni&ntilde;o-3.4 &middot; SOI (BoM) &middot; ERA5 eq-u850 &middot; target: NOAA PSL MEI.v2</span>
-        <span class="chart-updated">nowcast &mdash; daily</span>
+        <span class="chart-updated">nowcast, daily</span>
       </div>
     </div>
 
     <!-- SYNTHETIC OLR HOVMÖLLER (GMGSI IR) -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Equatorial Convection &mdash; Synthetic OLR Hovm&ouml;ller</h2>
-        <p>Where the deep convection is, and which way it&rsquo;s moving. NOAA&rsquo;s interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N zonal mean is stacked as a longitude &times; time Hovm&ouml;ller.</p>
-        <p><b>How to read it:</b> <span style="color:#e07b00">yellow/orange/red = low OLR = deep convection</span>; blue = high OLR = suppressed / clear sky. An <b>eastward (top→bottom-right) tilt</b> is the MJO / convective envelope propagating east; convection parked at the <b>dateline</b> is the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
+        <h2>Equatorial Convection: Synthetic OLR Hovm&ouml;ller</h2>
+        <p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N zonal mean is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). An eastward (top to bottom-right) tilt is the MJO propagating east; convection parked at the dateline reflects the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
       </div>
       <div class="img-wrap" style="max-width:760px;margin:0 auto"><img id="olr-hovmoller" data-src="assets/sst/olr_hovmoller.webp" alt="Synthetic equatorial OLR Hovmöller from GMGSI longwave IR" loading="lazy"></div>
       <div class="chart-card-footer">
@@ -423,9 +419,8 @@
     <!-- TROPICAL PACIFIC IR SATELLITE LOOP (GMGSI) -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Tropical Pacific &mdash; Live IR Satellite Loop</h2>
-        <p>The actual clouds behind the OLR Hovm&ouml;ller. NOAA already blends GOES-East/West, Himawari and Meteosat into the <b>GMGSI</b> global longwave-IR mosaic on a regular lat/lon grid &mdash; so this is seamless and georeferenced (no stitching, no satellite-switch parallax). We crop the tropical Pacific, draw coastlines for orientation, and loop the last 72&nbsp;hours.</p>
-        <p><b>What to look for:</b> <b>white = cold cloud tops = deep convection.</b> Watch the convective clusters near the Maritime Continent and along the ITCZ, and any flare-up east of the dateline &mdash; that&rsquo;s the El&nbsp;Ni&ntilde;o-shifted warm pool firing. Use the slider to step through the loop.</p>
+        <h2>Tropical Pacific: Live IR Satellite Loop</h2>
+        <p>The clouds behind the OLR Hovm&ouml;ller. NOAA blends GOES-East/West, Himawari and Meteosat into the <b>GMGSI</b> global longwave-IR mosaic on a regular lat/lon grid, so the field is seamless and georeferenced with no stitching or satellite-switch parallax. Cropped to the tropical Pacific with coastlines for orientation, looping the last 72&nbsp;hours. White is cold cloud tops (deep convection).</p>
       </div>
       <iframe class="anim-embed pacsat" src="sst_anim.html?embed=1&amp;manifest=pacsat_manifest.json&amp;region=pacsat"
               title="Seamless tropical-Pacific longwave-IR satellite loop from the GMGSI global mosaic" loading="lazy"></iframe>
@@ -435,9 +430,8 @@
     <!-- SOUTH & CENTRAL AMERICA IR SATELLITE LOOP (GMGSI) -->
     <div class="chart-card media-narrow">
       <div class="chart-card-header">
-        <h2>South &amp; Central America &mdash; Live IR Satellite Loop</h2>
-        <p>The same seamless <b>GMGSI</b> longwave-IR mosaic, cropped to the Americas &mdash; from southern Mexico and the Caribbean down to Tierra del Fuego, spanning both the eastern Pacific and the tropical Atlantic. Georeferenced with coastlines (no stitching or satellite-switch parallax), looping the last 72&nbsp;hours.</p>
-        <p><b>What to look for:</b> <b>white/colour = cold cloud tops = deep convection.</b> Watch the <b>ITCZ</b> firing off Central America and northern South America, convection over the <b>Amazon</b>, and frontal cloud bands and cut-off lows sweeping across the Southern Cone. Use the slider to step through the loop.</p>
+        <h2>South &amp; Central America: Live IR Satellite Loop</h2>
+        <p>The same <b>GMGSI</b> longwave-IR mosaic cropped to the Americas, from southern Mexico and the Caribbean to Tierra del Fuego, across both the eastern Pacific and the tropical Atlantic. Georeferenced with coastlines, looping the last 72&nbsp;hours. White and colour are cold cloud tops (deep convection).</p>
       </div>
       <iframe class="anim-embed samsat" src="sst_anim.html?embed=1&amp;manifest=samsat_manifest.json&amp;region=samsat"
               title="Seamless South &amp; Central America longwave-IR satellite loop from the GMGSI global mosaic" loading="lazy"></iframe>
@@ -447,9 +441,8 @@
     <!-- TROPICAL SOUTH AMERICA GLM LIGHTNING FLASH-DENSITY LOOP -->
     <div class="chart-card media-narrow">
       <div class="chart-card-header">
-        <h2>Tropical South America &mdash; Lightning Flash Density</h2>
-        <p>Where the lightning has actually been striking, from NOAA&rsquo;s <b>Geostationary Lightning Mapper (GLM)</b> on GOES-East &mdash; the electrical companion to the IR loop above, zoomed on Colombia, Venezuela and Brazil. Each frame accumulates every detected flash over a selectable window (<b>1, 3 or 24 hours</b> &mdash; pick it from the <i>Accumulation</i> dropdown), binned to a 0.1&deg; grid and shown as a log-scaled density (see the colour scale). Looped over the last 72&nbsp;hours.</p>
-        <p><b>What to look for:</b> the persistent hotspot over <b>Lake Maracaibo</b> (Venezuela) is <i>Catatumbo</i> &mdash; the most lightning-prone place on Earth, and it blazes in the 24-hour view (it&rsquo;s nocturnal). Watch convective clusters flare along the <b>ITCZ</b> and over the <b>Amazon</b>, and compare against the cold cloud tops in the IR loop: the brightest lightning marks the most vigorous updrafts.</p>
+        <h2>Tropical South America: Lightning Flash Density</h2>
+        <p>Detected lightning over Colombia, Venezuela and Brazil from NOAA's <b>Geostationary Lightning Mapper (GLM)</b> on GOES-East. Each frame accumulates every flash over a selectable window (1, 3 or 24 hours, from the <i>Accumulation</i> dropdown), binned to a 0.1&deg; grid as a log-scaled density, looping the last 72&nbsp;hours. The persistent hotspot over Lake Maracaibo is Catatumbo, the most lightning-prone place on Earth.</p>
       </div>
       <iframe class="anim-embed glmden" src="sst_anim.html?embed=1&amp;manifest=glmden_manifest.json&amp;region=glm_3h"
               title="GOES-East GLM lightning flash-density loop over tropical South America (1/3/24-hour accumulation)" loading="lazy"></iframe>
@@ -459,33 +452,30 @@
     <!-- IMERG PRECIPITATION ACCUMULATION LOOPS (NASA GPM) -->
     <div class="chart-card media-narrow">
       <div class="chart-card-header">
-        <h2>Tropical South America &mdash; Precipitation Accumulation</h2>
-        <p>How much rain has actually fallen, from NASA&rsquo;s <b>GPM IMERG</b> (Early run, 0.1&deg; multi-satellite precipitation) &mdash; the rainfall companion to the cloud (IR) and lightning loops, same Colombia+Brazil framing. Pick the accumulation window from the <i>Accumulation</i> dropdown: <b>1&nbsp;hour, 24&nbsp;hours, 7&nbsp;days or 14&nbsp;days</b> (short windows use the half-hourly product; the multi-day totals use the daily product). The <b style="color:#19e0ff">cyan</b> outline is the <b>Magdalena River basin</b> (Colombia); Brazilian state borders are drawn for orientation.</p>
-        <p><b>What to look for:</b> in the long windows, the <b>ITCZ</b> rain belt across the Amazon and the dry austral-winter interior of central Brazil stand out; in the short windows, watch individual convective clusters and frontal/<b>SACZ</b> bands sweep through. Compare with the IR loop &mdash; the heaviest rain sits under the coldest cloud tops.</p>
+        <h2>Tropical South America: Precipitation Accumulation</h2>
+        <p>Accumulated rainfall over Colombia and Brazil from NASA's <b>GPM IMERG</b> (Early run, 0.1&deg; multi-satellite precipitation). Select the window from the <i>Accumulation</i> dropdown: 1&nbsp;hour, 24&nbsp;hours, 7&nbsp;days, 14&nbsp;days, or month-to-date. Short windows use the half-hourly product; multi-day and month-to-date totals use the daily product. The Magdalena River basin (Colombia) is outlined in white, with Brazilian state borders for orientation.</p>
       </div>
       <iframe class="anim-embed precip" src="sst_anim.html?embed=1&amp;manifest=precip_manifest.json&amp;region=precip_24h"
-              title="NASA GPM IMERG precipitation-accumulation loops over tropical South America (1h/24h/7d/14d)" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 Early run (0.1&deg;) &middot; 1h/24h from half-hourly, 7d/14d from daily &middot; rolling window, updated hourly</span></div>
+              title="NASA GPM IMERG precipitation-accumulation loops over tropical South America (1h/24h/7d/14d/MTD)" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 Early run (0.1&deg;) &middot; 1h/24h from half-hourly, multi-day from daily &middot; rolling window, updated hourly</span></div>
     </div>
 
-    <!-- IMERG PRECIPITATION ANOMALY LOOPS (vs IMERG's own 20-yr climatology) -->
+    <!-- IMERG PRECIPITATION ANOMALY LOOPS (vs IMERG's own 25-yr climatology) -->
     <div class="chart-card media-narrow">
       <div class="chart-card-header">
-        <h2>Tropical South America &mdash; Precipitation Anomaly</h2>
-        <p>How the recent rainfall compares to <b>normal</b> &mdash; the departure of the IMERG accumulation from its climatological value for the same dates. Crucially, the climatology is <b>reanalysis-free</b>: it&rsquo;s built from IMERG&rsquo;s own 20-year record (GPM IMERG Final daily, 2001&ndash;2025), so this is a self-consistent satellite-only anomaly. Pick the window (<b>7, 14 or 30 days</b>) from the dropdown. <b style="color:#117a4a">Green</b> = wetter than normal, <b style="color:#9c6b1e">brown</b> = drier than normal, white &asymp; normal; the Magdalena River basin (Colombia) is outlined in black.</p>
-        <p><b>What to look for:</b> coherent wet/dry departures that the raw accumulation can&rsquo;t show &mdash; a brown patch over the normally-rainy Chocó means a genuine rainfall deficit there, while green over the dry-season interior flags unusual wet spells. Compare with the accumulation loop above to separate &ldquo;a lot of rain&rdquo; from &ldquo;more rain than usual.&rdquo;</p>
+        <h2>Tropical South America: Precipitation Anomaly</h2>
+        <p>The departure of recent rainfall from normal: the IMERG accumulation minus its climatological value for the same dates. The climatology is built from IMERG's own 25-year record (GPM IMERG Final daily, 2001&ndash;2025), so it is a self-consistent, reanalysis-free, satellite-only anomaly. Select the window (7, 14, 30 days, or month-to-date) from the dropdown. <b style="color:#117a4a">Green</b> is wetter than normal, <b style="color:#9c6b1e">brown</b> is drier than normal, white is near normal; the Magdalena River basin (Colombia) is outlined in black.</p>
       </div>
       <iframe class="anim-embed precip-anom" src="sst_anim.html?embed=1&amp;manifest=precip_anom_manifest.json&amp;region=precip_anom_14d"
-              title="NASA GPM IMERG precipitation-anomaly loops vs the 2001–2025 IMERG climatology (7d/14d/30d)" loading="lazy"></iframe>
+              title="NASA GPM IMERG precipitation-anomaly loops vs the 2001–2025 IMERG climatology (7d/14d/30d/MTD)" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 &middot; anomaly = Early accumulation &minus; harmonic day-of-year climatology from IMERG Final daily 2001&ndash;2025 &middot; rolling, updated hourly</span></div>
     </div>
 
     <!-- COLOMBIA / PANAMA TRUE-COLOR SATELLITE LOOP (GOES-East via GIBS) -->
     <div class="chart-card media-narrow">
       <div class="chart-card-header">
-        <h2>Colombia &amp; Panama &mdash; True-Colour Satellite Loop</h2>
-        <p>High-resolution true-colour (visible) imagery over the Colombia/Panama region from <b>GOES-East</b> (NOAA&rsquo;s GeoColor product via NASA GIBS), which sits almost directly overhead here &mdash; so the view is about as sharp as geostationary gets. Country borders and coastlines are overlaid in yellow for orientation.</p>
-        <p>Because it&rsquo;s <b>visible</b> imagery, the loop runs through the <b>daylight</b> hours of the last two days (night frames are skipped). <b style="color:#00b3a4">Cyan&nbsp;+</b> marks are <b>GOES&nbsp;GLM lightning flashes</b> from the 15&nbsp;minutes before each frame, so you can see exactly which cells are electrified. Use the slider to watch the convection and sea-breeze cloud build over the Andes, the Pacific coast and the Caribbean.</p>
+        <h2>Colombia &amp; Panama: True-Colour Satellite Loop</h2>
+        <p>High-resolution true-colour (visible) imagery over the Colombia/Panama region from <b>GOES-East</b> (NOAA's GeoColor product via NASA GIBS), which sits almost directly overhead here. Because it is visible imagery, the loop runs through the daylight hours of the last two days. <b style="color:#00b3a4">Cyan&nbsp;+</b> marks are GOES&nbsp;GLM lightning flashes from the 15&nbsp;minutes before each frame. Country borders and coastlines are overlaid in yellow.</p>
       </div>
       <iframe class="anim-embed colombia" src="sst_anim.html?embed=1&amp;manifest=colombia_manifest.json&amp;region=colombia"
               title="High-resolution true-colour GOES-East satellite loop over Colombia and Panama" loading="lazy"></iframe>
@@ -495,9 +485,9 @@
     <!-- OLR WHEELER-KILADIS WAVE DECOMPOSITION -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Tropical Waves and Variability &mdash; OLR Hovm&ouml;ller</h2>
-        <p>Longitude &times; time Hovm&ouml;ller of the equatorial outgoing-longwave-radiation (OLR) anomaly, averaged 5&deg;S&ndash;5&deg;N around the full globe. OLR is derived in real time from the <b>GMGSI</b> longwave-IR satellite mosaic (McIDAS brightness temperature &rarr; OLR), and the anomaly is taken against NOAA&rsquo;s interpolated-OLR daily climatology (1979&ndash;2022). The shaded field is the total anomaly &mdash; <span style="color:#19975a">green&nbsp;=&nbsp;low&nbsp;OLR&nbsp;/&nbsp;deep&nbsp;convection</span>, <span style="color:#9a6a18">brown&nbsp;=&nbsp;high&nbsp;OLR&nbsp;/&nbsp;suppressed</span>.</p>
-        <p>Each overlaid component is isolated from that anomaly field, contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin = eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;30&nbsp;d, equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO = eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER = westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d, equivalent depth&nbsp;8&ndash;90&nbsp;m. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed.</p>
+        <h2>Tropical Waves and Variability: OLR Hovm&ouml;ller</h2>
+        <p>A longitude &times; time Hovm&ouml;ller of the equatorial outgoing-longwave-radiation (OLR) anomaly, averaged 5&deg;S&ndash;5&deg;N around the globe. OLR is derived in real time from the <b>GMGSI</b> longwave-IR mosaic (McIDAS brightness temperature to OLR), with the anomaly taken against NOAA's interpolated-OLR daily climatology (1979&ndash;2022). The shaded field is the total anomaly: <span style="color:#19975a">green is low OLR (deep convection)</span>, <span style="color:#9a6a18">brown is high OLR (suppressed)</span>.</p>
+        <p>Each overlaid component is isolated from that anomaly field and contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin is eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;30&nbsp;d, equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO is eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER is westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed.</p>
       </div>
       <div class="img-wrap" style="max-width:960px;margin:0 auto"><img id="olr-waves" data-src="assets/sst/olr_waves.webp" alt="Wheeler-Kiladis wave decomposition of equatorial OLR" loading="lazy"></div>
       <div class="chart-card-footer">
@@ -510,8 +500,8 @@
 
   <div class="colophon">
     <h3>About these plots</h3>
-    <p>This monitor pulls together a range of ENSO and tropical-climate diagnostics, each computed from public source data (not screen-scraped) and regenerated automatically on its own schedule, then committed to the site's GitHub repository. <b>Daily:</b> the global and tropical-Pacific SST anomaly maps, RONI, and indices (NOAA OISST); the equatorial subsurface-temperature cross-section (NOAA/PMEL TAO/TRITON moorings); observed equatorial surface winds (Copernicus Marine scatterometer / ASCAT); and &mdash; from the ECMWF AIFS-ENS / IFS-ENS ensembles &mdash; the equatorial wind Hovm&ouml;ller, the Southern Oscillation Index forecast, and atmospheric angular momentum. <b>Monthly:</b> the CanSIPS Ni&ntilde;o-3.4 seasonal forecast (Environment and Climate Change Canada). <b>Weekly:</b> the El Ni&ntilde;o analog comparisons against 1997, 2015 and 2023. RONI is computed directly &mdash; the cosine-latitude-weighted Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N tropical mean, 3-month smoothed &mdash; rather than fetched, then rescaled by the per-calendar-month &sigma;(ONI)/&sigma;(relative) factor (NOAA-CPC / ECMWF method) so it stays in &deg;C and comparable to ONI (1991&ndash;2020 OISST).</p>
-    <p><b>Data &amp; acknowledgments:</b> ECMWF AIFS-ENS and IFS-ENS forecasts (wind Hovm&ouml;ller, SOI, atmospheric angular momentum) are used under the ECMWF open-data licence (CC&nbsp;BY&nbsp;4.0, &copy;&nbsp;ECMWF). Climatologies and the reanalysis-based fields use <b>ERA5</b> from the Copernicus Climate Change Service (C3S) / ECMWF &mdash; generated using Copernicus Climate Change Service information; neither the European Commission nor ECMWF is responsible for any use of the data. Other sources: NOAA OISST &amp; PSL, NOAA/PMEL TAO/TRITON, Copernicus Marine Service (ASCAT winds), the Australian Bureau of Meteorology / Queensland Govt LongPaddock (SOI), and Environment and Climate Change Canada (CanSIPS).</p>
+    <p>This monitor pulls together a range of ENSO and tropical-climate diagnostics, each computed from public source data (not screen-scraped) and regenerated automatically on its own schedule, then committed to the site's GitHub repository. <b>Daily:</b> the global and tropical-Pacific SST anomaly maps, RONI, and indices (NOAA OISST); the equatorial subsurface-temperature cross-section (NOAA/PMEL TAO/TRITON moorings); observed equatorial surface winds (Copernicus Marine scatterometer / ASCAT); and, from the ECMWF AIFS-ENS / IFS-ENS ensembles, the equatorial wind Hovm&ouml;ller, the Southern Oscillation Index forecast, and atmospheric angular momentum. <b>Monthly:</b> the CanSIPS Ni&ntilde;o-3.4 seasonal forecast (Environment and Climate Change Canada). <b>Weekly:</b> the El Ni&ntilde;o analog comparisons against 1997, 2015 and 2023. RONI is computed directly (the cosine-latitude-weighted Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N tropical mean, 3-month smoothed) rather than fetched, then rescaled by the per-calendar-month &sigma;(ONI)/&sigma;(relative) factor (NOAA-CPC / ECMWF method) so it stays in &deg;C and comparable to ONI (1991&ndash;2020 OISST).</p>
+    <p><b>Data &amp; acknowledgments:</b> ECMWF AIFS-ENS and IFS-ENS forecasts (wind Hovm&ouml;ller, SOI, atmospheric angular momentum) are used under the ECMWF open-data licence (CC&nbsp;BY&nbsp;4.0, &copy;&nbsp;ECMWF). Climatologies and the reanalysis-based fields use <b>ERA5</b> from the Copernicus Climate Change Service (C3S) / ECMWF; generated using Copernicus Climate Change Service information, and neither the European Commission nor ECMWF is responsible for any use of the data. Other sources: NOAA OISST &amp; PSL, NOAA/PMEL TAO/TRITON, Copernicus Marine Service (ASCAT winds), the Australian Bureau of Meteorology / Queensland Govt LongPaddock (SOI), and Environment and Climate Change Canada (CanSIPS).</p>
     <p>Source on <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">GitHub</a>.</p>
   </div>
 </main>
