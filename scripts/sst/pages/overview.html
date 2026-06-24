@@ -199,8 +199,20 @@
       <div class="chart-card-footer"><span class="chart-sources">NOAA GOES-East GLM L2 (Geostationary Lightning Mapper) &middot; flashes binned to 0.1&deg; &middot; 1/3/24&nbsp;h accumulation &middot; hourly, rolling 72&nbsp;h</span></div>
     </div>
 
+    <!-- IMERG PRECIPITATION ACCUMULATION LOOPS (NASA GPM) -->
+    <div class="chart-card media-narrow">
+      <div class="chart-card-header">
+        <h2>Tropical South America &mdash; Precipitation Accumulation</h2>
+        <p>How much rain has actually fallen, from NASA&rsquo;s <b>GPM IMERG</b> (Early run, 0.1&deg; multi-satellite precipitation) &mdash; the rainfall companion to the cloud (IR) and lightning loops, same Colombia+Brazil framing. Pick the accumulation window from the <i>Accumulation</i> dropdown: <b>1&nbsp;hour, 24&nbsp;hours, 7&nbsp;days or 14&nbsp;days</b> (short windows use the half-hourly product; the multi-day totals use the daily product). The <b style="color:#19e0ff">cyan</b> outline is the <b>Magdalena River basin</b> (Colombia); Brazilian state borders are drawn for orientation.</p>
+        <p><b>What to look for:</b> in the long windows, the <b>ITCZ</b> rain belt across the Amazon and the dry austral-winter interior of central Brazil stand out; in the short windows, watch individual convective clusters and frontal/<b>SACZ</b> bands sweep through. Compare with the IR loop &mdash; the heaviest rain sits under the coldest cloud tops.</p>
+      </div>
+      <iframe class="anim-embed precip" src="sst_anim.html?embed=1&amp;manifest=precip_manifest.json&amp;region=precip_24h"
+              title="NASA GPM IMERG precipitation-accumulation loops over tropical South America (1h/24h/7d/14d)" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 Early run (0.1&deg;) &middot; 1h/24h from half-hourly, 7d/14d from daily &middot; rolling window, updated hourly</span></div>
+    </div>
+
     <!-- COLOMBIA / PANAMA TRUE-COLOR SATELLITE LOOP (GOES-East via GIBS) -->
-    <div class="chart-card">
+    <div class="chart-card media-narrow">
       <div class="chart-card-header">
         <h2>Colombia &amp; Panama &mdash; True-Colour Satellite Loop</h2>
         <p>High-resolution true-colour (visible) imagery over the Colombia/Panama region from <b>GOES-East</b> (NOAA&rsquo;s GeoColor product via NASA GIBS), which sits almost directly overhead here &mdash; so the view is about as sharp as geostationary gets. Country borders and coastlines are overlaid in yellow for orientation.</p>
