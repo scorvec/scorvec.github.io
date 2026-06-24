@@ -109,10 +109,10 @@ fi
 "$PY" src/mslp_wind_anim.py --date "$DATE" --time "$TIME" \
   --anim-dir "$REPO/assets/sst/anim/mslp_wind" \
   --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
-"$PY" src/wind200_div.py --date "$DATE" --time "$TIME" \
+"$PY" src/wind200_vpot.py --date "$DATE" --time "$TIME" \
   --anim-dir "$REPO/assets/sst/anim/wind200" \
   --manifest "$REPO/assets/sst/anim/wind200_manifest.json" \
-  --out "$REPO/assets/sst/wind200.webp" || echo "200hPa wind/divergence failed; continuing"
+  --out "$REPO/assets/sst/wind200.webp" || echo "200hPa velocity potential failed; continuing"
 
 # 850 hPa wind analog Hovmöllers (current developing year vs 1982/97/2015). Refresh the
 # current-year ARCO tail (1×/day, ~3 min) + re-render, once per calendar day. The WB2
