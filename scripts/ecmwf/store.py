@@ -159,8 +159,21 @@ BACKOFF_MAX = float(os.environ.get("ECMWF_BACKOFF_MAX", "240"))   # s — cap
 FETCH_TRIES = int(os.environ.get("ECMWF_FETCH_TRIES", "3"))
 _THROTTLE = {"pen": 0.0}
 _THROTTLE_LOCK = threading.Lock()
-_THROTTLED_NOW: set = set()       # mirrors that 503'd THIS run — excluded from further retries
-                                  # until every mirror is throttled (then reset after a back-off)
+# Mirrors that 503'd recently → excluded only for a COOLDOWN window, then re-probed. A 503 is a
+# transient per-IP rate limit, so a demoted mirror usually recovers in minutes; permanently
+# excluding it for the whole run funnels every retrieve onto the one survivor (slow). Map of
+# mirror → epoch it may be retried again; expired entries are dropped (so the mirror is re-probed).
+THROTTLE_COOLDOWN = float(os.environ.get("ECMWF_THROTTLE_COOLDOWN", "240"))   # s before a 503'd mirror is re-tried
+_THROTTLED_UNTIL: dict = {}
+
+
+def _throttled_set() -> set:
+    """Mirrors still inside their post-503 cooldown; expired entries are evicted (→ re-probed)."""
+    now = time.time()
+    with _THROTTLE_LOCK:
+        for s in [s for s, t in _THROTTLED_UNTIL.items() if now >= t]:
+            _THROTTLED_UNTIL.pop(s, None)
+        return set(_THROTTLED_UNTIL)
 
 
 def _is_throttle(err) -> bool:
@@ -366,8 +379,7 @@ def _next_src(start: int, tried: list) -> str:
     mirror if EVERY mirror is currently throttled. This is what makes us switch AWAY from
     a 503'ing mirror mid-run instead of round-robining straight back onto it."""
     order = [SOURCES[(i + start) % len(SOURCES)] for i in range(len(SOURCES))]
-    with _THROTTLE_LOCK:
-        bad = set(_THROTTLED_NOW)
+    bad = _throttled_set()                                 # mirrors still in their 503 cooldown
     pool = [s for s in order if s not in bad] or order
     for s in pool:                                         # prefer a healthy mirror we haven't tried yet
         if s not in tried:
@@ -404,19 +416,19 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int, star
             err = RuntimeError(f"incomplete GRIB: {got}/{expected} msgs")
         if _is_throttle(err):                              # 503/SlowDown
             _note_throttle_src(src)                        # demote this mirror NEXT run too
-            with _THROTTLE_LOCK:
-                _THROTTLED_NOW.add(src)                    # …and exclude it for the rest of THIS run
-                healthy_left = [s for s in SOURCES if s not in _THROTTLED_NOW]
+            with _THROTTLE_LOCK:                           # …and cool it down for THIS run (re-probed after COOLDOWN)
+                _THROTTLED_UNTIL[src] = time.time() + THROTTLE_COOLDOWN
+            healthy_left = [s for s in SOURCES if s not in _throttled_set()]
             if healthy_left:                               # switch immediately — never sit on a throttled mirror
                 print(f"    {label}: 503 throttle ({src}) → switching mirror "
                       f"(retry {attempt}/{TRIES}; healthy: {','.join(healthy_left)})", flush=True)
-            else:                                          # everything throttled → one global back-off, then re-probe all
+            else:                                          # everything cooling down → one global back-off, then re-probe all
                 wait = _throttle_bump()
-                print(f"    {label}: 503 throttle — ALL mirrors throttled, backing off "
+                print(f"    {label}: 503 throttle — ALL mirrors cooling down, backing off "
                       f"{wait:.0f}s (retry {attempt}/{TRIES})", flush=True)
                 time.sleep(wait)
                 with _THROTTLE_LOCK:
-                    _THROTTLED_NOW.clear()                 # reset so the next attempt re-probes every mirror
+                    _THROTTLED_UNTIL.clear()               # reset so the next attempt re-probes every mirror
         else:
             print(f"    {label}: {repr(err)[:55]} — retry {attempt}/{TRIES} (mirror)", flush=True)
     _clean(target)
