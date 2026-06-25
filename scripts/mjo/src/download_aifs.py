@@ -284,8 +284,14 @@ def latest_run() -> tuple[str, str]:
                 with tempfile.NamedTemporaryFile(suffix=".grib2", delete=True) as tmp, \
                         open(os.devnull, "w") as _dn, \
                         contextlib.redirect_stdout(_dn):
+                    # Probe a PERTURBED member (pf #50), not the control: ECMWF publishes the
+                    # control before the 50 perturbed members, so a cf-only probe can call a
+                    # cycle "available" while the ensemble the RMM actually needs is still
+                    # landing — and the full 50-member download then fails. Requiring a pf
+                    # member to be present makes the runner wait (next hourly poll) for a
+                    # delayed/incrementally-published cycle instead of failing on partial data.
                     _retrieve_probe(dict(model="aifs-ens", date=date_str, time=int(run_time),
-                                         stream="enfo", type="cf", levtype="pl",
+                                         stream="enfo", type="pf", number=50, levtype="pl",
                                          levelist=[850], param="u", step=6), tmp.name)
                 return date_str, run_time
             except Exception:
