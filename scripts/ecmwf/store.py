@@ -156,7 +156,7 @@ except Exception:                                           # noqa: BLE001 — p
 # (per-step resume) if a throttled mirror dropped messages, rather than aborting.
 BACKOFF_BASE = float(os.environ.get("ECMWF_BACKOFF_BASE", "8"))    # s — first throttle wait
 BACKOFF_MAX = float(os.environ.get("ECMWF_BACKOFF_MAX", "240"))   # s — cap
-FETCH_TRIES = int(os.environ.get("ECMWF_FETCH_TRIES", "3"))
+FETCH_TRIES = int(os.environ.get("ECMWF_FETCH_TRIES", "5"))   # whole-spec resume passes for stragglers
 _THROTTLE = {"pen": 0.0}
 _THROTTLE_LOCK = threading.Lock()
 # Mirrors that 503'd recently → excluded only for a COOLDOWN window, then re-probed. A 503 is a
@@ -588,8 +588,6 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
         req = _to_req(cycle, spec); members = spec.members()
         got, src = 0, None
         for ftry in range(1, FETCH_TRIES + 1):
-            if ftry == FETCH_TRIES:                        # last resort: clean-slate pull
-                shutil.rmtree(f"{stage}.parts", ignore_errors=True)
             src = _robust_chunked(req, str(stage), spec.type == "pf", members)
             got = count_msgs(str(stage))
             if got >= expected:
@@ -600,7 +598,10 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
             if not short:                                  # per-step counts OK but total short → clean slate next
                 shutil.rmtree(f"{stage}.parts", ignore_errors=True)
             miss = ", ".join(f"{h} {g}/{e}" for h, g, e in short) or "mid-file corruption"
-            wait = max(BACKOFF_BASE, _throttle_pen())
+            # back off harder each pass so S3's per-prefix rate limit can actually reset before we
+            # come back for the stragglers (the .parts are kept, so each pass only re-fetches the
+            # short chunks — never the whole file).
+            wait = min(BACKOFF_MAX, max(BACKOFF_BASE, _throttle_pen()) + 20 * (ftry - 1))
             print(f"  {spec.filename}: incomplete {got}/{expected} — missing [{miss}] — "
                   f"re-fetch {ftry}/{FETCH_TRIES} after {wait:.0f}s", flush=True)
             time.sleep(wait)
