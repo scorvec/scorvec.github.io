@@ -689,9 +689,13 @@ def render_nino_region_series(full_anom, full_abs, la, lo, out_path, days=120):
     print(f"  wrote {out_path.name}")
 
 
+# CPC overlapping-season labels for the centered 3-month mean, indexed by centre month (1=Jan).
+SEASONS = ["DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ", "JJA", "JAS", "ASO", "SON", "OND", "NDJ"]
+
+
 def render_roni(df: pd.DataFrame, out_path: Path,
                 latest_oni=None, latest_roni=None, latest_month=None):
-    fig, ax = plt.subplots(figsize=(12, 4.2), dpi=100)
+    fig, ax = plt.subplots(figsize=(11.5, 5.2), dpi=100)
     roni_vals = df["roni"].values
     months = pd.to_datetime(df["month"])
     n = len(roni_vals)
@@ -708,11 +712,15 @@ def render_roni(df: pd.DataFrame, out_path: Path,
 
     ax.bar(x, roni_vals, width=0.8, color=colors, edgecolor="#fff",
            linewidth=0.5, zorder=2)
-    # The most recent bar is provisional: the current month is only month-to-date, and the
-    # centered 3-month mean has no following month yet (so it's a 2-month mean, not a full RONI).
-    # Hatch it so it's visibly distinct from the settled bars.
-    ax.bar(x[-1], roni_vals[-1], width=0.8, color=colors[-1], edgecolor="#222",
-           linewidth=0.9, hatch="////", zorder=3)
+    # A centered 3-month season is settled only when its three months are all complete. The
+    # current month is month-to-date, so BOTH it and the prior month (whose season includes it)
+    # are provisional; the first bar is also provisional (its season needs the prior-year month,
+    # absent from this year-to-date series). Hatch those.
+    prov = [i == 0 or i >= n - 2 for i in range(n)]
+    for i in range(n):
+        if prov[i]:
+            ax.bar(x[i], roni_vals[i], width=0.8, color=colors[i], edgecolor="#222",
+                   linewidth=0.9, hatch="////", zorder=3)
 
     # ENSO threshold guides and zero line.
     for y, c in [(0.5, "#d9402a"), (-0.5, "#2b6fd6")]:
@@ -721,9 +729,11 @@ def render_roni(df: pd.DataFrame, out_path: Path,
 
     # One labeled tick per month (e.g. "Jan", with year on January).
     ax.set_xticks(x)
-    labels = [m.strftime("%b\n%Y") if m.month == 1 or i == 0
-              else m.strftime("%b") for i, m in enumerate(months)]
-    ax.set_xticklabels(labels, fontsize=9)
+    labels = []
+    for i, m in enumerate(months):
+        head = m.strftime("%b %Y") if (m.month == 1 or i == 0) else m.strftime("%b")
+        labels.append(f"{head}\n{SEASONS[m.month - 1]}")     # month over its centered 3-mo season, e.g. "May\nAMJ"
+    ax.set_xticklabels(labels, fontsize=8.5)
     ax.set_xlim(-0.6, n - 0.4)
 
     # Y-limits: include the data AND the +/-0.5 guides, with headroom, so
@@ -744,7 +754,7 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     if latest_roni is not None:
         oni_line = (f"ONI  {latest_oni:+.2f} \u00b0C\n"
                     if latest_oni is not None else "")
-        txt = (f"latest ({latest_month:%b %Y}, provisional)\n"
+        txt = (f"latest: {latest_month:%b %Y} ({SEASONS[latest_month.month - 1]}, provisional)\n"
                f"{oni_line}"
                f"RONI {latest_roni:+.2f} \u00b0C")
         ax.text(0.985, 0.05, txt, transform=ax.transAxes, fontsize=9,
@@ -752,14 +762,16 @@ def render_roni(df: pd.DataFrame, out_path: Path,
                 bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
                           edgecolor="#bbb", alpha=0.9))
 
-    fig.text(0.005, 0.005,
-             "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean 20\u00b0S\u201320\u00b0N) anomaly rescaled by \u03c3(ONI)/\u03c3(relative) for "
-             "each calendar month (CPC/ECMWF) \u2014 keeps it in \u00b0C, comparable to ONI "
-             "(red >+0.5, blue <\u22120.5, grey neutral). NOAA OISST v2.1, 1991\u20132020 base.  "
-             "Hatched bar = provisional: the current month is month-to-date and its centered "
-             "3-month mean has no following month yet, so it is a 2-month mean, not a full RONI.",
+    # Two lines: keep each within the plot width so bbox_inches="tight" doesn't stretch the canvas
+    # (a single long line ballooned the image to ~2000 px wide and shrank the chart in the card).
+    fig.text(0.005, 0.012,
+             "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean 20\u00b0S\u201320\u00b0N) anomaly rescaled by \u03c3(ONI)/\u03c3(relative) per calendar "
+             "month (CPC/ECMWF), in \u00b0C, comparable to ONI (red >+0.5, blue <\u22120.5, grey neutral).\n"
+             "Each bar is the centered 3-month season (e.g. May = AMJ); hatched bars are provisional, with a "
+             "season that includes the incomplete current month. NOAA OISST v2.1, 1991\u20132020 base.",
              fontsize=7, color="#888")
 
+    fig.subplots_adjust(bottom=0.20, top=0.86)   # room for the 2-line season ticks + footnote
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
                 bbox_inches="tight", pad_inches=0.1,
                 pil_kwargs={"quality": 85, "method": 6})
