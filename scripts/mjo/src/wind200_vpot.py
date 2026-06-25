@@ -102,9 +102,9 @@ def render(anom, uchi, vchi, ufull, vfull, dlat, dlon, init, valid, tag: str, ou
     cf = ax.contourf(dlon, dlat, anom / 1e6, levels=VP_LEVELS, cmap=VP_CMAP,
                      extend="both", transform=PC)
     # full 200 hPa wind speed (jet streams) as line contours
-    cj = ax.contour(dlon, dlat, np.hypot(ufull, vfull), levels=WIND_LEVELS, colors="#15356b",
-                    linewidths=0.6, alpha=0.65, transform=PC)
-    ax.clabel(cj, fmt="%d", fontsize=6, inline=True, inline_spacing=2)
+    cj = ax.contour(dlon, dlat, np.hypot(ufull, vfull), levels=WIND_LEVELS, colors="#111111",
+                    linewidths=1.1, alpha=0.9, transform=PC)
+    ax.clabel(cj, fmt="%d", fontsize=6.5, inline=True, inline_spacing=2)
     s = max(1, len(dlat) // 26)                         # subsample the irrotational-wind vectors (sparser)
     ax.quiver(dlon[::s], dlat[::s], uchi[::s, ::s], vchi[::s, ::s], transform=PC,
               scale=420, width=0.0014, color="#222")
@@ -116,7 +116,7 @@ def render(anom, uchi, vchi, ufull, vfull, dlat, dlon, init, valid, tag: str, ou
             bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8, edgecolor="0.6", linewidth=0.5))
     cb = plt.colorbar(cf, ax=ax, orientation="horizontal", pad=0.05, aspect=55, shrink=0.78)
     cb.set_label("200 hPa velocity-potential anomaly (m² s⁻¹ × 10⁻⁶); green = divergence / convection, "
-                 "orange = convergence  ·  black vectors = irrotational wind  ·  blue contours = wind speed (m s⁻¹)",
+                 "orange = convergence  ·  vectors = irrotational wind  ·  contours = 200 hPa wind speed (m s⁻¹)",
                  fontsize=7.5)
     cb.ax.tick_params(labelsize=7)
     ax.set_title("AIFS-ENS 200 hPa Velocity-Potential Anomaly & Irrotational Wind (ensemble mean)",
