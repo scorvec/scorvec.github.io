@@ -1,343 +1,325 @@
 {
-  "generated_at": "2026-06-25T12:35Z",
-  "wind_cycle": "20260625T06Z",
-  "solar_cycle": "20260625T06Z",
+  "generated_at": "2026-06-25T15:57Z",
+  "wind_cycle": "20260625T12Z",
+  "solar_cycle": "20260625T12Z",
   "nameplate": {
     "wind_GW": 160.1,
     "solar_GW": 139.5,
     "combined_GW": 299.6
   },
   "now": {
-    "valid_time": "2026-06-25T12:00Z",
-    "wind_GW": 56.6,
-    "solar_GW": 45.63,
-    "combined_GW": 102.23,
-    "penetration_pct": 22.8,
+    "valid_time": "2026-06-25T15:00Z",
+    "wind_GW": 44.31,
+    "solar_GW": 118.55,
+    "combined_GW": 162.87,
+    "penetration_pct": 31.9,
     "denominator_kind": "demand",
-    "eia_total_GW": 449.02,
+    "eia_total_GW": 511.21,
     "eia_wind_GW": null,
     "eia_solar_GW": null,
     "stale": false
   },
   "peak": {
     "valid_time": "2026-06-25T23:00Z",
-    "combined_GW": 173.7
+    "combined_GW": 172.3
   },
   "forecast": [
     {
-      "valid_time": "2026-06-25T06:00Z",
-      "wind_GW": 56.4,
-      "solar_GW": 0.0,
-      "combined_GW": 56.4
-    },
-    {
-      "valid_time": "2026-06-25T07:00Z",
-      "wind_GW": 57.71,
-      "solar_GW": 0.0,
-      "combined_GW": 57.71
-    },
-    {
-      "valid_time": "2026-06-25T08:00Z",
-      "wind_GW": 58.65,
-      "solar_GW": 0.0,
-      "combined_GW": 58.65
-    },
-    {
-      "valid_time": "2026-06-25T09:00Z",
-      "wind_GW": 57.16,
-      "solar_GW": 0.0,
-      "combined_GW": 57.16
-    },
-    {
-      "valid_time": "2026-06-25T10:00Z",
-      "wind_GW": 53.12,
-      "solar_GW": 0.47,
-      "combined_GW": 53.6
-    },
-    {
-      "valid_time": "2026-06-25T11:00Z",
-      "wind_GW": 55.63,
-      "solar_GW": 16.08,
-      "combined_GW": 71.71
-    },
-    {
       "valid_time": "2026-06-25T12:00Z",
-      "wind_GW": 56.6,
-      "solar_GW": 45.63,
-      "combined_GW": 102.23
+      "wind_GW": 50.15,
+      "solar_GW": 46.83,
+      "combined_GW": 96.98
     },
     {
       "valid_time": "2026-06-25T13:00Z",
-      "wind_GW": 50.63,
-      "solar_GW": 78.52,
-      "combined_GW": 129.14
+      "wind_GW": 46.68,
+      "solar_GW": 81.33,
+      "combined_GW": 128.01
     },
     {
       "valid_time": "2026-06-25T14:00Z",
-      "wind_GW": 47.43,
-      "solar_GW": 106.95,
-      "combined_GW": 154.38
+      "wind_GW": 46.57,
+      "solar_GW": 112.63,
+      "combined_GW": 159.2
     },
     {
       "valid_time": "2026-06-25T15:00Z",
-      "wind_GW": 45.96,
-      "solar_GW": 114.37,
-      "combined_GW": 160.33
+      "wind_GW": 44.31,
+      "solar_GW": 118.55,
+      "combined_GW": 162.87
     },
     {
       "valid_time": "2026-06-25T16:00Z",
-      "wind_GW": 45.55,
-      "solar_GW": 121.46,
-      "combined_GW": 167.01
+      "wind_GW": 44.96,
+      "solar_GW": 123.05,
+      "combined_GW": 168.0
     },
     {
       "valid_time": "2026-06-25T17:00Z",
-      "wind_GW": 47.37,
-      "solar_GW": 123.01,
-      "combined_GW": 170.37
+      "wind_GW": 45.79,
+      "solar_GW": 122.34,
+      "combined_GW": 168.13
     },
     {
       "valid_time": "2026-06-25T18:00Z",
-      "wind_GW": 50.0,
-      "solar_GW": 118.85,
-      "combined_GW": 168.86
+      "wind_GW": 46.48,
+      "solar_GW": 119.89,
+      "combined_GW": 166.37
     },
     {
       "valid_time": "2026-06-25T19:00Z",
-      "wind_GW": 51.6,
-      "solar_GW": 117.17,
-      "combined_GW": 168.76
+      "wind_GW": 46.92,
+      "solar_GW": 118.23,
+      "combined_GW": 165.15
     },
     {
       "valid_time": "2026-06-25T20:00Z",
-      "wind_GW": 55.66,
-      "solar_GW": 113.43,
-      "combined_GW": 169.09
+      "wind_GW": 49.78,
+      "solar_GW": 116.52,
+      "combined_GW": 166.3
     },
     {
       "valid_time": "2026-06-25T21:00Z",
-      "wind_GW": 58.75,
-      "solar_GW": 111.35,
-      "combined_GW": 170.1
+      "wind_GW": 55.21,
+      "solar_GW": 111.46,
+      "combined_GW": 166.68
     },
     {
       "valid_time": "2026-06-25T22:00Z",
-      "wind_GW": 63.74,
-      "solar_GW": 109.35,
-      "combined_GW": 173.1
+      "wind_GW": 62.81,
+      "solar_GW": 109.04,
+      "combined_GW": 171.85
     },
     {
       "valid_time": "2026-06-25T23:00Z",
-      "wind_GW": 68.77,
-      "solar_GW": 104.93,
-      "combined_GW": 173.7
+      "wind_GW": 67.68,
+      "solar_GW": 104.63,
+      "combined_GW": 172.31
     },
     {
       "valid_time": "2026-06-26T00:00Z",
-      "wind_GW": 69.18,
-      "solar_GW": 88.25,
-      "combined_GW": 157.44
+      "wind_GW": 64.04,
+      "solar_GW": 87.24,
+      "combined_GW": 151.28
     },
     {
       "valid_time": "2026-06-26T01:00Z",
-      "wind_GW": 70.59,
-      "solar_GW": 52.13,
-      "combined_GW": 122.71
+      "wind_GW": 67.69,
+      "solar_GW": 51.01,
+      "combined_GW": 118.7
     },
     {
       "valid_time": "2026-06-26T02:00Z",
-      "wind_GW": 72.04,
-      "solar_GW": 23.6,
-      "combined_GW": 95.65
+      "wind_GW": 69.88,
+      "solar_GW": 23.71,
+      "combined_GW": 93.58
     },
     {
       "valid_time": "2026-06-26T03:00Z",
-      "wind_GW": 73.5,
-      "solar_GW": 1.26,
-      "combined_GW": 74.76
+      "wind_GW": 71.56,
+      "solar_GW": 1.31,
+      "combined_GW": 72.87
     },
     {
       "valid_time": "2026-06-26T04:00Z",
-      "wind_GW": 75.95,
+      "wind_GW": 71.4,
       "solar_GW": 0.0,
-      "combined_GW": 75.95
+      "combined_GW": 71.4
     },
     {
       "valid_time": "2026-06-26T05:00Z",
-      "wind_GW": 78.22,
+      "wind_GW": 75.83,
       "solar_GW": 0.0,
-      "combined_GW": 78.22
+      "combined_GW": 75.83
     },
     {
       "valid_time": "2026-06-26T06:00Z",
-      "wind_GW": 77.58,
+      "wind_GW": 76.99,
       "solar_GW": 0.0,
-      "combined_GW": 77.58
+      "combined_GW": 76.99
     },
     {
       "valid_time": "2026-06-26T07:00Z",
-      "wind_GW": 74.15,
+      "wind_GW": 74.59,
       "solar_GW": 0.0,
-      "combined_GW": 74.15
+      "combined_GW": 74.59
     },
     {
       "valid_time": "2026-06-26T08:00Z",
-      "wind_GW": 71.12,
+      "wind_GW": 71.61,
       "solar_GW": 0.0,
-      "combined_GW": 71.12
-    },
-    {
-      "valid_time": "2026-06-26T09:00Z",
-      "wind_GW": 71.65,
-      "solar_GW": 0.0,
-      "combined_GW": 71.65
-    },
-    {
-      "valid_time": "2026-06-26T10:00Z",
-      "wind_GW": 71.49,
-      "solar_GW": 0.11,
       "combined_GW": 71.61
     },
     {
+      "valid_time": "2026-06-26T09:00Z",
+      "wind_GW": 66.69,
+      "solar_GW": 0.0,
+      "combined_GW": 66.69
+    },
+    {
+      "valid_time": "2026-06-26T10:00Z",
+      "wind_GW": 64.78,
+      "solar_GW": 0.14,
+      "combined_GW": 64.92
+    },
+    {
       "valid_time": "2026-06-26T11:00Z",
-      "wind_GW": 66.8,
-      "solar_GW": 14.5,
-      "combined_GW": 81.3
+      "wind_GW": 67.7,
+      "solar_GW": 13.53,
+      "combined_GW": 81.23
     },
     {
       "valid_time": "2026-06-26T12:00Z",
-      "wind_GW": 61.77,
-      "solar_GW": 37.36,
-      "combined_GW": 99.13
+      "wind_GW": 64.74,
+      "solar_GW": 37.87,
+      "combined_GW": 102.61
     },
     {
       "valid_time": "2026-06-26T13:00Z",
-      "wind_GW": 58.26,
-      "solar_GW": 63.72,
-      "combined_GW": 121.98
+      "wind_GW": 59.3,
+      "solar_GW": 63.26,
+      "combined_GW": 122.55
     },
     {
       "valid_time": "2026-06-26T14:00Z",
-      "wind_GW": 56.29,
-      "solar_GW": 89.72,
-      "combined_GW": 146.01
+      "wind_GW": 57.16,
+      "solar_GW": 94.27,
+      "combined_GW": 151.42
     },
     {
       "valid_time": "2026-06-26T15:00Z",
-      "wind_GW": 56.38,
-      "solar_GW": 98.96,
-      "combined_GW": 155.33
+      "wind_GW": 59.11,
+      "solar_GW": 103.04,
+      "combined_GW": 162.14
     },
     {
       "valid_time": "2026-06-26T16:00Z",
-      "wind_GW": 56.81,
-      "solar_GW": 107.52,
-      "combined_GW": 164.33
+      "wind_GW": 59.09,
+      "solar_GW": 107.65,
+      "combined_GW": 166.74
     },
     {
       "valid_time": "2026-06-26T17:00Z",
-      "wind_GW": 57.35,
-      "solar_GW": 111.42,
-      "combined_GW": 168.77
+      "wind_GW": 58.14,
+      "solar_GW": 108.11,
+      "combined_GW": 166.26
     },
     {
       "valid_time": "2026-06-26T18:00Z",
-      "wind_GW": 58.51,
-      "solar_GW": 108.86,
-      "combined_GW": 167.37
+      "wind_GW": 58.27,
+      "solar_GW": 108.71,
+      "combined_GW": 166.98
     },
     {
       "valid_time": "2026-06-26T19:00Z",
-      "wind_GW": 59.64,
-      "solar_GW": 108.9,
-      "combined_GW": 168.54
+      "wind_GW": 58.47,
+      "solar_GW": 107.89,
+      "combined_GW": 166.37
     },
     {
       "valid_time": "2026-06-26T20:00Z",
-      "wind_GW": 62.36,
-      "solar_GW": 108.02,
-      "combined_GW": 170.39
+      "wind_GW": 58.87,
+      "solar_GW": 105.67,
+      "combined_GW": 164.54
     },
     {
       "valid_time": "2026-06-26T21:00Z",
-      "wind_GW": 65.52,
-      "solar_GW": 102.47,
-      "combined_GW": 167.99
+      "wind_GW": 61.59,
+      "solar_GW": 101.07,
+      "combined_GW": 162.66
     },
     {
       "valid_time": "2026-06-26T22:00Z",
-      "wind_GW": 68.46,
-      "solar_GW": 97.08,
-      "combined_GW": 165.54
+      "wind_GW": 65.18,
+      "solar_GW": 98.6,
+      "combined_GW": 163.78
     },
     {
       "valid_time": "2026-06-26T23:00Z",
-      "wind_GW": 71.04,
-      "solar_GW": 89.75,
-      "combined_GW": 160.79
+      "wind_GW": 68.72,
+      "solar_GW": 93.19,
+      "combined_GW": 161.91
     },
     {
       "valid_time": "2026-06-27T00:00Z",
-      "wind_GW": 74.74,
-      "solar_GW": 79.44,
-      "combined_GW": 154.17
+      "wind_GW": 74.85,
+      "solar_GW": 79.64,
+      "combined_GW": 154.49
     },
     {
       "valid_time": "2026-06-27T01:00Z",
-      "wind_GW": 76.85,
-      "solar_GW": 51.53,
-      "combined_GW": 128.38
+      "wind_GW": 78.83,
+      "solar_GW": 49.9,
+      "combined_GW": 128.73
     },
     {
       "valid_time": "2026-06-27T02:00Z",
-      "wind_GW": 82.55,
-      "solar_GW": 24.12,
-      "combined_GW": 106.67
+      "wind_GW": 88.45,
+      "solar_GW": 22.14,
+      "combined_GW": 110.59
     },
     {
       "valid_time": "2026-06-27T03:00Z",
-      "wind_GW": 85.91,
-      "solar_GW": 1.52,
-      "combined_GW": 87.42
+      "wind_GW": 95.32,
+      "solar_GW": 1.41,
+      "combined_GW": 96.74
     },
     {
       "valid_time": "2026-06-27T04:00Z",
-      "wind_GW": 89.13,
+      "wind_GW": 95.78,
       "solar_GW": 0.0,
-      "combined_GW": 89.13
+      "combined_GW": 95.78
     },
     {
       "valid_time": "2026-06-27T05:00Z",
-      "wind_GW": 88.75,
+      "wind_GW": 91.59,
       "solar_GW": 0.0,
-      "combined_GW": 88.75
+      "combined_GW": 91.59
     },
     {
       "valid_time": "2026-06-27T06:00Z",
-      "wind_GW": 88.53,
+      "wind_GW": 90.02,
       "solar_GW": 0.0,
-      "combined_GW": 88.53
+      "combined_GW": 90.02
+    },
+    {
+      "valid_time": "2026-06-27T07:00Z",
+      "wind_GW": 91.44,
+      "solar_GW": 0.0,
+      "combined_GW": 91.44
+    },
+    {
+      "valid_time": "2026-06-27T08:00Z",
+      "wind_GW": 88.48,
+      "solar_GW": 0.0,
+      "combined_GW": 88.48
+    },
+    {
+      "valid_time": "2026-06-27T09:00Z",
+      "wind_GW": 87.53,
+      "solar_GW": 0.0,
+      "combined_GW": 87.53
+    },
+    {
+      "valid_time": "2026-06-27T10:00Z",
+      "wind_GW": 87.48,
+      "solar_GW": 0.06,
+      "combined_GW": 87.54
+    },
+    {
+      "valid_time": "2026-06-27T11:00Z",
+      "wind_GW": 87.26,
+      "solar_GW": 8.26,
+      "combined_GW": 95.52
+    },
+    {
+      "valid_time": "2026-06-27T12:00Z",
+      "wind_GW": 86.1,
+      "solar_GW": 36.02,
+      "combined_GW": 122.11
     }
   ],
   "eia_recent": [
-    {
-      "period": "2026-06-22T12:00Z",
-      "total_GW": 460.84,
-      "wind_GW": 53.15,
-      "solar_GW": 6.84
-    },
-    {
-      "period": "2026-06-22T13:00Z",
-      "total_GW": 479.52,
-      "wind_GW": 45.86,
-      "solar_GW": 23.88
-    },
-    {
-      "period": "2026-06-22T14:00Z",
-      "total_GW": 502.4,
-      "wind_GW": 40.97,
-      "solar_GW": 54.09
-    },
     {
       "period": "2026-06-22T15:00Z",
       "total_GW": 531.58,
@@ -670,91 +652,109 @@
     },
     {
       "period": "2026-06-24T22:00Z",
-      "total_GW": 631.56,
+      "total_GW": 631.55,
       "wind_GW": 52.11,
       "solar_GW": 96.67
     },
     {
       "period": "2026-06-24T23:00Z",
-      "total_GW": 635.29,
+      "total_GW": 635.28,
       "wind_GW": 53.87,
       "solar_GW": 88.2
     },
     {
       "period": "2026-06-25T00:00Z",
-      "total_GW": 629.97,
+      "total_GW": 629.95,
       "wind_GW": 54.64,
       "solar_GW": 68.33
     },
     {
       "period": "2026-06-25T01:00Z",
-      "total_GW": 615.87,
+      "total_GW": 615.88,
       "wind_GW": 55.55,
       "solar_GW": 41.14
     },
     {
       "period": "2026-06-25T02:00Z",
-      "total_GW": 596.0,
+      "total_GW": 596.01,
       "wind_GW": 53.0,
       "solar_GW": 18.79
     },
     {
       "period": "2026-06-25T03:00Z",
-      "total_GW": 568.36,
+      "total_GW": 568.37,
       "wind_GW": 54.22,
       "solar_GW": 4.49
     },
     {
       "period": "2026-06-25T04:00Z",
-      "total_GW": 535.82,
+      "total_GW": 535.79,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T05:00Z",
-      "total_GW": 505.36,
+      "total_GW": 505.29,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T06:00Z",
-      "total_GW": 479.26,
+      "total_GW": 479.21,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T07:00Z",
-      "total_GW": 456.11,
+      "total_GW": 456.05,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T08:00Z",
-      "total_GW": 440.84,
+      "total_GW": 440.79,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T09:00Z",
-      "total_GW": 432.72,
+      "total_GW": 432.67,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T10:00Z",
-      "total_GW": 432.88,
+      "total_GW": 433.46,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T11:00Z",
-      "total_GW": 441.48,
+      "total_GW": 441.78,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T12:00Z",
-      "total_GW": 449.02,
+      "total_GW": 457.46,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-25T13:00Z",
+      "total_GW": 474.98,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-25T14:00Z",
+      "total_GW": 498.35,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-25T15:00Z",
+      "total_GW": 511.21,
       "wind_GW": null,
       "solar_GW": null
     }
