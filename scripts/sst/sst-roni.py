@@ -708,6 +708,11 @@ def render_roni(df: pd.DataFrame, out_path: Path,
 
     ax.bar(x, roni_vals, width=0.8, color=colors, edgecolor="#fff",
            linewidth=0.5, zorder=2)
+    # The most recent bar is provisional: the current month is only month-to-date, and the
+    # centered 3-month mean has no following month yet (so it's a 2-month mean, not a full RONI).
+    # Hatch it so it's visibly distinct from the settled bars.
+    ax.bar(x[-1], roni_vals[-1], width=0.8, color=colors[-1], edgecolor="#222",
+           linewidth=0.9, hatch="////", zorder=3)
 
     # ENSO threshold guides and zero line.
     for y, c in [(0.5, "#d9402a"), (-0.5, "#2b6fd6")]:
@@ -739,7 +744,7 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     if latest_roni is not None:
         oni_line = (f"ONI  {latest_oni:+.2f} \u00b0C\n"
                     if latest_oni is not None else "")
-        txt = (f"latest ({latest_month:%b %Y})\n"
+        txt = (f"latest ({latest_month:%b %Y}, provisional)\n"
                f"{oni_line}"
                f"RONI {latest_roni:+.2f} \u00b0C")
         ax.text(0.985, 0.05, txt, transform=ax.transAxes, fontsize=9,
@@ -750,7 +755,9 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     fig.text(0.005, 0.005,
              "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean 20\u00b0S\u201320\u00b0N) anomaly rescaled by \u03c3(ONI)/\u03c3(relative) for "
              "each calendar month (CPC/ECMWF) \u2014 keeps it in \u00b0C, comparable to ONI "
-             "(red >+0.5, blue <\u22120.5, grey neutral). NOAA OISST v2.1, 1991\u20132020 base.",
+             "(red >+0.5, blue <\u22120.5, grey neutral). NOAA OISST v2.1, 1991\u20132020 base.  "
+             "Hatched bar = provisional: the current month is month-to-date and its centered "
+             "3-month mean has no following month yet, so it is a 2-month mean, not a full RONI.",
              fontsize=7, color="#888")
 
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
