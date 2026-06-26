@@ -1,42 +1,12 @@
 {
-  "generated_at": "2026-06-26T01:33Z",
+  "generated_at": "2026-06-26T06:32Z",
   "source": "EIA-930 (Hourly Electric Grid Monitor) via EIA API v2, respondent US48 (demand)",
   "denominator_kind": "demand",
-  "latest_period": "2026-06-26T00:00Z",
-  "total_GW": 630.57,
+  "latest_period": "2026-06-26T05:00Z",
+  "total_GW": 509.6,
   "wind_actual_GW": null,
   "solar_actual_GW": null,
   "series": [
-    {
-      "period": "2026-06-23T01:00Z",
-      "total_GW": 611.4,
-      "wind_GW": 42.5,
-      "solar_GW": 47.76
-    },
-    {
-      "period": "2026-06-23T02:00Z",
-      "total_GW": 597.11,
-      "wind_GW": 42.7,
-      "solar_GW": 22.36
-    },
-    {
-      "period": "2026-06-23T03:00Z",
-      "total_GW": 573.33,
-      "wind_GW": 44.05,
-      "solar_GW": 5.62
-    },
-    {
-      "period": "2026-06-23T04:00Z",
-      "total_GW": 544.17,
-      "wind_GW": 47.3,
-      "solar_GW": 1.77
-    },
-    {
-      "period": "2026-06-23T05:00Z",
-      "total_GW": 515.89,
-      "wind_GW": 47.21,
-      "solar_GW": 1.63
-    },
     {
       "period": "2026-06-23T06:00Z",
       "total_GW": 490.31,
@@ -255,7 +225,7 @@
     },
     {
       "period": "2026-06-24T18:00Z",
-      "total_GW": 576.2,
+      "total_GW": 576.19,
       "wind_GW": 39.1,
       "solar_GW": 109.49
     },
@@ -279,13 +249,13 @@
     },
     {
       "period": "2026-06-24T22:00Z",
-      "total_GW": 631.88,
+      "total_GW": 631.87,
       "wind_GW": 53.01,
       "solar_GW": 96.05
     },
     {
       "period": "2026-06-24T23:00Z",
-      "total_GW": 635.44,
+      "total_GW": 635.43,
       "wind_GW": 55.05,
       "solar_GW": 87.2
     },
@@ -297,49 +267,49 @@
     },
     {
       "period": "2026-06-25T01:00Z",
-      "total_GW": 615.87,
+      "total_GW": 615.86,
       "wind_GW": 56.27,
       "solar_GW": 40.16
     },
     {
       "period": "2026-06-25T02:00Z",
-      "total_GW": 596.11,
+      "total_GW": 596.1,
       "wind_GW": 53.62,
       "solar_GW": 18.41
     },
     {
       "period": "2026-06-25T03:00Z",
-      "total_GW": 568.47,
+      "total_GW": 568.46,
       "wind_GW": 55.18,
       "solar_GW": 4.47
     },
     {
       "period": "2026-06-25T04:00Z",
-      "total_GW": 535.88,
+      "total_GW": 535.86,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T05:00Z",
-      "total_GW": 505.42,
+      "total_GW": 505.4,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T06:00Z",
-      "total_GW": 479.36,
+      "total_GW": 479.33,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T07:00Z",
-      "total_GW": 456.2,
+      "total_GW": 456.17,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T08:00Z",
-      "total_GW": 440.78,
+      "total_GW": 440.77,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -357,13 +327,13 @@
     },
     {
       "period": "2026-06-25T11:00Z",
-      "total_GW": 443.17,
+      "total_GW": 443.16,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T12:00Z",
-      "total_GW": 458.83,
+      "total_GW": 458.82,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -381,7 +351,7 @@
     },
     {
       "period": "2026-06-25T15:00Z",
-      "total_GW": 524.57,
+      "total_GW": 524.56,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -393,49 +363,79 @@
     },
     {
       "period": "2026-06-25T17:00Z",
-      "total_GW": 576.96,
+      "total_GW": 576.93,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T18:00Z",
-      "total_GW": 599.33,
+      "total_GW": 599.31,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T19:00Z",
-      "total_GW": 615.52,
+      "total_GW": 616.67,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T20:00Z",
-      "total_GW": 630.55,
+      "total_GW": 630.57,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T21:00Z",
-      "total_GW": 639.01,
+      "total_GW": 639.03,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T22:00Z",
-      "total_GW": 645.96,
+      "total_GW": 645.98,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-25T23:00Z",
-      "total_GW": 650.78,
+      "total_GW": 645.08,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-26T00:00Z",
-      "total_GW": 630.57,
+      "total_GW": 634.77,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-26T01:00Z",
+      "total_GW": 619.84,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-26T02:00Z",
+      "total_GW": 602.96,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-26T03:00Z",
+      "total_GW": 577.17,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-26T04:00Z",
+      "total_GW": 546.34,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-26T05:00Z",
+      "total_GW": 509.6,
       "wind_GW": null,
       "solar_GW": null
     }
