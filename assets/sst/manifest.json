@@ -1,6 +1,11 @@
 {
+<<<<<<< Updated upstream
   "generated": "2026-06-26 18:17 UTC",
   "sst_valid_day": "2026-06-25",
+=======
+  "generated": "2026-06-26 13:11 UTC",
+  "sst_valid_day": "2026-06-24",
+>>>>>>> Stashed changes
   "roni_latest_month": "2026-06",
   "roni_latest_value": 0.694,
   "oni_latest_value": 1.403,
