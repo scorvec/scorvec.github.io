@@ -1,24 +1,12 @@
 {
-  "generated_at": "2026-06-27T16:35Z",
+  "generated_at": "2026-06-27T18:38Z",
   "source": "EIA-930 (Hourly Electric Grid Monitor) via EIA API v2, respondent US48 (demand)",
   "denominator_kind": "demand",
-  "latest_period": "2026-06-27T15:00Z",
-  "total_GW": 505.84,
+  "latest_period": "2026-06-27T18:00Z",
+  "total_GW": 558.97,
   "wind_actual_GW": null,
   "solar_actual_GW": null,
   "series": [
-    {
-      "period": "2026-06-24T16:00Z",
-      "total_GW": 532.81,
-      "wind_GW": 35.04,
-      "solar_GW": 97.72
-    },
-    {
-      "period": "2026-06-24T17:00Z",
-      "total_GW": 554.32,
-      "wind_GW": 36.75,
-      "solar_GW": 105.4
-    },
     {
       "period": "2026-06-24T18:00Z",
       "total_GW": 576.18,
@@ -411,31 +399,49 @@
     },
     {
       "period": "2026-06-27T11:00Z",
-      "total_GW": 438.99,
+      "total_GW": 438.92,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-27T12:00Z",
-      "total_GW": 444.48,
+      "total_GW": 444.4,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-27T13:00Z",
-      "total_GW": 459.7,
+      "total_GW": 459.58,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-27T14:00Z",
-      "total_GW": 484.9,
+      "total_GW": 483.12,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-27T15:00Z",
-      "total_GW": 505.84,
+      "total_GW": 510.92,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-27T16:00Z",
+      "total_GW": 541.05,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-27T17:00Z",
+      "total_GW": 561.44,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-27T18:00Z",
+      "total_GW": 558.97,
       "wind_GW": null,
       "solar_GW": null
     }
