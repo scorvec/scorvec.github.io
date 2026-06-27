@@ -367,14 +367,14 @@
         <p><b>Scope — grid-scale, a floor not a ceiling:</b> These totals count <em>grid-scale</em> solar (plants ≥10 MW assigned to a balancing authority) — what grid operators actually meter as generation — so they line up with reported grid actuals (e.g. CAISO and MISO match within ~5%). They deliberately <em>exclude</em> smaller distribution-connected solar and the large behind-the-meter (BTM) rooftop fleet, which together are the <em>majority</em> of all solar in some regions: in ISO New England on a clear June day, grid-scale solar peaks near 0.8 GW while BTM solar tops 5 GW. So true total US solar generation is substantially <b>higher</b> than shown here — this is the grid-visible slice, by design.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
-        <iframe src="assets/solar_forecast.html?v=20260626T18Z"
+        <iframe src="assets/solar_forecast.html?v=20260627T00Z"
                 class="chart-frame"
                 title="48-hour HRRR-based solar generation forecast"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USPVDB · pvlib · Plotly</span>
-        <span class="chart-updated" id="last-updated-solar">Cycle 20260626T18Z</span>
+        <span class="chart-updated" id="last-updated-solar">Cycle 20260627T00Z</span>
       </div>
     </div>
 
@@ -386,14 +386,14 @@
         <p><b>How it's built:</b> Each forecast cycle computes per-plant AC power using the same physics chain as the regional chart above — sun position, tracker geometry, plane-of-array irradiance, temperature derate, and inverter clipping. The map embeds all per-plant time series as JSON, so clicks render the time-series chart instantly with no server round-trip. Useful for spotting how cloud cover patterns affect individual plants, comparing tracking vs fixed-tilt design choices, and watching the sun sweep across the continent.</p>
       </div>
       <div class="chart-img-wrap" style="background:#fafaf8;">
-        <iframe src="assets/solar_map.html?v=20260626T18Z"
+        <iframe src="assets/solar_map.html?v=20260627T00Z"
                 class="chart-frame map"
                 title="Plant-level solar generation forecast map (interactive)"
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA HRRR · USGS USPVDB · pvlib · CartoDB tiles · Plotly</span>
-        <span class="chart-updated" id="last-updated-solar-map">Cycle 20260626T18Z</span>
+        <span class="chart-updated" id="last-updated-solar-map">Cycle 20260627T00Z</span>
       </div>
     </div>
 
