@@ -1,11 +1,11 @@
 {
-  "generated": "2026-06-29 16:19 UTC",
-  "sst_valid_day": "2026-06-27",
+  "generated": "2026-06-29 16:42 UTC",
+  "sst_valid_day": "2026-06-28",
   "roni_latest_month": "2026-06",
-  "roni_latest_value": 0.706,
-  "oni_latest_value": 1.411,
-  "daily_nino34_anom": 1.962,
-  "daily_tropical_anom": 0.746,
+  "roni_latest_value": 0.71,
+  "oni_latest_value": 1.415,
+  "daily_nino34_anom": 1.961,
+  "daily_tropical_anom": 0.745,
   "daily_relative": 1.216,
   "anim_days": 60,
   "files": {
