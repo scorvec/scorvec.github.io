@@ -1,7 +1,7 @@
 <main>
   <div class="page-header">
     <h1>Atmospheric Response</h1>
-    <p>The atmospheric side of ENSO: observed and forecast equatorial winds, atmospheric angular momentum and its torque budget, and the meridional overturning circulation.</p>
+    <p>The atmospheric side of ENSO: observed and forecast equatorial Pacific surface winds, the Southern Oscillation, and westerly-wind-burst activity.</p>
   </div>
 
   <div class="chart-stack">
@@ -84,6 +84,18 @@
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0) &middot; member-weighted super-ensemble mean &middot; updated each 00/12Z cycle</span></div>
     </div>
 
+    <!-- ====================================================================
+         DEACTIVATED 2026-06-30 (hidden for now): the upper-air / global-
+         circulation block below — 200 hPa velocity potential, atmospheric
+         angular momentum (+ run-to-run trend, torque budget, zonal anatomy)
+         and the meridional mass streamfunction. Their builders are turned off
+         in scripts/mjo/run_local.sh; the heavy 13-level pulls are gated behind
+         MJO_HEAVY_ATMOS in scripts/mjo/src/ens_cycle.py. To restore: delete
+         this wrapper <div> (and its close) and re-enable those builders.
+         Preference: revive these products in a GitHub Action, not the laptop.
+         ==================================================================== -->
+    <div class="deactivated-atmos-block" hidden aria-hidden="true" style="display:none">
+
     <!-- 200 hPa VELOCITY POTENTIAL + IRROTATIONAL WIND (AIFS-ENS ensemble mean) -->
     <div class="chart-card">
       <div class="chart-card-header">
@@ -155,6 +167,7 @@
               title="Meridional mass streamfunction anomaly animation from the AIFS-ENS 0-h analysis" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 0-h analysis meridional wind (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 &Psi; climatology (Copernicus C3S) &middot; 7-day running mean &middot; updated each cycle</span></div>
     </div>
+    </div><!-- /deactivated-atmos-block -->
 
   </div>
 </main>

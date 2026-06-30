@@ -56,53 +56,63 @@ def fetch(date: str, time: str, data_root: Path) -> None:
         except Exception as e:                              # noqa: BLE001
             print(f"  msl/{cfg['model']}: skipped ({repr(e)[:70]})", flush=True)
 
-    # Analysis surface batch (sp + 2t) — sp is REQUIRED by AAM/torque (2t rides along in
-    # the same batch). z@500 is PAUSED for now (ensembles page pivoted z500 → t2m); set
-    # ENS_FETCH_Z500=1 to re-enable. The forecast surface batch (10u/10v/msl) was already
-    # pulled above by the Hovmöller/SOI downloads. Best-effort.
-    print("== AIFS-ENS surface analysis batch (sp/2t) ==", flush=True)
-    cyc = store.Cycle(date, time); S = tuple(store.STEPS)
-    specs = [store.sfc_spec("aifs-ens", t) for t in ("cf", "pf")]
-    if os.environ.get("ENS_FETCH_Z500") == "1":
-        specs += [store.Spec("aifs-ens", t, "z", "pl", (500,), S) for t in ("cf", "pf")]
-    for sp in specs:
-        try:
-            store.ensure(cyc, sp)
-        except Exception as e:                              # noqa: BLE001
-            print(f"  {sp.filename}: skipped ({repr(e)[:60]})", flush=True)
+    # Heavy SST-page atmospheric fields — the analysis surface batch (sp/2t) plus the
+    # AAM/torque/MMSF 13-level winds. DEACTIVATED 2026-06-30 (hidden for now): the AAM /
+    # torque / MMSF / AAM-zonal / 200 hPa velocity-potential products are hidden on the
+    # site and their builders are off in run_local.sh, so we skip these multi-GB pulls by
+    # default (they were the source of the S3 503-throttling). The surviving MSLP+wind
+    # animator pulls its own surface batch (10u/10v/msl) on demand via store.sfc_path, so
+    # nothing here is needed for the kept products. Set MJO_HEAVY_ATMOS=1 to re-enable
+    # (e.g. when these products are revived in a GitHub Action).
+    if os.environ.get("MJO_HEAVY_ATMOS") == "1":
+        # Analysis surface batch (sp + 2t) — sp is REQUIRED by AAM/torque (2t rides along in
+        # the same batch). z@500 is PAUSED for now (ensembles page pivoted z500 → t2m); set
+        # ENS_FETCH_Z500=1 to re-enable. The forecast surface batch (10u/10v/msl) was already
+        # pulled above by the Hovmöller/SOI downloads. Best-effort.
+        print("== AIFS-ENS surface analysis batch (sp/2t) ==", flush=True)
+        cyc = store.Cycle(date, time); S = tuple(store.STEPS)
+        specs = [store.sfc_spec("aifs-ens", t) for t in ("cf", "pf")]
+        if os.environ.get("ENS_FETCH_Z500") == "1":
+            specs += [store.Spec("aifs-ens", t, "z", "pl", (500,), S) for t in ("cf", "pf")]
+        for sp in specs:
+            try:
+                store.ensure(cyc, sp)
+            except Exception as e:                              # noqa: BLE001
+                print(f"  {sp.filename}: skipped ({repr(e)[:60]})", flush=True)
 
-    # Heavy SST-page atmospheric fields (AAM / torque / MMSF). These builders are
-    # laptop-only (not in the public Action checkout), so guard the imports: where
-    # they're absent the downloads are simply skipped. Best-effort — a miss here
-    # must not abort the cycle (each builder also degrades gracefully on its own).
-    dirs = ["aifs", "u10", "msl"]
-    try:
-        import aam
-        print("== sp + u@13lev (AAM) ==", flush=True)
-        aam.download(date, time, data_root / "aam"); dirs.append("aam")
-    except ImportError:
-        pass
-    except Exception as e:                                  # noqa: BLE001
-        print(f"  AAM fields: skipped ({repr(e)[:70]})", flush=True)
-    try:
-        import torque_map_anim                              # gate on the private builder
-        print("== surface forecast batch (10u/10v/msl — torque needs 10v) ==", flush=True)
-        cyc = store.Cycle(date, time)
-        for typ in ("cf", "pf"):                            # mostly a cache hit (Hovmöller pulled it)
-            store.ensure(cyc, store.sfc_spec("aifs-ens", typ))
-        dirs.append("torque")
-    except ImportError:
-        pass
-    except Exception as e:                                  # noqa: BLE001
-        print(f"  surface-fc (10v): skipped ({repr(e)[:70]})", flush=True)
-    try:
-        import mmsf
-        print("== v@13lev step0 (MMSF) ==", flush=True)
-        mmsf.download_v(date, time, data_root / "mmsf"); dirs.append("mmsf")
-    except ImportError:
-        pass
-    except Exception as e:                                  # noqa: BLE001
-        print(f"  v field: skipped ({repr(e)[:70]})", flush=True)
+        # AAM / torque / MMSF builders are laptop-only (not in the public Action checkout),
+        # so guard the imports: where they're absent the downloads are simply skipped.
+        # Best-effort — a miss here must not abort the cycle.
+        try:
+            import aam
+            print("== sp + u@13lev (AAM) ==", flush=True)
+            aam.download(date, time, data_root / "aam")
+        except ImportError:
+            pass
+        except Exception as e:                                  # noqa: BLE001
+            print(f"  AAM fields: skipped ({repr(e)[:70]})", flush=True)
+        try:
+            import torque_map_anim                              # gate on the private builder
+            print("== surface forecast batch (10u/10v/msl — torque needs 10v) ==", flush=True)
+            cyc = store.Cycle(date, time)
+            for typ in ("cf", "pf"):                            # mostly a cache hit (Hovmöller pulled it)
+                store.ensure(cyc, store.sfc_spec("aifs-ens", typ))
+        except ImportError:
+            pass
+        except Exception as e:                                  # noqa: BLE001
+            print(f"  surface-fc (10v): skipped ({repr(e)[:70]})", flush=True)
+        try:
+            import mmsf
+            print("== v@13lev step0 (MMSF) ==", flush=True)
+            mmsf.download_v(date, time, data_root / "mmsf")
+        except ImportError:
+            pass
+        except Exception as e:                                  # noqa: BLE001
+            print(f"  v field: skipped ({repr(e)[:70]})", flush=True)
+    else:
+        print("== heavy atmospheric fields (sp/2t · AAM u@13 · MMSF v@13) — SKIPPED "
+              "(MJO_HEAVY_ATMOS unset; AAM/torque/MMSF/velocity-potential deactivated) ==",
+              flush=True)
 
     cyc_dir = store.CACHE / store.Cycle(date, time).tag
     total = (sum(f.stat().st_size for f in cyc_dir.rglob("*.grib2")) / 1e9
