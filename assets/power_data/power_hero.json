@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-30T19:12Z",
+  "generated_at": "2026-06-30T21:10Z",
   "wind_cycle": "20260630T12Z",
   "solar_cycle": "20260630T12Z",
   "nameplate": {
@@ -8,13 +8,13 @@
     "combined_GW": 299.6
   },
   "now": {
-    "valid_time": "2026-06-30T18:00Z",
-    "wind_GW": 84.95,
-    "solar_GW": 126.44,
-    "combined_GW": 211.4,
-    "penetration_pct": 31.4,
+    "valid_time": "2026-06-30T20:00Z",
+    "wind_GW": 88.57,
+    "solar_GW": 124.14,
+    "combined_GW": 212.71,
+    "penetration_pct": 30.5,
     "denominator_kind": "demand",
-    "eia_total_GW": 673.16,
+    "eia_total_GW": 696.6,
     "eia_wind_GW": null,
     "eia_solar_GW": null,
     "stale": false
@@ -320,18 +320,6 @@
     }
   ],
   "eia_recent": [
-    {
-      "period": "2026-06-27T19:00Z",
-      "total_GW": 589.8,
-      "wind_GW": 62.57,
-      "solar_GW": 99.45
-    },
-    {
-      "period": "2026-06-27T20:00Z",
-      "total_GW": 598.88,
-      "wind_GW": 63.18,
-      "solar_GW": 95.63
-    },
     {
       "period": "2026-06-27T21:00Z",
       "total_GW": 606.65,
@@ -712,7 +700,7 @@
     },
     {
       "period": "2026-06-30T12:00Z",
-      "total_GW": 508.6,
+      "total_GW": 508.59,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -724,7 +712,7 @@
     },
     {
       "period": "2026-06-30T14:00Z",
-      "total_GW": 564.59,
+      "total_GW": 564.61,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -736,19 +724,31 @@
     },
     {
       "period": "2026-06-30T16:00Z",
-      "total_GW": 633.07,
+      "total_GW": 631.94,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-30T17:00Z",
-      "total_GW": 659.75,
+      "total_GW": 659.86,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-06-30T18:00Z",
-      "total_GW": 673.16,
+      "total_GW": 684.91,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-30T19:00Z",
+      "total_GW": 701.04,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-06-30T20:00Z",
+      "total_GW": 696.6,
       "wind_GW": null,
       "solar_GW": null
     }
