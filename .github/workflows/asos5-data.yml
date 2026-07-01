@@ -37,7 +37,8 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: .github/workflows/asos5-data.yml
+          # must be a path inside the sparse checkout above
+          cache-dependency-path: scripts/asos5/asos5_update.py
       - run: pip install --quiet numpy netCDF4
 
       # parsed per-hour MADIS extracts (a few KB each); with a warm cache the
