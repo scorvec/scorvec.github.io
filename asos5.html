@@ -287,8 +287,9 @@
         customdata: s.wind,
         name: st.id,
         legendgroup: st.id,
-        mode: "lines",
+        mode: "lines+markers",
         line: { color: color, width: state.iso === i ? 2.6 : 1.4 },
+        marker: { color: color, size: state.iso === i ? 4.5 : 3 },
         visible: visibleFlag(i),
         hovertemplate: "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; %{y:.1f}°" +
           state.unit + " %{customdata}<extra></extra>"
@@ -372,12 +373,13 @@
       "Five-minute ASOS observations for <b>" + d.stations.length + " airports</b> from official NWS/NOAA feeds " +
       "(MADIS HFMETAR; NWS API hourly for KJFK &amp; KNYC), for <b>" + day + "</b> local at each station. " +
       "Card max/min are absolute daily extremes, merged with the official METAR 6-hour max/min groups. " +
+      "Auto-updates every ~5&ndash;15 minutes. " +
       "Data generated <b>" + gen.toLocaleString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" }) + "</b>.";
     var ageMin = (Date.now() - gen.getTime()) / 60000, stale = document.getElementById("stale");
     if (ageMin > 90) {
       stale.style.display = "block";
       stale.textContent = "Data is " + (ageMin > 120 ? Math.round(ageMin / 60) + " hours" : Math.round(ageMin) + " minutes") +
-        " old — run scripts/asos5/asos5_update.py to refresh.";
+        " old — the asos5-data GitHub Action may be delayed (or run scripts/asos5/asos5_update.py locally).";
     } else {
       stale.style.display = "none";
     }
@@ -408,15 +410,34 @@
   segWire("varSeg", "v", function (v) { state.vr = v; render(); });
   segWire("allSeg", "a", function (a) { state.iso = null; if (a === "none") state.iso = -1; render(); });
 
-  // periodic refresh (works when served over http/https; silently skipped on file://)
-  setInterval(function () {
-    fetch("data/asos5/asos5_latest.json?ts=" + Date.now())
-      .then(function (r) { return r.json(); })
-      .then(function (j) { state.data = j; render(); })
-      .catch(function () {});
-  }, 5 * 60 * 1000);
+  // Live data: a GitHub Action force-pushes fresh JSON to the asos5-data
+  // branch every ~5-15 min; raw.githubusercontent.com serves it with CORS.
+  // The copy committed on main (script tag above) is only the first paint;
+  // fall back to it over http(s) if the raw fetch is unavailable.
+  var LIVE_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/asos5-data/asos5_latest.json";
+
+  function maybeUpdate(j) {
+    if (!j || !j.generated_utc) return;
+    if (state.data && state.data.generated_utc &&
+        Date.parse(j.generated_utc) <= Date.parse(state.data.generated_utc)) return;
+    state.data = j;
+    render();
+  }
+  function refreshData() {
+    fetch(LIVE_URL + "?ts=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(maybeUpdate)
+      .catch(function () {
+        fetch("data/asos5/asos5_latest.json?ts=" + Date.now())
+          .then(function (r) { return r.json(); })
+          .then(maybeUpdate)
+          .catch(function () {});
+      });
+  }
 
   render();
+  refreshData();
+  setInterval(refreshData, 3 * 60 * 1000);
 })();
 </script>
 </body>
