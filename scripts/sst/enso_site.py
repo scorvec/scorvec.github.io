@@ -43,8 +43,9 @@ PAGES = [
          canonical="https://scorvec.com/enso-analogs.html"),
     dict(slug="forecasts", out="enso-forecasts.html", active="A_FORECASTS",
          title="ENSO Forecasts &middot; El Ni&ntilde;o Monitor",
-         desc="CanSIPS seasonal Niño-3.4 outlook and the AIFS-ENS/IFS-ENS Southern "
-              "Oscillation Index forecast.",
+         desc="Multi-model C3S seasonal Niño-3.4 outlook — the Copernicus multi-system "
+              "seasonal ensemble (ECMWF, UK Met Office, Météo-France, DWD, NCEP, "
+              "ECCC/CanSIPS, BOM), shown as both traditional ONI and RONI.",
          canonical="https://scorvec.com/enso-forecasts.html"),
     dict(slug="atmosphere", out="enso-atmosphere.html", active="A_ATMOSPHERE",
          title="Atmospheric Response &middot; El Ni&ntilde;o Monitor",
