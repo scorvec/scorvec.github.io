@@ -1,0 +1,63 @@
+name: ASOS 5-min dashboard data
+
+# Near-real-time data for asos5.html: MADIS HFMETAR 5-minute obs + NWS API +
+# AWC 6-hour max/min groups. Runs every 5 minutes (GitHub cron jitter makes the
+# real cadence ~5-15 min).
+#
+# Unlike the hourly pipelines this does NOT commit to main - 288 commits/day
+# would bloat history and exceed the ~10 Pages builds/hour soft limit. Instead
+# each run force-pushes ONE parentless commit to the asos5-data branch, and the
+# dashboard fetches raw.githubusercontent.com/<repo>/asos5-data/asos5_latest.json
+# (CORS-open) directly from the browser. Repo history never grows; the copy of
+# data/asos5/ on main is just a first-paint fallback for the page.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: asos5-data
+  cancel-in-progress: true   # newest data wins; a queued stale run is worthless
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # the repo working tree is huge (satellite loops etc.); the fetcher
+          # only needs its own script directory
+          sparse-checkout: |
+            scripts/asos5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: .github/workflows/asos5-data.yml
+      - run: pip install --quiet numpy netCDF4
+
+      # parsed per-hour MADIS extracts (a few KB each); with a warm cache the
+      # script only downloads the 2-3 not-yet-settled hourly files (~10 MB)
+      - uses: actions/cache@v4
+        with:
+          path: scripts/asos5/cache
+          key: asos5-madis-${{ github.run_id }}
+          restore-keys: |
+            asos5-madis-
+
+      - name: Fetch obs and build JSON
+        run: python scripts/asos5/asos5_update.py
+
+      - name: Force-push data branch (single parentless commit)
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          BLOB_JS=$(git hash-object -w data/asos5/asos5_latest.js)
+          BLOB_JSON=$(git hash-object -w data/asos5/asos5_latest.json)
+          TREE=$(printf '100644 blob %s\tasos5_latest.js\n100644 blob %s\tasos5_latest.json\n' "$BLOB_JS" "$BLOB_JSON" | git mktree)
+          COMMIT=$(git commit-tree "$TREE" -m "asos5 data $(date -u +%Y-%m-%dT%H:%M:%SZ)")
+          git push --force origin "$COMMIT:refs/heads/asos5-data"
