@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US Airport 5-Minute Temperatures &middot; Shawn Corvec</title>
+<meta name="description" content="Live 5-minute ASOS temperature observations for major US airports from official NWS/MADIS sources, with running daily max/min.">
+<meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --hot: #b3372f;
+    --cold: #2c5f8a;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html { font-size: 17.5px; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .site-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 3rem; }
+  .nav-name { font-family: var(--serif); font-weight: 400; font-size: 1rem; text-decoration: none; color: var(--ink); }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { font-size: 0.82rem; letter-spacing: 0.04em; text-decoration: none; color: var(--muted); transition: color 0.2s; }
+  .nav-links a:hover { color: var(--ink); }
+
+  main { max-width: 1360px; margin: 0 auto; padding: 6.2rem 2rem 3rem; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.65rem; }
+  .sub { color: var(--muted); font-size: 0.82rem; margin-top: 0.35rem; line-height: 1.55; }
+  .sub b { color: var(--ink); font-weight: 500; }
+  #stale {
+    display: none; margin-top: 0.6rem; padding: 0.45rem 0.8rem;
+    background: #fdf3e4; border: 1px solid #ecd9b0; border-radius: 6px;
+    font-size: 0.8rem; color: #7a5c1e;
+  }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 0.9rem; align-items: center;
+    margin: 1.3rem 0 1.1rem;
+  }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; background: #fff; }
+  .seg button {
+    border: 0; background: transparent; padding: 0.38rem 0.85rem;
+    font: 500 0.78rem var(--sans); color: var(--muted); cursor: pointer;
+  }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .ctl-note { font-size: 0.75rem; color: var(--muted); }
+
+  .cards {
+    display: grid; gap: 0.7rem;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  }
+  .card {
+    background: #fff; border: 1px solid var(--rule); border-radius: 9px;
+    padding: 0.7rem 0.8rem 0.65rem; cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+  .card.dim { opacity: 0.38; }
+  .card .row1 { display: flex; justify-content: space-between; align-items: baseline; }
+  .card .sid { font-weight: 600; font-size: 0.92rem; }
+  .card .sid::before {
+    content: ""; display: inline-block; width: 0.55em; height: 0.55em;
+    border-radius: 50%; background: var(--dot, #999); margin-right: 0.42em;
+  }
+  .card .badge {
+    font-size: 0.6rem; letter-spacing: 0.05em; color: var(--muted);
+    border: 1px solid var(--rule); border-radius: 4px; padding: 0.08rem 0.3rem;
+  }
+  .card .badge.hourly { color: #a05a1e; border-color: #e5c9a8; background: #fdf6ec; }
+  .card .name { font-size: 0.66rem; color: var(--muted); margin-top: 0.1rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .now { font-family: var(--serif); font-size: 1.5rem; margin: 0.3rem 0 0.05rem; }
+  .card .now small { font-size: 0.62rem; color: var(--muted); font-family: var(--sans); margin-left: 0.3rem; }
+  .card .mm { display: flex; gap: 0.9rem; margin-top: 0.25rem; font-size: 0.74rem; }
+  .card .mm .hi { color: var(--hot); font-weight: 600; }
+  .card .mm .lo { color: var(--cold); font-weight: 600; }
+  .card .mm span small { color: var(--muted); font-weight: 400; margin-left: 0.22em; font-size: 0.85em; }
+
+  #chart { margin-top: 1.4rem; background: #fff; border: 1px solid var(--rule); border-radius: 10px; padding: 0.4rem; }
+  footer.note { margin-top: 1.1rem; font-size: 0.72rem; color: var(--muted); line-height: 1.6; }
+  footer.note a { color: var(--accent); }
+  @media (max-width: 640px) {
+    nav { padding: 1rem 1.2rem; }
+    main { padding: 5.4rem 0.8rem 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <nav>
+    <a href="index.html" class="nav-name">Shawn Corvec</a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resume.html">Resume</a></li>
+      <li><a href="research.html">Research</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <h1>US Airport 5-Minute Temperatures</h1>
+  <p class="sub" id="subline">Loading&hellip;</p>
+  <div id="stale"></div>
+
+  <div class="controls">
+    <span class="seg" id="unitSeg">
+      <button data-u="F" class="on">&deg;F</button><button data-u="C">&deg;C</button>
+    </span>
+    <span class="seg" id="varSeg">
+      <button data-v="t" class="on">Temperature</button><button data-v="d">Dewpoint</button>
+    </span>
+    <span class="seg" id="allSeg">
+      <button data-a="all" class="on">All stations</button><button data-a="none">None</button>
+    </span>
+    <span class="ctl-note">Click a card to isolate a station &middot; times are each station&rsquo;s local clock</span>
+  </div>
+
+  <div class="cards" id="cards"></div>
+  <div id="chart" style="height:560px"></div>
+
+  <footer class="note">
+    Sources: <a href="https://madis-data.ncep.noaa.gov/">NOAA/NWS MADIS</a> HFMETAR (the official 5-minute ASOS feed),
+    the <a href="https://api.weather.gov/">NWS API</a> for stations that do not transmit 5-minute data
+    (KJFK, KNYC &mdash; hourly METARs, marked &ldquo;hourly&rdquo;), and the official METAR
+    <b>6-hour max/min temperature groups</b> via the
+    <a href="https://aviationweather.gov/">NWS Aviation Weather Center</a> &mdash; the same values shown in the
+    6/24-hr column of the <a href="https://www.weather.gov/wrh/timeseries?site=kdca">NWS timeseries pages</a>.
+    Card max/min are the absolute extremes since local midnight: the sampled observations merged with any 6-hour group
+    that exceeds them (a 6-hr window straddling midnight is credited to today only when its extreme beats every sample
+    from the pre-midnight part of that window). When an extreme comes from a 6-hr group, the card shows the group&rsquo;s
+    time window instead of an exact minute. Temperatures pass MADIS QC; obviously bad values are dropped.
+  </footer>
+</main>
+
+<script src="data/asos5/asos5_latest.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var COLORS = ["#1f77b4","#d62728","#2ca02c","#9467bd","#8c564b","#e377c2",
+                "#7f7f7f","#bcbd22","#17becf","#ff7f0e","#3b5b92","#a0522d",
+                "#2e8b74","#c44f9e","#5c6b1e"];
+
+  var state = { unit: "F", vr: "t", iso: null, data: window.ASOS5 || null };
+
+  function cToUnit(c) { return state.unit === "F" ? c * 9 / 5 + 32 : c; }
+  function fmtT(c) { return c == null ? "&ndash;" : cToUnit(c).toFixed(1) + "&deg;" + state.unit; }
+
+  // epoch seconds -> parts in a station's local zone
+  function localParts(epoch, tz) {
+    var d = new Date(epoch * 1000);
+    var p = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false
+    }).formatToParts(d);
+    var o = {};
+    p.forEach(function (x) { o[x.type] = x.value; });
+    if (o.hour === "24") o.hour = "00";
+    return o;
+  }
+  function localISO(epoch, tz) {
+    var o = localParts(epoch, tz);
+    return o.year + "-" + o.month + "-" + o.day + " " + o.hour + ":" + o.minute;
+  }
+  function localHM(epoch, tz) {
+    var o = localParts(epoch, tz);
+    var h = +o.hour, ap = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return h + ":" + o.minute + " " + ap;
+  }
+  function localHCompact(epoch, tz) {
+    var o = localParts(epoch, tz);
+    var h = +o.hour, ap = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return h + (o.minute !== "00" ? ":" + o.minute : "") + ap;
+  }
+  function winLabel(win, tz) {
+    return localHCompact(win[0], tz) + "–" + localHCompact(win[1], tz);
+  }
+  function extLabel(x, tz) {  // time of a displayed extreme: exact, or its 6-h window
+    return x.e != null ? localHM(x.e, tz) : winLabel(x.win, tz) + " (6-hr)";
+  }
+
+  // series for the active variable: {x:[], yC:[], wind:[], epochs:[]}
+  function series(st) {
+    var xi = state.vr === "t" ? 1 : 2, out = { x: [], yC: [], wind: [], epochs: [] };
+    st.obs.forEach(function (o) {
+      if (o[xi] == null) return;
+      out.x.push(localISO(o[0], st.tz));
+      out.yC.push(o[xi]);
+      out.epochs.push(o[0]);
+      var w = o[3] != null && o[4] != null
+        ? "wind " + Math.round(o[3]) + "&deg; @ " + Math.round(o[4]) + " kt" : "";
+      out.wind.push(w);
+    });
+    return out;
+  }
+
+  function sampledExtremes(st) {
+    var xi = state.vr === "t" ? 1 : 2, hi = null, lo = null;
+    st.obs.forEach(function (o) {
+      if (o[xi] == null) return;
+      if (!hi || o[xi] > hi.v) hi = { v: o[xi], e: o[0] };
+      if (!lo || o[xi] < lo.v) lo = { v: o[xi], e: o[0] };
+    });
+    return { hi: hi, lo: lo };
+  }
+
+  // what the cards show: for temperature, the absolute max/min (samples merged
+  // with the official METAR 6-hour max/min groups, computed server-side)
+  function displayExtremes(st) {
+    if (state.vr === "t" && st.abs) {
+      return {
+        hi: { v: st.abs.maxC, e: st.abs.max_e, win: st.abs.max_win, src: st.abs.max_src },
+        lo: { v: st.abs.minC, e: st.abs.min_e, win: st.abs.min_win, src: st.abs.min_src }
+      };
+    }
+    return sampledExtremes(st);
+  }
+
+  function visibleFlag(i) {
+    if (state.iso === null) return true;
+    return state.iso === i ? true : "legendonly";
+  }
+
+  function buildCards() {
+    var host = document.getElementById("cards");
+    host.innerHTML = "";
+    state.data.stations.forEach(function (st, i) {
+      var ex = displayExtremes(st);
+      var last = null;
+      for (var k = st.obs.length - 1; k >= 0; k--) {
+        var xi = state.vr === "t" ? 1 : 2;
+        if (st.obs[k][xi] != null) { last = { v: st.obs[k][xi], e: st.obs[k][0] }; break; }
+      }
+      var el = document.createElement("div");
+      el.className = "card" + (state.iso === i ? " sel" : state.iso !== null ? " dim" : "");
+      el.style.setProperty("--dot", COLORS[i % COLORS.length]);
+      el.innerHTML =
+        '<div class="row1"><span class="sid">' + st.id + "</span>" +
+        '<span class="badge' + (st.cadence_min > 5 ? " hourly" : "") + '">' +
+        (st.cadence_min > 5 ? "hourly" : "5-min") + "</span></div>" +
+        '<div class="name">' + st.name + "</div>" +
+        '<div class="now">' + (last ? fmtT(last.v) : "&ndash;") +
+        (last ? "<small>" + localHM(last.e, st.tz) + "</small>" : "") + "</div>" +
+        '<div class="mm">' +
+        '<span class="hi">&#9650; ' + (ex.hi ? fmtT(ex.hi.v) : "&ndash;") +
+        (ex.hi ? "<small>" + extLabel(ex.hi, st.tz) + "</small>" : "") + "</span>" +
+        '<span class="lo">&#9660; ' + (ex.lo ? fmtT(ex.lo.v) : "&ndash;") +
+        (ex.lo ? "<small>" + extLabel(ex.lo, st.tz) + "</small>" : "") + "</span>" +
+        "</div>";
+      el.onclick = function () {
+        state.iso = state.iso === i ? null : i;
+        render();
+      };
+      host.appendChild(el);
+    });
+  }
+
+  function buildChart() {
+    var traces = [];
+    var vlabel = state.vr === "t" ? "Temperature" : "Dewpoint";
+    state.data.stations.forEach(function (st, i) {
+      var s = series(st), color = COLORS[i % COLORS.length];
+      traces.push({
+        x: s.x,
+        y: s.yC.map(cToUnit),
+        customdata: s.wind,
+        name: st.id,
+        legendgroup: st.id,
+        mode: "lines",
+        line: { color: color, width: state.iso === i ? 2.6 : 1.4 },
+        visible: visibleFlag(i),
+        hovertemplate: "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; %{y:.1f}°" +
+          state.unit + " %{customdata}<extra></extra>"
+      });
+      var ex = sampledExtremes(st);
+      if (ex.hi && ex.lo) {
+        traces.push({
+          x: [localISO(ex.hi.e, st.tz), localISO(ex.lo.e, st.tz)],
+          y: [cToUnit(ex.hi.v), cToUnit(ex.lo.v)],
+          name: st.id + " max/min",
+          legendgroup: st.id,
+          showlegend: false,
+          mode: "markers",
+          text: ["max", "min"],
+          marker: { color: color, size: 9, symbol: ["triangle-up", "triangle-down"],
+                    line: { color: "#fff", width: 1 } },
+          visible: visibleFlag(i),
+          hovertemplate: "<b>" + st.id + "</b> daily %{text} (sampled): %{y:.1f}°" +
+            state.unit + " at %{x|%-I:%M %p}<extra></extra>"
+        });
+      }
+      // official 6-h group extremes that beat the sampled ones: open markers
+      // at the end of their window (exact minute unknown within the window)
+      if (state.vr === "t" && st.abs) {
+        var gx = [], gy = [], gt = [], gs = [];
+        if (st.abs.max_src === "6hr") {
+          gx.push(localISO(st.abs.max_win[1], st.tz)); gy.push(cToUnit(st.abs.maxC));
+          gt.push("max, " + winLabel(st.abs.max_win, st.tz)); gs.push("triangle-up-open");
+        }
+        if (st.abs.min_src === "6hr") {
+          gx.push(localISO(st.abs.min_win[1], st.tz)); gy.push(cToUnit(st.abs.minC));
+          gt.push("min, " + winLabel(st.abs.min_win, st.tz)); gs.push("triangle-down-open");
+        }
+        if (gx.length) {
+          traces.push({
+            x: gx, y: gy, text: gt,
+            name: st.id + " 6-hr",
+            legendgroup: st.id,
+            showlegend: false,
+            mode: "markers",
+            marker: { color: color, size: 10, symbol: gs, line: { width: 2 } },
+            visible: visibleFlag(i),
+            hovertemplate: "<b>" + st.id + "</b> official 6-hr %{text}: %{y:.1f}°" +
+              state.unit + "<extra></extra>"
+          });
+        }
+      }
+    });
+
+    var layout = {
+      margin: { l: 52, r: 12, t: 28, b: 44 },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
+      font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
+      xaxis: {
+        title: { text: "Local clock time at each station", font: { size: 11, color: "#888580" } },
+        gridcolor: "#eeece6", tickformat: "%-I %p",
+        showspikes: true, spikemode: "across", spikethickness: 1, spikecolor: "#c9c6bd", spikedash: "dot"
+      },
+      yaxis: {
+        title: { text: vlabel + " (°" + state.unit + ")", font: { size: 11, color: "#888580" } },
+        gridcolor: "#eeece6", zeroline: false
+      },
+      hovermode: "closest",
+      hoverlabel: { font: { family: "Inter, sans-serif", size: 12 } },
+      legend: { orientation: "v", x: 1.002, y: 1, font: { size: 11 } },
+      title: {
+        text: vlabel + " since local midnight — ▲▼ sampled max/min" +
+          (state.vr === "t" ? " · open ▲▼ official 6-hr extremes where higher/lower" : ""),
+        font: { family: "Lora, serif", size: 15 }, x: 0.02
+      }
+    };
+    Plotly.react("chart", traces, layout, { responsive: true, displaylogo: false,
+      modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d"] });
+  }
+
+  function buildSub() {
+    var d = state.data, gen = new Date(d.generated_utc);
+    var day = d.stations[0] ? d.stations[0].day_local : "";
+    document.getElementById("subline").innerHTML =
+      "Five-minute ASOS observations for <b>" + d.stations.length + " airports</b> from official NWS/NOAA feeds " +
+      "(MADIS HFMETAR; NWS API hourly for KJFK &amp; KNYC), for <b>" + day + "</b> local at each station. " +
+      "Card max/min are absolute daily extremes, merged with the official METAR 6-hour max/min groups. " +
+      "Data generated <b>" + gen.toLocaleString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" }) + "</b>.";
+    var ageMin = (Date.now() - gen.getTime()) / 60000, stale = document.getElementById("stale");
+    if (ageMin > 90) {
+      stale.style.display = "block";
+      stale.textContent = "Data is " + (ageMin > 120 ? Math.round(ageMin / 60) + " hours" : Math.round(ageMin) + " minutes") +
+        " old — run scripts/asos5/asos5_update.py to refresh.";
+    } else {
+      stale.style.display = "none";
+    }
+  }
+
+  function render() {
+    if (!state.data || !state.data.stations) {
+      document.getElementById("subline").textContent =
+        "No data found — run scripts/asos5/asos5_update.py to generate data/asos5/asos5_latest.js.";
+      return;
+    }
+    buildSub();
+    buildCards();
+    buildChart();
+  }
+
+  function segWire(id, key, cb) {
+    var seg = document.getElementById(id);
+    seg.addEventListener("click", function (ev) {
+      var b = ev.target.closest("button");
+      if (!b) return;
+      seg.querySelectorAll("button").forEach(function (x) { x.classList.remove("on"); });
+      b.classList.add("on");
+      cb(b.dataset[key]);
+    });
+  }
+  segWire("unitSeg", "u", function (u) { state.unit = u; render(); });
+  segWire("varSeg", "v", function (v) { state.vr = v; render(); });
+  segWire("allSeg", "a", function (a) { state.iso = null; if (a === "none") state.iso = -1; render(); });
+
+  // periodic refresh (works when served over http/https; silently skipped on file://)
+  setInterval(function () {
+    fetch("data/asos5/asos5_latest.json?ts=" + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(function (j) { state.data = j; render(); })
+      .catch(function () {});
+  }, 5 * 60 * 1000);
+
+  render();
+})();
+</script>
+</body>
+</html>
