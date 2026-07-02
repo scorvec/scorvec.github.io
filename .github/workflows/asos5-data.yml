@@ -1,18 +1,20 @@
 name: ASOS 5-min dashboard data
 
-# Near-real-time data for asos5.html: MADIS HFMETAR 5-minute obs + NWS API +
-# AWC 6-hour max/min groups. Runs every 5 minutes (GitHub cron jitter makes the
-# real cadence ~5-15 min).
+# PRECISION OVERLAY ONLY. asos5.html now fetches its data live, client-side, from
+# the official NWS API (api.weather.gov) — which serves 5-minute obs for 13 of the
+# stations and hourly for KJFK/KNYC — so the page is always current with no server
+# job in the loop. This workflow just refreshes the MADIS HFMETAR 0.1 °C feed the
+# page layers in for finer precision where it overlaps; if it's delayed or off, the
+# page is unaffected. (GitHub cron is unreliable for tight schedules, which is
+# exactly why the page no longer depends on it.) Deleting this workflow is safe —
+# you'd only lose the 0.1 °C precision bump on ~9 stations.
 #
-# Unlike the hourly pipelines this does NOT commit to main - 288 commits/day
-# would bloat history and exceed the ~10 Pages builds/hour soft limit. Instead
-# each run force-pushes ONE parentless commit to the asos5-data branch, and the
-# dashboard fetches raw.githubusercontent.com/<repo>/asos5-data/asos5_latest.json
-# (CORS-open) directly from the browser. Repo history never grows; the copy of
-# data/asos5/ on main is just a first-paint fallback for the page.
+# Each run force-pushes ONE parentless commit to the asos5-data branch (no main
+# history growth, no Pages rebuild). The copy of data/asos5/ on main is just the
+# page's first-paint fallback.
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'    # overlay only; every ~15 min is plenty
   workflow_dispatch:
 
 permissions:
