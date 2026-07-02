@@ -138,16 +138,15 @@
   <div id="chart" style="height:560px"></div>
 
   <footer class="note">
-    Sources: <a href="https://madis-data.ncep.noaa.gov/">NOAA/NWS MADIS</a> HFMETAR (the official 5-minute ASOS feed),
-    the <a href="https://api.weather.gov/">NWS API</a> for stations that do not transmit 5-minute data
-    (KJFK, KNYC &mdash; hourly METARs, marked &ldquo;hourly&rdquo;), and the official METAR
-    <b>6-hour max/min temperature groups</b> via the
-    <a href="https://aviationweather.gov/">NWS Aviation Weather Center</a> &mdash; the same values shown in the
-    6/24-hr column of the <a href="https://www.weather.gov/wrh/timeseries?site=kdca">NWS timeseries pages</a>.
-    Card max/min are the absolute extremes since local midnight: the sampled observations merged with any 6-hour group
-    that exceeds them (a 6-hr window straddling midnight is credited to today only when its extreme beats every sample
-    from the pre-midnight part of that window). When an extreme comes from a 6-hr group, the card shows the group&rsquo;s
-    time window instead of an exact minute. Temperatures pass MADIS QC; obviously bad values are dropped.
+    Primary source: the <a href="https://api.weather.gov/">official NWS API</a> (api.weather.gov), fetched directly in your
+    browser on every visit &mdash; it serves 5-minute ASOS observations for 13 of these stations and hourly METARs for
+    KJFK &amp; KNYC (marked &ldquo;hourly&rdquo;), so the page is always current with no server job in the loop. The daily
+    max/min are the absolute extremes since local midnight: the sampled observations merged with the official METAR
+    <b>6-hour max/min temperature groups</b> (the <code>1sTTT</code>/<code>2sTTT</code> remark groups, parsed from each
+    hourly METAR) when those exceed the samples; when an extreme comes from a 6-hour group the card shows the group&rsquo;s
+    time window instead of an exact minute. As a precision overlay, the 0.1&nbsp;&deg;C
+    <a href="https://madis-data.ncep.noaa.gov/">NOAA/NWS MADIS</a> HFMETAR 5-minute feed is layered in when the
+    background updater has posted it recently. Obviously bad values are dropped.
   </footer>
 </main>
 
@@ -160,7 +159,159 @@
                 "#7f7f7f","#bcbd22","#17becf","#ff7f0e","#3b5b92","#a0522d",
                 "#2e8b74","#c44f9e","#5c6b1e"];
 
-  var state = { unit: "F", vr: "t", iso: null, data: window.ASOS5 || null };
+  var STATIONS = [
+    { id: "KBOS", name: "Boston Logan Intl",            tz: "America/New_York" },
+    { id: "KLGA", name: "New York LaGuardia",           tz: "America/New_York" },
+    { id: "KNYC", name: "New York Central Park",        tz: "America/New_York" },
+    { id: "KEWR", name: "Newark Liberty Intl",          tz: "America/New_York" },
+    { id: "KJFK", name: "New York JFK Intl",            tz: "America/New_York" },
+    { id: "KPHL", name: "Philadelphia Intl",            tz: "America/New_York" },
+    { id: "KBWI", name: "Baltimore/Washington Intl",    tz: "America/New_York" },
+    { id: "KDCA", name: "Washington Reagan National",   tz: "America/New_York" },
+    { id: "KRIC", name: "Richmond Intl",                tz: "America/New_York" },
+    { id: "KDFW", name: "Dallas-Fort Worth Intl",       tz: "America/Chicago" },
+    { id: "KIAH", name: "Houston Bush Intercontinental",tz: "America/Chicago" },
+    { id: "KORD", name: "Chicago O'Hare Intl",          tz: "America/Chicago" },
+    { id: "KBUR", name: "Burbank Hollywood",            tz: "America/Los_Angeles" },
+    { id: "KSEA", name: "Seattle-Tacoma Intl",          tz: "America/Los_Angeles" },
+    { id: "KPDX", name: "Portland Intl",                tz: "America/Los_Angeles" }
+  ];
+
+  // Two data layers, merged in the browser:
+  //   live   — the official NWS API (api.weather.gov), fetched client-side on load.
+  //            It serves 5-minute obs for 13 of these stations and hourly for
+  //            KJFK/KNYC, is CORS-open, and is always current — so the page never
+  //            goes stale regardless of any server job.
+  //   branch — the MADIS 0.1 °C 5-minute feed the (best-effort) Action pushes to the
+  //            asos5-data branch; used only to refine precision where it overlaps.
+  // `live` alone fully drives the page; `branch` is a bonus when it's fresh.
+  var state = { unit: "F", vr: "t", iso: null, data: null,
+                live: {}, branch: window.ASOS5 || null, liveOK: false };
+
+  // epoch (s) of local midnight today in a station's zone
+  function localMidnightEpoch(tz) {
+    var now = new Date(), p = {};
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit",
+      day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
+      .formatToParts(now).forEach(function (x) { p[x.type] = x.value; });
+    if (p.hour === "24") p.hour = "00";
+    var localNowAsUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+    var offsetMs = localNowAsUTC - now.getTime();                 // tz ahead of UTC
+    var midnightAsUTC = Date.UTC(+p.year, +p.month - 1, +p.day, 0, 0, 0);
+    return Math.floor((midnightAsUTC - offsetMs) / 1000);
+  }
+
+  // one api.weather.gov observation → [epoch, tempC, dewC, wdirDeg, wspdKt]
+  function awgToObs(pr) {
+    var t = pr.temperature && pr.temperature.value;
+    if (t == null) return null;
+    var d = pr.dewpoint && pr.dewpoint.value;
+    var wd = pr.windDirection && pr.windDirection.value;
+    var ws = pr.windSpeed && pr.windSpeed.value;                  // km/h
+    return [Math.floor(new Date(pr.timestamp).getTime() / 1000),
+            Math.round(t * 100) / 100,
+            d == null ? null : Math.round(d * 100) / 100,
+            wd == null ? null : Math.round(wd),
+            ws == null ? null : Math.round(ws * 0.539957 * 10) / 10];
+  }
+
+  // official 6-hour max/min temp groups (1sTTT / 2sTTT) from a METAR remark
+  function parseSixHr(raw, epoch) {
+    if (!raw || raw.indexOf(" RMK ") < 0) return null;
+    var rmk = raw.split(" RMK ")[1];
+    var mx = rmk.match(/(?:^|\s)1([01])(\d{3})(?=\s|$)/);
+    var mn = rmk.match(/(?:^|\s)2([01])(\d{3})(?=\s|$)/);
+    if (!mx && !mn) return null;
+    var end = Math.round(epoch / 21600) * 21600;                  // snap to 00/06/12/18Z
+    var val = function (m) { return m ? (m[1] === "1" ? -1 : 1) * (+m[2]) / 10 : null; };
+    return [end, val(mx), val(mn)];
+  }
+
+  // absolute daily max/min from merged samples + 6-hr groups fully within today
+  function computeAbs(obs, sixhr, m0) {
+    var hi = null, lo = null;
+    obs.forEach(function (o) {
+      if (o[1] == null || o[0] < m0) return;
+      if (!hi || o[1] > hi.v) hi = { v: o[1], e: o[0], src: "obs", win: null };
+      if (!lo || o[1] < lo.v) lo = { v: o[1], e: o[0], src: "obs", win: null };
+    });
+    sixhr.forEach(function (g) {
+      var end = g[0], gmax = g[1], gmin = g[2], start = end - 6 * 3600;
+      if (start < m0) return;                                     // straddles midnight → samples cover it
+      var win = [start, end];
+      if (gmax != null && (!hi || gmax > hi.v + 0.05)) hi = { v: gmax, e: null, src: "6hr", win: win };
+      if (gmin != null && (!lo || gmin < lo.v - 0.05)) lo = { v: gmin, e: null, src: "6hr", win: win };
+    });
+    if (!hi || !lo) return null;
+    return { maxC: hi.v, max_e: hi.e, max_src: hi.src, max_win: hi.win,
+             minC: lo.v, min_e: lo.e, min_src: lo.src, min_win: lo.win };
+  }
+
+  // merge branch (precise) + live (fresh) for one station into a render-ready record
+  function mergeStation(meta, branchSt, live) {
+    var m0 = localMidnightEpoch(meta.tz), byMin = {}, cadence = 60;
+    if (branchSt && branchSt.obs)
+      branchSt.obs.forEach(function (o) { if (o[0] >= m0 - 1) byMin[Math.round(o[0] / 60)] = o; });
+    if (branchSt) cadence = branchSt.cadence_min;
+    if (live && live.obs) {
+      cadence = live.cadence_min;
+      live.obs.forEach(function (o) { var k = Math.round(o[0] / 60); if (byMin[k] == null) byMin[k] = o; });
+    }
+    var obs = Object.keys(byMin).map(function (k) { return byMin[k]; })
+                    .sort(function (a, b) { return a[0] - b[0]; });
+    var groups = {};
+    if (branchSt && branchSt.sixhr) branchSt.sixhr.forEach(function (g) { groups[g[0]] = g; });
+    if (live && live.sixhr) live.sixhr.forEach(function (g) { if (groups[g[0]] == null) groups[g[0]] = g; });
+    var sixhr = Object.keys(groups).map(function (k) { return groups[k]; })
+                      .sort(function (a, b) { return a[0] - b[0]; });
+    var dp = localParts(m0 + 7200, meta.tz);
+    return { id: meta.id, name: meta.name, tz: meta.tz, cadence_min: cadence,
+             day_local: dp.year + "-" + dp.month + "-" + dp.day,
+             obs: obs, sixhr: sixhr, abs: computeAbs(obs, sixhr, m0) };
+  }
+
+  // fetch live obs for every station from api.weather.gov, then re-merge + render
+  function fetchLive() {
+    return Promise.all(STATIONS.map(function (s) {
+      var m0 = localMidnightEpoch(s.tz);
+      var start = new Date((m0 - 3600) * 1000).toISOString();
+      var url = "https://api.weather.gov/stations/" + s.id +
+                "/observations?start=" + encodeURIComponent(start) + "&limit=500";
+      return fetch(url, { cache: "no-store" })
+        .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+        .then(function (j) {
+          var obs = [], groups = {};
+          (j.features || []).forEach(function (f) {
+            var pr = f.properties, o = awgToObs(pr);
+            if (o && o[0] >= m0 - 1) obs.push(o);
+            if (pr.rawMessage) {
+              var g = parseSixHr(pr.rawMessage, Math.floor(new Date(pr.timestamp).getTime() / 1000));
+              if (g) groups[g[0]] = g;
+            }
+          });
+          obs.sort(function (a, b) { return a[0] - b[0]; });
+          var gaps = [];
+          for (var k = Math.max(1, obs.length - 13); k < obs.length; k++)
+            gaps.push((obs[k][0] - obs[k - 1][0]) / 60);
+          gaps.sort(function (a, b) { return a - b; });
+          var cad = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 60;
+          state.live[s.id] = { obs: obs, cadence_min: cad <= 8 ? 5 : 60,
+                               sixhr: Object.keys(groups).map(function (k) { return groups[k]; }) };
+        })
+        .catch(function () { /* keep any prior live[id]; branch still covers it */ });
+    })).then(function () { state.liveOK = Object.keys(state.live).length > 0; rebuild(); });
+  }
+
+  // rebuild state.data by merging the two layers for all stations
+  function rebuild() {
+    var branchById = {};
+    if (state.branch && state.branch.stations)
+      state.branch.stations.forEach(function (s) { branchById[s.id] = s; });
+    state.data = { stations: STATIONS.map(function (s) {
+      return mergeStation(s, branchById[s.id], state.live[s.id]);
+    }) };
+    render();
+  }
 
   function cToUnit(c) { return state.unit === "F" ? c * 9 / 5 + 32 : c; }
   function fmtT(c) { return c == null ? "&ndash;" : cToUnit(c).toFixed(1) + "&deg;" + state.unit; }
@@ -367,19 +518,23 @@
   }
 
   function buildSub() {
-    var d = state.data, gen = new Date(d.generated_utc);
-    var day = d.stations[0] ? d.stations[0].day_local : "";
+    var stations = state.data.stations, newest = 0, day = "";
+    stations.forEach(function (st) {
+      if (st.obs.length) { var e = st.obs[st.obs.length - 1][0]; if (e > newest) newest = e; }
+      if (!day && st.day_local) day = st.day_local;
+    });
+    var asof = newest
+      ? new Date(newest * 1000).toLocaleString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" })
+      : "&mdash;";
     document.getElementById("subline").innerHTML =
-      "Five-minute ASOS observations for <b>" + d.stations.length + " airports</b> from official NWS/NOAA feeds " +
-      "(MADIS HFMETAR; NWS API hourly for KJFK &amp; KNYC), for <b>" + day + "</b> local at each station. " +
-      "Card max/min are absolute daily extremes, merged with the official METAR 6-hour max/min groups. " +
-      "Auto-updates every ~5&ndash;15 minutes. " +
-      "Data generated <b>" + gen.toLocaleString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" }) + "</b>.";
-    var ageMin = (Date.now() - gen.getTime()) / 60000, stale = document.getElementById("stale");
-    if (ageMin > 90) {
+      "Five-minute airport temperatures for <b>" + stations.length + " US airports</b>, fetched live in your browser " +
+      "from the <b>official NWS API</b> (api.weather.gov &mdash; 5-minute obs for 13 stations, hourly for KJFK &amp; KNYC), " +
+      "for <b>" + day + "</b> local at each station. Max/min are the absolute extremes so far today, including the " +
+      "official 6-hour METAR max/min groups. Latest observation <b>" + asof + "</b> &middot; refreshes on load and every 3 min.";
+    var stale = document.getElementById("stale");
+    if (!state.liveOK) {
       stale.style.display = "block";
-      stale.textContent = "Data is " + (ageMin > 120 ? Math.round(ageMin / 60) + " hours" : Math.round(ageMin) + " minutes") +
-        " old — the asos5-data GitHub Action may be delayed (or run scripts/asos5/asos5_update.py locally).";
+      stale.textContent = "Couldn't reach the live NWS API — showing the last committed snapshot, which may be delayed.";
     } else {
       stale.style.display = "none";
     }
@@ -410,34 +565,24 @@
   segWire("varSeg", "v", function (v) { state.vr = v; render(); });
   segWire("allSeg", "a", function (a) { state.iso = null; if (a === "none") state.iso = -1; render(); });
 
-  // Live data: a GitHub Action force-pushes fresh JSON to the asos5-data
-  // branch every ~5-15 min; raw.githubusercontent.com serves it with CORS.
-  // The copy committed on main (script tag above) is only the first paint;
-  // fall back to it over http(s) if the raw fetch is unavailable.
-  var LIVE_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/asos5-data/asos5_latest.json";
+  // Precision overlay: the MADIS 0.1 °C 5-min feed the Action pushes to the
+  // asos5-data branch (raw.githubusercontent.com serves it CORS-open). Best-effort
+  // — if it's stale or unreachable the live NWS API already fully drives the page.
+  var BRANCH_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/asos5-data/asos5_latest.json";
 
-  function maybeUpdate(j) {
-    if (!j || !j.generated_utc) return;
-    if (state.data && state.data.generated_utc &&
-        Date.parse(j.generated_utc) <= Date.parse(state.data.generated_utc)) return;
-    state.data = j;
-    render();
-  }
-  function refreshData() {
-    fetch(LIVE_URL + "?ts=" + Date.now(), { cache: "no-store" })
+  function fetchBranch() {
+    fetch(BRANCH_URL + "?ts=" + Date.now(), { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw 0; return r.json(); })
-      .then(maybeUpdate)
-      .catch(function () {
-        fetch("data/asos5/asos5_latest.json?ts=" + Date.now())
-          .then(function (r) { return r.json(); })
-          .then(maybeUpdate)
-          .catch(function () {});
-      });
+      .then(function (j) { if (j && j.stations) { state.branch = j; rebuild(); } })
+      .catch(function () {});
   }
 
-  render();
-  refreshData();
-  setInterval(refreshData, 3 * 60 * 1000);
+  rebuild();                                   // first paint from the committed snapshot
+  fetchLive();                                 // primary: live official NWS API
+  fetchBranch();                               // overlay: MADIS precision when available
+  setInterval(fetchLive, 3 * 60 * 1000);
+  setInterval(fetchBranch, 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) fetchLive(); });
 })();
 </script>
 </body>
