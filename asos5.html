@@ -188,6 +188,12 @@
   var state = { unit: "F", vr: "t", iso: null, data: null,
                 live: {}, branch: window.ASOS5 || null, liveOK: false };
 
+  // Display window: show the last WINDOW_H hours so today can be compared against
+  // yesterday. Kept separate from each station's local midnight (m0), which still
+  // anchors the running daily max/min (those stay "today only").
+  var WINDOW_H = 36;
+  function windowStart() { return Math.floor(Date.now() / 1000) - WINDOW_H * 3600; }
+
   // epoch (s) of local midnight today in a station's zone
   function localMidnightEpoch(tz) {
     var now = new Date(), p = {};
@@ -249,13 +255,13 @@
 
   // merge branch (precise) + live (fresh) for one station into a render-ready record
   function mergeStation(meta, branchSt, live) {
-    var m0 = localMidnightEpoch(meta.tz), byMin = {}, cadence = 60;
+    var m0 = localMidnightEpoch(meta.tz), w0 = windowStart(), byMin = {}, cadence = 60;
     if (branchSt && branchSt.obs)
-      branchSt.obs.forEach(function (o) { if (o[0] >= m0 - 1) byMin[Math.round(o[0] / 60)] = o; });
+      branchSt.obs.forEach(function (o) { if (o[0] >= w0) byMin[Math.round(o[0] / 60)] = o; });
     if (branchSt) cadence = branchSt.cadence_min;
     if (live && live.obs) {
       cadence = live.cadence_min;
-      live.obs.forEach(function (o) { var k = Math.round(o[0] / 60); if (byMin[k] == null) byMin[k] = o; });
+      live.obs.forEach(function (o) { if (o[0] < w0) return; var k = Math.round(o[0] / 60); if (byMin[k] == null) byMin[k] = o; });
     }
     var obs = Object.keys(byMin).map(function (k) { return byMin[k]; })
                     .sort(function (a, b) { return a[0] - b[0]; });
@@ -273,17 +279,17 @@
   // fetch live obs for every station from api.weather.gov, then re-merge + render
   function fetchLive() {
     return Promise.all(STATIONS.map(function (s) {
-      var m0 = localMidnightEpoch(s.tz);
-      var start = new Date((m0 - 3600) * 1000).toISOString();
+      var w0 = windowStart();
+      var start = new Date(w0 * 1000).toISOString();
       var url = "https://api.weather.gov/stations/" + s.id +
-                "/observations?start=" + encodeURIComponent(start) + "&limit=500";
+                "/observations?start=" + encodeURIComponent(start) + "&limit=1000";
       return fetch(url, { cache: "no-store" })
         .then(function (r) { if (!r.ok) throw 0; return r.json(); })
         .then(function (j) {
           var obs = [], groups = {};
           (j.features || []).forEach(function (f) {
             var pr = f.properties, o = awgToObs(pr);
-            if (o && o[0] >= m0 - 1) obs.push(o);
+            if (o && o[0] >= w0) obs.push(o);
             if (pr.rawMessage) {
               var g = parseSixHr(pr.rawMessage, Math.floor(new Date(pr.timestamp).getTime() / 1000));
               if (g) groups[g[0]] = g;
@@ -367,9 +373,11 @@
   }
 
   function sampledExtremes(st) {
-    var xi = state.vr === "t" ? 1 : 2, hi = null, lo = null;
+    // today only (m0), so the extremes stay "so far today" even though the trace
+    // now reaches back ~36 h to show yesterday.
+    var xi = state.vr === "t" ? 1 : 2, m0 = localMidnightEpoch(st.tz), hi = null, lo = null;
     st.obs.forEach(function (o) {
-      if (o[xi] == null) return;
+      if (o[xi] == null || o[0] < m0) return;
       if (!hi || o[xi] > hi.v) hi = { v: o[xi], e: o[0] };
       if (!lo || o[xi] < lo.v) lo = { v: o[xi], e: o[0] };
     });
@@ -490,25 +498,34 @@
       }
     });
 
+    // dotted divider at today's local midnight (yesterday ← | → today), using the
+    // shared local calendar date; positioned on the local-clock-time axis.
+    var refDay = (state.data.stations[0] || {}).day_local;
+    var midX = refDay ? refDay + " 00:00" : null;
     var layout = {
       margin: { l: 52, r: 12, t: 28, b: 44 },
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(0,0,0,0)",
       font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
       xaxis: {
-        title: { text: "Local clock time at each station", font: { size: 11, color: "#888580" } },
-        gridcolor: "#eeece6", tickformat: "%-I %p",
+        title: { text: "Local clock time at each station — last " + WINDOW_H + " hours",
+                 font: { size: 11, color: "#888580" } },
+        gridcolor: "#eeece6", hoverformat: "%a %-I:%M %p",
         showspikes: true, spikemode: "across", spikethickness: 1, spikecolor: "#c9c6bd", spikedash: "dot"
       },
       yaxis: {
         title: { text: vlabel + " (°" + state.unit + ")", font: { size: 11, color: "#888580" } },
         gridcolor: "#eeece6", zeroline: false
       },
+      shapes: midX ? [{ type: "line", x0: midX, x1: midX, yref: "paper", y0: 0, y1: 1,
+                        layer: "below", line: { color: "#c9a24a", width: 1.2, dash: "dot" } }] : [],
+      annotations: midX ? [{ x: midX, yref: "paper", y: 1, yanchor: "bottom", xanchor: "center",
+                             text: "midnight", showarrow: false, font: { size: 9.5, color: "#a07a1e" } }] : [],
       hovermode: "closest",
       hoverlabel: { font: { family: "Inter, sans-serif", size: 12 } },
       legend: { orientation: "v", x: 1.002, y: 1, font: { size: 11 } },
       title: {
-        text: vlabel + " since local midnight — ▲▼ sampled max/min" +
+        text: vlabel + " — last " + WINDOW_H + " hours (today vs yesterday) · ▲▼ today's sampled max/min" +
           (state.vr === "t" ? " · open ▲▼ official 6-hr extremes where higher/lower" : ""),
         font: { family: "Lora, serif", size: 15 }, x: 0.02
       }
@@ -527,10 +544,11 @@
       ? new Date(newest * 1000).toLocaleString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" })
       : "&mdash;";
     document.getElementById("subline").innerHTML =
-      "Five-minute airport temperatures for <b>" + stations.length + " US airports</b>, fetched live in your browser " +
-      "from the <b>official NWS API</b> (api.weather.gov &mdash; 5-minute obs for 13 stations, hourly for KJFK &amp; KNYC), " +
-      "for <b>" + day + "</b> local at each station. Max/min are the absolute extremes so far today, including the " +
-      "official 6-hour METAR max/min groups. Latest observation <b>" + asof + "</b> &middot; refreshes on load and every 3 min.";
+      "Five-minute airport temperatures for <b>" + stations.length + " US airports</b> over the <b>last " + WINDOW_H +
+      " hours</b>, fetched live in your browser from the <b>official NWS API</b> (api.weather.gov: 5-minute obs for 13 " +
+      "stations, hourly for KJFK &amp; KNYC), in each station's local clock time so <b>today lines up against yesterday</b>. " +
+      "Max/min are the absolute extremes <b>so far today</b> (" + day + "), including the official 6-hour METAR max/min " +
+      "groups. Latest observation <b>" + asof + "</b> &middot; refreshes on load and every 3 min.";
     var stale = document.getElementById("stale");
     if (!state.liveOK) {
       stale.style.display = "block";
