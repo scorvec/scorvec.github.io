@@ -41,6 +41,11 @@ USER_AGENT = "scorvec.com asos5 dashboard (shawncorvec@hotmail.com)"
 # MADIS data-descriptor flags to reject: failed / questioned / subjective bad.
 BAD_DD = {"X", "Q", "B"}
 
+# How far back the dashboard shows observations, so today can be compared against
+# yesterday. The running daily max/min stay anchored to each station's local
+# midnight (m0); this only widens the plotted trace.
+WINDOW_H = 36
+
 # (id, name, IANA tz, source) — 'hfmetar' = MADIS 5-min, 'nwsapi' = hourly fallback
 STATIONS = [
     ("KBOS", "Boston Logan Intl",            "America/New_York",    "hfmetar"),
@@ -262,15 +267,18 @@ def prune_cache(now_utc):
 
 def main():
     now = datetime.now(timezone.utc)
+    w0 = int(now.timestamp()) - WINDOW_H * 3600      # display window start (epoch s)
 
     midnights = {}  # sid -> local midnight (as aware UTC datetime)
     for sid, _name, tz, _src in STATIONS:
         loc = now.astimezone(ZoneInfo(tz))
         midnights[sid] = loc.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
 
-    # reach back to the start of the 6-h max/min window that straddles the
-    # earliest local midnight, so straddling groups can be attributed
-    first_hour = min(midnights.values()).replace(minute=0, second=0, microsecond=0)
+    # reach back to whichever is earlier: WINDOW_H hours ago (the plotted trace) or
+    # the start of the 6-h max/min window straddling the earliest local midnight (so
+    # straddling groups can still be attributed to today's max/min)
+    earliest = min(min(midnights.values()), now - timedelta(hours=WINDOW_H))
+    first_hour = earliest.replace(minute=0, second=0, microsecond=0)
     first_hour = first_hour.replace(hour=first_hour.hour // 6 * 6)
     hours = []
     h = first_hour
@@ -292,13 +300,12 @@ def main():
             recs = merged.get(sid, {})
             label, cadence = "NWS/MADIS 5-min ASOS", 5
         else:
-            win_start = midnights[sid].replace(minute=0, second=0, microsecond=0)
-            win_start = win_start.replace(hour=win_start.hour // 6 * 6)
+            win_start = datetime.fromtimestamp(w0, timezone.utc).replace(minute=0, second=0, microsecond=0)
             recs = fetch_nws_hourly(sid, win_start)
             label, cadence = "NWS API hourly METAR", 60
         m0 = int(midnights[sid].timestamp())
         groups = sixhr.get(sid, [])
-        obs = sorted([e] + v for e, v in recs.items() if e >= m0)
+        obs = sorted([e] + v for e, v in recs.items() if e >= w0)   # 36-h trace; max/min stay m0-anchored
         stations_out.append({
             "id": sid, "name": name, "tz": tz,
             "source": label, "cadence_min": cadence,
@@ -307,8 +314,8 @@ def main():
             "sixhr": [g for g in groups if g[0] > m0],
             "obs": obs,  # [epoch_s, tempC, dewC, wdir_deg, wspd_kt]
         })
-        print(f"  {sid}: {len(obs):3d} obs since local midnight, "
-              f"{len([g for g in groups if g[0] > m0]):d} 6-h groups ({label})")
+        print(f"  {sid}: {len(obs):3d} obs in last {WINDOW_H}h, "
+              f"{len([g for g in groups if g[0] > m0]):d} 6-h groups today ({label})")
 
     payload = {
         "generated_utc": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
