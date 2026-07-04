@@ -2,7 +2,7 @@
 """EIA-930 live US grid feed for the wind+solar penetration tracker.
 
 Conterminous-US (respondent ``US48``) hourly data from the EIA Open Data API v2, ~72 h back,
-using the same request idiom as ``ercot_plot.py``:
+using an offset-paginated ``api_key`` + ``facets`` request idiom:
 
   - demand + net generation   electricity/rto/region-data        facets type=D / NG
   - wind / solar actuals       electricity/rto/fuel-type-data     fueltype WND / SUN  (solar = SUN!)
