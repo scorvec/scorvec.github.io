@@ -282,7 +282,7 @@
       var w0 = windowStart();
       var start = new Date(w0 * 1000).toISOString();
       var url = "https://api.weather.gov/stations/" + s.id +
-                "/observations?start=" + encodeURIComponent(start) + "&limit=1000";
+                "/observations?start=" + encodeURIComponent(start) + "&limit=500";  // NWS API hard cap; 500 5-min obs ≈ 42 h covers the 36 h window
       return fetch(url, { cache: "no-store" })
         .then(function (r) { if (!r.ok) throw 0; return r.json(); })
         .then(function (j) {
