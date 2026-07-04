@@ -26,7 +26,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy3.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -37,6 +37,26 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
-      - name: Deploy to GitHub Pages
-        id: deployment
+      # GitHub's Pages CDN sync ("syncing_files") intermittently returns
+      # "Deployment failed, try again later" even for a single serialized deploy
+      # (~10% of runs). The artifact is already uploaded, so just retry the
+      # deployment a couple times with a backoff before failing the run for real.
+      - name: Deploy to GitHub Pages (attempt 1)
+        id: deploy1
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: Backoff before retry
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 45
+      - name: Deploy to GitHub Pages (attempt 2)
+        id: deploy2
+        if: steps.deploy1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: Backoff before final retry
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 90
+      - name: Deploy to GitHub Pages (attempt 3)
+        id: deploy3
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
         uses: actions/deploy-pages@v4
