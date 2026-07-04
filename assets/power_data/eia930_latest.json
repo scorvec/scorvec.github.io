@@ -1,24 +1,12 @@
 {
-  "generated_at": "2026-07-04T08:06Z",
+  "generated_at": "2026-07-04T10:28Z",
   "source": "EIA-930 (Hourly Electric Grid Monitor) via EIA API v2, respondent US48 (demand)",
   "denominator_kind": "demand",
-  "latest_period": "2026-07-04T07:00Z",
-  "total_GW": 511.19,
+  "latest_period": "2026-07-04T09:00Z",
+  "total_GW": 473.23,
   "wind_actual_GW": null,
   "solar_actual_GW": null,
   "series": [
-    {
-      "period": "2026-07-01T08:00Z",
-      "total_GW": 503.64,
-      "wind_GW": 80.68,
-      "solar_GW": 0.18
-    },
-    {
-      "period": "2026-07-01T09:00Z",
-      "total_GW": 491.94,
-      "wind_GW": 78.25,
-      "solar_GW": 0.14
-    },
     {
       "period": "2026-07-01T10:00Z",
       "total_GW": 490.44,
@@ -399,43 +387,55 @@
     },
     {
       "period": "2026-07-04T01:00Z",
-      "total_GW": 683.06,
+      "total_GW": 683.02,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-04T02:00Z",
-      "total_GW": 662.96,
+      "total_GW": 663.16,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-04T03:00Z",
-      "total_GW": 633.94,
+      "total_GW": 633.93,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-04T04:00Z",
-      "total_GW": 602.1,
+      "total_GW": 602.11,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-04T05:00Z",
-      "total_GW": 571.26,
+      "total_GW": 571.27,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-04T06:00Z",
-      "total_GW": 534.67,
+      "total_GW": 534.92,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-04T07:00Z",
-      "total_GW": 511.19,
+      "total_GW": 508.81,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-07-04T08:00Z",
+      "total_GW": 492.66,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-07-04T09:00Z",
+      "total_GW": 473.23,
       "wind_GW": null,
       "solar_GW": null
     }
