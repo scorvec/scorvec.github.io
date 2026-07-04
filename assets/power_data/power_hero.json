@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-04T18:16Z",
+  "generated_at": "2026-07-04T19:41Z",
   "wind_cycle": "20260704T12Z",
   "solar_cycle": "20260704T12Z",
   "nameplate": {
@@ -8,13 +8,13 @@
     "combined_GW": 299.6
   },
   "now": {
-    "valid_time": "2026-07-04T17:00Z",
-    "wind_GW": 19.05,
-    "solar_GW": 124.13,
-    "combined_GW": 143.18,
-    "penetration_pct": 23.1,
+    "valid_time": "2026-07-04T18:00Z",
+    "wind_GW": 15.72,
+    "solar_GW": 122.17,
+    "combined_GW": 137.9,
+    "penetration_pct": 21.4,
     "denominator_kind": "demand",
-    "eia_total_GW": 620.97,
+    "eia_total_GW": 645.48,
     "eia_wind_GW": null,
     "eia_solar_GW": null,
     "stale": false
@@ -320,12 +320,6 @@
     }
   ],
   "eia_recent": [
-    {
-      "period": "2026-07-01T18:00Z",
-      "total_GW": 692.57,
-      "wind_GW": 58.15,
-      "solar_GW": 118.62
-    },
     {
       "period": "2026-07-01T19:00Z",
       "total_GW": 712.14,
@@ -712,31 +706,31 @@
     },
     {
       "period": "2026-07-04T11:00Z",
-      "total_GW": 460.79,
+      "total_GW": 460.83,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-04T12:00Z",
-      "total_GW": 464.69,
+      "total_GW": 464.65,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-04T13:00Z",
-      "total_GW": 485.32,
+      "total_GW": 485.36,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-04T14:00Z",
-      "total_GW": 518.29,
+      "total_GW": 518.26,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-04T15:00Z",
-      "total_GW": 560.0,
+      "total_GW": 560.04,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -748,7 +742,13 @@
     },
     {
       "period": "2026-07-04T17:00Z",
-      "total_GW": 620.97,
+      "total_GW": 629.78,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-07-04T18:00Z",
+      "total_GW": 645.48,
       "wind_GW": null,
       "solar_GW": null
     }
