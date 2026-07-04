@@ -530,14 +530,20 @@
       var iso = state.data.stations[state.iso];
       if (iso && iso.daymm) {
         var icol = COLORS[state.iso % COLORS.length];
+        var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        // the 24-h group is reported ~local midnight for the day that just ended; midday of
+        // that period (−12 h) lands squarely on the covered local date.
+        var dp = localParts(iso.daymm.e - 12 * 3600, iso.tz);
+        var dstr = MON[+dp.month - 1] + " " + (+dp.day);
         [["24-h max", iso.daymm.max], ["24-h min", iso.daymm.min]].forEach(function (p) {
           var yv = cToUnit(p[1]);
           shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: yv, y1: yv,
                         layer: "below", line: { color: icol, width: 1.3, dash: "dash" } });
           annotations.push({ xref: "paper", x: 0.006, y: yv, yref: "y", yanchor: "bottom",
-                             xanchor: "left", text: p[0] + " " + yv.toFixed(1) + "°" + state.unit,
-                             showarrow: false, bgcolor: "rgba(255,255,255,0.72)",
-                             font: { size: 9.5, color: icol } });
+                             xanchor: "left",
+                             text: p[0] + " (" + dstr + ") " + yv.toFixed(1) + "°" + state.unit,
+                             showarrow: false, bgcolor: "rgba(255,255,255,0.85)",
+                             font: { size: 9.5, color: "#1c1c1a" } });
         });
       }
     }
