@@ -20,6 +20,7 @@ import gzip
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import urllib.request
@@ -212,7 +213,25 @@ def fetch_sixhr():
             continue
         seen.add((sid, end))
         out.setdefault(sid, []).append([end, mx, mn])
-    return out
+
+    # 24-hour max/min (4snTxTxTxsnTnTnTn) from the raw METAR — the ~06Z daily report.
+    daymm = {}
+    rx = re.compile(r"(?:^|\s)4([01]\d{3})([01]\d{3})(?=\s|$)")
+    dval = lambda s: (-1 if s[0] == "1" else 1) * int(s[1:]) / 10
+    for o in metars:
+        raw, sid = o.get("rawOb") or "", o.get("icaoId")
+        if not sid or " RMK " not in raw:
+            continue
+        m = rx.search(raw.split(" RMK ")[1])
+        if not m:
+            continue
+        try:
+            end = int(datetime.fromisoformat(o["reportTime"].replace("Z", "+00:00")).timestamp())
+        except (KeyError, ValueError):
+            continue
+        if sid not in daymm or end > daymm[sid]["e"]:
+            daymm[sid] = {"max": dval(m.group(1)), "min": dval(m.group(2)), "e": end}
+    return out, daymm
 
 
 def absolutes(recs, groups, m0):
@@ -292,7 +311,7 @@ def main():
         for sid, recs in hour_data(h, now).items():
             merged[sid].update(recs)
 
-    sixhr = fetch_sixhr()
+    sixhr, daymm = fetch_sixhr()
 
     stations_out = []
     for sid, name, tz, src in STATIONS:
@@ -312,6 +331,7 @@ def main():
             "day_local": now.astimezone(ZoneInfo(tz)).strftime("%Y-%m-%d"),
             "abs": absolutes(recs, groups, m0),
             "sixhr": [g for g in groups if g[0] > m0],
+            "daymm": daymm.get(sid),   # official 24-hour max/min ({max,min,e} °C) or None
             "obs": obs,  # [epoch_s, tempC, dewC, wdir_deg, wspd_kt]
         })
         print(f"  {sid}: {len(obs):3d} obs in last {WINDOW_H}h, "
