@@ -17,10 +17,14 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
 import tempfile
-import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents
+                            if p.name == "scripts") / "lib"))
+from webget import get  # noqa: E402
 
 import numpy as np
 import pandas as pd
@@ -43,12 +47,12 @@ def _gmgsi_day(dd) -> dict | None:
         dt = datetime(dd.year, dd.month, dd.day, h, tzinfo=timezone.utc)
         pre = f"GMGSI_LW/{dt:%Y/%m/%d/%H}/"
         try:
-            xml = urllib.request.urlopen(f"{S3}/?list-type=2&prefix={pre}&max-keys=5", timeout=30).read().decode()
+            xml = get(f"{S3}/?list-type=2&prefix={pre}&max-keys=5", timeout=30).decode()
             keys = re.findall(r"<Key>([^<]+)</Key>", xml)
             if not keys:
                 continue
             with tempfile.NamedTemporaryFile(suffix=".nc") as tf:
-                tf.write(urllib.request.urlopen(f"{S3}/{keys[0]}", timeout=90).read()); tf.flush()
+                tf.write(get(f"{S3}/{keys[0]}", timeout=90)); tf.flush()
                 d = xr.open_dataset(tf.name)
                 b = d["data"].isel(time=0).astype("float32")
                 lat = d["lat"]; lon = d["lon"]

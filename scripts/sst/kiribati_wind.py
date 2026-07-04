@@ -18,8 +18,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import urllib.request
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents
+                            if p.name == "scripts") / "lib"))
+from webget import get  # noqa: E402
 
 import numpy as np
 import pandas as pd
@@ -46,7 +50,7 @@ def fetch(hours=72) -> pd.DataFrame:
     non-JSON response (rate-limit/503), or a station simply not reporting just yields an empty
     (or partial) frame instead of raising — these remote stations report intermittently."""
     try:
-        obs = json.loads(urllib.request.urlopen(API.format(h=hours), timeout=60).read().decode())
+        obs = json.loads(get(API.format(h=hours)).decode())
         if not isinstance(obs, list):
             obs = []
     except Exception as e:                                     # noqa: BLE001
