@@ -195,7 +195,10 @@ jobs:
           cd ../assets/wind_forecast_data
           ls -t forecast_iso_*.csv   2>/dev/null | tail -n +57 | xargs -r rm
           ls -t forecast_ba_*.csv    2>/dev/null | tail -n +57 | xargs -r rm
-          ls -t forecast_plant_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
+          # forecast_plant is read LATEST-ONLY (power_hero files[-1], map_dashboard
+          # gets the fresh cycle) — no consumer reads plant history. 56 x ~8.9 MB was
+          # ~490 MB and pushed the Pages site over 1 GB (deploys stalling). Keep 4.
+          ls -t forecast_plant_*.csv 2>/dev/null | tail -n +5  | xargs -r rm
           ls -t capacity_iso_*.csv   2>/dev/null | tail -n +57 | xargs -r rm
           ls -t capacity_ba_*.csv    2>/dev/null | tail -n +57 | xargs -r rm
 

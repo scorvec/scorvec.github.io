@@ -185,7 +185,10 @@ jobs:
       - name: Prune old forecast CSVs
         run: |
           cd ../../assets/solar_forecast_data
-          ls -t forecast_plant_*.csv  2>/dev/null | tail -n +57 | xargs -r rm
+          # forecast_plant is read LATEST-ONLY (power_hero files[-1], solar_aggregation
+          # get_latest_cycle) — no consumer reads plant history. 56 x ~7.4 MB was
+          # ~400 MB and pushed the Pages site over 1 GB (deploys stalling). Keep 4.
+          ls -t forecast_plant_*.csv  2>/dev/null | tail -n +5  | xargs -r rm
           ls -t forecast_region_*.csv 2>/dev/null | tail -n +57 | xargs -r rm
           # capacity_plant is now a single canonical (unstamped) file — nothing to prune.
 
