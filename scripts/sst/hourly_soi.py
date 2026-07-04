@@ -20,10 +20,11 @@ from __future__ import annotations
 import argparse
 import io
 import sys
-import time
-import urllib.error
-import urllib.request
 from pathlib import Path
+
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents
+                            if p.name == "scripts") / "lib"))
+from webget import get  # noqa: E402
 
 import numpy as np
 import pandas as pd
@@ -57,25 +58,6 @@ def qnh_to_mslp(qnh: float, temp_c, h: float) -> float:
     return p_sta * np.exp(G * h / (RD * t_mean))                 # hypsometric reduction → true MSLP
 
 
-# ----------------------------------------------------------------------------- HTTP
-def _urlopen(url: str, timeout: int = 60, tries: int = 4, backoff: int = 8) -> bytes:
-    """GET with retries on transient gateway / rate / timeout errors (aviationweather.gov and
-    LongPaddock both throw intermittent 502/503/504s)."""
-    last = None
-    for i in range(tries):
-        try:
-            return urllib.request.urlopen(url, timeout=timeout).read()
-        except urllib.error.HTTPError as e:
-            last = e
-            if e.code not in (429, 500, 502, 503, 504):    # only retry transient server errors
-                raise
-        except (urllib.error.URLError, TimeoutError) as e:  # DNS / connection / read timeout
-            last = e
-        if i < tries - 1:
-            time.sleep(backoff * (i + 1))                   # 8s, 16s, 24s …
-    raise last
-
-
 # ----------------------------------------------------------------------------- METAR
 def fetch_metar(hours: int = 72) -> pd.DataFrame:
     """Recent METARs → hourly-mean MSLP (hPa) per station, indexed by UTC hour.
@@ -83,7 +65,7 @@ def fetch_metar(hours: int = 72) -> pd.DataFrame:
     MSLP with the observed temperature + station elevation (see qnh_to_mslp)."""
     import json
     url = METAR_API.format(h=hours)
-    obs = json.loads(_urlopen(url).decode())
+    obs = json.loads(get(url, backoff=8).decode())
     rows = []
     for o in obs:
         stn = STATIONS.get(o.get("icaoId"))
@@ -129,7 +111,7 @@ def longpaddock():
     in diff, so a regression (with one outlier-rejection pass) of the published SOI on the file's
     own pressure difference, per calendar month, returns SD = 10/slope and mean = −intercept/slope.
     Pure-numpy so the hourly job stays light (no scipy)."""
-    txt = _urlopen(SOI_URL).decode()
+    txt = get(SOI_URL, backoff=8).decode()
     df = pd.read_csv(io.StringIO(txt), sep=r"\s+")
     df["date"] = pd.to_datetime(df["Year"].astype(int).astype(str), format="%Y") + \
         pd.to_timedelta(df["Day"].astype(int) - 1, unit="D")

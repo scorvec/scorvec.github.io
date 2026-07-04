@@ -20,12 +20,15 @@ from __future__ import annotations
 import json
 import os
 import sys
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents
+                            if p.name == "scripts") / "lib"))
+from webget import get_text  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 SITE_ROOT = Path(os.environ["SST_SITE_ROOT"]).resolve() if os.environ.get("SST_SITE_ROOT") else HERE
@@ -43,8 +46,7 @@ DEFAULT_ON = {1982, 1997, 2015, 2023}
 
 
 def fetch(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": "scorvec-enso/1.0"})
-    return urllib.request.urlopen(req, timeout=60).read().decode()
+    return get_text(url, ua="scorvec-enso/1.0")
 
 
 def parse(txt: str) -> pd.DataFrame:
