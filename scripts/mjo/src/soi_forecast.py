@@ -18,7 +18,6 @@ from __future__ import annotations
 import argparse
 import io
 import sys
-import urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -30,7 +29,9 @@ import matplotlib.pyplot as plt
 
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "lib"))
 import store as ecmwf                                    # shared ECMWF download manager
+from webget import get_text
 
 SOI_URL = ("https://data.longpaddock.qld.gov.au/SeasonalClimateOutlook/"
            "SouthernOscillationIndex/SOIDataFiles/DailySOI1887-1989Base.txt")
@@ -48,7 +49,7 @@ def fetch_obs(cache: Path) -> pd.DataFrame:
     """LongPaddock daily SOI -> DataFrame indexed by date: Tahiti, Darwin, SOI."""
     cache.parent.mkdir(parents=True, exist_ok=True)
     try:
-        txt = urllib.request.urlopen(SOI_URL, timeout=60).read().decode()
+        txt = get_text(SOI_URL)
         cache.write_text(txt)
     except Exception as e:                            # fall back to cached copy
         if not cache.exists():
