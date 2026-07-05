@@ -66,7 +66,7 @@
     --serif: 'Lora', Georgia, serif;
     --sans: 'Inter', sans-serif;
   }
-  html, body { height: 100%; }
+  html { height: 100%; }
   /* desktop reads a touch small on wide monitors — nudge the root up (mobile unchanged) */
   @media (min-width: 768px) { html { font-size: 110%; } }
   body {
@@ -75,6 +75,9 @@
     font-family: var(--sans);
     -webkit-font-smoothing: antialiased;
     display: flex; flex-direction: column;
+    /* grow past the viewport (and scroll) when content is taller than the screen,
+       instead of hard-capping at 100% and clipping the centered hero. */
+    min-height: 100dvh;
   }
 
   /* NAV */
