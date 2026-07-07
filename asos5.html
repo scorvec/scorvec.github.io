@@ -148,8 +148,9 @@
     <a href="https://madis-data.ncep.noaa.gov/">NOAA/NWS MADIS</a> HFMETAR 5-minute feed is layered in when the
     background updater has posted it recently. When a station is isolated, its official 24-hour
     max/min (the <code>4&hellip;</code> daily-summary group) is drawn as dashed reference lines; if that group
-    isn&rsquo;t posted, the lines are reconstructed from the four 6-hour groups over the last 24&nbsp;h and
-    shown dotted with a &ldquo;6-hr&rdquo; tag. Obviously bad values are dropped.
+    isn&rsquo;t posted, the lines are reconstructed from the four 6-hour groups over the last 24&nbsp;h &mdash;
+    or, failing that, from the plotted observations themselves (&ldquo;sampled&rdquo;) &mdash; shown dotted and
+    tagged, so every isolated station gets max/min lines. Obviously bad values are dropped.
   </footer>
 </main>
 
@@ -265,6 +266,23 @@
     return { max: mx, min: mn, e: E, src: "6hr", span_h: Math.round((E - earliest) / 3600) };
   }
 
+  // last-resort 24-h max/min straight from the plotted observations, for stations
+  // that post neither the 24-h summary nor the 6-hour groups (e.g. the hourly
+  // sites). Max/min of the sampled temps over the most recent 24 h. °C.
+  function dayFromObs(obs) {
+    if (!obs || !obs.length) return null;
+    var E = obs[obs.length - 1][0], lo = E - 24 * 3600;
+    var mx = null, mn = null, earliest = E, n = 0;
+    obs.forEach(function (o) {
+      if (o[1] == null || o[0] <= lo || o[0] > E) return;
+      if (mx == null || o[1] > mx) mx = o[1];
+      if (mn == null || o[1] < mn) mn = o[1];
+      earliest = Math.min(earliest, o[0]); n++;
+    });
+    if (n < 2 || mx == null || mn == null) return null;
+    return { max: mx, min: mn, e: E, src: "obs", span_h: Math.round((E - earliest) / 3600) };
+  }
+
   // absolute daily max/min from merged samples + 6-hr groups fully within today
   function computeAbs(obs, sixhr, m0) {
     var hi = null, lo = null;
@@ -306,7 +324,8 @@
     [branchSt && branchSt.daymm, live && live.daymm].forEach(function (d) {
       if (d && (!daymm || d.e > daymm.e)) daymm = d;
     });
-    if (!daymm) daymm = dayFrom6hr(sixhr);                        // fallback: rebuild from 6-h groups
+    if (!daymm) daymm = dayFrom6hr(sixhr);                        // fallback 1: 6-hour groups
+    if (!daymm) daymm = dayFromObs(obs);                          // fallback 2: sampled obs
     var dp = localParts(m0 + 7200, meta.tz);
     return { id: meta.id, name: meta.name, tz: meta.tz, cadence_min: cadence,
              day_local: dp.year + "-" + dp.month + "-" + dp.day,
@@ -558,15 +577,16 @@
         // that period (−12 h) lands squarely on the covered local date.
         var dp = localParts(iso.daymm.e - 12 * 3600, iso.tz);
         var dstr = MON[+dp.month - 1] + " " + (+dp.day);
-        // reconstructed-from-6-h fallback: dotted line, "(6-hr)" tag, and the
-        // real span covered if it isn't a full 24 h.
-        var is6 = iso.daymm.src === "6hr";
-        var sp = is6 && iso.daymm.span_h < 22 ? iso.daymm.span_h : 24;
-        var pre = sp + "-h ", tag = is6 ? ", 6-hr" : "";
+        // reconstructed fallbacks (6-hour groups or sampled obs): dotted line, a
+        // provenance tag, and the real span covered if it isn't a full 24 h.
+        var recon = iso.daymm.src === "6hr" || iso.daymm.src === "obs";
+        var sp = recon && iso.daymm.span_h < 22 ? iso.daymm.span_h : 24;
+        var pre = sp + "-h ",
+            tag = iso.daymm.src === "6hr" ? ", 6-hr" : iso.daymm.src === "obs" ? ", sampled" : "";
         [[pre + "max", iso.daymm.max], [pre + "min", iso.daymm.min]].forEach(function (p) {
           var yv = cToUnit(p[1]);
           shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: yv, y1: yv,
-                        layer: "below", line: { color: icol, width: 1.3, dash: is6 ? "dot" : "dash" } });
+                        layer: "below", line: { color: icol, width: 1.3, dash: recon ? "dot" : "dash" } });
           annotations.push({ xref: "paper", x: 0.006, y: yv, yref: "y", yanchor: "bottom",
                              xanchor: "left",
                              text: p[0] + " (" + dstr + tag + ") " + yv.toFixed(1) + "°" + state.unit,
