@@ -116,13 +116,15 @@ fi
 "$PY" src/mslp_wind_anim.py --date "$DATE" --time "$TIME" \
   --anim-dir "$REPO/assets/sst/anim/mslp_wind" \
   --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
-# ── DEACTIVATED 2026-06-30 (hidden for now): 200 hPa velocity-potential builder is off
-#    (card hidden). This is the pf_v_200 pull that was 503-stalling the cycle; reviving
-#    it should go in a GitHub Action, not the laptop. ──
-# "$PY" src/wind200_vpot.py --date "$DATE" --time "$TIME" \
-#   --anim-dir "$REPO/assets/sst/anim/wind200" \
-#   --manifest "$REPO/assets/sst/anim/wind200_manifest.json" \
-#   --out "$REPO/assets/sst/wind200.webp" || echo "200hPa velocity potential failed; continuing"
+# ── 200 hPa velocity potential + irrotational wind (REVIVED 2026-07-07). Light:
+#    u@200 is already cached from the RMM pull, so only v@200 is fetched here. The
+#    pf_v_200 503-stalls that got this deactivated are handled now by the robust
+#    ECMWF store (fail-fast + mirror rotation + exponential cooldown, then raises);
+#    the `|| echo` keeps any failure from blocking the cycle. ──
+"$PY" src/wind200_vpot.py --date "$DATE" --time "$TIME" \
+  --anim-dir "$REPO/assets/sst/anim/wind200" \
+  --manifest "$REPO/assets/sst/anim/wind200_manifest.json" \
+  --out "$REPO/assets/sst/wind200.webp" || echo "200hPa velocity potential failed; continuing"
 
 # 850 hPa wind analog Hovmöllers (current developing year vs 1982/97/2015). Refresh the
 # current-year ARCO tail (1×/day, ~3 min) + re-render, once per calendar day. The WB2
@@ -169,13 +171,15 @@ find "$MJO_GRIB_ARCHIVE" -type d -empty -delete 2>/dev/null
 CB=$(date -u +%Y%m%d%H%M)
 perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|u850_analogs_anom|u850_analogs_abs|mei\/mei_nowcast|mei\/mei_validation)\.webp)\?v=\d+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
 
-# NOTE: AAM / torque / MMSF / AAM-zonal / wind200 outputs are intentionally NOT staged
-# here while those builders are deactivated (2026-06-30). Their last-good committed webps
-# stay frozen in the repo for instant restore; re-add them here when reviving the builders.
+# NOTE: AAM / torque / MMSF / AAM-zonal outputs are intentionally NOT staged here
+# while those builders are deactivated (2026-06-30). Their last-good committed webps
+# stay frozen in the repo for instant restore; re-add them here when reviving the
+# builders. (wind200 was revived 2026-07-07 and IS staged below.)
 ( cd "$REPO" && git add \
     sst.html \
     assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp \
     assets/sst/anim/mslp_wind/ assets/sst/anim/mslp_wind_manifest.json \
+    assets/sst/anim/wind200/ assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp \
     assets/sst/u850_analogs_anom.webp assets/sst/u850_analogs_abs.webp \
     scripts/mjo/data/reference/mei_fit.json assets/sst/mei/mei_nowcast.webp assets/sst/mei/mei_validation.webp \
     assets/sst/mei/mei_analogs.webp assets/sst/mei/mei_history.webp \

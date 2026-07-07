@@ -148,11 +148,24 @@ jobs:
             --out ../../assets/sst/soi_forecast.webp \
             || echo "SOI build failed; continuing"
 
+      - name: Build 200 hPa velocity potential (El Niño page)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/wind200
+          # Light: u@200 is already cached from the RMM pull above; only v@200 is fetched.
+          python src/wind200_vpot.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim/wind200 \
+            --manifest ../../assets/sst/anim/wind200_manifest.json \
+            --out ../../assets/sst/wind200.webp \
+            || echo "200 hPa velocity potential build failed; continuing"
+
       - name: Commit & push (generated outputs)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp
+          git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp
           if git diff --staged --quiet; then
             echo "No changes; skipping commit."; exit 0
           fi
@@ -164,7 +177,7 @@ jobs:
             if ! git rebase -X theirs origin/main; then
               git rebase --abort || true
               git reset --hard origin/main
-              git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp
+              git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp
               git diff --staged --quiet || git commit -m "MJO RMM: ${{ needs.check.outputs.compact }} (re-applied)"
             fi
             sleep 5
