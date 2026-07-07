@@ -352,18 +352,6 @@
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0) &middot; member-weighted super-ensemble mean &middot; updated each 00/12Z cycle</span></div>
     </div>
 
-    <!-- ====================================================================
-         DEACTIVATED 2026-06-30 (hidden for now): the upper-air / global-
-         circulation block below — 200 hPa velocity potential, atmospheric
-         angular momentum (+ run-to-run trend, torque budget, zonal anatomy)
-         and the meridional mass streamfunction. Their builders are turned off
-         in scripts/mjo/run_local.sh; the heavy 13-level pulls are gated behind
-         MJO_HEAVY_ATMOS in scripts/mjo/src/ens_cycle.py. To restore: delete
-         this wrapper <div> (and its close) and re-enable those builders.
-         Preference: revive these products in a GitHub Action, not the laptop.
-         ==================================================================== -->
-    <div class="deactivated-atmos-block" hidden aria-hidden="true" style="display:none">
-
     <!-- 200 hPa VELOCITY POTENTIAL + IRROTATIONAL WIND (AIFS-ENS ensemble mean) -->
     <div class="chart-card">
       <div class="chart-card-header">
@@ -374,6 +362,20 @@
               title="AIFS-ENS ensemble-mean 200 hPa velocity-potential anomaly and irrotational wind, analysis through day-14 forecast" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 200 hPa u/v, 50-member mean (open data, CC&nbsp;BY&nbsp;4.0) &middot; velocity potential via spherical-harmonic inversion &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
     </div>
+
+    <!-- ====================================================================
+         DEACTIVATED 2026-06-30 (hidden for now): the upper-air / global-
+         circulation block below — atmospheric angular momentum (+ run-to-run
+         trend, torque budget, zonal anatomy) and the meridional mass
+         streamfunction. Their builders are turned off in scripts/mjo/run_local.sh;
+         the heavy 13-level pulls are gated behind MJO_HEAVY_ATMOS in
+         scripts/mjo/src/ens_cycle.py. To restore: delete this wrapper <div>
+         (and its close) and re-enable those builders. Preference: revive these
+         products in a GitHub Action, not the laptop. (The 200 hPa velocity-
+         potential card above was revived 2026-07-07 — it's light: only v@200 is
+         fetched, u@200 is already cached for RMM.)
+         ==================================================================== -->
+    <div class="deactivated-atmos-block" hidden aria-hidden="true" style="display:none">
 
     <!-- ATMOSPHERIC ANGULAR MOMENTUM -->
     <div class="chart-card">
