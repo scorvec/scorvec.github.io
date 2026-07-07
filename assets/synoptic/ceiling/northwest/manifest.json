@@ -1,7 +1,7 @@
 {
-  "cycle": "2026-07-07 00Z",
-  "cycle_compact": "20260707T00Z",
-  "generated": "2026-07-07 08:42 UTC",
+  "cycle": "2026-07-07 06Z",
+  "cycle_compact": "20260707T06Z",
+  "generated": "2026-07-07 09:03 UTC",
   "variable_id": "ceiling",
   "variable_label": "Cloud Ceiling",
   "units": "m AGL",
@@ -10,296 +10,296 @@
   "frames": [
     {
       "fxx": 0,
-      "valid_time": "2026-07-07T00:00:00Z",
-      "valid_label": "Tue 07/07 00:00Z",
+      "valid_time": "2026-07-07T06:00:00Z",
+      "valid_label": "Tue 07/07 06:00Z",
       "file": "F00.webp"
     },
     {
       "fxx": 1,
-      "valid_time": "2026-07-07T01:00:00Z",
-      "valid_label": "Tue 07/07 01:00Z",
+      "valid_time": "2026-07-07T07:00:00Z",
+      "valid_label": "Tue 07/07 07:00Z",
       "file": "F01.webp"
     },
     {
       "fxx": 2,
-      "valid_time": "2026-07-07T02:00:00Z",
-      "valid_label": "Tue 07/07 02:00Z",
+      "valid_time": "2026-07-07T08:00:00Z",
+      "valid_label": "Tue 07/07 08:00Z",
       "file": "F02.webp"
     },
     {
       "fxx": 3,
-      "valid_time": "2026-07-07T03:00:00Z",
-      "valid_label": "Tue 07/07 03:00Z",
+      "valid_time": "2026-07-07T09:00:00Z",
+      "valid_label": "Tue 07/07 09:00Z",
       "file": "F03.webp"
     },
     {
       "fxx": 4,
-      "valid_time": "2026-07-07T04:00:00Z",
-      "valid_label": "Tue 07/07 04:00Z",
+      "valid_time": "2026-07-07T10:00:00Z",
+      "valid_label": "Tue 07/07 10:00Z",
       "file": "F04.webp"
     },
     {
       "fxx": 5,
-      "valid_time": "2026-07-07T05:00:00Z",
-      "valid_label": "Tue 07/07 05:00Z",
+      "valid_time": "2026-07-07T11:00:00Z",
+      "valid_label": "Tue 07/07 11:00Z",
       "file": "F05.webp"
     },
     {
       "fxx": 6,
-      "valid_time": "2026-07-07T06:00:00Z",
-      "valid_label": "Tue 07/07 06:00Z",
+      "valid_time": "2026-07-07T12:00:00Z",
+      "valid_label": "Tue 07/07 12:00Z",
       "file": "F06.webp"
     },
     {
       "fxx": 7,
-      "valid_time": "2026-07-07T07:00:00Z",
-      "valid_label": "Tue 07/07 07:00Z",
+      "valid_time": "2026-07-07T13:00:00Z",
+      "valid_label": "Tue 07/07 13:00Z",
       "file": "F07.webp"
     },
     {
       "fxx": 8,
-      "valid_time": "2026-07-07T08:00:00Z",
-      "valid_label": "Tue 07/07 08:00Z",
+      "valid_time": "2026-07-07T14:00:00Z",
+      "valid_label": "Tue 07/07 14:00Z",
       "file": "F08.webp"
     },
     {
       "fxx": 9,
-      "valid_time": "2026-07-07T09:00:00Z",
-      "valid_label": "Tue 07/07 09:00Z",
+      "valid_time": "2026-07-07T15:00:00Z",
+      "valid_label": "Tue 07/07 15:00Z",
       "file": "F09.webp"
     },
     {
       "fxx": 10,
-      "valid_time": "2026-07-07T10:00:00Z",
-      "valid_label": "Tue 07/07 10:00Z",
+      "valid_time": "2026-07-07T16:00:00Z",
+      "valid_label": "Tue 07/07 16:00Z",
       "file": "F10.webp"
     },
     {
       "fxx": 11,
-      "valid_time": "2026-07-07T11:00:00Z",
-      "valid_label": "Tue 07/07 11:00Z",
+      "valid_time": "2026-07-07T17:00:00Z",
+      "valid_label": "Tue 07/07 17:00Z",
       "file": "F11.webp"
     },
     {
       "fxx": 12,
-      "valid_time": "2026-07-07T12:00:00Z",
-      "valid_label": "Tue 07/07 12:00Z",
+      "valid_time": "2026-07-07T18:00:00Z",
+      "valid_label": "Tue 07/07 18:00Z",
       "file": "F12.webp"
     },
     {
       "fxx": 13,
-      "valid_time": "2026-07-07T13:00:00Z",
-      "valid_label": "Tue 07/07 13:00Z",
+      "valid_time": "2026-07-07T19:00:00Z",
+      "valid_label": "Tue 07/07 19:00Z",
       "file": "F13.webp"
     },
     {
       "fxx": 14,
-      "valid_time": "2026-07-07T14:00:00Z",
-      "valid_label": "Tue 07/07 14:00Z",
+      "valid_time": "2026-07-07T20:00:00Z",
+      "valid_label": "Tue 07/07 20:00Z",
       "file": "F14.webp"
     },
     {
       "fxx": 15,
-      "valid_time": "2026-07-07T15:00:00Z",
-      "valid_label": "Tue 07/07 15:00Z",
+      "valid_time": "2026-07-07T21:00:00Z",
+      "valid_label": "Tue 07/07 21:00Z",
       "file": "F15.webp"
     },
     {
       "fxx": 16,
-      "valid_time": "2026-07-07T16:00:00Z",
-      "valid_label": "Tue 07/07 16:00Z",
+      "valid_time": "2026-07-07T22:00:00Z",
+      "valid_label": "Tue 07/07 22:00Z",
       "file": "F16.webp"
     },
     {
       "fxx": 17,
-      "valid_time": "2026-07-07T17:00:00Z",
-      "valid_label": "Tue 07/07 17:00Z",
+      "valid_time": "2026-07-07T23:00:00Z",
+      "valid_label": "Tue 07/07 23:00Z",
       "file": "F17.webp"
     },
     {
       "fxx": 18,
-      "valid_time": "2026-07-07T18:00:00Z",
-      "valid_label": "Tue 07/07 18:00Z",
+      "valid_time": "2026-07-08T00:00:00Z",
+      "valid_label": "Wed 07/08 00:00Z",
       "file": "F18.webp"
     },
     {
       "fxx": 19,
-      "valid_time": "2026-07-07T19:00:00Z",
-      "valid_label": "Tue 07/07 19:00Z",
+      "valid_time": "2026-07-08T01:00:00Z",
+      "valid_label": "Wed 07/08 01:00Z",
       "file": "F19.webp"
     },
     {
       "fxx": 20,
-      "valid_time": "2026-07-07T20:00:00Z",
-      "valid_label": "Tue 07/07 20:00Z",
+      "valid_time": "2026-07-08T02:00:00Z",
+      "valid_label": "Wed 07/08 02:00Z",
       "file": "F20.webp"
     },
     {
       "fxx": 21,
-      "valid_time": "2026-07-07T21:00:00Z",
-      "valid_label": "Tue 07/07 21:00Z",
+      "valid_time": "2026-07-08T03:00:00Z",
+      "valid_label": "Wed 07/08 03:00Z",
       "file": "F21.webp"
     },
     {
       "fxx": 22,
-      "valid_time": "2026-07-07T22:00:00Z",
-      "valid_label": "Tue 07/07 22:00Z",
+      "valid_time": "2026-07-08T04:00:00Z",
+      "valid_label": "Wed 07/08 04:00Z",
       "file": "F22.webp"
     },
     {
       "fxx": 23,
-      "valid_time": "2026-07-07T23:00:00Z",
-      "valid_label": "Tue 07/07 23:00Z",
+      "valid_time": "2026-07-08T05:00:00Z",
+      "valid_label": "Wed 07/08 05:00Z",
       "file": "F23.webp"
     },
     {
       "fxx": 24,
-      "valid_time": "2026-07-08T00:00:00Z",
-      "valid_label": "Wed 07/08 00:00Z",
+      "valid_time": "2026-07-08T06:00:00Z",
+      "valid_label": "Wed 07/08 06:00Z",
       "file": "F24.webp"
     },
     {
       "fxx": 25,
-      "valid_time": "2026-07-08T01:00:00Z",
-      "valid_label": "Wed 07/08 01:00Z",
+      "valid_time": "2026-07-08T07:00:00Z",
+      "valid_label": "Wed 07/08 07:00Z",
       "file": "F25.webp"
     },
     {
       "fxx": 26,
-      "valid_time": "2026-07-08T02:00:00Z",
-      "valid_label": "Wed 07/08 02:00Z",
+      "valid_time": "2026-07-08T08:00:00Z",
+      "valid_label": "Wed 07/08 08:00Z",
       "file": "F26.webp"
     },
     {
       "fxx": 27,
-      "valid_time": "2026-07-08T03:00:00Z",
-      "valid_label": "Wed 07/08 03:00Z",
+      "valid_time": "2026-07-08T09:00:00Z",
+      "valid_label": "Wed 07/08 09:00Z",
       "file": "F27.webp"
     },
     {
       "fxx": 28,
-      "valid_time": "2026-07-08T04:00:00Z",
-      "valid_label": "Wed 07/08 04:00Z",
+      "valid_time": "2026-07-08T10:00:00Z",
+      "valid_label": "Wed 07/08 10:00Z",
       "file": "F28.webp"
     },
     {
       "fxx": 29,
-      "valid_time": "2026-07-08T05:00:00Z",
-      "valid_label": "Wed 07/08 05:00Z",
+      "valid_time": "2026-07-08T11:00:00Z",
+      "valid_label": "Wed 07/08 11:00Z",
       "file": "F29.webp"
     },
     {
       "fxx": 30,
-      "valid_time": "2026-07-08T06:00:00Z",
-      "valid_label": "Wed 07/08 06:00Z",
+      "valid_time": "2026-07-08T12:00:00Z",
+      "valid_label": "Wed 07/08 12:00Z",
       "file": "F30.webp"
     },
     {
       "fxx": 31,
-      "valid_time": "2026-07-08T07:00:00Z",
-      "valid_label": "Wed 07/08 07:00Z",
+      "valid_time": "2026-07-08T13:00:00Z",
+      "valid_label": "Wed 07/08 13:00Z",
       "file": "F31.webp"
     },
     {
       "fxx": 32,
-      "valid_time": "2026-07-08T08:00:00Z",
-      "valid_label": "Wed 07/08 08:00Z",
+      "valid_time": "2026-07-08T14:00:00Z",
+      "valid_label": "Wed 07/08 14:00Z",
       "file": "F32.webp"
     },
     {
       "fxx": 33,
-      "valid_time": "2026-07-08T09:00:00Z",
-      "valid_label": "Wed 07/08 09:00Z",
+      "valid_time": "2026-07-08T15:00:00Z",
+      "valid_label": "Wed 07/08 15:00Z",
       "file": "F33.webp"
     },
     {
       "fxx": 34,
-      "valid_time": "2026-07-08T10:00:00Z",
-      "valid_label": "Wed 07/08 10:00Z",
+      "valid_time": "2026-07-08T16:00:00Z",
+      "valid_label": "Wed 07/08 16:00Z",
       "file": "F34.webp"
     },
     {
       "fxx": 35,
-      "valid_time": "2026-07-08T11:00:00Z",
-      "valid_label": "Wed 07/08 11:00Z",
+      "valid_time": "2026-07-08T17:00:00Z",
+      "valid_label": "Wed 07/08 17:00Z",
       "file": "F35.webp"
     },
     {
       "fxx": 36,
-      "valid_time": "2026-07-08T12:00:00Z",
-      "valid_label": "Wed 07/08 12:00Z",
+      "valid_time": "2026-07-08T18:00:00Z",
+      "valid_label": "Wed 07/08 18:00Z",
       "file": "F36.webp"
     },
     {
       "fxx": 37,
-      "valid_time": "2026-07-08T13:00:00Z",
-      "valid_label": "Wed 07/08 13:00Z",
+      "valid_time": "2026-07-08T19:00:00Z",
+      "valid_label": "Wed 07/08 19:00Z",
       "file": "F37.webp"
     },
     {
       "fxx": 38,
-      "valid_time": "2026-07-08T14:00:00Z",
-      "valid_label": "Wed 07/08 14:00Z",
+      "valid_time": "2026-07-08T20:00:00Z",
+      "valid_label": "Wed 07/08 20:00Z",
       "file": "F38.webp"
     },
     {
       "fxx": 39,
-      "valid_time": "2026-07-08T15:00:00Z",
-      "valid_label": "Wed 07/08 15:00Z",
+      "valid_time": "2026-07-08T21:00:00Z",
+      "valid_label": "Wed 07/08 21:00Z",
       "file": "F39.webp"
     },
     {
       "fxx": 40,
-      "valid_time": "2026-07-08T16:00:00Z",
-      "valid_label": "Wed 07/08 16:00Z",
+      "valid_time": "2026-07-08T22:00:00Z",
+      "valid_label": "Wed 07/08 22:00Z",
       "file": "F40.webp"
     },
     {
       "fxx": 41,
-      "valid_time": "2026-07-08T17:00:00Z",
-      "valid_label": "Wed 07/08 17:00Z",
+      "valid_time": "2026-07-08T23:00:00Z",
+      "valid_label": "Wed 07/08 23:00Z",
       "file": "F41.webp"
     },
     {
       "fxx": 42,
-      "valid_time": "2026-07-08T18:00:00Z",
-      "valid_label": "Wed 07/08 18:00Z",
+      "valid_time": "2026-07-09T00:00:00Z",
+      "valid_label": "Thu 07/09 00:00Z",
       "file": "F42.webp"
     },
     {
       "fxx": 43,
-      "valid_time": "2026-07-08T19:00:00Z",
-      "valid_label": "Wed 07/08 19:00Z",
+      "valid_time": "2026-07-09T01:00:00Z",
+      "valid_label": "Thu 07/09 01:00Z",
       "file": "F43.webp"
     },
     {
       "fxx": 44,
-      "valid_time": "2026-07-08T20:00:00Z",
-      "valid_label": "Wed 07/08 20:00Z",
+      "valid_time": "2026-07-09T02:00:00Z",
+      "valid_label": "Thu 07/09 02:00Z",
       "file": "F44.webp"
     },
     {
       "fxx": 45,
-      "valid_time": "2026-07-08T21:00:00Z",
-      "valid_label": "Wed 07/08 21:00Z",
+      "valid_time": "2026-07-09T03:00:00Z",
+      "valid_label": "Thu 07/09 03:00Z",
       "file": "F45.webp"
     },
     {
       "fxx": 46,
-      "valid_time": "2026-07-08T22:00:00Z",
-      "valid_label": "Wed 07/08 22:00Z",
+      "valid_time": "2026-07-09T04:00:00Z",
+      "valid_label": "Thu 07/09 04:00Z",
       "file": "F46.webp"
     },
     {
       "fxx": 47,
-      "valid_time": "2026-07-08T23:00:00Z",
-      "valid_label": "Wed 07/08 23:00Z",
+      "valid_time": "2026-07-09T05:00:00Z",
+      "valid_label": "Thu 07/09 05:00Z",
       "file": "F47.webp"
     },
     {
       "fxx": 48,
-      "valid_time": "2026-07-09T00:00:00Z",
-      "valid_label": "Thu 07/09 00:00Z",
+      "valid_time": "2026-07-09T06:00:00Z",
+      "valid_label": "Thu 07/09 06:00Z",
       "file": "F48.webp"
     }
   ]
