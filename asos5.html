@@ -131,7 +131,7 @@
     <span class="seg" id="allSeg">
       <button data-a="all" class="on">All stations</button><button data-a="none">None</button>
     </span>
-    <span class="ctl-note">Click a card to isolate a station (adds its official 24-hour max/min lines, or a 6-hourly reconstruction when the daily group isn&rsquo;t posted) &middot; times are each station&rsquo;s local clock</span>
+    <span class="ctl-note">Click a card to isolate a station (adds dashed max/min reference lines over the shown window) &middot; times are each station&rsquo;s local clock</span>
   </div>
 
   <div class="cards" id="cards"></div>
@@ -146,11 +146,11 @@
     hourly METAR) when those exceed the samples; when an extreme comes from a 6-hour group the card shows the group&rsquo;s
     time window instead of an exact minute. As a precision overlay, the 0.1&nbsp;&deg;C
     <a href="https://madis-data.ncep.noaa.gov/">NOAA/NWS MADIS</a> HFMETAR 5-minute feed is layered in when the
-    background updater has posted it recently. When a station is isolated, its official 24-hour
-    max/min (the <code>4&hellip;</code> daily-summary group) is drawn as dashed reference lines; if that group
-    isn&rsquo;t posted, the lines are reconstructed from the four 6-hour groups over the last 24&nbsp;h &mdash;
-    or, failing that, from the plotted observations themselves (&ldquo;sampled&rdquo;) &mdash; shown dotted and
-    tagged, so every isolated station gets max/min lines. Obviously bad values are dropped.
+    background updater has posted it recently. When a station is isolated, dashed reference lines mark
+    its max/min over the shown window, taken from the plotted observations and raised to any official
+    METAR <b>6-hour</b> (<code>1sTTT</code>/<code>2sTTT</code>) or <b>24-hour</b> (<code>4&hellip;</code>) group
+    extreme that catches a peak between samples; each line is tagged by source (sampled / 6-hr /
+    official) and the span it covers, so it always bounds the visible curve. Obviously bad values are dropped.
   </footer>
 </main>
 
@@ -247,40 +247,36 @@
     return { max: val(m[1]), min: val(m[2]), e: epoch };
   }
 
-  // fallback 24-h max/min reconstructed from the 6-hour groups (1sTTT / 2sTTT)
-  // for stations that don't post the daily 24-h summary (4-group). Takes the
-  // groups within the most recent 24 h (ending at the latest 6-h boundary) and
-  // returns a daymm-like object tagged src:"6hr" with the span actually covered,
-  // or null if there aren't at least two groups.
-  function dayFrom6hr(sixhr) {
-    if (!sixhr || !sixhr.length) return null;
-    var E = sixhr[sixhr.length - 1][0];                 // latest 6-h boundary (sorted asc)
-    var lo = E - 24 * 3600, mx = null, mn = null, n = 0, earliest = E;
-    sixhr.forEach(function (g) {
-      if (g[0] <= lo || g[0] > E) return;               // within the 24-h window ending at E
-      if (g[1] != null) mx = (mx == null) ? g[1] : Math.max(mx, g[1]);
-      if (g[2] != null) mn = (mn == null) ? g[2] : Math.min(mn, g[2]);
-      if (g[1] != null || g[2] != null) { n++; earliest = Math.min(earliest, g[0] - 6 * 3600); }
+  // Max/min over the SHOWN window ([w0, latest]) for the isolated-station
+  // reference lines — so they always bound the visible curve (no line ever below
+  // the plotted max / above the plotted min). Starts from the plotted samples and
+  // is raised to any in-window 6-hour group extreme and the official 24-h summary
+  // value (which catch a true peak between samples). Uses the full displayed span,
+  // not a rolling 24 h, so a peak near the chart edge isn't dropped. Per-extreme
+  // provenance in maxsrc/minsrc ("obs" | "6hr" | "24hr"); °C, or null.
+  function dayFromShown(obs, sixhr, official, w0) {
+    var mx = null, mn = null, ms = "", ns = "", E = w0, earliest = null;
+    (obs || []).forEach(function (o) {
+      if (o[1] == null || o[0] < w0) return;
+      if (mx == null || o[1] > mx) { mx = o[1]; ms = "obs"; }
+      if (mn == null || o[1] < mn) { mn = o[1]; ns = "obs"; }
+      if (o[0] > E) E = o[0];
+      if (earliest == null || o[0] < earliest) earliest = o[0];
     });
-    if (n < 2 || mx == null || mn == null) return null;
-    return { max: mx, min: mn, e: E, src: "6hr", span_h: Math.round((E - earliest) / 3600) };
-  }
-
-  // last-resort 24-h max/min straight from the plotted observations, for stations
-  // that post neither the 24-h summary nor the 6-hour groups (e.g. the hourly
-  // sites). Max/min of the sampled temps over the most recent 24 h. °C.
-  function dayFromObs(obs) {
-    if (!obs || !obs.length) return null;
-    var E = obs[obs.length - 1][0], lo = E - 24 * 3600;
-    var mx = null, mn = null, earliest = E, n = 0;
-    obs.forEach(function (o) {
-      if (o[1] == null || o[0] <= lo || o[0] > E) return;
-      if (mx == null || o[1] > mx) mx = o[1];
-      if (mn == null || o[1] < mn) mn = o[1];
-      earliest = Math.min(earliest, o[0]); n++;
+    (sixhr || []).forEach(function (g) {
+      if (g[0] <= w0) return;                            // 6-h group ends within the window
+      if (g[1] != null && (mx == null || g[1] > mx)) { mx = g[1]; ms = "6hr"; }
+      if (g[2] != null && (mn == null || g[2] < mn)) { mn = g[2]; ns = "6hr"; }
+      if (g[0] > E) E = g[0];
+      var s = g[0] - 6 * 3600; if (earliest == null || s < earliest) earliest = s;
     });
-    if (n < 2 || mx == null || mn == null) return null;
-    return { max: mx, min: mn, e: E, src: "obs", span_h: Math.round((E - earliest) / 3600) };
+    if (official) {                                      // official 24-h daily max/min (yesterday, in-window)
+      if (official.max != null && (mx == null || official.max > mx)) { mx = official.max; ms = "24hr"; }
+      if (official.min != null && (mn == null || official.min < mn)) { mn = official.min; ns = "24hr"; }
+    }
+    if (mx == null || mn == null) return null;
+    return { max: mx, min: mn, maxsrc: ms, minsrc: ns, e: E,
+             span_h: Math.round((E - earliest) / 3600) };
   }
 
   // absolute daily max/min from merged samples + 6-hr groups fully within today
@@ -320,12 +316,13 @@
     if (live && live.sixhr) live.sixhr.forEach(function (g) { if (groups[g[0]] == null) groups[g[0]] = g; });
     var sixhr = Object.keys(groups).map(function (k) { return groups[k]; })
                       .sort(function (a, b) { return a[0] - b[0]; });
-    var daymm = null;                                             // newest 24-h max/min report
+    var official = null;                                          // newest official 24-h summary (4-group), if any
     [branchSt && branchSt.daymm, live && live.daymm].forEach(function (d) {
-      if (d && (!daymm || d.e > daymm.e)) daymm = d;
+      if (d && (!official || d.e > official.e)) official = d;
     });
-    if (!daymm) daymm = dayFrom6hr(sixhr);                        // fallback 1: 6-hour groups
-    if (!daymm) daymm = dayFromObs(obs);                          // fallback 2: sampled obs
+    // reference lines = max/min over the shown window, folding in the official
+    // group so they bound the visible curve for every station.
+    var daymm = dayFromShown(obs, sixhr, official, w0);
     var dp = localParts(m0 + 7200, meta.tz);
     return { id: meta.id, name: meta.name, tz: meta.tz, cadence_min: cadence,
              day_local: dp.year + "-" + dp.month + "-" + dp.day,
@@ -566,30 +563,25 @@
                            layer: "below", line: { color: "#c9a24a", width: 1.2, dash: "dot" } }] : [];
     var annotations = midX ? [{ x: midX, yref: "paper", y: 1, yanchor: "bottom", xanchor: "center",
                                text: "midnight", showarrow: false, font: { size: 9.5, color: "#a07a1e" } }] : [];
-    // Official 24-hour max/min (the ~06Z daily-summary METAR group) as horizontal reference
-    // lines — only when a single station is isolated, and only for temperature.
+    // Max/min-over-the-shown-window reference lines (dashed horizontal), only when
+    // a single station is isolated and in temperature view. Values bound the visible
+    // curve; the source of each extreme (sampled / 6-hr group / official 24-h group)
+    // is tagged, and the span covered is shown.
     if (state.iso != null && state.iso >= 0 && state.vr === "t") {
       var iso = state.data.stations[state.iso];
       if (iso && iso.daymm) {
         var icol = COLORS[state.iso % COLORS.length];
-        var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        // the 24-h group is reported ~local midnight for the day that just ended; midday of
-        // that period (−12 h) lands squarely on the covered local date.
-        var dp = localParts(iso.daymm.e - 12 * 3600, iso.tz);
-        var dstr = MON[+dp.month - 1] + " " + (+dp.day);
-        // reconstructed fallbacks (6-hour groups or sampled obs): dotted line, a
-        // provenance tag, and the real span covered if it isn't a full 24 h.
-        var recon = iso.daymm.src === "6hr" || iso.daymm.src === "obs";
-        var sp = recon && iso.daymm.span_h < 22 ? iso.daymm.span_h : 24;
-        var pre = sp + "-h ",
-            tag = iso.daymm.src === "6hr" ? ", 6-hr" : iso.daymm.src === "obs" ? ", sampled" : "";
-        [[pre + "max", iso.daymm.max], [pre + "min", iso.daymm.min]].forEach(function (p) {
+        var SRC = { obs: "sampled", "6hr": "6-hr", "24hr": "official" };
+        var sp = iso.daymm.span_h;
+        [["max", iso.daymm.max, iso.daymm.maxsrc], ["min", iso.daymm.min, iso.daymm.minsrc]]
+          .forEach(function (p) {
           var yv = cToUnit(p[1]);
           shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: yv, y1: yv,
-                        layer: "below", line: { color: icol, width: 1.3, dash: recon ? "dot" : "dash" } });
+                        layer: "below", line: { color: icol, width: 1.3, dash: "dash" } });
           annotations.push({ xref: "paper", x: 0.006, y: yv, yref: "y", yanchor: "bottom",
                              xanchor: "left",
-                             text: p[0] + " (" + dstr + tag + ") " + yv.toFixed(1) + "°" + state.unit,
+                             text: sp + "-h " + p[0] + " (" + (SRC[p[2]] || "sampled") + ") "
+                                   + yv.toFixed(1) + "°" + state.unit,
                              showarrow: false, bgcolor: "rgba(255,255,255,0.85)",
                              font: { size: 14.25, color: "#1c1c1a" } });
         });
