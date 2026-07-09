@@ -30,7 +30,7 @@ def main():
     d = date(2025, 11, 15)
     today = date.today()
     while d <= today:
-        avg, _, rows = model.poll_average(polls, as_of=d)
+        avg, _, rows, _ = model.poll_average(polls, as_of=d)
         if avg is not None and len(rows) >= 5:
             trend.append({"d": d.isoformat(), "m": round(avg, 2)})
         d += timedelta(days=7)
@@ -58,6 +58,8 @@ def main():
             "seats_mean": hm["dem_seats_mean"], "p10": hm["dem_seats_p10"],
             "p90": hm["dem_seats_p90"],
             "poll_avg": hm["poll_average_margin"], "n_polls": hm["n_polls_used"],
+            "avg_undecided": hm.get("avg_undecided_pct"),
+            "silver": forecast["house"].get("silver_bulletin_margin"),
             "hist": hist_bins(hm["seat_histogram"], 4), "majority": 218,
         },
         "senate": {

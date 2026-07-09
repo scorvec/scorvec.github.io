@@ -5,6 +5,7 @@ so historical runs can be replayed and the model backtested later.
 All sources are free, public, unauthenticated APIs.
 """
 import json
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,8 @@ import config
 
 ROOT = Path(__file__).resolve().parents[2]
 UA = {"User-Agent": "election2026-research-model/0.1 (personal research)"}
+BROWSER_UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                            "AppleWebKit/537.36"}
 
 VOTEHUB = "https://api.votehub.com/polls"
 KALSHI = "https://api.elections.kalshi.com/trade-api/v2"
@@ -55,7 +58,18 @@ def fetch_polls():
             "dem": dem, "rep": rep, "margin": round(dem - rep, 2),
         })
     polls.sort(key=lambda p: p["end_date"] or "", reverse=True)
-    return {"source": "votehub", "polls": polls}
+    out = {"source": "votehub", "polls": polls}
+    # Silver Bulletin headline average as a cross-check (display only)
+    try:
+        r = requests.get(config.SILVER_BULLETIN["page"], headers=BROWSER_UA,
+                         timeout=30)
+        m = re.search(r"currently sitting at ([DR])\s*\+([\d.]+)", r.text)
+        if m:
+            out["silver_bulletin"] = {
+                "margin": (1 if m.group(1) == "D" else -1) * float(m.group(2))}
+    except requests.RequestException:
+        pass
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -217,6 +231,14 @@ def snapshot():
         except Exception as e:  # keep going if one source is down
             bundle[name] = {"error": f"{type(e).__name__}: {e}"}
         (outdir / f"{name}.json").write_text(json.dumps(bundle[name], indent=2))
+    # Silver Bulletin poll-level CSV (public sheet): snapshot for backtesting
+    try:
+        r = requests.get(config.SILVER_BULLETIN["csv"], headers=BROWSER_UA,
+                         timeout=30)
+        if r.ok and r.text.startswith("subgroup,"):
+            (outdir / "silver_polls.csv").write_text(r.text)
+    except requests.RequestException:
+        pass
     return bundle
 
 

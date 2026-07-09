@@ -36,32 +36,41 @@ def poll_average(polls, as_of=None):
             continue
         n = p.get("sample_size") or 800
         w = (0.5 ** (age / cfg["recency_halflife_days"])) * np.sqrt(min(n, 3000) / 1000)
+        two_party = p["dem"] + p["rep"]
+        w *= max(cfg["undecided_weight_floor"],
+                 min(1.0, (two_party / cfg["two_party_typical"]) ** 2))
         adj = cfg["pop_adjust"].get(p.get("population"), cfg["pop_adjust"][None])
-        rows.append((p["margin"] + adj, w, p))
+        rows.append((p["margin"] + adj, w, p, 100.0 - two_party))
     if not rows:
-        return None, 0, []
+        return None, 0, [], None
     margins = np.array([r[0] for r in rows])
     weights = np.array([r[1] for r in rows])
     avg = float(np.average(margins, weights=weights))
     eff_n = float(weights.sum() ** 2 / (weights ** 2).sum())
-    return avg, eff_n, rows
+    und_avg = float(np.average([r[3] for r in rows], weights=weights))
+    return avg, eff_n, rows, und_avg
 
 
 def house_model(polls, rng):
     cfg = config.HOUSE
-    avg, eff_n, rows = poll_average(polls)
+    avg, eff_n, rows, und_avg = poll_average(polls)
     if avg is None:
         return None
     n = cfg["n_sims"]
+    und_sd = cfg["undecided_extra_sd_per_pt"] * max(
+        0.0, und_avg - cfg["undecided_baseline_pct"])
     margin_true = (avg
                    - rng.normal(cfg["bias_mean"], cfg["bias_sd"], n)
-                   + rng.normal(0, cfg["drift_sd"], n))
+                   + rng.normal(0, cfg["drift_sd"], n)
+                   + rng.normal(0, und_sd, n))
     dem_seats = (218
                  + cfg["seats_per_point"] * (margin_true - cfg["even_split_margin"])
                  + rng.normal(0, cfg["seat_noise_sd"], n))
     dem_seats = np.clip(np.round(dem_seats), 0, 435)
     return {
         "poll_average_margin": round(avg, 2),
+        "avg_undecided_pct": round(und_avg, 1),
+        "undecided_extra_sd": round(und_sd, 2),
         "n_polls_used": len(rows),
         "effective_n": round(eff_n, 1),
         "p_dem_control": float((dem_seats >= 218).mean()),
@@ -134,6 +143,8 @@ def run(bundle, seed=2026):
     return {
         "as_of": bundle.get("fetched_at"),
         "house": {
+            "silver_bulletin_margin":
+                (bundle.get("polls", {}).get("silver_bulletin") or {}).get("margin"),
             "model": house,
             "markets": {"kalshi_p_dem": k_house, "polymarket_p_dem": p_house},
             "ensemble_p_dem_control": ensemble(

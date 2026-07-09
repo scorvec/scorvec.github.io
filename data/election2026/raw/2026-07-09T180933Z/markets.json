@@ -1,0 +1,340 @@
+{
+  "kalshi": {
+    "house_dem": {
+      "p_dem": 0.825,
+      "ticker": "CONTROLH-2026-D",
+      "volume": 7137386.99
+    },
+    "senate_dem": {
+      "p_dem": 0.435,
+      "ticker": "CONTROLS-2026-D",
+      "volume": 2608610.06
+    }
+  },
+  "polymarket": {
+    "house_dem": {
+      "p_dem": 0.835,
+      "volume": 8292605.136598847,
+      "liquidity": 700325.3097
+    },
+    "senate_dem": {
+      "p_dem": 0.465,
+      "volume": 3133633.461499022,
+      "liquidity": 379258.586
+    }
+  },
+  "senate_races": {
+    "Alabama": {
+      "incumbent_party": "R",
+      "market": null,
+      "p_dem": 0.05,
+      "prior_used": true
+    },
+    "Alaska": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "alaska-senate-election-winner",
+        "volume": 360034.1626800001,
+        "liquidity": 127733.06863
+      },
+      "p_dem": 0.54
+    },
+    "Arkansas": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "arkansas-senate-election-winner",
+        "volume": 11860.54948499999,
+        "liquidity": 18433.5305
+      },
+      "p_dem": 0.0415
+    },
+    "Colorado": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "colorado-senate-election-winner",
+        "volume": 41433.875068000016,
+        "liquidity": 32407.2698
+      },
+      "p_dem": 0.935
+    },
+    "Delaware": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "delaware-senate-election-winner",
+        "volume": 13049.207219000007,
+        "liquidity": 37711.6447
+      },
+      "p_dem": 0.945
+    },
+    "Florida": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "florida-senate-election-winner",
+        "volume": 42906.029369000025,
+        "liquidity": 25521.9772
+      },
+      "p_dem": 0.16
+    },
+    "Georgia": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "georgia-senate-election-winner",
+        "volume": 37214.21332600003,
+        "liquidity": 37437.82363
+      },
+      "p_dem": 0.865
+    },
+    "Idaho": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "idaho-senate-election-winner",
+        "volume": 18818.47351,
+        "liquidity": 29553.1729
+      },
+      "p_dem": 0.055
+    },
+    "Illinois": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "illinois-senate-election-winner",
+        "volume": 26407.282878999988,
+        "liquidity": 21039.64799
+      },
+      "p_dem": 0.9525
+    },
+    "Iowa": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "iowa-senate-election-winner",
+        "volume": 136762.04858300037,
+        "liquidity": 29869.9669
+      },
+      "p_dem": 0.42
+    },
+    "Kansas": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "kansas-senate-election-winner",
+        "volume": 32461.85046499998,
+        "liquidity": 26633.4019
+      },
+      "p_dem": 0.17
+    },
+    "Kentucky": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "kentucky-senate-election-winner",
+        "volume": 13610.386463,
+        "liquidity": 41664.40382
+      },
+      "p_dem": 0.061
+    },
+    "Louisiana": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "louisiana-senate-election-winner",
+        "volume": 16438.825487000002,
+        "liquidity": 63418.183
+      },
+      "p_dem": 0.08
+    },
+    "Maine": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "maine-senate-election-winner",
+        "volume": 968893.4899220007,
+        "liquidity": 255941.7218
+      },
+      "p_dem": 0.64
+    },
+    "Massachusetts": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "massachusetts-senate-election-winner",
+        "volume": 13224.069324999997,
+        "liquidity": 22250.9759
+      },
+      "p_dem": 0.93
+    },
+    "Michigan": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "michigan-senate-election-winner",
+        "volume": 122339.8092600001,
+        "liquidity": 27298.8435
+      },
+      "p_dem": 0.73
+    },
+    "Minnesota": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "minnesota-senate-election-winner",
+        "volume": 33583.56447999999,
+        "liquidity": 41909.2427
+      },
+      "p_dem": 0.935
+    },
+    "Mississippi": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "mississippi-senate-election-winner",
+        "volume": 26868.674357,
+        "liquidity": 28305.0869
+      },
+      "p_dem": 0.115
+    },
+    "Montana": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "montana-senate-election-winner",
+        "volume": 83582.76122700001,
+        "liquidity": 26724.75416
+      },
+      "p_dem": 0.0135
+    },
+    "Nebraska": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "nebraska-senate-election-winner",
+        "volume": 149830.4781790004,
+        "liquidity": 64266.01033
+      },
+      "p_dem": 0.0215
+    },
+    "New Hampshire": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "new-hampshire-senate-election-winner",
+        "volume": 31675.614429000005,
+        "liquidity": 24272.8287
+      },
+      "p_dem": 0.835
+    },
+    "New Jersey": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "new-jersey-senate-election-winner",
+        "volume": 18584.15701000002,
+        "liquidity": 31768.09722
+      },
+      "p_dem": 0.95
+    },
+    "New Mexico": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "new-mexico-senate-election-winner",
+        "volume": 17501.425436000005,
+        "liquidity": 17800.86832
+      },
+      "p_dem": 0.9295
+    },
+    "North Carolina": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "north-carolina-senate-election-winner",
+        "volume": 74740.22398800006,
+        "liquidity": 32375.1034
+      },
+      "p_dem": 0.87
+    },
+    "Ohio": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "ohio-senate-election-winner",
+        "volume": 97944.14412599981,
+        "liquidity": 54321.621
+      },
+      "p_dem": 0.485
+    },
+    "Oklahoma": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "oklahoma-senate-election-winner",
+        "volume": 17919.673673,
+        "liquidity": 26776.79297
+      },
+      "p_dem": 0.0505
+    },
+    "Oregon": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "oregon-senate-election-winner",
+        "volume": 4965.801192000001,
+        "liquidity": 28461.6945
+      },
+      "p_dem": 0.945
+    },
+    "Rhode Island": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "rhode-island-senate-election-winner",
+        "volume": 8744.914727999992,
+        "liquidity": 26828.42558
+      },
+      "p_dem": 0.94
+    },
+    "South Carolina": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "south-carolina-senate-election-winner",
+        "volume": 39755.07914899998,
+        "liquidity": 46535.2452
+      },
+      "p_dem": 0.14
+    },
+    "South Dakota": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "south-dakota-senate-election-winner",
+        "volume": 9132.844244999998,
+        "liquidity": 24513.901
+      },
+      "p_dem": 0.064
+    },
+    "Tennessee": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "tennessee-senate-election-winner",
+        "volume": 23370.72490800004,
+        "liquidity": 27490.99115
+      },
+      "p_dem": 0.0285
+    },
+    "Texas": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "texas-senate-election-winner",
+        "volume": 560506.5338949985,
+        "liquidity": 98371.5728
+      },
+      "p_dem": 0.43
+    },
+    "Virginia": {
+      "incumbent_party": "D",
+      "market": {
+        "slug": "virginia-senate-election-winner",
+        "volume": 12174.033452999993,
+        "liquidity": 30313.287
+      },
+      "p_dem": 0.94
+    },
+    "West Virginia": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "west-virginia-senate-election-winner",
+        "volume": 11885.956889000003,
+        "liquidity": 17824.72341
+      },
+      "p_dem": 0.019
+    },
+    "Wyoming": {
+      "incumbent_party": "R",
+      "market": {
+        "slug": "wyoming-senate-election-winner",
+        "volume": 11932.690574000002,
+        "liquidity": 39835.20426
+      },
+      "p_dem": 0.031
+    }
+  }
+}

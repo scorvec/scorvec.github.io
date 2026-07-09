@@ -51,6 +51,16 @@ HOUSE = {
     # RV and adult samples historically run ~1-1.5 pts more Democratic).
     "pop_adjust": {"lv": 0.0, "rv": -1.0, "a": -1.5, None: -1.0},
 
+    # Undecided handling ("option 3"): a poll leaving many voters unallocated
+    # is less informative, so its weight shrinks by (two-party share /
+    # typical)^2 with a floor. Undecideds are assumed to split evenly in the
+    # mean; the window's average undecided share above a baseline adds
+    # forecast variance instead of being allocated to either party.
+    "two_party_typical": 86.0,
+    "undecided_weight_floor": 0.35,
+    "undecided_baseline_pct": 8.0,
+    "undecided_extra_sd_per_pt": 0.12,
+
     # Systematic polling bias: generic-ballot averages have overstated the
     # eventual Dem House margin in recent cycles (2020 badly, 2022 mildly).
     # Modeled as N(mean, sd) subtracted from the poll average.
@@ -93,6 +103,13 @@ ENSEMBLE = {"model": 0.50, "kalshi": 0.25, "polymarket": 0.25}
 # it does NOT enter the forecast. Volume + crude lexicon sentiment.
 # ---------------------------------------------------------------------------
 BLUESKY_QUERIES = ["midterms", "2026 election", "democrats", "republicans"]
+
+# Silver Bulletin: headline average scraped as a cross-check (display only),
+# and the public poll-level CSV snapshotted for future backtesting.
+SILVER_BULLETIN = {
+    "page": "https://www.natesilver.net/p/generic-ballot-average-2026-nate-silver-bulletin-congress-polls",
+    "csv": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRsvXNCZ0ubJr8D_yNcU5q6C0_HBa35K7oDK03KpO7Ca43UwdXaIdvVLWoXEmHHph0EREz5430Hm5yZ/pub?output=csv",
+}
 
 SENTIMENT_POS = {
     "win", "winning", "won", "great", "good", "strong", "hope", "hopeful",
