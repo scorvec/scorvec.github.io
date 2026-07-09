@@ -153,7 +153,7 @@ svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 </div>
 
 <div class="card" style="margin-bottom:14px; display:none" id="und-card">
-  <h2>Who are the undecideds?</h2>
+  <h2>Undecided share, group by group</h2>
   <p class="note" id="und-note"></p>
   <div class="chart" id="und-chart"></div>
 </div>
@@ -381,8 +381,8 @@ function undChart() {
   const u = DATA.undecideds;
   if (!u || !u.rows.length) return;
   $("#und-card").style.display = "";
-  $("#und-note").innerHTML = "&ldquo;Not sure&rdquo; share of the generic congressional ballot by subgroup (YouGov weekly tracker, wave of " + u.wave +
-    "). Undecideds are concentrated among independents; in 2022 this tracker's not-sure share halved by election eve as independents broke Republican.";
+  $("#und-note").innerHTML = "Each bar: the percent of that group answering &ldquo;not sure&rdquo; when YouGov asks who they&rsquo;d vote for for Congress (weekly tracker, wave of " + u.wave +
+    "). Example: 19% of independents haven&rsquo;t picked a side, versus 7% of all registered voters and 2% of Democrats. The right column is each group&rsquo;s current preference margin. Why it matters: the voters still deciding are mostly independents, who currently lean Democratic &mdash; but in 2022 the same tracker&rsquo;s undecideds halved by election eve as independents broke Republican.";
   const host = $("#und-chart"); host.innerHTML = "";
   const W = Math.max(host.clientWidth || 960, 320), rowH = 26;
   const M = {t: 20, r: 64, b: 8, l: 148};
@@ -419,7 +419,7 @@ function undChart() {
     mg.textContent = fmtM(r.margin); svg.append(mg);
   });
   const hdr = svgEl("text", {x: W - 6, y: 12, "text-anchor": "end", class: "axis-t"});
-  hdr.textContent = "margin"; svg.append(hdr);
+  hdr.textContent = "current margin"; svg.append(hdr);
   host.append(svg);
 }
 
