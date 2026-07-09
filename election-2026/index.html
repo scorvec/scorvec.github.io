@@ -330,7 +330,7 @@ function gbChart() {
     `<span><i style="background:var(--muted);opacity:.55"></i>Individual polls</span>
      <span><i style="background:var(--dem)"></i>Weighted average</span>`;
 
-  const rows = DATA.scatter.slice(-25).reverse().map(p =>
+  const rows = [...DATA.scatter].sort((a, b) => b.d.localeCompare(a.d)).slice(0, 25).map(p =>
     `<tr><td>${p.pollster || ""}</td><td>${p.d}</td>
      <td class="num">${p.n || ""}</td><td>${(p.pop || "").toUpperCase()}</td>
      <td class="num">${fmtM(p.m)}</td></tr>`).join("");
