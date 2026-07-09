@@ -161,6 +161,8 @@ svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 <footer>
   <h3>Method</h3>
   <p>The House forecast starts from a weighted generic-ballot average (recency half-life 18 days, sample-size weights, likely-voter adjustment), simulates the true national margin with historical polling bias and four months of drift, and converts margin to seats through a seats&ndash;votes curve. The Senate forecast simulates all 35 races from per-race market prices with a shared national shock correlating outcomes. Headline probabilities blend the structural model (50%) with Kalshi and Polymarket control markets (25% each).</p>
+  <h3>Built by Claude</h3>
+  <p>This entire project &mdash; the model design, data pipeline, and this page &mdash; was built by Claude (Anthropic&rsquo;s Claude Fable 5 model) in a single session, with human direction. Treat it as an AI-built experiment: the methodology is documented and the code is public, but no human statistician has reviewed the calibration.</p>
   <h3>Sources</h3>
   <p>Polls: <a href="https://api.votehub.com">VoteHub</a>. Markets: <a href="https://kalshi.com">Kalshi</a>, <a href="https://polymarket.com">Polymarket</a>. Social: <a href="https://bsky.app">Bluesky</a> public search. Probabilities are model output, not betting advice; calibration parameters are documented in the repo and have not been formally backtested.</p>
 </footer>
