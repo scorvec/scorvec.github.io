@@ -8,12 +8,16 @@ YouGov tracker: one sheet per subgroup, columns = weekly waves 2017->present,
 rows = Dem / Rep / Other / Not sure / would-not-vote / bases.
 """
 import json
+import sys
 from pathlib import Path
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
-XLSX = ROOT / "data" / "election2026" / "crosstabs" / "yougov_tracker.xlsx"
+# optional argv[1]: read the tracker from elsewhere (CI downloads to /tmp so
+# the committed xlsx doesn't churn on YouGov's nondeterministic re-exports)
+XLSX = Path(sys.argv[1]) if len(sys.argv) > 1 else \
+    ROOT / "data" / "election2026" / "crosstabs" / "yougov_tracker.xlsx"
 
 ROWS = {"The Democratic Party candidate": "dem",
         "The Republican Party candidate": "rep",
