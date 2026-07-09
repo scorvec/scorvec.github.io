@@ -126,7 +126,7 @@ svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 
 <div class="card" style="margin-bottom:14px">
   <h2>Generic congressional ballot</h2>
-  <p class="note">Democratic margin in national polls (dots) and this model's recency- and size-weighted average (line). Source: VoteHub poll archive.</p>
+  <p class="note">Democratic margin in national polls (dots) and this model's recency- and size-weighted average (line). Source: VoteHub poll archive.<span id="gb-extra"></span></p>
   <div class="legend" id="gb-legend"></div>
   <div class="chart" id="gb-chart"></div>
   <details><summary>Poll table (most recent 25)</summary><div style="overflow-x:auto" id="gb-table"></div></details>
@@ -160,7 +160,7 @@ svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 
 <footer>
   <h3>Method</h3>
-  <p>The House forecast starts from a weighted generic-ballot average (recency half-life 18 days, sample-size weights, likely-voter adjustment), simulates the true national margin with historical polling bias and four months of drift, and converts margin to seats through a seats&ndash;votes curve. The Senate forecast simulates all 35 races from per-race market prices with a shared national shock correlating outcomes. Headline probabilities blend the structural model (50%) with Kalshi and Polymarket control markets (25% each).</p>
+  <p>The House forecast starts from a weighted generic-ballot average (recency half-life 18 days, sample-size weights, likely-voter adjustment, down-weighting of high-undecided polls), simulates the true national margin with historical polling bias and four months of drift, and converts margin to seats through a seats&ndash;votes curve. Undecideds are assumed to split evenly in expectation; the average undecided share adds forecast variance instead of being allocated to either party. The Senate forecast simulates all 35 races from per-race market prices with a shared national shock correlating outcomes. Headline probabilities blend the structural model (50%) with Kalshi and Polymarket control markets (25% each).</p>
   <h3>Built by Claude</h3>
   <p>This entire project &mdash; the model design, data pipeline, and this page &mdash; was built by Claude (Anthropic&rsquo;s Claude Fable 5 model) in a single session, with human direction. Treat it as an AI-built experiment: the methodology is documented and the code is public, but no human statistician has reviewed the calibration.</p>
   <h3>Sources</h3>
@@ -394,6 +394,14 @@ const asOf = new Date(DATA.as_of.replace(/T(\d{2})(\d{2})(\d{2})Z/, "T$1:$2:$3Z"
 $("#asof").textContent = "Polls + prediction markets + social, as of " +
   asOf.toLocaleString("en-US", {dateStyle: "long", timeStyle: "short"}) +
   " · generic ballot " + fmtM(DATA.house.poll_avg) + " across " + DATA.house.n_polls + " polls";
+{
+  const ex = [];
+  if (DATA.house.avg_undecided != null)
+    ex.push(" The average poll leaves " + DATA.house.avg_undecided + "% unallocated; high-undecided polls are down-weighted and widen the forecast.");
+  if (DATA.house.silver != null)
+    ex.push(" Cross-check: Silver Bulletin average " + fmtM(DATA.house.silver) + ".");
+  $("#gb-extra").textContent = ex.join("");
+}
 render();
 let rT; addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(render, 150); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);

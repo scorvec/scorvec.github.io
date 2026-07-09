@@ -29,6 +29,10 @@ def main():
         m = h["model"]
         print(f"HOUSE   generic ballot avg: D{m['poll_average_margin']:+.1f} "
               f"({m['n_polls_used']} polls)")
+        sb = forecast["house"].get("silver_bulletin_margin")
+        print(f"        avg undecided {m['avg_undecided_pct']}% "
+              f"(adds {m['undecided_extra_sd']} sd)"
+              + (f" | Silver Bulletin cross-check: D{sb:+.1f}" if sb else ""))
         print(f"        model P(Dem): {m['p_dem_control']:.0%}   "
               f"seats: {m['dem_seats_mean']:.0f} "
               f"[{m['dem_seats_p10']:.0f}-{m['dem_seats_p90']:.0f}]")

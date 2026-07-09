@@ -1,0 +1,61 @@
+{
+  "source": "bluesky",
+  "queries": {
+    "midterms": {
+      "n_posts": 98,
+      "posts_per_hour": 69.9,
+      "pos_hits": 23,
+      "neg_hits": 10,
+      "net_sentiment": 0.133,
+      "sample_texts": [
+        "The Party That Screams About The Evils Of Socialism Wants To Nationalize AI\u00a0Companies\n\nIt's hard to believe that the same people who spent the Biden years screaming that\u2026\n\nhttps://www.techdirt.com/2026/07/09/the-party-that-screams-about-the-evils-of-socialism-wants-to-nationalize-ai-companies/",
+        "The folks over @the-downballot.com have had an invaluable data guide that reported how every House district voted in the 2024 Presidential election.\n\nBut with so much redistricting, some of that data became obsolete.\n\nAnd now they've addressed that!\n\nwww.the-downballot.com/p/the-downba...",
+        "We have to keep pushing toward the Midterms, folks. Trump just isn\u2019t going to stop in his attempt to subvert them\u2026\n\npoliticalwire.com/2026/07/09/t...",
+        "In an increasingly ominous trend, there are currently hundreds of election deniers on the ballot for the 2026 midterm elections. And although history has shown election denialism is not a winning campaign strategy, it continues to be a powerful force in the r-w movement, from Trump on down.",
+        "The AI industry is spending big to buy supportive candidates in the US midterms. But with public opinion turning against AI and data centers, will it make a difference? Always great to chat with @molly.wiki!"
+      ]
+    },
+    "2026 election": {
+      "n_posts": 100,
+      "posts_per_hour": 36.9,
+      "pos_hits": 14,
+      "neg_hits": 13,
+      "net_sentiment": 0.01,
+      "sample_texts": [
+        "ARF Bureau Statement on Parliamentary Election Violations: In a statement released on July 9, 2026, the ARF Bureau condemned the June 7 parliamentary elections in Armenia, characterizing them as being conducted under unprecedented state terror. The Bureau accused the\u2026 https://ranked.news/1111216?u=b",
+        "#BinfaceFever\n#VoteBinface\n\nvariety.com/2026/politic...",
+        "In an increasingly ominous trend, there are currently hundreds of election deniers on the ballot for the 2026 midterm elections. And although history has shown election denialism is not a winning campaign strategy, it continues to be a powerful force in the r-w movement, from Trump on down.",
+        "And, yet, somehow people still believe and trust that the 2026 mid-term elections will be free of maga/republican cheating and that their cult will willingly give up power.  \n\nwww.kenklippenstein.com/p/mitch-mcco...",
+        "James Talarico raises over $30 million in second quarter, campaign says, more than triple Ken Paxton\u2019s sum www.texastribune.org/2026/07/08/t..."
+      ]
+    },
+    "democrats": {
+      "n_posts": 96,
+      "posts_per_hour": 439.9,
+      "pos_hits": 18,
+      "neg_hits": 16,
+      "net_sentiment": 0.021,
+      "sample_texts": [
+        "reckoning within the party that has a 27% approval rating but as long as blue state voters continue to vote corporate democrats into office because \"we're not trump\" is enough for them and they don't really expect the party to deliver any real policy changes the party strategy will reflect that.",
+        "with alt text",
+        "Older Black voters are more likely to identify as small-c conserative, not necessarily \"conservative\" as in being conservative Republican. In 2020, 40 percent identified as moderate and 25 percent ID as conservative.\nwww.pewresearch.org/short-reads/...",
+        "The Party That Screams About The Evils Of Socialism Wants To Nationalize AI\u00a0Companies\n\nIt's hard to believe that the same people who spent the Biden years screaming that\u2026\n\nhttps://www.techdirt.com/2026/07/09/the-party-that-screams-about-the-evils-of-socialism-wants-to-nationalize-ai-companies/",
+        "Do you really think there are enough Republican converts who can get past being told Democrats are the communist devil for the last four voting generations?\n\nYou're going to lose the left and not pick up the right because there is already a Republican Party for them."
+      ]
+    },
+    "republicans": {
+      "n_posts": 98,
+      "posts_per_hour": 511.3,
+      "pos_hits": 15,
+      "neg_hits": 12,
+      "net_sentiment": 0.031,
+      "sample_texts": [
+        "Every republican supports each of these murders of these American citizens!  Not one republican said this was wrong! This November, help me tell these republicans in my country we don\u2019t murder innocent people. November vote democrat in every district in every state! Then say This my Country!!\ud83d\udc99\ud83d\udc99",
+        "substack.com/@adammockler...",
+        "Republicans: the party of rapists, racists, woman-haters, and pedophiles. And the pedos are typically all of the other things put together. People still affiliating with Republican Party should be shunned. For one's own safety.",
+        "I poked around a bit to find out who voted no. Couldn't find a list anywhere, but did find excuses that the 22 who voted NO may have just been objecting to other, more broad AI restrictions that made their way into the bill.  22 voted NO... republicans aren't the only ones who voted NO.\ud83d\ude21",
+        "So are Republicans hiding Mitch McConnell\u2019s death because they want to avoid a special election for that senate seat?\n\nLike is he on life support but brain dead?\n\nOr you think he\u2019s still alive?"
+      ]
+    }
+  }
+}
