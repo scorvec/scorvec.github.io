@@ -3,9 +3,18 @@ name: SST anomalies & RONI (El Niño monitor)
 # NOAA OISST updates daily (1–2 day latency). We rebuild once a day; the script
 # always uses the latest available day, so a late update is simply picked up by
 # the next run. Manual dispatch with --force re-downloads regardless.
+#
+# Cron timing matters. Two constraints, both in UTC (GitHub cron is always UTC):
+#   1. PSL rewrites sst.day.anom.<YEAR>.nc with the previous day at ~16:30 UTC.
+#   2. The laptop primary (run_local_sst.sh) polls until 13:59 America/New_York,
+#      which is 17:59 UTC in EDT but 18:59 UTC in EST — the window MOVES with DST.
+# 19:23 UTC clears both year-round, so this fallback can only ever see the freshest
+# day and never overlaps the laptop (its single-instance lock doesn't span machines).
+# The old 16:23 UTC slot sat 8 min ahead of PSL and was saved only by GitHub's
+# 1–2 h scheduling delay; an on-time dispatch would have committed stale maps.
 on:
   schedule:
-    - cron: '23 16 * * *'   # 16:23 UTC — fallback after the laptop primary (run_local_sst.sh ~15:30 UTC)
+    - cron: '23 19 * * *'   # 19:23 UTC — after PSL (~16:30 UTC) and the laptop window (17:59 UTC EDT / 18:59 UTC EST)
   workflow_dispatch:
     inputs:
       force:
