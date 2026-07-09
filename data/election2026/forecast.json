@@ -1,0 +1,431 @@
+{
+  "as_of": "2026-07-09T173649Z",
+  "house": {
+    "model": {
+      "poll_average_margin": 4.26,
+      "n_polls_used": 57,
+      "effective_n": 47.0,
+      "p_dem_control": 0.66658,
+      "dem_seats_mean": 226.82136,
+      "dem_seats_p10": 199.0,
+      "dem_seats_p90": 254.0,
+      "seat_histogram": {
+        "180": 0.0155,
+        "181": 0.00206,
+        "182": 0.00198,
+        "183": 0.0023,
+        "184": 0.0025,
+        "185": 0.00288,
+        "186": 0.0032,
+        "187": 0.00356,
+        "188": 0.00342,
+        "189": 0.00392,
+        "190": 0.00452,
+        "191": 0.00498,
+        "192": 0.00484,
+        "193": 0.00536,
+        "194": 0.00546,
+        "195": 0.00554,
+        "196": 0.0067,
+        "197": 0.00754,
+        "198": 0.0074,
+        "199": 0.00774,
+        "200": 0.0084,
+        "201": 0.00944,
+        "202": 0.0096,
+        "203": 0.00996,
+        "204": 0.0108,
+        "205": 0.0109,
+        "206": 0.01218,
+        "207": 0.012,
+        "208": 0.0132,
+        "209": 0.01444,
+        "210": 0.01392,
+        "211": 0.01326,
+        "212": 0.01338,
+        "213": 0.0153,
+        "214": 0.01634,
+        "215": 0.01594,
+        "216": 0.01614,
+        "217": 0.01682,
+        "218": 0.01666,
+        "219": 0.01746,
+        "220": 0.0179,
+        "221": 0.018,
+        "222": 0.01696,
+        "223": 0.01832,
+        "224": 0.0177,
+        "225": 0.0181,
+        "226": 0.01822,
+        "227": 0.01796,
+        "228": 0.01798,
+        "229": 0.0181,
+        "230": 0.01912,
+        "231": 0.0184,
+        "232": 0.01866,
+        "233": 0.0169,
+        "234": 0.01854,
+        "235": 0.01704,
+        "236": 0.01694,
+        "237": 0.01716,
+        "238": 0.0173,
+        "239": 0.01524,
+        "240": 0.01522,
+        "241": 0.0158,
+        "242": 0.01378,
+        "243": 0.01464,
+        "244": 0.01482,
+        "245": 0.01252,
+        "246": 0.01222,
+        "247": 0.01138,
+        "248": 0.01218,
+        "249": 0.01056,
+        "250": 0.0099,
+        "251": 0.01,
+        "252": 0.00934,
+        "253": 0.00826,
+        "254": 0.0079,
+        "255": 0.00758,
+        "256": 0.007,
+        "257": 0.0074,
+        "258": 0.0064,
+        "259": 0.00562,
+        "260": 0.00598,
+        "261": 0.00562,
+        "262": 0.00572,
+        "263": 0.0044,
+        "264": 0.00354,
+        "265": 0.0039,
+        "266": 0.00378,
+        "267": 0.00348,
+        "268": 0.00302,
+        "269": 0.00236,
+        "270": 0.0024,
+        "271": 0.00236,
+        "272": 0.00206,
+        "273": 0.00168,
+        "274": 0.00162,
+        "275": 0.00128,
+        "276": 0.00128,
+        "277": 0.0014,
+        "278": 0.00114,
+        "279": 0.00094,
+        "280": 0.00744
+      }
+    },
+    "markets": {
+      "kalshi_p_dem": 0.825,
+      "polymarket_p_dem": 0.835
+    },
+    "ensemble_p_dem_control": 0.7482899999999999
+  },
+  "senate": {
+    "model": {
+      "p_dem_control": 0.47568,
+      "dem_seats_mean": 50.3092,
+      "dem_seats_p10": 46.0,
+      "dem_seats_p90": 54.0,
+      "seat_histogram": {
+        "40": 0.00076,
+        "41": 0.00144,
+        "42": 0.00334,
+        "43": 0.00794,
+        "44": 0.01492,
+        "45": 0.026,
+        "46": 0.04666,
+        "47": 0.06904,
+        "48": 0.09794,
+        "49": 0.12268,
+        "50": 0.1336,
+        "51": 0.13094,
+        "52": 0.11608,
+        "53": 0.08756,
+        "54": 0.06218,
+        "55": 0.03732,
+        "56": 0.02238,
+        "57": 0.01072,
+        "58": 0.00494,
+        "59": 0.00214,
+        "60": 0.00142
+      },
+      "races": {
+        "Alabama": {
+          "p_dem_sim": 0.062,
+          "p_dem_market": 0.05,
+          "incumbent_party": "R",
+          "prior_used": true
+        },
+        "Alaska": {
+          "p_dem_sim": 0.537,
+          "p_dem_market": 0.54,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Arkansas": {
+          "p_dem_sim": 0.051,
+          "p_dem_market": 0.042,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Colorado": {
+          "p_dem_sim": 0.92,
+          "p_dem_market": 0.935,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "Delaware": {
+          "p_dem_sim": 0.933,
+          "p_dem_market": 0.945,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "Florida": {
+          "p_dem_sim": 0.179,
+          "p_dem_market": 0.16,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Georgia": {
+          "p_dem_sim": 0.845,
+          "p_dem_market": 0.865,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "Idaho": {
+          "p_dem_sim": 0.068,
+          "p_dem_market": 0.055,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Illinois": {
+          "p_dem_sim": 0.943,
+          "p_dem_market": 0.953,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "Iowa": {
+          "p_dem_sim": 0.425,
+          "p_dem_market": 0.42,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Kansas": {
+          "p_dem_sim": 0.191,
+          "p_dem_market": 0.17,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Kentucky": {
+          "p_dem_sim": 0.074,
+          "p_dem_market": 0.061,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Louisiana": {
+          "p_dem_sim": 0.096,
+          "p_dem_market": 0.08,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Maine": {
+          "p_dem_sim": 0.629,
+          "p_dem_market": 0.645,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Massachusetts": {
+          "p_dem_sim": 0.917,
+          "p_dem_market": 0.93,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "Michigan": {
+          "p_dem_sim": 0.713,
+          "p_dem_market": 0.73,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "Minnesota": {
+          "p_dem_sim": 0.923,
+          "p_dem_market": 0.935,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "Mississippi": {
+          "p_dem_sim": 0.134,
+          "p_dem_market": 0.115,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Montana": {
+          "p_dem_sim": 0.018,
+          "p_dem_market": 0.013,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Nebraska": {
+          "p_dem_sim": 0.026,
+          "p_dem_market": 0.021,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "New Hampshire": {
+          "p_dem_sim": 0.815,
+          "p_dem_market": 0.835,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "New Jersey": {
+          "p_dem_sim": 0.938,
+          "p_dem_market": 0.95,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "New Mexico": {
+          "p_dem_sim": 0.918,
+          "p_dem_market": 0.93,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "North Carolina": {
+          "p_dem_sim": 0.851,
+          "p_dem_market": 0.87,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Ohio": {
+          "p_dem_sim": 0.482,
+          "p_dem_market": 0.48,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Oklahoma": {
+          "p_dem_sim": 0.062,
+          "p_dem_market": 0.051,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Oregon": {
+          "p_dem_sim": 0.932,
+          "p_dem_market": 0.945,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "Rhode Island": {
+          "p_dem_sim": 0.929,
+          "p_dem_market": 0.94,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "South Carolina": {
+          "p_dem_sim": 0.16,
+          "p_dem_market": 0.14,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "South Dakota": {
+          "p_dem_sim": 0.077,
+          "p_dem_market": 0.064,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Tennessee": {
+          "p_dem_sim": 0.035,
+          "p_dem_market": 0.029,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Texas": {
+          "p_dem_sim": 0.438,
+          "p_dem_market": 0.43,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Virginia": {
+          "p_dem_sim": 0.928,
+          "p_dem_market": 0.94,
+          "incumbent_party": "D",
+          "prior_used": false
+        },
+        "West Virginia": {
+          "p_dem_sim": 0.025,
+          "p_dem_market": 0.019,
+          "incumbent_party": "R",
+          "prior_used": false
+        },
+        "Wyoming": {
+          "p_dem_sim": 0.038,
+          "p_dem_market": 0.031,
+          "incumbent_party": "R",
+          "prior_used": false
+        }
+      }
+    },
+    "markets": {
+      "kalshi_p_dem": 0.435,
+      "polymarket_p_dem": 0.465
+    },
+    "ensemble_p_dem_control": 0.46284000000000003
+  },
+  "social_indicator": {
+    "source": "bluesky",
+    "queries": {
+      "midterms": {
+        "n_posts": 98,
+        "posts_per_hour": 82.6,
+        "pos_hits": 25,
+        "neg_hits": 7,
+        "net_sentiment": 0.184,
+        "sample_texts": [
+          "www.newsweek.com/donald-trump...",
+          "Evidently Debra, if they loose the midterms , he looses speaker of the house.",
+          "e.daily.comms.yahoo.net/click?Ec3Nvb...",
+          "they're going to grind him into the dirt until the midterms.",
+          "If anything, the Midterms are a huge Trump referendum. And I do trust the Maine voters to be mightily concerned \u2013 and not in the Collins way."
+        ]
+      },
+      "2026 election": {
+        "n_posts": 100,
+        "posts_per_hour": 4.8,
+        "pos_hits": 11,
+        "neg_hits": 10,
+        "net_sentiment": 0.01,
+        "sample_texts": [
+          "\ud83d\uddf3\ufe0f New filing: Warren M Woodward\nOffice: Commissioner of Public Works, College Acres Water & Sewer\nParty: Nonpartisan\nElection: Statewide General Election (2026-11-03)\nCounties: AIKEN\n\ud83d\udc64 Candidate profile",
+          "This is an interesting and cheeky piece\n\nwww.jonknowles.com/2026/07/st-n...",
+          "The Trump administration is ramping up pressure on states to change election\u00a0practices\n\n... election rules ahead of the 2026 midterm elections. New FEMA antiterror grants tie more than $1 billion to election-related mandates, including\u00a0...\u00a0 Read original article: Read More",
+          "2.3 Million Registered Voters Eligible for Osun Gubernatorial\u00a0Election\n\nThe Independent National Electoral Commission (INEC) has released the Electronic Register of Voters for the Osun State governorship election scheduled for August 15, 2026, revealing that 2,339,233 registered voters are eligible\u2026",
+          ""
+        ]
+      },
+      "democrats": {
+        "n_posts": 100,
+        "posts_per_hour": 7604.2,
+        "pos_hits": 15,
+        "neg_hits": 10,
+        "net_sentiment": 0.05,
+        "sample_texts": [
+          "Like I don't disagree with this, but I suppose my contention is I do think that's what the original social democrats were trying to do, organizing out of unions, legalizing sectoral bargaining, nationalizing health and higher education.\n\nAnd I guess I still think this is the path, we just need more.",
+          "They're a hot mess, let hope if he wins he caucuses with the Democrats.",
+          "With Graham Platner, Democrats thought they had finally\u2014finally!\u2014made contact with the white working class. So they ignored all manner of red flags, writes Caitlin Flanagan.\n\nOriginal post",
+          "Getting behind Tim Rich, sponsoring a write-in, or even just leaving Platner to be eaten by the Collins machine were all possible alternatives if Platner didn\u2019t budge, but I think he would have gotten *some* prominent Democrats crawling back to him had he called the party\u2019s bluff.",
+          "Democrats love not prosecuting the crimes of the prior administration in the name of national unity.\n\nBut if Trump's government can kill you and just get away with it without consequences, that means any US administration can.\n\nAbolish ICE, and prosecute."
+        ]
+      },
+      "republicans": {
+        "n_posts": 92,
+        "posts_per_hour": 385.4,
+        "pos_hits": 13,
+        "neg_hits": 7,
+        "net_sentiment": 0.065,
+        "sample_texts": [
+          "Republicans are just like that",
+          "Republicans slashed hundreds of billions of dollars from health care so they could pay for tax breaks for the ultra-wealthy and foreign wars. Because of them, now millions more Americans have to go without coverage.",
+          "Republicans and Democrats worked together to pass a bill to build more housing and stop hedge funds from buying up single-family homes, but Trump is holding it hostage. He needs to stop playing games and sign the bill so more Americans can finally afford homes.",
+          "Trump is  such a dam liar and a child rapest at that. WHO in the hell would follow a man that raped little innocent children?OH. MAGA and the Republicans will. READ the Epstein files if you want to know what a evil piece of ship Trump is. This will be his legacy,traitor to America & a child rapest.",
+          "You have the same litmus tests as I. What you just described is exactly how I evaluate all former Republicans."
+        ]
+      }
+    }
+  }
+}

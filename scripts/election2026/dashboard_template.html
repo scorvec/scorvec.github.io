@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026 Midterm Forecast — Shawn Corvec</title>
+<meta name="description" content="An experimental 2026 US midterm election forecast blending poll-level generic-ballot data with Kalshi and Polymarket prediction markets and social signals.">
+<link rel="canonical" href="https://scorvec.com/election-2026/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="2026 Midterm Forecast">
+<meta property="og:description" content="Polls + prediction markets + Monte Carlo: an experimental House and Senate forecast, refreshed from live data.">
+<meta property="og:url" content="https://scorvec.com/election-2026/">
+</head>
+<body>
+<style>
+:root {
+  --page: #f9f9f7; --surface: #fcfcfb;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --dem: #2a78d6; --rep: #e34948;
+  --dem-wash: rgba(42,120,214,0.10); --rep-wash: rgba(227,73,72,0.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #0d0d0d; --surface: #1a1a19;
+    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --dem: #3987e5; --rep: #e66767;
+    --dem-wash: rgba(57,135,229,0.14); --rep-wash: rgba(230,103,103,0.14);
+  }
+}
+:root[data-theme="light"] {
+  --page: #f9f9f7; --surface: #fcfcfb;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --dem: #2a78d6; --rep: #e34948;
+  --dem-wash: rgba(42,120,214,0.10); --rep-wash: rgba(227,73,72,0.10);
+}
+:root[data-theme="dark"] {
+  --page: #0d0d0d; --surface: #1a1a19;
+  --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --dem: #3987e5; --rep: #e66767;
+  --dem-wash: rgba(57,135,229,0.14); --rep-wash: rgba(230,103,103,0.14);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1060px; margin: 0 auto; padding: 32px 20px 64px; }
+header { margin-bottom: 24px; }
+.eyebrow {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted);
+}
+h1 { font-size: 26px; margin: 4px 0 2px; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--ink-2); font-size: 13.5px; }
+.grid { display: grid; gap: 14px; }
+.kpis { grid-template-columns: 1fr 1fr; }
+.two { grid-template-columns: 1fr 1fr; }
+@media (max-width: 760px) { .kpis, .two { grid-template-columns: 1fr; } }
+.card {
+  background: var(--surface); border: 1px solid var(--ring);
+  border-radius: 10px; padding: 18px 20px;
+}
+.card h2 { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
+.card .note { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+.hero { font-size: 52px; font-weight: 650; line-height: 1.05; letter-spacing: -0.015em; }
+.hero small { font-size: 15px; font-weight: 500; color: var(--ink-2); letter-spacing: 0; }
+.meter { height: 10px; border-radius: 5px; overflow: hidden; display: flex; margin: 12px 0 10px; }
+.meter .d { background: var(--dem); }
+.meter .r { background: var(--rep); margin-left: 2px; }
+.comp { display: flex; gap: 18px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+.comp b { color: var(--ink); font-weight: 600; }
+.comp span { white-space: nowrap; }
+.legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--ink-2); margin: 2px 0 8px; flex-wrap: wrap; }
+.legend i {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  margin-right: 6px; vertical-align: baseline;
+}
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; }
+#tip {
+  position: fixed; pointer-events: none; z-index: 10; display: none;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--ring);
+  border-radius: 7px; padding: 7px 10px; font-size: 12.5px; line-height: 1.45;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18); max-width: 260px;
+}
+#tip .t-h { font-weight: 600; }
+#tip .t-s { color: var(--ink-2); }
+details { margin-top: 10px; }
+summary { cursor: pointer; font-size: 12.5px; color: var(--ink-2); }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin-top: 8px; }
+th, td { text-align: left; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--grid); }
+th { color: var(--muted); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.social-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 760px) { .social-row { grid-template-columns: 1fr 1fr; } }
+.mini .q { font-size: 12px; color: var(--muted); }
+.mini .v { font-size: 20px; font-weight: 600; }
+.mini .s { font-size: 12px; color: var(--ink-2); }
+footer { margin-top: 28px; color: var(--ink-2); font-size: 13px; max-width: 68ch; }
+footer h3 { font-size: 12px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin: 18px 0 6px; }
+footer a { color: var(--dem); }
+svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.axis-t { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.lbl { font-size: 12px; fill: var(--ink-2); }
+.lbl-b { font-size: 12px; font-weight: 600; fill: var(--ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .card { transition: border-color 0.15s; }
+}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow"><a href="../index.html" style="color:var(--muted);text-decoration:none">&larr; Shawn Corvec</a> &middot; Experimental research model v0.1</div>
+  <h1>2026 Midterm Forecast</h1>
+  <div class="sub" id="asof"></div>
+</header>
+
+<div class="grid kpis" style="margin-bottom:14px">
+  <div class="card" id="kpi-house"></div>
+  <div class="card" id="kpi-senate"></div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h2>Generic congressional ballot</h2>
+  <p class="note">Democratic margin in national polls (dots) and this model's recency- and size-weighted average (line). Source: VoteHub poll archive.</p>
+  <div class="legend" id="gb-legend"></div>
+  <div class="chart" id="gb-chart"></div>
+  <details><summary>Poll table (most recent 25)</summary><div style="overflow-x:auto" id="gb-table"></div></details>
+</div>
+
+<div class="grid two" style="margin-bottom:14px">
+  <div class="card">
+    <h2>House seat distribution</h2>
+    <p class="note">Democratic seats across 50,000 simulations. 218 needed for control.</p>
+    <div class="chart" id="hist-house"></div>
+  </div>
+  <div class="card">
+    <h2>Senate seat distribution</h2>
+    <p class="note">Democratic-caucus seats across 50,000 simulations. 51 needed for control (VP breaks ties).</p>
+    <div class="chart" id="hist-senate"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h2>Senate battleground</h2>
+  <p class="note">Market-implied probability the Democratic candidate wins, per race (Polymarket). Races priced beyond ~93% either way are omitted here but included in the simulation.</p>
+  <div class="legend" id="sen-legend"></div>
+  <div class="chart" id="sen-races"></div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h2>Social signal — Bluesky</h2>
+  <p class="note">Experimental indicator only; it does not enter the forecast. Post velocity and crude lexicon sentiment for the latest 100 posts per query.</p>
+  <div class="social-row" id="social"></div>
+</div>
+
+<footer>
+  <h3>Method</h3>
+  <p>The House forecast starts from a weighted generic-ballot average (recency half-life 18 days, sample-size weights, likely-voter adjustment), simulates the true national margin with historical polling bias and four months of drift, and converts margin to seats through a seats&ndash;votes curve. The Senate forecast simulates all 35 races from per-race market prices with a shared national shock correlating outcomes. Headline probabilities blend the structural model (50%) with Kalshi and Polymarket control markets (25% each).</p>
+  <h3>Sources</h3>
+  <p>Polls: <a href="https://api.votehub.com">VoteHub</a>. Markets: <a href="https://kalshi.com">Kalshi</a>, <a href="https://polymarket.com">Polymarket</a>. Social: <a href="https://bsky.app">Bluesky</a> public search. Probabilities are model output, not betting advice; calibration parameters are documented in the repo and have not been formally backtested.</p>
+</footer>
+</div>
+<div id="tip"></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+const $ = s => document.querySelector(s);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const pct = x => Math.round(x * 100) + "%";
+const fmtM = m => (m >= 0 ? "D+" : "R+") + Math.abs(m).toFixed(1);
+
+// ---- tooltip ----------------------------------------------------------
+const tip = $("#tip");
+function showTip(html, ev) {
+  tip.innerHTML = html; tip.style.display = "block";
+  const pad = 12, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+const hideTip = () => tip.style.display = "none";
+
+function svgEl(tag, attrs) {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+
+// ---- KPI tiles --------------------------------------------------------
+function kpi(el, label, d) {
+  const p = d.ensemble;
+  el.innerHTML = `
+    <h2>${label}</h2>
+    <div class="hero">${pct(p)}<small> chance Democrats win control</small></div>
+    <div class="meter" aria-hidden="true">
+      <div class="d" style="width:${(p * 100).toFixed(1)}%"></div>
+      <div class="r" style="flex:1"></div>
+    </div>
+    <div class="comp">
+      <span>Model <b>${pct(d.model)}</b></span>
+      <span>Kalshi <b>${pct(d.kalshi)}</b></span>
+      <span>Polymarket <b>${pct(d.poly)}</b></span>
+      <span>Seats <b>${Math.round(d.seats_mean)}</b> <span style="color:var(--muted)">(80%: ${Math.round(d.p10)}&ndash;${Math.round(d.p90)})</span></span>
+    </div>`;
+}
+
+// ---- generic ballot chart ---------------------------------------------
+function gbChart() {
+  const host = $("#gb-chart"); host.innerHTML = "";
+  const W = Math.max(host.clientWidth || 960, 320), H = 260;
+  const M = {t: 14, r: 64, b: 26, l: 40};
+  const svg = svgEl("svg", {viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img",
+    "aria-label": "Generic ballot polls and weighted average over time"});
+  const polls = DATA.scatter, trend = DATA.trend;
+  const dates = polls.map(p => p.d).concat(trend.map(t => t.d)).sort();
+  const t0 = new Date(dates[0]).getTime(), t1 = new Date(dates[dates.length - 1]).getTime();
+  const ms = polls.map(p => p.m).concat(trend.map(t => t.m));
+  const lo = Math.min(-2, Math.floor(Math.min(...ms))), hi = Math.ceil(Math.max(...ms)) + 1;
+  const X = d => M.l + (new Date(d).getTime() - t0) / (t1 - t0) * (W - M.l - M.r);
+  const Y = m => M.t + (hi - m) / (hi - lo) * (H - M.t - M.b);
+
+  for (let g = Math.ceil(lo / 4) * 4; g <= hi; g += 4) {
+    svg.append(svgEl("line", {x1: M.l, x2: W - M.r, y1: Y(g), y2: Y(g),
+      stroke: g === 0 ? css("--axis") : css("--grid"), "stroke-width": 1}));
+    const t = svgEl("text", {x: M.l - 8, y: Y(g) + 4, "text-anchor": "end", class: "axis-t"});
+    t.textContent = g === 0 ? "even" : fmtM(g); svg.append(t);
+  }
+  const months = [];
+  for (let d = new Date(t0); d.getTime() <= t1; d.setMonth(d.getMonth() + 1)) {
+    const m1 = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    if (m1.getTime() >= t0 && m1.getTime() <= t1) months.push(new Date(m1));
+  }
+  months.forEach((d, i) => {
+    if (months.length > 7 && i % 2) return;
+    const t = svgEl("text", {x: X(d), y: H - 8, "text-anchor": "middle", class: "axis-t"});
+    t.textContent = d.toLocaleDateString("en-US", {month: "short", year: d.getMonth() === 0 ? "2-digit" : undefined});
+    svg.append(t);
+  });
+
+  polls.forEach(p => {
+    const dot = svgEl("circle", {cx: X(p.d), cy: Y(p.m), r: 3.5,
+      fill: css("--muted"), "fill-opacity": 0.45});
+    const hit = svgEl("circle", {cx: X(p.d), cy: Y(p.m), r: 11, fill: "transparent", tabindex: -1});
+    hit.addEventListener("mousemove", ev => showTip(
+      `<div class="t-h">${p.pollster || "Poll"}</div>
+       <div class="t-s">${p.d} &middot; n=${p.n || "?"} ${p.pop ? "(" + p.pop.toUpperCase() + ")" : ""}</div>
+       <div><b>${fmtM(p.m)}</b></div>`, ev));
+    hit.addEventListener("mouseleave", hideTip);
+    svg.append(dot, hit);
+  });
+
+  const path = trend.map((t, i) => (i ? "L" : "M") + X(t.d).toFixed(1) + "," + Y(t.m).toFixed(1)).join("");
+  svg.append(svgEl("path", {d: path, fill: "none", stroke: css("--dem"),
+    "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round"}));
+  const last = trend[trend.length - 1];
+  svg.append(svgEl("circle", {cx: X(last.d), cy: Y(last.m), r: 4.5, fill: css("--dem"),
+    stroke: css("--surface"), "stroke-width": 2}));
+  const el = svgEl("text", {x: X(last.d) + 10, y: Y(last.m) + 4, class: "lbl-b"});
+  el.textContent = fmtM(last.m); svg.append(el);
+  host.append(svg);
+
+  $("#gb-legend").innerHTML =
+    `<span><i style="background:var(--muted);opacity:.55"></i>Individual polls</span>
+     <span><i style="background:var(--dem)"></i>Weighted average</span>`;
+
+  const rows = DATA.scatter.slice(-25).reverse().map(p =>
+    `<tr><td>${p.pollster || ""}</td><td>${p.d}</td>
+     <td class="num">${p.n || ""}</td><td>${(p.pop || "").toUpperCase()}</td>
+     <td class="num">${fmtM(p.m)}</td></tr>`).join("");
+  $("#gb-table").innerHTML =
+    `<table><tr><th>Pollster</th><th>End date</th><th class="num">Sample</th><th>Pop.</th><th class="num">Margin</th></tr>${rows}</table>`;
+}
+
+// ---- seat histograms --------------------------------------------------
+function hist(hostSel, d, xLabel, binW) {
+  const host = $(hostSel); host.innerHTML = "";
+  const W = Math.max(host.clientWidth || 460, 280), H = 220;
+  const M = {t: 26, r: 10, b: 26, l: 10};
+  const svg = svgEl("svg", {viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img",
+    "aria-label": xLabel + " distribution"});
+  const bins = d.hist;
+  const x0 = bins[0].x, x1 = bins[bins.length - 1].x + binW;
+  const pmax = Math.max(...bins.map(b => b.p));
+  const X = x => M.l + (x - x0) / (x1 - x0) * (W - M.l - M.r);
+  const Y = p => M.t + (1 - p / pmax) * (H - M.t - M.b);
+
+  bins.forEach(b => {
+    const demSide = b.x >= d.majority;
+    const bw = X(b.x + binW) - X(b.x) - 2;
+    if (bw <= 0 || b.p <= 0) return;
+    const y = Y(b.p), h = H - M.b - y;
+    const r = Math.min(4, bw / 2, h);
+    const rect = svgEl("path", {d:
+      `M${X(b.x) + 1},${H - M.b} v${-(h - r)} q0,${-r} ${r},${-r} h${bw - 2 * r} q${r},0 ${r},${r} v${h - r} z`,
+      fill: demSide ? css("--dem") : css("--rep")});
+    rect.addEventListener("mousemove", ev => showTip(
+      `<div class="t-h">${b.x}${binW > 1 ? "&ndash;" + (b.x + binW - 1) : ""} Dem seats</div>
+       <div>${(b.p * 100).toFixed(1)}% of simulations</div>`, ev));
+    rect.addEventListener("mouseleave", hideTip);
+    svg.append(rect);
+  });
+
+  svg.append(svgEl("line", {x1: X(d.majority) - 1, x2: X(d.majority) - 1,
+    y1: M.t - 6, y2: H - M.b, stroke: css("--axis"), "stroke-width": 1}));
+  const ml = svgEl("text", {x: X(d.majority) + 4, y: M.t + 2, class: "lbl"});
+  ml.textContent = d.majority + " for control"; svg.append(ml);
+
+  [x0, Math.round(d.seats_mean), x1 - binW].forEach((v, i) => {
+    const t = svgEl("text", {x: X(v + binW / 2), y: H - 8, "text-anchor": "middle",
+      class: i === 1 ? "lbl-b" : "axis-t"});
+    t.textContent = i === 1 ? "mean " + v : v; svg.append(t);
+  });
+  svg.append(svgEl("line", {x1: M.l, x2: W - M.r, y1: H - M.b, y2: H - M.b,
+    stroke: css("--axis"), "stroke-width": 1}));
+  host.append(svg);
+}
+
+// ---- senate race dot plot ----------------------------------------------
+function senRaces() {
+  const host = $("#sen-races"); host.innerHTML = "";
+  const races = DATA.senate.races.filter(r => r.p > 0.07 && r.p < 0.93)
+    .sort((a, b) => b.p - a.p);
+  const W = Math.max(host.clientWidth || 960, 320), rowH = 26;
+  const M = {t: 20, r: 56, b: 8, l: 118};
+  const H = M.t + races.length * rowH + M.b;
+  const svg = svgEl("svg", {viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img",
+    "aria-label": "Senate battleground race probabilities"});
+  const X = p => M.l + p * (W - M.l - M.r);
+
+  [0, 0.25, 0.5, 0.75, 1].forEach(g => {
+    svg.append(svgEl("line", {x1: X(g), x2: X(g), y1: M.t, y2: H - M.b,
+      stroke: g === 0.5 ? css("--axis") : css("--grid"), "stroke-width": 1}));
+    const t = svgEl("text", {x: X(g), y: 12, "text-anchor": "middle", class: "axis-t"});
+    t.textContent = pct(g); svg.append(t);
+  });
+
+  races.forEach((r, i) => {
+    const y = M.t + i * rowH + rowH / 2;
+    const name = svgEl("text", {x: M.l - 10, y: y + 4, "text-anchor": "end", class: "lbl"});
+    name.textContent = r.state; svg.append(name);
+    svg.append(svgEl("line", {x1: X(0), x2: X(1), y1: y, y2: y,
+      stroke: css("--grid"), "stroke-width": 1}));
+    const dot = svgEl("circle", {cx: X(r.p), cy: y, r: 5.5,
+      fill: r.def === "D" ? css("--dem") : css("--rep"),
+      stroke: css("--surface"), "stroke-width": 2, "pointer-events": "none"});
+    const val = svgEl("text", {x: W - M.r + 10, y: y + 4, class: "axis-t"});
+    val.textContent = Math.round(r.p * 100) + "%"; svg.append(val);
+    const hit = svgEl("rect", {x: M.l, y: y - rowH / 2, width: W - M.l - M.r, height: rowH,
+      fill: "transparent"});
+    hit.addEventListener("mousemove", ev => showTip(
+      `<div class="t-h">${r.state}</div>
+       <div class="t-s">Seat defended by ${r.def === "D" ? "Democrats" : "Republicans"}</div>
+       <div>P(Dem win): <b>${Math.round(r.p * 100)}%</b>${r.prior ? " (prior, no market)" : ""}</div>`, ev));
+    hit.addEventListener("mouseleave", hideTip);
+    svg.append(hit, dot);
+  });
+  host.append(svg);
+
+  $("#sen-legend").innerHTML =
+    `<span><i style="background:var(--dem)"></i>Seat currently held by Democrats</span>
+     <span><i style="background:var(--rep)"></i>Seat currently held by Republicans</span>`;
+}
+
+// ---- social ------------------------------------------------------------
+function social() {
+  $("#social").innerHTML = Object.entries(DATA.social).map(([q, v]) => `
+    <div class="mini">
+      <div class="q">&ldquo;${q}&rdquo;</div>
+      <div class="v">${v.posts_per_hour == null ? "&mdash;" : v.posts_per_hour + "/hr"}</div>
+      <div class="s">net sentiment ${v.net_sentiment > 0 ? "+" : ""}${v.net_sentiment.toFixed(2)} &middot; ${v.n_posts} posts</div>
+    </div>`).join("");
+}
+
+// ---- render ------------------------------------------------------------
+function render() {
+  kpi($("#kpi-house"), "House", DATA.house);
+  kpi($("#kpi-senate"), "Senate", DATA.senate);
+  gbChart();
+  hist("#hist-house", DATA.house, "House seats", 4);
+  hist("#hist-senate", DATA.senate, "Senate seats", 1);
+  senRaces();
+  social();
+}
+const asOf = new Date(DATA.as_of.replace(/T(\d{2})(\d{2})(\d{2})Z/, "T$1:$2:$3Z"));
+$("#asof").textContent = "Polls + prediction markets + social, as of " +
+  asOf.toLocaleString("en-US", {dateStyle: "long", timeStyle: "short"}) +
+  " · generic ballot " + fmtM(DATA.house.poll_avg) + " across " + DATA.house.n_polls + " polls";
+render();
+let rT; addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(render, 150); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+new MutationObserver(render).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
+</script>
+</body>
+</html>
