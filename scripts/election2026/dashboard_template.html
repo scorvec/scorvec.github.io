@@ -126,7 +126,7 @@ svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 
 <div class="card" style="margin-bottom:14px">
   <h2>Generic congressional ballot</h2>
-  <p class="note">Democratic margin in national polls (dots) and this model's recency- and size-weighted average (line). Source: VoteHub poll archive.<span id="gb-extra"></span></p>
+  <p class="note">Democratic margin in national polls (dots) and this model's recency- and size-weighted average (line). The lower panel tracks the share answering undecided or other in the same weighted polls &mdash; the quantity that widens this forecast's uncertainty. Source: VoteHub poll archive.<span id="gb-extra"></span></p>
   <div class="legend" id="gb-legend"></div>
   <div class="chart" id="gb-chart"></div>
   <details><summary>Poll table (most recent 25)</summary><div style="overflow-x:auto" id="gb-table"></div></details>
@@ -259,7 +259,7 @@ function gbChart() {
     hit.addEventListener("mousemove", ev => showTip(
       `<div class="t-h">${p.pollster || "Poll"}</div>
        <div class="t-s">${p.d} &middot; n=${p.n || "?"} ${p.pop ? "(" + p.pop.toUpperCase() + ")" : ""}</div>
-       <div><b>${fmtM(p.m)}</b></div>`, ev));
+       <div><b>${fmtM(p.m)}</b>${p.u != null ? ` <span class="t-s">&middot; ${p.u}% undecided</span>` : ""}</div>`, ev));
     hit.addEventListener("mouseleave", hideTip);
     svg.append(dot, hit);
   });
@@ -273,6 +273,43 @@ function gbChart() {
   const el = svgEl("text", {x: X(last.d) + 10, y: Y(last.m) + 4, class: "lbl-b"});
   el.textContent = fmtM(last.m); svg.append(el);
   host.append(svg);
+
+  // companion panel: undecided/other share, same time axis
+  const us = trend.filter(t => t.u != null);
+  if (us.length > 1) {
+    const H2 = 108, M2t = 20, M2b = 6;
+    const svg2 = svgEl("svg", {viewBox: `0 0 ${W} ${H2}`, width: W, height: H2,
+      role: "img", "aria-label": "Undecided or other share over time"});
+    const ulo = Math.max(0, Math.floor(Math.min(...us.map(t => t.u))) - 1);
+    const uhi = Math.ceil(Math.max(...us.map(t => t.u))) + 1;
+    const YU = v => M2t + (uhi - v) / (uhi - ulo) * (H2 - M2t - M2b);
+    for (let g = Math.ceil(ulo / 5) * 5; g <= uhi; g += 5) {
+      svg2.append(svgEl("line", {x1: M.l, x2: W - M.r, y1: YU(g), y2: YU(g),
+        stroke: css("--grid"), "stroke-width": 1}));
+      const t = svgEl("text", {x: M.l - 8, y: YU(g) + 4, "text-anchor": "end", class: "axis-t"});
+      t.textContent = g + "%"; svg2.append(t);
+    }
+    const ttl = svgEl("text", {x: M.l, y: 12, class: "lbl"});
+    ttl.textContent = "Undecided / other share (same polls, weighted)"; svg2.append(ttl);
+    const up = us.map((t, i) => (i ? "L" : "M") + X(t.d).toFixed(1) + "," + YU(t.u).toFixed(1)).join("");
+    svg2.append(svgEl("path", {d: up, fill: "none", stroke: css("--muted"),
+      "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round"}));
+    const ul = us[us.length - 1];
+    svg2.append(svgEl("circle", {cx: X(ul.d), cy: YU(ul.u), r: 4.5,
+      fill: css("--muted"), stroke: css("--surface"), "stroke-width": 2, "pointer-events": "none"}));
+    const ue = svgEl("text", {x: X(ul.d) + 10, y: YU(ul.u) + 4, class: "lbl-b"});
+    ue.textContent = ul.u + "%"; svg2.append(ue);
+    us.forEach(t => {
+      const hit = svgEl("circle", {cx: X(t.d), cy: YU(t.u), r: 12, fill: "transparent"});
+      hit.addEventListener("mousemove", ev => showTip(
+        `<div class="t-h">Week of ${t.d}</div>
+         <div>${t.u}% undecided / other</div>
+         <div class="t-s">weighted average ${fmtM(t.m)}</div>`, ev));
+      hit.addEventListener("mouseleave", hideTip);
+      svg2.append(hit);
+    });
+    host.append(svg2);
+  }
 
   $("#gb-legend").innerHTML =
     `<span><i style="background:var(--muted);opacity:.55"></i>Individual polls</span>

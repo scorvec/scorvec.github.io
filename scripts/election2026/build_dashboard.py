@@ -21,7 +21,8 @@ def main():
 
     # Poll scatter: everything since Oct 2025
     scatter = [{"d": p["end_date"], "m": p["margin"], "pollster": p["pollster"],
-                "n": p["sample_size"], "pop": p["population"]}
+                "n": p["sample_size"], "pop": p["population"],
+                "u": round(100 - p["dem"] - p["rep"], 1)}
                for p in polls if (p["end_date"] or "") >= "2025-10-01"
                and not p.get("internal")]
 
@@ -30,9 +31,10 @@ def main():
     d = date(2025, 11, 15)
     today = date.today()
     while d <= today:
-        avg, _, rows, _ = model.poll_average(polls, as_of=d)
+        avg, _, rows, und = model.poll_average(polls, as_of=d)
         if avg is not None and len(rows) >= 5:
-            trend.append({"d": d.isoformat(), "m": round(avg, 2)})
+            trend.append({"d": d.isoformat(), "m": round(avg, 2),
+                          "u": round(und, 1)})
         d += timedelta(days=7)
 
     def hist_bins(h, width):
