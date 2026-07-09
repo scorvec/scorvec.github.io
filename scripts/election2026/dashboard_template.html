@@ -126,7 +126,7 @@ svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
 
 <div class="card" style="margin-bottom:14px">
   <h2>Generic congressional ballot</h2>
-  <p class="note">Democratic margin in national polls (dots) and this model's recency- and size-weighted average (line). The lower panel tracks the share answering undecided or other in the same weighted polls &mdash; the quantity that widens this forecast's uncertainty. Source: VoteHub poll archive.<span id="gb-extra"></span></p>
+  <p class="note">Democratic margin in national polls (dots) and this model's recency- and size-weighted average (line). Shaded band: 95% confidence interval on the average. A few outlier polls sit beyond the axis and are pinned at the edge (hover for values). The lower panel tracks the share answering undecided or other in the same weighted polls &mdash; the quantity that widens this forecast's uncertainty. Source: VoteHub poll archive.<span id="gb-extra"></span></p>
   <div class="legend" id="gb-legend"></div>
   <div class="chart" id="gb-chart"></div>
   <details><summary>Poll table (most recent 25)</summary><div style="overflow-x:auto" id="gb-table"></div></details>
@@ -222,21 +222,24 @@ function kpi(el, label, d) {
 // ---- generic ballot chart ---------------------------------------------
 function gbChart() {
   const host = $("#gb-chart"); host.innerHTML = "";
-  const W = Math.max(host.clientWidth || 960, 320), H = 260;
-  const M = {t: 14, r: 64, b: 26, l: 40};
+  const W = Math.max(host.clientWidth || 960, 320), H = 300;
+  const M = {t: 16, r: 64, b: 26, l: 44};
   const svg = svgEl("svg", {viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img",
     "aria-label": "Generic ballot polls and weighted average over time"});
   const polls = DATA.scatter, trend = DATA.trend;
   const dates = polls.map(p => p.d).concat(trend.map(t => t.d)).sort();
   const t0 = new Date(dates[0]).getTime(), t1 = new Date(dates[dates.length - 1]).getTime();
-  const ms = polls.map(p => p.m).concat(trend.map(t => t.m));
-  const lo = Math.min(-2, Math.floor(Math.min(...ms))), hi = Math.ceil(Math.max(...ms)) + 1;
+  let lo = -2, hi = 12;
+  if (DATA.gb_domain) [lo, hi] = DATA.gb_domain;
   const X = d => M.l + (new Date(d).getTime() - t0) / (t1 - t0) * (W - M.l - M.r);
   const Y = m => M.t + (hi - m) / (hi - lo) * (H - M.t - M.b);
+  const clampM = m => Math.max(lo, Math.min(hi, m));
 
-  for (let g = Math.ceil(lo / 4) * 4; g <= hi; g += 4) {
+  const step = (hi - lo) <= 16 ? 2 : 4;
+  for (let g = Math.ceil(lo / step) * step; g <= hi; g += step) {
     svg.append(svgEl("line", {x1: M.l, x2: W - M.r, y1: Y(g), y2: Y(g),
-      stroke: g === 0 ? css("--axis") : css("--grid"), "stroke-width": 1}));
+      stroke: g === 0 ? css("--axis") : css("--grid"), "stroke-width": 1,
+      "shape-rendering": "crispEdges"}));
     const t = svgEl("text", {x: M.l - 8, y: Y(g) + 4, "text-anchor": "end", class: "axis-t"});
     t.textContent = g === 0 ? "even" : fmtM(g); svg.append(t);
   }
@@ -245,7 +248,11 @@ function gbChart() {
     const m1 = new Date(d.getFullYear(), d.getMonth() + 1, 1);
     if (m1.getTime() >= t0 && m1.getTime() <= t1) months.push(new Date(m1));
   }
+  svg.append(svgEl("line", {x1: M.l, x2: W - M.r, y1: H - M.b, y2: H - M.b,
+    stroke: css("--axis"), "stroke-width": 1, "shape-rendering": "crispEdges"}));
   months.forEach((d, i) => {
+    svg.append(svgEl("line", {x1: X(d), x2: X(d), y1: H - M.b, y2: H - M.b + 4,
+      stroke: css("--axis"), "stroke-width": 1, "shape-rendering": "crispEdges"}));
     if (months.length > 7 && i % 2) return;
     const t = svgEl("text", {x: X(d), y: H - 8, "text-anchor": "middle", class: "axis-t"});
     t.textContent = d.toLocaleDateString("en-US", {month: "short", year: d.getMonth() === 0 ? "2-digit" : undefined});
@@ -253,18 +260,26 @@ function gbChart() {
   });
 
   polls.forEach(p => {
-    const dot = svgEl("circle", {cx: X(p.d), cy: Y(p.m), r: 3.5,
-      fill: css("--muted"), "fill-opacity": 0.45});
-    const hit = svgEl("circle", {cx: X(p.d), cy: Y(p.m), r: 11, fill: "transparent", tabindex: -1});
+    const pinned = p.m < lo || p.m > hi;
+    const dot = svgEl("circle", {cx: X(p.d), cy: Y(clampM(p.m)), r: pinned ? 2.8 : 3.2,
+      fill: css("--muted"), "fill-opacity": pinned ? 0.18 : 0.42});
+    const hit = svgEl("circle", {cx: X(p.d), cy: Y(clampM(p.m)), r: 11, fill: "transparent"});
     hit.addEventListener("mousemove", ev => showTip(
       `<div class="t-h">${p.pollster || "Poll"}</div>
        <div class="t-s">${p.d} &middot; n=${p.n || "?"} ${p.pop ? "(" + p.pop.toUpperCase() + ")" : ""}</div>
-       <div><b>${fmtM(p.m)}</b>${p.u != null ? ` <span class="t-s">&middot; ${p.u}% undecided</span>` : ""}</div>`, ev));
+       <div><b>${fmtM(p.m)}</b>${p.u != null ? ` <span class="t-s">&middot; ${p.u}% undecided</span>` : ""}${pinned ? ` <span class="t-s">&middot; beyond axis</span>` : ""}</div>`, ev));
     hit.addEventListener("mouseleave", hideTip);
     svg.append(dot, hit);
   });
 
-  const path = trend.map((t, i) => (i ? "L" : "M") + X(t.d).toFixed(1) + "," + Y(t.m).toFixed(1)).join("");
+  const bt = trend.filter(t => t.b != null);
+  if (bt.length > 1) {
+    const up = bt.map((t, i) => (i ? "L" : "M") + X(t.d).toFixed(1) + "," + Y(clampM(t.m + t.b)).toFixed(1)).join("");
+    const dn = bt.slice().reverse().map(t => "L" + X(t.d).toFixed(1) + "," + Y(clampM(t.m - t.b)).toFixed(1)).join("");
+    svg.append(svgEl("path", {d: up + dn + "Z", fill: css("--dem"), "fill-opacity": 0.1,
+      stroke: "none", "pointer-events": "none"}));
+  }
+  const path = trend.map((t, i) => (i ? "L" : "M") + X(t.d).toFixed(1) + "," + Y(clampM(t.m)).toFixed(1)).join("");
   svg.append(svgEl("path", {d: path, fill: "none", stroke: css("--dem"),
     "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round"}));
   const last = trend[trend.length - 1];
