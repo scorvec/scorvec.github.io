@@ -2,6 +2,8 @@
 forecast + raw snapshot and inject it into src/dashboard_template.html."""
 import json
 from datetime import date, timedelta
+
+import numpy as np
 from pathlib import Path
 
 import model
@@ -31,11 +33,22 @@ def main():
     d = date(2025, 11, 15)
     today = date.today()
     while d <= today:
-        avg, _, rows, und = model.poll_average(polls, as_of=d)
+        avg, eff_n, rows, und = model.poll_average(polls, as_of=d)
         if avg is not None and len(rows) >= 5:
+            ms = np.array([r[0] for r in rows])
+            ws = np.array([r[1] for r in rows])
+            var = float(np.average((ms - avg) ** 2, weights=ws))
+            se = (var / max(eff_n, 1.0)) ** 0.5
             trend.append({"d": d.isoformat(), "m": round(avg, 2),
-                          "u": round(und, 1)})
+                          "u": round(und, 1), "b": round(1.96 * se, 2)})
         d += timedelta(days=7)
+
+    # y domain for the generic ballot chart: 3rd-97th pct of polls, padded,
+    # always containing the trend line and its band (outlier dots pin at edge)
+    allm = [s["m"] for s in scatter]
+    qlo, qhi = np.percentile(allm, [3, 97])
+    gb_lo = float(np.floor(min(qlo, min(t["m"] - t["b"] for t in trend)) - 0.5))
+    gb_hi = float(np.ceil(max(qhi, max(t["m"] + t["b"] for t in trend)) + 0.5))
 
     def hist_bins(h, width):
         agg = {}
@@ -76,6 +89,7 @@ def main():
         },
         "scatter": scatter,
         "trend": trend,
+        "gb_domain": [gb_lo, gb_hi],
         "social": {q: {k: v[k] for k in
                        ("n_posts", "posts_per_hour", "net_sentiment")}
                    for q, v in json.loads((snap / "social.json").read_text())
