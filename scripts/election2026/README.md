@@ -52,9 +52,17 @@ so the model can later be backtested against history, and writes
 - No pollster house-effect or quality weights yet; internal/partisan polls are
   dropped, nothing more.
 
+## Automation
+
+A GitHub Action (`.github/workflows/election.yml`) refreshes everything daily
+at 13:23 UTC: forecast, dashboard, Silver Bulletin CSV (fixed path
+`data/election2026/silver_polls.csv`, latest download holds full history), and
+the YouGov undecideds crosstab summary that feeds the dashboard's
+"Who are the undecideds?" card.
+
 ## Roadmap ideas
 
-1. Nightly scheduled run + trend charts of the forecast itself over time.
+1. Trend chart of the forecast itself over time (snapshots are accumulating).
 2. Backtest the House knobs on 2010–2022 cycles (historical generic-ballot data).
 3. Pollster house effects + quality weighting.
 4. District-level House model (Cook/Sabato ratings + district markets).

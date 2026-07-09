@@ -152,6 +152,12 @@ svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
   <div class="chart" id="sen-races"></div>
 </div>
 
+<div class="card" style="margin-bottom:14px; display:none" id="und-card">
+  <h2>Who are the undecideds?</h2>
+  <p class="note" id="und-note"></p>
+  <div class="chart" id="und-chart"></div>
+</div>
+
 <div class="card" style="margin-bottom:14px">
   <h2>Social signal — Bluesky</h2>
   <p class="note">Experimental indicator only; it does not enter the forecast. Post velocity and crude lexicon sentiment for the latest 100 posts per query.</p>
@@ -370,6 +376,53 @@ function senRaces() {
      <span><i style="background:var(--rep)"></i>Seat currently held by Republicans</span>`;
 }
 
+// ---- undecideds by subgroup ---------------------------------------------
+function undChart() {
+  const u = DATA.undecideds;
+  if (!u || !u.rows.length) return;
+  $("#und-card").style.display = "";
+  $("#und-note").innerHTML = "&ldquo;Not sure&rdquo; share of the generic congressional ballot by subgroup (YouGov weekly tracker, wave of " + u.wave +
+    "). Undecideds are concentrated among independents; in 2022 this tracker's not-sure share halved by election eve as independents broke Republican.";
+  const host = $("#und-chart"); host.innerHTML = "";
+  const W = Math.max(host.clientWidth || 960, 320), rowH = 26;
+  const M = {t: 20, r: 64, b: 8, l: 148};
+  const H = M.t + u.rows.length * rowH + M.b;
+  const svg = svgEl("svg", {viewBox: `0 0 ${W} ${H}`, width: W, height: H,
+    role: "img", "aria-label": "Not-sure share by subgroup"});
+  const max = Math.max(...u.rows.map(r => r.notsure)) * 1.15;
+  const X = v => M.l + v / max * (W - M.l - M.r);
+  [0, 5, 10, 15].forEach(g => {
+    if (g > max) return;
+    svg.append(svgEl("line", {x1: X(g), x2: X(g), y1: M.t, y2: H - M.b,
+      stroke: g === 0 ? css("--axis") : css("--grid"), "stroke-width": 1}));
+    const t = svgEl("text", {x: X(g), y: 12, "text-anchor": "middle", class: "axis-t"});
+    t.textContent = g + "%"; svg.append(t);
+  });
+  u.rows.forEach((r, i) => {
+    const y = M.t + i * rowH + rowH / 2, bh = 14;
+    const name = svgEl("text", {x: M.l - 10, y: y + 4, "text-anchor": "end", class: "lbl"});
+    name.textContent = r.g === "US Registered Voters" ? "All registered voters" : r.g;
+    svg.append(name);
+    const bw = X(r.notsure) - X(0), rr = Math.min(4, bh / 2, bw);
+    const bar = svgEl("path", {d:
+      `M${X(0)},${y - bh / 2} h${bw - rr} q${rr},0 ${rr},${rr} v${bh - 2 * rr} q0,${rr} ${-rr},${rr} h${-(bw - rr)} z`,
+      fill: css("--muted")});
+    bar.addEventListener("mousemove", ev => showTip(
+      `<div class="t-h">${r.g}</div>
+       <div>Not sure: <b>${r.notsure}%</b></div>
+       <div class="t-s">Current margin: ${fmtM(r.margin)}</div>`, ev));
+    bar.addEventListener("mouseleave", hideTip);
+    svg.append(bar);
+    const v = svgEl("text", {x: X(r.notsure) + 8, y: y + 4, class: "lbl-b"});
+    v.textContent = r.notsure + "%"; svg.append(v);
+    const mg = svgEl("text", {x: W - 6, y: y + 4, "text-anchor": "end", class: "axis-t"});
+    mg.textContent = fmtM(r.margin); svg.append(mg);
+  });
+  const hdr = svgEl("text", {x: W - 6, y: 12, "text-anchor": "end", class: "axis-t"});
+  hdr.textContent = "margin"; svg.append(hdr);
+  host.append(svg);
+}
+
 // ---- social ------------------------------------------------------------
 function social() {
   $("#social").innerHTML = Object.entries(DATA.social).map(([q, v]) => `
@@ -388,6 +441,7 @@ function render() {
   hist("#hist-house", DATA.house, "House seats", 4);
   hist("#hist-senate", DATA.senate, "Senate seats", 1);
   senRaces();
+  undChart();
   social();
 }
 const asOf = new Date(DATA.as_of.replace(/T(\d{2})(\d{2})(\d{2})Z/, "T$1:$2:$3Z"));

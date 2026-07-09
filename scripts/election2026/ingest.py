@@ -231,12 +231,13 @@ def snapshot():
         except Exception as e:  # keep going if one source is down
             bundle[name] = {"error": f"{type(e).__name__}: {e}"}
         (outdir / f"{name}.json").write_text(json.dumps(bundle[name], indent=2))
-    # Silver Bulletin poll-level CSV (public sheet): snapshot for backtesting
+    # Silver Bulletin poll-level CSV (public sheet). Fixed path, overwritten:
+    # each download contains the full history, so per-run copies are redundant.
     try:
         r = requests.get(config.SILVER_BULLETIN["csv"], headers=BROWSER_UA,
                          timeout=30)
         if r.ok and r.text.startswith("subgroup,"):
-            (outdir / "silver_polls.csv").write_text(r.text)
+            (ROOT / "data" / "election2026" / "silver_polls.csv").write_text(r.text)
     except requests.RequestException:
         pass
     return bundle

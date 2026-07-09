@@ -80,6 +80,19 @@ def main():
                    .get("queries", {}).items()},
     }
 
+    # Undecideds-by-subgroup card (YouGov tracker analysis, if present)
+    data["undecideds"] = None
+    xs = ROOT / "data" / "election2026" / "crosstabs" / "crosstabs_summary.json"
+    if xs.exists():
+        cj = json.loads(xs.read_text())
+        pick = ["Independent", "US Registered Voters", "Under 30", "Male",
+                "Female", "65+", "Republican", "Democrat"]
+        rows = [{"g": g, **{k: cj["subgroups"][g][k]
+                            for k in ("notsure", "margin")}}
+                for g in pick if g in cj.get("subgroups", {})]
+        rows.sort(key=lambda r: -r["notsure"])
+        data["undecideds"] = {"wave": cj.get("latest_wave"), "rows": rows}
+
     tpl = (ROOT / "scripts" / "election2026" / "dashboard_template.html").read_text()
     html = tpl.replace("/*__DATA__*/null", json.dumps(data))
     out = ROOT / "election-2026" / "index.html"
