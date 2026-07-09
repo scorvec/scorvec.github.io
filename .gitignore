@@ -86,3 +86,6 @@ assets/synoptic/*/*/*.webp
 # transient: IFS-leg completeness flags for hovmoller/soi self-heal
 assets/sst/*.webp.missing
 scripts/sst/data/imerg/
+
+# Gatun raw CSV cache (rebuilt on every fetch)
+scripts/gatun/data/

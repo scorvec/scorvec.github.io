@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lago Gatún — Water Levels & ENSO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="data.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --page: #081120; --surface: #0d1a2eCC; --border: rgba(148,184,225,0.13);
+  --ink: #e9eff8; --ink2: #a7b8ce; --muted: #6d8099;
+  --aqua: #4dd6e8; --aqua-deep: #2aa5bd;
+  --nino: #e8833a; --nina: #4d8fe8;
+  --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+}
+body {
+  background: radial-gradient(1200px 700px at 70% -10%, #102440 0%, var(--page) 55%) fixed, var(--page);
+  color: var(--ink); font: 14.5px/1.55 var(--sans); -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1160px; margin: 0 auto; padding: 40px 22px 70px; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--aqua-deep); }
+h1 { font-family: var(--serif); font-weight: 400; font-size: 42px; letter-spacing: 0.01em; margin: 6px 0 4px; }
+h1 em { font-style: italic; color: var(--aqua); }
+.sub { color: var(--ink2); max-width: 68ch; margin-bottom: 26px; }
+.chips { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 30px; }
+.chip {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 18px; min-width: 150px; backdrop-filter: blur(6px);
+}
+.chip .l { font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.chip .v { font-size: 24px; font-weight: 600; margin-top: 2px; }
+.chip .s { font-size: 12px; color: var(--ink2); }
+.chip.nino .v { color: var(--nino); }
+.up { color: #57d9a3; } .dn { color: var(--nino); }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 22px 22px 10px; margin-bottom: 22px; backdrop-filter: blur(6px);
+}
+.card h2 { font-family: var(--serif); font-weight: 500; font-size: 21px; margin-bottom: 3px; }
+.card .note { font-size: 12.8px; color: var(--ink2); margin-bottom: 12px; max-width: 90ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.pill {
+  font: 600 12px var(--sans); letter-spacing: 0.02em; color: var(--ink2);
+  background: transparent; border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 14px; cursor: pointer; transition: all .15s;
+}
+.pill:hover { color: var(--ink); border-color: rgba(148,184,225,0.4); }
+.pill.on { color: #06222c; background: var(--aqua); border-color: var(--aqua); }
+.pill:focus-visible, select:focus-visible { outline: 2px solid var(--aqua); outline-offset: 2px; }
+select {
+  font: 500 12px var(--sans); color: var(--ink2); background: #0d1a2e;
+  border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; cursor: pointer;
+}
+.chipsel { display: flex; gap: 6px; flex-wrap: wrap; }
+.ychip {
+  font: 600 12px var(--sans); color: var(--ink); background: rgba(77,214,232,0.14);
+  border: 1px solid rgba(77,214,232,0.4); border-radius: 999px; padding: 5px 11px; cursor: pointer;
+}
+.ychip:after { content: " ×"; color: var(--muted); }
+.grad { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--muted); margin: 4px 0 2px; }
+.grad .bar { width: 190px; height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, #3d7fd9, #64748b 50%, #e8833a 78%, #e04b3f); }
+footer { color: var(--muted); font-size: 12.3px; max-width: 82ch; line-height: 1.7; }
+footer a { color: var(--aqua-deep); }
+footer b { color: var(--ink2); font-weight: 600; }
+@media (max-width: 640px) { h1 { font-size: 32px; } .chip { min-width: 44%; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">Panama Canal · daily since 1965 · ACP + NOAA CPC</div>
+  <h1>Lago <em>Gatún</em></h1>
+  <p class="sub">Sixty-one years of water levels in the lake that floats the Panama Canal —
+  and the fingerprint El&nbsp;Niño leaves on every drought. Levels in feet&nbsp;(PLD).</p>
+  <div class="chips" id="chips"></div>
+</header>
+
+<div class="card">
+  <h2>Every year against the seasonal clock</h2>
+  <p class="note">Each line is one calendar year, tinted by the ONI of the El&nbsp;Niño/La&nbsp;Niña peak
+  (DJF) driving that year's dry season. The pale band is the 10th–90th percentile of all years;
+  <b style="color:var(--aqua)">2026</b> is drawn bold with the official ACP projection dashed ahead of it.
+  Hover any line to identify its year; use the presets or add years to compare.</p>
+  <div class="controls" id="presets"></div>
+  <div class="controls"><select id="yearAdd"><option value="">Add a year…</option></select>
+    <div class="chipsel" id="ychips"></div></div>
+  <div class="grad"><span>La Niña</span><span class="bar"></span><span>El Niño (DJF ONI)</span></div>
+  <div id="chartA" style="height:470px"></div>
+</div>
+
+<div class="card">
+  <h2>The long record, 1965–2026</h2>
+  <p class="note">Daily levels with warm shading during El&nbsp;Niño episodes (ONI ≥ +0.5) and cool
+  shading during La&nbsp;Niña (≤ −0.5). Nearly every deep excursion sits inside — or immediately after — an amber band.</p>
+  <div id="chartB" style="height:400px"></div>
+</div>
+
+<div class="card">
+  <h2>El Niño drains the lake</h2>
+  <p class="note">Each dot is a year: the winter ENSO peak (DJF ONI) against the lowest level the lake
+  reached that January–May dry season. <span id="fitNote"></span></p>
+  <div id="chartC" style="height:440px"></div>
+</div>
+
+<div class="card">
+  <h2>Gatún stripes</h2>
+  <p class="note">Monthly level anomaly against that month's 61-year normal — amber is a dry lake,
+  aqua a full one. The 1976–77, 1983, 1998, 2016 and 2019–24 droughts read as amber scars.</p>
+  <div id="chartD" style="height:380px"></div>
+</div>
+
+<footer>
+  <b>Sources:</b> Lake levels and projection from the
+  <a href="https://evtms-rpts.pancanal.com/eng/h2o/index.html">Panama Canal Authority (ACP)</a>;
+  Oceanic Niño Index from <a href="https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt">NOAA CPC</a>.
+  Data &copy; ACP, shown here for informational purposes; the ACP notes its figures are estimates
+  subject to revision and that official transit drafts are communicated via Advisories to Shipping.
+  Built by Claude (Anthropic's Claude Fable 5), directed by Shawn Corvec.
+</footer>
+</div>
+
+<script>
+const G = GATUN;
+const CFG = {displayModeBar: false, responsive: true};
+const FONT = {family: "Inter, sans-serif", color: "#a7b8ce", size: 12};
+const HOVER = {bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.35)", font: {family: "Inter", color: "#e9eff8", size: 12}};
+const GRID = "rgba(148,184,225,0.09)", AXISLINE = "rgba(148,184,225,0.25)";
+
+function baseLayout(extra) {
+  return Object.assign({
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    font: FONT, hoverlabel: HOVER, margin: {l: 52, r: 70, t: 12, b: 40},
+    xaxis: {gridcolor: GRID, linecolor: AXISLINE, zeroline: false},
+    yaxis: {gridcolor: GRID, linecolor: AXISLINE, zeroline: false},
+    showlegend: false,
+  }, extra || {});
+}
+
+// diverging ONI -> color (blue La Nina, slate neutral, amber/red El Nino)
+function lerp(a, b, t) { return a.map((x, i) => Math.round(x + (b[i] - x) * t)); }
+function oniColor(a, alpha) {
+  const stops = [[-2.5, [61,127,217]], [0, [100,116,139]], [1.2, [232,131,58]], [2.5, [224,75,63]]];
+  let c = stops[0][1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [x0, c0] = stops[i], [x1, c1] = stops[i + 1];
+    if (a >= x0 && a <= x1) { c = lerp(c0, c1, (a - x0) / (x1 - x0)); break; }
+    if (a > x1) c = c1;
+  }
+  return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+}
+const doyDate = i => { const d = new Date(Date.UTC(2024, 0, 1 + i)); return d.toISOString().slice(0, 10); };
+const DOYS = Array.from({length: 366}, (_, i) => doyDate(i));
+
+// ---------------- stat chips ----------------
+(function chips() {
+  const s = G.series, n = s.v.length;
+  const doy = Math.round((new Date(G.updated) - new Date(G.updated.slice(0, 4) + "-01-01")) / 864e5);
+  const normal = G.clim.p50[doy];
+  const anom = G.latest - normal;
+  const d30 = G.latest - s.v[Math.max(0, n - 31)];
+  const o = G.oni_latest;
+  const phase = o.anom >= 0.5 ? "El Niño conditions" : o.anom <= -0.5 ? "La Niña conditions" : "ENSO-neutral";
+  let recMin = Infinity, recDate = "";
+  s.v.forEach((v, i) => { if (v < recMin) { recMin = v; recDate = s.d[i]; } });
+  document.getElementById("chips").innerHTML = `
+    <div class="chip"><div class="l">Lake level · ${G.updated}</div>
+      <div class="v">${G.latest.toFixed(2)} ft</div>
+      <div class="s ${anom < 0 ? "dn" : "up"}">${anom >= 0 ? "+" : ""}${anom.toFixed(1)} ft vs date normal</div></div>
+    <div class="chip"><div class="l">30-day change</div>
+      <div class="v">${d30 >= 0 ? "+" : ""}${d30.toFixed(2)} ft</div>
+      <div class="s">${d30 >= 0 ? "filling" : "drawing down"}</div></div>
+    <div class="chip nino"><div class="l">ONI · ${o.season} ${o.year}</div>
+      <div class="v">${o.anom >= 0 ? "+" : ""}${o.anom.toFixed(2)}</div>
+      <div class="s">${phase}</div></div>
+    <div class="chip"><div class="l">Record low</div>
+      <div class="v">${recMin.toFixed(2)} ft</div>
+      <div class="s">${recDate}</div></div>`;
+})();
+
+// ---------------- chart A: seasonal spaghetti ----------------
+const gdA = document.getElementById("chartA");
+const yearIdx = {};
+(function chartA() {
+  const traces = [];
+  // climatology band
+  traces.push({x: DOYS, y: G.clim.p90, mode: "lines", line: {width: 0},
+    hoverinfo: "skip", type: "scatter"});
+  traces.push({x: DOYS, y: G.clim.p10, mode: "lines", line: {width: 0}, fill: "tonexty",
+    fillcolor: "rgba(233,239,248,0.06)", hoverinfo: "skip", type: "scatter"});
+  traces.push({x: DOYS, y: G.clim.p50, mode: "lines",
+    line: {width: 1, color: "rgba(233,239,248,0.35)", dash: "dot"},
+    hovertemplate: "%{x|%b %d} · median %{y:.2f} ft<extra>1965–2026</extra>", type: "scatter"});
+  G.years.forEach(y => {
+    if (y === 2026) return;
+    const st = G.year_stats[String(y)] || {};
+    const oni = st.oni_djf;
+    yearIdx[y] = traces.length;
+    traces.push({x: DOYS, y: G.seasonal[String(y)], mode: "lines", type: "scattergl",
+      line: {width: 1.1, color: oni == null ? "rgba(100,116,139,0.45)" : oniColor(oni, 0.5)},
+      hovertemplate: `%{x|%b %d} · %{y:.2f} ft<extra>${y} · DJF ONI ${oni == null ? "n/a" : (oni >= 0 ? "+" : "") + oni.toFixed(1)}</extra>`});
+  });
+  // 2026 bold + projection
+  yearIdx[2026] = traces.length;
+  traces.push({x: DOYS, y: G.seasonal["2026"], mode: "lines", type: "scatter",
+    line: {width: 3, color: "#4dd6e8"},
+    hovertemplate: "%{x|%b %d} · %{y:.2f} ft<extra>2026</extra>"});
+  const projDoy = G.proj.d.map(d => doyDate(Math.round((new Date(d) - new Date(d.slice(0, 4) + "-01-01")) / 864e5)));
+  traces.push({x: projDoy, y: G.proj.v, mode: "lines", type: "scatter",
+    line: {width: 2, color: "#4dd6e8", dash: "dash"},
+    hovertemplate: "%{x|%b %d} · %{y:.2f} ft<extra>ACP projection</extra>"});
+
+  const allV = G.series.v;
+  const layout = baseLayout({
+    xaxis: {gridcolor: GRID, linecolor: AXISLINE, tickformat: "%b", dtick: "M1", range: [DOYS[0], DOYS[365]]},
+    yaxis: {gridcolor: GRID, linecolor: AXISLINE, title: {text: "feet (PLD)", font: {size: 11}},
+            range: [Math.min(...allV) - 0.6, Math.max(...allV) + 0.6]},
+    annotations: [
+      {x: G.proj.d.length ? projDoy[projDoy.length - 1] : DOYS[189], xanchor: "left",
+       y: G.proj.v.length ? G.proj.v[G.proj.v.length - 1] : G.latest,
+       text: "<b>2026</b> → projection", showarrow: false, xshift: 6,
+       font: {color: "#4dd6e8", size: 12}},
+    ],
+  });
+  Plotly.newPlot(gdA, traces, layout, CFG);
+})();
+
+// selection machinery
+const PRESETS = [
+  ["All years", () => G.years.filter(y => y !== 2026)],
+  ["El Niño (ONI ≥ +1)", () => G.years.filter(y => (G.year_stats[y]?.oni_djf ?? 0) >= 1)],
+  ["La Niña (ONI ≤ −1)", () => G.years.filter(y => (G.year_stats[y]?.oni_djf ?? 0) <= -1)],
+  ["Neutral", () => G.years.filter(y => Math.abs(G.year_stats[y]?.oni_djf ?? 9) < 0.5)],
+  ["Droughts: 1977 · 1983 · 1998 · 2016 · 2024", () => [1977, 1983, 1998, 2016, 2024]],
+  ["Last decade", () => G.years.filter(y => y >= 2016 && y !== 2026)],
+];
+let custom = new Set();
+function applySelection(list) {
+  const sel = new Set(list), few = sel.size <= 12;
+  const idxs = [], vis = [], widths = [], colors = [];
+  G.years.forEach(y => {
+    if (y === 2026) return;
+    const oni = G.year_stats[String(y)]?.oni_djf;
+    idxs.push(yearIdx[y]);
+    vis.push(sel.has(y));
+    widths.push(few ? 2.2 : 1.1);
+    colors.push(oni == null ? "rgba(100,116,139,0.6)" : oniColor(oni, few ? 0.9 : 0.5));
+  });
+  Plotly.restyle(gdA, {visible: vis, "line.width": widths, "line.color": colors}, idxs);
+}
+(function controls() {
+  const box = document.getElementById("presets");
+  PRESETS.forEach(([label, fn], i) => {
+    const b = document.createElement("button");
+    b.className = "pill" + (i === 0 ? " on" : ""); b.textContent = label;
+    b.onclick = () => {
+      box.querySelectorAll(".pill").forEach(p => p.classList.remove("on"));
+      b.classList.add("on");
+      custom = new Set(fn()); renderChips(); applySelection([...custom]);
+    };
+    box.appendChild(b);
+  });
+  const selEl = document.getElementById("yearAdd");
+  G.years.filter(y => y !== 2026).slice().reverse().forEach(y => {
+    const o = document.createElement("option"); o.value = y; o.textContent = y; selEl.appendChild(o);
+  });
+  custom = new Set(G.years.filter(y => y !== 2026));
+  selEl.onchange = () => {
+    if (!selEl.value) return;
+    const allOn = custom.size > 12;
+    if (allOn) custom = new Set();          // first pick starts a comparison
+    custom.add(+selEl.value); selEl.value = "";
+    document.querySelectorAll("#presets .pill").forEach(p => p.classList.remove("on"));
+    renderChips(); applySelection([...custom]);
+  };
+})();
+function renderChips() {
+  const el = document.getElementById("ychips");
+  el.innerHTML = "";
+  if (custom.size > 12) return;             // "all years" modes need no chips
+  [...custom].sort().forEach(y => {
+    const c = document.createElement("button");
+    c.className = "ychip"; c.textContent = y;
+    c.onclick = () => { custom.delete(y); renderChips(); applySelection([...custom]); };
+    el.appendChild(c);
+  });
+}
+
+// ---------------- chart B: full record with ENSO bands ----------------
+(function chartB() {
+  const shapes = [];
+  const od = G.oni_series.d, oa = G.oni_series.a;
+  let run = null;
+  const pushRun = () => { if (run) { shapes.push({type: "rect", xref: "x", yref: "paper",
+    x0: run.x0, x1: run.x1, y0: 0, y1: 1, line: {width: 0},
+    fillcolor: run.warm ? "rgba(232,131,58,0.13)" : "rgba(77,143,232,0.11)"}); run = null; } };
+  od.forEach((d, i) => {
+    if (d < "1964-06") return;
+    const a = oa[i], warm = a >= 0.5, cool = a <= -0.5;
+    if (warm || cool) {
+      if (run && run.warm === warm) run.x1 = d;
+      else { pushRun(); run = {x0: d, x1: d, warm}; }
+    } else pushRun();
+  });
+  pushRun();
+  let recMin = Infinity, recDate = "";
+  G.series.v.forEach((v, i) => { if (v < recMin) { recMin = v; recDate = G.series.d[i]; } });
+  const traces = [
+    {x: G.series.d, y: G.series.v, mode: "lines", type: "scatter",
+     line: {width: 1.1, color: "#4dd6e8"},
+     hovertemplate: "%{x|%b %d, %Y} · %{y:.2f} ft<extra></extra>"},
+    {x: G.proj.d, y: G.proj.v, mode: "lines", type: "scatter",
+     line: {width: 1.6, color: "#4dd6e8", dash: "dash"},
+     hovertemplate: "%{x|%b %d, %Y} · %{y:.2f} ft<extra>ACP projection</extra>"},
+  ];
+  const layout = baseLayout({
+    shapes,
+    xaxis: {gridcolor: GRID, linecolor: AXISLINE,
+      rangeselector: {bgcolor: "rgba(13,26,46,0.9)", activecolor: "#1c3a5e", font: {color: "#a7b8ce"},
+        buttons: [{count: 10, step: "year", label: "10y"}, {count: 25, step: "year", label: "25y"}, {step: "all", label: "all"}]},
+    },
+    yaxis: {gridcolor: GRID, linecolor: AXISLINE, title: {text: "feet (PLD)", font: {size: 11}}},
+    annotations: [{x: recDate, y: recMin, text: `record low ${recMin.toFixed(2)} ft`,
+      showarrow: true, arrowcolor: "#6d8099", arrowhead: 0, ax: 0, ay: 28,
+      font: {color: "#e9eff8", size: 11}}],
+  });
+  Plotly.newPlot("chartB", traces, layout, CFG);
+})();
+
+// ---------------- chart C: ONI vs dry-season minimum ----------------
+(function chartC() {
+  const xs = [], ys = [], labels = [], cols = [];
+  G.years.forEach(y => {
+    const st = G.year_stats[String(y)];
+    if (!st || st.oni_djf == null || st.dry_min == null || y === 2026) return;
+    xs.push(st.oni_djf); ys.push(st.dry_min); labels.push(y); cols.push(oniColor(st.oni_djf, 0.92));
+  });
+  // OLS
+  const n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n;
+  let sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; syy += (ys[i] - my) ** 2; }
+  const slope = sxy / sxx, icept = my - slope * mx, r = sxy / Math.sqrt(sxx * syy);
+  document.getElementById("fitNote").innerHTML =
+    `Fit: <b style="color:#e9eff8">${slope.toFixed(2)} ft per ONI degree</b> (r = ${r.toFixed(2)}, n = ${n}).`;
+  const xr = [Math.min(...xs) - 0.3, Math.max(...xs) + 0.3];
+  const callouts = labels.map((y, i) => ({y, i, score: xs[i]}))
+    .sort((a, b) => b.score - a.score).slice(0, 4)
+    .concat([{y: 2024, i: labels.indexOf(2024)}].filter(o => o.i >= 0));
+  const seen = new Set();
+  const anns = callouts.filter(o => !seen.has(o.y) && seen.add(o.y)).map(o => ({
+    x: xs[o.i], y: ys[o.i], text: String(o.y), showarrow: false, yshift: 14,
+    font: {color: "#e9eff8", size: 11.5}}));
+  const traces = [
+    {x: xr, y: xr.map(x => icept + slope * x), mode: "lines", type: "scatter",
+     line: {width: 1.5, color: "rgba(233,239,248,0.35)", dash: "dot"}, hoverinfo: "skip"},
+    {x: xs, y: ys, mode: "markers", type: "scatter",
+     marker: {size: 10, color: cols, line: {width: 1.5, color: "#0d1a2e"}},
+     customdata: labels,
+     hovertemplate: "<b>%{customdata}</b> · DJF ONI %{x:+.1f} · dry-season low %{y:.2f} ft<extra></extra>"},
+  ];
+  const layout = baseLayout({
+    annotations: anns,
+    xaxis: {gridcolor: GRID, linecolor: AXISLINE, title: {text: "DJF ONI (°C anomaly) — La Niña ← → El Niño", font: {size: 11}}, zeroline: true, zerolinecolor: AXISLINE},
+    yaxis: {gridcolor: GRID, linecolor: AXISLINE, title: {text: "Jan–May minimum level (ft PLD)", font: {size: 11}}},
+  });
+  Plotly.newPlot("chartC", traces, layout, CFG);
+})();
+
+// ---------------- chart D: stripes heatmap ----------------
+(function chartD() {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const zmax = Math.max(...G.stripes.flat().filter(v => v != null).map(Math.abs));
+  const trace = {
+    type: "heatmap", x: G.years, y: months, z: G.stripes,
+    zmin: -zmax, zmax: zmax,
+    colorscale: [[0, "#c9762d"], [0.32, "#7a5a33"], [0.5, "#101f36"], [0.68, "#2b6f77"], [1, "#43d1c3"]],
+    hovertemplate: "%{y} %{x} · %{z:+.2f} ft vs normal<extra></extra>",
+    colorbar: {title: {text: "ft vs monthly<br>normal", font: {size: 10.5}}, thickness: 10,
+      outlinewidth: 0, tickfont: {size: 10.5}, len: 0.9},
+  };
+  const layout = baseLayout({
+    margin: {l: 46, r: 12, t: 8, b: 34},
+    xaxis: {gridcolor: "rgba(0,0,0,0)", linecolor: AXISLINE, dtick: 5},
+    yaxis: {gridcolor: "rgba(0,0,0,0)", linecolor: AXISLINE, autorange: "reversed"},
+  });
+  Plotly.newPlot("chartD", [trace], layout, CFG);
+})();
+</script>
+</body>
+</html>
