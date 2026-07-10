@@ -74,7 +74,7 @@ Promise.all([
   for (const s of stns.stations) {
     if (s.y1 < ACTIVE_YEAR || (s.id && entries[s.id])) continue;
     const m = L.circleMarker([s.la, s.lo], {
-      radius: 3.5, weight: 1, color: "#8a877f", fillColor: "#b8b5ad", fillOpacity: 0.8,
+      radius: 4, weight: 1, color: "#1f7a5e", fillColor: "#33c495", fillOpacity: 0.85,
     }).addTo(map);
     m.bindTooltip(`${s.n} (${s.gid}) · no launch in last 36 h — click for archive (${s.y0}–${s.y1})`);
     m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
@@ -108,7 +108,7 @@ legend.onAdd = () => {
     "border-radius:8px;border:1px solid #2e2e48;font:14.5px Inter,sans-serif;line-height:1.85";
   div.innerHTML =
     '<span style="color:#4a7ab5;font-size:15px">●</span> sounding in last 36 h &nbsp; ' +
-    '<span style="color:#b8b5ad;font-size:15px">●</span> active &nbsp; ' +
+    '<span style="color:#33c495;font-size:15px">●</span> active &nbsp; ' +
     '<span style="color:#c0392b;font-size:15px">●</span> closed<br>' +
     '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> show closed stations</label>';
   L.DomEvent.disableClickPropagation(div);
