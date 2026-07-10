@@ -1,0 +1,53 @@
+name: Skew-T sounding mirror
+
+# Mirrors the latest University of Wyoming soundings (global, BUFR/GTS) to the
+# `skewt-data` branch for the client-side Skew-T Explorer at /skewt/. UW sends
+# no CORS headers, so the browser fetches raw.githubusercontent.com instead
+# (which serves Access-Control-Allow-Origin: *). Each run force-pushes ONE
+# parentless commit — no main history growth, no Pages rebuild (same pattern
+# as asos5-data). Deleting this workflow just freezes the explorer's data.
+
+on:
+  schedule:
+    - cron: '35 2,8,14,20 * * *'   # ~2.5h after 00/12Z launches + refresh passes
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: skewt-data
+  cancel-in-progress: true          # newest data wins
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/skewt
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Mirror soundings
+        run: python scripts/skewt/mirror_soundings.py /tmp/skewt-data
+
+      - name: Force-push data branch (single parentless commit)
+        run: |
+          cd /tmp/skewt-data
+          git init -q -b skewt-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Sounding mirror: $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" skewt-data
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Sounding mirror $(date -u +%F)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/skewt/](https://scorvec.com/skewt/)" >> "$GITHUB_STEP_SUMMARY"
