@@ -50,8 +50,6 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import xarray as xr
 
-import os
-
 HERE = Path(__file__).resolve().parent          # wherever this script lives
 # Self-contained by default (assets/html under HERE). When embedded in the
 # website repo, set SST_SITE_ROOT to the repo root so the page and images are
@@ -121,7 +119,10 @@ def _remote_is_newer(url: str, dest: Path) -> bool:
         if not lm:
             return False
         return parsedate_to_datetime(lm).timestamp() > dest.stat().st_mtime + 60
-    except Exception:                                        # noqa: BLE001
+    except Exception as e:                                   # noqa: BLE001
+        # make a persistently failing HEAD visible instead of silently serving
+        # the cache forever
+        print(f"  HEAD {url.rsplit('/', 1)[-1]} failed ({repr(e)[:60]}); keeping cache", flush=True)
         return False
 
 
@@ -436,13 +437,14 @@ def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS):
     pfx = _KIND_TITLE[cfg["kind"]]
     lat_vals, lon_vals = sel[la].values, sel[lo].values
     tasks, frames = [], []
+    sc = load_roni_scale()          # so the frames' "Daily RONI" matches the maps (scaled)
     for i in range(n):
         ann = None
         if cfg["kind"] == "anom":
             n34, trop, rel = daily_nino_readout(sel.isel(time=i), la, lo)
             ann = (f"Daily ONI:  {n34:+.2f} °C\n"
                    f"Trop-mean:  {trop:+.2f} °C\n"
-                   f"Daily RONI: {rel:+.2f} °C")
+                   f"Daily RONI: {rel * sc.get(int(st[i].month), 1.0):+.2f} °C")
         tasks.append((sel.isel(time=i).values, lat_vals, lon_vals, la, lo, cfg["kind"],
                       f"{pfx} — {st[i]:%Y-%m-%d}", str(out_dir / f"F{i:02d}.webp"), ann))
         frames.append({"idx": i, "file": f"F{i:02d}.webp",
@@ -509,13 +511,17 @@ def scale_roni(rel_monthly):
 def compute_oni_roni(daily_anom, la, lo):
     """Compute ONI and RONI monthly series from the DAILY anomaly field.
 
-    The PSL daily file covers only the current year, so this yields a
-    short (year-to-date) series. We resample the gridded daily anomalies
-    to monthly means first, then take the Nino-3.4 and tropical-mean box
-    averages and a 3-month running mean.
+    Box-average the daily grid first (two cheap 1-D series), THEN resample to
+    monthly — box means and time means commute, and this avoids materializing
+    a monthly copy of the full 1/4-deg grid. The caller may pass a multi-year
+    concatenation (main appends the prior-year file) so early-year seasons are
+    real and the chart can show a rolling window.
 
     ONI  = Nino-3.4 monthly anomaly, 3-month running mean.
     RONI = (Nino-3.4 - tropical-mean[20S-20N]) monthly anomaly, 3-mo mean.
+    min_periods=3 keeps only true 3-month seasons: the season centered on the
+    final data month (whose trailing month has no data yet — the "JJA in July"
+    bar) and one centered on the first month drop out naturally.
     Tropical mean excludes land/missing (NaN) cells via weighted mean.
     Returns DataFrame: month, oni, roni (degC).
     """
@@ -523,21 +529,17 @@ def compute_oni_roni(daily_anom, la, lo):
     if float(anom[lo].min()) < 0:
         anom = anom.assign_coords({lo: (anom[lo] % 360)}).sortby(lo)
 
-    # Daily -> monthly-mean gridded anomaly (skip NaN days/cells).
-    monthly = anom.resample(time="1MS").mean(skipna=True)
+    nino34_d = _box_anomaly_series(anom, la, lo,
+                                   NINO34["lat"], NINO34["lon"]).to_series()
+    tropical_d = _box_anomaly_series(anom, la, lo,
+                                     TROPICAL["lat"], TROPICAL["lon"]).to_series()
 
-    nino34 = _box_anomaly_series(monthly, la, lo,
-                                 NINO34["lat"], NINO34["lon"])
-    tropical = _box_anomaly_series(monthly, la, lo,
-                                   TROPICAL["lat"], TROPICAL["lon"])
+    oni_raw = nino34_d.resample("MS").mean()
+    roni_raw = oni_raw - tropical_d.resample("MS").mean()
 
-    oni_raw = nino34.to_series()
-    roni_raw = (nino34 - tropical).to_series()
-
-    # 3-month centered running mean (ONI/RONI convention). With a short
-    # year-to-date series min_periods=1 keeps the early/most-recent months.
-    oni = oni_raw.rolling(3, center=True, min_periods=1).mean()
-    rel = roni_raw.rolling(3, center=True, min_periods=1).mean()   # raw relative (Niño-3.4 − TROP)
+    # 3-month centered running mean (ONI/RONI convention), full seasons only.
+    oni = oni_raw.rolling(3, center=True, min_periods=3).mean()
+    rel = roni_raw.rolling(3, center=True, min_periods=3).mean()   # raw relative (Niño-3.4 − TROP)
     roni = scale_roni(rel)                            # ×s(month) → CPC/ECMWF RONI, still in °C
 
     df = pd.DataFrame({
@@ -545,12 +547,6 @@ def compute_oni_roni(daily_anom, la, lo):
         "oni": oni.values,
         "roni": roni.values,
     }).dropna(subset=["oni", "roni"]).reset_index(drop=True)
-    # The season centered on the final data month (e.g. July → JJA) has NO data
-    # at all for its trailing month yet — min_periods=1 would happily draw it
-    # from a 2-month mean. Drop it: the prior month's season (MJJ) is the
-    # newest bar worth showing, provisional while the current month is partial.
-    if len(df) > 1:
-        df = df.iloc[:-1].reset_index(drop=True)
     return df
 
 
@@ -719,13 +715,10 @@ def render_roni(df: pd.DataFrame, out_path: Path,
 
     ax.bar(x, roni_vals, width=0.8, color=colors, edgecolor="#fff",
            linewidth=0.5, zorder=2)
-    # A centered 3-month season is settled only when its three months are all complete.
-    # compute_oni_roni already drops the season centered on the final data month (its
-    # trailing month has no data at all), so the last bar here (e.g. MJJ in July) is
-    # provisional only while the current month is still partial. The first bar is always
-    # provisional: its season needs the prior-year month, absent from this year-to-date
-    # series. Hatch those.
-    prov = [i == 0 or (last_partial and i == n - 1) for i in range(n)]
+    # Every bar is a true 3-month season (compute_oni_roni uses min_periods=3, with the
+    # prior year concatenated), so only the newest bar can be unsettled — hatch it while
+    # the current month is still partial (e.g. MJJ drawn mid-July).
+    prov = [last_partial and i == n - 1 for i in range(n)]
     for i in range(n):
         if prov[i]:
             ax.bar(x[i], roni_vals[i], width=0.8, color=colors[i], edgecolor="#222",
@@ -777,8 +770,8 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     fig.text(0.005, 0.012,
              "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean 20\u00b0S\u201320\u00b0N) anomaly rescaled by \u03c3(ONI)/\u03c3(relative) per calendar "
              "month (CPC/ECMWF), in \u00b0C, comparable to ONI (red >+0.5, blue <\u22120.5, grey neutral).\n"
-             "Each bar is the centered 3-month season (e.g. May = AMJ); hatched bars are provisional (season "
-             "includes the incomplete current month, or lacks the prior-December month). NOAA OISST v2.1, 1991\u20132020 base.",
+             "Each bar is the centered 3-month season (e.g. May = AMJ); a hatched bar is provisional (its "
+             "season includes the incomplete current month). NOAA OISST v2.1, 1991\u20132020 base.",
              fontsize=7, color="#888")
 
     fig.subplots_adjust(bottom=0.20, top=0.86)   # room for the 2-line season ticks + footnote
@@ -849,10 +842,26 @@ def main(argv=None) -> int:
           f"tropical-mean {day_trop:+.2f} degC, relative "
           f"{day_rel:+.2f} degC")
 
-    # --- ONI + RONI from the DAILY field (resampled to monthly), so we
-    #     need no separate monthly download. Year-to-date series. ---
-    print("ONI/RONI (from daily anomalies, year-to-date):")
-    idx = compute_oni_roni(full, la, lo)
+    # --- ONI + RONI from the DAILY field (box means resampled to monthly), so
+    #     we need no separate monthly download. The prior-year file (cached
+    #     once; PSL never rewrites closed years) is concatenated so early-year
+    #     seasons like DJF are true 3-month means and the chart shows a rolling
+    #     ~18-month window. Maps/animations keep using the current-year field.
+    print("ONI/RONI (from daily anomalies, rolling window):")
+    full_idx = full
+    try:
+        prev_path = DATA / f"sst.day.anom.{year - 1}.nc"
+        _download(DAILY_ANOM_URL.format(year=year - 1), prev_path)
+        dsp = xr.open_dataset(prev_path)
+        prev = dsp[_find_var(dsp)]
+        if float(prev[lo].min()) < 0:
+            prev = prev.assign_coords({lo: (prev[lo] % 360)}).sortby(lo)
+        full_idx = xr.concat([prev, full], dim="time")
+    except Exception as e:                                   # noqa: BLE001
+        print(f"  prior-year daily file unavailable ({repr(e)[:70]}); "
+              "indices are year-to-date only", file=sys.stderr)
+    idx = compute_oni_roni(full_idx, la, lo)
+    idx = idx.tail(18).reset_index(drop=True)                # rolling display window
     latest_oni = float(idx["oni"].iloc[-1])
     latest_roni = float(idx["roni"].iloc[-1])
     latest_month = idx["month"].iloc[-1]
@@ -946,7 +955,8 @@ def main(argv=None) -> int:
         "oni_latest_value": round(latest_oni, 3),
         "daily_nino34_anom": round(day_n34, 3),
         "daily_tropical_anom": round(day_trop, 3),
-        "daily_relative": round(day_rel, 3),
+        "daily_relative": round(day_rel, 3),      # raw Niño-3.4 − tropical-mean (unscaled)
+        "daily_roni": round(day_roni, 3),         # × σ-scale — matches the map/frame labels
         "anim_days": ANIM_DAYS,
         "files": {
             "global": "global_sst_anom.webp",
