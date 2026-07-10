@@ -85,15 +85,15 @@ Promise.all([
 });
 
 // legend + closed-station toggle (Leaflet control)
-const legend = L.control({ position: "topright" });
+const legend = L.control({ position: "bottomleft" });
 legend.onAdd = () => {
   const div = L.DomUtil.create("div");
-  div.style.cssText = "background:rgba(255,255,255,0.95);padding:8px 10px;border-radius:8px;" +
-    "border:1px solid #d8d4cb;font:11px Inter,sans-serif;line-height:1.7";
+  div.style.cssText = "background:rgba(17,17,28,0.92);color:#e8e8f0;padding:5px 8px;" +
+    "border-radius:7px;border:1px solid #23233a;font:10px Inter,sans-serif;line-height:1.6";
   div.innerHTML =
-    '<span style="color:#4a7ab5">●</span> sounding in last 36 h&nbsp;&nbsp;' +
-    '<span style="color:#b8b5ad">●</span> active (archive)<br>' +
-    '<label><input type="checkbox" id="show-closed"> show closed stations</label>';
+    '<span style="color:#4a7ab5">●</span> last 36 h &nbsp;' +
+    '<span style="color:#b8b5ad">●</span> active<br>' +
+    '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> closed stations</label>';
   L.DomEvent.disableClickPropagation(div);
   return div;
 };
@@ -448,15 +448,17 @@ function drawSkewT(prof, res) {
   // MU parcel levels, labeled with height AGL
   const o = res.o;
   ctx.font = "700 11px Inter";
+  ctx.textAlign = "right";
   const marks = [["LCL", o[12], TH.lcl], ["LFC", o[13], TH.lfc], ["EL", o[14], TH.el]];
   for (const [lab, pP, col] of marks) {
     if (pP === MISSING || !isFinite(pP)) continue;
     const y = yOf(pP), hm = interpHagl(prof, pP);
     ctx.strokeStyle = col; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(SK.l + pw - 58, y); ctx.lineTo(SK.l + pw - 34, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(SK.l + pw - 26, y); ctx.lineTo(SK.l + pw - 4, y); ctx.stroke();
     ctx.fillStyle = col;
     ctx.fillText(`${lab} ${hm === null ? "" : Math.round(hm) + "m"}`, SK.l + pw - 30, y + 4);
   }
+  ctx.textAlign = "left";
   if (o[28] !== MISSING && o[29] !== MISSING) {
     const y0 = yOf(o[28]), y1 = yOf(o[29]);
     ctx.strokeStyle = TH.eil; ctx.lineWidth = 2;
