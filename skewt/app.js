@@ -86,7 +86,8 @@ Promise.all([
     const m = L.circleMarker([s.la, s.lo], {
       radius: 6, weight: 1.5, color: "#1d3a5e", fillColor: "#4a7ab5", fillOpacity: 0.95,
     }).addTo(map);
-    m.bindTooltip(`${s.n || id} (${id}) · click for latest (${s.dt}Z)`);
+    const arch = ig ? ` · archive ${ig.y0}–${ig.y1}` : "";
+    m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z${arch}`);
     m.on("click", () => {
       highlight(m);   // respects the current Latest/Archive mode + chosen date
       selectStation({ gid: byWmo[id], id, n: s.n, e: (igraStations[byWmo[id]] || {}).e || 0 });
