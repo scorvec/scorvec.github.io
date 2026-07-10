@@ -221,19 +221,23 @@ def _monthly_from_anom(s: pd.Series) -> pd.Series:
 
 # --------------------------------------------------------------------------- daily apply
 def nino_daily(years: list[int]) -> dict[str, pd.Series]:
-    """OISST daily-anom box means for the requested years (cos-lat weighted)."""
+    """OISST daily box ANOMALIES vs 1991-2020 (shared scripts/sst/oisst9120
+    helper — mean minus climatology), matching the ERSST 1991-2020 base the
+    regression is fit on. Cos-lat weighted."""
+    import sys
+    sys.path.insert(0, str(OISST.parent))            # scripts/sst → oisst9120
+    import oisst9120
     out = {b: [] for b in BOXES}
     for yr in years:
-        f = OISST / f"sst.day.anom.{yr}.nc"
-        if not f.exists():
-            print(f"    (no OISST anom for {yr}; skipping daily SST)", flush=True)
+        try:
+            f = oisst9120.ensure_mean(yr)
+        except Exception as e:                       # noqa: BLE001
+            print(f"    (no OISST mean for {yr}: {repr(e)[:50]}; skipping daily SST)", flush=True)
             continue
-        d = xr.open_dataset(f)["anom"]
-        w = np.cos(np.deg2rad(d.lat))
+        d = xr.open_dataset(f)["sst"]
         for b, (la0, la1, lo0, lo1) in BOXES.items():
-            sub = d.sel(lat=slice(la0, la1), lon=slice(lo0, lo1))
-            ser = sub.weighted(w.sel(lat=slice(la0, la1))).mean(("lat", "lon")).to_series()
-            out[b].append(ser)
+            out[b].append(oisst9120.box_anom_series(d, "lat", "lon",
+                                                    (la0, la1), (lo0, lo1)))
     return {b: (pd.concat(v).sort_index() if v else pd.Series(dtype=float)) for b, v in out.items()}
 
 
