@@ -364,8 +364,10 @@ def run_monthly() -> list:
     first_of_this = pd.Timestamp(today.year, today.month, 1)
     wanted = [(first_of_this - pd.DateOffset(months=k)) for k in range(1, MONTHLY_KEEP + 1)]
     mdir = ASSETS / "monthly"; mdir.mkdir(parents=True, exist_ok=True)
+    for v in list(ERA5_VARS) + ["precip"]:
+        (mdir / v).mkdir(parents=True, exist_ok=True)
     missing = [(m, v) for m in wanted for v in ERA5_VARS
-               if not (mdir / f"{v}_{m:%Y%m}.webp").exists()]
+               if not (mdir / v).joinpath(f"{m:%Y%m}.webp").exists()]
     months = [f"{m:%Y-%m}" for m in wanted]
     if not missing:
         return months
@@ -400,7 +402,7 @@ def run_monthly() -> list:
             anom = field - monthly_clim(clims[name]["coef"].values, m.year, m.month)
             render_global(anom, lats, lons,
                           f"ERA5 {spec['title']} — {m:%B %Y} monthly mean (vs 1991–2020)",
-                          spec["cbar"], mdir / f"{name}_{m:%Y%m}.webp",
+                          spec["cbar"], (mdir / name).joinpath(f"{m:%Y%m}.webp"),
                           vmax=max(2.0, spec["vmax"] / 2.5))
         except Exception as e:                               # noqa: BLE001
             print(f"  monthly {name} {m:%Y-%m} failed ({repr(e)[:70]})", flush=True)
@@ -530,7 +532,7 @@ def run_imerg() -> str | None:
     first_of_this = pd.Timestamp(today.year, today.month, 1)
     for k in range(1, MONTHLY_KEEP + 1):
         m = first_of_this - pd.DateOffset(months=k)
-        out = mdir / f"precip_{m:%Y%m}.webp"
+        out = (mdir / "precip").joinpath(f"{m:%Y%m}.webp")
         if out.exists():
             continue
         mdays = pd.date_range(m, m + pd.DateOffset(months=1) - pd.Timedelta(days=1))
@@ -548,6 +550,30 @@ def run_imerg() -> str | None:
     return f"{day:%Y-%m-%d}"
 
 
+def write_monthly_manifest():
+    """Manifest for the sst_anim viewer: one region per field, frames = the
+    committed monthly maps (oldest→newest), so the page can animate them."""
+    mdir = ASSETS / "monthly"
+    labels = {"t2m": "2 m temperature", "z500": "500 hPa height",
+              "mslp": "MSLP", "precip": "precipitation"}
+    regions = {}
+    for v in ["t2m", "z500", "mslp", "precip"]:
+        vd = mdir / v
+        if not vd.exists():
+            continue
+        files = sorted(vd.glob("[0-9]*.webp"), key=lambda f: f.stem)[-12:]
+        frames = [{"idx": i, "file": f.name, "date": f"{f.stem[:4]}-{f.stem[4:6]}-01",
+                   "label": pd.Timestamp(f"{f.stem[:4]}-{f.stem[4:6]}-01").strftime("%b %Y")}
+                  for i, f in enumerate(files)]
+        if frames:
+            regions[v] = {"label": labels[v] + " monthly anomaly", "frames": frames}
+    if regions:
+        ver = max(f["date"] for r in regions.values() for f in r["frames"]).replace("-", "")
+        (mdir / "manifest.json").write_text(json.dumps(
+            {"ver": ver, "selectorLabel": "Field", "default": "t2m", "regions": regions}))
+        print("  wrote monthly/manifest.json", flush=True)
+
+
 def main() -> int:
     print("ERA5 daily (maps + loops + regional series):", flush=True)
     era5_day = run_era5()
@@ -556,6 +582,7 @@ def main() -> int:
     print("IMERG precip anomaly:", flush=True)
     imerg_day = run_imerg()
     ASSETS.mkdir(parents=True, exist_ok=True)
+    write_monthly_manifest()
     (ASSETS / "manifest.json").write_text(json.dumps({
         "era5_day": era5_day, "imerg_day": imerg_day, "months": months,
         "loop_days": LOOP_DAYS,
