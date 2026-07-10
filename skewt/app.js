@@ -7,6 +7,9 @@
 const MISSING = -9999.0;
 const MIRROR = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-data/";
 const IGRA = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/";
+const UW_ARCHIVE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-archive/";
+const UW_ARCHIVE_START = "2026-07-10";      // day bundles exist from here on
+const dayZipCache = new Map();              // YYYYMMDD -> {filename: Uint8Array} | null
 let M = null;                    // wasm module
 let entries = {};                // mirror manifest: id -> {n, la, lo, dt, src}
 let igraStations = {};           // gid -> station meta (all 2,921 incl. closed)
@@ -100,13 +103,13 @@ Promise.all([
 const legend = L.control({ position: "bottomleft" });
 legend.onAdd = () => {
   const div = L.DomUtil.create("div");
-  div.style.cssText = "background:rgba(17,17,28,0.92);color:#e8e8f0;padding:5px 8px;" +
-    "border-radius:7px;border:1px solid #23233a;font:10px Inter,sans-serif;line-height:1.6";
+  div.style.cssText = "background:rgba(17,17,28,0.94);color:#e8e8f0;padding:9px 12px;" +
+    "border-radius:8px;border:1px solid #2e2e48;font:13px Inter,sans-serif;line-height:1.8";
   div.innerHTML =
-    '<span style="color:#4a7ab5">●</span> last 36 h &nbsp;' +
-    '<span style="color:#b8b5ad">●</span> active &nbsp;' +
-    '<span style="color:#c0392b">●</span> closed<br>' +
-    '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> closed stations</label>';
+    '<span style="color:#4a7ab5;font-size:15px">●</span> sounding in last 36 h &nbsp; ' +
+    '<span style="color:#b8b5ad;font-size:15px">●</span> active &nbsp; ' +
+    '<span style="color:#c0392b;font-size:15px">●</span> closed<br>' +
+    '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> show closed stations</label>';
   L.DomEvent.disableClickPropagation(div);
   return div;
 };
@@ -360,6 +363,34 @@ async function loadSounding() {
         }
       }
     } catch (e) { /* fall through to IGRA */ }
+  }
+  // permanent high-res day bundles (UW BUFR, from the archive branch)
+  if (current.id && ymd >= UW_ARCHIVE_START) {
+    const dkey = ymd.replaceAll("-", "");
+    if (!dayZipCache.has(dkey)) {
+      setStatus(`downloading high-res day bundle ${ymd}…`, true);
+      try {
+        const r = await fetch(UW_ARCHIVE + "uw-" + dkey + ".zip");
+        dayZipCache.set(dkey, r.ok
+          ? fflate.unzipSync(new Uint8Array(await r.arrayBuffer())) : null);
+      } catch (e) { dayZipCache.set(dkey, null); }
+    }
+    const bundle = dayZipCache.get(dkey);
+    if (bundle) {
+      const want = `${current.id}_${dkey}${String(archHour).padStart(2, "0")}.csv`;
+      const alt = Object.keys(bundle).find(k => k.startsWith(current.id + "_"));
+      const pick = bundle[want] ? want : alt;
+      if (pick) {
+        const prof = parseCSV(fflate.strFromU8(bundle[pick]));
+        if (prof) {
+          const hh = pick.slice(-6, -4);
+          setStatus(`valid ${ymd} ${hh}Z · ${prof.P.length} levels (UW BUFR day archive)`);
+          plotTitle = `${current.n || ""} ${current.id}  ·  ${ymd} ${hh}Z`.trim();
+          render(thin(prof));
+          return;
+        }
+      }
+    }
   }
   if (!current.gid) { setStatus("station not in the IGRA archive"); return; }
   const text = await igraText(current.gid, +ymd.slice(0, 4));
