@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Climate Monitor — Shawn Corvec</title>
+<meta name="description" content="Daily global climate monitor: ERA5 2m temperature, 500 hPa height, and MSLP anomalies vs 1991–2020, plus the GPM IMERG daily precipitation anomaly.">
+<link rel="canonical" href="https://scorvec.com/climate.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Global Climate Monitor">
+<meta property="og:description" content="ERA5 temperature, circulation, and IMERG precipitation anomalies, updated daily.">
+<meta property="og:url" content="https://scorvec.com/climate.html">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --muted: #888580; --accent: #2c4a72;
+    --rule: #e4e2dc; --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; }
+  nav { display: flex; justify-content: space-between; align-items: center;
+        padding: 1.1rem 2rem; border-bottom: 1px solid var(--rule); }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  nav a.back { font-size: 0.8rem; letter-spacing: 0.05em; color: var(--muted);
+               text-decoration: none; }
+  nav a.back:hover { color: var(--ink); }
+  .wrap { max-width: 1150px; margin: 0 auto; padding: 2.2rem 1.4rem 4rem; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.3rem; }
+  .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.8rem; }
+  .card { background: #fff; border: 1px solid var(--rule); border-radius: 10px;
+          padding: 1.2rem 1.3rem; margin-bottom: 1.3rem; }
+  .card h2 { font-family: var(--serif); font-weight: 500; font-size: 1.15rem; margin-bottom: 0.25rem; }
+  .card p.note { font-size: 0.82rem; color: var(--muted); line-height: 1.55; margin-bottom: 0.8rem; }
+  .card img { width: 100%; border-radius: 6px; display: block; }
+  footer { color: var(--muted); font-size: 0.78rem; line-height: 1.7; max-width: 82ch;
+           padding-top: 0.6rem; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <a href="index.html" class="back">← HOME</a>
+</nav>
+<div class="wrap">
+  <h1>Global Climate Monitor</h1>
+  <div class="sub" id="stamp">Daily ERA5 and GPM IMERG anomalies · loading latest dates…</div>
+
+  <div class="card">
+    <h2>2 m temperature anomaly</h2>
+    <p class="note">Daily-mean 2 m air temperature departure from the 1991–2020 ERA5 climatology.</p>
+    <img id="img-t2m" alt="ERA5 daily 2m temperature anomaly map">
+  </div>
+
+  <div class="card">
+    <h2>500 hPa geopotential height anomaly</h2>
+    <p class="note">The mid-tropospheric circulation: daily-mean 500 hPa height departure from the
+    1991–2020 normal — ridges (red) and troughs (blue).</p>
+    <img id="img-z500" alt="ERA5 daily 500 hPa geopotential height anomaly map">
+  </div>
+
+  <div class="card">
+    <h2>Mean sea-level pressure anomaly</h2>
+    <p class="note">Daily-mean MSLP departure from the 1991–2020 normal — the surface expression of
+    the circulation anomalies above.</p>
+    <img id="img-mslp" alt="ERA5 daily mean sea-level pressure anomaly map">
+  </div>
+
+  <div class="card">
+    <h2>Daily precipitation anomaly</h2>
+    <p class="note">GPM IMERG (Early run) daily precipitation departure from the satellite's own
+    2001–2025 climatology, at 0.5° — teal wetter than normal, brown drier.</p>
+    <img id="img-precip" alt="GPM IMERG daily precipitation anomaly map">
+  </div>
+
+  <footer>
+    <b>Method &amp; sources:</b> ERA5 daily means computed from the hourly
+    <a href="https://cloud.google.com/storage/docs/public-datasets/era5">ARCO-ERA5</a> archive
+    (~5-day lag); anomalies vs a 1991–2020 daily climatology (mean + 4 annual harmonics per gridpoint)
+    built from <a href="https://weatherbench2.readthedocs.io/">WeatherBench2</a>'s conservatively
+    regridded 1.5° ERA5. Precipitation from
+    <a href="https://gpm.nasa.gov/data/imerg">NASA GPM IMERG</a> V07 (Early run daily), anomalies vs
+    the 2001–2025 IMERG Final climatology. Updated daily; built by Claude (Anthropic's Claude Fable 5),
+    directed by Shawn Corvec.
+  </footer>
+</div>
+<script>
+fetch("assets/climate/manifest.json?t=" + Date.now())
+  .then(r => r.json())
+  .then(m => {
+    const v = (m.era5_day || "") + (m.imerg_day || "");
+    for (const k of ["t2m", "z500", "mslp"])
+      document.getElementById("img-" + k).src = `assets/climate/${k}_anom.webp?v=${v}`;
+    document.getElementById("img-precip").src = `assets/climate/precip_anom.webp?v=${v}`;
+    document.getElementById("stamp").textContent =
+      `ERA5 valid ${m.era5_day || "—"} · IMERG valid ${m.imerg_day || "—"} · generated ${m.generated}`;
+  })
+  .catch(() => { document.getElementById("stamp").textContent = "Latest data unavailable."; });
+</script>
+</body>
+</html>
