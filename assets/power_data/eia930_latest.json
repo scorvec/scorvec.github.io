@@ -1,18 +1,12 @@
 {
-  "generated_at": "2026-07-10T17:13Z",
+  "generated_at": "2026-07-10T18:51Z",
   "source": "EIA-930 (Hourly Electric Grid Monitor) via EIA API v2, respondent US48 (demand)",
   "denominator_kind": "demand",
-  "latest_period": "2026-07-10T16:00Z",
-  "total_GW": 615.18,
+  "latest_period": "2026-07-10T18:00Z",
+  "total_GW": 664.88,
   "wind_actual_GW": null,
   "solar_actual_GW": null,
   "series": [
-    {
-      "period": "2026-07-07T17:00Z",
-      "total_GW": 623.22,
-      "wind_GW": 19.53,
-      "solar_GW": 114.99
-    },
     {
       "period": "2026-07-07T18:00Z",
       "total_GW": 647.76,
@@ -381,13 +375,13 @@
     },
     {
       "period": "2026-07-10T07:00Z",
-      "total_GW": 520.99,
+      "total_GW": 520.98,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-10T08:00Z",
-      "total_GW": 501.48,
+      "total_GW": 501.47,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -405,13 +399,13 @@
     },
     {
       "period": "2026-07-10T11:00Z",
-      "total_GW": 494.12,
+      "total_GW": 494.08,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-10T12:00Z",
-      "total_GW": 508.0,
+      "total_GW": 507.99,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -423,19 +417,31 @@
     },
     {
       "period": "2026-07-10T14:00Z",
-      "total_GW": 556.39,
+      "total_GW": 556.41,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-10T15:00Z",
-      "total_GW": 590.4,
+      "total_GW": 590.49,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-10T16:00Z",
-      "total_GW": 615.18,
+      "total_GW": 624.5,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-07-10T17:00Z",
+      "total_GW": 648.21,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-07-10T18:00Z",
+      "total_GW": 664.88,
       "wind_GW": null,
       "solar_GW": null
     }
