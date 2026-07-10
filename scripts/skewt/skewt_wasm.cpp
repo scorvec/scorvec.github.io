@@ -55,6 +55,9 @@ KEEP int compute_sounding(const float* pres, const float* hght,
         thta[i] = theta(pres[i], tmpk[i], THETA_REF_PRESSURE);
     }
     lifter_wobus lifter;
+    std::fill(sb_vt, sb_vt + N, MISSING);
+    std::fill(ml_vt, ml_vt + N, MISSING);
+    std::fill(mu_vt, mu_vt + N, MISSING);
 
     // --- parcels -----------------------------------------------------------
     Parcel sb = Parcel::surface_parcel(pres[0], tmpk[0], dwpk[0]);
@@ -74,7 +77,26 @@ KEEP int compute_sounding(const float* pres, const float* hght,
     PressureLayer eff = effective_inflow_layer(
         lifter, pres, hght, tmpk, dwpk, vtmp.data(), scratch.data(),
         buoy.data(), N, 100.0f, -250.0f, &mu);
+    if (mu.pres == MISSING || eff.bottom == MISSING) {
+        // no effective inflow layer (e.g. strongly capped) — plain MU search
+        PressureLayer mu_lyr(pres[0], pres[0] - 40000.0f);
+        mu = Parcel::most_unstable_parcel(mu_lyr, lifter, pres, hght, tmpk,
+                                          vtmp.data(), dwpk, mu_vt,
+                                          buoy.data(), N);
+    }
+    if (mu.pres == MISSING) {
+        // fully capped: zero CAPE everywhere, so the MU search returns its
+        // default parcel — use the max-thetae parcel so the row stays honest
+        int kbest = 0;
+        float tebest = -1e9f;
+        for (int i = 0; i < N && pres[0] - pres[i] <= 40000.0f; ++i) {
+            const float te = thetae(pres[i], tmpk[i], dwpk[i]);
+            if (te > tebest) { tebest = te; kbest = i; }
+        }
+        mu = Parcel(pres[kbest], tmpk[kbest], dwpk[kbest], LPL::MU);
+    }
     // re-lift the winning MU parcel so its trace is in mu_vt
+    std::fill(mu_vt, mu_vt + N, MISSING);
     mu.lift_parcel(lifter, pres, mu_vt, N);
     buoyancy(mu_vt, vtmp.data(), buoy.data(), N);
     mu.cape_cinh(pres, hght, buoy.data(), N);
@@ -127,10 +149,17 @@ KEEP int compute_sounding(const float* pres, const float* hght,
     const float sb_lcl_agl = (sb.lcl_pressure != MISSING)
         ? interp_pressure(sb.lcl_pressure, pres, hght, N) - sfc : MISSING;
 
-    // 500-hPa lifted index per parcel (env virtual temp vs parcel trace)
-    const float sb_li = sb.lifted_index(50000.0f, pres, vtmp.data(), sb_vt, N);
-    const float ml_li = ml.lifted_index(50000.0f, pres, vtmp.data(), ml_vt, N);
-    const float mu_li = mu.lifted_index(50000.0f, pres, vtmp.data(), mu_vt, N);
+    // 500-hPa lifted index per parcel (env virtual temp vs parcel trace);
+    // only meaningful when the parcel lifted (valid LCL) and 500 mb is in range
+    auto li_of = [&](Parcel& pcl, float* trace) -> float {
+        if (pcl.pres == MISSING || pcl.lcl_pressure == MISSING ||
+            pres[N - 1] > 50000.0f)
+            return MISSING;
+        return pcl.lifted_index(50000.0f, pres, vtmp.data(), trace, N);
+    };
+    const float sb_li = li_of(sb, sb_vt);
+    const float ml_li = li_of(ml, ml_vt);
+    const float mu_li = li_of(mu, mu_vt);
 
     // DCAPE: min-thetae parcel in the lowest 400 hPa, wet-bulbed and brought
     // down moist-adiabatically to the surface; integrate its buoyancy deficit.
