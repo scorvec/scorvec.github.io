@@ -682,13 +682,13 @@ function drawHodo(prof, res) {
   const X = u => cx + u * scale, Y = v => cy - v * scale;
 
   // rings + crosshair
-  ctx.strokeStyle = TH.gridSub; ctx.fillStyle = TH.muted; ctx.font = "9.5px Inter";
+  ctx.strokeStyle = "#2c2c48"; ctx.fillStyle = "#9d9dbb"; ctx.font = "12px Inter";
   const rMax = Math.ceil((span * 0.75) / 10) * 10 + 20;
   for (let r = 10; r <= rMax; r += 10) {
     ctx.beginPath(); ctx.arc(X(0), Y(0), r * scale, 0, 7); ctx.stroke();
-    ctx.fillText(r, X(r) - 6, Y(0) + 11);
+    ctx.fillText(r, X(r) - 7, Y(0) + 14);
   }
-  ctx.strokeStyle = TH.grid;
+  ctx.strokeStyle = "#34345a"; ctx.lineWidth = 1.2;
   ctx.beginPath(); ctx.moveTo(0, Y(0)); ctx.lineTo(W, Y(0)); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(X(0), 0); ctx.lineTo(X(0), H); ctx.stroke();
 
@@ -705,7 +705,7 @@ function drawHodo(prof, res) {
   }
   for (const [b, tt, col] of segs) {
     if (b > topAgl) break;
-    ctx.strokeStyle = col; ctx.lineWidth = 2.4;
+    ctx.strokeStyle = col; ctx.lineWidth = 3.4;
     ctx.beginPath();
     let started = false;
     for (const [h, x, y] of pts) {
@@ -720,12 +720,12 @@ function drawHodo(prof, res) {
   const mark = (uMs, vMs, lab, col, hollow) => {
     if (uMs === MISSING || !isFinite(uMs)) return;
     const u = uMs * KT, v = vMs * KT;
-    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.arc(X(u), Y(v), 4.5, 0, 7);
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(X(u), Y(v), 6, 0, 7);
     hollow ? ctx.stroke() : ctx.fill();
-    ctx.font = "700 10px Inter";
+    ctx.font = "700 12.5px Inter";
     ctx.fillText(`${Math.round(dirOf(uMs, vMs))}/${Math.round(Math.hypot(u, v))} ${lab}`,
-                 X(u) + 7, Y(v) + 3.5);
+                 X(u) + 9, Y(v) + 4.5);
   };
   mark(o[22], o[23], "RM", "#ff453a", false);
   mark(o[24], o[25], "LM", "#64d2ff", true);
@@ -743,12 +743,22 @@ function drawHodo(prof, res) {
     const mag = Math.hypot(shU, shV) * Math.hypot(srU, srV);
     if (mag > 0.1) {
       const ang = Math.acos(Math.max(-1, Math.min(1, dot / mag))) * 180 / Math.PI;
-      ctx.fillStyle = "#ffd60a"; ctx.font = "700 11px Inter";
-      ctx.fillText(`Critical angle = ${ang.toFixed(0)}°`, 10, H - 24);
+      ctx.fillStyle = "#ffd60a"; ctx.font = "700 14px Inter";
+      ctx.fillText(`Critical angle = ${ang.toFixed(0)}°`, 12, H - 12);
     }
   }
-  ctx.fillStyle = TH.muted; ctx.font = "9.5px Inter";
-  ctx.fillText("kt · 0–1–3–6–9–12 km AGL", 10, H - 8);
+  // height-band legend (labeled colors)
+  ctx.font = "600 12.5px Inter";
+  let lx = 12;
+  ctx.fillStyle = "#9d9dbb"; ctx.fillText("km AGL:", lx, 22); lx += 62;
+  for (const [b2, t2, col] of segs) {
+    ctx.fillStyle = col;
+    ctx.fillRect(lx, 13, 16, 5);
+    ctx.fillText(`${b2 / 1000}–${t2 / 1000}`, lx + 20, 22);
+    lx += 58;
+  }
+  ctx.fillStyle = "#9d9dbb"; ctx.font = "11.5px Inter";
+  ctx.fillText("rings: knots", 12, 40);
 }
 
 // ---------- tables ----------
@@ -784,8 +794,9 @@ function fillTables(prof, res) {
     ["Bunkers RM", vecf(o[22], o[23])], ["Bunkers LM", vecf(o[24], o[25])],
     ["SCP", fmt(o[32], 1)], ["STP (eff.)", fmt(o[33], 1)],
   ];
-  document.getElementById("kin-table").innerHTML =
-    kin.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
+  const row = ([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`;
+  document.getElementById("kin-table").innerHTML = kin.slice(0, 8).map(row).join("");
+  document.getElementById("kin-table2").innerHTML = kin.slice(8).map(row).join("");
 }
 
 // ---------- render ----------
