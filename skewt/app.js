@@ -30,26 +30,40 @@ const map = L.map("map", { worldCopyJump: true }).setView([25, 0], 2);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
   { attribution: "&copy; OpenStreetMap", maxZoom: 10 }).addTo(map);
 
-const stationsReady = fetch("stations.json").then(r => r.json()).then(d => {
-  for (const s of d.stations) {
+const closedLayer = L.layerGroup();          // stations with no data since 2024
+const ACTIVE_YEAR = 2025;
+
+Promise.all([
+  fetch("stations.json").then(r => r.json()),
+  fetch(MIRROR + "manifest.json?t=" + Date.now()).then(r => r.json()).catch(() => null),
+]).then(([stns, man]) => {
+  entries = (man && man.entries) || {};
+  for (const s of stns.stations) {
     igraStations[s.gid] = s;
     if (s.id) byWmo[s.id] = s.gid;
+  }
+  // closed stations: archive-only, hidden behind the toggle
+  for (const s of stns.stations) {
+    if (s.y1 >= ACTIVE_YEAR || (s.id && entries[s.id])) continue;
     const m = L.circleMarker([s.la, s.lo], {
-      radius: 3, weight: 1, color: "#9a978f", fillColor: "#c5c2ba",
-      fillOpacity: 0.7,
-    }).addTo(map);
-    m.bindTooltip(`${s.n} (${s.gid}) · archive ${s.y0}–${s.y1}`);
+      radius: 2.5, weight: 0.5, color: "#b3b0a8", fillColor: "#d4d1c9", fillOpacity: 0.6,
+    }).addTo(closedLayer);
+    m.bindTooltip(`${s.n} (${s.gid}) · archive ${s.y0}–${s.y1} (closed)`);
     m.on("click", () => { setMode("archive"); selectStation(s); });
   }
-});
-
-stationsReady.then(() =>
-  fetch(MIRROR + "manifest.json?t=" + Date.now()).then(r => r.json())
-).then(d => {
-  entries = d.entries || {};
+  // active stations without a launch in the mirror window: small grey
+  for (const s of stns.stations) {
+    if (s.y1 < ACTIVE_YEAR || (s.id && entries[s.id])) continue;
+    const m = L.circleMarker([s.la, s.lo], {
+      radius: 3.5, weight: 1, color: "#8a877f", fillColor: "#b8b5ad", fillOpacity: 0.8,
+    }).addTo(map);
+    m.bindTooltip(`${s.n} (${s.gid}) · active, archive ${s.y0}–${s.y1}`);
+    m.on("click", () => { setMode("archive"); selectStation(s); });
+  }
+  // stations with a sounding in the last 36 h: big blue, on top
   for (const [id, s] of Object.entries(entries)) {
     const m = L.circleMarker([s.la, s.lo], {
-      radius: 4.5, weight: 1, color: "#2c4a72", fillColor: "#4a7ab5", fillOpacity: 0.85,
+      radius: 6, weight: 1.5, color: "#1d3a5e", fillColor: "#4a7ab5", fillOpacity: 0.95,
     }).addTo(map);
     m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z`);
     m.on("click", () => {
@@ -57,16 +71,32 @@ stationsReady.then(() =>
       selectStation({ gid: byWmo[id], id, n: s.n, e: (igraStations[byWmo[id]] || {}).e || 0 });
     });
   }
+  if (!man) document.getElementById("status").textContent =
+    "live mirror unavailable — archive mode still works";
   const want = location.hash.replace("#", "");
   const id0 = entries[want] ? want : (entries["72520"] ? "72520" : Object.keys(entries)[0]);
   if (id0) selectStation({ gid: byWmo[id0], id: id0, n: (entries[id0] || {}).n,
                            e: (igraStations[byWmo[id0]] || {}).e || 0 });
-}).catch(() => {
-  document.getElementById("status").textContent =
-    "live mirror unavailable — archive mode still works";
 });
 
-function setMode(m2) {
+// legend + closed-station toggle (Leaflet control)
+const legend = L.control({ position: "topright" });
+legend.onAdd = () => {
+  const div = L.DomUtil.create("div");
+  div.style.cssText = "background:rgba(255,255,255,0.95);padding:8px 10px;border-radius:8px;" +
+    "border:1px solid #d8d4cb;font:11px Inter,sans-serif;line-height:1.7";
+  div.innerHTML =
+    '<span style="color:#4a7ab5">●</span> sounding in last 36 h&nbsp;&nbsp;' +
+    '<span style="color:#b8b5ad">●</span> active (archive)<br>' +
+    '<label><input type="checkbox" id="show-closed"> show closed stations</label>';
+  L.DomEvent.disableClickPropagation(div);
+  return div;
+};
+legend.addTo(map);
+document.getElementById("show-closed").onchange = e =>
+  e.target.checked ? closedLayer.addTo(map) : map.removeLayer(closedLayer);
+
+function setMode(m2) {function setMode(m2) {
   mode = m2;
   document.getElementById("mode-latest").classList.toggle("on", mode === "latest");
   document.getElementById("mode-archive").classList.toggle("on", mode === "archive");
