@@ -62,6 +62,8 @@ Promise.all([
   }
   // stations with a sounding in the last 36 h: big blue, on top
   for (const [id, s] of Object.entries(entries)) {
+    const ig = igraStations[byWmo[id]];
+    if (ig || /dtype|Name:/i.test(s.n || "")) s.n = (ig && ig.n) || id;
     const m = L.circleMarker([s.la, s.lo], {
       radius: 6, weight: 1.5, color: "#1d3a5e", fillColor: "#4a7ab5", fillOpacity: 0.95,
     }).addTo(map);
@@ -143,6 +145,18 @@ function parseCSV(text) {
     out.V.push(-ws * Math.cos(wd * Math.PI / 180));
   }
   return out.P.length >= 10 ? out : null;
+}
+
+function thin(prof, target = 350) {
+  const N = prof.P.length;
+  if (N <= target) return prof;
+  const k = Math.ceil(N / target);
+  const out = { P: [], H: [], T: [], D: [], U: [], V: [] };
+  for (let i = 0; i < N; i++) {
+    if (i === 0 || i === N - 1 || i % k === 0)
+      for (const key of Object.keys(out)) out[key].push(prof[key][i]);
+  }
+  return out;
 }
 
 async function igraText(gid, year) {
@@ -235,7 +249,7 @@ async function loadSounding() {
       status.textContent = `valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`;
       render(thin(prof));
     } catch (e) {
-      status.textContent = "sounding unavailable for this station";
+      status.textContent = "error: " + (e && e.message ? e.message : "fetch failed");
     }
     return;
   }
