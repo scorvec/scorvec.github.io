@@ -6,6 +6,7 @@
 // Native test:  clang++ -std=c++17 -O2 -DTEST_MAIN -Iinclude skewt_wasm.cpp \
 //                 src/SHARPlib/*.cpp src/SHARPlib/params/*.cpp -o /tmp/skewt_test
 // WASM build:   see build_wasm.sh
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <vector>
@@ -37,6 +38,8 @@ using namespace sharp;
 // 26 srh1_R   27 srh3_R   28 eff_bot_p 29 eff_top_p
 // 30 eff_srh_R 31 eff_shear_mag 32 scp 33 stp
 // 34 mu_lpl_p 35 sb_lcl_hght_agl
+// 36 sb_li500 37 ml_li500 38 mu_li500  (K, vs env virtual temp)
+// 39 dcape    40 sb_cape_0_3km         41 mu_ncape (J/kg per m)
 
 extern "C" {
 
@@ -124,6 +127,57 @@ KEEP int compute_sounding(const float* pres, const float* hght,
     const float sb_lcl_agl = (sb.lcl_pressure != MISSING)
         ? interp_pressure(sb.lcl_pressure, pres, hght, N) - sfc : MISSING;
 
+    // 500-hPa lifted index per parcel (env virtual temp vs parcel trace)
+    const float sb_li = sb.lifted_index(50000.0f, pres, vtmp.data(), sb_vt, N);
+    const float ml_li = ml.lifted_index(50000.0f, pres, vtmp.data(), ml_vt, N);
+    const float mu_li = mu.lifted_index(50000.0f, pres, vtmp.data(), mu_vt, N);
+
+    // DCAPE: min-thetae parcel in the lowest 400 hPa, wet-bulbed and brought
+    // down moist-adiabatically to the surface; integrate its buoyancy deficit.
+    float dcape = MISSING;
+    {
+        int kmin = -1;
+        float temin = 1e9f;
+        for (int i = 0; i < N && pres[0] - pres[i] <= 40000.0f; ++i) {
+            const float te = thetae(pres[i], tmpk[i], dwpk[i]);
+            if (te < temin) { temin = te; kmin = i; }
+        }
+        if (kmin > 0) {
+            const float twb = wetbulb(lifter, pres[kmin], tmpk[kmin], dwpk[kmin]);
+            double acc = 0.0;
+            for (int i = kmin; i >= 1; --i) {
+                const float tp_hi = (i == kmin) ? twb
+                    : wetlift(pres[kmin], twb, pres[i]);
+                const float tp_lo = wetlift(pres[kmin], twb, pres[i - 1]);
+                const float b_hi = (tp_hi - vtmp[i]) / vtmp[i];
+                const float b_lo = (tp_lo - vtmp[i - 1]) / vtmp[i - 1];
+                acc += 9.80665 * 0.5 * (b_hi + b_lo) * (hght[i] - hght[i - 1]);
+            }
+            dcape = acc < 0.0 ? (float)(-acc) : 0.0f;
+        }
+    }
+
+    // low-level (0-3 km AGL) positive buoyancy of the SB parcel
+    double c3 = 0.0;
+    {
+        const float htop = sfc + 3000.0f;
+        for (int i = 1; i < N && hght[i - 1] < htop; ++i) {
+            const float b0 = (sb_vt[i - 1] - vtmp[i - 1]) / vtmp[i - 1];
+            const float b1 = (sb_vt[i] - vtmp[i]) / vtmp[i];
+            if (b0 > 0.0f || b1 > 0.0f) {
+                const float dz = std::min(hght[i], htop) - hght[i - 1];
+                c3 += 9.80665 * 0.5 * (std::max(b0, 0.0f) + std::max(b1, 0.0f)) * dz;
+            }
+        }
+    }
+
+    float mu_ncape = MISSING;
+    if (mu.lfc_pressure != MISSING && mu.eql_pressure != MISSING && mu.cape > 0) {
+        const float dz = interp_pressure(mu.eql_pressure, pres, hght, N) -
+                         interp_pressure(mu.lfc_pressure, pres, hght, N);
+        if (dz > 0) mu_ncape = mu.cape / dz;
+    }
+
     const float o[] = {
         sb.cape, sb.cinh, sb.lcl_pressure, sb.lfc_pressure, sb.eql_pressure,
         ml.cape, ml.cinh, ml.lcl_pressure, ml.lfc_pressure, ml.eql_pressure,
@@ -134,6 +188,7 @@ KEEP int compute_sounding(const float* pres, const float* hght,
         srh1, srh3, eff.bottom, eff.top,
         eff_srh, eff_shear_mag, scp, stp,
         mu.pres, sb_lcl_agl,
+        sb_li, ml_li, mu_li, dcape, (float)c3, mu_ncape,
     };
     for (size_t i = 0; i < sizeof(o) / sizeof(float); ++i) out[i] = o[i];
     return 0;
@@ -189,7 +244,7 @@ int main(int argc, char** argv) {
         } catch (...) { continue; }
     }
     const int N = (int)P.size();
-    std::vector<float> out(40), sbv(N), mlv(N), muv(N);
+    std::vector<float> out(48), sbv(N), mlv(N), muv(N);
     int rc = compute_sounding(P.data(), H.data(), T.data(), D.data(), U.data(),
                               V.data(), N, out.data(), sbv.data(), mlv.data(),
                               muv.data());
