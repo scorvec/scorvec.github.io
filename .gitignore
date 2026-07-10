@@ -89,3 +89,6 @@ scripts/sst/data/imerg/
 
 # Gatun raw CSV cache (rebuilt on every fetch)
 scripts/gatun/data/
+
+# climate monitor build caches (checkpoints, resumable)
+scripts/climate/data/

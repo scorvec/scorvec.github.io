@@ -1,0 +1,75 @@
+name: Climate monitor (daily)
+
+# Global climate monitor at /climate.html: ERA5 t2m / z500 / MSLP daily-mean
+# anomalies (ARCO-ERA5 hourly, ~5-day lag, vs the committed 1991-2020
+# WeatherBench2 climatologies) and the GPM IMERG daily precip anomaly (vs the
+# committed 2001-2025 global climatology). Safe to delete — page goes stale.
+
+on:
+  schedule:
+    - cron: '40 9 * * *'    # 09:40 UTC, after ERA5's day typically lands in ARCO
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: climate-monitor
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/climate
+            scripts/sst
+            assets/climate
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scripts/climate/climate_monitor.py
+
+      - run: pip install --quiet numpy pandas xarray zarr gcsfs matplotlib cartopy earthaccess pydap netcdf4 h5py
+
+      - name: Run climate monitor
+        env:
+          EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
+          EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
+        run: python scripts/climate/climate_monitor.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          STAMP=$(date -u +%F)
+          git add assets/climate
+          if git diff --staged --quiet; then
+            echo "No changes; skipping commit."; exit 0
+          fi
+          git commit -m "Climate monitor update: ${STAMP}"
+          for i in 1 2 3 4 5; do
+            if git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; rebasing onto origin/main…"
+            git fetch origin main
+            if ! git rebase -X theirs origin/main; then
+              git rebase --abort || true
+              git reset --hard origin/main
+              git add assets/climate
+              git diff --staged --quiet || git commit -m "Climate monitor update: ${STAMP} (re-applied)"
+            fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Climate monitor $(date -u +%F)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/climate.html](https://scorvec.com/climate.html)" >> "$GITHUB_STEP_SUMMARY"
