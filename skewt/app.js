@@ -16,6 +16,7 @@ let igraStations = {};           // gid -> station meta (all 2,921 incl. closed)
 let byWmo = {};                  // wmo id -> gid
 let current = null;              // selected: {gid, id, n, e}
 let plotTitle = "";              // drawn on the skew-t canvas itself
+let plotNote = "";               // secondary blurb (e.g. wind-only)
 let selectedMarker = null;       // highlighted dot on the map
 let mode = "latest";
 let archHour = 12;
@@ -273,22 +274,26 @@ function parseIGRA(text, gid, ymd, wantHour, elev) {
   const lines = text.slice(best.idx).split("\n");
   const nlev = parseInt(lines[0].slice(32, 36), 10);
   // IGRA levels can be thermo-only, wind-only, or both — collect separately
+  const stdP = h => 101325 * Math.pow(1 - 2.25577e-5 * h, 5.25588);  // ISA, Pa
   const thermo = [], winds = [];
   for (let i = 1; i <= nlev && i < lines.length; i++) {
     const L = lines[i];
-    const p = iv(L, 9, 15);
-    if (p === null || p < 2000) continue;
+    let p = iv(L, 9, 15);
     const gph = iv(L, 16, 21), tt = iv(L, 22, 27), dpdp = iv(L, 34, 39);
     const wd = iv(L, 40, 45), ws = iv(L, 46, 51);
+    // pilot-balloon levels report by height with pressure missing
+    if (p === null && gph !== null && gph > -900) p = stdP(gph);
+    if (p === null || p < 2000) continue;
     if (wd !== null && ws !== null && ws >= 0)
-      winds.push({ p, u: -(ws / 10) * Math.sin(wd * Math.PI / 180),
-                       v: -(ws / 10) * Math.cos(wd * Math.PI / 180) });
-    if (tt !== null && dpdp !== null)
+      winds.push({ p, h: gph, u: -(ws / 10) * Math.sin(wd * Math.PI / 180),
+                              v: -(ws / 10) * Math.cos(wd * Math.PI / 180) });
+    if (tt !== null && tt > -8888 && dpdp !== null)
       thermo.push({ p, gph, T: tt / 10 + 273.15, D: tt / 10 + 273.15 - dpdp / 10 });
   }
   thermo.sort((a, b) => b.p - a.p);
   winds.sort((a, b) => b.p - a.p);
-  if (thermo.length < 8) return null;
+  const windOnly = thermo.length < 8;
+  if (windOnly && winds.length < 4) return null;
   const windAtP = p => {
     if (!winds.length) return { u: 0, v: 0 };
     if (p >= winds[0].p) return winds[0];
@@ -303,6 +308,19 @@ function parseIGRA(text, gid, ymd, wantHour, elev) {
   };
   const out = { P: [], H: [], T: [], D: [], U: [], V: [] };
   let lastP = 1e9, lastH = elev, lastT = null;
+  if (windOnly) {                                   // pilot-balloon: hodograph only
+    let lp = 1e9;
+    for (const w of winds) {
+      if (w.p >= lp) continue;
+      lp = w.p;
+      const Hm = (w.h !== null && w.h > -900) ? w.h
+        : elev + (287.05 * 250.0 / 9.80665) * Math.log(1e5 / w.p);
+      out.P.push(w.p); out.H.push(Hm); out.T.push(NaN); out.D.push(NaN);
+      out.U.push(w.u); out.V.push(w.v);
+    }
+    return out.P.length >= 4
+      ? { prof: out, hh: best.hh, nWind: winds.length, windOnly: true } : null;
+  }
   for (const lv of thermo) {
     if (lv.p >= lastP) continue;
     let Hm;
@@ -326,7 +344,7 @@ async function loadSounding() {
   if (mode === "latest") {
     const s = entries[current.id];
     if (!s) {
-      setStatus("station not in the UW feed (some agencies don't share) — use Archive (IGRA, ~2-day lag)");
+      clearPlot("station not in the UW live feed — switch to Archive (IGRA)");
       return;
     }
     setStatus("fetching…", true);
@@ -337,9 +355,10 @@ async function loadSounding() {
       if (!prof) throw 0;
       setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`);
       plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
+      plotNote = "";
       render(thin(prof));
     } catch (e) {
-      setStatus("error: " + (e && e.message ? e.message : "fetch failed"));
+      clearPlot("error: " + (e && e.message ? e.message : "fetch failed"));
     }
     return;
   }
@@ -358,6 +377,7 @@ async function loadSounding() {
         if (prof) {
           setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (UW BUFR high-res mirror)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${wantDt}Z`.trim();
+          plotNote = "";
           render(thin(prof));
           return;
         }
@@ -386,6 +406,7 @@ async function loadSounding() {
           const hh = pick.slice(-6, -4);
           setStatus(`valid ${ymd} ${hh}Z · ${prof.P.length} levels (UW BUFR day archive)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${ymd} ${hh}Z`.trim();
+          plotNote = "";
           render(thin(prof));
           return;
         }
@@ -394,28 +415,38 @@ async function loadSounding() {
   }
   if (!current.gid) { setStatus("station not in the IGRA archive"); return; }
   const text = await igraText(current.gid, +ymd.slice(0, 4));
-  if (!text) { setStatus("IGRA file unavailable"); return; }
+  if (!text) { clearPlot("IGRA archive file unavailable for this station"); return; }
   let shown = ymd, fellBack = false;
   let got = parseIGRA(text, current.gid, ymd, archHour, current.e || 0);
   if (!got) {
-    // nothing on the requested date — fall back to the nearest earlier launch
-    // (for a closed station, that's its final sounding of record)
+    // walk outward from the requested date (nearest-first), capped, until a
+    // sounding parses. parseIGRA returns wind-only pibal profiles too, so this
+    // also lands hodograph-only stations on a usable launch.
     const dates = igraDates(text, current.gid);
-    let pick = null;
-    for (const d of dates) { if (d <= ymd) pick = d; else break; }
-    if (!pick && dates.length) pick = dates[0];
-    if (pick) {
-      got = parseIGRA(text, current.gid, pick, archHour, current.e || 0);
-      if (got) { shown = pick; fellBack = true; archDate = pick; syncControls(); }
+    let ci = dates.length - 1;
+    while (ci >= 0 && dates[ci] > ymd) ci--;        // nearest index <= requested
+    const order = [];
+    for (let d = 0; d < dates.length && order.length < 400; d++) {
+      if (ci - d >= 0) order.push(ci - d);
+      if (ci + 1 + d < dates.length) order.push(ci + 1 + d);
+    }
+    for (const k of order) {
+      got = parseIGRA(text, current.gid, dates[k], archHour, current.e || 0);
+      if (got) { shown = dates[k]; fellBack = true; archDate = dates[k]; syncControls(); break; }
     }
   }
-  if (!got) { setStatus("no soundings found in this station's archive"); return; }
+  if (!got) {
+    clearPlot("this station reported pilot-balloon winds only — no temperature soundings");
+    return;
+  }
   setStatus(`valid ${shown} ${String(got.hh).padStart(2, "0")}Z · ` +
-    `${got.prof.P.length} levels, ${got.nWind} wind levels (NOAA IGRA v2)` +
-    (fellBack ? ` — nearest available to ${ymd}` : "") +
-    (got.nWind < 5 ? " — sparse winds this launch" : ""));
+    (got.windOnly ? `${got.nWind} wind levels — pilot balloon, hodograph only`
+                  : `${got.prof.P.length} levels, ${got.nWind} wind levels`) +
+    ` (NOAA IGRA v2)` + (fellBack ? ` — nearest available to ${ymd}` : ""));
   plotTitle = `${current.n || ""} ${current.id || current.gid}  ·  ${shown} ` +
     `${String(got.hh).padStart(2, "0")}Z`.trim();
+  plotNote = got.windOnly
+    ? "⚠ WIND-ONLY DATA (pilot balloon) — no temperature; hodograph valid" : "";
   render(thin(got.prof));
 }
 
@@ -492,6 +523,10 @@ function drawSkewT(prof, res) {
   ctx.fillText(plotTitle, SK.l, 22);
   ctx.fillStyle = TH.muted; ctx.font = "10px Inter";
   ctx.fillText("SHARPlib · scorvec.com/skewt", W - 190, 22);
+  if (plotNote) {
+    ctx.fillStyle = "#ffd60a"; ctx.font = "700 12.5px Inter";
+    ctx.fillText(plotNote, SK.l, SK.t + 4);
+  }
 
   ctx.save();
   ctx.beginPath(); ctx.rect(SK.l, SK.t, pw, ph); ctx.clip();
@@ -575,9 +610,15 @@ function drawSkewT(prof, res) {
     }
     ctx.stroke(); ctx.setLineDash([]);
   };
-  drawProf(vtC, TH.vtmp, 1.1, [2, 3]);
-  drawProf(prof.D.map(v => v - 273.15), TH.dwpt, 2.8);
-  drawProf(prof.T.map(v => v - 273.15), TH.temp, 2.8);
+  if (prof.T.some(v => isFinite(v))) {
+    drawProf(vtC, TH.vtmp, 1.1, [2, 3]);
+    drawProf(prof.D.map(v => v - 273.15), TH.dwpt, 2.8);
+    drawProf(prof.T.map(v => v - 273.15), TH.temp, 2.8);
+  } else {
+    ctx.fillStyle = TH.muted; ctx.font = "600 15px Inter"; ctx.textAlign = "center";
+    ctx.fillText("pilot balloon — winds only (see hodograph →)", SK.l + pw / 2, SK.t + ph / 2);
+    ctx.textAlign = "left";
+  }
 
   // MU parcel levels, labeled with height AGL
   const o = res.o;
@@ -800,9 +841,27 @@ function fillTables(prof, res) {
 }
 
 // ---------- render ----------
+function clearPlot(msg) {
+  setStatus(msg || "no data");
+  for (const id of ["skewt", "hodo"]) {
+    const cv = document.getElementById(id), ctx = cv.getContext("2d");
+    ctx.fillStyle = "#0a0a14"; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = "#8b8ba3"; ctx.font = "600 16px Inter"; ctx.textAlign = "center";
+    ctx.fillText(msg || "no data", cv.width / 2, cv.height / 2);
+    ctx.textAlign = "left";
+  }
+  for (const id of ["pcl-table", "kin-table", "kin-table2"])
+    document.getElementById(id).innerHTML = "";
+  plotTitle = "";
+}
+
 function render(prof) {
-  const res = compute(prof);
+  const hasT = prof.T.some(v => isFinite(v));
+  const res = hasT ? compute(prof) : { o: new Array(48).fill(MISSING),
+    sb: [], ml: [], mu: [] };
   drawSkewT(prof, res);
   drawHodo(prof, res);
-  fillTables(prof, res);
+  if (hasT) fillTables(prof, res);
+  else for (const id of ["pcl-table", "kin-table", "kin-table2"])
+    document.getElementById(id).innerHTML = "";
 }
