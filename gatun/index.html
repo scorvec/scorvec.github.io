@@ -64,6 +64,13 @@ select {
 .grad { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--muted); margin: 4px 0 2px; }
 .grad .bar { width: 190px; height: 8px; border-radius: 4px;
   background: linear-gradient(90deg, #3d7fd9, #64748b 50%, #e8833a 78%, #e04b3f); }
+.embeds { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 860px) { .embeds { grid-template-columns: 1fr; } }
+.embeds iframe {
+  width: 100%; aspect-ratio: 5 / 6; border: 1px solid var(--border);
+  border-radius: 10px; background: #0f0f0d; display: block;
+}
+.chartimg { width: 100%; border-radius: 10px; display: block; }
 footer { color: var(--muted); font-size: 12.3px; max-width: 82ch; line-height: 1.7; }
 footer a { color: var(--aqua-deep); }
 footer b { color: var(--ink2); font-weight: 600; }
@@ -101,6 +108,29 @@ footer b { color: var(--ink2); font-weight: 600; }
 </div>
 
 <div class="card">
+  <h2>Rain over the watershed — live IMERG tracker</h2>
+  <p class="note">NASA GPM IMERG satellite rainfall zoomed to the canal watershed, riding on the
+  El&nbsp;Niño monitor's data feed. Left: accumulations from the last hour to 90 days (pick the window
+  inside the panel). Right: the departure from the 2001&ndash;2025 satellite climatology &mdash;
+  <b style="color:#43d1c3">aqua</b> wetter than normal, <b style="color:#c9762d">amber</b> drier.
+  Lago Gatún is outlined on each frame.</p>
+  <div class="embeds">
+    <iframe src="../sst_anim.html?embed=1&amp;manifest=gatun_precip_manifest.json&amp;region=gatun_precip_24h"
+            title="IMERG rainfall accumulation loops over the Gatún watershed" loading="lazy"></iframe>
+    <iframe src="../sst_anim.html?embed=1&amp;manifest=gatun_anom_manifest.json&amp;region=gatun_anom_30d"
+            title="IMERG rainfall anomaly loops over the Gatún watershed" loading="lazy"></iframe>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Rainfall anomalies vs lake level</h2>
+  <p class="note">The hydrological cause and effect: 90-day watershed rainfall anomaly (top) against the
+  lake level itself (bottom), with El&nbsp;Niño episodes shaded. Dry spells during El&nbsp;Niño are what
+  carve the deep minimums &mdash; the lake answers with a lag of one to three months.</p>
+  <img class="chartimg" id="rainlevel" alt="Gatún watershed rainfall anomaly vs lake level, last 8 years">
+</div>
+
+<div class="card">
   <h2>El Niño drains the lake</h2>
   <p class="note">Each dot is a year: the winter ENSO peak (DJF ONI) against the lowest level the lake
   reached that January–May dry season. <span id="fitNote"></span></p>
@@ -117,13 +147,19 @@ footer b { color: var(--ink2); font-weight: 600; }
 <footer>
   <b>Sources:</b> Lake levels and projection from the
   <a href="https://evtms-rpts.pancanal.com/eng/h2o/index.html">Panama Canal Authority (ACP)</a>;
-  Oceanic Niño Index from <a href="https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt">NOAA CPC</a>.
+  Oceanic Niño Index from <a href="https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt">NOAA CPC</a>;
+  rainfall from <a href="https://gpm.nasa.gov/data/imerg">NASA GPM IMERG</a> (Early-run loops; anomalies vs the
+  2001&ndash;2025 IMERG Final climatology) and <a href="https://power.larc.nasa.gov/">NASA POWER</a> (daily history).
   Data &copy; ACP, shown here for informational purposes; the ACP notes its figures are estimates
   subject to revision and that official transit drafts are communicated via Advisories to Shipping.
   Built by Claude (Anthropic's Claude Fable 5), directed by Shawn Corvec.
 </footer>
 </div>
 
+<script>
+document.getElementById("rainlevel").src =
+  "../assets/sst/gatun_rain_level.webp?v=" + new Date().toISOString().slice(0, 10);
+</script>
 <script>
 const G = GATUN;
 const CFG = {displayModeBar: false, responsive: true};

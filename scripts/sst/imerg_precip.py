@@ -76,9 +76,11 @@ def _units(w: dict, ft: datetime, step: timedelta) -> int:
 # Per-cadence cache retention = each cadence's deepest reach (span + window) + a small buffer,
 # so hourly grids don't pile up to the 14-day window's depth.
 HOURLY_KEEP_H = max(w["span_h"] + w["units"] for w in WINDOWS if w["kind"] == "hourly") + 6
-# daily cache must also cover the anomaly product's deepest reach (30-day window + ~10-day loop)
+# daily cache must cover the deepest reach of ANY consumer: the anomaly product
+# (30-day window + ~10-day loop) and the Gatun tracker's 90-day window + loop
+# (imerg_gatun.py) — hence 100 days.
 DAILY_KEEP_H = max((max(w["span_h"] // 24 + w["units"] for w in WINDOWS if w["kind"] == "daily") + 2) * 24,
-                   45 * 24)
+                   100 * 24)
 
 # precip palette: deep blue → blue → teal → green → yellow → orange → red → magenta → white
 _STOPS = ["#2b3a6b", "#3b76c4", "#3fb0b0", "#52c452", "#c8d63f",
