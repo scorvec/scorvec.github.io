@@ -8,7 +8,8 @@ Produces three static images for the website:
   3. RONI time series (bar chart)      -> assets/sst/roni.webp
 Plus a small manifest               -> assets/sst/manifest.json
 
-Data (NOAA PSL, OISST v2.1 high-res, 1/4 deg, anomalies vs 1991-2020):
+Data (NOAA PSL, OISST v2.1 high-res, 1/4 deg; NCEI computes the anomalies
+vs the 1971-2000 climatology — per the NCEI OISST FAQ):
   - Daily anomaly (latest day -> the maps):
       https://downloads.psl.noaa.gov/Datasets/noaa.oisst.v2.highres/sst.day.anom.<YEAR>.nc
   - Monthly anomaly (full record -> RONI time series):
@@ -73,11 +74,14 @@ TROPICAL = dict(lat=(-20, 20), lon=(0, 360))
 # The four canonical CPC ENSO monitoring regions (lon in 0–360°E). Niño-3.4 overlaps
 # Niño-4 and Niño-3 by definition. Each colour is shared between the map box outline
 # and the region time-series lines so the two read together. Insertion order = west→east.
+# Palette rule: NO reds/blues/oranges — those impersonate the anomaly colormap on the
+# maps (a red box over a warm blob disappears or reads as data). Niño-3.4 is near-black
+# ink as the primary ONI region; the others are hues absent from both colormaps.
 NINO_REGIONS = {
-    "nino4":  dict(lat=(-5, 5),  lon=(160, 210), label="Niño-4",   color="#6a3d9a"),  # 160°E–150°W
-    "nino34": dict(lat=(-5, 5),  lon=(190, 240), label="Niño-3.4", color="#e31a1c"),  # 170°W–120°W
-    "nino3":  dict(lat=(-5, 5),  lon=(210, 270), label="Niño-3",   color="#33a02c"),  # 150°W–90°W
-    "nino12": dict(lat=(-10, 0), lon=(270, 280), label="Niño-1+2", color="#1f78b4"),  # 90°W–80°W
+    "nino4":  dict(lat=(-5, 5),  lon=(160, 210), label="Niño-4",   color="#7c4fd0"),  # 160°E–150°W, violet
+    "nino34": dict(lat=(-5, 5),  lon=(190, 240), label="Niño-3.4", color="#141414"),  # 170°W–120°W, ink
+    "nino3":  dict(lat=(-5, 5),  lon=(210, 270), label="Niño-3",   color="#0e8a80"),  # 150°W–90°W, teal
+    "nino12": dict(lat=(-10, 0), lon=(270, 280), label="Niño-1+2", color="#bf3d8d"),  # 90°W–80°W, magenta
 }
 
 # Map extents and projection centering. The OISST grid is 0-360 in lon;
@@ -212,7 +216,9 @@ def sst_anom_cmap():
 # Map rendering
 # ----------------------------------------------------------------------
 def _draw_box(ax, lat_rng, lon_rng, color, lw=1.2):
-    """Outline a lat/lon box. Edges are dense point sequences along the parallels
+    """Outline a lat/lon box as a CASED line: a white halo under the coloured core,
+    so the box stays legible over any anomaly colour (deep red/blue blobs used to
+    swallow same-hued outlines). Edges are dense point sequences along the parallels
     and meridians so the rectangle follows the projection (doesn't bow) regardless
     of the map's central longitude."""
     lon0, lon1 = lon_rng
@@ -221,8 +227,10 @@ def _draw_box(ax, lat_rng, lon_rng, color, lw=1.2):
     lats = np.linspace(lat0, lat1, 100)
     edge_lon = np.concatenate([lons, np.full(100, lon1), lons[::-1], np.full(100, lon0)])
     edge_lat = np.concatenate([np.full(100, lat0), lats, np.full(100, lat1), lats[::-1]])
-    ax.plot(edge_lon, edge_lat, transform=PC, color=color, lw=lw,
+    ax.plot(edge_lon, edge_lat, transform=PC, color="white", lw=lw + 1.5, alpha=0.9,
             zorder=5, solid_capstyle="round")
+    ax.plot(edge_lon, edge_lat, transform=PC, color=color, lw=lw,
+            zorder=5.05, solid_capstyle="round")
 
 
 # label vertical offsets (deg lat above each box top) so the three equatorial
@@ -607,8 +615,8 @@ def render_daily_three_metrics(full_anom, la, lo, out_path, days=None):
     ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3)
     fig.autofmt_xdate()
     fig.text(0.005, 0.005,
-             "Daily values computed from NOAA OISST v2.1 (1991\u20132020 "
-             "base). Daily \u2014 noisier than the 3-month running indices.",
+             "Daily values computed from NOAA OISST v2.1 (anomalies vs "
+             "1971\u20132000). Daily \u2014 noisier than the 3-month running indices.",
              fontsize=7, color="#888")
 
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
@@ -679,7 +687,7 @@ def render_nino_region_series(full_anom, full_abs, la, lo, out_path, days=120):
 
     fig.autofmt_xdate()
     fig.text(0.005, 0.005,
-             "Daily cosine-weighted box means from NOAA OISST v2.1 (1991–2020 base). "
+             "Daily cosine-weighted box means from NOAA OISST v2.1 (anomalies vs 1971–2000). "
              "Niño-4 160°E–150°W · 3.4 170–120°W · "
              "3 150–90°W · 1+2 90–80°W, 0–10°S · "
              "daily values (noisier than 3-month indices).",
@@ -771,7 +779,7 @@ def render_roni(df: pd.DataFrame, out_path: Path,
              "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean 20\u00b0S\u201320\u00b0N) anomaly rescaled by \u03c3(ONI)/\u03c3(relative) per calendar "
              "month (CPC/ECMWF), in \u00b0C, comparable to ONI (red >+0.5, blue <\u22120.5, grey neutral).\n"
              "Each bar is the centered 3-month season (e.g. May = AMJ); a hatched bar is provisional (its "
-             "season includes the incomplete current month). NOAA OISST v2.1, 1991\u20132020 base.",
+             "season includes the incomplete current month). NOAA OISST v2.1, anomalies vs 1971\u20132000.",
              fontsize=7, color="#888")
 
     fig.subplots_adjust(bottom=0.20, top=0.86)   # room for the 2-line season ticks + footnote
@@ -883,7 +891,7 @@ def main(argv=None) -> int:
     # --- Maps (dateline-centered, +/-5 degC scale) ---
     render_sst_map(latest, la, lo, GLOBAL_EXTENT,
                    f"Global SST Anomaly \u2014 {valid:%Y-%m-%d} "
-                   f"(OISST v2.1, base 1991\u20132020)",
+                   f"(OISST v2.1, anomalies vs 1971\u20132000)",
                    ASSETS / "global_sst_anom.webp",
                    figsize=(14, 7), central_lon=GLOBAL_CENTRAL_LON,
                    vmin=-5.0, vmax=5.0,
