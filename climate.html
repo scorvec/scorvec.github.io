@@ -112,9 +112,13 @@
 
   <div class="card">
     <h2>Daily precipitation anomaly</h2>
-    <p class="note">GPM IMERG (Early run) daily precipitation departure from the satellite's own
-    2001–2025 climatology, at 0.5° — teal wetter than normal, brown drier.</p>
-    <img id="img-precip" alt="GPM IMERG daily precipitation anomaly map">
+    <p class="note">GPM IMERG (Early run) departures from the satellite's own 2001–2025 climatology
+    at 0.5° — teal wetter than normal, brown drier. The 7-day accumulation (top) is the headline:
+    daily rainfall is intermittent, so a single day measured against a smooth climatology mostly
+    repaints the mean rain belts dry — visible in the daily companion below, where brown traces the
+    ITCZ and monsoon regions that simply didn't rain that particular day.</p>
+    <img id="img-precip" alt="GPM IMERG 7-day precipitation anomaly map">
+    <img id="img-precip-daily" style="margin-top:10px" alt="GPM IMERG daily precipitation anomaly map">
   </div>
 
   <footer>
@@ -212,6 +216,9 @@ fetch("assets/climate/manifest.json?t=" + Date.now())
     for (const k of ["t2m", "z500", "mslp"])
       document.getElementById("img-" + k).src = `assets/climate/${k}_anom.webp?v=${v}`;
     document.getElementById("img-precip").src = `assets/climate/precip_anom.webp?v=${v}`;
+    const pd = document.getElementById("img-precip-daily");
+    pd.src = `assets/climate/precip_anom_daily.webp?v=${v}`;
+    pd.onerror = () => pd.remove();
     document.getElementById("stamp").textContent =
       `ERA5 valid ${m.era5_day || "—"} · IMERG valid ${m.imerg_day || "—"} · generated ${m.generated}`;
     const tele = document.getElementById("img-tele");

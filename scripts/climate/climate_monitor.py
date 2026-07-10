@@ -380,40 +380,78 @@ def run_monthly() -> list:
 
 
 # ── IMERG ────────────────────────────────────────────────────────────────────
-def run_imerg() -> str | None:
-    clim_p = HERE / "imerg_clim_global.nc"
-    if not clim_p.exists():
-        print(f"  {clim_p.name} missing — run build_imerg_clim_global.py first", flush=True)
-        return None
-    cds = xr.open_dataset(clim_p)
+IMERG_STORE = DATA / "imerg_global"          # per-day strided global grids (~1 MB each)
+
+
+def _imerg_recent_days(n: int = 10) -> dict:
+    """Ensure the last n IMERG Early daily global 0.5° grids are cached; return
+    {YYYYMMDD: (lat, lon) mm/day} for the days available."""
     from imerg_precip import _login
     from build_imerg_clim_global import _opendap_url, _fetch_day
     import earthaccess
     _login()
+    IMERG_STORE.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc)
     gs = earthaccess.search_data(short_name="GPM_3IMERGDE", version="07",
-                                 temporal=(f"{now - timedelta(days=6):%Y-%m-%d}",
+                                 temporal=(f"{now - timedelta(days=n + 2):%Y-%m-%d}",
                                            f"{now:%Y-%m-%d}"))
-    if not gs:
-        print("  no recent IMERG Early daily granules found", flush=True)
-        return None
     by_day = {}
     for g in gs:
         url = _opendap_url(g)
         if url:
             by_day[url.split(".3IMERG.")[1][:8]] = url
-    ymd = sorted(by_day)[-1]
-    day = pd.Timestamp(f"{ymd[:4]}-{ymd[4:6]}-{ymd[6:]}")
-    sess = earthaccess.get_requests_https_session()
-    _, grid = _fetch_day((by_day[ymd], 1, sess))
-    if grid is None:
-        print("  IMERG fetch failed", flush=True)
+    sess = None
+    out = {}
+    for ymd, url in sorted(by_day.items())[-n:]:
+        p = IMERG_STORE / f"{ymd}.npy"
+        if not p.exists():
+            if sess is None:
+                sess = earthaccess.get_requests_https_session()
+            _, grid = _fetch_day((url, 1, sess))
+            if grid is None:
+                continue
+            np.save(p, grid.astype("float32"))
+        out[ymd] = np.load(p)
+    for old in IMERG_STORE.glob("*.npy"):                    # prune beyond ~2n
+        if old.stem not in by_day and len(list(IMERG_STORE.glob("*.npy"))) > 2 * n:
+            old.unlink()
+    return out
+
+
+def run_imerg() -> str | None:
+    """7-day accumulation anomaly (primary — daily precip is intermittent, so a
+    one-day anomaly vs the smooth climatology mostly repaints the mean rain
+    belts) plus the single-day anomaly as a companion."""
+    clim_p = HERE / "imerg_clim_global.nc"
+    if not clim_p.exists():
+        print(f"  {clim_p.name} missing — run build_imerg_clim_global.py first", flush=True)
         return None
-    anom = grid - eval_clim(cds["coef"].values, doy365(day))
-    render_global(anom, cds.lat.values, cds.lon.values,
+    cds = xr.open_dataset(clim_p)
+    coef = cds["coef"].values
+    days = _imerg_recent_days(10)
+    if not days:
+        print("  no recent IMERG Early daily granules found", flush=True)
+        return None
+    ymds = sorted(days)
+    day = pd.Timestamp(f"{ymds[-1][:4]}-{ymds[-1][4:6]}-{ymds[-1][6:]}")
+
+    anom1 = days[ymds[-1]] - eval_clim(coef, doy365(day))
+    render_global(anom1, cds.lat.values, cds.lon.values,
                   f"GPM IMERG daily precipitation anomaly — {day:%Y-%m-%d} (vs 2001–2025)",
-                  "mm/day", ASSETS / "precip_anom.webp",
+                  "mm/day", ASSETS / "precip_anom_daily.webp",
                   cmap=_PRC, levels=PRECIP_LEVELS)
+
+    last7 = ymds[-7:]
+    if len(last7) == 7:
+        tot = np.sum([days[k] for k in last7], axis=0)
+        ctot = np.sum([eval_clim(coef, doy365(day - pd.Timedelta(days=k)))
+                       for k in range(7)], axis=0)
+        d0 = pd.Timestamp(f"{last7[0][:4]}-{last7[0][4:6]}-{last7[0][6:]}")
+        render_global(tot - ctot, cds.lat.values, cds.lon.values,
+                      f"GPM IMERG 7-day precipitation anomaly — {d0:%b %d} – {day:%b %d, %Y} "
+                      "(vs 2001–2025)", "mm",
+                      ASSETS / "precip_anom.webp",
+                      cmap=_PRC, levels=[10, 25, 50, 90, 150, 250, 400])
     return f"{day:%Y-%m-%d}"
 
 
