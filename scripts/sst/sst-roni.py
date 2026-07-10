@@ -8,13 +8,10 @@ Produces three static images for the website:
   3. RONI time series (bar chart)      -> assets/sst/roni.webp
 Plus a small manifest               -> assets/sst/manifest.json
 
-Data (NOAA PSL, OISST v2.1 high-res, 1/4 deg; NCEI computes the anomalies
-vs the 1971-2000 climatology — per the NCEI OISST FAQ):
-  - Daily anomaly (latest day -> the maps):
-      https://downloads.psl.noaa.gov/Datasets/noaa.oisst.v2.highres/sst.day.anom.<YEAR>.nc
-  - Monthly anomaly (full record -> RONI time series):
-      https://downloads.psl.noaa.gov/Datasets/noaa.oisst.v2.highres/sst.mon.anom.nc
-    (falls back to the low-res monthly mean + self-computed anomaly if needed)
+Data (NOAA PSL, OISST v2.1 high-res, 1/4 deg). Anomalies are computed HERE as
+sst.day.mean minus PSL's 1991-2020 daily climatology (shared helper
+oisst9120.py). NCEI's published sst.day.anom files use a 1971-2000 base (per
+their FAQ) and are no longer used anywhere in this repo.
 
 RONI (Relative Oceanic Nino Index), Tier-1 fidelity:
   RONI = Nino-3.4 SST anomaly  -  tropical-mean (20S-20N) SST anomaly,
@@ -51,6 +48,8 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import xarray as xr
 
+import oisst9120
+
 HERE = Path(__file__).resolve().parent          # wherever this script lives
 # Self-contained by default (assets/html under HERE). When embedded in the
 # website repo, set SST_SITE_ROOT to the repo root so the page and images are
@@ -60,10 +59,6 @@ SITE_ROOT = Path(os.environ["SST_SITE_ROOT"]).resolve() if os.environ.get("SST_S
 ASSETS = SITE_ROOT / "assets" / "sst"
 DATA = HERE / "data"
 HTML_OUT = SITE_ROOT / "sst.html"
-
-PSL_BASE = "https://downloads.psl.noaa.gov/Datasets/noaa.oisst.v2.highres"
-DAILY_ANOM_URL = PSL_BASE + "/sst.day.anom.{year}.nc"
-DAILY_MEAN_URL = PSL_BASE + "/sst.day.mean.{year}.nc"
 
 PC = ccrs.PlateCarree()
 
@@ -107,64 +102,7 @@ ANIM_DAYS = 60
 RENDER_WORKERS = int(os.environ.get("SST_RENDER_WORKERS", str(min(os.cpu_count() or 4, 8))))
 
 
-# ----------------------------------------------------------------------
-# Download helpers
-# ----------------------------------------------------------------------
-def _remote_is_newer(url: str, dest: Path) -> bool:
-    """HEAD the URL: True only if its Last-Modified is newer than the cached file
-    (so we should refresh). Any failure → False = keep the cache. This is what makes
-    the daily/monthly PSL files download once and then reuse until PSL appends new
-    data, instead of re-pulling ~240 MB on every (4-hourly) run."""
-    try:
-        from email.utils import parsedate_to_datetime
-        req = urllib.request.Request(url, method="HEAD")
-        with urllib.request.urlopen(req, timeout=30) as h:
-            lm = h.headers.get("Last-Modified")
-        if not lm:
-            return False
-        return parsedate_to_datetime(lm).timestamp() > dest.stat().st_mtime + 60
-    except Exception as e:                                   # noqa: BLE001
-        # make a persistently failing HEAD visible instead of silently serving
-        # the cache forever
-        print(f"  HEAD {url.rsplit('/', 1)[-1]} failed ({repr(e)[:60]}); keeping cache", flush=True)
-        return False
-
-
-def _download(url: str, dest: Path, force: bool = False, tries: int = 4) -> Path:
-    """Download with streaming + retry. A genuine 404 raises immediately (so the
-    caller's year fallback only fires when the file is truly absent); transient
-    failures (IncompleteRead, timeouts, dropped connections) retry — they must NOT
-    fall through to a stale prior-year file."""
-    import shutil, time, http.client, urllib.error
-    DATA.mkdir(parents=True, exist_ok=True)
-    if dest.exists() and not force:
-        if not _remote_is_newer(url, dest):
-            print(f"  cached: {dest.name} ({dest.stat().st_size/1e6:.1f} MB; PSL not newer)")
-            return dest
-        print(f"  {dest.name}: PSL published newer data → refreshing", flush=True)
-    print(f"  downloading {url} ...", flush=True)
-    tmp = dest.with_suffix(dest.suffix + ".tmp")
-    last = None
-    for attempt in range(1, tries + 1):
-        try:
-            with urllib.request.urlopen(url, timeout=120) as r, open(tmp, "wb") as f:
-                shutil.copyfileobj(r, f, 1 << 20)            # stream in 1 MB chunks
-            if tmp.stat().st_size < 1_000_000:               # guard against a truncated/empty body
-                raise IOError(f"suspiciously small download ({tmp.stat().st_size} B)")
-            tmp.replace(dest)
-            print(f"  saved {dest.name} ({dest.stat().st_size/1e6:.1f} MB)")
-            return dest
-        except urllib.error.HTTPError as e:
-            if e.code == 404:
-                raise                                        # truly absent → let caller try year-1
-            last = e
-        except (http.client.IncompleteRead, urllib.error.URLError, TimeoutError, IOError, OSError) as e:
-            last = e
-        print(f"  download attempt {attempt}/{tries} failed ({repr(last)[:80]}); retrying in 5s…", flush=True)
-        try: tmp.unlink()
-        except OSError: pass
-        time.sleep(5)
-    raise last if last is not None else RuntimeError(f"download failed: {url}")
+# (download helpers live in oisst9120, shared by every OISST consumer)
 
 
 def _find_var(ds: xr.Dataset, candidates=("anom", "sst", "anomaly")) -> str:
@@ -516,31 +454,28 @@ def scale_roni(rel_monthly):
     return rel_monthly * fac
 
 
-def compute_oni_roni(daily_anom, la, lo):
-    """Compute ONI and RONI monthly series from the DAILY anomaly field.
+def compute_oni_roni(mean_fields, la, lo):
+    """ONI and RONI monthly series from DAILY-MEAN fields (one per year).
 
-    Box-average the daily grid first (two cheap 1-D series), THEN resample to
-    monthly — box means and time means commute, and this avoids materializing
-    a monthly copy of the full 1/4-deg grid. The caller may pass a multi-year
-    concatenation (main appends the prior-year file) so early-year seasons are
-    real and the chart can show a rolling window.
+    Box-average each daily field and subtract the 1991-2020 box climatology
+    (oisst9120; reductions commute, so this equals the box mean of the gridded
+    anomaly), then resample monthly and take the centered 3-month mean.
+    min_periods=3 keeps only true 3-month seasons: the season centered on the
+    final data month (whose trailing month has no data yet) and one centered
+    on the first month drop out naturally.
 
     ONI  = Nino-3.4 monthly anomaly, 3-month running mean.
     RONI = (Nino-3.4 - tropical-mean[20S-20N]) monthly anomaly, 3-mo mean.
-    min_periods=3 keeps only true 3-month seasons: the season centered on the
-    final data month (whose trailing month has no data yet — the "JJA in July"
-    bar) and one centered on the first month drop out naturally.
-    Tropical mean excludes land/missing (NaN) cells via weighted mean.
     Returns DataFrame: month, oni, roni (degC).
     """
-    anom = daily_anom
-    if float(anom[lo].min()) < 0:
-        anom = anom.assign_coords({lo: (anom[lo] % 360)}).sortby(lo)
-
-    nino34_d = _box_anomaly_series(anom, la, lo,
-                                   NINO34["lat"], NINO34["lon"]).to_series()
-    tropical_d = _box_anomaly_series(anom, la, lo,
-                                     TROPICAL["lat"], TROPICAL["lon"]).to_series()
+    n34_parts, trop_parts = [], []
+    for f in mean_fields:
+        n34_parts.append(oisst9120.box_anom_series(f, la, lo,
+                                                   NINO34["lat"], NINO34["lon"]))
+        trop_parts.append(oisst9120.box_anom_series(f, la, lo,
+                                                    TROPICAL["lat"], TROPICAL["lon"]))
+    nino34_d = pd.concat(n34_parts).sort_index()
+    tropical_d = pd.concat(trop_parts).sort_index()
 
     oni_raw = nino34_d.resample("MS").mean()
     roni_raw = oni_raw - tropical_d.resample("MS").mean()
@@ -575,22 +510,10 @@ def daily_nino_readout(daily_anom, la, lo):
     return n34v, tropv, relv
 
 
-def render_daily_three_metrics(full_anom, la, lo, out_path, days=None):
-    """Daily time series of all three metrics on one chart:
-    Nino-3.4 anomaly, tropical-mean anomaly, and relative (Nino-3.4 minus
-    tropical-mean). Computed from the daily anomaly grid; optionally
-    limited to the most recent `days`.
-    """
-    anom = full_anom
-    if float(anom[lo].min()) < 0:
-        anom = anom.assign_coords({lo: (anom[lo] % 360)}).sortby(lo)
-    if days:
-        anom = anom.isel(time=slice(-days, None))
-
-    n34 = _box_anomaly_series(anom, la, lo,
-                              NINO34["lat"], NINO34["lon"]).to_series()
-    trop = _box_anomaly_series(anom, la, lo,
-                               TROPICAL["lat"], TROPICAL["lon"]).to_series()
+def render_daily_three_metrics(n34, trop, out_path):
+    """Daily time series of all three metrics on one chart: Nino-3.4 anomaly,
+    tropical-mean anomaly, and relative (Nino-3.4 minus tropical-mean), from
+    precomputed daily box anomaly series (vs 1991-2020)."""
     rel = n34 - trop
     t = pd.to_datetime(n34.index)
 
@@ -607,7 +530,7 @@ def render_daily_three_metrics(full_anom, la, lo, out_path, days=None):
     ax.axhline(0, color="#333", lw=0.8)
 
     ax.set_ylabel("SST anomaly (\u00b0C)", fontsize=11)
-    span = f"last {days} days" if days else f"{t[0]:%b %d} \u2013 {t[-1]:%b %d, %Y}"
+    span = f"{t[0]:%b %d} \u2013 {t[-1]:%b %d, %Y}"
     ax.set_title(f"Daily Equatorial Pacific SST Indices \u2014 {span}",
                  fontsize=11, loc="left", pad=8)
     ax.grid(axis="y", alpha=0.2)
@@ -615,8 +538,8 @@ def render_daily_three_metrics(full_anom, la, lo, out_path, days=None):
     ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3)
     fig.autofmt_xdate()
     fig.text(0.005, 0.005,
-             "Daily values computed from NOAA OISST v2.1 (anomalies vs "
-             "1971\u20132000). Daily \u2014 noisier than the 3-month running indices.",
+             "Daily values from NOAA OISST v2.1 daily means, anomalies vs "
+             "1991\u20132020. Daily \u2014 noisier than the 3-month running indices.",
              fontsize=7, color="#888")
 
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
@@ -626,23 +549,10 @@ def render_daily_three_metrics(full_anom, la, lo, out_path, days=None):
     print(f"  wrote {out_path.name}")
 
 
-def render_nino_region_series(full_anom, full_abs, la, lo, out_path, days=120):
-    """Recent daily time series for the four CPC Niño regions, two stacked panels
-    sharing a date axis: top = absolute SST (°C), bottom = SST anomaly (°C). One
-    region-coloured line each (colours match the map boxes); the anomaly panel
-    carries the ±0.5 °C El Niño / La Niña reference lines. If the absolute field is
-    unavailable, only the anomaly panel is drawn."""
-    def _prep(da):
-        if float(da[lo].min()) < 0:
-            da = da.assign_coords({lo: (da[lo] % 360)}).sortby(lo)
-        return da.isel(time=slice(-days, None))
-
-    anom = _prep(full_anom)
-    abso = _prep(full_abs) if full_abs is not None else None
-    a_ser = {k: _box_anomaly_series(anom, la, lo, r["lat"], r["lon"]).to_series()
-             for k, r in NINO_REGIONS.items()}
-    b_ser = ({k: _box_anomaly_series(abso, la, lo, r["lat"], r["lon"]).to_series()
-              for k, r in NINO_REGIONS.items()} if abso is not None else None)
+def render_nino_region_series(a_ser, b_ser, out_path):
+    """Recent daily series for the four CPC Niño regions from precomputed box
+    series: a_ser = anomaly (vs 1991-2020), b_ser = absolute SST (or None).
+    Two stacked panels sharing a date axis; colours match the map boxes."""
     ndays = len(a_ser["nino34"])
 
     npanel = 2 if b_ser is not None else 1
@@ -687,7 +597,7 @@ def render_nino_region_series(full_anom, full_abs, la, lo, out_path, days=120):
 
     fig.autofmt_xdate()
     fig.text(0.005, 0.005,
-             "Daily cosine-weighted box means from NOAA OISST v2.1 (anomalies vs 1971–2000). "
+             "Daily cosine-weighted box means from NOAA OISST v2.1 (anomalies vs 1991–2020). "
              "Niño-4 160°E–150°W · 3.4 170–120°W · "
              "3 150–90°W · 1+2 90–80°W, 0–10°S · "
              "daily values (noisier than 3-month indices).",
@@ -779,7 +689,7 @@ def render_roni(df: pd.DataFrame, out_path: Path,
              "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean 20\u00b0S\u201320\u00b0N) anomaly rescaled by \u03c3(ONI)/\u03c3(relative) per calendar "
              "month (CPC/ECMWF), in \u00b0C, comparable to ONI (red >+0.5, blue <\u22120.5, grey neutral).\n"
              "Each bar is the centered 3-month season (e.g. May = AMJ); a hatched bar is provisional (its "
-             "season includes the incomplete current month). NOAA OISST v2.1, anomalies vs 1971\u20132000.",
+             "season includes the incomplete current month). NOAA OISST v2.1, anomalies vs 1991\u20132020.",
              fontsize=7, color="#888")
 
     fig.subplots_adjust(bottom=0.20, top=0.86)   # room for the 2-line season ticks + footnote
@@ -802,47 +712,34 @@ def main(argv=None) -> int:
     ASSETS.mkdir(parents=True, exist_ok=True)
     year = datetime.now(timezone.utc).year
 
-    # --- Daily anomaly for the maps ---
-    print("Daily SST anomaly (maps):")
-    daily_path = DATA / f"sst.day.anom.{year}.nc"
+    # --- Daily mean SST: the single source field (maps, animations, indices).
+    #     Anomalies are computed against the 1991-2020 climatology (oisst9120). ---
+    print("Daily SST mean (anomalies computed vs 1991-2020):")
     try:
-        _download(DAILY_ANOM_URL.format(year=year), daily_path,
-                  force=args.force)
+        mean_path = oisst9120.ensure_mean(year, force=args.force)
     except urllib.error.HTTPError as e:
         if e.code != 404:
             raise
         # Only when this year's file is genuinely absent (early-January edge case)
-        # do we use last year's — NEVER as a fallback for a transient network drop,
-        # which would silently serve stale data. _download already retries those.
+        # do we use last year's — never for a transient failure (download retries).
         print(f"  {year} daily file not found (404); using {year-1}", file=sys.stderr)
         year -= 1
-        daily_path = DATA / f"sst.day.anom.{year}.nc"
-        _download(DAILY_ANOM_URL.format(year=year), daily_path,
-                  force=args.force)
+        mean_path = oisst9120.ensure_mean(year, force=args.force)
 
-    dsd = xr.open_dataset(daily_path)
-    var = _find_var(dsd)
-    la, lo = _lat_name(dsd), _lon_name(dsd)
-    full = dsd[var]
-    # Normalize daily lon to 0-360 for consistent box selection.
-    if float(full[lo].min()) < 0:
-        full = full.assign_coords({lo: (full[lo] % 360)}).sortby(lo)
-    latest = full.isel(time=-1)
-    valid = pd.to_datetime(dsd["time"].values[-1])
+    dsm = xr.open_dataset(mean_path)
+    var = _find_var(dsm, candidates=("sst",))
+    la, lo = _lat_name(dsm), _lon_name(dsm)
+    full_abs = dsm[var]
+    if float(full_abs[lo].min()) < 0:                  # OISST is 0-360 already; defensive
+        full_abs = full_abs.assign_coords({lo: (full_abs[lo] % 360)}).sortby(lo)
+    valid = pd.to_datetime(dsm["time"].values[-1])
     print(f"  latest day: {valid:%Y-%m-%d}")
 
-    # --- Absolute SST (sst.day.mean) for the absolute-SST animation ---
-    print("Daily absolute SST (sst.day.mean):")
-    full_abs = None
-    try:
-        mean_path = DATA / f"sst.day.mean.{year}.nc"
-        _download(DAILY_MEAN_URL.format(year=year), mean_path, force=args.force)
-        dsm = xr.open_dataset(mean_path)
-        full_abs = dsm[_find_var(dsm, candidates=("sst", "anom"))]
-        if float(full_abs[lo].min()) < 0:
-            full_abs = full_abs.assign_coords({lo: (full_abs[lo] % 360)}).sortby(lo)
-    except Exception as e:
-        print(f"  absolute SST unavailable ({e}); skipping that product", file=sys.stderr)
+    # Gridded anomalies only where a map needs them: the last ANIM_DAYS window
+    # (whose newest day also feeds the two static maps). Anything longer runs
+    # through the box-level helpers instead — reduce first, then subtract.
+    anom_win = oisst9120.anom(full_abs.isel(time=slice(-ANIM_DAYS, None))).load()
+    latest = anom_win.isel(time=-1)
 
     # Daily 'current conditions' readout (single-day values).
     day_n34, day_trop, day_rel = daily_nino_readout(latest, la, lo)
@@ -850,25 +747,21 @@ def main(argv=None) -> int:
           f"tropical-mean {day_trop:+.2f} degC, relative "
           f"{day_rel:+.2f} degC")
 
-    # --- ONI + RONI from the DAILY field (box means resampled to monthly), so
-    #     we need no separate monthly download. The prior-year file (cached
-    #     once; PSL never rewrites closed years) is concatenated so early-year
-    #     seasons like DJF are true 3-month means and the chart shows a rolling
-    #     ~18-month window. Maps/animations keep using the current-year field.
-    print("ONI/RONI (from daily anomalies, rolling window):")
-    full_idx = full
+    # --- ONI + RONI monthly indices from box-level anomaly series. The prior
+    #     year is included so early seasons are true 3-month means and the
+    #     chart shows a rolling ~18-month window. ---
+    print("ONI/RONI (box anomalies vs 1991-2020, rolling window):")
+    mean_fields = [full_abs]
     try:
-        prev_path = DATA / f"sst.day.anom.{year - 1}.nc"
-        _download(DAILY_ANOM_URL.format(year=year - 1), prev_path)
-        dsp = xr.open_dataset(prev_path)
-        prev = dsp[_find_var(dsp)]
+        dsp = xr.open_dataset(oisst9120.ensure_mean(year - 1))
+        prev = dsp[_find_var(dsp, candidates=("sst",))]
         if float(prev[lo].min()) < 0:
             prev = prev.assign_coords({lo: (prev[lo] % 360)}).sortby(lo)
-        full_idx = xr.concat([prev, full], dim="time")
+        mean_fields.insert(0, prev)
     except Exception as e:                                   # noqa: BLE001
         print(f"  prior-year daily file unavailable ({repr(e)[:70]}); "
               "indices are year-to-date only", file=sys.stderr)
-    idx = compute_oni_roni(full_idx, la, lo)
+    idx = compute_oni_roni(mean_fields, la, lo)
     idx = idx.tail(18).reset_index(drop=True)                # rolling display window
     latest_oni = float(idx["oni"].iloc[-1])
     latest_roni = float(idx["roni"].iloc[-1])
@@ -880,8 +773,7 @@ def main(argv=None) -> int:
     _sc = load_roni_scale()
     day_roni = day_rel * _sc.get(int(valid.month), 1.0)
 
-    # Daily current-conditions label for the maps (the three requested
-    # lines, using single-day values).
+    # Daily current-conditions label for the maps (single-day values).
     annotation = (
         f"Current Daily Ocean Ni\u00f1o Index: {day_n34:+.2f} \u00b0C\n"
         f"Current Daily Tropical Mean SST: {day_trop:+.2f} \u00b0C\n"
@@ -891,7 +783,7 @@ def main(argv=None) -> int:
     # --- Maps (dateline-centered, +/-5 degC scale) ---
     render_sst_map(latest, la, lo, GLOBAL_EXTENT,
                    f"Global SST Anomaly \u2014 {valid:%Y-%m-%d} "
-                   f"(OISST v2.1, anomalies vs 1971\u20132000)",
+                   f"(OISST v2.1, anomalies vs {oisst9120.BASE_LABEL})",
                    ASSETS / "global_sst_anom.webp",
                    figsize=(14, 7), central_lon=GLOBAL_CENTRAL_LON,
                    vmin=-5.0, vmax=5.0,
@@ -903,9 +795,8 @@ def main(argv=None) -> int:
                    figsize=(14, 5.5), central_lon=TROPICAL_CENTRAL_LON,
                    vmin=-5.0, vmax=5.0,
                    annotation=annotation)
-    dsd.close()
 
-    # --- RONI time series chart (monthly, year-to-date) ---
+    # --- RONI time series chart ---
     # Is the newest bar's season still accumulating days? True unless the daily
     # file already covers through the end of the latest data month.
     last_partial = ((valid + pd.Timedelta(days=1)).month == valid.month)
@@ -914,26 +805,29 @@ def main(argv=None) -> int:
                 latest_month=latest_month, last_partial=last_partial)
     latest_roni_month = latest_month
 
-    # --- Daily 3-metric chart (Nino-3.4, tropical-mean, relative) ---
+    # --- Daily 3-metric chart (year-to-date box anomaly series) ---
     print("Daily 3-metric time series:")
-    render_daily_three_metrics(full, la, lo,
-                               ASSETS / "daily_indices.webp")
+    n34_ytd = oisst9120.box_anom_series(full_abs, la, lo,
+                                        NINO34["lat"], NINO34["lon"])
+    trop_ytd = oisst9120.box_anom_series(full_abs, la, lo,
+                                         TROPICAL["lat"], TROPICAL["lon"])
+    render_daily_three_metrics(n34_ytd, trop_ytd, ASSETS / "daily_indices.webp")
 
-    # --- Niño-region recent series: absolute SST + anomaly, all four boxes ---
-    print("Niño-region recent series (absolute + anomaly):")
-    render_nino_region_series(full, full_abs, la, lo,
-                              ASSETS / "nino_regions.webp")
+    # --- Ni\u00f1o-region recent series: absolute SST + anomaly, all four boxes ---
+    print("Ni\u00f1o-region recent series (absolute + anomaly):")
+    reg_win = full_abs.isel(time=slice(-120, None))
+    a_ser = {k: oisst9120.box_anom_series(reg_win, la, lo, r["lat"], r["lon"])
+             for k, r in NINO_REGIONS.items()}
+    b_ser = {k: oisst9120.box_mean_series(reg_win, la, lo, r["lat"], r["lon"])
+             for k, r in NINO_REGIONS.items()}
+    render_nino_region_series(a_ser, b_ser, ASSETS / "nino_regions.webp")
 
     # --- Two-panel animated products: anomaly, absolute, relative ---
     print(f"Two-panel animations (last {ANIM_DAYS} days):")
-    full_rel = global_mean_removed(full, la, lo)
-    fields = {"anomaly": full, "relative": full_rel}
-    if full_abs is not None:
-        fields["absolute"] = full_abs
+    full_rel = global_mean_removed(anom_win, la, lo)
+    fields = {"anomaly": anom_win, "relative": full_rel, "absolute": full_abs}
     anim_manifest = {"days": ANIM_DAYS, "regions": {}}
     for pid in ("anomaly", "absolute", "relative"):
-        if pid not in fields:
-            continue
         frames = render_product_anim(fields[pid], la, lo, pid, n_days=ANIM_DAYS)
         anim_manifest["regions"][pid] = {
             "label": PRODUCTS[pid]["label"], "n_frames": len(frames),

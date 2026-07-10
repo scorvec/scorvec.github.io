@@ -3,8 +3,9 @@
 El Niño event-comparison products: track the current ENSO evolution against the
 1997-98, 2015-16, and 2023-24 events at WEEKLY resolution.
 
-Data: OISST daily anomaly files (already anomalies vs 1991-2020) for just the
-event years — small, reliable (no OPeNDAP), 7-day-smoothed.
+Data: OISST daily-mean files for just the event years, minus the PSL
+1991-2020 daily climatology (shared helper oisst9120) — anomalies on the true
+CPC-convention base. 7-day-smoothed; no OPeNDAP.
 
 The warming background is removed so events decades apart are comparable:
 indices subtract the 20°S–20°N tropical-mean anomaly (RONI-style "relative"
@@ -29,6 +30,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import oisst9120
+
 HERE = Path(__file__).resolve().parent
 SITE_ROOT = Path(os.environ["SST_SITE_ROOT"]).resolve() if os.environ.get("SST_SITE_ROOT") else HERE
 ASSETS = SITE_ROOT / "assets" / "sst"
@@ -47,12 +50,8 @@ NINO = {
 
 
 def _ensure_daily(year: int) -> Path:
-    p = DATA / f"sst.day.anom.{year}.nc"
-    if not (p.exists() and p.stat().st_size > 0):
-        DATA.mkdir(parents=True, exist_ok=True)
-        print(f"  downloading sst.day.anom.{year}.nc …", flush=True)
-        urllib.request.urlretrieve(f"{PSL}/sst.day.anom.{year}.nc", p)
-    return p
+    """Daily-mean file for one year (anomalies are derived in _open)."""
+    return oisst9120.ensure_mean(year)
 
 
 def current_year() -> int:
@@ -69,8 +68,10 @@ def _open(years):
                            combine="by_coords")
     la = "lat" if "lat" in ds.coords else "latitude"
     lo = "lon" if "lon" in ds.coords else "longitude"
-    var = "anom" if "anom" in ds.data_vars else list(ds.data_vars)[0]
-    return ds, var, la, lo
+    # rebased anomaly, lazily (dask both sides — the chunked clim is essential:
+    # an eager clim aligned to a multi-year axis would materialize tens of GB)
+    anom = (ds["sst"] - oisst9120.clim_for(ds["time"].values, chunked=True)).rename("anom")
+    return anom.to_dataset(), "anom", la, lo
 
 
 def _latslice(ds, la, lo_lat):
