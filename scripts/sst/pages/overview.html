@@ -214,6 +214,21 @@
       <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 &middot; anomaly = Early accumulation &minus; harmonic day-of-year climatology from IMERG Final daily 2001&ndash;2025 &middot; rolling, refreshed midday ET</span></div>
     </div>
 
+    <!-- COLOMBIA HYDRO: zoomed IMERG + hydro regions + plants -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Colombia Hydro: Rainfall over the Power Basins</h2>
+        <p>A country-scale IMERG view for hydropower: accumulations (left) and anomalies vs the 2001&ndash;2025 IMERG climatology (right), with IDEAM's five &aacute;reas hidrogr&aacute;ficas outlined and the major hydroelectric plants overlaid &mdash; marker area proportional to nameplate capacity (Hidroituango 2.4&nbsp;GW down to ~80&nbsp;MW). Pick the window (24&nbsp;h to 90 days) inside each panel.</p>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap">
+        <iframe class="anim-embed colombia" style="flex:1 1 340px" src="sst_anim.html?embed=1&amp;manifest=colombia_precip_manifest.json&amp;region=colombia_precip_24h"
+                title="Colombia hydro IMERG accumulation loops with hydro regions and plants" loading="lazy"></iframe>
+        <iframe class="anim-embed colombia" style="flex:1 1 340px" src="sst_anim.html?embed=1&amp;manifest=colombia_anom_manifest.json&amp;region=colombia_anom_30d"
+                title="Colombia hydro IMERG anomaly loops with hydro regions and plants" loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 &middot; regions: IDEAM zonificaci&oacute;n hidrogr&aacute;fica &middot; plants: WRI Global Power Plant Database + curated additions (approx. dam sites) &middot; refreshed with the precip loops</span></div>
+    </div>
+
     <!-- COLOMBIA / PANAMA TRUE-COLOR SATELLITE LOOP (GOES-East via GIBS) -->
     <div class="chart-card media-narrow">
       <div class="chart-card-header">
