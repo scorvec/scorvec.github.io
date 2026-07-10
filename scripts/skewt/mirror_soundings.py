@@ -51,7 +51,10 @@ def manifest_for(dt: datetime) -> list:
         d = json.loads(get(f"{UW}/sounding_json?datetime={q}"))
         out = []
         for s in d.get("stations", []):
-            out.append({"id": str(s["stationid"]), "n": s.get("name", ""),
+            name = str(s.get("name", "")).split("\n")[0].strip()
+            if "dtype" in name.lower() or "name:" in name.lower():
+                name = ""                       # UW sometimes leaks a pandas repr here
+            out.append({"id": str(s["stationid"]), "n": name,
                         "la": round(float(s["lat"]), 3), "lo": round(float(s["lon"]), 3),
                         "src": s.get("src", "BUFR"), "dt": f"{dt:%Y-%m-%d %H:00}"})
         return out
