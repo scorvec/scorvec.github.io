@@ -1,0 +1,61 @@
+{
+  "source": "bluesky",
+  "queries": {
+    "midterms": {
+      "n_posts": 99,
+      "posts_per_hour": 285.5,
+      "pos_hits": 11,
+      "neg_hits": 3,
+      "net_sentiment": 0.081,
+      "sample_texts": [
+        "BREAKING: Trump Moves Closer to Stealing the Midterms\nopen.substack.com/pub/reallyam...",
+        "open.substack.com/pub/reallyam...",
+        "Trump Fires All Election Commissioners Ahead of Midterms\nwww.alternetamerica.com/p/trump-fire...",
+        "open.substack.com/pub/narativ/...?",
+        "Putin could attack Baltic states\n\nEx-premier Mikhail Kasyanov warned at Chatham House that President Vladimir Putin could attack Estonia, Latvia or Lithuania in November to test NATO during U.S. midterms.\n\nWith replies by \ud83c\udf93Taras Kuzio, \ud83c\udf93Michael McFaul, \ud83c\udf93Ben Tonra +22 more scholars."
+      ]
+    },
+    "2026 election": {
+      "n_posts": 99,
+      "posts_per_hour": 68.8,
+      "pos_hits": 8,
+      "neg_hits": 4,
+      "net_sentiment": 0.04,
+      "sample_texts": [
+        "Today in the ongoing fascism takeover of the US                \n\nwww.theguardian.com/us-news/2026...",
+        "\"The Election Assistance Commission serves as a \u201cnational clearinghouse of information on election \u200cadministration\u201d, accredits testing laboratories and certifies voting systems, and maintains the national mail-voter registration form\" www.theguardian.com/us-news/2026...",
+        "Trump\u2019s DOJ announced that election monitors would be sent to 6 states \u2014 AZ, MS, MI, MN, NH & VA.\n\nIf you notice a pattern, you should. All of these states except NH are run by Democratic leadership & ALL are crucial to Democratic victories in 2026 & 2028. \n\nTrump intends to create election chaos.",
+        "Republicans have beef with Texas Rep. James Talarico - why does meat matter in US politics?\n->The Conversation | More on \"Meat politics US election rhetoric\" at BigEarthData.ai",
+        "The Trump administration warned Idaho\u2019s top election official that local and state election officials could be criminally prosecuted if they don\u2019t stop noncitizens from voting in the federal 2026 midterm elections. #idpol"
+      ]
+    },
+    "democrats": {
+      "n_posts": 98,
+      "posts_per_hour": 525.9,
+      "pos_hits": 13,
+      "neg_hits": 7,
+      "net_sentiment": 0.061,
+      "sample_texts": [
+        "New from Money Trail: Donald Trump is red-baiting Democrats to distract voters from their real concerns. Click here (no paywall): themoneytrail.substack.com/p/the-commie...",
+        "New from Money Trail: Donald Trump is red-baiting Democrats to distract voters from their real concerns. Click here (no paywall): themoneytrail.substack.com/p/the-commie...",
+        "Democrats are not as loud and vocal as Republicans. And I\u2019m not talking about Congress. I\u2019m talking about people.",
+        "I can't believe this person doesn't have a high opinion of socialists. \n\nGood thing she definitely has the best interests of the Democrats in mind.\n\nwww.foxnews.com/person/p/liz...",
+        "\u2018No one planned for this\u2019: The rapidly-evolving 18-day primary to replace Platner\n\nThe rocket primary for Democrats' Maine Senate pick is on \u2013 and the candidates are shaping their strategies in real time.\n\nBy Alec Hernandez et al.\n07/10/2026 05:00 AM EDT www.politico.com/news/2026/07..."
+      ]
+    },
+    "republicans": {
+      "n_posts": 96,
+      "posts_per_hour": 531.6,
+      "pos_hits": 10,
+      "neg_hits": 12,
+      "net_sentiment": -0.021,
+      "sample_texts": [
+        "Democrats are not as loud and vocal as Republicans. And I\u2019m not talking about Congress. I\u2019m talking about people.",
+        "A most excellent point. The Republicans in general have been infiltrating school boards for 25 years. This is just going to get worse.",
+        "Rape is a heinous crime\n\nSexual assault is a heinous crime\n\nPedophilia is a heinous crime, and repugnant and evil\n\nA primer for Republicans",
+        "You know, there's probably a lot of things Republicans would love to use this title for, so I'm glad animal documentarians got to it first.",
+        "PSA\n\nDemocrats replaced Platner in Maine because he is accused of rape. \n\nIf he was a republican candidate, republicans would embrace him & attack his accusers.\n\nwww.yahoo.com/news/politic..."
+      ]
+    }
+  }
+}
