@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skew-T Explorer — Shawn Corvec</title>
+<meta name="description" content="Interactive worldwide radiosonde Skew-T viewer: click any station for a full sounding analysis computed in-browser with SHARPlib (WebAssembly).">
+<link rel="canonical" href="https://scorvec.com/skewt/">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/fflate@0.8.2/umd/index.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --muted: #888580; --accent: #2c4a72;
+    --rule: #e4e2dc; --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; }
+  nav { display: flex; justify-content: space-between; align-items: center;
+        padding: 1rem 1.6rem; border-bottom: 1px solid var(--rule); }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  nav a.back { font-size: 0.8rem; letter-spacing: 0.05em; color: var(--muted); text-decoration: none; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.5rem; margin-bottom: 0.15rem; }
+  .sub { color: var(--muted); font-size: 0.82rem; margin-bottom: 0.9rem; }
+  #map { height: 300px; border-radius: 10px; border: 1px solid var(--rule); }
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0.8rem 0; }
+  .controls .station { font-weight: 600; font-size: 0.95rem; min-width: 220px; }
+  .controls button, .controls input[type=date] {
+    font: 500 0.8rem var(--sans); color: var(--ink); background: #fff;
+    border: 1px solid var(--rule); border-radius: 7px; padding: 6px 12px; cursor: pointer;
+  }
+  .controls button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .controls button:hover { border-color: var(--accent); }
+  #status { font-size: 0.8rem; color: var(--muted); }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; }
+  @media (max-width: 1020px) { .main { grid-template-columns: 1fr; } }
+  .panel { background: #fff; border: 1px solid var(--rule); border-radius: 10px; padding: 10px; }
+  canvas { display: block; width: 100%; height: auto; }
+  table.params { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  table.params th, table.params td { padding: 3px 6px; text-align: right;
+    border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; }
+  table.params th { color: var(--muted); font-weight: 600; }
+  table.params td:first-child, table.params th:first-child { text-align: left; }
+  .kin td { text-align: right; }
+  h3 { font-family: var(--serif); font-weight: 500; font-size: 0.95rem; margin: 8px 0 4px; }
+  footer { color: var(--muted); font-size: 0.74rem; line-height: 1.7; margin-top: 1.2rem; max-width: 90ch; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<nav>
+  <a href="../index.html" class="nav-name">Shawn Corvec</a>
+  <a href="../index.html" class="back">← HOME</a>
+</nav>
+<div class="wrap">
+  <h1>Skew-T Explorer</h1>
+  <div class="sub">Click any radiosonde station — the full sounding analysis (parcels, shear, SRH,
+  composites) runs in your browser via SHARPlib compiled to WebAssembly. No server involved.</div>
+
+  <div id="map"></div>
+
+  <div class="controls">
+    <span class="station" id="stn-label">— pick a station —</span>
+    <button id="mode-latest" class="on">Latest</button>
+    <button id="mode-archive">Archive</button>
+    <span id="arch-controls" style="display:none">
+      <input type="date" id="date" min="1943-01-01">
+      <button id="h00">00Z</button>
+      <button id="h12" class="on">12Z</button>
+    </span>
+    <span id="status"></span>
+    <a id="uw-link" href="https://weather.uwyo.edu/upperair/sounding.shtml" target="_blank"
+       rel="noopener" style="font-size:0.78rem; color:var(--accent); margin-left:auto">UW page ↗</a>
+  </div>
+
+  <div class="main">
+    <div class="panel"><canvas id="skewt" width="760" height="820"></canvas></div>
+    <div>
+      <div class="panel"><canvas id="hodo" width="310" height="310"></canvas></div>
+      <div class="panel" style="margin-top:14px">
+        <h3>Parcels</h3>
+        <table class="params" id="pcl-table"></table>
+        <h3>Kinematics &amp; composites</h3>
+        <table class="params kin" id="kin-table"></table>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <b>Data:</b> radiosonde profiles via the
+    <a href="https://weather.uwyo.edu/upperair/sounding.shtml">University of Wyoming</a> sounding archive
+    (BUFR high-resolution), mirrored ~4×/day by a GitHub Action because UW sends no CORS headers —
+    every station with a launch in the last 36 hours is clickable (blue dots). <b>Archive mode</b>
+    pulls any historical date directly from <a
+    href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">NOAA
+    IGRA v2</a> (grey dots include closed stations; per-station files can be tens of MB on first
+    load, then cached — recent years use the small year-to-date files).
+    <b>Analysis:</b> <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (K. Halbert,
+    NWS SPC lineage) compiled to WebAssembly — surface / 100-hPa mixed-layer / most-unstable parcels
+    (Wobus lifter), effective inflow layer, Bunkers storm motion, SRH, effective shear, SCP &amp; STP.
+    Diagram: log-p / 45° skew, dry &amp; moist adiabats traced with the same lifter.
+    Map: Leaflet &amp; OpenStreetMap. Built by Claude (Anthropic's Claude Fable 5), directed by
+    Shawn Corvec. Not for operational use.
+  </footer>
+</div>
+<script src="sharplib.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
