@@ -63,8 +63,9 @@
 
   <div class="card">
     <h2>Evolution — the last 30 days</h2>
-    <p class="note">Daily anomaly maps as an animation; switch the field (2 m temperature,
-    500 hPa height, MSLP) inside the panel.</p>
+    <p class="note">Daily maps as an animation — drag the slider or press play, and switch the
+    field (2 m temperature, 500 hPa height, MSLP anomalies, or daily precipitation total) inside the
+    panel.</p>
     <iframe class="anim-frame" src="sst_anim.html?embed=1&amp;base=assets/climate/anim&amp;manifest=manifest.json&amp;region=t2m"
             title="ERA5 daily anomaly loops, last 30 days" loading="lazy"></iframe>
   </div>
@@ -111,14 +112,12 @@
   </div>
 
   <div class="card">
-    <h2>Daily precipitation anomaly</h2>
-    <p class="note">GPM IMERG (Early run) departures from the satellite's own 2001–2025 climatology
-    at 0.5° — teal wetter than normal, brown drier. The 7-day accumulation (top) is the headline:
-    daily rainfall is intermittent, so a single day measured against a smooth climatology mostly
-    repaints the mean rain belts dry — visible in the daily companion below, where brown traces the
-    ITCZ and monsoon regions that simply didn't rain that particular day.</p>
-    <img id="img-precip" alt="GPM IMERG 7-day precipitation anomaly map">
-    <img id="img-precip-daily" style="margin-top:10px" alt="GPM IMERG daily precipitation anomaly map">
+    <h2>Monthly precipitation anomaly</h2>
+    <p class="note">GPM IMERG monthly precipitation totals minus the satellite's own 2001–2025
+    climatology (mm) — teal wetter than normal, brown drier. Daily rainfall is intermittent, so
+    anomalies read cleanly only when aggregated to a month; the day-to-day <b>totals</b> live in the
+    animator above. Most recent complete months:</p>
+    <div class="month-grid" id="months-precip"></div>
   </div>
 
   <footer>
@@ -263,21 +262,20 @@ fetch("assets/climate/manifest.json?t=" + Date.now())
     const v = (m.era5_day || "") + (m.imerg_day || "");
     for (const k of ["t2m", "z500", "mslp"])
       document.getElementById("img-" + k).src = `assets/climate/${k}_anom.webp?v=${v}`;
-    document.getElementById("img-precip").src = `assets/climate/precip_anom.webp?v=${v}`;
-    const pd = document.getElementById("img-precip-daily");
-    pd.src = `assets/climate/precip_anom_daily.webp?v=${v}`;
-    pd.onerror = () => pd.remove();
+// (daily precip totals are a field in the evolution animator above)
     document.getElementById("stamp").textContent =
       `ERA5 valid ${m.era5_day || "—"} · IMERG valid ${m.imerg_day || "—"} · generated ${m.generated}`;
     const tele = document.getElementById("img-tele");
     tele.src = "assets/climate/teleconnections_monthly.webp?v=" + (m.era5_day || "");
     tele.onerror = () => tele.remove();
-    for (const vk of ["t2m", "z500", "mslp"]) {
+    for (const vk of ["t2m", "z500", "mslp", "precip"]) {
       const holder = document.getElementById("months-" + vk);
+      if (!holder) continue;
       (m.months || []).slice().reverse().forEach(mm => {
         const img = document.createElement("img");
         img.src = `assets/climate/monthly/${vk}_${mm.replace("-", "")}.webp`;
         img.alt = `${vk} monthly anomaly ${mm}`;
+        img.style.marginTop = "10px";
         img.onerror = () => img.remove();
         holder.appendChild(img);
       });
