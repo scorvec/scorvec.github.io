@@ -83,15 +83,15 @@
 </nav>
 
 <div class="topbar controls">
-  <button id="mode-latest" class="on">Latest</button>
-  <button id="mode-archive">Archive</button>
-  <span id="arch-controls" style="display:none">
-    <button id="dprev" title="previous day">◀</button>
-    <input type="date" id="date" min="1943-01-01">
-    <button id="dnext" title="next day">▶</button>
-    <button id="h00">00Z</button>
-    <button id="h12" class="on">12Z</button>
-  </span>
+  <button data-act="latest" class="mctl on">Latest</button>
+    <button data-act="archive" class="mctl">Archive</button>
+    <span class="arch-controls" style="display:none">
+      <button data-act="dprev" title="previous day">◀</button>
+      <input type="date" class="datectl" min="1943-01-01">
+      <button data-act="dnext" title="next day">▶</button>
+      <button data-act="h00" class="hctl">00Z</button>
+      <button data-act="h12" class="hctl on">12Z</button>
+    </span>
   <span id="status"></span>
 </div>
 <div class="mapwrap"><div id="map"></div></div>
@@ -100,6 +100,15 @@
   <div class="dialog">
     <div class="dlg-head controls">
       <span class="station" id="stn-label">—</span>
+      <button data-act="latest" class="mctl on">Latest</button>
+    <button data-act="archive" class="mctl">Archive</button>
+    <span class="arch-controls" style="display:none">
+      <button data-act="dprev" title="previous day">◀</button>
+      <input type="date" class="datectl" min="1943-01-01">
+      <button data-act="dnext" title="next day">▶</button>
+      <button data-act="h00" class="hctl">00Z</button>
+      <button data-act="h12" class="hctl on">12Z</button>
+    </span>
       <span id="mstatus"></span>
       <a id="uw-link" href="https://weather.uwyo.edu/upperair/sounding.shtml" target="_blank"
          rel="noopener" style="font-size:0.78rem; color:var(--accent)">UW page ↗</a>

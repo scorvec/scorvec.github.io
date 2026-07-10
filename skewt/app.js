@@ -16,6 +16,7 @@ let plotTitle = "";              // drawn on the skew-t canvas itself
 let selectedMarker = null;       // highlighted dot on the map
 let mode = "latest";
 let archHour = 12;
+let archDate = new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10);
 const igraCache = new Map();     // gid -> decompressed text
 
 // ---------- wasm ----------
@@ -83,8 +84,7 @@ Promise.all([
     }).addTo(map);
     m.bindTooltip(`${s.n || id} (${id}) · click for latest (${s.dt}Z)`);
     m.on("click", () => {
-      setMode("latest");
-      highlight(m);
+      highlight(m);   // respects the current Latest/Archive mode + chosen date
       selectStation({ gid: byWmo[id], id, n: s.n, e: (igraStations[byWmo[id]] || {}).e || 0 });
     });
   }
@@ -121,33 +121,51 @@ function highlight(marker) {
   selectedMarker = marker;
 }
 
-function setMode(m2) {
-  mode = m2;
-  document.getElementById("mode-latest").classList.toggle("on", mode === "latest");
-  document.getElementById("mode-archive").classList.toggle("on", mode === "archive");
-  document.getElementById("arch-controls").style.display =
-    mode === "archive" ? "inline" : "none";
+function syncControls() {
+  document.querySelectorAll('[data-act="latest"]').forEach(b =>
+    b.classList.toggle("on", mode === "latest"));
+  document.querySelectorAll('[data-act="archive"]').forEach(b =>
+    b.classList.toggle("on", mode === "archive"));
+  document.querySelectorAll('[data-act="h00"]').forEach(b =>
+    b.classList.toggle("on", archHour === 0));
+  document.querySelectorAll('[data-act="h12"]').forEach(b =>
+    b.classList.toggle("on", archHour === 12));
+  document.querySelectorAll(".arch-controls").forEach(el =>
+    el.style.display = mode === "archive" ? "inline" : "none");
+  document.querySelectorAll(".datectl").forEach(el => { el.value = archDate; });
 }
-document.getElementById("mode-latest").onclick = () => { setMode("latest"); loadSounding(); };
-document.getElementById("mode-archive").onclick = () => { setMode("archive"); loadSounding(); };
-document.getElementById("h00").onclick = () => { archHour = 0; hourBtns(); loadSounding(); };
-document.getElementById("h12").onclick = () => { archHour = 12; hourBtns(); loadSounding(); };
-function hourBtns() {
-  document.getElementById("h00").classList.toggle("on", archHour === 0);
-  document.getElementById("h12").classList.toggle("on", archHour === 12);
-}
-document.getElementById("date").value = new Date(Date.now() - 3 * 864e5)
-  .toISOString().slice(0, 10);
-document.getElementById("date").onchange = () => loadSounding();
+
+function setMode(m2) { mode = m2; syncControls(); }
+
+function maybeReload() { if (current && !modal.hidden) loadSounding(); }
+
 function stepDate(days) {
-  const el = document.getElementById("date");
-  const d = new Date(el.value + "T00:00:00Z");
-  el.value = new Date(d.getTime() + days * 864e5).toISOString().slice(0, 10);
-  if (mode !== "archive") setMode("archive");
-  if (current && !modal.hidden) loadSounding();
+  const d = new Date(archDate + "T00:00:00Z");
+  archDate = new Date(d.getTime() + days * 864e5).toISOString().slice(0, 10);
+  if (mode !== "archive") mode = "archive";
+  syncControls();
+  maybeReload();
 }
-document.getElementById("dprev").onclick = () => stepDate(-1);
-document.getElementById("dnext").onclick = () => stepDate(1);
+
+document.querySelectorAll("[data-act]").forEach(b => {
+  b.addEventListener("click", () => {
+    const a = b.dataset.act;
+    if (a === "latest" || a === "archive") { setMode(a); maybeReload(); }
+    else if (a === "h00") { archHour = 0; syncControls(); maybeReload(); }
+    else if (a === "h12") { archHour = 12; syncControls(); maybeReload(); }
+    else if (a === "dprev") stepDate(-1);
+    else if (a === "dnext") stepDate(1);
+  });
+});
+document.querySelectorAll(".datectl").forEach(el => {
+  el.addEventListener("change", () => {
+    archDate = el.value;
+    if (mode !== "archive") mode = "archive";
+    syncControls();
+    maybeReload();
+  });
+});
+syncControls();
 
 function selectStation(s) {
   current = s;
@@ -308,7 +326,7 @@ async function loadSounding() {
   }
   // archive mode (IGRA v2, straight from NOAA — CORS-open)
   if (!current.gid) { setStatus("station not in the IGRA archive"); return; }
-  const ymd = document.getElementById("date").value;
+  const ymd = archDate;
   const text = await igraText(current.gid, +ymd.slice(0, 4));
   if (!text) { setStatus("IGRA file unavailable"); return; }
   const got = parseIGRA(text, current.gid, ymd, archHour, current.e || 0);
