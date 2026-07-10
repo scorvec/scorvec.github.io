@@ -13,6 +13,7 @@ let igraStations = {};           // gid -> station meta (all 2,921 incl. closed)
 let byWmo = {};                  // wmo id -> gid
 let current = null;              // selected: {gid, id, n, e}
 let plotTitle = "";              // drawn on the skew-t canvas itself
+let selectedMarker = null;       // highlighted dot on the map
 let mode = "latest";
 let archHour = 12;
 const igraCache = new Map();     // gid -> decompressed text
@@ -49,8 +50,8 @@ Promise.all([
     const m = L.circleMarker([s.la, s.lo], {
       radius: 2.5, weight: 0.5, color: "#b3b0a8", fillColor: "#d4d1c9", fillOpacity: 0.6,
     }).addTo(closedLayer);
-    m.bindTooltip(`${s.n} (${s.gid}) · archive ${s.y0}–${s.y1} (closed)`);
-    m.on("click", () => { setMode("archive"); selectStation(s); });
+    m.bindTooltip(`${s.n} (${s.gid}) · closed ${s.y0}–${s.y1} — click for archive`);
+    m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
   }
   // active stations without a launch in the mirror window: small grey
   for (const s of stns.stations) {
@@ -58,8 +59,8 @@ Promise.all([
     const m = L.circleMarker([s.la, s.lo], {
       radius: 3.5, weight: 1, color: "#8a877f", fillColor: "#b8b5ad", fillOpacity: 0.8,
     }).addTo(map);
-    m.bindTooltip(`${s.n} (${s.gid}) · active, archive ${s.y0}–${s.y1}`);
-    m.on("click", () => { setMode("archive"); selectStation(s); });
+    m.bindTooltip(`${s.n} (${s.gid}) · no launch in last 36 h — click for archive (${s.y0}–${s.y1})`);
+    m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
   }
   // stations with a sounding in the last 36 h: big blue, on top
   for (const [id, s] of Object.entries(entries)) {
@@ -68,9 +69,10 @@ Promise.all([
     const m = L.circleMarker([s.la, s.lo], {
       radius: 6, weight: 1.5, color: "#1d3a5e", fillColor: "#4a7ab5", fillOpacity: 0.95,
     }).addTo(map);
-    m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z`);
+    m.bindTooltip(`${s.n || id} (${id}) · click for latest (${s.dt}Z)`);
     m.on("click", () => {
       setMode("latest");
+      highlight(m);
       selectStation({ gid: byWmo[id], id, n: s.n, e: (igraStations[byWmo[id]] || {}).e || 0 });
     });
   }
@@ -99,6 +101,13 @@ legend.addTo(map);
 document.getElementById("show-closed").onchange = e =>
   e.target.checked ? closedLayer.addTo(map) : map.removeLayer(closedLayer);
 
+function highlight(marker) {
+  if (selectedMarker) selectedMarker.setStyle({ weight: selectedMarker._baseW || 1 });
+  marker._baseW = marker.options.weight;
+  marker.setStyle({ weight: 3.5, color: "#ffd60a" });
+  selectedMarker = marker;
+}
+
 function setMode(m2) {
   mode = m2;
   document.getElementById("mode-latest").classList.toggle("on", mode === "latest");
@@ -122,6 +131,9 @@ function selectStation(s) {
   current = s;
   if (s.id) location.hash = s.id;
   document.getElementById("stn-label").textContent = `${s.n || s.gid} · ${s.id || s.gid}`;
+  document.getElementById("status").textContent = mode === "latest"
+    ? "fetching latest sounding from the mirror…"
+    : "fetching from the NOAA IGRA archive (first load per station can be tens of MB)…";
   document.getElementById("uw-link").href = s.id
     ? "https://weather.uwyo.edu/wsgi/sounding?id=" + s.id
     : "https://weather.uwyo.edu/upperair/sounding.shtml";
@@ -195,7 +207,7 @@ const iv = (line, a, b) => {
 function parseIGRA(text, gid, ymd, wantHour, elev) {
   // find headers for the date; pick the closest hour to wantHour
   const [Y, Mo, D] = ymd.split("-");
-  const re = new RegExp(`^#${gid} ${Y} ${Mo} ${D} (\\d{2})`, "gm");
+  const re = new RegExp("^#" + gid + " " + Y + " " + Mo + " " + D + " ([0-9]{2})", "gm");
   let best = null, m;
   while ((m = re.exec(text)) !== null) {
     const hh = +m[1] === 99 ? 12 : +m[1];
