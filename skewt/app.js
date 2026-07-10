@@ -12,6 +12,7 @@ let entries = {};                // mirror manifest: id -> {n, la, lo, dt, src}
 let igraStations = {};           // gid -> station meta (all 2,921 incl. closed)
 let byWmo = {};                  // wmo id -> gid
 let current = null;              // selected: {gid, id, n, e}
+let plotTitle = "";              // drawn on the skew-t canvas itself
 let mode = "latest";
 let archHour = 12;
 const igraCache = new Map();     // gid -> decompressed text
@@ -247,6 +248,7 @@ async function loadSounding() {
       const prof = parseCSV(await r.text());
       if (!prof) throw 0;
       status.textContent = `valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`;
+      plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
       render(thin(prof));
     } catch (e) {
       status.textContent = "error: " + (e && e.message ? e.message : "fetch failed");
@@ -266,6 +268,8 @@ async function loadSounding() {
   }
   status.textContent = `valid ${ymd} ${String(got.hh).padStart(2, "0")}Z · ` +
     `${got.prof.P.length} levels (NOAA IGRA v2)`;
+  plotTitle = `${current.n || ""} ${current.id || current.gid}  ·  ${ymd} ` +
+    `${String(got.hh).padStart(2, "0")}Z`.trim();
   render(thin(got.prof));
 }
 
@@ -273,10 +277,10 @@ async function loadSounding() {
 function compute(prof) {
   const N = prof.P.length;
   const ptrs = ["P", "H", "T", "D", "U", "V"].map(k => f32(prof[k]));
-  const out = M._malloc(40 * 4);
+  const out = M._malloc(48 * 4);
   const tr = [M._malloc(N * 4), M._malloc(N * 4), M._malloc(N * 4)];
   M._compute_sounding(...ptrs, N, out, tr[0], tr[1], tr[2]);
-  const o = Array.from(M.HEAPF32.subarray(out / 4, out / 4 + 40));
+  const o = Array.from(M.HEAPF32.subarray(out / 4, out / 4 + 48));
   const traces = tr.map(p => Array.from(M.HEAPF32.subarray(p / 4, p / 4 + N)));
   [...ptrs, out, ...tr].forEach(p => M._free(p));
   return { o, sb: traces[0], ml: traces[1], mu: traces[2] };
@@ -290,8 +294,45 @@ function traceAdiabat(startP, startT, startD, pGrid) {
   return r;
 }
 
+// ---------- theme + helpers ----------
+const TH = {
+  bg: "#0a0a14", panel: "#11111c", grid: "#23233a", gridSub: "#191928",
+  ink: "#e8e8f0", muted: "#8b8ba3",
+  temp: "#ff453a", dwpt: "#30d158", vtmp: "#ff9f9b",
+  parcelMU: "#ffffff", parcelSB: "#ff9f0a",
+  isotherm: "#26263e", isotherm0: "#3d5a8f", dryad: "#3a2f1f", moistad: "#1d3a2a",
+  mixr: "#245536", lcl: "#30d158", lfc: "#ffd60a", el: "#bf5af2", eil: "#64d2ff",
+  barb: "#cfd0e2",
+};
+const KT = 1.9438;
+
+function interpHagl(prof, pPa) {          // height AGL (m) at pressure, log-p linear
+  if (!isFinite(pPa) || pPa === MISSING) return null;
+  const P = prof.P, H = prof.H;
+  if (pPa >= P[0]) return 0;
+  for (let i = 1; i < P.length; i++) {
+    if (P[i] <= pPa) {
+      const f = Math.log(P[i - 1] / pPa) / Math.log(P[i - 1] / P[i]);
+      return H[i - 1] + f * (H[i] - H[i - 1]) - H[0];
+    }
+  }
+  return null;
+}
+function windAt(prof, hAgl) {             // interp u,v at height AGL
+  const H = prof.H, sfc = H[0];
+  for (let i = 1; i < H.length; i++) {
+    if (H[i] - sfc >= hAgl) {
+      const f = (hAgl - (H[i - 1] - sfc)) / (H[i] - H[i - 1]);
+      return [prof.U[i - 1] + f * (prof.U[i] - prof.U[i - 1]),
+              prof.V[i - 1] + f * (prof.V[i] - prof.V[i - 1])];
+    }
+  }
+  return [prof.U.at(-1), prof.V.at(-1)];
+}
+const dirOf = (u, v) => ((Math.atan2(-u, -v) * 180 / Math.PI) + 360) % 360;
+
 // ---------- skew-t drawing ----------
-const SK = { l: 46, r: 76, t: 14, b: 30, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
+const SK = { l: 52, r: 84, t: 36, b: 34, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
 
 function drawSkewT(prof, res) {
   const cv = document.getElementById("skewt"), ctx = cv.getContext("2d");
@@ -299,45 +340,49 @@ function drawSkewT(prof, res) {
   const pw = W - SK.l - SK.r, ph = H - SK.t - SK.b;
   const yOf = p => SK.t + (1 - Math.log(SK.pBot / p) / Math.log(SK.pBot / SK.pTop)) * ph;
   const xOf = (tC, y) => SK.l + ((tC - SK.tL) / (SK.tR - SK.tL)) * pw + ((SK.t + ph) - y);
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
+  // on-canvas title: station + valid time
+  ctx.fillStyle = TH.ink; ctx.font = "700 14px Inter";
+  ctx.fillText(plotTitle, SK.l, 22);
+  ctx.fillStyle = TH.muted; ctx.font = "10px Inter";
+  ctx.fillText("SHARPlib · scorvec.com/skewt", W - 190, 22);
 
   ctx.save();
   ctx.beginPath(); ctx.rect(SK.l, SK.t, pw, ph); ctx.clip();
 
-  // isotherms
   for (let T = -120; T <= 50; T += 10) {
-    ctx.strokeStyle = T === 0 ? "#9db8d6" : "#eee4d6"; ctx.lineWidth = T === 0 ? 1.4 : 1;
+    const hot = (T === 0 || T === -20);
+    ctx.strokeStyle = hot ? TH.isotherm0 : TH.isotherm; ctx.lineWidth = hot ? 1.3 : 1;
     ctx.beginPath();
     ctx.moveTo(xOf(T, SK.t + ph), SK.t + ph); ctx.lineTo(xOf(T, SK.t), SK.t); ctx.stroke();
+    if (hot) {
+      ctx.fillStyle = TH.isotherm0; ctx.font = "600 10px Inter";
+      ctx.fillText(T + "°", xOf(T, yOf(30000)) + 4, yOf(30000));
+    }
   }
-  // dry adiabats
   const pGrid = [];
   for (let lp = Math.log(105000); lp >= Math.log(10000); lp -= 0.03) pGrid.push(Math.exp(lp));
-  ctx.strokeStyle = "#e7cfb4"; ctx.lineWidth = 1;
+  ctx.strokeStyle = TH.dryad; ctx.lineWidth = 1;
   for (let th = 230; th <= 440; th += 10) {
     ctx.beginPath();
     pGrid.forEach((p, i) => {
       const T = th * Math.pow(p / 100000, 0.2854) - 273.15;
-      const x = xOf(T, yOf(p));
-      i ? ctx.lineTo(x, yOf(p)) : ctx.moveTo(x, yOf(p));
+      i ? ctx.lineTo(xOf(T, yOf(p)), yOf(p)) : ctx.moveTo(xOf(T, yOf(p)), yOf(p));
     });
     ctx.stroke();
   }
-  // moist adiabats (SHARPlib lifter — same physics as the parcels)
-  ctx.strokeStyle = "#bcd8c2"; ctx.lineWidth = 1;
+  ctx.strokeStyle = TH.moistad; ctx.lineWidth = 1;
   const pG32 = new Float32Array(pGrid);
   for (let Ts = -24; Ts <= 40; Ts += 8) {
     const tk = traceAdiabat(105000, Ts + 273.15, Ts + 273.15, pG32);
     ctx.beginPath();
     pGrid.forEach((p, i) => {
-      const x = xOf(tk[i] - 273.15, yOf(p));
-      i ? ctx.lineTo(x, yOf(p)) : ctx.moveTo(x, yOf(p));
+      i ? ctx.lineTo(xOf(tk[i] - 273.15, yOf(p)), yOf(p))
+        : ctx.moveTo(xOf(tk[i] - 273.15, yOf(p)), yOf(p));
     });
     ctx.stroke();
   }
-  // mixing ratio lines
-  ctx.strokeStyle = "#9fbf9f"; ctx.setLineDash([2, 4]); ctx.lineWidth = 1;
+  ctx.strokeStyle = TH.mixr; ctx.setLineDash([2, 4]); ctx.lineWidth = 1;
   for (const w of [1, 2, 3, 5, 8, 12, 20]) {
     ctx.beginPath();
     let started = false;
@@ -345,93 +390,116 @@ function drawSkewT(prof, res) {
       if (p < 55000) break;
       const e = (w * (p / 100)) / (622 + w);
       const Td = (243.5 * Math.log(e / 6.112)) / (17.67 - Math.log(e / 6.112));
-      const x = xOf(Td, yOf(p));
-      started ? ctx.lineTo(x, yOf(p)) : ctx.moveTo(x, yOf(p));
+      started ? ctx.lineTo(xOf(Td, yOf(p)), yOf(p)) : ctx.moveTo(xOf(Td, yOf(p)), yOf(p));
       started = true;
     }
     ctx.stroke();
   }
   ctx.setLineDash([]);
 
-  // parcel traces (virtual temperature): MU bold, SB secondary
-  const drawTrace = (tr, style, dash) => {
-    ctx.strokeStyle = style; ctx.lineWidth = 1.8; ctx.setLineDash(dash);
+  // parcel traces: MU white dashed (bold), SB orange dashed
+  const drawTrace = (tr, style, lw, dash) => {
+    ctx.strokeStyle = style; ctx.lineWidth = lw; ctx.setLineDash(dash);
     ctx.beginPath();
     let started = false;
     for (let i = 0; i < prof.P.length; i++) {
-      if (!isFinite(tr[i]) || tr[i] < 100) { continue; }
+      if (!isFinite(tr[i]) || tr[i] < 100) continue;
       const x = xOf(tr[i] - 273.15, yOf(prof.P[i]));
       started ? ctx.lineTo(x, yOf(prof.P[i])) : ctx.moveTo(x, yOf(prof.P[i]));
       started = true;
     }
     ctx.stroke(); ctx.setLineDash([]);
   };
-  drawTrace(res.sb, "#e67e22", [7, 4]);
-  drawTrace(res.mu, "#8e44ad", [3, 3]);
+  drawTrace(res.sb, TH.parcelSB, 1.4, [5, 4]);
+  drawTrace(res.mu, TH.parcelMU, 1.8, [6, 4]);
 
-  // environment profiles
-  const drawProf = (vals, color) => {
-    ctx.strokeStyle = color; ctx.lineWidth = 2.4;
+  // environment: virtual temp (thin), dewpoint, temperature
+  const vtC = prof.T.map((T, i) => {
+    const TdC = prof.D[i] - 273.15;
+    const e = 6.112 * Math.exp(17.67 * TdC / (TdC + 243.5));
+    const r = 0.622 * e / (prof.P[i] / 100 - e);
+    return (T * (1 + 0.61 * r)) - 273.15;
+  });
+  const drawProf = (valsC, color, lw, dash = []) => {
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.setLineDash(dash);
     ctx.beginPath();
     for (let i = 0; i < prof.P.length; i++) {
-      const x = xOf(vals[i] - 273.15, yOf(prof.P[i]));
+      const x = xOf(valsC[i], yOf(prof.P[i]));
       i ? ctx.lineTo(x, yOf(prof.P[i])) : ctx.moveTo(x, yOf(prof.P[i]));
     }
-    ctx.stroke();
+    ctx.stroke(); ctx.setLineDash([]);
   };
-  drawProf(prof.D, "#1e8449");
-  drawProf(prof.T, "#c0392b");
+  drawProf(vtC, TH.vtmp, 1.1, [2, 3]);
+  drawProf(prof.D.map(v => v - 273.15), TH.dwpt, 2.8);
+  drawProf(prof.T.map(v => v - 273.15), TH.temp, 2.8);
 
-  // MU parcel level markers
+  // MU parcel levels, labeled with height AGL
   const o = res.o;
-  const marks = [["LCL", o[12]], ["LFC", o[13]], ["EL", o[14]]];
-  ctx.font = "600 11px Inter, sans-serif"; ctx.fillStyle = "#8e44ad";
-  for (const [lab, p] of marks) {
-    if (p === MISSING || !isFinite(p)) continue;
-    const y = yOf(p);
-    ctx.fillRect(SK.l + pw - 46, y - 0.75, 18, 1.5);
-    ctx.fillText(lab, SK.l + pw - 26, y + 3.5);
+  ctx.font = "700 11px Inter";
+  const marks = [["LCL", o[12], TH.lcl], ["LFC", o[13], TH.lfc], ["EL", o[14], TH.el]];
+  for (const [lab, pP, col] of marks) {
+    if (pP === MISSING || !isFinite(pP)) continue;
+    const y = yOf(pP), hm = interpHagl(prof, pP);
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(SK.l + pw - 58, y); ctx.lineTo(SK.l + pw - 34, y); ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.fillText(`${lab} ${hm === null ? "" : Math.round(hm) + "m"}`, SK.l + pw - 30, y + 4);
   }
-  // effective inflow layer bracket
   if (o[28] !== MISSING && o[29] !== MISSING) {
     const y0 = yOf(o[28]), y1 = yOf(o[29]);
-    ctx.strokeStyle = "#2980b9"; ctx.lineWidth = 2;
+    ctx.strokeStyle = TH.eil; ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(SK.l + 12, y0); ctx.lineTo(SK.l + 4, y0);
-    ctx.lineTo(SK.l + 4, y1); ctx.lineTo(SK.l + 12, y1); ctx.stroke();
-    ctx.fillStyle = "#2980b9"; ctx.fillText("EIL", SK.l + 6, (y0 + y1) / 2 + 3);
+    ctx.moveTo(SK.l + 14, y0); ctx.lineTo(SK.l + 5, y0);
+    ctx.lineTo(SK.l + 5, y1); ctx.lineTo(SK.l + 14, y1); ctx.stroke();
+    ctx.fillStyle = TH.eil; ctx.fillText("EIL", SK.l + 8, (y0 + y1) / 2 + 4);
   }
   ctx.restore();
 
-  // axes
-  ctx.fillStyle = "#888580"; ctx.font = "11px Inter, sans-serif";
-  ctx.strokeStyle = "#d8d4cb"; ctx.lineWidth = 1;
-  for (let p = 100; p <= 1000; p += 100) {
-    const y = yOf(p * 100);
+  // frame + axes
+  ctx.strokeStyle = TH.grid; ctx.strokeRect(SK.l, SK.t, pw, ph);
+  ctx.fillStyle = TH.muted; ctx.font = "11px Inter";
+  for (let pp = 100; pp <= 1000; pp += 100) {
+    const y = yOf(pp * 100);
+    ctx.strokeStyle = TH.gridSub; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(SK.l, y); ctx.lineTo(SK.l + pw, y); ctx.stroke();
-    ctx.fillText(p, 10, y + 4);
+    ctx.fillText(pp, 14, y + 4);
   }
-  for (let T = -30; T <= 40; T += 10) {
-    ctx.fillText(T, xOf(T, SK.t + ph) - 8, SK.t + ph + 18);
+  // height ticks (km AGL) on the left inside
+  ctx.font = "600 10px Inter"; ctx.fillStyle = "#a8a8c2";
+  for (const km of [1, 3, 6, 9, 12, 15]) {
+    const hTarget = prof.H[0] + km * 1000;
+    let pAt = null;
+    for (let i = 1; i < prof.P.length; i++) {
+      if (prof.H[i] >= hTarget) {
+        const f = (hTarget - prof.H[i - 1]) / (prof.H[i] - prof.H[i - 1]);
+        pAt = prof.P[i - 1] * Math.pow(prof.P[i] / prof.P[i - 1], f);
+        break;
+      }
+    }
+    if (pAt && pAt > SK.pTop) {
+      const y = yOf(pAt);
+      ctx.fillRect(SK.l, y - 0.5, 8, 1);
+      ctx.fillText(km + "km", SK.l + 10, y + 3.5);
+    }
   }
+  ctx.font = "11px Inter"; ctx.fillStyle = TH.muted;
+  for (let T = -30; T <= 40; T += 10)
+    ctx.fillText(T, xOf(T, SK.t + ph) - 8, SK.t + ph + 16);
   ctx.fillText("°C", SK.l + pw / 2, H - 6);
-
-  // wind barbs
-  drawBarbs(ctx, prof, W - SK.r + 34, yOf);
+  drawBarbs(ctx, prof, W - SK.r + 40, yOf);
 }
 
 function drawBarbs(ctx, prof, x0, yOf) {
   let lastY = -1e9;
   for (let i = 0; i < prof.P.length; i++) {
     const y = yOf(prof.P[i]);
-    if (Math.abs(y - lastY) < 22) continue;
+    if (Math.abs(y - lastY) < 22 || prof.P[i] < SK.pTop) continue;
     lastY = y;
     const u = prof.U[i], v = prof.V[i];
-    const kt = Math.hypot(u, v) * 1.9438;
-    const ang = Math.atan2(-u, -v);                        // direction FROM
+    const kt = Math.hypot(u, v) * KT;
     ctx.save();
-    ctx.translate(x0, y); ctx.rotate(ang);
-    ctx.strokeStyle = "#1c1c1a"; ctx.lineWidth = 1.1; ctx.fillStyle = "#1c1c1a";
+    ctx.translate(x0, y); ctx.rotate(Math.atan2(-u, -v));
+    ctx.strokeStyle = TH.barb; ctx.lineWidth = 1.1; ctx.fillStyle = TH.barb;
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -26); ctx.stroke();
     let rem = Math.round(kt / 5) * 5, yb = -26;
     while (rem >= 50) { ctx.beginPath(); ctx.moveTo(0, yb); ctx.lineTo(9, yb + 3.5);
@@ -446,79 +514,120 @@ function drawBarbs(ctx, prof, x0, yOf) {
 // ---------- hodograph ----------
 function drawHodo(prof, res) {
   const cv = document.getElementById("hodo"), ctx = cv.getContext("2d");
-  const W = cv.width, H = cv.height, cx = W / 2, cy = H / 2;
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+  const W = cv.width, H = cv.height;
+  ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
+  const o = res.o;
   const agl = prof.H.map(h => h - prof.H[0]);
-  const iMax = agl.findIndex(h => h > 12000);
-  const n = iMax < 0 ? prof.P.length : iMax;
-  let vmax = 10;
-  for (let i = 0; i < n; i++) vmax = Math.max(vmax, Math.hypot(prof.U[i], prof.V[i]));
-  const scale = (Math.min(W, H) / 2 - 18) / vmax;
-  ctx.strokeStyle = "#eee4d6"; ctx.fillStyle = "#888580"; ctx.font = "10px Inter";
-  for (let r = 10; r <= vmax + 10; r += 10) {
-    ctx.beginPath(); ctx.arc(cx, cy, r * scale, 0, 7); ctx.stroke();
-    ctx.fillText(r, cx + r * scale - 8, cy - 3);
+  let n = agl.findIndex(h => h > 12000); if (n < 0) n = prof.P.length;
+
+  // knots; data-driven viewport including origin and Bunkers vectors
+  const us = [], vs = [0];
+  for (let i = 0; i < n; i++) { us.push(prof.U[i] * KT); vs.push(prof.V[i] * KT); }
+  us.push(0);
+  if (o[22] !== MISSING) { us.push(o[22] * KT, o[24] * KT); vs.push(o[23] * KT, o[25] * KT); }
+  const uMin = Math.min(...us), uMax = Math.max(...us);
+  const vMin = Math.min(...vs), vMax = Math.max(...vs);
+  const span = Math.max(uMax - uMin, vMax - vMin, 30) * 1.25;
+  const scale = (Math.min(W, H) - 30) / span;
+  const cx = W / 2 - ((uMin + uMax) / 2) * scale;
+  const cy = H / 2 + ((vMin + vMax) / 2) * scale;
+  const X = u => cx + u * scale, Y = v => cy - v * scale;
+
+  // rings + crosshair
+  ctx.strokeStyle = TH.gridSub; ctx.fillStyle = TH.muted; ctx.font = "9.5px Inter";
+  const rMax = Math.ceil((span * 0.75) / 10) * 10 + 20;
+  for (let r = 10; r <= rMax; r += 10) {
+    ctx.beginPath(); ctx.arc(X(0), Y(0), r * scale, 0, 7); ctx.stroke();
+    ctx.fillText(r, X(r) - 6, Y(0) + 11);
   }
-  const segs = [[0, 1000, "#c0392b"], [1000, 3000, "#e67e22"],
-                [3000, 6000, "#1e8449"], [6000, 9000, "#b7950b"], [9000, 12000, "#7d3c98"]];
-  for (const [b, t, col] of segs) {
-    ctx.strokeStyle = col; ctx.lineWidth = 2.2;
+  ctx.strokeStyle = TH.grid;
+  ctx.beginPath(); ctx.moveTo(0, Y(0)); ctx.lineTo(W, Y(0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(X(0), 0); ctx.lineTo(X(0), H); ctx.stroke();
+
+  // trace segments by height
+  const segs = [[0, 1000, "#ff453a"], [1000, 3000, "#ff9f0a"],
+                [3000, 6000, "#30d158"], [6000, 9000, "#ffd60a"], [9000, 12000, "#bf5af2"]];
+  for (const [b, tt, col] of segs) {
+    ctx.strokeStyle = col; ctx.lineWidth = 2.4;
     ctx.beginPath();
     let started = false;
     for (let i = 0; i < n; i++) {
-      if (agl[i] < b || agl[i] > t) { if (agl[i] > t) break; continue; }
-      const x = cx + prof.U[i] * scale, y = cy - prof.V[i] * scale;
+      if (agl[i] < b) continue;
+      if (agl[i] > tt) break;
+      const x = X(prof.U[i] * KT), y = Y(prof.V[i] * KT);
       started ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
       started = true;
     }
     ctx.stroke();
   }
-  const o = res.o;
-  const mark = (u, v, lab, col) => {
-    if (u === MISSING) return;
-    ctx.fillStyle = col;
-    ctx.beginPath(); ctx.arc(cx + u * scale, cy - v * scale, 4, 0, 7); ctx.fill();
-    ctx.font = "600 10px Inter"; ctx.fillText(lab, cx + u * scale + 6, cy - v * scale + 3);
+
+  // storm motion + mean wind markers, SHARPpy-style dir/spd labels
+  const mark = (uMs, vMs, lab, col, hollow) => {
+    if (uMs === MISSING || !isFinite(uMs)) return;
+    const u = uMs * KT, v = vMs * KT;
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(X(u), Y(v), 4.5, 0, 7);
+    hollow ? ctx.stroke() : ctx.fill();
+    ctx.font = "700 10px Inter";
+    ctx.fillText(`${Math.round(dirOf(uMs, vMs))}/${Math.round(Math.hypot(u, v))} ${lab}`,
+                 X(u) + 7, Y(v) + 3.5);
   };
-  mark(o[22], o[23], "RM", "#c0392b");
-  mark(o[24], o[25], "LM", "#2980b9");
-  ctx.fillStyle = "#888580"; ctx.font = "10px Inter";
-  ctx.fillText("m/s · 0–1–3–6–9–12 km", 8, H - 8);
+  mark(o[22], o[23], "RM", "#ff453a", false);
+  mark(o[24], o[25], "LM", "#64d2ff", true);
+  // 0-6 km mean wind
+  let mu6 = 0, mv6 = 0, c6 = 0;
+  for (let i = 0; i < n && agl[i] <= 6000; i++) { mu6 += prof.U[i]; mv6 += prof.V[i]; c6++; }
+  if (c6) mark(mu6 / c6, mv6 / c6, "MW", "#a8a8c2", true);
+
+  // critical angle: sfc SR inflow vs 0-500 m shear vector (RM)
+  if (o[22] !== MISSING) {
+    const [u5, v5] = windAt(prof, 500);
+    const shU = u5 - prof.U[0], shV = v5 - prof.V[0];
+    const srU = o[22] - prof.U[0], srV = o[23] - prof.V[0];
+    const dot = shU * srU + shV * srV;
+    const mag = Math.hypot(shU, shV) * Math.hypot(srU, srV);
+    if (mag > 0.1) {
+      const ang = Math.acos(Math.max(-1, Math.min(1, dot / mag))) * 180 / Math.PI;
+      ctx.fillStyle = "#ffd60a"; ctx.font = "700 11px Inter";
+      ctx.fillText(`Critical angle = ${ang.toFixed(0)}°`, 10, H - 24);
+    }
+  }
+  ctx.fillStyle = TH.muted; ctx.font = "9.5px Inter";
+  ctx.fillText("kt · 0–1–3–6–9–12 km AGL", 10, H - 8);
 }
 
 // ---------- tables ----------
 const fmt = (v, d = 0, unit = "") =>
-  (v === MISSING || !isFinite(v)) ? "—" : v.toFixed(d) + unit;
+  (v === MISSING || v === undefined || !isFinite(v)) ? "—" : v.toFixed(d) + unit;
 
-function fillTables(res) {
+function fillTables(prof, res) {
   const o = res.o;
-  const pcl = (i0) => [o[i0], o[i0 + 1], o[i0 + 2] / 100, o[i0 + 3] / 100, o[i0 + 4] / 100];
-  const rows = [["", "SB", "ML", "MU"],
-    ["CAPE J/kg", ...[0, 5, 10].map(i => fmt(o[i]))],
-    ["CIN J/kg", ...[1, 6, 11].map(i => fmt(o[i]))],
-    ["LCL hPa", ...[2, 7, 12].map(i => fmt(o[i] === MISSING ? MISSING : o[i] / 100))],
-    ["LFC hPa", ...[3, 8, 13].map(i => fmt(o[i] === MISSING ? MISSING : o[i] / 100))],
-    ["EL hPa", ...[4, 9, 14].map(i => fmt(o[i] === MISSING ? MISSING : o[i] / 100))]];
+  const hAt = pP => {
+    const h = interpHagl(prof, pP);
+    return h === null ? "—" : Math.round(h) + "m";
+  };
+  const rows = [["PCL", "CAPE", "CINH", "LCL", "LI", "LFC", "EL"]];
+  const defs = [["SFC", 0, 36], ["ML", 5, 37], ["MU", 10, 38]];
+  for (const [nm, i0, li] of defs) {
+    rows.push([nm, fmt(o[i0]), fmt(o[i0 + 1]),
+               hAt(o[i0 + 2]), fmt(o[li], 1), hAt(o[i0 + 3]), hAt(o[i0 + 4])]);
+  }
   document.getElementById("pcl-table").innerHTML = rows.map((r, i) =>
-    `<tr>${r.map((c, j) => i === 0 ? `<th>${c}</th>` : `<td>${c}</td>`).join("")}</tr>`).join("");
+    `<tr>${r.map(c => i === 0 ? `<th>${c}</th>` : `<td>${c}</td>`).join("")}</tr>`).join("");
 
-  const ktf = (u, v) => (u === MISSING) ? "—" : (Math.hypot(u, v) * 1.9438).toFixed(0) + " kt";
-  const dirf = (u, v) => (u === MISSING) ? "" :
-    ((Math.atan2(-u, -v) * 180 / Math.PI + 360) % 360).toFixed(0) + "°/";
+  const ktf = (u, v) => (u === MISSING) ? "—" : (Math.hypot(u, v) * KT).toFixed(0) + " kt";
+  const vecf = (u, v) => (u === MISSING) ? "—" :
+    `${Math.round(dirOf(u, v))}/${Math.round(Math.hypot(u, v) * KT)} kt`;
   const kin = [
-    ["0–1 km shear", ktf(o[20], o[21])],
-    ["0–6 km shear", ktf(o[18], o[19])],
-    ["SRH 0–1 km", fmt(o[26], 0, " m²/s²")],
-    ["SRH 0–3 km", fmt(o[27], 0, " m²/s²")],
-    ["Effective SRH", fmt(o[30], 0, " m²/s²")],
-    ["Effective shear", o[31] === MISSING ? "—" : (o[31] * 1.9438).toFixed(0) + " kt"],
-    ["Bunkers RM", dirf(o[22], o[23]) + ktf(o[22], o[23])],
-    ["PWAT", fmt(o[15], 1, " mm")],
-    ["Lapse 0–3 km", fmt(o[16], 1, " K/km")],
-    ["Lapse 3–6 km", fmt(o[17], 1, " K/km")],
-    ["SCP", fmt(o[32], 1)],
-    ["STP", fmt(o[33], 1)],
+    ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
+    ["DCAPE", fmt(o[39]) + " J/kg"], ["PWAT", fmt(o[15], 1) + " mm"],
+    ["Lapse 0–3 km", fmt(o[16], 1) + " K/km"], ["Lapse 3–6 km", fmt(o[17], 1) + " K/km"],
+    ["0–1 km shear", ktf(o[20], o[21])], ["0–6 km shear", ktf(o[18], o[19])],
+    ["SRH 0–1 km", fmt(o[26]) + " m²/s²"], ["SRH 0–3 km", fmt(o[27]) + " m²/s²"],
+    ["Eff. SRH", fmt(o[30]) + " m²/s²"],
+    ["Eff. shear (EBWD)", o[31] === MISSING ? "—" : (o[31] * KT).toFixed(0) + " kt"],
+    ["Bunkers RM", vecf(o[22], o[23])], ["Bunkers LM", vecf(o[24], o[25])],
+    ["SCP", fmt(o[32], 1)], ["STP (eff.)", fmt(o[33], 1)],
   ];
   document.getElementById("kin-table").innerHTML =
     kin.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
@@ -529,5 +638,5 @@ function render(prof) {
   const res = compute(prof);
   drawSkewT(prof, res);
   drawHodo(prof, res);
-  fillTables(res);
+  fillTables(prof, res);
 }
