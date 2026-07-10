@@ -545,6 +545,12 @@ def compute_oni_roni(daily_anom, la, lo):
         "oni": oni.values,
         "roni": roni.values,
     }).dropna(subset=["oni", "roni"]).reset_index(drop=True)
+    # The season centered on the final data month (e.g. July → JJA) has NO data
+    # at all for its trailing month yet — min_periods=1 would happily draw it
+    # from a 2-month mean. Drop it: the prior month's season (MJJ) is the
+    # newest bar worth showing, provisional while the current month is partial.
+    if len(df) > 1:
+        df = df.iloc[:-1].reset_index(drop=True)
     return df
 
 
@@ -694,7 +700,8 @@ SEASONS = ["DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ", "JJA", "JAS", "ASO", "SON",
 
 
 def render_roni(df: pd.DataFrame, out_path: Path,
-                latest_oni=None, latest_roni=None, latest_month=None):
+                latest_oni=None, latest_roni=None, latest_month=None,
+                last_partial=True):
     fig, ax = plt.subplots(figsize=(11.5, 5.2), dpi=100)
     roni_vals = df["roni"].values
     months = pd.to_datetime(df["month"])
@@ -712,11 +719,13 @@ def render_roni(df: pd.DataFrame, out_path: Path,
 
     ax.bar(x, roni_vals, width=0.8, color=colors, edgecolor="#fff",
            linewidth=0.5, zorder=2)
-    # A centered 3-month season is settled only when its three months are all complete. The
-    # current month is month-to-date, so BOTH it and the prior month (whose season includes it)
-    # are provisional; the first bar is also provisional (its season needs the prior-year month,
-    # absent from this year-to-date series). Hatch those.
-    prov = [i == 0 or i >= n - 2 for i in range(n)]
+    # A centered 3-month season is settled only when its three months are all complete.
+    # compute_oni_roni already drops the season centered on the final data month (its
+    # trailing month has no data at all), so the last bar here (e.g. MJJ in July) is
+    # provisional only while the current month is still partial. The first bar is always
+    # provisional: its season needs the prior-year month, absent from this year-to-date
+    # series. Hatch those.
+    prov = [i == 0 or (last_partial and i == n - 1) for i in range(n)]
     for i in range(n):
         if prov[i]:
             ax.bar(x[i], roni_vals[i], width=0.8, color=colors[i], edgecolor="#222",
@@ -754,7 +763,8 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     if latest_roni is not None:
         oni_line = (f"ONI  {latest_oni:+.2f} \u00b0C\n"
                     if latest_oni is not None else "")
-        txt = (f"latest: {latest_month:%b %Y} ({SEASONS[latest_month.month - 1]}, provisional)\n"
+        _tag = ", provisional" if last_partial else ""
+        txt = (f"latest: {latest_month:%b %Y} ({SEASONS[latest_month.month - 1]}{_tag})\n"
                f"{oni_line}"
                f"RONI {latest_roni:+.2f} \u00b0C")
         ax.text(0.985, 0.05, txt, transform=ax.transAxes, fontsize=9,
@@ -767,8 +777,8 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     fig.text(0.005, 0.012,
              "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean 20\u00b0S\u201320\u00b0N) anomaly rescaled by \u03c3(ONI)/\u03c3(relative) per calendar "
              "month (CPC/ECMWF), in \u00b0C, comparable to ONI (red >+0.5, blue <\u22120.5, grey neutral).\n"
-             "Each bar is the centered 3-month season (e.g. May = AMJ); hatched bars are provisional, with a "
-             "season that includes the incomplete current month. NOAA OISST v2.1, 1991\u20132020 base.",
+             "Each bar is the centered 3-month season (e.g. May = AMJ); hatched bars are provisional (season "
+             "includes the incomplete current month, or lacks the prior-December month). NOAA OISST v2.1, 1991\u20132020 base.",
              fontsize=7, color="#888")
 
     fig.subplots_adjust(bottom=0.20, top=0.86)   # room for the 2-line season ticks + footnote
@@ -879,9 +889,12 @@ def main(argv=None) -> int:
     dsd.close()
 
     # --- RONI time series chart (monthly, year-to-date) ---
+    # Is the newest bar's season still accumulating days? True unless the daily
+    # file already covers through the end of the latest data month.
+    last_partial = ((valid + pd.Timedelta(days=1)).month == valid.month)
     render_roni(idx, ASSETS / "roni.webp",
                 latest_oni=latest_oni, latest_roni=latest_roni,
-                latest_month=latest_month)
+                latest_month=latest_month, last_partial=last_partial)
     latest_roni_month = latest_month
 
     # --- Daily 3-metric chart (Nino-3.4, tropical-mean, relative) ---
