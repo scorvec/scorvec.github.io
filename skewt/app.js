@@ -28,7 +28,13 @@ function f32(arr) {
 }
 
 // ---------- station map ----------
-const map = L.map("map", { worldCopyJump: true }).setView([25, 0], 2);
+const map = L.map("map", { worldCopyJump: true }).setView([30, -10], 3);
+const modal = document.getElementById("modal");
+function openModal() { modal.hidden = false; }
+function closeModal() { modal.hidden = true; }
+document.getElementById("close").onclick = closeModal;
+modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
   { attribution: "&copy; OpenStreetMap", maxZoom: 10 }).addTo(map);
 
@@ -48,7 +54,7 @@ Promise.all([
   for (const s of stns.stations) {
     if (s.y1 >= ACTIVE_YEAR || (s.id && entries[s.id])) continue;
     const m = L.circleMarker([s.la, s.lo], {
-      radius: 2.5, weight: 0.5, color: "#b3b0a8", fillColor: "#d4d1c9", fillOpacity: 0.6,
+      radius: 2.5, weight: 0.5, color: "#7a1f1f", fillColor: "#c0392b", fillOpacity: 0.75,
     }).addTo(closedLayer);
     m.bindTooltip(`${s.n} (${s.gid}) · closed ${s.y0}–${s.y1} — click for archive`);
     m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
@@ -79,9 +85,10 @@ Promise.all([
   if (!man) document.getElementById("status").textContent =
     "live mirror unavailable — archive mode still works";
   const want = location.hash.replace("#", "");
-  const id0 = entries[want] ? want : (entries["72520"] ? "72520" : Object.keys(entries)[0]);
-  if (id0) selectStation({ gid: byWmo[id0], id: id0, n: (entries[id0] || {}).n,
-                           e: (igraStations[byWmo[id0]] || {}).e || 0 });
+  if (want && entries[want]) {
+    selectStation({ gid: byWmo[want], id: want, n: (entries[want] || {}).n,
+                    e: (igraStations[byWmo[want]] || {}).e || 0 });
+  }
 });
 
 // legend + closed-station toggle (Leaflet control)
@@ -92,7 +99,8 @@ legend.onAdd = () => {
     "border-radius:7px;border:1px solid #23233a;font:10px Inter,sans-serif;line-height:1.6";
   div.innerHTML =
     '<span style="color:#4a7ab5">●</span> last 36 h &nbsp;' +
-    '<span style="color:#b8b5ad">●</span> active<br>' +
+    '<span style="color:#b8b5ad">●</span> active &nbsp;' +
+    '<span style="color:#c0392b">●</span> closed<br>' +
     '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> closed stations</label>';
   L.DomEvent.disableClickPropagation(div);
   return div;
@@ -129,6 +137,7 @@ document.getElementById("date").onchange = () => loadSounding();
 
 function selectStation(s) {
   current = s;
+  openModal();
   if (s.id) location.hash = s.id;
   document.getElementById("stn-label").textContent = `${s.n || s.gid} · ${s.id || s.gid}`;
   document.getElementById("status").textContent = mode === "latest"
