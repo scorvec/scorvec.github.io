@@ -10,6 +10,7 @@
 <meta property="og:title" content="Global Climate Monitor">
 <meta property="og:description" content="ERA5 temperature, circulation, and IMERG precipitation anomalies, updated daily.">
 <meta property="og:url" content="https://scorvec.com/climate.html">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,6 +34,11 @@
   .card h2 { font-family: var(--serif); font-weight: 500; font-size: 1.15rem; margin-bottom: 0.25rem; }
   .card p.note { font-size: 0.82rem; color: var(--muted); line-height: 1.55; margin-bottom: 0.8rem; }
   .card img { width: 100%; border-radius: 6px; display: block; }
+  .anim-frame { width: 100%; aspect-ratio: 1220 / 760; border: 1px solid var(--rule);
+                border-radius: 6px; background: #fff; display: block; }
+  .month-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  @media (max-width: 760px) { .month-grid { grid-template-columns: 1fr; } }
+  #tseries { width: 100%; height: 440px; }
   footer { color: var(--muted); font-size: 0.78rem; line-height: 1.7; max-width: 82ch;
            padding-top: 0.6rem; }
   footer a { color: var(--accent); }
@@ -46,6 +52,22 @@
 <div class="wrap">
   <h1>Global Climate Monitor</h1>
   <div class="sub" id="stamp">Daily ERA5 and GPM IMERG anomalies · loading latest dates…</div>
+
+  <div class="card">
+    <h2>Global &amp; regional temperature</h2>
+    <p class="note">Daily-mean 2 m temperature anomaly vs 1991–2020, area-weighted, since 1979.
+    Click legend entries to add regions (hemispheres, land/ocean, tropics, poles, continents);
+    double-click to isolate one.</p>
+    <div id="tseries"></div>
+  </div>
+
+  <div class="card">
+    <h2>Evolution — the last 30 days</h2>
+    <p class="note">Daily anomaly maps as an animation; switch the field (2 m temperature,
+    500 hPa height, MSLP) inside the panel.</p>
+    <iframe class="anim-frame" src="sst_anim.html?embed=1&amp;base=assets/climate/anim&amp;manifest=manifest.json&amp;region=t2m"
+            title="ERA5 daily anomaly loops, last 30 days" loading="lazy"></iframe>
+  </div>
 
   <div class="card">
     <h2>2 m temperature anomaly</h2>
@@ -68,6 +90,27 @@
   </div>
 
   <div class="card">
+    <h2>Recent monthly means</h2>
+    <p class="note">Monthly-mean anomalies for the most recent complete months (official ERA5
+    monthly product, vs the same 1991–2020 climatology).</p>
+    <div class="month-grid" id="months-t2m"></div>
+    <div class="month-grid" id="months-z500" style="margin-top:10px"></div>
+    <div class="month-grid" id="months-mslp" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Teleconnections — NAO · PNA · EPO · WPO · AO</h2>
+    <p class="note">Computed in-house, not fetched: a varimax-rotated principal-component analysis
+    of our own ERA5 Z500 monthly anomaly history (1991–2020 base, 20–90N, √cos-weighted) yields the
+    loading patterns — classical centers of action are used only to name and orient the modes — and
+    AO is the unrotated leading EOF (the annular mode). Daily indices are projections of each day's
+    anomaly field onto those patterns, standardized by day-of-year. Table shows the last 13 months
+    with values; the chart below is the full monthly history — click legend entries to toggle.</p>
+    <img id="img-tele" alt="Monthly teleconnection index table, last 13 months">
+    <div id="teleseries" style="width:100%; height:380px; margin-top:10px"></div>
+  </div>
+
+  <div class="card">
     <h2>Daily precipitation anomaly</h2>
     <p class="note">GPM IMERG (Early run) daily precipitation departure from the satellite's own
     2001–2025 climatology, at 0.5° — teal wetter than normal, brown drier.</p>
@@ -86,6 +129,82 @@
   </footer>
 </div>
 <script>
+function drawSeries() {
+  fetch("assets/climate/t2m_regions_daily.csv?t=" + Date.now())
+    .then(r => r.text())
+    .then(txt => {
+      const lines = txt.trim().split("\n");
+      const cols = lines[0].split(",");
+      const data = {};
+      cols.slice(1).forEach(c => data[c] = []);
+      const dates = [];
+      for (let i = 1; i < lines.length; i++) {
+        const p = lines[i].split(",");
+        dates.push(p[0]);
+        cols.slice(1).forEach((c, j) => data[c].push(+p[j + 1]));
+      }
+      const LABELS = {global: "Global", nhem: "N. Hemisphere", shem: "S. Hemisphere",
+        tropics: "Tropics", arctic: "Arctic", antarctic: "Antarctic", land: "Land",
+        ocean: "Ocean", americas: "Americas", eurafrica: "Europe–Africa",
+        asiapacific: "Asia–Pacific"};
+      const traces = cols.slice(1).map(c => ({
+        x: dates, y: data[c], name: LABELS[c] || c, type: "scattergl", mode: "lines",
+        line: {width: c === "global" ? 1.6 : 1.1},
+        visible: c === "global" ? true : "legendonly",
+      }));
+      Plotly.newPlot("tseries", traces, {
+        margin: {l: 46, r: 12, t: 8, b: 36},
+        font: {family: "Inter, sans-serif", size: 12},
+        yaxis: {title: {text: "°C vs 1991–2020", font: {size: 11}}, zeroline: true},
+        xaxis: {rangeselector: {buttons: [
+          {count: 1, step: "year", label: "1y"}, {count: 5, step: "year", label: "5y"},
+          {count: 10, step: "year", label: "10y"}, {step: "all", label: "all"}]}},
+        legend: {orientation: "h", y: -0.14, font: {size: 11}},
+        paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      }, {displayModeBar: false, responsive: true});
+    })
+    .catch(() => { document.getElementById("tseries").textContent = "series unavailable"; });
+}
+drawSeries();
+
+function drawTele() {
+  fetch("assets/climate/teleconnections_daily.csv?t=" + Date.now())
+    .then(r => { if (!r.ok) throw 0; return r.text(); })
+    .then(txt => {
+      const lines = txt.trim().split("\n");
+      const cols = lines[0].split(",").slice(1);
+      const buckets = {};                                   // "YYYY-MM" -> {idx: [sum, n]}
+      for (let i = 1; i < lines.length; i++) {
+        const p = lines[i].split(",");
+        const key = p[0].slice(0, 7);
+        buckets[key] = buckets[key] || cols.map(() => [0, 0]);
+        cols.forEach((c, j) => {
+          const v = +p[j + 1];
+          if (isFinite(v)) { buckets[key][j][0] += v; buckets[key][j][1] += 1; }
+        });
+      }
+      const months = Object.keys(buckets).sort();
+      const traces = cols.map((c, j) => ({
+        x: months.map(m => m + "-01"),
+        y: months.map(m => buckets[m][j][1] ? buckets[m][j][0] / buckets[m][j][1] : null),
+        name: c.toUpperCase(), type: "scattergl", mode: "lines", line: {width: 1.2},
+        visible: c === "nao" ? true : "legendonly",
+      }));
+      Plotly.newPlot("teleseries", traces, {
+        margin: {l: 42, r: 12, t: 8, b: 34},
+        font: {family: "Inter, sans-serif", size: 12},
+        yaxis: {title: {text: "index (σ)", font: {size: 11}}, zeroline: true},
+        xaxis: {rangeselector: {buttons: [
+          {count: 2, step: "year", label: "2y"}, {count: 10, step: "year", label: "10y"},
+          {step: "all", label: "all"}]}},
+        legend: {orientation: "h", y: -0.16, font: {size: 11}},
+        paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      }, {displayModeBar: false, responsive: true});
+    })
+    .catch(() => { document.getElementById("teleseries").textContent = "indices pending first build"; });
+}
+drawTele();
+
 fetch("assets/climate/manifest.json?t=" + Date.now())
   .then(r => r.json())
   .then(m => {
@@ -95,6 +214,19 @@ fetch("assets/climate/manifest.json?t=" + Date.now())
     document.getElementById("img-precip").src = `assets/climate/precip_anom.webp?v=${v}`;
     document.getElementById("stamp").textContent =
       `ERA5 valid ${m.era5_day || "—"} · IMERG valid ${m.imerg_day || "—"} · generated ${m.generated}`;
+    const tele = document.getElementById("img-tele");
+    tele.src = "assets/climate/teleconnections_monthly.webp?v=" + (m.era5_day || "");
+    tele.onerror = () => tele.remove();
+    for (const vk of ["t2m", "z500", "mslp"]) {
+      const holder = document.getElementById("months-" + vk);
+      (m.months || []).slice().reverse().forEach(mm => {
+        const img = document.createElement("img");
+        img.src = `assets/climate/monthly/${vk}_${mm.replace("-", "")}.webp`;
+        img.alt = `${vk} monthly anomaly ${mm}`;
+        img.onerror = () => img.remove();
+        holder.appendChild(img);
+      });
+    }
   })
   .catch(() => { document.getElementById("stamp").textContent = "Latest data unavailable."; });
 </script>
