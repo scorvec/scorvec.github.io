@@ -27,8 +27,8 @@
   h1 { font-family: var(--serif); font-weight: 400; font-size: 1.4rem;
        margin-bottom: 0.1rem; display: inline-block; margin-right: 0.8rem; }
   .sub { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.7rem; display: inline; }
-  #map { height: 300px; border-radius: 10px; border: 1px solid var(--rule);
-         background: #0b0b12; }
+  #map { position: absolute; inset: 0; background: #0b0b12; }
+  .mapwrap { position: relative; height: calc(100vh - 52px); }
   .leaflet-container { background: #171722; }
   .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0.6rem 0; }
   .controls .station { font-weight: 600; font-size: 0.92rem; min-width: 200px; }
@@ -42,12 +42,20 @@
   #status { font-size: 0.78rem; color: var(--muted); }
   .main { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 12px;
           align-items: start; }
-  @media (max-width: 1020px) { .main { grid-template-columns: 1fr; }
-    .side { position: static !important; max-height: none !important; } }
+  @media (max-width: 1020px) { .main { grid-template-columns: 1fr; } }
+  .modal { position: fixed; inset: 0; background: rgba(4,4,9,0.78); z-index: 2000;
+           display: flex; align-items: center; justify-content: center; }
+  .modal[hidden] { display: none; }
+  .dialog { background: var(--bg); border: 1px solid var(--rule); border-radius: 14px;
+            width: min(1240px, 96vw); max-height: 94vh; overflow-y: auto;
+            padding: 10px 12px 14px; box-shadow: 0 18px 60px rgba(0,0,0,0.6); }
+  .dlg-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+              padding: 4px 2px 10px; position: sticky; top: 0; background: var(--bg);
+              z-index: 5; }
+  #close { margin-left: auto; font-size: 1rem; line-height: 1; padding: 5px 10px; }
   .panel { background: var(--panel); border: 1px solid var(--rule);
            border-radius: 10px; padding: 8px; }
-  .side { position: sticky; top: 8px; display: flex; flex-direction: column; gap: 10px;
-          max-height: calc(100vh - 16px); overflow-y: auto; }
+  .side { display: flex; flex-direction: column; gap: 10px; }
   canvas { display: block; width: 100%; height: auto; border-radius: 6px; }
   table.params { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
   table.params th, table.params td { padding: 3px 6px; text-align: right;
@@ -64,57 +72,54 @@
 <body>
 <nav>
   <a href="../index.html" class="nav-name">Shawn Corvec</a>
+  <span style="font-family:var(--serif); font-size:0.95rem">Skew-T Explorer
+    <span style="color:var(--muted); font-family:var(--sans); font-size:0.75rem">
+    — click any station; analysis runs in-browser (SHARPlib · WebAssembly)</span></span>
   <a href="../index.html" class="back">← HOME</a>
 </nav>
-<div class="wrap">
-  <h1>Skew-T Explorer</h1>
-  <div class="sub">Click any radiosonde station — the full sounding analysis (parcels, shear, SRH,
-  composites) runs in your browser via SHARPlib compiled to WebAssembly. No server involved.</div>
 
-  <div class="controls">
-    <span class="station" id="stn-label">— pick a station —</span>
-    <button id="mode-latest" class="on">Latest</button>
-    <button id="mode-archive">Archive</button>
-    <span id="arch-controls" style="display:none">
-      <input type="date" id="date" min="1943-01-01">
-      <button id="h00">00Z</button>
-      <button id="h12" class="on">12Z</button>
-    </span>
-    <span id="status"></span>
-    <a id="uw-link" href="https://weather.uwyo.edu/upperair/sounding.shtml" target="_blank"
-       rel="noopener" style="font-size:0.78rem; color:var(--accent); margin-left:auto">UW page ↗</a>
-  </div>
+<div class="mapwrap"><div id="map"></div></div>
 
-  <div class="main">
-    <div class="panel"><canvas id="skewt" width="760" height="840"></canvas></div>
-    <div class="side">
-      <div id="map"></div>
-      <div class="panel"><canvas id="hodo" width="330" height="330"></canvas></div>
-      <div class="panel">
-        <h3>Parcels</h3>
-        <table class="params" id="pcl-table"></table>
-        <h3>Kinematics &amp; composites</h3>
-        <table class="params kin" id="kin-table"></table>
+<div id="modal" class="modal" hidden>
+  <div class="dialog">
+    <div class="dlg-head controls">
+      <span class="station" id="stn-label">—</span>
+      <button id="mode-latest" class="on">Latest</button>
+      <button id="mode-archive">Archive</button>
+      <span id="arch-controls" style="display:none">
+        <input type="date" id="date" min="1943-01-01">
+        <button id="h00">00Z</button>
+        <button id="h12" class="on">12Z</button>
+      </span>
+      <span id="status"></span>
+      <a id="uw-link" href="https://weather.uwyo.edu/upperair/sounding.shtml" target="_blank"
+         rel="noopener" style="font-size:0.78rem; color:var(--accent)">UW page ↗</a>
+      <button id="close" title="close (Esc)">✕</button>
+    </div>
+    <div class="main">
+      <div class="panel"><canvas id="skewt" width="760" height="840"></canvas></div>
+      <div class="side">
+        <div class="panel"><canvas id="hodo" width="330" height="330"></canvas></div>
+        <div class="panel">
+          <h3>Parcels</h3>
+          <table class="params" id="pcl-table"></table>
+          <h3>Kinematics &amp; composites</h3>
+          <table class="params kin" id="kin-table"></table>
+        </div>
       </div>
     </div>
+    <footer>
+      <b>Data:</b> latest soundings from the
+      <a href="https://weather.uwyo.edu/upperair/sounding.shtml">University of Wyoming</a> archive
+      (BUFR, mirrored ~4×/day — UW sends no CORS headers); any historical date directly from
+      <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">NOAA
+      IGRA v2</a> (first load per station can be tens of MB, then cached).
+      <b>Analysis:</b> <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (K. Halbert,
+      NWS SPC lineage) as WebAssembly — SB/ML/MU parcels, LI, DCAPE, effective inflow, Bunkers,
+      SRH, effective shear, SCP/STP. Map: Leaflet &amp; OpenStreetMap. Built by Claude
+      (Anthropic's Claude Fable 5), directed by Shawn Corvec. Not for operational use.
+    </footer>
   </div>
-
-  <footer>
-    <b>Data:</b> radiosonde profiles via the
-    <a href="https://weather.uwyo.edu/upperair/sounding.shtml">University of Wyoming</a> sounding archive
-    (BUFR high-resolution), mirrored ~4×/day by a GitHub Action because UW sends no CORS headers —
-    every station with a launch in the last 36 hours is clickable (blue dots). <b>Archive mode</b>
-    pulls any historical date directly from <a
-    href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">NOAA
-    IGRA v2</a> (grey dots include closed stations; per-station files can be tens of MB on first
-    load, then cached — recent years use the small year-to-date files).
-    <b>Analysis:</b> <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (K. Halbert,
-    NWS SPC lineage) compiled to WebAssembly — surface / 100-hPa mixed-layer / most-unstable parcels
-    (Wobus lifter), effective inflow layer, Bunkers storm motion, SRH, effective shear, SCP &amp; STP.
-    Diagram: log-p / 45° skew, dry &amp; moist adiabats traced with the same lifter.
-    Map: Leaflet &amp; OpenStreetMap. Built by Claude (Anthropic's Claude Fable 5), directed by
-    Shawn Corvec. Not for operational use.
-  </footer>
 </div>
 <script src="sharplib.js"></script>
 <script src="app.js"></script>
