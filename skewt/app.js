@@ -205,45 +205,63 @@ const iv = (line, a, b) => {
 };
 
 function parseIGRA(text, gid, ymd, wantHour, elev) {
-  // find headers for the date; pick the closest hour to wantHour
   const [Y, Mo, D] = ymd.split("-");
   const re = new RegExp("^#" + gid + " " + Y + " " + Mo + " " + D + " ([0-9]{2})", "gm");
   let best = null, m;
   while ((m = re.exec(text)) !== null) {
     const hh = +m[1] === 99 ? 12 : +m[1];
-    if (best === null || Math.abs(hh - wantHour) < Math.abs(best.hh - wantHour)) {
+    if (best === null || Math.abs(hh - wantHour) < Math.abs(best.hh - wantHour))
       best = { idx: m.index, hh };
-    }
   }
   if (!best) return null;
   const lines = text.slice(best.idx).split("\n");
   const nlev = parseInt(lines[0].slice(32, 36), 10);
-  const out = { P: [], H: [], T: [], D: [], U: [], V: [] };
-  let lastP = 1e9, lastH = elev, lastT = null;
+  // IGRA levels can be thermo-only, wind-only, or both — collect separately
+  const thermo = [], winds = [];
   for (let i = 1; i <= nlev && i < lines.length; i++) {
     const L = lines[i];
-    const p = iv(L, 9, 15);                                  // Pa
-    const gph = iv(L, 16, 21);                               // m
-    const tt = iv(L, 22, 27);                                // tenths C
-    const dpdp = iv(L, 34, 39);                              // tenths C
-    const wd = iv(L, 40, 45), ws = iv(L, 46, 51);            // deg, tenths m/s
-    if (p === null || tt === null || dpdp === null || p >= lastP || p < 2000) continue;
-    const T = tt / 10 + 273.15;
-    let H;
-    if (gph !== null) H = gph;
-    else {                                                   // hypsometric fill
-      const Tbar = lastT === null ? T : (T + lastT) / 2;
-      H = lastH + (287.05 * Tbar / 9.80665) * Math.log(lastP / p);
-    }
-    if (out.P.length === 0 && gph === null) H = elev;
-    lastP = p; lastH = H; lastT = T;
-    out.P.push(p); out.H.push(H); out.T.push(T);
-    out.D.push(T - dpdp / 10);
-    const ok = wd !== null && ws !== null;
-    out.U.push(ok ? -(ws / 10) * Math.sin(wd * Math.PI / 180) : (out.U.at(-1) ?? 0));
-    out.V.push(ok ? -(ws / 10) * Math.cos(wd * Math.PI / 180) : (out.V.at(-1) ?? 0));
+    const p = iv(L, 9, 15);
+    if (p === null || p < 2000) continue;
+    const gph = iv(L, 16, 21), tt = iv(L, 22, 27), dpdp = iv(L, 34, 39);
+    const wd = iv(L, 40, 45), ws = iv(L, 46, 51);
+    if (wd !== null && ws !== null && ws >= 0)
+      winds.push({ p, u: -(ws / 10) * Math.sin(wd * Math.PI / 180),
+                       v: -(ws / 10) * Math.cos(wd * Math.PI / 180) });
+    if (tt !== null && dpdp !== null)
+      thermo.push({ p, gph, T: tt / 10 + 273.15, D: tt / 10 + 273.15 - dpdp / 10 });
   }
-  return out.P.length >= 8 ? { prof: out, hh: best.hh } : null;
+  thermo.sort((a, b) => b.p - a.p);
+  winds.sort((a, b) => b.p - a.p);
+  if (thermo.length < 8) return null;
+  const windAtP = p => {
+    if (!winds.length) return { u: 0, v: 0 };
+    if (p >= winds[0].p) return winds[0];
+    for (let j = 1; j < winds.length; j++) {
+      if (winds[j].p <= p) {
+        const f = Math.log(winds[j - 1].p / p) / Math.log(winds[j - 1].p / winds[j].p);
+        return { u: winds[j - 1].u + f * (winds[j].u - winds[j - 1].u),
+                 v: winds[j - 1].v + f * (winds[j].v - winds[j - 1].v) };
+      }
+    }
+    return winds[winds.length - 1];
+  };
+  const out = { P: [], H: [], T: [], D: [], U: [], V: [] };
+  let lastP = 1e9, lastH = elev, lastT = null;
+  for (const lv of thermo) {
+    if (lv.p >= lastP) continue;
+    let Hm;
+    if (lv.gph !== null) Hm = lv.gph;
+    else {
+      const Tbar = lastT === null ? lv.T : (lv.T + lastT) / 2;
+      Hm = lastH + (287.05 * Tbar / 9.80665) * Math.log(lastP / lv.p);
+    }
+    if (out.P.length === 0 && lv.gph === null) Hm = elev;
+    lastP = lv.p; lastH = Hm; lastT = lv.T;
+    const w = windAtP(lv.p);
+    out.P.push(lv.p); out.H.push(Hm); out.T.push(lv.T); out.D.push(lv.D);
+    out.U.push(w.u); out.V.push(w.v);
+  }
+  return out.P.length >= 8 ? { prof: out, hh: best.hh, nWind: winds.length } : null;
 }
 
 async function loadSounding() {
@@ -279,7 +297,8 @@ async function loadSounding() {
     return;
   }
   status.textContent = `valid ${ymd} ${String(got.hh).padStart(2, "0")}Z · ` +
-    `${got.prof.P.length} levels (NOAA IGRA v2)`;
+    `${got.prof.P.length} levels, ${got.nWind} wind levels (NOAA IGRA v2)` +
+    (got.nWind < 5 ? " — sparse winds this launch" : "");
   plotTitle = `${current.n || ""} ${current.id || current.gid}  ·  ${ymd} ` +
     `${String(got.hh).padStart(2, "0")}Z`.trim();
   render(thin(got.prof));
@@ -561,6 +580,7 @@ function drawHodo(prof, res) {
   // trace segments by height
   const segs = [[0, 1000, "#ff453a"], [1000, 3000, "#ff9f0a"],
                 [3000, 6000, "#30d158"], [6000, 9000, "#ffd60a"], [9000, 12000, "#bf5af2"]];
+  let prevPt = null;
   for (const [b, tt, col] of segs) {
     ctx.strokeStyle = col; ctx.lineWidth = 2.4;
     ctx.beginPath();
@@ -569,8 +589,10 @@ function drawHodo(prof, res) {
       if (agl[i] < b) continue;
       if (agl[i] > tt) break;
       const x = X(prof.U[i] * KT), y = Y(prof.V[i] * KT);
-      started ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      if (!started && prevPt) { ctx.moveTo(prevPt[0], prevPt[1]); ctx.lineTo(x, y); }
+      else started ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
       started = true;
+      prevPt = [x, y];
     }
     ctx.stroke();
   }
