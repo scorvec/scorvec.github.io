@@ -214,10 +214,12 @@ function thin(prof, target = 350) {
 }
 
 async function igraText(gid, year) {
-  const key = gid + (year >= new Date().getUTCFullYear() - 1 ? ":y2d" : ":por");
-  if (igraCache.has(key)) return igraCache.get(key);
+  // the period-of-record file contains everything, so it satisfies any request
+  if (igraCache.has(gid + ":por")) return igraCache.get(gid + ":por");
+  const recent = year >= new Date().getUTCFullYear() - 1;
+  if (recent && igraCache.has(gid + ":y2d")) return igraCache.get(gid + ":y2d");
   const urls = [];
-  if (year >= new Date().getUTCFullYear() - 1) {
+  if (recent) {
     urls.push(IGRA + `data-y2d/${gid}-data-beg${new Date().getUTCFullYear() - 1}.txt.zip`);
   }
   urls.push(IGRA + `data-por/${gid}-data.txt.zip`);
@@ -230,13 +232,24 @@ async function igraText(gid, year) {
       const buf = new Uint8Array(await r.arrayBuffer());
       setStatus("decompressing…", true);
       const files = fflate.unzipSync(buf);
-      const name = Object.keys(files)[0];
-      const text = fflate.strFromU8(files[name]);
-      igraCache.set(key, text);
+      const text = fflate.strFromU8(files[Object.keys(files)[0]]);
+      igraCache.set(url.includes("data-y2d") ? gid + ":y2d" : gid + ":por", text);
       return text;
     } catch (e) { /* try next */ }
   }
   return null;
+}
+
+const igraDatesCache = new Map();
+function igraDates(text, gid) {
+  if (igraDatesCache.has(gid)) return igraDatesCache.get(gid);
+  const re = new RegExp("^#" + gid + " ([0-9]{4}) ([0-9]{2}) ([0-9]{2})", "gm");
+  const seen = new Set();
+  let m;
+  while ((m = re.exec(text)) !== null) seen.add(m[1] + "-" + m[2] + "-" + m[3]);
+  const arr = [...seen].sort();
+  igraDatesCache.set(gid, arr);
+  return arr;
 }
 
 const iv = (line, a, b) => {
@@ -329,16 +342,26 @@ async function loadSounding() {
   const ymd = archDate;
   const text = await igraText(current.gid, +ymd.slice(0, 4));
   if (!text) { setStatus("IGRA file unavailable"); return; }
-  const got = parseIGRA(text, current.gid, ymd, archHour, current.e || 0);
+  let shown = ymd, fellBack = false;
+  let got = parseIGRA(text, current.gid, ymd, archHour, current.e || 0);
   if (!got) {
-    setStatus(`no sounding on ${ymd} — station record ` +
-      `${(igraStations[current.gid] || {}).y0}–${(igraStations[current.gid] || {}).y1}`);
-    return;
+    // nothing on the requested date — fall back to the nearest earlier launch
+    // (for a closed station, that's its final sounding of record)
+    const dates = igraDates(text, current.gid);
+    let pick = null;
+    for (const d of dates) { if (d <= ymd) pick = d; else break; }
+    if (!pick && dates.length) pick = dates[0];
+    if (pick) {
+      got = parseIGRA(text, current.gid, pick, archHour, current.e || 0);
+      if (got) { shown = pick; fellBack = true; archDate = pick; syncControls(); }
+    }
   }
-  setStatus(`valid ${ymd} ${String(got.hh).padStart(2, "0")}Z · ` +
+  if (!got) { setStatus("no soundings found in this station's archive"); return; }
+  setStatus(`valid ${shown} ${String(got.hh).padStart(2, "0")}Z · ` +
     `${got.prof.P.length} levels, ${got.nWind} wind levels (NOAA IGRA v2)` +
+    (fellBack ? ` — nearest available to ${ymd}` : "") +
     (got.nWind < 5 ? " — sparse winds this launch" : ""));
-  plotTitle = `${current.n || ""} ${current.id || current.gid}  ·  ${ymd} ` +
+  plotTitle = `${current.n || ""} ${current.id || current.gid}  ·  ${shown} ` +
     `${String(got.hh).padStart(2, "0")}Z`.trim();
   render(thin(got.prof));
 }
