@@ -330,12 +330,12 @@ def render_tele_table(tele: pd.DataFrame, n_months: int = 13):
     monthly = tele.resample("MS").mean().tail(n_months)
     names = ["nao", "pna", "epo", "wpo", "ao"]
     M = monthly[names].T.values
-    fig, ax = plt.subplots(figsize=(12.2, 3.4), dpi=100)
+    fig, ax = plt.subplots(figsize=(12.2, 3.8), dpi=100)
     im = ax.imshow(M, cmap=_BWR, vmin=-2.5, vmax=2.5, aspect="auto")
     ax.set_yticks(range(len(names)), [n.upper() for n in names], fontsize=10)
     ax.set_xticks(range(len(monthly)),
-                  [f"{m:%b\n%Y}" if m.month == 1 or i == 0 else f"{m:%b}"
-                   for i, m in enumerate(monthly.index)], fontsize=9)
+                  [m.strftime("%b ’%y") for m in monthly.index],
+                  fontsize=8.5, rotation=0)
     for i in range(M.shape[0]):
         for j in range(M.shape[1]):
             v = M[i, j]
@@ -345,7 +345,8 @@ def render_tele_table(tele: pd.DataFrame, n_months: int = 13):
                         color="white" if abs(v) > 1.4 else "#111")
     ax.set_title("Monthly-mean teleconnection indices — Z500-based, standardized vs 1991–2020"
                  f"  ·  latest month is partial", fontsize=11, loc="left", pad=8)
-    fig.text(0.005, 0.01,
+    fig.subplots_adjust(bottom=0.16, top=0.9)
+    fig.text(0.005, 0.005,
              "Computed in-house: varimax-rotated PCA of our ERA5 Z500 monthly anomalies (1991–2020 "
              "base, 20–90N); AO = unrotated EOF1. Daily values = projection onto the loading patterns.",
              fontsize=7, color="#888")
