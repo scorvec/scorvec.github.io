@@ -74,7 +74,12 @@ _BWR = LinearSegmentedColormap.from_list("cm_anom", [
 _PRC = LinearSegmentedColormap.from_list("prc_anom", [
     "#5a3410", "#9c6b1e", "#d2a24a", "#ecd9a6", "#ffffff",
     "#bce3cf", "#5cbf9a", "#1f8f8f", "#1b5a8a"])
-PRECIP_LEVELS = [2, 5, 10, 20, 35, 60, 100]
+# daily totals: same family as the site's other IMERG accumulation loops
+_PRC_TOT = LinearSegmentedColormap.from_list("prc_tot", [
+    "#2b3a6b", "#3b76c4", "#3fb0b0", "#52c452", "#c8d63f",
+    "#f0a800", "#e2502a", "#b3247a", "#ffffff"])
+PRECIP_TOTAL_LEVELS = [1, 2, 5, 10, 20, 35, 50, 75, 100, 150]
+PRECIP_MONTHLY_LEVELS = [25, 50, 100, 175, 275, 400]
 
 
 # ── shared math ──────────────────────────────────────────────────────────────
@@ -195,6 +200,29 @@ def render_global(field, lats, lons, title, cbar_label, out: Path,
     cb = fig.colorbar(im, ax=ax, orientation="vertical", pad=0.012, shrink=0.82,
                       fraction=0.028, extend="both")
     cb.set_label(cbar_label, fontsize=10); cb.ax.tick_params(labelsize=9)
+    ax.set_title(title, fontsize=12, loc="left", pad=8)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=100, facecolor="white", bbox_inches="tight", pad_inches=0.08,
+                pil_kwargs={"quality": 84, "method": 6})
+    plt.close(fig)
+    print(f"  wrote {out.relative_to(ASSETS.parent)}", flush=True)
+
+
+def render_precip_total(field, lats, lons, title, out: Path):
+    fig = plt.figure(figsize=(12.2, 6.6), dpi=100)
+    ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=0))
+    ax.set_global()
+    norm = BoundaryNorm(PRECIP_TOTAL_LEVELS, _PRC_TOT.N, extend="max")
+    wet = np.ma.masked_less(field, PRECIP_TOTAL_LEVELS[0])
+    im = ax.pcolormesh(lons, lats, wet, cmap=_PRC_TOT, norm=norm,
+                       transform=PC, shading="auto", rasterized=True)
+    ax.set_facecolor("#f4f2ec")
+    ax.coastlines(linewidth=0.5, color="#333", resolution="110m")
+    ax.add_feature(cfeature.BORDERS.with_scale("110m"), linewidth=0.25,
+                   edgecolor="#666", alpha=0.5)
+    cb = fig.colorbar(im, ax=ax, orientation="vertical", pad=0.012, shrink=0.82,
+                      fraction=0.028, extend="max")
+    cb.set_label("mm/day", fontsize=10); cb.ax.tick_params(labelsize=9)
     ax.set_title(title, fontsize=12, loc="left", pad=8)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=100, facecolor="white", bbox_inches="tight", pad_inches=0.08,
@@ -418,40 +446,105 @@ def _imerg_recent_days(n: int = 10) -> dict:
     return out
 
 
+def _imerg_days_for(dates) -> dict:
+    """Ensure specific past days' global 0.5° grids are cached; return subset."""
+    from imerg_precip import _login
+    from build_imerg_clim_global import _opendap_url, _fetch_day
+    import earthaccess
+    IMERG_STORE.mkdir(parents=True, exist_ok=True)
+    have = {p.stem for p in IMERG_STORE.glob("*.npy")}
+    need = [d for d in dates if f"{d:%Y%m%d}" not in have]
+    if need:
+        _login()
+        gs = earthaccess.search_data(short_name="GPM_3IMERGDE", version="07",
+                                     temporal=(f"{min(need):%Y-%m-%d}",
+                                               f"{max(need) + pd.Timedelta(days=1):%Y-%m-%d}"))
+        by_day = {}
+        for g in gs:
+            url = _opendap_url(g)
+            if url:
+                by_day[url.split(".3IMERG.")[1][:8]] = url
+        sess = earthaccess.get_requests_https_session()
+        import concurrent.futures as cf
+        def work(d):
+            ymd = f"{d:%Y%m%d}"
+            if ymd not in by_day:
+                return
+            _, grid = _fetch_day((by_day[ymd], 1, sess))
+            if grid is not None:
+                np.save(IMERG_STORE / f"{ymd}.npy", grid.astype("float32"))
+        with cf.ThreadPoolExecutor(max_workers=8) as ex:
+            list(ex.map(work, need))
+    out = {}
+    for d in dates:
+        p = IMERG_STORE / f"{d:%Y%m%d}.npy"
+        if p.exists():
+            out[f"{d:%Y%m%d}"] = np.load(p)
+    return out
+
+
 def run_imerg() -> str | None:
-    """7-day accumulation anomaly (primary — daily precip is intermittent, so a
-    one-day anomaly vs the smooth climatology mostly repaints the mean rain
-    belts) plus the single-day anomaly as a companion."""
+    """Daily precip TOTALS as a 30-day loop (joins the ERA5 anim manifest as a
+    fourth field) + monthly accumulation ANOMALIES for the recent complete
+    months. Daily anomalies were dropped deliberately: daily rain is
+    intermittent, so anomalies only make sense aggregated (monthly)."""
     clim_p = HERE / "imerg_clim_global.nc"
     if not clim_p.exists():
         print(f"  {clim_p.name} missing — run build_imerg_clim_global.py first", flush=True)
         return None
     cds = xr.open_dataset(clim_p)
     coef = cds["coef"].values
-    days = _imerg_recent_days(10)
+    lats, lons = cds.lat.values, cds.lon.values
+
+    days = _imerg_recent_days(LOOP_DAYS + 3)
     if not days:
         print("  no recent IMERG Early daily granules found", flush=True)
         return None
-    ymds = sorted(days)
+    ymds = sorted(days)[-LOOP_DAYS:]
     day = pd.Timestamp(f"{ymds[-1][:4]}-{ymds[-1][4:6]}-{ymds[-1][6:]}")
 
-    anom1 = days[ymds[-1]] - eval_clim(coef, doy365(day))
-    render_global(anom1, cds.lat.values, cds.lon.values,
-                  f"GPM IMERG daily precipitation anomaly — {day:%Y-%m-%d} (vs 2001–2025)",
-                  "mm/day", ASSETS / "precip_anom_daily.webp",
-                  cmap=_PRC, levels=PRECIP_LEVELS)
+    # 30-day daily-totals loop
+    vdir = ANIM / "precip"; vdir.mkdir(parents=True, exist_ok=True)
+    entries = []
+    for ymd in ymds:
+        d = pd.Timestamp(f"{ymd[:4]}-{ymd[4:6]}-{ymd[6:]}")
+        fp = vdir / f"{ymd}.webp"
+        if not fp.exists():
+            render_precip_total(days[ymd], lats, lons,
+                                f"GPM IMERG daily precipitation — {d:%Y-%m-%d} (Early run)", fp)
+        entries.append({"idx": len(entries), "file": fp.name,
+                        "date": f"{d:%Y-%m-%d}", "label": f"{d:%a %b %d, %Y}"})
+    for old in vdir.glob("*.webp"):
+        if old.stem not in set(ymds):
+            old.unlink()
+    manp = ANIM / "manifest.json"
+    if manp.exists():
+        man = json.loads(manp.read_text())
+        man["regions"]["precip"] = {"label": "daily precipitation (IMERG)",
+                                    "frames": entries}
+        manp.write_text(json.dumps(man))
 
-    last7 = ymds[-7:]
-    if len(last7) == 7:
-        tot = np.sum([days[k] for k in last7], axis=0)
-        ctot = np.sum([eval_clim(coef, doy365(day - pd.Timedelta(days=k)))
-                       for k in range(7)], axis=0)
-        d0 = pd.Timestamp(f"{last7[0][:4]}-{last7[0][4:6]}-{last7[0][6:]}")
-        render_global(tot - ctot, cds.lat.values, cds.lon.values,
-                      f"GPM IMERG 7-day precipitation anomaly — {d0:%b %d} – {day:%b %d, %Y} "
-                      "(vs 2001–2025)", "mm",
-                      ASSETS / "precip_anom.webp",
-                      cmap=_PRC, levels=[10, 25, 50, 90, 150, 250, 400])
+    # monthly accumulation anomalies (from Early dailies; needs the full month)
+    mdir = ASSETS / "monthly"; mdir.mkdir(parents=True, exist_ok=True)
+    today = datetime.now(timezone.utc).date()
+    first_of_this = pd.Timestamp(today.year, today.month, 1)
+    for k in range(1, MONTHLY_KEEP + 1):
+        m = first_of_this - pd.DateOffset(months=k)
+        out = mdir / f"precip_{m:%Y%m}.webp"
+        if out.exists():
+            continue
+        mdays = pd.date_range(m, m + pd.DateOffset(months=1) - pd.Timedelta(days=1))
+        grids = _imerg_days_for(mdays)
+        if len(grids) < len(mdays) - 2:                      # tolerate a couple gaps
+            print(f"  monthly precip {m:%Y-%m}: only {len(grids)}/{len(mdays)} days — skipped",
+                  flush=True)
+            continue
+        tot = np.sum(list(grids.values()), axis=0)
+        ctot = np.sum([eval_clim(coef, doy365(d)) for d in mdays], axis=0)
+        fig_levels = PRECIP_MONTHLY_LEVELS
+        render_global(tot - ctot, lats, lons,
+                      f"GPM IMERG precipitation anomaly — {m:%B %Y} (vs 2001–2025)",
+                      "mm", out, cmap=_PRC, levels=fig_levels)
     return f"{day:%Y-%m-%d}"
 
 

@@ -57,8 +57,8 @@ ANCHORS = {
     "nao": [(-1.0, 64.0, 338.0), (+1.0, 38.0, 335.0)],                    # Iceland vs Azores
     "pna": [(+1.0, 20.0, 200.0), (-1.0, 45.0, 195.0),
             (+1.0, 55.0, 245.0), (-1.0, 30.0, 275.0)],                    # Wallace–Gutzler centers
-    "epo": [(+1.0, 28.0, 215.0), (-1.0, 60.0, 215.0)],                    # subtropics vs Alaska
-    "wpo": [(+1.0, 60.0, 155.0), (-1.0, 30.0, 155.0)],                    # Kamchatka vs subtropical WPac
+    "epo": [(-1.0, 28.0, 215.0), (+1.0, 60.0, 215.0)],                    # Alaska vs subtropics (sign matched to CPC EP/NP)
+    "wpo": [(-1.0, 60.0, 155.0), (+1.0, 30.0, 155.0)],                    # subtropical WPac vs Kamchatka (sign matched to CPC WP)
 }
 
 
