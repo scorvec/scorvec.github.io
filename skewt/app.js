@@ -30,6 +30,12 @@ function f32(arr) {
 // ---------- station map ----------
 const map = L.map("map", { worldCopyJump: true }).setView([30, -10], 3);
 const modal = document.getElementById("modal");
+function setStatus(text, busy = false) {
+  for (const id of ["status", "mstatus"]) {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = text; el.classList.toggle("busy", busy); }
+  }
+}
 function openModal() { modal.hidden = false; }
 function closeModal() { modal.hidden = true; }
 document.getElementById("close").onclick = closeModal;
@@ -82,8 +88,7 @@ Promise.all([
       selectStation({ gid: byWmo[id], id, n: s.n, e: (igraStations[byWmo[id]] || {}).e || 0 });
     });
   }
-  if (!man) document.getElementById("status").textContent =
-    "live mirror unavailable — archive mode still works";
+  if (!man) setStatus("live mirror unavailable — archive mode still works");
   const want = location.hash.replace("#", "");
   if (want && entries[want]) {
     selectStation({ gid: byWmo[want], id: want, n: (entries[want] || {}).n,
@@ -134,15 +139,24 @@ function hourBtns() {
 document.getElementById("date").value = new Date(Date.now() - 3 * 864e5)
   .toISOString().slice(0, 10);
 document.getElementById("date").onchange = () => loadSounding();
+function stepDate(days) {
+  const el = document.getElementById("date");
+  const d = new Date(el.value + "T00:00:00Z");
+  el.value = new Date(d.getTime() + days * 864e5).toISOString().slice(0, 10);
+  if (mode !== "archive") setMode("archive");
+  if (current && !modal.hidden) loadSounding();
+}
+document.getElementById("dprev").onclick = () => stepDate(-1);
+document.getElementById("dnext").onclick = () => stepDate(1);
 
 function selectStation(s) {
   current = s;
   openModal();
   if (s.id) location.hash = s.id;
   document.getElementById("stn-label").textContent = `${s.n || s.gid} · ${s.id || s.gid}`;
-  document.getElementById("status").textContent = mode === "latest"
+  setStatus(mode === "latest"
     ? "fetching latest sounding from the mirror…"
-    : "fetching from the NOAA IGRA archive (first load per station can be tens of MB)…";
+    : "fetching from the NOAA IGRA archive (first load per station can be tens of MB)…", true);
   document.getElementById("uw-link").href = s.id
     ? "https://weather.uwyo.edu/wsgi/sounding?id=" + s.id
     : "https://weather.uwyo.edu/upperair/sounding.shtml";
@@ -184,7 +198,6 @@ function thin(prof, target = 350) {
 async function igraText(gid, year) {
   const key = gid + (year >= new Date().getUTCFullYear() - 1 ? ":y2d" : ":por");
   if (igraCache.has(key)) return igraCache.get(key);
-  const status = document.getElementById("status");
   const urls = [];
   if (year >= new Date().getUTCFullYear() - 1) {
     urls.push(IGRA + `data-y2d/${gid}-data-beg${new Date().getUTCFullYear() - 1}.txt.zip`);
@@ -195,9 +208,9 @@ async function igraText(gid, year) {
       const r = await fetch(url);
       if (!r.ok) continue;
       const mb = (+r.headers.get("content-length") / 1048576).toFixed(1);
-      status.textContent = `downloading IGRA archive (${mb} MB)…`;
+      setStatus(`downloading IGRA archive (${mb} MB)…`, true);
       const buf = new Uint8Array(await r.arrayBuffer());
-      status.textContent = "decompressing…";
+      setStatus("decompressing…", true);
       const files = fflate.unzipSync(buf);
       const name = Object.keys(files)[0];
       const text = fflate.strFromU8(files[name]);
@@ -275,39 +288,38 @@ function parseIGRA(text, gid, ymd, wantHour, elev) {
 
 async function loadSounding() {
   if (!current) return;
-  const status = document.getElementById("status");
   await wasmReady;
   if (mode === "latest") {
     const s = entries[current.id];
-    if (!s) { status.textContent = "no recent launch here — try Archive mode"; return; }
-    status.textContent = "fetching…";
+    if (!s) { setStatus("no recent launch here — try Archive mode"); return; }
+    setStatus("fetching…", true);
     try {
       const r = await fetch(MIRROR + "soundings/" + current.id + ".csv?t=" + s.dt);
       if (!r.ok) throw 0;
       const prof = parseCSV(await r.text());
       if (!prof) throw 0;
-      status.textContent = `valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`;
+      setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`);
       plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
       render(thin(prof));
     } catch (e) {
-      status.textContent = "error: " + (e && e.message ? e.message : "fetch failed");
+      setStatus("error: " + (e && e.message ? e.message : "fetch failed"));
     }
     return;
   }
   // archive mode (IGRA v2, straight from NOAA — CORS-open)
-  if (!current.gid) { status.textContent = "station not in the IGRA archive"; return; }
+  if (!current.gid) { setStatus("station not in the IGRA archive"); return; }
   const ymd = document.getElementById("date").value;
   const text = await igraText(current.gid, +ymd.slice(0, 4));
-  if (!text) { status.textContent = "IGRA file unavailable"; return; }
+  if (!text) { setStatus("IGRA file unavailable"); return; }
   const got = parseIGRA(text, current.gid, ymd, archHour, current.e || 0);
   if (!got) {
-    status.textContent = `no sounding on ${ymd} — station record ` +
-      `${(igraStations[current.gid] || {}).y0}–${(igraStations[current.gid] || {}).y1}`;
+    setStatus(`no sounding on ${ymd} — station record ` +
+      `${(igraStations[current.gid] || {}).y0}–${(igraStations[current.gid] || {}).y1}`);
     return;
   }
-  status.textContent = `valid ${ymd} ${String(got.hh).padStart(2, "0")}Z · ` +
+  setStatus(`valid ${ymd} ${String(got.hh).padStart(2, "0")}Z · ` +
     `${got.prof.P.length} levels, ${got.nWind} wind levels (NOAA IGRA v2)` +
-    (got.nWind < 5 ? " — sparse winds this launch" : "");
+    (got.nWind < 5 ? " — sparse winds this launch" : ""));
   plotTitle = `${current.n || ""} ${current.id || current.gid}  ·  ${ymd} ` +
     `${String(got.hh).padStart(2, "0")}Z`.trim();
   render(thin(got.prof));
@@ -589,19 +601,23 @@ function drawHodo(prof, res) {
   // trace segments by height
   const segs = [[0, 1000, "#ff453a"], [1000, 3000, "#ff9f0a"],
                 [3000, 6000, "#30d158"], [6000, 9000, "#ffd60a"], [9000, 12000, "#bf5af2"]];
-  let prevPt = null;
+  // resample on regular height steps (interpolating across level voids) so the
+  // trace is continuous regardless of native level spacing
+  const topAgl = Math.min(12000, agl[n - 1] ?? 12000);
+  const pts = [];
+  for (let h = 0; h <= topAgl; h += 125) {
+    const [u, v] = windAt(prof, h);
+    pts.push([h, X(u * KT), Y(v * KT)]);
+  }
   for (const [b, tt, col] of segs) {
+    if (b > topAgl) break;
     ctx.strokeStyle = col; ctx.lineWidth = 2.4;
     ctx.beginPath();
     let started = false;
-    for (let i = 0; i < n; i++) {
-      if (agl[i] < b) continue;
-      if (agl[i] > tt) break;
-      const x = X(prof.U[i] * KT), y = Y(prof.V[i] * KT);
-      if (!started && prevPt) { ctx.moveTo(prevPt[0], prevPt[1]); ctx.lineTo(x, y); }
-      else started ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    for (const [h, x, y] of pts) {
+      if (h < b || h > tt) { if (h > tt) break; continue; }
+      started ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
       started = true;
-      prevPt = [x, y];
     }
     ctx.stroke();
   }
