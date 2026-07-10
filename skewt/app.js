@@ -96,7 +96,7 @@ legend.addTo(map);
 document.getElementById("show-closed").onchange = e =>
   e.target.checked ? closedLayer.addTo(map) : map.removeLayer(closedLayer);
 
-function setMode(m2) {function setMode(m2) {
+function setMode(m2) {
   mode = m2;
   document.getElementById("mode-latest").classList.toggle("on", mode === "latest");
   document.getElementById("mode-archive").classList.toggle("on", mode === "archive");
