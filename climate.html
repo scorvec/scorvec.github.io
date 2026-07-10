@@ -133,6 +133,30 @@
   </footer>
 </div>
 <script>
+// ---- smoothing + trend helpers ----
+const CATCOLORS = ["#4c9be8","#e8833a","#33c495","#e05b8f","#b98cf0","#e6c84a",
+  "#5ad1d1","#c0654a","#8fb03a","#d17fc0","#7a90c8"];
+function movAvg(y, win) {
+  const half = Math.floor(win / 2), out = new Array(y.length).fill(null);
+  for (let i = 0; i < y.length; i++) {
+    let s = 0, n = 0;
+    for (let k = Math.max(0, i - half); k <= Math.min(y.length - 1, i + half); k++)
+      if (isFinite(y[k])) { s += y[k]; n++; }
+    if (n > win * 0.6) out[i] = s / n;
+  }
+  return out;
+}
+function linfit(xn, y) {
+  let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (let i = 0; i < xn.length; i++) {
+    if (!isFinite(y[i])) continue;
+    n++; sx += xn[i]; sy += y[i]; sxx += xn[i] * xn[i]; sxy += xn[i] * y[i];
+  }
+  const b = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+  return { slope: b, intercept: (sy - b * sx) / n };
+}
+const DECMS = 3.15576e11;            // 10 years in ms
+
 function drawSeries() {
   fetch("assets/climate/t2m_regions_daily.csv?t=" + Date.now())
     .then(r => r.text())
@@ -151,15 +175,27 @@ function drawSeries() {
         tropics: "Tropics", arctic: "Arctic", antarctic: "Antarctic", land: "Land",
         ocean: "Ocean", americas: "Americas", eurafrica: "Europe–Africa",
         asiapacific: "Asia–Pacific"};
-      const traces = cols.slice(1).map(c => ({
-        x: dates, y: data[c], name: LABELS[c] || c, type: "scattergl", mode: "lines",
-        line: {width: c === "global" ? 1.6 : 1.1},
-        visible: c === "global" ? true : "legendonly",
-      }));
+      const xn = dates.map(d => Date.parse(d));
+      const traces = [];
+      cols.slice(1).forEach((c, ci) => {
+        const y = data[c], col = CATCOLORS[ci % CATCOLORS.length];
+        const ma = movAvg(y, 365), f = linfit(xn, y), dec = f.slope * DECMS;
+        const vis = c === "global" ? true : "legendonly";
+        traces.push({x: dates, y, type: "scattergl", mode: "lines", opacity: 0.28,
+          line: {width: 0.6, color: col}, legendgroup: c, showlegend: false,
+          visible: vis, hoverinfo: "skip"});
+        traces.push({x: dates, y: ma, type: "scattergl", mode: "lines",
+          line: {width: 2.2, color: col}, legendgroup: c, visible: vis,
+          name: `${LABELS[c] || c}  (${dec >= 0 ? "+" : ""}${dec.toFixed(2)}°/dec)`});
+        traces.push({x: [dates[0], dates[dates.length - 1]],
+          y: [f.intercept + f.slope * xn[0], f.intercept + f.slope * xn[xn.length - 1]],
+          type: "scattergl", mode: "lines", line: {width: 1.4, color: col, dash: "dot"},
+          legendgroup: c, showlegend: false, visible: vis, hoverinfo: "skip"});
+      });
       Plotly.newPlot("tseries", traces, {
         margin: {l: 46, r: 12, t: 8, b: 36},
         font: {family: "Inter, sans-serif", size: 12},
-        yaxis: {title: {text: "°C vs 1991–2020", font: {size: 11}}, zeroline: true},
+        yaxis: {title: {text: "°C vs 1991–2020  ·  bold = 1-yr mean, dotted = trend", font: {size: 11}}, zeroline: true},
         xaxis: {rangeselector: {buttons: [
           {count: 1, step: "year", label: "1y"}, {count: 5, step: "year", label: "5y"},
           {count: 10, step: "year", label: "10y"}, {step: "all", label: "all"}]}},
@@ -188,16 +224,28 @@ function drawTele() {
         });
       }
       const months = Object.keys(buckets).sort();
-      const traces = cols.map((c, j) => ({
-        x: months.map(m => m + "-01"),
-        y: months.map(m => buckets[m][j][1] ? buckets[m][j][0] / buckets[m][j][1] : null),
-        name: c.toUpperCase(), type: "scattergl", mode: "lines", line: {width: 1.2},
-        visible: c === "nao" ? true : "legendonly",
-      }));
+      const mx = months.map(m => m + "-01"), xn = mx.map(d => Date.parse(d));
+      const traces = [];
+      cols.forEach((c, j) => {
+        const y = months.map(m => buckets[m][j][1] ? buckets[m][j][0] / buckets[m][j][1] : null);
+        const col = CATCOLORS[j % CATCOLORS.length];
+        const ma = movAvg(y, 13), f = linfit(xn, y), dec = f.slope * DECMS;
+        const vis = c === "nao" ? true : "legendonly";
+        traces.push({x: mx, y, type: "scattergl", mode: "lines", opacity: 0.3,
+          line: {width: 0.7, color: col}, legendgroup: c, showlegend: false,
+          visible: vis, hoverinfo: "skip"});
+        traces.push({x: mx, y: ma, type: "scattergl", mode: "lines",
+          line: {width: 2.2, color: col}, legendgroup: c, visible: vis,
+          name: `${c.toUpperCase()}  (${dec >= 0 ? "+" : ""}${dec.toFixed(2)}σ/dec)`});
+        traces.push({x: [mx[0], mx[mx.length - 1]],
+          y: [f.intercept + f.slope * xn[0], f.intercept + f.slope * xn[xn.length - 1]],
+          type: "scattergl", mode: "lines", line: {width: 1.4, color: col, dash: "dot"},
+          legendgroup: c, showlegend: false, visible: vis, hoverinfo: "skip"});
+      });
       Plotly.newPlot("teleseries", traces, {
         margin: {l: 42, r: 12, t: 8, b: 34},
         font: {family: "Inter, sans-serif", size: 12},
-        yaxis: {title: {text: "index (σ)", font: {size: 11}}, zeroline: true},
+        yaxis: {title: {text: "index (σ)  ·  bold = 13-mo mean, dotted = trend", font: {size: 11}}, zeroline: true},
         xaxis: {rangeselector: {buttons: [
           {count: 2, step: "year", label: "2y"}, {count: 10, step: "year", label: "10y"},
           {step: "all", label: "all"}]}},
