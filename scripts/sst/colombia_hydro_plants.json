@@ -1,0 +1,27 @@
+{
+  "_comment": "Major Colombian hydroelectric plants for the IMERG hydro chart set. Base: WRI Global Power Plant Database v1.3 (2021, CC BY 4.0). Plants marked curated=true were added by hand because GPPD lacks them (post-2021 or missing); their coordinates are approximate dam/powerhouse sites (good to ~0.05 deg, fine at 0.1-deg map scale) and capacities are nameplate MW from public sources. Not an official registry.",
+  "plants": [
+    {"name": "Hidroituango",        "mw": 2400, "lat": 7.137,  "lon": -75.664, "curated": true},
+    {"name": "San Carlos",          "mw": 1246, "lat": 6.211,  "lon": -74.841},
+    {"name": "Guavio",              "mw": 1200, "lat": 4.725,  "lon": -73.483},
+    {"name": "Chivor",              "mw": 1000, "lat": 4.901,  "lon": -73.297},
+    {"name": "Sogamoso",            "mw": 820,  "lat": 7.100,  "lon": -73.406},
+    {"name": "Porce III",           "mw": 660,  "lat": 6.939,  "lon": -75.140},
+    {"name": "Guatapé",             "mw": 560,  "lat": 6.320,  "lon": -75.166},
+    {"name": "Betania",             "mw": 540,  "lat": 2.690,  "lon": -75.436, "curated": true},
+    {"name": "Porce II",            "mw": 405,  "lat": 6.755,  "lon": -75.183, "curated": true},
+    {"name": "El Quimbo",           "mw": 400,  "lat": 2.408,  "lon": -75.575, "curated": true},
+    {"name": "Miel I",              "mw": 396,  "lat": 5.561,  "lon": -74.887},
+    {"name": "Alto Anchicayá",      "mw": 365,  "lat": 3.553,  "lon": -76.884, "curated": true},
+    {"name": "Urrá I",              "mw": 340,  "lat": 8.014,  "lon": -76.189, "curated": true},
+    {"name": "La Guaca",            "mw": 324,  "lat": 4.556,  "lon": -74.336, "curated": true},
+    {"name": "La Tasajera",         "mw": 306,  "lat": 6.377,  "lon": -75.448},
+    {"name": "Salvajina",           "mw": 285,  "lat": 2.950,  "lon": -76.685, "curated": true},
+    {"name": "El Paraíso",          "mw": 276,  "lat": 4.585,  "lon": -74.303, "curated": true},
+    {"name": "Guadalupe III",       "mw": 270,  "lat": 6.815,  "lon": -75.241},
+    {"name": "Playas",              "mw": 207,  "lat": 6.365,  "lon": -74.862, "curated": true},
+    {"name": "Jaguas",              "mw": 170,  "lat": 6.294,  "lon": -75.026},
+    {"name": "Calima",              "mw": 132,  "lat": 3.932,  "lon": -76.525, "curated": true},
+    {"name": "Amoyá",               "mw": 80,   "lat": 3.725,  "lon": -75.472, "curated": true}
+  ]
+}
