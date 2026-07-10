@@ -322,7 +322,10 @@ async function loadSounding() {
   await wasmReady;
   if (mode === "latest") {
     const s = entries[current.id];
-    if (!s) { setStatus("no recent launch here — try Archive mode"); return; }
+    if (!s) {
+      setStatus("station not in the UW feed (some agencies don't share) — use Archive (IGRA, ~2-day lag)");
+      return;
+    }
     setStatus("fetching…", true);
     try {
       const r = await fetch(MIRROR + "soundings/" + current.id + ".csv?t=" + s.dt);
@@ -337,9 +340,28 @@ async function loadSounding() {
     }
     return;
   }
-  // archive mode (IGRA v2, straight from NOAA — CORS-open)
-  if (!current.gid) { setStatus("station not in the IGRA archive"); return; }
+  // archive mode: recent launches come from the high-res UW mirror when
+  // available (BUFR fidelity, ~4-day retention), else NOAA IGRA v2
   const ymd = archDate;
+  const me = current.id ? entries[current.id] : null;
+  const wantDt = `${ymd} ${String(archHour).padStart(2, "0")}:00`;
+  if (me && (me.hours || []).includes(wantDt)) {
+    setStatus("fetching high-resolution sounding from the mirror…", true);
+    try {
+      const tag = wantDt.replace(/[-: ]/g, "").slice(0, 10);
+      const r = await fetch(MIRROR + "soundings/" + current.id + "_" + tag + ".csv?t=" + tag);
+      if (r.ok) {
+        const prof = parseCSV(await r.text());
+        if (prof) {
+          setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (UW BUFR high-res mirror)`);
+          plotTitle = `${current.n || ""} ${current.id}  ·  ${wantDt}Z`.trim();
+          render(thin(prof));
+          return;
+        }
+      }
+    } catch (e) { /* fall through to IGRA */ }
+  }
+  if (!current.gid) { setStatus("station not in the IGRA archive"); return; }
   const text = await igraText(current.gid, +ymd.slice(0, 4));
   if (!text) { setStatus("IGRA file unavailable"); return; }
   let shown = ymd, fellBack = false;

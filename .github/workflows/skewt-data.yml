@@ -29,12 +29,18 @@ jobs:
           sparse-checkout: |
             scripts/skewt
 
+      - uses: actions/checkout@v4
+        with:
+          ref: skewt-data
+          path: prev-data
+        continue-on-error: true    # first run: branch may not exist
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Mirror soundings
-        run: python scripts/skewt/mirror_soundings.py /tmp/skewt-data
+        run: python scripts/skewt/mirror_soundings.py /tmp/skewt-data prev-data
 
       - name: Force-push data branch (single parentless commit)
         run: |

@@ -8,10 +8,13 @@ station's TEXT:CSV profile, thins it, and publishes to the `skewt-data`
 branch — raw.githubusercontent.com serves it with `Access-Control-Allow-
 Origin: *`, which makes the viewer purely client-side.
 
-Retention: a station keeps its most recent profile for 36 h, so 00Z-only
-sites stay clickable between launches.
+Retention: per-launch files ({id}_{YYYYMMDDHH}.csv) are kept for RETAIN_H
+hours (~4 days), carried forward from the previous branch state (PREVDIR), so
+Archive mode can serve recent dates at full BUFR fidelity before falling back
+to NOAA IGRA. The newest launch per station is also written as {id}.csv for
+client compatibility.
 
-    python scripts/skewt/mirror_soundings.py OUTDIR
+    python scripts/skewt/mirror_soundings.py OUTDIR [PREVDIR]
 """
 from __future__ import annotations
 
@@ -25,10 +28,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 UW = "https://weather.uwyo.edu/wsgi"
-RAW_PREV = ("https://raw.githubusercontent.com/scorvec/scorvec.github.io/"
-            "skewt-data/manifest.json")
 MAX_LEVELS = 260
-RETAIN_H = 36
+RETAIN_H = 96
 WORKERS = 6
 
 
@@ -74,7 +75,14 @@ def thin_csv(text: str) -> str | None:
     return "\n".join([lines[0]] + body) + "\n"
 
 
+def _tag(dt: str) -> str:
+    return dt.replace("-", "").replace(" ", "").replace(":", "")[:10]
+
+
 def fetch_station(entry: dict, outdir: Path) -> bool:
+    dest = outdir / "soundings" / f"{entry['id']}_{_tag(entry['dt'])}.csv"
+    if dest.exists():                                        # carried forward
+        return True
     q = urllib.parse.quote(f"{entry['dt']}:00")
     url = (f"{UW}/sounding?datetime={q}&id={entry['id']}"
            f"&type=TEXT:CSV&src={entry['src']}")
@@ -83,7 +91,7 @@ def fetch_station(entry: dict, outdir: Path) -> bool:
         thinned = thin_csv(text)
         if not thinned:
             return False
-        (outdir / "soundings" / f"{entry['id']}.csv").write_text(thinned)
+        dest.write_text(thinned)
         return True
     except Exception:                                        # noqa: BLE001
         return False
@@ -91,7 +99,25 @@ def fetch_station(entry: dict, outdir: Path) -> bool:
 
 def main() -> int:
     outdir = Path(sys.argv[1] if len(sys.argv) > 1 else "skewt-data-out")
+    prevdir = Path(sys.argv[2]) if len(sys.argv) > 2 else None
     (outdir / "soundings").mkdir(parents=True, exist_ok=True)
+
+    # carry forward previous per-launch files still inside the retention window
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=RETAIN_H)
+    prev_manifest = {}
+    if prevdir and (prevdir / "manifest.json").exists():
+        prev_manifest = json.loads((prevdir / "manifest.json").read_text())
+        carried = 0
+        for f in (prevdir / "soundings").glob("*_*.csv"):
+            try:
+                ts = datetime.strptime(f.stem.split("_")[1], "%Y%m%d%H").replace(
+                    tzinfo=timezone.utc)
+            except (IndexError, ValueError):
+                continue
+            if ts >= cutoff:
+                (outdir / "soundings" / f.name).write_text(f.read_text())
+                carried += 1
+        print(f"  carried forward {carried} launch file(s)", flush=True)
 
     # newest-first union of the last two synoptic manifests
     entries: dict = {}
@@ -100,42 +126,46 @@ def main() -> int:
             entries.setdefault(e["id"], e)
     print(f"  UW manifest union: {len(entries)} stations", flush=True)
 
-    # retention: carry forward recent previous-cycle stations we still lack
-    try:
-        prev = json.loads(get(RAW_PREV).decode())
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=RETAIN_H)
-        kept = 0
-        for sid, e in prev.get("entries", {}).items():
-            if sid in entries:
-                continue
+    # stations from the previous manifest whose launches are still in window
+    for sid, e in (prev_manifest.get("entries") or {}).items():
+        if sid in entries:
+            continue
+        try:
             if datetime.strptime(e["dt"], "%Y-%m-%d %H:%M").replace(
                     tzinfo=timezone.utc) >= cutoff:
-                e["carry"] = True
                 entries[sid] = e
-                kept += 1
-        print(f"  carried forward {kept} station(s) from previous cycle", flush=True)
-    except Exception as e:                                   # noqa: BLE001
-        print(f"  no previous manifest ({repr(e)[:50]})", flush=True)
+        except (KeyError, ValueError):
+            continue
 
-    ok, carried = {}, 0
+    ok = {}
     with cf.ThreadPoolExecutor(max_workers=WORKERS) as ex:
-        futs = {}
-        for sid, e in entries.items():
-            if e.get("carry"):
-                # re-download carried stations too (cheap; keeps files present)
-                futs[ex.submit(fetch_station, e, outdir)] = sid
-            else:
-                futs[ex.submit(fetch_station, e, outdir)] = sid
+        futs = {ex.submit(fetch_station, e, outdir): sid
+                for sid, e in entries.items()}
         for f in cf.as_completed(futs):
             sid = futs[f]
             if f.result():
-                ok[sid] = {k: v for k, v in entries[sid].items() if k != "carry"}
+                ok[sid] = entries[sid]
             time.sleep(0.02)
+
+    # per-station available launch hours (within retention) + legacy latest copy
+    hours: dict = {}
+    for f in (outdir / "soundings").glob("*_*.csv"):
+        sid, tag = f.stem.split("_")
+        dtstr = f"{tag[:4]}-{tag[4:6]}-{tag[6:8]} {tag[8:10]}:00"
+        hours.setdefault(sid, []).append(dtstr)
+    for sid, hs in hours.items():
+        hs.sort()
+        if sid in ok:
+            ok[sid]["hours"] = hs
+            ok[sid]["dt"] = hs[-1]
+            latest = outdir / "soundings" / f"{sid}_{_tag(hs[-1])}.csv"
+            (outdir / "soundings" / f"{sid}.csv").write_text(latest.read_text())
 
     (outdir / "manifest.json").write_text(json.dumps(
         {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
          "entries": ok}))
-    print(f"  mirrored {len(ok)}/{len(entries)} stations → {outdir}", flush=True)
+    print(f"  mirrored {len(ok)}/{len(entries)} stations "
+          f"({sum(len(h) for h in hours.values())} launch files) → {outdir}", flush=True)
     return 0 if len(ok) > 100 else 1
 
 
