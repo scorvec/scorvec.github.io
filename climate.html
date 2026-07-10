@@ -91,12 +91,12 @@
   </div>
 
   <div class="card">
-    <h2>Recent monthly means</h2>
-    <p class="note">Monthly-mean anomalies for the most recent complete months (official ERA5
-    monthly product, vs the same 1991–2020 climatology).</p>
-    <div class="month-grid" id="months-t2m"></div>
-    <div class="month-grid" id="months-z500" style="margin-top:10px"></div>
-    <div class="month-grid" id="months-mslp" style="margin-top:10px"></div>
+    <h2>Recent monthly anomalies</h2>
+    <p class="note">Monthly-mean anomalies for the most recent complete months — drag the slider or
+    press play, and switch the field (2 m temperature, 500 hPa height, MSLP, precipitation) inside
+    the panel. ERA5 vs 1991–2020; IMERG precipitation vs 2001–2025.</p>
+    <iframe class="anim-frame" src="sst_anim.html?embed=1&amp;base=assets/climate/monthly&amp;manifest=manifest.json&amp;region=t2m"
+            title="ERA5 and IMERG monthly anomaly maps" loading="lazy"></iframe>
   </div>
 
   <div class="card">
@@ -109,15 +109,6 @@
     with values; the chart below is the full monthly history — click legend entries to toggle.</p>
     <img id="img-tele" alt="Monthly teleconnection index table, last 13 months">
     <div id="teleseries" style="width:100%; height:380px; margin-top:10px"></div>
-  </div>
-
-  <div class="card">
-    <h2>Monthly precipitation anomaly</h2>
-    <p class="note">GPM IMERG monthly precipitation totals minus the satellite's own 2001–2025
-    climatology (mm) — teal wetter than normal, brown drier. Daily rainfall is intermittent, so
-    anomalies read cleanly only when aggregated to a month; the day-to-day <b>totals</b> live in the
-    animator above. Most recent complete months:</p>
-    <div class="month-grid" id="months-precip"></div>
   </div>
 
   <footer>
@@ -268,18 +259,7 @@ fetch("assets/climate/manifest.json?t=" + Date.now())
     const tele = document.getElementById("img-tele");
     tele.src = "assets/climate/teleconnections_monthly.webp?v=" + (m.era5_day || "");
     tele.onerror = () => tele.remove();
-    for (const vk of ["t2m", "z500", "mslp", "precip"]) {
-      const holder = document.getElementById("months-" + vk);
-      if (!holder) continue;
-      (m.months || []).slice().reverse().forEach(mm => {
-        const img = document.createElement("img");
-        img.src = `assets/climate/monthly/${vk}_${mm.replace("-", "")}.webp`;
-        img.alt = `${vk} monthly anomaly ${mm}`;
-        img.style.marginTop = "10px";
-        img.onerror = () => img.remove();
-        holder.appendChild(img);
-      });
-    }
+    // monthly anomalies are shown via the animator (assets/climate/monthly)
   })
   .catch(() => { document.getElementById("stamp").textContent = "Latest data unavailable."; });
 </script>
