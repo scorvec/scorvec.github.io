@@ -132,7 +132,7 @@ def _geo(ax, dark: bool):
     ax.add_feature(cfeature.BORDERS.with_scale("10m"), linewidth=0.6, edgecolor=border)
     lakes = cfeature.NaturalEarthFeature("physical", "lakes", "10m", facecolor="none")
     ax.add_feature(lakes, edgecolor=lake, linewidth=1.2, zorder=4)
-    ax.text(-79.88, 9.05, "Lago Gatún", transform=PC, fontsize=7.5, color=lake,
+    ax.text(-79.88, 9.05, "Lake Gatun", transform=PC, fontsize=7.5, color=lake,
             ha="center", va="top", zorder=5, fontweight="bold",
             path_effects=[mpe.withStroke(linewidth=1.8,
                                          foreground="#0d0d16" if dark else "white")])
@@ -167,7 +167,7 @@ def render_total(field: np.ndarray, vlabel: str, out: Path, win: dict):
     _geo(ax, dark=True)
     cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.05, aspect=40, extend="max")
     cb.set_label("accumulated precip (mm)", fontsize=8); cb.ax.tick_params(labelsize=7)
-    ax.set_title(f"Gatún watershed — IMERG {win['label']} precipitation  ·  {vlabel}",
+    ax.set_title(f"Lake Gatun watershed — IMERG {win['label']} precipitation  ·  {vlabel}",
                  fontsize=9.5, loc="left")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight", facecolor="white",
@@ -187,7 +187,7 @@ def render_anom(field: np.ndarray, vlabel: str, out: Path, win: dict):
     cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.05, aspect=40, extend="both")
     cb.set_label("precip anomaly vs 2001–2025 climatology (mm)", fontsize=8)
     cb.ax.tick_params(labelsize=7)
-    ax.set_title(f"Gatún watershed — IMERG {win['label']} precip anomaly  ·  {vlabel}",
+    ax.set_title(f"Lake Gatun watershed — IMERG {win['label']} precip anomaly  ·  {vlabel}",
                  fontsize=9.5, loc="left")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight", facecolor="white",
@@ -433,7 +433,7 @@ def rain_level_chart(out: Path, years: int = 8):
     ax1.axhline(0, color="#333", lw=0.8)
     ax1.set_ylabel("rain anomaly (mm)", fontsize=10)
     ax1.grid(axis="y", alpha=0.2)
-    ax1.set_title("Gatún watershed rainfall vs lake level — 90-day (fill) and 30-day (line) "
+    ax1.set_title("Lake Gatun watershed rainfall vs lake level — 90-day (fill) and 30-day (line) "
                   "rainfall anomaly; El Niño episodes shaded",
                   fontsize=11.5, loc="left", pad=8)
 
