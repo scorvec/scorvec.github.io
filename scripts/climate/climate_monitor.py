@@ -182,7 +182,7 @@ def era5_daily_mean(ds: xr.Dataset, day: pd.Timestamp, spec: dict) -> xr.DataArr
 
 # ── rendering ────────────────────────────────────────────────────────────────
 def render_global(field, lats, lons, title, cbar_label, out: Path,
-                  cmap=_BWR, vmax=None, levels=None):
+                  cmap=_BWR, vmax=None, levels=None, note=None):
     fig = plt.figure(figsize=(12.2, 6.6), dpi=100)
     ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=0))
     ax.set_global()
@@ -201,6 +201,10 @@ def render_global(field, lats, lons, title, cbar_label, out: Path,
                       fraction=0.028, extend="both")
     cb.set_label(cbar_label, fontsize=10); cb.ax.tick_params(labelsize=9)
     ax.set_title(title, fontsize=12, loc="left", pad=8)
+    if note:
+        ax.text(0.008, 0.025, note, transform=ax.transAxes, fontsize=10.5,
+                va="bottom", ha="left", zorder=10,
+                bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#999", alpha=0.9))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=100, facecolor="white", bbox_inches="tight", pad_inches=0.08,
                 pil_kwargs={"quality": 84, "method": 6})
@@ -275,9 +279,14 @@ def run_era5() -> str | None:
                 daily15 = daily.interp(latitude=lats, longitude=lons)
                 anom = daily15.values - eval_clim(coef, doy365(d))
                 if not fp.exists():
+                    note = None
+                    if name == "t2m":
+                        rm = region_means(anom, lats, lons)
+                        note = (f"Global {rm['global']:+.2f} °C · "
+                                f"NH {rm['nhem']:+.2f} °C · SH {rm['shem']:+.2f} °C")
                     render_global(anom, lats, lons,
                                   f"ERA5 {spec['title']} — {d:%Y-%m-%d} (vs 1991–2020)",
-                                  spec["cbar"], fp, vmax=spec["vmax"])
+                                  spec["cbar"], fp, vmax=spec["vmax"], note=note)
                 if need_series:
                     series.loc[d.strftime("%Y-%m-%d")] = region_means(anom, lats, lons)
                 if need_tele:
@@ -401,10 +410,15 @@ def run_monthly() -> list:
             v = v.interp(latitude=lats, longitude=lons)
             field = v.values * spec["scale"] + spec["offset"]
             anom = field - monthly_clim(clims[name]["coef"].values, m.year, m.month)
+            note = None
+            if name == "t2m":
+                rm = region_means(anom, lats, lons)
+                note = (f"Global {rm['global']:+.2f} °C · "
+                        f"NH {rm['nhem']:+.2f} °C · SH {rm['shem']:+.2f} °C")
             render_global(anom, lats, lons,
                           f"ERA5 {spec['title']} — {m:%B %Y} monthly mean (vs 1991–2020)",
                           spec["cbar"], (mdir / name).joinpath(f"{m:%Y%m}.webp"),
-                          vmax=max(2.0, spec["vmax"] / 2.5))
+                          vmax=max(2.0, spec["vmax"] / 2.5), note=note)
         except Exception as e:                               # noqa: BLE001
             print(f"  monthly {name} {m:%Y-%m} failed ({repr(e)[:70]})", flush=True)
     return months

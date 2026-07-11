@@ -95,6 +95,14 @@
   </div>
 
   <div class="card">
+    <h2>Daily precipitation</h2>
+    <p class="note">GPM IMERG (Early run) total precipitation for the most recent day, ~1-day lag.
+    Scrub the last 30 days in the evolution animator above; monthly anomalies are in the
+    animator below.</p>
+    <img id="img-precip" alt="GPM IMERG daily precipitation total map">
+  </div>
+
+  <div class="card">
     <h2>Recent monthly anomalies</h2>
     <p class="note">Monthly-mean anomalies for the most recent complete months — drag the slider or
     press play, and switch the field (2 m temperature, 500 hPa height, MSLP, precipitation) inside
@@ -266,7 +274,8 @@ fetch("assets/climate/manifest.json?t=" + Date.now())
     const v = (m.era5_day || "") + (m.imerg_day || "");
     for (const k of ["t2m", "z500", "mslp"])
       document.getElementById("img-" + k).src = `assets/climate/${k}_anom.webp?v=${v}`;
-// (daily precip totals are a field in the evolution animator above)
+    if (m.imerg_day) document.getElementById("img-precip").src =
+      `assets/climate/anim/precip/${m.imerg_day.replaceAll("-", "")}.webp?v=${v}`;
     document.getElementById("stamp").textContent =
       `ERA5 valid ${m.era5_day || "—"} · IMERG valid ${m.imerg_day || "—"} · generated ${m.generated}`;
     const tele = document.getElementById("img-tele");
