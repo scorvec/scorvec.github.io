@@ -129,7 +129,7 @@ KEEP int compute_sounding(const float* pres, const float* hght,
 
     float eff_srh = MISSING, eff_shear_mag = MISSING;
     float scp = MISSING, stp = MISSING;
-    if (eff.bottom != MISSING && mu.eql_pressure != MISSING) {
+    if (eff.bottom != MISSING && eff.top != MISSING && mu.eql_pressure != MISSING) {
         eff_srh = helicity(eff, bunkR, pres, uwin, vwin, N);
         // effective bulk shear: EIL bottom → 50% of the MU parcel EL height
         const float eil_bot_hght = interp_pressure(eff.bottom, pres, hght, N);
