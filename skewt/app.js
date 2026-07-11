@@ -24,6 +24,93 @@ async function loadClimo(gid) {
 function refreshTables() {
   if (lastProf && lastRes && !modal.hidden) fillTables(lastProf, lastRes);
 }
+let climoNow = {};
+const CLIMO_VARS = [
+  ["pwat", "Precipitable water", "mm"], ["850t", "850 hPa temperature", "°C"],
+  ["700t", "700 hPa temperature", "°C"], ["500t", "500 hPa temperature", "°C"],
+  ["h500", "500 hPa height", "m"], ["thick", "1000–500 hPa thickness", "m"],
+  ["fzl", "Freezing level (AGL)", "m"], ["kidx", "K-index", ""],
+  ["tott", "Total Totals", ""],
+];
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const climoModal = document.getElementById("climo-modal");
+function openClimo() {
+  if (!climo) return;
+  const sel = document.getElementById("climo-var");
+  sel.innerHTML = CLIMO_VARS.filter(([k]) =>
+    Object.values(climo.months || {}).some(m => m[k]))
+    .map(([k, lab]) => `<option value="${k}">${lab}</option>`).join("");
+  document.getElementById("climo-title").textContent =
+    `${current.n || current.gid} · climatology`;
+  climoModal.hidden = false;
+  drawClimo(sel.value);
+}
+function drawClimo(key) {
+  const meta = CLIMO_VARS.find(v => v[0] === key) || [key, key, ""];
+  const cv = document.getElementById("climo-canvas"), x = cv.getContext("2d");
+  const W = cv.width, H = cv.height, L = 54, R = 18, T = 18, B = 34;
+  x.clearRect(0, 0, W, H);
+  const months = [];
+  let lo = Infinity, hi = -Infinity;
+  for (let m = 1; m <= 12; m++) {
+    const d = (climo.months[String(m).padStart(2, "0")] || {})[key];
+    months.push(d || null);
+    if (d) { lo = Math.min(lo, d.min); hi = Math.max(hi, d.max); }
+  }
+  if (!isFinite(lo)) return;
+  const pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
+  const px = m => L + (W - L - R) * (m + 0.5) / 12;
+  const py = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  // grid + y labels
+  x.strokeStyle = "#26263a"; x.fillStyle = "#8b8ba3"; x.font = "11px Inter";
+  x.textAlign = "right";
+  for (let i = 0; i <= 4; i++) {
+    const v = lo + (hi - lo) * i / 4, yy = py(v);
+    x.beginPath(); x.moveTo(L, yy); x.lineTo(W - R, yy); x.stroke();
+    x.fillText(Math.round(v), L - 6, yy + 4);
+  }
+  x.textAlign = "center";
+  for (let m = 0; m < 12; m++) x.fillText(MON[m], px(m), H - 14);
+  const band = (pa, pb, col) => {
+    x.fillStyle = col; x.beginPath(); let started = false;
+    for (let m = 0; m < 12; m++) { const d = months[m]; if (!d) continue;
+      const xx = px(m), yy = py(d.p[pa]);
+      started ? x.lineTo(xx, yy) : x.moveTo(xx, yy); started = true; }
+    for (let m = 11; m >= 0; m--) { const d = months[m]; if (!d) continue;
+      x.lineTo(px(m), py(d.p[pb])); }
+    x.closePath(); x.fill();
+  };
+  band(2, 6, "rgba(74,122,181,0.22)");     // p10-p90
+  band(3, 5, "rgba(74,122,181,0.34)");     // p25-p75
+  // median line
+  x.strokeStyle = "#8fbaf0"; x.lineWidth = 2; x.beginPath(); let st = false;
+  for (let m = 0; m < 12; m++) { const d = months[m]; if (!d) continue;
+    const xx = px(m), yy = py(d.p[4]); st ? x.lineTo(xx, yy) : x.moveTo(xx, yy); st = true; }
+  x.stroke();
+  // record markers + years
+  x.font = "9px Inter";
+  for (let m = 0; m < 12; m++) { const d = months[m]; if (!d) continue;
+    x.fillStyle = "#e0603a"; x.fillText("▲", px(m), py(d.max) - 3);
+    x.fillStyle = "#4a7ab5"; x.fillText("▼", px(m), py(d.min) + 10);
+    x.fillStyle = "#6a6a86"; x.fillText(String(d.maxY).slice(2), px(m), py(d.max) - 12); }
+  // current sounding value
+  const cur = climoNow[key];
+  if (isFinite(cur) && lastMonth) {
+    const m = parseInt(lastMonth, 10) - 1;
+    x.fillStyle = "#ffd60a"; x.beginPath(); x.arc(px(m), py(cur), 6, 0, 7); x.fill();
+    x.strokeStyle = "#000"; x.lineWidth = 1; x.stroke();
+  }
+  document.getElementById("climo-sub").textContent =
+    `${meta[1]} (${meta[2]}) · record ${climo.months["01"] ? "" : ""}` +
+    `${Object.values(climo.months)[0].yr0}–${Object.values(climo.months)[0].yr1}`;
+}
+document.getElementById("climo-btn").addEventListener("click", openClimo);
+document.getElementById("climo-var").addEventListener("change", e => drawClimo(e.target.value));
+document.getElementById("climo-close").addEventListener("click", () => climoModal.hidden = true);
+climoModal.addEventListener("click", e => { if (e.target === climoModal) climoModal.hidden = true; });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !climoModal.hidden) climoModal.hidden = true;
+});
 const CLIMO_PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99];
 function climoRank(key, v) {                        // -> " · P68" / " · ★ record high (2025)"
   if (!climo || !isFinite(v) || lastMonth === null) return "";
@@ -939,6 +1026,11 @@ function fillTables(prof, res) {
        + (isFinite(h500) && isFinite(h1000) ? climoRank("thick", h500 - h1000) : "")],
     ["Freezing level", (isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—") + climoRank("fzl", fzl)],
   ];
+
+  climoNow = { pwat: o[15], "850t": t850, "700t": t700, "500t": t500,
+    h500: h500, thick: (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN,
+    fzl: fzl, kidx: kidx, tott: totalT };
+  document.getElementById("climo-btn").style.display = climo ? "" : "none";
 
   const row = ([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`;
   document.getElementById("kin-table").innerHTML = kinem.map(row).join("");
