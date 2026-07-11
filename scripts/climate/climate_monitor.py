@@ -57,13 +57,13 @@ MONTHLY_KEEP = 4                          # recent complete months to show
 
 ERA5_VARS = {
     "t2m":  dict(src="2m_temperature",          level=None, scale=1.0,          offset=-273.15,
-                 title="2 m temperature anomaly", cbar="°C",  vmax=12,
+                 title="2 m temperature anomaly", cbar="°C",  vmax=12, loop=30,
                  cds_var="2m_temperature", cds_ds="reanalysis-era5-single-levels-monthly-means"),
     "mslp": dict(src="mean_sea_level_pressure", level=None, scale=0.01,         offset=0.0,
-                 title="mean sea-level pressure anomaly", cbar="hPa", vmax=24,
+                 title="mean sea-level pressure anomaly", cbar="hPa", vmax=24, loop=90,
                  cds_var="mean_sea_level_pressure", cds_ds="reanalysis-era5-single-levels-monthly-means"),
     "z500": dict(src="geopotential",            level=500,  scale=1 / 9.80665,   offset=0.0,
-                 title="500 hPa geopotential height anomaly", cbar="m", vmax=240,
+                 title="500 hPa geopotential height anomaly", cbar="m", vmax=240, loop=90,
                  cds_var="geopotential", cds_ds="reanalysis-era5-pressure-levels-monthly-means"),
 }
 
@@ -254,7 +254,6 @@ def run_era5() -> str | None:
         return None
     print(f"  ERA5 latest complete day: {day:%Y-%m-%d}", flush=True)
 
-    loop_dates = pd.date_range(day - pd.Timedelta(days=LOOP_DAYS - 1), day)
     series = (pd.read_csv(SERIES_CSV, index_col=0) if SERIES_CSV.exists()
               else pd.DataFrame(columns=REGION_ORDER))
     # teleconnection state (present once build_z500_indices.py has run)
@@ -269,29 +268,36 @@ def run_era5() -> str | None:
         coef = clims[name]["coef"].values
         vdir = ANIM / name; vdir.mkdir(parents=True, exist_ok=True)
         entries = []
+        loop_dates = pd.date_range(
+            day - pd.Timedelta(days=spec.get("loop", LOOP_DAYS) - 1), day)
         for d in loop_dates:
             fp = vdir / f"{d:%Y%m%d}.webp"
             need_series = (name == "t2m" and d.strftime("%Y-%m-%d") not in series.index)
             need_tele = (name == "z500" and tele is not None
-                         and pd.Timestamp(d.date()) not in tele.index)
+                         and (pd.Timestamp(d.date()) not in tele.index
+                              or tele.loc[pd.Timestamp(d.date())].isna().any()))
             if not fp.exists() or need_series or need_tele:
                 daily = era5_daily_mean(ds, d, spec)
                 daily15 = daily.interp(latitude=lats, longitude=lons)
                 anom = daily15.values - eval_clim(coef, doy365(d))
+                if need_tele:
+                    tele.loc[pd.Timestamp(d.date())] = _tele_project_day(
+                        anom, lats, tele_pat, pd.Timestamp(d.date()))
                 if not fp.exists():
                     note = None
                     if name == "t2m":
                         rm = region_means(anom, lats, lons)
                         note = (f"Global {rm['global']:+.2f} °C · "
                                 f"NH {rm['nhem']:+.2f} °C · SH {rm['shem']:+.2f} °C")
+                    elif tele is not None and pd.Timestamp(d.date()) in tele.index:
+                        r = tele.loc[pd.Timestamp(d.date())]
+                        note = " · ".join(f"{k.upper()} {r[k]:+.1f}"
+                                          for k in ["nao", "pna", "epo", "wpo", "ao"])
                     render_global(anom, lats, lons,
                                   f"ERA5 {spec['title']} — {d:%Y-%m-%d} (vs 1991–2020)",
                                   spec["cbar"], fp, vmax=spec["vmax"], note=note)
                 if need_series:
                     series.loc[d.strftime("%Y-%m-%d")] = region_means(anom, lats, lons)
-                if need_tele:
-                    tele.loc[pd.Timestamp(d.date())] = _tele_project_day(
-                        anom, lats, tele_pat, pd.Timestamp(d.date()))
             entries.append({"idx": len(entries), "file": fp.name,
                             "date": f"{d:%Y-%m-%d}", "label": f"{d:%a %b %d, %Y}"})
         keep = {f"{d:%Y%m%d}" for d in loop_dates}

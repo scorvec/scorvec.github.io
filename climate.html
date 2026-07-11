@@ -68,8 +68,9 @@
   <div class="card">
     <h2>Evolution — the last 30 days</h2>
     <p class="note">Daily maps as an animation — drag the slider or press play, and switch the
-    field (2 m temperature, 500 hPa height, MSLP anomalies, or daily precipitation total) inside the
-    panel.</p>
+    field inside the panel: 2 m temperature and precipitation cover 30 days, 500 hPa height and
+    MSLP go back 90 days with that day's teleconnection indices (NAO · PNA · EPO · WPO · AO)
+    stamped on each frame.</p>
     <iframe class="anim-frame" src="sst_anim.html?embed=1&amp;base=assets/climate/anim&amp;manifest=manifest.json&amp;region=t2m"
             title="ERA5 daily anomaly loops, last 30 days" loading="lazy"></iframe>
   </div>
@@ -95,11 +96,11 @@
   </div>
 
   <div class="card">
-    <h2>Daily precipitation</h2>
-    <p class="note">GPM IMERG (Early run) total precipitation for the most recent day, ~1-day lag.
-    Scrub the last 30 days in the evolution animator above; monthly anomalies are in the
-    animator below.</p>
-    <img id="img-precip" alt="GPM IMERG daily precipitation total map">
+    <h2>Daily precipitation — 30-day loop</h2>
+    <p class="note">GPM IMERG (Early run) daily precipitation totals, ~1-day lag — drag the slider
+    or press play. Monthly anomalies are in the animator below.</p>
+    <iframe class="anim-frame" src="sst_anim.html?embed=1&amp;base=assets/climate/anim&amp;manifest=manifest.json&amp;region=precip"
+            title="IMERG daily precipitation loop, last 30 days" loading="lazy"></iframe>
   </div>
 
   <div class="card">
@@ -274,8 +275,7 @@ fetch("assets/climate/manifest.json?t=" + Date.now())
     const v = (m.era5_day || "") + (m.imerg_day || "");
     for (const k of ["t2m", "z500", "mslp"])
       document.getElementById("img-" + k).src = `assets/climate/${k}_anom.webp?v=${v}`;
-    if (m.imerg_day) document.getElementById("img-precip").src =
-      `assets/climate/anim/precip/${m.imerg_day.replaceAll("-", "")}.webp?v=${v}`;
+    // precip card is a dedicated animator iframe (region=precip)
     document.getElementById("stamp").textContent =
       `ERA5 valid ${m.era5_day || "—"} · IMERG valid ${m.imerg_day || "—"} · generated ${m.generated}`;
     const tele = document.getElementById("img-tele");
