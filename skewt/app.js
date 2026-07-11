@@ -449,9 +449,12 @@ Promise.all([
   // actually reported inside LIVE_H.
   const isLive = id => id && entries[id] && ageHours(entries[id].dt) <= LIVE_H;
 
-  // closed stations: archive-only, hidden behind the toggle
+  // closed stations: archive-only, hidden behind the toggle. Single-year
+  // records are one-off pilot-balloon campaigns (63 of them) — map clutter
+  // with nothing meaningful behind the dot, so they're scrubbed entirely.
   for (const s of stns.stations) {
     if (s.y1 >= ACTIVE_YEAR || (s.id && entries[s.id])) continue;
+    if (s.y1 <= s.y0) continue;
     const m = L.circleMarker([s.la, s.lo], {
       radius: RAD.closed, weight: 0.5, color: "#7a1f1f", fillColor: "#c0392b", fillOpacity: 0.75,
     }).addTo(closedLayer);

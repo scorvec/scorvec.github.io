@@ -179,7 +179,7 @@
   <h1 class="page-title">Global Real-time &amp; Archived Sounding Explorer</h1>
     <span class="desc" style="color:var(--muted); font-family:var(--sans); font-size:0.82rem; display:block;
     max-width:118ch; line-height:1.5; margin-top:2px">
-    Every weather-balloon (radiosonde) sounding ever released, anywhere on Earth, back nine decades.
+    Every weather-balloon (radiosonde) sounding ever released, anywhere on Earth, back more than a century.
     <b style="color:var(--ink)">Blue</b> stations reported within the last 24&nbsp;h; <b style="color:#bf5af2">purple</b> ones launched off-hour (06/18Z) — usually a special release ahead of severe weather;
     <b style="color:#33c495">teal</b> are active, <b style="color:#c0392b">red</b> are closed
     (archive only). Click a station, then pick <b style="color:var(--ink)">Latest</b> or
@@ -202,7 +202,7 @@
     <button data-act="archive" class="mctl">Archive</button>
     <span class="arch-controls" style="display:none">
       <button data-act="dprev" title="previous day">◀</button>
-      <input type="date" class="datectl" min="1943-01-01">
+      <input type="date" class="datectl" min="1905-01-01">
       <button data-act="dnext" title="next day">▶</button>
       <button data-act="h00" class="hctl">00Z</button>
       <button data-act="h12" class="hctl on">12Z</button>
@@ -248,7 +248,7 @@
     <button data-act="archive" class="mctl">Archive</button>
     <span class="arch-controls" style="display:none">
       <button data-act="dprev" title="previous day">◀</button>
-      <input type="date" class="datectl" min="1943-01-01">
+      <input type="date" class="datectl" min="1905-01-01">
       <button data-act="dnext" title="next day">▶</button>
       <button data-act="h00" class="hctl">00Z</button>
       <button data-act="h12" class="hctl on">12Z</button>
@@ -300,7 +300,7 @@
     <footer>
       <b>Data:</b> latest soundings from the
       <a href="https://weather.uwyo.edu/upperair/sounding.shtml">University of Wyoming</a> archive
-      (BUFR, mirrored ~4×/day — UW sends no CORS headers); any historical date directly from
+      (BUFR, mirrored 6×/day — UW sends no CORS headers); any historical date directly from
       <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">NOAA
       IGRA v2</a> (first load per station can be tens of MB, then cached).
       <b>Analysis:</b> <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (K. Halbert,
@@ -311,6 +311,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=24ea722f"></script>
+<script src="app.js?v=0e46f2f8"></script>
 </body>
 </html>
