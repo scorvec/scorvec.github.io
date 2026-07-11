@@ -1053,15 +1053,17 @@ function fillTables(prof, res) {
     ["Eff. SRH", fmt(o[30]) + " m²/s²"],
     ["Eff. shear (EBWD)", o[31] === MISSING ? "—" : (o[31] * KT).toFixed(0) + " kt"],
     ["Eff. inflow", effIL],
-    ["EHI 0–1 km", ehi(o[0], o[26])], ["EHI 0–3 km", ehi(o[0], o[27])],
     ["Bunkers RM", vecf(o[22], o[23])], ["Bunkers LM", vecf(o[24], o[25])],
-    ["SCP", fmt(o[32], 1)], ["STP (eff.)", fmt(o[33], 1)], ["SHIP", climoCell("ship", o[43], fmt(o[43], 1))],
+  ];
+  const composites = [
+    ["EHI 0–1 km", ehi(o[0], o[26])], ["EHI 0–3 km", ehi(o[0], o[27])],
+    ["SCP", fmt(o[32], 1)], ["STP (eff.)", fmt(o[33], 1)],
+    ["SHIP", climoCell("ship", o[43], fmt(o[43], 1))],
   ];
   const thermo = [
-    ["MU CAPE", fmt(o[10]) + " J/kg"],
     ["ECAPE (MU)", climoCell("ecape", o[42], o[42] === MISSING ? "—" : fmt(o[42]) + " J/kg")],
-    ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
     ["DCAPE", fmt(o[39]) + " J/kg"],
+    ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
     ["PWAT", climoCell("pwat", o[15], fmt(o[15], 1) + " mm")],
     ["Lapse 0–3 km", fmt(o[16], 1) + " K/km"], ["Lapse 3–6 km", fmt(o[17], 1) + " K/km"],
   ];
@@ -1098,6 +1100,7 @@ function fillTables(prof, res) {
 
   const row = ([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`;
   document.getElementById("kin-table").innerHTML = kinem.map(row).join("");
+  document.getElementById("kin-table-b").innerHTML = composites.map(row).join("");
   document.getElementById("kin-table2").innerHTML = thermo.map(row).join("");
   document.getElementById("kin-table3").innerHTML = levels.map(row).join("");
 }
@@ -1112,7 +1115,7 @@ function clearPlot(msg) {
     ctx.fillText(msg || "no data", cv.width / 2, cv.height / 2);
     ctx.textAlign = "left";
   }
-  for (const id of ["pcl-table", "kin-table", "kin-table2", "kin-table3"])
+  for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3"])
     document.getElementById(id).innerHTML = "";
   plotTitle = "";
 }
@@ -1125,6 +1128,6 @@ function render(prof) {
   drawSkewT(prof, res);
   drawHodo(prof, res);
   if (hasT) fillTables(prof, res);
-  else for (const id of ["pcl-table", "kin-table", "kin-table2", "kin-table3"])
+  else for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3"])
     document.getElementById(id).innerHTML = "";
 }
