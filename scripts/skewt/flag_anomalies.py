@@ -26,6 +26,12 @@ PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
 # humid day and would drown the signal; these four actually mark an unusual
 # airmass or an unusual amount of instability.
 WATCH = ("h500", "thick", "850t", "ecape")
+# Some indices are only interesting at ONE end. A station with no convective
+# energy is in its normal state — "record low ECAPE" is not news, it's just a
+# quiet day, and it crowds out the genuinely unstable soundings. Heights,
+# thicknesses and 850 mb temperatures matter at both ends (a record-cold airmass
+# is as notable as a record-warm one).
+HIGH_ONLY = {"ecape"}
 LABELS = {"h500": "500mb hgt", "thick": "1000-500 thick", "850t": "850mb T",
           "ecape": "ECAPE"}
 G = 9.80665
@@ -175,7 +181,8 @@ def main() -> int:
             # be genuinely separated from the bulk: below p5 AND strictly below p25
             # (or above p95 AND strictly above p75).
             pp = A["p"][s]
-            low_ok = pct <= 5 and v < pp[3]              # p[3] = 25th percentile
+            low_ok = (pct <= 5 and v < pp[3]            # p[3] = 25th percentile
+                      and k not in HIGH_ONLY)
             high_ok = pct >= 95 and v > pp[5]            # p[5] = 75th percentile
             if low_ok or high_ok:
                 flags.append({"k": k, "lab": LABELS.get(k, k),

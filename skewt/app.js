@@ -152,6 +152,9 @@ document.addEventListener("keydown", e => {
 });
 const CLIMO_PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99];
 const CLIMO_MIN_N = 30;                  // a "record" from 4 soundings is noise
+// Only interesting at the top end: a sounding with no convective energy is in
+// its normal state, so "record low ECAPE/SHIP" is noise, not news.
+const CLIMO_HIGH_ONLY = new Set(["ecape", "ship"]);
 function climoPct(key, v) {                          // -> {pct, rec} or null
   if (!climo || !isFinite(v)) return null;
   const A = climo.idx && climo.idx[key];
@@ -173,6 +176,7 @@ function climoPct(key, v) {                          // -> {pct, rec} or null
   const degenerateHigh = v <= d.p[5];     // not actually above the 75th
   if ((pct <= CLIMO_LO && degenerateLow) || (pct >= CLIMO_HI && degenerateHigh))
     return null;
+  if (pct <= CLIMO_LO && CLIMO_HIGH_ONLY.has(key)) return null;   // low = a quiet day
   const rec = (v >= d.max && v > d.p[5]) ? { t: "high", y: d.maxY }
     : (v <= d.min && v < d.p[3]) ? { t: "low", y: d.minY } : null;
   return { pct: Math.max(0, Math.min(100, pct)), rec };
