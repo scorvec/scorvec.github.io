@@ -161,10 +161,16 @@ footer b { color: var(--ink2); font-weight: 600; }
 
 <script>
 // size embedded animators to their real content height (mobile controls wrap)
+const _embedH = new Map();
 addEventListener("message", e => {
   const d = e.data;
   if (!d || d.type !== "sstAnimHeight") return;
-  document.querySelectorAll("iframe").forEach(fr => {
+  const frames = [...document.querySelectorAll(".embeds iframe")];
+  frames.forEach(fr => { if (fr.contentWindow === e.source) _embedH.set(fr, d.h); });
+  // side-by-side cards align to the TALLER one so their bottoms match
+  const h = Math.max(...frames.map(fr => _embedH.get(fr) || 0));
+  frames.forEach(fr => { if (h) { fr.style.height = h + "px"; fr.style.aspectRatio = "auto"; } });
+  document.querySelectorAll("iframe:not(.embeds iframe)").forEach(fr => {
     if (fr.contentWindow === e.source) { fr.style.height = d.h + "px"; fr.style.aspectRatio = "auto"; }
   });
 });

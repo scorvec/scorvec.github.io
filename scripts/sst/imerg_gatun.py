@@ -48,7 +48,7 @@ ASSETS = ANIM_ROOT.parent                       # assets/sst
 PC = ccrs.PlateCarree()
 
 # Gatún framing: the isthmus + both approaches (81°W–77.4°W, 7.4–10.6°N)
-GCFG = dict(extent=(279.0, 282.6, 7.4, 10.6), clon=280.8, figsize=(7.8, 7.4),
+GCFG = dict(extent=(278.3, 283.3, 6.7, 11.3), clon=280.8, figsize=(7.8, 7.4),
             dlon=1, dlat=1, scale="10m")
 # Chagres/Gatún watershed averaging box for the daily rain series (°E 0–360)
 BASIN = dict(lat=(9.0, 9.6), lon=(280.0, 280.7))          # 80.0°W–79.3°W
