@@ -1793,10 +1793,6 @@ function drawHodo(prof, res) {
   for (let i = 0; i < n && agl[i] <= 6000; i++) { mu6 += prof.U[i]; mv6 += prof.V[i]; c6++; }
   if (c6) mark(mu6 / c6, mv6 / c6, "MW", "#a8a8c2", true);
 
-  // Deviant tornado motion: midpoint of Bunkers RM and the 0-500 m mean wind.
-  const mw05 = meanWindAgl(prof, 0, 500);
-  if (o[22] !== MISSING && mw05)
-    mark(0.5 * (o[22] + mw05[0]), 0.5 * (o[23] + mw05[1]), "DTM", "#ff9f0a", false);
 
   // Effective-layer Bunkers — only when it differs from the fixed-layer vector.
   if (o[47] !== MISSING && o[22] !== MISSING &&
