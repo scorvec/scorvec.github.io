@@ -166,8 +166,7 @@ function fogRows(prof) {
     : spd0 <= 7 ? " (in the 2–7 kt fog sweet spot)" : " (likely too mixed)";
   // dew vs frost: below 0 °C deposition happens at the FROST point, which sits
   // above the dew point (ice saturation < water saturation) — invert ice Magnus
-  const e = 6.112 * Math.exp(17.67 * D0 / (D0 + 243.5));
-  const tf = 272.62 * Math.log(e / 6.112) / (22.46 - Math.log(e / 6.112));
+  const tf = frostPtC(D0);
   const deposit = D0 > 0.2
     ? `dew (Td above freezing)${T0 - D0 <= 3 ? " — likely tonight with clear skies" : ""}`
     : D0 > -0.2 ? "dew/frost mix — Td right at freezing"
@@ -183,11 +182,110 @@ function fogRows(prof) {
     ["Wet-bulb (sfc)", `${wetbulbC(T0, D0).toFixed(1)} °C`],
   ];
 }
+function frostPtC(tdC) {
+  const e = 6.112 * Math.exp(17.67 * tdC / (tdC + 243.5));
+  return 272.62 * Math.log(e / 6.112) / (22.46 - Math.log(e / 6.112));
+}
+// PBL-zoom charts: T / Td / frost point vs height AGL (lowest ~2 km, where fog,
+// frost and dew are decided) plus an RH strip showing the hydrolapse.
+function drawFogCharts(prof) {
+  const cv = document.getElementById("fog-canvas");
+  const { W, H, ctx } = fitCanvas(cv);
+  ctx.fillStyle = TH.panel; ctx.fillRect(0, 0, W, H);
+  ctx.font = "10px Inter, sans-serif";
+  const z0 = prof.H[0], pts = [];
+  for (let i = 0; i < prof.P.length; i++) {
+    const z = prof.H[i] - z0;
+    if (z > 2300) break;
+    if (!isFinite(prof.T[i])) continue;
+    const t = prof.T[i] - 273.15, d = isFinite(prof.D[i]) ? prof.D[i] - 273.15 : NaN;
+    pts.push({ z, t, d, f: isFinite(d) ? frostPtC(d) : NaN,
+      rh: isFinite(d) ? 100 * Math.exp(17.67 * d / (d + 243.5) - 17.67 * t / (t + 243.5)) : NaN });
+  }
+  if (pts.length < 3) {
+    ctx.fillStyle = TH.muted; ctx.fillText("not enough low-level data", 12, 20); return;
+  }
+  const zMax = Math.max(1000, pts[pts.length - 1].z);
+  const Mg = { l: 40, t: 20, b: 24 }, wL = Math.round(W * 0.64), gap = 34;
+  let xmin = 99, xmax = -99;
+  for (const q of pts) {
+    xmax = Math.max(xmax, q.t);
+    if (isFinite(q.d)) xmin = Math.min(xmin, q.d);
+    if (isFinite(q.f) && q.f <= 0.5) xmin = Math.min(xmin, q.f);
+  }
+  xmin = Math.floor(xmin) - 2; xmax = Math.ceil(xmax) + 2;
+  const x = v => Mg.l + (v - xmin) / (xmax - xmin) * (wL - Mg.l - 6);
+  const y = z => H - Mg.b - z / zMax * (H - Mg.t - Mg.b);
+  const rx = v => wL + gap + v / 100 * (W - wL - gap - 8);
+  // height grid across both panels
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (let z = 0; z <= zMax; z += 500) {
+    ctx.strokeStyle = TH.gridSub; ctx.beginPath();
+    ctx.moveTo(Mg.l, y(z)); ctx.lineTo(wL - 6, y(z));
+    ctx.moveTo(rx(0), y(z)); ctx.lineTo(rx(100), y(z)); ctx.stroke();
+    ctx.fillStyle = TH.muted; ctx.fillText(z ? z + " m" : "sfc", Mg.l - 4, y(z));
+  }
+  // temp ticks + 0C isotherm
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  const step = (xmax - xmin) > 24 ? 10 : 5;
+  for (let v = Math.ceil(xmin / step) * step; v <= xmax; v += step) {
+    ctx.strokeStyle = TH.gridSub; ctx.beginPath();
+    ctx.moveTo(x(v), y(0)); ctx.lineTo(x(v), Mg.t); ctx.stroke();
+    ctx.fillStyle = TH.muted; ctx.fillText(v + "\u00b0", x(v), y(0) + 4);
+  }
+  if (xmin < 0 && xmax > 0) {
+    ctx.strokeStyle = TH.isotherm0; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(x(0), y(0)); ctx.lineTo(x(0), Mg.t); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineWidth = 1;
+  }
+  // inversion layers shaded
+  for (let i = 1; i < pts.length; i++)
+    if (pts[i].t > pts[i - 1].t + 0.02) {
+      ctx.fillStyle = "rgba(255,159,10,0.10)";
+      ctx.fillRect(Mg.l, y(pts[i].z), wL - 6 - Mg.l, y(pts[i - 1].z) - y(pts[i].z));
+    }
+  const trace = (key, color, dash, cond) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 1.8; ctx.setLineDash(dash);
+    ctx.beginPath(); let pen = false;
+    for (const q of pts) {
+      const ok = isFinite(q[key]) && (!cond || cond(q));
+      if (!ok) { pen = false; continue; }
+      pen ? ctx.lineTo(x(q[key]), y(q.z)) : ctx.moveTo(x(q[key]), y(q.z)); pen = true;
+    }
+    ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
+  };
+  trace("t", TH.temp, []);
+  trace("d", TH.dwpt, []);
+  trace("f", "#7dd8ff", [4, 3], q => q.f <= 0.5);   // frost pt only meaningful near/below 0C
+  // RH strip
+  ctx.strokeStyle = TH.grid; ctx.strokeRect(rx(0), Mg.t, rx(100) - rx(0), y(0) - Mg.t);
+  ctx.strokeStyle = TH.isotherm0; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(rx(90), y(0)); ctx.lineTo(rx(90), Mg.t); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(48,209,88,0.14)";
+  ctx.beginPath(); ctx.moveTo(rx(0), y(0)); let pen = false;
+  for (const q of pts) if (isFinite(q.rh)) ctx.lineTo(rx(q.rh), y(q.z));
+  ctx.lineTo(rx(0), y(Math.min(zMax, pts[pts.length - 1].z))); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = TH.dwpt; ctx.lineWidth = 1.6; ctx.beginPath();
+  for (const q of pts) if (isFinite(q.rh)) { pen ? ctx.lineTo(rx(q.rh), y(q.z)) : ctx.moveTo(rx(q.rh), y(q.z)); pen = true; }
+  ctx.stroke(); ctx.lineWidth = 1;
+  ctx.textAlign = "center"; ctx.fillStyle = TH.muted;
+  for (const v of [0, 50, 90]) ctx.fillText(v, rx(v), y(0) + 4);
+  ctx.fillText("RH %", (rx(0) + rx(100)) / 2, 4);
+  // legend
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  let lx = Mg.l;
+  for (const [lab, col] of [["T", TH.temp], ["Td", TH.dwpt], ["frost pt", "#7dd8ff"], ["inversion", "rgba(255,159,10,0.7)"]]) {
+    ctx.fillStyle = col; ctx.fillRect(lx, 8, 10, 3);
+    ctx.fillStyle = TH.ink; ctx.fillText(lab, lx + 13, 13);
+    lx += 13 + ctx.measureText(lab).width + 12;
+  }
+}
 document.getElementById("fog-btn").addEventListener("click", () => {
   if (!lastProf) return;
   document.getElementById("fog-table").innerHTML =
     fogRows(lastProf).map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
   document.getElementById("fog-modal").hidden = false;
+  requestAnimationFrame(() => { try { drawFogCharts(lastProf); } catch (e) {} });
 });
 document.getElementById("fog-close").addEventListener("click",
   () => document.getElementById("fog-modal").hidden = true);
