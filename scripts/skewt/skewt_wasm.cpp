@@ -40,7 +40,7 @@ using namespace sharp;
 // 34 mu_lpl_p 35 sb_lcl_hght_agl
 // 36 sb_li500 37 ml_li500 38 mu_li500  (K, vs env virtual temp)
 // 39 dcape    40 sb_cape_0_3km         41 mu_ncape (J/kg per m)
-// 42 ecape_mu 43 ship
+// 42 ecape_mu 43 ship 44 ecape_sb 45 ecape_ml
 
 extern "C" {
 
@@ -214,9 +214,13 @@ KEEP int compute_sounding(const float* pres, const float* hght,
         const float q = mixr[i] / (1.0f + mixr[i]);        // specific humidity
         mse[i] = moist_static_energy(hght[i] - sfc, tmpk[i], q);
     }
-    float ecape = MISSING;
+    float ecape = MISSING, ecape_sb = MISSING, ecape_ml = MISSING;
     if (mu.cape > 0)
         ecape = entrainment_cape(pres, hght, tmpk, mse.data(), uwin, vwin, N, &mu);
+    if (sb.cape > 0)
+        ecape_sb = entrainment_cape(pres, hght, tmpk, mse.data(), uwin, vwin, N, &sb);
+    if (ml.cape > 0)
+        ecape_ml = entrainment_cape(pres, hght, tmpk, mse.data(), uwin, vwin, N, &ml);
 
     // --- SHIP: significant hail parameter -----------------------------------
     const float lr75 = lapse_rate(PressureLayer(70000.0f, 50000.0f), pres, hght, tmpk, N);
@@ -245,7 +249,7 @@ KEEP int compute_sounding(const float* pres, const float* hght,
         eff_srh, eff_shear_mag, scp, stp,
         mu.pres, sb_lcl_agl,
         sb_li, ml_li, mu_li, dcape, (float)c3, mu_ncape,
-        ecape, ship,
+        ecape, ship, ecape_sb, ecape_ml,
     };
     for (size_t i = 0; i < sizeof(o) / sizeof(float); ++i) out[i] = o[i];
     return 0;
