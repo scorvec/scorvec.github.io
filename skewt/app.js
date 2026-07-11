@@ -168,6 +168,15 @@ addEventListener("orientationchange", () => setTimeout(() => map.invalidateSize(
 if (window.ResizeObserver) new ResizeObserver(() => map.invalidateSize())
   .observe(document.querySelector(".mapwrap"));
 setTimeout(() => map.invalidateSize(), 400);
+let redrawTimer = null;
+function redrawCharts() {
+  if (modal.hidden || !lastProf || !lastRes) return;
+  drawSkewT(lastProf, lastRes); drawHodo(lastProf, lastRes);
+}
+addEventListener("resize", () => { clearTimeout(redrawTimer); redrawTimer = setTimeout(redrawCharts, 120); });
+if (window.ResizeObserver) new ResizeObserver(() => {
+  clearTimeout(redrawTimer); redrawTimer = setTimeout(redrawCharts, 120);
+}).observe(document.querySelector(".main"));
 const modal = document.getElementById("modal");
 function setStatus(text, busy = false) {
   for (const id of ["status", "mstatus"]) {
@@ -675,9 +684,20 @@ const dirOf = (u, v) => ((Math.atan2(-u, -v) * 180 / Math.PI) + 360) % 360;
 // ---------- skew-t drawing ----------
 const SK = { l: 52, r: 84, t: 36, b: 34, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
 
+function fitCanvas(cv) {                    // backing store = panel size × dpr
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = cv.clientWidth, h = cv.clientHeight;
+  const ctx = cv.getContext("2d");
+  if (w && h) {
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { W: w, H: h, ctx };
+  }
+  return { W: cv.width, H: cv.height, ctx };
+}
 function drawSkewT(prof, res) {
-  const cv = document.getElementById("skewt"), ctx = cv.getContext("2d");
-  const W = cv.width, H = cv.height;
+  const cv = document.getElementById("skewt");
+  const { W, H, ctx } = fitCanvas(cv);
   const pw = W - SK.l - SK.r, ph = H - SK.t - SK.b;
   const yOf = p => SK.t + (1 - Math.log(SK.pBot / p) / Math.log(SK.pBot / SK.pTop)) * ph;
   const xOf = (tC, y) => SK.l + ((tC - SK.tL) / (SK.tR - SK.tL)) * pw + ((SK.t + ph) - y);
@@ -866,8 +886,8 @@ function drawBarbs(ctx, prof, x0, yOf) {
 
 // ---------- hodograph ----------
 function drawHodo(prof, res) {
-  const cv = document.getElementById("hodo"), ctx = cv.getContext("2d");
-  const W = cv.width, H = cv.height;
+  const cv = document.getElementById("hodo");
+  const { W, H, ctx } = fitCanvas(cv);
   ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
   const o = res.o;
   const agl = prof.H.map(h => h - prof.H[0]);
@@ -1057,6 +1077,7 @@ function render(prof) {
   const hasT = prof.T.some(v => isFinite(v));
   const res = hasT ? compute(prof) : { o: new Array(48).fill(MISSING),
     sb: [], ml: [], mu: [] };
+  lastProf = prof; lastRes = res;
   drawSkewT(prof, res);
   drawHodo(prof, res);
   if (hasT) fillTables(prof, res);
