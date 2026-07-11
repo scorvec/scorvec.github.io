@@ -335,7 +335,14 @@ let archDate = new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10);
 const igraCache = new Map();     // gid -> decompressed text
 
 // ---------- wasm ----------
-const wasmReady = createSharp().then(mod => { M = mod; });
+// Version the .wasm URL as well: sharplib.js resolves it itself, so without
+// this a cached WASM could pair with fresh JS — mismatched out[] indices and
+// silently wrong numbers, which is far worse than a crash. WASM_V is stamped by
+// scripts/skewt/stamp_assets.py.
+const WASM_V = "a0d6cbc6";
+const wasmReady = createSharp({
+  locateFile: (f) => f.endsWith(".wasm") ? `${f}?v=${WASM_V}` : f,
+}).then(mod => { M = mod; });
 
 function f32(arr) {
   const p = M._malloc(arr.length * 4);
