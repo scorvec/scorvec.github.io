@@ -90,9 +90,9 @@
   .maplegend .leg-chip { display: none; }        /* desktop: always full card */
   @media (max-width: 700px) {
     /* mobile default = collapsed chip; .expanded shows the full card */
-    .maplegend { padding: 0; cursor: pointer; }
+    .maplegend { padding: 0; cursor: pointer; border-radius: 16px; }
     .maplegend .leg-chip { display: flex; align-items: center; justify-content: center;
-      width: 30px; height: 30px; font-size: 18px; }
+      gap: 3px; padding: 5px 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
     .maplegend .leg-body { display: none; }
     .maplegend.expanded { padding: 6px 9px; font-size: 11px; line-height: 1.7; }
     .maplegend.expanded .leg-chip { display: none; }
@@ -187,7 +187,7 @@
           <table class="params kin" id="kin-table"></table>
         </div>
         <div>
-          <h3>Composites &amp; moisture</h3>
+          <h3>Thermo, moisture &amp; levels</h3>
           <table class="params kin" id="kin-table2"></table>
         </div>
       </div>

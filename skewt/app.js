@@ -116,7 +116,7 @@ legend.onAdd = () => {
   const div = L.DomUtil.create("div");
   div.className += " maplegend";
   div.innerHTML =
-    '<span class="leg-chip" title="legend">ⓘ</span><div class="leg-body">' +
+    '<span class="leg-chip" title="legend">ⓘ&nbsp;key</span><div class="leg-body">' +
     '<span style="color:#4a7ab5;font-size:1.05em">●</span> sounding in last 36 h &nbsp; ' +
     '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp; ' +
     '<span style="color:#c0392b;font-size:1.05em">●</span> closed<br>' +
@@ -509,6 +509,29 @@ function interpHagl(prof, pPa) {          // height AGL (m) at pressure, log-p l
   }
   return null;
 }
+function interpP(prof, key, pPa) {         // interp any field at pressure (log-p)
+  const P = prof.P, A = prof[key];
+  if (!isFinite(pPa) || pPa >= P[0]) return A[0];
+  for (let i = 1; i < P.length; i++) {
+    if (P[i] <= pPa) {
+      if (!isFinite(A[i]) || !isFinite(A[i - 1])) return NaN;
+      const f = Math.log(P[i - 1] / pPa) / Math.log(P[i - 1] / P[i]);
+      return A[i - 1] + f * (A[i] - A[i - 1]);
+    }
+  }
+  return NaN;
+}
+function freezingLvlAgl(prof) {            // lowest 0 °C crossing, m AGL
+  const P = prof.P, T = prof.T, H = prof.H;
+  for (let i = 1; i < P.length; i++) {
+    if (isFinite(T[i]) && isFinite(T[i - 1]) &&
+        (T[i - 1] - 273.15) >= 0 && (T[i] - 273.15) < 0) {
+      const f = (273.15 - T[i - 1]) / (T[i] - T[i - 1]);
+      return H[i - 1] + f * (H[i] - H[i - 1]) - H[0];
+    }
+  }
+  return NaN;
+}
 function windAt(prof, hAgl) {             // interp u,v at height AGL
   const H = prof.H, sfc = H[0];
   for (let i = 1; i < H.length; i++) {
@@ -849,9 +872,33 @@ function fillTables(prof, res) {
     ["Bunkers RM", vecf(o[22], o[23])], ["Bunkers LM", vecf(o[24], o[25])],
     ["SCP", fmt(o[32], 1)], ["STP (eff.)", fmt(o[33], 1)],
   ];
+
+  // --- level values & classic thermodynamic indices (from the profile) ---
+  const C = k => { const v = interpP(prof, "T", k * 100); return isFinite(v) ? v - 273.15 : NaN; };
+  const Cd = k => { const v = interpP(prof, "D", k * 100); return isFinite(v) ? v - 273.15 : NaN; };
+  const t850 = C(850), t700 = C(700), t500 = C(500);
+  const d850 = Cd(850), d700 = Cd(700);
+  const h500 = interpP(prof, "H", 50000);          // MSL geopotential height (m)
+  const h1000 = interpP(prof, "H", 100000);
+  const kidx = (t850 - t500) + d850 - (t700 - d700);
+  const totalT = t850 + d850 - 2 * t500;
+  const fzl = freezingLvlAgl(prof);
+  const g = (v, u, dp = 1) => isFinite(v) ? v.toFixed(dp) + u : "—";
+  const levels = [
+    ["850 hPa T / Td", `${g(t850, "", 0)} / ${g(d850, " °C", 0)}`],
+    ["700 hPa T / Td", `${g(t700, "", 0)} / ${g(d700, " °C", 0)}`],
+    ["500 hPa T", g(t500, " °C", 0)],
+    ["500 hPa height", isFinite(h500) ? Math.round(h500) + " m" : "—"],
+    ["1000–500 thick.", (isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—"],
+    ["Freezing level", isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—"],
+    ["K-index", g(kidx, "", 0)],
+    ["Total Totals", g(totalT, "", 0)],
+  ];
+
   const row = ([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`;
-  document.getElementById("kin-table").innerHTML = kin.slice(0, 8).map(row).join("");
-  document.getElementById("kin-table2").innerHTML = kin.slice(8).map(row).join("");
+  document.getElementById("kin-table").innerHTML = kin.slice(0, 10).map(row).join("");
+  document.getElementById("kin-table2").innerHTML =
+    kin.slice(10).concat(levels).map(row).join("");
 }
 
 // ---------- render ----------
