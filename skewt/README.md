@@ -135,6 +135,41 @@ but the **ratio**: an entrainment efficiency of 55% means nearly half the advert
 - Corfidi vectors are *not* shown: they are referenced inside SHARPlib but not exposed as a public
   function, and I'd rather omit a parameter than fabricate one.
 
+### Moist static energy — the quantity underneath it all
+
+ECAPE is built on **moist static energy**, so the explorer plots it directly (the narrow panel beside
+the hodograph):
+
+**h = cp·T + g·z + Lv·q**
+
+MSE is *conserved* under both dry and moist adiabatic ascent — a parcel carries its h upward
+unchanged, whether or not it's condensing. That makes it the natural currency for convection.
+
+The panel shows two curves:
+
+- **h** (blue) — the actual moist static energy of the air at each level.
+- **h\*** (red) — the **saturation** MSE: what h *would* be if that level were saturated. It depends
+  only on temperature and pressure, so it's a property of the environment, not its moisture.
+
+A parcel lifted from the boundary layer conserves its h. It is **buoyant wherever its h exceeds the
+environment's h\*** — so the region shaded green (BL h > h\*) is precisely the layer that generates
+CAPE. The dashed gold line marks boundary-layer h, and the gap between it and the h\* curve *is* the
+instability, drawn to scale.
+
+The scalars in the Thermo column:
+
+| Value | Meaning |
+|---|---|
+| **MSE (0–500 m)** | Boundary-layer h — the energy a surface parcel carries aloft |
+| **Min saturation MSE** | The lowest h\* aloft (usually mid-levels) — the "dry hole" a parcel must survive, with its height |
+| **MSE deficit (h\*−h)** | Negative ⇒ the BL parcel out-energizes the mid-levels ⇒ conditionally unstable |
+| **Column MSE** | The vertical integral (1/g)∫h dp, in GJ/m² — the column's total moist energy, the state variable of tropical MSE-budget theory |
+
+A worked example (Fort Worth, 2026-07-11 12Z): BL h = 344.1 kJ/kg against a minimum h\* of
+337.6 kJ/kg at 4.3 km — a deficit of **−6.5 kJ/kg**, i.e. the boundary layer carries more energy than
+the mid-troposphere can hold at saturation. That gap is the sounding's CAPE, expressed in energy
+terms.
+
 ---
 
 ## 4. Climatology — how the percentiles are built

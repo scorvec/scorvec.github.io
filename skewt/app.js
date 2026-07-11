@@ -307,7 +307,7 @@ setTimeout(() => map.invalidateSize(), 400);
 let redrawTimer = null;
 function redrawCharts() {
   if (modal.hidden || !lastProf || !lastRes) return;
-  drawSkewT(lastProf, lastRes); drawHodo(lastProf, lastRes);
+  drawSkewT(lastProf, lastRes); drawHodo(lastProf, lastRes); drawMSE(lastProf);
 }
 addEventListener("resize", () => { clearTimeout(redrawTimer); redrawTimer = setTimeout(redrawCharts, 120); });
 if (window.ResizeObserver) new ResizeObserver(() => {
@@ -817,6 +817,51 @@ function interpP(prof, key, pPa) {         // interp any field at pressure (log-
   }
   return NaN;
 }
+// Moist static energy: h = cp·T + g·z + Lv·q  (the quantity ECAPE is built on).
+// Comparing h against saturation MSE (h*) is the classic conditional-instability
+// diagnostic: wherever boundary-layer h exceeds h*, a lifted parcel is buoyant.
+const CP = 1005.7, LV = 2.501e6, GRAV = 9.80665;
+function mseProfile(prof) {
+  const n = prof.P.length;
+  const h = [], hs = [], z = [];
+  const qOf = (Pa, Tk) => {                      // specific humidity at saturation w.r.t. Tk
+    const tc = Tk - 273.15;
+    const e = 611.2 * Math.exp(17.67 * tc / (tc + 243.5));   // Pa
+    const w = 0.622 * e / Math.max(Pa - e, 1);
+    return w / (1 + w);
+  };
+  for (let i = 0; i < n; i++) {
+    const P = prof.P[i], T = prof.T[i], D = prof.D[i], H = prof.H[i];
+    if (!isFinite(P) || !isFinite(T) || !isFinite(H)) { h.push(NaN); hs.push(NaN); z.push(NaN); continue; }
+    const q = isFinite(D) ? qOf(P, D) : NaN;     // actual (from dewpoint)
+    const qs = qOf(P, T);                        // saturation (from temperature)
+    h.push(isFinite(q) ? (CP * T + GRAV * H + LV * q) / 1000 : NaN);   // kJ/kg
+    hs.push((CP * T + GRAV * H + LV * qs) / 1000);
+    z.push(H - prof.H[0]);
+  }
+  // boundary-layer h: mean over the lowest 500 m
+  let sum = 0, cnt = 0;
+  for (let i = 0; i < n && z[i] <= 500; i++) if (isFinite(h[i])) { sum += h[i]; cnt++; }
+  const hbl = cnt ? sum / cnt : NaN;
+  // minimum saturation MSE (the mid-level "dry hole" a parcel must survive)
+  let hsmin = Infinity, hsminZ = NaN;
+  for (let i = 0; i < n; i++) {
+    if (isFinite(hs[i]) && z[i] > 1000 && z[i] < 9000 && hs[i] < hsmin) {
+      hsmin = hs[i]; hsminZ = z[i];
+    }
+  }
+  if (!isFinite(hsmin)) hsmin = NaN;
+  // column-integrated MSE: (1/g)∫ h dp  -> J/m²
+  let col = 0, ok = false;
+  for (let i = 1; i < n; i++) {
+    if (!isFinite(h[i]) || !isFinite(h[i - 1])) continue;
+    col += 0.5 * (h[i] + h[i - 1]) * 1000 * (prof.P[i - 1] - prof.P[i]) / GRAV;
+    ok = true;
+  }
+  return { h, hs, z, hbl, hsmin, hsminZ,
+           deficit: hsmin - hbl, col: ok ? col : NaN };
+}
+
 function wetbulbC(Tc, Tdc) {               // Stull 2011 approximation (°C)
   const es = tc => 6.112 * Math.exp(17.67 * tc / (tc + 243.5));
   const RH = Math.max(1, Math.min(100, 100 * es(Tdc) / es(Tc)));
@@ -1066,6 +1111,63 @@ function drawBarbs(ctx, prof, x0, yOf) {
 }
 
 // ---------- hodograph ----------
+function drawMSE(prof) {
+  const cv = document.getElementById("mse");
+  const { W, H, ctx } = fitCanvas(cv);
+  ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
+  const m = mseProfile(prof);
+  const L = 34, R = 10, T = 30, B = 26, zTop = 15000;
+  const vals = m.h.concat(m.hs).filter(v => isFinite(v));
+  if (!vals.length) return;
+  let lo = Math.min(...vals) - 3, hi = Math.max(...vals) + 3;
+  const X = v => L + (W - L - R) * (v - lo) / (hi - lo);
+  const Y = z => T + (H - T - B) * (1 - Math.min(z, zTop) / zTop);
+
+  ctx.strokeStyle = "#22223a"; ctx.fillStyle = "#8b8ba3"; ctx.font = "9.5px Inter";
+  ctx.textAlign = "right";
+  for (let z = 0; z <= zTop; z += 3000) {                  // height grid
+    const y = Y(z);
+    ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(W - R, y); ctx.stroke();
+    ctx.fillText(z / 1000 + "km", L - 3, y + 3);
+  }
+  // shade the layer where a boundary-layer parcel is buoyant (h_BL > h*)
+  if (isFinite(m.hbl)) {
+    ctx.fillStyle = "rgba(48,209,88,0.16)";
+    for (let i = 1; i < m.z.length; i++) {
+      if (!isFinite(m.hs[i]) || m.z[i] > zTop) continue;
+      if (m.hbl > m.hs[i]) {
+        const y1 = Y(m.z[i]), y0 = Y(m.z[i - 1]);
+        ctx.fillRect(X(m.hs[i]), y1, Math.max(1, X(m.hbl) - X(m.hs[i])), Math.abs(y0 - y1) + 1);
+      }
+    }
+  }
+  const line = (arr, col, wd) => {
+    ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.beginPath(); let st = false;
+    for (let i = 0; i < arr.length; i++) {
+      if (!isFinite(arr[i]) || m.z[i] > zTop) continue;
+      const x = X(arr[i]), y = Y(m.z[i]);
+      st ? ctx.lineTo(x, y) : ctx.moveTo(x, y); st = true;
+    }
+    ctx.stroke();
+  };
+  line(m.hs, "#ff453a", 2);                                // saturation MSE (h*)
+  line(m.h, "#4a9bf0", 2.2);                               // MSE (h)
+  if (isFinite(m.hbl)) {                                   // boundary-layer h
+    ctx.strokeStyle = "#ffd60a"; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(X(m.hbl), T); ctx.lineTo(X(m.hbl), H - B); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.textAlign = "left"; ctx.font = "600 11px Inter";
+  ctx.fillStyle = TH.ink; ctx.fillText("Moist static energy", L, 13);
+  ctx.font = "10px Inter";
+  ctx.fillStyle = "#4a9bf0"; ctx.fillText("h", L, 25);
+  ctx.fillStyle = "#8b8ba3"; ctx.fillText("·", L + 10, 25);
+  ctx.fillStyle = "#ff453a"; ctx.fillText("h*", L + 16, 25);
+  ctx.fillStyle = "#ffd60a"; ctx.fillText("· BL", L + 30, 25);
+  ctx.fillStyle = "#8b8ba3"; ctx.textAlign = "center";
+  ctx.fillText("kJ/kg", (L + W - R) / 2, H - 8);
+}
+
 function drawHodo(prof, res) {
   const cv = document.getElementById("hodo");
   const { W, H, ctx } = fitCanvas(cv);
@@ -1217,7 +1319,14 @@ function fillTables(prof, res) {
     ["Max updraft (CAPE)", isFinite(wmaxC) ? wmaxC.toFixed(0) + " m/s" : "—"],
     ["Entrain. efficiency", isFinite(entEff) ? entEff.toFixed(0) + " %" : "—"],
   ];
+  const M = mseProfile(prof);
   const thermo = [
+    ["MSE (0–500 m)", isFinite(M.hbl) ? M.hbl.toFixed(1) + " kJ/kg" : "—"],
+    ["Min sat. MSE (h*)", isFinite(M.hsmin)
+      ? `${M.hsmin.toFixed(1)} kJ/kg @ ${(M.hsminZ / 1000).toFixed(1)} km` : "—"],
+    ["MSE deficit (h*−h)", isFinite(M.deficit)
+      ? (M.deficit >= 0 ? "+" : "") + M.deficit.toFixed(1) + " kJ/kg" : "—"],
+    ["Column MSE ∫h dp/g", isFinite(M.col) ? (M.col / 1e9).toFixed(2) + " GJ/m²" : "—"],
     ["DCAPE", fmt(o[39]) + " J/kg"],
     ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
     ["PWAT", climoCell("pwat", o[15], fmt(o[15], 1) + " mm")],
@@ -1264,7 +1373,7 @@ function fillTables(prof, res) {
 // ---------- render ----------
 function clearPlot(msg) {
   setStatus(msg || "no data");
-  for (const id of ["skewt", "hodo"]) {
+  for (const id of ["skewt", "hodo", "mse"]) {
     const cv = document.getElementById(id), ctx = cv.getContext("2d");
     ctx.fillStyle = "#0a0a14"; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.fillStyle = "#8b8ba3"; ctx.font = "600 16px Inter"; ctx.textAlign = "center";
@@ -1283,6 +1392,7 @@ function render(prof) {
   lastProf = prof; lastRes = res;
   drawSkewT(prof, res);
   drawHodo(prof, res);
+  drawMSE(prof);
   if (hasT) fillTables(prof, res);
   else for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3"])
     document.getElementById(id).innerHTML = "";
