@@ -164,10 +164,19 @@ function fogRows(prof) {
   const rh500 = layerRH(prof, prof.P[0], Math.max(prof.P[0] - 6000, 50000));
   const windNote = spd0 < 2 ? " (near calm — dew may outpace fog)"
     : spd0 <= 7 ? " (in the 2–7 kt fog sweet spot)" : " (likely too mixed)";
+  // dew vs frost: below 0 °C deposition happens at the FROST point, which sits
+  // above the dew point (ice saturation < water saturation) — invert ice Magnus
+  const e = 6.112 * Math.exp(17.67 * D0 / (D0 + 243.5));
+  const tf = 272.62 * Math.log(e / 6.112) / (22.46 - Math.log(e / 6.112));
+  const deposit = D0 > 0.2
+    ? `dew (Td above freezing)${T0 - D0 <= 3 ? " — likely tonight with clear skies" : ""}`
+    : D0 > -0.2 ? "dew/frost mix — Td right at freezing"
+    : `FROST — frost point ${tf.toFixed(1)} °C, only ${Math.max(T0 - tf, 0).toFixed(1)} °C of cooling needed`;
   return [
     ["FSI", isFinite(fsi) ? `${fsi.toFixed(0)} — ${cat}` : "—"],
     ["Sfc T − Td", `${(T0 - D0).toFixed(1)} °C ${(T0 - D0) <= 2.5 ? "(near saturation)" : ""}`],
     ["Fog point (sfc Td)", `${D0.toFixed(1)} °C — cool ${(T0 - D0).toFixed(1)} °C to saturate`],
+    ["If sfc cools to saturation", deposit],
     ["Surface wind", `${spd0.toFixed(0)} kt${windNote}`],
     ["Sfc inversion", invTop ? `yes — top ${Math.round(invTop)} m, +${invDT.toFixed(1)} °C` : "none detected"],
     ["Mean RH lowest 60 hPa", isFinite(rh500) ? rh500.toFixed(0) + " %" : "—"],
