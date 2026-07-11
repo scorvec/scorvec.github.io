@@ -1604,10 +1604,14 @@ function fillTables(prof, res) {
     ["Mid-level RH (700–500)", (() => { const r = layerRH(prof, 70000, 50000);
       return isFinite(r) ? r.toFixed(0) + " %" : "—"; })()],
     ["Precip type (Bourgouin)", (() => {
+      // Always answer. This says what WOULD fall if it were precipitating, and
+      // that's a year-round question — a warm column reads "Rain", not blank.
       const pt = precipType(prof);
-      if (pt.sfcC > 5) return "—";                     // not a winter profile
-      return `<b>${pt.type}</b> <span class="pctlab">melt ${pt.PA.toFixed(0)} / ` +
-        `refreeze ${pt.NA.toFixed(0)} J/kg</span>`;
+      if (!isFinite(pt.PA)) return "—";
+      const detail = pt.PA > 0
+        ? `melt ${pt.PA.toFixed(0)}${pt.NA > 0 ? " / refreeze " + pt.NA.toFixed(0) : ""} J/kg`
+        : "no melting layer";
+      return `<b>${pt.type}</b> <span class="pctlab">${detail}</span>`;
     })()],
     ["PBL top (mixing depth)", (() => {
       const pp = o[46];
