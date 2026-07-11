@@ -980,6 +980,47 @@ function layerRH(prof, pBotPa, pTopPa) {
   return dpSum > 0 ? s / dpSum : NaN;
 }
 
+// ---- winter diagnostics ----------------------------------------------------
+// Precipitation type by the ENERGY-AREA method of Bourgouin (2000) — the
+// approach BUFKIT uses. Integrate Rd·(T − 273.15) d(ln p) to get the melting
+// energy of any warm nose aloft (positive area, PA) and the refreezing energy
+// of the cold layer beneath it (negative area, NA). A snowflake falling through
+// enough melting energy becomes a raindrop; whether it then refreezes into an
+// ice pellet or survives as freezing rain depends on NA.
+const RD = 287.05;
+function precipType(prof) {
+  const P = prof.P, T = prof.T;
+  const sfcC = T[0] - 273.15;
+  let PA = 0, NA = 0, warmAloft = false;
+  for (let i = P.length - 1; i >= 1; i--) {          // top-down
+    if (!isFinite(T[i]) || !isFinite(T[i - 1]) || P[i] < 20000) continue;
+    const dlnp = Math.log(P[i - 1] / P[i]);          // > 0
+    const tbar = 0.5 * (T[i] + T[i - 1]) - 273.15;   // °C
+    const e = RD * tbar * dlnp;                      // J/kg, signed
+    if (tbar > 0) { PA += e; warmAloft = true; }
+    else if (warmAloft) { NA += -e; }                // cold layer BELOW the nose
+  }
+  let type;
+  if (!warmAloft || PA < 5.6) type = "Snow";
+  else if (PA <= 13.2) type = "Snow / rain mix";
+  else if (sfcC > 0) type = "Rain";
+  else if (NA > 46 + 0.66 * PA) type = "Ice pellets";
+  else type = "Freezing rain";
+  return { type, PA, NA, sfcC };
+}
+
+// Kuchera snow-to-liquid ratio: keyed on the column's warmest temperature,
+// because a near-0 °C column gives dense wet snow and a cold one gives fluff.
+function kucheraRatio(prof) {
+  let tmax = -Infinity;
+  for (let i = 0; i < prof.P.length; i++) {
+    if (prof.P[i] < 50000) break;                    // surface -> 500 hPa
+    if (isFinite(prof.T[i])) tmax = Math.max(tmax, prof.T[i]);
+  }
+  if (!isFinite(tmax)) return NaN;
+  return tmax <= 271.16 ? 12 + 2 * (271.16 - tmax) : 12;
+}
+
 function wetbulbC(Tc, Tdc) {               // Stull 2011 approximation (°C)
   const es = tc => 6.112 * Math.exp(17.67 * tc / (tc + 243.5));
   const RH = Math.max(1, Math.min(100, 100 * es(Tdc) / es(Tc)));
