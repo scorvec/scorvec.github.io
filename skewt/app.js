@@ -121,13 +121,10 @@ legend.onAdd = () => {
     '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp; ' +
     '<span style="color:#c0392b;font-size:1.05em">●</span> closed<br>' +
     '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> show closed stations</label></div>';
-  if (window.matchMedia && matchMedia("(max-width: 700px)").matches) {
-    div.classList.add("collapsed");
-    div.addEventListener("click", e => {
-      if (e.target.id !== "show-closed" && e.target.tagName !== "LABEL")
-        div.classList.toggle("collapsed");
-    });
-  }
+  div.addEventListener("click", e => {          // chip toggles on mobile; CSS gates visibility
+    if (e.target.id !== "show-closed" && e.target.tagName !== "LABEL")
+      div.classList.toggle("expanded");
+  });
   L.DomEvent.disableClickPropagation(div);
   return div;
 };
