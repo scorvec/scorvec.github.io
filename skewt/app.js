@@ -342,6 +342,139 @@ function drawFogCharts(prof) {
     lx += 13 + ctx.measureText(lab).width + 12;
   }
 }
+// ---- cloud layer estimate ----
+// A level is "cloudy" when RH — with respect to ice below 0 C, where deposition
+// saturates first — exceeds a height-dependent threshold (radiosonde humidity
+// sensors read dry in cold air, so the bar drops with altitude).
+function cloudLayers(prof) {
+  const z0 = prof.H[0], levs = [];
+  for (let i = 0; i < prof.P.length; i++) {
+    const tC = prof.T[i] - 273.15, dC = prof.D[i] - 273.15;
+    const z = prof.H[i] - z0;
+    if (z > 15000) break;
+    if (!isFinite(tC) || !isFinite(dC)) continue;
+    const ew = 6.112 * Math.exp(17.67 * dC / (dC + 243.5));
+    let rh = 100 * ew / (6.112 * Math.exp(17.67 * tC / (tC + 243.5)));
+    if (tC < 0) rh = Math.max(rh, 100 * ew / (6.112 * Math.exp(22.46 * tC / (tC + 272.62))));
+    levs.push({ z, tC, rh: Math.min(rh, 105) });
+  }
+  const thr = z => z < 2000 ? 90 : z < 6000 ? 85 : 80;
+  const raw = [];
+  let cur = null;
+  for (const L of levs) {
+    if (L.rh >= thr(L.z)) {
+      if (!cur) cur = { base: L.z, top: L.z, tBase: L.tC, tTop: L.tC, maxRh: 0 };
+      cur.top = L.z; cur.tTop = L.tC; cur.maxRh = Math.max(cur.maxRh, L.rh);
+    } else if (cur) { raw.push(cur); cur = null; }
+  }
+  if (cur) raw.push(cur);
+  const layers = [];
+  for (const l of raw) {
+    const prev = layers[layers.length - 1];
+    if (prev && l.base - prev.top < 300) {
+      prev.top = l.top; prev.tTop = l.tTop; prev.maxRh = Math.max(prev.maxRh, l.maxRh);
+    } else layers.push(l);
+  }
+  return { layers, levs, thr };
+}
+function cloudRows(res) {
+  const fz = z => `${Math.round(z)} m / ${(z * 3.28084 / 1000).toFixed(1)} kft`;
+  if (!res.layers.length)
+    return [["Cloud layers", "none detected — column subsaturated at every level"]];
+  const rows = [];
+  const ceil = res.layers.find(l => l.maxRh >= 92);
+  rows.push(["Est. ceiling", ceil
+    ? `${Math.round(ceil.base)} m / ${Math.round(ceil.base * 3.28084 / 100) * 100} ft AGL`
+    : "none — no broken/overcast layer"]);
+  res.layers.forEach((l, i) => {
+    const lvl = l.base < 2000 ? "low" : l.base < 6000 ? "mid" : "high";
+    const cov = l.maxRh >= 97 ? "likely overcast" : l.maxRh >= 92 ? "broken" : "scattered/thin";
+    const lo = Math.min(l.tBase, l.tTop), hi = Math.max(l.tBase, l.tTop);
+    const icing = lo < 0 && hi > -20;
+    rows.push([`Layer ${i + 1} (${lvl})`,
+      `${fz(l.base)} \u2192 ${fz(l.top)} \u00b7 ${Math.max(1, Math.round((l.top - l.base) / 10) * 10)} m thick \u00b7 ` +
+      `peak RH ${Math.round(l.maxRh)}% \u00b7 ${cov}` +
+      (icing ? " \u00b7 supercooled (icing range)" : "")]);
+  });
+  return rows;
+}
+function drawCloudChart(prof, res) {
+  const cv = document.getElementById("cloud-canvas");
+  const { W, H, ctx } = fitCanvas(cv);
+  ctx.fillStyle = TH.panel; ctx.fillRect(0, 0, W, H);
+  ctx.font = "10px Inter, sans-serif";
+  const { layers, levs, thr } = res;
+  if (levs.length < 3) {
+    ctx.fillStyle = TH.muted; ctx.fillText("not enough moisture data", 12, 20); return;
+  }
+  const zTop = Math.min(15000, Math.max(8000, (layers.length ? layers[layers.length - 1].top : 0) + 2000,
+    levs[levs.length - 1].z));
+  const Mg = { l: 44, t: 20, b: 24 }, colR = Math.round(W * 0.5);
+  const y = z => H - Mg.b - z / zTop * (H - Mg.t - Mg.b);
+  const rxL = colR + 40, rxR = W - 44;
+  const rx = v => rxL + v / 105 * (rxR - rxL);
+  ctx.textBaseline = "middle";
+  for (let z = 0; z <= zTop; z += 2000) {
+    ctx.strokeStyle = TH.gridSub; ctx.beginPath();
+    ctx.moveTo(Mg.l, y(z)); ctx.lineTo(colR - 6, y(z));
+    ctx.moveTo(rx(0), y(z)); ctx.lineTo(rx(105), y(z)); ctx.stroke();
+    ctx.fillStyle = TH.muted; ctx.textAlign = "right";
+    ctx.fillText(z ? z / 1000 + " km" : "sfc", Mg.l - 4, y(z));
+    ctx.textAlign = "left";
+    ctx.fillText(z ? (z * 3.28084 / 1000).toFixed(0) + " kft" : "", rx(105) + 4, y(z));
+  }
+  // freezing level across the cloud column
+  const zf = freezingLvlAgl(prof);
+  if (isFinite(zf) && zf > 0 && zf < zTop) {
+    ctx.strokeStyle = TH.isotherm0; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(Mg.l, y(zf)); ctx.lineTo(colR - 6, y(zf)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = TH.isotherm0; ctx.textAlign = "left";
+    ctx.fillText("0\u00b0C", Mg.l + 2, y(zf) - 8);
+  }
+  // cloud boxes, opacity scaled by peak RH
+  for (const l of layers) {
+    const hPx = Math.max(4, y(l.base) - y(l.top));
+    ctx.fillStyle = `rgba(198,210,232,${Math.min(0.85, 0.25 + (l.maxRh - 75) / 40)})`;
+    ctx.fillRect(Mg.l + 10, y(l.top), colR - Mg.l - 26, hPx);
+    if (hPx >= 15) {
+      ctx.fillStyle = "#0b0b12"; ctx.textAlign = "center";
+      ctx.fillText(`${(l.base * 3.28084 / 1000).toFixed(1)}\u2013${(l.top * 3.28084 / 1000).toFixed(1)} kft`,
+        (Mg.l + colR - 16) / 2, (y(l.top) + y(l.base)) / 2);
+    }
+  }
+  // RH profile with the cloudy threshold
+  ctx.strokeStyle = TH.grid; ctx.strokeRect(rx(0), Mg.t, rx(105) - rx(0), y(0) - Mg.t);
+  ctx.strokeStyle = "rgba(255,159,10,0.65)"; ctx.setLineDash([4, 3]); ctx.beginPath();
+  let tpen = false;
+  for (let z = 0; z <= zTop; z += 100) {
+    tpen ? ctx.lineTo(rx(thr(z)), y(z)) : ctx.moveTo(rx(thr(z)), y(z)); tpen = true;
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.strokeStyle = TH.dwpt; ctx.lineWidth = 1.6; ctx.beginPath();
+  let pen = false;
+  for (const L of levs) { pen ? ctx.lineTo(rx(L.rh), y(L.z)) : ctx.moveTo(rx(L.rh), y(L.z)); pen = true; }
+  ctx.stroke(); ctx.lineWidth = 1;
+  ctx.fillStyle = TH.muted; ctx.textAlign = "center"; ctx.textBaseline = "top";
+  for (const v of [0, 50, 80, 100]) ctx.fillText(v, rx(v), y(0) + 4);
+  ctx.fillText("RH % (wrt ice below 0\u00b0C)", (rx(0) + rx(105)) / 2, 4);
+  ctx.fillText("cloud layers", (Mg.l + colR) / 2, 4);
+  ctx.textBaseline = "alphabetic";
+}
+document.getElementById("cloud-btn").addEventListener("click", () => {
+  if (!lastProf) return;
+  const res = cloudLayers(lastProf);
+  document.getElementById("cloud-table").innerHTML =
+    cloudRows(res).map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
+  document.getElementById("cloud-modal").hidden = false;
+  requestAnimationFrame(() => { try { drawCloudChart(lastProf, res); } catch (e) {} });
+});
+document.getElementById("cloud-close").addEventListener("click",
+  () => document.getElementById("cloud-modal").hidden = true);
+document.getElementById("cloud-modal").addEventListener("click", e => {
+  if (e.target.id === "cloud-modal") document.getElementById("cloud-modal").hidden = true;
+});
+
 document.getElementById("fog-btn").addEventListener("click", () => {
   if (!lastProf) return;
   document.getElementById("fog-table").innerHTML =
