@@ -1434,9 +1434,22 @@ function drawSkewT(prof, res) {
   {
     const maxW = W - SK.l - (compact ? 10 : 200);
     let title = plotTitle;
-    while (title.length > 4 && ctx.measureText(title).width > maxW)
-      title = title.slice(0, -2);
-    if (title !== plotTitle) title = title.trimEnd() + "…";
+    if (ctx.measureText(title).width > maxW) {
+      // never sacrifice the date/time — ellipsize the STATION NAME instead
+      const cut = title.lastIndexOf("·");
+      if (cut > 0) {
+        const suffix = title.slice(cut);              // "· 2026-07-11 06Z"
+        let prefix = title.slice(0, cut);
+        while (prefix.length > 3 &&
+               ctx.measureText(prefix.trimEnd() + "… " + suffix).width > maxW)
+          prefix = prefix.slice(0, -2);
+        title = prefix.trimEnd() + "… " + suffix;
+      } else {
+        while (title.length > 4 && ctx.measureText(title).width > maxW)
+          title = title.slice(0, -2);
+        title = title.trimEnd() + "…";
+      }
+    }
     ctx.fillText(title, SK.l, 22);
   }
   if (plotCoords) {
