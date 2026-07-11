@@ -144,6 +144,48 @@ function drawClimo(key) {
     `${meta[1]}${meta[2] ? " (" + meta[2] + ")" : ""} · record ${climo.yr0}–${climo.yr1}`;
 }
 
+// ---- fog diagnostics (BUFKIT-style radiation-fog screening) ----
+function fogRows(prof) {
+  const T0 = prof.T[0] - 273.15, D0 = prof.D[0] - 273.15;
+  const spd0 = Math.hypot(prof.U[0], prof.V[0]) * KT;
+  const t850 = interpP(prof, "T", 85000), w850u = null;
+  const w8 = windAt(prof, Math.max(100, (interpHagl(prof, 85000) ?? 1500)));
+  const v850 = w8 ? Math.hypot(w8[0], w8[1]) * KT : NaN;
+  const fsi = (isFinite(t850)) ? 4 * T0 - 2 * ((t850 - 273.15) + D0) + v850 : NaN;
+  const cat = !isFinite(fsi) ? "—" : fsi < 31 ? "HIGH risk" : fsi <= 55 ? "moderate" : "low";
+  // surface-based inversion: T rising from the surface
+  let invTop = null, invDT = 0;
+  for (let i = 1; i < prof.P.length; i++) {
+    if (!isFinite(prof.T[i]) || !isFinite(prof.T[i - 1])) break;
+    if (prof.T[i] >= prof.T[i - 1] - 0.05) { invTop = prof.H[i] - prof.H[0]; invDT = prof.T[i] - prof.T[0]; }
+    else break;
+    if (prof.H[i] - prof.H[0] > 1500) break;
+  }
+  const rh500 = layerRH(prof, prof.P[0], Math.max(prof.P[0] - 6000, 50000));
+  const windNote = spd0 < 2 ? " (near calm — dew may outpace fog)"
+    : spd0 <= 7 ? " (in the 2–7 kt fog sweet spot)" : " (likely too mixed)";
+  return [
+    ["FSI", isFinite(fsi) ? `${fsi.toFixed(0)} — ${cat}` : "—"],
+    ["Sfc T − Td", `${(T0 - D0).toFixed(1)} °C ${(T0 - D0) <= 2.5 ? "(near saturation)" : ""}`],
+    ["Fog point (sfc Td)", `${D0.toFixed(1)} °C — cool ${(T0 - D0).toFixed(1)} °C to saturate`],
+    ["Surface wind", `${spd0.toFixed(0)} kt${windNote}`],
+    ["Sfc inversion", invTop ? `yes — top ${Math.round(invTop)} m, +${invDT.toFixed(1)} °C` : "none detected"],
+    ["Mean RH lowest 60 hPa", isFinite(rh500) ? rh500.toFixed(0) + " %" : "—"],
+    ["Wet-bulb (sfc)", `${wetbulbC(T0, D0).toFixed(1)} °C`],
+  ];
+}
+document.getElementById("fog-btn").addEventListener("click", () => {
+  if (!lastProf) return;
+  document.getElementById("fog-table").innerHTML =
+    fogRows(lastProf).map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
+  document.getElementById("fog-modal").hidden = false;
+});
+document.getElementById("fog-close").addEventListener("click",
+  () => document.getElementById("fog-modal").hidden = true);
+document.getElementById("fog-modal").addEventListener("click", e => {
+  if (e.target.id === "fog-modal") document.getElementById("fog-modal").hidden = true;
+});
+
 document.getElementById("climo-btn").addEventListener("click", openClimo);
 document.getElementById("climo-var").addEventListener("change", e => drawClimo(e.target.value));
 document.getElementById("climo-close").addEventListener("click", () => climoModal.hidden = true);

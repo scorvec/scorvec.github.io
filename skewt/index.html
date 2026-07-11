@@ -229,6 +229,23 @@
   <img id="png-view-img" alt="full sounding analysis image" style="max-width:none; width:1400px; display:block; margin:0 auto; padding:8px">
 </div>
 
+<div id="fog-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog" style="height:auto; max-height:88vh; width:min(560px,94vw)">
+    <div class="dlg-head controls">
+      <span class="station">🌫 Fog diagnostics</span>
+      <button id="fog-close" title="close" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <table class="params kin" id="fog-table" style="font-size:0.85rem"></table>
+    </div>
+    <p class="note" style="color:var(--muted); font-size:0.75rem; margin-top:8px">
+      BUFKIT-style radiation-fog screening from this sounding. FSI = 4·T<sub>sfc</sub> −
+      2·(T<sub>850</sub>+Td<sub>sfc</sub>) + V<sub>850</sub>(kt): &lt;31 high risk, 31–55 moderate,
+      &gt;55 low. Radiation fog favors a small surface dewpoint depression, light (2–7 kt) surface
+      wind, a surface-based inversion, and moist air trapped beneath it.</p>
+  </div>
+</div>
+
 <div id="climo-modal" class="modal" hidden>
   <div class="dialog" style="height:auto; max-height:92vh; width:min(1160px,96vw)">
     <div class="dlg-head controls">
@@ -267,6 +284,7 @@
       <a id="uw-link" href="https://weather.uwyo.edu/upperair/sounding.shtml" target="_blank"
          rel="noopener" style="font-size:0.78rem; color:var(--accent)">UW page ↗</a>
       <button id="climo-btn" style="display:none">📊 Climatology</button>
+      <button id="fog-btn" title="fog diagnostics">🌫 Fog</button>
       <button id="share-btn" title="copy a link to this exact sounding">🔗 Share</button>
       <button id="export-btn" title="download skew-T + hodograph as an image">📷 PNG</button>
       <button id="pin-btn" title="pin this sounding, then load another to overlay them">📌 Compare</button>
@@ -321,6 +339,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=4d6bc75c"></script>
+<script src="app.js?v=495be61b"></script>
 </body>
 </html>
