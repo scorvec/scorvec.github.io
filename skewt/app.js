@@ -2121,45 +2121,6 @@ function drawSkewT(prof, res) {
   drawTrace(res.sb, TH.parcelSB, 1.4, [5, 4]);      // surface-based
   drawTrace(res.mu, TH.parcelMU, 1.8, [6, 4]);      // most-unstable (on top)
 
-  // Both traces were always drawn, but nothing said which was which — and on a
-  // surface-based sounding the MU parcel IS the surface parcel, so they lie on
-  // top of each other and look like one line. Label them, and say so explicitly
-  // when they coincide.
-  const sameParcel = (o[34] !== MISSING && isFinite(o[34]) &&
-                      Math.abs(o[34] - prof.P[0]) < 500);   // MU LPL == surface
-  {
-    // legend gets its own translucent panel — drawn bare it sat on top of the
-    // km ticks and the EIL bracket and was unreadable
-    const items = [["MU parcel", TH.parcelMU, [6, 4]],
-                   ["SB parcel", TH.parcelSB, [5, 4]],
-                   ["ML parcel", TH.parcelML, [2, 3]]];
-    const note = sameParcel ? "MU = SB (surface-based)" : null;
-    const rowH = compact ? 13 : 16;
-    const bh = items.length * rowH + (note ? rowH : 0) + (compact ? 9 : 12);
-    const bx = compact ? SK.l + 6 : SK.l + 44;
-    const by = compact ? SK.t + 6 : SK.t + ph - bh - 8;
-    const bw = compact ? (note ? 158 : 96) : (note ? 190 : 118);
-    ctx.fillStyle = "rgba(8,8,16,0.85)";
-    ctx.strokeStyle = "#2a2a44"; ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 7) : ctx.rect(bx, by, bw, bh);
-    ctx.fill(); ctx.stroke();
-    ctx.textAlign = "left";
-    let ly = by + rowH;
-    for (const [lab, col, dash] of items) {
-      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash(dash);
-      ctx.beginPath(); ctx.moveTo(bx + 7, ly - 4); ctx.lineTo(bx + (compact ? 25 : 31), ly - 4);
-      ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = col; ctx.font = compact ? "600 10px Inter" : "600 12px Inter";
-      ctx.fillText(lab, bx + (compact ? 30 : 37), ly);
-      ly += rowH;
-    }
-    if (note) {
-      ctx.fillStyle = TH.muted; ctx.font = compact ? "9.5px Inter" : "11px Inter";
-      ctx.fillText(note, bx + 7, ly);
-    }
-  }
-
   // pinned comparison sounding: grey, behind the live profile
   if (pinned && pinned.prof !== prof) {
     const pp = pinned.prof;
@@ -2291,6 +2252,47 @@ function drawSkewT(prof, res) {
     ctx.fillText(T, xOf(T, SK.t + ph) - 8, SK.t + ph + 16);
   ctx.fillText("°C", SK.l + pw / 2, H - 6);
   drawBarbs(ctx, prof, W - SK.r + 40, yOf);
+
+  // parcel legend LAST so no trace paints over it (env curves and the
+  // pinned overlay draw after the parcel traces where it used to live)
+  // Both traces were always drawn, but nothing said which was which — and on a
+  // surface-based sounding the MU parcel IS the surface parcel, so they lie on
+  // top of each other and look like one line. Label them, and say so explicitly
+  // when they coincide.
+  const sameParcel = (o[34] !== MISSING && isFinite(o[34]) &&
+                      Math.abs(o[34] - prof.P[0]) < 500);   // MU LPL == surface
+  {
+    // legend gets its own translucent panel — drawn bare it sat on top of the
+    // km ticks and the EIL bracket and was unreadable
+    const items = [["MU parcel", TH.parcelMU, [6, 4]],
+                   ["SB parcel", TH.parcelSB, [5, 4]],
+                   ["ML parcel", TH.parcelML, [2, 3]]];
+    const note = sameParcel ? "MU = SB (surface-based)" : null;
+    const rowH = compact ? 13 : 16;
+    const bh = items.length * rowH + (note ? rowH : 0) + (compact ? 9 : 12);
+    const bx = compact ? SK.l + 6 : SK.l + 44;
+    const by = compact ? SK.t + 6 : SK.t + ph - bh - 8;
+    const bw = compact ? (note ? 158 : 96) : (note ? 190 : 118);
+    ctx.fillStyle = "rgba(8,8,16,0.85)";
+    ctx.strokeStyle = "#2a2a44"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 7) : ctx.rect(bx, by, bw, bh);
+    ctx.fill(); ctx.stroke();
+    ctx.textAlign = "left";
+    let ly = by + rowH;
+    for (const [lab, col, dash] of items) {
+      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash(dash);
+      ctx.beginPath(); ctx.moveTo(bx + 7, ly - 4); ctx.lineTo(bx + (compact ? 25 : 31), ly - 4);
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = col; ctx.font = compact ? "600 10px Inter" : "600 12px Inter";
+      ctx.fillText(lab, bx + (compact ? 30 : 37), ly);
+      ly += rowH;
+    }
+    if (note) {
+      ctx.fillStyle = TH.muted; ctx.font = compact ? "9.5px Inter" : "11px Inter";
+      ctx.fillText(note, bx + 7, ly);
+    }
+  }
 }
 
 function drawBarbs(ctx, prof, x0, yOf) {
