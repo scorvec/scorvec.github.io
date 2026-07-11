@@ -466,10 +466,20 @@ function cloudRows(res) {
   if (!res.layers.length)
     return [["Cloud layers", "none detected — column subsaturated at every level"]];
   const rows = [];
+  // ceiling base = where RH first reaches the broken/overcast bar (92%) inside
+  // the layer, not the 85% detection edge — surface haze (RH 85-92%) must not
+  // read as a 0 ft ceiling. True surface-based saturation reports as obscured.
   const ceil = res.layers.find(l => l.maxRh >= 92);
-  rows.push(["Est. ceiling", ceil
-    ? `${Math.round(ceil.base)} m / ${Math.round(ceil.base * 3.28084 / 100) * 100} ft AGL`
-    : "none — no broken/overcast layer"]);
+  let ceilTxt = "none — no broken/overcast layer";
+  if (ceil) {
+    const lv = res.levs.find(L => L.z >= ceil.base - 1 && L.z <= ceil.top + 1 && L.rh >= 92);
+    const zb = lv ? lv.z : ceil.base;
+    ceilTxt = zb < 50
+      ? `obscured — surface-based saturation (fog), top ${Math.round(ceil.top)} m / ` +
+        `${(ceil.top * 3.28084 / 1000).toFixed(1)} kft`
+      : `${Math.round(zb)} m / ${Math.round(zb * 3.28084 / 100) * 100} ft AGL`;
+  }
+  rows.push(["Est. ceiling", ceilTxt]);
   res.layers.forEach((l, i) => {
     const lvl = l.base < 2000 ? "low" : l.base < 6000 ? "mid" : "high";
     const cov = l.maxRh >= 97 ? "likely overcast" : l.maxRh >= 92 ? "broken" : "scattered/thin";
