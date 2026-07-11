@@ -1374,7 +1374,8 @@ function fillTables(prof, res) {
     ["Column MSE ∫h dp/g", isFinite(M.col) ? (M.col / 1e9).toFixed(2) + " GJ/m²" : "—"],
     ["DCAPE", fmt(o[39]) + " J/kg"],
     ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
-    ["PWAT", climoCell("pwat", o[15], fmt(o[15], 1) + " mm")],
+    ["PWAT", climoCell("pwat", o[15], o[15] === MISSING ? "—"
+      : `${o[15].toFixed(1)} mm · ${(o[15] / 25.4).toFixed(2)}"`)],
     ["Lapse 0–3 km", fmt(o[16], 1) + " K/km"], ["Lapse 3–6 km", fmt(o[17], 1) + " K/km"],
   ];
 
