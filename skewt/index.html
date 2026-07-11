@@ -338,7 +338,7 @@
     </div>
     <div class="dlg-body">
     <div class="main">
-      <div class="panel"><canvas id="skewt" width="760" height="840"></canvas></div>
+      <div class="panel"><canvas id="skewt" title="click for the full-resolution sounding (every wind level)" style="cursor:zoom-in" width="760" height="840"></canvas></div>
       <div class="panel hodo-panel"><canvas id="hodo" width="560" height="600"></canvas></div>
       <div class="panel hodo-panel"><canvas id="mse" width="300" height="600" title="Moist static energy: h = cp·T + g·z + Lv·q, conserved as a parcel rises. Blue is the air's actual MSE; red is the saturation MSE (h*) — what it would be if that level were saturated. A boundary-layer parcel is buoyant wherever its h (gold) exceeds the environment's h*, i.e. the shaded layer — that region is the sounding's CAPE."></canvas></div>
     </div>
@@ -372,6 +372,8 @@
     </div>
     </div>
     <footer>
+      <b>Tip:</b> click the skew-T to open a full-resolution card built from the un-thinned
+      profile with every reportable wind level — the PNG button saves that same image.<br>
       <b>Data:</b> latest soundings from the
       <a href="https://weather.uwyo.edu/upperair/sounding.shtml">University of Wyoming</a> archive
       (BUFR, mirrored 6×/day — UW sends no CORS headers); any historical date directly from
@@ -385,6 +387,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=4225d059"></script>
+<script src="app.js?v=e0c6f65e"></script>
 </body>
 </html>
