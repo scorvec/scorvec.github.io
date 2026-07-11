@@ -147,6 +147,98 @@ function climoCell(key, v, txt) {
   return `<span class="pctcell" style="background:${pctColor(r.pct)}" title="${tip}">${txt}${star}</span>${sub}`;
 }
 const MIRROR = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-data/";
+const SPC = "https://www.spc.noaa.gov/exper/soundings";
+const IEM = "https://mesonet.agron.iastate.edu/json/raob.py";
+let iemMap = null;                                  // WMO -> ICAO (US/Canada)
+fetch("iem_raob.json").then(r => r.ok ? r.json() : {}).then(m => { iemMap = m; })
+  .catch(() => { iemMap = {}; });
+
+// the three most recent synoptic slots, newest first
+function synopticSlots() {
+  const out = [], now = Date.now();
+  for (let back = 0; back <= 2; back++) {
+    const d = new Date(now - back * 12 * 3600e3);
+    const hh = d.getUTCHours() >= 12 ? 12 : 0;
+    out.push({ y: d.getUTCFullYear(), mo: d.getUTCMonth() + 1, d: d.getUTCDate(), hh });
+  }
+  return out;
+}
+const p2 = n => String(n).padStart(2, "0");
+
+// SPC observed soundings — CORS-open and the fastest public US source (it
+// carries 12Z about an hour before IEM does, at slightly coarser resolution)
+function spcProfile(text) {
+  if (!text || !text.includes("%RAW%")) return null;
+  const tm = text.match(/([0-9]{6})\/([0-9]{4})/);
+  const raw = text.split("%RAW%")[1].split("%END%")[0];
+  const o = { P: [], H: [], T: [], D: [], U: [], V: [] };
+  for (const line of raw.trim().split("\n")) {
+    const c = line.split(",").map(s => parseFloat(s));
+    if (c.length < 6) continue;
+    const [pp, hh, tc, dc, wd, ws] = c;
+    if (!(pp > 20) || !(tc > -9990)) continue;       // temperature required
+    o.P.push(pp * 100);
+    o.H.push(hh > -9990 ? hh : NaN);
+    o.T.push(tc + 273.15);
+    o.D.push(dc > -9990 ? dc + 273.15 : NaN);
+    const wsms = ws > -9990 ? ws / KT : 0, wdd = wd > -9990 ? wd : 0;
+    o.U.push(-wsms * Math.sin(wdd * Math.PI / 180));
+    o.V.push(-wsms * Math.cos(wdd * Math.PI / 180));
+  }
+  if (o.P.length < 8) return null;
+  const valid = tm ? `20${tm[1].slice(0, 2)}-${tm[1].slice(2, 4)}-${tm[1].slice(4, 6)} ` +
+    `${tm[2].slice(0, 2)}:00` : "";
+  return { prof: o, valid, src: "SPC real-time" };
+}
+async function fetchSPC(wmo) {
+  const icao = iemMap && iemMap[wmo];
+  if (!icao || icao[0] !== "K") return null;         // SPC OBS = US sites
+  const id3 = icao.slice(1);
+  for (const s of synopticSlots()) {
+    const stamp = String(s.y).slice(2) + p2(s.mo) + p2(s.d) + p2(s.hh);
+    try {
+      const r = await fetch(`${SPC}/${stamp}_OBS/${id3}.txt`);
+      if (!r.ok) continue;
+      const got = spcProfile(await r.text());
+      if (got) return got;
+    } catch (e) { /* older slot */ }
+  }
+  return null;
+}
+
+// IEM RAOB json — CORS-open, US + Canada, more levels but ~1 h behind SPC
+function iemProfile(j) {
+  const pr = j && j.profiles && j.profiles[0];
+  if (!pr || !pr.profile) return null;
+  const o = { P: [], H: [], T: [], D: [], U: [], V: [] };
+  for (const L of pr.profile) {
+    if (L.pres == null || L.tmpc == null || L.pres < 20) continue;
+    o.P.push(L.pres * 100);
+    o.H.push(L.hght == null ? NaN : L.hght);
+    o.T.push(L.tmpc + 273.15);
+    o.D.push(L.dwpc == null ? NaN : L.dwpc + 273.15);
+    const ws = (L.sknt == null ? 0 : L.sknt) / KT, wd = L.drct == null ? 0 : L.drct;
+    o.U.push(-ws * Math.sin(wd * Math.PI / 180));
+    o.V.push(-ws * Math.cos(wd * Math.PI / 180));
+  }
+  if (o.P.length < 8) return null;
+  return { prof: o, valid: (pr.valid || "").slice(0, 16).replace("T", " "),
+           src: "IEM real-time" };
+}
+async function fetchIEM(wmo) {
+  const icao = iemMap && iemMap[wmo];
+  if (!icao) return null;
+  for (const s of synopticSlots()) {
+    const ts = `${s.y}${p2(s.mo)}${p2(s.d)}${p2(s.hh)}00`;
+    try {
+      const r = await fetch(`${IEM}?ts=${ts}&station=${icao}`);
+      if (!r.ok) continue;
+      const got = iemProfile(await r.json());
+      if (got) return got;
+    } catch (e) { /* older slot */ }
+  }
+  return null;
+}
 const IGRA = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/";
 const UW_ARCHIVE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-archive/";
 const UW_ARCHIVE_START = "2026-07-10";      // day bundles exist from here on
@@ -519,8 +611,21 @@ async function loadSounding() {
   await wasmReady;
   if (mode === "latest") {
     const s = entries[current.id];
+    // real-time first: SPC (fastest US), then IEM (US/Canada, more levels)
+    if (current.id && iemMap && iemMap[current.id]) {
+      setStatus("fetching real-time sounding…", true);
+      const got = await fetchSPC(current.id).catch(() => null)
+        || await fetchIEM(current.id).catch(() => null);
+      if (got) {
+        setStatus(`valid ${got.valid}Z · ${got.prof.P.length} levels (${got.src})`);
+        plotTitle = `${current.n || ""} ${current.id}  ·  ${got.valid}Z`.trim();
+        plotNote = ""; lastMonth = got.valid.slice(5, 7);
+        render(thin(got.prof));
+        return;
+      }
+    }
     if (!s) {
-      clearPlot("station not in the UW live feed — switch to Archive (IGRA)");
+      clearPlot("station not in the live feed — switch to Archive (IGRA)");
       return;
     }
     setStatus("fetching…", true);
