@@ -687,11 +687,11 @@ legend.onAdd = () => {
   div.className += " maplegend";
   div.innerHTML =
     '<span class="leg-chip" title="legend">ⓘ&nbsp;key</span><div class="leg-body">' +
-    '<span style="color:#4a7ab5;font-size:1.05em">●</span> reported in last 24 h &nbsp; ' +
-    '<span style="color:#bf5af2;font-size:1.05em">●</span> off-hour (06/18Z) &nbsp; ' +
-    '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp; ' +
-    '<span style="color:#c0392b;font-size:1.05em">●</span> closed &nbsp; ' +
-    '<span style="color:#ff2d2d">◎</span> near record &nbsp; ' +
+    '<span style="color:#4a7ab5;font-size:1.05em">●</span> reported in last 24 h<br>' +
+    '<span style="color:#bf5af2;font-size:1.05em">●</span> off-hour (06/18Z)<br>' +
+    '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp;&nbsp;' +
+    '<span style="color:#c0392b;font-size:1.05em">●</span> closed<br>' +
+    '<span style="color:#ff2d2d">◎</span> near record &nbsp;&nbsp;' +
     '<span style="color:#ffd60a">◎</span> selected<br>' +
     '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> show closed stations</label></div>';
   div.addEventListener("click", e => {          // chip toggles on mobile; CSS gates visibility
