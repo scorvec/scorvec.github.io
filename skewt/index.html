@@ -153,6 +153,26 @@
 </div>
 <div class="mapwrap"><div id="map"></div></div>
 
+<div id="climo-modal" class="modal" hidden>
+  <div class="dialog" style="height:auto; max-height:92vh; width:min(920px,96vw)">
+    <div class="dlg-head controls">
+      <span class="station" id="climo-title">—</span>
+      <select id="climo-var" style="font:500 0.85rem var(--sans); background:var(--panel);
+        color:var(--ink); border:1px solid var(--rule); border-radius:7px; padding:5px 9px;
+        color-scheme:dark"></select>
+      <span id="climo-sub" style="font-size:0.82rem; color:var(--muted)"></span>
+      <button id="climo-close" title="close (Esc)" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <canvas id="climo-canvas" width="880" height="420"></canvas>
+    </div>
+    <p class="note" style="color:var(--muted); font-size:0.78rem; margin-top:8px">
+      Monthly climatology from this station's full radiosonde record: shaded band = 10th–90th
+      percentile, inner band = 25th–75th, line = median; ▲/▼ mark the record high/low with year.
+      The gold dot is the currently displayed sounding.</p>
+  </div>
+</div>
+
 <div id="modal" class="modal" hidden>
   <div class="dialog">
     <div class="dlg-head controls">
@@ -169,6 +189,7 @@
       <span id="mstatus"></span>
       <a id="uw-link" href="https://weather.uwyo.edu/upperair/sounding.shtml" target="_blank"
          rel="noopener" style="font-size:0.78rem; color:var(--accent)">UW page ↗</a>
+      <button id="climo-btn" style="display:none">📊 Climatology</button>
       <button id="close" title="close (Esc)">✕</button>
     </div>
     <div class="dlg-body">
