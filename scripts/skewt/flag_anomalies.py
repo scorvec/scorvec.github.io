@@ -12,6 +12,7 @@ fetches to color and annotate the anomalous stations.
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -21,9 +22,12 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 STATIONS = HERE.parents[1] / "skewt" / "stations.json"
 PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
-LABELS = {"pwat": "PWAT", "850t": "850mb T", "700t": "700mb T", "500t": "500mb T",
-          "h500": "500mb hgt", "thick": "1000-500 thick", "fzl": "freezing lvl",
-          "kidx": "K-index", "tott": "Total Totals"}
+# Only the indices worth interrupting someone for. PWAT and K-index fire on any
+# humid day and would drown the signal; these four actually mark an unusual
+# airmass or an unusual amount of instability.
+WATCH = ("h500", "thick", "850t", "ecape")
+LABELS = {"h500": "500mb hgt", "thick": "1000-500 thick", "850t": "850mb T",
+          "ecape": "ECAPE"}
 G = 9.80665
 
 
@@ -100,9 +104,34 @@ def pct_of(d, v):
     return 50.0
 
 
+def ecape_for(sdir: Path) -> dict:
+    """ECAPE per station, from the SAME WebAssembly build the browser runs — so
+    the live value and its climatological percentile share identical physics."""
+    js = HERE / "ecape_latest.js"
+    if not js.exists():
+        return {}
+    try:
+        r = subprocess.run(["node", str(js), str(sdir)], capture_output=True,
+                           text=True, timeout=300)
+    except Exception as e:                                # noqa: BLE001
+        print(f"  ecape helper unavailable ({repr(e)[:40]})", flush=True)
+        return {}
+    out = {}
+    for ln in r.stdout.splitlines():
+        q = ln.split()
+        if len(q) == 2:
+            try:
+                out[q[0]] = float(q[1])
+            except ValueError:
+                pass
+    print(f"  ECAPE computed for {len(out)} soundings", flush=True)
+    return out
+
+
 def main() -> int:
     sdir, cdir, out = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
     wmo2gid = {s["id"]: s["gid"] for s in json.loads(STATIONS.read_text())["stations"]}
+    ecape = ecape_for(sdir)
     manifest = json.loads((sdir.parent / "manifest.json").read_text()) \
         if (sdir.parent / "manifest.json").exists() else {"entries": {}}
     entries = manifest.get("entries", {})
@@ -119,6 +148,9 @@ def main() -> int:
             climo = json.loads(cf.read_text())
         except Exception:                                 # noqa: BLE001
             continue
+        if wmo in ecape:
+            idx["ecape"] = ecape[wmo]
+        idx = {k: v for k, v in idx.items() if k in WATCH}   # only what's worth flagging
         # day-of-year climatology: nearest 5-day anchor to the sounding's date
         try:
             dt = datetime.strptime(e.get("dt", "")[:10], "%Y-%m-%d")
@@ -137,7 +169,15 @@ def main() -> int:
                 continue
             d = {"p": A["p"][s], "min": A["min"][s], "max": A["max"][s]}
             pct = pct_of(d, v)
-            if pct <= 5 or pct >= 95:
+            # A degenerate tail is not an anomaly. ECAPE is zero on almost every
+            # Antarctic sounding, so a zero there sits at the MEDIAN — but a naive
+            # percentile calls it P0 and flags a "record low". Require the value to
+            # be genuinely separated from the bulk: below p5 AND strictly below p25
+            # (or above p95 AND strictly above p75).
+            pp = A["p"][s]
+            low_ok = pct <= 5 and v < pp[3]              # p[3] = 25th percentile
+            high_ok = pct >= 95 and v > pp[5]            # p[5] = 75th percentile
+            if low_ok or high_ok:
                 flags.append({"k": k, "lab": LABELS.get(k, k),
                               "v": round(v, 1), "pct": round(pct),
                               "sense": "high" if pct >= 95 else "low"})
