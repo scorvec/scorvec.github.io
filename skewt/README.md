@@ -59,11 +59,17 @@ entry point is used by **both** the browser and the offline climatology builder,
 its historical percentile are computed by *identical code* — never two implementations that might
 drift apart.
 
-**Computed per sounding:** SB/ML/MU parcels (CAPE, CINH, LCL, LFC, EL, LI), ECAPE (see below), DCAPE,
-0–3 km CAPE, NCAPE, PWAT, lapse rates, bulk shear (0–1, 0–6 km, effective), SRH (0–1, 0–3 km,
-effective), effective inflow layer, Bunkers storm motion, critical angle, EHI, SCP, STP, SHIP, plus
-level diagnostics (850/700/500 hPa temperatures, 500 hPa height, 1000–500 thickness, freezing level,
-wet-bulb zero, K-index, Total Totals).
+**Computed per sounding**
+
+| Group | Values |
+|---|---|
+| Parcels | SB/ML/MU — CAPE, **ECAPE**, CINH, LCL, LI, LFC, EL |
+| Kinematics | shear (0–1, 0–6 km, effective), SRH (0–1, 0–3 km, effective), effective inflow layer, Bunkers RM/LM (fixed **and** effective-layer), Corfidi up/downshear, critical angle, DTM |
+| Composites | EHI, SCP, STP, SHIP, max updraft (ECAPE vs undilute), ECAPE/CAPE |
+| Thermo & moisture | DCAPE, 0–3 km CAPE, NCAPE, PWAT (mm and inches), lapse rates, **column RH (CRH)**, mid-level RH, PBL top, K-index, Total Totals |
+| Moist static energy | boundary-layer *h*, minimum *h\**, MSE deficit, column ∫h dp/g |
+| Levels | 850/700/500 hPa T/Td, 500 hPa height, 1000–500 thickness, freezing level, wet-bulb zero, **tropopause** (WMO + cold point) |
+| Winter | **dendritic growth zone** (with RH), Kuchera snow ratio, snow squall parameter, **precip type** (Bourgouin) |
 
 ---
 
@@ -182,11 +188,44 @@ small JSON per station on the `skewt-climo` branch, which the browser fetches on
 Indices ranked: PWAT, 850/700/500 hPa temperature, 500 hPa height, 1000–500 thickness, freezing level,
 K-index, Total Totals, **ECAPE**, **SHIP**.
 
-This drives two features:
-- **Color-coded values** in the sounding panel — a diverging scale (blue below the median, red above)
-  that saturates toward the tails, with a ★ and the year when a value is an outright record.
-- **Record watch** on the map — a red ring around any live station whose latest sounding has an index
-  below the 5th or above the 95th percentile, with the anomalous index named on hover.
+### Reading the colour shading
+
+A value is marked **only when it is genuinely unusual**. Anything between the 10th and 90th percentile
+is left plain — a "P53" badge says nothing, and tinting every row would drown the cases that matter.
+
+| What you see | Meaning |
+|---|---|
+| plain text | 10th–90th percentile: unremarkable for this station on this day of the year |
+| **red tint** + `P93` | above the 90th percentile |
+| **blue tint** + `P4` | below the 10th percentile |
+| **★ + year** | an outright record, with the year it was set |
+
+The tint ramps *within the tail* (P91 is a whisper, P99 is loud), so intensity tracks how extreme the
+value really is rather than merely its distance from the median. Hovering gives the exact percentile.
+Nothing is flagged unless the index has **≥30 samples** in the window — a "record" from four soundings
+is noise.
+
+### The climatology panel
+
+The **📊 Climatology** button charts the full annual cycle of any ranked variable:
+
+| Element | Meaning |
+|---|---|
+| inner band | 25th–75th percentile (the middle half of all soundings) |
+| outer band | 10th–90th percentile |
+| pale line | median |
+| red envelope | the **record high** for each day of the year |
+| blue envelope | the **record low** |
+| gold dot | the sounding on display, on its own day of the year |
+
+The gap between the bands and the envelopes is itself the story: where they hug, the station is
+well-behaved; where the envelope flares far above the 90th percentile, the station is capable of rare
+and violent excursions.
+
+### Record watch (the map)
+
+A **red ring** around a live station means its latest sounding is beyond the 5th/95th percentile for
+some index; the hover tooltip names which. (Gold rings mean *selected* — a different thing entirely.)
 
 ### Two methodological decisions that matter
 
