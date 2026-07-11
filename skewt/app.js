@@ -461,6 +461,18 @@ function cloudLayers(prof) {
   }
   return { layers, levs, thr };
 }
+// shared by the cloud pop-up and the main indices table. bar 94 = CSI
+// optimum; conf = fraction of matched layers in that peak-RH bin that
+// verified as BKN/OVC ceilings in training
+function estCeiling(res) {
+  if (!res || res.levs.length < 3) return undefined;
+  const pCeil = rh => rh >= 100 ? 77 : rh >= 98 ? 69 : rh >= 96 ? 65 : rh >= 94 ? 62 : 54;
+  const ceil = res.layers.find(l => l.maxRh >= 94);
+  if (!ceil) return null;
+  const lv = res.levs.find(L => L.z >= ceil.base - 1 && L.z <= ceil.top + 1 && L.rh >= 94);
+  const zb = lv ? lv.z : ceil.base;
+  return { zb, top: ceil.top, obscured: zb < 50, conf: pCeil(ceil.maxRh) };
+}
 function cloudRows(res) {
   const fz = z => `${Math.round(z)} m / ${(z * 3.28084 / 1000).toFixed(1)} kft`;
   if (!res.layers.length)
@@ -469,21 +481,13 @@ function cloudRows(res) {
   // ceiling base = where RH first reaches the broken/overcast bar (92%) inside
   // the layer, not the 85% detection edge — surface haze (RH 85-92%) must not
   // read as a 0 ft ceiling. True surface-based saturation reports as obscured.
-  // bar 94 is the CSI optimum from calibration; the confidence is the fraction
-  // of matched layers in that peak-RH bin that verified as BKN/OVC in training
-  const pCeil = rh => rh >= 100 ? 77 : rh >= 98 ? 69 : rh >= 96 ? 65 : rh >= 94 ? 62 : 54;
-  const ceil = res.layers.find(l => l.maxRh >= 94);
-  let ceilTxt = "none — no likely ceiling layer";
-  if (ceil) {
-    const lv = res.levs.find(L => L.z >= ceil.base - 1 && L.z <= ceil.top + 1 && L.rh >= 94);
-    const zb = lv ? lv.z : ceil.base;
-    ceilTxt = zb < 50
-      ? `obscured — surface-based saturation (fog), top ${Math.round(ceil.top)} m / ` +
-        `${(ceil.top * 3.28084 / 1000).toFixed(1)} kft`
-      : `${Math.round(zb)} m / ${Math.round(zb * 3.28084 / 100) * 100} ft AGL ` +
-        `(~${pCeil(ceil.maxRh)}% of similar layers verify as ceilings)`;
-  }
-  rows.push(["Est. ceiling", ceilTxt]);
+  const ec = estCeiling(res);
+  rows.push(["Est. ceiling", !ec ? "none — no likely ceiling layer"
+    : ec.obscured
+    ? `obscured — surface-based saturation (fog), top ${Math.round(ec.top)} m / ` +
+      `${(ec.top * 3.28084 / 1000).toFixed(1)} kft`
+    : `${Math.round(ec.zb)} m / ${Math.round(ec.zb * 3.28084 / 100) * 100} ft AGL ` +
+      `(~${ec.conf}% of similar layers verify as ceilings)`]);
   res.layers.forEach((l, i) => {
     const lvl = l.base < 2000 ? "low" : l.base < 6000 ? "mid" : "high";
     const cov = l.maxRh >= 100 ? "likely broken/overcast"
@@ -555,17 +559,9 @@ function drawCloudChart(prof, res) {
   }
   for (const [zb, zt] of dgz) {
     if (zb > zTop) continue;
-    const zt2 = Math.min(zt, zTop);
     ctx.fillStyle = "rgba(100,210,255,0.09)";
-    ctx.fillRect(Mg.l, y(zt2), colR - 6 - Mg.l, Math.max(2, y(zb) - y(zt2)));
-    ctx.strokeStyle = "rgba(100,210,255,0.45)"; ctx.setLineDash([3, 4]);
-    ctx.beginPath();
-    ctx.moveTo(Mg.l, y(zb)); ctx.lineTo(colR - 6, y(zb));
-    ctx.moveTo(Mg.l, y(zt2)); ctx.lineTo(colR - 6, y(zt2)); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = "rgba(100,210,255,0.9)"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
-    ctx.fillText("DGZ", colR - 10, (y(zb) + y(zt2)) / 2);
-    ctx.textBaseline = "alphabetic";
+    ctx.fillRect(Mg.l, y(Math.min(zt, zTop)), colR - 6 - Mg.l,
+      Math.max(2, y(zb) - y(Math.min(zt, zTop))));
   }
   // cloud boxes, opacity by peak RH, colored by phase regime:
   // liquid (>0 C) white, supercooled (0 to -20 C) cyan, ice (<-20 C) violet
@@ -605,6 +601,20 @@ function drawCloudChart(prof, res) {
       ctx.fillText(`${(l.base * 3.28084 / 1000).toFixed(1)}\u2013${(l.top * 3.28084 / 1000).toFixed(1)} kft`,
         (Mg.l + colR - 16) / 2, (y(l.top) + y(l.base)) / 2);
     }
+  }
+  // DGZ edges + label AFTER the cloud boxes — a supercooled deck otherwise
+  // hides the band entirely (Goose Bay 2026-07-11 12Z)
+  for (const [zb, zt] of dgz) {
+    if (zb > zTop) continue;
+    const zt2 = Math.min(zt, zTop);
+    ctx.strokeStyle = "rgba(100,210,255,0.8)"; ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.moveTo(Mg.l, y(zb)); ctx.lineTo(colR - 6, y(zb));
+    ctx.moveTo(Mg.l, y(zt2)); ctx.lineTo(colR - 6, y(zt2)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(140,225,255,0.95)"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("DGZ", Mg.l + 3, (y(zb) + y(zt2)) / 2);
+    ctx.textBaseline = "alphabetic";
   }
   // phase legend
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
@@ -2645,6 +2655,13 @@ function fillTables(prof, res) {
     ["500 hPa T", climoCell("500t", t500, g(t500, " °C", 0))],
     ["500 hPa height", climoCell("h500", h500, isFinite(h500) ? Math.round(h500) + " m" : "—")],
     ["1000–500 thick.", climoCell("thick", (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN, (isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—")],
+    ["Est. ceiling", (() => {
+      const ec = estCeiling(cloudLayers(prof));
+      if (ec === undefined) return "—";
+      if (ec === null) return "none";
+      if (ec.obscured) return "obscured (fog)";
+      return `${Math.round(ec.zb)} m · ${Math.round(ec.zb * 3.28084 / 100) * 100} ft (~${ec.conf}%)`;
+    })()],
     ["Freezing level", climoCell("fzl", fzl, isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—")],
     ["Wet-bulb 0 °C", (() => { const w = wbzAgl(prof); return climoCell("wbz", w, isFinite(w) ? Math.round(w) + " m AGL" : "—"); })()],
     ["Tropopause (WMO)", (() => { const tp = tropopause(prof);
