@@ -872,6 +872,73 @@ function mseProfile(prof) {
            deficit: hsmin - hbl, col: ok ? col : NaN };
 }
 
+// SHARPlib has no tropopause routine, so compute both standard definitions.
+//  • WMO: lowest level where the lapse rate drops to <=2 K/km AND the mean lapse
+//    rate stays <=2 K/km through the next 2 km (guards against false hits).
+//  • Cold point: the temperature minimum — the definition that matters in the
+//    deep tropics, where it sits well above the WMO level (the TTL).
+function tropopause(prof) {
+  const P = prof.P, T = prof.T, H = prof.H, n = P.length;
+  let wmoZ = NaN, wmoP = NaN;
+  for (let i = 1; i < n; i++) {
+    if (P[i] > 50000) continue;                 // search above 500 hPa
+    if (P[i] < 7000) break;
+    if (!isFinite(T[i]) || !isFinite(T[i - 1]) || !isFinite(H[i]) || !isFinite(H[i - 1])) continue;
+    const dz = H[i] - H[i - 1];
+    if (dz <= 0) continue;
+    const lr = -(T[i] - T[i - 1]) / dz * 1000;  // K/km, + = cooling upward
+    if (lr > 2) continue;
+    let ok = true;                              // sustained through the next 2 km?
+    for (let j = i + 1; j < n; j++) {
+      if (!isFinite(T[j]) || !isFinite(H[j])) continue;
+      if (H[j] - H[i] > 2000) break;
+      if (-(T[j] - T[i]) / (H[j] - H[i]) * 1000 > 2) { ok = false; break; }
+    }
+    if (ok) { wmoZ = H[i] - H[0]; wmoP = P[i]; break; }
+  }
+  let cpT = Infinity, cpZ = NaN, cpP = NaN;     // cold point
+  for (let i = 0; i < n; i++) {
+    if (P[i] > 40000 || !isFinite(T[i]) || !isFinite(H[i])) continue;
+    if (T[i] < cpT) { cpT = T[i]; cpZ = H[i] - H[0]; cpP = P[i]; }
+  }
+  return { wmoZ, wmoP, cpT: isFinite(cpT) ? cpT : NaN, cpZ, cpP };
+}
+
+// Column relative humidity: CRH = ∫q dp / ∫q_sat dp — the mass-weighted column
+// saturation fraction. In the tropics this, not CAPE, is what convective onset
+// scales with, so it's the moisture variable that actually matters there.
+function columnRH(prof, pTopPa = 10000) {
+  const esat = tc => 611.2 * Math.exp(17.67 * tc / (tc + 243.5));   // Pa
+  const mix = (Pa, Tk) => { const e = esat(Tk - 273.15); return 0.622 * e / Math.max(Pa - e, 1); };
+  let w = 0, ws = 0;
+  for (let i = 1; i < prof.P.length; i++) {
+    const P0 = prof.P[i - 1], P1 = prof.P[i];
+    if (P1 < pTopPa) break;
+    if (![prof.T[i], prof.T[i - 1], prof.D[i], prof.D[i - 1]].every(isFinite)) continue;
+    const dp = P0 - P1;
+    if (dp <= 0) continue;
+    w  += 0.5 * (mix(P0, prof.D[i - 1]) + mix(P1, prof.D[i])) * dp;
+    ws += 0.5 * (mix(P0, prof.T[i - 1]) + mix(P1, prof.T[i])) * dp;
+  }
+  return ws > 0 ? 100 * w / ws : NaN;
+}
+
+// mean RH through a pressure layer (mid-levels drive entrainment)
+function layerRH(prof, pBotPa, pTopPa) {
+  const esat = tc => 611.2 * Math.exp(17.67 * tc / (tc + 243.5));
+  let s = 0, dpSum = 0;
+  for (let i = 1; i < prof.P.length; i++) {
+    const P1 = prof.P[i];
+    if (P1 > pBotPa || P1 < pTopPa) continue;
+    if (!isFinite(prof.T[i]) || !isFinite(prof.D[i])) continue;
+    const rh = 100 * esat(prof.D[i] - 273.15) / esat(prof.T[i] - 273.15);
+    const dp = prof.P[i - 1] - P1;
+    if (dp <= 0) continue;
+    s += Math.min(100, rh) * dp; dpSum += dp;
+  }
+  return dpSum > 0 ? s / dpSum : NaN;
+}
+
 function wetbulbC(Tc, Tdc) {               // Stull 2011 approximation (°C)
   const es = tc => 6.112 * Math.exp(17.67 * tc / (tc + 243.5));
   const RH = Math.max(1, Math.min(100, 100 * es(Tdc) / es(Tc)));
@@ -1377,6 +1444,10 @@ function fillTables(prof, res) {
     ["PWAT", climoCell("pwat", o[15], o[15] === MISSING ? "—"
       : `${o[15].toFixed(1)} mm · ${(o[15] / 25.4).toFixed(2)}"`)],
     ["Lapse 0–3 km", fmt(o[16], 1) + " K/km"], ["Lapse 3–6 km", fmt(o[17], 1) + " K/km"],
+    ["Column RH (CRH)", (() => { const c = columnRH(prof);
+      return isFinite(c) ? c.toFixed(0) + " %" : "—"; })()],
+    ["Mid-level RH (700–500)", (() => { const r = layerRH(prof, 70000, 50000);
+      return isFinite(r) ? r.toFixed(0) + " %" : "—"; })()],
   ];
 
   // --- level values & classic thermodynamic indices (from the profile) ---
@@ -1400,6 +1471,12 @@ function fillTables(prof, res) {
     ["1000–500 thick.", climoCell("thick", (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN, (isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—")],
     ["Freezing level", climoCell("fzl", fzl, isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—")],
     ["Wet-bulb 0 °C", (() => { const w = wbzAgl(prof); return climoCell("wbz", w, isFinite(w) ? Math.round(w) + " m AGL" : "—"); })()],
+    ["Tropopause (WMO)", (() => { const tp = tropopause(prof);
+      return isFinite(tp.wmoZ)
+        ? `${(tp.wmoZ / 1000).toFixed(1)} km · ${(tp.wmoP / 100).toFixed(0)} hPa` : "—"; })()],
+    ["Cold point", (() => { const tp = tropopause(prof);
+      return isFinite(tp.cpZ)
+        ? `${(tp.cpZ / 1000).toFixed(1)} km · ${(tp.cpT - 273.15).toFixed(0)} °C` : "—"; })()],
     ["PBL top (mixing depth)", (() => {
       const pp = o[46];
       if (pp === MISSING || !isFinite(pp)) return "—";

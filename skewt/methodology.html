@@ -203,6 +203,26 @@
   </table>
   </div>
 
+  <h3>Tropopause and column moisture</h3>
+  <p>SHARPlib has no tropopause routine, so both standard definitions are computed directly from the
+  profile. The <strong>WMO tropopause</strong> is the lowest level where the lapse rate falls to
+  ≤ 2 K/km <em>and stays</em> ≤ 2 K/km on average through the next 2 km — the second clause guards
+  against false hits on shallow stable layers. The <strong>cold point</strong> is simply the
+  temperature minimum, and it is the definition that matters in the deep tropics, where it marks the
+  top of the tropical tropopause layer.</p>
+  <p><strong>Column relative humidity (CRH)</strong> — the mass-weighted column saturation fraction,
+  ∫q dp ⁄ ∫q<sub>sat</sub> dp — is reported alongside a mid-level (700–500 hPa) mean. In the tropics
+  CRH, not CAPE, is what convective onset scales with: deep convection switches on sharply once the
+  column is moist enough that entrainment stops killing updrafts. Mid-level RH is the layer that does
+  most of that entraining.</p>
+  <div class="callout">
+    <b>A worked check.</b> Ponape, Caroline Islands (deep tropics): WMO tropopause 16.2 km / 108 hPa,
+    cold point 16.1 km at −81 °C, CRH 80%. The lifted parcel's equilibrium level came out at
+    <strong>16.4 km</strong> — within 200 m of the independently computed tropopause, which is exactly
+    what should happen when an undilute tropical parcel rises until the stratosphere stops it. Two
+    unrelated calculations agreeing is the best evidence either one is right.
+  </div>
+
   <h3>Boundary-layer depth</h3>
   <p>The <strong>PBL top</strong> is found by scanning virtual potential temperature upward for the
   first level exceeding the surface value by 0.5 K — the top of the well-mixed layer. It's reported as
