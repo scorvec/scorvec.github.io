@@ -532,6 +532,59 @@ function shareLink() {
 }
 document.getElementById("share-btn").addEventListener("click", shareLink);
 
+// ---- "extreme today": rank the record watch and make it a destination ----
+function buildAnomPanel() {
+  const el = document.getElementById("anom-list");
+  if (!el) return;
+  const ranked = Object.entries(anomalies)
+    .map(([wmo, d]) => ({ wmo, d, top: Math.max(...d.flags.map(f => Math.abs(f.pct - 50))) }))
+    .sort((a, b) => b.top - a.top).slice(0, 12);
+  if (!ranked.length) { el.innerHTML = "<li>nothing unusual right now</li>"; return; }
+  el.innerHTML = ranked.map(({ wmo, d }) => {
+    const name = (entries[wmo] && entries[wmo].n) || (igraStations[byWmo[wmo]] || {}).n || wmo;
+    const f = d.flags[0];
+    return `<li data-wmo="${wmo}"><b>${name}</b><br>` +
+      d.flags.slice(0, 2).map(g =>
+        `<span class="${g.sense === "high" ? "hi" : "lo"}">${g.lab} ${g.v} · P${g.pct}</span>`
+      ).join(" &nbsp; ") + `</li>`;
+  }).join("");
+  el.querySelectorAll("li[data-wmo]").forEach(li => li.addEventListener("click", () => {
+    const wmo = li.dataset.wmo;
+    setMode("latest");
+    selectStation({ gid: byWmo[wmo], id: wmo,
+      n: (entries[wmo] || {}).n, e: (igraStations[byWmo[wmo]] || {}).e || 0 });
+  }));
+}
+document.getElementById("anom-toggle").addEventListener("click", () => {
+  const p = document.getElementById("anom-panel");
+  p.hidden = !p.hidden;
+  if (!p.hidden) buildAnomPanel();
+});
+
+// ---- PNG export: skew-T + hodograph on one branded card ----
+function exportPNG() {
+  const sk = document.getElementById("skewt"), ho = document.getElementById("hodo");
+  const pad = 24, foot = 54;
+  const W = sk.width + ho.width + pad * 3;
+  const H = Math.max(sk.height, ho.height) + pad * 2 + foot;
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const x = cv.getContext("2d");
+  x.fillStyle = "#0b0b12"; x.fillRect(0, 0, W, H);
+  x.drawImage(sk, pad, pad);
+  x.drawImage(ho, sk.width + pad * 2, pad);
+  x.fillStyle = "#64d2ff"; x.font = "700 26px Inter, sans-serif";
+  x.fillText("scorvec.com/skewt", pad, H - 20);
+  x.fillStyle = "#8b8ba3"; x.font = "20px Inter, sans-serif";
+  x.textAlign = "right";
+  x.fillText(plotTitle, W - pad, H - 20);
+  const a = document.createElement("a");
+  a.download = (plotTitle || "sounding").replace(/[^\w.-]+/g, "_") + ".png";
+  a.href = cv.toDataURL("image/png");
+  a.click();
+}
+document.getElementById("export-btn").addEventListener("click", exportPNG);
+
 // legend + closed-station toggle (Leaflet control)
 const legend = L.control({ position: "bottomleft" });
 legend.onAdd = () => {
