@@ -199,8 +199,9 @@ function drawFogCharts(prof) {
     if (z > 2300) break;
     if (!isFinite(prof.T[i])) continue;
     const t = prof.T[i] - 273.15, d = isFinite(prof.D[i]) ? prof.D[i] - 273.15 : NaN;
+    const ev = isFinite(d) ? 6.112 * Math.exp(17.67 * d / (d + 243.5)) : NaN;
     pts.push({ z, t, d, f: isFinite(d) ? frostPtC(d) : NaN,
-      rh: isFinite(d) ? 100 * Math.exp(17.67 * d / (d + 243.5) - 17.67 * t / (t + 243.5)) : NaN });
+      w: isFinite(ev) ? 622 * ev / (prof.P[i] / 100 - ev) : NaN });
   }
   if (pts.length < 3) {
     ctx.fillStyle = TH.muted; ctx.fillText("not enough low-level data", 12, 20); return;
@@ -216,13 +217,16 @@ function drawFogCharts(prof) {
   xmin = Math.floor(xmin) - 2; xmax = Math.ceil(xmax) + 2;
   const x = v => Mg.l + (v - xmin) / (xmax - xmin) * (wL - Mg.l - 6);
   const y = z => H - Mg.b - z / zMax * (H - Mg.t - Mg.b);
-  const rx = v => wL + gap + v / 100 * (W - wL - gap - 8);
+  let wTop = 0;
+  for (const q of pts) if (isFinite(q.w)) wTop = Math.max(wTop, q.w);
+  wTop = Math.max(1, Math.ceil(wTop * 1.15));
+  const rx = v => wL + gap + v / wTop * (W - wL - gap - 8);
   // height grid across both panels
   ctx.textAlign = "right"; ctx.textBaseline = "middle";
   for (let z = 0; z <= zMax; z += 500) {
     ctx.strokeStyle = TH.gridSub; ctx.beginPath();
     ctx.moveTo(Mg.l, y(z)); ctx.lineTo(wL - 6, y(z));
-    ctx.moveTo(rx(0), y(z)); ctx.lineTo(rx(100), y(z)); ctx.stroke();
+    ctx.moveTo(rx(0), y(z)); ctx.lineTo(rx(wTop), y(z)); ctx.stroke();
     ctx.fillStyle = TH.muted; ctx.fillText(z ? z + " m" : "sfc", Mg.l - 4, y(z));
   }
   // temp ticks + 0C isotherm
@@ -257,20 +261,26 @@ function drawFogCharts(prof) {
   trace("t", TH.temp, []);
   trace("d", TH.dwpt, []);
   trace("f", "#7dd8ff", [4, 3], q => q.f <= 0.5);   // frost pt only meaningful near/below 0C
-  // RH strip
-  ctx.strokeStyle = TH.grid; ctx.strokeRect(rx(0), Mg.t, rx(100) - rx(0), y(0) - Mg.t);
-  ctx.strokeStyle = TH.isotherm0; ctx.setLineDash([4, 3]);
-  ctx.beginPath(); ctx.moveTo(rx(90), y(0)); ctx.lineTo(rx(90), Mg.t); ctx.stroke(); ctx.setLineDash([]);
+  // mixing-ratio strip: constant w with height = well-mixed moisture that will
+  // survive daytime mixing; a sharp surface spike is a shallow skin that won't
+  ctx.strokeStyle = TH.grid; ctx.strokeRect(rx(0), Mg.t, rx(wTop) - rx(0), y(0) - Mg.t);
+  const wSfc = pts.find(q => isFinite(q.w))?.w;
+  if (isFinite(wSfc)) {
+    ctx.strokeStyle = "rgba(255,159,10,0.75)"; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(rx(wSfc), y(0)); ctx.lineTo(rx(wSfc), Mg.t); ctx.stroke();
+    ctx.setLineDash([]);
+  }
   ctx.fillStyle = "rgba(48,209,88,0.14)";
   ctx.beginPath(); ctx.moveTo(rx(0), y(0)); let pen = false;
-  for (const q of pts) if (isFinite(q.rh)) ctx.lineTo(rx(q.rh), y(q.z));
+  for (const q of pts) if (isFinite(q.w)) ctx.lineTo(rx(q.w), y(q.z));
   ctx.lineTo(rx(0), y(Math.min(zMax, pts[pts.length - 1].z))); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = TH.dwpt; ctx.lineWidth = 1.6; ctx.beginPath();
-  for (const q of pts) if (isFinite(q.rh)) { pen ? ctx.lineTo(rx(q.rh), y(q.z)) : ctx.moveTo(rx(q.rh), y(q.z)); pen = true; }
+  for (const q of pts) if (isFinite(q.w)) { pen ? ctx.lineTo(rx(q.w), y(q.z)) : ctx.moveTo(rx(q.w), y(q.z)); pen = true; }
   ctx.stroke(); ctx.lineWidth = 1;
   ctx.textAlign = "center"; ctx.fillStyle = TH.muted;
-  for (const v of [0, 50, 90]) ctx.fillText(v, rx(v), y(0) + 4);
-  ctx.fillText("RH %", (rx(0) + rx(100)) / 2, 4);
+  const wStep = wTop <= 2 ? 0.5 : wTop <= 5 ? 1 : wTop <= 12 ? 2 : 5;
+  for (let v = 0; v <= wTop; v += wStep) ctx.fillText(v, rx(v), y(0) + 4);
+  ctx.fillText("w g/kg", (rx(0) + rx(wTop)) / 2, 4);
   // legend
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   let lx = Mg.l;
