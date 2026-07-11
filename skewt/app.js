@@ -203,16 +203,29 @@ let iemMap = null;                                  // WMO -> ICAO (US/Canada)
 fetch("iem_raob.json").then(r => r.ok ? r.json() : {}).then(m => { iemMap = m; })
   .catch(() => { iemMap = {}; });
 
-// the three most recent synoptic slots, newest first
-function synopticSlots() {
-  const out = [], now = Date.now();
-  for (let back = 0; back <= 2; back++) {
-    const d = new Date(now - back * 12 * 3600e3);
-    const hh = d.getUTCHours() >= 12 ? 12 : 0;
-    out.push({ y: d.getUTCFullYear(), mo: d.getUTCMonth() + 1, d: d.getUTCDate(), hh });
+// Most recent synoptic slots, newest first, stepping every SIX hours. Stepping
+// 12 h only ever looked at 00Z/12Z, so a station launching off-hour (06Z/18Z)
+// was never found. A source that doesn't publish that hour simply 404s and we
+// fall through to the next slot.
+function synopticSlots(n = 5) {
+  const out = [];
+  const now = new Date();
+  let d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(),
+                            Math.floor(now.getUTCHours() / 6) * 6));
+  for (let k = 0; k < n; k++) {
+    out.push({ y: d.getUTCFullYear(), mo: d.getUTCMonth() + 1, d: d.getUTCDate(),
+               hh: d.getUTCHours() });
+    d = new Date(d.getTime() - 6 * 3600e3);
   }
   return out;
 }
+// hours since a manifest timestamp ("YYYY-MM-DD HH:MM", UTC)
+function ageHours(dt) {
+  if (!dt) return Infinity;
+  const ms = Date.parse(dt.replace(" ", "T") + ":00Z");
+  return isFinite(ms) ? (Date.now() - ms) / 3600e3 : Infinity;
+}
+const LIVE_H = 24;                       // "recent" must actually mean recent
 const p2 = n => String(n).padStart(2, "0");
 
 // SPC/IEM report wind on only some levels; zero-filling the rest would drag the
@@ -399,6 +412,12 @@ Promise.all([
     igraStations[s.gid] = s;
     if (s.id) byWmo[s.id] = s.gid;
   }
+  // A station sits in the mirror manifest for up to 96 h (retention for the
+  // per-launch archive), so "in the manifest" is NOT the same as "reported
+  // recently" — Glasgow showed as live on a launch 36 h old. Live means it
+  // actually reported inside LIVE_H.
+  const isLive = id => id && entries[id] && ageHours(entries[id].dt) <= LIVE_H;
+
   // closed stations: archive-only, hidden behind the toggle
   for (const s of stns.stations) {
     if (s.y1 >= ACTIVE_YEAR || (s.id && entries[s.id])) continue;
@@ -408,17 +427,22 @@ Promise.all([
     m.bindTooltip(`${s.n} (${s.gid}) · closed ${s.y0}–${s.y1} — click for archive`);
     m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
   }
-  // active stations without a launch in the mirror window: small grey
+  // active stations with no RECENT launch: small teal (includes stations still
+  // carried in the manifest but whose newest sounding is older than LIVE_H)
   for (const s of stns.stations) {
-    if (s.y1 < ACTIVE_YEAR || (s.id && entries[s.id])) continue;
+    if (s.y1 < ACTIVE_YEAR || isLive(s.id)) continue;
+    const stale = s.id && entries[s.id] ? entries[s.id].dt : null;
     const m = L.circleMarker([s.la, s.lo], {
       radius: RAD.active, weight: 1, color: "#1f7a5e", fillColor: "#33c495", fillOpacity: 0.85,
     }).addTo(map);
-    m.bindTooltip(`${s.n} (${s.gid}) · no launch in last 36 h — click for archive (${s.y0}–${s.y1})`);
-    m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
+    m.bindTooltip(stale
+      ? `${s.n} (${s.gid}) · last sounding ${stale}Z (${Math.round(ageHours(stale))} h ago) — click for archive`
+      : `${s.n} (${s.gid}) · no launch in last ${LIVE_H} h — click for archive (${s.y0}–${s.y1})`);
+    m.on("click", () => { highlight(m); selectStation(s); });
   }
-  // stations with a sounding in the last 36 h: big blue, on top
+  // stations that actually reported within LIVE_H: big blue, on top
   for (const [id, s] of Object.entries(entries)) {
+    if (!isLive(id)) continue;                    // stale carry-forward: not live
     const ig = igraStations[byWmo[id]];
     if (ig || /dtype|Name:/i.test(s.n || "")) s.n = (ig && ig.n) || id;
     const flag = anomalies[id];
@@ -432,7 +456,8 @@ Promise.all([
     const arch = ig ? ` · archive ${ig.y0}–${ig.y1}` : "";
     const anomTip = flag ? `<br><b style="color:#ff2d2d">⚡ near record:</b> ` +
       flag.flags.map(f => `${f.lab} ${f.v} (${f.sense === "high" ? "P" + f.pct + " high" : "P" + f.pct + " low"})`).join(", ") : "";
-    m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z${arch}${anomTip}`);
+    m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z ` +
+      `(${Math.round(ageHours(s.dt))} h ago)${arch}${anomTip}`);
     m.on("click", () => {
       highlight(m);   // respects the current Latest/Archive mode + chosen date
       selectStation({ gid: byWmo[id], id, n: s.n, e: (igraStations[byWmo[id]] || {}).e || 0 });
@@ -453,7 +478,7 @@ legend.onAdd = () => {
   div.className += " maplegend";
   div.innerHTML =
     '<span class="leg-chip" title="legend">ⓘ&nbsp;key</span><div class="leg-body">' +
-    '<span style="color:#4a7ab5;font-size:1.05em">●</span> sounding in last 36 h &nbsp; ' +
+    '<span style="color:#4a7ab5;font-size:1.05em">●</span> reported in last 24 h &nbsp; ' +
     '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp; ' +
     '<span style="color:#c0392b;font-size:1.05em">●</span> closed &nbsp; ' +
     '<span style="color:#ff2d2d">◎</span> near record &nbsp; ' +
