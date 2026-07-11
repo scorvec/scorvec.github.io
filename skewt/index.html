@@ -50,22 +50,7 @@
                  min-height: 0; overflow: hidden; }
   .main canvas { width: 100%; height: 100%; object-fit: contain; }
   .tables-grid { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 18px; }
-  @media (max-width: 1020px) {
-    .main, .tables-grid { grid-template-columns: 1fr; }
-    .dialog { height: auto; max-height: 96svh; overflow-y: auto; }
-    .dlg-body { display: block; }
-    .main { display: block; }
-    .main .panel { overflow: visible; margin-bottom: 10px; }
-    .main canvas { width: 100%; height: auto; object-fit: initial; }
-    .controls .station { min-width: 0; flex-basis: 100%; }
-  }
-  @media (max-width: 700px) {
-    html { font-size: 100%; }
-    nav { flex-direction: column; gap: 0.4rem; }
-    nav .desc { display: none; }
-    footer { max-height: none; overflow: visible; }
-    .topbar { padding: 6px 0.8rem; }
-  }
+
   .modal { position: fixed; inset: 0; background: rgba(4,4,9,0.78); z-index: 2000;
            display: flex; align-items: center; justify-content: center; }
   .modal[hidden] { display: none; }
@@ -99,6 +84,25 @@
   .dlg-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .tables-wrap { flex: 0 0 auto; margin-top: 10px; }
   footer a { color: var(--accent); }
+  /* mobile — MUST be last: overrides the desktop dialog/flex rules above */
+  @media (max-width: 1020px) {
+    .main, .tables-grid { grid-template-columns: 1fr; }
+    .dialog { height: auto; max-height: 96vh; max-height: 96svh; overflow-y: auto;
+              width: 97vw; }
+    .dlg-body { display: block; }
+    .main { display: block; }
+    .main .panel { display: block; overflow: visible; margin-bottom: 10px; }
+    .main canvas { width: 100%; height: auto; object-fit: initial; }
+    .controls .station { min-width: 0; flex-basis: 100%; }
+    table.params { font-size: 0.9rem; }
+  }
+  @media (max-width: 700px) {
+    html { font-size: 100%; }
+    nav { flex-direction: column; gap: 0.4rem; }
+    nav .desc { display: none; }
+    footer { max-height: none; overflow: visible; }
+    .topbar { padding: 6px 0.8rem; }
+  }
 </style>
 </head>
 <body>
