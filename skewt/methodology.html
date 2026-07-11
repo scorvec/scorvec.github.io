@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sounding Explorer — Data Sources &amp; Methodology — Shawn Corvec</title>
+<meta name="description" content="How the Sounding Explorer works: data sources, SHARPlib in WebAssembly, ECAPE (entraining CAPE), moist static energy, and per-station climatology.">
+<link rel="canonical" href="https://scorvec.com/skewt/methodology.html">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b12; --panel: #11111c; --ink: #e8e8f0; --muted: #8b8ba3;
+    --accent: #64d2ff; --rule: #23233a;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  html { font-size: 106%; scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; line-height: 1.65; }
+  nav { display: flex; justify-content: space-between; align-items: center; gap: 1.5rem;
+        padding: 0.7rem 1.4rem; border-bottom: 1px solid var(--rule);
+        position: sticky; top: 0; background: rgba(11,11,18,0.92);
+        backdrop-filter: blur(8px); z-index: 10; }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  nav a.back { font-size: 0.9rem; letter-spacing: 0.05em; color: var(--muted); text-decoration: none; }
+  nav a.back:hover { color: var(--accent); }
+
+  .wrap { max-width: 78ch; margin: 0 auto; padding: 2.5rem 1.3rem 5rem; }
+  .eyebrow { font-size: 0.76rem; letter-spacing: 0.16em; text-transform: uppercase;
+             color: var(--accent); margin-bottom: 0.6rem; }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(1.9rem, 4.5vw, 2.7rem);
+       line-height: 1.15; text-wrap: balance; margin-bottom: 0.7rem; }
+  .lede { font-size: 1.06rem; color: #c3c3d4; margin-bottom: 1.2rem; }
+  h2 { font-family: var(--serif); font-weight: 600; font-size: 1.5rem; margin: 2.8rem 0 0.8rem;
+       padding-top: 1.4rem; border-top: 1px solid var(--rule); text-wrap: balance; }
+  h3 { font-family: var(--serif); font-weight: 500; font-size: 1.15rem; margin: 1.7rem 0 0.5rem;
+       color: #dcdce8; }
+  p { margin-bottom: 0.95rem; }
+  strong { color: #fff; font-weight: 600; }
+  a { color: var(--accent); }
+  ul { margin: 0 0 1rem 1.1rem; }
+  li { margin-bottom: 0.35rem; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.86em;
+         background: #191926; padding: 1px 5px; border-radius: 4px; color: #b9d9ff; }
+
+  .table-wrap { overflow-x: auto; margin: 1rem 0 1.4rem; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; min-width: 420px; }
+  th, td { text-align: left; padding: 7px 11px; border-bottom: 1px solid var(--rule);
+           vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.78rem;
+       letter-spacing: 0.05em; text-transform: uppercase; }
+  td:first-child { white-space: nowrap; }
+
+  .eq { font-family: var(--serif); font-size: 1.28rem; text-align: center; color: #fff;
+        background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
+        padding: 1.1rem; margin: 1.2rem 0; letter-spacing: 0.02em; }
+  .callout { background: var(--panel); border-left: 3px solid var(--accent);
+             border-radius: 0 8px 8px 0; padding: 0.9rem 1.1rem; margin: 1.3rem 0;
+             font-size: 0.94rem; }
+  .callout.warn { border-left-color: #ff9f0a; }
+  .callout b { color: #fff; }
+  figure { margin: 1.6rem 0; }
+  figure canvas { width: 100%; height: auto; background: var(--panel);
+                  border: 1px solid var(--rule); border-radius: 10px; }
+  figcaption { font-size: 0.82rem; color: var(--muted); margin-top: 0.55rem; text-align: center; }
+  footer { max-width: 78ch; margin: 0 auto; padding: 1.5rem 1.3rem 3rem;
+           color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--rule); }
+  .cta { display: inline-block; margin-top: 0.5rem; padding: 9px 16px; border-radius: 8px;
+         background: var(--panel); border: 1px solid var(--rule); color: var(--ink);
+         text-decoration: none; font-weight: 500; font-size: 0.92rem; }
+  .cta:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="../" class="nav-name">Shawn Corvec</a>
+  <a href="./" class="back">← SOUNDING EXPLORER</a>
+</nav>
+
+<div class="wrap">
+  <div class="eyebrow">Methodology</div>
+  <h1>How the Sounding Explorer works</h1>
+  <p class="lede">Data sources, the physics engine, entraining CAPE, moist static energy, and how
+  every value is ranked against a station's own history — written out honestly, including what it
+  can't do.</p>
+  <a href="./" class="cta">← Open the explorer</a>
+
+  <h2>1. Where the data comes from</h2>
+  <p>A sounding can arrive from four places. The app walks them in order of <em>freshness</em>, and
+  the status line always names the one you're looking at, so you are never guessing.</p>
+
+  <div class="table-wrap">
+  <table>
+    <tr><th>Source</th><th>Coverage</th><th>Latency</th><th>Resolution</th></tr>
+    <tr><td><b>SPC observed</b></td><td>US</td><td>Fastest — ~1 h post-synoptic</td><td>~110–200 levels</td></tr>
+    <tr><td><b>IEM RAOB</b></td><td>US + Canada</td><td>~1 h behind SPC</td><td>~180–250 levels</td></tr>
+    <tr><td><b>UW mirror</b></td><td>Global</td><td>6×/day cron</td><td>Full BUFR</td></tr>
+    <tr><td><b>NOAA IGRA v2</b></td><td>Global, 1905–now</td><td>~1–2 day lag</td><td>Mandatory + significant</td></tr>
+  </table>
+  </div>
+
+  <h3>The physics floor on "real-time"</h3>
+  <p>A radiosonde is <em>launched</em> at 00Z/12Z, but the balloon takes <strong>90 minutes to two
+  hours</strong> to ascend and transmit. No source on Earth has a complete 12Z sounding before about
+  13:30 UTC. "Real-time" for soundings means <em>as soon as the atmosphere finishes reporting
+  itself</em> — not at 12:00 sharp. Within that floor, SPC is the fastest public source, which is why
+  it is tried first even though it carries slightly fewer levels than IEM.</p>
+
+  <div class="callout">
+    <b>Why Wyoming is mirrored, not fetched.</b> The University of Wyoming archive sends no
+    <code>Access-Control-Allow-Origin</code> header, so a browser cannot read it directly. A scheduled
+    job pulls ~600 stations six times a day into a data branch that GitHub serves CORS-open. Complete
+    UTC days are additionally bundled into an append-only archive — a permanently growing
+    high-resolution record the browser unzips client-side.
+  </div>
+
+  <h2>2. The physics engine</h2>
+  <p>The analysis is <a href="https://github.com/keltonhalbert/SHARPlib" target="_blank" rel="noopener">SHARPlib</a>
+  (Kelton Halbert, of NWS Storm Prediction Center lineage) compiled to WebAssembly — about 250 KB
+  running inside your browser tab. There is no backend and no compute bill.</p>
+  <p>Crucially, the <em>same</em> <code>compute_sounding()</code> entry point is used by both the
+  browser and the offline climatology builder. A live value and its historical percentile are computed
+  by identical code, so the two can never quietly drift apart.</p>
+
+  <h2>3. ECAPE — entraining CAPE</h2>
+  <h3>The problem with textbook CAPE</h3>
+  <p>Classic CAPE lifts a parcel <strong>undilute</strong> — as if sealed in a bag, never mixing with
+  the air it rises through. Real updrafts are not sealed. They entrain drier environmental air across
+  their edges, which evaporates cloud water, cools the parcel, and destroys buoyancy. This is why a
+  sounding advertising 3000 J/kg routinely fails to produce the 77 m/s updraft that number implies.</p>
+  <p>Undilute CAPE therefore <strong>overstates</strong> the energy available to a storm — and it
+  overstates it <em>unevenly</em>. The error depends on the wind profile and the storm's size, so two
+  soundings with identical CAPE can behave completely differently.</p>
+
+  <h3>What ECAPE does differently</h3>
+  <p>ECAPE (Peters et al., 2023, <em>J. Atmos. Sci.</em>) derives the entrainment rate from theory
+  rather than a tuned fudge factor. The insight: an updraft's dilution depends on its <strong>width</strong>,
+  and its width is set by the <strong>storm-relative wind and shear</strong>. Stronger inflow and
+  deeper shear support a wider, better-protected updraft core, which entrains proportionally less and
+  preserves more buoyancy.</p>
+  <p>So ECAPE is a function of the thermodynamic profile <em>and</em> the kinematic profile together —
+  which is why its implementation demands winds and a moist-static-energy profile, not just
+  temperature and dewpoint. ECAPE is always ≤ CAPE, and the gap between them is physically meaningful:
+  it is the buoyancy the atmosphere promises but entrainment takes away.</p>
+
+  <h3>The three flavors</h3>
+  <p>ECAPE is defined <em>per lifted parcel</em>, exactly like CAPE, so the Parcels table shows CAPE
+  and ECAPE side by side for each: <strong>SB</strong> (surface-based), <strong>ML</strong>
+  (mixed-layer — the most representative for ordinary convection), and <strong>MU</strong>
+  (most-unstable, for elevated storms).</p>
+
+  <div class="table-wrap">
+  <table>
+    <tr><th>Derived quantity</th><th>Formula</th><th>What it tells you</th></tr>
+    <tr><td><b>Max updraft (ECAPE)</b></td><td>√(2·ECAPE)</td><td>Realistic, entrainment-limited updraft speed</td></tr>
+    <tr><td><b>Max updraft (CAPE)</b></td><td>√(2·CAPE)</td><td>The classic undilute speed, for contrast</td></tr>
+    <tr><td><b>Entrainment efficiency</b></td><td>ECAPE / CAPE</td><td>Fraction of buoyancy surviving mixing</td></tr>
+  </table>
+  </div>
+  <p>Both speeds are ceilings that ignore water loading and the perturbation pressure gradient, so real
+  updrafts fall short of even the ECAPE value. The point is not the absolute number but the
+  <strong>ratio</strong>: an entrainment efficiency of 55% means nearly half the advertised CAPE is
+  fiction.</p>
+
+  <h2>4. Moist static energy</h2>
+  <p>ECAPE is built on moist static energy, so the explorer plots it directly.</p>
+  <div class="eq">h = c<sub>p</sub>T + gz + L<sub>v</sub>q</div>
+  <p>MSE is <strong>conserved under both dry and moist adiabatic ascent</strong> — a parcel carries its
+  <em>h</em> upward unchanged, whether or not it is condensing. That makes it the natural currency for
+  convection.</p>
+  <p>The panel plots two curves: <strong>h</strong>, the actual moist static energy at each level, and
+  <strong>h*</strong>, the <em>saturation</em> MSE — what <em>h</em> would be if that level were
+  saturated. Because <em>h*</em> depends only on temperature and pressure, it describes the
+  environment's capacity, not its moisture.</p>
+  <p>A parcel lifted from the boundary layer conserves its <em>h</em>. It is buoyant
+  <strong>wherever its h exceeds the environment's h*</strong>. That region — shaded below — is
+  precisely the layer generating CAPE. The instability isn't inferred; it's drawn to scale.</p>
+
+  <figure>
+    <canvas id="msefig" width="900" height="430"></canvas>
+    <figcaption>Fort Worth, 11 Jul 2026 12Z. Boundary-layer h (344.1 kJ/kg, gold) exceeds the
+      environment's saturation MSE (red) through the shaded layer — the parcel is buoyant there.
+      The minimum h* of 337.6 kJ/kg at 4.3 km gives an MSE deficit of −6.5 kJ/kg: conditional
+      instability, and the energetic expression of this sounding's ~989 J/kg of CAPE.</figcaption>
+  </figure>
+
+  <div class="table-wrap">
+  <table>
+    <tr><th>Value</th><th>Meaning</th></tr>
+    <tr><td><b>MSE (0–500 m)</b></td><td>Boundary-layer <em>h</em> — the energy a surface parcel carries aloft</td></tr>
+    <tr><td><b>Min saturation MSE</b></td><td>The lowest <em>h*</em> aloft — the mid-level "dry hole" a parcel must survive</td></tr>
+    <tr><td><b>MSE deficit (h*−h)</b></td><td>Negative ⇒ the boundary layer out-energizes the mid-levels ⇒ conditionally unstable</td></tr>
+    <tr><td><b>Column MSE</b></td><td>The vertical integral (1/g)∫h dp, in GJ/m² — the state variable of tropical MSE-budget theory</td></tr>
+  </table>
+  </div>
+
+  <h2>5. Climatology — where a value ranks</h2>
+  <p>Every station's <strong>entire period of record</strong> is pulled from IGRA (up to ~90 MB per
+  station, reaching back to the 1930s), every historical sounding is analyzed, and the results are
+  reduced to monthly percentile breakpoints plus record extremes with their year. That drives the
+  color-coding in the panel (blue below the median, red above, saturating toward the tails, with a ★
+  on an outright record) and the <em>record watch</em> on the map — a red ring around any live station
+  whose latest sounding is beyond the 5th or 95th percentile.</p>
+
+  <h3>Two decisions that matter</h3>
+  <div class="callout">
+    <b>A non-convective sounding has ECAPE of zero — not "missing."</b> It is tempting to record ECAPE
+    only when a parcel has positive CAPE. That is wrong: it makes the climatology
+    <em>conditional on convective days</em>, so a "10th-percentile ECAPE" would describe only the days
+    convection happened. One Argentine station had 51 such January samples against 2,007 for
+    precipitable water — the percentiles were meaningless. Valid soundings with no CAPE now correctly
+    contribute zeros, which is what makes "a 95th-percentile ECAPE day" mean anything at all.
+  </div>
+  <div class="callout warn">
+    <b>Never fabricate missing data.</b> Radiosonde reporting is far from uniform: much of South
+    America reports temperature on ~99% of levels but <strong>dewpoint on only ~39%</strong>, with as
+    few as 12 levels per sounding. Filling those gaps with plausible-looking guesses silently produces
+    confident, wrong numbers — it manufactured absurd 0.5 mm precipitable-water values and destroyed
+    CAPE across an entire continent. The builder now <em>refuses to invent data</em>: a sounding
+    qualifies only with a real surface dewpoint, ascent to at least 400 hPa, and dewpoint on ≥60% of
+    levels below that. Genuine gaps inside a qualifying profile are interpolated in log-pressure;
+    everything else is skipped rather than fudged. The cost is a smaller sample. The benefit is that
+    the sample is real.
+  </div>
+
+  <h2>6. What it can't do</h2>
+  <ul>
+    <li><strong>Not for operational use.</strong> This is a personal research tool.</li>
+    <li>Climatology covers <strong>active stations</strong>; long-closed sites have no percentiles.</li>
+    <li>CAPE-derived climatologies (ECAPE, SHIP) rest on fewer samples than level diagnostics, because
+        they demand complete, quality-gated soundings. Check the sample count before leaning on a percentile.</li>
+    <li>Historical vertical resolution is genuinely coarser than modern BUFR — a 1960 hodograph is less
+        detailed because the <em>data</em> is, not the rendering.</li>
+    <li><strong>Corfidi vectors are absent</strong> — they're referenced inside SHARPlib but not exposed
+        as a public function, and omitting a parameter beats fabricating one.</li>
+  </ul>
+
+  <p style="margin-top:2rem"><a href="./" class="cta">← Open the explorer</a></p>
+</div>
+
+<footer>
+  Built by Claude (Anthropic), directed by Shawn Corvec. Physics by
+  <a href="https://github.com/keltonhalbert/SHARPlib" target="_blank" rel="noopener">SHARPlib</a>
+  (K. Halbert, NWS SPC lineage). Data from NOAA/NWS SPC, Iowa State's IEM, the University of Wyoming,
+  and NOAA NCEI IGRA v2. Not for operational use.
+</footer>
+
+<script>
+// h vs h* schematic, drawn from the real Fort Worth 12Z profile values
+(function () {
+  const cv = document.getElementById("msefig");
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = 900, H = 430;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  // z (km), h (kJ/kg), h* (kJ/kg) — sampled from the FWD 2026-07-11 12Z sounding
+  const Z  = [0, 0.5, 1, 1.5, 2, 3, 4, 4.3, 5, 6, 7, 8, 9, 10, 12];
+  const h  = [344.8, 344.1, 341.0, 338.5, 337.2, 335.8, 335.0, 335.2, 336.0, 337.5, 339.4, 341.8, 344.6, 347.9, 355.6];
+  const hs = [352.0, 349.5, 346.2, 343.0, 341.2, 338.8, 337.7, 337.6, 338.4, 341.0, 344.6, 349.2, 354.8, 361.5, 378.0];
+  const HBL = 344.1;
+
+  const L = 62, R = 24, T = 26, B = 44;
+  const lo = 332, hi = 380, zTop = 12;
+  const px = v => L + (W - L - R) * (v - lo) / (hi - lo);
+  const py = z => T + (H - T - B) * (1 - z / zTop);
+
+  x.fillStyle = "#11111c"; x.fillRect(0, 0, W, H);
+  x.strokeStyle = "#23233a"; x.fillStyle = "#8b8ba3";
+  x.font = "11px Inter"; x.textAlign = "right";
+  for (let z = 0; z <= zTop; z += 2) {
+    const y = py(z);
+    x.beginPath(); x.moveTo(L, y); x.lineTo(W - R, y); x.stroke();
+    x.fillText(z + " km", L - 7, y + 4);
+  }
+  x.textAlign = "center";
+  for (let v = 340; v <= 375; v += 10) {
+    x.beginPath(); x.moveTo(px(v), T); x.lineTo(px(v), H - B); x.stroke();
+    x.fillText(v, px(v), H - B + 17);
+  }
+  x.fillText("moist static energy (kJ/kg)", (L + W - R) / 2, H - 10);
+
+  // buoyant layer: BL h exceeds environmental h*
+  x.fillStyle = "rgba(48,209,88,0.18)";
+  x.beginPath();
+  let started = false;
+  for (let i = 0; i < Z.length; i++) {
+    if (HBL <= hs[i]) continue;
+    if (!started) { x.moveTo(px(hs[i]), py(Z[i])); started = true; }
+    else x.lineTo(px(hs[i]), py(Z[i]));
+  }
+  for (let i = Z.length - 1; i >= 0; i--) {
+    if (HBL <= hs[i]) continue;
+    x.lineTo(px(HBL), py(Z[i]));
+  }
+  x.closePath(); x.fill();
+
+  const line = (arr, col, w, dash) => {
+    x.strokeStyle = col; x.lineWidth = w; x.setLineDash(dash || []);
+    x.beginPath();
+    arr.forEach((v, i) => i ? x.lineTo(px(v), py(Z[i])) : x.moveTo(px(v), py(Z[i])));
+    x.stroke(); x.setLineDash([]);
+  };
+  line(hs, "#ff453a", 2.4);
+  line(h, "#4a9bf0", 2.4);
+  x.strokeStyle = "#ffd60a"; x.lineWidth = 1.8; x.setLineDash([6, 5]);
+  x.beginPath(); x.moveTo(px(HBL), T); x.lineTo(px(HBL), H - B); x.stroke();
+  x.setLineDash([]);
+
+  // min h* marker
+  x.fillStyle = "#ff453a"; x.beginPath(); x.arc(px(337.6), py(4.3), 5, 0, 7); x.fill();
+
+  x.font = "600 13px Inter"; x.textAlign = "left";
+  x.fillStyle = "#4a9bf0"; x.fillText("h  (moist static energy)", L + 12, T + 20);
+  x.fillStyle = "#ff453a"; x.fillText("h*  (saturation MSE)", L + 12, T + 39);
+  x.fillStyle = "#ffd60a"; x.fillText("boundary-layer h = 344.1", L + 12, T + 58);
+  x.fillStyle = "#30d158"; x.font = "600 12px Inter";
+  x.fillText("buoyant layer  (h_BL > h*)  →  this is the CAPE", px(346), py(6.6));
+})();
+</script>
+</body>
+</html>
