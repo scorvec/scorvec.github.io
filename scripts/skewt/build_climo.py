@@ -196,11 +196,11 @@ def _samples(gid: str) -> dict | None:
                                capture_output=True, text=True, timeout=900)
             for ln in r.stdout.splitlines():
                 q = ln.split()
-                if len(q) != 4:
+                if len(q) != 5:
                     continue
-                cape.setdefault((int(q[0]), q[1]), []).append(
-                    (float(q[2]) if q[2] != "nan" else np.nan,
-                     float(q[3]) if q[3] != "nan" else np.nan))
+                cape.setdefault((int(q[0]), int(q[1]), int(q[2])), []).append(
+                    (float(q[3]) if q[3] != "nan" else np.nan,
+                     float(q[4]) if q[4] != "nan" else np.nan))
         except Exception as e:                            # noqa: BLE001
             print(f"  {gid}: cape helper failed ({repr(e)[:40]})", flush=True)
 
@@ -215,8 +215,8 @@ def _samples(gid: str) -> dict | None:
         out = np.full(len(rows), np.nan, dtype="float32")
         seen: dict = {}
         for idx, (d, y, _) in enumerate(rows):
-            mm = f"{datetime(int(y), 1, 1).month:02d}"
-            key = (int(y), f"{(datetime(2001, 1, 1) + timedelta(days=int(d) - 1)).month:02d}")
+            date = datetime(int(y), 1, 1) + timedelta(days=int(d) - 1)
+            key = (int(y), date.month, date.day)
             lst = cape.get(key)
             if not lst:
                 continue

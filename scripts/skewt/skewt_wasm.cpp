@@ -86,6 +86,7 @@ static int compute_sounding_impl(const float* pres, const float* hght,
                                  const float* uwin, const float* vwin, const int N,
                                  float* out, float* sb_vt, float* ml_vt, float* mu_vt) {
     if (N < 5) return 1;
+    for (int i = 0; i < OUT_N; ++i) out[i] = MISSING;
     std::vector<float> mixr(N), vtmp(N), thta(N), buoy(N), scratch(N);
     for (int i = 0; i < N; ++i) {
         mixr[i] = mixratio(pres[i], dwpk[i]);
@@ -147,9 +148,11 @@ static int compute_sounding_impl(const float* pres, const float* hght,
 
     // --- kinematics (MSL height layers; coord = MSL heights) ---------------
     const float sfc = hght[0];
-    WindComponents shr6 = wind_shear(HeightLayer(sfc, sfc + 6000.0f), hght,
+    // SHARPlib HeightLayers are AGL (it adds height[0] itself): passing MSL
+    // layers double-counted station elevation in every shear/SRH.
+    WindComponents shr6 = wind_shear(HeightLayer(0.0f, 6000.0f), hght,
                                      uwin, vwin, N);
-    WindComponents shr1 = wind_shear(HeightLayer(sfc, sfc + 1000.0f), hght,
+    WindComponents shr1 = wind_shear(HeightLayer(0.0f, 1000.0f), hght,
                                      uwin, vwin, N);
     WindComponents bunkR = storm_motion_bunkers(pres, hght, uwin, vwin, N,
                                                 HeightLayer(0.0f, 6000.0f),
@@ -159,9 +162,9 @@ static int compute_sounding_impl(const float* pres, const float* hght,
                                                 HeightLayer(0.0f, 6000.0f),
                                                 HeightLayer(0.0f, 6000.0f),
                                                 true, false);
-    const float srh1 = helicity(HeightLayer(sfc, sfc + 1000.0f), bunkR, hght,
+    const float srh1 = helicity(HeightLayer(0.0f, 1000.0f), bunkR, hght,
                                 uwin, vwin, N);
-    const float srh3 = helicity(HeightLayer(sfc, sfc + 3000.0f), bunkR, hght,
+    const float srh3 = helicity(HeightLayer(0.0f, 3000.0f), bunkR, hght,
                                 uwin, vwin, N);
 
     float eff_srh = MISSING, eff_shear_mag = MISSING;
@@ -180,15 +183,15 @@ static int compute_sounding_impl(const float* pres, const float* hght,
         if (layer_ok) {
             const float half_hght = eil_bot_hght + 0.5f * (el_hght - eil_bot_hght);
             if (half_hght > eil_bot_hght)
-                eshr = wind_shear(HeightLayer(eil_bot_hght, half_hght),
+                eshr = wind_shear(HeightLayer(eil_bot_hght - sfc, half_hght - sfc),
                                   hght, uwin, vwin, N);
         }
         if (eshr.u != MISSING) {
             eff_shear_mag = std::sqrt(eshr.u * eshr.u + eshr.v * eshr.v);
             scp = supercell_composite_parameter(mu.cape, eff_srh, eff_shear_mag);
-            const float sb_lcl_agl =
-                interp_pressure(sb.lcl_pressure, pres, hght, N) - sfc;
-            stp = significant_tornado_parameter(ml, sb_lcl_agl, eff_srh,
+            const float ml_lcl_agl = (ml.lcl_pressure != MISSING)
+                ? interp_pressure(ml.lcl_pressure, pres, hght, N) - sfc : MISSING;
+            stp = significant_tornado_parameter(ml, ml_lcl_agl, eff_srh,
                                                 eff_shear_mag);
         }
     }
