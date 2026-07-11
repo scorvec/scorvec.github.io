@@ -43,14 +43,23 @@ int main(int argc, char** argv) {
         for (auto& L : block) {
             if ((int)L.size() < 52) continue;
             float p = fld(L, 9, 15), gph = fld(L, 16, 21), tt = fld(L, 22, 27),
-                  dpdp = fld(L, 34, 39), wd = fld(L, 40, 45), ws = fld(L, 46, 51);
+                  dpdp = fld(L, 34, 39), wd = fld(L, 40, 45), ws = fld(L, 46, 51),
+                  rh = fld(L, 28, 33);   // pre-~1990 US: RH instead of DPDP
             if (std::isnan(p) || p < 2000) continue;
             if (std::isnan(tt)) continue;                 // need thermo for CAPE
             if (!P.empty() && p >= P.back()) continue;    // monotonic pressure
             P.push_back(p);
             H.push_back(std::isnan(gph) ? NAN : gph);
             T.push_back(tt / 10 + 273.15f);
-            D.push_back(std::isnan(dpdp) ? NAN : tt / 10 - dpdp / 10 + 273.15f);
+            float Dv = NAN;
+            if (!std::isnan(dpdp)) Dv = tt / 10 - dpdp / 10 + 273.15f;
+            else if (!std::isnan(rh) && rh > 0) {    // Td from RH (inverse Magnus)
+                const float tc = tt / 10.0f;
+                const float g = std::log(std::min(100.0f, rh / 10.0f) / 100.0f)
+                              + 17.67f * tc / (tc + 243.5f);
+                Dv = 243.5f * g / (17.67f - g) + 273.15f;
+            }
+            D.push_back(Dv);
             float u = NAN, v = NAN;
             if (!std::isnan(wd) && !std::isnan(ws)) {
                 u = -(ws / 10) * std::sin(wd * M_PI / 180);

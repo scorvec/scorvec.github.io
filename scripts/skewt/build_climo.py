@@ -64,6 +64,7 @@ def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
         gph = _f(L[16:21])
         tt = _f(L[22:27])
         dpdp = _f(L[34:39])
+        rh = _f(L[28:33])                 # pre-~1990 US records carry RH, not DPDP
         if np.isnan(p) and not np.isnan(gph):        # pibal — skip for thermo climo
             continue
         if np.isnan(p) or p < 2000:
@@ -71,7 +72,16 @@ def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
         P.append(p)
         H.append(gph)
         T.append(np.nan if np.isnan(tt) else tt / 10 + 273.15)
-        D.append(np.nan if (np.isnan(tt) or np.isnan(dpdp)) else tt / 10 - dpdp / 10 + 273.15)
+        if np.isnan(tt):
+            D.append(np.nan)
+        elif not np.isnan(dpdp):
+            D.append(tt / 10 - dpdp / 10 + 273.15)
+        elif not np.isnan(rh) and rh > 0:            # derive Td from RH (inverse Magnus)
+            tc = tt / 10
+            g = np.log(min(100.0, rh / 10) / 100.0) + 17.67 * tc / (tc + 243.5)
+            D.append(243.5 * g / (17.67 - g) + 273.15)
+        else:
+            D.append(np.nan)
     if len(P) < 8:
         return None
     P, T, D, H = map(np.asarray, (P, T, D, H))
