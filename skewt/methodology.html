@@ -223,6 +223,21 @@
     unrelated calculations agreeing is the best evidence either one is right.
   </div>
 
+  <h3>Reading the hodograph</h3>
+  <p>Beyond the height-coloured trace and Bunkers left/right movers, three things are worth knowing:</p>
+  <ul>
+    <li><strong>The effective inflow layer is highlighted directly on the curve.</strong> This is the
+      air the storm can actually ingest — SHARPlib finds it by testing which parcels carry enough CAPE
+      and little enough convective inhibition. Highlighting it makes storm-relative helicity
+      <em>visible</em>: the emphasised stretch of curve is precisely the part generating it, which is
+      why effective SRH is computed over that layer rather than a fixed 0–1 km.</li>
+    <li><strong>DTM (deviant tornado motion)</strong> — the midpoint of the Bunkers right-mover and the
+      0–500 m mean wind. Tornadoes frequently track off the parent mesocyclone's motion, and DTM
+      anticipates where the tornado goes rather than where the storm goes.</li>
+    <li><strong>Corfidi upshear/downshear</strong> vectors (MCS propagation) are in the Kinematics
+      table rather than on the plot, to keep the hodograph readable.</li>
+  </ul>
+
   <h3>Boundary-layer depth</h3>
   <p>The <strong>PBL top</strong> is found by scanning virtual potential temperature upward for the
   first level exceeding the surface value by 0.5 K — the top of the well-mixed layer. It's reported as
@@ -312,8 +327,10 @@
         noise, not a record.</li>
     <li>Historical vertical resolution is genuinely coarser than modern BUFR — a 1960 hodograph is less
         detailed because the <em>data</em> is, not the rendering.</li>
-    <li><strong>Corfidi vectors are absent</strong> — they're referenced inside SHARPlib but not exposed
-        as a public function, and omitting a parameter beats fabricating one.</li>
+    <li>The hodograph deliberately stays sparse. Corfidi MCS vectors are computed and reported in the
+        table, but not drawn — an extra pair of arrows costs more legibility than it buys. The
+        effective-layer Bunkers vector is drawn <em>only</em> when it differs from the fixed-layer one
+        by more than 3 kt; when they agree it would be a redundant marker.</li>
   </ul>
 
   <p style="margin-top:2rem"><a href="./" class="cta">← Open the explorer</a></p>

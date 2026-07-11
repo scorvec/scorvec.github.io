@@ -1012,6 +1012,16 @@ function freezingLvlAgl(prof) {            // lowest 0 °C crossing, m AGL
   }
   return NaN;
 }
+function meanWindAgl(prof, z0, z1) {        // mean wind through a height layer (m/s)
+  let su = 0, sv = 0, n = 0;
+  const sfc = prof.H[0];
+  for (let i = 0; i < prof.P.length; i++) {
+    const z = prof.H[i] - sfc;
+    if (z < z0 || z > z1 || !isFinite(prof.U[i]) || !isFinite(prof.V[i])) continue;
+    su += prof.U[i]; sv += prof.V[i]; n++;
+  }
+  return n ? [su / n, sv / n] : null;
+}
 function windAt(prof, hAgl) {             // interp u,v at height AGL
   const H = prof.H, sfc = H[0];
   for (let i = 1; i < H.length; i++) {
@@ -1385,6 +1395,21 @@ function drawHodo(prof, res) {
     const [u, v] = windAt(prof, h);
     pts.push([h, X(u * KT), Y(v * KT)]);
   }
+  // Effective inflow layer — the air the storm can actually ingest, and thus the
+  // stretch of curve that generates the effective SRH. A wide translucent
+  // underlay: emphasis on what's already drawn, not another label.
+  const eilBot = o[28] !== MISSING ? interpHagl(prof, o[28]) : null;
+  const eilTop = o[29] !== MISSING ? interpHagl(prof, o[29]) : null;
+  if (eilBot !== null && eilTop !== null && eilTop > eilBot) {
+    ctx.strokeStyle = "rgba(100,210,255,0.5)"; ctx.lineWidth = 12;
+    ctx.lineCap = "round"; ctx.beginPath();
+    let est = false;
+    for (const [h, x, y] of pts) {
+      if (h < eilBot || h > eilTop) continue;
+      est ? ctx.lineTo(x, y) : ctx.moveTo(x, y); est = true;
+    }
+    ctx.stroke(); ctx.lineCap = "butt";
+  }
   for (const [b, tt, col] of segs) {
     if (b > topAgl) break;
     ctx.strokeStyle = col; ctx.lineWidth = 3.4;
@@ -1416,6 +1441,16 @@ function drawHodo(prof, res) {
   for (let i = 0; i < n && agl[i] <= 6000; i++) { mu6 += prof.U[i]; mv6 += prof.V[i]; c6++; }
   if (c6) mark(mu6 / c6, mv6 / c6, "MW", "#a8a8c2", true);
 
+  // Deviant tornado motion: midpoint of Bunkers RM and the 0-500 m mean wind.
+  const mw05 = meanWindAgl(prof, 0, 500);
+  if (o[22] !== MISSING && mw05)
+    mark(0.5 * (o[22] + mw05[0]), 0.5 * (o[23] + mw05[1]), "DTM", "#ff9f0a", false);
+
+  // Effective-layer Bunkers — only when it differs from the fixed-layer vector.
+  if (o[47] !== MISSING && o[22] !== MISSING &&
+      Math.hypot(o[47] - o[22], o[48] - o[23]) * KT > 3)
+    mark(o[47], o[48], "RM eff", "#ff8a7a", true);
+
   // critical angle: sfc SR inflow vs 0-500 m shear vector (RM)
   if (o[22] !== MISSING) {
     const [u5, v5] = windAt(prof, 500);
@@ -1441,6 +1476,8 @@ function drawHodo(prof, res) {
   }
   ctx.fillStyle = "#9d9dbb"; ctx.font = "13px Inter";
   ctx.fillText("rings: knots", 12, 40);
+  ctx.fillStyle = "rgba(100,210,255,0.85)"; ctx.font = "600 13px Inter";
+  ctx.fillText("▬ effective inflow layer (air the storm ingests)", 12, 60);
 }
 
 // ---------- tables ----------
@@ -1481,6 +1518,8 @@ function fillTables(prof, res) {
     ["Eff. shear (EBWD)", o[31] === MISSING ? "—" : (o[31] * KT).toFixed(0) + " kt"],
     ["Eff. inflow", effIL],
     ["Bunkers RM", vecf(o[22], o[23])], ["Bunkers LM", vecf(o[24], o[25])],
+    ["Corfidi upshear", vecf(o[49], o[50])],
+    ["Corfidi downshear", vecf(o[51], o[52])],
   ];
   const wmaxE = o[42] > 0 ? Math.sqrt(2 * o[42]) : NaN;   // ECAPE-limited updraft (Peters 2023)
   const wmaxC = o[10] > 0 ? Math.sqrt(2 * o[10]) : NaN;   // undilute CAPE updraft

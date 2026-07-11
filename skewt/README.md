@@ -132,8 +132,8 @@ but the **ratio**: an entrainment efficiency of 55% means nearly half the advert
 
 - ECAPE **requires wind data**. A sounding with a broken wind profile yields no meaningful ECAPE.
 - ECAPE is **zero when CAPE is zero** — this is a real value, not a missing one (see §4).
-- Corfidi vectors are *not* shown: they are referenced inside SHARPlib but not exposed as a public
-  function, and I'd rather omit a parameter than fabricate one.
+- Corfidi MCS vectors (`mcs_motion_corfidi`) are computed and shown in the Kinematics table, but kept
+  off the hodograph — extra arrows cost more legibility than they buy.
 
 ### Moist static energy — the quantity underneath it all
 
