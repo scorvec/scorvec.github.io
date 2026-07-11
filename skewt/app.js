@@ -348,7 +348,7 @@ let anomalies = {};              // wmo -> {dt, flags:[{k,lab,v,pct,sense}]} (re
 let igraStations = {};           // gid -> station meta (all 2,921 incl. closed)
 let byWmo = {};                  // wmo id -> gid
 let current = null;              // selected: {gid, id, n, e}
-let plotTitle = "";              // drawn on the skew-t canvas itself
+let plotTitle = "", plotCoords = "";              // drawn on the skew-t canvas itself
 let plotNote = "";               // secondary blurb (e.g. wind-only)
 let selectedMarker = null;       // highlighted dot on the map
 let mode = "latest";
@@ -568,6 +568,15 @@ function selectStation(s) {
   current = s;
   openModal();
   loadClimo(s.gid);
+  // coordinates: useful for cross-referencing model soundings / satellite
+  const ig = s.gid ? igraStations[s.gid] : null;
+  const la = s.la ?? (ig && ig.la), lo = s.lo ?? (ig && ig.lo);
+  const el = s.e ?? (ig && ig.e);
+  plotCoords = (isFinite(la) && isFinite(lo))
+    ? `${Math.abs(la).toFixed(2)}°${la >= 0 ? "N" : "S"}  ` +
+      `${Math.abs(lo).toFixed(2)}°${lo >= 0 ? "E" : "W"}` +
+      (isFinite(el) ? `  ${Math.round(el)} m` : "")
+    : "";
   // deep links (#wmoid) are still honored on page load, but clicking no longer rewrites the URL
   document.getElementById("stn-label").textContent = `${s.n || s.gid} · ${s.id || s.gid}`;
   setStatus(mode === "latest"
@@ -1126,7 +1135,7 @@ function windAt(prof, hAgl) {             // interp u,v at height AGL
 const dirOf = (u, v) => ((Math.atan2(-u, -v) * 180 / Math.PI) + 360) % 360;
 
 // ---------- skew-t drawing ----------
-const SK = { l: 58, r: 90, t: 40, b: 42, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
+const SK = { l: 58, r: 90, t: 48, b: 42, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
 
 // Some feeds report geopotential height as a literal 0 where it's missing
 // (Curacao's CSV does this above ~145 hPa), and SHARPlib REQUIRES monotonically
@@ -1172,6 +1181,10 @@ function drawSkewT(prof, res) {
   // on-canvas title: station + valid time
   ctx.fillStyle = TH.ink; ctx.font = "700 16px Inter";
   ctx.fillText(plotTitle, SK.l, 22);
+  if (plotCoords) {
+    ctx.fillStyle = TH.muted; ctx.font = "12px Inter";
+    ctx.fillText(plotCoords, SK.l, 38);
+  }
   ctx.fillStyle = TH.muted; ctx.font = "12px Inter";
   ctx.fillText("SHARPlib · scorvec.com/skewt", W - 190, 22);
   if (plotNote) {
