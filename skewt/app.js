@@ -1427,22 +1427,34 @@ function drawSkewT(prof, res) {
   const sameParcel = (o[34] !== MISSING && isFinite(o[34]) &&
                       Math.abs(o[34] - prof.P[0]) < 500);   // MU LPL == surface
   {
+    // legend gets its own translucent panel — drawn bare it sat on top of the
+    // km ticks and the EIL bracket and was unreadable
     const items = [["MU parcel", TH.parcelMU, [6, 4]],
                    ["SB parcel", TH.parcelSB, [5, 4]],
                    ["ML parcel", TH.parcelML, [2, 3]]];
-    let ly = SK.t + ph - 8;
+    const note = sameParcel ? "MU = SB (surface-based)" : null;
+    const bx = SK.l + 44, rowH = 16;
+    const bh = items.length * rowH + (note ? rowH : 0) + 12;
+    const by = SK.t + ph - bh - 8;
+    const bw = note ? 190 : 118;
+    ctx.fillStyle = "rgba(8,8,16,0.85)";
+    ctx.strokeStyle = "#2a2a44"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 7) : ctx.rect(bx, by, bw, bh);
+    ctx.fill(); ctx.stroke();
     ctx.textAlign = "left";
+    let ly = by + rowH;
     for (const [lab, col, dash] of items) {
       ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash(dash);
-      ctx.beginPath(); ctx.moveTo(SK.l + 8, ly - 4); ctx.lineTo(SK.l + 30, ly - 4);
+      ctx.beginPath(); ctx.moveTo(bx + 9, ly - 4); ctx.lineTo(bx + 31, ly - 4);
       ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = col; ctx.font = "600 12px Inter";
-      ctx.fillText(lab, SK.l + 35, ly);
-      ly -= 15;
+      ctx.fillText(lab, bx + 37, ly);
+      ly += rowH;
     }
-    if (sameParcel) {
+    if (note) {
       ctx.fillStyle = TH.muted; ctx.font = "11px Inter";
-      ctx.fillText("MU = SB here (surface-based)", SK.l + 8, SK.t + ph - 50);
+      ctx.fillText(note, bx + 9, ly);
     }
   }
 
