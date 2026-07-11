@@ -87,8 +87,9 @@
   /* mobile — MUST be last: overrides the desktop dialog/flex rules above */
   @media (max-width: 1020px) {
     .main, .tables-grid { grid-template-columns: 1fr; }
-    .dialog { height: auto; max-height: 96vh; max-height: 96svh; overflow-y: auto;
-              width: 97vw; }
+    .dialog { display: block; height: auto; max-height: 96vh; max-height: 96svh;
+              overflow-y: auto; width: 97vw; }
+    .dlg-head { position: static; }   /* flow above the charts, never overlapped */
     .dlg-body { display: block; }
     .main { display: block; }
     .main .panel { display: block; overflow: visible; margin-bottom: 10px; }
