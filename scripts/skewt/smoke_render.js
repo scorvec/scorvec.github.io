@@ -68,6 +68,7 @@ const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","
 const SK = { l: 58, r: 90, t: 48, b: 42, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
 const TH = new Proxy({}, { get: () => "#888" });
 let plotTitle = "smoke test", plotCoords = "0N 0E", plotNote = "";
+let EXPORT_PX = null, BARB_GAP = 22, lastProfFull = null;
 let pinned = null, climo = null, climoNow = {}, lastMonth = "07", lastDoy = 192;
 let anomalies = {}, entries = {}, byWmo = {}, igraStations = {};
 // traceAdiabat is a WASM bridge (tested separately) — stub it here

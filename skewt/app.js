@@ -9,6 +9,8 @@ const CLIMO_BASE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/
 let climo = null, climoGid = null;                 // current station climatology
 let lastProf = null, lastRes = null, lastMonth = null, lastDoy = null;
 let lastHourZ = 12;
+let lastProfFull = null;              // un-thinned profile for the full-res mobile card
+let EXPORT_PX = null, BARB_GAP = 22;  // overrides during full-res export
 const hourOf = s => { const m = /[T ](\d{2}):/.exec(String(s)); return m ? +m[1] : 12; };
 function doyOf(ymd) {                     // "YYYY-MM-DD" -> 1..365
   const d = new Date(ymd.slice(0, 10) + "T00:00:00Z");
@@ -1179,8 +1181,22 @@ function exportPNG() {
 if (window.matchMedia && matchMedia("(pointer:coarse)").matches) {
   document.getElementById("skewt").addEventListener("click", () => {
     if (!lastProf) return;
-    const img = document.getElementById("png-view-img");
-    img.src = buildExportCanvas().toDataURL("image/png");
+    // full-resolution card: re-render the UN-thinned profile onto oversized
+    // canvases with dense barbs (every reportable wind level), export, then
+    // restore the on-screen state — all synchronous, so nothing flickers
+    const keep = lastProf;
+    let cv;
+    try {
+      EXPORT_PX = { skewt: { w: 1150, h: 1750 }, hodo: { w: 950, h: 950 },
+                    mse: { w: 950, h: 560 } };
+      BARB_GAP = 10;
+      render(lastProfFull || keep);
+      cv = buildExportCanvas();
+    } finally {
+      EXPORT_PX = null; BARB_GAP = 22;
+      render(keep);
+    }
+    document.getElementById("png-view-img").src = cv.toDataURL("image/png");
     document.getElementById("png-view").hidden = false;
   });
   document.getElementById("png-view").addEventListener("click", e => {
@@ -1533,7 +1549,7 @@ async function loadSounding() {
         setStatus(`valid ${got.valid}Z · ${got.prof.P.length} levels (${got.src})`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${got.valid}Z`.trim();
         plotNote = ""; lastMonth = got.valid.slice(5, 7); lastDoy = doyOf(got.valid); lastHourZ = hourOf(got.valid);
-        render(thin(got.prof));
+        render(thin(lastProfFull = got.prof));
         return;
       }
     }
@@ -1548,7 +1564,7 @@ async function loadSounding() {
         setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
         plotNote = ""; lastMonth = s.dt.slice(5, 7); lastDoy = doyOf(s.dt); lastHourZ = hourOf(s.dt);
-        render(thin(prof));
+        render(thin(lastProfFull = prof));
         return;
       } catch (e) { /* mirror failed — fall through to the archive */ }
     }
@@ -1575,7 +1591,7 @@ async function loadSounding() {
           setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (UW BUFR high-res mirror)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${wantDt}Z`.trim();
           plotNote = ""; lastMonth = wantDt.slice(5, 7); lastDoy = doyOf(wantDt); lastHourZ = hourOf(wantDt);
-          render(thin(prof));
+          render(thin(lastProfFull = prof));
           return;
         }
       }
@@ -1604,7 +1620,7 @@ async function loadSounding() {
           setStatus(`valid ${ymd} ${hh}Z · ${prof.P.length} levels (UW BUFR day archive)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${ymd} ${hh}Z`.trim();
           plotNote = ""; lastMonth = ymd.slice(5, 7); lastDoy = doyOf(ymd); lastHourZ = +hh;
-          render(thin(prof));
+          render(thin(lastProfFull = prof));
           return;
         }
       }
@@ -1646,7 +1662,7 @@ async function loadSounding() {
   plotNote = got.windOnly
     ? "⚠ WIND-ONLY DATA (pilot balloon) — no temperature; hodograph valid" : "";
   lastMonth = shown.slice(5, 7); lastDoy = doyOf(shown); lastHourZ = hourOf(shown);
-  render(thin(got.prof));
+  render(thin(lastProfFull = got.prof));
 }
 
 // ---------- compute ----------
@@ -1974,6 +1990,13 @@ function fillDewpoints(prof) {
 }
 
 function fitCanvas(cv) {                    // backing store = panel size × dpr
+  if (typeof EXPORT_PX !== "undefined" && EXPORT_PX && EXPORT_PX[cv.id]) {
+    const { w, h } = EXPORT_PX[cv.id];      // full-res export: fixed big canvas
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    return { W: w, H: h, ctx };
+  }
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const w = cv.clientWidth, h = cv.clientHeight;
   const ctx = cv.getContext("2d");
@@ -2299,7 +2322,8 @@ function drawBarbs(ctx, prof, x0, yOf) {
   let lastY = -1e9;
   for (let i = 0; i < prof.P.length; i++) {
     const y = yOf(prof.P[i]);
-    if (Math.abs(y - lastY) < 22 || prof.P[i] < SK.pTop) continue;
+    const gap = typeof BARB_GAP !== "undefined" ? BARB_GAP : 22;
+    if (Math.abs(y - lastY) < gap || prof.P[i] < SK.pTop) continue;
     lastY = y;
     const u = prof.U[i], v = prof.V[i];
     const kt = Math.hypot(u, v) * KT;
