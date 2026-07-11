@@ -5,6 +5,44 @@
 "use strict";
 
 const MISSING = -9999.0;
+const CLIMO_BASE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-climo/climo/";
+let climo = null, climoGid = null;                 // current station climatology
+let lastProf = null, lastRes = null, lastMonth = null;
+const climoCache = new Map();
+async function loadClimo(gid) {
+  if (!gid) { climo = null; return; }
+  if (gid === climoGid) return;
+  climoGid = gid; climo = null;
+  if (climoCache.has(gid)) { climo = climoCache.get(gid); refreshTables(); return; }
+  try {
+    const r = await fetch(CLIMO_BASE + gid + ".json");
+    const d = r.ok ? await r.json() : null;
+    climoCache.set(gid, d);
+    if (gid === climoGid) { climo = d; refreshTables(); }
+  } catch (e) { climoCache.set(gid, null); }
+}
+function refreshTables() {
+  if (lastProf && lastRes && !modal.hidden) fillTables(lastProf, lastRes);
+}
+const CLIMO_PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99];
+function climoRank(key, v) {                        // -> " · P68" / " · ★ record high (2025)"
+  if (!climo || !isFinite(v) || lastMonth === null) return "";
+  const m = climo.months && climo.months[lastMonth];
+  const d = m && m[key];
+  if (!d || !d.p) return "";
+  let out = "";
+  if (v >= d.max) out = ` · ★ record high (${d.maxY})`;
+  else if (v <= d.min) out = ` · ★ record low (${d.minY})`;
+  // interpolate percentile across [min, p1..p99, max] -> [0,1..99,100]
+  const X = [d.min, ...d.p, d.max], Y = [0, ...CLIMO_PCTS, 100];
+  let pct = v <= X[0] ? 0 : v >= X[X.length - 1] ? 100 : 50;
+  for (let i = 1; i < X.length; i++) {
+    if (v <= X[i]) { const f = (v - X[i - 1]) / ((X[i] - X[i - 1]) || 1);
+      pct = Y[i - 1] + f * (Y[i] - Y[i - 1]); break; }
+  }
+  const ord = Math.max(1, Math.min(99, Math.round(pct)));
+  return (out || ` · P${ord}`);
+}
 const MIRROR = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-data/";
 const IGRA = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/";
 const UW_ARCHIVE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-archive/";
@@ -188,6 +226,7 @@ syncControls();
 function selectStation(s) {
   current = s;
   openModal();
+  loadClimo(s.gid);
   // deep links (#wmoid) are still honored on page load, but clicking no longer rewrites the URL
   document.getElementById("stn-label").textContent = `${s.n || s.gid} · ${s.id || s.gid}`;
   setStatus(mode === "latest"
@@ -369,7 +408,7 @@ async function loadSounding() {
       if (!prof) throw 0;
       setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`);
       plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
-      plotNote = "";
+      plotNote = ""; lastMonth = s.dt.slice(5, 7);
       render(thin(prof));
     } catch (e) {
       clearPlot("error: " + (e && e.message ? e.message : "fetch failed"));
@@ -391,7 +430,7 @@ async function loadSounding() {
         if (prof) {
           setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (UW BUFR high-res mirror)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${wantDt}Z`.trim();
-          plotNote = "";
+          plotNote = ""; lastMonth = wantDt.slice(5, 7);
           render(thin(prof));
           return;
         }
@@ -420,7 +459,7 @@ async function loadSounding() {
           const hh = pick.slice(-6, -4);
           setStatus(`valid ${ymd} ${hh}Z · ${prof.P.length} levels (UW BUFR day archive)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${ymd} ${hh}Z`.trim();
-          plotNote = "";
+          plotNote = ""; lastMonth = ymd.slice(5, 7);
           render(thin(prof));
           return;
         }
@@ -461,6 +500,7 @@ async function loadSounding() {
     `${String(got.hh).padStart(2, "0")}Z`.trim();
   plotNote = got.windOnly
     ? "⚠ WIND-ONLY DATA (pilot balloon) — no temperature; hodograph valid" : "";
+  lastMonth = shown.slice(5, 7);
   render(thin(got.prof));
 }
 
@@ -845,6 +885,7 @@ const fmt = (v, d = 0, unit = "") =>
 
 function fillTables(prof, res) {
   const o = res.o;
+  lastProf = prof; lastRes = res;
   const hAt = pP => {
     const h = interpHagl(prof, pP);
     return h === null ? "—" : Math.round(h) + "m";
@@ -861,16 +902,19 @@ function fillTables(prof, res) {
   const ktf = (u, v) => (u === MISSING) ? "—" : (Math.hypot(u, v) * KT).toFixed(0) + " kt";
   const vecf = (u, v) => (u === MISSING) ? "—" :
     `${Math.round(dirOf(u, v))}/${Math.round(Math.hypot(u, v) * KT)} kt`;
-  const kin = [
-    ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
-    ["DCAPE", fmt(o[39]) + " J/kg"], ["PWAT", fmt(o[15], 1) + " mm"],
-    ["Lapse 0–3 km", fmt(o[16], 1) + " K/km"], ["Lapse 3–6 km", fmt(o[17], 1) + " K/km"],
+  const kinem = [
     ["0–1 km shear", ktf(o[20], o[21])], ["0–6 km shear", ktf(o[18], o[19])],
     ["SRH 0–1 km", fmt(o[26]) + " m²/s²"], ["SRH 0–3 km", fmt(o[27]) + " m²/s²"],
     ["Eff. SRH", fmt(o[30]) + " m²/s²"],
     ["Eff. shear (EBWD)", o[31] === MISSING ? "—" : (o[31] * KT).toFixed(0) + " kt"],
     ["Bunkers RM", vecf(o[22], o[23])], ["Bunkers LM", vecf(o[24], o[25])],
     ["SCP", fmt(o[32], 1)], ["STP (eff.)", fmt(o[33], 1)],
+  ];
+  const thermo = [
+    ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
+    ["DCAPE", fmt(o[39]) + " J/kg"],
+    ["PWAT", fmt(o[15], 1) + " mm" + climoRank("pwat", o[15])],
+    ["Lapse 0–3 km", fmt(o[16], 1) + " K/km"], ["Lapse 3–6 km", fmt(o[17], 1) + " K/km"],
   ];
 
   // --- level values & classic thermodynamic indices (from the profile) ---
@@ -884,21 +928,22 @@ function fillTables(prof, res) {
   const totalT = t850 + d850 - 2 * t500;
   const fzl = freezingLvlAgl(prof);
   const g = (v, u, dp = 1) => isFinite(v) ? v.toFixed(dp) + u : "—";
+  thermo.push(["K-index", g(kidx, "", 0) + climoRank("kidx", kidx)],
+              ["Total Totals", g(totalT, "", 0) + climoRank("tott", totalT)]);
   const levels = [
-    ["850 hPa T / Td", `${g(t850, "", 0)} / ${g(d850, " °C", 0)}`],
-    ["700 hPa T / Td", `${g(t700, "", 0)} / ${g(d700, " °C", 0)}`],
-    ["500 hPa T", g(t500, " °C", 0)],
-    ["500 hPa height", isFinite(h500) ? Math.round(h500) + " m" : "—"],
-    ["1000–500 thick.", (isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—"],
-    ["Freezing level", isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—"],
-    ["K-index", g(kidx, "", 0)],
-    ["Total Totals", g(totalT, "", 0)],
+    ["850 hPa T / Td", `${g(t850, "", 0)} / ${g(d850, " °C", 0)}` + climoRank("850t", t850)],
+    ["700 hPa T / Td", `${g(t700, "", 0)} / ${g(d700, " °C", 0)}` + climoRank("700t", t700)],
+    ["500 hPa T", g(t500, " °C", 0) + climoRank("500t", t500)],
+    ["500 hPa height", (isFinite(h500) ? Math.round(h500) + " m" : "—") + climoRank("h500", h500)],
+    ["1000–500 thick.", ((isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—")
+       + (isFinite(h500) && isFinite(h1000) ? climoRank("thick", h500 - h1000) : "")],
+    ["Freezing level", (isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—") + climoRank("fzl", fzl)],
   ];
 
   const row = ([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`;
-  document.getElementById("kin-table").innerHTML = kin.slice(0, 10).map(row).join("");
-  document.getElementById("kin-table2").innerHTML =
-    kin.slice(10).concat(levels).map(row).join("");
+  document.getElementById("kin-table").innerHTML = kinem.map(row).join("");
+  document.getElementById("kin-table2").innerHTML = thermo.map(row).join("");
+  document.getElementById("kin-table3").innerHTML = levels.map(row).join("");
 }
 
 // ---------- render ----------
@@ -911,7 +956,7 @@ function clearPlot(msg) {
     ctx.fillText(msg || "no data", cv.width / 2, cv.height / 2);
     ctx.textAlign = "left";
   }
-  for (const id of ["pcl-table", "kin-table", "kin-table2"])
+  for (const id of ["pcl-table", "kin-table", "kin-table2", "kin-table3"])
     document.getElementById(id).innerHTML = "";
   plotTitle = "";
 }
@@ -923,6 +968,6 @@ function render(prof) {
   drawSkewT(prof, res);
   drawHodo(prof, res);
   if (hasT) fillTables(prof, res);
-  else for (const id of ["pcl-table", "kin-table", "kin-table2"])
+  else for (const id of ["pcl-table", "kin-table", "kin-table2", "kin-table3"])
     document.getElementById(id).innerHTML = "";
 }
