@@ -39,6 +39,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install deps
+        run: pip install --quiet numpy      # flag_anomalies.py needs it
+
       - name: Mirror soundings
         run: python scripts/skewt/mirror_soundings.py /tmp/skewt-data prev-data
 
@@ -70,8 +73,16 @@ jobs:
 
       - name: Flag near-record soundings (record watch)
         run: |
-          python scripts/skewt/flag_anomalies.py /tmp/skewt-data/soundings \
-            climo-data/climo /tmp/skewt-data/anomalies.json || echo '{}' > /tmp/skewt-data/anomalies.json
+          # Do NOT silently swallow a failure here: a bare '|| echo {}' hid a
+          # missing-numpy ImportError on every single run, so the record watch
+          # was quietly dead while looking healthy. Fail loudly, but still emit a
+          # valid file so the data push itself survives.
+          if ! python scripts/skewt/flag_anomalies.py /tmp/skewt-data/soundings \
+                 climo-data/climo /tmp/skewt-data/anomalies.json; then
+            echo "::error::flag_anomalies FAILED — record watch will be empty this cycle"
+            echo '{}' > /tmp/skewt-data/anomalies.json
+            exit 1
+          fi
 
       - name: Force-push data branch (single parentless commit)
         run: |
