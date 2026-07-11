@@ -40,10 +40,16 @@ def get(url: str, timeout: int = 60) -> bytes:
         return r.read()
 
 
-def synoptic_hours(n: int = 2):
+def synoptic_hours(n: int = 5):
+    """Most recent synoptic slots, newest first, stepping every SIX hours.
+
+    Stepping 12 h only ever looked at 00Z/12Z, so US sites that launch off-hour
+    (06Z/18Z — special releases ahead of severe weather, for instance) were
+    invisible to the mirror entirely.
+    """
     now = datetime.now(timezone.utc) - timedelta(hours=2)
-    h0 = now.replace(hour=12 if now.hour >= 12 else 0, minute=0, second=0, microsecond=0)
-    return [h0 - timedelta(hours=12 * k) for k in range(n)]
+    h0 = now.replace(hour=(now.hour // 6) * 6, minute=0, second=0, microsecond=0)
+    return [h0 - timedelta(hours=6 * k) for k in range(n)]
 
 
 def manifest_for(dt: datetime) -> list:
@@ -119,9 +125,9 @@ def main() -> int:
                 carried += 1
         print(f"  carried forward {carried} launch file(s)", flush=True)
 
-    # newest-first union of the last two synoptic manifests
+    # newest-first union of the last few synoptic manifests (6-hourly)
     entries: dict = {}
-    for dt in synoptic_hours(2):
+    for dt in synoptic_hours(5):
         for e in manifest_for(dt):
             entries.setdefault(e["id"], e)
     print(f"  UW manifest union: {len(entries)} stations", flush=True)
