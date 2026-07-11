@@ -289,7 +289,9 @@ def run_era5() -> str | None:
                         rm = region_means(anom, lats, lons)
                         note = (f"Global {rm['global']:+.2f} °C · "
                                 f"NH {rm['nhem']:+.2f} °C · SH {rm['shem']:+.2f} °C")
-                    elif tele is not None and pd.Timestamp(d.date()) in tele.index:
+                    elif name == "z500" and tele is not None \
+                            and pd.Timestamp(d.date()) in tele.index \
+                            and not tele.loc[pd.Timestamp(d.date())].isna().any():
                         r = tele.loc[pd.Timestamp(d.date())]
                         note = " · ".join(f"{k.upper()} {r[k]:+.1f}"
                                           for k in ["nao", "pna", "epo", "wpo", "ao"])

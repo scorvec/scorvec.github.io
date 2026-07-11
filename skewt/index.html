@@ -87,13 +87,16 @@
   .maplegend { background: rgba(17,17,28,0.94); color: #e8e8f0; padding: 9px 12px;
     border-radius: 8px; border: 1px solid #2e2e48;
     font: 14.5px Inter, sans-serif; line-height: 1.85; }
-  .maplegend .leg-chip { display: none; }
+  .maplegend .leg-chip { display: none; }        /* desktop: always full card */
   @media (max-width: 700px) {
-    .maplegend { font-size: 11px; line-height: 1.7; padding: 6px 8px; }
-    .maplegend.collapsed { padding: 2px 9px; border-radius: 50%; cursor: pointer; }
-    .maplegend.collapsed .leg-body { display: none; }
-    .maplegend.collapsed .leg-chip { display: block; font-size: 16px; }
-    .maplegend:not(.collapsed) .leg-chip { display: none; }
+    /* mobile default = collapsed chip; .expanded shows the full card */
+    .maplegend { padding: 0; cursor: pointer; }
+    .maplegend .leg-chip { display: flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; font-size: 18px; }
+    .maplegend .leg-body { display: none; }
+    .maplegend.expanded { padding: 6px 9px; font-size: 11px; line-height: 1.7; }
+    .maplegend.expanded .leg-chip { display: none; }
+    .maplegend.expanded .leg-body { display: block; }
   }
   /* mobile — MUST be last: overrides the desktop dialog/flex rules above */
   @media (max-width: 1020px) {
