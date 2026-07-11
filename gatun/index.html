@@ -157,6 +157,15 @@ footer b { color: var(--ink2); font-weight: 600; }
 </div>
 
 <script>
+// size embedded animators to their real content height (mobile controls wrap)
+addEventListener("message", e => {
+  const d = e.data;
+  if (!d || d.type !== "sstAnimHeight") return;
+  document.querySelectorAll("iframe").forEach(fr => {
+    if (fr.contentWindow === e.source) { fr.style.height = d.h + "px"; fr.style.aspectRatio = "auto"; }
+  });
+});
+
 document.getElementById("rainlevel").src =
   "../assets/sst/gatun_rain_level.webp?v=" + new Date().toISOString().slice(0, 10);
 </script>
@@ -170,7 +179,7 @@ const GRID = "rgba(148,184,225,0.09)", AXISLINE = "rgba(148,184,225,0.25)";
 function baseLayout(extra) {
   return Object.assign({
     paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-    font: FONT, hoverlabel: HOVER, margin: {l: 52, r: 70, t: 12, b: 40},
+    font: FONT, hoverlabel: HOVER, margin: {l: 52, r: innerWidth < 640 ? 16 : 70, t: 12, b: 40},
     xaxis: {gridcolor: GRID, linecolor: AXISLINE, zeroline: false},
     yaxis: {gridcolor: GRID, linecolor: AXISLINE, zeroline: false},
     showlegend: false,

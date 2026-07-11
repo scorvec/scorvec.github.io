@@ -185,6 +185,7 @@ const fmtM = m => (m >= 0 ? "D+" : "R+") + Math.abs(m).toFixed(1);
 
 // ---- tooltip ----------------------------------------------------------
 const tip = $("#tip");
+document.addEventListener("pointerdown", () => hideTip(), true); // tap-away dismiss (runs before element handlers re-show)
 function showTip(html, ev) {
   tip.innerHTML = html; tip.style.display = "block";
   const pad = 12, w = tip.offsetWidth, h = tip.offsetHeight;
@@ -264,7 +265,7 @@ function gbChart() {
     const dot = svgEl("circle", {cx: X(p.d), cy: Y(clampM(p.m)), r: pinned ? 2.8 : 3.2,
       fill: css("--muted"), "fill-opacity": pinned ? 0.18 : 0.42});
     const hit = svgEl("circle", {cx: X(p.d), cy: Y(clampM(p.m)), r: 11, fill: "transparent"});
-    hit.addEventListener("mousemove", ev => showTip(
+    for (const _e of ["mousemove", "pointerdown"]) hit.addEventListener(_e, ev => showTip(
       `<div class="t-h">${p.pollster || "Poll"}</div>
        <div class="t-s">${p.d} &middot; n=${p.n || "?"} ${p.pop ? "(" + p.pop.toUpperCase() + ")" : ""}</div>
        <div><b>${fmtM(p.m)}</b>${p.u != null ? ` <span class="t-s">&middot; ${p.u}% undecided</span>` : ""}${pinned ? ` <span class="t-s">&middot; beyond axis</span>` : ""}</div>`, ev));
@@ -316,7 +317,7 @@ function gbChart() {
     ue.textContent = ul.u + "%"; svg2.append(ue);
     us.forEach(t => {
       const hit = svgEl("circle", {cx: X(t.d), cy: YU(t.u), r: 12, fill: "transparent"});
-      hit.addEventListener("mousemove", ev => showTip(
+      for (const _e of ["mousemove", "pointerdown"]) hit.addEventListener(_e, ev => showTip(
         `<div class="t-h">Week of ${t.d}</div>
          <div>${t.u}% undecided / other</div>
          <div class="t-s">weighted average ${fmtM(t.m)}</div>`, ev));
@@ -360,7 +361,7 @@ function hist(hostSel, d, xLabel, binW) {
     const rect = svgEl("path", {d:
       `M${X(b.x) + 1},${H - M.b} v${-(h - r)} q0,${-r} ${r},${-r} h${bw - 2 * r} q${r},0 ${r},${r} v${h - r} z`,
       fill: demSide ? css("--dem") : css("--rep")});
-    rect.addEventListener("mousemove", ev => showTip(
+    for (const _e of ["mousemove", "pointerdown"]) rect.addEventListener(_e, ev => showTip(
       `<div class="t-h">${b.x}${binW > 1 ? "&ndash;" + (b.x + binW - 1) : ""} Dem seats</div>
        <div>${(b.p * 100).toFixed(1)}% of simulations</div>`, ev));
     rect.addEventListener("mouseleave", hideTip);
@@ -414,7 +415,7 @@ function senRaces() {
     val.textContent = Math.round(r.p * 100) + "%"; svg.append(val);
     const hit = svgEl("rect", {x: M.l, y: y - rowH / 2, width: W - M.l - M.r, height: rowH,
       fill: "transparent"});
-    hit.addEventListener("mousemove", ev => showTip(
+    for (const _e of ["mousemove", "pointerdown"]) hit.addEventListener(_e, ev => showTip(
       `<div class="t-h">${r.state}</div>
        <div class="t-s">Seat defended by ${r.def === "D" ? "Democrats" : "Republicans"}</div>
        <div>P(Dem win): <b>${Math.round(r.p * 100)}%</b>${r.prior ? " (prior, no market)" : ""}</div>`, ev));
@@ -459,7 +460,7 @@ function undChart() {
     const bar = svgEl("path", {d:
       `M${X(0)},${y - bh / 2} h${bw - rr} q${rr},0 ${rr},${rr} v${bh - 2 * rr} q0,${rr} ${-rr},${rr} h${-(bw - rr)} z`,
       fill: css("--muted")});
-    bar.addEventListener("mousemove", ev => showTip(
+    for (const _e of ["mousemove", "pointerdown"]) bar.addEventListener(_e, ev => showTip(
       `<div class="t-h">${r.g}</div>
        <div>Not sure: <b>${r.notsure}%</b></div>
        <div class="t-s">Current margin: ${fmtM(r.margin)}</div>`, ev));

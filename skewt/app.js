@@ -65,7 +65,7 @@ Promise.all([
   for (const s of stns.stations) {
     if (s.y1 >= ACTIVE_YEAR || (s.id && entries[s.id])) continue;
     const m = L.circleMarker([s.la, s.lo], {
-      radius: 2.5, weight: 0.5, color: "#7a1f1f", fillColor: "#c0392b", fillOpacity: 0.75,
+      radius: RAD.closed, weight: 0.5, color: "#7a1f1f", fillColor: "#c0392b", fillOpacity: 0.75,
     }).addTo(closedLayer);
     m.bindTooltip(`${s.n} (${s.gid}) · closed ${s.y0}–${s.y1} — click for archive`);
     m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
@@ -74,7 +74,7 @@ Promise.all([
   for (const s of stns.stations) {
     if (s.y1 < ACTIVE_YEAR || (s.id && entries[s.id])) continue;
     const m = L.circleMarker([s.la, s.lo], {
-      radius: 4, weight: 1, color: "#1f7a5e", fillColor: "#33c495", fillOpacity: 0.85,
+      radius: RAD.active, weight: 1, color: "#1f7a5e", fillColor: "#33c495", fillOpacity: 0.85,
     }).addTo(map);
     m.bindTooltip(`${s.n} (${s.gid}) · no launch in last 36 h — click for archive (${s.y0}–${s.y1})`);
     m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
@@ -84,7 +84,7 @@ Promise.all([
     const ig = igraStations[byWmo[id]];
     if (ig || /dtype|Name:/i.test(s.n || "")) s.n = (ig && ig.n) || id;
     const m = L.circleMarker([s.la, s.lo], {
-      radius: 6, weight: 1.5, color: "#1d3a5e", fillColor: "#4a7ab5", fillOpacity: 0.95,
+      radius: RAD.live, weight: 1.5, color: "#1d3a5e", fillColor: "#4a7ab5", fillOpacity: 0.95,
     }).addTo(map);
     const arch = ig ? ` · archive ${ig.y0}–${ig.y1}` : "";
     m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z${arch}`);

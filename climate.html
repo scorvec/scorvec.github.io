@@ -42,6 +42,10 @@
   footer { color: var(--muted); font-size: 0.78rem; line-height: 1.7; max-width: 82ch;
            padding-top: 0.6rem; }
   footer a { color: var(--accent); }
+@media (max-width: 600px) {
+  #tseries { height: 540px; }
+  #teleseries { height: 460px; }
+}
 </style>
 </head>
 <body>
@@ -123,6 +127,15 @@
   </footer>
 </div>
 <script>
+// size embedded animators to their real content height (mobile controls wrap)
+addEventListener("message", e => {
+  const d = e.data;
+  if (!d || d.type !== "sstAnimHeight") return;
+  document.querySelectorAll("iframe").forEach(fr => {
+    if (fr.contentWindow === e.source) { fr.style.height = d.h + "px"; fr.style.aspectRatio = "auto"; }
+  });
+});
+
 // ---- smoothing + trend helpers ----
 const CATCOLORS = ["#4c9be8","#e8833a","#33c495","#e05b8f","#b98cf0","#e6c84a",
   "#5ad1d1","#c0654a","#8fb03a","#d17fc0","#7a90c8"];
