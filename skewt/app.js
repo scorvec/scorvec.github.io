@@ -918,6 +918,7 @@ function parseIGRA(text, gid, ymd, wantHour, elev) {
     const L = lines[i];
     let p = iv(L, 9, 15);
     const gph = iv(L, 16, 21), tt = iv(L, 22, 27), dpdp = iv(L, 34, 39);
+    const rh = iv(L, 28, 33);               // pre-~1990 US records carry RH, not DPDP
     const wd = iv(L, 40, 45), ws = iv(L, 46, 51);
     // pilot-balloon levels report by height with pressure missing
     if (p === null && gph !== null && gph > -900) p = stdP(gph);
@@ -925,8 +926,19 @@ function parseIGRA(text, gid, ymd, wantHour, elev) {
     if (wd !== null && ws !== null && ws >= 0)
       winds.push({ p, h: gph, u: -(ws / 10) * Math.sin(wd * Math.PI / 180),
                               v: -(ws / 10) * Math.cos(wd * Math.PI / 180) });
-    if (tt !== null && tt > -8888 && dpdp !== null)
-      thermo.push({ p, gph, T: tt / 10 + 273.15, D: tt / 10 + 273.15 - dpdp / 10 });
+    if (tt !== null && tt > -8888) {
+      // moisture: dewpoint depression when present; otherwise derive Td from RH
+      // (1970s US soundings report RH only — requiring DPDP threw away the whole
+      // thermo profile and mislabelled real soundings as wind-only pibals)
+      let D = NaN;
+      if (dpdp !== null) D = tt / 10 + 273.15 - dpdp / 10;
+      else if (rh !== null && rh > 0) {
+        const tc = tt / 10, RH = Math.min(100, rh / 10);
+        const gamma = Math.log(RH / 100) + 17.67 * tc / (tc + 243.5);
+        D = 243.5 * gamma / (17.67 - gamma) + 273.15;
+      }
+      thermo.push({ p, gph, T: tt / 10 + 273.15, D });
+    }
   }
   thermo.sort((a, b) => b.p - a.p);
   winds.sort((a, b) => b.p - a.p);
