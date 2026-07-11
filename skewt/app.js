@@ -114,12 +114,11 @@ Promise.all([
 const legend = L.control({ position: "bottomleft" });
 legend.onAdd = () => {
   const div = L.DomUtil.create("div");
-  div.style.cssText = "background:rgba(17,17,28,0.94);color:#e8e8f0;padding:9px 12px;" +
-    "border-radius:8px;border:1px solid #2e2e48;font:14.5px Inter,sans-serif;line-height:1.85";
+  div.className += " maplegend";
   div.innerHTML =
-    '<span style="color:#4a7ab5;font-size:15px">●</span> sounding in last 36 h &nbsp; ' +
-    '<span style="color:#33c495;font-size:15px">●</span> active &nbsp; ' +
-    '<span style="color:#c0392b;font-size:15px">●</span> closed<br>' +
+    '<span style="color:#4a7ab5;font-size:1.05em">●</span> sounding in last 36 h &nbsp; ' +
+    '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp; ' +
+    '<span style="color:#c0392b;font-size:1.05em">●</span> closed<br>' +
     '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> show closed stations</label>';
   L.DomEvent.disableClickPropagation(div);
   return div;
