@@ -1060,10 +1060,16 @@ function fillTables(prof, res) {
     ["Eff. inflow", effIL],
     ["Bunkers RM", vecf(o[22], o[23])], ["Bunkers LM", vecf(o[24], o[25])],
   ];
+  const wmaxE = o[42] > 0 ? Math.sqrt(2 * o[42]) : NaN;   // ECAPE-limited updraft (Peters 2023)
+  const wmaxC = o[10] > 0 ? Math.sqrt(2 * o[10]) : NaN;   // undilute CAPE updraft
+  const entEff = (o[42] > 0 && o[10] > 0) ? (100 * o[42] / o[10]) : NaN;
   const composites = [
     ["EHI 0–1 km", ehi(o[0], o[26])], ["EHI 0–3 km", ehi(o[0], o[27])],
     ["SCP", fmt(o[32], 1)], ["STP (eff.)", fmt(o[33], 1)],
     ["SHIP", climoCell("ship", o[43], fmt(o[43], 1))],
+    ["Max updraft (ECAPE)", isFinite(wmaxE) ? wmaxE.toFixed(0) + " m/s" : "—"],
+    ["Max updraft (CAPE)", isFinite(wmaxC) ? wmaxC.toFixed(0) + " m/s" : "—"],
+    ["Entrain. efficiency", isFinite(entEff) ? entEff.toFixed(0) + " %" : "—"],
   ];
   const thermo = [
     ["DCAPE", fmt(o[39]) + " J/kg"],
