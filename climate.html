@@ -171,15 +171,15 @@ function drawSeries() {
         const y = data[c], col = CATCOLORS[ci % CATCOLORS.length];
         const ma = movAvg(y, 365), f = linfit(xn, y), dec = f.slope * DECMS;
         const vis = c === "global" ? true : "legendonly";
-        traces.push({x: dates, y, type: "scattergl", mode: "lines", opacity: 0.28,
-          line: {width: 0.6, color: col}, legendgroup: c, showlegend: false,
+        traces.push({x: dates, y, type: "scattergl", mode: "lines", opacity: 0.5,
+          line: {width: 1.1, color: col}, legendgroup: c, showlegend: false,
           visible: vis, hoverinfo: "skip"});
         traces.push({x: dates, y: ma, type: "scattergl", mode: "lines",
-          line: {width: 2.2, color: col}, legendgroup: c, visible: vis,
+          line: {width: 3, color: col}, legendgroup: c, visible: vis,
           name: `${LABELS[c] || c}  (${dec >= 0 ? "+" : ""}${dec.toFixed(2)}°/dec)`});
         traces.push({x: [dates[0], dates[dates.length - 1]],
           y: [f.intercept + f.slope * xn[0], f.intercept + f.slope * xn[xn.length - 1]],
-          type: "scattergl", mode: "lines", line: {width: 1.4, color: col, dash: "dot"},
+          type: "scattergl", mode: "lines", line: {width: 1.8, color: col, dash: "dot"},
           legendgroup: c, showlegend: false, visible: vis, hoverinfo: "skip"});
       });
       Plotly.newPlot("tseries", traces, {
@@ -221,15 +221,15 @@ function drawTele() {
         const col = CATCOLORS[j % CATCOLORS.length];
         const ma = movAvg(y, 13), f = linfit(xn, y), dec = f.slope * DECMS;
         const vis = c === "nao" ? true : "legendonly";
-        traces.push({x: mx, y, type: "scattergl", mode: "lines", opacity: 0.3,
-          line: {width: 0.7, color: col}, legendgroup: c, showlegend: false,
+        traces.push({x: mx, y, type: "scattergl", mode: "lines", opacity: 0.55,
+          line: {width: 1.2, color: col}, legendgroup: c, showlegend: false,
           visible: vis, hoverinfo: "skip"});
         traces.push({x: mx, y: ma, type: "scattergl", mode: "lines",
-          line: {width: 2.2, color: col}, legendgroup: c, visible: vis,
+          line: {width: 3, color: col}, legendgroup: c, visible: vis,
           name: `${c.toUpperCase()}  (${dec >= 0 ? "+" : ""}${dec.toFixed(2)}σ/dec)`});
         traces.push({x: [mx[0], mx[mx.length - 1]],
           y: [f.intercept + f.slope * xn[0], f.intercept + f.slope * xn[xn.length - 1]],
-          type: "scattergl", mode: "lines", line: {width: 1.4, color: col, dash: "dot"},
+          type: "scattergl", mode: "lines", line: {width: 1.8, color: col, dash: "dot"},
           legendgroup: c, showlegend: false, visible: vis, hoverinfo: "skip"});
       });
       Plotly.newPlot("teleseries", traces, {
