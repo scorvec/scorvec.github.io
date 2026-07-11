@@ -368,7 +368,8 @@ let anomalies = {};              // wmo -> {dt, flags:[{k,lab,v,pct,sense}]} (re
 let igraStations = {};           // gid -> station meta (all 2,921 incl. closed)
 let byWmo = {};                  // wmo id -> gid
 let current = null;              // selected: {gid, id, n, e}
-let plotTitle = "", plotCoords = "";              // drawn on the skew-t canvas itself
+let plotTitle = "", plotCoords = "";
+let pinned = null;                 // { prof, title } — overlay for comparison              // drawn on the skew-t canvas itself
 let plotNote = "";               // secondary blurb (e.g. wind-only)
 let selectedMarker = null;       // highlighted dot on the map
 let mode = "latest";
@@ -584,6 +585,22 @@ function exportPNG() {
   a.click();
 }
 document.getElementById("export-btn").addEventListener("click", exportPNG);
+
+// ---- compare: pin the current sounding, overlay it under the next one ----
+document.getElementById("pin-btn").addEventListener("click", () => {
+  const b = document.getElementById("pin-btn");
+  if (pinned) {
+    pinned = null;
+    b.textContent = "📌 Compare";
+    b.title = "pin this sounding, then load another to overlay them";
+  } else if (lastProf) {
+    pinned = { prof: lastProf, title: plotTitle };
+    b.textContent = "📌 Unpin";
+    b.title = "comparing against " + pinned.title;
+    setStatus(`pinned ${pinned.title} — now load another station or date to compare`);
+  }
+  if (lastProf && lastRes) { drawSkewT(lastProf, lastRes); drawHodo(lastProf, lastRes); }
+});
 
 // legend + closed-station toggle (Leaflet control)
 const legend = L.control({ position: "bottomleft" });
@@ -1428,6 +1445,25 @@ function drawSkewT(prof, res) {
     }
   }
 
+  // pinned comparison sounding: grey, behind the live profile
+  if (pinned && pinned.prof !== prof) {
+    const pp = pinned.prof;
+    const line = (arr, dash) => {
+      ctx.strokeStyle = "#9a9ab0"; ctx.lineWidth = 1.8; ctx.setLineDash(dash);
+      ctx.beginPath(); let st = false;
+      for (let i = 0; i < pp.P.length; i++) {
+        if (!isFinite(arr[i]) || pp.P[i] < SK.pTop || pp.P[i] > SK.pBot) continue;
+        const x = xOf(arr[i] - 273.15, yOf(pp.P[i]));
+        st ? ctx.lineTo(x, yOf(pp.P[i])) : ctx.moveTo(x, yOf(pp.P[i])); st = true;
+      }
+      ctx.stroke(); ctx.setLineDash([]);
+    };
+    line(pp.T, []);
+    line(pp.D, [3, 4]);
+    ctx.fillStyle = "#9a9ab0"; ctx.font = "600 13px Inter";
+    ctx.fillText("vs " + pinned.title, SK.l + 150, 22);
+  }
+
   // environment: virtual temp (thin), dewpoint, temperature
   const vtC = prof.T.map((T, i) => {
     const TdC = prof.D[i] - 273.15;
@@ -1695,6 +1731,21 @@ function drawHodo(prof, res) {
       started = true;
     }
     ctx.stroke();
+  }
+
+  // pinned comparison: thin grey hodograph under the live markers
+  if (pinned && pinned.prof !== prof) {
+    const pp = pinned.prof;
+    const topP = Math.min(12000, (pp.H[pp.H.length - 1] || 0) - pp.H[0]);
+    ctx.strokeStyle = "#9a9ab0"; ctx.lineWidth = 1.6; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); let st = false;
+    for (let h = 0; h <= topP; h += 250) {
+      const w = windAt(pp, h);
+      if (!w) continue;
+      const x = X(w[0] * KT), y = Y(w[1] * KT);
+      st ? ctx.lineTo(x, y) : ctx.moveTo(x, y); st = true;
+    }
+    ctx.stroke(); ctx.setLineDash([]);
   }
 
   // storm motion + mean wind markers, SHARPpy-style dir/spd labels
