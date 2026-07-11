@@ -367,13 +367,13 @@ Promise.all([
     const flag = anomalies[id];
     if (flag) {                                          // record watch: gold ring underneath
       L.circleMarker([s.la, s.lo], { radius: RAD.live + 4, weight: 3,
-        color: "#ffd60a", opacity: 0.95, fill: false }).addTo(map);
+        color: "#ff2d2d", opacity: 0.95, fill: false }).addTo(map);
     }
     const m = L.circleMarker([s.la, s.lo], {
       radius: RAD.live, weight: 1.5, color: "#1d3a5e", fillColor: "#4a7ab5", fillOpacity: 0.95,
     }).addTo(map);
     const arch = ig ? ` · archive ${ig.y0}–${ig.y1}` : "";
-    const anomTip = flag ? `<br><b style="color:#ffd60a">⚡ near record:</b> ` +
+    const anomTip = flag ? `<br><b style="color:#ff2d2d">⚡ near record:</b> ` +
       flag.flags.map(f => `${f.lab} ${f.v} (${f.sense === "high" ? "P" + f.pct + " high" : "P" + f.pct + " low"})`).join(", ") : "";
     m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z${arch}${anomTip}`);
     m.on("click", () => {
@@ -399,7 +399,8 @@ legend.onAdd = () => {
     '<span style="color:#4a7ab5;font-size:1.05em">●</span> sounding in last 36 h &nbsp; ' +
     '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp; ' +
     '<span style="color:#c0392b;font-size:1.05em">●</span> closed &nbsp; ' +
-    '<span style="color:#ffd60a">◎</span> near record<br>' +
+    '<span style="color:#ff2d2d">◎</span> near record &nbsp; ' +
+    '<span style="color:#ffd60a">◎</span> selected<br>' +
     '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> show closed stations</label></div>';
   div.addEventListener("click", e => {          // chip toggles on mobile; CSS gates visibility
     if (e.target.id !== "show-closed" && e.target.tagName !== "LABEL")
