@@ -7,7 +7,22 @@
 const MISSING = -9999.0;
 const CLIMO_BASE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-climo/climo/";
 let climo = null, climoGid = null;                 // current station climatology
-let lastProf = null, lastRes = null, lastMonth = null;
+let lastProf = null, lastRes = null, lastMonth = null, lastDoy = null;
+function doyOf(ymd) {                     // "YYYY-MM-DD" -> 1..365
+  const d = new Date(ymd.slice(0, 10) + "T00:00:00Z");
+  const j0 = Date.UTC(d.getUTCFullYear(), 0, 1);
+  return Math.min(365, Math.floor((d.getTime() - j0) / 864e5) + 1);
+}
+// climatology is anchored every 5 days; pick the nearest anchor (wrapping)
+function climoSlot(idxObj) {
+  if (!climo || !climo.doy || lastDoy === null) return -1;
+  let best = -1, bd = 1e9;
+  climo.doy.forEach((a, i) => {
+    let d = Math.abs(a - lastDoy); d = Math.min(d, 365 - d);
+    if (d < bd) { bd = d; best = i; }
+  });
+  return best;
+}
 const climoCache = new Map();
 async function loadClimo(gid) {
   if (!gid) { climo = null; return; }
@@ -51,18 +66,23 @@ function drawClimo(key) {
   const cv = document.getElementById("climo-canvas"), x = cv.getContext("2d");
   const W = cv.width, H = cv.height, L = 66, R = 22, T = 26, B = 46;
   x.clearRect(0, 0, W, H);
-  const months = [];
-  let lo = Infinity, hi = -Infinity;
-  for (let m = 1; m <= 12; m++) {
-    const d = (climo.months[String(m).padStart(2, "0")] || {})[key];
-    months.push(d || null);
-    if (d) { lo = Math.min(lo, d.min); hi = Math.max(hi, d.max); }
-  }
-  if (!isFinite(lo)) return;
-  const pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
-  const px = m => L + (W - L - R) * (m + 0.5) / 12;
+  const A = climo.idx && climo.idx[key];
+  if (!A) return;
+  const D = climo.doy;
+
+  // usable anchors only (thin windows are dropped by the builder)
+  const ok = D.map((_, i) => A.p[i] && A.p[i][0] !== null && (A.n[i] || 0) >= 5);
+  const vals = [];
+  D.forEach((_, i) => { if (!ok[i]) return;
+    vals.push(A.min[i], A.max[i]); });
+  if (vals.length < 4) return;
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = (hi - lo) * 0.05 || 1; lo -= pad; hi += pad;
+
+  const px = d => L + (W - L - R) * (d - 1) / 364;
   const py = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
-  // grid + y labels
+
+  // grid
   x.strokeStyle = "#2a2a40"; x.fillStyle = "#b6b6cc"; x.font = "15px Inter";
   x.textAlign = "right";
   for (let i = 0; i <= 4; i++) {
@@ -70,43 +90,59 @@ function drawClimo(key) {
     x.beginPath(); x.moveTo(L, yy); x.lineTo(W - R, yy); x.stroke();
     x.fillText(Math.round(v), L - 8, yy + 5);
   }
-  x.textAlign = "center"; x.font = "600 15px Inter";
-  for (let m = 0; m < 12; m++) x.fillText(MON[m], px(m), H - 16);
-  const band = (pa, pb, col) => {
-    x.fillStyle = col; x.beginPath(); let started = false;
-    for (let m = 0; m < 12; m++) { const d = months[m]; if (!d) continue;
-      const xx = px(m), yy = py(d.p[pa]);
-      started ? x.lineTo(xx, yy) : x.moveTo(xx, yy); started = true; }
-    for (let m = 11; m >= 0; m--) { const d = months[m]; if (!d) continue;
-      x.lineTo(px(m), py(d.p[pb])); }
+  x.textAlign = "center"; x.font = "600 14px Inter";
+  const MSTART = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
+  MSTART.forEach((d, m) => x.fillText(MON[m], px(d + 14), H - 16));
+
+  // band between two percentile indices (or min/max arrays)
+  const band = (getA, getB, col) => {
+    x.fillStyle = col; x.beginPath();
+    let started = false;
+    D.forEach((d, i) => { if (!ok[i]) return;
+      const xx = px(d), yy = py(getA(i));
+      started ? x.lineTo(xx, yy) : x.moveTo(xx, yy); started = true; });
+    for (let i = D.length - 1; i >= 0; i--) { if (!ok[i]) continue;
+      x.lineTo(px(D[i]), py(getB(i))); }
     x.closePath(); x.fill();
   };
-  band(2, 6, "rgba(74,122,181,0.22)");     // p10-p90
-  band(3, 5, "rgba(74,122,181,0.34)");     // p25-p75
-  // median line
-  x.strokeStyle = "#9fc4f5"; x.lineWidth = 2.6; x.beginPath(); let st = false;
-  for (let m = 0; m < 12; m++) { const d = months[m]; if (!d) continue;
-    const xx = px(m), yy = py(d.p[4]); st ? x.lineTo(xx, yy) : x.moveTo(xx, yy); st = true; }
-  x.stroke();
-  // record markers + years
-  x.textAlign = "center";
-  for (let m = 0; m < 12; m++) { const d = months[m]; if (!d) continue;
-    x.font = "13px Inter";
-    x.fillStyle = "#e0603a"; x.fillText("▲", px(m), py(d.max) - 4);
-    x.fillStyle = "#4a7ab5"; x.fillText("▼", px(m), py(d.min) + 13);
-    x.font = "600 11px Inter"; x.fillStyle = "#8888a4";
-    x.fillText("'" + String(d.maxY).slice(2), px(m), py(d.max) - 17); }
-  // current sounding value
+  // record envelope (all-time daily max/min), then the percentile bands
+  band(i => A.max[i], i => A.min[i], "rgba(140,150,180,0.13)");
+  band(i => A.p[i][6], i => A.p[i][2], "rgba(74,122,181,0.26)");   // p10-p90
+  band(i => A.p[i][5], i => A.p[i][3], "rgba(74,122,181,0.38)");   // p25-p75
+
+  const line = (get, col, w, dash) => {
+    x.strokeStyle = col; x.lineWidth = w; x.setLineDash(dash || []);
+    x.beginPath(); let st = false;
+    D.forEach((d, i) => { if (!ok[i]) return;
+      const xx = px(d), yy = py(get(i));
+      st ? x.lineTo(xx, yy) : x.moveTo(xx, yy); st = true; });
+    x.stroke(); x.setLineDash([]);
+  };
+  line(i => A.max[i], "#e0603a", 1.6);                 // record high envelope
+  line(i => A.min[i], "#4a7ab5", 1.6);                 // record low envelope
+  line(i => A.p[i][4], "#9fc4f5", 2.6);                // median
+
+  // the sounding on display
   const cur = climoNow[key];
-  if (isFinite(cur) && lastMonth) {
-    const m = parseInt(lastMonth, 10) - 1;
-    x.fillStyle = "#ffd60a"; x.beginPath(); x.arc(px(m), py(cur), 8, 0, 7); x.fill();
-    x.strokeStyle = "#000"; x.lineWidth = 1; x.stroke();
+  if (isFinite(cur) && lastDoy !== null) {
+    x.fillStyle = "#ffd60a"; x.beginPath(); x.arc(px(lastDoy), py(cur), 8, 0, 7); x.fill();
+    x.strokeStyle = "#000"; x.lineWidth = 1.2; x.stroke();
   }
+
+  // legend
+  x.textAlign = "left"; x.font = "600 12px Inter";
+  const key3 = [["#e0603a", "record high"], ["#4a7ab5", "record low"],
+                ["#9fc4f5", "median"], ["rgba(74,122,181,0.55)", "10–90 / 25–75 %ile"]];
+  let lx = L + 6;
+  key3.forEach(([c, lab]) => {
+    x.fillStyle = c; x.fillRect(lx, T - 16, 14, 5);
+    x.fillStyle = "#a8a8c2"; x.fillText(lab, lx + 19, T - 11);
+    lx += 22 + x.measureText(lab).width + 14;
+  });
   document.getElementById("climo-sub").textContent =
-    `${meta[1]} (${meta[2]}) · record ${climo.months["01"] ? "" : ""}` +
-    `${Object.values(climo.months)[0].yr0}–${Object.values(climo.months)[0].yr1}`;
+    `${meta[1]}${meta[2] ? " (" + meta[2] + ")" : ""} · record ${climo.yr0}–${climo.yr1}`;
 }
+
 document.getElementById("climo-btn").addEventListener("click", openClimo);
 document.getElementById("climo-var").addEventListener("change", e => drawClimo(e.target.value));
 document.getElementById("climo-close").addEventListener("click", () => climoModal.hidden = true);
@@ -117,9 +153,13 @@ document.addEventListener("keydown", e => {
 const CLIMO_PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99];
 const CLIMO_MIN_N = 30;                  // a "record" from 4 soundings is noise
 function climoPct(key, v) {                          // -> {pct, rec} or null
-  if (!climo || !isFinite(v) || lastMonth === null) return null;
-  const d = climo.months && climo.months[lastMonth] && climo.months[lastMonth][key];
-  if (!d || !d.p || (d.n || 0) < CLIMO_MIN_N) return null;
+  if (!climo || !isFinite(v)) return null;
+  const A = climo.idx && climo.idx[key];
+  const s = A ? climoSlot(A) : -1;
+  if (!A || s < 0 || !A.p[s] || A.p[s][0] === null || (A.n[s] || 0) < CLIMO_MIN_N)
+    return null;
+  const d = { p: A.p[s], min: A.min[s], max: A.max[s],
+              minY: A.minY[s], maxY: A.maxY[s], n: A.n[s] };
   const X = [d.min, ...d.p, d.max], Y = [0, ...CLIMO_PCTS, 100];
   let pct = v <= X[0] ? 0 : v >= X[X.length - 1] ? 100 : 50;
   for (let i = 1; i < X.length; i++) {
@@ -674,7 +714,7 @@ async function loadSounding() {
       if (!prof) throw 0;
       setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`);
       plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
-      plotNote = ""; lastMonth = s.dt.slice(5, 7);
+      plotNote = ""; lastMonth = s.dt.slice(5, 7); lastDoy = doyOf(s.dt);
       render(thin(prof));
     } catch (e) {
       clearPlot("error: " + (e && e.message ? e.message : "fetch failed"));
@@ -696,7 +736,7 @@ async function loadSounding() {
         if (prof) {
           setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (UW BUFR high-res mirror)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${wantDt}Z`.trim();
-          plotNote = ""; lastMonth = wantDt.slice(5, 7);
+          plotNote = ""; lastMonth = wantDt.slice(5, 7); lastDoy = doyOf(wantDt);
           render(thin(prof));
           return;
         }
@@ -725,7 +765,7 @@ async function loadSounding() {
           const hh = pick.slice(-6, -4);
           setStatus(`valid ${ymd} ${hh}Z · ${prof.P.length} levels (UW BUFR day archive)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${ymd} ${hh}Z`.trim();
-          plotNote = ""; lastMonth = ymd.slice(5, 7);
+          plotNote = ""; lastMonth = ymd.slice(5, 7); lastDoy = doyOf(ymd);
           render(thin(prof));
           return;
         }
@@ -766,7 +806,7 @@ async function loadSounding() {
     `${String(got.hh).padStart(2, "0")}Z`.trim();
   plotNote = got.windOnly
     ? "⚠ WIND-ONLY DATA (pilot balloon) — no temperature; hodograph valid" : "";
-  lastMonth = shown.slice(5, 7);
+  lastMonth = shown.slice(5, 7); lastDoy = doyOf(shown);
   render(thin(got.prof));
 }
 
@@ -776,11 +816,12 @@ function compute(prof) {
   const ptrs = ["P", "H", "T", "D", "U", "V"].map(k => f32(prof[k]));
   const out = M._malloc(48 * 4);
   const tr = [M._malloc(N * 4), M._malloc(N * 4), M._malloc(N * 4)];
-  M._compute_sounding(...ptrs, N, out, tr[0], tr[1], tr[2]);
+  const _rc = M._compute_sounding(...ptrs, N, out, tr[0], tr[1], tr[2]);
   const o = Array.from(M.HEAPF32.subarray(out / 4, out / 4 + 48));
   const traces = tr.map(p => Array.from(M.HEAPF32.subarray(p / 4, p / 4 + N)));
   [...ptrs, out, ...tr].forEach(p => M._free(p));
-  return { o, sb: traces[0], ml: traces[1], mu: traces[2] };
+  if (_rc !== 0) console.warn("compute_sounding rc=", _rc);
+  return { rc: _rc, o, sb: traces[0], ml: traces[1], mu: traces[2] };
 }
 
 function traceAdiabat(startP, startT, startD, pGrid) {
@@ -986,6 +1027,29 @@ const dirOf = (u, v) => ((Math.atan2(-u, -v) * 180 / Math.PI) + 360) % 360;
 
 // ---------- skew-t drawing ----------
 const SK = { l: 58, r: 90, t: 40, b: 42, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
+
+// Some feeds report geopotential height as a literal 0 where it's missing
+// (Curacao's CSV does this above ~145 hPa), and SHARPlib REQUIRES monotonically
+// increasing height — a zeroed level makes it build an inverted height layer and
+// throw, which in WASM is an unrecoverable abort. Rebuild any bad height
+// hypsometrically from pressure and temperature.
+function sanitizeHeights(prof) {
+  const Rd = 287.05, g = 9.80665;
+  const P = prof.P, T = prof.T, H = prof.H;
+  let fixed = 0;
+  for (let i = 1; i < P.length; i++) {
+    const bad = !isFinite(H[i]) || H[i] <= H[i - 1];
+    if (!bad) continue;
+    if (isFinite(T[i]) && isFinite(T[i - 1]) && P[i] > 0 && P[i - 1] > P[i]) {
+      const tbar = 0.5 * (T[i] + T[i - 1]);
+      H[i] = H[i - 1] + Rd * tbar / g * Math.log(P[i - 1] / P[i]);
+    } else {
+      H[i] = H[i - 1] + 1;                 // last resort: keep it strictly increasing
+    }
+    fixed++;
+  }
+  return fixed;
+}
 
 function fitCanvas(cv) {                    // backing store = panel size × dpr
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -1518,9 +1582,11 @@ function clearPlot(msg) {
 }
 
 function render(prof) {
+  sanitizeHeights(prof);                   // before ANY analysis touches it
   const hasT = prof.T.some(v => isFinite(v));
   const res = hasT ? compute(prof) : { o: new Array(48).fill(MISSING),
     sb: [], ml: [], mu: [] };
+  if (res.rc === 2) plotNote = "⚠ analysis failed on this profile — charts only";
   lastProf = prof; lastRes = res;
   drawSkewT(prof, res);
   drawHodo(prof, res);

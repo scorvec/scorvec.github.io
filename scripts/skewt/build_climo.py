@@ -24,6 +24,7 @@ import subprocess
 import sys
 import urllib.request
 import zipfile
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +32,16 @@ import numpy as np
 IGRA = ("https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/"
         "access/data-por/")
 PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
+# day-of-year climatology: an anchor every 5 days, each pooling a +/-10-day
+# window. Far better than calendar months — a July 11 sounding is compared with
+# early-July weather, not with everything from July 1 to July 31.
+DOY_STEP, DOY_WIN = 5, 10
+DOY = list(range(1, 366, DOY_STEP))
+KEYS = ["pwat", "850t", "700t", "500t", "h500", "thick", "fzl", "kidx", "tott",
+        "ecape", "ship"]
+# Per-sounding values are cached, so re-aggregating (different window, new
+# percentiles) never re-downloads the 30-90 MB period-of-record file again.
+CACHE = Path(os.environ.get("CLIMO_CACHE", "/tmp/climo_cache"))
 CAPE_BIN = os.environ.get("CLIMO_CAPE_BIN", "/tmp/climo_cape")
 WORKERS = int(os.environ.get("CLIMO_WORKERS", "6"))
 G = 9.80665
@@ -133,74 +144,128 @@ def station_elev(gid: str) -> float:
     return float(_ELEV.get(gid, 0))
 
 
-def build_station(gid: str, outdir: Path) -> bool:
+def _samples(gid: str) -> dict | None:
+    """Per-sounding index values for a station: {key: (values, doys, years)}."""
+    CACHE.mkdir(parents=True, exist_ok=True)
+    cf = CACHE / f"{gid}.npz"
+    if cf.exists():
+        try:
+            z = np.load(cf)
+            return {"doy": z["doy"], "yr": z["yr"],
+                    "v": {k: z[k] for k in KEYS if k in z}}
+        except Exception:                                 # noqa: BLE001
+            pass                                          # corrupt cache: refetch
+
     try:
-        raw = urllib.request.urlopen(IGRA + f"{gid}-data.txt.zip", timeout=120).read()
+        raw = urllib.request.urlopen(IGRA + f"{gid}-data.txt.zip", timeout=180).read()
         zf = zipfile.ZipFile(io.BytesIO(raw))
         text = zf.read(zf.namelist()[0]).decode("utf-8", "ignore")
-    except Exception as e:                            # noqa: BLE001
+    except Exception as e:                                # noqa: BLE001
         print(f"  {gid}: fetch failed ({repr(e)[:50]})", flush=True)
-        return False
+        return None
 
-    by_month: dict = {}                               # mm -> {index -> [(val, year)]}
+    elev = station_elev(gid)
+    rows: list = []                                       # (doy, year, {key: val})
     lines = text.split("\n")
     i, n = 0, len(lines)
     while i < n:
         L = lines[i]
         if L.startswith("#" + gid):
-            year, month = int(L[13:17]), int(L[18:20])
+            year, month, day = int(L[13:17]), int(L[18:20]), int(L[21:23])
             nlev = int(L[32:36])
             block = lines[i + 1:i + 1 + nlev]
             i += 1 + nlev
-            vals = sounding_indices(block, station_elev(gid))
+            vals = sounding_indices(block, elev)
             if vals:
-                mb = by_month.setdefault(f"{month:02d}", {})
-                for k, v in vals.items():
-                    mb.setdefault(k, []).append((v, year))
+                try:
+                    doy = datetime(year, month, max(1, day)).timetuple().tm_yday
+                except ValueError:
+                    continue
+                rows.append((doy, year, vals))
             continue
         i += 1
 
-    # ECAPE + SHIP from the native SHARPlib helper (same physics as the app)
+    # ECAPE + SHIP from the native SHARPlib helper (identical physics to the app)
+    cape: dict = {}
     if os.path.exists(CAPE_BIN):
         try:
-            r = subprocess.run([CAPE_BIN, gid, str(station_elev(gid))],
-                               input=text, capture_output=True,
-                               text=True, timeout=600)
+            r = subprocess.run([CAPE_BIN, gid, str(elev)], input=text,
+                               capture_output=True, text=True, timeout=900)
             for ln in r.stdout.splitlines():
                 q = ln.split()
                 if len(q) != 4:
                     continue
-                yr, mm = int(q[0]), q[1]
-                mb = by_month.setdefault(mm, {})
-                for k, s in (("ecape", q[2]), ("ship", q[3])):
-                    if s != "nan":
-                        mb.setdefault(k, []).append((float(s), yr))
+                cape.setdefault((int(q[0]), q[1]), []).append(
+                    (float(q[2]) if q[2] != "nan" else np.nan,
+                     float(q[3]) if q[3] != "nan" else np.nan))
         except Exception as e:                            # noqa: BLE001
             print(f"  {gid}: cape helper failed ({repr(e)[:40]})", flush=True)
 
-    out = {"gid": gid, "months": {}}
-    total = 0
-    for mm, inds in by_month.items():
-        mo = {}
-        for k, vy in inds.items():
-            arr = np.array([v for v, _ in vy])
-            yrs = [y for _, y in vy]
-            total = max(total, len(arr))
-            imin, imax = int(np.argmin(arr)), int(np.argmax(arr))
-            mo[k] = {
-                "n": len(arr),
-                "p": [round(float(x), 1) for x in np.percentile(arr, PCTS)],
-                "min": round(float(arr[imin]), 1), "minY": yrs[imin],
-                "max": round(float(arr[imax]), 1), "maxY": yrs[imax],
-            }
-        mo["yr0"] = min(y for vy in inds.values() for _, y in vy)
-        mo["yr1"] = max(y for vy in inds.values() for _, y in vy)
-        out["months"][mm] = mo
-    if not out["months"]:
+    if not rows:
+        return None
+    doy = np.array([r[0] for r in rows], dtype="int16")
+    yr = np.array([r[1] for r in rows], dtype="int16")
+    v = {k: np.array([r[2].get(k, np.nan) for r in rows], dtype="float32")
+         for k in KEYS if k not in ("ecape", "ship")}
+    # cape values are keyed by (year, month) — attach by month, in order
+    for k, j in (("ecape", 0), ("ship", 1)):
+        out = np.full(len(rows), np.nan, dtype="float32")
+        seen: dict = {}
+        for idx, (d, y, _) in enumerate(rows):
+            mm = f"{datetime(int(y), 1, 1).month:02d}"
+            key = (int(y), f"{(datetime(2001, 1, 1) + timedelta(days=int(d) - 1)).month:02d}")
+            lst = cape.get(key)
+            if not lst:
+                continue
+            c = seen.get(key, 0)
+            if c < len(lst):
+                out[idx] = lst[c][j]
+                seen[key] = c + 1
+        v[k] = out
+    np.savez_compressed(CACHE / f"{gid}.npz", doy=doy, yr=yr, **v)
+    return {"doy": doy, "yr": yr, "v": v}
+
+
+def build_station(gid: str, outdir: Path) -> bool:
+    s = _samples(gid)
+    if not s:
         return False
+    doy, yr, V = s["doy"], s["yr"], s["v"]
+
+    out: dict = {"gid": gid, "doy": DOY, "idx": {}}
+    for k in KEYS:
+        vals = V.get(k)
+        if vals is None:
+            continue
+        ok = np.isfinite(vals)
+        if ok.sum() < 20:
+            continue
+        n_l, p_l, mn_l, mx_l, mnY_l, mxY_l = [], [], [], [], [], []
+        for a in DOY:
+            d = np.abs(doy - a)
+            d = np.minimum(d, 365 - d)                    # wrap the year
+            m = ok & (d <= DOY_WIN)
+            c = int(m.sum())
+            n_l.append(c)
+            if c < 5:
+                p_l.append([None] * len(PCTS))
+                mn_l.append(None); mx_l.append(None)
+                mnY_l.append(None); mxY_l.append(None)
+                continue
+            vv, yy = vals[m], yr[m]
+            p_l.append([round(float(x), 1) for x in np.percentile(vv, PCTS)])
+            i0, i1 = int(np.argmin(vv)), int(np.argmax(vv))
+            mn_l.append(round(float(vv[i0]), 1)); mnY_l.append(int(yy[i0]))
+            mx_l.append(round(float(vv[i1]), 1)); mxY_l.append(int(yy[i1]))
+        out["idx"][k] = {"n": n_l, "p": p_l, "min": mn_l, "max": mx_l,
+                         "minY": mnY_l, "maxY": mxY_l}
+    if not out["idx"]:
+        return False
+    out["yr0"] = int(yr.min()); out["yr1"] = int(yr.max())
     outdir.mkdir(parents=True, exist_ok=True)
     (outdir / f"{gid}.json").write_text(json.dumps(out, separators=(",", ":")))
-    print(f"  {gid}: {len(out['months'])} months, ~{total} soundings/mo peak", flush=True)
+    print(f"  {gid}: {len(out['idx'])} indices, {len(doy)} soundings "
+          f"({out['yr0']}-{out['yr1']})", flush=True)
     return True
 
 
@@ -218,9 +283,8 @@ def main() -> int:
         if fp.exists():
             try:
                 have = json.loads(fp.read_text())
-                if any("ecape" in mo or "ship" in mo
-                       for mo in have.get("months", {}).values()):
-                    ok += 1; continue          # already has cape indices
+                if have.get("doy") and have.get("idx"):
+                    ok += 1; continue          # already day-of-year format
             except Exception:                   # noqa: BLE001
                 pass                            # rebuild on parse error
         todo.append(gid)

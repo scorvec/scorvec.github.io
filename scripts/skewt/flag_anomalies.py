@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -118,13 +119,23 @@ def main() -> int:
             climo = json.loads(cf.read_text())
         except Exception:                                 # noqa: BLE001
             continue
-        mm = (e.get("dt", "") + "-01")[5:7]
-        mo = climo.get("months", {}).get(mm, {})
+        # day-of-year climatology: nearest 5-day anchor to the sounding's date
+        try:
+            dt = datetime.strptime(e.get("dt", "")[:10], "%Y-%m-%d")
+            doy = min(365, dt.timetuple().tm_yday)
+        except ValueError:
+            continue
+        anchors = climo.get("doy") or []
+        if not anchors:
+            continue
+        s = min(range(len(anchors)),
+                key=lambda i: min(abs(anchors[i] - doy), 365 - abs(anchors[i] - doy)))
         flags = []
         for k, v in idx.items():
-            d = mo.get(k)
-            if not d or "p" not in d or d.get("n", 0) < 30:
+            A = climo.get("idx", {}).get(k)
+            if not A or not A["p"][s] or A["p"][s][0] is None or A["n"][s] < 30:
                 continue
+            d = {"p": A["p"][s], "min": A["min"][s], "max": A["max"][s]}
             pct = pct_of(d, v)
             if pct <= 5 or pct >= 95:
                 flags.append({"k": k, "lab": LABELS.get(k, k),
