@@ -1168,6 +1168,35 @@ function sanitizeHeights(prof) {
   return fixed;
 }
 
+// A single missing dewpoint poisons any column integral — SPC's Albuquerque file
+// omits it on 4 stratospheric levels and PWAT came out NaN for the whole
+// sounding. Heights and winds were already gap-filled; dewpoint was not.
+function fillDewpoints(prof) {
+  const P = prof.P, T = prof.T, D = prof.D;
+  const ok = [];
+  for (let i = 0; i < P.length; i++) if (isFinite(D[i])) ok.push(i);
+  if (!ok.length) {                                  // no moisture at all: assume dry
+    for (let i = 0; i < P.length; i++) D[i] = T[i] - 30;
+    return 0;
+  }
+  let filled = 0;
+  for (let i = 0; i < P.length; i++) {
+    if (isFinite(D[i])) continue;
+    let lo = null, hi = null;
+    for (const j of ok) { if (j < i) lo = j; else { hi = j; break; } }
+    if (lo !== null && hi !== null) {                // interpolate across the gap
+      const f = Math.log(P[lo] / P[i]) / Math.log(P[lo] / P[hi]);
+      D[i] = D[lo] + f * (D[hi] - D[lo]);
+    } else {                                         // beyond the last observation
+      const ref = lo !== null ? lo : hi;             // (usually the dry stratosphere)
+      D[i] = Math.min(D[ref], T[i] - 2);
+    }
+    if (D[i] > T[i]) D[i] = T[i];                    // never supersaturated
+    filled++;
+  }
+  return filled;
+}
+
 function fitCanvas(cv) {                    // backing store = panel size × dpr
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const w = cv.clientWidth, h = cv.clientHeight;
@@ -1184,7 +1213,22 @@ function drawSkewT(prof, res) {
   const { W, H, ctx } = fitCanvas(cv);
   const pw = W - SK.l - SK.r, ph = H - SK.t - SK.b;
   const yOf = p => SK.t + (1 - Math.log(SK.pBot / p) / Math.log(SK.pBot / SK.pTop)) * ph;
-  const xOf = (tC, y) => SK.l + ((tC - SK.tL) / (SK.tR - SK.tL)) * pw + ((SK.t + ph) - y);
+  // The 45° skew shifts a point right by (bottom − y) pixels, so a HOT surface
+  // at a HIGH-ELEVATION station — whose surface already sits well up the diagram
+  // — can land past the right edge and be clipped (Albuquerque, 1619 m: 37.6 °C
+  // at 836 hPa overflowed by 12 px). Widen the temperature axis until the whole
+  // profile fits, rather than silently cropping the data.
+  let TR = SK.tR;
+  for (let i = 0; i < prof.P.length; i++) {
+    const tc = prof.T[i] - 273.15;
+    if (!isFinite(tc) || !isFinite(prof.P[i])) continue;
+    const skew = (SK.t + ph) - yOf(prof.P[i]);          // px the skew pushes it right
+    if (skew >= pw - 10) continue;
+    const need = SK.tL + (tc - SK.tL) / (1 - skew / pw);
+    if (need > TR) TR = need;
+  }
+  TR = Math.min(75, Math.ceil((TR + 3) / 5) * 5);       // headroom, rounded, sane cap
+  const xOf = (tC, y) => SK.l + ((tC - SK.tL) / (TR - SK.tL)) * pw + ((SK.t + ph) - y);
   ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
   // on-canvas title: station + valid time
   ctx.fillStyle = TH.ink; ctx.font = "700 16px Inter";
@@ -1455,7 +1499,8 @@ function drawMSE(prof) {
   ctx.fillStyle = "#8b8ba3"; ctx.strokeStyle = "#22223a"; ctx.textAlign = "center";
   ctx.font = "14px Inter";
   const span = hi - lo;
-  const step = span > 60 ? 20 : span > 30 ? 10 : span > 15 ? 5 : 2;
+  const step = span > 140 ? 50 : span > 90 ? 30 : span > 60 ? 20
+    : span > 30 ? 10 : span > 15 ? 5 : 2;
   for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
     ctx.beginPath(); ctx.moveTo(X(v), H - B); ctx.lineTo(X(v), H - B + 3); ctx.stroke();
     ctx.fillText(String(Math.round(v)), X(v), H - B + 13);
@@ -1675,7 +1720,7 @@ function fillTables(prof, res) {
   const thermo = [
     ["DCAPE", fmt(o[39]) + " J/kg"],
     ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
-    ["PWAT", climoCell("pwat", o[15], o[15] === MISSING ? "—"
+    ["PWAT", climoCell("pwat", o[15], (o[15] === MISSING || !isFinite(o[15])) ? "—"
       : `${o[15].toFixed(1)} mm · ${(o[15] / 25.4).toFixed(2)}"`)],
     ["Lapse 0–3 / 3–6 km", pair(fmt(o[16], 1), fmt(o[17], 1) + " K/km")],
     ["RH column / mid-lvl", (() => {
@@ -1776,6 +1821,7 @@ function clearPlot(msg) {
 
 function render(prof) {
   sanitizeHeights(prof);                   // before ANY analysis touches it
+  fillDewpoints(prof);                     // a lone NaN would void PWAT, CRH, MSE…
   const hasT = prof.T.some(v => isFinite(v));
   const res = hasT ? compute(prof) : { o: new Array(64).fill(MISSING),
     sb: [], ml: [], mu: [] };
