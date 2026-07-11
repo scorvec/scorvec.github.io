@@ -25,9 +25,14 @@ static float fld(const std::string& L, int a, int b) {
 int main(int argc, char** argv) {
     if (argc < 2) return 1;
     std::string gid = argv[1];
+    // IGRA frequently reports the surface level with NO geopotential height
+    // (-9999) — 1137 of 1144 July soundings at Santa Maria, Brazil. The surface
+    // height is simply the station elevation, so take it as an argument rather
+    // than discarding 99% of a station's record.
+    const float elev = (argc >= 3) ? std::atof(argv[2]) : 0.0f;
     std::istream* in = &std::cin;
     std::ifstream f;
-    if (argc >= 3) { f.open(argv[2]); in = &f; }
+    if (argc >= 4) { f.open(argv[3]); in = &f; }
 
     std::string line;
     std::vector<std::string> block;
@@ -87,13 +92,14 @@ int main(int argc, char** argv) {
                 D[i] = std::min(D[lo], T[i] - 2.0f);   // dry aloft, but physical
             } else return;
         }
+        // surface height = station elevation when IGRA omits it
+        if (std::isnan(H[0])) H[0] = elev;
         // heights: hypsometric from P and T (not arbitrary 100 m steps)
         for (int i = 1; i < N; ++i) {
             if (!std::isnan(H[i])) continue;
             const float tbar = 0.5f * (T[i] + T[i - 1]);
             H[i] = H[i - 1] + 287.05f * tbar / 9.80665f * std::log(P[i - 1] / P[i]);
         }
-        if (std::isnan(H[0])) return;
         // winds: interpolate across gaps (carry at the ends), never zero-fill
         {
             int first = -1, last = -1;

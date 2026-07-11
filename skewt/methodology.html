@@ -141,8 +141,17 @@
   preserves more buoyancy.</p>
   <p>So ECAPE is a function of the thermodynamic profile <em>and</em> the kinematic profile together —
   which is why its implementation demands winds and a moist-static-energy profile, not just
-  temperature and dewpoint. ECAPE is always ≤ CAPE, and the gap between them is physically meaningful:
-  it is the buoyancy the atmosphere promises but entrainment takes away.</p>
+  temperature and dewpoint. The gap between CAPE and ECAPE is physically meaningful: it is the
+  buoyancy the atmosphere promises but entrainment takes away.</p>
+  <div class="callout">
+    <b>ECAPE can exceed CAPE — and that isn't a bug.</b> The implementation returns
+    <em>Ẽ × CAPE</em>, where the factor <em>Ẽ</em> carries a <strong>storm-relative kinetic-energy
+    term</strong> alongside the entrainment penalty. When storm-relative inflow is strong, the updraft
+    can draw on that kinetic energy, and the ratio rises above 1. So the ECAPE/CAPE ratio is
+    <em>not</em> a pure "efficiency" bounded at 100% — it is entrainment loss and inflow gain netted
+    together. A ratio of 55% means entrainment dominates; 105% means vigorous storm-relative flow is
+    more than paying for the mixing.
+  </div>
 
   <h3>The three flavors</h3>
   <p>ECAPE is defined <em>per lifted parcel</em>, exactly like CAPE, so the Parcels table shows CAPE
@@ -155,13 +164,12 @@
     <tr><th>Derived quantity</th><th>Formula</th><th>What it tells you</th></tr>
     <tr><td><b>Max updraft (ECAPE)</b></td><td>√(2·ECAPE)</td><td>Realistic, entrainment-limited updraft speed</td></tr>
     <tr><td><b>Max updraft (CAPE)</b></td><td>√(2·CAPE)</td><td>The classic undilute speed, for contrast</td></tr>
-    <tr><td><b>Entrainment efficiency</b></td><td>ECAPE / CAPE</td><td>Fraction of buoyancy surviving mixing</td></tr>
+    <tr><td><b>ECAPE / CAPE</b></td><td>ratio</td><td>Entrainment loss netted against storm-relative inflow gain (can exceed 100%)</td></tr>
   </table>
   </div>
   <p>Both speeds are ceilings that ignore water loading and the perturbation pressure gradient, so real
-  updrafts fall short of even the ECAPE value. The point is not the absolute number but the
-  <strong>ratio</strong>: an entrainment efficiency of 55% means nearly half the advertised CAPE is
-  fiction.</p>
+  updrafts fall short of even the ECAPE value. The point is the <strong>comparison</strong>: where the
+  ECAPE updraft falls well short of the CAPE one, most of the advertised buoyancy is fiction.</p>
 
   <h2>4. Moist static energy</h2>
   <p>ECAPE is built on moist static energy, so the explorer plots it directly.</p>
@@ -194,6 +202,13 @@
     <tr><td><b>Column MSE</b></td><td>The vertical integral (1/g)∫h dp, in GJ/m² — the state variable of tropical MSE-budget theory</td></tr>
   </table>
   </div>
+
+  <h3>Boundary-layer depth</h3>
+  <p>The <strong>PBL top</strong> is found by scanning virtual potential temperature upward for the
+  first level exceeding the surface value by 0.5 K — the top of the well-mixed layer. It's reported as
+  both a height AGL and a pressure. A 12Z sounding taken just after sunrise typically shows a shallow
+  nocturnal layer (a few hundred metres); by 00Z, after a day of surface heating, it deepens
+  dramatically.</p>
 
   <h2>5. Climatology — where a value ranks</h2>
   <p>Every station's <strong>entire period of record</strong> is pulled from IGRA (up to ~90 MB per
@@ -229,7 +244,9 @@
     <li><strong>Not for operational use.</strong> This is a personal research tool.</li>
     <li>Climatology covers <strong>active stations</strong>; long-closed sites have no percentiles.</li>
     <li>CAPE-derived climatologies (ECAPE, SHIP) rest on fewer samples than level diagnostics, because
-        they demand complete, quality-gated soundings. Check the sample count before leaning on a percentile.</li>
+        they demand complete, quality-gated soundings. Nothing is flagged unless that index has at
+        least <strong>30 samples</strong> in the month — a "record" drawn from four soundings is
+        noise, not a record.</li>
     <li>Historical vertical resolution is genuinely coarser than modern BUFR — a 1960 hodograph is less
         detailed because the <em>data</em> is, not the rendering.</li>
     <li><strong>Corfidi vectors are absent</strong> — they're referenced inside SHARPlib but not exposed

@@ -43,7 +43,7 @@ def _f(s):
     return np.nan if v <= -8888 else v
 
 
-def sounding_indices(block: list[str]) -> dict | None:
+def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
     """block = the level lines of one sounding. Returns index dict or None."""
     P, T, D, H = [], [], [], []
     for L in block:
@@ -66,6 +66,8 @@ def sounding_indices(block: list[str]) -> dict | None:
     P, T, D, H = map(np.asarray, (P, T, D, H))
     o = np.argsort(-P)                                # sfc -> top
     P, T, D, H = P[o], T[o], D[o], H[o]
+    if not np.isfinite(H[0]):                         # IGRA often omits sfc height
+        H = H.copy(); H[0] = elev
 
     def at(field, plevel):
         pv = plevel * 100.0
@@ -119,6 +121,18 @@ def sounding_indices(block: list[str]) -> dict | None:
     return {k: v for k, v in idx.items() if v is not None and np.isfinite(v)}
 
 
+_ELEV = None
+
+
+def station_elev(gid: str) -> float:
+    """IGRA often omits the SURFACE geopotential height; it's the station elevation."""
+    global _ELEV
+    if _ELEV is None:
+        _ELEV = {s["gid"]: s.get("e", 0) or 0
+                 for s in json.loads(STATIONS.read_text())["stations"]}
+    return float(_ELEV.get(gid, 0))
+
+
 def build_station(gid: str, outdir: Path) -> bool:
     try:
         raw = urllib.request.urlopen(IGRA + f"{gid}-data.txt.zip", timeout=120).read()
@@ -138,7 +152,7 @@ def build_station(gid: str, outdir: Path) -> bool:
             nlev = int(L[32:36])
             block = lines[i + 1:i + 1 + nlev]
             i += 1 + nlev
-            vals = sounding_indices(block)
+            vals = sounding_indices(block, station_elev(gid))
             if vals:
                 mb = by_month.setdefault(f"{month:02d}", {})
                 for k, v in vals.items():
@@ -149,8 +163,9 @@ def build_station(gid: str, outdir: Path) -> bool:
     # ECAPE + SHIP from the native SHARPlib helper (same physics as the app)
     if os.path.exists(CAPE_BIN):
         try:
-            r = subprocess.run([CAPE_BIN, gid], input=text, capture_output=True,
-                               text=True, timeout=300)
+            r = subprocess.run([CAPE_BIN, gid, str(station_elev(gid))],
+                               input=text, capture_output=True,
+                               text=True, timeout=600)
             for ln in r.stdout.splitlines():
                 q = ln.split()
                 if len(q) != 4:
