@@ -1169,40 +1169,39 @@ function buildExportCanvas() {
   x.fillText(plotTitle, W - pad, H - 20);
   return cv;
 }
+// Full-resolution card: re-render the UN-thinned profile onto oversized
+// canvases with dense barbs (every reportable wind level), compose, then
+// restore the on-screen state — all synchronous, so nothing flickers.
+function buildFullCard() {
+  const keep = lastProf;
+  try {
+    EXPORT_PX = { skewt: { w: 1150, h: 1750 }, hodo: { w: 950, h: 950 },
+                  mse: { w: 950, h: 560 } };
+    BARB_GAP = 10;
+    render(lastProfFull || keep);
+    return buildExportCanvas();
+  } finally {
+    EXPORT_PX = null; BARB_GAP = 22;
+    render(keep);
+  }
+}
 function exportPNG() {
-  const cv = buildExportCanvas();
+  const cv = buildFullCard();
   const a = document.createElement("a");
   a.download = (plotTitle || "sounding").replace(/[^\w.-]+/g, "_") + ".png";
   a.href = cv.toDataURL("image/png");
   a.click();
 }
-// mobile: tap the skew-T to open the full composed card (chart + indices) in a
-// pinch-zoomable overlay — the on-page canvas is too small to read on a phone
-if (window.matchMedia && matchMedia("(pointer:coarse)").matches) {
-  document.getElementById("skewt").addEventListener("click", () => {
-    if (!lastProf) return;
-    // full-resolution card: re-render the UN-thinned profile onto oversized
-    // canvases with dense barbs (every reportable wind level), export, then
-    // restore the on-screen state — all synchronous, so nothing flickers
-    const keep = lastProf;
-    let cv;
-    try {
-      EXPORT_PX = { skewt: { w: 1150, h: 1750 }, hodo: { w: 950, h: 950 },
-                    mse: { w: 950, h: 560 } };
-      BARB_GAP = 10;
-      render(lastProfFull || keep);
-      cv = buildExportCanvas();
-    } finally {
-      EXPORT_PX = null; BARB_GAP = 22;
-      render(keep);
-    }
-    document.getElementById("png-view-img").src = cv.toDataURL("image/png");
-    document.getElementById("png-view").hidden = false;
-  });
-  document.getElementById("png-view").addEventListener("click", e => {
-    if (e.target.id !== "png-view-img") document.getElementById("png-view").hidden = true;
-  });
-}
+// click/tap the skew-T on ANY device to open the full card in an overlay —
+// same image the PNG button saves
+document.getElementById("skewt").addEventListener("click", () => {
+  if (!lastProf) return;
+  document.getElementById("png-view-img").src = buildFullCard().toDataURL("image/png");
+  document.getElementById("png-view").hidden = false;
+});
+document.getElementById("png-view").addEventListener("click", e => {
+  if (e.target.id !== "png-view-img") document.getElementById("png-view").hidden = true;
+});
 document.getElementById("export-btn").addEventListener("click", exportPNG);
 
 // ---- compare: pin the current sounding, overlay it under the next one ----
