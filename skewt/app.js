@@ -33,7 +33,16 @@ function f32(arr) {
 }
 
 // ---------- station map ----------
-const map = L.map("map", { worldCopyJump: true }).setView([30, -10], 3);
+const COARSE = window.matchMedia && matchMedia("(pointer:coarse)").matches;
+const RAD = COARSE ? { closed: 5, active: 7, live: 10 } : { closed: 2.5, active: 4, live: 6 };
+const map = L.map("map", { worldCopyJump: true, preferCanvas: true }).setView([30, -10], 3);
+// mobile nav wraps after fonts/layout settle, resizing the map container —
+// Leaflet must re-measure or tiles/markers render for stale geometry
+addEventListener("resize", () => map.invalidateSize());
+addEventListener("orientationchange", () => setTimeout(() => map.invalidateSize(), 200));
+if (window.ResizeObserver) new ResizeObserver(() => map.invalidateSize())
+  .observe(document.querySelector(".mapwrap"));
+setTimeout(() => map.invalidateSize(), 400);
 const modal = document.getElementById("modal");
 function setStatus(text, busy = false) {
   for (const id of ["status", "mstatus"]) {
