@@ -69,6 +69,8 @@
     text-decoration: none; max-width: 1280px; width: 100%;
   }
   @media (max-width: 600px) {
+    select, .btn { font-size: 16px; }
+    .slider { flex-basis: 100%; order: 10; }
     .hint { display: none; }
     .frame-date { min-width: 0; font-size: 0.82rem; }
     .controls-row { gap: 0.6rem; }
@@ -209,7 +211,24 @@ function switchRegion(rid) {
   setupRegion();
 }
 
+// phones: decoding every full-size frame at once blows Safari's image budget
+// (frames go blank mid-loop) — preload a rolling window instead
+const EAGER = !(window.matchMedia && matchMedia("(pointer:coarse)").matches)
+  && screen.width > 700;
+function preloadWindow(rid, center) {
+  const fr = manifest.regions[rid].frames, span = 8;
+  for (let d = 0; d <= span; d++) {
+    const k = (center + d) % fr.length;
+    const im = new Image();
+    im.src = `${ANIM_BASE}/${rid}/${fr[k].file}?v=${fr[k].date}.${manifest.ver||""}`;
+    if (d === 0) {
+      if (im.complete) loadingEl.classList.add("hidden");
+      else im.onload = () => loadingEl.classList.add("hidden");
+    }
+  }
+}
 function preload(rid) {
+  if (!EAGER) { preloadWindow(rid, Math.max(0, manifest.regions[rid].frames.length - 1)); return; }
   if (preloaded[rid]) return;
   preloaded[rid] = manifest.regions[rid].frames.map(f => {
     const im = new Image();
@@ -224,6 +243,7 @@ function preload(rid) {
 
 function showFrame(i) {
   idx = (i + frames.length) % frames.length;
+  if (!EAGER && idx % 4 === 0) preloadWindow(region, idx);
   const f = frames[idx];
   imgEl.src = `${ANIM_BASE}/${region}/${f.file}?v=${f.date}.${manifest.ver||""}`;
   dateEl.textContent = f.label;
