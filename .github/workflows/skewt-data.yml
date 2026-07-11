@@ -29,6 +29,8 @@ jobs:
           sparse-checkout: |
             scripts/skewt
             skewt/stations.json
+            skewt/sharplib.js
+            skewt/sharplib.wasm
           sparse-checkout-cone-mode: false
 
       - uses: actions/checkout@v4

@@ -166,7 +166,15 @@ function climoPct(key, v) {                          // -> {pct, rec} or null
     if (v <= X[i]) { const f = (v - X[i - 1]) / ((X[i] - X[i - 1]) || 1);
       pct = Y[i - 1] + f * (Y[i] - Y[i - 1]); break; }
   }
-  const rec = v >= d.max ? { t: "high", y: d.maxY } : v <= d.min ? { t: "low", y: d.minY } : null;
+  // A value tied with the bulk of the distribution is not an extreme. ECAPE is
+  // zero on nearly every Antarctic sounding, so a zero there is the MEDIAN — yet
+  // a naive percentile calls it P0. Require genuine separation from the middle.
+  const degenerateLow = v >= d.p[3];      // not actually below the 25th
+  const degenerateHigh = v <= d.p[5];     // not actually above the 75th
+  if ((pct <= CLIMO_LO && degenerateLow) || (pct >= CLIMO_HI && degenerateHigh))
+    return null;
+  const rec = (v >= d.max && v > d.p[5]) ? { t: "high", y: d.maxY }
+    : (v <= d.min && v < d.p[3]) ? { t: "low", y: d.minY } : null;
   return { pct: Math.max(0, Math.min(100, pct)), rec };
 }
 // Only the tails are worth flagging: a value sitting at P53 is by definition
