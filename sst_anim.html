@@ -98,7 +98,7 @@
 </head>
 <body>
 
-<a class="back" href="sst.html">&larr; Back to SST &amp; RONI</a>
+<a class="back" id="back-link" href="sst.html">&larr; Back to SST &amp; RONI</a>
 
 <div class="frame-wrap">
   <img id="frame" alt="SST anomaly animation frame">
@@ -161,6 +161,15 @@ addEventListener("resize", postHeight);
 async function init() {
   try {
     const MF = new URLSearchParams(location.search).get("manifest") || "manifest.json";
+{ // "back" follows whichever product embeds the animator
+  const b = (new URLSearchParams(location.search).get("base") || "").toLowerCase();
+  const dest = b.includes("climate") ? ["climate.html", "Global Climate Monitor"]
+    : b.includes("mjo") ? ["mjo.html", "MJO Forecast"]
+    : b.includes("ens") ? ["ensembles.html", "Ensembles"]
+    : b.includes("gatun") ? ["gatun/", "Lake Gatun"] : null;
+  const bl = document.getElementById("back-link");
+  if (bl && dest) { bl.href = dest[0]; bl.innerHTML = "&larr; Back to " + dest[1]; }
+}
     const r = await fetch(`${ANIM_BASE}/${MF}?v=${Date.now()}`);
     manifest = await r.json();
   } catch (e) {
