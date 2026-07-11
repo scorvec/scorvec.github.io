@@ -191,7 +191,7 @@ syncControls();
 function selectStation(s) {
   current = s;
   openModal();
-  if (s.id) location.hash = s.id;
+  // deep links (#wmoid) are still honored on page load, but clicking no longer rewrites the URL
   document.getElementById("stn-label").textContent = `${s.n || s.gid} · ${s.id || s.gid}`;
   setStatus(mode === "latest"
     ? "fetching latest sounding from the mirror…"
