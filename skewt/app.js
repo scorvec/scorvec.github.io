@@ -2237,6 +2237,18 @@ function drawSkewT(prof, res) {
     ctx.fillText(`${lab} ${hm === null ? "" : Math.round(hm) + "m"}`, SK.l + pw - 30, y + 4);
   }
   ctx.textAlign = "left";
+  // tropopause (WMO lapse-rate definition): dashed line across the diagram
+  const tpM = tropopause(prof);
+  if (isFinite(tpM.wmoP) && tpM.wmoP < SK.pBot && tpM.wmoP > SK.pTop) {
+    const yT = yOf(tpM.wmoP);
+    ctx.strokeStyle = "rgba(191,90,242,0.5)"; ctx.lineWidth = 1.2; ctx.setLineDash([7, 5]);
+    ctx.beginPath(); ctx.moveTo(SK.l + 2, yT); ctx.lineTo(SK.l + pw - 2, yT); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineWidth = 1;
+    ctx.fillStyle = "rgba(214,150,255,0.95)"; ctx.font = "600 11px Inter";
+    ctx.fillText(`TROP ${(tpM.wmoZ / 1000).toFixed(1)} km · ${(tpM.wmoZ * 3.28084 / 1000).toFixed(1)} kft`,
+      SK.l + 6, yT - 5);
+    ctx.font = "700 12px Inter";
+  }
   if (o[28] !== MISSING && o[29] !== MISSING) {
     const y0 = yOf(o[28]), y1 = yOf(o[29]);
     ctx.strokeStyle = TH.eil; ctx.lineWidth = 2;
