@@ -115,10 +115,11 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape" && !climoModal.hidden) climoModal.hidden = true;
 });
 const CLIMO_PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99];
+const CLIMO_MIN_N = 30;                  // a "record" from 4 soundings is noise
 function climoPct(key, v) {                          // -> {pct, rec} or null
   if (!climo || !isFinite(v) || lastMonth === null) return null;
   const d = climo.months && climo.months[lastMonth] && climo.months[lastMonth][key];
-  if (!d || !d.p) return null;
+  if (!d || !d.p || (d.n || 0) < CLIMO_MIN_N) return null;
   const X = [d.min, ...d.p, d.max], Y = [0, ...CLIMO_PCTS, 100];
   let pct = v <= X[0] ? 0 : v >= X[X.length - 1] ? 100 : 50;
   for (let i = 1; i < X.length; i++) {
@@ -1359,7 +1360,9 @@ function fillTables(prof, res) {
     ["SHIP", climoCell("ship", o[43], fmt(o[43], 1))],
     ["Max updraft (ECAPE)", isFinite(wmaxE) ? wmaxE.toFixed(0) + " m/s" : "—"],
     ["Max updraft (CAPE)", isFinite(wmaxC) ? wmaxC.toFixed(0) + " m/s" : "—"],
-    ["Entrain. efficiency", isFinite(entEff) ? entEff.toFixed(0) + " %" : "—"],
+    // NOT an "efficiency": SHARPlib returns E_tilde × CAPE, and E_tilde carries a
+    // storm-relative kinetic-energy term, so strong SR inflow can push this >100%.
+    ["ECAPE / CAPE", isFinite(entEff) ? entEff.toFixed(0) + " %" : "—"],
   ];
   const M = mseProfile(prof);
   const thermo = [
@@ -1396,6 +1399,12 @@ function fillTables(prof, res) {
     ["1000–500 thick.", climoCell("thick", (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN, (isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—")],
     ["Freezing level", climoCell("fzl", fzl, isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—")],
     ["Wet-bulb 0 °C", (() => { const w = wbzAgl(prof); return climoCell("wbz", w, isFinite(w) ? Math.round(w) + " m AGL" : "—"); })()],
+    ["PBL top (mixing depth)", (() => {
+      const pp = o[46];
+      if (pp === MISSING || !isFinite(pp)) return "—";
+      const zz = interpHagl(prof, pp);
+      return (zz === null ? "—" : Math.round(zz) + " m AGL") + ` · ${(pp / 100).toFixed(0)} hPa`;
+    })()],
   ];
 
   climoNow = { pwat: o[15], "850t": t850, "700t": t700, "500t": t500,

@@ -40,7 +40,7 @@ using namespace sharp;
 // 34 mu_lpl_p 35 sb_lcl_hght_agl
 // 36 sb_li500 37 ml_li500 38 mu_li500  (K, vs env virtual temp)
 // 39 dcape    40 sb_cape_0_3km         41 mu_ncape (J/kg per m)
-// 42 ecape_mu 43 ship 44 ecape_sb 45 ecape_ml
+// 42 ecape_mu 43 ship 44 ecape_sb 45 ecape_ml 46 pbl_top (Pa)
 
 extern "C" {
 
@@ -222,6 +222,14 @@ KEEP int compute_sounding(const float* pres, const float* hght,
     if (ml.cape > 0)
         ecape_ml = entrainment_cape(pres, hght, tmpk, mse.data(), uwin, vwin, N, &ml);
 
+    // --- PBL top (mixing depth) ---------------------------------------------
+    // pbl_top scans theta-v for the first level exceeding the surface value by
+    // `offset` K — i.e. the top of the well-mixed layer. Returns pressure (Pa).
+    std::vector<float> thetav(N);
+    for (int i = 0; i < N; ++i)
+        thetav[i] = theta(pres[i], vtmp[i], THETA_REF_PRESSURE);
+    const float pbl_p = pbl_top(pres, thetav.data(), N, 0.5f);
+
     // --- SHIP: significant hail parameter -----------------------------------
     const float lr75 = lapse_rate(PressureLayer(70000.0f, 50000.0f), pres, hght, tmpk, N);
     const float t500k = interp_pressure(50000.0f, pres, tmpk, N);
@@ -249,7 +257,7 @@ KEEP int compute_sounding(const float* pres, const float* hght,
         eff_srh, eff_shear_mag, scp, stp,
         mu.pres, sb_lcl_agl,
         sb_li, ml_li, mu_li, dcape, (float)c3, mu_ncape,
-        ecape, ship, ecape_sb, ecape_ml,
+        ecape, ship, ecape_sb, ecape_ml, pbl_p,
     };
     for (size_t i = 0; i < sizeof(o) / sizeof(float); ++i) out[i] = o[i];
     return 0;
