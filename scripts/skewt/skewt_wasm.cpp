@@ -40,6 +40,7 @@ using namespace sharp;
 // 34 mu_lpl_p 35 sb_lcl_hght_agl
 // 36 sb_li500 37 ml_li500 38 mu_li500  (K, vs env virtual temp)
 // 39 dcape    40 sb_cape_0_3km         41 mu_ncape (J/kg per m)
+// 42 ecape_mu 43 ship
 
 extern "C" {
 
@@ -207,6 +208,32 @@ KEEP int compute_sounding(const float* pres, const float* hght,
         if (dz > 0) mu_ncape = mu.cape / dz;
     }
 
+    // --- ECAPE: Peters et al. (2023) entraining CAPE for the MU parcel ------
+    std::vector<float> mse(N);
+    for (int i = 0; i < N; ++i) {
+        const float q = mixr[i] / (1.0f + mixr[i]);        // specific humidity
+        mse[i] = moist_static_energy(hght[i] - sfc, tmpk[i], q);
+    }
+    float ecape = MISSING;
+    if (mu.cape > 0)
+        ecape = entrainment_cape(pres, hght, tmpk, mse.data(), uwin, vwin, N, &mu);
+
+    // --- SHIP: significant hail parameter -----------------------------------
+    const float lr75 = lapse_rate(PressureLayer(70000.0f, 50000.0f), pres, hght, tmpk, N);
+    const float t500k = interp_pressure(50000.0f, pres, tmpk, N);
+    float fzl_agl = MISSING;
+    for (int i = 1; i < N; ++i) {
+        if (tmpk[i - 1] >= 273.15f && tmpk[i] < 273.15f) {
+            const float f = (273.15f - tmpk[i - 1]) / (tmpk[i] - tmpk[i - 1]);
+            fzl_agl = hght[i - 1] + f * (hght[i] - hght[i - 1]) - sfc; break;
+        }
+    }
+    const float shr6_mag = (shr6.u != MISSING)
+        ? std::sqrt(shr6.u * shr6.u + shr6.v * shr6.v) : MISSING;
+    float ship = MISSING;
+    if (mu.cape > 0 && fzl_agl != MISSING && shr6_mag != MISSING && t500k != MISSING)
+        ship = significant_hail_parameter(mu, lr75, t500k, fzl_agl, shr6_mag);
+
     const float o[] = {
         sb.cape, sb.cinh, sb.lcl_pressure, sb.lfc_pressure, sb.eql_pressure,
         ml.cape, ml.cinh, ml.lcl_pressure, ml.lfc_pressure, ml.eql_pressure,
@@ -218,6 +245,7 @@ KEEP int compute_sounding(const float* pres, const float* hght,
         eff_srh, eff_shear_mag, scp, stp,
         mu.pres, sb_lcl_agl,
         sb_li, ml_li, mu_li, dcape, (float)c3, mu_ncape,
+        ecape, ship,
     };
     for (size_t i = 0; i < sizeof(o) / sizeof(float); ++i) out[i] = o[i];
     return 0;
@@ -273,7 +301,7 @@ int main(int argc, char** argv) {
         } catch (...) { continue; }
     }
     const int N = (int)P.size();
-    std::vector<float> out(48), sbv(N), mlv(N), muv(N);
+    std::vector<float> out(64), sbv(N), mlv(N), muv(N);
     int rc = compute_sounding(P.data(), H.data(), T.data(), D.data(), U.data(),
                               V.data(), N, out.data(), sbv.data(), mlv.data(),
                               muv.data());

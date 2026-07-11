@@ -29,8 +29,9 @@ const CLIMO_VARS = [
   ["pwat", "Precipitable water", "mm"], ["850t", "850 hPa temperature", "°C"],
   ["700t", "700 hPa temperature", "°C"], ["500t", "500 hPa temperature", "°C"],
   ["h500", "500 hPa height", "m"], ["thick", "1000–500 hPa thickness", "m"],
-  ["fzl", "Freezing level (AGL)", "m"], ["kidx", "K-index", ""],
-  ["tott", "Total Totals", ""],
+  ["fzl", "Freezing level (AGL)", "m"], ["wbz", "Wet-bulb 0 °C (AGL)", "m"],
+  ["kidx", "K-index", ""], ["tott", "Total Totals", ""],
+  ["ecape", "ECAPE (MU)", "J/kg"], ["ship", "Significant Hail (SHIP)", ""],
 ];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const climoModal = document.getElementById("climo-modal");
@@ -112,23 +113,35 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape" && !climoModal.hidden) climoModal.hidden = true;
 });
 const CLIMO_PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99];
-function climoRank(key, v) {                        // -> " · P68" / " · ★ record high (2025)"
-  if (!climo || !isFinite(v) || lastMonth === null) return "";
-  const m = climo.months && climo.months[lastMonth];
-  const d = m && m[key];
-  if (!d || !d.p) return "";
-  let out = "";
-  if (v >= d.max) out = ` · ★ record high (${d.maxY})`;
-  else if (v <= d.min) out = ` · ★ record low (${d.minY})`;
-  // interpolate percentile across [min, p1..p99, max] -> [0,1..99,100]
+function climoPct(key, v) {                          // -> {pct, rec} or null
+  if (!climo || !isFinite(v) || lastMonth === null) return null;
+  const d = climo.months && climo.months[lastMonth] && climo.months[lastMonth][key];
+  if (!d || !d.p) return null;
   const X = [d.min, ...d.p, d.max], Y = [0, ...CLIMO_PCTS, 100];
   let pct = v <= X[0] ? 0 : v >= X[X.length - 1] ? 100 : 50;
   for (let i = 1; i < X.length; i++) {
     if (v <= X[i]) { const f = (v - X[i - 1]) / ((X[i] - X[i - 1]) || 1);
       pct = Y[i - 1] + f * (Y[i] - Y[i - 1]); break; }
   }
-  const ord = Math.max(1, Math.min(99, Math.round(pct)));
-  return (out || ` · P${ord}`);
+  const rec = v >= d.max ? { t: "high", y: d.maxY } : v <= d.min ? { t: "low", y: d.minY } : null;
+  return { pct: Math.max(0, Math.min(100, pct)), rec };
+}
+// diverging blue(low)->neutral->red(high); saturates near the record tails
+function pctColor(pct) {
+  const x = (pct - 50) / 50;                          // -1 .. +1
+  const a = Math.min(1, Math.abs(x) * 1.15);
+  const c = x >= 0 ? [224, 70, 55] : [70, 120, 210];  // red / blue
+  return `rgba(${c[0]},${c[1]},${c[2]},${(0.10 + 0.55 * a).toFixed(2)})`;
+}
+// value cell HTML: colored background by percentile, ★ + year at the tails
+function climoCell(key, v, txt) {
+  const r = climoPct(key, v);
+  if (!r) return txt;
+  const ord = Math.max(1, Math.min(99, Math.round(r.pct)));
+  const tip = r.rec ? `record ${r.rec.t} ${r.rec.y}` : `${ord}th percentile`;
+  const star = r.rec ? ` <span style="color:${r.rec.t === "high" ? "#ff5a3c" : "#5a9bf0"}">★${String(r.rec.y).slice(2)}</span>` : "";
+  const sub = r.rec ? "" : `<span class="pctlab">P${ord}</span>`;
+  return `<span class="pctcell" style="background:${pctColor(r.pct)}" title="${tip}">${txt}${star}</span>${sub}`;
 }
 const MIRROR = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-data/";
 const IGRA = "https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/access/";
@@ -657,6 +670,27 @@ function interpP(prof, key, pPa) {         // interp any field at pressure (log-
   }
   return NaN;
 }
+function wetbulbC(Tc, Tdc) {               // Stull 2011 approximation (°C)
+  const es = tc => 6.112 * Math.exp(17.67 * tc / (tc + 243.5));
+  const RH = Math.max(1, Math.min(100, 100 * es(Tdc) / es(Tc)));
+  return Tc * Math.atan(0.151977 * Math.sqrt(RH + 8.313659)) + Math.atan(Tc + RH)
+    - Math.atan(RH - 1.676331) + 0.00391838 * Math.pow(RH, 1.5) * Math.atan(0.023101 * RH)
+    - 4.686035;
+}
+function wbzAgl(prof) {                    // wet-bulb 0 °C height, m AGL
+  const P = prof.P, T = prof.T, D = prof.D, H = prof.H;
+  let prevW = null, prevH = null;
+  for (let i = 0; i < P.length; i++) {
+    if (!isFinite(T[i]) || !isFinite(D[i])) continue;
+    const w = wetbulbC(T[i] - 273.15, D[i] - 273.15);
+    if (prevW !== null && prevW >= 0 && w < 0) {
+      const f = prevW / (prevW - w);
+      return prevH + f * (H[i] - prevH) - H[0];
+    }
+    prevW = w; prevH = H[i];
+  }
+  return NaN;
+}
 function freezingLvlAgl(prof) {            // lowest 0 °C crossing, m AGL
   const P = prof.P, T = prof.T, H = prof.H;
   for (let i = 1; i < P.length; i++) {
@@ -1009,18 +1043,26 @@ function fillTables(prof, res) {
   const ktf = (u, v) => (u === MISSING) ? "—" : (Math.hypot(u, v) * KT).toFixed(0) + " kt";
   const vecf = (u, v) => (u === MISSING) ? "—" :
     `${Math.round(dirOf(u, v))}/${Math.round(Math.hypot(u, v) * KT)} kt`;
+  const ehi = (cape, srh) => (isFinite(cape) && cape > 0 && srh !== MISSING)
+    ? (cape * srh / 160000).toFixed(1) : "—";
+  const effIL = (o[28] === MISSING || o[29] === MISSING) ? "—"
+    : `${(o[28] / 100).toFixed(0)}–${(o[29] / 100).toFixed(0)} hPa`;
   const kinem = [
     ["0–1 km shear", ktf(o[20], o[21])], ["0–6 km shear", ktf(o[18], o[19])],
     ["SRH 0–1 km", fmt(o[26]) + " m²/s²"], ["SRH 0–3 km", fmt(o[27]) + " m²/s²"],
     ["Eff. SRH", fmt(o[30]) + " m²/s²"],
     ["Eff. shear (EBWD)", o[31] === MISSING ? "—" : (o[31] * KT).toFixed(0) + " kt"],
+    ["Eff. inflow", effIL],
+    ["EHI 0–1 km", ehi(o[0], o[26])], ["EHI 0–3 km", ehi(o[0], o[27])],
     ["Bunkers RM", vecf(o[22], o[23])], ["Bunkers LM", vecf(o[24], o[25])],
-    ["SCP", fmt(o[32], 1)], ["STP (eff.)", fmt(o[33], 1)],
+    ["SCP", fmt(o[32], 1)], ["STP (eff.)", fmt(o[33], 1)], ["SHIP", climoCell("ship", o[43], fmt(o[43], 1))],
   ];
   const thermo = [
+    ["MU CAPE", fmt(o[10]) + " J/kg"],
+    ["ECAPE (MU)", climoCell("ecape", o[42], o[42] === MISSING ? "—" : fmt(o[42]) + " J/kg")],
     ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
     ["DCAPE", fmt(o[39]) + " J/kg"],
-    ["PWAT", fmt(o[15], 1) + " mm" + climoRank("pwat", o[15])],
+    ["PWAT", climoCell("pwat", o[15], fmt(o[15], 1) + " mm")],
     ["Lapse 0–3 km", fmt(o[16], 1) + " K/km"], ["Lapse 3–6 km", fmt(o[17], 1) + " K/km"],
   ];
 
@@ -1035,21 +1077,23 @@ function fillTables(prof, res) {
   const totalT = t850 + d850 - 2 * t500;
   const fzl = freezingLvlAgl(prof);
   const g = (v, u, dp = 1) => isFinite(v) ? v.toFixed(dp) + u : "—";
-  thermo.push(["K-index", g(kidx, "", 0) + climoRank("kidx", kidx)],
-              ["Total Totals", g(totalT, "", 0) + climoRank("tott", totalT)]);
+  thermo.push(["K-index", climoCell("kidx", kidx, g(kidx, "", 0))],
+              ["Total Totals", climoCell("tott", totalT, g(totalT, "", 0))]);
   const levels = [
-    ["850 hPa T / Td", `${g(t850, "", 0)} / ${g(d850, " °C", 0)}` + climoRank("850t", t850)],
-    ["700 hPa T / Td", `${g(t700, "", 0)} / ${g(d700, " °C", 0)}` + climoRank("700t", t700)],
-    ["500 hPa T", g(t500, " °C", 0) + climoRank("500t", t500)],
-    ["500 hPa height", (isFinite(h500) ? Math.round(h500) + " m" : "—") + climoRank("h500", h500)],
-    ["1000–500 thick.", ((isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—")
-       + (isFinite(h500) && isFinite(h1000) ? climoRank("thick", h500 - h1000) : "")],
-    ["Freezing level", (isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—") + climoRank("fzl", fzl)],
+    ["850 hPa T / Td", climoCell("850t", t850, `${g(t850, "", 0)} / ${g(d850, " °C", 0)}`)],
+    ["700 hPa T / Td", climoCell("700t", t700, `${g(t700, "", 0)} / ${g(d700, " °C", 0)}`)],
+    ["500 hPa T", climoCell("500t", t500, g(t500, " °C", 0))],
+    ["500 hPa height", climoCell("h500", h500, isFinite(h500) ? Math.round(h500) + " m" : "—")],
+    ["1000–500 thick.", climoCell("thick", (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN, (isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—")],
+    ["Freezing level", climoCell("fzl", fzl, isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—")],
+    ["Wet-bulb 0 °C", (() => { const w = wbzAgl(prof); return climoCell("wbz", w, isFinite(w) ? Math.round(w) + " m AGL" : "—"); })()],
   ];
 
   climoNow = { pwat: o[15], "850t": t850, "700t": t700, "500t": t500,
     h500: h500, thick: (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN,
-    fzl: fzl, kidx: kidx, tott: totalT };
+    fzl: fzl, kidx: kidx, tott: totalT,
+    ecape: o[42] === MISSING ? NaN : o[42], ship: o[43] === MISSING ? NaN : o[43],
+    wbz: wbzAgl(prof) };
   document.getElementById("climo-btn").style.display = climo ? "" : "none";
 
   const row = ([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`;
