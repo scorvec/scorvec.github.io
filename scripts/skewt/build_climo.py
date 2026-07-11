@@ -16,6 +16,7 @@ Indices: pwat 850t 700t 500t h500 thick fzl kidx tott (exact from levels) plus
 """
 from __future__ import annotations
 
+import concurrent.futures as cf
 import io
 import json
 import os
@@ -31,6 +32,7 @@ IGRA = ("https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/"
         "access/data-por/")
 PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
 CAPE_BIN = os.environ.get("CLIMO_CAPE_BIN", "/tmp/climo_cape")
+WORKERS = int(os.environ.get("CLIMO_WORKERS", "6"))
 G = 9.80665
 HERE = Path(__file__).resolve().parent
 STATIONS = HERE.parents[1] / "skewt" / "stations.json"
@@ -194,6 +196,7 @@ def main() -> int:
         stns = [s["gid"] for s in json.loads(STATIONS.read_text())["stations"]]
     else:
         stns = args
+    todo = []
     ok = 0
     for gid in stns:
         fp = outdir / f"{gid}.json"
@@ -205,8 +208,17 @@ def main() -> int:
                     ok += 1; continue          # already has cape indices
             except Exception:                   # noqa: BLE001
                 pass                            # rebuild on parse error
-        if build_station(gid, outdir):
-            ok += 1
+        todo.append(gid)
+
+    # network-bound (30-90 MB per station) — fetch/compute several at once
+    with cf.ThreadPoolExecutor(max_workers=WORKERS) as ex:
+        futs = {ex.submit(build_station, g, outdir): g for g in todo}
+        for f in cf.as_completed(futs):
+            try:
+                if f.result():
+                    ok += 1
+            except Exception as e:              # noqa: BLE001
+                print(f"  {futs[f]}: failed ({repr(e)[:40]})", flush=True)
     print(f"built {ok}/{len(stns)}", flush=True)
     return 0
 
