@@ -1032,11 +1032,15 @@ function fillTables(prof, res) {
     const h = interpHagl(prof, pP);
     return h === null ? "—" : Math.round(h) + "m";
   };
-  const rows = [["PCL", "CAPE", "CINH", "LCL", "LI", "LFC", "EL"]];
+  const rows = [["PCL", "CAPE", "ECAPE", "CINH", "LCL", "LI", "LFC", "EL"]];
+  const ecapeIx = { SFC: 44, ML: 45, MU: 42 };
   const defs = [["SFC", 0, 36], ["ML", 5, 37], ["MU", 10, 38]];
   for (const [nm, i0, li] of defs) {
-    rows.push([nm, fmt(o[i0]), fmt(o[i0 + 1]),
-               hAt(o[i0 + 2]), fmt(o[li], 1), hAt(o[i0 + 3]), hAt(o[i0 + 4])]);
+    const ec = o[ecapeIx[nm]];
+    const ecTxt = ec === MISSING ? "—" : fmt(ec);
+    rows.push([nm, fmt(o[i0]),
+               nm === "MU" ? climoCell("ecape", ec === MISSING ? NaN : ec, ecTxt) : ecTxt,
+               fmt(o[i0 + 1]), hAt(o[i0 + 2]), fmt(o[li], 1), hAt(o[i0 + 3]), hAt(o[i0 + 4])]);
   }
   document.getElementById("pcl-table").innerHTML = rows.map((r, i) =>
     `<tr>${r.map(c => i === 0 ? `<th>${c}</th>` : `<td>${c}</td>`).join("")}</tr>`).join("");
@@ -1062,7 +1066,6 @@ function fillTables(prof, res) {
     ["SHIP", climoCell("ship", o[43], fmt(o[43], 1))],
   ];
   const thermo = [
-    ["ECAPE (MU)", climoCell("ecape", o[42], o[42] === MISSING ? "—" : fmt(o[42]) + " J/kg")],
     ["DCAPE", fmt(o[39]) + " J/kg"],
     ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
     ["PWAT", climoCell("pwat", o[15], fmt(o[15], 1) + " mm")],
