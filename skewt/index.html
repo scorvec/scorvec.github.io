@@ -229,6 +229,29 @@
   <img id="png-view-img" alt="full sounding analysis image" style="max-width:none; width:1400px; display:block; margin:0 auto; padding:8px">
 </div>
 
+<div id="cloud-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog" style="height:auto; max-height:92vh; width:min(860px,96vw)">
+    <div class="dlg-head controls">
+      <span class="station">☁ Cloud layers</span>
+      <button id="cloud-close" title="close" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <canvas id="cloud-canvas" style="width:100%; height:min(52vh,460px); display:block"></canvas>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <table class="params kin" id="cloud-table" style="font-size:0.92rem"></table>
+    </div>
+    <p class="note" style="color:var(--muted); font-size:0.75rem; margin-top:8px">
+      Cloud layers estimated from relative humidity — with respect to <b>ice</b> below 0 °C, where
+      deposition saturates before water saturation. A level is counted as cloudy above a
+      height-dependent RH threshold (90% below 2 km, 85% to 6 km, 80% above — looser aloft, where
+      radiosonde humidity sensors read dry in cold air); adjacent cloudy levels merge into layers.
+      Layers whose temperatures fall between 0 and −20 °C are flagged as supercooled (aircraft
+      icing range). This is an estimate from a single profile — thin or broken cloud between
+      sounding levels can be missed.</p>
+  </div>
+</div>
+
 <div id="fog-modal" class="modal" hidden style="z-index:2100">
   <div class="dialog" style="height:auto; max-height:92vh; width:min(860px,96vw)">
     <div class="dlg-head controls">
@@ -296,6 +319,7 @@
          rel="noopener" style="font-size:0.78rem; color:var(--accent)">UW page ↗</a>
       <button id="climo-btn" style="display:none">📊 Climatology</button>
       <button id="fog-btn" title="fog, frost and dew diagnostics">🌫 Fog/frost</button>
+      <button id="cloud-btn" title="cloud layer estimate">☁ Clouds</button>
       <button id="share-btn" title="copy a link to this exact sounding">🔗 Share</button>
       <button id="export-btn" title="download skew-T + hodograph as an image">📷 PNG</button>
       <button id="pin-btn" title="pin this sounding, then load another to overlay them">📌 Compare</button>
@@ -350,6 +374,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=d5c9dbe5"></script>
+<script src="app.js?v=96ff5264"></script>
 </body>
 </html>
