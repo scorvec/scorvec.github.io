@@ -162,8 +162,12 @@ function fogRows(prof) {
     if (prof.H[i] - prof.H[0] > 1500) break;
   }
   const rh500 = layerRH(prof, prof.P[0], Math.max(prof.P[0] - 6000, 50000));
-  const windNote = spd0 < 2 ? " (near calm — dew may outpace fog)"
-    : spd0 <= 7 ? " (in the 2–7 kt fog sweet spot)" : " (likely too mixed)";
+  const rb = bulkRi(prof);
+  const riTxt = !rb ? "—"
+    : `${rb.ri > 25 ? ">25" : rb.ri < -25 ? "<-25" : rb.ri.toFixed(2)} over lowest ${Math.round(rb.dz)} m — ` +
+      (rb.ri > 0.25 ? "stable, turbulence suppressed (surface decoupled)"
+       : rb.ri >= 0 ? "weakly stable, mechanical mixing active"
+       : "unstable, convective mixing");
   // dew vs frost: below 0 °C deposition happens at the FROST point, which sits
   // above the dew point (ice saturation < water saturation) — invert ice Magnus
   const tf = frostPtC(D0);
@@ -176,11 +180,32 @@ function fogRows(prof) {
     ["Sfc T − Td", `${(T0 - D0).toFixed(1)} °C ${(T0 - D0) <= 2.5 ? "(near saturation)" : ""}`],
     ["Fog point (sfc Td)", `${D0.toFixed(1)} °C — cool ${(T0 - D0).toFixed(1)} °C to saturate`],
     ["If sfc cools to saturation", deposit],
-    ["Surface wind", `${spd0.toFixed(0)} kt${windNote}`],
+    ["Surface wind", `${spd0.toFixed(0)} kt`],
+    ["Bulk Richardson", riTxt],
     ["Sfc inversion", invTop ? `yes — top ${Math.round(invTop)} m, +${invDT.toFixed(1)} °C` : "none detected"],
     ["Mean RH lowest 60 hPa", isFinite(rh500) ? rh500.toFixed(0) + " %" : "—"],
     ["Wet-bulb (sfc)", `${wetbulbC(T0, D0).toFixed(1)} °C`],
   ];
+}
+// Bulk Richardson number over the lowest resolved layer: buoyant suppression
+// vs shear production of turbulence. Ri > ~0.25 means the surface layer is
+// dynamically stable/decoupled — radiative cooling and moisture stay trapped.
+function bulkRi(prof) {
+  const z0 = prof.H[0];
+  let i = 1;
+  while (i < prof.P.length &&
+         (prof.H[i] - z0 < 30 || !isFinite(prof.T[i]) || !isFinite(prof.U[i]))) i++;
+  if (i >= prof.P.length || !isFinite(prof.T[0]) || !isFinite(prof.U[0])) return null;
+  const thv = k => {
+    const dC = prof.D[k] - 273.15;
+    const e = isFinite(dC) ? 6.112 * Math.exp(17.67 * dC / (dC + 243.5)) : 0;
+    const r = 0.622 * e / (prof.P[k] / 100 - e);
+    return prof.T[k] * (1 + 0.61 * r) * Math.pow(100000 / prof.P[k], 0.2854);
+  };
+  const dz = prof.H[i] - z0;
+  const du = prof.U[i] - prof.U[0], dv = prof.V[i] - prof.V[0];
+  const s2 = Math.max(du * du + dv * dv, 1e-4);
+  return { ri: 9.80665 / (0.5 * (thv(0) + thv(i))) * (thv(i) - thv(0)) * dz / s2, dz };
 }
 function frostPtC(tdC) {
   const e = 6.112 * Math.exp(17.67 * tdC / (tdC + 243.5));
@@ -291,11 +316,8 @@ function drawFogCharts(prof) {
   const wStep = wTop <= 2 ? 0.5 : wTop <= 5 ? 1 : wTop <= 12 ? 2 : 5;
   for (let v = 0; v <= wTop; v += wStep) ctx.fillText(v, rx(v), y(0) + 4);
   ctx.fillText("w g/kg", (rx(0) + rx(wTop)) / 2, 4);
-  // wind strip: speed trace with the 2-7 kt radiation-fog sweet spot shaded,
-  // barbs for direction (drainage flow shows as a veer to downslope)
+  // wind strip: speed trace + barbs for direction (drainage flow, nocturnal jet)
   ctx.strokeStyle = TH.grid; ctx.strokeRect(sx(0), Mg.t, sx(sMax) - sx(0), y(0) - Mg.t);
-  ctx.fillStyle = "rgba(48,209,88,0.10)";
-  ctx.fillRect(sx(2), Mg.t, sx(Math.min(7, sMax)) - sx(2), y(0) - Mg.t);
   ctx.strokeStyle = TH.barb; ctx.lineWidth = 1.6; ctx.beginPath();
   let spen = false;
   for (const q of pts) if (isFinite(q.spd)) {
