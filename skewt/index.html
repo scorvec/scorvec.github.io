@@ -219,6 +219,16 @@
   </div>
 </div>
 
+<div id="png-view" hidden
+  style="position:fixed; inset:0; z-index:3000; background:rgba(4,4,9,0.96); overflow:auto;
+         -webkit-overflow-scrolling:touch">
+  <div style="position:sticky; top:8px; text-align:right; padding-right:12px">
+    <button style="font:600 0.95rem var(--sans); background:var(--panel); color:var(--ink);
+      border:1px solid var(--rule); border-radius:8px; padding:7px 14px">✕ close</button>
+  </div>
+  <img id="png-view-img" alt="full sounding analysis image" style="max-width:none; width:1400px; display:block; margin:0 auto; padding:8px">
+</div>
+
 <div id="climo-modal" class="modal" hidden>
   <div class="dialog" style="height:auto; max-height:92vh; width:min(1160px,96vw)">
     <div class="dlg-head controls">
@@ -311,6 +321,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=6046ce24"></script>
+<script src="app.js?v=d55907ef"></script>
 </body>
 </html>

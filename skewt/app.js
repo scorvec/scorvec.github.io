@@ -567,7 +567,7 @@ document.getElementById("anom-toggle").addEventListener("click", () => {
 });
 
 // ---- PNG export: skew-T + hodograph on one branded card ----
-function exportPNG() {
+function buildExportCanvas() {
   const sk = document.getElementById("skewt"), ho = document.getElementById("hodo");
   const pad = 24, foot = 54;
 
@@ -639,10 +639,27 @@ function exportPNG() {
   x.fillStyle = "#8b8ba3"; x.font = "20px Inter, sans-serif";
   x.textAlign = "right";
   x.fillText(plotTitle, W - pad, H - 20);
+  return cv;
+}
+function exportPNG() {
+  const cv = buildExportCanvas();
   const a = document.createElement("a");
   a.download = (plotTitle || "sounding").replace(/[^\w.-]+/g, "_") + ".png";
   a.href = cv.toDataURL("image/png");
   a.click();
+}
+// mobile: tap the skew-T to open the full composed card (chart + indices) in a
+// pinch-zoomable overlay — the on-page canvas is too small to read on a phone
+if (window.matchMedia && matchMedia("(pointer:coarse)").matches) {
+  document.getElementById("skewt").addEventListener("click", () => {
+    if (!lastProf) return;
+    const img = document.getElementById("png-view-img");
+    img.src = buildExportCanvas().toDataURL("image/png");
+    document.getElementById("png-view").hidden = false;
+  });
+  document.getElementById("png-view").addEventListener("click", e => {
+    if (e.target.id !== "png-view-img") document.getElementById("png-view").hidden = true;
+  });
 }
 document.getElementById("export-btn").addEventListener("click", exportPNG);
 
