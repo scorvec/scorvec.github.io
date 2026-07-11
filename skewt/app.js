@@ -729,9 +729,29 @@ function setMode(m2) { mode = m2; syncControls(); }
 
 function maybeReload() { if (current && !modal.hidden) loadSounding(); }
 
-function stepDate(days) {
-  const d = new Date(archDate + "T00:00:00Z");
-  archDate = new Date(d.getTime() + days * 864e5).toISOString().slice(0, 10);
+function stepDate(dir) {
+  // Step to the NEXT SOUNDING, not the next calendar day: toggle 12Z<->00Z
+  // within a day first, and use the station's actual launch-date list (cached
+  // after the first archive load) for the day jumps, skipping gap days.
+  const dates = (current && current.gid && igraDatesCache.get(current.gid)) || null;
+  const dayStep = d => {
+    if (dates && dates.length) {
+      let i = dates.findIndex(x => x >= archDate);
+      if (i < 0) i = dates.length - 1;
+      if (dates[i] !== archDate && d < 0) i--;        // between entries going back
+      const j = Math.max(0, Math.min(dates.length - 1, i + d));
+      return dates[j];
+    }
+    const dt = new Date(archDate + "T00:00:00Z");
+    return new Date(dt.getTime() + d * 864e5).toISOString().slice(0, 10);
+  };
+  if (dir < 0) {
+    if (archHour === 12) archHour = 0;                // 12Z -> 00Z same day
+    else { archDate = dayStep(-1); archHour = 12; }   // 00Z -> prev day's 12Z
+  } else {
+    if (archHour === 0) archHour = 12;                // 00Z -> 12Z same day
+    else { archDate = dayStep(1); archHour = 0; }     // 12Z -> next day's 00Z
+  }
   if (mode !== "archive") mode = "archive";
   syncControls();
   maybeReload();
