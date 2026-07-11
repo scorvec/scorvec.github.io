@@ -674,7 +674,8 @@ document.getElementById("pin-btn").addEventListener("click", () => {
     pinned = { prof: lastProf, title: plotTitle };
     b.textContent = "📌 Unpin";
     b.title = "comparing against " + pinned.title;
-    setStatus(`pinned ${pinned.title} — now load another station or date to compare`);
+    modal.hidden = true;                    // straight back to the map — no manual close
+    setStatus(`📌 pinned ${pinned.title} — click any station (or use the date arrows) to compare`);
   }
   if (lastProf && lastRes) { drawSkewT(lastProf, lastRes); drawHodo(lastProf, lastRes); }
 });
@@ -727,7 +728,11 @@ function syncControls() {
 
 function setMode(m2) { mode = m2; syncControls(); }
 
-function maybeReload() { if (current && !modal.hidden) loadSounding(); }
+function maybeReload() {
+  if (!current) return;
+  if (modal.hidden && pinned) modal.hidden = false;   // arrows re-open a pinned compare
+  if (!modal.hidden) loadSounding();
+}
 
 function stepDate(dir) {
   // Step to the NEXT SOUNDING, not the next calendar day: toggle 12Z<->00Z
