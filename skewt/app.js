@@ -932,28 +932,30 @@ async function loadSounding() {
         return;
       }
     }
-    if (!s) {
-      clearPlot("station not in the live feed — switch to Archive (IGRA)");
-      return;
+    if (s) {
+      setStatus("fetching…", true);
+      try {
+        const r = await fetch(MIRROR + "soundings/" + current.id + ".csv?t=" + s.dt);
+        if (!r.ok) throw 0;
+        const prof = parseCSV(await r.text());
+        if (!prof) throw 0;
+        setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`);
+        plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
+        plotNote = ""; lastMonth = s.dt.slice(5, 7); lastDoy = doyOf(s.dt);
+        render(thin(prof));
+        return;
+      } catch (e) { /* mirror failed — fall through to the archive */ }
     }
-    setStatus("fetching…", true);
-    try {
-      const r = await fetch(MIRROR + "soundings/" + current.id + ".csv?t=" + s.dt);
-      if (!r.ok) throw 0;
-      const prof = parseCSV(await r.text());
-      if (!prof) throw 0;
-      setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`);
-      plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
-      plotNote = ""; lastMonth = s.dt.slice(5, 7); lastDoy = doyOf(s.dt);
-      render(thin(prof));
-    } catch (e) {
-      clearPlot("error: " + (e && e.message ? e.message : "fetch failed"));
-    }
-    return;
+    // No live source at all (station absent from SPC/IEM/UW this cycle):
+    // "Latest" should still mean something — show the newest ARCHIVED sounding
+    // rather than a dead end. The nearest-available fallback below finds it.
+    setStatus("no live feed — fetching this station's newest archived sounding…", true);
   }
   // archive mode: recent launches come from the high-res UW mirror when
-  // available (BUFR fidelity, ~4-day retention), else NOAA IGRA v2
-  const ymd = archDate;
+  // available (BUFR fidelity, ~4-day retention), else NOAA IGRA v2.
+  // (Latest mode lands here too when no live source exists — with today's
+  // date, so the fallback resolves to the newest launch on record.)
+  const ymd = mode === "latest" ? new Date().toISOString().slice(0, 10) : archDate;
   const me = current.id ? entries[current.id] : null;
   const wantDt = `${ymd} ${String(archHour).padStart(2, "0")}:00`;
   if (me && (me.hours || []).includes(wantDt)) {
@@ -2076,6 +2078,7 @@ function clearPlot(msg) {
   for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table"])
     document.getElementById(id).innerHTML = "";
   plotTitle = "";
+  lastProf = lastRes = null;      // else a resize redraw resurrects the wiped chart
 }
 
 function render(prof) {
