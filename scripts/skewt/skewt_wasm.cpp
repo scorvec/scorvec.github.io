@@ -8,6 +8,8 @@
 // WASM build:   see build_wasm.sh
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <exception>
 #include <cstddef>
 #include <vector>
 
@@ -44,10 +46,33 @@ using namespace sharp;
 
 extern "C" {
 
+static int compute_sounding_impl(const float* pres, const float* hght,
+                                 const float* tmpk, const float* dwpk,
+                                 const float* uwin, const float* vwin, const int N,
+                                 float* out, float* sb_vt, float* ml_vt, float* mu_vt);
+
+// A SHARPlib throw is an unrecoverable abort in WASM — it kills the whole
+// module and the page shows "Aborted(undefined)". Catch everything here so one
+// pathological sounding degrades to an error code instead of taking the app down.
 KEEP int compute_sounding(const float* pres, const float* hght,
                           const float* tmpk, const float* dwpk,
                           const float* uwin, const float* vwin, const int N,
                           float* out, float* sb_vt, float* ml_vt, float* mu_vt) {
+    try {
+        return compute_sounding_impl(pres, hght, tmpk, dwpk, uwin, vwin, N,
+                                     out, sb_vt, ml_vt, mu_vt);
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "compute_sounding: %s\n", e.what());
+        return 2;
+    } catch (...) {
+        return 2;
+    }
+}
+
+static int compute_sounding_impl(const float* pres, const float* hght,
+                                 const float* tmpk, const float* dwpk,
+                                 const float* uwin, const float* vwin, const int N,
+                                 float* out, float* sb_vt, float* ml_vt, float* mu_vt) {
     if (N < 5) return 1;
     std::vector<float> mixr(N), vtmp(N), thta(N), buoy(N), scratch(N);
     for (int i = 0; i < N; ++i) {
@@ -131,12 +156,21 @@ KEEP int compute_sounding(const float* pres, const float* hght,
     float scp = MISSING, stp = MISSING;
     if (eff.bottom != MISSING && eff.top != MISSING && mu.eql_pressure != MISSING) {
         eff_srh = helicity(eff, bunkR, pres, uwin, vwin, N);
-        // effective bulk shear: EIL bottom → 50% of the MU parcel EL height
+        // effective bulk shear: EIL bottom → 50% of the MU parcel EL height.
+        // SHARPlib THROWS if the layer is degenerate/inverted (and a throw is a
+        // hard abort in WASM), so validate the bounds before constructing it.
         const float eil_bot_hght = interp_pressure(eff.bottom, pres, hght, N);
         const float el_hght = interp_pressure(mu.eql_pressure, pres, hght, N);
-        const float half_hght = eil_bot_hght + 0.5f * (el_hght - eil_bot_hght);
-        WindComponents eshr = wind_shear(HeightLayer(eil_bot_hght, half_hght),
-                                         hght, uwin, vwin, N);
+        const bool layer_ok = (eil_bot_hght != MISSING) && (el_hght != MISSING) &&
+                              std::isfinite(eil_bot_hght) && std::isfinite(el_hght) &&
+                              (el_hght > eil_bot_hght + 1.0f);
+        WindComponents eshr{MISSING, MISSING};
+        if (layer_ok) {
+            const float half_hght = eil_bot_hght + 0.5f * (el_hght - eil_bot_hght);
+            if (half_hght > eil_bot_hght)
+                eshr = wind_shear(HeightLayer(eil_bot_hght, half_hght),
+                                  hght, uwin, vwin, N);
+        }
         if (eshr.u != MISSING) {
             eff_shear_mag = std::sqrt(eshr.u * eshr.u + eshr.v * eshr.v);
             scp = supercell_composite_parameter(mu.cape, eff_srh, eff_shear_mag);
