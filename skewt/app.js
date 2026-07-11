@@ -126,12 +126,13 @@ function climoPct(key, v) {                          // -> {pct, rec} or null
   const rec = v >= d.max ? { t: "high", y: d.maxY } : v <= d.min ? { t: "low", y: d.minY } : null;
   return { pct: Math.max(0, Math.min(100, pct)), rec };
 }
-// diverging blue(low)->neutral->red(high); saturates near the record tails
+// below p50 = a graded blue (light near median -> deep near record low);
+// above p50 = graded red. Visible even for small departures from the median.
 function pctColor(pct) {
   const x = (pct - 50) / 50;                          // -1 .. +1
-  const a = Math.min(1, Math.abs(x) * 1.15);
-  const c = x >= 0 ? [224, 70, 55] : [70, 120, 210];  // red / blue
-  return `rgba(${c[0]},${c[1]},${c[2]},${(0.10 + 0.55 * a).toFixed(2)})`;
+  const a = 0.16 + 0.54 * Math.min(1, Math.abs(x));   // clear tint even near p50
+  const c = x >= 0 ? [224, 70, 55] : [56, 120, 216];  // red high / blue low
+  return `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(2)})`;
 }
 // value cell HTML: colored background by percentile, ★ + year at the tails
 function climoCell(key, v, txt) {
