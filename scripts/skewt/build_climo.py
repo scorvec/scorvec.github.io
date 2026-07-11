@@ -37,8 +37,8 @@ PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
 # early-July weather, not with everything from July 1 to July 31.
 DOY_STEP, DOY_WIN = 5, 10
 DOY = list(range(1, 366, DOY_STEP))
-KEYS = ["pwat", "850t", "700t", "500t", "h500", "thick", "fzl", "kidx", "tott",
-        "ecape", "ship"]
+KEYS = ["pwat", "850t", "700t", "500t", "850td", "700td",
+        "h500", "thick", "fzl", "kidx", "tott", "ecape", "ship"]
 # Per-sounding values are cached, so re-aggregating (different window, new
 # percentiles) never re-downloads the 30-90 MB period-of-record file again.
 CACHE = Path(os.environ.get("CLIMO_CACHE", "/tmp/climo_cache"))
@@ -123,6 +123,7 @@ def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
     idx = {
         "pwat": pw,
         "850t": c(t850), "700t": c(t700), "500t": c(t500),
+        "850td": c(d850), "700td": c(d700),
         "h500": h500,
         "thick": (h500 - h1000) if np.isfinite(h500) and np.isfinite(h1000) else np.nan,
         "fzl": fzl,
@@ -151,8 +152,10 @@ def _samples(gid: str) -> dict | None:
     if cf.exists():
         try:
             z = np.load(cf)
-            return {"doy": z["doy"], "yr": z["yr"],
-                    "v": {k: z[k] for k in KEYS if k in z}}
+            if all(k in z for k in KEYS if k not in ("ecape", "ship")):
+                return {"doy": z["doy"], "yr": z["yr"],
+                        "v": {k: z[k] for k in KEYS if k in z}}
+            # cache predates a newly added index — refetch to fill it
         except Exception:                                 # noqa: BLE001
             pass                                          # corrupt cache: refetch
 
@@ -283,8 +286,8 @@ def main() -> int:
         if fp.exists():
             try:
                 have = json.loads(fp.read_text())
-                if have.get("doy") and have.get("idx"):
-                    ok += 1; continue          # already day-of-year format
+                if have.get("doy") and "850td" in have.get("idx", {}):
+                    ok += 1; continue          # already has the split T/Td keys
             except Exception:                   # noqa: BLE001
                 pass                            # rebuild on parse error
         todo.append(gid)

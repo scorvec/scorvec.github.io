@@ -43,6 +43,7 @@ let climoNow = {};
 const CLIMO_VARS = [
   ["pwat", "Precipitable water", "mm"], ["850t", "850 hPa temperature", "°C"],
   ["700t", "700 hPa temperature", "°C"], ["500t", "500 hPa temperature", "°C"],
+  ["850td", "850 hPa dewpoint", "°C"], ["700td", "700 hPa dewpoint", "°C"],
   ["h500", "500 hPa height", "m"], ["thick", "1000–500 hPa thickness", "m"],
   ["fzl", "Freezing level (AGL)", "m"], ["wbz", "Wet-bulb 0 °C (AGL)", "m"],
   ["kidx", "K-index", ""], ["tott", "Total Totals", ""],
@@ -1942,8 +1943,10 @@ function fillTables(prof, res) {
   thermo.push(["K-index", climoCell("kidx", kidx, g(kidx, "", 0))],
               ["Total Totals", climoCell("tott", totalT, g(totalT, "", 0))]);
   const levels = [
-    ["850 hPa T / Td", climoCell("850t", t850, `${g(t850, "", 0)} / ${g(d850, " °C", 0)}`)],
-    ["700 hPa T / Td", climoCell("700t", t700, `${g(t700, "", 0)} / ${g(d700, " °C", 0)}`)],
+    ["850 hPa T / Td", climoCell("850t", t850, g(t850, "°", 0)) + " / " +
+      climoCell("850td", d850, g(d850, " °C", 0))],
+    ["700 hPa T / Td", climoCell("700t", t700, g(t700, "°", 0)) + " / " +
+      climoCell("700td", d700, g(d700, " °C", 0))],
     ["500 hPa T", climoCell("500t", t500, g(t500, " °C", 0))],
     ["500 hPa height", climoCell("h500", h500, isFinite(h500) ? Math.round(h500) + " m" : "—")],
     ["1000–500 thick.", climoCell("thick", (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN, (isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—")],
@@ -1956,6 +1959,7 @@ function fillTables(prof, res) {
   ];
 
   climoNow = { pwat: o[15], "850t": t850, "700t": t700, "500t": t500,
+    "850td": d850, "700td": d700,
     h500: h500, thick: (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN,
     fzl: fzl, kidx: kidx, tott: totalT,
     ecape: o[42] === MISSING ? NaN : o[42], ship: o[43] === MISSING ? NaN : o[43],
