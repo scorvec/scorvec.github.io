@@ -100,4 +100,14 @@
     <lastmod>2026-07-11</lastmod>
     <priority>0.5</priority>
   </url>
+  <url>
+    <loc>https://scorvec.com/ensembles.html</loc>
+    <lastmod>2026-07-11</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://scorvec.com/sst_anim.html</loc>
+    <lastmod>2026-07-11</lastmod>
+    <priority>0.6</priority>
+  </url>
 </urlset>

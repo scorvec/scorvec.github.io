@@ -2,11 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Subsurface Temperature &middot; El Ni&ntilde;o Monitor</title>
-<meta name="description" content="Equatorial Pacific depth–longitude subsurface temperature cross-sections (NOAA/PMEL TAO/TRITON), raw and with the 1991–2020 climate trend removed.">
-<link rel="canonical" href="https://scorvec.com/enso-subsurface.html">
+<title>ENSO Forecasts &middot; El Ni&ntilde;o Monitor</title>
+<meta name="description" content="Multi-model C3S seasonal Niño-3.4 outlook — the Copernicus multi-system seasonal ensemble (ECMWF, UK Met Office, Météo-France, DWD, NCEP, ECCC/CanSIPS, BOM), shown as both traditional ONI and RONI.">
+<link rel="canonical" href="https://scorvec.com/enso-forecasts.html">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
@@ -252,87 +251,28 @@
   </nav>
   <div class="enso-subnav">
     <a href="sst.html" class="">Overview</a>
-    <a href="enso-subsurface.html" class="active">Subsurface</a>
+    <a href="enso-subsurface.html" class="">Subsurface</a>
     <a href="enso-analogs.html" class="">Analogs</a>
-    <a href="enso-forecasts.html" class="">Forecasts</a>
+    <a href="enso-forecasts.html" class="active">Forecasts</a>
     <a href="enso-atmosphere.html" class="">Atmospheric Response</a>
   </div>
 </header>
 <main>
   <div class="page-header">
-    <h1>Equatorial Pacific Subsurface Temperature</h1>
-    <p>Depth&ndash;longitude cross-sections along the equator from the TAO/TRITON moored-buoy array. The subsurface warm reservoir along the thermocline often leads the surface ENSO signal.</p>
+    <h1>ENSO Forecasts</h1>
+    <p>Forward-looking ENSO guidance: the Ni&ntilde;o-3.4 seasonal outlook from the Copernicus (C3S) multi-model seasonal ensemble, shown as the Ni&ntilde;o-3.4 and relative Ni&ntilde;o-3.4 anomalies, each monthly and as the 3-month running mean (the ONI and RONI). The atmospheric Southern Oscillation Index forecast now lives on the <a href="enso-atmosphere.html">Atmospheric Response</a> page.</p>
   </div>
 
   <div class="chart-stack">
 
-    <!-- SUBSURFACE CROSS-SECTION -->
+    <!-- C3S MULTI-MODEL ONI + RONI FORECAST -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Equatorial Pacific Subsurface Temperature</h2>
-        <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed. The thermocline (here the 26&deg;C and 28&deg;C isotherms) tilts upward toward the east, and subsurface anomalies along it often lead the surface ENSO signal.</p>
+        <h2>C3S Multi-Model Seasonal Forecast &mdash; Ni&ntilde;o-3.4 &amp; RONI</h2>
+        <p>ENSO outlook from the Copernicus Climate Change Service (C3S) multi-system seasonal ensemble, initialized the same month at seven centres: <b>ECMWF</b> (SEAS5), the <b>UK Met Office</b> (GloSea6), <b>M&eacute;t&eacute;o-France</b>, <b>DWD</b> (GCFS2), <b>NCEP</b> (CFSv2), <b>ECCC</b> (CanSIPS) and the <b>Australian Bureau of Meteorology</b> (ACCESS-S2). The four panels show the <b>Ni&ntilde;o-3.4</b> SST anomaly (top) and the <b>relative Ni&ntilde;o-3.4</b> anomaly (bottom; the CPC/ECMWF index, Ni&ntilde;o-3.4 minus the 20&deg;S&ndash;20&deg;N tropical-mean anomaly, rescaled per calendar month so it keeps ONI's &deg;C thresholds), each as the raw <b>monthly</b> value (left) and the <b>3-month running mean</b> (right, which are the ONI and RONI). The relative index removes the background tropical warming that inflates the traditional one. The shaded plume is the spread across <b>all members of all models</b> (full range, 10&ndash;90% and 25&ndash;75%); each coloured line is one model's ensemble mean; the bold black line is the multi-model mean. Every model is anomalized against <b>its own 1993&ndash;2016 hindcast</b>, removing its drift and bias. The Ni&ntilde;o-3.4 box is sampled at 1&deg; and the tropical mean at 5&deg;. Dotted lines mark the &plusmn;0.5/1.0/1.5&nbsp;&deg;C thresholds.</p>
       </div>
-      <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial"
-              title="Equatorial Pacific subsurface temperature animation" loading="lazy"></iframe>
-      <div class="chart-card-footer">
-        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
-        <span class="chart-updated" id="subsurface-updated">TAO 2026-07-09</span>
-      </div>
-    </div>
-
-    <!-- SUBSURFACE CROSS-SECTION - DE-TRENDED COMPANION -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Subsurface Temperature: Climate Trend Removed</h2>
-        <p>The same equatorial cross-section, comparing the anomaly versus the 1991&ndash;2020 average (top) with the same anomaly after the secular climate trend is removed (bottom). The trend is a per-depth, per-longitude linear fit over the 1991&ndash;2020 TAO record, so de-trending strips the slowly-evolving background and isolates the ENSO signal. The panels differ where the background trend lives, notably subsurface warming in the far west and cooling along the eastern thermocline.</p>
-      </div>
-      <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial_dt"
-              title="Equatorial Pacific subsurface anomaly, raw vs de-trended" loading="lazy"></iframe>
-      <div class="chart-card-footer">
-        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; trend fit 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
-        <span class="chart-updated">TAO 2026-07-09</span>
-      </div>
-    </div>
-
-    <!-- TROPICAL PACIFIC SURFACE-CURRENT SNAPSHOT (Copernicus Marine) -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Tropical Pacific Surface Currents</h2>
-        <p>Daily surface-current fields over the last month for the equatorial Pacific (15&deg;S&ndash;15&deg;N, 130&deg;E&ndash;80&deg;W) from the Copernicus Marine 1/12&deg; ocean model: speed shaded (blue slow to red fast) with streamlines tracing the flow. The westward South Equatorial Current straddles the equator, the eastward North Equatorial Counter Current sits near 5&ndash;10&deg;N, and Tropical Instability Wave eddies ripple along the cold tongue.</p>
-      </div>
-      <iframe class="anim-embed eq-cur-map" src="sst_anim.html?embed=1&amp;manifest=eq_cur_map_manifest.json&amp;region=eq_cur_map"
-              title="Tropical Pacific surface-current animation (speed + streamlines)" loading="lazy"></iframe>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;) &middot; surface (~0.5&nbsp;m)</span>
-        <span class="chart-updated">daily</span>
-      </div>
-    </div>
-
-    <!-- EQUATORIAL ZONAL CURRENT + THERMOCLINE SECTION (Copernicus Marine) -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Equatorial Zonal Current &amp; the Undercurrent</h2>
-        <p>Depth&ndash;longitude slice along the equator (1.5&deg;S&ndash;1.5&deg;N), 160&deg;E&ndash;90&deg;W, from the Copernicus Marine 1/12&deg; global ocean model: zonal current (shaded, eastward in red) with the 20&deg;C isotherm (the thermocline) in black. It resolves the Equatorial Undercurrent, the eastward subsurface jet at about 50&ndash;200&nbsp;m, the surface-westward South Equatorial Current, and the east&ndash;west thermocline tilt. The loop is pinned to start 1&nbsp;March&nbsp;2026 and grows daily, so downwelling Kelvin waves (a deepening of the 20&deg;C isotherm with an eastward current pulse) can be followed across the basin.</p>
-      </div>
-      <iframe class="anim-embed eq-cur-section" src="sst_anim.html?embed=1&amp;manifest=eq_cur_section_manifest.json&amp;region=eq_cur_section"
-              title="Equatorial Pacific zonal current and thermocline animation" loading="lazy"></iframe>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg; Mercator) &middot; equator 1.5&deg;S&ndash;1.5&deg;N mean &middot; since 1 Mar 2026</span>
-        <span class="chart-updated">daily</span>
-      </div>
-    </div>
-
-    <!-- EQUATORIAL SURFACE-CURRENT STRIP / HOVMÖLLER (Copernicus Marine) -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Equatorial Surface Current: Strip / Hovm&ouml;ller</h2>
-        <p>Longitude &times; time strip of the daily surface zonal current averaged 2&deg;S&ndash;2&deg;N, 150&deg;E&ndash;90&deg;W (same Copernicus Marine model). <span style="color:#c0392b">Red is eastward</span>, <span style="color:#2471a3">blue is westward</span>. The equatorial surface normally flows westward (the trade-driven South Equatorial Current); as El&nbsp;Ni&ntilde;o matures, downwelling Kelvin waves drive eastward surges into the east Pacific. Newest day at the bottom.</p>
-      </div>
-      <div class="img-wrap" style="max-width:640px;margin:0 auto"><img id="eq-current-hov" data-src="assets/sst/eq_current_hov.webp" alt="Equatorial Pacific surface zonal current Hovmöller" loading="lazy"></div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;) &middot; 2&deg;S&ndash;2&deg;N surface mean &middot; rolling ~9 months</span>
-        <span class="chart-updated">daily</span>
-      </div>
+      <div class="img-wrap"><img src="assets/sst/c3s_nino34.webp?v=6d228019005e" alt="C3S multi-model ENSO forecast: Niño-3.4 and relative Niño-3.4, monthly and 3-month running mean, with an all-member plume and the multi-model mean" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Copernicus C3S seasonal multi-system (CDS) &middot; Ni&ntilde;o-3.4 &amp; RONI (CPC/ECMWF) &middot; all-member plume &middot; anomaly vs each model's 1993&ndash;2016 hindcast &middot; updated monthly</span></div>
     </div>
 
   </div>
