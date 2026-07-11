@@ -339,7 +339,7 @@ const igraCache = new Map();     // gid -> decompressed text
 // this a cached WASM could pair with fresh JS — mismatched out[] indices and
 // silently wrong numbers, which is far worse than a crash. WASM_V is stamped by
 // scripts/skewt/stamp_assets.py.
-const WASM_V = "a0d6cbc6";
+const WASM_V = "6ce3fd46";
 const wasmReady = createSharp({
   locateFile: (f) => f.endsWith(".wasm") ? `${f}?v=${WASM_V}` : f,
 }).then(mod => { M = mod; });
@@ -821,10 +821,11 @@ async function loadSounding() {
 function compute(prof) {
   const N = prof.P.length;
   const ptrs = ["P", "H", "T", "D", "U", "V"].map(k => f32(prof[k]));
-  const out = M._malloc(48 * 4);
+  const nOut = M._out_size();          // ask the WASM; never hardcode (it drifted twice)
+  const out = M._malloc(nOut * 4);
   const tr = [M._malloc(N * 4), M._malloc(N * 4), M._malloc(N * 4)];
   const _rc = M._compute_sounding(...ptrs, N, out, tr[0], tr[1], tr[2]);
-  const o = Array.from(M.HEAPF32.subarray(out / 4, out / 4 + 48));
+  const o = Array.from(M.HEAPF32.subarray(out / 4, out / 4 + nOut));
   const traces = tr.map(p => Array.from(M.HEAPF32.subarray(p / 4, p / 4 + N)));
   [...ptrs, out, ...tr].forEach(p => M._free(p));
   if (_rc !== 0) console.warn("compute_sounding rc=", _rc);
@@ -1691,7 +1692,7 @@ function clearPlot(msg) {
 function render(prof) {
   sanitizeHeights(prof);                   // before ANY analysis touches it
   const hasT = prof.T.some(v => isFinite(v));
-  const res = hasT ? compute(prof) : { o: new Array(48).fill(MISSING),
+  const res = hasT ? compute(prof) : { o: new Array(64).fill(MISSING),
     sb: [], ml: [], mu: [] };
   if (res.rc === 2) plotNote = "⚠ analysis failed on this profile — charts only";
   lastProf = prof; lastRes = res;
