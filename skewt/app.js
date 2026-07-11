@@ -226,6 +226,15 @@ function ageHours(dt) {
   return isFinite(ms) ? (Date.now() - ms) / 3600e3 : Infinity;
 }
 const LIVE_H = 24;                       // "recent" must actually mean recent
+// A launch outside the 00Z/12Z routine is usually a SPECIAL release — an extra
+// sounding fired ahead of severe weather or to sample a fast-evolving system —
+// so it's worth spotting on the map rather than blending in with the synoptic
+// crowd.
+function launchHour(dt) {
+  const m = /\s(\d{2}):/.exec(dt || "");
+  return m ? parseInt(m[1], 10) : null;
+}
+const isOffHour = dt => { const h = launchHour(dt); return h !== null && h !== 0 && h !== 12; };
 const p2 = n => String(n).padStart(2, "0");
 
 // SPC/IEM report wind on only some levels; zero-filling the rest would drag the
@@ -446,18 +455,24 @@ Promise.all([
     const ig = igraStations[byWmo[id]];
     if (ig || /dtype|Name:/i.test(s.n || "")) s.n = (ig && ig.n) || id;
     const flag = anomalies[id];
-    if (flag) {                                          // record watch: gold ring underneath
+    if (flag) {                                          // record watch: red ring underneath
       L.circleMarker([s.la, s.lo], { radius: RAD.live + 4, weight: 3,
         color: "#ff2d2d", opacity: 0.95, fill: false }).addTo(map);
     }
+    const off = isOffHour(s.dt);                         // 06Z / 18Z special release
     const m = L.circleMarker([s.la, s.lo], {
-      radius: RAD.live, weight: 1.5, color: "#1d3a5e", fillColor: "#4a7ab5", fillOpacity: 0.95,
+      radius: off ? RAD.live + 1 : RAD.live, weight: 1.5,
+      color: off ? "#7a3fa0" : "#1d3a5e",
+      fillColor: off ? "#bf5af2" : "#4a7ab5", fillOpacity: 0.95,
     }).addTo(map);
     const arch = ig ? ` · archive ${ig.y0}–${ig.y1}` : "";
     const anomTip = flag ? `<br><b style="color:#ff2d2d">⚡ near record:</b> ` +
       flag.flags.map(f => `${f.lab} ${f.v} (${f.sense === "high" ? "P" + f.pct + " high" : "P" + f.pct + " low"})`).join(", ") : "";
+    const offTip = off
+      ? ` <b style="color:#bf5af2">· off-hour launch (${String(launchHour(s.dt)).padStart(2, "0")}Z)</b>`
+      : "";
     m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z ` +
-      `(${Math.round(ageHours(s.dt))} h ago)${arch}${anomTip}`);
+      `(${Math.round(ageHours(s.dt))} h ago)${offTip}${arch}${anomTip}`);
     m.on("click", () => {
       highlight(m);   // respects the current Latest/Archive mode + chosen date
       selectStation({ gid: byWmo[id], id, n: s.n, e: (igraStations[byWmo[id]] || {}).e || 0 });
@@ -479,6 +494,7 @@ legend.onAdd = () => {
   div.innerHTML =
     '<span class="leg-chip" title="legend">ⓘ&nbsp;key</span><div class="leg-body">' +
     '<span style="color:#4a7ab5;font-size:1.05em">●</span> reported in last 24 h &nbsp; ' +
+    '<span style="color:#bf5af2;font-size:1.05em">●</span> off-hour (06/18Z) &nbsp; ' +
     '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp; ' +
     '<span style="color:#c0392b;font-size:1.05em">●</span> closed &nbsp; ' +
     '<span style="color:#ff2d2d">◎</span> near record &nbsp; ' +
