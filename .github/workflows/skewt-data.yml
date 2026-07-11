@@ -28,6 +28,8 @@ jobs:
         with:
           sparse-checkout: |
             scripts/skewt
+            skewt/stations.json
+          sparse-checkout-cone-mode: false
 
       - uses: actions/checkout@v4
         with:
