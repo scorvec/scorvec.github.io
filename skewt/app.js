@@ -2095,9 +2095,13 @@ function fillTables(prof, res) {
     ["1000–500 thick.", climoCell("thick", (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN, (isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—")],
     ["Freezing level", climoCell("fzl", fzl, isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—")],
     ["Wet-bulb 0 °C", (() => { const w = wbzAgl(prof); return climoCell("wbz", w, isFinite(w) ? Math.round(w) + " m AGL" : "—"); })()],
-    ["Tropopause / cold pt", (() => { const tp = tropopause(prof);
-      return pair(isFinite(tp.wmoZ) ? (tp.wmoZ / 1000).toFixed(1) : "—",
-        isFinite(tp.cpZ) ? `${(tp.cpZ / 1000).toFixed(1)} km` : "—");
+    ["Tropopause (WMO)", (() => { const tp = tropopause(prof);
+      if (!isFinite(tp.wmoZ)) return "—";
+      return `${(tp.wmoZ / 1000).toFixed(1)} km · ${(tp.wmoZ * 3.28084 / 1000).toFixed(1)} kft`;
+    })()],
+    ["Cold point", (() => { const tp = tropopause(prof);
+      if (!isFinite(tp.cpZ)) return "—";
+      return `${(tp.cpZ / 1000).toFixed(1)} km · ${(tp.cpZ * 3.28084 / 1000).toFixed(1)} kft`;
     })()],
   ];
 
