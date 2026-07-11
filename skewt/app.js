@@ -128,21 +128,30 @@ function climoPct(key, v) {                          // -> {pct, rec} or null
   const rec = v >= d.max ? { t: "high", y: d.maxY } : v <= d.min ? { t: "low", y: d.minY } : null;
   return { pct: Math.max(0, Math.min(100, pct)), rec };
 }
-// below p50 = a graded blue (light near median -> deep near record low);
-// above p50 = graded red. Visible even for small departures from the median.
+// Only the tails are worth flagging: a value sitting at P53 is by definition
+// unremarkable, and tagging it just adds noise. Nothing between p10 and p90 is
+// colored or labelled; beyond that the tint ramps within the tail itself, so
+// P91 is a whisper and P99 is loud.
+const CLIMO_LO = 10, CLIMO_HI = 90;
 function pctColor(pct) {
-  const x = (pct - 50) / 50;                          // -1 .. +1
-  const a = 0.16 + 0.54 * Math.min(1, Math.abs(x));   // clear tint even near p50
-  const c = x >= 0 ? [224, 70, 55] : [56, 120, 216];  // red high / blue low
+  const high = pct >= CLIMO_HI;
+  const frac = high ? (pct - CLIMO_HI) / (100 - CLIMO_HI)   // 0 at p90 -> 1 at p100
+                    : (CLIMO_LO - pct) / CLIMO_LO;          // 0 at p10 -> 1 at p0
+  const a = 0.18 + 0.52 * Math.max(0, Math.min(1, frac));
+  const c = high ? [224, 70, 55] : [56, 120, 216];          // red high / blue low
   return `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(2)})`;
 }
-// value cell HTML: colored background by percentile, ★ + year at the tails
+// value cell HTML: tinted + labelled ONLY outside p10-p90; ★ + year on a record
 function climoCell(key, v, txt) {
   const r = climoPct(key, v);
   if (!r) return txt;
+  const notable = r.rec || r.pct >= CLIMO_HI || r.pct <= CLIMO_LO;
+  if (!notable) return txt;                                  // unremarkable: plain
   const ord = Math.max(1, Math.min(99, Math.round(r.pct)));
   const tip = r.rec ? `record ${r.rec.t} ${r.rec.y}` : `${ord}th percentile`;
-  const star = r.rec ? ` <span style="color:${r.rec.t === "high" ? "#ff5a3c" : "#5a9bf0"}">★${String(r.rec.y).slice(2)}</span>` : "";
+  const star = r.rec
+    ? ` <span style="color:${r.rec.t === "high" ? "#ff5a3c" : "#5a9bf0"}">★${String(r.rec.y).slice(2)}</span>`
+    : "";
   const sub = r.rec ? "" : `<span class="pctlab">P${ord}</span>`;
   return `<span class="pctcell" style="background:${pctColor(r.pct)}" title="${tip}">${txt}${star}</span>${sub}`;
 }
