@@ -47,7 +47,16 @@ using namespace sharp;
 // 47-48 eff-layer bunkers RM  49-50 corfidi upshear  51-52 corfidi downshear
 // 53-54 dendritic growth zone (Pa)  55 snow squall parameter
 
+// The C++ and the JS must agree on how many floats compute_sounding() writes.
+// They have silently drifted twice (JS malloc'd 48 while C++ wrote 56 -> heap
+// overflow, "memory access out of bounds"). OUT_N is now the ONLY definition,
+// a static_assert catches an overflow at compile time, and JS asks for the size
+// rather than hardcoding it — so the two can no longer disagree.
+constexpr int OUT_N = 64;
+
 extern "C" {
+
+KEEP int out_size() { return OUT_N; }
 
 static int compute_sounding_impl(const float* pres, const float* hght,
                                  const float* tmpk, const float* dwpk,
@@ -345,6 +354,8 @@ static int compute_sounding_impl(const float* pres, const float* hght,
         corf_up.u, corf_up.v, corf_dn.u, corf_dn.v,   // 49-52
         dgz_bot, dgz_top, ssp,                        // 53 54 55
     };
+    static_assert(sizeof(o) / sizeof(float) <= OUT_N,
+                  "compute_sounding writes more floats than OUT_N — grow OUT_N");
     for (size_t i = 0; i < sizeof(o) / sizeof(float); ++i) out[i] = o[i];
     return 0;
 }
