@@ -107,11 +107,13 @@ def pct_of(d, v):
         return 0.0
     if v >= X[-1]:
         return 100.0
-    for i in range(1, len(X)):
-        if v <= X[i]:
+    # scan from the RIGHT so a tied plateau (p75==p90==p95) scores the highest
+    # percentile it equals — the left scan under-scored plateau highs to P75
+    for i in range(len(X) - 1, 0, -1):
+        if v > X[i - 1]:
             f = (v - X[i - 1]) / ((X[i] - X[i - 1]) or 1)
-            return Y[i - 1] + f * (Y[i] - Y[i - 1])
-    return 50.0
+            return Y[i - 1] + min(1.0, f) * (Y[i] - Y[i - 1])
+    return 0.0
 
 
 def ecape_for(sdir: Path) -> dict:

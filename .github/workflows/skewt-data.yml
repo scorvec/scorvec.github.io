@@ -83,9 +83,8 @@ jobs:
           # valid file so the data push itself survives.
           if ! python scripts/skewt/flag_anomalies.py /tmp/skewt-data/soundings \
                  climo-data/climo /tmp/skewt-data/anomalies.json; then
-            echo "::error::flag_anomalies FAILED — record watch will be empty this cycle"
+            echo "::warning::flag_anomalies FAILED — record watch empty this cycle (data still publishes)"
             echo '{}' > /tmp/skewt-data/anomalies.json
-            exit 1
           fi
 
       - name: Force-push data branch (single parentless commit)

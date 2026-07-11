@@ -383,7 +383,7 @@ const igraCache = new Map();     // gid -> decompressed text
 // this a cached WASM could pair with fresh JS — mismatched out[] indices and
 // silently wrong numbers, which is far worse than a crash. WASM_V is stamped by
 // scripts/skewt/stamp_assets.py.
-const WASM_V = "6ce3fd46";
+const WASM_V = "66a5af64";
 const wasmReady = createSharp({
   locateFile: (f) => f.endsWith(".wasm") ? `${f}?v=${WASM_V}` : f,
 }).then(mod => { M = mod; });
@@ -757,8 +757,22 @@ document.querySelectorAll(".datectl").forEach(el => {
 });
 syncControls();
 
+const COUNTRY = { US:"USA", CA:"Canada", MX:"Mexico", BR:"Brazil", AR:"Argentina",
+  CH:"China", JA:"Japan", KS:"South Korea", IN:"India", AS:"Australia", NZ:"New Zealand",
+  UK:"UK", FR:"France", GM:"Germany", SP:"Spain", PO:"Portugal", IT:"Italy", RS:"Russia",
+  NO:"Norway", SW:"Sweden", FI:"Finland", IC:"Iceland", GL:"Greenland", DA:"Denmark",
+  NL:"Netherlands", PL:"Poland", AU:"Austria", SZ:"Switzerland", GR:"Greece", TU:"Turkey",
+  EG:"Egypt", SF:"South Africa", KE:"Kenya", SA:"Saudi Arabia", IS:"Israel", PK:"Pakistan",
+  TH:"Thailand", VM:"Vietnam", ID:"Indonesia", MY:"Malaysia", PH:"Philippines",
+  CI:"Chile", PE:"Peru", CO:"Colombia", VE:"Venezuela", EC:"Ecuador", UY:"Uruguay",
+  PM:"Panama", CU:"Cuba", FJ:"Fiji" };
 function selectStation(s) {
   current = s;
+  if (s.gid && s.n) {                       // country from the IGRA FIPS prefix
+    const c = COUNTRY[s.gid.slice(0, 2)];
+    if (c && !s.n.includes(c))
+      s.n = s.n.replace(/[;,]\s*$/, "") + " (" + c + ")";
+  }
   openModal();
   loadClimo(s.gid);
   // coordinates: useful for cross-referencing model soundings / satellite
@@ -792,11 +806,14 @@ function parseCSV(text) {
     if (c.length < 13) continue;
     const p = +c[3] * 100, h = +c[4], t = +c[5] + 273.15, d = +c[6] + 273.15;
     const wd = +c[11], ws = +c[12];
-    if (![p, h, t, d, wd, ws].every(isFinite) || p >= lastP || p < 2000) continue;
+    if (!isFinite(p) || !isFinite(t) || p >= lastP || p < 2000) continue;
     lastP = p;
-    out.P.push(p); out.H.push(h); out.T.push(t); out.D.push(d);
-    out.U.push(-ws * Math.sin(wd * Math.PI / 180));
-    out.V.push(-ws * Math.cos(wd * Math.PI / 180));
+    out.P.push(p); out.H.push(isFinite(h) ? h : NaN); out.T.push(t);
+    out.D.push(isFinite(d) ? d : NaN);
+    if (isFinite(wd) && isFinite(ws)) {
+      out.U.push(-ws * Math.sin(wd * Math.PI / 180));
+      out.V.push(-ws * Math.cos(wd * Math.PI / 180));
+    } else { out.U.push(NaN); out.V.push(NaN); }
   }
   return out.P.length >= 10 ? out : null;
 }
@@ -934,9 +951,13 @@ function parseIGRA(text, gid, ymd, wantHour, elev) {
   return out.P.length >= 8 ? { prof: out, hh: best.hh, nWind: winds.length } : null;
 }
 
+let loadSeq = 0;
 async function loadSounding() {
   if (!current) return;
+  const seq = ++loadSeq;                 // stale-response guard
+  const stale = () => seq !== loadSeq;
   await wasmReady;
+  if (stale()) return;
   if (mode === "latest") {
     const s = entries[current.id];
     // real-time first: SPC (fastest US), then IEM (US/Canada, more levels)
@@ -944,10 +965,11 @@ async function loadSounding() {
       setStatus("fetching real-time sounding…", true);
       const got = await fetchSPC(current.id).catch(() => null)
         || await fetchIEM(current.id).catch(() => null);
+      if (stale()) return;
       if (got) {
         setStatus(`valid ${got.valid}Z · ${got.prof.P.length} levels (${got.src})`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${got.valid}Z`.trim();
-        plotNote = ""; lastMonth = got.valid.slice(5, 7);
+        plotNote = ""; lastMonth = got.valid.slice(5, 7); lastDoy = doyOf(got.valid);
         render(thin(got.prof));
         return;
       }
@@ -958,6 +980,7 @@ async function loadSounding() {
         const r = await fetch(MIRROR + "soundings/" + current.id + ".csv?t=" + s.dt);
         if (!r.ok) throw 0;
         const prof = parseCSV(await r.text());
+        if (stale()) return;
         if (!prof) throw 0;
         setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
@@ -1026,6 +1049,7 @@ async function loadSounding() {
   }
   if (!current.gid) { setStatus("station not in the IGRA archive"); return; }
   const text = await igraText(current.gid, +ymd.slice(0, 4));
+  if (stale()) return;
   if (!text) { clearPlot("IGRA archive file unavailable for this station"); return; }
   let shown = ymd, fellBack = false;
   let got = parseIGRA(text, current.gid, ymd, archHour, current.e || 0);
@@ -1111,7 +1135,8 @@ function interpHagl(prof, pPa) {          // height AGL (m) at pressure, log-p l
 }
 function interpP(prof, key, pPa) {         // interp any field at pressure (log-p)
   const P = prof.P, A = prof[key];
-  if (!isFinite(pPa) || pPa >= P[0]) return A[0];
+  if (!isFinite(pPa)) return NaN;
+  if (pPa >= P[0]) return (pPa - P[0] < 2000) ? A[0] : NaN;   // underground = "—"''
   for (let i = 1; i < P.length; i++) {
     if (P[i] <= pPa) {
       if (!isFinite(A[i]) || !isFinite(A[i - 1])) return NaN;
@@ -2117,6 +2142,7 @@ function clearPlot(msg) {
 function render(prof) {
   sanitizeHeights(prof);                   // before ANY analysis touches it
   fillDewpoints(prof);                     // a lone NaN would void PWAT, CRH, MSE…
+  fillWinds(prof);                         // interpolate wind gaps, never truncate
   const hasT = prof.T.some(v => isFinite(v));
   const res = hasT ? compute(prof) : { o: new Array(64).fill(MISSING),
     sb: [], ml: [], mu: [] };

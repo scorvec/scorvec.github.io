@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
 
     std::string line;
     std::vector<std::string> block;
-    int year = 0, month = 0, nlev = 0;
+    int year = 0, month = 0, day = 0, nlev = 0;
     auto flush = [&]() {
         if (block.empty() || month < 1) return;
         std::vector<float> P, H, T, D, U, V;
@@ -46,6 +46,7 @@ int main(int argc, char** argv) {
                   dpdp = fld(L, 34, 39), wd = fld(L, 40, 45), ws = fld(L, 46, 51);
             if (std::isnan(p) || p < 2000) continue;
             if (std::isnan(tt)) continue;                 // need thermo for CAPE
+            if (!P.empty() && p >= P.back()) continue;    // monotonic pressure
             P.push_back(p);
             H.push_back(std::isnan(gph) ? NAN : gph);
             T.push_back(tt / 10 + 273.15f);
@@ -133,7 +134,7 @@ int main(int argc, char** argv) {
         if (!(mucape > -8888.0f)) return;
         const float ec = (out[42] > -8888.0f) ? out[42] : 0.0f;
         const float sh = (out[43] > -8888.0f) ? out[43] : 0.0f;
-        printf("%d %02d %.1f %.3f\n", year, month, ec, sh);
+        printf("%d %02d %02d %.1f %.3f\n", year, month, day, ec, sh);
     };
 
     while (std::getline(*in, line)) {
@@ -141,9 +142,12 @@ int main(int argc, char** argv) {
             line.compare(1, gid.size(), gid) == 0) {
             flush();
             block.clear();
-            year = std::stoi(line.substr(13, 4));
-            month = std::stoi(line.substr(18, 2));
-            nlev = std::stoi(line.substr(32, 4));
+            try {
+                year = std::stoi(line.substr(13, 4));
+                month = std::stoi(line.substr(18, 2));
+                day = std::stoi(line.substr(21, 2));
+                nlev = std::stoi(line.substr(32, 4));
+            } catch (...) { year = month = day = 0; }
             (void)nlev;
         } else if (!line.empty() && line[0] != '#') {
             block.push_back(line);
