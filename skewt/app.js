@@ -165,6 +165,27 @@ function synopticSlots() {
 }
 const p2 = n => String(n).padStart(2, "0");
 
+// SPC/IEM report wind on only some levels; zero-filling the rest would drag the
+// hodograph to the origin, so interpolate U/V across the gaps in log-p.
+function fillWinds(o) {
+  const n = o.P.length, ok = [];
+  for (let i = 0; i < n; i++) if (isFinite(o.U[i]) && isFinite(o.V[i])) ok.push(i);
+  if (!ok.length) { for (let i = 0; i < n; i++) { o.U[i] = 0; o.V[i] = 0; } return 0; }
+  for (let i = 0; i < n; i++) {
+    if (isFinite(o.U[i]) && isFinite(o.V[i])) continue;
+    let lo = null, hi = null;
+    for (const j of ok) { if (j < i) lo = j; else { hi = j; break; } }
+    if (lo === null) { o.U[i] = o.U[ok[0]]; o.V[i] = o.V[ok[0]]; }
+    else if (hi === null) { o.U[i] = o.U[lo]; o.V[i] = o.V[lo]; }
+    else {
+      const f = Math.log(o.P[lo] / o.P[i]) / Math.log(o.P[lo] / o.P[hi]);
+      o.U[i] = o.U[lo] + f * (o.U[hi] - o.U[lo]);
+      o.V[i] = o.V[lo] + f * (o.V[hi] - o.V[lo]);
+    }
+  }
+  return ok.length;
+}
+
 // SPC observed soundings — CORS-open and the fastest public US source (it
 // carries 12Z about an hour before IEM does, at slightly coarser resolution)
 function spcProfile(text) {
@@ -181,11 +202,14 @@ function spcProfile(text) {
     o.H.push(hh > -9990 ? hh : NaN);
     o.T.push(tc + 273.15);
     o.D.push(dc > -9990 ? dc + 273.15 : NaN);
-    const wsms = ws > -9990 ? ws / KT : 0, wdd = wd > -9990 ? wd : 0;
-    o.U.push(-wsms * Math.sin(wdd * Math.PI / 180));
-    o.V.push(-wsms * Math.cos(wdd * Math.PI / 180));
+    if (ws > -9990 && wd > -9990) {
+      const wsms = ws / KT;
+      o.U.push(-wsms * Math.sin(wd * Math.PI / 180));
+      o.V.push(-wsms * Math.cos(wd * Math.PI / 180));
+    } else { o.U.push(NaN); o.V.push(NaN); }   // filled below, never zeroed
   }
   if (o.P.length < 8) return null;
+  fillWinds(o);
   const valid = tm ? `20${tm[1].slice(0, 2)}-${tm[1].slice(2, 4)}-${tm[1].slice(4, 6)} ` +
     `${tm[2].slice(0, 2)}:00` : "";
   return { prof: o, valid, src: "SPC real-time" };
@@ -217,11 +241,14 @@ function iemProfile(j) {
     o.H.push(L.hght == null ? NaN : L.hght);
     o.T.push(L.tmpc + 273.15);
     o.D.push(L.dwpc == null ? NaN : L.dwpc + 273.15);
-    const ws = (L.sknt == null ? 0 : L.sknt) / KT, wd = L.drct == null ? 0 : L.drct;
-    o.U.push(-ws * Math.sin(wd * Math.PI / 180));
-    o.V.push(-ws * Math.cos(wd * Math.PI / 180));
+    if (L.sknt != null && L.drct != null) {
+      const ws = L.sknt / KT, wd = L.drct;
+      o.U.push(-ws * Math.sin(wd * Math.PI / 180));
+      o.V.push(-ws * Math.cos(wd * Math.PI / 180));
+    } else { o.U.push(NaN); o.V.push(NaN); }
   }
   if (o.P.length < 8) return null;
+  fillWinds(o);
   return { prof: o, valid: (pr.valid || "").slice(0, 16).replace("T", " "),
            src: "IEM real-time" };
 }
