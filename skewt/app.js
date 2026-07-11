@@ -8,6 +8,8 @@ const MISSING = -9999.0;
 const CLIMO_BASE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-climo/climo/";
 let climo = null, climoGid = null;                 // current station climatology
 let lastProf = null, lastRes = null, lastMonth = null, lastDoy = null;
+let lastHourZ = 12;
+const hourOf = s => { const m = /[T ](\d{2}):/.exec(String(s)); return m ? +m[1] : 12; };
 function doyOf(ymd) {                     // "YYYY-MM-DD" -> 1..365
   const d = new Date(ymd.slice(0, 10) + "T00:00:00Z");
   const j0 = Date.UTC(d.getUTCFullYear(), 0, 1);
@@ -145,6 +147,79 @@ function drawClimo(key) {
 }
 
 // ---- fog diagnostics (BUFKIT-style radiation-fog screening) ----
+// Empirical fog/stratus probabilities: logistic models fit on 87,568 matched
+// sounding-METAR pairs (14 co-located stations incl. Buenos Aires, 2006-2025).
+// Features standardized with the training means/sds; missing features fall
+// back to the training mean (standardized 0). Station-held-out AUC 0.89-0.92.
+const FOG_MODEL = {"fog":{"mu":[3.5493,80.5304,4.1064,2.2102,1.8378,114.3392,41.5371,142.164,82.3222,72.5089,1.4016,0.996,443.6591,7.3728,10.2455,-0.0083,0.0013,0.9926],"sd":[3.6834,16.3206,3.9419,5.665,2.6478,154.3423,250.1182,471.2011,16.6885,23.5149,1.5727,7.1132,460.4216,4.2844,8.8232,0.7064,0.7077,0.0854],"w":[-7.1094,-0.043,1.9138,-0.6283,0.0184,-0.535,0.1701,0.017,-0.0878,2.6623,-0.056,0.1444,0.68,-0.043,-0.3321,0.111,-0.161,0.3622,-0.0711]},"strat10":{"mu":[3.5493,80.5304,4.1064,2.2102,1.8378,114.3392,41.5371,142.164,82.3222,72.5089,1.4016,0.996,443.6591,7.3728,10.2455,-0.0083,0.0013,0.9926],"sd":[3.6834,16.3206,3.9419,5.665,2.6478,154.3423,250.1182,471.2011,16.6885,23.5149,1.5727,7.1132,460.4216,4.2844,8.8232,0.7064,0.7077,0.0854],"w":[-6.2643,-2.1899,-2.4963,0.1273,-0.0937,-0.721,-0.4567,0.0536,0.2154,4.2937,-0.3149,-0.181,-0.1266,-2.1899,-0.8317,0.9305,-0.0806,-0.1061,0.0186]},"strat30":{"mu":[3.5493,80.5304,4.1064,2.2102,1.8378,114.3392,41.5371,142.164,82.3222,72.5089,1.4016,0.996,443.6591,7.3728,10.2455,-0.0083,0.0013,0.9926],"sd":[3.6834,16.3206,3.9419,5.665,2.6478,154.3423,250.1182,471.2011,16.6885,23.5149,1.5727,7.1132,460.4216,4.2844,8.8232,0.7064,0.7077,0.0854],"w":[-3.2605,-0.7998,-1.5181,0.1717,-0.0661,-0.3892,-0.5033,0.0778,0.3497,2.6957,0.4889,-0.1052,-0.7021,-0.7998,-0.7401,0.4621,-0.0805,-0.0387,0.0836]}};
+const FOG_FEATS = ["dep_sfc","rh_sfc","spd_sfc","ri","inv_dt","inv_top","sat95_dep",
+  "rh90_dep","rhmax_lo","rhmax_mid","dq_mix","lapse500","lcl_m","q_sfc","t_sfc",
+  "sin_doy","cos_doy","is12z"];
+function fogModelFeatures(prof) {
+  const esw = tc => 6.112 * Math.exp(17.67 * tc / (tc + 243.5));
+  const t0 = prof.T[0] - 273.15, d0 = prof.D[0] - 273.15;
+  if (!isFinite(t0) || !isFinite(d0)) return null;
+  const f = { dep_sfc: t0 - d0, rh_sfc: 100 * esw(d0) / esw(t0),
+    lcl_m: 125 * (t0 - d0), t_sfc: t0,
+    q_sfc: 622 * esw(d0) / (prof.P[0] / 100 - esw(d0)) };
+  f.spd_sfc = isFinite(prof.U[0]) ? Math.hypot(prof.U[0], prof.V[0]) * KT : null;
+  const rb = bulkRi(prof);
+  f.ri = rb ? Math.max(-25, Math.min(25, rb.ri)) : null;
+  const z0 = prof.H[0];
+  let invDt = 0, invTop = 0, tmax = t0;
+  let sat95 = 0, rh90 = 0, b95 = false, b90 = false, rhLo = 0, rhMid = 0;
+  const qs = [];
+  for (let i = 0; i < prof.P.length; i++) {
+    const za = prof.H[i] - z0, tC = prof.T[i] - 273.15, dC = prof.D[i] - 273.15;
+    if (za <= 1000 && isFinite(tC) && i > 0) {
+      if (tC >= tmax - 0.05 && invTop >= 0) {
+        tmax = Math.max(tmax, tC); invDt = tmax - t0; invTop = za;
+      } else invTop = -1;                      // inversion scan stopped
+    }
+    if (za > 3000 || !isFinite(tC) || !isFinite(dC)) continue;
+    const rh = 100 * esw(dC) / esw(tC);
+    if (rh >= 95 && !b95) sat95 = za; else if (rh < 95) b95 = true;
+    if (rh >= 90 && !b90) rh90 = za; else if (rh < 90) b90 = true;
+    if (za <= 500) rhLo = Math.max(rhLo, rh);
+    else if (za <= 1500) rhMid = Math.max(rhMid, rh);
+    if (za <= 1500) qs.push([za, 622 * esw(dC) / (prof.P[i] / 100 - esw(dC))]);
+  }
+  f.inv_dt = invDt; f.inv_top = Math.max(0, invTop);
+  f.sat95_dep = sat95; f.rh90_dep = rh90; f.rhmax_lo = rhLo; f.rhmax_mid = rhMid;
+  const qlo = qs.filter(q => q[0] <= 300).map(q => q[1]);
+  const qhi = qs.filter(q => q[0] >= 600 && q[0] <= 1200).map(q => q[1]);
+  f.dq_mix = qlo.length && qhi.length
+    ? qlo.reduce((a, b) => a + b) / qlo.length - qhi.reduce((a, b) => a + b) / qhi.length : null;
+  let t500 = null;
+  for (let i = 1; i < prof.P.length; i++) {
+    const za = prof.H[i] - z0;
+    if (za >= 500 && isFinite(prof.T[i]) && isFinite(prof.T[i - 1])) {
+      const zp = prof.H[i - 1] - z0;
+      const fr = (500 - zp) / Math.max(1, za - zp);
+      t500 = (prof.T[i - 1] - 273.15) + fr * (prof.T[i] - prof.T[i - 1]); break;
+    }
+  }
+  f.lapse500 = t500 !== null ? (t500 - t0) / 0.5 : null;
+  const doy = lastDoy ?? 183;
+  f.sin_doy = Math.sin(2 * Math.PI * doy / 365.25);
+  f.cos_doy = Math.cos(2 * Math.PI * doy / 365.25);
+  f.is12z = lastHourZ === 12 ? 1 : 0;
+  return f;
+}
+function fogModelProbs(prof) {
+  const f = fogModelFeatures(prof);
+  if (!f) return null;
+  const out = {};
+  for (const [name, m] of Object.entries(FOG_MODEL)) {
+    let z = m.w[0];
+    for (let i = 0; i < FOG_FEATS.length; i++) {
+      const v = f[FOG_FEATS[i]];
+      if (v !== null && isFinite(v)) z += m.w[i + 1] * (v - m.mu[i]) / m.sd[i];
+    }
+    out[name] = 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, z))));
+  }
+  return out;
+}
 function fogRows(prof) {
   const T0 = prof.T[0] - 273.15, D0 = prof.D[0] - 273.15;
   const spd0 = Math.hypot(prof.U[0], prof.V[0]) * KT;
@@ -175,7 +250,14 @@ function fogRows(prof) {
     ? `dew (Td above freezing)${T0 - D0 <= 3 ? " — likely tonight with clear skies" : ""}`
     : D0 > -0.2 ? "dew/frost mix — Td right at freezing"
     : `FROST — frost point ${tf.toFixed(1)} °C, only ${Math.max(T0 - tf, 0).toFixed(1)} °C of cooling needed`;
+  const mp = fogModelProbs(prof);
+  const pct = v => v < 0.01 ? "<1%" : Math.round(v * 100) + "%";
+  const probRows = mp ? [
+    ["Fog probability", `${pct(mp.fog)} (vis \u2264 1 km at the airport now)`],
+    ["Stratus \u2264 1 kft", `${pct(mp.strat10)} \u00b7 \u2264 3 kft: ${pct(mp.strat30)} (ceiling)`],
+  ] : [];
   return [
+    ...probRows,
     ["FSI", isFinite(fsi) ? `${fsi.toFixed(0)} — ${cat}` : "—"],
     ["Sfc T − Td", `${(T0 - D0).toFixed(1)} °C ${(T0 - D0) <= 2.5 ? "(near saturation)" : ""}`],
     ["Fog point (sfc Td)", `${D0.toFixed(1)} °C — cool ${(T0 - D0).toFixed(1)} °C to saturate`],
@@ -358,7 +440,9 @@ function cloudLayers(prof) {
     if (tC < 0) rh = Math.max(rh, 100 * ew / (6.112 * Math.exp(22.46 * tC / (tC + 272.62))));
     levs.push({ z, tC, rh: Math.min(rh, 105) });
   }
-  const thr = z => z < 2000 ? 90 : z < 6000 ? 85 : 80;
+  // calibrated against 49,259 METAR-verified cloud bases at 14 stations
+  // (2006-2025): 85/80 beat 90/85 on both POD (0.77) and FAR (0.51)
+  const thr = z => z < 2000 ? 85 : 80;
   const raw = [];
   let cur = null;
   for (const L of levs) {
@@ -394,7 +478,8 @@ function cloudRows(res) {
     rows.push([`Layer ${i + 1} (${lvl})`,
       `${fz(l.base)} \u2192 ${fz(l.top)} \u00b7 ${Math.max(1, Math.round((l.top - l.base) / 10) * 10)} m thick \u00b7 ` +
       `peak RH ${Math.round(l.maxRh)}% \u00b7 ${cov}` +
-      (icing ? " \u00b7 supercooled (icing range)" : "")]);
+      (icing ? " \u00b7 supercooled (icing range)" : "") +
+      (lo <= -12 && hi >= -18 ? " \u00b7 spans DGZ (dendritic snow growth)" : "")]);
   });
   return rows;
 }
@@ -431,6 +516,41 @@ function drawCloudChart(prof, res) {
     ctx.setLineDash([]);
     ctx.fillStyle = TH.isotherm0; ctx.textAlign = "left";
     ctx.fillText("0\u00b0C", Mg.l + 2, y(zf) - 8);
+  }
+  // dendritic growth zone (-12 to -18 C): efficient snow growth where a
+  // saturated layer intersects this band
+  const dgz = [];
+  for (let i = 1; i < levs.length; i++) {
+    const a1 = levs[i - 1], b1 = levs[i];
+    if (!isFinite(a1.tC) || !isFinite(b1.tC)) continue;
+    const zAt = tt => a1.z + (tt - a1.tC) / ((b1.tC - a1.tC) || 1e-9) * (b1.z - a1.z);
+    const cutz = [a1.z, b1.z];
+    for (const tt of [-12, -18])
+      if ((a1.tC - tt) * (b1.tC - tt) < 0) cutz.push(zAt(tt));
+    cutz.sort((x1, x2) => x1 - x2);
+    for (let k = 1; k < cutz.length; k++) {
+      const zm = (cutz[k - 1] + cutz[k]) / 2;
+      const tm = a1.tC + (zm - a1.z) / ((b1.z - a1.z) || 1e-9) * (b1.tC - a1.tC);
+      if (tm <= -12 && tm >= -18 && cutz[k] > cutz[k - 1]) {
+        const prev = dgz[dgz.length - 1];
+        if (prev && cutz[k - 1] <= prev[1] + 1) prev[1] = cutz[k];
+        else dgz.push([cutz[k - 1], cutz[k]]);
+      }
+    }
+  }
+  for (const [zb, zt] of dgz) {
+    if (zb > zTop) continue;
+    const zt2 = Math.min(zt, zTop);
+    ctx.fillStyle = "rgba(100,210,255,0.09)";
+    ctx.fillRect(Mg.l, y(zt2), colR - 6 - Mg.l, Math.max(2, y(zb) - y(zt2)));
+    ctx.strokeStyle = "rgba(100,210,255,0.45)"; ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.moveTo(Mg.l, y(zb)); ctx.lineTo(colR - 6, y(zb));
+    ctx.moveTo(Mg.l, y(zt2)); ctx.lineTo(colR - 6, y(zt2)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(100,210,255,0.9)"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    ctx.fillText("DGZ", colR - 10, (y(zb) + y(zt2)) / 2);
+    ctx.textBaseline = "alphabetic";
   }
   // cloud boxes, opacity by peak RH, colored by phase regime:
   // liquid (>0 C) white, supercooled (0 to -20 C) cyan, ice (<-20 C) violet
@@ -1387,7 +1507,7 @@ async function loadSounding() {
       if (got) {
         setStatus(`valid ${got.valid}Z · ${got.prof.P.length} levels (${got.src})`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${got.valid}Z`.trim();
-        plotNote = ""; lastMonth = got.valid.slice(5, 7); lastDoy = doyOf(got.valid);
+        plotNote = ""; lastMonth = got.valid.slice(5, 7); lastDoy = doyOf(got.valid); lastHourZ = hourOf(got.valid);
         render(thin(got.prof));
         return;
       }
@@ -1402,7 +1522,7 @@ async function loadSounding() {
         if (!prof) throw 0;
         setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
-        plotNote = ""; lastMonth = s.dt.slice(5, 7); lastDoy = doyOf(s.dt);
+        plotNote = ""; lastMonth = s.dt.slice(5, 7); lastDoy = doyOf(s.dt); lastHourZ = hourOf(s.dt);
         render(thin(prof));
         return;
       } catch (e) { /* mirror failed — fall through to the archive */ }
@@ -1429,7 +1549,7 @@ async function loadSounding() {
         if (prof) {
           setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (UW BUFR high-res mirror)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${wantDt}Z`.trim();
-          plotNote = ""; lastMonth = wantDt.slice(5, 7); lastDoy = doyOf(wantDt);
+          plotNote = ""; lastMonth = wantDt.slice(5, 7); lastDoy = doyOf(wantDt); lastHourZ = hourOf(wantDt);
           render(thin(prof));
           return;
         }
@@ -1458,7 +1578,7 @@ async function loadSounding() {
           const hh = pick.slice(-6, -4);
           setStatus(`valid ${ymd} ${hh}Z · ${prof.P.length} levels (UW BUFR day archive)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${ymd} ${hh}Z`.trim();
-          plotNote = ""; lastMonth = ymd.slice(5, 7); lastDoy = doyOf(ymd);
+          plotNote = ""; lastMonth = ymd.slice(5, 7); lastDoy = doyOf(ymd); lastHourZ = +hh;
           render(thin(prof));
           return;
         }
@@ -1500,7 +1620,7 @@ async function loadSounding() {
     `${String(got.hh).padStart(2, "0")}Z`.trim();
   plotNote = got.windOnly
     ? "⚠ WIND-ONLY DATA (pilot balloon) — no temperature; hodograph valid" : "";
-  lastMonth = shown.slice(5, 7); lastDoy = doyOf(shown);
+  lastMonth = shown.slice(5, 7); lastDoy = doyOf(shown); lastHourZ = hourOf(shown);
   render(thin(got.prof));
 }
 

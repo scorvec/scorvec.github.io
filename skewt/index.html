@@ -243,9 +243,12 @@
     </div>
     <p class="note" style="color:var(--muted); font-size:0.75rem; margin-top:8px">
       Cloud layers estimated from relative humidity — with respect to <b>ice</b> below 0 °C, where
-      deposition saturates before water saturation. A level is counted as cloudy above a
-      height-dependent RH threshold (90% below 2 km, 85% to 6 km, 80% above — looser aloft, where
-      radiosonde humidity sensors read dry in cold air); adjacent cloudy levels merge into layers.
+      deposition saturates before water saturation. A level is counted as cloudy above an RH threshold of 85% below
+      2 km and 80% aloft — <b>calibrated against 49,259 METAR-verified cloud bases</b> at the same
+      stations as the fog model (detection rate 77% of reported broken/overcast bases; about half
+      of confidently detected layers go unreported by the ceilometer, which only sees to 12 kft);
+      adjacent cloudy levels merge into layers. The dashed teal band is the <b>dendritic growth
+      zone</b> (−12 to −18 °C) — a cloud layer intersecting it produces snow efficiently.
       Boxes are colored by phase regime — white above 0 °C (liquid), cyan 0 to −20 °C
       (supercooled — the aircraft icing range, also flagged in the table), violet below −20 °C
       (ice-dominated). This is an estimate from a single profile — thin or broken cloud between
@@ -266,7 +269,12 @@
       <table class="params kin" id="fog-table" style="font-size:0.92rem"></table>
     </div>
     <p class="note" style="color:var(--muted); font-size:0.75rem; margin-top:8px">
-      BUFKIT-style nocturnal screening from this sounding. FSI = 4·T<sub>sfc</sub> −
+      The probabilities at top are <b>empirical</b>: logistic models trained on 87,568
+      sounding\u2013METAR pairs at 14 co-located stations (13 US + Buenos Aires, 2006\u20132025),
+      predicting what the airport actually reported within \u00b145 min of launch. Station-held-out
+      AUC 0.89 (fog) / 0.92 (stratus) \u2014 the dominant predictors are peak RH below 500 m,
+      surface RH, dewpoint depression and LCL height. They describe conditions <b>at sounding
+      time</b>, not a forecast. BUFKIT-style nocturnal screening from this sounding. FSI = 4·T<sub>sfc</sub> −
       2·(T<sub>850</sub>+Td<sub>sfc</sub>) + V<sub>850</sub>(kt): &lt;31 high fog risk, 31–55 moderate,
       &gt;55 low. Radiation fog favors a small surface dewpoint depression, a surface-based
       inversion, and moist air trapped beneath it. The <b>bulk Richardson number</b> over the lowest
@@ -375,6 +383,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=f1557cdc"></script>
+<script src="app.js?v=04d9393b"></script>
 </body>
 </html>

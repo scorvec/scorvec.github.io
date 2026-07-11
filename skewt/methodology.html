@@ -363,7 +363,29 @@
     the sample is real.
   </div>
 
-  <h2>6. The code</h2>
+  <h2>6. Fog, stratus and cloud layers — trained on what airports actually reported</h2>
+  <p>The fog panel's probabilities and the cloud-layer detector are <b>empirical</b>, not
+  rule-of-thumb. We matched every 00Z/12Z sounding from 14 co-located radiosonde/METAR stations
+  (Oakland, Quillayute, Medford, Salt Lake City, Boise, Charleston, Jackson, Nashville, Green Bay,
+  Buffalo, Sterling, Greensboro, Albany — and Buenos Aires Ezeiza) over 2006&ndash;2025 with the
+  airport's METAR within &plusmn;45 minutes of launch: <b>87,568 pairs</b>.</p>
+  <p>Three L2-regularized logistic models predict what the airport reported at sounding time:
+  fog (visibility &le; 1 km or FG), ceiling &le; 1,000 ft, and ceiling &le; 3,000 ft. Features are
+  computed from the lowest 3 km of the profile — peak RH below 500 m (the dominant predictor),
+  surface RH and dewpoint depression, LCL height, mixing-ratio structure, saturated-layer depth,
+  inversion strength and height, bulk Richardson number, surface wind, low-level lapse rate, and
+  seasonality. Skill is validated two ways: <b>year-blocked</b> cross-validation (AUC 0.91&ndash;0.93,
+  Brier skill up to 0.45 over climatology) and <b>station-held-out</b> (AUC 0.89&ndash;0.92), the
+  latter showing the model transfers to stations it never saw — which is why we let it run
+  globally. The probabilities describe conditions <i>at sounding time</i>, not a forecast.</p>
+  <p>The cloud-layer detector (RH over ice below freezing, height-dependent thresholds) was
+  calibrated on the same archive against <b>49,259 ceilometer-verified cloud bases</b>: thresholds
+  of 85% below 2 km and 80% aloft detect 77% of reported broken/overcast bases. About half of
+  confidently detected layers go unreported by the ceilometer — some are real misses of thin or
+  broken cloud, and some are cloud above the instrument's 12,000 ft range, so treat the detector
+  as generous aloft.</p>
+
+  <h2>7. The code</h2>
   <p>Everything is open — the repository is a plain GitHub Pages site, so what you're reading and what
   runs in your browser are the same files.
   <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">Browse the whole
@@ -406,7 +428,7 @@
   The physics itself is <a href="https://github.com/keltonhalbert/SHARPlib" target="_blank" rel="noopener">SHARPlib</a>,
   which is Kelton Halbert's, not mine.</p>
 
-  <h2>7. What it can't do</h2>
+  <h2>8. What it can't do</h2>
   <ul>
     <li><strong>Not for operational use.</strong> This is a personal research tool.</li>
     <li>Climatology covers <strong>active stations</strong>; long-closed sites have no percentiles.</li>
