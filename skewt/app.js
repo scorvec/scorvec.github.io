@@ -512,7 +512,7 @@ Promise.all([
   if (want && (entries[want] || byWmo[want])) {
     if (frag.length >= 2 && /^\d{4}-\d{2}-\d{2}$/.test(frag[1])) {
       archDate = frag[1];
-      archHour = frag[2] === "00" ? 0 : 12;
+      archHour = Math.max(0, Math.min(23, parseInt(frag[2], 10) || 0));
       mode = "archive";
       syncControls();
     }
