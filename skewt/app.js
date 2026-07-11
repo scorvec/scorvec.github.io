@@ -1116,10 +1116,20 @@ function drawMSE(prof) {
   const { W, H, ctx } = fitCanvas(cv);
   ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
   const m = mseProfile(prof);
-  const L = 34, R = 10, T = 30, B = 26, zTop = 15000;
-  const vals = m.h.concat(m.hs).filter(v => isFinite(v));
-  if (!vals.length) return;
-  let lo = Math.min(...vals) - 3, hi = Math.max(...vals) + 3;
+  const L = 40, R = 10, T = 30, B = 26, zTop = 12000;
+  // Scale the axis to the levels we actually DRAW. Using the whole column would
+  // let stratospheric h* (~490 kJ/kg — the g·z term) set the range and crush the
+  // low-level structure that matters into a few pixels.
+  const vals = [];
+  for (let i = 0; i < m.z.length; i++) {
+    if (!isFinite(m.z[i]) || m.z[i] > zTop) continue;
+    if (isFinite(m.h[i])) vals.push(m.h[i]);
+    if (isFinite(m.hs[i])) vals.push(m.hs[i]);
+  }
+  if (isFinite(m.hbl)) vals.push(m.hbl);
+  if (vals.length < 2) return;
+  const pad = Math.max(1.5, (Math.max(...vals) - Math.min(...vals)) * 0.06);
+  let lo = Math.min(...vals) - pad, hi = Math.max(...vals) + pad;
   const X = v => L + (W - L - R) * (v - lo) / (hi - lo);
   const Y = z => T + (H - T - B) * (1 - Math.min(z, zTop) / zTop);
 
@@ -1164,8 +1174,16 @@ function drawMSE(prof) {
   ctx.fillStyle = "#8b8ba3"; ctx.fillText("·", L + 10, 25);
   ctx.fillStyle = "#ff453a"; ctx.fillText("h*", L + 16, 25);
   ctx.fillStyle = "#ffd60a"; ctx.fillText("· BL", L + 30, 25);
-  ctx.fillStyle = "#8b8ba3"; ctx.textAlign = "center";
-  ctx.fillText("kJ/kg", (L + W - R) / 2, H - 8);
+  // x ticks (the axis now spans only the plotted layer, so these are legible)
+  ctx.fillStyle = "#8b8ba3"; ctx.strokeStyle = "#22223a"; ctx.textAlign = "center";
+  ctx.font = "9px Inter";
+  const span = hi - lo;
+  const step = span > 60 ? 20 : span > 30 ? 10 : span > 15 ? 5 : 2;
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+    ctx.beginPath(); ctx.moveTo(X(v), H - B); ctx.lineTo(X(v), H - B + 3); ctx.stroke();
+    ctx.fillText(String(Math.round(v)), X(v), H - B + 13);
+  }
+  ctx.fillText("kJ/kg", (L + W - R) / 2, H - 4);
 }
 
 function drawHodo(prof, res) {
