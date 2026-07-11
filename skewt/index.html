@@ -245,8 +245,10 @@
       Cloud layers estimated from relative humidity — with respect to <b>ice</b> below 0 °C, where
       deposition saturates before water saturation. A level is counted as cloudy above an RH threshold of 85% below
       2 km and 80% aloft — <b>calibrated against 49,259 METAR-verified cloud bases</b> at the same
-      stations as the fog model (detection rate 77% of reported broken/overcast bases; about half
-      of confidently detected layers go unreported by the ceilometer, which only sees to 12 kft);
+      stations as the fog model (detection rate 77% of reported broken/overcast bases). Coverage is the
+      column's weak point — even a saturated layer verifies as a broken/overcast ceiling only
+      ~77% of the time in the training data, so the ceiling estimate carries its empirical
+      confidence and coverage labels are deliberately hedged;
       adjacent cloudy levels merge into layers. The dashed teal band is the <b>dendritic growth
       zone</b> (−12 to −18 °C) — a cloud layer intersecting it produces snow efficiently.
       Boxes are colored by phase regime — white above 0 °C (liquid), cyan 0 to −20 °C
@@ -383,6 +385,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=aef1fddb"></script>
+<script src="app.js?v=96cbef88"></script>
 </body>
 </html>

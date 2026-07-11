@@ -469,20 +469,25 @@ function cloudRows(res) {
   // ceiling base = where RH first reaches the broken/overcast bar (92%) inside
   // the layer, not the 85% detection edge — surface haze (RH 85-92%) must not
   // read as a 0 ft ceiling. True surface-based saturation reports as obscured.
-  const ceil = res.layers.find(l => l.maxRh >= 92);
-  let ceilTxt = "none — no broken/overcast layer";
+  // bar 94 is the CSI optimum from calibration; the confidence is the fraction
+  // of matched layers in that peak-RH bin that verified as BKN/OVC in training
+  const pCeil = rh => rh >= 100 ? 77 : rh >= 98 ? 69 : rh >= 96 ? 65 : rh >= 94 ? 62 : 54;
+  const ceil = res.layers.find(l => l.maxRh >= 94);
+  let ceilTxt = "none — no likely ceiling layer";
   if (ceil) {
-    const lv = res.levs.find(L => L.z >= ceil.base - 1 && L.z <= ceil.top + 1 && L.rh >= 92);
+    const lv = res.levs.find(L => L.z >= ceil.base - 1 && L.z <= ceil.top + 1 && L.rh >= 94);
     const zb = lv ? lv.z : ceil.base;
     ceilTxt = zb < 50
       ? `obscured — surface-based saturation (fog), top ${Math.round(ceil.top)} m / ` +
         `${(ceil.top * 3.28084 / 1000).toFixed(1)} kft`
-      : `${Math.round(zb)} m / ${Math.round(zb * 3.28084 / 100) * 100} ft AGL`;
+      : `${Math.round(zb)} m / ${Math.round(zb * 3.28084 / 100) * 100} ft AGL ` +
+        `(~${pCeil(ceil.maxRh)}% of similar layers verify as ceilings)`;
   }
   rows.push(["Est. ceiling", ceilTxt]);
   res.layers.forEach((l, i) => {
     const lvl = l.base < 2000 ? "low" : l.base < 6000 ? "mid" : "high";
-    const cov = l.maxRh >= 97 ? "likely overcast" : l.maxRh >= 92 ? "broken" : "scattered/thin";
+    const cov = l.maxRh >= 100 ? "likely broken/overcast"
+      : l.maxRh >= 94 ? "broken possible" : "few/scattered";
     const lo = Math.min(l.tBase, l.tTop), hi = Math.max(l.tBase, l.tTop);
     const icing = lo < 0 && hi > -20;
     rows.push([`Layer ${i + 1} (${lvl})`,
