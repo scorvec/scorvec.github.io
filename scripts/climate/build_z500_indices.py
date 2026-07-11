@@ -179,6 +179,11 @@ def fit_patterns(dates: pd.DatetimeIndex, anoms: np.ndarray, lats_nh, lons):
         (anoms * w).reshape(len(dates), -1)).set_index(dates).resample("MS").mean()
     base = monthly[(monthly.index.year >= BASE[0]) & (monthly.index.year <= BASE[1])]
     X = base.values - base.values.mean(axis=0)
+    # remove the uniform (cap-mean) component: global warming raises Z500
+    # everywhere, and any pattern with nonzero spatial mean turns that
+    # background rise into a spurious index trend (caught vs CPC's flat PNA)
+    u = w.reshape(-1)
+    X = X - np.outer((X @ u) / (u @ u), u)
     U, S, Vt = np.linalg.svd(X, full_matrices=False)
     expl = (S ** 2 / np.sum(S ** 2))[:N_MODES]
     L = (Vt[:N_MODES].T * S[:N_MODES]) / np.sqrt(len(X) - 1)     # loadings (cells × k)
@@ -207,6 +212,11 @@ def fit_patterns(dates: pd.DatetimeIndex, anoms: np.ndarray, lats_nh, lons):
         patterns[name] = best_sign * Lr[:, best_j].reshape(nlat, nlon)
         print(f"  {name.upper():4} ← rotated mode {best_j + 1} "
               f"(|anchor congruence| {best:.2f})", flush=True)
+    # orthogonalize every stored pattern to the uniform direction so daily
+    # projections are exactly trend-immune (v . w_uniform = 0)
+    for name in list(patterns):
+        v = patterns[name].reshape(-1)
+        patterns[name] = (v - u * ((u @ v) / (u @ u))).reshape(nlat, nlon)
     print(f"  explained variance (top {N_MODES}): "
           + " ".join(f"{e:.0%}" for e in expl), flush=True)
     return patterns, w
