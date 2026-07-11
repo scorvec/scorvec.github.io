@@ -1608,6 +1608,23 @@ function fillTables(prof, res) {
     ["Eff. SRH / shear", pair(fmt(o[30]) + " m²/s²",
       o[31] === MISSING ? "—" : (o[31] * KT).toFixed(0) + " kt")],
     ["Eff. inflow", effIL],
+    // Mean wind through the mixed layer: this is the momentum a well-mixed
+    // boundary layer can bring DOWN to the surface, so it's the flow that
+    // actually threatens to gust. Highlighted from 35 kt, ramping to deep red.
+    ["PBL mean wind", (() => {
+      const pp = o[46];
+      if (pp === MISSING || !isFinite(pp)) return "—";
+      const z = interpHagl(prof, pp);
+      if (z === null || z < 50) return "—";        // too shallow to mean anything
+      const mw = meanWindAgl(prof, 0, z);
+      if (!mw) return "—";
+      const kt = Math.hypot(mw[0], mw[1]) * KT;
+      const txt = `${Math.round(dirOf(mw[0], mw[1]))}/${kt.toFixed(0)} kt`;
+      if (kt < 35) return txt;
+      const a = 0.25 + 0.45 * Math.min(1, (kt - 35) / 25);   // 35 kt -> 60 kt
+      return `<span class="pctcell" style="background:rgba(224,70,55,${a.toFixed(2)})" ` +
+        `title="${kt.toFixed(0)} kt through the mixed layer — can be mixed to the surface">${txt}</span>`;
+    })()],
     ["Bunkers RM / LM", pair(vecf(o[22], o[23]), vecf(o[24], o[25]))],
     ["Corfidi up / down", pair(vecf(o[49], o[50]), vecf(o[51], o[52]))],
   ];
