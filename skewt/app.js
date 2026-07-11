@@ -49,7 +49,7 @@ function openClimo() {
 function drawClimo(key) {
   const meta = CLIMO_VARS.find(v => v[0] === key) || [key, key, ""];
   const cv = document.getElementById("climo-canvas"), x = cv.getContext("2d");
-  const W = cv.width, H = cv.height, L = 54, R = 18, T = 18, B = 34;
+  const W = cv.width, H = cv.height, L = 66, R = 22, T = 26, B = 46;
   x.clearRect(0, 0, W, H);
   const months = [];
   let lo = Infinity, hi = -Infinity;
@@ -63,15 +63,15 @@ function drawClimo(key) {
   const px = m => L + (W - L - R) * (m + 0.5) / 12;
   const py = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
   // grid + y labels
-  x.strokeStyle = "#26263a"; x.fillStyle = "#8b8ba3"; x.font = "11px Inter";
+  x.strokeStyle = "#2a2a40"; x.fillStyle = "#b6b6cc"; x.font = "15px Inter";
   x.textAlign = "right";
   for (let i = 0; i <= 4; i++) {
     const v = lo + (hi - lo) * i / 4, yy = py(v);
     x.beginPath(); x.moveTo(L, yy); x.lineTo(W - R, yy); x.stroke();
-    x.fillText(Math.round(v), L - 6, yy + 4);
+    x.fillText(Math.round(v), L - 8, yy + 5);
   }
-  x.textAlign = "center";
-  for (let m = 0; m < 12; m++) x.fillText(MON[m], px(m), H - 14);
+  x.textAlign = "center"; x.font = "600 15px Inter";
+  for (let m = 0; m < 12; m++) x.fillText(MON[m], px(m), H - 16);
   const band = (pa, pb, col) => {
     x.fillStyle = col; x.beginPath(); let started = false;
     for (let m = 0; m < 12; m++) { const d = months[m]; if (!d) continue;
@@ -84,21 +84,23 @@ function drawClimo(key) {
   band(2, 6, "rgba(74,122,181,0.22)");     // p10-p90
   band(3, 5, "rgba(74,122,181,0.34)");     // p25-p75
   // median line
-  x.strokeStyle = "#8fbaf0"; x.lineWidth = 2; x.beginPath(); let st = false;
+  x.strokeStyle = "#9fc4f5"; x.lineWidth = 2.6; x.beginPath(); let st = false;
   for (let m = 0; m < 12; m++) { const d = months[m]; if (!d) continue;
     const xx = px(m), yy = py(d.p[4]); st ? x.lineTo(xx, yy) : x.moveTo(xx, yy); st = true; }
   x.stroke();
   // record markers + years
-  x.font = "9px Inter";
+  x.textAlign = "center";
   for (let m = 0; m < 12; m++) { const d = months[m]; if (!d) continue;
-    x.fillStyle = "#e0603a"; x.fillText("▲", px(m), py(d.max) - 3);
-    x.fillStyle = "#4a7ab5"; x.fillText("▼", px(m), py(d.min) + 10);
-    x.fillStyle = "#6a6a86"; x.fillText(String(d.maxY).slice(2), px(m), py(d.max) - 12); }
+    x.font = "13px Inter";
+    x.fillStyle = "#e0603a"; x.fillText("▲", px(m), py(d.max) - 4);
+    x.fillStyle = "#4a7ab5"; x.fillText("▼", px(m), py(d.min) + 13);
+    x.font = "600 11px Inter"; x.fillStyle = "#8888a4";
+    x.fillText("'" + String(d.maxY).slice(2), px(m), py(d.max) - 17); }
   // current sounding value
   const cur = climoNow[key];
   if (isFinite(cur) && lastMonth) {
     const m = parseInt(lastMonth, 10) - 1;
-    x.fillStyle = "#ffd60a"; x.beginPath(); x.arc(px(m), py(cur), 6, 0, 7); x.fill();
+    x.fillStyle = "#ffd60a"; x.beginPath(); x.arc(px(m), py(cur), 8, 0, 7); x.fill();
     x.strokeStyle = "#000"; x.lineWidth = 1; x.stroke();
   }
   document.getElementById("climo-sub").textContent =
