@@ -432,17 +432,54 @@ function drawCloudChart(prof, res) {
     ctx.fillStyle = TH.isotherm0; ctx.textAlign = "left";
     ctx.fillText("0\u00b0C", Mg.l + 2, y(zf) - 8);
   }
-  // cloud boxes, opacity scaled by peak RH
+  // cloud boxes, opacity by peak RH, colored by phase regime:
+  // liquid (>0 C) white, supercooled (0 to -20 C) cyan, ice (<-20 C) violet
+  const reg = tc => tc > 0 ? 0 : tc > -20 ? 1 : 2;
+  const regCol = (r, a) => [`rgba(225,228,238,${a})`, `rgba(100,210,255,${a})`, `rgba(191,90,242,${a})`][r];
+  const tAtZ = z => {
+    for (let i = 1; i < levs.length; i++)
+      if (levs[i].z >= z) {
+        const f = (z - levs[i - 1].z) / Math.max(1, levs[i].z - levs[i - 1].z);
+        return levs[i - 1].tC + f * (levs[i].tC - levs[i - 1].tC);
+      }
+    return levs[levs.length - 1].tC;
+  };
   for (const l of layers) {
+    const a = Math.min(0.85, 0.25 + (l.maxRh - 75) / 40);
     const hPx = Math.max(4, y(l.base) - y(l.top));
-    ctx.fillStyle = `rgba(198,210,232,${Math.min(0.85, 0.25 + (l.maxRh - 75) / 40)})`;
-    ctx.fillRect(Mg.l + 10, y(l.top), colR - Mg.l - 26, hPx);
+    // split the box at 0 C / -20 C crossings so each band wears its phase color
+    const cuts = [l.base];
+    for (let i = 1; i < levs.length; i++) {
+      const a1 = levs[i - 1], b1 = levs[i];
+      if (b1.z <= l.base || a1.z >= l.top) continue;
+      for (const thrT of [0, -20]) {
+        if ((a1.tC - thrT) * (b1.tC - thrT) < 0) {
+          const zc = a1.z + (thrT - a1.tC) / (b1.tC - a1.tC) * (b1.z - a1.z);
+          if (zc > l.base && zc < l.top) cuts.push(zc);
+        }
+      }
+    }
+    cuts.push(l.top); cuts.sort((x1, x2) => x1 - x2);
+    for (let i = 1; i < cuts.length; i++) {
+      const zb = cuts[i - 1], zt = cuts[i];
+      ctx.fillStyle = regCol(reg(tAtZ((zb + zt) / 2)), a);
+      ctx.fillRect(Mg.l + 10, y(zt), colR - Mg.l - 26, Math.max(2, y(zb) - y(zt)));
+    }
     if (hPx >= 15) {
       ctx.fillStyle = "#0b0b12"; ctx.textAlign = "center";
       ctx.fillText(`${(l.base * 3.28084 / 1000).toFixed(1)}\u2013${(l.top * 3.28084 / 1000).toFixed(1)} kft`,
         (Mg.l + colR - 16) / 2, (y(l.top) + y(l.base)) / 2);
     }
   }
+  // phase legend
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  let lx = Mg.l + 10;
+  for (const [lab, r] of [["liquid", 0], ["supercooled", 1], ["ice", 2]]) {
+    ctx.fillStyle = regCol(r, 0.8); ctx.fillRect(lx, H - 13, 9, 8);
+    ctx.fillStyle = TH.muted; ctx.fillText(lab, lx + 12, H - 9);
+    lx += 12 + 7 * lab.length + 12;
+  }
+  ctx.textBaseline = "alphabetic";
   // RH profile with the cloudy threshold
   ctx.strokeStyle = TH.grid; ctx.strokeRect(rx(0), Mg.t, rx(105) - rx(0), y(0) - Mg.t);
   ctx.strokeStyle = "rgba(255,159,10,0.65)"; ctx.setLineDash([4, 3]); ctx.beginPath();
