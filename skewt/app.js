@@ -1125,7 +1125,7 @@ function drawMSE(prof) {
   const { W, H, ctx } = fitCanvas(cv);
   ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
   const m = mseProfile(prof);
-  const L = 56, R = 12, T = 38, B = 40, zTop = 12000;
+  const L = 56, R = 12, T = 92, B = 40, zTop = 12000;
   // Scale the axis to the levels we actually DRAW. Using the whole column would
   // let stratospheric h* (~490 kJ/kg — the g·z term) set the range and crush the
   // low-level structure that matters into a few pixels.
@@ -1176,13 +1176,28 @@ function drawMSE(prof) {
     ctx.beginPath(); ctx.moveTo(X(m.hbl), T); ctx.lineTo(X(m.hbl), H - B); ctx.stroke();
     ctx.setLineDash([]);
   }
-  ctx.textAlign = "left"; ctx.font = "600 16px Inter";
-  ctx.fillStyle = TH.ink; ctx.fillText("Moist static energy", L, 13);
-  ctx.font = "15px Inter";
-  ctx.fillStyle = "#4a9bf0"; ctx.fillText("h", L, 25);
-  ctx.fillStyle = "#8b8ba3"; ctx.fillText("·", L + 10, 25);
-  ctx.fillStyle = "#ff453a"; ctx.fillText("h*", L + 16, 25);
-  ctx.fillStyle = "#ffd60a"; ctx.fillText("· BL", L + 30, 25);
+  // legend — spell out what each curve actually is
+  ctx.textAlign = "left";
+  ctx.font = "600 13px Inter"; ctx.fillStyle = TH.ink;
+  ctx.fillText("Moist static energy", 6, 14);
+  const key = [
+    ["#4a9bf0", "solid", "h — air's energy"],
+    ["#ff453a", "solid", "h* — saturation"],
+    ["#ffd60a", "dash",  "h of the boundary layer"],
+    ["rgba(48,209,88,0.55)", "fill", "buoyant: h(BL) > h*"],
+  ];
+  ctx.font = "11px Inter";
+  key.forEach(([col, kind, lab], i) => {
+    const y = 30 + i * 14;
+    if (kind === "fill") { ctx.fillStyle = col; ctx.fillRect(6, y - 6, 16, 7); }
+    else {
+      ctx.strokeStyle = col; ctx.lineWidth = 2.4;
+      ctx.setLineDash(kind === "dash" ? [4, 3] : []);
+      ctx.beginPath(); ctx.moveTo(6, y - 3); ctx.lineTo(22, y - 3); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.fillStyle = "#a8a8c2"; ctx.fillText(lab, 27, y);
+  });
   // x ticks (the axis now spans only the plotted layer, so these are legible)
   ctx.fillStyle = "#8b8ba3"; ctx.strokeStyle = "#22223a"; ctx.textAlign = "center";
   ctx.font = "14px Inter";
