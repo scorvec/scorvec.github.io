@@ -1560,26 +1560,26 @@ function fillTables(prof, res) {
     ? (cape * srh / 160000).toFixed(1) : "—";
   const effIL = (o[28] === MISSING || o[29] === MISSING) ? "—"
     : `${(o[28] / 100).toFixed(0)}–${(o[29] / 100).toFixed(0)} hPa`;
+  const pair = (a, b) => `${a} <span class="pctlab">/</span> ${b}`;
   const kinem = [
-    ["0–1 km shear", ktf(o[20], o[21])], ["0–6 km shear", ktf(o[18], o[19])],
-    ["SRH 0–1 km", fmt(o[26]) + " m²/s²"], ["SRH 0–3 km", fmt(o[27]) + " m²/s²"],
-    ["Eff. SRH", fmt(o[30]) + " m²/s²"],
-    ["Eff. shear (EBWD)", o[31] === MISSING ? "—" : (o[31] * KT).toFixed(0) + " kt"],
+    ["Shear 0–1 / 0–6 km", pair(ktf(o[20], o[21]), ktf(o[18], o[19]))],
+    ["SRH 0–1 / 0–3 km", pair(fmt(o[26]), fmt(o[27])) + " m²/s²"],
+    ["Eff. SRH / shear", pair(fmt(o[30]) + " m²/s²",
+      o[31] === MISSING ? "—" : (o[31] * KT).toFixed(0) + " kt")],
     ["Eff. inflow", effIL],
-    ["Bunkers RM", vecf(o[22], o[23])], ["Bunkers LM", vecf(o[24], o[25])],
-    ["Corfidi upshear", vecf(o[49], o[50])],
-    ["Corfidi downshear", vecf(o[51], o[52])],
+    ["Bunkers RM / LM", pair(vecf(o[22], o[23]), vecf(o[24], o[25]))],
+    ["Corfidi up / down", pair(vecf(o[49], o[50]), vecf(o[51], o[52]))],
   ];
   const wmaxE = o[42] > 0 ? Math.sqrt(2 * o[42]) : NaN;   // ECAPE-limited updraft (Peters 2023)
   const wmaxC = o[10] > 0 ? Math.sqrt(2 * o[10]) : NaN;   // undilute CAPE updraft
   // meaningless (and explosive) when there's essentially no CAPE to dilute
   const entEff = (o[42] > 0 && o[10] >= 25) ? (100 * o[42] / o[10]) : NaN;
   const composites = [
-    ["EHI 0–1 km", ehi(o[0], o[26])], ["EHI 0–3 km", ehi(o[0], o[27])],
-    ["SCP", fmt(o[32], 1)], ["STP (eff.)", fmt(o[33], 1)],
+    ["EHI 0–1 / 0–3 km", pair(ehi(o[0], o[26]), ehi(o[0], o[27]))],
+    ["SCP / STP (eff.)", pair(fmt(o[32], 1), fmt(o[33], 1))],
     ["SHIP", climoCell("ship", o[43], fmt(o[43], 1))],
-    ["Max updraft (ECAPE)", isFinite(wmaxE) ? wmaxE.toFixed(0) + " m/s" : "—"],
-    ["Max updraft (CAPE)", isFinite(wmaxC) ? wmaxC.toFixed(0) + " m/s" : "—"],
+    ["Max updraft E / C", pair(isFinite(wmaxE) ? wmaxE.toFixed(0) : "—",
+      isFinite(wmaxC) ? wmaxC.toFixed(0) + " m/s" : "—")],
     // NOT an "efficiency": SHARPlib returns E_tilde × CAPE, and E_tilde carries a
     // storm-relative kinetic-energy term, so strong SR inflow can push this >100%.
     ["ECAPE / CAPE", isFinite(entEff) ? entEff.toFixed(0) + " %" : "—"],
@@ -1598,20 +1598,11 @@ function fillTables(prof, res) {
     ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
     ["PWAT", climoCell("pwat", o[15], o[15] === MISSING ? "—"
       : `${o[15].toFixed(1)} mm · ${(o[15] / 25.4).toFixed(2)}"`)],
-    ["Lapse 0–3 km", fmt(o[16], 1) + " K/km"], ["Lapse 3–6 km", fmt(o[17], 1) + " K/km"],
-    ["Column RH (CRH)", (() => { const c = columnRH(prof);
-      return isFinite(c) ? c.toFixed(0) + " %" : "—"; })()],
-    ["Mid-level RH (700–500)", (() => { const r = layerRH(prof, 70000, 50000);
-      return isFinite(r) ? r.toFixed(0) + " %" : "—"; })()],
-    ["Precip type (Bourgouin)", (() => {
-      // Always answer. This says what WOULD fall if it were precipitating, and
-      // that's a year-round question — a warm column reads "Rain", not blank.
-      const pt = precipType(prof);
-      if (!isFinite(pt.PA)) return "—";
-      const detail = pt.PA > 0
-        ? `melt ${pt.PA.toFixed(0)}${pt.NA > 0 ? " / refreeze " + pt.NA.toFixed(0) : ""} J/kg`
-        : "no melting layer";
-      return `<b>${pt.type}</b> <span class="pctlab">${detail}</span>`;
+    ["Lapse 0–3 / 3–6 km", pair(fmt(o[16], 1), fmt(o[17], 1) + " K/km")],
+    ["RH column / mid-lvl", (() => {
+      const c = columnRH(prof), r = layerRH(prof, 70000, 50000);
+      return pair(isFinite(c) ? c.toFixed(0) : "—",
+                  isFinite(r) ? r.toFixed(0) + " %" : "—");
     })()],
     ["PBL top (mixing depth)", (() => {
       const pp = o[46];
@@ -1642,6 +1633,30 @@ function fillTables(prof, res) {
     ["1000–500 thick.", climoCell("thick", (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN, (isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—")],
     ["Freezing level", climoCell("fzl", fzl, isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—")],
     ["Wet-bulb 0 °C", (() => { const w = wbzAgl(prof); return climoCell("wbz", w, isFinite(w) ? Math.round(w) + " m AGL" : "—"); })()],
+    ["Tropopause / cold pt", (() => { const tp = tropopause(prof);
+      return pair(isFinite(tp.wmoZ) ? (tp.wmoZ / 1000).toFixed(1) : "—",
+        isFinite(tp.cpZ) ? `${(tp.cpZ / 1000).toFixed(1)} km` : "—");
+    })()],
+  ];
+
+  climoNow = { pwat: o[15], "850t": t850, "700t": t700, "500t": t500,
+    h500: h500, thick: (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN,
+    fzl: fzl, kidx: kidx, tott: totalT,
+    ecape: o[42] === MISSING ? NaN : o[42], ship: o[43] === MISSING ? NaN : o[43],
+    wbz: wbzAgl(prof) };
+  document.getElementById("climo-btn").style.display = climo ? "" : "none";
+
+  const winter = [
+    ["Precip type (Bourgouin)", (() => {
+      // Always answer. This says what WOULD fall if it were precipitating, and
+      // that's a year-round question — a warm column reads "Rain", not blank.
+      const pt = precipType(prof);
+      if (!isFinite(pt.PA)) return "—";
+      const detail = pt.PA > 0
+        ? `melt ${pt.PA.toFixed(0)}${pt.NA > 0 ? " / refreeze " + pt.NA.toFixed(0) : ""} J/kg`
+        : "no melting layer";
+      return `<b>${pt.type}</b> <span class="pctlab">${detail}</span>`;
+    })()],
     ["Dendritic zone", (() => {
       const b = o[53], tp = o[54];
       if (b === MISSING || tp === MISSING || !isFinite(b) || !isFinite(tp)) return "—";
@@ -1652,23 +1667,9 @@ function fillTables(prof, res) {
         (depth !== null ? ` · ${depth} m` : "") +
         (isFinite(rh) ? ` · RH ${rh.toFixed(0)}%` : "");
     })()],
-    ["Snow ratio (Kuchera)", (() => { const k = kucheraRatio(prof);
-      return isFinite(k) ? k.toFixed(0) + ":1" : "—"; })()],
-    ["Snow squall param", fmt(o[55], 1)],
-    ["Tropopause (WMO)", (() => { const tp = tropopause(prof);
-      return isFinite(tp.wmoZ)
-        ? `${(tp.wmoZ / 1000).toFixed(1)} km · ${(tp.wmoP / 100).toFixed(0)} hPa` : "—"; })()],
-    ["Cold point", (() => { const tp = tropopause(prof);
-      return isFinite(tp.cpZ)
-        ? `${(tp.cpZ / 1000).toFixed(1)} km · ${(tp.cpT - 273.15).toFixed(0)} °C` : "—"; })()],
+    ["Snow ratio / squall", (() => { const k = kucheraRatio(prof);
+      return pair(isFinite(k) ? k.toFixed(0) + ":1" : "—", fmt(o[55], 1)); })()],
   ];
-
-  climoNow = { pwat: o[15], "850t": t850, "700t": t700, "500t": t500,
-    h500: h500, thick: (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN,
-    fzl: fzl, kidx: kidx, tott: totalT,
-    ecape: o[42] === MISSING ? NaN : o[42], ship: o[43] === MISSING ? NaN : o[43],
-    wbz: wbzAgl(prof) };
-  document.getElementById("climo-btn").style.display = climo ? "" : "none";
 
   const row = ([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`;
   document.getElementById("kin-table").innerHTML = kinem.map(row).join("");
@@ -1676,6 +1677,7 @@ function fillTables(prof, res) {
   document.getElementById("kin-table2").innerHTML = thermo.map(row).join("");
   document.getElementById("kin-table3").innerHTML = levels.map(row).join("");
   document.getElementById("mse-table").innerHTML = mseRows.map(row).join("");
+  document.getElementById("winter-table").innerHTML = winter.map(row).join("");
 }
 
 // ---------- render ----------
@@ -1688,7 +1690,7 @@ function clearPlot(msg) {
     ctx.fillText(msg || "no data", cv.width / 2, cv.height / 2);
     ctx.textAlign = "left";
   }
-  for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table"])
+  for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table"])
     document.getElementById(id).innerHTML = "";
   plotTitle = "";
 }
@@ -1704,6 +1706,6 @@ function render(prof) {
   drawHodo(prof, res);
   drawMSE(prof);
   if (hasT) fillTables(prof, res);
-  else for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table"])
+  else for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table"])
     document.getElementById(id).innerHTML = "";
 }
