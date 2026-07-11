@@ -567,15 +567,71 @@ document.getElementById("anom-toggle").addEventListener("click", () => {
 function exportPNG() {
   const sk = document.getElementById("skewt"), ho = document.getElementById("hodo");
   const pad = 24, foot = 54;
+
+  // The indices live in HTML tables, so the export re-typesets them from the
+  // DOM — whatever is on screen (pairings, percentile tags, records) is exactly
+  // what lands in the image.
+  const grab = id => [...document.querySelectorAll(`#${id} tr`)]
+    .map(tr => [...tr.children].map(td => td.textContent.replace(/\s+/g, " ").trim()));
+  const columns = [                       // mirrors the page's tables-grid
+    [["Parcels", grab("pcl-table")], ["Moist static energy", grab("mse-table")]],
+    [["Kinematics", grab("kin-table")]],
+    [["Composites", grab("kin-table-b")], ["Winter", grab("winter-table")]],
+    [["Thermo & moisture", grab("kin-table2")]],
+    [["Levels", grab("kin-table3")]],
+  ];
+  const ROW = 19, TITLE = 30, GAP = 10;
+  const colH = col => col.reduce((s, [, rows]) => s + TITLE + rows.length * ROW + GAP, 0);
+  const tableH = Math.max(...columns.map(colH)) + 18;
+
   const W = sk.width + ho.width + pad * 3;
-  const H = Math.max(sk.height, ho.height) + pad * 2 + foot;
+  const H = Math.max(sk.height, ho.height) + pad * 2 + tableH + foot;
   const cv = document.createElement("canvas");
   cv.width = W; cv.height = H;
   const x = cv.getContext("2d");
   x.fillStyle = "#0b0b12"; x.fillRect(0, 0, W, H);
   x.drawImage(sk, pad, pad);
   x.drawImage(ho, sk.width + pad * 2, pad);
+
+  // typeset the index columns
+  const tTop = Math.max(sk.height, ho.height) + pad * 2;
+  x.strokeStyle = "#23233a";
+  x.beginPath(); x.moveTo(pad, tTop - 8); x.lineTo(W - pad, tTop - 8); x.stroke();
+  const weights = [1.35, 1, 1, 1.05, 0.95];
+  const totalW = W - pad * 2, wSum = weights.reduce((a, b) => a + b, 0);
+  let cx = pad;
+  columns.forEach((col, ci) => {
+    const cw = totalW * weights[ci] / wSum - 14;
+    let cy = tTop + 8;
+    for (const [title, rows] of col) {
+      x.fillStyle = "#c8c8dc"; x.font = "600 15px Lora, Georgia, serif";
+      x.textAlign = "left";
+      x.fillText(title, cx, cy + 12);
+      cy += TITLE;
+      for (const cells of rows) {
+        if (cells.length > 2) {                       // the wide parcels grid
+          const step = cw / cells.length;
+          cells.forEach((c, i) => {
+            x.fillStyle = rows.indexOf(cells) === 0 ? "#8b8ba3" : "#e8e8f0";
+            x.font = "12.5px Inter, sans-serif";
+            x.textAlign = i === 0 ? "left" : "right";
+            x.fillText(c, i === 0 ? cx : cx + step * (i + 1) - 4, cy + 6);
+          });
+        } else {
+          x.fillStyle = "#8b8ba3"; x.font = "12.5px Inter, sans-serif";
+          x.textAlign = "left"; x.fillText(cells[0] || "", cx, cy + 6);
+          x.fillStyle = "#e8e8f0"; x.textAlign = "right";
+          x.fillText(cells[1] || "", cx + cw, cy + 6);
+        }
+        cy += ROW;
+      }
+      cy += GAP;
+    }
+    cx += totalW * weights[ci] / wSum;
+  });
+
   x.fillStyle = "#64d2ff"; x.font = "700 26px Inter, sans-serif";
+  x.textAlign = "left";
   x.fillText("scorvec.com/skewt", pad, H - 20);
   x.fillStyle = "#8b8ba3"; x.font = "20px Inter, sans-serif";
   x.textAlign = "right";
@@ -1328,17 +1384,24 @@ function drawSkewT(prof, res) {
   // — can land past the right edge and be clipped (Albuquerque, 1619 m: 37.6 °C
   // at 836 hPa overflowed by 12 px). Widen the temperature axis until the whole
   // profile fits, rather than silently cropping the data.
+  // The skew must scale with the plot's ASPECT, not 1 px right per 1 px up.
+  // On the old 760×840 canvas those were nearly the same thing; on a tall
+  // portrait phone canvas a pixel-for-pixel skew shifts the top of the plot
+  // right by MORE than the plot's width — everything aloft displaced out of
+  // frame ("cut off above 100 mb / shifted right"). skewR makes an isotherm
+  // run corner-to-corner at any canvas shape.
+  const skewR = pw / ph;
   let TR = SK.tR;
   for (let i = 0; i < prof.P.length; i++) {
     const tc = prof.T[i] - 273.15;
     if (!isFinite(tc) || !isFinite(prof.P[i])) continue;
-    const skew = (SK.t + ph) - yOf(prof.P[i]);          // px the skew pushes it right
+    const skew = ((SK.t + ph) - yOf(prof.P[i])) * skewR;  // px the skew pushes it right
     if (skew >= pw - 10) continue;
     const need = SK.tL + (tc - SK.tL) / (1 - skew / pw);
     if (need > TR) TR = need;
   }
   TR = Math.min(75, Math.ceil((TR + 3) / 5) * 5);       // headroom, rounded, sane cap
-  const xOf = (tC, y) => SK.l + ((tC - SK.tL) / (TR - SK.tL)) * pw + ((SK.t + ph) - y);
+  const xOf = (tC, y) => SK.l + ((tC - SK.tL) / (TR - SK.tL)) * pw + ((SK.t + ph) - y) * skewR;
   ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
   // on-canvas title: station + valid time
   // On a phone the canvas is half the desktop width: the title ran into the
