@@ -7,8 +7,9 @@ breakpoints + record extremes. The browser then fetches one small JSON per
 station (climo/{gid}.json on the skewt-climo branch) and reports where the
 live/archived sounding's values rank against that station's own history.
 
-Indices (all exact from the reported levels — no parcel model needed):
-  pwat  850t 700t 500t  h500  thick  fzl  kidx  tott
+Indices: pwat 850t 700t 500t h500 thick fzl kidx tott (exact from levels) plus
+  ecape ship (via the native SHARPlib helper CLIMO_CAPE_BIN, identical physics
+  to the app's WASM).
 
     python scripts/skewt/build_climo.py OUTDIR [gid1 gid2 ...]   # subset
     python scripts/skewt/build_climo.py OUTDIR --all            # every station
@@ -17,6 +18,8 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import subprocess
 import sys
 import urllib.request
 import zipfile
@@ -27,6 +30,7 @@ import numpy as np
 IGRA = ("https://www.ncei.noaa.gov/data/integrated-global-radiosonde-archive/"
         "access/data-por/")
 PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
+CAPE_BIN = os.environ.get("CLIMO_CAPE_BIN", "/tmp/climo_cape")
 G = 9.80665
 HERE = Path(__file__).resolve().parent
 STATIONS = HERE.parents[1] / "skewt" / "stations.json"
@@ -135,6 +139,23 @@ def build_station(gid: str, outdir: Path) -> bool:
             continue
         i += 1
 
+    # ECAPE + SHIP from the native SHARPlib helper (same physics as the app)
+    if os.path.exists(CAPE_BIN):
+        try:
+            r = subprocess.run([CAPE_BIN, gid], input=text, capture_output=True,
+                               text=True, timeout=300)
+            for ln in r.stdout.splitlines():
+                q = ln.split()
+                if len(q) != 4:
+                    continue
+                yr, mm = int(q[0]), q[1]
+                mb = by_month.setdefault(mm, {})
+                for k, s in (("ecape", q[2]), ("ship", q[3])):
+                    if s != "nan":
+                        mb.setdefault(k, []).append((float(s), yr))
+        except Exception as e:                            # noqa: BLE001
+            print(f"  {gid}: cape helper failed ({repr(e)[:40]})", flush=True)
+
     out = {"gid": gid, "months": {}}
     total = 0
     for mm, inds in by_month.items():
@@ -170,8 +191,15 @@ def main() -> int:
         stns = args
     ok = 0
     for gid in stns:
-        if (outdir / f"{gid}.json").exists():
-            ok += 1; continue
+        fp = outdir / f"{gid}.json"
+        if fp.exists():
+            try:
+                have = json.loads(fp.read_text())
+                if any("ecape" in mo or "ship" in mo
+                       for mo in have.get("months", {}).values()):
+                    ok += 1; continue          # already has cape indices
+            except Exception:                   # noqa: BLE001
+                pass                            # rebuild on parse error
         if build_station(gid, outdir):
             ok += 1
     print(f"built {ok}/{len(stns)}", flush=True)
