@@ -200,14 +200,16 @@ function drawFogCharts(prof) {
     if (!isFinite(prof.T[i])) continue;
     const t = prof.T[i] - 273.15, d = isFinite(prof.D[i]) ? prof.D[i] - 273.15 : NaN;
     const ev = isFinite(d) ? 6.112 * Math.exp(17.67 * d / (d + 243.5)) : NaN;
-    pts.push({ z, t, d, f: isFinite(d) ? frostPtC(d) : NaN,
+    pts.push({ z, t, d, p: prof.P[i], u: prof.U[i], v: prof.V[i],
+      spd: isFinite(prof.U[i]) ? Math.hypot(prof.U[i], prof.V[i]) * KT : NaN,
+      f: isFinite(d) ? frostPtC(d) : NaN,
       w: isFinite(ev) ? 622 * ev / (prof.P[i] / 100 - ev) : NaN });
   }
   if (pts.length < 3) {
     ctx.fillStyle = TH.muted; ctx.fillText("not enough low-level data", 12, 20); return;
   }
   const zMax = Math.max(1000, pts[pts.length - 1].z);
-  const Mg = { l: 40, t: 20, b: 24 }, wL = Math.round(W * 0.64), gap = 34;
+  const Mg = { l: 40, t: 20, b: 24 }, wL = Math.round(W * 0.5), gap = 32;
   let xmin = 99, xmax = -99;
   for (const q of pts) {
     xmax = Math.max(xmax, q.t);
@@ -217,16 +219,24 @@ function drawFogCharts(prof) {
   xmin = Math.floor(xmin) - 2; xmax = Math.ceil(xmax) + 2;
   const x = v => Mg.l + (v - xmin) / (xmax - xmin) * (wL - Mg.l - 6);
   const y = z => H - Mg.b - z / zMax * (H - Mg.t - Mg.b);
-  let wTop = 0;
-  for (const q of pts) if (isFinite(q.w)) wTop = Math.max(wTop, q.w);
+  let wTop = 0, sMax = 0;
+  for (const q of pts) {
+    if (isFinite(q.w)) wTop = Math.max(wTop, q.w);
+    if (isFinite(q.spd)) sMax = Math.max(sMax, q.spd);
+  }
   wTop = Math.max(1, Math.ceil(wTop * 1.15));
-  const rx = v => wL + gap + v / wTop * (W - wL - gap - 8);
+  sMax = Math.max(10, Math.ceil(sMax * 1.15 / 5) * 5);
+  const rxL = wL + gap, rxR = rxL + (W - wL - 8 - 2 * gap) * 0.5;
+  const sxL = rxR + gap, sxR = W - 8;
+  const rx = v => rxL + v / wTop * (rxR - rxL);
+  const sx = v => sxL + v / sMax * (sxR - sxL);
   // height grid across both panels
   ctx.textAlign = "right"; ctx.textBaseline = "middle";
   for (let z = 0; z <= zMax; z += 500) {
     ctx.strokeStyle = TH.gridSub; ctx.beginPath();
     ctx.moveTo(Mg.l, y(z)); ctx.lineTo(wL - 6, y(z));
-    ctx.moveTo(rx(0), y(z)); ctx.lineTo(rx(wTop), y(z)); ctx.stroke();
+    ctx.moveTo(rx(0), y(z)); ctx.lineTo(rx(wTop), y(z));
+    ctx.moveTo(sx(0), y(z)); ctx.lineTo(sx(sMax), y(z)); ctx.stroke();
     ctx.fillStyle = TH.muted; ctx.fillText(z ? z + " m" : "sfc", Mg.l - 4, y(z));
   }
   // temp ticks + 0C isotherm
@@ -281,6 +291,26 @@ function drawFogCharts(prof) {
   const wStep = wTop <= 2 ? 0.5 : wTop <= 5 ? 1 : wTop <= 12 ? 2 : 5;
   for (let v = 0; v <= wTop; v += wStep) ctx.fillText(v, rx(v), y(0) + 4);
   ctx.fillText("w g/kg", (rx(0) + rx(wTop)) / 2, 4);
+  // wind strip: speed trace with the 2-7 kt radiation-fog sweet spot shaded,
+  // barbs for direction (drainage flow shows as a veer to downslope)
+  ctx.strokeStyle = TH.grid; ctx.strokeRect(sx(0), Mg.t, sx(sMax) - sx(0), y(0) - Mg.t);
+  ctx.fillStyle = "rgba(48,209,88,0.10)";
+  ctx.fillRect(sx(2), Mg.t, sx(Math.min(7, sMax)) - sx(2), y(0) - Mg.t);
+  ctx.strokeStyle = TH.barb; ctx.lineWidth = 1.6; ctx.beginPath();
+  let spen = false;
+  for (const q of pts) if (isFinite(q.spd)) {
+    spen ? ctx.lineTo(sx(q.spd), y(q.z)) : ctx.moveTo(sx(q.spd), y(q.z)); spen = true;
+  }
+  ctx.stroke(); ctx.lineWidth = 1;
+  const bp = { P: [], U: [], V: [] }, py = new Map();
+  for (const q of pts) if (isFinite(q.u)) {
+    bp.P.push(q.p); bp.U.push(q.u); bp.V.push(q.v); py.set(q.p, y(q.z));
+  }
+  if (bp.P.length) drawBarbs(ctx, bp, sxR - 18, pp => py.get(pp));
+  ctx.textAlign = "center"; ctx.fillStyle = TH.muted;
+  const sStep = sMax <= 20 ? 5 : sMax <= 50 ? 10 : 20;
+  for (let v = 0; v <= sMax; v += sStep) ctx.fillText(v, sx(v), y(0) + 4);
+  ctx.fillText("wind kt", (sx(0) + sx(sMax)) / 2, 4);
   // legend
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   let lx = Mg.l;
