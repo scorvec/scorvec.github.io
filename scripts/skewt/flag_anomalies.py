@@ -32,6 +32,10 @@ WATCH = ("h500", "thick", "850t", "ecape")
 # thicknesses and 850 mb temperatures matter at both ends (a record-cold airmass
 # is as notable as a record-warm one).
 HIGH_ONLY = {"ecape"}
+# A value must also be big enough to mean anything. Where an index is almost
+# always zero (SHIP in the Arctic; ECAPE over the poles), the percentile is
+# computed against a spike at zero and any trace value scores "P99".
+FLOOR = {"ecape": 100.0, "ship": 0.5}
 LABELS = {"h500": "500mb hgt", "thick": "1000-500 thick", "850t": "850mb T",
           "ecape": "ECAPE"}
 G = 9.80665
@@ -181,6 +185,10 @@ def main() -> int:
             # be genuinely separated from the bulk: below p5 AND strictly below p25
             # (or above p95 AND strictly above p75).
             pp = A["p"][s]
+            if k in FLOOR and v < FLOOR[k]:
+                continue                                 # too small to be news
+            if pct >= 95 and not (pp[6] > pp[4]):
+                continue                                 # distribution is a spike
             low_ok = (pct <= 5 and v < pp[3]            # p[3] = 25th percentile
                       and k not in HIGH_ONLY)
             high_ok = pct >= 95 and v > pp[5]            # p[5] = 75th percentile
