@@ -77,10 +77,15 @@ def sounding_indices(block: list[str]) -> dict | None:
                 return field[i - 1] + f * (field[i] - field[i - 1])
         return np.nan
 
-    # PWAT: (1/g) ∫ w dp  (mm)
+    # PWAT: (1/g) ∫ w dp  (mm). Many stations report dewpoint on only a fraction
+    # of levels; integrating a shallow/sparse moisture profile yields absurd
+    # values (0.5 mm for Argentina), so require real coverage or report nothing.
     pw = np.nan
     m = np.isfinite(P) & np.isfinite(D)
-    if m.sum() >= 3:
+    moist_ok = (m.sum() >= 6 and P[m].min() <= 50000            # moisture to 500 hPa
+                and np.isfinite(D[0])                            # real surface dewpoint
+                and m[P >= 50000].mean() >= 0.6)                 # 60%+ of levels below 500
+    if moist_ok:
         Pm, Dm = P[m], D[m]
         Tdc = Dm - 273.15
         e = 6.112 * np.exp(17.67 * Tdc / (Tdc + 243.5)) * 100.0    # Pa
@@ -106,8 +111,8 @@ def sounding_indices(block: list[str]) -> dict | None:
         "h500": h500,
         "thick": (h500 - h1000) if np.isfinite(h500) and np.isfinite(h1000) else np.nan,
         "fzl": fzl,
-        "kidx": (c(t850) - c(t500)) + c(d850) - (c(t700) - c(d700)),
-        "tott": c(t850) + c(d850) - 2 * c(t500),
+        "kidx": ((c(t850) - c(t500)) + c(d850) - (c(t700) - c(d700))) if moist_ok else np.nan,
+        "tott": (c(t850) + c(d850) - 2 * c(t500)) if moist_ok else np.nan,
     }
     return {k: v for k, v in idx.items() if v is not None and np.isfinite(v)}
 

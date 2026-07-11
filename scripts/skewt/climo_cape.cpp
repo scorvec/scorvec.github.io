@@ -53,24 +53,81 @@ int main(int argc, char** argv) {
             U.push_back(u); V.push_back(v);
         }
         int N = P.size();
-        // fill any missing heights hypsometrically, winds by carry (compute
-        // tolerates; CAPE only needs P/H/T/D)
+        if (N < 10) return;
+
+        // --- quality gate: never fabricate data ------------------------------
+        // Many stations (much of South America) report dewpoint on only a
+        // fraction of levels. The old code invented D = T-30 and heights in
+        // arbitrary +100 m steps, which produced garbage CAPE. Instead we
+        // require real moisture through the lower/mid troposphere and
+        // interpolate only across genuine gaps.
+        int ndew = 0, ndew_low = 0, nlow = 0;
         for (int i = 0; i < N; ++i) {
-            if (std::isnan(H[i])) H[i] = (i ? H[i-1] : 0) + 100;
-            if (std::isnan(D[i])) D[i] = T[i] - 30;
-            if (std::isnan(U[i])) { U[i] = i ? U[i-1] : 0; V[i] = i ? V[i-1] : 0; }
-        }
-        if (N >= 10) {
-            std::vector<float> out(64), a(N), b(N), c(N);
-            if (compute_sounding(P.data(), H.data(), T.data(), D.data(),
-                                 U.data(), V.data(), N, out.data(),
-                                 a.data(), b.data(), c.data()) == 0) {
-                float ec = out[42], sh = out[43];
-                if (ec > -8888 || sh > -8888)
-                    printf("%d %02d %.1f %.3f\n", year, month,
-                           ec > -8888 ? ec : NAN, sh > -8888 ? sh : NAN);
+            if (!std::isnan(D[i])) ++ndew;
+            if (P[i] >= 40000.0f) {                  // at/below 400 hPa
+                ++nlow;
+                if (!std::isnan(D[i])) ++ndew_low;
             }
         }
+        const float ptop = P[N - 1];
+        if (std::isnan(D[0]) || std::isnan(T[0])) return;      // need a real sfc
+        if (ptop > 40000.0f) return;                            // must reach 400 hPa
+        if (ndew < 6 || nlow < 4 || ndew_low < 0.6f * nlow) return;  // real moisture
+
+        // interpolate dewpoint across gaps in log-p (never invent T-30)
+        for (int i = 0; i < N; ++i) {
+            if (!std::isnan(D[i])) continue;
+            int lo = -1, hi = -1;
+            for (int j = i - 1; j >= 0; --j) if (!std::isnan(D[j])) { lo = j; break; }
+            for (int j = i + 1; j < N; ++j)  if (!std::isnan(D[j])) { hi = j; break; }
+            if (lo >= 0 && hi >= 0) {
+                const float f = std::log(P[lo] / P[i]) / std::log(P[lo] / P[hi]);
+                D[i] = D[lo] + f * (D[hi] - D[lo]);
+            } else if (lo >= 0) {
+                D[i] = std::min(D[lo], T[i] - 2.0f);   // dry aloft, but physical
+            } else return;
+        }
+        // heights: hypsometric from P and T (not arbitrary 100 m steps)
+        for (int i = 1; i < N; ++i) {
+            if (!std::isnan(H[i])) continue;
+            const float tbar = 0.5f * (T[i] + T[i - 1]);
+            H[i] = H[i - 1] + 287.05f * tbar / 9.80665f * std::log(P[i - 1] / P[i]);
+        }
+        if (std::isnan(H[0])) return;
+        // winds: interpolate across gaps (carry at the ends), never zero-fill
+        {
+            int first = -1, last = -1;
+            for (int i = 0; i < N; ++i) if (!std::isnan(U[i])) { if (first < 0) first = i; last = i; }
+            if (first < 0) { for (int i = 0; i < N; ++i) { U[i] = 0; V[i] = 0; } }
+            else {
+                for (int i = 0; i < N; ++i) {
+                    if (!std::isnan(U[i])) continue;
+                    if (i < first) { U[i] = U[first]; V[i] = V[first]; continue; }
+                    if (i > last)  { U[i] = U[last];  V[i] = V[last];  continue; }
+                    int lo = -1, hi = -1;
+                    for (int j = i - 1; j >= 0; --j) if (!std::isnan(U[j])) { lo = j; break; }
+                    for (int j = i + 1; j < N; ++j)  if (!std::isnan(U[j])) { hi = j; break; }
+                    const float f = std::log(P[lo] / P[i]) / std::log(P[lo] / P[hi]);
+                    U[i] = U[lo] + f * (U[hi] - U[lo]);
+                    V[i] = V[lo] + f * (V[hi] - V[lo]);
+                }
+            }
+        }
+
+        std::vector<float> out(64), a(N), b(N), c(N);
+        try {
+            if (compute_sounding(P.data(), H.data(), T.data(), D.data(),
+                                 U.data(), V.data(), N, out.data(),
+                                 a.data(), b.data(), c.data()) != 0) return;
+        } catch (...) { return; }        // never let one bad sounding kill the run
+        // A valid non-convective sounding has ECAPE/SHIP of ZERO, not "missing".
+        // Skipping them made the climatology conditional on convective days
+        // (n=51 vs 2007 for PWAT) and the percentiles meaningless.
+        const float mucape = out[10];
+        if (!(mucape > -8888.0f)) return;
+        const float ec = (out[42] > -8888.0f) ? out[42] : 0.0f;
+        const float sh = (out[43] > -8888.0f) ? out[43] : 0.0f;
+        printf("%d %02d %.1f %.3f\n", year, month, ec, sh);
     };
 
     while (std::getline(*in, line)) {
