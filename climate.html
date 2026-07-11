@@ -66,33 +66,28 @@
   </div>
 
   <div class="card">
-    <h2>Evolution — the last 30 days</h2>
-    <p class="note">Daily maps as an animation — drag the slider or press play, and switch the
-    field inside the panel: 2 m temperature and precipitation cover 30 days, 500 hPa height and
-    MSLP go back 90 days with that day's teleconnection indices (NAO · PNA · EPO · WPO · AO)
-    stamped on each frame.</p>
+    <h2>2 m temperature anomaly — 30-day loop</h2>
+    <p class="note">Daily-mean 2 m air temperature departure from the 1991–2020 ERA5 climatology.
+    Drag the slider or press play; the box shows the Global, NH, and SH mean anomaly for each day.</p>
     <iframe class="anim-frame" src="sst_anim.html?embed=1&amp;base=assets/climate/anim&amp;manifest=manifest.json&amp;region=t2m"
-            title="ERA5 daily anomaly loops, last 30 days" loading="lazy"></iframe>
+            title="ERA5 2 m temperature anomaly loop, last 30 days" loading="lazy"></iframe>
   </div>
 
   <div class="card">
-    <h2>2 m temperature anomaly</h2>
-    <p class="note">Daily-mean 2 m air temperature departure from the 1991–2020 ERA5 climatology.</p>
-    <img id="img-t2m" alt="ERA5 daily 2m temperature anomaly map">
-  </div>
-
-  <div class="card">
-    <h2>500 hPa geopotential height anomaly</h2>
+    <h2>500 hPa geopotential height anomaly — 90-day loop</h2>
     <p class="note">The mid-tropospheric circulation: daily-mean 500 hPa height departure from the
-    1991–2020 normal — ridges (red) and troughs (blue).</p>
-    <img id="img-z500" alt="ERA5 daily 500 hPa geopotential height anomaly map">
+    1991–2020 normal — ridges (red) and troughs (blue) — back 90 days, with that day's teleconnection
+    indices (NAO · PNA · EPO · WPO · AO) stamped on each frame.</p>
+    <iframe class="anim-frame" src="sst_anim.html?embed=1&amp;base=assets/climate/anim&amp;manifest=manifest.json&amp;region=z500"
+            title="ERA5 500 hPa height anomaly loop, last 90 days" loading="lazy"></iframe>
   </div>
 
   <div class="card">
-    <h2>Mean sea-level pressure anomaly</h2>
+    <h2>Mean sea-level pressure anomaly — 90-day loop</h2>
     <p class="note">Daily-mean MSLP departure from the 1991–2020 normal — the surface expression of
-    the circulation anomalies above.</p>
-    <img id="img-mslp" alt="ERA5 daily mean sea-level pressure anomaly map">
+    the circulation anomalies above — back 90 days.</p>
+    <iframe class="anim-frame" src="sst_anim.html?embed=1&amp;base=assets/climate/anim&amp;manifest=manifest.json&amp;region=mslp"
+            title="ERA5 MSLP anomaly loop, last 90 days" loading="lazy"></iframe>
   </div>
 
   <div class="card">
@@ -272,10 +267,7 @@ drawTele();
 fetch("assets/climate/manifest.json?t=" + Date.now())
   .then(r => r.json())
   .then(m => {
-    const v = (m.era5_day || "") + (m.imerg_day || "");
-    for (const k of ["t2m", "z500", "mslp"])
-      document.getElementById("img-" + k).src = `assets/climate/${k}_anom.webp?v=${v}`;
-    // precip card is a dedicated animator iframe (region=precip)
+    // all fields are dedicated animator iframes now (no static maps)
     document.getElementById("stamp").textContent =
       `ERA5 valid ${m.era5_day || "—"} · IMERG valid ${m.imerg_day || "—"} · generated ${m.generated}`;
     const tele = document.getElementById("img-tele");
