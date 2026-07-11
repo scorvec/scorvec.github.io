@@ -121,6 +121,16 @@
   .maplegend { background: rgba(17,17,28,0.94); color: #e8e8f0; padding: 9px 12px;
     border-radius: 8px; border: 1px solid #2e2e48;
     font: 14.5px Inter, sans-serif; line-height: 1.85; }
+  #anom-panel { position: absolute; top: 12px; right: 12px; z-index: 900;
+    background: rgba(17,17,28,0.96); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 12px 14px; width: min(340px, calc(100vw - 40px));
+    max-height: 70vh; overflow-y: auto; }
+  #anom-list { list-style: none; margin: 0; padding: 0; font-size: 0.8rem; }
+  #anom-list li { padding: 7px 6px; border-bottom: 1px solid var(--rule); cursor: pointer; }
+  #anom-list li:hover { background: rgba(255,255,255,0.05); }
+  #anom-list .hi { color: #ff6b55; }
+  #anom-list .lo { color: #6aa7f0; }
+  #export-btn, #share-btn, #climo-btn, #anom-toggle { white-space: nowrap; }
   .maplegend .leg-chip { display: none; }        /* desktop: always full card */
   @media (max-width: 700px) {
     /* mobile default = collapsed chip; .expanded shows the full card */
@@ -186,8 +196,16 @@
       <button data-act="h12" class="hctl on">12Z</button>
     </span>
   <span id="status"></span>
+  <button id="anom-toggle" style="margin-left:auto" title="most anomalous soundings right now">⚡ Extreme today</button>
 </div>
-<div class="mapwrap"><div id="map"></div></div>
+<div class="mapwrap"><div id="map"></div>
+  <div id="anom-panel" hidden>
+    <h3 style="margin:0 0 6px; font-family:var(--serif); font-size:1rem">⚡ Most anomalous soundings right now</h3>
+    <p style="font-size:0.72rem; color:var(--muted); margin:0 0 8px">vs each station's own
+    day-of-year climatology · click to open</p>
+    <ul id="anom-list"></ul>
+  </div>
+</div>
 
 <div id="climo-modal" class="modal" hidden>
   <div class="dialog" style="height:auto; max-height:92vh; width:min(1160px,96vw)">
@@ -228,6 +246,7 @@
          rel="noopener" style="font-size:0.78rem; color:var(--accent)">UW page ↗</a>
       <button id="climo-btn" style="display:none">📊 Climatology</button>
       <button id="share-btn" title="copy a link to this exact sounding">🔗 Share</button>
+      <button id="export-btn" title="download skew-T + hodograph as an image">📷 PNG</button>
       <button id="close" title="close (Esc)">✕</button>
     </div>
     <div class="dlg-body">
@@ -279,6 +298,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=9b011ed7"></script>
+<script src="app.js?v=ff613912"></script>
 </body>
 </html>
