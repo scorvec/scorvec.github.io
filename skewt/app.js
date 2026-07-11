@@ -1820,6 +1820,24 @@ function drawSkewT(prof, res) {
   };
   if (prof.T.some(v => isFinite(v))) {
     drawProf(vtC, TH.vtmp, 1.1, [2, 3]);
+    // frost point: wherever Td is below freezing, deposition happens at ice
+    // saturation — a hair warmer than the dewpoint. Drawn segmented (pen up
+    // through any above-freezing layers), under the Td trace.
+    ctx.strokeStyle = "#7dd8ff"; ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    let fpen = false, fBase = null;
+    for (let i = 0; i < prof.P.length; i++) {
+      const dC = prof.D[i] - 273.15;
+      if (!isFinite(dC) || dC > 0.2) { fpen = false; continue; }
+      const fy = yOf(prof.P[i]), fx = xOf(frostPtC(dC), fy);
+      fpen ? ctx.lineTo(fx, fy) : ctx.moveTo(fx, fy); fpen = true;
+      if (!fBase) fBase = [fx, fy];
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+    if (fBase) {
+      ctx.fillStyle = "#7dd8ff"; ctx.font = "600 10px Inter";
+      ctx.fillText("Tf", fBase[0] + 5, fBase[1] - 3);
+    }
     drawProf(prof.D.map(v => v - 273.15), TH.dwpt, 2.8);
     drawProf(prof.T.map(v => v - 273.15), TH.temp, 2.8);
   } else {
