@@ -1432,13 +1432,15 @@ function fillTables(prof, res) {
     ["ECAPE / CAPE", isFinite(entEff) ? entEff.toFixed(0) + " %" : "—"],
   ];
   const M = mseProfile(prof);
-  const thermo = [
-    ["MSE (0–500 m)", isFinite(M.hbl) ? M.hbl.toFixed(1) + " kJ/kg" : "—"],
-    ["Min sat. MSE (h*)", isFinite(M.hsmin)
-      ? `${M.hsmin.toFixed(1)} kJ/kg @ ${(M.hsminZ / 1000).toFixed(1)} km` : "—"],
-    ["MSE deficit (h*−h)", isFinite(M.deficit)
+  const mseRows = [
+    ["h — boundary layer", isFinite(M.hbl) ? M.hbl.toFixed(1) + " kJ/kg" : "—"],
+    ["h* minimum", isFinite(M.hsmin)
+      ? `${M.hsmin.toFixed(1)} @ ${(M.hsminZ / 1000).toFixed(1)} km` : "—"],
+    ["Deficit (h*−h)", isFinite(M.deficit)
       ? (M.deficit >= 0 ? "+" : "") + M.deficit.toFixed(1) + " kJ/kg" : "—"],
-    ["Column MSE ∫h dp/g", isFinite(M.col) ? (M.col / 1e9).toFixed(2) + " GJ/m²" : "—"],
+    ["Column ∫h dp/g", isFinite(M.col) ? (M.col / 1e9).toFixed(2) + " GJ/m²" : "—"],
+  ];
+  const thermo = [
     ["DCAPE", fmt(o[39]) + " J/kg"],
     ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
     ["PWAT", climoCell("pwat", o[15], o[15] === MISSING ? "—"
@@ -1448,6 +1450,12 @@ function fillTables(prof, res) {
       return isFinite(c) ? c.toFixed(0) + " %" : "—"; })()],
     ["Mid-level RH (700–500)", (() => { const r = layerRH(prof, 70000, 50000);
       return isFinite(r) ? r.toFixed(0) + " %" : "—"; })()],
+    ["PBL top (mixing depth)", (() => {
+      const pp = o[46];
+      if (pp === MISSING || !isFinite(pp)) return "—";
+      const zz = interpHagl(prof, pp);
+      return (zz === null ? "—" : Math.round(zz) + " m AGL") + ` · ${(pp / 100).toFixed(0)} hPa`;
+    })()],
   ];
 
   // --- level values & classic thermodynamic indices (from the profile) ---
@@ -1477,12 +1485,6 @@ function fillTables(prof, res) {
     ["Cold point", (() => { const tp = tropopause(prof);
       return isFinite(tp.cpZ)
         ? `${(tp.cpZ / 1000).toFixed(1)} km · ${(tp.cpT - 273.15).toFixed(0)} °C` : "—"; })()],
-    ["PBL top (mixing depth)", (() => {
-      const pp = o[46];
-      if (pp === MISSING || !isFinite(pp)) return "—";
-      const zz = interpHagl(prof, pp);
-      return (zz === null ? "—" : Math.round(zz) + " m AGL") + ` · ${(pp / 100).toFixed(0)} hPa`;
-    })()],
   ];
 
   climoNow = { pwat: o[15], "850t": t850, "700t": t700, "500t": t500,
@@ -1497,6 +1499,7 @@ function fillTables(prof, res) {
   document.getElementById("kin-table-b").innerHTML = composites.map(row).join("");
   document.getElementById("kin-table2").innerHTML = thermo.map(row).join("");
   document.getElementById("kin-table3").innerHTML = levels.map(row).join("");
+  document.getElementById("mse-table").innerHTML = mseRows.map(row).join("");
 }
 
 // ---------- render ----------
@@ -1509,7 +1512,7 @@ function clearPlot(msg) {
     ctx.fillText(msg || "no data", cv.width / 2, cv.height / 2);
     ctx.textAlign = "left";
   }
-  for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3"])
+  for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table"])
     document.getElementById(id).innerHTML = "";
   plotTitle = "";
 }
@@ -1523,6 +1526,6 @@ function render(prof) {
   drawHodo(prof, res);
   drawMSE(prof);
   if (hasT) fillTables(prof, res);
-  else for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3"])
+  else for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table"])
     document.getElementById(id).innerHTML = "";
 }
