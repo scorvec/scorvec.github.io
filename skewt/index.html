@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Global Real-time &amp; Archived Sounding Explorer — Shawn Corvec</title>
 <meta name="description" content="Interactive worldwide radiosonde Skew-T viewer: click any station for a full sounding analysis computed in-browser with SHARPlib (WebAssembly).">
@@ -57,7 +58,7 @@
         gap: 1.5rem; padding: 0.7rem 1.4rem; border-bottom: 1px solid var(--rule); }
   nav .nav-name, nav a.back { padding-top: 3px; white-space: nowrap; }
   .nav-mid { flex: 1 1 auto; min-width: 0; }
-  .page-title { font-family: var(--serif); font-weight: 600; display: block;
+  .page-title { font-family: var(--serif); font-weight: 600; display: block; margin: 0;
     line-height: 1.25; font-size: clamp(1.1rem, 1rem + 1.6vw, 2rem);
     text-wrap: balance; }
   .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
@@ -175,7 +176,7 @@
 <nav>
   <a href="../index.html" class="nav-name">Shawn Corvec</a>
   <div class="nav-mid">
-  <span class="page-title">Global Real-time &amp; Archived Sounding Explorer</span>
+  <h1 class="page-title">Global Real-time &amp; Archived Sounding Explorer</h1>
     <span class="desc" style="color:var(--muted); font-family:var(--sans); font-size:0.82rem; display:block;
     max-width:118ch; line-height:1.5; margin-top:2px">
     Every weather-balloon (radiosonde) sounding ever released, anywhere on Earth, back nine decades.
