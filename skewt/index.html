@@ -56,6 +56,9 @@
   nav { display: flex; justify-content: space-between; align-items: flex-start;
         gap: 1.5rem; padding: 0.7rem 1.4rem; border-bottom: 1px solid var(--rule); }
   nav .nav-name, nav a.back { padding-top: 3px; white-space: nowrap; }
+  .page-title { font-family: var(--serif); font-weight: 600; display: block;
+    line-height: 1.25; font-size: clamp(1.1rem, 1rem + 1.6vw, 2rem);
+    text-wrap: balance; }
   .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
   nav a.back { font-size: 0.9rem; letter-spacing: 0.05em; color: var(--muted); text-decoration: none; }
   .wrap { max-width: 1380px; margin: 0 auto; padding: 1rem 1rem 2.5rem; }
@@ -153,7 +156,10 @@
     .main .panel { display: block; overflow: visible; margin-bottom: 10px; }
     .main canvas { width: 100%; height: auto; object-fit: initial; }
     .controls .station { min-width: 0; flex-basis: 100%; }
-    table.params { font-size: 0.9rem; }
+    table.params { font-size: 0.76rem; }
+    table.params td { overflow-wrap: anywhere; padding: 2px 4px; }
+    table.params td:first-child { white-space: normal; }
+    .pctcell { padding: 1px 3px; }
   }
   @media (max-width: 700px) {
     html { font-size: 100%; }
@@ -167,7 +173,7 @@
 <body>
 <nav>
   <a href="../index.html" class="nav-name">Shawn Corvec</a>
-  <span style="font-family:var(--serif); font-size:2rem; font-weight:600; display:block; line-height:1.25">Global Real-time &amp; Archived Sounding Explorer</span>
+  <span class="page-title">Global Real-time &amp; Archived Sounding Explorer</span>
     <span class="desc" style="color:var(--muted); font-family:var(--sans); font-size:0.82rem; display:block;
     max-width:118ch; line-height:1.5; margin-top:2px">
     Every weather-balloon (radiosonde) sounding ever released, anywhere on Earth, back nine decades.
