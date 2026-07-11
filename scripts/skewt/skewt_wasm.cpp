@@ -43,6 +43,7 @@ using namespace sharp;
 // 36 sb_li500 37 ml_li500 38 mu_li500  (K, vs env virtual temp)
 // 39 dcape    40 sb_cape_0_3km         41 mu_ncape (J/kg per m)
 // 42 ecape_mu 43 ship 44 ecape_sb 45 ecape_ml 46 pbl_top (Pa)
+// 47-48 eff-layer bunkers RM  49-50 corfidi upshear  51-52 corfidi downshear
 
 extern "C" {
 
@@ -256,6 +257,21 @@ static int compute_sounding_impl(const float* pres, const float* hght,
     if (ml.cape > 0)
         ecape_ml = entrainment_cape(pres, hght, tmpk, mse.data(), uwin, vwin, N, &ml);
 
+    // --- effective-layer Bunkers + Corfidi MCS vectors -----------------------
+    // SPC uses the EFFECTIVE inflow layer for storm motion, not a fixed 0-6 km —
+    // it matters for elevated storms, where the fixed layer is simply wrong.
+    WindComponents eff_bunkR{MISSING, MISSING};
+    if (eff.bottom != MISSING && eff.top != MISSING && mu.pres != MISSING) {
+        eff_bunkR = storm_motion_bunkers(pres, hght, uwin, vwin, N, eff, mu, false);
+    }
+    // Corfidi upshear/downshear: MCS propagation vectors
+    WindComponents corf_up{MISSING, MISSING}, corf_dn{MISSING, MISSING};
+    {
+        auto c = mcs_motion_corfidi(pres, hght, uwin, vwin, N);
+        corf_up = c.first;
+        corf_dn = c.second;
+    }
+
     // --- PBL top (mixing depth) ---------------------------------------------
     // pbl_top scans theta-v for the first level exceeding the surface value by
     // `offset` K — i.e. the top of the well-mixed layer. Returns pressure (Pa).
@@ -292,6 +308,8 @@ static int compute_sounding_impl(const float* pres, const float* hght,
         mu.pres, sb_lcl_agl,
         sb_li, ml_li, mu_li, dcape, (float)c3, mu_ncape,
         ecape, ship, ecape_sb, ecape_ml, pbl_p,
+        eff_bunkR.u, eff_bunkR.v,                 // 47 48
+        corf_up.u, corf_up.v, corf_dn.u, corf_dn.v,   // 49-52
     };
     for (size_t i = 0; i < sizeof(o) / sizeof(float); ++i) out[i] = o[i];
     return 0;
