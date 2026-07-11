@@ -84,6 +84,9 @@
   .dlg-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .tables-wrap { flex: 0 0 auto; margin-top: 10px; }
   footer a { color: var(--accent); }
+  .pctcell { padding: 1px 6px; border-radius: 4px; }
+  .pctlab { color: var(--muted); font-size: 0.72em; margin-left: 5px; }
+  #climo-modal { z-index: 2100; }
   .maplegend { background: rgba(17,17,28,0.94); color: #e8e8f0; padding: 9px 12px;
     border-radius: 8px; border: 1px solid #2e2e48;
     font: 14.5px Inter, sans-serif; line-height: 1.85; }
@@ -154,7 +157,7 @@
 <div class="mapwrap"><div id="map"></div></div>
 
 <div id="climo-modal" class="modal" hidden>
-  <div class="dialog" style="height:auto; max-height:92vh; width:min(920px,96vw)">
+  <div class="dialog" style="height:auto; max-height:92vh; width:min(1160px,96vw)">
     <div class="dlg-head controls">
       <span class="station" id="climo-title">—</span>
       <select id="climo-var" style="font:500 0.85rem var(--sans); background:var(--panel);
@@ -164,7 +167,7 @@
       <button id="climo-close" title="close (Esc)" style="margin-left:auto">✕</button>
     </div>
     <div class="panel" style="margin-top:6px">
-      <canvas id="climo-canvas" width="880" height="420"></canvas>
+      <canvas id="climo-canvas" width="1100" height="500" style="width:100%;height:auto"></canvas>
     </div>
     <p class="note" style="color:var(--muted); font-size:0.78rem; margin-top:8px">
       Monthly climatology from this station's full radiosonde record: shaded band = 10th–90th
