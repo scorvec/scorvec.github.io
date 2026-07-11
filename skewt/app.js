@@ -1293,6 +1293,7 @@ function layerRH(prof, pBotPa, pTopPa) {
 const RD = 287.05;
 function precipType(prof) {
   const P = prof.P, T = prof.T;
+  if (!T.some(isFinite)) return { type: "—", PA: NaN, NA: NaN, sfcC: NaN };
   const sfcC = T[0] - 273.15;
   let PA = 0, NA = 0, warmAloft = false;
   for (let i = P.length - 1; i >= 1; i--) {          // top-down
@@ -2168,6 +2169,36 @@ function clearPlot(msg) {
   lastProf = lastRes = null;      // else a resize redraw resurrects the wiped chart
 }
 
+// Kinematics for WIND-ONLY (pilot balloon) soundings: shear, Bunkers and SRH
+// are pure wind quantities — no thermodynamics required.
+function jsKinematics(prof, o) {
+  const w = h => windAt(prof, h);
+  const w0 = w(0), w1 = w(1000), w6 = w(6000);
+  if (!w0 || !w6) return;
+  o[18] = w6[0] - w0[0]; o[19] = w6[1] - w0[1];        // 0-6 km shear
+  if (w1) { o[20] = w1[0] - w0[0]; o[21] = w1[1] - w0[1]; }
+  const mw = meanWindAgl(prof, 0, 6000);
+  if (mw) {
+    const sm = Math.hypot(o[18], o[19]);
+    if (sm > 0.5) {                                     // Bunkers ±7.5 m/s off the shear
+      const dx = 7.5 * o[19] / sm, dy = -7.5 * o[18] / sm;
+      o[22] = mw[0] + dx; o[23] = mw[1] + dy;           // right mover
+      o[24] = mw[0] - dx; o[25] = mw[1] - dy;           // left mover
+      const srh = (top, cu, cv) => {
+        let s = 0, prev = null;
+        for (let h = 0; h <= top; h += 100) {
+          const uv = w(h); if (!uv) continue;
+          if (prev) s += (uv[0] - cu) * (prev[1] - cv) - (prev[0] - cu) * (uv[1] - cv);
+          prev = uv;
+        }
+        return s;
+      };
+      o[26] = srh(1000, o[22], o[23]);                  // SRH 0-1 (RM)
+      o[27] = srh(3000, o[22], o[23]);                  // SRH 0-3 (RM)
+    }
+  }
+}
+
 function render(prof) {
   sanitizeHeights(prof);                   // before ANY analysis touches it
   fillDewpoints(prof);                     // a lone NaN would void PWAT, CRH, MSE…
@@ -2175,12 +2206,14 @@ function render(prof) {
   const hasT = prof.T.some(v => isFinite(v));
   const res = hasT ? compute(prof) : { o: new Array(64).fill(MISSING),
     sb: [], ml: [], mu: [] };
+  if (!hasT) jsKinematics(prof, res.o);    // pibal: winds still give shear/SRH/Bunkers
   if (res.rc === 2) plotNote = "⚠ analysis failed on this profile — charts only";
   lastProf = prof; lastRes = res;
   drawSkewT(prof, res);
   drawHodo(prof, res);
   drawMSE(prof);
   if (hasT) fillTables(prof, res);
-  else for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table"])
+  else try { fillTables(prof, res); } catch (e) { /* fall back to clearing */ }
+  if (false) for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table"])
     document.getElementById(id).innerHTML = "";
 }
