@@ -259,7 +259,50 @@
     the sample is real.
   </div>
 
-  <h2>6. What it can't do</h2>
+  <h2>6. The code</h2>
+  <p>Everything is open — the repository is a plain GitHub Pages site, so what you're reading and what
+  runs in your browser are the same files.
+  <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">Browse the whole
+  repository →</a></p>
+
+  <div class="table-wrap">
+  <table>
+    <tr><th>File</th><th>What it does</th></tr>
+    <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/skewt_wasm.cpp" target="_blank" rel="noopener"><code>skewt_wasm.cpp</code></a></td>
+        <td><b>The single source of truth for the physics.</b> A C++ wrapper over SHARPlib — parcels,
+        ECAPE, PBL top, shear, SRH, composites — compiled once to WebAssembly for the browser and again
+        natively for the climatology, so the two can never disagree.</td></tr>
+    <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/skewt/app.js" target="_blank" rel="noopener"><code>app.js</code></a></td>
+        <td>The entire client: data sources and parsers (SPC, IEM, UW mirror, IGRA), the WASM bridge, and
+        every chart — skew-T, hodograph, moist static energy — drawn on canvas. Tropopause, column RH and
+        wet-bulb zero are computed here.</td></tr>
+    <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/build_climo.py" target="_blank" rel="noopener"><code>build_climo.py</code></a></td>
+        <td>Per-station climatology: downloads a station's full period of record, analyses every historical
+        sounding, reduces to monthly percentiles and records. Contains the quality gates.</td></tr>
+    <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/climo_cape.cpp" target="_blank" rel="noopener"><code>climo_cape.cpp</code></a></td>
+        <td>Native build of the same wrapper, so ECAPE and SHIP in the climatology are computed by identical
+        code to the live values.</td></tr>
+    <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/flag_anomalies.py" target="_blank" rel="noopener"><code>flag_anomalies.py</code></a></td>
+        <td>The record watch — compares each new sounding to its station's climatology and flags the tails.</td></tr>
+    <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/mirror_soundings.py" target="_blank" rel="noopener"><code>mirror_soundings.py</code></a>
+        &middot; <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/archive_days.py" target="_blank" rel="noopener"><code>archive_days.py</code></a></td>
+        <td>Mirrors the University of Wyoming feed (which sends no CORS headers) and bundles complete UTC
+        days into the permanent archive.</td></tr>
+    <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/build_wasm.sh" target="_blank" rel="noopener"><code>build_wasm.sh</code></a></td>
+        <td>Compiles SHARPlib to WebAssembly with Emscripten.</td></tr>
+    <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/.github/workflows/skewt-data.yml" target="_blank" rel="noopener"><code>skewt-data.yml</code></a></td>
+        <td>The scheduled job: mirror &rarr; archive &rarr; flag anomalies &rarr; publish, six times a day.</td></tr>
+  </table>
+  </div>
+
+  <p>The data lives on orphan branches that GitHub serves CORS-open, so the browser can read them directly:
+  <a href="https://github.com/scorvec/scorvec.github.io/tree/skewt-data" target="_blank" rel="noopener"><code>skewt-data</code></a> (latest soundings),
+  <a href="https://github.com/scorvec/scorvec.github.io/tree/skewt-archive" target="_blank" rel="noopener"><code>skewt-archive</code></a> (permanent day bundles), and
+  <a href="https://github.com/scorvec/scorvec.github.io/tree/skewt-climo" target="_blank" rel="noopener"><code>skewt-climo</code></a> (per-station climatology).
+  The physics itself is <a href="https://github.com/keltonhalbert/SHARPlib" target="_blank" rel="noopener">SHARPlib</a>,
+  which is Kelton Halbert's, not mine.</p>
+
+  <h2>7. What it can't do</h2>
   <ul>
     <li><strong>Not for operational use.</strong> This is a personal research tool.</li>
     <li>Climatology covers <strong>active stations</strong>; long-closed sites have no percentiles.</li>
