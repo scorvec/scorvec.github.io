@@ -907,7 +907,7 @@ const TH = {
   bg: "#0a0a14", panel: "#11111c", grid: "#23233a", gridSub: "#191928",
   ink: "#e8e8f0", muted: "#8b8ba3",
   temp: "#ff453a", dwpt: "#30d158", vtmp: "#ff9f9b",
-  parcelMU: "#ffffff", parcelSB: "#ff9f0a",
+  parcelMU: "#ffffff", parcelSB: "#ff9f0a", parcelML: "#64d2ff",
   isotherm: "#26263e", isotherm0: "#3d5a8f", dryad: "#3a2f1f", moistad: "#1d3a2a",
   mixr: "#245536", lcl: "#30d158", lfc: "#ffd60a", el: "#bf5af2", eil: "#64d2ff",
   barb: "#cfd0e2",
@@ -1311,8 +1311,35 @@ function drawSkewT(prof, res) {
     }
     ctx.stroke(); ctx.setLineDash([]);
   };
-  drawTrace(res.sb, TH.parcelSB, 1.4, [5, 4]);
-  drawTrace(res.mu, TH.parcelMU, 1.8, [6, 4]);
+  drawTrace(res.ml, TH.parcelML, 1.2, [2, 3]);      // mixed-layer
+  drawTrace(res.sb, TH.parcelSB, 1.4, [5, 4]);      // surface-based
+  drawTrace(res.mu, TH.parcelMU, 1.8, [6, 4]);      // most-unstable (on top)
+
+  // Both traces were always drawn, but nothing said which was which — and on a
+  // surface-based sounding the MU parcel IS the surface parcel, so they lie on
+  // top of each other and look like one line. Label them, and say so explicitly
+  // when they coincide.
+  const sameParcel = (o[34] !== MISSING && isFinite(o[34]) &&
+                      Math.abs(o[34] - prof.P[0]) < 500);   // MU LPL == surface
+  {
+    const items = [["MU parcel", TH.parcelMU, [6, 4]],
+                   ["SB parcel", TH.parcelSB, [5, 4]],
+                   ["ML parcel", TH.parcelML, [2, 3]]];
+    let ly = SK.t + ph - 8;
+    ctx.textAlign = "left";
+    for (const [lab, col, dash] of items) {
+      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash(dash);
+      ctx.beginPath(); ctx.moveTo(SK.l + 8, ly - 4); ctx.lineTo(SK.l + 30, ly - 4);
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = col; ctx.font = "600 12px Inter";
+      ctx.fillText(lab, SK.l + 35, ly);
+      ly -= 15;
+    }
+    if (sameParcel) {
+      ctx.fillStyle = TH.muted; ctx.font = "11px Inter";
+      ctx.fillText("MU = SB here (surface-based)", SK.l + 8, SK.t + ph - 50);
+    }
+  }
 
   // environment: virtual temp (thin), dewpoint, temperature
   const vtC = prof.T.map((T, i) => {
