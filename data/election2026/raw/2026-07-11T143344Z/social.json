@@ -1,0 +1,61 @@
+{
+  "source": "bluesky",
+  "queries": {
+    "midterms": {
+      "n_posts": 98,
+      "posts_per_hour": 116.3,
+      "pos_hits": 6,
+      "neg_hits": 9,
+      "net_sentiment": -0.031,
+      "sample_texts": [
+        "I couldn't agree with this more! I've been saying this for a while now that the \"establishment\" Dems need to listen to the people. \nI'm old & agree that we need newer younger voices that are not afraid to address issues. \nIsn't it about time they listen to We The People??\n\n#ProudBlue\n#DOOR\n#MidTerms",
+        "I'm not totally unconvinced he'll declare a state of emergency and cancel the midterms.",
+        "Jim Acosta:\nTrump Grabs America By The Ballots \u2014 Literally Cites SCOTUS 'When You\u2019re President They Let You Do It' Ruling\n\"Trump fired the remaining members of the U.S. Election Assistance Commission, just in time for the midterms ..\"\njimacosta.substack.com/p/trump-grab...",
+        "www.tiktok.com/t/ZP8GqcJHa/",
+        "White House whistleblower says Trump\u2019s new plot against midterms already 'doomed'\n\nwww.alternet.org/trump-midter..."
+      ]
+    },
+    "2026 election": {
+      "n_posts": 100,
+      "posts_per_hour": 40.3,
+      "pos_hits": 31,
+      "neg_hits": 14,
+      "net_sentiment": 0.17,
+      "sample_texts": [
+        "Pa. election 2026: Where governor candidates Garrity and Shapiro stand on marijuana, hemp, and more",
+        "in plain language:\n\n\"Presumably afraid of investigations into his actions, President Donald J. Trump appears to have abandoned all pretense of governing for the good of the country and is focusing on rigging the 2026 election to keep Republicans in power.\"\nopen.substack.com/pub/heatherc...",
+        "Trump\u2019s abandoned all pretense of governing\nAll he\u2019s doing now is trying to protect his ass & stay out of jail\nHe\u2019ll say & do anything to steal the 2026 election elections\nIf Dems win\nHe will be \nImpeached\nHeld accountable for his crimes & if he\u2019s not dead, he will go to prison",
+        "ICYMI\n\nIn a rational world, Congressional Republicans would be screaming for the POTUS signature on this. Now that it became law even without his signature, they have handed Dems another campaign issue Assuming that there is a free election.\n\nwww.npr.org/2026/07/10/n...",
+        "\"Headlines Friday, July 10, 2026* *Victor Marx wins CO GOP governor primary* Victor Marx is the Republican nominee for governor. The first-time candidate edged out State Senator Barbara Kirkmeyer by just over 2,500 votes yesterday.\" #boulder"
+      ]
+    },
+    "democrats": {
+      "n_posts": 96,
+      "posts_per_hour": 262.0,
+      "pos_hits": 15,
+      "neg_hits": 8,
+      "net_sentiment": 0.073,
+      "sample_texts": [
+        "The vice president\u2019s criticism of traditional Republican economics complicates Trump\u2019s attacks on Democrats.",
+        "It's official, folks.  Platner has officially surrendered all power he might have weilded in influencing who goes up against against (R)Collins!\n\nNow, let's see if the Maine DSC keeps its promise to have a 600-voter caucus decide who the candidate will be.\n\nwww.seattletimes.com/nation-world...",
+        "THAT is traditional Marxist \u201cSocialism\u201d & Communism. No Democrats support that. But Russian trolls have, for years, strategically obscured the very significant difference between Marxist Socialism VERSUS Social Democracy or Democratic Socialism like in EU, and as USA was for generations, till Trump.",
+        "Take note Democrats. He\u2019s not wrong.",
+        "You realize RepubliCONs have control of the House,  the Senate, and the Oval office right?  What do you think the powerless democrats can actually accomplish?  Please enlighten us."
+      ]
+    },
+    "republicans": {
+      "n_posts": 98,
+      "posts_per_hour": 343.6,
+      "pos_hits": 11,
+      "neg_hits": 12,
+      "net_sentiment": -0.01,
+      "sample_texts": [
+        "Thanks to Tr%mp, Wittman, McGuire, and MAGA Republicans, viokent, unaccountable ICE agents are invading communities in Virginia, including places like schools and hospitals, attacking law-abiding residents and kidnapping them.\n\nWe must stop them, and vote Wittman & McGuire out.",
+        "Republicans are the most disingenuous, duplicitous, hypocritical pieces of shit. Literally every single fucking thing the GOP does boils down to \"fuck everyone who isn't me.\" No accountability within their own ranks. No sincerity or consistency. Just shitty greedy pedophiles and Nazis.",
+        "At this point, let's face it:  he obviously is an ex-Mitch, or they'd just prove it. They're Republicans-- lying and keeping power is all the have to work for.",
+        "Republicans do not care one whit about children.",
+        "open.substack.com/pub/briantyl..."
+      ]
+    }
+  }
+}
