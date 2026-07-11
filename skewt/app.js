@@ -151,6 +151,7 @@ const UW_ARCHIVE_START = "2026-07-10";      // day bundles exist from here on
 const dayZipCache = new Map();              // YYYYMMDD -> {filename: Uint8Array} | null
 let M = null;                    // wasm module
 let entries = {};                // mirror manifest: id -> {n, la, lo, dt, src}
+let anomalies = {};              // wmo -> {dt, flags:[{k,lab,v,pct,sense}]} (record watch)
 let igraStations = {};           // gid -> station meta (all 2,921 incl. closed)
 let byWmo = {};                  // wmo id -> gid
 let current = null;              // selected: {gid, id, n, e}
@@ -212,8 +213,10 @@ const ACTIVE_YEAR = 2025;
 Promise.all([
   fetch("stations.json").then(r => r.json()),
   fetch(MIRROR + "manifest.json?t=" + Date.now()).then(r => r.json()).catch(() => null),
-]).then(([stns, man]) => {
+  fetch(MIRROR + "anomalies.json?t=" + Date.now()).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+]).then(([stns, man, anom]) => {
   entries = (man && man.entries) || {};
+  anomalies = anom || {};
   for (const s of stns.stations) {
     igraStations[s.gid] = s;
     if (s.id) byWmo[s.id] = s.gid;
@@ -240,11 +243,18 @@ Promise.all([
   for (const [id, s] of Object.entries(entries)) {
     const ig = igraStations[byWmo[id]];
     if (ig || /dtype|Name:/i.test(s.n || "")) s.n = (ig && ig.n) || id;
+    const flag = anomalies[id];
+    if (flag) {                                          // record watch: gold ring underneath
+      L.circleMarker([s.la, s.lo], { radius: RAD.live + 4, weight: 3,
+        color: "#ffd60a", opacity: 0.95, fill: false }).addTo(map);
+    }
     const m = L.circleMarker([s.la, s.lo], {
       radius: RAD.live, weight: 1.5, color: "#1d3a5e", fillColor: "#4a7ab5", fillOpacity: 0.95,
     }).addTo(map);
     const arch = ig ? ` · archive ${ig.y0}–${ig.y1}` : "";
-    m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z${arch}`);
+    const anomTip = flag ? `<br><b style="color:#ffd60a">⚡ near record:</b> ` +
+      flag.flags.map(f => `${f.lab} ${f.v} (${f.sense === "high" ? "P" + f.pct + " high" : "P" + f.pct + " low"})`).join(", ") : "";
+    m.bindTooltip(`${s.n || id} (${id}) · latest ${s.dt}Z${arch}${anomTip}`);
     m.on("click", () => {
       highlight(m);   // respects the current Latest/Archive mode + chosen date
       selectStation({ gid: byWmo[id], id, n: s.n, e: (igraStations[byWmo[id]] || {}).e || 0 });
@@ -267,7 +277,8 @@ legend.onAdd = () => {
     '<span class="leg-chip" title="legend">ⓘ&nbsp;key</span><div class="leg-body">' +
     '<span style="color:#4a7ab5;font-size:1.05em">●</span> sounding in last 36 h &nbsp; ' +
     '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp; ' +
-    '<span style="color:#c0392b;font-size:1.05em">●</span> closed<br>' +
+    '<span style="color:#c0392b;font-size:1.05em">●</span> closed &nbsp; ' +
+    '<span style="color:#ffd60a">◎</span> near record<br>' +
     '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> show closed stations</label></div>';
   div.addEventListener("click", e => {          // chip toggles on mobile; CSS gates visibility
     if (e.target.id !== "show-closed" && e.target.tagName !== "LABEL")
