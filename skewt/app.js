@@ -54,7 +54,7 @@ function openClimo() {
   if (!climo) return;
   const sel = document.getElementById("climo-var");
   sel.innerHTML = CLIMO_VARS.filter(([k]) =>
-    Object.values(climo.months || {}).some(m => m[k]))
+    (climo.idx || {})[k] && (climo.idx[k].n || []).some(x => x >= 30))
     .map(([k, lab]) => `<option value="${k}">${lab}</option>`).join("");
   document.getElementById("climo-title").textContent =
     `${current.n || current.gid} · climatology`;
@@ -1523,7 +1523,8 @@ function fillTables(prof, res) {
   ];
   const wmaxE = o[42] > 0 ? Math.sqrt(2 * o[42]) : NaN;   // ECAPE-limited updraft (Peters 2023)
   const wmaxC = o[10] > 0 ? Math.sqrt(2 * o[10]) : NaN;   // undilute CAPE updraft
-  const entEff = (o[42] > 0 && o[10] > 0) ? (100 * o[42] / o[10]) : NaN;
+  // meaningless (and explosive) when there's essentially no CAPE to dilute
+  const entEff = (o[42] > 0 && o[10] >= 25) ? (100 * o[42] / o[10]) : NaN;
   const composites = [
     ["EHI 0–1 km", ehi(o[0], o[26])], ["EHI 0–3 km", ehi(o[0], o[27])],
     ["SCP", fmt(o[32], 1)], ["STP (eff.)", fmt(o[33], 1)],
@@ -1553,6 +1554,12 @@ function fillTables(prof, res) {
       return isFinite(c) ? c.toFixed(0) + " %" : "—"; })()],
     ["Mid-level RH (700–500)", (() => { const r = layerRH(prof, 70000, 50000);
       return isFinite(r) ? r.toFixed(0) + " %" : "—"; })()],
+    ["Precip type (Bourgouin)", (() => {
+      const pt = precipType(prof);
+      if (pt.sfcC > 5) return "—";                     // not a winter profile
+      return `<b>${pt.type}</b> <span class="pctlab">melt ${pt.PA.toFixed(0)} / ` +
+        `refreeze ${pt.NA.toFixed(0)} J/kg</span>`;
+    })()],
     ["PBL top (mixing depth)", (() => {
       const pp = o[46];
       if (pp === MISSING || !isFinite(pp)) return "—";
@@ -1582,6 +1589,19 @@ function fillTables(prof, res) {
     ["1000–500 thick.", climoCell("thick", (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN, (isFinite(h500) && isFinite(h1000)) ? Math.round(h500 - h1000) + " m" : "—")],
     ["Freezing level", climoCell("fzl", fzl, isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—")],
     ["Wet-bulb 0 °C", (() => { const w = wbzAgl(prof); return climoCell("wbz", w, isFinite(w) ? Math.round(w) + " m AGL" : "—"); })()],
+    ["Dendritic zone", (() => {
+      const b = o[53], tp = o[54];
+      if (b === MISSING || tp === MISSING || !isFinite(b) || !isFinite(tp)) return "—";
+      const zb = interpHagl(prof, b), zt = interpHagl(prof, tp);
+      const depth = (zb !== null && zt !== null) ? Math.round(zt - zb) : null;
+      const rh = layerRH(prof, b, tp);
+      return `${(b / 100).toFixed(0)}–${(tp / 100).toFixed(0)} hPa` +
+        (depth !== null ? ` · ${depth} m` : "") +
+        (isFinite(rh) ? ` · RH ${rh.toFixed(0)}%` : "");
+    })()],
+    ["Snow ratio (Kuchera)", (() => { const k = kucheraRatio(prof);
+      return isFinite(k) ? k.toFixed(0) + ":1" : "—"; })()],
+    ["Snow squall param", fmt(o[55], 1)],
     ["Tropopause (WMO)", (() => { const tp = tropopause(prof);
       return isFinite(tp.wmoZ)
         ? `${(tp.wmoZ / 1000).toFixed(1)} km · ${(tp.wmoP / 100).toFixed(0)} hPa` : "—"; })()],

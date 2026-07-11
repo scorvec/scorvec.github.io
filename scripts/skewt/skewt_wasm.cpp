@@ -14,6 +14,7 @@
 #include <vector>
 
 #include <SHARPlib/constants.h>
+#include <SHARPlib/params/winter.h>
 #include <SHARPlib/interp.h>
 #include <SHARPlib/layer.h>
 #include <SHARPlib/parcel.h>
@@ -44,6 +45,7 @@ using namespace sharp;
 // 39 dcape    40 sb_cape_0_3km         41 mu_ncape (J/kg per m)
 // 42 ecape_mu 43 ship 44 ecape_sb 45 ecape_ml 46 pbl_top (Pa)
 // 47-48 eff-layer bunkers RM  49-50 corfidi upshear  51-52 corfidi downshear
+// 53-54 dendritic growth zone (Pa)  55 snow squall parameter
 
 extern "C" {
 
@@ -272,6 +274,37 @@ static int compute_sounding_impl(const float* pres, const float* hght,
         corf_dn = c.second;
     }
 
+    // --- winter parameters ---------------------------------------------------
+    // Dendritic growth zone: the -12 to -18 C layer where dendritic snow crystals
+    // grow fastest. A deep, SATURATED DGZ is what produces big fluffy aggregates
+    // and high snow-to-liquid ratios; a dry DGZ gives poor, dense snow.
+    PressureLayer dgz = dendritic_layer(pres, tmpk, N);
+    const float dgz_bot = dgz.bottom, dgz_top = dgz.top;
+
+    // Snow squall parameter (SHARPlib): needs 2 m wet-bulb, 0-2 km mean RH,
+    // 0-2 km theta-e change, and 0-2 km mean wind.
+    float ssp = MISSING;
+    {
+        const float wb2m = wetbulb(lifter, pres[0], tmpk[0], dwpk[0]);
+        float rh_sum = 0.0f, wsp_sum = 0.0f;
+        int cnt = 0;
+        float te_top = MISSING;
+        const float z2 = hght[0] + 2000.0f;
+        for (int i = 0; i < N; ++i) {
+            if (hght[i] > z2) break;
+            rh_sum += relative_humidity(pres[i], tmpk[i], dwpk[i]);
+            wsp_sum += std::sqrt(uwin[i] * uwin[i] + vwin[i] * vwin[i]);
+            te_top = thetae(pres[i], tmpk[i], dwpk[i]);
+            ++cnt;
+        }
+        if (cnt > 1 && te_top != MISSING) {
+            const float mean_rh = rh_sum / cnt;
+            const float mean_wsp = wsp_sum / cnt;
+            const float dte = te_top - thetae(pres[0], tmpk[0], dwpk[0]);
+            ssp = snow_squall_parameter(wb2m, mean_rh, dte, mean_wsp);
+        }
+    }
+
     // --- PBL top (mixing depth) ---------------------------------------------
     // pbl_top scans theta-v for the first level exceeding the surface value by
     // `offset` K — i.e. the top of the well-mixed layer. Returns pressure (Pa).
@@ -310,6 +343,7 @@ static int compute_sounding_impl(const float* pres, const float* hght,
         ecape, ship, ecape_sb, ecape_ml, pbl_p,
         eff_bunkR.u, eff_bunkR.v,                 // 47 48
         corf_up.u, corf_up.v, corf_dn.u, corf_dn.v,   // 49-52
+        dgz_bot, dgz_top, ssp,                        // 53 54 55
     };
     for (size_t i = 0; i < sizeof(o) / sizeof(float); ++i) out[i] = o[i];
     return 0;
