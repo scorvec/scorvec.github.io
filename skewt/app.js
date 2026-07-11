@@ -499,12 +499,38 @@ Promise.all([
     });
   }
   if (!man) setStatus("live mirror unavailable — archive mode still works");
-  const want = location.hash.replace("#", "");
-  if (want && entries[want]) {
-    selectStation({ gid: byWmo[want], id: want, n: (entries[want] || {}).n,
+  // Deep links: #72249 opens the latest; #72249/2023-08-16/12 opens that exact
+  // archived sounding. Browsing never writes the URL (user preference) — links
+  // are minted only by the share button.
+  const frag = location.hash.replace("#", "").split("/");
+  const want = frag[0];
+  if (want && (entries[want] || byWmo[want])) {
+    if (frag.length >= 2 && /^\d{4}-\d{2}-\d{2}$/.test(frag[1])) {
+      archDate = frag[1];
+      archHour = frag[2] === "00" ? 0 : 12;
+      mode = "archive";
+      syncControls();
+    }
+    selectStation({ gid: byWmo[want], id: want,
+                    n: (entries[want] || {}).n || (igraStations[byWmo[want]] || {}).n,
                     e: (igraStations[byWmo[want]] || {}).e || 0 });
   }
 });
+
+// mint a shareable link for whatever is on screen
+function shareLink() {
+  if (!current || !current.id) return;
+  const base = "https://scorvec.com/skewt/#" + current.id;
+  const url = mode === "archive"
+    ? `${base}/${archDate}/${String(archHour).padStart(2, "0")}`
+    : base;
+  navigator.clipboard.writeText(url).then(() => {
+    const b = document.getElementById("share-btn");
+    if (b) { const was = b.textContent; b.textContent = "✓ copied";
+             setTimeout(() => { b.textContent = was; }, 1400); }
+  }).catch(() => { prompt("Copy this link:", url); });
+}
+document.getElementById("share-btn").addEventListener("click", shareLink);
 
 // legend + closed-station toggle (Leaflet control)
 const legend = L.control({ position: "bottomleft" });
