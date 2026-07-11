@@ -1340,14 +1340,27 @@ function drawSkewT(prof, res) {
   const xOf = (tC, y) => SK.l + ((tC - SK.tL) / (TR - SK.tL)) * pw + ((SK.t + ph) - y);
   ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
   // on-canvas title: station + valid time
-  ctx.fillStyle = TH.ink; ctx.font = "700 16px Inter";
-  ctx.fillText(plotTitle, SK.l, 22);
+  // On a phone the canvas is half the desktop width: the title ran into the
+  // watermark and off the edge. Compact mode truncates the title to the space
+  // that exists and drops the watermark (it's in the page footer anyway).
+  const compact = W < 560;
+  ctx.fillStyle = TH.ink; ctx.font = compact ? "700 13px Inter" : "700 16px Inter";
+  {
+    const maxW = W - SK.l - (compact ? 10 : 200);
+    let title = plotTitle;
+    while (title.length > 4 && ctx.measureText(title).width > maxW)
+      title = title.slice(0, -2);
+    if (title !== plotTitle) title = title.trimEnd() + "…";
+    ctx.fillText(title, SK.l, 22);
+  }
   if (plotCoords) {
-    ctx.fillStyle = TH.muted; ctx.font = "12px Inter";
+    ctx.fillStyle = TH.muted; ctx.font = compact ? "11px Inter" : "12px Inter";
     ctx.fillText(plotCoords, SK.l, 38);
   }
-  ctx.fillStyle = TH.muted; ctx.font = "12px Inter";
-  ctx.fillText("SHARPlib · scorvec.com/skewt", W - 190, 22);
+  if (!compact) {
+    ctx.fillStyle = TH.muted; ctx.font = "12px Inter";
+    ctx.fillText("SHARPlib · scorvec.com/skewt", W - 190, 22);
+  }
   if (plotNote) {
     ctx.fillStyle = "#ffd60a"; ctx.font = "700 15px Inter";
     ctx.fillText(plotNote, SK.l, SK.t + 4);
@@ -1433,10 +1446,11 @@ function drawSkewT(prof, res) {
                    ["SB parcel", TH.parcelSB, [5, 4]],
                    ["ML parcel", TH.parcelML, [2, 3]]];
     const note = sameParcel ? "MU = SB (surface-based)" : null;
-    const bx = SK.l + 44, rowH = 16;
-    const bh = items.length * rowH + (note ? rowH : 0) + 12;
-    const by = SK.t + ph - bh - 8;
-    const bw = note ? 190 : 118;
+    const rowH = compact ? 13 : 16;
+    const bh = items.length * rowH + (note ? rowH : 0) + (compact ? 9 : 12);
+    const bx = compact ? SK.l + 6 : SK.l + 44;
+    const by = compact ? SK.t + 6 : SK.t + ph - bh - 8;
+    const bw = compact ? (note ? 158 : 96) : (note ? 190 : 118);
     ctx.fillStyle = "rgba(8,8,16,0.85)";
     ctx.strokeStyle = "#2a2a44"; ctx.lineWidth = 1;
     ctx.beginPath();
@@ -1446,15 +1460,15 @@ function drawSkewT(prof, res) {
     let ly = by + rowH;
     for (const [lab, col, dash] of items) {
       ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash(dash);
-      ctx.beginPath(); ctx.moveTo(bx + 9, ly - 4); ctx.lineTo(bx + 31, ly - 4);
+      ctx.beginPath(); ctx.moveTo(bx + 7, ly - 4); ctx.lineTo(bx + (compact ? 25 : 31), ly - 4);
       ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = col; ctx.font = "600 12px Inter";
-      ctx.fillText(lab, bx + 37, ly);
+      ctx.fillStyle = col; ctx.font = compact ? "600 10px Inter" : "600 12px Inter";
+      ctx.fillText(lab, bx + (compact ? 30 : 37), ly);
       ly += rowH;
     }
     if (note) {
-      ctx.fillStyle = TH.muted; ctx.font = "11px Inter";
-      ctx.fillText(note, bx + 9, ly);
+      ctx.fillStyle = TH.muted; ctx.font = compact ? "9.5px Inter" : "11px Inter";
+      ctx.fillText(note, bx + 7, ly);
     }
   }
 
