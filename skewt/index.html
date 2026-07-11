@@ -6,6 +6,37 @@
 <title>Global Real-time &amp; Archived Sounding Explorer — Shawn Corvec</title>
 <meta name="description" content="Interactive worldwide radiosonde Skew-T viewer: click any station for a full sounding analysis computed in-browser with SHARPlib (WebAssembly).">
 <link rel="canonical" href="https://scorvec.com/skewt/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta property="og:title" content="Global Real-time &amp; Archived Sounding Explorer">
+<meta property="og:description" content="Click any radiosonde station on Earth for a full skew-T analysis — real-time US soundings, nine decades of archives, ECAPE, hodographs, and per-station climatology, computed entirely in your browser.">
+<meta property="og:url" content="https://scorvec.com/skewt/">
+<meta property="og:image" content="https://scorvec.com/skewt/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Global Real-time &amp; Archived Sounding Explorer">
+<meta name="twitter:description" content="Every weather balloon on Earth, back nine decades — skew-Ts, hodographs, ECAPE and station climatology, all in-browser.">
+<meta name="twitter:image" content="https://scorvec.com/skewt/og-card.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Global Real-time & Archived Sounding Explorer",
+  "url": "https://scorvec.com/skewt/",
+  "description": "Interactive worldwide radiosonde viewer: real-time and archived atmospheric soundings with skew-T diagrams, hodographs, ECAPE, moist static energy, and per-station climatology, computed client-side with SHARPlib compiled to WebAssembly.",
+  "applicationCategory": "Weather",
+  "operatingSystem": "Any (browser)",
+  "isAccessibleForFree": true,
+  "author": { "@type": "Person", "name": "Shawn Corvec", "url": "https://scorvec.com/" },
+  "about": [
+    { "@type": "Thing", "name": "atmospheric sounding" },
+    { "@type": "Thing", "name": "skew-T log-P diagram" },
+    { "@type": "Thing", "name": "radiosonde" },
+    { "@type": "Thing", "name": "ECAPE" }
+  ]
+}
+</script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/fflate@0.8.2/umd/index.js"></script>
@@ -196,6 +227,7 @@
       <a id="uw-link" href="https://weather.uwyo.edu/upperair/sounding.shtml" target="_blank"
          rel="noopener" style="font-size:0.78rem; color:var(--accent)">UW page ↗</a>
       <button id="climo-btn" style="display:none">📊 Climatology</button>
+      <button id="share-btn" title="copy a link to this exact sounding">🔗 Share</button>
       <button id="close" title="close (Esc)">✕</button>
     </div>
     <div class="dlg-body">
@@ -247,6 +279,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=4557b4e2"></script>
+<script src="app.js?v=9b011ed7"></script>
 </body>
 </html>
