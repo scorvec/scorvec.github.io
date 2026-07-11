@@ -1319,6 +1319,7 @@ function fitCanvas(cv) {                    // backing store = panel size × dpr
 function drawSkewT(prof, res) {
   const cv = document.getElementById("skewt");
   const { W, H, ctx } = fitCanvas(cv);
+  const o = res.o;
   const pw = W - SK.l - SK.r, ph = H - SK.t - SK.b;
   const yOf = p => SK.t + (1 - Math.log(SK.pBot / p) / Math.log(SK.pBot / SK.pTop)) * ph;
   // The 45° skew shifts a point right by (bottom − y) pixels, so a HOT surface
@@ -1491,7 +1492,7 @@ function drawSkewT(prof, res) {
   }
 
   // MU parcel levels, labeled with height AGL
-  const o = res.o;
+
   ctx.font = "700 12px Inter";
   ctx.textAlign = "right";
   const marks = [["LCL", o[12], TH.lcl], ["LFC", o[13], TH.lfc], ["EL", o[14], TH.el]];
