@@ -908,7 +908,7 @@ function windAt(prof, hAgl) {             // interp u,v at height AGL
 const dirOf = (u, v) => ((Math.atan2(-u, -v) * 180 / Math.PI) + 360) % 360;
 
 // ---------- skew-t drawing ----------
-const SK = { l: 52, r: 84, t: 36, b: 34, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
+const SK = { l: 66, r: 96, t: 44, b: 48, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
 
 function fitCanvas(cv) {                    // backing store = panel size × dpr
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -929,12 +929,12 @@ function drawSkewT(prof, res) {
   const xOf = (tC, y) => SK.l + ((tC - SK.tL) / (SK.tR - SK.tL)) * pw + ((SK.t + ph) - y);
   ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
   // on-canvas title: station + valid time
-  ctx.fillStyle = TH.ink; ctx.font = "700 14px Inter";
+  ctx.fillStyle = TH.ink; ctx.font = "700 21px Inter";
   ctx.fillText(plotTitle, SK.l, 22);
-  ctx.fillStyle = TH.muted; ctx.font = "10px Inter";
+  ctx.fillStyle = TH.muted; ctx.font = "15px Inter";
   ctx.fillText("SHARPlib · scorvec.com/skewt", W - 190, 22);
   if (plotNote) {
-    ctx.fillStyle = "#ffd60a"; ctx.font = "700 12.5px Inter";
+    ctx.fillStyle = "#ffd60a"; ctx.font = "700 19px Inter";
     ctx.fillText(plotNote, SK.l, SK.t + 4);
   }
 
@@ -947,7 +947,7 @@ function drawSkewT(prof, res) {
     ctx.beginPath();
     ctx.moveTo(xOf(T, SK.t + ph), SK.t + ph); ctx.lineTo(xOf(T, SK.t), SK.t); ctx.stroke();
     if (hot) {
-      ctx.fillStyle = TH.isotherm0; ctx.font = "600 10px Inter";
+      ctx.fillStyle = TH.isotherm0; ctx.font = "600 15px Inter";
       ctx.fillText(T + "°", xOf(T, yOf(30000)) + 4, yOf(30000));
     }
   }
@@ -1025,14 +1025,14 @@ function drawSkewT(prof, res) {
     drawProf(prof.D.map(v => v - 273.15), TH.dwpt, 2.8);
     drawProf(prof.T.map(v => v - 273.15), TH.temp, 2.8);
   } else {
-    ctx.fillStyle = TH.muted; ctx.font = "600 15px Inter"; ctx.textAlign = "center";
+    ctx.fillStyle = TH.muted; ctx.font = "600 22px Inter"; ctx.textAlign = "center";
     ctx.fillText("pilot balloon — winds only (see hodograph →)", SK.l + pw / 2, SK.t + ph / 2);
     ctx.textAlign = "left";
   }
 
   // MU parcel levels, labeled with height AGL
   const o = res.o;
-  ctx.font = "700 11px Inter";
+  ctx.font = "700 16px Inter";
   ctx.textAlign = "right";
   const marks = [["LCL", o[12], TH.lcl], ["LFC", o[13], TH.lfc], ["EL", o[14], TH.el]];
   for (const [lab, pP, col] of marks) {
@@ -1056,7 +1056,7 @@ function drawSkewT(prof, res) {
 
   // frame + axes
   ctx.strokeStyle = TH.grid; ctx.strokeRect(SK.l, SK.t, pw, ph);
-  ctx.fillStyle = TH.muted; ctx.font = "11px Inter";
+  ctx.fillStyle = TH.muted; ctx.font = "16px Inter";
   for (let pp = 100; pp <= 1000; pp += 100) {
     const y = yOf(pp * 100);
     ctx.strokeStyle = TH.gridSub; ctx.lineWidth = 1;
@@ -1064,7 +1064,7 @@ function drawSkewT(prof, res) {
     ctx.fillText(pp, 14, y + 4);
   }
   // height ticks (km AGL) on the left inside
-  ctx.font = "600 10px Inter"; ctx.fillStyle = "#a8a8c2";
+  ctx.font = "600 15px Inter"; ctx.fillStyle = "#a8a8c2";
   for (const km of [1, 3, 6, 9, 12, 15]) {
     const hTarget = prof.H[0] + km * 1000;
     let pAt = null;
@@ -1081,7 +1081,7 @@ function drawSkewT(prof, res) {
       ctx.fillText(km + "km", SK.l + 10, y + 3.5);
     }
   }
-  ctx.font = "11px Inter"; ctx.fillStyle = TH.muted;
+  ctx.font = "16px Inter"; ctx.fillStyle = TH.muted;
   for (let T = -30; T <= 40; T += 10)
     ctx.fillText(T, xOf(T, SK.t + ph) - 8, SK.t + ph + 16);
   ctx.fillText("°C", SK.l + pw / 2, H - 6);
@@ -1116,7 +1116,7 @@ function drawMSE(prof) {
   const { W, H, ctx } = fitCanvas(cv);
   ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
   const m = mseProfile(prof);
-  const L = 40, R = 10, T = 30, B = 26, zTop = 12000;
+  const L = 56, R = 12, T = 38, B = 40, zTop = 12000;
   // Scale the axis to the levels we actually DRAW. Using the whole column would
   // let stratospheric h* (~490 kJ/kg — the g·z term) set the range and crush the
   // low-level structure that matters into a few pixels.
@@ -1133,7 +1133,7 @@ function drawMSE(prof) {
   const X = v => L + (W - L - R) * (v - lo) / (hi - lo);
   const Y = z => T + (H - T - B) * (1 - Math.min(z, zTop) / zTop);
 
-  ctx.strokeStyle = "#22223a"; ctx.fillStyle = "#8b8ba3"; ctx.font = "9.5px Inter";
+  ctx.strokeStyle = "#22223a"; ctx.fillStyle = "#8b8ba3"; ctx.font = "14px Inter";
   ctx.textAlign = "right";
   for (let z = 0; z <= zTop; z += 3000) {                  // height grid
     const y = Y(z);
@@ -1167,16 +1167,16 @@ function drawMSE(prof) {
     ctx.beginPath(); ctx.moveTo(X(m.hbl), T); ctx.lineTo(X(m.hbl), H - B); ctx.stroke();
     ctx.setLineDash([]);
   }
-  ctx.textAlign = "left"; ctx.font = "600 11px Inter";
+  ctx.textAlign = "left"; ctx.font = "600 16px Inter";
   ctx.fillStyle = TH.ink; ctx.fillText("Moist static energy", L, 13);
-  ctx.font = "10px Inter";
+  ctx.font = "15px Inter";
   ctx.fillStyle = "#4a9bf0"; ctx.fillText("h", L, 25);
   ctx.fillStyle = "#8b8ba3"; ctx.fillText("·", L + 10, 25);
   ctx.fillStyle = "#ff453a"; ctx.fillText("h*", L + 16, 25);
   ctx.fillStyle = "#ffd60a"; ctx.fillText("· BL", L + 30, 25);
   // x ticks (the axis now spans only the plotted layer, so these are legible)
   ctx.fillStyle = "#8b8ba3"; ctx.strokeStyle = "#22223a"; ctx.textAlign = "center";
-  ctx.font = "9px Inter";
+  ctx.font = "14px Inter";
   const span = hi - lo;
   const step = span > 60 ? 20 : span > 30 ? 10 : span > 15 ? 5 : 2;
   for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
@@ -1208,7 +1208,7 @@ function drawHodo(prof, res) {
   const X = u => cx + u * scale, Y = v => cy - v * scale;
 
   // rings + crosshair
-  ctx.strokeStyle = "#2c2c48"; ctx.fillStyle = "#9d9dbb"; ctx.font = "12px Inter";
+  ctx.strokeStyle = "#2c2c48"; ctx.fillStyle = "#9d9dbb"; ctx.font = "18px Inter";
   const rMax = Math.ceil((span * 0.75) / 10) * 10 + 20;
   for (let r = 10; r <= rMax; r += 10) {
     ctx.beginPath(); ctx.arc(X(0), Y(0), r * scale, 0, 7); ctx.stroke();
@@ -1249,7 +1249,7 @@ function drawHodo(prof, res) {
     ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(X(u), Y(v), 6, 0, 7);
     hollow ? ctx.stroke() : ctx.fill();
-    ctx.font = "700 12.5px Inter";
+    ctx.font = "700 19px Inter";
     ctx.fillText(`${Math.round(dirOf(uMs, vMs))}/${Math.round(Math.hypot(u, v))} ${lab}`,
                  X(u) + 9, Y(v) + 4.5);
   };
@@ -1269,12 +1269,12 @@ function drawHodo(prof, res) {
     const mag = Math.hypot(shU, shV) * Math.hypot(srU, srV);
     if (mag > 0.1) {
       const ang = Math.acos(Math.max(-1, Math.min(1, dot / mag))) * 180 / Math.PI;
-      ctx.fillStyle = "#ffd60a"; ctx.font = "700 14px Inter";
+      ctx.fillStyle = "#ffd60a"; ctx.font = "700 21px Inter";
       ctx.fillText(`Critical angle = ${ang.toFixed(0)}°`, 12, H - 12);
     }
   }
   // height-band legend (labeled colors)
-  ctx.font = "600 12.5px Inter";
+  ctx.font = "600 19px Inter";
   let lx = 12;
   ctx.fillStyle = "#9d9dbb"; ctx.fillText("km AGL:", lx, 22); lx += 62;
   for (const [b2, t2, col] of segs) {
@@ -1283,7 +1283,7 @@ function drawHodo(prof, res) {
     ctx.fillText(`${b2 / 1000}–${t2 / 1000}`, lx + 20, 22);
     lx += 58;
   }
-  ctx.fillStyle = "#9d9dbb"; ctx.font = "11.5px Inter";
+  ctx.fillStyle = "#9d9dbb"; ctx.font = "17px Inter";
   ctx.fillText("rings: knots", 12, 40);
 }
 
