@@ -2702,11 +2702,6 @@ function fillTables(prof, res) {
       if (!isFinite(tp.wmoZ)) return "—";
       return `${(tp.wmoZ / 1000).toFixed(1)} km · ${(tp.wmoZ * 3.28084 / 1000).toFixed(1)} kft · ${Math.round(tp.wmoP / 100)} hPa`;
     })()],
-    ["Cold point", (() => { const tp = tropopause(prof);
-      if (!isFinite(tp.cpZ)) return "—";
-      return `${(tp.cpZ / 1000).toFixed(1)} km · ${(tp.cpZ * 3.28084 / 1000).toFixed(1)} kft` +
-        (isFinite(tp.cpP) ? ` · ${Math.round(tp.cpP / 100)} hPa` : "");
-    })()],
   ];
 
   climoNow = { pwat: o[15], "850t": t850, "700t": t700, "500t": t500,
@@ -2746,24 +2741,6 @@ function fillTables(prof, res) {
   document.getElementById("kin-table").innerHTML = kinem.map(row).join("");
   document.getElementById("kin-table-b").innerHTML = composites.map(row).join("");
   document.getElementById("kin-table2").innerHTML = thermo.map(row).join("");
-  // QBO estimate: within ~15 deg of the equator the stratospheric zonal wind
-  // IS the QBO (the annual cycle nearly vanishes there). Standard index
-  // levels 30/50/70 hPa; phase from the highest level with data.
-  const qlat = /([\d.]+)°([NS])/.exec(plotCoords || "");
-  if (qlat && +qlat[1] <= 15) {
-    const pTopData = prof.P[prof.P.length - 1];
-    const uAt = pa => pTopData < pa + 300 ? interpP(prof, "U", pa) : NaN;
-    const u30 = uAt(3000), u50 = uAt(5000), u70 = uAt(7000);
-    if ([u30, u50, u70].some(isFinite)) {
-      const f = v => isFinite(v) ? (v > 0 ? "+" : "") + v.toFixed(0) : "—";
-      const top = isFinite(u30) ? u30 : isFinite(u50) ? u50 : u70;
-      const low = isFinite(u70) ? u70 : u50;
-      let ph = top > 0 ? "westerly (W) phase" : "easterly (E) phase";
-      if (isFinite(top) && isFinite(low) && top * low < 0)
-        ph = (top > 0 ? "westerlies" : "easterlies") + " descending";
-      levels.push(["QBO u 30/50/70", `${f(u30)} / ${f(u50)} / ${f(u70)} m/s — ${ph}`]);
-    }
-  }
   document.getElementById("kin-table3").innerHTML = levels.map(row).join("");
   document.getElementById("mse-table").innerHTML = mseRows.map(row).join("");
   document.getElementById("winter-table").innerHTML = winter.map(row).join("");
