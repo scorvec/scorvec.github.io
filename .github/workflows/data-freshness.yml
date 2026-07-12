@@ -1,0 +1,40 @@
+name: data-freshness
+on:
+  schedule:
+    - cron: "25 14 * * *"       # daily, after the morning update crons
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - name: Check every data product's last update
+        id: fresh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/check_freshness.py || echo "stale=1" >> "$GITHUB_OUTPUT"
+      - name: Open/update the stale-data issue
+        if: steps.fresh.outputs.stale == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title="Data pipeline stale — freshness sentinel"
+          body="$(cat stale_report.md)"
+          n=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$n" ]; then gh issue comment "$n" --body "$body";
+          else gh issue create --title "$title" --body "$body"; fi
+      - name: Close the issue when everything is fresh again
+        if: steps.fresh.outputs.stale != '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          n=$(gh issue list --state open --search "Data pipeline stale — freshness sentinel in:title" --json number --jq '.[0].number // empty')
+          [ -n "$n" ] && gh issue close "$n" --comment "All data products fresh again." || true
