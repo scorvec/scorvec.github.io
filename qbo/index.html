@@ -76,6 +76,10 @@
     <div id="series" style="height:300px"></div>
   </div>
   <div class="panel">
+    <h2>Latest tropical mean zonal wind profile <span id="prof-when" style="color:var(--muted); font-size:0.75rem; font-weight:400"></span></h2>
+    <div id="prof" style="height:420px"></div>
+  </div>
+  <div class="panel">
     <h2>Latest month by station</h2>
     <div style="overflow-x:auto"><table id="stns"></table></div>
   </div>
@@ -154,6 +158,73 @@ fetch("qbo.json").then(r => r.json()).then(d => {
     `the month (≥3 required); the cross-station mean currently draws on up to ` +
     `${Object.keys(latest).length} stations spanning Africa, the Maritime Continent, the western ` +
     `Pacific and the Amazon.`;
+});
+
+// ---- latest tropical mean u(p): straight from the sounding mirror ----
+// (updates with every mirror run, so effectively daily; no cron needed)
+const MIRROR = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-data/soundings/";
+const PROF_STNS = ["48650", "96441", "91334", "91348", "91413", "82022", "82099",
+                   "82107", "82244", "82332", "82411", "96996", "91376"];
+const GRID = [1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50, 30, 20, 15, 10];
+Promise.all(PROF_STNS.map(id => fetch(MIRROR + id + ".csv")
+  .then(r => r.ok ? r.text() : null).catch(() => null)))
+.then(texts => {
+  const perStn = [], stamps = [];
+  texts.forEach((txt, si) => {
+    if (!txt) return;
+    const pts = [];                        // [ln p, u]
+    for (const line of txt.split("\n").slice(1)) {
+      const c = line.split(",");
+      if (c.length < 13) continue;
+      const pr = +c[3], wd = +c[11], ws = +c[12];
+      if (!isFinite(pr) || !isFinite(wd) || !isFinite(ws) || pr < 5) continue;
+      pts.push([Math.log(pr), -ws * Math.sin(wd * Math.PI / 180)]);
+      if (!stamps.length || line.slice(0, 10) > stamps[stamps.length - 1])
+        stamps.push(line.slice(0, 10));
+    }
+    if (pts.length < 15) return;
+    pts.sort((a, b) => b[0] - a[0]);
+    const prof = GRID.map(tgt => {
+      const lt = Math.log(tgt);
+      for (let i = 1; i < pts.length; i++) {
+        const [a, b] = [pts[i - 1], pts[i]];
+        if (b[0] <= lt && lt <= a[0] && a[0] - b[0] < 0.5) {
+          const f = (a[0] - lt) / Math.max(1e-9, a[0] - b[0]);
+          return a[1] + f * (b[1] - a[1]);
+        }
+      }
+      return null;
+    });
+    perStn.push({ id: PROF_STNS[si], prof });
+  });
+  if (perStn.length < 4) return;
+  const mean = GRID.map((_, gi) => {
+    const v = perStn.map(s => s.prof[gi]).filter(x => x !== null);
+    return v.length >= 4 ? v.reduce((a, b) => a + b) / v.length : null;
+  });
+  const layout2 = {
+    paper_bgcolor: "#11111c", plot_bgcolor: "#11111c",
+    font: { color: "#c3c3d4", family: "Inter, sans-serif", size: 12 },
+    margin: { l: 58, r: 12, t: 8, b: 44 },
+    xaxis: { title: "zonal wind u (m/s)", gridcolor: "#23233a", zerolinecolor: "#3d5a8f",
+             zerolinewidth: 1.5 },
+    yaxis: { title: "hPa", type: "log", autorange: "reversed", gridcolor: "#23233a",
+             tickvals: [1000, 700, 500, 300, 200, 100, 50, 30, 10],
+             ticktext: ["1000", "700", "500", "300", "200", "100", "50", "30", "10"] },
+    showlegend: false,
+  };
+  const traces = perStn.map(s => ({
+    x: s.prof, y: GRID, mode: "lines", connectgaps: false,
+    line: { color: "rgba(139,139,163,0.35)", width: 1 },
+    hovertemplate: s.id + " · %{y} hPa · %{x:.1f} m/s<extra></extra>",
+  }));
+  traces.push({ x: mean, y: GRID, mode: "lines+markers", connectgaps: false,
+    line: { color: "#64d2ff", width: 3 }, marker: { size: 5 },
+    hovertemplate: "mean · %{y} hPa · %{x:.1f} m/s<extra></extra>" });
+  Plotly.newPlot("prof", traces, layout2, { responsive: true, displaylogo: false });
+  document.getElementById("prof-when").textContent =
+    `— ${perStn.length} stations, latest soundings (${stamps[stamps.length - 1] || ""}), ` +
+    `grey = individual stations, blue = tropical mean`;
 });
 </script>
 </body>
