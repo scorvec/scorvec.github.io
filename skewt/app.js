@@ -1241,7 +1241,8 @@ function buildExportCanvas(fscale = 1) {
   // DOM — whatever is on screen (pairings, percentile tags, records) is exactly
   // what lands in the image.
   const grab = id => [...document.querySelectorAll(`#${id} tr`)]
-    .map(tr => [...tr.children].map(td => td.textContent.replace(/\s+/g, " ").trim()));
+    .map(tr => [...tr.children].map(td =>
+      [...td.childNodes].map(n => n.textContent).join(" ").replace(/\s+/g, " ").trim()));
   const columns = [                       // mirrors the page's tables-grid
     [["Parcels", grab("pcl-table")], ["Moist static energy", grab("mse-table")]],
     [["Kinematics", grab("kin-table")]],
@@ -1280,9 +1281,13 @@ function buildExportCanvas(fscale = 1) {
       for (const cells of rows) {
         if (cells.length > 2) {                       // the wide parcels grid
           const step = cw / cells.length;
+          let fpx = 12.5;                             // shrink to the column step
+          x.font = `${F(fpx)}px Inter, sans-serif`;
+          while (fpx > 8 && Math.max(...cells.map(c => x.measureText(c).width)) > step - F(6)) {
+            fpx -= 0.5; x.font = `${F(fpx)}px Inter, sans-serif`;
+          }
           cells.forEach((c, i) => {
             x.fillStyle = rows.indexOf(cells) === 0 ? "#8b8ba3" : "#e8e8f0";
-            x.font = `${F(12.5)}px Inter, sans-serif`;
             x.textAlign = i === 0 ? "left" : "right";
             x.fillText(c, i === 0 ? cx : cx + step * (i + 1) - 4, cy + F(6));
           });
@@ -2404,7 +2409,7 @@ function drawSkewT(prof, res) {
     ctx.setLineDash([]); ctx.lineWidth = 1;
     ctx.fillStyle = "rgba(214,150,255,0.95)"; ctx.font = "600 11px Inter";
     ctx.fillText(`TROP ${(tpM.wmoZ / 1000).toFixed(1)} km · ${(tpM.wmoZ * 3.28084 / 1000).toFixed(1)} kft · ${Math.round(tpM.wmoP / 100)} hPa`,
-      SK.l + 6, yT < SK.t + 20 ? yT + 14 : yT - 5);
+      SK.l + 48, yT < SK.t + 20 ? yT + 14 : yT - 5);
     ctx.font = "700 12px Inter";
   }
   if (o[28] !== MISSING && o[29] !== MISSING) {
