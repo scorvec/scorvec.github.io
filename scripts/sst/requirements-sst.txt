@@ -7,6 +7,6 @@ h5netcdf
 matplotlib
 cartopy>=0.22
 shapely>=2.0
-pyproj>=3.5
+pyproj>=3.7.2
 Pillow
 copernicusmarine>=2.0
