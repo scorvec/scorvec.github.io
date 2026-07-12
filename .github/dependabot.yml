@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions: { patterns: ["*"] }
+  - package-ecosystem: pip
+    directory: /scripts
+    schedule: { interval: weekly, day: monday }
+  - package-ecosystem: pip
+    directory: /scripts/solar
+    schedule: { interval: weekly, day: monday }
+  - package-ecosystem: pip
+    directory: /scripts/synoptic
+    schedule: { interval: weekly, day: monday }
+  - package-ecosystem: pip
+    directory: /scripts/sst
+    schedule: { interval: weekly, day: monday }
+  - package-ecosystem: pip
+    directory: /scripts/mjo
+    schedule: { interval: weekly, day: monday }

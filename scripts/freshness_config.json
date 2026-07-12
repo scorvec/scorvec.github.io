@@ -1,0 +1,45 @@
+{
+  "_comment": "path -> {branch, max_age_hours}; checked daily by data-freshness.yml",
+  "checks": {
+    "manifest.json": {
+      "branch": "skewt-data",
+      "max_age_hours": 9
+    },
+    "qbo/qbo.json": {
+      "branch": "main",
+      "max_age_hours": 200
+    },
+    "skewt/gaps.json": {
+      "branch": "main",
+      "max_age_hours": 120
+    },
+    "assets/climate": {
+      "branch": "main",
+      "max_age_hours": 48
+    },
+    "assets/sst": {
+      "branch": "main",
+      "max_age_hours": 48
+    },
+    "assets/mjo": {
+      "branch": "main",
+      "max_age_hours": 48
+    },
+    "assets/synoptic": {
+      "branch": "main",
+      "max_age_hours": 24
+    },
+    "gatun": {
+      "branch": "main",
+      "max_age_hours": 48
+    },
+    "assets/wind_forecast_data": {
+      "branch": "main",
+      "max_age_hours": 36
+    },
+    "assets/solar_forecast_data": {
+      "branch": "main",
+      "max_age_hours": 36
+    }
+  }
+}
