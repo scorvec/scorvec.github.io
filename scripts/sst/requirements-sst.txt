@@ -9,4 +9,4 @@ cartopy>=0.22
 shapely>=2.0
 pyproj>=3.5
 Pillow
-copernicusmarine>=2.0
+copernicusmarine>=2.4.1
