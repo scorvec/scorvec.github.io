@@ -12,7 +12,7 @@ eccodes>=1.6
 herbie-data>=2024.0.0
 
 # Map rendering
-matplotlib>=3.7
+matplotlib>=3.11.0
 cartopy>=0.22
 shapely>=2.0
 pyproj>=3.5
