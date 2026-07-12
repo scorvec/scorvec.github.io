@@ -1156,7 +1156,13 @@ function buildExportCanvas(fscale = 1) {
             x.fillText(c, i === 0 ? cx : cx + step * (i + 1) - 4, cy + F(6));
           });
         } else {
-          x.fillStyle = "#8b8ba3"; x.font = `${F(12.5)}px Inter, sans-serif`;
+          let fpx = 12.5;               // shrink to fit: long label + long value
+          x.font = `${F(fpx)}px Inter, sans-serif`;
+          while (fpx > 8.5 && x.measureText(cells[0] || "").width +
+                 x.measureText(cells[1] || "").width + F(10) > cw) {
+            fpx -= 0.5; x.font = `${F(fpx)}px Inter, sans-serif`;
+          }
+          x.fillStyle = "#8b8ba3";
           x.textAlign = "left"; x.fillText(cells[0] || "", cx, cy + F(6));
           x.fillStyle = "#e8e8f0"; x.textAlign = "right";
           x.fillText(cells[1] || "", cx + cw, cy + F(6));
@@ -2108,7 +2114,7 @@ function drawSkewT(prof, res) {
     }
   }
   const pGrid = [];
-  for (let lp = Math.log(105000); lp >= Math.log(10000); lp -= 0.03) pGrid.push(Math.exp(lp));
+  for (let lp = Math.log(105000); lp >= Math.log(SK.pTop); lp -= 0.03) pGrid.push(Math.exp(lp));
   ctx.strokeStyle = TH.dryad; ctx.lineWidth = 1;
   for (let th = 230; th <= 440; th += 10) {
     ctx.beginPath();
@@ -2229,13 +2235,17 @@ function drawSkewT(prof, res) {
   ctx.font = "700 12px Inter";
   ctx.textAlign = "right";
   const marks = [["LCL", o[12], TH.lcl], ["LFC", o[13], TH.lfc], ["EL", o[14], TH.el]];
+  const usedY = [];                     // coincident levels (LCL=LFC) stagger down
   for (const [lab, pP, col] of marks) {
     if (pP === MISSING || !isFinite(pP)) continue;
     const y = yOf(pP), hm = interpHagl(prof, pP);
     ctx.strokeStyle = col; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(SK.l + pw - 26, y); ctx.lineTo(SK.l + pw - 4, y); ctx.stroke();
+    let ly = y + 4;
+    while (usedY.some(u => Math.abs(u - ly) < 13)) ly += 14;
+    usedY.push(ly);
     ctx.fillStyle = col;
-    ctx.fillText(`${lab} ${hm === null ? "" : Math.round(hm) + "m"}`, SK.l + pw - 30, y + 4);
+    ctx.fillText(`${lab} ${hm === null ? "" : Math.round(hm) + "m"}`, SK.l + pw - 30, ly);
   }
   ctx.textAlign = "left";
   // tropopause (WMO lapse-rate definition): dashed line across the diagram
@@ -2246,8 +2256,8 @@ function drawSkewT(prof, res) {
     ctx.beginPath(); ctx.moveTo(SK.l + 2, yT); ctx.lineTo(SK.l + pw - 2, yT); ctx.stroke();
     ctx.setLineDash([]); ctx.lineWidth = 1;
     ctx.fillStyle = "rgba(214,150,255,0.95)"; ctx.font = "600 11px Inter";
-    ctx.fillText(`TROP ${(tpM.wmoZ / 1000).toFixed(1)} km · ${(tpM.wmoZ * 3.28084 / 1000).toFixed(1)} kft`,
-      SK.l + 6, yT - 5);
+    ctx.fillText(`TROP ${(tpM.wmoZ / 1000).toFixed(1)} km · ${(tpM.wmoZ * 3.28084 / 1000).toFixed(1)} kft · ${Math.round(tpM.wmoP / 100)} hPa`,
+      SK.l + 6, yT < SK.t + 20 ? yT + 14 : yT - 5);
     ctx.font = "700 12px Inter";
   }
   if (o[28] !== MISSING && o[29] !== MISSING) {
@@ -2263,7 +2273,8 @@ function drawSkewT(prof, res) {
   // frame + axes
   ctx.strokeStyle = TH.grid; ctx.strokeRect(SK.l, SK.t, pw, ph);
   ctx.fillStyle = TH.muted; ctx.font = "12px Inter";
-  for (let pp = 100; pp <= 1000; pp += 100) {
+  for (const pp of (SK.pTop < 10000 ? [70, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+                                     : [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000])) {
     const y = yOf(pp * 100);
     ctx.strokeStyle = TH.gridSub; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(SK.l, y); ctx.lineTo(SK.l + pw, y); ctx.stroke();
@@ -2497,6 +2508,7 @@ function drawHodo(prof, res) {
   }
 
   // storm motion + mean wind markers, SHARPpy-style dir/spd labels
+  const markUsed = [];                  // placed label boxes; nudge collisions down
   const mark = (uMs, vMs, lab, col, hollow) => {
     if (uMs === MISSING || !isFinite(uMs)) return;
     const u = uMs * KT, v = vMs * KT;
@@ -2504,8 +2516,13 @@ function drawHodo(prof, res) {
     ctx.beginPath(); ctx.arc(X(u), Y(v), 6, 0, 7);
     hollow ? ctx.stroke() : ctx.fill();
     ctx.font = "700 15px Inter";
-    ctx.fillText(`${Math.round(dirOf(uMs, vMs))}/${Math.round(Math.hypot(u, v))} ${lab}`,
-                 X(u) + 9, Y(v) + 4.5);
+    const txt = `${Math.round(dirOf(uMs, vMs))}/${Math.round(Math.hypot(u, v))} ${lab}`;
+    const tw = ctx.measureText(txt).width;
+    let tx = X(u) + 9, ty = Y(v) + 4.5;
+    while (markUsed.some(([ux, uy, uw]) => Math.abs(uy - ty) < 17 && tx < ux + uw && ux < tx + tw))
+      ty += 18;
+    markUsed.push([tx, ty, tw]);
+    ctx.fillText(txt, tx, ty);
   };
   mark(o[22], o[23], "RM", "#ff453a", false);
   mark(o[24], o[25], "LM", "#64d2ff", true);
@@ -2536,12 +2553,14 @@ function drawHodo(prof, res) {
   // height-band legend (labeled colors)
   ctx.font = "600 15px Inter";
   let lx = 12;
-  ctx.fillStyle = "#9d9dbb"; ctx.fillText("km AGL:", lx, 22); lx += 62;
+  ctx.fillStyle = "#9d9dbb"; ctx.fillText("km AGL:", lx, 22);
+  lx += ctx.measureText("km AGL:").width + 10;
   for (const [b2, t2, col] of segs) {
+    const lab2 = `${b2 / 1000}–${t2 / 1000}`;
     ctx.fillStyle = col;
     ctx.fillRect(lx, 13, 16, 5);
-    ctx.fillText(`${b2 / 1000}–${t2 / 1000}`, lx + 20, 22);
-    lx += 58;
+    ctx.fillText(lab2, lx + 20, 22);
+    lx += 20 + ctx.measureText(lab2).width + 14;
   }
   ctx.fillStyle = "#9d9dbb"; ctx.font = "13px Inter";
   ctx.fillText("rings: knots", 12, 40);
@@ -2681,11 +2700,12 @@ function fillTables(prof, res) {
     ["Wet-bulb 0 °C", (() => { const w = wbzAgl(prof); return climoCell("wbz", w, isFinite(w) ? Math.round(w) + " m AGL" : "—"); })()],
     ["Tropopause (WMO)", (() => { const tp = tropopause(prof);
       if (!isFinite(tp.wmoZ)) return "—";
-      return `${(tp.wmoZ / 1000).toFixed(1)} km · ${(tp.wmoZ * 3.28084 / 1000).toFixed(1)} kft`;
+      return `${(tp.wmoZ / 1000).toFixed(1)} km · ${(tp.wmoZ * 3.28084 / 1000).toFixed(1)} kft · ${Math.round(tp.wmoP / 100)} hPa`;
     })()],
     ["Cold point", (() => { const tp = tropopause(prof);
       if (!isFinite(tp.cpZ)) return "—";
-      return `${(tp.cpZ / 1000).toFixed(1)} km · ${(tp.cpZ * 3.28084 / 1000).toFixed(1)} kft`;
+      return `${(tp.cpZ / 1000).toFixed(1)} km · ${(tp.cpZ * 3.28084 / 1000).toFixed(1)} kft` +
+        (isFinite(tp.cpP) ? ` · ${Math.round(tp.cpP / 100)} hPa` : "");
     })()],
   ];
 
@@ -2787,6 +2807,12 @@ function render(prof) {
   if (!hasT) jsKinematics(prof, res.o);    // pibal: winds still give shear/SRH/Bunkers
   if (res.rc === 2) plotNote = "⚠ analysis failed on this profile — charts only";
   lastProf = prof; lastRes = res;
+  // deep tropical soundings: the tropopause/cold point sits near 100 hPa and
+  // was clipped at the old fixed plot top — extend to 70 hPa when the trop is
+  // high and the data reaches it (Majuro 2026-07-11 topped at 64 hPa)
+  const tpTop = tropopause(prof);
+  SK.pTop = (isFinite(tpTop.wmoP) && tpTop.wmoP < 12500 &&
+             prof.P[prof.P.length - 1] < 9000) ? 7000 : 10000;
   drawSkewT(prof, res);
   drawHodo(prof, res);
   drawMSE(prof);
