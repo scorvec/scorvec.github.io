@@ -54,7 +54,7 @@ const grab = n => {
     if (app[k] === "}") { d--; if (!d) return app.slice(i, k + 1); }
   }
 };
-const NEED = ["parseCSV", "thin", "sanitizeHeights", "fillDewpoints", "fillWinds", "frostPtC", "cloudLayers", "estCeiling",
+const NEED = ["parseCSV", "thin", "sanitizeHeights", "fillDewpoints", "fillWinds", "frostPtC", "cloudLayers", "estCeiling", "drawTempAdv", "meanSR", "brnShear",
   "fitCanvas", "interpHagl", "interpP", "windAt", "meanWindAgl", "wetbulbC", "wbzAgl",
   "freezingLvlAgl", "tropopause", "columnRH", "layerRH", "mseProfile", "precipType",
   "kucheraRatio", "drawBarbs", "climoSlot", "climoPct", "pctColor", "climoCell", "doyOf",

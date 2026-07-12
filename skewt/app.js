@@ -1945,6 +1945,17 @@ function windAt(prof, hAgl) {             // interp u,v at height AGL
   return [prof.U.at(-1), prof.V.at(-1)];
 }
 const dirOf = (u, v) => ((Math.atan2(-u, -v) * 180 / Math.PI) + 360) % 360;
+// mean storm-relative wind (kt) through an AGL layer, Bunkers RM as the motion
+function meanSR(prof, o, z0, z1) {
+  if (o[22] === MISSING || !isFinite(o[22])) return null;
+  const mw = meanWindAgl(prof, z0, z1);
+  return mw ? Math.hypot(mw[0] - o[22], mw[1] - o[23]) * KT : null;
+}
+// BRN shear: 0.5 |V(0-6 km mean) - V(0-500 m mean)|^2  (m^2/s^2)
+function brnShear(prof) {
+  const a = meanWindAgl(prof, 0, 6000), b = meanWindAgl(prof, 0, 500);
+  return a && b ? 0.5 * ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) : null;
+}
 
 // ---------- skew-t drawing ----------
 const SK = { l: 58, r: 90, t: 48, b: 42, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
@@ -2303,7 +2314,43 @@ function drawSkewT(prof, res) {
     ctx.fillText(T, xOf(T, SK.t + ph) - 8, SK.t + ph + 16);
   ctx.fillText("°C", SK.l + pw / 2, H - 6);
   drawBarbs(ctx, prof, W - SK.r + 40, yOf);
+  drawTempAdv(prof, ctx, W - SK.r + 4, yOf);
 
+}
+
+// Inferred temperature advection vs height (SPC-style): assume the wind is
+// geostrophic, read the thermal wind from its turning with height —
+// T_adv = -f/(Rd ln(pb/pt)) * (u_mean*dv - v_mean*du). Veering = warm (NH).
+// Skipped within 10 deg of the equator where f is too small for geostrophy.
+function drawTempAdv(prof, ctx, x0, yOf) {
+  const m = /([\d.]+)°([NS])/.exec(plotCoords || "");
+  if (!m) return;
+  const lat = +m[1] * (m[2] === "S" ? -1 : 1);
+  if (Math.abs(lat) < 10) return;
+  const f = 2 * 7.292e-5 * Math.sin(lat * Math.PI / 180), Rd = 287.05;
+  const pSfc = prof.P[0], half = 14;
+  ctx.font = "600 9px Inter"; ctx.textAlign = "center";
+  ctx.fillStyle = TH.muted;
+  ctx.fillText("T-adv", x0, SK.t - 6);
+  for (let pb = Math.floor(pSfc / 2500) * 2500; pb - 7500 >= 25000; pb -= 7500) {
+    const pt = pb - 7500;
+    const ub = interpP(prof, "U", pb), vb = interpP(prof, "V", pb);
+    const ut = interpP(prof, "U", pt), vt = interpP(prof, "V", pt);
+    if (![ub, vb, ut, vt].every(isFinite)) continue;
+    const ubar = (ub + ut) / 2, vbar = (vb + vt) / 2;
+    const ta = -f / (Rd * Math.log(pb / pt)) *
+               (ubar * (vt - vb) - vbar * (ut - ub)) * 3600;   // K/hr
+    const wpx = Math.min(1, Math.abs(ta) / 2.5) * half;
+    const y0 = yOf(pb), y1 = yOf(pt);
+    if (wpx > 0.8) {
+      ctx.fillStyle = ta > 0 ? "rgba(255,90,72,0.55)" : "rgba(100,170,255,0.55)";
+      ctx.fillRect(x0 - wpx, y1 + 1, wpx * 2, y0 - y1 - 2);
+    }
+    if (Math.abs(ta) >= 0.5) {
+      ctx.fillStyle = ta > 0 ? "#ff9f95" : "#9fc9ff";
+      ctx.fillText(ta.toFixed(1), x0, (y0 + y1) / 2 + 3);
+    }
+  }
 }
 
 function drawBarbs(ctx, prof, x0, yOf) {
@@ -2606,6 +2653,11 @@ function fillTables(prof, res) {
     ["Eff. SRH / shear", pair(fmt(o[30]) + " m²/s²",
       o[31] === MISSING ? "—" : (o[31] * KT).toFixed(0) + " kt")],
     ["Eff. inflow", effIL],
+    ["SR wind 4–6 / 9–11 km", (() => {
+      const a = meanSR(prof, o, 4000, 6000), b = meanSR(prof, o, 9000, 11000);
+      return (a === null && b === null) ? "—"
+        : `${a === null ? "—" : a.toFixed(0)} / ${b === null ? "—" : b.toFixed(0)} kt`;
+    })()],
     // Mean wind through the mixed layer: this is the momentum a well-mixed
     // boundary layer can bring DOWN to the surface, so it's the flow that
     // actually threatens to gust. Highlighted from 35 kt, ramping to deep red.
@@ -2638,6 +2690,12 @@ function fillTables(prof, res) {
       isFinite(wmaxC) ? wmaxC.toFixed(0) + " m/s" : "—")],
     // NOT an "efficiency": SHARPlib returns E_tilde × CAPE, and E_tilde carries a
     // storm-relative kinetic-energy term, so strong SR inflow can push this >100%.
+    ["BRN / BRN shear", (() => {
+      const bs = brnShear(prof);
+      if (bs === null) return "—";
+      const cape = o[10] !== MISSING && isFinite(o[10]) ? o[10] : NaN;
+      return `${isFinite(cape) && bs > 5 ? Math.round(cape / bs) : "—"} / ${Math.round(bs)} m²/s²`;
+    })()],
     ["ECAPE / CAPE", isFinite(entEff) ? entEff.toFixed(0) + " %" : "—"],
   ];
   const M = mseProfile(prof);
