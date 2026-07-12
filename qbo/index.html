@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QBO Tracker — equatorial stratospheric winds from radiosondes — Shawn Corvec</title>
+<meta name="description" content="Live Quasi-Biennial Oscillation tracker: monthly-mean equatorial zonal wind at 10–100 hPa computed from 13 near-equatorial radiosonde stations (IGRA), 1950s to present, updated weekly.">
+<link rel="canonical" href="https://scorvec.com/qbo/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="QBO Tracker — the stratosphere's metronome, from real balloons">
+<meta property="og:description" content="Time–height record of the Quasi-Biennial Oscillation built from equatorial radiosondes: Singapore, Kuala Lumpur, the Amazon chain, Micronesia. Updated weekly.">
+<meta property="og:url" content="https://scorvec.com/qbo/">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#0b0b12; --panel:#11111c; --ink:#e8e8f0; --muted:#8b8ba3;
+          --accent:#64d2ff; --rule:#23233a;
+          --serif:'Lora',Georgia,serif; --sans:'Inter',sans-serif; }
+  body { background:var(--bg); color:var(--ink); font-family:var(--sans); line-height:1.55;
+         -webkit-font-smoothing:antialiased; }
+  nav { display:flex; justify-content:space-between; align-items:center; gap:1.5rem;
+        padding:0.7rem 1.4rem; border-bottom:1px solid var(--rule); }
+  .nav-name { font-family:var(--serif); font-size:1rem; text-decoration:none; color:var(--ink); }
+  nav a.back { font-size:0.85rem; letter-spacing:0.05em; color:var(--muted); text-decoration:none; }
+  .wrap { max-width:1150px; margin:0 auto; padding:1.8rem 1.2rem 3rem; }
+  .eyebrow { font-size:0.74rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--accent); }
+  h1 { font-family:var(--serif); font-weight:600; font-size:clamp(1.6rem,3.6vw,2.3rem);
+       margin:0.35rem 0 0.5rem; text-wrap:balance; }
+  .lede { color:#c3c3d4; max-width:78ch; margin-bottom:1.4rem; font-size:0.95rem; }
+  .cards { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:1.2rem; }
+  .card { background:var(--panel); border:1px solid var(--rule); border-radius:12px;
+          padding:0.8rem 1.1rem; min-width:180px; }
+  .card .k { font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
+  .card .v { font-size:1.45rem; font-weight:600; margin-top:2px; }
+  .card .s { font-size:0.78rem; color:var(--muted); }
+  .panel { background:var(--panel); border:1px solid var(--rule); border-radius:12px;
+           padding:10px; margin-bottom:14px; }
+  .panel h2 { font-family:var(--serif); font-weight:500; font-size:1.05rem; margin:2px 6px 8px; }
+  table { border-collapse:collapse; font-size:0.85rem; width:100%; }
+  th, td { padding:4px 10px; text-align:right; border-bottom:1px solid var(--rule); }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--muted); font-weight:500; }
+  .note { color:var(--muted); font-size:0.78rem; max-width:88ch; margin-top:0.8rem; }
+  .w { color:#ff7a6e; } .e { color:#6ec1ff; }
+  footer { max-width:1150px; margin:0 auto; padding:0.8rem 1.2rem 2.5rem; color:var(--muted);
+           font-size:0.75rem; border-top:1px solid var(--rule); }
+  footer a { color:var(--accent); }
+</style>
+</head>
+<body>
+<nav>
+  <a href="../" class="nav-name">Shawn Corvec</a>
+  <a href="../skewt/" class="back">SOUNDING EXPLORER →</a>
+</nav>
+<div class="wrap">
+  <div class="eyebrow">Updated weekly from IGRA radiosondes</div>
+  <h1>QBO Tracker</h1>
+  <p class="lede">The Quasi-Biennial Oscillation — the ~28-month heartbeat of the equatorial
+  stratosphere — read directly from balloons. Within ~10° of the equator the annual cycle in
+  stratospheric zonal wind nearly vanishes, so a monthly multi-station mean of radiosonde winds
+  at 10–100 hPa <i>is</i> the QBO: westerly and easterly regimes descending about 1 km/month.
+  Built from 13 stations (Singapore, Kuala Lumpur, Bintulu, the Micronesia chain, five Amazon
+  stations, Nairobi) — the same raw archive behind the
+  <a href="../skewt/" style="color:var(--accent)">Sounding Explorer</a>.</p>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="panel">
+    <h2>Time–height section — monthly mean zonal wind (m/s)</h2>
+    <div id="hov" style="height:430px"></div>
+  </div>
+  <div class="panel">
+    <h2>Index levels — 30 &amp; 50 hPa</h2>
+    <div id="series" style="height:300px"></div>
+  </div>
+  <div class="panel">
+    <h2>Latest month by station</h2>
+    <div style="overflow-x:auto"><table id="stns"></table></div>
+  </div>
+  <p class="note" id="method"></p>
+</div>
+<footer>
+  Data: NOAA <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">IGRA v2</a>
+  period-of-record + year-to-date files · monthly station means need ≥3 soundings per level;
+  the plotted value is the unweighted mean across reporting stations. Not the official CPC/FU-Berlin
+  index, but tracks it closely. Built by Claude (Anthropic's Claude Fable 5), directed by Shawn
+  Corvec. <a href="../skewt/methodology.html">Sounding methodology</a>.
+</footer>
+<script>
+const W = "#ff7a6e", E = "#6ec1ff";
+fetch("qbo.json").then(r => r.json()).then(d => {
+  const { levels, months, u, latest } = d;
+  const li30 = levels.indexOf(30), li50 = levels.indexOf(50);
+  // ---- phase cards ----
+  const lastIdx = (li) => { for (let i = months.length - 1; i >= 0; i--) if (u[li][i] !== null) return i; };
+  const i30 = lastIdx(li30), i50 = lastIdx(li50);
+  const u30 = u[li30][i30], u50 = u[li50][i50];
+  let run = 0;
+  for (let i = i30; i >= 0 && u[li30][i] !== null && (u[li30][i] > 0) === (u30 > 0); i--) run++;
+  const ph = u30 > 0 ? "WESTERLY" : "EASTERLY";
+  const desc = (u30 > 0) !== (u50 > 0) ? " · descending (opposite sign below)" : "";
+  document.getElementById("cards").innerHTML = `
+    <div class="card"><div class="k">Phase (30 hPa)</div>
+      <div class="v ${u30 > 0 ? "w" : "e"}">${ph}</div>
+      <div class="s">${run} month${run > 1 ? "s" : ""} and counting${desc}</div></div>
+    <div class="card"><div class="k">u 30 hPa · ${months[i30]}</div>
+      <div class="v">${u30 > 0 ? "+" : ""}${u30} m/s</div><div class="s">index level</div></div>
+    <div class="card"><div class="k">u 50 hPa · ${months[i50]}</div>
+      <div class="v">${u50 > 0 ? "+" : ""}${u50} m/s</div><div class="s">index level</div></div>
+    <div class="card"><div class="k">Record</div>
+      <div class="v">${months[0].slice(0, 4)}–</div>
+      <div class="s">${months.length} months · updated ${d.updated.slice(0, 10)}</div></div>`;
+  // ---- time-height heatmap ----
+  const layout = {
+    paper_bgcolor: "#11111c", plot_bgcolor: "#11111c",
+    font: { color: "#c3c3d4", family: "Inter, sans-serif", size: 12 },
+    margin: { l: 58, r: 12, t: 8, b: 44 },
+    xaxis: { gridcolor: "#23233a", range: [months[Math.max(0, months.length - 240)], months[months.length - 1]] },
+    yaxis: { title: "hPa", type: "log", autorange: "reversed", gridcolor: "#23233a",
+             tickvals: levels, ticktext: levels.map(String) },
+  };
+  Plotly.newPlot("hov", [{
+    type: "heatmap", x: months, y: levels, z: u, zmid: 0, zmin: -35, zmax: 35,
+    colorscale: [[0, "#1e5bbf"], [0.35, "#63a3e8"], [0.5, "#101018"], [0.65, "#e8756a"], [1, "#c22a1e"]],
+    colorbar: { title: "m/s", outlinewidth: 0, tickfont: { color: "#c3c3d4" } },
+    hovertemplate: "%{x} · %{y} hPa · %{z} m/s<extra></extra>",
+  }], layout, { responsive: true, displaylogo: false });
+  // ---- 30/50 series ----
+  Plotly.newPlot("series", [
+    { x: months, y: u[li30], name: "30 hPa", line: { color: W, width: 1.6 }, connectgaps: false },
+    { x: months, y: u[li50], name: "50 hPa", line: { color: E, width: 1.6 }, connectgaps: false },
+  ], { ...layout,
+    yaxis: { title: "u (m/s)", gridcolor: "#23233a", zerolinecolor: "#3d5a8f" },
+    legend: { orientation: "h", y: 1.12 },
+  }, { responsive: true, displaylogo: false });
+  // ---- station table ----
+  const head = "<tr><th>Station</th><th>Month</th>" + levels.map(l => `<th>${l} hPa</th>`).join("") + "</tr>";
+  const names = { 48698: "Singapore", 48650: "Kuala Lumpur", 96441: "Bintulu", 91334: "Chuuk",
+    91348: "Pohnpei", 91413: "Yap", 82022: "Boa Vista", 82099: "Macapá",
+    82107: "São Gabriel", 82244: "Santarém", 82332: "Manaus", 82411: "Tabatinga", 63741: "Nairobi" };
+  document.getElementById("stns").innerHTML = head + Object.entries(latest).map(([w, o]) =>
+    `<tr><td>${names[w] || w} <span style="color:var(--muted)">${w}</span></td><td>${o.month}</td>` +
+    levels.map(l => {
+      const v = o.u[l];
+      return v === undefined ? "<td>—</td>"
+        : `<td class="${v > 0 ? "w" : "e"}">${v > 0 ? "+" : ""}${v}</td>`;
+    }).join("") + "</tr>").join("");
+  document.getElementById("method").textContent =
+    `Red = westerly, blue = easterly. Regimes form near 10 hPa and descend at roughly 1 km/month; ` +
+    `the westerly shear zone descends faster and more regularly than the easterly one. The 30 hPa ` +
+    `wind is the conventional single-number index. Station means use every available sounding in ` +
+    `the month (≥3 required); the cross-station mean currently draws on up to ` +
+    `${Object.keys(latest).length} stations spanning Africa, the Maritime Continent, the western ` +
+    `Pacific and the Amazon.`;
+});
+</script>
+</body>
+</html>
