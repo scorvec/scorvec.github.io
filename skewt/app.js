@@ -2791,8 +2791,6 @@ function fillTables(prof, res) {
         (depth !== null ? ` · ${depth} m` : "") +
         (isFinite(rh) ? ` · RH ${rh.toFixed(0)}%` : "");
     })()],
-    ["Snow ratio / squall", (() => { const k = kucheraRatio(prof);
-      return pair(isFinite(k) ? k.toFixed(0) + ":1" : "—", fmt(o[55], 1)); })()],
   ];
 
   const row = ([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`;
