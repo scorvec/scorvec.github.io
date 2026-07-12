@@ -370,7 +370,7 @@
     the sample is real.
   </div>
 
-  <h2>6. Fog, stratus and cloud layers — trained on what airports actually reported</h2>
+  <h2 id="fog">6. Fog, stratus and cloud layers — trained on what airports actually reported</h2>
   <p>The fog panel's probabilities and the cloud-layer detector are <b>empirical</b>, not
   rule-of-thumb. We matched every 00Z/12Z sounding from 14 co-located radiosonde/METAR stations
   (Oakland, Quillayute, Medford, Salt Lake City, Boise, Charleston, Jackson, Nashville, Green Bay,
@@ -391,6 +391,23 @@
   confidently detected layers go unreported by the ceilometer — some are real misses of thin or
   broken cloud, and some are cloud above the instrument's 12,000 ft range, so treat the detector
   as generous aloft.</p>
+
+  <p><b>The rest of the fog panel</b> is BUFKIT-style nocturnal screening. FSI =
+  4·T<sub>sfc</sub> − 2·(T<sub>850</sub>+Td<sub>sfc</sub>) + V<sub>850</sub>(kt): &lt;31 high fog
+  risk, 31–55 moderate, &gt;55 low. Radiation fog favors a small surface dewpoint depression, a
+  surface-based inversion, and moist air trapped beneath it. The <b>bulk Richardson number</b>
+  over the lowest resolved layer weighs buoyant suppression against shear production of
+  turbulence: above the ~0.25 critical value the surface layer is dynamically stable and
+  decoupled — radiative cooling and moisture stay trapped near the ground; below it, mechanical
+  mixing distributes the cooling through a deeper layer (or, if too vigorous, prevents saturation
+  entirely). Whether <b>dew or frost</b> forms depends on the dewpoint: above freezing it's dew;
+  below, deposition occurs at the <b>frost point</b> (ice saturation), which sits above the
+  dewpoint — so frost needs less cooling than the dewpoint depression alone suggests. In the
+  cloud panel, boxes are colored by phase (liquid / supercooled 0 to −20 °C / ice below −20 °C),
+  the dashed teal band is the <b>dendritic growth zone</b> (−12 to −18 °C, efficient snow growth
+  for any cloud layer intersecting it), coverage labels are deliberately hedged to what a single
+  column can support, and the ceiling estimate carries the fraction of similar training layers
+  that verified as ceilings. Thin or broken cloud between sounding levels can be missed.</p>
 
   <h2>7. The code</h2>
   <p>Everything is open — the repository is a plain GitHub Pages site, so what you're reading and what
