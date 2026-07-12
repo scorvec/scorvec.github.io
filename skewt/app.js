@@ -1251,6 +1251,19 @@ function buildExportCanvas(fscale = 1) {
     [["Levels", grab("kin-table3")]],
   ];
   const ROW = F(19), TITLE = F(30), GAP = F(10);
+  // percentile/record tags ("P95", "\u2605 1988") drawn smaller and colored so
+  // "5914 m P95" reads as value + tag, not one number
+  const drawValCell = (txt, xr, yb, basePx) => {
+    const m = /^(.*?)\s*((?:P\d{1,3})|(?:\u2605\s*\S*))$/.exec(txt);
+    if (!m || !m[1]) { x.fillText(txt, xr, yb); return; }
+    const prevFont = x.font, prevFill = x.fillStyle;
+    x.font = `600 ${F(basePx - 3.5)}px Inter, sans-serif`;
+    x.fillStyle = m[2][0] === "\u2605" ? "#ffd60a" : "#7f8ab8";
+    const tw = x.measureText(m[2]).width;
+    x.fillText(m[2], xr, yb);
+    x.font = prevFont; x.fillStyle = prevFill;
+    x.fillText(m[1], xr - tw - F(6), yb);
+  };
   const colH = col => col.reduce((s, [, rows]) => s + TITLE + rows.length * ROW + GAP, 0);
   const tableH = Math.max(...columns.map(colH)) + 18;
 
@@ -1289,7 +1302,8 @@ function buildExportCanvas(fscale = 1) {
           cells.forEach((c, i) => {
             x.fillStyle = rows.indexOf(cells) === 0 ? "#8b8ba3" : "#e8e8f0";
             x.textAlign = i === 0 ? "left" : "right";
-            x.fillText(c, i === 0 ? cx : cx + step * (i + 1) - 4, cy + F(6));
+            if (i === 0) x.fillText(c, cx, cy + F(6));
+            else drawValCell(c, cx + step * (i + 1) - 4, cy + F(6), fpx);
           });
         } else {
           let fpx = 12.5;               // shrink to fit: long label + long value
@@ -1301,7 +1315,7 @@ function buildExportCanvas(fscale = 1) {
           x.fillStyle = "#8b8ba3";
           x.textAlign = "left"; x.fillText(cells[0] || "", cx, cy + F(6));
           x.fillStyle = "#e8e8f0"; x.textAlign = "right";
-          x.fillText(cells[1] || "", cx + cw, cy + F(6));
+          drawValCell(cells[1] || "", cx + cw, cy + F(6), fpx);
         }
         cy += ROW;
       }
