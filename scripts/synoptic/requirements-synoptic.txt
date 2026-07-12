@@ -1,7 +1,7 @@
 # Synoptic map rendering — Python requirements.
 
 # Core scientific stack
-numpy>=1.24
+numpy>=2.5.1
 pandas>=2.0
 scipy>=1.11
 
