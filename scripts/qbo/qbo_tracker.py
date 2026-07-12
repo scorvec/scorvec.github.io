@@ -153,6 +153,15 @@ def build(mode):
         print(f"  {wmo}: {len(means)} station-months (latest {max(means, default='—')})",
               flush=True)
 
+    if not per_stn:
+        print("ERROR: zero stations fetched — refusing to overwrite qbo.json")
+        return 1
+    newest = max(max(m) for m in per_stn.values() if m)
+    if prior and prior["months"] and newest < prior["months"][-1]:
+        print(f"ERROR: fetched record ends {newest}, older than published "
+              f"{prior['months'][-1]} — refusing to regress")
+        return 1
+
     # cross-station mean per month/level
     all_months = sorted({m for s in per_stn.values() for m in s})
     if prior:
@@ -178,6 +187,7 @@ def build(mode):
         "latest": latest,
     }, separators=(",", ":")))
     print(f"wrote {OUT} ({len(all_months)} months)", flush=True)
+    return 0
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@
 <meta property="og:description" content="Time–height record of the Quasi-Biennial Oscillation built from equatorial radiosondes: Singapore, Kuala Lumpur, the Amazon chain, Micronesia. Updated weekly.">
 <meta property="og:url" content="https://scorvec.com/qbo/">
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root { --bg:#0b0b12; --panel:#11111c; --ink:#e8e8f0; --muted:#8b8ba3;
@@ -158,6 +158,10 @@ fetch("qbo.json").then(r => r.json()).then(d => {
     `the month (≥3 required); the cross-station mean currently draws on up to ` +
     `${Object.keys(latest).length} stations spanning Africa, the Maritime Continent, the western ` +
     `Pacific and the Amazon.`;
+}).catch(() => {
+  document.getElementById("cards").innerHTML =
+    '<div class="card"><div class="k">Error</div><div class="v">Data unavailable</div>' +
+    '<div class="s">qbo.json failed to load — try reloading</div></div>';
 });
 
 // ---- latest tropical mean u(p): straight from the sounding mirror ----

@@ -184,14 +184,14 @@ jobs:
              "../assets/wind_forecast_data/forecast_plant_${{ steps.cycle.outputs.compact }}.csv" \
              2>/dev/null || true
           cp output/capacity_iso_${{ steps.cycle.outputs.compact }}.csv \
-             ../assets/wind_forecast_data/ 2>/dev/null || true
+             ../assets/wind_forecast_data/ 2>/dev/null
           cp output/capacity_ba_${{ steps.cycle.outputs.compact }}.csv \
-             ../assets/wind_forecast_data/ 2>/dev/null || true
+             ../assets/wind_forecast_data/ 2>/dev/null
           # capacity_plant is a STATIC fleet snapshot — commit it under one
           # canonical (unstamped) name so git dedups it instead of storing a
           # byte-identical copy every cycle.
           cp output/capacity_plant_${{ steps.cycle.outputs.compact }}.csv \
-             ../assets/wind_forecast_data/capacity_plant.csv 2>/dev/null || true
+             ../assets/wind_forecast_data/capacity_plant.csv 2>/dev/null
           cd ../assets/wind_forecast_data
           ls -t forecast_iso_*.csv   2>/dev/null | tail -n +57 | xargs -r rm
           ls -t forecast_ba_*.csv    2>/dev/null | tail -n +57 | xargs -r rm

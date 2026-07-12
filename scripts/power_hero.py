@@ -117,9 +117,15 @@ def main() -> int:
     horizon = wind.index.max() - w0                 # actual forecast horizon (~48 h)
     lo = max(w0, s0)
     hi = min(wind.index.max(), s0 + horizon)
-    idx = pd.date_range(lo, hi, freq="h", tz="UTC")
+    if lo > hi:                                     # solar pipeline stale beyond
+        idx = pd.date_range(w0, wind.index.max(), freq="h", tz="UTC")   # overlap:
+        print("WARN: no wind/solar overlap — publishing wind-only")     # wind-only
+    else:
+        idx = pd.date_range(lo, hi, freq="h", tz="UTC")
     wind = wind.reindex(idx).interpolate(limit_area="inside")
-    solar = solar.reindex(idx).fillna(0.0)          # absent solar hour = night → 0
+    # short interior gaps are fetch hiccups, not night — interpolate up to 3 h;
+    # longer gaps (real nights, which the CSV omits) still fill with zero
+    solar = solar.reindex(idx).interpolate(limit=3, limit_area="inside").fillna(0.0)
     combined = wind + solar
 
     namep = {

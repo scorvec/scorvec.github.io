@@ -107,8 +107,16 @@ def build_dashboard(csv_path: Path,
                             aggfunc="sum")
                .sort_index())
 
-    # Add a National aggregate that sums all regions
-    pivot["National"] = pivot.sum(axis=1)
+    # Add a National aggregate that sums all regions — EXCLUDING project
+    # breakout rows (e.g. "SunZia (CAISO)"), whose generation is already
+    # inside their host ISO's total; summing both double-counted ~3 GW.
+    try:
+        from aggregation import PROJECT_BREAKOUTS
+        breakout_labels = set(PROJECT_BREAKOUTS.values())
+    except Exception:
+        breakout_labels = {c for c in pivot.columns if "(" in str(c)}
+    real_cols = [c for c in pivot.columns if c not in breakout_labels]
+    pivot["National"] = pivot[real_cols].sum(axis=1)
 
     # Order regions for nice dropdown layout
     region_cols = [c for c in pivot.columns if c != "National"]
@@ -145,7 +153,8 @@ def build_dashboard(csv_path: Path,
             # include it explicitly (it does at the iso level via run.py,
             # but be safe)
             if "National" not in capacity_lookup:
-                capacity_lookup["National"] = float(cap_df["capacity_MW"].sum())
+                cap_real = cap_df[~cap_df["region"].astype(str).isin(breakout_labels)]
+                capacity_lookup["National"] = float(cap_real["capacity_MW"].sum())
             print(f"  Loaded capacity reference for {len(capacity_lookup)} regions")
         else:
             print(f"  Warning: capacity CSV missing required columns: {capacity_csv}")

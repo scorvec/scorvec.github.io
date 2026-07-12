@@ -73,13 +73,17 @@ def parse_cycle_arg(argv) -> datetime:
 
 def fetch_field_for_hour(cycle: datetime, fxx: int, field_key: str):
     """Fetch one variable for one forecast hour. Returns DataArray or None."""
-    try:
-        H = Herbie(cycle, model="hrrr", product="sfc", fxx=fxx)
-        ds = H.xarray(HRRR_FIELDS[field_key])
-        var = list(ds.data_vars)[0]
-        return ds[var]
-    except Exception as e:
-        return None
+    import time as _t
+    for attempt in range(3):                 # S3 hiccups are transient — retry
+        try:
+            H = Herbie(cycle, model="hrrr", product="sfc", fxx=fxx)
+            ds = H.xarray(HRRR_FIELDS[field_key])
+            var = list(ds.data_vars)[0]
+            return ds[var]
+        except Exception:
+            if attempt < 2:
+                _t.sleep(8 * (attempt + 1))
+    return None
 
 
 def sample_using_indices(field, iy: np.ndarray, ix: np.ndarray) -> np.ndarray:
@@ -160,6 +164,8 @@ def main():
             fields[key] = f
         if fields is None:
             print("SKIP (one or more fields unavailable)")
+            skipped_hours = globals().setdefault("_skipped", [0])
+            skipped_hours[0] += 1
             continue
         fetch_time += time_module.time() - t0
 
@@ -209,6 +215,13 @@ def main():
         print("ERROR: no forecast rows generated")
         return 1
 
+    # a cycle with real holes must NOT be committed: the output CSV's
+    # existence is the workflow's "already done" sentinel, so a truncated
+    # cycle would never be retried even after the GRIBs land
+    if globals().get("_skipped", [0])[0] > 5:
+        print(f"ERROR: {_skipped[0]} forecast hours failed — refusing to ship "
+              "a truncated cycle; the hourly poll will retry it")
+        return 1
     forecast_path = OUTPUT_DIR / f"forecast_plant_{cycle_str}.csv"
     forecast_df.to_csv(forecast_path, index=False)
     print(f"  Wrote {len(forecast_df):,} rows → {forecast_path}")

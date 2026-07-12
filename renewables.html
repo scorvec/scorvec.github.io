@@ -295,7 +295,7 @@
       <div class="chart-card-header">
         <h2>48-Hour US Wind Generation Forecast</h2>
         <p>Wind power forecast aggregated by ISO and balancing authority, updated four times daily after each extended HRRR cycle. The dropdown lets you switch between regions or view the national total.</p>
-        <p><b>How it's built:</b> The pipeline starts from the USGS Wind Turbine Database (~75,000 turbines with coordinates, hub heights, rotor diameters, and manufacturer/model strings). For each turbine, HRRR's 10-meter and 80-meter U and V wind components are sampled at the turbine's exact lat/lon. The 10m and 80m winds are used to fit a per-turbine, per-hour power-law shear exponent (alpha = ln(ws80/ws10) / ln(8)), which captures HRRR's resolved boundary-layer stability — high alpha (~0.3–0.5) on stable nights, low alpha (~0.10–0.15) during well-mixed afternoons. That fitted shear is then used to extrapolate to each turbine's hub height. Air density is computed from HRRR's surface temperature and pressure and used to apply an IEC 61400-12 density correction.</p>
+        <p><b>How it's built:</b> The pipeline starts from the USGS Wind Turbine Database (~75,000 turbines with coordinates, hub heights, rotor diameters, and manufacturer/model strings). For each turbine, HRRR's 80-meter U and V wind components are sampled at the turbine's exact lat/lon. The 80&nbsp;m wind is extrapolated to each turbine's hub height with a 1/7 power-law shear profile (a fitted per-hour stability-dependent shear exponent is on the roadmap). Air density is computed from HRRR's surface temperature and pressure and used to apply an IEC 61400-12 density correction.</p>
         <p><b>Power curves</b> come from three tiers: a curated registry of OEM curves digitized from manufacturer datasheets (covers ~45% of US capacity, including the GE 2.x-127, GE 3.6-154, Vestas V100-V110, and Siemens SWT families), the windpowerlib oedb catalog (Vestas V126, Nordex N131, etc.), and 12 specific-power-binned NREL generic curves as a fallback. A 16% global loss factor (NREL ATB benchmark) accounts for wake, electrical, and availability losses across the fleet. The forecast represents potential deliverable generation; observed output is typically lower due to curtailment and outages not modeled here.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
@@ -444,6 +444,10 @@
       .catch(() => { $('hero-asof').textContent = 'tracker data unavailable'; });
 
     function render(d) {
+      // trust nothing baked into the JSON: if the tracker cron died, the file
+      // says stale:false forever — compare its build time to the wall clock
+      const genAge = d.generated_at ? (Date.now() - Date.parse(d.generated_at)) / 36e5 : 99;
+      if (genAge > 3 && d.now) d.now.stale = true;
       const now = d.now, np = d.nameplate, pen = now.penetration_pct;
       // gauge
       const arc = $('gauge-arc'), L = arc.getTotalLength();

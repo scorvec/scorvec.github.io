@@ -481,7 +481,7 @@ function social() {
     <div class="mini">
       <div class="q">&ldquo;${q}&rdquo;</div>
       <div class="v">${v.posts_per_hour == null ? "&mdash;" : v.posts_per_hour + "/hr"}</div>
-      <div class="s">net sentiment ${v.net_sentiment > 0 ? "+" : ""}${v.net_sentiment.toFixed(2)} &middot; ${v.n_posts} posts</div>
+      <div class="s">net sentiment ${v.net_sentiment > 0 ? "+" : ""}${(v.net_sentiment == null ? "—" : v.net_sentiment.toFixed(2))} &middot; ${v.n_posts} posts</div>
     </div>`).join("");
 }
 

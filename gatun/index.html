@@ -179,6 +179,11 @@ document.getElementById("rainlevel").src =
   "../assets/sst/gatun_rain_level.webp?v=" + new Date().toISOString().slice(0, 10);
 </script>
 <script>
+if (typeof GATUN === "undefined") {
+  document.getElementById("chips").innerHTML =
+    '<div class="chip"><div class="v">Data failed to load</div><div class="k">reload the page</div></div>';
+  throw new Error("data.js missing");
+}
 const G = GATUN;
 const CFG = {displayModeBar: false, responsive: true};
 const MOBILE = innerWidth < 640;         // tighter type, fewer ticks on phones
@@ -209,7 +214,7 @@ function oniColor(a, alpha) {
   }
   return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
 }
-const doyDate = i => { const d = new Date(Date.UTC(2024, 0, 1 + i)); return d.toISOString().slice(0, 10); };
+const doyDate = i => { const d = new Date(Date.UTC(2023, 0, 1 + i)); return d.toISOString().slice(0, 10); };
 const DOYS = Array.from({length: 366}, (_, i) => doyDate(i));
 
 // ---------------- stat chips ----------------

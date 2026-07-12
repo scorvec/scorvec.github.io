@@ -40,6 +40,10 @@
     "assets/solar_forecast_data": {
       "branch": "main",
       "max_age_hours": 36
+    },
+    "assets/power_data": {
+      "branch": "main",
+      "max_age_hours": 6
     }
   }
 }
