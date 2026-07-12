@@ -743,7 +743,6 @@ async function drawClimoDist(key) {
   const cv = document.getElementById("climo-hist"), x = cv.getContext("2d");
   x.clearRect(0, 0, cv.width, cv.height);
   if (!current || !current.gid || lastDoy === null) { note.textContent = ""; return; }
-  if (!igraKeyVal(() => null, key) === null) {}
   if (["pwat", "fzl", "ecape", "ship"].includes(key)) {
     note.textContent = "distribution view: not available for this variable"; return;
   }
