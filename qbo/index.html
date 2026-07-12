@@ -76,7 +76,7 @@
     <div id="series" style="height:300px"></div>
   </div>
   <div class="panel">
-    <h2>Latest tropical mean zonal wind profile <span id="prof-when" style="color:var(--muted); font-size:0.75rem; font-weight:400"></span></h2>
+    <h2>Latest tropical mean zonal wind profile (100–10 hPa) <span id="prof-when" style="color:var(--muted); font-size:0.75rem; font-weight:400"></span></h2>
     <div id="prof" style="height:420px"></div>
   </div>
   <div class="panel">
@@ -165,7 +165,7 @@ fetch("qbo.json").then(r => r.json()).then(d => {
 const MIRROR = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-data/soundings/";
 const PROF_STNS = ["48650", "96441", "91334", "91348", "91413", "82022", "82099",
                    "82107", "82244", "82332", "82411", "96996", "91376"];
-const GRID = [1000, 925, 850, 700, 500, 400, 300, 250, 200, 150, 100, 70, 50, 30, 20, 15, 10];
+const GRID = [100, 80, 70, 60, 50, 40, 30, 25, 20, 15, 10];
 Promise.all(PROF_STNS.map(id => fetch(MIRROR + id + ".csv")
   .then(r => r.ok ? r.text() : null).catch(() => null)))
 .then(texts => {
@@ -209,8 +209,8 @@ Promise.all(PROF_STNS.map(id => fetch(MIRROR + id + ".csv")
     xaxis: { title: "zonal wind u (m/s)", gridcolor: "#23233a", zerolinecolor: "#3d5a8f",
              zerolinewidth: 1.5 },
     yaxis: { title: "hPa", type: "log", autorange: "reversed", gridcolor: "#23233a",
-             tickvals: [1000, 700, 500, 300, 200, 100, 50, 30, 10],
-             ticktext: ["1000", "700", "500", "300", "200", "100", "50", "30", "10"] },
+             tickvals: [100, 70, 50, 30, 20, 15, 10],
+             ticktext: ["100", "70", "50", "30", "20", "15", "10"] },
     showlegend: false,
   };
   const traces = perStn.map(s => ({
