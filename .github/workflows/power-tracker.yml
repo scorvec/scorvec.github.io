@@ -41,7 +41,7 @@ jobs:
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "power tracker: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do
-            if git pull --rebase --autostash -X ours && git push; then echo "pushed (attempt $i)"; exit 0; fi
+            if git pull --rebase --autostash -X theirs && git push; then echo "pushed (attempt $i)"; exit 0; fi
             echo "push attempt $i failed; retrying…"; sleep 5
           done
           echo "ERROR: could not push after 5 attempts." >&2; exit 1

@@ -603,7 +603,11 @@ def main() -> int:
     print("Monthly means:", flush=True)
     months = run_monthly()
     print("IMERG precip anomaly:", flush=True)
-    imerg_day = run_imerg()
+    try:
+        imerg_day = run_imerg()
+    except Exception as e:  # noqa: BLE001 — IMERG is optional; ERA5 must publish
+        print(f"  IMERG FAILED (continuing without precip): {e}", flush=True)
+        imerg_day = None
     ASSETS.mkdir(parents=True, exist_ok=True)
     write_monthly_manifest()
     (ASSETS / "manifest.json").write_text(json.dumps({

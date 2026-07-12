@@ -89,7 +89,7 @@ def main():
 <meta property="og:title" content="MJO Forecast — AIFS-ENS RMM">
 <meta property="og:description" content="Real-time MJO (RMM) phase-space forecast from the ECMWF AIFS-ENS ensemble.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://scorvec.com/mjo.html">
+<link rel="canonical" href="https://scorvec.com/mjo.html">\n<link rel="icon" href="/favicon.svg" type="image/svg+xml">\n<meta property="og:url" content="https://scorvec.com/mjo.html">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}

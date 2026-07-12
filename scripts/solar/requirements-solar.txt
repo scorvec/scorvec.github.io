@@ -3,7 +3,7 @@
 
 # Core scientific stack
 numpy>=1.24
-pandas>=2.0
+pandas>=2.0,<4
 scipy>=1.11
 pytz  # gridstatus pins this; pvlib uses it for timezone handling
 
@@ -11,10 +11,10 @@ pytz  # gridstatus pins this; pvlib uses it for timezone handling
 xarray>=2023.0
 cfgrib>=0.9.10
 eccodes>=1.6
-herbie-data>=2024.0.0
+herbie-data>=2024.0.0,<2027
 
 # Solar physics — sun position, tracker geometry, POA irradiance, PVWatts
-pvlib>=0.10
+pvlib>=0.10,<1
 
 # Web/data
 requests>=2.31
