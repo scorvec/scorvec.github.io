@@ -1095,9 +1095,10 @@ document.getElementById("anom-toggle").addEventListener("click", () => {
 });
 
 // ---- PNG export: skew-T + hodograph on one branded card ----
-function buildExportCanvas() {
+function buildExportCanvas(fscale = 1) {
   const sk = document.getElementById("skewt"), ho = document.getElementById("hodo");
-  const pad = 24, foot = 54;
+  const F = n => Math.round(n * fscale);
+  const pad = F(24), foot = F(54);
 
   // The indices live in HTML tables, so the export re-typesets them from the
   // DOM — whatever is on screen (pairings, percentile tags, records) is exactly
@@ -1111,7 +1112,7 @@ function buildExportCanvas() {
     [["Thermo & moisture", grab("kin-table2")]],
     [["Levels", grab("kin-table3")]],
   ];
-  const ROW = 19, TITLE = 30, GAP = 10;
+  const ROW = F(19), TITLE = F(30), GAP = F(10);
   const colH = col => col.reduce((s, [, rows]) => s + TITLE + rows.length * ROW + GAP, 0);
   const tableH = Math.max(...columns.map(colH)) + 18;
 
@@ -1127,7 +1128,7 @@ function buildExportCanvas() {
   // typeset the index columns
   const tTop = Math.max(sk.height, ho.height) + pad * 2;
   x.strokeStyle = "#23233a";
-  x.beginPath(); x.moveTo(pad, tTop - 8); x.lineTo(W - pad, tTop - 8); x.stroke();
+  x.beginPath(); x.moveTo(pad, tTop - F(8)); x.lineTo(W - pad, tTop - F(8)); x.stroke();
   const weights = [1.35, 1, 1, 1.05, 0.95];
   const totalW = W - pad * 2, wSum = weights.reduce((a, b) => a + b, 0);
   let cx = pad;
@@ -1135,24 +1136,24 @@ function buildExportCanvas() {
     const cw = totalW * weights[ci] / wSum - 14;
     let cy = tTop + 8;
     for (const [title, rows] of col) {
-      x.fillStyle = "#c8c8dc"; x.font = "600 15px Lora, Georgia, serif";
+      x.fillStyle = "#c8c8dc"; x.font = `600 ${F(15)}px Lora, Georgia, serif`;
       x.textAlign = "left";
-      x.fillText(title, cx, cy + 12);
+      x.fillText(title, cx, cy + F(12));
       cy += TITLE;
       for (const cells of rows) {
         if (cells.length > 2) {                       // the wide parcels grid
           const step = cw / cells.length;
           cells.forEach((c, i) => {
             x.fillStyle = rows.indexOf(cells) === 0 ? "#8b8ba3" : "#e8e8f0";
-            x.font = "12.5px Inter, sans-serif";
+            x.font = `${F(12.5)}px Inter, sans-serif`;
             x.textAlign = i === 0 ? "left" : "right";
-            x.fillText(c, i === 0 ? cx : cx + step * (i + 1) - 4, cy + 6);
+            x.fillText(c, i === 0 ? cx : cx + step * (i + 1) - 4, cy + F(6));
           });
         } else {
-          x.fillStyle = "#8b8ba3"; x.font = "12.5px Inter, sans-serif";
-          x.textAlign = "left"; x.fillText(cells[0] || "", cx, cy + 6);
+          x.fillStyle = "#8b8ba3"; x.font = `${F(12.5)}px Inter, sans-serif`;
+          x.textAlign = "left"; x.fillText(cells[0] || "", cx, cy + F(6));
           x.fillStyle = "#e8e8f0"; x.textAlign = "right";
-          x.fillText(cells[1] || "", cx + cw, cy + 6);
+          x.fillText(cells[1] || "", cx + cw, cy + F(6));
         }
         cy += ROW;
       }
@@ -1161,12 +1162,12 @@ function buildExportCanvas() {
     cx += totalW * weights[ci] / wSum;
   });
 
-  x.fillStyle = "#64d2ff"; x.font = "700 26px Inter, sans-serif";
+  x.fillStyle = "#64d2ff"; x.font = `700 ${F(26)}px Inter, sans-serif`;
   x.textAlign = "left";
-  x.fillText("scorvec.com/skewt", pad, H - 20);
-  x.fillStyle = "#8b8ba3"; x.font = "20px Inter, sans-serif";
+  x.fillText("scorvec.com/skewt", pad, H - F(20));
+  x.fillStyle = "#8b8ba3"; x.font = `${F(20)}px Inter, sans-serif`;
   x.textAlign = "right";
-  x.fillText(plotTitle, W - pad, H - 20);
+  x.fillText(plotTitle, W - pad, H - F(20));
   return cv;
 }
 // Full-resolution card: re-render the UN-thinned profile onto oversized
@@ -1175,11 +1176,11 @@ function buildExportCanvas() {
 function buildFullCard() {
   const keep = lastProf;
   try {
-    EXPORT_PX = { skewt: { w: 1150, h: 1750 }, hodo: { w: 950, h: 950 },
-                  mse: { w: 950, h: 560 } };
+    EXPORT_PX = { skewt: { w: 1150, h: 1750, fs: 1.5 }, hodo: { w: 950, h: 950, fs: 1.5 },
+                  mse: { w: 950, h: 560, fs: 1.5 } };
     BARB_GAP = 10;
     render(lastProfFull || keep);
-    return buildExportCanvas();
+    return buildExportCanvas(1.5);
   } finally {
     EXPORT_PX = null; BARB_GAP = 22;
     render(keep);
@@ -1990,10 +1991,21 @@ function fillDewpoints(prof) {
 
 function fitCanvas(cv) {                    // backing store = panel size × dpr
   if (typeof EXPORT_PX !== "undefined" && EXPORT_PX && EXPORT_PX[cv.id]) {
-    const { w, h } = EXPORT_PX[cv.id];      // full-res export: fixed big canvas
+    const { w, h, fs } = EXPORT_PX[cv.id];  // full-res export: fixed big canvas
     cv.width = w; cv.height = h;
-    const ctx = cv.getContext("2d");
+    let ctx = cv.getContext("2d");
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    // the draw code sets fonts in px sized for the ~800px on-screen canvas —
+    // scale every font (and gently, line widths) so the big card stays legible
+    if (fs && fs !== 1) ctx = new Proxy(ctx, {
+      get(tg, k) { const v = tg[k]; return typeof v === "function" ? v.bind(tg) : v; },
+      set(tg, k, val) {
+        if (k === "font" && typeof val === "string")
+          val = val.replace(/(\d+(?:\.\d+)?)px/, (m, n) => (parseFloat(n) * fs).toFixed(1) + "px");
+        else if (k === "lineWidth") val = val * Math.sqrt(fs);
+        tg[k] = val; return true;
+      },
+    });
     return { W: w, H: h, ctx };
   }
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
