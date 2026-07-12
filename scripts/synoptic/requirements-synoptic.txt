@@ -2,7 +2,7 @@
 
 # Core scientific stack
 numpy>=1.24
-pandas>=2.0
+pandas>=3.0.3
 scipy>=1.11
 
 # HRRR fetch
