@@ -1646,7 +1646,10 @@ function parseIGRA(text, gid, ymd, wantHour, elev) {
   }
   thermo.sort((a, b) => b.p - a.p);
   winds.sort((a, b) => b.p - a.p);
-  const windOnly = thermo.length < 8;
+  // "wind-only" means genuinely no usable thermo — NOT "coarse". 1960s marine
+  // records (ships, buoy sites) carry 5-7 mandatory-level temperatures and the
+  // old <8 cutoff threw them away (Environm Buoy 44005, 1963-09-30 00Z).
+  const windOnly = thermo.length < 3;
   if (windOnly && winds.length < 4) return null;
   const windAtP = p => {
     if (!winds.length) return { u: 0, v: 0 };
@@ -1689,7 +1692,9 @@ function parseIGRA(text, gid, ymd, wantHour, elev) {
     out.P.push(lv.p); out.H.push(Hm); out.T.push(lv.T); out.D.push(lv.D);
     out.U.push(w.u); out.V.push(w.v);
   }
-  return out.P.length >= 8 ? { prof: out, hh: best.hh, nWind: winds.length } : null;
+  // 1960s marine soundings are mandatory-levels-only — 5-7 levels is a real
+  // profile, not noise. Require just enough for SHARPlib to work with.
+  return out.P.length >= 4 ? { prof: out, hh: best.hh, nWind: winds.length } : null;
 }
 
 let loadSeq = 0;
