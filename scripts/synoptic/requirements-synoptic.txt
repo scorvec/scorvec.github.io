@@ -3,7 +3,7 @@
 # Core scientific stack
 numpy>=1.24
 pandas>=2.0
-scipy>=1.11
+scipy>=1.18.0
 
 # HRRR fetch
 xarray>=2023.0
