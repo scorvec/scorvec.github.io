@@ -900,7 +900,17 @@ function ageHours(dt) {
   const ms = Date.parse(dt.replace(" ", "T") + ":00Z");
   return isFinite(ms) ? (Date.now() - ms) / 3600e3 : Infinity;
 }
-const LIVE_H = 24;                       // "recent" must actually mean recent
+// Blue = reported at the most recent DUE regular slot (00Z or 12Z). A slot
+// becomes due 2.5 h after its nominal time (balloons take ~2 h to reach the
+// archive); 1.2 h of slack below covers early releases stamped before the
+// nominal hour. Hours since that due slot:
+function dueAgeH() {
+  const slot = 43200e3, grace = 2.5 * 3600e3;
+  const now = Date.now();
+  let tdue = Math.floor(now / slot) * slot;
+  if (now - tdue < grace) tdue -= slot;
+  return (now - tdue) / 3600e3;
+}
 // A launch outside the 00Z/12Z routine is usually a SPECIAL release — an extra
 // sounding fired ahead of severe weather or to sample a fast-evolving system —
 // so it's worth spotting on the map rather than blending in with the synoptic
@@ -1100,8 +1110,9 @@ Promise.all([
   // A station sits in the mirror manifest for up to 96 h (retention for the
   // per-launch archive), so "in the manifest" is NOT the same as "reported
   // recently" — Glasgow showed as live on a launch 36 h old. Live means it
-  // actually reported inside LIVE_H.
-  const isLive = id => id && entries[id] && ageHours(entries[id].dt) <= LIVE_H;
+  // reported at the last regular interval (00Z/12Z).
+  const isLive = id => id && entries[id] &&
+    ageHours(entries[id].dt) <= dueAgeH() + 1.2;
 
   // closed stations: archive-only, hidden behind the toggle. Single-year
   // records are one-off pilot-balloon campaigns (63 of them) — map clutter
@@ -1115,8 +1126,8 @@ Promise.all([
     m.bindTooltip(`${s.n} (${s.gid}) · closed ${s.y0}–${s.y1} — click for archive`);
     m.on("click", () => { setMode("archive"); highlight(m); selectStation(s); });
   }
-  // active stations with no RECENT launch: small teal (includes stations still
-  // carried in the manifest but whose newest sounding is older than LIVE_H)
+  // active stations that missed the last regular slot: small teal (includes
+  // stations still in the manifest whose newest sounding is older than that)
   for (const s of stns.stations) {
     if (s.y1 < ACTIVE_YEAR || isLive(s.id)) continue;
     const stale = s.id && entries[s.id] ? entries[s.id].dt : null;
@@ -1125,10 +1136,10 @@ Promise.all([
     }).addTo(map);
     m.bindTooltip(stale
       ? `${s.n} (${s.gid}) · last sounding ${stale}Z (${Math.round(ageHours(stale))} h ago) — click for archive`
-      : `${s.n} (${s.gid}) · no launch in last ${LIVE_H} h — click for archive (${s.y0}–${s.y1})`);
+      : `${s.n} (${s.gid}) · nothing at the last regular interval — click for archive (${s.y0}–${s.y1})`);
     m.on("click", () => { highlight(m); selectStation(s); });
   }
-  // stations that actually reported within LIVE_H: big blue, on top
+  // stations that reported at the last regular interval: big blue, on top
   for (const [id, s] of Object.entries(entries)) {
     if (!isLive(id)) continue;                    // stale carry-forward: not live
     const ig = igraStations[byWmo[id]];
@@ -1361,7 +1372,7 @@ legend.onAdd = () => {
   div.className += " maplegend";
   div.innerHTML =
     '<span class="leg-chip" title="legend">ⓘ&nbsp;key</span><div class="leg-body">' +
-    '<span style="color:#4a7ab5;font-size:1.05em">●</span> reported in last 24 h<br>' +
+    '<span style="color:#4a7ab5;font-size:1.05em">●</span> reported at last regular interval (00Z/12Z)<br>' +
     '<span style="color:#bf5af2;font-size:1.05em">●</span> off-hour (06/18Z)<br>' +
     '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp;&nbsp;' +
     '<span style="color:#c0392b;font-size:1.05em">●</span> closed<br>' +
