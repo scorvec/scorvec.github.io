@@ -16,7 +16,7 @@ matplotlib>=3.7
 cartopy>=0.22
 shapely>=2.0
 pyproj>=3.5
-pyshp>=2.3
+pyshp>=3.1.4
 
 # Image-format helpers
 Pillow>=10.0
