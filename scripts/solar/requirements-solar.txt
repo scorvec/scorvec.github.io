@@ -4,7 +4,7 @@
 # Core scientific stack
 numpy>=1.24
 pandas>=2.0,<4
-scipy>=1.11
+scipy>=1.18.0
 pytz  # gridstatus pins this; pvlib uses it for timezone handling
 
 # Geospatial / GRIB
