@@ -65,6 +65,7 @@ function openClimo() {
     `${current.n || current.gid} · climatology`;
   climoModal.hidden = false;
   drawClimo(sel.value);
+  drawClimoDist(sel.value);
 }
 function drawClimo(key) {
   const meta = CLIMO_VARS.find(v => v[0] === key) || [key, key, ""];
@@ -679,7 +680,127 @@ document.getElementById("fog-modal").addEventListener("click", e => {
 });
 
 document.getElementById("climo-btn").addEventListener("click", openClimo);
-document.getElementById("climo-var").addEventListener("change", e => drawClimo(e.target.value));
+document.getElementById("climo-var").addEventListener("change", e => {
+  drawClimo(e.target.value); drawClimoDist(e.target.value);
+});
+
+// ---- distribution on this date, same synoptic hour ----
+// The shipped climo pools 00Z and 12Z; for a histogram you compare ONE
+// sounding against, mixing hours smears diurnal signal. Extract the same-hour
+// +/-10-day sample from the period-of-record text (cached once per station).
+function igraKeyVal(get, key) {
+  const sl = pa => get(pa);
+  const t85 = sl(85000), t70 = sl(70000), t50 = sl(50000);
+  switch (key) {
+    case "850t": return t85 && t85.t;
+    case "850td": return t85 && t85.d;
+    case "700t": return t70 && t70.t;
+    case "700td": return t70 && t70.d;
+    case "500t": return t50 && t50.t;
+    case "h500": return t50 && t50.z;
+    case "thick": { const b = sl(100000);
+      return (t50 && b && t50.z !== null && b.z !== null) ? t50.z - b.z : null; }
+    case "kidx": return (t85 && t70 && t50 && [t85.t, t85.d, t70.t, t70.d, t50.t].every(v => v !== null))
+      ? t85.t - t50.t + t85.d - (t70.t - t70.d) : null;
+    case "tott": return (t85 && t50 && [t85.t, t85.d, t50.t].every(v => v !== null))
+      ? t85.t + t85.d - 2 * t50.t : null;
+    default: return null;
+  }
+}
+function climoDistSamples(text, key, doyC, hour) {
+  const out = [];
+  let keep = false, levs = null;
+  const flush = () => {
+    if (!levs) return;
+    const get = pa => levs.get(pa) || null;
+    const v = igraKeyVal(get, key);
+    if (v !== null && isFinite(v)) out.push(v);
+  };
+  for (const line of text.split("\n")) {
+    if (line[0] === "#") {
+      if (keep) flush();
+      keep = false; levs = null;
+      const mo = +line.slice(18, 20), dy = +line.slice(21, 23), hr = +line.slice(24, 26);
+      if (hr !== hour || !mo) continue;
+      let d = Math.abs(doyOf(`2001-${String(mo).padStart(2, "0")}-${String(dy).padStart(2, "0")}`) - doyC);
+      d = Math.min(d, 365 - d);
+      if (d <= 10) { keep = true; levs = new Map(); }
+    } else if (keep) {
+      const pa = +line.slice(9, 15);
+      if (![100000, 85000, 70000, 50000].includes(pa)) continue;
+      const iv2 = (a, b) => { const v = parseInt(line.slice(a, b)); return (!isFinite(v) || v <= -8888) ? null : v; };
+      const tt = iv2(22, 27), dpdp = iv2(34, 39), gph = iv2(16, 21);
+      levs.set(pa, { t: tt !== null ? tt / 10 : null,
+        d: (tt !== null && dpdp !== null) ? (tt - dpdp) / 10 : null,
+        z: gph });
+    }
+  }
+  if (keep) flush();
+  return out;
+}
+async function drawClimoDist(key) {
+  const note = document.getElementById("climo-hist-note");
+  const cv = document.getElementById("climo-hist"), x = cv.getContext("2d");
+  x.clearRect(0, 0, cv.width, cv.height);
+  if (!current || !current.gid || lastDoy === null) { note.textContent = ""; return; }
+  if (!igraKeyVal(() => null, key) === null) {}
+  if (["pwat", "fzl", "ecape", "ship"].includes(key)) {
+    note.textContent = "distribution view: not available for this variable"; return;
+  }
+  if (!igraCache.has(current.gid + ":por")) {
+    note.innerHTML = `<button id="climo-dist-load">load this station's full record to see ` +
+      `the distribution on this date (tens of MB, cached)</button>`;
+    document.getElementById("climo-dist-load").onclick = async () => {
+      note.textContent = "downloading period of record…";
+      try { await igraText(current.gid, 1900); } catch (e) { note.textContent = "download failed"; return; }
+      drawClimoDist(document.getElementById("climo-var").value);
+    };
+    return;
+  }
+  const text = igraCache.get(current.gid + ":por");
+  const hour = lastHourZ === 0 ? 0 : 12;
+  const vals = climoDistSamples(text, key, lastDoy, hour);
+  if (vals.length < 30) { note.textContent = `only ${vals.length} same-hour soundings in the window`; return; }
+  const cur = (() => {
+    if (!lastProf) return NaN;
+    const get = pa => {
+      const tK = interpP(lastProf, "T", pa), dK = interpP(lastProf, "D", pa);
+      const z = interpP(lastProf, "H", pa);
+      return { t: isFinite(tK) ? tK - 273.15 : null, d: isFinite(dK) ? dK - 273.15 : null,
+               z: isFinite(z) ? z : null };
+    };
+    const v = igraKeyVal(get, key);
+    return v === null ? NaN : v;
+  })();
+  vals.sort((a, b) => a - b);
+  const lo = vals[0], hi = vals[vals.length - 1], span = Math.max(hi - lo, 1e-6);
+  const NB = 24, bins = new Array(NB).fill(0);
+  for (const v of vals) bins[Math.min(NB - 1, Math.floor((v - lo) / span * NB))]++;
+  const W = cv.width, H = cv.height, L = 66, R = 22, T = 16, B = 40;
+  const bw = (W - L - R) / NB, peak = Math.max(...bins);
+  x.fillStyle = "rgba(100,170,255,0.55)";
+  bins.forEach((c, i) => {
+    const h = c / peak * (H - T - B);
+    x.fillRect(L + i * bw + 1, H - B - h, bw - 2, h);
+  });
+  x.strokeStyle = "#3a3a5c"; x.strokeRect(L, T, W - L - R, H - T - B);
+  x.fillStyle = "#8b8ba3"; x.font = "20px Inter"; x.textAlign = "center";
+  for (let i = 0; i <= 4; i++) {
+    const v = lo + span * i / 4;
+    x.fillText(v.toFixed(Math.abs(span) > 20 ? 0 : 1), L + (W - L - R) * i / 4, H - B + 26);
+  }
+  if (isFinite(cur)) {
+    const cx = L + Math.max(0, Math.min(1, (cur - lo) / span)) * (W - L - R);
+    x.strokeStyle = "#ffd60a"; x.lineWidth = 3;
+    x.beginPath(); x.moveTo(cx, T); x.lineTo(cx, H - B); x.stroke();
+    const below = vals.filter(v => v < cur).length;
+    note.textContent = `distribution of ${vals.length} soundings at ${String(hour).padStart(2, "0")}Z ` +
+      `within ±10 days of this date · current value (yellow) sits at P${Math.round(100 * below / vals.length)} ` +
+      `of the same-hour sample`;
+  } else {
+    note.textContent = `distribution of ${vals.length} soundings at ${String(hour).padStart(2, "0")}Z within ±10 days of this date`;
+  }
+}
 document.getElementById("climo-close").addEventListener("click", () => climoModal.hidden = true);
 climoModal.addEventListener("click", e => { if (e.target === climoModal) climoModal.hidden = true; });
 document.addEventListener("keydown", e => {
