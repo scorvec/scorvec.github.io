@@ -224,8 +224,12 @@ function fogModelProbs(prof) {
 }
 function fogRows(prof) {
   const T0 = prof.T[0] - 273.15, D0 = prof.D[0] - 273.15;
+  if (!isFinite(T0) || !isFinite(D0))
+    return [["Fog panel", "needs temperature and dewpoint — wind-only sounding"]];
   const spd0 = Math.hypot(prof.U[0], prof.V[0]) * KT;
-  const t850 = interpP(prof, "T", 85000), w850u = null;
+  // FSI needs a real 850 level: at high-elevation stations interpP falls back
+  // to the surface value for "850", which would fabricate the index
+  const t850 = prof.P[0] > 87000 ? interpP(prof, "T", 85000) : NaN;
   const w8 = windAt(prof, Math.max(100, (interpHagl(prof, 85000) ?? 1500)));
   const v850 = w8 ? Math.hypot(w8[0], w8[1]) * KT : NaN;
   const fsi = (isFinite(t850)) ? 4 * T0 - 2 * ((t850 - 273.15) + D0) + v850 : NaN;
@@ -264,7 +268,7 @@ function fogRows(prof) {
     ["Sfc T − Td", `${(T0 - D0).toFixed(1)} °C ${(T0 - D0) <= 2.5 ? "(near saturation)" : ""}`],
     ["Fog point (sfc Td)", `${D0.toFixed(1)} °C — cool ${(T0 - D0).toFixed(1)} °C to saturate`],
     ["If sfc cools to saturation", deposit],
-    ["Surface wind", `${spd0.toFixed(0)} kt`],
+    ["Surface wind", isFinite(spd0) ? `${spd0.toFixed(0)} kt` : "—"],
     ["Bulk Richardson", riTxt],
     ["Sfc inversion", invTop ? `yes — top ${Math.round(invTop)} m, +${invDT.toFixed(1)} °C` : "none detected"],
     ["Mean RH lowest 60 hPa", isFinite(rh500) ? rh500.toFixed(0) + " %" : "—"],
@@ -477,6 +481,8 @@ function estCeiling(res) {
 }
 function cloudRows(res) {
   const fz = z => `${Math.round(z)} m / ${(z * 3.28084 / 1000).toFixed(1)} kft`;
+  if (res.levs.length < 3)
+    return [["Cloud layers", "needs temperature and dewpoint — no moisture profile"]];
   if (!res.layers.length)
     return [["Cloud layers", "none detected — column subsaturated at every level"]];
   const rows = [];
