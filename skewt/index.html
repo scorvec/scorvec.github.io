@@ -242,19 +242,7 @@
       <table class="params kin" id="cloud-table" style="font-size:0.92rem"></table>
     </div>
     <p class="note" style="color:var(--muted); font-size:0.75rem; margin-top:8px">
-      Cloud layers estimated from relative humidity — with respect to <b>ice</b> below 0 °C, where
-      deposition saturates before water saturation. A level is counted as cloudy above an RH threshold of 85% below
-      2 km and 80% aloft — <b>calibrated against 49,259 METAR-verified cloud bases</b> at the same
-      stations as the fog model (detection rate 77% of reported broken/overcast bases). Coverage is the
-      column's weak point — even a saturated layer verifies as a broken/overcast ceiling only
-      ~77% of the time in the training data, so the ceiling estimate carries its empirical
-      confidence and coverage labels are deliberately hedged;
-      adjacent cloudy levels merge into layers. The dashed teal band is the <b>dendritic growth
-      zone</b> (−12 to −18 °C) — a cloud layer intersecting it produces snow efficiently.
-      Boxes are colored by phase regime — white above 0 °C (liquid), cyan 0 to −20 °C
-      (supercooled — the aircraft icing range, also flagged in the table), violet below −20 °C
-      (ice-dominated). This is an estimate from a single profile — thin or broken cloud between
-      sounding levels can be missed.</p>
+      Layers from RH (wrt ice below 0 °C), calibrated on 49,259 METAR cloud bases; teal band = dendritic growth zone (−12 to −18 °C). Method in the <a href="methodology.html#fog" target="_blank">methodology</a>.</p>
   </div>
 </div>
 
@@ -271,23 +259,7 @@
       <table class="params kin" id="fog-table" style="font-size:0.92rem"></table>
     </div>
     <p class="note" style="color:var(--muted); font-size:0.75rem; margin-top:8px">
-      The probabilities at top are <b>empirical</b>: logistic models trained on 87,568
-      sounding\u2013METAR pairs at 14 co-located stations (13 US + Buenos Aires, 2006\u20132025),
-      predicting what the airport actually reported within \u00b145 min of launch. Station-held-out
-      AUC 0.89 (fog) / 0.92 (stratus) \u2014 the dominant predictors are peak RH below 500 m,
-      surface RH, dewpoint depression and LCL height. They describe conditions <b>at sounding
-      time</b>, not a forecast. BUFKIT-style nocturnal screening from this sounding. FSI = 4·T<sub>sfc</sub> −
-      2·(T<sub>850</sub>+Td<sub>sfc</sub>) + V<sub>850</sub>(kt): &lt;31 high fog risk, 31–55 moderate,
-      &gt;55 low. Radiation fog favors a small surface dewpoint depression, a surface-based
-      inversion, and moist air trapped beneath it. The <b>bulk Richardson number</b> over the lowest
-      resolved layer weighs buoyant suppression against shear production of turbulence: above the
-      ~0.25 critical value the surface layer is dynamically stable and decoupled, so radiative
-      cooling and moisture stay trapped near the ground; below it, mechanical mixing distributes
-      the cooling through a deeper layer (or, if too vigorous, prevents saturation entirely).
-      Whether <b>dew or frost</b>
-      forms depends on the dewpoint: above freezing it's dew; below, deposition occurs at the
-      <b>frost point</b> (ice saturation), which sits above the dewpoint — so frost needs less
-      cooling than the dewpoint alone suggests.</p>
+      Probabilities are empirical (87,568 sounding–METAR pairs); FSI, bulk Richardson, frost point and the dew/frost logic are explained in the <a href="methodology.html#fog" target="_blank">methodology</a>.</p>
   </div>
 </div>
 
