@@ -253,6 +253,23 @@ def build_station(gid: str, outdir: Path) -> bool:
         ok = np.isfinite(vals)
         if ok.sum() < 20:
             continue
+        # Robust QC: one corrupt sounding must not set a record envelope
+        # (seen: a -40 C spike in a tropical station whose real record low
+        # was -9). Reject values beyond 3x the distribution's own tail span
+        # past the 1st/99th percentile -- scales with the tail, so genuine
+        # records (heavy Td dry tails etc.) survive. ecape/ship excluded:
+        # zero-inflated distributions make any quantile fence meaningless.
+        if k not in ("ecape", "ship"):
+            p1, p50, p99 = np.percentile(vals[ok], [1, 50, 99])
+            lo = p1 - 3.0 * max(p50 - p1, 1.0)
+            hi = p99 + 3.0 * max(p99 - p50, 1.0)
+            bad = ok & ((vals < lo) | (vals > hi))
+            if bad.any():
+                print(f"  {gid} {k}: QC rejected {int(bad.sum())} "
+                      f"(kept [{lo:.0f},{hi:.0f}])", flush=True)
+                ok = ok & ~bad
+                if ok.sum() < 20:
+                    continue
         n_l, p_l, mn_l, mx_l, mnY_l, mxY_l = [], [], [], [], [], []
         for a in DOY:
             d = np.abs(doy - a)
@@ -291,8 +308,15 @@ def main() -> int:
         stns = args
     todo = []
     ok = 0
+    reagg = os.environ.get("CLIMO_REAGG") == "1"
     for gid in stns:
         fp = outdir / f"{gid}.json"
+        if reagg:
+            # re-aggregate from the per-sounding cache only (post-hoc QC pass);
+            # stations without a cache are left to the normal build
+            if (CACHE / f"{gid}.npz").exists():
+                todo.append(gid)
+            continue
         if fp.exists():
             try:
                 have = json.loads(fp.read_text())
