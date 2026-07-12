@@ -1,0 +1,32 @@
+name: skewt-gaps
+on:
+  schedule:
+    - cron: "40 8 * * 2,5"      # Tue+Fri 08:40 UTC (IGRA y2d lags ~2 days)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: skewt-gaps
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Rebuild US sounding gap record
+        run: python scripts/skewt/sounding_gaps.py
+      - name: Commit if changed
+        run: |
+          git config user.name "gaps-bot"
+          git config user.email "actions@github.com"
+          git add skewt/gaps.json
+          git diff --cached --quiet && echo "no change" && exit 0
+          git commit -m "US sounding gap report: update"
+          git pull --rebase origin main
+          git push origin main

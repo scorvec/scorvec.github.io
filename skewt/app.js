@@ -1685,9 +1685,14 @@ async function loadSounding() {
     // real-time first: SPC (fastest US), then IEM (US/Canada, more levels)
     if (current.id && iemMap && iemMap[current.id]) {
       setStatus("fetching real-time sounding…", true);
-      const got = await fetchSPC(current.id).catch(() => null)
+      let got = await fetchSPC(current.id).catch(() => null)
         || await fetchIEM(current.id).catch(() => null);
       if (stale()) return;
+      // SPC/IEM walk back up to 3 slots when the newest is missing on their
+      // side — never let that beat a NEWER launch already on the mirror
+      // (Chanhassen 2026-07-12 00Z: SPC 404'd it, walked back to 12Z 07-11,
+      // and won over the mirror's 00Z).
+      if (got && s && s.dt && s.dt > got.valid) got = null;
       if (got) {
         setStatus(`valid ${got.valid}Z · ${got.prof.P.length} levels (${got.src})`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${got.valid}Z`.trim();
