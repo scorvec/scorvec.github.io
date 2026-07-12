@@ -9,7 +9,7 @@ pytz  # gridstatus pins this; pvlib uses it for timezone handling
 
 # Geospatial / GRIB
 xarray>=2023.0
-cfgrib>=0.9.10
+cfgrib>=0.9.15.1
 eccodes>=1.6
 herbie-data>=2024.0.0
 
