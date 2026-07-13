@@ -57,6 +57,15 @@ def main() -> None:
 
     # 2. Compute wind-only RMM, filtered by the committed 120-day map
     mean120 = recent_analysis.load_map120()
+    # The map drifts <1%/day so a week of staleness is by design (ARCO lag +
+    # refresh cadence) — but a silently frozen filter slowly re-admits the
+    # ENSO signal into RMM. Surface it where CI annotations pick it up.
+    if mean120.get("window_end"):
+        stale = (init - pd.Timestamp(mean120["window_end"])).days
+        if stale > 14:
+            print(f"::warning::wind_map120.nc window ends {mean120['window_end']} "
+                  f"({stale} days before init) — low-frequency filter is stale; "
+                  "check the map120 refresh job")
     print("Computing RMM …")
     rmm = compute_rmm(Path("data/aifs"), args.date, args.time, clim, eofs,
                       mean120=mean120)

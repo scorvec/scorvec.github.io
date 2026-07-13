@@ -45,18 +45,30 @@ MAP120_PATH = REF_DIR / "wind_map120.nc"   # forecast 120-day filter map
 
 
 def save_map120(mean120: dict, path: Path = MAP120_PATH) -> None:
-    """Persist the 120-day-mean U850/U200 anomaly maps for CDS-free runs."""
+    """Persist the 120-day-mean U850/U200 anomaly maps for CDS-free runs.
+
+    An optional "window_end" (YYYY-MM-DD of the last analysis day in the
+    120-day window) is stored as an attribute so CDS-free consumers can tell
+    how stale the low-frequency filter is — the file's mtime can't (git
+    checkouts rewrite it).
+    """
     lon = np.arange(0, 360, GRID_RES)
-    xr.Dataset(
+    ds = xr.Dataset(
         {"u850": ("longitude", mean120["u850"]),
          "u200": ("longitude", mean120["u200"])},
         coords={"longitude": lon},
-    ).to_netcdf(path)
+    )
+    if mean120.get("window_end"):
+        ds.attrs["window_end"] = str(mean120["window_end"])
+    ds.to_netcdf(path)
 
 
 def load_map120(path: Path = MAP120_PATH) -> dict:
     d = xr.open_dataset(path)
-    return {"u850": d["u850"].values, "u200": d["u200"].values}
+    out = {"u850": d["u850"].values, "u200": d["u200"].values}
+    if "window_end" in d.attrs:
+        out["window_end"] = str(d.attrs["window_end"])
+    return out
 
 
 # ── coordinate-name helpers (ERA5/CDS naming drifts between products) ──────────
@@ -120,16 +132,24 @@ def prefetch_era5(init: pd.Timestamp):
             "format": "netcdf"}
 
     # Group: full prior-year tail, full current-year months, capped latest month.
+    # Tags encode the COVERAGE, not just the period: a later run with a wider
+    # window gets a different filename and re-downloads. The old fixed tags
+    # ("2026_full", "2026_07") made `tgt.exists()` reuse a file frozen at
+    # whatever day it was first fetched — the recent tail silently never
+    # advanced within a month, and new complete months never joined the "full"
+    # group at all. Superseded files just sit unused (the dir is gitignored).
     groups = []   # (tag, year, [months], [days])
     py = start.year
     prev_months = [m for m in range(start.month, 13)] if py < init.year else []
     if prev_months:
-        groups.append((f"{py}_tail", py, prev_months, ALL_DAYS))
+        groups.append((f"{py}_m{start.month:02d}-12", py, prev_months, ALL_DAYS))
     full_months = [m for m in range(1, last.month)]               # complete months
     if full_months:
-        groups.append((f"{init.year}_full", init.year, full_months, ALL_DAYS))
+        groups.append((f"{init.year}_m01-{last.month - 1:02d}", init.year,
+                       full_months, ALL_DAYS))
     cap_days = [f"{d:02d}" for d in range(1, last.day + 1)]        # partial latest month
-    groups.append((f"{init.year}_{last.month:02d}", init.year, [last.month], cap_days))
+    groups.append((f"{init.year}_{last.month:02d}d{last.day:02d}", init.year,
+                   [last.month], cap_days))
 
     # 1. Submit everything that isn't already downloaded (parallel queueing).
     pending, files = [], []
