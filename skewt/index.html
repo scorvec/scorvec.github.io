@@ -140,12 +140,10 @@
   .maplegend { background: rgba(17,17,28,0.94); color: #e8e8f0; padding: 9px 12px;
     border-radius: 8px; border: 1px solid #2e2e48;
     font: 14.5px Inter, sans-serif; line-height: 1.85; }
-  #anom-panel { position: absolute; top: 12px; right: 12px; z-index: 900;
-    background: rgba(17,17,28,0.96); border: 1px solid var(--rule); border-radius: 10px;
-    padding: 12px 14px; width: min(340px, calc(100vw - 40px));
-    max-height: 70vh; overflow-y: auto; }
-  #anom-list { list-style: none; margin: 0; padding: 0; font-size: 0.8rem; }
-  #anom-list li { padding: 7px 6px; border-bottom: 1px solid var(--rule); cursor: pointer; }
+  #anom-list { list-style: none; margin: 0; padding: 0; font-size: 0.8rem;
+    columns: 2 320px; column-gap: 24px; }
+  #anom-list li { padding: 7px 6px; border-bottom: 1px solid var(--rule); cursor: pointer;
+    break-inside: avoid; }
   #anom-list li:hover { background: rgba(255,255,255,0.05); }
   #anom-list .hi { color: #ff6b55; }
   #anom-list .lo { color: #6aa7f0; }
@@ -229,12 +227,23 @@
   <span id="status"></span>
   <button id="anom-toggle" style="margin-left:auto" title="most anomalous soundings right now">⚡ Extreme today</button>
 </div>
-<div class="mapwrap"><div id="map"></div>
-  <div id="anom-panel" hidden>
-    <h3 style="margin:0 0 6px; font-family:var(--serif); font-size:1rem">⚡ Most anomalous soundings right now</h3>
-    <p style="font-size:0.72rem; color:var(--muted); margin:0 0 8px">vs each station's own
-    day-of-year climatology · click to open</p>
-    <ul id="anom-list"></ul>
+<div class="mapwrap"><div id="map"></div></div>
+
+<div id="anom-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog" style="height:auto; max-height:94vh; width:min(1240px,97vw); overflow-y:auto">
+    <div class="dlg-head controls">
+      <span class="station">⚡ Record watch — today's extremes</span>
+      <button id="anom-save" title="download this map as an image">📷 PNG</button>
+      <button id="anom-close" title="close" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <canvas id="anom-canvas" width="1240" height="760" style="width:100%; height:auto"></canvas>
+    </div>
+    <div class="panel" style="margin-top:8px">
+      <p style="font-size:0.72rem; color:var(--muted); margin:0 0 8px">ranked vs each station's own
+      day-of-year climatology · click a row to open the sounding</p>
+      <ul id="anom-list"></ul>
+    </div>
   </div>
 </div>
 
@@ -395,6 +404,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=54c706aa"></script>
+<script src="app.js?v=9d8f5fdb"></script>
 </body>
 </html>

@@ -1322,10 +1322,175 @@ function buildAnomPanel() {
       n: (entries[wmo] || {}).n, e: (igraStations[byWmo[wmo]] || {}).e || 0 });
   }));
 }
+// ---- the record-watch MAP: a static, labeled snapshot of today's extremes ----
+let coastSegs = null;                        // cached 110m coastline polylines
+async function loadCoast() {
+  if (coastSegs) return coastSegs;
+  try {
+    const r = await fetch("coast110.json");
+    coastSegs = (await r.json()).segs;
+  } catch (e) { coastSegs = []; }            // map still works, just bare
+  return coastSegs;
+}
+
+async function drawRecordMap() {
+  const cv = document.getElementById("anom-canvas"), ctx = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  await loadCoast();
+
+  // stations to feature: true records labeled; near-records as context dots
+  const pts = [];
+  for (const [wmo, d] of Object.entries(anomalies)) {
+    const e = entries[wmo];
+    if (!e || !isFinite(e.la) || !isFinite(e.lo)) continue;
+    const name = ((e.n || wmo) + "").split(/[;,]/)[0].trim();
+    const recs = d.flags.filter(f => f.rec);
+    pts.push({ wmo, la: e.la, lo: e.lo, name, recs, flags: d.flags, dt: d.dt,
+               top: Math.max(...d.flags.map(f => Math.abs(f.pct - 50))) });
+  }
+  if (!pts.length) {
+    ctx.fillStyle = "#0a0a14"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#8b8ba3"; ctx.font = "600 16px Inter"; ctx.textAlign = "center";
+    ctx.fillText("nothing unusual on the record watch right now", W / 2, H / 2);
+    ctx.textAlign = "left";
+    return;
+  }
+  const labeled = pts.filter(p => p.recs.length)
+    .sort((a, b) =>
+      b.recs.filter(r => r.rec.tier === "all").length -
+      a.recs.filter(r => r.rec.tier === "all").length || b.top - a.top);
+  // Nothing broke a record today (or anomalies.json predates the rec field):
+  // label the highest-percentile extremes instead, so the map is never empty.
+  const fallback = !labeled.length;
+  const featured = (fallback ? pts.sort((a, b) => b.top - a.top) : labeled).slice(0, 14);
+
+  // extent: fit the featured stations, pad, enforce a minimum window
+  const ext = featured.length ? featured : pts;
+  let lo0 = Math.min(...ext.map(p => p.lo)), lo1 = Math.max(...ext.map(p => p.lo));
+  let la0 = Math.min(...ext.map(p => p.la)), la1 = Math.max(...ext.map(p => p.la));
+  lo0 -= 10; lo1 += 10; la0 -= 7; la1 += 7;
+  if (lo1 - lo0 < 55) { const c = (lo0 + lo1) / 2; lo0 = c - 27.5; lo1 = c + 27.5; }
+  if (la1 - la0 < 30) { const c = (la0 + la1) / 2; la0 = c - 15; la1 = c + 15; }
+  la0 = Math.max(-85, la0); la1 = Math.min(85, la1);
+  const M = { l: 10, r: 10, t: 54, b: 26 };
+  const pw = W - M.l - M.r, ph = H - M.t - M.b;
+  // equirectangular, aspect-preserving (1° lat ≈ 1° lon at the extent's center)
+  const kLon = Math.cos(((la0 + la1) / 2) * Math.PI / 180);
+  const sc = Math.min(pw / ((lo1 - lo0) * kLon), ph / (la1 - la0));
+  const ox = M.l + (pw - (lo1 - lo0) * kLon * sc) / 2;
+  const oy = M.t + (ph - (la1 - la0) * sc) / 2;
+  const X = lon => ox + (lon - lo0) * kLon * sc;
+  const Y = lat => oy + (la1 - lat) * sc;
+
+  ctx.fillStyle = "#0a0a14"; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(M.l, M.t, pw, ph); ctx.clip();
+  ctx.strokeStyle = "#2c2c48"; ctx.lineWidth = 1;
+  for (const seg of coastSegs || []) {
+    ctx.beginPath(); let st = false;
+    for (const [ln, lt] of seg) {
+      if (ln < lo0 - 5 || ln > lo1 + 5 || lt < la0 - 5 || lt > la1 + 5) { st = false; continue; }
+      const x = X(ln), y = Y(lt);
+      st ? ctx.lineTo(x, y) : ctx.moveTo(x, y); st = true;
+    }
+    ctx.stroke();
+  }
+  // context: every live station as a faint dot, flagged near-records brighter
+  ctx.fillStyle = "rgba(140,140,170,0.35)";
+  for (const [, s] of Object.entries(entries))
+    if (isFinite(s.la) && isFinite(s.lo)) { ctx.beginPath(); ctx.arc(X(s.lo), Y(s.la), 1.6, 0, 7); ctx.fill(); }
+  for (const p of pts) {
+    const hi = p.flags[0].sense === "high";
+    ctx.fillStyle = hi ? "rgba(255,107,85,0.8)" : "rgba(106,167,240,0.8)";
+    ctx.beginPath(); ctx.arc(X(p.lo), Y(p.la), 3, 0, 7); ctx.fill();
+  }
+
+  // featured stations: star + collision-avoided label with a leader line
+  const placed = [];    // occupied label rects
+  const star = (x, y, r, col) => {
+    ctx.fillStyle = col; ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r;
+      ctx[i ? "lineTo" : "moveTo"](x + rr * Math.cos(a), y + rr * Math.sin(a));
+    }
+    ctx.closePath(); ctx.fill();
+  };
+  const lineH = 15;
+  for (const p of featured) {
+    const x = X(p.lo), y = Y(p.la);
+    const hi = (p.recs[0] || p.flags[0]).sense !== "low";
+    const col = hi ? "#ff6b55" : "#6aa7f0";
+    star(x, y, 7, col);
+    const shown = (fallback ? p.flags : p.recs).slice(0, 2);
+    const lines = [p.name].concat(shown.map(f => f.rec
+      ? `${f.lab} ${f.v} — ${f.rec.tier === "all" ? "ALL-TIME" : "date"} rec (prev ${f.rec.prev}, ${f.rec.y})`
+      : `${f.lab} ${f.v} · P${f.pct} ${f.sense}`));
+    ctx.font = "600 13px Inter";
+    const wpx = Math.max(...lines.map(s => ctx.measureText(s).width)) + 12;
+    const hpx = lines.length * lineH + 8;
+    // candidate anchor points around the station, nearest first
+    let spot = null;
+    outer:
+    for (const rad of [16, 34, 56, 84, 120]) {
+      for (const ang of [0, 180, 315, 225, 45, 135, 270, 90]) {
+        const ax = x + rad * Math.cos(ang * Math.PI / 180);
+        const ay = y + rad * Math.sin(ang * Math.PI / 180);
+        const rx = ang > 90 && ang < 270 ? ax - wpx : ax;   // left side: right-align
+        const ry = ay - hpx / 2;
+        if (rx < M.l || rx + wpx > W - M.r || ry < M.t || ry + hpx > H - M.b) continue;
+        if (placed.some(q => rx < q.x + q.w && rx + wpx > q.x && ry < q.y + q.h && ry + hpx > q.y)) continue;
+        spot = { x: rx, y: ry, ax, ay };
+        break outer;
+      }
+    }
+    if (!spot) continue;                               // too crowded: star only
+    placed.push({ x: spot.x, y: spot.y, w: wpx, h: hpx });
+    ctx.strokeStyle = "rgba(200,200,220,0.5)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(spot.ax, spot.ay); ctx.stroke();
+    ctx.fillStyle = "rgba(10,10,20,0.82)";
+    ctx.fillRect(spot.x, spot.y, wpx, hpx);
+    ctx.strokeStyle = col; ctx.strokeRect(spot.x, spot.y, wpx, hpx);
+    lines.forEach((s, i) => {
+      ctx.fillStyle = i ? (s.includes("ALL-TIME") ? "#ffd60a" : "#d8d8e8") : col;
+      ctx.font = i ? "12px Inter" : "600 13px Inter";
+      ctx.fillText(s, spot.x + 6, spot.y + 14 + i * lineH);
+    });
+  }
+  ctx.restore();
+
+  // title + footer
+  const newest = pts.map(p => p.dt).sort().pop() || "";
+  const nRec = labeled.length;
+  const nAll = labeled.filter(p => p.recs.some(r => r.rec.tier === "all")).length;
+  ctx.fillStyle = "#e8e8f0"; ctx.font = "700 20px Inter"; ctx.textAlign = "left";
+  ctx.fillText(`⚡ Radiosonde record watch — ${newest}Z`, 14, 30);
+  ctx.fillStyle = "#8b8ba3"; ctx.font = "13px Inter";
+  ctx.fillText(fallback
+    ? `no station records today — ${pts.length} stations at climatological extremes (P95+)`
+    : `${nRec} station(s) set records vs their own sounding archives` +
+      (nAll ? ` — ${nAll} ALL-TIME` : "") + ` · ${pts.length} stations flagged P95+`, 14, 48);
+  ctx.fillText("scorvec.com/skewt · records vs each station's full IGRA archive, ±10-day time-of-year window",
+    14, H - 8);
+}
+
 document.getElementById("anom-toggle").addEventListener("click", () => {
-  const p = document.getElementById("anom-panel");
-  p.hidden = !p.hidden;
-  if (!p.hidden) buildAnomPanel();
+  document.getElementById("anom-modal").hidden = false;
+  buildAnomPanel();
+  drawRecordMap();
+});
+document.getElementById("anom-close").addEventListener("click",
+  () => document.getElementById("anom-modal").hidden = true);
+document.getElementById("anom-modal").addEventListener("click", e => {
+  if (e.target.id === "anom-modal") document.getElementById("anom-modal").hidden = true;
+});
+document.getElementById("anom-save").addEventListener("click", () => {
+  document.getElementById("anom-canvas").toBlob(b => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b);
+    a.download = "record_watch.png";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  });
 });
 
 // ---- PNG export: skew-T + hodograph on one branded card ----
