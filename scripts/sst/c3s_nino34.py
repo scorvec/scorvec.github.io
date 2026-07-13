@@ -94,7 +94,9 @@ MODELS = [
     ("meteo_france", "9",   "Météo-France 9", "#2ca02c"),
     ("dwd",          "22",  "DWD GCFS2",      "#9467bd"),
     ("ncep",         "2",   "NCEP CFSv2",     "#ff7f0e"),
-    ("eccc",         "4",   "ECCC CanSIPS",   "#8c564b"),
+    # system 5 = CanSIPSv3, ECCC's operational system since late 2024 — the
+    # old "4" (CanSIPSv2.1) still publishes but is a deprecated parallel run
+    ("eccc",         "5",   "ECCC CanSIPSv3", "#8c564b"),
     ("bom",          "2",   "BoM ACCESS-S2",  "#17becf"),
 ]
 
