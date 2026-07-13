@@ -13,10 +13,6 @@
       "branch": "main",
       "max_age_hours": 120
     },
-    "assets/climate": {
-      "branch": "main",
-      "max_age_hours": 48
-    },
     "assets/sst": {
       "branch": "main",
       "max_age_hours": 48
