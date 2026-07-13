@@ -391,6 +391,40 @@ def plot(ym: str, results, out: Path):
     print(f"saved {out} ({len(results)} models, {nmem} members, issue {ym})")
 
 
+def publish_forecast_json(ym: str, results: dict, out_path: Path) -> None:
+    """Every member trajectory as one JSON feed for the interactive forecasts
+    page — percentiles, per-model means and member ghosts are all client-side
+    arithmetic once the raw members ship.
+
+    models.<label>.n34 / .rnino : [leads][members] anomalies in °C
+    (rnino is already RONI-scaled per calendar month).
+    """
+    start = pd.Timestamp(f"{ym[:4]}-{ym[4:]}-01")
+    valid = [(start + pd.DateOffset(months=L)).strftime("%Y-%m")
+             for L in range(1, MAXLEAD + 1)]
+    models = {}
+    for label, (r, colour) in results.items():
+        models[label] = {
+            "color": colour,
+            "n34": [[round(float(v), 3) for v in r["n34"][L]]
+                    for L in range(1, MAXLEAD + 1)],
+            "rnino": [[round(float(v), 3) for v in r["rnino"][L]]
+                      for L in range(1, MAXLEAD + 1)],
+        }
+    payload = {
+        "generated": pd.Timestamp.now("UTC").strftime("%Y-%m-%d %H:%M UTC"),
+        "issue": f"{ym[:4]}-{ym[4:]}",
+        "valid_months": valid,
+        "hindcast": "1993-2016 (each model vs its own)",
+        "models": models,
+    }
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(payload, separators=(",", ":")))
+    nmem = sum(len(m["n34"][0]) for m in models.values())
+    print(f"saved {out_path.name} ({len(models)} models, {nmem} members, "
+          f"{out_path.stat().st_size // 1024} KB)")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", help="YYYYMM (default: latest available, by quorum)")
@@ -399,6 +433,7 @@ def main() -> int:
     print("C3S multi-model ENSO (Niño-3.4 + rNiño-3.4, monthly + 3-month)")
     ym, results = resolve_issue(args.issue)
     plot(ym, results, Path(args.out))
+    publish_forecast_json(ym, results, ASSETS / "data" / "enso_forecast.json")
     return 0
 
 
