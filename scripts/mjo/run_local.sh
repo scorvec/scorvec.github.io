@@ -169,7 +169,7 @@ find "$MJO_GRIB_ARCHIVE" -type d -empty -delete 2>/dev/null
 # builder, so MJO-updated images would serve stale from cache between SST runs;
 # the torque/MMSF animator iframes self-bust via their manifest "ver".)
 CB=$(date -u +%Y%m%d%H%M)
-perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|u850_analogs_anom|u850_analogs_abs|mei\/mei_nowcast|mei\/mei_validation)\.webp)\?v=\d+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
+perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|u850_analogs_anom|u850_analogs_abs|mei\/mei_nowcast|mei\/mei_validation)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
 
 # NOTE: AAM / torque / MMSF / AAM-zonal outputs are intentionally NOT staged here
 # while those builders are deactivated (2026-06-30). Their last-good committed webps

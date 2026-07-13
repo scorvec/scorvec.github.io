@@ -97,7 +97,7 @@ REGIONS = {
 }
 # Which regions get an animation (the others still get a static map).
 ANIM_REGIONS = ["tropical"]
-ANIM_DAYS = 60
+ANIM_DAYS = 90
 # Animation frames are independent cartopy renders → render them in a process pool.
 RENDER_WORKERS = int(os.environ.get("SST_RENDER_WORKERS", str(min(os.cpu_count() or 4, 8))))
 
@@ -153,12 +153,11 @@ def sst_anom_cmap():
 # ----------------------------------------------------------------------
 # Map rendering
 # ----------------------------------------------------------------------
-def _draw_box(ax, lat_rng, lon_rng, color, lw=1.2):
-    """Outline a lat/lon box as a CASED line: a white halo under the coloured core,
-    so the box stays legible over any anomaly colour (deep red/blue blobs used to
-    swallow same-hued outlines). Edges are dense point sequences along the parallels
-    and meridians so the rectangle follows the projection (doesn't bow) regardless
-    of the map's central longitude."""
+def _draw_box(ax, lat_rng, lon_rng, color="black", lw=1.1):
+    """Outline a lat/lon box as a CASED line: a white halo under the core, so
+    the box stays legible over any anomaly colour. Edges are dense point
+    sequences along the parallels and meridians so the rectangle follows the
+    projection (doesn't bow) regardless of the map's central longitude."""
     lon0, lon1 = lon_rng
     lat0, lat1 = lat_rng
     lons = np.linspace(lon0, lon1, 100)
@@ -171,27 +170,49 @@ def _draw_box(ax, lat_rng, lon_rng, color, lw=1.2):
             zorder=5.05, solid_capstyle="round")
 
 
-# label vertical offsets (deg lat above each box top) so the three equatorial
-# boxes' labels stagger instead of colliding; Ni\u00f1o-1+2 sits to the south/east.
-_NINO_LAB_DY = {"nino4": 1.3, "nino34": 6.0, "nino3": 1.3, "nino12": 1.3}
+# Region extent rulers: dimension-style |\u2014\u2014| lines under the boxes, staggered
+# in latitude so the three overlapping equatorial regions read separately.
+# (lat of the ruler, lat of its label, label above the line?)
+_RULER_ROWS = {"nino4": (-6.6, -7.4, False), "nino3": (-6.6, -7.4, False),
+               "nino34": (-11.2, -12.0, False)}
+
+
+def _draw_ruler(ax, lon0, lon1, lat, text, lab_lat, lab_above, fontsize=7.5):
+    import matplotlib.patheffects as mpe
+    halo = [mpe.withStroke(linewidth=2.2, foreground="white")]
+    cap = 0.9                                  # end-cap half-height, deg lat
+    ax.plot([lon0, lon1], [lat, lat], transform=PC, color="black", lw=1.0,
+            zorder=6, path_effects=halo)
+    for x in (lon0, lon1):
+        ax.plot([x, x], [lat - cap, lat + cap], transform=PC, color="black",
+                lw=1.0, zorder=6, path_effects=halo)
+    ax.text((lon0 + lon1) / 2.0, lab_lat, text, transform=PC,
+            fontsize=fontsize, ha="center", va="bottom" if lab_above else "top",
+            color="black", zorder=6, fontweight="bold",
+            path_effects=[mpe.withStroke(linewidth=1.6, foreground="white")])
 
 
 def _draw_nino_boxes(ax, label=True):
-    """Outline all four CPC ENSO regions (Ni\u00f1o-4/3.4/3/1+2), each in its region
-    colour (matching the time-series chart). Ni\u00f1o-3.4 is drawn slightly heavier as
-    the primary ONI region. 3.4 overlaps 4 and 3 by definition."""
+    """Outline all four CPC ENSO regions in plain black (coloured, overlapping
+    outlines were unreadable), with capped extent rulers under the equator
+    identifying each region: Ni\u00f1o-4 and Ni\u00f1o-3 share the shallow row (they
+    abut at 150\u00b0W), Ni\u00f1o-3.4 \u2014 which overlaps both \u2014 gets its own deeper row,
+    and Ni\u00f1o-1+2's small coastal box is labelled beneath itself."""
     for key, r in NINO_REGIONS.items():
-        _draw_box(ax, r["lat"], r["lon"], r["color"],
-                  lw=1.6 if key == "nino34" else 1.1)
-        if label:
-            import matplotlib.patheffects as mpe
-            lon_c = (r["lon"][0] + r["lon"][1]) / 2.0
-            # Black text with a thin white halo so it reads on BOTH the warm absolute-SST
-            # map and the lighter anomaly map (the region colour stays on the box outline).
-            ax.text(lon_c, r["lat"][1] + _NINO_LAB_DY[key], r["label"], transform=PC,
-                    fontsize=7.5, ha="center", va="bottom", color="black",
-                    zorder=6, fontweight="bold",
-                    path_effects=[mpe.withStroke(linewidth=1.6, foreground="white")])
+        _draw_box(ax, r["lat"], r["lon"], lw=1.4 if key == "nino34" else 1.0)
+    if not label:
+        return
+    for key, (row, lab_lat, above) in _RULER_ROWS.items():
+        r = NINO_REGIONS[key]
+        pad = 0.8                              # abutting rulers don't touch
+        _draw_ruler(ax, r["lon"][0] + pad, r["lon"][1] - pad, row,
+                    r["label"], lab_lat, above)
+    r12 = NINO_REGIONS["nino12"]
+    import matplotlib.patheffects as mpe
+    ax.text((r12["lon"][0] + r12["lon"][1]) / 2.0, r12["lat"][0] - 1.2,
+            r12["label"], transform=PC, fontsize=7.5, ha="center", va="top",
+            color="black", zorder=6, fontweight="bold",
+            path_effects=[mpe.withStroke(linewidth=1.6, foreground="white")])
 
 
 def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
@@ -246,7 +267,7 @@ def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
                     bbox_inches="tight", pad_inches=0.08)
         print(f"  wrote {Path(png_path).name} (dpi {png_dpi})")
     plt.close(fig)
-    print(f"  wrote {out_path.name}")
+    print(f"  wrote {Path(out_path).name}")
 
 
 def render_anim_frames(full_anom, la, lo, region_id, extent, central_lon,

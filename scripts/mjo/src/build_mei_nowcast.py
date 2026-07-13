@@ -263,12 +263,16 @@ def apply_daily(info: dict, years: list[int]) -> pd.DataFrame:
 
 # --------------------------------------------------------------------------------- plot
 def mei_bimonthly_series(mei: dict) -> pd.Series:
-    """Official MEI.v2 as a daily-indexed step series at season mid-points."""
+    """Official MEI.v2 as a daily-indexed step series.
+
+    Each bimonthly value plots at the 15th of the season's SECOND month: the
+    MJ (May–June) value sits mid-June. PSL labels seasons by their closing
+    month, and the window-center placement (~May 30) read as "plotted in May"
+    — a month early to anyone tracking 'the June MEI'."""
     pts = {}
     for (y, s), v in mei.items():
-        m0 = _pair(y, s)[0]
-        mid = pd.Timestamp(m0[0], m0[1], 15) + pd.Timedelta(days=15)
-        pts[mid] = v
+        y1, m1 = _pair(y, s)[1]
+        pts[pd.Timestamp(y1, m1, 15)] = v
     return pd.Series(pts).sort_index()
 
 
