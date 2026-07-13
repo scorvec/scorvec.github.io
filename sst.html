@@ -231,20 +231,35 @@
     </div>
   </div>
 
-  <!-- ── 60-DAY ANIMATION ──────────────────────────────────────────────── -->
+  <!-- ── 90-DAY ANIMATIONS ─────────────────────────────────────────────── -->
   <div class="chart-card">
     <div class="chart-card-header">
-      <h2>Sixty days in motion</h2>
-      <p>The last 60 days of daily fields, global and tropical Pacific side by side. Switch the
-      product inside the panel: the <b>anomaly</b>, the <b>absolute</b> SST (warm pool and cold
-      tongue directly), or the <b>global-mean-removed</b> anomaly that isolates the ENSO pattern
-      from the uniform background warming.</p>
+      <h2>Ninety days in motion &mdash; the anomaly</h2>
+      <p>The last 90 days of daily anomaly fields, global and tropical Pacific side by side,
+      with the Ni&ntilde;o regions outlined. The panel's dropdown also offers the
+      <b>global-mean-removed</b> variant, which strips the uniform background warming and
+      isolates the ENSO pattern.</p>
     </div>
     <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
-            title="Global and tropical Pacific SST animation (anomaly / absolute / relative)" loading="lazy"></iframe>
+            title="Global and tropical Pacific SST anomaly animation" loading="lazy"></iframe>
     <div class="chart-card-footer">
-      <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; 60-day animation &middot; product dropdown in the panel</span>
+      <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; 90-day animation &middot; base 1991&ndash;2020</span>
       <span class="chart-updated" id="sst-updated">OISST 2026-07-12</span>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Ninety days in motion &mdash; raw SST</h2>
+      <p>The actual sea-surface temperature field, not the anomaly: the West Pacific warm pool,
+      the equatorial cold tongue and the western boundary currents are visible directly, and the
+      28&ndash;29&nbsp;&deg;C convective threshold shows where deep convection can root.</p>
+    </div>
+    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=absolute"
+            title="Global and tropical Pacific absolute SST animation" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; absolute SST &middot; 90-day animation</span>
+      <span class="chart-updated">OISST 2026-07-12</span>
     </div>
   </div>
 
