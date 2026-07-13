@@ -8,6 +8,8 @@ const MISSING = -9999.0;
 const CLIMO_BASE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-climo/climo/";
 let climo = null, climoGid = null;                 // current station climatology
 let lastProf = null, lastRes = null, lastMonth = null, lastDoy = null;
+let lastValidDt = null;                 // "YYYY-MM-DD HH:MM" of the plotted sounding
+let prev12 = null, prev12Key = "";      // the launch ~12 h earlier, for MSE trend
 let lastHourZ = 12;
 let lastProfFull = null;              // un-thinned profile for the full-res mobile card
 let EXPORT_PX = null, BARB_GAP = 22;  // overrides during full-res export
@@ -1816,6 +1818,7 @@ async function loadSounding() {
         setStatus(`valid ${got.valid}Z · ${got.prof.P.length} levels (${got.src})`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${got.valid}Z`.trim();
         plotNote = ""; lastMonth = got.valid.slice(5, 7); lastDoy = doyOf(got.valid); lastHourZ = hourOf(got.valid);
+        lastValidDt = got.valid;
         render(thin(lastProfFull = got.prof));
         return;
       }
@@ -1831,6 +1834,7 @@ async function loadSounding() {
         setStatus(`valid ${s.dt}Z · ${prof.P.length} levels (UW BUFR/GTS mirror)`);
         plotTitle = `${current.n || ""} ${current.id}  ·  ${s.dt}Z`.trim();
         plotNote = ""; lastMonth = s.dt.slice(5, 7); lastDoy = doyOf(s.dt); lastHourZ = hourOf(s.dt);
+        lastValidDt = s.dt;
         render(thin(lastProfFull = prof));
         return;
       } catch (e) { /* mirror failed — fall through to the archive */ }
@@ -1858,6 +1862,7 @@ async function loadSounding() {
           setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (UW BUFR high-res mirror)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${wantDt}Z`.trim();
           plotNote = ""; lastMonth = wantDt.slice(5, 7); lastDoy = doyOf(wantDt); lastHourZ = hourOf(wantDt);
+          lastValidDt = wantDt;
           render(thin(lastProfFull = prof));
           return;
         }
@@ -1887,6 +1892,7 @@ async function loadSounding() {
           setStatus(`valid ${ymd} ${hh}Z · ${prof.P.length} levels (UW BUFR day archive)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${ymd} ${hh}Z`.trim();
           plotNote = ""; lastMonth = ymd.slice(5, 7); lastDoy = doyOf(ymd); lastHourZ = +hh;
+          lastValidDt = `${ymd} ${hh}:00`;
           render(thin(lastProfFull = prof));
           return;
         }
@@ -1929,7 +1935,108 @@ async function loadSounding() {
   plotNote = got.windOnly
     ? "⚠ WIND-ONLY DATA (pilot balloon) — no temperature; hodograph valid" : "";
   lastMonth = shown.slice(5, 7); lastDoy = doyOf(shown); lastHourZ = hourOf(shown);
+  lastValidDt = `${shown} ${String(got.hh).padStart(2, "0")}:00`;
   render(thin(lastProfFull = got.prof));
+}
+
+// The launch ~12 h before the plotted one, for MSE tendency: destabilization
+// shows up as boundary-layer h rising against a static or falling mid-level h*
+// well before CAPE says anything. Sources, cheapest first: the mirror's
+// per-launch retention (~4 days), then the ALREADY-CACHED IGRA text in archive
+// mode — never a fresh multi-MB download just for a trend arrow.
+async function queuePrev12() {
+  if (!current || !lastValidDt) return;
+  const key = (current.id || current.gid || "?") + "|" + lastValidDt;
+  if (key === prev12Key) return;                    // have it or fetching it
+  prev12Key = key; prev12 = null;
+  const t0 = Date.parse(lastValidDt.replace(" ", "T") + ":00Z");
+  if (!isFinite(t0)) return;
+  let got = null;
+  const me = current.id ? entries[current.id] : null;
+  if (me && me.hours) {
+    let best = null;
+    // ideal is 12 h, but a once-daily station (Green Bay flies only 18Z right
+    // now) can only offer ~24 h — take it and let the Δ label say so
+    for (const hstr of me.hours) {
+      const back = (t0 - Date.parse(hstr.replace(" ", "T") + ":00Z")) / 3600e3;
+      if (back >= 6 && back <= 30 &&
+          (!best || Math.abs(back - 12) < Math.abs(best.back - 12) ||
+           (Math.abs(back - 12) === Math.abs(best.back - 12) && back < best.back)))
+        best = { hstr, back };
+    }
+    if (best) {
+      try {
+        const tag = best.hstr.replace(/[-: ]/g, "").slice(0, 10);
+        const r = await fetch(MIRROR + "soundings/" + current.id + "_" + tag + ".csv?t=" + tag);
+        if (r.ok) {
+          const p = parseCSV(await r.text());
+          if (p) got = { prof: p, dt: best.hstr, backH: Math.round(best.back) };
+        }
+      } catch (e) { /* the trend is optional — never block the sounding */ }
+    }
+  }
+  // US stations: the mirror can be missing whole slots (UW manifest hiccups),
+  // but SPC serves every observed 00Z/12Z sounding directly — hit the exact
+  // slot nearest 12 h back, walking the 6-hourly slots inside the window.
+  if (!got && current.id && iemMap && iemMap[current.id] &&
+      iemMap[current.id][0] === "K") {
+    for (const backH of [12, 6, 18, 24]) {
+      const d = new Date(t0 - backH * 3600e3);
+      if (d.getUTCHours() % 6 !== 0) continue;      // SPC publishes synoptic slots
+      const stamp = String(d.getUTCFullYear()).slice(2) + p2(d.getUTCMonth() + 1) +
+                    p2(d.getUTCDate()) + p2(d.getUTCHours());
+      try {
+        const r = await fetch(`${SPC}/${stamp}_OBS/${iemMap[current.id].slice(1)}.txt`);
+        if (!r.ok) continue;
+        const g = spcProfile(await r.text());
+        if (g) { got = { prof: g.prof, dt: g.valid, backH }; break; }
+      } catch (e) { /* next slot */ }
+    }
+  }
+  // IEM covers every US/Canada site and a 12-h-old launch is far past its lag
+  if (!got && current.id && iemMap && iemMap[current.id]) {
+    for (const backH of [12, 6, 18, 24]) {
+      const d = new Date(t0 - backH * 3600e3);
+      if (d.getUTCHours() % 12 !== 0) continue;     // routine launches only
+      const ts = `${d.getUTCFullYear()}${p2(d.getUTCMonth() + 1)}${p2(d.getUTCDate())}${p2(d.getUTCHours())}00`;
+      try {
+        const r = await fetch(`${IEM}?ts=${ts}&station=${iemMap[current.id]}`);
+        if (!r.ok) continue;
+        const g = iemProfile(await r.json());
+        if (g) { got = { prof: g.prof, dt: g.valid, backH }; break; }
+      } catch (e) { /* next slot */ }
+    }
+  }
+  if (!got && current.gid) {
+    const text = igraCache.get(current.gid + ":por") || igraCache.get(current.gid + ":y2d");
+    if (text) {
+      for (const backTry of [12, 24]) {             // 24: once-daily stations
+        const prev = new Date(t0 - backTry * 3600e3);
+        const ymd = prev.toISOString().slice(0, 10);
+        const g = parseIGRA(text, current.gid, ymd, prev.getUTCHours(), current.e || 0);
+        if (!g || g.windOnly) continue;
+        const backH = (t0 - Date.parse(`${ymd}T${String(g.hh).padStart(2, "0")}:00:00Z`)) / 3600e3;
+        if (backH >= 6 && backH <= 30) {
+          got = { prof: g.prof, dt: `${ymd} ${String(g.hh).padStart(2, "0")}:00`,
+                  backH: Math.round(backH) };
+          break;
+        }
+      }
+    }
+  }
+  if (key !== prev12Key) return;                    // a newer sounding superseded us
+  if (got) {
+    got.M = mseProfile(got.prof);
+    got.forKey = key;
+    prev12 = got;
+    if (lastProf && lastRes) { fillTables(lastProf, lastRes); drawMSE(lastProf); }
+  }
+}
+// prev12 only if it belongs to the sounding on screen — a station switch renders
+// once before the async trend fetch clears, and a stale overlay is a lie
+function prev12Live() {
+  const key = current ? (current.id || current.gid || "?") + "|" + lastValidDt : "";
+  return (prev12 && prev12.forKey === key) ? prev12 : null;
 }
 
 // ---------- compute ----------
@@ -1996,6 +2103,17 @@ function interpP(prof, key, pPa) {         // interp any field at pressure (log-
 // Comparing h against saturation MSE (h*) is the classic conditional-instability
 // diagnostic: wherever boundary-layer h exceeds h*, a lifted parcel is buoyant.
 const CP = 1005.7, LV = 2.501e6, GRAV = 9.80665;
+// Equivalent potential temperature, Bolton (1980) eq. 43 — accurate to ~0.3 K,
+// the operational standard (same formulation SPC/SHARPpy use).
+function thetaEK(Pa, Tk, Dk) {
+  if (![Pa, Tk, Dk].every(isFinite)) return NaN;
+  const tdc = Dk - 273.15;
+  const e = 6.112 * Math.exp(17.67 * tdc / (tdc + 243.5));         // hPa
+  const r = 0.622 * e / Math.max(Pa / 100 - e, 0.1);               // kg/kg
+  const TL = 2840 / (3.5 * Math.log(Tk) - Math.log(Math.max(e, 1e-3)) - 4.805) + 55;
+  return Tk * Math.pow(100000 / Pa, 0.2854 * (1 - 0.28 * r)) *
+         Math.exp((3376 / TL - 2.54) * r * (1 + 0.81 * r));
+}
 function mseProfile(prof) {
   const n = prof.P.length;
   const h = [], hs = [], z = [];
@@ -2652,6 +2770,13 @@ function drawMSE(prof) {
     if (isFinite(m.hs[i])) vals.push(m.hs[i]);
   }
   if (isFinite(m.hbl)) vals.push(m.hbl);
+  const p12v = prev12Live();
+  const pv = p12v ? p12v.M : null;                     // ~12 h earlier, faded
+  if (pv) for (let i = 0; i < pv.z.length; i++) {
+    if (!isFinite(pv.z[i]) || pv.z[i] > zTop) continue;
+    if (isFinite(pv.h[i])) vals.push(pv.h[i]);
+    if (isFinite(pv.hs[i])) vals.push(pv.hs[i]);
+  }
   if (vals.length < 2) return;
   const pad = Math.max(1.5, (Math.max(...vals) - Math.min(...vals)) * 0.06);
   let lo = Math.min(...vals) - pad, hi = Math.max(...vals) + pad;
@@ -2676,15 +2801,20 @@ function drawMSE(prof) {
       }
     }
   }
-  const line = (arr, col, wd) => {
+  const line = (arr, col, wd, zs) => {
+    const Z = zs || m.z;
     ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.beginPath(); let st = false;
     for (let i = 0; i < arr.length; i++) {
-      if (!isFinite(arr[i]) || m.z[i] > zTop) continue;
-      const x = X(arr[i]), y = Y(m.z[i]);
+      if (!isFinite(arr[i]) || Z[i] > zTop) continue;
+      const x = X(arr[i]), y = Y(Z[i]);
       st ? ctx.lineTo(x, y) : ctx.moveTo(x, y); st = true;
     }
     ctx.stroke();
   };
+  if (pv) {                                                // 12 h ago, underneath
+    line(pv.hs, "rgba(255,69,58,0.28)", 1.4, pv.z);
+    line(pv.h, "rgba(74,155,240,0.30)", 1.4, pv.z);
+  }
   line(m.hs, "#ff453a", 2);                                // saturation MSE (h*)
   line(m.h, "#4a9bf0", 2.2);                               // MSE (h)
   if (isFinite(m.hbl)) {                                   // boundary-layer h
@@ -2702,6 +2832,7 @@ function drawMSE(prof) {
     ["#ffd60a", "dash",  "h of the boundary layer"],
     ["rgba(48,209,88,0.55)", "fill", "buoyant: h(BL) > h*"],
   ];
+  if (pv) key.push(["rgba(160,160,190,0.5)", "solid", `faded: ${p12v.backH} h earlier`]);
   ctx.font = "11px Inter";
   key.forEach(([col, kind, lab], i) => {
     const y = 30 + i * 14;
@@ -2966,6 +3097,18 @@ function fillTables(prof, res) {
       ? (M.deficit >= 0 ? "+" : "") + M.deficit.toFixed(1) + " kJ/kg" : "—"],
     ["Column ∫h dp/g", isFinite(M.col) ? (M.col / 1e9).toFixed(2) + " GJ/m²" : "—"],
   ];
+  const p12 = prev12Live();
+  if (p12) {
+    const sgn = (v, d, u) => !isFinite(v) ? "—" : (v >= 0 ? "+" : "") + v.toFixed(d) + u;
+    const tp = `vs the ${p12.dt}Z sounding (${p12.backH} h earlier). Boundary-layer h ` +
+      `rising against steady or falling h*min = destabilizing; column ∫h is the reservoir ` +
+      `convection drains.`;
+    mseRows.push([`Δ${p12.backH}h h_BL / h*min`,
+      `<span title="${tp}">${sgn(M.hbl - p12.M.hbl, 1, "")} / ` +
+      `${sgn(M.hsmin - p12.M.hsmin, 1, " kJ/kg")}</span>`]);
+    mseRows.push([`Δ${p12.backH}h column ∫h`,
+      `<span title="${tp}">${sgn((M.col - p12.M.col) / 1e6, 0, " MJ/m²")}</span>`]);
+  }
   const thermo = [
     ["DCAPE", fmt(o[39]) + " J/kg"],
     ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
@@ -3053,6 +3196,45 @@ function fillTables(prof, res) {
     })()],
   ];
 
+  // --- tropical: is the column primed for deep, efficient, warm-rain convection ---
+  const the0 = thetaEK(prof.P[0], prof.T[0], prof.D[0]);
+  let theMin = Infinity, theMinP = NaN;
+  for (let i = 0; i < prof.P.length; i++) {
+    const p = prof.P[i];
+    if (p > 85000 || p < 40000) continue;
+    const te = thetaEK(p, prof.T[i], prof.D[i]);
+    if (isFinite(te) && te < theMin) { theMin = te; theMinP = p; }
+  }
+  if (!isFinite(theMin) || theMin === Infinity) { theMin = NaN; }
+  const dThe = the0 - theMin;
+  const lclZ = interpHagl(prof, o[2]);              // SB parcel LCL
+  const wcd = (isFinite(fzl) && lclZ !== null) ? Math.max(0, fzl - lclZ) : NaN;
+  const du = interpP(prof, "U", 20000) - interpP(prof, "U", 85000);
+  const dv = interpP(prof, "V", 20000) - interpP(prof, "V", 85000);
+  const deepShr = (isFinite(du) && isFinite(dv)) ? Math.hypot(du, dv) * KT : NaN;
+  const tt = (txt, tip) => `<span title="${tip}">${txt}</span>`;
+  const tropical = [
+    ["θe sfc / min aloft", (isFinite(the0) && isFinite(theMin))
+      ? tt(`${the0.toFixed(0)} / ${theMin.toFixed(0)} K @ ${(theMinP / 100).toFixed(0)} hPa`,
+           "Bolton (1980) equivalent potential temperature at the surface, and its minimum " +
+           "between 850 and 400 hPa — the driest, lowest-energy air a storm can entrain or " +
+           "bring down") : "—"],
+    ["Δθe (sfc − min)", isFinite(dThe)
+      ? tt(`${dThe.toFixed(0)} K`,
+           "convective overturning potential: ≳20 K = strong downdrafts and cold pools " +
+           "(squally, self-destructive); ≲10 K = moist-neutral column, the steady rain / " +
+           "tropical-cyclone regime") : "—"],
+    ["Warm cloud depth", isFinite(wcd)
+      ? tt(`${(wcd / 1000).toFixed(1)} km`,
+           "LCL to the freezing level: the layer where collision–coalescence makes rain. " +
+           "≳4 km = high precipitation efficiency (and a rainfall-flood signal); shallow " +
+           "warm layers favor ice-process hail instead") : "—"],
+    ["Shear 850–200", isFinite(deepShr)
+      ? tt(`${deepShr.toFixed(0)} kt`,
+           "deep-layer vector shear, the tropical-cyclone metric: ≲15 kt favors genesis / " +
+           "intensification, ≳25 kt ventilates and tilts the core") : "—"],
+  ];
+
   const row = ([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`;
   document.getElementById("kin-table").innerHTML = kinem.map(row).join("");
   document.getElementById("kin-table-b").innerHTML = composites.map(row).join("");
@@ -3060,6 +3242,8 @@ function fillTables(prof, res) {
   document.getElementById("kin-table3").innerHTML = levels.map(row).join("");
   document.getElementById("mse-table").innerHTML = mseRows.map(row).join("");
   document.getElementById("winter-table").innerHTML = winter.map(row).join("");
+  document.getElementById("tropic-table").innerHTML = tropical.map(row).join("");
+  queuePrev12();                        // MSE tendency arrives async, re-fills
 }
 
 // ---------- render ----------
