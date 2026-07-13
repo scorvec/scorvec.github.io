@@ -163,8 +163,7 @@ async function init() {
     const MF = new URLSearchParams(location.search).get("manifest") || "manifest.json";
 { // "back" follows whichever product embeds the animator
   const b = (new URLSearchParams(location.search).get("base") || "").toLowerCase();
-  const dest = b.includes("climate") ? ["climate.html", "Global Climate Monitor"]
-    : b.includes("mjo") ? ["mjo.html", "MJO Forecast"]
+  const dest = b.includes("mjo") ? ["mjo.html", "MJO Forecast"]
     : b.includes("ens") ? ["ensembles.html", "Ensembles"]
     : b.includes("gatun") ? ["gatun/", "Lake Gatun"] : null;
   const bl = document.getElementById("back-link");
