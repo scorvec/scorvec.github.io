@@ -191,7 +191,9 @@
           gx.push(valid[nL - 1]); gy.push(null);
         }
       });
-      traces.push({ x: gx, y: gy, type: "scattergl", mode: "lines",
+      // plain SVG scatter: one NaN-gapped trace is only ~3.4k points, and
+      // scattergl throws a "WebGL not supported" banner on GPU-less browsers
+      traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
                     line: { color: "rgba(167,184,206,0.10)", width: 0.7 },
                     name: "members", hoverinfo: "skip" });
     }
