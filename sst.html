@@ -3,237 +3,133 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Global SST and El Ni&ntilde;o/La Ni&ntilde;a Monitor &middot; Shawn Corvec</title>
-<meta name="description" content="Daily global and tropical Pacific sea-surface temperature anomalies from NOAA OISST v2.1, plus the Relative Oceanic Niño Index (RONI) and ENSO subsurface, analog, forecast and atmospheric diagnostics.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>El Ni&ntilde;o Monitor &mdash; Daily ONI, RONI &amp; Ni&ntilde;o Indices &middot; Shawn Corvec</title>
+<meta name="description" content="Daily estimates of ONI and RONI with interactive Niño-region SST index charts, high-resolution global and tropical Pacific anomaly maps from NOAA OISST v2.1, and ENSO subsurface, analog, forecast and atmospheric diagnostics.">
 <link rel="canonical" href="https://scorvec.com/sst.html">
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
-  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
+  /* ── dark ENSO-monitor chrome: the Lake Gatun design language ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #fafaf8;
-    --ink: #1c1c1a;
-    --muted: #888580;
-    --accent: #2c4a72;
-    --accent-light: #e8eef5;
-    --rule: #e4e2dc;
-    --serif: 'Lora', Georgia, serif;
-    --sans: 'Inter', sans-serif;
+    --page: #081120; --surface: #0d1a2eCC; --surface-solid: #0d1a2e;
+    --border: rgba(148,184,225,0.13); --border-hi: rgba(148,184,225,0.4);
+    --ink: #e9eff8; --ink2: #a7b8ce; --muted: #6d8099;
+    --aqua: #4dd6e8; --aqua-deep: #2aa5bd;
+    --nino: #e8833a; --nina: #4d8fe8;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
   }
-  html { font-size: 17.5px; }   /* nudge the whole page up from the 16px default */
-  html, body { height: 100%; }
+  html { font-size: 16px; scroll-behavior: smooth; }
   body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: var(--sans);
-    -webkit-font-smoothing: antialiased;
-    display: flex; flex-direction: column;
+    background: radial-gradient(1200px 700px at 70% -10%, #102440 0%, var(--page) 55%) fixed, var(--page);
+    color: var(--ink); font: 14.5px/1.55 var(--sans); -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; min-height: 100vh;
   }
+  a { color: var(--aqua-deep); }
 
-  /* fixed two-row header: site nav + ENSO monitor sub-nav */
+  /* fixed two-row header: site nav + monitor sub-nav */
   .site-header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-    background: rgba(250,250,248,0.95);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--rule);
+    background: rgba(8,17,32,0.88); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
   }
-  nav {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 1.2rem 3rem;
-  }
-  .nav-name {
-    font-family: var(--serif); font-weight: 400; font-size: 1rem;
-    text-decoration: none; color: var(--ink);
-  }
-  .nav-links { display: flex; gap: 2rem; list-style: none; }
-  .nav-links a {
-    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
-    text-decoration: none; color: var(--muted); transition: color 0.2s;
-  }
-  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
-
-  .enso-subnav {
-    display: flex; gap: 1.6rem; align-items: center; flex-wrap: wrap;
-    padding: 0.55rem 3rem 0.7rem;
-    border-top: 1px solid var(--rule);
-  }
-  .enso-subnav a {
-    font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
-    color: var(--muted); padding-bottom: 2px;
-    border-bottom: 2px solid transparent;
-    transition: color 0.2s, border-color 0.2s;
-  }
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 2.4rem; }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  .nav-links { display: flex; gap: 1.8rem; list-style: none; }
+  .nav-links a { font-size: 0.8rem; letter-spacing: 0.04em; text-decoration: none;
+                 color: var(--muted); transition: color 0.2s; }
+  .nav-links a:hover { color: var(--ink); }
+  .enso-subnav { display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
+                 padding: 0.5rem 2.4rem 0.6rem; border-top: 1px solid var(--border); }
+  .enso-subnav a { font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
+                   color: var(--muted); padding-bottom: 2px;
+                   border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
   .enso-subnav a:hover { color: var(--ink); }
-  .enso-subnav a.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+  .enso-subnav a.active { color: var(--aqua); border-bottom-color: var(--aqua); font-weight: 500; }
 
-  main {
-    flex: 1;
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 9.5rem 2.5rem 5rem;
-    width: 100%;
-  }
+  main { flex: 1; max-width: 1220px; margin: 0 auto; width: 100%;
+         padding: 7.4rem 1.4rem 4rem; }
 
-  .page-header {
-    margin-bottom: 3rem;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid var(--rule);
-  }
-  .page-header h1 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
-    margin-bottom: 0.5rem;
-  }
-  .page-header p {
-    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
-  }
-  .page-header p + p { margin-top: 0.8rem; }
+  /* hero */
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.22em;
+             text-transform: uppercase; color: var(--aqua-deep); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 40px;
+       letter-spacing: 0.01em; margin: 6px 0 4px; }
+  h1 em { font-style: italic; color: var(--aqua); }
+  .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 20px; }
 
-  /* Overview topic grid (links to the themed subpages) */
-  .topic-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem; margin-bottom: 3rem;
-  }
-  .topic-card {
-    display: block; border: 1px solid var(--rule); background: #fff;
-    padding: 1.2rem 1.3rem; text-decoration: none;
-    transition: border-color 0.2s, background 0.2s;
-  }
-  .topic-card:hover { border-color: var(--accent); background: var(--accent-light); }
-  .topic-card h3 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.02rem;
-    color: var(--ink); margin-bottom: 0.3rem;
-  }
-  .topic-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+  /* stat chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 11px; margin-bottom: 26px; }
+  .chip { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+          padding: 11px 16px; min-width: 148px; backdrop-filter: blur(6px); }
+  .chip .l { font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em;
+             text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .chip .v { font-size: 23px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .chip .s { font-size: 11.5px; color: var(--ink2); }
+  .warm { color: var(--nino); } .cool { color: var(--nina); } .neut { color: #cfd8e6; }
 
-  .chart-stack { display: flex; flex-direction: column; gap: 3rem; }
+  /* cards */
+  .card, .chart-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 20px 20px 12px; margin-bottom: 20px; backdrop-filter: blur(6px);
+  }
+  .card h2, .chart-card-header h2 { font-family: var(--serif); font-weight: 500;
+    font-size: 21px; margin-bottom: 3px; color: var(--ink); }
+  .card .note, .chart-card-header p { font-size: 12.8px; color: var(--ink2);
+    margin-bottom: 12px; max-width: 100ch; }
+  .chart-card-footer { display: flex; justify-content: space-between; gap: 10px;
+    flex-wrap: wrap; padding: 8px 2px 4px; }
+  .chart-sources, .chart-updated { font-size: 11px; color: var(--muted); }
 
-  .chart-card {
-    border: 1px solid var(--rule);
-    background: #fff;
-    overflow: hidden;
-  }
-  .chart-card-header {
-    padding: 1.5rem 1.8rem 1.3rem;
-    border-bottom: 1px solid var(--rule);
-  }
-  .chart-card-header h2 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
-    margin-bottom: 0.6rem; color: var(--ink);
-  }
-  .chart-card-header p {
-    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
-  }
-  .chart-card-header p + p { margin-top: 0.7rem; }
-  .chart-card-header b { color: var(--ink); font-weight: 500; }
+  /* controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .pill { font: 600 12px var(--sans); letter-spacing: 0.02em; color: var(--ink2);
+          background: transparent; border: 1px solid var(--border); border-radius: 999px;
+          padding: 6px 14px; cursor: pointer; transition: all .15s; }
+  .pill:hover { color: var(--ink); border-color: var(--border-hi); }
+  .pill.on { color: #06222c; background: var(--aqua); border-color: var(--aqua); }
+  .pill:focus-visible { outline: 2px solid var(--aqua); outline-offset: 2px; }
+  .ctlsep { color: var(--muted); font-size: 11px; margin: 0 2px; }
 
-  .img-wrap { padding: 1rem 1.2rem; background: #fff; }
-  .img-wrap + .img-wrap { padding-top: 0; }
-  .img-wrap img { display: block; width: 100%; height: auto; }
-  /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
-     sized to its exact content height via postMessage (see footer.html / sst_anim.html),
-     which fills the card with no letterboxing at any width. */
-  .anim-embed { width: 100%; border: 0; display: block; background: #0f0f0d;
-                aspect-ratio: 27 / 25; }
-  .anim-embed.subsurface { aspect-ratio: 1 / 1; }
-  .anim-embed.torque { aspect-ratio: 1306 / 1055; }
-  .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
-  .anim-embed.colombia { aspect-ratio: 700 / 1080; }
-  .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
-  .anim-embed.wind200 { aspect-ratio: 1496 / 776; }   /* image 1496×726 + controls bar */
-  .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
-  .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
-  .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
-  .anim-embed.samsat { aspect-ratio: 1015 / 1115; }   /* image 1015×1065 + controls */
-  .anim-embed.glmden { aspect-ratio: 591 / 677; }     /* image 591×622 (map + colourbar) + controls */
-  .anim-embed.precip { aspect-ratio: 771 / 823; }     /* image 771×768 (map + colourbar) + controls */
-  .anim-embed.precip-anom { aspect-ratio: 768 / 823; }  /* image 768×768 (map + colourbar) + controls */
-  /* near-square Americas maps: cap the whole CARD (image fills it) so it hugs the map and
-     doesn't stretch tall across the wide column — the card centers, page-gray on the sides. */
-  .chart-card.media-narrow { max-width: 640px; margin-inline: auto; }
-  .anim-embed.colombia { aspect-ratio: 1680 / 1850; }   /* image 1680×1800 + controls bar */
-  .anim-embed.eq-cur-map { aspect-ratio: 1217 / 467; }      /* image 1217×412 + controls bar */
-  .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
-  .img-label {
-    font-size: 0.72rem; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.06em;
-    margin: 0 0 0.4rem 0.2rem;
-  }
+  /* topic cards */
+  .topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 12px; margin-bottom: 22px; }
+  .topic-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+                padding: 14px 16px; text-decoration: none; transition: border-color .15s; }
+  .topic-card:hover { border-color: var(--border-hi); }
+  .topic-card h3 { font-family: var(--serif); font-weight: 500; font-size: 15.5px;
+                   color: var(--aqua); margin-bottom: 3px; }
+  .topic-card p { font-size: 12px; color: var(--ink2); }
 
-  /* live wind-arrow widget (Tarawa WWB monitor) */
-  .wwb-arrows {
-    display: flex; justify-content: center; align-items: center; gap: 2.6rem;
-    flex-wrap: wrap; padding: 1.3rem 1.2rem 0.4rem;
-  }
-  .wwb-stn { text-align: center; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
-  .wwb-stn svg { display: block; margin: 0 auto 0.35rem; }
-  .wwb-stn b { display: block; color: var(--ink); font-weight: 500; font-size: 0.92rem; }
+  /* media */
+  .img-wrap { margin: 6px 0 10px; }
+  .img-wrap img { width: 100%; border-radius: 10px; display: block; }
+  .img-label { font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  .anim-embed { width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--border);
+                border-radius: 10px; background: #0f0f0d; display: block; }
+  .heromap { position: relative; }
+  .heromap img { width: 100%; border-radius: 10px; display: block; cursor: zoom-in; }
+  .heromap .full { position: absolute; right: 10px; bottom: 10px; font-size: 11px;
+                   color: var(--ink2); background: rgba(8,17,32,0.75); border: 1px solid var(--border);
+                   border-radius: 999px; padding: 4px 10px; text-decoration: none; }
 
-  .chart-card-footer {
-    padding: 0.85rem 1.8rem;
-    border-top: 1px solid var(--rule);
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 1rem; flex-wrap: wrap;
-  }
-  .chart-sources { font-size: 0.68rem; color: var(--muted); }
-  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+  .plot { width: 100%; }
+  .colophon { color: var(--muted); font-size: 12.3px; line-height: 1.7;
+              border-top: 1px solid var(--border); padding-top: 18px; margin-top: 8px; }
+  .colophon h3 { font-family: var(--serif); font-weight: 500; font-size: 15px;
+                 color: var(--ink2); margin-bottom: 6px; }
+  .colophon p { margin-bottom: 8px; max-width: 110ch; }
 
-  .colophon {
-    margin-top: 4rem; padding-top: 2rem;
-    border-top: 1px solid var(--rule);
-    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
-  }
-  .colophon h3 {
-    font-family: var(--serif); font-weight: 400; font-size: 1rem;
-    color: var(--ink); margin-bottom: 0.5rem;
-  }
-  .colophon p + p { margin-top: 0.7rem; }
-  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
-  .colophon a:hover { border-bottom-color: var(--accent); }
+  footer { color: var(--muted); font-size: 12px; text-align: center; padding: 14px 0 26px; }
+  footer .counter { opacity: 0.8; }
 
-  footer {
-    padding: 1.2rem 3rem; border-top: 1px solid var(--rule);
-    display: flex; justify-content: center;
-  }
-  .counter {
-    font-size: 0.72rem; letter-spacing: 0.08em;
-    color: var(--muted); text-transform: uppercase;
-  }
-  .counter span { color: var(--ink); font-weight: 500; }
-
-  @media (max-width: 768px) {
-    nav { padding: 1rem 1.5rem; }
-    .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
-    main { padding: 9rem 1.5rem 3.5rem; }
-    .page-header { margin-bottom: 2.2rem; padding-bottom: 1.5rem; }
-    .page-header h1 { font-size: 1.6rem; }
-    .chart-stack { gap: 2.2rem; }
-    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
-    .chart-card-footer { padding: 0.75rem 1.3rem; }
-    footer { padding: 1rem 1.5rem; }
-  }
-  @media (max-width: 480px) {
-    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
-    .nav-name { font-size: 0.95rem; }
+  @media (max-width: 700px) {
+    nav { padding: 0.7rem 1rem; } .enso-subnav { padding: 0.45rem 1rem 0.55rem; gap: 1rem; }
     .nav-links { gap: 1rem; }
-    .nav-links a { font-size: 0.78rem; }
-    .enso-subnav { padding: 0.5rem 1.1rem 0.6rem; gap: 0.85rem; }
-    .enso-subnav a { font-size: 0.74rem; }
-    main { padding: 9.5rem 1rem 3rem; }
-    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
-    .chart-card-header h2 { font-size: 1.02rem; }
-    .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
-    .img-wrap { padding: 0.7rem 0.7rem; }
-    .chart-card-footer { padding: 0.7rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
-    footer { padding: 0.9rem 1.1rem; }
-  }
-  @media (max-width: 360px) {
-    .nav-links { gap: 0.8rem; }
-    .nav-links a { font-size: 0.72rem; }
-    .enso-subnav { gap: 0.7rem; }
-    .page-header h1 { font-size: 1.28rem; }
+    h1 { font-size: 30px; } .chip { min-width: 44%; }
+    main { padding-top: 8.2rem; }
   }
 </style>
 </head>
@@ -258,261 +154,261 @@
   </div>
 </header>
 <main>
-  <div class="page-header">
-    <h1>Global SST and El Ni&ntilde;o/La Ni&ntilde;a Monitor</h1>
-    <p>Daily sea-surface temperature anomalies and ENSO indices from NOAA OISST v2.1, with subsurface, analog, forecast and atmospheric diagnostics. Use the tabs above or the topics below to explore each theme.</p>
-  </div>
+  <header>
+    <div class="eyebrow">Daily &middot; NOAA OISST v2.1 &middot; anomalies vs 1991&ndash;2020</div>
+    <h1>El <em>Ni&ntilde;o</em> Monitor</h1>
+    <p class="sub">Daily estimates of the Oceanic Ni&ntilde;o Index and its warming-era
+    replacement, RONI, ahead of the official monthly numbers &mdash; with every Ni&ntilde;o
+    region, the tropical background, and the maps behind them. Computed from source data,
+    updated every morning.</p>
+    <div class="chips" id="chips">
+      <div class="chip"><div class="l">Loading daily indices&hellip;</div><div class="v neut">&mdash;</div></div>
+    </div>
+  </header>
 
   <div class="topic-grid">
     <a class="topic-card" href="enso-subsurface.html">
       <h3>Subsurface</h3>
-      <p>Equatorial Pacific depth&ndash;longitude temperature cross-sections: the warm reservoir that leads the surface.</p>
+      <p>Equatorial depth&ndash;longitude temperature: the warm reservoir that leads the surface.</p>
     </a>
     <a class="topic-card" href="enso-analogs.html">
       <h3>Analogs</h3>
-      <p>The current event measured against 1997, 2015 and 2023 in surface, subsurface and low-level wind.</p>
+      <p>The current event against 1997, 2015 and 2023 in surface, subsurface and wind.</p>
     </a>
     <a class="topic-card" href="enso-forecasts.html">
       <h3>Forecasts</h3>
-      <p>C3S multi-model seasonal Ni&ntilde;o-3.4 outlook and the ensemble Southern Oscillation Index forecast.</p>
+      <p>C3S multi-model seasonal Ni&ntilde;o-3.4 outlook and the ensemble SOI forecast.</p>
     </a>
     <a class="topic-card" href="enso-atmosphere.html">
-      <h3>Atmospheric Response</h3>
-      <p>Observed and forecast equatorial Pacific surface winds, the Southern Oscillation, and westerly-wind-burst activity.</p>
+      <h3>Atmosphere</h3>
+      <p>Equatorial winds, the Southern Oscillation, and westerly-wind-burst activity.</p>
     </a>
   </div>
 
-  <div class="chart-stack">
-
-    <!-- SST ANOMALY MAPS -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Global &amp; Tropical Pacific SST Anomalies</h2>
-        <p>Daily sea-surface temperature anomaly relative to the 1991&ndash;2020 base, global and tropical Pacific, as a 60-day animation.</p>
-      </div>
-      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
-              title="Global and tropical Pacific SST anomaly animation" loading="lazy"></iframe>
-      <div class="chart-card-footer">
-        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; base 1991&ndash;2020 &middot; 60-day animation, latest day shown</span>
-        <span class="chart-updated" id="sst-updated">OISST 2026-07-12</span>
-      </div>
+  <!-- ── INTERACTIVE DAILY INDICES ─────────────────────────────────────── -->
+  <div class="card">
+    <h2>Daily ENSO indices &mdash; interactive</h2>
+    <p class="note">Every index is a daily area-weighted SST average, so today's value exists
+    today &mdash; no waiting for the month to close. <b style="color:#f2f4f8">Ni&ntilde;o-3.4</b>
+    is the raw material of ONI; the <b style="color:var(--aqua)">daily RONI</b> subtracts the
+    20&deg;S&ndash;20&deg;N tropical mean and rescales by the CPC/ECMWF &sigma;-factor, so it reads on
+    ONI's &plusmn;0.5&thinsp;&deg;C thresholds; the <b style="color:#e8c04d">90-day mean</b> is the
+    running daily estimate of ONI itself. Click legend entries to add
+    Ni&ntilde;o-1+2 / 3 / 4 and the tropical mean; drag to zoom, double-click to reset.</p>
+    <div class="controls">
+      <button class="pill on" data-mode="anom">Anomalies</button>
+      <button class="pill" data-mode="abs">Absolute &deg;C</button>
+      <span class="ctlsep">&middot;</span>
+      <button class="pill" data-range="90">90 days</button>
+      <button class="pill on" data-range="365">1 year</button>
+      <button class="pill" data-range="9999">Full record</button>
     </div>
-
-    <!-- ABSOLUTE SST -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Absolute Sea-Surface Temperature</h2>
-        <p>The actual SST field (not the anomaly), global and tropical Pacific. The warm pool, equatorial cold tongue and western boundary currents are visible directly.</p>
-      </div>
-      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=absolute"
-              title="Absolute SST animation" loading="lazy"></iframe>
-      <div class="chart-card-footer">
-        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; absolute SST &middot; 60-day animation</span>
-        <span class="chart-updated">OISST 2026-07-12</span>
-      </div>
+    <div id="dailyChart" class="plot" style="height:440px"></div>
+    <div class="img-wrap" id="dailyFallback" hidden>
+      <img src="assets/sst/daily_indices.webp?v=a23ba5a1b2f2" alt="Daily Niño-3.4, tropical-mean and relative SST indices" loading="lazy">
     </div>
-
-    <!-- RELATIVE SST (global-mean removed) -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>SST Anomaly, Global-Mean Removed</h2>
-        <p>The anomaly with the area-weighted global-mean SST anomaly subtracted at every point. This removes the uniform background-warming signal and isolates the pattern of warming and cooling, so the El Ni&ntilde;o footprint stands out against a more balanced global ocean.</p>
-      </div>
-      <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=relative"
-              title="Global-mean-removed SST anomaly animation" loading="lazy"></iframe>
-      <div class="chart-card-footer">
-        <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; anomaly minus global-mean anomaly &middot; 60-day animation</span>
-        <span class="chart-updated">OISST 2026-07-12</span>
-      </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA OISST v2.1 daily &middot; cosine-weighted box means &middot; base 1991&ndash;2020 &middot; RONI scale: per-month &sigma;(ONI)/&sigma;(relative), CPC/ECMWF method</span>
+      <span class="chart-updated">OISST 2026-07-12</span>
     </div>
+  </div>
 
-    <!-- RONI -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Relative Oceanic Ni&ntilde;o Index (RONI)</h2>
-        <p>The Ni&ntilde;o-3.4 SST anomaly minus the tropical-mean anomaly (20&deg;S&ndash;20&deg;N), as a 3-month running mean. Removing the tropical background isolates the ENSO signal more cleanly than the conventional ONI as the oceans warm. The relative anomaly is rescaled by a per-calendar-month factor, s&nbsp;=&nbsp;&sigma;(ONI)&nbsp;/&nbsp;&sigma;(relative), following the NOAA-CPC / ECMWF method, so RONI stays in &deg;C and is directly comparable to ONI (same &plusmn;0.5&deg;C thresholds). Positive (red) leans El Ni&ntilde;o, negative (blue) leans La Ni&ntilde;a.</p>
-      </div>
-      <div class="img-wrap">
-        <img src="assets/sst/roni.webp?v=a23ba5a1b2f2"
-             alt="Relative Oceanic Niño Index time series" loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Computed from NOAA OISST v2.1 &middot; Ni&ntilde;o-3.4 minus tropical-mean &middot; 3-mo running mean</span>
-        <span class="chart-updated" id="roni-updated">RONI thru 2026-06</span>
-      </div>
+  <!-- ── MONTHLY ONI vs RONI ───────────────────────────────────────────── -->
+  <div class="card">
+    <h2>ONI vs RONI &mdash; the official convention</h2>
+    <p class="note">Three-month running means, the form CPC publishes. As the whole tropics warm,
+    conventional ONI drifts warm with the background; <b style="color:var(--aqua)">RONI</b> measures
+    Ni&ntilde;o-3.4 against the rest of the tropics and is the cleaner ENSO signal in a warming
+    ocean. When the two disagree, the atmosphere usually sides with RONI. Bars beyond
+    &plusmn;0.5&thinsp;&deg;C are El&nbsp;Ni&ntilde;o&nbsp;/&nbsp;La&nbsp;Ni&ntilde;a territory.</p>
+    <div id="monthlyChart" class="plot" style="height:340px"></div>
+    <div class="img-wrap" id="monthlyFallback" hidden>
+      <img src="assets/sst/roni.webp?v=a23ba5a1b2f2" alt="ONI and RONI monthly time series" loading="lazy">
     </div>
-
-    <!-- DAILY 3-METRIC -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Daily Equatorial Pacific SST Indices</h2>
-        <p>Three daily metrics on one axis: the Ni&ntilde;o-3.4 anomaly (the basis of ONI), the tropical-mean anomaly (20&deg;S&ndash;20&deg;N), and their difference, the daily relative index underlying RONI. These are single-day values, noisier than the 3-month running indices above but showing the most recent evolution.</p>
-      </div>
-      <div class="img-wrap">
-        <img src="assets/sst/daily_indices.webp?v=a23ba5a1b2f2"
-             alt="Daily Niño-3.4, tropical-mean, and relative SST indices" loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Daily, computed from NOAA OISST v2.1 &middot; year-to-date</span>
-        <span class="chart-updated" id="daily-updated">OISST 2026-07-12</span>
-      </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">Computed from NOAA OISST v2.1 &middot; 3-month centered means &middot; newest season still accumulating</span>
+      <span class="chart-updated" id="roni-updated">RONI thru 2026-06</span>
     </div>
+  </div>
 
-    <!-- NIÑO REGION SERIES -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Ni&ntilde;o Regions: Absolute SST &amp; Anomaly</h2>
-        <p>Daily sea-surface temperature for the four standard CPC ENSO regions: <b style="color:#7c4fd0">Ni&ntilde;o-4</b> (160&deg;E&ndash;150&deg;W), <b style="color:#141414">Ni&ntilde;o-3.4</b> (170&ndash;120&deg;W), <b style="color:#0e8a80">Ni&ntilde;o-3</b> (150&ndash;90&deg;W) and <b style="color:#bf3d8d">Ni&ntilde;o-1+2</b> (90&ndash;80&deg;W, 0&ndash;10&deg;S). The top panel is absolute SST; the bottom is the anomaly versus the 1991&ndash;2020 base, with the &plusmn;0.5&nbsp;&deg;C El Ni&ntilde;o / La Ni&ntilde;a reference lines. The same colours outline these boxes on the maps above.</p>
-      </div>
-      <div class="img-wrap">
-        <img src="assets/sst/nino_regions.webp?v=a23ba5a1b2f2"
-             alt="Recent daily absolute SST and anomaly for the Niño-4, 3.4, 3 and 1+2 regions" loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Daily box means from NOAA OISST v2.1 &middot; last 120 days</span>
-        <span class="chart-updated">OISST 2026-07-12</span>
-      </div>
+  <!-- ── TODAY'S MAPS (HIGH-RES PNG) ───────────────────────────────────── -->
+  <div class="card">
+    <h2>Today's SST anomaly</h2>
+    <p class="note">High-resolution renders of today's field with the Ni&ntilde;o boxes overlaid
+    and the daily index readout stamped on the map. Click the map (or &ldquo;full size&rdquo;)
+    for the full-resolution PNG.</p>
+    <div class="controls">
+      <button class="pill on" data-map="tropical">Tropical Pacific</button>
+      <button class="pill" data-map="global">Global</button>
     </div>
-
-    <!-- MEI.v2 DAILY NOWCAST -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>MEI.v2 Daily Nowcast</h2>
-        <p>NOAA PSL's Multivariate ENSO Index v2 is the leading combined-EOF of five tropical-Pacific fields (sea-level pressure, SST, surface zonal and meridional wind, and OLR), but it is published only as an overlapping bimonthly value with a roughly five-week lag. This is a daily nowcast of it: a regression of the published MEI.v2 onto freely-available daily ENSO components (the Ni&ntilde;o-3.4 SST anomaly, the Southern Oscillation Index, and the equatorial 850-hPa zonal wind), driven forward each day. The grey steps are the official bimonthly MEI.v2; the red line is the daily estimate, with a &plusmn;0.30 leave-one-year-out cross-validation band (the fit reproduces MEI.v2 at R&nbsp;=&nbsp;0.94). The model is SST-weighted, so during a fast SST-led transition it can lead MEI's slower atmospheric components.</p>
-      </div>
-      <div class="img-wrap">
-        <img src="assets/sst/mei/mei_nowcast.webp?v=a23ba5a1b2f2"
-             alt="Daily nowcast of the Multivariate ENSO Index version 2" loading="lazy">
-      </div>
-      <div class="img-wrap">
-        <p class="img-label">Onset-year analogs: the current year against the major El Ni&ntilde;os</p>
-        <img src="assets/sst/mei/mei_analogs.webp?v=a23ba5a1b2f2"
-             alt="MEI.v2 onset-year analogs: 1982, 1997, 2015, 2023 vs the current nowcast" loading="lazy">
-      </div>
-      <div class="img-wrap">
-        <p class="img-label">Full record since 1980</p>
-        <img src="assets/sst/mei/mei_history.webp?v=a23ba5a1b2f2"
-             alt="Full Multivariate ENSO Index v2 record since 1980 with the live nowcast tail" loading="lazy">
-      </div>
-      <div class="img-wrap">
-        <p class="img-label">Out-of-sample skill: the 2015&ndash;16 El Ni&ntilde;o</p>
-        <img src="assets/sst/mei/mei_validation.webp?v=a23ba5a1b2f2"
-             alt="Validation of the MEI.v2 nowcast over the 2015-16 El Niño" loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">Regression on NOAA OISST Ni&ntilde;o-3.4 &middot; SOI (BoM) &middot; ERA5 eq-u850 &middot; target: NOAA PSL MEI.v2</span>
-        <span class="chart-updated">nowcast, daily</span>
-      </div>
+    <div class="heromap">
+      <a id="heroLink" href="assets/sst/tropical_sst_anom.png?v=a23ba5a1b2f2" target="_blank" rel="noopener">
+        <img id="heroMap" src="assets/sst/tropical_sst_anom.png?v=a23ba5a1b2f2"
+             alt="Tropical Pacific SST anomaly map, latest day" loading="lazy"
+             onerror="this.onerror=null;this.src=this.src.replace('.png','.webp');">
+        <span class="full">open full size ⤢</span>
+      </a>
     </div>
-
-    <!-- SYNTHETIC OLR HOVMÖLLER (GMGSI IR) -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Equatorial Convection: Synthetic OLR Hovm&ouml;ller</h2>
-        <p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N zonal mean is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). An eastward (top to bottom-right) tilt is the MJO propagating east; convection parked at the dateline reflects the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
-      </div>
-      <div class="img-wrap" style="max-width:760px;margin:0 auto"><img id="olr-hovmoller" data-src="assets/sst/olr_hovmoller.webp" alt="Synthetic equatorial OLR Hovmöller from GMGSI longwave IR" loading="lazy"></div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">NOAA GMGSI longwave-IR global mosaic &middot; McIDAS T_b + Ohring-Gruber OLR &middot; 5&deg;S&ndash;5&deg;N daily mean</span>
-        <span class="chart-updated">updated through the day</span>
-      </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA OISST v2.1 &middot; anomalies vs 1991&ndash;2020 &middot; PNG at 150 dpi</span>
+      <span class="chart-updated">OISST 2026-07-12</span>
     </div>
+  </div>
 
-    <!-- TROPICAL PACIFIC IR SATELLITE LOOP (GMGSI) -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Tropical Pacific: Live IR Satellite Loop</h2>
-        <p>The clouds behind the OLR Hovm&ouml;ller. NOAA blends GOES-East/West, Himawari and Meteosat into the <b>GMGSI</b> global longwave-IR mosaic on a regular lat/lon grid, so the field is seamless and georeferenced with no stitching or satellite-switch parallax. Cropped to the tropical Pacific with coastlines for orientation, looping the last 72&nbsp;hours. White is cold cloud tops (deep convection).</p>
-      </div>
-      <iframe class="anim-embed pacsat" src="sst_anim.html?embed=1&amp;manifest=pacsat_manifest.json&amp;region=pacsat"
-              title="Seamless tropical-Pacific longwave-IR satellite loop from the GMGSI global mosaic" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
+  <!-- ── 60-DAY ANIMATION ──────────────────────────────────────────────── -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Sixty days in motion</h2>
+      <p>The last 60 days of daily fields, global and tropical Pacific side by side. Switch the
+      product inside the panel: the <b>anomaly</b>, the <b>absolute</b> SST (warm pool and cold
+      tongue directly), or the <b>global-mean-removed</b> anomaly that isolates the ENSO pattern
+      from the uniform background warming.</p>
     </div>
-
-    <!-- SOUTH & CENTRAL AMERICA IR SATELLITE LOOP (GMGSI) -->
-    <div class="chart-card media-narrow">
-      <div class="chart-card-header">
-        <h2>South &amp; Central America: Live IR Satellite Loop</h2>
-        <p>The same <b>GMGSI</b> longwave-IR mosaic cropped to the Americas, from southern Mexico and the Caribbean to Tierra del Fuego, across both the eastern Pacific and the tropical Atlantic. Georeferenced with coastlines, looping the last 72&nbsp;hours. White and colour are cold cloud tops (deep convection).</p>
-      </div>
-      <iframe class="anim-embed samsat" src="sst_anim.html?embed=1&amp;manifest=samsat_manifest.json&amp;region=samsat"
-              title="Seamless South &amp; Central America longwave-IR satellite loop from the GMGSI global mosaic" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
+    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
+            title="Global and tropical Pacific SST animation (anomaly / absolute / relative)" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; 60-day animation &middot; product dropdown in the panel</span>
+      <span class="chart-updated" id="sst-updated">OISST 2026-07-12</span>
     </div>
+  </div>
 
-    <!-- TROPICAL SOUTH AMERICA GLM LIGHTNING FLASH-DENSITY LOOP -->
-    <div class="chart-card media-narrow">
-      <div class="chart-card-header">
-        <h2>Tropical South America: Lightning Flash Density</h2>
-        <p>Detected lightning over Colombia, Venezuela and Brazil from NOAA's <b>Geostationary Lightning Mapper (GLM)</b> on GOES-East. Each frame accumulates every flash over a selectable window (1, 3 or 24 hours, from the <i>Accumulation</i> dropdown), binned to a 0.1&deg; grid as a log-scaled density, looping the last 72&nbsp;hours.</p>
-      </div>
-      <iframe class="anim-embed glmden" src="sst_anim.html?embed=1&amp;manifest=glmden_manifest.json&amp;region=glm_3h"
-              title="GOES-East GLM lightning flash-density loop over tropical South America (1/3/24-hour accumulation)" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">NOAA GOES-East GLM L2 (Geostationary Lightning Mapper) &middot; flashes binned to 0.1&deg; &middot; 1/3/24&nbsp;h accumulation &middot; hourly, rolling 72&nbsp;h</span></div>
+  <!-- MEI.v2 DAILY NOWCAST -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>MEI.v2 Daily Nowcast</h2>
+      <p>NOAA PSL's Multivariate ENSO Index v2 is the leading combined-EOF of five tropical-Pacific fields (sea-level pressure, SST, surface zonal and meridional wind, and OLR), but it is published only as an overlapping bimonthly value with a roughly five-week lag. This is a daily nowcast of it: a regression of the published MEI.v2 onto freely-available daily ENSO components (the Ni&ntilde;o-3.4 SST anomaly, the Southern Oscillation Index, and the equatorial 850-hPa zonal wind), driven forward each day. The grey steps are the official bimonthly MEI.v2; the red line is the daily estimate, with a &plusmn;0.30 leave-one-year-out cross-validation band (the fit reproduces MEI.v2 at R&nbsp;=&nbsp;0.94). The model is SST-weighted, so during a fast SST-led transition it can lead MEI's slower atmospheric components.</p>
     </div>
-
-    <!-- IMERG PRECIPITATION ACCUMULATION LOOPS (NASA GPM) -->
-    <div class="chart-card media-narrow">
-      <div class="chart-card-header">
-        <h2>Tropical South America: Precipitation Accumulation</h2>
-        <p>Accumulated rainfall over Colombia and Brazil from NASA's <b>GPM IMERG</b> (Early run, 0.1&deg; multi-satellite precipitation). Select the window from the <i>Accumulation</i> dropdown: 1&nbsp;hour, 24&nbsp;hours, 7&nbsp;days, 14&nbsp;days, or month-to-date. Short windows use the half-hourly product; multi-day and month-to-date totals use the daily product. The Magdalena River basin (Colombia) is outlined in white, with Brazilian state borders for orientation.</p>
-      </div>
-      <iframe class="anim-embed precip" src="sst_anim.html?embed=1&amp;manifest=precip_manifest.json&amp;region=precip_24h"
-              title="NASA GPM IMERG precipitation-accumulation loops over tropical South America (1h/24h/7d/14d/MTD)" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 Early run (0.1&deg;) &middot; 1h/24h from half-hourly, multi-day from daily &middot; rolling window, refreshed midday ET</span></div>
+    <div class="img-wrap">
+      <img src="assets/sst/mei/mei_nowcast.webp?v=a23ba5a1b2f2"
+           alt="Daily nowcast of the Multivariate ENSO Index version 2" loading="lazy">
     </div>
-
-    <!-- IMERG PRECIPITATION ANOMALY LOOPS (vs IMERG's own 25-yr climatology) -->
-    <div class="chart-card media-narrow">
-      <div class="chart-card-header">
-        <h2>Tropical South America: Precipitation Anomaly</h2>
-        <p>The departure of recent rainfall from normal: the IMERG accumulation minus its climatological value for the same dates. The climatology is built from IMERG's own 25-year record (GPM IMERG Final daily, 2001&ndash;2025), so it is a self-consistent, reanalysis-free, satellite-only anomaly. Select the window (7, 14, 30 days, or month-to-date) from the dropdown. <b style="color:#117a4a">Green</b> is wetter than normal, <b style="color:#9c6b1e">brown</b> is drier than normal, white is near normal; the Magdalena River basin (Colombia) is outlined in black.</p>
-      </div>
-      <iframe class="anim-embed precip-anom" src="sst_anim.html?embed=1&amp;manifest=precip_anom_manifest.json&amp;region=precip_anom_14d"
-              title="NASA GPM IMERG precipitation-anomaly loops vs the 2001–2025 IMERG climatology (7d/14d/30d/MTD)" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 &middot; anomaly = Early accumulation &minus; harmonic day-of-year climatology from IMERG Final daily 2001&ndash;2025 &middot; rolling, refreshed midday ET</span></div>
+    <div class="img-wrap">
+      <p class="img-label">Onset-year analogs: the current year against the major El Ni&ntilde;os</p>
+      <img src="assets/sst/mei/mei_analogs.webp?v=a23ba5a1b2f2"
+           alt="MEI.v2 onset-year analogs: 1982, 1997, 2015, 2023 vs the current nowcast" loading="lazy">
     </div>
-
-    <!-- COLOMBIA HYDRO: zoomed IMERG + hydro regions + plants -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Colombia Hydro: Rainfall over the Power Basins</h2>
-        <p>A country-scale IMERG view for hydropower: accumulations (left) and anomalies vs the 2001&ndash;2025 IMERG climatology (right), with IDEAM's five &aacute;reas hidrogr&aacute;ficas outlined and the major hydroelectric plants overlaid &mdash; marker area proportional to nameplate capacity (Hidroituango 2.4&nbsp;GW down to ~80&nbsp;MW). Pick the window (24&nbsp;h to 90 days) inside each panel.</p>
-      </div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap">
-        <iframe class="anim-embed colombia" style="flex:1 1 340px" src="sst_anim.html?embed=1&amp;manifest=colombia_precip_manifest.json&amp;region=colombia_precip_24h"
-                title="Colombia hydro IMERG accumulation loops with hydro regions and plants" loading="lazy"></iframe>
-        <iframe class="anim-embed colombia" style="flex:1 1 340px" src="sst_anim.html?embed=1&amp;manifest=colombia_anom_manifest.json&amp;region=colombia_anom_30d"
-                title="Colombia hydro IMERG anomaly loops with hydro regions and plants" loading="lazy"></iframe>
-      </div>
-      <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 &middot; regions: IDEAM zonificaci&oacute;n hidrogr&aacute;fica &middot; plants: WRI Global Power Plant Database + curated additions (approx. dam sites) &middot; refreshed with the precip loops</span></div>
+    <div class="img-wrap">
+      <p class="img-label">Full record since 1980</p>
+      <img src="assets/sst/mei/mei_history.webp?v=a23ba5a1b2f2"
+           alt="Full Multivariate ENSO Index v2 record since 1980 with the live nowcast tail" loading="lazy">
     </div>
-
-    <!-- COLOMBIA / PANAMA TRUE-COLOR SATELLITE LOOP (GOES-East via GIBS) -->
-    <div class="chart-card media-narrow">
-      <div class="chart-card-header">
-        <h2>Colombia &amp; Panama: True-Colour Satellite Loop</h2>
-        <p>High-resolution true-colour (visible) imagery over the Colombia/Panama region from <b>GOES-East</b> (NOAA's GeoColor product via NASA GIBS), which sits almost directly overhead here. Because it is visible imagery, the loop runs through the daylight hours of the last two days. <b style="color:#00b3a4">Cyan&nbsp;+</b> marks are GOES&nbsp;GLM lightning flashes from the 15&nbsp;minutes before each frame. Country borders and coastlines are overlaid in yellow.</p>
-      </div>
-      <iframe class="anim-embed colombia" src="sst_anim.html?embed=1&amp;manifest=colombia_manifest.json&amp;region=colombia"
-              title="High-resolution true-colour GOES-East satellite loop over Colombia and Panama" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">GOES-East ABI GeoColor (true colour) &middot; NASA GIBS &middot; country borders Natural Earth 10 m &middot; hourly daylight frames, rolling 2&nbsp;days</span></div>
+    <div class="img-wrap">
+      <p class="img-label">Out-of-sample skill: the 2015&ndash;16 El Ni&ntilde;o</p>
+      <img src="assets/sst/mei/mei_validation.webp?v=a23ba5a1b2f2"
+           alt="Validation of the MEI.v2 nowcast over the 2015-16 El Niño" loading="lazy">
     </div>
-
-    <!-- OLR WHEELER-KILADIS WAVE DECOMPOSITION -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Tropical Waves and Variability: OLR Hovm&ouml;ller</h2>
-        <p>A longitude &times; time Hovm&ouml;ller of the equatorial outgoing-longwave-radiation (OLR) anomaly, averaged 5&deg;S&ndash;5&deg;N around the globe. OLR is derived in real time from the <b>GMGSI</b> longwave-IR mosaic (McIDAS brightness temperature to OLR), with the anomaly taken against NOAA's interpolated-OLR daily climatology (1979&ndash;2022). The shaded field is the total anomaly: <span style="color:#19975a">green is low OLR (deep convection)</span>, <span style="color:#9a6a18">brown is high OLR (suppressed)</span>.</p>
-        <p>Each overlaid component is isolated from that anomaly field and contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin is eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;30&nbsp;d, equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO is eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER is westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed.</p>
-      </div>
-      <div class="img-wrap" style="max-width:960px;margin:0 auto"><img id="olr-waves" data-src="assets/sst/olr_waves.webp" alt="Wheeler-Kiladis wave decomposition of equatorial OLR" loading="lazy"></div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">GMGSI longwave-IR proxy &middot; Wheeler&ndash;Kiladis k&ndash;&omega; filtering (eq. depth 8&ndash;90&nbsp;m) &middot; climatology NOAA interp-OLR 1979&ndash;2022</span>
-        <span class="chart-updated">daily</span>
-      </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">Regression on NOAA OISST Ni&ntilde;o-3.4 &middot; SOI (BoM) &middot; ERA5 eq-u850 &middot; target: NOAA PSL MEI.v2</span>
+      <span class="chart-updated">nowcast, daily</span>
     </div>
+  </div>
 
+  <!-- SYNTHETIC OLR HOVMÖLLER (GMGSI IR) -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Equatorial Convection: Synthetic OLR Hovm&ouml;ller</h2>
+      <p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N zonal mean is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). An eastward (top to bottom-right) tilt is the MJO propagating east; convection parked at the dateline reflects the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
+    </div>
+    <div class="img-wrap" style="max-width:760px;margin:0 auto"><img id="olr-hovmoller" data-src="assets/sst/olr_hovmoller.webp" alt="Synthetic equatorial OLR Hovmöller from GMGSI longwave IR" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA GMGSI longwave-IR global mosaic &middot; McIDAS T_b + Ohring-Gruber OLR &middot; 5&deg;S&ndash;5&deg;N daily mean</span>
+      <span class="chart-updated">updated through the day</span>
+    </div>
+  </div>
+
+  <!-- TROPICAL PACIFIC IR SATELLITE LOOP (GMGSI) -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Tropical Pacific: Live IR Satellite Loop</h2>
+      <p>The clouds behind the OLR Hovm&ouml;ller. NOAA blends GOES-East/West, Himawari and Meteosat into the <b>GMGSI</b> global longwave-IR mosaic on a regular lat/lon grid, so the field is seamless and georeferenced with no stitching or satellite-switch parallax. Cropped to the tropical Pacific with coastlines for orientation, looping the last 72&nbsp;hours. White is cold cloud tops (deep convection).</p>
+    </div>
+    <iframe class="anim-embed pacsat" src="sst_anim.html?embed=1&amp;manifest=pacsat_manifest.json&amp;region=pacsat"
+            title="Seamless tropical-Pacific longwave-IR satellite loop from the GMGSI global mosaic" loading="lazy"></iframe>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
+  </div>
+
+  <!-- SOUTH & CENTRAL AMERICA IR SATELLITE LOOP (GMGSI) -->
+  <div class="chart-card media-narrow">
+    <div class="chart-card-header">
+      <h2>South &amp; Central America: Live IR Satellite Loop</h2>
+      <p>The same <b>GMGSI</b> longwave-IR mosaic cropped to the Americas, from southern Mexico and the Caribbean to Tierra del Fuego, across both the eastern Pacific and the tropical Atlantic. Georeferenced with coastlines, looping the last 72&nbsp;hours. White and colour are cold cloud tops (deep convection).</p>
+    </div>
+    <iframe class="anim-embed samsat" src="sst_anim.html?embed=1&amp;manifest=samsat_manifest.json&amp;region=samsat"
+            title="Seamless South &amp; Central America longwave-IR satellite loop from the GMGSI global mosaic" loading="lazy"></iframe>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
+  </div>
+
+  <!-- TROPICAL SOUTH AMERICA GLM LIGHTNING FLASH-DENSITY LOOP -->
+  <div class="chart-card media-narrow">
+    <div class="chart-card-header">
+      <h2>Tropical South America: Lightning Flash Density</h2>
+      <p>Detected lightning over Colombia, Venezuela and Brazil from NOAA's <b>Geostationary Lightning Mapper (GLM)</b> on GOES-East. Each frame accumulates every flash over a selectable window (1, 3 or 24 hours, from the <i>Accumulation</i> dropdown), binned to a 0.1&deg; grid as a log-scaled density, looping the last 72&nbsp;hours.</p>
+    </div>
+    <iframe class="anim-embed glmden" src="sst_anim.html?embed=1&amp;manifest=glmden_manifest.json&amp;region=glm_3h"
+            title="GOES-East GLM lightning flash-density loop over tropical South America (1/3/24-hour accumulation)" loading="lazy"></iframe>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA GOES-East GLM L2 (Geostationary Lightning Mapper) &middot; flashes binned to 0.1&deg; &middot; 1/3/24&nbsp;h accumulation &middot; hourly, rolling 72&nbsp;h</span></div>
+  </div>
+
+  <!-- IMERG PRECIPITATION ACCUMULATION LOOPS (NASA GPM) -->
+  <div class="chart-card media-narrow">
+    <div class="chart-card-header">
+      <h2>Tropical South America: Precipitation Accumulation</h2>
+      <p>Accumulated rainfall over Colombia and Brazil from NASA's <b>GPM IMERG</b> (Early run, 0.1&deg; multi-satellite precipitation). Select the window from the <i>Accumulation</i> dropdown: 1&nbsp;hour, 24&nbsp;hours, 7&nbsp;days, 14&nbsp;days, or month-to-date. Short windows use the half-hourly product; multi-day and month-to-date totals use the daily product. The Magdalena River basin (Colombia) is outlined in white, with Brazilian state borders for orientation.</p>
+    </div>
+    <iframe class="anim-embed precip" src="sst_anim.html?embed=1&amp;manifest=precip_manifest.json&amp;region=precip_24h"
+            title="NASA GPM IMERG precipitation-accumulation loops over tropical South America (1h/24h/7d/14d/MTD)" loading="lazy"></iframe>
+    <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 Early run (0.1&deg;) &middot; 1h/24h from half-hourly, multi-day from daily &middot; rolling window, refreshed midday ET</span></div>
+  </div>
+
+  <!-- IMERG PRECIPITATION ANOMALY LOOPS (vs IMERG's own 25-yr climatology) -->
+  <div class="chart-card media-narrow">
+    <div class="chart-card-header">
+      <h2>Tropical South America: Precipitation Anomaly</h2>
+      <p>The departure of recent rainfall from normal: the IMERG accumulation minus its climatological value for the same dates. The climatology is built from IMERG's own 25-year record (GPM IMERG Final daily, 2001&ndash;2025), so it is a self-consistent, reanalysis-free, satellite-only anomaly. Select the window (7, 14, 30 days, or month-to-date) from the dropdown. <b style="color:#117a4a">Green</b> is wetter than normal, <b style="color:#9c6b1e">brown</b> is drier than normal, white is near normal; the Magdalena River basin (Colombia) is outlined in black.</p>
+    </div>
+    <iframe class="anim-embed precip-anom" src="sst_anim.html?embed=1&amp;manifest=precip_anom_manifest.json&amp;region=precip_anom_14d"
+            title="NASA GPM IMERG precipitation-anomaly loops vs the 2001–2025 IMERG climatology (7d/14d/30d/MTD)" loading="lazy"></iframe>
+    <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 &middot; anomaly = Early accumulation &minus; harmonic day-of-year climatology from IMERG Final daily 2001&ndash;2025 &middot; rolling, refreshed midday ET</span></div>
+  </div>
+
+  <!-- COLOMBIA HYDRO: zoomed IMERG + hydro regions + plants -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Colombia Hydro: Rainfall over the Power Basins</h2>
+      <p>A country-scale IMERG view for hydropower: accumulations (left) and anomalies vs the 2001&ndash;2025 IMERG climatology (right), with IDEAM's five &aacute;reas hidrogr&aacute;ficas outlined and the major hydroelectric plants overlaid &mdash; marker area proportional to nameplate capacity (Hidroituango 2.4&nbsp;GW down to ~80&nbsp;MW). Pick the window (24&nbsp;h to 90 days) inside each panel.</p>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap">
+      <iframe class="anim-embed colombia" style="flex:1 1 340px" src="sst_anim.html?embed=1&amp;manifest=colombia_precip_manifest.json&amp;region=colombia_precip_24h"
+              title="Colombia hydro IMERG accumulation loops with hydro regions and plants" loading="lazy"></iframe>
+      <iframe class="anim-embed colombia" style="flex:1 1 340px" src="sst_anim.html?embed=1&amp;manifest=colombia_anom_manifest.json&amp;region=colombia_anom_30d"
+              title="Colombia hydro IMERG anomaly loops with hydro regions and plants" loading="lazy"></iframe>
+    </div>
+    <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 &middot; regions: IDEAM zonificaci&oacute;n hidrogr&aacute;fica &middot; plants: WRI Global Power Plant Database + curated additions (approx. dam sites) &middot; refreshed with the precip loops</span></div>
+  </div>
+
+  <!-- COLOMBIA / PANAMA TRUE-COLOR SATELLITE LOOP (GOES-East via GIBS) -->
+  <div class="chart-card media-narrow">
+    <div class="chart-card-header">
+      <h2>Colombia &amp; Panama: True-Colour Satellite Loop</h2>
+      <p>High-resolution true-colour (visible) imagery over the Colombia/Panama region from <b>GOES-East</b> (NOAA's GeoColor product via NASA GIBS), which sits almost directly overhead here. Because it is visible imagery, the loop runs through the daylight hours of the last two days. <b style="color:#00b3a4">Cyan&nbsp;+</b> marks are GOES&nbsp;GLM lightning flashes from the 15&nbsp;minutes before each frame. Country borders and coastlines are overlaid in yellow.</p>
+    </div>
+    <iframe class="anim-embed colombia" src="sst_anim.html?embed=1&amp;manifest=colombia_manifest.json&amp;region=colombia"
+            title="High-resolution true-colour GOES-East satellite loop over Colombia and Panama" loading="lazy"></iframe>
+    <div class="chart-card-footer"><span class="chart-sources">GOES-East ABI GeoColor (true colour) &middot; NASA GIBS &middot; country borders Natural Earth 10 m &middot; hourly daylight frames, rolling 2&nbsp;days</span></div>
+  </div>
+
+  <!-- OLR WHEELER-KILADIS WAVE DECOMPOSITION -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Tropical Waves and Variability: OLR Hovm&ouml;ller</h2>
+      <p>A longitude &times; time Hovm&ouml;ller of the equatorial outgoing-longwave-radiation (OLR) anomaly, averaged 5&deg;S&ndash;5&deg;N around the globe. OLR is derived in real time from the <b>GMGSI</b> longwave-IR mosaic (McIDAS brightness temperature to OLR), with the anomaly taken against NOAA's interpolated-OLR daily climatology (1979&ndash;2022). The shaded field is the total anomaly: <span style="color:#19975a">green is low OLR (deep convection)</span>, <span style="color:#9a6a18">brown is high OLR (suppressed)</span>.</p>
+      <p>Each overlaid component is isolated from that anomaly field and contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin is eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;30&nbsp;d, equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO is eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER is westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed.</p>
+    </div>
+    <div class="img-wrap" style="max-width:960px;margin:0 auto"><img id="olr-waves" data-src="assets/sst/olr_waves.webp" alt="Wheeler-Kiladis wave decomposition of equatorial OLR" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">GMGSI longwave-IR proxy &middot; Wheeler&ndash;Kiladis k&ndash;&omega; filtering (eq. depth 8&ndash;90&nbsp;m) &middot; climatology NOAA interp-OLR 1979&ndash;2022</span>
+      <span class="chart-updated">daily</span>
+    </div>
   </div>
 
   <div class="colophon">
@@ -522,6 +418,188 @@
     <p>Source on <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">GitHub</a>.</p>
   </div>
 </main>
+
+<script>
+(function () {
+  "use strict";
+  // display palette (the pipeline's map colors, brightened for the dark theme)
+  var C = { nino12: "#e86bb8", nino3: "#2fbfb2", nino34: "#f2f4f8", nino4: "#9b7ce8",
+            trop: "#8fa3bd", roni_d: "#4dd6e8", oni90: "#e8c04d" };
+  var GRID = "rgba(148,184,225,0.10)", AXIS = "#6d8099", INK2 = "#a7b8ce";
+  var state = { mode: "anom", range: 365, data: null };
+
+  function tone(v, th) { th = th || 0.5; return v >= th ? "warm" : v <= -th ? "cool" : "neut"; }
+  function fmt(v) { return v == null ? "—" : (v > 0 ? "+" : "") + v.toFixed(2); }
+  function arrow(d) {
+    if (d == null) return "";
+    var a = d > 0.005 ? "▲" : d < -0.005 ? "▼" : "•";
+    var cls = d > 0.005 ? "warm" : d < -0.005 ? "cool" : "neut";
+    return ' <span class="' + cls + '" style="font-size:12px">' + a + " " + fmt(d) + " / 7d</span>";
+  }
+  function ensoState(oni, roni) {
+    var v = roni;                                       // RONI is the cleaner signal
+    var name = v >= 0.5 ? "El Niño" : v <= -0.5 ? "La Niña" : "Neutral";
+    var strength = Math.abs(v) >= 1.5 ? "strong " : Math.abs(v) >= 1.0 ? "moderate " : "";
+    if (Math.abs(v) < 0.5 && Math.abs(oni) >= 0.5)
+      return { name: "Neutral by RONI", sub: "ONI says " + (oni > 0 ? "El Niño" : "La Niña") + " — background warming inflates it" };
+    return { name: strength + name, sub: "by RONI " + fmt(roni) + " · ONI " + fmt(oni) };
+  }
+
+  function buildChips(L) {
+    var st = ensoState(L.oni, L.roni);
+    var chips = [
+      { l: "ENSO state · " + L.oni_month, v: st.name, s: st.sub,
+        cls: tone(L.roni) },
+      { l: "Daily Niño-3.4", v: fmt(L.nino34) + " °C", s: "single day, " + L.date + arrow(L.nino34_d7),
+        cls: tone(L.nino34) },
+      { l: "Daily RONI", v: fmt(L.roni_d) + " °C", s: "relative, σ-scaled" + arrow(L.roni_d_d7),
+        cls: tone(L.roni_d) },
+      { l: "ONI est. (90-day)", v: fmt(L.oni90) + " °C", s: "running daily estimate" + arrow(L.oni90_d7),
+        cls: tone(L.oni90) },
+      { l: "ONI · " + L.oni_month, v: fmt(L.oni) + " °C", s: "official 3-month convention",
+        cls: tone(L.oni) },
+      { l: "RONI · " + L.oni_month, v: fmt(L.roni) + " °C", s: "3-month, σ-scaled",
+        cls: tone(L.roni) },
+      { l: "Tropical mean 20S–20N", v: fmt(L.trop) + " °C", s: "the warming background" + arrow(L.trop_d7),
+        cls: "neut" },
+    ];
+    document.getElementById("chips").innerHTML = chips.map(function (c) {
+      return '<div class="chip"><div class="l">' + c.l + '</div>' +
+             '<div class="v ' + c.cls + '">' + c.v + '</div>' +
+             '<div class="s">' + c.s + "</div></div>";
+    }).join("");
+  }
+
+  function layout(extra) {
+    var base = {
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: { family: "Inter, sans-serif", size: 12, color: INK2 },
+      margin: { l: 46, r: 12, t: 8, b: 34 },
+      xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, zeroline: false },
+      yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
+               zerolinecolor: "rgba(148,184,225,0.35)", title: { text: "°C", standoff: 4 } },
+      legend: { orientation: "h", y: 1.08, font: { size: 11 } },
+      hovermode: "x unified",
+      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
+                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+    };
+    for (var k in extra) base[k] = extra[k];
+    return base;
+  }
+  var CONFIG = { displayModeBar: false, responsive: true };
+
+  function thresholdShapes(x0, x1) {
+    return [0.5, -0.5].map(function (y) {
+      return { type: "line", x0: x0, x1: x1, y0: y, y1: y,
+               line: { color: y > 0 ? "rgba(232,131,58,0.45)" : "rgba(77,143,232,0.45)",
+                       width: 1, dash: "dot" } };
+    });
+  }
+
+  function drawDaily() {
+    var D = state.data.daily, dates = D.dates;
+    var n = dates.length;
+    var i0 = Math.max(0, n - state.range);
+    var x = dates.slice(i0);
+    function tr(key, name, color, opts) {
+      var t = { x: x, y: D[key].slice(i0), name: name, type: "scatter", mode: "lines",
+                line: { color: color, width: 1.6 },
+                hovertemplate: "%{y:+.2f} °C" };
+      for (var k in (opts || {})) t[k] = opts[k];
+      return t;
+    }
+    var traces, shapes = [];
+    if (state.mode === "anom") {
+      traces = [
+        tr("nino12", "Niño-1+2", C.nino12, { visible: "legendonly" }),
+        tr("nino3", "Niño-3", C.nino3, { visible: "legendonly" }),
+        tr("nino4", "Niño-4", C.nino4, { visible: "legendonly" }),
+        tr("trop", "Tropical mean", C.trop, { visible: "legendonly",
+          line: { color: C.trop, width: 1.2, dash: "dot" } }),
+        tr("nino34", "Niño-3.4 (daily)", C.nino34),
+        tr("roni_d", "Daily RONI", C.roni_d, { line: { color: C.roni_d, width: 2.4 } }),
+        tr("oni90", "ONI est. (90-d mean)", C.oni90, { line: { color: C.oni90, width: 2.2 } }),
+      ];
+      shapes = thresholdShapes(x[0], x[x.length - 1]);
+    } else {
+      traces = [
+        tr("nino12_abs", "Niño-1+2", C.nino12),
+        tr("nino3_abs", "Niño-3", C.nino3),
+        tr("nino34_abs", "Niño-3.4", C.nino34, { line: { color: C.nino34, width: 2.2 } }),
+        tr("nino4_abs", "Niño-4", C.nino4),
+      ];
+    }
+    var lay = layout({ shapes: shapes });
+    if (state.mode === "abs") lay.yaxis.title.text = "SST (°C)";
+    Plotly.react("dailyChart", traces, lay, CONFIG);
+  }
+
+  function drawMonthly() {
+    var M = state.data.monthly;
+    var lay = layout({
+      barmode: "group", bargap: 0.25,
+      shapes: thresholdShapes(M.months[0], M.months[M.months.length - 1]),
+      margin: { l: 46, r: 12, t: 8, b: 42 },
+    });
+    lay.xaxis.type = "category"; lay.xaxis.tickangle = -35;
+    Plotly.react("monthlyChart", [
+      { x: M.months, y: M.oni, name: "ONI", type: "bar",
+        marker: { color: "rgba(232,192,77,0.85)" }, hovertemplate: "%{y:+.2f} °C" },
+      { x: M.months, y: M.roni, name: "RONI", type: "bar",
+        marker: { color: "rgba(77,214,232,0.9)" }, hovertemplate: "%{y:+.2f} °C" },
+    ], lay, CONFIG);
+  }
+
+  // pills
+  document.querySelectorAll(".pill[data-mode]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.mode = b.dataset.mode;
+      document.querySelectorAll(".pill[data-mode]").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      if (state.data) drawDaily();
+    });
+  });
+  document.querySelectorAll(".pill[data-range]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.range = +b.dataset.range;
+      document.querySelectorAll(".pill[data-range]").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      if (state.data) drawDaily();
+    });
+  });
+  document.querySelectorAll(".pill[data-map]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll(".pill[data-map]").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      var src = "assets/sst/" + b.dataset.map + "_sst_anom.png?v=a23ba5a1b2f2";
+      var im = document.getElementById("heroMap");
+      im.onerror = function () { this.onerror = null; this.src = this.src.replace(".png", ".webp"); };
+      im.src = src;
+      document.getElementById("heroLink").href = src;
+    });
+  });
+
+  fetch("assets/sst/data/enso_daily.json?v=a23ba5a1b2f2")
+    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (d) {
+      state.data = d;
+      buildChips(d.latest);
+      drawDaily();
+      drawMonthly();
+    })
+    .catch(function () {
+      // feed not built yet (or fetch blocked): fall back to the static renders
+      document.getElementById("chips").innerHTML =
+        '<div class="chip"><div class="l">Daily index feed</div>' +
+        '<div class="v neut">building…</div>' +
+        '<div class="s">static charts shown below</div></div>';
+      document.getElementById("dailyChart").style.display = "none";
+      document.getElementById("monthlyChart").style.display = "none";
+      document.getElementById("dailyFallback").hidden = false;
+      document.getElementById("monthlyFallback").hidden = false;
+    });
+})();
+</script>
 
 <footer>
   <p class="counter">Unique viewers: <span id="count">&mdash;</span></p>

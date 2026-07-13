@@ -25,11 +25,12 @@ PAGES_DIR = HERE / "pages"
 _SUBNAV_KEYS = ["A_OVERVIEW", "A_SUBSURFACE", "A_ANALOGS", "A_FORECASTS", "A_ATMOSPHERE"]
 
 PAGES = [
-    dict(slug="overview", out="sst.html", active="A_OVERVIEW",
-         title="Global SST and El Ni&ntilde;o/La Ni&ntilde;a Monitor &middot; Shawn Corvec",
-         desc="Daily global and tropical Pacific sea-surface temperature anomalies from "
-              "NOAA OISST v2.1, plus the Relative Oceanic Niño Index (RONI) and ENSO "
-              "subsurface, analog, forecast and atmospheric diagnostics.",
+    dict(slug="overview", out="sst.html", active="A_OVERVIEW", chrome="dark",
+         title="El Ni&ntilde;o Monitor &mdash; Daily ONI, RONI &amp; Ni&ntilde;o Indices &middot; Shawn Corvec",
+         desc="Daily estimates of ONI and RONI with interactive Niño-region SST index "
+              "charts, high-resolution global and tropical Pacific anomaly maps from "
+              "NOAA OISST v2.1, and ENSO subsurface, analog, forecast and atmospheric "
+              "diagnostics.",
          canonical="https://scorvec.com/sst.html"),
     dict(slug="subsurface", out="enso-subsurface.html", active="A_SUBSURFACE",
          title="Subsurface Temperature &middot; El Ni&ntilde;o Monitor",
@@ -60,8 +61,14 @@ def _read(p: Path) -> str:
 
 
 def assemble(page: dict) -> str:
-    """Full HTML for one page (still containing the __…__ data tokens)."""
-    head = (_read(PARTIALS_DIR / "head.html")
+    """Full HTML for one page (still containing the __…__ data tokens).
+
+    chrome="dark" swaps in the Gatun-style dark head (the overview); the
+    themed subpages keep the light chrome. The nav partial is shared — its
+    classes are styled by whichever head is in play.
+    """
+    head_file = "head_dark.html" if page.get("chrome") == "dark" else "head.html"
+    head = (_read(PARTIALS_DIR / head_file)
             .replace("{{TITLE}}", page["title"])
             .replace("{{DESC}}", page["desc"])
             .replace("{{CANONICAL}}", page["canonical"]))
