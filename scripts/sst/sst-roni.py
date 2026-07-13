@@ -196,7 +196,8 @@ def _draw_nino_boxes(ax, label=True):
 
 def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
                    figsize, central_lon=0.0, vmin=-5.0, vmax=5.0,
-                   annotation=None, nino_box=True):
+                   annotation=None, nino_box=True,
+                   png_path=None, png_dpi=150):
     cmap = sst_anom_cmap()
     proj = ccrs.PlateCarree(central_longitude=central_lon)
     fig, ax = plt.subplots(figsize=figsize, dpi=100,
@@ -240,6 +241,10 @@ def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
                 bbox_inches="tight", pad_inches=0.08,
                 pil_kwargs={"quality": 82, "method": 6})
+    if png_path is not None:                    # high-res PNG for the overview hero
+        fig.savefig(png_path, dpi=png_dpi, facecolor="white", edgecolor="none",
+                    bbox_inches="tight", pad_inches=0.08)
+        print(f"  wrote {Path(png_path).name} (dpi {png_dpi})")
     plt.close(fig)
     print(f"  wrote {out_path.name}")
 
@@ -703,6 +708,80 @@ def render_roni(df: pd.DataFrame, out_path: Path,
 # ----------------------------------------------------------------------
 # Main
 # ----------------------------------------------------------------------
+def publish_enso_daily_json(mean_fields, la, lo, idx, valid, out_path):
+    """One JSON feed with every daily ENSO index series the interactive
+    overview charts need — the page draws numbers, not pixels.
+
+    daily   : ~2 years of daily box series — anomaly AND absolute SST for the
+              four Niño regions, the 20°S–20°N tropical mean, the relative
+              index (Niño-3.4 − tropical), the daily RONI (relative × the
+              CPC/ECMWF per-month σ-scale) and a 90-day trailing mean of
+              Niño-3.4 as the running daily ONI estimate.
+    monthly : the official-convention ONI/RONI (3-month centered) table.
+    latest  : current values with 7- and 30-day changes, for the stat chips.
+    """
+    def _cat(fn, region):
+        parts = [fn(f, la, lo, region["lat"], region["lon"]) for f in mean_fields]
+        return pd.concat(parts).sort_index()
+
+    a = {k: _cat(oisst9120.box_anom_series, r) for k, r in NINO_REGIONS.items()}
+    b = {k: _cat(oisst9120.box_mean_series, r) for k, r in NINO_REGIONS.items()}
+    trop = _cat(oisst9120.box_anom_series, TROPICAL)
+    rel = a["nino34"] - trop
+    sc = load_roni_scale()
+    months = pd.DatetimeIndex(rel.index).month
+    roni_d = rel * pd.Series([sc.get(int(m), 1.0) for m in months], index=rel.index)
+    oni90 = a["nino34"].rolling(90, min_periods=90).mean()
+
+    dates = pd.DatetimeIndex(a["nino34"].index)
+    rnd = lambda s: [None if not np.isfinite(v) else round(float(v), 3)  # noqa: E731
+                     for v in np.asarray(s)]
+    daily = {"dates": [d.strftime("%Y-%m-%d") for d in dates],
+             "trop": rnd(trop), "rel": rnd(rel), "roni_d": rnd(roni_d),
+             "oni90": rnd(oni90)}
+    for k in NINO_REGIONS:
+        daily[k] = rnd(a[k])
+        daily[k + "_abs"] = rnd(b[k])
+
+    def _delta(s, days):
+        s = s.dropna()
+        if len(s) < 2:
+            return None
+        past = s[s.index <= s.index[-1] - pd.Timedelta(days=days)]
+        return None if past.empty else round(float(s.iloc[-1] - past.iloc[-1]), 3)
+
+    latest = {"date": f"{valid:%Y-%m-%d}",
+              "oni_month": f"{idx['month'].iloc[-1]:%Y-%m}",
+              "oni": round(float(idx["oni"].iloc[-1]), 2),
+              "roni": round(float(idx["roni"].iloc[-1]), 2)}
+    for key, ser in [("nino34", a["nino34"]), ("nino34_abs", b["nino34"]),
+                     ("nino12", a["nino12"]), ("nino3", a["nino3"]),
+                     ("nino4", a["nino4"]), ("trop", trop),
+                     ("roni_d", roni_d), ("oni90", oni90)]:
+        sv = ser.dropna()
+        if sv.empty:
+            continue
+        latest[key] = round(float(sv.iloc[-1]), 2)
+        latest[key + "_d7"] = _delta(ser, 7)
+        latest[key + "_d30"] = _delta(ser, 30)
+
+    payload = {
+        "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "source": "NOAA OISST v2.1 daily means; anomalies vs 1991-2020 (oisst9120)",
+        "regions": {k: {"label": r["label"], "color": r["color"]}
+                    for k, r in NINO_REGIONS.items()},
+        "daily": daily,
+        "monthly": {"months": [f"{m:%Y-%m}" for m in idx["month"]],
+                    "oni": [round(float(v), 2) for v in idx["oni"]],
+                    "roni": [round(float(v), 2) for v in idx["roni"]]},
+        "latest": latest,
+    }
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(payload, separators=(",", ":")))
+    print(f"  wrote {out_path.relative_to(SITE_ROOT)} "
+          f"({len(dates)} days, {out_path.stat().st_size // 1024} KB)")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--force", action="store_true",
@@ -787,14 +866,16 @@ def main(argv=None) -> int:
                    ASSETS / "global_sst_anom.webp",
                    figsize=(14, 7), central_lon=GLOBAL_CENTRAL_LON,
                    vmin=-5.0, vmax=5.0,
-                   annotation=annotation)
+                   annotation=annotation,
+                   png_path=ASSETS / "global_sst_anom.png")
 
     render_sst_map(latest, la, lo, TROPICAL_EXTENT,
                    f"Tropical Pacific SST Anomaly \u2014 {valid:%Y-%m-%d}",
                    ASSETS / "tropical_sst_anom.webp",
                    figsize=(14, 5.5), central_lon=TROPICAL_CENTRAL_LON,
                    vmin=-5.0, vmax=5.0,
-                   annotation=annotation)
+                   annotation=annotation,
+                   png_path=ASSETS / "tropical_sst_anom.png")
 
     # --- RONI time series chart ---
     # Is the newest bar's season still accumulating days? True unless the daily
@@ -804,6 +885,11 @@ def main(argv=None) -> int:
                 latest_oni=latest_oni, latest_roni=latest_roni,
                 latest_month=latest_month, last_partial=last_partial)
     latest_roni_month = latest_month
+
+    # --- Daily index JSON feed (drives the interactive overview charts) ---
+    print("Daily ENSO index JSON:")
+    publish_enso_daily_json(mean_fields, la, lo, idx, valid,
+                            ASSETS / "data" / "enso_daily.json")
 
     # --- Daily 3-metric chart (year-to-date box anomaly series) ---
     print("Daily 3-metric time series:")
