@@ -866,16 +866,14 @@ def main(argv=None) -> int:
                    ASSETS / "global_sst_anom.webp",
                    figsize=(14, 7), central_lon=GLOBAL_CENTRAL_LON,
                    vmin=-5.0, vmax=5.0,
-                   annotation=annotation,
-                   png_path=ASSETS / "global_sst_anom.png")
+                   annotation=annotation)
 
     render_sst_map(latest, la, lo, TROPICAL_EXTENT,
                    f"Tropical Pacific SST Anomaly \u2014 {valid:%Y-%m-%d}",
                    ASSETS / "tropical_sst_anom.webp",
                    figsize=(14, 5.5), central_lon=TROPICAL_CENTRAL_LON,
                    vmin=-5.0, vmax=5.0,
-                   annotation=annotation,
-                   png_path=ASSETS / "tropical_sst_anom.png")
+                   annotation=annotation)
 
     # --- RONI time series chart ---
     # Is the newest bar's season still accumulating days? True unless the daily

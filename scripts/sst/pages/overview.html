@@ -76,30 +76,6 @@
     </div>
   </div>
 
-  <!-- ── TODAY'S MAPS (HIGH-RES PNG) ───────────────────────────────────── -->
-  <div class="card">
-    <h2>Today's SST anomaly</h2>
-    <p class="note">High-resolution renders of today's field with the Ni&ntilde;o boxes overlaid
-    and the daily index readout stamped on the map. Click the map (or &ldquo;full size&rdquo;)
-    for the full-resolution PNG.</p>
-    <div class="controls">
-      <button class="pill on" data-map="tropical">Tropical Pacific</button>
-      <button class="pill" data-map="global">Global</button>
-    </div>
-    <div class="heromap">
-      <a id="heroLink" href="assets/sst/tropical_sst_anom.png?v=__CACHE__" target="_blank" rel="noopener">
-        <img id="heroMap" src="assets/sst/tropical_sst_anom.png?v=__CACHE__"
-             alt="Tropical Pacific SST anomaly map, latest day" loading="lazy"
-             onerror="this.onerror=null;this.src=this.src.replace('.png','.webp');">
-        <span class="full">open full size ⤢</span>
-      </a>
-    </div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">NOAA OISST v2.1 &middot; anomalies vs 1991&ndash;2020 &middot; PNG at 150 dpi</span>
-      <span class="chart-updated">__SST_DAY__</span>
-    </div>
-  </div>
-
   <!-- ── 60-DAY ANIMATION ──────────────────────────────────────────────── -->
   <div class="chart-card">
     <div class="chart-card-header">
@@ -381,16 +357,25 @@
 
   function drawMonthly() {
     var M = state.data.monthly;
+    // CPC season codes: the month in the feed is the CENTER of the 3-month
+    // running mean, so 2026-06 is MJJ. Year suffix keeps an 18-season axis
+    // unambiguous.
+    var SEA = "JFMAMJJASOND";
+    var labels = M.months.map(function (ym) {
+      var y = +ym.slice(0, 4), m = +ym.slice(5, 7);
+      return SEA[(m + 10) % 12] + SEA[(m - 1) % 12] + SEA[m % 12] +
+             " ’" + String(y).slice(2);
+    });
     var lay = layout({
       barmode: "group", bargap: 0.25,
-      shapes: thresholdShapes(M.months[0], M.months[M.months.length - 1]),
+      shapes: thresholdShapes(labels[0], labels[labels.length - 1]),
       margin: { l: 46, r: 12, t: 8, b: 42 },
     });
     lay.xaxis.type = "category"; lay.xaxis.tickangle = -35;
     Plotly.react("monthlyChart", [
-      { x: M.months, y: M.oni, name: "ONI", type: "bar",
+      { x: labels, y: M.oni, name: "ONI", type: "bar",
         marker: { color: "rgba(232,192,77,0.85)" }, hovertemplate: "%{y:+.2f} °C" },
-      { x: M.months, y: M.roni, name: "RONI", type: "bar",
+      { x: labels, y: M.roni, name: "RONI", type: "bar",
         marker: { color: "rgba(77,214,232,0.9)" }, hovertemplate: "%{y:+.2f} °C" },
     ], lay, CONFIG);
   }
@@ -412,18 +397,6 @@
       if (state.data) drawDaily();
     });
   });
-  document.querySelectorAll(".pill[data-map]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      document.querySelectorAll(".pill[data-map]").forEach(function (o) {
-        o.classList.toggle("on", o === b); });
-      var src = "assets/sst/" + b.dataset.map + "_sst_anom.png?v=__CACHE__";
-      var im = document.getElementById("heroMap");
-      im.onerror = function () { this.onerror = null; this.src = this.src.replace(".png", ".webp"); };
-      im.src = src;
-      document.getElementById("heroLink").href = src;
-    });
-  });
-
   fetch("assets/sst/data/enso_daily.json?v=__CACHE__")
     .then(function (r) { if (!r.ok) throw 0; return r.json(); })
     .then(function (d) {
