@@ -128,12 +128,23 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     p = ra.MAP120_PATH
-    if not args.force and p.exists():
-        age = (datetime.now(timezone.utc)
-               - datetime.fromtimestamp(p.stat().st_mtime, timezone.utc)).days
-        if age < REFRESH_EVERY_DAYS:
-            print(f"wind_map120.nc is {age} day(s) old (< {REFRESH_EVERY_DAYS}); nothing to do.")
-            return 0
+    # Gate on the DATA, not the file mtime. The old mtime gate had two failure
+    # modes that made the "daily" refresh run every other day at best: timedelta
+    # .days truncates (23 h 59 m → 0 → skip), and any git checkout/rebase that
+    # rewrites the file resets its mtime and re-arms the skip. The cache's last
+    # data day vs the day ARCO should now hold is the question actually at stake.
+    if not args.force and p.exists() and CACHE.exists():
+        try:
+            with xr.open_dataset(CACHE) as c:
+                last_have = pd.Timestamp(c.time.values[-1])
+            target = (pd.Timestamp(datetime.now(timezone.utc).date())
+                      - pd.Timedelta(days=ARCO_LAG_DAYS))
+            if last_have >= target:
+                print(f"cache already reaches {last_have.date()} "
+                      f"(target {target.date()}); nothing to do.")
+                return 0
+        except Exception:                        # noqa: BLE001 — unreadable cache: rebuild
+            pass
     if not CLIM_PATH.exists():
         print("ERROR: missing climatology.nc — run src/setup_reference.py first.")
         return 1
@@ -151,9 +162,10 @@ def main(argv=None) -> int:
     mean120 = build_map(cache, clim)
     if mean120 is None:
         return 0
+    mean120["window_end"] = str(cache.time.values[-1])[:10]
     ra.save_map120(mean120)
     print(f"wind_map120.nc refreshed from ARCO-ERA5 (latest cache day "
-          f"{str(cache.time.values[-1])[:10]}).")
+          f"{mean120['window_end']}).")
     return 0
 
 
