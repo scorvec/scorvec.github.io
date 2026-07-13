@@ -192,20 +192,16 @@
     </div>
   </div>
 
-  <!-- ── HISTORY: THE FORECAST IN CONTEXT ──────────────────────────────── -->
-  <div class="card">
-    <h2>Against every ENSO year since 1970</h2>
-    <p class="note">Each grey line is one calendar year of observed ONI; the shaded band is the
-    <b>record envelope</b> (the highest and lowest ONI ever observed in each calendar month
-    since 1970). Named El&nbsp;Ni&ntilde;o events are coloured by strength &mdash; strong and
-    super events start visible, the rest wait in the legend. The current year is drawn bold
-    white, and the <b style="color:#e8c04d">gold dashes</b> extend it with this issue's
-    multi-model mean &mdash; showing at a glance whether the forecast would rewrite the record
-    book or just visit it.</p>
-    <div id="histChart" class="plot" style="height:470px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">NOAA CPC ERSSTv5 monthly ONI, 1970&ndash;present (1991&ndash;2020 base) &middot; forecast: C3S multi-model mean, 3-month smoothed &middot; ONI convention throughout</span>
-      <span class="chart-updated" id="hist-updated">&mdash;</span>
+  <div class="chart-stack">
+
+    <!-- C3S MULTI-MODEL ONI + RONI FORECAST -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>C3S Multi-Model Seasonal Forecast &mdash; Ni&ntilde;o-3.4 &amp; RONI</h2>
+        <p>ENSO outlook from the Copernicus Climate Change Service (C3S) multi-system seasonal ensemble, initialized the same month at seven centres: <b>ECMWF</b> (SEAS5), the <b>UK Met Office</b> (GloSea6), <b>M&eacute;t&eacute;o-France</b>, <b>DWD</b> (GCFS2), <b>NCEP</b> (CFSv2), <b>ECCC</b> (CanSIPS) and the <b>Australian Bureau of Meteorology</b> (ACCESS-S2). The four panels show the <b>Ni&ntilde;o-3.4</b> SST anomaly (top) and the <b>relative Ni&ntilde;o-3.4</b> anomaly (bottom; the CPC/ECMWF index, Ni&ntilde;o-3.4 minus the 20&deg;S&ndash;20&deg;N tropical-mean anomaly, rescaled per calendar month so it keeps ONI's &deg;C thresholds), each as the raw <b>monthly</b> value (left) and the <b>3-month running mean</b> (right, which are the ONI and RONI). The relative index removes the background tropical warming that inflates the traditional one. The shaded plume is the spread across <b>all members of all models</b> (full range, 10&ndash;90% and 25&ndash;75%); each coloured line is one model's ensemble mean; the bold black line is the multi-model mean. Every model is anomalized against <b>its own 1993&ndash;2016 hindcast</b>, removing its drift and bias. The Ni&ntilde;o-3.4 box is sampled at 1&deg; and the tropical mean at 5&deg;. Dotted lines mark the &plusmn;0.5/1.0/1.5&nbsp;&deg;C thresholds.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/c3s_nino34.webp?v=261eca2df1f6" alt="C3S multi-model ENSO forecast: Niño-3.4 and relative Niño-3.4, monthly and 3-month running mean, with an all-member plume and the multi-model mean" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Copernicus C3S seasonal multi-system (CDS) &middot; Ni&ntilde;o-3.4 &amp; RONI (CPC/ECMWF) &middot; all-member plume &middot; anomaly vs each model's 1993&ndash;2016 hindcast &middot; updated monthly</span></div>
     </div>
   </div>
 
