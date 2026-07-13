@@ -22,6 +22,7 @@ import concurrent.futures as cf
 import json
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -33,11 +34,29 @@ RETAIN_H = 96
 WORKERS = 6
 
 
-def get(url: str, timeout: int = 60) -> bytes:
+def get(url: str, timeout: int = 60, tries: int = 1, backoff: int = 5) -> bytes:
+    """Fetch a URL, optionally retrying transient failures.
+
+    UW's read times are erratic: a single 60 s timeout on the station manifest
+    silently dropped a whole synoptic slot (12Z vanished on 2026-07-12 and -13),
+    which greyed out every "live" dot on the map. Callers that cannot afford to
+    lose a slot ask for retries; per-station fetches stay single-shot so one
+    slow station can't blow the job's time budget.
+    """
     req = urllib.request.Request(url, headers={"User-Agent":
         "scorvec.com skew-t mirror (contact: site owner; ~4 fetches/day/station)"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read()
+    for k in range(1, tries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.read()
+        except urllib.error.HTTPError:      # the server answered — retrying won't help
+            raise
+        except Exception as e:              # noqa: BLE001 — timeout / reset / DNS
+            if k == tries:
+                raise
+            print(f"    retry {k}/{tries - 1} after {repr(e)[:60]}", flush=True)
+            time.sleep(backoff * k)
+    raise RuntimeError("unreachable")
 
 
 def synoptic_hours(n: int = 5):
@@ -55,7 +74,8 @@ def synoptic_hours(n: int = 5):
 def manifest_for(dt: datetime) -> list:
     q = urllib.parse.quote(f"{dt:%Y-%m-%d %H:%M:%S}")
     try:
-        d = json.loads(get(f"{UW}/sounding_json?datetime={q}"))
+        d = json.loads(get(f"{UW}/sounding_json?datetime={q}",
+                           timeout=75, tries=3, backoff=6))
         out = []
         for s in d.get("stations", []):
             name = str(s.get("name", "")).split("\n")[0].strip()
@@ -127,10 +147,22 @@ def main() -> int:
 
     # newest-first union of the last few synoptic manifests (6-hourly)
     entries: dict = {}
+    per_slot: dict = {}
     for dt in synoptic_hours(5):
-        for e in manifest_for(dt):
+        got = manifest_for(dt)
+        per_slot[dt] = len(got)
+        for e in got:
             entries.setdefault(e["id"], e)
-    print(f"  UW manifest union: {len(entries)} stations", flush=True)
+    print(f"  UW manifest union: {len(entries)} stations "
+          f"({', '.join(f'{d:%H}Z:{n}' for d, n in per_slot.items())})", flush=True)
+
+    # The map's live (blue) dots are exactly the stations that reported at the
+    # newest regular slot. Lose that slot and every dot greys out even though the
+    # balloons flew — so fail loudly instead of publishing a map that looks broken.
+    regular = [d for d in per_slot if d.hour in (0, 12)]
+    if regular and not per_slot[max(regular)]:
+        print(f"::warning::UW manifest for {max(regular):%Y-%m-%d %H}Z came back "
+              "empty — live dots will be missing from the map this cycle", flush=True)
 
     # stations from the previous manifest whose launches are still in window
     for sid, e in (prev_manifest.get("entries") or {}).items():
