@@ -3,237 +3,133 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ENSO Forecasts &middot; El Ni&ntilde;o Monitor</title>
-<meta name="description" content="Multi-model C3S seasonal Niño-3.4 outlook — the Copernicus multi-system seasonal ensemble (ECMWF, UK Met Office, Météo-France, DWD, NCEP, ECCC/CanSIPS, BOM), shown as both traditional ONI and RONI.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>ENSO Forecasts &mdash; Interactive Multi-Model Outlook &middot; El Ni&ntilde;o Monitor</title>
+<meta name="description" content="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from seven centres, percentile fans, ONI vs RONI, and the forecast measured against every ENSO event since 1970.">
 <link rel="canonical" href="https://scorvec.com/enso-forecasts.html">
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
-  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
+  /* ── dark ENSO-monitor chrome: the Lake Gatun design language ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #fafaf8;
-    --ink: #1c1c1a;
-    --muted: #888580;
-    --accent: #2c4a72;
-    --accent-light: #e8eef5;
-    --rule: #e4e2dc;
-    --serif: 'Lora', Georgia, serif;
-    --sans: 'Inter', sans-serif;
+    --page: #081120; --surface: #0d1a2eCC; --surface-solid: #0d1a2e;
+    --border: rgba(148,184,225,0.13); --border-hi: rgba(148,184,225,0.4);
+    --ink: #e9eff8; --ink2: #a7b8ce; --muted: #6d8099;
+    --aqua: #4dd6e8; --aqua-deep: #2aa5bd;
+    --nino: #e8833a; --nina: #4d8fe8;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
   }
-  html { font-size: 17.5px; }   /* nudge the whole page up from the 16px default */
-  html, body { height: 100%; }
+  html { font-size: 16px; scroll-behavior: smooth; }
   body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: var(--sans);
-    -webkit-font-smoothing: antialiased;
-    display: flex; flex-direction: column;
+    background: radial-gradient(1200px 700px at 70% -10%, #102440 0%, var(--page) 55%) fixed, var(--page);
+    color: var(--ink); font: 14.5px/1.55 var(--sans); -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; min-height: 100vh;
   }
+  a { color: var(--aqua-deep); }
 
-  /* fixed two-row header: site nav + ENSO monitor sub-nav */
+  /* fixed two-row header: site nav + monitor sub-nav */
   .site-header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-    background: rgba(250,250,248,0.95);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--rule);
+    background: rgba(8,17,32,0.88); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
   }
-  nav {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 1.2rem 3rem;
-  }
-  .nav-name {
-    font-family: var(--serif); font-weight: 400; font-size: 1rem;
-    text-decoration: none; color: var(--ink);
-  }
-  .nav-links { display: flex; gap: 2rem; list-style: none; }
-  .nav-links a {
-    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
-    text-decoration: none; color: var(--muted); transition: color 0.2s;
-  }
-  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
-
-  .enso-subnav {
-    display: flex; gap: 1.6rem; align-items: center; flex-wrap: wrap;
-    padding: 0.55rem 3rem 0.7rem;
-    border-top: 1px solid var(--rule);
-  }
-  .enso-subnav a {
-    font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
-    color: var(--muted); padding-bottom: 2px;
-    border-bottom: 2px solid transparent;
-    transition: color 0.2s, border-color 0.2s;
-  }
+  nav { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 2.4rem; }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  .nav-links { display: flex; gap: 1.8rem; list-style: none; }
+  .nav-links a { font-size: 0.8rem; letter-spacing: 0.04em; text-decoration: none;
+                 color: var(--muted); transition: color 0.2s; }
+  .nav-links a:hover { color: var(--ink); }
+  .enso-subnav { display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
+                 padding: 0.5rem 2.4rem 0.6rem; border-top: 1px solid var(--border); }
+  .enso-subnav a { font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
+                   color: var(--muted); padding-bottom: 2px;
+                   border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
   .enso-subnav a:hover { color: var(--ink); }
-  .enso-subnav a.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+  .enso-subnav a.active { color: var(--aqua); border-bottom-color: var(--aqua); font-weight: 500; }
 
-  main {
-    flex: 1;
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 9.5rem 2.5rem 5rem;
-    width: 100%;
-  }
+  main { flex: 1; max-width: 1220px; margin: 0 auto; width: 100%;
+         padding: 7.4rem 1.4rem 4rem; }
 
-  .page-header {
-    margin-bottom: 3rem;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid var(--rule);
-  }
-  .page-header h1 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
-    margin-bottom: 0.5rem;
-  }
-  .page-header p {
-    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
-  }
-  .page-header p + p { margin-top: 0.8rem; }
+  /* hero */
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.22em;
+             text-transform: uppercase; color: var(--aqua-deep); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 40px;
+       letter-spacing: 0.01em; margin: 6px 0 4px; }
+  h1 em { font-style: italic; color: var(--aqua); }
+  .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 20px; }
 
-  /* Overview topic grid (links to the themed subpages) */
-  .topic-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem; margin-bottom: 3rem;
-  }
-  .topic-card {
-    display: block; border: 1px solid var(--rule); background: #fff;
-    padding: 1.2rem 1.3rem; text-decoration: none;
-    transition: border-color 0.2s, background 0.2s;
-  }
-  .topic-card:hover { border-color: var(--accent); background: var(--accent-light); }
-  .topic-card h3 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.02rem;
-    color: var(--ink); margin-bottom: 0.3rem;
-  }
-  .topic-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+  /* stat chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 11px; margin-bottom: 26px; }
+  .chip { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+          padding: 11px 16px; min-width: 148px; backdrop-filter: blur(6px); }
+  .chip .l { font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em;
+             text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .chip .v { font-size: 23px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .chip .s { font-size: 11.5px; color: var(--ink2); }
+  .warm { color: var(--nino); } .cool { color: var(--nina); } .neut { color: #cfd8e6; }
 
-  .chart-stack { display: flex; flex-direction: column; gap: 3rem; }
+  /* cards */
+  .card, .chart-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 20px 20px 12px; margin-bottom: 20px; backdrop-filter: blur(6px);
+  }
+  .card h2, .chart-card-header h2 { font-family: var(--serif); font-weight: 500;
+    font-size: 21px; margin-bottom: 3px; color: var(--ink); }
+  .card .note, .chart-card-header p { font-size: 12.8px; color: var(--ink2);
+    margin-bottom: 12px; max-width: 100ch; }
+  .chart-card-footer { display: flex; justify-content: space-between; gap: 10px;
+    flex-wrap: wrap; padding: 8px 2px 4px; }
+  .chart-sources, .chart-updated { font-size: 11px; color: var(--muted); }
 
-  .chart-card {
-    border: 1px solid var(--rule);
-    background: #fff;
-    overflow: hidden;
-  }
-  .chart-card-header {
-    padding: 1.5rem 1.8rem 1.3rem;
-    border-bottom: 1px solid var(--rule);
-  }
-  .chart-card-header h2 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
-    margin-bottom: 0.6rem; color: var(--ink);
-  }
-  .chart-card-header p {
-    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
-  }
-  .chart-card-header p + p { margin-top: 0.7rem; }
-  .chart-card-header b { color: var(--ink); font-weight: 500; }
+  /* controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .pill { font: 600 12px var(--sans); letter-spacing: 0.02em; color: var(--ink2);
+          background: transparent; border: 1px solid var(--border); border-radius: 999px;
+          padding: 6px 14px; cursor: pointer; transition: all .15s; }
+  .pill:hover { color: var(--ink); border-color: var(--border-hi); }
+  .pill.on { color: #06222c; background: var(--aqua); border-color: var(--aqua); }
+  .pill:focus-visible { outline: 2px solid var(--aqua); outline-offset: 2px; }
+  .ctlsep { color: var(--muted); font-size: 11px; margin: 0 2px; }
 
-  .img-wrap { padding: 1rem 1.2rem; background: #fff; }
-  .img-wrap + .img-wrap { padding-top: 0; }
-  .img-wrap img { display: block; width: 100%; height: auto; }
-  /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
-     sized to its exact content height via postMessage (see footer.html / sst_anim.html),
-     which fills the card with no letterboxing at any width. */
-  .anim-embed { width: 100%; border: 0; display: block; background: #0f0f0d;
-                aspect-ratio: 27 / 25; }
-  .anim-embed.subsurface { aspect-ratio: 1 / 1; }
-  .anim-embed.torque { aspect-ratio: 1306 / 1055; }
-  .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
-  .anim-embed.colombia { aspect-ratio: 700 / 1080; }
-  .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
-  .anim-embed.wind200 { aspect-ratio: 1496 / 776; }   /* image 1496×726 + controls bar */
-  .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
-  .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
-  .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
-  .anim-embed.samsat { aspect-ratio: 1015 / 1115; }   /* image 1015×1065 + controls */
-  .anim-embed.glmden { aspect-ratio: 591 / 677; }     /* image 591×622 (map + colourbar) + controls */
-  .anim-embed.precip { aspect-ratio: 771 / 823; }     /* image 771×768 (map + colourbar) + controls */
-  .anim-embed.precip-anom { aspect-ratio: 768 / 823; }  /* image 768×768 (map + colourbar) + controls */
-  /* near-square Americas maps: cap the whole CARD (image fills it) so it hugs the map and
-     doesn't stretch tall across the wide column — the card centers, page-gray on the sides. */
-  .chart-card.media-narrow { max-width: 640px; margin-inline: auto; }
-  .anim-embed.colombia { aspect-ratio: 1680 / 1850; }   /* image 1680×1800 + controls bar */
-  .anim-embed.eq-cur-map { aspect-ratio: 1217 / 467; }      /* image 1217×412 + controls bar */
-  .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
-  .img-label {
-    font-size: 0.72rem; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.06em;
-    margin: 0 0 0.4rem 0.2rem;
-  }
+  /* topic cards */
+  .topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 12px; margin-bottom: 22px; }
+  .topic-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+                padding: 14px 16px; text-decoration: none; transition: border-color .15s; }
+  .topic-card:hover { border-color: var(--border-hi); }
+  .topic-card h3 { font-family: var(--serif); font-weight: 500; font-size: 15.5px;
+                   color: var(--aqua); margin-bottom: 3px; }
+  .topic-card p { font-size: 12px; color: var(--ink2); }
 
-  /* live wind-arrow widget (Tarawa WWB monitor) */
-  .wwb-arrows {
-    display: flex; justify-content: center; align-items: center; gap: 2.6rem;
-    flex-wrap: wrap; padding: 1.3rem 1.2rem 0.4rem;
-  }
-  .wwb-stn { text-align: center; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
-  .wwb-stn svg { display: block; margin: 0 auto 0.35rem; }
-  .wwb-stn b { display: block; color: var(--ink); font-weight: 500; font-size: 0.92rem; }
+  /* media */
+  .img-wrap { margin: 6px 0 10px; }
+  .img-wrap img { width: 100%; border-radius: 10px; display: block; }
+  .img-label { font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  .anim-embed { width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--border);
+                border-radius: 10px; background: #0f0f0d; display: block; }
+  .heromap { position: relative; }
+  .heromap img { width: 100%; border-radius: 10px; display: block; cursor: zoom-in; }
+  .heromap .full { position: absolute; right: 10px; bottom: 10px; font-size: 11px;
+                   color: var(--ink2); background: rgba(8,17,32,0.75); border: 1px solid var(--border);
+                   border-radius: 999px; padding: 4px 10px; text-decoration: none; }
 
-  .chart-card-footer {
-    padding: 0.85rem 1.8rem;
-    border-top: 1px solid var(--rule);
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 1rem; flex-wrap: wrap;
-  }
-  .chart-sources { font-size: 0.68rem; color: var(--muted); }
-  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+  .plot { width: 100%; }
+  .colophon { color: var(--muted); font-size: 12.3px; line-height: 1.7;
+              border-top: 1px solid var(--border); padding-top: 18px; margin-top: 8px; }
+  .colophon h3 { font-family: var(--serif); font-weight: 500; font-size: 15px;
+                 color: var(--ink2); margin-bottom: 6px; }
+  .colophon p { margin-bottom: 8px; max-width: 110ch; }
 
-  .colophon {
-    margin-top: 4rem; padding-top: 2rem;
-    border-top: 1px solid var(--rule);
-    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
-  }
-  .colophon h3 {
-    font-family: var(--serif); font-weight: 400; font-size: 1rem;
-    color: var(--ink); margin-bottom: 0.5rem;
-  }
-  .colophon p + p { margin-top: 0.7rem; }
-  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
-  .colophon a:hover { border-bottom-color: var(--accent); }
+  footer { color: var(--muted); font-size: 12px; text-align: center; padding: 14px 0 26px; }
+  footer .counter { opacity: 0.8; }
 
-  footer {
-    padding: 1.2rem 3rem; border-top: 1px solid var(--rule);
-    display: flex; justify-content: center;
-  }
-  .counter {
-    font-size: 0.72rem; letter-spacing: 0.08em;
-    color: var(--muted); text-transform: uppercase;
-  }
-  .counter span { color: var(--ink); font-weight: 500; }
-
-  @media (max-width: 768px) {
-    nav { padding: 1rem 1.5rem; }
-    .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
-    main { padding: 9rem 1.5rem 3.5rem; }
-    .page-header { margin-bottom: 2.2rem; padding-bottom: 1.5rem; }
-    .page-header h1 { font-size: 1.6rem; }
-    .chart-stack { gap: 2.2rem; }
-    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
-    .chart-card-footer { padding: 0.75rem 1.3rem; }
-    footer { padding: 1rem 1.5rem; }
-  }
-  @media (max-width: 480px) {
-    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
-    .nav-name { font-size: 0.95rem; }
+  @media (max-width: 700px) {
+    nav { padding: 0.7rem 1rem; } .enso-subnav { padding: 0.45rem 1rem 0.55rem; gap: 1rem; }
     .nav-links { gap: 1rem; }
-    .nav-links a { font-size: 0.78rem; }
-    .enso-subnav { padding: 0.5rem 1.1rem 0.6rem; gap: 0.85rem; }
-    .enso-subnav a { font-size: 0.74rem; }
-    main { padding: 9.5rem 1rem 3rem; }
-    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
-    .chart-card-header h2 { font-size: 1.02rem; }
-    .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
-    .img-wrap { padding: 0.7rem 0.7rem; }
-    .chart-card-footer { padding: 0.7rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
-    footer { padding: 0.9rem 1.1rem; }
-  }
-  @media (max-width: 360px) {
-    .nav-links { gap: 0.8rem; }
-    .nav-links a { font-size: 0.72rem; }
-    .enso-subnav { gap: 0.7rem; }
-    .page-header h1 { font-size: 1.28rem; }
+    h1 { font-size: 30px; } .chip { min-width: 44%; }
+    main { padding-top: 8.2rem; }
   }
 </style>
 </head>
@@ -258,25 +154,402 @@
   </div>
 </header>
 <main>
-  <div class="page-header">
-    <h1>ENSO Forecasts</h1>
-    <p>Forward-looking ENSO guidance: the Ni&ntilde;o-3.4 seasonal outlook from the Copernicus (C3S) multi-model seasonal ensemble, shown as the Ni&ntilde;o-3.4 and relative Ni&ntilde;o-3.4 anomalies, each monthly and as the 3-month running mean (the ONI and RONI). The atmospheric Southern Oscillation Index forecast now lives on the <a href="enso-atmosphere.html">Atmospheric Response</a> page.</p>
+  <header>
+    <div class="eyebrow">Monthly &middot; Copernicus C3S seasonal multi-system &middot; 7 centres</div>
+    <h1>ENSO <em>Forecasts</em></h1>
+    <p class="sub">Every ensemble member from seven seasonal prediction systems, as one
+    interactive outlook &mdash; percentile fans, individual models, ONI against RONI, and the
+    whole thing measured against every ENSO event since 1970. Each model is anomalized against
+    its own 1993&ndash;2016 hindcast, so drift and bias are removed before anything is drawn.</p>
+    <div class="chips" id="chips">
+      <div class="chip"><div class="l">Loading forecast feed&hellip;</div><div class="v neut">&mdash;</div></div>
+    </div>
+  </header>
+
+  <!-- ── INTERACTIVE MULTI-MODEL PLUME ─────────────────────────────────── -->
+  <div class="card">
+    <h2>The plume &mdash; all models, every member</h2>
+    <p class="note">The shaded fan is the percentile spread across <b>all members of all
+    models</b> (10&ndash;90% and 25&ndash;75%); coloured lines are each model's ensemble mean;
+    the bold white line is the multi-model mean (each model weighted equally, so the big NCEP
+    and BoM ensembles don't dominate). Toggle <b>RONI</b> to subtract the tropical background
+    &mdash; the honest measure of how strong this event would <i>feel</i> &mdash; and
+    <b>members</b> to see every individual trajectory. The observed index leads in from the
+    left. Dotted lines mark &plusmn;0.5&thinsp;/&thinsp;1.0&thinsp;/&thinsp;1.5&thinsp;/&thinsp;2.0&nbsp;&deg;C.</p>
+    <div class="controls">
+      <button class="pill on" data-idx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
+      <button class="pill" data-idx="rnino">RONI</button>
+      <span class="ctlsep">&middot;</span>
+      <button class="pill on" data-sm="1">3-month (ONI convention)</button>
+      <button class="pill" data-sm="0">Monthly</button>
+      <span class="ctlsep">&middot;</span>
+      <button class="pill" data-mem="1" id="memPill">Show all members</button>
+    </div>
+    <div id="plumeChart" class="plot" style="height:470px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">C3S seasonal multi-system (CDS) &middot; Ni&ntilde;o-3.4 box at 1&deg;, tropical mean at 5&deg; &middot; anomalies vs each model's own 1993&ndash;2016 hindcast &middot; RONI = relative &times; per-month &sigma;-scale &middot; observed lead-in: ERSSTv5 (ONI) / OISST (RONI)</span>
+      <span class="chart-updated" id="plume-updated">&mdash;</span>
+    </div>
   </div>
 
-  <div class="chart-stack">
-
-    <!-- C3S MULTI-MODEL ONI + RONI FORECAST -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>C3S Multi-Model Seasonal Forecast &mdash; Ni&ntilde;o-3.4 &amp; RONI</h2>
-        <p>ENSO outlook from the Copernicus Climate Change Service (C3S) multi-system seasonal ensemble, initialized the same month at seven centres: <b>ECMWF</b> (SEAS5), the <b>UK Met Office</b> (GloSea6), <b>M&eacute;t&eacute;o-France</b>, <b>DWD</b> (GCFS2), <b>NCEP</b> (CFSv2), <b>ECCC</b> (CanSIPS) and the <b>Australian Bureau of Meteorology</b> (ACCESS-S2). The four panels show the <b>Ni&ntilde;o-3.4</b> SST anomaly (top) and the <b>relative Ni&ntilde;o-3.4</b> anomaly (bottom; the CPC/ECMWF index, Ni&ntilde;o-3.4 minus the 20&deg;S&ndash;20&deg;N tropical-mean anomaly, rescaled per calendar month so it keeps ONI's &deg;C thresholds), each as the raw <b>monthly</b> value (left) and the <b>3-month running mean</b> (right, which are the ONI and RONI). The relative index removes the background tropical warming that inflates the traditional one. The shaded plume is the spread across <b>all members of all models</b> (full range, 10&ndash;90% and 25&ndash;75%); each coloured line is one model's ensemble mean; the bold black line is the multi-model mean. Every model is anomalized against <b>its own 1993&ndash;2016 hindcast</b>, removing its drift and bias. The Ni&ntilde;o-3.4 box is sampled at 1&deg; and the tropical mean at 5&deg;. Dotted lines mark the &plusmn;0.5/1.0/1.5&nbsp;&deg;C thresholds.</p>
-      </div>
-      <div class="img-wrap"><img src="assets/sst/c3s_nino34.webp?v=1ec6e91f3254" alt="C3S multi-model ENSO forecast: Niño-3.4 and relative Niño-3.4, monthly and 3-month running mean, with an all-member plume and the multi-model mean" loading="lazy"></div>
-      <div class="chart-card-footer"><span class="chart-sources">Copernicus C3S seasonal multi-system (CDS) &middot; Ni&ntilde;o-3.4 &amp; RONI (CPC/ECMWF) &middot; all-member plume &middot; anomaly vs each model's 1993&ndash;2016 hindcast &middot; updated monthly</span></div>
+  <!-- ── HISTORY: THE FORECAST IN CONTEXT ──────────────────────────────── -->
+  <div class="card">
+    <h2>Against every ENSO year since 1970</h2>
+    <p class="note">Each grey line is one calendar year of observed ONI; the shaded band is the
+    <b>record envelope</b> (the highest and lowest ONI ever observed in each calendar month
+    since 1970). Named El&nbsp;Ni&ntilde;o events are coloured by strength &mdash; strong and
+    super events start visible, the rest wait in the legend. The current year is drawn bold
+    white, and the <b style="color:#e8c04d">gold dashes</b> extend it with this issue's
+    multi-model mean &mdash; showing at a glance whether the forecast would rewrite the record
+    book or just visit it.</p>
+    <div id="histChart" class="plot" style="height:470px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA CPC ERSSTv5 monthly ONI, 1970&ndash;present (1991&ndash;2020 base) &middot; forecast: C3S multi-model mean, 3-month smoothed &middot; ONI convention throughout</span>
+      <span class="chart-updated" id="hist-updated">&mdash;</span>
     </div>
+  </div>
 
+  <!-- ── CLASSIC STATIC VIEW (fallback + shareable) ────────────────────── -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>The classic four-panel view</h2>
+      <p>The same forecast as a static image (useful for sharing): Ni&ntilde;o-3.4 (top) and
+      relative Ni&ntilde;o-3.4 (bottom), monthly (left) and as the 3-month running mean &mdash;
+      the ONI and RONI (right). The Southern Oscillation Index forecast lives on the
+      <a href="enso-atmosphere.html">Atmospheric Response</a> page.</p>
+    </div>
+    <div class="img-wrap"><img src="assets/sst/c3s_nino34.webp?v=1ec6e91f3254" alt="C3S multi-model ENSO forecast: Niño-3.4 and relative Niño-3.4, monthly and 3-month running mean" loading="lazy"></div>
+    <div class="chart-card-footer"><span class="chart-sources">Copernicus C3S seasonal multi-system (CDS) &middot; all-member plume &middot; updated monthly</span></div>
   </div>
 </main>
+
+<script>
+(function () {
+  "use strict";
+  var GRID = "rgba(148,184,225,0.10)", AXIS = "#6d8099", INK2 = "#a7b8ce";
+  var state = { idx: "n34", smooth: true, members: false,
+                fc: null, hist: null, dailyFeed: null };
+
+  function fmt(v, d) { return v == null || !isFinite(v) ? "—" : (v > 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
+  function mean(a) { var s = 0, n = 0; a.forEach(function (v) { if (isFinite(v)) { s += v; n++; } }); return n ? s / n : NaN; }
+  function pct(sorted, p) {
+    var i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
+  }
+  function roll3(arr) {              // centered 3-point mean, edge-shrunk
+    return arr.map(function (_, i) {
+      var w = arr.slice(Math.max(0, i - 1), Math.min(arr.length, i + 2))
+                 .filter(isFinite);
+      return w.length ? w.reduce(function (a, b) { return a + b; }) / w.length : NaN;
+    });
+  }
+  function seasonCode(ym) {          // "2026-12" (center month) -> "NDJ"
+    var SEA = "JFMAMJJASOND";
+    var m = +ym.slice(5, 7);
+    return SEA[(m + 10) % 12] + SEA[(m - 1) % 12] + SEA[m % 12];
+  }
+  function layout(extra) {
+    var base = {
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: { family: "Inter, sans-serif", size: 12, color: INK2 },
+      margin: { l: 46, r: 14, t: 10, b: 40 },
+      xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, zeroline: false },
+      yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
+               zerolinecolor: "rgba(148,184,225,0.35)",
+               title: { text: "anomaly (°C)", standoff: 4 } },
+      legend: { orientation: "h", y: 1.09, font: { size: 11 } },
+      hovermode: "x unified",
+      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
+                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+    };
+    for (var k in (extra || {})) base[k] = extra[k];
+    return base;
+  }
+  var CONFIG = { displayModeBar: false, responsive: true };
+  function thresholds(x0, x1) {
+    var out = [];
+    [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (y) {
+      out.push({ type: "line", x0: x0, x1: x1, y0: y, y1: y,
+                 line: { color: y > 0 ? "rgba(232,131,58,0.30)" : "rgba(77,143,232,0.30)",
+                         width: 1, dash: "dot" } });
+    });
+    return out;
+  }
+
+  // ── the plume ────────────────────────────────────────────────────────────
+  function drawPlume() {
+    var F = state.fc, key = state.idx;
+    var valid = F.valid_months;
+    var labels = Object.keys(F.models);
+
+    // observed lead-in: last 8 months. ONI from the history feed; RONI from
+    // the overview's daily feed (monthly table). Both end near the issue month.
+    var obsX = [], obsY = [];
+    if (key === "n34" && state.hist) {
+      obsX = state.hist.months.slice(-8);
+      obsY = (state.hist.series.oni.anom || state.hist.series.oni).slice(-8);
+    } else if (key === "rnino" && state.dailyFeed) {
+      obsX = state.dailyFeed.monthly.months.slice(-8);
+      obsY = state.dailyFeed.monthly.roni.slice(-8);
+    }
+
+    // per-lead pooled percentiles + per-model means
+    var nL = valid.length;
+    var fan = { p10: [], p25: [], p75: [], p90: [] };
+    var perModel = {};
+    labels.forEach(function (m) { perModel[m] = []; });
+    var mmm = [];
+    for (var L = 0; L < nL; L++) {
+      var pool = [], means = [];
+      labels.forEach(function (m) {
+        var arr = F.models[m][key][L];
+        pool = pool.concat(arr);
+        var mu = mean(arr);
+        perModel[m].push(mu);
+        means.push(mu);
+      });
+      pool.sort(function (a, b) { return a - b; });
+      fan.p10.push(pct(pool, 0.10)); fan.p25.push(pct(pool, 0.25));
+      fan.p75.push(pct(pool, 0.75)); fan.p90.push(pct(pool, 0.90));
+      mmm.push(mean(means));                      // model-weighted, not member-weighted
+    }
+
+    // 3-month smoothing bridges obs into the forecast (ONI/RONI convention)
+    function smooth(fcArr) {
+      if (!state.smooth) return fcArr;
+      var bridge = obsY.slice(-2).concat(fcArr);
+      return roll3(bridge).slice(Math.min(2, obsY.length));
+    }
+
+    var x = obsX.concat(valid);
+    var pad = obsX.map(function () { return null; });
+    // line traces pick up from the last observed value, so forecast lines
+    // connect to the lead-in instead of floating a month away
+    var bridgePad = pad.slice();
+    if (obsY.length) bridgePad[bridgePad.length - 1] = obsY[obsY.length - 1];
+    var traces = [];
+    [["p90", "p10", "10–90%", "rgba(77,214,232,0.13)"],
+     ["p75", "p25", "25–75%", "rgba(77,214,232,0.22)"]].forEach(function (b) {
+      traces.push({ x: x, y: pad.concat(smooth(fan[b[0]])), type: "scatter", mode: "lines",
+                    line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      traces.push({ x: x, y: pad.concat(smooth(fan[b[1]])), type: "scatter", mode: "lines",
+                    line: { width: 0 }, fill: "tonexty", fillcolor: b[3],
+                    name: b[2], hoverinfo: "skip" });
+    });
+    // all members: a single NaN-gapped ghost trace (cheap even at ~500 members)
+    if (state.members) {
+      var gx = [], gy = [];
+      labels.forEach(function (m) {
+        var byLead = F.models[m][key];
+        for (var i = 0; i < byLead[0].length; i++) {
+          var tr = [];
+          for (var L2 = 0; L2 < nL; L2++) tr.push(byLead[L2][i]);
+          tr = smooth(tr);
+          for (var L3 = 0; L3 < nL; L3++) { gx.push(valid[L3]); gy.push(tr[L3]); }
+          gx.push(valid[nL - 1]); gy.push(null);
+        }
+      });
+      traces.push({ x: gx, y: gy, type: "scattergl", mode: "lines",
+                    line: { color: "rgba(167,184,206,0.10)", width: 0.7 },
+                    name: "members", hoverinfo: "skip" });
+    }
+    labels.forEach(function (m) {
+      traces.push({ x: x, y: bridgePad.concat(smooth(perModel[m])), type: "scatter", mode: "lines",
+                    name: m, line: { color: F.models[m].color, width: 1.5 },
+                    hovertemplate: "%{y:+.2f} °C" });
+    });
+    traces.push({ x: x, y: bridgePad.concat(smooth(mmm)), type: "scatter", mode: "lines",
+                  name: "Multi-model mean", line: { color: "#f2f4f8", width: 3 },
+                  hovertemplate: "%{y:+.2f} °C" });
+    if (obsX.length)
+      traces.push({ x: obsX, y: obsY, type: "scatter", mode: "lines+markers",
+                    name: "Observed", marker: { size: 5 },
+                    line: { color: "#e8c04d", width: 2.4 },
+                    hovertemplate: "%{y:+.2f} °C" });
+
+    var lay = layout({ shapes: thresholds(x[0], x[x.length - 1]) });
+    lay.xaxis.type = "category"; lay.margin.r = 30;
+    Plotly.react("plumeChart", traces, lay, CONFIG);
+    document.getElementById("plume-updated").textContent =
+      "issue " + F.issue + " · built " + F.generated;
+  }
+
+  // ── history overlay ──────────────────────────────────────────────────────
+  var STRENGTH_COLOR = { super: "#e04b3f", strong: "#e8833a", moderate: "#d9a13d",
+                         weak: "#8fa3bd" };
+  function drawHist() {
+    var H = state.hist, F = state.fc;
+    var MONS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    var oniArr = H.series.oni.anom || H.series.oni;
+    var byYear = {};                      // year -> [12] oni
+    H.months.forEach(function (ym, i) {
+      var y = +ym.slice(0, 4), m = +ym.slice(5, 7);
+      (byYear[y] = byYear[y] || new Array(12).fill(null))[m - 1] = oniArr[i];
+    });
+    var years = Object.keys(byYear).map(Number).sort();
+    var curYear = years[years.length - 1];
+
+    // record envelope per calendar month (current year excluded)
+    var hi = [], lo = [];
+    for (var m = 0; m < 12; m++) {
+      var vals = [];
+      years.forEach(function (y) {
+        if (y !== curYear && byYear[y][m] != null) vals.push(byYear[y][m]);
+      });
+      hi.push(Math.max.apply(null, vals)); lo.push(Math.min.apply(null, vals));
+    }
+    var traces = [
+      { x: MONS, y: hi, type: "scatter", mode: "lines", line: { width: 0 },
+        hovertemplate: "record high %{y:+.2f}", name: "record", showlegend: false },
+      { x: MONS, y: lo, type: "scatter", mode: "lines", line: { width: 0 },
+        fill: "tonexty", fillcolor: "rgba(148,184,225,0.08)",
+        name: "record envelope 1970–" + (curYear - 1),
+        hovertemplate: "record low %{y:+.2f}" },
+    ];
+    // unnamed years, one NaN-gapped grey trace
+    var named = {};
+    (H.events || []).forEach(function (e) { named[e.onset] = e; });
+    var gx = [], gy = [];
+    years.forEach(function (y) {
+      if (y === curYear || named[y]) return;
+      for (var m2 = 0; m2 < 12; m2++) { gx.push(MONS[m2]); gy.push(byYear[y][m2]); }
+      gx.push(MONS[11]); gy.push(null);
+    });
+    traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
+                  line: { color: "rgba(167,184,206,0.18)", width: 0.8 },
+                  name: "all other years", hoverinfo: "skip" });
+    (H.events || []).forEach(function (e) {
+      if (!byYear[e.onset]) return;
+      traces.push({ x: MONS, y: byYear[e.onset], type: "scatter", mode: "lines",
+                    name: e.label + " (" + e.strength + ")",
+                    visible: (e.strength === "super" || e.strength === "strong" || e.default)
+                             ? true : "legendonly",
+                    line: { color: STRENGTH_COLOR[e.strength] || "#8fa3bd", width: 1.6 },
+                    hovertemplate: e.label + " %{y:+.2f}" });
+    });
+    traces.push({ x: MONS, y: byYear[curYear], type: "scatter", mode: "lines+markers",
+                  name: String(curYear) + " observed", marker: { size: 5 },
+                  line: { color: "#f2f4f8", width: 3 },
+                  hovertemplate: "%{y:+.2f} °C" });
+    if (F) {
+      var labels = Object.keys(F.models);
+      var obsTail = oniArr.filter(function (v) { return v != null; }).slice(-2);
+      var mmm = F.valid_months.map(function (_, L) {
+        return mean(labels.map(function (mo) { return mean(F.models[mo].n34[L]); }));
+      });
+      var sm = roll3(obsTail.concat(mmm)).slice(obsTail.length);
+      var fx = [], fy = [];
+      F.valid_months.forEach(function (ym, L) {
+        if (+ym.slice(0, 4) !== curYear) return;   // stay inside the calendar frame
+        fx.push(MONS[+ym.slice(5, 7) - 1]); fy.push(sm[L]);
+      });
+      traces.push({ x: fx, y: fy, type: "scatter", mode: "lines+markers",
+                    name: "forecast (multi-model ONI)", marker: { size: 5, symbol: "diamond" },
+                    line: { color: "#e8c04d", width: 2.6, dash: "dash" },
+                    hovertemplate: "%{y:+.2f} °C" });
+    }
+    var lay = layout({ shapes: thresholds(MONS[0], MONS[11]) });
+    lay.xaxis.type = "category";
+    lay.legend = { orientation: "v", x: 1.01, xanchor: "left", y: 1,
+                   font: { size: 10.5 } };
+    lay.margin.r = 8;
+    Plotly.react("histChart", traces, lay, CONFIG);
+    document.getElementById("hist-updated").textContent =
+      "ONI through " + H.months[H.months.length - 1];
+  }
+
+  // ── chips ────────────────────────────────────────────────────────────────
+  function buildChips() {
+    var F = state.fc, labels = Object.keys(F.models);
+    var nMem = labels.reduce(function (s, m) { return s + F.models[m].n34[0].length; }, 0);
+    document.getElementById("memPill").textContent = "Show all " + nMem + " members";
+    function peak(key) {
+      var best = { v: -99, i: 0 };
+      F.valid_months.forEach(function (_, L) {
+        var mm = mean(labels.map(function (m) { return mean(F.models[m][key][L]); }));
+        if (mm > best.v) best = { v: mm, i: L };
+      });
+      var pool = [];
+      labels.forEach(function (m) { pool = pool.concat(F.models[m][key][best.i]); });
+      pool.sort(function (a, b) { return a - b; });
+      return { v: best.v, ym: F.valid_months[best.i],
+               p10: pct(pool, 0.10), p90: pct(pool, 0.90) };
+    }
+    var pn = peak("n34"), pr = peak("rnino");
+    var rank = "";
+    if (state.hist) {
+      var peaks = (state.hist.events || []).map(function (e) { return e.peakOni; })
+        .filter(isFinite).sort(function (a, b) { return b - a; });
+      var n = peaks.filter(function (p) { return p > pn.v; }).length;
+      rank = "would rank #" + (n + 1) + " among El Niño peaks since 1970";
+    }
+    var chips = [
+      { l: "Issue " + F.issue, v: labels.length + " models",
+        s: nMem + " members · each vs its own hindcast", cls: "neut" },
+      { l: "Peak Niño-3.4 · " + seasonCode(pn.ym), v: fmt(pn.v) + " °C",
+        s: "members P10–P90: " + fmt(pn.p10, 1) + " … " + fmt(pn.p90, 1),
+        cls: pn.v >= 0.5 ? "warm" : pn.v <= -0.5 ? "cool" : "neut" },
+      { l: "Peak RONI · " + seasonCode(pr.ym), v: fmt(pr.v) + " °C",
+        s: "members P10–P90: " + fmt(pr.p10, 1) + " … " + fmt(pr.p90, 1),
+        cls: pr.v >= 0.5 ? "warm" : pr.v <= -0.5 ? "cool" : "neut" },
+      { l: "In context", v: fmt(pn.v, 1) + " °C peak",
+        s: rank || "history feed unavailable", cls: "neut" },
+    ];
+    document.getElementById("chips").innerHTML = chips.map(function (c) {
+      return '<div class="chip"><div class="l">' + c.l + '</div>' +
+             '<div class="v ' + c.cls + '">' + c.v + '</div>' +
+             '<div class="s">' + c.s + "</div></div>";
+    }).join("");
+  }
+
+  // ── pills ────────────────────────────────────────────────────────────────
+  document.querySelectorAll(".pill[data-idx]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.idx = b.dataset.idx;
+      document.querySelectorAll(".pill[data-idx]").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      if (state.fc) drawPlume();
+    });
+  });
+  document.querySelectorAll(".pill[data-sm]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.smooth = b.dataset.sm === "1";
+      document.querySelectorAll(".pill[data-sm]").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      if (state.fc) drawPlume();
+    });
+  });
+  document.querySelectorAll(".pill[data-mem]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.members = !state.members;
+      b.classList.toggle("on", state.members);
+      if (state.fc) drawPlume();
+    });
+  });
+
+  Promise.all([
+    fetch("assets/sst/data/enso_forecast.json?v=1ec6e91f3254").then(function (r) {
+      if (!r.ok) throw 0; return r.json(); }),
+    fetch("assets/sst/data/nino_history.json?v=1ec6e91f3254").then(function (r) {
+      return r.ok ? r.json() : null; }).catch(function () { return null; }),
+    fetch("assets/sst/data/enso_daily.json?v=1ec6e91f3254").then(function (r) {
+      return r.ok ? r.json() : null; }).catch(function () { return null; }),
+  ]).then(function (res) {
+    state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
+    buildChips();
+    drawPlume();
+    if (state.hist) drawHist();
+  }).catch(function (e) {
+    console.error("forecast feed failed:", e);
+    document.getElementById("chips").innerHTML =
+      '<div class="chip"><div class="l">Forecast feed</div><div class="v neut">building…</div>' +
+      '<div class="s">the static chart below is current</div></div>';
+    document.getElementById("plumeChart").style.display = "none";
+    document.getElementById("histChart").style.display = "none";
+  });
+})();
+</script>
 
 <footer>
   <p class="counter">Unique viewers: <span id="count">&mdash;</span></p>
