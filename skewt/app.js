@@ -2118,7 +2118,11 @@ function brnShear(prof) {
 }
 
 // ---------- skew-t drawing ----------
-const SK = { l: 58, r: 90, t: 48, b: 42, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
+// Margins are lean on purpose: the pressure labels right-align against the
+// axis and the barb/T-adv columns pack tight, so the profile gets the pixels.
+// The full-res export (1150 px, fonts ×1.5) is the binding constraint on l —
+// a right-aligned "1000" at 18 px must still start on-canvas.
+const SK = { l: 46, r: 70, t: 48, b: 38, pBot: 105000, pTop: 10000, tL: -35, tR: 45 };
 
 // Some feeds report geopotential height as a literal 0 where it's missing
 // (Curacao's CSV does this above ~145 hPa), and SHARPlib REQUIRES monotonically
@@ -2449,7 +2453,7 @@ function drawSkewT(prof, res) {
     const y = yOf(pp * 100);
     ctx.strokeStyle = TH.gridSub; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(SK.l, y); ctx.lineTo(SK.l + pw, y); ctx.stroke();
-    ctx.fillText(pp, 14, y + 4);
+    ctx.textAlign = "right"; ctx.fillText(pp, SK.l - 6, y + 4); ctx.textAlign = "left";
   }
   // height ticks (km AGL) on the left inside
   ctx.font = "600 12px Inter"; ctx.fillStyle = "#a8a8c2";
@@ -2472,7 +2476,7 @@ function drawSkewT(prof, res) {
   ctx.font = "12px Inter"; ctx.fillStyle = TH.muted;
   for (let T = -30; T <= 40; T += 10)
     ctx.fillText(T, xOf(T, SK.t + ph) - 8, SK.t + ph + 16);
-  ctx.fillText("°C", SK.l + pw / 2, H - 6);
+  ctx.fillText("°C", SK.l + pw / 2, H - 5);
   drawBarbs(ctx, prof, W - SK.r + 40, yOf);
   drawTempAdv(prof, ctx, W - SK.r + 4, yOf);
 
@@ -2488,7 +2492,7 @@ function drawTempAdv(prof, ctx, x0, yOf) {
   const lat = +m[1] * (m[2] === "S" ? -1 : 1);
   if (Math.abs(lat) < 10) return;
   const f = 2 * 7.292e-5 * Math.sin(lat * Math.PI / 180), Rd = 287.05;
-  const pSfc = prof.P[0], half = 14;
+  const pSfc = prof.P[0], half = 12;   // 14 grazed the barbs in the packed margin
   ctx.font = "600 9px Inter"; ctx.textAlign = "center";
   ctx.fillStyle = TH.muted;
   ctx.fillText("T-adv", x0, SK.t - 6);
