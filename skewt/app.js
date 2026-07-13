@@ -1333,10 +1333,17 @@ async function loadCoast() {
   return coastSegs;
 }
 
+// The record MAP labels stick to the state variables — temps, dews, moisture,
+// heights/thickness. ECAPE and friends stay on the dots and the ranked list.
+const REC_MAP_KEYS = new Set(["850t", "700t", "500t", "850td", "700td",
+                              "pwat", "h500", "thick"]);
+const REC_MAP_CLON = -100;                   // map centered on 100°W
 async function drawRecordMap() {
   const cv = document.getElementById("anom-canvas"), ctx = cv.getContext("2d");
   const W = cv.width, H = cv.height;
   await loadCoast();
+  // longitudes as signed offsets from the center meridian (seam at 80°E)
+  const offLon = lon => ((lon - REC_MAP_CLON + 540) % 360) - 180;
 
   // stations to feature: true records labeled; near-records as context dots
   const pts = [];
@@ -1344,8 +1351,8 @@ async function drawRecordMap() {
     const e = entries[wmo];
     if (!e || !isFinite(e.la) || !isFinite(e.lo)) continue;
     const name = ((e.n || wmo) + "").split(/[;,]/)[0].trim();
-    const recs = d.flags.filter(f => f.rec);
-    pts.push({ wmo, la: e.la, lo: e.lo, name, recs, flags: d.flags, dt: d.dt,
+    const recs = d.flags.filter(f => f.rec && REC_MAP_KEYS.has(f.k));
+    pts.push({ wmo, la: e.la, lo: offLon(e.lo), name, recs, flags: d.flags, dt: d.dt,
                top: Math.max(...d.flags.map(f => Math.abs(f.pct - 50))) });
   }
   if (!pts.length) {
@@ -1369,10 +1376,11 @@ async function drawRecordMap() {
   let lo0 = Math.min(...ext.map(p => p.lo)), lo1 = Math.max(...ext.map(p => p.lo));
   let la0 = Math.min(...ext.map(p => p.la)), la1 = Math.max(...ext.map(p => p.la));
   lo0 -= 10; lo1 += 10; la0 -= 7; la1 += 7;
-  if (lo1 - lo0 < 55) { const c = (lo0 + lo1) / 2; lo0 = c - 27.5; lo1 = c + 27.5; }
+  // keep 100°W on the vertical centerline: symmetric span about offset 0
+  lo1 = Math.min(180, Math.max(Math.abs(lo0), Math.abs(lo1), 27.5)); lo0 = -lo1;
   if (la1 - la0 < 30) { const c = (la0 + la1) / 2; la0 = c - 15; la1 = c + 15; }
   la0 = Math.max(-85, la0); la1 = Math.min(85, la1);
-  const M = { l: 10, r: 10, t: 54, b: 26 };
+  const M = { l: 10, r: 10, t: 46, b: 22 };
   const pw = W - M.l - M.r, ph = H - M.t - M.b;
   // equirectangular, aspect-preserving (1° lat ≈ 1° lon at the extent's center)
   const kLon = Math.cos(((la0 + la1) / 2) * Math.PI / 180);
@@ -1387,8 +1395,11 @@ async function drawRecordMap() {
   ctx.beginPath(); ctx.rect(M.l, M.t, pw, ph); ctx.clip();
   ctx.strokeStyle = "#2c2c48"; ctx.lineWidth = 1;
   for (const seg of coastSegs || []) {
-    ctx.beginPath(); let st = false;
-    for (const [ln, lt] of seg) {
+    ctx.beginPath(); let st = false, prev = null;
+    for (const [rawLn, lt] of seg) {
+      const ln = offLon(rawLn);
+      if (prev !== null && Math.abs(ln - prev) > 180) st = false;   // seam crossing
+      prev = ln;
       if (ln < lo0 - 5 || ln > lo1 + 5 || lt < la0 - 5 || lt > la1 + 5) { st = false; continue; }
       const x = X(ln), y = Y(lt);
       st ? ctx.lineTo(x, y) : ctx.moveTo(x, y); st = true;
@@ -1396,13 +1407,13 @@ async function drawRecordMap() {
     ctx.stroke();
   }
   // context: every live station as a faint dot, flagged near-records brighter
-  ctx.fillStyle = "rgba(140,140,170,0.35)";
+  ctx.fillStyle = "rgba(140,140,170,0.28)";
   for (const [, s] of Object.entries(entries))
-    if (isFinite(s.la) && isFinite(s.lo)) { ctx.beginPath(); ctx.arc(X(s.lo), Y(s.la), 1.6, 0, 7); ctx.fill(); }
+    if (isFinite(s.la) && isFinite(s.lo)) { ctx.beginPath(); ctx.arc(X(offLon(s.lo)), Y(s.la), 1.4, 0, 7); ctx.fill(); }
   for (const p of pts) {
     const hi = p.flags[0].sense === "high";
-    ctx.fillStyle = hi ? "rgba(255,107,85,0.8)" : "rgba(106,167,240,0.8)";
-    ctx.beginPath(); ctx.arc(X(p.lo), Y(p.la), 3, 0, 7); ctx.fill();
+    ctx.fillStyle = hi ? "rgba(255,107,85,0.7)" : "rgba(106,167,240,0.7)";
+    ctx.beginPath(); ctx.arc(X(p.lo), Y(p.la), 2.4, 0, 7); ctx.fill();
   }
 
   // featured stations: star + collision-avoided label with a leader line
@@ -1415,19 +1426,19 @@ async function drawRecordMap() {
     }
     ctx.closePath(); ctx.fill();
   };
-  const lineH = 15;
+  const lineH = 12;
   for (const p of featured) {
     const x = X(p.lo), y = Y(p.la);
     const hi = (p.recs[0] || p.flags[0]).sense !== "low";
     const col = hi ? "#ff6b55" : "#6aa7f0";
-    star(x, y, 7, col);
+    star(x, y, 5.5, col);
     const shown = (fallback ? p.flags : p.recs).slice(0, 2);
     const lines = [p.name].concat(shown.map(f => f.rec
-      ? `${f.lab} ${f.v} — ${f.rec.tier === "all" ? "ALL-TIME" : "date"} rec (prev ${f.rec.prev}, ${f.rec.y})`
+      ? `${f.lab} ${f.v} · ${f.rec.tier === "all" ? "ALL-TIME" : "date rec"} (prev ${f.rec.prev} '${String(f.rec.y).slice(2)})`
       : `${f.lab} ${f.v} · P${f.pct} ${f.sense}`));
-    ctx.font = "600 13px Inter";
-    const wpx = Math.max(...lines.map(s => ctx.measureText(s).width)) + 12;
-    const hpx = lines.length * lineH + 8;
+    ctx.font = "600 10.5px Inter";
+    const wpx = Math.max(...lines.map(s => ctx.measureText(s).width)) + 10;
+    const hpx = lines.length * lineH + 7;
     // candidate anchor points around the station, nearest first
     let spot = null;
     outer:
@@ -1445,15 +1456,15 @@ async function drawRecordMap() {
     }
     if (!spot) continue;                               // too crowded: star only
     placed.push({ x: spot.x, y: spot.y, w: wpx, h: hpx });
-    ctx.strokeStyle = "rgba(200,200,220,0.5)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(200,200,220,0.45)"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(spot.ax, spot.ay); ctx.stroke();
     ctx.fillStyle = "rgba(10,10,20,0.82)";
     ctx.fillRect(spot.x, spot.y, wpx, hpx);
-    ctx.strokeStyle = col; ctx.strokeRect(spot.x, spot.y, wpx, hpx);
+    ctx.strokeStyle = col; ctx.lineWidth = 0.8; ctx.strokeRect(spot.x, spot.y, wpx, hpx);
     lines.forEach((s, i) => {
       ctx.fillStyle = i ? (s.includes("ALL-TIME") ? "#ffd60a" : "#d8d8e8") : col;
-      ctx.font = i ? "12px Inter" : "600 13px Inter";
-      ctx.fillText(s, spot.x + 6, spot.y + 14 + i * lineH);
+      ctx.font = i ? "10px Inter" : "600 10.5px Inter";
+      ctx.fillText(s, spot.x + 5, spot.y + 11.5 + i * lineH);
     });
   }
   ctx.restore();
@@ -1462,15 +1473,16 @@ async function drawRecordMap() {
   const newest = pts.map(p => p.dt).sort().pop() || "";
   const nRec = labeled.length;
   const nAll = labeled.filter(p => p.recs.some(r => r.rec.tier === "all")).length;
-  ctx.fillStyle = "#e8e8f0"; ctx.font = "700 20px Inter"; ctx.textAlign = "left";
-  ctx.fillText(`⚡ Radiosonde record watch — ${newest}Z`, 14, 30);
-  ctx.fillStyle = "#8b8ba3"; ctx.font = "13px Inter";
+  ctx.fillStyle = "#e8e8f0"; ctx.font = "700 17px Inter"; ctx.textAlign = "left";
+  ctx.fillText(`⚡ Radiosonde record watch — ${newest}Z`, 14, 25);
+  ctx.fillStyle = "#8b8ba3"; ctx.font = "11.5px Inter";
   ctx.fillText(fallback
     ? `no station records today — ${pts.length} stations at climatological extremes (P95+)`
     : `${nRec} station(s) set records vs their own sounding archives` +
-      (nAll ? ` — ${nAll} ALL-TIME` : "") + ` · ${pts.length} stations flagged P95+`, 14, 48);
+      (nAll ? ` — ${nAll} ALL-TIME` : "") + ` · ${pts.length} stations flagged P95+`, 14, 41);
+  ctx.font = "11px Inter";
   ctx.fillText("scorvec.com/skewt · records vs each station's full IGRA archive, ±10-day time-of-year window",
-    14, H - 8);
+    14, H - 7);
 }
 
 document.getElementById("anom-toggle").addEventListener("click", () => {

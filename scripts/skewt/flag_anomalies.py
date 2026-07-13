@@ -26,6 +26,11 @@ PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
 # humid day and would drown the signal; these four actually mark an unusual
 # airmass or an unusual amount of instability.
 WATCH = ("h500", "thick", "850t", "ecape")
+# Variables checked ONLY for actual records (tie/beat the station's stored
+# extreme) — they never produce P95 "near record" noise, but a record-humid
+# column or record-warm 700 mb is exactly the kind of thing the record map
+# should carry. All exist in the climo JSONs.
+RECORD_ONLY = ("700t", "500t", "850td", "700td", "pwat")
 # Some indices are only interesting at ONE end. A station with no convective
 # energy is in its normal state — "record low ECAPE" is not news, it's just a
 # quiet day, and it crowds out the genuinely unstable soundings. Heights,
@@ -37,7 +42,8 @@ HIGH_ONLY = {"ecape"}
 # computed against a spike at zero and any trace value scores "P99".
 FLOOR = {"ecape": 100.0, "ship": 0.5}
 LABELS = {"h500": "500mb hgt", "thick": "1000-500 thick", "850t": "850mb T",
-          "ecape": "ECAPE"}
+          "ecape": "ECAPE", "700t": "700mb T", "500t": "500mb T",
+          "850td": "850mb Td", "700td": "700mb Td", "pwat": "PWAT"}
 G = 9.80665
 
 
@@ -77,7 +83,8 @@ def indices(P, T, D, H):
 
     def c(k):
         return np.nan if np.isnan(k) else k - 273.15
-    d = {"pwat": pw, "850t": c(t850), "700t": c(t700), "500t": c(t500), "h500": h500,
+    d = {"pwat": pw, "850t": c(t850), "700t": c(t700), "500t": c(t500),
+         "850td": c(d850), "700td": c(d700), "h500": h500,
          "thick": (h500 - h1000) if np.isfinite(h500) and np.isfinite(h1000) else np.nan,
          "fzl": fzl, "kidx": (c(t850) - c(t500)) + c(d850) - (c(t700) - c(d700)),
          "tott": c(t850) + c(d850) - 2 * c(t500)}
@@ -162,7 +169,8 @@ def main() -> int:
             continue
         if wmo in ecape:
             idx["ecape"] = ecape[wmo]
-        idx = {k: v for k, v in idx.items() if k in WATCH}   # only what's worth flagging
+        idx = {k: v for k, v in idx.items()
+               if k in WATCH or k in RECORD_ONLY}
         # day-of-year climatology: nearest 5-day anchor to the sounding's date
         try:
             dt = datetime.strptime(e.get("dt", "")[:10], "%Y-%m-%d")
@@ -216,6 +224,8 @@ def main() -> int:
                              if m is not None)
                     if v <= at[0]:
                         rec.update(tier="all", prev=at[0], y=at[1])
+                if k in RECORD_ONLY and not rec:
+                    continue                     # these only speak when a record falls
                 f = {"k": k, "lab": LABELS.get(k, k), "v": round(v, 1),
                      "pct": 100 if rec else min(99, round(pct)),
                      "sense": "high" if pct >= 95 else "low"}
