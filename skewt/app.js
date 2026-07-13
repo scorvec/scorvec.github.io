@@ -2827,9 +2827,9 @@ function drawMSE(prof) {
   ctx.font = "600 13px Inter"; ctx.fillStyle = TH.ink;
   ctx.fillText("Moist static energy", 6, 14);
   const key = [
-    ["#4a9bf0", "solid", "h — air's energy"],
+    ["#4a9bf0", "solid", "environmental h"],
     ["#ff453a", "solid", "h* — saturation"],
-    ["#ffd60a", "dash",  "h of the boundary layer"],
+    ["#ffd60a", "dash",  "boundary-layer h"],
     ["rgba(48,209,88,0.55)", "fill", "buoyant: h(BL) > h*"],
   ];
   if (pv) key.push(["rgba(160,160,190,0.5)", "solid", `faded: ${p12v.backH} h earlier`]);
