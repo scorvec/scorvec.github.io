@@ -42,8 +42,8 @@
     <h2>Against every ENSO year since 1970</h2>
     <p class="note">Each grey line is one calendar year of the observed index; the shaded band
     is the <b>record envelope</b> (the highest and lowest value ever observed in each calendar
-    month since 1970). Named El&nbsp;Ni&ntilde;o events are coloured by strength &mdash; strong
-    and super events start visible, the rest wait in the legend. The current year is drawn bold
+    month since 1970). Each named El&nbsp;Ni&ntilde;o gets its own colour, with heavier lines for stronger
+    events &mdash; strong and very-strong events start visible, the rest wait in the legend. The current year is drawn bold
     white, and the <b style="color:#e8c04d">gold dashes</b> extend it with this issue's
     multi-model mean. <b>Every year here is computed against the same fixed 1991&ndash;2020
     base</b> &mdash; CPC's historical tables use sliding 30-year bases that shift by era, which
@@ -217,8 +217,14 @@
   }
 
   // ── history overlay ──────────────────────────────────────────────────────
-  var STRENGTH_COLOR = { super: "#e04b3f", strong: "#e8833a", moderate: "#d9a13d",
-                         weak: "#8fa3bd" };
+  // one DISTINCT hue per named event (strength-class colouring made every
+  // strong El Niño the same orange); strength instead sets the line weight
+  var EVENT_PALETTE = ["#e8833a", "#4dd6e8", "#9b7ce8", "#57d9a3", "#e86bb8",
+                       "#6aa7f0", "#ff8a7a", "#2fbfb2", "#c9a0ff", "#b8d94d",
+                       "#f06a9b", "#d9a13d", "#8fd0ff", "#e0645c", "#7fe8c9",
+                       "#d98fd0", "#a8c94d", "#5c8fe0"];
+  var STRENGTH_W = { "very strong": 2.4, strong: 1.9, moderate: 1.5,
+                     weak: 1.2, developing: 1.5 };
   function drawHist() {
     var H = state.hist, F = state.fc;
     var MONS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -263,13 +269,14 @@
     traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
                   line: { color: "rgba(167,184,206,0.18)", width: 0.8 },
                   name: "all other years", hoverinfo: "skip" });
-    (H.events || []).forEach(function (e) {
-      if (!byYear[e.onset]) return;
+    (H.events || []).forEach(function (e, ei) {
+      if (!byYear[e.onset] || e.current) return;
       traces.push({ x: MONS, y: byYear[e.onset], type: "scatter", mode: "lines",
                     name: e.label + " (" + e.strength + ")",
-                    visible: (e.strength === "super" || e.strength === "strong" || e.default)
-                             ? true : "legendonly",
-                    line: { color: STRENGTH_COLOR[e.strength] || "#8fa3bd", width: 1.6 },
+                    visible: (e.strength === "very strong" || e.strength === "strong" ||
+                              e.default) ? true : "legendonly",
+                    line: { color: EVENT_PALETTE[ei % EVENT_PALETTE.length],
+                            width: STRENGTH_W[e.strength] || 1.5 },
                     hovertemplate: e.label + " %{y:+.2f}" });
     });
     traces.push({ x: MONS, y: byYear[curYear], type: "scatter", mode: "lines+markers",
