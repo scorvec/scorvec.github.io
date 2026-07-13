@@ -95,6 +95,48 @@ def build_events(oni: pd.Series) -> list[dict]:
     return events
 
 
+ERSST_GRID = ("https://downloads.psl.noaa.gov/Datasets/noaa.ersst.v5/"
+              "sst.mnmean.nc")
+
+
+def tropical_anom(index: pd.DatetimeIndex) -> pd.Series:
+    """20°S–20°N ERSSTv5 SST anomaly vs the FIXED 1991–2020 base, monthly.
+
+    CPC's tabulated indices carry the Niño boxes but not the tropical mean, so
+    the historical RONI needs the gridded field. Using the same dataset
+    (ERSSTv5) and the same fixed base as the table keeps every year of RONI on
+    one consistent footing — CPC's own historical ONI/RONI use sliding 30-year
+    bases, which is exactly the apples-to-oranges problem this avoids.
+    """
+    import urllib.request
+    import xarray as xr
+    cache = HERE / "data" / "ersst_v5_mnmean.nc"
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    if not cache.exists() or cache.stat().st_size < 1e6:
+        print(f"fetching {ERSST_GRID} (~60 MB, cached once)")
+        urllib.request.urlretrieve(ERSST_GRID, cache)
+    ds = xr.open_dataset(cache)
+    sst = ds["sst"].sel(lat=slice(20, -20))                # ERSST lat runs N→S
+    w = np.cos(np.deg2rad(sst["lat"]))
+    band = sst.weighted(w).mean(dim=("lat", "lon"), skipna=True)
+    ser = band.to_series()
+    clim = ser[(ser.index.year >= 1991) & (ser.index.year <= 2020)] \
+        .groupby(lambda t: t.month).mean()
+    anom = ser - pd.Series([clim[t.month] for t in ser.index], index=ser.index)
+    anom.index = anom.index.to_period("M").to_timestamp()
+    return anom.reindex(index)
+
+
+def roni_scale() -> dict:
+    """Per-calendar-month σ(ONI)/σ(relative) — the same table the live site
+    uses (CPC/ECMWF method), so historical and current RONI share one scale."""
+    p = HERE / "roni_sigma.json"
+    if not p.exists():
+        return {}
+    tab = json.loads(p.read_text()).get("scale_by_month", {})
+    return {int(k): float(v) for k, v in tab.items()}
+
+
 def main() -> int:
     print(f"fetching {SRC}")
     df = parse(fetch(SRC))
@@ -104,6 +146,20 @@ def main() -> int:
         return 1
 
     oni = df["n34a"].rolling(3, center=True, min_periods=2).mean()    # ONI = 3-mo running Niño-3.4 anom
+
+    # Historical RONI on the same fixed footing: table Niño-3.4 anomaly minus
+    # the gridded tropical-mean anomaly (both ERSSTv5, both 1991–2020 base),
+    # σ-scaled per calendar month, 3-month running mean.
+    try:
+        trop = tropical_anom(df.index)
+        sc = roni_scale()
+        rel = (df["n34a"] - trop) * pd.Series(
+            [sc.get(t.month, 1.0) for t in df.index], index=df.index)
+        roni = rel.rolling(3, center=True, min_periods=2).mean()
+    except Exception as e:                                # noqa: BLE001
+        print(f"tropical-mean/RONI unavailable ({repr(e)[:80]}); "
+              "writing history without roni", file=sys.stderr)
+        roni = None
 
     months = [f"{d:%Y-%m}" for d in df.index]
 
@@ -117,6 +173,9 @@ def main() -> int:
         "nino34": {"abs": col("n34"), "anom": col("n34a")},
         "oni":    {"anom": [round(float(v), 2) if pd.notna(v) else None for v in oni.values]},
     }
+    if roni is not None:
+        series["roni"] = {"anom": [round(float(v), 2) if pd.notna(v) else None
+                                   for v in roni.values]}
 
     events = build_events(oni)
     # Current developing event: align to its onset-year's climatological Dec peak so the
@@ -142,6 +201,7 @@ def main() -> int:
         "metrics": {
             "nino12": "Niño-1+2", "nino3": "Niño-3",
             "nino34": "Niño-3.4", "nino4": "Niño-4", "oni": "ONI (Niño-3.4, 3-mo)",
+            "roni": "RONI (relative, σ-scaled, 3-mo — fixed 1991–2020 base)",
         },
         "months": months,
         "series": series,
