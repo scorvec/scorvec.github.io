@@ -680,6 +680,12 @@ document.getElementById("fog-modal").addEventListener("click", e => {
 });
 
 document.getElementById("climo-btn").addEventListener("click", openClimo);
+document.getElementById("rec-btn").addEventListener("click", openRecords);
+document.getElementById("rec-close").addEventListener("click",
+  () => document.getElementById("rec-modal").hidden = true);
+document.getElementById("rec-modal").addEventListener("click", e => {
+  if (e.target.id === "rec-modal") document.getElementById("rec-modal").hidden = true;
+});
 document.getElementById("climo-var").addEventListener("change", e => {
   drawClimo(e.target.value); drawClimoDist(e.target.value);
 });
@@ -840,9 +846,34 @@ function climoPct(key, v) {                          // -> {pct, rec} or null
   if (CLIMO_FLOOR[key] !== undefined && v < CLIMO_FLOOR[key]) return null;
   // no meaningful upper tail (the whole distribution is a spike): nothing to rank
   if (pct >= CLIMO_HI && !(d.p[6] > d.p[4])) return null;
-  const rec = (v >= d.max && v > d.p[5]) ? { t: "high", y: d.maxY }
-    : (v <= d.min && v < d.p[3]) ? { t: "low", y: d.minY } : null;
+  // A record carries WHAT it broke: the ±10-day mark by default, escalating to
+  // the station's all-time extreme when it clears that too. All-time is exact —
+  // every sounding lands inside some anchor window, so the envelope's max over
+  // anchors is the true period-of-record extreme.
+  let rec = null;
+  if (v >= d.max && v > d.p[5]) {
+    rec = { t: "high", y: d.maxY, prev: d.max };
+    const at = climoAllTime(key, "high");
+    if (at && v >= at.v) { rec.tier = "all"; rec.prev = at.v; rec.y = at.y; }
+  } else if (v <= d.min && v < d.p[3]) {
+    rec = { t: "low", y: d.minY, prev: d.min };
+    const at = climoAllTime(key, "low");
+    if (at && v <= at.v) { rec.tier = "all"; rec.prev = at.v; rec.y = at.y; }
+  }
   return { pct: Math.max(0, Math.min(100, pct)), rec };
+}
+// station all-time extreme for one index: scan every anchor's envelope
+function climoAllTime(key, sense) {
+  const A = climo && climo.idx && climo.idx[key];
+  if (!A) return null;
+  let best = null;
+  for (let i = 0; i < A.max.length; i++) {
+    const v = sense === "high" ? A.max[i] : A.min[i];
+    const y = sense === "high" ? A.maxY[i] : A.minY[i];
+    if (v === null || v === undefined) continue;
+    if (!best || (sense === "high" ? v > best.v : v < best.v)) best = { v, y };
+  }
+  return best;
 }
 // Only the tails are worth flagging: a value sitting at P53 is by definition
 // unremarkable, and tagging it just adds noise. Nothing between p10 and p90 is
@@ -864,12 +895,73 @@ function climoCell(key, v, txt) {
   const notable = r.rec || r.pct >= CLIMO_HI || r.pct <= CLIMO_LO;
   if (!notable) return txt;                                  // unremarkable: plain
   const ord = Math.max(1, Math.min(99, Math.round(r.pct)));
-  const tip = r.rec ? `record ${r.rec.t} ${r.rec.y}` : `${ord}th percentile`;
+  const tip = r.rec
+    ? (r.rec.tier === "all"
+        ? `ALL-TIME station record ${r.rec.t} — previous ${r.rec.prev} (${r.rec.y})`
+        : `record ${r.rec.t} for this time of year (±10 days) — previous ${r.rec.prev} (${r.rec.y})`)
+    : `${ord}th percentile for this time of year`;
   const star = r.rec
-    ? ` <span style="color:${r.rec.t === "high" ? "#ff5a3c" : "#5a9bf0"}">★${String(r.rec.y).slice(2)}</span>`
+    ? ` <span style="color:${r.rec.t === "high" ? "#ff5a3c" : "#5a9bf0"}">${r.rec.tier === "all" ? "★★" : "★"}${String(r.rec.y).slice(2)}</span>`
     : "";
   const sub = r.rec ? "" : `<span class="pctlab">P${ord}</span>`;
   return `<span class="pctcell" style="background:${pctColor(r.pct)}" title="${tip}">${txt}${star}</span>${sub}`;
+}
+
+// ---- 🏆 station records drill-down: what stands, and what this sounding broke ----
+function openRecords() {
+  if (!climo) return;
+  const fmtV = v => (v === null || v === undefined || !isFinite(v)) ? "—"
+    : (+v).toFixed(Math.abs(v) >= 1000 ? 0 : 1);
+  const cell = (r, sense, broken) => {
+    if (!r) return "<td>—</td>";
+    const bg = broken ? (sense === "high" ? "rgba(224,70,55,0.42)" : "rgba(56,120,216,0.45)") : "";
+    return `<td${bg ? ` style="background:${bg}"` : ""}>${fmtV(r.v)}` +
+           ` <span class="pctlab">${r.y}</span></td>`;
+  };
+  const rows = [], broke = [];
+  for (const [k, name, unit] of CLIMO_VARS) {
+    const A = climo.idx && climo.idx[k];
+    if (!A) continue;
+    // ECAPE/SHIP lows are quiet days, not records — blank their low columns
+    const lowMeaningful = !CLIMO_HIGH_ONLY.has(k);
+    const atHi = climoAllTime(k, "high");
+    const atLo = lowMeaningful ? climoAllTime(k, "low") : null;
+    if (!atHi) continue;
+    const s = climoSlot(A);
+    const wOk = s >= 0 && A.max[s] !== null && (A.n[s] || 0) >= CLIMO_MIN_N;
+    const wHi = wOk ? { v: A.max[s], y: A.maxY[s] } : null;
+    const wLo = wOk && lowMeaningful ? { v: A.min[s], y: A.minY[s] } : null;
+    const cur = climoNow[k];
+    // climoPct applies every honesty guard (degenerate tails, floors, spike
+    // distributions) — the modal must not claim a record the tags wouldn't
+    const rec = (isFinite(cur) ? (climoPct(k, cur) || {}).rec : null) || null;
+    const lab = `${name}${unit ? ` <span class="pctlab">${unit}</span>` : ""}`;
+    rows.push(`<tr><td>${lab}</td>` +
+      cell(atLo, "low", rec && rec.t === "low" && rec.tier === "all") +
+      cell(atHi, "high", rec && rec.t === "high" && rec.tier === "all") +
+      cell(wLo, "low", rec && rec.t === "low") +
+      cell(wHi, "high", rec && rec.t === "high") +
+      `<td>${isFinite(cur) ? climoCell(k, cur, fmtV(cur)) : "—"}</td></tr>`);
+    if (rec) broke.push(
+      `<b>${name} ${fmtV(cur)}${unit ? " " + unit : ""}</b> — ` +
+      (rec.tier === "all" ? "ALL-TIME station record" : "record for this time of year") +
+      ` ${rec.t} (previous ${fmtV(rec.prev)}, ${rec.y})`);
+  }
+  document.getElementById("rec-title").textContent =
+    `🏆 ${(current && current.n) || "Station"} records`;
+  document.getElementById("rec-table").innerHTML =
+    `<tr><th></th><th colspan="2">all-time ${climo.yr0}–${climo.yr1}</th>` +
+    `<th colspan="2">this time of year (±10 d)</th><th>this sounding</th></tr>` +
+    `<tr><th></th><th>low</th><th>high</th><th>low</th><th>high</th><th></th></tr>` +
+    rows.join("");
+  document.getElementById("rec-note").innerHTML =
+    (broke.length ? `<span style="color:#ff9f95">⚡ This sounding sets: ` +
+      broke.join("; ") + `.</span><br>` : "") +
+    `Records from this station's ${climo.yr0}–${climo.yr1} radiosonde archive (00Z and 12Z ` +
+    `pooled). "This time of year" pools soundings within ±10 days of the plotted date; ` +
+    `all-time spans the whole period of record. The year shown is when the mark was set; ` +
+    `tying a mark counts as a record. Highlighted cells are marks this sounding takes over.`;
+  document.getElementById("rec-modal").hidden = false;
 }
 const MIRROR = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-data/";
 const SPC = "https://www.spc.noaa.gov/exper/soundings";
@@ -1156,8 +1248,10 @@ Promise.all([
       fillColor: off ? "#bf5af2" : "#4a7ab5", fillOpacity: 0.95,
     }).addTo(map);
     const arch = ig ? ` · archive ${ig.y0}–${ig.y1}` : "";
-    const anomTip = flag ? `<br><b style="color:#ff2d2d">⚡ near record:</b> ` +
-      flag.flags.map(f => `${f.lab} ${f.v} (${f.sense === "high" ? "P" + f.pct + " high" : "P" + f.pct + " low"})`).join(", ") : "";
+    const anomTip = flag ? `<br><b style="color:#ff2d2d">⚡ record watch:</b> ` +
+      flag.flags.map(f => f.rec
+        ? `${f.lab} ${f.v} — <b>${f.rec.tier === "all" ? "ALL-TIME RECORD" : "RECORD for the date"} ${f.rec.t}</b> (prev ${f.rec.prev}, ${f.rec.y})`
+        : `${f.lab} ${f.v} (P${f.pct} ${f.sense})`).join(", ") : "";
     const offTip = off
       ? ` <b style="color:#bf5af2">· off-hour launch (${String(launchHour(s.dt)).padStart(2, "0")}Z)</b>`
       : "";
@@ -1215,7 +1309,8 @@ function buildAnomPanel() {
     const f = d.flags[0];
     return `<li data-wmo="${wmo}"><b>${name}</b><br>` +
       d.flags.slice(0, 2).map(g =>
-        `<span class="${g.sense === "high" ? "hi" : "lo"}">${g.lab} ${g.v} · P${g.pct}</span>`
+        `<span class="${g.sense === "high" ? "hi" : "lo"}">${g.lab} ${g.v} · ` +
+        `${g.rec ? (g.rec.tier === "all" ? "ALL-TIME REC" : "RECORD") : "P" + g.pct}</span>`
       ).join(" &nbsp; ") + `</li>`;
   }).join("");
   el.querySelectorAll("li[data-wmo]").forEach(li => li.addEventListener("click", () => {
@@ -2933,6 +3028,7 @@ function fillTables(prof, res) {
     ecape: o[42] === MISSING ? NaN : o[42], ship: o[43] === MISSING ? NaN : o[43],
     wbz: wbzAgl(prof) };
   document.getElementById("climo-btn").style.display = climo ? "" : "none";
+  document.getElementById("rec-btn").style.display = climo ? "" : "none";
 
   const winter = [
     ["Precip type (Bourgouin)", (() => {
