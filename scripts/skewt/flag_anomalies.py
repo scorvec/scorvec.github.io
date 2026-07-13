@@ -195,9 +195,33 @@ def main() -> int:
                       and k not in HIGH_ONLY)
             high_ok = pct >= 95 and v > pp[5]            # p[5] = 75th percentile
             if low_ok or high_ok:
-                flags.append({"k": k, "lab": LABELS.get(k, k),
-                              "v": round(v, 1), "pct": round(pct),
-                              "sense": "high" if pct >= 95 else "low"})
+                # An actual record (ties or beats the stored extreme) is a
+                # different claim from "P100": rounding used to promote P99.6
+                # to "P100 high", which reads as a record when the value was
+                # 15 m short of one. Non-records now cap at P99; records carry
+                # the mark they broke. The all-time envelope is exact — every
+                # sounding lands inside some ±10-day anchor window, so the max
+                # over anchors IS the station's all-time extreme.
+                rec = None
+                mx, mn = A["max"][s], A["min"][s]
+                if high_ok and mx is not None and v >= mx:
+                    rec = {"t": "high", "prev": mx, "y": A["maxY"][s]}
+                    at = max((m, y) for m, y in zip(A["max"], A["maxY"])
+                             if m is not None)
+                    if v >= at[0]:
+                        rec.update(tier="all", prev=at[0], y=at[1])
+                elif low_ok and mn is not None and v <= mn:
+                    rec = {"t": "low", "prev": mn, "y": A["minY"][s]}
+                    at = min((m, y) for m, y in zip(A["min"], A["minY"])
+                             if m is not None)
+                    if v <= at[0]:
+                        rec.update(tier="all", prev=at[0], y=at[1])
+                f = {"k": k, "lab": LABELS.get(k, k), "v": round(v, 1),
+                     "pct": 100 if rec else min(99, round(pct)),
+                     "sense": "high" if pct >= 95 else "low"}
+                if rec:
+                    f["rec"] = rec
+                flags.append(f)
         if flags:
             flags.sort(key=lambda f: abs(f["pct"] - 50), reverse=True)
             anomalies[wmo] = {"dt": e.get("dt", ""), "flags": flags}

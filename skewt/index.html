@@ -265,6 +265,18 @@
   </div>
 </div>
 
+<div id="rec-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog" style="height:auto; max-height:90vh; width:min(820px,96vw); overflow-y:auto">
+    <div class="dlg-head controls">
+      <span class="station" id="rec-title">🏆 Station records</span>
+      <button id="rec-close" title="close" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px; overflow-x:auto">
+      <table class="params kin" id="rec-table" style="font-size:0.78rem"></table>
+    </div>
+    <p class="note" id="rec-note" style="color:var(--muted); font-size:0.75rem; margin-top:8px"></p>
+  </div>
+</div>
 <div id="fog-modal" class="modal" hidden style="z-index:2100">
   <div class="dialog" style="height:auto; max-height:92vh; width:min(860px,96vw)">
     <div class="dlg-head controls">
@@ -322,6 +334,7 @@
       <a id="uw-link" href="https://weather.uwyo.edu/upperair/sounding.shtml" target="_blank"
          rel="noopener" style="font-size:0.78rem; color:var(--accent)">UW page ↗</a>
       <button id="climo-btn" style="display:none">📊 Climatology</button>
+      <button id="rec-btn" style="display:none" title="station record extremes — all-time and for this date">🏆 Records</button>
       <button id="fog-btn" title="fog, frost and dew diagnostics">🌫 Fog/frost</button>
       <button id="cloud-btn" title="cloud layer estimate">☁ Clouds</button>
       <button id="share-btn" title="copy a link to this exact sounding">🔗 Share</button>
@@ -380,6 +393,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=344c0871"></script>
+<script src="app.js?v=190301ea"></script>
 </body>
 </html>
