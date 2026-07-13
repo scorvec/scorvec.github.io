@@ -458,9 +458,16 @@
     }
     var lay = layout({ shapes: thresholds(MONS[0], MONS[11]) });
     lay.xaxis.type = "category";
-    lay.legend = { orientation: "v", x: 1.01, xanchor: "left", y: 1,
-                   font: { size: 10.5 } };
-    lay.margin.r = 8;
+    // the right-side legend column would squeeze the plot to half-width on a
+    // phone — below ~700 px it moves under the chart instead
+    if (window.innerWidth >= 700) {
+      lay.legend = { orientation: "v", x: 1.01, xanchor: "left", y: 1,
+                     font: { size: 10.5 } };
+      lay.margin.r = 8;
+    } else {
+      lay.legend = { orientation: "h", y: -0.22, font: { size: 10 } };
+      lay.margin.b = 30;
+    }
     Plotly.react("histChart", traces, lay, CONFIG);
     document.getElementById("hist-updated").textContent =
       ((state.histIdx || "oni") === "roni" ? "RONI" : "ONI") +
@@ -534,6 +541,12 @@
       b.classList.toggle("on", state.members);
       if (state.fc) drawPlume();
     });
+  });
+
+  var rsz = null;
+  addEventListener("resize", function () {
+    clearTimeout(rsz);
+    rsz = setTimeout(function () { if (state.hist) drawHist(); }, 250);
   });
 
   document.querySelectorAll(".pill[data-hidx]").forEach(function (b) {
