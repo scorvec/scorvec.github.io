@@ -1317,6 +1317,9 @@ function buildAnomPanel() {
   }).join("");
   el.querySelectorAll("li[data-wmo]").forEach(li => li.addEventListener("click", () => {
     const wmo = li.dataset.wmo;
+    // the record modal stacks ABOVE the sounding dialog — close it first,
+    // or the sounding opens invisibly underneath
+    document.getElementById("anom-modal").hidden = true;
     setMode("latest");
     selectStation({ gid: byWmo[wmo], id: wmo,
       n: (entries[wmo] || {}).n, e: (igraStations[byWmo[wmo]] || {}).e || 0 });
@@ -3421,7 +3424,24 @@ function fillTables(prof, res) {
   document.getElementById("winter-table").innerHTML = winter.map(row).join("");
   document.getElementById("tropic-table").innerHTML = tropical.map(row).join("");
   queuePrev12();                        // MSE tendency arrives async, re-fills
+  fitTables();
 }
+
+// Autoscale the parameter tables into whatever height the plots leave over:
+// step the font down (never below 0.55rem) until nothing scrolls, and let a
+// big monitor keep the full 0.68rem. Runs after every fill and on resize.
+function fitTables() {
+  const wrap = document.querySelector(".tables-wrap");
+  if (!wrap) return;
+  wrap.style.removeProperty("--tbl-fs");             // start from the CSS default
+  if (wrap.clientHeight >= wrap.scrollHeight - 1) return;
+  for (let fs = 0.66; fs >= 0.55; fs -= 0.03) {
+    wrap.style.setProperty("--tbl-fs", fs + "rem");
+    if (wrap.clientHeight >= wrap.scrollHeight - 1) return;
+  }
+}
+document.getElementById("dlg-footer").addEventListener("click",
+  e => { if (e.target.tagName !== "A") e.currentTarget.classList.toggle("open"); });
 
 // ---------- render ----------
 function clearPlot(msg) {
