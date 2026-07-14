@@ -787,7 +787,7 @@ def _point_lattice(grid_lats, grid_lons, region):
     if cached is not None:
         return cached
     lon0, lon1, lat0, lat1 = region.extent
-    ncol = 13 if region.id == "national" else 10
+    ncol = 20 if region.id == "national" else 16
     nrow = max(5, int(round(ncol * (lat1 - lat0) / max(lon1 - lon0, 1) * 1.4)))
     mlon = (lon1 - lon0) * 0.045
     mlat = (lat1 - lat0) * 0.06
@@ -813,8 +813,8 @@ def _overlay_point_values(ax, values, grid_lats, grid_lons, region, fmt="%.0f"):
     stops being colour-only and starts answering "what's the number HERE".
     Nearest-gridpoint sampling on a strided copy keeps it O(lattice)."""
     import matplotlib.patheffects as mpe
-    halo = [mpe.withStroke(linewidth=2.4, foreground="white")]
-    fs = 7.5 if region.id == "national" else 9
+    halo = [mpe.withStroke(linewidth=1.6, foreground="white")]
+    fs = 5.0 if region.id == "national" else 6.0
     for lo, la, j, i in _point_lattice(grid_lats, grid_lons, region):
         v = values[j, i]
         if not np.isfinite(v):
