@@ -1469,7 +1469,11 @@ async function drawRecordMap() {
     const col = hi ? "#ff6b55" : "#6aa7f0";
     star(x, y, 5.5, col);
     const shown = (fallback ? p.flags : p.recs).slice(0, 2);
-    const lines = [p.name].concat(shown.map(f => f.rec
+    // each label carries ITS sounding's launch time — records persist until
+    // the station launches again, so without this two views hours apart look
+    // identical and the map reads as stale when it isn't
+    const hh = p.dt ? p.dt.slice(5, 10).replace("-", "/") + " " + p.dt.slice(11, 13) + "Z" : "";
+    const lines = [p.name + (hh ? "  ·  " + hh : "")].concat(shown.map(f => f.rec
       ? `${f.lab} ${f.v} · ${f.rec.tier === "all" ? "ALL-TIME" : "date rec"} (prev ${f.rec.prev} '${String(f.rec.y).slice(2)})`
       : `${f.lab} ${f.v} · P${f.pct} ${f.sense}`));
     ctx.font = "600 10.5px Inter";
@@ -1510,12 +1514,13 @@ async function drawRecordMap() {
   const nRec = labeled.length;
   const nAll = labeled.filter(p => p.recs.some(r => r.rec.tier === "all")).length;
   ctx.fillStyle = "#e8e8f0"; ctx.font = "700 17px Inter"; ctx.textAlign = "left";
-  ctx.fillText(`⚡ Radiosonde record watch — ${newest}Z`, 14, 25);
+  ctx.fillText(`⚡ Radiosonde record watch — newest sounding ${newest}Z`, 14, 25);
   ctx.fillStyle = "#8b8ba3"; ctx.font = "11.5px Inter";
   ctx.fillText(fallback
     ? `no station records today — ${pts.length} stations at climatological extremes (P95+)`
     : `${nRec} station(s) set records vs their own sounding archives` +
-      (nAll ? ` — ${nAll} ALL-TIME` : "") + ` · ${pts.length} stations flagged P95+`, 14, 41);
+      (nAll ? ` — ${nAll} ALL-TIME` : "") + ` · ${pts.length} stations flagged P95+` +
+      ` · each label shows its station's latest launch`, 14, 41);
   ctx.font = "11px Inter";
   ctx.fillText("scorvec.com/skewt · records vs each station's full IGRA archive, ±10-day time-of-year window",
     14, H - 7);
