@@ -44,6 +44,14 @@ FLOOR = {"ecape": 100.0, "ship": 0.5}
 LABELS = {"h500": "500mb hgt", "thick": "1000-500 thick", "850t": "850mb T",
           "ecape": "ECAPE", "700t": "700mb T", "500t": "500mb T",
           "850td": "850mb Td", "700td": "700mb Td", "pwat": "PWAT"}
+# Physical plausibility (m / °C / mm): outside these bounds is a data error
+# anywhere on Earth, whatever the station's own envelope says. The 3-tail-span
+# station fence alone let Reno's corrupt 6224 m height through — heights have
+# fat summer tails, so 3 spans was 300 m of headroom against a variable whose
+# global ceiling is ~6080 m.
+PHYS = {"h500": (4600, 6100), "thick": (4700, 6100), "850t": (-60, 45),
+        "700t": (-55, 35), "500t": (-60, 15), "850td": (-75, 35),
+        "700td": (-75, 30), "pwat": (0, 135)}
 G = 9.80665
 
 
@@ -201,6 +209,10 @@ def main() -> int:
             # be genuinely separated from the bulk: below p5 AND strictly below p25
             # (or above p95 AND strictly above p75).
             pp = A["p"][s]
+            if k in PHYS and not (PHYS[k][0] <= v <= PHYS[k][1]):
+                print(f"    {wmo} {k}: {v:.1f} physically implausible — skipped",
+                      file=sys.stderr)
+                continue
             if k in FLOOR and v < FLOOR[k]:
                 continue                                 # too small to be news
             if pct >= 95 and not (pp[6] > pp[4]):
