@@ -94,9 +94,12 @@ MODELS = [
     ("meteo_france", "9",   "Météo-France 9", "#2ca02c"),
     ("dwd",          "22",  "DWD GCFS2",      "#9467bd"),
     ("ncep",         "2",   "NCEP CFSv2",     "#ff7f0e"),
-    # system 5 = CanSIPSv3, ECCC's operational system since late 2024 — the
-    # old "4" (CanSIPSv2.1) still publishes but is a deprecated parallel run
-    ("eccc",         "5",   "ECCC CanSIPSv3", "#8c564b"),
+    # CanSIPS is a TWO-model ensemble: the CDS carries its components as
+    # separate systems (4 = GEM5-NEMO, 5 = CanESM5, 20 members each). Each is
+    # anomalized against its own hindcast, then MERGED below into one 40-member
+    # CanSIPS — either alone is only half the ensemble.
+    ("eccc",         "4",   "ECCC GEM5-NEMO", "#8c564b"),
+    ("eccc",         "5",   "ECCC CanESM5",   "#8c564b"),
     ("bom",          "2",   "BoM ACCESS-S2",  "#17becf"),
 ]
 
@@ -273,6 +276,11 @@ def model_members(centre, system, ym):
     return {"n34": n34_mem, "rnino": rnino_mem}
 
 
+# components pooled into one display model (each anomalized vs its own
+# hindcast FIRST, then members concatenated — the CanSIPS construction)
+MERGE = {"ECCC CanSIPSv3": ("ECCC GEM5-NEMO", "ECCC CanESM5")}
+
+
 def collect(ym):
     """{label → (member_dict, colour)} for every model with data at this issue."""
     out = {}
@@ -286,6 +294,22 @@ def collect(ym):
         rn = np.array([r["rnino"][L].mean() for L in range(1, MAXLEAD + 1)])
         print(f"  {label:16s} {r['n34'][1].size:>3d} mem · "
               f"Niño-3.4 {n[0]:+.2f}→{n[-1]:+.2f}  rNiño-3.4 {rn[0]:+.2f}→{rn[-1]:+.2f}", flush=True)
+    for merged, parts in MERGE.items():
+        have = [p for p in parts if p in out]
+        if len(have) < 2:
+            if have:                      # one component alone: keep it, labelled as-is
+                print(f"  {merged}: only {have[0]} available — shown unmerged", flush=True)
+            continue
+        colour = out[have[0]][1]
+        pooled = {k: {L: np.concatenate([out[p][0][k][L] for p in have])
+                      for L in range(1, MAXLEAD + 1)}
+                  for k in ("n34", "rnino")}
+        for p in have:
+            del out[p]
+        out[merged] = (pooled, colour)
+        n = np.array([pooled["n34"][L].mean() for L in range(1, MAXLEAD + 1)])
+        print(f"  {merged:16s} {pooled['n34'][1].size:>3d} mem (merged: "
+              f"{' + '.join(have)}) · Niño-3.4 {n[0]:+.2f}→{n[-1]:+.2f}", flush=True)
     return out
 
 
