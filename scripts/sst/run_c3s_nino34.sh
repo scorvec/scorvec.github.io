@@ -61,7 +61,7 @@ trap 'rm -rf "$LOCK" 2>/dev/null' EXIT
 OUT=$("$PY" scripts/sst/c3s_nino34.py 2>&1); echo "$OUT"
 NMODELS=$(printf '%s\n' "$OUT" | sed -nE 's/.*\(([0-9]+) models\)/\1/p' | tail -1)
 
-git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv
+git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json
 if git diff --staged --quiet; then
   echo "no changes to commit"
   [ "${NMODELS:-0}" -ge 7 ] 2>/dev/null && touch "$DONE_STAMP"
