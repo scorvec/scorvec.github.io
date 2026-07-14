@@ -64,6 +64,7 @@ VARS = {
 # ENSO development years of the comparable "super" events + the current event.
 EVENTS = [
     dict(y0=1982, label="1982–83", peak="+2.2"),
+    dict(y0=1991, label="1991–92", peak="+1.7"),
     dict(y0=1997, label="1997–98", peak="+2.4"),
     dict(y0=2015, label="2015–16", peak="+2.6"),
     dict(y0=2023, label="2023–24", peak="+2.0"),
@@ -74,6 +75,64 @@ CYCLE_MONTHS = [6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5]
 
 TREND_Y0 = 1950            # fit window start for the trend-adjusted normal
 EXTENT = (100, 350, -15, 80)   # Pacific + North America
+
+# CPC official monthly teleconnection indices (standardized), 1950-present.
+CPC_TELE = {
+    "AO": "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/"
+          "daily_ao_index/monthly.ao.index.b50.current.ascii",
+    "NAO": "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/pna/"
+           "norm.nao.monthly.b5001.current.ascii",
+    "PNA": "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/pna/"
+           "norm.pna.monthly.b5001.current.ascii",
+}
+# EPO has no official CPC monthly product; computed from our ERA5 z500
+# trend-adjusted anomaly with the Riddle et al. (2013) box definition:
+# std. anomaly (20-35N, 160-125W) minus (55-65N, 160-125W), standardized
+# per calendar month. Positive EPO = trough near Alaska / progressive
+# Pacific flow; negative = Alaska ridge (cold delivery into central US).
+EPO_S = dict(lat=slice(20, 35), lon=slice(200, 235))
+EPO_N = dict(lat=slice(55, 65), lon=slice(200, 235))
+
+
+def fetch_teleconnections() -> dict:
+    """{(year, month): {'AO': v, 'NAO': v, 'PNA': v}} from CPC ASCII."""
+    import urllib.request
+    out = {}
+    for name, url in CPC_TELE.items():
+        try:
+            with urllib.request.urlopen(url, timeout=60) as r:
+                text = r.read().decode()
+        except Exception as e:                               # noqa: BLE001
+            print(f"  WARN: CPC {name} fetch failed ({e}); values omitted")
+            continue
+        for line in text.splitlines():
+            p = line.split()
+            if len(p) >= 3:
+                try:
+                    y, m, v = int(p[0]), int(p[1]), float(p[2])
+                except ValueError:
+                    continue
+                out.setdefault((y, m), {})[name] = v
+    return out
+
+
+def compute_epo(anom: xr.DataArray) -> dict:
+    """{(year, month): epo} from the z500 trend-adjusted anomaly."""
+    lat = anom.lat.values
+    a = anom.sortby("lat") if lat[0] > lat[-1] else anom
+    s = a.sel(**EPO_S).mean(("lat", "lon"))
+    n = a.sel(**EPO_N).mean(("lat", "lon"))
+    raw = (s - n)
+    t = pd.to_datetime(raw.time.values)
+    vals = raw.values
+    out = {}
+    for m in range(1, 13):
+        rows = t.month == m
+        sd = np.nanstd(vals[rows])
+        for i in np.where(rows)[0]:
+            if np.isfinite(vals[i]) and sd > 0:
+                out[(t[i].year, t[i].month)] = float(vals[i] / sd)
+    return out
 
 
 def _expected_last_month() -> pd.Timestamp:
@@ -166,16 +225,30 @@ def month_field(anom: xr.DataArray, year: int, month: int):
     return sel.isel(time=0) if "time" in sel.dims else sel
 
 
-def render(vid: str, anom: xr.DataArray, month: int, avail: set) -> None:
+def _tele_text(tele: dict, year: int, month: int) -> str | None:
+    v = tele.get((year, month))
+    if not v:
+        return None
+    parts = []
+    for k in ("PNA", "NAO", "EPO", "AO"):
+        parts.append(f"{k} {v[k]:+.1f}" if k in v and v[k] is not None
+                     else f"{k} —")
+    return "  ·  ".join(parts)
+
+
+def render(vid: str, anom: xr.DataArray, month: int, avail: set,
+           tele: dict) -> None:
     spec = VARS[vid]
     proj = ccrs.PlateCarree(central_longitude=200)
     # panels are wide (250 deg x 95 deg): size the figure so rows pack tight
-    fig, axes = plt.subplots(3, 2, figsize=(12.5, 8.6),
+    fig, axes = plt.subplots(3, 2, figsize=(12.5, 8.9),
                              subplot_kw=dict(projection=proj))
-    fig.subplots_adjust(left=0.02, right=0.98, top=0.96, bottom=0.10,
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.93, bottom=0.10,
                         hspace=0.28, wspace=0.05)
     axes = axes.ravel()
     mname = datetime(2000, month, 1).strftime("%B")
+    fig.suptitle(f"{spec['label']} ({spec['units']}) — {mname} of the ENSO cycle",
+                 fontsize=14, fontweight="bold", y=0.985)
     cf = None
     for i, ev in enumerate(EVENTS):
         ax = axes[i]
@@ -202,26 +275,23 @@ def render(vid: str, anom: xr.DataArray, month: int, avail: set) -> None:
         ax.set_title(f"{ev['label']} · {yr_tag}{peak}",
                      fontsize=11, loc="left",
                      fontweight="bold" if ev.get("current") else "normal")
-
-    # info panel in the spare slot
-    ax = axes[5]
-    ax.set_axis_off()
-    ax.text(0.02, 0.95,
-            f"{spec['label']}\n{mname} of the ENSO cycle",
-            fontsize=15, fontweight="bold", va="top", transform=ax.transAxes)
-    ax.text(0.02, 0.62,
-            "ERA5 monthly means (Copernicus CDS).\n"
-            "Anomalies are departures from a per-gridpoint,\n"
-            f"per-month linear trend fit ({TREND_Y0}–present),\n"
-            "so events decades apart are measured against\n"
-            "their own era's climate — what remains is the\n"
-            "circulation signal, not background warming.",
-            fontsize=10.5, color="#444", va="top", transform=ax.transAxes)
+        tt = _tele_text(tele, year, month)
+        if tt:
+            ax.text(0.012, 0.035, tt, transform=ax.transAxes, fontsize=7.8,
+                    va="bottom", ha="left", color="#111", zorder=6,
+                    bbox=dict(facecolor="white", alpha=0.82,
+                              edgecolor="#999", lw=0.4,
+                              boxstyle="round,pad=0.25"))
 
     if cf is not None:
-        cax = fig.add_axes([0.18, 0.045, 0.64, 0.018])
+        cax = fig.add_axes([0.18, 0.055, 0.64, 0.018])
         cb = fig.colorbar(cf, cax=cax, orientation="horizontal")
-        cb.set_label(f"{spec['label']} ({spec['units']})", fontsize=11)
+        cb.ax.tick_params(labelsize=9)
+    fig.text(0.5, 0.008,
+             "ERA5 monthly means · trend-adjusted anomalies (per-gridpoint "
+             f"{TREND_Y0}–present fit per month) · PNA/NAO/AO: CPC monthly "
+             "indices · EPO: computed from ERA5 z500 (Riddle et al. 2013 boxes)",
+             ha="center", fontsize=8.5, color="#666")
     OUT.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT / f"atmos_{vid}_{month:02d}.webp", dpi=105,
                 bbox_inches="tight", facecolor="white",
@@ -232,16 +302,20 @@ def render(vid: str, anom: xr.DataArray, month: int, avail: set) -> None:
 def main() -> int:
     manifest = {"events": [], "updated":
                 datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
+    tele = fetch_teleconnections()
     avail_all = None
-    for vid in VARS:
+    for vid in VARS:                        # z500 first: it also feeds EPO
         da = fetch(vid)
         t = pd.to_datetime(da.time.values)
         avail = {(y, m) for y, m in zip(t.year, t.month)}
         avail_all = avail if avail_all is None else (avail_all & avail)
         print(f"  {vid}: trend-adjusting …")
         anom = trend_adjusted_anom(da)
+        if vid == "z500":
+            for ym, epo in compute_epo(anom).items():
+                tele.setdefault(ym, {})["EPO"] = epo
         for month in CYCLE_MONTHS:
-            render(vid, anom, month, avail)
+            render(vid, anom, month, avail, tele)
         print(f"  {vid}: rendered {len(CYCLE_MONTHS)} months")
 
     for ev in EVENTS:
