@@ -241,7 +241,12 @@ def _roni_scale_table():
 
 
 def _month_of_lead(start_month: int, L: int) -> int:
-    return ((start_month - 1 + L) % 12) + 1
+    # CDS leadtime_month 1 IS the initialization month (forecasts start on the
+    # 1st): a July issue's lead 1 is July. Verified against the hindcast
+    # climatology's annual cycle — ECMWF July-start lead-1 clim is 27.28 °C,
+    # July's observed 27.2, not August's 26.8. The old start+L mapping labelled
+    # every valid month one late and σ-scaled RONI with the wrong month.
+    return ((start_month - 1 + L - 1) % 12) + 1
 
 
 # ── per-model member trajectories for one issue ───────────────────────────────
@@ -259,7 +264,10 @@ def model_members(centre, system, ym):
         return None
     if not _retrieve(centre, system, [ym[:4]], ym[4:], trop_dest, AREA_TROP, GRID_TROP):
         return None
-    clim = climatology(centre, centre, system, month)
+    # keyed by centre AND system: ECCC contributes two component models
+    # (GEM5-NEMO + CanESM5) with very different drifts — a centre-only key
+    # once served GEM5-NEMO's climatology to CanESM5, suppressing its warm tail
+    clim = climatology(f"{centre}_{system}", centre, system, month)
     if clim is None:
         return None
     cn, ct = clim
@@ -384,7 +392,7 @@ def plot(ym: str, results, out: Path):
     if not results:
         raise SystemExit("no models returned data")
     issue = pd.Timestamp(int(ym[:4]), int(ym[4:]), 1)
-    valid = [issue + pd.DateOffset(months=L) for L in range(1, MAXLEAD + 1)]
+    valid = [issue + pd.DateOffset(months=L - 1) for L in range(1, MAXLEAD + 1)]
 
     fig, axes = plt.subplots(2, 2, figsize=(12.6, 9.7), sharex=True)
     legend = _panel(axes[0, 0], results, "n34", valid, False,
@@ -426,7 +434,7 @@ def publish_forecast_json(ym: str, results: dict, out_path: Path) -> None:
     (rnino is already RONI-scaled per calendar month).
     """
     start = pd.Timestamp(f"{ym[:4]}-{ym[4:]}-01")
-    valid = [(start + pd.DateOffset(months=L)).strftime("%Y-%m")
+    valid = [(start + pd.DateOffset(months=L - 1)).strftime("%Y-%m")
              for L in range(1, MAXLEAD + 1)]
     models = {}
     for label, (r, colour) in results.items():
