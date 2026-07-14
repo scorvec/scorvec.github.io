@@ -2,11 +2,11 @@
   "cycle": "2026-07-14 18Z",
   "cycle_compact": "20260714T18Z",
   "generated": "2026-07-14 22:41 UTC",
-  "variable_id": "reflectivity",
-  "variable_label": "1 km Reflectivity",
-  "units": "dBZ",
-  "region_id": "southeast",
-  "region_label": "Southeast",
+  "variable_id": "t2m",
+  "variable_label": "2 m Temperature",
+  "units": "\u00b0F",
+  "region_id": "national",
+  "region_label": "National (CONUS)",
   "frames": [
     {
       "fxx": 0,
