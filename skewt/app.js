@@ -1190,6 +1190,34 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
 const closedLayer = L.layerGroup();          // stations with no data since 2024
 const ACTIVE_YEAR = 2025;
 
+// Long-lived tabs and blocked networks both used to fail SILENTLY: the
+// manifest/record-watch load once, so a tab open since yesterday shows
+// yesterday's map, and a network that blocks raw.githubusercontent.com (the
+// host behind the mirror, climatology AND record watch) just looks broken.
+let feedsLoadedAt = 0;
+function feedBanner(msg) {
+  let el = document.getElementById("feed-banner");
+  if (!msg) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "feed-banner";
+    el.style.cssText = "position:absolute; top:10px; left:50%; transform:translateX(-50%);" +
+      "z-index:950; background:rgba(120,35,35,0.94); color:#ffe0dc; font:600 13px Inter;" +
+      "padding:8px 16px; border-radius:9px; cursor:pointer; max-width:min(92%,640px)";
+    el.title = "click to reload";
+    el.addEventListener("click", () => location.reload());
+    document.querySelector(".mapwrap").appendChild(el);
+  }
+  el.textContent = msg;
+}
+// a tab that slept through the night: offer a reload instead of stale silence
+setInterval(() => {
+  if (feedsLoadedAt && Date.now() - feedsLoadedAt > 2.5 * 3600e3)
+    feedBanner("This page was loaded " +
+      Math.round((Date.now() - feedsLoadedAt) / 3600e3) +
+      " h ago — newer soundings exist. Click to refresh.");
+}, 5 * 60e3);
+
 Promise.all([
   fetch("stations.json").then(r => r.json()),
   fetch(MIRROR + "manifest.json?t=" + Date.now()).then(r => r.json()).catch(() => null),
@@ -1197,6 +1225,11 @@ Promise.all([
 ]).then(([stns, man, anom]) => {
   entries = (man && man.entries) || {};
   anomalies = anom || {};
+  feedsLoadedAt = Date.now();
+  if (!man)
+    feedBanner("⚠ The live data feed (raw.githubusercontent.com) is unreachable from " +
+      "this network — live dots and climatology are unavailable; US real-time and " +
+      "archive browsing still work. Click to retry.");
   for (const s of stns.stations) {
     igraStations[s.gid] = s;
     if (s.id) byWmo[s.id] = s.gid;
@@ -1488,8 +1521,23 @@ async function drawRecordMap() {
     14, H - 7);
 }
 
-document.getElementById("anom-toggle").addEventListener("click", () => {
+document.getElementById("anom-toggle").addEventListener("click", async () => {
   document.getElementById("anom-modal").hidden = false;
+  // the record watch regenerates 6×/day — refetch when this tab's copy is
+  // older than 10 min, so a long-open page never shows yesterday's records
+  if (Date.now() - feedsLoadedAt > 10 * 60e3) {
+    try {
+      const r = await fetch(MIRROR + "anomalies.json?t=" + Date.now());
+      if (r.ok) anomalies = await r.json();
+      const m = await fetch(MIRROR + "manifest.json?t=" + Date.now());
+      if (m.ok) {
+        const man = await m.json();
+        if (man && man.entries) entries = man.entries;   // fresh coords + dts
+      }
+      feedsLoadedAt = Date.now();
+      feedBanner(null);
+    } catch (e) { /* keep showing what we have */ }
+  }
   buildAnomPanel();
   drawRecordMap();
 });

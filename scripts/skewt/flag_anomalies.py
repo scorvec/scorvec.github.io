@@ -83,9 +83,15 @@ def indices(P, T, D, H):
 
     def c(k):
         return np.nan if np.isnan(k) else k - 273.15
+    # Thickness needs a REAL 1000 hPa surface: at elevated stations (Reno,
+    # 1516 m) the interpolator falls back to the surface height and the
+    # "thickness" is h500 minus station elevation — junk that once flagged as
+    # an all-time record.
+    thick = (h500 - h1000) if (np.isfinite(h500) and np.isfinite(h1000)
+                               and P[0] >= 99000) else np.nan
     d = {"pwat": pw, "850t": c(t850), "700t": c(t700), "500t": c(t500),
          "850td": c(d850), "700td": c(d700), "h500": h500,
-         "thick": (h500 - h1000) if np.isfinite(h500) and np.isfinite(h1000) else np.nan,
+         "thick": thick,
          "fzl": fzl, "kidx": (c(t850) - c(t500)) + c(d850) - (c(t700) - c(d700)),
          "tott": c(t850) + c(d850) - 2 * c(t500)}
     return {k: v for k, v in d.items() if np.isfinite(v)}
@@ -210,6 +216,19 @@ def main() -> int:
                 # the mark they broke. The all-time envelope is exact — every
                 # sounding lands inside some ±10-day anchor window, so the max
                 # over anchors IS the station's all-time extreme.
+                # A "record" that beats the station's ALL-HISTORY extreme by
+                # several tail-widths is almost certainly corrupt source data,
+                # not weather (Reno published a 6224 m 500-hPa height — 230 m
+                # over its all-time max). Same fence build_climo uses.
+                if k not in FLOOR:
+                    span = max(pp[8] - pp[4], 1.0)       # p99 − p50
+                    mxa = A["max"][s]; mna = A["min"][s]
+                    if (mxa is not None and v > mxa + 3.0 * span) or \
+                       (mna is not None and v < mna - 3.0 * span):
+                        print(f"    {wmo} {k}: {v:.1f} beyond plausibility fence "
+                              f"(env [{mna},{mxa}], span {span:.1f}) — skipped",
+                              file=sys.stderr)
+                        continue
                 rec = None
                 mx, mn = A["max"][s], A["min"][s]
                 if high_ok and mx is not None and v >= mx:
