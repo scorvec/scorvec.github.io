@@ -7,6 +7,18 @@
       "default": true
     },
     {
+      "id": "t2m",
+      "label": "2 m Temperature",
+      "units": "\u00b0F",
+      "default": false
+    },
+    {
+      "id": "smoke",
+      "label": "Vertically Integrated Smoke",
+      "units": "mg/m\u00b2",
+      "default": false
+    },
+    {
       "id": "solar",
       "label": "Surface Shortwave (DSWRF)",
       "units": "W/m\u00b2",
