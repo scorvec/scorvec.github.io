@@ -39,6 +39,15 @@ DOY_STEP, DOY_WIN = 5, 10
 DOY = list(range(1, 366, DOY_STEP))
 KEYS = ["pwat", "850t", "700t", "500t", "850td", "700td",
         "h500", "thick", "fzl", "kidx", "tott", "ecape", "ship"]
+# Physical plausibility (m / degC / mm) — shared with flag_anomalies.py.
+# Outside these bounds is a data error anywhere on Earth; applied at the
+# SAMPLE level so one garbled height group can't enter any percentile or
+# record. The station-relative global fence below is too loose for
+# variables with a wide annual cycle (Green Bay published a 4017 m
+# thickness "record" that passed it comfortably).
+PHYS = {"h500": (4600, 6100), "thick": (4700, 6100), "850t": (-60, 45),
+        "700t": (-55, 35), "500t": (-60, 15), "850td": (-75, 35),
+        "700td": (-75, 30), "pwat": (0, 135)}
 # Per-sounding values are cached, so re-aggregating (different window, new
 # percentiles) never re-downloads the 30-90 MB period-of-record file again.
 CACHE = Path(os.environ.get("CLIMO_CACHE", "/tmp/climo_cache"))
@@ -262,6 +271,15 @@ def build_station(gid: str, outdir: Path) -> bool:
         # past the 1st/99th percentile -- scales with the tail, so genuine
         # records (heavy Td dry tails etc.) survive. ecape/ship excluded:
         # zero-inflated distributions make any quantile fence meaningless.
+        if k in PHYS:
+            lo_p, hi_p = PHYS[k]
+            bad = ok & ((vals < lo_p) | (vals > hi_p))
+            if bad.any():
+                print(f"  {gid} {k}: PHYS rejected {int(bad.sum())} "
+                      f"(outside [{lo_p},{hi_p}])", flush=True)
+                ok = ok & ~bad
+                if ok.sum() < 20:
+                    continue
         if k not in ("ecape", "ship"):
             p1, p50, p99 = np.percentile(vals[ok], [1, 50, 99])
             lo = p1 - 3.0 * max(p50 - p1, 1.0)
@@ -286,6 +304,24 @@ def build_station(gid: str, outdir: Path) -> bool:
                 mnY_l.append(None); mxY_l.append(None)
                 continue
             vv, yy = vals[m], yr[m]
+            # Window-local fence: the global fence above is scaled to the
+            # full annual cycle, so it can't see seasonally-impossible
+            # values (a winter-grade thickness in an August window). Same
+            # 3-tail-span rule, but against THIS window's distribution.
+            if k not in ("ecape", "ship") and c >= 20:
+                q1, q50, q99 = np.percentile(vv, [1, 50, 99])
+                w_lo = q1 - 3.0 * max(q50 - q1, 1.0)
+                w_hi = q99 + 3.0 * max(q99 - q50, 1.0)
+                keep = (vv >= w_lo) & (vv <= w_hi)
+                if not keep.all():
+                    vv, yy = vv[keep], yy[keep]
+                    c = len(vv)
+                    n_l[-1] = c
+                    if c < 5:
+                        p_l.append([None] * len(PCTS))
+                        mn_l.append(None); mx_l.append(None)
+                        mnY_l.append(None); mxY_l.append(None)
+                        continue
             p_l.append([round(float(x), 1) for x in np.percentile(vv, PCTS)])
             i0, i1 = int(np.argmin(vv)), int(np.argmax(vv))
             mn_l.append(round(float(vv[i0]), 1)); mnY_l.append(int(yy[i0]))
