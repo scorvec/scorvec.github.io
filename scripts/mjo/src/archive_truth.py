@@ -19,8 +19,14 @@ ARCHIVE = Path("data/reference/obs_history.nc")
 
 
 def append_truth(date, rmm1: float, rmm2: float, path: Path = ARCHIVE) -> xr.Dataset:
-    """Append (or replace) one daily observed RMM point, keyed by calendar day."""
-    t = np.datetime64(pd.Timestamp(date).normalize(), "ns")
+    """Append (or replace) one observed RMM point at its ACTUAL valid time.
+
+    Truth used to be keyed to the normalized calendar day: the 12Z run's
+    lead-0 (a 12Z analysis) overwrote the 00Z run's point and displayed half
+    a day early, so the observed track's tail hopped back and forth between
+    the 00Z and 12Z builds. Keeping the real epoch gives a clean 12-hourly
+    track; a re-run of the same cycle still replaces its own point."""
+    t = np.datetime64(pd.Timestamp(date), "ns")
     new = xr.Dataset(
         {"rmm1": ("time", [float(rmm1)]), "rmm2": ("time", [float(rmm2)])},
         coords={"time": [t]},
