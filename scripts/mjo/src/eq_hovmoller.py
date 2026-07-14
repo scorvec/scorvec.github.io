@@ -97,8 +97,8 @@ def _lon_ticks():
     return ticks, labs
 
 
-ANOM_LIM = 6.0
-ABS_LIM = 10.0
+ANOM_LIM = 12.0     # ±6 saturated on real WWBs (the Jul 2026 burst ran past
+ABS_LIM = 10.0      # 10 m/s) and 0.5 m/s steps were noise — see levels below
 
 
 def _ref_map(ax, title):
@@ -144,7 +144,7 @@ def plot(data: dict, valid: np.ndarray, init: pd.Timestamp, out: Path):
         ax = fig.add_subplot(gs[1, j])
         fld = data[k][kind][:, m]
         if kind == "anom":
-            imA = ax.contourf(lons, lead, fld, levels=np.arange(-ANOM_LIM, ANOM_LIM + .01, .5),
+            imA = ax.contourf(lons, lead, fld, levels=np.arange(-ANOM_LIM, ANOM_LIM + .01, 1.5),
                               cmap="RdBu_r", extend="both",
                               norm=mcolors.TwoSlopeNorm(0, -ANOM_LIM, ANOM_LIM))
         else:
