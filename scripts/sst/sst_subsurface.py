@@ -277,6 +277,64 @@ def plot_anom_pair(araw2d, adt2d, lons, date, out_path):
     plt.close(fig)
 
 
+# ── interactive JSON feed ─────────────────────────────────────────────────────
+# Powers the Plotly cross-section on enso-subsurface.html: snapshots every
+# JSON_STEP days (plus the latest day) of temperature + anomaly on a coarser
+# (depth x longitude) grid, and the TAO mooring metadata — actual buoy
+# longitudes, their sensor depths, and whether each reported recently.
+JSON_STEP = 5
+JSON_DEPTHS = np.arange(0, 301, 10.0)
+JSON_LONS = np.arange(165.0, 265.01, 2.5)
+
+
+def _grid_json(field2d: np.ndarray, lons: np.ndarray) -> list:
+    """(depth, mooring-lon) field -> rounded nested lists on the JSON grid."""
+    g = interp_lon(field2d, lons)                        # (DEPTH_GRID, LON_GRID)
+    ki = [int(np.argmin(np.abs(DEPTH_GRID - d))) for d in JSON_DEPTHS]
+    ji = [int(np.argmin(np.abs(LON_GRID - l))) for l in JSON_LONS]
+    sub = g[np.ix_(ki, ji)]
+    return [[None if not np.isfinite(v) else round(float(v), 2) for v in row]
+            for row in sub]
+
+
+def publish_json(recent_s, anom, lons, times) -> None:
+    raw = xr.open_dataset(DATA / "tao_eq_recent.nc")
+    last7 = raw["temp"].isel(time=slice(-7, None))
+    buoys = []
+    for lo in lons:
+        col = raw["temp"].sel(longitude=lo)
+        depths = [float(d) for d in raw.depth.values
+                  if d <= 300 and np.isfinite(col.sel(depth=d).values).any()]
+        live = float(np.isfinite(last7.sel(longitude=lo).values).mean()) > 0.2
+        buoys.append({"lon": float(lo), "label": f"0°N {_lon_label(lo)}",
+                      "depths": depths, "live": live})
+    raw.close()
+
+    idx = sorted(set(range(len(times) - 1, -1, -JSON_STEP)))
+    snaps = []
+    for i in idx:
+        snaps.append({
+            "date": f"{times[i]:%Y-%m-%d}",
+            "label": f"{times[i]:%b %d}",
+            "temp": _grid_json(recent_s.values[i], lons),
+            "anom": _grid_json(anom[i], lons),
+        })
+    out = {
+        "depths": [float(d) for d in JSON_DEPTHS],
+        "lons": [float(l) for l in JSON_LONS],
+        "lon_labels": [_lon_label(l) for l in JSON_LONS],
+        "buoys": buoys,
+        "snapshots": snaps,
+        "base": "1991–2020",
+        "smooth_days": SMOOTH_DAYS,
+    }
+    path = ASSETS / "data" / "tao_section.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(out, separators=(",", ":")))
+    print(f"wrote {path.name} ({path.stat().st_size/1e3:.0f} KB, "
+          f"{len(snaps)} snapshots, {len(buoys)} buoys)")
+
+
 # ── driver ────────────────────────────────────────────────────────────────────
 def merge_region(frames, dates, label="Equatorial Pacific T(z) cross-section",
                  region="equatorial"):
@@ -311,6 +369,8 @@ def main() -> int:
     # de-trended companion anomaly (1991–2020 secular trend removed)
     anom_da = xr.DataArray(anom, dims=recent_s.dims, coords=recent_s.coords)
     anom_dt = detrend(anom_da).values
+
+    publish_json(recent_s, anom, lons, times)
 
     sel = np.arange(max(0, len(times) - ANIM_DAYS), len(times))
     anim_dir = ASSETS / "anim" / "equatorial"

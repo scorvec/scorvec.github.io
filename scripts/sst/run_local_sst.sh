@@ -89,6 +89,9 @@ if [ "$TODAY_UTC" != "$LAST_ANALOG" ] || { [ -n "$NEW_DAY" ] && [ "$NEW_DAY" != 
   # Monthly Niño-region history JSON for the interactive analog explorer (CPC ERSSTv5;
   # changes ~monthly, so once-a-day is ample). Non-fatal — a CPC hiccup keeps the old JSON.
   SST_SITE_ROOT="$REPO" "$PY" scripts/sst/build_nino_history.py || echo "nino history failed; keeping previous JSON"
+  # Atmospheric fingerprint maps (ERA5 monthly, CDS): re-request only when a
+  # newer month should exist, so this is a no-op most days.
+  SST_SITE_ROOT="$REPO" "$PY" scripts/sst/analog_atmos.py || echo "analog atmos failed; keeping previous maps"
   [ "$ok" = 1 ] && echo "$TODAY_UTC" > "$ANALOG_STAMP"     # stamp only on full success → retry next poll otherwise
 fi
 
