@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-14T18:33Z",
+  "generated_at": "2026-07-14T20:33Z",
   "wind_cycle": "20260714T12Z",
   "solar_cycle": "20260714T12Z",
   "nameplate": {
@@ -8,13 +8,13 @@
     "combined_GW": 299.6
   },
   "now": {
-    "valid_time": "2026-07-14T18:00Z",
-    "wind_GW": 25.51,
-    "solar_GW": 114.54,
-    "combined_GW": 140.05,
-    "penetration_pct": 21.7,
+    "valid_time": "2026-07-14T19:00Z",
+    "wind_GW": 27.96,
+    "solar_GW": 110.86,
+    "combined_GW": 138.82,
+    "penetration_pct": 20.9,
     "denominator_kind": "demand",
-    "eia_total_GW": 644.3,
+    "eia_total_GW": 664.65,
     "eia_wind_GW": null,
     "eia_solar_GW": null,
     "stale": false
@@ -320,18 +320,6 @@
     }
   ],
   "eia_recent": [
-    {
-      "period": "2026-07-11T18:00Z",
-      "total_GW": 618.01,
-      "wind_GW": 19.4,
-      "solar_GW": 111.79
-    },
-    {
-      "period": "2026-07-11T19:00Z",
-      "total_GW": 632.96,
-      "wind_GW": 19.75,
-      "solar_GW": 111.83
-    },
     {
       "period": "2026-07-11T20:00Z",
       "total_GW": 644.84,
@@ -724,13 +712,13 @@
     },
     {
       "period": "2026-07-14T13:00Z",
-      "total_GW": 517.87,
+      "total_GW": 517.85,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-14T14:00Z",
-      "total_GW": 543.04,
+      "total_GW": 543.06,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -742,19 +730,25 @@
     },
     {
       "period": "2026-07-14T16:00Z",
-      "total_GW": 606.5,
+      "total_GW": 606.56,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-14T17:00Z",
-      "total_GW": 627.86,
+      "total_GW": 637.51,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-14T18:00Z",
-      "total_GW": 644.3,
+      "total_GW": 660.56,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-07-14T19:00Z",
+      "total_GW": 664.65,
       "wind_GW": null,
       "solar_GW": null
     }
