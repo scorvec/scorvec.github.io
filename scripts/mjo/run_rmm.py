@@ -78,7 +78,7 @@ def main() -> None:
     #    .isel keeps this robust to the daily-vs-6-hourly step choice.
     cf0 = rmm.sel(member="cf").isel(lead_day=0)
     archive_truth.append_truth(init, float(cf0["rmm1"]), float(cf0["rmm2"]))
-    obs = archive_truth.load_truth(days=60)
+    obs = archive_truth.load_truth(days=120)      # 12-hourly points → same ~60-day window
 
     # 4. Plot
     Path(args.out_dir).mkdir(parents=True, exist_ok=True)
