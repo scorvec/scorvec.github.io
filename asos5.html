@@ -145,7 +145,7 @@
 
   <footer class="note">
     Primary source: the <a href="https://api.weather.gov/">official NWS API</a> (api.weather.gov), fetched directly in your
-    browser on every visit &mdash; it serves 5-minute ASOS observations for 13 of these stations and hourly METARs for
+    browser on every visit &mdash; it serves 5-minute ASOS observations for most of these stations and hourly METARs for
     KJFK &amp; KNYC (marked &ldquo;hourly&rdquo;), so the page is always current with no server job in the loop. The daily
     max/min are the absolute extremes since local midnight: the sampled observations merged with the official METAR
     <b>6-hour max/min temperature groups</b> (the <code>1sTTT</code>/<code>2sTTT</code> remark groups, parsed from each
@@ -167,7 +167,8 @@
 
   var COLORS = ["#1f77b4","#d62728","#2ca02c","#9467bd","#8c564b","#e377c2",
                 "#7f7f7f","#bcbd22","#17becf","#ff7f0e","#3b5b92","#a0522d",
-                "#2e8b74","#c44f9e","#5c6b1e"];
+                "#2e8b74","#c44f9e","#5c6b1e","#e05c5c","#4f9ed9","#8f6bd0",
+                "#3aa76d","#d98f2b","#b05c85","#6b7f4f"];
 
   var STATIONS = [
     { id: "KBOS", name: "Boston Logan Intl",            tz: "America/New_York" },
@@ -182,6 +183,13 @@
     { id: "KDFW", name: "Dallas-Fort Worth Intl",       tz: "America/Chicago" },
     { id: "KIAH", name: "Houston Bush Intercontinental",tz: "America/Chicago" },
     { id: "KORD", name: "Chicago O'Hare Intl",          tz: "America/Chicago" },
+    { id: "KATL", name: "Atlanta Hartsfield-Jackson",   tz: "America/New_York" },
+    { id: "KCLT", name: "Charlotte Douglas Intl",       tz: "America/New_York" },
+    { id: "KRDU", name: "Raleigh-Durham Intl",          tz: "America/New_York" },
+    { id: "KMSP", name: "Minneapolis-St Paul Intl",     tz: "America/Chicago" },
+    { id: "KPHX", name: "Phoenix Sky Harbor Intl",      tz: "America/Phoenix" },
+    { id: "KLAS", name: "Las Vegas Harry Reid Intl",    tz: "America/Los_Angeles" },
+    { id: "KLAX", name: "Los Angeles Intl",             tz: "America/Los_Angeles" },
     { id: "KBUR", name: "Burbank Hollywood",            tz: "America/Los_Angeles" },
     { id: "KSEA", name: "Seattle-Tacoma Intl",          tz: "America/Los_Angeles" },
     { id: "KPDX", name: "Portland Intl",                tz: "America/Los_Angeles" }
