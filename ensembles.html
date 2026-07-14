@@ -34,7 +34,7 @@
   .chart-card-header h2 { font-family:var(--serif); font-weight:400; font-size:1.12rem; margin-bottom:0.5rem; }
   .chart-card-header p { font-size:0.84rem; color:var(--muted); line-height:1.65; }
   .chart-card-header b { color:var(--ink); font-weight:500; }
-  .anim-embed { width:100%; border:0; display:block; background:#0f0f0d; aspect-ratio:1100/1020; }
+  .anim-embed { width:100%; border:0; display:block; background:#081120; aspect-ratio:1100/1020; }
   .anim-embed.four { aspect-ratio:1180/1040; }
   .static-chart { width:100%; display:block; background:#fff; }
   .chart-card-footer { padding:0.8rem 1.8rem; border-top:1px solid var(--rule); }
@@ -150,5 +150,17 @@
 
 </main>
 <footer><span class="counter">Ensemble monitor</span></footer>
+<script>
+  // size each animation iframe to its embedded content's exact height
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    document.querySelectorAll('iframe.anim-embed').forEach(function (fr) {
+      if (fr.contentWindow === e.source) {
+        fr.style.height = d.h + 'px';
+        fr.style.aspectRatio = 'auto';
+      }
+    });
+  });
+</script>
 </body>
 </html>
