@@ -341,7 +341,10 @@ def _t2m_scale():
         "t2m_base", list(zip(pos, [c for _, c in _T2M_ANCHORS])), N=1024)
     colors = base(np.linspace(0.0, 1.0, len(_T2M_BOUNDS) - 1))
     cmap = mcolors.ListedColormap(colors, name="t2m")
-    cmap.set_under("#ffffff")
+    # Under-color must NOT be white: air colder than -30 °F is real
+    # (northern Plains every winter) and would vanish into the map
+    # background. Neutral gray reads as "off the cold end of the scale".
+    cmap.set_under("#c9ced4")
     cmap.set_over("#ffd9ec")
     return cmap
 
@@ -769,11 +772,20 @@ def _attach_array(ref: dict) -> tuple:
     return arr, shm
 
 
-def _overlay_point_values(ax, values, grid_lats, grid_lons, region, fmt="%.0f"):
-    """Stamp sampled field values on a regular lat/lon lattice — the map
-    stops being colour-only and starts answering "what's the number HERE".
-    Nearest-gridpoint sampling on a strided copy keeps it O(lattice)."""
-    import matplotlib.patheffects as mpe
+# Lattice→gridpoint mapping cache for _overlay_point_values. The HRRR grid
+# and each region's slice are fixed, so the nearest-gridpoint search (the
+# expensive part: ~130 argmins over a ~120k-cell strided grid) yields the
+# same (lon, lat, j, i) list for every frame of a region. Computed once per
+# worker process, reused across all its frames. Keyed by (region_id, shape)
+# so a grid change can never serve stale indices.
+_POINT_LATTICE_CACHE = {}
+
+
+def _point_lattice(grid_lats, grid_lons, region):
+    key = (region.id, grid_lats.shape)
+    cached = _POINT_LATTICE_CACHE.get(key)
+    if cached is not None:
+        return cached
     lon0, lon1, lat0, lat1 = region.extent
     ncol = 13 if region.id == "national" else 10
     nrow = max(5, int(round(ncol * (lat1 - lat0) / max(lon1 - lon0, 1) * 1.4)))
@@ -784,20 +796,32 @@ def _overlay_point_values(ax, values, grid_lats, grid_lons, region, fmt="%.0f"):
     st = 4                                    # stride: 12 km lookups are plenty
     gla, glo = grid_lats[::st, ::st], grid_lons[::st, ::st]
     coslat = np.cos(np.radians(np.clip(gla, -80, 80)))
-    halo = [mpe.withStroke(linewidth=2.4, foreground="white")]
-    fs = 7.5 if region.id == "national" else 9
+    points = []
     for la in lats:
         for lo in lons:
             d2 = (gla - la) ** 2 + ((glo - lo) * coslat) ** 2
             j, i = np.unravel_index(np.argmin(d2), d2.shape)
             if d2[j, i] > 1.0:                # lattice point off the HRRR grid
                 continue
-            v = values[j * st, i * st]
-            if not np.isfinite(v):
-                continue
-            ax.text(lo, la, fmt % v, transform=PC, fontsize=fs,
-                    ha="center", va="center", color="#151515",
-                    fontweight="bold", zorder=6, path_effects=halo)
+            points.append((lo, la, j * st, i * st))
+    _POINT_LATTICE_CACHE[key] = points
+    return points
+
+
+def _overlay_point_values(ax, values, grid_lats, grid_lons, region, fmt="%.0f"):
+    """Stamp sampled field values on a regular lat/lon lattice — the map
+    stops being colour-only and starts answering "what's the number HERE".
+    Nearest-gridpoint sampling on a strided copy keeps it O(lattice)."""
+    import matplotlib.patheffects as mpe
+    halo = [mpe.withStroke(linewidth=2.4, foreground="white")]
+    fs = 7.5 if region.id == "national" else 9
+    for lo, la, j, i in _point_lattice(grid_lats, grid_lons, region):
+        v = values[j, i]
+        if not np.isfinite(v):
+            continue
+        ax.text(lo, la, fmt % v, transform=PC, fontsize=fs,
+                ha="center", va="center", color="#151515",
+                fontweight="bold", zorder=6, path_effects=halo)
 
 
 def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
@@ -1261,24 +1285,29 @@ def main():
             (ASSETS / v.id / r.id / "manifest.json").write_text(
                 json.dumps(manifest, indent=2))
 
-    # Top-level dropdown metadata
-    variables_meta = {
-        "variables": [
-            {"id": v.id, "label": v.label, "units": v.units,
-             "default": (v.id == "wind")}
-            for v in variables
-        ],
-    }
-    (ASSETS / "variables.json").write_text(json.dumps(variables_meta, indent=2))
+    # Top-level dropdown metadata. Only rewritten on UNFILTERED runs: a
+    # partial run (--variables/--regions, e.g. a local test or one-field
+    # backfill) would otherwise shrink the live dropdowns to just the
+    # subset it rendered, hiding every other variable's existing frames.
+    if not args.variables:
+        variables_meta = {
+            "variables": [
+                {"id": v.id, "label": v.label, "units": v.units,
+                 "default": (v.id == "wind")}
+                for v in variables
+            ],
+        }
+        (ASSETS / "variables.json").write_text(json.dumps(variables_meta, indent=2))
 
-    regions_meta = {
-        "regions": [
-            {"id": r.id, "label": r.label,
-             "default": (r.id == "national")}
-            for r in regions
-        ],
-    }
-    (ASSETS / "regions.json").write_text(json.dumps(regions_meta, indent=2))
+    if not args.regions:
+        regions_meta = {
+            "regions": [
+                {"id": r.id, "label": r.label,
+                 "default": (r.id == "national")}
+                for r in regions
+            ],
+        }
+        (ASSETS / "regions.json").write_text(json.dumps(regions_meta, indent=2))
 
     total = time_module.time() - t_total
     print(f"\nTotal: {n_done} renders in {total:.0f}s "
