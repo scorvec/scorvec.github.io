@@ -44,6 +44,7 @@ from typing import Callable, Optional
 
 import numpy as np
 import pandas as pd
+import matplotlib.colors as mcolors
 from herbie import Herbie
 
 import matplotlib
@@ -162,6 +163,10 @@ class Variable:
     cmap_factory: Optional[Callable] = None
     norm_factory: Optional[Callable] = None
     cbar_format: str = "%g"
+    transform: Optional[Callable] = None  # unit conversion on the numpy field
+    point_values: bool = False            # stamp sampled values on the map
+    cbar_extend: str = "neither"
+    cbar_ticks: Optional[list] = None
 
 
 # Approximate number of wind arrows across the frame width. The array
@@ -313,6 +318,63 @@ def ceiling_cmap():
     )
 
 
+
+# ── 2 m temperature: banded 2 °F scale, one hue family per ~10 °F decade ──
+# You can read the decade from the hue (purples below 0 °F, blues to
+# freezing, teals/greens through the 40s–60s, yellow 70s, orange 80s, red
+# 90s, maroon 100s, pink past 110) and the shade gives the 2 °F step inside
+# it — high fidelity without losing the at-a-glance banding.
+_T2M_ANCHORS = [
+    (-30, "#f6e8fb"), (-20, "#d5a6ea"), (-10, "#9a5ccc"), (0, "#5b2d91"),
+    (10, "#31329b"), (20, "#2f62d4"), (32, "#41a3ea"),
+    (40, "#39c3b7"), (50, "#2fa053"), (60, "#83cd45"),
+    (70, "#f6e73b"), (80, "#f5a623"), (90, "#e8542a"),
+    (100, "#b81c1c"), (110, "#7a0d33"), (116, "#f3a0c8"),
+]
+_T2M_BOUNDS = np.arange(-30.0, 116.1, 2.0)
+
+
+def _t2m_scale():
+    lo, hi = _T2M_ANCHORS[0][0], _T2M_ANCHORS[-1][0]
+    pos = [(a - lo) / (hi - lo) for a, _ in _T2M_ANCHORS]
+    base = mcolors.LinearSegmentedColormap.from_list(
+        "t2m_base", list(zip(pos, [c for _, c in _T2M_ANCHORS])), N=1024)
+    colors = base(np.linspace(0.0, 1.0, len(_T2M_BOUNDS) - 1))
+    cmap = mcolors.ListedColormap(colors, name="t2m")
+    cmap.set_under("#ffffff")
+    cmap.set_over("#ffd9ec")
+    return cmap
+
+
+def t2m_cmap():
+    return _t2m_scale()
+
+
+def t2m_norm():
+    return mcolors.BoundaryNorm(_T2M_BOUNDS, len(_T2M_BOUNDS) - 1)
+
+
+# ── vertically integrated smoke: log-spaced bands, mg m⁻² ────────────────
+# Clean air is blank; plumes climb yellow → orange → red → brown → near-
+# black, the palette every HRRR-Smoke viewer trains people on. Bounds are
+# log-spaced because plume mass spans three orders of magnitude — calibrated
+# against a live fire-season field (2026-07-14 18Z: CONUS p50 ≈ 2, p95 ≈ 55,
+# p99 ≈ 435, max ≈ 9200 mg/m²): ambient ≲5 stays blank.
+SMOKE_BOUNDS = [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000]
+
+
+def smoke_cmap():
+    colors = ["#f7f3d0", "#f2e28a", "#f0c94f", "#eda63b", "#e87a2c",
+              "#d94f1e", "#b8331c", "#8c2418", "#5e1a12"]
+    cmap = mcolors.ListedColormap(colors, name="smoke")
+    cmap.set_over("#1a0a06")
+    return cmap
+
+
+def smoke_norm():
+    return mcolors.BoundaryNorm(SMOKE_BOUNDS, len(SMOKE_BOUNDS) - 1)
+
+
 def plant_cf_cmap():
     stops = [
         (0,   "#333333"),
@@ -345,6 +407,36 @@ VARIABLES = [
         wind_vectors=True,
         vmin=0, vmax=25,
         cmap_factory=wind_speed_cmap,
+    ),
+    Variable(
+        id="t2m",
+        label="2 m Temperature",
+        title="HRRR 2 m Temperature",
+        units="°F",
+        grib_searches=[":TMP:2 m above ground"],
+        combine=_passthrough,
+        transform=lambda v: (v - 273.15) * 9.0 / 5.0 + 32.0,
+        vmin=-30, vmax=116,
+        cmap_factory=t2m_cmap,
+        norm_factory=t2m_norm,
+        point_values=True,
+        cbar_extend="both",
+        cbar_ticks=list(range(-30, 117, 10)),
+        cbar_format="%d",
+    ),
+    Variable(
+        id="smoke",
+        label="Vertically Integrated Smoke",
+        title="HRRR Vertically Integrated Smoke",
+        units="mg/m²",
+        grib_searches=[":COLMD:entire atmosphere"],
+        combine=_passthrough,
+        transform=lambda v: v * 1.0e6,        # kg/m² → mg/m²
+        vmin=0, vmax=5000,
+        cmap_factory=smoke_cmap,
+        norm_factory=smoke_norm,
+        cbar_extend="max",
+        cbar_format="%g",
     ),
     Variable(
         id="solar",
@@ -677,6 +769,37 @@ def _attach_array(ref: dict) -> tuple:
     return arr, shm
 
 
+def _overlay_point_values(ax, values, grid_lats, grid_lons, region, fmt="%.0f"):
+    """Stamp sampled field values on a regular lat/lon lattice — the map
+    stops being colour-only and starts answering "what's the number HERE".
+    Nearest-gridpoint sampling on a strided copy keeps it O(lattice)."""
+    import matplotlib.patheffects as mpe
+    lon0, lon1, lat0, lat1 = region.extent
+    ncol = 13 if region.id == "national" else 10
+    nrow = max(5, int(round(ncol * (lat1 - lat0) / max(lon1 - lon0, 1) * 1.4)))
+    mlon = (lon1 - lon0) * 0.045
+    mlat = (lat1 - lat0) * 0.06
+    lons = np.linspace(lon0 + mlon, lon1 - mlon, ncol)
+    lats = np.linspace(lat0 + mlat, lat1 - mlat, nrow)
+    st = 4                                    # stride: 12 km lookups are plenty
+    gla, glo = grid_lats[::st, ::st], grid_lons[::st, ::st]
+    coslat = np.cos(np.radians(np.clip(gla, -80, 80)))
+    halo = [mpe.withStroke(linewidth=2.4, foreground="white")]
+    fs = 7.5 if region.id == "national" else 9
+    for la in lats:
+        for lo in lons:
+            d2 = (gla - la) ** 2 + ((glo - lo) * coslat) ** 2
+            j, i = np.unravel_index(np.argmin(d2), d2.shape)
+            if d2[j, i] > 1.0:                # lattice point off the HRRR grid
+                continue
+            v = values[j * st, i * st]
+            if not np.isfinite(v):
+                continue
+            ax.text(lo, la, fmt % v, transform=PC, fontsize=fs,
+                    ha="center", va="center", color="#151515",
+                    fontweight="bold", zorder=6, path_effects=halo)
+
+
 def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
                valid_time: datetime, fxx: int,
                variable_id: str, region_id: str, cycle: datetime,
@@ -735,11 +858,17 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
     if variable.id == "reflectivity":
         values = np.where(values < 5.0, np.nan, values)
 
+    # Smoke: clean air stays blank (white), like every HRRR-Smoke display.
+    if variable.id == "smoke":
+        values = np.where(values < SMOKE_BOUNDS[0], np.nan, values)
+
+    norm = variable.norm_factory() if variable.norm_factory else None
+    mesh_kw = dict(norm=norm) if norm is not None else dict(
+        vmin=variable.vmin, vmax=variable.vmax)
     im = ax.pcolormesh(
         grid_lons, grid_lats, values,
-        cmap=cmap, vmin=variable.vmin, vmax=variable.vmax,
-        transform=PC, shading="auto",
-        rasterized=True, zorder=1,
+        cmap=cmap, transform=PC, shading="auto",
+        rasterized=True, zorder=1, **mesh_kw,
     )
 
     feat_scale = "110m" if region.id == "national" else "50m"
@@ -755,9 +884,15 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
     elif variable.overlay == "solar" and overlay_records is not None:
         _overlay_solar_plants(ax, overlay_records, overlay_mw_at_time, region)
 
+    if variable.point_values:
+        _overlay_point_values(ax, values, grid_lats, grid_lons, region)
+
     cbar = plt.colorbar(im, ax=ax, orientation="vertical",
                         pad=0.015, shrink=0.92, fraction=0.040,
-                        format=variable.cbar_format)
+                        format=variable.cbar_format,
+                        extend=variable.cbar_extend)
+    if variable.cbar_ticks:
+        cbar.set_ticks(variable.cbar_ticks)
     cbar.set_label(f"{variable.label} ({variable.units})", fontsize=10)
     cbar.ax.tick_params(labelsize=9)
 
@@ -775,10 +910,10 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
     # each region's geographic ratio, there's little to trim, so the cost
     # is small. pad_inches keeps a thin uniform border.
     # WebP @ quality 82 is visually lossless for these flat-color maps.
-    fig.savefig(out_path, dpi=100,
+    fig.savefig(out_path, dpi=140,
                 facecolor="white", edgecolor="none",
                 bbox_inches="tight", pad_inches=0.08,
-                pil_kwargs={"quality": 82, "method": 6})
+                pil_kwargs={"quality": 84, "method": 6})
     plt.close(fig)
 
 
@@ -988,6 +1123,9 @@ def main():
             # Will be passed through pickling to workers (cheap with
             # bounded queue depth).
             values = np.ascontiguousarray(combined.values, dtype=np.float32)
+            if variable.transform is not None:
+                values = np.ascontiguousarray(variable.transform(values),
+                                              dtype=np.float32)
             field_cache[(variable.id, fxx)] = values
             # If this variable draws direction arrows, stash its U/V too.
             if variable.wind_vectors:
