@@ -1,6 +1,7 @@
 # SST anomaly maps + RONI — Python requirements
 numpy
 pandas
+requests
 xarray
 netcdf4
 h5netcdf
