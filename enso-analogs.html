@@ -404,6 +404,70 @@
     })();
     </script>
 
+    <!-- ATMOSPHERIC FINGERPRINTS: monthly Z500 / MSLP / T2M anomaly maps -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Atmospheric Fingerprints: Z500 / MSLP / 2&nbsp;m Temperature</h2>
+        <p>Monthly circulation-anomaly maps for the current event beside the four comparable &ldquo;super&rdquo; El&nbsp;Ni&ntilde;os (1982&ndash;83, 1997&ndash;98, 2015&ndash;16, 2023&ndash;24), across the Pacific&ndash;North America sector. Pick a variable and any month of the ENSO cycle (June of the development year through May of the following year). Anomalies are <b>trend-adjusted</b>: a per-gridpoint linear fit per calendar month (1950&ndash;present) is removed, so a 1982 panel and a 2026 panel are each measured against their own era's climate &mdash; what remains is the circulation signal (the deepened Aleutian low, the PNA arc, the southern-tier cool/wet look), not background warming.</p>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:1.1rem 1.6rem;align-items:flex-end;margin:.4rem 0 .8rem;font-size:.86rem">
+        <label style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Variable</span>
+          <select id="af-var" style="padding:.3rem .4rem;border:1px solid #ccc;border-radius:6px">
+            <option value="z500">500 hPa height</option>
+            <option value="mslp">Sea-level pressure</option>
+            <option value="t2m">2 m temperature</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Month of the ENSO cycle</span>
+          <select id="af-month" style="padding:.3rem .4rem;border:1px solid #ccc;border-radius:6px"></select>
+        </label>
+      </div>
+      <div class="img-wrap"><img id="af-img" alt="Monthly atmospheric anomaly maps: current El Niño vs super-event analogs" loading="lazy"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ERA5 monthly means (CDS) &middot; anomalies vs per-gridpoint 1950&ndash;present trend fit per calendar month &middot; updated monthly</span>
+        <span class="chart-updated" id="af-updated"></span>
+      </div>
+    </div>
+    <script>
+    (function () {
+      var img = document.getElementById('af-img');
+      var varSel = document.getElementById('af-var');
+      var monSel = document.getElementById('af-month');
+      if (!img) return;
+      var CYCLE = [6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5];
+      var NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      var bust = new Date().toISOString().slice(0, 7);
+      var html = '';
+      CYCLE.forEach(function (m) {
+        var tag = m >= 6 ? 'yr 0' : 'yr +1';
+        html += '<option value="' + m + '">' + NAMES[m - 1] + ' (' + tag + ')</option>';
+      });
+      monSel.innerHTML = html;
+      fetch('assets/sst/analogs/atmos_manifest.json?v=' + bust)
+        .then(function (r) { return r.json(); })
+        .then(function (mf) {
+          var curEv = null;
+          mf.events.forEach(function (e) { if (e.current) curEv = e; });
+          if (curEv && curEv.months.length) {
+            // default to the newest month the CURRENT event has data for
+            var last = curEv.months[curEv.months.length - 1];
+            monSel.value = String(last);
+          }
+          document.getElementById('af-updated').textContent = 'maps ' + (mf.updated || '');
+          show();
+        })
+        .catch(show);
+      function show() {
+        var mm = ('0' + monSel.value).slice(-2);
+        img.src = 'assets/sst/analogs/atmos_' + varSel.value + '_' + mm + '.webp?v=' + bust;
+      }
+      varSel.addEventListener('change', show);
+      monSel.addEventListener('change', show);
+    })();
+    </script>
+
     <!-- EVENT COMPARISON: Niño-3.4 evolution overlay -->
     <div class="chart-card">
       <div class="chart-card-header">

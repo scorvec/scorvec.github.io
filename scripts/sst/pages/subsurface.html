@@ -6,6 +6,132 @@
 
   <div class="chart-stack">
 
+    <!-- INTERACTIVE CROSS-SECTION EXPLORER -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Interactive Cross-Section Explorer</h2>
+        <p>The equatorial depth&ndash;longitude section as an explorable chart: hover any point for the exact temperature <i>and</i> anomaly, scrub through the last ~4 months, and switch between the full temperature field and its anomaly versus 1991&ndash;2020. Markers show the <b>actual TAO/TRITON moorings</b> the section is built from &mdash; <span style="color:#1a9850;font-weight:600">&#9660; green</span> buoys reported within the last week, <span style="color:#999;font-weight:600">&#9660; grey</span> are currently silent; the dotted columns mark each buoy's real sensor depths. Everything between moorings is interpolation &mdash; the markers show exactly where the ocean is truly being measured.</p>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:1.1rem 1.6rem;align-items:center;margin:.4rem 0 .6rem;font-size:.86rem">
+        <span style="display:flex;gap:.7rem;align-items:center">
+          <span style="font-weight:600;color:#555">Field</span>
+          <label><input type="radio" name="tao-field" value="anom" checked> Anomaly</label>
+          <label><input type="radio" name="tao-field" value="temp"> Temperature</label>
+        </span>
+        <span style="display:flex;gap:.55rem;align-items:center;flex:1 1 16rem">
+          <button id="tao-play" title="Animate" style="border:1px solid #ccc;background:#fff;border-radius:6px;padding:.15rem .55rem;cursor:pointer;font-size:.95rem">&#9654;</button>
+          <input id="tao-slider" type="range" min="0" max="0" value="0" style="flex:1">
+          <span id="tao-date" style="font-weight:600;color:#333;min-width:5.2rem;text-align:right"></span>
+        </span>
+      </div>
+      <div id="tao-xsec" style="width:100%;height:480px"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; 5-day smoothed &middot; anomaly vs 1991&ndash;2020 harmonic climatology &middot; linear interpolation between moorings</span>
+        <span class="chart-updated" id="tao-xsec-updated">__TAO_DAY__</span>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
+    <script>
+    (function () {
+      var DIV = document.getElementById('tao-xsec');
+      if (!DIV || typeof Plotly === 'undefined') return;
+      var D = null, cur = 0, playing = null;
+      var slider = document.getElementById('tao-slider');
+      var dateEl = document.getElementById('tao-date');
+      var playBtn = document.getElementById('tao-play');
+
+      fetch('assets/sst/data/tao_section.json?v=' + new Date().toISOString().slice(0, 10))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          D = d;
+          slider.max = d.snapshots.length - 1;
+          slider.value = cur = d.snapshots.length - 1;
+          wire(); render();
+        })
+        .catch(function () { DIV.innerHTML = '<p style="color:#999;padding:2rem">Could not load TAO section data.</p>'; });
+
+      function field() { return document.querySelector('input[name="tao-field"]:checked').value; }
+      function wire() {
+        document.querySelectorAll('input[name="tao-field"]').forEach(function (el) {
+          el.addEventListener('change', render);
+        });
+        slider.addEventListener('input', function () { cur = +slider.value; render(); });
+        playBtn.addEventListener('click', function () {
+          if (playing) { clearInterval(playing); playing = null; playBtn.textContent = '▶'; return; }
+          playBtn.textContent = '⏸';
+          playing = setInterval(function () {
+            cur = (cur + 1) % D.snapshots.length;
+            slider.value = cur; render();
+          }, 450);
+        });
+      }
+
+      function render() {
+        var s = D.snapshots[cur];
+        dateEl.textContent = s.date;
+        var isAnom = field() === 'anom';
+        var z = isAnom ? s.anom : s.temp;
+        var other = isAnom ? s.temp : s.anom;
+        var custom = z.map(function (row, i) {
+          return row.map(function (_, j) { return other[i][j]; });
+        });
+        var traces = [{
+          type: 'heatmap', x: D.lons, y: D.depths, z: z, customdata: custom,
+          zsmooth: 'best',
+          colorscale: isAnom ? 'RdBu' : [
+            [0, '#30123b'], [0.1, '#4458cb'], [0.2, '#3e9bfe'], [0.3, '#18d6cb'],
+            [0.4, '#46f884'], [0.5, '#a2fc3c'], [0.6, '#e1dd37'], [0.7, '#fea632'],
+            [0.8, '#f36315'], [0.9, '#c42503'], [1, '#7a0403']],
+          zmin: isAnom ? -8 : 8, zmax: isAnom ? 8 : 31, zmid: isAnom ? 0 : undefined,
+          colorbar: { title: { text: isAnom ? 'anom (°C)' : '°C', side: 'right' }, thickness: 14, len: 0.9 },
+          hovertemplate: (isAnom ? 'anom %{z:+.1f} °C · T %{customdata:.1f} °C'
+                                 : 'T %{z:.1f} °C · anom %{customdata:+.1f} °C')
+                       + '<br>%{y:.0f} m · lon %{x:.1f}°E<extra></extra>'
+        }, {
+          type: 'contour', x: D.lons, y: D.depths, z: s.temp, showscale: false,
+          autocontour: false, contours: { start: 20, end: 20, size: 1, coloring: 'none', showlabels: true, labelfont: { size: 9 } },
+          line: { color: '#111', width: 2 }, hoverinfo: 'skip', name: '20°C'
+        }, {
+          type: 'contour', x: D.lons, y: D.depths, z: s.temp, showscale: false,
+          autocontour: false, contours: { start: 26, end: 28, size: 2, coloring: 'none', showlabels: true, labelfont: { size: 9 } },
+          line: { color: '#111', width: 0.9, dash: 'dot' }, hoverinfo: 'skip'
+        }];
+        // TAO buoy markers: triangle at the surface + dots at real sensor depths
+        var bx = [], by = [], bc = [], bt = [];
+        var sx = [], sy = [], sc = [];
+        D.buoys.forEach(function (b) {
+          bx.push(b.lon); by.push(-9);
+          bc.push(b.live ? '#1a9850' : '#999999');
+          bt.push('<b>' + b.label + '</b> · ' + (b.live ? 'reporting' : 'silent this week')
+                + '<br>' + b.depths.length + ' sensor depths');
+          b.depths.forEach(function (dd) {
+            sx.push(b.lon); sy.push(dd); sc.push(b.live ? '#1a9850' : '#aaaaaa');
+          });
+        });
+        traces.push({
+          type: 'scatter', mode: 'markers', x: sx, y: sy,
+          marker: { size: 4, color: sc, symbol: 'circle-open', line: { width: 1.2 } },
+          hoverinfo: 'skip'
+        });
+        traces.push({
+          type: 'scatter', mode: 'markers', x: bx, y: by,
+          marker: { size: 11, color: bc, symbol: 'triangle-down',
+                    line: { width: 1, color: '#333' } },
+          text: bt, hovertemplate: '%{text}<extra></extra>', cliponaxis: false
+        });
+        var ticks = D.buoys.map(function (b) { return b.lon; });
+        var tlabels = D.buoys.map(function (b) { return b.label.replace('0°N ', ''); });
+        Plotly.react(DIV, traces, {
+          margin: { l: 52, r: 10, t: 8, b: 42 },
+          xaxis: { tickvals: ticks, ticktext: tlabels, title: { text: 'TAO/TRITON mooring sites', font: { size: 11 } } },
+          yaxis: { range: [302, -20], title: 'Depth (m)', zeroline: false },
+          font: { family: 'Inter, sans-serif', size: 12 },
+          showlegend: false, plot_bgcolor: '#fff', paper_bgcolor: '#fff'
+        }, { responsive: true, displayModeBar: false });
+      }
+    })();
+    </script>
+
     <!-- SUBSURFACE CROSS-SECTION -->
     <div class="chart-card">
       <div class="chart-card-header">
