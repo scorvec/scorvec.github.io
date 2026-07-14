@@ -135,7 +135,10 @@ def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
         "850t": c(t850), "700t": c(t700), "500t": c(t500),
         "850td": c(d850), "700td": c(d700),
         "h500": h500,
-        "thick": (h500 - h1000) if np.isfinite(h500) and np.isfinite(h1000) else np.nan,
+        # real 1000 hPa surface required — elevated stations otherwise yield
+        # h500 minus station elevation, poisoning the thickness climatology
+        "thick": (h500 - h1000) if (np.isfinite(h500) and np.isfinite(h1000)
+                                    and P[0] >= 99000) else np.nan,
         "fzl": fzl,
         "kidx": ((c(t850) - c(t500)) + c(d850) - (c(t700) - c(d700))) if moist_ok else np.nan,
         "tott": (c(t850) + c(d850) - 2 * c(t500)) if moist_ok else np.nan,
