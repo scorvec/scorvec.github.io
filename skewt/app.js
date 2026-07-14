@@ -5,6 +5,31 @@
 "use strict";
 
 const MISSING = -9999.0;
+// ── data-branch fetching with host fallbacks ─────────────────────────────────
+// The mirror/climatology/archive live on git branches (kept off main so 6×/day
+// force-pushes don't bloat the repo or churn Pages). raw.githubusercontent.com
+// is the primary host, but some networks block it — so every branch fetch
+// falls back to api.github.com (different domain, always fresh, 60 req/h is
+// plenty for the small live files) and then jsDelivr's CDN (very widely
+// whitelisted; caches branches up to ~12 h, stale but far better than dead).
+const GH_REPO = "scorvec/scorvec.github.io";
+async function ghFetch(branch, path, bust) {
+  const q = bust ? "?t=" + encodeURIComponent(bust) : "";
+  const tries = [
+    [`https://raw.githubusercontent.com/${GH_REPO}/${branch}/${path}${q}`, null],
+    [`https://api.github.com/repos/${GH_REPO}/contents/${path}?ref=${branch}`,
+     { headers: { Accept: "application/vnd.github.raw" } }],
+    [`https://cdn.jsdelivr.net/gh/${GH_REPO}@${branch}/${path}`, null],
+  ];
+  for (let i = 0; i < tries.length; i++) {
+    try {
+      const r = await fetch(tries[i][0], tries[i][1] || undefined);
+      if (r.ok) return r;
+      if (r.status === 404 && i === 0) return r;   // host fine, file truly absent
+    } catch (e) { /* blocked / offline — try the next host */ }
+  }
+  return { ok: false, status: 0 };
+}
 const CLIMO_BASE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-climo/climo/";
 let climo = null, climoGid = null;                 // current station climatology
 let lastProf = null, lastRes = null, lastMonth = null, lastDoy = null;
@@ -36,7 +61,7 @@ async function loadClimo(gid) {
   climoGid = gid; climo = null;
   if (climoCache.has(gid)) { climo = climoCache.get(gid); refreshTables(); return; }
   try {
-    const r = await fetch(CLIMO_BASE + gid + ".json");
+    const r = await ghFetch("skewt-climo", "climo/" + gid + ".json");
     const d = r.ok ? await r.json() : null;
     climoCache.set(gid, d);
     if (gid === climoGid) { climo = d; refreshTables(); }
@@ -1220,16 +1245,17 @@ setInterval(() => {
 
 Promise.all([
   fetch("stations.json").then(r => r.json()),
-  fetch(MIRROR + "manifest.json?t=" + Date.now()).then(r => r.json()).catch(() => null),
-  fetch(MIRROR + "anomalies.json?t=" + Date.now()).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+  ghFetch("skewt-data", "manifest.json", Date.now()).then(r => r.ok ? r.json() : null).catch(() => null),
+  ghFetch("skewt-data", "anomalies.json", Date.now()).then(r => r.ok ? r.json() : {}).catch(() => ({})),
 ]).then(([stns, man, anom]) => {
   entries = (man && man.entries) || {};
   anomalies = anom || {};
   feedsLoadedAt = Date.now();
   if (!man)
-    feedBanner("⚠ The live data feed (raw.githubusercontent.com) is unreachable from " +
-      "this network — live dots and climatology are unavailable; US real-time and " +
-      "archive browsing still work. Click to retry.");
+    feedBanner("⚠ The live data feed is unreachable from this network (all hosts " +
+      "tried: raw.githubusercontent.com, api.github.com, cdn.jsdelivr.net) — live dots " +
+      "and climatology are unavailable; US real-time and archive browsing still work. " +
+      "Click to retry.");
   for (const s of stns.stations) {
     igraStations[s.gid] = s;
     if (s.id) byWmo[s.id] = s.gid;
@@ -1532,9 +1558,9 @@ document.getElementById("anom-toggle").addEventListener("click", async () => {
   // older than 10 min, so a long-open page never shows yesterday's records
   if (Date.now() - feedsLoadedAt > 10 * 60e3) {
     try {
-      const r = await fetch(MIRROR + "anomalies.json?t=" + Date.now());
+      const r = await ghFetch("skewt-data", "anomalies.json", Date.now());
       if (r.ok) anomalies = await r.json();
-      const m = await fetch(MIRROR + "manifest.json?t=" + Date.now());
+      const m = await ghFetch("skewt-data", "manifest.json", Date.now());
       if (m.ok) {
         const man = await m.json();
         if (man && man.entries) entries = man.entries;   // fresh coords + dts
@@ -2059,7 +2085,7 @@ async function loadSounding() {
     if (s) {
       setStatus("fetching…", true);
       try {
-        const r = await fetch(MIRROR + "soundings/" + current.id + ".csv?t=" + s.dt);
+        const r = await ghFetch("skewt-data", "soundings/" + current.id + ".csv", s.dt);
         if (!r.ok) throw 0;
         const prof = parseCSV(await r.text());
         if (stale()) return;
@@ -2088,7 +2114,7 @@ async function loadSounding() {
     setStatus("fetching high-resolution sounding from the mirror…", true);
     try {
       const tag = wantDt.replace(/[-: ]/g, "").slice(0, 10);
-      const r = await fetch(MIRROR + "soundings/" + current.id + "_" + tag + ".csv?t=" + tag);
+      const r = await ghFetch("skewt-data", "soundings/" + current.id + "_" + tag + ".csv", tag);
       if (r.ok) {
         const prof = parseCSV(await r.text());
         if (prof) {
@@ -2108,7 +2134,7 @@ async function loadSounding() {
     if (!dayZipCache.has(dkey)) {
       setStatus(`downloading high-res day bundle ${ymd}…`, true);
       try {
-        const r = await fetch(UW_ARCHIVE + "uw-" + dkey + ".zip");
+        const r = await ghFetch("skewt-archive", "uw-" + dkey + ".zip");
         dayZipCache.set(dkey, r.ok
           ? fflate.unzipSync(new Uint8Array(await r.arrayBuffer())) : null);
       } catch (e) { dayZipCache.set(dkey, null); }
@@ -2200,7 +2226,7 @@ async function queuePrev12() {
     if (best) {
       try {
         const tag = best.hstr.replace(/[-: ]/g, "").slice(0, 10);
-        const r = await fetch(MIRROR + "soundings/" + current.id + "_" + tag + ".csv?t=" + tag);
+        const r = await ghFetch("skewt-data", "soundings/" + current.id + "_" + tag + ".csv", tag);
         if (r.ok) {
           const p = parseCSV(await r.text());
           if (p) got = { prof: p, dt: best.hstr, backH: Math.round(best.back) };
