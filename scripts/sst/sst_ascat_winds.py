@@ -37,6 +37,9 @@ ANIM_DIR = ASSETS / "anim" / "ascat"               # committed daily image frame
 MANIFEST = ASSETS / "anim" / "ascat_manifest.json"
 DATA_DIR = HERE / "data" / "ascat"                 # local-only daily u/v field archive
 KEEP_DAYS = 120                                    # rolling window for frames + data
+# Bump when plot() layout changes: every archived day re-renders from its
+# cached netCDF (DATA_DIR) on the next run — no re-downloads.
+LAYOUT_VER = "2"
 MIN_OK_BYTES = 15_000                              # a good frame is ~60 KB; a collapsed
                                                    # cartopy GeoAxes (colorbar only, seen in
                                                    # CI) is ~2 KB. Reject anything this small.
@@ -131,7 +134,10 @@ def plot(dsd: xr.Dataset, day: pd.Timestamp, out: Path):
 
     proj = ccrs.PlateCarree(central_longitude=180)
     PC = ccrs.PlateCarree()
-    fig, ax = plt.subplots(figsize=(13, 3.4), subplot_kw=dict(projection=proj))
+    # A 20°-tall × 170°-wide band: a full-height VERTICAL colorbar used to set
+    # the figure height, floating the thin map in whitespace. The colorbar now
+    # lies horizontally under the map and the figure hugs the band's aspect.
+    fig, ax = plt.subplots(figsize=(13, 2.6), subplot_kw=dict(projection=proj))
     ax.set_extent([LON[0], LON[1], LAT[0], LAT[1]], crs=PC)
 
     # levels start at 1 m/s so calm areas (<1) stay unfilled → white background
@@ -141,7 +147,7 @@ def plot(dsd: xr.Dataset, day: pd.Timestamp, out: Path):
     s = max(1, int(round(2.5 / float(np.diff(lon).mean()))))
     q = ax.quiver(lon[::s], lat[::s], u[::s, ::s], v[::s, ::s], transform=PC,
                   scale=460, width=0.0012, color="0.15", zorder=4)
-    ax.quiverkey(q, 0.92, 1.18, 10, "10 m s⁻¹", labelpos="E", fontproperties={"size": 8})
+    ax.quiverkey(q, 0.965, 1.12, 10, "10 m s⁻¹", labelpos="W", fontproperties={"size": 8})
 
     ax.add_feature(cfeature.LAND.with_scale("50m"), facecolor="#d9d6cf", zorder=3)
     ax.add_feature(cfeature.COASTLINE.with_scale("50m"), edgecolor="#555", linewidth=0.4, zorder=3)
@@ -150,11 +156,11 @@ def plot(dsd: xr.Dataset, day: pd.Timestamp, out: Path):
     gl.top_labels = gl.right_labels = False
     gl.xlabel_style = gl.ylabel_style = {"size": 8}
 
-    ax.set_title(f"Equatorial Pacific surface wind (10°S–10°N) — {day:%Y-%m-%d}\n"
-                 f"speed (shaded) + direction · gap-filled scatterometer (ASCAT) L4",
-                 fontsize=11, fontweight="bold", loc="left")
-    cb = fig.colorbar(cf, ax=ax, orientation="vertical", fraction=0.018, pad=0.02, extend="max")
-    cb.set_label("wind speed (m s⁻¹)", fontsize=8); cb.ax.tick_params(labelsize=7)
+    ax.set_title(f"Equatorial Pacific surface wind (10°S–10°N) — {day:%Y-%m-%d} · ASCAT L4",
+                 fontsize=10.5, fontweight="bold", loc="left")
+    cb = fig.colorbar(cf, ax=ax, orientation="horizontal", fraction=0.055,
+                      pad=0.18, aspect=60, shrink=0.55, extend="max")
+    cb.set_label("wind speed (m s⁻¹, shaded) · vectors: direction · gap-filled scatterometer L4", fontsize=8); cb.ax.tick_params(labelsize=7)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=130, bbox_inches="tight")
     plt.close(fig)
@@ -170,7 +176,36 @@ def main() -> int:
     args = ap.parse_args()
 
     ANIM_DIR.mkdir(parents=True, exist_ok=True)
-    pairs = daily_means(max(1, args.backfill))          # newest first
+
+    # Layout change → re-render the whole archive from the cached daily fields
+    # (DATA_DIR netCDFs; no Copernicus re-download). Marker lives with the
+    # frames so it ships/caches alongside them.
+    marker = ANIM_DIR / "layout_ver.txt"
+    if (marker.read_text().strip() if marker.exists() else "") != LAYOUT_VER:
+        cached = sorted(DATA_DIR.glob("*.nc"))
+        print(f"layout v{LAYOUT_VER}: re-rendering {len(cached)} archived day(s) "
+              "from cached fields …", flush=True)
+        for p in cached:
+            try:
+                day = pd.to_datetime(p.stem)
+                with xr.open_dataset(p) as dsd:
+                    tmp = (ANIM_DIR / f"{day:%Y-%m-%d}.webp").with_suffix(".tmp.webp")
+                    plot(dsd.load(), day, tmp)
+                if tmp.exists() and tmp.stat().st_size >= MIN_OK_BYTES:
+                    tmp.replace(ANIM_DIR / f"{day:%Y-%m-%d}.webp")
+                elif tmp.exists():
+                    tmp.unlink()
+            except Exception as e:                      # noqa: BLE001 — keep the old frame
+                print(f"  re-render {p.name} failed ({repr(e)[:60]})", flush=True)
+        relayout = True
+        marker.write_text(LAYOUT_VER)
+    else:
+        relayout = False
+
+    # CI has no .nc archive until its cache warms: on a layout change, widen
+    # the fetch window so every frame in the rolling window re-renders
+    nback = KEEP_DAYS if relayout else max(1, args.backfill)
+    pairs = daily_means(nback)                          # newest first
     newest = pairs[0][1]
     for dsd, day in pairs:
         archive_data(dsd, day)                          # keep the daily field (local)
@@ -178,7 +213,7 @@ def main() -> int:
         # Re-render the newest day every run (NRT coverage fills in over hours, so a frame first
         # rendered while the day was partial must be refreshed), and re-render any missing or
         # broken (tiny → collapsed-map) cached frame. Older complete days stay cached.
-        if day == newest or not frame.exists() or frame.stat().st_size < MIN_OK_BYTES:
+        if relayout or day == newest or not frame.exists() or frame.stat().st_size < MIN_OK_BYTES:
             # Render to a temp file and ACCEPT it only if it isn't a collapsed (colorbar-only)
             # render. cartopy occasionally collapses the GeoAxes to a ~2 KB image (reproducibly
             # in CI); without this guard such a render replaced a good committed frame and the

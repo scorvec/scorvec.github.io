@@ -48,6 +48,15 @@ jobs:
           restore-keys: |
             pip-sst-${{ runner.os }}-
 
+      # ASCAT daily-mean u/v archive: lets a plot-layout change re-render every
+      # frame in the window from cached fields instead of refetching Copernicus.
+      - uses: actions/cache@v4
+        with:
+          path: scripts/sst/data/ascat
+          key: ascat-data-${{ github.run_id }}
+          restore-keys: |
+            ascat-data-
+
       - name: Install cartopy system libs
         run: |
           sudo apt-get update -qq
