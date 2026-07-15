@@ -145,10 +145,6 @@
 
   <div class="cards" id="cards"></div>
   <div id="chart" style="height:560px"></div>
-  <div id="roseWrap" style="display:none;margin-top:.6rem">
-    <div id="roseHint" style="color:#888580;font-size:.85rem;padding:.4rem 0"></div>
-    <div id="rose" style="height:420px;max-width:560px;margin:0 auto"></div>
-  </div>
 
   <footer class="note">
     Primary source: the <a href="https://api.weather.gov/">official NWS API</a> (api.weather.gov), fetched directly in your
@@ -431,11 +427,36 @@
   function dirName(deg) {
     return deg == null ? "" : DIR16[Math.round(deg / 22.5) % 16];
   }
-  // arrow points where the wind blows TO (deg = direction it comes FROM)
-  function dirArrow(deg, size) {
-    if (deg == null) return "";
-    return '<span style="display:inline-block;transform:rotate(' + ((deg + 180) % 360) +
-      'deg);font-size:' + (size || 1) + 'em;line-height:1">&#8593;</span>';
+  // WMO wind barb, inline SVG. Staff tail points toward the direction the
+  // wind comes FROM; pennant = 50 kt, full barb = 10, half = 5 (barbs are
+  // always in KNOTS by convention, whatever the display unit). Calm = circle.
+  function windBarb(dirDeg, spdKt, px) {
+    px = px || 30;
+    if (spdKt == null) return "";
+    var kt = Math.round(spdKt / 5) * 5;
+    var head = '<svg width="' + px + '" height="' + px + '" viewBox="-14 -14 28 28"' +
+      ' style="vertical-align:middle" role="img">';
+    if (kt < 5 || dirDeg == null) {
+      return head + '<circle r="4.5" fill="none" stroke="#333" stroke-width="1.6"/></svg>';
+    }
+    var e = [], y = -11;                        // tail at top, station at (0,11)
+    e.push('<line x1="0" y1="11" x2="0" y2="-11"/>');
+    var n50 = Math.floor(kt / 50), rem = kt - n50 * 50;
+    var n10 = Math.floor(rem / 10), n5 = (rem % 10) >= 5 ? 1 : 0;
+    for (var i = 0; i < n50; i++) {
+      e.push('<polygon points="0,' + y + ' 8,' + (y + 1.5) + ' 0,' + (y + 4) + '"/>');
+      y += 5;
+    }
+    for (i = 0; i < n10; i++) {
+      e.push('<line x1="0" y1="' + y + '" x2="8" y2="' + (y - 3) + '"/>');
+      y += 3;
+    }
+    if (n5) {
+      if (kt < 10) y += 3;                      // lone half barb sits off the tail tip
+      e.push('<line x1="0" y1="' + y + '" x2="4.5" y2="' + (y - 1.8) + '"/>');
+    }
+    return head + '<g stroke="#333" stroke-width="1.5" fill="#333" ' +
+      'transform="rotate(' + (dirDeg % 360) + ')">' + e.join("") + "</g></svg>";
   }
   function visToUnit(mi) { return state.unit === "F" ? mi : mi * 1.609344; }
   function visUnit() { return state.unit === "F" ? "mi" : "km"; }
@@ -615,7 +636,7 @@
           if (st.obs[q][4] != null) { cur = st.obs[q]; break; }
         }
         nowHtml = cur
-          ? dirArrow(cur[3], 0.85) + " " + fmtW(cur[4]) +
+          ? windBarb(cur[3], cur[4]) + " " + fmtW(cur[4]) +
             (cur[8] != null ? ' <span style="font-size:.55em;color:#a05a12;white-space:nowrap">G&nbsp;' +
               Math.round(wToUnit(cur[8])) + "</span>" : "") +
             "<small>" + dirName(cur[3]) + " · " + localHM(cur[0], st.tz) + "</small>"
@@ -837,7 +858,7 @@
           (isTemp ? " · ▲▼ today's sampled max/min" : "") +
           (vr === "t" ? " · open ▲▼ official 6-hr extremes where higher/lower" : "") +
           (vr === "w" ? " · each dot = a report with weather; lane = most significant type" : "") +
-          (vr === "k" ? " · line = sustained, ＋ = gusts · isolate a station for direction arrows + wind rose" : ""),
+          (vr === "k" ? " · line = sustained, ＋ = gusts (barbs in kt) · isolate a station for direction arrows" : ""),
         font: { family: "Lora, serif", size: 15 }, x: 0.02
       }
     };
@@ -869,81 +890,6 @@
     }
   }
 
-  // Wind rose for the isolated station: 16 sectors x speed bins, frequency %
-  // of the shown-window reports. Classic barpolar stack, calm excluded from
-  // the petals but reported in the hint line.
-  var ROSE_BINS = [                                     // kt thresholds
-    { lo: 2, hi: 5,   color: "#c8d8e8" },
-    { lo: 5, hi: 10,  color: "#7fb3d8" },
-    { lo: 10, hi: 15, color: "#5cb854" },
-    { lo: 15, hi: 20, color: "#f9d34c" },
-    { lo: 20, hi: 1e9, color: "#e8542a" }
-  ];
-  function buildRose() {
-    var wrap = document.getElementById("roseWrap");
-    if (state.vr !== "k") { wrap.style.display = "none"; return; }
-    wrap.style.display = "block";
-    var hint = document.getElementById("roseHint");
-    if (state.iso == null || state.iso < 0) {
-      hint.textContent = "Click a station card to isolate it and see its wind rose for the shown window.";
-      Plotly.purge("rose");
-      document.getElementById("rose").style.display = "none";
-      return;
-    }
-    document.getElementById("rose").style.display = "";
-    var st = state.data.stations[state.iso];
-    var counts = ROSE_BINS.map(function () {
-      return DIR16.map(function () { return 0; });
-    });
-    var total = 0, calm = 0;
-    st.obs.forEach(function (o) {
-      if (o[4] == null) return;
-      total++;
-      if (o[4] < 2 || o[3] == null) { calm++; return; }
-      var sec = Math.round(o[3] / 22.5) % 16;
-      for (var b = 0; b < ROSE_BINS.length; b++) {
-        if (o[4] >= ROSE_BINS[b].lo && o[4] < ROSE_BINS[b].hi) {
-          counts[b][sec]++; break;
-        }
-      }
-    });
-    if (!total) {
-      hint.textContent = "No wind reports for " + st.id + " in the shown window.";
-      Plotly.purge("rose"); return;
-    }
-    var traces = ROSE_BINS.map(function (bin, b) {
-      var lab = bin.hi > 500
-        ? Math.round(wToUnit(bin.lo)) + "+ " + WU_LABEL[state.wu]
-        : Math.round(wToUnit(bin.lo)) + "–" + Math.round(wToUnit(bin.hi)) + " " + WU_LABEL[state.wu];
-      return {
-        type: "barpolar",
-        r: counts[b].map(function (c) { return 100 * c / total; }),
-        theta: DIR16,
-        name: lab,
-        marker: { color: bin.color, line: { color: "#fff", width: 0.5 } },
-        hovertemplate: "%{theta} · " + lab + " · %{r:.1f}%<extra></extra>"
-      };
-    });
-    hint.innerHTML = "<b>" + st.id + "</b> wind rose — direction the wind blows FROM, " +
-      "petal length = % of the last " + WINDOW_H + " h · calm (&lt;2 kt): " +
-      (100 * calm / total).toFixed(0) + "%";
-    Plotly.react("rose", traces, {
-      margin: { l: 30, r: 30, t: 20, b: 20 },
-      paper_bgcolor: "rgba(0,0,0,0)",
-      font: { family: "Inter, sans-serif", size: 11, color: "#1c1c1a" },
-      legend: { orientation: "h", y: -0.12, font: { size: 10.5 } },
-      polar: {
-        bgcolor: "rgba(0,0,0,0)",
-        barmode: "stack",
-        angularaxis: { direction: "clockwise", rotation: 90,
-                       categoryorder: "array", categoryarray: DIR16 },
-        radialaxis: { ticksuffix: "%", angle: 45, gridcolor: "#eeece6",
-                      tickfont: { size: 9.5 } }
-      },
-      barmode: "stack"
-    }, { responsive: true, displayModeBar: false });
-  }
-
   function render() {
     if (!state.data || !state.data.stations) {
       document.getElementById("subline").textContent =
@@ -954,7 +900,6 @@
     buildSub();
     buildCards();
     buildChart();
-    buildRose();
   }
 
   function segWire(id, key, cb) {
