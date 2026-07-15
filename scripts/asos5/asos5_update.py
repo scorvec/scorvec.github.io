@@ -98,7 +98,10 @@ def char_var(ds, name, n):
 def parse_hfmetar(nc_bytes):
     """Extract our stations from one hourly HFMETAR file.
 
-    Returns {station_id: {epoch_s: [tempC, dewC, wdir_deg, wspd_kt]}}.
+    Returns {station_id: {epoch_s:
+        [tempC, dewC, wdir_deg, wspd_kt, vis_mi, ceil_ft, wx]}}.
+    vis_mi = statute miles; ceil_ft = lowest BKN/OVC/VV layer base (ft AGL,
+    None = no ceiling); wx = METAR present-weather string (None = none).
     """
     out = {sid: {} for sid in HF_IDS}
     with tempfile.NamedTemporaryFile(suffix=".nc") as tf:
@@ -117,6 +120,14 @@ def parse_hfmetar(nc_bytes):
             wdir = np.ma.filled(ds.variables["windDir"][:][idx], np.nan)
             wspd = np.ma.filled(ds.variables["windSpeed"][:][idx], np.nan)  # m/s
             tdd = char_var(ds, "temperatureDD", 1)[idx]
+            vis = np.ma.filled(ds.variables["visibility"][:][idx], np.nan)  # m
+            vdd = char_var(ds, "visibilityDD", 1)[idx]
+            # sky cover: (rec, layer, char) strings + layer bases in meters
+            sc_raw = np.ma.filled(ds.variables["skyCvr"][:][idx], b" ")
+            covs = sc_raw.astype("S1").view(f"S{sc_raw.shape[2]}")[..., 0]
+            base = np.ma.filled(ds.variables["skyCovLayerBase"][:][idx], np.nan)
+            pw_raw = np.ma.filled(ds.variables["presWx"][:][idx], b" ")
+            pw = pw_raw.astype("S1").view(f"S{pw_raw.shape[1]}").ravel()
             for k in range(len(idx)):
                 if not np.isfinite(obst[k]) or not np.isfinite(temp[k]):
                     continue
@@ -126,11 +137,25 @@ def parse_hfmetar(nc_bytes):
                 if not -60.0 <= t_c <= 60.0:
                     continue
                 d_c = float(dew[k]) - 273.15 if np.isfinite(dew[k]) else None
+                vis_mi = None
+                if np.isfinite(vis[k]) and vdd[k] not in BAD_DD and 0 <= vis[k] < 2e5:
+                    vis_mi = round(float(vis[k]) / 1609.344, 2)
+                ceil_ft = None
+                for j in range(covs.shape[1]):
+                    c = covs[k, j].decode("ascii", "ignore").strip()
+                    if c in ("BKN", "OVC", "VV") and np.isfinite(base[k, j]) \
+                            and 0 <= base[k, j] < 20000:
+                        ft = int(round(float(base[k, j]) * 3.28084 / 100) * 100)
+                        ceil_ft = ft if ceil_ft is None else min(ceil_ft, ft)
+                wx = pw[k].decode("ascii", "ignore").strip() or None
                 rec = [
                     round(t_c, 2),
                     round(d_c, 2) if d_c is not None and -60 <= d_c <= 45 else None,
                     int(wdir[k]) if np.isfinite(wdir[k]) else None,
                     round(float(wspd[k]) * 1.94384, 1) if np.isfinite(wspd[k]) else None,
+                    vis_mi,
+                    ceil_ft,
+                    wx,
                 ]
                 out[ids[idx[k]]][int(obst[k])] = rec
         finally:
@@ -176,11 +201,23 @@ def fetch_nws_hourly(sid, start_utc):
         dew = (p.get("dewpoint") or {}).get("value")
         wdir = (p.get("windDirection") or {}).get("value")
         wspd = (p.get("windSpeed") or {}).get("value")  # km/h
+        vis = (p.get("visibility") or {}).get("value")  # m
+        ceil_ft = None
+        for L in (p.get("cloudLayers") or []):
+            b = (L.get("base") or {}).get("value")
+            if (L.get("amount") or "") in ("BKN", "OVC", "VV") and b is not None:
+                ft = int(round(float(b) * 3.28084 / 100) * 100)
+                ceil_ft = ft if ceil_ft is None else min(ceil_ft, ft)
+        wx = " ".join(w.get("rawString") or "" for w in
+                      (p.get("presentWeather") or [])).strip() or None
         obs[epoch] = [
             round(float(t["value"]), 2),
             round(float(dew), 2) if dew is not None else None,
             int(wdir) if wdir is not None else None,
             round(float(wspd) * 0.539957, 1) if wspd is not None else None,
+            round(float(vis) / 1609.344, 2) if vis is not None else None,
+            ceil_ft,
+            wx,
         ]
     return obs
 
@@ -339,7 +376,7 @@ def main():
             "abs": absolutes(recs, groups, m0),
             "sixhr": [g for g in groups if g[0] > m0],
             "daymm": daymm.get(sid),   # official 24-hour max/min ({max,min,e} °C) or None
-            "obs": obs,  # [epoch_s, tempC, dewC, wdir_deg, wspd_kt]
+            "obs": obs,  # [epoch_s, tempC, dewC, wdir_deg, wspd_kt, vis_mi, ceil_ft, wx]
         })
         print(f"  {sid}: {len(obs):3d} obs in last {WINDOW_H}h, "
               f"{len([g for g in groups if g[0] > m0]):d} 6-h groups today ({label})")
