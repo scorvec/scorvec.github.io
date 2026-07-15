@@ -105,7 +105,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends libeccodes0
 
       - name: Install Python dependencies
-        run: pip install -r requirements-wind.txt gridstatus gridstatusio
+        run: pip install -r requirements-wind.txt
 
       - name: Download USWTDB
         run: |
@@ -220,13 +220,8 @@ jobs:
 
       - name: Update verification dashboard
         env:
-          GRIDSTATUS_API_KEY: ${{ secrets.GRIDSTATUS_API_KEY }}
           USE_ISO_DIRECT: "1"
         run: |
-          if [ -z "$GRIDSTATUS_API_KEY" ]; then
-            echo "GRIDSTATUS_API_KEY not set; direct ISO fetchers will still"
-            echo "provide actuals, but curtailment data will be unavailable."
-          fi
           python update_verification.py || {
             echo "Verification update failed; continuing anyway."
             exit 0

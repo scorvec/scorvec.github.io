@@ -9,16 +9,17 @@ Maintains a rolling 14-day verification CSV at
   2. Stacking all forecast_iso_*.csv files in the archive
   3. Selecting the day-ahead representative lead (12-24h) per
      (region, valid_time)
-  4. Pulling actuals and curtailment from gridstatus.io ONLY for the
-     date range we don't already have
+  4. Pulling actuals directly from the ISOs (iso_direct_fetchers) ONLY
+     for the date range we don't already have
   5. Merging and saving the rolling 14-day window
   6. Generating the verification dashboard HTML
 
-Designed for low API usage: pulls just the missing days, ~5-10 requests
-per run. Run it manually once a day or weekly:
+The gridstatus.io hosted API was removed 2026-07: actuals come from the
+free ISO public endpoints (ERCOT/MISO direct HTTP; SPP/CAISO via the
+open-source gridstatus scraping library). Curtailment, which only the
+hosted API carried, is no longer collected. Run manually:
 
     cd scripts/
-    export GRIDSTATUS_API_KEY=<key>
     python update_verification.py
 
 Then `git add assets/ && git commit && git push` to publish.
@@ -63,19 +64,6 @@ ARCHIVE_DIR = Path("../assets/wind_forecast_data")
 VER_PATH = ARCHIVE_DIR / "verification.csv"
 DASHBOARD_PATH = Path("../assets/wind_verification.html")
 
-ISO_FUEL_MIX = {
-    "ERCOT":   ("ercot_fuel_mix",   "wind"),
-    "SPP":     ("spp_fuel_mix",     "wind"),
-    "CAISO":   ("caiso_fuel_mix",   "wind"),
-}
-
-CURTAILMENT_DATASETS = {
-    "CAISO":  "caiso_curtailment",
-    "SPP":    "spp_ver_curtailments",
-    "ERCOT":  "ercot_hourly_wind_report",
-}
-
-
 # ---------------------------------------------------------------------------
 # Forecast archive loader (same as backtest.py)
 # ---------------------------------------------------------------------------
@@ -106,98 +94,6 @@ def select_day_ahead(fc: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# gridstatus fetchers (copy of backtest.py logic, keeping only ERCOT/SPP/CAISO)
-# ---------------------------------------------------------------------------
-
-def pull_actuals(client, regions: list[str], start: str, end: str) -> pd.DataFrame:
-    pieces = []
-    for iso_label in regions:
-        if iso_label not in ISO_FUEL_MIX:
-            continue
-        dataset, col = ISO_FUEL_MIX[iso_label]
-        print(f"  {iso_label}...", end=" ", flush=True)
-        try:
-            df = client.get_dataset(dataset, start=start, end=end)
-        except Exception as e:
-            print(f"FAILED ({e})")
-            continue
-        ts_col = "interval_start_utc" if "interval_start_utc" in df.columns else "Time"
-        df = df.rename(columns={ts_col: "valid_time", col: "actual_MW"})
-        df["valid_time"] = pd.to_datetime(df["valid_time"], utc=True).dt.tz_localize(None)
-        hourly = (df.set_index("valid_time")[["actual_MW"]]
-                    .resample("1h").mean()
-                    .reset_index())
-        hourly["region"] = iso_label
-        pieces.append(hourly[["region", "valid_time", "actual_MW"]])
-        print(f"{len(hourly)} hrs")
-    return pd.concat(pieces, ignore_index=True) if pieces else pd.DataFrame()
-
-
-def pull_curtailment(client, regions: list[str], start: str, end: str) -> pd.DataFrame:
-    pieces = []
-    for iso_label in regions:
-        if iso_label not in CURTAILMENT_DATASETS:
-            continue
-        dataset = CURTAILMENT_DATASETS[iso_label]
-        print(f"  {iso_label}...", end=" ", flush=True)
-        try:
-            df = client.get_dataset(dataset, start=start, end=end)
-        except Exception as e:
-            print(f"FAILED ({e})")
-            continue
-        ts_col = "interval_start_utc" if "interval_start_utc" in df.columns else "Time"
-        df = df.rename(columns={ts_col: "valid_time"})
-        df["valid_time"] = pd.to_datetime(df["valid_time"], utc=True).dt.tz_localize(None)
-
-        if iso_label == "CAISO":
-            wind_mask = df["fuel_type"].astype(str).str.strip().str.lower() == "wind"
-            wind = df[wind_mask]
-            if len(wind) == 0:
-                print(f"FAILED (no wind rows)")
-                continue
-            out = (wind.groupby("valid_time")["curtailment_mw"].sum()
-                       .resample("1h").mean().reset_index()
-                       .rename(columns={"curtailment_mw": "curtailment_MW"}))
-        elif iso_label == "SPP":
-            # Canonical pair only — see backtest.py for the explanation
-            canonical_cols = [c for c in df.columns
-                              if c in ("wind_redispatch_curtailments",
-                                       "wind_manual_curtailments")]
-            if not canonical_cols:
-                print(f"FAILED (no canonical wind cols)")
-                continue
-            df["_total"] = df[canonical_cols].sum(axis=1)
-            out = (df.set_index("valid_time")[["_total"]]
-                      .resample("1h").mean().reset_index()
-                      .rename(columns={"_total": "curtailment_MW"}))
-        elif iso_label == "ERCOT":
-            for c in ("actual_system_wide", "hsl_system_wide",
-                      "cop_hsl_system_wide"):
-                if c in df.columns:
-                    df[c] = pd.to_numeric(df[c], errors="coerce")
-            df = df.dropna(subset=["actual_system_wide"])
-            if len(df) == 0:
-                print(f"FAILED (no populated actuals)")
-                continue
-            df["_potential"] = df["hsl_system_wide"].fillna(
-                df["cop_hsl_system_wide"])
-            df["_curt"] = (df["_potential"] - df["actual_system_wide"]).clip(lower=0)
-            if "publish_time_utc" in df.columns:
-                df = df.sort_values("publish_time_utc")
-                df = df.drop_duplicates(subset=["valid_time"], keep="last")
-            out = (df.set_index("valid_time")[["_curt"]]
-                      .resample("1h").mean().reset_index()
-                      .rename(columns={"_curt": "curtailment_MW"}))
-        else:
-            continue
-
-        out["region"] = iso_label
-        pieces.append(out[["region", "valid_time", "curtailment_MW"]])
-        print(f"{len(out)} hrs, mean {out['curtailment_MW'].mean():.0f} MW")
-    return pd.concat(pieces, ignore_index=True) if pieces else pd.DataFrame()
-
-
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -214,15 +110,6 @@ def main() -> int:
         print(f"gridstatus library: v{_gs.__version__} (open-source, direct ISO scraping)")
     except ImportError as e:
         print(f"gridstatus library: NOT INSTALLED ({e})")
-    try:
-        import gridstatusio as _gsio
-        print(f"gridstatusio library: v{_gsio.__version__} (paid hosted API)")
-    except ImportError as e:
-        print(f"gridstatusio library: NOT INSTALLED ({e})")
-
-    if "GRIDSTATUS_API_KEY" not in os.environ:
-        print("Note: GRIDSTATUS_API_KEY not set; direct ISO fetchers will provide")
-        print("      actuals, but curtailment data will be unavailable.")
 
     # Forecast archive
     fc = load_forecast_archive(ARCHIVE_DIR)
@@ -279,60 +166,24 @@ def main() -> int:
     print(f"Need to fetch: {start_str} → {end_str} "
           f"({len(needed):,} (region, valid_time) rows)")
 
-    # Try direct-from-ISO fetchers first — they're free and don't burn
-    # gridstatus rate-limit quota. Only fall back to gridstatus for
-    # regions where the direct fetch came up empty.
-    # NOTE: ISO-direct fetchers are experimental and currently disabled
-    # by default since they need schema validation against live data.
-    # Set USE_ISO_DIRECT=1 to enable. To re-enable: validate each
-    # fetcher locally first, then set the env var in the workflow.
-    actuals_direct = pd.DataFrame()
-    if os.environ.get("USE_ISO_DIRECT", "0") == "1":
+    # Actuals come directly from the ISOs' free public endpoints
+    # (ERCOT/MISO direct HTTP; SPP/CAISO via the open-source gridstatus
+    # scraping library). Set USE_ISO_DIRECT=0 to skip fetching entirely.
+    actuals_new = pd.DataFrame()
+    if os.environ.get("USE_ISO_DIRECT", "1") == "1":
         print("\nFetching actuals (direct from ISOs):")
         try:
             from iso_direct_fetchers import pull_actuals_direct
-            actuals_direct = pull_actuals_direct(DASHBOARD_REGIONS,
-                                                  start_str, end_str)
+            actuals_new = pull_actuals_direct(DASHBOARD_REGIONS,
+                                              start_str, end_str)
         except Exception as e:
             print(f"  ISO-direct fetchers errored ({e}); skipping")
-
-    direct_regions = set(actuals_direct["region"].unique()) if not actuals_direct.empty else set()
-    fallback_regions = [r for r in DASHBOARD_REGIONS if r not in direct_regions]
-
-    actuals_new = actuals_direct
-    curtail_new = pd.DataFrame()
-
-    # gridstatus fallback only for what we couldn't get direct, plus
-    # always for curtailment (since the ISO-direct paths don't carry it)
-    use_gridstatus = bool(fallback_regions) or True  # always for curtailment
-    if use_gridstatus:
-        try:
-            from gridstatusio import GridStatusClient
-            client = GridStatusClient()
-
-            if fallback_regions:
-                print(f"\nFetching actuals from gridstatus "
-                      f"(fallback for {fallback_regions}):")
-                gs_actuals = pull_actuals(client, fallback_regions,
-                                           start_str, end_str)
-                if not gs_actuals.empty:
-                    actuals_new = pd.concat([actuals_new, gs_actuals],
-                                             ignore_index=True)
-
-            print("\nFetching curtailment (gridstatus only):")
-            curtail_new = pull_curtailment(client, DASHBOARD_REGIONS,
-                                            start_str, end_str)
-        except Exception as e:
-            print(f"  gridstatus call failed ({e}); proceeding without it")
 
     # Build new verification rows
     ver_new = needed[["region", "valid_time", "MW", "cycle", "lead_hours"]].rename(
         columns={"MW": "forecast_MW"})
     if not actuals_new.empty:
         ver_new = ver_new.merge(actuals_new,
-                                 on=["region", "valid_time"], how="left")
-    if not curtail_new.empty:
-        ver_new = ver_new.merge(curtail_new,
                                  on=["region", "valid_time"], how="left")
 
     # Merge with existing
