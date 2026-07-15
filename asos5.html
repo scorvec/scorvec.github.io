@@ -370,6 +370,46 @@
              reports: reports };
   }
 
+  // Parse the values a report diamond needs straight from the raw METAR.
+  // Returns {t, d (degC), wdir, wspd, gust (kt), vis (mi), ceil (ft), wx}.
+  function metarVals(raw) {
+    var o = { t: null, d: null, wdir: null, wspd: null, gust: null,
+              vis: null, ceil: null, wx: null };
+    if (!raw) return o;
+    var body = raw.split(" RMK ")[0];
+    var m = raw.match(/\bT([01]\d{3})([01]\d{3})\b/);          // RMK T-group, 0.1 C
+    if (m) {
+      o.t = (m[1][0] === "1" ? -1 : 1) * (+m[1].slice(1)) / 10;
+      o.d = (m[2][0] === "1" ? -1 : 1) * (+m[2].slice(1)) / 10;
+    } else if ((m = body.match(/ (M?\d{2})\/(M?\d{2})?[ ]/))) {  // NN/NN group
+      o.t = +m[1].replace("M", "-");
+      if (m[2]) o.d = +m[2].replace("M", "-");
+    }
+    if ((m = body.match(/\b(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT\b/))) {
+      o.wdir = m[1] === "VRB" ? null : +m[1];
+      o.wspd = +m[2];
+      if (m[3]) o.gust = +m[3];
+    }
+    if (/\bP6SM\b/.test(body)) o.vis = 10;
+    else if ((m = body.match(/\b(?:(\d{1,2}) )?(\d)\/(\d{1,2})SM\b/))) {
+      o.vis = (+(m[1] || 0)) + (+m[2]) / (+m[3]);
+    } else if ((m = body.match(/\b(\d{1,2})SM\b/))) {
+      o.vis = +m[1];
+    }
+    var ce = null;
+    body.replace(/\b(BKN|OVC|VV)(\d{3})/g, function (_, cov, hh) {
+      var ft = +hh * 100;
+      if (ce == null || ft < ce) ce = ft;
+      return _;
+    });
+    o.ceil = ce;
+    var toks = body.split(/\s+/).filter(function (tk) {
+      return /^(\+|-|VC)?(TS|SH|FZ|RA|SN|DZ|BR|FG|HZ|FU|SQ|GR|GS|PL|IC|UP|SA|DU|PO|VA)+$/.test(tk);
+    });
+    o.wx = toks.length ? toks.join(" ") : null;
+    return o;
+  }
+
   function repType(epoch) {
     var mm = Math.floor(epoch / 60) % 60;
     return mm >= 50 ? "METAR" : "SPECI";
@@ -821,16 +861,21 @@
       // Official METAR/SPECI report markers on the isolated station: a
       // diamond at each transmitted report, orange for SPECI (weather
       // changed enough to force a special), hover = the raw report.
-      if (state.iso === i && st.reports && st.reports.length && s.epochs.length) {
+      if (state.iso === i && st.reports && st.reports.length) {
         var rx = [], ry = [], rc = [], rt = [];
         st.reports.forEach(function (r) {
-          var best = -1, bd = 1e9;
-          for (var q = 0; q < s.epochs.length; q++) {
-            var dd = Math.abs(s.epochs[q] - r.e);
-            if (dd < bd) { bd = dd; best = q; }
-          }
-          if (best < 0 || bd > 900 || s.y[best] == null) return;
-          rx.push(s.x[best]); ry.push(s.y[best]);
+          // the diamond's y comes from the RAW REPORT itself, so a fresh
+          // SPECI plots at its true time even past the lagging 5-min trace
+          var mv = metarVals(r.raw);
+          var yv = null;
+          if (vr === "t") yv = mv.t == null ? null : cToUnit(mv.t);
+          else if (vr === "d") yv = mv.d == null ? null : cToUnit(mv.d);
+          else if (vr === "v") yv = mv.vis == null ? null : visToUnit(mv.vis);
+          else if (vr === "c") yv = mv.ceil == null ? null : ceilToUnit(mv.ceil);
+          else if (vr === "k") yv = mv.wspd == null ? null : wToUnit(mv.wspd);
+          else if (vr === "w") { var ln = wxLane(mv.wx); yv = ln < 0 ? null : ln; }
+          if (yv == null) return;
+          rx.push(localISO(r.e, st.tz)); ry.push(yv);
           rc.push(r.type === "SPECI" ? "#e07a2a" : "#8a8578");
           var raw = (r.raw || "").slice(0, 120).replace(/(.{60})/g, "$1<br>");
           rt.push("<b>" + r.type + "</b> " + localHM(r.e, st.tz) + "<br>" + raw);
