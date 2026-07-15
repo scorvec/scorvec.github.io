@@ -1,7 +1,7 @@
 {
   "cycle": "2026-07-15 18Z",
   "cycle_compact": "20260715T18Z",
-  "generated": "2026-07-15 21:45 UTC",
+  "generated": "2026-07-15 22:32 UTC",
   "variable_id": "t2m",
   "variable_label": "2 m Temperature",
   "units": "\u00b0F",
@@ -103,6 +103,12 @@
       "valid_time": "2026-07-16T09:00:00Z",
       "valid_label": "Thu 07/16 09:00Z",
       "file": "F15.webp"
+    },
+    {
+      "fxx": 16,
+      "valid_time": "2026-07-16T10:00:00Z",
+      "valid_label": "Thu 07/16 10:00Z",
+      "file": "F16.webp"
     },
     {
       "fxx": 17,
