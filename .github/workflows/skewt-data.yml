@@ -96,6 +96,14 @@ jobs:
           git add -A
           git commit -q -m "Sounding mirror: $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" skewt-data
+          # Purge the jsDelivr edge for the hot JSONs. jsDelivr is ghFetch's
+          # last-resort host (used when raw.githubusercontent is blocked and
+          # api.github.com is rate-limited, e.g. corporate networks); without
+          # a purge its branch cache can serve these up to ~12 h stale, which
+          # breaks the record map + "Extreme today" panel on those networks.
+          for f in manifest.json anomalies.json; do
+            curl -s "https://purge.jsdelivr.net/gh/${{ github.repository }}@skewt-data/$f" >/dev/null 2>&1 || true
+          done
 
       - name: Summary
         if: always()

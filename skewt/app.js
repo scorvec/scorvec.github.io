@@ -13,14 +13,20 @@ const MISSING = -9999.0;
 // plenty for the small live files) and then jsDelivr's CDN (very widely
 // whitelisted; caches branches up to ~12 h, stale but far better than dead).
 const GH_REPO = "scorvec/scorvec.github.io";
-async function ghFetch(branch, path, bust) {
+async function ghFetch(branch, path, bust, staticish) {
   const q = bust ? "?t=" + encodeURIComponent(bust) : "";
-  const tries = [
-    [`https://raw.githubusercontent.com/${GH_REPO}/${branch}/${path}${q}`, null],
-    [`https://api.github.com/repos/${GH_REPO}/contents/${path}?ref=${branch}`,
-     { headers: { Accept: "application/vnd.github.raw" } }],
-    [`https://cdn.jsdelivr.net/gh/${GH_REPO}@${branch}/${path}`, null],
-  ];
+  // Host order matters on networks that block raw.githubusercontent:
+  // api.github.com allows only ~60 anonymous requests/hour, so save it for
+  // the fresh-critical files (manifest, anomalies, latest soundings).
+  // Content that never changes once written (climo, archive zips, dated
+  // soundings) passes `staticish` and prefers jsDelivr — its cache
+  // staleness is harmless there, and the api quota stays alive for the
+  // record map + "Extreme today" panel.
+  const raw = [`https://raw.githubusercontent.com/${GH_REPO}/${branch}/${path}${q}`, null];
+  const api = [`https://api.github.com/repos/${GH_REPO}/contents/${path}?ref=${branch}`,
+     { headers: { Accept: "application/vnd.github.raw" } }];
+  const cdn = [`https://cdn.jsdelivr.net/gh/${GH_REPO}@${branch}/${path}`, null];
+  const tries = staticish ? [raw, cdn, api] : [raw, api, cdn];
   for (let i = 0; i < tries.length; i++) {
     try {
       const r = await fetch(tries[i][0], tries[i][1] || undefined);
@@ -61,7 +67,7 @@ async function loadClimo(gid) {
   climoGid = gid; climo = null;
   if (climoCache.has(gid)) { climo = climoCache.get(gid); refreshTables(); return; }
   try {
-    const r = await ghFetch("skewt-climo", "climo/" + gid + ".json");
+    const r = await ghFetch("skewt-climo", "climo/" + gid + ".json", null, true);
     const d = r.ok ? await r.json() : null;
     climoCache.set(gid, d);
     if (gid === climoGid) { climo = d; refreshTables(); }
@@ -2134,7 +2140,7 @@ async function loadSounding() {
     if (!dayZipCache.has(dkey)) {
       setStatus(`downloading high-res day bundle ${ymd}…`, true);
       try {
-        const r = await ghFetch("skewt-archive", "uw-" + dkey + ".zip");
+        const r = await ghFetch("skewt-archive", "uw-" + dkey + ".zip", null, true);
         dayZipCache.set(dkey, r.ok
           ? fflate.unzipSync(new Uint8Array(await r.arrayBuffer())) : null);
       } catch (e) { dayZipCache.set(dkey, null); }
