@@ -359,7 +359,8 @@
     var dp = localParts(m0 + 7200, meta.tz);
     return { id: meta.id, name: meta.name, tz: meta.tz, cadence_min: cadence,
              day_local: dp.year + "-" + dp.month + "-" + dp.day,
-             obs: obs, sixhr: sixhr, daymm: daymm, abs: computeAbs(obs, sixhr, m0) };
+             obs: obs, sixhr: sixhr, daymm: daymm, abs: computeAbs(obs, sixhr, m0),
+             reports: (live && live.reports) || [] };
   }
 
   // fetch live obs for every station from api.weather.gov, then re-merge + render
@@ -372,12 +373,13 @@
       return fetch(url, { cache: "no-store" })
         .then(function (r) { if (!r.ok) throw 0; return r.json(); })
         .then(function (j) {
-          var obs = [], groups = {}, daymm = null;
+          var obs = [], groups = {}, daymm = null, reports = [];
           (j.features || []).forEach(function (f) {
             var pr = f.properties, o = awgToObs(pr);
             if (o && o[0] >= w0) obs.push(o);
             if (pr.rawMessage) {
               var ep = Math.floor(new Date(pr.timestamp).getTime() / 1000);
+              reports.push({ e: ep, raw: pr.rawMessage });
               var g = parseSixHr(pr.rawMessage, ep);
               if (g) groups[g[0]] = g;
               var dm = parseDayMaxMin(pr.rawMessage, ep);           // ~06Z daily 24-h max/min
@@ -385,6 +387,22 @@
             }
           });
           obs.sort(function (a, b) { return a[0] - b[0]; });
+          // Classify official reports: rawMessage rows are the transmitted
+          // METAR/SPECI products. The routine METAR lands at a fixed minute
+          // each hour (e.g. :54 at KBOS) — the station's modal report
+          // minute; anything at another minute is a SPECI.
+          if (reports.length) {
+            var mc = {};
+            reports.forEach(function (r) {
+              var mm = Math.floor(r.e / 60) % 60;
+              mc[mm] = (mc[mm] || 0) + 1;
+            });
+            var modal = +Object.keys(mc).sort(function (a, b) { return mc[b] - mc[a]; })[0];
+            reports.forEach(function (r) {
+              r.type = (Math.floor(r.e / 60) % 60) === modal ? "METAR" : "SPECI";
+            });
+            reports.sort(function (a, b) { return a.e - b.e; });
+          }
           var gaps = [];
           for (var k = Math.max(1, obs.length - 13); k < obs.length; k++)
             gaps.push((obs[k][0] - obs[k - 1][0]) / 60);
@@ -392,7 +410,7 @@
           var cad = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 60;
           state.live[s.id] = { obs: obs, cadence_min: cad <= 8 ? 5 : 60,
                                sixhr: Object.keys(groups).map(function (k) { return groups[k]; }),
-                               daymm: daymm };
+                               daymm: daymm, reports: reports };
         })
         .catch(function () { /* keep any prior live[id]; branch still covers it */ });
     })).then(function () { state.liveOK = Object.keys(state.live).length > 0; rebuild(); });
@@ -527,11 +545,12 @@
   //      ceiling a null means "no ceiling", and a gap reads correctly).
   // w:   markers on category lanes; reports with no weather are skipped.
   function series(st) {
-    var vr = state.vr, xi = VIDX[vr], out = { x: [], y: [], hov: [] };
+    var vr = state.vr, xi = VIDX[vr], out = { x: [], y: [], hov: [], epochs: [] };
     if (vr === "k") {
       out.g = []; out.dir = [];
       st.obs.forEach(function (o) {
         if (o[4] == null) return;
+        out.epochs.push(o[0]);
         out.x.push(localISO(o[0], st.tz));
         out.y.push(wToUnit(o[4]));
         out.g.push(o[8] == null ? null : wToUnit(o[8]));
@@ -547,11 +566,13 @@
       if (vr === "w") {
         var lane = wxLane(v);
         if (lane < 0) return;
+        out.epochs.push(o[0]);
         out.x.push(localISO(o[0], st.tz)); out.y.push(lane); out.hov.push(v);
         return;
       }
       if (vr === "t" || vr === "d") {
         if (v == null) return;
+        out.epochs.push(o[0]);
         out.x.push(localISO(o[0], st.tz));
         out.y.push(cToUnit(v));
         out.hov.push(o[3] != null && o[4] != null
@@ -559,6 +580,7 @@
         return;
       }
       // v / c — always push, null y = gap; hover carries the wx string
+      out.epochs.push(o[0]);
       out.x.push(localISO(o[0], st.tz));
       out.y.push(v == null ? null : (vr === "v" ? visToUnit(v) : ceilToUnit(v)));
       out.hov.push(o[7] || "");
@@ -669,10 +691,19 @@
       var el = document.createElement("div");
       el.className = "card" + (state.iso === i ? " sel" : state.iso !== null ? " dim" : "");
       el.style.setProperty("--dot", COLORS[i % COLORS.length]);
+      var repBadge = "";
+      if (st.reports && st.reports.length) {
+        var lr = st.reports[st.reports.length - 1];
+        var isSp = lr.type === "SPECI";
+        repBadge = '<span class="badge" title="' +
+          (lr.raw || "").replace(/"/g, "&quot;") + '" style="' +
+          (isSp ? "background:rgba(224,122,42,.15);color:#a05a12;border:1px solid rgba(224,122,42,.4)"
+                : "") + '">' + lr.type.toLowerCase() + " " + localHCompact(lr.e, st.tz) + "</span>";
+      }
       el.innerHTML =
         '<div class="row1"><span class="sid">' + st.id + "</span>" +
         '<span class="badge' + (st.cadence_min > 5 ? " hourly" : "") + '">' +
-        (st.cadence_min > 5 ? "hourly" : "5-min") + "</span></div>" +
+        (st.cadence_min > 5 ? "hourly" : "5-min") + "</span>" + repBadge + "</div>" +
         '<div class="name">' + st.name + "</div>" +
         '<div class="now">' + nowHtml + "</div>" +
         '<div class="mm">' + mmHtml + "</div>";
@@ -739,6 +770,35 @@
           hovertemplate: "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; gust %{y:.0f} " +
             WU_LABEL[state.wu] + "<extra></extra>"
         });
+      }
+      // Official METAR/SPECI report markers on the isolated station: a
+      // diamond at each transmitted report, orange for SPECI (weather
+      // changed enough to force a special), hover = the raw report.
+      if (state.iso === i && st.reports && st.reports.length && s.epochs.length) {
+        var rx = [], ry = [], rc = [], rt = [];
+        st.reports.forEach(function (r) {
+          var best = -1, bd = 1e9;
+          for (var q = 0; q < s.epochs.length; q++) {
+            var dd = Math.abs(s.epochs[q] - r.e);
+            if (dd < bd) { bd = dd; best = q; }
+          }
+          if (best < 0 || bd > 900 || s.y[best] == null) return;
+          rx.push(s.x[best]); ry.push(s.y[best]);
+          rc.push(r.type === "SPECI" ? "#e07a2a" : "#8a8578");
+          var raw = (r.raw || "").slice(0, 120).replace(/(.{60})/g, "$1<br>");
+          rt.push("<b>" + r.type + "</b> " + localHM(r.e, st.tz) + "<br>" + raw);
+        });
+        if (rx.length) {
+          traces.push({
+            x: rx, y: ry, text: rt,
+            name: st.id + " reports", legendgroup: st.id, showlegend: false,
+            mode: "markers",
+            marker: { size: 9, symbol: "diamond-open", color: rc,
+                      line: { width: 1.6 } },
+            visible: visibleFlag(i),
+            hovertemplate: "%{text}<extra></extra>"
+          });
+        }
       }
       var ex = isTemp ? sampledExtremes(st) : { hi: null, lo: null };
       if (ex.hi && ex.lo) {
@@ -858,7 +918,8 @@
           (isTemp ? " · ▲▼ today's sampled max/min" : "") +
           (vr === "t" ? " · open ▲▼ official 6-hr extremes where higher/lower" : "") +
           (vr === "w" ? " · each dot = a report with weather; lane = most significant type" : "") +
-          (vr === "k" ? " · line = sustained, ＋ = gusts (barbs in kt) · isolate a station for direction arrows" : ""),
+          (vr === "k" ? " · line = sustained, ＋ = gusts (barbs in kt) · isolate a station for direction arrows" : "") +
+          (state.iso != null && state.iso >= 0 ? " · ◇ official reports (orange = SPECI)" : ""),
         font: { family: "Lora, serif", size: 15 }, x: 0.02
       }
     };
