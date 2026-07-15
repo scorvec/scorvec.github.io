@@ -174,7 +174,7 @@ def _draw_box(ax, lat_rng, lon_rng, color="black", lw=1.1):
 # in latitude so the three overlapping equatorial regions read separately.
 # (lat of the ruler, lat of its label, label above the line?)
 _RULER_ROWS = {"nino4": (-6.6, -7.4, False), "nino3": (-6.6, -7.4, False),
-               "nino34": (-11.2, -12.0, False)}
+               "nino34": (6.6, 7.4, True)}
 
 
 def _draw_ruler(ax, lon0, lon1, lat, text, lab_lat, lab_above, fontsize=7.5):
@@ -363,7 +363,7 @@ def render_2panel_frame(field, la, lo, kind, title, out_path, annotation=None):
     anomaly product shows the ONI/tropical-mean/RONI readout on the tropical panel."""
     style = _kind_style(kind)
     isos = [26, 28, 30] if kind == "abs" else None
-    fig = plt.figure(figsize=(10.5, 8.2), dpi=88)
+    fig = plt.figure(figsize=(10.5, 8.2), dpi=125)
     gs = fig.add_gridspec(2, 1, height_ratios=[1, 1], hspace=0.10,
                           left=0.02, right=0.9, top=0.92, bottom=0.03)
     ax1 = fig.add_subplot(gs[0], projection=ccrs.PlateCarree(central_longitude=GLOBAL_CENTRAL_LON))
@@ -382,7 +382,7 @@ def render_2panel_frame(field, la, lo, kind, title, out_path, annotation=None):
     # defensive: a concurrent pipeline's `git reset --hard` can briefly remove the anim
     # dir mid-render — recreate it so the worker never dies with FileNotFoundError.
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=88, facecolor="white",
+    fig.savefig(out_path, dpi=125, facecolor="white",
                 pil_kwargs={"quality": 82, "method": 6})
     plt.close(fig)
 
