@@ -199,16 +199,29 @@ jobs:
           COMPACT='${{ steps.cycle.outputs.compact }}'
 
           # Heavy frame webp → force-pushed `synoptic-frames` ORPHAN branch (served via jsDelivr),
-          # kept OUT of main's history so the repo doesn't balloon. Build a parent-less commit from
-          # a throwaway index (no history kept), force-push, then purge the CDN edge.
+          # kept OUT of main's history so the repo doesn't balloon. Frames are placed under a
+          # CYCLE-STAMPED directory: jsDelivr ignores query strings and its purge API only takes
+          # exact file paths, so ?v= busting and root purges never actually refreshed the edges —
+          # users kept getting old-cycle frame bytes under a new-cycle manifest. A new path per
+          # cycle needs no purging at all: every cycle's URLs are brand new.
+          STAGE="$(mktemp -d)"
+          mkdir -p "$STAGE/$COMPACT"
+          for d in assets/synoptic/*/; do
+            v="$(basename "$d")"
+            [ -d "$d" ] || continue
+            find "$d" -name 'F*.webp' | grep -q . || continue
+            mkdir -p "$STAGE/$COMPACT/$v"
+            cp -R "$d". "$STAGE/$COMPACT/$v/"
+          done
           IDX="$(mktemp)"
-          GIT_INDEX_FILE="$IDX" git read-tree --empty
-          GIT_INDEX_FILE="$IDX" git add -f assets/synoptic          # -f: frame webp are gitignored on main
+          ( cd "$STAGE"
+            GIT_INDEX_FILE="$IDX" git --git-dir="${{ github.workspace }}/.git" --work-tree="$STAGE" read-tree --empty
+            GIT_INDEX_FILE="$IDX" git --git-dir="${{ github.workspace }}/.git" --work-tree="$STAGE" add -Af . )
           FTREE="$(GIT_INDEX_FILE="$IDX" git write-tree)"; rm -f "$IDX"
           FCOMMIT="$(git commit-tree "$FTREE" -m "synoptic frames ${COMPACT}")"
           git update-ref refs/heads/synoptic-frames "$FCOMMIT"
           git push -f origin synoptic-frames
-          curl -s "https://purge.jsdelivr.net/gh/scorvec/scorvec.github.io@synoptic-frames/" >/dev/null 2>&1 || true
+          rm -rf "$STAGE"
 
           # main gets only the small bits: manifests/json + viewer + renewables stamp. Frame webp
           # are gitignored, so `git add -A assets/synoptic/` never re-stages them into main.

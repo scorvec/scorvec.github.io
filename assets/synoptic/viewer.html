@@ -168,10 +168,11 @@ let playing = false;
 let playTimer = null;
 
 // Frame webp live on the force-pushed `synoptic-frames` orphan branch (kept out of main's
-// history to stop the repo ballooning) and are served via the jsDelivr CDN. Manifests +
-// metadata stay on main (fetched relative). ?v=<cycle> busts the browser cache; the pipeline
-// purges jsDelivr on each push so the CDN edge is fresh.
-const FRAME_CDN = 'https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@synoptic-frames/assets/synoptic/';
+// history to stop the repo ballooning) and are served via the jsDelivr CDN under a
+// CYCLE-STAMPED directory. jsDelivr ignores query strings and purges need exact file
+// paths, so ?v= busting could never refresh an edge — a new path per cycle can't be
+// stale by construction. Manifests + metadata stay on main (fetched relative).
+const FRAME_CDN = 'https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@synoptic-frames/';
 
 function setMessage(msg) {
   if (msg) {
@@ -187,7 +188,7 @@ function setMessage(msg) {
 function preloadFrames(varId, regionId, frames) {
   for (const f of frames) {
     const img = new Image();
-    img.src = FRAME_CDN + varId + '/' + regionId + '/' + f.file + '?v=' + ((manifest && manifest.cycle_compact) || '');
+    img.src = FRAME_CDN + ((manifest && manifest.cycle_compact) || '') + '/' + varId + '/' + regionId + '/' + f.file;
   }
 }
 
@@ -196,7 +197,7 @@ function updateFrame() {
   const frame = manifest.frames[currentIdx];
   const variable = variableEl.value;
   const region = regionEl.value;
-  frameEl.src = FRAME_CDN + variable + '/' + region + '/' + frame.file + '?v=' + ((manifest && manifest.cycle_compact) || '');
+  frameEl.src = FRAME_CDN + manifest.cycle_compact + '/' + variable + '/' + region + '/' + frame.file;
   let vtxt = 'F' + String(frame.fxx).padStart(2, '0') + ' · ' + frame.valid_label;
   if (manifest.cycle) {
     const cyc = new Date(manifest.cycle.replace(' ', 'T').replace('Z', ':00:00Z'));
