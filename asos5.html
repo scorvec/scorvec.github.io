@@ -206,7 +206,7 @@
   //   branch — the MADIS 0.1 °C 5-minute feed the (best-effort) Action pushes to the
   //            asos5-data branch; used only to refine precision where it overlaps.
   // `live` alone fully drives the page; `branch` is a bonus when it's fresh.
-  var state = { unit: "F", vr: "t", wu: "kt", iso: null, data: null,
+  var state = { unit: "F", vr: "t", wu: "kt", iso: null, data: null, currents: {},
                 live: {}, branch: window.ASOS5 || null, liveOK: false };
 
   // Display window: show the last WINDOW_H hours so today can be compared against
@@ -357,10 +357,42 @@
     // group so they bound the visible curve for every station.
     var daymm = dayFromShown(obs, sixhr, official, w0);
     var dp = localParts(m0 + 7200, meta.tz);
+    var reports = ((live && live.reports) || []).slice();
+    var cur = state.currents[meta.id];
+    if (cur && !reports.some(function (r) { return Math.abs(r.e - cur.e) < 90; })) {
+      reports.push({ e: cur.e, raw: cur.raw, type: cur.type });
+      reports.sort(function (a, b) { return a.e - b.e; });
+    }
     return { id: meta.id, name: meta.name, tz: meta.tz, cadence_min: cadence,
              day_local: dp.year + "-" + dp.month + "-" + dp.day,
              obs: obs, sixhr: sixhr, daymm: daymm, abs: computeAbs(obs, sixhr, m0),
-             reports: (live && live.reports) || [] };
+             reports: reports };
+  }
+
+  function repType(epoch) {
+    var mm = Math.floor(epoch / 60) % 60;
+    return mm >= 50 ? "METAR" : "SPECI";
+  }
+
+  // Real-time latest report per station from IEM (CORS-open; carries the raw
+  // METAR/SPECI within a minute or two of transmission — api.weather.gov
+  // attaches rawMessage 60-90 min late, so badges would otherwise lag).
+  function fetchCurrents() {
+    STATIONS.forEach(function (s) {
+      var sid3 = s.id === "KNYC" ? "NYC" : s.id.slice(1);
+      fetch("https://mesonet.agron.iastate.edu/api/1/currents.json?station=" + sid3,
+            { cache: "no-store" })
+        .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+        .then(function (j) {
+          var row = (j.data || []).filter(function (d) {
+            return /_ASOS$/.test(d.network || "") && d.raw;
+          })[0];
+          if (!row) return;
+          var e = Math.floor(new Date(row.utc_valid).getTime() / 1000);
+          state.currents[s.id] = { e: e, raw: row.raw, type: repType(e) };
+        })
+        .catch(function () { /* keep any prior current */ });
+    });
   }
 
   // fetch live obs for every station from api.weather.gov, then re-merge + render
@@ -388,21 +420,10 @@
           });
           obs.sort(function (a, b) { return a[0] - b[0]; });
           // Classify official reports: rawMessage rows are the transmitted
-          // METAR/SPECI products. The routine METAR lands at a fixed minute
-          // each hour (e.g. :54 at KBOS) — the station's modal report
-          // minute; anything at another minute is a SPECI.
-          if (reports.length) {
-            var mc = {};
-            reports.forEach(function (r) {
-              var mm = Math.floor(r.e / 60) % 60;
-              mc[mm] = (mc[mm] || 0) + 1;
-            });
-            var modal = +Object.keys(mc).sort(function (a, b) { return mc[b] - mc[a]; })[0];
-            reports.forEach(function (r) {
-              r.type = (Math.floor(r.e / 60) % 60) === modal ? "METAR" : "SPECI";
-            });
-            reports.sort(function (a, b) { return a.e - b.e; });
-          }
+          // METAR/SPECI products. US ASOS routine METARs always go out in
+          // the :50s of the hour; a report at any other minute is a SPECI.
+          reports.forEach(function (r) { r.type = repType(r.e); });
+          reports.sort(function (a, b) { return a.e - b.e; });
           var gaps = [];
           for (var k = Math.max(1, obs.length - 13); k < obs.length; k++)
             gaps.push((obs[k][0] - obs[k - 1][0]) / 60);
@@ -993,8 +1014,11 @@
   rebuild();                                   // first paint from the committed snapshot
   fetchLive();                                 // primary: live official NWS API
   fetchBranch();                               // overlay: MADIS precision when available
+  fetchCurrents();                             // real-time METAR/SPECI badges (IEM)
+  setTimeout(rebuild, 6000);                   // fold in the first currents batch
   setInterval(fetchLive, 3 * 60 * 1000);
   setInterval(fetchBranch, 5 * 60 * 1000);
+  setInterval(function () { fetchCurrents(); setTimeout(rebuild, 6000); }, 3 * 60 * 1000);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) fetchLive(); });
 })();
 </script>
