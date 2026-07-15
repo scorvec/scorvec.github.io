@@ -132,7 +132,10 @@
       <button data-u="F" class="on">&deg;F</button><button data-u="C">&deg;C</button>
     </span>
     <span class="seg" id="varSeg">
-      <button data-v="t" class="on">Temperature</button><button data-v="d">Dewpoint</button><button data-v="v">Visibility</button><button data-v="c">Ceiling</button><button data-v="w">Present Wx</button>
+      <button data-v="t" class="on">Temperature</button><button data-v="d">Dewpoint</button><button data-v="v">Visibility</button><button data-v="c">Ceiling</button><button data-v="w">Present Wx</button><button data-v="k">Wind</button>
+    </span>
+    <span class="seg" id="wuSeg" style="display:none">
+      <button data-w="kt" class="on">kt</button><button data-w="mph">mph</button><button data-w="kmh">km/h</button>
     </span>
     <span class="seg" id="allSeg">
       <button data-a="all" class="on">All stations</button><button data-a="none">None</button>
@@ -142,6 +145,10 @@
 
   <div class="cards" id="cards"></div>
   <div id="chart" style="height:560px"></div>
+  <div id="roseWrap" style="display:none;margin-top:.6rem">
+    <div id="roseHint" style="color:#888580;font-size:.85rem;padding:.4rem 0"></div>
+    <div id="rose" style="height:420px;max-width:560px;margin:0 auto"></div>
+  </div>
 
   <footer class="note">
     Primary source: the <a href="https://api.weather.gov/">official NWS API</a> (api.weather.gov), fetched directly in your
@@ -203,7 +210,7 @@
   //   branch — the MADIS 0.1 °C 5-minute feed the (best-effort) Action pushes to the
   //            asos5-data branch; used only to refine precision where it overlaps.
   // `live` alone fully drives the page; `branch` is a bonus when it's fresh.
-  var state = { unit: "F", vr: "t", iso: null, data: null,
+  var state = { unit: "F", vr: "t", wu: "kt", iso: null, data: null,
                 live: {}, branch: window.ASOS5 || null, liveOK: false };
 
   // Display window: show the last WINDOW_H hours so today can be compared against
@@ -244,13 +251,15 @@
     });
     var wx = (pr.presentWeather || []).map(function (w) { return w.rawString || ""; })
              .join(" ").trim() || null;
+    var gust = pr.windGust && pr.windGust.value;                  // km/h
     return [Math.floor(new Date(pr.timestamp).getTime() / 1000),
             Math.round(t * 100) / 100,
             d == null ? null : Math.round(d * 100) / 100,
             wd == null ? null : Math.round(wd),
             ws == null ? null : Math.round(ws * 0.539957 * 10) / 10,
             vis == null ? null : Math.round(vis / 1609.344 * 100) / 100,
-            ceil, wx];
+            ceil, wx,
+            gust == null ? null : Math.round(gust * 0.539957 * 10) / 10];
   }
 
   // official 6-hour max/min temp groups (1sTTT / 2sTTT) from a METAR remark
@@ -408,9 +417,26 @@
   function fmtT(c) { return c == null ? "&ndash;" : cToUnit(c).toFixed(1) + "&deg;" + state.unit; }
 
   // view registry: obs-array index + labels per data-v code
-  var VIDX = { t: 1, d: 2, v: 5, c: 6, w: 7 };
+  var VIDX = { t: 1, d: 2, v: 5, c: 6, w: 7, k: 4 };
   var VLABEL = { t: "Temperature", d: "Dewpoint", v: "Visibility",
-                 c: "Cloud ceiling", w: "Present weather" };
+                 c: "Cloud ceiling", w: "Present weather", k: "Wind" };
+  var WU_FACTOR = { kt: 1, mph: 1.15078, kmh: 1.852 };
+  var WU_LABEL = { kt: "kt", mph: "mph", kmh: "km/h" };
+  function wToUnit(kt) { return kt * WU_FACTOR[state.wu]; }
+  function fmtW(kt) {
+    return kt == null ? "&ndash;" : Math.round(wToUnit(kt)) + " " + WU_LABEL[state.wu];
+  }
+  var DIR16 = ["N","NNE","NE","ENE","E","ESE","SE","SSE",
+               "S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  function dirName(deg) {
+    return deg == null ? "" : DIR16[Math.round(deg / 22.5) % 16];
+  }
+  // arrow points where the wind blows TO (deg = direction it comes FROM)
+  function dirArrow(deg, size) {
+    if (deg == null) return "";
+    return '<span style="display:inline-block;transform:rotate(' + ((deg + 180) % 360) +
+      'deg);font-size:' + (size || 1) + 'em;line-height:1">&#8593;</span>';
+  }
   function visToUnit(mi) { return state.unit === "F" ? mi : mi * 1.609344; }
   function visUnit() { return state.unit === "F" ? "mi" : "km"; }
   function fmtVis(mi) {
@@ -481,6 +507,20 @@
   // w:   markers on category lanes; reports with no weather are skipped.
   function series(st) {
     var vr = state.vr, xi = VIDX[vr], out = { x: [], y: [], hov: [] };
+    if (vr === "k") {
+      out.g = []; out.dir = [];
+      st.obs.forEach(function (o) {
+        if (o[4] == null) return;
+        out.x.push(localISO(o[0], st.tz));
+        out.y.push(wToUnit(o[4]));
+        out.g.push(o[8] == null ? null : wToUnit(o[8]));
+        out.dir.push(o[3]);
+        out.hov.push((o[3] == null ? "" : Math.round(o[3]) + "° (" + dirName(o[3]) + ") ")
+                     + Math.round(wToUnit(o[4])) + " " + WU_LABEL[state.wu]
+                     + (o[8] != null ? " G " + Math.round(wToUnit(o[8])) : ""));
+      });
+      return out;
+    }
     st.obs.forEach(function (o) {
       var v = o[xi] === undefined ? null : o[xi];
       if (vr === "w") {
@@ -569,6 +609,28 @@
         mmHtml = '<span class="lo">&#9660; ' + (lo ? fmt(lo.v) : "&ndash;") +
           (lo ? "<small>" + localHM(lo.e, st.tz) + "</small>"
               : "<small>today</small>") + "</span>";
+      } else if (vr === "k") {
+        var cur = null;
+        for (var q = st.obs.length - 1; q >= 0; q--) {
+          if (st.obs[q][4] != null) { cur = st.obs[q]; break; }
+        }
+        nowHtml = cur
+          ? dirArrow(cur[3], 0.85) + " " + fmtW(cur[4]) +
+            (cur[8] != null ? ' <span style="font-size:.55em;color:#a05a12;white-space:nowrap">G&nbsp;' +
+              Math.round(wToUnit(cur[8])) + "</span>" : "") +
+            "<small>" + dirName(cur[3]) + " · " + localHM(cur[0], st.tz) + "</small>"
+          : "&ndash;";
+        var m0k = localMidnightEpoch(st.tz), mxS = null, mxG = null;
+        st.obs.forEach(function (o) {
+          if (o[0] < m0k) return;
+          if (o[4] != null && (!mxS || o[4] > mxS.v)) mxS = { v: o[4], e: o[0] };
+          if (o[8] != null && (!mxG || o[8] > mxG.v)) mxG = { v: o[8], e: o[0] };
+        });
+        mmHtml =
+          '<span class="hi">&#9650; ' + (mxS ? fmtW(mxS.v) : "&ndash;") +
+          (mxS ? "<small>" + localHM(mxS.e, st.tz) + "</small>" : "") + "</span>" +
+          '<span class="lo" style="color:#a05a12">G ' + (mxG ? fmtW(mxG.v) : "&mdash;") +
+          (mxG ? "<small>" + localHM(mxG.e, st.tz) + "</small>" : "") + "</span>";
       } else {                                            // present weather
         var wxNow = lastRec && lastRec[7] ? lastRec[7] : "none";
         nowHtml = '<span style="font-size:.72em">' + wxNow + "</span>" +
@@ -620,6 +682,17 @@
       } else {
         hovTpl = "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; %{customdata}<extra></extra>";
       }
+      var marker;
+      if (vr === "k" && state.iso === i) {
+        // direction arrows on the isolated station: point where the wind blows TO
+        marker = { color: color, size: 9, symbol: "arrow",
+                   angle: s.dir.map(function (d) { return d == null ? 0 : (d + 180) % 360; }),
+                   line: { color: "#fff", width: 0.5 } };
+      } else if (vr === "w") {
+        marker = { color: color, size: state.iso === i ? 8 : 5.5 };
+      } else {
+        marker = { color: color, size: state.iso === i ? 4.5 : 3 };
+      }
       traces.push({
         x: s.x,
         y: s.y,
@@ -629,12 +702,23 @@
         mode: vr === "w" ? "markers" : "lines+markers",
         line: { color: color, width: state.iso === i ? 2.6 : 1.4,
                 shape: (vr === "v" || vr === "c") ? "hv" : "linear" },
-        marker: { color: color, size: vr === "w" ? (state.iso === i ? 8 : 5.5)
-                                                 : (state.iso === i ? 4.5 : 3) },
+        marker: marker,
         connectgaps: false,
         visible: visibleFlag(i),
         hovertemplate: hovTpl
       });
+      if (vr === "k" && s.g && s.g.some(function (g) { return g != null; })) {
+        traces.push({
+          x: s.x, y: s.g, customdata: s.hov,
+          name: st.id + " gusts", legendgroup: st.id, showlegend: false,
+          mode: "markers",
+          marker: { color: color, size: state.iso === i ? 6 : 4, symbol: "cross-thin",
+                    line: { color: color, width: 1.2 } },
+          visible: visibleFlag(i),
+          hovertemplate: "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; gust %{y:.0f} " +
+            WU_LABEL[state.wu] + "<extra></extra>"
+        });
+      }
       var ex = isTemp ? sampledExtremes(st) : { hi: null, lo: null };
       if (ex.hi && ex.lo) {
         traces.push({
@@ -734,6 +818,10 @@
           title: { text: "Cloud ceiling (" + ceilUnit() + " AGL) — gaps = no ceiling",
                    font: { size: 11, color: "#888580" } },
           gridcolor: "#eeece6", zeroline: false, rangemode: "tozero" };
+        if (vr === "k") return {
+          title: { text: "Sustained wind / gusts (" + WU_LABEL[state.wu] + ")",
+                   font: { size: 11, color: "#888580" } },
+          gridcolor: "#eeece6", zeroline: false, rangemode: "tozero" };
         return {
           tickvals: WX_LANES.map(function (_, k) { return k; }),
           ticktext: WX_LANES, range: [-0.6, 7.6],
@@ -748,7 +836,8 @@
         text: vlabel + " — last " + WINDOW_H + " hours (today vs yesterday)" +
           (isTemp ? " · ▲▼ today's sampled max/min" : "") +
           (vr === "t" ? " · open ▲▼ official 6-hr extremes where higher/lower" : "") +
-          (vr === "w" ? " · each dot = a report with weather; lane = most significant type" : ""),
+          (vr === "w" ? " · each dot = a report with weather; lane = most significant type" : "") +
+          (vr === "k" ? " · line = sustained, ＋ = gusts · isolate a station for direction arrows + wind rose" : ""),
         font: { family: "Lora, serif", size: 15 }, x: 0.02
       }
     };
@@ -780,15 +869,92 @@
     }
   }
 
+  // Wind rose for the isolated station: 16 sectors x speed bins, frequency %
+  // of the shown-window reports. Classic barpolar stack, calm excluded from
+  // the petals but reported in the hint line.
+  var ROSE_BINS = [                                     // kt thresholds
+    { lo: 2, hi: 5,   color: "#c8d8e8" },
+    { lo: 5, hi: 10,  color: "#7fb3d8" },
+    { lo: 10, hi: 15, color: "#5cb854" },
+    { lo: 15, hi: 20, color: "#f9d34c" },
+    { lo: 20, hi: 1e9, color: "#e8542a" }
+  ];
+  function buildRose() {
+    var wrap = document.getElementById("roseWrap");
+    if (state.vr !== "k") { wrap.style.display = "none"; return; }
+    wrap.style.display = "block";
+    var hint = document.getElementById("roseHint");
+    if (state.iso == null || state.iso < 0) {
+      hint.textContent = "Click a station card to isolate it and see its wind rose for the shown window.";
+      Plotly.purge("rose");
+      document.getElementById("rose").style.display = "none";
+      return;
+    }
+    document.getElementById("rose").style.display = "";
+    var st = state.data.stations[state.iso];
+    var counts = ROSE_BINS.map(function () {
+      return DIR16.map(function () { return 0; });
+    });
+    var total = 0, calm = 0;
+    st.obs.forEach(function (o) {
+      if (o[4] == null) return;
+      total++;
+      if (o[4] < 2 || o[3] == null) { calm++; return; }
+      var sec = Math.round(o[3] / 22.5) % 16;
+      for (var b = 0; b < ROSE_BINS.length; b++) {
+        if (o[4] >= ROSE_BINS[b].lo && o[4] < ROSE_BINS[b].hi) {
+          counts[b][sec]++; break;
+        }
+      }
+    });
+    if (!total) {
+      hint.textContent = "No wind reports for " + st.id + " in the shown window.";
+      Plotly.purge("rose"); return;
+    }
+    var traces = ROSE_BINS.map(function (bin, b) {
+      var lab = bin.hi > 500
+        ? Math.round(wToUnit(bin.lo)) + "+ " + WU_LABEL[state.wu]
+        : Math.round(wToUnit(bin.lo)) + "–" + Math.round(wToUnit(bin.hi)) + " " + WU_LABEL[state.wu];
+      return {
+        type: "barpolar",
+        r: counts[b].map(function (c) { return 100 * c / total; }),
+        theta: DIR16,
+        name: lab,
+        marker: { color: bin.color, line: { color: "#fff", width: 0.5 } },
+        hovertemplate: "%{theta} · " + lab + " · %{r:.1f}%<extra></extra>"
+      };
+    });
+    hint.innerHTML = "<b>" + st.id + "</b> wind rose — direction the wind blows FROM, " +
+      "petal length = % of the last " + WINDOW_H + " h · calm (&lt;2 kt): " +
+      (100 * calm / total).toFixed(0) + "%";
+    Plotly.react("rose", traces, {
+      margin: { l: 30, r: 30, t: 20, b: 20 },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      font: { family: "Inter, sans-serif", size: 11, color: "#1c1c1a" },
+      legend: { orientation: "h", y: -0.12, font: { size: 10.5 } },
+      polar: {
+        bgcolor: "rgba(0,0,0,0)",
+        barmode: "stack",
+        angularaxis: { direction: "clockwise", rotation: 90,
+                       categoryorder: "array", categoryarray: DIR16 },
+        radialaxis: { ticksuffix: "%", angle: 45, gridcolor: "#eeece6",
+                      tickfont: { size: 9.5 } }
+      },
+      barmode: "stack"
+    }, { responsive: true, displayModeBar: false });
+  }
+
   function render() {
     if (!state.data || !state.data.stations) {
       document.getElementById("subline").textContent =
         "No data found — run scripts/asos5/asos5_update.py to generate data/asos5/asos5_latest.js.";
       return;
     }
+    document.getElementById("wuSeg").style.display = state.vr === "k" ? "" : "none";
     buildSub();
     buildCards();
     buildChart();
+    buildRose();
   }
 
   function segWire(id, key, cb) {
@@ -804,6 +970,7 @@
   segWire("unitSeg", "u", function (u) { state.unit = u; render(); });
   segWire("varSeg", "v", function (v) { state.vr = v; render(); });
   segWire("allSeg", "a", function (a) { state.iso = null; if (a === "none") state.iso = -1; render(); });
+  segWire("wuSeg", "w", function (w) { state.wu = w; render(); });
 
   // Precision overlay: the MADIS 0.1 °C 5-min feed the Action pushes to the
   // asos5-data branch (raw.githubusercontent.com serves it CORS-open). Best-effort

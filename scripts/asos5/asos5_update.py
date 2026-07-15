@@ -99,9 +99,10 @@ def parse_hfmetar(nc_bytes):
     """Extract our stations from one hourly HFMETAR file.
 
     Returns {station_id: {epoch_s:
-        [tempC, dewC, wdir_deg, wspd_kt, vis_mi, ceil_ft, wx]}}.
+        [tempC, dewC, wdir_deg, wspd_kt, vis_mi, ceil_ft, wx, gust_kt]}}.
     vis_mi = statute miles; ceil_ft = lowest BKN/OVC/VV layer base (ft AGL,
-    None = no ceiling); wx = METAR present-weather string (None = none).
+    None = no ceiling); wx = METAR present-weather string (None = none);
+    gust_kt = wind gust (None = no gust reported).
     """
     out = {sid: {} for sid in HF_IDS}
     with tempfile.NamedTemporaryFile(suffix=".nc") as tf:
@@ -128,6 +129,8 @@ def parse_hfmetar(nc_bytes):
             base = np.ma.filled(ds.variables["skyCovLayerBase"][:][idx], np.nan)
             pw_raw = np.ma.filled(ds.variables["presWx"][:][idx], b" ")
             pw = pw_raw.astype("S1").view(f"S{pw_raw.shape[1]}").ravel()
+            gust = np.ma.filled(ds.variables["windGust"][:][idx], np.nan)  # m/s
+            gdd = char_var(ds, "windGustDD", 1)[idx]
             for k in range(len(idx)):
                 if not np.isfinite(obst[k]) or not np.isfinite(temp[k]):
                     continue
@@ -156,6 +159,9 @@ def parse_hfmetar(nc_bytes):
                     vis_mi,
                     ceil_ft,
                     wx,
+                    (round(float(gust[k]) * 1.94384, 1)
+                     if np.isfinite(gust[k]) and gdd[k] not in BAD_DD
+                     and 0 < gust[k] < 120 else None),
                 ]
                 out[ids[idx[k]]][int(obst[k])] = rec
         finally:
@@ -210,6 +216,7 @@ def fetch_nws_hourly(sid, start_utc):
                 ceil_ft = ft if ceil_ft is None else min(ceil_ft, ft)
         wx = " ".join(w.get("rawString") or "" for w in
                       (p.get("presentWeather") or [])).strip() or None
+        gust = (p.get("windGust") or {}).get("value")  # km/h
         obs[epoch] = [
             round(float(t["value"]), 2),
             round(float(dew), 2) if dew is not None else None,
@@ -218,6 +225,7 @@ def fetch_nws_hourly(sid, start_utc):
             round(float(vis) / 1609.344, 2) if vis is not None else None,
             ceil_ft,
             wx,
+            round(float(gust) * 0.539957, 1) if gust is not None else None,
         ]
     return obs
 
@@ -376,7 +384,7 @@ def main():
             "abs": absolutes(recs, groups, m0),
             "sixhr": [g for g in groups if g[0] > m0],
             "daymm": daymm.get(sid),   # official 24-hour max/min ({max,min,e} °C) or None
-            "obs": obs,  # [epoch_s, tempC, dewC, wdir_deg, wspd_kt, vis_mi, ceil_ft, wx]
+            "obs": obs,  # [epoch_s, tempC, dewC, wdir_deg, wspd_kt, vis_mi, ceil_ft, wx, gust_kt]
         })
         print(f"  {sid}: {len(obs):3d} obs in last {WINDOW_H}h, "
               f"{len([g for g in groups if g[0] > m0]):d} 6-h groups today ({label})")
