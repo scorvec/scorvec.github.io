@@ -3,310 +3,315 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HRRR Synoptic Map Viewer</title>
+<title>HRRR Surface Maps</title>
 <style>
   :root {
-    --bg: #0f0f0d;
-    --fg: #f0ebe0;
-    --muted: #999088;
-    --accent: #f6c453;
-    --panel: #1a1a17;
-    --border: #2a2a25;
+    --bg: #0f0f0d; --panel: #1a1a17; --border: #2a2a25;
+    --fg: #f0ebe0; --muted: #999088; --accent: #f6c453;
+    --ok: #57d9a3; --warn: #e8a54b; --bad: #e05c5c;
   }
   * { box-sizing: border-box; }
   html, body {
-    margin: 0; padding: 0;
-    background: var(--bg);
-    color: var(--fg);
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--fg);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    height: 100%;
-    overflow: hidden;
   }
   body { display: flex; flex-direction: column; }
-  #frame-wrap {
-    flex: 1 1 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    background: var(--bg);
-    min-height: 0;
-  }
-  #frame { width: 100%; height: 100%; object-fit: contain; }
-  #message { color: var(--muted); text-align: center; padding: 2rem; }
-  #controls {
-    flex: 0 0 auto;
-    border-top: 1px solid var(--border);
-    background: var(--panel);
-    padding: 0.6rem 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-  }
-  .row { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
-  .row.transport { gap: 0.4rem; }
-  button {
-    background: var(--panel); color: var(--fg);
-    border: 1px solid var(--border);
-    padding: 0.35rem 0.6rem; border-radius: 4px;
-    cursor: pointer; font-size: 0.85rem; font-family: inherit;
-    min-height: 38px; min-width: 38px;
-  }
-  button:hover { border-color: var(--accent); }
-  button.play {
-    background: var(--accent); color: var(--bg);
-    border-color: var(--accent); font-weight: 600; min-width: 3rem;
-  }
-  select {
-    background: var(--panel); color: var(--fg);
-    border: 1px solid var(--border);
-    padding: 0.35rem 0.6rem; border-radius: 4px;
-    font-size: 0.85rem; font-family: inherit; cursor: pointer;
-    min-height: 38px;
-  }
-  select:focus { outline: 1px solid var(--accent); }
-  input[type=range] {
-    flex: 1; min-width: 120px;
-    -webkit-appearance: none; appearance: none;
-    height: 4px; background: var(--border);
-    border-radius: 2px; cursor: pointer;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none;
-    width: 18px; height: 18px;
-    background: var(--accent);
-    border-radius: 50%; cursor: pointer;
-  }
-  input[type=range]::-moz-range-thumb {
-    width: 18px; height: 18px;
-    background: var(--accent);
-    border-radius: 50%; cursor: pointer; border: none;
-  }
-  .label { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; }
-  .valid { color: var(--fg); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
-  .help { color: var(--muted); font-size: 0.7rem; }
-  .help kbd {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 3px; padding: 0 4px;
-    font-family: monospace; font-size: 0.7rem;
-  }
 
-  /* MOBILE: stack controls, hide keyboard hints, larger touch targets */
-  @media (max-width: 640px) {
-    #controls { padding: 0.5rem 0.6rem; gap: 0.45rem; }
-    .row { gap: 0.5rem; }
-    .row.transport { gap: 0.3rem; justify-content: center; }
-    .row.selectors { justify-content: center; }
-    .help { display: none; }            /* keyboard hints irrelevant on touch */
-    .valid {
-      width: 100%; text-align: center;
-      font-size: 0.85rem; order: -1;     /* show valid time above controls */
-    }
-    select { flex: 1; min-width: 0; }    /* dropdowns fill the row evenly */
-    .label { display: none; }            /* save space; dropdowns self-evident */
-    button { padding: 0.45rem 0.55rem; }
-    #speed { flex: 0 0 auto; }
+  /* ── header: what am I looking at ─────────────────────────────── */
+  #head {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 14px;
+    flex-wrap: wrap; padding: 10px 16px 8px;
+    border-bottom: 1px solid var(--border); background: var(--panel);
   }
-  @media (max-width: 380px) {
-    button { min-width: 34px; min-height: 34px; padding: 0.4rem 0.4rem; }
-    button.play { min-width: 2.6rem; }
+  #head h1 { font-size: 16px; font-weight: 600; margin: 0; letter-spacing: 0.01em; }
+  #run {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 13px; color: var(--fg);
+  }
+  #run .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  #run.ok .dot { background: var(--ok); }
+  #run.warn .dot { background: var(--warn); }
+  #run.bad .dot { background: var(--bad); }
+  #run small { color: var(--muted); }
+
+  /* ── pill rows: variable + region ──────────────────────────────── */
+  #pills { flex: 0 0 auto; padding: 8px 16px 2px; background: var(--panel); }
+  .prow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; align-items: center; }
+  .prow .lbl {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--muted); min-width: 58px;
+  }
+  .pill {
+    border: 1px solid var(--border); background: transparent; color: var(--muted);
+    border-radius: 999px; padding: 5px 13px; font-size: 12.5px; cursor: pointer;
+    font-family: inherit; line-height: 1.2;
+  }
+  .pill:hover { border-color: var(--accent); color: var(--fg); }
+  .pill.on { background: var(--accent); border-color: var(--accent); color: #221a05; font-weight: 600; }
+
+  /* ── map area ──────────────────────────────────────────────────── */
+  #stage {
+    flex: 1 1 auto; min-height: 0; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg);
+  }
+  #frame { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+  #overlay {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center; text-align: center;
+    color: var(--muted); font-size: 14px; padding: 2rem;
+    background: rgba(15,15,13,0.75);
+  }
+  #overlay.err { color: var(--bad); }
+
+  /* ── transport ─────────────────────────────────────────────────── */
+  #bar {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px 10px; border-top: 1px solid var(--border);
+    background: var(--panel); flex-wrap: wrap;
+  }
+  button.t {
+    background: transparent; color: var(--fg); border: 1px solid var(--border);
+    border-radius: 6px; min-width: 38px; min-height: 34px; cursor: pointer;
+    font-size: 14px; font-family: inherit;
+  }
+  button.t:hover { border-color: var(--accent); }
+  button.t.play { background: var(--accent); color: #221a05; border-color: var(--accent); font-weight: 700; min-width: 46px; }
+  #scrub { flex: 1 1 160px; min-width: 120px; accent-color: var(--accent); height: 22px; cursor: pointer; }
+  #valid { font-size: 13.5px; font-variant-numeric: tabular-nums; min-width: 170px; }
+  #valid b { color: var(--accent); }
+  select {
+    background: var(--panel); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 6px; font-size: 12.5px; font-family: inherit; cursor: pointer;
+  }
+  .help { color: var(--muted); font-size: 11px; margin-left: auto; }
+  .help kbd { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; font-size: 10.5px; }
+  @media (max-width: 640px) {
+    .help { display: none; }
+    #valid { min-width: 0; width: 100%; text-align: center; order: -1; }
+    .prow .lbl { display: none; }
   }
 </style>
 </head>
 <body>
 
-<div id="frame-wrap">
-  <img id="frame" alt="">
-  <div id="message" style="display: none;">Loading...</div>
+<div id="head">
+  <h1>HRRR Surface Maps</h1>
+  <span id="run"><span class="dot"></span><span id="runTxt">loading run…</span></span>
 </div>
 
-<div id="controls">
-  <div class="row transport">
-    <button id="rewind" title="First (Home)">⏮</button>
-    <button id="back" title="Step back (←)">◀</button>
-    <button id="play" class="play" title="Play/Pause (Space)">▶</button>
-    <button id="fwd" title="Step forward (→)">▶</button>
-    <button id="end" title="Last (End)">⏭</button>
-    <input id="scrubber" type="range" min="0" max="48" value="0" step="1">
-    <select id="speed" title="Playback speed">
-      <option value="2000">0.5x</option>
-      <option value="1000" selected>1x</option>
-      <option value="500">2x</option>
-      <option value="250">4x</option>
-      <option value="125">8x</option>
-    </select>
-  </div>
-  <div class="row selectors">
-    <span class="label">Variable:</span>
-    <select id="variable"></select>
-    <span class="label" style="margin-left: 0.5rem;">Region:</span>
-    <select id="region"></select>
-    <span class="label" style="margin-left: 0.5rem;">—</span>
-    <span class="valid" id="valid">—</span>
-    <span class="help" style="margin-left: auto;">
-      <kbd>←</kbd> <kbd>→</kbd> step ·
-      <kbd>Space</kbd> play ·
-      <kbd>Home</kbd> <kbd>End</kbd> jump
-    </span>
-  </div>
+<div id="pills">
+  <div class="prow" id="varRow"><span class="lbl">Variable</span></div>
+  <div class="prow" id="regRow"><span class="lbl">Region</span></div>
+</div>
+
+<div id="stage">
+  <img id="frame" alt="HRRR map frame">
+  <div id="overlay"></div>
+</div>
+
+<div id="bar">
+  <button class="t" id="first" title="First (Home)">⏮</button>
+  <button class="t" id="prev" title="Back (←)">◀</button>
+  <button class="t play" id="play" title="Play/Pause (Space)">▶</button>
+  <button class="t" id="next" title="Forward (→)">▶</button>
+  <button class="t" id="last" title="Last (End)">⏭</button>
+  <input id="scrub" type="range" min="0" max="48" value="0" step="1">
+  <select id="speed">
+    <option value="1400">0.5×</option>
+    <option value="700" selected>1×</option>
+    <option value="350">2×</option>
+    <option value="175">4×</option>
+  </select>
+  <span id="valid">—</span>
+  <span class="help"><kbd>←</kbd><kbd>→</kbd> step · <kbd>Space</kbd> play · <kbd>Home</kbd><kbd>End</kbd> jump</span>
 </div>
 
 <script>
-const frameEl = document.getElementById('frame');
-const messageEl = document.getElementById('message');
-const variableEl = document.getElementById('variable');
-const regionEl = document.getElementById('region');
-const validEl = document.getElementById('valid');
-const scrubberEl = document.getElementById('scrubber');
-const playBtn = document.getElementById('play');
-const speedEl = document.getElementById('speed');
+(function () {
+"use strict";
 
-let manifest = null;
-let currentIdx = 0;
-let playing = false;
-let playTimer = null;
+/* Design rules learned the hard way:
+   1. Frames live on the synoptic-frames branch under a CYCLE-STAMPED path
+      (<cycle>/<var>/<region>/F##.webp) — new run, new URLs, so no CDN edge
+      can ever serve an old cycle under a new name.
+   2. Every frame loads with an onerror FALLBACK HOST chain
+      (jsDelivr → raw.githubusercontent). If both fail we show an explicit
+      error — never a silently wrong or stale map.
+   3. The header always states the run and its age. If the shown run is old,
+      the dot goes amber and says so. The manifest re-checks every 4 minutes
+      and on tab focus, so long-lived tabs advance to new runs by themselves. */
 
-// Frame webp live on the force-pushed `synoptic-frames` orphan branch (kept out of main's
-// history to stop the repo ballooning) and are served via the jsDelivr CDN. Manifests +
-// metadata stay on main (fetched relative). ?v=<cycle> busts the browser cache; the pipeline
-// purges jsDelivr on each push so the CDN edge is fresh.
-const FRAME_CDN = 'https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@synoptic-frames/assets/synoptic/';
+var HOSTS = [
+  "https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@synoptic-frames/",
+  "https://raw.githubusercontent.com/scorvec/scorvec.github.io/synoptic-frames/"
+];
 
-function setMessage(msg) {
-  if (msg) {
-    messageEl.textContent = msg;
-    messageEl.style.display = 'block';
-    frameEl.style.display = 'none';
-  } else {
-    messageEl.style.display = 'none';
-    frameEl.style.display = '';
-  }
+var state = {
+  vars: [], regs: [],
+  v: localStorage.getItem("hrrr_v") || null,
+  r: localStorage.getItem("hrrr_r") || null,
+  manifest: null, idx: 0, playing: null
+};
+
+var frameEl = document.getElementById("frame");
+var overlay = document.getElementById("overlay");
+var scrub = document.getElementById("scrub");
+var validEl = document.getElementById("valid");
+var playBtn = document.getElementById("play");
+
+function msg(text, isErr) {
+  if (!text) { overlay.style.display = "none"; return; }
+  overlay.textContent = text;
+  overlay.className = isErr ? "err" : "";
+  overlay.style.display = "flex";
 }
 
-function preloadFrames(varId, regionId, frames) {
-  for (const f of frames) {
-    const img = new Image();
-    img.src = FRAME_CDN + varId + '/' + regionId + '/' + f.file + '?v=' + ((manifest && manifest.cycle_compact) || '');
-  }
+/* ── run indicator ────────────────────────────────────────────────── */
+function setRun() {
+  var m = state.manifest, el = document.getElementById("run");
+  var tx = document.getElementById("runTxt");
+  if (!m) { el.className = ""; tx.textContent = "loading run…"; return; }
+  var cyc = new Date(m.cycle.replace(" ", "T").replace("Z", ":00:00Z"));
+  var ageH = (Date.now() - cyc.getTime()) / 3600e3;
+  var age = ageH < 1.5 ? Math.round(ageH * 60) + " min ago"
+                       : ageH.toFixed(1).replace(/\.0$/, "") + " h ago";
+  tx.innerHTML = "Run: <b>" + m.cycle + "</b> · initialized " + age;
+  el.className = ageH > 9 ? "warn" : "ok";
+  if (ageH > 9) tx.innerHTML += " · newer run should arrive soon";
 }
 
-function updateFrame() {
-  if (!manifest || !manifest.frames.length) return;
-  const frame = manifest.frames[currentIdx];
-  const variable = variableEl.value;
-  const region = regionEl.value;
-  frameEl.src = FRAME_CDN + variable + '/' + region + '/' + frame.file + '?v=' + ((manifest && manifest.cycle_compact) || '');
-  validEl.textContent = 'F' + String(frame.fxx).padStart(2, '0') + ' · ' + frame.valid_label;
-  scrubberEl.value = currentIdx;
+/* ── frame display with host fallback ─────────────────────────────── */
+function frameURL(host, f) {
+  return host + state.manifest.cycle_compact + "/" + state.v + "/" + state.r + "/" + f;
+}
+function showFrame() {
+  var m = state.manifest;
+  if (!m || !m.frames.length) return;
+  var fr = m.frames[state.idx];
+  scrub.value = state.idx;
+  validEl.innerHTML = "<b>F" + String(fr.fxx).padStart(2, "0") + "</b> · " + fr.valid_label;
+  var tryHost = 0;
+  frameEl.onerror = function () {
+    tryHost++;
+    if (tryHost < HOSTS.length) { frameEl.src = frameURL(HOSTS[tryHost], fr.file); return; }
+    msg("This frame isn't available from any host right now — the render may still be publishing. It retries automatically.", true);
+  };
+  frameEl.onload = function () { msg(null); };
+  frameEl.src = frameURL(HOSTS[0], fr.file);
+}
+function preload() {
+  var m = state.manifest;
+  if (!m) return;
+  m.frames.forEach(function (f) { (new Image()).src = frameURL(HOSTS[0], f.file); });
 }
 
-function step(delta) {
-  if (!manifest) return;
-  currentIdx = Math.max(0, Math.min(manifest.frames.length - 1, currentIdx + delta));
-  updateFrame();
+/* ── manifest ─────────────────────────────────────────────────────── */
+function loadManifest(quiet) {
+  if (!quiet) msg("Loading " + state.v + " · " + state.r + "…");
+  return fetch(state.v + "/" + state.r + "/manifest.json?t=" + Date.now(), { cache: "no-store" })
+    .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(function (m) {
+      var newCycle = !state.manifest || state.manifest.cycle_compact !== m.cycle_compact;
+      var switched = !state.manifest || true;
+      state.manifest = m;
+      scrub.max = m.frames.length - 1;
+      if (state.idx >= m.frames.length) state.idx = 0;
+      setRun();
+      showFrame();
+      if (newCycle) preload();
+    })
+    .catch(function (e) {
+      if (!quiet) msg("Couldn't load the frame list (" + e.message + "). Retrying shortly…", true);
+    });
 }
 
-function jumpTo(idx) {
-  if (!manifest) return;
-  currentIdx = Math.max(0, Math.min(manifest.frames.length - 1, idx));
-  updateFrame();
-}
+/* long-lived tabs: re-check for a new run every 4 min and on focus */
+setInterval(function () { loadManifest(true); }, 4 * 60 * 1000);
+document.addEventListener("visibilitychange", function () {
+  if (!document.hidden) loadManifest(true);
+});
 
-function setPlaying(on) {
-  playing = on;
-  playBtn.textContent = on ? '⏸' : '▶';
-  if (playTimer) clearInterval(playTimer);
+/* ── transport ────────────────────────────────────────────────────── */
+function step(d) {
+  var n = state.manifest ? state.manifest.frames.length : 0;
+  if (!n) return;
+  state.idx = Math.max(0, Math.min(n - 1, state.idx + d));
+  showFrame();
+}
+function jump(i) {
+  var n = state.manifest ? state.manifest.frames.length : 0;
+  if (!n) return;
+  state.idx = Math.max(0, Math.min(n - 1, i));
+  showFrame();
+}
+function setPlay(on) {
+  if (state.playing) { clearInterval(state.playing); state.playing = null; }
+  playBtn.textContent = on ? "⏸" : "▶";
   if (on) {
-    const ms = parseInt(speedEl.value, 10);
-    playTimer = setInterval(() => {
-      if (!manifest) return;
-      currentIdx = (currentIdx + 1) % manifest.frames.length;
-      updateFrame();
-    }, ms);
+    state.playing = setInterval(function () {
+      var n = state.manifest.frames.length;
+      state.idx = (state.idx + 1) % n;
+      showFrame();
+    }, +document.getElementById("speed").value);
   }
 }
+document.getElementById("first").onclick = function () { jump(0); };
+document.getElementById("prev").onclick = function () { step(-1); };
+document.getElementById("next").onclick = function () { step(1); };
+document.getElementById("last").onclick = function () { jump(1e9); };
+playBtn.onclick = function () { setPlay(!state.playing); };
+document.getElementById("speed").onchange = function () { if (state.playing) setPlay(true); };
+scrub.oninput = function () { jump(+scrub.value); };
+document.addEventListener("keydown", function (e) {
+  if (/SELECT|INPUT/.test(e.target.tagName)) return;
+  if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); step(1); }
+  else if (e.key === "Home") { e.preventDefault(); jump(0); }
+  else if (e.key === "End") { e.preventDefault(); jump(1e9); }
+  else if (e.key === " ") { e.preventDefault(); setPlay(!state.playing); }
+});
 
-async function loadCurrent() {
-  const variable = variableEl.value;
-  const region = regionEl.value;
-  setMessage('Loading ' + variable + ' · ' + region + '...');
-  try {
-    const res = await fetch(variable + '/' + region + '/manifest.json?t=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    manifest = await res.json();
-    if (!manifest.frames || !manifest.frames.length) {
-      setMessage('No frames for ' + variable + ' · ' + region);
-      return;
-    }
-    scrubberEl.max = manifest.frames.length - 1;
-    if (currentIdx >= manifest.frames.length) currentIdx = 0;
-    setMessage('');
-    updateFrame();
-    preloadFrames(variable, region, manifest.frames);
-  } catch (e) {
-    setMessage('Could not load ' + region + ': ' + e);
-  }
-}
-
-async function init() {
-  try {
-    const [varsRes, regsRes] = await Promise.all([
-      fetch('variables.json'),
-      fetch('regions.json'),
-    ]);
-    if (!varsRes.ok) throw new Error('variables.json: ' + varsRes.status);
-    if (!regsRes.ok) throw new Error('regions.json: ' + regsRes.status);
-    const varsData = await varsRes.json();
-    const regsData = await regsRes.json();
-
-    let defaultVar = null;
-    for (const v of varsData.variables) {
-      const opt = document.createElement('option');
-      opt.value = v.id;
-      opt.textContent = v.label;
-      variableEl.appendChild(opt);
-      if (v.default) defaultVar = v.id;
-    }
-    if (defaultVar) variableEl.value = defaultVar;
-
-    let defaultRegion = null;
-    for (const r of regsData.regions) {
-      const opt = document.createElement('option');
-      opt.value = r.id;
-      opt.textContent = r.label;
-      regionEl.appendChild(opt);
-      if (r.default) defaultRegion = r.id;
-    }
-    if (defaultRegion) regionEl.value = defaultRegion;
-  } catch (e) {
-    setMessage('Could not load metadata: ' + e);
-    return;
-  }
-
-  variableEl.addEventListener('change', loadCurrent);
-  regionEl.addEventListener('change', loadCurrent);
-  scrubberEl.addEventListener('input', (e) => jumpTo(parseInt(e.target.value, 10)));
-  document.getElementById('rewind').addEventListener('click', () => jumpTo(0));
-  document.getElementById('back').addEventListener('click', () => step(-1));
-  document.getElementById('fwd').addEventListener('click', () => step(1));
-  document.getElementById('end').addEventListener('click', () => jumpTo(manifest ? manifest.frames.length - 1 : 0));
-  playBtn.addEventListener('click', () => setPlaying(!playing));
-  speedEl.addEventListener('change', () => { if (playing) setPlaying(true); });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); step(-1); }
-    else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
-    else if (e.key === 'Home')   { e.preventDefault(); jumpTo(0); }
-    else if (e.key === 'End')    { e.preventDefault(); jumpTo(manifest ? manifest.frames.length - 1 : 0); }
-    else if (e.key === ' ')      { e.preventDefault(); setPlaying(!playing); }
+/* ── pills ────────────────────────────────────────────────────────── */
+function buildPills(rowId, items, cur, cb) {
+  var row = document.getElementById(rowId);
+  row.querySelectorAll(".pill").forEach(function (b) { b.remove(); });
+  items.forEach(function (it) {
+    var b = document.createElement("button");
+    b.className = "pill" + (it.id === cur ? " on" : "");
+    b.textContent = it.label;
+    b.onclick = function () {
+      row.querySelectorAll(".pill").forEach(function (x) { x.classList.remove("on"); });
+      b.classList.add("on");
+      cb(it.id);
+    };
+    row.appendChild(b);
   });
-
-  await loadCurrent();
 }
 
-init();
+function selectVar(id) { state.v = id; localStorage.setItem("hrrr_v", id); loadManifest(); }
+function selectReg(id) { state.r = id; localStorage.setItem("hrrr_r", id); loadManifest(); }
+
+/* ── boot ─────────────────────────────────────────────────────────── */
+Promise.all([
+  fetch("variables.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.json(); }),
+  fetch("regions.json?t=" + Date.now(), { cache: "no-store" }).then(function (r) { return r.json(); })
+]).then(function (res) {
+  state.vars = res[0].variables;
+  state.regs = res[1].regions;
+  if (!state.vars.some(function (v) { return v.id === state.v; }))
+    state.v = (state.vars.filter(function (v) { return v.default; })[0] || state.vars[0]).id;
+  if (!state.regs.some(function (r) { return r.id === state.r; }))
+    state.r = (state.regs.filter(function (r) { return r.default; })[0] || state.regs[0]).id;
+  buildPills("varRow", state.vars, state.v, selectVar);
+  buildPills("regRow", state.regs, state.r, selectReg);
+  loadManifest();
+}).catch(function (e) {
+  msg("Couldn't load page metadata: " + e.message, true);
+});
+
+})();
 </script>
 </body>
 </html>
