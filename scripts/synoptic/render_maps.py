@@ -813,8 +813,8 @@ def _overlay_point_values(ax, values, grid_lats, grid_lons, region, fmt="%.0f"):
     stops being colour-only and starts answering "what's the number HERE".
     Nearest-gridpoint sampling on a strided copy keeps it O(lattice)."""
     import matplotlib.patheffects as mpe
-    halo = [mpe.withStroke(linewidth=1.6, foreground="white")]
-    fs = 5.0 if region.id == "national" else 6.0
+    halo = [mpe.withStroke(linewidth=0.9, foreground="white")]
+    fs = 2.8 if region.id == "national" else 3.2
     for lo, la, j, i in _point_lattice(grid_lats, grid_lons, region):
         v = values[j, i]
         if not np.isfinite(v):

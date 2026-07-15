@@ -342,6 +342,27 @@
       cadence = live.cadence_min;
       live.obs.forEach(function (o) { if (o[0] < w0) return; var k = Math.round(o[0] / 60); if (byMin[k] == null) byMin[k] = o; });
     }
+    // Official METAR/SPECI reports ARE observations — and IEM delivers them
+    // 20-50 min before the 5-min feeds catch up, so fold their parsed
+    // values into the stream wherever no ob exists for that minute. This
+    // keeps the "current" reading, the trace end, and today's extremes on
+    // the freshest real data (a storm's SPECI temperature crash shows up
+    // immediately, not half an hour later).
+    var repList = ((live && live.reports) || []).slice();
+    (state.currents[meta.id] || []).forEach(function (cur) {
+      if (!repList.some(function (r) { return Math.abs(r.e - cur.e) < 90; }))
+        repList.push({ e: cur.e, raw: cur.raw, type: cur.type });
+    });
+    repList.sort(function (a, b) { return a.e - b.e; });
+    repList.forEach(function (r) {
+      if (r.e < w0) return;
+      var k = Math.round(r.e / 60);
+      if (byMin[k] != null) return;
+      var mv = metarVals(r.raw);
+      if (mv.t == null && mv.wspd == null && mv.vis == null) return;
+      byMin[k] = [r.e, mv.t, mv.d, mv.wdir, mv.wspd, mv.vis, mv.ceil, mv.wx,
+                  mv.gust];
+    });
     var obs = Object.keys(byMin).map(function (k) { return byMin[k]; })
                     .sort(function (a, b) { return a[0] - b[0]; });
     var groups = {};
@@ -357,13 +378,7 @@
     // group so they bound the visible curve for every station.
     var daymm = dayFromShown(obs, sixhr, official, w0);
     var dp = localParts(m0 + 7200, meta.tz);
-    var reports = ((live && live.reports) || []).slice();
-    (state.currents[meta.id] || []).forEach(function (cur) {
-      if (!reports.some(function (r) { return Math.abs(r.e - cur.e) < 90; })) {
-        reports.push({ e: cur.e, raw: cur.raw, type: cur.type });
-      }
-    });
-    reports.sort(function (a, b) { return a.e - b.e; });
+    var reports = repList;
     return { id: meta.id, name: meta.name, tz: meta.tz, cadence_min: cadence,
              day_local: dp.year + "-" + dp.month + "-" + dp.day,
              obs: obs, sixhr: sixhr, daymm: daymm, abs: computeAbs(obs, sixhr, m0),
