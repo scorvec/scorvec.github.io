@@ -5,7 +5,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="canonical" href="https://scorvec.com/asos5.html">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>US Airport 5-Minute Temperatures &middot; Shawn Corvec</title>
+<title>US Airport 5-Minute Observations &middot; Shawn Corvec</title>
 <meta name="description" content="Live 5-minute ASOS temperature observations for major US airports from official NWS/MADIS sources, with running daily max/min.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
@@ -123,7 +123,7 @@
 </header>
 
 <main>
-  <h1>US Airport 5-Minute Temperatures</h1>
+  <h1>US Airport 5-Minute Observations</h1>
   <p class="sub" id="subline">Loading&hellip;</p>
   <div id="stale"></div>
 
@@ -132,7 +132,7 @@
       <button data-u="F" class="on">&deg;F</button><button data-u="C">&deg;C</button>
     </span>
     <span class="seg" id="varSeg">
-      <button data-v="t" class="on">Temperature</button><button data-v="d">Dewpoint</button>
+      <button data-v="t" class="on">Temperature</button><button data-v="d">Dewpoint</button><button data-v="v">Visibility</button><button data-v="c">Ceiling</button><button data-v="w">Present Wx</button>
     </span>
     <span class="seg" id="allSeg">
       <button data-a="all" class="on">All stations</button><button data-a="none">None</button>
@@ -225,18 +225,32 @@
     return Math.floor((midnightAsUTC - offsetMs) / 1000);
   }
 
-  // one api.weather.gov observation → [epoch, tempC, dewC, wdirDeg, wspdKt]
+  // one api.weather.gov observation →
+  // [epoch, tempC, dewC, wdirDeg, wspdKt, visMi, ceilFt, wx]
   function awgToObs(pr) {
     var t = pr.temperature && pr.temperature.value;
     if (t == null) return null;
     var d = pr.dewpoint && pr.dewpoint.value;
     var wd = pr.windDirection && pr.windDirection.value;
     var ws = pr.windSpeed && pr.windSpeed.value;                  // km/h
+    var vis = pr.visibility && pr.visibility.value;               // m
+    var ceil = null;
+    (pr.cloudLayers || []).forEach(function (L) {
+      var amt = L.amount || "", b = L.base && L.base.value;       // m AGL
+      if ((amt === "BKN" || amt === "OVC" || amt === "VV") && b != null) {
+        var ft = Math.round(b * 3.28084 / 100) * 100;
+        ceil = ceil == null ? ft : Math.min(ceil, ft);
+      }
+    });
+    var wx = (pr.presentWeather || []).map(function (w) { return w.rawString || ""; })
+             .join(" ").trim() || null;
     return [Math.floor(new Date(pr.timestamp).getTime() / 1000),
             Math.round(t * 100) / 100,
             d == null ? null : Math.round(d * 100) / 100,
             wd == null ? null : Math.round(wd),
-            ws == null ? null : Math.round(ws * 0.539957 * 10) / 10];
+            ws == null ? null : Math.round(ws * 0.539957 * 10) / 10,
+            vis == null ? null : Math.round(vis / 1609.344 * 100) / 100,
+            ceil, wx];
   }
 
   // official 6-hour max/min temp groups (1sTTT / 2sTTT) from a METAR remark
@@ -393,6 +407,38 @@
   function cToUnit(c) { return state.unit === "F" ? c * 9 / 5 + 32 : c; }
   function fmtT(c) { return c == null ? "&ndash;" : cToUnit(c).toFixed(1) + "&deg;" + state.unit; }
 
+  // view registry: obs-array index + labels per data-v code
+  var VIDX = { t: 1, d: 2, v: 5, c: 6, w: 7 };
+  var VLABEL = { t: "Temperature", d: "Dewpoint", v: "Visibility",
+                 c: "Cloud ceiling", w: "Present weather" };
+  function visToUnit(mi) { return state.unit === "F" ? mi : mi * 1.609344; }
+  function visUnit() { return state.unit === "F" ? "mi" : "km"; }
+  function fmtVis(mi) {
+    return mi == null ? "&ndash;" : visToUnit(mi).toFixed(1) + " " + visUnit();
+  }
+  function ceilToUnit(ft) { return state.unit === "F" ? ft : ft * 0.3048; }
+  function ceilUnit() { return state.unit === "F" ? "ft" : "m"; }
+  function fmtCeil(ft) {
+    return ft == null ? "no ceiling"
+      : Math.round(ceilToUnit(ft)).toLocaleString() + " " + ceilUnit();
+  }
+  // present-weather lanes, benign (bottom) → severe (top); a report maps to
+  // its most significant phenomenon
+  var WX_LANES = ["Haze/smoke", "Mist", "Fog", "Drizzle", "Rain",
+                  "Snow/ice", "Freezing", "T-storm"];
+  function wxLane(s) {
+    if (!s) return -1;
+    if (/TS/.test(s)) return 7;
+    if (/FZ/.test(s)) return 6;
+    if (/SN|SG|IC|PL|GS|GR/.test(s)) return 5;
+    if (/RA|SH|UP/.test(s)) return 4;
+    if (/DZ/.test(s)) return 3;
+    if (/FG/.test(s)) return 2;
+    if (/BR/.test(s)) return 1;
+    if (/HZ|FU|DU|SA|VA|PO|SQ/.test(s)) return 0;
+    return -1;
+  }
+
   // epoch seconds -> parts in a station's local zone
   function localParts(epoch, tz) {
     var d = new Date(epoch * 1000);
@@ -428,17 +474,33 @@
     return x.e != null ? localHM(x.e, tz) : winLabel(x.win, tz) + " (6-hr)";
   }
 
-  // series for the active variable: {x:[], yC:[], wind:[], epochs:[]}
+  // series for the active view: {x:[], y:[], hov:[]} — y is display-ready.
+  // t/d: skip missing values (connect across gaps, as before).
+  // v/c: keep nulls so the line BREAKS where the value is missing (for
+  //      ceiling a null means "no ceiling", and a gap reads correctly).
+  // w:   markers on category lanes; reports with no weather are skipped.
   function series(st) {
-    var xi = state.vr === "t" ? 1 : 2, out = { x: [], yC: [], wind: [], epochs: [] };
+    var vr = state.vr, xi = VIDX[vr], out = { x: [], y: [], hov: [] };
     st.obs.forEach(function (o) {
-      if (o[xi] == null) return;
+      var v = o[xi] === undefined ? null : o[xi];
+      if (vr === "w") {
+        var lane = wxLane(v);
+        if (lane < 0) return;
+        out.x.push(localISO(o[0], st.tz)); out.y.push(lane); out.hov.push(v);
+        return;
+      }
+      if (vr === "t" || vr === "d") {
+        if (v == null) return;
+        out.x.push(localISO(o[0], st.tz));
+        out.y.push(cToUnit(v));
+        out.hov.push(o[3] != null && o[4] != null
+          ? "wind " + Math.round(o[3]) + "&deg; @ " + Math.round(o[4]) + " kt" : "");
+        return;
+      }
+      // v / c — always push, null y = gap; hover carries the wx string
       out.x.push(localISO(o[0], st.tz));
-      out.yC.push(o[xi]);
-      out.epochs.push(o[0]);
-      var w = o[3] != null && o[4] != null
-        ? "wind " + Math.round(o[3]) + "&deg; @ " + Math.round(o[4]) + " kt" : "";
-      out.wind.push(w);
+      out.y.push(v == null ? null : (vr === "v" ? visToUnit(v) : ceilToUnit(v)));
+      out.hov.push(o[7] || "");
     });
     return out;
   }
@@ -446,7 +508,7 @@
   function sampledExtremes(st) {
     // today only (m0), so the extremes stay "so far today" even though the trace
     // now reaches back ~36 h to show yesterday.
-    var xi = state.vr === "t" ? 1 : 2, m0 = localMidnightEpoch(st.tz), hi = null, lo = null;
+    var xi = VIDX[state.vr], m0 = localMidnightEpoch(st.tz), hi = null, lo = null;
     st.obs.forEach(function (o) {
       if (o[xi] == null || o[0] < m0) return;
       if (!hi || o[xi] > hi.v) hi = { v: o[xi], e: o[0] };
@@ -476,11 +538,50 @@
     var host = document.getElementById("cards");
     host.innerHTML = "";
     state.data.stations.forEach(function (st, i) {
-      var ex = displayExtremes(st);
-      var last = null;
+      var vr = state.vr, xi = VIDX[vr];
+      // latest record with ANY data (v/c/w legitimately report null = clear)
+      var lastRec = null;
       for (var k = st.obs.length - 1; k >= 0; k--) {
-        var xi = state.vr === "t" ? 1 : 2;
-        if (st.obs[k][xi] != null) { last = { v: st.obs[k][xi], e: st.obs[k][0] }; break; }
+        if (vr === "t" || vr === "d") {
+          if (st.obs[k][xi] != null) { lastRec = st.obs[k]; break; }
+        } else { lastRec = st.obs[k]; break; }
+      }
+      var nowHtml = "&ndash;", mmHtml = "";
+      if (vr === "t" || vr === "d") {
+        var ex = displayExtremes(st);
+        nowHtml = lastRec ? fmtT(lastRec[xi]) +
+          "<small>" + localHM(lastRec[0], st.tz) + "</small>" : "&ndash;";
+        mmHtml =
+          '<span class="hi">&#9650; ' + (ex.hi ? fmtT(ex.hi.v) : "&ndash;") +
+          (ex.hi ? "<small>" + extLabel(ex.hi, st.tz) + "</small>" : "") + "</span>" +
+          '<span class="lo">&#9660; ' + (ex.lo ? fmtT(ex.lo.v) : "&ndash;") +
+          (ex.lo ? "<small>" + extLabel(ex.lo, st.tz) + "</small>" : "") + "</span>";
+      } else if (vr === "v" || vr === "c") {
+        var fmt = vr === "v" ? fmtVis : fmtCeil;
+        nowHtml = lastRec ? fmt(lastRec[xi]) +
+          "<small>" + localHM(lastRec[0], st.tz) + "</small>" : "&ndash;";
+        // worst (lowest) today
+        var m0 = localMidnightEpoch(st.tz), lo = null;
+        st.obs.forEach(function (o) {
+          if (o[0] < m0 || o[xi] == null) return;
+          if (!lo || o[xi] < lo.v) lo = { v: o[xi], e: o[0] };
+        });
+        mmHtml = '<span class="lo">&#9660; ' + (lo ? fmt(lo.v) : "&ndash;") +
+          (lo ? "<small>" + localHM(lo.e, st.tz) + "</small>"
+              : "<small>today</small>") + "</span>";
+      } else {                                            // present weather
+        var wxNow = lastRec && lastRec[7] ? lastRec[7] : "none";
+        nowHtml = '<span style="font-size:.72em">' + wxNow + "</span>" +
+          (lastRec ? "<small>" + localHM(lastRec[0], st.tz) + "</small>" : "");
+        var m0w = localMidnightEpoch(st.tz), seen = [];
+        st.obs.forEach(function (o) {
+          if (o[0] < m0w || !o[7]) return;
+          o[7].split(/\s+/).forEach(function (c) {
+            if (c && seen.indexOf(c) < 0) seen.push(c);
+          });
+        });
+        mmHtml = '<span class="lo" style="font-size:.9em">today: ' +
+          (seen.length ? seen.slice(0, 5).join(" ") : "&mdash;") + "</span>";
       }
       var el = document.createElement("div");
       el.className = "card" + (state.iso === i ? " sel" : state.iso !== null ? " dim" : "");
@@ -490,14 +591,8 @@
         '<span class="badge' + (st.cadence_min > 5 ? " hourly" : "") + '">' +
         (st.cadence_min > 5 ? "hourly" : "5-min") + "</span></div>" +
         '<div class="name">' + st.name + "</div>" +
-        '<div class="now">' + (last ? fmtT(last.v) : "&ndash;") +
-        (last ? "<small>" + localHM(last.e, st.tz) + "</small>" : "") + "</div>" +
-        '<div class="mm">' +
-        '<span class="hi">&#9650; ' + (ex.hi ? fmtT(ex.hi.v) : "&ndash;") +
-        (ex.hi ? "<small>" + extLabel(ex.hi, st.tz) + "</small>" : "") + "</span>" +
-        '<span class="lo">&#9660; ' + (ex.lo ? fmtT(ex.lo.v) : "&ndash;") +
-        (ex.lo ? "<small>" + extLabel(ex.lo, st.tz) + "</small>" : "") + "</span>" +
-        "</div>";
+        '<div class="now">' + nowHtml + "</div>" +
+        '<div class="mm">' + mmHtml + "</div>";
       el.onclick = function () {
         state.iso = state.iso === i ? null : i;
         render();
@@ -508,23 +603,39 @@
 
   function buildChart() {
     var traces = [];
-    var vlabel = state.vr === "t" ? "Temperature" : "Dewpoint";
+    var vr = state.vr, vlabel = VLABEL[vr];
+    var isTemp = vr === "t" || vr === "d";
     state.data.stations.forEach(function (st, i) {
       var s = series(st), color = COLORS[i % COLORS.length];
+      var hovTpl;
+      if (isTemp) {
+        hovTpl = "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; %{y:.1f}°" +
+                 state.unit + " %{customdata}<extra></extra>";
+      } else if (vr === "v") {
+        hovTpl = "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; %{y:.1f} " +
+                 visUnit() + " %{customdata}<extra></extra>";
+      } else if (vr === "c") {
+        hovTpl = "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; ceiling %{y:,.0f} " +
+                 ceilUnit() + " %{customdata}<extra></extra>";
+      } else {
+        hovTpl = "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; %{customdata}<extra></extra>";
+      }
       traces.push({
         x: s.x,
-        y: s.yC.map(cToUnit),
-        customdata: s.wind,
+        y: s.y,
+        customdata: s.hov,
         name: st.id,
         legendgroup: st.id,
-        mode: "lines+markers",
-        line: { color: color, width: state.iso === i ? 2.6 : 1.4 },
-        marker: { color: color, size: state.iso === i ? 4.5 : 3 },
+        mode: vr === "w" ? "markers" : "lines+markers",
+        line: { color: color, width: state.iso === i ? 2.6 : 1.4,
+                shape: (vr === "v" || vr === "c") ? "hv" : "linear" },
+        marker: { color: color, size: vr === "w" ? (state.iso === i ? 8 : 5.5)
+                                                 : (state.iso === i ? 4.5 : 3) },
+        connectgaps: false,
         visible: visibleFlag(i),
-        hovertemplate: "<b>" + st.id + "</b> %{x|%-I:%M %p} &middot; %{y:.1f}°" +
-          state.unit + " %{customdata}<extra></extra>"
+        hovertemplate: hovTpl
       });
-      var ex = sampledExtremes(st);
+      var ex = isTemp ? sampledExtremes(st) : { hi: null, lo: null };
       if (ex.hi && ex.lo) {
         traces.push({
           x: [localISO(ex.hi.e, st.tz), localISO(ex.lo.e, st.tz)],
@@ -602,7 +713,7 @@
       }
     }
     var layout = {
-      margin: { l: 52, r: 12, t: 28, b: 44 },
+      margin: { l: vr === "w" ? 86 : 52, r: 12, t: 28, b: 44 },
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(0,0,0,0)",
       font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
@@ -612,18 +723,32 @@
         gridcolor: "#eeece6", hoverformat: "%a %-I:%M %p",
         showspikes: true, spikemode: "across", spikethickness: 1, spikecolor: "#c9c6bd", spikedash: "dot"
       },
-      yaxis: {
-        title: { text: vlabel + " (°" + state.unit + ")", font: { size: 11, color: "#888580" } },
-        gridcolor: "#eeece6", zeroline: false
-      },
+      yaxis: (function () {
+        if (isTemp) return {
+          title: { text: vlabel + " (°" + state.unit + ")", font: { size: 11, color: "#888580" } },
+          gridcolor: "#eeece6", zeroline: false };
+        if (vr === "v") return {
+          title: { text: "Visibility (" + visUnit() + ")", font: { size: 11, color: "#888580" } },
+          gridcolor: "#eeece6", zeroline: false, rangemode: "tozero" };
+        if (vr === "c") return {
+          title: { text: "Cloud ceiling (" + ceilUnit() + " AGL) — gaps = no ceiling",
+                   font: { size: 11, color: "#888580" } },
+          gridcolor: "#eeece6", zeroline: false, rangemode: "tozero" };
+        return {
+          tickvals: WX_LANES.map(function (_, k) { return k; }),
+          ticktext: WX_LANES, range: [-0.6, 7.6],
+          gridcolor: "#eeece6", zeroline: false };
+      })(),
       shapes: shapes,
       annotations: annotations,
       hovermode: "closest",
       hoverlabel: { font: { family: "Inter, sans-serif", size: 12 } },
       legend: { orientation: "v", x: 1.002, y: 1, font: { size: 11 } },
       title: {
-        text: vlabel + " — last " + WINDOW_H + " hours (today vs yesterday) · ▲▼ today's sampled max/min" +
-          (state.vr === "t" ? " · open ▲▼ official 6-hr extremes where higher/lower" : ""),
+        text: vlabel + " — last " + WINDOW_H + " hours (today vs yesterday)" +
+          (isTemp ? " · ▲▼ today's sampled max/min" : "") +
+          (vr === "t" ? " · open ▲▼ official 6-hr extremes where higher/lower" : "") +
+          (vr === "w" ? " · each dot = a report with weather; lane = most significant type" : ""),
         font: { family: "Lora, serif", size: 15 }, x: 0.02
       }
     };
@@ -641,7 +766,7 @@
       ? new Date(newest * 1000).toLocaleString([], { hour: "numeric", minute: "2-digit", timeZoneName: "short" })
       : "&mdash;";
     document.getElementById("subline").innerHTML =
-      "Five-minute airport temperatures for <b>" + stations.length + " US airports</b> over the <b>last " + WINDOW_H +
+      "Five-minute airport observations (temperature, dewpoint, visibility, ceiling, present weather) for <b>" + stations.length + " US airports</b> over the <b>last " + WINDOW_H +
       " hours</b>, fetched live in your browser from the <b>official NWS API</b> (api.weather.gov: 5-minute obs for 13 " +
       "stations, hourly for KJFK &amp; KNYC), in each station's local clock time so <b>today lines up against yesterday</b>. " +
       "Max/min are the absolute extremes <b>so far today</b> (" + day + "), including the official 6-hour METAR max/min " +
