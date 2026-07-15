@@ -197,7 +197,14 @@ function updateFrame() {
   const variable = variableEl.value;
   const region = regionEl.value;
   frameEl.src = FRAME_CDN + variable + '/' + region + '/' + frame.file + '?v=' + ((manifest && manifest.cycle_compact) || '');
-  validEl.textContent = 'F' + String(frame.fxx).padStart(2, '0') + ' · ' + frame.valid_label;
+  let vtxt = 'F' + String(frame.fxx).padStart(2, '0') + ' · ' + frame.valid_label;
+  if (manifest.cycle) {
+    const cyc = new Date(manifest.cycle.replace(' ', 'T').replace('Z', ':00:00Z'));
+    if (isFinite(cyc) && Date.now() - cyc.getTime() > 9 * 3600e3) {
+      vtxt += '  ·  cycle ' + manifest.cycle + ' (older run)';
+    }
+  }
+  validEl.textContent = vtxt;
   scrubberEl.value = currentIdx;
 }
 
@@ -286,6 +293,26 @@ async function init() {
 
   variableEl.addEventListener('change', loadCurrent);
   regionEl.addEventListener('change', loadCurrent);
+
+  // A long-lived tab otherwise keeps its old manifest (and old-cycle frame
+  // URLs) forever: re-check every 5 minutes and on tab focus, and swap in
+  // the new cycle as soon as the manifest advances.
+  async function checkCycle() {
+    if (!manifest) return;
+    try {
+      const res = await fetch(variableEl.value + '/' + regionEl.value +
+        '/manifest.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) return;
+      const m = await res.json();
+      if (m.cycle_compact && m.cycle_compact !== manifest.cycle_compact) {
+        await loadCurrent();
+      }
+    } catch (e) { /* transient network issue; try again next tick */ }
+  }
+  setInterval(checkCycle, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkCycle();
+  });
   scrubberEl.addEventListener('input', (e) => jumpTo(parseInt(e.target.value, 10)));
   document.getElementById('rewind').addEventListener('click', () => jumpTo(0));
   document.getElementById('back').addEventListener('click', () => step(-1));
