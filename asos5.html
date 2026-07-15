@@ -358,11 +358,12 @@
     var daymm = dayFromShown(obs, sixhr, official, w0);
     var dp = localParts(m0 + 7200, meta.tz);
     var reports = ((live && live.reports) || []).slice();
-    var cur = state.currents[meta.id];
-    if (cur && !reports.some(function (r) { return Math.abs(r.e - cur.e) < 90; })) {
-      reports.push({ e: cur.e, raw: cur.raw, type: cur.type });
-      reports.sort(function (a, b) { return a.e - b.e; });
-    }
+    (state.currents[meta.id] || []).forEach(function (cur) {
+      if (!reports.some(function (r) { return Math.abs(r.e - cur.e) < 90; })) {
+        reports.push({ e: cur.e, raw: cur.raw, type: cur.type });
+      }
+    });
+    reports.sort(function (a, b) { return a.e - b.e; });
     return { id: meta.id, name: meta.name, tz: meta.tz, cadence_min: cadence,
              day_local: dp.year + "-" + dp.month + "-" + dp.day,
              obs: obs, sixhr: sixhr, daymm: daymm, abs: computeAbs(obs, sixhr, m0),
@@ -374,24 +375,49 @@
     return mm >= 50 ? "METAR" : "SPECI";
   }
 
-  // Real-time latest report per station from IEM (CORS-open; carries the raw
-  // METAR/SPECI within a minute or two of transmission — api.weather.gov
-  // attaches rawMessage 60-90 min late, so badges would otherwise lag).
+  var IEM_NET = { KBOS: "MA_ASOS", KLGA: "NY_ASOS", KNYC: "NY_ASOS", KJFK: "NY_ASOS",
+                  KEWR: "NJ_ASOS", KPHL: "PA_ASOS", KBWI: "MD_ASOS", KDCA: "VA_ASOS",
+                  KRIC: "VA_ASOS", KDFW: "TX_ASOS", KIAH: "TX_ASOS", KORD: "IL_ASOS",
+                  KATL: "GA_ASOS", KCLT: "NC_ASOS", KRDU: "NC_ASOS", KMSP: "MN_ASOS",
+                  KPHX: "AZ_ASOS", KLAS: "NV_ASOS", KLAX: "CA_ASOS", KBUR: "CA_ASOS",
+                  KSEA: "WA_ASOS", KPDX: "OR_ASOS" };
+
+  // Real-time report HISTORY per station from IEM obhistory (CORS-open; the
+  // raw METAR/SPECI text lands within a minute or two of transmission —
+  // api.weather.gov attaches rawMessage 60-90 min late, so both the badges
+  // and the report diamonds would otherwise lag). The 5-minute feed rows in
+  // obhistory carry " AUTO "; at these attended/augmented towers the
+  // TRANSMITTED reports are the non-AUTO rows. Fully-automated stations
+  // (KNYC) have only AUTO rows — there we keep just the :50s routine METARs.
   function fetchCurrents() {
     STATIONS.forEach(function (s) {
+      var net = IEM_NET[s.id];
+      if (!net) return;
       var sid3 = s.id === "KNYC" ? "NYC" : s.id.slice(1);
-      fetch("https://mesonet.agron.iastate.edu/api/1/currents.json?station=" + sid3,
-            { cache: "no-store" })
+      var day = localParts(Math.floor(Date.now() / 1000), s.tz);
+      var url = "https://mesonet.agron.iastate.edu/api/1/obhistory.json?network=" +
+                net + "&station=" + sid3 + "&date=" +
+                day.year + "-" + day.month + "-" + day.day;
+      fetch(url, { cache: "no-store" })
         .then(function (r) { if (!r.ok) throw 0; return r.json(); })
         .then(function (j) {
-          var row = (j.data || []).filter(function (d) {
-            return /_ASOS$/.test(d.network || "") && d.raw;
-          })[0];
-          if (!row) return;
-          var e = Math.floor(new Date(row.utc_valid).getTime() / 1000);
-          state.currents[s.id] = { e: e, raw: row.raw, type: repType(e) };
+          var rows = (j.data || []).filter(function (d) { return d.raw; });
+          if (!rows.length) return;
+          var nonauto = rows.filter(function (d) { return !/ AUTO /.test(d.raw); });
+          var reps;
+          if (nonauto.length) {
+            reps = nonauto;
+          } else {                       // fully-automated site: routine METARs only
+            reps = rows.filter(function (d) {
+              return (new Date(d.utc_valid).getUTCMinutes()) >= 50;
+            });
+          }
+          state.currents[s.id] = reps.slice(-48).map(function (d) {
+            var e = Math.floor(new Date(d.utc_valid).getTime() / 1000);
+            return { e: e, raw: d.raw, type: repType(e) };
+          });
         })
-        .catch(function () { /* keep any prior current */ });
+        .catch(function () { /* keep any prior list */ });
     });
   }
 
