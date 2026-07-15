@@ -310,7 +310,7 @@
       </div>
     </div>
 
-    <!-- HISTORICAL PERFORMANCE — hidden while gridstatus.io curtailment
+    <!-- HISTORICAL PERFORMANCE — hidden while curtailment/actuals
          and SPP actuals are unavailable. The verification pipeline keeps
          running and archiving; to restore this card, delete the comment
          markers around this block (and confirm wind_verification.html is
@@ -321,7 +321,7 @@
         <h2>Model Performance vs. Actuals (14-day rolling)</h2>
         <p>How the model has been doing. Day-ahead forecasts (12–24 hour lead time) plotted against actual generation for the three ISOs where reliable real-time data is available: ERCOT, SPP, and CAISO.</p>
         <p><b>How to read it:</b> The blue line is the model's potential-generation forecast issued 12-24 hours before each hour shown. The green dashed line subtracts ISO-reported curtailment, giving the deliverable expectation. The red line is actual generation that showed up on the grid, as reported by the ISO. A persistent gap between the green forecast and red actual indicates residual model error after accounting for known curtailment.</p>
-        <p><b>How it's built:</b> Each forecast cycle is archived to a CSV, and an update step queries gridstatus.io for actual generation and curtailment values as they're published (typically 12–48 hours after the forecast was made). The chart re-renders on each cycle from the rolling 14-day archive.</p>
+        <p><b>How it's built:</b> Each forecast cycle is archived to a CSV, and an update step pulls actual generation directly from each ISO's public data feeds as it's published (typically 12–48 hours after the forecast was made). The chart re-renders on each cycle from the rolling 14-day archive.</p>
       </div>
       <div class="chart-img-wrap" style="background:#0f0f0d;">
         <iframe src="assets/wind_verification.html?v=6bfb87db3003"
@@ -330,7 +330,7 @@
                 loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
-        <span class="chart-sources">Model + gridstatus.io (actual generation, curtailment)</span>
+        <span class="chart-sources">Model + ISO public feeds (actual generation)</span>
         <span class="chart-updated" id="last-updated-verif">Updated 2026-07-15 16:02Z</span>
       </div>
     </div>

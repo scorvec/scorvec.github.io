@@ -1,7 +1,7 @@
 """Direct-from-ISO fetchers for actual wind generation.
 
-These are used as a fallback (or replacement) for gridstatus.io's
-hosted API to avoid burning through monthly row quotas.
+These are the ONLY source of verification actuals (the gridstatus.io
+hosted API dependency was removed 2026-07).
 
 Each fetcher returns a DataFrame with columns:
     region (str), valid_time (datetime, UTC, tz-naive), actual_MW (float)
@@ -15,8 +15,8 @@ Strategy:
       sites directly, has no rate limit, and no API key required.
 
 None of these requires registration or an API key. Behavior on
-failure is to print a warning and return an empty DataFrame; the
-calling code can fall through to gridstatusio if it has quota.
+failure is to print a warning and return an empty DataFrame; that
+region simply has no actuals until a later run backfills it.
 """
 from __future__ import annotations
 

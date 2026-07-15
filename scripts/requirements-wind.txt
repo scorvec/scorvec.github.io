@@ -20,10 +20,9 @@ plotly>=5.18
 
 # Verification: actuals from ISOs
 # - gridstatus is the open-source library that scrapes ISO public sites
-#   directly (no API key, no rate limit). Used for SPP and CAISO actuals.
-#   Pinned to 0.34 since newer versions have tighter cryptography pins
-#   that conflict with other deps and cause pip backtracking.
-# - gridstatusio is the paid hosted API. Still needed for curtailment
-#   data that isn't easily scrapable from individual ISO sites.
+#   directly (no API key, no rate limit, NOT the gridstatus.io hosted
+#   API — that dependency was removed 2026-07). Used for SPP and CAISO
+#   actuals. Pinned to 0.34 since newer versions have tighter
+#   cryptography pins that conflict with other deps and cause pip
+#   backtracking.
 gridstatus==0.34.0
-gridstatusio>=0.10,<2
