@@ -787,7 +787,7 @@ def _point_lattice(grid_lats, grid_lons, region):
     if cached is not None:
         return cached
     lon0, lon1, lat0, lat1 = region.extent
-    ncol = 32 if region.id == "national" else 26
+    ncol = 40 if region.id == "national" else 34
     nrow = max(5, int(round(ncol * (lat1 - lat0) / max(lon1 - lon0, 1) * 1.4)))
     mlon = (lon1 - lon0) * 0.045
     mlat = (lat1 - lat0) * 0.06
