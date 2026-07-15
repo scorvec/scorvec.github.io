@@ -122,7 +122,13 @@ def parse_csv(text):
 
 
 def pct_of(d, v):
-    X = [d["min"]] + d["p"] + [d["max"]]
+    # The climo sanitizer nulls physically-impossible record min/max entries
+    # (2026-07), so either end may be None: fall back to p1/p99 — percentile
+    # scoring still works, and the record-tier logic independently skips
+    # slots whose record value is absent.
+    lo = d["min"] if d["min"] is not None else d["p"][0]
+    hi = d["max"] if d["max"] is not None else d["p"][-1]
+    X = [lo] + d["p"] + [hi]
     Y = [0] + PCTS + [100]
     if v <= X[0]:
         return 0.0
