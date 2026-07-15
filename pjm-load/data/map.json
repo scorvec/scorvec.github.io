@@ -1,0 +1,127 @@
+{
+ "placeholder": true,
+ "run": "preview",
+ "generated_utc": "phase-1 skeleton",
+ "zones": {
+  "AE": {
+   "d1_vs_normal": 101.2,
+   "d3_vs_normal": 98.4,
+   "max7_vs_normal": 105.1,
+   "growth_yoy_pct": 0.2
+  },
+  "AEP": {
+   "d1_vs_normal": 104.6,
+   "d3_vs_normal": 103.5,
+   "max7_vs_normal": 104.9,
+   "growth_yoy_pct": 6.5
+  },
+  "AP": {
+   "d1_vs_normal": 96.6,
+   "d3_vs_normal": 96.1,
+   "max7_vs_normal": 97.0,
+   "growth_yoy_pct": 0.3
+  },
+  "ATSI": {
+   "d1_vs_normal": 102.8,
+   "d3_vs_normal": 105.4,
+   "max7_vs_normal": 103.5,
+   "growth_yoy_pct": 0.7
+  },
+  "BC": {
+   "d1_vs_normal": 106.0,
+   "d3_vs_normal": 109.6,
+   "max7_vs_normal": 109.5,
+   "growth_yoy_pct": 1.2
+  },
+  "CE": {
+   "d1_vs_normal": 111.6,
+   "d3_vs_normal": 108.0,
+   "max7_vs_normal": 116.8,
+   "growth_yoy_pct": 0.9
+  },
+  "DAY": {
+   "d1_vs_normal": 98.3,
+   "d3_vs_normal": 95.3,
+   "max7_vs_normal": 100.2,
+   "growth_yoy_pct": 2.4
+  },
+  "DEOK": {
+   "d1_vs_normal": 98.9,
+   "d3_vs_normal": 99.5,
+   "max7_vs_normal": 102.7,
+   "growth_yoy_pct": 1.1
+  },
+  "DOM": {
+   "d1_vs_normal": 104.8,
+   "d3_vs_normal": 101.3,
+   "max7_vs_normal": 105.1,
+   "growth_yoy_pct": 11.0
+  },
+  "DPL": {
+   "d1_vs_normal": 106.9,
+   "d3_vs_normal": 106.3,
+   "max7_vs_normal": 108.8,
+   "growth_yoy_pct": 1.8
+  },
+  "DUQ": {
+   "d1_vs_normal": 103.3,
+   "d3_vs_normal": 101.6,
+   "max7_vs_normal": 108.0,
+   "growth_yoy_pct": 2.1
+  },
+  "EKPC": {
+   "d1_vs_normal": 99.9,
+   "d3_vs_normal": 100.5,
+   "max7_vs_normal": 103.1,
+   "growth_yoy_pct": 2.6
+  },
+  "JC": {
+   "d1_vs_normal": 107.7,
+   "d3_vs_normal": 106.0,
+   "max7_vs_normal": 113.6,
+   "growth_yoy_pct": 0.4
+  },
+  "ME": {
+   "d1_vs_normal": 102.7,
+   "d3_vs_normal": 104.7,
+   "max7_vs_normal": 103.6,
+   "growth_yoy_pct": 1.5
+  },
+  "PE": {
+   "d1_vs_normal": 96.6,
+   "d3_vs_normal": 98.0,
+   "max7_vs_normal": 101.2,
+   "growth_yoy_pct": 1.7
+  },
+  "PEP": {
+   "d1_vs_normal": 110.0,
+   "d3_vs_normal": 108.5,
+   "max7_vs_normal": 114.2,
+   "growth_yoy_pct": 1.8
+  },
+  "PL": {
+   "d1_vs_normal": 105.3,
+   "d3_vs_normal": 104.9,
+   "max7_vs_normal": 110.3,
+   "growth_yoy_pct": 2.8
+  },
+  "PN": {
+   "d1_vs_normal": 103.6,
+   "d3_vs_normal": 104.9,
+   "max7_vs_normal": 103.9,
+   "growth_yoy_pct": 2.1
+  },
+  "PS": {
+   "d1_vs_normal": 106.4,
+   "d3_vs_normal": 110.3,
+   "max7_vs_normal": 111.3,
+   "growth_yoy_pct": 0.9
+  },
+  "RECO": {
+   "d1_vs_normal": 102.2,
+   "d3_vs_normal": 103.5,
+   "max7_vs_normal": 102.3,
+   "growth_yoy_pct": 1.4
+  }
+ }
+}
