@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-14T23:14Z",
+  "generated_at": "2026-07-15T00:09Z",
   "wind_cycle": "20260714T18Z",
   "solar_cycle": "20260714T18Z",
   "nameplate": {
@@ -320,12 +320,6 @@
     }
   ],
   "eia_recent": [
-    {
-      "period": "2026-07-11T23:00Z",
-      "total_GW": 661.88,
-      "wind_GW": 30.26,
-      "solar_GW": 85.08
-    },
     {
       "period": "2026-07-12T00:00Z",
       "total_GW": 654.38,
