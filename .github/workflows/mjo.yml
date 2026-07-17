@@ -81,7 +81,7 @@ jobs:
     needs: check
     if: ${{ needs.check.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90   # step timeouts (35m u-fetch, 20m bulk fetch) bound the slow parts
     env:
       MPLBACKEND: Agg
     steps:
@@ -102,11 +102,18 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
-      - name: Fetch ENS cycle (all params — RMM u + Hovmöller 10u + SOI msl)
+      # Two stages like run_local.sh: the light RMM u-wind pull (~1 GB) builds
+      # and COMMITS the MJO forecast first; the heavy multi-product ENS fetch
+      # (~5 GB) comes after, guarded, so slow mirrors (2026-07-17: ~500 kB/s →
+      # 60 m job timeout) or a fetch crash (same day: segfault at interpreter
+      # exit AFTER "Cycle cache ready", exit 139) can't take the RMM down too.
+      - name: Fetch RMM u-wind (light)
+        timeout-minutes: 35
         working-directory: scripts/mjo
         run: |
-          python src/ens_cycle.py --date "${{ needs.check.outputs.date }}" \
-                                  --time "${{ needs.check.outputs.time }}"
+          python src/download_aifs.py --date "${{ needs.check.outputs.date }}" \
+                                      --time "${{ needs.check.outputs.time }}" \
+                                      --out-dir data/aifs
 
       - name: Run RMM pipeline (computes + plots from the cached cycle)
         working-directory: scripts/mjo
@@ -125,6 +132,35 @@ jobs:
 
       - name: Regenerate MJO page
         run: python scripts/mjo/generate_page.py
+
+      - name: Commit & push (RMM forecast — goes live before the heavy fetches)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/mjo mjo.html scripts/mjo/data/reference/obs_history.nc scripts/mjo/data/reference/ensmean_history.json"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            git fetch origin main && git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
+            git add $OUT
+            if git diff --staged --quiet; then echo "No changes."; exit 0; fi
+            git commit -m "MJO RMM: ${{ needs.check.outputs.compact }}"
+            if git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "ERROR: could not push RMM." >&2
+          exit 1
+
+      - name: Fetch remaining ENS cycle (heavy — Hovmöller 10u + SOI msl)
+        timeout-minutes: 20
+        continue-on-error: true
+        working-directory: scripts/mjo
+        run: |
+          python src/ens_cycle.py --date "${{ needs.check.outputs.date }}" \
+                                  --time "${{ needs.check.outputs.time }}" \
+            || echo "ens_cycle had issues; downstream builds use whatever cached"
 
       - name: Build equatorial 10m-wind Hovmöller (El Niño page)
         working-directory: scripts/mjo
