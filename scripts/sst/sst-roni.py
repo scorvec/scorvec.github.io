@@ -188,8 +188,7 @@ def _draw_ruler(ax, lon0, lon1, lat, text, lab_lat, lab_above, fontsize=7.5):
                 lw=1.0, zorder=6, path_effects=halo)
     ax.text((lon0 + lon1) / 2.0, lab_lat, text, transform=PC,
             fontsize=fontsize, ha="center", va="bottom" if lab_above else "top",
-            color="black", zorder=6, fontweight="bold",
-            path_effects=[mpe.withStroke(linewidth=1.6, foreground="white")])
+            color="black", zorder=6, fontweight="bold")
 
 
 def _draw_nino_boxes(ax, label=True):
@@ -208,11 +207,9 @@ def _draw_nino_boxes(ax, label=True):
         _draw_ruler(ax, r["lon"][0] + pad, r["lon"][1] - pad, row,
                     r["label"], lab_lat, above)
     r12 = NINO_REGIONS["nino12"]
-    import matplotlib.patheffects as mpe
     ax.text((r12["lon"][0] + r12["lon"][1]) / 2.0, r12["lat"][0] - 1.2,
             r12["label"], transform=PC, fontsize=7.5, ha="center", va="top",
-            color="black", zorder=6, fontweight="bold",
-            path_effects=[mpe.withStroke(linewidth=1.6, foreground="white")])
+            color="black", zorder=6, fontweight="bold")
 
 
 def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
