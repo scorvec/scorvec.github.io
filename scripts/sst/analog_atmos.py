@@ -72,10 +72,10 @@ VARS = {
 REGIONS = {
     "": dict(extent=(100, 350, -15, 80), central_lon=200,
              nrows=3, ncols=2, figsize=(12.5, 8.9),
-             hspace=0.28, wspace=0.05, tele=True),
+             hspace=0.28, wspace=0.05, tele=True, comp_figsize=(9.6, 4.8)),
     "_sam": dict(extent=(255, 330, -58, 33), central_lon=292,
                  nrows=2, ncols=3, figsize=(11.8, 10.2),
-                 hspace=0.16, wspace=0.06, tele=False),
+                 hspace=0.16, wspace=0.06, tele=False, comp_figsize=(6.2, 7.4)),
 }
 
 # ENSO development years of the comparable "super" events + the current event.
@@ -91,6 +91,82 @@ EVENTS = [
 CYCLE_MONTHS = [6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5]
 
 TREND_Y0 = 1950            # fit window start for the trend-adjusted normal
+
+# ── Strong-event composites ─────────────────────────────────────────────────
+# The composite panel averages the trend-adjusted anomaly across EVERY El Niño
+# in the record whose PEAK RONI exceeded this threshold (a "very strong / super"
+# event on the relative index), by 3-month season of the ENSO cycle, and
+# stipples where the composite mean is significantly different from zero.
+COMPOSITE_RONI_MIN = 2.0
+NINO_HISTORY = SITE_ROOT / "assets" / "sst" / "data" / "nino_history.json"
+
+# 3-month seasons of the ENSO development cycle. Each month is (month, year-offset
+# from the development year y0): JJA/SON sit in y0, DJF straddles the New Year,
+# MAM is the following spring.
+SEASONS = {
+    "jja": dict(label="JJA (yr 0 — onset)",   months=[(6, 0), (7, 0), (8, 0)]),
+    "son": dict(label="SON (yr 0 — buildup)", months=[(9, 0), (10, 0), (11, 0)]),
+    "djf": dict(label="DJF (peak)",           months=[(12, 0), (1, 1), (2, 1)]),
+    "mam": dict(label="MAM (yr +1 — decay)",  months=[(3, 1), (4, 1), (5, 1)]),
+}
+SIG_ALPHA = 0.05          # two-tailed significance level for the stippling
+
+
+def composite_events() -> list[int]:
+    """Development years (y0) of every event with peak RONI > COMPOSITE_RONI_MIN,
+    read from the committed nino_history.json so the set stays current. Peak is
+    taken over the Jun(y0)–May(y0+1) cycle; only completed cycles qualify (so the
+    ongoing event is never composited into its own analog)."""
+    try:
+        d = json.loads(NINO_HISTORY.read_text())
+        idx = pd.to_datetime([m + "-01" for m in d["months"]])
+        roni = pd.Series([np.nan if v is None else v
+                          for v in d["series"]["roni"]["anom"]], index=idx)
+    except Exception as e:                                   # noqa: BLE001
+        print(f"  composite: nino_history RONI unavailable ({repr(e)[:60]}); "
+              "falling back to the hard-coded super-event list")
+        return [1972, 1982, 1991, 1997, 2015]
+    out = []
+    last_complete = roni.dropna().index.max()
+    for y0 in range(idx[0].year, idx[-1].year + 1):
+        win = roni[(roni.index >= f"{y0}-06-01") & (roni.index <= f"{y0+1}-05-31")]
+        if pd.Timestamp(f"{y0+1}-05-01") <= last_complete and win.max() > COMPOSITE_RONI_MIN:
+            out.append(y0)
+    return out
+
+
+def season_event_mean(anom: xr.DataArray, y0: int, months) -> xr.DataArray | None:
+    """Mean trend-adjusted anomaly over one 3-month season for one event, or None
+    if any of the three months is missing from the record."""
+    fields = []
+    for m, off in months:
+        try:
+            fields.append(month_field(anom, y0 + off, m))
+        except (KeyError, IndexError):
+            return None
+    return xr.concat(fields, dim="m").mean("m")
+
+
+def composite_and_sig(anom: xr.DataArray, events, months):
+    """Composite mean across events and a boolean significance mask.
+
+    Stacks each event's seasonal-mean anomaly, averages them, and runs a
+    two-tailed one-sample t-test (H0: mean = 0) per gridpoint; the mask is True
+    where p < SIG_ALPHA. Returns (mean2d, sig_mask, n_events)."""
+    import scipy.stats as st
+    stack = [season_event_mean(anom, y0, months) for y0 in events]
+    stack = [s for s in stack if s is not None]
+    n = len(stack)
+    arr = np.stack([s.values for s in stack])            # (n, lat, lon)
+    mean = arr.mean(axis=0)
+    if n >= 3:
+        t, p = st.ttest_1samp(arr, 0.0, axis=0)
+        sig = np.isfinite(p) & (p < SIG_ALPHA)
+    else:
+        sig = np.zeros_like(mean, dtype=bool)
+    ref = stack[0]
+    return (xr.DataArray(mean, coords=ref.coords, dims=ref.dims),
+            xr.DataArray(sig, coords=ref.coords, dims=ref.dims), n)
 
 # CPC official monthly teleconnection indices (standardized), 1950-present.
 CPC_TELE = {
@@ -318,10 +394,66 @@ def render(vid: str, anom: xr.DataArray, month: int, avail: set,
     plt.close(fig)
 
 
+def render_composite(vid: str, anom: xr.DataArray, skey: str, events,
+                     suffix: str = "") -> int:
+    """Single-panel composite: mean trend-adjusted anomaly over the RONI>2.0
+    events for one season, with significance stippling. Returns n events used."""
+    spec = VARS[vid]
+    reg = REGIONS[suffix]
+    seas = SEASONS[skey]
+    mean, sig, n = composite_and_sig(anom, events, seas["months"])
+
+    proj = ccrs.PlateCarree(central_longitude=reg["central_lon"])
+    fig = plt.figure(figsize=reg["comp_figsize"])
+    ax = plt.axes(projection=proj)
+    ax.set_extent(reg["extent"], crs=ccrs.PlateCarree())
+    cf = ax.contourf(mean.lon, mean.lat, mean.values, levels=spec["levels"],
+                     cmap=spec["cmap"], extend="both",
+                     transform=ccrs.PlateCarree())
+    ax.contour(mean.lon, mean.lat, mean.values, levels=[0], colors="#444",
+               linewidths=0.5, transform=ccrs.PlateCarree())
+
+    # Significance stippling: a dot at each significant gridpoint (subsampled so
+    # the dots stay legible on the coarser Pacific–NA map).
+    stride = 2 if suffix == "" else 1
+    smask = sig.values[::stride, ::stride]
+    slon, slat = np.meshgrid(sig.lon.values[::stride], sig.lat.values[::stride])
+    if smask.any():
+        ax.scatter(slon[smask], slat[smask], s=1.4, c="#222", marker=".",
+                   linewidths=0, alpha=0.55, transform=ccrs.PlateCarree(),
+                   zorder=5)
+    ax.coastlines(lw=0.6, color="#222")
+    ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#555")
+
+    ax.set_title(f"{spec['label']} ({spec['units']})", fontsize=11, loc="left",
+                 fontweight="bold")
+    ax.set_title(seas["label"], fontsize=9.5, loc="right", color="#555")
+    cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.05,
+                      aspect=40, extend="both")
+    cb.ax.tick_params(labelsize=8)
+    yrs = ", ".join(f"{y}–{str(y+1)[2:]}" for y in events)
+    fig.suptitle(f"Super-El Niño composite (peak RONI > {COMPOSITE_RONI_MIN:.1f}, "
+                 f"n = {n})", fontsize=12.5, fontweight="bold", y=1.0)
+    fig.text(0.5, -0.02,
+             f"Events: {yrs}  ·  ERA5 trend-adjusted anomalies "
+             f"({TREND_Y0}–present)  ·  stippling: composite ≠ 0 at "
+             f"{int((1-SIG_ALPHA)*100)}% (two-tailed t-test)",
+             ha="center", fontsize=8, color="#666")
+    OUT.mkdir(parents=True, exist_ok=True)
+    fig.savefig(OUT / f"composite_{vid}_{skey}{suffix}.webp", dpi=115,
+                bbox_inches="tight", facecolor="white",
+                pil_kwargs={"quality": 86, "method": 6})
+    plt.close(fig)
+    return n
+
+
 def main() -> int:
     manifest = {"events": [], "updated":
                 datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
     tele = fetch_teleconnections()
+    events = composite_events()
+    print(f"  composite events (peak RONI > {COMPOSITE_RONI_MIN}): {events}")
+    n_comp = 0
     avail_all = None
     for vid in VARS:                        # z500 first: it also feeds EPO
         da = fetch(vid)
@@ -337,6 +469,10 @@ def main() -> int:
             for suffix in REGIONS:
                 render(vid, anom, month, avail, tele, suffix)
         print(f"  {vid}: rendered {len(CYCLE_MONTHS)} months x {len(REGIONS)} regions")
+        for skey in SEASONS:
+            for suffix in REGIONS:
+                n_comp = render_composite(vid, anom, skey, events, suffix)
+        print(f"  {vid}: rendered {len(SEASONS)} season composites x {len(REGIONS)} regions")
 
     for ev in EVENTS:
         months = []
@@ -353,6 +489,18 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "atmos_manifest.json").write_text(json.dumps(manifest, indent=1))
     print(f"wrote {OUT / 'atmos_manifest.json'}")
+
+    comp_manifest = {
+        "updated": manifest["updated"],
+        "roni_min": COMPOSITE_RONI_MIN,
+        "n_events": n_comp,
+        "events": events,
+        "seasons": {k: v["label"] for k, v in SEASONS.items()},
+        "vars": manifest["vars"],
+        "regions": manifest["regions"],
+    }
+    (OUT / "composite_manifest.json").write_text(json.dumps(comp_manifest, indent=1))
+    print(f"wrote {OUT / 'composite_manifest.json'}")
     return 0
 
 

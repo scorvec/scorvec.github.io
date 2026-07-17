@@ -1,0 +1,28 @@
+{
+ "updated": "2026-07-17 18:38 UTC",
+ "roni_min": 2.0,
+ "n_events": 5,
+ "events": [
+  1972,
+  1982,
+  1991,
+  1997,
+  2015
+ ],
+ "seasons": {
+  "jja": "JJA (yr 0 \u2014 onset)",
+  "son": "SON (yr 0 \u2014 buildup)",
+  "djf": "DJF (peak)",
+  "mam": "MAM (yr +1 \u2014 decay)"
+ },
+ "vars": {
+  "z500": "500 hPa height anomaly",
+  "mslp": "Sea-level pressure anomaly",
+  "t2m": "2 m temperature anomaly",
+  "precip": "Precipitation anomaly"
+ },
+ "regions": {
+  "": "Pacific + North America",
+  "_sam": "South & Central America"
+ }
+}
