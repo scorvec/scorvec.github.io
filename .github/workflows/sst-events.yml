@@ -35,6 +35,22 @@ jobs:
           key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
           restore-keys: |
             pip-sst-${{ runner.os }}-
+      # The analog-year OISST files and the 1991-2020 climatology are STATIC —
+      # cache them (~4.3 GB) so each weekly run only pulls the current-year file
+      # (~260 MB) from PSL. Cuts the PSL transfer ~95%: repeated runner kills /
+      # corrupt downloads all happened inside these long bulk pulls (2026-07-17).
+      # download() probe-opens every cached .nc, so a bad cache self-heals.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            scripts/sst/data/sst.day.mean.1997.nc
+            scripts/sst/data/sst.day.mean.1998.nc
+            scripts/sst/data/sst.day.mean.2015.nc
+            scripts/sst/data/sst.day.mean.2016.nc
+            scripts/sst/data/sst.day.mean.2023.nc
+            scripts/sst/data/sst.day.mean.2024.nc
+            scripts/sst/data/sst.day.mean.ltm.1991-2020.nc
+          key: oisst-static-event-years-v1
       - name: Install cartopy system libs
         run: |
           sudo apt-get update -qq
