@@ -165,21 +165,23 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp
-          if git diff --staged --quiet; then
-            echo "No changes; skipping commit."; exit 0
-          fi
-          git commit -m "MJO RMM: ${{ needs.check.outputs.compact }}"
+          # Snapshot outputs, then commit on a clean sync of origin/main each attempt.
+          # The old rebase recovery could silently DISCARD the build: leftover unstaged
+          # files failed the rebase, and its reset --hard fallback reverted the outputs
+          # before re-adding them (bit sst-events.yml 2026-07-17 — "succeeded", pushed
+          # nothing). Snapshot+restore makes losing the outputs structurally impossible.
+          OUT="assets/mjo mjo.html scripts/mjo/data/reference/obs_history.nc scripts/mjo/data/reference/ensmean_history.json assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
+            git fetch origin main && git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm   # re-apply pruning
+            git add $OUT
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "MJO RMM: ${{ needs.check.outputs.compact }}"
             if git push; then echo "Pushed on attempt $i."; exit 0; fi
-            echo "Push $i rejected; rebasing onto origin/main (keep our generated files)…"
-            git fetch origin main
-            if ! git rebase -X theirs origin/main; then
-              git rebase --abort || true
-              git reset --hard origin/main
-              git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp
-              git diff --staged --quiet || git commit -m "MJO RMM: ${{ needs.check.outputs.compact }} (re-applied)"
-            fi
+            echo "Push $i rejected; resyncing and retrying…"
             sleep 5
           done
           echo "ERROR: could not push after 5 attempts." >&2

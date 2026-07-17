@@ -53,14 +53,22 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/sst/events_nino34.webp assets/sst/events_bars.webp assets/sst/events_maps.webp \
-                  assets/sst/subsurface_events_hc.webp assets/sst/subsurface_events_xsec.webp
-          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "SST event comparisons: weekly refresh"
+          # Snapshot the built outputs, then commit on a clean sync of origin/main each
+          # attempt. The old rebase recovery could silently DISCARD the build: leftover
+          # unstaged files failed the rebase, and its reset --hard fallback reverted the
+          # webps before re-adding them (bit us 2026-07-17 — ran "successfully", pushed
+          # nothing). Snapshot+restore makes losing the outputs structurally impossible.
+          OUT="assets/sst/events_nino34.webp assets/sst/events_bars.webp assets/sst/events_maps.webp \
+               assets/sst/subsurface_events_hc.webp assets/sst/subsurface_events_xsec.webp"
+          SNAP=$(mktemp -d)
+          for f in $OUT; do [ -f "$f" ] && install -D "$f" "$SNAP/$f"; done
           for i in 1 2 3 4 5; do
-            if git push; then exit 0; fi
-            git fetch origin main
-            git rebase -X theirs origin/main || { git rebase --abort||true; git reset --hard origin/main; git add assets/sst/events_*.webp; git diff --staged --quiet || git commit -m "SST event comparisons: weekly refresh (re-applied)"; }
+            git fetch origin main && git reset --hard origin/main
+            (cd "$SNAP" && find . -type f -exec install -D {} "$GITHUB_WORKSPACE/{}" \;)
+            git add $OUT
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -m "SST event comparisons: weekly refresh"
+            if git push; then echo "pushed (attempt $i)"; exit 0; fi
             sleep 5
           done
           echo "push failed"; exit 1

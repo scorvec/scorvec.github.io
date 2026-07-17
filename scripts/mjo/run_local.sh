@@ -86,6 +86,7 @@ fi
 # earlier run was interrupted before its commit); commit_push no-ops when clean.
 ( cd "$REPO" && "$PY" scripts/mjo/generate_page.py )
 ( cd "$REPO" && git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc \
+    scripts/mjo/data/reference/ensmean_history.json \
     && commit_push "MJO RMM: ${COMPACT} (local)" )
 
 # ── Stage 2: one consolidated download of the remaining ENS fields, then build + publish ──

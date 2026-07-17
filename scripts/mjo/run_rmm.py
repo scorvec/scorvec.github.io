@@ -25,6 +25,8 @@ from rmm import compute_rmm
 from plot import plot_rmm
 import recent_analysis
 import archive_truth
+import cycle_debias
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -69,6 +71,25 @@ def main() -> None:
     print("Computing RMM …")
     rmm = compute_rmm(Path("data/aifs"), args.date, args.time, clim, eofs,
                       mean120=mean120)
+
+    # 2b. De-bias the 12Z cycle onto the 00Z family (see cycle_debias docstring:
+    # AIFS-ENS 12Z runs are systematically RMM-offset vs 00Z runs at the same
+    # valid times, which made alternating frames "windshield-wiper"). The RAW
+    # ensemble mean is archived first — the correction is estimated from raw
+    # trailing 00Z/12Z pairs, so re-running a cycle never double-corrects.
+    leads = rmm["lead_day"].values
+    cycle_debias.record(args.date, args.time,
+                        leads, rmm["rmm1"].mean("member").values,
+                        rmm["rmm2"].mean("member").values)
+    off1, off2 = cycle_debias.offset_for(args.date, args.time, leads)
+    if np.any(off1) or np.any(off2):
+        rmm["rmm1"] = rmm["rmm1"] - xr.DataArray(off1, dims=["lead_day"])
+        rmm["rmm2"] = rmm["rmm2"] - xr.DataArray(off2, dims=["lead_day"])
+        rmm.attrs["cycle_debias"] = (
+            f"12Z-family offset removed; max |d| = "
+            f"{float(np.hypot(off1, off2).max()):.2f} RMM units")
+        print(f"12Z cycle de-bias applied (day-14 offset "
+              f"({off1[-1]:+.2f}, {off2[-1]:+.2f}))")
 
     rmm_path = Path("data/aifs") / f"rmm_{args.date}_{args.time}z.nc"
     rmm.to_netcdf(rmm_path)
