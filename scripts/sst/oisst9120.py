@@ -49,6 +49,18 @@ def _remote_is_newer(url: str, dest: Path) -> bool:
         return False
 
 
+def _nc_ok(path: Path) -> bool:
+    """Integrity probe: PSL rewrites the current-year file in place, so a file
+    caught mid-update can be full-sized yet unreadable (NetCDF: HDF error).
+    Byte counts alone don't catch that — actually open it."""
+    try:
+        with xr.open_dataset(path, decode_times=False) as ds:
+            ds.sizes
+        return True
+    except Exception:
+        return False
+
+
 def download(url: str, dest: Path, force: bool = False, tries: int = 4) -> Path:
     """Streaming download with retry. A genuine 404 raises immediately (so year
     fallbacks only fire when a file is truly absent); transient failures retry."""
@@ -56,9 +68,12 @@ def download(url: str, dest: Path, force: bool = False, tries: int = 4) -> Path:
     DATA.mkdir(parents=True, exist_ok=True)
     if dest.exists() and not force:
         if not _remote_is_newer(url, dest):
-            print(f"  cached: {dest.name} ({dest.stat().st_size/1e6:.1f} MB; PSL not newer)")
-            return dest
-        print(f"  {dest.name}: PSL published newer data → refreshing", flush=True)
+            if dest.suffix != ".nc" or _nc_ok(dest):
+                print(f"  cached: {dest.name} ({dest.stat().st_size/1e6:.1f} MB; PSL not newer)")
+                return dest
+            print(f"  {dest.name}: cached file is corrupt → re-downloading", flush=True)
+        else:
+            print(f"  {dest.name}: PSL published newer data → refreshing", flush=True)
     print(f"  downloading {url} ...", flush=True)
     tmp = dest.with_suffix(dest.suffix + ".tmp")
     last = None
@@ -68,6 +83,8 @@ def download(url: str, dest: Path, force: bool = False, tries: int = 4) -> Path:
                 shutil.copyfileobj(r, f, 1 << 20)
             if tmp.stat().st_size < 1_000_000:
                 raise IOError(f"suspiciously small download ({tmp.stat().st_size} B)")
+            if dest.suffix == ".nc" and not _nc_ok(tmp):
+                raise IOError("netCDF probe failed (corrupt or mid-update file)")
             tmp.replace(dest)
             print(f"  saved {dest.name} ({dest.stat().st_size/1e6:.1f} MB)")
             return dest
@@ -77,10 +94,11 @@ def download(url: str, dest: Path, force: bool = False, tries: int = 4) -> Path:
             last = e
         except (http.client.IncompleteRead, urllib.error.URLError, TimeoutError, IOError, OSError) as e:
             last = e
-        print(f"  download attempt {attempt}/{tries} failed ({repr(last)[:80]}); retrying in 5s…", flush=True)
+        wait = 15 * attempt                      # escalate: a mid-update PSL file needs time to finish writing
+        print(f"  download attempt {attempt}/{tries} failed ({repr(last)[:80]}); retrying in {wait}s…", flush=True)
         try: tmp.unlink()
         except OSError: pass
-        time.sleep(5)
+        time.sleep(wait)
     raise last if last is not None else RuntimeError(f"download failed: {url}")
 
 

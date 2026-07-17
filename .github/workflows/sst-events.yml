@@ -7,7 +7,7 @@ name: SST event comparisons (weekly)
 # the daily SST workflow to avoid the bulk download.
 on:
   schedule:
-    - cron: '41 13 * * 1'      # Mondays ~13 UTC
+    - cron: '41 18 * * 1'      # Mondays ~18:41 UTC — after PSL's ~16:30 UTC update, with slack for scheduler delay
   workflow_dispatch:
 
 permissions:
