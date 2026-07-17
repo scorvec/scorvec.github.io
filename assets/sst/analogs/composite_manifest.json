@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-17 18:38 UTC",
+ "updated": "2026-07-17 19:04 UTC",
  "roni_min": 2.0,
  "n_events": 5,
  "events": [
@@ -19,7 +19,8 @@
   "z500": "500 hPa height anomaly",
   "mslp": "Sea-level pressure anomaly",
   "t2m": "2 m temperature anomaly",
-  "precip": "Precipitation anomaly"
+  "precip": "Precipitation anomaly",
+  "wind100": "100 m wind-speed anomaly"
  },
  "regions": {
   "": "Pacific + North America",

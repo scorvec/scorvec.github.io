@@ -62,6 +62,14 @@ VARS = {
     "precip": dict(cds_var="total_precipitation", pressure=None,
                  label="Precipitation anomaly", units="mm/day",
                  levels=np.arange(-4, 4.01, 0.5), cmap="BrBG"),
+    # Wind speed of the vector-mean 100 m wind, sqrt(u100²+v100²). Two components
+    # are fetched and combined in fetch(); anomalies are trend-adjusted like the
+    # rest. 100 m is the hub-height-relevant wind (renewables) and the tropical
+    # low-level branch of the Walker circulation shows up cleanly.
+    "wind100": dict(cds_var=None, pressure=None,
+                 components=["100m_u_component_of_wind", "100m_v_component_of_wind"],
+                 label="100 m wind-speed anomaly", units="m/s",
+                 levels=np.arange(-1.5, 1.51, 0.25), cmap="PuOr_r"),
 }
 
 # Each variable/month renders once per region. The Pacific–North America
@@ -254,7 +262,7 @@ def fetch(vid: str) -> xr.DataArray:
                "reanalysis-era5-single-levels-monthly-means")
     req = {
         "product_type": ["monthly_averaged_reanalysis"],
-        "variable": [spec["cds_var"]],
+        "variable": spec.get("components") or [spec["cds_var"]],
         "year": [str(y) for y in range(TREND_Y0, want.year + 1)],
         "month": [f"{m:02d}" for m in range(1, 13)],
         "time": ["00:00"],
@@ -267,8 +275,12 @@ def fetch(vid: str) -> xr.DataArray:
     tmp = cache.with_suffix(".dl.nc")
     c.retrieve(dataset, req, str(tmp))
     ds = xr.open_dataset(tmp)
-    name = [v for v in ds.data_vars if ds[v].ndim >= 3][0]
-    da = ds[name].squeeze(drop=True).load()
+    names = [v for v in ds.data_vars if ds[v].ndim >= 3]
+    if spec.get("components"):                 # wind speed of the two components
+        u, v = ds[names[0]].squeeze(drop=True), ds[names[1]].squeeze(drop=True)
+        da = np.sqrt(u ** 2 + v ** 2).load()
+    else:
+        da = ds[names[0]].squeeze(drop=True).load()
     tdim = "valid_time" if "valid_time" in da.dims else "time"
     da = da.rename({tdim: "time"} if tdim != "time" else {})
     for old, new in (("latitude", "lat"), ("longitude", "lon")):
@@ -425,20 +437,18 @@ def render_composite(vid: str, anom: xr.DataArray, skey: str, events,
     ax.coastlines(lw=0.6, color="#222")
     ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#555")
 
-    ax.set_title(f"{spec['label']} ({spec['units']})", fontsize=11, loc="left",
-                 fontweight="bold")
-    ax.set_title(seas["label"], fontsize=9.5, loc="right", color="#555")
-    cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.05,
-                      aspect=40, extend="both")
+    # Everything is anchored to the axes (2-line title) or the colorbar (label),
+    # so bbox_inches="tight" crops with no floating suptitle/footer leaving gaps,
+    # and the single centred title can't collide with a second one.
+    yrs = ", ".join(str(y) for y in events)
+    ax.set_title(f"Super-El Niño composite (peak RONI > {COMPOSITE_RONI_MIN:.1f}, "
+                 f"n = {n})\n{spec['label']} ({spec['units']})  ·  {seas['label']}",
+                 fontsize=10.5, fontweight="bold", pad=7, linespacing=1.5)
+    cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.03,
+                      aspect=38, fraction=0.05, extend="both")
     cb.ax.tick_params(labelsize=8)
-    yrs = ", ".join(f"{y}–{str(y+1)[2:]}" for y in events)
-    fig.suptitle(f"Super-El Niño composite (peak RONI > {COMPOSITE_RONI_MIN:.1f}, "
-                 f"n = {n})", fontsize=12.5, fontweight="bold", y=1.0)
-    fig.text(0.5, -0.02,
-             f"Events: {yrs}  ·  ERA5 trend-adjusted anomalies "
-             f"({TREND_Y0}–present)  ·  stippling: composite ≠ 0 at "
-             f"{int((1-SIG_ALPHA)*100)}% (two-tailed t-test)",
-             ha="center", fontsize=8, color="#666")
+    cb.set_label(f"stippled where composite ≠ 0 at {int((1-SIG_ALPHA)*100)}% "
+                 f"(two-tailed t-test)  ·  events: {yrs}", fontsize=7.2, color="#555")
     OUT.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT / f"composite_{vid}_{skey}{suffix}.webp", dpi=115,
                 bbox_inches="tight", facecolor="white",

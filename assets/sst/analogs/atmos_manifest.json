@@ -104,12 +104,13 @@
    "current": true
   }
  ],
- "updated": "2026-07-17 18:06 UTC",
+ "updated": "2026-07-17 19:04 UTC",
  "vars": {
   "z500": "500 hPa height anomaly",
   "mslp": "Sea-level pressure anomaly",
   "t2m": "2 m temperature anomaly",
-  "precip": "Precipitation anomaly"
+  "precip": "Precipitation anomaly",
+  "wind100": "100 m wind-speed anomaly"
  },
  "regions": {
   "": "Pacific + North America",
