@@ -45,12 +45,22 @@ ANOM_WINDOWS = [
          levels=[15, 30, 60, 110, 180, 300]),
     dict(id="precip_anom_mtd", days=31, mtd=True, span=10, label="month-to-date",
          levels=[15, 30, 60, 110, 180, 300]),
+    # ENSO-development-season running total: everything since May 1 of the
+    # current development year (rolls to the new May 1 each spring). The daily
+    # cache accretes locally, so the growing window costs no re-downloads.
+    dict(id="precip_anom_may1", since=(5, 1), span=10, label="since May 1",
+         levels=[30, 60, 120, 220, 380, 600]),
 ]
 DEFAULT_WINDOW = "precip_anom_14d"
 
 
 def _n(win: dict, ft) -> int:
-    """N days for a frame — fixed, or day-of-month of the last day for month-to-date."""
+    """N days for a frame — fixed, day-of-month of the last day (month-to-date),
+    or days since the window's anchor date (since=(month, day))."""
+    if win.get("since"):
+        mo, dy = win["since"]
+        yr = ft.year if (ft.month, ft.day) >= (mo, dy) else ft.year - 1
+        return (ft.date() - ft.date().replace(year=yr, month=mo, day=dy)).days
     return (ft - timedelta(days=1)).day if win.get("mtd") else win["days"]
 
 # diverging dry(brown) ↔ wet(blue-green) — white at zero
@@ -134,6 +144,8 @@ def main(argv=None) -> int:
             tag = ft.strftime("%Y%m%d%H")
             fp = anim / f"{tag}.webp"
             n = _n(win, ft)
+            if n < 1:                          # frame at/before a "since" anchor date
+                continue
             if not fp.exists():
                 recent = IP.trailing_sum(IP.DAILY_CACHE, ft, n, step, "%Y%m%d")
                 if recent is None:
