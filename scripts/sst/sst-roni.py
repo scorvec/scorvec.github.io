@@ -154,18 +154,16 @@ def sst_anom_cmap():
 # Map rendering
 # ----------------------------------------------------------------------
 def _draw_box(ax, lat_rng, lon_rng, color="black", lw=1.1):
-    """Outline a lat/lon box as a CASED line: a white halo under the core, so
-    the box stays legible over any anomaly colour. Edges are dense point
-    sequences along the parallels and meridians so the rectangle follows the
-    projection (doesn't bow) regardless of the map's central longitude."""
+    """Outline a lat/lon box (plain, no white casing — 2026-07-17). Edges are
+    dense point sequences along the parallels and meridians so the rectangle
+    follows the projection (doesn't bow) regardless of the map's central
+    longitude."""
     lon0, lon1 = lon_rng
     lat0, lat1 = lat_rng
     lons = np.linspace(lon0, lon1, 100)
     lats = np.linspace(lat0, lat1, 100)
     edge_lon = np.concatenate([lons, np.full(100, lon1), lons[::-1], np.full(100, lon0)])
     edge_lat = np.concatenate([np.full(100, lat0), lats, np.full(100, lat1), lats[::-1]])
-    ax.plot(edge_lon, edge_lat, transform=PC, color="white", lw=lw + 1.5, alpha=0.9,
-            zorder=5, solid_capstyle="round")
     ax.plot(edge_lon, edge_lat, transform=PC, color=color, lw=lw,
             zorder=5.05, solid_capstyle="round")
 
@@ -178,14 +176,12 @@ _RULER_ROWS = {"nino4": (-6.6, -7.4, False), "nino3": (-6.6, -7.4, False),
 
 
 def _draw_ruler(ax, lon0, lon1, lat, text, lab_lat, lab_above, fontsize=7.5):
-    import matplotlib.patheffects as mpe
-    halo = [mpe.withStroke(linewidth=2.2, foreground="white")]
     cap = 0.9                                  # end-cap half-height, deg lat
     ax.plot([lon0, lon1], [lat, lat], transform=PC, color="black", lw=1.0,
-            zorder=6, path_effects=halo)
+            zorder=6)
     for x in (lon0, lon1):
         ax.plot([x, x], [lat - cap, lat + cap], transform=PC, color="black",
-                lw=1.0, zorder=6, path_effects=halo)
+                lw=1.0, zorder=6)
     ax.text((lon0 + lon1) / 2.0, lab_lat, text, transform=PC,
             fontsize=fontsize, ha="center", va="bottom" if lab_above else "top",
             color="black", zorder=6, fontweight="bold")
