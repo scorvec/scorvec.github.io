@@ -59,6 +59,23 @@ VARS = {
     "t2m": dict(cds_var="2m_temperature", pressure=None,
                  label="2 m temperature anomaly", units="°C",
                  levels=np.arange(-6, 6.01, 0.75), cmap="RdBu_r"),
+    "precip": dict(cds_var="total_precipitation", pressure=None,
+                 label="Precipitation anomaly", units="mm/day",
+                 levels=np.arange(-4, 4.01, 0.5), cmap="BrBG"),
+}
+
+# Each variable/month renders once per region. The Pacific–North America
+# sector (the original, suffix "") keeps its wide 3x2 layout; the South &
+# Central America sector uses portrait panels in 2 rows of 3. Teleconnection
+# legends (PNA/NAO/AO/EPO) are NH-Pacific diagnostics, so they only appear
+# on the Pacific–NA maps.
+REGIONS = {
+    "": dict(extent=(100, 350, -15, 80), central_lon=200,
+             nrows=3, ncols=2, figsize=(12.5, 8.9),
+             hspace=0.28, wspace=0.05, tele=True),
+    "_sam": dict(extent=(255, 330, -58, 33), central_lon=292,
+                 nrows=2, ncols=3, figsize=(11.8, 10.2),
+                 hspace=0.16, wspace=0.06, tele=False),
 }
 
 # ENSO development years of the comparable "super" events + the current event.
@@ -74,7 +91,6 @@ EVENTS = [
 CYCLE_MONTHS = [6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5]
 
 TREND_Y0 = 1950            # fit window start for the trend-adjusted normal
-EXTENT = (100, 350, -15, 80)   # Pacific + North America
 
 # CPC official monthly teleconnection indices (standardized), 1950-present.
 CPC_TELE = {
@@ -188,6 +204,8 @@ def fetch(vid: str) -> xr.DataArray:
         da = da / 100.0                        # Pa -> hPa
     elif vid == "t2m":
         da = da - 273.15                       # K -> degC
+    elif vid == "precip":
+        da = da * 1000.0                       # m/day (monthly-mean rate) -> mm/day
     da.name = vid
     ds.close()
     tmp2 = cache.with_suffix(".tmp.nc")
@@ -237,14 +255,14 @@ def _tele_text(tele: dict, year: int, month: int) -> str | None:
 
 
 def render(vid: str, anom: xr.DataArray, month: int, avail: set,
-           tele: dict) -> None:
+           tele: dict, suffix: str = "") -> None:
     spec = VARS[vid]
-    proj = ccrs.PlateCarree(central_longitude=200)
-    # panels are wide (250 deg x 95 deg): size the figure so rows pack tight
-    fig, axes = plt.subplots(3, 2, figsize=(12.5, 8.9),
+    reg = REGIONS[suffix]
+    proj = ccrs.PlateCarree(central_longitude=reg["central_lon"])
+    fig, axes = plt.subplots(reg["nrows"], reg["ncols"], figsize=reg["figsize"],
                              subplot_kw=dict(projection=proj))
     fig.subplots_adjust(left=0.02, right=0.98, top=0.93, bottom=0.10,
-                        hspace=0.28, wspace=0.05)
+                        hspace=reg["hspace"], wspace=reg["wspace"])
     axes = axes.ravel()
     mname = datetime(2000, month, 1).strftime("%B")
     fig.suptitle(f"{spec['label']} ({spec['units']}) — {mname} of the ENSO cycle",
@@ -253,7 +271,7 @@ def render(vid: str, anom: xr.DataArray, month: int, avail: set,
     for i, ev in enumerate(EVENTS):
         ax = axes[i]
         year = ev["y0"] if month >= 6 else ev["y0"] + 1
-        ax.set_extent(EXTENT, crs=ccrs.PlateCarree())
+        ax.set_extent(reg["extent"], crs=ccrs.PlateCarree())
         yr_tag = f"{mname} {year}"
         if (year, month) not in avail:
             ax.set_facecolor("#f2f2f2")
@@ -275,7 +293,7 @@ def render(vid: str, anom: xr.DataArray, month: int, avail: set,
         ax.set_title(f"{ev['label']} · {yr_tag}{peak}",
                      fontsize=11, loc="left",
                      fontweight="bold" if ev.get("current") else "normal")
-        tt = _tele_text(tele, year, month)
+        tt = _tele_text(tele, year, month) if reg["tele"] else None
         if tt:
             ax.text(0.012, 0.035, tt, transform=ax.transAxes, fontsize=7.8,
                     va="bottom", ha="left", color="#111", zorder=6,
@@ -287,13 +305,14 @@ def render(vid: str, anom: xr.DataArray, month: int, avail: set,
         cax = fig.add_axes([0.18, 0.055, 0.64, 0.018])
         cb = fig.colorbar(cf, cax=cax, orientation="horizontal")
         cb.ax.tick_params(labelsize=9)
-    fig.text(0.5, 0.008,
-             "ERA5 monthly means · trend-adjusted anomalies (per-gridpoint "
-             f"{TREND_Y0}–present fit per month) · PNA/NAO/AO: CPC monthly "
-             "indices · EPO: computed from ERA5 z500 (Riddle et al. 2013 boxes)",
-             ha="center", fontsize=8.5, color="#666")
+    credit = ("ERA5 monthly means · trend-adjusted anomalies (per-gridpoint "
+              f"{TREND_Y0}–present fit per month)")
+    if reg["tele"]:
+        credit += (" · PNA/NAO/AO: CPC monthly indices · EPO: computed from "
+                   "ERA5 z500 (Riddle et al. 2013 boxes)")
+    fig.text(0.5, 0.008, credit, ha="center", fontsize=8.5, color="#666")
     OUT.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT / f"atmos_{vid}_{month:02d}.webp", dpi=105,
+    fig.savefig(OUT / f"atmos_{vid}_{month:02d}{suffix}.webp", dpi=105,
                 bbox_inches="tight", facecolor="white",
                 pil_kwargs={"quality": 86, "method": 6})
     plt.close(fig)
@@ -315,8 +334,9 @@ def main() -> int:
             for ym, epo in compute_epo(anom).items():
                 tele.setdefault(ym, {})["EPO"] = epo
         for month in CYCLE_MONTHS:
-            render(vid, anom, month, avail, tele)
-        print(f"  {vid}: rendered {len(CYCLE_MONTHS)} months")
+            for suffix in REGIONS:
+                render(vid, anom, month, avail, tele, suffix)
+        print(f"  {vid}: rendered {len(CYCLE_MONTHS)} months x {len(REGIONS)} regions")
 
     for ev in EVENTS:
         months = []
@@ -328,6 +348,8 @@ def main() -> int:
                                    "months": months,
                                    "current": bool(ev.get("current"))})
     manifest["vars"] = {k: v["label"] for k, v in VARS.items()}
+    manifest["regions"] = {"": "Pacific + North America",
+                           "_sam": "South & Central America"}
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "atmos_manifest.json").write_text(json.dumps(manifest, indent=1))
     print(f"wrote {OUT / 'atmos_manifest.json'}")

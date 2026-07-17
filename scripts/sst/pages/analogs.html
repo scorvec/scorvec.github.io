@@ -148,8 +148,8 @@
     <!-- ATMOSPHERIC FINGERPRINTS: monthly Z500 / MSLP / T2M anomaly maps -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Atmospheric Fingerprints: Z500 / MSLP / 2&nbsp;m Temperature</h2>
-        <p>Monthly circulation-anomaly maps for the current event beside the five comparable strong-to-super El&nbsp;Ni&ntilde;os (1982&ndash;83, 1991&ndash;92, 1997&ndash;98, 2015&ndash;16, 2023&ndash;24), across the Pacific&ndash;North America sector. Pick a variable and any month of the ENSO cycle (June of the development year through May of the following year). Anomalies are <b>trend-adjusted</b>: a per-gridpoint linear fit per calendar month (1950&ndash;present) is removed, so a 1982 panel and a 2026 panel are each measured against their own era's climate &mdash; what remains is the circulation signal (the deepened Aleutian low, the PNA arc, the southern-tier cool/wet look), not background warming. The legend in each panel gives that month's mean <b>teleconnection indices</b> &mdash; PNA, NAO and AO from CPC's official monthly values, EPO computed from the same ERA5 heights (Riddle et&nbsp;al. 2013 boxes) &mdash; so the map pattern and the index summary can be read together.</p>
+        <h2>Atmospheric Fingerprints: Z500 / MSLP / 2&nbsp;m Temperature / Precipitation</h2>
+        <p>Monthly circulation-anomaly maps for the current event beside the five comparable strong-to-super El&nbsp;Ni&ntilde;os (1982&ndash;83, 1991&ndash;92, 1997&ndash;98, 2015&ndash;16, 2023&ndash;24). Pick a variable, a region &mdash; the <b>Pacific&ndash;North America</b> sector or <b>South &amp; Central America</b> &mdash; and any month of the ENSO cycle (June of the development year through May of the following year). Anomalies are <b>trend-adjusted</b>: a per-gridpoint linear fit per calendar month (1950&ndash;present) is removed, so a 1982 panel and a 2026 panel are each measured against their own era's climate &mdash; what remains is the ENSO signal (the deepened Aleutian low, the PNA arc, coastal Ecuador/Peru rains, the Amazon/Colombia dry signal), not background warming. On the Pacific&ndash;NA maps the legend in each panel gives that month's mean <b>teleconnection indices</b> &mdash; PNA, NAO and AO from CPC's official monthly values, EPO computed from the same ERA5 heights (Riddle et&nbsp;al. 2013 boxes) &mdash; so the map pattern and the index summary can be read together.</p>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:1.1rem 1.6rem;align-items:flex-end;margin:.4rem 0 .8rem;font-size:.86rem">
         <label style="display:flex;flex-direction:column;gap:.25rem">
@@ -158,6 +158,14 @@
             <option value="z500">500 hPa height</option>
             <option value="mslp">Sea-level pressure</option>
             <option value="t2m">2 m temperature</option>
+            <option value="precip">Precipitation</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Region</span>
+          <select id="af-region" style="padding:.3rem .4rem;border:1px solid #ccc;border-radius:6px">
+            <option value="">Pacific + North America</option>
+            <option value="_sam">South &amp; Central America</option>
           </select>
         </label>
         <label style="display:flex;flex-direction:column;gap:.25rem">
@@ -175,6 +183,7 @@
     (function () {
       var img = document.getElementById('af-img');
       var varSel = document.getElementById('af-var');
+      var regSel = document.getElementById('af-region');
       var monSel = document.getElementById('af-month');
       if (!img) return;
       var CYCLE = [6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5];
@@ -202,9 +211,10 @@
         .catch(show);
       function show() {
         var mm = ('0' + monSel.value).slice(-2);
-        img.src = 'assets/sst/analogs/atmos_' + varSel.value + '_' + mm + '.webp?v=' + bust;
+        img.src = 'assets/sst/analogs/atmos_' + varSel.value + '_' + mm + regSel.value + '.webp?v=' + bust;
       }
       varSel.addEventListener('change', show);
+      regSel.addEventListener('change', show);
       monSel.addEventListener('change', show);
     })();
     </script>
