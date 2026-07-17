@@ -219,6 +219,72 @@
     })();
     </script>
 
+    <!-- STRONG-EVENT COMPOSITES: seasonal means over all peak-RONI>2 El Niños -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Super-El&nbsp;Ni&ntilde;o Composite: Seasonal Means with Significance</h2>
+        <p>The average anomaly pattern across <b>every El&nbsp;Ni&ntilde;o in the record whose peak RONI exceeded +2.0</b> &mdash; the "super" events on the relative index &mdash; by 3-month season of the ENSO cycle. Pick a variable, region and season (JJA of the development year through the following MAM). Each map is the composite mean of the <b>trend-adjusted</b> anomalies (per-gridpoint 1950&ndash;present fit per month, so events from the 1970s and 2010s are on equal footing); <b>stippling</b> marks where the composite differs significantly from zero (two-tailed one-sample <i>t</i>-test at 95%), i.e. where the events agree strongly enough to trust the signal rather than chance. The panel footer lists the events that went into the composite &mdash; this is the "expected" super-event fingerprint to read the current event against.</p>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:1.1rem 1.6rem;align-items:flex-end;margin:.4rem 0 .8rem;font-size:.86rem">
+        <label style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Variable</span>
+          <select id="cp-var" style="padding:.3rem .4rem;border:1px solid #ccc;border-radius:6px">
+            <option value="z500">500 hPa height</option>
+            <option value="mslp">Sea-level pressure</option>
+            <option value="t2m">2 m temperature</option>
+            <option value="precip">Precipitation</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Region</span>
+          <select id="cp-region" style="padding:.3rem .4rem;border:1px solid #ccc;border-radius:6px">
+            <option value="">Pacific + North America</option>
+            <option value="_sam">South &amp; Central America</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:.25rem">
+          <span style="font-weight:600;color:#555">Season of the ENSO cycle</span>
+          <select id="cp-season" style="padding:.3rem .4rem;border:1px solid #ccc;border-radius:6px"></select>
+        </label>
+      </div>
+      <div class="img-wrap"><img id="cp-img" alt="Super-El Niño seasonal composite anomaly maps with significance stippling" loading="lazy"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ERA5 monthly means (CDS) &middot; composite of peak-RONI&gt;2 events &middot; trend-adjusted anomalies &middot; stippling: 95% two-tailed <i>t</i>-test</span>
+        <span class="chart-updated" id="cp-updated"></span>
+      </div>
+    </div>
+    <script>
+    (function () {
+      var img = document.getElementById('cp-img');
+      var varSel = document.getElementById('cp-var');
+      var regSel = document.getElementById('cp-region');
+      var seaSel = document.getElementById('cp-season');
+      if (!img) return;
+      var bust = new Date().toISOString().slice(0, 7);
+      fetch('assets/sst/analogs/composite_manifest.json?v=' + bust)
+        .then(function (r) { return r.json(); })
+        .then(function (mf) {
+          var html = '';
+          Object.keys(mf.seasons).forEach(function (k) {
+            html += '<option value="' + k + '">' + mf.seasons[k] + '</option>';
+          });
+          seaSel.innerHTML = html;
+          seaSel.value = 'djf';   // default to the peak season
+          document.getElementById('cp-updated').textContent =
+            'n = ' + mf.n_events + ' events (' + (mf.events || []).join(', ') + ')  ·  ' + (mf.updated || '');
+          show();
+        })
+        .catch(show);
+      function show() {
+        img.src = 'assets/sst/analogs/composite_' + varSel.value + '_' +
+                  (seaSel.value || 'djf') + regSel.value + '.webp?v=' + bust;
+      }
+      varSel.addEventListener('change', show);
+      regSel.addEventListener('change', show);
+      seaSel.addEventListener('change', show);
+    })();
+    </script>
+
     <!-- EVENT COMPARISON: Niño-3.4 evolution overlay -->
     <div class="chart-card">
       <div class="chart-card-header">
