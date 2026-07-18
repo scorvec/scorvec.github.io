@@ -5,8 +5,10 @@ name: GLM lightning flash-density loop (GOES-East)
 # (actions/cache) so a run only fetches the newest hour (~180 tiny granules); committed webp
 # frames carry the rolling 72-hour window across fresh checkouts.
 on:
-  schedule:
-    - cron: '50 * * * *'    # hourly; offset from the IR loops (':40' / ':25') so they don't collide
+  # schedule disabled 2026-07-18 (Shawn: pause this job for now) — re-enable by
+  # restoring the cron below; manual dispatch still works.
+  # schedule:
+  #   - cron: '50 * * * *'    # hourly; offset from the IR loops (':40' / ':25') so they don't collide
   workflow_dispatch:
 
 permissions:

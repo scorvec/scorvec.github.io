@@ -4,8 +4,10 @@ name: Colombia/Panama true-colour satellite loop (GOES-East)
 # Hourly: render any new sunlit frame, trim the rolling 2-day window, rebuild the manifest. Night
 # frames are skipped (visible is dark), so each run only adds a frame during local daylight.
 on:
-  schedule:
-    - cron: '22 * * * *'    # hourly
+  # schedule disabled 2026-07-18 (Shawn: pause this job for now) — re-enable by
+  # restoring the cron below; manual dispatch still works.
+  # schedule:
+  #   - cron: '22 * * * *'    # hourly
   workflow_dispatch:
 
 permissions:
