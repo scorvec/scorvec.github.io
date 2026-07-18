@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -63,7 +64,7 @@ DEPTH_PEAK = 3.0                     # hPa: track's peak ring depth (env-relativ
                                      # absolute MSLP screens fail in heat-trough zones)
 CLUSTER_KM = 600.0                   # genesis agreement radius
 CLUSTER_DT = 2                       # genesis agreement window (days)
-MIN_SUPPORT = 0.15                   # fraction of members to label a storm
+MIN_SUPPORT = 0.25                   # fraction of members that must develop the storm
 STRIKE_KM = 200.0                    # strike-probability radius
 
 BASINS = [  # (key, label, lon_w, lon_e, lat_s, lat_n)  lons in -180..180
@@ -105,6 +106,7 @@ SEASONAL_EXCLUDE = [
     (48, 64, 16, 28, {6, 7, 8, 9}),
 ]
 _MONTH = [0]                       # set from the init in main()
+INIT_ISO = [""]                    # init timestamp for the Julia renderer
 
 
 def excluded(lat, lon):
@@ -504,18 +506,20 @@ def _style_ax(ax, extent=None):
 
 
 def _mean_track(cl):
-    """Per-day mean position of a cluster's member fixes (days with ≥30% of
-    the cluster's members present)."""
+    """Per-hour mean position of a cluster's OVER-WATER member fixes (hours
+    with ≥30% of members and ≥3 fixes) — overland stragglers made low-support
+    means scrawl across terrain."""
     from collections import defaultdict
     bag = defaultdict(list)
     for _, tr in cl["tracks"]:
         for pt in tr:
-            bag[pt[0]].append((pt[1], pt[2], pt[5]))
+            if is_ocean(pt[1], pt[2]):
+                bag[pt[0]].append((pt[1], pt[2], pt[5]))
     n_mem = len({m for m, _ in cl["tracks"]})
     out = []
     for k in sorted(bag):
         pts = bag[k]
-        if len(pts) < max(2, 0.3 * n_mem):
+        if len(pts) < max(3, 0.3 * n_mem):
             continue
         la = np.mean([q[0] for q in pts])
         # circular-safe lon mean (storm spread is < 60°, so anchor to first)
@@ -604,14 +608,29 @@ def _draw_storm_panel(ax, cl, model, other_mean, w0, e0, s0, n0):
                       ylocs=range(-60, 61, 5))
     gl.top_labels = gl.right_labels = False
     gl.xlabel_style = gl.ylabel_style = {"color": "#667", "size": 6.5}
+    HURR = 64 / 1.94384                              # 64 kt in m/s
     mtracks = [(m, tr) for m, tr in cl["tracks"] if m.startswith(model)]
+    n_hur = 0
     for _, tr in mtracks:
         for a, b in zip(tr[:-1], tr[1:]):
-            if not (is_ocean(a[1], a[2]) and is_ocean(b[1], b[2])):
+            if not seg_over_water(a, b):
                 continue
             ax.plot([a[2], b[2]], [a[1], b[1]], color=_wn_color(b[5]),
                     lw=0.9, alpha=0.75, transform=ccrs.Geodetic(), zorder=4)
-    mt = _mean_track({"tracks": mtracks}) if mtracks else []
+        wet = [pt for pt in tr if is_ocean(pt[1], pt[2])]
+        if wet:                                      # dots at each forecast fix
+            ax.scatter([pt[2] for pt in wet], [pt[1] for pt in wet], s=5,
+                       c=[_wn_color(pt[5]) for pt in wet], edgecolors="none",
+                       alpha=0.85, transform=ccrs.PlateCarree(), zorder=5)
+        peak = max(tr, key=lambda pt: pt[5])
+        if peak[5] >= HURR and is_ocean(peak[1], peak[2]):
+            n_hur += 1                               # hurricane-force member
+            ax.plot(peak[2], peak[1], marker="$H$", ms=8, color="#c62828",
+                    mew=0.4, transform=ccrs.PlateCarree(), zorder=8)
+    # a mean track is only meaningful when this model genuinely develops the
+    # storm — low-support scribbles were worse than nothing
+    own_sup = cl["sup_m"].get(model, 0.0)
+    mt = _mean_track({"tracks": mtracks}) if (mtracks and own_sup >= 0.25) else []
     if other_mean and len(other_mean) >= 2:
         ax.plot([q[2] for q in other_mean], [q[1] for q in other_mean],
                 color="0.35", lw=1.6, ls="--", alpha=0.8,
@@ -624,8 +643,9 @@ def _draw_storm_panel(ax, cl, model, other_mean, w0, e0, s0, n0):
                 continue
             ax.annotate(f"d{q[0] // 24}", xy=(q[2], q[1] + 0.7),
                         xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
-                        fontsize=6.5, color="0.35", ha="center", zorder=7)
-    return mt
+                        fontsize=6.5, color="0.35", ha="center", zorder=7,
+                        annotation_clip=True, clip_on=True)
+    return mt, n_hur
 
 
 def render_storm_panels(labeled, model_counts, init, out_dir: Path):
@@ -638,7 +658,7 @@ def render_storm_panels(labeled, model_counts, init, out_dir: Path):
     sdir.mkdir(parents=True, exist_ok=True)
     for old_f in sdir.glob("storm_*.webp"):
         old_f.unlink()
-    storms = sorted([cl for cl in labeled if cl["support"] >= 0.20],
+    storms = sorted([cl for cl in labeled],
                     key=lambda c: -c["support"])[:12]
     meta = []
     for i, cl in enumerate(storms):
@@ -652,8 +672,8 @@ def render_storm_panels(labeled, model_counts, init, out_dir: Path):
         if e0 - w0 > 55: c = (e0 + w0) / 2; w0, e0 = c - 27.5, c + 27.5
         if n0 - s0 > 32: c = (n0 + s0) / 2; s0, n0 = c - 16, c + 16
         aspect = (n0 - s0) / (e0 - w0)
-        figw = 13.6
-        figh = figw / 2 * aspect * 1.02 + 1.05
+        figw = 16.0
+        figh = figw / 2 * aspect * 1.02 + 0.7
         fig = plt.figure(figsize=(figw, figh), facecolor="white")
         means = {}
         for j, model in enumerate(sorted(model_counts)):
@@ -661,10 +681,12 @@ def render_storm_panels(labeled, model_counts, init, out_dir: Path):
                                  projection=ccrs.PlateCarree(central_longitude=(w0 + e0) / 2))
             other = [m for m in sorted(model_counts) if m != model]
             om = means.get(other[0]) if other else None
-            means[model] = _draw_storm_panel(ax, cl, model, om, w0, e0, s0, n0)
+            means[model], n_hur = _draw_storm_panel(ax, cl, model, om, w0, e0, s0, n0)
             mdl = "AIFS-ENS" if model == "aifs" else "IFS-ENS"
+            hur = f" · {n_hur} reach hurricane force" if n_hur else ""
             ax.set_title(f"{mdl} — {cl['sup_m'].get(model, 0)*100:.0f}% of "
-                         f"{model_counts[model]} members", fontsize=9.5, fontweight="bold")
+                         f"{model_counts[model]} members{hur}",
+                         fontsize=10, fontweight="bold")
         # second pass so the FIRST panel also gets the other model's mean
         if len(means) == 2:
             ms = sorted(model_counts)
@@ -688,10 +710,11 @@ def render_storm_panels(labeled, model_counts, init, out_dir: Path):
         g = cl["genesis"]
         fig.suptitle(f"{cl['id']} — support {cl['support']*100:.0f}%{inv} · "
                      f"genesis day {g[0] // 24} · init {init:%Y-%m-%d %HZ}",
-                     fontsize=11, fontweight="bold")
-        fig.tight_layout(rect=[0, 0, 1, 0.94])
+                     fontsize=12, fontweight="bold", y=1.01)
+        fig.tight_layout()
         fn = f"storm_{i:02d}.webp"
-        fig.savefig(sdir / fn, dpi=135, bbox_inches="tight", facecolor="white", pil_kwargs={"quality": 92, "method": 6})
+        sdir.mkdir(parents=True, exist_ok=True)   # robust to concurrent cleanup
+        fig.savefig(sdir / fn, dpi=150, bbox_inches="tight", facecolor="white", pil_kwargs={"quality": 92, "method": 6})
         plt.close(fig)
         meta.append({"id": cl["id"], "file": f"storms/{fn}",
                      "support": round(cl["support"], 3),
@@ -797,6 +820,43 @@ def _render_frame(job):
     return fp
 
 
+def _render_with_julia(spec_regions, ndays, anim_dir: Path) -> bool:
+    """Render all frames via scripts/julia/tc_render.jl (PNG), then convert to
+    webp. Returns False on any failure so the matplotlib pool takes over."""
+    import json
+    import shutil
+    import subprocess
+    from concurrent.futures import ThreadPoolExecutor
+    if not shutil.which("julia"):
+        return False
+    jdir = Path(__file__).resolve().parents[1] / "julia"
+    spec = {"init": INIT_ISO[0], "ndays": ndays,
+            "land_mask": str(Path(__file__).parent / "land_mask_0p5.npz"),
+            "out_dir": str(anim_dir), "regions": spec_regions}
+    sp = anim_dir / "render_spec.json"
+    sp.write_text(json.dumps(spec))
+    try:
+        r = subprocess.run(["julia", str(jdir / "tc_render.jl"), str(sp)],
+                           capture_output=True, text=True, timeout=1500)
+        if r.returncode != 0 or "JULIA RENDER DONE" not in r.stdout:
+            print(f"  julia renderer failed — matplotlib fallback\n{r.stderr[-400:]}")
+            return False
+        print("  " + r.stdout.strip().splitlines()[-1])
+    except Exception as e:                                     # noqa: BLE001
+        print(f"  julia renderer failed ({str(e)[:80]}) — matplotlib fallback")
+        return False
+    from PIL import Image
+
+    def _conv(png):
+        Image.open(png).save(png.with_suffix(".webp"), quality=92, method=6)
+        png.unlink()
+    pngs = list(anim_dir.glob("*/F*.png"))
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        list(ex.map(_conv, pngs))
+    print(f"  converted {len(pngs)} frames to webp")
+    return True
+
+
 def build_anim(coherent, labeled, model_counts, init, anim_dir: Path):
     """Per-day frames per zoom region, SPLIT BY MODEL (AIFS-ENS vs IFS-ENS)
     with the player's picker as the model dropdown. Frames render in a
@@ -804,11 +864,16 @@ def build_anim(coherent, labeled, model_counts, init, anim_dir: Path):
     import json
     from concurrent.futures import ProcessPoolExecutor
     anim_dir.mkdir(parents=True, exist_ok=True)
+    INIT_ISO[0] = init.isoformat()
     kmax = max((tr[-1][0] for _, tr in coherent), default=0)
     ndays = max(kmax // 24 + 1, 1)
     ver = int(pd.Timestamp.now().timestamp())
-    jobs, mani_frames = [], {}
+    jobs, mani_frames, spec_regions = [], {}, []
     for key, label, w, e, s, nn in ANIM_REGIONS:
+        if key == "globe":
+            # seasonal bounds: the winter hemisphere's TC-dead high latitudes
+            # are just empty map
+            s, nn = (-30, 48) if init.month in (5, 6, 7, 8, 9, 10) else (-48, 30)
         def in_box(tr):
             return any(w - 6 <= p[2] <= e + 6 and s - 4 <= p[1] <= nn + 4 for p in tr)
         rclusters = [cl for cl in labeled
@@ -817,6 +882,9 @@ def build_anim(coherent, labeled, model_counts, init, anim_dir: Path):
         aspect = (nn - s) / (e - w)
         figw = 14.5 if key == "globe" else 10.4
         figh = figw * aspect * (1.12 if key == "globe" else 1.28) + 0.9
+        reg_spec = {"key": key, "label": label, "w": w, "e": e, "s": s, "n": nn,
+                    "figw": figw, "figh": figh, "models": []}
+        spec_regions.append(reg_spec)
         for model in sorted(model_counts):
             rid = f"{key}_{model}"
             rtracks = [(m, tr) for m, tr in coherent
@@ -825,6 +893,14 @@ def build_anim(coherent, labeled, model_counts, init, anim_dir: Path):
             rcl = sorted(((cl["genesis"], cl["id"], cl["sup_m"].get(model, 0.0))
                           for cl in rclusters), key=lambda x: -x[2])
             rcl = [c for c in rcl if c[2] >= 0.10]
+            reg_spec["models"].append({
+                "model": model, "n": model_counts[model], "rid": rid,
+                "tracks": [{"member": m,
+                            "fix": [[int(pt[0])] + [round(float(x), 2) for x in pt[1:]]
+                                    for pt in tr]} for m, tr in rtracks],
+                "clusters": [{"id": cid, "sup": round(sup, 3),
+                              "g": [int(g[0]), round(float(g[1]), 2), round(float(g[2]), 2)]}
+                             for g, cid, sup in rcl]})
             rdir = anim_dir / rid
             rdir.mkdir(parents=True, exist_ok=True)
             for old_f in rdir.glob("F*.webp"):
@@ -842,8 +918,14 @@ def build_anim(coherent, labeled, model_counts, init, anim_dir: Path):
                                "date": f"{valid:%Y-%m-%d}",
                                "label": f"day {k} · valid {valid:%a %b %d}"})
             mani_frames[rid] = frames
-    with ProcessPoolExecutor(max_workers=10) as ex:
-        list(ex.map(_render_frame, jobs, chunksize=2))
+    # renderer dispatch: Julia/Makie (one warm process, ~5x faster) with the
+    # matplotlib pool as automatic fallback (TC_RENDERER=python forces it)
+    rendered = False
+    if os.environ.get("TC_RENDERER", "julia") != "python":
+        rendered = _render_with_julia(spec_regions, ndays, anim_dir)
+    if not rendered:
+        with ProcessPoolExecutor(max_workers=10) as ex:
+            list(ex.map(_render_frame, jobs, chunksize=2))
     for key, label, w, e, s, nn in ANIM_REGIONS:
         regions = {}
         for model in sorted(model_counts):
