@@ -58,7 +58,9 @@ LAT_ET = 42.0                        # truncate tracks here (extratropical trans
 LINK_KMD = 900.0                     # linking gate, km per 24 h (motion-extrapolated)
 GAP_H = 36                           # max hours between fixes before a track dies
 MIN_SPAN_H = 48                      # minimum track lifetime (hours)
-WIND_MIN = 14.0                      # m/s: track's peak 10 m wind to keep it
+WIND_MIN = 15.5                      # m/s (~30 kt): track's peak 10 m wind to keep it
+DEPTH_PEAK = 3.0                     # hPa: track's peak ring depth (env-relative —
+                                     # absolute MSLP screens fail in heat-trough zones)
 CLUSTER_KM = 600.0                   # genesis agreement radius
 CLUSTER_DT = 2                       # genesis agreement window (days)
 MIN_SUPPORT = 0.15                   # fraction of members to label a storm
@@ -86,14 +88,30 @@ _NEAR_LAND = ndimage.binary_dilation(_LM["land"], iterations=2)
 EXCLUDE = [(32, 44, 12, 30),     # Red Sea
            (46, 57, 22, 31),     # Persian Gulf
            (-6, 37, 29, 47),     # Mediterranean
-           (42, 58, 8, 18)]      # Gulf of Aden / Somali jet / Socotra zone (the
+           (42, 58, 8, 18),      # Gulf of Aden / Somali jet / Socotra zone (the
                                  # July monsoon trough re-seeds a fake "storm"
                                  # every few days; real Arabian Sea genesis
                                  # is east of ~60°E)
+           (-78.5, -70.5, 8, 12.5),  # Colombian Caribbean coast (semi-permanent
+                                     # lee-of-Andes trough; real Caribbean genesis
+                                     # is north of ~12.5°N)
+           (-81, -77, 2, 9)]     # Panama Bight / Colombian Pacific coast trough
+
+
+SEASONAL_EXCLUDE = [
+    # Gulf of Oman / Arabian & Makran coasts / Persian Gulf approaches: the
+    # summer monsoon heat trough spawns broad non-tropical lows here Jun-Sep;
+    # real Oman-coast TCs (Gonu, Shaheen) are pre/post-monsoon
+    (48, 64, 16, 28, {6, 7, 8, 9}),
+]
+_MONTH = [0]                       # set from the init in main()
 
 
 def excluded(lat, lon):
-    return any(w <= lon <= e and s <= lat <= n for w, e, s, n in EXCLUDE)
+    if any(w <= lon <= e and s <= lat <= n for w, e, s, n in EXCLUDE):
+        return True
+    return any(w <= lon <= e and s <= lat <= n and _MONTH[0] in mo
+               for w, e, s, n, mo in SEASONAL_EXCLUDE)
 
 
 def _cell(lat, lon):
@@ -110,6 +128,14 @@ def is_ocean(lat, lon):
     return not bool(_LM["land"][i, j])
 
 
+def seg_over_water(a, b):
+    """Both endpoints AND the midpoint over water — long link jumps must not
+    draw chords across mountain ranges/isthmuses."""
+    mid_lon = a[2] + (((b[2] - a[2] + 180) % 360) - 180) / 2
+    return (is_ocean(a[1], a[2]) and is_ocean(b[1], b[2])
+            and is_ocean((a[1] + b[1]) / 2, ((mid_lon + 180) % 360) - 180))
+
+
 def is_open_ocean(lat, lon):
     """≥ ~110 km from any coast — the genesis standard. Kills desert heat
     lows AND semi-permanent coastal troughs (Panama Bight, lee of the Andes)."""
@@ -117,6 +143,47 @@ def is_open_ocean(lat, lon):
     if i < 0 or i >= len(_LM["lat"]):
         return False
     return not bool(_NEAR_LAND[i, j])
+
+
+def _zeta(u, v, lat, lon):
+    """Relative vorticity from 10 m winds on the lat-lon grid (s^-1)."""
+    latr = np.deg2rad(lat)
+    lonr = np.deg2rad(lon)
+    a = 6.371e6
+    cosp = np.cos(latr)[:, None]
+    dvdx = np.gradient(v, lonr, axis=1) / (a * cosp)
+    dudy = np.gradient(u, latr, axis=0) / a
+    return dvdx - dudy
+
+
+def refine_centroid(cands_k, zeta, lat, lon, rad_px=10):
+    """Move each candidate to the cyclonic-vorticity centroid within ~2.5°:
+    the rotation centre is far more stable than the MSLP-minimum gridpoint
+    for weak/disorganised systems (cf. TRACK / TempestExtremes)."""
+    out = []
+    dlat = abs(float(lat[1] - lat[0]))
+    for c in cands_k:
+        la, lo = c[0], c[1]
+        iy = int(round((lat[0] - la) / dlat))            # lat descending
+        ix = int(round(((lo - float(lon[0])) % 360) / dlat))
+        y0, y1 = max(0, iy - rad_px), min(len(lat), iy + rad_px + 1)
+        xs = np.arange(ix - rad_px, ix + rad_px + 1) % len(lon)
+        z = zeta[y0:y1][:, xs]
+        w = np.maximum((z if la >= 0 else -z) - 3e-5, 0.0)   # cyclonic only
+        if w.sum() <= 0:
+            out.append(c); continue
+        yy = lat[y0:y1][:, None] * np.ones_like(w)
+        lon0 = lon[ix]
+        xoff = (np.arange(-rad_px, rad_px + 1) * dlat)[None, :] * np.ones_like(w)
+        cla = float((yy * w).sum() / w.sum())
+        clo = float(lon0 + (xoff * w).sum() / w.sum())
+        clo = ((clo + 180) % 360) - 180
+        # never move further than the search box itself
+        if abs(cla - la) <= rad_px * dlat + 0.01:
+            out.append((cla, clo, c[2], c[3], c[4]))
+        else:
+            out.append(c)
+    return out
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -319,6 +386,9 @@ def link_tracks(cands, steps_h, summer_nh: bool):
             continue
         if max(p[5] for p in tr) < WIND_MIN:
             continue
+        if max(p[4] for p in tr) < DEPTH_PEAK:
+            continue                              # never digs below its surroundings:
+                                                  # broad monsoon/thermal trough, not a TC
         if sum(is_ocean(p[1], p[2]) for p in tr) < 0.4 * len(tr):
             continue                              # lives on/along land: monsoon/lee trough
         path = sum(haversine_km(a[1], a[2], b[1], b[2])
@@ -603,14 +673,22 @@ def render_storm_panels(labeled, model_counts, init, out_dir: Path):
             if om and len(om) >= 2:
                 ax0.plot([q[2] for q in om], [q[1] for q in om], color="0.35",
                          lw=1.6, ls="--", alpha=0.8, transform=ccrs.Geodetic(), zorder=5)
+        from matplotlib.lines import Line2D
+        bins = [("<20", "#b8b8b8"), ("20+", "#25c8c8"), ("30+", "#2a52dd"),
+                ("40+", "#2fb52f"), ("50+", "#e6d82e"), ("60+", "#f08a1e"),
+                ("70+", "#e2231e"), ("80+ kt", "#e01e9d")]
+        handles = [Line2D([], [], color=c, lw=2.2, label=l) for l, c in bins]
+        handles += [Line2D([], [], color="k", lw=2.8, label="model mean"),
+                    Line2D([], [], color="0.35", lw=1.6, ls="--", label="other model")]
+        fig.axes[0].legend(handles=handles, loc="best", fontsize=6.8, ncol=2,
+                           framealpha=0.92, borderpad=0.5, columnspacing=0.9,
+                           handletextpad=0.4, title="10 m wind (kt)",
+                           title_fontsize=7)
         inv = f"  ·  ≈ {cl['invest']}" if cl.get("invest") else ""
         g = cl["genesis"]
         fig.suptitle(f"{cl['id']} — support {cl['support']*100:.0f}%{inv} · "
-                     f"genesis day {g[0] // 24} · init {init:%Y-%m-%d %HZ}\n"
-                     f"color = 10 m wind (kt): grey<20 · cyan≥20 · blue≥30 · green≥40 · "
-                     f"yellow≥50 · orange≥60 · red≥70 · magenta≥80 · "
-                     f"black = model mean · grey dashed = other model's mean",
-                     fontsize=10, fontweight="bold")
+                     f"genesis day {g[0] // 24} · init {init:%Y-%m-%d %HZ}",
+                     fontsize=11, fontweight="bold")
         fig.tight_layout(rect=[0, 0, 1, 0.94])
         fn = f"storm_{i:02d}.webp"
         fig.savefig(sdir / fn, dpi=135, bbox_inches="tight", facecolor="white", pil_kwargs={"quality": 92, "method": 6})
@@ -652,12 +730,13 @@ def _render_frame(job):
     for m, tr in upto:
         # draw only over-water segments (land mask hides landfall remnants)
         for a, b in zip(tr[:-1], tr[1:]):
-            if is_ocean(a[1], a[2]) and is_ocean(b[1], b[2]):
+            if seg_over_water(a, b):
                 ax.plot([a[2], b[2]], [a[1], b[1]], color="#3a6ea8", lw=0.5,
                         alpha=0.3, transform=ccrs.Geodetic(), zorder=4)
         for p in tr:
             if p[0] == k * 24 and is_ocean(p[1], p[2]):
-                ax.plot(p[2], p[1], marker="o", ms=4.0, color=_wn_color(p[5]),
+                ax.plot(p[2], p[1], marker="o",
+                        ms=3.0 if key == "globe" else 4.0, color=_wn_color(p[5]),
                         mec="k", mew=0.35, alpha=0.95,
                         transform=ccrs.PlateCarree(), zorder=5)
     placed = []
@@ -665,8 +744,9 @@ def _render_frame(job):
         g, cid, sup = cl
         if g[0] > k * 24:
             continue
-        ax.plot(g[2], g[1], marker="D", ms=5.5, color="#222", mec="w",
-                mew=0.8, transform=ccrs.PlateCarree(), zorder=6)
+        ax.plot(g[2], g[1], marker="D", ms=3.8 if key == "globe" else 5.5,
+                color="#222", mec="w", mew=0.7,
+                transform=ccrs.PlateCarree(), zorder=6)
         if not (w + 2 <= g[2] <= e - 2 and s + 1.5 <= g[1] <= nn - 1.5):
             continue
         sy, sx = (4.5, 16) if key == "globe" else (3.2, 8)
@@ -674,12 +754,13 @@ def _render_frame(job):
             continue
         placed.append((g[1], g[2]))
         dy = -2.4 if g[1] > nn - 4 else 1.6
+        lfs = 6.2 if key == "globe" else 8.5
         ax.annotate(f"{cid}  {sup*100:.0f}%", xy=(g[2], g[1] + dy),
                     xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
-                    color="#1a1a2e", fontsize=8.5, fontweight="bold",
+                    color="#1a1a2e", fontsize=lfs, fontweight="bold",
                     ha="center", zorder=7,
-                    bbox=dict(boxstyle="round,pad=0.15", fc="white",
-                              ec="none", alpha=0.65))
+                    bbox=dict(boxstyle="round,pad=0.12", fc="white",
+                              ec="none", alpha=0.45))
     gl = ax.gridlines(draw_labels=True, linewidth=0.3, color="#b9cfd9",
                       linestyle="--", xlocs=range(-180, 181, 10),
                       ylocs=range(-60, 61, 5))
@@ -694,9 +775,10 @@ def _render_frame(job):
                       color=c, label=l) for l, c in bins]
     handles.append(Line2D([], [], marker="D", ls="none", ms=6, color="#222",
                           mec="w", label="genesis"))
-    ax.legend(handles=handles, loc="upper right", fontsize=6.6, ncol=3,
-              framealpha=0.9, borderpad=0.5, columnspacing=0.9,
-              handletextpad=0.35, title="10 m wind (kt)", title_fontsize=6.8)
+    lgfs = 5.4 if key == "globe" else 6.6
+    ax.legend(handles=handles, loc="upper right", fontsize=lgfs, ncol=3,
+              framealpha=0.85, borderpad=0.4, columnspacing=0.8,
+              handletextpad=0.3, title="10 m wind (kt)", title_fontsize=lgfs + 0.2)
     mdl = "AIFS-ENS" if model == "aifs" else "IFS-ENS"
     valid = init + pd.Timedelta(days=k)
     ax.set_title(f"{label} — TC-strength lows · {mdl} ({n_model} members) · "
@@ -793,6 +875,7 @@ def main() -> int:
         return 1
 
     summer_nh = init.month in (5, 6, 7, 8, 9, 10)
+    _MONTH[0] = init.month
     all_tracks = []
     n_members = 0
     model_counts = {}
@@ -801,22 +884,32 @@ def main() -> int:
         lon = msl.longitude.values
         ring_px = int(round(RING_DEG / abs(float(lat[1] - lat[0]))))
         steps_h = (msl.step / np.timedelta64(1, "h")).values.astype(int)
-        # decode each variable ONCE — cfgrib per-member selection re-scans the
-        # GRIB every time; a single bulk decode is far faster (~10 GB transient)
-        fa = (msl.values / 100.0).astype(np.float32)
-        wa = np.hypot(u10.values, v10.values).astype(np.float32)
+        # decode in member batches (u+v kept for vorticity — full-file decode
+        # of all three components would need ~23 GB for the 6-hourly pf file)
+        BATCH = 10
+        has_num = "number" in msl.dims
+        for b0 in range(0, len(members), BATCH):
+            bsl = slice(b0, b0 + BATCH)
+            fa = ((msl.isel(number=bsl) if has_num else msl).values / 100.0).astype(np.float32)
+            ua = (u10.isel(number=bsl) if has_num else u10).values.astype(np.float32)
+            va = (v10.isel(number=bsl) if has_num else v10).values.astype(np.float32)
+            if fa.ndim == 3:                                # cf: no member dim
+                fa = fa[None]; ua = ua[None]; va = va[None]
+            wa = np.hypot(ua, va)
+            for mi, m in enumerate(members[bsl]):
+                cands = detect_member(fa[mi], wa[mi], lat, lon, ring_px)
+                for k in range(len(cands)):                 # vorticity-centroid refine
+                    if cands[k]:
+                        zk = _zeta(ua[mi, k], va[mi, k], lat, lon)
+                        cands[k] = refine_centroid(cands[k], zk, lat, lon)
+                tracks = link_tracks(cands, steps_h, summer_nh)
+                mid = f"{model}-{typ}{'' if m is None else int(m)}"
+                for tr in tracks:
+                    all_tracks.append((mid, tr))
+                n_members += 1
+                model_counts[model] = model_counts.get(model, 0) + 1
+            del fa, ua, va, wa
         del msl, u10, v10
-        if fa.ndim == 3:                                    # cf: no member dim
-            fa = fa[None]; wa = wa[None]
-        for mi, m in enumerate(members):
-            cands = detect_member(fa[mi], wa[mi], lat, lon, ring_px)
-            tracks = link_tracks(cands, steps_h, summer_nh)
-            mid = f"{model}-{typ}{'' if m is None else int(m)}"
-            for tr in tracks:
-                all_tracks.append((mid, tr))
-            n_members += 1
-            model_counts[model] = model_counts.get(model, 0) + 1
-        del fa, wa
         print(f"  {model} {typ}: tracked ({n_members} members cumulative, "
               f"{len(all_tracks)} tracks)", flush=True)
 
