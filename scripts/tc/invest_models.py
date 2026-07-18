@@ -31,18 +31,23 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 ATCF = "https://ftp.nhc.noaa.gov/atcf"
-MODELS = [  # (tech, label, color, lw, ls) — draw order (first = bottom)
-    ("CMC",  "CMC",        "#2ca02c", 1.3, "-"),
-    ("EGRI", "UKMET",      "#ff7f0e", 1.3, "-"),
-    ("NVGM", "NAVGEM",     "#8c564b", 1.1, "-"),
-    ("CTCI", "COAMPS-TC",  "#17becf", 1.3, "-"),
-    ("HFSB", "HAFS-B",     "#e377c2", 1.4, "-"),
-    ("HFSA", "HAFS-A",     "#9467bd", 1.4, "-"),
-    ("AEMN", "GFS ens mean", "#d62728", 1.2, "--"),
-    ("AVNO", "GFS",        "#d62728", 1.5, "-"),
-    ("EMXI", "ECMWF",      "#1f77b4", 1.5, "-"),
-    ("TVCN", "Consensus",  "#555555", 1.8, "--"),
-    ("OFCL", "NHC official", "#000000", 2.6, "-"),
+# (aliases, label, color, lw, ls) — draw order (first = bottom). Each family
+# lists its ATCF TECH id variants (interpolated first, then raw): the a-decks
+# file the same model under different ids depending on cycle timing.
+MODELS = [
+    (("NVGI", "NVGM"),                 "NAVGEM",       "#8c564b", 1.1, "-"),
+    (("ICNI", "ICON"),                 "ICON",         "#bcbd22", 1.2, "-"),
+    (("CMCI", "CMC2", "CMC"),          "CMC",          "#2ca02c", 1.3, "-"),
+    (("EGRI", "EGR2", "EGRR", "UKXI", "UKX"), "UKMET", "#ff7f0e", 1.3, "-"),
+    (("CTCI", "CTC2", "CTCX"),         "COAMPS-TC",    "#17becf", 1.3, "-"),
+    (("HMNI", "HMON"),                 "HMON",         "#7f7f7f", 1.2, "-"),
+    (("HFBI", "HFSB"),                 "HAFS-B",       "#e377c2", 1.4, "-"),
+    (("HFAI", "HFSA"),                 "HAFS-A",       "#9467bd", 1.4, "-"),
+    (("AEMI", "AEM2", "AEMN"),         "GFS ens mean", "#d62728", 1.2, "--"),
+    (("AVNI", "AVN2", "AVNO"),         "GFS",          "#d62728", 1.5, "-"),
+    (("EMXI", "EMX2", "EMX"),          "ECMWF",        "#1f77b4", 1.5, "-"),
+    (("TVCN", "TVCX", "TVCA", "TVCE", "GUNA"), "Consensus", "#555555", 1.8, "--"),
+    (("OFCL", "OFCI"),                 "NHC official", "#000000", 2.6, "-"),
 ]
 
 
@@ -105,13 +110,20 @@ def fetch_adeck(deck: str):
 def plot_system(sysd, adeck, out_dir: Path):
     """One guidance panel for the latest cycle with enough models."""
     dtgs = sorted({d for d, _ in adeck})
-    chosen, tracks = None, {}
-    for dtg in reversed(dtgs[-4:]):                # newest cycle with ≥3 models
-        tr = {t: adeck[(dtg, t)] for tech, *_ in [(m[0],) for m in MODELS]
-              for t in [tech] if (dtg, t) in adeck and len(adeck[(dtg, t)]) >= 3}
-        if len(tr) >= 3:
-            chosen, tracks = dtg, tr
-            break
+    # among the last 4 cycles, pick the one with the best model-family
+    # coverage (ties → newest); each family uses its first alias present
+    best = (0, None, {})
+    for age, dtg in enumerate(reversed(dtgs[-4:])):
+        fams = {}
+        for aliases, label, *_ in MODELS:
+            for tech in aliases:
+                if (dtg, tech) in adeck and len(adeck[(dtg, tech)]) >= 3:
+                    fams[label] = adeck[(dtg, tech)]
+                    break
+        score = len(fams) - age * 0.1              # slight preference for newest
+        if score > best[0] and len(fams) >= 3:
+            best = (score, dtg, fams)
+    _, chosen, tracks = best
     if not chosen:
         return None
     las = [p[0] for tr in tracks.values() for p in tr.values()]
@@ -140,14 +152,14 @@ def plot_system(sysd, adeck, out_dir: Path):
     gl.top_labels = gl.right_labels = False
     gl.xlabel_style = gl.ylabel_style = {"color": "#667", "size": 7}
     handles = []
-    for tech, label, color, lw, ls in MODELS:
-        tr = tracks.get(tech)
+    for aliases, label, color, lw, ls in MODELS:
+        tr = tracks.get(label)
         if not tr:
             continue
         taus = sorted(tr)
         la = [tr[t][0] for t in taus]; lo = [tr[t][1] for t in taus]
         ln, = ax.plot(lo, la, color=color, lw=lw, ls=ls, alpha=0.95,
-                      transform=ccrs.Geodetic(), zorder=6 if tech == "OFCL" else 5,
+                      transform=ccrs.Geodetic(), zorder=6 if label == "NHC official" else 5,
                       label=label)
         handles.append(ln)
         for t in taus:
