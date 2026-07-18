@@ -140,9 +140,9 @@ def render_fuel(vol: pd.DataFrame, unit: str, title: str, explicit_ids: list,
             continue
         dpk = win.idxmax()
         a0.axvline(dpk, color="0.35", lw=0.8, ls=":", alpha=0.8)
-        a0.annotate(name, xy=(dpk, a0.get_ylim()[1]), xytext=(2, -2),
+        a0.annotate(name, xy=(dpk, a0.get_ylim()[1]), xytext=(3, -3),
                     textcoords="offset points", rotation=90, va="top", ha="left",
-                    fontsize=7, color="0.35")
+                    fontsize=10, fontweight="bold", color="0.3")
     a0.legend(fontsize=8, loc="upper left",
               ncol=2, framealpha=0.9)
 
@@ -225,8 +225,8 @@ def render_combined_oil(power_kbd: "pd.DataFrame") -> None:
         dd = pd.Timestamp(d)
         if dd in tail.index or (idx.min() < dd < idx.max()):
             ax.axvline(dd, color="0.4", lw=0.7, ls=":")
-            ax.annotate(nm, xy=(dd, ax.get_ylim()[1] * 0.02), fontsize=7,
-                        rotation=90, color="0.35", va="bottom")
+            ax.annotate(nm, xy=(dd, ax.get_ylim()[1] * 0.02), fontsize=10,
+                        fontweight="bold", rotation=90, color="0.3", va="bottom")
     ax.set_ylabel("thousand barrels / day")
     ax.grid(True, alpha=0.25)
     ax.legend(fontsize=8.5, loc="upper right")
