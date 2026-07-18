@@ -137,7 +137,7 @@ MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "
 "$PY" ../heatoil/hdd_index.py || echo "heat-oil HDD failed; continuing"
 "$PY" ../heatoil/calibrate.py || echo "heat-oil calibration failed; continuing"
 "$PY" ../heatoil/season_history.py || echo "heat-oil season history failed; continuing"
-"$PY" ../heatoil/product_stocks.py || echo "product stocks failed; continuing"
+# product_stocks.py paused 2026-07-18 (card removed from fuelburn.html; script kept)
 # ── 200 hPa velocity potential + irrotational wind (REVIVED 2026-07-07). Light:
 #    u@200 is already cached from the RMM pull, so only v@200 is fetched here. The
 #    pf_v_200 503-stalls that got this deactivated are handled now by the robust
