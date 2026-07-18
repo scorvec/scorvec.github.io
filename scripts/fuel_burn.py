@@ -172,12 +172,84 @@ def render_fuel(vol: pd.DataFrame, unit: str, title: str, explicit_ids: list,
     print(f"  wrote {out}")
 
 
+def _residential_kbd() -> "pd.Series":
+    """Modeled residential heating-oil demand (kb/d) from the committed
+    heating-oil model outputs (see scripts/heatoil/)."""
+    import json
+    hdir = Path(__file__).parent / "heatoil"
+    hdd = pd.read_csv(hdir / "oil_hdd_daily.csv", parse_dates=["date"])
+    cal = json.loads((hdir / "calibration.json").read_text())
+    w = pd.read_csv(hdir / "oil_household_weights.csv")
+    import sys
+    sys.path.insert(0, str(hdir))
+    from hdd_index import STATE_ABBR, TOP_STATES
+    st = w["NAME"].str.split(", ").str[-1].map(STATE_ABBR)
+    hh = w.groupby(st)["fuel_oil"].sum()
+    a_s, b_s = cal["a_state_gal_hh_yr"], cal["b_state_gal_hh_hdd"]
+    a_m = sum(a_s.values()) / len(a_s)
+    b_m = sum(b_s.values()) / len(b_s)
+    bbl = pd.Series(0.0, index=hdd.index)
+    covered = 0.0
+    for s in TOP_STATES:
+        if s in hh.index and f"hdd_{s}" in hdd:
+            bbl += hh[s] * (a_s.get(s, a_m) / 365.0
+                            + b_s.get(s, b_m) * hdd[f"hdd_{s}"]) / 42.0
+            covered += hh[s]
+    out = pd.Series((bbl * hh.sum() / covered / 1000.0).values,
+                    index=pd.DatetimeIndex(hdd["date"]))
+    return out
+
+
+def render_combined_oil(power_kbd: "pd.DataFrame") -> None:
+    """Weather-driven Northeast oil demand: MEASURED power-sector burn
+    (EIA-930, ISNE+NYIS+PJM) stacked with the MODELED residential estimate."""
+    try:
+        res = _residential_kbd()
+    except Exception as e:                                     # noqa: BLE001
+        print(f"  combined-oil: residential model unavailable ({e}) — skipped")
+        return
+    iso = [c for c in ("NE", "NY", "MIDA") if c in power_kbd.columns]
+    pw = power_kbd[iso].sum(axis=1)
+    start = pd.Timestamp.today().normalize() - pd.DateOffset(months=30)
+    pw = pw[pw.index >= start]
+    res = res[res.index >= start]
+    idx = pw.index.intersection(res.index)
+    fig, ax = plt.subplots(figsize=(12.5, 5.4))
+    ax.fill_between(idx, 0, res.reindex(idx), color="#c62828", alpha=0.75,
+                    label="residential heating oil (modeled, HDD×SEDS)")
+    ax.fill_between(idx, res.reindex(idx), res.reindex(idx) + pw.reindex(idx),
+                    color="#4a6fa5", alpha=0.8,
+                    label="power-sector oil burn ISNE+NYIS+PJM (measured, EIA-930)")
+    tail = res.reindex(idx) + pw.reindex(idx)
+    for d, nm in STORMS:
+        dd = pd.Timestamp(d)
+        if dd in tail.index or (idx.min() < dd < idx.max()):
+            ax.axvline(dd, color="0.4", lw=0.7, ls=":")
+            ax.annotate(nm, xy=(dd, ax.get_ylim()[1] * 0.02), fontsize=7,
+                        rotation=90, color="0.35", va="bottom")
+    ax.set_ylabel("thousand barrels / day")
+    ax.grid(True, alpha=0.25)
+    ax.legend(fontsize=8.5, loc="upper right")
+    ax.set_title("Northeast weather-driven oil demand — homes + power plants",
+                 fontsize=12, fontweight="bold")
+    fig.text(0.5, 0.005,
+             "residential = HDD model calibrated to EIA SEDS (weather only; ignores prices) · "
+             "power = implied burn from EIA-930 generation (captures dual-fuel switching as it happens)",
+             ha="center", fontsize=7.5, color="0.45")
+    fig.tight_layout()
+    fig.savefig(OUT_OIL.parent / "combined_oil.webp", dpi=135, bbox_inches="tight",
+                facecolor="white", pil_kwargs={"quality": 92, "method": 6})
+    plt.close(fig)
+    print(f"  wrote {OUT_OIL.parent / 'combined_oil.webp'}")
+
+
 def main() -> int:
     if not EIA_KEY:
         print("ERROR: EIA_API_KEY not set (env or ~/.eia_key).", file=sys.stderr)
         return 1
     oil = fetch_daily("OIL")                                   # MWh/day
     print(f"  OIL: {len(oil)} days → {oil.index[-1]:%Y-%m-%d}")
+    render_combined_oil(oil * BBL_PER_MWH / 1000.0)
     render_fuel(oil * BBL_PER_MWH / 1000.0, "thousand barrels / day",
                 "Oil burned for US electricity", EXPLICIT, OUT_OIL,
                 f"kb/d = MWh × {HEAT_RATE} MMBtu/MWh ÷ {MMBTU_BBL} MMBtu/bbl "
