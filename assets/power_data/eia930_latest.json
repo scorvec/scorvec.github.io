@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-07-18T14:39Z",
+  "generated_at": "2026-07-18T14:53Z",
   "source": "EIA-930 (Hourly Electric Grid Monitor) via EIA API v2, respondent US48 (demand)",
   "denominator_kind": "demand",
-  "latest_period": "2026-07-18T13:00Z",
-  "total_GW": 487.77,
+  "latest_period": "2026-07-18T14:00Z",
+  "total_GW": 523.14,
   "wind_actual_GW": null,
   "solar_actual_GW": null,
   "series": [
@@ -405,7 +405,7 @@
     },
     {
       "period": "2026-07-18T08:00Z",
-      "total_GW": 494.84,
+      "total_GW": 494.82,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -429,13 +429,19 @@
     },
     {
       "period": "2026-07-18T12:00Z",
-      "total_GW": 477.44,
+      "total_GW": 477.66,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T13:00Z",
-      "total_GW": 487.77,
+      "total_GW": 492.41,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-07-18T14:00Z",
+      "total_GW": 523.14,
       "wind_GW": null,
       "solar_GW": null
     }
