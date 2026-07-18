@@ -329,13 +329,27 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Heating-Oil Demand Index &mdash; Oil-Weighted Degree Days</h2>
-        <p>Daily heating-degree-days at every oil-heating county, weighted by that county's oil-heated household count &mdash; a single number tracking how hard America's oil furnaces are working. Current season in red against the 2018+ envelope; the cumulative panel shows how the season is running versus history. Next: calibration against EIA state fuel-oil consumption to convert the index to barrels per day.</p>
+        <p>Daily heating-degree-days at every oil-heating county, weighted by that county's oil-heated household count &mdash; a single number tracking how hard America's oil furnaces are working. Current season in red against the 2018+ envelope; the cumulative panel shows how the season is running versus history. </p>
       </div>
       <div class="chart-img-wrap">
         <img src="assets/power_data/heatoil_hdd.webp" alt="Daily and season-cumulative oil-household-weighted heating degree days from ERA5, current season vs 2018-2025" loading="lazy" style="width:100%;height:auto;">
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">ERA5 2 m temperature (Copernicus C3S, local store) &middot; ACS B25040 county weights &middot; HDD base 65&deg;F</span>
+        <span class="chart-updated">daily (ERA5 ~6-day lag)</span>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Real-Time Demand Estimate &mdash; Thousand Barrels per Day</h2>
+        <p>The HDD index converted to physical barrels: each state's oil-heating households &times; (baseline + burn-per-HDD), <b>calibrated to EIA SEDS annual residential distillate with state fixed effects</b>. Levels are anchored to reported consumption; the daily shape is weather. Rough by construction &mdash; it ignores prices, tank-fill timing and behavior &mdash; but it turns a cold snap into a barrels number the same day ERA5 reports it.</p>
+      </div>
+      <div class="chart-img-wrap">
+        <img src="assets/power_data/heatoil_bbl.webp" alt="Estimated US residential heating oil demand in thousand barrels per day, current season vs 2018-2025 envelope" loading="lazy" style="width:100%;height:auto;">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">EIA SEDS residential distillate (DFRCP) &middot; ERA5 &middot; ACS B25040 &middot; state-fixed-effects calibration 2018&ndash;2024</span>
         <span class="chart-updated">daily (ERA5 ~6-day lag)</span>
       </div>
     </div>

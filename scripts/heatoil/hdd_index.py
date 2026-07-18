@@ -30,6 +30,21 @@ NE_STATES = ("Connecticut", "Maine", "Massachusetts", "New Hampshire",
 HOURS = ("00", "06", "12", "18")
 
 
+STATE_ABBR = {
+ "Alabama":"AL","Alaska":"AK","Arizona":"AZ","Arkansas":"AR","California":"CA",
+ "Colorado":"CO","Connecticut":"CT","Delaware":"DE","District of Columbia":"DC",
+ "Florida":"FL","Georgia":"GA","Hawaii":"HI","Idaho":"ID","Illinois":"IL",
+ "Indiana":"IN","Iowa":"IA","Kansas":"KS","Kentucky":"KY","Louisiana":"LA",
+ "Maine":"ME","Maryland":"MD","Massachusetts":"MA","Michigan":"MI",
+ "Minnesota":"MN","Mississippi":"MS","Missouri":"MO","Montana":"MT",
+ "Nebraska":"NE","Nevada":"NV","New Hampshire":"NH","New Jersey":"NJ",
+ "New Mexico":"NM","New York":"NY","North Carolina":"NC","North Dakota":"ND",
+ "Ohio":"OH","Oklahoma":"OK","Oregon":"OR","Pennsylvania":"PA",
+ "Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD",
+ "Tennessee":"TN","Texas":"TX","Utah":"UT","Vermont":"VT","Virginia":"VA",
+ "Washington":"WA","West Virginia":"WV","Wisconsin":"WI","Wyoming":"WY"}
+
+
 def county_cells():
     w = pd.read_csv(HERE / "oil_household_weights.csv")
     da = era5_store.get_t2m_conus("2024-01-15T12:00")          # grid template
@@ -38,11 +53,13 @@ def county_cells():
     iy = np.abs(lats[:, None] - w["lat"].values[None, :]).argmin(axis=0)
     ix = np.abs(lons[:, None] - w["lon"].values[None, :]).argmin(axis=0)
     wt = w["fuel_oil"].values.astype(float)
-    ne = w["NAME"].str.split(", ").str[-1].isin(NE_STATES).values
-    return iy, ix, wt, ne
+    stname = w["NAME"].str.split(", ").str[-1]
+    ne = stname.isin(NE_STATES).values
+    st = stname.map(STATE_ABBR).fillna("XX").values
+    return iy, ix, wt, ne, st
 
 
-def day_hdd(day: pd.Timestamp, iy, ix, wt, ne):
+def day_hdd(day: pd.Timestamp, iy, ix, wt, ne, st, states):
     fields = []
     for h in HOURS:
         da = era5_store.get_t2m_conus(f"{day:%Y-%m-%d}T{h}:00")
@@ -51,34 +68,45 @@ def day_hdd(day: pd.Timestamp, iy, ix, wt, ne):
         fields.append(da.values)
     tmean_f = (np.mean(fields, axis=0)[iy, ix] - 273.15) * 9 / 5 + 32
     hdd = np.maximum(65.0 - tmean_f, 0.0)
-    return (float((hdd * wt).sum() / wt.sum()),
-            float((hdd[ne] * wt[ne]).sum() / wt[ne].sum()))
+    out = [float((hdd * wt).sum() / wt.sum()),
+           float((hdd[ne] * wt[ne]).sum() / wt[ne].sum())]
+    for s in states:
+        m = st == s
+        out.append(float((hdd[m] * wt[m]).sum() / max(wt[m].sum(), 1.0)))
+    return out
+
+
+TOP_STATES = ["NY", "PA", "MA", "CT", "ME", "NJ", "NH", "MD", "RI", "VA",
+              "VT", "NC", "OH", "AK", "WA", "MI"]
 
 
 def update(backfill_start: str):
+    cols = ["date", "oil_hdd", "ne_hdd"] + [f"hdd_{s}" for s in TOP_STATES]
     have = pd.read_csv(CACHE, parse_dates=["date"]) if CACHE.exists() else \
-        pd.DataFrame(columns=["date", "oil_hdd", "ne_hdd"])
+        pd.DataFrame(columns=cols)
+    if list(have.columns) != cols:                 # schema change → full recompute
+        have = pd.DataFrame(columns=cols)
     done = set(have["date"])
     end = pd.Timestamp.today().normalize() - pd.Timedelta(days=6)   # ERA5 lag
     rows = []
-    iy, ix, wt, ne = county_cells()
+    iy, ix, wt, ne, st = county_cells()
     todo = [d for d in pd.date_range(backfill_start, end, freq="D") if d not in done]
     if todo:
         print(f"  computing {len(todo)} day(s) …", flush=True)
     from concurrent.futures import ThreadPoolExecutor
 
     def one(d):
-        r = day_hdd(d, iy, ix, wt, ne)
+        r = day_hdd(d, iy, ix, wt, ne, st, TOP_STATES)
         return (d, *r) if r else None
 
     with ThreadPoolExecutor(max_workers=6) as ex:
         for i, r in enumerate(ex.map(one, todo)):
             if r:
                 rows.append(r)
-            if i and i % 200 == 0:
+            if i and i % 300 == 0:
                 print(f"    {i}/{len(todo)}", flush=True)
     if rows:
-        new = pd.DataFrame(rows, columns=["date", "oil_hdd", "ne_hdd"])
+        new = pd.DataFrame(rows, columns=cols)
         have = (pd.concat([have, new]).drop_duplicates("date")
                 .sort_values("date").reset_index(drop=True))
         have.to_csv(CACHE, index=False)
