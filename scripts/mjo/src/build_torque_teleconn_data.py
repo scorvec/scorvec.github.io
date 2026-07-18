@@ -158,8 +158,11 @@ def build_torque_indices(y0: int, y1: int, stride: int) -> Path:
         print(f"  {y}: saved → {yp.name}  ({time.time() - t0:.0f}s)", flush=True)
 
     return _assemble(ydir, y0, y1, CACHE / f"torque_indices_{y0}_{y1}.nc",
-                     attrs=dict(note="AAM surface-torque indices ON atmosphere (Hadley=1e18 N m); "
-                                     "signs per build_torque_clim; mountain=+h ∂p_s/∂λ over barrier boxes",
+                     attrs=dict(note="AAM surface-torque indices ON atmosphere; signs per "
+                                     "build_torque_clim; mountain=+h ∂p_s/∂λ over barrier boxes. "
+                                     "ARBITRARY absolute scale (a constant pi/180 vs N m is "
+                                     "inherited from build_torque_clim) — downstream analysis "
+                                     "standardizes, so only relative variations matter",
                                 source=f"ARCO-ERA5 {y0}-{y1} 12Z stride {stride}"))
 
 

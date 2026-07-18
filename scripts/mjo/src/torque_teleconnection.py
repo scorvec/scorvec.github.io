@@ -76,7 +76,12 @@ FUNITS = {"u250": "m s⁻¹", "z500": "m"}
 
 
 def harmonic_deseason(arr: np.ndarray, doy: np.ndarray, n_harm: int = 4) -> np.ndarray:
-    """Remove mean + n_harm annual harmonics. arr: (ntime, ...) → anomalies, same shape."""
+    """Remove mean + n_harm annual harmonics. arr: (ntime, ...) → anomalies, same shape.
+
+    Fully-missing DAYS (from reindexing to a complete calendar) are excluded from
+    the fit — a single missing day used to make every column non-finite and
+    silently blank the whole product. Within the surviving days, only all-finite
+    gridpoint columns are fitted (as before). NaN inputs stay NaN in the output."""
     w = 2 * np.pi * doy / 365.25
     cols = [np.ones_like(w)]
     for k in range(1, n_harm + 1):
@@ -84,10 +89,14 @@ def harmonic_deseason(arr: np.ndarray, doy: np.ndarray, n_harm: int = 4) -> np.n
     X = np.column_stack(cols)                                   # (ntime, 1+2H)
     shp = arr.shape
     flat = arr.reshape(shp[0], -1).astype("float64")
-    ok = np.isfinite(flat).all(axis=0)                          # fit only all-finite cols
+    rows = ~np.isnan(flat).all(axis=1)                          # drop fully-missing DAYS first
+    if not rows.all():
+        print(f"  harmonic_deseason: {int((~rows).sum())} of {len(rows)} "
+              "days missing entirely — fitted on the rest", flush=True)
+    ok = np.isfinite(flat[rows]).all(axis=0)                    # then all-finite columns
     coef = np.full((X.shape[1], flat.shape[1]), np.nan)
-    if ok.any():
-        coef[:, ok], *_ = np.linalg.lstsq(X, flat[:, ok], rcond=None)
+    if ok.any() and rows.sum() >= X.shape[1]:
+        coef[:, ok], *_ = np.linalg.lstsq(X[rows], flat[rows][:, ok], rcond=None)
     clim = X @ coef
     return (flat - clim).reshape(shp)
 
