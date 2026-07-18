@@ -5,8 +5,8 @@
   "variable_id": "t2m_diff",
   "variable_label": "2 m Temperature: RRFS vs HRRR",
   "units": "\u00b0F",
-  "region_id": "national",
-  "region_label": "National (CONUS)",
+  "region_id": "northeast",
+  "region_label": "Northeast",
   "frames": [
     {
       "fxx": 0,

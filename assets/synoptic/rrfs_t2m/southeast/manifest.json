@@ -2,11 +2,11 @@
   "cycle": "2026-07-18 12Z",
   "cycle_compact": "20260718T12Z",
   "generated": "2026-07-18 14:31 UTC",
-  "variable_id": "t2m_diff",
-  "variable_label": "2 m Temperature: RRFS vs HRRR",
+  "variable_id": "rrfs_t2m",
+  "variable_label": "RRFS: 2 m Temperature",
   "units": "\u00b0F",
-  "region_id": "national",
-  "region_label": "National (CONUS)",
+  "region_id": "southeast",
+  "region_label": "Southeast",
   "frames": [
     {
       "fxx": 0,
