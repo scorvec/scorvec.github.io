@@ -188,16 +188,25 @@ def main() -> int:
     ht = pd.to_datetime(hist.time.values)
     sel = ht >= init - pd.Timedelta(days=75)
     arch = xr.open_dataset(ARCHIVE_PATH)
-    a_init = pd.to_datetime(arch.init.values)[-1]
+    a_inits = pd.to_datetime(arch.init.values)
+    a_init = a_inits[-1]
     phase = {}
     for key in ("nh", "sh"):
         coef = clim["coeffs"].sel(region=key).values
         obs_m = hist[key].values[sel] - eval_clim(coef, np.array(
             [t.dayofyear for t in ht[sel]]))
+        # ERA5 lags ~5-6 days — bridge to today with the archived AIFS
+        # lead-0 (analysis) values so the trail meets the forecast seamlessly
+        bmask = (a_inits > ht[sel][-1]) & (a_inits <= a_init)
+        b_t = a_inits[bmask]
+        b_m = (arch["fc_mean"].sel(region=key, lead=0).values[bmask]
+               - eval_clim(coef, np.array([v.dayofyear for v in b_t])))
+        t_o = ht[sel].append(pd.DatetimeIndex(b_t))
+        obs_m = np.concatenate([obs_m, b_m])
         fcm = arch["fc_mean"].sel(region=key, init=a_init).values
         fl = [a_init + pd.Timedelta(days=int(l)) for l in arch.lead.values]
         fc_m = fcm - eval_clim(coef, np.array([v.dayofyear for v in fl]))
-        phase[key] = (ht[sel], obs_m, fl, fc_m)
+        phase[key] = (t_o, obs_m, fl, fc_m)
 
     # plain-language headline per hemisphere (band change day 12-15 vs day 0-2)
     bands_def = [("deep-tropical", 0, 15), ("subtropical", 15, 35), ("mid-latitude", 35, 60)]
@@ -239,21 +248,23 @@ def main() -> int:
                                      ("Southern Hemisphere", "sh"))):
         axp = fig.add_subplot(gs[1, j])
         t_o, m_o, t_f, m_f = phase[key]
-        # 9-day smoothed tendency (per day) on the 3-day series
-        ms = pd.Series(m_o).rolling(3, center=True, min_periods=1).mean().values
-        dm_o = np.gradient(ms, 3.0)
-        mf_s = pd.Series(np.concatenate([[ms[-1]], m_f])).rolling(
-            3, center=True, min_periods=1).mean().values
-        dm_f = np.gradient(mf_s, 1.0)
+        # ONE combined obs+forecast series (the first forecast point IS the
+        # last bridge analysis — drop the duplicate), smoothed and
+        # differentiated once on the true time axis: continuous by construction
+        t_all = list(t_o) + list(t_f[1:])
+        m_all = np.concatenate([m_o, m_f[1:]])
+        ms = pd.Series(m_all).rolling(3, center=True, min_periods=1).mean().values
+        tdays = np.array([(x - t_all[0]).total_seconds() / 86400.0 for x in t_all])
+        dm = np.gradient(ms, tdays)
+        n_o = len(m_o)
         axp.axhline(0, color="0.75", lw=0.8); axp.axvline(0, color="0.75", lw=0.8)
-        axp.plot(ms, dm_o, color="0.45", lw=1.1, alpha=0.9, zorder=3)
-        n_o = len(ms)
-        axp.scatter(ms, dm_o, c=np.arange(n_o), cmap="Greys", s=14, zorder=4,
-                    vmin=-n_o * 0.4)
-        axp.plot(mf_s, dm_f, color="#b71c1c", lw=2.4, zorder=5)
-        axp.plot(mf_s[-1], dm_f[-1], marker="*", ms=13, color="#b71c1c",
+        axp.plot(ms[:n_o], dm[:n_o], color="0.45", lw=1.1, alpha=0.9, zorder=3)
+        axp.scatter(ms[:n_o], dm[:n_o], c=np.arange(n_o), cmap="Greys", s=14,
+                    zorder=4, vmin=-n_o * 0.4)
+        axp.plot(ms[n_o - 1:], dm[n_o - 1:], color="#b71c1c", lw=2.4, zorder=5)
+        axp.plot(ms[-1], dm[-1], marker="*", ms=13, color="#b71c1c",
                  mec="k", mew=0.5, zorder=6)
-        axp.plot(ms[-1], dm_o[-1], marker="o", ms=8, color="k", zorder=6)
+        axp.plot(ms[n_o - 1], dm[n_o - 1], marker="o", ms=8, color="k", zorder=6)
         for xf, yf, s in ((0.97, 0.97, "high & rising"), (0.03, 0.97, "low & rising"),
                           (0.97, 0.03, "high & falling"), (0.03, 0.03, "low & falling")):
             axp.text(xf, yf, s, transform=axp.transAxes, fontsize=7.5, color="0.55",
