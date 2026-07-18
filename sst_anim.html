@@ -31,6 +31,12 @@
     position: relative;
   }
   .frame-wrap img { display: block; width: 100%; height: auto; }
+  /* MOBILE + very wide products (global TC, ASCAT strips...): shrink-to-fit
+     makes raster text unreadable. Render at a legible height with horizontal
+     pan instead, and let a tap open the frame for native pinch-zoom. */
+  .frame-wrap.panwide { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .frame-wrap.panwide img { width: auto; max-width: none; height: 60vw;
+                            max-height: 380px; }
   .frame-loading {
     position: absolute; inset: 0; display: flex; align-items: center;
     justify-content: center; color: var(--muted); font-size: 0.85rem;
@@ -158,6 +164,21 @@ function postHeight() {
 }
 imgEl.addEventListener("load", postHeight);
 addEventListener("resize", postHeight);
+
+// wide-image mobile handling: aspect > 2.4 on a narrow screen → pan mode
+function fitWide() {
+  const wrap = imgEl.closest(".frame-wrap");
+  if (!wrap || !imgEl.naturalWidth) return;
+  const wide = imgEl.naturalWidth / imgEl.naturalHeight > 2.4
+    && Math.min(window.innerWidth, document.body.clientWidth) < 700;
+  wrap.classList.toggle("panwide", wide);
+}
+imgEl.addEventListener("load", () => { fitWide(); postHeight(); });
+addEventListener("resize", () => { fitWide(); postHeight(); });
+imgEl.addEventListener("click", () => {          // tap → full frame, pinch-zoomable
+  if (imgEl.closest(".frame-wrap").classList.contains("panwide"))
+    window.open(imgEl.src, "_blank");
+});
 // the control bar's own height changes when the row wraps (narrow cards) or
 // fonts finish loading — observe it directly so the parent never miscounts
 if (window.ResizeObserver) new ResizeObserver(postHeight).observe(document.body);
