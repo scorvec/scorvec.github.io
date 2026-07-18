@@ -5,10 +5,9 @@
 #   Stage 1  RMM core  — fetch u@200/850, build the RMM plot + page → COMMIT+PUSH.
 #   Stage 2  the rest  — one consolidated ENS download (ens_cycle: 10u, 10v, msl),
 #                        then build Hovmöller/SOI/MSLP-wind + MEI from cache → COMMIT+PUSH.
-# DEACTIVATED 2026-06-30 (hidden for now): the AAM / torque / MMSF / AAM-zonal / 200 hPa
-# velocity-potential products are off — their cards are hidden on enso-atmosphere.html,
-# their builders are commented out in Stage 2 below, and ens_cycle's heavy 13-level pulls
-# are gated behind MJO_HEAVY_ATMOS. Re-enable (preferably in a GitHub Action) to revive.
+# REVIVED 2026-07-18: the AAM / torque / MMSF / AAM-zonal block is back on (after a
+# full math audit), joined by the new Walker-circulation, subtropical-jet and
+# SOI-history products; ens_cycle runs with MJO_HEAVY_ATMOS=1 below.
 # Downloads are watchdog-robust (download_aifs aborts+retries any stream that stalls),
 # so a hung connection can no longer wedge the run. Idempotent: a `.cycle_done_<c>`
 # marker skips a finished cycle; an interrupted run resumes at the unfinished stage
@@ -90,30 +89,37 @@ fi
     && commit_push "MJO RMM: ${COMPACT} (local)" )
 
 # ── Stage 2: one consolidated download of the remaining ENS fields, then build + publish ──
-"$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (rest) had issues; continuing"
+# MJO_HEAVY_ATMOS=1: the AAM/torque/MMSF/Walker/jets block was REVIVED 2026-07-18
+# after a full math audit (equator-row split, per-hour torque clim, NaN-band fix,
+# MMSF clim-midpoint eval — see git history of src/*.py).
+MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (rest) had issues; continuing"
 "$PY" src/eq_hovmoller.py --date "$DATE" --time "$TIME" --data-dir data/u10 \
   --out "$REPO/assets/sst/eq_wind_hovmoller.webp" || echo "Hovmöller failed; continuing"
 "$PY" src/soi_forecast.py --date "$DATE" --time "$TIME" --data-dir data/msl \
   --out "$REPO/assets/sst/soi_forecast.webp" || echo "SOI failed; continuing"
-# ── DEACTIVATED 2026-06-30 (hidden for now): AAM / AAM-zonal / torque-budget / MMSF
-#    builders are off — their cards are hidden on enso-atmosphere.html and the heavy
-#    13-level pulls are gated behind MJO_HEAVY_ATMOS in src/ens_cycle.py. To revive,
-#    uncomment these four blocks (preference: run them in a GitHub Action, not here). ──
-# "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
-#   --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
-# "$PY" src/aam_zonal.py --date "$DATE" --time "$TIME" \
-#   --anim-dir "$REPO/assets/sst/anim/aam_zonal" \
-#   --manifest "$REPO/assets/sst/anim/aam_zonal_manifest.json" || echo "AAM zonal failed; continuing"
-# "$PY" src/torque_map_anim.py --date "$DATE" --time "$TIME" --data-dir data/torque \
-#   --sp-dir data/aam --u10-dir data/u10 --msl-dir data/msl \
-#   --anim-dir "$REPO/assets/sst/anim/torque" \
-#   --manifest "$REPO/assets/sst/anim/torque_manifest.json" \
-#   --ts-out "$REPO/assets/sst/torque_timeseries.webp" \
-#   --ranges-out "$REPO/assets/sst/torque_ranges.webp" || echo "torque budget failed; continuing"
-# "$PY" src/mmsf.py --date "$DATE" --time "$TIME" --data-dir data/mmsf \
-#   --anim-dir "$REPO/assets/sst/anim/mmsf" \
-#   --manifest "$REPO/assets/sst/anim/mmsf_manifest.json" \
-#   --out "$REPO/assets/sst/mmsf_anom.webp" || echo "MMSF failed; continuing"
+"$PY" src/soi_history.py --out "$REPO/assets/sst/soi_history.webp" \
+  || echo "SOI history failed; continuing"
+"$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
+  --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
+"$PY" src/aam_zonal.py --date "$DATE" --time "$TIME" \
+  --anim-dir "$REPO/assets/sst/anim/aam_zonal" \
+  --manifest "$REPO/assets/sst/anim/aam_zonal_manifest.json" || echo "AAM zonal failed; continuing"
+"$PY" src/torque_map_anim.py --date "$DATE" --time "$TIME" --data-dir data/torque \
+  --sp-dir data/aam --u10-dir data/u10 --msl-dir data/msl \
+  --anim-dir "$REPO/assets/sst/anim/torque" \
+  --manifest "$REPO/assets/sst/anim/torque_manifest.json" \
+  --ts-out "$REPO/assets/sst/torque_timeseries.webp" \
+  --ranges-out "$REPO/assets/sst/torque_ranges.webp" || echo "torque budget failed; continuing"
+"$PY" src/mmsf.py --date "$DATE" --time "$TIME" --data-dir data/mmsf \
+  --anim-dir "$REPO/assets/sst/anim/mmsf" \
+  --manifest "$REPO/assets/sst/anim/mmsf_manifest.json" \
+  --out "$REPO/assets/sst/mmsf_anom.webp" || echo "MMSF failed; continuing"
+"$PY" src/walker.py --date "$DATE" --time "$TIME" \
+  --anim-dir "$REPO/assets/sst/anim/walker" \
+  --manifest "$REPO/assets/sst/anim/walker_manifest.json" \
+  --out "$REPO/assets/sst/walker_anom.webp" || echo "Walker failed; continuing"
+"$PY" src/jets.py --date "$DATE" --time "$TIME" \
+  --out "$REPO/assets/sst/jets.webp" || echo "jets failed; continuing"
 "$PY" src/mslp_wind_anim.py --date "$DATE" --time "$TIME" \
   --anim-dir "$REPO/assets/sst/anim/mslp_wind" \
   --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
@@ -168,23 +174,33 @@ find "$MJO_GRIB_ARCHIVE" -type d -empty -delete 2>/dev/null
 # Refresh the cache-buster on the static SST-page <img>s this run rebuilt, so
 # browsers re-fetch them. (sst.html's ?v= is otherwise only re-stamped by the SST
 # builder, so MJO-updated images would serve stale from cache between SST runs;
-# the torque/MMSF animator iframes self-bust via their manifest "ver".)
+# the torque/MMSF/Walker animator iframes self-bust via their manifest "ver".)
 CB=$(date -u +%Y%m%d%H%M)
-perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|u850_analogs_anom|u850_analogs_abs|mei\/mei_nowcast|mei\/mei_validation)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
+perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|soi_history|u850_analogs_anom|u850_analogs_abs|mei\/mei_nowcast|mei\/mei_validation)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
+perl -0pi -e "s/((?:aam|aam_trend|mmsf_anom|walker_anom|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/enso-atmosphere.html" 2>/dev/null || true
 
-# NOTE: AAM / torque / MMSF / AAM-zonal outputs are intentionally NOT staged here
-# while those builders are deactivated (2026-06-30). Their last-good committed webps
-# stay frozen in the repo for instant restore; re-add them here when reviving the
-# builders. (wind200 was revived 2026-07-07 and IS staged below.)
-( cd "$REPO" && git add \
-    sst.html \
-    assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp \
-    assets/sst/anim/mslp_wind/ assets/sst/anim/mslp_wind_manifest.json \
-    assets/sst/anim/wind200/ assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp \
+# Stage whatever exists (a builder that failed this cycle simply hasn't written its
+# outputs — that must not block committing everything else).
+( cd "$REPO" && for p in \
+    sst.html enso-atmosphere.html \
+    assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/soi_history.webp \
+    assets/sst/anim/mslp_wind assets/sst/anim/mslp_wind_manifest.json \
+    assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp \
+    assets/sst/aam.webp assets/sst/aam_trend.webp \
+    assets/sst/anim/aam_zonal assets/sst/anim/aam_zonal_manifest.json \
+    assets/sst/anim/torque assets/sst/anim/torque_manifest.json \
+    assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp \
+    assets/sst/anim/mmsf assets/sst/anim/mmsf_manifest.json assets/sst/mmsf_anom.webp \
+    assets/sst/anim/walker assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
+    assets/sst/jets.webp \
+    scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
+    scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
+    scripts/mjo/data/reference/mei_fit.json \
     assets/sst/u850_analogs_anom.webp assets/sst/u850_analogs_abs.webp \
-    scripts/mjo/data/reference/mei_fit.json assets/sst/mei/mei_nowcast.webp assets/sst/mei/mei_validation.webp \
+    assets/sst/mei/mei_nowcast.webp assets/sst/mei/mei_validation.webp \
     assets/sst/mei/mei_analogs.webp assets/sst/mei/mei_history.webp \
-    && commit_push "MJO atmospheric products (eq-wind/SOI + MSLP-wind + MEI.v2): ${COMPACT} (local)" )
+  ; do [ -e "$p" ] && git add "$p"; done \
+  ; commit_push "MJO atmospheric products (eq-wind/SOI + AAM/torque/MMSF/Walker/jets + MEI.v2): ${COMPACT} (local)" )
 
 # Self-heal for IFS-ENS latency: the physics model (IFS-ENS) is disseminated ~1-2 h LATER
 # than the AI model (AIFS-ENS), but this run triggers on AIFS availability — so the IFS leg
