@@ -1,0 +1,18 @@
+{
+  "cycle": "2026-07-18 06Z",
+  "cycle_compact": "20260718T06Z",
+  "generated": "2026-07-18 14:11 UTC",
+  "variable_id": "precip_diff",
+  "variable_label": "Total Precip: RRFS vs HRRR",
+  "units": "in",
+  "region_id": "national",
+  "region_label": "National (CONUS)",
+  "frames": [
+    {
+      "fxx": 6,
+      "valid_time": "2026-07-18T12:00:00Z",
+      "valid_label": "Sat 07/18 12:00Z",
+      "file": "F06.webp"
+    }
+  ]
+}

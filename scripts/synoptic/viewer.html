@@ -261,11 +261,25 @@ async function init() {
     const regsData = await regsRes.json();
 
     let defaultVar = null;
+    // Variables carry an optional "group" (HRRR / RRFS / RRFS vs HRRR);
+    // grouped entries go under <optgroup>s, ungrouped fall back to flat
+    // options so older variables.json files still render.
+    const groups = {};
     for (const v of varsData.variables) {
       const opt = document.createElement('option');
       opt.value = v.id;
       opt.textContent = v.label;
-      variableEl.appendChild(opt);
+      if (v.group) {
+        if (!groups[v.group]) {
+          const og = document.createElement('optgroup');
+          og.label = v.group;
+          variableEl.appendChild(og);
+          groups[v.group] = og;
+        }
+        groups[v.group].appendChild(opt);
+      } else {
+        variableEl.appendChild(opt);
+      }
       if (v.default) defaultVar = v.id;
     }
     if (defaultVar) variableEl.value = defaultVar;

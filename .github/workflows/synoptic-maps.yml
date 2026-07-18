@@ -156,6 +156,15 @@ jobs:
           echo "compact=$COMPACT" >> $GITHUB_OUTPUT
 
       - name: Render maps
+        env:
+          # HRRR-only on CI. The laptop pipeline (primary path) renders the
+          # full set (HRRR + RRFS + diff products); this fallback runner has
+          # ~7 GB RAM, and adding RRFS roughly doubles the main-process field
+          # cache (~3 GB → ~6 GB) plus the diff products' shared-memory field
+          # pairs — an OOM risk that isn't worth it for the laptop-off case.
+          # The timeout (90 min) is NOT the constraint; memory is. Flip this
+          # to "hrrr,rrfs" if the runner ever gets more RAM.
+          SYNOPTIC_MODELS: hrrr
         run: |
           CYCLE='${{ steps.cycle.outputs.cycle }}'
           DATE_PART=$(echo "$CYCLE" | awk '{print $1}')
