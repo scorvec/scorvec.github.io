@@ -126,6 +126,13 @@ def plot_system(sysd, adeck, out_dir: Path):
     _, chosen, tracks = best
     if not chosen:
         return None
+    # dead-system gate: invest decks linger on the server for weeks — only
+    # plot systems with guidance from the last ~30 h
+    age_h = (pd.Timestamp.utcnow().tz_localize(None)
+             - pd.to_datetime(chosen, format="%Y%m%d%H")).total_seconds() / 3600
+    if age_h > 30:
+        print(f"  {sysd['id']}: newest guidance {chosen} is {age_h:.0f} h old — skipped (dead)")
+        return None
     las = [p[0] for tr in tracks.values() for p in tr.values()]
     l0 = next(iter(tracks.values()))[min(next(iter(tracks.values())))][1]
     wrap = lambda lon: l0 + (((lon - l0 + 180) % 360) - 180)
