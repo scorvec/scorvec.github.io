@@ -232,6 +232,7 @@
   @media (max-width:600px){ .hero-top{justify-content:center;} .hero-chart{height:270px;} .hero{padding:1.3rem 1.1rem 1rem;} }
 </style>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
 
@@ -419,9 +420,9 @@
   // the actual cycle and update time). Don't overwrite from JS.
 
   // Visitor counter
-  fetch((function(){var k='scorvec_uv',s=localStorage.getItem(k),o=localStorage.getItem('scorvec_owner');if(!o){try{localStorage.setItem(k,'1');}catch(e){}}return 'https://api.counterapi.dev/v1/scorvec/unique'+((s||o)?'/':'/up');})())
+  fetch('https://scorvec.goatcounter.com/counter/TOTAL.json')
     .then(r => r.json())
-    .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
+    .then(d => { document.getElementById('count').textContent = d.count; })
     .catch(() => { document.getElementById('count').textContent = '—'; });
 </script>
 
