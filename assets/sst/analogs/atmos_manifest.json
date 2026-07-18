@@ -39,6 +39,25 @@
    "current": false
   },
   {
+   "label": "1991\u201392",
+   "y0": 1991,
+   "months": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "current": false
+  },
+  {
    "label": "1997\u201398",
    "y0": 1997,
    "months": [
@@ -77,25 +96,6 @@
    "current": false
   },
   {
-   "label": "2023\u201324",
-   "y0": 2023,
-   "months": [
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    1,
-    2,
-    3,
-    4,
-    5
-   ],
-   "current": false
-  },
-  {
    "label": "2026\u201327 (current)",
    "y0": 2026,
    "months": [
@@ -104,7 +104,7 @@
    "current": true
   }
  ],
- "updated": "2026-07-18 12:08 UTC",
+ "updated": "2026-07-18 12:31 UTC",
  "vars": {
   "z500": "500 hPa height anomaly",
   "mslp": "Sea-level pressure anomaly",

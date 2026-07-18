@@ -87,12 +87,13 @@ REGIONS = {
 }
 
 # ENSO development years of the comparable "super" events + the current event.
+# peak = the event's peak RONI (relative index; from nino_history.json).
 EVENTS = [
-    dict(y0=1972, label="1972–73", peak="+1.9"),
-    dict(y0=1982, label="1982–83", peak="+2.2"),
-    dict(y0=1997, label="1997–98", peak="+2.4"),
-    dict(y0=2015, label="2015–16", peak="+2.6"),
-    dict(y0=2023, label="2023–24", peak="+2.0"),
+    dict(y0=1972, label="1972–73", peak="+2.2"),
+    dict(y0=1982, label="1982–83", peak="+2.5"),
+    dict(y0=1991, label="1991–92", peak="+2.3"),
+    dict(y0=1997, label="1997–98", peak="+2.3"),
+    dict(y0=2015, label="2015–16", peak="+2.3"),
     dict(y0=2026, label="2026–27 (current)", peak=None, current=True),
 ]
 # Jun(yr0) ... May(yr1): the ENSO-cycle month order shown in the dropdown.
@@ -377,7 +378,7 @@ def render(vid: str, anom: xr.DataArray, month: int, avail: set,
                    linewidths=0.5, transform=ccrs.PlateCarree())
         ax.coastlines(lw=0.6, color="#222")
         ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#555")
-        peak = f"  (peak ONI {ev['peak']})" if ev["peak"] else ""
+        peak = f"  (peak RONI {ev['peak']})" if ev["peak"] else ""
         ax.set_title(f"{ev['label']} · {yr_tag}{peak}",
                      fontsize=11, loc="left",
                      fontweight="bold" if ev.get("current") else "normal")
