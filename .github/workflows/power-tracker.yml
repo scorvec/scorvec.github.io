@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  actions: write        # dispatch pages.yml after committing (bot pushes don't trigger it)
 
 concurrency:
   group: power-tracker
@@ -55,3 +56,9 @@ jobs:
             echo "push attempt $i failed; retrying…"; sleep 5
           done
           echo "ERROR: could not push after 5 attempts." >&2; exit 1
+
+      - name: Trigger Pages deploy
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo ${{ github.repository }} || echo "pages dispatch failed (site will update on next push)" 
