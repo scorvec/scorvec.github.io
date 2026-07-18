@@ -1,7 +1,7 @@
 {
-  "cycle": "2026-07-18 06Z",
-  "cycle_compact": "20260718T06Z",
-  "generated": "2026-07-18 14:11 UTC",
+  "cycle": "2026-07-18 12Z",
+  "cycle_compact": "20260718T12Z",
+  "generated": "2026-07-18 14:31 UTC",
   "variable_id": "precip_diff",
   "variable_label": "Total Precip: RRFS vs HRRR",
   "units": "in",
@@ -9,10 +9,64 @@
   "region_label": "National (CONUS)",
   "frames": [
     {
+      "fxx": 1,
+      "valid_time": "2026-07-18T13:00:00Z",
+      "valid_label": "Sat 07/18 13:00Z",
+      "file": "F01.webp"
+    },
+    {
+      "fxx": 2,
+      "valid_time": "2026-07-18T14:00:00Z",
+      "valid_label": "Sat 07/18 14:00Z",
+      "file": "F02.webp"
+    },
+    {
+      "fxx": 3,
+      "valid_time": "2026-07-18T15:00:00Z",
+      "valid_label": "Sat 07/18 15:00Z",
+      "file": "F03.webp"
+    },
+    {
+      "fxx": 4,
+      "valid_time": "2026-07-18T16:00:00Z",
+      "valid_label": "Sat 07/18 16:00Z",
+      "file": "F04.webp"
+    },
+    {
+      "fxx": 5,
+      "valid_time": "2026-07-18T17:00:00Z",
+      "valid_label": "Sat 07/18 17:00Z",
+      "file": "F05.webp"
+    },
+    {
       "fxx": 6,
-      "valid_time": "2026-07-18T12:00:00Z",
-      "valid_label": "Sat 07/18 12:00Z",
+      "valid_time": "2026-07-18T18:00:00Z",
+      "valid_label": "Sat 07/18 18:00Z",
       "file": "F06.webp"
+    },
+    {
+      "fxx": 7,
+      "valid_time": "2026-07-18T19:00:00Z",
+      "valid_label": "Sat 07/18 19:00Z",
+      "file": "F07.webp"
+    },
+    {
+      "fxx": 8,
+      "valid_time": "2026-07-18T20:00:00Z",
+      "valid_label": "Sat 07/18 20:00Z",
+      "file": "F08.webp"
+    },
+    {
+      "fxx": 9,
+      "valid_time": "2026-07-18T21:00:00Z",
+      "valid_label": "Sat 07/18 21:00Z",
+      "file": "F09.webp"
+    },
+    {
+      "fxx": 11,
+      "valid_time": "2026-07-18T23:00:00Z",
+      "valid_label": "Sat 07/18 23:00Z",
+      "file": "F11.webp"
     }
   ]
 }

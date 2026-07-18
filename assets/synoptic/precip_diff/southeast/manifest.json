@@ -2,18 +2,12 @@
   "cycle": "2026-07-18 12Z",
   "cycle_compact": "20260718T12Z",
   "generated": "2026-07-18 14:31 UTC",
-  "variable_id": "t2m_diff",
-  "variable_label": "2 m Temperature: RRFS vs HRRR",
-  "units": "\u00b0F",
-  "region_id": "national",
-  "region_label": "National (CONUS)",
+  "variable_id": "precip_diff",
+  "variable_label": "Total Precip: RRFS vs HRRR",
+  "units": "in",
+  "region_id": "southeast",
+  "region_label": "Southeast",
   "frames": [
-    {
-      "fxx": 0,
-      "valid_time": "2026-07-18T12:00:00Z",
-      "valid_label": "Sat 07/18 12:00Z",
-      "file": "F00.webp"
-    },
     {
       "fxx": 1,
       "valid_time": "2026-07-18T13:00:00Z",
@@ -67,6 +61,12 @@
       "valid_time": "2026-07-18T21:00:00Z",
       "valid_label": "Sat 07/18 21:00Z",
       "file": "F09.webp"
+    },
+    {
+      "fxx": 11,
+      "valid_time": "2026-07-18T23:00:00Z",
+      "valid_label": "Sat 07/18 23:00Z",
+      "file": "F11.webp"
     }
   ]
 }
