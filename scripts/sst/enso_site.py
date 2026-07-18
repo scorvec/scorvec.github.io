@@ -50,9 +50,14 @@ PAGES = [
               "against every ENSO event since 1970.",
          canonical="https://scorvec.com/enso-forecasts.html"),
     dict(slug="atmosphere", out="enso-atmosphere.html", active="A_ATMOSPHERE",
-         title="Atmospheric Response &middot; El Ni&ntilde;o Monitor",
-         desc="Observed and forecast equatorial winds, atmospheric angular momentum and "
-              "its torque budget, and the meridional overturning circulation.",
+         title="Wave Activity Flux, Angular Momentum &amp; Walker Circulation &mdash; "
+               "Live Atmospheric Circulation Diagnostics &middot; El Ni&ntilde;o Monitor",
+         desc="Daily global circulation diagnostics updated from ECMWF AIFS-ENS: "
+              "Takaya-Nakamura wave activity flux (Rossby wave packets, blocking "
+              "precursors), atmospheric angular momentum (AAM) with its mountain and "
+              "friction torque budget, Hadley cell and Walker circulation "
+              "streamfunctions, subtropical jet strength vs climatology, 200 hPa "
+              "velocity potential, and equatorial wind forecasts for ENSO.",
          canonical="https://scorvec.com/enso-atmosphere.html"),
 ]
 

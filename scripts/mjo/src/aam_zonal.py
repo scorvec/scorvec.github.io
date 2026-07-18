@@ -9,9 +9,12 @@ m(analysis) shows exactly where/at what level the wind field is adding or removi
 angular momentum — the spatial breakdown of the global-AAM tendency the timeseries
 shows. Ensemble mean of AIFS-ENS (the 13-level u already pulled by aam.py).
 
-Cross-section + marginals: the main panel is Δm(φ,p); the top marginal is its vertical
-integral (ΔAAM per latitude), the right marginal its meridional integral (ΔAAM per
-level); the corner prints the global ΔAAM (which matches the AAM timeseries).
+Each frame is a 2×2 of (φ,p) cross-sections — absolute density, anomaly vs the ERA5
+clim, tendency vs the analysis, and de-seasonalised tendency — with the header
+printing the global AAM / anomaly / ΔAAM totals. Those totals CLOSELY TRACK (but do
+not exactly equal) the aam.py timeseries: this product uses the pf ensemble mean
+(50 members, mean taken before the nonlinear surface-pressure clipping), while the
+timeseries averages per-member cf+pf AAM (51) after it.
 
     python src/aam_zonal.py --date 20260603 --time 00 --data-dir data/aam \
         --out ../../assets/sst/aam_zonal.webp
