@@ -288,28 +288,32 @@
   // not a rolling 24 h, so a peak near the chart edge isn't dropped. Per-extreme
   // provenance in maxsrc/minsrc ("obs" | "6hr" | "24hr"); °C, or null.
   function dayFromShown(obs, sixhr, official, w0) {
-    var mx = null, mn = null, ms = "", ns = "", E = w0, earliest = null;
+    // maxt/mint record WHEN each extreme happened (epochs are UTC; rendering
+    // converts to the station's local clock): {e} = exact sample epoch,
+    // {win: [start, end]} = the 6-h or 24-h group window that contains it.
+    var mx = null, mn = null, ms = "", ns = "", E = w0, earliest = null,
+        mxt = null, mnt = null;
     (obs || []).forEach(function (o) {
       if (o[1] == null || o[0] < w0) return;
-      if (mx == null || o[1] > mx) { mx = o[1]; ms = "obs"; }
-      if (mn == null || o[1] < mn) { mn = o[1]; ns = "obs"; }
+      if (mx == null || o[1] > mx) { mx = o[1]; ms = "obs"; mxt = { e: o[0] }; }
+      if (mn == null || o[1] < mn) { mn = o[1]; ns = "obs"; mnt = { e: o[0] }; }
       if (o[0] > E) E = o[0];
       if (earliest == null || o[0] < earliest) earliest = o[0];
     });
     (sixhr || []).forEach(function (g) {
       if (g[0] <= w0) return;                            // 6-h group ends within the window
-      if (g[1] != null && (mx == null || g[1] > mx)) { mx = g[1]; ms = "6hr"; }
-      if (g[2] != null && (mn == null || g[2] < mn)) { mn = g[2]; ns = "6hr"; }
+      if (g[1] != null && (mx == null || g[1] > mx)) { mx = g[1]; ms = "6hr"; mxt = { win: [g[0] - 21600, g[0]] }; }
+      if (g[2] != null && (mn == null || g[2] < mn)) { mn = g[2]; ns = "6hr"; mnt = { win: [g[0] - 21600, g[0]] }; }
       if (g[0] > E) E = g[0];
       var s = g[0] - 6 * 3600; if (earliest == null || s < earliest) earliest = s;
     });
     if (official) {                                      // official 24-h daily max/min (yesterday, in-window)
-      if (official.max != null && (mx == null || official.max > mx)) { mx = official.max; ms = "24hr"; }
-      if (official.min != null && (mn == null || official.min < mn)) { mn = official.min; ns = "24hr"; }
+      if (official.max != null && (mx == null || official.max > mx)) { mx = official.max; ms = "24hr"; mxt = { win: [official.e - 86400, official.e] }; }
+      if (official.min != null && (mn == null || official.min < mn)) { mn = official.min; ns = "24hr"; mnt = { win: [official.e - 86400, official.e] }; }
     }
     if (mx == null || mn == null) return null;
-    return { max: mx, min: mn, maxsrc: ms, minsrc: ns, e: E,
-             span_h: Math.round((E - earliest) / 3600) };
+    return { max: mx, min: mn, maxsrc: ms, minsrc: ns, maxt: mxt, mint: mnt,
+             e: E, span_h: Math.round((E - earliest) / 3600) };
   }
 
   // absolute daily max/min from merged samples + 6-hr groups fully within today
@@ -639,6 +643,22 @@
   }
   function extLabel(x, tz) {  // time of a displayed extreme: exact, or its 6-h window
     return x.e != null ? localHM(x.e, tz) : winLabel(x.win, tz) + " (6-hr)";
+  }
+  function localMD(epoch, tz) {  // "Jul 17" on the station's local calendar
+    return new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short",
+      day: "numeric" }).format(new Date(epoch * 1000));
+  }
+  // Local date (+ time or window) an extreme occurred. Epochs are UTC; Intl
+  // does the tz conversion, so a 03Z sample correctly labels as the PREVIOUS
+  // local date on US stations. 6-h windows are dated by their local start;
+  // the official 24-h group by the local day it covers (window midpoint).
+  function extDateLabel(t, tz) {
+    if (!t) return "";
+    if (t.e != null) return localMD(t.e, tz) + " " + localHM(t.e, tz);
+    if (!t.win) return "";
+    if (t.win[1] - t.win[0] >= 22 * 3600)
+      return localMD((t.win[0] + t.win[1]) / 2, tz);
+    return localMD(t.win[0], tz) + " " + winLabel(t.win, tz);
   }
 
   // series for the active view: {x:[], y:[], hov:[]} — y is display-ready.
@@ -970,15 +990,18 @@
         var icol = COLORS[state.iso % COLORS.length];
         var SRC = { obs: "sampled", "6hr": "6-hr", "24hr": "official" };
         var sp = iso.daymm.span_h;
-        [["max", iso.daymm.max, iso.daymm.maxsrc], ["min", iso.daymm.min, iso.daymm.minsrc]]
+        [["max", iso.daymm.max, iso.daymm.maxsrc, iso.daymm.maxt],
+         ["min", iso.daymm.min, iso.daymm.minsrc, iso.daymm.mint]]
           .forEach(function (p) {
           var yv = cToUnit(p[1]);
+          var when = extDateLabel(p[3], iso.tz);
           shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: yv, y1: yv,
                         layer: "below", line: { color: icol, width: 1.3, dash: "dash" } });
           annotations.push({ xref: "paper", x: 0.006, y: yv, yref: "y", yanchor: "bottom",
                              xanchor: "left",
                              text: sp + "-h " + p[0] + " (" + (SRC[p[2]] || "sampled") + ") "
-                                   + yv.toFixed(1) + "°" + state.unit,
+                                   + yv.toFixed(1) + "°" + state.unit
+                                   + (when ? " · " + when : ""),
                              showarrow: false, bgcolor: "rgba(255,255,255,0.85)",
                              font: { size: 14.25, color: "#1c1c1a" } });
         });
