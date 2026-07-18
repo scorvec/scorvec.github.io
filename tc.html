@@ -83,6 +83,7 @@
   .anim-embed.natl { aspect-ratio: 1220 / 810; }
   .anim-embed.epac { aspect-ratio: 1220 / 700; }
   .anim-embed.wpac { aspect-ratio: 1220 / 790; }
+  .anim-embed.globe { aspect-ratio: 1450 / 500; }
   .chart-img-wrap img { display: block; width: 100%; height: auto; }
   .chart-card-footer {
     padding: 0.85rem 1.8rem;
@@ -157,13 +158,38 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Ensemble Storm Tracks</h2>
-        <p>One panel per ensemble storm (&ge;20% member support): every member's track colored by 10&nbsp;m wind in knots (Weathernerds-style bins), with the <b>black line as the ensemble-mean track</b> and day numbers along it. Panel titles give the overall support and the AIFS-vs-IFS split &mdash; disagreement between the two models is often the real forecast story.</p>
+        <p>One image per ensemble storm (&ge;20% member support), <b>AIFS-ENS on the left, IFS-ENS on the right</b> at the same zoom: member tracks colored by 10&nbsp;m wind in knots, black = that model's mean track, grey dashed = the other model's mean for direct comparison. Storms within 500&nbsp;km of an active NHC system or invest are tagged (&asymp;&nbsp;AL9x/EP9x). <b>Click any storm to open it full-size.</b></p>
       </div>
-      <div class="chart-img-wrap" style="background:#fff;">
-        <img src="assets/tc/tc_storms.webp?v=init" alt="Per-storm ensemble tropical cyclone track panels: member spaghetti colored by wind speed with ensemble-mean track" loading="lazy">
+      <div id="storm-gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:0.8rem;padding:1rem;background:#fff;"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS MSLP &amp; 10 m wind (open data, CC BY 4.0) &middot; NHC CurrentStorms + ATCF invests &middot; grid-scale winds understate true intensity</span>
+        <span class="chart-updated">updated each cycle</span>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>NHC Systems &amp; Invests — Model Guidance</h2>
+        <p>For every system NHC is actively tracking (named storms and 9X invests, Atlantic / East Pacific / Central Pacific), the latest ATCF a-deck guidance: NHC official forecast in black, GFS red, ECMWF blue, HAFS-A/B purple/pink, UKMET orange, CMC green, consensus dashed grey, with forecast-hour labels along each track. <b>Click to enlarge.</b></p>
+      </div>
+      <div id="invest-gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:0.8rem;padding:1rem;background:#fff;"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NHC ATCF a-decks (aid_public) &amp; CurrentStorms &middot; models as labelled &middot; invests have no official NHC forecast</span>
+        <span class="chart-updated">updated each cycle</span>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Global Overview</h2>
+        <p>The whole tropics at a glance, Pacific-centred &mdash; every ensemble storm, strike probability accumulating through the shown day. Same model dropdown as the basin views.</p>
+      </div>
+      <div class="chart-img-wrap">
+        <iframe class="anim-embed globe" src="sst_anim.html?embed=1&amp;base=assets/tc/anim&amp;manifest=globe_manifest.json&amp;region=globe_aifs&amp;start=0&amp;autoplay=1"
+                title="Global ensemble tropical cyclone forecast animation" loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
-        <span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS MSLP &amp; 10 m wind, 101 members (open data, CC BY 4.0) &middot; grid-scale winds understate true intensity</span>
+        <span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS, 101 members (open data, CC BY 4.0)</span>
         <span class="chart-updated">updated each cycle</span>
       </div>
     </div>
@@ -231,6 +257,55 @@ fetch("https://scorvec.goatcounter.com/counter/TOTAL.json")
   .then(d => { document.querySelector(".counter").innerHTML =
     "site visits &nbsp;<span>" + (d.count_unique || d.count) + "</span>"; })
   .catch(() => {});
+</script>
+<script>
+  // storm gallery: built from tc_meta.json; click opens the full-size image
+  fetch('assets/tc/tc_meta.json?v=' + Date.now()).then(r => r.json()).then(d => {
+    var g = document.getElementById('storm-gallery');
+    if (!g || !d.storms || !d.storms.length) {
+      if (g) g.innerHTML = '<p style="color:#888;font-size:0.85rem;">No ensemble storms above the 20% support threshold this cycle.</p>';
+      return;
+    }
+    d.storms.forEach(function (s) {
+      var a = document.createElement('a');
+      a.href = 'assets/tc/' + s.file + '?v=' + (d.init || '').replace(/\W/g, '');
+      a.target = '_blank'; a.style.textDecoration = 'none';
+      var cap = s.id + ' — ' + Math.round(s.support * 100) + '%'
+        + (s.invest ? ' · ≈ ' + s.invest : '') + ' · genesis d' + s.genesis_day;
+      a.innerHTML = '<img src="' + a.href + '" loading="lazy" style="width:100%;height:auto;border:1px solid #e4e2dc;border-radius:3px;" alt="Ensemble tracks for ' + s.id + '">' +
+        '<div style="font-size:0.72rem;color:#555;padding:0.25rem 0.1rem;font-family:monospace;">' + cap + '</div>';
+      g.appendChild(a);
+    });
+  }).catch(function () {});
+
+  // NHC guidance gallery
+  fetch('assets/tc/invests_meta.json?v=' + Date.now()).then(r => r.json()).then(d => {
+    var g = document.getElementById('invest-gallery');
+    if (!g || !d.systems || !d.systems.length) {
+      if (g) g.innerHTML = '<p style="color:#888;font-size:0.85rem;">No active NHC systems or invests right now.</p>';
+      return;
+    }
+    d.systems.forEach(function (s) {
+      var a = document.createElement('a');
+      a.href = 'assets/tc/' + s.file + '?v=' + s.cycle;
+      a.target = '_blank'; a.style.textDecoration = 'none';
+      a.innerHTML = '<img src="' + a.href + '" loading="lazy" style="width:100%;height:auto;border:1px solid #e4e2dc;border-radius:3px;" alt="ATCF model guidance for ' + s.id + '">' +
+        '<div style="font-size:0.72rem;color:#555;padding:0.25rem 0.1rem;font-family:monospace;">' + s.name + ' ' + s.id + ' · cycle ' + s.cycle + '</div>';
+      g.appendChild(a);
+    });
+  }).catch(function () {});
+
+  // size each animation iframe to the player's reported height (image + controls)
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + 'px';
+        fr[i].style.aspectRatio = 'auto';
+      }
+    }
+  });
 </script>
 </body>
 </html>
