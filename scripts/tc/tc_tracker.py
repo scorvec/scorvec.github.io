@@ -614,8 +614,9 @@ def _draw_storm_panel(ax, cl, model, other_mean, w0, e0, s0, n0):
     n_hur = 0
     for _, tr in mtracks:
         for a, b in zip(tr[:-1], tr[1:]):
-            if b[5] < WIND_SHOW and a[5] < WIND_SHOW:
-                continue                          # sub-25 kt noise floor
+            if b[5] < WIND_SHOW:
+                continue                          # sub-25 kt noise floor (the
+                                                  # colored endpoint must qualify)
             ax.plot([a[2], b[2]], [a[1], b[1]], color=_wn_color(b[5]),
                     lw=0.9, alpha=0.75, transform=ccrs.Geodetic(), zorder=4)
         vis = [pt for pt in tr if pt[5] >= WIND_SHOW]
@@ -750,7 +751,7 @@ def render_storm_panels(labeled, model_counts, init, out_dir: Path):
                 ax0.plot([q[2] for q in om], [q[1] for q in om], color="0.35",
                          lw=1.6, ls="--", alpha=0.8, transform=ccrs.Geodetic(), zorder=5)
         from matplotlib.lines import Line2D
-        bins = [("<20", "#b8b8b8"), ("20+", "#25c8c8"), ("30+", "#2a52dd"),
+        bins = [("25+", "#25c8c8"), ("30+", "#2a52dd"),
                 ("40+", "#2fb52f"), ("50+", "#e6d82e"), ("60+", "#f08a1e"),
                 ("70+", "#e2231e"), ("80+ kt", "#e01e9d")]
         handles = [Line2D([], [], color=c, lw=2.2, label=l) for l, c in bins]
@@ -845,7 +846,7 @@ def _render_frame(job):
     gl.xlabel_style = gl.ylabel_style = {"color": "#667", "size": 6.5}
     # dot-colour legend (10 m wind, kt)
     from matplotlib.lines import Line2D
-    bins = [("<20", "#b8b8b8"), ("20+", "#25c8c8"), ("30+", "#2a52dd"),
+    bins = [("25+", "#25c8c8"), ("30+", "#2a52dd"),
             ("40+", "#2fb52f"), ("50+", "#e6d82e"), ("60+", "#f08a1e"),
             ("70+", "#e2231e"), ("80+ kt", "#e01e9d")]
     handles = [Line2D([], [], marker="o", ls="none", ms=6, mec="k", mew=0.3,
