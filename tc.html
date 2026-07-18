@@ -160,24 +160,26 @@
         <h2>Ensemble Storm Tracks</h2>
         <p>One image per ensemble storm (&ge;20% member support), <b>AIFS-ENS on the left, IFS-ENS on the right</b> at the same zoom: member tracks colored by 10&nbsp;m wind in knots, black = that model's mean track, grey dashed = the other model's mean for direct comparison. Storms within 500&nbsp;km of an active NHC system or invest are tagged (&asymp;&nbsp;AL9x/EP9x). <b>Click any storm to open it full-size.</b></p>
       </div>
-      <div id="storm-gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:0.8rem;padding:1rem;background:#fff;"></div>
       <div class="chart-card-footer">
         <span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS MSLP &amp; 10 m wind (open data, CC BY 4.0) &middot; NHC CurrentStorms + ATCF invests &middot; grid-scale winds understate true intensity</span>
         <span class="chart-updated">updated each cycle</span>
       </div>
     </div>
 
+    <div id="storm-cards" style="display:contents;"></div>
+
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>NHC Systems &amp; Invests — Model Guidance</h2>
         <p>For every system NHC is actively tracking (named storms and 9X invests, Atlantic / East Pacific / Central Pacific), the latest ATCF a-deck guidance: NHC official forecast in black, GFS red, ECMWF blue, HAFS-A/B purple/pink, UKMET orange, CMC green, consensus dashed grey, with forecast-hour labels along each track. <b>Click to enlarge.</b></p>
       </div>
-      <div id="invest-gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:0.8rem;padding:1rem;background:#fff;"></div>
       <div class="chart-card-footer">
         <span class="chart-sources">NHC ATCF a-decks (aid_public) &amp; CurrentStorms &middot; models as labelled &middot; invests have no official NHC forecast</span>
         <span class="chart-updated">updated each cycle</span>
       </div>
     </div>
+
+    <div id="invest-cards" style="display:contents;"></div>
 
     <div class="chart-card">
       <div class="chart-card-header">
@@ -259,46 +261,48 @@ fetch("https://scorvec.goatcounter.com/counter/TOTAL.json")
   .catch(() => {});
 </script>
 <script>
-  // storm gallery: built from tc_meta.json; click opens the full-size image
+  // one full-width card per entity (mixed aspect ratios fight grids)
+  function makeCard(title, imgs, foot) {
+    var card = document.createElement('div');
+    card.className = 'chart-card';
+    var h = '<div class="chart-card-header"><h2>' + title + '</h2></div>';
+    imgs.forEach(function (im) {
+      h += '<div class="chart-img-wrap" style="background:#fff;"><a href="' + im.src +
+        '" target="_blank"><img src="' + im.src +
+        '" loading="lazy" style="width:100%;height:auto;display:block;" alt="' +
+        im.alt + '"></a></div>';
+    });
+    h += '<div class="chart-card-footer"><span class="chart-sources">' + foot +
+      '</span></div>';
+    card.innerHTML = h;
+    return card;
+  }
+
   fetch('assets/tc/tc_meta.json?v=' + Date.now()).then(r => r.json()).then(d => {
-    var g = document.getElementById('storm-gallery');
-    if (!g || !d.storms || !d.storms.length) {
-      if (g) g.innerHTML = '<p style="color:#888;font-size:0.85rem;">No ensemble storms above the 20% support threshold this cycle.</p>';
-      return;
-    }
+    var g = document.getElementById('storm-cards');
+    if (!g || !d.storms) return;
+    var v = (d.init || '').replace(/\W/g, '');
     d.storms.forEach(function (s) {
-      var a = document.createElement('a');
-      a.href = 'assets/tc/' + s.file + '?v=' + (d.init || '').replace(/\W/g, '');
-      a.target = '_blank'; a.style.textDecoration = 'none';
-      var cap = s.id + ' — ' + Math.round(s.support * 100) + '%'
-        + (s.invest ? ' · ≈ ' + s.invest : '') + ' · genesis d' + s.genesis_day;
-      a.innerHTML = '<img src="' + a.href + '" loading="lazy" style="width:100%;height:auto;border:1px solid #e4e2dc;border-radius:3px;" alt="Ensemble tracks for ' + s.id + '">' +
-        '<div style="font-size:0.72rem;color:#555;padding:0.25rem 0.1rem;font-family:monospace;">' + cap + '</div>';
-      g.appendChild(a);
-      if (s.ts_file) {
-        var b = document.createElement('a');
-        b.href = 'assets/tc/' + s.ts_file + '?v=' + (d.init || '').replace(/\W/g, '');
-        b.target = '_blank'; b.style.textDecoration = 'none';
-        b.innerHTML = '<img src="' + b.href + '" loading="lazy" style="width:100%;height:auto;border:1px solid #e4e2dc;border-radius:3px;" alt="Ensemble intensity plumes for ' + s.id + '">';
-        g.appendChild(b);
-      }
+      var title = s.id + ' — ' + Math.round(s.support * 100) + '% support'
+        + (s.invest ? ' · ≈ ' + s.invest : '') + ' · genesis day ' + s.genesis_day;
+      var imgs = [{src: 'assets/tc/' + s.file + '?v=' + v,
+                   alt: 'Ensemble tracks for ' + s.id}];
+      if (s.ts_file) imgs.push({src: 'assets/tc/' + s.ts_file + '?v=' + v,
+                                alt: 'Ensemble intensity plumes for ' + s.id});
+      g.appendChild(makeCard(title, imgs,
+        'AIFS-ENS + IFS-ENS · click any image for full size'));
     });
   }).catch(function () {});
 
-  // NHC guidance gallery
   fetch('assets/tc/invests_meta.json?v=' + Date.now()).then(r => r.json()).then(d => {
-    var g = document.getElementById('invest-gallery');
-    if (!g || !d.systems || !d.systems.length) {
-      if (g) g.innerHTML = '<p style="color:#888;font-size:0.85rem;">No active NHC systems or invests right now.</p>';
-      return;
-    }
+    var g = document.getElementById('invest-cards');
+    if (!g || !d.systems) return;
     d.systems.forEach(function (s) {
-      var a = document.createElement('a');
-      a.href = 'assets/tc/' + s.file + '?v=' + s.cycle;
-      a.target = '_blank'; a.style.textDecoration = 'none';
-      a.innerHTML = '<img src="' + a.href + '" loading="lazy" style="width:100%;height:auto;border:1px solid #e4e2dc;border-radius:3px;" alt="ATCF model guidance for ' + s.id + '">' +
-        '<div style="font-size:0.72rem;color:#555;padding:0.25rem 0.1rem;font-family:monospace;">' + s.name + ' ' + s.id + ' · cycle ' + s.cycle + '</div>';
-      g.appendChild(a);
+      g.appendChild(makeCard(
+        s.name + ' ' + s.id + ' — NHC/ATCF model guidance · cycle ' + s.cycle,
+        [{src: 'assets/tc/' + s.file + '?v=' + s.cycle,
+          alt: 'ATCF model guidance for ' + s.id}],
+        'NHC ATCF a-deck (aid_public) · click for full size'));
     });
   }).catch(function () {});
 
