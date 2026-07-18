@@ -90,3 +90,4 @@ scripts/sst/data/imerg/
 # Gatun raw CSV cache (rebuilt on every fetch)
 scripts/gatun/data/
 
+scripts/climate/data/

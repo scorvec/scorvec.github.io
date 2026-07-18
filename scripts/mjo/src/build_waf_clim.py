@@ -48,9 +48,13 @@ def _samples(a):
         try:
             ut = u.sel(time=t).load(); vt = v.sel(time=t).load()
             psi, glat, glon = streamfunction_psi(ut, vt, lmax=LMAX)
-            # U, V on the SAME DH2 grid the ψ inversion returns
-            Ug = _to_0360(ut).interp(latitude=glat, longitude=glon).values
-            Vg = _to_0360(vt).interp(latitude=glat, longitude=glon).values
+            # U, V on the SAME DH2 grid the ψ inversion returns. WB2 stores
+            # dims (longitude, latitude) — transpose explicitly or the stack
+            # comes out lat/lon-swapped relative to ψ.
+            Ug = (_to_0360(ut).interp(latitude=glat, longitude=glon)
+                  .transpose("latitude", "longitude").values)
+            Vg = (_to_0360(vt).interp(latitude=glat, longitude=glon)
+                  .transpose("latitude", "longitude").values)
             Ul.append(Ug); Vl.append(Vg); Pl.append(psi); tl.append(t)
         except Exception as e:                                     # noqa: BLE001
             print(f"  skip {t:%Y-%m-%d}: {repr(e)[:60]}"); continue
