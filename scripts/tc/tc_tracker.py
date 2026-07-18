@@ -55,8 +55,9 @@ LAT_GENESIS = 30.0                   # genesis latitude gate, summer hemisphere
 LAT_GENESIS_WINTER = 20.0            # winter hemisphere: subtropical lows are not TCs
 LAT_TRACK = 60.0                     # tracking latitude ceiling
 LAT_ET = 42.0                        # truncate tracks here (extratropical transition proxy)
-LINK_KM = 800.0                      # 24 h linking gate (motion-extrapolated)
-MIN_DAYS = 3                         # minimum track length (points)
+LINK_KMD = 900.0                     # linking gate, km per 24 h (motion-extrapolated)
+GAP_H = 36                           # max hours between fixes before a track dies
+MIN_SPAN_H = 48                      # minimum track lifetime (hours)
 WIND_MIN = 14.0                      # m/s: track's peak 10 m wind to keep it
 CLUSTER_KM = 600.0                   # genesis agreement radius
 CLUSTER_DT = 2                       # genesis agreement window (days)
@@ -132,13 +133,19 @@ def open_members(date: str, time: str):
     only cache-present files are used."""
     out = []
     cycle_dir = ecmwf.CACHE / f"{date}{time}z"
-    hits = []
+    import re as _re
+    best = {}
     for sub in sorted(cycle_dir.glob("*")):
         if not sub.is_dir():
             continue
         for typ in ("cf", "pf"):
-            for p in sorted(sub.glob(f"{typ}_*msl*_sfc_*.grib2")):
-                hits.append((sub.name.replace("-ens", ""), typ, p))
+            for fp in sorted(sub.glob(f"{typ}_*msl*_sfc_*.grib2")):
+                m = _re.search(r"x(\d+)\.grib2$", fp.name)
+                nst = int(m.group(1)) if m else 0
+                key = (sub.name.replace("-ens", ""), typ)
+                if key not in best or nst > best[key][0]:
+                    best[key] = (nst, fp)
+    hits = [(k[0], k[1], v[1]) for k, v in sorted(best.items())]
     for model, typ, p in hits:
         try:
             msl = xr.open_dataset(p, backend_kwargs={"filter_by_keys": {"shortName": "msl"},
@@ -253,22 +260,30 @@ def detect_member(msl_hpa, wind, lat, lon, ring_px):
 
 
 def link_tracks(cands, steps_h, summer_nh: bool):
-    """Greedy linking of per-step candidates into tracks (one member)."""
-    tracks = []                                  # each: list of (k, lat, lon, p, depth, w)
+    """Greedy linking of per-step candidates into tracks (one member).
+    Track points carry the VALID HOUR (not step index) so 6-hourly and daily
+    step sets — and models with different step grids — mix cleanly.
+    Point tuple: (hour, lat, lon, p, depth, wmax)."""
+    tracks = []
     live = []
     for k in range(len(cands)):
+        h = int(steps_h[k])
+        dt_prev = int(steps_h[k] - steps_h[k - 1]) if k else 0
         pool = list(cands[k])
         used = set()
         # try to extend live tracks first (nearest candidate inside gate)
         for tr in live:
-            kp, la, lo = tr[-1][0], tr[-1][1], tr[-1][2]
-            if k - kp > 1:                       # missed more than one step → dead
+            hp, la, lo = tr[-1][0], tr[-1][1], tr[-1][2]
+            dt = h - hp
+            if dt > GAP_H:                       # too long since last fix → dead
                 continue
             gla, glo = la, lo
-            if len(tr) >= 2:                     # extrapolate last motion
-                gla = la + (la - tr[-2][1])
-                glo = lo + (lo - tr[-2][2])
-            best, bd = None, LINK_KM
+            if len(tr) >= 2 and tr[-1][0] > tr[-2][0]:
+                f = dt / (tr[-1][0] - tr[-2][0])     # extrapolate last motion
+                gla = la + (la - tr[-2][1]) * f
+                glo = lo + (lo - tr[-2][2]) * f
+            gate = max(150.0, LINK_KMD * dt / 24.0)
+            best, bd = None, gate
             for i, c in enumerate(pool):
                 if i in used:
                     continue
@@ -277,7 +292,7 @@ def link_tracks(cands, steps_h, summer_nh: bool):
                     best, bd = i, d
             if best is not None:
                 c = pool[best]; used.add(best)
-                tr.append((k, *c))
+                tr.append((h, *c))
         # unclaimed candidates in the genesis window start new tracks
         for i, c in enumerate(pool):
             if i in used:
@@ -286,21 +301,21 @@ def link_tracks(cands, steps_h, summer_nh: bool):
             if abs(c[0]) > glim or c[2] >= P_GATE or not is_ocean(c[0], c[1]) \
                     or excluded(c[0], c[1]):
                 continue
-            if abs(c[0]) > 20 and (c[3] < 3.0 or c[4] < 15.0):
+            if abs(c[0]) > 20 and c[3] < 2.5:
                 continue                         # 20-30°: frontal/subtropical junk zone —
-                                                 # demand a deep closed low with real wind
-            live.append([(k, *c)])
-        # retire tracks that missed a step (collect, don't drop)
+                                                 # demand a solidly closed low
+            live.append([(h, *c)])
+        # retire stale tracks (collect, don't drop)
         still = []
         for tr in live:
-            (still if k - tr[-1][0] <= 1 else tracks).append(tr)
+            (still if h - tr[-1][0] <= GAP_H else tracks).append(tr)
         live = still
     tracks = list(live) + tracks
     keep = []
     for tr in tracks:
         cut = next((i for i, pt in enumerate(tr) if abs(pt[1]) > LAT_ET), len(tr))
         tr = tr[:max(cut, 1)]
-        if len(tr) < MIN_DAYS:
+        if tr[-1][0] - tr[0][0] < MIN_SPAN_H:
             continue
         if max(p[5] for p in tr) < WIND_MIN:
             continue
@@ -308,7 +323,7 @@ def link_tracks(cands, steps_h, summer_nh: bool):
             continue                              # lives on/along land: monsoon/lee trough
         path = sum(haversine_km(a[1], a[2], b[1], b[2])
                    for a, b in zip(tr[:-1], tr[1:]))
-        if path < 700.0:
+        if path < 500.0:
             continue                              # quasi-stationary: monsoon/heat low, not a TC
         keep.append(tr)
     return keep
@@ -322,7 +337,7 @@ def cluster_storms(all_tracks):
         placed = False
         for cl in clusters:
             g0 = cl["genesis"]
-            if (abs(g[0] - g0[0]) <= CLUSTER_DT
+            if (abs(g[0] - g0[0]) <= CLUSTER_DT * 24
                     and haversine_km(g[1], g[2], g0[1], g0[2]) <= CLUSTER_KM):
                 cl["tracks"].append((mem, tr)); placed = True
                 break
@@ -335,7 +350,7 @@ def cluster_storms(all_tracks):
         for i in range(len(clusters)):
             for j in range(i + 1, len(clusters)):
                 gi, gj = clusters[i]["genesis"], clusters[j]["genesis"]
-                if (abs(gi[0] - gj[0]) <= CLUSTER_DT
+                if (abs(gi[0] - gj[0]) <= CLUSTER_DT * 24
                         and haversine_km(gi[1], gi[2], gj[1], gj[2]) <= CLUSTER_KM):
                     clusters[i]["tracks"] += clusters[j]["tracks"]
                     del clusters[j]; merged = True
@@ -390,6 +405,7 @@ PANEL_BG = "#101a2e"
 
 # animator zooms: (key, label, lon_w, lon_e, lat_s, lat_n)
 ANIM_REGIONS = [
+    ("globe", "Global", -180, 180, -48, 48),
     ("natl", "Atlantic · Gulf of Mexico · Caribbean", -100, -15, 5, 48),
     ("epac", "East Pacific", -140, -75, 5, 35),
     ("wpac", "West Pacific", 100, 180, 5, 45),
@@ -454,71 +470,159 @@ def _wn_color(w_ms):
     return c
 
 
+def fetch_nhc_invests():
+    """Latest positions of active NHC systems + invests (Atlantic/EPAC/CPAC).
+    Best-effort: returns [] on any failure so the product never breaks."""
+    import requests
+    out = []
+    try:
+        r = requests.get("https://www.nhc.noaa.gov/CurrentStorms.json", timeout=15)
+        for s in r.json().get("activeStorms", []):
+            out.append({"id": s.get("binNumber", s.get("id", "?")).upper(),
+                        "name": s.get("name", ""),
+                        "lat": float(s["latitudeNumeric"]),
+                        "lon": float(s["longitudeNumeric"])})
+    except Exception:                                          # noqa: BLE001
+        pass
+    try:
+        import re
+        listing = requests.get("https://ftp.nhc.noaa.gov/atcf/btk/", timeout=15).text
+        for fn in set(re.findall(r"b(?:al|ep|cp)9\d2026\.dat", listing)):
+            try:
+                txt = requests.get(f"https://ftp.nhc.noaa.gov/atcf/btk/{fn}",
+                                   timeout=15).text.strip().splitlines()
+                last = txt[-1].split(",")
+                la = last[6].strip(); lo = last[7].strip()
+                lat = float(la[:-1]) / 10 * (1 if la.endswith("N") else -1)
+                lon = float(lo[:-1]) / 10 * (1 if lo.endswith("E") else -1)
+                out.append({"id": fn[1:5].upper(), "name": "INVEST",
+                            "lat": lat, "lon": lon})
+            except Exception:                                  # noqa: BLE001
+                continue
+    except Exception:                                          # noqa: BLE001
+        pass
+    return out
+
+
+def match_invests(labeled, invests):
+    """Tag day-0/1 genesis clusters with the nearest NHC system within 500 km."""
+    for cl in labeled:
+        cl["invest"] = ""
+        g = cl["genesis"]
+        if g[0] > 36:                            # only current systems match invests
+            continue
+        best, bd = None, 500.0
+        for inv in invests:
+            d = haversine_km(g[1], g[2], inv["lat"], inv["lon"])
+            if d < bd:
+                best, bd = inv, d
+        if best:
+            nm = best["name"].title() if best["name"] not in ("", "INVEST") else "Invest"
+            cl["invest"] = f"{nm} {best['id']}"
+
+
+def _draw_storm_panel(ax, cl, model, other_mean, w0, e0, s0, n0):
+    ax.set_extent([w0, e0, s0, n0], crs=ccrs.PlateCarree())
+    ax.set_facecolor("#d5ecf5")
+    ax.add_feature(cfeature.LAND.with_scale("50m"), facecolor="#e8dcb8", zorder=0)
+    ax.add_feature(cfeature.COASTLINE.with_scale("50m"), edgecolor="#8a8a7a",
+                   linewidth=0.6, zorder=3)
+    ax.add_feature(cfeature.BORDERS.with_scale("50m"), edgecolor="#b0b0a0",
+                   linewidth=0.35, zorder=3)
+    gl = ax.gridlines(draw_labels=True, linewidth=0.3, color="#b9cfd9",
+                      linestyle="--", xlocs=range(-180, 181, 10),
+                      ylocs=range(-60, 61, 5))
+    gl.top_labels = gl.right_labels = False
+    gl.xlabel_style = gl.ylabel_style = {"color": "#667", "size": 6.5}
+    mtracks = [(m, tr) for m, tr in cl["tracks"] if m.startswith(model)]
+    for _, tr in mtracks:
+        for a, b in zip(tr[:-1], tr[1:]):
+            if not (is_ocean(a[1], a[2]) and is_ocean(b[1], b[2])):
+                continue
+            ax.plot([a[2], b[2]], [a[1], b[1]], color=_wn_color(b[5]),
+                    lw=0.9, alpha=0.75, transform=ccrs.Geodetic(), zorder=4)
+    mt = _mean_track({"tracks": mtracks}) if mtracks else []
+    if other_mean and len(other_mean) >= 2:
+        ax.plot([q[2] for q in other_mean], [q[1] for q in other_mean],
+                color="0.35", lw=1.6, ls="--", alpha=0.8,
+                transform=ccrs.Geodetic(), zorder=5)
+    if len(mt) >= 2:
+        ax.plot([q[2] for q in mt], [q[1] for q in mt], color="k", lw=2.8,
+                transform=ccrs.Geodetic(), zorder=6)
+        for q in mt:
+            if q[0] % 48 != 0:
+                continue
+            ax.annotate(f"d{q[0] // 24}", xy=(q[2], q[1] + 0.7),
+                        xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
+                        fontsize=6.5, color="0.35", ha="center", zorder=7)
+    return mt
+
+
 def render_storm_panels(labeled, model_counts, init, out_dir: Path):
-    """One zoomed panel per labeled storm (support ≥ 20%), weathernerds-style:
-    light map, member tracks colored by 10 m wind, bold black ensemble-mean
-    track with day labels. Written as a single grid sheet: tc_storms.webp"""
+    """One image per labeled storm (support ≥ 20%): side-by-side AIFS | IFS
+    panels, member tracks colored by 10 m wind (kt), black = that model's
+    mean track, grey dashed = the OTHER model's mean. Files:
+    storms/storm_NN.webp + entries in the returned meta list (for the page
+    gallery, click-to-enlarge)."""
+    sdir = out_dir / "storms"
+    sdir.mkdir(parents=True, exist_ok=True)
+    for old_f in sdir.glob("storm_*.webp"):
+        old_f.unlink()
     storms = sorted([cl for cl in labeled if cl["support"] >= 0.20],
-                    key=lambda c: -c["support"])[:8]
-    if not storms:
-        return 0
-    ncol = 2
-    nrow = (len(storms) + ncol - 1) // ncol
-    fig = plt.figure(figsize=(7.4 * ncol, 6.0 * nrow + 0.7), facecolor="white")
+                    key=lambda c: -c["support"])[:12]
+    meta = []
     for i, cl in enumerate(storms):
-        las = [p[1] for _, tr in cl["tracks"] for p in tr]
+        las = [pt[1] for _, tr in cl["tracks"] for pt in tr]
         l0 = cl["genesis"][2]
-        los = [l0 + (((p[2] - l0 + 180) % 360) - 180) for _, tr in cl["tracks"] for p in tr]
-        # 10-90% envelope (outlier link-chains must not set the zoom), clamped
+        los = [l0 + (((pt[2] - l0 + 180) % 360) - 180) for _, tr in cl["tracks"] for pt in tr]
         w0, e0 = np.percentile(los, 8) - 4, np.percentile(los, 92) + 4
         s0, n0 = np.percentile(las, 8) - 3, np.percentile(las, 92) + 3
         if e0 - w0 < 24: pad = (24 - (e0 - w0)) / 2; w0 -= pad; e0 += pad
         if n0 - s0 < 16: pad = (16 - (n0 - s0)) / 2; s0 -= pad; n0 += pad
         if e0 - w0 > 55: c = (e0 + w0) / 2; w0, e0 = c - 27.5, c + 27.5
         if n0 - s0 > 32: c = (n0 + s0) / 2; s0, n0 = c - 16, c + 16
-        ax = fig.add_subplot(nrow, ncol, i + 1,
-                             projection=ccrs.PlateCarree(central_longitude=(w0 + e0) / 2))
-        ax.set_extent([w0, e0, s0, n0], crs=ccrs.PlateCarree())
-        ax.set_facecolor("#d5ecf5")
-        ax.add_feature(cfeature.LAND.with_scale("50m"), facecolor="#e8dcb8", zorder=0)
-        ax.add_feature(cfeature.COASTLINE.with_scale("50m"), edgecolor="#8a8a7a",
-                       linewidth=0.6, zorder=3)
-        ax.add_feature(cfeature.BORDERS.with_scale("50m"), edgecolor="#b0b0a0",
-                       linewidth=0.35, zorder=3)
-        gl = ax.gridlines(draw_labels=True, linewidth=0.3, color="#b9cfd9",
-                          linestyle="--", xlocs=range(-180, 181, 10),
-                          ylocs=range(-60, 61, 5))
-        gl.top_labels = gl.right_labels = False
-        gl.xlabel_style = gl.ylabel_style = {"color": "#667", "size": 6.5}
-        for _, tr in cl["tracks"]:
-            for a, b in zip(tr[:-1], tr[1:]):
-                ax.plot([a[2], b[2]], [a[1], b[1]], color=_wn_color(b[5]),
-                        lw=0.9, alpha=0.75, transform=ccrs.Geodetic(), zorder=4)
-        mt = _mean_track(cl)
-        if len(mt) >= 2:
-            ax.plot([q[2] for q in mt], [q[1] for q in mt], color="k", lw=2.8,
-                    transform=ccrs.Geodetic(), zorder=6)
-            for q in mt[::2]:
-                ax.annotate(f"d{q[0]}", xy=(q[2], q[1] + 0.7),
-                            xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
-                            fontsize=6.5, color="0.35", ha="center", zorder=7)
-        sup = " · ".join(f"{m.upper()} {cl['sup_m'].get(m, 0)*100:.0f}%"
-                         for m in sorted(model_counts))
+        aspect = (n0 - s0) / (e0 - w0)
+        figw = 13.6
+        figh = figw / 2 * aspect * 1.02 + 1.05
+        fig = plt.figure(figsize=(figw, figh), facecolor="white")
+        means = {}
+        for j, model in enumerate(sorted(model_counts)):
+            ax = fig.add_subplot(1, 2, j + 1,
+                                 projection=ccrs.PlateCarree(central_longitude=(w0 + e0) / 2))
+            other = [m for m in sorted(model_counts) if m != model]
+            om = means.get(other[0]) if other else None
+            means[model] = _draw_storm_panel(ax, cl, model, om, w0, e0, s0, n0)
+            mdl = "AIFS-ENS" if model == "aifs" else "IFS-ENS"
+            ax.set_title(f"{mdl} — {cl['sup_m'].get(model, 0)*100:.0f}% of "
+                         f"{model_counts[model]} members", fontsize=9.5, fontweight="bold")
+        # second pass so the FIRST panel also gets the other model's mean
+        if len(means) == 2:
+            ms = sorted(model_counts)
+            ax0 = fig.axes[0]
+            om = means[ms[1]]
+            if om and len(om) >= 2:
+                ax0.plot([q[2] for q in om], [q[1] for q in om], color="0.35",
+                         lw=1.6, ls="--", alpha=0.8, transform=ccrs.Geodetic(), zorder=5)
+        inv = f"  ·  ≈ {cl['invest']}" if cl.get("invest") else ""
         g = cl["genesis"]
-        ax.set_title(f"{cl['id']} — support {cl['support']*100:.0f}% ({sup}) · "
-                     f"genesis day {g[0]}", fontsize=10, fontweight="bold")
-    fig.suptitle(f"Ensemble storm tracks — AIFS-ENS + IFS-ENS init {init:%Y-%m-%d %HZ} · "
-                 f"black = ensemble-mean track · color = 10 m wind (kt): "
-                 f"grey<20 · cyan≥20 · blue≥30 · green≥40 · yellow≥50 · orange≥60 · "
-                 f"red≥70 · magenta≥80",
-                 fontsize=11, fontweight="bold", y=0.995)
-    fig.tight_layout(rect=[0, 0, 1, 0.97])
-    out_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_dir / "tc_storms.webp", dpi=115, bbox_inches="tight",
-                facecolor="white")
-    plt.close(fig)
-    print(f"  storm panels: {len(storms)} storms → tc_storms.webp")
-    return len(storms)
+        fig.suptitle(f"{cl['id']} — support {cl['support']*100:.0f}%{inv} · "
+                     f"genesis day {g[0] // 24} · init {init:%Y-%m-%d %HZ}\n"
+                     f"color = 10 m wind (kt): grey<20 · cyan≥20 · blue≥30 · green≥40 · "
+                     f"yellow≥50 · orange≥60 · red≥70 · magenta≥80 · "
+                     f"black = model mean · grey dashed = other model's mean",
+                     fontsize=10, fontweight="bold")
+        fig.tight_layout(rect=[0, 0, 1, 0.94])
+        fn = f"storm_{i:02d}.webp"
+        fig.savefig(sdir / fn, dpi=135, bbox_inches="tight", facecolor="white", pil_kwargs={"quality": 92, "method": 6})
+        plt.close(fig)
+        meta.append({"id": cl["id"], "file": f"storms/{fn}",
+                     "support": round(cl["support"], 3),
+                     "sup_m": {k: round(v, 3) for k, v in cl["sup_m"].items()},
+                     "invest": cl.get("invest", ""),
+                     "genesis_day": int(g[0] // 24),
+                     "genesis": [round(g[1], 1), round(g[2], 1)]})
+    print(f"  storm panels: {len(storms)} storms → {sdir}")
+    return meta
 
 
 def _render_frame(job):
@@ -528,9 +632,12 @@ def _render_frame(job):
     init = pd.Timestamp(init_iso)
     glat, glon, prob = strike_probability(upto, n_model)
     fig = plt.figure(figsize=(figw, figh), facecolor="white")
-    ax = fig.add_subplot(1, 1, 1,
-                         projection=ccrs.PlateCarree(central_longitude=(w + e) / 2))
-    ax.set_extent([w, e, s, nn], crs=ccrs.PlateCarree())
+    clon = -160 if key == "globe" else (w + e) / 2
+    ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree(central_longitude=clon))
+    if key == "globe":
+        ax.set_extent([-179.9, 179.9, s, nn], crs=ccrs.PlateCarree(central_longitude=clon))
+    else:
+        ax.set_extent([w, e, s, nn], crs=ccrs.PlateCarree())
     ax.set_facecolor("#d5ecf5")                                # sea
     ax.add_feature(cfeature.LAND.with_scale("50m"), facecolor="#e8dcb8", zorder=0)
     ax.add_feature(cfeature.COASTLINE.with_scale("50m"), edgecolor="#8a8a7a",
@@ -538,29 +645,32 @@ def _render_frame(job):
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), edgecolor="#b0b0a0",
                    linewidth=0.35, zorder=3)
     sel = (glon >= w - 5) & (glon <= e + 5)
-    pm = ax.pcolormesh(glon[sel], glat, np.where(prob[:, sel] > 0.05,
-                                                 prob[:, sel], np.nan),
+    pshow = np.where((prob > 0.05) & ~_LM["land"], prob, np.nan)   # nothing over land
+    pm = ax.pcolormesh(glon[sel], glat, pshow[:, sel],
                        transform=ccrs.PlateCarree(), cmap="YlOrRd",
                        vmin=0, vmax=0.9, alpha=0.75, zorder=1)
     for m, tr in upto:
-        la = [p[1] for p in tr]; lo = [p[2] for p in tr]
-        ax.plot(lo, la, color="#3a6ea8", lw=0.5, alpha=0.3,
-                transform=ccrs.Geodetic(), zorder=4)
+        # draw only over-water segments (land mask hides landfall remnants)
+        for a, b in zip(tr[:-1], tr[1:]):
+            if is_ocean(a[1], a[2]) and is_ocean(b[1], b[2]):
+                ax.plot([a[2], b[2]], [a[1], b[1]], color="#3a6ea8", lw=0.5,
+                        alpha=0.3, transform=ccrs.Geodetic(), zorder=4)
         for p in tr:
-            if p[0] == k:
+            if p[0] == k * 24 and is_ocean(p[1], p[2]):
                 ax.plot(p[2], p[1], marker="o", ms=4.0, color=_wn_color(p[5]),
                         mec="k", mew=0.35, alpha=0.95,
                         transform=ccrs.PlateCarree(), zorder=5)
     placed = []
     for cl in rclusters:                       # (genesis, id, support) tuples
         g, cid, sup = cl
-        if g[0] > k:
+        if g[0] > k * 24:
             continue
         ax.plot(g[2], g[1], marker="D", ms=5.5, color="#222", mec="w",
                 mew=0.8, transform=ccrs.PlateCarree(), zorder=6)
         if not (w + 2 <= g[2] <= e - 2 and s + 1.5 <= g[1] <= nn - 1.5):
             continue
-        if any(abs(g[1] - py) < 3.2 and abs(g[2] - px) < 8 for py, px in placed):
+        sy, sx = (4.5, 16) if key == "globe" else (3.2, 8)
+        if any(abs(g[1] - py) < sy and abs(g[2] - px) < sx for py, px in placed):
             continue
         placed.append((g[1], g[2]))
         dy = -2.4 if g[1] > nn - 4 else 1.6
@@ -600,7 +710,7 @@ def _render_frame(job):
                  color="#333", fontsize=8)
     cb.ax.tick_params(colors="#333", labelsize=7)
     cb.outline.set_edgecolor("#999")
-    fig.savefig(fp, dpi=150, bbox_inches="tight", facecolor="white")
+    fig.savefig(fp, dpi=150, bbox_inches="tight", facecolor="white", pil_kwargs={"quality": 92, "method": 6})
     plt.close(fig)
     return fp
 
@@ -613,7 +723,7 @@ def build_anim(coherent, labeled, model_counts, init, anim_dir: Path):
     from concurrent.futures import ProcessPoolExecutor
     anim_dir.mkdir(parents=True, exist_ok=True)
     kmax = max((tr[-1][0] for _, tr in coherent), default=0)
-    ndays = max(kmax + 1, 1)
+    ndays = max(kmax // 24 + 1, 1)
     ver = int(pd.Timestamp.now().timestamp())
     jobs, mani_frames = [], {}
     for key, label, w, e, s, nn in ANIM_REGIONS:
@@ -623,8 +733,8 @@ def build_anim(coherent, labeled, model_counts, init, anim_dir: Path):
                      if w - 3 <= cl["genesis"][2] <= e + 3
                      and s - 2 <= cl["genesis"][1] <= nn + 2]
         aspect = (nn - s) / (e - w)
-        figw = 10.4
-        figh = figw * aspect * 1.28 + 0.9
+        figw = 14.5 if key == "globe" else 10.4
+        figh = figw * aspect * (1.12 if key == "globe" else 1.28) + 0.9
         for model in sorted(model_counts):
             rid = f"{key}_{model}"
             rtracks = [(m, tr) for m, tr in coherent
@@ -639,7 +749,7 @@ def build_anim(coherent, labeled, model_counts, init, anim_dir: Path):
                 old_f.unlink()
             frames = []
             for k in range(ndays):
-                upto = [(m, [p for p in tr if p[0] <= k]) for m, tr in rtracks]
+                upto = [(m, [p for p in tr if p[0] <= k * 24]) for m, tr in rtracks]
                 upto = [(m, tr) for m, tr in upto if tr]
                 fp = rdir / f"F{k:02d}.webp"
                 valid = init + pd.Timedelta(days=k)
@@ -725,18 +835,28 @@ def main() -> int:
         cl["sup_m"] = {mod: len({m for m in mems if m.startswith(mod)}) / cnt
                        for mod, cnt in model_counts.items()}
     labeled = supported
-    render_storm_panels(labeled, model_counts, init, Path(args.out_dir))
+    match_invests(labeled, fetch_nhc_invests())
+    storm_meta = render_storm_panels(labeled, model_counts, init, Path(args.out_dir))
     build_anim(coherent, labeled, model_counts, init,
                Path(args.out_dir) / "anim")
     print(f"  {len(all_tracks)} member-tracks → {len(clusters)} clusters, "
           f"{len(labeled)} labeled storms:")
     for cl in labeled:
         g = cl["genesis"]
-        print(f"    {cl['id']}: genesis day {g[0]} near ({g[1]:.1f}, {g[2]:.1f}), "
+        print(f"    {cl['id']}: genesis day {g[0] // 24} near ({g[1]:.1f}, {g[2]:.1f}), "
               f"support {cl['support']*100:.0f}%")
     (Path(args.out_dir) / "tc_meta.json").write_text(json.dumps(
         {"init": f"{init:%Y-%m-%d %H}Z", "members": n_members,
-         "storms": [{"id": cl["id"], "support": round(cl["support"], 3)}
+         "storms": storm_meta}))
+    # full track dump for external renderers (Julia/Makie experiments etc.)
+    (Path(args.out_dir) / "tracks.json").write_text(json.dumps(
+        {"init": f"{init:%Y-%m-%d %H}Z",
+         "storms": [{"id": cl["id"], "support": round(cl["support"], 3),
+                     "invest": cl.get("invest", ""),
+                     "tracks": [{"member": m,
+                                 "fix": [[int(pt[0])] + [round(float(x), 2) for x in pt[1:]]
+                                         for pt in tr]}
+                                for m, tr in cl["tracks"]]}
                     for cl in labeled]}))
     return 0
 
