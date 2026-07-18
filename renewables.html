@@ -422,7 +422,7 @@
   // Visitor counter
   fetch('https://scorvec.goatcounter.com/counter/TOTAL.json')
     .then(r => r.json())
-    .then(d => { document.getElementById('count').textContent = d.count; })
+    .then(d => { document.getElementById('count').textContent = d.count_unique || d.count; })
     .catch(() => { document.getElementById('count').textContent = '—'; });
 </script>
 
