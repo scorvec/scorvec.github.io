@@ -131,14 +131,21 @@ def clim_psi(coeffs: xr.DataArray, doy: float) -> np.ndarray:
     return np.tensordot(basis, coeffs.values, axes=(0, 0))
 
 
-def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim):
+def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
+             psi_clim=None):
     fig, ax = plt.subplots(figsize=(11.5, 4.9))
     levs = np.linspace(-vlim, vlim, 21)
     cf = ax.contourf(lon, p_hpa, psi, levels=levs, cmap="RdBu_r", extend="both")
-    clev = np.array([x for x in range(-30, 31, 2) if x != 0])
-    cs = ax.contour(lon, p_hpa, psi_abs, levels=clev, colors="k", linewidths=0.8)
-    ax.clabel(cs, levels=[x for x in clev if x % 8 == 0], fmt="%d", fontsize=6, inline=True)
-    ax.contour(lon, p_hpa, psi_abs, levels=[0], colors="k", linewidths=1.0)
+    # absolute-cell contours at WALKER magnitudes (the cells run ±1-3 ×10¹⁰,
+    # not the Hadley ±20): black = TODAY's cells, green dashed = the
+    # climatological cells, so displacement/collapse reads directly.
+    clev = np.array([-3, -2.5, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 2.5, 3])
+    cs = ax.contour(lon, p_hpa, psi_abs, levels=clev, colors="k", linewidths=0.9)
+    ax.clabel(cs, levels=[-2, -1, 1, 2], fmt="%g", fontsize=6, inline=True)
+    ax.contour(lon, p_hpa, psi_abs, levels=[0], colors="k", linewidths=1.1)
+    if psi_clim is not None:
+        ax.contour(lon, p_hpa, psi_clim, levels=clev, colors="#2e7d32",
+                   linewidths=0.7, linestyles="dashed", alpha=0.8)
     # vertical-motion arrows: band continuity ⇒ [ω] ∝ −∂Ψ_W/∂λ, so ASCENT (up
     # arrow, +V in quiver) ∝ +∂Ψ_W/∂λ; normalized like the MMSF plot, weak
     # columns hidden.
@@ -164,7 +171,7 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim)
     cb.set_label("Ψ_W anomaly  (10¹⁰ kg s⁻¹)", fontsize=9)
     fig.text(0.5, 0.005,
              f"5°S–5°N divergent wind (χ, spherical harmonics) · colour = Ψ_W′ vs ERA5 1991–2020 · "
-             f"black contours = absolute Ψ_W · arrows = vertical motion · "
+             f"black = today\u2019s cells · green dashed = climatological cells · arrows = vertical motion · "
              f"Pacific cell {pidx:+.1f} (clim {pclim:+.1f}) ×10¹⁰ kg/s — lower = weaker Walker",
              ha="center", fontsize=8, color="0.35")
     fig.tight_layout()
@@ -197,11 +204,12 @@ def build_anim(hist: xr.DataArray, anim_dir: Path, manifest: Path, static_out: P
         st, ud_wk = list(st_all), [ud_all[i] for i in range(len(st_all))]
     st = pd.DatetimeIndex(st)
 
-    psia, psip, pidx, pcl = [], [], [], []
+    psia, psip, pidx, pcl, pcls = [], [], [], [], []
     for i in range(len(st)):
         psi = streamfunction(ud_wk[i], p_pa)
         cl = clim_psi(coeffs, (st[i] - pd.Timedelta(days=3.5)).dayofyear)  # window midpoint
         psia.append(psi); psip.append(psi - cl)
+        pcls.append(cl)
         pidx.append(pac_index(psi, p_pa / 100, lon))
         pcl.append(pac_index(cl, p_pa / 100, lon))
     vlim = float(np.nanpercentile(np.abs(np.stack(psip)), 99.0)) or 1.0
@@ -214,7 +222,7 @@ def build_anim(hist: xr.DataArray, anim_dir: Path, manifest: Path, static_out: P
         fp = anim_dir / f"F{i:02d}.webp"
         plot_psi(psip[i], p_pa / 100, lon, fp,
                  f"Walker circulation anomaly Ψ_W′ (5°S–5°N) — 7-day mean ending {st[i]:%Y-%m-%d}",
-                 vlim, psia[i], pidx[i], pcl[i])
+                 vlim, psia[i], pidx[i], pcl[i], psi_clim=pcls[i])
         frames.append({"idx": i, "file": fp.name, "date": f"{st[i]:%Y-%m-%d}",
                        "label": f"week ending {st[i]:%a %b %d} · Pacific {pidx[i]:+.1f}"})
     mani = {"ver": int(pd.Timestamp.now().timestamp()), "days": len(frames),
@@ -225,7 +233,7 @@ def build_anim(hist: xr.DataArray, anim_dir: Path, manifest: Path, static_out: P
     Path(manifest).write_text(json.dumps(mani))
     plot_psi(psip[-1], p_pa / 100, lon, Path(static_out),
              f"Walker circulation anomaly Ψ_W′ (5°S–5°N) — 7-day mean ending {st[-1]:%Y-%m-%d}",
-             vlim, psia[-1], pidx[-1], pcl[-1])
+             vlim, psia[-1], pidx[-1], pcl[-1], psi_clim=pcls[-1])
     print(f"  Ψ_W′ range {np.nanmin(psip[-1]):.1f} … {np.nanmax(psip[-1]):.1f} ×10¹⁰ kg/s; "
           f"Pacific cell {pidx[-1]:+.1f} (clim {pcl[-1]:+.1f}); wrote {len(frames)} frames")
     return 0
