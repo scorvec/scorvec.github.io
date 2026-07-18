@@ -177,8 +177,89 @@ def chart(df: pd.DataFrame):
     print(f"  wrote {OUT / 'heatoil_hdd.webp'}")
 
 
+def chart_interactive(df: pd.DataFrame):
+    """Responsive plotly version of the two-panel HDD chart (heatoil_hdd.html).
+    One legend entry per season toggles that season in both panels."""
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    df = df.copy()
+    df["season"] = df["date"].apply(season_year)
+    df["sday"] = [(d - pd.Timestamp(s, 7, 1)).days for d, s in zip(df["date"], df["season"])]
+    cur = df["season"].max()
+    seasons = sorted(df["season"].unique())[-10:]
+    palette = ["#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b",
+               "#e377c2", "#7f7f7f", "#bcbd22", "#17becf", "#aec7e8"]
+    colors = {s: palette[i % len(palette)] for i, s in enumerate(seasons)}
+
+    fig = make_subplots(
+        rows=1, cols=2, horizontal_spacing=0.06,
+        subplot_titles=("Daily oil-weighted HDD (past seasons 7-day smoothed)",
+                        "Season-cumulative oil-weighted HDD"))
+
+    past = df[df["season"] < cur]
+    env = past.groupby("sday")["oil_hdd"]
+    days = np.arange(0, 366)
+    lo, hi = env.min().reindex(days), env.max().reindex(days)
+    fig.add_trace(go.Scatter(x=days, y=lo, line=dict(width=0),
+                             hoverinfo="skip", showlegend=False), row=1, col=1)
+    fig.add_trace(go.Scatter(x=days, y=hi, fill="tonexty",
+                             fillcolor="rgba(0,0,0,0.10)", line=dict(width=0),
+                             name=f"range {past['season'].min()}–{cur-1}",
+                             hoverinfo="skip"), row=1, col=1)
+    mean7 = env.mean().reindex(days).rolling(7, center=True, min_periods=1).mean()
+    fig.add_trace(go.Scatter(x=days, y=mean7, name="mean",
+                             line=dict(color="#595959", width=2),
+                             hovertemplate="mean · %{y:.1f} HDD<extra></extra>"),
+                  row=1, col=1)
+
+    for s in seasons:
+        g = df[df["season"] == s].sort_values("sday")
+        is_cur = s == cur
+        c = "#c62828" if is_cur else colors[s]
+        name = f"{s}–{s+1}" + (" (current)" if is_cur else "")
+        dates = g["date"].dt.strftime("%b %d, %Y")
+        daily = (g["oil_hdd"] if is_cur else
+                 g["oil_hdd"].rolling(7, center=True, min_periods=1).mean())
+        fig.add_trace(go.Scatter(
+            x=g["sday"], y=daily, name=name, legendgroup=name,
+            line=dict(color=c, width=3 if is_cur else 1.7),
+            opacity=1.0 if is_cur else 0.85, customdata=dates,
+            hovertemplate=f"{name} · %{{customdata}}<br>%{{y:.1f}} HDD<extra></extra>"),
+            row=1, col=1)
+        fig.add_trace(go.Scatter(
+            x=g["sday"], y=g["oil_hdd"].cumsum(), name=name, legendgroup=name,
+            showlegend=False, line=dict(color=c, width=3.5 if is_cur else 1.9),
+            opacity=1.0 if is_cur else 0.9, customdata=dates,
+            hovertemplate=f"{name} · %{{customdata}}<br>%{{y:,.0f}} cumulative HDD<extra></extra>"),
+            row=1, col=2)
+
+    mo = dict(tickvals=[0, 62, 123, 184, 245, 306],
+              ticktext=["Jul", "Sep", "Nov", "Jan", "Mar", "May"])
+    fig.update_xaxes(**mo, showgrid=True, gridcolor="rgba(0,0,0,0.08)")
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.08)")
+    fig.update_yaxes(title_text="heating degree days (base 65°F)", row=1, col=1)
+    fig.update_layout(
+        title=dict(text="Heating-oil demand index — HDDs weighted by each county's "
+                        "oil-heating households (ERA5 · ACS)",
+                   x=0.5, font=dict(size=17)),
+        template="plotly_white", hovermode="closest",
+        legend=dict(orientation="h", yanchor="top", y=-0.08, x=0.5,
+                    xanchor="center", font=dict(size=12)),
+        margin=dict(l=60, r=20, t=80, b=20), autosize=True)
+    out = OUT / "heatoil_hdd.html"
+    fig.write_html(out, include_plotlyjs="cdn", full_html=True,
+                   config={"responsive": True, "displaylogo": False})
+    print(f"  wrote {out}")
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--backfill-start", default="2018-07-01")
     args = ap.parse_args()
-    chart(update(args.backfill_start))
+    daily = update(args.backfill_start)
+    chart(daily)
+    try:
+        chart_interactive(daily)
+    except Exception as e:                                     # noqa: BLE001
+        print(f"  interactive HDD chart failed ({e}); static webp still current")
