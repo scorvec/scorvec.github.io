@@ -55,6 +55,8 @@ def zonal_aam_density(up_rest: Path, up_rmm: Path, sp_path: Path):
                           backend_kwargs={"filter_by_keys": {"shortName": "sp"}, "indexpath": ""},
                           chunks={"number": 1})          # sp out of the batched surface file
     u = xr.concat([du_rest["u"], du_rmm["u"]], dim="isobaricInhPa").sortby("isobaricInhPa")
+    u = u.sel(isobaricInhPa=slice(50, 1000))         # display stays 50–1000 hPa: the zonal
+                                                     # density clim (WB2 1.5°) has no 10 hPa
     p_hpa = u.isobaricInhPa.values.astype(float)
     p_pa = p_hpa * 100.0
     lat = u.latitude.values

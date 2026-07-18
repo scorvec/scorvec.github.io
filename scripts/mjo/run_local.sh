@@ -119,10 +119,18 @@ MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "
   --manifest "$REPO/assets/sst/anim/walker_manifest.json" \
   --out "$REPO/assets/sst/walker_anom.webp" || echo "Walker failed; continuing"
 "$PY" src/jets.py --date "$DATE" --time "$TIME" \
-  --out "$REPO/assets/sst/jets.webp" || echo "jets failed; continuing"
+  --out "$REPO/assets/sst/jets.webp" \
+  --anim-dir "$REPO/assets/sst/anim/jets" \
+  --manifest "$REPO/assets/sst/anim/jets_manifest.json" || echo "jets failed; continuing"
+"$PY" src/waf.py --date "$DATE" --time "$TIME" \
+  --anim-dir "$REPO/assets/sst/anim/waf" \
+  --manifest "$REPO/assets/sst/anim/waf_manifest.json" \
+  --out "$REPO/assets/sst/waf.webp" || echo "WAF failed; continuing"
 "$PY" src/mslp_wind_anim.py --date "$DATE" --time "$TIME" \
   --anim-dir "$REPO/assets/sst/anim/mslp_wind" \
   --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
+"$PY" ../tc/tc_tracker.py --date "$DATE" --time "$TIME" \
+  --out-dir "$REPO/assets/tc" || echo "TC tracker failed; continuing"
 # ── 200 hPa velocity potential + irrotational wind (REVIVED 2026-07-07). Light:
 #    u@200 is already cached from the RMM pull, so only v@200 is fetched here. The
 #    pf_v_200 503-stalls that got this deactivated are handled now by the robust
@@ -178,6 +186,7 @@ find "$MJO_GRIB_ARCHIVE" -type d -empty -delete 2>/dev/null
 CB=$(date -u +%Y%m%d%H%M)
 perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|soi_history|u850_analogs_anom|u850_analogs_abs|mei\/mei_nowcast|mei\/mei_validation)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
 perl -0pi -e "s/((?:aam|aam_trend|mmsf_anom|walker_anom|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/enso-atmosphere.html" 2>/dev/null || true
+perl -0pi -e "s/((?:tc_global|tc_basins)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/tc.html" 2>/dev/null || true
 
 # Stage whatever exists (a builder that failed this cycle simply hasn't written its
 # outputs — that must not block committing everything else).
@@ -192,7 +201,9 @@ perl -0pi -e "s/((?:aam|aam_trend|mmsf_anom|walker_anom|jets|torque_timeseries|t
     assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp \
     assets/sst/anim/mmsf assets/sst/anim/mmsf_manifest.json assets/sst/mmsf_anom.webp \
     assets/sst/anim/walker assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
-    assets/sst/jets.webp \
+    assets/sst/jets.webp assets/sst/anim/jets assets/sst/anim/jets_manifest.json \
+    assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
+    assets/tc/tc_global.webp assets/tc/tc_basins.webp assets/tc/tc_meta.json tc.html \
     scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
     scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
     scripts/mjo/data/reference/mei_fit.json \

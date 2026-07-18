@@ -22,7 +22,10 @@ import xarray as xr
 import gcsfs
 
 sys.path.insert(0, str(Path(__file__).parent))
-from aam import A, G, LEVELS, _vert_weights
+from aam import A, G, _vert_weights
+# WB2 1.5° has no 10 hPa level — this zonal density clim stays on the 13-level
+# tropospheric stack (aam_zonal.py displays 50–1000 only)
+LEVELS = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]
 
 STORE = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
 OUT = Path(__file__).resolve().parent.parent / "data" / "reference" / "aam_density_clim.nc"
