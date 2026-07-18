@@ -186,7 +186,6 @@ find "$MJO_GRIB_ARCHIVE" -type d -empty -delete 2>/dev/null
 CB=$(date -u +%Y%m%d%H%M)
 perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|soi_history|u850_analogs_anom|u850_analogs_abs|mei\/mei_nowcast|mei\/mei_validation)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
 perl -0pi -e "s/((?:aam|aam_trend|mmsf_anom|walker_anom|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/enso-atmosphere.html" 2>/dev/null || true
-perl -0pi -e "s/((?:tc_global|tc_basins)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/tc.html" 2>/dev/null || true
 
 # Stage whatever exists (a builder that failed this cycle simply hasn't written its
 # outputs — that must not block committing everything else).
@@ -203,7 +202,7 @@ perl -0pi -e "s/((?:tc_global|tc_basins)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/tc.
     assets/sst/anim/walker assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
     assets/sst/jets.webp assets/sst/anim/jets assets/sst/anim/jets_manifest.json \
     assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
-    assets/tc/tc_global.webp assets/tc/tc_basins.webp assets/tc/tc_meta.json tc.html \
+    assets/tc/anim assets/tc/tc_meta.json tc.html \
     scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
     scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
     scripts/mjo/data/reference/mei_fit.json \
