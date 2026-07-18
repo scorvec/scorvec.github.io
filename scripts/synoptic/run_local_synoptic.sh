@@ -66,8 +66,18 @@ COMPACT="${DATE//-/}T${HOUR}Z"                        # 20260606T12Z
 # Already rendered? (national wind manifest carries the rendered cycle_compact)
 RENDERED=$("$PY" -c "import json,sys;\
 print(json.load(open('assets/synoptic/wind/national/manifest.json')).get('cycle_compact',''))" 2>/dev/null || echo "")
+ONLY_VARS=""
 if [ "$RENDERED" = "$COMPACT" ]; then
-  echo "maps already current for $COMPACT — nothing to do."; exit 0
+  # HRRR is current — but RRFS publishes ~1-3 h behind HRRR, so the first render
+  # of a cycle usually catches only its early hours. Backfill RRFS + diffs when
+  # the RRFS frame set is still short of HRRR's; otherwise nothing to do.
+  HN=$("$PY" -c "import json;print(len(json.load(open('assets/synoptic/wind/national/manifest.json'))['frames']))" 2>/dev/null || echo 0)
+  RN=$("$PY" -c "import json;print(len(json.load(open('assets/synoptic/rrfs_wind/national/manifest.json'))['frames']))" 2>/dev/null || echo 0)
+  if [ "${RN:-0}" -ge "${HN:-0}" ]; then
+    echo "maps already current for $COMPACT (RRFS $RN/$HN) — nothing to do."; exit 0
+  fi
+  echo "HRRR current for $COMPACT but RRFS partial ($RN/$HN frames) — backfilling RRFS + diffs."
+  ONLY_VARS="rrfs_wind,rrfs_t2m,rrfs_smoke,rrfs_solar,rrfs_reflectivity,rrfs_visibility,rrfs_ceiling,t2m_diff,precip_diff"
 fi
 
 # Plant overlays are STATIC (locations + capacity); render_maps sizes the rings off
@@ -94,7 +104,7 @@ for var in wind solar reflectivity visibility ceiling; do
 done
 
 ( cd "$REPO/scripts/synoptic" && PYTHONPATH="$REPO/scripts/synoptic" \
-    "$PY" render_maps.py "$DATE" "$HOUR" --workers 0 ) \
+    "$PY" render_maps.py "$DATE" "$HOUR" --workers 0 ${ONLY_VARS:+--variables "$ONLY_VARS"} ) \
   || { echo "render_maps failed; leaving maps untouched."; exit 1; }
 
 # The heavy frame webp live on the force-pushed `synoptic-frames` ORPHAN branch (served via
