@@ -239,6 +239,9 @@ def main() -> int:
     ax.axvline(init, color="k", lw=1.4, ls="--")
     ax.text(init, latc_show[-1] + 1.5, "forecast →", fontsize=8, va="bottom", ha="left")
     ax.set_yticks(range(-75, 76, 15))
+    for yl in range(-75, 76, 15):
+        ax.axhline(yl, color="0.4", lw=0.7 if yl == 0 else 0.3,
+                   ls="-" if yl == 0 else ":", alpha=0.7 if yl == 0 else 0.45)
     ax.set_ylabel("latitude")
     ax.set_title(f"Relative-AAM anomaly by latitude — observed (ERA5, 3-day) + "
                  f"AIFS-ENS mean forecast · init {init:%Y-%m-%d %HZ}",
