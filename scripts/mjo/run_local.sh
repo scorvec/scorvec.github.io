@@ -137,6 +137,7 @@ MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "
 "$PY" ../heatoil/hdd_index.py || echo "heat-oil HDD failed; continuing"
 "$PY" ../heatoil/calibrate.py || echo "heat-oil calibration failed; continuing"
 "$PY" ../heatoil/season_history.py || echo "heat-oil season history failed; continuing"
+"$PY" ../heatoil/product_stocks.py || echo "product stocks failed; continuing"
 # ── 200 hPa velocity potential + irrotational wind (REVIVED 2026-07-07). Light:
 #    u@200 is already cached from the RMM pull, so only v@200 is fetched here. The
 #    pf_v_200 503-stalls that got this deactivated are handled now by the robust
@@ -212,6 +213,7 @@ perl -0pi -e "s/((?:aam|aam_trend|mmsf_anom|walker_anom|jets|torque_timeseries|t
     assets/tc/invests assets/tc/invests_meta.json assets/spectra/ke_spectra.webp \
     assets/power_data/heatoil_hdd.webp assets/power_data/heatoil_hdd.html \
     assets/power_data/heatoil_bbl.webp assets/power_data/heatoil_seasons.html \
+    assets/power_data/product_stocks.html scripts/heatoil/jodi_product_stocks.csv \
     scripts/heatoil/prime_supplier_ne.csv \
     scripts/heatoil/oil_hdd_daily.csv scripts/heatoil/calibration.json \
     scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
