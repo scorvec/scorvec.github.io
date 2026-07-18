@@ -128,10 +128,10 @@ def plot_system(sysd, adeck, out_dir: Path):
         return None
     las = [p[0] for tr in tracks.values() for p in tr.values()]
     l0 = next(iter(tracks.values()))[min(next(iter(tracks.values())))][1]
-    los = [l0 + (((p[1] - l0 + 180) % 360) - 180)
-           for tr in tracks.values() for p in tr.values()]
-    w0, e0 = min(los) - 4, max(los) + 4
-    s0, n0 = min(las) - 3, max(las) + 3
+    wrap = lambda lon: l0 + (((lon - l0 + 180) % 360) - 180)
+    los = [wrap(p[1]) for tr in tracks.values() for p in tr.values()]
+    w0, e0 = min(los) - 5, max(los) + 5
+    s0, n0 = min(las) - 4, max(las) + 4
     if e0 - w0 < 20: pad = (20 - (e0 - w0)) / 2; w0 -= pad; e0 += pad
     if n0 - s0 < 14: pad = (14 - (n0 - s0)) / 2; s0 -= pad; n0 += pad
     aspect = (n0 - s0) / (e0 - w0)
@@ -157,19 +157,19 @@ def plot_system(sysd, adeck, out_dir: Path):
         if not tr:
             continue
         taus = sorted(tr)
-        la = [tr[t][0] for t in taus]; lo = [tr[t][1] for t in taus]
+        la = [tr[t][0] for t in taus]; lo = [wrap(tr[t][1]) for t in taus]
         ln, = ax.plot(lo, la, color=color, lw=lw, ls=ls, alpha=0.95,
                       transform=ccrs.Geodetic(), zorder=6 if label == "NHC official" else 5,
                       label=label)
         handles.append(ln)
         for t in taus:
             if t % 24 == 0 and t > 0:
-                ax.annotate(str(t), xy=(tr[t][1], tr[t][0]),
+                ax.annotate(str(t), xy=(wrap(tr[t][1]), tr[t][0]),
                             xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
                             fontsize=5.2, color=color, alpha=0.8, ha="center",
                             zorder=7)
         if 0 in tr:
-            ax.plot(tr[0][1], tr[0][0], marker="o", ms=5, color=color, mec="k",
+            ax.plot(wrap(tr[0][1]), tr[0][0], marker="o", ms=5, color=color, mec="k",
                     mew=0.4, transform=ccrs.PlateCarree(), zorder=7)
     ax.legend(handles=handles, loc="best", fontsize=7.2, framealpha=0.92,
               borderpad=0.6)
