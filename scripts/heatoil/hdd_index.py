@@ -131,30 +131,41 @@ def chart(df: pd.DataFrame):
     env = past.groupby("sday")["oil_hdd"]
     days = np.arange(0, 366)
     a1.fill_between(env.min().reindex(days).index, env.min().reindex(days),
-                    env.max().reindex(days), color="0.85",
+                    env.max().reindex(days), color="0.88",
                     label=f"range {past['season'].min()}–{cur-1}")
     a1.plot(env.mean().reindex(days).index,
             env.mean().reindex(days).rolling(7, center=True, min_periods=1).mean(),
-            color="0.4", lw=1.4, label="mean")
+            color="0.35", lw=1.5, label="mean")
+    from matplotlib import cm
+    seasons = sorted(df["season"].unique())[-10:]
+    colors = {s: cm.viridis(0.1 + 0.75 * i / max(len(seasons) - 1, 1))
+              for i, s in enumerate(seasons)}
+    for s in seasons[:-1]:                          # recent seasons, 7-day smoothed
+        g = df[df["season"] == s].sort_values("sday")
+        a1.plot(g["sday"], g["oil_hdd"].rolling(7, center=True, min_periods=1).mean(),
+                color=colors[s], lw=0.9, alpha=0.85, label=f"{s}–{s+1}")
     cd = df[df["season"] == cur]
-    a1.plot(cd["sday"], cd["oil_hdd"], color="#c62828", lw=1.6,
+    a1.plot(cd["sday"], cd["oil_hdd"], color="#c62828", lw=1.9,
             label=f"{cur}–{cur+1} season")
-    a1.set_title("Daily oil-weighted HDD (national)", fontsize=10.5, fontweight="bold")
+    a1.set_title("Daily oil-weighted HDD (national, past seasons 7-day smoothed)",
+                 fontsize=10.5, fontweight="bold")
     a1.set_ylabel("heating degree days (base 65°F)")
-    for s, g in df.groupby("season"):
-        cum = g.sort_values("sday")
-        a2.plot(cum["sday"], cum["oil_hdd"].cumsum(),
-                color="#c62828" if s == cur else "0.75",
-                lw=2.2 if s == cur else 0.9,
-                label=f"{s}–{s+1}" if s == cur else None)
+    for s in seasons:
+        g = df[df["season"] == s].sort_values("sday")
+        is_cur = s == cur
+        a2.plot(g["sday"], g["oil_hdd"].cumsum(),
+                color="#c62828" if is_cur else colors[s],
+                lw=2.4 if is_cur else 1.1, alpha=1.0 if is_cur else 0.9,
+                label=f"{s}–{s+1}")
     a2.set_title("Season-cumulative oil-weighted HDD", fontsize=10.5, fontweight="bold")
     for a in (a1, a2):
         a.grid(True, alpha=0.25)
         mo = [0, 62, 123, 184, 245, 306]
         a.set_xticks(mo)
         a.set_xticklabels(["Jul", "Sep", "Nov", "Jan", "Mar", "May"], fontsize=8.5)
-        a.legend(fontsize=8, loc="upper right")
         a.tick_params(labelsize=8)
+    a1.legend(fontsize=6.8, loc="upper right", ncol=2)
+    a2.legend(fontsize=7.5, loc="upper left")
     fig.suptitle("Heating-oil demand index — HDDs weighted by each county's "
                  "oil-heating households (ERA5 · ACS)",
                  fontsize=12, fontweight="bold")
