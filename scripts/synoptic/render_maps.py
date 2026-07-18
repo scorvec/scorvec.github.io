@@ -1,9 +1,12 @@
-"""Synoptic map renderer (multi-variable, multi-region).
+"""Synoptic map renderer (multi-model, multi-variable, multi-region).
 
 For a given HRRR cycle, render static PNG maps of multiple
 atmospheric variables (wind, solar radiation, cloud ceiling,
 visibility, reflectivity), each at multiple region zooms (national
-plus a handful of ISO/regional footprints).
+plus a handful of ISO/regional footprints). The same variables are
+also rendered from RRFS (same cycle, same grid — the RRFS
+2dfld.3km.conus product is bit-identical to the HRRR CONUS grid),
+plus 3-panel HRRR/RRFS/difference comparison products.
 
 Renders are parallelized across (variable, region) pairs within each
 forecast hour using a process pool. This gives ~5-7x speedup on a
@@ -11,20 +14,26 @@ modern multicore machine since matplotlib/cartopy rendering is the
 dominant cost and is embarrassingly parallel.
 
 Output:
-    assets/synoptic/<variable>/<region>/F00.webp ... F48.webp
-    assets/synoptic/<variable>/<region>/manifest.json
-    assets/synoptic/variables.json       (list of variables for viewer dropdown)
+    assets/synoptic/<variable>/<region>/F00.webp ... F48.webp   (HRRR — unchanged)
+    assets/synoptic/rrfs_<variable>/<region>/...                (RRFS)
+    assets/synoptic/t2m_diff/<region>/...                       (3-panel diffs)
+    assets/synoptic/precip_diff/<region>/...
+    assets/synoptic/<product>/<region>/manifest.json
+    assets/synoptic/variables.json       (list of products for viewer dropdown)
     assets/synoptic/regions.json         (list of regions for viewer dropdown)
 
 Adding a new variable: just append a `Variable(...)` to VARIABLES below.
 Adding a new region: append a `Region(...)` to REGIONS. No other code changes.
+Adding a new diff product: append a `DiffProduct(...)` to DIFF_PRODUCTS.
 
 Usage:
     python render_maps.py                  # latest extended cycle
     python render_maps.py 2026-05-24 18    # specific cycle
-    python render_maps.py --variables wind,solar    # subset
+    python render_maps.py --variables wind,solar    # subset (rrfs_wind, t2m_diff... ok too)
     python render_maps.py --regions national,ercot  # subset
     python render_maps.py --workers 4               # control parallelism
+    python render_maps.py --models hrrr             # skip RRFS + diffs (CI default
+                                                    #  via SYNOPTIC_MODELS env var)
 """
 from __future__ import annotations
 
@@ -46,6 +55,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.colors as mcolors
 from herbie import Herbie
+
+import rrfs_fetch
 
 import matplotlib
 matplotlib.use("Agg")
@@ -149,11 +160,19 @@ class Variable:
     variables (like wind speed from UGRD+VGRD), use multiple searches
     and provide a `combine` function that takes the dict of DataArrays
     and returns a single combined DataArray.
+
+    `rrfs_searches` overrides the search strings for the RRFS idx
+    lookup (rrfs_fetch.py). Most fields share the exact HRRR strings,
+    so None means "use grib_searches". Only needed where the two
+    models' idx entries diverge (smoke's species-split COLMD, DSWRF's
+    instantaneous-vs-averaged pair, run-total APCP).
     """
     id: str
     label: str
     units: str
     grib_searches: list           # list of search regexes
+    rrfs_searches: Optional[list] = None  # RRFS idx searches (None → grib_searches)
+    min_fxx: int = 0              # first hour the field exists (APCP has no F00)
     combine: Optional[Callable] = None    # callback that builds a single field from multiple
     overlay: str = "none"         # "none", "wind", or "solar"
     wind_vectors: bool = False    # draw U/V direction arrows over the field
@@ -433,6 +452,12 @@ VARIABLES = [
         title="HRRR Vertically Integrated Smoke",
         units="mg/m²",
         grib_searches=[":COLMD:entire atmosphere"],
+        # RRFS splits COLMD by aerosol species (HRRR carries one total-smoke
+        # column). The wildfire-smoke tracer is the fine particulate organic
+        # matter line; \d+ because the forecast-hour spec varies per fxx.
+        rrfs_searches=[r":COLMD:entire atmosphere \(considered as a single "
+                       r"layer\):(?:anl|\d+ hour fcst):aerosol=Particulate "
+                       r"organic matter dry:aerosol_size <2\.5e-06"],
         combine=_passthrough,
         transform=lambda v: v * 1.0e6,        # kg/m² → mg/m²
         vmin=0, vmax=5000,
@@ -447,6 +472,10 @@ VARIABLES = [
         title="HRRR Surface Downward Shortwave",
         units="W/m²",
         grib_searches=[":DSWRF:surface"],
+        # RRFS carries BOTH an instantaneous DSWRF ("N hour fcst") and a
+        # time-averaged one ("(N-1)-N hour ave fcst"). Match only the
+        # instantaneous line to align with HRRR's instantaneous DSWRF.
+        rrfs_searches=[r":DSWRF:surface:(?:anl|\d+ hour fcst):"],
         combine=_passthrough,
         overlay="solar",
         vmin=0, vmax=1100,
@@ -491,6 +520,140 @@ VARIABLES = [
 
 
 # ============================================================================
+# Difference products (3-panel HRRR / RRFS / RRFS−HRRR)
+# ============================================================================
+#
+# The RRFS 2dfld.3km.conus grid is bit-identical to the HRRR CONUS grid
+# (lat/lon max abs diff exactly 0.0, verified against live files), so the
+# difference panel is a pure elementwise subtraction — no regridding.
+
+# ── run-total precip accumulation: NWS-style banded scale, inches ─────────
+# Bounds follow the conventional QPE display breaks; below 0.01" is masked
+# transparent so dry areas stay blank.
+PRECIP_BOUNDS = [0.01, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 10]
+
+
+def precip_accum_cmap():
+    colors = ["#b4f0b4", "#57c357", "#1d9e1d", "#106b10",   # greens
+              "#f9f96b", "#f5c14c", "#ef8433",              # yellow → orange
+              "#dc3d24", "#a51d1d",                         # reds
+              "#8b34a5", "#d67ae0"]                         # purples
+    cmap = mcolors.ListedColormap(colors, name="precip_accum")
+    cmap.set_over("#f6c9ee")     # >10": pale magenta, off the top of the scale
+    return cmap
+
+
+def precip_accum_norm():
+    return mcolors.BoundaryNorm(PRECIP_BOUNDS, len(PRECIP_BOUNDS) - 1)
+
+
+# ── difference-panel scales ───────────────────────────────────────────────
+# t2m: continuous symmetric diverging, ±6 °F covers the typical model
+# spread while saturating real disagreements. precip: banded BrBG (brown =
+# RRFS drier, green = RRFS wetter) with |Δ| < 0.05" masked transparent so
+# trivial noise doesn't paint the whole map.
+PRECIP_DIFF_BOUNDS = [-2, -1, -0.5, -0.25, -0.1, -0.05,
+                      0.05, 0.1, 0.25, 0.5, 1, 2]
+
+
+def t2m_diff_cmap():
+    return matplotlib.colormaps["RdBu_r"]
+
+
+def precip_diff_cmap():
+    return matplotlib.colormaps["BrBG"]
+
+
+def precip_diff_norm():
+    # 256 so the banded intervals span the full continuous BrBG ramp.
+    return mcolors.BoundaryNorm(PRECIP_DIFF_BOUNDS, 256)
+
+
+@dataclass
+class DiffProduct:
+    """A 3-panel HRRR vs RRFS comparison (left HRRR, middle RRFS, right
+    RRFS−HRRR).
+
+    `source` is the Variable whose per-model fields feed the panels: it
+    supplies the fetch searches + unit transform, and may (t2m) or may
+    not (precip) also be rendered as a standalone single-model product.
+    Panel 1-2 styling comes from the panel_* fields; the diff panel gets
+    its own symmetric diverging scale.
+    """
+    id: str
+    label: str                    # dropdown label
+    field_title: str              # "<field>" part of the figure title
+    units: str
+    source: Variable
+    panel_cmap_factory: Callable
+    panel_norm_factory: Optional[Callable] = None
+    panel_vmin: float = 0.0
+    panel_vmax: float = 1.0
+    panel_mask_below: Optional[float] = None   # mask small values transparent
+    panel_cbar_ticks: Optional[list] = None
+    panel_cbar_format: str = "%g"
+    panel_cbar_extend: str = "neither"
+    diff_cmap_factory: Optional[Callable] = None
+    diff_norm_factory: Optional[Callable] = None
+    diff_vmin: float = -1.0
+    diff_vmax: float = 1.0
+    diff_mask_abs_below: Optional[float] = None  # mask |Δ| below this
+    diff_cbar_format: str = "%g"
+
+
+# Run-total precip is fetch-only (feeds precip_diff, never rendered as a
+# single-model product, so it's NOT in VARIABLES). Both models carry a
+# ":APCP:surface:0-N hour acc fcst" run-total message; the "0-" prefix
+# keeps the hourly (N-1)-N bucket from matching. No APCP exists at F00.
+_PRECIP_SOURCE = Variable(
+    id="precip",
+    label="Run-Total Precipitation",
+    title="Run-Total Precipitation",
+    units="in",
+    grib_searches=[":APCP:surface:0-"],
+    rrfs_searches=[r":APCP:surface:0-\d+ hour acc fcst"],
+    min_fxx=1,
+    combine=_passthrough,
+    transform=lambda v: v / 25.4,     # kg/m² (= mm) → inches
+)
+
+_T2M_SOURCE = next(v for v in VARIABLES if v.id == "t2m")
+
+DIFF_PRODUCTS = [
+    DiffProduct(
+        id="t2m_diff",
+        label="2 m Temperature: RRFS vs HRRR",
+        field_title="2 m Temperature",
+        units="°F",
+        source=_T2M_SOURCE,
+        panel_cmap_factory=t2m_cmap,
+        panel_norm_factory=t2m_norm,
+        panel_cbar_ticks=list(range(-30, 117, 20)),
+        panel_cbar_format="%d",
+        panel_cbar_extend="both",
+        diff_cmap_factory=t2m_diff_cmap,
+        diff_vmin=-6.0, diff_vmax=6.0,
+        diff_cbar_format="%g",
+    ),
+    DiffProduct(
+        id="precip_diff",
+        label="Total Precip: RRFS vs HRRR",
+        field_title="Run-Total Precipitation",
+        units="in",
+        source=_PRECIP_SOURCE,
+        panel_cmap_factory=precip_accum_cmap,
+        panel_norm_factory=precip_accum_norm,
+        panel_mask_below=PRECIP_BOUNDS[0],
+        panel_cbar_extend="max",
+        diff_cmap_factory=precip_diff_cmap,
+        diff_norm_factory=precip_diff_norm,
+        diff_mask_abs_below=0.05,
+        diff_cbar_format="%g",
+    ),
+]
+
+
+# ============================================================================
 # Helpers
 # ============================================================================
 
@@ -518,6 +681,28 @@ def fetch_hrrr_field(cycle: datetime, fxx: int, search: str):
     except Exception as e:
         print(f"    fetch failed ({search} F{fxx:02d}): {e}", file=sys.stderr)
         return None
+
+
+def searches_for(variable: Variable, model: str) -> list:
+    """The idx/Herbie search strings for a (variable, model) pair.
+
+    RRFS defaults to the HRRR strings; only fields whose idx entries
+    diverge (smoke, DSWRF, APCP) carry an explicit rrfs_searches.
+    """
+    if model == "rrfs" and variable.rrfs_searches is not None:
+        return variable.rrfs_searches
+    return variable.grib_searches
+
+
+def fetch_model_field(model: str, cycle: datetime, fxx: int, search: str):
+    """Dispatch a single-field fetch to the right model backend.
+
+    HRRR keeps the existing Herbie path untouched; RRFS goes through the
+    direct idx + byte-range fetcher (rrfs_fetch.py).
+    """
+    if model == "rrfs":
+        return rrfs_fetch.fetch_rrfs_field(cycle, fxx, search)
+    return fetch_hrrr_field(cycle, fxx, search)
 
 
 def marker_size_wind(cap_mw: np.ndarray, region: Region) -> np.ndarray:
@@ -828,7 +1013,8 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
                valid_time: datetime, fxx: int,
                variable_id: str, region_id: str, cycle: datetime,
                out_path: Path, overlay_records=None,
-               overlay_mw_at_time=None, wind_uv=None) -> None:
+               overlay_mw_at_time=None, wind_uv=None,
+               model: str = "hrrr") -> None:
     """Generic map renderer. Plain numpy arrays in, WebP out.
 
     Optimizations:
@@ -922,8 +1108,12 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
 
     valid_str = valid_time.strftime("%Y-%m-%d %H:%MZ")
     cycle_str = cycle.strftime("%Y-%m-%d %HZ")
+    # Variable titles are written for HRRR; the same styling serves RRFS
+    # with just the model name swapped (same grid, same field, same units).
+    title = (variable.title if model == "hrrr"
+             else variable.title.replace("HRRR", "RRFS"))
     ax.set_title(
-        f"{variable.title} · {region.label}\n"
+        f"{title} · {region.label}\n"
         f"Cycle {cycle_str}  ·  F{fxx:02d}  ·  Valid {valid_str}",
         fontsize=12, loc="left", pad=8,
     )
@@ -934,6 +1124,123 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
     # each region's geographic ratio, there's little to trim, so the cost
     # is small. pad_inches keeps a thin uniform border.
     # WebP @ quality 82 is visually lossless for these flat-color maps.
+    fig.savefig(out_path, dpi=140,
+                facecolor="white", edgecolor="none",
+                bbox_inches="tight", pad_inches=0.08,
+                pil_kwargs={"quality": 84, "method": 6})
+    plt.close(fig)
+
+
+# National panel row is the reference geometry for diff figures; other
+# regions scale their width by geographic aspect so panels stay square-ish.
+_NATIONAL_ASPECT = 15.4 / 8.0
+
+
+def render_diff_map(hrrr_values: np.ndarray, rrfs_values: np.ndarray,
+                    grid_lats: np.ndarray, grid_lons: np.ndarray,
+                    valid_time: datetime, fxx: int,
+                    diff_id: str, region_id: str, cycle: datetime,
+                    out_path: Path) -> None:
+    """3-panel comparison renderer: HRRR | RRFS | RRFS − HRRR.
+
+    Both fields arrive on the SAME grid (RRFS 2dfld.3km.conus is
+    bit-identical to HRRR CONUS), so the right panel is a plain
+    elementwise subtraction. Panels 1-2 share the source variable's
+    normal colormap and ONE colorbar; the diff panel gets its own
+    symmetric diverging scale. Kept on pcolormesh for consistency with
+    the single-panel renderer; the region slice is computed once and
+    reused for all three panels.
+    """
+    product = next(d for d in DIFF_PRODUCTS if d.id == diff_id)
+    region = next(r for r in REGIONS if r.id == region_id)
+    proj = _get_projection(region_id)
+
+    # Width scales with the region's geographic aspect (national = 19.5,
+    # clamped so the squarer eastern regions don't collapse too narrow).
+    aspect = region.figsize[0] / region.figsize[1]
+    fig_w = max(12.0, min(21.0, 19.5 * aspect / _NATIONAL_ASPECT))
+    fig, axes = plt.subplots(
+        1, 3, figsize=(fig_w, 5.4), dpi=100,
+        subplot_kw=dict(projection=proj), constrained_layout=True)
+
+    # One slice serves all three panels (same grid → same index bbox).
+    sl = _get_region_slice(region_id, grid_lats, grid_lons)
+    if sl is not None:
+        hrrr_values = hrrr_values[sl]
+        rrfs_values = rrfs_values[sl]
+        grid_lats = grid_lats[sl]
+        grid_lons = grid_lons[sl]
+
+    diff = rrfs_values - hrrr_values
+
+    # Mask small forecast values (dry areas for precip) and trivial
+    # differences so those cells render as blank background. np.where
+    # returns fresh arrays, so the shared-memory inputs are never mutated.
+    if product.panel_mask_below is not None:
+        hrrr_values = np.where(hrrr_values < product.panel_mask_below,
+                               np.nan, hrrr_values)
+        rrfs_values = np.where(rrfs_values < product.panel_mask_below,
+                               np.nan, rrfs_values)
+    if product.diff_mask_abs_below is not None:
+        diff = np.where(np.abs(diff) < product.diff_mask_abs_below,
+                        np.nan, diff)
+
+    panel_cmap = product.panel_cmap_factory()
+    panel_norm = (product.panel_norm_factory()
+                  if product.panel_norm_factory else None)
+    panel_kw = (dict(norm=panel_norm) if panel_norm is not None
+                else dict(vmin=product.panel_vmin, vmax=product.panel_vmax))
+    diff_cmap = product.diff_cmap_factory()
+    diff_norm = (product.diff_norm_factory()
+                 if product.diff_norm_factory else None)
+    diff_kw = (dict(norm=diff_norm) if diff_norm is not None
+               else dict(vmin=product.diff_vmin, vmax=product.diff_vmax))
+
+    feat_scale = "110m" if region.id == "national" else "50m"
+    panels = [
+        ("HRRR", hrrr_values, panel_cmap, panel_kw),
+        ("RRFS", rrfs_values, panel_cmap, panel_kw),
+        ("RRFS − HRRR", diff, diff_cmap, diff_kw),
+    ]
+    ims = []
+    for ax, (name, values, cmap, mesh_kw) in zip(axes, panels):
+        ax.set_extent(region.extent, crs=PC)
+        ims.append(ax.pcolormesh(
+            grid_lons, grid_lats, values,
+            cmap=cmap, transform=PC, shading="auto",
+            rasterized=True, zorder=1, **mesh_kw,
+        ))
+        _draw_features(ax, scale=feat_scale)
+        ax.set_title(name, fontsize=10, pad=4)
+
+    # ONE shared colorbar for the two forecast panels, a separate one for
+    # the diff panel — the two scales are unrelated, so a single bar
+    # would be misleading.
+    cbar = fig.colorbar(ims[0], ax=list(axes[:2]),
+                        orientation="horizontal",
+                        fraction=0.055, pad=0.03, aspect=48,
+                        format=product.panel_cbar_format,
+                        extend=product.panel_cbar_extend)
+    if product.panel_cbar_ticks:
+        cbar.set_ticks(product.panel_cbar_ticks)
+    cbar.set_label(f"{product.field_title} ({product.units})", fontsize=9)
+    cbar.ax.tick_params(labelsize=8)
+
+    dbar = fig.colorbar(ims[2], ax=axes[2],
+                        orientation="horizontal",
+                        fraction=0.055, pad=0.03, aspect=24,
+                        format=product.diff_cbar_format, extend="both")
+    dbar.set_label(f"RRFS − HRRR ({product.units})", fontsize=9)
+    dbar.ax.tick_params(labelsize=8)
+
+    valid_str = valid_time.strftime("%Y-%m-%d %H:%MZ")
+    cycle_str = cycle.strftime("%Y-%m-%d %HZ")
+    fig.suptitle(
+        f"{product.field_title} — HRRR vs RRFS · {region.label} · "
+        f"Cycle {cycle_str}  ·  F{fxx:02d}  ·  Valid {valid_str}",
+        fontsize=12,
+    )
+
     fig.savefig(out_path, dpi=140,
                 facecolor="white", edgecolor="none",
                 bbox_inches="tight", pad_inches=0.08,
@@ -1001,33 +1308,58 @@ def _get_region_slice(region_id: str, grid_lats: np.ndarray,
 
 
 def _render_task(args: dict) -> str:
-    """Worker-side entry point.
+    """Worker-side entry point (single-model AND diff tasks).
 
-    `args["values"]` is the per-field ndarray, passed via task pickling.
-    Grid arrays are shared via SharedMemory and attached here.
+    Single tasks: `args["values"]` is the per-field ndarray, passed via
+    task pickling. Diff tasks: BOTH models' fields ride the same
+    SharedMemory mechanism as the grid (two shared arrays per
+    (product, hour), referenced by all 5 region tasks instead of being
+    pickled 5x each). Grid arrays are always shared and attached here.
     """
-    # Attach shared grid arrays (these are reused across all 2,205 tasks)
+    # Attach shared grid arrays (these are reused across all tasks)
     grid_lats_arr, lats_shm = _attach_array(args["grid_lats_ref"])
     grid_lons_arr, lons_shm = _attach_array(args["grid_lons_ref"])
+    extra_shms = []
     try:
-        render_map(
-            values=args["values"],
-            grid_lats=grid_lats_arr,
-            grid_lons=grid_lons_arr,
-            valid_time=args["valid_time"],
-            fxx=args["fxx"],
-            variable_id=args["variable_id"],
-            region_id=args["region_id"],
-            cycle=args["cycle"],
-            out_path=args["out_path"],
-            overlay_records=args.get("overlay_records"),
-            overlay_mw_at_time=args.get("overlay_mw_at_time"),
-            wind_uv=args.get("wind_uv"),
-        )
+        if args.get("kind") == "diff":
+            hrrr_arr, hrrr_shm = _attach_array(args["hrrr_ref"])
+            extra_shms.append(hrrr_shm)
+            rrfs_arr, rrfs_shm = _attach_array(args["rrfs_ref"])
+            extra_shms.append(rrfs_shm)
+            render_diff_map(
+                hrrr_values=hrrr_arr,
+                rrfs_values=rrfs_arr,
+                grid_lats=grid_lats_arr,
+                grid_lons=grid_lons_arr,
+                valid_time=args["valid_time"],
+                fxx=args["fxx"],
+                diff_id=args["diff_id"],
+                region_id=args["region_id"],
+                cycle=args["cycle"],
+                out_path=args["out_path"],
+            )
+        else:
+            render_map(
+                values=args["values"],
+                grid_lats=grid_lats_arr,
+                grid_lons=grid_lons_arr,
+                valid_time=args["valid_time"],
+                fxx=args["fxx"],
+                variable_id=args["variable_id"],
+                region_id=args["region_id"],
+                cycle=args["cycle"],
+                out_path=args["out_path"],
+                overlay_records=args.get("overlay_records"),
+                overlay_mw_at_time=args.get("overlay_mw_at_time"),
+                wind_uv=args.get("wind_uv"),
+                model=args.get("model", "hrrr"),
+            )
     finally:
+        for shm in extra_shms:
+            shm.close()
         lats_shm.close()
         lons_shm.close()
-    return args["variable_id"]
+    return args["out_id"]
 
 
 # ============================================================================
@@ -1038,11 +1370,24 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("date", nargs="?")
     parser.add_argument("hour", nargs="?")
-    parser.add_argument("--variables", help="Comma-separated variable IDs")
+    parser.add_argument("--variables",
+                        help="Comma-separated product IDs (base variables, "
+                             "rrfs_* variants, and *_diff products)")
     parser.add_argument("--regions", help="Comma-separated region IDs")
     parser.add_argument("--workers", type=int, default=0,
                         help="Number of render worker processes (0 = auto, all cores)")
+    # Env-var gate so CI can pin HRRR-only (SYNOPTIC_MODELS=hrrr) without
+    # touching the invocation; local runs default to both models + diffs.
+    parser.add_argument("--models",
+                        default=os.environ.get("SYNOPTIC_MODELS", "hrrr,rrfs"),
+                        help="Comma-separated models: hrrr,rrfs (default both; "
+                             "diff products render only when both are present)")
     args = parser.parse_args()
+
+    models = [m.strip() for m in args.models.split(",") if m.strip()]
+    bad = [m for m in models if m not in ("hrrr", "rrfs")]
+    if bad or not models:
+        parser.error(f"--models must be a subset of hrrr,rrfs (got {args.models!r})")
 
     if args.date and args.hour:
         cycle = datetime.strptime(f"{args.date} {args.hour}", "%Y-%m-%d %H")
@@ -1051,14 +1396,58 @@ def main():
     print(f"Cycle: {cycle:%Y-%m-%d %H:%MZ}")
     cycle_str = cycle.strftime("%Y%m%dT%HZ")
 
-    variables = VARIABLES
-    if args.variables:
-        wanted = set(args.variables.split(","))
-        variables = [v for v in variables if v.id in wanted]
+    # RRFS publication lags HRRR; we deliberately use the SAME cycle for
+    # both models (apples-to-apples diffs) and just drop the RRFS half
+    # when that cycle isn't on the bucket yet — HRRR proceeds exactly as
+    # before, and the next run picks RRFS up.
+    if "rrfs" in models and not rrfs_fetch.fetch_rrfs_availability(cycle):
+        print(f"WARN: RRFS cycle {cycle:%Y-%m-%d %HZ} not available yet — "
+              f"proceeding HRRR-only.", file=sys.stderr, flush=True)
+        models = [m for m in models if m != "rrfs"]
+
+    # ---- Product selection -------------------------------------------------
+    # Three product families share one render pipeline:
+    #   <var>       single-panel HRRR   (output layout unchanged)
+    #   rrfs_<var>  single-panel RRFS   (assets/synoptic/rrfs_<var>/...)
+    #   <x>_diff    3-panel HRRR/RRFS/difference (needs BOTH models)
+    wanted = set(args.variables.split(",")) if args.variables else None
+    hrrr_vars = [v for v in VARIABLES
+                 if "hrrr" in models and (wanted is None or v.id in wanted)]
+    rrfs_vars = [v for v in VARIABLES
+                 if "rrfs" in models
+                 and (wanted is None or f"rrfs_{v.id}" in wanted)]
+    diffs = [d for d in DIFF_PRODUCTS
+             if "hrrr" in models and "rrfs" in models
+             and (wanted is None or d.id in wanted)]
+
     regions = REGIONS
     if args.regions:
-        wanted = set(args.regions.split(","))
-        regions = [r for r in regions if r.id in wanted]
+        wanted_r = set(args.regions.split(","))
+        regions = [r for r in regions if r.id in wanted_r]
+
+    # Everything below keys renders + manifests off `product_meta`:
+    # (out_id, dropdown label, units) per rendered product.
+    product_meta = (
+        [{"out_id": v.id, "label": v.label, "units": v.units}
+         for v in hrrr_vars]
+        + [{"out_id": f"rrfs_{v.id}", "label": f"RRFS: {v.label}",
+            "units": v.units} for v in rrfs_vars]
+        + [{"out_id": d.id, "label": d.label, "units": d.units}
+           for d in diffs]
+    )
+
+    # Which base variables each model must actually download. Diff
+    # products piggyback their source variable onto both models' lists;
+    # the dict-by-id keeps t2m from being fetched twice when both the
+    # single-panel product and t2m_diff are requested.
+    fetch_specs = {m: {} for m in models}
+    for v in hrrr_vars:
+        fetch_specs["hrrr"][v.id] = v
+    for v in rrfs_vars:
+        fetch_specs["rrfs"][v.id] = v
+    for d in diffs:
+        for m in ("hrrr", "rrfs"):
+            fetch_specs[m][d.source.id] = d.source
 
     # Aggressive default: use ALL available cores. User said memory is
     # not a constraint, so we don't hold back.
@@ -1067,13 +1456,14 @@ def main():
     else:
         n_workers = max(1, os.cpu_count() or 4)
 
-    print(f"Variables ({len(variables)}): {[v.id for v in variables]}")
+    print(f"Models ({len(models)}): {models}")
+    print(f"Products ({len(product_meta)}): {[p['out_id'] for p in product_meta]}")
     print(f"Regions ({len(regions)}): {[r.id for r in regions]}")
     print(f"Workers: {n_workers} (out of {os.cpu_count()} cores)")
 
-    # Plant data
-    need_wind = any(v.overlay == "wind" for v in variables)
-    need_solar = any(v.overlay == "solar" for v in variables)
+    # Plant data (overlays apply to both models' single-panel renders)
+    need_wind = any(v.overlay == "wind" for v in hrrr_vars + rrfs_vars)
+    need_solar = any(v.overlay == "solar" for v in hrrr_vars + rrfs_vars)
     wind_plants = load_wind_plants(cycle_str) if need_wind else pd.DataFrame()
     if need_wind:
         print(f"Loaded {len(wind_plants):,} wind plants")
@@ -1082,27 +1472,35 @@ def main():
     if need_solar:
         print(f"Loaded {len(solar_plants):,} solar plants")
 
-    for v in variables:
+    for p in product_meta:
         for r in regions:
-            (ASSETS / v.id / r.id).mkdir(parents=True, exist_ok=True)
-    manifests = {(v.id, r.id): [] for v in variables for r in regions}
+            (ASSETS / p["out_id"] / r.id).mkdir(parents=True, exist_ok=True)
+    manifests = {(p["out_id"], r.id): []
+                 for p in product_meta for r in regions}
 
     t_total = time_module.time()
 
-    # PHASE 1: Fetch all HRRR fields up front, sequentially.
-    print(f"\n[1/2] Fetching {len(variables) * len(FORECAST_HOURS)} field-hours...")
+    # PHASE 1: Fetch all model fields up front, sequentially.
+    n_field_hours = sum(
+        len([f for f in FORECAST_HOURS if f >= v.min_fxx])
+        for m in models for v in fetch_specs[m].values())
+    print(f"\n[1/2] Fetching {n_field_hours} field-hours...")
     t_fetch = time_module.time()
 
     # Memory strategy:
-    #   - Grid lats/lons are identical across all 245 (variable, hour) pairs,
+    #   - Grid lats/lons are identical across all (model, variable, hour)
+    #     tuples — the RRFS 2dfld grid is bit-identical to HRRR CONUS —
     #     so we put them in shared memory ONCE and reference them in every
-    #     task. Saves 245x duplication.
+    #     task. Saves huge duplication.
     #   - Each field's data array is passed as a regular task argument
     #     (pickled per task). With bounded worker queue, only a few tasks
     #     are in flight at once, so this caps memory naturally and avoids
     #     /dev/shm size limits (typically 64 MB on Linux containers).
-    field_cache = {}   # (variable_id, fxx) → values ndarray (float32)
-    wind_uv_cache = {} # (variable_id, fxx) → (u_arr, v_arr) for arrows
+    #   - Diff products are the exception: each (product, hour) pair's two
+    #     model fields go into shared memory once and are referenced by
+    #     all 5 region tasks (see the task-build phase below).
+    field_cache = {}   # (model, variable_id, fxx) → values ndarray (float32)
+    wind_uv_cache = {} # (model, variable_id, fxx) → (u_arr, v_arr) for arrows
     grid_lats_ref = None
     grid_lons_ref = None
     shm_names_to_release = []
@@ -1110,54 +1508,59 @@ def main():
     n_fetched = 0
     n_skipped = 0
     for fxx in FORECAST_HOURS:
-        for variable in variables:
-            fields = {}
-            for search in variable.grib_searches:
-                arr = fetch_hrrr_field(cycle, fxx, search)
-                if arr is None:
-                    fields = None
-                    break
-                fields[search] = arr
-            if fields is None:
-                field_cache[(variable.id, fxx)] = None
-                n_skipped += 1
-                continue
-            combined = variable.combine(fields, variable.grib_searches)
-            if combined is None:
-                field_cache[(variable.id, fxx)] = None
-                n_skipped += 1
-                continue
+        for model in models:
+            for variable in fetch_specs[model].values():
+                if fxx < variable.min_fxx:
+                    continue           # e.g. APCP does not exist at F00
+                searches = searches_for(variable, model)
+                fields = {}
+                for search in searches:
+                    arr = fetch_model_field(model, cycle, fxx, search)
+                    if arr is None:
+                        fields = None
+                        break
+                    fields[search] = arr
+                if fields is None:
+                    field_cache[(model, variable.id, fxx)] = None
+                    n_skipped += 1
+                    continue
+                combined = variable.combine(fields, searches)
+                if combined is None:
+                    field_cache[(model, variable.id, fxx)] = None
+                    n_skipped += 1
+                    continue
 
-            # Shared-memory grid (built lazily on first fetch)
-            if grid_lats_ref is None:
-                grid_lats = np.ascontiguousarray(combined.latitude.values,
+                # Shared-memory grid (built lazily on first fetch; either
+                # model can seed it since the grids are identical)
+                if grid_lats_ref is None:
+                    grid_lats = np.ascontiguousarray(combined.latitude.values,
+                                                      dtype=np.float32)
+                    grid_lons_raw = np.ascontiguousarray(combined.longitude.values,
+                                                         dtype=np.float32)
+                    grid_lons = np.where(grid_lons_raw > 180,
+                                          grid_lons_raw - 360, grid_lons_raw)
+                    grid_lats_ref = _share_array(grid_lats)
+                    grid_lons_ref = _share_array(grid_lons)
+                    shm_names_to_release.append(grid_lats_ref["name"])
+                    shm_names_to_release.append(grid_lons_ref["name"])
+                    print(f"  shared-memory grid: {grid_lats.shape} "
+                          f"({(grid_lats.nbytes + grid_lons.nbytes) / 1e6:.1f} MB)")
+
+                # Per-field values: keep in main-process memory only.
+                # Will be passed through pickling to workers (cheap with
+                # bounded queue depth).
+                values = np.ascontiguousarray(combined.values, dtype=np.float32)
+                if variable.transform is not None:
+                    values = np.ascontiguousarray(variable.transform(values),
                                                   dtype=np.float32)
-                grid_lons_raw = np.ascontiguousarray(combined.longitude.values,
-                                                     dtype=np.float32)
-                grid_lons = np.where(grid_lons_raw > 180,
-                                      grid_lons_raw - 360, grid_lons_raw)
-                grid_lats_ref = _share_array(grid_lats)
-                grid_lons_ref = _share_array(grid_lons)
-                shm_names_to_release.append(grid_lats_ref["name"])
-                shm_names_to_release.append(grid_lons_ref["name"])
-                print(f"  shared-memory grid: {grid_lats.shape} "
-                      f"({(grid_lats.nbytes + grid_lons.nbytes) / 1e6:.1f} MB)")
-
-            # Per-field values: keep in main-process memory only.
-            # Will be passed through pickling to workers (cheap with
-            # bounded queue depth).
-            values = np.ascontiguousarray(combined.values, dtype=np.float32)
-            if variable.transform is not None:
-                values = np.ascontiguousarray(variable.transform(values),
-                                              dtype=np.float32)
-            field_cache[(variable.id, fxx)] = values
-            # If this variable draws direction arrows, stash its U/V too.
-            if variable.wind_vectors:
-                u = combined.attrs.get("_wind_u")
-                v = combined.attrs.get("_wind_v")
-                if u is not None and v is not None:
-                    wind_uv_cache[(variable.id, fxx)] = (u, v)
-            n_fetched += 1
+                field_cache[(model, variable.id, fxx)] = values
+                # If this variable draws direction arrows, stash its U/V too.
+                if variable.wind_vectors:
+                    u = combined.attrs.get("_wind_u")
+                    v = combined.attrs.get("_wind_v")
+                    if u is not None and v is not None:
+                        wind_uv_cache[(model, variable.id, fxx)] = (u, v)
+                n_fetched += 1
 
         if (fxx + 1) % 12 == 0:
             print(f"    ... F00-F{fxx:02d}: {n_fetched} OK, {n_skipped} skipped "
@@ -1183,18 +1586,27 @@ def main():
             mw_by_hour[fxx] = None
 
     tasks = []
-    for variable in variables:
+    single_products = ([("hrrr", v) for v in hrrr_vars]
+                       + [("rrfs", v) for v in rrfs_vars])
+    for model, variable in single_products:
+        # HRRR keeps its original output layout (assets/synoptic/<var>/)
+        # so existing URLs/manifests never move; RRFS lands beside it
+        # under a rrfs_ prefix.
+        out_id = variable.id if model == "hrrr" else f"rrfs_{variable.id}"
         overlay_records = (wind_plants if variable.overlay == "wind"
                             else solar_plants if variable.overlay == "solar"
                             else None)
         for fxx in FORECAST_HOURS:
-            values = field_cache.get((variable.id, fxx))
+            values = field_cache.get((model, variable.id, fxx))
             if values is None:
                 continue
-            uv = wind_uv_cache.get((variable.id, fxx))  # None unless wind
+            uv = wind_uv_cache.get((model, variable.id, fxx))  # None unless wind
             valid_time = cycle + timedelta(hours=fxx)
             for region in regions:
                 tasks.append({
+                    "kind": "single",
+                    "model": model,
+                    "out_id": out_id,
                     "values": values,
                     "wind_uv": uv,
                     "grid_lats_ref": grid_lats_ref,
@@ -1204,16 +1616,50 @@ def main():
                     "variable_id": variable.id,
                     "region_id": region.id,
                     "cycle": cycle,
-                    "out_path": ASSETS / variable.id / region.id / f"F{fxx:02d}.webp",
+                    "out_path": ASSETS / out_id / region.id / f"F{fxx:02d}.webp",
                     "overlay_records": overlay_records,
                     "overlay_mw_at_time": (mw_by_hour[fxx]
                                             if variable.overlay == "solar" else None),
                 })
 
-    # Sort tasks by (region, variable, fxx) so each worker tends to stay
+    # Diff tasks: only hours where BOTH models' fields were fetched. The
+    # two fields ride the same SharedMemory mechanism as the grid — one
+    # shared copy per (product, hour) serves all 5 region tasks instead
+    # of pickling both CONUS arrays 5x each (~15 MB/hour-product in shm;
+    # only materializes when both models actually ran).
+    for d in diffs:
+        for fxx in FORECAST_HOURS:
+            if fxx < d.source.min_fxx:
+                continue           # e.g. no APCP at F00 → skip precip_diff F00
+            hrrr_values = field_cache.get(("hrrr", d.source.id, fxx))
+            rrfs_values = field_cache.get(("rrfs", d.source.id, fxx))
+            if hrrr_values is None or rrfs_values is None:
+                continue
+            hrrr_ref = _share_array(hrrr_values)
+            rrfs_ref = _share_array(rrfs_values)
+            shm_names_to_release.append(hrrr_ref["name"])
+            shm_names_to_release.append(rrfs_ref["name"])
+            valid_time = cycle + timedelta(hours=fxx)
+            for region in regions:
+                tasks.append({
+                    "kind": "diff",
+                    "out_id": d.id,
+                    "diff_id": d.id,
+                    "hrrr_ref": hrrr_ref,
+                    "rrfs_ref": rrfs_ref,
+                    "grid_lats_ref": grid_lats_ref,
+                    "grid_lons_ref": grid_lons_ref,
+                    "valid_time": valid_time,
+                    "fxx": fxx,
+                    "region_id": region.id,
+                    "cycle": cycle,
+                    "out_path": ASSETS / d.id / region.id / f"F{fxx:02d}.webp",
+                })
+
+    # Sort tasks by (region, product, fxx) so each worker tends to stay
     # on the same region for several consecutive tasks. Helps cartopy
     # reuse its internal projection state across renders.
-    tasks.sort(key=lambda t: (t["region_id"], t["variable_id"], t["fxx"]))
+    tasks.sort(key=lambda t: (t["region_id"], t["out_id"], t["fxx"]))
 
     print(f"  {len(tasks)} render tasks queued ({n_workers} workers)")
 
@@ -1240,7 +1686,7 @@ def main():
                 try:
                     future.result()
                     n_done += 1
-                    manifests[(task["variable_id"], task["region_id"])].append({
+                    manifests[(task["out_id"], task["region_id"])].append({
                         "fxx": task["fxx"],
                         "valid_time": task["valid_time"].isoformat() + "Z",
                         "valid_label": task["valid_time"].strftime("%a %m/%d %H:%MZ"),
@@ -1248,7 +1694,7 @@ def main():
                     })
                 except Exception as e:
                     n_failed += 1
-                    print(f"  ERROR {task['variable_id']}/{task['region_id']}/F{task['fxx']:02d}: {e}",
+                    print(f"  ERROR {task['out_id']}/{task['region_id']}/F{task['fxx']:02d}: {e}",
                           file=sys.stderr)
                 if n_done % progress_every == 0:
                     pct = 100 * n_done / len(tasks)
@@ -1268,36 +1714,48 @@ def main():
     for key in manifests:
         manifests[key].sort(key=lambda x: x["fxx"])
 
-    # Per-(variable, region) manifests
-    for v in variables:
+    # Per-(product, region) manifests
+    for p in product_meta:
         for r in regions:
             manifest = {
                 "cycle": cycle.strftime("%Y-%m-%d %HZ"),
                 "cycle_compact": cycle_str,
                 "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-                "variable_id": v.id,
-                "variable_label": v.label,
-                "units": v.units,
+                "variable_id": p["out_id"],
+                "variable_label": p["label"],
+                "units": p["units"],
                 "region_id": r.id,
                 "region_label": r.label,
-                "frames": manifests[(v.id, r.id)],
+                "frames": manifests[(p["out_id"], r.id)],
             }
-            (ASSETS / v.id / r.id / "manifest.json").write_text(
+            (ASSETS / p["out_id"] / r.id / "manifest.json").write_text(
                 json.dumps(manifest, indent=2))
 
     # Top-level dropdown metadata. Only rewritten on UNFILTERED runs: a
     # partial run (--variables/--regions, e.g. a local test or one-field
     # backfill) would otherwise shrink the live dropdowns to just the
     # subset it rendered, hiding every other variable's existing frames.
+    # The FULL catalog (HRRR + RRFS + diffs) is written regardless of
+    # --models for the same reason: an HRRR-only CI fallback run must not
+    # hide the RRFS/diff frames the local pipeline already rendered.
     if not args.variables:
-        variables_meta = {
-            "variables": [
-                {"id": v.id, "label": v.label, "units": v.units,
-                 "default": (v.id == "wind")}
-                for v in variables
-            ],
-        }
-        (ASSETS / "variables.json").write_text(json.dumps(variables_meta, indent=2))
+        entries = [
+            {"id": v.id, "label": v.label, "units": v.units,
+             "default": (v.id == "wind"), "group": "HRRR"}
+            for v in VARIABLES
+        ]
+        entries += [
+            {"id": f"rrfs_{v.id}", "label": f"RRFS: {v.label}",
+             "units": v.units, "default": False, "group": "RRFS"}
+            for v in VARIABLES
+        ]
+        entries += [
+            {"id": d.id, "label": d.label, "units": d.units,
+             "default": False, "group": "RRFS vs HRRR"}
+            for d in DIFF_PRODUCTS
+        ]
+        (ASSETS / "variables.json").write_text(
+            json.dumps({"variables": entries}, indent=2))
 
     if not args.regions:
         regions_meta = {
