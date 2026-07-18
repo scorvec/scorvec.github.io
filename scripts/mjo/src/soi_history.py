@@ -116,6 +116,7 @@ def main() -> int:
     aM.axhline(0, color="0.4", lw=0.8)
     aM.axhline(8, color="0.65", lw=0.8, ls="--"); aM.axhline(-8, color="0.65", lw=0.8, ls="--")
     rec_lines(aM, ("mon", "mon3"))
+    aM.set_ylim(recs["mon"]["lo"] - 6, recs["mon"]["hi"] + 6)   # room for record labels
     aM.set_xlim(mon.index[0], mon.index[-1] + pd.Timedelta(days=700))
     aM.grid(True, alpha=0.2)
     aM.set_title(f"Monthly SOI (BoM Troup) — {mon.index[0]:%Y}–{mon.index[-1]:%b %Y}: "
@@ -131,6 +132,7 @@ def main() -> int:
         a0.text(m30.index[0], y, " " + lab, fontsize=6.8, color="0.45",
                 va="bottom" if y > 0 else "top")
     rec_lines(a0, ("30", "90"))
+    a0.set_ylim(recs["30"]["lo"] - 6, recs["30"]["hi"] + 6)     # room for record labels
     a0.set_xlim(m30.index[0], m30.index[-1] + pd.Timedelta(days=120))
     a0.grid(True, alpha=0.2)
     a0.set_title(f"Daily SOI (LongPaddock Troup, 1887–1989 base) — the consistent daily record, "
@@ -154,11 +156,11 @@ def main() -> int:
     a1.set_title(f"Last 24 months — daily values (bars) · latest 30-d {cur30:+.1f}, "
                  f"90-d {cur90:+.1f}", fontsize=10.5, fontweight="bold", loc="left")
     a1.set_ylabel("SOI")
+    fig.subplots_adjust(left=0.065, right=0.985, top=0.965, bottom=0.05)
     fig.text(0.5, 0.005,
-             "Monthly: BoM Troup SOI (ftp.bom.gov.au), one method 1876–present · daily: LongPaddock "
-             "Troup SOI, fixed 1887–1989 base, Jun 1991–present (the two use slightly different "
-             "normalizations — records are per-series) · 10·(ΔP−m)/σ, ΔP = Tahiti−Darwin MSLP · "
-             "running means require ≥80% daily coverage",
+             "Monthly: BoM Troup SOI (ftp.bom.gov.au), one method 1876–present · daily: LongPaddock Troup SOI,\n"
+             "fixed 1887–1989 base, Jun 1991–present (slightly different normalizations — records are per-series) · "
+             "10·(ΔP−m)/σ, ΔP = Tahiti−Darwin MSLP · running means require ≥80% daily coverage",
              ha="center", fontsize=7.5, color="0.4")
     out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=115, bbox_inches="tight", facecolor="white")
