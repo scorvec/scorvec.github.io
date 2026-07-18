@@ -136,10 +136,10 @@ def chart(df: pd.DataFrame):
     a1.plot(env.mean().reindex(days).index,
             env.mean().reindex(days).rolling(7, center=True, min_periods=1).mean(),
             color="0.35", lw=1.5, label="mean")
-    from matplotlib import cm
     seasons = sorted(df["season"].unique())[-10:]
-    colors = {s: cm.viridis(0.1 + 0.75 * i / max(len(seasons) - 1, 1))
-              for i, s in enumerate(seasons)}
+    palette = ["#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b",
+               "#e377c2", "#7f7f7f", "#bcbd22", "#17becf", "#aec7e8"]
+    colors = {s: palette[i % len(palette)] for i, s in enumerate(seasons)}
     for s in seasons[:-1]:                          # recent seasons, 7-day smoothed
         g = df[df["season"] == s].sort_values("sday")
         a1.plot(g["sday"], g["oil_hdd"].rolling(7, center=True, min_periods=1).mean(),
