@@ -7,6 +7,14 @@
 <title>ENSO Forecasts &mdash; Interactive Multi-Model Outlook &middot; El Ni&ntilde;o Monitor</title>
 <meta name="description" content="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from seven centres, percentile fans, ONI vs RONI, and the forecast measured against every ENSO event since 1970.">
 <link rel="canonical" href="https://scorvec.com/enso-forecasts.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ENSO Forecasts &mdash; Interactive Multi-Model Outlook &middot; El Ni&ntilde;o Monitor">
+<meta property="og:description" content="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from seven centres, percentile fans, ONI vs RONI, and the forecast measured against every ENSO event since 1970.">
+<meta property="og:url" content="https://scorvec.com/enso-forecasts.html">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ENSO Forecasts &mdash; Interactive Multi-Model Outlook &middot; El Ni&ntilde;o Monitor">
+<meta name="twitter:description" content="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from seven centres, percentile fans, ONI vs RONI, and the forecast measured against every ENSO event since 1970.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -561,11 +569,11 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=4c512393ec17").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=3e8a180f1ba6").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=4c512393ec17").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=3e8a180f1ba6").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=4c512393ec17").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=3e8a180f1ba6").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
