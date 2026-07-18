@@ -86,7 +86,16 @@ def tn01_flux(psi_a: np.ndarray, U: np.ndarray, V: np.ndarray,
     wy = pref * (U * (px * py - psi_a * pxy) + V * (py ** 2 - psi_a * pyy))
     bad = (spd < UMIN) | (np.abs(lat)[:, None] < LATMIN)
     wx[bad] = np.nan; wy[bad] = np.nan
-    return wx, wy
+    # flux divergence ∇·W: NEGATIVE (convergence) marks where wave activity
+    # piles up — the downstream-amplification precursor. Lightly smoothed:
+    # second derivatives of an lmax-63 field carry gridscale ripple.
+    import scipy.ndimage as ndi
+    wx0 = np.nan_to_num(wx); wy0 = np.nan_to_num(wy)
+    divw = (np.gradient(wx0, lonr, axis=1) / (A * cosp)
+            + np.gradient(wy0 * cosp, latr, axis=0) / (A * cosp))
+    divw = ndi.gaussian_filter(divw, sigma=1.5)
+    divw[bad] = np.nan
+    return wx, wy, divw
 
 
 def eval_clim(coefs: np.ndarray, doy: float) -> np.ndarray:
@@ -95,13 +104,18 @@ def eval_clim(coefs: np.ndarray, doy: float) -> np.ndarray:
     return np.tensordot(b, coefs, axes=(0, 0))
 
 
-def render(psi_a, wx, wy, Uc, Vc, lat, lon, title: str, sub: str, out: Path, vlim: float):
+def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Path, vlim: float):
     fig = plt.figure(figsize=(12.8, 6.4))
     proj = ccrs.PlateCarree(central_longitude=180)
     ax = plt.axes(projection=proj)
     ax.set_global()
-    cf = ax.contourf(lon, lat, psi_a / 1e6, levels=np.linspace(-vlim, vlim, 21),
+    # shade CONVERGENCE (−∇·W, 10⁻⁶ m s⁻²): red = wave activity piling up →
+    # the downstream flow amplifies over the following days; blue = emission.
+    cf = ax.contourf(lon, lat, -divw * 1e6, levels=np.linspace(-vlim, vlim, 21),
                      cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
+    ax.contour(lon, lat, psi_a / 1e6, levels=[-24, -16, -8, 8, 16, 24],
+               colors="0.25", linewidths=0.7, negative_linestyles="dashed",
+               transform=ccrs.PlateCarree())
     spd = np.hypot(Uc, Vc)
     ax.contour(lon, lat, spd, levels=[20, 30, 40], colors="#2e7d32",
                linewidths=[0.7, 1.0, 1.4], alpha=0.7, transform=ccrs.PlateCarree())
@@ -113,11 +127,11 @@ def render(psi_a, wx, wy, Uc, Vc, lat, lon, title: str, sub: str, out: Path, vli
     q = ax.quiver(lon[::s], lat[::s], qx, qy, transform=ccrs.PlateCarree(),
                   color="#111", width=0.0016, scale=2200, headwidth=3.6, alpha=0.85,
                   pivot="tail", zorder=6)
-    ax.quiverkey(q, 0.925, 1.03, 100, "100 m²/s²", labelpos="E", fontproperties={"size": 7.5})
+    ax.quiverkey(q, 0.90, -0.07, 100, "W = 100 m²/s²", labelpos="E", fontproperties={"size": 7.5})
     ax.coastlines(lw=0.5, color="0.35")
     ax.set_title(title, fontsize=11.5, fontweight="bold", loc="left")
     cb = fig.colorbar(cf, ax=ax, pad=0.012, fraction=0.032)
-    cb.set_label("ψ′ 200 hPa (10⁶ m² s⁻¹)", fontsize=8.5); cb.ax.tick_params(labelsize=7.5)
+    cb.set_label("−∇·W  (10⁻⁶ m s⁻²; red = convergence → amplification)", fontsize=8.5); cb.ax.tick_params(labelsize=7.5)
     fig.text(0.5, 0.015, sub, ha="center", fontsize=8, color="0.35")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=112, bbox_inches="tight", facecolor="white")
@@ -155,22 +169,22 @@ def main() -> int:
         doy = float(valid.dayofyear)
         psi_a = psi - eval_clim(c["psi"].values, doy)
         Uc, Vc = eval_clim(c["U"].values, doy), eval_clim(c["V"].values, doy)
-        wx, wy = tn01_flux(psi_a, Uc, Vc, clat, clon)
-        fields.append((valid, sh, psi_a, wx, wy, Uc, Vc))
-    vlim = float(np.nanpercentile(np.abs(np.stack([f[2] for f in fields])) / 1e6, 99.0)) or 10.0
+        wx, wy, divw = tn01_flux(psi_a, Uc, Vc, clat, clon)
+        fields.append((valid, sh, psi_a, wx, wy, divw, Uc, Vc))
+    vlim = float(np.nanpercentile(np.abs(np.stack([f[5] for f in fields])) * 1e6, 99.0)) or 5.0
 
     anim = Path(args.anim_dir); anim.mkdir(parents=True, exist_ok=True)
     for old in anim.glob("F*.webp"):
         old.unlink()
-    sub = ("arrows = Takaya–Nakamura (2001) wave-activity flux (wave-packet group propagation; "
-           "convergence ⇒ downstream amplification) · shading = 200 hPa streamfunction anomaly "
-           "vs ERA5 1991–2020 · green contours = climatological jet waveguide (20/30/40 m/s) · "
-           "masked equatorward of 20° and where the basic-state wind < 3 m/s")
+    sub = ("arrows = Takaya–Nakamura (2001) wave-activity flux (wave-packet group propagation) · "
+           "shading = flux CONVERGENCE −∇·W (red ⇒ downstream amplification ahead)\n"
+           "grey contours = 200 hPa ψ′ vs ERA5 1991–2020 (dashed negative) · green = climatological "
+           "jet waveguide (20/30/40 m/s) · masked equatorward of 20° / basic-state wind < 3 m/s")
     frames = []
-    for i, (valid, sh, psi_a, wx, wy, Uc, Vc) in enumerate(fields):
+    for i, (valid, sh, psi_a, wx, wy, divw, Uc, Vc) in enumerate(fields):
         fp = anim / f"F{i:02d}.webp"
         lead = int(round(sh / 24))
-        render(psi_a, wx, wy, Uc, Vc, clat, clon,
+        render(psi_a, wx, wy, divw, Uc, Vc, clat, clon,
                f"Rossby wave-activity flux (TN01) 200 hPa — AIFS-ENS mean · "
                f"init {init:%Y-%m-%d %HZ} · day {lead} (valid {valid:%a %b %d})",
                sub, fp, vlim)
@@ -182,11 +196,11 @@ def main() -> int:
     Path(args.manifest).parent.mkdir(parents=True, exist_ok=True)
     Path(args.manifest).write_text(json.dumps(mani))
     # static latest = the analysis frame
-    valid, sh, psi_a, wx, wy, Uc, Vc = fields[0]
-    render(psi_a, wx, wy, Uc, Vc, clat, clon,
+    valid, sh, psi_a, wx, wy, divw, Uc, Vc = fields[0]
+    render(psi_a, wx, wy, divw, Uc, Vc, clat, clon,
            f"Rossby wave-activity flux (TN01) 200 hPa — analysis {init:%Y-%m-%d %HZ}",
            sub, Path(args.out), vlim)
-    print(f"  wrote {len(frames)} frames + manifest; ψ′ vlim ±{vlim:.0f}×10⁶")
+    print(f"  wrote {len(frames)} frames + manifest; conv vlim ±{vlim:.0f}×10⁻⁶ m/s²")
     return 0
 
 
