@@ -215,9 +215,15 @@ async function init() {
 function setupRegion() {
   frames = manifest.regions[region].frames;
   slider.max = frames.length - 1;
-  idx = frames.length - 1;     // start on most recent
+  // forecast-style embeds can ask to open on a specific frame (?start=0) and
+  // roll on load (?autoplay=1); observation loops keep the newest-frame default
+  const P = new URLSearchParams(location.search);
+  const s = P.get("start");
+  idx = s !== null ? Math.min(Math.max(parseInt(s) || 0, 0), frames.length - 1)
+                   : frames.length - 1;     // default: most recent
   preload(region);
   showFrame(idx);
+  if (P.get("autoplay") === "1" && !playing) play();
 }
 
 function switchRegion(rid) {
