@@ -53,32 +53,27 @@ def fit():
             gal_hh = cons_kbbl * 1000 * GAL_PER_BBL / hh[s]
             rows.append((s, y, hdd_y, gal_hh, hh[s]))
     df = pd.DataFrame(rows, columns=["state", "year", "hdd", "gal_hh", "hh"])
-    # STATE FIXED EFFECTS: gal_hh = a_state + b*hdd — cross-state structural
-    # differences (primary vs supplemental heat, housing stock) dwarf the HDD
-    # signal in a pooled fit; b is identified within-state across winters
-    states = sorted(df["state"].unique())
-    D = np.zeros((len(df), len(states)))
-    for i, s in enumerate(states):
-        D[df["state"].values == s, i] = 1.0
-    X = np.column_stack([D, df["hdd"]])
-    w = (df["hh"] / df["hh"].mean()).values
-    beta = np.linalg.lstsq(X * np.sqrt(w[:, None]),
-                           df["gal_hh"] * np.sqrt(w), rcond=None)[0]
-    a_s = dict(zip(states, beta[:-1]))
-    b = float(beta[-1])
-    pred = X @ beta
-    resid = df["gal_hh"] - pred
-    within = df["gal_hh"] - D @ np.array([df[df.state == s]["gal_hh"].mean()
-                                          for s in states])
-    r2_within = 1 - (resid ** 2 * w).sum() / max((within ** 2 * w).sum(), 1e-9)
-    print(f"  FE fit on {len(df)} state-years: b = {b:.3f} gal/hh/HDD "
-          f"(within-R² {r2_within:.2f}); baselines e.g. "
-          f"ME {a_s.get('ME', 0):.0f}, MD {a_s.get('MD', 0):.0f} gal/hh/yr")
+    # DEGREE-DAY DISAGGREGATION (regression under-identified the split and
+    # inflated the flat baseline): impose base load = BASE_FRAC of annual
+    # (non-heating use, chiefly oil-fired water heaters), put the rest on a
+    # per-state HDD slope. SEDS totals reproduced by construction; the
+    # seasonal split is the standard utility profiling assumption.
+    BASE_FRAC = 0.10
+    a_s, b_s = {}, {}
+    for s, g in df.groupby("state"):
+        ann_gal = g["gal_hh"].mean()
+        ann_hdd = g["hdd"].mean()
+        a_s[s] = BASE_FRAC * ann_gal
+        b_s[s] = (1 - BASE_FRAC) * ann_gal / max(ann_hdd, 1.0)
+    print(f"  degree-day disaggregation on {len(df)} state-years "
+          f"(base {BASE_FRAC:.0%}): e.g. ME slope {b_s.get('ME', 0):.3f}, "
+          f"MD {b_s.get('MD', 0):.3f} gal/hh/HDD")
     (HERE / "calibration.json").write_text(json.dumps(
         {"a_state_gal_hh_yr": {k: float(v) for k, v in a_s.items()},
-         "b_gal_hh_hdd": b, "r2_within": float(r2_within), "n": len(df),
+         "b_state_gal_hh_hdd": {k: float(v) for k, v in b_s.items()},
+         "base_frac": BASE_FRAC, "n": len(df),
          "years": [min(FIT_YEARS), max(FIT_YEARS)]}))
-    return a_s, b
+    return a_s, b_s
 
 
 def chart(fit_result):
@@ -88,13 +83,15 @@ def chart(fit_result):
     from hdd_index import season_year, TOP_STATES
     hdd = pd.read_csv(HERE / "oil_hdd_daily.csv", parse_dates=["date"])
     hh = households_by_state()
-    a_s, b = fit_result
+    a_s, b_s = fit_result
     a_mean = float(np.mean(list(a_s.values())))
+    b_mean = float(np.mean(list(b_s.values())))
     bbl = np.full(len(hdd), 0.0)
     hh_covered = 0.0
     for s in TOP_STATES:
         if s in hh.index and f"hdd_{s}" in hdd:
             a = a_s.get(s, a_mean)
+            b = b_s.get(s, b_mean)
             bbl += hh[s] * (a / 365.0 + b * hdd[f"hdd_{s}"].values) / GAL_PER_BBL
             hh_covered += hh[s]
     scale = hh.sum() / hh_covered            # extrapolate to all oil households
@@ -129,8 +126,8 @@ def chart(fit_result):
                  "HDD model calibrated to EIA SEDS",
                  fontsize=12, fontweight="bold")
     fig.text(0.5, 0.005,
-             "demand = households × (baseline + slope × daily HDD), fitted on state-year "
-             "SEDS residential distillate 2018–2024 · ERA5 (~6-day lag) · ACS households",
+             "degree-day disaggregation of SEDS state residential distillate 2018–2024: "
+             "10% base load + per-state HDD slope · ERA5 (~6-day lag) · ACS households",
              ha="center", fontsize=7.5, color="0.45")
     fig.tight_layout()
     fig.savefig(OUT / "heatoil_bbl.webp", dpi=135, bbox_inches="tight",
