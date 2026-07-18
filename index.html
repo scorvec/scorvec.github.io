@@ -403,7 +403,7 @@
   fetch('https://scorvec.goatcounter.com/counter/TOTAL.json')
     .then(res => res.json())
     .then(data => {
-      document.getElementById('count').textContent = data.count;
+      document.getElementById('count').textContent = data.count_unique || data.count;
     })
     .catch(() => {
       document.getElementById('count').textContent = '—';
