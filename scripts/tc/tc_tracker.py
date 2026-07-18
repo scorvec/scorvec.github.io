@@ -72,6 +72,10 @@ BASINS = [  # (key, label, lon_w, lon_e, lat_s, lat_n)  lons in -180..180
 
 
 _LM = np.load(Path(__file__).parent / "land_mask_0p5.npz")
+# land dilated by 2 cells (~110 km): genesis must be OPEN ocean, which kills
+# semi-permanent coastal troughs (Panama Bight / lee-of-Andes Colombian low,
+# gulf-coast thermal lows) that are technically over water
+_NEAR_LAND = ndimage.binary_dilation(_LM["land"], iterations=2)
 
 # no-TC zones (climatologically cyclone-free enclosed/marginal seas whose
 # trough lows otherwise pass the MSLP gates): (lon_w, lon_e, lat_s, lat_n)
@@ -84,14 +88,27 @@ def excluded(lat, lon):
     return any(w <= lon <= e and s <= lat <= n for w, e, s, n in EXCLUDE)
 
 
-def is_ocean(lat, lon):
-    """Genesis must be over water (kills desert/plateau heat lows and lee
-    troughs). 0.5° Natural Earth mask, nearest-cell lookup."""
+def _cell(lat, lon):
     i = int(round((lat - _LM["lat"][0]) / 0.5))
     j = int(round((((lon + 180) % 360) - 180 - _LM["lon"][0]) / 0.5)) % len(_LM["lon"])
+    return i, j
+
+
+def is_ocean(lat, lon):
+    """Over water (0.5° Natural Earth mask, nearest cell)."""
+    i, j = _cell(lat, lon)
     if i < 0 or i >= len(_LM["lat"]):
         return False
     return not bool(_LM["land"][i, j])
+
+
+def is_open_ocean(lat, lon):
+    """≥ ~110 km from any coast — the genesis standard. Kills desert heat
+    lows AND semi-permanent coastal troughs (Panama Bight, lee of the Andes)."""
+    i, j = _cell(lat, lon)
+    if i < 0 or i >= len(_LM["lat"]):
+        return False
+    return not bool(_NEAR_LAND[i, j])
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -222,6 +239,8 @@ def link_tracks(cands, steps_h, summer_nh: bool):
             continue
         if max(p[5] for p in tr) < WIND_MIN:
             continue
+        if sum(is_ocean(p[1], p[2]) for p in tr) < 0.4 * len(tr):
+            continue                              # lives on/along land: monsoon/lee trough
         keep.append(tr)
     return keep
 
@@ -299,6 +318,13 @@ def strike_probability(all_tracks, n_members):
 # ── rendering ────────────────────────────────────────────────────────────────
 DARK_BG = "#0b1220"
 PANEL_BG = "#101a2e"
+
+# animator zooms: (key, label, lon_w, lon_e, lat_s, lat_n)
+ANIM_REGIONS = [
+    ("natl", "Atlantic · Gulf of Mexico · Caribbean", -100, -15, 5, 48),
+    ("epac", "East Pacific", -140, -75, 5, 35),
+    ("wpac", "West Pacific", 100, 180, 5, 45),
+]
 
 
 def _wind_color(w):
@@ -438,6 +464,98 @@ def render(clusters, all_tracks, prob_grid, n_members, init, out_dir: Path):
     return labeled
 
 
+def build_anim(coherent, labeled, prob_fn, n_members, init, anim_dir: Path):
+    """Per-forecast-day frames for each zoom region: strike probability
+    accumulated through day k, member track trails, day-k positions colored
+    by 10 m wind, genesis clusters labelled once born. One manifest/region."""
+    import json
+    anim_dir.mkdir(parents=True, exist_ok=True)
+    kmax = max((tr[-1][0] for _, tr in coherent), default=0)
+    ndays = max(kmax + 1, 1)
+    ver = int(pd.Timestamp.now().timestamp())
+    for key, label, w, e, s, nn in ANIM_REGIONS:
+        # tracks that ever enter the region box (with margin)
+        def in_box(tr):
+            return any(w - 6 <= p[2] <= e + 6 and s - 4 <= p[1] <= nn + 4 for p in tr)
+        rtracks = [(m, tr) for m, tr in coherent if in_box(tr)]
+        rclusters = [cl for cl in labeled
+                     if w - 3 <= cl["genesis"][2] <= e + 3 and s - 2 <= cl["genesis"][1] <= nn + 2]
+        rdir = anim_dir / key
+        rdir.mkdir(parents=True, exist_ok=True)
+        for old_f in rdir.glob("F*.webp"):
+            old_f.unlink()
+        frames = []
+        aspect = (nn - s) / (e - w)
+        figw = 10.4
+        figh = figw * aspect * 1.28 + 0.9
+        for k in range(ndays):
+            upto = [(m, [p for p in tr if p[0] <= k]) for m, tr in rtracks]
+            upto = [(m, tr) for m, tr in upto if tr]
+            glat, glon, prob = prob_fn(upto, n_members)
+            fig = plt.figure(figsize=(figw, figh), facecolor=DARK_BG)
+            ax = fig.add_subplot(1, 1, 1,
+                                 projection=ccrs.PlateCarree(central_longitude=(w + e) / 2))
+            _style_ax(ax, extent=[w, e, s, nn])
+            sel = (glon >= w - 5) & (glon <= e + 5)
+            pm = ax.pcolormesh(glon[sel], glat, np.where(prob[:, sel] > 0.02,
+                                                         prob[:, sel], np.nan),
+                               transform=ccrs.PlateCarree(), cmap="magma",
+                               vmin=0, vmax=0.9, alpha=0.8, zorder=1)
+            for m, tr in upto:
+                la = [p[1] for p in tr]; lo = [p[2] for p in tr]
+                ax.plot(lo, la, color="#9fd8ff", lw=0.5, alpha=0.3,
+                        transform=ccrs.Geodetic(), zorder=4)
+                cur = [p for p in tr if p[0] == k]
+                for p in cur:
+                    ax.plot(p[2], p[1], marker="o", ms=3.4, color=_wind_color(p[5]),
+                            mec="k", mew=0.25, alpha=0.9,
+                            transform=ccrs.PlateCarree(), zorder=5)
+            placed = []
+            for cl in sorted(rclusters, key=lambda c: -c["support"]):
+                g = cl["genesis"]
+                if g[0] > k:
+                    continue                          # not born yet
+                ax.plot(g[2], g[1], marker="o", ms=6, color="#fff59d", mec="k",
+                        mew=0.5, transform=ccrs.PlateCarree(), zorder=6)
+                if not (w + 2 <= g[2] <= e - 2 and s + 1.5 <= g[1] <= nn - 1.5):
+                    continue
+                if any(abs(g[1] - py) < 3.2 and abs(g[2] - px) < 8 for py, px in placed):
+                    continue
+                placed.append((g[1], g[2]))
+                dy = -2.4 if g[1] > nn - 4 else 1.6
+                ax.annotate(f"{cl['id']}  {cl['support']*100:.0f}%",
+                            xy=(g[2], g[1] + dy),
+                            xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
+                            color="#fff59d", fontsize=8.5, fontweight="bold",
+                            ha="center", zorder=7)
+            gl = ax.gridlines(draw_labels=True, linewidth=0.25, color="#2a4066",
+                              xlocs=range(-180, 181, 15), ylocs=range(-60, 61, 10))
+            gl.top_labels = gl.right_labels = False
+            gl.xlabel_style = gl.ylabel_style = {"color": "0.6", "size": 6.5}
+            valid = init + pd.Timedelta(days=k)
+            ax.set_title(f"{label} — TC-strength lows · AIFS-ENS + IFS-ENS "
+                         f"({n_members} members) · init {init:%Y-%m-%d %HZ}\n"
+                         f"day {k} (valid {valid:%a %b %d}) · shading = strike "
+                         f"probability through day {k} · ● day-{k} member positions",
+                         color="0.92", fontsize=10.3, fontweight="bold", pad=8)
+            cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.05,
+                              fraction=0.04, aspect=48)
+            cb.set_label("fraction of members with a track within 200 km",
+                         color="0.85", fontsize=8)
+            cb.ax.tick_params(colors="0.8", labelsize=7)
+            cb.outline.set_edgecolor("#41609a")
+            fp = rdir / f"F{k:02d}.webp"
+            fig.savefig(fp, dpi=118, bbox_inches="tight", facecolor=DARK_BG)
+            plt.close(fig)
+            frames.append({"idx": k, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
+                           "label": f"day {k} · valid {valid:%a %b %d}"})
+        mani = {"ver": ver, "days": len(frames),
+                "regions": {key: {"label": label, "n_frames": len(frames),
+                                  "frames": frames}}}
+        (anim_dir / f"{key}_manifest.json").write_text(json.dumps(mani))
+        print(f"  anim {key}: {len(frames)} frames")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
@@ -479,9 +597,16 @@ def main() -> int:
     supported = [cl for cl in clusters
                  if len({m for m, _ in cl["tracks"]}) >= MIN_SUPPORT * n_members]
     coherent = [mt for cl in supported for mt in cl["tracks"]]
-    prob_grid = strike_probability(coherent, n_members)
-    labeled = render(clusters, coherent, prob_grid, n_members, init,
-                     Path(args.out_dir))
+    # label ids/support (per basin, by genesis day)
+    by_basin = {}
+    for cl in sorted(supported, key=lambda c: c["genesis"][0]):
+        b = basin_of(cl["genesis"][1], cl["genesis"][2])
+        by_basin.setdefault(b, []).append(cl)
+        cl["id"] = f"{b.upper()}-{len(by_basin[b])}"
+        cl["support"] = len({m for m, _ in cl["tracks"]}) / n_members
+    labeled = supported
+    build_anim(coherent, labeled, strike_probability, n_members, init,
+               Path(args.out_dir) / "anim")
     print(f"  {len(all_tracks)} member-tracks → {len(clusters)} clusters, "
           f"{len(labeled)} labeled storms:")
     for cl in labeled:

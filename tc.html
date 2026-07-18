@@ -79,6 +79,10 @@
   .chart-card-header p + p { margin-top: 0.7rem; }
   .chart-card-header b { color: var(--ink); font-weight: 500; }
   .chart-img-wrap { padding: 0; background: #0b1220; }
+  .anim-embed { width: 100%; border: 0; display: block; background: #0b1220; }
+  .anim-embed.natl { aspect-ratio: 1220 / 810; }
+  .anim-embed.epac { aspect-ratio: 1220 / 700; }
+  .anim-embed.wpac { aspect-ratio: 1220 / 790; }
   .chart-img-wrap img { display: block; width: 100%; height: auto; }
   .chart-card-footer {
     padding: 0.85rem 1.8rem;
@@ -152,28 +156,45 @@
     <div class="chart-stack">
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Global Tracks &amp; 200-km Strike Probability</h2>
-        <p>Thin lines are per-member tracks of closed MSLP minima (&ge;2&nbsp;hPa deeper than the surrounding 5&deg; ring, peak 10&nbsp;m wind &ge;14&nbsp;m/s), linked at 24-hour steps and truncated at extratropical transition. Numbered dots mark ensemble genesis clusters; the roster below the map lists each storm's member support and genesis point.</p>
+        <h2>Atlantic &middot; Gulf of Mexico &middot; Caribbean</h2>
+        <p>Step through the 15-day forecast: shading is the strike probability accumulated <b>through the shown day</b>, thin lines are per-member tracks so far, and dots are each member's storm position on that day, colored by 10&nbsp;m wind. Yellow markers are ensemble genesis clusters (labelled with the share of members that develop the storm, once born).</p>
       </div>
       <div class="chart-img-wrap">
-        <img src="assets/tc/tc_global.webp?v=init" alt="Global ensemble tropical cyclone tracker: per-member AIFS-ENS and IFS-ENS MSLP-minimum tracks and 200-km strike probability to day 15" loading="lazy">
+        <iframe class="anim-embed natl" src="sst_anim.html?embed=1&amp;base=assets/tc/anim&amp;manifest=assets/tc/anim/natl_manifest.json&amp;region=natl"
+                title="Atlantic, Gulf of Mexico and Caribbean ensemble tropical cyclone forecast animation" loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
-        <span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS MSLP &amp; 10 m wind, 101 members (open data, CC BY 4.0) &middot; 0.25&deg; &middot; daily steps to day 15</span>
+        <span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS MSLP &amp; 10 m wind, 101 members (open data, CC BY 4.0) &middot; daily steps to day 15</span>
         <span class="chart-updated">updated each cycle</span>
       </div>
     </div>
 
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Active-Basin Detail</h2>
-        <p>Zoomed panels for every basin with a labelled storm. Track dots are colored by each member's peak 10&nbsp;m wind near the center &mdash; <b>grid-scale daily winds understate true intensity</b>, so treat the colors as relative strength, not Saffir-Simpson categories.</p>
+        <h2>East Pacific</h2>
+        <p>Same animation for the East Pacific basin, including the Central American coast.</p>
       </div>
       <div class="chart-img-wrap">
-        <img src="assets/tc/tc_basins.webp?v=init" alt="Per-basin ensemble tropical cyclone detail: member tracks, intensities and strike probability for each active basin" loading="lazy">
+        <iframe class="anim-embed epac" src="sst_anim.html?embed=1&amp;base=assets/tc/anim&amp;manifest=assets/tc/anim/epac_manifest.json&amp;region=epac"
+                title="East Pacific ensemble tropical cyclone forecast animation" loading="lazy"></iframe>
       </div>
       <div class="chart-card-footer">
-        <span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC BY 4.0) &middot; intensity from 10 m wind within 2&deg; of center</span>
+        <span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS, 101 members (open data, CC BY 4.0)</span>
+        <span class="chart-updated">updated each cycle</span>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>West Pacific</h2>
+        <p>Same animation for the West Pacific, the most active basin on Earth.</p>
+      </div>
+      <div class="chart-img-wrap">
+        <iframe class="anim-embed wpac" src="sst_anim.html?embed=1&amp;base=assets/tc/anim&amp;manifest=assets/tc/anim/wpac_manifest.json&amp;region=wpac"
+                title="West Pacific ensemble tropical cyclone forecast animation" loading="lazy"></iframe>
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS, 101 members (open data, CC BY 4.0)</span>
         <span class="chart-updated">updated each cycle</span>
       </div>
     </div>
@@ -181,7 +202,7 @@
 
     <div class="colophon">
       <h3>Method</h3>
-      <p>Candidate centers are local sea-level-pressure minima on each member's own 0.25&deg; field that are at least 2&nbsp;hPa deeper than the mean pressure on a surrounding ~5&deg; ring (a closed-circulation test), over water, equatorward of 30&deg; at genesis (20&deg; in the winter hemisphere, where subtropical lows masquerade as TCs), and outside climatologically cyclone-free seas. Centers are linked across daily steps with a motion-extrapolated 800&nbsp;km gate, kept when the track lives &ge;3 days with peak 10&nbsp;m winds &ge;14&nbsp;m/s, and truncated at 42&deg; latitude as an extratropical-transition proxy. Tracks from all members are clustered into storms when genesis points agree within 600&nbsp;km and two days; only storms supported by &ge;15% of members are shown, so what survives is the coherent ensemble signal rather than single-member noise. Monsoon depressions (Bay of Bengal, Arabian Sea) legitimately pass these gates and are shown &mdash; they are TC-family systems.</p>
+      <p>Candidate centers are local sea-level-pressure minima on each member's own 0.25&deg; field that are at least 2&nbsp;hPa deeper than the mean pressure on a surrounding ~5&deg; ring (a closed-circulation test), over open ocean (&ge;~110&nbsp;km from any coast, which removes semi-permanent coastal troughs like the lee-of-the-Andes Colombian low), equatorward of 30&deg; at genesis (20&deg; in the winter hemisphere, where subtropical lows masquerade as TCs), and outside climatologically cyclone-free seas. Centers are linked across daily steps with a motion-extrapolated 800&nbsp;km gate, kept when the track lives &ge;3 days with peak 10&nbsp;m winds &ge;14&nbsp;m/s, truncated at 42&deg; latitude as an extratropical-transition proxy, and required to spend at least 40% of their fixes over water (landfalling storms pass; lows living on or along land do not). Tracks from all members are clustered into storms when genesis points agree within 600&nbsp;km and two days; only storms supported by &ge;15% of members are shown, so what survives is the coherent ensemble signal rather than single-member noise. Monsoon depressions (Bay of Bengal, Arabian Sea) legitimately pass these gates and are shown &mdash; they are TC-family systems.</p>
       <p>No bogus/relocation data is used: tracks come purely from the forecast fields, so position and existence uncertainty are the ensemble's own. Support percentages are genesis probabilities in the loose sense (share of members producing a matching storm), and the strike-probability shading counts members whose track passes within 200&nbsp;km of a point at any time in the 15 days.</p>
     </div>
   </div>
