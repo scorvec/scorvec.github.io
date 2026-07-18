@@ -63,6 +63,13 @@ MCF_PER_MWH = GAS_HR / MMBTU_MCF           # ≈ 7.44
 COAL_HR = 10.2                             # MMBtu/MWh, EIA avg coal fleet
 MMBTU_TON = 19.2                           # MMBtu per short ton (US power coal mix)
 TON_PER_MWH = COAL_HR / MMBTU_TON          # ≈ 0.531
+# Named winter events annotated on the charts: (nominal date, label). The line
+# is drawn at the DAILY-TOTAL PEAK within ±12 days of the nominal date, so the
+# label lands on the actual burn spike, not on our guess of the storm timing.
+STORMS = [("2021-02-15", "Uri"), ("2022-12-24", "Elliott"),
+          ("2024-01-16", "Jan '24 outbreak"), ("2025-01-08", "Blair"),
+          ("2025-01-21", "Enzo"), ("2026-02-05", "Fern")]
+
 EXPLICIT = ["FLA", "NE", "NY", "MIDA", "SE"]         # oil: shown individually
 EXPLICIT_GAS = ["TEX", "SE", "FLA", "MIDA", "MIDW"]  # gas: the big burners
 EXPLICIT_COAL = ["MIDW", "MIDA", "SE", "CENT", "TEX"]  # coal heartland
@@ -125,6 +132,17 @@ def render_fuel(vol: pd.DataFrame, unit: str, title: str, explicit_ids: list,
     a0.set_title(f"{title} — 30-day mean by grid region, "
                  f"Jul 2018 – {vol.index[-1]:%b %Y}",
                  fontsize=12, fontweight="bold", loc="left")
+    for nominal, name in STORMS:
+        d0 = pd.Timestamp(nominal)
+        win = tot[(tot.index >= d0 - pd.Timedelta(days=12)) &
+                  (tot.index <= d0 + pd.Timedelta(days=12))]
+        if win.empty:
+            continue
+        dpk = win.idxmax()
+        a0.axvline(dpk, color="0.35", lw=0.8, ls=":", alpha=0.8)
+        a0.annotate(name, xy=(dpk, a0.get_ylim()[1]), xytext=(2, -2),
+                    textcoords="offset points", rotation=90, va="top", ha="left",
+                    fontsize=7, color="0.35")
     a0.legend(fontsize=8, loc="upper right" if "Oil" in title else "upper left",
               ncol=2, framealpha=0.9)
 
@@ -163,7 +181,8 @@ def main() -> int:
     render_fuel(oil * BBL_PER_MWH / 1000.0, "thousand barrels / day",
                 "Oil burned for US electricity", EXPLICIT, OUT_OIL,
                 f"kb/d = MWh × {HEAT_RATE} MMBtu/MWh ÷ {MMBTU_BBL} MMBtu/bbl "
-                f"≈ MWh × {BBL_PER_MWH:.2f}/1000")
+                f"≈ MWh × {BBL_PER_MWH:.2f}/1000 · NY is a LOWER BOUND (NYISO "
+                "dual-fuel units are not fuel-split when they switch to oil)")
     gas = fetch_daily("NG")
     print(f"  NG: {len(gas)} days → {gas.index[-1]:%Y-%m-%d}")
     render_fuel(gas * MCF_PER_MWH / 1e6, "Bcf / day",
