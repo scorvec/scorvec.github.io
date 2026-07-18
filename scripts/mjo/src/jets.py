@@ -82,7 +82,7 @@ def main() -> int:
     k200 = int(np.where(p_hpa == JET_LEV)[0][0])
 
     # per-member jet metrics at every lead → (mem, step, 4)
-    mets = np.array([[jet_metrics(ub[m, k], lat) for k in range(ub.shape[1])]
+    mets = np.array([[jet_metrics(ub[m, k, k200], lat) for k in range(ub.shape[1])]
                      for m in range(ub.shape[0])])
     mmean = mets.mean(axis=0)
 
@@ -90,7 +90,8 @@ def main() -> int:
     doys = np.array([v.dayofyear for v in valid], float)
     met_cl = np.stack([_harm(c["met_coeffs"].values, d) for d in doys])   # (step, 4)
     var_cl = np.stack([_harm(c["var_coeffs"].values, d) for d in doys])
-    floor = float(c.attrs.get("floor_frac", 0.1)) ** 2 * np.nanmean(var_cl, axis=0)
+    floor = np.maximum(float(c.attrs.get("floor_frac", 0.1)) ** 2
+                       * np.abs(np.nanmean(var_cl, axis=0)), 1e-6)
     sig_cl = np.sqrt(np.maximum(var_cl, floor[None, :]))
 
     # analysis cross-section anomaly vs clim
@@ -117,6 +118,7 @@ def main() -> int:
     ax.set_ylim(1000, 100); ax.set_yscale("log")
     ax.set_yticks([1000, 850, 700, 500, 300, 200, 100])
     ax.set_yticklabels([1000, 850, 700, 500, 300, 200, 100])
+    ax.minorticks_off()
     ax.set_xlim(-75, 75); ax.set_xticks(range(-75, 76, 15))
     ax.set_ylabel("pressure (hPa)")
     zs_n = (nh_s - met_cl[0, 0]) / sig_cl[0, 0]
