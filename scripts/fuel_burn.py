@@ -143,7 +143,7 @@ def render_fuel(vol: pd.DataFrame, unit: str, title: str, explicit_ids: list,
         a0.annotate(name, xy=(dpk, a0.get_ylim()[1]), xytext=(2, -2),
                     textcoords="offset points", rotation=90, va="top", ha="left",
                     fontsize=7, color="0.35")
-    a0.legend(fontsize=8, loc="upper right" if "Oil" in title else "upper left",
+    a0.legend(fontsize=8, loc="upper left",
               ncol=2, framealpha=0.9)
 
     t0 = vol.index[-1] - pd.DateOffset(months=24)
