@@ -180,9 +180,16 @@ def _residential_kbd() -> "pd.Series":
     hdd = pd.read_csv(hdir / "oil_hdd_daily.csv", parse_dates=["date"])
     cal = json.loads((hdir / "calibration.json").read_text())
     w = pd.read_csv(hdir / "oil_household_weights.csv")
-    import sys
-    sys.path.insert(0, str(hdir))
-    from hdd_index import STATE_ABBR, TOP_STATES
+    # constants inlined (importing hdd_index drags xarray/era5_store, which
+    # the slim Actions env doesn't have)
+    STATE_ABBR = {
+        "Connecticut": "CT", "Maine": "ME", "Massachusetts": "MA",
+        "New Hampshire": "NH", "New Jersey": "NJ", "New York": "NY",
+        "Pennsylvania": "PA", "Rhode Island": "RI", "Vermont": "VT",
+        "Maryland": "MD", "Virginia": "VA", "North Carolina": "NC",
+        "Ohio": "OH", "Alaska": "AK", "Washington": "WA", "Michigan": "MI"}
+    TOP_STATES = ["NY", "PA", "MA", "CT", "ME", "NJ", "NH", "MD", "RI", "VA",
+                  "VT", "NC", "OH", "AK", "WA", "MI"]
     st = w["NAME"].str.split(", ").str[-1].map(STATE_ABBR)
     hh = w.groupby(st)["fuel_oil"].sum()
     a_s, b_s = cal["a_state_gal_hh_yr"], cal["b_state_gal_hh_hdd"]
