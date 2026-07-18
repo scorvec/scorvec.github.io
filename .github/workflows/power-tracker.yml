@@ -33,10 +33,10 @@ jobs:
       - name: Build combined wind+solar tracker JSON
         run: python scripts/power_hero.py
 
-      - name: Oil burned for electricity (kb/d by region)
+      - name: Fuel burn for electricity (oil kb/d + gas Bcf/d by region)
         env:
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
-        run: python scripts/oil_burn.py || echo "oil-burn build failed; keeping prior chart"
+        run: python scripts/fuel_burn.py || echo "fuel-burn build failed; keeping prior chart"
 
       - name: Commit & push
         run: |
