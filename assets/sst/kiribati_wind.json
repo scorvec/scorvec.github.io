@@ -1,11 +1,11 @@
 {
-  "updated": "2026-07-18T08:59Z",
+  "updated": "2026-07-18T10:41Z",
   "stations": {
     "NGTA": {
       "name": "Tarawa",
       "lat": 1.4,
       "lon": 173.0,
-      "time": "2026-07-18T08:00Z",
+      "time": "2026-07-18T10:00Z",
       "dir": 300,
       "spd_kt": 7,
       "u_ms": 3.1
