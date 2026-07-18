@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-18T14:57Z",
+  "generated_at": "2026-07-18T15:15Z",
   "source": "EIA-930 (Hourly Electric Grid Monitor) via EIA API v2, respondent US48 (demand)",
   "denominator_kind": "demand",
   "latest_period": "2026-07-18T14:00Z",
@@ -7,12 +7,6 @@
   "wind_actual_GW": null,
   "solar_actual_GW": null,
   "series": [
-    {
-      "period": "2026-07-15T14:00Z",
-      "total_GW": 563.71,
-      "wind_GW": 19.2,
-      "solar_GW": 56.12
-    },
     {
       "period": "2026-07-15T15:00Z",
       "total_GW": 598.2,
