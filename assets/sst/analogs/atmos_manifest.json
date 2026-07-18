@@ -1,8 +1,8 @@
 {
  "events": [
   {
-   "label": "1982\u201383",
-   "y0": 1982,
+   "label": "1972\u201373",
+   "y0": 1972,
    "months": [
     6,
     7,
@@ -20,8 +20,8 @@
    "current": false
   },
   {
-   "label": "1991\u201392",
-   "y0": 1991,
+   "label": "1982\u201383",
+   "y0": 1982,
    "months": [
     6,
     7,
@@ -104,7 +104,7 @@
    "current": true
   }
  ],
- "updated": "2026-07-17 19:04 UTC",
+ "updated": "2026-07-18 12:08 UTC",
  "vars": {
   "z500": "500 hPa height anomaly",
   "mslp": "Sea-level pressure anomaly",
