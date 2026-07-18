@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fossil fuel burned for US electricity, by grid region: oil in thousand
-barrels per day (kb/d) and natural gas in billion cubic feet per day (Bcf/d).
+barrels per day (kb/d), natural gas in billion cubic feet per day (Bcf/d),
+and coal in thousand short tons per day (kst/d).
 
 EIA-930 daily petroleum ("OIL") net generation per grid region (EIA Open Data
 API v2, daily-fuel-type-data, July 2018 → present), converted to implied crude
@@ -40,6 +41,7 @@ import matplotlib.pyplot as plt
 HERE = Path(__file__).resolve().parent
 OUT_OIL = HERE.parent / "assets" / "power_data" / "oil_burn.webp"
 OUT_GAS = HERE.parent / "assets" / "power_data" / "gas_burn.webp"
+OUT_COAL = HERE.parent / "assets" / "power_data" / "coal_burn.webp"
 
 EIA_KEY = os.environ.get("EIA_API_KEY", "") or (
     Path.home().joinpath(".eia_key").read_text().strip()
@@ -58,8 +60,12 @@ BBL_PER_MWH = HEAT_RATE / MMBTU_BBL        # ≈ 1.781
 GAS_HR = 7.72                              # MMBtu/MWh, EIA avg gas fleet (CC-dominated)
 MMBTU_MCF = 1.037                          # MMBtu per Mcf (EIA convention)
 MCF_PER_MWH = GAS_HR / MMBTU_MCF           # ≈ 7.44
-EXPLICIT = ["FLA", "NE", "NY", "MIDA", "SE"]        # oil: shown individually
-EXPLICIT_GAS = ["TEX", "SE", "FLA", "MIDA", "MIDW"] # gas: the big burners
+COAL_HR = 10.2                             # MMBtu/MWh, EIA avg coal fleet
+MMBTU_TON = 19.2                           # MMBtu per short ton (US power coal mix)
+TON_PER_MWH = COAL_HR / MMBTU_TON          # ≈ 0.531
+EXPLICIT = ["FLA", "NE", "NY", "MIDA", "SE"]         # oil: shown individually
+EXPLICIT_GAS = ["TEX", "SE", "FLA", "MIDA", "MIDW"]  # gas: the big burners
+EXPLICIT_COAL = ["MIDW", "MIDA", "SE", "CENT", "TEX"]  # coal heartland
 
 
 def fetch_daily(fueltype: str) -> pd.DataFrame:
@@ -163,6 +169,11 @@ def main() -> int:
     render_fuel(gas * MCF_PER_MWH / 1e6, "Bcf / day",
                 "Natural gas burned for US electricity", EXPLICIT_GAS, OUT_GAS,
                 f"Bcf/d = MWh × {GAS_HR} MMBtu/MWh ÷ {MMBTU_MCF} MMBtu/Mcf ÷ 10⁶")
+    coal = fetch_daily("COL")
+    print(f"  COL: {len(coal)} days → {coal.index[-1]:%Y-%m-%d}")
+    render_fuel(coal * TON_PER_MWH / 1000.0, "thousand short tons / day",
+                "Coal burned for US electricity", EXPLICIT_COAL, OUT_COAL,
+                f"kst/d = MWh × {COAL_HR} MMBtu/MWh ÷ {MMBTU_TON} MMBtu/ton ÷ 1000")
     return 0
 
 
