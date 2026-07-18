@@ -343,7 +343,7 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Real-Time Demand Estimate &mdash; Thousand Barrels per Day</h2>
-        <p>The HDD index converted to physical barrels: each state's oil-heating households &times; (baseline + burn-per-HDD), <b>calibrated to EIA SEDS annual residential distillate with state fixed effects</b>. Levels are anchored to reported consumption; the daily shape is weather. Rough by construction &mdash; it ignores prices, tank-fill timing and behavior &mdash; but it turns a cold snap into a barrels number the same day ERA5 reports it.</p>
+        <p>The HDD index converted to physical barrels: a degree-day disaggregation of <b>EIA SEDS state residential distillate</b>: 10% base load (water heaters) plus a per-state burn-per-HDD slope, so reported annual totals are reproduced exactly and the daily shape is weather. Rough by construction &mdash; it ignores prices, tank-fill timing and behavior &mdash; but it turns a cold snap into a barrels number the same day ERA5 reports it.</p>
       </div>
       <div class="chart-img-wrap">
         <img src="assets/power_data/heatoil_bbl.webp" alt="Estimated US residential heating oil demand in thousand barrels per day, current season vs 2018-2025 envelope" loading="lazy" style="width:100%;height:auto;">
