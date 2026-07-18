@@ -224,12 +224,14 @@ _CONN_SLOTS = threading.Semaphore(max(1, MAX_CONN // CHUNK_MSGS))
 # analysis). STEPS_FC = forecast days only (used by the SOI/Hovmöller, which don't).
 STEPS = [0] + list(range(24, 361, 24))
 STEPS_FC = list(range(24, 361, 24))
-LEVELS_AAM = (50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000)
+#   10 hPa included so the AAM integral covers the full column (top layer 0–30 hPa —
+#   the winter polar-night jet, worth up to ±1×10²⁵ kg m² s⁻¹; open data has no 20/30 hPa).
+LEVELS_AAM = (10, 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000)
 LEVELS_RMM = (200, 850)                                        # the MJO/RMM task downloads these
-LEVELS_AAM_REST = tuple(l for l in LEVELS_AAM if l not in LEVELS_RMM)   # AAM downloads the other 11
-#   The RMM (200/850) and AAM (the other 11) u-downloads are kept SEPARATE so the light RMM
+LEVELS_AAM_REST = tuple(l for l in LEVELS_AAM if l not in LEVELS_RMM)   # AAM downloads the other 12
+#   The RMM (200/850) and AAM (the other 12) u-downloads are kept SEPARATE so the light RMM
 #   critical-path isn't blocked behind the ~6 GB AAM pull, with NO duplicate level: 200/850 is
-#   fetched once (by RMM) and the AAM builder concatenates the two files back to 13 levels.
+#   fetched once (by RMM) and the AAM builder concatenates the two files back to 14 levels.
 
 
 @dataclass(frozen=True)

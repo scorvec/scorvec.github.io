@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Ensemble Tropical Cyclone Tracker — AIFS-ENS + IFS-ENS Tracks &amp; Strike Probability · Shawn Corvec</title>
+<meta name="description" content="Global tropical-cyclone tracker from 101 ECMWF ensemble members (AIFS-ENS + IFS-ENS): per-member MSLP-minimum tracks to day 15, ensemble genesis clusters with member support, and 200-km strike probability, updated each cycle for every basin."><link rel="canonical" href="https://scorvec.com/tc.html">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html, body { height: 100%; }
+  @media (min-width: 768px) { html { font-size: 110%; } }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+  main {
+    flex: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 7.5rem 2.5rem 5rem;
+    width: 100%;
+  }
+  .page-header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .page-header p {
+    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+  }
+  .chart-stack { display: flex; flex-direction: column; gap: 3rem; }
+  .chart-card { border: 1px solid var(--rule); background: #fff; overflow: hidden; }
+  .chart-card-header {
+    padding: 1.5rem 1.8rem 1.3rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
+    margin-bottom: 0.6rem; color: var(--ink);
+  }
+  .chart-card-header p { font-size: 0.85rem; color: var(--muted); line-height: 1.7; }
+  .chart-card-header p + p { margin-top: 0.7rem; }
+  .chart-card-header b { color: var(--ink); font-weight: 500; }
+  .chart-img-wrap { padding: 0; background: #0b1220; }
+  .chart-img-wrap img { display: block; width: 100%; height: auto; }
+  .chart-card-footer {
+    padding: 0.85rem 1.8rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .chart-sources { font-size: 0.68rem; color: var(--muted); }
+  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+  .colophon {
+    margin-top: 4rem; padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+  }
+  .colophon h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    color: var(--ink); margin-bottom: 0.5rem;
+  }
+  .colophon p + p { margin-top: 0.7rem; }
+  footer {
+    padding: 1.2rem 3rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .nav-links { gap: 1.3rem; }
+    main { padding: 6.5rem 1.5rem 3.5rem; }
+    .page-header h1 { font-size: 1.6rem; }
+    .chart-stack { gap: 2.2rem; }
+    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
+    .chart-card-footer { padding: 0.75rem 1.3rem; }
+  }
+  @media (max-width: 480px) {
+    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .nav-links { gap: 1rem; }
+    .nav-links a { font-size: 0.78rem; }
+    main { padding: 5.5rem 1rem 3rem; }
+    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
+    .chart-stack { gap: 1.8rem; }
+    .chart-card-header { padding: 1.1rem 1.1rem 0.9rem; }
+    .chart-card-footer { padding: 0.7rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+  }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="resume.html">Resume</a></li>
+    <li><a href="research.html">Research</a></li>
+    <li><a href="gallery.html">Gallery</a></li>
+  </ul>
+</nav>
+
+<main>
+  <div class="content">
+    <header class="page-header" style="margin:4.5rem 0 0.5rem;">
+      <h1 style="font-family:var(--serif);font-size:1.9rem;margin:2rem 0 0.6rem;">Global Ensemble Tropical Cyclone Tracker</h1>
+      <p style="color:var(--muted);max-width:56rem;">Every tropical-cyclone-strength low in 101 ECMWF ensemble members (51 AIFS-ENS + 50 IFS-ENS), tracked to day 15 from the members' own sea-level pressure fields. Ensemble genesis clusters are labelled with the share of members that develop the storm; shading is the probability of a track passing within 200&nbsp;km.</p>
+    </header>
+
+    <div class="chart-stack">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Global Tracks &amp; 200-km Strike Probability</h2>
+        <p>Thin lines are per-member tracks of closed MSLP minima (&ge;2&nbsp;hPa deeper than the surrounding 5&deg; ring, peak 10&nbsp;m wind &ge;14&nbsp;m/s), linked at 24-hour steps and truncated at extratropical transition. Numbered dots mark ensemble genesis clusters; the roster below the map lists each storm's member support and genesis point.</p>
+      </div>
+      <div class="chart-img-wrap">
+        <img src="assets/tc/tc_global.webp?v=init" alt="Global ensemble tropical cyclone tracker: per-member AIFS-ENS and IFS-ENS MSLP-minimum tracks and 200-km strike probability to day 15" loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS MSLP &amp; 10 m wind, 101 members (open data, CC BY 4.0) &middot; 0.25&deg; &middot; daily steps to day 15</span>
+        <span class="chart-updated">updated each cycle</span>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Active-Basin Detail</h2>
+        <p>Zoomed panels for every basin with a labelled storm. Track dots are colored by each member's peak 10&nbsp;m wind near the center &mdash; <b>grid-scale daily winds understate true intensity</b>, so treat the colors as relative strength, not Saffir-Simpson categories.</p>
+      </div>
+      <div class="chart-img-wrap">
+        <img src="assets/tc/tc_basins.webp?v=init" alt="Per-basin ensemble tropical cyclone detail: member tracks, intensities and strike probability for each active basin" loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC BY 4.0) &middot; intensity from 10 m wind within 2&deg; of center</span>
+        <span class="chart-updated">updated each cycle</span>
+      </div>
+    </div>
+    </div>
+
+    <div class="colophon">
+      <h3>Method</h3>
+      <p>Candidate centers are local sea-level-pressure minima on each member's own 0.25&deg; field that are at least 2&nbsp;hPa deeper than the mean pressure on a surrounding ~5&deg; ring (a closed-circulation test), over water, equatorward of 30&deg; at genesis (20&deg; in the winter hemisphere, where subtropical lows masquerade as TCs), and outside climatologically cyclone-free seas. Centers are linked across daily steps with a motion-extrapolated 800&nbsp;km gate, kept when the track lives &ge;3 days with peak 10&nbsp;m winds &ge;14&nbsp;m/s, and truncated at 42&deg; latitude as an extratropical-transition proxy. Tracks from all members are clustered into storms when genesis points agree within 600&nbsp;km and two days; only storms supported by &ge;15% of members are shown, so what survives is the coherent ensemble signal rather than single-member noise. Monsoon depressions (Bay of Bengal, Arabian Sea) legitimately pass these gates and are shown &mdash; they are TC-family systems.</p>
+      <p>No bogus/relocation data is used: tracks come purely from the forecast fields, so position and existence uncertainty are the ensemble's own. Support percentages are genesis probabilities in the loose sense (share of members producing a matching storm), and the strike-probability shading counts members whose track passes within 200&nbsp;km of a point at any time in the 15 days.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <p class="counter"></p>
+</footer>
+<script>
+fetch("https://scorvec.goatcounter.com/counter/TOTAL.json")
+  .then(r => r.json())
+  .then(d => { document.querySelector(".counter").innerHTML =
+    "site visits &nbsp;<span>" + (d.count_unique || d.count) + "</span>"; })
+  .catch(() => {});
+</script>
+</body>
+</html>

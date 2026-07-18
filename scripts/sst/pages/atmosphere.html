@@ -145,7 +145,7 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Atmospheric Angular Momentum</h2>
-        <p>Relative AAM is the angular momentum carried by the winds, the atmosphere's total westerly momentum, &int;&nbsp;u&middot;cos&sup2;&phi; over the whole globe. It is dominated by the upper-tropospheric subtropical jets and the deep tropics (largest moment arm), shown here for the globe and each hemisphere from the AIFS-ENS 13-level winds. The top panel is this year's observed AAM (black) and the 15-day forecast (red) on the climatological annual cycle; the hemispheres are strongly out of phase (each peaks in its own winter). The bottom panel is the anomaly (departure from the 1991&ndash;2020 normal), which removes the seasonal cycle. El&nbsp;Ni&ntilde;o strengthens the subtropical jets and weakens the trades, so the atmosphere holds more westerly momentum; AAM also ties to length of day.</p>
+        <p>Relative AAM is the angular momentum carried by the winds, the atmosphere's total westerly momentum, &int;&nbsp;u&middot;cos&sup2;&phi; over the whole globe. It is dominated by the upper-tropospheric subtropical jets and the deep tropics (largest moment arm), shown here for the globe and each hemisphere from the AIFS-ENS winds on 14 pressure levels (10&ndash;1000&nbsp;hPa &mdash; the full column, validated against the 37-level ERA5 integral and GFZ's ESMGFZ wind-term series to ~1%). The top panel is this year's observed AAM (black) and the 15-day forecast (red) on the climatological annual cycle; the hemispheres are strongly out of phase (each peaks in its own winter). The bottom panel is the anomaly (departure from the 1991&ndash;2020 normal), which removes the seasonal cycle. El&nbsp;Ni&ntilde;o strengthens the subtropical jets and weakens the trades, so the atmosphere holds more westerly momentum; AAM also ties to length of day.</p>
       </div>
       <div class="img-wrap"><img src="assets/sst/aam.webp?v=__CACHE__" alt="Global and hemispheric atmospheric angular momentum: observed + AIFS-ENS forecast, absolute and anomaly" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">Forecast: ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; climatology &amp; this-year observed: ERA5 (Copernicus C3S / ECMWF) &middot; updated daily</span></div>
@@ -186,7 +186,7 @@
       </div>
       <iframe class="anim-embed aam-zonal" src="sst_anim.html?embed=1&amp;manifest=aam_zonal_manifest.json&amp;region=aam_zonal"
               title="AIFS-ENS relative AAM anatomy: absolute and forecast change by latitude and pressure" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind + surface pressure (open data, CC BY 4.0) &middot; ensemble mean &middot; updated daily</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS zonal wind (13 tropospheric levels, 50&ndash;1000&nbsp;hPa) + surface pressure (open data, CC BY 4.0) &middot; ensemble mean &middot; updated daily</span></div>
     </div>
 
     <!-- MERIDIONAL MASS STREAMFUNCTION (Hadley cell response) -->
@@ -219,8 +219,10 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Subtropical Jets: Strength &amp; Position vs Normal</h2>
-        <p>El&nbsp;Ni&ntilde;o's most robust extratropical signature is a stronger, equatorward-shifted subtropical jet in each winter hemisphere. <b>Top</b>: the zonal-mean zonal wind $[u](\phi,p)$ at the analysis &mdash; colour is the anomaly against the ERA5 1991&ndash;2020 day-of-year normal, contours the absolute jets, &#9660; the 200&nbsp;hPa subtropical cores. <b>Below</b>: the forecast evolution of each core's <b>speed</b> and <b>latitude</b> (max $[u]$ at 200&nbsp;hPa within 15&ndash;45&deg;), ensemble members and mean against the climatological normal &plusmn;1&sigma; band, with the analysis departure quoted in &sigma; &mdash; the "how anomalous are the jets right now" number.</p>
+        <p>El&nbsp;Ni&ntilde;o's most robust extratropical signature is a stronger, equatorward-shifted subtropical jet in each winter hemisphere. <b>Top</b>: the zonal-mean zonal wind $[u](\phi,p)$ at the analysis &mdash; colour is the anomaly against the ERA5 1991&ndash;2020 day-of-year normal, contours the absolute jets, &#9660; the 200&nbsp;hPa subtropical cores. <b>Below</b>: the forecast evolution of each core's <b>speed</b> and <b>latitude</b> (max $[u]$ at 200&nbsp;hPa within 15&ndash;45&deg;), ensemble members and mean against the climatological normal &plusmn;1&sigma; band, with the analysis departure quoted in &sigma; &mdash; the "how anomalous are the jets right now" number. The animation steps the ensemble-mean cross-section through the 15-day forecast (&#9660; forecast cores, &#9661; their climatological positions).</p>
       </div>
+      <iframe class="anim-embed jets" src="sst_anim.html?embed=1&amp;manifest=jets_manifest.json&amp;region=jets"
+              title="Subtropical jet forecast animation: zonal-mean wind anomaly cross-section, day 0-15 from AIFS-ENS" loading="lazy"></iframe>
       <div class="img-wrap"><img src="assets/sst/jets.webp?v=__CACHE__" alt="Subtropical jet monitor: zonal-mean wind cross-section anomaly and jet-core strength/latitude forecast vs ERA5 climatology" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind, 51 members (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 harmonic day-of-year normal &plusmn;1&sigma; (WeatherBench2 / Copernicus C3S) &middot; updated daily</span></div>
     </div>
