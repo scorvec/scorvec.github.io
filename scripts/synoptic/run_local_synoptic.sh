@@ -103,12 +103,26 @@ done
 # then force-push. main's manifests are only advanced AFTER the frames they reference are on the
 # branch, so the viewer never points at frames that don't exist yet.
 git_lock || { echo "git lock busy; leaving for the next run"; exit 0; }
+# Stage frames under a CYCLE-STAMPED dir at the branch root (same layout as the
+# Actions fallback): new URLs each cycle, so jsDelivr edges never serve stale
+# frames — the ?v= query-string busting never worked (jsDelivr ignores it).
+STAGE="$(mktemp -d)"
+mkdir -p "$STAGE/$COMPACT"
+for d in assets/synoptic/*/; do
+  v="$(basename "$d")"
+  [ -d "$d" ] || continue
+  find "$d" -name 'F*.webp' | grep -q . || continue
+  mkdir -p "$STAGE/$COMPACT/$v"
+  cp -R "$d". "$STAGE/$COMPACT/$v/"
+done
 IDX="$(mktemp)"
-GIT_INDEX_FILE="$IDX" git read-tree --empty
-GIT_INDEX_FILE="$IDX" git add -f assets/synoptic                      # -f: frame webp are gitignored on main
+( cd "$STAGE"
+  GIT_INDEX_FILE="$IDX" git --git-dir="$REPO/.git" --work-tree="$STAGE" read-tree --empty
+  GIT_INDEX_FILE="$IDX" git --git-dir="$REPO/.git" --work-tree="$STAGE" add -Af . )
 FTREE="$(GIT_INDEX_FILE="$IDX" git write-tree)"; rm -f "$IDX"
 FCOMMIT="$(git commit-tree "$FTREE" -m "synoptic frames ${COMPACT}")"  # parent-less → orphan, no history
 git update-ref refs/heads/synoptic-frames "$FCOMMIT"
+rm -rf "$STAGE"
 pushed_frames=0
 for i in 1 2 3; do
   if git push -f origin synoptic-frames; then pushed_frames=1; break; fi
@@ -118,7 +132,6 @@ if [ "$pushed_frames" != 1 ]; then
   echo "ERROR: could not publish frames to synoptic-frames; leaving main at the prior cycle (consistent)."
   git_unlock; exit 1
 fi
-curl -s "https://purge.jsdelivr.net/gh/scorvec/scorvec.github.io@synoptic-frames/" >/dev/null 2>&1 || true
 
 # Now advance main with the small bits only: manifests/metadata + viewer + charts stamp.
 cp "$REPO/scripts/synoptic/viewer.html" "$REPO/assets/synoptic/viewer.html"

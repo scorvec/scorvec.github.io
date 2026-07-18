@@ -113,6 +113,7 @@
     button.play { min-width: 2.6rem; }
   }
 </style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
 
@@ -171,7 +172,14 @@ let playTimer = null;
 // history to stop the repo ballooning) and are served via the jsDelivr CDN. Manifests +
 // metadata stay on main (fetched relative). ?v=<cycle> busts the browser cache; the pipeline
 // purges jsDelivr on each push so the CDN edge is fresh.
-const FRAME_CDN = 'https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@synoptic-frames/assets/synoptic/';
+const FRAME_CDN = 'https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@synoptic-frames/';
+// Frames live under a CYCLE-STAMPED directory on the orphan branch: every cycle
+// gets brand-new URLs, so jsDelivr's edge cache (which ignores ?v= query
+// strings) can never serve old-cycle bytes under a new-cycle manifest.
+function frameUrl(varId, regionId, file) {
+  const compact = (manifest && manifest.cycle_compact) || '';
+  return FRAME_CDN + compact + '/' + varId + '/' + regionId + '/' + file;
+}
 
 function setMessage(msg) {
   if (msg) {
@@ -187,7 +195,7 @@ function setMessage(msg) {
 function preloadFrames(varId, regionId, frames) {
   for (const f of frames) {
     const img = new Image();
-    img.src = FRAME_CDN + varId + '/' + regionId + '/' + f.file + '?v=' + ((manifest && manifest.cycle_compact) || '');
+    img.src = frameUrl(varId, regionId, f.file);
   }
 }
 
@@ -196,7 +204,7 @@ function updateFrame() {
   const frame = manifest.frames[currentIdx];
   const variable = variableEl.value;
   const region = regionEl.value;
-  frameEl.src = FRAME_CDN + variable + '/' + region + '/' + frame.file + '?v=' + ((manifest && manifest.cycle_compact) || '');
+  frameEl.src = frameUrl(variable, region, frame.file);
   validEl.textContent = 'F' + String(frame.fxx).padStart(2, '0') + ' · ' + frame.valid_label;
   scrubberEl.value = currentIdx;
 }
