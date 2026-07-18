@@ -209,7 +209,8 @@ perl -0pi -e "s/((?:aam|aam_trend|mmsf_anom|walker_anom|jets|torque_timeseries|t
     assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
     assets/tc/anim assets/tc/storms assets/tc/tc_meta.json tc.html \
     assets/tc/invests assets/tc/invests_meta.json assets/spectra/ke_spectra.webp \
-    assets/power_data/heatoil_hdd.webp assets/power_data/heatoil_bbl.webp \
+    assets/power_data/heatoil_hdd.webp assets/power_data/heatoil_hdd.html \
+    assets/power_data/heatoil_bbl.webp \
     scripts/heatoil/oil_hdd_daily.csv scripts/heatoil/calibration.json \
     scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
     scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
