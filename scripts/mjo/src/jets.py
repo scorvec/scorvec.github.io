@@ -103,7 +103,8 @@ def main() -> int:
     anom0 = ubar0 - uclim0
 
     fig = plt.figure(figsize=(11.2, 11.0))
-    gs = fig.add_gridspec(3, 2, height_ratios=[1.35, 1, 1], hspace=0.34, wspace=0.18)
+    gs = fig.add_gridspec(3, 2, height_ratios=[1.35, 1, 1], hspace=0.34, wspace=0.16,
+                          left=0.065, right=0.985, top=0.94, bottom=0.075)
 
     ax = fig.add_subplot(gs[0, :])
     lim = max(float(np.nanpercentile(np.abs(anom0), 99.5)), 2.0)
@@ -123,10 +124,10 @@ def main() -> int:
     ax.set_ylabel("pressure (hPa)")
     zs_n = (nh_s - met_cl[0, 0]) / sig_cl[0, 0]
     zs_s = (sh_s - met_cl[0, 2]) / sig_cl[0, 2]
-    ax.set_title(f"Zonal-mean zonal wind — analysis {init:%Y-%m-%d %HZ} · colour = anomaly "
-                 f"vs ERA5 1991–2020 normal · ▼ = subtropical cores "
-                 f"(NH {nh_s:.0f} m/s {zs_n:+.1f}σ · SH {sh_s:.0f} m/s {zs_s:+.1f}σ)",
-                 fontsize=10.6, fontweight="bold")
+    ax.set_title(f"Zonal-mean zonal wind — analysis {init:%Y-%m-%d %HZ} · colour = "
+                 f"anomaly vs ERA5 1991–2020 normal\n▼ = subtropical cores:  "
+                 f"NH {nh_s:.0f} m/s ({zs_n:+.1f}σ) · SH {sh_s:.0f} m/s ({zs_s:+.1f}σ)",
+                 fontsize=10.6, fontweight="bold", linespacing=1.4)
     cb = fig.colorbar(cf, ax=ax, pad=0.012)
     cb.set_label("[u] anomaly (m/s)", fontsize=8.5); cb.ax.tick_params(labelsize=7.5)
 
