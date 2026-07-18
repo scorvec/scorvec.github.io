@@ -62,6 +62,8 @@ MIN_SPAN_H = 48                      # minimum track lifetime (hours)
 WIND_MIN = 15.5                      # m/s (~30 kt): track's peak 10 m wind to keep it
 DEPTH_PEAK = 3.0                     # hPa: track's peak ring depth (env-relative —
                                      # absolute MSLP screens fail in heat-trough zones)
+WIND_SHOW = 25 / 1.94384             # m/s: fixes below 25 kt are neither drawn nor
+                                     # counted in strike probability (noise floor)
 CLUSTER_KM = 600.0                   # genesis agreement radius
 CLUSTER_DT = 2                       # genesis agreement window (days)
 MIN_SUPPORT = 0.25                   # fraction of members that must develop the storm
@@ -612,11 +614,15 @@ def _draw_storm_panel(ax, cl, model, other_mean, w0, e0, s0, n0):
     n_hur = 0
     for _, tr in mtracks:
         for a, b in zip(tr[:-1], tr[1:]):
+            if b[5] < WIND_SHOW and a[5] < WIND_SHOW:
+                continue                          # sub-25 kt noise floor
             ax.plot([a[2], b[2]], [a[1], b[1]], color=_wn_color(b[5]),
                     lw=0.9, alpha=0.75, transform=ccrs.Geodetic(), zorder=4)
-        ax.scatter([pt[2] for pt in tr], [pt[1] for pt in tr], s=5,
-                   c=[_wn_color(pt[5]) for pt in tr], edgecolors="none",
-                   alpha=0.85, transform=ccrs.PlateCarree(), zorder=5)
+        vis = [pt for pt in tr if pt[5] >= WIND_SHOW]
+        if vis:
+            ax.scatter([pt[2] for pt in vis], [pt[1] for pt in vis], s=5,
+                       c=[_wn_color(pt[5]) for pt in vis], edgecolors="none",
+                       alpha=0.85, transform=ccrs.PlateCarree(), zorder=5)
         peak = max(tr, key=lambda pt: pt[5])
         if peak[5] >= HURR:
             n_hur += 1                               # hurricane-force member
@@ -935,8 +941,9 @@ def build_anim(coherent, labeled, model_counts, init, anim_dir: Path):
         spec_regions.append(reg_spec)
         for model in sorted(model_counts):
             rid = f"{key}_{model}"
-            rtracks = [(m, tr) for m, tr in coherent
-                       if m.startswith(model) and in_box(tr)]
+            rtracks = [(m, [pt for pt in tr if pt[5] >= WIND_SHOW])
+                       for m, tr in coherent if m.startswith(model) and in_box(tr)]
+            rtracks = [(m, tr) for m, tr in rtracks if len(tr) >= 2]
             # per-model labels: support within THIS model's members
             rcl = sorted(((cl["genesis"], cl["id"], cl["sup_m"].get(model, 0.0))
                           for cl in rclusters), key=lambda x: -x[2])
