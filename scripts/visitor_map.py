@@ -38,15 +38,22 @@ TOKEN = os.environ.get("GOATCOUNTER_TOKEN", "")
 def api(path: str, **params) -> dict:
     r = requests.get(f"{SITE}/api/v0/{path}", params=params,
                      headers={"Authorization": f"Bearer {TOKEN}"}, timeout=45)
+    if r.status_code >= 400:
+        print(f"  API {path} -> {r.status_code}: {r.text[:300]}", file=sys.stderr)
     r.raise_for_status()
     return r.json()
+
+
+def _ts(d: str | date) -> str:
+    """GoatCounter wants hour-rounded RFC3339 timestamps, not bare dates."""
+    return f"{d}T00:00:00Z"
 
 
 def locations(start: str) -> dict[str, int]:
     """{ISO2: unique-visitor count} since `start` (paged)."""
     out, offset = {}, 0
     while True:
-        d = api("stats/locations", start=start, end=date.today().isoformat(),
+        d = api("stats/locations", start=_ts(start), end=_ts(date.today().isoformat()),
                 limit=100, offset=offset)
         for row in d.get("stats", []):
             out[row["id"]] = out.get(row["id"], 0) + int(row["count"])
@@ -81,7 +88,7 @@ def main() -> int:
     start30 = (date.today() - timedelta(days=30)).isoformat()
     loc30 = locations(start30)
     loc_all = locations("2026-07-18")            # site epoch: GoatCounter install date
-    pages = api("stats/hits", start=start30, end=date.today().isoformat(), limit=10)
+    pages = api("stats/hits", start=_ts(start30), end=_ts(date.today().isoformat()), limit=10)
     top_pages = [{"path": p["path"], "count": int(p["count"])}
                  for p in pages.get("hits", [])][:10]
 
