@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>HRRR vs RRFS Kinetic-Energy Power Spectra · Shawn Corvec</title>
+<meta name="description" content="DCT kinetic-energy power spectra of HRRR and RRFS native-level winds: effective resolution, mesoscale spin-up and analysis smoothness, updated from the latest cycles.">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --muted: #888580; --accent: #2c4a72;
+    --accent-light: #e8eef5; --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  @media (min-width: 768px) { html { font-size: 110%; } }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; display: flex; flex-direction: column;
+         min-height: 100vh; }
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 1.2rem 3rem; background: rgba(250,250,248,0.95);
+        backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule); }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { font-size: 0.82rem; letter-spacing: 0.04em; text-decoration: none;
+                 color: var(--muted); }
+  .nav-links a:hover { color: var(--ink); }
+  main { flex: 1; max-width: 1500px; margin: 0 auto; padding: 7.5rem 2.5rem 5rem; width: 100%; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.6rem; }
+  .lede { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 60rem;
+          margin-bottom: 2.2rem; }
+  .chart-card { border: 1px solid var(--rule); background: #fff; margin-bottom: 2rem; }
+  .chart-card img { display: block; width: 100%; height: auto; }
+  .chart-card-footer { padding: 0.85rem 1.8rem; border-top: 1px solid var(--rule);
+                       font-size: 0.68rem; color: var(--muted); }
+  .colophon { margin-top: 2.5rem; padding-top: 1.8rem; border-top: 1px solid var(--rule);
+              font-size: 0.82rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
+  .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem;
+                 color: var(--ink); margin-bottom: 0.5rem; }
+  .colophon p + p { margin-top: 0.7rem; }
+  @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 6.5rem 1.2rem 3rem; } }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="assets/synoptic/viewer.html">HRRR+RRFS Viewer</a></li>
+  </ul>
+</nav>
+<main>
+  <h1>HRRR vs RRFS Kinetic-Energy Power Spectra</h1>
+  <p class="lede">Power spectra of the kinetic energy in each model's <b>native hybrid-level</b> winds (~250&nbsp;hPa), computed with a 2D discrete cosine transform over a common ~1,500&nbsp;km central-CONUS box and binned into a 1D spectrum. Pressure-level output is smoothed by post-processing and would flatter both models &mdash; native levels show what the dynamics actually resolve. The wavelength where a spectrum peels away from the k<sup>&minus;5/3</sup> mesoscale slope is that model's <b>effective resolution</b>; comparing F00 with later leads shows how quickly small scales <b>spin up</b> from the analysis.</p>
+  <div class="chart-card">
+    <a href="assets/spectra/ke_spectra.webp" target="_blank"><img src="assets/spectra/ke_spectra.webp" alt="HRRR vs RRFS kinetic-energy power spectra at F00, F06, F24 and F48"></a>
+    <div class="chart-card-footer">NOAA HRRR wrfnat &amp; RRFS natlev (AWS Open Data) &middot; DCT method: Corvec &amp; Separovic, github.com/scorvec/nwp_power_spectra &middot; levels matched by domain-mean pressure</div>
+  </div>
+  <div class="colophon">
+    <h3>Reading the figure</h3>
+    <p>Both models follow the k<sup>&minus;3</sup> synoptic slope at long wavelengths and transition to the shallower k<sup>&minus;5/3</sup> mesoscale range near a few hundred kilometres &mdash; the classic kink seen in aircraft observations. The steep roll-off at the short-wave end is each model's dissipation range; variance is effectively gone by ~6&ndash;8&Delta;x, which is why "3&nbsp;km" models resolve ~30&nbsp;km features.</p>
+    <p>At F00 the RRFS analysis retains more small-scale variance than the HRRR's; by F06 the HRRR has spun up its mesoscale and the two swap. Differences between the models' curves at later leads are genuine differences in how much fine-scale energy the dynamics and physics sustain.</p>
+  </div>
+</main>
+</body>
+</html>

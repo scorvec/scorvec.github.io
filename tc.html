@@ -298,11 +298,32 @@ fetch("https://scorvec.goatcounter.com/counter/TOTAL.json")
     var g = document.getElementById('invest-cards');
     if (!g || !d.systems) return;
     d.systems.forEach(function (s) {
-      g.appendChild(makeCard(
+      var card = makeCard(
         s.name + ' ' + s.id + ' — NHC/ATCF model guidance · cycle ' + s.cycle,
         [{src: 'assets/tc/' + s.file + '?v=' + s.cycle,
           alt: 'ATCF model guidance for ' + s.id}],
-        'NHC ATCF a-deck (aid_public) · click for full size'));
+        'NHC ATCF a-deck + best track (aid_public/btk) · click for full size');
+      if (s.designated) {
+        var pos = Math.abs(s.cur_lat).toFixed(1) + '°' + (s.cur_lat >= 0 ? 'N' : 'S')
+          + ' ' + Math.abs(s.cur_lon).toFixed(1) + '°' + (s.cur_lon >= 0 ? 'E' : 'W');
+        var rows = [
+          ['Current', s.cur_type + ' · ' + s.cur_vmax + ' kt'
+            + (s.cur_mslp ? ' · ' + s.cur_mslp + ' hPa' : '') + ' · ' + pos],
+          ['As of', s.cur_time + (s.motion ? ' · moving ' + s.motion : '')],
+          ['Designated', s.designated + ' (' + Math.round(s.hours_tracked / 24 * 10) / 10
+            + ' days tracked)'],
+          ['Peak so far', s.peak_vmax + ' kt']];
+        var info = '<div style="padding:0.7rem 1.8rem;border-bottom:1px solid #e4e2dc;'
+          + 'display:grid;grid-template-columns:auto 1fr;gap:0.15rem 1rem;'
+          + 'font-size:0.78rem;color:#444;">';
+        rows.forEach(function (r) {
+          info += '<span style="color:#999;">' + r[0] + '</span><span>' + r[1] + '</span>';
+        });
+        info += '</div>';
+        var hdr = card.querySelector('.chart-card-header');
+        hdr.insertAdjacentHTML('afterend', info);
+      }
+      g.appendChild(card);
     });
   }).catch(function () {});
 

@@ -107,6 +107,66 @@ def fetch_adeck(deck: str):
     return rows
 
 
+TYPE_NAMES = {"LO": "remnant low", "DB": "disturbance", "WV": "tropical wave",
+              "TD": "tropical depression", "TS": "tropical storm",
+              "HU": "hurricane", "TY": "typhoon", "SS": "subtropical storm",
+              "SD": "subtropical depression", "EX": "extratropical"}
+
+
+def bdeck_summary(deck: str):
+    """History/intensity summary from the best-track deck (designation time,
+    current fix, peak intensity, recent motion)."""
+    try:
+        txt = requests.get(f"{ATCF}/btk/b{deck}.dat", timeout=20).text
+    except Exception:                                          # noqa: BLE001
+        return {}
+    fixes = []
+    for line in txt.strip().splitlines():
+        c = [x.strip() for x in line.split(",")]
+        if len(c) < 11:
+            continue
+        try:
+            la, lo = c[6], c[7]
+            fixes.append({
+                "dtg": c[2],
+                "lat": int(la[:-1]) / 10 * (1 if la.endswith("N") else -1),
+                "lon": int(lo[:-1]) / 10 * (1 if lo.endswith("E") else -1),
+                "vmax": int(c[8]) if c[8] else 0,
+                "mslp": int(c[9]) if c[9] else 0,
+                "type": c[10] if len(c) > 10 else ""})
+        except (ValueError, IndexError):
+            continue
+    if not fixes:
+        return {}
+    fixes = {f["dtg"]: f for f in fixes}                       # dedupe radii lines
+    fixes = [fixes[k] for k in sorted(fixes)]
+    cur, first = fixes[-1], fixes[0]
+    peak = max(fixes, key=lambda f: f["vmax"])
+    motion = ""
+    if len(fixes) >= 2:
+        a, b = fixes[-2], fixes[-1]
+        dt = (pd.to_datetime(b["dtg"], format="%Y%m%d%H")
+              - pd.to_datetime(a["dtg"], format="%Y%m%d%H")).total_seconds() / 3600
+        if dt > 0:
+            import math
+            dlat = b["lat"] - a["lat"]
+            dlon = (b["lon"] - a["lon"]) * math.cos(math.radians(b["lat"]))
+            spd = math.hypot(dlat, dlon) * 60 / dt              # nm/h = kt
+            brg = (math.degrees(math.atan2(dlon, dlat)) + 360) % 360
+            dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S",
+                    "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+            motion = f"{dirs[int((brg + 11.25) // 22.5) % 16]} at {spd:.0f} kt"
+    hours = (pd.to_datetime(cur["dtg"], format="%Y%m%d%H")
+             - pd.to_datetime(first["dtg"], format="%Y%m%d%H")).total_seconds() / 3600
+    return {"designated": f"{first['dtg'][:8]} {first['dtg'][8:]}Z",
+            "hours_tracked": int(hours),
+            "cur_time": f"{cur['dtg'][:8]} {cur['dtg'][8:]}Z",
+            "cur_lat": cur["lat"], "cur_lon": cur["lon"],
+            "cur_vmax": cur["vmax"], "cur_mslp": cur["mslp"],
+            "cur_type": TYPE_NAMES.get(cur["type"], cur["type"] or "—"),
+            "peak_vmax": peak["vmax"], "motion": motion}
+
+
 def plot_system(sysd, adeck, out_dir: Path):
     """One guidance panel for the latest cycle with enough models."""
     dtgs = sorted({d for d, _ in adeck})
@@ -188,7 +248,9 @@ def plot_system(sysd, adeck, out_dir: Path):
     fig.savefig(out_dir / "invests" / fn, dpi=135, bbox_inches="tight",
                 facecolor="white", pil_kwargs={"quality": 92, "method": 6})
     plt.close(fig)
-    return {"id": sysd["id"], "name": nm, "file": f"invests/{fn}", "cycle": chosen}
+    meta = {"id": sysd["id"], "name": nm, "file": f"invests/{fn}", "cycle": chosen}
+    meta.update(bdeck_summary(sysd["deck"]))
+    return meta
 
 
 def main() -> int:
