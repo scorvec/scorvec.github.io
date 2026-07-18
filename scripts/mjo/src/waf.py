@@ -45,6 +45,7 @@ from wind200_vpot import _ens_mean, _to_0360
 
 A = 6.371e6
 LMAX = 63                                    # ψ truncation (~2.8°): synoptic + planetary
+LFILT = 15                                   # ∇·W shown at planetary scale (T15, ≳2500 km)
 PHAT = 200.0 / 1000.0                        # p/p0 factor at 200 hPa
 UMIN, LATMIN = 3.0, 20.0                     # basic-state westerly / tropics mask
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
@@ -87,13 +88,16 @@ def tn01_flux(psi_a: np.ndarray, U: np.ndarray, V: np.ndarray,
     bad = (spd < UMIN) | (np.abs(lat)[:, None] < LATMIN)
     wx[bad] = np.nan; wy[bad] = np.nan
     # flux divergence ∇·W: NEGATIVE (convergence) marks where wave activity
-    # piles up — the downstream-amplification precursor. Lightly smoothed:
-    # second derivatives of an lmax-63 field carry gridscale ripple.
-    import scipy.ndimage as ndi
+    # piles up — the downstream-amplification precursor. Spectrally truncated
+    # to planetary/synoptic scales (l ≤ LFILT): second derivatives of the flux
+    # carry gridscale ripple that a light gaussian cannot tame.
     wx0 = np.nan_to_num(wx); wy0 = np.nan_to_num(wy)
     divw = (np.gradient(wx0, lonr, axis=1) / (A * cosp)
             + np.gradient(wy0 * cosp, latr, axis=0) / (A * cosp))
-    divw = ndi.gaussian_filter(divw, sigma=1.5)
+    g = pysh.SHGrid.from_array(divw, grid="DH")
+    clm = g.expand()
+    clm.coeffs[:, LFILT + 1:, :] = 0.0
+    divw = clm.expand(grid="DH2").data
     divw[bad] = np.nan
     return wx, wy, divw
 
@@ -104,7 +108,8 @@ def eval_clim(coefs: np.ndarray, doy: float) -> np.ndarray:
     return np.tensordot(b, coefs, axes=(0, 0))
 
 
-def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Path, vlim: float):
+def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Path, vlim: float,
+           spd_fc=None):
     fig = plt.figure(figsize=(12.8, 6.4))
     proj = ccrs.PlateCarree(central_longitude=180)
     ax = plt.axes(projection=proj)
@@ -116,9 +121,14 @@ def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Pat
     ax.contour(lon, lat, psi_a / 1e6, levels=[-24, -16, -8, 8, 16, 24],
                colors="0.25", linewidths=0.7, negative_linestyles="dashed",
                transform=ccrs.PlateCarree())
-    spd = np.hypot(Uc, Vc)
-    ax.contour(lon, lat, spd, levels=[20, 30, 40], colors="#2e7d32",
-               linewidths=[0.7, 1.0, 1.4], alpha=0.7, transform=ccrs.PlateCarree())
+    if spd_fc is not None:
+        # the REAL waveguide: the forecast's own 200 hPa jet at this lead
+        ax.contour(spd_fc[2], spd_fc[1], spd_fc[0], levels=[25, 35, 45],
+                   colors="#1b5e20", linewidths=[0.8, 1.1, 1.5], alpha=0.85,
+                   transform=ccrs.PlateCarree())
+    # climatological waveguide as a faint dotted reference
+    ax.contour(lon, lat, np.hypot(Uc, Vc), levels=[30], colors="#66bb6a",
+               linewidths=0.8, linestyles=":", alpha=0.8, transform=ccrs.PlateCarree())
     s = max(1, lat.size // 36)
     Wm = np.hypot(wx, wy)
     show = Wm > np.nanpercentile(Wm, 65)                  # hide the weak background flux
@@ -170,24 +180,28 @@ def main() -> int:
         psi_a = psi - eval_clim(c["psi"].values, doy)
         Uc, Vc = eval_clim(c["U"].values, doy), eval_clim(c["V"].values, doy)
         wx, wy, divw = tn01_flux(psi_a, Uc, Vc, clat, clon)
-        fields.append((valid, sh, psi_a, wx, wy, divw, Uc, Vc))
+        uf = ds["u"].isel(step=i); vf = ds["v"].isel(step=i)
+        spd_fc = (np.hypot(uf.values, vf.values),
+                  uf.latitude.values, uf.longitude.values)
+        fields.append((valid, sh, psi_a, wx, wy, divw, Uc, Vc, spd_fc))
     vlim = float(np.nanpercentile(np.abs(np.stack([f[5] for f in fields])) * 1e6, 99.0)) or 5.0
 
     anim = Path(args.anim_dir); anim.mkdir(parents=True, exist_ok=True)
     for old in anim.glob("F*.webp"):
         old.unlink()
     sub = ("arrows = Takaya–Nakamura (2001) wave-activity flux (wave-packet group propagation) · "
-           "shading = flux CONVERGENCE −∇·W (red ⇒ downstream amplification ahead)\n"
-           "grey contours = 200 hPa ψ′ vs ERA5 1991–2020 (dashed negative) · green = climatological "
-           "jet waveguide (20/30/40 m/s) · masked equatorward of 20° / basic-state wind < 3 m/s")
+           "shading = flux CONVERGENCE −∇·W at planetary scale (T15; red ⇒ downstream amplification ahead)\n"
+           "grey contours = 200 hPa ψ′ vs ERA5 1991–2020 (dashed negative) · dark green = the FORECAST 200 hPa "
+           "jet (25/35/45 m/s — the real waveguide) · dotted green = climatological 30 m/s · masked equatorward "
+           "of 20° / basic-state wind < 3 m/s")
     frames = []
-    for i, (valid, sh, psi_a, wx, wy, divw, Uc, Vc) in enumerate(fields):
+    for i, (valid, sh, psi_a, wx, wy, divw, Uc, Vc, spd_fc) in enumerate(fields):
         fp = anim / f"F{i:02d}.webp"
         lead = int(round(sh / 24))
         render(psi_a, wx, wy, divw, Uc, Vc, clat, clon,
                f"Rossby wave-activity flux (TN01) 200 hPa — AIFS-ENS mean · "
                f"init {init:%Y-%m-%d %HZ} · day {lead} (valid {valid:%a %b %d})",
-               sub, fp, vlim)
+               sub, fp, vlim, spd_fc=spd_fc)
         frames.append({"idx": i, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
                        "label": f"day {lead} · {valid:%b %d}"})
     mani = {"ver": int(pd.Timestamp.now().timestamp()), "days": len(frames),
@@ -196,10 +210,10 @@ def main() -> int:
     Path(args.manifest).parent.mkdir(parents=True, exist_ok=True)
     Path(args.manifest).write_text(json.dumps(mani))
     # static latest = the analysis frame
-    valid, sh, psi_a, wx, wy, divw, Uc, Vc = fields[0]
+    valid, sh, psi_a, wx, wy, divw, Uc, Vc, spd_fc = fields[0]
     render(psi_a, wx, wy, divw, Uc, Vc, clat, clon,
            f"Rossby wave-activity flux (TN01) 200 hPa — analysis {init:%Y-%m-%d %HZ}",
-           sub, Path(args.out), vlim)
+           sub, Path(args.out), vlim, spd_fc=spd_fc)
     print(f"  wrote {len(frames)} frames + manifest; conv vlim ±{vlim:.0f}×10⁻⁶ m/s²")
     return 0
 
