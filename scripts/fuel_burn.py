@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Oil burned for US electricity, in thousand barrels per day (kb/d), by region.
+"""Fossil fuel burned for US electricity, by grid region: oil in thousand
+barrels per day (kb/d) and natural gas in billion cubic feet per day (Bcf/d).
 
 EIA-930 daily petroleum ("OIL") net generation per grid region (EIA Open Data
 API v2, daily-fuel-type-data, July 2018 → present), converted to implied crude
@@ -18,11 +19,9 @@ Figure (assets/power_data/oil_burn.webp):
            explicit, the rest grouped), with notable spikes readable.
   bottom — last 24 months, daily: US48 total + the top regions as lines.
 
-    EIA_API_KEY=… python scripts/oil_burn.py
 (The key is also read from ~/.eia_key if the env var is unset.)
 
-Later: extend to natural gas (same endpoint, fueltype NG, Bcf/d via
-7.15 MMBtu/MWh gas fleet heat rate / 1.037 MMBtu/Mcf).
+    EIA_API_KEY=… python scripts/fuel_burn.py
 """
 from __future__ import annotations
 
@@ -39,7 +38,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE.parent / "assets" / "power_data" / "oil_burn.webp"
+OUT_OIL = HERE.parent / "assets" / "power_data" / "oil_burn.webp"
+OUT_GAS = HERE.parent / "assets" / "power_data" / "gas_burn.webp"
 
 EIA_KEY = os.environ.get("EIA_API_KEY", "") or (
     Path.home().joinpath(".eia_key").read_text().strip()
@@ -55,17 +55,21 @@ START = "2018-07-01"                       # EIA-930 fuel-mix record begins
 HEAT_RATE = 10.33                          # MMBtu/MWh, EIA avg petroleum fleet
 MMBTU_BBL = 5.80                           # MMBtu per barrel (EIA convention)
 BBL_PER_MWH = HEAT_RATE / MMBTU_BBL        # ≈ 1.781
-EXPLICIT = ["FLA", "NE", "NY", "MIDA", "SE"]   # shown individually; rest grouped
+GAS_HR = 7.72                              # MMBtu/MWh, EIA avg gas fleet (CC-dominated)
+MMBTU_MCF = 1.037                          # MMBtu per Mcf (EIA convention)
+MCF_PER_MWH = GAS_HR / MMBTU_MCF           # ≈ 7.44
+EXPLICIT = ["FLA", "NE", "NY", "MIDA", "SE"]        # oil: shown individually
+EXPLICIT_GAS = ["TEX", "SE", "FLA", "MIDA", "MIDW"] # gas: the big burners
 
 
-def fetch_daily_oil() -> pd.DataFrame:
-    """Daily OIL net generation (MWh) per region → DataFrame[date × region]."""
+def fetch_daily(fueltype: str) -> pd.DataFrame:
+    """Daily net generation (MWh) for one fueltype per region → date × region."""
     url = "https://api.eia.gov/v2/electricity/rto/daily-fuel-type-data/data/"
     rows, offset = [], 0
     while True:
         params = {
             "api_key": EIA_KEY, "frequency": "daily", "data[0]": "value",
-            "facets[fueltype][]": "OIL", "facets[timezone][]": "Eastern",
+            "facets[fueltype][]": fueltype, "facets[timezone][]": "Eastern",
             "start": START, "end": date.today().isoformat(),
             "length": 5000, "offset": offset,
             "sort[0][column]": "period", "sort[0][direction]": "asc",
@@ -89,20 +93,15 @@ def fetch_daily_oil() -> pd.DataFrame:
     return wide.clip(lower=0.0)
 
 
-def main() -> int:
-    if not EIA_KEY:
-        print("ERROR: EIA_API_KEY not set (env or ~/.eia_key).", file=sys.stderr)
-        return 1
-    gen = fetch_daily_oil()                                    # MWh/day
-    kbd = gen * BBL_PER_MWH / 1000.0                           # kb/d
-    print(f"  {len(kbd)} days, {kbd.index[0]:%Y-%m-%d} → {kbd.index[-1]:%Y-%m-%d}")
-    tot = kbd.sum(axis=1)
-    print(f"  latest US48 total: {tot.dropna().iloc[-1]:.1f} kb/d · "
-          f"record daily {tot.max():.1f} kb/d on {tot.idxmax():%Y-%m-%d}")
-
-    sm = kbd.rolling(30, min_periods=20).mean()
-    order = kbd.mean().sort_values(ascending=False)
-    explicit = [r for r in order.index if r in EXPLICIT]
+def render_fuel(vol: pd.DataFrame, unit: str, title: str, explicit_ids: list,
+                out: Path, conv_note: str) -> None:
+    """Two-panel chart: stacked 30-day-mean history by region + 24-month daily."""
+    tot = vol.sum(axis=1)
+    print(f"  {title}: latest {tot.dropna().iloc[-1]:.1f} {unit} · "
+          f"record daily {tot.max():.1f} on {tot.idxmax():%Y-%m-%d}")
+    sm = vol.rolling(30, min_periods=20).mean()
+    order = vol.mean().sort_values(ascending=False)
+    explicit = [r for r in order.index if r in explicit_ids]
     other = [r for r in REGIONS if r not in explicit]
     stack = sm[explicit].copy()
     stack["Other regions"] = sm[other].sum(axis=1)
@@ -116,37 +115,54 @@ def main() -> int:
                  labels=labels, colors=colors, alpha=0.9, lw=0)
     a0.set_xlim(stack.index[0], stack.index[-1])
     a0.grid(True, alpha=0.2)
-    a0.set_ylabel("thousand barrels / day")
-    a0.set_title("Oil burned for US electricity — 30-day mean by grid region, "
-                 f"Jul 2018 – {kbd.index[-1]:%b %Y}",
+    a0.set_ylabel(unit)
+    a0.set_title(f"{title} — 30-day mean by grid region, "
+                 f"Jul 2018 – {vol.index[-1]:%b %Y}",
                  fontsize=12, fontweight="bold", loc="left")
-    a0.legend(fontsize=8, loc="upper right", ncol=2, framealpha=0.9)
+    a0.legend(fontsize=8, loc="upper right" if "Oil" in title else "upper left",
+              ncol=2, framealpha=0.9)
 
-    t0 = kbd.index[-1] - pd.DateOffset(months=24)
+    t0 = vol.index[-1] - pd.DateOffset(months=24)
     a1.plot(tot[tot.index >= t0].index, tot[tot.index >= t0].values,
             color="#222", lw=1.0, alpha=0.55, label="US48 total (daily)")
-    a1.plot(sm[sm.index >= t0].index, sm.loc[sm.index >= t0, explicit].sum(axis=1)
-            + sm.loc[sm.index >= t0, other].sum(axis=1),
+    a1.plot(sm[sm.index >= t0].index,
+            sm.loc[sm.index >= t0].sum(axis=1),
             color="#222", lw=2.0, label="US48 total (30-d mean)")
     for r, c in zip(explicit[:3], colors):
-        d = kbd.loc[kbd.index >= t0, r]
+        d = vol.loc[vol.index >= t0, r]
         a1.plot(d.index, d.values, color=c, lw=0.9, alpha=0.8, label=REGIONS[r])
-    a1.set_xlim(t0, kbd.index[-1])
+    a1.set_xlim(t0, vol.index[-1])
     a1.grid(True, alpha=0.2)
-    a1.set_ylabel("thousand barrels / day")
+    a1.set_ylabel(unit)
     a1.set_title("Last 24 months — daily", fontsize=10.5, fontweight="bold",
                  loc="left")
-    a1.legend(fontsize=8, loc="upper right", ncol=2, framealpha=0.9)
+    a1.legend(fontsize=8, loc="best", ncol=2, framealpha=0.9)
     fig.subplots_adjust(left=0.07, right=0.985, top=0.955, bottom=0.06)
     fig.text(0.5, 0.005,
-             "EIA-930 daily net generation from petroleum by region (Eastern time) · "
-             f"kb/d = MWh × {HEAT_RATE} MMBtu/MWh ÷ {MMBTU_BBL} MMBtu/bbl ≈ MWh × "
-             f"{BBL_PER_MWH:.2f}/1000 · conterminous US only",
+             "EIA-930 daily net generation by region (Eastern time) · " + conv_note +
+             " · conterminous US only",
              ha="center", fontsize=7.5, color="0.4")
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT, dpi=115, bbox_inches="tight", facecolor="white")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=115, bbox_inches="tight", facecolor="white")
     plt.close(fig)
-    print(f"  wrote {OUT}")
+    print(f"  wrote {out}")
+
+
+def main() -> int:
+    if not EIA_KEY:
+        print("ERROR: EIA_API_KEY not set (env or ~/.eia_key).", file=sys.stderr)
+        return 1
+    oil = fetch_daily("OIL")                                   # MWh/day
+    print(f"  OIL: {len(oil)} days → {oil.index[-1]:%Y-%m-%d}")
+    render_fuel(oil * BBL_PER_MWH / 1000.0, "thousand barrels / day",
+                "Oil burned for US electricity", EXPLICIT, OUT_OIL,
+                f"kb/d = MWh × {HEAT_RATE} MMBtu/MWh ÷ {MMBTU_BBL} MMBtu/bbl "
+                f"≈ MWh × {BBL_PER_MWH:.2f}/1000")
+    gas = fetch_daily("NG")
+    print(f"  NG: {len(gas)} days → {gas.index[-1]:%Y-%m-%d}")
+    render_fuel(gas * MCF_PER_MWH / 1e6, "Bcf / day",
+                "Natural gas burned for US electricity", EXPLICIT_GAS, OUT_GAS,
+                f"Bcf/d = MWh × {GAS_HR} MMBtu/MWh ÷ {MMBTU_MCF} MMBtu/Mcf ÷ 10⁶")
     return 0
 
 
