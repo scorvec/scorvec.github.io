@@ -128,7 +128,7 @@ def animate(aam, p_hpa, lat, steps_h, ubar_zm, init, anim_dir: Path, manifest: P
     """Render every lead as a 2×2 frame (fixed colour scale) + viewer manifest."""
     dlat_deg = abs(float(lat[1] - lat[0]))
     layer = np.abs(np.gradient(p_hpa)); cell = dlat_deg * layer[:, None]
-    print(f"  abs global AAM (analysis) = {aam[0].sum()/TOT:.0f}×10²⁴  (expect ~150)")
+    print(f"  abs global AAM (analysis) = {aam[0].sum()/TOT:.0f}×10²⁴  (50–1000 hPa partial column; expect ~120-145)")
     densf = aam / cell[None] / DENS                          # forecast density (step,lev,lat)
 
     # climatological density at the init & each valid day-of-year, interp to forecast grid
