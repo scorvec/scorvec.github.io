@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Oil &amp; Natural Gas Burned for US Electricity — kb/d and Bcf/d by Region · Shawn Corvec</title>
-<meta name="description" content="How much oil (thousand barrels per day) and natural gas (Bcf per day) the US power fleet is burning, by grid region, estimated daily from EIA-930 fuel-mix data since 2018. Winter oil-switching spikes in New England, the Mid-Atlantic baseline, and the seasonal cycle of power-sector gas burn."><link rel="canonical" href="https://scorvec.com/fuelburn.html">
+<title>Visitor Stats &amp; Map · Shawn Corvec</title>
+<meta name="description" content="Where scorvec.com's visitors come from: a daily-updated world map and site statistics from privacy-friendly, cookie-free GoatCounter analytics."><link rel="canonical" href="https://scorvec.com/stats.html">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -249,57 +249,46 @@
 <main>
   <div class="content">
     <header class="page-header" style="margin:4.5rem 0 0.5rem;">
-      <h1 style="font-family:var(--serif);font-size:1.9rem;margin:2rem 0 0.6rem;">Fossil Fuel Burn for US Electricity</h1>
-      <p style="color:var(--muted);max-width:56rem;">Daily estimates of how much <b>oil</b>, <b>natural gas</b> and <b>coal</b> the US power fleet is burning, by grid region, from EIA-930 hourly fuel-mix data — the volumes behind the generation mix, in the units fuel markets use.</p>
+      <h1 style="font-family:var(--serif);font-size:1.9rem;margin:2rem 0 0.6rem;">Visitor Stats</h1>
+      <p style="color:var(--muted);max-width:56rem;">Privacy-friendly, cookie-free analytics via GoatCounter. Total unique visitors: <b id="count">&mdash;</b></p>
     </header>
 
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Oil Burned for Electricity &mdash; Thousand Barrels per Day</h2>
-        <p>How much oil the US power fleet is actually burning, estimated from the EIA-930 hourly fuel mix: daily petroleum net generation per grid region converted to implied barrels at the average petroleum fleet heat rate (10.33&nbsp;MMBtu/MWh &divide; 5.8&nbsp;MMBtu/bbl &asymp; 1.78&nbsp;bbl/MWh). Oil is a rounding error in the national mix but sharply concentrated and event-driven: <b>Florida</b> runs oil peakers year-round, while <b>New England</b> and <b>New York</b> spike hard in winter cold snaps when gas gets scarce &mdash; the stacked history since 2018 shows each of those episodes, and the daily panel shows the current season against the last two years. Natural gas in Bcf/d is coming next.</p>
+        <h2>Where Visitors Come From</h2>
+        <p>Unique visitors by country (IP-geolocated at country level only — no personal data), last 30 days and all time. Updated daily.</p>
       </div>
       <div class="chart-img-wrap">
-        <img src="assets/power_data/oil_burn.webp" alt="Oil burned for US electricity in thousand barrels per day by grid region, 2018-present, from EIA-930 fuel mix data" loading="lazy" style="width:100%;height:auto;">
+        <img src="assets/site_stats/visitor_map.webp" alt="World map of unique visitors to scorvec.com by country" loading="lazy" style="width:100%;height:auto;" onerror="this.closest('.chart-card').querySelector('p').textContent='Map appears after the first daily stats run.'">
       </div>
       <div class="chart-card-footer">
-        <span class="chart-sources">EIA-930 daily fuel mix (Open Data API v2) &middot; petroleum heat-rate conversion &middot; conterminous US</span>
-        <span class="chart-updated">updated with the tracker</span>
+        <span class="chart-sources">GoatCounter API &middot; country-level geolocation &middot; daily</span>
+        <span class="chart-updated" id="stats-updated"></span>
       </div>
     </div>
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>Natural Gas Burned for Electricity &mdash; Bcf per Day</h2>
-        <p>The same estimate for the much bigger fuel: EIA-930 daily natural-gas net generation per region converted to implied gas burn at the average gas fleet heat rate (7.72&nbsp;MMBtu/MWh &divide; 1.037&nbsp;MMBtu/Mcf &asymp; 7.4&nbsp;Mcf/MWh). Power burn is the swing consumer of US gas &mdash; roughly 35&ndash;45&nbsp;Bcf/d with a strong summer peak (air-conditioning load) and its regional anatomy: <b>Texas</b> and the <b>Southeast</b> dominate, <b>Florida</b> runs the gassiest grid per MWh, and the <b>Mid-Atlantic</b> swings hardest between seasons. Read together with the oil chart above, the winter spikes line up: when New England oil surges, it is because this gas curve hit a pipeline constraint.</p>
-      </div>
-      <div class="chart-img-wrap">
-        <img src="assets/power_data/gas_burn.webp" alt="Natural gas burned for US electricity in billion cubic feet per day by grid region, 2018-present, from EIA-930 fuel mix data" loading="lazy" style="width:100%;height:auto;">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">EIA-930 daily fuel mix (Open Data API v2) &middot; gas fleet heat-rate conversion &middot; conterminous US</span>
-        <span class="chart-updated">updated with the tracker</span>
-      </div>
-    </div>
-
 
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Coal Burned for Electricity &mdash; Thousand Short Tons per Day</h2>
-        <p>The third leg of the fossil fleet: EIA-930 daily coal net generation per region converted to implied coal burn at the average coal fleet heat rate (10.2&nbsp;MMBtu/MWh &divide; 19.2&nbsp;MMBtu per short ton &asymp; 0.53&nbsp;tons/MWh). The long decline of the coal fleet since 2018 is the dominant signal &mdash; the <b>Midwest</b>, <b>Mid-Atlantic</b> and <b>Southeast</b> carry most of what remains &mdash; punctuated by winter-peak recalls and the summer load ramp. Read against the gas chart above: coal's slow exit is the mirror of gas's growing baseline.</p>
+        <h2>Most-Visited Pages (30 days)</h2>
       </div>
-      <div class="chart-img-wrap">
-        <img src="assets/power_data/coal_burn.webp" alt="Coal burned for US electricity in thousand short tons per day by grid region, 2018-present, from EIA-930 fuel mix data" loading="lazy" style="width:100%;height:auto;">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">EIA-930 daily fuel mix (Open Data API v2) &middot; coal fleet heat-rate conversion &middot; conterminous US</span>
-        <span class="chart-updated">updated with the tracker</span>
-      </div>
+      <div class="chart-card-header"><p id="top-pages">&mdash;</p></div>
     </div>
-
   </div>
 </main>
 
 <footer>
   <p class="counter"></p>
 </footer>
+<script>
+  fetch('https://scorvec.goatcounter.com/counter/TOTAL.json')
+    .then(r => r.json()).then(d => { document.getElementById('count').textContent = d.count; })
+    .catch(() => {});
+  fetch('assets/site_stats/visitor_stats.json')
+    .then(r => r.json()).then(d => {
+      document.getElementById('stats-updated').textContent = 'updated ' + d.updated;
+      document.getElementById('top-pages').innerHTML = d.top_pages_30d
+        .map(p => p.path + ' &mdash; <b>' + p.count.toLocaleString() + '</b>').join('<br>');
+    }).catch(() => {});
+</script>
 </body>
 </html>

@@ -265,6 +265,7 @@
   .nav-links a { font-size: 0.78rem; }
 }
 </style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
 
@@ -547,9 +548,9 @@
 </footer>
 
 <script>
-  fetch((function(){var k='scorvec_uv',s=localStorage.getItem(k),o=localStorage.getItem('scorvec_owner');if(!o){try{localStorage.setItem(k,'1');}catch(e){}}return 'https://api.counterapi.dev/v1/scorvec/unique'+((s||o)?'/':'/up');})())
+  fetch('https://scorvec.goatcounter.com/counter/TOTAL.json')
     .then(res => res.json())
-    .then(data => { document.getElementById('count').textContent = data.count.toLocaleString(); })
+    .then(data => { document.getElementById('count').textContent = data.count; })
     .catch(() => { document.getElementById('count').textContent = '—'; });
 </script>
 </body>

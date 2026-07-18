@@ -136,6 +136,7 @@ def main():
   .empty {{ color: var(--muted); padding: 3rem 0; text-align: center; }}
   a {{ color: var(--accent); }}
 </style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
 {NAV}

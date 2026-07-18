@@ -4,9 +4,9 @@
 </footer>
 
 <script>
-  fetch((function(){var k='scorvec_uv',s=localStorage.getItem(k),o=localStorage.getItem('scorvec_owner');if(!o){try{localStorage.setItem(k,'1');}catch(e){}}return 'https://api.counterapi.dev/v1/scorvec/unique'+((s||o)?'/':'/up');})())
+  fetch('https://scorvec.goatcounter.com/counter/TOTAL.json')
     .then(r => r.json())
-    .then(d => { document.getElementById('count').textContent = d.count.toLocaleString(); })
+    .then(d => { document.getElementById('count').textContent = d.count; })
     .catch(() => { document.getElementById('count').textContent = '—'; });
 </script>
 <script>

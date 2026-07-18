@@ -1,0 +1,47 @@
+name: Site visitor stats & map
+
+# Daily visitor-location map + stats JSON from the GoatCounter API for the
+# stats dashboard (stats.html). No-ops gracefully until the GOATCOUNTER_TOKEN
+# repo secret exists (GoatCounter → Settings → API tokens, "read statistics").
+on:
+  schedule:
+    - cron: '17 5 * * *'      # daily ~05:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: site-stats
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps (cartopy needs libgeos/proj)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
+          pip install --quiet requests numpy matplotlib cartopy
+      - name: Build visitor map
+        env:
+          GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
+        run: python scripts/visitor_map.py
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/site_stats/ 2>/dev/null || exit 0
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "site stats: visitor map $(date -u +%Y-%m-%d)"
+          for i in 1 2 3; do
+            git pull --rebase --autostash -X theirs && git push && exit 0
+            sleep 5
+          done
+          exit 1
