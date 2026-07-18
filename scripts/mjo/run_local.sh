@@ -131,6 +131,7 @@ MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "
   --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
 "$PY" ../tc/tc_tracker.py --date "$DATE" --time "$TIME" \
   --out-dir "$REPO/assets/tc" || echo "TC tracker failed; continuing"
+"$PY" ../tc/invest_models.py --out-dir "$REPO/assets/tc" || echo "invest plotter failed; continuing"
 # ── 200 hPa velocity potential + irrotational wind (REVIVED 2026-07-07). Light:
 #    u@200 is already cached from the RMM pull, so only v@200 is fetched here. The
 #    pf_v_200 503-stalls that got this deactivated are handled now by the robust
@@ -186,7 +187,6 @@ find "$MJO_GRIB_ARCHIVE" -type d -empty -delete 2>/dev/null
 CB=$(date -u +%Y%m%d%H%M)
 perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|soi_history|u850_analogs_anom|u850_analogs_abs|mei\/mei_nowcast|mei\/mei_validation)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
 perl -0pi -e "s/((?:aam|aam_trend|mmsf_anom|walker_anom|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/enso-atmosphere.html" 2>/dev/null || true
-perl -0pi -e "s/(tc_storms\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/tc.html" 2>/dev/null || true
 
 # Stage whatever exists (a builder that failed this cycle simply hasn't written its
 # outputs — that must not block committing everything else).
@@ -203,7 +203,8 @@ perl -0pi -e "s/(tc_storms\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/tc.html" 2>/dev/n
     assets/sst/anim/walker assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
     assets/sst/jets.webp assets/sst/anim/jets assets/sst/anim/jets_manifest.json \
     assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
-    assets/tc/anim assets/tc/tc_storms.webp assets/tc/tc_meta.json tc.html \
+    assets/tc/anim assets/tc/storms assets/tc/tc_meta.json tc.html \
+    assets/tc/invests assets/tc/invests_meta.json \
     scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
     scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
     scripts/mjo/data/reference/mei_fit.json \
