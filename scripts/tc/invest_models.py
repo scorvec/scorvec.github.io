@@ -137,10 +137,10 @@ def plot_system(sysd, adeck, out_dir: Path):
     l0 = next(iter(tracks.values()))[min(next(iter(tracks.values())))][1]
     wrap = lambda lon: l0 + (((lon - l0 + 180) % 360) - 180)
     los = [wrap(p[1]) for tr in tracks.values() for p in tr.values()]
-    w0, e0 = min(los) - 5, max(los) + 5
-    s0, n0 = min(las) - 4, max(las) + 4
-    if e0 - w0 < 20: pad = (20 - (e0 - w0)) / 2; w0 -= pad; e0 += pad
-    if n0 - s0 < 14: pad = (14 - (n0 - s0)) / 2; s0 -= pad; n0 += pad
+    w0, e0 = min(los) - 2.5, max(los) + 2.5
+    s0, n0 = min(las) - 1.5, max(las) + 1.5
+    if e0 - w0 < 14: pad = (14 - (e0 - w0)) / 2; w0 -= pad; e0 += pad
+    if n0 - s0 < 10: pad = (10 - (n0 - s0)) / 2; s0 -= pad; n0 += pad
     aspect = (n0 - s0) / (e0 - w0)
     figw = 9.6
     fig = plt.figure(figsize=(figw, figw * aspect * 1.22 + 1.0), facecolor="white")
