@@ -109,6 +109,28 @@ def get_u(time, levels) -> xr.DataArray:
     return merged.sel(level=want).astype("float32")
 
 
+CONUS = dict(latitude=slice(55, 20), longitude=slice(-130 % 360, -60 % 360))
+
+
+def get_t2m_conus(time) -> xr.DataArray:
+    """2 m temperature over CONUS (K, float32) — subset storage: full-field
+    t2m would be ~30x the bytes for products that only sample points."""
+    t = pd.Timestamp(time)
+    p = _path("t2m_conus", t)
+    if p.exists():
+        try:
+            with _io:
+                with xr.open_dataarray(p) as f:
+                    return f.load().astype("float32")
+        except Exception:                                     # noqa: BLE001
+            pass
+    da = (_arco()["2m_temperature"].sel(time=t)
+          .sel(**CONUS).load().astype("float32").rename("t2m"))
+    if not bool(np.isnan(da.values).all()):                   # never cache NaN padding
+        _write_atomic(da.to_dataset(name="t2m"), p, {"t2m": {"zlib": False}})
+    return da
+
+
 def get_sp(time) -> xr.DataArray:
     """Surface pressure (latitude, longitude) float32 Pa."""
     t = pd.Timestamp(time)

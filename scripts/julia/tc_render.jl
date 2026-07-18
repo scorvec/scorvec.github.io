@@ -182,7 +182,7 @@ function render_region_model(reg, mm)
                   color = "#1a1a2e", align = (:center, :center))
         end
         # wind-bin legend
-        bins = [("<20", "#b8b8b8"), ("20+", "#25c8c8"), ("30+", "#2a52dd"),
+        bins = [("25+", "#25c8c8"), ("30+", "#2a52dd"),
                 ("40+", "#2fb52f"), ("50+", "#e6d82e"), ("60+", "#f08a1e"),
                 ("70+", "#e2231e"), ("80+ kt", "#e01e9d")]
         elems = [MarkerElement(marker = :circle, markersize = 9, color = c,

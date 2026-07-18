@@ -312,7 +312,7 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Where America Heats with Oil</h2>
-        <p>Foundation of a heating-oil demand model: households heating with fuel oil or kerosene by county (ACS 5-year). 5.2&nbsp;million households &mdash; 4% of the US &mdash; overwhelmingly in the Northeast: Maine heats <b>57%</b> of homes with oil. Next step: weight these households by daily heating-degree-days for a live burn index.</p>
+        <p>Foundation of a heating-oil demand model: households heating with fuel oil or kerosene by county (ACS 5-year). 5.2&nbsp;million households &mdash; 4% of the US &mdash; overwhelmingly in the Northeast: Maine heats <b>57%</b> of homes with oil.</p>
       </div>
       <div class="chart-img-wrap" style="background:#fff;">
         <iframe src="assets/power_data/heatoil_map.html" class="chart-frame map" style="width:100%;border:0;" title="Interactive county map of fuel-oil home heating share" loading="lazy"></iframe>
@@ -323,6 +323,20 @@
       <div class="chart-card-footer">
         <span class="chart-sources">US Census Bureau ACS 5-year B25040 (this product uses the Census Bureau's data but is not endorsed or certified by the Census Bureau) &middot; Plotly</span>
         <span class="chart-updated">annual (ACS)</span>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Heating-Oil Demand Index &mdash; Oil-Weighted Degree Days</h2>
+        <p>Daily heating-degree-days at every oil-heating county, weighted by that county's oil-heated household count &mdash; a single number tracking how hard America's oil furnaces are working. Current season in red against the 2018+ envelope; the cumulative panel shows how the season is running versus history. Next: calibration against EIA state fuel-oil consumption to convert the index to barrels per day.</p>
+      </div>
+      <div class="chart-img-wrap">
+        <img src="assets/power_data/heatoil_hdd.webp" alt="Daily and season-cumulative oil-household-weighted heating degree days from ERA5, current season vs 2018-2025" loading="lazy" style="width:100%;height:auto;">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ERA5 2 m temperature (Copernicus C3S, local store) &middot; ACS B25040 county weights &middot; HDD base 65&deg;F</span>
+        <span class="chart-updated">daily (ERA5 ~6-day lag)</span>
       </div>
     </div>
 
