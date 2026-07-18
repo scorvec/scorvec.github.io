@@ -88,8 +88,8 @@ REGIONS = {
 
 # ENSO development years of the comparable "super" events + the current event.
 EVENTS = [
+    dict(y0=1972, label="1972–73", peak="+1.9"),
     dict(y0=1982, label="1982–83", peak="+2.2"),
-    dict(y0=1991, label="1991–92", peak="+1.7"),
     dict(y0=1997, label="1997–98", peak="+2.4"),
     dict(y0=2015, label="2015–16", peak="+2.6"),
     dict(y0=2023, label="2023–24", peak="+2.0"),
