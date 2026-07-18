@@ -132,6 +132,8 @@ MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "
 "$PY" ../tc/tc_tracker.py --date "$DATE" --time "$TIME" \
   --out-dir "$REPO/assets/tc" || echo "TC tracker failed; continuing"
 "$PY" ../tc/invest_models.py --out-dir "$REPO/assets/tc" || echo "invest plotter failed; continuing"
+"$PY" ../spectra/ke_spectra.py --date "$DATE" --cycle "$TIME" --fxx 0 6 24 48 \
+  --out "$REPO/assets/spectra/ke_spectra.webp" || echo "KE spectra failed; continuing"
 # ── 200 hPa velocity potential + irrotational wind (REVIVED 2026-07-07). Light:
 #    u@200 is already cached from the RMM pull, so only v@200 is fetched here. The
 #    pf_v_200 503-stalls that got this deactivated are handled now by the robust
@@ -204,7 +206,7 @@ perl -0pi -e "s/((?:aam|aam_trend|mmsf_anom|walker_anom|jets|torque_timeseries|t
     assets/sst/jets.webp assets/sst/anim/jets assets/sst/anim/jets_manifest.json \
     assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
     assets/tc/anim assets/tc/storms assets/tc/tc_meta.json tc.html \
-    assets/tc/invests assets/tc/invests_meta.json \
+    assets/tc/invests assets/tc/invests_meta.json assets/spectra/ke_spectra.webp \
     scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
     scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
     scripts/mjo/data/reference/mei_fit.json \
