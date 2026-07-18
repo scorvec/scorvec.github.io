@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-18T22:10Z",
+  "generated_at": "2026-07-18T22:44Z",
   "wind_cycle": "20260718T18Z",
   "solar_cycle": "20260718T18Z",
   "nameplate": {
@@ -12,9 +12,9 @@
     "wind_GW": 36.1,
     "solar_GW": 112.0,
     "combined_GW": 148.1,
-    "penetration_pct": 21.9,
+    "penetration_pct": 21.8,
     "denominator_kind": "demand",
-    "eia_total_GW": 677.74,
+    "eia_total_GW": 678.06,
     "eia_wind_GW": null,
     "eia_solar_GW": null,
     "stale": false
@@ -718,13 +718,13 @@
     },
     {
       "period": "2026-07-18T16:00Z",
-      "total_GW": 607.84,
+      "total_GW": 604.43,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T17:00Z",
-      "total_GW": 633.38,
+      "total_GW": 629.76,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -742,13 +742,13 @@
     },
     {
       "period": "2026-07-18T20:00Z",
-      "total_GW": 678.77,
+      "total_GW": 678.81,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T21:00Z",
-      "total_GW": 677.74,
+      "total_GW": 678.06,
       "wind_GW": null,
       "solar_GW": null
     }
