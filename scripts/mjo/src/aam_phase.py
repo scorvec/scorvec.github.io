@@ -38,7 +38,7 @@ REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 DENS_CLIM = REF / "aam_density_clim.nc"          # (doy, lev13, lat1.5°) per-band
 LATBAND_HIST = REF / "aam_latband_history.nc"    # incrementally cached observed rows
 LEVELS13 = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]
-OBS_DAYS = 96                                    # observed window (3-day steps)
+OBS_DAYS = 60                                    # observed window (3-day steps)
 DSCALE = 1e23                                    # heatmap units
 
 
@@ -231,6 +231,11 @@ def main() -> int:
     lim = max(float(np.nanpercentile(np.abs(z), 99)), 1.0)
     pm = ax.pcolormesh(tall, latc_show, z.T, cmap="RdBu_r", vmin=-lim, vmax=lim,
                        shading="nearest")
+    # contours over the forecast segment: key anomaly values for readability
+    cs = ax.contour(fvalid, latc_show, fc_anom.T, levels=[-10, -5, 5, 10],
+                    colors="k", linewidths=[0.9, 0.5, 0.5, 0.9],
+                    negative_linestyles="dashed")
+    ax.clabel(cs, levels=[-10, -5, 5, 10], fmt="%d", fontsize=6, inline=True)
     ax.axvline(init, color="k", lw=1.4, ls="--")
     ax.text(init, latc_show[-1] + 1.5, "forecast →", fontsize=8, va="bottom", ha="left")
     ax.set_yticks(range(-75, 76, 15))
