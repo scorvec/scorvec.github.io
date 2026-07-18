@@ -116,7 +116,7 @@ function render_region_model(reg, mm)
     mdl = mm.model == "aifs" ? "AIFS-ENS" : "IFS-ENS"
     for k in 0:NDAYS-1
         prob = strike_prob(mm.tracks, mm.n, k * 24)
-        probm = [((prob[i, j] > 0.05) && !Bool(LAND[i, j])) ? prob[i, j] : NaN
+        probm = [prob[i, j] > 0.05 ? prob[i, j] : NaN
                  for i in 1:length(MLAT), j in 1:length(MLON)]
         probsh = circshift(probm, (0, -jshift))
         valid = init + Day(k)
@@ -149,16 +149,16 @@ function render_region_model(reg, mm)
             fx = [f for f in tr.fix if f[1] <= k * 24]
             length(fx) < 2 && continue
             xs = Float64[]; ys = Float64[]
-            for i in 1:length(fx)-1
-                if seg_water(fx[i], fx[i+1])
-                    push!(xs, shift(fx[i][3]));   push!(ys, fx[i][2])
-                    push!(xs, shift(fx[i+1][3])); push!(ys, fx[i+1][2])
+            for f in fx
+                lo = shift(f[3])
+                if !isempty(xs) && abs(lo - xs[end]) > 180
                     push!(xs, NaN); push!(ys, NaN)
                 end
+                push!(xs, lo); push!(ys, f[2])
             end
-            !isempty(xs) && lines!(ax, xs, ys; color = ("#3a6ea8", 0.3), linewidth = 0.6)
+            lines!(ax, xs, ys; color = ("#3a6ea8", 0.3), linewidth = 0.6)
             for f in fx
-                if f[1] == k * 24 && is_ocean(f[2], f[3])
+                if f[1] == k * 24
                     scatter!(ax, [shift(f[3])], [f[2]]; markersize = reg.key == "globe" ? 5 : 7,
                              color = wn_color(f[6]), strokecolor = :black, strokewidth = 0.4)
                 end

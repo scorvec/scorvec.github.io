@@ -513,8 +513,7 @@ def _mean_track(cl):
     bag = defaultdict(list)
     for _, tr in cl["tracks"]:
         for pt in tr:
-            if is_ocean(pt[1], pt[2]):
-                bag[pt[0]].append((pt[1], pt[2], pt[5]))
+            bag[pt[0]].append((pt[1], pt[2], pt[5]))
     n_mem = len({m for m, _ in cl["tracks"]})
     out = []
     for k in sorted(bag):
@@ -613,17 +612,13 @@ def _draw_storm_panel(ax, cl, model, other_mean, w0, e0, s0, n0):
     n_hur = 0
     for _, tr in mtracks:
         for a, b in zip(tr[:-1], tr[1:]):
-            if not seg_over_water(a, b):
-                continue
             ax.plot([a[2], b[2]], [a[1], b[1]], color=_wn_color(b[5]),
                     lw=0.9, alpha=0.75, transform=ccrs.Geodetic(), zorder=4)
-        wet = [pt for pt in tr if is_ocean(pt[1], pt[2])]
-        if wet:                                      # dots at each forecast fix
-            ax.scatter([pt[2] for pt in wet], [pt[1] for pt in wet], s=5,
-                       c=[_wn_color(pt[5]) for pt in wet], edgecolors="none",
-                       alpha=0.85, transform=ccrs.PlateCarree(), zorder=5)
+        ax.scatter([pt[2] for pt in tr], [pt[1] for pt in tr], s=5,
+                   c=[_wn_color(pt[5]) for pt in tr], edgecolors="none",
+                   alpha=0.85, transform=ccrs.PlateCarree(), zorder=5)
         peak = max(tr, key=lambda pt: pt[5])
-        if peak[5] >= HURR and is_ocean(peak[1], peak[2]):
+        if peak[5] >= HURR:
             n_hur += 1                               # hurricane-force member
             ax.plot(peak[2], peak[1], marker="$H$", ms=8, color="#c62828",
                     mew=0.4, transform=ccrs.PlateCarree(), zorder=8)
@@ -639,13 +634,66 @@ def _draw_storm_panel(ax, cl, model, other_mean, w0, e0, s0, n0):
         ax.plot([q[2] for q in mt], [q[1] for q in mt], color="k", lw=2.8,
                 transform=ccrs.Geodetic(), zorder=6)
         for q in mt:
-            if q[0] % 48 != 0:
-                continue
-            ax.annotate(f"d{q[0] // 24}", xy=(q[2], q[1] + 0.7),
+            if q[0] % 24 != 0 or q[0] == 0:
+                continue                          # hour labels at each daily position
+            ax.annotate(str(q[0]), xy=(q[2], q[1] + 0.7),
                         xycoords=ccrs.PlateCarree()._as_mpl_transform(ax),
-                        fontsize=6.5, color="0.35", ha="center", zorder=7,
+                        fontsize=6, color="0.3", ha="center", zorder=7,
                         annotation_clip=True, clip_on=True)
     return mt, n_hur
+
+
+def _storm_timeseries(cl, model_counts, init, fp: Path):
+    """MSLP + 10 m wind plumes for one storm: members thin (AIFS steel-blue,
+    IFS orange), model means bold, TS/hurricane thresholds marked."""
+    fig, (ap, aw) = plt.subplots(1, 2, figsize=(13.5, 4.6))
+    colors = {"aifs": ("#1f77b4", "#0b3d66"), "ifs": ("#ff9f43", "#b35a00")}
+    for model in sorted(model_counts):
+        thin, bold = colors.get(model, ("0.6", "0.2"))
+        mtracks = [tr for m, tr in cl["tracks"] if m.startswith(model)]
+        from collections import defaultdict
+        pbag, wbag = defaultdict(list), defaultdict(list)
+        for tr in mtracks:
+            tv = [init + pd.Timedelta(hours=int(pt[0])) for pt in tr]
+            ap.plot(tv, [pt[3] for pt in tr], color=thin, lw=0.5, alpha=0.25)
+            aw.plot(tv, [pt[5] * 1.94384 for pt in tr], color=thin, lw=0.5, alpha=0.25)
+            for pt in tr:
+                pbag[int(pt[0])].append(pt[3])
+                wbag[int(pt[0])].append(pt[5] * 1.94384)
+        n_model = model_counts[model]
+        hrs = sorted(h for h in pbag if len(pbag[h]) >= max(3, 0.3 * max(len(mtracks), 1)))
+        if hrs:
+            tv = [init + pd.Timedelta(hours=h) for h in hrs]
+            mdl = "AIFS" if model == "aifs" else "IFS"
+            ap.plot(tv, [np.mean(pbag[h]) for h in hrs], color=bold, lw=2.4,
+                    label=f"{mdl} mean")
+            aw.plot(tv, [np.mean(wbag[h]) for h in hrs], color=bold, lw=2.4,
+                    label=f"{mdl} mean")
+    aw.axhline(34, color="0.55", lw=0.9, ls="--")
+    aw.axhline(64, color="#c62828", lw=0.9, ls="--")
+    aw.text(0.005, 34, " TS (34 kt)", fontsize=6.5, color="0.45", va="bottom",
+            transform=aw.get_yaxis_transform())
+    aw.text(0.005, 64, " hurricane (64 kt)", fontsize=6.5, color="#c62828",
+            va="bottom", transform=aw.get_yaxis_transform())
+    ap.set_ylabel("central MSLP (hPa)", fontsize=9)
+    aw.set_ylabel("peak 10 m wind (kt, grid-scale)", fontsize=9)
+    ap.set_title("Central pressure", fontsize=10, fontweight="bold")
+    aw.set_title("Peak 10 m wind near centre", fontsize=10, fontweight="bold")
+    for a in (ap, aw):
+        a.grid(True, alpha=0.25)
+        a.tick_params(labelsize=7.5)
+        for lab in a.get_xticklabels():
+            lab.set_rotation(30); lab.set_ha("right")
+    ap.legend(fontsize=8, loc="best", framealpha=0.9)
+    inv = f"  ·  ≈ {cl['invest']}" if cl.get("invest") else ""
+    fig.suptitle(f"{cl['id']} — ensemble intensity{inv} · init {init:%Y-%m-%d %HZ} · "
+                 f"grid-scale winds understate true intensity",
+                 fontsize=11, fontweight="bold", y=1.0)
+    fig.tight_layout()
+    fp.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(fp, dpi=140, bbox_inches="tight", facecolor="white",
+                pil_kwargs={"quality": 92, "method": 6})
+    plt.close(fig)
 
 
 def render_storm_panels(labeled, model_counts, init, out_dir: Path):
@@ -665,14 +713,14 @@ def render_storm_panels(labeled, model_counts, init, out_dir: Path):
         las = [pt[1] for _, tr in cl["tracks"] for pt in tr]
         l0 = cl["genesis"][2]
         los = [l0 + (((pt[2] - l0 + 180) % 360) - 180) for _, tr in cl["tracks"] for pt in tr]
-        w0, e0 = np.percentile(los, 8) - 4, np.percentile(los, 92) + 4
-        s0, n0 = np.percentile(las, 8) - 3, np.percentile(las, 92) + 3
+        w0, e0 = np.percentile(los, 2) - 5, np.percentile(los, 98) + 5
+        s0, n0 = np.percentile(las, 2) - 4, np.percentile(las, 98) + 4
         if e0 - w0 < 24: pad = (24 - (e0 - w0)) / 2; w0 -= pad; e0 += pad
         if n0 - s0 < 16: pad = (16 - (n0 - s0)) / 2; s0 -= pad; n0 += pad
-        if e0 - w0 > 55: c = (e0 + w0) / 2; w0, e0 = c - 27.5, c + 27.5
-        if n0 - s0 > 32: c = (n0 + s0) / 2; s0, n0 = c - 16, c + 16
+        if e0 - w0 > 70: c = (e0 + w0) / 2; w0, e0 = c - 35, c + 35
+        if n0 - s0 > 40: c = (n0 + s0) / 2; s0, n0 = c - 20, c + 20
         aspect = (n0 - s0) / (e0 - w0)
-        figw = 16.0
+        figw = 19.0
         figh = figw / 2 * aspect * 1.02 + 0.7
         fig = plt.figure(figsize=(figw, figh), facecolor="white")
         means = {}
@@ -716,7 +764,9 @@ def render_storm_panels(labeled, model_counts, init, out_dir: Path):
         sdir.mkdir(parents=True, exist_ok=True)   # robust to concurrent cleanup
         fig.savefig(sdir / fn, dpi=150, bbox_inches="tight", facecolor="white", pil_kwargs={"quality": 92, "method": 6})
         plt.close(fig)
-        meta.append({"id": cl["id"], "file": f"storms/{fn}",
+        tsfn = f"storm_{i:02d}_ts.webp"
+        _storm_timeseries(cl, model_counts, init, sdir / tsfn)
+        meta.append({"id": cl["id"], "file": f"storms/{fn}", "ts_file": f"storms/{tsfn}",
                      "support": round(cl["support"], 3),
                      "sup_m": {k: round(v, 3) for k, v in cl["sup_m"].items()},
                      "invest": cl.get("invest", ""),
@@ -746,18 +796,16 @@ def _render_frame(job):
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), edgecolor="#b0b0a0",
                    linewidth=0.35, zorder=3)
     sel = (glon >= w - 5) & (glon <= e + 5)
-    pshow = np.where((prob > 0.05) & ~_LM["land"], prob, np.nan)   # nothing over land
+    pshow = np.where(prob > 0.05, prob, np.nan)
     pm = ax.pcolormesh(glon[sel], glat, pshow[:, sel],
                        transform=ccrs.PlateCarree(), cmap="YlOrRd",
                        vmin=0, vmax=0.9, alpha=0.75, zorder=1)
     for m, tr in upto:
-        # draw only over-water segments (land mask hides landfall remnants)
-        for a, b in zip(tr[:-1], tr[1:]):
-            if seg_over_water(a, b):
-                ax.plot([a[2], b[2]], [a[1], b[1]], color="#3a6ea8", lw=0.5,
-                        alpha=0.3, transform=ccrs.Geodetic(), zorder=4)
+        la = [p[1] for p in tr]; lo = [p[2] for p in tr]
+        ax.plot(lo, la, color="#3a6ea8", lw=0.5,
+                alpha=0.3, transform=ccrs.Geodetic(), zorder=4)
         for p in tr:
-            if p[0] == k * 24 and is_ocean(p[1], p[2]):
+            if p[0] == k * 24:
                 ax.plot(p[2], p[1], marker="o",
                         ms=3.0 if key == "globe" else 4.0, color=_wn_color(p[5]),
                         mec="k", mew=0.35, alpha=0.95,
@@ -873,7 +921,7 @@ def build_anim(coherent, labeled, model_counts, init, anim_dir: Path):
         if key == "globe":
             # seasonal bounds: the winter hemisphere's TC-dead high latitudes
             # are just empty map
-            s, nn = (-30, 48) if init.month in (5, 6, 7, 8, 9, 10) else (-48, 30)
+            s, nn = (-15, 45) if init.month in (5, 6, 7, 8, 9, 10) else (-45, 15)
         def in_box(tr):
             return any(w - 6 <= p[2] <= e + 6 and s - 4 <= p[1] <= nn + 4 for p in tr)
         rclusters = [cl for cl in labeled

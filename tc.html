@@ -275,6 +275,13 @@ fetch("https://scorvec.goatcounter.com/counter/TOTAL.json")
       a.innerHTML = '<img src="' + a.href + '" loading="lazy" style="width:100%;height:auto;border:1px solid #e4e2dc;border-radius:3px;" alt="Ensemble tracks for ' + s.id + '">' +
         '<div style="font-size:0.72rem;color:#555;padding:0.25rem 0.1rem;font-family:monospace;">' + cap + '</div>';
       g.appendChild(a);
+      if (s.ts_file) {
+        var b = document.createElement('a');
+        b.href = 'assets/tc/' + s.ts_file + '?v=' + (d.init || '').replace(/\W/g, '');
+        b.target = '_blank'; b.style.textDecoration = 'none';
+        b.innerHTML = '<img src="' + b.href + '" loading="lazy" style="width:100%;height:auto;border:1px solid #e4e2dc;border-radius:3px;" alt="Ensemble intensity plumes for ' + s.id + '">';
+        g.appendChild(b);
+      }
     });
   }).catch(function () {});
 
