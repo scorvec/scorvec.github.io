@@ -63,20 +63,41 @@ def _decode(grib_bytes: bytes, with_latlon: bool = False):
     return vals
 
 
-# common geographic anchor for the interior box (central CONUS)
-CENTER = (38.5, -97.5)
-_center_cache: dict = {}
+# Common analysis region = the largest lat/lon rectangle INSCRIBED in the
+# HRRR domain (trimmed of its boundary sponge). Both models are cropped to
+# their own index boxes covering this region, so each spectrum uses its
+# full native grid over identical geography.
+_HRRR_MARGIN = 25            # points trimmed from HRRR edges (blend zone)
+_bounds_cache: dict = {}
+_crop_cache: dict = {}
 
 
-def _center_idx(model, grib_bytes):
-    if model in _center_cache:
-        return _center_cache[model]
+def _hrrr_bounds(lats, lons):
+    """Inscribed lat/lon rectangle of the trimmed HRRR Lambert grid."""
+    m = _HRRR_MARGIN
+    la, lo = lats[m:-m, m:-m], lons[m:-m, m:-m]
+    return (float(la[0, :].max()), float(la[-1, :].min()),
+            float(lo[:, 0].max()), float(lo[:, -1].min()))
+
+
+def _crop_idx(model, grib_bytes):
+    """Index box of this model's grid covering the common region."""
+    if model in _crop_cache:
+        return _crop_cache[model]
     _, lats, lons = _decode(grib_bytes, with_latlon=True)
     lons = np.where(lons > 180, lons - 360, lons)
-    d = (lats - CENTER[0]) ** 2 + (np.cos(np.deg2rad(CENTER[0])) * (lons - CENTER[1])) ** 2
-    iy, ix = np.unravel_index(np.argmin(d), d.shape)
-    _center_cache[model] = (int(iy), int(ix))
-    return _center_cache[model]
+    if "hrrr" not in _bounds_cache:
+        if model == "hrrr":
+            _bounds_cache["hrrr"] = _hrrr_bounds(lats, lons)
+        else:                       # need HRRR first; caller order guarantees it
+            raise RuntimeError("hrrr must be fetched before rrfs for bounds")
+    b0, b1, l0, l1 = _bounds_cache["hrrr"]
+    inside = (lats >= b0) & (lats <= b1) & (lons >= l0) & (lons <= l1)
+    rows = np.where(inside.any(axis=1))[0]
+    cols = np.where(inside.any(axis=0))[0]
+    _crop_cache[model] = (int(rows[0]), int(rows[-1] + 1),
+                          int(cols[0]), int(cols[-1] + 1))
+    return _crop_cache[model]
 
 
 def fetch_uv(model: str, date: str, cycle: str, fxx: int, level: int):
@@ -92,12 +113,12 @@ def fetch_uv(model: str, date: str, cycle: str, fxx: int, level: int):
     if len(recs) < 2:
         raise RuntimeError(f"{model}: records not found for hybrid level {level}")
     u = _decode(recs[tags[0]]); v = _decode(recs[tags[1]])
-    cy, cx = _center_idx(model, recs[tags[0]])
+    y0, y1, x0, x1 = _crop_idx(model, recs[tags[0]])
     p = float(np.mean(_decode(recs[tags[2]]))) / 100 if tags[2] in recs else np.nan
-    return u, v, p, (cy, cx)
+    return u[y0:y1, x0:x1], v[y0:y1, x0:x1], p, None
 
 
-def find_level(model, date, cycle, fxx, target_hpa, lo=20, hi=60):
+def find_level(model, date, cycle, fxx, target_hpa, lo=2, hi=60):
     """Hybrid level whose domain-mean pressure is nearest target (probes PRES
     records only — a few hundred KB each)."""
     if model == "hrrr":
@@ -154,7 +175,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True); ap.add_argument("--cycle", default="00")
     ap.add_argument("--fxx", type=int, nargs="+", default=[6])
-    ap.add_argument("--target-hpa", type=float, default=250.0)
+    ap.add_argument("--target-hpa", type=float, default=700.0)
     ap.add_argument("--out", default=str(OUT / "ke_spectra.webp"))
     args = ap.parse_args()
 
@@ -173,7 +194,7 @@ def main() -> int:
             except Exception as e:                             # noqa: BLE001
                 print(f"  {model} f{fxx:02d}: {str(e)[:80]}")
                 continue
-            wl, spec = ke_spectrum(interior(u, ctr), interior(v, ctr))
+            wl, spec = ke_spectrum(u, v)
             ax.loglog(wl, spec, color=color, lw=1.4,
                       label=f"{model.upper()} (hyb L{lev}, ~{p:.0f} hPa)")
             print(f"  {model} f{fxx:02d}: L{lev} ≈ {p:.0f} hPa, {u.shape} grid")
@@ -191,8 +212,8 @@ def main() -> int:
         ax.set_title(f"F{fxx:02d}", fontsize=11, fontweight="bold")
         ax.grid(True, alpha=0.25, which="both")
         ax.legend(fontsize=8, loc="lower left")
-    fig.suptitle(f"HRRR vs RRFS kinetic-energy spectra — native winds · "
-                 f"{args.date} {args.cycle}Z · {BOX}×{BOX} interior box (~{3*BOX:.0f} km)",
+    fig.suptitle(f"HRRR vs RRFS kinetic-energy spectra — ~{args.target_hpa:.0f} hPa native winds · "
+                 f"{args.date} {args.cycle}Z · full common domain (HRRR-inscribed)",
                  fontsize=12.5, fontweight="bold")
     fig.tight_layout()
     out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
