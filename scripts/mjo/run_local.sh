@@ -23,6 +23,17 @@ export MJO_GRIB_ARCHIVE="${MJO_GRIB_ARCHIVE:-$HOME/mjo/grib_archive}"
 cd "$REPO/scripts/mjo" || exit 1
 
 LOG="$REPO/scripts/mjo/run_local.log"
+
+# Reaper: a prior instance stuck >2h (dead download, no timeout) blocks every
+# later hourly fire. Kill anything that old before taking the lock.
+for pid in $(pgrep -f "scripts/mjo/run_local.sh" 2>/dev/null); do
+  [ "$pid" = "$$" ] && continue
+  age=$(( $(date +%s) - $(ps -o lstart= -p "$pid" 2>/dev/null | xargs -I{} date -j -f "%a %b %d %T %Y" "{}" +%s 2>/dev/null || echo $(date +%s)) ))
+  if [ "$age" -gt 7200 ]; then
+    echo "reaper: killing stuck pipeline pid $pid (age ${age}s)"
+    pkill -TERM -P "$pid" 2>/dev/null; kill -TERM "$pid" 2>/dev/null
+  fi
+done
 # Fresh log each run (keep one previous as .prev) so stale tracebacks from earlier
 # runs can't pile up and look current; and drop the ecmwf-opendata tqdm download
 # progress spam (carriage-return bars / MB-s ticks) — keep only meaningful lines.
