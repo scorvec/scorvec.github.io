@@ -65,6 +65,12 @@ read -r DATE TIME < <("$PY" -c \
 if ! [[ "$DATE" =~ ^[0-9]{8}$ && "$TIME" =~ ^(00|12)$ ]]; then
   echo "could not determine cycle (DATE='$DATE' TIME='$TIME'); exiting"; exit 0
 fi
+# Publication sentinel (fetch v2): only start bulk work once the cycle's LAST
+# step is on a mirror — half-published cycles caused hours of retry crawl.
+if ! "$PY" -c "import sys; sys.path.insert(0,'$REPO/scripts/ecmwf'); import rangefetch as rf; sys.exit(0 if rf.cycle_complete('$DATE','$TIME') else 1)" 2>/dev/null; then
+  echo "cycle ${DATE} ${TIME}z not fully published yet — skipping this run"
+  exit 0
+fi
 COMPACT="${DATE}_${TIME}z"
 DONE_MARKER="data/.cycle_done_${COMPACT}"
 RMM_PNG="$REPO/assets/mjo/rmm_${COMPACT}.png"
@@ -103,7 +109,20 @@ fi
 # MJO_HEAVY_ATMOS=1: the AAM/torque/MMSF/Walker/jets block was REVIVED 2026-07-18
 # after a full math audit (equator-row split, per-hour torque clim, NaN-band fix,
 # MMSF clim-midpoint eval — see git history of src/*.py).
-MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (rest) had issues; continuing"
+# ── Stage 2a (PRIORITY): light ENS fields (10u/10v/msl) → TC + fast products
+#    publish BEFORE the heavy AAM downloads can delay or wedge them ──
+"$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (light) had issues; continuing"
+"$PY" ../tc/tc_tracker.py --date "$DATE" --time "$TIME" \
+  --out-dir "$REPO/assets/tc" || echo "TC tracker failed; continuing"
+"$PY" ../tc/invest_models.py --out-dir "$REPO/assets/tc" || echo "invest plotter failed; continuing"
+"$PY" src/mslp_wind_anim.py --date "$DATE" --time "$TIME" \
+  --anim-dir "$REPO/assets/sst/anim/mslp_wind" \
+  --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
+( cd "$REPO" && git add assets/tc tc.html assets/sst/anim/mslp_wind assets/sst/anim/mslp_wind_manifest.json \
+    && commit_push "TC + MSLP/wind: ${COMPACT} (priority, local)" )
+
+# ── Stage 2b: heavy ENS fields (AAM multi-level etc) + the rest ──
+MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (heavy) had issues; continuing"
 "$PY" src/eq_hovmoller.py --date "$DATE" --time "$TIME" --data-dir data/u10 \
   --out "$REPO/assets/sst/eq_wind_hovmoller.webp" || echo "Hovmöller failed; continuing"
 "$PY" src/soi_forecast.py --date "$DATE" --time "$TIME" --data-dir data/msl \
@@ -137,12 +156,6 @@ MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "
   --anim-dir "$REPO/assets/sst/anim/waf" \
   --manifest "$REPO/assets/sst/anim/waf_manifest.json" \
   --out "$REPO/assets/sst/waf.webp" || echo "WAF failed; continuing"
-"$PY" src/mslp_wind_anim.py --date "$DATE" --time "$TIME" \
-  --anim-dir "$REPO/assets/sst/anim/mslp_wind" \
-  --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
-"$PY" ../tc/tc_tracker.py --date "$DATE" --time "$TIME" \
-  --out-dir "$REPO/assets/tc" || echo "TC tracker failed; continuing"
-"$PY" ../tc/invest_models.py --out-dir "$REPO/assets/tc" || echo "invest plotter failed; continuing"
 "$PY" ../spectra/ke_spectra.py --date "$DATE" --cycle "$TIME" --fxx 0 6 24 48 \
   --out "$REPO/assets/spectra/ke_spectra.webp" || echo "KE spectra failed; continuing"
 "$PY" ../heatoil/hdd_index.py || echo "heat-oil HDD failed; continuing"

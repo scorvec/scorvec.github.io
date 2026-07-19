@@ -50,14 +50,17 @@ def fetch_index(date: str, hh: str, model: str, step: int, kind: str = "pf",
     """Parse the .index file: list of message dicts with _offset/_length."""
     rel = path_for(date, hh, model, step, kind) + ".index"
     last_err = None
-    for src in sources or ["aws", "azure", "ecmwf"]:
-        try:
-            r = requests.get(f"{MIRRORS[src]}/{rel}", timeout=TIMEOUT)
-            if r.status_code == 200:
-                return [json.loads(line) for line in r.text.splitlines() if line.strip()]
-            last_err = RuntimeError(f"{src}: HTTP {r.status_code}")
-        except Exception as e:                                 # noqa: BLE001
-            last_err = e
+    for attempt in range(3):
+        for src in sources or ["aws", "azure", "ecmwf"]:
+            try:
+                r = requests.get(f"{MIRRORS[src]}/{rel}", timeout=TIMEOUT)
+                if r.status_code == 200:
+                    return [json.loads(line) for line in r.text.splitlines() if line.strip()]
+                last_err = RuntimeError(f"{src}: HTTP {r.status_code}")
+                if r.status_code in (429, 503):
+                    time.sleep(1.5 + 3.0 * attempt)
+            except Exception as e:                             # noqa: BLE001
+                last_err = e
     raise RuntimeError(f"index unavailable for {rel}: {last_err}")
 
 
@@ -137,6 +140,21 @@ def fetch(date: str, hh: str, model: str, step: int, *, param=None,
     if out:
         Path(out).write_bytes(blob)
     return blob
+
+
+def cycle_complete(date: str, hh: str, model: str = "aifs-ens",
+                   last_step: int = 360, kind: str = "pf") -> bool:
+    """Publication sentinel: the LAST step's .index exists on some mirror →
+    the cycle is fully disseminated; safe to start bulk fetching."""
+    rel = path_for(date, hh, model, last_step, kind) + ".index"
+    for src in ("aws", "azure", "ecmwf"):
+        try:
+            r = requests.head(f"{MIRRORS[src]}/{rel}", timeout=(5, 15))
+            if r.status_code == 200:
+                return True
+        except Exception:                                  # noqa: BLE001
+            continue
+    return False
 
 
 def _bench():
