@@ -112,6 +112,15 @@ fi
 # ── Stage 2a (PRIORITY): light ENS fields (10u/10v/msl) → TC + fast products
 #    publish BEFORE the heavy AAM downloads can delay or wedge them ──
 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (light) had issues; continuing"
+# Overlap network with CPU: the light downloads are done, and everything from
+# here to the Stage-2a commit is render-bound — start stocking the heavy specs
+# (the ~6 GB AAM pull) in the background NOW. Per-file flocks in store.py make
+# this safe: Stage 2b's ens_cycle either finds the files published or blocks
+# on the lock until the prefetch finishes them.
+"$PY" ../ecmwf/store.py --date "$DATE" --time "$TIME" \
+  > "$REPO/scripts/mjo/data/heavy_prefetch.log" 2>&1 &
+PREFETCH_PID=$!
+echo "heavy prefetch started in background (pid $PREFETCH_PID)"
 "$PY" ../tc/tc_tracker.py --date "$DATE" --time "$TIME" \
   --out-dir "$REPO/assets/tc" || echo "TC tracker failed; continuing"
 "$PY" ../tc/invest_models.py --out-dir "$REPO/assets/tc" || echo "invest plotter failed; continuing"
@@ -122,6 +131,7 @@ fi
     && commit_push "TC + MSLP/wind: ${COMPACT} (priority, local)" )
 
 # ── Stage 2b: heavy ENS fields (AAM multi-level etc) + the rest ──
+wait "$PREFETCH_PID" 2>/dev/null || echo "heavy prefetch exited nonzero (see data/heavy_prefetch.log); ens_cycle will retry"
 MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (heavy) had issues; continuing"
 "$PY" src/eq_hovmoller.py --date "$DATE" --time "$TIME" --data-dir data/u10 \
   --out "$REPO/assets/sst/eq_wind_hovmoller.webp" || echo "Hovmöller failed; continuing"
