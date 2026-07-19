@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -49,11 +49,18 @@ def _ts(d: str | date) -> str:
     return f"{d}T00:00:00Z"
 
 
+def _end_ts() -> str:
+    """End of the query window: the NEXT hour boundary, so today's traffic
+    is included (midnight-today silently drops the current day)."""
+    now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    return (now + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def locations(start: str) -> dict[str, int]:
     """{ISO2: unique-visitor count} since `start` (paged)."""
     out, offset = {}, 0
     while True:
-        d = api("stats/locations", start=_ts(start), end=_ts(date.today().isoformat()),
+        d = api("stats/locations", start=_ts(start), end=_end_ts(),
                 limit=100, offset=offset)
         for row in d.get("stats", []):
             out[row["id"]] = out.get(row["id"], 0) + int(row["count"])
@@ -88,7 +95,7 @@ def main() -> int:
     start30 = (date.today() - timedelta(days=30)).isoformat()
     loc30 = locations(start30)
     loc_all = locations("2026-07-18")            # site epoch: GoatCounter install date
-    pages = api("stats/hits", start=_ts(start30), end=_ts(date.today().isoformat()), limit=10)
+    pages = api("stats/hits", start=_ts(start30), end=_end_ts(), limit=10)
     top_pages = [{"path": p["path"], "count": int(p["count"])}
                  for p in pages.get("hits", [])][:10]
 
