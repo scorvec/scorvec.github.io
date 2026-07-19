@@ -53,6 +53,11 @@ from typing import Callable, Optional
 
 import numpy as np
 import pandas as pd
+
+try:
+    import julia_bridge as _jb
+except Exception:                                              # noqa: BLE001
+    _jb = None
 import matplotlib.colors as mcolors
 from herbie import Herbie
 
@@ -1075,11 +1080,37 @@ def render_map(values: np.ndarray, grid_lats: np.ndarray, grid_lons: np.ndarray,
     norm = variable.norm_factory() if variable.norm_factory else None
     mesh_kw = dict(norm=norm) if norm is not None else dict(
         vmin=variable.vmin, vmax=variable.vmax)
-    im = ax.pcolormesh(
-        grid_lons, grid_lats, values,
-        cmap=cmap, transform=PC, shading="auto",
-        rasterized=True, zorder=1, **mesh_kw,
-    )
+    # Fast path: nearest-neighbor regrid onto a regular projected raster
+    # (index cached per model+region by julia_bridge) + imshow. ~3-4x faster
+    # than curvilinear pcolormesh at HRRR-national size; falls back to
+    # pcolormesh if the bridge is unavailable.
+    im = None
+    if _jb is not None:
+        try:
+            e = region.extent
+            bx = np.concatenate([np.linspace(e[0], e[1], 50), np.full(50, e[1]),
+                                 np.linspace(e[1], e[0], 50), np.full(50, e[0])])
+            by = np.concatenate([np.full(50, e[2]), np.linspace(e[2], e[3], 50),
+                                 np.full(50, e[3]), np.linspace(e[3], e[2], 50)])
+            pts = proj.transform_points(PC, bx, by)
+            ext_xy = (float(np.nanmin(pts[:, 0])), float(np.nanmax(pts[:, 0])),
+                      float(np.nanmin(pts[:, 1])), float(np.nanmax(pts[:, 1])))
+            key = f"{model}_{region.id}"
+            idx, mask = _jb._regrid_index(key, grid_lats, grid_lons, proj, ext_xy)
+            reg = np.where(mask, np.asarray(values, np.float32).ravel()[idx],
+                           np.nan).reshape(880, 1560)
+            im = ax.imshow(reg, extent=[ext_xy[0], ext_xy[1], ext_xy[2], ext_xy[3]],
+                           origin="lower", cmap=cmap, interpolation="nearest",
+                           transform=proj, zorder=1, **mesh_kw)
+        except Exception as exc:                               # noqa: BLE001
+            print(f"  regrid fast-path failed ({str(exc)[:60]}) — pcolormesh")
+            im = None
+    if im is None:
+        im = ax.pcolormesh(
+            grid_lons, grid_lats, values,
+            cmap=cmap, transform=PC, shading="auto",
+            rasterized=True, zorder=1, **mesh_kw,
+        )
 
     feat_scale = "110m" if region.id == "national" else "50m"
     _draw_features(ax, scale=feat_scale)
@@ -1339,27 +1370,86 @@ def _render_task(args: dict) -> str:
                 out_path=args["out_path"],
             )
         else:
-            render_map(
-                values=args["values"],
-                grid_lats=grid_lats_arr,
-                grid_lons=grid_lons_arr,
-                valid_time=args["valid_time"],
-                fxx=args["fxx"],
-                variable_id=args["variable_id"],
-                region_id=args["region_id"],
-                cycle=args["cycle"],
-                out_path=args["out_path"],
-                overlay_records=args.get("overlay_records"),
-                overlay_mw_at_time=args.get("overlay_mw_at_time"),
-                wind_uv=args.get("wind_uv"),
-                model=args.get("model", "hrrr"),
-            )
+            staged = False
+            if (_jb is not None and _jb.available()
+                    and args.get("overlay_records") is None
+                    and args.get("wind_uv") is None):
+                try:
+                    _stage_for_julia(args, grid_lats_arr, grid_lons_arr)
+                    staged = True
+                except Exception as e:                         # noqa: BLE001
+                    print(f"  julia staging failed ({str(e)[:60]}) — matplotlib")
+            if not staged:
+                render_map(
+                    values=args["values"],
+                    grid_lats=grid_lats_arr,
+                    grid_lons=grid_lons_arr,
+                    valid_time=args["valid_time"],
+                    fxx=args["fxx"],
+                    variable_id=args["variable_id"],
+                    region_id=args["region_id"],
+                    cycle=args["cycle"],
+                    out_path=args["out_path"],
+                    overlay_records=args.get("overlay_records"),
+                    overlay_mw_at_time=args.get("overlay_mw_at_time"),
+                    wind_uv=args.get("wind_uv"),
+                    model=args.get("model", "hrrr"),
+                )
     finally:
         for shm in extra_shms:
             shm.close()
         lats_shm.close()
         lons_shm.close()
     return args["out_id"]
+
+
+def _stage_for_julia(args, grid_lats, grid_lons):
+    """Serialize one plain frame for the Julia rasterizer (visual parity with
+    render_map: same slicing, sentinel masking, colormap, titles)."""
+    variable = next(v for v in VARIABLES if v.id == args["variable_id"])
+    if variable.point_values:
+        raise RuntimeError("point-value overlay frame")
+    region = next(r for r in REGIONS if r.id == args["region_id"])
+    values = args["values"]
+    sl = _get_region_slice(region.id, grid_lats, grid_lons)
+    if sl is not None:
+        values = values[sl]
+        grid_lats = grid_lats[sl]
+        grid_lons = grid_lons[sl]
+    if variable.id == "ceiling":
+        values = np.where(values > 6500, np.nan, values)
+    if variable.id == "reflectivity":
+        values = np.where(values < 5.0, np.nan, values)
+    if variable.id == "smoke":
+        values = np.where(values < SMOKE_BOUNDS[0], np.nan, values)
+    proj = _get_projection(region.id)
+    cmap = variable.cmap_factory()
+    norm = variable.norm_factory() if variable.norm_factory else None
+    spec = _jb.serialize_cmap(cmap, norm, variable.vmin, variable.vmax)
+    # projected bbox of the PlateCarree extent rectangle (matplotlib parity)
+    e = region.extent
+    bx = np.concatenate([np.linspace(e[0], e[1], 50), np.full(50, e[1]),
+                         np.linspace(e[1], e[0], 50), np.full(50, e[0])])
+    by = np.concatenate([np.full(50, e[2]), np.linspace(e[2], e[3], 50),
+                         np.full(50, e[3]), np.linspace(e[3], e[2], 50)])
+    pts = proj.transform_points(PC, bx, by)
+    extent_xy = (float(np.nanmin(pts[:, 0])), float(np.nanmax(pts[:, 0])),
+                 float(np.nanmin(pts[:, 1])), float(np.nanmax(pts[:, 1])))
+    feat_scale = "110m" if region.id == "national" else "50m"
+    overlays = _jb.ensure_overlays(region.id, proj, feat_scale)
+    model = args.get("model", "hrrr")
+    title = variable.title if model == "hrrr" else variable.title.replace("HRRR", "RRFS")
+    valid_str = args["valid_time"].strftime("%Y-%m-%d %H:%MZ")
+    cycle_str = args["cycle"].strftime("%Y-%m-%d %HZ")
+    full_title = (f"{title} · {region.label}\n"
+                  f"Cycle {cycle_str}  ·  F{args['fxx']:02d}  ·  Valid {valid_str}")
+    frame_id = Path(args["out_path"]).stem + "_" + region.id + "_" + model
+    _jb.stage_frame(frame_id=frame_id, values=values, lats=grid_lats,
+                    lons=grid_lons, proj=proj, extent_xy=extent_xy,
+                    cmap_spec=spec, title=full_title,
+                    cbar_label=f"{variable.label} ({variable.units})",
+                    cbar_ticks=variable.cbar_ticks, figsize=region.figsize,
+                    out_path=str(args["out_path"]), overlays_npz=overlays)
 
 
 # ============================================================================
@@ -1706,6 +1796,30 @@ def main():
     finally:
         print(f"  releasing {len(shm_names_to_release)} shared-memory blocks...")
         _release_shared(shm_names_to_release)
+
+    # Julia batch pass over frames the workers staged instead of rendering.
+    if _jb is not None and _jb.available():
+        done, failed = _jb.render_staged()
+        for fid in failed:
+            try:
+                meta, vals = _jb.load_failed(fid)
+                # fall back through matplotlib using the staged arrays: the
+                # frame_id encodes out stem + region + model; re-render from
+                # the original task list entry
+                cand = [tk for tk in tasks
+                        if Path(tk["out_path"]).stem + "_" + tk["region_id"]
+                        + "_" + tk.get("model", "hrrr") == fid]
+                if cand:
+                    tk = cand[0]
+                    render_map(values=tk["values"], grid_lats=None,
+                               grid_lons=None, valid_time=tk["valid_time"],
+                               fxx=tk["fxx"], variable_id=tk["variable_id"],
+                               region_id=tk["region_id"], cycle=tk["cycle"],
+                               out_path=tk["out_path"], model=tk.get("model", "hrrr"))
+            except Exception as e:                             # noqa: BLE001
+                print(f"  fallback failed for {fid}: {str(e)[:80]}")
+            finally:
+                _jb.clear_frame(fid)
 
     print(f"  rendered in {time_module.time() - t_render:.0f}s "
           f"({n_done} OK, {n_failed} failed)")

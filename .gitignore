@@ -91,3 +91,5 @@ scripts/sst/data/imerg/
 scripts/gatun/data/
 
 scripts/climate/data/
+scripts/synoptic/.julia_staging/
+scripts/synoptic/.julia_overlays/
