@@ -161,10 +161,12 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     ax.set_yticks([1000, 850, 700, 500, 300, 200, 100])
     ax.set_yticklabels([1000, 850, 700, 500, 300, 200, 100])
     ax.minorticks_off()
-    ax.set_xlim(0, 360); ax.set_xticks(range(0, 361, 60))
-    ax.set_xticklabels(["0°", "60°E", "120°E", "180°", "120°W", "60°W", "0°"])
+    # Indo-Pacific focus: the Walker circulation lives west of South America,
+    # so cut the Atlantic/Africa segment east of 60°W (300°E)
+    ax.set_xlim(0, 300); ax.set_xticks(range(0, 301, 60))
+    ax.set_xticklabels(["0°", "60°E", "120°E", "180°", "120°W", "60°W"])
     ax.set_xlabel("longitude"); ax.set_ylabel("pressure (hPa)")
-    for x, lab in ((120, "Maritime\nContinent"), (255, "E Pacific"), (300, "S America")):
+    for x, lab in ((120, "Maritime\nContinent"), (255, "E Pacific"), (293, "S America")):
         ax.text(x, 118, lab, ha="center", va="top", fontsize=6.5, color="0.45", style="italic")
     ax.set_title(title, fontsize=11.5, fontweight="bold")
     cb = fig.colorbar(cf, ax=ax, pad=0.015)
