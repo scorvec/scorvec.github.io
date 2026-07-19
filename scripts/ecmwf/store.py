@@ -573,6 +573,44 @@ def _to_req(cycle: Cycle, spec: Spec) -> dict:
     return r
 
 
+def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
+    """Coalesced-range fetch of the whole spec into `target` (all steps,
+    sequential; each step ~24-way parallel inside rangefetch). Returns the
+    source label, or None to signal fallback to the legacy client path."""
+    if os.environ.get("ECMWF_FETCH", "v2") != "v2":
+        return None
+    try:
+        sys.path.insert(0, str(Path(__file__).parent))
+        import rangefetch as rf
+    except Exception:                                      # noqa: BLE001
+        return None
+    srcs = [s for s in (os.environ.get("ECMWF_SOURCES") or "aws,azure,ecmwf").split(",")
+            if s in rf.MIRRORS] or ["aws", "azure", "ecmwf"]
+    levl = list(spec.levelist) if spec.levtype == "pl" else None
+    nums = spec.members()
+    try:
+        with open(target, "wb") as out:
+            for step in spec.steps:
+                idx = rf.fetch_index(cycle.date, cycle.time, spec.model,
+                                     int(step), spec.type, sources=srcs)
+                want = rf.select(idx, param=list(spec.params), levelist=levl,
+                                 numbers=nums)
+                if not want:
+                    raise RuntimeError(f"step {step}: 0 msgs matched")
+                ranges = rf.coalesce(want)
+                blob = rf.fetch_ranges(
+                    rf.path_for(cycle.date, cycle.time, spec.model,
+                                int(step), spec.type) + ".grib2",
+                    ranges, sources=srcs)
+                out.write(blob)
+        return f"v2:{srcs[0]}"
+    except Exception as e:                                 # noqa: BLE001
+        print(f"  fetch-v2 failed ({str(e)[:90]}) — falling back to client path",
+              flush=True)
+        Path(target).unlink(missing_ok=True)
+        return None
+
+
 def ensure(cycle: Cycle, spec: Spec) -> Path:
     """Fetch (if needed), verify, and return the canonical path for (cycle, spec).
     Idempotent + concurrency-safe; never returns a partial file."""
@@ -589,7 +627,18 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
               f"({expected} msgs) …", flush=True)
         req = _to_req(cycle, spec); members = spec.members()
         got, src = 0, None
+        v2src = _fetch_v2(cycle, spec, str(stage))
+        if v2src:
+            got = count_msgs(str(stage))
+            if got >= expected:
+                src = v2src
+            else:
+                print(f"  fetch-v2 short ({got}/{expected}) — client fallback",
+                      flush=True)
+                _clean(str(stage))
         for ftry in range(1, FETCH_TRIES + 1):
+            if got >= expected:
+                break
             src = _robust_chunked(req, str(stage), spec.type == "pf", members)
             got = count_msgs(str(stage))
             if got >= expected:
