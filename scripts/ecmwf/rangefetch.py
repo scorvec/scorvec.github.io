@@ -36,7 +36,11 @@ MIRRORS = {
 }
 TIMEOUT = (10, 90)          # (connect, read) — nothing hangs for hours, ever
 MAX_GAP = 3 * 1024 * 1024   # merge ranges separated by < 3 MB
-WORKERS = 24                # ~32+ trips 429s from a single IP
+WORKERS = 16                # empirical single-IP ceiling ~32; leave headroom
+                            # for OTHER processes sharing this IP (pipeline,
+                            # benchmarks). Adaptive: throttle responses shrink
+                            # effective concurrency for the rest of the batch.
+_throttle_events = 0
 
 
 def path_for(date: str, hh: str, model: str, step: int, kind: str = "pf",
@@ -99,6 +103,16 @@ def fetch_ranges(rel_grib: str, ranges, sources: list[str] | None = None,
     """Parallel ranged GETs; returns wanted message bytes concatenated in
     offset order. Rotates mirrors per-range on failure."""
     sources = sources or ["aws", "azure", "ecmwf"]
+    import threading
+    gate = threading.Semaphore(workers)          # shrinks on throttle signals
+    shrink_lock = threading.Lock()
+    state = {"permits": workers}
+
+    def _shrink():
+        with shrink_lock:
+            if state["permits"] > 4:             # never below 4
+                gate.acquire(blocking=False)     # permanently retire a permit
+                state["permits"] -= 1
 
     def one(rng):
         start, end, members = rng
@@ -115,14 +129,19 @@ def fetch_ranges(rel_grib: str, ranges, sources: list[str] | None = None,
                             blob[e["_offset"] - start: e["_offset"] - start + e["_length"]]
                             for e in members)
                     last = RuntimeError(f"{src}: HTTP {r.status_code}")
-                    if r.status_code in (429, 503):            # throttled: brief backoff
+                    if r.status_code in (429, 503):            # throttled: back off AND
+                        _shrink()                              # shed concurrency
                         time.sleep(1.0 + 2.0 * attempt)
                 except Exception as e:                         # noqa: BLE001
                     last = e
         raise RuntimeError(f"range {start}-{end} failed on all mirrors: {last}")
 
+    def gated(rng):
+        with gate:
+            return one(rng)
+
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        parts = list(ex.map(one, ranges))
+        parts = list(ex.map(gated, ranges))
     return b"".join(parts)
 
 
