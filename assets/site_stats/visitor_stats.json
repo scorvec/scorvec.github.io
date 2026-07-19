@@ -1,21 +1,25 @@
 {
  "updated": "2026-07-19",
- "total_30d": 17,
+ "total_30d": 22,
  "countries_30d": 1,
- "total_all": 17,
+ "total_all": 22,
  "countries_all": 1,
  "top_pages_30d": [
   {
+   "path": "/",
+   "count": 4
+  },
+  {
    "path": "/tc.html",
-   "count": 2
+   "count": 3
   },
   {
    "path": "/fuelburn.html",
-   "count": 2
+   "count": 3
   },
   {
-   "path": "/",
-   "count": 2
+   "path": "/mjo.html",
+   "count": 1
   },
   {
    "path": "/spectra.html",
@@ -39,10 +43,6 @@
   },
   {
    "path": "/assets/synoptic/viewer.html",
-   "count": 1
-  },
-  {
-   "path": "/enso-atmosphere.html",
    "count": 1
   }
  ]
