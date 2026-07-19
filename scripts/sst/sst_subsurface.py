@@ -206,8 +206,8 @@ def interp_lon(field2d: np.ndarray, lons: np.ndarray) -> np.ndarray:
 # ── plotting ──────────────────────────────────────────────────────────────────
 TEMP_LEVELS = np.arange(8, 31.001, 1.0)
 TEMP_ISOTHERMS = [26, 28, 30]
-ANOM_LEVELS = np.arange(-8, 8.001, 0.5)
-ANOM_LIM = 8.0
+ANOM_LEVELS = np.arange(-10, 10.001, 0.5)   # extended ±8→±10: July 2026 event pushing past +8
+ANOM_LIM = 10.0
 
 
 def plot_frame(temp2d, anom2d, lons, date, out_path):
@@ -229,7 +229,7 @@ def plot_frame(temp2d, anom2d, lons, date, out_path):
                        cmap="RdBu_r", extend="both",
                        norm=mcolors.TwoSlopeNorm(0, -ANOM_LIM, ANOM_LIM))
     ax2.contour(LON_GRID, DEPTH_GRID, Ag, levels=[0], colors="k", linewidths=1.5)
-    c5 = ax2.contour(LON_GRID, DEPTH_GRID, Ag, levels=[-5, 5], colors="k", linewidths=0.8)
+    c5 = ax2.contour(LON_GRID, DEPTH_GRID, Ag, levels=[-7, -5, 5, 7], colors="k", linewidths=0.8)
     ax2.clabel(c5, fmt="%+d", fontsize=7)
     ax2.set_title("Anomaly (vs 1991–2020)", fontsize=10, loc="left")
     fig.colorbar(cf2, ax=ax2, label="°C", pad=0.02, fraction=0.046)
@@ -260,7 +260,7 @@ def plot_anom_pair(araw2d, adt2d, lons, date, out_path):
         cf = ax.contourf(LON_GRID, DEPTH_GRID, Ag, levels=ANOM_LEVELS, cmap="RdBu_r",
                          extend="both", norm=mcolors.TwoSlopeNorm(0, -ANOM_LIM, ANOM_LIM))
         ax.contour(LON_GRID, DEPTH_GRID, Ag, levels=[0], colors="k", linewidths=1.5)
-        c5 = ax.contour(LON_GRID, DEPTH_GRID, Ag, levels=[-5, 5], colors="k", linewidths=0.8)
+        c5 = ax.contour(LON_GRID, DEPTH_GRID, Ag, levels=[-7, -5, 5, 7], colors="k", linewidths=0.8)
         ax.clabel(c5, fmt="%+d", fontsize=7)
         ax.set_title(title, fontsize=10, loc="left")
         fig.colorbar(cf, ax=ax, label="°C", pad=0.02, fraction=0.046)
