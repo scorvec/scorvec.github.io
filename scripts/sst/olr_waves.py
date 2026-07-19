@@ -266,27 +266,27 @@ def render(anom: xr.DataArray, end: datetime, days: int, out: Path,
         y0 = np.datetime64(end) - np.timedelta64(prelim_days, "D")
         ax.axhspan(y0, tt.max(), color="0.45", alpha=0.13, zorder=5)
         ax.axhline(y0, color="0.3", lw=0.7, ls=(0, (4, 2)), zorder=5)
-        ax.text(357, y0, "preliminary (filter edge) ", color="0.3", fontsize=6.5,
+        ax.text(357, y0, "preliminary (filter edge) ", color="0.3", fontsize=8,
                 va="bottom", ha="right", zorder=6)
-    ax.set_xlim(0, 360); ax.set_xlabel("longitude"); ax.set_ylabel("date"); ax.invert_yaxis()
+    ax.set_xlim(0, 360); ax.set_xlabel("longitude", fontsize=11); ax.set_ylabel("date", fontsize=11); ax.invert_yaxis()
     ax.set_xticks(range(0, 361, 60))
-    ax.set_xticklabels(["0", "60E", "120E", "180", "120W", "60W", "0"])
+    ax.set_xticklabels(["0", "60E", "120E", "180", "120W", "60W", "0"], fontsize=10)
     for x in (60, 120, 180, 240, 300):
         ax.axvline(x, color="0.55", lw=0.3, ls=":", alpha=0.6, zorder=3)
     # region labels along the top for orientation
     secax = ax.secondary_xaxis("top"); secax.set_xticks([75, 130, 180, 235, 270])
     secax.set_xticklabels(["Indian O.", "Maritime\nCont.", "dateline", "central\nPacific", "E. Pacific"],
-                          fontsize=6.5, color="0.4"); secax.tick_params(length=0)
+                          fontsize=9, color="0.35"); secax.tick_params(length=0)
     ax.yaxis.set_major_formatter(DateFormatter("%d %b"))
     ax.set_title("OLR anomaly + convectively-coupled waves  ·  5°S–5°N"
-                 + (f"\n{subtitle}" if subtitle else ""), fontsize=10)
+                 + (f"\n{subtitle}" if subtitle else ""), fontsize=12.5, fontweight="bold")
     handles = [plt.Line2D([], [], color=WAVES[w]["color"], lw=WAVES[w]["lw"],
                           label=WAVES[w].get("label", w)) for w in waves]
-    leg = ax.legend(handles=handles, loc="upper right", fontsize=8, framealpha=0.92,
+    leg = ax.legend(handles=handles, loc="upper right", fontsize=9.5, framealpha=0.92,
                     title="solid = convection")
-    leg.get_title().set_fontsize(7)
+    leg.get_title().set_fontsize(8.5)
     cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.055, aspect=42)
-    cb.set_label("OLR anomaly (W m⁻²)   ·   green = convection, brown = suppressed")
+    cb.set_label("OLR anomaly (W m⁻²)   ·   green = convection, brown = suppressed", fontsize=10.5)
     fig.tight_layout(); fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
     print(f"wrote {out}", flush=True)
 
