@@ -125,7 +125,7 @@ function render_region_model(reg, mm)
         ax = Axis(fig[1, 1];
             limits = ((wsh, esh), (Float64(s), Float64(n))),
             title = "$(reg.label) — TC-strength lows · $mdl ($(mm.n) members) · " *
-                    "init $(Dates.format(init, "yyyy-mm-dd")) 00Z\n" *
+                    "init $(Dates.format(init, "yyyy-mm-dd HH"))Z\n" *
                     "day $k (valid $(Dates.format(valid, "e u d"))) · shading = strike " *
                     "probability through day $k · ● = day-$k member positions",
             titlesize = 14, titlefont = :bold,
