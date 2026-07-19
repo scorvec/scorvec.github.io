@@ -1,8 +1,49 @@
 {
- "updated": "2026-07-18",
- "total_30d": 0,
- "countries_30d": 0,
- "total_all": 0,
- "countries_all": 0,
- "top_pages_30d": []
+ "updated": "2026-07-19",
+ "total_30d": 17,
+ "countries_30d": 1,
+ "total_all": 17,
+ "countries_all": 1,
+ "top_pages_30d": [
+  {
+   "path": "/tc.html",
+   "count": 2
+  },
+  {
+   "path": "/fuelburn.html",
+   "count": 2
+  },
+  {
+   "path": "/",
+   "count": 2
+  },
+  {
+   "path": "/spectra.html",
+   "count": 1
+  },
+  {
+   "path": "/gatun",
+   "count": 1
+  },
+  {
+   "path": "/enso-analogs.html",
+   "count": 1
+  },
+  {
+   "path": "/enso-subsurface.html",
+   "count": 1
+  },
+  {
+   "path": "/asos5.html",
+   "count": 1
+  },
+  {
+   "path": "/assets/synoptic/viewer.html",
+   "count": 1
+  },
+  {
+   "path": "/enso-atmosphere.html",
+   "count": 1
+  }
+ ]
 }
