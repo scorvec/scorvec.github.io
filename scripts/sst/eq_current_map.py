@@ -38,7 +38,7 @@ ANIM = HERE.parent.parent / "assets" / "sst" / "anim" / "eq_cur_map"
 MANIFEST = HERE.parent.parent / "assets" / "sst" / "anim" / "eq_cur_map_manifest.json"
 CUR = "cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m"
 LON0, LON1, LATB = 130, 280, 15.0
-KEEP_DAYS = 31
+KEEP_DAYS = 150   # back past Apr 1 2026 — first major downwelling Kelvin wave of the event
 
 
 def pull_block(d0: date, d1: date) -> xr.Dataset:
@@ -72,7 +72,7 @@ def render_frame(day: xr.Dataset, dt: datetime, out: Path) -> None:
     gl.xlabel_style = gl.ylabel_style = {"size": 8}
     ax.set_title(f"Tropical Pacific surface currents (15°S–15°N)  ·  {dt:%Y-%m-%d}\n"
                  "shading = speed · streamlines = flow direction", fontsize=11)
-    cb = fig.colorbar(pm, ax=ax, orientation="vertical", pad=0.02, aspect=28, shrink=0.9)
+    cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.07, aspect=48, shrink=0.72)
     cb.set_label("current speed (m s⁻¹)")
     fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
 
