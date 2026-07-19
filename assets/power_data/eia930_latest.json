@@ -1,18 +1,12 @@
 {
-  "generated_at": "2026-07-19T09:22Z",
+  "generated_at": "2026-07-19T10:47Z",
   "source": "EIA-930 (Hourly Electric Grid Monitor) via EIA API v2, respondent US48 (demand)",
   "denominator_kind": "demand",
-  "latest_period": "2026-07-19T08:00Z",
-  "total_GW": 482.51,
+  "latest_period": "2026-07-19T09:00Z",
+  "total_GW": 462.02,
   "wind_actual_GW": null,
   "solar_actual_GW": null,
   "series": [
-    {
-      "period": "2026-07-16T09:00Z",
-      "total_GW": 497.33,
-      "wind_GW": 34.97,
-      "solar_GW": 0.0
-    },
     {
       "period": "2026-07-16T10:00Z",
       "total_GW": 495.07,
@@ -245,7 +239,7 @@
       "period": "2026-07-18T00:00Z",
       "total_GW": 692.64,
       "wind_GW": 56.81,
-      "solar_GW": 60.35
+      "solar_GW": 60.38
     },
     {
       "period": "2026-07-18T01:00Z",
@@ -297,127 +291,127 @@
     },
     {
       "period": "2026-07-18T09:00Z",
-      "total_GW": 482.48,
+      "total_GW": 482.47,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T10:00Z",
-      "total_GW": 475.98,
+      "total_GW": 475.95,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T11:00Z",
-      "total_GW": 473.16,
+      "total_GW": 473.07,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T12:00Z",
-      "total_GW": 477.67,
+      "total_GW": 477.52,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T13:00Z",
-      "total_GW": 495.92,
+      "total_GW": 496.33,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T14:00Z",
-      "total_GW": 526.47,
+      "total_GW": 526.96,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T15:00Z",
-      "total_GW": 564.22,
+      "total_GW": 564.6,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T16:00Z",
-      "total_GW": 602.14,
+      "total_GW": 602.43,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T17:00Z",
-      "total_GW": 630.57,
+      "total_GW": 630.82,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T18:00Z",
-      "total_GW": 651.8,
+      "total_GW": 652.03,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T19:00Z",
-      "total_GW": 667.37,
+      "total_GW": 667.62,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T20:00Z",
-      "total_GW": 678.43,
+      "total_GW": 678.6,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T21:00Z",
-      "total_GW": 685.7,
+      "total_GW": 685.97,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T22:00Z",
-      "total_GW": 688.53,
+      "total_GW": 688.8,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-18T23:00Z",
-      "total_GW": 684.55,
+      "total_GW": 684.83,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-19T00:00Z",
-      "total_GW": 673.58,
+      "total_GW": 673.77,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-19T01:00Z",
-      "total_GW": 657.84,
+      "total_GW": 657.96,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-19T02:00Z",
-      "total_GW": 639.04,
+      "total_GW": 639.61,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-19T03:00Z",
-      "total_GW": 612.38,
+      "total_GW": 612.89,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-19T04:00Z",
-      "total_GW": 581.96,
+      "total_GW": 582.23,
       "wind_GW": null,
       "solar_GW": null
     },
     {
       "period": "2026-07-19T05:00Z",
-      "total_GW": 553.0,
+      "total_GW": 551.11,
       "wind_GW": null,
       "solar_GW": null
     },
@@ -435,7 +429,13 @@
     },
     {
       "period": "2026-07-19T08:00Z",
-      "total_GW": 482.51,
+      "total_GW": 483.85,
+      "wind_GW": null,
+      "solar_GW": null
+    },
+    {
+      "period": "2026-07-19T09:00Z",
+      "total_GW": 462.02,
       "wind_GW": null,
       "solar_GW": null
     }
