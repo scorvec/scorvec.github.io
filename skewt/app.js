@@ -1408,7 +1408,11 @@ const REC_MAP_KEYS = new Set(["850t", "700t", "500t", "850td", "700td",
 const REC_MAP_CLON = -100;                   // map centered on 100°W
 async function drawRecordMap() {
   const cv = document.getElementById("anom-canvas"), ctx = cv.getContext("2d");
-  const W = cv.width, H = cv.height;
+  // size the backing store to the dialog's real width so wide monitors get a
+  // wide map (canvas CSS is width:100%, so aspect follows these dimensions)
+  const panelW = cv.parentElement ? cv.parentElement.clientWidth - 24 : 0;
+  const W = cv.width = Math.max(900, Math.min(2200, Math.round(panelW || 1240)));
+  const H = cv.height = Math.round(Math.min(820, Math.max(560, W * 0.42)));
   await loadCoast();
   // longitudes as signed offsets from the center meridian (seam at 80°E)
   const offLon = lon => ((lon - REC_MAP_CLON + 540) % 360) - 180;
@@ -1453,6 +1457,11 @@ async function drawRecordMap() {
   // equirectangular, aspect-preserving (1° lat ≈ 1° lon at the extent's center)
   const kLon = Math.cos(((la0 + la1) / 2) * Math.PI / 180);
   const sc = Math.min(pw / ((lo1 - lo0) * kLon), ph / (la1 - la0));
+  // fill the canvas: widen the lon window (symmetric about the center meridian)
+  // and the lat window to consume any letterbox slack with more map context
+  lo1 = Math.min(180, (pw / (kLon * sc)) / 2); lo0 = -lo1;
+  { const c = (la0 + la1) / 2, half = (ph / sc) / 2;
+    la0 = Math.max(-85, c - half); la1 = Math.min(85, c + half); }
   const ox = M.l + (pw - (lo1 - lo0) * kLon * sc) / 2;
   const oy = M.t + (ph - (la1 - la0) * sc) / 2;
   const X = lon => ox + (lon - lo0) * kLon * sc;
