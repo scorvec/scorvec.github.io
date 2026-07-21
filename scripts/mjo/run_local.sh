@@ -144,6 +144,8 @@ MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "
 "$PY" src/aam_zonal.py --date "$DATE" --time "$TIME" \
   --anim-dir "$REPO/assets/sst/anim/aam_zonal" \
   --manifest "$REPO/assets/sst/anim/aam_zonal_manifest.json" || echo "AAM zonal failed; continuing"
+"$PY" src/aam_phase.py --date "$DATE" --time "$TIME" \
+  --out "$REPO/assets/sst/aam_phase.webp" || echo "AAM phase failed; continuing"
 "$PY" src/torque_map_anim.py --date "$DATE" --time "$TIME" --data-dir data/torque \
   --sp-dir data/aam --u10-dir data/u10 --msl-dir data/msl \
   --anim-dir "$REPO/assets/sst/anim/torque" \
@@ -226,7 +228,7 @@ find "$MJO_GRIB_ARCHIVE" -type d -empty -delete 2>/dev/null
 # the torque/MMSF/Walker animator iframes self-bust via their manifest "ver".)
 CB=$(date -u +%Y%m%d%H%M)
 perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|soi_history|u850_analogs_anom|u850_analogs_abs|mei\/mei_nowcast|mei\/mei_validation)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/sst.html" 2>/dev/null || true
-perl -0pi -e "s/((?:aam|aam_trend|mmsf_anom|walker_anom|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/enso-atmosphere.html" 2>/dev/null || true
+perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" "$REPO/enso-atmosphere.html" 2>/dev/null || true
 
 # Stage whatever exists (a builder that failed this cycle simply hasn't written its
 # outputs — that must not block committing everything else).
@@ -235,7 +237,7 @@ perl -0pi -e "s/((?:aam|aam_trend|mmsf_anom|walker_anom|jets|torque_timeseries|t
     assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/soi_history.webp \
     assets/sst/anim/mslp_wind assets/sst/anim/mslp_wind_manifest.json \
     assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp \
-    assets/sst/aam.webp assets/sst/aam_trend.webp \
+    assets/sst/aam.webp assets/sst/aam_trend.webp assets/sst/aam_phase.webp \
     assets/sst/anim/aam_zonal assets/sst/anim/aam_zonal_manifest.json \
     assets/sst/anim/torque assets/sst/anim/torque_manifest.json \
     assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp \
