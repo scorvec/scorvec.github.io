@@ -214,6 +214,10 @@ def main(argv=None) -> int:
         for h in range(0, min(args.hours, KEEP_H)):
             fh = now_h - timedelta(hours=h)
             fp = anim / f"{fh:%Y%m%d%H}.webp"
+            if time.monotonic() > _DEADLINE:          # rendering costs wall time too —
+                print(f"  {region_id}: budget reached before {fh:%Y-%m-%d %HZ}; "
+                      "next run continues", flush=True)
+                break                                 # a deep backfill is 100s of maps
             try:
                 if not fp.exists() and render_frame(fh, fp, cfg, win_h, vmax):
                     print(f"  {region_id}: rendered {fh:%Y-%m-%d %HZ}", flush=True)
