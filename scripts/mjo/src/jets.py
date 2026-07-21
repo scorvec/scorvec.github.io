@@ -68,6 +68,11 @@ def _harm(coefs: np.ndarray, doy: float) -> np.ndarray:
     return np.tensordot(b, coefs, axes=(0, 0))
 
 
+def _core_lab(s, z):
+    """Title fragment for one hemisphere's core; NaN = no closed subtropical core."""
+    return "indistinct" if not np.isfinite(s) else f"{s:.0f} m/s ({z:+.1f}σ)"
+
+
 def _xsec_frame(ubar_k, anom_k, lat, p_hpa, lim, title, cores, clim_cores, out_fp):
     """One [u](φ,p) cross-section frame: anomaly shading, absolute contours,
     ▼ = forecast cores, ▽ = climatological core positions."""
@@ -129,8 +134,8 @@ def build_anim(ub, steps_h, p_hpa, lat, init, c, met_cl, sig_cl,
         _xsec_frame(ubm[k], anoms[k], lat, p_hpa, lim,
                     f"Zonal-mean zonal wind — AIFS-ENS mean · init {init:%Y-%m-%d %HZ} · "
                     f"day {lead} (valid {valid[k]:%a %b %d})\n▼ = subtropical cores "
-                    f"(▽ = climatological position):  NH {nh_s:.0f} m/s ({zn:+.1f}σ) · "
-                    f"SH {sh_s:.0f} m/s ({zs:+.1f}σ)",
+                    f"(▽ = climatological position):  NH {_core_lab(nh_s, zn)} · "
+                    f"SH {_core_lab(sh_s, zs)}",
                     (nh_l, sh_l), (met_cl[k, 1], met_cl[k, 3]), fp)
         frames.append({"idx": k, "file": fp.name, "date": f"{valid[k]:%Y-%m-%d}",
                        "label": f"day {lead} · valid {valid[k]:%a %b %d} · "
@@ -164,7 +169,11 @@ def main() -> int:
     # per-member jet metrics at every lead → (mem, step, 4)
     mets = np.array([[jet_metrics(ub[m, k, k200], lat) for k in range(ub.shape[1])]
                      for m in range(ub.shape[0])])
-    mmean = mets.mean(axis=0)
+    with np.errstate(all="ignore"):
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)      # all-NaN steps
+            mmean = np.nanmean(mets, axis=0)     # mean over members WITH a closed core
 
     # clim curves along the forecast (evaluated per valid day-of-year)
     doys = np.array([v.dayofyear for v in valid], float)
@@ -206,7 +215,7 @@ def main() -> int:
     zs_s = (sh_s - met_cl[0, 2]) / sig_cl[0, 2]
     ax.set_title(f"Zonal-mean zonal wind — analysis {init:%Y-%m-%d %HZ} · colour = "
                  f"anomaly vs ERA5 1991–2020 normal\n▼ = subtropical cores:  "
-                 f"NH {nh_s:.0f} m/s ({zs_n:+.1f}σ) · SH {sh_s:.0f} m/s ({zs_s:+.1f}σ)",
+                 f"NH {_core_lab(nh_s, zs_n)} · SH {_core_lab(sh_s, zs_s)}",
                  fontsize=10.6, fontweight="bold", linespacing=1.4)
     cb = fig.colorbar(cf, ax=ax, pad=0.012)
     cb.set_label("[u] anomaly (m/s)", fontsize=8.5); cb.ax.tick_params(labelsize=7.5)
@@ -228,7 +237,8 @@ def main() -> int:
         if i == 0:
             a.legend(fontsize=7, loc="best", framealpha=0.9)
     fig.text(0.5, 0.006,
-             "core = max zonal-mean u at 200 hPa within 15–45°|lat| (parabolic refinement) · "
+             "core = interior local max of zonal-mean u at 200 hPa within 15–45°|lat| "
+             "(edge-touching max ⇒ core indistinct: no marker / series gap) · "
              "members thin blue · clim: ERA5 1991–2020 harmonic day-of-year normal ± 1σ",
              ha="center", fontsize=8, color="0.4")
     out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)

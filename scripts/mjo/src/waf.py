@@ -137,12 +137,16 @@ def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Pat
     q = ax.quiver(lon[::s], lat[::s], qx, qy, transform=ccrs.PlateCarree(),
                   color="#111", width=0.0016, scale=2200, headwidth=3.6, alpha=0.85,
                   pivot="tail", zorder=6)
-    ax.quiverkey(q, 0.90, -0.07, 100, "W = 100 m²/s²", labelpos="E", fontproperties={"size": 7.5})
+    ax.quiverkey(q, 0.90, -0.045, 100, "W = 100 m²/s²", labelpos="E", fontproperties={"size": 7.5})
     ax.coastlines(lw=0.5, color="0.35")
     ax.set_title(title, fontsize=11.5, fontweight="bold", loc="left")
     cb = fig.colorbar(cf, ax=ax, pad=0.012, fraction=0.032)
     cb.set_label("−∇·W  (10⁻⁶ m s⁻²; red = convergence → amplification)", fontsize=8.5); cb.ax.tick_params(labelsize=7.5)
-    fig.text(0.5, 0.015, sub, ha="center", fontsize=8, color="0.35")
+    # anchor to the AXES, not the figure: the map shrinks to its forced 2:1 aspect
+    # inside the figure box, and figure-coord text pins the tight bbox to the full
+    # (mostly empty) figure height — axes-coord text collapses with the map instead.
+    ax.text(0.5, -0.085, sub, transform=ax.transAxes, ha="center", va="top",
+            fontsize=8, color="0.35")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=112, bbox_inches="tight", facecolor="white")
     plt.close(fig)
