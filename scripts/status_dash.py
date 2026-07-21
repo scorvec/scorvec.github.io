@@ -47,11 +47,7 @@ PIPELINES = [
          log=REPO / "scripts/synoptic/run_local_synoptic.log", cadence=6, markers=None),
 ]
 # Non-launchd ad-hoc jobs to also live-tail; "running" detected by process-name match.
-EXTRA_LOGS = [
-    dict(name="Teleconn ERA5 build", slug="teleconn",
-         log=Path.home() / "mjo" / "teleconn_build.log",
-         proc="build_torque_teleconn_data"),
-]
+EXTRA_LOGS = []
 ERR_RE = re.compile(r"\b(error|failed|fatal|could not|traceback|exit 1|skipped)\b", re.I)
 OK_RE = re.compile(r"\b(pushed|complete|nothing to do|saved)\b", re.I)
 
