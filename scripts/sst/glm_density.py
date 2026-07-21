@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import os
+import time
 import json
 import re
 import sys
@@ -91,6 +93,18 @@ def _download(key: str):
         return None
 
 
+# Time budget: the Action job has timeout-minutes; a deep backfill (cache lost or
+# schedule gap > KEEP_H) can't finish in one run. Fetching past the deadline would
+# get the JOB killed — which skips the actions/cache post-step, loses every fetched
+# hour, and deadlocks recovery. Instead we stop fetching in time, keep what's
+# banked, and let successive hourly runs walk the backfill down.
+_DEADLINE = time.monotonic() + float(os.environ.get("GLM_BUDGET_MIN", "11")) * 60
+
+
+class _OutOfTime(Exception):
+    pass
+
+
 def _bin_hour(hour: datetime, cfg) -> np.ndarray:
     """Binned flash-count grid for one clock hour. Cached to data/glm_hourly/ (gitignored).
     HDF5 is not thread-safe, so download threaded but open the granules sequentially."""
@@ -98,6 +112,8 @@ def _bin_hour(hour: datetime, cfg) -> np.ndarray:
     cache = HOURLY_CACHE / f"{CACHE_PREFIX}_{hour:%Y%m%d%H}.npy"
     if cache.exists():
         return np.load(cache)
+    if time.monotonic() > _DEADLINE:                  # cached hours above still flow
+        raise _OutOfTime()
     grid = np.zeros((lat_e.size - 1, lon_e.size - 1), dtype=np.int32)
     keys = _hour_keys(hour)
     if keys:
@@ -193,11 +209,18 @@ def main(argv=None) -> int:
     for region_id, win_h, vmax, label in WINDOWS:
         anim = ANIM_ROOT / region_id
         anim.mkdir(parents=True, exist_ok=True)
-        for h in range(min(args.hours, KEEP_H) - 1, -1, -1):
+        # newest frame first: after an outage the current frames publish on the
+        # first run and the tail backfills across later runs within the budget
+        for h in range(0, min(args.hours, KEEP_H)):
             fh = now_h - timedelta(hours=h)
             fp = anim / f"{fh:%Y%m%d%H}.webp"
-            if not fp.exists() and render_frame(fh, fp, cfg, win_h, vmax):
-                print(f"  {region_id}: rendered {fh:%Y-%m-%d %HZ}", flush=True)
+            try:
+                if not fp.exists() and render_frame(fh, fp, cfg, win_h, vmax):
+                    print(f"  {region_id}: rendered {fh:%Y-%m-%d %HZ}", flush=True)
+            except _OutOfTime:
+                print(f"  {region_id}: time budget reached at {fh:%Y-%m-%d %HZ} — "
+                      "banking fetched hours; next run continues", flush=True)
+                break
         entries = []
         for fp in sorted(anim.glob("*.webp")):
             try:
