@@ -570,11 +570,11 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=76492e9e513f").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=65a21bfc4c66").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=76492e9e513f").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=65a21bfc4c66").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=76492e9e513f").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=65a21bfc4c66").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
