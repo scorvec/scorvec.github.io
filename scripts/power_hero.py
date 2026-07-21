@@ -52,7 +52,9 @@ def _national_gw(data_dir: str, power_col: str):
         return None, None
     f = files[-1]
     df = pd.read_csv(f, usecols=["valid_time", power_col])
-    df["valid_time"] = pd.to_datetime(df["valid_time"], utc=True)
+    # feeds occasionally emit date-only rows (day boundaries) among full
+    # timestamps — "mixed" parses per-element instead of erroring on the batch
+    df["valid_time"] = pd.to_datetime(df["valid_time"], utc=True, format="mixed")
     s = (df.groupby("valid_time")[power_col].sum() / 1000.0).sort_index()   # MW → GW
     return s, _cycle(f)
 
@@ -81,7 +83,7 @@ def _solar_gridscale_gw():
 
     df = pd.read_csv(f, usecols=["case_id", "valid_time", "MW_AC"])
     df["case_id"] = df["case_id"].astype(str)
-    df["valid_time"] = pd.to_datetime(df["valid_time"], utc=True)
+    df["valid_time"] = pd.to_datetime(df["valid_time"], utc=True, format="mixed")
     df = df[df["case_id"].isin(keep)]
     s = (df.groupby("valid_time")["MW_AC"].sum() / 1000.0).sort_index()   # MW → GW
     return s, _cycle(f), nameplate_GW
