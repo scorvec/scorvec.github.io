@@ -117,7 +117,7 @@ fi
 # (the ~6 GB AAM pull) in the background NOW. Per-file flocks in store.py make
 # this safe: Stage 2b's ens_cycle either finds the files published or blocks
 # on the lock until the prefetch finishes them.
-"$PY" ../ecmwf/store.py --date "$DATE" --time "$TIME" \
+"$PY" ../ecmwf/store.py --date "$DATE" --time "$TIME" --prune-days 2 \
   > "$REPO/scripts/mjo/data/heavy_prefetch.log" 2>&1 &
 PREFETCH_PID=$!
 echo "heavy prefetch started in background (pid $PREFETCH_PID)"
