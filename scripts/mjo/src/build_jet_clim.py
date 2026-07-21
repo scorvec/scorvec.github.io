@@ -32,23 +32,29 @@ JET_LEV = 200.0
 
 
 def jet_metrics(ubar_200: np.ndarray, lat: np.ndarray):
-    """(nh_speed, nh_lat, sh_speed, sh_lat) from [u] at 200 hPa. The core latitude
-    is refined with a parabolic fit through the max and its neighbours, so the
+    """(nh_speed, nh_lat, sh_speed, sh_lat) from [u] at 200 hPa. The core must be
+    an INTERIOR local maximum of the band — when the in-band max sits on the band
+    edge (NH midsummer: the zonal wind keeps rising poleward of 45° into the
+    merged eddy-driven jet) there is no closed subtropical core and the metrics
+    are NaN rather than a value pinned to the boundary. The core latitude is
+    refined with a parabolic fit through the max and its neighbours, so the
     1.5°/0.25° grids agree to a fraction of a degree."""
     out = []
     for lo, hi in ((JET_BAND[0], JET_BAND[1]), (-JET_BAND[1], -JET_BAND[0])):
         m = (lat >= lo) & (lat <= hi)
         seg, sl = ubar_200[m], lat[m]
-        i = int(np.nanargmax(seg))
-        if 0 < i < len(seg) - 1:
-            y0, y1, y2 = seg[i - 1], seg[i], seg[i + 1]
-            denom = (y0 - 2 * y1 + y2)
-            off = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
-            off = float(np.clip(off, -1, 1))
-            speed = y1 - 0.25 * (y0 - y2) * off
-            latc = sl[i] + off * (sl[1] - sl[0])
-        else:
-            speed, latc = seg[i], sl[i]
+        peaks = [i for i in range(1, len(seg) - 1)
+                 if seg[i] >= seg[i - 1] and seg[i] >= seg[i + 1]]
+        if not peaks or np.nanmax(seg[peaks]) < np.nanmax(seg[[0, -1]]):
+            out += [float("nan"), float("nan")]     # STJ indistinct this day
+            continue
+        i = int(max(peaks, key=lambda j: seg[j]))
+        y0, y1, y2 = seg[i - 1], seg[i], seg[i + 1]
+        denom = (y0 - 2 * y1 + y2)
+        off = 0.5 * (y0 - y2) / denom if denom != 0 else 0.0
+        off = float(np.clip(off, -1, 1))
+        speed = y1 - 0.25 * (y0 - y2) * off
+        latc = sl[i] + off * (sl[1] - sl[0])
         out += [float(speed), float(latc)]
     return out
 
@@ -85,9 +91,17 @@ def _samples(a):
 
 
 def _harmfit(X, y):
-    """lstsq coefficient fit, y (ntime, ...) flattened on trailing dims."""
+    """lstsq coefficient fit, y (ntime, ...) flattened on trailing dims.
+    NaN samples (indistinct-jet days in the core metrics) are dropped per column."""
     shp = y.shape
-    c = np.linalg.lstsq(X, y.reshape(shp[0], -1), rcond=None)[0]
+    yf = y.reshape(shp[0], -1)
+    if np.isnan(yf).any():
+        c = np.empty((X.shape[1], yf.shape[1]))
+        for j in range(yf.shape[1]):
+            ok = np.isfinite(yf[:, j])
+            c[:, j] = np.linalg.lstsq(X[ok], yf[ok, j], rcond=None)[0]
+    else:
+        c = np.linalg.lstsq(X, yf, rcond=None)[0]
     return c.reshape((X.shape[1],) + shp[1:])
 
 
