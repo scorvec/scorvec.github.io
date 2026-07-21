@@ -73,12 +73,12 @@ def _write_atomic(ds: xr.Dataset, path: Path, encoding: dict) -> None:
     os.replace(tmp, path)
 
 
-def get_u(time, levels) -> xr.DataArray:
-    """u(level, latitude, longitude) float32 at the requested pressure levels
-    (hPa, any order → returned sorted ascending). Local-first, ARCO on miss."""
+def _get_pl(var: str, arco_name: str, time, levels) -> xr.DataArray:
+    """Pressure-level field (level, latitude, longitude) float32 at the requested
+    levels (hPa, any order → returned sorted ascending). Local-first, ARCO on miss."""
     t = pd.Timestamp(time)
     want = sorted(int(l) for l in levels)
-    p = _path("u", t)
+    p = _path(var, t)
     have = None
     if p.exists():
         try:
@@ -92,7 +92,7 @@ def get_u(time, levels) -> xr.DataArray:
         if set(want) <= set(got):
             return have.sel(level=want).astype("float32")
     missing = want if have is None else sorted(set(want) - set(int(l) for l in have.level.values))
-    fresh = (_arco()["u_component_of_wind"]
+    fresh = (_arco()[arco_name]
              .sel(time=t, level=missing).load().astype("float32"))
     if fresh.dims[0] != "level":                              # single level squeezed
         fresh = fresh.expand_dims("level")
@@ -102,11 +102,21 @@ def get_u(time, levels) -> xr.DataArray:
         merged = fresh if have is None else xr.concat([have, fresh], dim="level")
         return merged.sortby("level").sel(level=want).astype("float32")
     merged = fresh if have is None else xr.concat([have, fresh], dim="level")
-    merged = merged.sortby("level").rename("u")
-    _write_atomic(merged.to_dataset(name="u"), p,
-                  {"u": {"dtype": "int16", "scale_factor": 0.01,
+    merged = merged.sortby("level").rename(var)
+    _write_atomic(merged.to_dataset(name=var), p,
+                  {var: {"dtype": "int16", "scale_factor": 0.01,
                          "_FillValue": -32768, "zlib": False}})
     return merged.sel(level=want).astype("float32")
+
+
+def get_u(time, levels) -> xr.DataArray:
+    """Zonal wind — see _get_pl."""
+    return _get_pl("u", "u_component_of_wind", time, levels)
+
+
+def get_v(time, levels) -> xr.DataArray:
+    """Meridional wind — see _get_pl."""
+    return _get_pl("v", "v_component_of_wind", time, levels)
 
 
 CONUS = dict(latitude=slice(55, 20), longitude=slice(-130 % 360, -60 % 360))
