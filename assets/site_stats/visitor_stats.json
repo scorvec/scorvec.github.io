@@ -1,49 +1,49 @@
 {
- "updated": "2026-07-19",
- "total_30d": 22,
- "countries_30d": 1,
- "total_all": 22,
- "countries_all": 1,
+ "updated": "2026-07-21",
+ "total_30d": 56,
+ "countries_30d": 3,
+ "total_all": 56,
+ "countries_all": 3,
  "top_pages_30d": [
   {
    "path": "/",
-   "count": 4
+   "count": 13
   },
   {
    "path": "/tc.html",
-   "count": 3
+   "count": 7
   },
   {
-   "path": "/fuelburn.html",
-   "count": 3
+   "path": "/stats.html",
+   "count": 5
   },
   {
    "path": "/mjo.html",
-   "count": 1
-  },
-  {
-   "path": "/spectra.html",
-   "count": 1
-  },
-  {
-   "path": "/gatun",
-   "count": 1
-  },
-  {
-   "path": "/enso-analogs.html",
-   "count": 1
-  },
-  {
-   "path": "/enso-subsurface.html",
-   "count": 1
+   "count": 4
   },
   {
    "path": "/asos5.html",
-   "count": 1
+   "count": 4
   },
   {
-   "path": "/assets/synoptic/viewer.html",
-   "count": 1
+   "path": "/fuelburn.html",
+   "count": 4
+  },
+  {
+   "path": "/enso-analogs.html",
+   "count": 3
+  },
+  {
+   "path": "/sst.html",
+   "count": 3
+  },
+  {
+   "path": "/spectra.html",
+   "count": 2
+  },
+  {
+   "path": "/enso-subsurface.html",
+   "count": 2
   }
  ]
 }
