@@ -1424,8 +1424,8 @@ async function drawRecordMap() {
                top: Math.max(...d.flags.map(f => Math.abs(f.pct - 50))) });
   }
   if (!pts.length) {
-    ctx.fillStyle = "#0a0a14"; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#8b8ba3"; ctx.font = "600 16px Inter"; ctx.textAlign = "center";
+    ctx.fillStyle = "#f4f5f7"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#5b6270"; ctx.font = "600 16px Inter"; ctx.textAlign = "center";
     ctx.fillText("nothing unusual on the record watch right now", W / 2, H / 2);
     ctx.textAlign = "left";
     return;
@@ -1458,10 +1458,10 @@ async function drawRecordMap() {
   const X = lon => ox + (lon - lo0) * kLon * sc;
   const Y = lat => oy + (la1 - lat) * sc;
 
-  ctx.fillStyle = "#0a0a14"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#f4f5f7"; ctx.fillRect(0, 0, W, H);
   ctx.save();
   ctx.beginPath(); ctx.rect(M.l, M.t, pw, ph); ctx.clip();
-  ctx.strokeStyle = "#2c2c48"; ctx.lineWidth = 1;
+  ctx.strokeStyle = "#9aa2ad"; ctx.lineWidth = 1;
   for (const seg of coastSegs || []) {
     ctx.beginPath(); let st = false, prev = null;
     for (const [rawLn, lt] of seg) {
@@ -1475,12 +1475,12 @@ async function drawRecordMap() {
     ctx.stroke();
   }
   // context: every live station as a faint dot, flagged near-records brighter
-  ctx.fillStyle = "rgba(140,140,170,0.28)";
+  ctx.fillStyle = "rgba(90,98,110,0.35)";
   for (const [, s] of Object.entries(entries))
     if (isFinite(s.la) && isFinite(s.lo)) { ctx.beginPath(); ctx.arc(X(offLon(s.lo)), Y(s.la), 1.4, 0, 7); ctx.fill(); }
   for (const p of pts) {
     const hi = p.flags[0].sense === "high";
-    ctx.fillStyle = hi ? "rgba(255,107,85,0.7)" : "rgba(106,167,240,0.7)";
+    ctx.fillStyle = hi ? "rgba(200,68,44,0.75)" : "rgba(47,107,179,0.75)";
     ctx.beginPath(); ctx.arc(X(p.lo), Y(p.la), 2.4, 0, 7); ctx.fill();
   }
 
@@ -1498,7 +1498,7 @@ async function drawRecordMap() {
   for (const p of featured) {
     const x = X(p.lo), y = Y(p.la);
     const hi = (p.recs[0] || p.flags[0]).sense !== "low";
-    const col = hi ? "#ff6b55" : "#6aa7f0";
+    const col = hi ? "#c8442c" : "#2f6bb3";
     star(x, y, 5.5, col);
     const shown = (fallback ? p.flags : p.recs).slice(0, 2);
     // each label carries ITS sounding's launch time — records persist until
@@ -1528,13 +1528,13 @@ async function drawRecordMap() {
     }
     if (!spot) continue;                               // too crowded: star only
     placed.push({ x: spot.x, y: spot.y, w: wpx, h: hpx });
-    ctx.strokeStyle = "rgba(200,200,220,0.45)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(60,64,76,0.5)"; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(spot.ax, spot.ay); ctx.stroke();
-    ctx.fillStyle = "rgba(10,10,20,0.82)";
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
     ctx.fillRect(spot.x, spot.y, wpx, hpx);
     ctx.strokeStyle = col; ctx.lineWidth = 0.8; ctx.strokeRect(spot.x, spot.y, wpx, hpx);
     lines.forEach((s, i) => {
-      ctx.fillStyle = i ? (s.includes("ALL-TIME") ? "#ffd60a" : "#d8d8e8") : col;
+      ctx.fillStyle = i ? (s.includes("ALL-TIME") ? "#9a6b00" : "#2a2d35") : col;
       ctx.font = i ? "10px Inter" : "600 10.5px Inter";
       ctx.fillText(s, spot.x + 5, spot.y + 11.5 + i * lineH);
     });
@@ -1545,9 +1545,9 @@ async function drawRecordMap() {
   const newest = pts.map(p => p.dt).sort().pop() || "";
   const nRec = labeled.length;
   const nAll = labeled.filter(p => p.recs.some(r => r.rec.tier === "all")).length;
-  ctx.fillStyle = "#e8e8f0"; ctx.font = "700 17px Inter"; ctx.textAlign = "left";
+  ctx.fillStyle = "#1c1f26"; ctx.font = "700 17px Inter"; ctx.textAlign = "left";
   ctx.fillText(`⚡ Radiosonde record watch — newest sounding ${newest}Z`, 14, 25);
-  ctx.fillStyle = "#8b8ba3"; ctx.font = "11.5px Inter";
+  ctx.fillStyle = "#5b6270"; ctx.font = "11.5px Inter";
   ctx.fillText(fallback
     ? `no station records today — ${pts.length} stations at climatological extremes (P95+)`
     : `${nRec} station(s) set records vs their own sounding archives` +
