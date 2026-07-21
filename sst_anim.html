@@ -189,7 +189,6 @@ async function init() {
 { // "back" follows whichever product embeds the animator
   const b = (new URLSearchParams(location.search).get("base") || "").toLowerCase();
   const dest = b.includes("mjo") ? ["mjo.html", "MJO Forecast"]
-    : b.includes("ens") ? ["ensembles.html", "Ensembles"]
     : b.includes("gatun") ? ["gatun/", "Lake Gatun"] : null;
   const bl = document.getElementById("back-link");
   if (bl && dest) { bl.href = dest[0]; bl.innerHTML = "&larr; Back to " + dest[1]; }
