@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="description" content="Basin rainfall over Colombia's hydropower regions: XM's six hydrological regions built from IDEAM basins and HydroBASINS, tracked daily with GPM IMERG.">
+<link rel="canonical" href="https://scorvec.com/colombia_hydro/">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colombia Hydropower Basins — Rainfall Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --page: #081120; --surface: #0d1a2eCC; --border: rgba(148,184,225,0.13);
+  --ink: #e9eff8; --ink2: #a7b8ce; --muted: #6d8099;
+  --hydro: #4de89a; --hydro-deep: #2abd7a;
+  --dry: #e8833a; --wet: #4d8fe8;
+  --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+}
+body {
+  background: radial-gradient(1200px 700px at 70% -10%, #102a24 0%, var(--page) 55%) fixed, var(--page);
+  color: var(--ink); font: 14.5px/1.55 var(--sans); -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1160px; margin: 0 auto; padding: 40px 22px 70px; }
+nav a { color: var(--muted); text-decoration: none; font-size: 13px; }
+nav a:hover { color: var(--hydro); }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--hydro-deep); margin-top: 18px; }
+h1 { font-family: var(--serif); font-weight: 400; font-size: 40px; margin: 6px 0 4px; }
+h1 em { font-style: italic; color: var(--hydro); }
+.sub { color: var(--ink2); max-width: 74ch; margin-bottom: 26px; }
+.chips { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 30px; }
+.chip { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+        padding: 12px 18px; min-width: 148px; backdrop-filter: blur(6px); }
+.chip .l { font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.chip .v { font-size: 24px; font-weight: 600; margin-top: 2px; }
+.chip .s { font-size: 12px; color: var(--ink2); }
+h2 { font-family: var(--serif); font-weight: 500; font-size: 24px; margin: 38px 0 6px; }
+.note { color: var(--ink2); font-size: 13px; max-width: 80ch; margin-bottom: 14px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+         padding: 14px; backdrop-filter: blur(6px); }
+.panel img { width: 100%; height: auto; border-radius: 8px; display: block; background: #fff; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; }
+a.dl { color: var(--hydro); text-decoration: none; }
+a.dl:hover { text-decoration: underline; }
+footer { color: var(--muted); font-size: 12px; margin-top: 46px; border-top: 1px solid var(--border); padding-top: 14px; }
+footer a { color: var(--hydro-deep); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><a href="/">← Shawn Corvec</a></nav>
+<div class="eyebrow">Colombia · Hydropower Basin Rainfall</div>
+<h1>Where Colombia's <em>hydro inflows</em> are born</h1>
+<p class="sub">Colombia's grid is ~65–70&nbsp;% hydroelectric, and its system operator
+<b>XM</b> tracks reservoir inflows ("aportes hídricos") across six hydrological regions.
+XM defines the regions as lists of monitored rivers, not as maps — so this page builds the
+missing polygons: each river's catchment from <b>IDEAM's official Zonificación
+Hidrográfica</b> (and, as a cross-check, upstream traces through <b>HydroSHEDS
+HydroBASINS</b>), then averages <b>GPM IMERG satellite rainfall</b> over each region,
+daily. Rain here today is turbine water in the coming weeks.</p>
+
+<div class="chips" id="chips"></div>
+
+<div class="cols">
+  <div class="panel"><img src="xm_regions_map.webp"
+    alt="Map of XM hydrological regions built from IDEAM subzonas"></div>
+  <div class="panel"><img src="xm_regions_departments.webp"
+    alt="Department-scale display view of the XM regions with true basins outlined">
+    <p class="note" style="margin:8px 4px 2px">Two views of the same regions: the
+    <b>contributing basins</b> (left — used for all rainfall averaging on this page) and the
+    <b>department-scale shading</b> XM-style dashboards display (right), with the true basins
+    outlined in black. Rain outside the black outlines never reaches a turbine.</p></div>
+</div>
+
+<h2>Basin rainfall, daily</h2>
+<div class="panel"><img src="/assets/sst/colombia_region_rain.webp"
+  alt="Daily basin rainfall per XM region vs climatology"></div>
+
+<h2>The regions</h2>
+<p class="note">Membership exactly as returned by XM's public API (<code>ListadoRios</code>);
+polygons are the union of the IDEAM subzonas holding each river's catchment. The regions
+are deliberately <i>basins, not departments</i> — XM's own dashboards shade indicative
+department-scale areas, but only these catchments actually convert rainfall into inflow.</p>
+<div class="panel">
+<table>
+<tr><th>Region</th><th>Rivers / reservoir systems</th><th>Approx. area</th></tr>
+<tr><td><span class="dot" style="background:#1f77b4"></span><b>Antioquia</b></td>
+    <td>Nare · Guatapé · San Carlos · Porce II/III · Grande · Guadalupe · Tenche · Ituango (Cauca)</td><td>27,300 km²</td></tr>
+<tr><td><span class="dot" style="background:#9467bd"></span><b>Caldas</b></td>
+    <td>Miel I · Guarinó &amp; Manso desv. · Chinchiná · Campoalegre · San Eugenio</td><td>6,700 km²</td></tr>
+<tr><td><span class="dot" style="background:#2ca02c"></span><b>Caribe</b></td>
+    <td>Sinú (Urrá)</td><td>4,700 km²</td></tr>
+<tr><td><span class="dot" style="background:#d62728"></span><b>Centro</b></td>
+    <td>Betania · El Quimbo · Bogotá N.R. · Prado · Amoyá · Cucuana · Sogamoso</td><td>48,000 km²</td></tr>
+<tr><td><span class="dot" style="background:#ff7f0e"></span><b>Oriente</b></td>
+    <td>Guavio · Batá (Chivor) · Chuza · Blanco</td><td>6,700 km²</td></tr>
+<tr><td><span class="dot" style="background:#17becf"></span><b>Valle</b></td>
+    <td>Salvajina (alto Cauca) · Alto Anchicayá · Digua · Calima</td><td>7,800 km²</td></tr>
+</table>
+</div>
+
+<h2>Data downloads</h2>
+<p class="note">Shapefiles and GeoJSON, EPSG:4326. The IDEAM variant is composed of
+official government basin units; the HydroBASINS variant is the sharper
+contributing-area realization (level-12 upstream traces from each region's dams).</p>
+<div class="panel">
+<table>
+<tr><th>File</th><th>Construction</th></tr>
+<tr><td><a class="dl" href="data/xm_regions_ideam.shp.zip">xm_regions_ideam.shp.zip</a> ·
+        <a class="dl" href="data/xm_regions_ideam.geojson">geojson</a></td>
+    <td>IDEAM Zonificación Hidrográfica subzonas (official units), grouped per XM region</td></tr>
+<tr><td><a class="dl" href="data/xm_regions_hydrobasins.shp.zip">xm_regions_hydrobasins.shp.zip</a> ·
+        <a class="dl" href="data/xm_regions_hydrobasins.geojson">geojson</a></td>
+    <td>HydroSHEDS HydroBASINS lev-12 upstream traces from region outlet dams</td></tr>
+</table>
+</div>
+
+<footer>
+Region membership: <a href="https://www.xm.com.co/hidrologia/embalses">XM</a> ListadoRios API ·
+Basin polygons: <a href="https://www.datos.gov.co/Ambiente-y-Desarrollo-Sostenible/Zonificaci-n-Hidrogr-fica-Colombia/5kjg-nuda">IDEAM
+Zonificación Hidrográfica</a> (CC-BY) &amp;
+<a href="https://www.hydrosheds.org/products/hydrobasins">HydroBASINS</a> © HydroSHEDS ·
+Rainfall: NASA GPM IMERG · Updated daily by the site's local SST pipeline ·
+Built by Claude (Anthropic's Claude Fable 5), directed by Shawn Corvec.
+</footer>
+</div>
+<script>
+fetch("/assets/sst/data/colombia_region_rain.json").then(r => r.json()).then(d => {
+  const chips = document.getElementById("chips");
+  const order = ["ANTIOQUIA","CALDAS","CARIBE","CENTRO","ORIENTE","VALLE"];
+  for (const name of order) {
+    const s = d.regions[name];
+    if (!s) continue;
+    const p = s.pct_normal_30d;
+    const col = p < 80 ? "var(--dry)" : p > 120 ? "var(--wet)" : "var(--ink)";
+    chips.insertAdjacentHTML("beforeend",
+      `<div class="chip"><div class="l">${name}</div>` +
+      `<div class="v" style="color:${col}">${p.toFixed(0)}%</div>` +
+      `<div class="s">of normal · 30 days</div></div>`);
+  }
+  chips.insertAdjacentHTML("beforeend",
+    `<div class="chip"><div class="l">Updated</div><div class="v" style="font-size:16px;margin-top:8px">${d.updated}</div>` +
+    `<div class="s">GPM IMERG daily</div></div>`);
+}).catch(() => {});
+</script>
+</body>
+</html>
