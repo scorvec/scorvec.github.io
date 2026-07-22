@@ -35,7 +35,8 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 OUT_JSON = REPO / "assets" / "sst" / "data" / "colombia_region_rain.json"
 OUT_PNG = REPO / "assets" / "sst" / "colombia_region_rain.webp"
-DAYS = 120
+DAYS = 120                    # default; --days N extends the JSON series (chart
+PLOT_DAYS = 120               # always shows the trailing PLOT_DAYS)
 ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
 COLORS = {"ANTIOQUIA": "#1f77b4", "CALDAS": "#9467bd", "CARIBE": "#2ca02c",
           "CENTRO": "#d62728", "ORIENTE": "#ff7f0e", "VALLE": "#17becf"}
@@ -65,13 +66,17 @@ def region_weights(path: Path, lon: np.ndarray, lat: np.ndarray) -> dict[str, np
     return out
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--days", type=int, default=DAYS)
+    args = ap.parse_args(argv)
     lon, lat, coef = _axes()
     w_ideam = region_weights(HERE / "colombia_hydro_regions.geojson", lon, lat)
     w_hybas = region_weights(HERE / "colombia_hydro_regions_hydrobasins.geojson", lon, lat)
 
     today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    days = [today - timedelta(days=k) for k in range(DAYS, 0, -1)]
+    days = [today - timedelta(days=k) for k in range(args.days, 0, -1)]
     IP.ensure_daily(set(days))
 
     dates, grids = [], []
@@ -109,12 +114,14 @@ def main() -> int:
         "regions": series}))
 
     fig, axs = plt.subplots(3, 2, figsize=(11.6, 9.2), sharex=True)
-    dts = [datetime.strptime(d, "%Y-%m-%d") for d in series[ORDER[0]]["dates"]]
+    dts_all = [datetime.strptime(d, "%Y-%m-%d") for d in series[ORDER[0]]["dates"]]
+    p0 = max(0, len(dts_all) - PLOT_DAYS)
+    dts = dts_all[p0:]
     for ax, name in zip(axs.ravel(), ORDER):
         s = series[name]
-        ax.bar(dts, s["mm"], width=1.0, color=COLORS[name], alpha=0.75, lw=0)
-        ax.plot(dts, s["clim"], color="0.25", lw=1.4, ls="--", label="climatology")
-        ax.plot(dts, s["mm_hydrobasins"], color="0.35", lw=0.7, alpha=0.65,
+        ax.bar(dts, s["mm"][p0:], width=1.0, color=COLORS[name], alpha=0.75, lw=0)
+        ax.plot(dts, s["clim"][p0:], color="0.25", lw=1.4, ls="--", label="climatology")
+        ax.plot(dts, s["mm_hydrobasins"][p0:], color="0.35", lw=0.7, alpha=0.65,
                 label="HydroBASINS variant")
         ax.set_title(f"{name} — 30-day: {s['pct_normal_30d']:.0f}% of normal",
                      fontsize=10, fontweight="bold", loc="left",

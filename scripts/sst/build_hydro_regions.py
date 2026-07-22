@@ -43,12 +43,19 @@ HERE = Path(__file__).resolve().parent
 REGION_SZH = {
     "ANTIOQUIA": {
         2308: "NARE CP, GUATAPE, SAN CARLOS, A. SAN LORENZO, SAN MIGUEL",
+        2307: "A. SAN LORENZO (Samaná Norte)",
         2701: "PORCE2 CP, PORCE III, GRANDE, GUADALUPE, TENCHE, CONCEPCION, "
               "ESCUELA DE MINAS, QUEBRADONA, CARLOS LLERAS",
         2702: "DESV. EEPPM (NEC,PAJ,DOL)",
-        2616: "ITUANGO (Cauca reach)", 2617: "ITUANGO (Cauca reach)",
-        2618: "ITUANGO (Cauca reach)", 2619: "ITUANGO (Cauca reach)",
-        2620: "ITUANGO (Cauca reach)", 2621: "ITUANGO (Cauca reach)",
+        # ITUANGO: the FULL intermediate Cauca, Salvajina dam → Puerto Valdivia.
+        # Everything in ZH26 except the upstream-of-Salvajina set (2601-2603,
+        # 2627 → VALLE) and the below-dam set (2624-2626). Subzonas 2613/2614/
+        # 2615 legitimately OVERLAP the CALDAS region (run-of-river plants
+        # upstream, Ituango downstream): XM regions are not spatially disjoint.
+        **{c: "ITUANGO (intermediate Cauca)" for c in
+           (2604, 2605, 2606, 2607, 2608, 2609, 2610, 2611, 2612, 2613,
+            2614, 2615, 2616, 2617, 2618, 2619, 2620, 2621, 2622, 2628,
+            2629, 2630, 2631, 2632, 2633, 2634, 2635, 2636, 2637)},
     },
     "CALDAS": {
         2305: "MIEL I, DESV. MANSO", 2302: "DESV. GUARINO",
@@ -70,7 +77,8 @@ REGION_SZH = {
     },
     "VALLE": {
         2601: "CAUCA SALVAJINA", 2602: "CAUCA SALVAJINA (Palacé)",
-        2603: "CAUCA SALVAJINA", 5310: "ALTOANCHICAYA, DIGUA",
+        2603: "CAUCA SALVAJINA", 2627: "CAUCA SALVAJINA (Piendamó)",
+        5310: "ALTOANCHICAYA, DIGUA",
         5407: "CALIMA",
     },
 }
