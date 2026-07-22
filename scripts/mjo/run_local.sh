@@ -38,7 +38,7 @@ done
 # runs can't pile up and look current; and drop the ecmwf-opendata tqdm download
 # progress spam (carriage-return bars / MB-s ticks) — keep only meaningful lines.
 [ -f "$LOG" ] && mv -f "$LOG" "$LOG.prev"
-exec > >(grep --line-buffered -avE 'MB/s|kB/s|[0-9]+%\|[█▏▎▍▌▋▊▉ ]|enfo-pf\.grib2: +[0-9]|^[[:space:]]*\[A' > "$LOG") 2>&1
+exec > >(grep --line-buffered -avE 'MB/s|kB/s|[0-9]+%\|[█▏▎▍▌▋▊▉ ]|enfo-pf\.grib2: +[0-9]|[[:cntrl:]]\[A|^[[:space:]]*$' > "$LOG") 2>&1
 echo "===================== $(date) ====================="
 require_main || exit 0
 
@@ -50,6 +50,15 @@ if [ -f "$COOLDOWN" ] && [ "$(date +%s)" -lt "$(cat "$COOLDOWN" 2>/dev/null || e
   echo "cooldown active until $(date -r "$(cat "$COOLDOWN" 2>/dev/null || echo 0)" 2>/dev/null) — skipping S3 download"
   exit 0
 fi
+
+# Self-watchdog: launchd runs at most ONE instance per label, so a wedged run
+# also blocks the REAPER above — it lives in future instances that can never
+# spawn while this one is alive. External rescue is therefore impossible; the
+# run must cap itself. TERM the whole tree after 6 h (a healthy cycle is < 2 h).
+( sleep 21600; echo "self-watchdog: run exceeded 6 h — terminating own tree"
+  pkill -TERM -P $$ 2>/dev/null; kill -TERM $$ 2>/dev/null ) &
+WATCHDOG=$!
+trap 'kill "$WATCHDOG" 2>/dev/null; git_unlock' EXIT
 
 # Auto-rotate the ECMWF mirrors for this run (round-robin + demote whichever threw 503s
 # last run), unless ECMWF_SOURCES is set explicitly. Self-steers away from a throttling
