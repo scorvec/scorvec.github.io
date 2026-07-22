@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -36,12 +37,20 @@ TOKEN = os.environ.get("GOATCOUNTER_TOKEN", "")
 
 
 def api(path: str, **params) -> dict:
-    r = requests.get(f"{SITE}/api/v0/{path}", params=params,
-                     headers={"Authorization": f"Bearer {TOKEN}"}, timeout=45)
-    if r.status_code >= 400:
-        print(f"  API {path} -> {r.status_code}: {r.text[:300]}", file=sys.stderr)
-    r.raise_for_status()
-    return r.json()
+    # GoatCounter's hosted service occasionally serves a transient HTML error
+    # page (seen as a 404 on a path that works minutes later) — retry before
+    # failing the whole stats build.
+    last = None
+    for attempt in range(4):
+        r = requests.get(f"{SITE}/api/v0/{path}", params=params,
+                         headers={"Authorization": f"Bearer {TOKEN}"}, timeout=45)
+        if r.status_code < 400:
+            return r.json()
+        print(f"  API {path} -> {r.status_code} (attempt {attempt + 1}): "
+              f"{r.text[:200]}", file=sys.stderr)
+        last = r
+        time.sleep(5 * (attempt + 1))
+    last.raise_for_status()
 
 
 def _ts(d: str | date) -> str:
