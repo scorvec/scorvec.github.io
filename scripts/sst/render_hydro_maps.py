@@ -137,7 +137,14 @@ def main():
     regions = gpd.read_file(HERE / "colombia_hydro_regions.geojson")
     basins_map(regions)
     departments_map(regions)
-    print("wrote xm_regions_map.webp + xm_regions_departments.webp")
+    # re-stamp the page's cache-busters so browsers refetch the new renders
+    import re
+    from datetime import datetime, timezone
+    page = OUTDIR / "index.html"
+    cb = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
+    page.write_text(re.sub(r"(xm_regions_[a-z]+\.webp)\?v=\w+", rf"\1?v={cb}",
+                           page.read_text()))
+    print("wrote xm_regions_map.webp + xm_regions_departments.webp (+ page cache-bust)")
 
 
 if __name__ == "__main__":
