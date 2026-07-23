@@ -35,8 +35,8 @@ RIVERS_JSON = Path.home() / "colombia_hydro" / "raw" / "xm_listado_rios.json"
 OUT = Path.home() / "colombia_hydro" / "out"
 API = "https://servapibi.xm.com.co/daily"
 ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
-COLORS = {"ANTIOQUIA": "#1f77b4", "CALDAS": "#9467bd", "CARIBE": "#2ca02c",
-          "CENTRO": "#d62728", "ORIENTE": "#ff7f0e", "VALLE": "#17becf"}
+COLORS = {"ANTIOQUIA": "#68B79F", "CALDAS": "#4F5BE3", "CARIBE": "#F0A169",
+          "CENTRO": "#F5D76E", "ORIENTE": "#C0608D", "VALLE": "#43128F"}
 
 
 def river_region_map() -> dict[str, str]:

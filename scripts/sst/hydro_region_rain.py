@@ -38,8 +38,8 @@ OUT_PNG = REPO / "assets" / "sst" / "colombia_region_rain.webp"
 DAYS = 120                    # default; --days N extends the JSON series (chart
 PLOT_DAYS = 120               # always shows the trailing PLOT_DAYS)
 ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
-COLORS = {"ANTIOQUIA": "#1f77b4", "CALDAS": "#9467bd", "CARIBE": "#2ca02c",
-          "CENTRO": "#d62728", "ORIENTE": "#ff7f0e", "VALLE": "#17becf"}
+COLORS = {"ANTIOQUIA": "#68B79F", "CALDAS": "#4F5BE3", "CARIBE": "#F0A169",
+          "CENTRO": "#F5D76E", "ORIENTE": "#C0608D", "VALLE": "#43128F"}
 
 
 def _axes():
