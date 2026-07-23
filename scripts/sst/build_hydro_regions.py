@@ -211,13 +211,41 @@ def write_outputs(gdf, tag):
     print(f"  wrote {gj.name} ({gj.stat().st_size/1e6:.1f} MB) + {zp}")
 
 
+def build_final(gdf_ideam):
+    """The analysis-grade product: disjoint IDEAM regions with join-ready XM
+    attributes — per-region river names AND API codes (ListadoRios), so the
+    polygons join directly against servapibi.xm.com.co inflow series
+    (AporEner/AporCaudal by Rio) without any name wrangling."""
+    rios = json.load(open(RAW / "xm_listado_rios.json"))
+    names, codes = {}, {}
+    for it in rios["Items"]:
+        for e in it["ListEntities"]:
+            v = e["Values"]
+            if v.get("Status") == "ACTIVO":
+                names.setdefault(v["HydroRegion"], []).append(v["Name"])
+                codes.setdefault(v["HydroRegion"], []).append(v["Code"])
+    g = gdf_ideam.copy()
+    ea = g.to_crs("+proj=cea")
+    g["area_km2"] = (ea.geometry.area / 1e6).round(0)
+    g["xm_rivers"] = g["region"].map(lambda r: ";".join(sorted(names.get(r, []))))
+    g["riv_codes"] = g["region"].map(lambda r: ";".join(sorted(codes.get(r, []))))
+    g["source"] = ("XM ListadoRios -> IDEAM SZH (disjoint; upstream region "
+                   "keeps shared basins)")
+    for reg, a in zip(g["region"], g["area_km2"]):
+        print(f"  final {reg}: {a:,.0f} km², "
+              f"{len(codes.get(reg, []))} XM river codes")
+    return g
+
+
 def main():
     import geopandas as gpd
     print("loading IDEAM zonificación …", flush=True)
     gdfz = gpd.read_file(RAW / "ideam_zonificacion.geojson")
     gdfz["cod_szh"] = gdfz["cod_szh"].astype(float).astype(int)
-    write_outputs(build_ideam(gdfz), "ideam")
+    ideam = build_ideam(gdfz)
+    write_outputs(ideam, "ideam")
     write_outputs(build_hydrobasins(), "hydrobasins")
+    write_outputs(build_final(ideam), "final")
 
 
 if __name__ == "__main__":
