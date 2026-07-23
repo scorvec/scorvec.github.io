@@ -56,7 +56,12 @@ fi
 # spawn while this one is alive. External rescue is therefore impossible; the
 # run must cap itself. TERM the whole tree after 6 h (a healthy cycle is < 2 h).
 ( sleep 21600; echo "self-watchdog: run exceeded 6 h — terminating own tree"
-  pkill -TERM -P $$ 2>/dev/null; kill -TERM $$ 2>/dev/null ) &
+  pkill -TERM -P $$ 2>/dev/null; kill -TERM $$ 2>/dev/null
+  # bash defers TERM until its foreground child exits — a wedged child never
+  # does (observed: 13 h zombie). Escalate to SIGKILL on the process group.
+  sleep 60
+  PGID=$(ps -o pgid= -p $$ 2>/dev/null | tr -d " ")
+  [ -n "$PGID" ] && kill -KILL -- -"$PGID" 2>/dev/null ) &
 WATCHDOG=$!
 trap 'kill "$WATCHDOG" 2>/dev/null; git_unlock' EXIT
 
