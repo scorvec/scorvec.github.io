@@ -45,7 +45,7 @@ XM_DEPTS = {
     "VALLE": ["Valle del Cauca"],
 }
 RIVERS = {
- "ANTIOQUIA": "Nare · Guatapé · San Carlos\nPorce II/III · Grande · Guadalupe\nItuango (full mid-Cauca)",
+ "ANTIOQUIA": "Nare · Guatapé · San Carlos\nPorce II/III · Grande · Guadalupe\nItuango (mid-Cauca, net of Caldas)",
  "CALDAS": "Miel I · Guarinó · Manso\nChinchiná · Campoalegre",
  "CARIBE": "Sinú (Urrá)",
  "CENTRO": "Betania · El Quimbo · Bogotá N.R.\nPrado · Amoyá · Sogamoso",
@@ -99,8 +99,8 @@ def basins_map(regions):
     gl.top_labels = gl.right_labels = False
     gl.xlabel_style = gl.ylabel_style = {"size": 7}
     ax.set_title("XM hydrological regions — Colombia's power-system basins\n"
-                 "membership: XM ListadoRios · polygons: IDEAM Zonificación Hidrográfica · "
-                 "Caldas overlaps Antioquia's mid-Cauca",
+                 "membership: XM ListadoRios · polygons: IDEAM Zonificación Hidrográfica "
+                 "(disjoint — upstream regions keep shared basins)",
                  fontsize=10.5, fontweight="bold")
     ax.legend(loc="lower left", fontsize=8, framealpha=0.9)
     fig.savefig(OUTDIR / "xm_regions_map.webp", dpi=125, bbox_inches="tight",
