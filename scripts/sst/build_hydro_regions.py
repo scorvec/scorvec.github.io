@@ -126,11 +126,22 @@ def build_ideam(gdfz):
         if missing:
             raise SystemExit(f"{region}: SZH codes not found: {missing}")
         geoms[region] = unary_union(sel.geometry.values)
+    # simplify FIRST, then difference: simplifying a carved edge re-expands it
+    # slightly and re-creates km²-scale overlap slivers along the boundary
+    geoms = {r: g.simplify(SIMPLIFY_DEG).buffer(0) for r, g in geoms.items()}
+    # Sequential allocation guarantees pairwise disjointness even against the
+    # sub-km² slivers present between subzonas in the raw IDEAM data: each
+    # region subtracts everything already placed. ANTIOQUIA goes last so the
+    # CARVE priority (upstream regions keep shared basins) is preserved.
+    order = ["CALDAS", "VALLE", "CARIBE", "CENTRO", "ORIENTE", "ANTIOQUIA"]
+    placed = None
+    from shapely.ops import unary_union as _uu
+    for region in order:
+        g = geoms[region] if placed is None else geoms[region].difference(placed)
+        placed = g if placed is None else _uu([placed, geoms[region]])
+        geoms[region] = g
     for region, szhs in REGION_SZH.items():
         geom = geoms[region]
-        for upstream in CARVE.get(region, []):
-            geom = geom.difference(geoms[upstream])
-        geom = geom.simplify(SIMPLIFY_DEG)
         feats.append(dict(region=region, source="IDEAM SZH",
                           szh=",".join(str(int(c)) for c in sorted(szhs)),
                           rivers="; ".join(sorted(set(szhs.values()))),
@@ -138,7 +149,13 @@ def build_ideam(gdfz):
         carved = f" (minus {'+'.join(CARVE[region])})" if region in CARVE else ""
         print(f"  ideam {region}: {len(REGION_SZH[region])} subzonas{carved}, "
               f"{geom.area * (111.1**2) * np.cos(np.radians(5)):,.0f} km² approx")
-    return gpd.GeoDataFrame(feats, crs="EPSG:4326")
+    out = gpd.GeoDataFrame(feats, crs="EPSG:4326")
+    import itertools
+    for a, b in itertools.combinations(range(len(out)), 2):
+        ov = out.geometry.iloc[a].intersection(out.geometry.iloc[b]).area
+        assert ov < 1e-9, f"regions {a}/{b} overlap by {ov} — disjointness broken"
+    print("  pairwise disjointness OK")
+    return out
 
 
 def build_hydrobasins():

@@ -97,19 +97,34 @@ def main() -> int:
         rr = np.array(rain[reg]["mm"], float)
         ii = inflow[reg]
         ok = np.isfinite(ii)
-        # lag correlation: inflow vs trailing-K mean rain, K in 1..15
-        best = (0, 0.0)
-        for k in range(1, 16):
+        # contiguous segments: the record may hold disjoint chunks (partial
+        # backfill) — a trailing mean must never straddle a gap
+        dts = [datetime.strptime(d, "%Y-%m-%d") for d in dates]
+        seg_id = np.zeros(len(dts), int)
+        for i in range(1, len(dts)):
+            seg_id[i] = seg_id[i - 1] + ((dts[i] - dts[i - 1]).days > 1)
+
+        def trailing(k):
+            sm = np.full(len(rr), np.nan)
             kern = np.ones(k) / k
-            sm = np.convolve(rr, kern, mode="full")[:len(rr)]
+            for sid in np.unique(seg_id):
+                m = seg_id == sid
+                seg = np.convolve(rr[m], kern, mode="full")[:m.sum()]
+                seg[:k - 1] = np.nan                    # incomplete windows
+                sm[m] = seg
+            return sm
+
+        # lag correlation: inflow vs trailing-K mean rain, K in 1..15
+        best = (1, 0.0)
+        for k in range(1, 16):
+            sm = trailing(k)
             m = ok & np.isfinite(sm)
             if m.sum() > 30:
                 c = float(np.corrcoef(sm[m], ii[m])[0, 1])
                 if c > best[1]:
                     best = (k, c)
         k, c = best
-        kern = np.ones(max(k, 1)) / max(k, 1)
-        sm = np.convolve(rr, kern, mode="full")[:len(rr)]
+        sm = trailing(k)
         summary[reg] = dict(best_trailing_days=k, corr=round(c, 3),
                             n_days=int(ok.sum()),
                             inflow_mean_gwh=round(float(np.nanmean(ii)), 2))

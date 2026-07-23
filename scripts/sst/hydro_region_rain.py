@@ -70,14 +70,20 @@ def main(argv=None) -> int:
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=DAYS)
+    ap.add_argument("--cached-only", action="store_true",
+                    help="use every already-cached daily grid; no downloads")
     args = ap.parse_args(argv)
     lon, lat, coef = _axes()
     w_ideam = region_weights(HERE / "colombia_hydro_regions.geojson", lon, lat)
     w_hybas = region_weights(HERE / "colombia_hydro_regions_hydrobasins.geojson", lon, lat)
 
     today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    days = [today - timedelta(days=k) for k in range(args.days, 0, -1)]
-    IP.ensure_daily(set(days))
+    if args.cached_only:
+        days = [datetime.strptime(f.stem, "%Y%m%d").replace(tzinfo=timezone.utc)
+                for f in sorted(IP.DAILY_CACHE.glob("*.npy"))]
+    else:
+        days = [today - timedelta(days=k) for k in range(args.days, 0, -1)]
+        IP.ensure_daily(set(days))
 
     dates, grids = [], []
     for d in days:
