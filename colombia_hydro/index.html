@@ -68,9 +68,9 @@ daily. Rain here today is turbine water in the coming weeks.</p>
 <div class="chips" id="chips"></div>
 
 <div class="cols">
-  <div class="panel"><img src="xm_regions_map.webp?v=202607231058"
+  <div class="panel"><img src="xm_regions_map.webp?v=202607231114"
     alt="Map of XM hydrological regions built from IDEAM subzonas"></div>
-  <div class="panel"><img src="xm_regions_departments.webp?v=202607231058"
+  <div class="panel"><img src="xm_regions_departments.webp?v=202607231114"
     alt="Department-scale display view of the XM regions with true basins outlined">
     <p class="note" style="margin:8px 4px 2px">Two views of the same regions: the
     <b>contributing basins</b> (left — used for all rainfall averaging on this page) and the
@@ -81,6 +81,14 @@ daily. Rain here today is turbine water in the coming weeks.</p>
 <h2>Basin rainfall, daily</h2>
 <div class="panel"><img src="/assets/sst/colombia_region_rain.webp"
   alt="Daily basin rainfall per XM region vs climatology"></div>
+
+<h2>The terrain that makes the system</h2>
+<p class="note">The same basins over elevation: all three cordilleras and both great
+valleys are visible, and the dams cluster exactly where rivers drop off the ranges —
+the eastern slope above the llanos (Oriente), the Magdalena's canyon exits (Centro),
+and Antioquia's dissected plateau.</p>
+<div class="panel"><img src="xm_regions_topo.webp?v=202607231116"
+  alt="XM hydro regions over shaded terrain"></div>
 
 <h2>The regions</h2>
 <p class="note">Membership exactly as returned by XM's public API (<code>ListadoRios</code>);
@@ -106,19 +114,22 @@ department-scale areas, but only these catchments actually convert rainfall into
 </div>
 
 <h2>Validation — does basin rain predict XM's measured inflows?</h2>
-<p class="note">3-day rainfall totals vs 3-day inflow-energy totals (<code>AporEner</code>, XM API, summed
-per region), cross-correlated at 0–15-day lags; sums never straddle gaps in the partial
-IMERG backfill. Lags are physically sensible — steep cordillera catchments respond within
-days, the Sinú and mid-Cauca in ~2–3. Inflow also carries baseflow memory, and <b>Valle's
-Salvajina series is regulation-dominated</b> (upstream operations, not rain, set much of
-its day-to-day inflow), so its correlation is structurally low. Current record
-(two seasons, backfill still extending): <b>Antioquia r=0.38 (2d) · Caldas r=0.53 (2d) · Caribe r=0.40 (3d) · Centro r=0.42 (2d) · Oriente r=0.34 (0d) · Valle r=0.14 (3d)</b>.</p>
-<div class="panel"><img src="validation_rain_vs_inflow.webp?v=202607231106"
+<p class="note">3-day rainfall totals vs 3-day inflow-energy totals (<code>AporEner</code>, XM API),
+cross-correlated at 0–15-day lags, in three flavours per region: <i>raw</i>, <i>anomaly</i>
+(both series minus their seasonal normals), and <i>burst</i> (rain above a fitted baseline
+threshold — testing whether steady light rain just holds soil/evap steady state while only
+downpours move inflow). Verdict so far: <b>anomalies win for Centro</b> (r 0.42→0.50 — the
+seasonal cycle was masking real coupling) and help Valle slightly; raw wins for
+Antioquia/Caldas/Oriente (two seasons is thin for anomaly fits); and <b>the burst threshold
+never beats a plain total</b> — at 3-day scale these basins convert rain roughly linearly,
+with no detectable light-rain dead-band yet. <b>Valle's Salvajina series remains
+regulation-dominated</b>. Best per region: <b>Antioquia r=0.38 (raw, 2d) · Caldas r=0.53 (raw, 2d) · Caribe r=0.40 (burst>1mm, 4d) · Centro r=0.50 (anom, 2d) · Oriente r=0.34 (raw, 0d) · Valle r=0.19 (anom, 2d)</b>.</p>
+<div class="panel"><img src="validation_rain_vs_inflow.webp?v=202607231116"
   alt="Validation: IMERG basin rainfall vs XM observed inflows per region"></div>
 <p class="note" style="margin-top:14px">The same relationship as scatter — every dot is one
 3-day block (rain shifted by the region's best lag). The slope is the region's effective
 rainfall-to-energy conversion; Valle's cloud shows the regulation flattening.</p>
-<div class="panel"><img src="validation_scatter.webp?v=202607231106"
+<div class="panel"><img src="validation_scatter.webp?v=202607231116"
   alt="Scatter: 3-day basin rain vs 3-day XM inflow per region"></div>
 
 <h2>Data downloads</h2>

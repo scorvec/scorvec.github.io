@@ -152,10 +152,61 @@ def departments_map(regions):
     plt.close(fig)
 
 
+def topo_map(regions):
+    """Basins over shaded terrain (NOAA DEM mosaic export, ~30 arc-sec)."""
+    import numpy as np
+    from matplotlib.colors import LightSource, LinearSegmentedColormap
+    from PIL import Image as PILImage
+    tif = PILImage.open(Path.home() / "colombia_hydro" / "raw" / "etopo_colombia.tif")
+    z = np.array(tif, dtype="float32")
+    ext = (-80.5, -69.5, -5.5, 13.5)                    # matches the export bbox
+    ls = LightSource(azdeg=315, altdeg=40)
+    terrain = LinearSegmentedColormap.from_list("land", [
+        (0.00, "#4a7a3f"), (0.12, "#7aa05a"), (0.30, "#c9bf7e"),
+        (0.55, "#a8845c"), (0.78, "#8a7466"), (1.00, "#f2efe9")])
+    zl = np.clip(z, 0, None)
+    rgb = ls.shade(zl, cmap=terrain, blend_mode="soft",
+                   vmin=0, vmax=4800, vert_exag=0.12, dx=900, dy=900)
+    rgb[z <= 0] = (0.78, 0.86, 0.92, 1.0)               # sea
+    fig = plt.figure(figsize=(9.8, 11.5))
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    ax.set_extent([-79.8, -70.4, 0.3, 10.3])
+    ax.imshow(rgb, origin="upper", extent=ext, transform=ccrs.PlateCarree(),
+              interpolation="bilinear", zorder=1)
+    ax.coastlines("50m", lw=0.7, color="0.25")
+    ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.6, color="0.3")
+    for name in ["ANTIOQUIA", "CENTRO", "ORIENTE", "VALLE", "CARIBE", "CALDAS"]:
+        rr = regions[regions["name"] == name].iloc[0]
+        ax.add_geometries([rr.geometry], ccrs.PlateCarree(),
+                          facecolor=COLORS[name], alpha=0.28,
+                          edgecolor=COLORS[name], linewidth=2.0, zorder=3)
+    _magdalena(ax)
+    plants = json.load(open(HERE / "colombia_hydro_plants.json"))["plants"]
+    ax.scatter([p["lon"] for p in plants], [p["lat"] for p in plants],
+               s=[18 + p["mw"] / 45 for p in plants], c="k", marker="^", zorder=6)
+    for name, (lx, ly) in LABEL.items():
+        axx, ayy = ARROW[name]
+        ax.annotate(name, xy=(axx, ayy), xytext=(lx, ly),
+                    fontsize=9.5, fontweight="bold", ha="center", va="center",
+                    color=COLORS[name], zorder=7,
+                    path_effects=[mpe.withStroke(linewidth=3.0, foreground="white")],
+                    arrowprops=dict(arrowstyle="-", color=COLORS[name], lw=1.2))
+    gl = ax.gridlines(draw_labels=True, lw=0.2, ls=":", color="0.5")
+    gl.top_labels = gl.right_labels = False
+    gl.xlabel_style = gl.ylabel_style = {"size": 7}
+    ax.set_title("XM hydrological regions over terrain\n"
+                 "the cordilleras carve the basins — dams sit where rivers drop off the ranges",
+                 fontsize=10.5, fontweight="bold")
+    fig.savefig(OUTDIR / "xm_regions_topo.webp", dpi=125, bbox_inches="tight",
+                facecolor="white")
+    plt.close(fig)
+
+
 def main():
     regions = gpd.read_file(HERE / "colombia_hydro_regions.geojson")
     basins_map(regions)
     departments_map(regions)
+    topo_map(regions)
     # re-stamp the page's cache-busters so browsers refetch the new renders
     import re
     from datetime import datetime, timezone
@@ -163,7 +214,7 @@ def main():
     cb = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
     page.write_text(re.sub(r"(xm_regions_[a-z]+\.webp)\?v=\w+", rf"\1?v={cb}",
                            page.read_text()))
-    print("wrote xm_regions_map.webp + xm_regions_departments.webp (+ page cache-bust)")
+    print("wrote xm_regions_{map,departments,topo}.webp (+ page cache-bust)")
 
 
 if __name__ == "__main__":

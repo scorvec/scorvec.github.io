@@ -118,24 +118,51 @@ def main() -> int:
             return out
 
         r3, i3 = roll3(rr), roll3(np.where(ok, ii, np.nan))
-        # lag scan: 3-day rain ending at t-lag vs 3-day inflow ending at t
-        best = (0, 0.0)
-        for lag in range(0, 16):
-            rs = np.roll(r3, lag); rs[:lag] = np.nan
-            m = np.isfinite(rs) & np.isfinite(i3) & (np.roll(seg_id, lag) == seg_id)
-            if m.sum() > 30:
-                c = float(np.corrcoef(rs[m], i3[m])[0, 1])
-                if c > best[1]:
-                    best = (lag, c)
-        k, c = best
-        sm = np.roll(r3, k); sm[:k] = np.nan
-        sm = sm / 3.0                                   # back to mm/day for the plot
-        scatter[reg] = (sm, i3 / 3.0, k, c)
-        summary[reg] = dict(best_lag_days=k, corr=round(c, 3),
+        cl3 = roll3(np.array(rain[reg]["clim"], float))
+
+        # inflow seasonal normal: harmonic (mean+annual+semiannual) fit on the
+        # available record, so anomalies test rain-inflow coupling WITHOUT the
+        # shared seasonal cycle inflating r
+        doy = np.array([d.timetuple().tm_yday for d in dts], float)
+        w = 2 * np.pi * doy / 365.25
+        X = np.column_stack([np.ones_like(w), np.cos(w), np.sin(w),
+                             np.cos(2 * w), np.sin(2 * w)])
+        fin = np.isfinite(i3)
+        coef, *_ = np.linalg.lstsq(X[fin], i3[fin], rcond=None)
+        ia3 = i3 - X @ coef
+
+        def scan(xs, ys):
+            best = (0, 0.0)
+            for lag in range(0, 16):
+                xr_ = np.roll(xs, lag); xr_[:lag] = np.nan
+                m = np.isfinite(xr_) & np.isfinite(ys) & (np.roll(seg_id, lag) == seg_id)
+                if m.sum() > 30:
+                    cc = float(np.corrcoef(xr_[m], ys[m])[0, 1])
+                    if cc > best[1]:
+                        best = (lag, cc)
+            return best
+
+        variants = {"raw": (r3, i3), "anom": (r3 - cl3, ia3)}
+        bT, bB = 0, (0, 0.0)
+        for T in range(1, 9):                       # burst: rain above baseline
+            e3 = roll3(np.maximum(rr - T, 0.0))
+            lg, cc = scan(e3, ia3)
+            if cc > bB[1]:
+                bT, bB = T, (lg, cc)
+        variants[f"burst>{bT}mm"] = (roll3(np.maximum(rr - bT, 0.0)), ia3)
+        results = {name: scan(x, y) for name, (x, y) in variants.items()}
+        bname = max(results, key=lambda n: results[n][1])
+        k, c = results[bname]
+        xs, ys = variants[bname]
+        sm = np.roll(xs, k); sm[:k] = np.nan
+        sm = sm / 3.0
+        print(f"  {reg}: " + "  ".join(
+            f"{n} r={results[n][1]:.2f}@{results[n][0]}d" for n in results), flush=True)
+        scatter[reg] = (sm, ys / 3.0, k, c, bname)
+        summary[reg] = dict(best_lag_days=k, corr=round(c, 3), variant=bname,
+                            all_variants={n: dict(lag=results[n][0], r=round(results[n][1], 3)) for n in results},
                             n_days=int(ok.sum()),
                             inflow_mean_gwh=round(float(np.nanmean(ii)), 2))
-        print(f"  {reg}: r={c:.2f} at lag {k} d (3-d sums) "
-              f"(mean inflow {np.nanmean(ii):.1f} GWh/d)", flush=True)
 
         ax2 = ax.twinx()
         ax.bar(dts, rr, width=1.0, color=COLORS[reg], alpha=0.35, lw=0)
@@ -166,7 +193,7 @@ def main() -> int:
     # scatter view: the correlation itself, one dot per 3-day block
     fig2, axs2 = plt.subplots(2, 3, figsize=(12.6, 8.2))
     for ax, reg in zip(axs2.ravel(), ORDER):
-        x, y, k, c = scatter[reg]
+        x, y, k, c, bname = scatter[reg]
         m = np.isfinite(x) & np.isfinite(y)
         ax.scatter(x[m], y[m], s=14, color=COLORS[reg], alpha=0.55,
                    edgecolors="none")
@@ -174,10 +201,10 @@ def main() -> int:
             b, a = np.polyfit(x[m], y[m], 1)
             xs = np.linspace(np.nanmin(x[m]), np.nanmax(x[m]), 50)
             ax.plot(xs, a + b * xs, color="0.2", lw=1.4, ls="--")
-        ax.set_title(f"{reg} — r = {c:.2f} · rain leads {k} d · n = {int(m.sum())}",
+        ax.set_title(f"{reg} — {bname} r = {c:.2f} · lead {k} d · n = {int(m.sum())}",
                      fontsize=9.5, fontweight="bold", loc="left")
-        ax.set_xlabel("3-day basin rain (mm/day avg)", fontsize=8)
-        ax.set_ylabel("3-day inflow (GWh/day avg)", fontsize=8)
+        ax.set_xlabel(f"3-day rain [{bname}] (mm/day avg)", fontsize=8)
+        ax.set_ylabel("3-day inflow anom (GWh/day)" if bname != "raw" else "3-day inflow (GWh/day avg)", fontsize=8)
         ax.tick_params(labelsize=7.5); ax.grid(alpha=0.22)
     fig2.suptitle("3-day rain vs 3-day inflow — each dot is one 3-day block",
                   fontsize=12.5, fontweight="bold")
