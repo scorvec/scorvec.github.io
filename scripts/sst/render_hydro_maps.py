@@ -4,9 +4,9 @@
 Colors follow XM's Sinergox dashboard palette; the department clusters in the
 display view replicate XM's official "Mapa Hidrología SIN" exactly (decoded
 2026-07-23 from sinergox.xm.com.co/hdrlg/Paginas/Informes/MapaHidrologiaSIN.aspx).
-Note XM's display is deliberately coarse: Cauca dept is unshaded although
-Salvajina's catchment sits in it, Risaralda unshaded despite Caldas-region
-plants — the black basin outlines carry the truth.
+Note XM's display is deliberately coarse: Cauca, Huila, Tolima and Risaralda
+are unshaded despite hosting plants (Salvajina, Betania/El Quimbo, Prado/Amoyá,
+Campoalegre) — the black basin outlines carry the truth.
 
     python scripts/sst/render_hydro_maps.py
 """
@@ -40,8 +40,8 @@ XM_DEPTS = {
     "CALDAS": ["Caldas"],
     "CARIBE": ["La Guajira", "Cesar", "Magdalena", "Atlántico", "Bolívar",
                "Sucre", "Córdoba"],
-    "CENTRO": ["Cundinamarca", "Bogota", "Tolima", "Huila"],
-    "ORIENTE": ["Santander", "Norte de Santander", "Boyacá", "Casanare"],
+    "CENTRO": ["Cundinamarca", "Bogota", "Meta"],
+    "ORIENTE": ["Santander", "Norte de Santander", "Boyacá", "Casanare", "Arauca"],
     "VALLE": ["Valle del Cauca"],
 }
 RIVERS = {
