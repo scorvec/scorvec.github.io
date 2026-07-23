@@ -93,3 +93,4 @@ scripts/gatun/data/
 scripts/climate/data/
 scripts/synoptic/.julia_staging/
 scripts/synoptic/.julia_overlays/
+scripts/ecmwf/.budget_state.json*

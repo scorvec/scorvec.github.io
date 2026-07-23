@@ -29,6 +29,13 @@ from pathlib import Path
 
 import requests
 
+try:
+    import budget
+except ImportError:                                        # ad-hoc callers off-path
+    from pathlib import Path as _P
+    import sys as _sys; _sys.path.insert(0, str(_P(__file__).resolve().parent))
+    import budget
+
 MIRRORS = {
     "aws": "https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com",
     "azure": "https://ai4edataeuwest.blob.core.windows.net/ecmwf",
@@ -57,11 +64,13 @@ def fetch_index(date: str, hh: str, model: str, step: int, kind: str = "pf",
     for attempt in range(3):
         for src in sources or ["aws", "azure", "ecmwf"]:
             try:
+                budget.acquire(src)
                 r = requests.get(f"{MIRRORS[src]}/{rel}", timeout=TIMEOUT)
                 if r.status_code == 200:
                     return [json.loads(line) for line in r.text.splitlines() if line.strip()]
                 last_err = RuntimeError(f"{src}: HTTP {r.status_code}")
                 if r.status_code in (429, 503):
+                    budget.penalize(src)
                     time.sleep(1.5 + 3.0 * attempt)
             except Exception as e:                             # noqa: BLE001
                 last_err = e
@@ -120,6 +129,7 @@ def fetch_ranges(rel_grib: str, ranges, sources: list[str] | None = None,
         for attempt in range(3):
             for src in sources:
                 try:
+                    budget.acquire(src)
                     r = requests.get(f"{MIRRORS[src]}/{rel_grib}",
                                      headers={"Range": f"bytes={start}-{end - 1}"},
                                      timeout=TIMEOUT)
@@ -130,6 +140,7 @@ def fetch_ranges(rel_grib: str, ranges, sources: list[str] | None = None,
                             for e in members)
                     last = RuntimeError(f"{src}: HTTP {r.status_code}")
                     if r.status_code in (429, 503):            # throttled: back off AND
+                        budget.penalize(src)
                         _shrink()                              # shed concurrency
                         time.sleep(1.0 + 2.0 * attempt)
                 except Exception as e:                         # noqa: BLE001
@@ -168,6 +179,7 @@ def cycle_complete(date: str, hh: str, model: str = "aifs-ens",
     rel = path_for(date, hh, model, last_step, kind) + ".index"
     for src in ("aws", "azure", "ecmwf"):
         try:
+            budget.acquire(src)
             r = requests.head(f"{MIRRORS[src]}/{rel}", timeout=(5, 15))
             if r.status_code == 200:
                 return True
