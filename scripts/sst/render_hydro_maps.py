@@ -40,7 +40,7 @@ XM_DEPTS = {
     "CALDAS": ["Caldas"],
     "CARIBE": ["La Guajira", "Cesar", "Magdalena", "Atlántico", "Bolívar",
                "Sucre", "Córdoba"],
-    "CENTRO": ["Cundinamarca", "Bogota", "Tolima", "Huila", "Meta"],
+    "CENTRO": ["Cundinamarca", "Bogota", "Tolima", "Huila"],
     "ORIENTE": ["Santander", "Norte de Santander", "Boyacá", "Casanare"],
     "VALLE": ["Valle del Cauca"],
 }
