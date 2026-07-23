@@ -50,8 +50,9 @@ REGION_SZH = {
         # ITUANGO: the FULL intermediate Cauca, Salvajina dam → Puerto Valdivia.
         # Everything in ZH26 except the upstream-of-Salvajina set (2601-2603,
         # 2627 → VALLE) and the below-dam set (2624-2626). Subzonas 2613/2614/
-        # 2615 legitimately OVERLAP the CALDAS region (run-of-river plants
-        # upstream, Ituango downstream): XM regions are not spatially disjoint.
+        # 2615 drain through CALDAS' run-of-river plants first — hydrologically
+        # shared, but the emitted polygons are made DISJOINT below (Caldas keeps
+        # them; Antioquia's union subtracts Caldas' footprint).
         **{c: "ITUANGO (intermediate Cauca)" for c in
            (2604, 2605, 2606, 2607, 2608, 2609, 2610, 2611, 2612, 2613,
             2614, 2615, 2616, 2617, 2618, 2619, 2620, 2621, 2622, 2628,
@@ -109,21 +110,33 @@ REGION_OUTLETS = {
 SIMPLIFY_DEG = 0.004          # ~400 m — map-scale fidelity, small files
 
 
+# Disjointness: where a subzona feeds one region's plants before flowing on to
+# another region's dam, the UPSTREAM region keeps it and the downstream union
+# subtracts it. (CALDAS' Cauca-side subzonas sit inside ANTIOQUIA's mid-Cauca.)
+CARVE = {"ANTIOQUIA": ["CALDAS"]}
+
+
 def build_ideam(gdfz):
     import geopandas as gpd
     from shapely.ops import unary_union
-    feats = []
+    geoms, feats = {}, []
     for region, szhs in REGION_SZH.items():
         sel = gdfz[gdfz["cod_szh"].isin(szhs)]
         missing = set(szhs) - set(sel["cod_szh"])
         if missing:
             raise SystemExit(f"{region}: SZH codes not found: {missing}")
-        geom = unary_union(sel.geometry.values).simplify(SIMPLIFY_DEG)
+        geoms[region] = unary_union(sel.geometry.values)
+    for region, szhs in REGION_SZH.items():
+        geom = geoms[region]
+        for upstream in CARVE.get(region, []):
+            geom = geom.difference(geoms[upstream])
+        geom = geom.simplify(SIMPLIFY_DEG)
         feats.append(dict(region=region, source="IDEAM SZH",
                           szh=",".join(str(int(c)) for c in sorted(szhs)),
                           rivers="; ".join(sorted(set(szhs.values()))),
                           geometry=geom))
-        print(f"  ideam {region}: {len(sel)} subzonas, "
+        carved = f" (minus {'+'.join(CARVE[region])})" if region in CARVE else ""
+        print(f"  ideam {region}: {len(REGION_SZH[region])} subzonas{carved}, "
               f"{geom.area * (111.1**2) * np.cos(np.radians(5)):,.0f} km² approx")
     return gpd.GeoDataFrame(feats, crs="EPSG:4326")
 
@@ -159,7 +172,7 @@ def build_hydrobasins():
         for o in outs:
             catch_cache[f"{region}:{o['name'].split(' ')[0]}"] = \
                 catchment(o["lat"], o["lon"])
-    feats = []
+    ids_by_region = {}
     for region, outs in REGION_OUTLETS.items():
         ids = set()
         for o in outs:
@@ -167,11 +180,19 @@ def build_hydrobasins():
             if "subtract" in o:
                 c = c - catch_cache[o["subtract"]]
             ids |= c
+        ids_by_region[region] = ids
+    for region, ups in CARVE.items():                 # disjointness, as in ideam
+        for up_region in ups:
+            ids_by_region[region] -= ids_by_region[up_region]
+    feats = []
+    for region, outs in REGION_OUTLETS.items():
+        ids = ids_by_region[region]
         geom = unary_union([geom_by_id[i] for i in ids]).simplify(SIMPLIFY_DEG)
         feats.append(dict(region=region, source="HydroBASINS lev12 trace",
                           outlets="; ".join(o["name"] for o in outs),
                           geometry=geom))
-        print(f"  hybas {region}: {len(ids)} lev12 cells", flush=True)
+        carved = f" (minus {'+'.join(CARVE[region])})" if region in CARVE else ""
+        print(f"  hybas {region}: {len(ids)} lev12 cells{carved}", flush=True)
     return gpd.GeoDataFrame(feats, crs="EPSG:4326")
 
 
