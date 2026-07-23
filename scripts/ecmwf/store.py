@@ -30,6 +30,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ecmwf.opendata import Client
+try:
+    import budget as _budget
+except ImportError:
+    _budget = None
 
 # ── config ──────────────────────────────────────────────────────────────────────
 CACHE = Path(os.environ.get("ECMWF_CACHE",
@@ -130,7 +134,11 @@ try:
     import ecmwf.opendata.client as _eoc
     _ORIG_ROBUST = multiurl.http.robust
     def _failfast_robust(call, maximum_tries=500, retry_after=120, mirrors=None):
-        return _ORIG_ROBUST(call, min(maximum_tries, FAILFAST_TRIES),
+        def _metered(*a, **k):                     # PREVENTIVE cross-process budget:
+            if _budget is not None:                # every underlying GET pays a token
+                _budget.acquire("*")
+            return call(*a, **k)
+        return _ORIG_ROBUST(_metered, min(maximum_tries, FAILFAST_TRIES),
                             min(retry_after, FAILFAST_WAIT), mirrors)
     # `robust` is bound in FOUR places, all pointing at the same original. ecmwf-opendata
     # fetches the .index via its OWN `multiurl.robust` binding (the real 500×/120s culprit),
@@ -434,6 +442,8 @@ def _robust(req: dict, target: str, parallel: bool, members, expected: int, star
                 return src
             err = RuntimeError(f"incomplete GRIB: {got}/{expected} msgs")
         if _is_throttle(err):                              # 503/SlowDown
+            if _budget is not None:
+                _budget.penalize(src)                      # slow every process down together
             _note_throttle_src(src)                        # demote this mirror NEXT run too
             with _THROTTLE_LOCK:                           # …and cool it down (exponential per consecutive 503)
                 wait = _cooldown_for(src)
