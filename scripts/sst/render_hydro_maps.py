@@ -161,9 +161,10 @@ def topo_map(regions):
     z = np.array(tif, dtype="float32")
     ext = (-80.5, -69.5, -5.5, 13.5)                    # matches the export bbox
     ls = LightSource(azdeg=315, altdeg=40)
+    # muted terrain so the region overlays stay the loudest layer
     terrain = LinearSegmentedColormap.from_list("land", [
-        (0.00, "#4a7a3f"), (0.12, "#7aa05a"), (0.30, "#c9bf7e"),
-        (0.55, "#a8845c"), (0.78, "#8a7466"), (1.00, "#f2efe9")])
+        (0.00, "#9db98e"), (0.12, "#b5c69c"), (0.30, "#ddd6b2"),
+        (0.55, "#cbb59a"), (0.78, "#bfb2a8"), (1.00, "#f5f3ef")])
     zl = np.clip(z, 0, None)
     rgb = ls.shade(zl, cmap=terrain, blend_mode="soft",
                    vmin=0, vmax=4800, vert_exag=0.12, dx=900, dy=900)
@@ -178,8 +179,8 @@ def topo_map(regions):
     for name in ["ANTIOQUIA", "CENTRO", "ORIENTE", "VALLE", "CARIBE", "CALDAS"]:
         rr = regions[regions["name"] == name].iloc[0]
         ax.add_geometries([rr.geometry], ccrs.PlateCarree(),
-                          facecolor=COLORS[name], alpha=0.28,
-                          edgecolor=COLORS[name], linewidth=2.0, zorder=3)
+                          facecolor=COLORS[name], alpha=0.5,
+                          edgecolor="k", linewidth=1.3, zorder=3)
     _magdalena(ax)
     plants = json.load(open(HERE / "colombia_hydro_plants.json"))["plants"]
     ax.scatter([p["lon"] for p in plants], [p["lat"] for p in plants],
