@@ -75,6 +75,8 @@ REGION_SZH = {
     "ORIENTE": {
         3506: "GUAVIO", 3507: "BATA, DESV. CHIVOR, DESV. BATATAS",
         3503: "CHUZA, BLANCO (Chingaza)",
+        3508: "DESV. CHIVOR (Rucio/Tunjita/Negro — upper Lengupá; Paratec "
+              "estaciones for Esmeralda)",
     },
     "VALLE": {
         2601: "CAUCA SALVAJINA", 2602: "CAUCA SALVAJINA (Palacé)",

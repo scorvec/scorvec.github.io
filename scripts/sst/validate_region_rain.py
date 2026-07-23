@@ -98,45 +98,50 @@ def main() -> int:
         ii = inflow[reg]
         ok = np.isfinite(ii)
         # contiguous segments: the record may hold disjoint chunks (partial
-        # backfill) — a trailing mean must never straddle a gap
+        # backfill) — rolling sums must never straddle a gap
         dts = [datetime.strptime(d, "%Y-%m-%d") for d in dates]
         seg_id = np.zeros(len(dts), int)
         for i in range(1, len(dts)):
             seg_id[i] = seg_id[i - 1] + ((dts[i] - dts[i - 1]).days > 1)
 
-        def trailing(k):
-            sm = np.full(len(rr), np.nan)
-            kern = np.ones(k) / k
+        def roll3(x):
+            """Trailing 3-day sum, NaN across segment joins / incomplete windows."""
+            out = np.full(len(x), np.nan)
             for sid in np.unique(seg_id):
                 m = seg_id == sid
-                seg = np.convolve(rr[m], kern, mode="full")[:m.sum()]
-                seg[:k - 1] = np.nan                    # incomplete windows
-                sm[m] = seg
-            return sm
+                xx = x[m]
+                sm = np.convolve(np.nan_to_num(xx), np.ones(3), "full")[:m.sum()]
+                bad = np.convolve(np.isnan(xx).astype(float), np.ones(3), "full")[:m.sum()]
+                sm[(bad > 0)] = np.nan
+                sm[:2] = np.nan
+                out[m] = sm
+            return out
 
-        # lag correlation: inflow vs trailing-K mean rain, K in 1..15
-        best = (1, 0.0)
-        for k in range(1, 16):
-            sm = trailing(k)
-            m = ok & np.isfinite(sm)
+        r3, i3 = roll3(rr), roll3(np.where(ok, ii, np.nan))
+        # lag scan: 3-day rain ending at t-lag vs 3-day inflow ending at t
+        best = (0, 0.0)
+        for lag in range(0, 16):
+            rs = np.roll(r3, lag); rs[:lag] = np.nan
+            m = np.isfinite(rs) & np.isfinite(i3) & (np.roll(seg_id, lag) == seg_id)
             if m.sum() > 30:
-                c = float(np.corrcoef(sm[m], ii[m])[0, 1])
+                c = float(np.corrcoef(rs[m], i3[m])[0, 1])
                 if c > best[1]:
-                    best = (k, c)
+                    best = (lag, c)
         k, c = best
-        sm = trailing(k)
-        summary[reg] = dict(best_trailing_days=k, corr=round(c, 3),
+        sm = np.roll(r3, k); sm[:k] = np.nan
+        sm = sm / 3.0                                   # back to mm/day for the plot
+        summary[reg] = dict(best_lag_days=k, corr=round(c, 3),
                             n_days=int(ok.sum()),
                             inflow_mean_gwh=round(float(np.nanmean(ii)), 2))
-        print(f"  {reg}: r={c:.2f} at trailing {k} d "
+        print(f"  {reg}: r={c:.2f} at lag {k} d (3-d sums) "
               f"(mean inflow {np.nanmean(ii):.1f} GWh/d)", flush=True)
 
         ax2 = ax.twinx()
         ax.bar(dts, rr, width=1.0, color=COLORS[reg], alpha=0.35, lw=0)
         ax.plot(dts, sm, color=COLORS[reg], lw=1.6,
-                label=f"rain, trailing {k}-d mean")
-        ax2.plot(dts, ii, color="k", lw=1.3, label="XM inflow (GWh/d)")
-        ax.set_title(f"{reg} — r = {c:.2f} (rain led {k} d)", fontsize=10,
+                label=f"3-d rain, led {k} d")
+        ax2.plot(dts, i3 / 3.0, color="k", lw=1.3, label="3-d XM inflow (GWh/d)")
+        ax.set_title(f"{reg} — r = {c:.2f} (3-d blocks, rain led {k} d)", fontsize=10,
                      fontweight="bold", loc="left")
         ax.set_ylabel("mm/day", fontsize=8); ax2.set_ylabel("GWh/day", fontsize=8)
         ax.tick_params(labelsize=7.5); ax2.tick_params(labelsize=7.5)
@@ -150,7 +155,7 @@ def main() -> int:
                  fontsize=13, fontweight="bold")
     fig.text(0.5, 0.005, "rain: GPM IMERG area-weighted over the region polygons · "
              "inflow: XM daily aportes energía summed per region via ListadoRios · "
-             "r maximized over trailing-mean windows 1–15 d",
+             "r = corr(3-day rain, 3-day inflow), lag scanned 0–15 d",
              ha="center", fontsize=7.5, color="0.4")
     fig.tight_layout(rect=(0, 0.012, 1, 1))
     OUT.mkdir(parents=True, exist_ok=True)

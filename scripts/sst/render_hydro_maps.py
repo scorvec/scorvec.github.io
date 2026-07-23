@@ -57,6 +57,17 @@ ARROW = {"ANTIOQUIA": (-75.7, 7.0), "CALDAS": (-75.35, 5.35), "CARIBE": (-76.0, 
          "CENTRO": (-73.3, 6.2), "ORIENTE": (-73.4, 4.55), "VALLE": (-76.75, 2.85)}
 
 
+MAGDALENA_COLOR = "#8a5a00"        # burnt umber — distinct from every region hue
+
+
+def _magdalena(ax):
+    """Overlay the Magdalena–Cauca macro-basin divide (IDEAM AH boundary)."""
+    mg = gpd.read_file(HERE / "magdalena_outline.geojson")
+    ax.add_geometries([mg.geometry.iloc[0]], ccrs.PlateCarree(),
+                      facecolor="none", edgecolor=MAGDALENA_COLOR,
+                      linewidth=1.6, linestyle=(0, (6, 3)), zorder=4, alpha=0.9)
+
+
 def basins_map(regions):
     fig = plt.figure(figsize=(9.8, 11.5))
     ax = plt.axes(projection=ccrs.PlateCarree())
@@ -70,10 +81,13 @@ def basins_map(regions):
         rr = regions[regions["name"] == name].iloc[0]
         ax.add_geometries([rr.geometry], ccrs.PlateCarree(), facecolor=COLORS[name],
                           alpha=0.6, edgecolor="k", linewidth=0.7, zorder=3)
+    _magdalena(ax)
     plants = json.load(open(HERE / "colombia_hydro_plants.json"))["plants"]
     ax.scatter([p["lon"] for p in plants], [p["lat"] for p in plants],
                s=[18 + p["mw"] / 45 for p in plants], c="k", marker="^", zorder=6,
                label="hydro plant (size ∝ MW)")
+    ax.plot([], [], color=MAGDALENA_COLOR, lw=1.6, ls=(0, (6, 3)),
+            label="Magdalena–Cauca basin divide")
     for name, (lx, ly) in LABEL.items():
         axx, ayy = ARROW[name]
         ax.annotate(f"{name}\n{RIVERS[name]}", xy=(axx, ayy), xytext=(lx, ly),
@@ -120,10 +134,15 @@ def departments_map(regions):
     for _, rr in regions.iterrows():
         ax.add_geometries([rr.geometry], ccrs.PlateCarree(), facecolor="none",
                           edgecolor="k", linewidth=0.9, zorder=5)
+    _magdalena(ax)
     ax.coastlines("50m", lw=0.6, color="0.4")
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.6, color="0.55")
     handles = [plt.Rectangle((0, 0), 1, 1, fc=c, alpha=0.85) for c in COLORS.values()]
-    ax.legend(handles, [k.title() for k in COLORS], loc="lower left", fontsize=8.5,
+    labels = [k.title() for k in COLORS]
+    import matplotlib.lines as mlines
+    handles.append(mlines.Line2D([], [], color=MAGDALENA_COLOR, lw=1.6, ls=(0, (6, 3))))
+    labels.append("Magdalena–Cauca divide")
+    ax.legend(handles, labels, loc="lower left", fontsize=8.5,
               title="Region (XM department groups)", title_fontsize=8.5, framealpha=0.95)
     ax.set_title("XM hydro regions — official department-scale display\n"
                  "replicates XM's Mapa Hidrología SIN · black outlines = actual contributing basins",
