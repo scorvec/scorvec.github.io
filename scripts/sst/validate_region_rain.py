@@ -90,7 +90,7 @@ def main() -> int:
         for reg, v in acc.items():
             inflow[reg][i] = v / 1e6                        # kWh → GWh
 
-    summary = {}
+    summary, scatter = {}, {}
     fig, axs = plt.subplots(3, 2, figsize=(12.2, 9.6), sharex=True)
     dts = [datetime.strptime(d, "%Y-%m-%d") for d in dates]
     for ax, reg in zip(axs.ravel(), ORDER):
@@ -130,6 +130,7 @@ def main() -> int:
         k, c = best
         sm = np.roll(r3, k); sm[:k] = np.nan
         sm = sm / 3.0                                   # back to mm/day for the plot
+        scatter[reg] = (sm, i3 / 3.0, k, c)
         summary[reg] = dict(best_lag_days=k, corr=round(c, 3),
                             n_days=int(ok.sum()),
                             inflow_mean_gwh=round(float(np.nanmean(ii)), 2))
@@ -161,6 +162,31 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT / "validation_rain_vs_inflow.png", dpi=115,
                 bbox_inches="tight", facecolor="white")
+
+    # scatter view: the correlation itself, one dot per 3-day block
+    fig2, axs2 = plt.subplots(2, 3, figsize=(12.6, 8.2))
+    for ax, reg in zip(axs2.ravel(), ORDER):
+        x, y, k, c = scatter[reg]
+        m = np.isfinite(x) & np.isfinite(y)
+        ax.scatter(x[m], y[m], s=14, color=COLORS[reg], alpha=0.55,
+                   edgecolors="none")
+        if m.sum() > 2:
+            b, a = np.polyfit(x[m], y[m], 1)
+            xs = np.linspace(np.nanmin(x[m]), np.nanmax(x[m]), 50)
+            ax.plot(xs, a + b * xs, color="0.2", lw=1.4, ls="--")
+        ax.set_title(f"{reg} — r = {c:.2f} · rain leads {k} d · n = {int(m.sum())}",
+                     fontsize=9.5, fontweight="bold", loc="left")
+        ax.set_xlabel("3-day basin rain (mm/day avg)", fontsize=8)
+        ax.set_ylabel("3-day inflow (GWh/day avg)", fontsize=8)
+        ax.tick_params(labelsize=7.5); ax.grid(alpha=0.22)
+    fig2.suptitle("3-day rain vs 3-day inflow — each dot is one 3-day block",
+                  fontsize=12.5, fontweight="bold")
+    fig2.text(0.5, 0.005, "rain shifted by each region's best lag · "
+              "XM AporEner summed per region · GPM IMERG area-weighted over the "
+              "disjoint region polygons", ha="center", fontsize=7.5, color="0.4")
+    fig2.tight_layout(rect=(0, 0.015, 1, 0.97))
+    fig2.savefig(OUT / "validation_scatter.png", dpi=115,
+                 bbox_inches="tight", facecolor="white")
     (OUT / "validation_summary.json").write_text(json.dumps(summary, indent=1))
     print(f"wrote {OUT}/validation_rain_vs_inflow.png + validation_summary.json")
     return 0
