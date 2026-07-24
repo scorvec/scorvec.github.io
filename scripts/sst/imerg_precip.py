@@ -77,10 +77,11 @@ def _units(w: dict, ft: datetime, step: timedelta) -> int:
 # so hourly grids don't pile up to the 14-day window's depth.
 HOURLY_KEEP_H = max(w["span_h"] + w["units"] for w in WINDOWS if w["kind"] == "hourly") + 6
 # daily cache must cover the deepest reach of ANY consumer: the anomaly product
-# (30-day window + ~10-day loop) and the Gatun tracker's 90-day window + loop
-# (imerg_gatun.py) — hence 100 days.
+# (30-day window + ~10-day loop), the Gatun tracker's 90-day window + loop
+# (imerg_gatun.py), and the Colombia hydro validation's multi-year record
+# (imerg_backfill.py / validate_region_rain.py) — hence 800 days (~1 MB/day).
 DAILY_KEEP_H = max((max(w["span_h"] // 24 + w["units"] for w in WINDOWS if w["kind"] == "daily") + 2) * 24,
-                   100 * 24)
+                   800 * 24)
 
 # precip palette: deep blue → blue → teal → green → yellow → orange → red → magenta → white
 _STOPS = ["#2b3a6b", "#3b76c4", "#3fb0b0", "#52c452", "#c8d63f",

@@ -118,18 +118,22 @@ department-scale areas, but only these catchments actually convert rainfall into
 cross-correlated at 0–15-day lags, in three flavours per region: <i>raw</i>, <i>anomaly</i>
 (both series minus their seasonal normals), and <i>burst</i> (rain above a fitted baseline
 threshold — testing whether steady light rain just holds soil/evap steady state while only
-downpours move inflow). Verdict so far: <b>anomalies win for Centro</b> (r 0.42→0.50 — the
-seasonal cycle was masking real coupling) and help Valle slightly; raw wins for
-Antioquia/Caldas/Oriente (two seasons is thin for anomaly fits); and <b>the burst threshold
-never beats a plain total</b> — at 3-day scale these basins convert rain roughly linearly,
-with no detectable light-rain dead-band yet. <b>Valle's Salvajina series remains
-regulation-dominated</b>. Best per region: <b>Antioquia r=0.38 (raw, 2d) · Caldas r=0.53 (raw, 2d) · Caribe r=0.40 (burst>1mm, 4d) · Centro r=0.50 (anom, 2d) · Oriente r=0.34 (raw, 0d) · Valle r=0.19 (anom, 2d)</b>.</p>
-<div class="panel"><img src="validation_rain_vs_inflow.webp?v=202607240914"
+downpours move inflow). Now computed on a <b>continuous two-year record</b> (IMERG Final,
+gauge-corrected, backfilled via OPeNDAP; Early for recent months). Verdict: <b>raw 3-day
+totals win almost everywhere</b> at short lags (0–2 days); anomalies help only Valle
+(0.27→0.34), the burst threshold only Centro (marginally), and the exotic variants that
+looked good on the thin 8-month record largely deflated — the region-scale relationship is
+close to linear and fast. Best per region: <b>Antioquia r=0.44 (raw, 1d) · Caldas r=0.52
+(raw, 1d) · Caribe r=0.42 (raw, 2d) · Centro r=0.40 (burst&gt;1mm, 2d) · Oriente r=0.48
+(raw, 0d) · Valle r=0.34 (anom, 1d)</b>. Oriente 0.34→0.48 and Valle 0.19→0.34 improved the
+most with record length; Centro slipped (its big rivers are the regulated ones — see below).</p>
+<div class="panel"><img src="validation_rain_vs_inflow.webp?v=202607241111"
   alt="Validation: IMERG basin rainfall vs XM observed inflows per region"></div>
 <p class="note" style="margin-top:14px">The same relationship as scatter — every dot is one
 3-day block (rain shifted by the region's best lag). The slope is the region's effective
-rainfall-to-energy conversion; Valle's cloud shows the regulation flattening.</p>
-<div class="panel"><img src="validation_scatter.webp?v=202607231116"
+rainfall-to-energy conversion; the widest clouds belong to the regions whose big rivers
+are regulated (Centro's Bogotá/Quimbo, Oriente's Batá).</p>
+<div class="panel"><img src="validation_scatter.webp?v=202607241111"
   alt="Scatter: 3-day basin rain vs 3-day XM inflow per region"></div>
 
 <h2>Which rivers carry the water?</h2>
@@ -163,17 +167,18 @@ plant, so shares are of <i>energy</i>, not volume.</p>
 </div>
 <p class="note" style="margin-top:14px">And the river-level cut of the validation: rainfall
 averaged over <i>each river's own subzonas</i> vs its own inflow series, same 3-day-block
-method. Three findings. <b>(1) The Valle mystery is solved</b> — within the same region,
-regulated Cauca-at-Salvajina manages only r=0.25 while the unregulated Pacific-slope rivers
-(Alto Anchicayá r=0.44, Digua r=0.54) respond cleanly, so the weak regional number is
-Salvajina's reservoir operations, not the rain data. <b>(2) Two lag families</b> — small
-steep catchments respond in 0–2 days (Guavio, Guatapé, San Carlos, the Caldas run-of-river
-set), while the big Cauca/Porce systems peak at 11–12 days (Ituango, Porce, Grande —
-routing plus baseflow through a 45,000 km² catchment); the regional aggregate blends both
-families and lands on a compromise lag, which is one reason region-level r's undershoot the
-best rivers. <b>(3) Sogamoso is the star</b>: r=0.67 at 2 days on a third of Centro's
-inflow — the single most rain-forecastable big river in the system.</p>
-<div class="panel"><img src="river_corr.webp?v=202607241051"
+method, on the full two-year record. Three findings. <b>(1) Response is fast everywhere</b>
+— every river peaks at 0–3 days (the 11–12-day lags that appeared for the Cauca/Porce
+systems on the shorter record were a small-sample artifact; with two full years, Grande,
+Guadalupe, Porce and San Carlos all sit at 0–1 d with r≈0.5). <b>(2) The laggards are the
+regulated and diverted series, not the rainy ones</b> — Bogotá N.R. (r=0.28; heavily
+managed system), El Quimbo (0.30; large reservoir), Batá (0.31; Chivor diversions), the
+EPM tunnel diversions (0.18) and Calima (0.18) — while free-flowing neighbours in the same
+regions reach 0.5+. Centro's regional slip is exactly this: two of its three big rivers are
+the regulated pair. <b>(3) Sogamoso remains the most rain-forecastable big river</b>
+(r=0.55 at 2 d on a third of Centro), with the cleanest small catchments — Prado 0.57,
+San Carlos 0.56, Amoyá 0.54, San Miguel 0.53, Digua 0.52 — close behind.</p>
+<div class="panel"><img src="river_corr.webp?v=202607241111"
   alt="Per-river correlation: rain over each river's subzonas vs its XM inflow"></div>
 
 <h2>Data downloads</h2>
