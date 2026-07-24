@@ -203,9 +203,6 @@ GRP_ANALYSIS=$!
 # group NODATA — no ECMWF dependency at all: run immediately
 ( "$PY" ../spectra/ke_spectra.py --date "$DATE" --cycle "$TIME" --fxx 0 6 24 48 \
     --out "$REPO/assets/spectra/ke_spectra.webp" || echo "KE spectra failed; continuing"
-  "$PY" ../heatoil/hdd_index.py || echo "heat-oil HDD failed; continuing"
-  "$PY" ../heatoil/calibrate.py || echo "heat-oil calibration failed; continuing"
-  "$PY" ../heatoil/season_history.py || echo "heat-oil season history failed; continuing"
   echo "group NODATA done" ) &
 GRP_NODATA=$!
 
@@ -302,11 +299,6 @@ perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_ti
     assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
     assets/tc/anim assets/tc/storms assets/tc/tc_meta.json assets/tc/tracks.json tc.html \
     assets/tc/invests assets/tc/invests_meta.json assets/spectra/ke_spectra.webp \
-    assets/power_data/heatoil_hdd.webp assets/power_data/heatoil_hdd.html \
-    assets/power_data/heatoil_bbl.webp assets/power_data/heatoil_seasons.html \
-    assets/power_data/product_stocks.html scripts/heatoil/jodi_product_stocks.csv \
-    scripts/heatoil/prime_supplier_ne.csv \
-    scripts/heatoil/oil_hdd_daily.csv scripts/heatoil/calibration.json \
     scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
     scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
     scripts/mjo/data/reference/mei_fit.json \
