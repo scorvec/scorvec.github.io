@@ -197,6 +197,18 @@ jobs:
             --out ../../assets/sst/wind200.webp \
             || echo "200 hPa velocity potential build failed; continuing"
 
+      - name: Build wave-activity flux (same u+v@200, clim is committed)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/waf
+          python src/waf.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim/waf \
+            --manifest ../../assets/sst/anim/waf_manifest.json \
+            --out ../../assets/sst/waf.webp \
+            || echo "WAF build failed; continuing"
+
       - name: Commit & push (generated outputs)
         run: |
           git config user.name "github-actions[bot]"
@@ -206,7 +218,7 @@ jobs:
           # files failed the rebase, and its reset --hard fallback reverted the outputs
           # before re-adding them (bit sst-events.yml 2026-07-17 — "succeeded", pushed
           # nothing). Snapshot+restore makes losing the outputs structurally impossible.
-          OUT="assets/mjo mjo.html scripts/mjo/data/reference/obs_history.nc scripts/mjo/data/reference/ensmean_history.json assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp"
+          OUT="assets/mjo mjo.html scripts/mjo/data/reference/obs_history.nc scripts/mjo/data/reference/ensmean_history.json assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
