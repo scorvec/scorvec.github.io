@@ -181,6 +181,52 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
 
 
+def _stage_walker(jl, frame_id, out, psi_anom, psi_abs, psi_clim, p_hpa, lon,
+                  title, vlim, pidx, pclim, fill_colors):
+    """Serialize one frame for the Julia rasterizer (mjo_render.jl spec)."""
+    clev = [-3, -2.5, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 2.5, 3]
+    # vertical-motion arrows, precomputed in DATA units: on the log-p axis a
+    # uniform visual length is a uniform Δlog10(p), so v = p·(10^(−β·wn) − 1)
+    dpsidl = np.gradient(psi_abs, np.deg2rad(lon), axis=1)
+    wn = dpsidl / (np.nanpercentile(np.abs(dpsidl), 96) or 1.0)
+    wn[np.abs(wn) < 0.12] = np.nan
+    sj = max(1, lon.size // 30)
+    LONm, Pm = np.meshgrid(lon, p_hpa)
+    xs, ys, ws = LONm[::2, ::sj].ravel(), Pm[::2, ::sj].ravel(), wn[::2, ::sj].ravel()
+    m = np.isfinite(ws)
+    xs, ys, ws = xs[m], ys[m], ws[m]
+    av = ys * (10.0 ** (-0.09 * ws) - 1.0)
+    jl.stage(frame_id, out,
+             arrays=dict(lon=lon, p=p_hpa, za=psi_anom, zabs=psi_abs,
+                         zclim=psi_clim, ax=xs, ay=ys,
+                         au=np.zeros_like(av), av=av),
+             meta=dict(
+                 out_png="", figsize=[11.5, 4.9], title=title,
+                 footer=("5°S–5°N divergent wind (χ, spherical harmonics) · colour = Ψ_W′ vs ERA5 1991–2020 · "
+                         "black = today’s cells · green dashed = climatological cells · arrows = vertical motion · "
+                         f"Pacific cell {pidx:+.1f} (clim {pclim:+.1f}) ×10¹⁰ kg/s — lower = weaker Walker"),
+                 xlabel="longitude", ylabel="pressure (hPa)",
+                 ylog=True, yreversed=True,
+                 xlim=[0, 300], ylim=[1000, 100],
+                 xticks=list(range(0, 301, 60)),
+                 xticklabels=["0°", "60°E", "120°E", "180°", "120°W", "60°W"],
+                 yticks=[1000, 850, 700, 500, 300, 200, 100],
+                 fill=dict(npz="za", x="lon", y="p",
+                           levels=[float(v) for v in np.linspace(-vlim, vlim, 21)],
+                           colors=fill_colors,
+                           cbar_label="Ψ_W anomaly  (10¹⁰ kg s⁻¹)"),
+                 contours=[dict(npz="zabs", levels=[c for c in clev if c < 0],
+                                color="#000000", width=0.9, dash=True),
+                           dict(npz="zabs", levels=[c for c in clev if c > 0],
+                                color="#000000", width=0.9, dash=False),
+                           dict(npz="zabs", levels=[0.0], color="#000000", width=1.1, dash=False),
+                           dict(npz="zclim", levels=clev, color="#2e7d32", width=0.7, dash=True)],
+                 arrows=dict(x="ax", y="ay", u="au", v="av", scale=1.0),
+                 texts=[dict(x=120, y=118, s="Maritime Continent", size=9, color="#737373"),
+                        dict(x=255, y=118, s="E Pacific", size=9, color="#737373"),
+                        dict(x=293, y=118, s="S America", size=9, color="#737373")]))
+
+
 def build_anim(hist: xr.DataArray, anim_dir: Path, manifest: Path, static_out: Path) -> int:
     if not CLIM.exists():
         print(f"  clim coeffs {CLIM} missing — run build_walker_clim.py first; skipping anim.",
@@ -219,12 +265,36 @@ def build_anim(hist: xr.DataArray, anim_dir: Path, manifest: Path, static_out: P
     anim_dir = Path(anim_dir); anim_dir.mkdir(parents=True, exist_ok=True)
     for old in anim_dir.glob("F*.webp"):
         old.unlink()
+
+    # Julia fast-path (MJO_RENDERER=julia): stage every frame, rasterize in one
+    # julia process, matplotlib-re-render anything that failed. Same fields.
+    try:
+        import julia_mjo as _jl
+    except ImportError:
+        _jl = None
+    use_jl = _jl is not None and _jl.available()
+    jstat: dict = {}
+    if use_jl:
+        _jl.reset()
+        fill_colors = _jl.cmap_hex("RdBu_r", 20)
+        for i in range(len(st)):
+            _stage_walker(_jl, f"F{i:02d}", anim_dir / f"F{i:02d}.webp",
+                          psip[i], psia[i], pcls[i], p_pa / 100, lon,
+                          f"Walker circulation anomaly Ψ_W′ (5°S–5°N) — 7-day mean ending {st[i]:%Y-%m-%d}",
+                          vlim, pidx[i], pcl[i], fill_colors)
+        _stage_walker(_jl, "Fstatic", Path(static_out),
+                      psip[-1], psia[-1], pcls[-1], p_pa / 100, lon,
+                      f"Walker circulation anomaly Ψ_W′ (5°S–5°N) — 7-day mean ending {st[-1]:%Y-%m-%d}",
+                      vlim, pidx[-1], pcl[-1], fill_colors)
+        jstat = _jl.render()
+
     frames = []
     for i in range(len(st)):
         fp = anim_dir / f"F{i:02d}.webp"
-        plot_psi(psip[i], p_pa / 100, lon, fp,
-                 f"Walker circulation anomaly Ψ_W′ (5°S–5°N) — 7-day mean ending {st[i]:%Y-%m-%d}",
-                 vlim, psia[i], pidx[i], pcl[i], psi_clim=pcls[i])
+        if not jstat.get(f"F{i:02d}"):
+            plot_psi(psip[i], p_pa / 100, lon, fp,
+                     f"Walker circulation anomaly Ψ_W′ (5°S–5°N) — 7-day mean ending {st[i]:%Y-%m-%d}",
+                     vlim, psia[i], pidx[i], pcl[i], psi_clim=pcls[i])
         frames.append({"idx": i, "file": fp.name, "date": f"{st[i]:%Y-%m-%d}",
                        "label": f"week ending {st[i]:%a %b %d} · Pacific {pidx[i]:+.1f}"})
     mani = {"ver": int(pd.Timestamp.now().timestamp()), "days": len(frames),
@@ -233,9 +303,10 @@ def build_anim(hist: xr.DataArray, anim_dir: Path, manifest: Path, static_out: P
                 "n_frames": len(frames), "frames": frames}}}
     Path(manifest).parent.mkdir(parents=True, exist_ok=True)
     Path(manifest).write_text(json.dumps(mani))
-    plot_psi(psip[-1], p_pa / 100, lon, Path(static_out),
-             f"Walker circulation anomaly Ψ_W′ (5°S–5°N) — 7-day mean ending {st[-1]:%Y-%m-%d}",
-             vlim, psia[-1], pidx[-1], pcl[-1], psi_clim=pcls[-1])
+    if not jstat.get("Fstatic"):
+        plot_psi(psip[-1], p_pa / 100, lon, Path(static_out),
+                 f"Walker circulation anomaly Ψ_W′ (5°S–5°N) — 7-day mean ending {st[-1]:%Y-%m-%d}",
+                 vlim, psia[-1], pidx[-1], pcl[-1], psi_clim=pcls[-1])
     print(f"  Ψ_W′ range {np.nanmin(psip[-1]):.1f} … {np.nanmax(psip[-1]):.1f} ×10¹⁰ kg/s; "
           f"Pacific cell {pidx[-1]:+.1f} (clim {pcl[-1]:+.1f}); wrote {len(frames)} frames")
     return 0
