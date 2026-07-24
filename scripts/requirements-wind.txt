@@ -16,7 +16,7 @@ windpowerlib>=0.2.2
 # Output
 pyarrow>=14.0
 openpyxl>=3.1
-plotly>=5.18
+plotly>=6.9.0
 
 # Verification: actuals from ISOs
 # - gridstatus is the open-source library that scrapes ISO public sites
