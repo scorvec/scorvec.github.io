@@ -135,6 +135,23 @@ rainfall-to-energy conversion; the widest clouds belong to the regions whose big
 are regulated (Centro's Bogotá/Quimbo, Oriente's Batá).</p>
 <div class="panel"><img src="validation_scatter.webp?v=202607241111"
   alt="Scatter: 3-day basin rain vs 3-day XM inflow per region"></div>
+<p class="note" style="margin-top:14px">The linear-axis view above undersells the coupling:
+rain and inflow are both strongly right-skewed, so a few extreme days dominate a straight
+Pearson r and the bulk of the cloud collapses near the origin. In <b>log-log space</b>, on
+<b>weekly blocks</b>, the relationship shows itself as the power law it is — regional
+r<sub>log</sub> ≈ 0.54–0.67 (Valle 0.35), i.e. rain explains roughly 30–45&nbsp;% of weekly
+inflow variance at region scale.</p>
+<div class="panel"><img src="validation_log_regions.webp?v=202607241235"
+  alt="Weekly rain vs inflow per region, log-log axes"></div>
+<p class="note" style="margin-top:14px">Per river the split is even cleaner: free-flowing
+rivers plot as tight power-law clouds (Guavio and Sogamoso r<sub>log</sub>=0.68, Sinú 0.64,
+San Carlos 0.61, Grande 0.58 — and at monthly blocks Guavio reaches rank-ρ≈0.83), while
+<b>Bogotá N.R. is flat at r<sub>log</sub>=0.17</b> — a third of Centro's inflow with
+essentially zero rainfall signal, pure operator decisions. Where physics sets the flow,
+IMERG rainfall is a genuinely good predictor; the residual sits with the handful of
+regulated series.</p>
+<div class="panel"><img src="validation_log_rivers.webp?v=202607241235"
+  alt="Weekly rain vs inflow for five free-flowing rivers and regulated Bogota, log-log"></div>
 <p class="note" style="margin-top:14px">A better kernel than any fixed window: catchments
 behave like leaky reservoirs, so rain should be accumulated with an <b>exponential
 die-off</b> — S<sub>t</sub> = R<sub>t</sub> + e<sup>−1/τ</sup>·S<sub>t−1</sub>, the
