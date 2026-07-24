@@ -841,9 +841,7 @@ async function drawClimoDist(key) {
 }
 document.getElementById("climo-close").addEventListener("click", () => climoModal.hidden = true);
 climoModal.addEventListener("click", e => { if (e.target === climoModal) climoModal.hidden = true; });
-document.addEventListener("keydown", e => {
-  if (e.key === "Escape" && !climoModal.hidden) climoModal.hidden = true;
-});
+// (Escape handling is centralized in the topmost-overlay keydown handler below)
 const CLIMO_PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99];
 const CLIMO_MIN_N = 30;                  // a "record" from 4 soundings is noise
 // Only interesting at the top end: a sounding with no convective energy is in
@@ -1216,12 +1214,22 @@ function openModal() { modal.hidden = false; }
 function closeModal() { modal.hidden = true; }
 document.getElementById("close").onclick = closeModal;
 modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
-addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  // close only the TOPMOST visible overlay per keystroke — stacked dialogs
+  // (climo/cloud/fog/records/anomaly/png over the sounding) peel one at a time
+  for (const id of ["png-view", "cloud-modal", "fog-modal", "rec-modal", "anom-modal"]) {
+    const el = document.getElementById(id);
+    if (el && !el.hidden) { el.hidden = true; return; }
+  }
+  if (typeof climoModal !== "undefined" && !climoModal.hidden) { climoModal.hidden = true; return; }
+  closeModal();
+});
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
   { attribution: "&copy; OpenStreetMap", maxZoom: 10 }).addTo(map);
 
 const closedLayer = L.layerGroup();          // stations with no data since 2024
-const ACTIVE_YEAR = 2025;
+const ACTIVE_YEAR = new Date().getUTCFullYear() - 1;   // "active" = reported within ~a year
 
 // Long-lived tabs and blocked networks both used to fail SILENTLY: the
 // manifest/record-watch load once, so a tab open since yesterday shows
@@ -1413,8 +1421,12 @@ async function drawRecordMap() {
   // size the backing store to the dialog's real width so wide monitors get a
   // wide map (canvas CSS is width:100%, so aspect follows these dimensions)
   const panelW = cv.parentElement ? cv.parentElement.clientWidth - 24 : 0;
-  const W = cv.width = Math.max(900, Math.min(2200, Math.round(panelW || 1240)));
-  const H = cv.height = Math.round(Math.min(820, Math.max(560, W * 0.42)));
+  const W = Math.max(900, Math.min(2200, Math.round(panelW || 1240)));
+  const H = Math.round(Math.min(820, Math.max(560, W * 0.42)));
+  // retina-sharp: DPR-scaled backing store, logical-pixel drawing (like fitCanvas)
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   await loadCoast();
   // longitudes as signed offsets from the center meridian (seam at 80°E)
   const offLon = lon => ((lon - REC_MAP_CLON + 540) % 360) - 180;
@@ -1620,7 +1632,7 @@ function buildExportCanvas(fscale = 1) {
     [["Parcels", grab("pcl-table")], ["Moist static energy", grab("mse-table")]],
     [["Kinematics", grab("kin-table")]],
     [["Composites", grab("kin-table-b")], ["Winter", grab("winter-table")]],
-    [["Thermo & moisture", grab("kin-table2")]],
+    [["Thermo & moisture", grab("kin-table2")], ["Tropical", grab("tropic-table")]],
     [["Levels", grab("kin-table3")]],
   ];
   const ROW = F(19), TITLE = F(30), GAP = F(10);
@@ -1783,8 +1795,11 @@ document.getElementById("show-closed").onchange = e =>
   e.target.checked ? closedLayer.addTo(map) : map.removeLayer(closedLayer);
 
 function highlight(marker) {
-  if (selectedMarker) selectedMarker.setStyle({ weight: selectedMarker._baseW || 1 });
-  marker._baseW = marker.options.weight;
+  if (selectedMarker)                      // restore BOTH weight and color, else
+    selectedMarker.setStyle({ weight: selectedMarker._baseW || 1,     // every
+                              color: selectedMarker._baseC || "#333" }); // past
+  marker._baseW = marker.options.weight;   // selection keeps a yellow outline
+  marker._baseC = marker.options.color;
   marker.setStyle({ weight: 3.5, color: "#ffd60a" });
   selectedMarker = marker;
 }
@@ -1951,12 +1966,16 @@ async function igraText(gid, year) {
     try {
       const r = await fetch(url);
       if (!r.ok) continue;
-      const mb = (+r.headers.get("content-length") / 1048576).toFixed(1);
-      setStatus(`downloading IGRA archive (${mb} MB)…`, true);
+      const len = +r.headers.get("content-length");
+      setStatus(len ? `downloading IGRA archive (${(len / 1048576).toFixed(1)} MB)…`
+                    : "downloading IGRA archive…", true);
       const buf = new Uint8Array(await r.arrayBuffer());
       setStatus("decompressing…", true);
       const files = fflate.unzipSync(buf);
       const text = fflate.strFromU8(files[Object.keys(files)[0]]);
+      // decompressed POR texts run 50–150+ MB; unbounded caching OOMs mobile
+      // tabs after a few archive stations — keep only the most recent two
+      while (igraCache.size >= 2) igraCache.delete(igraCache.keys().next().value);
       igraCache.set(url.includes("data-y2d") ? gid + ":y2d" : gid + ":por", text);
       return text;
     } catch (e) { /* try next */ }
@@ -2658,6 +2677,7 @@ function fillDewpoints(prof) {
   for (let i = 0; i < P.length; i++) if (isFinite(D[i])) ok.push(i);
   if (!ok.length) {                                  // no moisture at all: assume dry
     for (let i = 0; i < P.length; i++) D[i] = T[i] - 30;
+    prof.dewSynth = true;                            // flag so render() warns on-plot
     return 0;
   }
   let filled = 0;
@@ -3562,7 +3582,7 @@ function clearPlot(msg) {
     ctx.fillText(msg || "no data", cv.width / 2, cv.height / 2);
     ctx.textAlign = "left";
   }
-  for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table"])
+  for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table", "tropic-table"])
     document.getElementById(id).innerHTML = "";
   plotTitle = "";
   lastProf = lastRes = null;      // else a resize redraw resurrects the wiped chart
@@ -3607,6 +3627,8 @@ function render(prof) {
     sb: [], ml: [], mu: [] };
   if (!hasT) jsKinematics(prof, res.o);    // pibal: winds still give shear/SRH/Bunkers
   if (res.rc === 2) plotNote = "⚠ analysis failed on this profile — charts only";
+  if (prof.dewSynth) plotNote = (plotNote ? plotNote + "   " : "") +
+    "⚠ NO DEWPOINT DATA — green trace synthesized (T−30°); moisture parameters invalid";
   lastProf = prof; lastRes = res;
   // deep tropical soundings: the tropopause/cold point sits near 100 hPa and
   // was clipped at the old fixed plot top — extend to 70 hPa when the trop is
