@@ -135,6 +135,28 @@ rainfall-to-energy conversion; the widest clouds belong to the regions whose big
 are regulated (Centro's Bogotá/Quimbo, Oriente's Batá).</p>
 <div class="panel"><img src="validation_scatter.webp?v=202607241111"
   alt="Scatter: 3-day basin rain vs 3-day XM inflow per region"></div>
+<p class="note" style="margin-top:14px">A better kernel than any fixed window: catchments
+behave like leaky reservoirs, so rain should be accumulated with an <b>exponential
+die-off</b> — S<sub>t</sub> = R<sub>t</sub> + e<sup>−1/τ</sup>·S<sub>t−1</sub>, the
+classic antecedent-precipitation / linear-reservoir model — and the decay timescale τ
+scanned per basin. It beats the 3-day boxcar in every region on the honest
+(deseasonalized) basis: <b>Antioquia 0.44→0.48 (τ≈4d) · Caldas 0.52 (τ≈2d) · Caribe
+0.42→0.46 (τ≈4d) · Centro 0.40→0.42 (τ≈5d) · Oriente 0.48 (τ≈1d) · Valle 0.34→0.40
+(τ≈3d)</b>. The solid raw curves keep rising toward τ=30 d in Caldas and Oriente — that's
+not skill, it's the filter reconstructing the shared wet-season cycle, which is why the
+dashed anomaly curves (seasonal cycle removed from both series) are the ones to trust at
+long τ. The fitted τ is a real physical fingerprint: ~1 d for Oriente's steep eastern-slope
+catchments, 3–7 d for the big Andean basins.</p>
+<div class="panel"><img src="exp_decay_regions.webp?v=202607241200"
+  alt="Correlation vs exponential decay timescale per region"></div>
+<p class="note" style="margin-top:14px">Per river (anomaly basis), the fitted memory sorts
+the system into fast and slow water: steep tunnel-and-intake catchments at τ≈1 d (Guavio,
+San Carlos, Porce II, Alto Anchicayá), the big regulated Cauca systems at τ≈7–14 d
+(Ituango, Salvajina, Grande), and Amoyá the standout at r=0.60 with τ=3 d. The regulated
+laggards (EPM diversions, Porce III, El Quimbo, Bogotá) stay weak under every kernel —
+no rainfall model fixes operations.</p>
+<div class="panel"><img src="exp_decay_rivers.webp?v=202607241200"
+  alt="Per-river exponential memory fit: best r and tau"></div>
 
 <h2>Which rivers carry the water?</h2>
 <p class="note">XM meters inflow river-by-river — this ranks all 43 active rivers by their

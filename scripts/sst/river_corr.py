@@ -131,6 +131,18 @@ def main() -> int:
                 v[i] = kwh / 1e6
         inflow[rv["name"]] = v
 
+    # dump the aligned per-river series so downstream response-model experiments
+    # (exp_decay_corr.py etc.) don't re-touch IDEAM polygons or the XM API
+    OUT.mkdir(parents=True, exist_ok=True)
+    _nan = lambda a: [None if not np.isfinite(x) else round(float(x), 3) for x in a]
+    (OUT / "river_series.json").write_text(json.dumps(dict(
+        dates=[f"{d:%Y-%m-%d}" for d in dts],
+        rivers={rv["name"]: dict(region=rv["region"],
+                                 rain=_nan(rain[rv["name"]]),
+                                 clim=_nan(clim[rv["name"]]),
+                                 inflow=_nan(inflow[rv["name"]]))
+                for rv in rivers if rv["name"] in rain})))
+
     def roll3(x):
         out = np.full(len(x), np.nan)
         for sid in np.unique(seg_id):

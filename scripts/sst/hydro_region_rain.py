@@ -78,12 +78,12 @@ def main(argv=None) -> int:
     w_hybas = region_weights(HERE / "colombia_hydro_regions_hydrobasins.geojson", lon, lat)
 
     today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    if args.cached_only:
-        days = [datetime.strptime(f.stem, "%Y%m%d").replace(tzinfo=timezone.utc)
-                for f in sorted(IP.DAILY_CACHE.glob("*.npy"))]
-    else:
-        days = [today - timedelta(days=k) for k in range(args.days, 0, -1)]
-        IP.ensure_daily(set(days))
+    if not args.cached_only:
+        # --days only bounds what gets DOWNLOADED; the series always uses the
+        # whole cache, so the nightly run never truncates the backfilled record
+        IP.ensure_daily({today - timedelta(days=k) for k in range(args.days, 0, -1)})
+    days = [datetime.strptime(f.stem, "%Y%m%d").replace(tzinfo=timezone.utc)
+            for f in sorted(IP.DAILY_CACHE.glob("*.npy"))]
 
     dates, grids = [], []
     for d in days:
