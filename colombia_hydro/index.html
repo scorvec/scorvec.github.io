@@ -132,6 +132,36 @@ rainfall-to-energy conversion; Valle's cloud shows the regulation flattening.</p
 <div class="panel"><img src="validation_scatter.webp?v=202607231116"
   alt="Scatter: 3-day basin rain vs 3-day XM inflow per region"></div>
 
+<h2>Which rivers carry the water?</h2>
+<p class="note">XM meters inflow river-by-river — this ranks all 43 active rivers by their
+share of their region's inflow energy over the trailing year, hatched by how precisely our
+polygons capture each catchment. The audit confirms <b>every metered river's catchment is
+inside the polygons</b> (none unmapped), and the big carriers — Ituango (29% of Antioquia),
+Sogamoso + Bogotá + El Quimbo (83% of Centro), Batá + Guavio (80% of Oriente) — are exactly
+the catchments given dedicated treatment. Note: cascade chains meter the same water at each
+plant, so shares are of <i>energy</i>, not volume.</p>
+<div class="panel"><img src="river_audit.webp?v=202607241336"
+  alt="Per-river share of XM region inflow, trailing year"></div>
+<div class="panel" style="margin-top:14px">
+<table>
+<tr><th>River</th><th>Region</th><th>GWh/day</th><th>Region share</th><th>Catchment</th></tr>
+<tr><td>Ituango</td><td>Antioquia</td><td>30.2</td><td>29%</td><td>SZH 2604; SZH 2605; SZH 2606</td></tr>
+<tr><td>Sogamoso</td><td>Centro</td><td>14.3</td><td>32%</td><td>SZH 2401; SZH 2402; SZH 2403</td></tr>
+<tr><td>Bata</td><td>Oriente</td><td>13.7</td><td>41%</td><td>SZH 3507</td></tr>
+<tr><td>Guavio</td><td>Oriente</td><td>13.4</td><td>40%</td><td>SZH 3506</td></tr>
+<tr><td>Bogota N.R.</td><td>Centro</td><td>12.6</td><td>28%</td><td>SZH 2120</td></tr>
+<tr><td>Escuela De Minas</td><td>Antioquia</td><td>12.1</td><td>12%</td><td>SZH 2701</td></tr>
+<tr><td>Grande</td><td>Antioquia</td><td>11.2</td><td>11%</td><td>SZH 2701</td></tr>
+<tr><td>El Quimbo</td><td>Centro</td><td>10.4</td><td>23%</td><td>SZH 2101</td></tr>
+<tr><td>Cauca Salvajina</td><td>Valle</td><td>9.0</td><td>61%</td><td>SZH 2601; SZH 2602; SZH 2603</td></tr>
+<tr><td>A. San Lorenzo</td><td>Antioquia</td><td>8.7</td><td>8%</td><td>SZH 2308; SZH 2307</td></tr>
+<tr><td>Guadalupe</td><td>Antioquia</td><td>6.1</td><td>6%</td><td>SZH 2701</td></tr>
+<tr><td>Nare Cp</td><td>Antioquia</td><td>6.1</td><td>6%</td><td>SZH 2308</td></tr>
+<tr><td>Guatape</td><td>Antioquia</td><td>5.9</td><td>6%</td><td>SZH 2308</td></tr>
+<tr><td>Carlos Lleras</td><td>Antioquia</td><td>5.8</td><td>6%</td><td>SZH 2308; SZH 2701</td></tr>
+</table>
+</div>
+
 <h2>Data downloads</h2>
 <p class="note">Shapefiles and GeoJSON, EPSG:4326. The IDEAM variant is composed of
 official government basin units; the HydroBASINS variant is the sharper
