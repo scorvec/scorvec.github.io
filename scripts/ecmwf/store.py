@@ -730,22 +730,29 @@ def sfc_path(cycle: Cycle, model: str, typ: str, short: str) -> Path:
 # ── registry: everything a 00Z/12Z cycle needs (for the pre-fetcher) ─────────────
 def registry() -> list[Spec]:
     S = tuple(STEPS)        # 0..360 (with analysis) — RMM, AAM, MMSF, ens
+    L13 = tuple(l for l in LEVELS_AAM if l != 10)   # walker/mmsf analysis pulls
     return [
-        # AIFS u — RMM levels (200/850) FIRST so the light MJO critical path is never
-        # stuck behind the heavy AAM pull; then the other 11 levels for AAM (no dup).
+        # PRIORITY ORDER IS THE RENDER DAG: renders self-fetch via ensure() under
+        # per-file flocks, so each product group starts the moment ITS files land.
+        # Small high-value files must never queue behind the multi-GB AAM pull.
+        # 1) RMM critical path (normally already fetched by Stage 1)
         Spec("aifs-ens", "pf", "u", "pl", LEVELS_RMM, S),
         Spec("aifs-ens", "cf", "u", "pl", LEVELS_RMM, S),
-        Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM_REST, S),
-        Spec("aifs-ens", "cf", "u", "pl", LEVELS_AAM_REST, S),
-        # ALL surface fields (sp/10u/10v/msl) in ONE batch per type; consumers filter by
-        # shortName. IFS carries just 10u/msl (its Hovmöller + SOI feed).
+        # 2) surface batches (sp/10u/10v/msl, one file per type) — TC tracker,
+        #    MSLP/wind, Hovmöller, SOI. IFS carries just 10u/msl.
         sfc_spec("aifs-ens", "pf"), sfc_spec("aifs-ens", "cf"),
         sfc_spec("ifs", "pf"),
-        # MMSF — AIFS analysis (step 0) meridional wind @ 13 levels
+        # 3) analysis-step (0) multi-level winds — small; Walker + MMSF unblock here
+        Spec("aifs-ens", "cf", "u", "pl", L13, (0,)),
+        Spec("aifs-ens", "cf", "v", "pl", L13, (0,)),
         Spec("aifs-ens", "cf", "v", "pl", LEVELS_AAM, (0,)),
-        # ensembles page + general reuse — AIFS z @ 500 (2t is in the surface batch above).
-        Spec("aifs-ens", "pf", "z", "pl", (500,), S),
-        Spec("aifs-ens", "cf", "z", "pl", (500,), S),
+        # 4) v@200 all leads (~0.6 GB) — velocity potential + WAF unblock here
+        Spec("aifs-ens", "pf", "v", "pl", (200,), S),
+        # 5) the heavy AAM/jets multi-level pull (~6.5 GB) goes LAST
+        Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM_REST, S),
+        Spec("aifs-ens", "cf", "u", "pl", LEVELS_AAM_REST, S),
+        # z@500 dropped 2026-07-24: ensembles page is retired (ens_cycle gates its
+        # copy behind ENS_FETCH_Z500=1) — it was ~0.5 GB/cycle of dead weight.
     ]
 
 

@@ -1,10 +1,11 @@
 #!/bin/bash
 # Local MJO + SST-page atmospheric build (primary path; the GitHub Action mjo.yml is
-# the fallback for when the laptop is off). Two stages so the MJO/RMM forecast goes
-# live within minutes instead of behind the heavy AAM/torque/MMSF downloads:
-#   Stage 1  RMM core  — fetch u@200/850, build the RMM plot + page → COMMIT+PUSH.
-#   Stage 2  the rest  — one consolidated ENS download (ens_cycle: 10u, 10v, msl),
-#                        then build Hovmöller/SOI/MSLP-wind + MEI from cache → COMMIT+PUSH.
+# the fallback for when the laptop is off). Dependency-tracked, not staged (2026-07-24):
+#   Stage 1  RMM core — fetch u@200/850, build the RMM plot + page → COMMIT+PUSH.
+#   Stage 2  parallel product groups (SFC / V200 / ANALYSIS / NODATA / HEAVY), each
+#            gated only on ITS OWN files: one priority-ordered prefetch publishes
+#            smallest-critical-first and renders self-fetch under per-file flocks,
+#            so e.g. WAF (u+v@200) never waits behind the ~7 GB AAM pull.
 # REVIVED 2026-07-18: the AAM / torque / MMSF / AAM-zonal block is back on (after a
 # full math audit), joined by the new Walker-circulation, subtropical-jet and
 # SOI-history products; ens_cycle runs with MJO_HEAVY_ATMOS=1 below.
@@ -102,6 +103,21 @@ commit_push () {            # $1 = message; commits staged changes (if any) + pu
   echo "  ERROR: could not push: $1 (left as a local commit; the next run will carry it)"; git_unlock; return 1
 }
 
+publish () {                # $1 = message; $2.. = paths — ATOMIC stage+commit+push.
+  local msg="$1"; shift     # Product groups commit from parallel subshells, so the
+  git_lock || return 1      # `git add` must happen INSIDE the same lock as the
+  local p                   # commit or groups cross-stage each other's files.
+  for p in "$@"; do [ -e "$p" ] && git add "$p"; done
+  if git diff --staged --quiet; then echo "  ($msg: nothing to commit)"; git_unlock; return 0; fi
+  git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" commit -m "$msg"
+  local i
+  for i in 1 2 3 4 5; do
+    if git pull --rebase --autostash -X theirs && git push; then echo "  pushed: $msg (attempt $i)"; git_unlock; return 0; fi
+    echo "  push attempt $i failed; retrying…"; sleep 5
+  done
+  echo "  ERROR: could not push: $msg (left as a local commit; the next run will carry it)"; git_unlock; return 1
+}
+
 # ── Stage 1: RMM core — publish the MJO forecast first ──
 if [ ! -f "$RMM_PNG" ]; then
   "$PY" src/download_aifs.py --date "$DATE" --time "$TIME" --out-dir data/aifs || { echo "RMM fetch failed"; exit 1; }
@@ -119,40 +135,82 @@ fi
     scripts/mjo/data/reference/ensmean_history.json \
     && commit_push "MJO RMM: ${COMPACT} (local)" )
 
-# ── Stage 2: one consolidated download of the remaining ENS fields, then build + publish ──
-# MJO_HEAVY_ATMOS=1: the AAM/torque/MMSF/Walker/jets block was REVIVED 2026-07-18
-# after a full math audit (equator-row split, per-hour torque clim, NaN-band fix,
-# MMSF clim-midpoint eval — see git history of src/*.py).
-# ── Stage 2a (PRIORITY): light ENS fields (10u/10v/msl) → TC + fast products
-#    publish BEFORE the heavy AAM downloads can delay or wedge them ──
-"$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (light) had issues; continuing"
-# Overlap network with CPU: the light downloads are done, and everything from
-# here to the Stage-2a commit is render-bound — start stocking the heavy specs
-# (the ~6 GB AAM pull) in the background NOW. Per-file flocks in store.py make
-# this safe: Stage 2b's ens_cycle either finds the files published or blocks
-# on the lock until the prefetch finishes them.
+# ── Stage 2: dependency-tracked PARALLEL product groups (2026-07-24) ──────────
+# The old 2a/2b staging made every 200-hPa product wait for the full ~7 GB AAM
+# pull even when it needed one small file (WAF: just v@200). Now ONE priority-
+# ordered prefetch (store.registry(): rmm-u → sfc → step-0 winds → v@200 →
+# heavy 14-level) publishes files smallest-critical-first, and product groups
+# run as concurrent subshells. Every render self-fetches via store.ensure()
+# under per-file flocks, so each group starts the moment ITS files land and
+# never waits on data it doesn't use; the cross-process request budget
+# (ecmwf/budget.py) keeps the shared connection polite. Groups commit through
+# publish() (atomic stage+commit inside the git lock).
 "$PY" ../ecmwf/store.py --date "$DATE" --time "$TIME" --prune-days 2 \
   > "$REPO/scripts/mjo/data/heavy_prefetch.log" 2>&1 &
 PREFETCH_PID=$!
-echo "heavy prefetch started in background (pid $PREFETCH_PID)"
-"$PY" ../tc/tc_tracker.py --date "$DATE" --time "$TIME" \
-  --out-dir "$REPO/assets/tc" || echo "TC tracker failed; continuing"
-"$PY" ../tc/invest_models.py --out-dir "$REPO/assets/tc" || echo "invest plotter failed; continuing"
-"$PY" src/mslp_wind_anim.py --date "$DATE" --time "$TIME" \
-  --anim-dir "$REPO/assets/sst/anim/mslp_wind" \
-  --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
-( cd "$REPO" && git add assets/tc tc.html assets/sst/anim/mslp_wind assets/sst/anim/mslp_wind_manifest.json \
-    && commit_push "TC + MSLP/wind: ${COMPACT} (priority, local)" )
+echo "priority prefetch started in background (pid $PREFETCH_PID)"
 
-# ── Stage 2b: heavy ENS fields (AAM multi-level etc) + the rest ──
-wait "$PREFETCH_PID" 2>/dev/null || echo "heavy prefetch exited nonzero (see data/heavy_prefetch.log); ens_cycle will retry"
+# group SFC — surface batches: TC + invests + MSLP/wind publish first, then
+# Hovmöller + SOI (their 10u/msl series are extracted by ens_cycle light).
+( "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (light) had issues; continuing"
+  "$PY" ../tc/tc_tracker.py --date "$DATE" --time "$TIME" \
+    --out-dir "$REPO/assets/tc" || echo "TC tracker failed; continuing"
+  "$PY" ../tc/invest_models.py --out-dir "$REPO/assets/tc" || echo "invest plotter failed; continuing"
+  "$PY" src/mslp_wind_anim.py --date "$DATE" --time "$TIME" \
+    --anim-dir "$REPO/assets/sst/anim/mslp_wind" \
+    --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
+  ( cd "$REPO" && publish "TC + MSLP/wind: ${COMPACT} (priority, local)" \
+      assets/tc tc.html assets/sst/anim/mslp_wind assets/sst/anim/mslp_wind_manifest.json )
+  "$PY" src/eq_hovmoller.py --date "$DATE" --time "$TIME" --data-dir data/u10 \
+    --out "$REPO/assets/sst/eq_wind_hovmoller.webp" || echo "Hovmöller failed; continuing"
+  "$PY" src/soi_forecast.py --date "$DATE" --time "$TIME" --data-dir data/msl \
+    --out "$REPO/assets/sst/soi_forecast.webp" || echo "SOI failed; continuing"
+  "$PY" src/soi_history.py --out "$REPO/assets/sst/soi_history.webp" \
+    || echo "SOI history failed; continuing"
+  echo "group SFC done" ) &
+GRP_SFC=$!
+
+# group V200 — 200 hPa velocity potential + WAF: u@200 is already cached from
+# Stage 1; pf v@200 (~0.6 GB) arrives early in the prefetch order (or is
+# fetched here on demand — same file, same flock).
+( "$PY" src/wind200_vpot.py --date "$DATE" --time "$TIME" \
+    --anim-dir "$REPO/assets/sst/anim/wind200" \
+    --manifest "$REPO/assets/sst/anim/wind200_manifest.json" \
+    --out "$REPO/assets/sst/wind200.webp" || echo "200hPa velocity potential failed; continuing"
+  "$PY" src/waf.py --date "$DATE" --time "$TIME" \
+    --anim-dir "$REPO/assets/sst/anim/waf" \
+    --manifest "$REPO/assets/sst/anim/waf_manifest.json" \
+    --out "$REPO/assets/sst/waf.webp" || echo "WAF failed; continuing"
+  echo "group V200 done" ) &
+GRP_V200=$!
+
+# group ANALYSIS — Walker + MMSF: step-0 multi-level winds only (tiny files)
+( "$PY" src/walker.py --date "$DATE" --time "$TIME" \
+    --anim-dir "$REPO/assets/sst/anim/walker" \
+    --manifest "$REPO/assets/sst/anim/walker_manifest.json" \
+    --out "$REPO/assets/sst/walker_anom.webp" || echo "Walker failed; continuing"
+  "$PY" src/mmsf.py --date "$DATE" --time "$TIME" --data-dir data/mmsf \
+    --anim-dir "$REPO/assets/sst/anim/mmsf" \
+    --manifest "$REPO/assets/sst/anim/mmsf_manifest.json" \
+    --out "$REPO/assets/sst/mmsf_anom.webp" || echo "MMSF failed; continuing"
+  echo "group ANALYSIS done" ) &
+GRP_ANALYSIS=$!
+
+# group NODATA — no ECMWF dependency at all: run immediately
+( "$PY" ../spectra/ke_spectra.py --date "$DATE" --cycle "$TIME" --fxx 0 6 24 48 \
+    --out "$REPO/assets/spectra/ke_spectra.webp" || echo "KE spectra failed; continuing"
+  "$PY" ../heatoil/hdd_index.py || echo "heat-oil HDD failed; continuing"
+  "$PY" ../heatoil/calibrate.py || echo "heat-oil calibration failed; continuing"
+  "$PY" ../heatoil/season_history.py || echo "heat-oil season history failed; continuing"
+  echo "group NODATA done" ) &
+GRP_NODATA=$!
+
+# group HEAVY (foreground) — AAM suite + torque + jets need the 14-level pull.
+# MJO_HEAVY_ATMOS=1: this block was REVIVED 2026-07-18 after a full math audit
+# (equator-row split, per-hour torque clim, NaN-band fix, MMSF clim-midpoint).
+wait "$PREFETCH_PID" 2>/dev/null || echo "prefetch exited nonzero (see data/heavy_prefetch.log); ens_cycle will retry"
+wait "$GRP_SFC" 2>/dev/null   # torque reads data/u10 + data/msl (extracted by group SFC)
 MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (heavy) had issues; continuing"
-"$PY" src/eq_hovmoller.py --date "$DATE" --time "$TIME" --data-dir data/u10 \
-  --out "$REPO/assets/sst/eq_wind_hovmoller.webp" || echo "Hovmöller failed; continuing"
-"$PY" src/soi_forecast.py --date "$DATE" --time "$TIME" --data-dir data/msl \
-  --out "$REPO/assets/sst/soi_forecast.webp" || echo "SOI failed; continuing"
-"$PY" src/soi_history.py --out "$REPO/assets/sst/soi_history.webp" \
-  || echo "SOI history failed; continuing"
 "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
   --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
 "$PY" src/aam_zonal.py --date "$DATE" --time "$TIME" \
@@ -166,37 +224,16 @@ MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "
   --manifest "$REPO/assets/sst/anim/torque_manifest.json" \
   --ts-out "$REPO/assets/sst/torque_timeseries.webp" \
   --ranges-out "$REPO/assets/sst/torque_ranges.webp" || echo "torque budget failed; continuing"
-"$PY" src/mmsf.py --date "$DATE" --time "$TIME" --data-dir data/mmsf \
-  --anim-dir "$REPO/assets/sst/anim/mmsf" \
-  --manifest "$REPO/assets/sst/anim/mmsf_manifest.json" \
-  --out "$REPO/assets/sst/mmsf_anom.webp" || echo "MMSF failed; continuing"
-"$PY" src/walker.py --date "$DATE" --time "$TIME" \
-  --anim-dir "$REPO/assets/sst/anim/walker" \
-  --manifest "$REPO/assets/sst/anim/walker_manifest.json" \
-  --out "$REPO/assets/sst/walker_anom.webp" || echo "Walker failed; continuing"
 "$PY" src/jets.py --date "$DATE" --time "$TIME" \
   --out "$REPO/assets/sst/jets.webp" \
   --anim-dir "$REPO/assets/sst/anim/jets" \
   --manifest "$REPO/assets/sst/anim/jets_manifest.json" || echo "jets failed; continuing"
-"$PY" src/waf.py --date "$DATE" --time "$TIME" \
-  --anim-dir "$REPO/assets/sst/anim/waf" \
-  --manifest "$REPO/assets/sst/anim/waf_manifest.json" \
-  --out "$REPO/assets/sst/waf.webp" || echo "WAF failed; continuing"
-"$PY" ../spectra/ke_spectra.py --date "$DATE" --cycle "$TIME" --fxx 0 6 24 48 \
-  --out "$REPO/assets/spectra/ke_spectra.webp" || echo "KE spectra failed; continuing"
-"$PY" ../heatoil/hdd_index.py || echo "heat-oil HDD failed; continuing"
-"$PY" ../heatoil/calibrate.py || echo "heat-oil calibration failed; continuing"
-"$PY" ../heatoil/season_history.py || echo "heat-oil season history failed; continuing"
 # product_stocks.py paused 2026-07-18 (card removed from fuelburn.html; script kept)
-# ── 200 hPa velocity potential + irrotational wind (REVIVED 2026-07-07). Light:
-#    u@200 is already cached from the RMM pull, so only v@200 is fetched here. The
-#    pf_v_200 503-stalls that got this deactivated are handled now by the robust
-#    ECMWF store (fail-fast + mirror rotation + exponential cooldown, then raises);
-#    the `|| echo` keeps any failure from blocking the cycle. ──
-"$PY" src/wind200_vpot.py --date "$DATE" --time "$TIME" \
-  --anim-dir "$REPO/assets/sst/anim/wind200" \
-  --manifest "$REPO/assets/sst/anim/wind200_manifest.json" \
-  --out "$REPO/assets/sst/wind200.webp" || echo "200hPa velocity potential failed; continuing"
+
+# barrier: every parallel group must land before the page-wide cache-bust and
+# the consolidated commit below (SFC already waited above, harmless to repeat)
+wait "$GRP_V200" "$GRP_ANALYSIS" "$GRP_NODATA" 2>/dev/null
+echo "all product groups finished"
 
 # 850 hPa wind analog Hovmöllers (current developing year vs 1982/97/2015). Refresh the
 # current-year ARCO tail (1×/day, ~3 min) + re-render, once per calendar day. The WB2
