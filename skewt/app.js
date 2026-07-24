@@ -1175,7 +1175,9 @@ const igraCache = new Map();     // gid -> decompressed text
 const WASM_V = "66a5af64";
 const wasmReady = createSharp({
   locateFile: (f) => f.endsWith(".wasm") ? `${f}?v=${WASM_V}` : f,
-}).then(mod => { M = mod; });
+}).then(mod => { M = mod; })
+  .catch(e => { wasmFailed = String(e).slice(0, 120); });
+let wasmFailed = null;
 
 function f32(arr) {
   const p = M._malloc(arr.length * 4);
@@ -1937,7 +1939,12 @@ async function igraText(gid, year) {
   if (recent && igraCache.has(gid + ":y2d")) return igraCache.get(gid + ":y2d");
   const urls = [];
   if (recent) {
-    urls.push(IGRA + `data-y2d/${gid}-data-beg${new Date().getUTCFullYear() - 1}.txt.zip`);
+    // NCEI names the y2d file by its actual begin year, which tracks how fresh
+    // the station's POR file is — usually the current year, sometimes last
+    // year. Try both before surrendering to the multi-MB POR download.
+    const Y = new Date().getUTCFullYear();
+    urls.push(IGRA + `data-y2d/${gid}-data-beg${Y}.txt.zip`);
+    urls.push(IGRA + `data-y2d/${gid}-data-beg${Y - 1}.txt.zip`);
   }
   urls.push(IGRA + `data-por/${gid}-data.txt.zip`);
   for (const url of urls) {
@@ -2074,6 +2081,10 @@ async function loadSounding() {
   const seq = ++loadSeq;                 // stale-response guard
   const stale = () => seq !== loadSeq;
   await wasmReady;
+  if (wasmFailed) {
+    setStatus(`analysis engine failed to load (${wasmFailed}) — reload the page`);
+    return;
+  }
   if (stale()) return;
   if (mode === "latest") {
     const s = entries[current.id];
@@ -2132,6 +2143,7 @@ async function loadSounding() {
       const r = await ghFetch("skewt-data", "soundings/" + current.id + "_" + tag + ".csv", tag);
       if (r.ok) {
         const prof = parseCSV(await r.text());
+        if (stale()) return;              // user switched station mid-download
         if (prof) {
           setStatus(`valid ${wantDt}Z · ${prof.P.length} levels (UW BUFR high-res mirror)`);
           plotTitle = `${current.n || ""} ${current.id}  ·  ${wantDt}Z`.trim();
@@ -2152,8 +2164,9 @@ async function loadSounding() {
         const r = await ghFetch("skewt-archive", "uw-" + dkey + ".zip", null, true);
         dayZipCache.set(dkey, r.ok
           ? fflate.unzipSync(new Uint8Array(await r.arrayBuffer())) : null);
-      } catch (e) { dayZipCache.set(dkey, null); }
+      } catch (e) { /* transient network failure — don't cache, retry next time */ }
     }
+    if (stale()) return;                  // user switched station mid-download
     const bundle = dayZipCache.get(dkey);
     if (bundle) {
       const want = `${current.id}_${dkey}${String(archHour).padStart(2, "0")}.csv`;
@@ -2208,7 +2221,9 @@ async function loadSounding() {
     `${String(got.hh).padStart(2, "0")}Z`.trim();
   plotNote = got.windOnly
     ? "⚠ WIND-ONLY DATA (pilot balloon) — no temperature; hodograph valid" : "";
-  lastMonth = shown.slice(5, 7); lastDoy = doyOf(shown); lastHourZ = hourOf(shown);
+  // shown is date-only — hourOf() would default every IGRA sounding to 12Z and
+  // skew the fog model + same-hour climatology for 00Z launches; use the real hour
+  lastMonth = shown.slice(5, 7); lastDoy = doyOf(shown); lastHourZ = got.hh;
   lastValidDt = `${shown} ${String(got.hh).padStart(2, "0")}:00`;
   render(thin(lastProfFull = got.prof));
 }
