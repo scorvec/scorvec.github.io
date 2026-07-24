@@ -38,9 +38,11 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/fflate@0.8.2/umd/index.js"></script>
+<!-- self-hosted (leaflet 1.9.4, fflate 0.8.2): an unpkg outage used to kill the
+     whole app at L-is-undefined while every data feed had a fallback -->
+<link rel="stylesheet" href="vendor/leaflet.css">
+<script src="vendor/leaflet.js"></script>
+<script src="vendor/fflate.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -409,6 +411,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=1ed1a033"></script>
+<script src="app.js?v=2f25ff77"></script>
 </body>
 </html>
