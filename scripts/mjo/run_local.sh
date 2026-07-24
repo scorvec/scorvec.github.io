@@ -184,7 +184,11 @@ GRP_SFC=$!
   echo "group V200 done" ) &
 GRP_V200=$!
 
-# group ANALYSIS — Walker + MMSF: step-0 multi-level winds only (tiny files)
+# group ANALYSIS — Walker + MMSF: step-0 multi-level winds only (tiny files).
+# MJO_RENDERER=julia (opt-in) rasterizes the frames via mjo_render.jl with
+# per-frame matplotlib fallback — benchmarked 2026-07-24: matplotlib WINS here
+# (64 MMSF frames: 20 s mpl vs 50 s julia; small cross-sections don't amortize
+# the ~20 s JIT + staging overhead), so the default stays matplotlib.
 ( "$PY" src/walker.py --date "$DATE" --time "$TIME" \
     --anim-dir "$REPO/assets/sst/anim/walker" \
     --manifest "$REPO/assets/sst/anim/walker_manifest.json" \
