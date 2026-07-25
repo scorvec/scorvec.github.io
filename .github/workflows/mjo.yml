@@ -24,6 +24,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # gh run cancel: the u-fetch cancels its own run when ECMWF is too slow
 
 concurrency:
   group: mjo-rmm
@@ -95,7 +96,7 @@ jobs:
     needs: check
     if: ${{ needs.check.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 90   # step timeouts (50m u-fetch, 20m bulk fetch) bound the slow parts
+    timeout-minutes: 90   # step timeouts (45m self-cancelling u-fetch, 20m bulk fetch) bound the slow parts
     env:
       MPLBACKEND: Agg
     steps:
@@ -121,16 +122,28 @@ jobs:
       # (~5 GB) comes after, guarded, so slow mirrors (2026-07-17: ~500 kB/s →
       # 60 m job timeout) or a fetch crash (same day: segfault at interpreter
       # exit AFTER "Cycle cache ready", exit 139) can't take the RMM down too.
-      # 50 m: a healthy pull takes ~25 m, but the fallback now fires only when
-      # the laptop is down, and slow-dissemination mornings (2026-07-25 hit 35 m)
-      # are exactly when it must survive.
-      - name: Fetch RMM u-wind (light)
-        timeout-minutes: 50
+      # A healthy u-pull takes ~25 m. If it can't finish in 45 m (slow ECMWF
+      # dissemination, 2026-07-25) the run CANCELS itself — grey, not a red
+      # failure — and the next scheduled cron retries the cycle from scratch.
+      - name: Fetch RMM u-wind (light — self-cancels when ECMWF is too slow)
+        timeout-minutes: 55   # backstop only; the 45 m `timeout` below acts first
         working-directory: scripts/mjo
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python src/download_aifs.py --date "${{ needs.check.outputs.date }}" \
-                                      --time "${{ needs.check.outputs.time }}" \
-                                      --out-dir data/aifs
+          set +e
+          timeout 45m python src/download_aifs.py --date "${{ needs.check.outputs.date }}" \
+                                                  --time "${{ needs.check.outputs.time }}" \
+                                                  --out-dir data/aifs
+          rc=$?
+          set -e
+          if [ "$rc" -eq 124 ]; then
+            echo "u-wind fetch exceeded 45 m — cancelling this run; a later cron retries."
+            gh run cancel "${{ github.run_id }}" --repo "${{ github.repository }}"
+            sleep 300   # wait to be killed by the cancellation
+            exit 1      # safety net if the cancel didn't land
+          fi
+          exit "$rc"
 
       - name: Run RMM pipeline (computes + plots from the cached cycle)
         working-directory: scripts/mjo
