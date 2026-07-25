@@ -118,6 +118,15 @@ publish () {                # $1 = message; $2.. = paths — ATOMIC stage+commit
   echo "  ERROR: could not push: $msg (left as a local commit; the next run will carry it)"; git_unlock; return 1
 }
 
+# Priority prefetch starts FIRST (2026-07-25; was after Stage 1): its registry
+# leads with the RMM u-file, so Stage 1's download_aifs shares that download via
+# the per-file flock, and while the RMM computes the prefetch is already into
+# the surface batches — no download dead-time during Stage-1 compute.
+"$PY" ../ecmwf/store.py --date "$DATE" --time "$TIME" --prune-days 2 \
+  > "$REPO/scripts/mjo/data/heavy_prefetch.log" 2>&1 &
+PREFETCH_PID=$!
+echo "priority prefetch started in background (pid $PREFETCH_PID)"
+
 # ── Stage 1: RMM core — publish the MJO forecast first ──
 if [ ! -f "$RMM_PNG" ]; then
   # Claim the cycle BEFORE the long u-fetch: mjo.yml's check job defers when it
@@ -152,11 +161,8 @@ fi
 # under per-file flocks, so each group starts the moment ITS files land and
 # never waits on data it doesn't use; the cross-process request budget
 # (ecmwf/budget.py) keeps the shared connection polite. Groups commit through
-# publish() (atomic stage+commit inside the git lock).
-"$PY" ../ecmwf/store.py --date "$DATE" --time "$TIME" --prune-days 2 \
-  > "$REPO/scripts/mjo/data/heavy_prefetch.log" 2>&1 &
-PREFETCH_PID=$!
-echo "priority prefetch started in background (pid $PREFETCH_PID)"
+# publish() (atomic stage+commit inside the git lock). The prefetch itself is
+# launched before Stage 1 (see above) so it spans the RMM compute.
 
 # group SFC — surface batches: TC + invests + MSLP/wind publish first, then
 # Hovmöller + SOI (their 10u/msl series are extracted by ens_cycle light).
