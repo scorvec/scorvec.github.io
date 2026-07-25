@@ -120,6 +120,14 @@ publish () {                # $1 = message; $2.. = paths — ATOMIC stage+commit
 
 # ── Stage 1: RMM core — publish the MJO forecast first ──
 if [ ! -f "$RMM_PNG" ]; then
+  # Claim the cycle BEFORE the long u-fetch: mjo.yml's check job defers when it
+  # sees a claim <3 h old for its target cycle, so the Actions fallback only
+  # runs when this laptop is actually down — not merely slower than the cron
+  # (2026-07-25: both raced the same slow ECMWF morning; the Action timed out).
+  mkdir -p "$REPO/assets/mjo"
+  printf '{"cycle":"%s","started":"%s"}\n' "$COMPACT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    > "$REPO/assets/mjo/claim.json"
+  ( cd "$REPO" && publish "MJO claim: ${COMPACT} (local)" assets/mjo/claim.json ) || true
   "$PY" src/download_aifs.py --date "$DATE" --time "$TIME" --out-dir data/aifs || { echo "RMM fetch failed"; exit 1; }
   "$PY" run_rmm.py --skip-download --date "$DATE" --time "$TIME" || { echo "RMM build failed"; exit 1; }
   mkdir -p "$REPO/assets/mjo"
