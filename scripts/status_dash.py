@@ -43,8 +43,6 @@ PIPELINES = [
          markers=REPO / "scripts/mjo/data"),
     dict(name="SST / RONI", label="com.scorvec.sst",
          log=REPO / "scripts/sst/run_local_sst.log", cadence=24, markers=None),
-    dict(name="Synoptic maps", label="com.scorvec.synoptic",
-         log=REPO / "scripts/synoptic/run_local_synoptic.log", cadence=6, markers=None),
 ]
 # Non-launchd ad-hoc jobs to also live-tail; "running" detected by process-name match.
 EXTRA_LOGS = []

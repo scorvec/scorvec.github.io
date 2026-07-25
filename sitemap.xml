@@ -61,11 +61,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://scorvec.com/assets/synoptic/viewer.html</loc>
-    <lastmod>2026-07-11</lastmod>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://scorvec.com/pjm-load/</loc>
     <lastmod>2026-07-11</lastmod>
     <priority>0.6</priority>
