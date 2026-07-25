@@ -137,8 +137,9 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     levs = np.linspace(-vlim, vlim, 21)
     cf = ax.contourf(lon, p_hpa, psi, levels=levs, cmap="RdBu_r", extend="both")
     # absolute-cell contours at WALKER magnitudes (the cells run ±1-3 ×10¹⁰,
-    # not the Hadley ±20): black = TODAY's cells, green dashed = the
-    # climatological cells, so displacement/collapse reads directly.
+    # not the Hadley ±20): black = TODAY's cells, green = the climatological
+    # cells (both: solid positive / dashed negative), so displacement/collapse
+    # reads directly.
     # 0.25 spacing (2026-07-25, was 0.5 capped at ±3): dense enough that the
     # forecast and climo cell shapes read against each other.
     _steps = np.arange(0.25, 4.01, 0.25)
@@ -148,8 +149,12 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
               fontsize=6, inline=True)
     ax.contour(lon, p_hpa, psi_abs, levels=[0], colors="k", linewidths=1.1)
     if psi_clim is not None:
-        ax.contour(lon, p_hpa, psi_clim, levels=clev, colors="#2e7d32",
-                   linewidths=0.55, linestyles="dashed", alpha=0.8)
+        # Same sign convention as the black forecast lines (solid = positive,
+        # dashed = negative) so colour alone separates forecast vs climo.
+        ax.contour(lon, p_hpa, psi_clim, levels=clev[clev < 0], colors="#1e8c3a",
+                   linewidths=0.9, linestyles="dashed", alpha=0.95)
+        ax.contour(lon, p_hpa, psi_clim, levels=clev[clev > 0], colors="#1e8c3a",
+                   linewidths=0.9, linestyles="solid", alpha=0.95)
     # vertical-motion arrows: band continuity ⇒ [ω] ∝ −∂Ψ_W/∂λ, so ASCENT (up
     # arrow, +V in quiver) ∝ +∂Ψ_W/∂λ; normalized like the MMSF plot, weak
     # columns hidden.
@@ -177,7 +182,7 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     cb.set_label("Ψ_W anomaly  (10¹⁰ kg s⁻¹)", fontsize=9)
     fig.text(0.5, 0.005,
              f"5°S–5°N divergent wind (χ, spherical harmonics) · colour = Ψ_W′ vs ERA5 1991–2020 · "
-             f"black = today\u2019s cells · green dashed = climatological cells · arrows = vertical motion · "
+             f"black = today\u2019s cells · green = climatological cells · dashed = negative (reversed) cell · arrows = vertical motion · "
              f"Pacific cell {pidx:+.1f} (clim {pclim:+.1f}) ×10¹⁰ kg/s — lower = weaker Walker",
              ha="center", fontsize=8, color="0.35")
     fig.tight_layout()
@@ -208,7 +213,7 @@ def _stage_walker(jl, frame_id, out, psi_anom, psi_abs, psi_clim, p_hpa, lon,
              meta=dict(
                  out_png="", figsize=[11.5, 4.9], title=title,
                  footer=("5°S–5°N divergent wind (χ, spherical harmonics) · colour = Ψ_W′ vs ERA5 1991–2020 · "
-                         "black = today’s cells · green dashed = climatological cells · arrows = vertical motion · "
+                         "black = today’s cells · green = climatological cells · dashed = negative (reversed) cell · arrows = vertical motion · "
                          f"Pacific cell {pidx:+.1f} (clim {pclim:+.1f}) ×10¹⁰ kg/s — lower = weaker Walker"),
                  xlabel="longitude", ylabel="pressure (hPa)",
                  ylog=True, yreversed=True,
@@ -225,7 +230,10 @@ def _stage_walker(jl, frame_id, out, psi_anom, psi_abs, psi_clim, p_hpa, lon,
                            dict(npz="zabs", levels=[c for c in clev if c > 0],
                                 color="#000000", width=0.7, dash=False),
                            dict(npz="zabs", levels=[0.0], color="#000000", width=1.1, dash=False),
-                           dict(npz="zclim", levels=clev, color="#2e7d32", width=0.55, dash=True)],
+                           dict(npz="zclim", levels=[c for c in clev if c < 0],
+                                color="#1e8c3a", width=0.9, dash=True),
+                           dict(npz="zclim", levels=[c for c in clev if c > 0],
+                                color="#1e8c3a", width=0.9, dash=False)],
                  arrows=dict(x="ax", y="ay", u="au", v="av", scale=1.0),
                  texts=[dict(x=120, y=118, s="Maritime Continent", size=9, color="#737373"),
                         dict(x=255, y=118, s="E Pacific", size=9, color="#737373"),
