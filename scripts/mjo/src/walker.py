@@ -139,13 +139,17 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     # absolute-cell contours at WALKER magnitudes (the cells run ±1-3 ×10¹⁰,
     # not the Hadley ±20): black = TODAY's cells, green dashed = the
     # climatological cells, so displacement/collapse reads directly.
-    clev = np.array([-3, -2.5, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 2.5, 3])
-    cs = ax.contour(lon, p_hpa, psi_abs, levels=clev, colors="k", linewidths=0.9)
-    ax.clabel(cs, levels=[-2, -1, 1, 2], fmt="%g", fontsize=6, inline=True)
+    # 0.25 spacing (2026-07-25, was 0.5 capped at ±3): dense enough that the
+    # forecast and climo cell shapes read against each other.
+    _steps = np.arange(0.25, 4.01, 0.25)
+    clev = np.concatenate([-_steps[::-1], _steps])
+    cs = ax.contour(lon, p_hpa, psi_abs, levels=clev, colors="k", linewidths=0.7)
+    ax.clabel(cs, levels=[-3, -2, -1, -0.5, 0.5, 1, 2, 3], fmt="%g",
+              fontsize=6, inline=True)
     ax.contour(lon, p_hpa, psi_abs, levels=[0], colors="k", linewidths=1.1)
     if psi_clim is not None:
         ax.contour(lon, p_hpa, psi_clim, levels=clev, colors="#2e7d32",
-                   linewidths=0.7, linestyles="dashed", alpha=0.8)
+                   linewidths=0.55, linestyles="dashed", alpha=0.8)
     # vertical-motion arrows: band continuity ⇒ [ω] ∝ −∂Ψ_W/∂λ, so ASCENT (up
     # arrow, +V in quiver) ∝ +∂Ψ_W/∂λ; normalized like the MMSF plot, weak
     # columns hidden.
@@ -184,7 +188,8 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
 def _stage_walker(jl, frame_id, out, psi_anom, psi_abs, psi_clim, p_hpa, lon,
                   title, vlim, pidx, pclim, fill_colors):
     """Serialize one frame for the Julia rasterizer (mjo_render.jl spec)."""
-    clev = [-3, -2.5, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 2.5, 3]
+    clev = [round(c, 2) for s in (1, -1)
+            for c in (np.arange(0.25, 4.01, 0.25) * s)]  # match mpl path: 0.25 spacing to ±4
     # vertical-motion arrows, precomputed in DATA units: on the log-p axis a
     # uniform visual length is a uniform Δlog10(p), so v = p·(10^(−β·wn) − 1)
     dpsidl = np.gradient(psi_abs, np.deg2rad(lon), axis=1)
@@ -216,11 +221,11 @@ def _stage_walker(jl, frame_id, out, psi_anom, psi_abs, psi_clim, p_hpa, lon,
                            colors=fill_colors,
                            cbar_label="Ψ_W anomaly  (10¹⁰ kg s⁻¹)"),
                  contours=[dict(npz="zabs", levels=[c for c in clev if c < 0],
-                                color="#000000", width=0.9, dash=True),
+                                color="#000000", width=0.7, dash=True),
                            dict(npz="zabs", levels=[c for c in clev if c > 0],
-                                color="#000000", width=0.9, dash=False),
+                                color="#000000", width=0.7, dash=False),
                            dict(npz="zabs", levels=[0.0], color="#000000", width=1.1, dash=False),
-                           dict(npz="zclim", levels=clev, color="#2e7d32", width=0.7, dash=True)],
+                           dict(npz="zclim", levels=clev, color="#2e7d32", width=0.55, dash=True)],
                  arrows=dict(x="ax", y="ay", u="au", v="av", scale=1.0),
                  texts=[dict(x=120, y=118, s="Maritime Continent", size=9, color="#737373"),
                         dict(x=255, y=118, s="E Pacific", size=9, color="#737373"),
