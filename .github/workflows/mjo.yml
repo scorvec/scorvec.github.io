@@ -66,11 +66,25 @@ jobs:
             exit 1
           fi
           COMPACT="${DATE}_${TIME}z"
+          # Laptop claim: run_local.sh publishes assets/mjo/claim.json before its
+          # long u-fetch. A claim on this cycle younger than 3 h means the laptop
+          # is alive and mid-run — defer instead of racing the same download
+          # (2026-07-25: both fetched in parallel; the Action timed out for
+          # nothing). A stale claim (laptop crashed mid-run) is ignored, and a
+          # laptop that is down never claims at all, so the fallback still fires.
+          # Manual dispatches bypass the claim.
+          CLAIM_CYCLE=$(python -c "import json;print(json.load(open('assets/mjo/claim.json')).get('cycle',''))" 2>/dev/null || echo "")
+          CLAIM_AGE=$(python -c "import json;from datetime import datetime,timezone;t=datetime.fromisoformat(json.load(open('assets/mjo/claim.json'))['started'].replace('Z','+00:00'));print(int((datetime.now(timezone.utc)-t).total_seconds()//60))" 2>/dev/null || echo 99999)
           if [ -f "assets/mjo/rmm_${COMPACT}.png" ]; then
             echo "Already plotted (assets/mjo/rmm_${COMPACT}.png) — skipping."
             echo "should_run=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" != "workflow_dispatch" ] \
+               && [ "$CLAIM_CYCLE" = "$COMPACT" ] \
+               && [ "$CLAIM_AGE" -ge -15 ] && [ "$CLAIM_AGE" -lt 180 ]; then
+            echo "Laptop claimed ${COMPACT} ${CLAIM_AGE} min ago — deferring to the local run."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Not yet plotted — will run."
+            echo "Not yet plotted, no fresh laptop claim — will run."
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           fi
           echo "date=$DATE" >> "$GITHUB_OUTPUT"
@@ -81,7 +95,7 @@ jobs:
     needs: check
     if: ${{ needs.check.outputs.should_run == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 90   # step timeouts (35m u-fetch, 20m bulk fetch) bound the slow parts
+    timeout-minutes: 90   # step timeouts (50m u-fetch, 20m bulk fetch) bound the slow parts
     env:
       MPLBACKEND: Agg
     steps:
@@ -107,8 +121,11 @@ jobs:
       # (~5 GB) comes after, guarded, so slow mirrors (2026-07-17: ~500 kB/s →
       # 60 m job timeout) or a fetch crash (same day: segfault at interpreter
       # exit AFTER "Cycle cache ready", exit 139) can't take the RMM down too.
+      # 50 m: a healthy pull takes ~25 m, but the fallback now fires only when
+      # the laptop is down, and slow-dissemination mornings (2026-07-25 hit 35 m)
+      # are exactly when it must survive.
       - name: Fetch RMM u-wind (light)
-        timeout-minutes: 35
+        timeout-minutes: 50
         working-directory: scripts/mjo
         run: |
           python src/download_aifs.py --date "${{ needs.check.outputs.date }}" \
