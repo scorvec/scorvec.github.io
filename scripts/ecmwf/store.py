@@ -38,17 +38,19 @@ except ImportError:
 # ── config ──────────────────────────────────────────────────────────────────────
 CACHE = Path(os.environ.get("ECMWF_CACHE",
                             str(Path(__file__).resolve().parent / "cache")))
-# Mirror pool: aws/azure/ecmwf. google is EXCLUDED — it mirrors the latest cycle only
-# PARTIALLY/with lag (400s on the perturbed sp/2t, z500 & pl it hasn't synced), so it
-# just adds retry noise on daily latest-cycle pulls.
+# Mirror pool: google/aws/azure/ecmwf. google RE-ADDED 2026-07-26: benchmarks put it at
+# 30-55 MB/s vs aws ~10 / ecmwf ~3.5 — by far the fastest when it has the file. It still
+# syncs the newest cycle with some lag (a 404 there is normal early in a cycle), but the
+# per-range mirror rotation makes that a ~0.1 s fall-through, not a failure.
 #
-# AUTO-ROTATION: the order is rotated once per pipeline run (round-robin) AND any mirror
-# that threw 503s last run is demoted to the end — so the pipeline spreads load and
-# self-steers away from a throttling mirror without manual intervention. The runner
-# calls next_mirror_order() and exports ECMWF_SOURCES; an explicit ECMWF_SOURCES env
-# always wins (manual override). Module import is read-only (uses the last order) so
+# ORDERING: next_mirror_order() prefers measured speed (an EMA of MB/s per mirror,
+# accumulated from every completed fetch — see _note_speed) with unmeasured mirrors
+# probed first; with no measurements yet it falls back to the old round-robin. Any
+# mirror that threw 503s last run is demoted to the end. The runner calls
+# next_mirror_order() and exports ECMWF_SOURCES; an explicit ECMWF_SOURCES env always
+# wins (manual override). Module import is read-only (uses the last order) so
 # non-download importers (dashboard, consumers) don't advance the rotation.
-_BASE_MIRRORS = ["aws", "azure", "ecmwf"]
+_BASE_MIRRORS = ["google", "aws", "azure", "ecmwf"]
 _ROT_STATE = Path(__file__).resolve().parent / ".mirror_rotation.json"
 _ROT_LOCK = threading.Lock()
 
@@ -57,20 +59,60 @@ def _read_rot() -> tuple[list, set]:
     try:
         st = json.loads(_ROT_STATE.read_text())
         order = [m for m in st.get("order", []) if m in _BASE_MIRRORS]
-        return (order or list(_BASE_MIRRORS)), set(st.get("throttled", []))
+        order += [m for m in _BASE_MIRRORS if m not in order]   # pick up newly-added mirrors
+        return order, set(st.get("throttled", []))
     except Exception:                                           # noqa: BLE001
         return list(_BASE_MIRRORS), set()
 
 
+def _read_speed() -> dict:
+    try:
+        return {m: float(v) for m, v in
+                json.loads(_ROT_STATE.read_text()).get("speed", {}).items()}
+    except Exception:                                           # noqa: BLE001
+        return {}
+
+
+def _note_speed(src: str, mbps: float) -> None:
+    """Fold a completed fetch's throughput into the per-mirror speed EMA that
+    next_mirror_order() sorts by. `src` is the sidecar label ("v2:google",
+    "aws+azure", …) — attribution to the first/named mirror(s) is approximate
+    but converges over many fetches."""
+    names = [s for s in src.replace("v2:", "").split("+") if s in _BASE_MIRRORS]
+    if not names or mbps <= 0:
+        return
+    try:
+        with _ROT_LOCK:
+            st = json.loads(_ROT_STATE.read_text()) if _ROT_STATE.exists() else {}
+            sp = st.setdefault("speed", {})
+            for n in names:
+                sp[n] = round(0.7 * float(sp.get(n, mbps)) + 0.3 * mbps, 2)
+            _ROT_STATE.write_text(json.dumps(st))
+    except Exception:                                           # noqa: BLE001
+        pass
+
+
 def next_mirror_order() -> str:
-    """Advance the per-run rotation: round-robin by one, then demote any mirror that
-    threw 503s last run to the end. Resets the throttle flags. Returns the comma-joined
-    order for ECMWF_SOURCES. The RUNNER calls this once per pipeline run."""
+    """Order mirrors for this run: measured-fastest first (speed EMA from completed
+    fetches), unmeasured mirrors ahead of measured ones so a new mirror gets probed;
+    round-robin fallback while no speeds exist. Mirrors that threw 503s last run are
+    demoted to the end. Resets the throttle flags. Returns the comma-joined order for
+    ECMWF_SOURCES. The RUNNER calls this once per pipeline run."""
     order, bad = _read_rot()
-    order = order[1:] + order[:1]                               # round-robin
+    speed = _read_speed()
+    if speed:
+        # unmeasured mirrors get an optimistic prior (90% of the best) so they're
+        # probed ahead of known-slow mirrors but never ahead of the known-fastest
+        prior = 0.9 * max(speed.values())
+        order = sorted(order, key=lambda m: -speed.get(m, prior))
+    else:
+        order = order[1:] + order[:1]                           # round-robin
     order = [m for m in order if m not in bad] + [m for m in order if m in bad]  # demote throttled
     try:
-        _ROT_STATE.write_text(json.dumps({"order": order, "throttled": []}))
+        with _ROT_LOCK:
+            st = json.loads(_ROT_STATE.read_text()) if _ROT_STATE.exists() else {}
+            st.update(order=order, throttled=[])
+            _ROT_STATE.write_text(json.dumps(st))
     except Exception:                                           # noqa: BLE001
         pass
     return ",".join(order)
@@ -108,6 +150,12 @@ PER_SRC = int(os.environ.get("ECMWF_DL_PER_SRC", "2"))      # hard cap: in-fligh
 MAX_CONN = int(os.environ.get("ECMWF_MAX_CONN", "400"))
 CHUNK_MSGS = int(os.environ.get("ECMWF_CHUNK_MSGS", "200"))
 PF_MEMBERS = 50
+# The heavy 12-level AAM u-pull only ever feeds ensemble MEAN + SPREAD (AAM, torque,
+# zonal, jets), so half the members carry it fine: 25 of 50 halves the ~6 GB file with
+# a √2 bump in mean noise on an already-smooth global integral. Set 0 (or the env) to
+# restore the full ensemble. Encoded in the filename ("…m25"), so a subset cache file
+# never masquerades as a full one.
+AAM_PF_MEMBERS = int(os.environ.get("ECMWF_AAM_MEMBERS", "25"))
 MIN_RATE = float(os.environ.get("ECMWF_DL_MIN_RATE", "40000"))   # B/s; below ⇒ stalled
 # With fail-fast retries (below) a throttled mirror raises in ~30 s and we rotate, so the
 # watchdog no longer has to out-wait multiurl's old 120 s backoff.
@@ -264,6 +312,7 @@ class Spec:
     levtype: str                     # "pl" | "sfc"
     levelist: tuple = ()             # () for sfc
     steps: tuple = tuple(STEPS)
+    nmembers: int = 0                # pf only: fetch just members 1..N (0 = all 50)
 
     @property
     def params(self) -> tuple:       # normalise to a tuple
@@ -276,10 +325,14 @@ class Spec:
         # (e.g. SOI's 24-360 vs AAM's 0-360) don't collide on one file
         s = self.steps
         sig = f"s{int(s[0])}-{int(s[-1])}x{len(s)}"
+        if self.type == "pf" and self.nmembers:
+            sig += f"m{self.nmembers}"
         return f"{self.type}_{'-'.join(self.params)}_{lv}_{sig}.grib2"
 
     def members(self):               # member set for the message-count expectation
-        return list(range(1, PF_MEMBERS + 1)) if self.type == "pf" else None
+        if self.type != "pf":
+            return None
+        return list(range(1, (self.nmembers or PF_MEMBERS) + 1))
 
     def n_expected(self) -> int:
         n = len(self.members()) if self.type == "pf" else 1
@@ -327,9 +380,17 @@ def _complete(p: Path, expected: int) -> bool:
     return ok
 
 
-def _sidecar(p: Path, messages: int, src: str) -> None:
-    p.with_suffix(p.suffix + ".json").write_text(json.dumps(
-        {"messages": messages, "source": src, "fetched": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}))
+def _sidecar(p: Path, messages: int, src: str, secs: float | None = None) -> None:
+    meta = {"messages": messages, "source": src,
+            "fetched": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    if secs and secs > 0:
+        try:
+            size = os.path.getsize(p)
+            meta.update(bytes=int(size), secs=round(secs, 1),
+                        MBps=round(size / 1048576 / secs, 2))
+        except OSError:
+            pass
+    p.with_suffix(p.suffix + ".json").write_text(json.dumps(meta))
 
 
 # ── low-level retrieval (ported from download_aifs, staging-aware) ───────────────
@@ -594,10 +655,11 @@ def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
         import rangefetch as rf
     except Exception:                                      # noqa: BLE001
         return None
-    srcs = [s for s in (os.environ.get("ECMWF_SOURCES") or "aws,azure,ecmwf").split(",")
-            if s in rf.MIRRORS] or ["aws", "azure", "ecmwf"]
+    srcs = [s for s in (os.environ.get("ECMWF_SOURCES") or ",".join(_BASE_MIRRORS)).split(",")
+            if s in rf.MIRRORS] or list(_BASE_MIRRORS)
     levl = list(spec.levelist) if spec.levtype == "pl" else None
     nums = spec.members()
+    stats: dict = {}
     try:
         with open(target, "wb") as out:
             for step in spec.steps:
@@ -611,9 +673,10 @@ def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
                 blob = rf.fetch_ranges(
                     rf.path_for(cycle.date, cycle.time, spec.model,
                                 int(step), spec.type) + ".grib2",
-                    ranges, sources=srcs)
+                    ranges, sources=srcs, stats=stats)
                 out.write(blob)
-        return f"v2:{srcs[0]}"
+        top = max(stats, key=stats.get) if stats else srcs[0]   # mirror that served the most bytes
+        return f"v2:{top}"
     except Exception as e:                                 # noqa: BLE001
         print(f"  fetch-v2 failed ({str(e)[:90]}) — falling back to client path",
               flush=True)
@@ -637,6 +700,7 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
               f"({expected} msgs) …", flush=True)
         req = _to_req(cycle, spec); members = spec.members()
         got, src = 0, None
+        t0 = time.time()
         v2src = _fetch_v2(cycle, spec, str(stage))
         if v2src:
             got = count_msgs(str(stage))
@@ -670,10 +734,14 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
             _clean(str(stage)); shutil.rmtree(f"{stage}.parts", ignore_errors=True)
             raise RuntimeError(f"{spec.filename}: still incomplete after {FETCH_TRIES} fetches ({got}/{expected})")
         shutil.rmtree(f"{stage}.parts", ignore_errors=True)   # verified complete → drop the parts
-        _sidecar(stage, got, src)
+        secs = time.time() - t0
+        _sidecar(stage, got, src, secs=secs)
+        mbps = os.path.getsize(stage) / 1048576 / secs if secs > 0 else 0.0
+        _note_speed(src or "", mbps)
         os.replace(stage.with_suffix(stage.suffix + ".json"), p.with_suffix(p.suffix + ".json"))
         os.replace(stage, p)                               # atomic publish
-        print(f"  ECMWF {cycle.tag} {spec.model}/{spec.filename}: ✓ {got} msgs via {src}", flush=True)
+        print(f"  ECMWF {cycle.tag} {spec.model}/{spec.filename}: ✓ {got} msgs via {src} "
+              f"({mbps:.1f} MB/s)", flush=True)
     return p
 
 
@@ -748,8 +816,8 @@ def registry() -> list[Spec]:
         Spec("aifs-ens", "cf", "v", "pl", LEVELS_AAM, (0,)),
         # 4) v@200 all leads (~0.6 GB) — velocity potential + WAF unblock here
         Spec("aifs-ens", "pf", "v", "pl", (200,), S),
-        # 5) the heavy AAM/jets multi-level pull (~6.5 GB) goes LAST
-        Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM_REST, S),
+        # 5) the heavy AAM/jets multi-level pull (~3 GB at 25 members) goes LAST
+        Spec("aifs-ens", "pf", "u", "pl", LEVELS_AAM_REST, S, AAM_PF_MEMBERS),
         Spec("aifs-ens", "cf", "u", "pl", LEVELS_AAM_REST, S),
         # z@500 dropped 2026-07-24: ensembles page is retired (ens_cycle gates its
         # copy behind ENS_FETCH_Z500=1) — it was ~0.5 GB/cycle of dead weight.

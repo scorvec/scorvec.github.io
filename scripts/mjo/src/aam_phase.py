@@ -107,14 +107,17 @@ def forecast_latbands(date, time, latc):
     acc, spacc, n = None, None, 0
     for typ in ("cf", "pf"):
         up_rest = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl",
-                                               ecmwf.LEVELS_AAM_REST, steps))
+                                               ecmwf.LEVELS_AAM_REST, steps,
+                                               ecmwf.AAM_PF_MEMBERS))
         up_rmm = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl",
                                               ecmwf.LEVELS_RMM, steps))
         sp_path = ecmwf.sfc_path(cyc, "aifs-ens", typ, "sp")
         kw = dict(engine="cfgrib", backend_kwargs={"indexpath": ""}, chunks={"number": 1})
-        u = xr.concat([xr.open_dataset(up_rest, **kw)["u"],
-                       xr.open_dataset(up_rmm, **kw)["u"]],
-                      dim="isobaricInhPa").sortby("isobaricInhPa")
+        ur = xr.open_dataset(up_rest, **kw)["u"]
+        um_ = xr.open_dataset(up_rmm, **kw)["u"]
+        if "number" in ur.dims and "number" in um_.dims:   # rest file may be a member subset
+            um_ = um_.sel(number=ur.number)
+        u = xr.concat([ur, um_], dim="isobaricInhPa").sortby("isobaricInhPa")
         u = u.sel(isobaricInhPa=LEVELS13)
         sp = xr.open_dataset(sp_path, engine="cfgrib",
                              backend_kwargs={"filter_by_keys": {"shortName": "sp"},

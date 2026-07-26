@@ -44,12 +44,13 @@ PENALTY_S = 45.0                # halved-cap duration after a throttle signal
 FLOOR_FRAC = 0.25               # penalties never cut below this fraction
 MAX_WAIT_S = 180.0              # bound the block; then fail-open
 
-_DEFAULTS = {"*": 20.0, "aws": 14.0, "azure": 14.0, "ecmwf": 6.0}
+_DEFAULTS = {"*": 20.0, "aws": 14.0, "azure": 14.0, "ecmwf": 6.0, "google": 14.0}
 
 
 def _rps(host: str) -> float:
     env = {"*": "ECMWF_RPS", "aws": "ECMWF_RPS_AWS",
-           "azure": "ECMWF_RPS_AZURE", "ecmwf": "ECMWF_RPS_ECMWF"}
+           "azure": "ECMWF_RPS_AZURE", "ecmwf": "ECMWF_RPS_ECMWF",
+           "google": "ECMWF_RPS_GOOGLE"}
     return float(os.environ.get(env.get(host, ""), _DEFAULTS.get(host, 10.0)))
 
 

@@ -43,13 +43,16 @@ def load_ubar(date: str, time: str):
     parts = []
     for typ in ("cf", "pf"):
         up_rest = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl",
-                                               ecmwf.LEVELS_AAM_REST, steps))
+                                               ecmwf.LEVELS_AAM_REST, steps,
+                                               ecmwf.AAM_PF_MEMBERS))
         up_rmm = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "u", "pl",
                                               ecmwf.LEVELS_RMM, steps))
         kw = dict(engine="cfgrib", backend_kwargs={"indexpath": ""}, chunks={"number": 1})
-        u = xr.concat([xr.open_dataset(up_rest, **kw)["u"],
-                       xr.open_dataset(up_rmm, **kw)["u"]],
-                      dim="isobaricInhPa").sortby("isobaricInhPa")
+        ur = xr.open_dataset(up_rest, **kw)["u"]
+        um = xr.open_dataset(up_rmm, **kw)["u"]
+        if "number" in ur.dims and "number" in um.dims:  # rest file may be a member subset
+            um = um.sel(number=ur.number)
+        u = xr.concat([ur, um], dim="isobaricInhPa").sortby("isobaricInhPa")
         u = u.sel(isobaricInhPa=LEVELS)              # files carry 14 levels (incl. 10 hPa);
                                                      # jet clim + k200 index are 13-level
         ub = u.mean("longitude")                     # zonal mean, lazily per member

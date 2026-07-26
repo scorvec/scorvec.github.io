@@ -54,7 +54,10 @@ def zonal_aam_density(up_rest: Path, up_rmm: Path, sp_path: Path):
     dsp = xr.open_dataset(sp_path, engine="cfgrib",
                           backend_kwargs={"filter_by_keys": {"shortName": "sp"}, "indexpath": ""},
                           chunks={"number": 1})          # sp out of the batched surface file
-    u = xr.concat([du_rest["u"], du_rmm["u"]], dim="isobaricInhPa").sortby("isobaricInhPa")
+    ur, um = du_rest["u"], du_rmm["u"]
+    if "number" in ur.dims and "number" in um.dims:  # rest file may be a member subset
+        um = um.sel(number=ur.number)
+    u = xr.concat([ur, um], dim="isobaricInhPa").sortby("isobaricInhPa")
     u = u.sel(isobaricInhPa=slice(50, 1000))         # display stays 50–1000 hPa: the zonal
                                                      # density clim (WB2 1.5°) has no 10 hPa
     p_hpa = u.isobaricInhPa.values.astype(float)
@@ -190,7 +193,8 @@ def main() -> int:
     import store as ecmwf
     from aam import DAILY_STEPS
     cyc = ecmwf.Cycle(a.date, a.time); steps = tuple(DAILY_STEPS)
-    up_rest = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", ecmwf.LEVELS_AAM_REST, steps))
+    up_rest = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", ecmwf.LEVELS_AAM_REST, steps,
+                                           ecmwf.AAM_PF_MEMBERS))
     up_rmm = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", ecmwf.LEVELS_RMM, steps))
     sp = ecmwf.sfc_path(cyc, "aifs-ens", "pf", "sp")   # sp out of the batched surface file
     init = pd.Timestamp(f"{a.date}T{a.time}:00")
