@@ -51,7 +51,10 @@ LABELS = {"h500": "500mb hgt", "thick": "1000-500 thick", "850t": "850mb T",
 # global ceiling is ~6080 m.
 PHYS = {"h500": (4600, 6100), "thick": (4700, 6100), "850t": (-60, 45),
         "700t": (-55, 35), "500t": (-60, 15), "850td": (-75, 35),
-        "700td": (-75, 30), "pwat": (0, 135)}
+        "700td": (-75, 30), "pwat": (0, 135),
+        # the WASM helper can emit a missing-value sentinel (~1e8) — without a
+        # bound it gets flagged as an "ALL-TIME" ECAPE record (Athinai, 2026-07-26)
+        "ecape": (0, 12000), "ship": (0, 15)}
 G = 9.80665
 
 
