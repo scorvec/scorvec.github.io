@@ -1,45 +1,45 @@
 {
- "updated": "2026-07-25",
- "total_30d": 118,
+ "updated": "2026-07-26",
+ "total_30d": 138,
  "countries_30d": 5,
- "total_all": 118,
+ "total_all": 138,
  "countries_all": 5,
  "top_pages_30d": [
   {
    "path": "/",
-   "count": 30
+   "count": 36
   },
   {
    "path": "/sst.html",
-   "count": 13
+   "count": 18
+  },
+  {
+   "path": "/asos5.html",
+   "count": 12
   },
   {
    "path": "/tc.html",
    "count": 10
   },
   {
-   "path": "/asos5.html",
+   "path": "/enso-atmosphere.html",
    "count": 10
   },
   {
    "path": "/enso-analogs.html",
-   "count": 8
+   "count": 9
   },
   {
    "path": "/mjo.html",
-   "count": 7
+   "count": 8
   },
   {
-   "path": "/enso-atmosphere.html",
-   "count": 7
+   "path": "/enso-subsurface.html",
+   "count": 8
   },
   {
    "path": "/stats.html",
    "count": 7
-  },
-  {
-   "path": "/enso-subsurface.html",
-   "count": 6
   },
   {
    "path": "/fuelburn.html",
