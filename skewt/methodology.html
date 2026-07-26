@@ -4,28 +4,17 @@
 <meta charset="UTF-8">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sounding Explorer — Data Sources &amp; Methodology — Shawn Corvec</title>
-<meta name="description" content="How the Sounding Explorer works: data sources, SHARPlib in WebAssembly, ECAPE (entraining CAPE), moist static energy, and per-station climatology.">
+<title>Sounding Explorer — How it works — Shawn Corvec</title>
+<meta name="description" content="How the Sounding Explorer works: data sources and fallback order, the SHARPlib WebAssembly engine, what each panel shows, per-station climatology ranking, and the record watch.">
 <link rel="canonical" href="https://scorvec.com/skewt/methodology.html">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Shawn Corvec">
-<meta property="og:title" content="How the Sounding Explorer works — data sources, ECAPE, station climatology">
-<meta property="og:description" content="The methodology behind a fully client-side sounding explorer: why ECAPE beats textbook CAPE, moist static energy, Bourgouin precipitation type, and how every value is ranked against nine decades of station history.">
+<meta property="og:title" content="How the Sounding Explorer works">
+<meta property="og:description" content="Data sources, the client-side physics engine, what each panel shows, and how every value is ranked against the station's own archive.">
 <meta property="og:url" content="https://scorvec.com/skewt/methodology.html">
 <meta property="og:image" content="https://scorvec.com/skewt/og-card.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://scorvec.com/skewt/og-card.png">
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "TechArticle",
-  "headline": "How the Sounding Explorer works",
-  "url": "https://scorvec.com/skewt/methodology.html",
-  "author": { "@type": "Person", "name": "Shawn Corvec", "url": "https://scorvec.com/" },
-  "about": ["ECAPE", "entraining CAPE", "moist static energy", "radiosonde climatology",
-            "Bourgouin precipitation type", "dendritic growth zone", "SHARPlib"]
-}
-</script>
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -71,18 +60,10 @@
        letter-spacing: 0.05em; text-transform: uppercase; }
   td:first-child { white-space: nowrap; }
 
-  .eq { font-family: var(--serif); font-size: 1.28rem; text-align: center; color: #fff;
-        background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
-        padding: 1.1rem; margin: 1.2rem 0; letter-spacing: 0.02em; }
   .callout { background: var(--panel); border-left: 3px solid var(--accent);
              border-radius: 0 8px 8px 0; padding: 0.9rem 1.1rem; margin: 1.3rem 0;
              font-size: 0.94rem; }
-  .callout.warn { border-left-color: #ff9f0a; }
   .callout b { color: #fff; }
-  figure { margin: 1.6rem 0; }
-  figure canvas { width: 100%; height: auto; background: var(--panel);
-                  border: 1px solid var(--rule); border-radius: 10px; }
-  figcaption { font-size: 0.82rem; color: var(--muted); margin-top: 0.55rem; text-align: center; }
   footer { max-width: 78ch; margin: 0 auto; padding: 1.5rem 1.3rem 3rem;
            color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--rule); }
   .cta { display: inline-block; margin-top: 0.5rem; padding: 9px 16px; border-radius: 8px;
@@ -99,16 +80,15 @@
 </nav>
 
 <div class="wrap">
-  <div class="eyebrow">Methodology</div>
+  <div class="eyebrow">How it works</div>
   <h1>How the Sounding Explorer works</h1>
-  <p class="lede">Data sources, the physics engine, entraining CAPE, moist static energy, and how
-  every value is ranked against a station's own history — written out honestly, including what it
-  can't do.</p>
+  <p class="lede">Where the data comes from, what each panel shows, and how every value is ranked
+  against the station's own archive. Everything runs client-side in your browser.</p>
   <a href="./" class="cta">← Open the explorer</a>
 
-  <h2>1. Where the data comes from</h2>
-  <p>A sounding can arrive from four places. The app walks them in order of <em>freshness</em>, and
-  the status line always names the one you're looking at, so you are never guessing.</p>
+  <h2>1. Data sources</h2>
+  <p>A sounding can arrive from four places. The app tries them in order of freshness, and the
+  status line names the source you're looking at.</p>
 
   <div class="table-wrap">
   <table>
@@ -119,353 +99,149 @@
     <tr><td><b>NOAA IGRA v2</b></td><td>Global, 1905–now</td><td>~1–2 day lag</td><td>Mandatory + significant</td></tr>
   </table>
   </div>
-
-  <h3>The physics floor on "real-time"</h3>
-  <p>A radiosonde is <em>launched</em> at 00Z/12Z, but the balloon takes <strong>90 minutes to two
-  hours</strong> to ascend and transmit. No source on Earth has a complete 12Z sounding before about
-  13:30 UTC. "Real-time" for soundings means <em>as soon as the atmosphere finishes reporting
-  itself</em> — not at 12:00 sharp. Within that floor, SPC is the fastest public source, which is why
-  it is tried first even though it carries slightly fewer levels than IEM.</p>
-
-  <div class="callout">
-    <b>Why Wyoming is mirrored, not fetched.</b> The University of Wyoming archive sends no
-    <code>Access-Control-Allow-Origin</code> header, so a browser cannot read it directly. A scheduled
-    job pulls ~600 stations six times a day into a data branch that GitHub serves CORS-open. Complete
-    UTC days are additionally bundled into an append-only archive — a permanently growing
-    high-resolution record the browser unzips client-side.
-  </div>
+  <p>A balloon takes 90 minutes to two hours to ascend, so no source has a complete 12Z sounding
+  before roughly 13:30 UTC — that is the floor on "real-time", not a delay in the app.
+  The University of Wyoming feed sends no CORS headers, so a scheduled job mirrors ~600 stations six
+  times a day onto a data branch the browser <em>can</em> read; complete UTC days are also bundled
+  into a permanent, growing archive (the 📅 date picker reaches it).</p>
 
   <h2>2. The physics engine</h2>
-  <p>The analysis is <a href="https://github.com/keltonhalbert/SHARPlib" target="_blank" rel="noopener">SHARPlib</a>
-  (Kelton Halbert, of NWS Storm Prediction Center lineage) compiled to WebAssembly — about 250 KB
-  running inside your browser tab. There is no backend and no compute bill.</p>
-  <p>Crucially, the <em>same</em> <code>compute_sounding()</code> entry point is used by both the
-  browser and the offline climatology builder. A live value and its historical percentile are computed
-  by identical code, so the two can never quietly drift apart.</p>
+  <p>All analysis is <a href="https://github.com/keltonhalbert/SHARPlib" target="_blank" rel="noopener">SHARPlib</a>
+  compiled to WebAssembly (~250 KB) running in your tab — no backend. The same
+  <code>compute_sounding()</code> entry point is compiled natively for the offline climatology
+  builder, so a live value and its historical percentile always come from identical code.</p>
 
-  <p><b>Reading the parcel traces on the diagram:</b> the <span style="color:#fff">long-dashed
-  white</span> curve is the most-unstable (MU) parcel, <span style="color:#ff9f0a">dashed
-  orange</span> is the surface-based (SB) parcel, and <span style="color:#64d2ff">dotted
-  cyan</span> is the 100-hPa mixed-layer (ML) parcel. When the most-unstable air is at the
-  surface, the MU and SB curves coincide and draw as one line. The labeled right-edge ticks
-  (LCL/LFC/EL) and the table's CAPE/CINH rows belong to these same three parcels.</p>
+  <h2>3. What the panels show</h2>
+  <h3>Skew-T</h3>
+  <p>Three parcel traces: <span style="color:#fff">long-dashed white</span> = most-unstable (MU),
+  <span style="color:#ff9f0a">dashed orange</span> = surface-based (SB),
+  <span style="color:#64d2ff">dotted cyan</span> = 100-hPa mixed-layer (ML). When the most-unstable
+  air is at the surface, MU and SB coincide and draw as one line. The right-edge ticks mark each
+  parcel's LCL/LFC/EL, and the Parcels table's CAPE/CINH rows belong to the same three parcels.</p>
 
-  <h2>3. ECAPE — entraining CAPE</h2>
-  <h3>The problem with textbook CAPE</h3>
-  <p>Classic CAPE lifts a parcel <strong>undilute</strong> — as if sealed in a bag, never mixing with
-  the air it rises through. Real updrafts are not sealed. They entrain drier environmental air across
-  their edges, which evaporates cloud water, cools the parcel, and destroys buoyancy. This is why a
-  sounding advertising 3000 J/kg routinely fails to produce the 77 m/s updraft that number implies.</p>
-  <p>Undilute CAPE therefore <strong>overstates</strong> the energy available to a storm — and it
-  overstates it <em>unevenly</em>. The error depends on the wind profile and the storm's size, so two
-  soundings with identical CAPE can behave completely differently.</p>
+  <h3>Parcels table — CAPE and ECAPE</h3>
+  <p>ECAPE (Peters et al. 2023) is CAPE with entrainment: updraft dilution is derived from the
+  storm-relative wind and shear, so it uses the kinematic profile as well as the thermodynamic one.
+  The table shows CAPE and ECAPE per parcel plus the implied updraft speeds √(2·CAPE) and
+  √(2·ECAPE) — the gap between them is the buoyancy entrainment takes away. The ECAPE/CAPE ratio
+  can exceed 100%: the formulation nets a storm-relative kinetic-energy gain against the
+  entrainment loss, so a ratio above 1 means vigorous inflow more than pays for the mixing.</p>
 
-  <h3>What ECAPE does differently</h3>
-  <p>ECAPE (Peters et al., 2023, <em>J. Atmos. Sci.</em>) derives the entrainment rate from theory
-  rather than a tuned fudge factor. The insight: an updraft's dilution depends on its <strong>width</strong>,
-  and its width is set by the <strong>storm-relative wind and shear</strong>. Stronger inflow and
-  deeper shear support a wider, better-protected updraft core, which entrains proportionally less and
-  preserves more buoyancy.</p>
-  <p>So ECAPE is a function of the thermodynamic profile <em>and</em> the kinematic profile together —
-  which is why its implementation demands winds and a moist-static-energy profile, not just
-  temperature and dewpoint. The gap between CAPE and ECAPE is physically meaningful: it is the
-  buoyancy the atmosphere promises but entrainment takes away.</p>
-  <div class="callout">
-    <b>ECAPE can exceed CAPE — and that isn't a bug.</b> The implementation returns
-    <em>Ẽ × CAPE</em>, where the factor <em>Ẽ</em> carries a <strong>storm-relative kinetic-energy
-    term</strong> alongside the entrainment penalty. When storm-relative inflow is strong, the updraft
-    can draw on that kinetic energy, and the ratio rises above 1. So the ECAPE/CAPE ratio is
-    <em>not</em> a pure "efficiency" bounded at 100% — it is entrainment loss and inflow gain netted
-    together. A ratio of 55% means entrainment dominates; 105% means vigorous storm-relative flow is
-    more than paying for the mixing.
-  </div>
+  <h3>Moist static energy panel</h3>
+  <p>Two curves: <b>h</b> (the moist static energy at each level) and <b>h*</b> (what h would be if
+  the level were saturated). A boundary-layer parcel conserves its h, and it is buoyant wherever its
+  h exceeds the environment's h* — that region is shaded, and it is the layer generating the CAPE.
+  The summary rows give boundary-layer h, the minimum h* aloft, their difference (negative ⇒
+  conditionally unstable), and column-integrated MSE.</p>
 
-  <h3>The three flavors</h3>
-  <p>ECAPE is defined <em>per lifted parcel</em>, exactly like CAPE, so the Parcels table shows CAPE
-  and ECAPE side by side for each: <strong>SB</strong> (surface-based), <strong>ML</strong>
-  (mixed-layer — the most representative for ordinary convection), and <strong>MU</strong>
-  (most-unstable, for elevated storms).</p>
+  <h3>Hodograph</h3>
+  <p>Height-coloured trace with Bunkers left/right movers. The <b>effective inflow layer</b> — the
+  air the storm can actually ingest — is highlighted directly on the curve, and effective SRH is
+  computed over that layer rather than a fixed 0–1 km. Corfidi MCS vectors are reported in the
+  Kinematics table, not drawn. The effective-layer Bunkers vector is drawn only when it differs
+  from the fixed-layer one by more than 3 kt.</p>
 
-  <div class="table-wrap">
-  <table>
-    <tr><th>Derived quantity</th><th>Formula</th><th>What it tells you</th></tr>
-    <tr><td><b>Max updraft (ECAPE)</b></td><td>√(2·ECAPE)</td><td>Realistic, entrainment-limited updraft speed</td></tr>
-    <tr><td><b>Max updraft (CAPE)</b></td><td>√(2·CAPE)</td><td>The classic undilute speed, for contrast</td></tr>
-    <tr><td><b>ECAPE / CAPE</b></td><td>ratio</td><td>Entrainment loss netted against storm-relative inflow gain (can exceed 100%)</td></tr>
-  </table>
-  </div>
-  <p>Both speeds are ceilings that ignore water loading and the perturbation pressure gradient, so real
-  updrafts fall short of even the ECAPE value. The point is the <strong>comparison</strong>: where the
-  ECAPE updraft falls well short of the CAPE one, most of the advertised buoyancy is fiction.</p>
-
-  <h2>4. Moist static energy</h2>
-  <p>ECAPE is built on moist static energy, so the explorer plots it directly.</p>
-  <div class="eq">h = c<sub>p</sub>T + gz + L<sub>v</sub>q</div>
-  <p>MSE is <strong>conserved under both dry and moist adiabatic ascent</strong> — a parcel carries its
-  <em>h</em> upward unchanged, whether or not it is condensing. That makes it the natural currency for
-  convection.</p>
-  <p>The panel plots two curves: <strong>h</strong>, the actual moist static energy at each level, and
-  <strong>h*</strong>, the <em>saturation</em> MSE — what <em>h</em> would be if that level were
-  saturated. Because <em>h*</em> depends only on temperature and pressure, it describes the
-  environment's capacity, not its moisture.</p>
-  <p>A parcel lifted from the boundary layer conserves its <em>h</em>. It is buoyant
-  <strong>wherever its h exceeds the environment's h*</strong>. That region — shaded below — is
-  precisely the layer generating CAPE. The instability isn't inferred; it's drawn to scale.</p>
-
-  <figure>
-    <canvas id="msefig" width="900" height="430"></canvas>
-    <figcaption>Fort Worth, 11 Jul 2026 12Z. Boundary-layer h (344.1 kJ/kg, gold) exceeds the
-      environment's saturation MSE (red) through the shaded layer — the parcel is buoyant there.
-      The minimum h* of 337.6 kJ/kg at 4.3 km gives an MSE deficit of −6.5 kJ/kg: conditional
-      instability, and the energetic expression of this sounding's ~989 J/kg of CAPE.</figcaption>
-  </figure>
-
-  <div class="table-wrap">
-  <table>
-    <tr><th>Value</th><th>Meaning</th></tr>
-    <tr><td><b>MSE (0–500 m)</b></td><td>Boundary-layer <em>h</em> — the energy a surface parcel carries aloft</td></tr>
-    <tr><td><b>Min saturation MSE</b></td><td>The lowest <em>h*</em> aloft — the mid-level "dry hole" a parcel must survive</td></tr>
-    <tr><td><b>MSE deficit (h*−h)</b></td><td>Negative ⇒ the boundary layer out-energizes the mid-levels ⇒ conditionally unstable</td></tr>
-    <tr><td><b>Column MSE</b></td><td>The vertical integral (1/g)∫h dp, in GJ/m² — the state variable of tropical MSE-budget theory</td></tr>
-  </table>
-  </div>
-
-  <h3>Tropopause and column moisture</h3>
-  <p>SHARPlib has no tropopause routine, so both standard definitions are computed directly from the
-  profile. The <strong>WMO tropopause</strong> is the lowest level where the lapse rate falls to
-  ≤ 2 K/km <em>and stays</em> ≤ 2 K/km on average through the next 2 km — the second clause guards
-  against false hits on shallow stable layers. The <strong>cold point</strong> is simply the
-  temperature minimum, and it is the definition that matters in the deep tropics, where it marks the
-  top of the tropical tropopause layer.</p>
-  <p><strong>Column relative humidity (CRH)</strong> — the mass-weighted column saturation fraction,
-  ∫q dp ⁄ ∫q<sub>sat</sub> dp — is reported alongside a mid-level (700–500 hPa) mean. In the tropics
-  CRH, not CAPE, is what convective onset scales with: deep convection switches on sharply once the
-  column is moist enough that entrainment stops killing updrafts. Mid-level RH is the layer that does
-  most of that entraining.</p>
-  <div class="callout">
-    <b>A worked check.</b> Ponape, Caroline Islands (deep tropics): WMO tropopause 16.2 km / 108 hPa,
-    cold point 16.1 km at −81 °C, CRH 80%. The lifted parcel's equilibrium level came out at
-    <strong>16.4 km</strong> — within 200 m of the independently computed tropopause, which is exactly
-    what should happen when an undilute tropical parcel rises until the stratosphere stops it. Two
-    unrelated calculations agreeing is the best evidence either one is right.
-  </div>
-
-  <h3>Reading the hodograph</h3>
-  <p>Beyond the height-coloured trace and Bunkers left/right movers, three things are worth knowing:</p>
-  <ul>
-    <li><strong>The effective inflow layer is highlighted directly on the curve.</strong> This is the
-      air the storm can actually ingest — SHARPlib finds it by testing which parcels carry enough CAPE
-      and little enough convective inhibition. Highlighting it makes storm-relative helicity
-      <em>visible</em>: the emphasised stretch of curve is precisely the part generating it, which is
-      why effective SRH is computed over that layer rather than a fixed 0–1 km.</li>
-    <li><strong>Corfidi upshear/downshear</strong> vectors (MCS propagation) are in the Kinematics
-      table rather than on the plot, to keep the hodograph readable.</li>
-  </ul>
-
-  <h3>Boundary-layer depth</h3>
-  <p>The <strong>PBL top</strong> is found by scanning virtual potential temperature upward for the
-  first level exceeding the surface value by 0.5 K — the top of the well-mixed layer. It's reported as
-  both a height AGL and a pressure. A 12Z sounding taken just after sunrise typically shows a shallow
-  nocturnal layer (a few hundred metres); by 00Z, after a day of surface heating, it deepens
-  dramatically.</p>
+  <h3>Derived levels</h3>
+  <p>Computed directly from the profile: <b>WMO tropopause</b> (lowest level where the lapse rate
+  drops to ≤ 2 K/km and stays there on average through the next 2 km), <b>cold point</b> (column
+  temperature minimum — the definition that matters in the deep tropics), <b>PBL top</b> (first
+  level whose virtual potential temperature exceeds the surface value by 0.5 K), and
+  <b>column relative humidity</b> (∫q dp ⁄ ∫q<sub>sat</sub> dp, with a 700–500 hPa mid-level mean).</p>
 
   <h3>Winter</h3>
-  <p>SHARPlib ships a winter module, and the explorer surfaces it:</p>
   <ul>
-    <li><strong>Dendritic growth zone</strong> — the −12 °C to −18 °C layer where dendritic snow
-      crystals grow fastest. It is reported with its pressure bounds, depth <em>and relative
-      humidity</em>, because the moisture is the whole point: a deep <em>saturated</em> DGZ builds big
-      fluffy aggregates, while a dry one produces poor, dense snow. Fairbanks makes the case — on 15
-      January a DGZ at 92% RH gave a 39:1 snow ratio, while a November DGZ at 12% RH gave an ordinary
-      12:1. Same layer, opposite outcome.</li>
-    <li><strong>Snow ratio (Kuchera)</strong> — snow-to-liquid ratio, keyed on the warmest temperature
-      in the column, since a near-0 °C column gives dense wet snow and a cold one gives powder.</li>
-    <li><strong>Snow squall parameter</strong> — SHARPlib's, for the narrow, intense convective snow
-      bands that cause whiteout pile-ups.</li>
-    <li><strong>Precipitation type (Bourgouin)</strong> — the energy-area method BUFKIT uses. Integrate
-      R<sub>d</sub>·(T − 273.15) d(ln p) to get the <em>melting energy</em> of any warm nose aloft and
-      the <em>refreezing energy</em> of the cold layer beneath it. A snowflake falling through enough
-      melting energy becomes a raindrop; whether it then refreezes into an ice pellet or reaches the
-      ground as freezing rain depends on the refreezing energy. Both numbers are shown beside the
-      verdict, so you can second-guess it — and they are large and uninteresting in summer (a
-      snowflake meets ~2200 J/kg of melting energy over Texas and never stands a chance), but small
-      and decisive in winter, when the sleet-versus-freezing-rain call turns on a few tens of J/kg.</li>
+    <li><b>Dendritic growth zone</b> — the −12 to −18 °C layer, reported with bounds, depth and RH
+      (a saturated DGZ grows efficient snow; a dry one doesn't).</li>
+    <li><b>Snow ratio (Kuchera)</b> — keyed on the warmest temperature in the column.</li>
+    <li><b>Snow squall parameter</b> — SHARPlib's.</li>
+    <li><b>Precipitation type (Bourgouin)</b> — the energy-area method: melting energy of any warm
+      nose vs refreezing energy of the cold layer beneath. Both numbers are shown beside the
+      verdict so you can second-guess it.</li>
   </ul>
 
-  <h2>5. Climatology — where a value ranks</h2>
-  <p>Every station's <strong>entire period of record</strong> is pulled from IGRA (up to ~90 MB per
-  station, reaching back to the 1930s), every historical sounding is analyzed, and the results are
-  reduced to monthly percentile breakpoints plus record extremes with their year. That drives the
-  color-coding in the panel (blue below the median, red above, saturating toward the tails, with a ★
-  on an outright record) and the <em>record watch</em> on the map — a red ring around any live station
-  whose latest sounding is beyond the 5th or 95th percentile.</p>
+  <h3>Fog and cloud layers</h3>
+  <p>The fog probabilities are empirical: three logistic models (fog, ceiling ≤ 1,000 ft, ceiling
+  ≤ 3,000 ft) trained on 87,568 sounding–METAR pairs from 14 co-located stations over 2006–2025,
+  using features from the lowest 3 km (peak low-level RH is the dominant one). Cross-validated AUC
+  is ~0.9 both year-blocked and station-held-out, which is why it runs globally. The probabilities
+  describe conditions <em>at sounding time</em> — they are not a forecast. The panel also reports
+  the classic FSI screen, the bulk Richardson number (is the surface layer decoupled?), and
+  dew-vs-frost. The cloud-layer detector uses height-dependent RH thresholds (over ice below
+  freezing) calibrated against ~49k ceilometer-verified bases; boxes are coloured by phase and the
+  dashed teal band is the DGZ. Thin or broken cloud between sounding levels can be missed.</p>
 
-  <h3>Reading the colour shading</h3>
-  <p>A value is only marked when it is <strong>genuinely unusual</strong>. Anything between the 10th
-  and 90th percentile is left completely plain — a "P53" badge tells you nothing except that the
-  reading is ordinary, and tinting every row would drown the cases that matter.</p>
+  <h2>4. Climatology — where a value ranks</h2>
+  <p>Each station's entire IGRA period of record is analysed once, offline, and reduced to
+  percentile breakpoints and record extremes at 73 day-of-year anchors, each pooling a ±10-day
+  window across every year on record. Eleven indices are ranked: precipitable water, 850/700/500 hPa
+  temperature, 500 hPa height, 1000–500 hPa thickness, freezing level, K-index, Total Totals,
+  ECAPE and SHIP.</p>
   <div class="table-wrap">
   <table>
     <tr><th>What you see</th><th>What it means</th></tr>
-    <tr><td><b>Nothing</b> — plain text</td><td>Between the 10th and 90th percentile. Unremarkable for this station, on this day of the year.</td></tr>
+    <tr><td><b>Nothing</b> — plain text</td><td>Between the 10th and 90th percentile: ordinary for this station on this day of year.</td></tr>
     <tr><td><span style="background:rgba(224,70,55,0.35); padding:1px 6px; border-radius:4px">Red tint</span> + <code>P93</code></td>
-        <td>Above the 90th percentile. The tint ramps <em>within the tail</em> — P91 is a whisper, P99 is loud — so intensity tracks how extreme it really is, not merely how far from the median.</td></tr>
+        <td>Above the 90th percentile; the tint ramps within the tail (P91 faint, P99 loud).</td></tr>
     <tr><td><span style="background:rgba(56,120,216,0.35); padding:1px 6px; border-radius:4px">Blue tint</span> + <code>P4</code></td>
         <td>Below the 10th percentile, shaded the same way.</td></tr>
-    <tr><td><b>★ with a year</b></td><td>An outright record — the highest (or lowest) value ever observed at this station near this date, with the year it was set.</td></tr>
+    <tr><td><b>★ with a year</b></td><td>An outright station record for this time of year, with the year the previous mark was set.</td></tr>
   </table>
   </div>
-  <p>Hovering a marked value gives the exact percentile. Nothing is flagged unless that index has at
-  least <strong>30 samples</strong> in the window: a "record" drawn from four soundings is noise, and
-  the app used to do exactly that until a Brazilian sounding was flagged as a July ECAPE record on the
-  strength of a four-sounding climatology.</p>
+  <p>Nothing is flagged unless the index has at least <b>30 samples</b> in the window. Soundings
+  qualify for the climatology only with a real surface dewpoint, ascent to 400 hPa, and dewpoint on
+  ≥60% of levels — gaps are never filled with invented data, and calm no-CAPE days count as ECAPE
+  zeros rather than being skipped, so the percentiles describe all days, not just convective ones.</p>
+  <p>The <b>📊 Climatology</b> button opens the annual curve for any ranked variable: shaded
+  25–75% and 10–90% bands, the median, red/blue record envelopes, and a gold dot marking the
+  sounding on display.</p>
 
-  <h3>The climatology panel</h3>
-  <p>The <b>📊 Climatology</b> button opens the full annual picture for any ranked variable. It answers
-  a different question from the badge: not "is today unusual?" but "what does a year <em>look like</em>
-  at this station, and where does today sit inside it?"</p>
-  <div class="table-wrap">
-  <table>
-    <tr><th>Element</th><th>Meaning</th></tr>
-    <tr><td><b>Inner shaded band</b></td><td>25th–75th percentile — the middle half of all soundings.</td></tr>
-    <tr><td><b>Outer shaded band</b></td><td>10th–90th percentile — the ordinary range.</td></tr>
-    <tr><td><b>Pale line</b></td><td>The median.</td></tr>
-    <tr><td><span style="color:#e0603a"><b>Red envelope</b></span></td><td>The record high for each day of the year — the outer limit of what this station has ever produced.</td></tr>
-    <tr><td><span style="color:#4a7ab5"><b>Blue envelope</b></span></td><td>The record low, likewise.</td></tr>
-    <tr><td><span style="color:#ffd60a"><b>Gold dot</b></span></td><td>The sounding currently on display, placed on its own day of the year.</td></tr>
-  </table>
-  </div>
-  <p>The gap between the shaded bands and the record envelopes is itself informative: where they sit
-  close together the station is well-behaved, and where the envelope flares far above the 90th
-  percentile the station is capable of rare, violent excursions in that variable.</p>
-  <p>The curves are <strong>day-of-year</strong>, not monthly: each of 73 anchor points pools a
-  ±10-day window across every year on record. So a sounding from 11 July is compared with early-July
-  weather, not with everything that happened between 1 and 31 July — which matters most in spring and
-  autumn, when the climate is moving fast within a single month.</p>
+  <h2>5. The record watch</h2>
+  <p>Six times a day, every station's newest sounding is compared against its climatology. The 🏆
+  map features stations whose latest launch broke a station record (all-time or for the time of
+  year), with near-record (P95+) stations as context dots. Each label carries its sounding's launch
+  time — records persist until the station launches again, so labels older than 48 h fade to
+  unlabeled stars rather than pinning stale text to the map. The drill-down table under a station
+  lists what stands and what this sounding broke.</p>
 
-  <h3>What is ranked</h3>
-  <p>Eleven indices carry a climatology: precipitable water, the 850/700/500 hPa temperatures, 500 hPa
-  height, 1000–500 hPa thickness, freezing level, K-index, Total Totals, <strong>ECAPE</strong> and
-  <strong>SHIP</strong>. The first nine are exact profile quantities; the last two require the full
-  parcel model, which is why they rest on fewer samples — always worth a glance before leaning on one.</p>
-
-  <h3>Two decisions that matter</h3>
-  <div class="callout">
-    <b>A non-convective sounding has ECAPE of zero — not "missing."</b> It is tempting to record ECAPE
-    only when a parcel has positive CAPE. That is wrong: it makes the climatology
-    <em>conditional on convective days</em>, so a "10th-percentile ECAPE" would describe only the days
-    convection happened. One Argentine station had 51 such January samples against 2,007 for
-    precipitable water — the percentiles were meaningless. Valid soundings with no CAPE now correctly
-    contribute zeros, which is what makes "a 95th-percentile ECAPE day" mean anything at all.
-  </div>
-  <div class="callout warn">
-    <b>Never fabricate missing data.</b> Radiosonde reporting is far from uniform: much of South
-    America reports temperature on ~99% of levels but <strong>dewpoint on only ~39%</strong>, with as
-    few as 12 levels per sounding. Filling those gaps with plausible-looking guesses silently produces
-    confident, wrong numbers — it manufactured absurd 0.5 mm precipitable-water values and destroyed
-    CAPE across an entire continent. The builder now <em>refuses to invent data</em>: a sounding
-    qualifies only with a real surface dewpoint, ascent to at least 400 hPa, and dewpoint on ≥60% of
-    levels below that. Genuine gaps inside a qualifying profile are interpolated in log-pressure;
-    everything else is skipped rather than fudged. The cost is a smaller sample. The benefit is that
-    the sample is real.
-  </div>
-
-  <h2 id="fog">6. Fog, stratus and cloud layers — trained on what airports actually reported</h2>
-  <p>The fog panel's probabilities and the cloud-layer detector are <b>empirical</b>, not
-  rule-of-thumb. We matched every 00Z/12Z sounding from 14 co-located radiosonde/METAR stations
-  (Oakland, Quillayute, Medford, Salt Lake City, Boise, Charleston, Jackson, Nashville, Green Bay,
-  Buffalo, Sterling, Greensboro, Albany — and Buenos Aires Ezeiza) over 2006&ndash;2025 with the
-  airport's METAR within &plusmn;45 minutes of launch: <b>87,568 pairs</b>.</p>
-  <p>Three L2-regularized logistic models predict what the airport reported at sounding time:
-  fog (visibility &le; 1 km or FG), ceiling &le; 1,000 ft, and ceiling &le; 3,000 ft. Features are
-  computed from the lowest 3 km of the profile — peak RH below 500 m (the dominant predictor),
-  surface RH and dewpoint depression, LCL height, mixing-ratio structure, saturated-layer depth,
-  inversion strength and height, bulk Richardson number, surface wind, low-level lapse rate, and
-  seasonality. Skill is validated two ways: <b>year-blocked</b> cross-validation (AUC 0.91&ndash;0.93,
-  Brier skill up to 0.45 over climatology) and <b>station-held-out</b> (AUC 0.89&ndash;0.92), the
-  latter showing the model transfers to stations it never saw — which is why we let it run
-  globally. The probabilities describe conditions <i>at sounding time</i>, not a forecast.</p>
-  <p>The cloud-layer detector (RH over ice below freezing, height-dependent thresholds) was
-  calibrated on the same archive against <b>49,259 ceilometer-verified cloud bases</b>: thresholds
-  of 85% below 2 km and 80% aloft detect 77% of reported broken/overcast bases. About half of
-  confidently detected layers go unreported by the ceilometer — some are real misses of thin or
-  broken cloud, and some are cloud above the instrument's 12,000 ft range, so treat the detector
-  as generous aloft.</p>
-
-  <p><b>The rest of the fog panel</b> is BUFKIT-style nocturnal screening. FSI =
-  4·T<sub>sfc</sub> − 2·(T<sub>850</sub>+Td<sub>sfc</sub>) + V<sub>850</sub>(kt): &lt;31 high fog
-  risk, 31–55 moderate, &gt;55 low. Radiation fog favors a small surface dewpoint depression, a
-  surface-based inversion, and moist air trapped beneath it. The <b>bulk Richardson number</b>
-  over the lowest resolved layer weighs buoyant suppression against shear production of
-  turbulence: above the ~0.25 critical value the surface layer is dynamically stable and
-  decoupled — radiative cooling and moisture stay trapped near the ground; below it, mechanical
-  mixing distributes the cooling through a deeper layer (or, if too vigorous, prevents saturation
-  entirely). Whether <b>dew or frost</b> forms depends on the dewpoint: above freezing it's dew;
-  below, deposition occurs at the <b>frost point</b> (ice saturation), which sits above the
-  dewpoint — so frost needs less cooling than the dewpoint depression alone suggests. In the
-  cloud panel, boxes are colored by phase (liquid / supercooled 0 to −20 °C / ice below −20 °C),
-  the dashed teal band is the <b>dendritic growth zone</b> (−12 to −18 °C, efficient snow growth
-  for any cloud layer intersecting it), coverage labels are deliberately hedged to what a single
-  column can support, and the ceiling estimate carries the fraction of similar training layers
-  that verified as ceilings. Thin or broken cloud between sounding levels can be missed.</p>
-
-  <h2>7. The code</h2>
-  <p>Everything is open — the repository is a plain GitHub Pages site, so what you're reading and what
-  runs in your browser are the same files.
-  <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">Browse the whole
+  <h2>6. The code</h2>
+  <p>The repository is a plain GitHub Pages site — what you're reading and what runs in your browser
+  are the same files.
+  <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">Browse the
   repository →</a></p>
 
   <div class="table-wrap">
   <table>
     <tr><th>File</th><th>What it does</th></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/skewt_wasm.cpp" target="_blank" rel="noopener"><code>skewt_wasm.cpp</code></a></td>
-        <td><b>The single source of truth for the physics.</b> A C++ wrapper over SHARPlib — parcels,
-        ECAPE, PBL top, shear, SRH, composites — compiled once to WebAssembly for the browser and again
-        natively for the climatology, so the two can never disagree.</td></tr>
+        <td>The single source of truth for the physics: a C++ wrapper over SHARPlib, compiled to
+        WebAssembly for the browser and natively for the climatology.</td></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/skewt/app.js" target="_blank" rel="noopener"><code>app.js</code></a></td>
-        <td>The entire client: data sources and parsers (SPC, IEM, UW mirror, IGRA), the WASM bridge, and
-        every chart — skew-T, hodograph, moist static energy — drawn on canvas. Tropopause, column RH and
-        wet-bulb zero are computed here.</td></tr>
+        <td>The entire client: source fallback and parsers, the WASM bridge, and every chart drawn
+        on canvas.</td></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/build_climo.py" target="_blank" rel="noopener"><code>build_climo.py</code></a></td>
-        <td>Per-station climatology: downloads a station's full period of record, analyses every historical
-        sounding, reduces to monthly percentiles and records. Contains the quality gates.</td></tr>
-    <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/climo_cape.cpp" target="_blank" rel="noopener"><code>climo_cape.cpp</code></a></td>
-        <td>Native build of the same wrapper, so ECAPE and SHIP in the climatology are computed by identical
-        code to the live values.</td></tr>
+        <td>Per-station climatology from the full IGRA record, with the quality gates.</td></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/flag_anomalies.py" target="_blank" rel="noopener"><code>flag_anomalies.py</code></a></td>
-        <td>The record watch — compares each new sounding to its station's climatology and flags the tails.</td></tr>
+        <td>The record watch: compares each new sounding to its station's climatology.</td></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/mirror_soundings.py" target="_blank" rel="noopener"><code>mirror_soundings.py</code></a>
         &middot; <a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/archive_days.py" target="_blank" rel="noopener"><code>archive_days.py</code></a></td>
-        <td>Mirrors the University of Wyoming feed (which sends no CORS headers) and bundles complete UTC
-        days into the permanent archive.</td></tr>
-    <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/scripts/skewt/build_wasm.sh" target="_blank" rel="noopener"><code>build_wasm.sh</code></a></td>
-        <td>Compiles SHARPlib to WebAssembly with Emscripten.</td></tr>
+        <td>Mirrors the UW feed and bundles complete UTC days into the permanent archive.</td></tr>
     <tr><td><a href="https://github.com/scorvec/scorvec.github.io/blob/main/.github/workflows/skewt-data.yml" target="_blank" rel="noopener"><code>skewt-data.yml</code></a></td>
-        <td>The scheduled job: mirror &rarr; archive &rarr; flag anomalies &rarr; publish, six times a day.</td></tr>
+        <td>The scheduled job: mirror → archive → flag → publish, six times a day.</td></tr>
   </table>
   </div>
-
-  <p>The data lives on orphan branches that GitHub serves CORS-open, so the browser can read them directly:
+  <p>The data lives on orphan branches served CORS-open:
   <a href="https://github.com/scorvec/scorvec.github.io/tree/skewt-data" target="_blank" rel="noopener"><code>skewt-data</code></a> (latest soundings),
-  <a href="https://github.com/scorvec/scorvec.github.io/tree/skewt-archive" target="_blank" rel="noopener"><code>skewt-archive</code></a> (permanent day bundles), and
-  <a href="https://github.com/scorvec/scorvec.github.io/tree/skewt-climo" target="_blank" rel="noopener"><code>skewt-climo</code></a> (per-station climatology).
-  The physics itself is <a href="https://github.com/keltonhalbert/SHARPlib" target="_blank" rel="noopener">SHARPlib</a>,
-  which is Kelton Halbert's, not mine.</p>
+  <a href="https://github.com/scorvec/scorvec.github.io/tree/skewt-archive" target="_blank" rel="noopener"><code>skewt-archive</code></a> (day bundles) and
+  <a href="https://github.com/scorvec/scorvec.github.io/tree/skewt-climo" target="_blank" rel="noopener"><code>skewt-climo</code></a> (per-station climatology).</p>
 
-  <h2>8. What it can't do</h2>
+  <h2>7. Limitations</h2>
   <ul>
-    <li><strong>Not for operational use.</strong> This is a personal research tool.</li>
-    <li>Climatology covers <strong>active stations</strong>; long-closed sites have no percentiles.</li>
-    <li>CAPE-derived climatologies (ECAPE, SHIP) rest on fewer samples than level diagnostics, because
-        they demand complete, quality-gated soundings. Nothing is flagged unless that index has at
-        least <strong>30 samples</strong> in the month — a "record" drawn from four soundings is
-        noise, not a record.</li>
-    <li>Historical vertical resolution is genuinely coarser than modern BUFR — a 1960 hodograph is less
-        detailed because the <em>data</em> is, not the rendering.</li>
-    <li>The hodograph deliberately stays sparse. Corfidi MCS vectors are computed and reported in the
-        table, but not drawn — an extra pair of arrows costs more legibility than it buys. The
-        effective-layer Bunkers vector is drawn <em>only</em> when it differs from the fixed-layer one
-        by more than 3 kt; when they agree it would be a redundant marker.</li>
+    <li><b>Not for operational use</b> — this is a personal research tool.</li>
+    <li>Climatology covers active stations; long-closed sites have no percentiles.</li>
+    <li>ECAPE/SHIP climatologies rest on fewer samples than level diagnostics, because they demand
+      complete quality-gated soundings.</li>
+    <li>Historical soundings are coarser because the data is — a 1960 hodograph has fewer levels,
+      not worse rendering.</li>
   </ul>
 
   <p style="margin-top:2rem"><a href="./" class="cta">← Open the explorer</a></p>
@@ -477,79 +253,5 @@
   (K. Halbert, NWS SPC lineage). Data from NOAA/NWS SPC, Iowa State's IEM, the University of Wyoming,
   and NOAA NCEI IGRA v2. Not for operational use.
 </footer>
-
-<script>
-// h vs h* schematic, drawn from the real Fort Worth 12Z profile values
-(function () {
-  const cv = document.getElementById("msefig");
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const W = 900, H = 430;
-  cv.width = W * dpr; cv.height = H * dpr;
-  const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  // z (km), h (kJ/kg), h* (kJ/kg) — sampled from the FWD 2026-07-11 12Z sounding
-  const Z  = [0, 0.5, 1, 1.5, 2, 3, 4, 4.3, 5, 6, 7, 8, 9, 10, 12];
-  const h  = [344.8, 344.1, 341.0, 338.5, 337.2, 335.8, 335.0, 335.2, 336.0, 337.5, 339.4, 341.8, 344.6, 347.9, 355.6];
-  const hs = [352.0, 349.5, 346.2, 343.0, 341.2, 338.8, 337.7, 337.6, 338.4, 341.0, 344.6, 349.2, 354.8, 361.5, 378.0];
-  const HBL = 344.1;
-
-  const L = 62, R = 24, T = 26, B = 44;
-  const lo = 332, hi = 380, zTop = 12;
-  const px = v => L + (W - L - R) * (v - lo) / (hi - lo);
-  const py = z => T + (H - T - B) * (1 - z / zTop);
-
-  x.fillStyle = "#11111c"; x.fillRect(0, 0, W, H);
-  x.strokeStyle = "#23233a"; x.fillStyle = "#8b8ba3";
-  x.font = "11px Inter"; x.textAlign = "right";
-  for (let z = 0; z <= zTop; z += 2) {
-    const y = py(z);
-    x.beginPath(); x.moveTo(L, y); x.lineTo(W - R, y); x.stroke();
-    x.fillText(z + " km", L - 7, y + 4);
-  }
-  x.textAlign = "center";
-  for (let v = 340; v <= 375; v += 10) {
-    x.beginPath(); x.moveTo(px(v), T); x.lineTo(px(v), H - B); x.stroke();
-    x.fillText(v, px(v), H - B + 17);
-  }
-  x.fillText("moist static energy (kJ/kg)", (L + W - R) / 2, H - 10);
-
-  // buoyant layer: BL h exceeds environmental h*
-  x.fillStyle = "rgba(48,209,88,0.18)";
-  x.beginPath();
-  let started = false;
-  for (let i = 0; i < Z.length; i++) {
-    if (HBL <= hs[i]) continue;
-    if (!started) { x.moveTo(px(hs[i]), py(Z[i])); started = true; }
-    else x.lineTo(px(hs[i]), py(Z[i]));
-  }
-  for (let i = Z.length - 1; i >= 0; i--) {
-    if (HBL <= hs[i]) continue;
-    x.lineTo(px(HBL), py(Z[i]));
-  }
-  x.closePath(); x.fill();
-
-  const line = (arr, col, w, dash) => {
-    x.strokeStyle = col; x.lineWidth = w; x.setLineDash(dash || []);
-    x.beginPath();
-    arr.forEach((v, i) => i ? x.lineTo(px(v), py(Z[i])) : x.moveTo(px(v), py(Z[i])));
-    x.stroke(); x.setLineDash([]);
-  };
-  line(hs, "#ff453a", 2.4);
-  line(h, "#4a9bf0", 2.4);
-  x.strokeStyle = "#ffd60a"; x.lineWidth = 1.8; x.setLineDash([6, 5]);
-  x.beginPath(); x.moveTo(px(HBL), T); x.lineTo(px(HBL), H - B); x.stroke();
-  x.setLineDash([]);
-
-  // min h* marker
-  x.fillStyle = "#ff453a"; x.beginPath(); x.arc(px(337.6), py(4.3), 5, 0, 7); x.fill();
-
-  x.font = "600 13px Inter"; x.textAlign = "left";
-  x.fillStyle = "#4a9bf0"; x.fillText("h  (moist static energy)", L + 12, T + 20);
-  x.fillStyle = "#ff453a"; x.fillText("h*  (saturation MSE)", L + 12, T + 39);
-  x.fillStyle = "#ffd60a"; x.fillText("boundary-layer h = 344.1", L + 12, T + 58);
-  x.fillStyle = "#30d158"; x.font = "600 12px Inter";
-  x.fillText("buoyant layer  (h_BL > h*)  →  this is the CAPE", px(346), py(6.6));
-})();
-</script>
 </body>
 </html>
