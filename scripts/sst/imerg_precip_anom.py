@@ -20,6 +20,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
+import map_grid
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -107,10 +108,10 @@ def render_anom(field: np.ndarray, vlabel: str, out: Path, win: dict):
                           edgecolor="#111", linewidth=1.2, zorder=4)
     gl = ax.gridlines(draw_labels=True, linewidth=0.3, color="0.6", alpha=0.4, linestyle=(0, (3, 3)))
     gl.top_labels = gl.right_labels = False
-    gl.xlocator = mticker.FixedLocator([((t + 180) % 360) - 180
-                  for t in range(int(lo0), int(lo1) + 1) if t % CFG["dlon"] == 0])
-    gl.ylocator = mticker.FixedLocator(range(int(la0), int(la1) + 1, CFG["dlat"]))
+    gl.xlocator = mticker.FixedLocator(map_grid.lon_ticks(lo0, lo1, CFG["dlon"]))
+    gl.ylocator = mticker.FixedLocator(map_grid.lat_ticks(la0, la1, CFG["dlat"]))
     gl.xlabel_style = gl.ylabel_style = {"size": 7}
+    map_grid.add_ref_lines(ax, (lo0, lo1, la0, la1))
     cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.04, aspect=42, extend="both")
     cb.set_label("precip anomaly vs 2001–2025 climatology (mm)", fontsize=8); cb.ax.tick_params(labelsize=7)
     ax.set_title(f"IMERG — {win['label']} precipitation anomaly  ·  {vlabel}", fontsize=9.5, loc="left")
