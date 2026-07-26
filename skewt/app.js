@@ -1448,14 +1448,25 @@ async function drawRecordMap() {
     ctx.textAlign = "left";
     return;
   }
-  const labeled = pts.filter(p => p.recs.length)
+  // age-out: a record stays flagged until its station launches again, so a
+  // 4-day-old record from an infrequent launcher (a proving ground, a campaign
+  // site) lingers and makes the whole map read as stale. Only label records
+  // whose sounding is within 48 h of the newest one; older record-holders
+  // stay visible as faded stars (no label).
+  const parseDt = s => Date.parse((s || "").replace(" ", "T") + "Z");
+  const newestT = Math.max(...pts.map(p => parseDt(p.dt)).filter(isFinite));
+  const freshP = p => !isFinite(newestT) || !isFinite(parseDt(p.dt)) ||
+                      newestT - parseDt(p.dt) <= 48 * 3600e3;
+  const recHolders = pts.filter(p => p.recs.length)
     .sort((a, b) =>
       b.recs.filter(r => r.rec.tier === "all").length -
       a.recs.filter(r => r.rec.tier === "all").length || b.top - a.top);
+  const labeled = recHolders.filter(freshP);
+  const aged = recHolders.filter(p => !freshP(p));
   // Nothing broke a record today (or anomalies.json predates the rec field):
   // label the highest-percentile extremes instead, so the map is never empty.
   const fallback = !labeled.length;
-  const featured = (fallback ? pts.sort((a, b) => b.top - a.top) : labeled).slice(0, 14);
+  const featured = (fallback ? pts.filter(freshP).sort((a, b) => b.top - a.top) : labeled).slice(0, 14);
 
   // extent: fit the featured stations, pad, enforce a minimum window
   const ext = featured.length ? featured : pts;
@@ -1517,7 +1528,17 @@ async function drawRecordMap() {
     }
     ctx.closePath(); ctx.fill();
   };
+  // aged-out record holders (>48 h): faded star, no label — still on the map,
+  // but they no longer pin days-old text that makes the watch look frozen
+  for (const p of aged) {
+    const hi = (p.recs[0] || p.flags[0]).sense !== "low";
+    star(X(p.lo), Y(p.la), 4, hi ? "rgba(200,68,44,0.35)" : "rgba(47,107,179,0.35)");
+  }
   const lineH = 12;
+  const GAP = 8;        // min clearance between label boxes (and around stars)
+  // reserve every featured star's spot up front so no label covers a star
+  for (const p of featured)
+    placed.push({ x: X(p.lo) - 7, y: Y(p.la) - 7, w: 14, h: 14 });
   for (const p of featured) {
     const x = X(p.lo), y = Y(p.la);
     const hi = (p.recs[0] || p.flags[0]).sense !== "low";
@@ -1544,7 +1565,8 @@ async function drawRecordMap() {
         const rx = ang > 90 && ang < 270 ? ax - wpx : ax;   // left side: right-align
         const ry = ay - hpx / 2;
         if (rx < M.l || rx + wpx > W - M.r || ry < M.t || ry + hpx > H - M.b) continue;
-        if (placed.some(q => rx < q.x + q.w && rx + wpx > q.x && ry < q.y + q.h && ry + hpx > q.y)) continue;
+        if (placed.some(q => rx < q.x + q.w + GAP && rx + wpx + GAP > q.x &&
+                             ry < q.y + q.h + GAP && ry + hpx + GAP > q.y)) continue;
         spot = { x: rx, y: ry, ax, ay };
         break outer;
       }
@@ -1575,6 +1597,7 @@ async function drawRecordMap() {
     ? `no station records today — ${pts.length} stations at climatological extremes (P95+)`
     : `${nRec} station(s) set records vs their own sounding archives` +
       (nAll ? ` — ${nAll} ALL-TIME` : "") + ` · ${pts.length} stations flagged P95+` +
+      (aged.length ? ` · ${aged.length} older record(s) faded (>48 h)` : "") +
       ` · each label shows its station's latest launch`, 14, 41);
   ctx.font = "11px Inter";
   ctx.fillText("scorvec.com/skewt · records vs each station's full IGRA archive, ±10-day time-of-year window",
