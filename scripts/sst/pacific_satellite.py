@@ -157,15 +157,16 @@ def render_frame(dt: datetime, out: Path, cfg: dict) -> bool:
         if geoms:
             ax.add_geometries(geoms, crs=ccrs.PlateCarree(), facecolor="none",
                               edgecolor="#9a9a9a", linewidth=0.3, zorder=4)
-    gl = ax.gridlines(draw_labels=True, linewidth=0.3, color="0.6", alpha=0.4, linestyle=(0, (3, 3)))
+    # white graticule: dark IR imagery swallows the default gray entirely
+    gl = ax.gridlines(draw_labels=True, linewidth=0.5, color="w", alpha=0.55, linestyle=(0, (3, 3)))
     gl.top_labels = gl.right_labels = False
     # Gridline locators take TRUE longitudes (−180..180); build them across the region in °E.
     lon_ticks = [((t + 180) % 360) - 180
                  for t in range(int(lo0), int(lo1) + 1) if t % cfg["dlon"] == 0]
     gl.xlocator = mticker.FixedLocator(lon_ticks)
     gl.ylocator = mticker.FixedLocator(map_grid.lat_ticks(la0, la1, cfg["dlat"]))
-    gl.xlabel_style = gl.ylabel_style = {"size": 7}
-    map_grid.add_ref_lines(ax, (lo0, lo1, la0, la1))
+    gl.xlabel_style = gl.ylabel_style = {"size": 8}
+    map_grid.add_ref_lines(ax, (lo0, lo1, la0, la1), color="w", lw=1.0)
     ax.set_title(f"GMGSI enhanced IR — {cfg['where']}  ·  {dt:%Y-%m-%d %HZ}  ·  "
                  "colour = deep convection (cold tops)", fontsize=9, loc="left")
     fig.savefig(out, dpi=cfg.get("dpi", 92), bbox_inches="tight",
