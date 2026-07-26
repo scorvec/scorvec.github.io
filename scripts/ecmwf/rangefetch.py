@@ -40,6 +40,7 @@ MIRRORS = {
     "aws": "https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com",
     "azure": "https://ai4edataeuwest.blob.core.windows.net/ecmwf",
     "ecmwf": "https://data.ecmwf.int/forecasts",
+    "google": "https://storage.googleapis.com/ecmwf-open-data",
 }
 TIMEOUT = (10, 90)          # (connect, read) — nothing hangs for hours, ever
 MAX_GAP = 3 * 1024 * 1024   # merge ranges separated by < 3 MB
@@ -62,7 +63,7 @@ def fetch_index(date: str, hh: str, model: str, step: int, kind: str = "pf",
     rel = path_for(date, hh, model, step, kind) + ".index"
     last_err = None
     for attempt in range(3):
-        for src in sources or ["aws", "azure", "ecmwf"]:
+        for src in sources or ["google", "aws", "azure", "ecmwf"]:
             try:
                 budget.acquire(src)
                 r = requests.get(f"{MIRRORS[src]}/{rel}", timeout=TIMEOUT)
@@ -108,14 +109,16 @@ def coalesce(entries: list[dict], max_gap: int = MAX_GAP) -> list[tuple[int, int
 
 
 def fetch_ranges(rel_grib: str, ranges, sources: list[str] | None = None,
-                 workers: int = WORKERS) -> bytes:
+                 workers: int = WORKERS, stats: dict | None = None) -> bytes:
     """Parallel ranged GETs; returns wanted message bytes concatenated in
-    offset order. Rotates mirrors per-range on failure."""
-    sources = sources or ["aws", "azure", "ecmwf"]
+    offset order. Rotates mirrors per-range on failure. If `stats` is given,
+    bytes served are accumulated per mirror (for speed attribution)."""
+    sources = sources or ["google", "aws", "azure", "ecmwf"]
     import threading
     gate = threading.Semaphore(workers)          # shrinks on throttle signals
     shrink_lock = threading.Lock()
     state = {"permits": workers}
+    stats_lock = threading.Lock()
 
     def _shrink():
         with shrink_lock:
@@ -135,6 +138,9 @@ def fetch_ranges(rel_grib: str, ranges, sources: list[str] | None = None,
                                      timeout=TIMEOUT)
                     if r.status_code in (200, 206):
                         blob = r.content
+                        if stats is not None:
+                            with stats_lock:
+                                stats[src] = stats.get(src, 0) + len(blob)
                         return b"".join(
                             blob[e["_offset"] - start: e["_offset"] - start + e["_length"]]
                             for e in members)
