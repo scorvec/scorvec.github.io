@@ -107,6 +107,11 @@ def next_mirror_order() -> str:
         order = sorted(order, key=lambda m: -speed.get(m, prior))
     else:
         order = order[1:] + order[:1]                           # round-robin
+    # google is PINNED first (user policy 2026-07-26: always favor the google
+    # mirror — it benchmarks 3-15x faster); the speed order applies to the rest.
+    # A throttled google still demotes below for the run (next clause).
+    if "google" in order:
+        order = ["google"] + [m for m in order if m != "google"]
     order = [m for m in order if m not in bad] + [m for m in order if m in bad]  # demote throttled
     try:
         with _ROT_LOCK:
