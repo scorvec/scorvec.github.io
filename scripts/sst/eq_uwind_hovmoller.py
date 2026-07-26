@@ -35,8 +35,15 @@ CACHE = HERE / "data" / "cmems"
 STORE = CACHE / "eq_uwind_store.nc"              # local rolling band-mean cache (gitignored)
 WIND = "cmems_obs-wind_glo_phy_nrt_l4_0.125deg_PT1H"
 LON0, LON1, LATB = 130, 280, 5.0                 # 130°E-80°W band, 5°S-5°N; display 150°E-90°W
-KEEP_DAYS = 300
-PLOT_DAYS = 270
+KEEP_DAYS = 430                                  # covers Mar 1 → end of next Feb, with margin
+
+
+def plot_start() -> date:
+    """Most recent March 1 — the start of the ENSO development spring, so the
+    plot always spans the current event's build-up rather than a fixed window."""
+    today = datetime.now(timezone.utc).date()
+    yr = today.year if today >= date(today.year, 3, 1) else today.year - 1
+    return date(yr, 3, 1)
 
 
 def _pull(d0: date, d1: date) -> xr.DataArray | None:
@@ -99,11 +106,11 @@ def render(ds: xr.Dataset, out: Path) -> None:
     from scipy.ndimage import gaussian_filter
     u = ds["u"]
     lon = u["longitude"].values; t = u["time"].values
-    sel = t > t[-1] - np.timedelta64(PLOT_DAYS, "D")
+    sel = t >= np.datetime64(plot_start())
     lm = (lon >= 150) & (lon <= 270)
     tt = t[sel]; xx = lon[lm]
     field = gaussian_filter(u.values[np.ix_(sel, lm)], sigma=(1.0, 2.0))
-    fig, ax = plt.subplots(figsize=(8.4, 9.6))
+    fig, ax = plt.subplots(figsize=(11.5, 9.2))
     lim = 8.0
     pm = ax.contourf(xx, tt, field, levels=np.linspace(-lim, lim, 17), cmap="RdBu_r", extend="both")
     ax.contour(xx, tt, field, levels=[0], colors="0.4", linewidths=0.5)
@@ -112,13 +119,14 @@ def render(ds: xr.Dataset, out: Path) -> None:
     ax.set_xticklabels(["150E", "180", "150W", "120W", "90W"])
     ax.axvline(190, color="0.5", lw=0.3, ls=":"); ax.axvline(240, color="0.5", lw=0.3, ls=":")
     ax.yaxis.set_major_formatter(DateFormatter("%d %b"))
-    ax.set_xlabel("longitude"); ax.set_ylabel("date")
+    ax.tick_params(labelsize=11)
     ax.set_title("Equatorial Pacific surface zonal wind (5°S–5°N)\n"
-                 "red = westerly (El Niño-favorable / WWB) · blue = easterly (trade winds)", fontsize=10)
-    cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.05, aspect=40)
-    cb.set_label("surface zonal wind (m s⁻¹)   ·   westerly +")
-    fig.tight_layout(); out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=120, bbox_inches="tight"); plt.close(fig)
+                 "red = westerly (El Niño-favorable / WWB) · blue = easterly (trade winds)", fontsize=12)
+    ax.margins(0)
+    cb = fig.colorbar(pm, ax=ax, orientation="horizontal", pad=0.045, aspect=55, fraction=0.05)
+    cb.set_label("surface zonal wind (m s⁻¹)   ·   westerly +", fontsize=11)
+    fig.tight_layout(pad=0.4); out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=130, bbox_inches="tight", pad_inches=0.06); plt.close(fig)
     print(f"wrote {out}", flush=True)
 
 
