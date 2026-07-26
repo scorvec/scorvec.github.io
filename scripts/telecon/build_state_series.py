@@ -159,7 +159,7 @@ def main() -> int:
         rows = []
         for i, t in enumerate(pd.to_datetime(uy.time.values)):
             uu = uy.isel(time=i).transpose("level", "latitude", "longitude").values[:, :, order]
-            ss = spy.isel(time=i).values[:, order]
+            ss = spy.isel(time=i).transpose("latitude", "longitude").values[:, order]
             g, nh, sh = aam_of(uu, p_pa, ss, lat, dlon, dlat)
             row = {"aam_global": g / AAM_SCALE, "aam_nh": nh / AAM_SCALE, "aam_sh": sh / AAM_SCALE}
             row.update(torque_fields(ss, lat, lon[order], dhdx))
