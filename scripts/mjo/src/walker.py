@@ -170,10 +170,10 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     ax.set_yticks([1000, 850, 700, 500, 300, 200, 100])
     ax.set_yticklabels([1000, 850, 700, 500, 300, 200, 100])
     ax.minorticks_off()
-    # Indo-Pacific focus: the Walker circulation lives west of South America,
-    # so cut the Atlantic/Africa segment east of 60°W (300°E)
-    ax.set_xlim(0, 300); ax.set_xticks(range(0, 301, 60))
-    ax.set_xticklabels(["0°", "60°E", "120°E", "180°", "120°W", "60°W"])
+    # Indo-Pacific focus: eastern Indian Ocean (70°E) through 60°W — the
+    # Africa/western-IO segment and the Atlantic add no Walker information
+    ax.set_xlim(70, 300); ax.set_xticks(range(90, 301, 30))
+    ax.set_xticklabels(["90°E", "120°E", "150°E", "180°", "150°W", "120°W", "90°W", "60°W"])
     ax.set_xlabel("longitude"); ax.set_ylabel("pressure (hPa)")
     for x, lab in ((120, "Maritime\nContinent"), (255, "E Pacific"), (293, "S America")):
         ax.text(x, 118, lab, ha="center", va="top", fontsize=6.5, color="0.45", style="italic")
@@ -217,9 +217,10 @@ def _stage_walker(jl, frame_id, out, psi_anom, psi_abs, psi_clim, p_hpa, lon,
                          f"Pacific cell {pidx:+.1f} (clim {pclim:+.1f}) ×10¹⁰ kg/s — lower = weaker Walker"),
                  xlabel="longitude", ylabel="pressure (hPa)",
                  ylog=True, yreversed=True,
-                 xlim=[0, 300], ylim=[1000, 100],
-                 xticks=list(range(0, 301, 60)),
-                 xticklabels=["0°", "60°E", "120°E", "180°", "120°W", "60°W"],
+                 xlim=[70, 300], ylim=[1000, 100],
+                 xticks=list(range(90, 301, 30)),
+                 xticklabels=["90°E", "120°E", "150°E", "180°",
+                              "150°W", "120°W", "90°W", "60°W"],
                  yticks=[1000, 850, 700, 500, 300, 200, 100],
                  fill=dict(npz="za", x="lon", y="p",
                            levels=[float(v) for v in np.linspace(-vlim, vlim, 21)],
