@@ -57,7 +57,7 @@ end
 
 "Load the IRI RMM tsv pair -> DataFrame(date, phase, amp)."
 function load_rmm(dir = joinpath(TELECON, "data"))
-    jd2date(j) = Date(1858, 11, 17) + Day(round(Int, j - 2400000.5))
+    jd2date(j) = Date(1858, 11, 17) + Day(floor(Int, j - 2400000.5))
     read2(f) = [(jd2date(parse(Float64, split(l)[1])), parse(Float64, split(l)[2]))
                 for l in Iterators.drop(eachline(joinpath(dir, f)), 2)
                 if length(split(l)) == 2]

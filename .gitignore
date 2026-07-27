@@ -94,3 +94,10 @@ scripts/climate/data/
 scripts/synoptic/.julia_staging/
 scripts/synoptic/.julia_overlays/
 scripts/ecmwf/.budget_state.json*
+
+# telecon engine: large local-only data (store lives in ~/era5_store)
+scripts/telecon/data/olr/
+scripts/telecon/data/ibtracs_wp.csv
+scripts/telecon/data/gwd_daily/
+scripts/telecon/data/merra2_gwd_events/
+scripts/telecon/data/outcomes/
