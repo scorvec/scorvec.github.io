@@ -33,12 +33,15 @@ const WINTER_HALF = true             # Oct-Mar days only (the NH signal season)
 
 enso_class(e) = e >= 2 ? :nino : e <= -2 ? :nina : :neutral
 
-"All bin labels a given day's key belongs to, most specific first."
+"All bin labels a given day's key belongs to, most specific first.
+GWO enters the deepest joint bin as a QUADRANT (octants leave ~15 days per
+triple bin over 65 winters — under NMIN); the torque overlays keep octants
+because they only condition on two dials."
 function day_bins(k)::Vector{String}
     b = String[]
     k.mjo == 0 && return b                       # inactive MJO days train nothing
     ec = String(enso_class(k.enso))
-    k.gwo > 0 && push!(b, "m$(k.mjo)_$(ec)_g$(k.gwo)")
+    k.gwo > 0 && push!(b, "m$(k.mjo)_$(ec)_q$(1 + (k.gwo - 1) ÷ 2)")
     push!(b, "m$(k.mjo)_$(ec)")
     push!(b, "m$(k.mjo)")
     k.tqh != 0 && k.gwo > 0 && push!(b, "tqh$(k.tqh > 0 ? "p" : "n")_g$(k.gwo)")

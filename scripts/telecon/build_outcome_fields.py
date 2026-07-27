@@ -46,6 +46,8 @@ def open_source(source):
         "u200": ds["u_component_of_wind"].sel(level=200),
         "v200": ds["v_component_of_wind"].sel(level=200),
     }
+    # each pl field keeps its own scalar `level` coord -> Dataset merge conflict
+    out = {k: v.drop_vars("level", errors="ignore") for k, v in out.items()}
     pv = "total_precipitation_6hr" if "total_precipitation_6hr" in ds else "total_precipitation"
     out["prcp"] = ds[pv]
     if sel:
