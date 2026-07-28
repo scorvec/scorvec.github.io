@@ -331,16 +331,106 @@
 
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>SSW Risk Index &mdash; arrives with the NH season</h2>
-        <p>A leave-one-winter-out-validated probability of a major NH sudden warming
-        within 15 and 30 days, combining the 10&nbsp;hPa wave-1 amplitude (the single
-        best predictor: AUC&nbsp;0.78 at 1&ndash;15 days), integrated 100&nbsp;hPa eddy
-        heat flux, tropospheric wave-1 interference, blocking doors (Urals <i>and</i>
-        Labrador &mdash; with central-Pacific blocking as a protective negative), QBO
-        phase, Himalayan gravity-wave launch, and seasonality &mdash; scored per AIFS-ENS
-        member for a genuine probabilistic plume. Activates November&ndash;March.</p>
+        <h2>The SSW Risk Index: what it is and what moves it</h2>
+        <p>The SRI is a probability &mdash; <b>P(major sudden stratospheric warming within
+        the next 15 or 30 days)</b> &mdash; from a ridge-regularized logistic model fit on
+        every NDJFM day from 1974 to 2026 (28 major warmings) and validated
+        leave-one-winter-out: every skill number on this page comes from forecasts made by
+        a model that never saw the winter being scored. Twenty-three inputs, four families:
+        the <b>vortex&rsquo;s own geometry</b> (a displaced, wave-1-distorted vortex is the
+        single best predictor there is), the <b>wave forcing arriving from below</b>
+        (integrated 100&nbsp;hPa eddy heat flux, split by zonal wavenumber), the
+        <b>tropospheric doors and shields</b> (where blocking sits decides whether planetary
+        waves are funneled up or deflected), and <b>slow modulators</b> (ENSO &mdash;
+        non-monotonically, QBO, and the calendar). Two counter-intuitive entries are real,
+        validated results: <b>currently-weak vortex winds argue <i>against</i> an imminent
+        event</b> once the other inputs are known, and central-Pacific blocking is
+        <b>protective</b>.</p>
       </div>
-      <div class="chart-card-footer"><span class="chart-sources">21-term ridge logistic, 1974&ndash;2026 training, 28 events &middot; frozen coefficients in the site repository</span></div>
+      <div class="img-wrap"><img src="assets/strat/science_inputs.webp?v=20260728s1" alt="Bar chart of standardized SRI coefficients grouped by physical family" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Ridge logistic (C=0.1), 6,530 training days, 28 events &middot; coefficients frozen 2026-07-28</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Backtest: every major warming since 1974, out of sample</h2>
+        <p>The median event sees its probability climb from the ~4% base rate a month out
+        to <b>17&ndash;18% at the event</b>, with the upper quartile above 30%. The case
+        studies show the range: 2013 and 2021 were textbook ramps; 2018 fired twice
+        (arguably one extended vortex breakdown); <b>2009 is the honest scar</b> &mdash;
+        the great wave-2 split gave almost no classical warning, and the index only
+        reached ~45% five days out, via the wave-2 burst channel described below.
+        Splits are short-fuse events; no observational index escapes that.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/science_backtest.webp?v=20260728s1" alt="Composite and case-study out-of-sample SRI trajectories around all 28 SSWs" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Leave-one-winter-out validation &middot; ERA5/NCEP inputs 1974&ndash;2026</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Reliability: the probabilities are calibrated</h2>
+        <p>A 15% forecast verifies about 13% of the time; a 26% forecast about 28% &mdash;
+        out of sample, across five decades. Days above 20% carry seven times the
+        climatological risk. The one caveat is the rare &gt;35% bin, which runs
+        overconfident (51% forecast, 27% observed): treat anything above ~35% as
+        &ldquo;high alert&rdquo; rather than a precise number.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/science_reliability.webp?v=20260728s1" alt="Reliability diagram: forecast probability vs observed event frequency with bin counts" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">All NDJFM days 1974&ndash;2026, out-of-sample probabilities</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Who can see an SSW coming &mdash; and how far ahead</h2>
+        <p>The predictor ladder, by lead window. At 1&ndash;15 days the 10&nbsp;hPa wave-1
+        amplitude is nearly a sufficient statistic &mdash; the displaced vortex has already
+        integrated everything else &mdash; and the full model&rsquo;s value is calibration
+        and robustness rather than raw discrimination. At 16&ndash;30 days the ensemble of
+        preconditioners genuinely beats any single input. Note the fate of the folklore
+        &ldquo;weak vortex&rdquo; rule: by weeks 3&ndash;4 it is <i>inverted</i> &mdash;
+        an already-disturbed vortex is transiently protected, not primed.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/science_ladder.webp?v=20260728s1" alt="AUC of major SSW predictors across lead windows" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Out-of-sample AUC, 52 winters &middot; SRI shown for its two fitted windows</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Two doors and a shield</h2>
+        <p>Sweeping 60&deg;-wide blocking sectors around the hemisphere against
+        &ldquo;SSW within 16&ndash;45 days&rdquo; finds <b>two doors</b>: the canonical
+        <b>Ural</b> sector (Cohen&nbsp;&amp;&nbsp;Jones 2011; Kretschmer et al. 2017) and a
+        slightly stronger, rarely-named <b>Labrador/northeast-Canada</b> sector &mdash;
+        kin to the Atlantic-blocking precursors of Martius et al. (2009) and the
+        northeastern-America lobe of Garfinkel et al.&rsquo;s (2010) optimal precursor
+        pattern. Both doors are the same physics: ridging placed to constructively
+        reinforce the climatological wave-1. Blocking in the <b>central Pacific</b> does
+        the opposite &mdash; destructive interference that shields the vortex &mdash;
+        which is why &ldquo;more blocking = more SSW risk&rdquo; is wrong without an
+        address. Honesty note: the Labrador box was identified in this 1974+ record; its
+        out-of-sample test against pre-1974 winters is in progress and this section will
+        be updated with the verdict.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/science_blocking.webp?v=20260728s1" alt="AUC by blocking longitude sector showing Ural and Labrador doors and the Pacific shield" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">45&ndash;70&deg;N blocking index by sector, ERA5 z500 1974&ndash;2023</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Two kinds of warning</h2>
+        <p><b>Displacement events announce themselves for weeks</b>: wave-1 amplitude and
+        integrated heat flux ramp for 20&ndash;30 days before the reversal.
+        <b>Split events strike in days</b>: the wave-2 heat-flux channel is silent until
+        roughly a week out, then erupts &mdash; the two largest wave-2 bursts in the
+        52-year record are February 2018 and January 2009, both majors. The index
+        carries a dedicated thresholded &ldquo;burst&rdquo; term for exactly this channel
+        (it is what rescued 2009 in the backtest above), and its 16&ndash;30-day
+        coefficient is <i>negative</i>: a wave-2 burst means imminent-or-never,
+        never &ldquo;a month away.&rdquo;</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/science_regimes.webp?v=20260728s1" alt="Composite wave-1 amplitude and wave-2 heat flux for displacement versus split SSWs" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">Event composites, 28 majors 1974&ndash;2026 (6 split-type) &middot; the live SRI plume (per AIFS-ENS member) activates November&ndash;March</span></div>
+    </div>
     </div>
 
   </div>
