@@ -158,6 +158,8 @@
   .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
   .anim-embed.samsat { aspect-ratio: 1015 / 1115; }   /* image 1015×1065 + controls */
   .anim-embed.glmden { aspect-ratio: 591 / 677; }     /* image 591×622 (map + colourbar) + controls */
+  .anim-embed.strat10 { aspect-ratio: 898 / 534; }    /* image 898×484 + controls bar */
+  .anim-embed.strat100 { aspect-ratio: 954 / 534; }   /* image 954×484 + controls bar */
   .anim-embed.precip { aspect-ratio: 771 / 823; }     /* image 771×768 (map + colourbar) + controls */
   .anim-embed.precip-anom { aspect-ratio: 768 / 823; }  /* image 768×768 (map + colourbar) + controls */
   /* near-square Americas maps: cap the whole CARD (image fills it) so it hugs the map and
@@ -384,6 +386,31 @@
       <iframe class="anim-embed waf" src="sst_anim.html?embed=1&amp;manifest=waf_manifest.json&amp;region=waf"
               title="Takaya-Nakamura 2001 wave activity flux at 200 hPa: Rossby wave packet propagation and streamfunction anomaly through the AIFS-ENS forecast" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 200 hPa u/v ensemble mean (open data, CC&nbsp;BY&nbsp;4.0) &middot; Takaya &amp; Nakamura (2001, JAS) eq.&nbsp;38 &middot; basic state &amp; &psi; climatology: ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
+    </div>
+
+    <!-- STRATOSPHERIC POLAR VORTEX — AIFS-ENS 15-day, both hemispheres -->
+    <div class="chart-card" id="stratosphere-forecast">
+      <div class="chart-card-header">
+        <h2>Stratospheric Polar Vortex: AIFS-ENS 15-Day Forecast, Both Hemispheres</h2>
+        <p>ECMWF&rsquo;s AIFS-ENS was recently extended upward to <b>10&nbsp;hPa</b>
+        (~30&nbsp;km) &mdash; very few live sites carry forecasts of the stratosphere
+        from the AI ensemble yet. The first loop shows the <b>polar-night jet at
+        10&nbsp;hPa</b>: wind speed shaded with height contours, north and south
+        polar views side by side, daily to day&nbsp;15. Watch for the vortex
+        tightening into a symmetric ring (cold, zonal winters below) or being
+        displaced and stretched by planetary waves &mdash; the precursor to
+        <b>sudden stratospheric warming</b> events. The second loop drops to
+        <b>100&nbsp;hPa</b> &mdash; the coupling level where stratospheric anomalies
+        actually hand down to the tropospheric circulation &mdash; showing height
+        anomalies versus the ERA5 daily climatology with the wind field in green.
+        In austral winter the Southern Hemisphere panel is the active one; the
+        northern vortex takes over from November through March.</p>
+      </div>
+      <iframe class="anim-embed strat10" src="sst_anim.html?embed=1&amp;manifest=strat10_manifest.json&amp;region=strat10"
+              title="AIFS-ENS 10 hPa wind speed and geopotential height forecast, both polar stereographic views, day 0 to 15" loading="lazy"></iframe>
+      <iframe class="anim-embed strat100" src="sst_anim.html?embed=1&amp;manifest=strat100_manifest.json&amp;region=strat100" style="margin-top:0.6rem"
+              title="AIFS-ENS 100 hPa geopotential height anomaly forecast versus ERA5 climatology, both hemispheres, day 0 to 15" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control, 10 &amp; 100 hPa u/v/z (open data, CC&nbsp;BY&nbsp;4.0) &middot; anomaly vs ERA5 1981&ndash;2010 daily climatology (WeatherBench2) &middot; updated each 00/12Z cycle</span></div>
     </div>
     <script type="application/ld+json">
     {
