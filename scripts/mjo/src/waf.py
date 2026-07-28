@@ -118,8 +118,13 @@ def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Pat
     # the downstream flow amplifies over the following days; blue = emission.
     cf = ax.contourf(lon, lat, -divw * 1e6, levels=np.linspace(-vlim, vlim, 21),
                      cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
-    ax.contour(lon, lat, psi_a / 1e6, levels=[-24, -16, -8, 8, 16, 24],
-               colors="0.25", linewidths=0.7, negative_linestyles="dashed",
+    # ψ′ ridges/troughs in two tones so they never blend with coastlines:
+    # solid purple = positive (ridge), solid amber = negative (trough)
+    ax.contour(lon, lat, psi_a / 1e6, levels=[8, 16, 24],
+               colors="#5b3a8c", linewidths=[0.9, 1.2, 1.5],
+               transform=ccrs.PlateCarree())
+    ax.contour(lon, lat, psi_a / 1e6, levels=[-24, -16, -8],
+               colors="#c07a2e", linewidths=[1.5, 1.2, 0.9],
                transform=ccrs.PlateCarree())
     if spd_fc is not None:
         # the REAL waveguide: the forecast's own 200 hPa jet at this lead
@@ -138,7 +143,7 @@ def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Pat
                   color="#111", width=0.0016, scale=2200, headwidth=3.6, alpha=0.85,
                   pivot="tail", zorder=6)
     ax.quiverkey(q, 0.90, -0.045, 100, "W = 100 m²/s²", labelpos="E", fontproperties={"size": 7.5})
-    ax.coastlines(lw=0.5, color="0.35")
+    ax.coastlines(lw=0.45, color="0.62")
     ax.set_title(title, fontsize=11.5, fontweight="bold", loc="left")
     cb = fig.colorbar(cf, ax=ax, pad=0.012, fraction=0.032)
     cb.set_label("−∇·W  (10⁻⁶ m s⁻²; red = convergence → amplification)", fontsize=8.5); cb.ax.tick_params(labelsize=7.5)
@@ -195,7 +200,7 @@ def main() -> int:
         old.unlink()
     sub = ("arrows = Takaya–Nakamura (2001) wave-activity flux (wave-packet group propagation) · "
            "shading = flux CONVERGENCE −∇·W at planetary scale (T15; red ⇒ downstream amplification ahead)\n"
-           "grey contours = 200 hPa ψ′ vs ERA5 1991–2020 (dashed negative) · dark green = the FORECAST 200 hPa "
+           "purple contours = 200 hPa ψ′ ridge, amber = trough (vs ERA5 1991–2020) · dark green = the FORECAST 200 hPa "
            "jet (25/35/45 m/s — the real waveguide) · dotted green = climatological 30 m/s · masked equatorward "
            "of 20° / basic-state wind < 3 m/s")
     frames = []
