@@ -54,7 +54,10 @@ def update_obs() -> xr.Dataset:
     t_last = None
     if path.exists():
         have = xr.open_dataset(path).load(); have.close()
-        t_last = pd.Timestamp(have.time.values[-1])
+        if "vt_k2_100" not in have:     # schema upgrade -> full re-backfill
+            have = None
+        else:
+            t_last = pd.Timestamp(have.time.values[-1])
     end = pd.Timestamp.utcnow().tz_localize(None).normalize()
     start = (end - pd.Timedelta(days=ROLL_DAYS)) if t_last is None else \
             (t_last + pd.Timedelta(days=1))
@@ -71,6 +74,9 @@ def update_obs() -> xr.Dataset:
     u10 = pull("u_component_of_wind", 10)
     g10 = pull("geopotential", 10) / 9.80665
     T10 = pull("temperature", 10)
+    g100 = pull("geopotential", 100) / 9.80665
+    z500f = pull("geopotential", 500) / 9.80665
+    u50 = pull("u_component_of_wind", 50)
     w = sum(pull("vertical_velocity", l) for l in (30, 50, 70)) / 3 * 864.0
     vT = {}
     for l in TEM_LEVS:
@@ -78,6 +84,18 @@ def update_obs() -> xr.Dataset:
         vT[("T", l)] = pull("temperature", l) if l != 10 else T10
     lat = u10.latitude.values
     tt = pd.DatetimeIndex(u10.time.values).normalize()
+    # wave-1 heat-flux cospectrum at 100 hPa (SRI input vt_k1)
+    v100 = vT[("v", 100)]; T100 = vT[("T", 100)]
+    vp = (v100 - v100.mean("longitude")).values
+    Tp = (T100 - T100.mean("longitude")).values
+    n = vp.shape[-1]
+    Vf = np.fft.rfft(vp, axis=-1) / n
+    Tf = np.fft.rfft(Tp, axis=-1) / n
+    vtk1 = 2.0 * (Vf[..., 1] * np.conj(Tf[..., 1])).real     # (time, lat)
+    vtk2 = 2.0 * (Vf[..., 2] * np.conj(Tf[..., 2])).real     # wave-2 channel
+    # equatorial u50 zonal mean (QBO)
+    eqm = np.abs(u50.latitude.values) <= 5
+    u50eq = u50.values[:, eqm, :].mean(axis=(1, 2))
     vbar = np.stack([vT[("v", l)].mean("longitude").values for l in TEM_LEVS], axis=1)
     Tbar = np.stack([vT[("T", l)].mean("longitude").values for l in TEM_LEVS], axis=1)
     vt = np.stack([((vT[("v", l)] - vT[("v", l)].mean("longitude"))
@@ -87,10 +105,15 @@ def update_obs() -> xr.Dataset:
         {"u10": (("time", "lat", "lon"), u10.values),
          "z10": (("time", "lat", "lon"), g10.values),
          "T10": (("time", "lat", "lon"), T10.values),
+         "z100": (("time", "lat", "lon"), g100.values),
+         "z500": (("time", "lat", "lon"), z500f.values),
          "w357": (("time", "lat", "lon"), w.values),
          "vbar": (("time", "lev", "lat"), vbar),
          "Tbar": (("time", "lev", "lat"), Tbar),
-         "vt": (("time", "lev", "lat"), vt)},
+         "vt": (("time", "lev", "lat"), vt),
+         "vt_k1_100": (("time", "lat"), vtk1),
+         "vt_k2_100": (("time", "lat"), vtk2),
+         "u50_eq": (("time",), u50eq)},
         coords={"time": tt, "lat": lat, "lon": u10.longitude.values,
                 "lev": np.array(TEM_LEVS, float)})
     ok = np.isfinite(new.u10.values).all(axis=(1, 2))
@@ -317,8 +340,13 @@ def main():
     ASSETS.mkdir(parents=True, exist_ok=True)
     obs = update_obs()
     render_maps(obs, hemi, ASSETS / "vortex_maps.webp")
-    render_plume(obs, hemi, ASSETS / "u10_plume.webp")
+    render_plume(obs, "sh", ASSETS / "u10_plume_sh.webp")
+    render_plume(obs, "nh", ASSETS / "u10_plume_nh.webp")
     render_descent(obs, hemi, ASSETS / "descent_index.webp")
+    import subprocess as _sp, sys as _sys
+    _sp.run([_sys.executable, str(HERE / "build_strat_anim.py")], check=False)
+    import subprocess, sys
+    subprocess.run([sys.executable, str(HERE / "sri_score.py")], check=False)
     stamp_html()
     print("done", flush=True)
 
