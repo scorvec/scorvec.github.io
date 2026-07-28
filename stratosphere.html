@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stratosphere &amp; Polar Vortex Monitor &mdash; Live TEM Diagnostics, SSW Watch &middot; El Ni&ntilde;o Monitor</title>
+<meta name="description" content="Daily stratospheric polar vortex monitor: 10 hPa vortex maps with wave structure and mass sinking, polar-night jet ensemble forecasts from ECMWF AIFS-ENS (now with 10 hPa data), and the transformed-Eulerian-mean polar-cap descent index that tracks sudden stratospheric warming dynamics. Southern Hemisphere live in austral winter; Northern Hemisphere from November.">
+<link rel="canonical" href="https://scorvec.com/stratosphere.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Stratosphere &amp; Polar Vortex Monitor &mdash; Live TEM Diagnostics, SSW Watch &middot; El Ni&ntilde;o Monitor">
+<meta property="og:description" content="Daily global circulation diagnostics updated from ECMWF AIFS-ENS: Takaya-Nakamura wave activity flux (Rossby wave packets, blocking precursors), atmospheric angular momentum (AAM) with its mountain and friction torque budget, Hadley cell and Walker circulation streamfunctions, subtropical jet strength vs climatology, 200 hPa velocity potential, and equatorial wind forecasts for ENSO.">
+<meta property="og:url" content="https://scorvec.com/stratosphere.html">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Stratosphere &amp; Polar Vortex Monitor &mdash; Live TEM Diagnostics, SSW Watch &middot; El Ni&ntilde;o Monitor">
+<meta name="twitter:description" content="Daily global circulation diagnostics updated from ECMWF AIFS-ENS: Takaya-Nakamura wave activity flux (Rossby wave packets, blocking precursors), atmospheric angular momentum (AAM) with its mountain and friction torque budget, Hadley cell and Walker circulation streamfunctions, subtropical jet strength vs climatology, 200 hPa velocity potential, and equatorial wind forecasts for ENSO.">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html { font-size: 17.5px; }   /* nudge the whole page up from the 16px default */
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+
+  /* fixed two-row header: site nav + ENSO monitor sub-nav */
+  .site-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  .enso-subnav {
+    display: flex; gap: 1.6rem; align-items: center; flex-wrap: wrap;
+    padding: 0.55rem 3rem 0.7rem;
+    border-top: 1px solid var(--rule);
+  }
+  .enso-subnav a {
+    font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
+    color: var(--muted); padding-bottom: 2px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .enso-subnav a:hover { color: var(--ink); }
+  .enso-subnav a.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+  main {
+    flex: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 9.5rem 2.5rem 5rem;
+    width: 100%;
+  }
+
+  .page-header {
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .page-header p {
+    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+  }
+  .page-header p + p { margin-top: 0.8rem; }
+
+  /* Overview topic grid (links to the themed subpages) */
+  .topic-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem; margin-bottom: 3rem;
+  }
+  .topic-card {
+    display: block; border: 1px solid var(--rule); background: #fff;
+    padding: 1.2rem 1.3rem; text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .topic-card:hover { border-color: var(--accent); background: var(--accent-light); }
+  .topic-card h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.02rem;
+    color: var(--ink); margin-bottom: 0.3rem;
+  }
+  .topic-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+
+  .chart-stack { display: flex; flex-direction: column; gap: 3rem; }
+
+  .chart-card {
+    border: 1px solid var(--rule);
+    background: #fff;
+    overflow: hidden;
+  }
+  .chart-card-header {
+    padding: 1.5rem 1.8rem 1.3rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
+    margin-bottom: 0.6rem; color: var(--ink);
+  }
+  .chart-card-header p {
+    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
+  }
+  .chart-card-header p + p { margin-top: 0.7rem; }
+  .chart-card-header b { color: var(--ink); font-weight: 500; }
+
+  .img-wrap { padding: 1rem 1.2rem; background: #fff; }
+  .img-wrap + .img-wrap { padding-top: 0; }
+  .img-wrap img { display: block; width: 100%; height: auto; }
+  /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
+     sized to its exact content height via postMessage (see footer.html / sst_anim.html),
+     which fills the card with no letterboxing at any width. */
+  .anim-embed { width: 100%; border: 0; display: block; background: #081120;
+                aspect-ratio: 27 / 25; }
+  .anim-embed.subsurface { aspect-ratio: 1 / 1; }
+  .anim-embed.torque { aspect-ratio: 1306 / 1055; }
+  .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
+  .anim-embed.walker { aspect-ratio: 1245 / 590; }  /* image + controls bar */
+  .anim-embed.waf { aspect-ratio: 1400 / 760; }     /* image + controls bar */
+  .anim-embed.jets { aspect-ratio: 1160 / 619; }    /* image 1160×569 + controls bar */
+  .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
+  .anim-embed.wind200 { aspect-ratio: 1496 / 776; }   /* image 1496×726 + controls bar */
+  .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
+  .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
+  .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
+  .anim-embed.samsat { aspect-ratio: 1015 / 1115; }   /* image 1015×1065 + controls */
+  .anim-embed.glmden { aspect-ratio: 591 / 677; }     /* image 591×622 (map + colourbar) + controls */
+  .anim-embed.precip { aspect-ratio: 771 / 823; }     /* image 771×768 (map + colourbar) + controls */
+  .anim-embed.precip-anom { aspect-ratio: 768 / 823; }  /* image 768×768 (map + colourbar) + controls */
+  /* near-square Americas maps: cap the whole CARD (image fills it) so it hugs the map and
+     doesn't stretch tall across the wide column — the card centers, page-gray on the sides. */
+  .chart-card.media-narrow { max-width: 640px; margin-inline: auto; }
+  .anim-embed.eq-cur-map { aspect-ratio: 1217 / 467; }      /* image 1217×412 + controls bar */
+  .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
+  .img-label {
+    font-size: 0.72rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 0 0 0.4rem 0.2rem;
+  }
+
+  /* live wind-arrow widget (Tarawa WWB monitor) */
+  .wwb-arrows {
+    display: flex; justify-content: center; align-items: center; gap: 2.6rem;
+    flex-wrap: wrap; padding: 1.3rem 1.2rem 0.4rem;
+  }
+  .wwb-stn { text-align: center; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+  .wwb-stn svg { display: block; margin: 0 auto 0.35rem; }
+  .wwb-stn b { display: block; color: var(--ink); font-weight: 500; font-size: 0.92rem; }
+
+  .chart-card-footer {
+    padding: 0.85rem 1.8rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .chart-sources { font-size: 0.68rem; color: var(--muted); }
+  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+
+  .colophon {
+    margin-top: 4rem; padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+  }
+  .colophon h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    color: var(--ink); margin-bottom: 0.5rem;
+  }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .colophon a:hover { border-bottom-color: var(--accent); }
+
+  footer {
+    padding: 1.2rem 3rem; border-top: 1px solid var(--rule);
+    display: flex; justify-content: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
+    main { padding: 9rem 1.5rem 3.5rem; }
+    .page-header { margin-bottom: 2.2rem; padding-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.6rem; }
+    .chart-stack { gap: 2.2rem; }
+    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
+    .chart-card-footer { padding: 0.75rem 1.3rem; }
+    footer { padding: 1rem 1.5rem; }
+  }
+  @media (max-width: 480px) {
+    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .nav-name { font-size: 0.95rem; }
+    .nav-links { gap: 1rem; }
+    .nav-links a { font-size: 0.78rem; }
+    .enso-subnav { padding: 0.5rem 1.1rem 0.6rem; gap: 0.85rem; }
+    .enso-subnav a { font-size: 0.74rem; }
+    main { padding: 9.5rem 1rem 3rem; }
+    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
+    .chart-card-header h2 { font-size: 1.02rem; }
+    .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
+    .img-wrap { padding: 0.7rem 0.7rem; }
+    .chart-card-footer { padding: 0.7rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+    footer { padding: 0.9rem 1.1rem; }
+  }
+  @media (max-width: 360px) {
+    .nav-links { gap: 0.8rem; }
+    .nav-links a { font-size: 0.72rem; }
+    .enso-subnav { gap: 0.7rem; }
+    .page-header h1 { font-size: 1.28rem; }
+  }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <nav>
+    <a href="index.html" class="nav-name">Shawn Corvec</a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resume.html">Resume</a></li>
+      <li><a href="research.html">Research</a></li>
+    </ul>
+  </nav>
+  <div class="enso-subnav">
+    <a href="sst.html" class="">Overview</a>
+    <a href="enso-subsurface.html" class="">Subsurface</a>
+    <a href="enso-analogs.html" class="">Analogs</a>
+    <a href="enso-forecasts.html" class="">Forecasts</a>
+    <a href="enso-atmosphere.html" class="">Atmospheric Response</a>
+    <a href="stratosphere.html" class="active">Stratosphere</a>
+  </div>
+</header>
+<main>
+  <div class="page-header">
+    <h1>Stratosphere &amp; Polar Vortex Monitor</h1>
+    <p>The winter polar vortex is the flywheel of subseasonal prediction: when planetary
+    waves disrupt it, the surface circulation (AO/NAO) feels the result for a month or
+    more. This page tracks the vortex the way the momentum budget actually works &mdash;
+    wave driving in, residual-circulation descent over the pole, adiabatic warming out
+    &mdash; using ERA5 analyses and the ECMWF AIFS-ENS ensemble, which now resolves the
+    10&nbsp;hPa level in open data.</p>
+    <p><b>Currently showing the Southern Hemisphere</b> (austral winter). The Northern
+    Hemisphere panels and the SSW Risk Index activate in November. The 2026 SH vortex is
+    running unusually weak for midwinter after a wave-driven warming pulse in early June.</p>
+  </div>
+  <div class="chart-stack">
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>The Vortex Now: Winds, Wave Structure &amp; Mass Sinking</h2>
+        <p><b>Left:</b> 10&nbsp;hPa wind speed (fill, &ge;30&nbsp;m/s) with height contours,
+        overlaid with smoothed 30&ndash;70&nbsp;hPa <b>sinking motion</b> (brown contours,
+        hPa/day) &mdash; where the stratosphere is compressing and warming air. Persistent
+        lobes over the Andes&ndash;Antarctic Peninsula sector are resolved mountain-wave
+        breaking. <b>Right:</b> 10&nbsp;hPa eddy temperature &mdash; the planetary-wave
+        pattern attacking the vortex. A growing warm pool that wraps poleward is the
+        classic prelude to a major disruption.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/vortex_maps.webp?v=202607281046" alt="Polar stereographic maps of 10 hPa vortex wind speed with layer-mean sinking contours, and 10 hPa eddy temperature wave structure" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ERA5 via ARCO (Google/Copernicus C3S) &middot; 5-day mean, ~6-day latency &middot; updated daily</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Polar-Night Jet: Observed + AIFS-ENS 15-Day Ensemble</h2>
+        <p>Zonal-mean zonal wind at 10&nbsp;hPa, 60&deg; latitude &mdash; the standard
+        vortex-strength gauge (a reversal to easterlies in winter defines a major sudden
+        warming). Black: ERA5 observed. Blue plume: the 25 AIFS-ENS perturbed members with
+        control and ensemble mean, from the same upgraded open-data feed that carries the
+        AAM products. Grey band: the 1974&ndash;present daily climatology (10&ndash;90%).
+        Running the forecast against the envelope shows at a glance whether the vortex is
+        heading somewhere historically unusual.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/u10_plume.webp?v=202607281046" alt="10 hPa 60-degree zonal wind: observed history with climatology envelope and AIFS-ENS ensemble forecast plume" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ERA5 via ARCO &middot; NCEP R1 climatology (PSL) &middot; ECMWF AIFS-ENS open data (CC BY 4.0) &middot; updated each cycle</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Polar-Cap Descent Index (TEM Residual Circulation)</h2>
+        <p>The transformed-Eulerian-mean residual circulation is what actually delivers a
+        stratospheric warming: wave driving forces a poleward surge, continuity turns it
+        into <b>descent over the polar cap</b>, and compression does the warming. This
+        index measures that descent directly &mdash; the residual meridional wind
+        $\bar v^*$ crossing 60&deg; converted to cap-mean sinking (hPa/day) by mass
+        continuity &mdash; with the polar-cap temperature it drives (red). In the
+        28-event NH record, descent pulses of +0.5&nbsp;hPa/day lead reversals by
+        5&ndash;10 days; the implied adiabatic heating closes the observed warming budget
+        to within radiative damping.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/descent_index.webp?v=202607281046" alt="Polar cap residual descent index at 30 and 70 hPa with polar cap temperature, against 1974-present climatology band" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ERA5 via ARCO (current) &middot; NCEP R1 via PSL (1974&ndash; climatology &amp; TEM history) &middot; updated daily</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>SSW Risk Index &mdash; arrives with the NH season</h2>
+        <p>A leave-one-winter-out-validated probability of a major NH sudden warming
+        within 15 and 30 days, combining the 10&nbsp;hPa wave-1 amplitude (the single
+        best predictor: AUC&nbsp;0.78 at 1&ndash;15 days), integrated 100&nbsp;hPa eddy
+        heat flux, tropospheric wave-1 interference, blocking doors (Urals <i>and</i>
+        Labrador &mdash; with central-Pacific blocking as a protective negative), QBO
+        phase, Himalayan gravity-wave launch, and seasonality &mdash; scored per AIFS-ENS
+        member for a genuine probabilistic plume. Activates November&ndash;March.</p>
+      </div>
+      <div class="chart-card-footer"><span class="chart-sources">21-term ridge logistic, 1974&ndash;2026 training, 28 events &middot; frozen coefficients in the site repository</span></div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <p class="counter">Unique viewers: <span id="count">&mdash;</span></p>
+</footer>
+
+<script>
+  fetch('https://scorvec.goatcounter.com/counter/TOTAL.json')
+    .then(r => r.json())
+    .then(d => { document.getElementById('count').textContent = d.count_unique || d.count; })
+    .catch(() => { document.getElementById('count').textContent = '—'; });
+</script>
+<script>
+  // Size each animation iframe to its embedded content's exact height (image +
+  // controls), so the wide plots fill their cards with no letterboxing on any screen.
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + 'px';
+        fr[i].style.aspectRatio = 'auto';
+      }
+    }
+  });
+  // Hourly-updating images (committed by their own GitHub Actions, not the page build):
+  // load with an hour-granular cache-buster so the latest render shows without churning
+  // the page HTML. The page's static ?v= can't cover them (they change between page builds).
+  ['soi-hourly', 'kiribati-wind', 'kiribati-history', 'olr-hovmoller', 'olr-waves', 'eq-current-hov', 'eq-uwind-hov'].forEach(function (id) {
+    var im = document.getElementById(id);
+    if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
+  });
+
+  // Live wind-arrow widget for the Tarawa WWB monitor: draw the latest wind at each
+  // station from the hourly kiribati_wind.json (arrow points the way the wind blows TO).
+  (function () {
+    var host = document.getElementById('wwb-arrows'); if (!host) return;
+    fetch('assets/sst/kiribati_wind.json?v=' + new Date().toISOString().slice(0, 13))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.stations) return;
+        var html = '';
+        Object.keys(d.stations).forEach(function (icao) {
+          var s = d.stations[icao], west = s.u_ms > 0, col = west ? '#d62728' : '#1f77b4';
+          var bearing = (s.dir + 180) % 360;             // flow direction (downwind)
+          var lab = Math.abs(s.u_ms) < 0.5 ? 'calm' : (west ? 'westerly' : 'easterly');
+          html += '<div class="wwb-stn"><svg width="92" height="92" viewBox="0 0 100 100">'
+            + '<circle cx="50" cy="50" r="44" fill="none" stroke="#ddd"/>'
+            + '<text x="50" y="13" text-anchor="middle" font-size="9" fill="#bbb">N</text>'
+            + '<g transform="rotate(' + bearing + ' 50 50)">'
+            + '<line x1="50" y1="52" x2="50" y2="24" stroke="' + col + '" stroke-width="4"/>'
+            + '<path d="M50 12 L42 30 L50 25 L58 30 Z" fill="' + col + '"/></g>'
+            + '<circle cx="50" cy="50" r="3.5" fill="' + col + '"/></svg>'
+            + '<b>' + s.name + '</b><span style="color:' + col + '">' + s.dir + '° / '
+            + s.spd_kt + ' kt &middot; ' + lab + '</span></div>';
+        });
+        host.innerHTML = html + '<div class="wwb-stn" style="max-width:9em">updated<br>' + d.updated + '</div>';
+      }).catch(function () {});
+  })();
+</script>
+</body>
+</html>
