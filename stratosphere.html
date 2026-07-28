@@ -293,7 +293,7 @@
         pattern attacking the vortex. A growing warm pool that wraps poleward is the
         classic prelude to a major disruption.</p>
       </div>
-      <div class="img-wrap"><img src="assets/strat/vortex_maps.webp?v=202607281826" alt="Polar stereographic maps of 10 hPa vortex wind speed with layer-mean sinking contours, and 10 hPa eddy temperature wave structure" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/strat/vortex_maps.webp?v=202607282110" alt="Polar stereographic maps of 10 hPa vortex wind speed with layer-mean sinking contours, and 10 hPa eddy temperature wave structure" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ERA5 via ARCO (Google/Copernicus C3S) &middot; 5-day mean, ~6-day latency &middot; updated daily</span></div>
     </div>
 
@@ -308,8 +308,47 @@
         Running the forecast against the envelope shows at a glance whether the vortex is
         heading somewhere historically unusual.</p>
       </div>
-      <div class="img-wrap"><img src="assets/strat/u10_plume.webp?v=202607281826" alt="10 hPa 60-degree zonal wind: observed history with climatology envelope and AIFS-ENS ensemble forecast plume" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/strat/u10_plume_sh.webp?v=202607282110" alt="10 hPa 60-degree zonal wind: observed history with climatology envelope and AIFS-ENS ensemble forecast plume" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ERA5 via ARCO &middot; NCEP R1 climatology (PSL) &middot; ECMWF AIFS-ENS open data (CC BY 4.0) &middot; updated each cycle</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>AIFS-ENS 10 hPa Winds &amp; Heights &mdash; 15-Day Loop, Both Hemispheres</h2>
+        <p>Ensemble-mean 10&nbsp;hPa wind speed and heights stepping through the full
+        AIFS-ENS forecast &mdash; the vortex (or its summer easterly ghost) in motion,
+        both poles side by side. Watch for the ring tightening or buckling, and for
+        wave-1/wave-2 distortions growing with lead.</p>
+      </div>
+      <iframe class="anim-embed" style="aspect-ratio: 1160 / 640" src="sst_anim.html?embed=1&amp;manifest=strat10_manifest.json&amp;region=strat10"
+              title="AIFS-ENS mean 10 hPa wind and height forecast animation, both hemispheres" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS ensemble mean (open data, CC BY 4.0) &middot; updated each cycle</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>AIFS-ENS 100 hPa Height Anomalies &mdash; 15-Day Loop, Both Hemispheres</h2>
+        <p>The coupling level: 100&nbsp;hPa height anomalies (versus the NCEP
+        1991&ndash;2020 daily climatology) with the 100&nbsp;hPa wind speed in green.
+        This is the layer whose state decides whether stratospheric anomalies reach the
+        troposphere &mdash; a warm polar cap building here is the downward-coupling gate
+        opening.</p>
+      </div>
+      <iframe class="anim-embed" style="aspect-ratio: 1160 / 640" src="sst_anim.html?embed=1&amp;manifest=strat100_manifest.json&amp;region=strat100"
+              title="AIFS-ENS mean 100 hPa height anomaly forecast animation, both hemispheres" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS ensemble mean &middot; NCEP R1 daily climatology (PSL) &middot; updated each cycle</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Northern Hemisphere Polar-Night Jet (Preseason Watch)</h2>
+        <p>The NH twin of the plume above &mdash; observed 60&deg;N zonal wind with its
+        1974&ndash;present climatology envelope and the AIFS-ENS 15-day plume. Quiet
+        through summer; this is where the NH vortex spin-up will be tracked from
+        September and where the SSW Risk Index plume attaches in November.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/u10_plume_nh.webp?v=202607282110" alt="Northern Hemisphere 10 hPa 60N zonal wind: observed, climatology envelope, AIFS-ENS forecast plume" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ERA5 via ARCO &middot; NCEP climatology &middot; AIFS-ENS open data &middot; updated each cycle</span></div>
     </div>
 
     <div class="chart-card">
@@ -325,13 +364,65 @@
         5&ndash;10 days; the implied adiabatic heating closes the observed warming budget
         to within radiative damping.</p>
       </div>
-      <div class="img-wrap"><img src="assets/strat/descent_index.webp?v=202607281826" alt="Polar cap residual descent index at 30 and 70 hPa with polar cap temperature, against 1974-present climatology band" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/strat/descent_index.webp?v=202607282110" alt="Polar cap residual descent index at 30 and 70 hPa with polar cap temperature, against 1974-present climatology band" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ERA5 via ARCO (current) &middot; NCEP R1 via PSL (1974&ndash; climatology &amp; TEM history) &middot; updated daily</span></div>
     </div>
 
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>The SSW Risk Index: what it is and what moves it</h2>
+        <h2>An Investigation into Stratospheric Folklore</h2>
+        <p>Everything below this line is the result of a from-scratch audit of what
+        meteorologists say about the winter stratosphere &mdash; every claim tested
+        against 52 winters of reanalysis (ERA5, NCEP, MERRA-2), every skill number
+        leave-one-winter-out. Some folklore survives, some has the causal arrow
+        backwards, and the biggest result is a redefinition: <b>the event that matters
+        for surface weather is not the famous 10&nbsp;hPa wind reversal at all.</b>
+        Verdicts are labeled on each card.</p>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>&ldquo;An SSW is when the 10 hPa winds reverse&rdquo;<span style="color:#a63d52;font-weight:600;letter-spacing:0.04em;font-size:0.72rem"> MYTH, BUSTED</span></h2>
+        <p>The classic definition (wind reversal at 10&nbsp;hPa, 60&deg;N) turns out to be
+        <b>neither necessary nor sufficient</b> for what everyone actually cares about
+        &mdash; the surface AO/NAO response. In 52 winters, <b>40 episodes opened the
+        100&nbsp;hPa &ldquo;gate&rdquo;</b> (polar-cap anomaly &ge; +1&sigma; sustained
+        5+ days) <b>without any 10&nbsp;hPa reversal</b> &mdash; and delivered
+        <i>stronger</i> sustained &minus;AO than the classic events. Meanwhile 8 of the
+        28 textbook majors left the gate shut and produced <i>nothing</i> at the surface.
+        The refined definition this page now tracks: <b>Stratospheric Impact Events</b>,
+        keyed to the 100&nbsp;hPa gate; the 10&nbsp;hPa fireworks are the dynamics, not
+        the impact. A partial-correlation test answers the obvious objection (maybe the
+        troposphere causes both?): controlling for the concurrent AO, the gate still
+        predicts the AO 10&ndash;30 days ahead at r&nbsp;=&nbsp;&minus;0.22 over ~6,500
+        days &mdash; the stratospheric memory is real, in the lineage of
+        Baldwin&nbsp;&amp;&nbsp;Dunkerton (2001).</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/science_gate_verdict.webp?v=20260729s2" alt="Bar chart: AO outcomes for gate-open episodes without reversal, classic SSWs, and shut-gate majors" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">77 gate episodes + 28 CP07 majors, NCEP/ERA5 1974&ndash;2026 &middot; CPC daily AO</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>&ldquo;Mountain waves help trigger warmings&rdquo;<span style="color:#a63d52;font-weight:600;letter-spacing:0.04em;font-size:0.72rem"> MYTH, BUSTED</span></h2>
+        <p>Tested three ways &mdash; ERA5 launch stress, MERRA-2 level-by-level deposition,
+        and event-by-event pre-conditioning counts &mdash; parameterized gravity-wave drag
+        is a <b>flow-slaved amplifier, not a trigger</b>: drag tracks the vortex winds
+        (r&nbsp;=&nbsp;&minus;0.75 concurrent) with essentially no lead, the braking layer
+        (10&ndash;2&nbsp;hPa, peaking &minus;0.8&nbsp;m/s/day near 5&nbsp;hPa)
+        <b>shuts off ten days <i>before</i> the reversal</b> as critical-level filtering
+        kicks in, and pre-event drag enhancement splits 8-enhanced / 8-eased / 9-neutral
+        across events &mdash; a coin flip. The planetary waves do the killing; the gravity
+        waves go quiet before the fall.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/science_gwd_myth.webp?v=20260729s2" alt="Level-by-lag composite of gravity wave drag around 27 SSWs showing pre-event shutoff" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">MERRA-2 DUDTGWD event windows, 27 SSWs &middot; ERA5 surface stresses</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>The SSW Risk Index: what it is and what moves it<span style="color:#6d51b8;font-weight:600;letter-spacing:0.04em;font-size:0.72rem"> NEW</span></h2>
         <p>The SRI is a probability &mdash; <b>P(major sudden stratospheric warming within
         the next 15 or 30 days)</b> &mdash; from a ridge-regularized logistic model fit on
         every NDJFM day from 1974 to 2026 (28 major warmings) and validated
@@ -347,13 +438,13 @@
         event</b> once the other inputs are known, and central-Pacific blocking is
         <b>protective</b>.</p>
       </div>
-      <div class="img-wrap"><img src="assets/strat/science_inputs.webp?v=20260728s1" alt="Bar chart of standardized SRI coefficients grouped by physical family" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/strat/science_inputs.webp?v=202607282110" alt="Bar chart of standardized SRI coefficients grouped by physical family" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">Ridge logistic (C=0.1), 6,530 training days, 28 events &middot; coefficients frozen 2026-07-28</span></div>
     </div>
 
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Backtest: every major warming since 1974, out of sample</h2>
+        <h2>Backtest: every major warming since 1974, out of sample<span style="color:#6d51b8;font-weight:600;letter-spacing:0.04em;font-size:0.72rem"> NEW</span></h2>
         <p>The median event sees its probability climb from the ~4% base rate a month out
         to <b>17&ndash;18% at the event</b>, with the upper quartile above 30%. The case
         studies show the range: 2013 and 2021 were textbook ramps; 2018 fired twice
@@ -362,41 +453,44 @@
         reached ~45% five days out, via the wave-2 burst channel described below.
         Splits are short-fuse events; no observational index escapes that.</p>
       </div>
-      <div class="img-wrap"><img src="assets/strat/science_backtest.webp?v=20260728s1" alt="Composite and case-study out-of-sample SRI trajectories around all 28 SSWs" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/strat/science_backtest.webp?v=202607282110" alt="Composite and case-study out-of-sample SRI trajectories around all 28 SSWs" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">Leave-one-winter-out validation &middot; ERA5/NCEP inputs 1974&ndash;2026</span></div>
     </div>
 
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Reliability: the probabilities are calibrated</h2>
+        <h2>Reliability: the probabilities are calibrated<span style="color:#2e7d6e;font-weight:600;letter-spacing:0.04em;font-size:0.72rem"> CONFIRMED</span></h2>
         <p>A 15% forecast verifies about 13% of the time; a 26% forecast about 28% &mdash;
         out of sample, across five decades. Days above 20% carry seven times the
         climatological risk. The one caveat is the rare &gt;35% bin, which runs
         overconfident (51% forecast, 27% observed): treat anything above ~35% as
         &ldquo;high alert&rdquo; rather than a precise number.</p>
       </div>
-      <div class="img-wrap"><img src="assets/strat/science_reliability.webp?v=20260728s1" alt="Reliability diagram: forecast probability vs observed event frequency with bin counts" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/strat/science_reliability.webp?v=202607282110" alt="Reliability diagram: forecast probability vs observed event frequency with bin counts" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">All NDJFM days 1974&ndash;2026, out-of-sample probabilities</span></div>
     </div>
 
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Who can see an SSW coming &mdash; and how far ahead</h2>
+        <h2>&ldquo;A weak vortex means an SSW is coming&rdquo;<span style="color:#a63d52;font-weight:600;letter-spacing:0.04em;font-size:0.72rem"> MYTH, BUSTED</span></h2>
         <p>The predictor ladder, by lead window. At 1&ndash;15 days the 10&nbsp;hPa wave-1
         amplitude is nearly a sufficient statistic &mdash; the displaced vortex has already
         integrated everything else &mdash; and the full model&rsquo;s value is calibration
         and robustness rather than raw discrimination. At 16&ndash;30 days the ensemble of
-        preconditioners genuinely beats any single input. Note the fate of the folklore
-        &ldquo;weak vortex&rdquo; rule: by weeks 3&ndash;4 it is <i>inverted</i> &mdash;
-        an already-disturbed vortex is transiently protected, not primed.</p>
+        preconditioners genuinely beats any single input. The folklore &ldquo;weak vortex&rdquo; rule is <i>inverted</i> for new events by
+        weeks 3&ndash;4 (a disturbed vortex is transiently protected) &mdash; yet the same
+        weak-vortex state is the <b>best</b> short-lead predictor of 100&nbsp;hPa
+        <i>gate openings</i> (AUC 0.76): upper-level damage doesn&rsquo;t make new
+        warmings, it makes <i>descent</i>. Same variable, opposite verdicts, depending
+        on what you ask it to predict.</p>
       </div>
-      <div class="img-wrap"><img src="assets/strat/science_ladder.webp?v=20260728s1" alt="AUC of major SSW predictors across lead windows" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/strat/science_ladder.webp?v=202607282110" alt="AUC of major SSW predictors across lead windows" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">Out-of-sample AUC, 52 winters &middot; SRI shown for its two fitted windows</span></div>
     </div>
 
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Two doors and a shield</h2>
+        <h2>&ldquo;Watch for Ural blocking&rdquo;<span style="color:#b8763d;font-weight:600;letter-spacing:0.04em;font-size:0.72rem"> REFINED</span></h2>
         <p>Sweeping 60&deg;-wide blocking sectors around the hemisphere against
         &ldquo;SSW within 16&ndash;45 days&rdquo; finds <b>two doors</b>: the canonical
         <b>Ural</b> sector (Cohen&nbsp;&amp;&nbsp;Jones 2011; Kretschmer et al. 2017) and a
@@ -411,14 +505,14 @@
         out-of-sample test against pre-1974 winters is in progress and this section will
         be updated with the verdict.</p>
       </div>
-      <div class="img-wrap"><img src="assets/strat/science_blocking.webp?v=20260728s1" alt="AUC by blocking longitude sector showing Ural and Labrador doors and the Pacific shield" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/strat/science_doors_maps.webp?v=20260728s1" alt="Composite 500 hPa anomaly maps for Ural door, Labrador door, and Pacific shield blocking days" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/strat/science_blocking.webp?v=202607282110" alt="AUC by blocking longitude sector showing Ural and Labrador doors and the Pacific shield" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/strat/science_doors_maps.webp?v=202607282110" alt="Composite 500 hPa anomaly maps for Ural door, Labrador door, and Pacific shield blocking days" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">45&ndash;70&deg;N blocking index by sector, ERA5 z500 1974&ndash;2023</span></div>
     </div>
 
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Two kinds of warning</h2>
+        <h2>&ldquo;Splits and displacements are one phenomenon&rdquo;<span style="color:#a63d52;font-weight:600;letter-spacing:0.04em;font-size:0.72rem"> MYTH, BUSTED</span></h2>
         <p><b>Displacement events announce themselves for weeks</b>: wave-1 amplitude and
         integrated heat flux ramp for 20&ndash;30 days before the reversal.
         <b>Split events strike in days</b>: the wave-2 heat-flux channel is silent until
@@ -429,7 +523,7 @@
         coefficient is <i>negative</i>: a wave-2 burst means imminent-or-never,
         never &ldquo;a month away.&rdquo;</p>
       </div>
-      <div class="img-wrap"><img src="assets/strat/science_regimes.webp?v=20260728s1" alt="Composite wave-1 amplitude and wave-2 heat flux for displacement versus split SSWs" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/strat/science_regimes.webp?v=202607282110" alt="Composite wave-1 amplitude and wave-2 heat flux for displacement versus split SSWs" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">Event composites, 28 majors 1974&ndash;2026 (6 split-type) &middot; the live SRI plume (per AIFS-ENS member) activates November&ndash;March</span></div>
     </div>
     </div>
