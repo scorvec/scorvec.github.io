@@ -321,7 +321,6 @@ perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_ti
     assets/sst/u850_analogs_anom.webp assets/sst/u850_analogs_abs.webp \
     assets/sst/mei/mei_nowcast.webp assets/sst/mei/mei_validation.webp \
     assets/sst/mei/mei_analogs.webp assets/sst/mei/mei_history.webp \
-    assets/strat stratosphere.html \
   ; do [ -e "$p" ] && git add "$p"; done \
   ; commit_push "MJO atmospheric products (eq-wind/SOI + AAM/torque/MMSF/Walker/jets + MEI.v2): ${COMPACT} (local)" )
 
