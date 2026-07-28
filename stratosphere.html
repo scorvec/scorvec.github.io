@@ -291,7 +291,9 @@
         sufficient for the surface cold-pattern (&minus;AO) that makes the stratosphere
         matter. What decides the impact is the <b>100&nbsp;hPa gate</b> &mdash; a
         sustained warm anomaly over the polar cap at the coupling level &mdash; and the
-        gate opens with or without the fireworks above it.</p>
+        gate opens with or without the fireworks above it. And the gate&rsquo;s real
+        power is not conjuring surface patterns from nothing &mdash; it is deciding
+        <b>which surface regimes persist</b> (next card).</p>
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin:1.4rem 0 0.4rem;">
           <div style="background:#e8eef5; padding:1rem 1.1rem;">
             <div style="font-family:Lora,Georgia,serif; font-size:1.9rem; color:#2c4a72;">40</div>
@@ -311,6 +313,56 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="chart-card" style="border-left: 4px solid #6d51b8;">
+      <div class="chart-card-header">
+        <p style="text-transform:uppercase; letter-spacing:0.12em; font-size:0.72rem; color:#6d51b8; font-weight:600; margin-bottom:0.5rem;">The mechanism</p>
+        <h2>The flywheel: the stratosphere decides which regimes persist<span style="color:#6d51b8;font-weight:600;letter-spacing:0.04em;font-size:0.72rem"> NEW</span></h2>
+        <p>An honest objection to the headline numbers: if polar-cap heights are
+        persistently high, isn&rsquo;t the AO usually <i>already</i> negative &mdash;
+        so isn&rsquo;t &ldquo;gate open &rarr; &minus;AO&rdquo; partly trivial? We
+        tested it, and the objection is half right: on days when the troposphere is
+        neutral (|AO|&nbsp;&lt;&nbsp;0.5), an open gate tilts the future AO only to
+        about &minus;0.34 (vs &minus;0.11 baseline). <b>The stratosphere rarely
+        initiates a surface regime from nothing.</b> What it does instead is
+        stronger, and it is the correct reading of every number on this page: given
+        the <i>same</i> &minus;AO state today, an open gate holds it at
+        <b>&minus;1.17</b> through days +10&ndash;25 while a shut gate lets it
+        evaporate to <b>&minus;0.13</b> &mdash; a full standard deviation of
+        weeks-2&ndash;4 outcome separating identical-looking surface states. The
+        mirror case is just as clean: a +AO over a cold, undisturbed vortex persists
+        at +1.02; a +AO under a warming gate collapses to &minus;0.04. The
+        mechanism is memory: the gate&rsquo;s autocorrelation at day&nbsp;20 is 0.56
+        against the AO&rsquo;s 0.25 &mdash; after the troposphere has forgotten its
+        own state, the lower stratosphere still remembers, and it hands that state
+        back down. (They are distinct variables: only 28% shared variance with the
+        concurrent AO, and the gate still predicts the future AO at partial
+        r&nbsp;=&nbsp;&minus;0.22 after controlling for the present one.)</p>
+        <p style="margin-top:0.7rem;">Today&rsquo;s AO is free, public information.
+        <b>Whether it will still be there in three weeks is the entire
+        weeks&nbsp;3&ndash;6 question &mdash; and that is the question the gate
+        answers.</b></p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/science_flywheel.webp?v=20260728f1" alt="Bar charts: future AO and NAO conditioned on current regime and gate state, plus autocorrelation curves showing the gate remembers 2-3 times longer than the AO" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">NDJF 1974&ndash;2026, NCEP z100 + CPC daily AO/NAO &middot; gate = 5-day polar-cap z100 anomaly (&sigma;)</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Winter 2025&ndash;26: the flywheel in real time<span style="color:#6d51b8;font-weight:600;letter-spacing:0.04em;font-size:0.72rem"> CASE STUDY</span></h2>
+        <p>Last winter ran the experiment three times. A November &minus;AO with the
+        gate below threshold (+0.8&sigma;) died in two weeks &mdash; the classic
+        troposphere-only event that fools pattern-watchers every year. Late December
+        brought a second attempt over a ~+1&sigma; gate that held on with brief
+        breaks. Then in mid-January the gate surged to +2&sigma; (peaking at
+        +3.4&sigma; on Jan&nbsp;21) and the resulting block &mdash; the one that
+        steered <b>Fern</b> &mdash; locked the AO at a mean of <b>&minus;2.7 for 28
+        consecutive days</b>. Same winter, same troposphere-initiates pattern,
+        three different fates &mdash; decided overhead.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/science_winter2526.webp?v=20260728f1" alt="Winter 2025-26 timeline of the AO and the 100 hPa gate with the three minus-AO episodes shaded" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">CPC daily AO &middot; NCEP z100 polar cap &middot; Nov 2025 &ndash; Mar 2026</span></div>
     </div>
 
     <div class="chart-card">
@@ -374,6 +426,33 @@
       </div>
       <div class="img-wrap"><img src="assets/strat/science_gate_verdict.webp?v=20260729s2" alt="Bar chart: AO outcomes for gate-open episodes without reversal, classic SSWs, and shut-gate majors" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">77 gate episodes + 28 CP07 majors, NCEP/ERA5 1974&ndash;2026 &middot; CPC daily AO</span></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>&ldquo;An SSW means &minus;NAO and a cold Europe&rdquo;<span style="color:#a63d52;font-weight:600;letter-spacing:0.04em;font-size:0.72rem"> MYTH, BUSTED</span></h2>
+        <p>The most-repeated stratosphere story of all &mdash; and across all 32 major
+        SSWs since 1958 the composite NAO response at days +10&ndash;30 is
+        <b>+0.06: nothing</b>. The NAO ends up negative after only <b>44% of
+        events</b>, worse than a coin flip, while the AO responds robustly
+        (&minus;1.08) over the same windows &mdash; even restricting to SSWs where
+        the 100&nbsp;hPa gate opened, the NAO composite is still flat. Yet the gate
+        predicts the <i>future</i> NAO almost as well as the future AO
+        (r&nbsp;=&nbsp;&minus;0.32 vs &minus;0.36). These two facts can only coexist
+        one way: <b>the stratosphere does not choose where the surface anomaly
+        lands.</b> The troposphere picks the sector, event by event &mdash;
+        sometimes the Atlantic dipole, sometimes Pacific/Arctic loading &mdash; so
+        the Atlantic-sector composite washes out even as the annular-mean response
+        stays robust. But once a &minus;NAO <i>already exists</i>, the flywheel rule
+        applies: gate open, it persists (&minus;0.39); gate shut, it dies (+0.04).
+        The folklore fails because it is an <i>initiation</i> claim; only the
+        <i>duration</i> claim survives. Every winter that &ldquo;confirmed&rdquo;
+        the myth was one where the Atlantic block was already in place when the
+        stratosphere delivered &mdash; and the 44% is what you get when you forget
+        the other half.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/strat/science_nao_myth.webp?v=20260728f1" alt="Composite AO vs NAO response after 32 major SSWs, and per-event NAO outcomes showing a coin flip" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">32 major SSWs 1958&ndash;2021 &middot; CPC daily AO + NAO (z500-loading indices)</span></div>
     </div>
 
     <div class="chart-card">
