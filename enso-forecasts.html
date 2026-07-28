@@ -159,7 +159,6 @@
     <a href="enso-analogs.html" class="">Analogs</a>
     <a href="enso-forecasts.html" class="active">Forecasts</a>
     <a href="enso-atmosphere.html" class="">Atmospheric Response</a>
-    <a href="stratosphere.html" class="">Stratosphere</a>
   </div>
 </header>
 <main>
@@ -570,11 +569,11 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=59912720cae5").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=71d5148e510c").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=59912720cae5").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=71d5148e510c").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=59912720cae5").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=71d5148e510c").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
