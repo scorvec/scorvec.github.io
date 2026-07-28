@@ -102,3 +102,9 @@ scripts/telecon/data/gwd_daily/
 scripts/telecon/data/merra2_gwd_events/
 scripts/telecon/data/outcomes/
 scripts/strat/data/
+
+# private research — kept local only (2026-07-28)
+stratosphere.html
+assets/strat/
+scripts/strat/
+scripts/telecon/
