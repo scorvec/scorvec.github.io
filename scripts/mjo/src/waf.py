@@ -118,14 +118,6 @@ def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Pat
     # the downstream flow amplifies over the following days; blue = emission.
     cf = ax.contourf(lon, lat, -divw * 1e6, levels=np.linspace(-vlim, vlim, 21),
                      cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
-    # ψ′ ridges/troughs in two tones so they never blend with coastlines:
-    # solid purple = positive (ridge), solid amber = negative (trough)
-    ax.contour(lon, lat, psi_a / 1e6, levels=[8, 16, 24],
-               colors="#5b3a8c", linewidths=[0.9, 1.2, 1.5],
-               transform=ccrs.PlateCarree())
-    ax.contour(lon, lat, psi_a / 1e6, levels=[-24, -16, -8],
-               colors="#c07a2e", linewidths=[1.5, 1.2, 0.9],
-               transform=ccrs.PlateCarree())
     if spd_fc is not None:
         # the REAL waveguide: the forecast's own 200 hPa jet at this lead
         ax.contour(spd_fc[2], spd_fc[1], spd_fc[0], levels=[25, 35, 45],
@@ -200,7 +192,7 @@ def main() -> int:
         old.unlink()
     sub = ("arrows = Takaya–Nakamura (2001) wave-activity flux (wave-packet group propagation) · "
            "shading = flux CONVERGENCE −∇·W at planetary scale (T15; red ⇒ downstream amplification ahead)\n"
-           "purple contours = 200 hPa ψ′ ridge, amber = trough (vs ERA5 1991–2020) · dark green = the FORECAST 200 hPa "
+           "dark green = the FORECAST 200 hPa "
            "jet (25/35/45 m/s — the real waveguide) · dotted green = climatological 30 m/s · masked equatorward "
            "of 20° / basic-state wind < 3 m/s")
     frames = []
