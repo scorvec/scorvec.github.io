@@ -1,13 +1,13 @@
 {
- "updated": "2026-07-31",
- "total_30d": 224,
+ "updated": "2026-08-01",
+ "total_30d": 226,
  "countries_30d": 6,
- "total_all": 224,
+ "total_all": 226,
  "countries_all": 6,
  "top_pages_30d": [
   {
    "path": "/",
-   "count": 57
+   "count": 58
   },
   {
    "path": "/sst.html",
@@ -22,12 +22,12 @@
    "count": 21
   },
   {
-   "path": "/enso-analogs.html",
+   "path": "/mjo.html",
    "count": 16
   },
   {
-   "path": "/mjo.html",
-   "count": 15
+   "path": "/enso-analogs.html",
+   "count": 16
   },
   {
    "path": "/enso-subsurface.html",
