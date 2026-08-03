@@ -1,8 +1,8 @@
 {
- "updated": "2026-08-02",
- "total_30d": 233,
+ "updated": "2026-08-03",
+ "total_30d": 236,
  "countries_30d": 7,
- "total_all": 233,
+ "total_all": 236,
  "countries_all": 7,
  "top_pages_30d": [
   {
@@ -23,15 +23,15 @@
   },
   {
    "path": "/mjo.html",
-   "count": 16
+   "count": 17
   },
   {
    "path": "/enso-analogs.html",
-   "count": 16
+   "count": 17
   },
   {
    "path": "/enso-subsurface.html",
-   "count": 13
+   "count": 14
   },
   {
    "path": "/tc.html",
