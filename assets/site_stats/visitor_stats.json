@@ -1,13 +1,13 @@
 {
- "updated": "2026-08-03",
- "total_30d": 236,
+ "updated": "2026-08-04",
+ "total_30d": 238,
  "countries_30d": 7,
- "total_all": 236,
+ "total_all": 238,
  "countries_all": 7,
  "top_pages_30d": [
   {
    "path": "/",
-   "count": 60
+   "count": 61
   },
   {
    "path": "/sst.html",
@@ -23,7 +23,7 @@
   },
   {
    "path": "/mjo.html",
-   "count": 17
+   "count": 18
   },
   {
    "path": "/enso-analogs.html",
