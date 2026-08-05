@@ -1,17 +1,17 @@
 {
- "updated": "2026-08-04",
- "total_30d": 238,
- "countries_30d": 7,
- "total_all": 238,
- "countries_all": 7,
+ "updated": "2026-08-05",
+ "total_30d": 244,
+ "countries_30d": 8,
+ "total_all": 244,
+ "countries_all": 8,
  "top_pages_30d": [
   {
    "path": "/",
-   "count": 61
+   "count": 63
   },
   {
    "path": "/sst.html",
-   "count": 34
+   "count": 35
   },
   {
    "path": "/asos5.html",
@@ -19,11 +19,11 @@
   },
   {
    "path": "/enso-atmosphere.html",
-   "count": 21
+   "count": 22
   },
   {
    "path": "/mjo.html",
-   "count": 18
+   "count": 19
   },
   {
    "path": "/enso-analogs.html",
@@ -43,7 +43,7 @@
   },
   {
    "path": "/resume.html",
-   "count": 6
+   "count": 7
   }
  ]
 }
