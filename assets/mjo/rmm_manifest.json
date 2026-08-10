@@ -1,1 +1,1 @@
-{"ver": 1786387756, "days": 1, "regions": {"mjo": {"label": "AIFS-ENS RMM \u2014 successive forecast runs", "n_frames": 1, "frames": [{"idx": 0, "file": "rmm_20260810_00z.png", "date": "2026-08-10", "label": "2026-08-10 00Z"}]}}}
+{"ver": 1786393739, "days": 2, "regions": {"mjo": {"label": "AIFS-ENS RMM \u2014 successive forecast runs", "n_frames": 2, "frames": [{"idx": 0, "file": "rmm_20260810_00z.png", "date": "2026-08-10", "label": "2026-08-10 00Z"}, {"idx": 1, "file": "rmm_20260810_12z.png", "date": "2026-08-10", "label": "2026-08-10 12Z"}]}}}
