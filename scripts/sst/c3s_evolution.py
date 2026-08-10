@@ -75,12 +75,22 @@ def cached_issues() -> list[str]:
 
 
 def summarize(ym: str, results: dict) -> dict:
-    """One store entry: model-weighted multi-model mean per lead, both indices."""
+    """One store entry: model-weighted multi-model mean per lead plus the
+    member-pooled P10/P90 envelope (same pooling as the plume's fan), both
+    indices."""
     labels = sorted(results)
-    n34, rn = [], []
-    for L in range(1, c3s.MAXLEAD + 1):
-        n34.append(round(float(np.mean([results[l][0]["n34"][L].mean() for l in labels])), 3))
-        rn.append(round(float(np.mean([results[l][0]["rnino"][L].mean() for l in labels])), 3))
+    out = {}
+    for key in ("n34", "rnino"):
+        mean, p10, p90 = [], [], []
+        for L in range(1, c3s.MAXLEAD + 1):
+            per_model = [results[l][0][key][L] for l in labels]
+            mean.append(round(float(np.mean([a.mean() for a in per_model])), 3))
+            pool = np.concatenate(per_model)
+            p10.append(round(float(np.percentile(pool, 10)), 3))
+            p90.append(round(float(np.percentile(pool, 90)), 3))
+        out[key] = mean
+        out[key + "_p10"] = p10
+        out[key + "_p90"] = p90
     start = pd.Timestamp(int(ym[:4]), int(ym[4:]), 1)
     return {
         "issue": f"{ym[:4]}-{ym[4:]}",
@@ -88,8 +98,7 @@ def summarize(ym: str, results: dict) -> dict:
                          for L in range(c3s.MAXLEAD)],
         "models": labels,
         "nmem": int(sum(results[l][0]["n34"][1].size for l in labels)),
-        "n34": n34,
-        "rnino": rn,
+        **out,
     }
 
 
