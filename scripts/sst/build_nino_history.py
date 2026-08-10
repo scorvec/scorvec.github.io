@@ -194,8 +194,44 @@ def main() -> int:
         "current": True,
     })
 
+    # ── provisional bridge months from our OISST daily feed ────────────────
+    # CPC's ERSSTv5 monthly file lags (July still absent on Aug 10) and the
+    # forecast chart then jumps last-ERSST-month → first-forecast-month. Our
+    # OISST daily anomalies use the SAME 1991-2020 base (oisst9120 rebase), so
+    # completed calendar months missing from ERSST are appended provisionally.
+    provisional_from = None
+    try:
+        efeed = json.loads((OUT.parent / "enso_daily.json").read_text())
+        daily = efeed["daily"]
+        ddates = [d[:7] for d in daily["dates"]]
+        import calendar as _cal
+        last_hist = months[-1]
+        DMAP = {("nino34", "anom"): "nino34", ("nino34", "abs"): "nino34_abs",
+                ("nino3", "anom"): "nino3",
+                ("nino4", "anom"): "nino4", ("nino4", "abs"): "nino4_abs"}
+        mon = efeed.get("monthly", {})
+        for m in sorted({x for x in ddates if x > last_hist}):
+            idx = [i for i, mm in enumerate(ddates) if mm == m]
+            y, mo = int(m[:4]), int(m[5:7])
+            if len(idx) < _cal.monthrange(y, mo)[1]:
+                continue                                   # incomplete month
+            months.append(m)
+            for k, sub in series.items():
+                for part in sub:
+                    val = None
+                    dk = DMAP.get((k, part))
+                    if dk and daily.get(dk):
+                        val = round(sum(daily[dk][i] for i in idx) / len(idx), 2)
+                    elif k in ("oni", "roni") and part == "anom" and                             m in mon.get("months", []):
+                        val = mon[k][mon["months"].index(m)]
+                    sub[part].append(val)
+            provisional_from = provisional_from or last_hist
+    except Exception as _e:                                # noqa: BLE001
+        print(f"  provisional bridge skipped: {_e}")
+
     out = {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "provisional_after": provisional_from,
         "source": "NOAA CPC ERSSTv5 monthly Niño indices, 1991–2020 base",
         "latest_month": months[-1],
         "metrics": {
