@@ -133,13 +133,23 @@ def build(mode):
     latest = {}
     for wmo, gid in STATIONS.items():
         if mode == "update":
-            url = IGRA + f"data-y2d/{gid}-data-beg{today.year - 1}.txt.zip"
+            # NCEI periodically rolls the y2d "beginning year" label (beg2025 ->
+            # beg2026 in mid-2026, deleting the old name) — try current year,
+            # then previous, then the full period-of-record file.
+            urls = [IGRA + f"data-y2d/{gid}-data-beg{y}.txt.zip"
+                    for y in (today.year, today.year - 1)]
+            urls.append(IGRA + f"data-por/{gid}-data.txt.zip")
         else:
-            url = IGRA + f"data-por/{gid}-data.txt.zip"
-        try:
-            acc = station_months(gid, url, y0)
-        except Exception as e:
-            print(f"  {wmo}: FAILED {e}", flush=True)
+            urls = [IGRA + f"data-por/{gid}-data.txt.zip"]
+        acc, err = None, None
+        for url in urls:
+            try:
+                acc = station_months(gid, url, y0)
+                break
+            except Exception as e:                            # noqa: BLE001
+                err = e
+        if acc is None:
+            print(f"  {wmo}: FAILED {err}", flush=True)
             continue
         means = {}
         for (y, m), levs in acc.items():
