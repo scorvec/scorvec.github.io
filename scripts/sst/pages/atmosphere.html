@@ -229,6 +229,34 @@
       disruption are early/late winter, when the jet sits inside the propagation range.
       The dashed magenta line above is exactly this criterion &mdash; $\bar{u} = U_c$ for wave-1 with the standard meridional scale &mdash; evaluated on the live flow.</p>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; control + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
+
+    <!-- WAVE-1 MONITOR -->
+    <div class="chart-card" id="wave1-monitor">
+      <div class="chart-card-header">
+        <h2>Stationary Wave-1: the Forcing Behind the Wave Driving</h2>
+        <p>The E&ndash;P flux above shows where planetary-wave activity is going; this shows
+        <b>how much of it there is, and whether it's amplifying</b>. Top: wavenumber-1
+        amplitude of geopotential height in the 55&ndash;65&deg; band at 500 / 100 /
+        10&nbsp;hPa through the 15-day forecast (wave-2 dashed) &mdash; the vortex-forcing
+        gauge. Below: the wave itself, as a longitude&ndash;height section per hemisphere
+        &mdash; a single sine wave per level, animated through the forecast.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/wave1_amp.webp?v=__CACHE__" alt="Wave-1 and wave-2 amplitude of geopotential height at 500, 100 and 10 hPa versus forecast day, both hemispheres" loading="lazy"></div>
+      <iframe class="anim-embed wave1-nh" style="aspect-ratio: 1323 / 736" src="sst_anim.html?embed=1&amp;manifest=wave1_nh_manifest.json&amp;region=wave1_nh"
+              title="Northern Hemisphere wave-1 longitude-height section through the AIFS-ENS forecast" loading="lazy"></iframe>
+      <iframe class="anim-embed wave1-sh" style="aspect-ratio: 1323 / 736" src="sst_anim.html?embed=1&amp;manifest=wave1_sh_manifest.json&amp;region=wave1_sh"
+              title="Southern Hemisphere wave-1 longitude-height section through the AIFS-ENS forecast" loading="lazy"></iframe>
+      <p class="note" style="margin-top:0.6rem"><b>How to read the sections:</b> amplitude
+      must grow with height like &rho;<sup>&minus;&frac12;</sup> for a propagating wave
+      (thinning air, conserved energy) &mdash; a wave-1 that's tens of metres at 500&nbsp;hPa
+      becomes hundreds at 10&nbsp;hPa. The <b>westward tilt of the phase lines with
+      height</b> is the visual signature of upward wave-activity flux (it is the poleward
+      eddy heat flux, the F<sub>p</sub> term in the E&ndash;P diagnostic): tilted =
+      pumping the stratosphere, upright = barotropic and trapped, sheared-off top = the
+      Charney&ndash;Drazin ceiling doing its work. Watch the winter hemisphere's wave
+      amplify, tilt, and penetrate &mdash; or collapse &mdash; through the forecast.</p>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; wavenumber-1/2 Fourier components of Z, 55&ndash;65&deg; cos-weighted band mean &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
+    </div>
     </div>
     </div>
 

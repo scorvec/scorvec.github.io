@@ -213,8 +213,10 @@ GRP_V200=$!
     --out "$REPO/assets/sst/mmsf_anom.webp" || echo "MMSF failed; continuing"
   "$PY" "$REPO/scripts/strat/build_strat_products.py" \
     || echo "Stratosphere products failed; continuing"
-  "$PY" "$REPO/scripts/strat/qbo_duct.py" \
-    || echo "QBO duct failed; continuing"
+  "$PY" "$REPO/scripts/strat/qbo_duct.py" --strip-only \
+    || echo "QBO strip failed; continuing"
+  "$PY" "$REPO/scripts/strat/wave1_monitor.py" \
+    || echo "wave-1 monitor failed; continuing"
   echo "group ANALYSIS done" ) &
 GRP_ANALYSIS=$!
 
@@ -232,6 +234,8 @@ wait "$GRP_SFC" 2>/dev/null   # torque reads data/u10 + data/msl (extracted by g
 MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (heavy) had issues; continuing"
 "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
   --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
+"$PY" "$REPO/scripts/strat/qbo_duct.py" --epflux-only \
+  || echo "E-P flux ensemble loop failed; continuing"
 "$PY" src/aam_zonal.py --date "$DATE" --time "$TIME" \
   --anim-dir "$REPO/assets/sst/anim/aam_zonal" \
   --manifest "$REPO/assets/sst/anim/aam_zonal_manifest.json" || echo "AAM zonal failed; continuing"
