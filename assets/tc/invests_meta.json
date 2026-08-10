@@ -1,1 +1,1 @@
-{"generated": "2026-08-07 06:51Z", "systems": []}
+{"generated": "2026-08-10 17:27Z", "systems": [{"id": "CP93", "name": "Invest", "file": "invests/invest_CP93.webp", "cycle": "2026080918", "designated": "20260808 12Z", "hours_tracked": 48, "cur_time": "20260810 12Z", "cur_lat": 10.6, "cur_lon": -141.2, "cur_vmax": 20, "cur_mslp": 1006, "cur_type": "disturbance", "peak_vmax": 20, "motion": "N at 0 kt"}]}
