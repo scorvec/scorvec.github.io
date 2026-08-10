@@ -133,7 +133,7 @@ def clim_psi(coeffs: xr.DataArray, doy: float) -> np.ndarray:
 
 def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
              psi_clim=None):
-    fig, ax = plt.subplots(figsize=(11.5, 4.9))
+    fig, ax = plt.subplots(figsize=(14.5, 5.1))
     levs = np.linspace(-vlim, vlim, 21)
     cf = ax.contourf(lon, p_hpa, psi, levels=levs, cmap="RdBu_r", extend="both")
     # absolute-cell contours at WALKER magnitudes (the cells run ±1-3 ×10¹⁰,
@@ -146,7 +146,7 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     clev = np.concatenate([-_steps[::-1], _steps])
     cs = ax.contour(lon, p_hpa, psi_abs, levels=clev, colors="k", linewidths=0.7)
     ax.clabel(cs, levels=[-3, -2, -1, -0.5, 0.5, 1, 2, 3], fmt="%g",
-              fontsize=6, inline=True)
+              fontsize=7.5, inline=True)
     ax.contour(lon, p_hpa, psi_abs, levels=[0], colors="k", linewidths=1.1)
     if psi_clim is not None:
         # Same sign convention as the black forecast lines (solid = positive,
@@ -174,18 +174,22 @@ def plot_psi(psi, p_hpa, lon, out: Path, title: str, vlim, psi_abs, pidx, pclim,
     # Africa/western-IO segment and the Atlantic add no Walker information
     ax.set_xlim(70, 300); ax.set_xticks(range(90, 301, 30))
     ax.set_xticklabels(["90°E", "120°E", "150°E", "180°", "150°W", "120°W", "90°W", "60°W"])
-    ax.set_xlabel("longitude"); ax.set_ylabel("pressure (hPa)")
+    ax.set_ylabel("pressure (hPa)", fontsize=11.5)   # x ticks are self-labelling
+    ax.tick_params(labelsize=11)
     for x, lab in ((120, "Maritime\nContinent"), (255, "E Pacific"), (293, "S America")):
-        ax.text(x, 118, lab, ha="center", va="top", fontsize=6.5, color="0.45", style="italic")
-    ax.set_title(title, fontsize=11.5, fontweight="bold")
+        ax.text(x, 118, lab, ha="center", va="top", fontsize=8.5, color="0.45", style="italic")
+    ax.set_title(title, fontsize=13.5, fontweight="bold")
     cb = fig.colorbar(cf, ax=ax, pad=0.015)
-    cb.set_label("Ψ_W anomaly  (10¹⁰ kg s⁻¹)", fontsize=9)
+    cb.set_label("Ψ_W anomaly  (10¹⁰ kg s⁻¹)", fontsize=10.5)
+    cb.ax.tick_params(labelsize=9.5)
     fig.text(0.5, 0.005,
              f"5°S–5°N divergent wind (χ, spherical harmonics) · colour = Ψ_W′ vs ERA5 1991–2020 · "
-             f"black = today\u2019s cells · green = climatological cells · dashed = negative (reversed) cell · arrows = vertical motion · "
+             f"black = today\u2019s cells · green = climatological cells\n"
+             f"dashed = negative (reversed) cell · arrows = vertical motion · "
              f"Pacific cell {pidx:+.1f} (clim {pclim:+.1f}) ×10¹⁰ kg/s — lower = weaker Walker",
-             ha="center", fontsize=8, color="0.35")
+             ha="center", fontsize=8.8, color="0.35")
     fig.tight_layout()
+    fig.subplots_adjust(bottom=0.155)   # reserve room for the 2-line footer (fig.text is invisible to tight_layout)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=110, bbox_inches="tight"); plt.close(fig)
 
@@ -211,9 +215,10 @@ def _stage_walker(jl, frame_id, out, psi_anom, psi_abs, psi_clim, p_hpa, lon,
                          zclim=psi_clim, ax=xs, ay=ys,
                          au=np.zeros_like(av), av=av),
              meta=dict(
-                 out_png="", figsize=[11.5, 4.9], title=title,
+                 out_png="", figsize=[14.5, 5.1], title=title,
                  footer=("5°S–5°N divergent wind (χ, spherical harmonics) · colour = Ψ_W′ vs ERA5 1991–2020 · "
-                         "black = today’s cells · green = climatological cells · dashed = negative (reversed) cell · arrows = vertical motion · "
+                         "black = today’s cells · green = climatological cells\n"
+                         "dashed = negative (reversed) cell · arrows = vertical motion · "
                          f"Pacific cell {pidx:+.1f} (clim {pclim:+.1f}) ×10¹⁰ kg/s — lower = weaker Walker"),
                  xlabel="longitude", ylabel="pressure (hPa)",
                  ylog=True, yreversed=True,
