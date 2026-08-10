@@ -204,17 +204,21 @@
   <div class="card">
     <h2>How the forecast has evolved</h2>
     <p class="note">One line per <b>monthly C3S issue</b> &mdash; the multi-model mean from
-    that month's outlook, oldest issues faded, the newest drawn gold. Watching the lines
-    stack up shows how the multi-model system converged on the event: how early the warming
-    was caught, whether successive issues kept raising the peak, and how the outlook for any
-    given target month firmed up as lead time shortened. The white line is what actually
-    happened. Issues are archived as they publish, so this chart deepens every month.</p>
+    that month's outlook, colour-ramped from indigo (oldest) through cyan to gold (newest),
+    each with its member <b>P10&ndash;P90 envelope</b> in the matching tint. Watching the
+    lines stack up shows how the multi-model system converged on the event &mdash; and the
+    envelopes show whether the ensemble <i>narrowed</i> as it shifted, or just slid its
+    whole distribution. Click an issue in the legend to toggle its line and envelope
+    together. The white line is what actually happened. Issues are archived as they
+    publish, so this chart deepens every month.</p>
     <div class="controls">
       <button class="pill on" data-eidx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
       <button class="pill" data-eidx="rnino">RONI</button>
       <span class="ctlsep">&middot;</span>
       <button class="pill on" data-esm="1">3-month (ONI convention)</button>
       <button class="pill" data-esm="0">Monthly</button>
+      <span class="ctlsep">&middot;</span>
+      <button class="pill on" data-esp="1" id="spreadPill">P10&ndash;P90 envelopes</button>
     </div>
     <div id="evoChart" class="plot" style="height:470px"></div>
     <div class="chart-card-footer">
@@ -405,10 +409,13 @@
   }
 
   // ── issue-by-issue evolution ─────────────────────────────────────────────
-  // colour ramp: oldest issue a faded slate, newest gold. t in [0,1].
+  // colour ramp with real hue separation: indigo → cyan → gold. t in [0,1].
   function evoColor(t, a) {
-    var c0 = [90, 112, 138], c1 = [232, 192, 77];
-    var c = c0.map(function (v, i) { return Math.round(v + (c1[i] - v) * t); });
+    var stops = [[121, 134, 203], [77, 214, 232], [232, 192, 77]];
+    var x = t * (stops.length - 1), i = Math.min(Math.floor(x), stops.length - 2),
+        f = x - i;
+    var c = stops[i].map(function (v, k) {
+      return Math.round(v + (stops[i + 1][k] - v) * f); });
     return "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + (a == null ? 1 : a) + ")";
   }
   function drawEvo() {
@@ -440,26 +447,40 @@
     var traces = [];
     issues.forEach(function (iss, i) {
       var t = issues.length === 1 ? 1 : i / (issues.length - 1);
-      var arr = iss[key].slice();
-      if (state.evoSmooth !== false) {
-        // ONI convention: bridge with the two observed months before lead 1
-        var bridge = [addMonths(iss.valid_months[0], -2), addMonths(iss.valid_months[0], -1)]
-          .map(function (m) { return obsAt[m]; })
-          .filter(function (v) { return v != null && isFinite(v); });
-        arr = roll3(bridge.concat(arr)).slice(bridge.length);
-      }
-      var yByX = {};
-      iss.valid_months.forEach(function (m, L) { yByX[m] = arr[L]; });
-      // connect to the observed value the month before, so lines don't float
-      var mPrev = addMonths(iss.valid_months[0], -1);
-      if (obsAt[mPrev] != null) yByX[mPrev] = obsAt[mPrev];
       var newest = i === issues.length - 1;
+      var colour = newest ? "#e8c04d" : evoColor(t);
+      // ONI convention: bridge with the two observed months before lead 1
+      var bridge = [addMonths(iss.valid_months[0], -2), addMonths(iss.valid_months[0], -1)]
+        .map(function (m) { return obsAt[m]; })
+        .filter(function (v) { return v != null && isFinite(v); });
+      function smoothed(arr) {
+        if (state.evoSmooth === false) return arr.slice();
+        return roll3(bridge.concat(arr)).slice(bridge.length);
+      }
+      var mPrev = addMonths(iss.valid_months[0], -1);
+      function toX(arr, connect) {
+        var yByX = {};
+        iss.valid_months.forEach(function (m, L) { yByX[m] = arr[L]; });
+        // connect to the observed value the month before, so lines don't float
+        if (connect && obsAt[mPrev] != null) yByX[mPrev] = obsAt[mPrev];
+        return x.map(function (m) { return m in yByX ? yByX[m] : null; });
+      }
+      // P10-P90 envelope, legendgrouped with the line so one click toggles both
+      if (state.evoSpread !== false && iss[key + "_p10"]) {
+        traces.push({ x: x, y: toX(smoothed(iss[key + "_p90"])), type: "scatter",
+                      mode: "lines", line: { width: 0 }, legendgroup: iss.issue,
+                      showlegend: false, hoverinfo: "skip", connectgaps: false });
+        traces.push({ x: x, y: toX(smoothed(iss[key + "_p10"])), type: "scatter",
+                      mode: "lines", line: { width: 0 }, fill: "tonexty",
+                      fillcolor: evoColor(t, newest ? 0.18 : 0.10),
+                      legendgroup: iss.issue, showlegend: false,
+                      hoverinfo: "skip", connectgaps: false });
+      }
       traces.push({
-        x: x, y: x.map(function (m) { return m in yByX ? yByX[m] : null; }),
+        x: x, y: toX(smoothed(iss[key]), true),
         type: "scatter", mode: "lines", connectgaps: false,
-        name: "issued " + iss.issue,
-        line: { color: newest ? "#e8c04d" : evoColor(t, 0.55 + 0.45 * t),
-                width: newest ? 3 : 1.3 + 1.2 * t },
+        name: "issued " + iss.issue, legendgroup: iss.issue,
+        line: { color: colour, width: newest ? 3.6 : 2.0 + 1.2 * t },
         hovertemplate: "%{y:+.2f} °C",
       });
     });
@@ -672,6 +693,13 @@
       if (state.evo) drawEvo();
     });
   });
+  document.querySelectorAll(".pill[data-esp]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.evoSpread = state.evoSpread === false;
+      b.classList.toggle("on", state.evoSpread !== false);
+      if (state.evo) drawEvo();
+    });
+  });
 
   document.querySelectorAll(".pill[data-hidx]").forEach(function (b) {
     b.addEventListener("click", function () {
@@ -683,13 +711,13 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=cd0d85bc8fe0").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=ddab018b5026").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=cd0d85bc8fe0").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=ddab018b5026").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=cd0d85bc8fe0").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=ddab018b5026").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=cd0d85bc8fe0").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=ddab018b5026").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
