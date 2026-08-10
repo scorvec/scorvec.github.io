@@ -1,21 +1,21 @@
 {
- "updated": "2026-08-09",
- "total_30d": 269,
+ "updated": "2026-08-10",
+ "total_30d": 272,
  "countries_30d": 8,
- "total_all": 269,
+ "total_all": 272,
  "countries_all": 8,
  "top_pages_30d": [
   {
    "path": "/",
-   "count": 69
+   "count": 70
   },
   {
    "path": "/sst.html",
-   "count": 41
+   "count": 42
   },
   {
    "path": "/asos5.html",
-   "count": 26
+   "count": 27
   },
   {
    "path": "/enso-atmosphere.html",
