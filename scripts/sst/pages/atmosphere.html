@@ -209,8 +209,25 @@
       the zonal-mean wind (sustained purple on the winter polar-night jet's flank is the
       engine of a sudden stratospheric warming, and the deceleration that pumps AAM out of
       the fast westerlies); orange = acceleration. Thin contours: zonal-mean wind every
-      10&nbsp;m&nbsp;s&#8315;&sup1;, with the u&nbsp;=&nbsp;0 critical line bold. Step
+      10&nbsp;m&nbsp;s&#8315;&sup1;, with the u&nbsp;=&nbsp;0 critical line bold. The <span style="color:#c2185b"><b>dashed magenta contour</b></span> is the wave-1 <b>Charney&ndash;Drazin ceiling</b>, $\bar{u} = U_c$: between it and the black u&nbsp;=&nbsp;0 line lies the corridor where wave-1 can propagate vertically. Where the ceiling sits low over the winter jet, wave activity is trapped beneath it and vents equatorward &mdash; watch it lift as the jet weakens toward spring, opening the vortex to attack from below. Step
       through the loop to watch the model move wave-driving episodes through the forecast.</p>
+      <p class="note" style="border-left:3px solid #c2185b; padding-left:0.8rem; margin-top:0.6rem">
+      <b>Charney&ndash;Drazin filtering, in brief:</b> planetary waves generated in the
+      troposphere (by mountains and land&ndash;sea heating contrasts) can propagate
+      <i>vertically</i> only through westerlies that are neither too weak nor too strong:
+      $0 < \bar{u} < U_c$, with the ceiling
+      $U_c = \beta\,[\,k^2 + l^2 + f^2/(4N^2H^2)\,]^{-1}$ shrinking as the wavenumber
+      grows. Three famous consequences follow. <b>Easterlies block everything</b> &mdash;
+      the summer stratosphere is wave-free and undisturbed. <b>Only the longest waves
+      (zonal wavenumbers 1&ndash;2) clear the ceiling</b> in winter westerlies &mdash; the
+      stratosphere sees planetary waves while the synoptic-scale weather is filtered out,
+      and sudden stratospheric warmings are always wave-1/2 events. And <b>a strong enough
+      jet blocks even wave-1</b> ($\bar{u} > U_c$): the midwinter Southern Hemisphere
+      polar-night jet exceeds the ceiling, so wave activity deposits its drag near the
+      tropopause and vents equatorward instead of reaching the vortex &mdash; which is why
+      major SH warmings are nearly nonexistent, and why the seasonal windows for vortex
+      disruption are early/late winter, when the jet sits inside the propagation range.
+      The dashed magenta line above is exactly this criterion &mdash; $\bar{u} = U_c$ for wave-1 with the standard meridional scale &mdash; evaluated on the live flow.</p>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; control + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
     </div>
     </div>
