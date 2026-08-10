@@ -123,9 +123,6 @@ def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Pat
         ax.contour(spd_fc[2], spd_fc[1], spd_fc[0], levels=[25, 35, 45],
                    colors="#1b5e20", linewidths=[0.8, 1.1, 1.5], alpha=0.85,
                    transform=ccrs.PlateCarree())
-    # climatological waveguide as a faint dotted reference
-    ax.contour(lon, lat, np.hypot(Uc, Vc), levels=[30], colors="#66bb6a",
-               linewidths=0.8, linestyles=":", alpha=0.8, transform=ccrs.PlateCarree())
     s = max(1, lat.size // 36)
     Wm = np.hypot(wx, wy)
     show = Wm > np.nanpercentile(Wm, 65)                  # hide the weak background flux
@@ -192,9 +189,8 @@ def main() -> int:
         old.unlink()
     sub = ("arrows = Takaya–Nakamura (2001) wave-activity flux, computed on the CLIMATOLOGICAL basic state "
            "(ψ′ = forecast − clim) · shading = −∇·W at planetary scale (T15; red ⇒ downstream amplification)\n"
-           "solid green = FORECAST 200 hPa jet (25/35/45 m/s) — the waveguide packets actually follow; where it "
-           "departs from the dotted climatological 30 m/s, trust the solid contours for the path · masked "
-           "equatorward of 20° / basic-state wind < 3 m/s")
+           "green = the forecast's own 200 hPa jet at this lead (25/35/45 m/s) — the waveguide the packets follow · "
+           "masked equatorward of 20° / basic-state wind < 3 m/s")
     frames = []
     for i, (valid, sh, psi_a, wx, wy, divw, Uc, Vc, spd_fc) in enumerate(fields):
         fp = anim / f"F{i:02d}.webp"
