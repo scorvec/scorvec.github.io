@@ -25,5 +25,10 @@
       "branch": "main",
       "max_age_hours": 48
     }
+  },
+  "deploy_checks": {
+    "pages.yml": {
+      "max_age_hours": 12
+    }
   }
 }
