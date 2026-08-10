@@ -190,11 +190,11 @@ def main() -> int:
     anim = Path(args.anim_dir); anim.mkdir(parents=True, exist_ok=True)
     for old in anim.glob("F*.webp"):
         old.unlink()
-    sub = ("arrows = Takaya–Nakamura (2001) wave-activity flux (wave-packet group propagation) · "
-           "shading = flux CONVERGENCE −∇·W at planetary scale (T15; red ⇒ downstream amplification ahead)\n"
-           "dark green = the FORECAST 200 hPa "
-           "jet (25/35/45 m/s — the real waveguide) · dotted green = climatological 30 m/s · masked equatorward "
-           "of 20° / basic-state wind < 3 m/s")
+    sub = ("arrows = Takaya–Nakamura (2001) wave-activity flux, computed on the CLIMATOLOGICAL basic state "
+           "(ψ′ = forecast − clim) · shading = −∇·W at planetary scale (T15; red ⇒ downstream amplification)\n"
+           "solid green = FORECAST 200 hPa jet (25/35/45 m/s) — the waveguide packets actually follow; where it "
+           "departs from the dotted climatological 30 m/s, trust the solid contours for the path · masked "
+           "equatorward of 20° / basic-state wind < 3 m/s")
     frames = []
     for i, (valid, sh, psi_a, wx, wy, divw, Uc, Vc, spd_fc) in enumerate(fields):
         fp = anim / f"F{i:02d}.webp"
