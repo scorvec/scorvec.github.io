@@ -1,5 +1,5 @@
 {
-  "_comment": "path -> {branch, max_age_hours}; checked daily by data-freshness.yml",
+  "_comment": "path -> {branch, max_age_hours}; checked daily by data-freshness.yml. Synoptic + wind/solar/power checks removed 2026-08-10: products deliberately retired 2026-07-24/25 (power -> private repo; HRRR viewer asleep).",
   "checks": {
     "manifest.json": {
       "branch": "skewt-data",
@@ -21,25 +21,9 @@
       "branch": "main",
       "max_age_hours": 48
     },
-    "assets/synoptic": {
-      "branch": "main",
-      "max_age_hours": 24
-    },
     "gatun": {
       "branch": "main",
       "max_age_hours": 48
-    },
-    "assets/wind_forecast_data": {
-      "branch": "main",
-      "max_age_hours": 36
-    },
-    "assets/solar_forecast_data": {
-      "branch": "main",
-      "max_age_hours": 36
-    },
-    "assets/power_data": {
-      "branch": "main",
-      "max_age_hours": 6
     }
   }
 }
