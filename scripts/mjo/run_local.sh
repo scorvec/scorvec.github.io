@@ -213,6 +213,8 @@ GRP_V200=$!
     --out "$REPO/assets/sst/mmsf_anom.webp" || echo "MMSF failed; continuing"
   "$PY" "$REPO/scripts/strat/build_strat_products.py" \
     || echo "Stratosphere products failed; continuing"
+  "$PY" "$REPO/scripts/strat/qbo_duct.py" \
+    || echo "QBO duct failed; continuing"
   echo "group ANALYSIS done" ) &
 GRP_ANALYSIS=$!
 
