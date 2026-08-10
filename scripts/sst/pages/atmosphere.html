@@ -186,6 +186,33 @@
       <div class="img-wrap"><img src="assets/sst/torque_seasonal.webp?v=__CACHE__" alt="Seasonal cycle of the three AAM surface-torque terms (friction, mountain, GWD) by latitude, ERA5 1991-2020" loading="lazy"></div>
       <div class="img-wrap"><img src="assets/sst/torque_seasonal_ts.webp?v=__CACHE__" alt="Seasonal cycle of the integrated AAM torque terms (friction, mountain, GWD, sum) for Global/NH/SH, ERA5 1991-2020" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS surface pressure (open data, CC BY 4.0) &middot; ERA5 orography + 1991–2020 torque climatology (Copernicus C3S, seasonal-cycle panel) &middot; daily means &middot; updated daily</span></div>
+
+    <!-- E-P FLUX & WAVE DRIVING -->
+    <div class="chart-card" id="ep-flux">
+      <div class="chart-card-header">
+        <h2>E&ndash;P Flux &amp; Wave Driving: the Force Behind the Momentum Budget</h2>
+        <p>Where the torque budget shows how the Earth exchanges angular momentum with the
+        atmosphere at the surface, the <b>Eliassen&ndash;Palm flux</b> shows how the waves
+        redistribute it internally &mdash; the same quasi-geostrophic diagnostic used to
+        diagnose sudden stratospheric warmings, computed live from AIFS-ENS and stepped
+        through the full 15-day forecast.</p>
+      </div>
+      <iframe class="anim-embed epflux" src="sst_anim.html?embed=1&amp;manifest=epflux_manifest.json&amp;region=epflux"
+              title="E-P flux and flux-divergence animation over the AIFS-ENS forecast" loading="lazy"></iframe>
+      <p class="note" style="margin-top:0.6rem"><b>How to read it:</b> arrows are the
+      E&ndash;P flux of planetary waves (zonal wavenumbers 1&ndash;3) &mdash;
+      F<sub>&phi;</sub> from the momentum flux [u&prime;v&prime;], F<sub>p</sub> from the
+      heat flux [v&prime;&theta;&prime;] &mdash; pointing along the wave packets' group
+      velocity: <b>up</b> = wave activity climbing into the stratosphere, <b>equatorward</b>
+      = venting toward the tropics. Shading is the flux <b>divergence as a zonal force</b>:
+      <span style="color:#5e35b1"><b>purple = convergence = wave drag</b></span> decelerating
+      the zonal-mean wind (sustained purple on the winter polar-night jet's flank is the
+      engine of a sudden stratospheric warming, and the deceleration that pumps AAM out of
+      the fast westerlies); orange = acceleration. Thin contours: zonal-mean wind every
+      10&nbsp;m&nbsp;s&#8315;&sup1;, with the u&nbsp;=&nbsp;0 critical line bold. Step
+      through the loop to watch the model move wave-driving episodes through the forecast.</p>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
+    </div>
     </div>
 
     <!-- AAM ZONAL ANATOMY (where the AAM lives & where it changes) -->
