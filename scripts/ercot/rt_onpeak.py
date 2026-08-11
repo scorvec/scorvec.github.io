@@ -94,6 +94,11 @@ def parse_year(yr: int, force: bool = False) -> pd.DataFrame | None:
         if not all((spn, spp, dd, dh)):
             continue
         sub = df[df[spn].isin(HUBS)]
+        spt = next((cols[k] for k in cols if "settlement point type" in k), None)
+        if spt is not None:
+            # LZ_WEST is listed twice per interval (LZ + energy-weighted LZEW,
+            # numerically identical) — keep one
+            sub = sub[~sub[spt].astype(str).str.contains("EW", na=False)]
         if not len(sub):
             continue
         rows.append(pd.DataFrame({
@@ -277,8 +282,8 @@ def chart(d):
                          "250", "1,000"])
     ax2.minorticks_off()
     ax2.set_ylabel("spread ($/MWh, symlog)", fontsize=10)
-    ax2.set_title("West basis vs North — the load zone carries the story: wind "
-                  "congestion, the CREZ collapse, and the Permian-era pocket",
+    ax2.set_title("West basis vs North — oil-boom premium (2012–14), the CREZ "
+                  "collapse, and the modern Permian pocket (load-zone view)",
                   fontsize=11.5, fontweight="bold", loc="left")
     ax2.grid(alpha=0.3, lw=0.4, which="major")
     ax2.legend(fontsize=8, loc="upper right", ncols=2)
