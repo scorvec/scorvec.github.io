@@ -243,7 +243,7 @@
     even where its long-range skill is noise. Tercile probabilities come from weighted
     member counting against ERA5 terciles &mdash; no Gaussian assumptions. December and
     January from the August issue; February joins with the September issue.</p>
-    <div class="img-wrap"><img src="assets/sst/c3s_winter_t2m.webp?v=0cde453e6b43" alt="Winter 2m temperature outlook: anomalies vs 1991-2020 and vs 2016-2025, and tercile probabilities, December and January" loading="lazy"></div>
+    <div class="img-wrap"><img src="assets/sst/c3s_winter_t2m.webp?v=4d9629bcaaa8" alt="Winter 2m temperature outlook: anomalies vs 1991-2020 and vs 2016-2025, and tercile probabilities, December and January" loading="lazy"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">C3S seasonal multi-system (CDS), t2m, North America 1&deg; &middot; anomalies vs each model's own 1993&ndash;2016 hindcast, re-based via ERA5 &middot; weights &prop; 1/CRPS&sup2; per (model, lead) from 24-yr hindcast verification &middot; refreshed each monthly issue</span>
     </div>
@@ -261,7 +261,7 @@
     &mdash; blockbuster months) <i>enhanced</i> along the subtropical-jet storm track
     from the southern Plains through the Midwest into the Northeast, where a
     moisture-loaded jet meets still-cold air. Fewer snow months, bigger blockbusters.</p>
-    <div class="img-wrap"><img src="assets/sst/c3s_winter_snow.webp?v=0cde453e6b43" alt="Probability of exceeding hindcast p90, p95, p99 monthly snowfall, December and January" loading="lazy"></div>
+    <div class="img-wrap"><img src="assets/sst/c3s_winter_snow.webp?v=4d9629bcaaa8" alt="Probability of exceeding hindcast p90, p95, p99 monthly snowfall, December and January" loading="lazy"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">C3S seasonal multi-system (CDS), snowfall, North America 1&deg; &middot; percentile thresholds from each model's 1993&ndash;2016 hindcast (member &times; year pooled) &middot; ECMWF, UKMO, M&eacute;t&eacute;o-France, DWD, ECCC &times;2 &middot; refreshed each monthly issue</span>
     </div>
@@ -285,7 +285,7 @@
     cold-outbreak gun is exactly the strong-Ni&ntilde;o precedent (Feb&nbsp;2021 was a
     La&nbsp;Ni&ntilde;a, but Jan&nbsp;2010 and Dec&nbsp;2015's southern outbreaks were
     not).</p>
-    <div class="img-wrap"><img src="assets/sst/c3s_winter_coldspell.webp?v=0cde453e6b43" alt="Probability of 5 or more consecutive days below normal minus 1 and 2 sigma, from daily C3S ensemble members, versus the ERA5 base rate" loading="lazy"></div>
+    <div class="img-wrap"><img src="assets/sst/c3s_winter_coldspell.webp?v=4d9629bcaaa8" alt="Probability of 5 or more consecutive days below normal minus 1 and 2 sigma, from daily C3S ensemble members, versus the ERA5 base rate" loading="lazy"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">C3S seasonal-original daily members (CDS) &middot; per-lead-day drift correction from each model's own 24-yr daily hindcast (&plusmn;7&nbsp;d, member&times;year pooled) &middot; normal &amp; &sigma;: ERA5 1991&ndash;2020 (&plusmn;7&nbsp;d) &middot; base rate: same test on the 30 observed winters &middot; refreshed each monthly issue</span>
     </div>
@@ -303,9 +303,33 @@
     Uri-class &ge;5-day run, and <b>23%</b> for at least one hard-freeze day &mdash;
     consistent with the cold-spell map: the one region where this warm winter's tail
     risk is fat.</p>
-    <div class="img-wrap"><img src="assets/sst/c3s_permian_freeze.webp?v=0cde453e6b43" alt="Probability of multi-day sub-freezing spells and hard-freeze days over the Permian basin and Texas, December to February" loading="lazy"></div>
+    <div class="img-wrap"><img src="assets/sst/c3s_permian_freeze.webp?v=4d9629bcaaa8" alt="Probability of multi-day sub-freezing spells and hard-freeze days over the Permian basin and Texas, December to February" loading="lazy"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">C3S seasonal-original daily members, bias-corrected to absolute &deg;C via own-model daily hindcast + ERA5 reference &middot; Dec&ndash;Feb window &middot; 91 members &middot; refreshed each monthly issue</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Does the cold-spell product actually work? A 24-winter backtest</h2>
+    <p class="note">Before trusting the maps above, the same machinery was run on the 24
+    hindcast winters (1993/94&ndash;2016/17, August issues &mdash; the same issue month),
+    <b>leave-one-out</b>: each winter is scored against a climatology built from the other
+    23 years, so no winter ever grades its own homework, and truth is the identical spell
+    test on ERA5. Three findings. <b>The pattern is skillful:</b> multi-model median Brier
+    skill +0.13 over climatology with 84% of the scored area positive &mdash; and combining
+    the three models beats each alone (+0.09&ndash;0.11). <b>The probabilities mean what
+    they say:</b> the reliability curve tracks the diagonal from 5% to 75% &mdash; when the
+    product says 40%, it happens about 40% of the time. <b>But respect the gridpoint
+    limit:</b> at Midland specifically, year-to-year discrimination of &ge;3-day freezes
+    is absent (BSS &minus;0.17; the members hover near the 33% base rate every winter),
+    and <i>no</i> hindcast winter produced a &ge;5-day Uri-class run there &mdash; the
+    live 20% is a genuine tail with no in-sample precedent. Read the regional pattern,
+    which verifies; treat any single gridpoint's number as climatology-plus-pattern, not
+    a point forecast. Hindcast ensembles are half the real-time size, so these scores
+    understate the operational product.</p>
+    <div class="img-wrap"><img src="assets/sst/c3s_coldspell_backtest.webp?v=4d9629bcaaa8" alt="Backtest of the cold-spell product: Brier skill maps per model, reliability diagram, and Midland freeze hit table over 24 hindcast winters" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">Same daily hindcasts as the drift climatologies, leave-one-out &middot; truth: ERA5 vs its 1991&ndash;2020 daily normal &middot; BSS vs leave-one-out base rate, masked where &lt;2 or &gt;22 event winters</span>
     </div>
   </div>
 
@@ -793,13 +817,13 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=0cde453e6b43").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=4d9629bcaaa8").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=0cde453e6b43").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=4d9629bcaaa8").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=0cde453e6b43").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=4d9629bcaaa8").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=0cde453e6b43").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=4d9629bcaaa8").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];

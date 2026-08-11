@@ -146,6 +146,30 @@
     </div>
   </div>
 
+  <div class="card">
+    <h2>Does the cold-spell product actually work? A 24-winter backtest</h2>
+    <p class="note">Before trusting the maps above, the same machinery was run on the 24
+    hindcast winters (1993/94&ndash;2016/17, August issues &mdash; the same issue month),
+    <b>leave-one-out</b>: each winter is scored against a climatology built from the other
+    23 years, so no winter ever grades its own homework, and truth is the identical spell
+    test on ERA5. Three findings. <b>The pattern is skillful:</b> multi-model median Brier
+    skill +0.13 over climatology with 84% of the scored area positive &mdash; and combining
+    the three models beats each alone (+0.09&ndash;0.11). <b>The probabilities mean what
+    they say:</b> the reliability curve tracks the diagonal from 5% to 75% &mdash; when the
+    product says 40%, it happens about 40% of the time. <b>But respect the gridpoint
+    limit:</b> at Midland specifically, year-to-year discrimination of &ge;3-day freezes
+    is absent (BSS &minus;0.17; the members hover near the 33% base rate every winter),
+    and <i>no</i> hindcast winter produced a &ge;5-day Uri-class run there &mdash; the
+    live 20% is a genuine tail with no in-sample precedent. Read the regional pattern,
+    which verifies; treat any single gridpoint's number as climatology-plus-pattern, not
+    a point forecast. Hindcast ensembles are half the real-time size, so these scores
+    understate the operational product.</p>
+    <div class="img-wrap"><img src="assets/sst/c3s_coldspell_backtest.webp?v=__CACHE__" alt="Backtest of the cold-spell product: Brier skill maps per model, reliability diagram, and Midland freeze hit table over 24 hindcast winters" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">Same daily hindcasts as the drift climatologies, leave-one-out &middot; truth: ERA5 vs its 1991&ndash;2020 daily normal &middot; BSS vs leave-one-out base rate, masked where &lt;2 or &gt;22 event winters</span>
+    </div>
+  </div>
+
   <!-- ── HISTORY: THE FORECAST IN CONTEXT ──────────────────────────────── -->
   <div class="card">
     <h2>Against every ENSO year since 1970</h2>

@@ -3,40 +3,14 @@
 
 The Dunkelflaute question at seasonal range: is the winter tilted toward
 low-wind and low-solar months over Texas and the rest of North America?
-P(below own-hindcast tercile) per gridpoint for 10 m wind speed and downward
-solar radiation, member-counted, model-averaged. (Day-level compound
-Dunkelflaute risk — calm AND dark AND cold days — comes from the daily-member
-product beside the cold-spell maps.)
+P(below own-hindcast lower tercile) per gridpoint for 10 m wind speed and
+downward solar radiation, member-counted, model-averaged — thresholds are each
+model's OWN 1993-2016 hindcast terciles per valid month and gridpoint, so no
+observational re-basing is needed and no distribution is assumed; neutral is
+33%. (Day-level compound Dunkelflaute risk — calm AND dark AND cold days —
+comes from the daily-member product beside the cold-spell maps.)
 
 Caveat: 10 m wind, not hub height — a risk index, not a capacity factor.
-
-Extreme-snowfall risk maps for the systems that publish snowfall on the CDS.
-Thresholds are each model's OWN hindcast percentiles (1993-2016, per valid
-
-    python c3s_renewables.py --fetch --issue 202608
-    python c3s_renewables.py --issue 202608
-"""C3S winter renewables risk — wind & solar below-normal probability.
-
-The Dunkelflaute question at seasonal range: is the winter tilted toward
-low-wind and low-solar months over Texas and the rest of North America?
-P(below own-hindcast tercile) per gridpoint for 10 m wind speed and downward
-solar radiation, member-counted, model-averaged. (Day-level compound
-Dunkelflaute risk — calm AND dark AND cold days — comes from the daily-member
-product beside the cold-spell maps.)
-
-Caveat: 10 m wind, not hub height — a risk index, not a capacity factor.
-
-Extreme-snowfall risk maps for the systems that publish snowfall on the CDS.
-Thresholds are each model's OWN hindcast percentiles (1993-2016, per valid
-calendar month, per gridpoint, all members x years pooled) — model-consistent
-by construction, so no observational re-basing is needed and no distribution
-is assumed. The forecast risk is the member fraction exceeding the threshold,
-averaged across available models; climatological neutral is 10 / 5 / 1 %.
-
-Caveat printed on the figure: percentiles are of the 1993-2016 model climate —
-in a warming winter climate the observed frequency of "p90 snow months" has
-drifted; read the maps as risk relative to that reference, and lean on the
-ratio-to-neutral rather than absolute numbers.
 
     python c3s_renewables.py --fetch --issue 202608
     python c3s_renewables.py --issue 202608
@@ -96,10 +70,10 @@ def _retrieve_ren(centre, system, years, month, variable, dest: Path) -> bool:
         except Exception as e:                            # noqa: BLE001
             msg = str(e).replace("\n", " ")
             if "400" in msg or "no data" in msg.lower():
-                print(f"    {centre}/{system}: snowfall not published — skipping",
+                print(f"    {centre}/{system}: {variable} not published — skipping",
                       file=sys.stderr)
                 return False
-            print(f"    {centre}/{system} snow: attempt {attempt+1} failed "
+            print(f"    {centre}/{system} {variable}: attempt {attempt+1} failed "
                   f"({msg[:90]})", file=sys.stderr)
             time.sleep(8)
     return False
@@ -108,12 +82,13 @@ def _retrieve_ren(centre, system, years, month, variable, dest: Path) -> bool:
 def fetch(issue: str) -> None:
     month = issue[4:]
     for centre, system, label, _c in c3s.MODELS:
-        fc = DATA / f"fc_{centre}_{system}_{issue}.grib"
-        if not _retrieve_snow(centre, system, [issue[:4]], month, fc):
-            continue
-        print(f"{label}: snowfall forecast ✓; hindcast (24 yrs) …", flush=True)
-        _retrieve_snow(centre, system, HC_YEARS, month,
-                       DATA / f"hc_{centre}_{system}_{month}.grib")
+        for var, short in FIELDS.items():
+            fc = DATA / f"fc_{short}_{centre}_{system}_{issue}.grib"
+            if not _retrieve_ren(centre, system, [issue[:4]], month, var, fc):
+                continue
+            print(f"{label} {short}: forecast ✓; hindcast (24 yrs) …", flush=True)
+            _retrieve_ren(centre, system, HC_YEARS, month, var,
+                          DATA / f"hc_{short}_{centre}_{system}_{month}.grib")
 
 
 def build(issue: str):
