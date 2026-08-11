@@ -71,11 +71,11 @@
   the arcsinh/symlog axis, linear through zero and logarithmic in the tails.</p>
   <div class="chart-card">
     <div id="ercotChart" style="height:520px"></div>
-    <div class="chart-card-footer">Interactive &middot; drag to zoom, double-click to reset, buttons for ranges &middot; arcsinh axis: linear through zero (the solar-era negative days are real), logarithmic where the scarcity tail lives</div>
+    <div class="chart-card-footer">Interactive &middot; drag to zoom, double-click to reset, buttons for ranges &middot; arcsinh axis: linear through zero (the solar-era negative days are real), logarithmic where the scarcity tail lives &middot; the 30-day mean is what a month actually settles at &mdash; during Feb 2021 it reaches ~$1,500 &middot; on the spread chart Uri is deliberately flat: with every hub pinned at the cap, inter-hub basis collapses to zero</div>
   </div>
   <div class="chart-card">
     <div id="spreadChart" style="height:460px"></div>
-    <div class="chart-card-footer">Hub basis vs North &middot; the West story: the early-2010s wind discount (pre-CREZ congestion), its collapse when the CREZ lines energized (2014), and the renewables-era regime of two-sided basis — solar/wind-driven West discounts trading off against Permian-load premium spells &middot; 30-day means for all three spreads, daily West&minus;North behind</div>
+    <div class="chart-card-footer">West basis vs North &middot; the load zone (LZ_WEST) carries the story where the hub average mutes it: the early-2010s wind discount (pre-CREZ congestion), its collapse when the CREZ lines energized (2014), and the renewables-era regime of two-sided basis — solar/wind-driven West discounts trading off against Permian-load premium spells &middot; 30-day means for all three spreads, daily West&minus;North behind</div>
   </div>
   <div class="chart-card">
     <div id="hrChart" style="height:440px"></div>
@@ -108,7 +108,7 @@
     fetch("assets/ercot/rt_onpeak.json").then(function (r) { return r.json(); })
       .then(function (d) {
         var y = d.north.map(tr);
-        var ym = d.median30.map(function (v) { return v === null ? null : tr(v); });
+        var ym = d.mean30.map(function (v) { return v === null ? null : tr(v); });
         var ann = events.map(function (ev) {
           var i0 = d.dates.indexOf(ev[0]), best = i0, j;
           if (i0 < 0) { for (j = 0; j < d.dates.length; j++)
@@ -125,12 +125,12 @@
             name: "daily on-peak (HB_NORTH)",
             line: { color: "#2e5d9e", width: 0.7 },
             hovertemplate: "%{x|%a %b %d %Y} \u00b7 $%{customdata:,.2f}<extra></extra>" },
-          { x: d.dates, y: ym, customdata: d.median30, mode: "lines",
-            name: "30-day rolling median",
+          { x: d.dates, y: ym, customdata: d.mean30, mode: "lines",
+            name: "30-day rolling mean",
             line: { color: "#c62828", width: 2 },
-            hovertemplate: "median $%{customdata:,.2f}<extra></extra>" }
+            hovertemplate: "mean $%{customdata:,.2f}<extra></extra>" }
         ], {
-          margin: { l: 58, r: 16, t: 30, b: 40 },
+          margin: { l: 58, r: 16, t: 56, b: 40 },
           paper_bgcolor: "#fff", plot_bgcolor: "#fff",
           font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
           yaxis: { tickvals: tickv.map(tr), ticktext: tickt,
@@ -142,6 +142,7 @@
                      { count: 1, label: "1y", step: "year", stepmode: "backward" },
                      { count: 5, label: "5y", step: "year", stepmode: "backward" },
                      { step: "all", label: "all" }],
+                     x: 1, xanchor: "right", y: 1.14, yanchor: "top",
                      font: { size: 11 } } },
           legend: { orientation: "h", x: 0, y: 1.08, font: { size: 11 } },
           annotations: ann,
@@ -158,11 +159,11 @@
               line: { color: "#5e35b1", width: 0.7 },
               hovertemplate: "%{x|%a %b %d %Y} \u00b7 %{customdata:,.1f} MMBtu/MWh<extra></extra>" },
             { x: d.dates, y: d.hr_m30.map(tr3), customdata: d.hr_m30,
-              mode: "lines", name: "30-day rolling median",
+              mode: "lines", name: "30-day rolling mean",
               line: { color: "#c62828", width: 2 },
-              hovertemplate: "median %{customdata:,.1f}<extra></extra>" }
+              hovertemplate: "mean %{customdata:,.1f}<extra></extra>" }
           ], {
-            margin: { l: 58, r: 16, t: 30, b: 40 },
+            margin: { l: 58, r: 16, t: 56, b: 40 },
             paper_bgcolor: "#fff", plot_bgcolor: "#fff",
             font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
             yaxis: { tickvals: tickv3.map(function (v) { return Math.asinh(v / S3); }),
@@ -175,7 +176,9 @@
                      rangeselector: { buttons: [
                        { count: 1, label: "1y", step: "year", stepmode: "backward" },
                        { count: 5, label: "5y", step: "year", stepmode: "backward" },
-                       { step: "all", label: "all" }], font: { size: 11 } } },
+                       { step: "all", label: "all" }],
+                       x: 1, xanchor: "right", y: 1.14, yanchor: "top",
+                       font: { size: 11 } } },
             shapes: [{ type: "rect", xref: "paper", x0: 0, x1: 1,
                        y0: Math.asinh(6.5 / S3), y1: Math.asinh(10.5 / S3),
                        fillcolor: "#e0ddd6", opacity: 0.45, line: { width: 0 },
@@ -195,7 +198,7 @@
               line: { color: "#4e342e", width: 1.8, shape: "hv" },
               hovertemplate: "%{x|%b %Y} \u00b7 $%{y:,.2f}/MMBtu<extra>coal</extra>" }
           ], {
-            margin: { l: 58, r: 16, t: 30, b: 40 },
+            margin: { l: 58, r: 16, t: 56, b: 40 },
             paper_bgcolor: "#fff", plot_bgcolor: "#fff",
             font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
             yaxis: { type: "log", tickvals: [1, 2, 3, 5, 7, 10, 15, 25],
@@ -206,7 +209,9 @@
                      rangeselector: { buttons: [
                        { count: 1, label: "1y", step: "year", stepmode: "backward" },
                        { count: 5, label: "5y", step: "year", stepmode: "backward" },
-                       { step: "all", label: "all" }], font: { size: 11 } } },
+                       { step: "all", label: "all" }],
+                       x: 1, xanchor: "right", y: 1.14, yanchor: "top",
+                       font: { size: 11 } } },
             legend: { orientation: "h", x: 0, y: 1.09, font: { size: 11 } },
             hovermode: "x unified"
           }, { displaylogo: false, responsive: true,
@@ -215,21 +220,27 @@
 
         if (d.west) {
           var S2 = 5, tr2 = function (v) { return v === null ? null : Math.asinh(v / S2); };
-          var wn = d.west.map(function (v, i) {
-            return (v === null || d.north[i] === null) ? null
-                   : Math.round((v - d.north[i]) * 100) / 100; });
+          var wn = (d.lzwest || d.west).map(function (v, i) {
+            var base = d.lzwest || d.west;
+            return (base[i] === null || d.north[i] === null) ? null
+                   : Math.round((base[i] - d.north[i]) * 100) / 100; });
           var tickv2 = [-1000, -250, -50, -10, 0, 10, 50, 250, 1000];
           var tickt2 = ["\u22121,000", "\u2212250", "\u221250", "\u221210",
                         "0", "10", "50", "250", "1,000"];
           Plotly.newPlot("spreadChart", [
             { x: d.dates, y: wn.map(tr2), customdata: wn, mode: "lines",
-              name: "West \u2212 North daily",
+              name: "LZ_WEST \u2212 North daily",
               line: { color: "#b8860b", width: 0.6 }, opacity: 0.4,
-              hovertemplate: "%{x|%a %b %d %Y} \u00b7 $%{customdata:,.2f}<extra>W\u2212N</extra>" },
+              hovertemplate: "%{x|%a %b %d %Y} \u00b7 $%{customdata:,.2f}<extra>LZW\u2212N</extra>" },
+            { x: d.dates, y: (d.lzn_m30 || d.wn_m30).map(tr2),
+              customdata: (d.lzn_m30 || d.wn_m30),
+              mode: "lines", name: "LZ_WEST \u2212 North \u00b7 30-d mean",
+              line: { color: "#b8860b", width: 2.2 },
+              hovertemplate: "$%{customdata:,.2f}<extra>LZW\u2212N 30d</extra>" },
             { x: d.dates, y: d.wn_m30.map(tr2), customdata: d.wn_m30,
-              mode: "lines", name: "West \u2212 North \u00b7 30-d mean",
-              line: { color: "#b8860b", width: 2 },
-              hovertemplate: "$%{customdata:,.2f}<extra>W\u2212N 30d</extra>" },
+              mode: "lines", name: "HB_WEST \u2212 North \u00b7 30-d mean",
+              line: { color: "#8d6e63", width: 1.4 },
+              hovertemplate: "$%{customdata:,.2f}<extra>HBW\u2212N 30d</extra>" },
             { x: d.dates, y: d.hn_m30.map(tr2), customdata: d.hn_m30,
               mode: "lines", name: "Houston \u2212 North \u00b7 30-d mean",
               line: { color: "#00796b", width: 1.7 },
@@ -239,7 +250,7 @@
               line: { color: "#6a4fa3", width: 1.7 },
               hovertemplate: "$%{customdata:,.2f}<extra>S\u2212N 30d</extra>" }
           ], {
-            margin: { l: 58, r: 16, t: 30, b: 40 },
+            margin: { l: 58, r: 16, t: 56, b: 40 },
             paper_bgcolor: "#fff", plot_bgcolor: "#fff",
             font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
             yaxis: { tickvals: tickv2.map(function (v) { return Math.asinh(v / S2); }),
@@ -253,6 +264,7 @@
                        { count: 1, label: "1y", step: "year", stepmode: "backward" },
                        { count: 5, label: "5y", step: "year", stepmode: "backward" },
                        { step: "all", label: "all" }],
+                       x: 1, xanchor: "right", y: 1.14, yanchor: "top",
                        font: { size: 11 } } },
             legend: { orientation: "h", x: 0, y: 1.09, font: { size: 11 } },
             hovermode: "x unified"
