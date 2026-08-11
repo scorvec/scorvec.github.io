@@ -53,7 +53,13 @@ SIGMA = 1.0
 DAILY_MODELS = [("ecmwf", "51", "ECMWF SEAS5"),
                 ("ukmo", "610", "UKMO GloSea6"),
                 ("eccc", "4", "ECCC GEM5-NEMO"),
-                ("eccc", "5", "ECCC CanESM5")]
+                ("eccc", "5", "ECCC CanESM5"),
+                # burst-start systems -> full daily ensembles (lagged UKMO/
+                # NCEP/BoM give only a 2-4 member sliver on day=01)
+                ("meteo_france", "9", "Météo-France S9"),
+                ("dwd", "22", "DWD GCFS2.1"),
+                ("cmcc", "35", "CMCC SPS3.5"),
+                ("jma", "3", "JMA CPS3")]
 
 
 def winter_hours(issue: str):
@@ -244,6 +250,114 @@ def model_spell_base(centre, system, tlat, tlon):
     return out
 
 
+T20F = -20.0 / 3.0                       # 20 F in deg C (-6.67)
+
+
+def model_abs_spell_base(centre, system, tlat, tlon, cmC, thresh=T20F,
+                         days=SPELL_DAYS):
+    """The model's own climatological rate of ABSOLUTE-threshold spells:
+    identical test on its 24 hindcast winters, members reconstructed to
+    absolute deg C exactly as the forecast is (LOO daily-hindcast anomaly +
+    ERA5 1991-2020 daily normal). Cached."""
+    cache = DATA / f"modelabsbase_{centre}_{system}_{abs(thresh):.1f}C_{days}d.npz"
+    if cache.exists():
+        return np.load(cache)["base"]
+    from c3s_coldspell_backtest import prep_year, loo_stats, YEARS, ND
+    ad = {y: prep_year(centre, system, y, tlat, tlon) for y in YEARS}
+    ad = {y: d for y, d in ad.items() if d is not None}
+    if len(ad) < 20:
+        return None
+    print(f"  building own-hindcast hard-freeze base: {centre}/{system} …",
+          flush=True)
+    loo = loo_stats(ad)
+    ps = []
+    for y in ad:
+        doy = pd.date_range(f"{y}-12-01", periods=ND).dayofyear.values
+        absf = ad[y] - loo[y][0][None] + cmC[doy - 1][None]
+        ps.append(spell_prob(absf, thresh, days).mean(axis=0))
+    base = np.mean(ps, axis=0).astype(np.float32)
+    np.savez_compressed(cache, base=base)
+    return base
+
+
+def era5_abs_base(thresh=T20F, days=SPELL_DAYS, y0=1991, y1=2020):
+    """Observed rate of the same absolute-threshold spell, 30 winters."""
+    cache = DATA / f"era5_absbase_{abs(thresh):.1f}C_{days}d.npz"
+    if cache.exists():
+        return np.load(cache)["base"]
+    winters = []
+    for y in range(y0, y1):
+        a = xr.open_dataset(WB2_T2M / f"t2m_{y}.nc")["t2m"]
+        b = xr.open_dataset(WB2_T2M / f"t2m_{y+1}.nc")["t2m"]
+        da = xr.concat([a.sel(time=slice(f"{y}-12-01", None)),
+                        b.sel(time=slice(None, f"{y+1}-02-28"))], dim="time")
+        v = da.transpose("time", "latitude", "longitude").values
+        if v.max() > 150:
+            v = v - 273.15
+        winters.append(spell_prob(v[None], thresh, days)[0])
+    base = np.mean(winters, axis=0).astype(np.float32)
+    np.savez_compressed(cache, base=base)
+    return base
+
+
+def hard_freeze_product(panels, tlat, tlon, lon_plot, issue, cmC, gsel):
+    """P(>= SPELL_DAYS consecutive days below 20 F) — absolute-threshold
+    Arctic-outbreak product; the wind-cutoff / freeze-off / peak-load tier."""
+    fc, mb = [], []
+    for P in panels.values():
+        if P.get("centre") is None:
+            continue
+        base = model_abs_spell_base(P["centre"], P["system"], tlat, tlon, cmC)
+        if base is None:
+            continue
+        fc.append(spell_prob(P["abs_daily"], T20F, SPELL_DAYS).mean(axis=0))
+        mb.append(base)
+    if not fc:
+        return
+    fc, mb = np.mean(fc, axis=0), np.mean(mb, axis=0)
+    eb = era5_abs_base()[gsel]
+    fig, axes = plt.subplots(2, 2, figsize=(10.6, 8.6), constrained_layout=True,
+                             subplot_kw={"projection": ccrs.LambertConformal(
+                                 central_longitude=-100, central_latitude=45)})
+    levels = [2, 5, 10, 20, 30, 45, 60, 75, 90]
+    plots = [(fc, "Blues", levels, "max",
+              f"Multi-model · P(<20 °F ≥{SPELL_DAYS}d)"),
+             (mb, "Blues", levels, "max", "Own hindcast base (models pooled)"),
+             (fc - mb, "RdBu", np.linspace(-0.3, 0.3, 13), "both",
+              "Multi-model − own base"),
+             (eb, "Blues", levels, "max", "ERA5 observed base (30 winters)")]
+    for ax, (fld, cmap, lev, ext, title) in zip(axes.ravel(), plots):
+        diff = ext == "both"
+        cf = ax.contourf(lon_plot, tlat, 100 * fld,
+                         levels=([x * 100 for x in lev] if diff else lev),
+                         cmap=cmap, extend=ext, transform=ccrs.PlateCarree())
+        ax.set_extent([-125, -68, 24, 55], ccrs.PlateCarree())
+        ax.coastlines(lw=0.6, color="0.25")
+        ax.add_feature(cfeature.BORDERS, lw=0.4, edgecolor="0.35",
+                       facecolor="none")
+        ax.add_feature(cfeature.STATES, lw=0.3, edgecolor="0.5",
+                       facecolor="none")
+        ax.set_title(title, fontsize=10.5, fontweight="bold", loc="left")
+        cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.02,
+                          fraction=0.045, aspect=32)
+        cb.ax.tick_params(labelsize=7)
+    fig.get_layout_engine().set(rect=(0, 0.035, 1, 0.95))
+    fig.suptitle(f"Hard-freeze spells — ≥{SPELL_DAYS} consecutive days below "
+                 f"20 °F (−6.7 °C daily mean) · issue {issue[:4]}-{issue[4:]}",
+                 fontsize=13, fontweight="bold")
+    fig.text(0.5, 0.006,
+             "Absolute member temps: own-model daily-hindcast anomaly + ERA5 "
+             "1991–2020 daily normal · base: identical test on each model's 24 "
+             "hindcast winters (leave-one-out) · Dec 1 → integration end",
+             fontsize=7.8, ha="center", color="0.35")
+    out = ASSETS / "c3s_hardfreeze_spell.webp"
+    fig.savefig(out, dpi=115)
+    plt.close(fig)
+    print(f"  hard-freeze: MM {fc.mean():.3f} · own base {mb.mean():.3f} · "
+          f"ERA5 base {eb.mean():.3f}")
+    print(f"saved {out}")
+
+
 def spell_prob(z, thresh=-1.0, days=5):
     """P-per-sample of >= `days` consecutive True along axis 1."""
     cold = z < thresh
@@ -406,7 +520,7 @@ def build(issue: str, out: Path):
         mb = model_spell_base(centre, system, tlat, tlon)
         panels[label] = dict(p=runs[1.0], p2=runs[2.0], abs_daily=anom,
                              nmem=z.shape[0], ndays=z.shape[1], udays=udays,
-                             mbase=mb)
+                             mbase=mb, centre=centre, system=system)
         mtxt = (f"own base {mb[1.0].mean():.2f}/{mb[2.0].mean():.2f}"
                 if mb else "own base n/a")
         print(f"  {label}: {z.shape[0]} members × {z.shape[1]} days · "
@@ -424,6 +538,11 @@ def build(issue: str, out: Path):
             2.0: np.mean([P["p2"] for P in withbase], axis=0)}
     lon_plot = np.where(tlon > 180, tlon - 360, tlon)
     permian_product(panels, tlat, lon_plot, issue)
+    cmC_full = cm_t.values
+    if cmC_full.max() > 150:
+        cmC_full = cmC_full - 273.15
+    hard_freeze_product(panels, tlat, tlon, lon_plot, issue, cmC_full,
+                        np.ix_(gsel_lat, gsel_lon))
 
     n = len(panels) + 6
     ncol = 3
