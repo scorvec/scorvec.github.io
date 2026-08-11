@@ -67,25 +67,40 @@ def winter_hours(issue: str):
     return [str(h) for h in range(h0, h1, 6)], dec1
 
 
-def fetch(issue: str) -> None:
+def _fetch_daily(centre, system, label, year, month, hours, dest):
+    if dest.exists() and dest.stat().st_size > 0:
+        return True
+    req = {"originating_centre": centre, "system": system,
+           "variable": "2m_temperature",
+           "year": year, "month": month, "day": "01",
+           "leadtime_hour": hours, "area": BOX, "data_format": "grib"}
+    try:
+        c3s._client().retrieve("seasonal-original-single-levels", req, str(dest))
+        print(f"{label} {year}: ✓ {dest.stat().st_size/1e6:.0f} MB", flush=True)
+        return True
+    except Exception as e:                                # noqa: BLE001
+        print(f"{label} {year}: failed ({str(e)[:100]})", file=sys.stderr)
+        return False
+
+
+def fetch(issue: str, hindcast: bool = False) -> None:
+    """Forecast members; with hindcast=True also the 1993-2016 daily hindcast
+    (winter window only) — needed to correct the daily stream against its OWN
+    climatology: the C3S monthly and daily streams disagree by a spatially
+    varying ~3 C (found 2026-08-11), so monthly-climo correction of daily
+    members is invalid."""
     DATA.mkdir(parents=True, exist_ok=True)
     hours, _ = winter_hours(issue)
     print(f"winter window: {len(hours)} 6-hourly steps")
     for centre, system, label in DAILY_MODELS:
-        dest = DATA / f"daily_{centre}_{system}_{issue}.grib"
-        if dest.exists() and dest.stat().st_size > 0:
-            print(f"{label}: cached")
-            continue
-        req = {"originating_centre": centre, "system": system,
-               "variable": "2m_temperature",
-               "year": issue[:4], "month": issue[4:], "day": "01",
-               "leadtime_hour": hours, "area": BOX, "data_format": "grib"}
-        print(f"{label}: fetching daily members …", flush=True)
-        try:
-            c3s._client().retrieve("seasonal-original-single-levels", req, str(dest))
-            print(f"{label}: ✓ {dest.stat().st_size/1e6:.0f} MB", flush=True)
-        except Exception as e:                            # noqa: BLE001
-            print(f"{label}: failed ({str(e)[:100]})", file=sys.stderr)
+        _fetch_daily(centre, system, label, issue[:4], issue[4:], hours,
+                     DATA / f"daily_{centre}_{system}_{issue}.grib")
+        if hindcast:
+            if centre == "ukmo":          # lagged system: day-01 gives a 2-member sliver
+                continue
+            for y in range(1993, 2017):
+                _fetch_daily(centre, system, label, str(y), issue[4:], hours,
+                             DATA / f"dailyhc_{centre}_{system}_{y}{issue[4:]}.grib")
 
 
 def era5_daily_climo(y0=1991, y1=2020, halfwin=7):
@@ -124,13 +139,14 @@ def spell_prob(z, thresh=-1.0, days=5):
     return run
 
 
-def era5_base_rate(clim_mean, clim_std, y0=1991, y1=2020):
+def era5_base_rate(clim_mean, clim_std, thresh=-1.0, days=5, y0=1991, y1=2020):
     """Climatological P(>=1 spell) per gridpoint: same test on 30 observed
-    winters (Dec 1 - Feb 28), cached."""
-    cache = DATA / "era5_spell_base.npz"
+    winters (Dec 1 - Feb 28), cached per (thresh, days) variant."""
+    tag = f"{abs(thresh):.0f}sig_{days}d"
+    cache = DATA / f"era5_spell_base_{tag}.npz"
     if cache.exists():
         z = np.load(cache)
-        return z["base"], z["lat"], z["lon"]
+        return z["base"]
     winters = []
     for y in range(y0, y1):
         a = xr.open_dataset(WB2_T2M / f"t2m_{y}.nc")["t2m"]
@@ -142,12 +158,70 @@ def era5_base_rate(clim_mean, clim_std, y0=1991, y1=2020):
         cm = clim_mean.sel(dayofyear=xr.DataArray(doy, dims="time")).values
         cs = clim_std.sel(dayofyear=xr.DataArray(doy, dims="time")).values
         z = (da.values - cm) / np.maximum(cs, 0.5)
-        winters.append(spell_prob(z[None])[0])
+        winters.append(spell_prob(z[None], thresh, days)[0])
     base = np.mean(winters, axis=0)
-    la = clim_mean.latitude.values
-    lo = clim_mean.longitude.values
-    np.savez_compressed(cache, base=base, lat=la, lon=lo)
-    return base, la, lo
+    np.savez_compressed(cache, base=base)
+    return base
+
+
+def permian_product(panels, tlat, lon_plot, issue):
+    """Freeze-off risk for the Texas producing basins: ABSOLUTE thresholds on
+    the bias-corrected daily-mean member temperatures (the metric that maps to
+    wellhead freeze-offs), zoomed to the southern Plains, plus Midland-point
+    member statistics. Uri (Feb 2021) benchmark at Midland: ~7 consecutive
+    daily means below 0 °C on this 1.5° grid."""
+    jm = np.argmin(np.abs(tlat - 32.0))
+    km = np.argmin(np.abs(lon_plot - (-102.0)))
+    fig, axes = plt.subplots(1, 3, figsize=(14.4, 4.8), constrained_layout=True,
+                             subplot_kw={"projection": ccrs.LambertConformal(
+                                 central_longitude=-100, central_latitude=32)})
+    metrics = [("P(≥3 consec. days < 0 °C) %", 0.0, 3, [5, 10, 15, 20, 30, 40, 55, 70]),
+               ("P(≥5 consec. days < 0 °C) %  [Uri-class]", 0.0, 5, [2, 5, 8, 12, 18, 25, 35, 50]),
+               ("P(any day < −5 °C) %", -5.0, 1, [5, 10, 15, 20, 30, 40, 55, 70])]
+    stats_txt = []
+    for ax, (title, thr, nd, levels) in zip(axes, metrics):
+        per = [spell_prob(P["abs_daily"], thr, nd).mean(axis=0) for P in panels.values()]
+        fld = np.mean(per, axis=0)
+        cf = ax.contourf(lon_plot, tlat, 100 * fld, levels=levels, cmap="PuBu",
+                         extend="max", transform=ccrs.PlateCarree())
+        ax.set_extent([-108, -93, 25.5, 37.5], ccrs.PlateCarree())
+        ax.coastlines(lw=0.6, color="0.25")
+        ax.add_feature(cfeature.BORDERS, lw=0.5, edgecolor="0.35", facecolor="none")
+        ax.add_feature(cfeature.STATES, lw=0.4, edgecolor="0.4", facecolor="none")
+        ax.plot(-102.1, 31.9, marker="*", ms=14, color="#c62828",
+                transform=ccrs.PlateCarree())
+        ax.set_title(title, fontsize=10.5, fontweight="bold", loc="left")
+        cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.02,
+                          fraction=0.05, aspect=30)
+        cb.ax.tick_params(labelsize=7.5)
+        stats_txt.append(f"{title.split(')')[0]}) Midland: {100*fld[jm, km]:.0f}%")
+    # Midland member distribution: freezing days + longest run, pooled members
+    pool_fd, pool_run = [], []
+    for P in panels.values():
+        a = P["abs_daily"][:, :, jm, km]
+        pool_fd.extend((a < 0).sum(axis=1).tolist())
+        streak = np.zeros(a.shape[0], np.int16)
+        longest = np.zeros(a.shape[0], np.int16)
+        for d in range(a.shape[1]):
+            streak = np.where(a[:, d] < 0, streak + 1, 0)
+            longest = np.maximum(longest, streak)
+        pool_run.extend(longest.tolist())
+    pool_fd, pool_run = np.array(pool_fd), np.array(pool_run)
+    fig.suptitle(f"Permian / Texas freeze-off risk — daily C3S members, issue "
+                 f"{issue[:4]}-{issue[4:]} · Dec–Feb window", fontsize=13.5,
+                 fontweight="bold")
+    fig.text(0.5, 0.002,
+             f"★ Midland gridpoint (1.5°): freezing days DJF median {np.median(pool_fd):.0f} "
+             f"(P90 {np.percentile(pool_fd, 90):.0f}) · longest sub-0°C run median "
+             f"{np.median(pool_run):.0f} d (P90 {np.percentile(pool_run, 90):.0f} d) · "
+             f"P(run ≥5 d, Uri-class) {100*(pool_run >= 5).mean():.0f}% · "
+             f"{len(pool_fd)} members · bias-corrected daily means, ERA5-referenced",
+             fontsize=8.6, ha="center", color="0.25")
+    out = ASSETS / "c3s_permian_freeze.webp"
+    fig.savefig(out, dpi=115)
+    plt.close(fig)
+    print("  Midland: " + " · ".join(stats_txt))
+    print(f"saved {out}")
 
 
 def build(issue: str, out: Path):
@@ -161,9 +235,9 @@ def build(issue: str, out: Path):
     tlat, tlon = glat[gsel_lat], glon[gsel_lon]
     cm_t = clim_mean.isel(latitude=gsel_lat, longitude=gsel_lon)
     cs_t = clim_std.isel(latitude=gsel_lat, longitude=gsel_lon)
-    print("ERA5 climatological spell base rate …", flush=True)
-    base_full, bla, blo = era5_base_rate(clim_mean, clim_std)
-    base = base_full[np.ix_(gsel_lat, gsel_lon)]
+    print("ERA5 climatological spell base rates …", flush=True)
+    bases = {sg: era5_base_rate(clim_mean, clim_std, -sg, SPELL_DAYS)
+             [np.ix_(gsel_lat, gsel_lon)] for sg in (1.0, 2.0)}
 
     panels = {}
     for centre, system, label in DAILY_MODELS:
@@ -216,18 +290,22 @@ def build(issue: str, out: Path):
         cs = cs_t.sel(dayofyear=xr.DataArray(doy, dims="day")).transpose(
             "day", "latitude", "longitude").values
         z = (anom - (cm - 273.15)) / np.maximum(cs, 0.5)
-        run = spell_prob(z)
-        panels[label] = dict(p=run.mean(axis=0), nmem=z.shape[0], ndays=z.shape[1])
+        runs = {sg: spell_prob(z, -sg, SPELL_DAYS).mean(axis=0) for sg in (1.0, 2.0)}
+        panels[label] = dict(p=runs[1.0], p2=runs[2.0], abs_daily=anom,
+                             nmem=z.shape[0], ndays=z.shape[1], udays=udays)
         print(f"  {label}: {z.shape[0]} members × {z.shape[1]} days · "
-              f"domain-mean P={run.mean():.2f} (base {base.mean():.2f})")
+              f"P(1σ)={runs[1.0].mean():.2f} (base {bases[1.0].mean():.2f}) · "
+              f"P(2σ)={runs[2.0].mean():.2f} (base {bases[2.0].mean():.2f})")
 
     if not panels:
         raise SystemExit("no daily data on disk yet")
     combo = np.mean([P["p"] for P in panels.values()], axis=0)
+    combo2 = np.mean([P["p2"] for P in panels.values()], axis=0)
     lon_plot = np.where(tlon > 180, tlon - 360, tlon)
+    permian_product(panels, tlat, lon_plot, issue)
 
-    n = len(panels) + 3
-    ncol = min(n, 4)
+    n = len(panels) + 6
+    ncol = 3
     nrow = int(np.ceil(n / ncol))
     fig, axes = plt.subplots(nrow, ncol, figsize=(4.9 * ncol, 4.6 * nrow),
                              constrained_layout=True,
@@ -235,17 +313,22 @@ def build(issue: str, out: Path):
                                  central_longitude=-100, central_latitude=45)})
     axes = np.atleast_1d(axes).ravel()
     levels = [5, 10, 15, 20, 30, 40, 50, 65, 80]
-    plots = ([(lab, P["p"], "Blues", levels, f"{lab}  ({P['nmem']} mem)")
-              for lab, P in panels.items()]
-             + [("Multi-model", combo, "Blues", levels, "Multi-model"),
-                ("Base", base, "Blues", levels, "ERA5 1991–2020 base rate"),
-                ("Diff", combo - base, "RdBu", np.linspace(-0.4, 0.4, 17),
-                 "Multi-model − base (probability shift)")])
+    lev2 = [1, 2.5, 5, 7.5, 10, 15, 20, 30, 40]
+    plots = ([("MM1", combo, "Blues", levels, f"Multi-model · −1σ ≥{SPELL_DAYS}d"),
+              ("Base", bases[1.0], "Blues", levels, "ERA5 base rate · −1σ"),
+              ("Diff", combo - bases[1.0], "RdBu", np.linspace(-0.4, 0.4, 17),
+               "Multi-model − base · −1σ"),
+              ("MM2", combo2, "Blues", lev2, f"Multi-model · −2σ ≥{SPELL_DAYS}d"),
+              ("Base2", bases[2.0], "Blues", lev2, "ERA5 base rate · −2σ"),
+              ("Diff2", combo2 - bases[2.0], "RdBu", np.linspace(-0.15, 0.15, 16),
+               "Multi-model − base · −2σ")]
+             + [(f"m{i}", P["p"], "Blues", levels, f"{lab} · −1σ  ({P['nmem']} mem)")
+                for i, (lab, P) in enumerate(panels.items())])
     for ax, (key, fld, cmap, lev, title) in zip(axes, plots):
-        scale = 100 if key != "Diff" else 100
-        cf = ax.contourf(lon_plot, tlat, scale * fld, levels=[l for l in
-                         (lev if key != "Diff" else [x * 100 for x in lev])],
-                         cmap=cmap, extend="both" if key == "Diff" else "max",
+        diff = key.startswith("Diff")
+        cf = ax.contourf(lon_plot, tlat, 100 * fld,
+                         levels=([x * 100 for x in lev] if diff else lev),
+                         cmap=cmap, extend="both" if diff else "max",
                          transform=ccrs.PlateCarree())
         ax.set_extent([-168, -52, 17, 71], ccrs.PlateCarree())
         ax.coastlines(lw=0.6, color="0.25")
@@ -274,10 +357,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", default=pd.Timestamp.utcnow().strftime("%Y%m"))
     ap.add_argument("--fetch", action="store_true")
+    ap.add_argument("--hindcast", action="store_true")
     ap.add_argument("--out", default=str(ASSETS / "c3s_winter_coldspell.webp"))
     args = ap.parse_args()
     if args.fetch:
-        fetch(args.issue)
+        fetch(args.issue, hindcast=args.hindcast)
         return
     build(args.issue, Path(args.out))
 
