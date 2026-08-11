@@ -58,9 +58,10 @@ def path_for(date: str, hh: str, model: str, step: int, kind: str = "pf",
 
 
 def fetch_index(date: str, hh: str, model: str, step: int, kind: str = "pf",
+                stream: str = "enfo",
                 sources: list[str] | None = None) -> list[dict]:
     """Parse the .index file: list of message dicts with _offset/_length."""
-    rel = path_for(date, hh, model, step, kind) + ".index"
+    rel = path_for(date, hh, model, step, kind, stream=stream) + ".index"
     last_err = None
     for attempt in range(3):
         for src in sources or ["google", "aws", "azure", "ecmwf"]:

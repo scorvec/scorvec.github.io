@@ -311,7 +311,7 @@ class Cycle:
 
 @dataclass(frozen=True)
 class Spec:
-    model: str                       # "aifs-ens" | "ifs"
+    model: str                       # "aifs-ens" | "ifs" | "aifs-single" (stream oper, type fc)
     type: str                        # "pf" | "cf" | "em"
     param: object                    # one param str, or a tuple of params batched in 1 retrieve
     levtype: str                     # "pl" | "sfc"
@@ -641,7 +641,8 @@ def _lock(p: Path):
 
 def _to_req(cycle: Cycle, spec: Spec) -> dict:
     pm = list(spec.params)
-    r = dict(model=spec.model, date=cycle.iso, time=int(cycle.time), stream="enfo",
+    stream = "oper" if spec.model == "aifs-single" else "enfo"
+    r = dict(model=spec.model, date=cycle.iso, time=int(cycle.time), stream=stream,
              type=spec.type, param=pm if len(pm) > 1 else pm[0],
              levtype=spec.levtype, step=list(spec.steps))
     if spec.levtype == "pl":
@@ -667,9 +668,11 @@ def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
     stats: dict = {}
     try:
         with open(target, "wb") as out:
+            stream = "oper" if spec.model == "aifs-single" else "enfo"
             for step in spec.steps:
                 idx = rf.fetch_index(cycle.date, cycle.time, spec.model,
-                                     int(step), spec.type, sources=srcs)
+                                     int(step), spec.type, stream=stream,
+                                     sources=srcs)
                 want = rf.select(idx, param=list(spec.params), levelist=levl,
                                  numbers=nums)
                 if not want:
@@ -677,7 +680,7 @@ def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
                 ranges = rf.coalesce(want)
                 blob = rf.fetch_ranges(
                     rf.path_for(cycle.date, cycle.time, spec.model,
-                                int(step), spec.type) + ".grib2",
+                                int(step), spec.type, stream=stream) + ".grib2",
                     ranges, sources=srcs, stats=stats)
                 out.write(blob)
         top = max(stats, key=stats.get) if stats else srcs[0]   # mirror that served the most bytes
