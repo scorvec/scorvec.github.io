@@ -39,6 +39,7 @@ import xarray as xr
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
+sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
 ARCHIVE = HERE / "data" / "archive"
 TRUTH = HERE / "data" / "truth"
 CLIM = HERE / "data" / "clim_1p5.npz"
@@ -65,47 +66,39 @@ def grid_1p5():
 
 
 def collect(date: str) -> bool:
-    """Fetch both models' z500/msl/u850 at all leads, coarsen, archive."""
-    from ecmwf.opendata import Client
+    """Fetch both models' z500/msl/u850 at all leads through the shared ecmwf
+    store (locks, GRIB integrity counts, mirror fallbacks), coarsen, archive."""
+    import store as ecmwf
     out = ARCHIVE / f"{date}00.npz"
     if out.exists():
         print(f"{date}: archived")
         return True
     ARCHIVE.mkdir(parents=True, exist_ok=True)
+    cyc = ecmwf.Cycle(date, "00")
+    S = tuple(LEADS)
     stash = {}
-    iso = f"{date[:4]}-{date[4:6]}-{date[6:8]}"
-    for mkey, (model, typ, stream) in MODELS.items():
-        c = Client(source="ecmwf", model=model)
+    for mkey, (model, typ, _stream) in MODELS.items():
+        try:
+            ppl = ecmwf.ensure(cyc, ecmwf.Spec(model, typ, ("z", "u"), "pl",
+                                               (500, 850), S))
+            psf = ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "msl", "sfc", (), S))
+        except Exception as e:                            # noqa: BLE001
+            print(f"{date} {mkey}: fetch failed ({str(e)[:70]})", file=sys.stderr)
+            return False
+        dpl = xr.open_dataset(ppl, engine="cfgrib", backend_kwargs={"indexpath": ""})
+        dsf = xr.open_dataset(psf, engine="cfgrib", backend_kwargs={"indexpath": ""})
         for step in LEADS:
-            tmp_pl = HERE / "data" / f"_tmp_pl.grib2"
-            tmp_sf = HERE / "data" / f"_tmp_sf.grib2"
-            try:
-                c.retrieve(date=iso, time=0, type=typ, stream=stream, levtype="pl",
-                           param=["z", "u"], levelist=[500, 850], step=step,
-                           target=str(tmp_pl))
-                c.retrieve(date=iso, time=0, type=typ, stream=stream, levtype="sfc",
-                           param="msl", step=step, target=str(tmp_sf))
-            except Exception as e:                        # noqa: BLE001
-                print(f"{date} {mkey} step {step}: fetch failed ({str(e)[:70]})",
-                      file=sys.stderr)
-                return False
-            dpl = xr.open_dataset(tmp_pl, engine="cfgrib",
-                                  backend_kwargs={"indexpath": ""})
-            dsf = xr.open_dataset(tmp_sf, engine="cfgrib",
-                                  backend_kwargs={"indexpath": ""})
-            # grids arrive 90..-90 x -180..180; roll longitudes to 0..360
+            sd = pd.Timedelta(hours=step)
             def field(a):
                 v = a.values
                 return coarsen(np.roll(v, v.shape[1] // 2, axis=1))
-            stash[(mkey, "z500", step)] = field(dpl["z"].sel(isobaricInhPa=500)) / G
-            stash[(mkey, "u850", step)] = field(dpl["u"].sel(isobaricInhPa=850))
-            stash[(mkey, "msl", step)] = field(dsf["msl"]) / 100.0
-            dpl.close(); dsf.close()
+            stash[(mkey, "z500", step)] = field(dpl["z"].sel(step=sd, isobaricInhPa=500)) / G
+            stash[(mkey, "u850", step)] = field(dpl["u"].sel(step=sd, isobaricInhPa=850))
+            stash[(mkey, "msl", step)] = field(dsf["msl"].sel(step=sd)) / 100.0
+        dpl.close(); dsf.close()
         print(f"{date} {mkey}: {len(LEADS)} leads archived", flush=True)
-    np.savez_compressed(out, **{f"{m}_{v}_{s}": stash[(m, v, s)].astype(np.float32)
-                                for (m, v, s) in stash})
-    for t in (HERE / "data" / "_tmp_pl.grib2", HERE / "data" / "_tmp_sf.grib2"):
-        t.unlink(missing_ok=True)
+    np.savez_compressed(out, **{f"{m}_{v}_{st}": stash[(m, v, st)].astype(np.float32)
+                                for (m, v, st) in stash})
     return True
 
 
