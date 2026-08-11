@@ -47,6 +47,45 @@ MODELS = [("ecmwf", "51", "ECMWF SEAS5"),
           ("eccc", "5", "ECCC CanESM5")]
 HALFWIN = 7
 ND = 90                                  # Dec 1 .. Feb 28, leap day trimmed
+TX = (25.8, 36.6, -106.7, -93.5)         # Texas box (lat0, lat1, lon0, lon1)
+
+
+def land_mask(tlat, tlon):
+    """NE 110m land on the scoring grid, cached."""
+    cache = BT / "land_mask.npz"
+    if cache.exists():
+        return np.load(cache)["land"]
+    import cartopy.io.shapereader as shpreader
+    from shapely.geometry import Point
+    from shapely.ops import unary_union
+    from shapely.prepared import prep
+    geo = prep(unary_union(list(shpreader.Reader(shpreader.natural_earth(
+        resolution="110m", category="physical", name="land")).geometries())))
+    l180 = np.where(tlon > 180, tlon - 360, tlon)
+    land = np.array([[geo.contains(Point(lo_, la_)) for lo_ in l180]
+                     for la_ in tlat])
+    BT.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(cache, land=land)
+    return land
+
+
+def tx_weights(tlat, tlon, land):
+    """cos-weighted Texas land-box weights on the scoring grid."""
+    l180 = np.where(tlon > 180, tlon - 360, tlon)
+    box = ((tlat >= TX[0]) & (tlat <= TX[1]))[:, None] \
+        & ((l180 >= TX[2]) & (l180 <= TX[3]))[None, :]
+    w = np.cos(np.deg2rad(tlat))[:, None] * (box & land)
+    return w / w.sum()
+
+
+def longest_runs(series, thresh=0.0):
+    """Longest consecutive sub-`thresh` run per row of (n, days)."""
+    streak = np.zeros(series.shape[0], np.int16)
+    longest = np.zeros_like(streak)
+    for d in range(series.shape[1]):
+        streak = np.where(series[:, d] < thresh, streak + 1, 0)
+        longest = np.maximum(longest, streak)
+    return longest
 
 
 def _grid(clim_mean):
@@ -122,18 +161,16 @@ def loo_stats(all_daily):
     return out
 
 
-def era5_truth(clim_mean, clim_std, tlat, tlon, la, lo):
-    """Per-winter observed spell occurrence (24, lat, lon) uint8 + absolute
-    daily Midland series, cached."""
-    cache = BT / "era5_truth.npz"
+def era5_truth(clim_mean, clim_std, tlat, tlon, la, lo, txw):
+    """Per-winter observed spell occurrence (24, lat, lon) uint8 + Texas
+    land-box-mean daily series (24, ND) in deg C, cached."""
+    cache = BT / "era5_truth_v2.npz"
     if cache.exists():
         z = np.load(cache)
-        return z["occ"], z["midland"]
+        return z["occ"], z["tx"]
     cm = clim_mean.values[:, la][:, :, lo]
     cs = clim_std.values[:, la][:, :, lo]
-    jm = np.argmin(np.abs(tlat - 32.0))
-    km = np.argmin(np.abs(tlon - (360 - 102.0)))
-    occ, midland = [], []
+    occ, txs = [], []
     for y in YEARS:
         a = xr.open_dataset(WB2_T2M / f"t2m_{y}.nc")["t2m"]
         b = xr.open_dataset(WB2_T2M / f"t2m_{y+1}.nc")["t2m"]
@@ -149,13 +186,13 @@ def era5_truth(clim_mean, clim_std, tlat, tlon, la, lo):
             if clim_mean.values.max() > 150 else \
             (v - cm[doy - 1]) / np.maximum(cs[doy - 1], 0.5)
         occ.append(spell_prob(z[None], -1.0, SPELL_DAYS)[0])
-        midland.append(v[:ND, jm, km])
+        txs.append((v[:ND] * txw[None]).sum(axis=(1, 2)))
         print(f"  ERA5 winter {y}/{y+1} ✓", flush=True)
     BT.mkdir(parents=True, exist_ok=True)
     occ = np.array(occ, np.uint8)
-    midland = np.array(midland, np.float32)
-    np.savez_compressed(cache, occ=occ, midland=midland)
-    return occ, midland
+    txs = np.array(txs, np.float32)
+    np.savez_compressed(cache, occ=occ, tx=txs)
+    return occ, txs
 
 
 def main():
@@ -166,11 +203,11 @@ def main():
     print("ERA5 daily climatology …", flush=True)
     clim_mean, clim_std = era5_daily_climo()
     tlat, tlon, la, lo = _grid(clim_mean)
-    jm = np.argmin(np.abs(tlat - 32.0))
-    km = np.argmin(np.abs(tlon - (360 - 102.0)))
+    land = land_mask(tlat, tlon)
+    txw = tx_weights(tlat, tlon, land)
 
     print("ERA5 truth winters …", flush=True)
-    occ, era5_mid = era5_truth(clim_mean, clim_std, tlat, tlon, la, lo)
+    occ, era5_tx = era5_truth(clim_mean, clim_std, tlat, tlon, la, lo, txw)
 
     fprob = {}                        # label -> (24, lat, lon) forecast P
     mid_abs = {}                      # label -> per-year Midland member stats
@@ -198,11 +235,18 @@ def main():
             m, s = loo[y]
             z = (all_daily[y] - m[None]) / np.maximum(s[None], 0.5)
             pj.append(spell_prob(z, -1.0, SPELL_DAYS).mean(axis=0))
-            # absolute-degC members at Midland (LOO drift removal + ERA5 ref)
+            # Texas land-box-mean member series in absolute deg C
+            # (LOO drift removal + ERA5 daily-normal reference)
             doy = pd.date_range(f"{y}-12-01", periods=ND).dayofyear.values
-            absmid = (all_daily[y][:, :, jm, km] - m[None, :, jm, km]
-                      + cmC[doy - 1, jm, km][None])
-            mj.append(absmid)
+            # subset to the box BEFORE weighting: the domain edge is NaN in
+            # model space and NaN * 0-weight is still NaN
+            jj = np.where(txw.sum(axis=1) > 0)[0]
+            kk = np.where(txw.sum(axis=0) > 0)[0]
+            wsub = txw[np.ix_(jj, kk)]
+            absf = (all_daily[y][:, :, jj][:, :, :, kk]
+                    - m[None][:, :, jj][:, :, :, kk]
+                    + cmC[doy - 1][None][:, :, jj][:, :, :, kk])
+            mj.append((absf * wsub).sum(axis=(2, 3)) / wsub.sum())
         fprob[label] = np.array(pj)
         mid_abs[label] = mj
         print(f"  {label}: {len(pj)} winters scored", flush=True)
@@ -223,6 +267,7 @@ def main():
     mask = (nev >= 2) & (nev <= n - 2)          # skill undefined off the tails
     if finite_all is not None:
         mask &= finite_all            # fetch-box edge: model data is NaN there
+    mask &= land                      # decision-relevant sample: land only
     bss = {}
     for k, p in fprob.items():
         bs = ((p - occf) ** 2).sum(axis=0)
@@ -241,30 +286,24 @@ def main():
         ok_.append(float(of[m2].mean()) if m2.any() else np.nan)
 
     # --- Midland Uri-class hit table -----------------------------------------
-    # >=5 d has NO in-sample event at Midland (Uri is out of sample) — verify
-    # the >=3 d tier, which has real precedent, and state the >=5 d fact.
-    uri_p = np.mean([[spell_prob(a, 0.0, 3).mean() for a in mid_abs[k]]
-                     for k in mid_abs], axis=0)
-    obs_run = []
-    for i in range(n):
-        v = era5_mid[i]
-        streak = longest = 0
-        for x in v:
-            streak = streak + 1 if x < 0 else 0
-            longest = max(longest, streak)
-        obs_run.append(longest)
-    obs_run = np.array(obs_run)
-    uri_o = (obs_run >= 3).astype(float)
+    # --- Texas statewide freeze spells: box-mean < 0 C for >=2 / >=3 days ---
+    tx_p = {t: np.mean([[(longest_runs(a) >= t).mean() for a in mid_abs[k]]
+                        for k in mid_abs], axis=0) for t in (2, 3)}
+    obs_run = longest_runs(era5_tx)
+    tx_o = {t: (obs_run >= t).astype(float) for t in (2, 3)}
+    tx_bss = {}
+    for t in (2, 3):
+        ref = ((tx_o[t].mean() - tx_o[t]) ** 2).mean()
+        tx_bss[t] = (1 - ((tx_p[t] - tx_o[t]) ** 2).mean() / ref
+                     if ref > 0 else np.nan)
+    uri_p, uri_o = tx_p[3], tx_o[3]
     uri_base = uri_o.mean()
-    ref = ((uri_base - uri_o) ** 2).mean()
-    uri_bss = 1 - ((uri_p - uri_o) ** 2).mean() / ref if ref > 0 else np.nan
-    n5 = int((obs_run >= 5).sum())
 
     # --- figure --------------------------------------------------------------
     order = ["Multi-model"] + [k for k in fprob if k != "Multi-model"]
     lon_plot = np.where(tlon > 180, tlon - 360, tlon)
     proj = ccrs.LambertConformal(central_longitude=-100, central_latitude=45)
-    fig = plt.figure(figsize=(14.6, 9.6), constrained_layout=True)
+    fig = plt.figure(figsize=(14.6, 8.0), constrained_layout=True)
     gs = fig.add_gridspec(2, 4, height_ratios=[1.15, 1])
     levels = [-0.4, -0.3, -0.2, -0.1, -0.02, 0.02, 0.1, 0.2, 0.3, 0.4]
     map_axes = []
@@ -299,7 +338,7 @@ def main():
                          fontsize=7, color="0.4")
     axr.set_xlabel("forecast probability (multi-model)", fontsize=9)
     axr.set_ylabel("observed frequency", fontsize=9)
-    axr.set_title("Reliability · all gridpoints × 24 winters",
+    axr.set_title("Reliability · land gridpoints × 24 winters",
                   fontsize=10.5, fontweight="bold", loc="left")
     axr.tick_params(labelsize=8)
     axr.set_xlim(0, 1); axr.set_ylim(0, 1)
@@ -311,37 +350,41 @@ def main():
     axm.set_xticks(xs)
     axm.set_xticklabels([f"'{str(y)[2:]}" for y in YEARS], fontsize=7)
     axm.axhline(100 * uri_base, color="0.4", lw=0.9, ls=":")
-    axm.set_ylabel("forecast P(≥3 d < 0 °C) at Midland, %", fontsize=9)
-    axm.set_title(f"Midland ≥3-day freeze · red = winters it happened "
+    axm.set_ylabel("forecast P(TX box-mean < 0 °C ≥3 d), %", fontsize=9)
+    axm.set_title(f"Texas statewide freeze spell (≥3 d) · red = happened "
                   f"({int(uri_o.sum())}/{n}, base {100*uri_base:.0f}%) · "
-                  f"BSS {uri_bss:+.2f}", fontsize=10.5, fontweight="bold",
+                  f"BSS {tx_bss[3]:+.2f}", fontsize=10.5, fontweight="bold",
                   loc="left")
     axm.set_ylim(0, 100 * max(uri_p.max(), uri_base) * 1.45)
-    axm.text(0.02, 0.97, f"≥5-day (Uri-class) runs in 1993–2016: {n5} — "
-             "no in-sample precedent; Uri (2021) post-dates the hindcasts",
-             transform=axm.transAxes, fontsize=7.8, color="0.35", va="top")
+    axm.text(0.02, 0.97, "box-mean of TX land gridpoints · ≥2-day tier: base "
+             f"{100*tx_o[2].mean():.0f}%, BSS {tx_bss[2]:+.2f} · Feb-2011 "
+             "deepest in sample; Uri (2021) out of sample",
+             transform=axm.transAxes, fontsize=7.6, color="0.35", va="top")
     axm.tick_params(labelsize=8)
 
     fig.get_layout_engine().set(rect=(0, 0.035, 1, 0.95))
-    fig.suptitle("Cold-spell product backtest — 24 hindcast winters "
-                 "(1993/94–2016/17), leave-one-out", fontsize=14,
-                 fontweight="bold")
+    fig.suptitle("Cold-spell backtest — 24 winters (1993/94–2016/17) · "
+                 "Aug issues → Dec–Feb (lead 4–6 mo) · leave-one-out",
+                 fontsize=13.5, fontweight="bold")
     fig.text(0.5, 0.004,
              "Each winter scored with a climatology from the other 23 years · truth: "
              "identical spell test on ERA5 vs its 1991–2020 daily normal · BSS masked "
-             "where <2 or >22 event winters · hindcast ensembles smaller than real "
-             "time, so skill is understated",
+             "where <2 or >22 event winters · land gridpoints only · hindcast "
+             "ensembles smaller than real time, so skill is understated",
              fontsize=7.6, ha="center", color="0.35")
     out = ASSETS / "c3s_coldspell_backtest.webp"
     fig.savefig(out, dpi=110)
     plt.close(fig)
     for k in order:
-        print(f"{k}: median BSS {np.nanmedian(bss[k]):+.3f} · "
-              f"area-frac BSS>0 {np.nanmean(bss[k] > 0):.2f}")
-    if uri_o.sum() and (1 - uri_o).sum():
-        print(f"Midland ≥3d: BSS {uri_bss:+.2f} · event-winter mean P "
-              f"{100*uri_p[uri_o == 1].mean():.0f}% vs non-event "
-              f"{100*uri_p[uri_o == 0].mean():.0f}% · ≥5d events: {n5}")
+        b = bss[k]
+        frac = float((b[np.isfinite(b)] > 0).mean())
+        print(f"{k}: median BSS {np.nanmedian(b):+.3f} · "
+              f"area-frac BSS>0 {frac:.2f}")
+    for t in (2, 3):
+        o, pr = tx_o[t], tx_p[t]
+        print(f"TX box ≥{t}d: BSS {tx_bss[t]:+.2f} · base {o.mean():.2f} · "
+              f"event-winter mean P {100*pr[o == 1].mean():.0f}% vs "
+              f"non-event {100*pr[o == 0].mean():.0f}%")
     print(f"saved {out}")
 
 
