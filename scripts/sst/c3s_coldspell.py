@@ -83,6 +83,26 @@ def _fetch_daily(centre, system, label, year, month, hours, dest):
         return False
 
 
+RENEW_VARS = ["10m_u_component_of_wind", "10m_v_component_of_wind",
+              "surface_solar_radiation_downwards"]
+
+
+def _fetch_daily_renew(centre, system, label, year, month, hours, dest):
+    if dest.exists() and dest.stat().st_size > 0:
+        return True
+    req = {"originating_centre": centre, "system": system,
+           "variable": RENEW_VARS,
+           "year": year, "month": month, "day": "01",
+           "leadtime_hour": hours, "area": BOX, "data_format": "grib"}
+    try:
+        c3s._client().retrieve("seasonal-original-single-levels", req, str(dest))
+        print(f"{label} renew {year}: ✓ {dest.stat().st_size/1e6:.0f} MB", flush=True)
+        return True
+    except Exception as e:                                # noqa: BLE001
+        print(f"{label} renew {year}: failed ({str(e)[:90]})", file=sys.stderr)
+        return False
+
+
 def fetch(issue: str, hindcast: bool = False) -> None:
     """Forecast members; with hindcast=True also the 1993-2016 daily hindcast
     (winter window only) — needed to correct the daily stream against its OWN
@@ -95,12 +115,17 @@ def fetch(issue: str, hindcast: bool = False) -> None:
     for centre, system, label in DAILY_MODELS:
         _fetch_daily(centre, system, label, issue[:4], issue[4:], hours,
                      DATA / f"daily_{centre}_{system}_{issue}.grib")
+        if centre != "ukmo":
+            _fetch_daily_renew(centre, system, label, issue[:4], issue[4:], hours,
+                               DATA / f"renew_{centre}_{system}_{issue}.grib")
         if hindcast:
             if centre == "ukmo":          # lagged system: day-01 gives a 2-member sliver
                 continue
             for y in range(1993, 2017):
                 _fetch_daily(centre, system, label, str(y), issue[4:], hours,
                              DATA / f"dailyhc_{centre}_{system}_{y}{issue[4:]}.grib")
+                _fetch_daily_renew(centre, system, label, str(y), issue[4:], hours,
+                                   DATA / f"renewhc_{centre}_{system}_{y}{issue[4:]}.grib")
 
 
 def era5_daily_climo(y0=1991, y1=2020, halfwin=7):
