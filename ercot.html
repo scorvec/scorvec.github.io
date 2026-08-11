@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>ERCOT North Hub RT on-peak · 2011–present · Shawn Corvec</title>
+<meta name="description" content="Fifteen years of ERCOT North Hub real-time on-peak daily average prices, built from ERCOT's public settlement-point archives.">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --muted: #888580; --accent: #2c4a72;
+    --accent-light: #e8eef5; --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  @media (min-width: 768px) { html { font-size: 110%; } }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; display: flex; flex-direction: column;
+         min-height: 100vh; }
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 1.2rem 3rem; background: rgba(250,250,248,0.95);
+        backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule); }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { font-size: 0.82rem; letter-spacing: 0.04em; text-decoration: none;
+                 color: var(--muted); }
+  .nav-links a:hover { color: var(--ink); }
+  main { flex: 1; max-width: 1500px; margin: 0 auto; padding: 7.5rem 2.5rem 5rem; width: 100%; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.6rem; }
+  .lede { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 60rem;
+          margin-bottom: 2.2rem; }
+  .chart-card { border: 1px solid var(--rule); background: #fff; margin-bottom: 2rem; }
+  .chart-card img { display: block; width: 100%; height: auto; }
+  .chart-card-footer { padding: 0.85rem 1.8rem; border-top: 1px solid var(--rule);
+                       font-size: 0.68rem; color: var(--muted); }
+  .colophon { margin-top: 2.5rem; padding-top: 1.8rem; border-top: 1px solid var(--rule);
+              font-size: 0.82rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
+  .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem;
+                 color: var(--ink); margin-bottom: 0.5rem; }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon a { color: var(--accent); }
+  @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 6.5rem 1.2rem 3rem; } }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="sst.html">El Ni&ntilde;o</a></li>
+    <li><a href="mjo.html">MJO</a></li>
+  </ul>
+</nav>
+<main>
+  <h1>ERCOT North Hub &mdash; fifteen years of real-time on-peak prices</h1>
+  <p class="lede">Daily on-peak averages of <b>HB_NORTH</b> real-time settlement point
+  prices &mdash; the hub the liquid ICE 5&times;16 contract settles against &mdash; from
+  the start of the nodal-era archive in 2011 through the present. The daily value is the
+  mean of hours-ending 7&ndash;22; the chart shows the 5&times;16 block (weekdays,
+  NERC holidays excluded). The log scale is the point: the median on-peak day over
+  fifteen years is under $30/MWh, and the tail runs to daily <i>averages</i> pinned at
+  the $9,000 cap for three consecutive days during Uri &mdash; a four-hundred-fold range
+  that no linear axis can show honestly.</p>
+  <div class="chart-card">
+    <img src="assets/ercot/rt_onpeak.webp" alt="ERCOT North Hub real-time on-peak daily average prices 2011 to present, log scale, with major events annotated">
+    <div class="chart-card-footer">ERCOT Historical RTM Load Zone and Hub Prices (NP6-785, public MIS) &middot; 15-minute HB_NORTH settlement point prices averaged over HE&nbsp;7&ndash;22 &middot; 5&times;16 days shown &middot; refreshed monthly &middot; daily CSV (both HB_NORTH and HB_HUBAVG, all days, 5&times;16 flag): <a href="assets/ercot/rt_onpeak_daily.csv">rt_onpeak_daily.csv</a></div>
+  </div>
+  <div class="colophon">
+    <h3>Method</h3>
+    <p>ERCOT publishes one workbook per year of 15-minute settlement point prices for
+    every hub and load zone. Each year is filtered to HB_NORTH and HB_HUBAVG, the
+    intervals averaged within each delivery hour and the on-peak window (hours ending
+    7&ndash;22) averaged into a daily value. The 5&times;16 flag marks weekdays
+    excluding the six NERC holidays with Sunday&rarr;Monday observance. Fifteen-minute
+    settlement began with the nodal market; the series starts 2011-01-01.</p>
+    <p>Prices are settlement values as published, not adjusted for the system-wide
+    offer cap regime, which changed over the period ($3,000 pre-2015, stepping to
+    $9,000 by 2015, reduced to $5,000 after Uri) &mdash; read multi-year tail
+    comparisons with the cap history in mind. Current-year data refreshes with
+    ERCOT's monthly archive update.</p>
+  </div>
+</main>
+</body>
+</html>

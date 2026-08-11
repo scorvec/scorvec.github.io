@@ -72,10 +72,12 @@ ISSUE_NOW=$(date +%Y%m)
 "$PY" scripts/sst/c3s_snow_winter.py --issue "$ISSUE_NOW" || echo "snow build failed; continuing"
 "$PY" scripts/sst/c3s_coldspell.py --fetch --issue "$ISSUE_NOW" || echo "coldspell fetch failed; continuing"
 "$PY" scripts/sst/c3s_coldspell.py --issue "$ISSUE_NOW" || echo "coldspell build failed; continuing"
+"$PY" scripts/ercot/rt_onpeak.py --refresh || echo "ercot refresh failed; continuing"
 
 git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json \
         assets/sst/data/c3s_evolution.json assets/sst/c3s_winter_t2m.webp assets/sst/c3s_winter_snow.webp \
-        assets/sst/c3s_winter_coldspell.webp assets/sst/c3s_permian_freeze.webp
+        assets/sst/c3s_winter_coldspell.webp assets/sst/c3s_permian_freeze.webp \
+        assets/ercot/rt_onpeak.webp assets/ercot/rt_onpeak_daily.csv
 if git diff --staged --quiet; then
   echo "no changes to commit"
   [ "${NMODELS:-0}" -ge 7 ] 2>/dev/null && touch "$DONE_STAMP"
