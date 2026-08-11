@@ -316,7 +316,7 @@ def hard_freeze_product(panels, tlat, tlon, lon_plot, issue, cmC, gsel):
         return
     fc, mb = np.mean(fc, axis=0), np.mean(mb, axis=0)
     eb = era5_abs_base()[gsel]
-    fig, axes = plt.subplots(2, 2, figsize=(10.6, 8.6), constrained_layout=True,
+    fig, axes = plt.subplots(2, 2, figsize=(10.6, 9.2), constrained_layout=True,
                              subplot_kw={"projection": ccrs.LambertConformal(
                                  central_longitude=-100, central_latitude=45)})
     levels = [2, 5, 10, 20, 30, 45, 60, 75, 90]
@@ -337,11 +337,12 @@ def hard_freeze_product(panels, tlat, tlon, lon_plot, issue, cmC, gsel):
                        facecolor="none")
         ax.add_feature(cfeature.STATES, lw=0.3, edgecolor="0.5",
                        facecolor="none")
-        ax.set_title(title, fontsize=10.5, fontweight="bold", loc="left")
+        ax.set_title(title, fontsize=10.5, fontweight="bold", loc="left",
+                     pad=10)
         cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.02,
                           fraction=0.045, aspect=32)
         cb.ax.tick_params(labelsize=7)
-    fig.get_layout_engine().set(rect=(0, 0.035, 1, 0.95))
+    fig.get_layout_engine().set(rect=(0, 0.035, 1, 0.95), hspace=0.07)
     fig.suptitle(f"Hard-freeze spells — ≥{SPELL_DAYS} consecutive days below "
                  f"20 °F (−6.7 °C daily mean) · issue {issue[:4]}-{issue[4:]}",
                  fontsize=13, fontweight="bold")
