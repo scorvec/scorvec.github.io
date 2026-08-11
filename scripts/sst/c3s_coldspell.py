@@ -153,6 +153,68 @@ def era5_daily_climo(y0=1991, y1=2020, halfwin=7):
             xr.DataArray(std, coords=coords, dims=("dayofyear", "latitude", "longitude")))
 
 
+def model_daily_climo(centre, system, issue, tlat, tlon):
+    """Per-LEAD-DAY climatology and sigma of daily-mean T2m from the model's
+    own daily hindcast (24 years x members, +/-7-day lead window pooled),
+    on the 1.5-deg scoring grid. Replaces the monthly-climo shortcut: the
+    C3S monthly and daily streams disagree by a spatially varying ~3 C, so
+    the daily stream must be corrected against ITSELF. Cached (expensive:
+    ~24 x 150 MB GRIB decodes per model)."""
+    cache = DATA / f"dclim_{centre}_{system}_{issue[4:]}.npz"
+    if cache.exists():
+        z = np.load(cache)
+        return z["mean"], z["std"], int(z["ndays"])
+    files = sorted(DATA.glob(f"dailyhc_{centre}_{system}_*{issue[4:]}.grib"))
+    if len(files) < 20:
+        return None, None, 0
+    print(f"  building daily climatology: {centre}/{system} "
+          f"({len(files)} hindcast years) …", flush=True)
+    daily_all = []
+    for f in files:
+        try:
+            ds = xr.open_dataset(f, engine="cfgrib", backend_kwargs={"indexpath": ""})
+        except Exception as e:                            # noqa: BLE001
+            print(f"    {f.name}: unreadable ({str(e)[:50]}) — skipped", flush=True)
+            continue
+        da = ds[[v for v in ds.data_vars][0]] - 273.15
+        vt = pd.to_datetime(np.asarray(ds["valid_time"].values))
+        norm = pd.DatetimeIndex(vt).normalize()
+        udays = pd.DatetimeIndex(sorted(set(norm)))
+        lonm = da.longitude.values
+        da = da.assign_coords(longitude=np.where(lonm < 0, lonm + 360, lonm)) \
+               .sortby("longitude").sortby("latitude")
+        arr = da.transpose("number", "step", "latitude", "longitude")
+        days = []
+        for d in udays:
+            sel = np.where(norm == d)[0]
+            days.append(arr.isel(step=sel).mean("step"))
+        dx = (xr.concat(days, dim="day")
+              .transpose("number", "day", "latitude", "longitude")
+              .interp(latitude=tlat, longitude=tlon))
+        daily_all.append(dx.values)
+        ds.close()
+    # a truncated hindcast year must not shorten the whole climatology:
+    # drop any year with an anomalously short record, then require >= 80 days
+    lens = [a.shape[1] for a in daily_all]
+    full = max(lens)
+    daily_all = [a for a in daily_all if a.shape[1] >= 0.9 * full]
+    if len(daily_all) < 20:
+        return None, None, 0
+    nd = min(a.shape[1] for a in daily_all)
+    if nd < 80:
+        return None, None, 0
+    pool = np.concatenate([a[:, :nd] for a in daily_all], axis=0)
+    mean = np.empty(pool.shape[1:], np.float32)
+    std = np.empty_like(mean)
+    for d in range(nd):
+        lo, hi = max(0, d - 7), min(nd, d + 8)
+        win = pool[:, lo:hi].reshape(-1, *pool.shape[2:])
+        mean[d] = win.mean(axis=0)
+        std[d] = win.std(axis=0)
+    np.savez_compressed(cache, mean=mean, std=std, ndays=nd)
+    return mean, std, nd
+
+
 def spell_prob(z, thresh=-1.0, days=5):
     """P-per-sample of >= `days` consecutive True along axis 1."""
     cold = z < thresh
@@ -197,7 +259,7 @@ def permian_product(panels, tlat, lon_plot, issue):
     daily means below 0 °C on this 1.5° grid."""
     jm = np.argmin(np.abs(tlat - 32.0))
     km = np.argmin(np.abs(lon_plot - (-102.0)))
-    fig, axes = plt.subplots(1, 3, figsize=(14.4, 4.8), constrained_layout=True,
+    fig, axes = plt.subplots(1, 3, figsize=(14.4, 4.9), constrained_layout=True,
                              subplot_kw={"projection": ccrs.LambertConformal(
                                  central_longitude=-100, central_latitude=32)})
     metrics = [("P(≥3 consec. days < 0 °C) %", 0.0, 3, [5, 10, 15, 20, 30, 40, 55, 70]),
@@ -232,10 +294,11 @@ def permian_product(panels, tlat, lon_plot, issue):
             longest = np.maximum(longest, streak)
         pool_run.extend(longest.tolist())
     pool_fd, pool_run = np.array(pool_fd), np.array(pool_run)
+    fig.get_layout_engine().set(rect=(0, 0.06, 1, 0.92))
     fig.suptitle(f"Permian / Texas freeze-off risk — daily C3S members, issue "
                  f"{issue[:4]}-{issue[4:]} · Dec–Feb window", fontsize=13.5,
                  fontweight="bold")
-    fig.text(0.5, 0.002,
+    fig.text(0.5, 0.008,
              f"★ Midland gridpoint (1.5°): freezing days DJF median {np.median(pool_fd):.0f} "
              f"(P90 {np.percentile(pool_fd, 90):.0f}) · longest sub-0°C run median "
              f"{np.median(pool_run):.0f} d (P90 {np.percentile(pool_run, 90):.0f} d) · "
@@ -294,27 +357,22 @@ def build(issue: str, out: Path):
         dailyx = dailyx.interp(latitude=tlat, longitude=tlon)
         daily_v = dailyx.values                        # (mem, day, lat, lon)
 
-        # model monthly drift removal on the scoring grid
-        hcp = T2M_DATA / f"hc_{centre}_{system}_{issue[4:]}.grib"
-        hc, hvt = open_fields(hcp)
-        hlon = hc.longitude.values
-        hc = hc.assign_coords(longitude=np.where(hlon < 0, hlon + 360, hlon))
-        anom = np.empty_like(daily_v)
-        for mth in sorted(set(udays.month)):
-            sel = udays.month == mth
-            mclim = month_samples(hc, hvt, mth).mean(axis=0)
-            mclim = xr.DataArray(mclim, coords=dict(latitude=hc.latitude.values,
-                                                    longitude=hc.longitude.values),
-                                 dims=("latitude", "longitude")).sortby("latitude")                 .sortby("longitude").interp(latitude=tlat, longitude=tlon).values
-            e5m = era5_monthly(1993, 2016, mth, tlat, np.where(tlon > 180, tlon - 360, tlon))
-            anom[:, sel] = daily_v[:, sel] - mclim[None, None] + e5m[None, None]
-
+        # v3: correct the daily stream against its OWN daily hindcast
+        # climatology per lead day (monthly-climo correction is invalid: the
+        # C3S monthly/daily streams disagree by ~3 C spatially varying)
+        mclim_d, mstd_d, nd = model_daily_climo(centre, system, issue, tlat, tlon)
+        if mclim_d is None:
+            print(f"  {label}: daily hindcast incomplete — skipped")
+            continue
+        nkeep = min(nd, daily_v.shape[1])
+        daily_v = daily_v[:, :nkeep]
+        udays = udays[:nkeep]
+        z = (daily_v - mclim_d[None, :nkeep]) / np.maximum(mstd_d[None, :nkeep], 0.5)
+        # absolute (obs-referenced) daily temps for the freeze-off product
         doy = udays.dayofyear.values
         cm = cm_t.sel(dayofyear=xr.DataArray(doy, dims="day")).transpose(
             "day", "latitude", "longitude").values
-        cs = cs_t.sel(dayofyear=xr.DataArray(doy, dims="day")).transpose(
-            "day", "latitude", "longitude").values
-        z = (anom - (cm - 273.15)) / np.maximum(cs, 0.5)
+        anom = (daily_v - mclim_d[None, :nkeep]) + (cm[None] - 273.15)
         runs = {sg: spell_prob(z, -sg, SPELL_DAYS).mean(axis=0) for sg in (1.0, 2.0)}
         panels[label] = dict(p=runs[1.0], p2=runs[2.0], abs_daily=anom,
                              nmem=z.shape[0], ndays=z.shape[1], udays=udays)
@@ -365,10 +423,11 @@ def build(issue: str, out: Path):
         cb.ax.tick_params(labelsize=7)
     for ax in axes[len(plots):]:
         ax.set_visible(False)
+    fig.get_layout_engine().set(rect=(0, 0.03, 1, 1))
     fig.suptitle(f"Cold-spell probability — ≥{SPELL_DAYS} consecutive days < normal − {SIGMA}σ · "
                  f"daily C3S members, issue {issue[:4]}-{issue[4:]} (Dec 1 → integration end)",
                  fontsize=13.5, fontweight="bold")
-    fig.text(0.5, 0.002,
+    fig.text(0.5, 0.006,
              "Daily-mean member T2m coarsened to the ERA5 1.5° scoring grid · model drift removed via monthly hindcast climatology · "
              "normal & σ: ERA5 1991–2020 daily (±7 d window) · base rate: identical spell test on the 30 observed winters",
              fontsize=8.3, ha="center", color="0.35")
