@@ -104,6 +104,48 @@
     </div>
   </div>
 
+  <div class="card">
+    <h2>Sustained cold spells &mdash; the risk monthly means hide</h2>
+    <p class="note">Monthly-mean maps can't see a Uri: a brutal 6-day outbreak inside an
+    otherwise mild month averages away. This uses the <b>daily fields of every ensemble
+    member</b> (ECMWF SEAS5 &times;51, ECCC GEM5-NEMO and CanESM5 &times;20 each &mdash; 91 members) and asks, gridpoint by gridpoint: what fraction of
+    members produce <b>&ge;5 consecutive days</b> below normal &minus;1&sigma; (and a
+    &minus;2&sigma; tier) between Dec&nbsp;1 and the end of the integration? Each member
+    is scored against a climatology built from its <b>own model's daily hindcast</b>
+    per lead day &mdash; the only correction that survives the ~3&nbsp;&deg;C offset
+    between the C3S monthly and daily streams &mdash; with normal and &sigma; from ERA5
+    1991&ndash;2020 dailies. The middle column is the honesty check: the identical spell
+    test run on the 30 observed winters. The difference map is the forecast: cold-spell
+    risk <i>suppressed</i> nearly continent-wide under the record El&nbsp;Ni&ntilde;o
+    &mdash; except a coherent patch over <b>Texas and the southern Plains</b> sitting
+    <i>above</i> its already-nontrivial base rate. A warm winter with a loaded southern
+    cold-outbreak gun is exactly the strong-Ni&ntilde;o precedent (Feb&nbsp;2021 was a
+    La&nbsp;Ni&ntilde;a, but Jan&nbsp;2010 and Dec&nbsp;2015's southern outbreaks were
+    not).</p>
+    <div class="img-wrap"><img src="assets/sst/c3s_winter_coldspell.webp?v=__CACHE__" alt="Probability of 5 or more consecutive days below normal minus 1 and 2 sigma, from daily C3S ensemble members, versus the ERA5 base rate" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">C3S seasonal-original daily members (CDS) &middot; per-lead-day drift correction from each model's own 24-yr daily hindcast (&plusmn;7&nbsp;d, member&times;year pooled) &middot; normal &amp; &sigma;: ERA5 1991&ndash;2020 (&plusmn;7&nbsp;d) &middot; base rate: same test on the 30 observed winters &middot; refreshed each monthly issue</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Permian freeze-off risk &mdash; absolute thresholds, not anomalies</h2>
+    <p class="note">Gas production doesn't care about standard deviations &mdash; wellheads
+    freeze at fixed temperatures. Same daily members, bias-corrected into absolute
+    &deg;C, scored against operational thresholds over the producing basins:
+    <b>&ge;3</b> and <b>&ge;5 consecutive days</b> below 0&nbsp;&deg;C daily mean (the
+    5-day run is the Uri class &mdash; Feb&nbsp;2021 gave Midland ~7) and <b>any day
+    below &minus;5&nbsp;&deg;C</b>. At the Midland gridpoint (&starf;) the members
+    currently give a <b>53%</b> chance of a &ge;3-day freeze, <b>20%</b> for the
+    Uri-class &ge;5-day run, and <b>23%</b> for at least one hard-freeze day &mdash;
+    consistent with the cold-spell map: the one region where this warm winter's tail
+    risk is fat.</p>
+    <div class="img-wrap"><img src="assets/sst/c3s_permian_freeze.webp?v=__CACHE__" alt="Probability of multi-day sub-freezing spells and hard-freeze days over the Permian basin and Texas, December to February" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">C3S seasonal-original daily members, bias-corrected to absolute &deg;C via own-model daily hindcast + ERA5 reference &middot; Dec&ndash;Feb window &middot; 91 members &middot; refreshed each monthly issue</span>
+    </div>
+  </div>
+
   <!-- ── HISTORY: THE FORECAST IN CONTEXT ──────────────────────────────── -->
   <div class="card">
     <h2>Against every ENSO year since 1970</h2>
