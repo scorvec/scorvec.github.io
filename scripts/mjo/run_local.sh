@@ -217,6 +217,10 @@ GRP_V200=$!
     || echo "QBO strip failed; continuing"
   "$PY" "$REPO/scripts/strat/wave1_monitor.py" \
     || echo "wave-1 monitor failed; continuing"
+  "$PY" "$REPO/scripts/verify/aifs_det_verify.py" --collect --verify \
+    || echo "AIFS det verification failed; continuing"
+  "$PY" "$REPO/scripts/verify/aifs_compare_anim.py" --date "$DATE" --time "$TIME" \
+    || echo "AIFS comparison animator failed; continuing"
   echo "group ANALYSIS done" ) &
 GRP_ANALYSIS=$!
 

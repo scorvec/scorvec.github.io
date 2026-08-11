@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>AIFS single vs AIFS-ENS control — Live Verification · Shawn Corvec</title>
+<meta name="description" content="DCT kinetic-energy power spectra of HRRR and RRFS native-level winds: effective resolution, mesoscale spin-up and analysis smoothness, updated from the latest cycles.">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --muted: #888580; --accent: #2c4a72;
+    --accent-light: #e8eef5; --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  @media (min-width: 768px) { html { font-size: 110%; } }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; display: flex; flex-direction: column;
+         min-height: 100vh; }
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 1.2rem 3rem; background: rgba(250,250,248,0.95);
+        backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule); }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { font-size: 0.82rem; letter-spacing: 0.04em; text-decoration: none;
+                 color: var(--muted); }
+  .nav-links a:hover { color: var(--ink); }
+  main { flex: 1; max-width: 1500px; margin: 0 auto; padding: 7.5rem 2.5rem 5rem; width: 100%; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.6rem; }
+  .lede { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 60rem;
+          margin-bottom: 2.2rem; }
+  .chart-card { border: 1px solid var(--rule); background: #fff; margin-bottom: 2rem; }
+  .chart-card img { display: block; width: 100%; height: auto; }
+  .chart-card-footer { padding: 0.85rem 1.8rem; border-top: 1px solid var(--rule);
+                       font-size: 0.68rem; color: var(--muted); }
+  .colophon { margin-top: 2.5rem; padding-top: 1.8rem; border-top: 1px solid var(--rule);
+              font-size: 0.82rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
+  .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem;
+                 color: var(--ink); margin-bottom: 0.5rem; }
+  .colophon p + p { margin-top: 0.7rem; }
+  @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 6.5rem 1.2rem 3rem; } }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="mjo.html">MJO</a></li>
+    <li><a href="spectra.html">KE Spectra</a></li>
+  </ul>
+</nav>
+<main>
+  <h1>AIFS single vs AIFS-ENS control &mdash; a live deterministic bake-off</h1>
+  <p class="lede"><b>The hypothesis:</b> ECMWF's deterministic AIFS is trained on an
+  MSE-type objective, which rewards hedging &mdash; it progressively <i>blurs</i> with lead
+  time, sliding toward an ensemble-mean-like state. The AIFS-ENS members are trained on an
+  ensemble (CRPS-type) objective, which punishes blurring &mdash; each member, including
+  the <b>control</b>, keeps a realistic kinetic-energy spectrum ten days in. If the
+  control's headline scores match the single's when compared fairly, the control &mdash;
+  published only minutes later &mdash; may simply be the <b>better deterministic
+  product</b>. Few people seem to have benchmarked this publicly. This page does, on every
+  00Z run.</p>
+
+  <div class="chart-card">
+    <div style="padding:1.2rem 1.8rem 0.4rem"><b>Running scores &mdash; RMSE, anomaly correlation &amp; activity vs lead</b></div>
+    <div style="padding:0 1.8rem 0.4rem;font-size:0.8rem;color:#888">
+      Verified against ERA5 at the valid 00Z on a common 1.5&deg; grid (block means of both
+      models' 0.25&deg; fields &mdash; so smoothness is <b>not</b> rewarded by resolution
+      mismatch). The <b>activity ratio</b> is the smoothness police: std(forecast anomaly)
+      / std(ERA5 anomaly). A model can buy RMSE by damping variance; the ratio exposes the
+      purchase. ERA5 lags ~6 days, so points appear about a week after each init and curves
+      firm up as runs accumulate.</div>
+    <div class="controls" style="padding:0 1.8rem 0.6rem">
+      <select id="varSel" style="font-size:0.85rem;padding:0.2rem">
+        <option value="z500">z500</option><option value="msl">MSLP</option>
+        <option value="u850">u850 (RMSE/activity only)</option>
+      </select>
+    </div>
+    <div id="rmseChart" style="height:330px"></div>
+    <div id="accChart" style="height:330px"></div>
+    <div id="actChart" style="height:300px"></div>
+    <div class="chart-card-footer" id="score-note">collecting &mdash; archives began 2026-08-09; first ERA5-verified points land ~2026-08-16</div>
+  </div>
+
+  <div class="chart-card">
+    <div style="padding:1.2rem 1.8rem 0.6rem"><b>Side-by-side forecast loop &mdash; MSLP &middot; 1000&ndash;500 thickness &middot; 6-h precipitation</b></div>
+    <div style="padding:0 1.8rem 0.6rem;font-size:0.8rem;color:#888">Every 6 hours through the full run, refreshed each 00Z/12Z cycle. Watch the single's precipitation smear into washes at range while the control keeps convective texture &mdash; same synoptic systems, different sharpness.</div>
+    <iframe style="width:100%;aspect-ratio:1460/610;border:0" src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single vs ENS control forecast comparison loop" loading="lazy"></iframe>
+    <div class="chart-card-footer">ECMWF AIFS &amp; AIFS-ENS open data (CC BY 4.0) &middot; North America &middot; 61 frames per run</div>
+  </div>
+
+  <div class="chart-card">
+    <div style="padding:1.2rem 1.8rem 0.6rem"><b>Why: the spectral-fidelity fingerprint</b></div>
+    <a href="assets/verify/spectral_fidelity.webp" target="_blank"><img src="assets/verify/spectral_fidelity.webp" alt="DCT kinetic-energy spectra by lead: AIFS single blurs, ENS control holds the analysis spectrum"></a>
+    <div class="chart-card-footer">DCT KE spectra, 25&ndash;55&deg;N Pacific&ndash;North America box &middot; fidelity resolution = finest wavelength keeping &ge;50% of the analysis spectral density &middot; day 10, 700 hPa: single half-powered at ~1900 km; control faithful to 82 km &middot; <a href="https://github.com/scorvec/quantmet-tools/tree/main/examples/aifs_spectral_fidelity">full case study &amp; reproduction code</a></div>
+  </div>
+
+  <div class="chart-card">
+    <a href="assets/verify/tt_compare_d05.webp" target="_blank"><img src="assets/verify/tt_compare_d05.webp" alt="Day-5 comparison: MSLP, thickness, 24-h precipitation"></a>
+    <a href="assets/verify/tt_compare_d10.webp" target="_blank"><img src="assets/verify/tt_compare_d10.webp" alt="Day-10 comparison"></a>
+    <div class="chart-card-footer">Day-5 and day-10 stills, init 2026-08-11 00Z &middot; 24-h precipitation &middot; identical contour sets both panels</div>
+  </div>
+
+  <div class="colophon">
+    <h3>Method</h3>
+    <p><b>Fair comparison:</b> both models are block-averaged to a common 1.5&deg; grid
+    before scoring &mdash; headline scores compare what both fully resolve, so the blurred
+    model is not punished at scales the sharp one carries, and the sharp model is not
+    punished for realistic small-scale displacement (the double penalty). The
+    <b>activity ratio</b> then reports the smoothness directly.</p>
+    <p><b>Scores:</b> RMSE and anomaly correlation over the NH extratropics
+    (20&ndash;80&deg;N, cosine-weighted); anomalies vs the ERA5 1991&ndash;2020 &plusmn;7-day
+    day-of-year climatology. Truth is ERA5 at the valid 00Z (ARCO), never either model's
+    own analyses. z500, MSLP, u850; leads 24&ndash;240 h; every 00Z run archived since
+    2026-08-09.</p>
+    <p><b>The stakes:</b> if the control matches the single on RMSE/ACC while keeping an
+    activity ratio near 1, the deterministic AIFS is dominated &mdash; you would simply use
+    the control (a few minutes later on the feed) and get realistic sharpness for free,
+    plus 50 siblings quantifying its uncertainty.</p>
+  </div>
+</main>
+<script>
+(function () {
+  fetch("assets/verify/aifs_det_scores.json?v=" + Date.now()).then(function (r) {
+    if (!r.ok) throw 0; return r.json();
+  }).then(function (D) {
+    var sel = document.getElementById("varSel");
+    function draw() {
+      var v = sel.value;
+      var by = {};
+      D.records.filter(function (r) { return r.var === v; }).forEach(function (r) {
+        var k = r.model + "|" + r.lead;
+        (by[k] = by[k] || []).push(r);
+      });
+      var leads = [], models = ["single", "control"];
+      D.records.forEach(function (r) { if (leads.indexOf(r.lead) < 0) leads.push(r.lead); });
+      leads.sort(function (a, b) { return a - b; });
+      function mean(a, key) { var s = 0, n = 0; a.forEach(function (r) {
+        if (r[key] != null) { s += r[key]; n++; } }); return n ? s / n : null; }
+      var colors = { single: "#c62828", control: "#1565c0" };
+      ["rmse", "acc", "act"].forEach(function (metric, mi) {
+        var traces = models.map(function (m) {
+          return { x: leads.map(function (L) { return L / 24; }),
+                   y: leads.map(function (L) { return mean(by[m + "|" + L] || [], metric); }),
+                   name: (m === "single" ? "AIFS single" : "ENS control"),
+                   mode: "lines+markers", line: { color: colors[m], width: 2.4 } };
+        });
+        var lay = { margin: { l: 55, r: 20, t: 34, b: 40 },
+                    title: { text: { rmse: "RMSE", acc: "Anomaly correlation",
+                                     act: "Activity ratio (1 = ERA5-like variance)" }[metric] + " — " + v,
+                             font: { size: 13 } },
+                    xaxis: { title: "lead (days)" }, yaxis: {} };
+        if (metric === "act") lay.shapes = [{ type: "line", x0: 1, x1: 10, y0: 1, y1: 1,
+                                              line: { color: "#888", dash: "dot", width: 1 } }];
+        Plotly.react(["rmseChart", "accChart", "actChart"][mi], traces, lay,
+                     { displayModeBar: false, responsive: true });
+      });
+      var n = D.records.filter(function (r) { return r.var === "z500" && r.model === "single"; }).length;
+      document.getElementById("score-note").textContent =
+        (n / 10) + " verified inits · updated " + D.generated + " · truth ERA5 (ARCO)";
+    }
+    sel.addEventListener("change", draw);
+    draw();
+  }).catch(function () { /* empty state text stands */ });
+})();
+</script>
+</body>
+</html>
