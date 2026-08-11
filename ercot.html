@@ -65,10 +65,13 @@
   NERC holidays excluded). The log scale is the point: the median on-peak day over
   fifteen years is under $30/MWh, and the tail runs to daily <i>averages</i> pinned at
   the $9,000 cap for three consecutive days during Uri &mdash; a four-hundred-fold range
-  no linear axis can show honestly. And the modern wrinkle at the other end: the
-  solar build-out has begun printing <i>negative</i> daily on-peak averages (four of the
-  five on record are since 2021), which a plain log axis can't show at all &mdash; hence
-  the arcsinh/symlog axis, linear through zero and logarithmic in the tails.</p>
+  no linear axis can show honestly. And the modern wrinkle at the other end: solar has
+  made <i>negative hourly</i> prices routine and has begun dragging whole daily on-peak
+  averages below zero on mild, sunny <i>weekend</i> days (five so far, all outside the
+  5&times;16 block shown &mdash; the weekday floor on record is +$0.39, the post-Uri
+  crash). No 5&times;16 day has printed negative yet; as the solar build-out continues,
+  the first one is plausibly coming &mdash; hence the arcsinh/symlog axis, linear
+  through zero and logarithmic in the tails, ready for it.</p>
   <div class="chart-card">
     <div id="ercotChart" style="height:520px"></div>
     <div class="chart-card-footer">Interactive &middot; drag to zoom, double-click to reset, buttons for ranges &middot; arcsinh axis: linear through zero (the solar-era negative days are real), logarithmic where the scarcity tail lives &middot; the 30-day mean is what a month actually settles at &mdash; during Feb 2021 it reaches ~$1,500</div>
