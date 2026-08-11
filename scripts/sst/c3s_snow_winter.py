@@ -151,8 +151,7 @@ def render(issue, prods, lat, lon, models, out: Path):
             ax.coastlines(lw=0.6, color="0.25")
             ax.add_feature(cfeature.BORDERS, lw=0.4, edgecolor="0.35", facecolor="none")
             ax.add_feature(cfeature.STATES, lw=0.25, edgecolor="0.55", facecolor="none")
-            ax.set_title(f"{MON[m]} {yr} · P(snowfall > hindcast p{p}) %  "
-                         f"[neutral {neutral[p]}%]",
+            ax.set_title(f"{MON[m][:3]} {yr} · P(snow > p{p})  [neutral {neutral[p]}%]",
                          fontsize=10.5, fontweight="bold", loc="left")
             col_cf[j] = cf
     for j, cf in enumerate(col_cf):
@@ -161,10 +160,11 @@ def render(issue, prods, lat, lon, models, out: Path):
                               pad=0.015, fraction=0.035, aspect=36, shrink=0.92)
             cb.ax.tick_params(labelsize=7.5)
     fig.suptitle(f"C3S winter snowfall extremes — issue {issue[:4]}-{issue[4:]} · "
-                 f"{', '.join(models)}", fontsize=14.5, fontweight="bold")
+                 f"{len(models)} systems", fontsize=14, fontweight="bold")
     fig.text(0.5, 0.012,
-             "Member fraction exceeding each model's OWN 1993–2016 hindcast percentile (per gridpoint, per month), averaged across models · no distribution assumed",
-             fontsize=8.6, ha="center", color="0.35")
+             "Member fraction exceeding each model's OWN 1993–2016 hindcast percentile (per gridpoint, per month) · "
+             + ", ".join(models) + " · no distribution assumed",
+             fontsize=8.2, ha="center", color="0.35")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=105)
     plt.close(fig)
