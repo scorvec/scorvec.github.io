@@ -243,7 +243,7 @@
     even where its long-range skill is noise. Tercile probabilities come from weighted
     member counting against ERA5 terciles &mdash; no Gaussian assumptions. December and
     January from the August issue; February joins with the September issue.</p>
-    <div class="img-wrap"><img src="assets/sst/c3s_winter_t2m.webp?v=d0d1e91ffe26" alt="Winter 2m temperature outlook: anomalies vs 1991-2020 and vs 2016-2025, and tercile probabilities, December and January" loading="lazy"></div>
+    <div class="img-wrap"><img src="assets/sst/c3s_winter_t2m.webp?v=fba7f06e6ddd" alt="Winter 2m temperature outlook: anomalies vs 1991-2020 and vs 2016-2025, and tercile probabilities, December and January" loading="lazy"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">C3S seasonal multi-system (CDS), t2m, North America 1&deg; &middot; anomalies vs each model's own 1993&ndash;2016 hindcast, re-based via ERA5 &middot; weights &prop; 1/CRPS&sup2; per (model, lead) from 24-yr hindcast verification &middot; refreshed each monthly issue</span>
     </div>
@@ -261,7 +261,7 @@
     &mdash; blockbuster months) <i>enhanced</i> along the subtropical-jet storm track
     from the southern Plains through the Midwest into the Northeast, where a
     moisture-loaded jet meets still-cold air. Fewer snow months, bigger blockbusters.</p>
-    <div class="img-wrap"><img src="assets/sst/c3s_winter_snow.webp?v=d0d1e91ffe26" alt="Probability of exceeding hindcast p90, p95, p99 monthly snowfall, December and January" loading="lazy"></div>
+    <div class="img-wrap"><img src="assets/sst/c3s_winter_snow.webp?v=fba7f06e6ddd" alt="Probability of exceeding hindcast p90, p95, p99 monthly snowfall, December and January" loading="lazy"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">C3S seasonal multi-system (CDS), snowfall, North America 1&deg; &middot; percentile thresholds from each model's 1993&ndash;2016 hindcast (member &times; year pooled) &middot; ECMWF, UKMO, M&eacute;t&eacute;o-France, DWD, ECCC &times;2 &middot; refreshed each monthly issue</span>
     </div>
@@ -751,13 +751,13 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=d0d1e91ffe26").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=fba7f06e6ddd").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=d0d1e91ffe26").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=fba7f06e6ddd").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=d0d1e91ffe26").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=fba7f06e6ddd").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=d0d1e91ffe26").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=fba7f06e6ddd").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
