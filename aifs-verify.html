@@ -82,10 +82,17 @@
         <option value="u850">u850 (RMSE/activity only)</option>
       </select>
     </div>
-    <div id="rmseChart" style="height:330px"></div>
-    <div id="accChart" style="height:330px"></div>
-    <div id="actChart" style="height:300px"></div>
-    <div class="chart-card-footer" id="score-note">collecting &mdash; archives began 2026-08-09; first ERA5-verified points land ~2026-08-16</div>
+    <div id="charts" style="display:none">
+      <div id="rmseChart" style="height:330px"></div>
+      <div id="accChart" style="height:330px"></div>
+      <div id="actChart" style="height:300px"></div>
+    </div>
+    <div id="collecting" style="padding:2.2rem 1.8rem;text-align:center;color:#888;font-size:0.9rem">
+      &#9203; Collecting &mdash; every 00Z run is archived (since 2026-08-09) and verified
+      against ERA5 as it matures (~6-day lag). First scored points land around
+      <b>2026-08-16</b>; curves firm up as runs accumulate.
+    </div>
+    <div class="chart-card-footer" id="score-note">no verified inits yet</div>
   </div>
 
   <div class="chart-card">
@@ -95,17 +102,9 @@
     <div class="chart-card-footer">ECMWF AIFS &amp; AIFS-ENS open data (CC BY 4.0) &middot; North America &middot; 61 frames per run</div>
   </div>
 
-  <div class="chart-card">
-    <div style="padding:1.2rem 1.8rem 0.6rem"><b>Why: the spectral-fidelity fingerprint</b></div>
-    <a href="assets/verify/spectral_fidelity.webp" target="_blank"><img src="assets/verify/spectral_fidelity.webp" alt="DCT kinetic-energy spectra by lead: AIFS single blurs, ENS control holds the analysis spectrum"></a>
-    <div class="chart-card-footer">DCT KE spectra, 25&ndash;55&deg;N Pacific&ndash;North America box &middot; fidelity resolution = finest wavelength keeping &ge;50% of the analysis spectral density &middot; day 10, 700 hPa: single half-powered at ~1900 km; control faithful to 82 km &middot; <a href="https://github.com/scorvec/quantmet-tools/tree/main/examples/aifs_spectral_fidelity">full case study &amp; reproduction code</a></div>
-  </div>
+    </div>
 
-  <div class="chart-card">
-    <a href="assets/verify/tt_compare_d05.webp" target="_blank"><img src="assets/verify/tt_compare_d05.webp" alt="Day-5 comparison: MSLP, thickness, 24-h precipitation"></a>
-    <a href="assets/verify/tt_compare_d10.webp" target="_blank"><img src="assets/verify/tt_compare_d10.webp" alt="Day-10 comparison"></a>
-    <div class="chart-card-footer">Day-5 and day-10 stills, init 2026-08-11 00Z &middot; 24-h precipitation &middot; identical contour sets both panels</div>
-  </div>
+    </div>
 
   <div class="colophon">
     <h3>Method</h3>
@@ -130,6 +129,9 @@
   fetch("assets/verify/aifs_det_scores.json?v=" + Date.now()).then(function (r) {
     if (!r.ok) throw 0; return r.json();
   }).then(function (D) {
+    if (!D.records || !D.records.length) return;
+    document.getElementById("charts").style.display = "";
+    document.getElementById("collecting").style.display = "none";
     var sel = document.getElementById("varSel");
     function draw() {
       var v = sel.value;

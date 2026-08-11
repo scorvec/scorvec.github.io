@@ -38,7 +38,7 @@ MANIFEST = REPO / "assets" / "sst" / "anim" / "aifs_compare_manifest.json"
 
 STEPS = list(range(0, 361, 6))
 G = 9.80665
-EXTENT = [-133, -60, 20, 58]                  # North America zoom
+EXTENT = [-128, -63, 22, 55]                  # North America zoom
 P_LEVELS = [0.5, 1, 2.5, 5, 7.5, 10, 15, 20, 30, 50]
 P_COLORS = ["#d7ecd7", "#a8d8a8", "#6cbf6c", "#2d8f2d", "#ffe57d",
             "#ffbb4d", "#ff8c33", "#e85c29", "#c62828"]
@@ -124,10 +124,10 @@ def render(date: str, hh: str):
                             colors="k", linewidths=0.75, transform=ccrs.PlateCarree())
             ax.clabel(cs, levels=np.arange(940, 1061, 8), fmt="%d", fontsize=6)
             ax.set_extent(EXTENT, ccrs.PlateCarree())
-            ax.coastlines(lw=0.6, color="0.2")
-            ax.add_feature(cfeature.BORDERS, lw=0.45, edgecolor="0.3", facecolor="none")
-            ax.add_feature(cfeature.STATES, lw=0.3, edgecolor="0.5", facecolor="none")
-            ax.add_feature(cfeature.LAKES, lw=0.3, edgecolor="0.5", facecolor="none")
+            ax.coastlines(lw=1.1, color="0.05")
+            ax.add_feature(cfeature.BORDERS, lw=0.8, edgecolor="0.15", facecolor="none")
+            ax.add_feature(cfeature.STATES, lw=0.55, edgecolor="0.3", facecolor="none")
+            ax.add_feature(cfeature.LAKES, lw=0.55, edgecolor="0.3", facecolor="none")
             ax.set_title(name, fontsize=11.5, fontweight="bold", loc="left")
         cb = fig.colorbar(cf, ax=list(axes), orientation="horizontal",
                           pad=0.02, fraction=0.05, aspect=48)
