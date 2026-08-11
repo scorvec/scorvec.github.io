@@ -64,6 +64,46 @@
     </div>
   </div>
 
+  <!-- ── WINTER OUTLOOK ────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>Winter outlook &mdash; 2 m temperature, honestly re-based</h2>
+    <p class="note">The same seven C3S systems, turned into winter maps that avoid the two
+    standard traps. <b>First, the climatology trap:</b> C3S anomalies are quoted against
+    each model's own 1993&ndash;2016 hindcast &mdash; a climate centred on ~2004. Here each
+    model's anomaly (bias and drift removed) is re-expressed against two <i>observed</i>
+    bases with exact per-gridpoint ERA5 shifts: <b>1991&ndash;2020</b> (WMO standard) and
+    <b>2016&ndash;2025</b> (the recent-decade normal used on energy desks, which absorbs
+    the warming trend by construction &mdash; note how the central/southern U.S. flips
+    <i>cool</i> against it while staying "warm" vs 1991&ndash;2020). <b>Second, the
+    equal-weight trap:</b> every model's 24-year hindcast is verified against ERA5 and
+    weighted &prop; 1/CRPS&sup2; per lead, so a model keeps its short-range credibility
+    even where its long-range skill is noise. Tercile probabilities come from weighted
+    member counting against ERA5 terciles &mdash; no Gaussian assumptions. December and
+    January from the August issue; February joins with the September issue.</p>
+    <div class="img-wrap"><img src="assets/sst/c3s_winter_t2m.webp?v=__CACHE__" alt="Winter 2m temperature outlook: anomalies vs 1991-2020 and vs 2016-2025, and tercile probabilities, December and January" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">C3S seasonal multi-system (CDS), t2m, North America 1&deg; &middot; anomalies vs each model's own 1993&ndash;2016 hindcast, re-based via ERA5 &middot; weights &prop; 1/CRPS&sup2; per (model, lead) from 24-yr hindcast verification &middot; refreshed each monthly issue</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Winter snowfall extremes &mdash; risk of a top-10/5/1% month</h2>
+    <p class="note">Six of the eight systems publish snowfall (NCEP and BoM don't).
+    Thresholds are each model's <b>own</b> hindcast percentiles per gridpoint and month
+    &mdash; model-consistent by construction, no re-basing needed and no distribution
+    assumed &mdash; and the maps show the member fraction exceeding them, averaged across
+    models. Read against the neutral values (10&nbsp;/&nbsp;5&nbsp;/&nbsp;1%): the early
+    signal is the El&nbsp;Ni&ntilde;o duality &mdash; run-of-the-mill snow months
+    <i>suppressed</i> across most of the continent, but the extreme tail (p99
+    &mdash; blockbuster months) <i>enhanced</i> along the subtropical-jet storm track
+    from the southern Plains through the Midwest into the Northeast, where a
+    moisture-loaded jet meets still-cold air. Fewer snow months, bigger blockbusters.</p>
+    <div class="img-wrap"><img src="assets/sst/c3s_winter_snow.webp?v=__CACHE__" alt="Probability of exceeding hindcast p90, p95, p99 monthly snowfall, December and January" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">C3S seasonal multi-system (CDS), snowfall, North America 1&deg; &middot; percentile thresholds from each model's 1993&ndash;2016 hindcast (member &times; year pooled) &middot; ECMWF, UKMO, M&eacute;t&eacute;o-France, DWD, ECCC &times;2 &middot; refreshed each monthly issue</span>
+    </div>
+  </div>
+
   <!-- ── HISTORY: THE FORECAST IN CONTEXT ──────────────────────────────── -->
   <div class="card">
     <h2>Against every ENSO year since 1970</h2>
