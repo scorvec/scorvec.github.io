@@ -189,13 +189,6 @@ def build(refresh: bool = False):
     feed = {"updated": f"{d.index.max():%Y-%m-%d}",
             "dates": [f"{t:%Y-%m-%d}" for t in d5.index],
             "north": ser(d5["north"]), "mean30": ser(rmean)}
-    for k, tag in (("west", "wn"), ("houston", "hn"), ("south", "sn"),
-                   ("lzwest", "lzn")):
-        if k in d5:
-            feed[k] = ser(d5[k])
-            sp = d5[k] - d5["north"]
-            feed[tag + "_m30"] = ser(sp.rolling(30, center=True,
-                                                min_periods=10).mean())
     fuels = fetch_fuels()
     gas = fuels["gas"].reindex(
         pd.date_range(fuels["gas"].index.min(), d.index.max())).ffill(limit=5)
@@ -222,9 +215,7 @@ def chart(d):
     import matplotlib.pyplot as plt
     s = d.loc[d.is_5x16, "north"].dropna()
     sp = s
-    fig, (ax, ax2) = plt.subplots(2, 1, figsize=(14.2, 9.4),
-                                  constrained_layout=True,
-                                  height_ratios=[1.35, 1])
+    fig, ax = plt.subplots(figsize=(14.2, 5.8), constrained_layout=True)
     # symlog: linear through zero so the solar-era negative days are honest,
     # logarithmic where the scarcity tail lives
     ax.set_yscale("symlog", linthresh=10, linscale=0.5)
@@ -261,33 +252,6 @@ def chart(d):
     ax.grid(alpha=0.3, lw=0.4, which="both")
     ax.legend(fontsize=8.5, loc="upper left")
     ax.tick_params(labelsize=9)
-    # ---- hub spreads vs North: the West wind-congestion story ----
-    d5 = d.loc[d.is_5x16]
-    ax2.set_yscale("symlog", linthresh=5, linscale=0.5)
-    wn = (d5["lzwest"] - d5["north"]).dropna()
-    ax2.plot(wn.index, wn.values, lw=0.45, color="#b8860b", alpha=0.4,
-             label="LZ_WEST − North daily")
-    for k, col, lab in (("lzwest", "#b8860b", "LZ_WEST − North"),
-                        ("west", "#8d6e63", "HB_WEST − North"),
-                        ("houston", "#00796b", "Houston − North"),
-                        ("south", "#6a4fa3", "South − North")):
-        spread = (d5[k] - d5["north"]).rolling(30, center=True,
-                                               min_periods=10).mean()
-        ax2.plot(spread.index, spread.values, lw=1.6, color=col,
-                 label=f"{lab} · 30-d mean")
-    ax2.axhline(0, color="0.55", lw=0.7)
-    ax2.set_ylim(-1500, 1500)
-    ax2.set_yticks([-1000, -250, -50, -10, 0, 10, 50, 250, 1000])
-    ax2.set_yticklabels(["−1,000", "−250", "−50", "−10", "0", "10", "50",
-                         "250", "1,000"])
-    ax2.minorticks_off()
-    ax2.set_ylabel("spread ($/MWh, symlog)", fontsize=10)
-    ax2.set_title("West basis vs North — oil-boom premium (2012–14), the CREZ "
-                  "collapse, and the modern Permian pocket (load-zone view)",
-                  fontsize=11.5, fontweight="bold", loc="left")
-    ax2.grid(alpha=0.3, lw=0.4, which="major")
-    ax2.legend(fontsize=8, loc="upper right", ncols=2)
-    ax2.tick_params(labelsize=9)
     fig.get_layout_engine().set(rect=(0, 0.03, 1, 0.97))
     fig.text(0.01, 0.006,
              f"source: ERCOT Historical RTM Load Zone and Hub Prices (NP6-785) "

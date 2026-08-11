@@ -5,7 +5,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
-<title>ERCOT RT on-peak &amp; hub spreads · 2011–present · Shawn Corvec</title>
+<title>ERCOT North Hub RT on-peak · 2011–present · Shawn Corvec</title>
 <meta name="description" content="Fifteen years of ERCOT North Hub real-time on-peak daily average prices, built from ERCOT's public settlement-point archives.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -57,7 +57,7 @@
   </ul>
 </nav>
 <main>
-  <h1>ERCOT real-time on-peak &mdash; fifteen years of prices and hub spreads</h1>
+  <h1>ERCOT North Hub &mdash; fifteen years of real-time on-peak prices</h1>
   <p class="lede">Daily on-peak averages of <b>HB_NORTH</b> real-time settlement point
   prices &mdash; the hub the liquid ICE 5&times;16 contract settles against &mdash; from
   the start of the nodal-era archive in 2011 through the present. The daily value is the
@@ -71,13 +71,9 @@
   the arcsinh/symlog axis, linear through zero and logarithmic in the tails.</p>
   <div class="chart-card">
     <div id="ercotChart" style="height:520px"></div>
-    <div class="chart-card-footer">Interactive &middot; drag to zoom, double-click to reset, buttons for ranges &middot; arcsinh axis: linear through zero (the solar-era negative days are real), logarithmic where the scarcity tail lives &middot; the 30-day mean is what a month actually settles at &mdash; during Feb 2021 it reaches ~$1,500 &middot; on the spread chart Uri is deliberately flat: with every hub pinned at the cap, inter-hub basis collapses to zero</div>
+    <div class="chart-card-footer">Interactive &middot; drag to zoom, double-click to reset, buttons for ranges &middot; arcsinh axis: linear through zero (the solar-era negative days are real), logarithmic where the scarcity tail lives &middot; the 30-day mean is what a month actually settles at &mdash; during Feb 2021 it reaches ~$1,500</div>
   </div>
-  <div class="chart-card">
-    <div id="spreadChart" style="height:460px"></div>
-    <div class="chart-card-footer">West basis vs North &middot; the load zone (LZ_WEST) carries the story where the hub average mutes it: the early-2010s wind discount (pre-CREZ congestion), its collapse when the CREZ lines energized (2014), and the renewables-era regime of two-sided basis — solar/wind-driven West discounts trading off against Permian-load premium spells &middot; 30-day means for all three spreads, daily West&minus;North behind</div>
-  </div>
-  <div class="chart-card">
+    <div class="chart-card">
     <div id="hrChart" style="height:440px"></div>
     <div class="chart-card-footer">Implied market heat rate = North on-peak &divide; Henry Hub daily spot (MMBtu/MWh) &middot; the fuel-cost lens: 2022's price hump flattens to a normal 8&ndash;10 heat rate (gas pass-through), while Uri and Aug&nbsp;2019 tower &mdash; those were scarcity, decoupled from fuel &middot; grey band: typical CCGT&ndash;peaker range</div>
   </div>
@@ -218,59 +214,6 @@
                modeBarButtonsToRemove: ["lasso2d", "select2d"] });
         }
 
-        if (d.west) {
-          var S2 = 5, tr2 = function (v) { return v === null ? null : Math.asinh(v / S2); };
-          var wn = (d.lzwest || d.west).map(function (v, i) {
-            var base = d.lzwest || d.west;
-            return (base[i] === null || d.north[i] === null) ? null
-                   : Math.round((base[i] - d.north[i]) * 100) / 100; });
-          var tickv2 = [-1000, -250, -50, -10, 0, 10, 50, 250, 1000];
-          var tickt2 = ["\u22121,000", "\u2212250", "\u221250", "\u221210",
-                        "0", "10", "50", "250", "1,000"];
-          Plotly.newPlot("spreadChart", [
-            { x: d.dates, y: wn.map(tr2), customdata: wn, mode: "lines",
-              name: "LZ_WEST \u2212 North daily",
-              line: { color: "#b8860b", width: 0.6 }, opacity: 0.4,
-              hovertemplate: "%{x|%a %b %d %Y} \u00b7 $%{customdata:,.2f}<extra>LZW\u2212N</extra>" },
-            { x: d.dates, y: (d.lzn_m30 || d.wn_m30).map(tr2),
-              customdata: (d.lzn_m30 || d.wn_m30),
-              mode: "lines", name: "LZ_WEST \u2212 North \u00b7 30-d mean",
-              line: { color: "#b8860b", width: 2.2 },
-              hovertemplate: "$%{customdata:,.2f}<extra>LZW\u2212N 30d</extra>" },
-            { x: d.dates, y: d.wn_m30.map(tr2), customdata: d.wn_m30,
-              mode: "lines", name: "HB_WEST \u2212 North \u00b7 30-d mean",
-              line: { color: "#8d6e63", width: 1.4 },
-              hovertemplate: "$%{customdata:,.2f}<extra>HBW\u2212N 30d</extra>" },
-            { x: d.dates, y: d.hn_m30.map(tr2), customdata: d.hn_m30,
-              mode: "lines", name: "Houston \u2212 North \u00b7 30-d mean",
-              line: { color: "#00796b", width: 1.7 },
-              hovertemplate: "$%{customdata:,.2f}<extra>H\u2212N 30d</extra>" },
-            { x: d.dates, y: d.sn_m30.map(tr2), customdata: d.sn_m30,
-              mode: "lines", name: "South \u2212 North \u00b7 30-d mean",
-              line: { color: "#6a4fa3", width: 1.7 },
-              hovertemplate: "$%{customdata:,.2f}<extra>S\u2212N 30d</extra>" }
-          ], {
-            margin: { l: 58, r: 16, t: 56, b: 40 },
-            paper_bgcolor: "#fff", plot_bgcolor: "#fff",
-            font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
-            yaxis: { tickvals: tickv2.map(function (v) { return Math.asinh(v / S2); }),
-                     ticktext: tickt2,
-                     title: { text: "spread ($/MWh)", font: { size: 12 } },
-                     gridcolor: "#eeece8", zeroline: true,
-                     zerolinecolor: "#c9c6bf",
-                     range: [Math.asinh(-2000 / S2), Math.asinh(2000 / S2)] },
-            xaxis: { gridcolor: "#f2f0ec",
-                     rangeselector: { buttons: [
-                       { count: 1, label: "1y", step: "year", stepmode: "backward" },
-                       { count: 5, label: "5y", step: "year", stepmode: "backward" },
-                       { step: "all", label: "all" }],
-                       x: 1, xanchor: "right", y: 1.14, yanchor: "top",
-                       font: { size: 11 } } },
-            legend: { orientation: "h", x: 0, y: 1.09, font: { size: 11 } },
-            hovermode: "x unified"
-          }, { displaylogo: false, responsive: true,
-               modeBarButtonsToRemove: ["lasso2d", "select2d"] });
-        }
       });
   })();
   </script>
