@@ -36,7 +36,7 @@ STORE = c3s.ASSETS / "data" / "c3s_evolution.json"
 # the current number first, then these. Each system anomalizes against its OWN
 # hindcast (climatology is keyed centre_system), so mixing numbers across issues
 # stays drift-clean. ECCC deliberately absent: its 4 and 5 are different models.
-ALT_SYSTEMS = {"ukmo": ["604", "603"], "dwd": ["21"], "meteo_france": ["8"]}
+ALT_SYSTEMS = {"ukmo": ["605", "604", "603"], "dwd": ["21"], "meteo_france": ["8"]}
 
 _orig_model_members = c3s.model_members
 
