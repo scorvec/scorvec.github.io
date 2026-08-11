@@ -242,11 +242,13 @@ MON = {12: "December", 1: "January", 2: "February"}
 
 def render(issue, prods, lat, lon, out: Path):
     n = len(prods)
-    fig, axes = plt.subplots(n, 4, figsize=(18.6, 4.3 * n),
+    fig, axes = plt.subplots(n, 4, figsize=(18.6, 4.15 * n),
                              constrained_layout=True,
                              subplot_kw={"projection": ccrs.LambertConformal(
                                  central_longitude=-100, central_latitude=45)})
     axes = np.atleast_2d(axes)
+    fig.get_layout_engine().set(rect=(0, 0.05, 1, 1))
+    col_cf = [None] * 4
     for i, ((m, yr, L), P) in enumerate(sorted(prods.items(), key=lambda kv: (kv[0][1], kv[0][0]))):
         panels = [
             (P["mean"]["9120"], np.linspace(-4, 4, 17), "RdBu_r",
@@ -268,19 +270,22 @@ def render(issue, prods, lat, lon, out: Path):
             ax.add_feature(cfeature.BORDERS, lw=0.4, edgecolor="0.35", facecolor="none")
             ax.add_feature(cfeature.STATES, lw=0.25, edgecolor="0.55", facecolor="none")
             ax.set_title(title, fontsize=10.5, fontweight="bold", loc="left")
-            cb = fig.colorbar(cf, ax=ax, orientation="horizontal",
-                              pad=0.02, fraction=0.05, aspect=32)
-            cb.ax.tick_params(labelsize=7.5)
+            col_cf[j] = cf
         wtxt = "  ".join(f"{k.split()[0]} {v:.2f}" for k, v in P["weights"].items())
         axes[i, 0].set_xlabel(f"lead {L} · {P['nmem']} weighted members · w: {wtxt}",
-                              fontsize=7.5, color="0.3", labelpad=3)
+                              fontsize=7.5, color="0.3", labelpad=2)
+    # one shared colorbar per column, under the bottom row
+    for j, cf in enumerate(col_cf):
+        if cf is not None:
+            cb = fig.colorbar(cf, ax=list(axes[:, j]), orientation="horizontal",
+                              pad=0.015, fraction=0.035, aspect=36, shrink=0.92)
+            cb.ax.tick_params(labelsize=7.5)
     fig.suptitle(f"C3S winter 2 m temperature — issue {issue[:4]}-{issue[4:]} · "
                  "anomalies re-based to observed climates · CRPS-weighted members",
                  fontsize=15, fontweight="bold")
-    fig.text(0.5, 0.005,
-             "Each model anomalized vs its own 1993–2016 hindcast (bias+drift removed), re-based with exact ERA5 per-gridpoint monthly shifts · "
-             "weights ∝ 1/CRPS² per (model, lead) from 24-yr hindcast verification vs ERA5 · probabilities by weighted member counting vs ERA5 terciles",
-             fontsize=8.5, ha="center", color="0.35")
+    fig.text(0.5, 0.012,
+             "Anomalies vs each model's own 1993–2016 hindcast, re-based with exact ERA5 shifts · weights ∝ 1/CRPS² from 24-yr hindcast verification · probabilities by weighted member counting vs ERA5 terciles",
+             fontsize=8.6, ha="center", color="0.35")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=105)
     plt.close(fig)
