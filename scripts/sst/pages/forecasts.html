@@ -113,18 +113,24 @@
     &minus;2&sigma; tier) between Dec&nbsp;1 and the end of the integration? Each member
     is scored against a climatology built from its <b>own model's daily hindcast</b>
     per lead day &mdash; the only correction that survives the ~3&nbsp;&deg;C offset
-    between the C3S monthly and daily streams &mdash; with normal and &sigma; from ERA5
-    1991&ndash;2020 dailies. The middle column is the honesty check: the identical spell
-    test run on the 30 observed winters. The difference map is the forecast: cold-spell
-    risk <i>suppressed</i> nearly continent-wide under the record El&nbsp;Ni&ntilde;o
-    &mdash; except a coherent patch over <b>Texas and the southern Plains</b> sitting
-    <i>above</i> its already-nontrivial base rate. A warm winter with a loaded southern
+    between the C3S monthly and daily streams. The middle column is the reference the
+    difference map subtracts: the <b>identical spell test on each model's own 24
+    hindcast winters</b> (leave-one-out, member-pooled &mdash; ~600 samples per
+    gridpoint, so it's also far less noisy than a 30-winter observed base). Comparing
+    a model to its own climatological spell rate cancels any bias in its daily
+    variability and persistence statistics; the domain-mean own bases
+    (0.42&ndash;0.46) land within a few points of ERA5's 0.46, so the models' spell
+    climates are honest to begin with &mdash; but the per-gridpoint correction
+    matters. The difference map is the forecast: cold-spell risk <i>suppressed</i>
+    nearly continent-wide under the record El&nbsp;Ni&ntilde;o &mdash; except a
+    coherent patch over <b>southern Texas and the Gulf coast</b> sitting <i>above</i>
+    the models' own base rates. A warm winter with a loaded southern
     cold-outbreak gun is exactly the strong-Ni&ntilde;o precedent (Feb&nbsp;2021 was a
     La&nbsp;Ni&ntilde;a, but Jan&nbsp;2010 and Dec&nbsp;2015's southern outbreaks were
     not).</p>
     <div class="img-wrap"><img src="assets/sst/c3s_winter_coldspell.webp?v=__CACHE__" alt="Probability of 5 or more consecutive days below normal minus 1 and 2 sigma, from daily C3S ensemble members, versus the ERA5 base rate" loading="lazy"></div>
     <div class="chart-card-footer">
-      <span class="chart-sources">C3S seasonal-original daily members (CDS) &middot; per-lead-day drift correction from each model's own 24-yr daily hindcast (&plusmn;7&nbsp;d, member&times;year pooled) &middot; normal &amp; &sigma;: ERA5 1991&ndash;2020 (&plusmn;7&nbsp;d) &middot; base rate: same test on the 30 observed winters &middot; refreshed each monthly issue</span>
+      <span class="chart-sources">C3S seasonal-original daily members (CDS) &middot; per-lead-day drift correction from each model's own 24-yr daily hindcast (&plusmn;7&nbsp;d, member&times;year pooled) &middot; normal &amp; &sigma;: ERA5 1991&ndash;2020 (&plusmn;7&nbsp;d) &middot; base: same test on each model's own 24 hindcast winters, leave-one-out &middot; refreshed each monthly issue</span>
     </div>
   </div>
 

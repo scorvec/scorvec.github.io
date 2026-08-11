@@ -215,6 +215,35 @@ def model_daily_climo(centre, system, issue, tlat, tlon):
     return mean, std, nd
 
 
+def model_spell_base(centre, system, tlat, tlon):
+    """The model's OWN climatological spell rate per gridpoint: the identical
+    spell test on its 24 hindcast winters (leave-one-out climatology,
+    member-pooled), on the scoring grid. This — not the ERA5 base — is the
+    right reference for the forecast-minus-climatology map: it cancels any
+    bias in the model's daily variability and persistence statistics. Reuses
+    the backtest's per-year caches; ~2 min cold, instant cached."""
+    cache = DATA / f"modelbase_{centre}_{system}_{SPELL_DAYS}d.npz"
+    if cache.exists():
+        z = np.load(cache)
+        return {1.0: z["base1"], 2.0: z["base2"]}
+    from c3s_coldspell_backtest import prep_year, loo_stats, YEARS
+    ad = {y: prep_year(centre, system, y, tlat, tlon) for y in YEARS}
+    ad = {y: d for y, d in ad.items() if d is not None}
+    if len(ad) < 20:
+        return None
+    print(f"  building own-hindcast spell base: {centre}/{system} "
+          f"({len(ad)} winters) …", flush=True)
+    loo = loo_stats(ad)
+    out = {}
+    for sg in (1.0, 2.0):
+        ps = [spell_prob((ad[y] - loo[y][0][None])
+                         / np.maximum(loo[y][1][None], 0.5), -sg, SPELL_DAYS)
+              .mean(axis=0) for y in ad]
+        out[sg] = np.mean(ps, axis=0).astype(np.float32)
+    np.savez_compressed(cache, base1=out[1.0], base2=out[2.0])
+    return out
+
+
 def spell_prob(z, thresh=-1.0, days=5):
     """P-per-sample of >= `days` consecutive True along axis 1."""
     cold = z < thresh
@@ -374,16 +403,25 @@ def build(issue: str, out: Path):
             "day", "latitude", "longitude").values
         anom = (daily_v - mclim_d[None, :nkeep]) + (cm[None] - 273.15)
         runs = {sg: spell_prob(z, -sg, SPELL_DAYS).mean(axis=0) for sg in (1.0, 2.0)}
+        mb = model_spell_base(centre, system, tlat, tlon)
         panels[label] = dict(p=runs[1.0], p2=runs[2.0], abs_daily=anom,
-                             nmem=z.shape[0], ndays=z.shape[1], udays=udays)
+                             nmem=z.shape[0], ndays=z.shape[1], udays=udays,
+                             mbase=mb)
+        mtxt = (f"own base {mb[1.0].mean():.2f}/{mb[2.0].mean():.2f}"
+                if mb else "own base n/a")
         print(f"  {label}: {z.shape[0]} members × {z.shape[1]} days · "
-              f"P(1σ)={runs[1.0].mean():.2f} (base {bases[1.0].mean():.2f}) · "
-              f"P(2σ)={runs[2.0].mean():.2f} (base {bases[2.0].mean():.2f})")
+              f"P(1σ)={runs[1.0].mean():.2f} · P(2σ)={runs[2.0].mean():.2f} · "
+              f"{mtxt} · ERA5 base {bases[1.0].mean():.2f}/{bases[2.0].mean():.2f}")
 
     if not panels:
         raise SystemExit("no daily data on disk yet")
     combo = np.mean([P["p"] for P in panels.values()], axis=0)
     combo2 = np.mean([P["p2"] for P in panels.values()], axis=0)
+    withbase = [P for P in panels.values() if P.get("mbase")]
+    mmbase = {sg: np.mean([P["mbase"][sg] for P in withbase], axis=0)
+              for sg in (1.0, 2.0)}
+    mmfc = {1.0: np.mean([P["p"] for P in withbase], axis=0),
+            2.0: np.mean([P["p2"] for P in withbase], axis=0)}
     lon_plot = np.where(tlon > 180, tlon - 360, tlon)
     permian_product(panels, tlat, lon_plot, issue)
 
@@ -398,13 +436,15 @@ def build(issue: str, out: Path):
     levels = [5, 10, 15, 20, 30, 40, 50, 65, 80]
     lev2 = [1, 2.5, 5, 7.5, 10, 15, 20, 30, 40]
     plots = ([("MM1", combo, "Blues", levels, f"Multi-model · −1σ ≥{SPELL_DAYS}d"),
-              ("Base", bases[1.0], "Blues", levels, "ERA5 base rate · −1σ"),
-              ("Diff", combo - bases[1.0], "RdBu", np.linspace(-0.4, 0.4, 17),
-               "Multi-model − base · −1σ"),
+              ("Base", mmbase[1.0], "Blues", levels,
+               "Own hindcast base · −1σ (models pooled)"),
+              ("Diff", mmfc[1.0] - mmbase[1.0], "RdBu",
+               np.linspace(-0.4, 0.4, 17), "Multi-model − own base · −1σ"),
               ("MM2", combo2, "Blues", lev2, f"Multi-model · −2σ ≥{SPELL_DAYS}d"),
-              ("Base2", bases[2.0], "Blues", lev2, "ERA5 base rate · −2σ"),
-              ("Diff2", combo2 - bases[2.0], "RdBu", np.linspace(-0.15, 0.15, 16),
-               "Multi-model − base · −2σ")]
+              ("Base2", mmbase[2.0], "Blues", lev2,
+               "Own hindcast base · −2σ (models pooled)"),
+              ("Diff2", mmfc[2.0] - mmbase[2.0], "RdBu",
+               np.linspace(-0.15, 0.15, 16), "Multi-model − own base · −2σ")]
              + [(f"m{i}", P["p"], "Blues", levels, f"{lab} · −1σ  ({P['nmem']} mem)")
                 for i, (lab, P) in enumerate(panels.items())])
     for ax, (key, fld, cmap, lev, title) in zip(axes, plots):
@@ -428,9 +468,10 @@ def build(issue: str, out: Path):
                  f"daily C3S members, issue {issue[:4]}-{issue[4:]} (Dec 1 → integration end)",
                  fontsize=13.5, fontweight="bold")
     fig.text(0.5, 0.006,
-             "Daily-mean member T2m coarsened to the ERA5 1.5° scoring grid · model drift removed via monthly hindcast climatology · "
-             "normal & σ: ERA5 1991–2020 daily (±7 d window) · base rate: identical spell test on the 30 observed winters",
-             fontsize=8.3, ha="center", color="0.35")
+             "Member daily T2m on the ERA5 1.5° grid · drift removed via own daily-hindcast climatology · base: identical spell "
+             "test on each model's 24 hindcast winters (leave-one-out) — cancels model spell-statistics bias · domain-mean own base "
+             f"{mmbase[1.0].mean():.2f}/{mmbase[2.0].mean():.2f} vs ERA5 {bases[1.0].mean():.2f}/{bases[2.0].mean():.2f}",
+             fontsize=7.8, ha="center", color="0.35")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=110)
     plt.close(fig)
