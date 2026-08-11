@@ -133,10 +133,13 @@ def build(issue: str):
 
 def render(issue, prods, lat, lon, models, out: Path):
     n = len(prods)
-    fig, axes = plt.subplots(n, 3, figsize=(15.0, 4.6 * n),
+    fig, axes = plt.subplots(n, 3, figsize=(15.0, 4.3 * n),
+                             constrained_layout=True,
                              subplot_kw={"projection": ccrs.LambertConformal(
                                  central_longitude=-100, central_latitude=45)})
     axes = np.atleast_2d(axes)
+    fig.get_layout_engine().set(rect=(0, 0.05, 1, 1))
+    col_cf = [None] * 3
     neutral = {90: 10, 95: 5, 99: 1}
     for i, ((m, yr, L), P) in enumerate(sorted(prods.items(), key=lambda kv: (kv[0][1], kv[0][0]))):
         for j, p in enumerate(PCTLS):
@@ -151,16 +154,17 @@ def render(issue, prods, lat, lon, models, out: Path):
             ax.set_title(f"{MON[m]} {yr} · P(snowfall > hindcast p{p}) %  "
                          f"[neutral {neutral[p]}%]",
                          fontsize=10.5, fontweight="bold", loc="left")
-            cb = fig.colorbar(cf, ax=ax, orientation="horizontal",
-                              pad=0.02, fraction=0.05, aspect=32)
+            col_cf[j] = cf
+    for j, cf in enumerate(col_cf):
+        if cf is not None:
+            cb = fig.colorbar(cf, ax=list(axes[:, j]), orientation="horizontal",
+                              pad=0.015, fraction=0.035, aspect=36, shrink=0.92)
             cb.ax.tick_params(labelsize=7.5)
     fig.suptitle(f"C3S winter snowfall extremes — issue {issue[:4]}-{issue[4:]} · "
                  f"{', '.join(models)}", fontsize=14.5, fontweight="bold")
-    fig.text(0.5, 0.005,
-             "Member fraction exceeding each model's OWN 1993–2016 hindcast percentile (per gridpoint, per valid month), averaged across models · "
-             "no distribution assumed · thresholds reference the 1993–2016 model climate",
-             fontsize=8.5, ha="center", color="0.35")
-    fig.tight_layout(rect=(0, 0.015, 1, 0.955))
+    fig.text(0.5, 0.012,
+             "Member fraction exceeding each model's OWN 1993–2016 hindcast percentile (per gridpoint, per month), averaged across models · no distribution assumed",
+             fontsize=8.6, ha="center", color="0.35")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=105)
     plt.close(fig)
