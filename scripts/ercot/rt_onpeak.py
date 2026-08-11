@@ -31,7 +31,9 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 DATA = HERE / "data"
 ASSETS = REPO / "assets" / "ercot"
-HUBS = ("HB_NORTH", "HB_HUBAVG")
+HUBS = ("HB_NORTH", "HB_WEST", "HB_HOUSTON", "HB_SOUTH", "HB_HUBAVG")
+REN = {"HB_NORTH": "north", "HB_WEST": "west", "HB_HOUSTON": "houston",
+       "HB_SOUTH": "south", "HB_HUBAVG": "hubavg"}
 Y0 = 2011
 LIST_URL = ("https://www.ercot.com/misapp/servlets/IceDocListJsonWS"
             "?reportTypeId=13061")
@@ -103,11 +105,37 @@ def parse_year(yr: int, force: bool = False) -> pd.DataFrame | None:
     d = pd.concat(rows).dropna()
     d = d[(d.hour >= 7) & (d.hour <= 22)]
     d = (d.groupby(["date", "hub"])["price"].mean().unstack("hub")
-         .rename(columns={"HB_NORTH": "north", "HB_HUBAVG": "hubavg"})
-         .reset_index())
+         .rename(columns=REN).reset_index())
     d.to_csv(cache, index=False)
     print(f"{yr}: parsed {len(d)} days", flush=True)
     return d
+
+
+FRED = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={}"
+COAL_MMBTU_PER_TONNE = 25.1        # 6,000 kcal/kg seaborne benchmark
+
+
+def fetch_fuels():
+    """Daily Henry Hub spot + monthly seaborne thermal coal (FRED, keyless),
+    cached with a 3-day staleness window."""
+    import time
+    out = {}
+    for sid, name in (("DHHNGSP", "gas"), ("PCOALAUUSDM", "coal")):
+        f = DATA / f"fred_{sid}.csv"
+        if not (f.exists() and time.time() - f.stat().st_mtime < 3 * 86400):
+            # FRED stalls python-requests but answers curl instantly
+            import subprocess
+            rc = subprocess.run(["curl", "-s", "-m", "90", "-o", str(f),
+                                 FRED.format(sid)], check=False).returncode
+            if (rc != 0 or not f.exists() or f.stat().st_size < 100) \
+                    and not f.exists():
+                raise RuntimeError(f"FRED {sid} fetch failed (curl rc={rc})")
+        df = pd.read_csv(f, na_values=".")
+        df.columns = ["date", "v"]
+        df["date"] = pd.to_datetime(df["date"])
+        out[name] = df.dropna().set_index("date")["v"]
+    out["coal"] = out["coal"] / COAL_MMBTU_PER_TONNE      # $/tonne -> $/MMBtu
+    return out
 
 
 def nerc_holidays(t0, t1):
@@ -146,7 +174,38 @@ def build(refresh: bool = False):
     ASSETS.mkdir(parents=True, exist_ok=True)
     d.round(2).to_csv(ASSETS / "rt_onpeak_daily.csv")
 
+    # compact JSON feed for the interactive page
+    d5 = d.loc[d.is_5x16]
+    def ser(v):
+        return [None if (x is None or (isinstance(x, float) and np.isnan(x)))
+                else round(float(x), 2) for x in v]
+    roll = d5["north"].rolling(30, center=True, min_periods=10).median()
+    feed = {"updated": f"{d.index.max():%Y-%m-%d}",
+            "dates": [f"{t:%Y-%m-%d}" for t in d5.index],
+            "north": ser(d5["north"]), "median30": ser(roll)}
+    for k in ("west", "houston", "south"):
+        if k in d5:
+            feed[k] = ser(d5[k])
+            sp = d5[k] - d5["north"]
+            feed[k[0] + "n_m30"] = ser(sp.rolling(30, center=True,
+                                                  min_periods=10).mean())
+    fuels = fetch_fuels()
+    gas = fuels["gas"].reindex(
+        pd.date_range(fuels["gas"].index.min(), d.index.max())).ffill(limit=5)
+    hr = (d5["north"] / gas.reindex(d5.index)).replace(
+        [np.inf, -np.inf], np.nan)
+    hr_m30 = hr.rolling(30, center=True, min_periods=10).median()
+    feed["gas"] = ser(gas.reindex(d5.index))
+    feed["hr"] = ser(hr)
+    feed["hr_m30"] = ser(hr_m30)
+    coal = fuels["coal"][fuels["coal"].index >= "2011-01-01"]
+    feed["coal_dates"] = [f"{t:%Y-%m-%d}" for t in coal.index]
+    feed["coal"] = ser(coal)
+    (ASSETS / "rt_onpeak.json").write_text(json.dumps(feed,
+                                                      separators=(",", ":")))
+
     chart(d)
+    fuels_chart(d5, gas, hr, hr_m30, coal)
     print(f"series: {len(d)} days -> {d.index.max():%Y-%m-%d}")
 
 
@@ -155,19 +214,24 @@ def chart(d):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     s = d.loc[d.is_5x16, "north"].dropna()
-    sp = s.clip(lower=1.0)
-    fig, ax = plt.subplots(figsize=(14.2, 5.8), constrained_layout=True)
-    ax.semilogy(sp.index, sp.values, lw=0.55, color="#2e5d9e", alpha=0.85,
-                label="daily on-peak average (HB_NORTH)")
+    sp = s
+    fig, (ax, ax2) = plt.subplots(2, 1, figsize=(14.2, 9.4),
+                                  constrained_layout=True,
+                                  height_ratios=[1.35, 1])
+    # symlog: linear through zero so the solar-era negative days are honest,
+    # logarithmic where the scarcity tail lives
+    ax.set_yscale("symlog", linthresh=10, linscale=0.5)
+    ax.plot(sp.index, sp.values, lw=0.55, color="#2e5d9e", alpha=0.85,
+            label="daily on-peak average (HB_NORTH)")
     roll = sp.rolling(30, center=True, min_periods=10).median()
-    ax.semilogy(roll.index, roll.values, lw=1.8, color="#c62828",
-                label="30-day rolling median")
+    ax.plot(roll.index, roll.values, lw=1.8, color="#c62828",
+            label="30-day rolling median")
+    ax.axhline(0, color="0.6", lw=0.6)
     events = [("2011-02-02", "Feb 2011\nrolling blackouts"),
               ("2011-08-03", "Aug 2011\nheat"),
               ("2014-01-06", "Jan 2014\npolar vortex"),
               ("2019-08-13", "Aug 2019\nscarcity"),
               ("2021-02-16", "Winter Storm Uri"),
-              ("2022-12-23", "Elliott"),
               ("2023-08-17", "Aug 2023\nheat")]
     for ts, lab in events:
         t = pd.Timestamp(ts)
@@ -178,23 +242,109 @@ def chart(d):
                     textcoords="offset points", fontsize=7.5, ha="center",
                     color="0.25",
                     arrowprops=dict(arrowstyle="-", lw=0.6, color="0.45"))
-    ax.set_ylim(8, 20000)
-    ax.set_ylabel("$/MWh (log scale)", fontsize=10)
+    ax.set_ylim(-15, 20000)
+    ax.set_yticks([-10, 0, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000])
+    ax.set_yticklabels(["−10", "0", "10", "25", "50", "100", "250", "500",
+                        "1,000", "2,500", "5,000", "10,000"])
+    ax.minorticks_off()
+    ax.set_ylabel("$/MWh (symlog)", fontsize=10)
     ax.set_title("ERCOT North Hub real-time on-peak daily average — 5×16 "
                  "(HE 7–22, weekdays excl. NERC holidays) · 2011–present",
                  fontsize=13, fontweight="bold", loc="left")
     ax.grid(alpha=0.3, lw=0.4, which="both")
     ax.legend(fontsize=8.5, loc="upper left")
     ax.tick_params(labelsize=9)
-    fig.get_layout_engine().set(rect=(0, 0.045, 1, 1))
-    fig.text(0.01, 0.008,
+    # ---- hub spreads vs North: the West wind-congestion story ----
+    d5 = d.loc[d.is_5x16]
+    ax2.set_yscale("symlog", linthresh=5, linscale=0.5)
+    wn = (d5["west"] - d5["north"]).dropna()
+    ax2.plot(wn.index, wn.values, lw=0.45, color="#b8860b", alpha=0.45,
+             label="West − North daily")
+    for k, col, lab in (("west", "#b8860b", "West − North"),
+                        ("houston", "#00796b", "Houston − North"),
+                        ("south", "#6a4fa3", "South − North")):
+        spread = (d5[k] - d5["north"]).rolling(30, center=True,
+                                               min_periods=10).mean()
+        ax2.plot(spread.index, spread.values, lw=1.6, color=col,
+                 label=f"{lab} · 30-d mean")
+    ax2.axhline(0, color="0.55", lw=0.7)
+    ax2.set_ylim(-1500, 1500)
+    ax2.set_yticks([-1000, -250, -50, -10, 0, 10, 50, 250, 1000])
+    ax2.set_yticklabels(["−1,000", "−250", "−50", "−10", "0", "10", "50",
+                         "250", "1,000"])
+    ax2.minorticks_off()
+    ax2.set_ylabel("spread ($/MWh, symlog)", fontsize=10)
+    ax2.set_title("Hub spreads vs North — CREZ lines end the early-2010s West "
+                  "wind discount; the renewables era brings two-sided basis",
+                  fontsize=11.5, fontweight="bold", loc="left")
+    ax2.grid(alpha=0.3, lw=0.4, which="major")
+    ax2.legend(fontsize=8, loc="upper right", ncols=2)
+    ax2.tick_params(labelsize=9)
+    fig.get_layout_engine().set(rect=(0, 0.03, 1, 1))
+    fig.text(0.01, 0.006,
              f"source: ERCOT Historical RTM Load Zone and Hub Prices (NP6-785) "
-             f"· 15-min HB_NORTH settlement point prices, HE 7–22 mean · "
+             f"· 15-min HB_NORTH settlement point prices, HE 7–22 mean · linear below \\$10, log above · "
              f"through {s.index.max():%Y-%m-%d}",
              fontsize=7.3, color="0.4")
     fig.savefig(ASSETS / "rt_onpeak.webp", dpi=125)
     plt.close(fig)
     print(f"saved {ASSETS / 'rt_onpeak.webp'}")
+
+
+def fuels_chart(d5, gas, hr, hr_m30, coal):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig, (ax, ax2) = plt.subplots(2, 1, figsize=(14.2, 9.0),
+                                  constrained_layout=True)
+    ax.set_yscale("symlog", linthresh=10, linscale=0.6)
+    ax.plot(hr.index, hr.values, lw=0.5, color="#5e35b1", alpha=0.7,
+            label="daily implied heat rate (North on-peak ÷ Henry Hub)")
+    ax.plot(hr_m30.index, hr_m30.values, lw=1.8, color="#c62828",
+            label="30-day rolling median")
+    ax.axhspan(6.5, 10.5, color="0.88", alpha=0.5, zorder=0,
+               label="typical CCGT–peaker band")
+    ax.axhline(0, color="0.6", lw=0.6)
+    ax.set_ylim(-12, 4000)
+    ax.set_yticks([-10, 0, 5, 10, 15, 25, 50, 100, 250, 1000])
+    ax.set_yticklabels(["−10", "0", "5", "10", "15", "25", "50", "100",
+                        "250", "1,000"])
+    ax.minorticks_off()
+    ax.set_ylabel("MMBtu/MWh (symlog)", fontsize=10)
+    ax.set_title("Implied market heat rate — fuel-cost moves flatten out; "
+                 "scarcity stands alone", fontsize=11.5, fontweight="bold",
+                 loc="left")
+    ax.grid(alpha=0.3, lw=0.4)
+    ax.legend(fontsize=8, loc="upper left")
+    ax.tick_params(labelsize=9)
+
+    g = gas[gas.index >= "2011-01-01"].dropna()
+    ax2.set_yscale("log")
+    ax2.plot(g.index, g.values, lw=0.8, color="#1565c0",
+             label="Henry Hub daily spot")
+    ax2.plot(coal.index, coal.values, lw=1.6, color="#4e342e",
+             drawstyle="steps-post",
+             label="seaborne thermal coal (monthly, 6,000 kcal benchmark)")
+    ax2.set_ylim(0.8, 30)
+    ax2.set_yticks([1, 2, 3, 5, 7, 10, 15, 25])
+    ax2.set_yticklabels(["1", "2", "3", "5", "7", "10", "15", "25"])
+    ax2.minorticks_off()
+    ax2.set_ylabel("$/MMBtu (log)", fontsize=10)
+    ax2.set_title("The fuels underneath — gas sets the marginal price; "
+                  "2022 is a fuel story, not a scarcity story",
+                  fontsize=11.5, fontweight="bold", loc="left")
+    ax2.grid(alpha=0.3, lw=0.4, which="major")
+    ax2.legend(fontsize=8, loc="upper left")
+    ax2.tick_params(labelsize=9)
+    fig.get_layout_engine().set(rect=(0, 0.03, 1, 0.975))
+    fig.text(0.01, 0.006,
+             "heat rate = HB_NORTH 5×16 daily on-peak ÷ Henry Hub daily spot "
+             "(FRED DHHNGSP) · coal: IMF seaborne benchmark (FRED PCOALAUUSDM) "
+             f"÷ {COAL_MMBTU_PER_TONNE} MMBtu/tonne · not PRB delivered cost",
+             fontsize=7.3, color="0.4")
+    fig.savefig(ASSETS / "rt_fuels.webp", dpi=125)
+    plt.close(fig)
+    print(f"saved {ASSETS / 'rt_fuels.webp'}")
 
 
 def main():
