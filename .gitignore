@@ -109,3 +109,6 @@ assets/strat/
 scripts/strat/
 scripts/telecon/
 scripts/verify/data/
+
+# ERCOT price archive cache (annual MIS xlsx, re-fetchable)
+scripts/ercot/data/
