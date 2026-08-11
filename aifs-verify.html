@@ -98,7 +98,7 @@
   <div class="chart-card">
     <div style="padding:1.2rem 1.8rem 0.6rem"><b>Side-by-side forecast loop &mdash; MSLP &middot; 1000&ndash;500 thickness &middot; 6-h precipitation</b></div>
     <div style="padding:0 1.8rem 0.6rem;font-size:0.8rem;color:#888">Every 6 hours through the full run, refreshed each 00Z/12Z cycle. Watch the single's precipitation smear into washes at range while the control keeps convective texture &mdash; same synoptic systems, different sharpness.</div>
-    <iframe style="width:100%;aspect-ratio:1460/610;border:0" src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single vs ENS control forecast comparison loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1460/680;border:0" src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single vs ENS control forecast comparison loop" loading="lazy"></iframe>
     <div class="chart-card-footer">ECMWF AIFS &amp; AIFS-ENS open data (CC BY 4.0) &middot; North America &middot; 61 frames per run</div>
   </div>
 
@@ -125,6 +125,16 @@
   </div>
 </main>
 <script>
+addEventListener("message", function (e) {
+  var d = e.data; if (!d || d.type !== "sstAnimHeight") return;
+  var fr = document.querySelectorAll("iframe.anim-embed");
+  for (var i = 0; i < fr.length; i++) {
+    if (fr[i].contentWindow === e.source) {
+      fr[i].style.height = d.h + "px";
+      fr[i].style.aspectRatio = "auto";
+    }
+  }
+});
 (function () {
   fetch("assets/verify/aifs_det_scores.json?v=" + Date.now()).then(function (r) {
     if (!r.ok) throw 0; return r.json();
