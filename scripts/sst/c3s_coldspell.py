@@ -395,7 +395,7 @@ def era5_base_rate(clim_mean, clim_std, thresh=-1.0, days=5, y0=1991, y1=2020):
     return base
 
 
-def permian_product(panels, tlat, lon_plot, issue):
+def permian_product(panels, tlat, tlon, lon_plot, issue, cmC, gsel):
     """Freeze-off risk for the Texas producing basins: ABSOLUTE thresholds on
     the bias-corrected daily-mean member temperatures (the metric that maps to
     wellhead freeze-offs), zoomed to the southern Plains, plus Midland-point
@@ -413,6 +413,16 @@ def permian_product(panels, tlat, lon_plot, issue):
     for ax, (title, thr, nd, levels) in zip(axes, metrics):
         per = [spell_prob(P["abs_daily"], thr, nd).mean(axis=0) for P in panels.values()]
         fld = np.mean(per, axis=0)
+        # honest context at the star: the models' OWN climatological rate of
+        # this exact metric, and the observed one — a forecast number without
+        # them reads as signal even when it is pure model climatology
+        mbs = [model_abs_spell_base(P["centre"], P["system"], tlat, tlon,
+                                    cmC, thr, nd)
+               for P in panels.values() if P.get("centre")]
+        b_mid = float(np.mean([b[jm, km] for b in mbs if b is not None]))
+        e_mid = float(era5_abs_base(thr, nd)[gsel][jm, km])
+        title = (f"{title.replace(' %', '')} — ★ {100*fld[jm, km]:.0f}%"
+                 f" (base {100*b_mid:.0f} · obs {100*e_mid:.0f})")
         cf = ax.contourf(lon_plot, tlat, 100 * fld, levels=levels, cmap="PuBu",
                          extend="max", transform=ccrs.PlateCarree())
         ax.set_extent([-108, -93, 25.5, 37.5], ccrs.PlateCarree())
@@ -421,11 +431,11 @@ def permian_product(panels, tlat, lon_plot, issue):
         ax.add_feature(cfeature.STATES, lw=0.4, edgecolor="0.4", facecolor="none")
         ax.plot(-102.1, 31.9, marker="*", ms=14, color="#c62828",
                 transform=ccrs.PlateCarree())
-        ax.set_title(title, fontsize=10.5, fontweight="bold", loc="left")
+        ax.set_title(title, fontsize=9.3, fontweight="bold", loc="left")
         cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.02,
                           fraction=0.05, aspect=30)
         cb.ax.tick_params(labelsize=7.5)
-        stats_txt.append(f"{title.split(')')[0]}) Midland: {100*fld[jm, km]:.0f}%")
+        stats_txt.append(title)
     # Midland member distribution: freezing days + longest run, pooled members
     pool_fd, pool_run = [], []
     for P in panels.values():
@@ -443,12 +453,11 @@ def permian_product(panels, tlat, lon_plot, issue):
                  f"{issue[:4]}-{issue[4:]} · Dec–Feb window", fontsize=13.5,
                  fontweight="bold")
     fig.text(0.5, 0.008,
-             f"★ Midland gridpoint (1.5°): freezing days DJF median {np.median(pool_fd):.0f} "
-             f"(P90 {np.percentile(pool_fd, 90):.0f}) · longest sub-0°C run median "
-             f"{np.median(pool_run):.0f} d (P90 {np.percentile(pool_run, 90):.0f} d) · "
-             f"P(run ≥5 d, Uri-class) {100*(pool_run >= 5).mean():.0f}% · "
-             f"{len(pool_fd)} members · bias-corrected daily means, ERA5-referenced",
-             fontsize=8.6, ha="center", color="0.25")
+             f"★ Midland (1.5°): freezing days median {np.median(pool_fd):.0f} · "
+             f"longest sub-0°C run median {np.median(pool_run):.0f} d · "
+             f"{len(pool_fd)} members · base = same metric on the model's own 24 "
+             "hindcast winters · obs = ERA5 1991–2020",
+             fontsize=8.2, ha="center", color="0.25")
     out = ASSETS / "c3s_permian_freeze.webp"
     fig.savefig(out, dpi=115)
     plt.close(fig)
@@ -538,12 +547,12 @@ def build(issue: str, out: Path):
     mmfc = {1.0: np.mean([P["p"] for P in withbase], axis=0),
             2.0: np.mean([P["p2"] for P in withbase], axis=0)}
     lon_plot = np.where(tlon > 180, tlon - 360, tlon)
-    permian_product(panels, tlat, lon_plot, issue)
     cmC_full = cm_t.values
     if cmC_full.max() > 150:
         cmC_full = cmC_full - 273.15
-    hard_freeze_product(panels, tlat, tlon, lon_plot, issue, cmC_full,
-                        np.ix_(gsel_lat, gsel_lon))
+    gsel = np.ix_(gsel_lat, gsel_lon)
+    permian_product(panels, tlat, tlon, lon_plot, issue, cmC_full, gsel)
+    hard_freeze_product(panels, tlat, tlon, lon_plot, issue, cmC_full, gsel)
 
     n = len(panels) + 6
     ncol = 3
