@@ -5,7 +5,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
-<title>ERCOT North Hub RT on-peak · 2011–present · Shawn Corvec</title>
+<title>ERCOT RT on-peak &amp; hub spreads · 2011–present · Shawn Corvec</title>
 <meta name="description" content="Fifteen years of ERCOT North Hub real-time on-peak daily average prices, built from ERCOT's public settlement-point archives.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -45,6 +45,7 @@
   @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 6.5rem 1.2rem 3rem; } }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body>
 <nav>
@@ -56,7 +57,7 @@
   </ul>
 </nav>
 <main>
-  <h1>ERCOT North Hub &mdash; fifteen years of real-time on-peak prices</h1>
+  <h1>ERCOT real-time on-peak &mdash; fifteen years of prices and hub spreads</h1>
   <p class="lede">Daily on-peak averages of <b>HB_NORTH</b> real-time settlement point
   prices &mdash; the hub the liquid ICE 5&times;16 contract settles against &mdash; from
   the start of the nodal-era archive in 2011 through the present. The daily value is the
@@ -64,11 +65,203 @@
   NERC holidays excluded). The log scale is the point: the median on-peak day over
   fifteen years is under $30/MWh, and the tail runs to daily <i>averages</i> pinned at
   the $9,000 cap for three consecutive days during Uri &mdash; a four-hundred-fold range
-  that no linear axis can show honestly.</p>
+  no linear axis can show honestly. And the modern wrinkle at the other end: the
+  solar build-out has begun printing <i>negative</i> daily on-peak averages (four of the
+  five on record are since 2021), which a plain log axis can't show at all &mdash; hence
+  the arcsinh/symlog axis, linear through zero and logarithmic in the tails.</p>
   <div class="chart-card">
-    <img src="assets/ercot/rt_onpeak.webp" alt="ERCOT North Hub real-time on-peak daily average prices 2011 to present, log scale, with major events annotated">
-    <div class="chart-card-footer">ERCOT Historical RTM Load Zone and Hub Prices (NP6-785, public MIS) &middot; 15-minute HB_NORTH settlement point prices averaged over HE&nbsp;7&ndash;22 &middot; 5&times;16 days shown &middot; refreshed monthly &middot; daily CSV (both HB_NORTH and HB_HUBAVG, all days, 5&times;16 flag): <a href="assets/ercot/rt_onpeak_daily.csv">rt_onpeak_daily.csv</a></div>
+    <div id="ercotChart" style="height:520px"></div>
+    <div class="chart-card-footer">Interactive &middot; drag to zoom, double-click to reset, buttons for ranges &middot; arcsinh axis: linear through zero (the solar-era negative days are real), logarithmic where the scarcity tail lives</div>
   </div>
+  <div class="chart-card">
+    <div id="spreadChart" style="height:460px"></div>
+    <div class="chart-card-footer">Hub basis vs North &middot; the West story: the early-2010s wind discount (pre-CREZ congestion), its collapse when the CREZ lines energized (2014), and the renewables-era regime of two-sided basis — solar/wind-driven West discounts trading off against Permian-load premium spells &middot; 30-day means for all three spreads, daily West&minus;North behind</div>
+  </div>
+  <div class="chart-card">
+    <div id="hrChart" style="height:440px"></div>
+    <div class="chart-card-footer">Implied market heat rate = North on-peak &divide; Henry Hub daily spot (MMBtu/MWh) &middot; the fuel-cost lens: 2022's price hump flattens to a normal 8&ndash;10 heat rate (gas pass-through), while Uri and Aug&nbsp;2019 tower &mdash; those were scarcity, decoupled from fuel &middot; grey band: typical CCGT&ndash;peaker range</div>
+  </div>
+  <div class="chart-card">
+    <div id="fuelChart" style="height:420px"></div>
+    <div class="chart-card-footer">The fuels underneath, common $/MMBtu axis &middot; Henry Hub daily spot (FRED&nbsp;DHHNGSP) and the IMF seaborne thermal-coal benchmark (PCOALAUUSDM, 6,000&nbsp;kcal/kg &rarr; &divide;25.1&nbsp;MMBtu/tonne) &mdash; a global coal proxy, not PRB delivered cost &middot; the 2022 energy crisis is unmistakable in both</div>
+  </div>
+  <div class="chart-card">
+    <img src="assets/ercot/rt_fuels.webp" alt="Implied market heat rate and fuel prices, static version" loading="lazy">
+    <div class="chart-card-footer">Static version of the heat-rate and fuel panels</div>
+  </div>
+  <div class="chart-card">
+    <img src="assets/ercot/rt_onpeak.webp" alt="ERCOT North Hub real-time on-peak daily average prices 2011 to present, symlog scale, with major events annotated" loading="lazy">
+    <div class="chart-card-footer">Static version &middot; ERCOT Historical RTM Load Zone and Hub Prices (NP6-785, public MIS) &middot; 15-minute HB_NORTH settlement point prices averaged over HE&nbsp;7&ndash;22 &middot; 5&times;16 days shown &middot; refreshed monthly &middot; daily CSV (both HB_NORTH and HB_HUBAVG, all days, 5&times;16 flag): <a href="assets/ercot/rt_onpeak_daily.csv">rt_onpeak_daily.csv</a></div>
+  </div>
+  <script>
+  (function () {
+    var S = 10, tr = function (v) { return Math.asinh(v / S); };
+    var tickv = [-10, 0, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
+    var tickt = ["\u221210", "0", "10", "25", "50", "100", "250", "500",
+                 "1,000", "2,500", "5,000", "10,000"];
+    var events = [["2011-02-02", "Feb 2011 blackouts"],
+                  ["2011-08-03", "Aug 2011 heat"],
+                  ["2014-01-06", "Jan 2014 polar vortex"],
+                  ["2019-08-13", "Aug 2019 scarcity"],
+                  ["2021-02-16", "Uri"],
+                  ["2023-08-17", "Aug 2023 heat"]];
+    fetch("assets/ercot/rt_onpeak.json").then(function (r) { return r.json(); })
+      .then(function (d) {
+        var y = d.north.map(tr);
+        var ym = d.median30.map(function (v) { return v === null ? null : tr(v); });
+        var ann = events.map(function (ev) {
+          var i0 = d.dates.indexOf(ev[0]), best = i0, j;
+          if (i0 < 0) { for (j = 0; j < d.dates.length; j++)
+              if (d.dates[j] >= ev[0]) { i0 = j; break; } best = i0; }
+          for (j = Math.max(0, i0 - 4); j < Math.min(d.dates.length, i0 + 5); j++)
+            if (d.north[j] > d.north[best]) best = j;
+          return { x: d.dates[best], y: tr(d.north[best]), text: ev[1],
+                   showarrow: true, arrowhead: 0, arrowcolor: "#999",
+                   arrowwidth: 0.8, ax: 0, ay: -28,
+                   font: { size: 10, color: "#666" } };
+        });
+        Plotly.newPlot("ercotChart", [
+          { x: d.dates, y: y, customdata: d.north, mode: "lines",
+            name: "daily on-peak (HB_NORTH)",
+            line: { color: "#2e5d9e", width: 0.7 },
+            hovertemplate: "%{x|%a %b %d %Y} \u00b7 $%{customdata:,.2f}<extra></extra>" },
+          { x: d.dates, y: ym, customdata: d.median30, mode: "lines",
+            name: "30-day rolling median",
+            line: { color: "#c62828", width: 2 },
+            hovertemplate: "median $%{customdata:,.2f}<extra></extra>" }
+        ], {
+          margin: { l: 58, r: 16, t: 30, b: 40 },
+          paper_bgcolor: "#fff", plot_bgcolor: "#fff",
+          font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
+          yaxis: { tickvals: tickv.map(tr), ticktext: tickt,
+                   title: { text: "$/MWh", font: { size: 12 } },
+                   gridcolor: "#eeece8", zeroline: false,
+                   range: [tr(-14), tr(16000)] },
+          xaxis: { gridcolor: "#f2f0ec",
+                   rangeselector: { buttons: [
+                     { count: 1, label: "1y", step: "year", stepmode: "backward" },
+                     { count: 5, label: "5y", step: "year", stepmode: "backward" },
+                     { step: "all", label: "all" }],
+                     font: { size: 11 } } },
+          legend: { orientation: "h", x: 0, y: 1.08, font: { size: 11 } },
+          annotations: ann,
+          hovermode: "x unified"
+        }, { displaylogo: false, responsive: true,
+             modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+
+        if (d.hr) {
+          var S3 = 10, tr3 = function (v) { return v === null ? null : Math.asinh(v / S3); };
+          var tickv3 = [-10, 0, 5, 10, 15, 25, 50, 100, 250, 1000];
+          Plotly.newPlot("hrChart", [
+            { x: d.dates, y: d.hr.map(tr3), customdata: d.hr, mode: "lines",
+              name: "daily implied heat rate",
+              line: { color: "#5e35b1", width: 0.7 },
+              hovertemplate: "%{x|%a %b %d %Y} \u00b7 %{customdata:,.1f} MMBtu/MWh<extra></extra>" },
+            { x: d.dates, y: d.hr_m30.map(tr3), customdata: d.hr_m30,
+              mode: "lines", name: "30-day rolling median",
+              line: { color: "#c62828", width: 2 },
+              hovertemplate: "median %{customdata:,.1f}<extra></extra>" }
+          ], {
+            margin: { l: 58, r: 16, t: 30, b: 40 },
+            paper_bgcolor: "#fff", plot_bgcolor: "#fff",
+            font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
+            yaxis: { tickvals: tickv3.map(function (v) { return Math.asinh(v / S3); }),
+                     ticktext: ["\u221210", "0", "5", "10", "15", "25", "50",
+                                "100", "250", "1,000"],
+                     title: { text: "MMBtu/MWh", font: { size: 12 } },
+                     gridcolor: "#eeece8", zeroline: false,
+                     range: [Math.asinh(-12 / S3), Math.asinh(4000 / S3)] },
+            xaxis: { gridcolor: "#f2f0ec",
+                     rangeselector: { buttons: [
+                       { count: 1, label: "1y", step: "year", stepmode: "backward" },
+                       { count: 5, label: "5y", step: "year", stepmode: "backward" },
+                       { step: "all", label: "all" }], font: { size: 11 } } },
+            shapes: [{ type: "rect", xref: "paper", x0: 0, x1: 1,
+                       y0: Math.asinh(6.5 / S3), y1: Math.asinh(10.5 / S3),
+                       fillcolor: "#e0ddd6", opacity: 0.45, line: { width: 0 },
+                       layer: "below" }],
+            legend: { orientation: "h", x: 0, y: 1.09, font: { size: 11 } },
+            hovermode: "x unified"
+          }, { displaylogo: false, responsive: true,
+               modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+
+          Plotly.newPlot("fuelChart", [
+            { x: d.dates, y: d.gas, mode: "lines",
+              name: "Henry Hub daily spot",
+              line: { color: "#1565c0", width: 0.9 },
+              hovertemplate: "%{x|%b %d %Y} \u00b7 $%{y:,.2f}/MMBtu<extra>gas</extra>" },
+            { x: d.coal_dates, y: d.coal, mode: "lines",
+              name: "seaborne thermal coal (monthly)",
+              line: { color: "#4e342e", width: 1.8, shape: "hv" },
+              hovertemplate: "%{x|%b %Y} \u00b7 $%{y:,.2f}/MMBtu<extra>coal</extra>" }
+          ], {
+            margin: { l: 58, r: 16, t: 30, b: 40 },
+            paper_bgcolor: "#fff", plot_bgcolor: "#fff",
+            font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
+            yaxis: { type: "log", tickvals: [1, 2, 3, 5, 7, 10, 15, 25],
+                     ticktext: ["1", "2", "3", "5", "7", "10", "15", "25"],
+                     title: { text: "$/MMBtu", font: { size: 12 } },
+                     gridcolor: "#eeece8", range: [Math.log10(0.8), Math.log10(30)] },
+            xaxis: { gridcolor: "#f2f0ec",
+                     rangeselector: { buttons: [
+                       { count: 1, label: "1y", step: "year", stepmode: "backward" },
+                       { count: 5, label: "5y", step: "year", stepmode: "backward" },
+                       { step: "all", label: "all" }], font: { size: 11 } } },
+            legend: { orientation: "h", x: 0, y: 1.09, font: { size: 11 } },
+            hovermode: "x unified"
+          }, { displaylogo: false, responsive: true,
+               modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+        }
+
+        if (d.west) {
+          var S2 = 5, tr2 = function (v) { return v === null ? null : Math.asinh(v / S2); };
+          var wn = d.west.map(function (v, i) {
+            return (v === null || d.north[i] === null) ? null
+                   : Math.round((v - d.north[i]) * 100) / 100; });
+          var tickv2 = [-1000, -250, -50, -10, 0, 10, 50, 250, 1000];
+          var tickt2 = ["\u22121,000", "\u2212250", "\u221250", "\u221210",
+                        "0", "10", "50", "250", "1,000"];
+          Plotly.newPlot("spreadChart", [
+            { x: d.dates, y: wn.map(tr2), customdata: wn, mode: "lines",
+              name: "West \u2212 North daily",
+              line: { color: "#b8860b", width: 0.6 }, opacity: 0.4,
+              hovertemplate: "%{x|%a %b %d %Y} \u00b7 $%{customdata:,.2f}<extra>W\u2212N</extra>" },
+            { x: d.dates, y: d.wn_m30.map(tr2), customdata: d.wn_m30,
+              mode: "lines", name: "West \u2212 North \u00b7 30-d mean",
+              line: { color: "#b8860b", width: 2 },
+              hovertemplate: "$%{customdata:,.2f}<extra>W\u2212N 30d</extra>" },
+            { x: d.dates, y: d.hn_m30.map(tr2), customdata: d.hn_m30,
+              mode: "lines", name: "Houston \u2212 North \u00b7 30-d mean",
+              line: { color: "#00796b", width: 1.7 },
+              hovertemplate: "$%{customdata:,.2f}<extra>H\u2212N 30d</extra>" },
+            { x: d.dates, y: d.sn_m30.map(tr2), customdata: d.sn_m30,
+              mode: "lines", name: "South \u2212 North \u00b7 30-d mean",
+              line: { color: "#6a4fa3", width: 1.7 },
+              hovertemplate: "$%{customdata:,.2f}<extra>S\u2212N 30d</extra>" }
+          ], {
+            margin: { l: 58, r: 16, t: 30, b: 40 },
+            paper_bgcolor: "#fff", plot_bgcolor: "#fff",
+            font: { family: "Inter, sans-serif", size: 12, color: "#1c1c1a" },
+            yaxis: { tickvals: tickv2.map(function (v) { return Math.asinh(v / S2); }),
+                     ticktext: tickt2,
+                     title: { text: "spread ($/MWh)", font: { size: 12 } },
+                     gridcolor: "#eeece8", zeroline: true,
+                     zerolinecolor: "#c9c6bf",
+                     range: [Math.asinh(-2000 / S2), Math.asinh(2000 / S2)] },
+            xaxis: { gridcolor: "#f2f0ec",
+                     rangeselector: { buttons: [
+                       { count: 1, label: "1y", step: "year", stepmode: "backward" },
+                       { count: 5, label: "5y", step: "year", stepmode: "backward" },
+                       { step: "all", label: "all" }],
+                       font: { size: 11 } } },
+            legend: { orientation: "h", x: 0, y: 1.09, font: { size: 11 } },
+            hovermode: "x unified"
+          }, { displaylogo: false, responsive: true,
+               modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+        }
+      });
+  })();
+  </script>
   <div class="colophon">
     <h3>Method</h3>
     <p>ERCOT publishes one workbook per year of 15-minute settlement point prices for
