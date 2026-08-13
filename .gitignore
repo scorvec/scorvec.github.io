@@ -112,3 +112,5 @@ scripts/verify/data/
 
 # ERCOT price archive cache (annual MIS xlsx, re-fetchable)
 scripts/ercot/data/
+scripts/mjo/data/reference/arco_eq_u/
+scripts/mjo/data/reference/m2_eq_u/
