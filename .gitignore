@@ -110,7 +110,7 @@ scripts/strat/
 scripts/telecon/
 scripts/verify/data/
 
-# ERCOT price archive cache (annual MIS xlsx, re-fetchable)
-scripts/ercot/data/
+# removed-project local archive (ERCOT page + C3S winter analysis, restorable)
+local_archive/
 scripts/mjo/data/reference/arco_eq_u/
 scripts/mjo/data/reference/m2_eq_u/
