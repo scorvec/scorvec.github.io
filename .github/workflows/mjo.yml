@@ -55,16 +55,20 @@ jobs:
           else
             # Write the cycle to a FILE — newer ecmwf-opendata releases write a
             # progress bar to STDOUT without a trailing newline, so stdout
-            # parsing (even a prefixed line) gets corrupted mid-line.
+            # parsing (even a prefixed line) gets corrupted mid-line. Keep stderr
+            # in a log so a probe failure is diagnosable (a fully-silenced probe
+            # plus awk-on-missing-file hid the real error for two weeks).
             (cd scripts/mjo/src && python -c \
               "from download_aifs import latest_run; d,t=latest_run(); open('/tmp/aifs_cycle','w').write(f'{d} {t}')" \
-              >/dev/null 2>&1) || true
-            DATE=$(awk '{print $1}' /tmp/aifs_cycle 2>/dev/null)
-            TIME=$(awk '{print $2}' /tmp/aifs_cycle 2>/dev/null)
+              >/dev/null 2>/tmp/aifs_probe.err) || true
+            DATE=$(awk '{print $1}' /tmp/aifs_cycle 2>/dev/null || true)
+            TIME=$(awk '{print $2}' /tmp/aifs_cycle 2>/dev/null || true)
             echo "Latest available AIFS-ENS: $DATE ${TIME}Z"
           fi
           if ! echo "$DATE" | grep -qE '^[0-9]{8}$' || ! echo "$TIME" | grep -qE '^(00|12)$'; then
             echo "ERROR: could not determine cycle (DATE='$DATE' TIME='$TIME')" >&2
+            echo "--- latest_run stderr (last 40 lines) ---" >&2
+            tail -40 /tmp/aifs_probe.err >&2 2>/dev/null || true
             exit 1
           fi
           COMPACT="${DATE}_${TIME}z"

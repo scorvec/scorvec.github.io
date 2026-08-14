@@ -186,13 +186,16 @@ try:
     import multiurl, multiurl.http, multiurl.downloader
     import ecmwf.opendata.client as _eoc
     _ORIG_ROBUST = multiurl.http.robust
-    def _failfast_robust(call, maximum_tries=500, retry_after=120, mirrors=None):
+    # *args/**kwargs: newer ecmwf-opendata/multiurl pass extra options through robust()
+    # (e.g. use_server_retry_after, added ~0.3.33) — a fixed signature made every call
+    # raise TypeError, which latest_run() swallowed per-cycle (Actions dead Jul 30→Aug 14).
+    def _failfast_robust(call, maximum_tries=500, retry_after=120, *args, **kwargs):
         def _metered(*a, **k):                     # PREVENTIVE cross-process budget:
             if _budget is not None:                # every underlying GET pays a token
                 _budget.acquire("*")
             return call(*a, **k)
         return _ORIG_ROBUST(_metered, min(maximum_tries, FAILFAST_TRIES),
-                            min(retry_after, FAILFAST_WAIT), mirrors)
+                            min(retry_after, FAILFAST_WAIT), *args, **kwargs)
     # `robust` is bound in FOUR places, all pointing at the same original. ecmwf-opendata
     # fetches the .index via its OWN `multiurl.robust` binding (the real 500×/120s culprit),
     # and the byte-range data via the HTTP downloader. Replace the name everywhere it's bound.
