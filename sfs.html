@@ -126,6 +126,26 @@
   </div>
 
   <div class="card">
+    <h2>Derived climate indices &mdash; member spread</h2>
+    <p class="note">Beyond ENSO: box and pattern indices computed per member from the
+    same anomaly fields. <b>IOD</b> (Saji DMI), the <b>South Atlantic Subtropical
+    Dipole</b> (Morioka convention, SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a
+    <b>PDO</b> built honestly for a forecast system: North Pacific SST anomalies
+    (global-mean removed) projected onto the <b>model's own reforecast EOF1</b> and
+    normalized by the reforecast PC spread, in &sigma; units. Fan: member 10&ndash;90%
+    and 25&ndash;75%; line: ensemble mean.</p>
+    <div class="controls" id="idxPills"></div>
+    <div id="idxChart" class="plot" style="height:420px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta ocn_monthly zarr, 31 members &middot;
+      anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot;
+      PDO pattern: EOF1 of reforecast North Pacific SSTA (20&ndash;70&deg;N,
+      110&deg;E&ndash;100&deg;W, 30 yrs &times; 11 members &times; 10 leads pooled)</span>
+      <span class="chart-updated" id="idx-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Global anomaly maps &mdash; month 1 and the next three seasons</h2>
     <p class="note">Each figure: the init month itself, then the three rolling 3-month
     seasons (leads 1&ndash;3, 4&ndash;6, 7&ndash;9). All panels are the <b>31-member
@@ -373,6 +393,85 @@
       if (state.sfs) draw();
     });
   });
+
+  // ── derived indices card ─────────────────────────────────────────────────
+  var idxState = { data: null, key: "dmi" };
+  function drawIdx() {
+    var D = idxState.data;
+    if (!D) return;
+    var d = D.indices[idxState.key];
+    if (!d) return;
+    var valid = D.valid_months, nL = valid.length;
+    var fan = { p10: [], p25: [], p75: [], p90: [] }, mm = [];
+    for (var L = 0; L < nL; L++) {
+      var pool = d.members.map(function (m) { return m[L]; })
+        .filter(isFinite).sort(function (a, b) { return a - b; });
+      fan.p10.push(pct(pool, 0.10)); fan.p25.push(pct(pool, 0.25));
+      fan.p75.push(pct(pool, 0.75)); fan.p90.push(pct(pool, 0.90));
+      mm.push(mean(pool));
+    }
+    var traces = [];
+    [["p90", "p10", "10–90%", "rgba(77,214,232,0.13)"],
+     ["p75", "p25", "25–75%", "rgba(77,214,232,0.22)"]].forEach(function (b) {
+      traces.push({ x: valid, y: fan[b[0]], type: "scatter", mode: "lines",
+                    line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      traces.push({ x: valid, y: fan[b[1]], type: "scatter", mode: "lines",
+                    line: { width: 0 }, fill: "tonexty", fillcolor: b[3],
+                    name: b[2], hoverinfo: "skip" });
+    });
+    var gx = [], gy = [];
+    d.members.forEach(function (m) {
+      for (var L2 = 0; L2 < nL; L2++) { gx.push(valid[L2]); gy.push(m[L2]); }
+      gx.push(valid[nL - 1]); gy.push(null);
+    });
+    traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
+                  line: { color: "rgba(167,184,206,0.14)", width: 0.8 },
+                  name: "members", hoverinfo: "skip" });
+    traces.push({ x: valid, y: mm, type: "scatter", mode: "lines+markers",
+                  name: "ensemble mean", marker: { size: 5 },
+                  line: { color: "#f2f4f8", width: 3 },
+                  hovertemplate: "%{y:+.2f} " + d.units });
+    Plotly.react("idxChart", traces, {
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: { family: "Inter, sans-serif", size: 12, color: INK2 },
+      margin: { l: 46, r: 20, t: 10, b: 40 },
+      xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, type: "category" },
+      yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
+               zerolinecolor: "rgba(148,184,225,0.35)",
+               title: { text: d.label + " (" + d.units + ")", standoff: 4 } },
+      legend: { orientation: "h", y: 1.12, font: { size: 11 } },
+      hovermode: "x unified",
+      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
+                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+    }, { displayModeBar: false, responsive: true });
+    document.getElementById("idx-updated").textContent =
+      "issue " + D.issue + " · built " + D.generated;
+  }
+  fetch("assets/sfs/data/sfs_indices.json?v=" + Date.now())
+    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (D) {
+      idxState.data = D;
+      var order = ["dmi", "sasd", "pdo", "nino3", "nino4", "nino12"];
+      var host = document.getElementById("idxPills");
+      order.forEach(function (k) {
+        if (!D.indices[k]) return;
+        var b = document.createElement("button");
+        b.className = "pill" + (k === idxState.key ? " on" : "");
+        b.textContent = D.indices[k].label.split(" (")[0];
+        b.addEventListener("click", function () {
+          idxState.key = k;
+          host.querySelectorAll(".pill").forEach(function (o) {
+            o.classList.toggle("on", o === b); });
+          drawIdx();
+        });
+        host.appendChild(b);
+      });
+      drawIdx();
+    })
+    .catch(function () {
+      document.getElementById("idxChart").innerHTML =
+        '<div style="padding:2rem;color:#888">indices feed building — check back after the monthly build</div>';
+    });
 
   Promise.all([
     fetch("assets/sfs/data/sfs_nino34.json?v=" + Date.now()).then(function (r) {
