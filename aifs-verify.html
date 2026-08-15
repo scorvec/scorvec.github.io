@@ -28,7 +28,7 @@
   .nav-links a { font-size: 0.82rem; letter-spacing: 0.04em; text-decoration: none;
                  color: var(--muted); }
   .nav-links a:hover { color: var(--ink); }
-  main { flex: 1; max-width: 2100px; margin: 0 auto; padding: 7.5rem 2.5rem 5rem; width: 100%; }
+  main { flex: 1; max-width: min(94vw, 2100px); margin: 0 auto; padding: 7.5rem 2.5rem 5rem; width: 100%; }
   h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.6rem; }
   .lede { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 60rem;
           margin-bottom: 2.2rem; }
@@ -41,7 +41,7 @@
   .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem;
                  color: var(--ink); margin-bottom: 0.5rem; }
   .colophon p + p { margin-top: 0.7rem; }
-  @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 6.5rem 1.2rem 3rem; } }
+  @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 6.5rem 1.2rem 3rem; max-width: 100%; } }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>

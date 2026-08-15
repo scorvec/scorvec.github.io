@@ -79,8 +79,9 @@
 
   main {
     flex: 1;
-    /* scale with the monitor: fill up to 2000px, gutters from the padding */
-    max-width: 2000px;
+    /* scale with the monitor: ~94% of the viewport up to 2000px, so laptops
+       keep a visible frame and ultrawides get the full width */
+    max-width: min(94vw, 2000px);
     margin: 0 auto;
     padding: 9.5rem 2.5rem 5rem;
     width: 100%;
@@ -216,7 +217,7 @@
   @media (max-width: 768px) {
     nav { padding: 1rem 1.5rem; }
     .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
-    main { padding: 9rem 1.5rem 3.5rem; }
+    main { padding: 9rem 1.5rem 3.5rem; max-width: 100%; }
     .page-header { margin-bottom: 2.2rem; padding-bottom: 1.5rem; }
     .page-header h1 { font-size: 1.6rem; }
     .chart-stack { gap: 2.2rem; }

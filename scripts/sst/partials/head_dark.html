@@ -57,8 +57,9 @@
   .enso-subnav a:hover { color: var(--ink); }
   .enso-subnav a.active { color: var(--aqua); border-bottom-color: var(--aqua); font-weight: 500; }
 
-  /* scale with the monitor: fill up to 2000px, gutters from the padding */
-  main { flex: 1; max-width: 2000px; margin: 0 auto; width: 100%;
+  /* scale with the monitor: ~94% of the viewport up to 2000px, so laptops
+     keep a visible frame and ultrawides get the full width */
+  main { flex: 1; max-width: min(94vw, 2000px); margin: 0 auto; width: 100%;
          padding: 7.4rem 1.8rem 4rem; }
 
   /* hero */
@@ -138,7 +139,7 @@
     nav { padding: 0.7rem 1rem; } .enso-subnav { padding: 0.45rem 1rem 0.55rem; gap: 1rem; }
     .nav-links { gap: 1rem; }
     h1 { font-size: 30px; } .chip { min-width: 44%; }
-    main { padding-top: 8.2rem; }
+    main { padding-top: 8.2rem; max-width: 100%; }
   }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
