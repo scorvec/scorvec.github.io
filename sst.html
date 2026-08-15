@@ -215,7 +215,7 @@
     </div>
     <div id="dailyChart" class="plot" style="height:440px"></div>
     <div class="img-wrap" id="dailyFallback" hidden>
-      <img src="assets/sst/daily_indices.webp?v=ec8ff96f39d7" alt="Daily Niño-3.4, tropical-mean and relative SST indices" loading="lazy">
+      <img src="assets/sst/daily_indices.webp?v=c7194cd182f7" alt="Daily Niño-3.4, tropical-mean and relative SST indices" loading="lazy">
     </div>
     <div class="chart-card-footer">
       <span class="chart-sources">NOAA OISST v2.1 daily &middot; cosine-weighted box means &middot; base 1991&ndash;2020 &middot; RONI scale: per-month &sigma;(ONI)/&sigma;(relative), CPC/ECMWF method</span>
@@ -233,7 +233,7 @@
     &plusmn;0.5&thinsp;&deg;C are El&nbsp;Ni&ntilde;o&nbsp;/&nbsp;La&nbsp;Ni&ntilde;a territory.</p>
     <div id="monthlyChart" class="plot" style="height:340px"></div>
     <div class="img-wrap" id="monthlyFallback" hidden>
-      <img src="assets/sst/roni.webp?v=ec8ff96f39d7" alt="ONI and RONI monthly time series" loading="lazy">
+      <img src="assets/sst/roni.webp?v=c7194cd182f7" alt="ONI and RONI monthly time series" loading="lazy">
     </div>
     <div class="chart-card-footer">
       <span class="chart-sources">Computed from NOAA OISST v2.1 &middot; 3-month centered means &middot; newest season still accumulating</span>
@@ -279,7 +279,7 @@
       <h2>Daily SOI: the Current Event vs the Record</h2>
       <p><b>150 years of the Southern Oscillation, with today marked against the records.</b> <b>Top</b>: the Bureau of Meteorology's monthly Troup SOI computed one way from <b>1876 to the present</b> &mdash; monthly (light) and 3-month mean (bold), with dotted record lines: the all-time monthly extremes were set in Apr&nbsp;1905 (&minus;42.6) and Aug&nbsp;1917 (+34.8). <b>Middle</b>: the consistent <b>daily</b> record &mdash; LongPaddock's daily Troup index (10&middot;(&Delta;P&nbsp;&minus;&nbsp;m)/&sigma;, &Delta;P = Tahiti&nbsp;&minus;&nbsp;Darwin MSLP, fixed 1887&ndash;1989 base), June&nbsp;1991&ndash;present, as 30-day and 90-day running means with their own record max/min lines (1997&ndash;98 holds the 30-day minimum; 2010&ndash;11 the positive records). <b>Bottom</b>: the last 24 months with raw daily values as bars. Sustained values below &minus;8 are the classic Troup El&nbsp;Ni&ntilde;o threshold; the record lines show at a glance how the current excursion ranks in a century and a half of data.</p>
     </div>
-    <div class="img-wrap"><img src="assets/sst/soi_history.webp?v=ec8ff96f39d7" alt="Daily SOI history: 30-day and 90-day running means with all-time record max/min lines" loading="lazy"></div>
+    <div class="img-wrap"><img src="assets/sst/soi_history.webp?v=c7194cd182f7" alt="Daily SOI history: 30-day and 90-day running means with all-time record max/min lines" loading="lazy"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">Queensland Govt LongPaddock / BoM daily Troup SOI &middot; fixed 1887&ndash;1989 base &middot; updated each cycle</span>
     </div>
@@ -292,22 +292,22 @@
       <p>NOAA PSL's Multivariate ENSO Index v2 is the leading combined-EOF of five tropical-Pacific fields (sea-level pressure, SST, surface zonal and meridional wind, and OLR), but it is published only as an overlapping bimonthly value with a roughly five-week lag. This is a daily nowcast of it: a regression of the published MEI.v2 onto freely-available daily ENSO components (the Ni&ntilde;o-3.4 SST anomaly, the Southern Oscillation Index, and the equatorial 850-hPa zonal wind), driven forward each day. The grey steps are the official bimonthly MEI.v2; the red line is the daily estimate, with a &plusmn;0.30 leave-one-year-out cross-validation band (the fit reproduces MEI.v2 at R&nbsp;=&nbsp;0.94). The model is SST-weighted, so during a fast SST-led transition it can lead MEI's slower atmospheric components.</p>
     </div>
     <div class="img-wrap">
-      <img src="assets/sst/mei/mei_nowcast.webp?v=ec8ff96f39d7"
+      <img src="assets/sst/mei/mei_nowcast.webp?v=c7194cd182f7"
            alt="Daily nowcast of the Multivariate ENSO Index version 2" loading="lazy">
     </div>
     <div class="img-wrap">
       <p class="img-label">Onset-year analogs: the current year against the major El Ni&ntilde;os</p>
-      <img src="assets/sst/mei/mei_analogs.webp?v=ec8ff96f39d7"
+      <img src="assets/sst/mei/mei_analogs.webp?v=c7194cd182f7"
            alt="MEI.v2 onset-year analogs: 1982, 1997, 2015, 2023 vs the current nowcast" loading="lazy">
     </div>
     <div class="img-wrap">
       <p class="img-label">Full record since 1980</p>
-      <img src="assets/sst/mei/mei_history.webp?v=ec8ff96f39d7"
+      <img src="assets/sst/mei/mei_history.webp?v=c7194cd182f7"
            alt="Full Multivariate ENSO Index v2 record since 1980 with the live nowcast tail" loading="lazy">
     </div>
     <div class="img-wrap">
       <p class="img-label">Out-of-sample skill: the 2015&ndash;16 El Ni&ntilde;o</p>
-      <img src="assets/sst/mei/mei_validation.webp?v=ec8ff96f39d7"
+      <img src="assets/sst/mei/mei_validation.webp?v=c7194cd182f7"
            alt="Validation of the MEI.v2 nowcast over the 2015-16 El Niño" loading="lazy">
     </div>
     <div class="chart-card-footer">
@@ -564,7 +564,7 @@
       if (state.data) drawDaily();
     });
   });
-  fetch("assets/sst/data/enso_daily.json?v=ec8ff96f39d7")
+  fetch("assets/sst/data/enso_daily.json?v=c7194cd182f7")
     .then(function (r) { if (!r.ok) throw 0; return r.json(); })
     .then(function (d) {
       state.data = d;
