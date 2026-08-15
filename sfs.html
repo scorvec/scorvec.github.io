@@ -194,16 +194,20 @@
 
   <div class="card">
     <h2>Subseasonal teleconnections &mdash; regime probabilities vs hindcast</h2>
-    <p class="note">AO, NAO, PNA and EPO computed per member across the day-16&ndash;46 window
+    <p class="note">PNA and EPO computed per member across the day-16&ndash;46 window
     (48-hour steps) and standardized
     against the model's own reforecast for that exact lead day &mdash; values are in
     hindcast-&sigma; units, so the climatological base rate of any threshold is fixed
     and the member fraction is directly comparable to it. The <b>strip</b> shows the
-    ensemble-mean state of all four indices at a glance (red positive, blue negative);
-    hover for member probabilities. Click a pill for the full member fan. AO uses EOF1
-    of the model's own reforecast 1000-hPa heights (20&ndash;90&deg;N); NAO is the
-    Azores&minus;Iceland MSLP dipole; PNA the Wallace&ndash;Gutzler centers; EPO the
-    mid-Pacific/Alaska 500-hPa dipole.</p>
+    ensemble-mean state at a glance (red positive, blue negative); hover for member
+    probabilities. Click a pill for the full member fan. PNA uses the
+    Wallace&ndash;Gutzler centers and EPO the mid-Pacific/Alaska 500-hPa dipole
+    &mdash; both are zero-sum center combinations, structurally immune to the uniform
+    part of the beta's daily-stream height artifact. <b>AO and NAO are withheld for
+    now</b>: the diagnosed artifact is polar-amplified (annular, +11&thinsp;dam
+    &gt;60&deg;N vs +3 midlatitude), which projects directly onto those indices and
+    cannot be separated from real signal; they return when NOAA reconciles the beta's
+    daily stream.</p>
     <div id="teleStrip" class="plot" style="height:190px"></div>
     <div class="controls" id="telePills" style="margin-top:8px"></div>
     <div id="teleChart" class="plot" style="height:380px"></div>
@@ -525,7 +529,7 @@
   });
 
   // ── daily cards (degree days + teleconnections) ──────────────────────────
-  var dailyState = { data: null, dd: "hdd", ddv: "daily", tele: "ao" };
+  var dailyState = { data: null, dd: "hdd", ddv: "daily", tele: "pna" };
   var ZERO_SHAPE = { type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, layer: "above", line: { color: "rgba(205,222,240,0.9)", width: 2 } };
   function plotDark(extra) {
     var base = {
@@ -600,7 +604,7 @@
   }
   function drawTeleStrip() {
     var D = dailyState.data; if (!D) return;
-    var keys = ["ao", "nao", "pna", "epo"];
+    var keys = ["pna", "epo"];   // AO/NAO withheld: annular daily-stream artifact
     var z = [], text = [];
     var xs = D.monthly ? D.days.concat(D.monthly.months) : D.days;
     keys.forEach(function (k) {
@@ -732,7 +736,7 @@
     .then(function (D) {
       dailyState.data = D;
       var host = document.getElementById("telePills");
-      ["ao", "nao", "pna", "epo"].forEach(function (k) {
+      ["pna", "epo"].forEach(function (k) {
         var b = document.createElement("button");
         b.className = "pill" + (k === dailyState.tele ? " on" : "");
         b.textContent = D.telecons[k].label;
