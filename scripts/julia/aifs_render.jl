@@ -98,9 +98,12 @@ function two_panel_figure(loop, suptitle)
     W = 2 * asp * H + 30
     fig = Figure(size = (round(Int, W), round(Int, H + 96)), backgroundcolor = :white)
     Label(fig[0, 1:2], suptitle, fontsize = 17, font = :bold, padding = (0, 0, 2, 2))
+    # panel titles from the spec when present (geml loops); AIFS names otherwise
+    t1 = hasproperty(loop, :titles) ? String(loop.titles[1]) : "AIFS single"
+    t2 = hasproperty(loop, :titles) ? String(loop.titles[2]) : "AIFS-ENS control"
     axes = [Axis(fig[1, j], title = t, titlealign = :left, titlesize = 16,
                  titlefont = :bold, backgroundcolor = :white)
-            for (j, t) in ((1, "AIFS single"), (2, "AIFS-ENS control"))]
+            for (j, t) in ((1, t1), (2, t2))]
     for ax in axes
         hidedecorations!(ax)
         limits!(ax, x0, x1, y0, y1)
