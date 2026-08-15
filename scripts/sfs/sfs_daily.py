@@ -523,8 +523,16 @@ def main():
     dom2 = lat2full >= AO_DOM[0]
     wgt = np.sqrt(np.cos(np.deg2rad(C["lat2"])))[:, None]
     z1c = _coarse2(z1)[..., dom2, :]
-    raw["ao"] = ((z1c - C["ao_climfield"][None]) * wgt
-                 ).reshape(z1c.shape[0], nsel, -1) @ C["ao_pattern"]
+    a_f = z1c - C["ao_climfield"][None]
+    # remove the area-weighted domain mean per member/day before projecting:
+    # the beta's daily stream carries a polar-amplified height excess (an
+    # annular artifact) whose common-mode part would otherwise project onto
+    # the AO; the differential part cannot be removed without destroying the
+    # AO signal itself and is flagged in the page caption.
+    aw = np.cos(np.deg2rad(C["lat2"]))[:, None]
+    dm = (a_f * aw).sum(axis=(-2, -1)) / (aw.sum() * a_f.shape[-1])
+    a_f = a_f - dm[..., None, None]
+    raw["ao"] = (a_f * wgt).reshape(z1c.shape[0], nsel, -1) @ C["ao_pattern"]
 
     def standardized(key):
         cs = C[key]                                          # (samples, 47)
