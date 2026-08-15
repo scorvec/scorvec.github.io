@@ -244,6 +244,10 @@
     <iframe class="anim-embed" style="width:100%;aspect-ratio:2.2;border:0;border-radius:8px"
       src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_prcpd_manifest.json&amp;region=sfs_prcpd&amp;autoplay=0"
       title="SFS global precipitation anomaly loop" loading="lazy"></iframe>
+    <h2 style="font-size:18px;margin-top:14px">200-hPa velocity potential (&chi;)</h2>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:2.2;border:0;border-radius:8px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chid_manifest.json&amp;region=sfs_chid&amp;autoplay=0"
+      title="SFS 200-hPa velocity potential anomaly loop" loading="lazy"></iframe>
     <div class="chart-card-footer">
       <span class="chart-sources">SFS beta atm_daily zarr (1&deg;) &middot; anomaly = deviation from (hindcast mean + own linear trend evaluated at the forecast date), per lead day, physical units
       &middot; spread ratio = member &sigma; / mean reforecast ensemble &sigma; at the same lead &middot;
@@ -289,6 +293,7 @@
     <div class="img-wrap"><img src="assets/sfs/mslp_maps.webp" alt="SFS mean sea-level pressure anomaly maps" loading="lazy" style="width:100%"></div>
     <div class="img-wrap"><img src="assets/sfs/wind850_maps.webp" alt="SFS 850 hPa wind anomaly maps" loading="lazy" style="width:100%"></div>
     <div class="img-wrap"><img src="assets/sfs/wind200_maps.webp" alt="SFS 200 hPa wind anomaly maps" loading="lazy" style="width:100%"></div>
+    <div class="img-wrap"><img src="assets/sfs/chi200_maps.webp" alt="SFS 200 hPa velocity potential anomaly maps" loading="lazy" style="width:100%"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">SFS beta atm_monthly (0.5&deg;) and ocn_monthly
       (1&deg;) zarr &middot; ensemble mean of 31 members &middot; SST over ocean, 2 m
@@ -324,6 +329,9 @@
     <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
       src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_wind200_manifest.json&amp;region=sfs_wind200&amp;autoplay=0"
       title="SFS monthly 200 hPa wind anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chi200_manifest.json&amp;region=sfs_chi200&amp;autoplay=0"
+      title="SFS monthly 200 hPa velocity potential anomaly loop" loading="lazy"></iframe>
   </div>
 
   <script>

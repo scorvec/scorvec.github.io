@@ -40,7 +40,7 @@ BASE = "https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1"
 CLIM_Y0, CLIM_Y1 = 1991, 2020
 LEADS = list(range(0, 10))                       # month 1 + three seasons
 
-VARS = ("tmp2m", "pratesfc", "prmsl", "z500", "u850", "v850", "u200", "v200")
+VARS = ("tmp2m", "pratesfc", "prmsl", "z500", "u850", "v850", "u200", "v200", "vpot200")
 
 # figure key -> (variables consumed, colormap, scale factor, units, title)
 FIGS = {
@@ -51,11 +51,12 @@ FIGS = {
     "z500":   (("z500",),         "RdBu_r",   0.1,     "dam",    "500 hPa height anomaly"),
     "wind850": (("u850", "v850"), "RdBu_r",   1.0,     "m/s",    "850 hPa wind anomaly (shading: zonal)"),
     "wind200": (("u200", "v200"), "RdBu_r",   1.0,     "m/s",    "200 hPa wind anomaly (shading: zonal)"),
+    "chi200": (("vpot200",),      "BrBG_r",   1e-6,    "10⁶ m²/s", "200 hPa velocity potential anomaly (neg = outflow)"),
 }
 # limits picked from the actual anomaly distributions so strong-El Niño fields
 # stay inside the scale instead of saturating whole regions
 VLIM = {"sst": 4.0, "t2m": 5.0, "precip": 6.0, "mslp": 6.0, "z500": 9.0,
-        "wind850": 6.0, "wind200": 12.0}
+        "wind850": 6.0, "wind200": 12.0, "chi200": 6.0}
 
 
 def _open(url):

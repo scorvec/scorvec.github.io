@@ -246,6 +246,70 @@ def precip_daily_clim(month: int) -> np.ndarray:
     return clim
 
 
+def render_chi_loop(issue, t0, lead_days):
+    """Daily 200-hPa velocity-potential anomaly loop, reusing the site's
+    spherical-harmonic tools and the committed ERA5 1991-2020 harmonic χ
+    climatology (same baseline as the AIFS vpot product)."""
+    import sys as _sys, time as _time
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import cartopy.crs as ccrs
+    import xarray as xr
+    _sys.path.insert(0, str(REPO / "scripts" / "mjo" / "src"))
+    from wind200_vpot import velocity_potential, eval_vp_clim, CLIM, VP_CMAP, VP_LEVELS
+    ds = _open(f"{BASE}/forecast/{issue}/atm_daily.zarr")
+    lat, lon = ds.lat.values, ds.lon.values
+    u = ds.UGRD_200mb.values
+    v = ds.VGRD_200mb.values
+    ksel = np.where(np.isfinite(u[0, :, 90, 180]) & (lead_days >= 16))[0]
+    cds = xr.open_dataset(CLIM)
+    coef = cds[list(cds.data_vars)[0]].values
+    ANIM = REPO / "assets" / "sfs" / "anim"
+    name = "sfs_chid"
+    outdir = ANIM / name
+    outdir.mkdir(parents=True, exist_ok=True)
+    for old in outdir.glob("F*.webp"):
+        old.unlink()
+    frames = []
+    for i, k in enumerate(ksel):
+        valid = t0 + pd.Timedelta(days=int(lead_days[k]))
+        u_da = xr.DataArray(np.nanmean(u[:, k], axis=0),
+                            coords={"latitude": lat, "longitude": lon},
+                            dims=("latitude", "longitude"))
+        v_da = xr.DataArray(np.nanmean(v[:, k], axis=0),
+                            coords={"latitude": lat, "longitude": lon},
+                            dims=("latitude", "longitude"))
+        chi, dlat, dlon = velocity_potential(u_da, v_da)
+        anom = (chi - eval_vp_clim(coef, int(valid.dayofyear))) / 1e6
+        fig = plt.figure(figsize=(13.0, 5.6))
+        ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=180))
+        ax.set_extent([-180, 180, -75, 75], crs=ccrs.PlateCarree())
+        cf = ax.contourf(dlon, dlat, anom, levels=VP_LEVELS, cmap=VP_CMAP,
+                         extend="both", transform=ccrs.PlateCarree())
+        ax.coastlines(lw=0.5, color="0.25")
+        ax.set_title("ens-mean 200-hPa velocity potential anomaly vs ERA5 "
+                     "1991–2020 harmonic normal (10⁶ m²/s; negative = "
+                     "divergent outflow / enhanced convection)",
+                     fontsize=10, loc="left")
+        fig.colorbar(cf, ax=ax, orientation="vertical", fraction=0.025,
+                     pad=0.015)
+        fig.suptitle(f"SFS beta — 200-hPa χ · {valid:%a %b %d %Y} "
+                     f"(day {int(lead_days[k])}) · 31-member mean · issue "
+                     f"{t0:%b %Y}", fontsize=12, fontweight="bold", y=0.99)
+        fig.subplots_adjust(top=0.88)
+        fn = f"F{i:02d}.webp"
+        fig.savefig(outdir / fn, dpi=130, bbox_inches="tight")
+        plt.close(fig)
+        frames.append({"idx": i, "file": fn, "date": f"{valid:%Y-%m-%d}",
+                       "label": f"{valid:%b %d} · day {int(lead_days[k])}"})
+    (ANIM / f"{name}_manifest.json").write_text(json.dumps(
+        {"ver": int(_time.time()), "days": len(frames),
+         "regions": {name: {"label": "SFS 200-hPa velocity potential anomaly",
+                            "n_frames": len(frames), "frames": frames}}}))
+    print(f"loop {name}: {len(frames)} frames", flush=True)
+
+
 def era5_daily_clim():
     """ERA5 1991-2020 day-of-year climatology (±7 d window) for t2m/z500,
     NH 1.5° from the local WB2 store; cached once, month-independent."""
@@ -634,6 +698,7 @@ def main():
     }
 
     render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon)
+    render_chi_loop(issue, t0, lead_days)
 
     # ── monthly extension: leads 2-11 from atm_monthly ──────────────────────
     dsm = _open(f"{BASE}/forecast/{issue}/atm_monthly.zarr")
