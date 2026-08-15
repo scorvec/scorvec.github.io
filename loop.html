@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loop player</title>
+<style>
+  :root { --bg: #0f1626; --bar: #131c30; --rule: rgba(148,184,225,0.16);
+          --ink: #e9eff8; --muted: #8296ad; --aqua: #4dd6e8; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: Inter, -apple-system, sans-serif;
+         color: var(--ink); overflow: hidden; }
+  #frame { display: block; width: 100%; height: auto; user-select: none;
+           -webkit-user-drag: none; cursor: ew-resize; background: #fff; }
+  #bar { display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+         background: var(--bar); border-top: 1px solid var(--rule); }
+  button { background: transparent; border: 1px solid var(--rule); color: var(--ink);
+           border-radius: 6px; font-size: 13px; line-height: 1; padding: 5px 9px;
+           cursor: pointer; font-family: inherit; }
+  button:hover { border-color: var(--aqua); color: var(--aqua); }
+  #scrub { flex: 1; accent-color: var(--aqua); height: 20px; cursor: pointer; }
+  select { background: var(--bar); color: var(--ink); border: 1px solid var(--rule);
+           border-radius: 6px; font-size: 12px; padding: 3px 4px; }
+  #label { font-size: 12px; color: var(--muted); white-space: nowrap;
+           font-variant-numeric: tabular-nums; min-width: 11ch; text-align: right; }
+  #load { position: absolute; inset: 0; display: flex; flex-direction: column;
+          align-items: center; justify-content: center; gap: 10px;
+          background: var(--bg); z-index: 5; }
+  #loadbar { width: min(60%, 340px); height: 4px; background: var(--rule);
+             border-radius: 2px; overflow: hidden; }
+  #loadfill { height: 100%; width: 0%; background: var(--aqua); transition: width .15s; }
+  #loadtxt { font-size: 12px; color: var(--muted); }
+  .err { color: #ff8a7a; font-size: 13px; padding: 0 1rem; text-align: center; }
+</style>
+</head>
+<body>
+<div id="load"><div id="loadbar"><div id="loadfill"></div></div>
+  <div id="loadtxt">loading&hellip;</div></div>
+<img id="frame" alt="forecast loop frame">
+<div id="bar">
+  <button id="play" title="space">&#9654;</button>
+  <button id="back" title="&larr;">&#9198;</button>
+  <button id="fwd" title="&rarr;">&#9197;</button>
+  <input id="scrub" type="range" min="0" max="0" value="0" step="1">
+  <select id="speed">
+    <option value="600">slow</option>
+    <option value="330" selected>normal</option>
+    <option value="180">fast</option>
+  </select>
+  <span id="label">&mdash;</span>
+</div>
+<script>
+(function () {
+  "use strict";
+  var q = new URLSearchParams(location.search);
+  var manifest = q.get("manifest"), regionKey = q.get("region");
+  var img = document.getElementById("frame"), scrub = document.getElementById("scrub");
+  var playBtn = document.getElementById("play"), label = document.getElementById("label");
+  var frames = [], imgs = [], okFrame = [], cur = 0, playing = false, timer = null;
+  var DWELL = 4;                                   // extra ticks on the last frame
+
+  function postH() {
+    var h = img.offsetHeight + document.getElementById("bar").offsetHeight;
+    if (h > 40) parent.postMessage({ type: "sstAnimHeight", h: h }, "*");
+  }
+  addEventListener("resize", function () { setTimeout(postH, 60); });
+
+  function show(i, fromPlay) {
+    if (!frames.length) return;
+    i = (i + frames.length) % frames.length;
+    if (!okFrame[i]) {                             // skip missing frames
+      var j = i, guard = 0;
+      do { j = (j + (fromPlay === false ? -1 : 1) + frames.length) % frames.length;
+           guard++; } while (!okFrame[j] && guard <= frames.length);
+      if (!okFrame[j]) return;
+      i = j;
+    }
+    cur = i;
+    img.src = imgs[i].src;
+    scrub.value = i;
+    label.textContent = frames[i].label + " · " + (i + 1) + "/" + frames.length;
+  }
+  function tick() {
+    var last = frames.length - 1;
+    if (cur >= last) { dwell = (dwell + 1) % DWELL; if (dwell) return; }
+    show(cur >= last ? 0 : cur + 1, true);
+  }
+  var dwell = 0;
+  function setPlaying(p) {
+    playing = p;
+    playBtn.innerHTML = p ? "&#9646;&#9646;" : "&#9654;";
+    clearInterval(timer);
+    if (p) timer = setInterval(tick, +document.getElementById("speed").value);
+  }
+  document.getElementById("speed").addEventListener("change", function () {
+    if (playing) setPlaying(true);
+  });
+  playBtn.addEventListener("click", function () { setPlaying(!playing); });
+  document.getElementById("back").addEventListener("click", function () {
+    setPlaying(false); show(cur - 1, false); });
+  document.getElementById("fwd").addEventListener("click", function () {
+    setPlaying(false); show(cur + 1, true); });
+  scrub.addEventListener("input", function () {
+    setPlaying(false); show(+scrub.value, true); });
+  addEventListener("keydown", function (e) {
+    if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
+    else if (e.key === "ArrowLeft") { setPlaying(false); show(cur - 1, false); }
+    else if (e.key === "ArrowRight") { setPlaying(false); show(cur + 1, true); }
+    else if (e.key === "Home") { setPlaying(false); show(0, true); }
+    else if (e.key === "End") { setPlaying(false); show(frames.length - 1, true); }
+  });
+  // drag-scrub on the image
+  var dragging = false;
+  function dragTo(clientX) {
+    var r = img.getBoundingClientRect();
+    var f = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    show(Math.round(f * (frames.length - 1)), true);
+  }
+  img.addEventListener("pointerdown", function (e) {
+    dragging = true; setPlaying(false); dragTo(e.clientX);
+    img.setPointerCapture(e.pointerId);
+  });
+  img.addEventListener("pointermove", function (e) { if (dragging) dragTo(e.clientX); });
+  addEventListener("pointerup", function () { dragging = false; });
+
+  function fail(msg) {
+    document.getElementById("load").innerHTML = '<div class="err">' + msg + "</div>";
+  }
+  if (!manifest || !regionKey) { fail("missing manifest/region parameters"); return; }
+  fetch("assets/sst/anim/" + manifest + "?v=" + Date.now())
+    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (man) {
+      var reg = man.regions[regionKey];
+      if (!reg) throw 0;
+      frames = reg.frames;
+      scrub.max = frames.length - 1;
+      var ver = man.ver || 0, loaded = 0;
+      okFrame = frames.map(function () { return false; });
+      imgs = frames.map(function (fr, i) {
+        var im = new Image();
+        im.onload = function () {
+          okFrame[i] = true; done();
+        };
+        im.onerror = function () { done(); };
+        im.src = "assets/sst/anim/" + regionKey + "/" + fr.file + "?v=" + ver;
+        return im;
+      });
+      function done() {
+        loaded++;
+        var pc = Math.round(100 * loaded / frames.length);
+        document.getElementById("loadfill").style.width = pc + "%";
+        document.getElementById("loadtxt").textContent =
+          "loading frames · " + loaded + "/" + frames.length;
+        if (loaded === frames.length) {
+          document.getElementById("load").style.display = "none";
+          show(0, true);
+          img.onload = function () { postH(); img.onload = postH; };
+          setPlaying(q.get("autoplay") !== "0");
+        }
+      }
+    })
+    .catch(function () { fail("loop manifest unavailable — check back shortly"); });
+})();
+</script>
+</body>
+</html>

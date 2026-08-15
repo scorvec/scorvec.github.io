@@ -106,6 +106,9 @@
     comparison &mdash; two independent forecast systems on one chart. Monthly values,
     anchored at the last observed month; toggle 3-month for the ONI convention.</p>
     <div class="controls">
+      <button class="pill on" data-idx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
+      <button class="pill" data-idx="roni">RONI</button>
+      <span style="color:var(--muted)">&middot;</span>
       <button class="pill on" data-sm="0">Monthly</button>
       <button class="pill" data-sm="1">3-month (ONI convention)</button>
       <span style="color:var(--muted)">&middot;</span>
@@ -130,18 +133,34 @@
     the same init month and lead &mdash; the same convention as the plume above, so
     drift never masquerades as signal. Wind maps shade the zonal anomaly with vector
     arrows on top.</p>
-    <div class="img-wrap"><img src="assets/sfs/t2m_maps.webp" alt="SFS 2m temperature anomaly maps" loading="lazy" style="width:100%"></div>
+    <div class="img-wrap"><img src="assets/sfs/sst_maps.webp" alt="SFS sea-surface temperature anomaly maps" loading="lazy" style="width:100%"></div>
+    <div class="img-wrap"><img src="assets/sfs/t2m_maps.webp" alt="SFS 2m temperature anomaly maps over land" loading="lazy" style="width:100%"></div>
     <div class="img-wrap"><img src="assets/sfs/precip_maps.webp" alt="SFS precipitation anomaly maps" loading="lazy" style="width:100%"></div>
     <div class="img-wrap"><img src="assets/sfs/z500_maps.webp" alt="SFS 500 hPa height anomaly maps" loading="lazy" style="width:100%"></div>
     <div class="img-wrap"><img src="assets/sfs/mslp_maps.webp" alt="SFS mean sea-level pressure anomaly maps" loading="lazy" style="width:100%"></div>
     <div class="img-wrap"><img src="assets/sfs/wind850_maps.webp" alt="SFS 850 hPa wind anomaly maps" loading="lazy" style="width:100%"></div>
     <div class="img-wrap"><img src="assets/sfs/wind200_maps.webp" alt="SFS 200 hPa wind anomaly maps" loading="lazy" style="width:100%"></div>
     <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_monthly zarr, 0.5&deg; &middot; ensemble
-      mean of 31 members &middot; clim: own reforecast 1991&ndash;2020 (11 members
+      <span class="chart-sources">SFS beta atm_monthly (0.5&deg;) and ocn_monthly
+      (1&deg;) zarr &middot; ensemble mean of 31 members &middot; SST over ocean, 2 m
+      temperature over land &middot; clim: own reforecast 1991&ndash;2020 (11 members
       &times; 30 years), init-month and lead specific &middot; refreshed each monthly
       issue</span>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>Monthly breakdown &mdash; every lead, one map per month</h2>
+    <p class="note">The same anomalies without seasonal averaging: the first ten
+    forecast months individually (2&times;5 panels per variable). Useful for watching
+    how the pattern develops and decays month by month rather than in 3-month blocks.</p>
+    <div class="img-wrap"><img src="assets/sfs/sst_monthly.webp" alt="SFS monthly SST anomaly maps" loading="lazy" style="width:100%"></div>
+    <div class="img-wrap"><img src="assets/sfs/t2m_monthly.webp" alt="SFS monthly 2m temperature anomaly maps" loading="lazy" style="width:100%"></div>
+    <div class="img-wrap"><img src="assets/sfs/precip_monthly.webp" alt="SFS monthly precipitation anomaly maps" loading="lazy" style="width:100%"></div>
+    <div class="img-wrap"><img src="assets/sfs/z500_monthly.webp" alt="SFS monthly 500 hPa height anomaly maps" loading="lazy" style="width:100%"></div>
+    <div class="img-wrap"><img src="assets/sfs/mslp_monthly.webp" alt="SFS monthly MSLP anomaly maps" loading="lazy" style="width:100%"></div>
+    <div class="img-wrap"><img src="assets/sfs/wind850_monthly.webp" alt="SFS monthly 850 hPa wind anomaly maps" loading="lazy" style="width:100%"></div>
+    <div class="img-wrap"><img src="assets/sfs/wind200_monthly.webp" alt="SFS monthly 200 hPa wind anomaly maps" loading="lazy" style="width:100%"></div>
   </div>
 
   <div class="colophon">
@@ -158,7 +177,8 @@
 (function () {
   "use strict";
   var GRID = "rgba(148,184,225,0.10)", AXIS = "#6d8099", INK2 = "#a7b8ce";
-  var state = { smooth: false, members: false, sfs: null, c3s: null, hist: null };
+  var state = { idx: "n34", smooth: false, members: false,
+                sfs: null, c3s: null, hist: null };
 
   function fmt(v, d) { return v == null || !isFinite(v) ? "—" : (v > 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
   function mean(a) { var s = 0, n = 0; a.forEach(function (v) { if (isFinite(v)) { s += v; n++; } }); return n ? s / n : NaN; }
@@ -176,12 +196,15 @@
   function draw() {
     var S = state.sfs;
     var valid = S.valid_months;
-    var nL = valid.length, nM = S.members.length;
+    var useR = state.idx === "roni" && S.members_rnino;
+    var members = useR ? S.members_rnino : S.members;
+    var nL = valid.length, nM = members.length;
 
     var obsX = [], obsY = [];
     if (state.hist) {
       obsX = state.hist.months.slice(-8);
-      var src = state.hist.series.oni;
+      var src = useR ? (state.hist.series.roni || state.hist.series.oni)
+                     : state.hist.series.oni;
       obsY = (src.anom || src).slice(-8);
     }
     function smooth(fcArr) {
@@ -192,7 +215,7 @@
 
     var fan = { p10: [], p25: [], p75: [], p90: [] }, mmm = [];
     for (var L = 0; L < nL; L++) {
-      var pool = S.members.map(function (m) { return m[L]; })
+      var pool = members.map(function (m) { return m[L]; })
         .filter(isFinite).sort(function (a, b) { return a - b; });
       fan.p10.push(pct(pool, 0.10)); fan.p25.push(pct(pool, 0.25));
       fan.p75.push(pct(pool, 0.75)); fan.p90.push(pct(pool, 0.90));
@@ -215,7 +238,7 @@
     });
     if (state.members) {
       var gx = [], gy = [];
-      S.members.forEach(function (m) {
+      members.forEach(function (m) {
         var tr = smooth(m.slice());
         for (var L2 = 0; L2 < nL; L2++) { gx.push(valid[L2]); gy.push(tr[L2]); }
         gx.push(valid[nL - 1]); gy.push(null);
@@ -228,8 +251,9 @@
     if (state.c3s) {
       var F = state.c3s, labels = Object.keys(F.models);
       var cx = [], cy = [];
+      var fKey = useR ? "rnino" : "n34";
       F.valid_months.forEach(function (ym, L3) {
-        var v = mean(labels.map(function (mo) { return mean(F.models[mo].n34[L3]); }));
+        var v = mean(labels.map(function (mo) { return mean(F.models[mo][fKey][L3]); }));
         cx.push(ym); cy.push(v);
       });
       var cyPlot = state.smooth
@@ -273,18 +297,19 @@
 
     var peak = { v: -99, i: 0 };
     mmm.forEach(function (v, i) { if (v > peak.v) peak = { v: v, i: i }; });
-    var pool = S.members.map(function (m) { return m[peak.i]; })
+    var pool = members.map(function (m) { return m[peak.i]; })
       .filter(isFinite).sort(function (a, b) { return a - b; });
     var c3sPeak = null;
     if (state.c3s) {
       var F2 = state.c3s, labels2 = Object.keys(F2.models);
+      var fKey2 = useR ? "rnino" : "n34";
       c3sPeak = Math.max.apply(null, F2.valid_months.map(function (_, L4) {
-        return mean(labels2.map(function (mo) { return mean(F2.models[mo].n34[L4]); }));
+        return mean(labels2.map(function (mo) { return mean(F2.models[mo][fKey2][L4]); }));
       }));
     }
     var chips = [
       { l: "Issue " + S.issue, v: nM + " members", s: "12 monthly leads · beta v1.0", cls: "neut" },
-      { l: "Peak Niño-3.4 · " + valid[peak.i], v: fmt(peak.v) + " °C",
+      { l: "Peak " + (useR ? "RONI" : "Niño-3.4") + " · " + valid[peak.i], v: fmt(peak.v) + " °C",
         s: "members P10–P90: " + fmt(pct(pool, 0.10), 1) + " … " + fmt(pct(pool, 0.90), 1),
         cls: peak.v >= 0.5 ? "warm" : "neut" },
       { l: "C3S seven-model peak", v: c3sPeak == null ? "—" : fmt(c3sPeak) + " °C",
@@ -298,6 +323,14 @@
     }).join("");
   }
 
+  document.querySelectorAll(".pill[data-idx]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.idx = b.dataset.idx;
+      document.querySelectorAll(".pill[data-idx]").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      if (state.sfs) draw();
+    });
+  });
   document.querySelectorAll(".pill[data-sm]").forEach(function (b) {
     b.addEventListener("click", function () {
       state.smooth = b.dataset.sm === "1";

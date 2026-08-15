@@ -68,42 +68,103 @@
   <header>
     <div class="eyebrow">Twice daily &middot; ECCC experimental &middot; AI emulator vs operational NWP</div>
     <h1>Canada's Hybrid <em>AI</em> Model</h1>
-    <p class="sub">In spring 2026 Environment and Climate Change Canada launched a hybrid
-    forecast system: the operational GDPS (GEM dynamics, 15&nbsp;km) is <b>spectrally
-    nudged</b> toward the large-scale temperature and wind fields of <b>GEML</b>, the
-    Global Environmental eMuLator &mdash; ECCC's data-driven AI weather model
-    (28&nbsp;km, 13 pressure levels, 10-day range, on Datamart since March 2026). This
-    page shows the raw AI emulator side by side with the operational model it steers:
-    where the two agree, the hybrid simply sharpens; where they diverge, the nudging is
-    doing real work.</p>
+    <p class="sub">Three models to keep straight. <b>GEM</b> was Canada's pure-physics
+    global model. <b>GEML</b> (Global Environmental eMuLator) is ECCC's data-driven AI
+    weather model (28&nbsp;km, 13 pressure levels, 10 days). And since spring 2026 the
+    <b>operational GDPS is the hybrid</b>: GEM with its large-scale temperature and
+    winds <b>spectrally nudged toward GEML</b> every step &mdash; the pure un-nudged
+    model is no longer published. So every "GDPS" panel below <i>is</i> the hybrid
+    GDPS&#8209;GEML forecast, and the comparison against the free-running raw emulator
+    shows exactly what the nudging keeps and what it overrides.</p>
   </header>
 
   <div class="card">
-    <h2>500 hPa height &mdash; GEML vs GDPS, day 0&ndash;10</h2>
-    <p class="note">Left: <b>GDPS-GEML</b>, the AI emulator's own free-running forecast.
-    Right: the <b>operational GDPS</b>. Same cycle, same colour scale, every 6 hours
-    through hour 240. Watch the AI's smoother-but-steadier large scales against the
-    NWP's sharper synoptic detail &mdash; the exact trade the GDPS-SN hybrid is built to
-    arbitrage. Refreshed daily from the 00Z cycle.</p>
-    <iframe class="anim-embed" style="aspect-ratio:2140/1300"
-      src="sst_anim.html?embed=1&amp;manifest=geml_z500_manifest.json&amp;region=geml_z500"
-      title="GDPS-GEML versus operational GDPS 500 hPa height loop" loading="lazy"></iframe>
+    <h2>500 hPa height &mdash; GEML &middot; GDPS &middot; difference</h2>
+    <p class="note">Left: <b>GEML</b>, the AI emulator running free. Middle: the
+    <b>operational hybrid GDPS</b> (GEM nudged toward GEML's large scales). Right:
+    <b>GEML &minus; hybrid</b> &mdash; where the free-running AI diverges from the
+    constrained forecast: small differences mean the nudging target and the physics
+    agree; growing patches show where GEM's own dynamics push back against the AI's
+    steer. Every 6 hours through hour 240, refreshed each 00Z and 12Z cycle.</p>
+    <iframe class="anim-embed" style="aspect-ratio:2.6"
+      src="loop.html?manifest=geml_z500_manifest.json&amp;region=geml_z500"
+      title="GEML vs GDPS 500 hPa height with difference" loading="lazy"></iframe>
     <div class="chart-card-footer">
-      <span class="chart-sources">ECCC MSC Datamart (open government licence) &middot;
-      GDPS-GEML 0.25&deg; &middot; GDPS 0.15&deg; &middot; both shown as 500 hPa height
-      (dam), NH polar stereographic &middot; 41 frames per cycle</span>
+      <span class="chart-sources">ECCC MSC Datamart &middot; GDPS-GEML 0.25&deg; &middot;
+      GDPS 0.15&deg; &middot; 500 hPa height (dam), NH polar stereographic &middot;
+      difference in dam</span>
     </div>
   </div>
 
+  <div class="card">
+    <h2>2 m temperature &mdash; GEML &middot; GDPS &middot; difference</h2>
+    <p class="note">Same three-panel layout for surface temperature. AI emulators tend
+    to damp sharp frontal gradients and coastal contrasts at range &mdash; the
+    difference panel makes that visible directly, and also exposes any systematic
+    warm/cold drift between the two systems.</p>
+    <iframe class="anim-embed" style="aspect-ratio:2.6"
+      src="loop.html?manifest=geml_t2m_manifest.json&amp;region=geml_t2m"
+      title="GEML vs GDPS 2 m temperature with difference" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">2 m air temperature (&deg;C), NH polar stereographic
+      &middot; difference in &deg;C</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Synoptic pairs &mdash; MSLP, thickness &amp; precipitation type</h2>
+    <p class="note">The AIFS-style side-by-side, for the Canadian pair: MSLP contours
+    and 1000&ndash;500 thickness dashes on both panels. The GDPS panel is shaded by
+    <b>6-h precipitation broken into type</b> &mdash; <span style="color:#31a354">rain</span>,
+    <span style="color:#4292c6">snow</span>, <span style="color:#dd3497">freezing
+    rain</span> and <span style="color:#807dba">ice pellets</span> from the hybrid's
+    own per-type accumulations. <b>GEML publishes no precipitation</b>, so its panel
+    shows the dynamics only &mdash; which is precisely the hybrid's division of labor:
+    take the AI's large-scale skill, keep GEM's physically consistent sensible
+    weather.</p>
+    <h2 style="font-size:18px">North America</h2>
+    <iframe class="anim-embed" style="aspect-ratio:2.3"
+      src="loop.html?manifest=geml_syn_na_manifest.json&amp;region=geml_syn_na"
+      title="GEML vs GDPS synoptic loop North America" loading="lazy"></iframe>
+    <h2 style="font-size:18px;margin-top:16px">Europe</h2>
+    <iframe class="anim-embed" style="aspect-ratio:2.3"
+      src="loop.html?manifest=geml_syn_eu_manifest.json&amp;region=geml_syn_eu"
+      title="GEML vs GDPS synoptic loop Europe" loading="lazy"></iframe>
+    <h2 style="font-size:18px;margin-top:16px">East Asia &amp; western Pacific</h2>
+    <iframe class="anim-embed" style="aspect-ratio:2.3"
+      src="loop.html?manifest=geml_syn_eas_manifest.json&amp;region=geml_syn_eas"
+      title="GEML vs GDPS synoptic loop East Asia" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECCC MSC Datamart (open government licence) &middot;
+      per-type 6-h accumulations (mm, water equivalent for snow) &middot; 41 frames per
+      cycle &middot; refreshed each 00Z/12Z run</span>
+    </div>
+  </div>
+
+  <script>
+  addEventListener("message", function (e) {
+    var d = e.data; if (!d || d.type !== "sstAnimHeight") return;
+    var fr = document.querySelectorAll("iframe.anim-embed");
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + "px";
+        fr[i].style.aspectRatio = "auto";
+      }
+    }
+  });
+  </script>
+
   <div class="colophon">
-    <p><b>About GEML and GDPS-SN.</b> GEML is an experimental deterministic emulator
-    (six atmospheric variables on 13 pressure levels plus surface fields) run twice
-    daily to 10 days. The operational hybrid, GDPS-SN, does not replace GEM with AI
-    &mdash; it keeps the full physics model and nudges only the large scales toward
-    GEML, retaining physically consistent precipitation, clouds and surface weather
-    while borrowing the AI's large-scale skill. A deterministic verification of GEML
-    against ERA5 (alongside the <a href="aifs-verify.html">AIFS single-vs-control
-    benchmark</a>) is planned as the archive accumulates.</p>
+    <p><b>About the models.</b> GEML is an experimental deterministic emulator (six
+    atmospheric variables on 13 pressure levels plus surface fields) run twice daily
+    to 10 days on Datamart as <code>model_gdps-geml</code>. The hybrid does not
+    replace GEM with AI &mdash; it keeps the full physics model and nudges only the
+    large-scale temperature and winds toward GEML, retaining physically consistent
+    precipitation, clouds and surface weather while borrowing the AI's large-scale
+    skill; that hybrid <i>is</i> the operational GDPS (<code>model_gdps</code>) shown
+    here. A deterministic verification of GEML against ERA5 (alongside the
+    <a href="aifs-verify.html">AIFS single-vs-control benchmark</a>) is planned as the
+    archive accumulates.</p>
   </div>
 </main>
 <footer>&copy; 2026 Shawn Corvec &middot; Data: Environment and Climate Change Canada, MSC Datamart</footer>

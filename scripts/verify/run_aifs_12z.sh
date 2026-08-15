@@ -10,13 +10,9 @@ REPO=/Users/shawn/scorvec.github.io
 DATE=$(date -u +%Y%m%d)
 cd "$REPO" || exit 1
 "$PY" -u scripts/verify/aifs_compare_anim.py --date "$DATE" --time 12 || exit 1
-# ECCC GEML vs GDPS loop — today's 00Z cycle is long complete by 14:00 ET
-"$PY" -u scripts/geml/geml_compare.py --date "$DATE" --time 00 \
-  || echo "GEML animator failed; continuing"
 git add assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500 \
         assets/sst/anim/aifs_compare_manifest.json \
-        assets/sst/anim/aifs_z500_manifest.json \
-        assets/sst/anim/geml_z500 assets/sst/anim/geml_z500_manifest.json
+        assets/sst/anim/aifs_z500_manifest.json
 if [ "$(git diff --cached --name-only | grep -icE 'strat|telecon')" != "0" ]; then
   echo "PRIVATE FILES STAGED - aborting push"; git reset -q; exit 1
 fi
