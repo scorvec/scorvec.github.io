@@ -62,9 +62,12 @@ NEW_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
   --ascii scripts/sst/data/tao_eq_recent.ascii || echo "TAO failed; continuing"
 "$PY" scripts/sst/sst_subsurface.py || echo "subsurface failed; continuing"
 ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_ascat_winds.py ) || echo "ASCAT failed; continuing"
-"$PY" scripts/sst/imerg_precip.py || echo "IMERG precip failed; continuing"   # NASA GPM IMERG, ~/.netrc Earthdata auth
-"$PY" scripts/sst/imerg_precip_anom.py || echo "IMERG precip anomaly failed; continuing"   # vs the committed 20-yr clim
-"$PY" scripts/sst/imerg_gatun.py || echo "IMERG Gatun tracker failed; continuing"   # Lake Gatun zoom + rain-vs-level chart
+# perl-alarm wall-clock caps: a hung Earthdata connection once pinned imerg_gatun
+# for 18 h, and the run lock then starved every later poll (2026-08-14/15). The
+# alarm SIGALRMs the whole step; `|| echo` keeps the chain moving as usual.
+perl -e 'alarm shift; exec @ARGV' 5400 "$PY" scripts/sst/imerg_precip.py || echo "IMERG precip failed; continuing"   # NASA GPM IMERG, ~/.netrc Earthdata auth
+perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/imerg_precip_anom.py || echo "IMERG precip anomaly failed; continuing"   # vs the committed 20-yr clim
+perl -e 'alarm shift; exec @ARGV' 3600 "$PY" scripts/sst/imerg_gatun.py || echo "IMERG Gatun tracker failed; continuing"   # Lake Gatun zoom + rain-vs-level chart
 "$PY" scripts/gatun/fetch_data.py || echo "Gatun dashboard data failed; continuing"   # gatun/data.js: ACP levels/projection + ONI
 "$PY" scripts/sst/hydro_region_rain.py || echo "XM region rainfall failed; continuing"   # basin rain over XM hydro regions
 ( cd scripts/sst && "$PY" eq_current_section.py ) || echo "eq current section failed; continuing"
