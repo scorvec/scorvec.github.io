@@ -247,15 +247,7 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
         sig = np.maximum(F[vk + "_sigdt"][sel][:, la], 0.3 * sd)
         a = (fld[:, :, la] - mu_t[None]) / sig[None]        # (31, n, lat, lon)
         ens = np.nanmean(a, axis=0)
-        # spread vs the hindcast's OWN ensemble spread at the same lead day.
-        # The beta's NRT ensemble is systematically under-dispersive vs its
-        # reforecast config (ratio ~0.5 in week 1 recovering to ~0.85 — a
-        # model property, verified against reforecast-year controls), so the
-        # map shows the SPATIAL pattern (median rescaled to 1) and the
-        # hemispheric median is quoted in the panel title per frame.
-        sprd_raw = np.nanstd(fld[:, :, la], axis=0, ddof=1) / esd
-        med = np.nanmedian(sprd_raw, axis=(1, 2))
-        sprd = sprd_raw / med[:, None, None]
+
         name = f"sfs_{key}"
         outdir = ANIM / name
         outdir.mkdir(parents=True, exist_ok=True)
@@ -264,30 +256,23 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
         frames = []
         for i in range(ens.shape[0]):
             valid = t0 + pd.Timedelta(days=int(lead_days[sel][i]))
-            fig, axes = plt.subplots(2, 1, figsize=(13.0, 6.6),
-                                     subplot_kw=dict(projection=proj))
-            pm0 = axes[0].pcolormesh(LON, LAT, ens[i], cmap="RdBu_r",
-                                     vmin=-5, vmax=5,
-                                     transform=ccrs.PlateCarree(), rasterized=True)
-            pm1 = axes[1].pcolormesh(LON, LAT, sprd[i], cmap="PuOr_r",
-                                     vmin=0.4, vmax=1.6,
-                                     transform=ccrs.PlateCarree(), rasterized=True)
-            for ax, ttl in ((axes[0], "ensemble-mean anomaly vs hindcast TREND (detrended signal σ)"),
-                            (axes[1], "spread pattern (median-rescaled) — hemispheric "
-                                      f"median ratio {med[i]:.2f}")):
-                ax.coastlines(lw=0.5, color="0.25")
-                ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
-                ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
-                ax.set_title(ttl, fontsize=10, loc="left")
-            fig.colorbar(pm0, ax=axes[0], orientation="vertical",
-                         fraction=0.025, pad=0.015, extend="both")
-            fig.colorbar(pm1, ax=axes[1], orientation="vertical",
+            fig, ax = plt.subplots(figsize=(13.0, 3.9),
+                                   subplot_kw=dict(projection=proj))
+            pm0 = ax.pcolormesh(LON, LAT, ens[i], cmap="RdBu_r",
+                                vmin=-5, vmax=5,
+                                transform=ccrs.PlateCarree(), rasterized=True)
+            ax.coastlines(lw=0.5, color="0.25")
+            ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
+            ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
+            ax.set_title("ensemble-mean anomaly vs hindcast TREND "
+                         "(detrended signal σ)", fontsize=10, loc="left")
+            fig.colorbar(pm0, ax=ax, orientation="vertical",
                          fraction=0.025, pad=0.015, extend="both")
             fig.suptitle(f"SFS beta — {label} · {valid:%a %b %d %Y} "
                          f"(day {int(lead_days[sel][i])}) · 31 members vs own "
                          f"reforecast · issue {t0:%b %Y}",
                          fontsize=12, fontweight="bold", y=0.99)
-            fig.subplots_adjust(top=0.90, hspace=0.16)
+            fig.subplots_adjust(top=0.86)
             fn = f"F{i:02d}.webp"
             fig.savefig(outdir / fn, dpi=130, bbox_inches="tight")
             plt.close(fig)
