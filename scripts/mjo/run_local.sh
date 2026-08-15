@@ -218,6 +218,7 @@ GRP_V200=$!
   "$PY" "$REPO/scripts/strat/wave1_monitor.py" \
     || echo "wave-1 monitor failed; continuing"
   "$PY" "$REPO/scripts/verify/aifs_det_verify.py" --collect --verify \
+    --date "$DATE" --time "$TIME" \
     || echo "AIFS det verification failed; continuing"
   "$PY" "$REPO/scripts/verify/aifs_compare_anim.py" --date "$DATE" --time "$TIME" \
     || echo "AIFS comparison animator failed; continuing"
@@ -333,6 +334,7 @@ perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_ti
     assets/sst/mei/mei_analogs.webp assets/sst/mei/mei_history.webp \
     assets/sst/anim/strat10 assets/sst/anim/strat10_manifest.json \
     assets/sst/anim/strat100 assets/sst/anim/strat100_manifest.json \
+    assets/verify/aifs_det_scores.json \
   ; do [ -e "$p" ] && git add "$p"; done \
   ; commit_push "MJO atmospheric products (eq-wind/SOI + AAM/torque/MMSF/Walker/jets + MEI.v2): ${COMPACT} (local)" )
 

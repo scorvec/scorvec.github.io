@@ -47,8 +47,8 @@ function band_colorbar!(pos, cols, bounds; label, over = nothing)
              [b == floor(b) ? string(Int(b)) : string(b) for b in Float64.(bounds)])
     Colorbar(pos; colormap = cgrad(allc; categorical = true),
              limits = (0.0, Float64(n)), ticks = ticks, vertical = false,
-             flipaxis = false, label = label, labelsize = 12,
-             ticklabelsize = 10, height = 13)
+             flipaxis = false, label = label, labelsize = 14,
+             ticklabelsize = 12, height = 15)
 end
 
 function draw_overlays!(ax, ov)
@@ -76,7 +76,7 @@ function crossed(z, lv)
 end
 
 function labeled_contour!(ax, xs, ys, z; levels, color, linewidth,
-                          linestyle = :solid, labels = Float64[], labelsize = 8)
+                          linestyle = :solid, labels = Float64[], labelsize = 9)
     lvs = [Float64(l) for l in levels if crossed(z, Float64(l))]
     isempty(lvs) && return
     labs = [Float64(l) for l in labels if l in lvs]
@@ -97,8 +97,8 @@ function two_panel_figure(loop, suptitle)
     H = 520.0
     W = 2 * asp * H + 30
     fig = Figure(size = (round(Int, W), round(Int, H + 96)), backgroundcolor = :white)
-    Label(fig[0, 1:2], suptitle, fontsize = 15, font = :bold, padding = (0, 0, 2, 2))
-    axes = [Axis(fig[1, j], title = t, titlealign = :left, titlesize = 14,
+    Label(fig[0, 1:2], suptitle, fontsize = 17, font = :bold, padding = (0, 0, 2, 2))
+    axes = [Axis(fig[1, j], title = t, titlealign = :left, titlesize = 16,
                  titlefont = :bold, backgroundcolor = :white)
             for (j, t) in ((1, "AIFS single"), (2, "AIFS-ENS control"))]
     for ax in axes
@@ -128,7 +128,7 @@ function render_compare(loop, fr, ov, staging)
                          linewidth = 0.7, linestyle = :dash, labels = 546:12:618)
         labeled_contour!(ax, xs, ys, t; levels = [540.0], color = "#1565c0",
                          linewidth = 1.7, linestyle = :dash, labels = [540.0],
-                         labelsize = 9)
+                         labelsize = 10)
         labeled_contour!(ax, xs, ys, permutedims(msl); levels = 940:4:1060,
                          color = :black, linewidth = 0.8, labels = 944:8:1060)
         draw_overlays!(ax, ov)
@@ -151,7 +151,7 @@ function render_z500(loop, fr, ov, staging)
         band_image!(ax, loop.xlim, loop.ylim, z5, cols;
                     bounds = bounds, over = "#7a0403")
         labeled_contour!(ax, xs, ys, z5; levels = bounds[1:2:end], color = :black,
-                         linewidth = 0.55, labels = bounds[1:4:end], labelsize = 7)
+                         linewidth = 0.55, labels = bounds[1:4:end], labelsize = 8)
         draw_overlays!(ax, ov)
     end
     band_colorbar!(fig[2, 1:2], ["#" * hex(c) for c in cols], bounds;
