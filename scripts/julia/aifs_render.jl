@@ -162,17 +162,21 @@ function render_z500(loop, fr, ov, staging)
     save(joinpath(staging, String(fr.id) * ".png"), fig)
 end
 
-# ---- three-panel: model A, model B, and A minus B --------------------------
+# ---- three-panel: models A and B on top, A minus B below -------------------
 function three_panel_figure(loop, suptitle)
     x0, x1 = Float64.(loop.xlim); y0, y1 = Float64.(loop.ylim)
     asp = (x1 - x0) / (y1 - y0)
-    H = 430.0
-    W = 3 * asp * H + 40
-    fig = Figure(size = (round(Int, W), round(Int, H + 116)), backgroundcolor = :white)
-    Label(fig[0, 1:3], suptitle, fontsize = 16, font = :bold, padding = (0, 0, 2, 2))
-    axes = [Axis(fig[1, j], title = String(loop.titles[j]), titlealign = :left,
-                 titlesize = 14, titlefont = :bold, backgroundcolor = :white)
-            for j in 1:3]
+    H = 470.0
+    W = 2 * asp * H + 30
+    fig = Figure(size = (round(Int, W), round(Int, 2 * H + 210)),
+                 backgroundcolor = :white)
+    Label(fig[0, 1:2], suptitle, fontsize = 16, font = :bold, padding = (0, 0, 2, 2))
+    axes = [Axis(fig[1, 1], title = String(loop.titles[1]), titlealign = :left,
+                 titlesize = 14, titlefont = :bold, backgroundcolor = :white),
+            Axis(fig[1, 2], title = String(loop.titles[2]), titlealign = :left,
+                 titlesize = 14, titlefont = :bold, backgroundcolor = :white),
+            Axis(fig[3, 1:2], title = String(loop.titles[3]), titlealign = :center,
+                 titlesize = 14, titlefont = :bold, backgroundcolor = :white)]
     for ax in axes
         hidedecorations!(ax)
         limits!(ax, x0, x1, y0, y1)
@@ -209,7 +213,7 @@ function render_three(loop, fr, ov, staging)
                    label = String(loop.units), over = String(loop.over))
     dlab = hasproperty(loop, :diff_label) ? String(loop.diff_label) :
            "difference (" * String(loop.units) * ")"
-    band_colorbar!(fig[2, 3], ["#" * hex(c) for c in dcols], db;
+    band_colorbar!(fig[4, 1:2], ["#" * hex(c) for c in dcols], db;
                    label = dlab, over = "#67001f")
     save(joinpath(staging, String(fr.id) * ".png"), fig)
 end

@@ -150,18 +150,45 @@
   </div>
 
   <div class="card">
-    <h2>Monthly breakdown &mdash; every lead, one map per month</h2>
-    <p class="note">The same anomalies without seasonal averaging: the first ten
-    forecast months individually (2&times;5 panels per variable). Useful for watching
-    how the pattern develops and decays month by month rather than in 3-month blocks.</p>
-    <div class="img-wrap"><img src="assets/sfs/sst_monthly.webp" alt="SFS monthly SST anomaly maps" loading="lazy" style="width:100%"></div>
-    <div class="img-wrap"><img src="assets/sfs/t2m_monthly.webp" alt="SFS monthly 2m temperature anomaly maps" loading="lazy" style="width:100%"></div>
-    <div class="img-wrap"><img src="assets/sfs/precip_monthly.webp" alt="SFS monthly precipitation anomaly maps" loading="lazy" style="width:100%"></div>
-    <div class="img-wrap"><img src="assets/sfs/z500_monthly.webp" alt="SFS monthly 500 hPa height anomaly maps" loading="lazy" style="width:100%"></div>
-    <div class="img-wrap"><img src="assets/sfs/mslp_monthly.webp" alt="SFS monthly MSLP anomaly maps" loading="lazy" style="width:100%"></div>
-    <div class="img-wrap"><img src="assets/sfs/wind850_monthly.webp" alt="SFS monthly 850 hPa wind anomaly maps" loading="lazy" style="width:100%"></div>
-    <div class="img-wrap"><img src="assets/sfs/wind200_monthly.webp" alt="SFS monthly 200 hPa wind anomaly maps" loading="lazy" style="width:100%"></div>
+    <h2>Monthly breakdown &mdash; step through every lead</h2>
+    <p class="note">The same anomalies without seasonal averaging: one frame per
+    forecast month, in the loop player &mdash; scrub or step to watch the pattern
+    develop and decay month by month. Fixed color scale across all leads.</p>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_sst_manifest.json&amp;region=sfs_sst&amp;autoplay=0"
+      title="SFS monthly SST anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2m_manifest.json&amp;region=sfs_t2m&amp;autoplay=0"
+      title="SFS monthly 2m temperature anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_precip_manifest.json&amp;region=sfs_precip&amp;autoplay=0"
+      title="SFS monthly precipitation anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500_manifest.json&amp;region=sfs_z500&amp;autoplay=0"
+      title="SFS monthly 500 hPa height anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_mslp_manifest.json&amp;region=sfs_mslp&amp;autoplay=0"
+      title="SFS monthly MSLP anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_wind850_manifest.json&amp;region=sfs_wind850&amp;autoplay=0"
+      title="SFS monthly 850 hPa wind anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_wind200_manifest.json&amp;region=sfs_wind200&amp;autoplay=0"
+      title="SFS monthly 200 hPa wind anomaly loop" loading="lazy"></iframe>
   </div>
+
+  <script>
+  addEventListener("message", function (e) {
+    var d = e.data; if (!d || d.type !== "sstAnimHeight") return;
+    var fr = document.querySelectorAll("iframe.anim-embed");
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + "px";
+        fr[i].style.aspectRatio = "auto";
+      }
+    }
+  });
+  </script>
 
   <div class="colophon">
     <p><b>About the system.</b> SFS beta is a NOAA research prototype (published by the

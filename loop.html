@@ -54,6 +54,11 @@
   "use strict";
   var q = new URLSearchParams(location.search);
   var manifest = q.get("manifest"), regionKey = q.get("region");
+  // frame/manifest root — default is the site's shared anim dir; pages can
+  // point elsewhere (e.g. base=assets/sfs/anim/). Same-origin paths only.
+  var base = q.get("base") || "assets/sst/anim/";
+  if (base.indexOf("..") !== -1 || base.indexOf("//") !== -1) base = "assets/sst/anim/";
+  if (base.slice(-1) !== "/") base += "/";
   var img = document.getElementById("frame"), scrub = document.getElementById("scrub");
   var playBtn = document.getElementById("play"), label = document.getElementById("label");
   var frames = [], imgs = [], okFrame = [], cur = 0, playing = false, timer = null;
@@ -127,7 +132,7 @@
     document.getElementById("load").innerHTML = '<div class="err">' + msg + "</div>";
   }
   if (!manifest || !regionKey) { fail("missing manifest/region parameters"); return; }
-  fetch("assets/sst/anim/" + manifest + "?v=" + Date.now())
+  fetch(base + manifest + "?v=" + Date.now())
     .then(function (r) { if (!r.ok) throw 0; return r.json(); })
     .then(function (man) {
       var reg = man.regions[regionKey];
@@ -142,7 +147,7 @@
           okFrame[i] = true; done();
         };
         im.onerror = function () { done(); };
-        im.src = "assets/sst/anim/" + regionKey + "/" + fr.file + "?v=" + ver;
+        im.src = base + regionKey + "/" + fr.file + "?v=" + ver;
         return im;
       });
       function done() {
