@@ -197,6 +197,31 @@
   </div>
 
   <div class="card">
+    <h2>Anomaly &amp; spread maps &mdash; step through the subseasonal window</h2>
+    <p class="note">For each valid step (days 16&ndash;46): <b>left</b>, the 31-member
+    mean anomaly in <b>hindcast-&sigma; units</b> (standardized against the model's own
+    reforecast mean and spread for that exact lead day, 20&ndash;90&deg;N) &mdash; so
+    color saturation means "unusual for this model at this range", not raw amplitude.
+    <b>Right</b>, the member spread divided by the hindcast spread: below 1 (orange)
+    the ensemble is more confident than climatology, above 1 (purple) less. Scrub
+    through the window to watch where the signal holds and where it dissolves.</p>
+    <h2 style="font-size:18px">500 hPa height</h2>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:2.9;border:0;border-radius:8px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500d_manifest.json&amp;region=sfs_z500d&amp;autoplay=0"
+      title="SFS 500 hPa height anomaly and spread loop" loading="lazy"></iframe>
+    <h2 style="font-size:18px;margin-top:14px">2 m temperature</h2>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:2.9;border:0;border-radius:8px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2md_manifest.json&amp;region=sfs_t2md&amp;autoplay=0"
+      title="SFS 2 m temperature anomaly and spread loop" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;) &middot; anomaly =
+      (ensemble mean &minus; reforecast mean) / reforecast &sigma;, per lead day
+      &middot; spread ratio = member &sigma; / reforecast &sigma; &middot;
+      20&ndash;90&deg;N</span>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Stratosphere &mdash; wave flux and the polar vortex, all members</h2>
     <p class="note">Two classic lower-stratosphere diagnostics from the daily members:
     the <b>100-hPa eddy heat flux</b> (45&ndash;75&deg;N zonal mean &mdash; proportional
@@ -297,7 +322,7 @@
 <script>
 (function () {
   "use strict";
-  var GRID = "rgba(148,184,225,0.10)", AXIS = "#6d8099", INK2 = "#a7b8ce";
+  var GRID = "rgba(148,184,225,0.22)", AXIS = "#8296ad", INK2 = "#a7b8ce";
   var state = { idx: "n34", smooth: false, members: false,
                 sfs: null, c3s: null, hist: null };
 
@@ -406,7 +431,7 @@
       margin: { l: 46, r: 30, t: 10, b: 40 },
       xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, type: "category" },
       yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
-               zerolinecolor: "rgba(148,184,225,0.35)",
+               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2,
                title: { text: "anomaly (°C)", standoff: 4 } },
       legend: { orientation: "h", y: 1.09, font: { size: 11 } },
       hovermode: "x unified", shapes: shapes,
@@ -477,7 +502,7 @@
       margin: { l: 48, r: 16, t: 10, b: 40 },
       xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS },
       yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
-               zerolinecolor: "rgba(148,184,225,0.35)" },
+               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2 },
       legend: { orientation: "h", y: 1.1, font: { size: 11 } },
       hovermode: "x unified",
       hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
@@ -488,8 +513,13 @@
   }
   function drawDD() {
     var D = dailyState.data; if (!D) return;
-    var d = D[dailyState.dd], days = D.days, cum = dailyState.ddv === "cum";
-    var cmean = d.climo.mean;
+    var d = D[dailyState.dd], cum = dailyState.ddv === "cum";
+    var M = D.monthly ? D.monthly[dailyState.dd] : null;
+    var days = M ? D.days.concat(D.monthly.months) : D.days.slice();
+    var nD = D.days.length;
+    var cmean = M ? d.climo.mean.concat(M.climo.mean) : d.climo.mean;
+    function catc(key) { return M ? d.climo[key].concat(M.climo[key]) : d.climo[key]; }
+    function catm(i) { return M ? d.members[i].concat(M.members[i]) : d.members[i]; }
     function xf(m) {                       // member series under current view
       if (!cum) return m.slice();
       var s = 0; return m.map(function (v, i) { s += v - cmean[i]; return s; });
@@ -523,8 +553,14 @@
                   name: "ensemble mean", line: { color: "#f2f4f8", width: 3 },
                   hovertemplate: "%{y:.1f}" });
     var lay = plotDark();
+    lay.xaxis.type = "category";
+    if (M) lay.shapes = [{ type: "line", x0: nD - 0.5, x1: nD - 0.5, yref: "paper",
+      y0: 0, y1: 1, line: { color: "rgba(232,192,77,0.5)", width: 1.5, dash: "dot" } }];
+    if (M) lay.annotations = [{ x: nD - 0.4, xanchor: "left", yref: "paper", y: 1.03,
+      text: "monthly means →", showarrow: false,
+      font: { size: 10.5, color: "#e8c04d" } }];
     lay.yaxis.title = { text: (dailyState.dd === "hdd" ? "HDD" : "CDD")
-      + (cum ? " departure (cumulative)" : " (°F·day, pop-weighted)"), standoff: 4 };
+      + (cum ? " departure (cumulative)" : " per day (°F·day, pop-weighted)"), standoff: 4 };
     Plotly.react("ddChart", traces, lay, { displayModeBar: false, responsive: true });
     document.getElementById("dd-updated").textContent =
       "issue " + D.issue + " · built " + D.generated;
@@ -533,19 +569,26 @@
     var D = dailyState.data; if (!D) return;
     var keys = ["ao", "nao", "pna", "epo"];
     var z = [], text = [];
+    var xs = D.monthly ? D.days.concat(D.monthly.months) : D.days;
     keys.forEach(function (k) {
       var t = D.telecons[k];
-      var row = D.days.map(function (_, i) {
-        return mean(t.members.map(function (m) { return m[i]; })); });
+      var Mt = D.monthly ? D.monthly.telecons[k] : null;
+      var mem = t.members.map(function (m, mi) {
+        return Mt ? m.concat(Mt.members[mi]) : m; });
+      var pn = Mt ? t.p_neg.concat(Mt.p_neg) : t.p_neg;
+      var pp = Mt ? t.p_plus1.concat(Mt.p_plus1) : t.p_plus1;
+      var pm2 = Mt ? t.p_minus1.concat(Mt.p_minus1) : t.p_minus1;
+      var row = xs.map(function (_, i) {
+        return mean(mem.map(function (m) { return m[i]; })); });
       z.push(row);
-      text.push(D.days.map(function (_, i) {
-        return t.label + " · P(<0) " + Math.round(100 * t.p_neg[i]) + "%"
-          + " · P(>+1σ) " + Math.round(100 * t.p_plus1[i]) + "%"
-          + " · P(<−1σ) " + Math.round(100 * t.p_minus1[i]) + "%"; }));
+      text.push(xs.map(function (_, i) {
+        return t.label + " · P(<0) " + Math.round(100 * pn[i]) + "%"
+          + " · P(>+1σ) " + Math.round(100 * pp[i]) + "%"
+          + " · P(<−1σ) " + Math.round(100 * pm2[i]) + "%"; }));
     });
     Plotly.react("teleStrip", [{
-      x: D.days, y: keys.map(function (k) { return D.telecons[k].label; }),
-      z: z, type: "heatmap", colorscale: "RdBu", reversescale: true,
+      x: xs, y: keys.map(function (k) { return D.telecons[k].label; }),
+      z: z, type: "heatmap", colorscale: "RdBu",
       zmin: -2, zmax: 2, text: text, hoverinfo: "text",
       colorbar: { thickness: 10, len: 0.9, tickfont: { size: 10, color: INK2 },
                   title: { text: "σ", font: { size: 11, color: INK2 } } },
@@ -554,10 +597,15 @@
   }
   function drawTele() {
     var D = dailyState.data; if (!D) return;
-    var t = D.telecons[dailyState.tele], days = D.days;
+    var t = D.telecons[dailyState.tele];
+    var Mt = D.monthly ? D.monthly.telecons[dailyState.tele] : null;
+    var nD = D.days.length;
+    var days = Mt ? D.days.concat(D.monthly.months) : D.days.slice();
+    var mem = t.members.map(function (m, mi) {
+      return Mt ? m.concat(Mt.members[mi]) : m; });
     var fan = { p10: [], p25: [], p75: [], p90: [] }, mm = [];
     for (var L = 0; L < days.length; L++) {
-      var pool = t.members.map(function (m) { return m[L]; })
+      var pool = mem.map(function (m) { return m[L]; })
         .filter(isFinite).sort(function (a, b) { return a - b; });
       fan.p10.push(pct(pool, 0.10)); fan.p25.push(pct(pool, 0.25));
       fan.p75.push(pct(pool, 0.75)); fan.p90.push(pct(pool, 0.90));
@@ -576,10 +624,17 @@
                   name: t.label + " ensemble mean", marker: { size: 4 },
                   line: { color: "#f2f4f8", width: 3 },
                   hovertemplate: "%{y:+.2f} σ" });
-    var lay = plotDark({ shapes: [1, -1].map(function (yv) {
+    var shp = [1, -1].map(function (yv) {
       return { type: "line", x0: days[0], x1: days[days.length - 1], y0: yv, y1: yv,
                line: { color: "rgba(148,184,225,0.25)", width: 1, dash: "dot" } };
-    }) });
+    });
+    if (Mt) shp.push({ type: "line", x0: nD - 0.5, x1: nD - 0.5, yref: "paper",
+      y0: 0, y1: 1, line: { color: "rgba(232,192,77,0.5)", width: 1.5, dash: "dot" } });
+    var lay = plotDark({ shapes: shp });
+    lay.xaxis.type = "category";
+    if (Mt) lay.annotations = [{ x: nD - 0.4, xanchor: "left", yref: "paper", y: 1.03,
+      text: "monthly means →", showarrow: false,
+      font: { size: 10.5, color: "#e8c04d" } }];
     lay.yaxis.title = { text: t.label + " (hindcast σ)", standoff: 4 };
     Plotly.react("teleChart", traces, lay, { displayModeBar: false, responsive: true });
     document.getElementById("tele-updated").textContent =
@@ -708,7 +763,7 @@
       margin: { l: 46, r: 20, t: 10, b: 40 },
       xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, type: "category" },
       yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
-               zerolinecolor: "rgba(148,184,225,0.35)",
+               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2,
                title: { text: d.label + " (" + d.units + ")", standoff: 4 } },
       legend: { orientation: "h", y: 1.12, font: { size: 11 } },
       hovermode: "x unified",

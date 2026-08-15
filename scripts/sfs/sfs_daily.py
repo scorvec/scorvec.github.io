@@ -164,6 +164,159 @@ def build_strat_climo(month: int) -> dict:
     return out
 
 
+def build_field_climo(month: int) -> dict:
+    """Per-lead-day mean and σ fields (t2m, z500) from the daily reforecast."""
+    f = CLIMDIR / f"field_climo_{month:02d}.npz"
+    if f.exists():
+        return dict(np.load(f))
+    ds = _open(f"{BASE}/reforecast/{month:02d}/atm_daily.zarr")
+    ds = ds.sel(init=slice(str(CLIM_Y0), str(CLIM_Y1)))
+    n_init, n_mem = ds.sizes["init"], ds.sizes["member"]
+    acc = {}
+    for var, key in (("TMP_2maboveground", "t2m"), ("HGT_500mb", "z500")):
+        s1 = np.zeros((NDAYS, 181, 360), np.float64)
+        s2 = np.zeros_like(s1)
+        for yi in range(n_init):
+            v = ds[var].isel(init=yi).values.astype(np.float64)  # (11,47,181,360)
+            s1 += v.sum(axis=0)
+            s2 += (v * v).sum(axis=0)
+            if yi % 10 == 0:
+                print(f"field climo {key}: init {yi + 1}/{n_init}", flush=True)
+        n = n_init * n_mem
+        mu = s1 / n
+        sd = np.sqrt(np.maximum(s2 / n - mu * mu, 1e-9) * n / (n - 1))
+        acc[key + "_mu"] = mu.astype(np.float32)
+        acc[key + "_sd"] = sd.astype(np.float32)
+        print(f"field climo {key}: done", flush=True)
+    CLIMDIR.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(f, **acc)
+    return acc
+
+
+def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
+    """Anomaly-σ + spread-ratio loops for t2m and z500, NH 20-90N."""
+    import time as _time
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    ANIM = REPO / "assets" / "sfs" / "anim"
+    la = lat >= 20
+    LON, LAT = np.meshgrid(lon, lat[la])
+    proj = ccrs.PlateCarree(central_longitude=-100)
+    for key, fld, label in (("t2md", t2, "2 m temperature"),
+                            ("z500d", z5, "500 hPa height")):
+        mu = F[("t2m" if key == "t2md" else "z500") + "_mu"][sel][:, la]
+        sd = F[("t2m" if key == "t2md" else "z500") + "_sd"][sel][:, la]
+        a = (fld[:, :, la] - mu[None]) / sd[None]           # (31, n, lat, lon)
+        ens = np.nanmean(a, axis=0)
+        sprd = np.nanstd(fld[:, :, la], axis=0, ddof=1) / sd
+        name = f"sfs_{key}"
+        outdir = ANIM / name
+        outdir.mkdir(parents=True, exist_ok=True)
+        for old in outdir.glob("F*.webp"):
+            old.unlink()
+        frames = []
+        for i in range(ens.shape[0]):
+            valid = t0 + pd.Timedelta(days=int(lead_days[sel][i]))
+            fig, axes = plt.subplots(1, 2, figsize=(15.5, 4.6),
+                                     subplot_kw=dict(projection=proj))
+            pm0 = axes[0].pcolormesh(LON, LAT, ens[i], cmap="RdBu_r",
+                                     vmin=-3, vmax=3,
+                                     transform=ccrs.PlateCarree(), rasterized=True)
+            pm1 = axes[1].pcolormesh(LON, LAT, sprd[i], cmap="PuOr_r",
+                                     vmin=0.4, vmax=1.6,
+                                     transform=ccrs.PlateCarree(), rasterized=True)
+            for ax, ttl in ((axes[0], "ensemble-mean anomaly (hindcast σ)"),
+                            (axes[1], "member spread ÷ hindcast σ")):
+                ax.coastlines(lw=0.5, color="0.25")
+                ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
+                ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
+                ax.set_title(ttl, fontsize=10, loc="left")
+            fig.colorbar(pm0, ax=axes[0], orientation="horizontal",
+                         fraction=0.06, pad=0.03, extend="both")
+            fig.colorbar(pm1, ax=axes[1], orientation="horizontal",
+                         fraction=0.06, pad=0.03, extend="both")
+            fig.suptitle(f"SFS beta — {label} · {valid:%a %b %d %Y} "
+                         f"(day {int(lead_days[sel][i])}) · 31 members vs own "
+                         f"reforecast · issue {t0:%b %Y}",
+                         fontsize=12, fontweight="bold", y=1.0)
+            fn = f"F{i:02d}.webp"
+            fig.savefig(outdir / fn, dpi=130, bbox_inches="tight")
+            plt.close(fig)
+            frames.append({"idx": i, "file": fn, "date": f"{valid:%Y-%m-%d}",
+                           "label": f"{valid:%b %d} · day {int(lead_days[sel][i])}"})
+        (ANIM / f"{name}_manifest.json").write_text(json.dumps(
+            {"ver": int(_time.time()), "days": len(frames),
+             "regions": {name: {"label": f"SFS {label} anomaly + spread",
+                                "n_frames": len(frames), "frames": frames}}}))
+        print(f"loop {name}: {len(frames)} frames", flush=True)
+
+
+MLEADS = list(range(2, 12))          # monthly extension: leads 2-11
+
+
+def _coarse2m(field):
+    """0.5° (361,720) -> 2° block mean over trailing lat/lon dims."""
+    f = field[..., :360, :]
+    sh = f.shape
+    return f.reshape(*sh[:-2], 90, 4, 180, 4).mean(axis=(-3, -1))
+
+
+def build_monthly_climo(month: int) -> dict:
+    """Monthly-lead index samples from the reforecast atm_monthly store."""
+    f = CLIMDIR / f"monthly_idx_climo_{month:02d}.npz"
+    if f.exists():
+        return dict(np.load(f))
+    ds = _open(f"{BASE}/reforecast/{month:02d}/atm_monthly.zarr")
+    ds = ds.sel(init=slice(str(CLIM_Y0), str(CLIM_Y1))).isel(lead=MLEADS)
+    lat, lon = ds.lat.values, ds.lon.values
+    ii, jj, w = _metro_idx(lat, lon)
+    n_init, n_mem = ds.sizes["init"], ds.sizes["member"]
+    nS, nL = n_init * n_mem, len(MLEADS)
+    lat2 = _coarse2m(np.broadcast_to(lat[:361, None], (361, 720)))[:, 0]
+    dom2 = lat2 >= AO_DOM[0]
+    hdd = np.zeros((nS, nL), np.float32); cdd = np.zeros_like(hdd)
+    nao = np.zeros_like(hdd); pna = np.zeros_like(hdd); epo = np.zeros_like(hdd)
+    slp2 = np.zeros((nS, nL, int(dom2.sum()), 180), np.float32)
+    k = 0
+    for yi in range(n_init):
+        pm = ds.prmsl.isel(init=yi).values / 100.0
+        z5 = ds.z500.isel(init=yi).values
+        t2 = ds.tmp2m.isel(init=yi).values
+        for mi in range(n_mem):
+            h, c = _degree_days(t2[mi], ii, jj, w)
+            hdd[k], cdd[k] = h, c
+            nao[k] = (pm[mi][..., np.argmin(np.abs(lat - NAO_S[0])),
+                             np.argmin(np.abs(lon - NAO_S[1]))]
+                      - pm[mi][..., np.argmin(np.abs(lat - NAO_N[0])),
+                               np.argmin(np.abs(lon - NAO_N[1]))])
+            pna[k] = _pna(z5[mi], lat, lon)
+            epo[k] = _box(z5[mi], lat, lon, EPO_S) - _box(z5[mi], lat, lon, EPO_N)
+            slp2[k] = _coarse2m(pm[mi])[:, dom2, :]
+            k += 1
+        print(f"monthly climo: init {yi + 1}/{n_init}", flush=True)
+    climfield = slp2.mean(axis=0)
+    z_anom = slp2 - climfield[None]
+    wgt = np.sqrt(np.cos(np.deg2rad(lat2[dom2])))[:, None]
+    X = (z_anom * wgt).reshape(nS * nL, -1)
+    X = X - X.mean(axis=0)
+    _u, _s, vt = np.linalg.svd(X, full_matrices=False)
+    e1 = vt[0].astype(np.float32)
+    if np.nanmean(e1.reshape(int(dom2.sum()), 180)[lat2[dom2] >= 70]) > 0:
+        e1 = -e1                                   # +AO = low polar pressure
+    ao = (z_anom * wgt).reshape(nS, nL, -1) @ e1
+    out = {"lat2m": lat2[dom2], "ao_pattern_m": e1,
+           "ao_climfield_m": climfield.astype(np.float32),
+           "hdd_m": hdd, "cdd_m": cdd, "ao_m": ao.astype(np.float32),
+           "nao_m": nao, "pna_m": pna, "epo_m": epo}
+    CLIMDIR.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(f, **out)
+    print(f"monthly idx climo {month:02d}: cached", flush=True)
+    return out
+
+
 def build_climo(month: int) -> dict:
     """Stream the reforecast dailies once; cache everything small."""
     f = CLIMDIR / f"daily_climo_{month:02d}.npz"
@@ -246,6 +399,8 @@ def main():
 
     C = build_climo(month)
     S = build_strat_climo(month)
+    M = build_monthly_climo(month)
+    F = build_field_climo(month)
     if args.climo_only:
         return 0
 
@@ -324,6 +479,49 @@ def main():
                 "climo": climo_band(S["u50"])},
     }
 
+    render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon)
+
+    # ── monthly extension: leads 2-11 from atm_monthly ──────────────────────
+    dsm = _open(f"{BASE}/forecast/{issue}/atm_monthly.zarr")
+    mlat, mlon = dsm.lat.values, dsm.lon.values
+    mii, mjj, mw = _metro_idx(mlat, mlon)
+    pm_m = dsm.prmsl.isel(lead=MLEADS).values / 100.0
+    z5_m = dsm.z500.isel(lead=MLEADS).values
+    t2_m = dsm.tmp2m.isel(lead=MLEADS).values
+    hdd_m, cdd_m = _degree_days(t2_m, mii, mjj, mw)
+    raw_m = {
+        "nao": (pm_m[..., np.argmin(np.abs(mlat - NAO_S[0])),
+                     np.argmin(np.abs(mlon - NAO_S[1]))]
+                - pm_m[..., np.argmin(np.abs(mlat - NAO_N[0])),
+                       np.argmin(np.abs(mlon - NAO_N[1]))]),
+        "pna": _pna(z5_m, mlat, mlon),
+        "epo": _box(z5_m, mlat, mlon, EPO_S) - _box(z5_m, mlat, mlon, EPO_N),
+    }
+    wgt_m = np.sqrt(np.cos(np.deg2rad(M["lat2m"])))[:, None]
+    lat2mf = _coarse2m(np.broadcast_to(mlat[:361, None], (361, 720)))[:, 0]
+    dom2m = lat2mf >= AO_DOM[0]
+    slp2 = _coarse2m(pm_m)[..., dom2m, :]
+    raw_m["ao"] = ((slp2 - M["ao_climfield_m"][None]) * wgt_m
+                   ).reshape(slp2.shape[0], len(MLEADS), -1) @ M["ao_pattern_m"]
+    tele_m = {}
+    for key in ("ao", "nao", "pna", "epo"):
+        cs = M[key + "_m"]
+        mu, sd = cs.mean(axis=0), cs.std(axis=0, ddof=1)
+        sm = (raw_m[key] - mu[None, :]) / sd[None, :]
+        tele_m[key] = {"members": np.round(sm, 2).tolist(),
+                       "p_neg": np.round((sm < 0).mean(axis=0), 3).tolist(),
+                       "p_plus1": np.round((sm > 1).mean(axis=0), 3).tolist(),
+                       "p_minus1": np.round((sm < -1).mean(axis=0), 3).tolist()}
+    months_m = [(t0 + pd.DateOffset(months=k)).strftime("%Y-%m") for k in MLEADS]
+    monthly = {
+        "months": months_m,
+        "telecons": tele_m,
+        "hdd": {"members": np.round(hdd_m, 1).tolist(),
+                "climo": climo_band(M["hdd_m"])},
+        "cdd": {"members": np.round(cdd_m, 1).tolist(),
+                "climo": climo_band(M["cdd_m"])},
+    }
+
     days = [(t0 + pd.Timedelta(days=int(d))).strftime("%Y-%m-%d")
             for d in lead_days[sel]]
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -335,6 +533,7 @@ def main():
         "cdd": {"members": np.round(cdd, 1).tolist(), "climo": climo_band(C["cdd"])},
         "telecons": tele,
         "strat": strat,
+        "monthly": monthly,
         "notes": ("subseasonal window: valid leads day 16-46, 48-h steps (NRT daily output is disseminated every other day); "
                   "degree days: population-weighted (50 largest metros), base 65F; "
                   "telecons standardized per lead day vs own reforecast "
