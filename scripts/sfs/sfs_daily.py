@@ -220,7 +220,7 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
         frames = []
         for i in range(ens.shape[0]):
             valid = t0 + pd.Timedelta(days=int(lead_days[sel][i]))
-            fig, axes = plt.subplots(1, 2, figsize=(15.5, 4.6),
+            fig, axes = plt.subplots(2, 1, figsize=(13.0, 6.6),
                                      subplot_kw=dict(projection=proj))
             pm0 = axes[0].pcolormesh(LON, LAT, ens[i], cmap="RdBu_r",
                                      vmin=-3, vmax=3,
@@ -234,14 +234,15 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
                 ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
                 ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
                 ax.set_title(ttl, fontsize=10, loc="left")
-            fig.colorbar(pm0, ax=axes[0], orientation="horizontal",
-                         fraction=0.06, pad=0.03, extend="both")
-            fig.colorbar(pm1, ax=axes[1], orientation="horizontal",
-                         fraction=0.06, pad=0.03, extend="both")
+            fig.colorbar(pm0, ax=axes[0], orientation="vertical",
+                         fraction=0.025, pad=0.015, extend="both")
+            fig.colorbar(pm1, ax=axes[1], orientation="vertical",
+                         fraction=0.025, pad=0.015, extend="both")
             fig.suptitle(f"SFS beta — {label} · {valid:%a %b %d %Y} "
                          f"(day {int(lead_days[sel][i])}) · 31 members vs own "
                          f"reforecast · issue {t0:%b %Y}",
-                         fontsize=12, fontweight="bold", y=1.0)
+                         fontsize=12, fontweight="bold", y=0.99)
+            fig.subplots_adjust(top=0.90, hspace=0.16)
             fn = f"F{i:02d}.webp"
             fig.savefig(outdir / fn, dpi=130, bbox_inches="tight")
             plt.close(fig)
