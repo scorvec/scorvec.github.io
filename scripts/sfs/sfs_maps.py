@@ -43,15 +43,18 @@ VARS = ("tmp2m", "pratesfc", "prmsl", "z500", "u850", "v850", "u200", "v200")
 
 # figure key -> (variables consumed, colormap, scale factor, units, title)
 FIGS = {
-    "t2m":    (("tmp2m",),        "RdBu_r",   1.0,     "°C",     "2 m temperature anomaly"),
+    "sst":    (("SST",),          "RdBu_r",   1.0,     "°C",     "Sea-surface temperature anomaly"),
+    "t2m":    (("tmp2m",),        "RdBu_r",   1.0,     "°C",     "2 m temperature anomaly (land)"),
     "precip": (("pratesfc",),     "BrBG",     86400.0, "mm/day", "Precipitation anomaly"),
     "mslp":   (("prmsl",),        "RdBu_r",   0.01,    "hPa",    "Mean sea-level pressure anomaly"),
     "z500":   (("z500",),         "RdBu_r",   0.1,     "dam",    "500 hPa height anomaly"),
     "wind850": (("u850", "v850"), "RdBu_r",   1.0,     "m/s",    "850 hPa wind anomaly (shading: zonal)"),
     "wind200": (("u200", "v200"), "RdBu_r",   1.0,     "m/s",    "200 hPa wind anomaly (shading: zonal)"),
 }
-VLIM = {"t2m": 3.0, "precip": 4.0, "mslp": 4.0, "z500": 6.0,
-        "wind850": 4.0, "wind200": 8.0}
+# limits picked from the actual anomaly distributions so strong-El Niño fields
+# stay inside the scale instead of saturating whole regions
+VLIM = {"sst": 4.0, "t2m": 5.0, "precip": 6.0, "mslp": 6.0, "z500": 9.0,
+        "wind850": 6.0, "wind200": 12.0}
 
 
 def _open(url):
@@ -84,6 +87,20 @@ def clim_maps(month: int) -> dict:
     return out
 
 
+def sst_clim(month: int) -> np.ndarray:
+    f = CLIMDIR / f"clim_map_SST_{month:02d}.npy"
+    if f.exists():
+        return np.load(f)
+    ds = _open(f"{BASE}/reforecast/{month:02d}/ocn_monthly.zarr")
+    ds = ds.sel(init=slice(str(CLIM_Y0), str(CLIM_Y1))).isel(lead=LEADS)
+    print(f"clim SST {month:02d}: streaming ...", flush=True)
+    c = ds["SST"].mean(("init", "member")).values.astype(np.float32)
+    CLIMDIR.mkdir(parents=True, exist_ok=True)
+    np.save(f, c)
+    print(f"clim SST {month:02d}: cached", flush=True)
+    return c
+
+
 def season_label(t0: pd.Timestamp, leads: list[int]) -> str:
     if len(leads) == 1:
         return (t0 + pd.DateOffset(months=leads[0])).strftime("%b %Y")
@@ -111,40 +128,69 @@ def main():
         ens[v] = ds[v].isel(lead=LEADS).mean("member").values  # (lead, lat, lon)
         print(f"NRT {v}: loaded", flush=True)
 
-    PANELS = [[0], [1, 2, 3], [4, 5, 6], [7, 8, 9]]
+    # SST (ocean store, 1°) + its clim; also gives the ocean mask for t2m
+    dso = _open(f"{BASE}/forecast/{issue}/ocn_monthly.zarr")
+    sst = dso["SST"].isel(lead=LEADS).mean("member").values     # (lead, 181, 360)
+    olat, olon = dso.latitude.values, dso.longitude.values
+    clim["SST"] = sst_clim(month)
+    ens["SST"] = sst
+    print("NRT SST: loaded", flush=True)
+
+    # land mask for t2m: nearest ocean cell finite -> ocean -> mask out
+    ila = np.clip(np.round((lat[:, None] - olat[0]) / (olat[1] - olat[0])
+                           ).astype(int), 0, len(olat) - 1)
+    ilo = np.clip(np.round((lon[None, :] - olon[0]) / (olon[1] - olon[0])
+                           ).astype(int), 0, len(olon) - 1)
+    ocean = np.isfinite(sst[0])[ila, ilo]                       # (361, 720) bool
+    ens["tmp2m"] = np.where(ocean[None, :, :], np.nan, ens["tmp2m"])
+
+    SEASONS = [[0], [1, 2, 3], [4, 5, 6], [7, 8, 9]]
+    MONTHLY = [[k] for k in LEADS]
     ASSETS.mkdir(parents=True, exist_ok=True)
-    LON, LAT = np.meshgrid(lon, lat)
-    for key, (vs, cmap, scale, units, title) in FIGS.items():
+    grids = {True: np.meshgrid(olon, olat), False: np.meshgrid(lon, lat)}
+
+    def render(key, vs, cmap, scale, units, title, panels, nrows, ncols,
+               fname, fs):
         vmax = VLIM[key]
-        fig, axes = plt.subplots(2, 2, figsize=(15.5, 8.6),
+        is_sst = vs[0] == "SST"
+        LONg, LATg = grids[is_sst]
+        fig, axes = plt.subplots(nrows, ncols, figsize=fs,
                                  subplot_kw=dict(projection=ccrs.PlateCarree(central_longitude=180)))
-        for ax, leads in zip(axes.flat, PANELS):
+        for ax, leads in zip(np.atleast_1d(axes).ravel(), panels):
             a = {v: (ens[v][leads].mean(0) - clim[v][leads].mean(0)) * scale
                  for v in vs}
-            shade = a[vs[0]]
-            pm = ax.pcolormesh(LON, LAT, shade, cmap=cmap, vmin=-vmax, vmax=vmax,
+            pm = ax.pcolormesh(LONg, LATg, a[vs[0]], cmap=cmap,
+                               vmin=-vmax, vmax=vmax,
                                transform=ccrs.PlateCarree(), rasterized=True)
             if len(vs) == 2:                       # wind vectors, subsampled
                 st = 18
-                ax.quiver(LON[::st, ::st], LAT[::st, ::st],
+                ax.quiver(LONg[::st, ::st], LATg[::st, ::st],
                           a[vs[0]][::st, ::st], a[vs[1]][::st, ::st],
                           transform=ccrs.PlateCarree(), color="k",
                           scale=vmax * 30, width=0.0016, alpha=0.75)
             ax.coastlines(lw=0.5, color="0.25")
             ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
             ax.set_global()
-            ax.set_title(season_label(t0, leads), fontsize=11, loc="left",
+            ax.set_title(season_label(t0, leads), fontsize=10, loc="left",
                          fontweight="bold")
+        for ax in np.atleast_1d(axes).ravel()[len(panels):]:
+            ax.axis("off")
         cb = fig.colorbar(pm, ax=axes, orientation="horizontal",
                           fraction=0.045, pad=0.04, aspect=45, extend="both")
         cb.set_label(f"{title} ({units})", fontsize=10)
         fig.suptitle(f"SFS beta — {title} · issue {t0:%b %Y} · 31-member mean "
                      f"vs own reforecast {CLIM_Y0}–{CLIM_Y1}",
                      fontsize=13, fontweight="bold", y=0.99)
-        out = ASSETS / f"{key}_maps.webp"
+        out = ASSETS / fname
         fig.savefig(out, dpi=140, bbox_inches="tight")
         plt.close(fig)
         print(f"wrote {out.relative_to(REPO)}", flush=True)
+
+    for key, (vs, cmap, scale, units, title) in FIGS.items():
+        render(key, vs, cmap, scale, units, title, SEASONS, 2, 2,
+               f"{key}_maps.webp", (15.5, 8.6))
+        render(key, vs, cmap, scale, units, title, MONTHLY, 2, 5,
+               f"{key}_monthly.webp", (26, 6.4))
     return 0
 
 

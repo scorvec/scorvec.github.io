@@ -162,6 +162,100 @@ function render_z500(loop, fr, ov, staging)
     save(joinpath(staging, String(fr.id) * ".png"), fig)
 end
 
+# ---- three-panel: model A, model B, and A minus B --------------------------
+function three_panel_figure(loop, suptitle)
+    x0, x1 = Float64.(loop.xlim); y0, y1 = Float64.(loop.ylim)
+    asp = (x1 - x0) / (y1 - y0)
+    H = 430.0
+    W = 3 * asp * H + 40
+    fig = Figure(size = (round(Int, W), round(Int, H + 116)), backgroundcolor = :white)
+    Label(fig[0, 1:3], suptitle, fontsize = 16, font = :bold, padding = (0, 0, 2, 2))
+    axes = [Axis(fig[1, j], title = String(loop.titles[j]), titlealign = :left,
+                 titlesize = 14, titlefont = :bold, backgroundcolor = :white)
+            for j in 1:3]
+    for ax in axes
+        hidedecorations!(ax)
+        limits!(ax, x0, x1, y0, y1)
+        ax.aspect = DataAspect()
+    end
+    rowgap!(fig.layout, 6); colgap!(fig.layout, 10)
+    return fig, axes
+end
+
+function render_three(loop, fr, ov, staging)
+    z = npzread(joinpath(staging, String(fr.npz)))
+    fig, axes = three_panel_figure(loop, String(fr.title))
+    A = permutedims(z["s_f"]); B = permutedims(z["e_f"])
+    xs = range(Float64(loop.xlim[1]), Float64(loop.xlim[2]), size(A, 2))
+    ys = range(Float64(loop.ylim[1]), Float64(loop.ylim[2]), size(A, 1))
+    bounds = Float64.(loop.bounds)
+    nb = length(bounds) - 1
+    cols = [RGB(get(cgrad(Symbol(String(loop.cmap))), (k - 0.5) / nb)) for k in 1:nb]
+    for (ax, f) in zip(axes[1:2], (A, B))
+        fc = clamp.(f, bounds[1] + 1e-6, Inf)          # under-range -> first band
+        band_image!(ax, loop.xlim, loop.ylim, fc, cols;
+                    bounds = bounds, over = String(loop.over))
+        labeled_contour!(ax, xs, ys, f; levels = bounds[1:2:end], color = :black,
+                         linewidth = 0.55, labels = bounds[1:4:end], labelsize = 8)
+        draw_overlays!(ax, ov)
+    end
+    db = Float64.(loop.diff_bounds)
+    ndb = length(db) - 1
+    dcols = [RGB(get(cgrad(:RdBu, rev = true), (k - 0.5) / ndb)) for k in 1:ndb]
+    d = clamp.(A .- B, db[1] + 1e-6, Inf)
+    band_image!(axes[3], loop.xlim, loop.ylim, d, dcols; bounds = db, over = "#67001f")
+    draw_overlays!(axes[3], ov)
+    band_colorbar!(fig[2, 1:2], ["#" * hex(c) for c in cols], bounds;
+                   label = String(loop.units), over = String(loop.over))
+    dlab = hasproperty(loop, :diff_label) ? String(loop.diff_label) :
+           "difference (" * String(loop.units) * ")"
+    band_colorbar!(fig[2, 3], ["#" * hex(c) for c in dcols], db;
+                   label = dlab, over = "#67001f")
+    save(joinpath(staging, String(fr.id) * ".png"), fig)
+end
+
+# ---- synoptic pair with precip-type shading on the right panel -------------
+const PT_CATS = (
+    ("rain", "Rain", ["#c7e9c0", "#a1d99b", "#74c476", "#31a354", "#006d2c", "#00441b"], "#00250f"),
+    ("snow", "Snow", ["#c6dbef", "#9ecae1", "#6baed6", "#4292c6", "#2171b5", "#08519c"], "#062c54"),
+    ("frzr", "Frz rain", ["#fcc5c0", "#fa9fb5", "#f768a1", "#dd3497", "#ae017e", "#7a0177"], "#49006a"),
+    ("icep", "Ice pel.", ["#dadaeb", "#bcbddc", "#9e9ac8", "#807dba", "#6a51a3", "#4a1486"], "#2d0a5e"),
+)
+
+function render_ptype(loop, fr, ov, staging)
+    z = npzread(joinpath(staging, String(fr.npz)))
+    fig, axes = two_panel_figure(loop, String(fr.title))
+    xs = range(Float64(loop.xlim[1]), Float64(loop.xlim[2]), size(z["s_msl"], 2))
+    ys = range(Float64(loop.ylim[1]), Float64(loop.ylim[2]), size(z["s_msl"], 1))
+    ptb = Float64.(loop.p_levels)
+    for (ax, pre) in zip(axes, ("s_", "e_"))
+        if pre == "e_"                       # only GDPS carries precip fields
+            for (key, _, cols, over) in PT_CATS
+                haskey(z, "e_" * key) || continue
+                band_image!(ax, loop.xlim, loop.ylim, permutedims(z["e_" * key]),
+                            [parse(Colorant, c) for c in cols];
+                            bounds = ptb, over = over)
+            end
+        end
+        t = permutedims(z[pre * "thk"])
+        labeled_contour!(ax, xs, ys, t; levels = 410:6:534, color = "#1565c0",
+                         linewidth = 0.7, linestyle = :dash, labels = 414:12:534)
+        labeled_contour!(ax, xs, ys, t; levels = 546:6:618, color = "#c62828",
+                         linewidth = 0.7, linestyle = :dash, labels = 546:12:618)
+        labeled_contour!(ax, xs, ys, t; levels = [540.0], color = "#1565c0",
+                         linewidth = 1.7, linestyle = :dash, labels = [540.0],
+                         labelsize = 10)
+        labeled_contour!(ax, xs, ys, permutedims(z[pre * "msl"]); levels = 940:4:1060,
+                         color = :black, linewidth = 0.8, labels = 944:8:1060)
+        draw_overlays!(ax, ov)
+    end
+    gl = fig[2, 1:2] = GridLayout()
+    for (j, (_, lab, cols, over)) in enumerate(PT_CATS)
+        band_colorbar!(gl[1, j], cols, ptb; label = lab * " (mm / 6 h)", over = over)
+    end
+    save(joinpath(staging, String(fr.id) * ".png"), fig)
+end
+
 function main()
     t0 = time()
     spec = JSON3.read(read(ARGS[1], String))
@@ -179,6 +273,10 @@ function main()
         try
             if loop.kind == "compare"
                 render_compare(loop, fr, ov, staging)
+            elseif loop.kind == "three"
+                render_three(loop, fr, ov, staging)
+            elseif loop.kind == "ptype"
+                render_ptype(loop, fr, ov, staging)
             else
                 render_z500(loop, fr, ov, staging)
             end
