@@ -219,6 +219,33 @@ def build_field_climo(month: int) -> dict:
     return acc
 
 
+def precip_daily_clim(month: int) -> np.ndarray:
+    """Per-lead-day reforecast mean precip rate (mm/day), cached.
+
+    The daily precip stream is CONSISTENT with the monthly stream (4%%
+    global-mean difference, r=0.84 spatially vs sub-month sampling), unlike
+    t2m/z500 — so the own-hindcast baseline is sound here."""
+    f = CLIMDIR / f"precip_climo_{month:02d}.npz"
+    if f.exists():
+        return np.load(f)["clim"]
+    ds = _open(f"{BASE}/reforecast/{month:02d}/atm_daily.zarr")
+    ds = ds.sel(init=slice(str(CLIM_Y0), str(CLIM_Y1)))
+    n_init = ds.sizes["init"]
+    s1 = np.zeros((NDAYS, 181, 360), np.float64)
+    n = 0
+    for yi in range(n_init):
+        v = ds.PRATE_surface.isel(init=yi).values.astype(np.float64)
+        s1 += v.sum(axis=0)
+        n += v.shape[0]
+        if yi % 10 == 0:
+            print(f"precip climo: init {yi + 1}/{n_init}", flush=True)
+    clim = (s1 / n * 86400).astype(np.float32)
+    CLIMDIR.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(f, clim=clim)
+    print(f"precip climo {month:02d}: cached", flush=True)
+    return clim
+
+
 def era5_daily_clim():
     """ERA5 1991-2020 day-of-year climatology (±7 d window) for t2m/z500,
     NH 1.5° from the local WB2 store; cached once, month-independent."""
@@ -280,16 +307,38 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
         return da.interp(latitude=lat[la], longitude=lon,
                          kwargs={"fill_value": None}).values
 
+    # PRATE is valid on the OPPOSITE day parity to t2m/z500 (the beta
+    # interleaves variable groups across alternating days) — select its own
+    # finite leads independently
+    import fsspec as _fs, xarray as _xr
+    _dsd = _xr.open_zarr(_fs.get_mapper(
+        f"{BASE}/forecast/{issue}/atm_daily.zarr"), consolidated=True,
+        decode_timedelta=True)
+    pr_full = _dsd.PRATE_surface.values * 86400
+    psel = np.where(np.isfinite(pr_full[0, :, 90, 180])
+                    & (lead_days >= 16))[0]
+    pr = pr_full[:, psel]                                 # (31, np, 181, 360)
+    pclim = precip_daily_clim(int(issue[4:6]))[psel]
+
     for key, fld, label in (("t2md", t2, "2 m temperature"),
-                            ("z500d", z5, "500 hPa height")):
-        vk = "t2m" if key == "t2md" else "z500"
-        scale = 1.0 if vk == "t2m" else 0.1          # K; gpm -> dam
-        ens_abs = np.nanmean(fld[:, :, la], axis=0)
-        doys = [(t0 + pd.Timedelta(days=int(d))).dayofyear
-                for d in lead_days[sel]]
-        clim = np.stack([clim_on_grid(E[vk][min(d, 366) - 1]) for d in doys])
-        ens = (ens_abs - clim) * scale
-        zabs = ens_abs * 0.1 if key == "z500d" else None
+                            ("z500d", z5, "500 hPa height"),
+                            ("prcpd", pr, "precipitation")):
+        glob = key == "prcpd"
+        ksel = psel if glob else sel
+        if glob:
+            ens = np.nanmean(fld, axis=0) - pclim         # mm/day, global
+            zabs = None
+            LONg, LATg = np.meshgrid(lon, lat)
+        else:
+            vk = "t2m" if key == "t2md" else "z500"
+            scale = 1.0 if vk == "t2m" else 0.1           # K; gpm -> dam
+            ens_abs = np.nanmean(fld[:, :, la], axis=0)
+            doys = [(t0 + pd.Timedelta(days=int(d))).dayofyear
+                    for d in lead_days[sel]]
+            clim = np.stack([clim_on_grid(E[vk][min(d, 366) - 1]) for d in doys])
+            ens = (ens_abs - clim) * scale
+            zabs = ens_abs * 0.1 if key == "z500d" else None
+            LONg, LATg = LON, LAT
 
         name = f"sfs_{key}"
         outdir = ANIM / name
@@ -298,32 +347,44 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
             old.unlink()
         frames = []
         for i in range(ens.shape[0]):
-            valid = t0 + pd.Timedelta(days=int(lead_days[sel][i]))
-            fig, ax = plt.subplots(figsize=(13.0, 3.9),
-                                   subplot_kw=dict(projection=proj))
-            vmax0 = 10 if key == "t2md" else 24
-            pm0 = ax.pcolormesh(LON, LAT, ens[i], cmap="RdBu_r",
-                                vmin=-vmax0, vmax=vmax0,
-                                transform=ccrs.PlateCarree(), rasterized=True)
+            valid = t0 + pd.Timedelta(days=int(lead_days[ksel][i]))
+            gproj = (ccrs.PlateCarree(central_longitude=180) if glob else proj)
+            fig, ax = plt.subplots(figsize=(13.0, 5.6 if glob else 3.9),
+                                   subplot_kw=dict(projection=gproj))
+            if glob:
+                pm0 = ax.pcolormesh(LONg, LATg, ens[i], cmap="BrBG",
+                                    vmin=-15, vmax=15,
+                                    transform=ccrs.PlateCarree(), rasterized=True)
+            else:
+                vmax0 = 10 if key == "t2md" else 24
+                pm0 = ax.pcolormesh(LONg, LATg, ens[i], cmap="RdBu_r",
+                                    vmin=-vmax0, vmax=vmax0,
+                                    transform=ccrs.PlateCarree(), rasterized=True)
             if zabs is not None:
-                cs = ax.contour(LON, LAT, zabs[i], levels=np.arange(480, 601, 6),
+                cs = ax.contour(LONg, LATg, zabs[i], levels=np.arange(480, 601, 6),
                                 colors="k", linewidths=0.7,
                                 transform=ccrs.PlateCarree())
                 ax.clabel(cs, levels=np.arange(480, 601, 12), fmt="%d",
                           fontsize=7, inline=True)
             ax.coastlines(lw=0.5, color="0.25")
             ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
-            ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
-            unit0 = "°C" if key == "t2md" else "dam"
-            ttl = ("ens-mean anomaly vs ERA5 1991–2020 daily normal "
-                   f"({unit0})")
-            if zabs is not None:
-                ttl += " · contours: ens-mean z500 (dam)"
+            if glob:
+                ax.set_global()
+            else:
+                ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
+            if glob:
+                ttl = "ens-mean precip anomaly vs own reforecast daily climatology (mm/day)"
+            else:
+                unit0 = "°C" if key == "t2md" else "dam"
+                ttl = ("ens-mean anomaly vs ERA5 1991–2020 daily normal "
+                       f"({unit0})")
+                if zabs is not None:
+                    ttl += " · contours: ens-mean z500 (dam)"
             ax.set_title(ttl, fontsize=10, loc="left")
             fig.colorbar(pm0, ax=ax, orientation="vertical",
                          fraction=0.025, pad=0.015, extend="both")
             fig.suptitle(f"SFS beta — {label} · {valid:%a %b %d %Y} "
-                         f"(day {int(lead_days[sel][i])}) · 31-member mean "
+                         f"(day {int(lead_days[ksel][i])}) · 31-member mean "
                          f"· issue {t0:%b %Y}",
                          fontsize=12, fontweight="bold", y=0.99)
             fig.subplots_adjust(top=0.86)
@@ -331,7 +392,7 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
             fig.savefig(outdir / fn, dpi=130, bbox_inches="tight")
             plt.close(fig)
             frames.append({"idx": i, "file": fn, "date": f"{valid:%Y-%m-%d}",
-                           "label": f"{valid:%b %d} · day {int(lead_days[sel][i])}"})
+                           "label": f"{valid:%b %d} · day {int(lead_days[ksel][i])}"})
         (ANIM / f"{name}_manifest.json").write_text(json.dumps(
             {"ver": int(_time.time()), "days": len(frames),
              "regions": {name: {"label": f"SFS {label} anomaly + spread",
