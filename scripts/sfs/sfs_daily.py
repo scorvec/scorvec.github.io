@@ -165,8 +165,12 @@ def build_strat_climo(month: int) -> dict:
 
 
 def build_field_climo(month: int) -> dict:
-    """Per-lead-day mean and σ fields (t2m, z500) from the daily reforecast."""
-    f = CLIMDIR / f"field_climo_{month:02d}.npz"
+    """Per-lead-day fields from the daily reforecast: pooled mean and σ
+    (the anomaly yardstick) AND the hindcast's own mean ENSEMBLE spread as
+    a function of lead (the spread-ratio denominator — comparing today's
+    member spread to pooled climatological σ conflates interannual
+    variance with ensemble dispersion and trends below 1 by construction)."""
+    f = CLIMDIR / f"field_climo2_{month:02d}.npz"
     if f.exists():
         return dict(np.load(f))
     ds = _open(f"{BASE}/reforecast/{month:02d}/atm_daily.zarr")
@@ -176,17 +180,21 @@ def build_field_climo(month: int) -> dict:
     for var, key in (("TMP_2maboveground", "t2m"), ("HGT_500mb", "z500")):
         s1 = np.zeros((NDAYS, 181, 360), np.float64)
         s2 = np.zeros_like(s1)
+        ev = np.zeros_like(s1)                     # Σ_years var_members (ddof=1)
         for yi in range(n_init):
             v = ds[var].isel(init=yi).values.astype(np.float64)  # (11,47,181,360)
             s1 += v.sum(axis=0)
             s2 += (v * v).sum(axis=0)
+            ev += v.var(axis=0, ddof=1)
             if yi % 10 == 0:
                 print(f"field climo {key}: init {yi + 1}/{n_init}", flush=True)
         n = n_init * n_mem
         mu = s1 / n
         sd = np.sqrt(np.maximum(s2 / n - mu * mu, 1e-9) * n / (n - 1))
+        esd = np.sqrt(ev / n_init)                 # RMS ensemble spread per lead
         acc[key + "_mu"] = mu.astype(np.float32)
         acc[key + "_sd"] = sd.astype(np.float32)
+        acc[key + "_esd"] = esd.astype(np.float32)
         print(f"field climo {key}: done", flush=True)
     CLIMDIR.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, **acc)
@@ -207,11 +215,14 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
     proj = ccrs.PlateCarree(central_longitude=-100)
     for key, fld, label in (("t2md", t2, "2 m temperature"),
                             ("z500d", z5, "500 hPa height")):
-        mu = F[("t2m" if key == "t2md" else "z500") + "_mu"][sel][:, la]
-        sd = F[("t2m" if key == "t2md" else "z500") + "_sd"][sel][:, la]
+        vk = "t2m" if key == "t2md" else "z500"
+        mu = F[vk + "_mu"][sel][:, la]
+        sd = F[vk + "_sd"][sel][:, la]
+        esd = F[vk + "_esd"][sel][:, la]
         a = (fld[:, :, la] - mu[None]) / sd[None]           # (31, n, lat, lon)
         ens = np.nanmean(a, axis=0)
-        sprd = np.nanstd(fld[:, :, la], axis=0, ddof=1) / sd
+        # spread vs the hindcast\'s OWN ensemble spread at the same lead day
+        sprd = np.nanstd(fld[:, :, la], axis=0, ddof=1) / esd
         name = f"sfs_{key}"
         outdir = ANIM / name
         outdir.mkdir(parents=True, exist_ok=True)
@@ -229,7 +240,7 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
                                      vmin=0.4, vmax=1.6,
                                      transform=ccrs.PlateCarree(), rasterized=True)
             for ax, ttl in ((axes[0], "ensemble-mean anomaly (hindcast σ)"),
-                            (axes[1], "member spread ÷ hindcast σ")):
+                            (axes[1], "member spread ÷ hindcast ensemble spread at this lead")):
                 ax.coastlines(lw=0.5, color="0.25")
                 ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
                 ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
