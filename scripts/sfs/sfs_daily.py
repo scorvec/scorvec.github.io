@@ -310,9 +310,9 @@ def main():
         out["mean"] = np.round(cs.mean(axis=0), 1).tolist()
         return out
 
-    v100 = ds.VGRD_100mb.values
-    t100 = ds.TMP_100mb.values
-    u50f = ds.UGRD_50mb.values
+    v100 = ds.VGRD_100mb.values[:, sel]
+    t100 = ds.TMP_100mb.values[:, sel]
+    u50f = ds.UGRD_50mb.values[:, sel]
     j60 = int(np.argmin(np.abs(lat - 60)))
     strat = {
         "vt100": {"label": "100-hPa eddy heat flux (45–75°N)",
