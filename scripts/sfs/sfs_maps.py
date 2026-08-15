@@ -51,7 +51,10 @@ FIGS = {
     "z500":   (("z500",),         "RdBu_r",   0.1,     "dam",    "500 hPa height anomaly"),
     "wind850": (("u850", "v850"), "RdBu_r",   1.0,     "m/s",    "850 hPa wind anomaly (shading: zonal)"),
     "wind200": (("u200", "v200"), "RdBu_r",   1.0,     "m/s",    "200 hPa wind anomaly (shading: zonal)"),
-    "chi200": (("vpot200",),      "BrBG_r",   1e-6,    "10⁶ m²/s", "200 hPa velocity potential anomaly (neg = outflow)"),
+    # SFS stores vpot200 with the OPPOSITE sign convention to the site's
+    # pyshtools chi (chi_lm = -a²/(l(l+1)) delta_lm): flip so negative =
+    # divergent outflow, matching the daily loop and the AIFS product
+    "chi200": (("vpot200",),      "BrBG_r",   -1e-6,   "10⁶ m²/s", "200 hPa velocity potential anomaly (neg = outflow)"),
 }
 # limits picked from the actual anomaly distributions so strong-El Niño fields
 # stay inside the scale instead of saturating whole regions
@@ -191,9 +194,7 @@ def main():
 
     import time as _time
     for key, (vs, cmap, scale, units, title) in FIGS.items():
-        render(key, vs, cmap, scale, units, title, SEASONS, 2, 2,
-               f"{key}_maps.webp", (15.5, 8.6))
-        # monthly breakdown as an animator loop: one frame per lead month
+        # monthly animator loops only (the seasonal 2x2 multipanels are retired)
         name = f"sfs_{key}"
         frames = []
         for L in LEADS:
