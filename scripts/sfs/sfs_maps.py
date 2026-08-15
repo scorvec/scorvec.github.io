@@ -18,6 +18,7 @@ chunks; afterwards it's free). Output: assets/sfs/*_maps.webp.
 """
 from __future__ import annotations
 import argparse
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -154,6 +155,8 @@ def main():
         vmax = VLIM[key]
         is_sst = vs[0] == "SST"
         LONg, LATg = grids[is_sst]
+        out = ASSETS / fname
+        out.parent.mkdir(parents=True, exist_ok=True)
         fig, axes = plt.subplots(nrows, ncols, figsize=fs,
                                  subplot_kw=dict(projection=ccrs.PlateCarree(central_longitude=180)))
         for ax, leads in zip(np.atleast_1d(axes).ravel(), panels):
@@ -181,16 +184,29 @@ def main():
         fig.suptitle(f"SFS beta — {title} · issue {t0:%b %Y} · 31-member mean "
                      f"vs own reforecast {CLIM_Y0}–{CLIM_Y1}",
                      fontsize=13, fontweight="bold", y=0.99)
-        out = ASSETS / fname
         fig.savefig(out, dpi=140, bbox_inches="tight")
         plt.close(fig)
         print(f"wrote {out.relative_to(REPO)}", flush=True)
 
+    import time as _time
     for key, (vs, cmap, scale, units, title) in FIGS.items():
         render(key, vs, cmap, scale, units, title, SEASONS, 2, 2,
                f"{key}_maps.webp", (15.5, 8.6))
-        render(key, vs, cmap, scale, units, title, MONTHLY, 2, 5,
-               f"{key}_monthly.webp", (26, 6.4))
+        # monthly breakdown as an animator loop: one frame per lead month
+        name = f"sfs_{key}"
+        frames = []
+        for L in LEADS:
+            fn = f"F{L:02d}.webp"
+            render(key, vs, cmap, scale, units, title, [[L]], 1, 1,
+                   f"anim/{name}/{fn}", (13.5, 7.8))
+            mon = (t0 + pd.DateOffset(months=L))
+            frames.append({"idx": L, "file": fn, "date": f"{mon:%Y-%m}",
+                           "label": f"{mon:%b %Y} · lead {L}"})
+        (ASSETS / "anim" / f"{name}_manifest.json").write_text(json.dumps(
+            {"ver": int(_time.time()), "days": len(frames),
+             "regions": {name: {"label": f"SFS beta · {title} · monthly",
+                                "n_frames": len(frames), "frames": frames}}}))
+        print(f"loop {name}: {len(frames)} frames", flush=True)
     return 0
 
 
