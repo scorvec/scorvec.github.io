@@ -169,6 +169,21 @@ def main():
             pm = ax.pcolormesh(LONg, LATg, a[vs[0]], cmap=cmap,
                                vmin=-vmax, vmax=vmax,
                                transform=ccrs.PlateCarree(), rasterized=True)
+            if key == "chi200":                    # chi contours + divergent wind
+                import sys as _sys
+                _sys.path.insert(0, str(REPO / "scripts" / "mjo" / "src"))
+                from wind200_vpot import irrotational_wind
+                ax.contour(LONg, LATg, a[vs[0]],
+                           levels=[l for l in np.arange(-12, 12.1, 1.5) if abs(l) > .1],
+                           colors="k", linewidths=0.45, alpha=0.6,
+                           transform=ccrs.PlateCarree())
+                lat1d = LATg[:, 0]; lon1d = LONg[0, :]
+                uchi, vchi = irrotational_wind(a[vs[0]] * 1e6, lat1d, lon1d)
+                st = 22
+                ax.quiver(LONg[::st, ::st], LATg[::st, ::st],
+                          uchi[::st, ::st], vchi[::st, ::st],
+                          transform=ccrs.PlateCarree(), color="k", scale=90,
+                          width=0.0015, alpha=0.8)
             if len(vs) == 2:                       # wind vectors, subsampled
                 st = 18
                 ax.quiver(LONg[::st, ::st], LATg[::st, ::st],
