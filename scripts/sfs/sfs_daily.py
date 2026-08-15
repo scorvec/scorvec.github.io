@@ -247,8 +247,15 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
         sig = np.maximum(F[vk + "_sigdt"][sel][:, la], 0.3 * sd)
         a = (fld[:, :, la] - mu_t[None]) / sig[None]        # (31, n, lat, lon)
         ens = np.nanmean(a, axis=0)
-        # spread vs the hindcast\'s OWN ensemble spread at the same lead day
-        sprd = np.nanstd(fld[:, :, la], axis=0, ddof=1) / esd
+        # spread vs the hindcast's OWN ensemble spread at the same lead day.
+        # The beta's NRT ensemble is systematically under-dispersive vs its
+        # reforecast config (ratio ~0.5 in week 1 recovering to ~0.85 — a
+        # model property, verified against reforecast-year controls), so the
+        # map shows the SPATIAL pattern (median rescaled to 1) and the
+        # hemispheric median is quoted in the panel title per frame.
+        sprd_raw = np.nanstd(fld[:, :, la], axis=0, ddof=1) / esd
+        med = np.nanmedian(sprd_raw, axis=(1, 2))
+        sprd = sprd_raw / med[:, None, None]
         name = f"sfs_{key}"
         outdir = ANIM / name
         outdir.mkdir(parents=True, exist_ok=True)
@@ -266,7 +273,8 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
                                      vmin=0.4, vmax=1.6,
                                      transform=ccrs.PlateCarree(), rasterized=True)
             for ax, ttl in ((axes[0], "ensemble-mean anomaly vs hindcast TREND (detrended signal σ)"),
-                            (axes[1], "member spread ÷ hindcast ensemble spread at this lead")):
+                            (axes[1], "spread pattern (median-rescaled) — hemispheric "
+                                      f"median ratio {med[i]:.2f}")):
                 ax.coastlines(lw=0.5, color="0.25")
                 ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
                 ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
