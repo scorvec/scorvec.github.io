@@ -18,7 +18,21 @@
            border-radius: 6px; font-size: 13px; line-height: 1; padding: 5px 9px;
            cursor: pointer; font-family: inherit; }
   button:hover { border-color: var(--aqua); color: var(--aqua); }
-  #scrub { flex: 1; accent-color: var(--aqua); height: 20px; cursor: pointer; }
+  /* prominent scrubber: thick filled track + large ringed thumb */
+  #scrub { flex: 1; height: 26px; cursor: pointer; -webkit-appearance: none;
+           appearance: none; background: transparent; min-width: 120px; }
+  #scrub::-webkit-slider-runnable-track { height: 8px; border-radius: 4px;
+    background: linear-gradient(to right, var(--aqua) 0%, var(--aqua) var(--fill, 0%),
+                rgba(148,184,225,0.28) var(--fill, 0%), rgba(148,184,225,0.28) 100%); }
+  #scrub::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px;
+    border-radius: 50%; background: var(--aqua); border: 3px solid #fff;
+    box-shadow: 0 0 6px rgba(0,0,0,0.55); margin-top: -5px; }
+  #scrub::-moz-range-track { height: 8px; border-radius: 4px;
+    background: rgba(148,184,225,0.28); }
+  #scrub::-moz-range-progress { height: 8px; border-radius: 4px; background: var(--aqua); }
+  #scrub::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%;
+    background: var(--aqua); border: 3px solid #fff;
+    box-shadow: 0 0 6px rgba(0,0,0,0.55); }
   select { background: var(--bar); color: var(--ink); border: 1px solid var(--rule);
            border-radius: 6px; font-size: 12px; padding: 3px 4px; }
   #label { font-size: 12px; color: var(--muted); white-space: nowrap;
@@ -83,7 +97,11 @@
     cur = i;
     img.src = imgs[i].src;
     scrub.value = i;
-    label.textContent = frames[i].label + " · " + (i + 1) + "/" + frames.length;
+    scrub.style.setProperty("--fill",
+      (frames.length > 1 ? 100 * i / (frames.length - 1) : 0) + "%");
+    var miss = okFrame.filter(function (o) { return !o; }).length;
+    label.textContent = frames[i].label + " · " + (i + 1) + "/" + frames.length
+      + (miss ? " · " + miss + " missing" : "");
   }
   function tick() {
     var last = frames.length - 1;
@@ -139,14 +157,22 @@
       if (!reg) throw 0;
       frames = reg.frames;
       scrub.max = frames.length - 1;
+      // short loops (monthly leads) read better at a slower default pace
+      if (frames.length <= 15) document.getElementById("speed").value = "600";
       var ver = man.ver || 0, loaded = 0;
       okFrame = frames.map(function () { return false; });
       imgs = frames.map(function (fr, i) {
-        var im = new Image();
-        im.onload = function () {
-          okFrame[i] = true; done();
+        var im = new Image(), tries = 0;
+        im.onload = function () { okFrame[i] = true; done(); };
+        im.onerror = function () {
+          // one delayed retry — freshly-deployed frames can lag the CDN by
+          // seconds; without this the player silently skips those months
+          if (tries++ < 1) {
+            setTimeout(function () {
+              im.src = base + regionKey + "/" + fr.file + "?v=" + ver + "r";
+            }, 2500);
+          } else { done(); }
         };
-        im.onerror = function () { done(); };
         im.src = base + regionKey + "/" + fr.file + "?v=" + ver;
         return im;
       });
