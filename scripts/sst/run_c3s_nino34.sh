@@ -64,9 +64,11 @@ NMODELS=$(printf '%s\n' "$OUT" | sed -nE 's/.*\(([0-9]+) models\)/\1/p' | tail -
 # append/refresh this issue in the forecast-evolution store (cached GRIBs; cheap)
 "$PY" scripts/sst/c3s_evolution.py || echo "evolution store update failed; continuing"
 
-# NOAA SFS beta Niño-3.4 feed + global anomaly maps (NODD zarr; lands by the ~6th)
+# NOAA SFS beta Niño-3.4 feed + global anomaly maps + derived indices
+# (NODD zarr; lands by the ~6th; indices need the maps' cached SST clim)
 "$PY" scripts/sfs/sfs_nino.py || echo "SFS beta feed failed; continuing"
 "$PY" scripts/sfs/sfs_maps.py || echo "SFS beta maps failed; continuing"
+"$PY" scripts/sfs/sfs_indices.py || echo "SFS beta indices failed; continuing"
 
 git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json \
         assets/sst/data/c3s_evolution.json assets/sfs scripts/sfs/data
