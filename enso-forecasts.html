@@ -238,7 +238,7 @@
     month since 1970). Each named El&nbsp;Ni&ntilde;o gets its own colour, with heavier lines for stronger
     events &mdash; strong and very-strong events start visible, the rest wait in the legend. The current year is drawn bold
     white, and the <b style="color:#e8c04d">gold dashes</b> extend it with this issue's
-    multi-model mean. <b>Every year here is computed against the same fixed 1991&ndash;2020
+    multi-model mean (monthly values, anchored at the last observed month). <b>Every year here is computed against the same fixed 1991&ndash;2020
     base</b> &mdash; CPC's historical tables use sliding 30-year bases that shift by era, which
     would make decades incomparable; the RONI series is likewise rebuilt from ERSSTv5 with one
     base and one &sigma;-scale throughout, so 1972 and 2026 sit on the same ruler.</p>
@@ -571,16 +571,22 @@
                   hovertemplate: "%{y:+.2f} °C" });
     if (F) {
       var labels = Object.keys(F.models);
-      var obsTail = oniArr.filter(function (v) { return v != null; }).slice(-2);
       var fKey = (state.histIdx || "oni") === "roni" ? "rnino" : "n34";
       var mmm = F.valid_months.map(function (_, L) {
         return mean(labels.map(function (mo) { return mean(F.models[mo][fKey][L]); }));
       });
-      var sm = roll3(obsTail.concat(mmm)).slice(obsTail.length);
+      // MONTHLY forecast values anchored to the last observed month: every
+      // other line on this chart is monthly, so the old 3-month-smoothed
+      // dashes floated above the white observed line and read as a mismatch.
+      // These are the same numbers as the top plume's "Monthly" toggle.
       var fx = [], fy = [];
+      var curSeries = byYear[curYear] || [];
+      for (var mi = 11; mi >= 0; mi--) {
+        if (curSeries[mi] != null) { fx.push(MONS[mi]); fy.push(curSeries[mi]); break; }
+      }
       F.valid_months.forEach(function (ym, L) {
         if (+ym.slice(0, 4) !== curYear) return;   // stay inside the calendar frame
-        fx.push(MONS[+ym.slice(5, 7) - 1]); fy.push(sm[L]);
+        fx.push(MONS[+ym.slice(5, 7) - 1]); fy.push(mmm[L]);
       });
       traces.push({ x: fx, y: fy, type: "scatter", mode: "lines+markers",
                     name: "forecast (multi-model " + ((state.histIdx || "oni") === "roni" ? "RONI" : "ONI") + ")", marker: { size: 5, symbol: "diamond" },
@@ -714,13 +720,13 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=ec8ff96f39d7").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=c7194cd182f7").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=ec8ff96f39d7").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=c7194cd182f7").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=ec8ff96f39d7").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=c7194cd182f7").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=ec8ff96f39d7").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=c7194cd182f7").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
