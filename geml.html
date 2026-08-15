@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Canada's Hybrid AI Weather Model &mdash; GDPS-GEML vs GDPS &middot; Shawn Corvec</title>
+<meta name="description" content="ECCC's Global Environmental eMuLator (GEML) — the AI model behind Canada's new hybrid GDPS-SN forecast system — side by side with the operational GDPS: 500 hPa height, every 6 hours to day 10.">
+<link rel="canonical" href="https://scorvec.com/geml.html">
+<style>
+  :root {
+    --bg: #0a1220; --card: #0e1830; --rule: rgba(148,184,225,0.14);
+    --ink: #e9eff8; --ink2: #a7b8ce; --muted: #6d8099;
+    --aqua: #4dd6e8; --aqua-deep: #2e97ad;
+    --serif: Georgia, "Times New Roman", serif;
+    --sans: Inter, -apple-system, "Segoe UI", sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         font-weight: 300; line-height: 1.6; min-height: 100vh;
+         display: flex; flex-direction: column; }
+  a { color: var(--aqua); }
+  nav { display: flex; align-items: center; justify-content: space-between;
+        padding: 1.1rem 2rem; border-bottom: 1px solid var(--rule); }
+  .nav-name { font-family: var(--serif); font-size: 1.05rem; color: var(--ink);
+              text-decoration: none; font-weight: 500; }
+  .nav-links { display: flex; gap: 1.6rem; list-style: none; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+  .nav-links a:hover { color: var(--ink); }
+  main { flex: 1; max-width: min(94vw, 2000px); margin: 0 auto; width: 100%;
+         padding: 2.6rem 1.8rem 4rem; }
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.22em;
+             text-transform: uppercase; color: var(--aqua-deep); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 38px; margin: 6px 0 4px; }
+  h1 em { font-style: italic; color: var(--aqua); }
+  .sub { color: var(--ink2); max-width: 84ch; margin-bottom: 24px; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 14px;
+          padding: 22px 24px 14px; margin-bottom: 26px; }
+  .card h2 { font-family: var(--serif); font-weight: 400; font-size: 23px;
+             margin-bottom: 8px; }
+  .note { font-size: 0.86rem; color: var(--ink2); margin-bottom: 12px; max-width: 110ch; }
+  .anim-embed { width: 100%; border: 0; display: block; background: #0f0f0d;
+                border-radius: 8px; }
+  .chart-card-footer { display: flex; justify-content: space-between; gap: 14px;
+                       flex-wrap: wrap; border-top: 1px solid var(--rule);
+                       margin-top: 10px; padding-top: 8px; }
+  .chart-sources { font-size: 11px; color: var(--muted); max-width: 130ch; }
+  .colophon { color: var(--muted); font-size: 0.82rem; line-height: 1.7;
+              max-width: 110ch; margin-top: 2rem; }
+  footer { padding: 1.4rem 2rem; border-top: 1px solid var(--rule);
+           color: var(--muted); font-size: 0.78rem; }
+  @media (max-width: 700px) {
+    nav { padding: 0.8rem 1rem; } .nav-links { gap: 1rem; }
+    h1 { font-size: 28px; } main { max-width: 100%; padding: 1.8rem 1rem 3rem; }
+  }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+<nav>
+  <a class="nav-name" href="index.html">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="aifs-verify.html">AIFS Verify</a></li>
+    <li><a href="mjo.html">MJO</a></li>
+  </ul>
+</nav>
+<main>
+  <header>
+    <div class="eyebrow">Twice daily &middot; ECCC experimental &middot; AI emulator vs operational NWP</div>
+    <h1>Canada's Hybrid <em>AI</em> Model</h1>
+    <p class="sub">In spring 2026 Environment and Climate Change Canada launched a hybrid
+    forecast system: the operational GDPS (GEM dynamics, 15&nbsp;km) is <b>spectrally
+    nudged</b> toward the large-scale temperature and wind fields of <b>GEML</b>, the
+    Global Environmental eMuLator &mdash; ECCC's data-driven AI weather model
+    (28&nbsp;km, 13 pressure levels, 10-day range, on Datamart since March 2026). This
+    page shows the raw AI emulator side by side with the operational model it steers:
+    where the two agree, the hybrid simply sharpens; where they diverge, the nudging is
+    doing real work.</p>
+  </header>
+
+  <div class="card">
+    <h2>500 hPa height &mdash; GEML vs GDPS, day 0&ndash;10</h2>
+    <p class="note">Left: <b>GDPS-GEML</b>, the AI emulator's own free-running forecast.
+    Right: the <b>operational GDPS</b>. Same cycle, same colour scale, every 6 hours
+    through hour 240. Watch the AI's smoother-but-steadier large scales against the
+    NWP's sharper synoptic detail &mdash; the exact trade the GDPS-SN hybrid is built to
+    arbitrage. Refreshed daily from the 00Z cycle.</p>
+    <iframe class="anim-embed" style="aspect-ratio:2140/1300"
+      src="sst_anim.html?embed=1&amp;manifest=geml_z500_manifest.json&amp;region=geml_z500"
+      title="GDPS-GEML versus operational GDPS 500 hPa height loop" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECCC MSC Datamart (open government licence) &middot;
+      GDPS-GEML 0.25&deg; &middot; GDPS 0.15&deg; &middot; both shown as 500 hPa height
+      (dam), NH polar stereographic &middot; 41 frames per cycle</span>
+    </div>
+  </div>
+
+  <div class="colophon">
+    <p><b>About GEML and GDPS-SN.</b> GEML is an experimental deterministic emulator
+    (six atmospheric variables on 13 pressure levels plus surface fields) run twice
+    daily to 10 days. The operational hybrid, GDPS-SN, does not replace GEM with AI
+    &mdash; it keeps the full physics model and nudges only the large scales toward
+    GEML, retaining physically consistent precipitation, clouds and surface weather
+    while borrowing the AI's large-scale skill. A deterministic verification of GEML
+    against ERA5 (alongside the <a href="aifs-verify.html">AIFS single-vs-control
+    benchmark</a>) is planned as the archive accumulates.</p>
+  </div>
+</main>
+<footer>&copy; 2026 Shawn Corvec &middot; Data: Environment and Climate Change Canada, MSC Datamart</footer>
+</body>
+</html>
