@@ -219,35 +219,77 @@ def build_field_climo(month: int) -> dict:
     return acc
 
 
+def era5_daily_clim():
+    """ERA5 1991-2020 day-of-year climatology (±7 d window) for t2m/z500,
+    NH 1.5° from the local WB2 store; cached once, month-independent."""
+    f = CLIMDIR / "era5_daily_clim.npz"
+    if f.exists():
+        return dict(np.load(f))
+    import xarray as xr
+    W = Path("~/era5_store/wb2_1p5_daily").expanduser()
+    out = {}
+    for v in ("t2m", "z500"):
+        das = []
+        for y in range(1991, 2021):
+            ds = xr.open_dataset(W / v / f"{v}_{y}.nc")
+            das.append(ds[list(ds.data_vars)[0]].transpose(
+                "time", "latitude", "longitude"))
+        da = xr.concat(das, dim="time")
+        doy = da.time.dt.dayofyear.values
+        vals = da.values
+        clim = np.full((366,) + vals.shape[1:], np.nan, np.float32)
+        for d in range(1, 367):
+            m = np.abs(((doy - d + 183) % 366) - 183) <= 7
+            clim[d - 1] = vals[m].mean(axis=0)
+        out[v] = clim
+        out["lat"] = da.latitude.values.astype(np.float32)
+        out["lon"] = da.longitude.values.astype(np.float32)
+        print(f"era5 clim {v}: built", flush=True)
+    CLIMDIR.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(f, **out)
+    return out
+
+
 def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
-    """Anomaly-σ + spread-ratio loops for t2m and z500, NH 20-90N."""
+    """Daily anomaly loops vs ERA5 1991-2020 climatology (the site's fixed
+    base): the beta's NRT daily stream is inconsistent with its own
+    reforecast AND monthly stream (~+2 K structured), so the own-hindcast
+    daily baseline is unreliable; ERA5 is the trustworthy reference. z500
+    frames carry ensemble-mean absolute height contours."""
     import time as _time
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
+    E = era5_daily_clim()
+    elat, elon = E["lat"], E["lon"]
     ANIM = REPO / "assets" / "sfs" / "anim"
     la = lat >= 20
     LON, LAT = np.meshgrid(lon, lat[la])
     proj = ccrs.PlateCarree(central_longitude=-100)
+
+    def clim_on_grid(cfield):
+        """interp one ERA5 1.5° clim field to the SFS 1° grid (20-90N)."""
+        import xarray as xr
+        # cyclic pad so the 358.5..360 wrap interpolates instead of NaN-striping
+        cf = np.concatenate([cfield, cfield[:, :1]], axis=1)
+        elon_p = np.concatenate([elon, [elon[0] + 360.0]])
+        da = xr.DataArray(cf, coords={"latitude": elat, "longitude": elon_p},
+                          dims=("latitude", "longitude"))
+        return da.interp(latitude=lat[la], longitude=lon,
+                         kwargs={"fill_value": None}).values
+
     for key, fld, label in (("t2md", t2, "2 m temperature"),
                             ("z500d", z5, "500 hPa height")):
         vk = "t2m" if key == "t2md" else "z500"
-        mu = F[vk + "_mu"][sel][:, la]
-        sd = F[vk + "_sd"][sel][:, la]
-        esd = F[vk + "_esd"][sel][:, la]
-        # reference mean = hindcast mean + the model's own linear trend
-        # extrapolated to the forecast year — without this the anomaly map is
-        # mostly the 1991-2020 -> now climate trend, not forecast signal.
-        # PHYSICAL units (no sigma normalization): the detrended signal sigma
-        # shrinks with lead as IC memory decays, which made persistent
-        # boundary-forced anomalies appear to grow explosively with time.
-        fyear = int(issue[:4]) + (int(issue[4:6]) - 0.5) / 12
-        mu_t = mu + F[vk + "_trend"][None, la] * (fyear - float(F["tbar"]))
-        scale = 1.0 if vk == "t2m" else 0.1          # K -> degC-equiv; gpm -> dam
-        a = (fld[:, :, la] - mu_t[None]) * scale     # (31, n, lat, lon)
-        ens = np.nanmean(a, axis=0)
+        scale = 1.0 if vk == "t2m" else 0.1          # K; gpm -> dam
+        ens_abs = np.nanmean(fld[:, :, la], axis=0)
+        doys = [(t0 + pd.Timedelta(days=int(d))).dayofyear
+                for d in lead_days[sel]]
+        clim = np.stack([clim_on_grid(E[vk][min(d, 366) - 1]) for d in doys])
+        ens = (ens_abs - clim) * scale
+        zabs = ens_abs * 0.1 if key == "z500d" else None
 
         name = f"sfs_{key}"
         outdir = ANIM / name
@@ -259,21 +301,30 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
             valid = t0 + pd.Timedelta(days=int(lead_days[sel][i]))
             fig, ax = plt.subplots(figsize=(13.0, 3.9),
                                    subplot_kw=dict(projection=proj))
-            vmax0 = 8 if key == "t2md" else 20
+            vmax0 = 10 if key == "t2md" else 24
             pm0 = ax.pcolormesh(LON, LAT, ens[i], cmap="RdBu_r",
                                 vmin=-vmax0, vmax=vmax0,
                                 transform=ccrs.PlateCarree(), rasterized=True)
+            if zabs is not None:
+                cs = ax.contour(LON, LAT, zabs[i], levels=np.arange(480, 601, 6),
+                                colors="k", linewidths=0.7,
+                                transform=ccrs.PlateCarree())
+                ax.clabel(cs, levels=np.arange(480, 601, 12), fmt="%d",
+                          fontsize=7, inline=True)
             ax.coastlines(lw=0.5, color="0.25")
             ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
             ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
             unit0 = "°C" if key == "t2md" else "dam"
-            ax.set_title("ensemble-mean anomaly vs hindcast mean + own trend "
-                         f"({unit0})", fontsize=10, loc="left")
+            ttl = ("ens-mean anomaly vs ERA5 1991–2020 daily normal "
+                   f"({unit0})")
+            if zabs is not None:
+                ttl += " · contours: ens-mean z500 (dam)"
+            ax.set_title(ttl, fontsize=10, loc="left")
             fig.colorbar(pm0, ax=ax, orientation="vertical",
                          fraction=0.025, pad=0.015, extend="both")
             fig.suptitle(f"SFS beta — {label} · {valid:%a %b %d %Y} "
-                         f"(day {int(lead_days[sel][i])}) · 31 members vs own "
-                         f"reforecast · issue {t0:%b %Y}",
+                         f"(day {int(lead_days[sel][i])}) · 31-member mean "
+                         f"· issue {t0:%b %Y}",
                          fontsize=12, fontweight="bold", y=0.99)
             fig.subplots_adjust(top=0.86)
             fn = f"F{i:02d}.webp"
