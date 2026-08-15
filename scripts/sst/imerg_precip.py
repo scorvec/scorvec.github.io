@@ -42,6 +42,13 @@ from pacific_satellite import _offset, _state_geoms      # shared geometry helpe
 
 warnings.filterwarnings("ignore")                          # quiet earthaccess/h5py chatter
 
+# earthaccess.download() issues requests with NO timeout; one stalled Earthdata
+# connection blocked imerg_gatun for 18 h (2026-08-14/15) and its lock starved
+# every SST poll behind it. requests/urllib3 fall back to the global socket
+# default when unset, so this makes any silent stall raise instead of hanging.
+import socket
+socket.setdefaulttimeout(120)
+
 HERE = Path(__file__).resolve().parent
 ANIM_ROOT = HERE.parent.parent / "assets" / "sst" / "anim"
 CACHE = HERE / "data" / "imerg"                            # binned grids + raw granules (gitignored)
