@@ -115,3 +115,4 @@ local_archive/
 scripts/mjo/data/reference/arco_eq_u/
 scripts/mjo/data/reference/m2_eq_u/
 scripts/geml/data/
+scripts/sfs/data/*.npy
