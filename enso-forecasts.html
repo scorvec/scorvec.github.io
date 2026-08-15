@@ -57,8 +57,9 @@
   .enso-subnav a:hover { color: var(--ink); }
   .enso-subnav a.active { color: var(--aqua); border-bottom-color: var(--aqua); font-weight: 500; }
 
-  main { flex: 1; max-width: 1220px; margin: 0 auto; width: 100%;
-         padding: 7.4rem 1.4rem 4rem; }
+  /* scale with the monitor: fill up to 2000px, gutters from the padding */
+  main { flex: 1; max-width: 2000px; margin: 0 auto; width: 100%;
+         padding: 7.4rem 1.8rem 4rem; }
 
   /* hero */
   .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.22em;
@@ -712,13 +713,13 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=6a4451a9bea7").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=ec8ff96f39d7").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=6a4451a9bea7").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=ec8ff96f39d7").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=6a4451a9bea7").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=ec8ff96f39d7").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=6a4451a9bea7").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=ec8ff96f39d7").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
