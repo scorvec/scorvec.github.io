@@ -224,12 +224,12 @@
       // plain SVG scatter: one NaN-gapped trace is only ~3.4k points, and
       // scattergl throws a "WebGL not supported" banner on GPU-less browsers
       traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                    line: { color: "rgba(167,184,206,0.10)", width: 0.7 },
+                    line: { color: "rgba(190,208,228,0.35)", width: 1.0 },
                     name: "members", hoverinfo: "skip" });
     }
     labels.forEach(function (m) {
       traces.push({ x: x, y: bridgePad.concat(smooth(perModel[m])), type: "scatter", mode: "lines",
-                    name: m, line: { color: F.models[m].color, width: 1.5 },
+                    name: m, line: { color: F.models[m].color, width: 2.4 },
                     hovertemplate: "%{y:+.2f} °C" });
     });
     traces.push({ x: x, y: bridgePad.concat(smooth(mmm)), type: "scatter", mode: "lines",
@@ -320,7 +320,7 @@
         x: x, y: toX(smoothed(iss[key]), true),
         type: "scatter", mode: "lines", connectgaps: false,
         name: "issued " + iss.issue, legendgroup: iss.issue,
-        line: { color: colour, width: newest ? 3.6 : 2.0 + 1.2 * t },
+        line: { color: colour, width: newest ? 3.8 : 2.4 + 1.2 * t },
         hovertemplate: "%{y:+.2f} °C",
       });
     });
@@ -390,7 +390,7 @@
       gx.push(MONS[11]); gy.push(null);
     });
     traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                  line: { color: "rgba(167,184,206,0.18)", width: 0.8 },
+                  line: { color: "rgba(190,208,228,0.4)", width: 1.0 },
                   name: "all other years", hoverinfo: "skip" });
     (H.events || []).forEach(function (e, ei) {
       if (!byYear[e.onset] || e.current) return;
