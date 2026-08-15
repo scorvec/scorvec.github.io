@@ -136,7 +136,9 @@
   }
   var CONFIG = { displayModeBar: false, responsive: true };
   function thresholds(x0, x1) {
-    var out = [];
+    var out = [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0,
+                 layer: "above",
+                 line: { color: "rgba(205,222,240,0.9)", width: 2 } }];
     [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (y) {
       out.push({ type: "line", x0: x0, x1: x1, y0: y, y1: y,
                  line: { color: y > 0 ? "rgba(232,131,58,0.30)" : "rgba(77,143,232,0.30)",
