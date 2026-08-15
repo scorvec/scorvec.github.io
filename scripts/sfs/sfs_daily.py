@@ -219,7 +219,16 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
         mu = F[vk + "_mu"][sel][:, la]
         sd = F[vk + "_sd"][sel][:, la]
         esd = F[vk + "_esd"][sel][:, la]
-        a = (fld[:, :, la] - mu[None]) / sd[None]           # (31, n, lat, lon)
+        # SIGNAL sigma: variability of hindcast ENSEMBLE MEANS at this lead,
+        # derived by removing member noise from the pooled variance (law of
+        # total variance). Standardizing the ensemble mean by pooled sigma
+        # made hindcast signals top out near 0.5 - wrong yardstick. Self-test:
+        # reforecast years standardized this way give std 0.89-0.95 = ~1.
+        # floor at 0.3*pooled-sigma: where predictability is exhausted the
+        # signal variance -> 0 and the ratio blows up; the floor keeps the
+        # map well-conditioned (values then read as pooled-sigma * 3.3)
+        sig = np.sqrt(np.maximum(sd**2 - esd**2 * (1 - 1/11), (0.3 * sd)**2))
+        a = (fld[:, :, la] - mu[None]) / sig[None]          # (31, n, lat, lon)
         ens = np.nanmean(a, axis=0)
         # spread vs the hindcast\'s OWN ensemble spread at the same lead day
         sprd = np.nanstd(fld[:, :, la], axis=0, ddof=1) / esd
@@ -234,12 +243,12 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
             fig, axes = plt.subplots(2, 1, figsize=(13.0, 6.6),
                                      subplot_kw=dict(projection=proj))
             pm0 = axes[0].pcolormesh(LON, LAT, ens[i], cmap="RdBu_r",
-                                     vmin=-3, vmax=3,
+                                     vmin=-5, vmax=5,
                                      transform=ccrs.PlateCarree(), rasterized=True)
             pm1 = axes[1].pcolormesh(LON, LAT, sprd[i], cmap="PuOr_r",
                                      vmin=0.4, vmax=1.6,
                                      transform=ccrs.PlateCarree(), rasterized=True)
-            for ax, ttl in ((axes[0], "ensemble-mean anomaly (hindcast σ)"),
+            for ax, ttl in ((axes[0], "ensemble-mean anomaly (signal σ — vs typical hindcast ensemble-mean variability)"),
                             (axes[1], "member spread ÷ hindcast ensemble spread at this lead")):
                 ax.coastlines(lw=0.5, color="0.25")
                 ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
