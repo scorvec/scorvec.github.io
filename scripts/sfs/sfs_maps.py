@@ -198,12 +198,13 @@ def main():
         for ax in np.atleast_1d(axes).ravel()[len(panels):]:
             ax.axis("off")
         cb = fig.colorbar(pm, ax=axes, orientation="horizontal",
-                          fraction=0.045, pad=0.04, aspect=45, extend="both")
+                          fraction=0.05, pad=0.02, aspect=50, extend="both")
         cb.set_label(f"{title} ({units})", fontsize=10)
         fig.suptitle(f"SFS beta — {title} · issue {t0:%b %Y} · 31-member mean "
                      f"vs own reforecast {CLIM_Y0}–{CLIM_Y1}",
-                     fontsize=13, fontweight="bold", y=0.99)
-        fig.savefig(out, dpi=140, bbox_inches="tight")
+                     fontsize=13, fontweight="bold", y=0.995)
+        fig.subplots_adjust(top=0.93, bottom=0.04, left=0.02, right=0.98)
+        fig.savefig(out, dpi=140, bbox_inches="tight", pad_inches=0.12)
         plt.close(fig)
         print(f"wrote {out.relative_to(REPO)}", flush=True)
 
