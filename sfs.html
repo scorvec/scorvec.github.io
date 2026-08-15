@@ -300,23 +300,17 @@
   </div>
 
   <div class="card">
-    <h2>100 hPa &mdash; month-1 mean, polar view</h2>
+    <h2>100 hPa &mdash; daily polar view, first 46 days</h2>
     <p class="note">The lower stratosphere from above: ensemble-mean <b>100-hPa
-    height anomaly</b> for the first forecast month against the model's own
-    1991&ndash;2020 reforecast mean (plus the reforecast's own linear trend evaluated
-    at the forecast year), with the absolute mean height contoured and the
-    mean 100-hPa wind as vectors. The monthly store stops at 200 hPa, so this is
-    built from the daily members (48-hour steps, valid days 0&ndash;30). Bias shared
-    by forecast and reforecast cancels in the anomaly, but the near-real-time daily
-    stream carries a height offset of its own &mdash; read the <em>pattern</em>,
-    not the absolute magnitude.</p>
-    <img src="assets/sfs/polar100.webp" alt="SFS beta 100 hPa month-1 mean height anomaly, polar stereographic"
-      style="width:100%;max-width:820px;display:block;margin:0 auto;border-radius:8px" loading="lazy">
-    <h2 style="font-size:18px;margin-top:14px">Daily &mdash; step through the first 46 days</h2>
-    <p class="note">The same view day by day (48-hour steps): each frame against the
-    reforecast's <em>per-lead-day</em> mean + trend, so the baseline evolves with the
-    forecast rather than being one monthly number.</p>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:0.95;border:0;border-radius:8px"
+    height anomaly</b> day by day (48-hour steps), with the absolute mean height
+    contoured and the mean 100-hPa wind as vectors. Each frame is measured against
+    the model's own 1991&ndash;2020 reforecast <em>per-lead-day</em> mean plus its
+    linear trend evaluated at the forecast year, so the baseline evolves with the
+    forecast. The monthly store stops at 200 hPa, so this is built from the daily
+    members. Bias shared by forecast and reforecast cancels in the anomaly, but the
+    near-real-time daily stream carries a height offset of its own &mdash; read the
+    <em>pattern</em>, not the absolute magnitude.</p>
+    <iframe class="anim-embed" style="width:100%;max-width:660px;aspect-ratio:0.95;border:0;border-radius:8px;display:block;margin:0 auto"
       src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z100d_manifest.json&amp;region=sfs_z100d&amp;autoplay=0"
       title="SFS daily 100 hPa height anomaly polar loop" loading="lazy"></iframe>
     <div class="chart-card-footer">
