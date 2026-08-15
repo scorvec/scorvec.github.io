@@ -151,25 +151,11 @@ def main():
     obs = xr.open_dataset(MREF / "obs_history.nc")
     otr = obs.isel(time=slice(-40, None))
 
-    # ── WH04 phase diagram ──────────────────────────────────────────────────
+    # ── WH04 phase diagram — same wheel as the AIFS-ENS product ─────────────
+    sys.path.insert(0, str(REPO / "scripts" / "mjo" / "src"))
+    from plot import draw_phase_wheel
     fig, ax = plt.subplots(figsize=(9.6, 9.6))
-    th = np.linspace(0, 2 * np.pi, 200)
-    ax.plot(np.cos(th), np.sin(th), color="0.35", lw=1.2)
-    for k in range(8):
-        a0 = np.deg2rad(45 * k + 22.5)
-        ax.plot([np.cos(a0), 4 * np.cos(a0)], [np.sin(a0), 4 * np.sin(a0)],
-                color="0.85", lw=0.8, zorder=0)
-    ph_lab = {1: (-2.9, -1.6), 2: (-1.6, -2.9), 3: (1.6, -2.9), 4: (2.9, -1.6),
-              5: (2.9, 1.6), 6: (1.6, 2.9), 7: (-1.6, 2.9), 8: (-2.9, 1.6)}
-    for ph, (x, y) in ph_lab.items():
-        ax.text(x, y, str(ph), fontsize=15, color="0.55", ha="center",
-                va="center", fontweight="bold")
-    for lab, (x, y, rot) in {"Indian\nOcean": (0, -3.6, 0),
-                             "Maritime\nContinent": (3.6, 0, -90),
-                             "Western\nPacific": (0, 3.6, 0),
-                             "West. Hem.\n& Africa": (-3.6, 0, 90)}.items():
-        ax.text(x, y, lab, fontsize=9.5, color="0.5", ha="center", va="center",
-                rotation=rot)
+    draw_phase_wheel(ax)
     for m in range(rmm1.shape[0]):
         ax.plot(rmm1[m], rmm2[m], color="#2e97ad", lw=0.7, alpha=0.35)
     ax.plot(otr.rmm1, otr.rmm2, color="0.15", lw=2.2, marker="o", ms=3,
@@ -180,10 +166,6 @@ def main():
     for i in range(0, len(valid), 4):
         ax.annotate(f"{valid[i]:%b %d}", (mm1[i], mm2[i]), fontsize=8,
                     color="#7a1d1d", xytext=(5, 5), textcoords="offset points")
-    ax.set_xlim(-4, 4); ax.set_ylim(-4, 4); ax.set_aspect("equal")
-    ax.axhline(0, color="0.8", lw=0.8, zorder=0)
-    ax.axvline(0, color="0.8", lw=0.8, zorder=0)
-    ax.set_xlabel("RMM1"); ax.set_ylabel("RMM2")
     ax.set_title(f"SFS beta — MJO (wind-only RMM), 31 members to day "
                  f"{int(lead_days[sel][-1])} · issue {t0:%b %Y}\n"
                  "same machinery as the AIFS-ENS product · drift-corrected "
