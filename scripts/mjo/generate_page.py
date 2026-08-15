@@ -102,19 +102,19 @@ def main():
          font-weight: 300; line-height: 1.6; }}
   nav {{ display: flex; align-items: center; justify-content: space-between;
         padding: 1.5rem 2rem; border-bottom: 1px solid var(--rule);
-        max-width: 1100px; margin: 0 auto; }}
+        max-width: 1500px; margin: 0 auto; }}
   .nav-name {{ font-family: var(--serif); font-size: 1.1rem; color: var(--ink);
               text-decoration: none; font-weight: 500; }}
   .nav-links {{ display: flex; gap: 1.8rem; list-style: none; }}
   .nav-links a {{ color: var(--muted); text-decoration: none; font-size: 0.85rem;
                  letter-spacing: 0.02em; }}
   .nav-links a:hover, .nav-links a.active {{ color: var(--ink); }}
-  main {{ max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }}
+  main {{ max-width: 1500px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }}
   h1 {{ font-family: var(--serif); font-weight: 500; font-size: 1.9rem;
        margin-bottom: 0.4rem; }}
   .lede {{ color: var(--muted); max-width: 70ch; margin-bottom: 2rem; }}
   .hero {{ text-align: center; margin: 0 auto 2.5rem; }}
-  .hero img {{ width: 100%; max-width: 720px; height: auto;
+  .hero img {{ width: 100%; max-width: min(72vh, 920px); height: auto;
               border: 1px solid var(--rule); border-radius: 6px; }}
   .hero figcaption {{ color: var(--muted); font-size: 0.9rem; margin-top: 0.6rem; }}
   h2 {{ font-family: var(--serif); font-weight: 500; font-size: 1.2rem;
@@ -127,7 +127,7 @@ def main():
                border-radius: 4px; transition: border-color .15s; }}
   .thumb:hover img {{ border-color: var(--accent); }}
   .thumb span {{ display: block; margin-top: 0.35rem; }}
-  .anim-embed {{ width: 100%; max-width: 720px; margin: 0 auto; display: block;
+  .anim-embed {{ width: 100%; max-width: min(72vh, 920px); margin: 0 auto; display: block;
                border: 1px solid var(--rule); border-radius: 6px; background: #0f0f0d;
                aspect-ratio: 1259 / 1235; }}
   @media (max-width: 768px) {{ .anim-embed {{ aspect-ratio: 1259 / 1330; }} }}
