@@ -126,11 +126,14 @@
   scrub.addEventListener("input", function () {
     setPlaying(false); show(+scrub.value, true); });
   addEventListener("keydown", function (e) {
+    if (e.target && e.target.tagName === "SELECT") return;  // speed menu keeps native keys
+    // preventDefault throughout: when the range input has focus its NATIVE
+    // arrow/Home/End handling also moves the value, double-stepping frames
     if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
-    else if (e.key === "ArrowLeft") { setPlaying(false); show(cur - 1, false); }
-    else if (e.key === "ArrowRight") { setPlaying(false); show(cur + 1, true); }
-    else if (e.key === "Home") { setPlaying(false); show(0, true); }
-    else if (e.key === "End") { setPlaying(false); show(frames.length - 1, true); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); setPlaying(false); show(cur - 1, false); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); setPlaying(false); show(cur + 1, true); }
+    else if (e.key === "Home") { e.preventDefault(); setPlaying(false); show(0, true); }
+    else if (e.key === "End") { e.preventDefault(); setPlaying(false); show(frames.length - 1, true); }
   });
   // drag-scrub on the image
   var dragging = false;

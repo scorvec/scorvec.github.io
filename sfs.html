@@ -3,9 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NOAA SFS Beta &mdash; Seasonal Ni&ntilde;o-3.4 Forecast &middot; Shawn Corvec</title>
-<meta name="description" content="NOAA's next-generation Seasonal Forecast System (SFS beta, UFS coupled): the full 31-member Niño-3.4 outlook, anomalized against the model's own 1991–2020 reforecast, with the C3S multi-model mean for comparison.">
+<title>NOAA SFS Model Plots &mdash; Seasonal Forecast System Maps &amp; Charts &middot; Shawn Corvec</title>
+<meta name="description" content="Interactive plots from NOAA's new SFS (Seasonal Forecast System, the CFSv2 successor): all 31 ensemble members — Niño-3.4 & RONI plumes, global SST/temperature/precipitation/500-hPa anomaly maps, subseasonal teleconnections (AO, NAO, PNA, EPO), US heating & cooling degree days, IOD/PDO indices and stratospheric wave flux — every product bias-corrected against the model's own 30-year reforecast.">
+<meta name="keywords" content="SFS model, NOAA SFS, Seasonal Forecast System, SFS plots, SFS maps, SFS forecast, CFSv2 replacement, seasonal forecast ensemble, ENSO forecast, El Nino forecast, Nino 3.4, RONI, teleconnection forecast, AO NAO PNA EPO, heating degree days forecast, PDO forecast, IOD forecast">
 <link rel="canonical" href="https://scorvec.com/sfs.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NOAA SFS Model Plots — Seasonal Forecast System Maps & Charts">
+<meta property="og:description" content="All 31 SFS ensemble members, visualized: ENSO plumes, global anomaly maps, subseasonal teleconnections, US degree days and stratospheric diagnostics — bias-corrected against the model's own reforecast.">
+<meta property="og:url" content="https://scorvec.com/sfs.html">
+<meta property="og:image" content="https://scorvec.com/assets/sfs/sst_maps.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="NOAA SFS Model Plots — Seasonal Forecast System Maps & Charts">
+<meta name="twitter:image" content="https://scorvec.com/assets/sfs/sst_maps.webp">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage",
+ "name":"NOAA SFS Model Plots — Seasonal Forecast System Maps & Charts",
+ "url":"https://scorvec.com/sfs.html",
+ "description":"Interactive visualizations of NOAA's Seasonal Forecast System (SFS beta, the CFSv2 successor): 31-member ENSO plumes, global anomaly maps, subseasonal teleconnection and degree-day forecasts, all bias-corrected against the model's own 1991–2020 reforecast.",
+ "author":{"@type":"Person","name":"Shawn Corvec","url":"https://scorvec.com/"},
+ "about":[{"@type":"Thing","name":"NOAA Seasonal Forecast System (SFS)"},
+          {"@type":"Thing","name":"ENSO forecasting"},
+          {"@type":"Thing","name":"Seasonal climate prediction"}],
+ "isBasedOn":"https://registry.opendata.aws/noaa-oar-sfs/"}
+</script>
 <style>
   :root {
     --bg: #0a1220; --card: #0e1830; --rule: rgba(148,184,225,0.14);
@@ -199,9 +219,11 @@
   <div class="card">
     <h2>Anomaly &amp; spread maps &mdash; step through the subseasonal window</h2>
     <p class="note">For each valid step (days 16&ndash;46): <b>left</b>, the 31-member
-    mean anomaly in <b>hindcast-&sigma; units</b> (standardized against the model's own
-    reforecast mean and spread for that exact lead day, 20&ndash;90&deg;N) &mdash; so
-    color saturation means "unusual for this model at this range", not raw amplitude.
+    mean anomaly in <b>signal-&sigma; units</b> &mdash; standardized against the typical
+    variability of the model's own hindcast <i>ensemble means</i> at that exact lead
+    day (member noise removed via the law of total variance), 20&ndash;90&deg;N. On
+    this scale &plusmn;1 is a normal-strength signal for this range and &plusmn;2&ndash;3
+    is exceptional; a reforecast-year self-test standardizes to &sigma;&asymp;1.
     <b>Right</b>, the member spread divided by the hindcast spread: below 1 (orange)
     the ensemble is more confident than climatology, above 1 (purple) less. Scrub
     through the window to watch where the signal holds and where it dissolves.</p>
@@ -214,8 +236,7 @@
       src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2md_manifest.json&amp;region=sfs_t2md&amp;autoplay=0"
       title="SFS 2 m temperature anomaly and spread loop" loading="lazy"></iframe>
     <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;) &middot; anomaly =
-      (ensemble mean &minus; reforecast mean) / reforecast &sigma;, per lead day
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;) &middot; anomaly = (ensemble mean &minus; reforecast mean) / signal &sigma; (&radic;(pooled&sigma;&sup2;&minus;ensemble&sigma;&sup2;)), per lead day
       &middot; spread ratio = member &sigma; / mean reforecast ensemble &sigma; at the same lead &middot;
       20&ndash;90&deg;N</span>
     </div>
@@ -310,6 +331,15 @@
   </script>
 
   <div class="colophon">
+    <p><b>Looking for SFS model plots?</b> This page is an independent visualization
+    suite for NOAA's new <b>SFS (Seasonal Forecast System)</b> — the UFS-based
+    replacement for CFSv2, running in near-real-time beta since March 2026. NOAA
+    publishes the raw ensemble output openly but (as of now) few graphical products;
+    everything here — the Ni&ntilde;o-3.4/RONI plumes, global anomaly maps, monthly map
+    loops, subseasonal AO/NAO/PNA/EPO teleconnection forecasts, Lower-48 heating and
+    cooling degree days, IOD/SASD/PDO indices and the stratospheric panels — is
+    computed directly from the full 31-member zarr output and refreshed with each
+    monthly issue.</p>
     <p><b>About the system.</b> SFS beta is a NOAA research prototype (published by the
     6th of each month), not yet an operational product &mdash; ensemble size, physics and
     post-processing are still evolving, and months may occasionally be late or revised.
