@@ -306,9 +306,9 @@ def render_chi_loop(issue, t0, lead_days):
         fig.suptitle(f"SFS beta — 200-hPa χ · {valid:%a %b %d %Y} "
                      f"(day {int(lead_days[k])}) · 31-member mean · issue "
                      f"{t0:%b %Y}", fontsize=12, fontweight="bold", y=0.99)
-        fig.subplots_adjust(top=0.88)
+        fig.subplots_adjust(top=0.92, bottom=0.03, left=0.02, right=0.99)
         fn = f"F{i:02d}.webp"
-        fig.savefig(outdir / fn, dpi=130, bbox_inches="tight")
+        fig.savefig(outdir / fn, dpi=130, bbox_inches="tight", pad_inches=0.1)
         plt.close(fig)
         frames.append({"idx": i, "file": fn, "date": f"{valid:%Y-%m-%d}",
                        "label": f"{valid:%b %d} · day {int(lead_days[k])}"})
@@ -460,9 +460,9 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
                          f"(day {int(lead_days[ksel][i])}) · 31-member mean "
                          f"· issue {t0:%b %Y}",
                          fontsize=12, fontweight="bold", y=0.99)
-            fig.subplots_adjust(top=0.86)
+            fig.subplots_adjust(top=0.91, bottom=0.03, left=0.02, right=0.99)
             fn = f"F{i:02d}.webp"
-            fig.savefig(outdir / fn, dpi=130, bbox_inches="tight")
+            fig.savefig(outdir / fn, dpi=130, bbox_inches="tight", pad_inches=0.1)
             plt.close(fig)
             frames.append({"idx": i, "file": fn, "date": f"{valid:%Y-%m-%d}",
                            "label": f"{valid:%b %d} · day {int(lead_days[ksel][i])}"})

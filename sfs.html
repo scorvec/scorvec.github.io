@@ -256,6 +256,27 @@
   </div>
 
   <div class="card">
+    <h2>MJO &mdash; 31-member RMM phase space to day 46</h2>
+    <p class="note">The Wheeler&ndash;Hendon <b>RMM phase diagram</b> from every SFS
+    member's tropical U850/U200, pushed through the exact same machinery as the
+    <a href="mjo.html">AIFS-ENS MJO product</a> &mdash; same EOFs, same day-of-year
+    climatology, same 120-day low-frequency filter, same per-mode scaling &mdash; so
+    the two forecasts plot in the same coordinates and can be compared directly.
+    One extra step is needed at these ranges: the model's lead-dependent drift in
+    tropical winds is estimated from its own 1991&ndash;2020 reforecasts and removed,
+    otherwise it masquerades as MJO amplification by week 4. Teal spaghetti:
+    members (every other day); red: ensemble mean; black: recent observed track.</p>
+    <img src="assets/sfs/mjo_rmm.webp" alt="SFS beta MJO RMM phase-space forecast, 31 members"
+      style="width:100%;max-width:820px;display:block;margin:0 auto;border-radius:8px" loading="lazy">
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr, UGRD 850/200 hPa &middot;
+      wind-only RMM (Wheeler &amp; Hendon 2004) &middot; drift correction: own
+      reforecast 1991&ndash;2020, per lead &middot; shared reference EOFs/climatology
+      with the AIFS-ENS product</span>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Stratosphere &mdash; wave flux and the polar vortex, all members</h2>
     <p class="note">Two classic lower-stratosphere diagnostics from the daily members:
     the <b>100-hPa eddy heat flux</b> (45&ndash;75&deg;N zonal mean &mdash; proportional
@@ -275,6 +296,26 @@
       &amp; UGRD 50 hPa &middot; eddies = departures from the zonal mean &middot;
       climatology: own reforecast 1991&ndash;2020, same init month, per lead day</span>
       <span class="chart-updated" id="strat-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>100 hPa &mdash; month-1 mean, polar view</h2>
+    <p class="note">The lower stratosphere from above: ensemble-mean <b>100-hPa
+    height anomaly</b> for the first forecast month against the model's own
+    1991&ndash;2020 reforecast mean (plus the reforecast's own linear trend evaluated
+    at the forecast year), with the absolute mean height contoured and the
+    mean 100-hPa wind as vectors. The monthly store stops at 200 hPa, so this is
+    built from the daily members (48-hour steps, valid days 0&ndash;30). Bias shared
+    by forecast and reforecast cancels in the anomaly, but the near-real-time daily
+    stream carries a height offset of its own &mdash; read the <em>pattern</em>,
+    not the absolute magnitude.</p>
+    <img src="assets/sfs/polar100.webp" alt="SFS beta 100 hPa month-1 mean height anomaly, polar stereographic"
+      style="width:100%;max-width:820px;display:block;margin:0 auto;border-radius:8px" loading="lazy">
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), HGT/UGRD/VGRD
+      100 hPa &middot; 31-member mean &middot; baseline: own reforecast 1991&ndash;2020
+      mean + trend at forecast year, same init month and leads &middot; 20&ndash;90&deg;N</span>
     </div>
   </div>
 
