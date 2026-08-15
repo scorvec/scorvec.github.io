@@ -218,12 +218,13 @@
 
   <div class="card">
     <h2>Anomaly &amp; spread maps &mdash; step through the subseasonal window</h2>
-    <p class="note">For each valid step (days 16&ndash;46): <b>left</b>, the 31-member
-    mean anomaly in <b>signal-&sigma; units</b> &mdash; standardized against the typical
-    variability of the model's own hindcast <i>ensemble means</i> at that exact lead
-    day (member noise removed via the law of total variance), 20&ndash;90&deg;N. On
-    this scale &plusmn;1 is a normal-strength signal for this range and &plusmn;2&ndash;3
-    is exceptional; a reforecast-year self-test standardizes to &sigma;&asymp;1.
+    <p class="note">For each valid step (days 16&ndash;46): <b>left</b>, the 31-member mean
+    <b>deviation from the model's own hindcast trend</b>, in detrended signal-&sigma;
+    units: the reference is the 1991&ndash;2020 reforecast mean plus the model's own
+    linear trend extrapolated to the forecast date, so the background warming doesn't
+    paint the whole map red &mdash; what remains is genuine forecast signal. The
+    &sigma; is the variability of hindcast ensemble means about that trend line at the
+    same lead day; &plusmn;1 is a normal-strength signal, &plusmn;3+ exceptional.
     <b>Right</b>, the member spread divided by the hindcast spread: below 1 (orange)
     the ensemble is more confident than climatology, above 1 (purple) less. Scrub
     through the window to watch where the signal holds and where it dissolves.</p>
@@ -236,7 +237,7 @@
       src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2md_manifest.json&amp;region=sfs_t2md&amp;autoplay=0"
       title="SFS 2 m temperature anomaly and spread loop" loading="lazy"></iframe>
     <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;) &middot; anomaly = (ensemble mean &minus; reforecast mean) / signal &sigma; (&radic;(pooled&sigma;&sup2;&minus;ensemble&sigma;&sup2;)), per lead day
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;) &middot; anomaly = deviation from the hindcast mean + own linear trend evaluated at the forecast date, / detrended signal &sigma;, per lead day
       &middot; spread ratio = member &sigma; / mean reforecast ensemble &sigma; at the same lead &middot;
       20&ndash;90&deg;N</span>
     </div>
@@ -420,7 +421,7 @@
         gx.push(valid[nL - 1]); gy.push(null);
       });
       traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                    line: { color: "rgba(167,184,206,0.16)", width: 0.8 },
+                    line: { color: "rgba(190,208,228,0.45)", width: 1.1 },
                     name: "members", hoverinfo: "skip" });
     }
     // C3S multi-model mean overlay, same issue window
@@ -437,7 +438,7 @@
       traces.push({ x: cx, y: cyPlot, type: "scatter", mode: "lines+markers",
                     name: "C3S multi-model mean (7 models)",
                     marker: { size: 4, symbol: "diamond" },
-                    line: { color: "#e8c04d", width: 2.2, dash: "dash" },
+                    line: { color: "#ffd45e", width: 2.8, dash: "dash" },
                     hovertemplate: "%{y:+.2f} °C" });
     }
     traces.push({ x: x, y: bridgePad.concat(smooth(mmm)), type: "scatter", mode: "lines",
@@ -446,7 +447,7 @@
     if (obsX.length)
       traces.push({ x: obsX, y: obsY, type: "scatter", mode: "lines+markers",
                     name: "Observed", marker: { size: 5 },
-                    line: { color: "#4dd6e8", width: 2.4 },
+                    line: { color: "#5fe6f8", width: 3 },
                     hovertemplate: "%{y:+.2f} °C" });
 
     var shapes = [];
@@ -565,7 +566,7 @@
                       name: b[2], hoverinfo: "skip" });
       });
       traces.push({ x: days, y: cmean, type: "scatter", mode: "lines",
-                    name: "hindcast mean", line: { color: "#8296ad", width: 1.6, dash: "dash" },
+                    name: "hindcast mean", line: { color: "#b9cbdf", width: 2.2, dash: "dash" },
                     hovertemplate: "%{y:.1f}" });
     }
     var gx = [], gy = [];
@@ -575,7 +576,7 @@
       gx.push(days[s.length - 1]); gy.push(null);
     });
     traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                  line: { color: "rgba(77,214,232,0.18)", width: 0.8 },
+                  line: { color: "rgba(109,226,245,0.45)", width: 1.1 },
                   name: "members", hoverinfo: "skip" });
     var mm = days.map(function (_, i) {
       return mean(d.members.map(function (m) { return xf(m)[i]; })); });
@@ -684,7 +685,7 @@
                     name: b[2], hoverinfo: "skip" });
     });
     traces.push({ x: days, y: d.climo.mean, type: "scatter", mode: "lines",
-                  name: "hindcast mean", line: { color: "#8296ad", width: 1.6, dash: "dash" },
+                  name: "hindcast mean", line: { color: "#b9cbdf", width: 2.2, dash: "dash" },
                   hovertemplate: "%{y:.1f}" });
     var gx = [], gy = [];
     d.members.forEach(function (m) {
@@ -692,7 +693,7 @@
       gx.push(days[m.length - 1]); gy.push(null);
     });
     traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                  line: { color: "rgba(77,214,232,0.18)", width: 0.8 },
+                  line: { color: "rgba(109,226,245,0.45)", width: 1.1 },
                   name: "members", hoverinfo: "skip" });
     var mm = days.map(function (_, i) {
       return mean(d.members.map(function (m) { return m[i]; })); });
@@ -781,7 +782,7 @@
       gx.push(valid[nL - 1]); gy.push(null);
     });
     traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                  line: { color: "rgba(167,184,206,0.14)", width: 0.8 },
+                  line: { color: "rgba(190,208,228,0.45)", width: 1.1 },
                   name: "members", hoverinfo: "skip" });
     traces.push({ x: valid, y: mm, type: "scatter", mode: "lines+markers",
                   name: "ensemble mean", marker: { size: 5 },
