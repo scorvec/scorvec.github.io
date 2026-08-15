@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOAA SFS Beta &mdash; Seasonal Ni&ntilde;o-3.4 Forecast &middot; Shawn Corvec</title>
+<meta name="description" content="NOAA's next-generation Seasonal Forecast System (SFS beta, UFS coupled): the full 31-member Niño-3.4 outlook, anomalized against the model's own 1991–2020 reforecast, with the C3S multi-model mean for comparison.">
+<link rel="canonical" href="https://scorvec.com/sfs.html">
+<style>
+  :root {
+    --bg: #0a1220; --card: #0e1830; --rule: rgba(148,184,225,0.14);
+    --ink: #e9eff8; --ink2: #a7b8ce; --muted: #6d8099;
+    --aqua: #4dd6e8; --aqua-deep: #2e97ad; --gold: #e8c04d;
+    --serif: Georgia, "Times New Roman", serif;
+    --sans: Inter, -apple-system, "Segoe UI", sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 100%; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         font-weight: 300; line-height: 1.6; min-height: 100vh;
+         display: flex; flex-direction: column; }
+  a { color: var(--aqua); }
+  nav { display: flex; align-items: center; justify-content: space-between;
+        padding: 1.1rem 2rem; border-bottom: 1px solid var(--rule); }
+  .nav-name { font-family: var(--serif); font-size: 1.05rem; color: var(--ink);
+              text-decoration: none; font-weight: 500; }
+  .nav-links { display: flex; gap: 1.6rem; list-style: none; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+  .nav-links a:hover { color: var(--ink); }
+  main { flex: 1; max-width: min(94vw, 2000px); margin: 0 auto; width: 100%;
+         padding: 2.6rem 1.8rem 4rem; }
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.22em;
+             text-transform: uppercase; color: var(--aqua-deep); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 38px;
+       margin: 6px 0 4px; }
+  h1 em { font-style: italic; color: var(--aqua); }
+  .sub { color: var(--ink2); max-width: 82ch; margin-bottom: 20px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 26px; }
+  .chip { background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+          padding: 10px 16px; min-width: 160px; }
+  .chip .l { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+             color: var(--muted); }
+  .chip .v { font-size: 21px; font-weight: 600; }
+  .chip .v.warm { color: #e8833a; } .chip .v.neut { color: var(--ink2); }
+  .chip .s { font-size: 11.5px; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 14px;
+          padding: 22px 24px 14px; margin-bottom: 26px; }
+  .card h2 { font-family: var(--serif); font-weight: 400; font-size: 23px;
+             margin-bottom: 8px; }
+  .note { font-size: 0.86rem; color: var(--ink2); margin-bottom: 12px; max-width: 110ch; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+              margin-bottom: 8px; }
+  .pill { background: transparent; border: 1px solid var(--rule); border-radius: 999px;
+          color: var(--ink2); font-size: 12.5px; padding: 4px 13px; cursor: pointer;
+          font-family: var(--sans); }
+  .pill.on { background: rgba(77,214,232,0.14); border-color: var(--aqua-deep);
+             color: var(--aqua); }
+  .plot { width: 100%; }
+  .chart-card-footer { display: flex; justify-content: space-between; gap: 14px;
+                       flex-wrap: wrap; border-top: 1px solid var(--rule);
+                       margin-top: 10px; padding-top: 8px; }
+  .chart-sources { font-size: 11px; color: var(--muted); max-width: 130ch; }
+  .chart-updated { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .colophon { color: var(--muted); font-size: 0.82rem; line-height: 1.7;
+              max-width: 110ch; margin-top: 2rem; }
+  footer { padding: 1.4rem 2rem; border-top: 1px solid var(--rule);
+           color: var(--muted); font-size: 0.78rem; }
+  @media (max-width: 700px) {
+    nav { padding: 0.8rem 1rem; } .nav-links { gap: 1rem; }
+    h1 { font-size: 28px; } main { max-width: 100%; padding: 1.8rem 1rem 3rem; }
+  }
+</style>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+<nav>
+  <a class="nav-name" href="index.html">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="sst.html">El Ni&ntilde;o Monitor</a></li>
+    <li><a href="enso-forecasts.html">ENSO Forecasts</a></li>
+  </ul>
+</nav>
+<main>
+  <header>
+    <div class="eyebrow">Monthly &middot; NOAA SFS beta v1.0 &middot; UFS coupled &middot; 31 members</div>
+    <h1>SFS <em>Beta</em> Seasonal Outlook</h1>
+    <p class="sub">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based
+    successor to CFSv2, running in near-real-time beta since March 2026 with open zarr
+    output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the
+    <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11
+    members &times; 30 years), so drift and bias are removed the same way the C3S models
+    are handled on the <a href="enso-forecasts.html">ENSO forecasts page</a>.</p>
+    <div class="chips" id="chips">
+      <div class="chip"><div class="l">Loading feed&hellip;</div><div class="v neut">&mdash;</div></div>
+    </div>
+  </header>
+
+  <div class="card">
+    <h2>Ni&ntilde;o-3.4 &mdash; all 31 members</h2>
+    <p class="note">Shaded fan: member percentile spread (10&ndash;90% and 25&ndash;75%).
+    Bold white line: ensemble mean. The observed index leads in from the left
+    (ERSSTv5, 1991&ndash;2020 base), and the <b style="color:#e8c04d">gold dashes</b>
+    overlay the C3S seven-model multi-model mean from the same issue month for
+    comparison &mdash; two independent forecast systems on one chart. Monthly values,
+    anchored at the last observed month; toggle 3-month for the ONI convention.</p>
+    <div class="controls">
+      <button class="pill on" data-sm="0">Monthly</button>
+      <button class="pill" data-sm="1">3-month (ONI convention)</button>
+      <span style="color:var(--muted)">&middot;</span>
+      <button class="pill" data-mem="1" id="memPill">Show all members</button>
+    </div>
+    <div id="plumeChart" class="plot" style="height:480px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA SFS beta v1.0 prototype (NODD zarr, ocn_monthly)
+      &middot; Ni&ntilde;o-3.4 (5&deg;S&ndash;5&deg;N, 170&ndash;120&deg;W), cos-weighted
+      &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead
+      &middot; C3S overlay: anomalies vs each model's own 1993&ndash;2016 hindcast
+      (&lesssim;0.1&thinsp;&deg;C base difference) &middot; observed: ERSSTv5, 1991&ndash;2020</span>
+      <span class="chart-updated" id="plume-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="colophon">
+    <p><b>About the system.</b> SFS beta is a NOAA research prototype (published by the
+    6th of each month), not yet an operational product &mdash; ensemble size, physics and
+    post-processing are still evolving, and months may occasionally be late or revised.
+    The reforecast climatology here uses 11 members per year over 1991&ndash;2020,
+    init-month specific, so lead-dependent drift cancels by construction. Data: NOAA Open
+    Data Dissemination, <code>noaa-oar-sfsdev-pds</code> on AWS.</p>
+  </div>
+</main>
+<footer>&copy; 2026 Shawn Corvec &middot; SFS beta data: NOAA/OAR via NODD (public domain) &middot; C3S overlay: Copernicus Climate Change Service</footer>
+<script>
+(function () {
+  "use strict";
+  var GRID = "rgba(148,184,225,0.10)", AXIS = "#6d8099", INK2 = "#a7b8ce";
+  var state = { smooth: false, members: false, sfs: null, c3s: null, hist: null };
+
+  function fmt(v, d) { return v == null || !isFinite(v) ? "—" : (v > 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
+  function mean(a) { var s = 0, n = 0; a.forEach(function (v) { if (isFinite(v)) { s += v; n++; } }); return n ? s / n : NaN; }
+  function pct(sorted, p) {
+    var i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
+  }
+  function roll3(arr) {
+    return arr.map(function (_, i) {
+      var w = arr.slice(Math.max(0, i - 1), Math.min(arr.length, i + 2)).filter(isFinite);
+      return w.length ? w.reduce(function (a, b) { return a + b; }) / w.length : NaN;
+    });
+  }
+
+  function draw() {
+    var S = state.sfs;
+    var valid = S.valid_months;
+    var nL = valid.length, nM = S.members.length;
+
+    var obsX = [], obsY = [];
+    if (state.hist) {
+      obsX = state.hist.months.slice(-8);
+      var src = state.hist.series.oni;
+      obsY = (src.anom || src).slice(-8);
+    }
+    function smooth(fcArr) {
+      if (!state.smooth) return fcArr;
+      var bridge = obsY.slice(-2).concat(fcArr);
+      return roll3(bridge).slice(Math.min(2, obsY.length));
+    }
+
+    var fan = { p10: [], p25: [], p75: [], p90: [] }, mmm = [];
+    for (var L = 0; L < nL; L++) {
+      var pool = S.members.map(function (m) { return m[L]; })
+        .filter(isFinite).sort(function (a, b) { return a - b; });
+      fan.p10.push(pct(pool, 0.10)); fan.p25.push(pct(pool, 0.25));
+      fan.p75.push(pct(pool, 0.75)); fan.p90.push(pct(pool, 0.90));
+      mmm.push(mean(pool));
+    }
+
+    var x = obsX.concat(valid);
+    var pad = obsX.map(function () { return null; });
+    var bridgePad = pad.slice();
+    if (obsY.length) bridgePad[bridgePad.length - 1] = obsY[obsY.length - 1];
+
+    var traces = [];
+    [["p90", "p10", "10–90%", "rgba(77,214,232,0.13)"],
+     ["p75", "p25", "25–75%", "rgba(77,214,232,0.22)"]].forEach(function (b) {
+      traces.push({ x: x, y: pad.concat(smooth(fan[b[0]])), type: "scatter", mode: "lines",
+                    line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      traces.push({ x: x, y: pad.concat(smooth(fan[b[1]])), type: "scatter", mode: "lines",
+                    line: { width: 0 }, fill: "tonexty", fillcolor: b[3],
+                    name: b[2], hoverinfo: "skip" });
+    });
+    if (state.members) {
+      var gx = [], gy = [];
+      S.members.forEach(function (m) {
+        var tr = smooth(m.slice());
+        for (var L2 = 0; L2 < nL; L2++) { gx.push(valid[L2]); gy.push(tr[L2]); }
+        gx.push(valid[nL - 1]); gy.push(null);
+      });
+      traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
+                    line: { color: "rgba(167,184,206,0.16)", width: 0.8 },
+                    name: "members", hoverinfo: "skip" });
+    }
+    // C3S multi-model mean overlay, same issue window
+    if (state.c3s) {
+      var F = state.c3s, labels = Object.keys(F.models);
+      var cx = [], cy = [];
+      F.valid_months.forEach(function (ym, L3) {
+        var v = mean(labels.map(function (mo) { return mean(F.models[mo].n34[L3]); }));
+        cx.push(ym); cy.push(v);
+      });
+      var cyPlot = state.smooth
+        ? roll3(obsY.slice(-2).concat(cy)).slice(Math.min(2, obsY.length)) : cy;
+      traces.push({ x: cx, y: cyPlot, type: "scatter", mode: "lines+markers",
+                    name: "C3S multi-model mean (7 models)",
+                    marker: { size: 4, symbol: "diamond" },
+                    line: { color: "#e8c04d", width: 2.2, dash: "dash" },
+                    hovertemplate: "%{y:+.2f} °C" });
+    }
+    traces.push({ x: x, y: bridgePad.concat(smooth(mmm)), type: "scatter", mode: "lines",
+                  name: "SFS ensemble mean", line: { color: "#f2f4f8", width: 3 },
+                  hovertemplate: "%{y:+.2f} °C" });
+    if (obsX.length)
+      traces.push({ x: obsX, y: obsY, type: "scatter", mode: "lines+markers",
+                    name: "Observed", marker: { size: 5 },
+                    line: { color: "#4dd6e8", width: 2.4 },
+                    hovertemplate: "%{y:+.2f} °C" });
+
+    var shapes = [];
+    [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (yv) {
+      shapes.push({ type: "line", x0: x[0], x1: x[x.length - 1], y0: yv, y1: yv,
+                    line: { color: yv > 0 ? "rgba(232,131,58,0.30)" : "rgba(77,143,232,0.30)",
+                            width: 1, dash: "dot" } });
+    });
+    Plotly.react("plumeChart", traces, {
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: { family: "Inter, sans-serif", size: 12, color: INK2 },
+      margin: { l: 46, r: 30, t: 10, b: 40 },
+      xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, type: "category" },
+      yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
+               zerolinecolor: "rgba(148,184,225,0.35)",
+               title: { text: "anomaly (°C)", standoff: 4 } },
+      legend: { orientation: "h", y: 1.09, font: { size: 11 } },
+      hovermode: "x unified", shapes: shapes,
+      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
+                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+    }, { displayModeBar: false, responsive: true });
+    document.getElementById("plume-updated").textContent =
+      "issue " + S.issue + " · built " + S.generated;
+
+    var peak = { v: -99, i: 0 };
+    mmm.forEach(function (v, i) { if (v > peak.v) peak = { v: v, i: i }; });
+    var pool = S.members.map(function (m) { return m[peak.i]; })
+      .filter(isFinite).sort(function (a, b) { return a - b; });
+    var c3sPeak = null;
+    if (state.c3s) {
+      var F2 = state.c3s, labels2 = Object.keys(F2.models);
+      c3sPeak = Math.max.apply(null, F2.valid_months.map(function (_, L4) {
+        return mean(labels2.map(function (mo) { return mean(F2.models[mo].n34[L4]); }));
+      }));
+    }
+    var chips = [
+      { l: "Issue " + S.issue, v: nM + " members", s: "12 monthly leads · beta v1.0", cls: "neut" },
+      { l: "Peak Niño-3.4 · " + valid[peak.i], v: fmt(peak.v) + " °C",
+        s: "members P10–P90: " + fmt(pct(pool, 0.10), 1) + " … " + fmt(pct(pool, 0.90), 1),
+        cls: peak.v >= 0.5 ? "warm" : "neut" },
+      { l: "C3S seven-model peak", v: c3sPeak == null ? "—" : fmt(c3sPeak) + " °C",
+        s: "same issue month, own-hindcast base", cls: "neut" },
+      { l: "Climatology", v: "own reforecast", s: "1991–2020 · 11 members × 30 yrs", cls: "neut" },
+    ];
+    document.getElementById("chips").innerHTML = chips.map(function (c) {
+      return '<div class="chip"><div class="l">' + c.l + '</div>' +
+             '<div class="v ' + c.cls + '">' + c.v + '</div>' +
+             '<div class="s">' + c.s + "</div></div>";
+    }).join("");
+  }
+
+  document.querySelectorAll(".pill[data-sm]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.smooth = b.dataset.sm === "1";
+      document.querySelectorAll(".pill[data-sm]").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      if (state.sfs) draw();
+    });
+  });
+  document.querySelectorAll(".pill[data-mem]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.members = !state.members;
+      b.classList.toggle("on", state.members);
+      if (state.sfs) draw();
+    });
+  });
+
+  Promise.all([
+    fetch("assets/sfs/data/sfs_nino34.json?v=" + Date.now()).then(function (r) {
+      if (!r.ok) throw 0; return r.json(); }),
+    fetch("assets/sst/data/enso_forecast.json?v=" + Date.now()).then(function (r) {
+      return r.ok ? r.json() : null; }).catch(function () { return null; }),
+    fetch("assets/sst/data/nino_history.json?v=" + Date.now()).then(function (r) {
+      return r.ok ? r.json() : null; }).catch(function () { return null; }),
+  ]).then(function (res) {
+    state.sfs = res[0]; state.c3s = res[1]; state.hist = res[2];
+    draw();
+  }).catch(function (e) {
+    console.error("SFS feed failed:", e);
+    document.getElementById("chips").innerHTML =
+      '<div class="chip"><div class="l">SFS feed</div><div class="v neut">unavailable</div>' +
+      '<div class="s">check back after the monthly build (~6th)</div></div>';
+  });
+})();
+</script>
+</body>
+</html>
