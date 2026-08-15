@@ -257,7 +257,8 @@ def render_chi_loop(issue, t0, lead_days):
     import cartopy.crs as ccrs
     import xarray as xr
     _sys.path.insert(0, str(REPO / "scripts" / "mjo" / "src"))
-    from wind200_vpot import velocity_potential, eval_vp_clim, CLIM, VP_CMAP, VP_LEVELS
+    from wind200_vpot import (velocity_potential, eval_vp_clim, CLIM,
+                              VP_CMAP, VP_LEVELS, irrotational_wind)
     ds = _open(f"{BASE}/forecast/{issue}/atm_daily.zarr")
     lat, lon = ds.lat.values, ds.lon.values
     u = ds.UGRD_200mb.values
@@ -281,16 +282,24 @@ def render_chi_loop(issue, t0, lead_days):
                             coords={"latitude": lat, "longitude": lon},
                             dims=("latitude", "longitude"))
         chi, dlat, dlon = velocity_potential(u_da, v_da)
-        anom = (chi - eval_vp_clim(coef, int(valid.dayofyear))) / 1e6
+        anom_m2s = chi - eval_vp_clim(coef, int(valid.dayofyear))
+        anom = anom_m2s / 1e6
+        uchi, vchi = irrotational_wind(anom_m2s, dlat, dlon)
         fig = plt.figure(figsize=(13.0, 5.6))
         ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=180))
         ax.set_extent([-180, 180, -75, 75], crs=ccrs.PlateCarree())
         cf = ax.contourf(dlon, dlat, anom, levels=VP_LEVELS, cmap=VP_CMAP,
                          extend="both", transform=ccrs.PlateCarree())
+        ax.contour(dlon, dlat, anom, levels=VP_LEVELS, colors="k",
+                   linewidths=0.45, alpha=0.6, transform=ccrs.PlateCarree())
+        st = max(1, len(dlat) // 28)
+        ax.quiver(dlon[::st], dlat[::st], uchi[::st, ::st], vchi[::st, ::st],
+                  transform=ccrs.PlateCarree(), color="k", scale=140,
+                  width=0.0015, alpha=0.8)
         ax.coastlines(lw=0.5, color="0.25")
-        ax.set_title("ens-mean 200-hPa velocity potential anomaly vs ERA5 "
-                     "1991–2020 harmonic normal (10⁶ m²/s; negative = "
-                     "divergent outflow / enhanced convection)",
+        ax.set_title("ens-mean 200-hPa χ anomaly (shading+contours, 10⁶ m²/s) · arrows: "
+                     "anomalous divergent wind · vs ERA5 1991–2020 harmonic normal · "
+                     "negative = outflow / enhanced convection",
                      fontsize=10, loc="left")
         fig.colorbar(cf, ax=ax, orientation="vertical", fraction=0.025,
                      pad=0.015)
