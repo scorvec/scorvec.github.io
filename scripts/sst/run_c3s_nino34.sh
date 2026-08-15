@@ -69,6 +69,9 @@ NMODELS=$(printf '%s\n' "$OUT" | sed -nE 's/.*\(([0-9]+) models\)/\1/p' | tail -
 "$PY" scripts/sfs/sfs_nino.py || echo "SFS beta feed failed; continuing"
 "$PY" scripts/sfs/sfs_maps.py || echo "SFS beta maps failed; continuing"
 "$PY" scripts/sfs/sfs_indices.py || echo "SFS beta indices failed; continuing"
+"$PY" scripts/sfs/sfs_daily.py || echo "SFS beta daily failed; continuing"
+# PRIVATE strat gate product — writes only to gitignored paths
+"$PY" scripts/strat/sfs_gate100.py || echo "SFS gate failed; continuing"
 
 git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json \
         assets/sst/data/c3s_evolution.json assets/sfs scripts/sfs/data
