@@ -10,7 +10,7 @@ Fairness rules:
   * both models are block-averaged to a common 1.5 deg grid BEFORE scoring
     (6x6 box means of the 0.25 deg fields), so headline scores are compared
     at a resolution both fully resolve and smoothness is not rewarded;
-  * truth is ERA5 at the valid 00Z (ARCO, ~6-day latency) on the same grid —
+  * truth is ERA5 at the valid time (ARCO, ~6-day latency) on the same grid —
     neither model verifies against its own analyses;
   * scores: RMSE and anomaly correlation (NH extratropics 20-80N,
     cos-weighted; anomalies vs the WB2 1991-2020 day-of-year climatology),
@@ -65,16 +65,16 @@ def grid_1p5():
     return lat, lon
 
 
-def collect(date: str) -> bool:
+def collect(date: str, time: str = "00") -> bool:
     """Fetch both models' z500/msl/u850 at all leads through the shared ecmwf
     store (locks, GRIB integrity counts, mirror fallbacks), coarsen, archive."""
     import store as ecmwf
-    out = ARCHIVE / f"{date}00.npz"
+    out = ARCHIVE / f"{date}{time}.npz"
     if out.exists():
-        print(f"{date}: archived")
+        print(f"{date} {time}Z: archived")
         return True
     ARCHIVE.mkdir(parents=True, exist_ok=True)
-    cyc = ecmwf.Cycle(date, "00")
+    cyc = ecmwf.Cycle(date, time)
     S = tuple(LEADS)
     stash = {}
     for mkey, (model, typ, _stream) in MODELS.items():
@@ -96,14 +96,14 @@ def collect(date: str) -> bool:
             stash[(mkey, "u850", step)] = field(dpl["u"].sel(step=sd, isobaricInhPa=850))
             stash[(mkey, "msl", step)] = field(dsf["msl"].sel(step=sd)) / 100.0
         dpl.close(); dsf.close()
-        print(f"{date} {mkey}: {len(LEADS)} leads archived", flush=True)
+        print(f"{date} {time}Z {mkey}: {len(LEADS)} leads archived", flush=True)
     np.savez_compressed(out, **{f"{m}_{v}_{st}": stash[(m, v, st)].astype(np.float32)
                                 for (m, v, st) in stash})
     return True
 
 
 def fetch_truth(valid: pd.Timestamp) -> bool:
-    out = TRUTH / f"{valid:%Y%m%d}.npz"
+    out = TRUTH / f"{valid:%Y%m%d%H}.npz"
     if out.exists():
         return True
     TRUTH.mkdir(parents=True, exist_ok=True)
@@ -167,7 +167,7 @@ def verify() -> int:
     done = {(r["init"], r["lead"], r["var"], r["model"]) for r in recs}
     n_new = 0
     for arch in sorted(ARCHIVE.glob("*.npz")):
-        init = pd.Timestamp(arch.stem[:8])
+        init = pd.Timestamp(arch.stem[:8]) + pd.Timedelta(hours=int(arch.stem[8:10]))
         z = None
         for lead in LEADS:
             valid = init + pd.Timedelta(hours=lead)
@@ -176,7 +176,7 @@ def verify() -> int:
                 continue
             if not fetch_truth(valid):
                 continue
-            t = np.load(TRUTH / f"{valid:%Y%m%d}.npz")
+            t = np.load(TRUTH / f"{valid:%Y%m%d%H}.npz")
             if z is None:
                 z = np.load(arch)
             doy = min(valid.dayofyear, 366)
@@ -205,7 +205,7 @@ def verify() -> int:
         SCORES.parent.mkdir(parents=True, exist_ok=True)
         SCORES.write_text(json.dumps(
             {"generated": pd.Timestamp.now("UTC").strftime("%Y-%m-%d %H:%M UTC"),
-             "grid": "1.5° block means of 0.25° fields", "truth": "ERA5 (ARCO) 00Z",
+             "grid": "1.5° block means of 0.25° fields", "truth": "ERA5 (ARCO)",
              "acc_base": "WB2 ERA5 1991–2020 ±7d doy climatology, NH",
              "records": recs}, separators=(",", ":")))
         print(f"scores: +{n_new} records → {len(recs)} total")
@@ -219,13 +219,14 @@ def main():
     ap.add_argument("--collect", action="store_true")
     ap.add_argument("--verify", action="store_true")
     ap.add_argument("--date", default=pd.Timestamp.utcnow().strftime("%Y%m%d"))
+    ap.add_argument("--time", default="00", choices=("00", "12"))
     args = ap.parse_args()
     if args.collect:
-        collect(args.date)
+        collect(args.date, args.time)
     if args.verify:
         verify()
     if not (args.collect or args.verify):
-        collect(args.date)
+        collect(args.date, args.time)
         verify()
 
 

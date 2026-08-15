@@ -332,7 +332,7 @@ def publish(specpath: Path):
         for fr in loop["frames"]:
             im = Image.open(STAGE / (fr["id"] + ".png"))
             fn = f"F{fr['idx']:02d}.webp"
-            im.save(outdir / fn, quality=82, method=4)
+            im.save(outdir / fn, quality=92, method=6)
             frames.append({"idx": fr["idx"], "file": fn, "date": fr["date"],
                            "label": fr["label"]})
         man = {"ver": int(time.time()), "days": len(frames),
@@ -412,7 +412,7 @@ def render_mpl(date: str, hh: str, paths):
                      f"init {base:%Y-%m-%d %HZ}",
                      fontsize=12, fontweight="bold")
         out = ANIM / f"F{i:02d}.webp"
-        fig.savefig(out, dpi=100)
+        fig.savefig(out, dpi=150)
         plt.close(fig)
         frames.append({"idx": i, "file": out.name, "date": f"{valid:%Y-%m-%d}",
                        "label": f"h{s:03d} · {valid:%b %d %HZ}"})
@@ -469,7 +469,7 @@ def render_z500_mpl(F, base):
                      f"valid {valid:%a %b %d %HZ} · init {base:%Y-%m-%d %HZ}",
                      fontsize=12, fontweight="bold")
         out = ANIM_Z / f"F{i:02d}.webp"
-        fig.savefig(out, dpi=100)
+        fig.savefig(out, dpi=150)
         plt.close(fig)
         frames.append({"idx": i, "file": out.name, "date": f"{valid:%Y-%m-%d}",
                        "label": f"h{s:03d} · {valid:%b %d %HZ}"})

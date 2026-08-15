@@ -177,12 +177,24 @@ def hour_data(hour_utc, now_utc):
     if settled and os.path.exists(cache):
         with open(cache) as f:
             return {k: {int(e): v for e, v in d.items()} for k, d in json.load(f).items()}
-    try:
-        raw = http_get(MADIS_URL.format(hour_utc))
-    except Exception as e:
-        print(f"  MADIS {hour_utc:%Y%m%d_%H}00: unavailable ({e})", file=sys.stderr)
+    # A MADIS download can arrive truncated (gzip EOFError mid-stream); one
+    # re-fetch usually gets a complete file, otherwise skip the hour — it will
+    # be re-tried next run since nothing is cached.
+    data = None
+    for attempt in (1, 2):
+        try:
+            raw = http_get(MADIS_URL.format(hour_utc))
+        except Exception as e:
+            print(f"  MADIS {hour_utc:%Y%m%d_%H}00: unavailable ({e})", file=sys.stderr)
+            return {}
+        try:
+            data = parse_hfmetar(gzip.decompress(raw))
+            break
+        except (EOFError, OSError) as e:
+            print(f"  MADIS {hour_utc:%Y%m%d_%H}00: truncated download "
+                  f"(attempt {attempt}: {e})", file=sys.stderr)
+    if data is None:
         return {}
-    data = parse_hfmetar(gzip.decompress(raw))
     if settled:
         with open(cache, "w") as f:
             json.dump(data, f)
