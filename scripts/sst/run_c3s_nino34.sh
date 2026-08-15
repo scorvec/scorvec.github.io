@@ -64,11 +64,12 @@ NMODELS=$(printf '%s\n' "$OUT" | sed -nE 's/.*\(([0-9]+) models\)/\1/p' | tail -
 # append/refresh this issue in the forecast-evolution store (cached GRIBs; cheap)
 "$PY" scripts/sst/c3s_evolution.py || echo "evolution store update failed; continuing"
 
-# NOAA SFS beta Niño-3.4 feed (NODD zarr; lands by the ~6th, same window as C3S)
+# NOAA SFS beta Niño-3.4 feed + global anomaly maps (NODD zarr; lands by the ~6th)
 "$PY" scripts/sfs/sfs_nino.py || echo "SFS beta feed failed; continuing"
+"$PY" scripts/sfs/sfs_maps.py || echo "SFS beta maps failed; continuing"
 
 git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json \
-        assets/sst/data/c3s_evolution.json assets/sfs/data/sfs_nino34.json scripts/sfs/data
+        assets/sst/data/c3s_evolution.json assets/sfs scripts/sfs/data
 if git diff --staged --quiet; then
   echo "no changes to commit"
   [ "${NMODELS:-0}" -ge 7 ] 2>/dev/null && touch "$DONE_STAMP"
