@@ -239,13 +239,14 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
         esd = F[vk + "_esd"][sel][:, la]
         # reference mean = hindcast mean + the model's own linear trend
         # extrapolated to the forecast year — without this the anomaly map is
-        # mostly the 1991-2020 -> now climate trend, not forecast signal
+        # mostly the 1991-2020 -> now climate trend, not forecast signal.
+        # PHYSICAL units (no sigma normalization): the detrended signal sigma
+        # shrinks with lead as IC memory decays, which made persistent
+        # boundary-forced anomalies appear to grow explosively with time.
         fyear = int(issue[:4]) + (int(issue[4:6]) - 0.5) / 12
         mu_t = mu + F[vk + "_trend"][None, la] * (fyear - float(F["tbar"]))
-        # DETRENDED signal sigma (variability of hindcast ensemble means about
-        # the trend line), floored at 0.3*pooled-sigma for conditioning
-        sig = np.maximum(F[vk + "_sigdt"][sel][:, la], 0.3 * sd)
-        a = (fld[:, :, la] - mu_t[None]) / sig[None]        # (31, n, lat, lon)
+        scale = 1.0 if vk == "t2m" else 0.1          # K -> degC-equiv; gpm -> dam
+        a = (fld[:, :, la] - mu_t[None]) * scale     # (31, n, lat, lon)
         ens = np.nanmean(a, axis=0)
 
         name = f"sfs_{key}"
@@ -258,14 +259,16 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
             valid = t0 + pd.Timedelta(days=int(lead_days[sel][i]))
             fig, ax = plt.subplots(figsize=(13.0, 3.9),
                                    subplot_kw=dict(projection=proj))
+            vmax0 = 8 if key == "t2md" else 20
             pm0 = ax.pcolormesh(LON, LAT, ens[i], cmap="RdBu_r",
-                                vmin=-5, vmax=5,
+                                vmin=-vmax0, vmax=vmax0,
                                 transform=ccrs.PlateCarree(), rasterized=True)
             ax.coastlines(lw=0.5, color="0.25")
             ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
             ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
-            ax.set_title("ensemble-mean anomaly vs hindcast TREND "
-                         "(detrended signal σ)", fontsize=10, loc="left")
+            unit0 = "°C" if key == "t2md" else "dam"
+            ax.set_title("ensemble-mean anomaly vs hindcast mean + own trend "
+                         f"({unit0})", fontsize=10, loc="left")
             fig.colorbar(pm0, ax=ax, orientation="vertical",
                          fraction=0.025, pad=0.015, extend="both")
             fig.suptitle(f"SFS beta — {label} · {valid:%a %b %d %Y} "
