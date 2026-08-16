@@ -38,7 +38,8 @@ PCTS = [1, 5, 10, 25, 50, 75, 90, 95, 99]
 DOY_STEP, DOY_WIN = 5, 10
 DOY = list(range(1, 366, DOY_STEP))
 KEYS = ["pwat", "850t", "700t", "500t", "850td", "700td",
-        "h500", "thick", "fzl", "kidx", "tott", "ecape", "ship"]
+        "h500", "thick", "fzl", "kidx", "tott", "ecape", "ship",
+        "850spd", "250spd"]
 # Physical plausibility (m / degC / mm) — shared with flag_anomalies.py.
 # Outside these bounds is a data error anywhere on Earth; applied at the
 # SAMPLE level so one garbled height group can't enter any percentile or
@@ -47,7 +48,9 @@ KEYS = ["pwat", "850t", "700t", "500t", "850td", "700td",
 # thickness "record" that passed it comfortably).
 PHYS = {"h500": (4600, 6100), "thick": (4700, 6100), "850t": (-60, 45),
         "700t": (-55, 35), "500t": (-60, 15), "850td": (-75, 35),
-        "700td": (-75, 30), "pwat": (0, 135)}
+        "700td": (-75, 30), "pwat": (0, 135),
+        # wind speed m/s: 850 record ~ hurricane cores; 250 ~ strongest jets
+        "850spd": (0, 110), "250spd": (0, 165)}
 # Per-sounding values are cached, so re-aggregating (different window, new
 # percentiles) never re-downloads the 30-90 MB period-of-record file again.
 CACHE = Path(os.environ.get("CLIMO_CACHE", "/tmp/climo_cache"))
@@ -65,7 +68,7 @@ def _f(s):
 
 def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
     """block = the level lines of one sounding. Returns index dict or None."""
-    P, T, D, H = [], [], [], []
+    P, T, D, H, W = [], [], [], [], []
     for L in block:
         if len(L) < 52:
             continue
@@ -74,12 +77,14 @@ def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
         tt = _f(L[22:27])
         dpdp = _f(L[34:39])
         rh = _f(L[28:33])                 # pre-~1990 US records carry RH, not DPDP
+        ws = _f(L[46:51])                 # wind speed, m/s x10
         if np.isnan(p) and not np.isnan(gph):        # pibal — skip for thermo climo
             continue
         if np.isnan(p) or p < 2000:
             continue
         P.append(p)
         H.append(gph)
+        W.append(np.nan if np.isnan(ws) else ws / 10.0)
         T.append(np.nan if np.isnan(tt) else tt / 10 + 273.15)
         if np.isnan(tt):
             D.append(np.nan)
@@ -93,9 +98,9 @@ def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
             D.append(np.nan)
     if len(P) < 8:
         return None
-    P, T, D, H = map(np.asarray, (P, T, D, H))
+    P, T, D, H, W = map(np.asarray, (P, T, D, H, W))
     o = np.argsort(-P)                                # sfc -> top
-    P, T, D, H = P[o], T[o], D[o], H[o]
+    P, T, D, H, W = P[o], T[o], D[o], H[o], W[o]
     if not np.isfinite(H[0]):                         # IGRA often omits sfc height
         H = H.copy(); H[0] = elev
 
@@ -151,6 +156,7 @@ def sounding_indices(block: list[str], elev: float = 0.0) -> dict | None:
         "fzl": fzl,
         "kidx": ((c(t850) - c(t500)) + c(d850) - (c(t700) - c(d700))) if moist_ok else np.nan,
         "tott": (c(t850) + c(d850) - 2 * c(t500)) if moist_ok else np.nan,
+        "850spd": at(W, 850), "250spd": at(W, 250),
     }
     return {k: v for k, v in idx.items() if v is not None and np.isfinite(v)}
 

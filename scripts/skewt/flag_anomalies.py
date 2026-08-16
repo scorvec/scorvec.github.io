@@ -30,20 +30,21 @@ WATCH = ("h500", "thick", "850t", "ecape")
 # extreme) — they never produce P95 "near record" noise, but a record-humid
 # column or record-warm 700 mb is exactly the kind of thing the record map
 # should carry. All exist in the climo JSONs.
-RECORD_ONLY = ("700t", "500t", "850td", "700td", "pwat")
+RECORD_ONLY = ("700t", "500t", "850td", "700td", "pwat", "850spd", "250spd")
 # Some indices are only interesting at ONE end. A station with no convective
 # energy is in its normal state — "record low ECAPE" is not news, it's just a
 # quiet day, and it crowds out the genuinely unstable soundings. Heights,
 # thicknesses and 850 mb temperatures matter at both ends (a record-cold airmass
 # is as notable as a record-warm one).
-HIGH_ONLY = {"ecape"}
+HIGH_ONLY = {"ecape", "850spd", "250spd"}   # a record CALM is not news
 # A value must also be big enough to mean anything. Where an index is almost
 # always zero (SHIP in the Arctic; ECAPE over the poles), the percentile is
 # computed against a spike at zero and any trace value scores "P99".
 FLOOR = {"ecape": 100.0, "ship": 0.5}
 LABELS = {"h500": "500mb hgt", "thick": "1000-500 thick", "850t": "850mb T",
           "ecape": "ECAPE", "700t": "700mb T", "500t": "500mb T",
-          "850td": "850mb Td", "700td": "700mb Td", "pwat": "PWAT"}
+          "850td": "850mb Td", "700td": "700mb Td", "pwat": "PWAT",
+          "850spd": "850mb wind", "250spd": "250mb wind"}
 # Physical plausibility (m / °C / mm): outside these bounds is a data error
 # anywhere on Earth, whatever the station's own envelope says. The 3-tail-span
 # station fence alone let Reno's corrupt 6224 m height through — heights have
@@ -54,13 +55,15 @@ PHYS = {"h500": (4600, 6100), "thick": (4700, 6100), "850t": (-60, 45),
         "700td": (-75, 30), "pwat": (0, 135),
         # the WASM helper can emit a missing-value sentinel (~1e8) — without a
         # bound it gets flagged as an "ALL-TIME" ECAPE record (Athinai, 2026-07-26)
-        "ecape": (0, 12000), "ship": (0, 15)}
+        "ecape": (0, 12000), "ship": (0, 15),
+        "850spd": (0, 110), "250spd": (0, 165)}
 G = 9.80665
 
 
-def indices(P, T, D, H):
-    """P (Pa), T/D (K), H (m), sfc→top. Returns index dict (°C / m / mm)."""
+def indices(P, T, D, H, W=None):
+    """P (Pa), T/D (K), H (m), W (m/s), sfc→top. Index dict (°C / m / mm / m/s)."""
     P, T, D, H = map(np.asarray, (P, T, D, H))
+    W = np.asarray(W) if W is not None else np.full_like(P, np.nan, dtype=float)
 
     def at(field, plevel):
         pv = plevel * 100.0
@@ -104,12 +107,13 @@ def indices(P, T, D, H):
          "850td": c(d850), "700td": c(d700), "h500": h500,
          "thick": thick,
          "fzl": fzl, "kidx": (c(t850) - c(t500)) + c(d850) - (c(t700) - c(d700)),
-         "tott": c(t850) + c(d850) - 2 * c(t500)}
+         "tott": c(t850) + c(d850) - 2 * c(t500),
+         "850spd": at(W, 850), "250spd": at(W, 250)}
     return {k: v for k, v in d.items() if np.isfinite(v)}
 
 
 def parse_csv(text):
-    P, T, D, H = [], [], [], []
+    P, T, D, H, W = [], [], [], [], []
     for ln in text.splitlines()[1:]:
         c = ln.split(",")
         if len(c) < 7:
@@ -120,8 +124,13 @@ def parse_csv(text):
             continue
         if p < 20:
             continue
+        try:
+            w = float(c[12])
+        except (ValueError, IndexError):
+            w = np.nan
         P.append(p * 100); H.append(h); T.append(t + 273.15); D.append(dp + 273.15)
-    return P, T, D, H
+        W.append(w)
+    return P, T, D, H, W
 
 
 def pct_of(d, v):
