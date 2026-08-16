@@ -89,6 +89,39 @@ def fetch_bom_rmm(days_back=45):
         return None
 
 
+def mjo_prate_clim(month, psel, elon, to_eof):
+    """Per-lead reforecast PRATE band-mean statistics on the EOF grid:
+    mean and σ across the 30 years x 11 members. Basis for the pseudo-OLR
+    channel: tropical precip and OLR anticorrelate tightly, so
+    −(standardized precip anomaly) stands in for olr_anom/std_olr in the
+    full three-channel WH04 projection. Cached per init month."""
+    f = HERE / "data" / f"mjo_prate_clim_{month:02d}.npz"
+    if f.exists():
+        z = np.load(f)
+        return z["mu"], z["sd"]
+    ds = _open(f"{BASE}/reforecast/{month:02d}/atm_daily.zarr")
+    ds = ds.sel(init=slice("1991", "2020"))
+    band = ds.where((ds.lat >= -16) & (ds.lat <= 16), drop=True)
+    lat = band.lat.values
+    n_init = band.sizes["init"]
+    s1_ = np.zeros((len(psel), len(elon)))
+    s2_ = np.zeros_like(s1_)
+    n = 0
+    for yi in range(n_init):
+        p = band.PRATE_surface.isel(init=yi).values[:, psel]  # (11, n, lat, lon)
+        pb = to_eof(band_mean(p, lat))                        # (11, n, 144)
+        s1_ += pb.sum(axis=0)
+        s2_ += (pb ** 2).sum(axis=0)
+        n += pb.shape[0]
+        print(f"prate clim: init {yi + 1}/{n_init}", flush=True)
+    mu = s1_ / n
+    sd = np.sqrt(np.maximum(s2_ / n - mu ** 2, 1e-20))
+    f.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(f, mu=mu, sd=sd)
+    print(f"prate clim {month:02d}: cached ({n} samples/lead)", flush=True)
+    return mu, sd
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", default=datetime.now(timezone.utc).strftime("%Y%m"))
@@ -132,9 +165,34 @@ def main():
     a200 = (b200 - clim["clim_u200"].sel(dayofyear=doys).values[None]
             - m120["u200"].values[None, None]) / clim.attrs["std_u200"]
     comb = np.concatenate([a850, a200], axis=-1)      # (31, n, 288)
-    rmm1 = comb @ e1 / s1
-    rmm2 = comb @ e2 / s2
-    print(f"day-0 ens-mean RMM: ({rmm1[:, 0].mean():+.2f}, "
+    rmm1w = comb @ e1 / s1                            # wind-only reference
+    rmm2w = comb @ e2 / s2
+
+    # pseudo-OLR channel from PRATE (odd/flux leads; parity interleave):
+    # standardized on its own lead grid vs the reforecast per-lead mean/σ
+    # (scalar σ per lead preserves the spatial variance pattern, as WH04's
+    # single std_olr does), interpolated to the even wind days, sign-flipped
+    # (more rain = deeper convection = lower OLR), then the full 3-channel
+    # WH04 projection normalized by pc_std. Winds stay raw (no drift adj).
+    pcol = band.PRATE_surface.isel(member=0, lat=0, lon=180).values
+    psel = np.where(np.isfinite(pcol))[0]
+    pb = to_eof(band_mean(band.PRATE_surface.values[:, psel], lat))
+    pmu, psd = mjo_prate_clim(t0.month, psel, elon, to_eof)
+    phat = (pb - pmu[None]) / np.sqrt((psd ** 2).mean(axis=1))[None, :, None]
+    pdays = lead_days[psel].astype(float)
+    wdays = lead_days[sel].astype(float)
+    olr_hat = np.empty((phat.shape[0], len(wdays), phat.shape[2]))
+    for m in range(phat.shape[0]):
+        for j in range(phat.shape[2]):
+            olr_hat[m, :, j] = np.interp(wdays, pdays, phat[m, :, j])
+    olr_hat = -olr_hat
+    eo1 = eofs["eof_olr"].sel(mode=1).values
+    eo2 = eofs["eof_olr"].sel(mode=2).values
+    f1 = float(eofs["pc_std"].sel(mode=1))
+    f2 = float(eofs["pc_std"].sel(mode=2))
+    rmm1 = (olr_hat @ eo1 + comb @ e1) / f1           # PRIMARY: full projection
+    rmm2 = (olr_hat @ eo2 + comb @ e2) / f2
+    print(f"day-0 ens-mean RMM (full): ({rmm1[:, 0].mean():+.2f}, "
           f"{rmm2[:, 0].mean():+.2f}) amp "
           f"{np.hypot(rmm1, rmm2)[:, 0].mean():.2f}")
 
@@ -160,6 +218,8 @@ def main():
     ax.plot(o1, o2, color="0.15", lw=2.2, marker="o", ms=3, label=obs_label)
     ax.annotate(f"{obs_dates[-1]:%b %d}", (o1[-1], o2[-1]), fontsize=8,
                 color="0.15", xytext=(6, -9), textcoords="offset points")
+    ax.plot(rmm1w.mean(axis=0), rmm2w.mean(axis=0), color="0.45", lw=1.6,
+            ls="--", label="ens mean, wind-only")
     mm1, mm2 = rmm1.mean(axis=0), rmm2.mean(axis=0)
     ax.plot(mm1, mm2, color="#c62828", lw=3, marker="o", ms=4.5,
             label="SFS ensemble mean")
@@ -168,8 +228,8 @@ def main():
                     color="#7a1d1d", xytext=(5, 5), textcoords="offset points")
     ax.set_title(f"SFS beta — MJO (wind-only RMM), 31 members to day "
                  f"{int(lead_days[sel][-1])} · issue {t0:%b %Y}\n"
-                 "same machinery as the AIFS-ENS product · raw projection, "
-                 "no model adjustment", fontsize=11, fontweight="bold",
+                 "full WH04: U850 + U200 + precip pseudo-OLR · raw winds, "
+                 "no drift adjustment", fontsize=11, fontweight="bold",
                  loc="left")
     ax.legend(fontsize=9, loc="lower left")
     OUTPNG.parent.mkdir(parents=True, exist_ok=True)
@@ -183,6 +243,8 @@ def main():
         "days": [f"{v:%Y-%m-%d}" for v in valid],
         "rmm1": np.round(rmm1, 3).tolist(),
         "rmm2": np.round(rmm2, 3).tolist(),
+        "rmm1_wind": np.round(rmm1w, 3).tolist(),
+        "rmm2_wind": np.round(rmm2w, 3).tolist(),
         "obs": {"source": obs_label,
                 "days": [f"{d:%Y-%m-%d}" for d in obs_dates],
                 "rmm1": np.round(o1, 3).tolist(),
