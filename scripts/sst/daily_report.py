@@ -303,6 +303,182 @@ def rain_pages(pdf, when: datetime) -> str:
 
 
 
+
+
+def forecast_map_page(pdf, when: datetime) -> None:
+    """Page 7: combined skill-corrected most-likely 15-day rainfall —
+    blended AIFS-ENS + IFS-ENS ensemble means, per-basin/lead bias
+    factors applied, absolute total and % of normal."""
+    import glob
+    import json
+    import re
+    import xarray as xr
+    from scipy.ndimage import gaussian_filter
+
+    grib_dir = REPO / "scripts" / "mjo" / "data" / "aifs"
+    latest = {}
+    for f in sorted(glob.glob(str(grib_dir / "*_*z.pf.tp.grib2"))):
+        m = re.match(r"(aifs|ifs)_(\d{8})_(\d{2})z", Path(f).name)
+        if m:
+            latest[m.group(1)] = (m.group(2), m.group(3))
+    if not latest:
+        return
+    verif = json.loads((Path.home() / "colombia_hydro" / "out" /
+                        "fcst_verif.json").read_text())
+    rp = CRM.region_paths()
+
+    def daily_fields(model, date, hh):
+        """(valid_days, daily[nday, ny, nx] ens mean, lons, lats)."""
+        parts = []
+        for typ in (("cf", "pf") if model == "aifs" else ("pf",)):
+            pth = grib_dir / f"{model}_{date}_{hh}z.{typ}.tp.grib2"
+            if not pth.exists():
+                continue
+            ds = xr.open_dataset(pth, engine="cfgrib", chunks={},
+                                 backend_kwargs={"filter_by_keys":
+                                                 {"shortName": "tp"},
+                                                 "indexpath": ""})
+            da = ds["tp"]
+            if da.attrs.get("units", "").strip() in ("m", "metre", "metres"):
+                da = da * 1000.0
+            lons_ = da.longitude.values
+            if lons_.max() > 180:
+                da = da.assign_coords(longitude=(da.longitude + 180) % 360
+                                      - 180)
+            da = da.sortby("longitude").sortby("latitude")
+            da = da.sel(longitude=slice(CRM.LON0 - 360, CRM.LON1 - 360),
+                        latitude=slice(CRM.LAT0, CRM.LAT1))
+            if "number" not in da.dims:
+                da = da.expand_dims("number")
+            parts.append(da.compute())
+        da = parts[0] if len(parts) == 1 else xr.concat(parts, dim="number")
+        steps_h = (da.step.values / np.timedelta64(1, "h")).astype(int)
+        order = np.argsort(steps_h)
+        steps_h = steps_h[order]
+        v = da.isel(step=order).mean("number")\
+              .transpose("step", "latitude", "longitude").values
+        init = np.datetime64(f"{date[:4]}-{date[4:6]}-{date[6:8]}T{hh}:00")
+        bh = np.concatenate([[0], steps_h])
+        bv = np.concatenate([np.zeros((1,) + v.shape[1:]), v], axis=0)
+        days_, buckets = [], []
+        for k in range(len(bh) - 1):
+            t0_ = init + np.timedelta64(int(bh[k]), "h")
+            if bh[k + 1] - bh[k] == 24 and t0_ == t0_.astype("datetime64[D]"):
+                days_.append(t0_.astype("datetime64[D]"))
+                buckets.append(np.clip(bv[k + 1] - bv[k], 0, None))
+        return (days_, np.array(buckets),
+                da.longitude.values % 360, da.latitude.values)
+
+    fields = {m: daily_fields(m, d, h) for m, (d, h) in latest.items()}
+    # common valid-day window across models
+    sets = [set(f[0]) for f in fields.values()]
+    common = sorted(set.intersection(*sets)) if len(sets) > 1 else sorted(sets[0])
+    if len(common) < 5:
+        return
+    lons, lats = list(fields.values())[0][2], list(fields.values())[0][3]
+
+    # per-region bias-factor rasters by lead band, per model; smooth edges
+    LO, LA = np.meshgrid(lons, lats)
+    pts = np.column_stack([LO.ravel() % 360, LA.ravel()])
+    reg_mask = {}
+    from matplotlib.path import Path as MplPath
+    for r, rings in rp.items():
+        if r not in ORDER:
+            continue
+        inside = np.zeros(LO.shape, bool)
+        for ring in rings:
+            inside |= MplPath(np.column_stack([ring[:, 0] % 360, ring[:, 1]])
+                              ).contains_points(pts).reshape(LO.shape)
+        reg_mask[r] = inside
+    bands = verif["bands_lead_days"]
+
+    def band_of(lead):
+        for bi, (a, b) in enumerate(bands):
+            if a <= lead <= b:
+                return str(bi)
+        return str(len(bands) - 1)
+
+    init0 = min(np.datetime64(f"{d}"[:4] + "-" + f"{d}"[4:6] + "-"
+                              + f"{d}"[6:8]) for d, _ in latest.values())
+    blended = np.zeros(LO.shape)
+    w_ai = float(np.mean([verif["weight_aifs"][r][b] for r in ORDER
+                          for b in verif["weight_aifs"][r]]))
+    for model, (days_, buckets, _, _) in fields.items():
+        w = w_ai if model == "aifs" else 1 - w_ai
+        acc = np.zeros(LO.shape)
+        for dd, bucket in zip(days_, buckets):
+            if dd not in common:
+                continue
+            lead = max(int((dd - init0).astype(int)), 1)
+            Fr = np.full(LO.shape, np.nan)
+            for r in ORDER:
+                Fr[reg_mask[r]] = verif["bias_factors"][r][band_of(lead)][model]
+            Fr = np.where(np.isfinite(Fr), Fr, np.nanmean(
+                [verif["bias_factors"][r][band_of(lead)][model]
+                 for r in ORDER]))
+            acc += bucket * gaussian_filter(Fr, 1.5)
+        blended += w * acc
+
+    # climatology over the same days (corrected)
+    ml, mt = IP._grid_axes()
+    _lo = np.sort(IP._LON[ml] % 360)
+    _la = np.sort(IP._LAT[mt])
+    _li = (_lo >= CRM.LON0) & (_lo <= CRM.LON1)
+    _ti = (_la >= CRM.LAT0) & (_la <= CRM.LAT1)
+    coef = xr.open_dataset(CLIM_NC)["coef"].values
+    Fc = gauge_correction(np.sort(IP._LON[ml])[_li], _la[_ti])
+    cl = np.sum([eval_clim(coef, min(dd.item().timetuple().tm_yday, 365)
+                           )[np.ix_(_ti, _li)] for dd in common], axis=0) * Fc
+    # regrid clim (0.1 deg) -> model grid (0.25) by nearest sampling
+    ii = np.array([int(np.argmin(np.abs(_la[_ti] - la))) for la in lats])
+    jj = np.array([int(np.argmin(np.abs(np.sort(IP._LON[ml])[_li] - lo)))
+                   for lo in lons % 360])
+    clm = cl[np.ix_(ii, jj)]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        pct = np.where(clm > 2.0, 100.0 * blended / clm, np.nan)
+
+    span = (f"{common[0].astype(object):%b %d} – "
+            f"{common[-1].astype(object):%b %d}")
+    fig = plt.figure(figsize=(11.69, 8.27))
+    inits_s = " · ".join(f"{m.upper()} {d} {h}Z" for m, (d, h) in latest.items())
+    header(fig, when,
+           f"Most-likely rainfall, next {len(common)} days · blended "
+           f"ensemble means, per-basin/lead bias factors + skill weights "
+           f"from the live verification archive",
+           f"{inits_s} · page 7")
+    H = 0.775
+    aspect = (CRM.LON1 - CRM.LON0) / (CRM.LAT1 - CRM.LAT0)
+    Wp = H * 8.27 / 11.69 * aspect
+    gapx = 0.045
+    xleft = (1.0 - (2 * Wp + gapx)) / 2
+    lev15 = [0, 10, 25, 50, 100, 150, 200, 300, 400, 500, 700]
+    for k, (field, cmap, levk, ttl) in enumerate([
+            (blended, RAIN_CMAP, lev15,
+             f"Skill-corrected total (mm)   ·   {span}"),
+            (pct, PCT_CMAP, LEV_PCT, "Percent of normal")]):
+        x0 = xleft + k * (Wp + gapx)
+        norm = BoundaryNorm(levk, cmap.N)
+        ax = fig.add_axes([x0, 0.105, Wp, H], projection=ccrs.PlateCarree())
+        pm, _ = draw_map(ax, lons, lats, field, cmap, norm, rp,
+                         mask_ocean=(k == 1))
+        ax.set_title(ttl, fontsize=10.5, fontweight="bold", loc="left",
+                     color=INK, pad=5)
+        cax = fig.add_axes([x0 + 0.02, 0.055, Wp - 0.04, 0.016])
+        ext = "max"
+        cb = fig.colorbar(pm, cax=cax, orientation="horizontal",
+                          spacing="uniform", extend=ext)
+        cb.set_ticks(levk[1:-1] if cmap is PCT_CMAP else levk[:-1])
+        cb.ax.tick_params(labelsize=7.4, length=2.5, pad=2, color=MUTE,
+                          labelcolor=MUTE)
+        cb.outline.set_edgecolor("#9aa7b2")
+        cb.outline.set_linewidth(0.5)
+    footer(fig, note="blended by verified inverse-error weights · bias "
+                     "factors mature against corrected IMERG twice daily")
+    pdf.savefig(fig, dpi=200)
+    plt.close(fig)
+    print("  page 7: most-likely 15-day rainfall", flush=True)
+
+
 def rain_fan_page(pdf, when: datetime) -> None:
     """Page 7: per-basin corrected-rainfall time series vs seasonal norm,
     with the bias-corrected ensemble rain fan."""
@@ -325,7 +501,7 @@ def rain_fan_page(pdf, when: datetime) -> None:
     header(fig, when,
            "Basin rainfall vs seasonal norm · gauge-corrected IMERG observed "
            "· bias-corrected AIFS-ENS + IFS-ENS ensemble forecast",
-           "mm/day · page 7")
+           "mm/day · page 8")
     for k, r in enumerate(ORDER):
         row, col = divmod(k, 3)
         ax = fig.add_axes([0.052 + col * 0.325, 0.53 - row * 0.435,
@@ -385,7 +561,7 @@ def rain_fan_page(pdf, when: datetime) -> None:
                      "corrected satellite record · dotted line = today")
     pdf.savefig(fig, dpi=200)
     plt.close(fig)
-    print("  page 7: basin rain fans", flush=True)
+    print("  page 8: basin rain fans", flush=True)
 
 
 def inflow_page(pdf, when: datetime) -> None:
@@ -412,7 +588,7 @@ def inflow_page(pdf, when: datetime) -> None:
     header(fig, when,
            "Inflows vs seasonal norms · fleet-corrected per-river "
            "climatologies (2000–2026) · AIFS-ENS + IFS-ENS ensemble forecast",
-           "GWh/day · page 8")
+           "GWh/day · page 9")
     import matplotlib.dates as mdates
     for k, r in enumerate(ORDER):
         row, col = divmod(k, 3)
@@ -466,7 +642,7 @@ def inflow_page(pdf, when: datetime) -> None:
                      "to observations · dotted line = today")
     pdf.savefig(fig, dpi=200)
     plt.close(fig)
-    print("  page 8: inflows vs norms + fans", flush=True)
+    print("  page 9: inflows vs norms + fans", flush=True)
 
 
 def generation_page(pdf, when: datetime) -> None:
@@ -501,7 +677,7 @@ def generation_page(pdf, when: datetime) -> None:
     header(fig, when,
            "National hydro generation outlook · persistence + rain/storage "
            "state model driven by the same ensemble",
-           "GW (avg power) · page 9")
+           "GW (avg power) · page 10")
     ax = fig.add_axes([0.055, 0.10, 0.62, 0.775])
     ax.fill_between(axis, env[doyx, 0] / 24, env[doyx, 4] / 24,
                     color="#9db8d8", alpha=0.30, lw=0,
@@ -573,7 +749,7 @@ def generation_page(pdf, when: datetime) -> None:
     footer(fig)
     pdf.savefig(fig, dpi=200)
     plt.close(fig)
-    print("  page 9: national generation outlook", flush=True)
+    print("  page 10: national generation outlook", flush=True)
 
 
 def main() -> int:
@@ -582,6 +758,7 @@ def main() -> int:
     ARCHIVE.mkdir(parents=True, exist_ok=True)
     with PdfPages(OUT_PDF) as pdf:
         through = rain_pages(pdf, when)
+        forecast_map_page(pdf, when)
         rain_fan_page(pdf, when)
         inflow_page(pdf, when)
         generation_page(pdf, when)
