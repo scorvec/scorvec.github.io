@@ -299,12 +299,292 @@ def rain_pages(pdf, when: datetime) -> str:
     return f"{through:%Y-%m-%d}"
 
 
+
+
+
+
+def rain_fan_page(pdf, when: datetime) -> None:
+    """Page 7: per-basin corrected-rainfall time series vs seasonal norm,
+    with the bias-corrected ensemble rain fan."""
+    import json
+    import matplotlib.dates as mdates
+    tc = json.loads((Path.home() / "colombia_hydro" / "raw" /
+                     "imerg_basin_daily.json").read_text())
+    rdates = [datetime.strptime(d, "%Y%m%d") for d in tc["dates"]]
+    fan = None
+    fj = REPO / "colombia_hydro" / "data" / "inflow_forecast.json"
+    if fj.exists():
+        f_ = json.loads(fj.read_text())
+        if "rain" in f_ and (np.datetime64(when.strftime("%Y-%m-%d"))
+                - np.datetime64(f_["dates"][0])).astype(int) <= 2:
+            fan = f_
+
+    t0 = when - timedelta(days=100)
+    t1 = when + timedelta(days=21)
+    fig = plt.figure(figsize=(11.69, 8.27))
+    header(fig, when,
+           "Basin rainfall vs seasonal norm · gauge-corrected IMERG observed "
+           "· bias-corrected AIFS-ENS + IFS-ENS ensemble forecast",
+           "mm/day · page 7")
+    for k, r in enumerate(ORDER):
+        row, col = divmod(k, 3)
+        ax = fig.add_axes([0.052 + col * 0.325, 0.53 - row * 0.435,
+                           0.29, 0.345])
+        obs = np.array(tc[r], float)
+        cl = np.array(tc[r + "_clim"], float)
+        m = [i for i, d in enumerate(rdates) if d >= t0]
+        td = [rdates[i] for i in m]
+        ax.bar(td, obs[m], width=1.0, color="#a8c6e2", lw=0,
+               label="daily (corrected IMERG)")
+        k7 = np.convolve(np.where(np.isfinite(obs), obs, 0),
+                         np.ones(7) / 7, "full")[:len(obs)]
+        ax.plot(td, k7[m], color="#c62828", lw=1.5, label="7-day mean")
+        ax.plot(td, cl[m], color="#1f4e8c", lw=1.5, label="seasonal norm")
+        if fan is not None:
+            fd = [datetime.strptime(x, "%Y-%m-%d") for x in fan["dates"]]
+            q = fan["rain"][r]
+            ok = [j for j, v in enumerate(q["p50"]) if v is not None]
+            fdo = [fd[j] for j in ok]
+            ax.fill_between(fdo, [q["p10"][j] for j in ok],
+                            [q["p90"][j] for j in ok], color="#e08214",
+                            alpha=0.22, lw=0)
+            ax.fill_between(fdo, [q["p25"][j] for j in ok],
+                            [q["p75"][j] for j in ok], color="#e08214",
+                            alpha=0.35, lw=0)
+            ax.plot(fdo, [q["p50"][j] for j in ok], color="#b35806",
+                    lw=1.6, ls="--", label="ensemble forecast")
+            # norm continues under the fan for direct comparison
+            fdoy = np.array([min(d.timetuple().tm_yday, 365)
+                             for d in fdo])
+            doy_hist = np.array([min(d.timetuple().tm_yday, 365)
+                                 for d in rdates])
+            clv = []
+            for dy in fdoy:
+                mm2 = doy_hist == dy
+                clv.append(float(np.nanmean(cl[mm2])) if mm2.any() else np.nan)
+            ax.plot(fdo, clv, color="#1f4e8c", lw=1.5, ls=(0, (2, 2)))
+        wk = np.nanmean(obs[m][-7:]) if len(m) >= 7 else np.nan
+        wkc = np.nanmean(cl[m][-7:]) if len(m) >= 7 else np.nan
+        ttl = r
+        if np.isfinite(wk) and wkc > 0:
+            ttl += f"   ·   last 7 d: {100 * wk / wkc:.0f}% of norm"
+        ax.set_title(ttl, fontsize=10.5, fontweight="bold", loc="left",
+                     color=INK, pad=4)
+        ax.set_xlim(t0, t1)
+        ax.set_ylim(bottom=0)
+        ax.axvline(when, color="0.55", lw=0.7, ls=":")
+        ax.grid(lw=0.25, alpha=0.5)
+        ax.tick_params(labelsize=7.5)
+        ax.set_ylabel("mm/day", fontsize=8)
+        ax.xaxis.set_major_locator(mdates.MonthLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
+        if k == 0:
+            ax.legend(fontsize=6.6, loc="upper left", framealpha=0.9)
+    footer(fig, note="fan: ~101 members, per-basin/lead bias factors from the "
+                     "verification archive · norm = harmonic climatology of the "
+                     "corrected satellite record · dotted line = today")
+    pdf.savefig(fig, dpi=200)
+    plt.close(fig)
+    print("  page 7: basin rain fans", flush=True)
+
+
+def inflow_page(pdf, when: datetime) -> None:
+    """Page 7: inflows vs seasonal norms, zoomed to ~3 months + the fan.
+    Traditional units (GWh/day)."""
+    import json
+    ic = json.loads((REPO / "colombia_hydro" / "data" /
+                     "inflow_clim.json").read_text())
+    fan = None
+    fj = REPO / "colombia_hydro" / "data" / "inflow_forecast.json"
+    if fj.exists():
+        f_ = json.loads(fj.read_text())
+        if (np.datetime64(when.strftime("%Y-%m-%d"))
+                - np.datetime64(f_["dates"][0])).astype(int) <= 2:
+            fan = f_
+
+    t0 = when - timedelta(days=100)
+    t1 = when + timedelta(days=21)
+    axis = [t0 + timedelta(days=k) for k in range((t1 - t0).days + 1)]
+    doyx = np.array([min(d.timetuple().tm_yday, 365) for d in axis]) - 1
+
+    rdates = [datetime.strptime(d, "%Y-%m-%d") for d in ic["recent"]["dates"]]
+    fig = plt.figure(figsize=(11.69, 8.27))
+    header(fig, when,
+           "Inflows vs seasonal norms · fleet-corrected per-river "
+           "climatologies (2000–2026) · AIFS-ENS + IFS-ENS ensemble forecast",
+           "GWh/day · page 8")
+    import matplotlib.dates as mdates
+    for k, r in enumerate(ORDER):
+        row, col = divmod(k, 3)
+        ax = fig.add_axes([0.052 + col * 0.325, 0.53 - row * 0.435,
+                           0.29, 0.345])
+        pct = np.array(ic["clim"][r]["pct"], float)         # (365, 5) GWh
+        ax.fill_between(axis, pct[doyx, 0], pct[doyx, 4], color="#9db8d8",
+                        alpha=0.32, lw=0, label="p10–p90 norm")
+        ax.fill_between(axis, pct[doyx, 1], pct[doyx, 3], color="#5b87c0",
+                        alpha=0.32, lw=0, label="p25–p75")
+        ax.plot(axis, pct[doyx, 2], color="#1f4e8c", lw=1.5, label="median")
+        obs = np.array(ic["recent"][r], float)
+        m = [i for i, d in enumerate(rdates) if d >= t0]
+        ax.plot([rdates[i] for i in m], obs[m], color="#c62828", lw=1.4,
+                label="observed")
+        last_pct = None
+        v = np.array(ic["recent"]["pct_of_norm"][r], float)
+        v = v[v > 0]
+        if len(v):
+            last_pct = v[-5:].mean()
+        if fan is not None:
+            fd = [datetime.strptime(x, "%Y-%m-%d") for x in fan["dates"]]
+            fdoy = np.array([min(d.timetuple().tm_yday, 365) for d in fd]) - 1
+            nrm = np.array(ic["clim"][r]["mean"], float)[fdoy] / 100.0
+            q = fan["basins"][r]["q"]
+            ax.fill_between(fd, np.array(q["p10"]) * nrm,
+                            np.array(q["p90"]) * nrm, color="#e08214",
+                            alpha=0.22, lw=0)
+            ax.fill_between(fd, np.array(q["p25"]) * nrm,
+                            np.array(q["p75"]) * nrm, color="#e08214",
+                            alpha=0.35, lw=0)
+            ax.plot(fd, np.array(q["p50"]) * nrm, color="#b35806", lw=1.6,
+                    ls="--", label="ensemble forecast")
+        ttl = f"{r}"
+        if last_pct is not None:
+            ttl += f"   ·   now {last_pct:.0f}% of norm"
+        ax.set_title(ttl, fontsize=10.5, fontweight="bold", loc="left",
+                     color=INK, pad=4)
+        ax.set_xlim(t0, t1)
+        ax.axvline(when, color="0.55", lw=0.7, ls=":")
+        ax.grid(lw=0.25, alpha=0.5)
+        ax.tick_params(labelsize=7.5)
+        ax.set_ylabel("GWh/day", fontsize=8)
+        ax.xaxis.set_major_locator(mdates.MonthLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
+        ax.xaxis.set_minor_locator(mdates.DayLocator([10, 20]))
+        if k == 0:
+            ax.legend(fontsize=6.6, loc="upper left", framealpha=0.9)
+    footer(fig, note="orange fan: ~101 bias-corrected AIFS-ENS + IFS-ENS members "
+                     "through each basin's fitted memory-kernel model, anchored "
+                     "to observations · dotted line = today")
+    pdf.savefig(fig, dpi=200)
+    plt.close(fig)
+    print("  page 8: inflows vs norms + fans", flush=True)
+
+
+def generation_page(pdf, when: datetime) -> None:
+    """Page 8: national hydro generation outlook — the final piece."""
+    import json
+    import matplotlib.dates as mdates
+    g = json.loads((REPO / "colombia_hydro" / "data" /
+                    "generation.json").read_text())
+    gm = json.loads((REPO / "colombia_hydro" / "data" /
+                     "gen_model.json").read_text())
+    st = json.loads((REPO / "colombia_hydro" / "data" /
+                     "storage.json").read_text())
+    fan = None
+    fj = REPO / "colombia_hydro" / "data" / "inflow_forecast.json"
+    if fj.exists():
+        f_ = json.loads(fj.read_text())
+        if "generation" in f_ and (np.datetime64(when.strftime("%Y-%m-%d"))
+                - np.datetime64(f_["dates"][0])).astype(int) <= 2:
+            fan = f_
+
+    gdates = [datetime.strptime(d, "%Y-%m-%d") for d in g["recent"]["dates"]]
+    hyd = np.array(g["recent"]["hydro"], float)
+    tot = np.array(g["recent"]["total"], float)
+    env = np.array(g["env_doy"]["hydro"], float)            # (365,5) GWh/d
+
+    t0 = when - timedelta(days=120)
+    t1 = when + timedelta(days=18)
+    axis = [t0 + timedelta(days=k) for k in range((t1 - t0).days + 1)]
+    doyx = np.array([min(d.timetuple().tm_yday, 365) for d in axis]) - 1
+
+    fig = plt.figure(figsize=(11.69, 8.27))
+    header(fig, when,
+           "National hydro generation outlook · persistence + rain/storage "
+           "state model driven by the same ensemble",
+           "GW (avg power) · page 9")
+    ax = fig.add_axes([0.055, 0.10, 0.62, 0.775])
+    ax.fill_between(axis, env[doyx, 0] / 24, env[doyx, 4] / 24,
+                    color="#9db8d8", alpha=0.30, lw=0,
+                    label="p10–p90, 2000–2026")
+    ax.fill_between(axis, env[doyx, 1] / 24, env[doyx, 3] / 24,
+                    color="#5b87c0", alpha=0.30, lw=0, label="p25–p75")
+    ax.plot(axis, env[doyx, 2] / 24, color="#1f4e8c", lw=1.4,
+            label="median (full record)")
+    m = [i for i, d in enumerate(gdates) if d >= t0]
+    ax.plot([gdates[i] for i in m], hyd[m] / 24, color="#c62828", lw=1.5,
+            label="observed hydro generation")
+    if fan is not None:
+        fd = [datetime.strptime(x, "%Y-%m-%d") for x in fan["dates"]]
+        q = fan["generation"]
+        ax.fill_between(fd, np.array(q["p10"]) / 24, np.array(q["p90"]) / 24,
+                        color="#e08214", alpha=0.22, lw=0)
+        ax.fill_between(fd, np.array(q["p25"]) / 24, np.array(q["p75"]) / 24,
+                        color="#e08214", alpha=0.35, lw=0)
+        ax.plot(fd, np.array(q["p50"]) / 24, color="#b35806", lw=1.8, ls="--",
+                label="15-day forecast (weekly dispatch cycle resolved)")
+    ax.axvline(when, color="0.55", lw=0.7, ls=":")
+    ax.set_xlim(t0, t1)
+    ax.set_title("National hydro generation — last 120 days, forecast fan, "
+                 "and the 26-year day-of-year envelope",
+                 fontsize=11, fontweight="bold", loc="left", color=INK)
+    ax.set_ylabel("GW (average power)", fontsize=9)
+    ax.grid(lw=0.25, alpha=0.5)
+    ax.tick_params(labelsize=8)
+    ax.xaxis.set_major_locator(mdates.MonthLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
+    ax.legend(fontsize=7.4, loc="lower left", framealpha=0.9)
+
+    # sidebar stat cards
+    n30 = min(30, len(hyd))
+    share = 100 * np.nansum(hyd[-n30:]) / np.nansum(tot[-n30:])
+    natst = st["regions"]["NATIONAL"]
+    cards = [
+        ("HYDRO, 30-DAY MEAN", f"{np.nanmean(hyd[-n30:])/24:.2f} GW",
+         f"{share:.0f}% of total generation"),
+        ("RESERVOIRS", f"{natst['pct_full']:.1f}% full",
+         f"useful storage {natst['vol_kwh']/1e9:.1f} of "
+         f"{natst['cap_kwh']/1e9:.1f} TWh"),
+        ("ENSO", f"Niño-3.4  {gm['nino_now']:+.1f} °C",
+         "El Niño conditions" if gm["nino_now"] > 0.5 else
+         "La Niña conditions" if gm["nino_now"] < -0.5 else "neutral"),
+        ("MODEL SKILL", f"r = {gm['r_loyo']:.2f}",
+         "state model, 23-yr out-of-sample"),
+    ]
+    for i, (t_, big, sub) in enumerate(cards):
+        y0 = 0.705 - i * 0.155
+        cx = fig.add_axes([0.705, y0, 0.26, 0.135])
+        cx.set_axis_off()
+        cx.add_patch(plt.Rectangle((0, 0), 1, 1, transform=cx.transAxes,
+                                   facecolor="#f2f5f8", edgecolor="#d5dde4",
+                                   lw=0.8))
+        cx.text(0.07, 0.76, t_, transform=cx.transAxes, fontsize=7.2,
+                color=MUTE, fontweight="bold")
+        cx.text(0.07, 0.40, big, transform=cx.transAxes, fontsize=15.5,
+                color=INK, fontweight="bold")
+        cx.text(0.07, 0.13, sub, transform=cx.transAxes, fontsize=7.6,
+                color=MUTE)
+    fig.text(0.705, 0.115,
+             "Forecast = fitted persistence (dispatch is storage-buffered)\n"
+             "blended with the inflow/storage/ENSO state model, driven\n"
+             "member-by-member by the same AIFS+IFS rain ensemble as\n"
+             "the basin pages. Bands widen by the blend's measured\n"
+             "residual uncertainty at each lead.",
+             fontsize=7.6, color=MUTE, va="top")
+    footer(fig)
+    pdf.savefig(fig, dpi=200)
+    plt.close(fig)
+    print("  page 9: national generation outlook", flush=True)
+
+
 def main() -> int:
     when = datetime.now(timezone.utc).replace(tzinfo=None)
     OUT_PDF.parent.mkdir(parents=True, exist_ok=True)
     ARCHIVE.mkdir(parents=True, exist_ok=True)
     with PdfPages(OUT_PDF) as pdf:
         through = rain_pages(pdf, when)
+        rain_fan_page(pdf, when)
+        inflow_page(pdf, when)
+        generation_page(pdf, when)
         d = pdf.infodict()
         d["Title"] = f"Colombia Hydro Daily Briefing — {when:%Y-%m-%d}"
         d["Author"] = "scorvec.com"

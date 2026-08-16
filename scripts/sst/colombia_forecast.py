@@ -393,12 +393,14 @@ def stage_fan(dates, rain, rclim, verif) -> None:
     doys = np.array([min(d.item().timetuple().tm_yday, 365) for d in fdays])
 
     # pooled members: anomaly traces on the fdays axis (NaN -> 0 = climatology)
-    members, mwts, inits = [], [], {}
+    members, mwts, inits, mvalid = [], [], {}, []
     for mdl, rec in latest.items():
         inits[mdl] = f"{rec['init_date']} {rec['init_hh']}Z"
         vmap = {np.datetime64(v): i for i, v in enumerate(rec["valid"])}
         n = rec["n_members"]
+        valid = np.array([vmap.get(d) is not None for d in fdays])
         for mi in range(n):
+            mvalid.append(valid)
             tr = {}
             for r in ORDER:
                 x = np.zeros(len(fdays))
@@ -490,6 +492,23 @@ def stage_fan(dates, rain, rclim, verif) -> None:
                 [weighted_quantile(traces[:, j], mwts, [q])[0]
                  for j in range(len(fdays))], 1).tolist() for q in qs}}
     out["dates"] = [str(d) for d in fdays]
+    # bias-corrected basin rain fan (mm/day), masking days beyond a model's
+    # first full bucket / horizon so zeros never pollute the quantiles
+    mv = np.array(mvalid)
+    out["rain"] = {}
+    for r in ORDER:
+        arr = np.array([m[r] for m in members])
+        qd = {f"p{int(q*100)}": [] for q in qs}
+        for j in range(len(fdays)):
+            ok = mv[:, j]
+            if ok.sum() >= 10:
+                for q in qs:
+                    qd[f"p{int(q*100)}"].append(round(float(
+                        weighted_quantile(arr[ok, j], mwts[ok], [q])[0]), 2))
+            else:
+                for q in qs:
+                    qd[f"p{int(q*100)}"].append(None)
+        out["rain"][r] = qd
 
     # ── storage fan: S' = S + inflow(member) - outflow_fcst, % of capacity ──
     if STORAGE_JSON.exists() and INFLOW_CLIM.exists():
