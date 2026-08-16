@@ -75,8 +75,12 @@ NMODELS=$(printf '%s\n' "$OUT" | sed -nE 's/.*\(([0-9]+) models\)/\1/p' | tail -
 # PRIVATE strat gate product — writes only to gitignored paths
 "$PY" scripts/strat/sfs_gate100.py || echo "SFS gate failed; continuing"
 
+# cache-bust the static SFS images (loops self-bust via manifest ver)
+CB=$(date -u +%Y%m%d%H%M)
+perl -0pi -e "s/(mjo_rmm\.webp)\?v=\w+/\${1}?v=$CB/g" sfs.html 2>/dev/null || true
+
 git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json \
-        assets/sst/data/c3s_evolution.json assets/sfs scripts/sfs/data
+        assets/sst/data/c3s_evolution.json assets/sfs scripts/sfs/data sfs.html
 if git diff --staged --quiet; then
   echo "no changes to commit"
   [ "${NMODELS:-0}" -ge 7 ] 2>/dev/null && touch "$DONE_STAMP"
@@ -85,7 +89,7 @@ fi
 source "$REPO/scripts/lib/gitlock.sh"
 trap 'git_unlock; rm -rf "$LOCK" 2>/dev/null' EXIT
 git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
-git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
+git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
     commit -m "C3S multi-model Niño-3.4 (ONI+RONI): ${ISSUE_GUESS} refresh (${NMODELS:-?} models, local)"
 for i in 1 2 3 4 5; do
   if git pull --rebase --autostash -X theirs && git push; then
