@@ -86,6 +86,17 @@ def imerg_stack(days: list[datetime]):
 def main() -> int:
     end = (datetime.now(timezone.utc) - timedelta(days=1)).replace(tzinfo=None)
     days = [end - timedelta(days=k) for k in range(30)][::-1]      # oldest first
+
+    # crop FIRST (basin bbox + padding, squared) — the IMERG field subset
+    # below uses these bounds, so they must be final before imerg_stack
+    rp = region_paths()
+    global LON0, LON1, LAT0, LAT1
+    xs = np.concatenate([r[:, 0] % 360 for reg_, rr in rp.items() if reg_ in ORDER for r in rr])
+    ys = np.concatenate([r[:, 1] for reg_, rr in rp.items() if reg_ in ORDER for r in rr])
+    LAT0, LAT1 = ys.min() - 0.5, ys.max() + 0.5
+    lon_pad = max(0.6, ((LAT1 - LAT0) - (xs.max() - xs.min())) / 2)
+    LON0, LON1 = xs.min() - lon_pad, xs.max() + lon_pad
+
     IP.ensure_daily(set(days))
     fields, lons, lats = imerg_stack(days)
     have = [i for i, f in enumerate(fields) if f is not None]
@@ -124,13 +135,6 @@ def main() -> int:
     wk_g, wk = paired_sum(wk_days)
     mo_g, mo = paired_sum(mo_days)
 
-    rp = region_paths()
-    # tight crop: basin bbox + padding
-    global LON0, LON1, LAT0, LAT1
-    xs = np.concatenate([r[:, 0] % 360 for reg_, rr in rp.items() if reg_ in ORDER for r in rr])
-    ys = np.concatenate([r[:, 1] for reg_, rr in rp.items() if reg_ in ORDER for r in rr])
-    LON0, LON1 = xs.min() - 0.6, xs.max() + 0.6
-    LAT0, LAT1 = ys.min() - 0.5, ys.max() + 0.5
     paths = {r: [MplPath(np.column_stack([(ring[:, 0] % 360), ring[:, 1]]))
                  for ring in rings] for r, rings in rp.items() if r in ORDER}
 
@@ -158,9 +162,17 @@ def main() -> int:
         for r, rings in rp.items():
             if r not in ORDER:
                 continue
+            col = RCOL.get(r, "#222222")
+            big = max(rings, key=len)
             for ring in rings:
-                ax.plot(ring[:, 0] % 360, ring[:, 1], color="#222222", lw=1.0,
+                ax.plot(ring[:, 0] % 360, ring[:, 1], color=col, lw=1.7,
                         transform=ccrs.PlateCarree(), zorder=4)
+            cx, cy = (big[:, 0] % 360).mean(), big[:, 1].mean()
+            ax.annotate(r, (cx - 360, cy), ha="center", fontsize=10.5,
+                        fontweight="bold", color=col, zorder=7,
+                        xycoords=ax.transData,
+                        path_effects=[pe.withStroke(linewidth=2.6,
+                                                    foreground="white")])
         n_in = 0
         if gg:
             for g in gg.values():
@@ -180,7 +192,7 @@ def main() -> int:
         ax.set_title(f"{title} · {n_in} gauges (values in mm)",
                      fontsize=12, fontweight="bold", loc="left")
         gl = ax.gridlines(draw_labels=True, lw=0.25, color="0.7", alpha=0.6,
-                          xlocs=[-78, -77, -76, -75, -74, -73], ylocs=[2, 3, 4, 5, 6, 7, 8])
+                          xlocs=[-79, -78, -77, -76, -75, -74, -73, -72], ylocs=[2, 3, 4, 5, 6, 7, 8])
         gl.top_labels = gl.right_labels = False
         gl.xlabel_style = {"size": 9}; gl.ylabel_style = {"size": 9}
         cb = fig.colorbar(pm, ax=ax, orientation="horizontal", fraction=0.035,
