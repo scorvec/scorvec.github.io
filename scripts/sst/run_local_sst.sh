@@ -76,6 +76,8 @@ perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/imerg_precip_anom.py ||
 perl -e 'alarm shift; exec @ARGV' 3600 "$PY" scripts/sst/imerg_gatun.py || echo "IMERG Gatun tracker failed; continuing"   # Lake Gatun zoom + rain-vs-level chart
 "$PY" scripts/gatun/fetch_data.py || echo "Gatun dashboard data failed; continuing"   # gatun/data.js: ACP levels/projection + ONI
 "$PY" scripts/sst/hydro_region_rain.py || echo "XM region rainfall failed; continuing"   # basin rain over XM hydro regions
+"$PY" scripts/sst/xm_inflow_history.py || echo "XM inflow norms failed; continuing"   # inflow history + seasonal norms
+"$PY" scripts/sst/colombia_rain_map.py || echo "Colombia rain map failed; continuing"   # IMERG vs IDEAM gauges
 ( cd scripts/sst && "$PY" eq_current_section.py ) || echo "eq current section failed; continuing"
 ( cd scripts/sst && "$PY" eq_current_hovmoller.py ) || echo "eq current hovmoller failed; continuing"
 ( cd scripts/sst && "$PY" eq_uwind_hovmoller.py ) || echo "eq uwind hovmoller failed; continuing"
@@ -104,7 +106,7 @@ if [ "$TODAY_UTC" != "$LAST_ANALOG" ] || { [ -n "$NEW_DAY" ] && [ "$NEW_DAY" != 
   [ "$ok" = 1 ] && echo "$TODAY_UTC" > "$ANALOG_STAMP"     # stamp only on full success → retry next poll otherwise
 fi
 
-git add sst.html enso-*.html assets/sst/ gatun/data.js
+git add sst.html enso-*.html assets/sst/ gatun/data.js colombia_hydro
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
 DAY=$("$PY" -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])" 2>/dev/null)
 source "$REPO/scripts/lib/gitlock.sh"
