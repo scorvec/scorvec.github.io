@@ -62,6 +62,10 @@ WIN = 10                        # +/- days pooled per day-of-year
 ALIASES = {"MAGDALENA BETANIA": "CENTRO", "NARE": "ANTIOQUIA",
            "PORCE II": "ANTIOQUIA", "FLORIDA II": "VALLE"}
 EXCLUDE = {"OTROS RIOS (ESTIMADOS)"}
+# Renames: successor series continue the SAME river (seams verified exact) —
+# merged into one series for per-river climatologies
+SUCCESSOR = {"MAGDALENA BETANIA": "BETANIA CP", "NARE": "NARE CP",
+             "PORCE II": "PORCE2 CP"}
 
 
 def river_region() -> dict[str, str]:
@@ -137,90 +141,141 @@ def main() -> int:
     save_cache(data)
     print(f"cache: {len(data)} days ({min(data)}..{max(data)})", flush=True)
 
-    # ── aggregate to regions (GWh/day) ──────────────────────────────────────
+    # ── per-river series (successors merged), regions, current fleet ──────
+    # The 2000-2026 as-metered regional totals double as the fleet grows
+    # (18 -> 41 rivers; Ituango alone is ~1/3 of Antioquia today), so norms
+    # built on raw totals read recent years "wet" for free. Fix: each
+    # river gets a day-of-year climatology over ITS OWN record, the
+    # regional norm is the SUM over the CURRENT fleet, and the envelope
+    # comes from the fleet-normalized ratio r(t) = sum(obs, reporting
+    # subset) / sum(norms, same subset) — numerator and denominator always
+    # share the same rivers, so partial fleets can't bias it.
     r2r = river_region()
     days = sorted(data)
     dates = np.array(days, dtype="datetime64[D]")
-    reg = {r: np.zeros(len(days)) for r in ORDER}
-    unmatched = set()
+    nd = len(days)
+    doy = np.minimum(np.array([(datetime.strptime(d, "%Y-%m-%d").timetuple().tm_yday)
+                               for d in days]), 365)
+
+    canon = {old: new for old, new in SUCCESSOR.items()}
+    riv_series: dict[str, np.ndarray] = {}
     for i, d in enumerate(days):
         for riv, kwh in data[d].items():
             if riv in EXCLUDE:
                 continue
-            r = r2r.get(riv)
-            if r is None:
-                unmatched.add(riv)
-                continue
-            reg[r][i] += kwh / 1e6
+            name = canon.get(riv, riv)
+            if name not in riv_series:
+                riv_series[name] = np.full(nd, np.nan)
+            v = riv_series[name][i]
+            riv_series[name][i] = (0.0 if np.isnan(v) else v) + kwh / 1e6
+    unmatched = sorted(r for r in riv_series if r2r.get(r) is None)
     if unmatched:
-        print(f"note: {len(unmatched)} river names not in ListadoRios "
-              f"(unmetered/aliases): {sorted(unmatched)[:6]} …", flush=True)
+        print(f"note: unmapped rivers dropped from norms: {unmatched}", flush=True)
+        for r in unmatched:
+            riv_series.pop(r)
 
-    doy = np.array([(datetime.strptime(d, "%Y-%m-%d").timetuple().tm_yday)
-                    for d in days])
-    doy = np.minimum(doy, 365)
+    recent = dates > dates[-1] - np.timedelta64(30, "D")
+    fleet = {r for r, v in riv_series.items() if np.nansum(v[recent]) > 0}
+    print(f"current fleet: {len(fleet)} rivers "
+          f"({len(riv_series)} with history)", flush=True)
 
+    # per-river doy mean (±WIN window over its own record)
+    riv_mu = {}
+    for r, v in riv_series.items():
+        ok = np.isfinite(v) & (v >= 0)
+        mu = np.full(365, np.nan)
+        for dd in range(1, 366):
+            dist = np.minimum(np.abs(doy - dd), 365 - np.abs(doy - dd))
+            m = ok & (dist <= WIN)
+            if m.sum() >= 30:
+                mu[dd - 1] = v[m].mean()
+        riv_mu[r] = mu
+
+    by_region = {reg: [r for r in riv_series if r2r.get(r) == reg] for reg in ORDER}
+    reg = {}          # as-metered observed regional series (current-fleet rivers)
+    norm_reg = {}     # fleet-corrected regional norm by doy (current fleet)
+    ratio = {}        # fleet-normalized % of norm series
+    nums, dens = {}, {}   # matched numerator/denominator (same reporting subset)
+    for r_ in ORDER:
+        cur = [x for x in by_region[r_] if x in fleet]
+        obs = np.nansum([riv_series[x] for x in cur], axis=0)
+        reg[r_] = obs
+        norm_reg[r_] = np.nansum([riv_mu[x] for x in cur], axis=0)
+        num = np.zeros(nd); den = np.zeros(nd)
+        for x in cur:
+            v = riv_series[x]
+            m = np.isfinite(v)
+            mu_at = riv_mu[x][doy - 1]
+            use = m & np.isfinite(mu_at)
+            num[use] += v[use]
+            den[use] += mu_at[use]
+        with np.errstate(invalid="ignore"):
+            ratio[r_] = np.where(den > 0, num / den, np.nan)
+        nums[r_], dens[r_] = num, den
+
+    # regional envelope: norm × doy-windowed percentiles of the ratio
     clim = {}
-    for r in ORDER:
-        v = reg[r]
-        mu = np.zeros(365)
+    for r_ in ORDER:
+        rt = ratio[r_]
         pct = np.zeros((365, len(PCTS)))
         for dd in range(1, 366):
             dist = np.minimum(np.abs(doy - dd), 365 - np.abs(doy - dd))
-            m = (dist <= WIN) & (v > 0)
-            mu[dd - 1] = v[m].mean() if m.any() else np.nan
-            pct[dd - 1] = np.percentile(v[m], PCTS) if m.sum() > 20 else np.nan
-        clim[r] = {"mean": mu, "pct": pct}
+            m = (dist <= WIN) & np.isfinite(rt)
+            pct[dd - 1] = (np.percentile(rt[m], PCTS) if m.sum() > 20 else np.nan)
+        clim[r_] = {"mean": norm_reg[r_],
+                    "pct": pct * norm_reg[r_][:, None]}
 
-    # ── figure: norms + running means ───────────────────────────────────────
+    # national fleet-normalized % of norm — matched subsets on BOTH sides:
+    # each day divides the reporting rivers' inflow by the SAME rivers' norms
+    # (dividing by the full-fleet norm made early low-fleet years read ~50%
+    # spuriously; manual check 2003-06-15 = 1.11 with matched subsets)
+    nat_num = np.sum([nums[r_] for r_ in ORDER], axis=0)
+    nat_den = np.sum([dens[r_] for r_ in ORDER], axis=0)
+    with np.errstate(invalid="ignore"):
+        nat_ratio = np.where(nat_den > 0, nat_num / nat_den, np.nan)
+
+    # ── figure: norms + % of normal running means ───────────────────────────
     fig, axes = plt.subplots(4, 2, figsize=(13.5, 13.5))
     x365 = np.arange(1, 366)
-    this_year = dates >= (dates[-1] - np.timedelta64(365, "D"))
-    for ax, r in zip(axes.flat[:6], ORDER):
-        c = clim[r]
+    for ax, r_ in zip(axes.flat[:6], ORDER):
+        c = clim[r_]
         ax.fill_between(x365, c["pct"][:, 0], c["pct"][:, 4], color="#9db8d8",
                         alpha=0.35, label="p10–p90")
         ax.fill_between(x365, c["pct"][:, 1], c["pct"][:, 3], color="#5b87c0",
                         alpha=0.35, label="p25–p75")
         ax.plot(x365, c["pct"][:, 2], color="#1f4e8c", lw=1.4, label="median")
-        recent = dates > dates[-1] - np.timedelta64(200, "D")
+        rec = dates > dates[-1] - np.timedelta64(200, "D")
         dd = np.minimum(np.array([(datetime.strptime(str(x), "%Y-%m-%d")
-                                   .timetuple().tm_yday) for x in dates[recent]]), 365)
-        ax.plot(dd, reg[r][recent], color="#c62828", lw=1.3,
-                label="last 200 days")
-        ax.set_title(r, fontsize=10, fontweight="bold", loc="left")
+                                   .timetuple().tm_yday) for x in dates[rec]]), 365)
+        ax.plot(dd, reg[r_][rec], color="#c62828", lw=1.3, label="last 200 days")
+        ax.set_title(f"{r_} — current fleet, fleet-corrected norms",
+                     fontsize=10, fontweight="bold", loc="left")
         ax.set_xlim(1, 365)
         ax.set_xticks([1, 91, 182, 274, 365])
         ax.set_xticklabels(["Jan", "Apr", "Jul", "Oct", "Jan"], fontsize=8)
         ax.tick_params(labelsize=8)
         ax.grid(lw=0.25, alpha=0.5)
-        if r == ORDER[0]:
+        if r_ == ORDER[0]:
             ax.legend(fontsize=7, loc="upper left")
         ax.set_ylabel("GWh/day", fontsize=8)
 
-    # bottom row: 90-day and 365-day running means of the NATIONAL total
-    total = sum(reg[r] for r in ORDER)
     t = dates.astype("datetime64[s]").astype(datetime)
-    for ax, (win, lab) in zip(axes.flat[6:], [(90, "90-day (seasonal) mean"),
-                                              (365, "365-day (annual) mean")]):
+    for ax, (win, lab) in zip(axes.flat[6:], [(90, "90-day"), (365, "365-day")]):
         k = np.ones(win) / win
-        rm = np.convolve(total, k, mode="valid")
+        rr = nat_ratio.copy()
+        rr[~np.isfinite(rr)] = 1.0
+        rm = np.convolve(100 * rr, k, mode="valid")
         ax.plot(t[win - 1:], rm, color="#1f4e8c", lw=1.2)
-        # climatological norm run through the SAME window: the daily norm
-        # oscillates seasonally; its 365-day mean is nearly flat
-        daily_norm = np.array([sum(clim[r]["mean"][min(d, 365) - 1] for r in ORDER)
-                               for d in doy])
-        norm_rm = np.convolve(daily_norm, k, mode="valid")
-        ax.plot(t[win - 1:], norm_rm, color="0.5", lw=0.9, ls="--", label="norm")
-        ax.set_title(f"All regions — {lab}", fontsize=10, fontweight="bold", loc="left")
+        ax.axhline(100, color="0.45", lw=0.9, ls="--")
+        ax.set_title(f"National inflow, % of norm — {lab} mean",
+                     fontsize=10, fontweight="bold", loc="left")
+        ax.set_ylabel("% of normal", fontsize=8)
         ax.tick_params(labelsize=8)
         ax.grid(lw=0.25, alpha=0.5)
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
-        ax.set_ylabel("GWh/day", fontsize=8)
-        ax.legend(fontsize=7)
-    fig.suptitle("XM hydro inflows vs seasonal norms — full-record climatology "
-                 f"({min(data)[:4]}–{max(data)[:4]}, ±{WIN}-day windows)",
-                 fontsize=12.5, fontweight="bold", y=0.995)
+    fig.suptitle("XM hydro inflows vs seasonal norms — per-river climatologies "
+                 f"aggregated to TODAY'S fleet ({min(data)[:4]}–{max(data)[:4]} record, "
+                 f"±{WIN}-day windows)", fontsize=12.5, fontweight="bold", y=0.995)
     fig.tight_layout(rect=(0, 0, 1, 0.975))
     OUT_PNG.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT_PNG, dpi=115)
@@ -233,11 +288,16 @@ def main() -> int:
     OUT_JSON.write_text(json.dumps({
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "base_period": f"{min(data)[:4]}-{max(data)[:4]}",
+        "method": "per-river doy climatologies over each river's own record "
+                  "(successor names merged), aggregated to the current fleet; "
+                  "envelope from fleet-normalized ratio percentiles",
         "pcts": PCTS,
-        "clim": {r: {"mean": np.round(clim[r]["mean"], 2).tolist(),
-                     "pct": np.round(clim[r]["pct"], 2).tolist()} for r in ORDER},
+        "clim": {r: {"mean": np.round(np.nan_to_num(clim[r]["mean"]), 2).tolist(),
+                     "pct": np.round(np.nan_to_num(clim[r]["pct"]), 2).tolist()} for r in ORDER},
         "recent": {"dates": [str(x) for x in dates[keep]],
-                   **{r: np.round(reg[r][keep], 2).tolist() for r in ORDER}},
+                   **{r: np.round(np.nan_to_num(reg[r][keep]), 2).tolist() for r in ORDER},
+                   "pct_of_norm": {r: np.round(np.nan_to_num(100 * ratio[r][keep]), 1).tolist()
+                                   for r in ORDER}},
     }, separators=(",", ":")))
     print(f"wrote {OUT_JSON.relative_to(REPO)}")
     return 0
