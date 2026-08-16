@@ -145,7 +145,14 @@ applied to rain and climatology alike), and a <b>slow soil-moisture kernel</b> &
 RONI term as a third regressor. Antecedent wetness the fast kernel forgets is exactly
 what it adds: Oriente and Centro, the big slow basins, gain the most (r +0.02); elsewhere
 it is correctly near-zero rather than harmful. The RONI term remains the model's
-evapotranspiration channel.</p>
+evapotranspiration channel. <b>Model v3</b> (purple dash-dot) adds yesterday's
+<b>reservoir storage anomaly</b> (% full vs its seasonal norm) as a measured basin-state
+regressor &mdash; part groundwater proxy, part cascade plumbing (upstream releases are
+downstream inflows at Betania and on the Cauca). It is the largest single upgrade where
+regulation is strongest: Valle r 0.53&rarr;0.74, Centro 0.53&rarr;0.65. In the forecast
+the anomaly is held at its latest observed value (it decorrelates over months), and the
+fan is anchored to the current observed inflow with the residual decaying over ~10 days
+&mdash; the fan starts at reality and relaxes to the model.</p>
 <div class="panel"><img src="rain_inflow_model.webp?v=202608167"
   alt="Per-basin rain to inflow model v2: gauge-corrected kernel rainfall anomaly plus slow soil-moisture kernel vs inflow percent of norm"></div>
 
@@ -239,6 +246,18 @@ weights update themselves twice a day &mdash; the blend starts 50/50 and earns i
 tilt as the forecast archive grows.</p>
 <div class="panel"><img src="inflow_norms.webp?v=202608166"
   alt="XM regional hydro inflows vs day-of-year seasonal norms with 15-day ensemble forecast fan, 2000-2026"></div>
+
+<h2>How good are the rain forecasts? — the live scorecard</h2>
+<p class="note">Every 00/12Z cycle's <b>day-1 basin rainfall</b> (ensemble mean of the
+first full 24&nbsp;h) is scored against <b>gauge-corrected IMERG</b> as soon as the
+satellite day matures, and accumulates here permanently &mdash; black is what fell, blue
+diamonds AIFS-ENS, red diamonds IFS-ENS, with running MAE and bias ratio per basin in
+each legend. This is the record that drives the blend: the per-basin, per-lead bias
+factors and model weights update from it twice a day. The IFS starts from an informed
+prior of <b>&times;0.75</b> (its tropical wet bias is well documented); the prior is
+deliberately light, so a week of verified days overrides it with the measured number.</p>
+<div class="panel"><img src="rain_verif.webp?v=202608167"
+  alt="Day-1 basin rainfall forecasts vs gauge-corrected IMERG, accumulating scorecard"></div>
 
 <h2>Reservoir storage — the number the market actually watches</h2>
 <p class="note">Inflows are the flow; <b>storage is the state</b>. XM publishes every

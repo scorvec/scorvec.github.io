@@ -1,7 +1,7 @@
 {
- "generated": "2026-08-16 17:14 UTC",
+ "generated": "2026-08-16 17:25 UTC",
  "window": "2024-07-22..2026-08-15",
- "note": "RAIN IS GAUGE-CORRECTED IMERG (x F field) as of v2. v2 model: y = intercept3 + gain3*EMA_tau + enso3*RONI + slow3*EMA_90, all kernels lagged; y is fleet-corrected inflow %% of norm, 5-day trailing mean. NWP forecasts must be verified/bias-mapped against CORRECTED IMERG.",
+ "note": "RAIN IS GAUGE-CORRECTED IMERG (x F field). v3 model: y = intercept4 + gain4*EMA_tau + enso4*RONI + slow4*EMA_90 + stor4*S_anom(-1d); S_anom = regional storage %%-full anomaly vs doy norm, held at latest observed value in the fan (decorrelates over months). y is fleet-corrected inflow %% of norm, 5-day trailing mean. NWP forecasts must be verified/bias-mapped against CORRECTED IMERG.",
  "rain_space": "gauge_corrected",
  "params": {
   "ANTIOQUIA": {
@@ -21,6 +21,12 @@
    "gain3_pct_per_mmday": 11.63,
    "enso3_coef_pct_per_roni": 1.4,
    "slow3_pct_per_mmday": -1.13,
+   "r_v3": 0.652,
+   "intercept4_pct": 92.1,
+   "gain4_pct_per_mmday": 13.99,
+   "enso4_coef_pct_per_roni": -5.4,
+   "slow4_pct_per_mmday": -12.49,
+   "stor4_pct_per_pt": 0.87,
    "n": 755
   },
   "CALDAS": {
@@ -40,6 +46,12 @@
    "gain3_pct_per_mmday": 9.95,
    "enso3_coef_pct_per_roni": 0.1,
    "slow3_pct_per_mmday": 3.07,
+   "r_v3": 0.691,
+   "intercept4_pct": 86.5,
+   "gain4_pct_per_mmday": 11.24,
+   "enso4_coef_pct_per_roni": -2.4,
+   "slow4_pct_per_mmday": 0.3,
+   "stor4_pct_per_pt": 0.45,
    "n": 755
   },
   "CARIBE": {
@@ -59,6 +71,12 @@
    "gain3_pct_per_mmday": 43.11,
    "enso3_coef_pct_per_roni": 29.2,
    "slow3_pct_per_mmday": -8.24,
+   "r_v3": 0.62,
+   "intercept4_pct": 93.1,
+   "gain4_pct_per_mmday": 68.02,
+   "enso4_coef_pct_per_roni": 37.8,
+   "slow4_pct_per_mmday": -53.29,
+   "stor4_pct_per_pt": 3.01,
    "n": 755
   },
   "CENTRO": {
@@ -78,6 +96,12 @@
    "gain3_pct_per_mmday": 11.53,
    "enso3_coef_pct_per_roni": -2.3,
    "slow3_pct_per_mmday": 11.41,
+   "r_v3": 0.651,
+   "intercept4_pct": 77.3,
+   "gain4_pct_per_mmday": 12.14,
+   "enso4_coef_pct_per_roni": -7.9,
+   "slow4_pct_per_mmday": -0.5,
+   "stor4_pct_per_pt": 2.65,
    "n": 753
   },
   "ORIENTE": {
@@ -97,6 +121,12 @@
    "gain3_pct_per_mmday": 16.68,
    "enso3_coef_pct_per_roni": -0.5,
    "slow3_pct_per_mmday": 26.11,
+   "r_v3": 0.548,
+   "intercept4_pct": 88.6,
+   "gain4_pct_per_mmday": 18.36,
+   "enso4_coef_pct_per_roni": -1.6,
+   "slow4_pct_per_mmday": 16.46,
+   "stor4_pct_per_pt": 0.27,
    "n": 755
   },
   "VALLE": {
@@ -116,6 +146,12 @@
    "gain3_pct_per_mmday": 14.71,
    "enso3_coef_pct_per_roni": -3.3,
    "slow3_pct_per_mmday": 2.98,
+   "r_v3": 0.742,
+   "intercept4_pct": 147.0,
+   "gain4_pct_per_mmday": 45.23,
+   "enso4_coef_pct_per_roni": -22.9,
+   "slow4_pct_per_mmday": -55.58,
+   "stor4_pct_per_pt": 3.64,
    "n": 755
   }
  }

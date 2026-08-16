@@ -35,6 +35,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import imerg_precip as IP                        # noqa: E402
 from hydro_region_rain import region_weights, gauge_correction  # noqa: E402
+from xm_storage import pct_anomaly_series        # noqa: E402
 from build_imerg_clim import OUT as CLIM_NC, eval_clim  # noqa: E402
 
 REPO = HERE.parent.parent
@@ -102,6 +103,16 @@ def main() -> int:
     common, ri, ii = np.intersect1d(rdates, idates, return_indices=True)
     print(f"overlap: {common[0]}..{common[-1]} ({len(common)} days)", flush=True)
 
+    # storage %-full anomaly, lagged 1 day (yesterday's measured basin state:
+    # a groundwater proxy plus cascade plumbing — see METHODOLOGY 2026-08-16)
+    sdates, sanom = pct_anomaly_series()
+    stor = {r: np.full(len(common), np.nan) for r in ORDER}
+    _, c2, s2 = np.intersect1d(common, sdates, return_indices=True)
+    for r in ORDER:
+        stor[r][c2] = sanom[r][s2]
+        stor[r] = np.roll(stor[r], 1)
+        stor[r][0] = np.nan
+
     # daily RONI on the common axis (the ET / antecedent-dryness channel:
     # El Nino = hotter, sunnier, drier soils -> less runoff per mm of rain)
     ed = json.loads(ENSO_JSON.read_text())["daily"]
@@ -159,6 +170,15 @@ def main() -> int:
         beta3, *_ = np.linalg.lstsq(X3, y[m3], rcond=None)
         fit3 = beta3[0] + beta3[1] * xl + beta3[2] * roni + beta3[3] * ksl
         r3 = float(np.corrcoef(fit3[m3], y[m3])[0, 1])
+        # v3: + yesterday's storage anomaly (% full vs doy norm). Positive
+        # coefficient everywhere = wet-basin persistence + upstream releases.
+        sa = stor[r]
+        m4 = m3 & np.isfinite(sa)
+        X4 = np.column_stack([np.ones(m4.sum()), xl[m4], roni[m4], ksl[m4], sa[m4]])
+        beta4, *_ = np.linalg.lstsq(X4, y[m4], rcond=None)
+        fit4 = (beta4[0] + beta4[1] * xl + beta4[2] * roni + beta4[3] * ksl
+                + beta4[4] * sa)
+        r4 = float(np.corrcoef(fit4[m4], y[m4])[0, 1])
         params[r] = {"tau_days": tau, "lag_days": lag, "r": round(rr, 3),
                      "r_same_day": round(r_daily, 3),
                      "gain_pct_per_mmday": round(float(b), 2),
@@ -173,6 +193,12 @@ def main() -> int:
                      "gain3_pct_per_mmday": round(float(beta3[1]), 2),
                      "enso3_coef_pct_per_roni": round(float(beta3[2]), 1),
                      "slow3_pct_per_mmday": round(float(beta3[3]), 2),
+                     "r_v3": round(r4, 3),
+                     "intercept4_pct": round(float(beta4[0]), 1),
+                     "gain4_pct_per_mmday": round(float(beta4[1]), 2),
+                     "enso4_coef_pct_per_roni": round(float(beta4[2]), 1),
+                     "slow4_pct_per_mmday": round(float(beta4[3]), 2),
+                     "stor4_pct_per_pt": round(float(beta4[4]), 2),
                      "n": int(m.sum())}
         ax.plot(t, y, color="#1f4e8c", lw=1.3, label="inflow, % of norm (5-d mean)")
         ax.plot(t, fit, color="#c62828", lw=1.2, alpha=0.9,
@@ -181,9 +207,11 @@ def main() -> int:
                 label=f"rain + ENSO term (r={r2:.2f})")
         ax.plot(t, fit3, color="#2e7d32", lw=1.0, alpha=0.85, ls=":",
                 label=f"+ slow soil kernel (r={r3:.2f})")
+        ax.plot(t, fit4, color="#7b1fa2", lw=1.0, alpha=0.85, ls="-.",
+                label=f"+ storage state (r={r4:.2f})")
         ax.axhline(100, color="0.6", lw=0.7, ls="--")
         ax.set_title(f"{r} — r: {r_daily:.2f} same-day → {rr:.2f} kernel → {r2:.2f} +ENSO "
-                     f"→ {r3:.2f} +slow (c={beta[2]:+.0f}%/RONI)",
+                     f"→ {r3:.2f} +slow → {r4:.2f} +storage",
                      fontsize=10.5, fontweight="bold", loc="left")
         ax.tick_params(labelsize=8)
         ax.grid(lw=0.25, alpha=0.5)
@@ -205,9 +233,11 @@ def main() -> int:
     OUT_JSON.write_text(json.dumps({
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "window": f"{common[0]}..{common[-1]}",
-        "note": ("RAIN IS GAUGE-CORRECTED IMERG (x F field) as of v2. "
-                 "v2 model: y = intercept3 + gain3*EMA_tau + enso3*RONI + "
-                 "slow3*EMA_90, all kernels lagged; y is fleet-corrected "
+        "note": ("RAIN IS GAUGE-CORRECTED IMERG (x F field). v3 model: "
+                 "y = intercept4 + gain4*EMA_tau + enso4*RONI + slow4*EMA_90 "
+                 "+ stor4*S_anom(-1d); S_anom = regional storage %%-full "
+                 "anomaly vs doy norm, held at latest observed value in the "
+                 "fan (decorrelates over months). y is fleet-corrected "
                  "inflow %% of norm, 5-day trailing mean. NWP forecasts must "
                  "be verified/bias-mapped against CORRECTED IMERG."),
         "rain_space": "gauge_corrected",

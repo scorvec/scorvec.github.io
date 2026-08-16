@@ -117,6 +117,37 @@ def load_storage() -> dict:
     return data
 
 
+def pct_anomaly_series() -> tuple[np.ndarray, dict[str, np.ndarray]]:
+    """(dates, anom[r]) — regional %-full anomaly vs its doy median norm,
+    computed from the local cache only (no fetch). For model v3 fitting."""
+    res_reg = reservoir_region()
+    with gzip.open(CACHE, "rt") as f:
+        data = json.load(f)
+    days = sorted(set(data["vol"]) & set(data["cap"]))
+    dates = np.array(days, dtype="datetime64[D]")
+    doy = np.array([min(datetime.strptime(d, "%Y-%m-%d").timetuple().tm_yday, 365)
+                    for d in days])
+    out = {}
+    for r in ORDER:
+        v = np.full(len(days), np.nan)
+        for i, day in enumerate(days):
+            sv = sc = 0.0
+            for res, x in data["vol"][day].items():
+                if res_reg.get(res) == r and data["cap"][day].get(res, 0) > 0:
+                    sv += x
+                    sc += data["cap"][day][res]
+            if sc > 0:
+                v[i] = 100 * sv / sc
+        an = np.full(len(days), np.nan)
+        for d_ in range(1, 366):
+            dist = np.minimum(np.abs(doy - d_), 365 - np.abs(doy - d_))
+            m = (dist <= WIN) & np.isfinite(v)
+            if m.sum() > 20:
+                an[doy == d_] = v[doy == d_] - np.median(v[m])
+        out[r] = an
+    return dates, out
+
+
 def _recent_outflow(x: np.ndarray, rec14: np.ndarray) -> float:
     v = np.where(np.abs(x[rec14]) < 5e8, x[rec14], np.nan)
     return float(np.round(np.nanmean(v), 0)) if np.isfinite(v).any() else 0.0
@@ -295,6 +326,8 @@ def main() -> int:
             "vol_kwh": float(np.round(vol[r][np.isfinite(vol[r])][-1], 0)),
             "cap_kwh": float(np.round(cap[r][np.isfinite(cap[r])][-1], 0)),
             "pct_full": float(np.round(pct[r][np.isfinite(pct[r])][-1], 2)),
+            "pct_anom_latest": float(np.round(
+                (pct[r] - norms[r]["pct"][doy - 1, 2])[np.isfinite(pct[r])][-1], 2)),
             "outflow_doy_kwh": np.round(np.nan_to_num(
                 norms[r]["outflow_kwh"]), 0).tolist(),
             "outflow_recent_kwh": _recent_outflow(outfl[r], rec14),

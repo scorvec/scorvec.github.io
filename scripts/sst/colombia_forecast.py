@@ -65,15 +65,24 @@ VERIF_JSON = PRIV / "out" / "fcst_verif.json"
 MODEL_JSON = REPO / "colombia_hydro" / "data" / "rain_inflow_model.json"
 ENSO_JSON = REPO / "assets" / "sst" / "data" / "enso_daily.json"
 OUT_JSON = REPO / "colombia_hydro" / "data" / "inflow_forecast.json"
+VERIF_PNG = REPO / "colombia_hydro" / "rain_verif.webp"
+VERIF_PUB = REPO / "colombia_hydro" / "data" / "rain_verif.json"
 STORAGE_JSON = REPO / "colombia_hydro" / "data" / "storage.json"
 INFLOW_CLIM = REPO / "colombia_hydro" / "data" / "inflow_clim.json"
 
 ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
 BANDS = [(1, 3), (4, 7), (8, 15)]           # lead-day bands for bias/weights
 MAX_LEAD = 15                               # days
-K_PRIOR = 20.0                              # prior strength, days of clim
-MIN_PAIRS = 10                              # per band before weights move off 0.5
+K_PRIOR = 6.0                               # prior strength, days of clim —
+                                            # light on purpose: data dominates
+                                            # within ~a week of matured leads
+PRIOR_RATIO = {"aifs": 1.0, "ifs": 0.75}    # prior bias-factor center: IFS
+                                            # carries a known tropical wet bias
+                                            # (user-asserted, ledger 2026-08-16);
+                                            # the archive overrides it quickly
+MIN_PAIRS = 6                               # per band before weights move off 0.5
 SPREAD_MIN_PAIRS = 30                       # per band before spread inflation acts
+RES_TAU = 10.0                              # days, decay of the obs-residual anchor
 STORAGE_JSON_IN = None                      # set below (public data dir)
 # Colombia box, generous around the basins (geojson lons are -180..180)
 BOX = dict(lon0=-81.0, lon1=-68.0, lat0=-1.5, lat1=12.5)
@@ -288,7 +297,8 @@ def stage_verify(dates, rain, rclim) -> dict:
             for mdl in ("aifs", "ifs"):
                 s_f, s_o, sse, n, ssp = acc[mdl][r][bi]
                 d_ = fA if mdl == "aifs" else fI
-                d_["F"] = (s_o + P) / (s_f + P) if s_f > 0 else 1.0
+                r0 = PRIOR_RATIO[mdl]
+                d_["F"] = (s_o + P * r0) / (s_f + P) if s_f > 0 else r0
                 d_["mse"] = sse / n if n else np.nan
                 d_["n"] = n
                 # spread ratio RMSE/mean-spread: >1 = underdispersive; used
@@ -307,6 +317,7 @@ def stage_verify(dates, rain, rclim) -> dict:
     verif = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
              "truth": "GAUGE-CORRECTED IMERG basin-daily (kernel model v2 space)",
              "bands_lead_days": BANDS, "k_prior_days": K_PRIOR,
+             "prior_ratio": PRIOR_RATIO,
              "min_pairs": MIN_PAIRS,
              "bias_factors": factors, "weight_aifs": weights, "pairs": counts,
              "spread_ratio": spread}
@@ -343,6 +354,19 @@ def stage_fan(dates, rain, rclim, verif) -> None:
     # RONI held at latest value
     ed = json.loads(ENSO_JSON.read_text())["daily"]
     roni = float(np.array(ed["roni_d"], float)[np.isfinite(np.array(ed["roni_d"], float))][-1])
+
+    # observed inflow %-of-norm (5-day trailing) for the residual anchor:
+    # the fan starts at reality and relaxes to the model over ~RES_TAU days
+    obs_now = {}
+    if INFLOW_CLIM.exists():
+        rec_ = json.loads(INFLOW_CLIM.read_text())["recent"]
+        for r in ORDER:
+            v = np.array(rec_["pct_of_norm"][r], float)
+            v[v == 0] = np.nan
+            k5 = np.convolve(np.where(np.isfinite(v), v, np.nan),
+                             np.ones(5) / 5, mode="full")[:len(v)]
+            fin = k5[np.isfinite(k5)]
+            obs_now[r] = float(fin[-1]) if len(fin) else None
 
     obs_last = dates[-1]
     horizon = max(np.datetime64(rec["valid"][-1]) for rec in latest.values())
@@ -381,7 +405,8 @@ def stage_fan(dates, rain, rclim, verif) -> None:
            "inits": inits, "n_members": len(members), "roni": round(roni, 2),
            "truth_last_day": str(obs_last),
            "note": ("%-of-norm fan: pooled bias-corrected AIFS-ENS + IFS-ENS "
-                    "members through the per-basin EMA kernel (+ENSO term); "
+                    "members through the per-basin v3 model (fast + slow rain "
+                    "kernels, ENSO term, storage-state term held at latest); "
                     "weights/bias from out-of-sample verification vs gauge-corrected IMERG"),
            "basins": {}}
     all_traces = {}
@@ -389,8 +414,15 @@ def stage_fan(dates, rain, rclim, verif) -> None:
         p = params[r]
         tau, lag = p["tau_days"], p["lag_days"]
         tau_slow = p.get("tau_slow_days", 90)
-        a3, b3 = p["intercept3_pct"], p["gain3_pct_per_mmday"]
-        c3, d3 = p["enso3_coef_pct_per_roni"], p["slow3_pct_per_mmday"]
+        a3, b3 = p["intercept4_pct"], p["gain4_pct_per_mmday"]
+        c3, d3 = p["enso4_coef_pct_per_roni"], p["slow4_pct_per_mmday"]
+        e3 = p["stor4_pct_per_pt"]
+        # storage anomaly held at latest observed value across the fan
+        # (months-scale decorrelation; measured, so no feedback loop)
+        s_an = 0.0
+        if STORAGE_JSON.exists():
+            sreg = json.loads(STORAGE_JSON.read_text())["regions"]
+            s_an = float(sreg.get(r, {}).get("pct_anom_latest", 0.0))
         hist_anom = rain[r] - rclim[r]
         clim_f = np.array([np.nan] * len(fdays), float)
         # forecast-day climatology from the same harmonic fit (via truth clim by doy)
@@ -411,7 +443,16 @@ def stage_fan(dates, rain, rclim, verif) -> None:
             nh = len(hist_anom)
             ix = [min(nh + j - lag, len(k) - 1) for j in range(len(fdays))]
             kk, kks = k[ix], ks[ix]
-            traces[mi] = a3 + b3 * kk + c3 * roni + d3 * kks
+            traces[mi] = a3 + b3 * kk + c3 * roni + d3 * kks + e3 * s_an
+            if mi == 0:
+                # model value at the last observed day (same member-independent
+                # history) -> residual vs observed, decayed along the fan
+                k_now = k[len(hist_anom) - 1 - lag]
+                ks_now = ks[len(hist_anom) - 1 - lag]
+                fit_now = a3 + b3 * k_now + c3 * roni + d3 * ks_now + e3 * s_an
+                resid = (obs_now[r] - fit_now) if obs_now.get(r) is not None else 0.0
+                decay = resid * np.exp(-(np.arange(len(fdays)) + 1.0) / RES_TAU)
+        traces = traces + decay[None, :]
         # spread inflation about the weighted median once verification says
         # the ensemble is over/under-dispersive (needs SPREAD_MIN_PAIRS pairs)
         srs = [verif["spread_ratio"][r][bi][mdl]
@@ -478,6 +519,94 @@ def stage_fan(dates, rain, rclim, verif) -> None:
           f"{fdays[0]} ({len(members)} members, inits {inits})")
 
 
+
+# ── day-1 rain scorecard: each cycle's first full 24h vs corrected IMERG ────
+def stage_rain_scorecard(dates, rain) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    from datetime import datetime as _dt
+
+    dmap = {str(d): i for i, d in enumerate(dates)}
+    recs = []                      # (valid, model, hh, basin, fcst, obs)
+    for f in sorted(ARCH.glob("*.json.gz")):
+        rec = json.loads(gzip.open(f, "rt").read())
+        vd = rec["valid"][0]       # first full 24h bucket = the day-1 forecast
+        i = dmap.get(vd)
+        if i is None:
+            continue
+        for r in ORDER:
+            obs = rain[r][i]
+            if not np.isfinite(obs):
+                continue
+            fc = float(np.mean([mem[0] for mem in rec["basins"][r]]))
+            recs.append((vd, rec["model"], rec["init_hh"], r, round(fc, 2),
+                         round(float(obs), 2)))
+
+    stats = {}
+    for mdl in ("aifs", "ifs"):
+        stats[mdl] = {}
+        for r in ORDER:
+            v = [(f_, o_) for (_, m_, _, r_, f_, o_) in recs
+                 if m_ == mdl and r_ == r]
+            if not v:
+                stats[mdl][r] = {"n": 0}
+                continue
+            fa = np.array([x[0] for x in v])
+            oa = np.array([x[1] for x in v])
+            st = {"n": len(v), "mae": round(float(np.mean(np.abs(fa - oa))), 2),
+                  "bias_ratio": round(float(fa.mean() / oa.mean()), 2)
+                  if oa.mean() > 0 else None}
+            if len(v) >= 5 and fa.std() > 0 and oa.std() > 0:
+                st["r"] = round(float(np.corrcoef(fa, oa)[0, 1]), 2)
+            stats[mdl][r] = st
+
+    fig, axes = plt.subplots(3, 2, figsize=(13.5, 10.5), sharex=True)
+    cols = {"aifs": "#1f4e8c", "ifs": "#c62828"}
+    for ax, r in zip(axes.flat, ORDER):
+        vr = sorted({(vd, o_) for (vd, _, _, r_, _, o_) in recs if r_ == r})
+        if vr:
+            t = [_dt.strptime(x[0], "%Y-%m-%d") for x in vr]
+            ax.plot(t, [x[1] for x in vr], color="k", lw=1.4, marker="o",
+                    ms=3, label="corrected IMERG (obs)")
+        for mdl in ("aifs", "ifs"):
+            vm = sorted([(vd, f_) for (vd, m_, _, r_, f_, _) in recs
+                         if r_ == r and m_ == mdl])
+            if vm:
+                t = [_dt.strptime(x[0], "%Y-%m-%d") for x in vm]
+                st = stats[mdl][r]
+                lab = (f"{mdl.upper()} day-1 (n={st['n']}, "
+                       f"MAE {st.get('mae', '-')}, x{st.get('bias_ratio', '-')})")
+                ax.plot(t, [x[1] for x in vm], color=cols[mdl], lw=0, marker="D",
+                        ms=4, alpha=0.85, label=lab)
+        if not vr:
+            ax.text(0.5, 0.5, "awaiting matured forecasts\n(first pairs ~1 day "
+                    "after each cycle)", ha="center", va="center",
+                    transform=ax.transAxes, fontsize=10, color="0.4")
+        ax.set_title(r, fontsize=10, fontweight="bold", loc="left")
+        ax.grid(lw=0.25, alpha=0.5)
+        ax.tick_params(labelsize=8)
+        ax.set_ylabel("mm/day", fontsize=8)
+        ax.legend(fontsize=6.5, loc="upper left")
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
+    fig.suptitle("Day-1 basin rainfall: AIFS-ENS / IFS-ENS ensemble mean vs "
+                 "gauge-corrected IMERG — every 00/12Z cycle, accumulating "
+                 "from 2026-08-16", fontsize=12, fontweight="bold", y=0.995)
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    fig.savefig(VERIF_PNG, dpi=120)
+    plt.close(fig)
+    VERIF_PUB.write_text(json.dumps({
+        "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "truth": "gauge-corrected IMERG basin-daily",
+        "stats_day1": stats,
+        "records": [{"valid": v, "model": m, "init_hh": h, "basin": b,
+                     "fcst_mmday": f_, "obs_mmday": o_}
+                    for (v, m, h, b, f_, o_) in recs],
+    }, separators=(",", ":")))
+    print(f"rain scorecard: {len(recs)} day-1 pairs")
+
+
 def main() -> int:
     n = stage_extract()
     print(f"extract: {n} new cycle(s)")
@@ -485,6 +614,7 @@ def main() -> int:
     verif = stage_verify(dates, rain, rclim)
     npairs = sum(c["aifs"] + c["ifs"] for r in ORDER for c in verif["pairs"][r].values())
     print(f"verify: {npairs} matured basin-lead pairs")
+    stage_rain_scorecard(dates, rain)
     stage_fan(dates, rain, rclim, verif)
     return 0
 
