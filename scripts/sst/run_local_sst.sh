@@ -18,7 +18,12 @@ set -uo pipefail
 # the other fires exit instantly. Manual runs (no --poll) always proceed.
 if [ "${1:-}" = "--poll" ]; then
   H=$(TZ=America/New_York date +%H); H=$((10#$H))
-  if [ "$H" -lt 9 ] || [ "$H" -ge 14 ]; then exit 0; fi
+  if [ "$H" -lt 9 ] || [ "$H" -ge 14 ]; then
+    # outside the OISST window: TAO + the Copernicus current sections advance
+    # daily regardless of OISST — hand off to the light subsurface refresh
+    # (self-gated to once per ~3 h) instead of going fully idle
+    exec /bin/bash "$(dirname "$0")/run_subsurface_light.sh"
+  fi
 fi
 
 PY="${SST_PY:-/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python}"
@@ -104,7 +109,7 @@ DAY=$("$PY" -c "import json; print(json.load(open('assets/sst/manifest.json'))['
 source "$REPO/scripts/lib/gitlock.sh"
 trap 'git_unlock; rm -rf "$LOCK" 2>/dev/null' EXIT   # both cleanups (this trap replaces the lock-only one above)
 git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
-git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
+git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
     commit -m "SST/RONI update: OISST ${DAY} (local)"
 for i in 1 2 3 4 5; do
   if git pull --rebase --autostash -X theirs && git push; then echo "pushed (attempt $i)"; git_unlock; exit 0; fi

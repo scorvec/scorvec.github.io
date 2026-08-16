@@ -82,7 +82,7 @@
             [0, '#30123b'], [0.1, '#4458cb'], [0.2, '#3e9bfe'], [0.3, '#18d6cb'],
             [0.4, '#46f884'], [0.5, '#a2fc3c'], [0.6, '#e1dd37'], [0.7, '#fea632'],
             [0.8, '#f36315'], [0.9, '#c42503'], [1, '#7a0403']],
-          zmin: isAnom ? -8 : 8, zmax: isAnom ? 8 : 31, zmid: isAnom ? 0 : undefined,
+          zmin: isAnom ? -12 : 8, zmax: isAnom ? 12 : 31, zmid: isAnom ? 0 : undefined,
           colorbar: { title: { text: isAnom ? 'anom (°C)' : '°C', side: 'right' }, thickness: 14, len: 0.9 },
           hovertemplate: (isAnom ? 'anom %{z:+.1f} °C · T %{customdata:.1f} °C'
                                  : 'T %{z:.1f} °C · anom %{customdata:+.1f} °C')
@@ -95,6 +95,10 @@
           type: 'contour', x: D.lons, y: D.depths, z: s.temp, showscale: false,
           autocontour: false, contours: { start: 26, end: 28, size: 2, coloring: 'none', showlabels: true, labelfont: { size: 9 } },
           line: { color: '#111', width: 0.9, dash: 'dot' }, hoverinfo: 'skip'
+        }, {
+          type: 'contour', x: D.lons, y: D.depths, z: s.temp, showscale: false,
+          autocontour: false, contours: { start: 10, end: 10, size: 1, coloring: 'none', showlabels: true, labelfont: { size: 9 } },
+          line: { color: '#2c4ac9', width: 2, dash: 'dash' }, hoverinfo: 'skip', name: '10°C'
         }];
         // TAO buoy markers: triangle at the surface + dots at real sensor depths
         var bx = [], by = [], bc = [], bt = [];
@@ -136,7 +140,7 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Equatorial Pacific Subsurface Temperature</h2>
-        <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed. The thermocline (here the 26&deg;C and 28&deg;C isotherms) tilts upward toward the east, and subsurface anomalies along it often lead the surface ENSO signal.</p>
+        <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed. The thermocline (here the 26&deg;C and 28&deg;C isotherms, with the 20&deg;C isotherm in solid black and the 10&deg;C isotherm dashed blue when it enters the section) tilts upward toward the east, and subsurface anomalies along it often lead the surface ENSO signal.</p>
       </div>
       <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial"
               title="Equatorial Pacific subsurface temperature animation" loading="lazy"></iframe>
