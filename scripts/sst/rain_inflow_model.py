@@ -40,6 +40,7 @@ from build_imerg_clim import OUT as CLIM_NC, eval_clim  # noqa: E402
 REPO = HERE.parent.parent
 REGIONS_GJ = HERE / "colombia_hydro_regions.geojson"
 INFLOW_JSON = REPO / "colombia_hydro" / "data" / "inflow_clim.json"
+ENSO_JSON = REPO / "assets" / "sst" / "data" / "enso_daily.json"
 OUT_PNG = REPO / "colombia_hydro" / "rain_inflow_model.webp"
 OUT_JSON = REPO / "colombia_hydro" / "data" / "rain_inflow_model.json"
 ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
@@ -99,6 +100,22 @@ def main() -> int:
     common, ri, ii = np.intersect1d(rdates, idates, return_indices=True)
     print(f"overlap: {common[0]}..{common[-1]} ({len(common)} days)", flush=True)
 
+    # daily RONI on the common axis (the ET / antecedent-dryness channel:
+    # El Nino = hotter, sunnier, drier soils -> less runoff per mm of rain)
+    ed = json.loads(ENSO_JSON.read_text())["daily"]
+    edates = np.array(ed["dates"], dtype="datetime64[D]")
+    eroni = np.array(ed["roni_d"], dtype=float)
+    roni = np.full(len(common), np.nan)
+    _, ci, ei = np.intersect1d(common, edates, return_indices=True)
+    roni[ci] = eroni[ei]
+    # persistence-fill edges (RONI moves on monthly scales)
+    for i in range(1, len(roni)):
+        if not np.isfinite(roni[i]):
+            roni[i] = roni[i - 1]
+    for i in range(len(roni) - 2, -1, -1):
+        if not np.isfinite(roni[i]):
+            roni[i] = roni[i + 1]
+
     fig, axes = plt.subplots(3, 2, figsize=(13.8, 11.5), sharex=True)
     params = {}
     t = common.astype("datetime64[s]").astype(datetime)
@@ -123,16 +140,30 @@ def main() -> int:
         rr, tau, lag, xl, m = best
         b, a = np.polyfit(xl[m], y[m], 1)
         fit = a + b * xl
+        # + ENSO/ET term: y = a2 + b2*kernel + c2*RONI. c2<0 = same rain,
+        # less inflow under El Nino (evapotranspiration + dry soils).
+        m2 = m & np.isfinite(roni)
+        X = np.column_stack([np.ones(m2.sum()), xl[m2], roni[m2]])
+        beta, *_ = np.linalg.lstsq(X, y[m2], rcond=None)
+        fit2 = beta[0] + beta[1] * xl + beta[2] * roni
+        r2 = float(np.corrcoef(fit2[m2], y[m2])[0, 1])
         params[r] = {"tau_days": tau, "lag_days": lag, "r": round(rr, 3),
                      "r_same_day": round(r_daily, 3),
                      "gain_pct_per_mmday": round(float(b), 2),
                      "intercept_pct": round(float(a), 1),
+                     "r_with_enso": round(r2, 3),
+                     "enso_coef_pct_per_roni": round(float(beta[2]), 1),
+                     "gain2_pct_per_mmday": round(float(beta[1]), 2),
+                     "intercept2_pct": round(float(beta[0]), 1),
                      "n": int(m.sum())}
         ax.plot(t, y, color="#1f4e8c", lw=1.3, label="inflow, % of norm (5-d mean)")
         ax.plot(t, fit, color="#c62828", lw=1.2, alpha=0.9,
                 label=f"fitted from rain (τ={tau} d, lag {lag} d)")
+        ax.plot(t, fit2, color="#e08214", lw=1.1, alpha=0.9, ls="--",
+                label=f"rain + ENSO term (r={r2:.2f})")
         ax.axhline(100, color="0.6", lw=0.7, ls="--")
-        ax.set_title(f"{r} — r = {rr:.2f} (kernel) vs {r_daily:.2f} (same-day rain)",
+        ax.set_title(f"{r} — r: {r_daily:.2f} same-day → {rr:.2f} kernel → {r2:.2f} +ENSO "
+                     f"(c={beta[2]:+.0f}%/RONI)",
                      fontsize=10.5, fontweight="bold", loc="left")
         ax.tick_params(labelsize=8)
         ax.grid(lw=0.25, alpha=0.5)

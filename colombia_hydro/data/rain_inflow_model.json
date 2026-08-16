@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-16 16:17 UTC",
+ "generated": "2026-08-16 16:28 UTC",
  "window": "2024-07-22..2026-08-15",
  "note": "y = intercept + gain * EMA_tau(rain anomaly, lagged); y is fleet-corrected inflow % of norm, 5-day trailing mean; multiplicative satellite bias cancels in r \u2014 apply region bias factors when driving with AIFS forecasts",
  "params": {
@@ -10,6 +10,10 @@
    "r_same_day": 0.228,
    "gain_pct_per_mmday": 6.92,
    "intercept_pct": 83.6,
+   "r_with_enso": 0.62,
+   "enso_coef_pct_per_roni": 0.6,
+   "gain2_pct_per_mmday": 7.0,
+   "intercept2_pct": 83.8,
    "n": 755
   },
   "CALDAS": {
@@ -19,6 +23,10 @@
    "r_same_day": 0.228,
    "gain_pct_per_mmday": 6.59,
    "intercept_pct": 96.8,
+   "r_with_enso": 0.67,
+   "enso_coef_pct_per_roni": 0.9,
+   "gain2_pct_per_mmday": 6.69,
+   "intercept2_pct": 97.2,
    "n": 755
   },
   "CARIBE": {
@@ -28,6 +36,10 @@
    "r_same_day": 0.151,
    "gain_pct_per_mmday": 22.48,
    "intercept_pct": 83.7,
+   "r_with_enso": 0.564,
+   "enso_coef_pct_per_roni": 25.9,
+   "gain2_pct_per_mmday": 25.34,
+   "intercept2_pct": 90.5,
    "n": 755
   },
   "CENTRO": {
@@ -37,6 +49,10 @@
    "r_same_day": 0.135,
    "gain_pct_per_mmday": 8.04,
    "intercept_pct": 91.8,
+   "r_with_enso": 0.506,
+   "enso_coef_pct_per_roni": 0.3,
+   "gain2_pct_per_mmday": 8.06,
+   "intercept2_pct": 91.9,
    "n": 753
   },
   "ORIENTE": {
@@ -46,6 +62,10 @@
    "r_same_day": 0.15,
    "gain_pct_per_mmday": 13.62,
    "intercept_pct": 91.1,
+   "r_with_enso": 0.525,
+   "enso_coef_pct_per_roni": 1.2,
+   "gain2_pct_per_mmday": 13.59,
+   "intercept2_pct": 91.8,
    "n": 755
   },
   "VALLE": {
@@ -55,6 +75,10 @@
    "r_same_day": 0.146,
    "gain_pct_per_mmday": 9.23,
    "intercept_pct": 130.6,
+   "r_with_enso": 0.532,
+   "enso_coef_pct_per_roni": -2.6,
+   "gain2_pct_per_mmday": 9.06,
+   "intercept2_pct": 129.6,
    "n": 755
   }
  }
