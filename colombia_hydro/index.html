@@ -83,36 +83,30 @@ daily. Rain here today is turbine water in the coming weeks.</p>
   alt="Daily basin rainfall per XM region vs climatology"></div>
 
 <h2>Ground truth — IMERG vs the IDEAM gauge network</h2>
-<p class="note">Satellite rainfall with <b>~400 IDEAM automatic rain gauges overlaid on the
-same color scale</b> — where dots vanish into the background the satellite is right; where
-they pop, it isn't. Accumulations use <b>paired feed days</b> only (the gauge feed has real
-multi-week ingest holes — Jul&nbsp;25&ndash;Aug&nbsp;11&nbsp;2026 served zero rows — so
-satellite and gauges are summed over exactly the same dates). The right panel distills it:
-median IMERG/gauge ratios per hydro region. First read: IMERG runs <b>~&times;0.6 low over
-the wet Antioquia slopes</b> (the classic orographic underestimate) and <b>high in the dry
-upper-Magdalena valley</b> where 0.1&deg; cells straddle wet cordillera walls — exactly the
-corrections the rain&rarr;inflow model needs. Factors marked * rest on few gauges and are
-provisional; they harden as the daily archive grows.</p>
-<p class="note" style="margin-top:6px"><b>Left: raw IMERG. Right: gauge-corrected
-IMERG</b> &mdash; a cell-wise multiplicative correction field built from <b>549 stations'
-two-year satellite-vs-gauge ratios</b> (each with 120+ paired days), interpolated across
-the grid and relaxing to &times;1 away from stations, applied before any averaging. Watch
-the dry Magdalena corridor dry out and the Pacific-coast extremes tame toward their
-gauges. Windows are paired feed days, so the multi-week gauge-feed holes can't skew
-either side.</p>
+<p class="note">Satellite rainfall with <b>~400 IDEAM automatic rain gauges overlaid on
+the same color scale</b> — where dots vanish into the background the satellite is right;
+where they pop, it isn't. <b>Left: raw IMERG. Right: gauge-corrected IMERG</b> — a
+cell-wise multiplicative correction field built from <b>518 stations' two-year
+satellite-vs-gauge ratios</b> (median 553 paired days each), interpolated across the grid
+and relaxing to &times;1 away from stations. The geography it fixes is systematic: IMERG
+runs <b>low over the wet Antioquia slopes</b> (the classic orographic underestimate) and
+<b>high in the dry upper-Magdalena valley</b> where 0.1&deg; cells straddle wet cordillera
+walls. Accumulations use <b>paired feed days</b> only, so the gauge feed's multi-week
+ingest holes can't skew either side.</p>
+<p class="note" style="margin-top:6px"><b>Backtested, held out:</b> rebuilding the field
+with each station excluded and predicting it from its neighbors, raw IMERG misses a
+station's two-year total by a median factor of <b>&times;2.04</b>; the corrected field
+cuts that to <b>&times;1.50</b> — a <b>43% error reduction, 70% of 518 stations
+improved</b> — and station factors correlate 0.61 across the two years, so the field is
+persistent geography, not noise. In inflow-prediction head-to-heads the corrected
+satellite beats in-basin gauge averages everywhere the network is thin (everywhere but
+the dense Bogot&aacute; corridor), which is why it is the model's rainfall driver.</p>
 <div class="panel"><img src="rain_cmp_1d.webp?v=202608166"
   alt="Raw vs gauge-corrected IMERG, last paired day"></div>
 <div class="panel" style="margin-top:18px"><img src="rain_cmp_7d.webp?v=202608166"
   alt="Raw vs gauge-corrected IMERG, 7 paired days"></div>
-<div class="panel" style="margin-top:18px"><img src="rain_cmp_14d.webp?v=202608166"
-  alt="Raw vs gauge-corrected IMERG, 14 paired days"></div>
-<div class="panel" style="margin-top:18px"><img src="rain_cmp_30d.webp?v=202608166"
-  alt="Raw vs gauge-corrected IMERG, 30 paired days"></div>
 <div class="panel" style="margin-top:18px"><img src="rain_cmp_90d.webp?v=202608166"
   alt="Raw vs gauge-corrected IMERG, 90 paired days"></div>
-<div class="panel" style="margin-top:18px;max-width:760px"><img src="rain_gauges_scatter.webp?v=202608165"
-  alt="IMERG vs gauge scatter with per-region bias factors"></div>
-
 <h2>The rain &rarr; inflow model — memory is the skill</h2>
 <p class="note">Each basin's IMERG rainfall <b>anomaly</b> is passed through a causal
 <b>exponential memory kernel</b> (a running exponentially-weighted mean with time constant
@@ -128,16 +122,14 @@ sharpest daily spikes (single storms, operational effects) live above the kernel
 fitted kernels are what the AIFS-ENS rainfall forecasts will drive to project inflows
 ahead &mdash; and because &tau; is long, a 15-day rain forecast moves the kernel slowly
 and predictably.</p>
-<p class="note"><b>What about evaporation?</b> El&nbsp;Ni&ntilde;o should also cut inflows
-directly &mdash; hotter, sunnier air pulls more evapotranspiration from the catchments and
-drier soils absorb more of each storm. We tested it: adding the daily RONI index as a
-second regressor (dashed orange) changes the correlation by &le;0.02 in five of six
-basins. Over 2024&ndash;26, ENSO's influence on inflows is <i>almost entirely mediated by
-rainfall itself</i> &mdash; which is good news for forecasting, since rain is the part a
-15-day ensemble can actually predict. The direct evaporation channel is real physics but
-second-order here, and separating it cleanly needs the multi-decade record (a planned
-extension); Caribe's apparent ENSO term is an artifact of the 2026 Urr&aacute; flood
-spike.</p>
+<p class="note"><b>What about evaporation?</b> Tested three ways &mdash; a daily RONI
+regressor on the 2-year record, ENSO composites of 64 years of ERA5 latent heat flux, and
+a 23-year leave-one-year-out water balance (rain vs P&minus;E vs rain + ET term) &mdash;
+the direct evapotranspiration channel adds at most +0.04 correlation and usually nothing:
+over these basins ENSO's influence on inflows is <i>almost entirely mediated by rainfall
+itself</i>. The model stays rainfall-driven, with the RONI term as its ET channel and
+reservoir-surface evaporation carried inside the storage balance's ENSO-adjusted
+outflow.</p>
 <p class="note"><b>Model v2</b> (green dotted): the rain driver is now the
 <b>gauge-corrected</b> IMERG (the 549-station field from the ground-truth section,
 applied to rain and climatology alike), and a <b>slow soil-moisture kernel</b> &mdash; a
@@ -155,37 +147,6 @@ fan is anchored to the current observed inflow with the residual decaying over ~
 &mdash; the fan starts at reality and relaxes to the model.</p>
 <div class="panel"><img src="rain_inflow_model.webp?v=202608167"
   alt="Per-basin rain to inflow model v2: gauge-corrected kernel rainfall anomaly plus slow soil-moisture kernel vs inflow percent of norm"></div>
-
-<h2>Satellite vs gauges — who predicts inflows better?</h2>
-<p class="note">The same anomaly-plus-memory-kernel treatment applied to three rainfall
-sources per basin: <b style="color:#1f4e8c">IMERG basin means</b>, <b style="color:#c62828">
-in-basin IDEAM gauges</b> (&ge;5 stations reporting), and their
-<b style="color:#4d8f4d">standardized blend</b>. The answer is density-dependent:
-<b>gauges win only where the network is dense</b> (Centro, ~130 stations in the
-Bogot&aacute;/upper-Magdalena corridor: 0.55 vs 0.49) and <b>IMERG wins everywhere else</b>
-&mdash; including Antioquia despite 46 gauges (0.60 vs 0.46: the wettest slopes are
-under-sampled), Valle (6 stations, feed-limited) and Caribe (never &ge;5 in-basin
-stations, no gauge series at all). The <b>blend beats both parents in four of six
-basins</b> (Antioquia 0.64, Oriente 0.57, Centro 0.59) &mdash; classic complementary
-errors: gauges anchor amplitude where they exist, the satellite fills the terrain they
-miss. Operational recipe: blend for nowcasting, IMERG alone where gauges are thin, and
-AIFS-ENS mapped onto the IMERG scale for the forecast extension.</p>
-<div class="panel" style="max-width:900px"><img src="gauge_vs_imerg.webp?v=202608161"
-  alt="Kernel-model inflow correlation by rainfall source: IMERG vs gauges vs blend per basin"></div>
-
-<h2>Daily water balance — 23 years, cross-validated</h2>
-<p class="note">The stronger test of evaporation at the daily level: ERA5 gives both basin
-precipitation and latent-heat-derived ET back to 1959, and the fleet-corrected inflow
-record reaches 2000 &mdash; a <b>23-year overlap spanning eight ENSO cycles</b>. Three
-kernel models per basin, scored strictly <b>out-of-sample</b> (leave-one-year-out):
-rain alone, daily <b>P&nbsp;&minus;&nbsp;E</b> effective precipitation, and rain plus a
-separate ET term. Verdict: <b>daily ET adds at most +0.04 correlation</b> (Caldas
-0.51&rarr;0.54) and nothing in most basins &mdash; the multi-decade record confirms the
-2-year finding at full statistical power. The fitted memories are also stable across eras
-(&tau; = 12&ndash;30 days here vs 20&ndash;45 on recent IMERG), so the kernel structure
-is robust. The model stays rainfall-driven.</p>
-<div class="panel" style="max-width:900px"><img src="water_balance_23yr.webp?v=202608161"
-  alt="23-year out-of-sample comparison: precipitation kernel vs P minus E vs P plus ET term"></div>
 
 <h2>What is an "inflow"? From raindrop to gigawatt</h2>
 <p class="note"><b>The quantity on this page is energy, not water.</b> XM's raw measurement
@@ -327,68 +288,6 @@ department-scale areas, but only these catchments actually convert rainfall into
 </table>
 </div>
 
-<h2>Validation — does basin rain predict XM's measured inflows?</h2>
-<p class="note">3-day rainfall totals vs 3-day inflow-energy totals (<code>AporEner</code>, XM API),
-cross-correlated at 0–15-day lags, in three flavours per region: <i>raw</i>, <i>anomaly</i>
-(both series minus their seasonal normals), and <i>burst</i> (rain above a fitted baseline
-threshold — testing whether steady light rain just holds soil/evap steady state while only
-downpours move inflow). Now computed on a <b>continuous two-year record</b> (IMERG Final,
-gauge-corrected, backfilled via OPeNDAP; Early for recent months). Verdict: <b>raw 3-day
-totals win almost everywhere</b> at short lags (0–2 days); anomalies help only Valle
-(0.27→0.34), the burst threshold only Centro (marginally), and the exotic variants that
-looked good on the thin 8-month record largely deflated — the region-scale relationship is
-close to linear and fast. Best per region: <b>Antioquia r=0.44 (raw, 1d) · Caldas r=0.52
-(raw, 1d) · Caribe r=0.42 (raw, 2d) · Centro r=0.40 (burst&gt;1mm, 2d) · Oriente r=0.48
-(raw, 0d) · Valle r=0.34 (anom, 1d)</b>. Oriente 0.34→0.48 and Valle 0.19→0.34 improved the
-most with record length; Centro slipped (its big rivers are the regulated ones — see below).</p>
-<div class="panel"><img src="validation_rain_vs_inflow.webp?v=202607241111"
-  alt="Validation: IMERG basin rainfall vs XM observed inflows per region"></div>
-<p class="note" style="margin-top:14px">The same relationship as scatter — every dot is one
-3-day block (rain shifted by the region's best lag). The slope is the region's effective
-rainfall-to-energy conversion; the widest clouds belong to the regions whose big rivers
-are regulated (Centro's Bogotá/Quimbo, Oriente's Batá).</p>
-<div class="panel"><img src="validation_scatter.webp?v=202607241111"
-  alt="Scatter: 3-day basin rain vs 3-day XM inflow per region"></div>
-<p class="note" style="margin-top:14px">The linear-axis view above undersells the coupling:
-rain and inflow are both strongly right-skewed, so a few extreme days dominate a straight
-Pearson r and the bulk of the cloud collapses near the origin. In <b>log-log space</b>, on
-<b>weekly blocks</b>, the relationship shows itself as the power law it is — regional
-r<sub>log</sub> ≈ 0.54–0.67 (Valle 0.35), i.e. rain explains roughly 30–45&nbsp;% of weekly
-inflow variance at region scale.</p>
-<div class="panel"><img src="validation_log_regions.webp?v=202607241235"
-  alt="Weekly rain vs inflow per region, log-log axes"></div>
-<p class="note" style="margin-top:14px">Per river the split is even cleaner: free-flowing
-rivers plot as tight power-law clouds (Guavio and Sogamoso r<sub>log</sub>=0.68, Sinú 0.64,
-San Carlos 0.61, Grande 0.58 — and at monthly blocks Guavio reaches rank-ρ≈0.83), while
-<b>Bogotá N.R. is flat at r<sub>log</sub>=0.17</b> — a third of Centro's inflow with
-essentially zero rainfall signal, pure operator decisions. Where physics sets the flow,
-IMERG rainfall is a genuinely good predictor; the residual sits with the handful of
-regulated series.</p>
-<div class="panel"><img src="validation_log_rivers.webp?v=202607241235"
-  alt="Weekly rain vs inflow for five free-flowing rivers and regulated Bogota, log-log"></div>
-<p class="note" style="margin-top:14px">A better kernel than any fixed window: catchments
-behave like leaky reservoirs, so rain should be accumulated with an <b>exponential
-die-off</b> — S<sub>t</sub> = R<sub>t</sub> + e<sup>−1/τ</sup>·S<sub>t−1</sub>, the
-classic antecedent-precipitation / linear-reservoir model — and the decay timescale τ
-scanned per basin. It beats the 3-day boxcar in every region on the honest
-(deseasonalized) basis: <b>Antioquia 0.44→0.48 (τ≈4d) · Caldas 0.52 (τ≈2d) · Caribe
-0.42→0.46 (τ≈4d) · Centro 0.40→0.42 (τ≈5d) · Oriente 0.48 (τ≈1d) · Valle 0.34→0.40
-(τ≈3d)</b>. The solid raw curves keep rising toward τ=30 d in Caldas and Oriente — that's
-not skill, it's the filter reconstructing the shared wet-season cycle, which is why the
-dashed anomaly curves (seasonal cycle removed from both series) are the ones to trust at
-long τ. The fitted τ is a real physical fingerprint: ~1 d for Oriente's steep eastern-slope
-catchments, 3–7 d for the big Andean basins.</p>
-<div class="panel"><img src="exp_decay_regions.webp?v=202607241200"
-  alt="Correlation vs exponential decay timescale per region"></div>
-<p class="note" style="margin-top:14px">Per river (anomaly basis), the fitted memory sorts
-the system into fast and slow water: steep tunnel-and-intake catchments at τ≈1 d (Guavio,
-San Carlos, Porce II, Alto Anchicayá), the big regulated Cauca systems at τ≈7–14 d
-(Ituango, Salvajina, Grande), and Amoyá the standout at r=0.60 with τ=3 d. The regulated
-laggards (EPM diversions, Porce III, El Quimbo, Bogotá) stay weak under every kernel —
-no rainfall model fixes operations.</p>
-<div class="panel"><img src="exp_decay_rivers.webp?v=202607241200"
-  alt="Per-river exponential memory fit: best r and tau"></div>
-
 <h2>Which rivers carry the water?</h2>
 <p class="note">XM meters inflow river-by-river — this ranks all 43 active rivers by their
 share of their region's inflow energy over the trailing year, hatched by how precisely our
@@ -418,22 +317,6 @@ plant, so shares are of <i>energy</i>, not volume.</p>
 <tr><td>Carlos Lleras</td><td>Antioquia</td><td>0.24</td><td>6%</td><td>SZH 2308; SZH 2701</td></tr>
 </table>
 </div>
-<p class="note" style="margin-top:14px">And the river-level cut of the validation: rainfall
-averaged over <i>each river's own subzonas</i> vs its own inflow series, same 3-day-block
-method, on the full two-year record. Three findings. <b>(1) Response is fast everywhere</b>
-— every river peaks at 0–3 days (the 11–12-day lags that appeared for the Cauca/Porce
-systems on the shorter record were a small-sample artifact; with two full years, Grande,
-Guadalupe, Porce and San Carlos all sit at 0–1 d with r≈0.5). <b>(2) The laggards are the
-regulated and diverted series, not the rainy ones</b> — Bogotá N.R. (r=0.28; heavily
-managed system), El Quimbo (0.30; large reservoir), Batá (0.31; Chivor diversions), the
-EPM tunnel diversions (0.18) and Calima (0.18) — while free-flowing neighbours in the same
-regions reach 0.5+. Centro's regional slip is exactly this: two of its three big rivers are
-the regulated pair. <b>(3) Sogamoso remains the most rain-forecastable big river</b>
-(r=0.55 at 2 d on a third of Centro), with the cleanest small catchments — Prado 0.57,
-San Carlos 0.56, Amoyá 0.54, San Miguel 0.53, Digua 0.52 — close behind.</p>
-<div class="panel"><img src="river_corr.webp?v=202607241111"
-  alt="Per-river correlation: rain over each river's subzonas vs its XM inflow"></div>
-
 <h2>Data downloads</h2>
 <p class="note">Shapefiles and GeoJSON, EPSG:4326. The IDEAM variant is composed of
 official government basin units; the HydroBASINS variant is the sharper

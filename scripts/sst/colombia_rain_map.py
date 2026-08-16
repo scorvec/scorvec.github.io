@@ -251,7 +251,7 @@ def main() -> int:
             14: [0, 10, 25, 50, 100, 150, 250, 350, 500, 700, 1000],
             30: [0, 20, 50, 100, 200, 300, 450, 600, 800, 1000, 1500],
             90: [0, 50, 150, 300, 500, 750, 1000, 1400, 1900, 2500, 3500]}
-    for N in [1, 7, 14, 30, 90]:
+    for N in [1, 7, 90]:
         win = paired[-N:]
         if not win:
             continue
@@ -276,70 +276,6 @@ def main() -> int:
         plt.close(fig)
         print(f"wrote {out.relative_to(REPO)}")
 
-    # keep the objects the scatter section expects
-    mo_days = paired[-30:]
-    mo_g, mo = paired_sum(mo_days)
-    day_g = gauges.get(days[latest_i], {})
-    wk_days = paired[-7:]
-
-    # ── scatter: satellite vs gauge, paired totals ──────────────────────────
-    fig, ax = plt.subplots(figsize=(9.5, 9.5))
-    bias = {r: [] for r in ORDER}
-    pts = {"x": [], "y": [], "c": []}
-    for g in mo_g.values():
-        la, lo = g["la"], g["lo"] % 360
-        if not (LON0 <= lo <= LON1 and LAT0 <= la <= LAT1):
-            continue
-        i = int(np.argmin(np.abs(lats - la)))
-        j = int(np.argmin(np.abs(lons - lo)))
-        sat = float(mo[i, j])
-        reg = assign_region(la, lo)
-        if g["mm"] > 5 and sat > 5:
-            pts["x"].append(g["mm"]); pts["y"].append(sat)
-            pts["c"].append(RCOL.get(reg, "#999999"))
-            if reg:
-                bias[reg].append(sat / g["mm"])
-    ax.scatter(pts["x"], pts["y"], c=pts["c"], s=22, alpha=0.75, edgecolors="none")
-    lim = (5, max(max(pts["x"], default=100), max(pts["y"], default=100)) * 1.2)
-    ax.plot(lim, lim, color="0.3", lw=1.1, ls="--")
-    ax.set_xscale("log"); ax.set_yscale("log")
-    ax.set_xlim(lim); ax.set_ylim(lim)
-    ax.set_xlabel("gauge total (mm)", fontsize=11)
-    ax.set_ylabel("IMERG at gauge (mm)", fontsize=11)
-    lines, factors = [], {}
-    for r in ORDER:
-        if len(bias[r]) >= 5:
-            f = float(np.median(bias[r]))
-            factors[r] = round(f, 2)
-            star = "" if len(bias[r]) >= 15 else "*"
-            lines.append(f"{r[:9]:<9} ×{f:4.2f}{star} (n={len(bias[r])})")
-    allb = [b for r in ORDER for b in bias[r]]
-    if allb:
-        factors["ALL"] = round(float(np.median(allb)), 2)
-        lines.append(f"{'ALL':<9} ×{factors['ALL']:4.2f}  (n={len(allb)})")
-    ax.text(0.03, 0.97, "median IMERG/gauge (* = few gauges)\n" + "\n".join(lines),
-            transform=ax.transAxes, va="top", fontsize=10.5, family="monospace",
-            bbox=dict(boxstyle="round", fc="white", ec="0.7", alpha=0.9))
-    ax.set_title(f"Satellite vs gauge — {len(mo_days)}-day paired totals "
-                 "(colors = hydro regions)", fontsize=12.5, fontweight="bold",
-                 loc="left")
-    ax.grid(lw=0.3, alpha=0.5, which="both")
-    ax.tick_params(labelsize=10)
-    fig.tight_layout()
-    out = OUT_PNG.parent / "rain_gauges_scatter.webp"
-    fig.savefig(out, dpi=125)
-    plt.close(fig)
-    print(f"wrote {out.relative_to(REPO)}")
-
-    OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
-    OUT_JSON.write_text(json.dumps({
-        "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-        "window": f"{days[0]:%Y-%m-%d}..{days[-1]:%Y-%m-%d}",
-        "median_imerg_over_gauge_paired": factors, "paired_days": len(mo_days),
-        "note": ("multiplicative; gauge day = Colombia local calendar day, "
-                 "IMERG day = UTC — offset immaterial at 30 days"),
-    }, separators=(",", ":")))
-    print(f"wrote {OUT_JSON.relative_to(REPO)}: {factors}")
     return 0
 
 
