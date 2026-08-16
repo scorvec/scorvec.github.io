@@ -70,6 +70,8 @@ VERIF_PUB = REPO / "colombia_hydro" / "data" / "rain_verif.json"
 STORAGE_JSON = REPO / "colombia_hydro" / "data" / "storage.json"
 INFLOW_CLIM = REPO / "colombia_hydro" / "data" / "inflow_clim.json"
 GEN_MODEL = REPO / "colombia_hydro" / "data" / "gen_model.json"
+DAM_MODEL = REPO / "colombia_hydro" / "data" / "dam_models.json"
+_CATCH_W: dict = {}                         # catchment masks, keyed by grid shape
 
 ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
 BANDS = [(1, 3), (4, 7), (8, 15)]           # lead-day bands for bias/weights
@@ -84,6 +86,7 @@ PRIOR_RATIO = {"aifs": 1.0, "ifs": 0.75}    # prior bias-factor center: IFS
 MIN_PAIRS = 6                               # per band before weights move off 0.5
 SPREAD_MIN_PAIRS = 30                       # per band before spread inflation acts
 RES_TAU = 10.0                              # days, decay of the obs-residual anchor
+TAU_SLOW_D = 90.0                           # slow kernel for dam fans
 STORAGE_JSON_IN = None                      # set below (public data dir)
 # Colombia box, generous around the basins (geojson lons are -180..180)
 BOX = dict(lon0=-81.0, lon1=-68.0, lat0=-1.5, lat1=12.5)
@@ -172,12 +175,27 @@ def extract_cycle(model: str, date: str, hh: str) -> dict | None:
     daily = np.clip(np.stack([bv[:, k + 1] - bv[:, k] for k in keep], axis=1),
                     0, None)                                  # (nmem, nday, ny, nx)
     W = basin_weights(da.longitude.values, da.latitude.values)
+    WC = {}
+    if DAM_MODEL.exists():
+        try:
+            from dam_models import catchment_weights, DAMS
+            key = (len(da.longitude), len(da.latitude))
+            if key not in _CATCH_W:
+                _CATCH_W[key] = catchment_weights(
+                    da.longitude.values, da.latitude.values, set(DAMS))
+            WC = _CATCH_W[key]
+        except Exception as e:              # noqa: BLE001 — dams are optional
+            print(f"  catchment masks unavailable: {repr(e)[:60]}")
     out = {"model": model, "init_date": date, "init_hh": hh, "valid": valid,
            "n_members": int(daily.shape[0]), "basins": {}}
     for r in ORDER:
         w = W[r]
         out["basins"][r] = np.round(
             (daily * w[None, None]).sum(axis=(2, 3)), 2).tolist()   # [mem][lead]
+    if WC:
+        out["rivers"] = {nm: np.round(
+            (daily * w[None, None]).sum(axis=(2, 3)), 2).tolist()
+            for nm, w in WC.items()}
     return out
 
 
@@ -560,6 +578,70 @@ def stage_fan(dates, rain, rclim, verif) -> None:
                 out["generation"][f"p{int(q*100)}"] = row
             print(f"generation fan: {gtr[:, 0].mean():.0f} -> "
                   f"{gtr[:, -1].mean():.0f} GWh/d (mean)")
+
+    # ── per-dam fans: propagate saved kernel states with catchment rain ─────
+    if DAM_MODEL.exists():
+        dm = json.loads(DAM_MODEL.read_text())["params"]
+        have_rivers = {mdl: rec for mdl, rec in latest.items() if "rivers" in rec}
+        if have_rivers:
+            out["dams"] = {}
+            for rv, p in dm.items():
+                tau, lag = p["tau_days"], p["lag_days"]
+                c0, c1, c2, c3, c4 = p["coefs"]
+                clim365 = np.array(p["clim365_mmday"], float)
+                anchor = ((p["obs_now_pct"] - p["fit_now_pct"])
+                          if p["obs_now_pct"] is not None else 0.0)
+                traces, tw = [], []
+                for mdl, rec in have_rivers.items():
+                    if rv not in rec["rivers"]:
+                        continue
+                    vmap = {np.datetime64(v): i for i, v in enumerate(rec["valid"])}
+                    wbar = float(np.mean([verif["weight_aifs"][p["region"]][bi]
+                                          for bi in range(len(BANDS))]))
+                    wm = (wbar if mdl == "aifs" else 1 - wbar) / rec["n_members"]
+                    d0 = np.datetime64(f"{rec['init_date'][:4]}-"
+                                       f"{rec['init_date'][4:6]}-"
+                                       f"{rec['init_date'][6:8]}")
+                    for mem in rec["rivers"][rv]:
+                        kf, ksl = p["k_now"], p["ks_now"]
+                        kf_h, ks_h = [kf], [ksl]
+                        # gap days between last rain day and fan start: x = 0
+                        gap_n = int((fdays[0] - np.datetime64(p["last_rain_day"])
+                                     ).astype(int)) - 1
+                        for _ in range(max(gap_n, 0)):
+                            kf = (1 - 1 / tau) * kf
+                            ksl = (1 - 1 / TAU_SLOW_D) * ksl
+                            kf_h.append(kf)
+                            ks_h.append(ksl)
+                        ys = []
+                        for j, d in enumerate(fdays):
+                            li = vmap.get(d)
+                            dy = min(d.item().timetuple().tm_yday, 365) - 1
+                            lead = int((d - d0).astype(int))
+                            Fb = verif["bias_factors"][p["region"]][
+                                band_of(max(lead, 1))][mdl]
+                            x = (Fb * mem[li] - clim365[dy]) if li is not None else 0.0
+                            kf = (1 - 1 / tau) * kf + x / tau
+                            ksl = (1 - 1 / TAU_SLOW_D) * ksl + x / TAU_SLOW_D
+                            kf_h.append(kf)
+                            ks_h.append(ksl)
+                            y = (c0 + c1 * kf_h[max(len(kf_h) - 1 - lag, 0)]
+                                 + c2 * p["roni_now"]
+                                 + c3 * ks_h[max(len(ks_h) - 1 - lag, 0)]
+                                 + c4 * p["storage_anom_now"]
+                                 + anchor * np.exp(-(j + 1.0) / RES_TAU))
+                            ys.append(y)
+                        traces.append(ys)
+                        tw.append(wm)
+                if traces:
+                    traces = np.array(traces)
+                    tw = np.array(tw)
+                    out["dams"][rv] = {
+                        f"p{int(q*100)}": np.round(
+                            [weighted_quantile(traces[:, j], tw, [q])[0]
+                             for j in range(len(fdays))], 1).tolist()
+                        for q in qs}
+            print(f"dam fans: {len(out.get('dams', {}))} rivers")
 
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(json.dumps(out, separators=(",", ":")))

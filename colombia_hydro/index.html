@@ -148,6 +148,26 @@ fan is anchored to the current observed inflow with the residual decaying over ~
 <div class="panel"><img src="rain_inflow_model.webp?v=202608167"
   alt="Per-basin rain to inflow model v2: gauge-corrected kernel rainfall anomaly plus slow soil-moisture kernel vs inflow percent of norm"></div>
 
+<h2>Per-dam models — only the rain that matters to each dam</h2>
+<p class="note">The regional models average over whole hydro regions; these use each
+river's <b>own upstream catchment</b> (IDEAM subzona unions traced upstream from every
+dam — nested drainage preserved, so Ituango's polygon correctly contains the Caldas
+catchments whose water passes through it). Gauge-corrected IMERG is masked to each
+polygon: rain outside the divide or downstream of the dam wall never enters that dam's
+model. Twelve majors, same machinery as the regional v3 (fast + slow memory kernels,
+ENSO, regional storage state), each with its own fitted &tau; and its own
+<b style="color:#b35806">ensemble fan</b> from catchment-masked AIFS+IFS members. The
+free-flowing rivers fit <i>better</i> than their parent regions &mdash; <b>Cauca
+Salvajina r&nbsp;=&nbsp;0.78, Betania 0.74, Grande 0.71, Sogamoso 0.68</b> &mdash;
+because the mask removes rain that was never going to reach the turbines.
+<b style="color:#8a4a00">Bogot&aacute; N.R. is flagged REGULATED</b> (kernel
+r&nbsp;=&nbsp;0.25): a third of Centro's inflow is operator decisions in a managed
+system, structurally beyond any rain model &mdash; treat its fan as persistence, not
+meteorology. Bat&aacute; (Chivor diversions) sits just above the flag line for the same
+reason.</p>
+<div class="panel"><img src="dam_models.webp?v=202608168"
+  alt="Per-dam rain-to-inflow models: twelve major reservoirs driven by their own upstream catchment rain, with ensemble forecast fans"></div>
+
 <h2>What is an "inflow"? From raindrop to gigawatt</h2>
 <p class="note"><b>The quantity on this page is energy, not water.</b> XM's raw measurement
 is the <i>aporte h&iacute;drico</i> &mdash; streamflow in m&sup3;/s where each monitored
