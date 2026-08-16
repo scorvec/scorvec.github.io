@@ -85,6 +85,7 @@ const CLIMO_VARS = [
   ["fzl", "Freezing level (AGL)", "m"], ["wbz", "Wet-bulb 0 °C (AGL)", "m"],
   ["kidx", "K-index", ""], ["tott", "Total Totals", ""],
   ["ecape", "ECAPE (MU)", "J/kg"], ["ship", "Significant Hail (SHIP)", ""],
+  ["850spd", "850 hPa wind speed", "m/s"], ["250spd", "250 hPa wind speed", "m/s"],
 ];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const climoModal = document.getElementById("climo-modal");
@@ -743,6 +744,8 @@ function igraKeyVal(get, key) {
       ? t85.t - t50.t + t85.d - (t70.t - t70.d) : null;
     case "tott": return (t85 && t50 && [t85.t, t85.d, t50.t].every(v => v !== null))
       ? t85.t + t85.d - 2 * t50.t : null;
+    case "850spd": return t85 && t85.s;
+    case "250spd": { const t25 = sl(25000); return t25 && t25.s; }
     default: return null;
   }
 }
@@ -766,12 +769,12 @@ function climoDistSamples(text, key, doyC, hour) {
       if (d <= 10) { keep = true; levs = new Map(); }
     } else if (keep) {
       const pa = +line.slice(9, 15);
-      if (![100000, 85000, 70000, 50000].includes(pa)) continue;
+      if (![100000, 85000, 70000, 50000, 25000].includes(pa)) continue;
       const iv2 = (a, b) => { const v = parseInt(line.slice(a, b)); return (!isFinite(v) || v <= -8888) ? null : v; };
-      const tt = iv2(22, 27), dpdp = iv2(34, 39), gph = iv2(16, 21);
+      const tt = iv2(22, 27), dpdp = iv2(34, 39), gph = iv2(16, 21), ws = iv2(46, 51);
       levs.set(pa, { t: tt !== null ? tt / 10 : null,
         d: (tt !== null && dpdp !== null) ? (tt - dpdp) / 10 : null,
-        z: gph });
+        z: gph, s: ws !== null ? ws / 10 : null });
     }
   }
   if (keep) flush();
@@ -1414,7 +1417,7 @@ async function loadCoast() {
 // The record MAP labels stick to the state variables — temps, dews, moisture,
 // heights/thickness. ECAPE and friends stay on the dots and the ranked list.
 const REC_MAP_KEYS = new Set(["850t", "700t", "500t", "850td", "700td",
-                              "pwat", "h500", "thick"]);
+                              "pwat", "h500", "thick", "850spd", "250spd"]);
 const REC_MAP_CLON = -100;                   // map centered on 100°W
 async function drawRecordMap() {
   const cv = document.getElementById("anom-canvas"), ctx = cv.getContext("2d");
@@ -3467,6 +3470,9 @@ function fillTables(prof, res) {
   const d850 = Cd(850), d700 = Cd(700);
   const h500 = interpP(prof, "H", 50000);          // MSL geopotential height (m)
   const h1000 = interpP(prof, "H", 100000);
+  const Cw = k => { const u = interpP(prof, "U", k * 100), v = interpP(prof, "V", k * 100);
+    return (isFinite(u) && isFinite(v)) ? Math.hypot(u, v) : NaN; };
+  const s850 = Cw(850), s250 = Cw(250);
   const kidx = (t850 - t500) + d850 - (t700 - d700);
   const totalT = t850 + d850 - 2 * t500;
   const fzl = freezingLvlAgl(prof);
@@ -3488,6 +3494,8 @@ function fillTables(prof, res) {
       if (ec.obscured) return "obscured (fog)";
       return `${Math.round(ec.zb)} m · ${Math.round(ec.zb * 3.28084 / 100) * 100} ft (~${ec.conf}%)`;
     })()],
+    ["850 / 250 wind", climoCell("850spd", s850, isFinite(s850) ? Math.round(s850 * 1.94384) + " kt" : "—") + " / " +
+      climoCell("250spd", s250, isFinite(s250) ? Math.round(s250 * 1.94384) + " kt" : "—")],
     ["Freezing level", climoCell("fzl", fzl, isFinite(fzl) ? Math.round(fzl) + " m AGL" : "—")],
     ["Wet-bulb 0 °C", (() => { const w = wbzAgl(prof); return climoCell("wbz", w, isFinite(w) ? Math.round(w) + " m AGL" : "—"); })()],
     ["Tropopause (WMO)", (() => { const tp = tropopause(prof);
@@ -3501,6 +3509,7 @@ function fillTables(prof, res) {
     h500: h500, thick: (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN,
     fzl: fzl, kidx: kidx, tott: totalT,
     ecape: o[42] === MISSING ? NaN : o[42], ship: o[43] === MISSING ? NaN : o[43],
+    "850spd": s850, "250spd": s250,
     wbz: wbzAgl(prof) };
   document.getElementById("climo-btn").style.display = climo ? "" : "none";
   document.getElementById("rec-btn").style.display = climo ? "" : "none";
