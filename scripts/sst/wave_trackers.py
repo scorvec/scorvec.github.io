@@ -49,6 +49,10 @@ def wk_filter_padded(anom: np.ndarray, wave: str, pad: int = 48) -> np.ndarray:
     padded = np.vstack([anom, ramp, np.zeros((pad - ramp_n, anom.shape[1]))])
     return wk_filter(padded, wave)[:n]
 
+MJO_SRC = HERE.parent / "mjo" / "src"
+MJO_DATA = HERE.parent / "mjo" / "data"
+sys.path.insert(0, str(MJO_SRC))
+
 OUT = HERE.parent.parent / "assets" / "sst" / "wave_tracker.webp"
 M_PER_DEG = 111320.0                 # metres per degree longitude at the equator
 SHOW_DAYS = 90                       # history shown
@@ -61,6 +65,52 @@ PANELS = {
     "ER":     dict(band="15", cexp=(-12.0, -1.0),  # westward
                    title="Equatorial Rossby waves n=1 (15°S–15°N)"),
 }
+
+
+def aifs_pseudo_olr():
+    """15-day pseudo-OLR forecast from the newest cached AIFS-ENS tp cycle
+    (the MJO leg downloads these twice daily): ensemble-mean daily precip
+    rates on the 15°S–15°N band, standardized against the committed ERA5
+    band climatology (prcp_clim.nc, same 2.5° longitudes as the OLR store),
+    sign-flipped. Returns (dates, phat[days, 144]) in σ units, or None when
+    no cycle is cached — the tracker then falls back to constant-phase-speed
+    extrapolation only."""
+    import re
+    try:
+        from rmm import load_aifs_tp
+    except Exception:
+        return None
+    cand = sorted(MJO_DATA.glob("aifs/aifs_*.pf.tp.grib2"))
+    if not cand:
+        return None
+    m = re.search(r"aifs_(\d{8})_(\d{2})z", cand[-1].name)
+    date, hh = m.group(1), m.group(2)
+    init = pd.Timestamp(f"{date}T{hh}:00")
+    try:
+        tp = load_aifs_tp(cand[-1]).load()           # (number, step, lat, lon2.5)
+        tpm = tp.mean("number")                      # ens mean (accumulation is linear)
+        lat = tpm.latitude
+        w = np.cos(np.deg2rad(lat)).where((lat >= -15) & (lat <= 15), 0.0)
+        band = tpm.weighted(w).mean("latitude")      # (step, lon)
+        hours = (band.step / np.timedelta64(1, "h")).values.round().astype(int)
+        order = np.argsort(hours)
+        hours, vals = hours[order], band.values[order]
+        rates, days = [], []
+        prev_h, prev_v = 0, np.zeros(vals.shape[1])
+        for h, v in zip(hours, vals):
+            rates.append((v - prev_v) * 24.0 / (h - prev_h))    # mm/day
+            days.append(init + pd.Timedelta(hours=int(prev_h)))  # window START day
+            prev_h, prev_v = h, v
+        rates = np.array(rates)
+        clim = xr.open_dataset(MJO_DATA / "reference" / "prcp_clim.nc")
+        doy = np.minimum(pd.DatetimeIndex(days).dayofyear, 366) - 1
+        mu = clim["clim_prcp"].values[doy]
+        sig = np.sqrt((clim["sigma_prcp"].values ** 2).mean(axis=1))[doy]
+        phat = (rates - mu) / sig[:, None]
+        return pd.DatetimeIndex([d.normalize() for d in days]), -phat
+    except Exception as e:                            # noqa: BLE001
+        print(f"AIFS pseudo-OLR unavailable ({repr(e)[:70]})")
+        return None
 
 
 def phase_speed(f: np.ndarray, dlon: float, cexp: tuple[float, float]) -> float:
@@ -114,6 +164,8 @@ def main(argv=None) -> int:
     clim = xr.open_dataset(CLIM)
     rt = xr.open_dataset(STORE_RT)
 
+    fc = aifs_pseudo_olr()
+
     fig, axes = plt.subplots(1, 2, figsize=(13.6, 8.8), sharey=True)
     now = None
     for ax, (wave, cfg) in zip(axes, PANELS.items()):
@@ -122,21 +174,47 @@ def main(argv=None) -> int:
         dlon = float(lons[1] - lons[0])
         times = pd.to_datetime(anom["time"].values)
         now = times[-1]
-        filt = wk_filter_padded(anom.values, wave)
+
+        # append the AIFS-ENS pseudo-OLR forecast (σ units → this band's
+        # recent OLR-anomaly σ) beyond the last observed day, then filter the
+        # combined record: the wave field extends into the forecast window
+        # with the MODEL's dynamics rather than a straight-line assumption.
+        n_fc = 0
+        avals = anom.values
+        if fc is not None:
+            fdates, phat = fc
+            keep = fdates > now
+            if keep.any():
+                scale = float(avals[-90:].std())
+                ext = phat[keep] * scale
+                n_fc = ext.shape[0]
+                avals = np.vstack([avals, ext])
+                ftimes = fdates[keep]
+        filt_all = wk_filter_padded(avals, wave)
+        filt = filt_all[:len(times)]                  # observed part (for fits)
 
         show = filt[-SHOW_DAYS:]
         tshow = times[-SHOW_DAYS:]
         sd = max(filt[-180:].std(), 1e-6)
-        ext_t = pd.date_range(now + pd.Timedelta(days=1), periods=EXT_DAYS)
+        n_strip = max(n_fc, EXT_DAYS)
+        ext_t = pd.date_range(now + pd.Timedelta(days=1), periods=n_strip)
         yfull = tshow.append(ext_t)
 
         pm = ax.pcolormesh(lons, tshow, show, cmap="BrBG_r",
                            vmin=-3 * sd, vmax=3 * sd, shading="nearest")
-        # extension strip: light grey ground, dashed boundary at 'today'
+        # extension strip: model-dynamics shading when a forecast is cached,
+        # light grey ground otherwise; dashed boundary at 'today'
         ax.axhspan(now + pd.Timedelta(hours=12), yfull[-1], color="0.94", zorder=0)
+        if n_fc:
+            ax.pcolormesh(lons, ftimes, filt_all[len(times):], cmap="BrBG_r",
+                          vmin=-3 * sd, vmax=3 * sd, shading="nearest",
+                          alpha=0.85, zorder=1)
         ax.axhline(now + pd.Timedelta(hours=12), color="0.25", lw=1.0, ls="--")
-        ax.annotate("constant-phase-speed extrapolation", xy=(0.985, 0.028),
-                    xycoords="axes fraction", ha="right", fontsize=8, color="0.35")
+        ax.annotate("AIFS-ENS precip forecast, same filter" if n_fc
+                    else "constant-phase-speed extrapolation",
+                    xy=(0.985, 0.028), xycoords="axes fraction", ha="right",
+                    fontsize=8, color="0.25" if n_fc else "0.35",
+                    fontweight="bold" if n_fc else "normal")
 
         c = phase_speed(filt, dlon, cfg["cexp"])
         deg_day = c * 86400.0 / M_PER_DEG
@@ -168,8 +246,8 @@ def main(argv=None) -> int:
                      fontsize=8.5)
 
     fig.suptitle(f"Equatorial wave trackers — through {now:%b %d %Y}\n"
-                 "Wheeler–Kiladis bandpass of the GMGSI OLR proxy · dotted lines: "
-                 "packet characteristics at the fitted phase speed",
+                 "Wheeler–Kiladis bandpass of the GMGSI OLR proxy · dotted: fitted "
+                 "phase-speed characteristics · below the line: AIFS-ENS forecast",
                  fontsize=11.5, fontweight="bold", y=0.995)
     fig.subplots_adjust(top=0.90, bottom=0.10, left=0.06, right=0.99, wspace=0.06)
     out = Path(args.out)

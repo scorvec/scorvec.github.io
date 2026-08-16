@@ -243,16 +243,20 @@
       (15&deg;S&ndash;15&deg;N, n=1) OLR anomaly as shading &mdash; with the active
       enhanced-convection packets <b>tracked</b>: the band's recent phase speed is fitted
       by day-to-day lag correlation of the filtered field, today's packet centres are
-      located, and each characteristic is extrapolated <b>12 days ahead</b> at that
-      speed (dotted line into the grey strip). Read the dotted line's longitude at any
-      future date for the packet's estimated arrival &mdash; convectively coupled Kelvin
-      waves typically cross a basin in under a week, ER waves drift slowly westward.</p>
+      located, and each characteristic is extrapolated ahead at that speed (dotted
+      line). Below the dashed today-line the shading is a true <b>forecast</b>: the
+      AIFS-ENS ensemble-mean precipitation (as a pseudo-OLR, standardized against an
+      ERA5 1991&ndash;2020 band climatology) is appended to the record and run through
+      the <em>same</em> Wheeler&ndash;Kiladis filter, so the wave field continues with
+      the model's dynamics &mdash; where the dotted constant-speed line and the model
+      streaks agree, confidence in the arrival time is high.</p>
     </div>
     <div class="img-wrap" style="max-width:1100px;margin:0 auto"><img id="wave-tracker" data-src="assets/sst/wave_tracker.webp" alt="Kelvin and equatorial Rossby wave trackers with phase-speed extrapolation" loading="lazy"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">Same GMGSI OLR proxy + Wheeler&ndash;Kiladis filters as above
       &middot; phase speed from lag-1-day circular cross-correlation (last 15 days)
-      &middot; extrapolation assumes constant phase speed</span>
+      &middot; forecast strip: AIFS-ENS ens-mean precip pseudo-OLR, identically filtered
+      (falls back to constant-speed extrapolation if no cycle is cached)</span>
       <span class="chart-updated">daily</span>
     </div>
   </div>
