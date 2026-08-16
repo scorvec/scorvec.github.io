@@ -87,6 +87,10 @@ RPT_STAMP="$HOME/.colombia_report_day"
 if [ "$(date -u +%F)" != "$(cat "$RPT_STAMP" 2>/dev/null)" ]; then
   perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/daily_report.py \
     && date -u +%F > "$RPT_STAMP" || echo "daily report failed; continuing"
+  # daily data snapshot into the private research repo (handoff freshness)
+  ( cd "$HOME/colombia_hydro" && git add -A raw reports out 2>/dev/null \
+    && git commit -q -m "data: daily snapshot $(date -u +%F)" 2>/dev/null \
+    && git push -q ) || true
 fi
 ( cd scripts/sst && "$PY" eq_current_section.py ) || echo "eq current section failed; continuing"
 ( cd scripts/sst && "$PY" eq_current_hovmoller.py ) || echo "eq current hovmoller failed; continuing"
