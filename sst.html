@@ -639,7 +639,7 @@
   // Hourly-updating images (committed by their own GitHub Actions, not the page build):
   // load with an hour-granular cache-buster so the latest render shows without churning
   // the page HTML. The page's static ?v= can't cover them (they change between page builds).
-  ['soi-hourly', 'kiribati-wind', 'kiribati-history', 'olr-hovmoller', 'olr-waves', 'eq-current-hov', 'eq-uwind-hov'].forEach(function (id) {
+  ['soi-hourly', 'kiribati-wind', 'kiribati-history', 'olr-hovmoller', 'olr-waves', 'wave-tracker', 'eq-current-hov', 'eq-uwind-hov'].forEach(function (id) {
     var im = document.getElementById(id);
     if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
   });
