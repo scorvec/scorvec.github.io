@@ -66,6 +66,7 @@ NEW_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
   --out scripts/sst/data/tao_eq_recent.nc \
   --ascii scripts/sst/data/tao_eq_recent.ascii || echo "TAO failed; continuing"
 "$PY" scripts/sst/sst_subsurface.py || echo "subsurface failed; continuing"
+"$PY" scripts/sst/wwv_orbit.py || echo "WWV orbit failed; continuing"
 ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_ascat_winds.py ) || echo "ASCAT failed; continuing"
 # perl-alarm wall-clock caps: a hung Earthdata connection once pinned imerg_gatun
 # for 18 h, and the run lock then starved every later poll (2026-08-14/15). The
