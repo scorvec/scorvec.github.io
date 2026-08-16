@@ -132,6 +132,23 @@ spike.</p>
 <div class="panel"><img src="rain_inflow_model.webp?v=202608162"
   alt="Per-basin rain to inflow model: kernel-filtered IMERG rainfall anomaly vs inflow percent of norm"></div>
 
+<h2>Satellite vs gauges — who predicts inflows better?</h2>
+<p class="note">The same anomaly-plus-memory-kernel treatment applied to three rainfall
+sources per basin: <b style="color:#1f4e8c">IMERG basin means</b>, <b style="color:#c62828">
+in-basin IDEAM gauges</b> (&ge;5 stations reporting), and their
+<b style="color:#4d8f4d">standardized blend</b>. The answer is density-dependent:
+<b>gauges win only where the network is dense</b> (Centro, ~130 stations in the
+Bogot&aacute;/upper-Magdalena corridor: 0.55 vs 0.49) and <b>IMERG wins everywhere else</b>
+&mdash; including Antioquia despite 46 gauges (0.60 vs 0.46: the wettest slopes are
+under-sampled), Valle (6 stations, feed-limited) and Caribe (never &ge;5 in-basin
+stations, no gauge series at all). The <b>blend beats both parents in four of six
+basins</b> (Antioquia 0.64, Oriente 0.57, Centro 0.59) &mdash; classic complementary
+errors: gauges anchor amplitude where they exist, the satellite fills the terrain they
+miss. Operational recipe: blend for nowcasting, IMERG alone where gauges are thin, and
+AIFS-ENS mapped onto the IMERG scale for the forecast extension.</p>
+<div class="panel" style="max-width:900px"><img src="gauge_vs_imerg.webp?v=202608161"
+  alt="Kernel-model inflow correlation by rainfall source: IMERG vs gauges vs blend per basin"></div>
+
 <h2>What is an "inflow"? From raindrop to GWh</h2>
 <p class="note"><b>The quantity on this page is energy, not water.</b> XM's raw measurement
 is the <i>aporte h&iacute;drico</i> &mdash; streamflow in m&sup3;/s where each monitored
