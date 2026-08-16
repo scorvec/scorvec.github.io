@@ -146,7 +146,10 @@ def main():
   Wheeler &amp; Hendon (2004). Full three-channel projection: U850/U200 plus a
   pseudo-OLR channel built from &minus;standardized tropical precipitation (tropical
   rain and OLR anticorrelate closely); falls back to wind-only if precip is
-  unavailable for a cycle. Amplitude is the radial distance (rings at 1, 2, 3).
+  unavailable for a cycle. The physics-based <strong>IFS-ENS</strong> (50 members)
+  is overlaid in blue through the <em>identical</em> machinery whenever its data
+  has landed — a direct AI-vs-physics comparison in the same coordinates.
+  Amplitude is the radial distance (rings at 1, 2, 3).
   Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
   {body}
