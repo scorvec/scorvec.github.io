@@ -46,7 +46,7 @@ ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
 RCOL = {"ANTIOQUIA": "#1b7837", "CALDAS": "#762a83", "CARIBE": "#2166ac",
         "CENTRO": "#b2182b", "ORIENTE": "#e08214", "VALLE": "#35978f"}
 # Colombia crop (deg E 0-360, deg N)
-LON0, LON1, LAT0, LAT1 = 281.0, 294.5, -4.8, 13.2
+LON0, LON1, LAT0, LAT1 = 281.5, 288.5, 0.0, 12.0   # hydro zone crop
 
 CMAP = ListedColormap([
     "#f7f7f7", "#c7e9c0", "#74c476", "#238b45", "#41b6c4", "#225ea8",
@@ -135,7 +135,7 @@ def main() -> int:
     def render_map(field, gg, title, lev, fname):
         """One large single-panel map: IMERG shading, region outlines, gauges
         as dots on the same scale WITH their mm totals printed."""
-        fig, ax = plt.subplots(figsize=(11.5, 12.5))
+        fig, ax = plt.subplots(figsize=(8.6, 14.0))
         norm = BoundaryNorm(lev, CMAP.N)
         pm = ax.pcolormesh(lons, lats, field, cmap=CMAP, norm=norm, shading="nearest")
         for r, rings in rp.items():
@@ -158,16 +158,16 @@ def main() -> int:
                             path_effects=[pe.withStroke(linewidth=1.4,
                                                         foreground="white")])
         ax.set_title(f"{title} · {n_in} gauges (values in mm)",
-                     fontsize=13, fontweight="bold", loc="left")
+                     fontsize=12, fontweight="bold", loc="left")
         ax.set_xlim(LON0, LON1); ax.set_ylim(LAT0, LAT1)
         ax.set_aspect("equal")
-        ax.set_xticks([282, 286, 290, 294])
-        ax.set_xticklabels(["78°W", "74°W", "70°W", "66°W"], fontsize=9)
+        ax.set_xticks([282, 284, 286, 288])
+        ax.set_xticklabels(["78°W", "76°W", "74°W", "72°W"], fontsize=9)
         ax.tick_params(labelsize=9)
-        cb = fig.colorbar(pm, ax=ax, orientation="horizontal", fraction=0.045,
-                          pad=0.05, aspect=45)
+        cb = fig.colorbar(pm, ax=ax, orientation="horizontal", fraction=0.035,
+                          pad=0.035, aspect=42)
         cb.set_label("mm", fontsize=9)
-        fig.tight_layout()
+        fig.subplots_adjust(top=0.965, bottom=0.02, left=0.07, right=0.985)
         out = OUT_PNG.parent / fname
         fig.savefig(out, dpi=125)
         plt.close(fig)
