@@ -86,6 +86,10 @@ def load_aifs_tp(path: Path) -> xr.DataArray:
     if "tp" not in ds:
         raise ValueError(f"Variable tp not found in {path}")
     da = ds["tp"]
+    # normalise to mm: ECMWF open-data AIFS tp arrives as kg m-2 (= mm);
+    # only a genuinely metre-unit field needs the x1000
+    if da.attrs.get("units", "").strip() in ("m", "meters", "metre", "metres"):
+        da = da * 1000.0
     if "number" in da.dims:
         da = da.chunk({"number": 1})
     da = da.sortby("latitude").sel(latitude=slice(-LAT_PAD, LAT_PAD))
@@ -240,7 +244,7 @@ def compute_rmm(
                     h0, h1 = int(hours[k]), int(hours[k + 1])
                     v1 = tp_lm[hmap[h1]]
                     v0 = tp_lm[hmap[h0]] if h0 in hmap else 0.0
-                    rates[k] = (v1 - v0) * 1000.0 * 24.0 / (h1 - h0)   # mm/day
+                    rates[k] = (v1 - v0) * 24.0 / (h1 - h0)   # mm/day (tp already mm)
                 rates[-1] = rates[-2]
                 di = np.minimum(doy, 366) - 1
                 phat = (rates - prcp_mu[di]) / prcp_sig[di][:, None]
