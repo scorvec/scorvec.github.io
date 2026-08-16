@@ -645,6 +645,85 @@ def inflow_page(pdf, when: datetime) -> None:
     print("  page 9: inflows vs norms + fans", flush=True)
 
 
+
+
+def storage_page(pdf, when: datetime) -> None:
+    """Page 10: reservoir storage vs seasonal norms + member storage fans."""
+    import json
+    import matplotlib.dates as mdates
+    st = json.loads((REPO / "colombia_hydro" / "data" /
+                     "storage.json").read_text())
+    fan = None
+    fj = REPO / "colombia_hydro" / "data" / "inflow_forecast.json"
+    if fj.exists():
+        f_ = json.loads(fj.read_text())
+        if "storage" in f_ and (np.datetime64(when.strftime("%Y-%m-%d"))
+                - np.datetime64(f_["dates"][0])).astype(int) <= 2:
+            fan = f_
+
+    regs = [r for r in ORDER if r in st.get("pct_doy", {})]
+    sdates = [datetime.strptime(d, "%Y-%m-%d") for d in st["recent"]["dates"]]
+    t0 = when - timedelta(days=100)
+    t1 = when + timedelta(days=21)
+    axis = [t0 + timedelta(days=k) for k in range((t1 - t0).days + 1)]
+    doyx = np.array([min(d.timetuple().tm_yday, 365) for d in axis]) - 1
+
+    fig = plt.figure(figsize=(11.69, 8.27))
+    header(fig, when,
+           "Reservoir storage · useful volume as % of useful capacity · "
+           "fans integrate the member inflow forecasts through the water "
+           "balance", "% of capacity · page 10")
+
+    def panel(ax, r, label_fs=9.8):
+        env = np.array(st["pct_doy"][r], float)
+        ax.fill_between(axis, env[doyx, 0], env[doyx, 4], color="#9db8d8",
+                        alpha=0.32, lw=0, label="p10–p90 norm")
+        ax.fill_between(axis, env[doyx, 1], env[doyx, 3], color="#5b87c0",
+                        alpha=0.32, lw=0, label="p25–p75")
+        ax.plot(axis, env[doyx, 2], color="#1f4e8c", lw=1.4, label="median")
+        obs = np.array(st["recent"]["pct_full"][r], float)
+        obs[obs == 0] = np.nan
+        m = [i for i, d in enumerate(sdates) if d >= t0]
+        ax.plot([sdates[i] for i in m], obs[m], color="#c62828", lw=1.5,
+                label="observed")
+        if fan is not None and r in fan["storage"]["basins"]:
+            fd = [datetime.strptime(x, "%Y-%m-%d") for x in fan["dates"]]
+            q = fan["storage"]["basins"][r]
+            ax.fill_between(fd, q["p10"], q["p90"], color="#e08214",
+                            alpha=0.22, lw=0)
+            ax.fill_between(fd, q["p25"], q["p75"], color="#e08214",
+                            alpha=0.35, lw=0)
+            ax.plot(fd, q["p50"], color="#b35806", lw=1.6, ls="--",
+                    label="forecast")
+        now = obs[np.isfinite(obs)][-1] if np.isfinite(obs).any() else None
+        ttl = r + (f"   ·   {now:.1f}% full" if now is not None else "")
+        ax.set_title(ttl, fontsize=label_fs, fontweight="bold", loc="left",
+                     color=INK, pad=3)
+        ax.set_xlim(t0, t1)
+        ax.axvline(when, color="0.55", lw=0.7, ls=":")
+        ax.grid(lw=0.25, alpha=0.5)
+        ax.tick_params(labelsize=7)
+        ax.set_ylabel("% full", fontsize=7.5)
+        ax.xaxis.set_major_locator(mdates.MonthLocator())
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
+
+    for k, r in enumerate(regs[:6]):
+        row, col = divmod(k, 3)
+        ax = fig.add_axes([0.052 + col * 0.325, 0.635 - row * 0.29,
+                           0.29, 0.215])
+        panel(ax, r, label_fs=9.2)
+        if k == 0:
+            ax.legend(fontsize=5.8, loc="lower left", framealpha=0.85)
+    axn = fig.add_axes([0.052, 0.055, 0.915, 0.24])
+    panel(axn, "NATIONAL", label_fs=10.5)
+    footer(fig, note="storage fan: every inflow member integrated through "
+                     "S' = S + inflow − outflow (outflow = recent reality "
+                     "blended with the ENSO-adjusted seasonal norm)")
+    pdf.savefig(fig, dpi=200)
+    plt.close(fig)
+    print("  page 10: reservoir storage", flush=True)
+
+
 def generation_page(pdf, when: datetime) -> None:
     """Page 8: national hydro generation outlook — the final piece."""
     import json
@@ -677,7 +756,7 @@ def generation_page(pdf, when: datetime) -> None:
     header(fig, when,
            "National hydro generation outlook · persistence + rain/storage "
            "state model driven by the same ensemble",
-           "GW (avg power) · page 10")
+           "GW (avg power) · page 11")
     ax = fig.add_axes([0.055, 0.10, 0.62, 0.775])
     ax.fill_between(axis, env[doyx, 0] / 24, env[doyx, 4] / 24,
                     color="#9db8d8", alpha=0.30, lw=0,
@@ -749,7 +828,7 @@ def generation_page(pdf, when: datetime) -> None:
     footer(fig)
     pdf.savefig(fig, dpi=200)
     plt.close(fig)
-    print("  page 10: national generation outlook", flush=True)
+    print("  page 11: national generation outlook", flush=True)
 
 
 def main() -> int:
@@ -761,6 +840,7 @@ def main() -> int:
         forecast_map_page(pdf, when)
         rain_fan_page(pdf, when)
         inflow_page(pdf, when)
+        storage_page(pdf, when)
         generation_page(pdf, when)
         d = pdf.infodict()
         d["Title"] = f"Colombia Hydro Daily Briefing — {when:%Y-%m-%d}"

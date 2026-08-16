@@ -316,6 +316,7 @@ def main() -> int:
 
     # ── state JSON for the forecast engine ──────────────────────────────────
     rec14 = dates > dates[-1] - np.timedelta64(14, "D")
+    rec400 = dates > dates[-1] - np.timedelta64(400, "D")
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(json.dumps({
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
@@ -339,9 +340,11 @@ def main() -> int:
                 + 0.5 * (np.nan_to_num(norms[r]["outflow_kwh"])
                          + norms[r]["beta_enso"] * nino_now), 0).tolist(),
         } for r in has_storage + ["NATIONAL"]},
-        "recent": {"dates": [str(x) for x in dates[rec14]],
-                   "pct_full": {r: np.round(np.nan_to_num(pct[r][rec14]), 2).tolist()
+        "recent": {"dates": [str(x) for x in dates[rec400]],
+                   "pct_full": {r: np.round(np.nan_to_num(pct[r][rec400]), 2).tolist()
                                 for r in has_storage + ["NATIONAL"]}},
+        "pct_doy": {r: np.round(np.nan_to_num(norms[r]["pct"]), 2).tolist()
+                    for r in has_storage + ["NATIONAL"]},
     }, separators=(",", ":")))
     print(f"wrote {OUT_JSON.relative_to(REPO)}")
     for r in has_storage + ["NATIONAL"]:
