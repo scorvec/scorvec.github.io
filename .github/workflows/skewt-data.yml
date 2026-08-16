@@ -9,7 +9,7 @@ name: Skew-T sounding mirror
 
 on:
   schedule:
-    - cron: '35 1,3,13,15,7,19 * * *'   # ~1.5h & ~3.5h after 00Z/12Z synoptic, plus stragglers   # ~2.5h after 00/12Z launches + refresh passes
+    - cron: '35 1,2,3,7,13,14,15,19 * * *'   # hourly 1.5-3.5h after each 00Z/12Z synoptic + stragglers: UW posts a cycle late some days (12Z arrived ~14:15 UTC on 2026-08-16, leaving the page blue-less between the 13:35 and 15:35 passes)
   workflow_dispatch:
 
 permissions:
