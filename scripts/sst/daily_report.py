@@ -663,7 +663,7 @@ def storage_page(pdf, when: datetime) -> None:
 
     regs = [r for r in ORDER if r in st.get("pct_doy", {})]
     sdates = [datetime.strptime(d, "%Y-%m-%d") for d in st["recent"]["dates"]]
-    t0 = when - timedelta(days=100)
+    t0 = when - timedelta(days=365)          # storage moves slowly — show the year
     t1 = when + timedelta(days=21)
     axis = [t0 + timedelta(days=k) for k in range((t1 - t0).days + 1)]
     doyx = np.array([min(d.timetuple().tm_yday, 365) for d in axis]) - 1
@@ -704,7 +704,7 @@ def storage_page(pdf, when: datetime) -> None:
         ax.grid(lw=0.25, alpha=0.5)
         ax.tick_params(labelsize=7)
         ax.set_ylabel("% full", fontsize=7.5)
-        ax.xaxis.set_major_locator(mdates.MonthLocator())
+        ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
 
     for k, r in enumerate(regs[:6]):
@@ -757,7 +757,7 @@ def generation_page(pdf, when: datetime) -> None:
            "National hydro generation outlook · persistence + rain/storage "
            "state model driven by the same ensemble",
            "GW (avg power) · page 11")
-    ax = fig.add_axes([0.055, 0.10, 0.62, 0.775])
+    ax = fig.add_axes([0.055, 0.40, 0.62, 0.475])
     ax.fill_between(axis, env[doyx, 0] / 24, env[doyx, 4] / 24,
                     color="#9db8d8", alpha=0.30, lw=0,
                     label="p10–p90, 2000–2026")
@@ -788,6 +788,31 @@ def generation_page(pdf, when: datetime) -> None:
     ax.xaxis.set_major_locator(mdates.MonthLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
     ax.legend(fontsize=7.4, loc="lower left", framealpha=0.9)
+    ax.tick_params(labelbottom=False)
+
+    # hydro share of total generation — the thermal displacement, one year
+    ax2 = fig.add_axes([0.055, 0.10, 0.62, 0.255])
+    t0y = when - timedelta(days=365)
+    my = [i for i, d in enumerate(gdates) if d >= t0y]
+    shr = 100 * hyd / np.where(tot > 0, tot, np.nan)
+    ax2.plot([gdates[i] for i in my], shr[my], color="#d8b89d", lw=0.7,
+             alpha=0.8)
+    k30 = np.ones(30) / 30
+    sm = np.convolve(np.where(np.isfinite(shr), shr, np.nanmean(shr)),
+                     k30, "full")[:len(shr)]
+    ax2.plot([gdates[i] for i in my], sm[my], color="#b35806", lw=1.8,
+             label="30-day mean")
+    ax2.axhline(np.nanmean(shr), color="0.6", lw=0.7, ls="--")
+    ax2.set_ylabel("hydro %", fontsize=8)
+    ax2.set_xlim(t0y, t1)
+    ax2.set_title("Hydro share of total generation — thermal dispatch fills "
+                  "the gap as El Niño cuts inflows", fontsize=9.5,
+                  fontweight="bold", loc="left", color=INK)
+    ax2.grid(lw=0.25, alpha=0.5)
+    ax2.tick_params(labelsize=7.5)
+    ax2.legend(fontsize=7, loc="lower left", framealpha=0.9)
+    ax2.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter("%b %y"))
 
     # sidebar stat cards
     n30 = min(30, len(hyd))
@@ -831,6 +856,104 @@ def generation_page(pdf, when: datetime) -> None:
     print("  page 11: national generation outlook", flush=True)
 
 
+
+
+def load_page(pdf, when: datetime) -> None:
+    """Page 12: national load evolution + temperature link."""
+    import json
+    import matplotlib.dates as mdates
+    lj = REPO / "colombia_hydro" / "data" / "load.json"
+    if not lj.exists():
+        return
+    ld = json.loads(lj.read_text())
+
+    fig = plt.figure(figsize=(11.69, 8.27))
+    header(fig, when,
+           "National electricity demand · XM DemaReal, daily average power",
+           "GW · page 12")
+    # 26-year evolution
+    fd = [datetime.strptime(d, "%Y-%m-%d") for d in ld["full"]["dates"]]
+    fg = np.array(ld["full"]["gw"], float)
+    ax = fig.add_axes([0.055, 0.53, 0.62, 0.345])
+    ax.plot(fd, fg, color="#9db8d8", lw=0.6, alpha=0.85)
+    yrs = sorted(ld["annual_mean_gw"])
+    ax.plot([datetime(int(y), 7, 1) for y in yrs],
+            [ld["annual_mean_gw"][y] for y in yrs], color="#1f4e8c", lw=2.0,
+            marker="o", ms=3, label="annual mean")
+    ax.set_title("Demand, 2000–2026 — weekly samples + annual means",
+                 fontsize=10.5, fontweight="bold", loc="left", color=INK)
+    ax.grid(lw=0.25, alpha=0.5)
+    ax.tick_params(labelsize=7.5)
+    ax.set_ylabel("GW", fontsize=8.5)
+    ax.legend(fontsize=7.5, loc="upper left")
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    # recent two years
+    rd = [datetime.strptime(d, "%Y-%m-%d") for d in ld["recent"]["dates"]]
+    rg = np.array(ld["recent"]["gw"], float)
+    t0 = when - timedelta(days=730)
+    m = [i for i, d in enumerate(rd) if d >= t0]
+    ax2 = fig.add_axes([0.055, 0.10, 0.62, 0.345])
+    ax2.plot([rd[i] for i in m], rg[m], color="#a8c6e2", lw=0.7)
+    k30 = np.ones(30) / 30
+    sm = np.convolve(np.where(np.isfinite(rg), rg, np.nanmean(rg)), k30,
+                     "full")[:len(rg)]
+    ax2.plot([rd[i] for i in m], sm[m], color="#c62828", lw=1.8,
+             label="30-day mean")
+    ax2.set_title("Last two years — daily (weekly dispatch cycle visible) "
+                  "and 30-day mean", fontsize=10.5, fontweight="bold",
+                  loc="left", color=INK)
+    ax2.grid(lw=0.25, alpha=0.5)
+    ax2.tick_params(labelsize=7.5)
+    ax2.set_ylabel("GW", fontsize=8.5)
+    ax2.legend(fontsize=7.5, loc="lower right")
+    ax2.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter("%b %y"))
+
+    yrs_i = [int(y) for y in yrs]
+    g_now = float(np.nanmean(rg[-30:]))
+    yoy = None
+    if len(yrs_i) >= 2 and (yrs_i[-1] - 1) in ld["annual_mean_gw"]:
+        pass
+    prev = {int(k): v for k, v in ld["annual_mean_gw"].items()}
+    if yrs_i[-1] - 1 in prev and yrs_i[-1] in prev:
+        yoy = 100 * (prev[yrs_i[-1]] / prev[yrs_i[-1] - 1] - 1)
+    tl = ld.get("temp_link", {})
+    cards = [("DEMAND, 30-DAY MEAN", f"{g_now:.2f} GW",
+              "national daily average power"),
+             ("GROWTH", f"{yoy:+.1f}% YoY" if yoy is not None else "—",
+              f"annual mean {yrs_i[-1]} vs {yrs_i[-1]-1}"),
+             ("TEMPERATURE LINK", f"{tl.get('pct_per_degC_monthly', '—')} %/°C",
+              f"monthly r = {tl.get('r_monthly', '—')} · 2000–2023, "
+              "4-city pop-weighted ERA5"),
+             ("DAILY SENSITIVITY", f"{tl.get('pct_per_degC_daily', '—')} %/°C",
+              f"daily r = {tl.get('r_daily', '—')} (weekday-adjusted, "
+              "detrended)")]
+    for i, (t_, big, sub) in enumerate(cards):
+        y0 = 0.705 - i * 0.155
+        cx = fig.add_axes([0.705, y0, 0.26, 0.135])
+        cx.set_axis_off()
+        cx.add_patch(plt.Rectangle((0, 0), 1, 1, transform=cx.transAxes,
+                                   facecolor="#f2f5f8", edgecolor="#d5dde4",
+                                   lw=0.8))
+        cx.text(0.07, 0.76, t_, transform=cx.transAxes, fontsize=7.2,
+                color=MUTE, fontweight="bold")
+        cx.text(0.07, 0.40, str(big), transform=cx.transAxes, fontsize=14.5,
+                color=INK, fontweight="bold")
+        cx.text(0.07, 0.13, sub, transform=cx.transAxes, fontsize=7.2,
+                color=MUTE)
+    fig.text(0.705, 0.115,
+             "The honest result: temperature barely moves Colombian\n"
+             "demand — a weak daily bump (~0.8%/°C, r≈0.1) and nothing\n"
+             "at monthly scale. Near-equatorial, mild Andean cities have\n"
+             "no heating/cooling season; growth drives the curve. El\n"
+             "Niño's risk here is supply (hydro), not demand.",
+             fontsize=7.6, color=MUTE, va="top")
+    footer(fig)
+    pdf.savefig(fig, dpi=200)
+    plt.close(fig)
+    print("  page 12: national load", flush=True)
+
+
 def main() -> int:
     when = datetime.now(timezone.utc).replace(tzinfo=None)
     OUT_PDF.parent.mkdir(parents=True, exist_ok=True)
@@ -842,6 +965,7 @@ def main() -> int:
         inflow_page(pdf, when)
         storage_page(pdf, when)
         generation_page(pdf, when)
+        load_page(pdf, when)
         d = pdf.infodict()
         d["Title"] = f"Colombia Hydro Daily Briefing — {when:%Y-%m-%d}"
         d["Author"] = "scorvec.com"

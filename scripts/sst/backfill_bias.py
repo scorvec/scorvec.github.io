@@ -31,6 +31,7 @@ GRIB_DIR = REPO / "scripts" / "mjo" / "data" / "aifs"
 ARCH = Path.home() / "colombia_hydro" / "raw" / "fcst_rain"
 BASE = "https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com"
 STEPS = list(range(24, 169, 24))
+STEPS_EXT = list(range(192, 361, 24))      # --extend: leads 8-15 appended
 N_PF = 8                                   # pf members per model (ifs)
 N_PF_AIFS = 7                              # + cf = 8 for aifs
 
@@ -75,6 +76,42 @@ def fetch_tp(url_base: str, want) -> bytes | None:
             return None
         out += blob
     return bytes(out) if out else None
+
+
+def extend_date(date: str) -> bool:
+    """Append leads 8-15 (steps 192-360) to existing backfill GRIBs and
+    drop the archive JSON so the engine re-extracts all 15 leads."""
+    wrote = False
+    jobs = [("ifs", "pf", f"{BASE}/{date}/00z/ifs/0p25/enfo/{date}000000-%dh-enfo-ef",
+             lambda e: e.get("type") == "pf" and int(e.get("number", 0)) <= N_PF),
+            ("aifs", "cf", f"{BASE}/{date}/00z/aifs-ens/0p25/enfo/{date}000000-%dh-enfo-cf",
+             lambda e: True),
+            ("aifs", "pf", f"{BASE}/{date}/00z/aifs-ens/0p25/enfo/{date}000000-%dh-enfo-pf",
+             lambda e: int(e.get("number", 0)) <= N_PF_AIFS)]
+    for model, typ, tmpl, want in jobs:
+        dst = GRIB_DIR / f"{model}_{date}_00z.{typ}.tp.grib2"
+        if not dst.exists():
+            continue
+        # crude idempotence: extended files are >1.6x the lead-1-7 size
+        if dst.stat().st_size > 95e6 or (typ == "cf" and dst.stat().st_size > 12e6):
+            continue
+        buf = bytearray()
+        ok = True
+        for st in STEPS_EXT:
+            b = fetch_tp(tmpl % st, want)
+            if b is None:
+                ok = False
+                break
+            buf += b
+        if ok and buf:
+            with open(dst, "ab") as fh:
+                fh.write(bytes(buf))
+            arch = ARCH / f"{model}_{date}_00z.json.gz"
+            arch.unlink(missing_ok=True)
+            print(f"  {model} {date} {typ}: +{len(buf)/1e6:.0f} MB (leads 8-15)",
+                  flush=True)
+            wrote = True
+    return wrote
 
 
 def backfill_date(date: str) -> bool:
@@ -130,12 +167,13 @@ def main() -> int:
     ndays = 21
     if "--days" in sys.argv:
         ndays = int(sys.argv[sys.argv.index("--days") + 1])
+    extend = "--extend" in sys.argv
     today = datetime.now(timezone.utc).date()
     n = 0
     for k in range(2, ndays + 2):          # start 2 days back (live covers today)
         date = (today - timedelta(days=k)).strftime("%Y%m%d")
         print(f"cycle {date} 00Z", flush=True)
-        if backfill_date(date):
+        if (extend_date(date) if extend else backfill_date(date)):
             n += 1
     print(f"backfilled {n} cycle-dates — run colombia_forecast.py to "
           f"extract + verify")
