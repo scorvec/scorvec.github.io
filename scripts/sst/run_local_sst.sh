@@ -82,6 +82,12 @@ perl -e 'alarm shift; exec @ARGV' 3600 "$PY" scripts/sst/imerg_gatun.py || echo 
 perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS+IFS rain -> inflow + storage fans (rides MJO tp GRIBs)
 "$PY" scripts/sst/xm_inflow_history.py || echo "XM inflow norms failed; continuing"   # inflow history + seasonal norms (draws the fan)
 "$PY" scripts/sst/colombia_rain_map.py || echo "Colombia rain map failed; continuing"   # IMERG vs IDEAM gauges
+# daily PDF briefing: once per UTC day, first runner pass after 00Z
+RPT_STAMP="$HOME/.colombia_report_day"
+if [ "$(date -u +%F)" != "$(cat "$RPT_STAMP" 2>/dev/null)" ]; then
+  perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/daily_report.py \
+    && date -u +%F > "$RPT_STAMP" || echo "daily report failed; continuing"
+fi
 ( cd scripts/sst && "$PY" eq_current_section.py ) || echo "eq current section failed; continuing"
 ( cd scripts/sst && "$PY" eq_current_hovmoller.py ) || echo "eq current hovmoller failed; continuing"
 ( cd scripts/sst && "$PY" eq_uwind_hovmoller.py ) || echo "eq uwind hovmoller failed; continuing"
