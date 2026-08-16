@@ -31,6 +31,10 @@ import pandas as pd
 ARCHIVE = Path("data/reference/ensmean_history.json")
 MAX_RUNS = 120     # cap the committed file (~2 months of 2 cycles/day)
 N_PAIRS = 15       # trailing 00Z/12Z pairs used for the offset estimate
+INDEX_V = 2        # RMM definition version (2 = full WH04 with precip pseudo-OLR,
+                   # 2026-08-16); entries from another version are never paired —
+                   # mixing definitions would bake the definition change into the
+                   # 12Z offset estimate
 MIN_PAIRS = 3      # below this, apply no correction (archive still warming up)
 
 
@@ -42,6 +46,7 @@ def record(date: str, time: str, leads, rmm1, rmm2, path: Path = ARCHIVE) -> Non
     """Archive one run's RAW ensemble-mean trajectory (idempotent per cycle)."""
     hist = json.loads(path.read_text()) if path.exists() else {}
     hist[f"{date}_{time}z"] = {
+        "v": INDEX_V,
         "leads": [round(float(x), 3) for x in leads],
         "rmm1": [round(float(x), 4) for x in rmm1],
         "rmm2": [round(float(x), 4) for x in rmm2],
@@ -80,6 +85,8 @@ def offset_for(date: str, time: str, leads, path: Path = ARCHIVE
         if mate not in hist:
             continue
         b, a = hist[key], hist[mate]
+        if b.get("v") != INDEX_V or a.get("v") != INDEX_V:
+            continue                   # never pair across RMM definitions
         a_by_valid = {_init_ts(mate) + pd.Timedelta(days=ld): i
                       for i, ld in enumerate(a["leads"])}
         matched = False

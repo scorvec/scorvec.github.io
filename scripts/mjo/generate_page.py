@@ -24,7 +24,6 @@ NAV = """<nav>
     <li><a href="index.html">Home</a></li>
     <li><a href="resume.html">Resume</a></li>
     <li><a href="research.html">Research</a></li>
-    <li><a href="gallery.html">Gallery</a></li>
     <li><a href="mjo.html" class="active">MJO</a></li>
   </ul>
 </nav>"""
@@ -84,7 +83,7 @@ def main():
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MJO Forecast — AIFS-ENS RMM | Shawn Corvec</title>
-<meta name="description" content="Real-time Multivariate MJO (RMM) phase-space forecast from the ECMWF AIFS-ENS ensemble, following Wheeler & Hendon (2004).">
+<meta name="description" content="Real-time Multivariate MJO (RMM) phase-space forecast from the ECMWF AIFS-ENS ensemble — winds plus a precipitation-based pseudo-OLR channel, following Wheeler & Hendon (2004).">
 <meta name="robots" content="index, follow">
 <meta property="og:title" content="MJO Forecast — AIFS-ENS RMM">
 <meta property="og:description" content="Real-time MJO (RMM) phase-space forecast from the ECMWF AIFS-ENS ensemble.">
@@ -144,12 +143,17 @@ def main():
   <h1>MJO Forecast — AIFS-ENS</h1>
   <p class="lede">Real-time Multivariate MJO (RMM) phase-space forecast from the
   ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
-  Wheeler &amp; Hendon (2004). Wind-only projection (U850/U200); amplitude is the
-  radial distance (rings at 1, 2, 3). Observed track is recent ERA5/AIFS analysis.</p>
+  Wheeler &amp; Hendon (2004). Full three-channel projection: U850/U200 plus a
+  pseudo-OLR channel built from &minus;standardized tropical precipitation (tropical
+  rain and OLR anticorrelate closely); falls back to wind-only if precip is
+  unavailable for a cycle. Amplitude is the radial distance (rings at 1, 2, 3).
+  Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
+  degrees of the official BoM RMM phase).</p>
   {body}
   <p class="meta">Updated {updated} · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
-  NCEP wind with the 120-day low-frequency filter removed.</p>
+  NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
+  &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
 </main>
 <script>
   // Size the animator iframe to its exact content height (plot + slider) so the slider is

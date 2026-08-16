@@ -321,6 +321,25 @@ def download(date: str, time: str, out_dir: Path) -> None:
             shutil.copy2(src, dst)
         print(f"  {typ} u-wind: {dst.name} -> {Path(src).name}")
 
+    # tp for the precip pseudo-OLR channel of the RMM (accumulated from init;
+    # step 0 is skipped — the accumulation is zero there). Non-fatal: on any
+    # failure the RMM falls back to wind-only, so the critical path survives
+    # a tp outage on the mirrors.
+    tp_steps = tuple(s for s in steps if s > 0)
+    for typ in ("pf", "cf"):
+        try:
+            src = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", typ, "tp", "sfc", (), tp_steps))
+            dst = out_dir / f"{stem}.{typ}.tp.grib2"
+            if dst.exists():
+                dst.unlink()
+            try:
+                os.link(src, dst)
+            except OSError:
+                shutil.copy2(src, dst)
+            print(f"  {typ} tp: {dst.name} -> {Path(src).name}")
+        except Exception as e:                      # noqa: BLE001
+            print(f"  {typ} tp unavailable ({repr(e)[:60]}) — RMM will be wind-only")
+
     print("Download complete.")
 
 

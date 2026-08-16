@@ -32,6 +32,7 @@ import xarray as xr
 
 CLIM_PATH = Path("data/reference/climatology.nc")
 EOFS_PATH = Path("data/reference/eofs.nc")
+PRCP_CLIM_PATH = Path("data/reference/prcp_clim.nc")
 
 
 def main() -> None:
@@ -69,8 +70,14 @@ def main() -> None:
                   f"({stale} days before init) — low-frequency filter is stale; "
                   "check the map120 refresh job")
     print("Computing RMM …")
+    prcp_clim = (xr.open_dataset(PRCP_CLIM_PATH) if PRCP_CLIM_PATH.exists()
+                 else None)
+    if prcp_clim is None:
+        print("::warning::prcp_clim.nc missing — RMM will be wind-only "
+              "(run src/build_prcp_clim.py)")
     rmm = compute_rmm(Path("data/aifs"), args.date, args.time, clim, eofs,
-                      mean120=mean120)
+                      mean120=mean120, prcp_clim=prcp_clim)
+    print(f"  channels: {rmm.attrs.get('channels')}")
 
     # 2b. De-bias the 12Z cycle onto the 00Z family (see cycle_debias docstring:
     # AIFS-ENS 12Z runs are systematically RMM-offset vs 00Z runs at the same
@@ -98,7 +105,7 @@ def main() -> None:
     #    lead). lead_day 0 if step 0 was downloaded, else the first forecast day —
     #    .isel keeps this robust to the daily-vs-6-hourly step choice.
     cf0 = rmm.sel(member="cf").isel(lead_day=0)
-    archive_truth.append_truth(init, float(cf0["rmm1"]), float(cf0["rmm2"]))
+    archive_truth.append_truth(init, float(cf0["rmm1_wind"]), float(cf0["rmm2_wind"]))
     obs = archive_truth.load_truth(days=120)      # 12-hourly points → same ~60-day window
 
     # 4. Plot
