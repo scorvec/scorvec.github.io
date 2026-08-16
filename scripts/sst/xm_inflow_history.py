@@ -234,6 +234,16 @@ def main() -> int:
     with np.errstate(invalid="ignore"):
         nat_ratio = np.where(nat_den > 0, nat_num / nat_den, np.nan)
 
+    # ── forecast fan (colombia_forecast.py), drawn if <3 days old ───────────
+    fan = None
+    fan_path = REPO / "colombia_hydro" / "data" / "inflow_forecast.json"
+    if fan_path.exists():
+        f_ = json.loads(fan_path.read_text())
+        age = (np.datetime64(datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+               - np.datetime64(f_["dates"][0])).astype(int)
+        if age <= 2:
+            fan = f_
+
     # ── figure: norms + % of normal running means ───────────────────────────
     fig, axes = plt.subplots(4, 2, figsize=(13.5, 13.5))
     x365 = np.arange(1, 366)
@@ -248,6 +258,24 @@ def main() -> int:
         dd = np.minimum(np.array([(datetime.strptime(str(x), "%Y-%m-%d")
                                    .timetuple().tm_yday) for x in dates[rec]]), 365)
         ax.plot(dd, reg[r_][rec], color="#c62828", lw=1.3, label="last 200 days")
+        if fan is not None and r_ in fan["basins"]:
+            # % of norm -> GWh/day via the same fleet-corrected doy norm;
+            # clipped at the year wrap (fan is only ~2 weeks long)
+            fdoy = np.array([min(datetime.strptime(x, "%Y-%m-%d")
+                                 .timetuple().tm_yday, 365) for x in fan["dates"]])
+            wrap = np.where(np.diff(fdoy) < 0)[0]
+            stop = int(wrap[0]) + 1 if len(wrap) else len(fdoy)
+            fd = fdoy[:stop]
+            nrm = norm_reg[r_][fd - 1] / 100.0
+            q = fan["basins"][r_]["q"]
+            ax.fill_between(fd, np.array(q["p10"][:stop]) * nrm,
+                            np.array(q["p90"][:stop]) * nrm,
+                            color="#e08214", alpha=0.25, lw=0)
+            ax.fill_between(fd, np.array(q["p25"][:stop]) * nrm,
+                            np.array(q["p75"][:stop]) * nrm,
+                            color="#e08214", alpha=0.35, lw=0)
+            ax.plot(fd, np.array(q["p50"][:stop]) * nrm, color="#b35806",
+                    lw=1.4, ls="--", label="AIFS+IFS ens forecast")
         ax.set_title(f"{r_} — current fleet, fleet-corrected norms",
                      fontsize=10, fontweight="bold", loc="left")
         ax.set_xlim(1, 365)

@@ -218,8 +218,19 @@ immediately legible as wet or dry for the date. Bottom: 90-day and 365-day runni
 of the national total against the identically-windowed norm; the annual mean is in
 record-high territory in 2025&ndash;26, with recent months falling back toward normal as
 El&nbsp;Ni&ntilde;o develops.</p>
-<div class="panel"><img src="inflow_norms.webp?v=202608161"
-  alt="XM regional hydro inflows vs day-of-year seasonal norms, 2000-2026"></div>
+<p class="note" style="margin-top:6px">The <b style="color:#b35806">orange dashed fan</b>
+extending each red line is the <b>15-day inflow forecast</b>: every member of the
+AIFS-ENS and IFS-ENS (~101 members, 00/12Z cycles) has its basin rainfall bias-mapped
+into IMERG-equivalent units, converted to an anomaly against the satellite climatology,
+spliced onto the observed rain history and propagated through that basin's fitted
+memory kernel (&tau;, lag, gain and ENSO term from the rain&rarr;inflow model above).
+Bands are the weighted 10&ndash;90 and 25&ndash;75 member percentiles. The two models are
+blended by out-of-sample verification: every archived forecast day is scored against
+IMERG once it matures, and the per-basin, per-lead bias factors and inverse-error
+weights update themselves twice a day &mdash; the blend starts 50/50 and earns its
+tilt as the forecast archive grows.</p>
+<div class="panel"><img src="inflow_norms.webp?v=202608166"
+  alt="XM regional hydro inflows vs day-of-year seasonal norms with 15-day ensemble forecast fan, 2000-2026"></div>
 
 <h2>The terrain that makes the system</h2>
 <p class="note">The same basins over elevation: all three cordilleras and both great
