@@ -234,6 +234,29 @@
     </div>
   </div>
 
+  <!-- KELVIN / ER WAVE TRACKERS -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Kelvin &amp; Equatorial Rossby Wave Trackers</h2>
+      <p>Each wave isolated in its own panel &mdash; the <b style="color:#1565c0">Kelvin</b>-filtered
+      (5&deg;S&ndash;5&deg;N) and <b style="color:#e6007e">equatorial-Rossby</b>-filtered
+      (15&deg;S&ndash;15&deg;N, n=1) OLR anomaly as shading &mdash; with the active
+      enhanced-convection packets <b>tracked</b>: the band's recent phase speed is fitted
+      by day-to-day lag correlation of the filtered field, today's packet centres are
+      located, and each characteristic is extrapolated <b>12 days ahead</b> at that
+      speed (dotted line into the grey strip). Read the dotted line's longitude at any
+      future date for the packet's estimated arrival &mdash; convectively coupled Kelvin
+      waves typically cross a basin in under a week, ER waves drift slowly westward.</p>
+    </div>
+    <div class="img-wrap" style="max-width:1100px;margin:0 auto"><img id="wave-tracker" data-src="assets/sst/wave_tracker.webp" alt="Kelvin and equatorial Rossby wave trackers with phase-speed extrapolation" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">Same GMGSI OLR proxy + Wheeler&ndash;Kiladis filters as above
+      &middot; phase speed from lag-1-day circular cross-correlation (last 15 days)
+      &middot; extrapolation assumes constant phase speed</span>
+      <span class="chart-updated">daily</span>
+    </div>
+  </div>
+
   <div class="colophon">
     <h3>About these plots</h3>
     <p>This monitor pulls together a range of ENSO and tropical-climate diagnostics, each computed from public source data (not screen-scraped) and regenerated automatically on its own schedule, then committed to the site's GitHub repository. <b>Daily:</b> the global and tropical-Pacific SST anomaly maps, RONI, and indices (NOAA OISST); the equatorial subsurface-temperature cross-section (NOAA/PMEL TAO/TRITON moorings); observed equatorial surface winds (Copernicus Marine scatterometer / ASCAT); and, from the ECMWF AIFS-ENS / IFS-ENS ensembles, the equatorial wind Hovm&ouml;ller and the Southern Oscillation Index forecast. <b>Monthly:</b> the C3S multi-model Ni&ntilde;o-3.4 seasonal forecast &mdash; the Copernicus multi-system seasonal ensemble (ECMWF, UK Met Office, M&eacute;t&eacute;o-France, DWD, NCEP, ECCC/CanSIPS and the Australian BoM), shown as both traditional ONI and RONI, each model anomalized against its own 1993&ndash;2016 hindcast. <b>Weekly:</b> the El Ni&ntilde;o analog comparisons against 1997, 2015 and 2023. RONI is computed directly (the cosine-latitude-weighted Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N tropical mean, 3-month smoothed) rather than fetched, then rescaled by the per-calendar-month &sigma;(ONI)/&sigma;(relative) factor (NOAA-CPC / ECMWF method) so it stays in &deg;C and comparable to ONI (1991&ndash;2020 OISST).</p>

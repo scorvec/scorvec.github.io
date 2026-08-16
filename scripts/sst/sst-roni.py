@@ -994,7 +994,7 @@ def stamp_html(sst_valid, roni_month):
     # pages changes, so those get cache-busted too. (anim/ frames self-bust via manifest "ver".)
     # images updated out-of-band by their own hourly Actions cache-bust client-side
     # (see footer.html), so exclude them or they'd churn the page hash every hour.
-    HOURLY = {"soi_hourly.webp", "kiribati_wind.webp", "kiribati_history.webp", "olr_hovmoller.webp", "olr_waves.webp", "eq_current_hov.webp", "eq_uwind_hov.webp"}
+    HOURLY = {"soi_hourly.webp", "kiribati_wind.webp", "kiribati_history.webp", "olr_hovmoller.webp", "olr_waves.webp", "wave_tracker.webp", "eq_current_hov.webp", "eq_uwind_hov.webp"}
     h = hashlib.md5()
     for p in sorted(ASSETS.rglob("*.webp")):
         if "/anim/" in p.as_posix() or p.name in HOURLY:
