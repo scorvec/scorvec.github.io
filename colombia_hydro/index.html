@@ -109,8 +109,11 @@ provisional; they harden as the daily archive grows.</p>
 is the <i>aporte h&iacute;drico</i> &mdash; streamflow in m&sup3;/s where each monitored
 river enters its reservoir &mdash; but what XM publishes per river (and what we plot) is
 <b>AporEner</b>: that water converted to its electric-energy equivalent via each river's
-<i>conversion factor</i> (kWh per m&sup3;), which encodes the head and efficiency of the
-plant chain the water can fall through. So
+<i>conversion factor</i> (kWh per m&sup3;), which encodes the <b>head</b> &mdash; the vertical drop, in metres, from reservoir
+surface to turbine; the energy in a cubic metre of water is its weight times how far it
+falls (about 0.23&thinsp;kWh per m&sup3; per 100&thinsp;m at typical efficiency) &mdash;
+and efficiency of the plant chain the water can fall through, with cascades summing the
+head of every plant in sequence. So
 <b>AporEner&nbsp;=&nbsp;Q&nbsp;&times;&nbsp;86,400&nbsp;s&nbsp;&times;&nbsp;factor</b>, and a
 river feeding a deep cascade is "worth" several times the GWh per cubic metre of a low-head
 run-of-river plant. Divide by 86,400&thinsp;&times;&thinsp;factor to recover m&sup3;/s.</p>
