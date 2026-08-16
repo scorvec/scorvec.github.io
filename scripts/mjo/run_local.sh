@@ -151,9 +151,17 @@ fi
 # Build the page + publish RMM. Runs even when the plot already existed (e.g. an
 # earlier run was interrupted before its commit); commit_push no-ops when clean.
 ( cd "$REPO" && "$PY" scripts/mjo/generate_page.py )
+# degree-day surprise tracker (USA/CA/BR/AR): light em/es + HRES 2t pull
+if "$PY" "$REPO/scripts/energy/dd_surprise.py" --date "$DATE" --time "$TIME"; then
+  CBDD=$(date -u +%Y%m%d%H%M)
+  perl -0pi -e "s/(dd_surprise\.webp)\?v=\w+/\${1}?v=$CBDD/g" "$REPO/degree-days.html" 2>/dev/null || true
+else
+  echo "degree-day tracker failed; continuing"
+fi
 ( cd "$REPO" && git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc \
     scripts/mjo/data/reference/ensmean_history.json \
-    && commit_push "MJO RMM: ${COMPACT} (local)" )
+    assets/energy scripts/energy/data/dd_archive.json degree-days.html \
+    && commit_push "MJO RMM + degree days: ${COMPACT} (local)" )
 
 # ── Stage 2: dependency-tracked PARALLEL product groups (2026-07-24) ──────────
 # The old 2a/2b staging made every 200-hPa product wait for the full ~7 GB AAM
