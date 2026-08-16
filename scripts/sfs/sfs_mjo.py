@@ -56,6 +56,39 @@ def band_mean(u, lat):
     return (u[..., m, :] * w[:, None]).sum(axis=-2) / w.sum()
 
 
+def fetch_bom_rmm(days_back=45):
+    """Official BoM RMM via the IRI Data Library mirror (bom.gov.au blocks
+    direct downloads). Returns (dates, rmm1, rmm2) or None on any failure —
+    the caller falls back to the site's own AIFS-analysis history so the
+    monthly cron never dies on a mirror outage."""
+    import urllib.request
+    from urllib.parse import quote
+    t1 = datetime.now(timezone.utc)
+    t0 = t1 - pd.Timedelta(days=days_back)
+    d0, d1 = t0.strftime("%d %b %Y"), t1.strftime("%d %b %Y")
+    try:
+        out = {}
+        for var in ("RMM1", "RMM2"):
+            url = (f"http://iridl.ldeo.columbia.edu/SOURCES/.BoM/.MJO/.RMM/"
+                   f".{var}/T/{quote(f'(0000 {d0})')}/{quote(f'(0000 {d1})')}/"
+                   "RANGE/gridtable.tsv")
+            with urllib.request.urlopen(url, timeout=60) as r:
+                rows = [ln.split() for ln in
+                        r.read().decode().splitlines()[2:] if ln.strip()]
+            jd = np.array([float(a) for a, _ in rows])
+            out[var] = (jd, np.array([float(b) for _, b in rows]))
+        jd1, v1 = out["RMM1"]
+        jd2, v2 = out["RMM2"]
+        if len(jd1) < 10 or len(jd1) != len(jd2) or not np.allclose(jd1, jd2):
+            return None
+        dates = pd.to_datetime(jd1 - 2440587.5, unit="D").normalize()
+        return dates, v1, v2
+    except Exception as e:
+        print(f"BoM RMM fetch failed ({e}); falling back to AIFS analysis",
+              flush=True)
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", default=datetime.now(timezone.utc).strftime("%Y%m"))
@@ -105,9 +138,17 @@ def main():
           f"{rmm2[:, 0].mean():+.2f}) amp "
           f"{np.hypot(rmm1, rmm2)[:, 0].mean():.2f}")
 
-    # observed trail for context (already RMM-scaled)
-    obs = xr.open_dataset(MREF / "obs_history.nc")
-    otr = obs.isel(time=slice(-40, None))
+    # observed trail: official BoM RMM (IRI mirror), AIFS analysis fallback
+    bom = fetch_bom_rmm()
+    if bom is not None:
+        obs_dates, o1, o2 = bom
+        obs_label = "observed (BoM RMM)"
+    else:
+        obs = xr.open_dataset(MREF / "obs_history.nc")
+        otr = obs.isel(time=slice(-40, None))
+        obs_dates = pd.to_datetime(otr.time.values)
+        o1, o2 = otr.rmm1.values, otr.rmm2.values
+        obs_label = "observed (AIFS analysis)"
 
     # ── WH04 phase diagram — same wheel as the AIFS-ENS product ─────────────
     sys.path.insert(0, str(REPO / "scripts" / "mjo" / "src"))
@@ -116,8 +157,9 @@ def main():
     draw_phase_wheel(ax)
     for m in range(rmm1.shape[0]):
         ax.plot(rmm1[m], rmm2[m], color="#2e97ad", lw=0.7, alpha=0.35)
-    ax.plot(otr.rmm1, otr.rmm2, color="0.15", lw=2.2, marker="o", ms=3,
-            label="observed (AIFS analysis)")
+    ax.plot(o1, o2, color="0.15", lw=2.2, marker="o", ms=3, label=obs_label)
+    ax.annotate(f"{obs_dates[-1]:%b %d}", (o1[-1], o2[-1]), fontsize=8,
+                color="0.15", xytext=(6, -9), textcoords="offset points")
     mm1, mm2 = rmm1.mean(axis=0), rmm2.mean(axis=0)
     ax.plot(mm1, mm2, color="#c62828", lw=3, marker="o", ms=4.5,
             label="SFS ensemble mean")
@@ -141,6 +183,10 @@ def main():
         "days": [f"{v:%Y-%m-%d}" for v in valid],
         "rmm1": np.round(rmm1, 3).tolist(),
         "rmm2": np.round(rmm2, 3).tolist(),
+        "obs": {"source": obs_label,
+                "days": [f"{d:%Y-%m-%d}" for d in obs_dates],
+                "rmm1": np.round(o1, 3).tolist(),
+                "rmm2": np.round(o2, 3).tolist()},
         "filter_window_end": m120.attrs.get("window_end", "?"),
     }, separators=(",", ":")))
     print(f"wrote {OUTPNG.relative_to(REPO)} + sfs_mjo.json")
