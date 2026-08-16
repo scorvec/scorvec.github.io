@@ -130,44 +130,58 @@ def main() -> int:
                 return r
         return None
 
-    fig, axes = plt.subplots(1, 4, figsize=(22.5, 7.2))
-    panels = [
-        (fields[latest_i], day_g, f"IMERG daily — {days[latest_i]:%b %d}",
-         [0, 1, 2, 5, 10, 20, 35, 50, 75, 100, 150]),
-        (wk, wk_g, f"{len(wk_days)}-day accumulation (paired feed days)",
-         [0, 5, 10, 25, 50, 100, 150, 200, 300, 400, 600]),
-        (mo, mo_g, f"{len(mo_days)}-day accumulation (paired feed days)",
-         [0, 20, 50, 100, 200, 300, 450, 600, 800, 1000, 1500]),
-    ]
-    for ax, (field, gg, title, lev) in zip(axes[:3], panels):
+    import matplotlib.patheffects as pe
+
+    def render_map(field, gg, title, lev, fname):
+        """One large single-panel map: IMERG shading, region outlines, gauges
+        as dots on the same scale WITH their mm totals printed."""
+        fig, ax = plt.subplots(figsize=(11.5, 12.5))
         norm = BoundaryNorm(lev, CMAP.N)
         pm = ax.pcolormesh(lons, lats, field, cmap=CMAP, norm=norm, shading="nearest")
         for r, rings in rp.items():
             if r not in ORDER:
                 continue
             for ring in rings:
-                ax.plot(ring[:, 0] % 360, ring[:, 1], color="#222222", lw=0.8)
+                ax.plot(ring[:, 0] % 360, ring[:, 1], color="#222222", lw=1.0)
+        n_in = 0
         if gg:
-            gl = np.array([[g["lo"] % 360, g["la"], g["mm"]] for g in gg.values()])
-            inside = (gl[:, 0] >= LON0) & (gl[:, 0] <= LON1) & \
-                     (gl[:, 1] >= LAT0) & (gl[:, 1] <= LAT1)
-            gl = gl[inside]
-            ax.scatter(gl[:, 0], gl[:, 1], c=gl[:, 2], cmap=CMAP, norm=norm,
-                       s=15, edgecolors="black", linewidths=0.35, zorder=5)
-            title += f" · {inside.sum()} gauges"
-        ax.set_title(title, fontsize=11, fontweight="bold", loc="left")
+            for g in gg.values():
+                lo, la, mm = g["lo"] % 360, g["la"], g["mm"]
+                if not (LON0 <= lo <= LON1 and LAT0 <= la <= LAT1):
+                    continue
+                n_in += 1
+                ax.scatter([lo], [la], c=[mm], cmap=CMAP, norm=norm, s=42,
+                           edgecolors="black", linewidths=0.5, zorder=5)
+                ax.annotate(f"{mm:.0f}", (lo, la), xytext=(0, 5),
+                            textcoords="offset points", ha="center",
+                            fontsize=5.2, color="#111111", zorder=6,
+                            path_effects=[pe.withStroke(linewidth=1.4,
+                                                        foreground="white")])
+        ax.set_title(f"{title} · {n_in} gauges (values in mm)",
+                     fontsize=13, fontweight="bold", loc="left")
         ax.set_xlim(LON0, LON1); ax.set_ylim(LAT0, LAT1)
         ax.set_aspect("equal")
         ax.set_xticks([282, 286, 290, 294])
-        ax.set_xticklabels(["78°W", "74°W", "70°W", "66°W"], fontsize=8)
-        ax.tick_params(labelsize=8)
-        cb = fig.colorbar(pm, ax=ax, orientation="horizontal", fraction=0.05,
-                          pad=0.07, aspect=32)
-        cb.set_label("mm", fontsize=8)
-        cb.ax.tick_params(labelsize=7)
+        ax.set_xticklabels(["78°W", "74°W", "70°W", "66°W"], fontsize=9)
+        ax.tick_params(labelsize=9)
+        cb = fig.colorbar(pm, ax=ax, orientation="horizontal", fraction=0.045,
+                          pad=0.05, aspect=45)
+        cb.set_label("mm", fontsize=9)
+        fig.tight_layout()
+        out = OUT_PNG.parent / fname
+        fig.savefig(out, dpi=125)
+        plt.close(fig)
+        print(f"wrote {out.relative_to(REPO)}")
 
-    # ── panel 4: satellite vs gauge, 30-day totals ──────────────────────────
-    ax = axes[3]
+    render_map(fields[latest_i], day_g, f"IMERG daily — {days[latest_i]:%b %d}",
+               [0, 1, 2, 5, 10, 20, 35, 50, 75, 100, 150], "rain_gauges_daily.webp")
+    render_map(wk, wk_g, f"{len(wk_days)}-day accumulation (paired feed days)",
+               [0, 5, 10, 25, 50, 100, 150, 200, 300, 400, 600], "rain_gauges_7d.webp")
+    render_map(mo, mo_g, f"{len(mo_days)}-day accumulation (paired feed days)",
+               [0, 20, 50, 100, 200, 300, 450, 600, 800, 1000, 1500], "rain_gauges_30d.webp")
+
+    # ── scatter: satellite vs gauge, paired totals ──────────────────────────
+    fig, ax = plt.subplots(figsize=(9.5, 9.5))
     bias = {r: [] for r in ORDER}
     pts = {"x": [], "y": [], "c": []}
     for g in mo_g.values():
@@ -183,16 +197,14 @@ def main() -> int:
             pts["c"].append(RCOL.get(reg, "#999999"))
             if reg:
                 bias[reg].append(sat / g["mm"])
-    ax.scatter(pts["x"], pts["y"], c=pts["c"], s=13, alpha=0.7,
-               edgecolors="none")
+    ax.scatter(pts["x"], pts["y"], c=pts["c"], s=22, alpha=0.75, edgecolors="none")
     lim = (5, max(max(pts["x"], default=100), max(pts["y"], default=100)) * 1.2)
-    ax.plot(lim, lim, color="0.3", lw=1.0, ls="--")
+    ax.plot(lim, lim, color="0.3", lw=1.1, ls="--")
     ax.set_xscale("log"); ax.set_yscale("log")
     ax.set_xlim(lim); ax.set_ylim(lim)
-    ax.set_xlabel("gauge 30-day total (mm)", fontsize=9)
-    ax.set_ylabel("IMERG at gauge (mm)", fontsize=9)
-    lines = []
-    factors = {}
+    ax.set_xlabel("gauge total (mm)", fontsize=11)
+    ax.set_ylabel("IMERG at gauge (mm)", fontsize=11)
+    lines, factors = [], {}
     for r in ORDER:
         if len(bias[r]) >= 5:
             f = float(np.median(bias[r]))
@@ -204,21 +216,18 @@ def main() -> int:
         factors["ALL"] = round(float(np.median(allb)), 2)
         lines.append(f"{'ALL':<9} ×{factors['ALL']:4.2f}  (n={len(allb)})")
     ax.text(0.03, 0.97, "median IMERG/gauge (* = few gauges)\n" + "\n".join(lines),
-            transform=ax.transAxes, va="top", fontsize=8.5, family="monospace",
+            transform=ax.transAxes, va="top", fontsize=10.5, family="monospace",
             bbox=dict(boxstyle="round", fc="white", ec="0.7", alpha=0.9))
-    ax.set_title(f"Satellite vs gauge — {len(mo_days)}-day paired totals", fontsize=11,
-                 fontweight="bold", loc="left")
-    ax.grid(lw=0.25, alpha=0.5, which="both")
-    ax.tick_params(labelsize=8)
-
-    fig.suptitle("IMERG vs IDEAM rain gauges — Colombia · gauges drawn on the SAME "
-                 "color scale (dots that vanish = satellite agrees)",
-                 fontsize=13, fontweight="bold", y=0.99)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
-    OUT_PNG.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT_PNG, dpi=115)
+    ax.set_title(f"Satellite vs gauge — {len(mo_days)}-day paired totals "
+                 "(colors = hydro regions)", fontsize=12.5, fontweight="bold",
+                 loc="left")
+    ax.grid(lw=0.3, alpha=0.5, which="both")
+    ax.tick_params(labelsize=10)
+    fig.tight_layout()
+    out = OUT_PNG.parent / "rain_gauges_scatter.webp"
+    fig.savefig(out, dpi=125)
     plt.close(fig)
-    print(f"wrote {OUT_PNG.relative_to(REPO)}")
+    print(f"wrote {out.relative_to(REPO)}")
 
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(json.dumps({
