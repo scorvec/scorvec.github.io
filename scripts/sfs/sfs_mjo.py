@@ -215,9 +215,23 @@ def main():
     draw_phase_wheel(ax)
     for m in range(rmm1.shape[0]):
         ax.plot(rmm1[m], rmm2[m], color="#2e97ad", lw=0.7, alpha=0.35)
-    ax.plot(o1, o2, color="0.15", lw=2.2, marker="o", ms=3, label=obs_label)
+    # split the observed trail at the forecast init: points on/after t0
+    # verify THIS forecast, drawn in their own color (the boundary point is
+    # shared so the line stays continuous)
+    o1 = np.asarray(o1); o2 = np.asarray(o2)
+    pre = np.asarray([pd.Timestamp(d) < t0 for d in obs_dates])
+    ipre = np.where(pre)[0]
+    ipost = np.where(~pre)[0]
+    if len(ipre):
+        seg = np.r_[ipre, ipost[:1]] if len(ipost) else ipre
+        ax.plot(o1[seg], o2[seg], color="0.15", lw=2.2, marker="o", ms=3,
+                label=f"{obs_label}, before init")
+    if len(ipost):
+        ax.plot(o1[ipost], o2[ipost], color="#1a7d1a", lw=2.4, marker="o",
+                ms=3.5, label="observed since init (verification)")
     ax.annotate(f"{obs_dates[-1]:%b %d}", (o1[-1], o2[-1]), fontsize=8,
-                color="0.15", xytext=(6, -9), textcoords="offset points")
+                color="#1a7d1a" if len(ipost) else "0.15",
+                xytext=(6, -9), textcoords="offset points")
     ax.plot(rmm1w.mean(axis=0), rmm2w.mean(axis=0), color="0.45", lw=1.6,
             ls="--", label="ens mean, wind-only")
     mm1, mm2 = rmm1.mean(axis=0), rmm2.mean(axis=0)
@@ -226,7 +240,7 @@ def main():
     for i in range(0, len(valid), 4):
         ax.annotate(f"{valid[i]:%b %d}", (mm1[i], mm2[i]), fontsize=8,
                     color="#7a1d1d", xytext=(5, 5), textcoords="offset points")
-    ax.set_title(f"SFS beta — MJO (wind-only RMM), 31 members to day "
+    ax.set_title(f"SFS beta — MJO (RMM), 31 members to day "
                  f"{int(lead_days[sel][-1])} · issue {t0:%b %Y}\n"
                  "full WH04: U850 + U200 + precip pseudo-OLR · raw winds, "
                  "no drift adjustment", fontsize=11, fontweight="bold",
