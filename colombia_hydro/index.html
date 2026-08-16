@@ -149,6 +149,20 @@ AIFS-ENS mapped onto the IMERG scale for the forecast extension.</p>
 <div class="panel" style="max-width:900px"><img src="gauge_vs_imerg.webp?v=202608161"
   alt="Kernel-model inflow correlation by rainfall source: IMERG vs gauges vs blend per basin"></div>
 
+<h2>Daily water balance — 23 years, cross-validated</h2>
+<p class="note">The stronger test of evaporation at the daily level: ERA5 gives both basin
+precipitation and latent-heat-derived ET back to 1959, and the fleet-corrected inflow
+record reaches 2000 &mdash; a <b>23-year overlap spanning eight ENSO cycles</b>. Three
+kernel models per basin, scored strictly <b>out-of-sample</b> (leave-one-year-out):
+rain alone, daily <b>P&nbsp;&minus;&nbsp;E</b> effective precipitation, and rain plus a
+separate ET term. Verdict: <b>daily ET adds at most +0.04 correlation</b> (Caldas
+0.51&rarr;0.54) and nothing in most basins &mdash; the multi-decade record confirms the
+2-year finding at full statistical power. The fitted memories are also stable across eras
+(&tau; = 12&ndash;30 days here vs 20&ndash;45 on recent IMERG), so the kernel structure
+is robust. The model stays rainfall-driven.</p>
+<div class="panel" style="max-width:900px"><img src="water_balance_23yr.webp?v=202608161"
+  alt="23-year out-of-sample comparison: precipitation kernel vs P minus E vs P plus ET term"></div>
+
 <h2>What is an "inflow"? From raindrop to GWh</h2>
 <p class="note"><b>The quantity on this page is energy, not water.</b> XM's raw measurement
 is the <i>aporte h&iacute;drico</i> &mdash; streamflow in m&sup3;/s where each monitored

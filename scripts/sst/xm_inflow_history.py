@@ -294,6 +294,9 @@ def main() -> int:
         "pcts": PCTS,
         "clim": {r: {"mean": np.round(np.nan_to_num(clim[r]["mean"]), 2).tolist(),
                      "pct": np.round(np.nan_to_num(clim[r]["pct"]), 2).tolist()} for r in ORDER},
+        "full_pct_of_norm": {"dates": [str(x) for x in dates],
+                             **{r: np.round(np.nan_to_num(100 * ratio[r]), 1).tolist()
+                                for r in ORDER}},
         "recent": {"dates": [str(x) for x in dates[keep]],
                    **{r: np.round(np.nan_to_num(reg[r][keep]), 2).tolist() for r in ORDER},
                    "pct_of_norm": {r: np.round(np.nan_to_num(100 * ratio[r][keep]), 1).tolist()

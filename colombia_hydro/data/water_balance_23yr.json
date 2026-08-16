@@ -1,0 +1,43 @@
+{
+ "generated": "2026-08-16 16:45 UTC",
+ "window": "2000-01-01..2023-01-09",
+ "method": "LOYO-CV; tau chosen on model A in-sample, shared across models",
+ "results": {
+  "ANTIOQUIA": {
+   "tau": 12,
+   "r_P": 0.443,
+   "r_PminusE": 0.434,
+   "r_P_plus_Eterm": 0.452
+  },
+  "CALDAS": {
+   "tau": 30,
+   "r_P": 0.505,
+   "r_PminusE": 0.49,
+   "r_P_plus_Eterm": 0.54
+  },
+  "CARIBE": {
+   "tau": 20,
+   "r_P": 0.395,
+   "r_PminusE": 0.39,
+   "r_P_plus_Eterm": 0.394
+  },
+  "CENTRO": {
+   "tau": 20,
+   "r_P": 0.533,
+   "r_PminusE": 0.54,
+   "r_P_plus_Eterm": 0.54
+  },
+  "ORIENTE": {
+   "tau": 12,
+   "r_P": 0.437,
+   "r_PminusE": 0.437,
+   "r_P_plus_Eterm": 0.436
+  },
+  "VALLE": {
+   "tau": 12,
+   "r_P": 0.246,
+   "r_PminusE": 0.253,
+   "r_P_plus_Eterm": 0.273
+  }
+ }
+}
