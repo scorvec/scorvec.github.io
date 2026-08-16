@@ -37,7 +37,7 @@ OUT_DIR = os.path.join(REPO, "data", "asos5")
 MADIS_URL = "https://madis-data.ncep.noaa.gov/madisPublic1/data/LDAD/hfmetar/netCDF/{:%Y%m%d_%H}00.gz"
 NWS_URL = "https://api.weather.gov/stations/{id}/observations?start={start}&limit=500"
 AWC_URL = "https://aviationweather.gov/api/data/metar?ids={ids}&format=json&hours=30"
-USER_AGENT = "scorvec.com asos5 dashboard (shawncorvec@hotmail.com)"
+USER_AGENT = "scorvec.com asos5 dashboard (scorvec@outlook.com)"
 
 # MADIS data-descriptor flags to reject: failed / questioned / subjective bad.
 BAD_DD = {"X", "Q", "B"}

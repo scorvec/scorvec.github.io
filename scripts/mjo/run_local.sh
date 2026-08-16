@@ -95,7 +95,7 @@ echo "building cycle $COMPACT …"
 commit_push () {            # $1 = message; commits staged changes (if any) + pushes with retry
   if git diff --staged --quiet; then echo "  ($1: nothing to commit)"; return 0; fi
   git_lock || return 1     # serialise vs the other site pipelines (sst/synoptic/ens)
-  git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" commit -m "$1"
+  git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" commit -m "$1"
   for i in 1 2 3 4 5; do
     if git pull --rebase --autostash -X theirs && git push; then echo "  pushed: $1 (attempt $i)"; git_unlock; return 0; fi
     echo "  push attempt $i failed; retrying…"; sleep 5
@@ -109,7 +109,7 @@ publish () {                # $1 = message; $2.. = paths — ATOMIC stage+commit
   local p                   # commit or groups cross-stage each other's files.
   for p in "$@"; do [ -e "$p" ] && git add "$p"; done
   if git diff --staged --quiet; then echo "  ($msg: nothing to commit)"; git_unlock; return 0; fi
-  git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" commit -m "$msg"
+  git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" commit -m "$msg"
   local i
   for i in 1 2 3 4 5; do
     if git pull --rebase --autostash -X theirs && git push; then echo "  pushed: $msg (attempt $i)"; git_unlock; return 0; fi
@@ -151,17 +151,15 @@ fi
 # Build the page + publish RMM. Runs even when the plot already existed (e.g. an
 # earlier run was interrupted before its commit); commit_push no-ops when clean.
 ( cd "$REPO" && "$PY" scripts/mjo/generate_page.py )
-# degree-day surprise tracker (USA/CA/BR/AR): light em/es + HRES 2t pull
-if "$PY" "$REPO/scripts/energy/dd_surprise.py" --date "$DATE" --time "$TIME"; then
-  CBDD=$(date -u +%Y%m%d%H%M)
-  perl -0pi -e "s/(dd_surprise\.webp)\?v=\w+/\${1}?v=$CBDD/g" "$REPO/degree-days.html" 2>/dev/null || true
-else
-  echo "degree-day tracker failed; continuing"
-fi
+# degree-day surprise tracker: page PARKED (local_archive/degree_days,
+# 2026-08-16) but the per-cycle archive keeps accumulating so the revision
+# history is deep when it returns; the webp renders locally only.
+"$PY" "$REPO/scripts/energy/dd_surprise.py" --date "$DATE" --time "$TIME" \
+  || echo "degree-day tracker failed; continuing"
 ( cd "$REPO" && git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc \
     scripts/mjo/data/reference/ensmean_history.json \
-    assets/energy scripts/energy/data/dd_archive.json degree-days.html \
-    && commit_push "MJO RMM + degree days: ${COMPACT} (local)" )
+    scripts/energy/data/dd_archive.json \
+    && commit_push "MJO RMM: ${COMPACT} (local)" )
 
 # ── Stage 2: dependency-tracked PARALLEL product groups (2026-07-24) ──────────
 # The old 2a/2b staging made every 200-hPa product wait for the full ~7 GB AAM

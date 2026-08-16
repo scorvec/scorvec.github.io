@@ -151,7 +151,7 @@ fi
 git add -A assets/synoptic/        # frame webp gitignored → only manifests/json/viewer staged
 git add charts.html 2>/dev/null || true
 if git diff --staged --quiet; then echo "frames published; no manifest change to commit."; git_unlock; exit 0; fi
-git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
+git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
     commit -m "synoptic maps: cycle ${COMPACT} (manifests; frames on synoptic-frames)"
 for i in 1 2 3 4 5; do
   if git pull --rebase --autostash -X theirs && git push; then echo "pushed main (attempt $i)"; git_unlock; exit 0; fi

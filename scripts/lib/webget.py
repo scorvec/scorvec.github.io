@@ -23,7 +23,7 @@ import urllib.error
 import urllib.request
 
 # Identifying UA — several sources (api.weather.gov, aviationweather.gov) want one.
-DEFAULT_UA = "scorvec.com data pipeline (shawncorvec@hotmail.com)"
+DEFAULT_UA = "scorvec.com data pipeline (scorvec@outlook.com)"
 _TRANSIENT = {429, 500, 502, 503, 504}
 
 

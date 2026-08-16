@@ -32,7 +32,7 @@ if git diff --staged --quiet; then echo "map unchanged; nothing to commit"; exit
 
 git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
 trap 'git_unlock' EXIT
-git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
+git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
     commit -m "RMM: refresh 120-day low-frequency (ENSO) filter map (ARCO-ERA5)"
 for i in 1 2 3 4 5; do
   if git pull --rebase --autostash -X theirs && git push; then
