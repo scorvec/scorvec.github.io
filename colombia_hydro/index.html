@@ -276,6 +276,26 @@ deliberately second-order term.</p>
 <div class="panel"><img src="storage_norms.webp?v=202608167"
   alt="XM reservoir storage as percent of useful capacity vs seasonal norms, with ensemble forecast fan"></div>
 
+<h2>Actual hydro generation — the end of the chain</h2>
+<p class="note">Rain &rarr; inflows &rarr; storage &rarr; <b>generation</b>: XM's hourly
+per-plant output (161 hydro plants among 2,276 resources), aggregated to daily national
+hydro GWh from <b>2000</b>. Top: the annual mean has grown from ~75 to ~185&nbsp;GWh/day
+(demand + fleet); the collapses are El&nbsp;Ni&ntilde;o 2009&ndash;10 and 2015&ndash;16,
+when hydro's <b>share</b> of the mix fell from its usual 75&ndash;85% to 60% annual (30%
+on the worst days) &mdash; the gap is thermal dispatch, which is what moves prices.
+Bottom: generation against its day-of-year envelope with the <b
+style="color:#b35806">forecast fan</b>. Generation is <i>more</i> forecastable than
+inflows at short leads &mdash; reservoirs low-pass-filter the weather and dispatch
+follows storage and demand. The model: a trailing 3-year norm + <b>weekday offsets</b>
+(the weekly dispatch cycle is r&nbsp;=&nbsp;0.82 at lag&nbsp;7) + a blend of
+<b>persistence</b> (fitted decay, dominant early) and the <b>state model</b> &mdash;
+inflow anomaly, storage anomaly, Ni&ntilde;o-3.4 &mdash; which alone scores
+r&nbsp;=&nbsp;0.59 out-of-sample across 23 leave-one-year-out years. Bands widen with
+lead by the blend's residual uncertainty, and the member spread rides the same
+AIFS+IFS rain ensemble as everything above.</p>
+<div class="panel"><img src="generation.webp?v=202608167"
+  alt="XM actual hydro generation: 26-year trend, hydro share, day-of-year envelope with forecast fan"></div>
+
 <h2>The terrain that makes the system</h2>
 <p class="note">The same basins over elevation: all three cordilleras and both great
 valleys are visible, and the dams cluster exactly where rivers drop off the ranges —

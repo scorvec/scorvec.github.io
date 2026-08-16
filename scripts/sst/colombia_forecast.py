@@ -69,6 +69,7 @@ VERIF_PNG = REPO / "colombia_hydro" / "rain_verif.webp"
 VERIF_PUB = REPO / "colombia_hydro" / "data" / "rain_verif.json"
 STORAGE_JSON = REPO / "colombia_hydro" / "data" / "storage.json"
 INFLOW_CLIM = REPO / "colombia_hydro" / "data" / "inflow_clim.json"
+GEN_MODEL = REPO / "colombia_hydro" / "data" / "gen_model.json"
 
 ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
 BANDS = [(1, 3), (4, 7), (8, 15)]           # lead-day bands for bias/weights
@@ -491,12 +492,14 @@ def stage_fan(dates, rain, rclim, verif) -> None:
                 dy = min(d.item().timetuple().tm_yday, 365) - 1
                 S[r] += norm_gwh[r][dy] * 1e6 - ofc[dy]
         traj = {r: np.zeros((len(members), len(fdays))) for r in regs}
+        natI = np.zeros((len(members), len(fdays)))      # national inflow, GWh
         for r in regs:
             cap = float(st["regions"][r]["cap_kwh"])
             ofc = np.array(st["regions"][r]["outflow_fcst_kwh"], float)
             for j, d in enumerate(fdays):
                 dy = min(d.item().timetuple().tm_yday, 365) - 1
                 infl_kwh = all_traces[r][:, j] / 100.0 * norm_gwh[r][dy] * 1e6
+                natI[:, j] += infl_kwh / 1e6
                 S[r] = np.clip(S[r] + infl_kwh - ofc[dy], 0, cap)
                 traj[r][:, j] = S[r]
             stor["basins"][r] = {
@@ -512,6 +515,51 @@ def stage_fan(dates, rain, rclim, verif) -> None:
         out["storage"] = stor
         print(f"storage fan: {len(regs)} regions + NATIONAL "
               f"(state {st['last_day']}, gap {len(gap)} d on climatology)")
+
+        # ── generation fan: persistence + state blend (gen_model.json) ──────
+        if GEN_MODEL.exists():
+            gm = json.loads(GEN_MODEL.read_text())
+            c = gm["coefs"]
+            a0, ptau = gm["persistence"]["a0"], gm["persistence"]["tau_days"]
+            Gn365 = np.array(gm["gn365_gwh"], float)
+            In365 = np.array(gm["in365_gwh"], float)
+            Wd = np.array(gm["weekday_offsets_gwh"], float)
+            ia_hist = list(gm["ia_recent_gwh"])
+            gtr = np.zeros((len(members), len(fdays)))
+            state_const = (c["c0"] + c["storage_gwh_per_pt"] * gm["storage_anom_now"]
+                           + c["nino_gwh_per_degc"] * gm["nino_now"])
+            for mi in range(len(members)):
+                buf = list(ia_hist)
+                for j, d in enumerate(fdays):
+                    dy = min(d.item().timetuple().tm_yday, 365) - 1
+                    buf.append(natI[mi, j] - In365[dy])
+                    ia7 = float(np.mean(buf[-7:]))
+                    alpha = a0 * np.exp(-(j + 1.0) / ptau)
+                    state = state_const + c["inflow7_gwh_per_gwh"] * ia7
+                    wd_ = d.item().weekday()
+                    gtr[mi, j] = (Gn365[dy] + Wd[wd_]
+                                  + alpha * gm["ga_now_gwh"]
+                                  + (1 - alpha) * state)
+            # member spread only carries the rain signal; the dominant
+            # uncertainty is the model residual — widen by lead using the
+            # blend's effective skill r_eff(h) = max(alpha(h), LOYO r)
+            sig = gm.get("sigma_ga_gwh", 15.0)
+            r_loyo = gm.get("r_loyo", 0.55)
+            zq = {0.1: -1.2816, 0.25: -0.6745, 0.5: 0.0, 0.75: 0.6745,
+                  0.9: 1.2816}
+            out["generation"] = {}
+            for q in qs:
+                row = []
+                for j in range(len(fdays)):
+                    alpha = a0 * np.exp(-(j + 1.0) / ptau)
+                    r_eff = max(alpha, r_loyo)
+                    s_h = sig * np.sqrt(max(0.0, 1 - r_eff ** 2))
+                    row.append(round(float(
+                        weighted_quantile(gtr[:, j], mwts, [q])[0]
+                        + zq[q] * s_h), 1))
+                out["generation"][f"p{int(q*100)}"] = row
+            print(f"generation fan: {gtr[:, 0].mean():.0f} -> "
+                  f"{gtr[:, -1].mean():.0f} GWh/d (mean)")
 
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(json.dumps(out, separators=(",", ":")))
