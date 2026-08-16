@@ -50,7 +50,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import imerg_precip as IP                                   # noqa: E402
-from hydro_region_rain import region_weights                # noqa: E402
+from hydro_region_rain import region_weights, gauge_correction, gauge_correction_mtime  # noqa: E402
 from build_imerg_clim import OUT as CLIM_NC, eval_clim      # noqa: E402
 from rain_inflow_model import ema                           # noqa: E402
 from matplotlib.path import Path as MplPath                 # noqa: E402
@@ -65,12 +65,16 @@ VERIF_JSON = PRIV / "out" / "fcst_verif.json"
 MODEL_JSON = REPO / "colombia_hydro" / "data" / "rain_inflow_model.json"
 ENSO_JSON = REPO / "assets" / "sst" / "data" / "enso_daily.json"
 OUT_JSON = REPO / "colombia_hydro" / "data" / "inflow_forecast.json"
+STORAGE_JSON = REPO / "colombia_hydro" / "data" / "storage.json"
+INFLOW_CLIM = REPO / "colombia_hydro" / "data" / "inflow_clim.json"
 
 ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
 BANDS = [(1, 3), (4, 7), (8, 15)]           # lead-day bands for bias/weights
 MAX_LEAD = 15                               # days
 K_PRIOR = 20.0                              # prior strength, days of clim
 MIN_PAIRS = 10                              # per band before weights move off 0.5
+SPREAD_MIN_PAIRS = 30                       # per band before spread inflation acts
+STORAGE_JSON_IN = None                      # set below (public data dir)
 # Colombia box, generous around the basins (geojson lons are -180..180)
 BOX = dict(lon0=-81.0, lon1=-68.0, lat0=-1.5, lat1=12.5)
 
@@ -194,9 +198,17 @@ def stage_extract() -> int:
 
 # ── truth: RAW-IMERG basin daily means, incrementally cached ────────────────
 def truth_series() -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, np.ndarray]]:
-    """(dates, rain[r], clim[r]) over the whole IMERG daily cache."""
+    """(dates, rain[r], clim[r]) over the whole IMERG daily cache.
+
+    GAUGE-CORRECTED space (rain and clim both x F) — matches kernel model
+    v2, which was refit on corrected rain. The cache stores the F-field
+    mtime it was built with and rebuilds in full when the field updates
+    (weekly rebuilds shift it only marginally, but keep it exact)."""
     import xarray as xr
     cache = json.loads(TRUTH_CACHE.read_text()) if TRUTH_CACHE.exists() else {"dates": []}
+    fmt = gauge_correction_mtime()
+    if cache.get("corr_mtime") != fmt:
+        cache = {"dates": [], "corr_mtime": fmt}
     files = sorted(IP.DAILY_CACHE.glob("*.npy"))
     days = [f.stem for f in files]
     known = set(cache["dates"])
@@ -206,14 +218,15 @@ def truth_series() -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, np.ndar
         lons = np.sort(IP._LON[ml])
         lats = np.sort(IP._LAT[mt])
         W = region_weights(REGIONS_GJ, lons, lats)
+        F = gauge_correction(lons, lats)
         clim = xr.open_dataset(CLIM_NC)["coef"].values
         for r in ORDER:
             cache.setdefault(r, [])
             cache.setdefault(r + "_clim", [])
         for d in new:
-            g = np.load(IP.DAILY_CACHE / f"{d}.npy")
+            g = np.load(IP.DAILY_CACHE / f"{d}.npy") * F
             doy = min(datetime.strptime(d, "%Y%m%d").timetuple().tm_yday, 365)
-            c = eval_clim(clim, doy)
+            c = eval_clim(clim, doy) * F
             for r in ORDER:
                 w = W[r]
                 sw = w.sum()
@@ -223,7 +236,8 @@ def truth_series() -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, np.ndar
         # keep sorted (new days always append in order, but be safe)
         order = np.argsort(cache["dates"])
         for k in list(cache):
-            cache[k] = [cache[k][i] for i in order]
+            if isinstance(cache[k], list):
+                cache[k] = [cache[k][i] for i in order]
         TRUTH_CACHE.write_text(json.dumps(cache, separators=(",", ":")))
         print(f"truth cache: +{len(new)} days -> {len(cache['dates'])}", flush=True)
     dates = np.array([f"{d[:4]}-{d[4:6]}-{d[6:8]}" for d in cache["dates"]],
@@ -237,7 +251,7 @@ def truth_series() -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, np.ndar
 def stage_verify(dates, rain, rclim) -> dict:
     dmap = {str(d): i for i, d in enumerate(dates)}
     # pairs[model][r][band] -> [sum_f, sum_o, sse, n]
-    acc = {mdl: {r: {b: [0.0, 0.0, 0.0, 0] for b in range(len(BANDS))} for r in ORDER}
+    acc = {mdl: {r: {b: [0.0, 0.0, 0.0, 0, 0.0] for b in range(len(BANDS))} for r in ORDER}
            for mdl in ("aifs", "ifs")}
     for f in sorted(ARCH.glob("*.json.gz")):    # all buckets are calendar-aligned
         rec = json.loads(gzip.open(f, "rt").read())
@@ -256,24 +270,31 @@ def stage_verify(dates, rain, rclim) -> dict:
                 obs = rain[r][i]
                 if not np.isfinite(obs):
                     continue
-                fc = float(np.mean([mem[li] for mem in rec["basins"][r]]))
+                mems = np.array([mem[li] for mem in rec["basins"][r]])
+                fc = float(mems.mean())
                 a = acc[mdl][r][band]
                 a[0] += fc
                 a[1] += obs
                 a[2] += (fc - obs) ** 2
                 a[3] += 1
+                a[4] += float(mems.std())
     clim_mean = {r: float(np.nanmean(rclim[r])) for r in ORDER}
-    factors, weights, counts = {}, {}, {}
+    factors, weights, counts, spread = {}, {}, {}, {}
     for r in ORDER:
-        factors[r], weights[r], counts[r] = {}, {}, {}
+        factors[r], weights[r], counts[r], spread[r] = {}, {}, {}, {}
         for bi in range(len(BANDS)):
             P = K_PRIOR * clim_mean[r]
             fA, fI = {}, {}
             for mdl in ("aifs", "ifs"):
-                s_f, s_o, sse, n = acc[mdl][r][bi]
-                (fA if mdl == "aifs" else fI)["F"] = (s_o + P) / (s_f + P) if s_f > 0 else 1.0
-                (fA if mdl == "aifs" else fI)["mse"] = sse / n if n else np.nan
-                (fA if mdl == "aifs" else fI)["n"] = n
+                s_f, s_o, sse, n, ssp = acc[mdl][r][bi]
+                d_ = fA if mdl == "aifs" else fI
+                d_["F"] = (s_o + P) / (s_f + P) if s_f > 0 else 1.0
+                d_["mse"] = sse / n if n else np.nan
+                d_["n"] = n
+                # spread ratio RMSE/mean-spread: >1 = underdispersive; used
+                # to inflate the fan once >=30 pairs (SPREAD_MIN_PAIRS)
+                d_["sr"] = round(float(np.sqrt(sse / n) / (ssp / n)), 3) \
+                    if n and ssp > 0 else None
             nA, nI = fA["n"], fI["n"]
             if nA >= MIN_PAIRS and nI >= MIN_PAIRS and fA["mse"] > 0 and fI["mse"] > 0:
                 wa = (1 / fA["mse"]) / (1 / fA["mse"] + 1 / fI["mse"])
@@ -282,11 +303,13 @@ def stage_verify(dates, rain, rclim) -> dict:
             factors[r][bi] = {"aifs": round(fA["F"], 3), "ifs": round(fI["F"], 3)}
             weights[r][bi] = round(float(wa), 3)
             counts[r][bi] = {"aifs": nA, "ifs": nI}
+            spread[r][bi] = {"aifs": fA["sr"], "ifs": fI["sr"]}
     verif = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-             "truth": "RAW IMERG basin-daily (kernel-model calibration space)",
+             "truth": "GAUGE-CORRECTED IMERG basin-daily (kernel model v2 space)",
              "bands_lead_days": BANDS, "k_prior_days": K_PRIOR,
              "min_pairs": MIN_PAIRS,
-             "bias_factors": factors, "weight_aifs": weights, "pairs": counts}
+             "bias_factors": factors, "weight_aifs": weights, "pairs": counts,
+             "spread_ratio": spread}
     VERIF_JSON.parent.mkdir(parents=True, exist_ok=True)
     VERIF_JSON.write_text(json.dumps(verif, indent=1))
     return verif
@@ -359,12 +382,15 @@ def stage_fan(dates, rain, rclim, verif) -> None:
            "truth_last_day": str(obs_last),
            "note": ("%-of-norm fan: pooled bias-corrected AIFS-ENS + IFS-ENS "
                     "members through the per-basin EMA kernel (+ENSO term); "
-                    "weights/bias from out-of-sample verification vs raw IMERG"),
+                    "weights/bias from out-of-sample verification vs gauge-corrected IMERG"),
            "basins": {}}
+    all_traces = {}
     for r in ORDER:
         p = params[r]
         tau, lag = p["tau_days"], p["lag_days"]
-        a2, b2, c2 = p["intercept2_pct"], p["gain2_pct_per_mmday"], p["enso_coef_pct_per_roni"]
+        tau_slow = p.get("tau_slow_days", 90)
+        a3, b3 = p["intercept3_pct"], p["gain3_pct_per_mmday"]
+        c3, d3 = p["enso3_coef_pct_per_roni"], p["slow3_pct_per_mmday"]
         hist_anom = rain[r] - rclim[r]
         clim_f = np.array([np.nan] * len(fdays), float)
         # forecast-day climatology from the same harmonic fit (via truth clim by doy)
@@ -380,17 +406,72 @@ def stage_fan(dates, rain, rclim, verif) -> None:
             x = np.concatenate([np.where(np.isfinite(hist_anom), hist_anom, 0.0),
                                 tr[r] - clim_f])
             k = ema(x, tau)
-            # y at day t uses kernel at t-lag; fan day j is fdays[j]
+            ks = ema(x, tau_slow)
+            # y at day t uses kernels at t-lag; fan day j is fdays[j]
             nh = len(hist_anom)
-            kk = np.array([k[nh + j - lag] if nh + j - lag < len(k) else k[-1]
-                           for j in range(len(fdays))])
-            traces[mi] = a2 + b2 * kk + c2 * roni
+            ix = [min(nh + j - lag, len(k) - 1) for j in range(len(fdays))]
+            kk, kks = k[ix], ks[ix]
+            traces[mi] = a3 + b3 * kk + c3 * roni + d3 * kks
+        # spread inflation about the weighted median once verification says
+        # the ensemble is over/under-dispersive (needs SPREAD_MIN_PAIRS pairs)
+        srs = [verif["spread_ratio"][r][bi][mdl]
+               for bi in range(len(BANDS)) for mdl in ("aifs", "ifs")
+               if verif["spread_ratio"][r][bi][mdl] is not None
+               and min(verif["pairs"][r][bi].values()) >= SPREAD_MIN_PAIRS]
+        if srs:
+            sr = float(np.clip(np.mean(srs), 0.7, 1.8))
+            med = np.array([weighted_quantile(traces[:, j], mwts, [0.5])[0]
+                            for j in range(len(fdays))])
+            traces = med[None, :] + sr * (traces - med[None, :])
+        all_traces[r] = traces
         out["basins"][r] = {
             "tau": tau, "lag": lag,
             "q": {f"p{int(q*100)}": np.round(
                 [weighted_quantile(traces[:, j], mwts, [q])[0]
                  for j in range(len(fdays))], 1).tolist() for q in qs}}
     out["dates"] = [str(d) for d in fdays]
+
+    # ── storage fan: S' = S + inflow(member) - outflow_fcst, % of capacity ──
+    if STORAGE_JSON.exists() and INFLOW_CLIM.exists():
+        st = json.loads(STORAGE_JSON.read_text())
+        iclim = json.loads(INFLOW_CLIM.read_text())["clim"]
+        regs = [r for r in ORDER if r in st["regions"]]
+        s_last = np.datetime64(st["last_day"])
+        stor = {"last_day": st["last_day"], "basins": {}}
+        S = {}      # member storage state, kWh
+        for r in regs:
+            S[r] = np.full(len(members), float(st["regions"][r]["vol_kwh"]))
+        # gap days between storage obs and fan start: advance on climatology
+        gap = np.arange(s_last + np.timedelta64(1, "D"), fdays[0])
+        norm_gwh = {r: np.array(iclim[r]["mean"], float) for r in regs}
+        for r in regs:
+            ofc = np.array(st["regions"][r]["outflow_fcst_kwh"], float)
+            for d in gap:
+                dy = min(d.item().timetuple().tm_yday, 365) - 1
+                S[r] += norm_gwh[r][dy] * 1e6 - ofc[dy]
+        traj = {r: np.zeros((len(members), len(fdays))) for r in regs}
+        for r in regs:
+            cap = float(st["regions"][r]["cap_kwh"])
+            ofc = np.array(st["regions"][r]["outflow_fcst_kwh"], float)
+            for j, d in enumerate(fdays):
+                dy = min(d.item().timetuple().tm_yday, 365) - 1
+                infl_kwh = all_traces[r][:, j] / 100.0 * norm_gwh[r][dy] * 1e6
+                S[r] = np.clip(S[r] + infl_kwh - ofc[dy], 0, cap)
+                traj[r][:, j] = S[r]
+            stor["basins"][r] = {
+                f"p{int(q*100)}": np.round(
+                    [weighted_quantile(100 * traj[r][:, j] / cap, mwts, [q])[0]
+                     for j in range(len(fdays))], 2).tolist() for q in qs}
+        cap_nat = sum(float(st["regions"][r]["cap_kwh"]) for r in regs)
+        Snat = np.sum([traj[r] for r in regs], axis=0)
+        stor["basins"]["NATIONAL"] = {
+            f"p{int(q*100)}": np.round(
+                [weighted_quantile(100 * Snat[:, j] / cap_nat, mwts, [q])[0]
+                 for j in range(len(fdays))], 2).tolist() for q in qs}
+        out["storage"] = stor
+        print(f"storage fan: {len(regs)} regions + NATIONAL "
+              f"(state {st['last_day']}, gap {len(gap)} d on climatology)")
+
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(json.dumps(out, separators=(",", ":")))
     print(f"wrote {OUT_JSON.relative_to(REPO)}: {len(fdays)} days from "

@@ -139,7 +139,7 @@ def build_correction(days_all, fields_all, rdates, lons, lats):
             w0 = 0.15                                  # unity-pulling background
             F[ii, :] = np.exp((w * logf[:, None]).sum(0) / (w.sum(0) + w0))
     CORR_NPZ.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(CORR_NPZ, F=F)
+    np.savez_compressed(CORR_NPZ, F=F, lons=lons, lats=lats)   # lons 0..360
     print(f"correction field: {F.min():.2f}..{F.max():.2f} (x)", flush=True)
     return F
 

@@ -66,6 +66,38 @@ def region_weights(path: Path, lon: np.ndarray, lat: np.ndarray) -> dict[str, np
     return out
 
 
+def gauge_correction(lons: np.ndarray, lats: np.ndarray) -> np.ndarray:
+    """Gauge-correction field F (corrected = IMERG * F) embedded onto an
+    arbitrary lat/lon grid: 1.0 outside the field's footprint. Built by
+    colombia_rain_map.build_correction (549-station log-IDW); returns all
+    ones if the cached NPZ is missing or lacks coordinates."""
+    npz = HERE / "data" / "imerg_gauge_corr.npz"
+    F = np.ones((len(lats), len(lons)))
+    if not npz.exists():
+        return F
+    z = np.load(npz)
+    if "lons" not in z:
+        return F
+    flon, flat = z["lons"], z["lats"]          # saved in 0..360 convention
+    tl = np.asarray(lons) % 360
+    ji = {round(v, 3): j for j, v in enumerate(np.round(flon % 360, 3))}
+    ii = {round(v, 3): i for i, v in enumerate(np.round(flat, 3))}
+    for i, la in enumerate(np.round(np.asarray(lats), 3)):
+        si = ii.get(round(float(la), 3))
+        if si is None:
+            continue
+        for j, lo in enumerate(np.round(tl, 3)):
+            sj = ji.get(round(float(lo), 3))
+            if sj is not None:
+                F[i, j] = z["F"][si, sj]
+    return F
+
+
+def gauge_correction_mtime() -> float:
+    npz = HERE / "data" / "imerg_gauge_corr.npz"
+    return npz.stat().st_mtime if npz.exists() else 0.0
+
+
 def main(argv=None) -> int:
     import argparse
     ap = argparse.ArgumentParser()

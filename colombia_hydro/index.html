@@ -138,8 +138,16 @@ rainfall itself</i> &mdash; which is good news for forecasting, since rain is th
 second-order here, and separating it cleanly needs the multi-decade record (a planned
 extension); Caribe's apparent ENSO term is an artifact of the 2026 Urr&aacute; flood
 spike.</p>
-<div class="panel"><img src="rain_inflow_model.webp?v=202608162"
-  alt="Per-basin rain to inflow model: kernel-filtered IMERG rainfall anomaly vs inflow percent of norm"></div>
+<p class="note"><b>Model v2</b> (green dotted): the rain driver is now the
+<b>gauge-corrected</b> IMERG (the 549-station field from the ground-truth section,
+applied to rain and climatology alike), and a <b>slow soil-moisture kernel</b> &mdash; a
+90-day exponential memory of the same rain anomaly &mdash; joins the fast kernel and the
+RONI term as a third regressor. Antecedent wetness the fast kernel forgets is exactly
+what it adds: Oriente and Centro, the big slow basins, gain the most (r +0.02); elsewhere
+it is correctly near-zero rather than harmful. The RONI term remains the model's
+evapotranspiration channel.</p>
+<div class="panel"><img src="rain_inflow_model.webp?v=202608167"
+  alt="Per-basin rain to inflow model v2: gauge-corrected kernel rainfall anomaly plus slow soil-moisture kernel vs inflow percent of norm"></div>
 
 <h2>Satellite vs gauges — who predicts inflows better?</h2>
 <p class="note">The same anomaly-plus-memory-kernel treatment applied to three rainfall
@@ -231,6 +239,23 @@ weights update themselves twice a day &mdash; the blend starts 50/50 and earns i
 tilt as the forecast archive grows.</p>
 <div class="panel"><img src="inflow_norms.webp?v=202608166"
   alt="XM regional hydro inflows vs day-of-year seasonal norms with 15-day ensemble forecast fan, 2000-2026"></div>
+
+<h2>Reservoir storage — the number the market actually watches</h2>
+<p class="note">Inflows are the flow; <b>storage is the state</b>. XM publishes every
+reservoir's <b>useful stored volume</b> and <b>useful capacity</b> daily in
+energy-equivalent units (kWh at each plant's conversion factor), aggregated here to the
+same hydro regions and shown as <b>% of useful capacity</b> against day-of-year norms
+&mdash; the ratio is fleet-seam-free because both sides are summed over the same-day
+reporting fleet. The <b style="color:#b35806">orange fan</b> is the storage forecast:
+each of the ~101 ensemble members' inflow trajectories is integrated forward through the
+water balance <i>S&prime; = S + inflow &minus; outflow</i>, where outflow (generation +
+spill + evaporation, implied from the 26-year record as inflow &minus; &Delta;S) is
+forecast as half the recent 14-day reality, half the ENSO-adjusted seasonal norm. The
+ENSO adjustment is fitted from the full record and carries both <b>reservoir
+evaporation</b> and El&nbsp;Ni&ntilde;o-conditioned dispatch &mdash; a small,
+deliberately second-order term.</p>
+<div class="panel"><img src="storage_norms.webp?v=202608167"
+  alt="XM reservoir storage as percent of useful capacity vs seasonal norms, with ensemble forecast fan"></div>
 
 <h2>The terrain that makes the system</h2>
 <p class="note">The same basins over elevation: all three cordilleras and both great

@@ -34,7 +34,7 @@ import matplotlib.dates as mdates
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import imerg_precip as IP                        # noqa: E402
-from hydro_region_rain import region_weights     # noqa: E402
+from hydro_region_rain import region_weights, gauge_correction  # noqa: E402
 from build_imerg_clim import OUT as CLIM_NC, eval_clim  # noqa: E402
 
 REPO = HERE.parent.parent
@@ -47,6 +47,7 @@ ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
 TAUS = [2, 4, 7, 12, 20, 30, 45, 60]
 LAGS = range(0, 8)
 YSMOOTH = 5                       # trailing-mean days on the inflow side
+TAU_SLOW = 90                     # slow soil-moisture EMA, days
 
 
 def ema(x: np.ndarray, tau: float) -> np.ndarray:
@@ -75,6 +76,7 @@ def main() -> int:
     lons = np.sort(IP._LON[ml])          # native -180..180 — geojson convention
     lats = np.sort(IP._LAT[mt])
     W = region_weights(REGIONS_GJ, lons, lats)
+    F = gauge_correction(lons, lats)      # corrected = IMERG * F (1.0 off-footprint)
     import xarray as xr
     clim = xr.open_dataset(CLIM_NC)["coef"].values
     doys = np.array([min(int(np.datetime64(d).astype("datetime64[D]").item().timetuple().tm_yday), 365)
@@ -82,8 +84,8 @@ def main() -> int:
     rain = {r: np.full(len(files), np.nan) for r in ORDER}
     rain_clim = {r: np.full(len(files), np.nan) for r in ORDER}
     for i, f in enumerate(files):
-        g = np.load(f)
-        c = eval_clim(clim, doys[i])
+        g = np.load(f) * F                # gauge-corrected rain; clim gets the
+        c = eval_clim(clim, doys[i]) * F  # same field so anomalies stay consistent
         for r in ORDER:
             w = W[r]
             sw = w.sum()
@@ -147,6 +149,16 @@ def main() -> int:
         beta, *_ = np.linalg.lstsq(X, y[m2], rcond=None)
         fit2 = beta[0] + beta[1] * xl + beta[2] * roni
         r2 = float(np.corrcoef(fit2[m2], y[m2])[0, 1])
+        # v2: + slow soil-moisture kernel (90-day EMA of the same anomaly) —
+        # antecedent wetness the fast kernel forgets; sharper wet-dry turns
+        kslow = ema(x_anom, TAU_SLOW)
+        ksl = np.roll(kslow, lag)
+        ksl[:lag] = np.nan
+        m3 = m2 & np.isfinite(ksl)
+        X3 = np.column_stack([np.ones(m3.sum()), xl[m3], roni[m3], ksl[m3]])
+        beta3, *_ = np.linalg.lstsq(X3, y[m3], rcond=None)
+        fit3 = beta3[0] + beta3[1] * xl + beta3[2] * roni + beta3[3] * ksl
+        r3 = float(np.corrcoef(fit3[m3], y[m3])[0, 1])
         params[r] = {"tau_days": tau, "lag_days": lag, "r": round(rr, 3),
                      "r_same_day": round(r_daily, 3),
                      "gain_pct_per_mmday": round(float(b), 2),
@@ -155,15 +167,23 @@ def main() -> int:
                      "enso_coef_pct_per_roni": round(float(beta[2]), 1),
                      "gain2_pct_per_mmday": round(float(beta[1]), 2),
                      "intercept2_pct": round(float(beta[0]), 1),
+                     "tau_slow_days": TAU_SLOW,
+                     "r_v2": round(r3, 3),
+                     "intercept3_pct": round(float(beta3[0]), 1),
+                     "gain3_pct_per_mmday": round(float(beta3[1]), 2),
+                     "enso3_coef_pct_per_roni": round(float(beta3[2]), 1),
+                     "slow3_pct_per_mmday": round(float(beta3[3]), 2),
                      "n": int(m.sum())}
         ax.plot(t, y, color="#1f4e8c", lw=1.3, label="inflow, % of norm (5-d mean)")
         ax.plot(t, fit, color="#c62828", lw=1.2, alpha=0.9,
                 label=f"fitted from rain (τ={tau} d, lag {lag} d)")
         ax.plot(t, fit2, color="#e08214", lw=1.1, alpha=0.9, ls="--",
                 label=f"rain + ENSO term (r={r2:.2f})")
+        ax.plot(t, fit3, color="#2e7d32", lw=1.0, alpha=0.85, ls=":",
+                label=f"+ slow soil kernel (r={r3:.2f})")
         ax.axhline(100, color="0.6", lw=0.7, ls="--")
         ax.set_title(f"{r} — r: {r_daily:.2f} same-day → {rr:.2f} kernel → {r2:.2f} +ENSO "
-                     f"(c={beta[2]:+.0f}%/RONI)",
+                     f"→ {r3:.2f} +slow (c={beta[2]:+.0f}%/RONI)",
                      fontsize=10.5, fontweight="bold", loc="left")
         ax.tick_params(labelsize=8)
         ax.grid(lw=0.25, alpha=0.5)
@@ -185,10 +205,12 @@ def main() -> int:
     OUT_JSON.write_text(json.dumps({
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "window": f"{common[0]}..{common[-1]}",
-        "note": ("y = intercept + gain * EMA_tau(rain anomaly, lagged); "
-                 "y is fleet-corrected inflow % of norm, 5-day trailing mean; "
-                 "multiplicative satellite bias cancels in r — apply region "
-                 "bias factors when driving with AIFS forecasts"),
+        "note": ("RAIN IS GAUGE-CORRECTED IMERG (x F field) as of v2. "
+                 "v2 model: y = intercept3 + gain3*EMA_tau + enso3*RONI + "
+                 "slow3*EMA_90, all kernels lagged; y is fleet-corrected "
+                 "inflow %% of norm, 5-day trailing mean. NWP forecasts must "
+                 "be verified/bias-mapped against CORRECTED IMERG."),
+        "rain_space": "gauge_corrected",
         "params": params,
     }, indent=1))
     print(json.dumps(params, indent=1))
