@@ -291,11 +291,11 @@ def main(argv=None) -> int:
     k365 = np.ones(365) / 365
     fig, axes = plt.subplots(3, 1, figsize=(13.0, 11.5))
     ax = axes[0]
-    ax.plot(t, gh, color="#9db8d8", lw=0.4, alpha=0.7)
+    ax.plot(t, gh / 24.0, color="#9db8d8", lw=0.4, alpha=0.7)
     if len(gh) > 365:
-        ax.plot(t[364:], np.convolve(gh, k365, "valid"), color="#1f4e8c", lw=1.8,
-                label="365-day mean")
-    ax.set_title("National hydro generation, GWh/day — daily + annual mean",
+        ax.plot(t[364:], np.convolve(gh / 24.0, k365, "valid"), color="#1f4e8c",
+                lw=1.8, label="365-day mean")
+    ax.set_title("National hydro generation, GW (daily average power) — daily + annual mean",
                  fontsize=11, fontweight="bold", loc="left")
     ax.legend(fontsize=8)
     ax = axes[1]
@@ -309,13 +309,13 @@ def main(argv=None) -> int:
     ax.legend(fontsize=8)
     ax = axes[2]
     x365 = np.arange(1, 366)
-    ax.fill_between(x365, env[:, 0], env[:, 4], color="#9db8d8", alpha=0.35,
-                    label="p10–p90")
-    ax.fill_between(x365, env[:, 1], env[:, 3], color="#5b87c0", alpha=0.35,
-                    label="p25–p75")
-    ax.plot(x365, env[:, 2], color="#1f4e8c", lw=1.5, label="median")
+    ax.fill_between(x365, env[:, 0] / 24, env[:, 4] / 24, color="#9db8d8",
+                    alpha=0.35, label="p10–p90")
+    ax.fill_between(x365, env[:, 1] / 24, env[:, 3] / 24, color="#5b87c0",
+                    alpha=0.35, label="p25–p75")
+    ax.plot(x365, env[:, 2] / 24, color="#1f4e8c", lw=1.5, label="median")
     rec = dates > dates[-1] - np.timedelta64(200, "D")
-    ax.plot(doy[rec], gh[rec], color="#c62828", lw=1.2, label="last 200 days")
+    ax.plot(doy[rec], gh[rec] / 24, color="#c62828", lw=1.2, label="last 200 days")
     if fan is not None:
         q = fan["generation"]
         fdoy = np.array([min(datetime.strptime(x, "%Y-%m-%d").timetuple().tm_yday,
@@ -323,12 +323,14 @@ def main(argv=None) -> int:
         wrap = np.where(np.diff(fdoy) < 0)[0]
         stop = int(wrap[0]) + 1 if len(wrap) else len(fdoy)
         fd = fdoy[:stop]
-        ax.fill_between(fd, q["p10"][:stop], q["p90"][:stop], color="#e08214",
+        ax.fill_between(fd, np.array(q["p10"][:stop]) / 24,
+                        np.array(q["p90"][:stop]) / 24, color="#e08214",
                         alpha=0.25, lw=0)
-        ax.fill_between(fd, q["p25"][:stop], q["p75"][:stop], color="#e08214",
+        ax.fill_between(fd, np.array(q["p25"][:stop]) / 24,
+                        np.array(q["p75"][:stop]) / 24, color="#e08214",
                         alpha=0.35, lw=0)
-        ax.plot(fd, q["p50"][:stop], color="#b35806", lw=1.4, ls="--",
-                label="forecast (persistence + inflow/storage states)")
+        ax.plot(fd, np.array(q["p50"][:stop]) / 24, color="#b35806", lw=1.4,
+                ls="--", label="forecast (persistence + inflow/storage states)")
     ax.set_title("Hydro generation vs day-of-year envelope (full record)",
                  fontsize=11, fontweight="bold", loc="left")
     ax.set_xlim(1, 365)
@@ -338,8 +340,8 @@ def main(argv=None) -> int:
     for ax in axes:
         ax.grid(lw=0.25, alpha=0.5)
         ax.tick_params(labelsize=8)
-    axes[0].set_ylabel("GWh/day", fontsize=9)
-    axes[2].set_ylabel("GWh/day", fontsize=9)
+    axes[0].set_ylabel("GW", fontsize=9)
+    axes[2].set_ylabel("GW", fontsize=9)
     fig.suptitle("XM actual generation — hydro output and hydro share, "
                  f"{days[0][:4]}–{days[-1][:4]}", fontsize=12.5,
                  fontweight="bold", y=0.995)

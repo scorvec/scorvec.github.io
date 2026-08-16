@@ -249,15 +249,15 @@ def main() -> int:
     x365 = np.arange(1, 366)
     for ax, r_ in zip(axes.flat[:6], ORDER):
         c = clim[r_]
-        ax.fill_between(x365, c["pct"][:, 0], c["pct"][:, 4], color="#9db8d8",
-                        alpha=0.35, label="p10–p90")
-        ax.fill_between(x365, c["pct"][:, 1], c["pct"][:, 3], color="#5b87c0",
-                        alpha=0.35, label="p25–p75")
-        ax.plot(x365, c["pct"][:, 2], color="#1f4e8c", lw=1.4, label="median")
+        ax.fill_between(x365, c["pct"][:, 0] / 24, c["pct"][:, 4] / 24,
+                        color="#9db8d8", alpha=0.35, label="p10–p90")
+        ax.fill_between(x365, c["pct"][:, 1] / 24, c["pct"][:, 3] / 24,
+                        color="#5b87c0", alpha=0.35, label="p25–p75")
+        ax.plot(x365, c["pct"][:, 2] / 24, color="#1f4e8c", lw=1.4, label="median")
         rec = dates > dates[-1] - np.timedelta64(200, "D")
         dd = np.minimum(np.array([(datetime.strptime(str(x), "%Y-%m-%d")
                                    .timetuple().tm_yday) for x in dates[rec]]), 365)
-        ax.plot(dd, reg[r_][rec], color="#c62828", lw=1.3, label="last 200 days")
+        ax.plot(dd, reg[r_][rec] / 24, color="#c62828", lw=1.3, label="last 200 days")
         if fan is not None and r_ in fan["basins"]:
             # % of norm -> GWh/day via the same fleet-corrected doy norm;
             # clipped at the year wrap (fan is only ~2 weeks long)
@@ -266,7 +266,7 @@ def main() -> int:
             wrap = np.where(np.diff(fdoy) < 0)[0]
             stop = int(wrap[0]) + 1 if len(wrap) else len(fdoy)
             fd = fdoy[:stop]
-            nrm = norm_reg[r_][fd - 1] / 100.0
+            nrm = norm_reg[r_][fd - 1] / 100.0 / 24.0
             q = fan["basins"][r_]["q"]
             ax.fill_between(fd, np.array(q["p10"][:stop]) * nrm,
                             np.array(q["p90"][:stop]) * nrm,
@@ -285,7 +285,7 @@ def main() -> int:
         ax.grid(lw=0.25, alpha=0.5)
         if r_ == ORDER[0]:
             ax.legend(fontsize=7, loc="upper left")
-        ax.set_ylabel("GWh/day", fontsize=8)
+        ax.set_ylabel("GW (avg power)", fontsize=8)
 
     t = dates.astype("datetime64[s]").astype(datetime)
     for ax, (win, lab) in zip(axes.flat[6:], [(90, "90-day"), (365, "365-day")]):
