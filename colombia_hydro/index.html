@@ -82,6 +82,20 @@ daily. Rain here today is turbine water in the coming weeks.</p>
 <div class="panel"><img src="/assets/sst/colombia_region_rain.webp"
   alt="Daily basin rainfall per XM region vs climatology"></div>
 
+<h2>Ground truth — IMERG vs the IDEAM gauge network</h2>
+<p class="note">Satellite rainfall with <b>~400 IDEAM automatic rain gauges overlaid on the
+same color scale</b> — where dots vanish into the background the satellite is right; where
+they pop, it isn't. Accumulations use <b>paired feed days</b> only (the gauge feed has real
+multi-week ingest holes — Jul&nbsp;25&ndash;Aug&nbsp;11&nbsp;2026 served zero rows — so
+satellite and gauges are summed over exactly the same dates). The right panel distills it:
+median IMERG/gauge ratios per hydro region. First read: IMERG runs <b>~&times;0.6 low over
+the wet Antioquia slopes</b> (the classic orographic underestimate) and <b>high in the dry
+upper-Magdalena valley</b> where 0.1&deg; cells straddle wet cordillera walls — exactly the
+corrections the rain&rarr;inflow model needs. Factors marked * rest on few gauges and are
+provisional; they harden as the daily archive grows.</p>
+<div class="panel"><img src="rain_vs_gauges.webp?v=202608161"
+  alt="IMERG rainfall vs IDEAM rain gauges over Colombia, daily and accumulations with bias scatter"></div>
+
 <h2>Inflows vs seasonal norms — the 26-year context</h2>
 <p class="note">XM's measured inflow energy (AporEner) for every region, every day since
 <b>2000</b> — including the historical river names that vanished from today's listings
