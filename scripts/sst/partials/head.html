@@ -147,7 +147,11 @@
      which fills the card with no letterboxing at any width. */
   .anim-embed { width: 100%; border: 0; display: block; background: #081120;
                 aspect-ratio: 27 / 25; }
-  .anim-embed.subsurface { aspect-ratio: 1 / 1; }
+  /* frames are 1080x675 (+~70px controls). Cap width from the VIEWPORT
+     HEIGHT so the whole two-panel figure + scrubber always fits the
+     monitor: H = W/1.6 + 70  =>  W <= 1.6*(88vh - 70px). */
+  .anim-embed.subsurface { aspect-ratio: 1080 / 745;
+    max-width: min(100%, calc(141vh - 112px)); margin: 0 auto; }
   .anim-embed.torque { aspect-ratio: 1306 / 1055; }
   .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
   .anim-embed.walker { aspect-ratio: 1245 / 590; }  /* image + controls bar */
