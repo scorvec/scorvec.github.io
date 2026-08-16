@@ -34,6 +34,7 @@ sys.path.insert(0, str(HERE))
 import imerg_precip as IP                                   # noqa: E402
 import colombia_rain_map as CRM                             # noqa: E402
 from build_imerg_clim import OUT as CLIM_NC, eval_clim      # noqa: E402
+from hydro_region_rain import gauge_correction              # noqa: E402
 
 REPO = HERE.parent.parent
 OUT_PDF = REPO / "colombia_hydro" / "report" / "colombia_hydro_daily.pdf"
@@ -168,9 +169,9 @@ def rain_pages(pdf, when: datetime) -> str:
                          if reg in ORDER for r in rr])
     ys = np.concatenate([r[:, 1] for reg, rr in rp.items()
                          if reg in ORDER for r in rr])
-    CRM.LAT0, CRM.LAT1 = ys.min() - 0.5, ys.max() + 0.5
-    pad = max(0.6, ((CRM.LAT1 - CRM.LAT0) - (xs.max() - xs.min())) / 2)
-    CRM.LON0, CRM.LON1 = xs.min() - pad, xs.max() + pad
+    # natural portrait aspect (no squaring) — two tall maps fill the page
+    CRM.LAT0, CRM.LAT1 = ys.min() - 0.45, ys.max() + 0.45
+    CRM.LON0, CRM.LON1 = xs.min() - 0.45, xs.max() + 0.45
 
     end = when
     jan1 = datetime(when.year, 1, 1)
@@ -181,8 +182,7 @@ def rain_pages(pdf, when: datetime) -> str:
     have = [i for i, f in enumerate(fields) if f is not None]
     latest_i = have[-1]
     through = days[latest_i]
-    rdates = np.array([f"{d:%Y-%m-%d}" for d in days])
-    F = CRM.build_correction(days, fields, rdates, lons, lats)
+    F = gauge_correction(lons, lats)     # embeds the cached field on any crop
 
     import xarray as xr
     coef = xr.open_dataset(CLIM_NC)["coef"].values
@@ -250,12 +250,18 @@ def rain_pages(pdf, when: datetime) -> str:
             right = (pct, ANOM_CMAP, LEV_ANOM_1D, "Anomaly (mm vs climatology)")
         else:
             right = (pct, PCT_CMAP, LEV_PCT, "Percent of normal")
+        # size axes to the map aspect exactly and center the pair
+        H = 0.775
+        aspect = (CRM.LON1 - CRM.LON0) / (CRM.LAT1 - CRM.LAT0)
+        Wp = H * 8.27 / 11.69 * aspect
+        gapx = 0.045
+        xleft = (1.0 - (2 * Wp + gapx)) / 2
         for k, (field, cmap, levk, ttl, g_) in enumerate([
                 (tot, RAIN_CMAP, lev, f"{label} — rainfall (mm)", gg),
                 (*right, None)]):
-            x0 = 0.045 + k * 0.475
+            x0 = xleft + k * (Wp + gapx)
             norm = BoundaryNorm(levk, cmap.N)
-            ax = fig.add_axes([x0, 0.115, 0.44, 0.755],
+            ax = fig.add_axes([x0, 0.105, Wp, H],
                               projection=ccrs.PlateCarree())
             dec = (0.14 if wkey in (1, 7) else
                    0.18 if wkey == 14 else
@@ -267,7 +273,7 @@ def rain_pages(pdf, when: datetime) -> str:
                         else ttl)
             ax.set_title(ttl_full, fontsize=9.8, fontweight="bold",
                          loc="left", color=INK, pad=5)
-            cax = fig.add_axes([x0 + 0.03, 0.068, 0.38, 0.016])
+            cax = fig.add_axes([x0 + 0.02, 0.055, Wp - 0.04, 0.016])
             ext = ("both" if cmap is ANOM_CMAP else
                    "max" if cmap in (RAIN_CMAP, PCT_CMAP) else "neither")
             cb = fig.colorbar(pm, cax=cax, orientation="horizontal",
