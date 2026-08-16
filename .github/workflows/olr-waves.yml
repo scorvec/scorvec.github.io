@@ -28,11 +28,12 @@ jobs:
       - run: pip install --quiet numpy pandas xarray netcdf4 scipy matplotlib
       - run: python scripts/sst/build_olr_realtime.py
       - run: python scripts/sst/olr_waves.py --realtime --out assets/sst/olr_waves.webp
+      - run: python scripts/sst/wave_trackers.py --out assets/sst/wave_tracker.webp
       - name: Commit & push
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
-          git add assets/sst/olr_waves.webp scripts/sst/metar/olr_rt.nc
+          git add assets/sst/olr_waves.webp assets/sst/wave_tracker.webp scripts/sst/metar/olr_rt.nc
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "OLR wave decomposition: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do
