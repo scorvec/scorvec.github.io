@@ -32,6 +32,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.path import Path as MplPath
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -46,7 +48,9 @@ ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
 RCOL = {"ANTIOQUIA": "#1b7837", "CALDAS": "#762a83", "CARIBE": "#2166ac",
         "CENTRO": "#b2182b", "ORIENTE": "#e08214", "VALLE": "#35978f"}
 # Colombia crop (deg E 0-360, deg N)
-LON0, LON1, LAT0, LAT1 = 281.5, 288.5, 0.0, 12.0   # hydro zone crop
+# Crop = bounding box of the region polygons + padding (set in main once
+# the geojson is loaded; these are fallbacks)
+LON0, LON1, LAT0, LAT1 = 282.0, 287.8, 1.5, 8.7
 
 CMAP = ListedColormap([
     "#f7f7f7", "#c7e9c0", "#74c476", "#238b45", "#41b6c4", "#225ea8",
@@ -121,6 +125,12 @@ def main() -> int:
     mo_g, mo = paired_sum(mo_days)
 
     rp = region_paths()
+    # tight crop: basin bbox + padding
+    global LON0, LON1, LAT0, LAT1
+    xs = np.concatenate([r[:, 0] % 360 for reg_, rr in rp.items() if reg_ in ORDER for r in rr])
+    ys = np.concatenate([r[:, 1] for reg_, rr in rp.items() if reg_ in ORDER for r in rr])
+    LON0, LON1 = xs.min() - 0.6, xs.max() + 0.6
+    LAT0, LAT1 = ys.min() - 0.5, ys.max() + 0.5
     paths = {r: [MplPath(np.column_stack([(ring[:, 0] % 360), ring[:, 1]]))
                  for ring in rings] for r, rings in rp.items() if r in ORDER}
 
@@ -135,14 +145,22 @@ def main() -> int:
     def render_map(field, gg, title, lev, fname):
         """One large single-panel map: IMERG shading, region outlines, gauges
         as dots on the same scale WITH their mm totals printed."""
-        fig, ax = plt.subplots(figsize=(8.6, 14.0))
+        asp = (LAT1 - LAT0) / (LON1 - LON0)
+        fig = plt.figure(figsize=(9.0, min(14.0, 9.0 * asp + 1.6)))
+        ax = fig.add_subplot(projection=ccrs.PlateCarree())
+        ax.set_extent([LON0 - 360, LON1 - 360, LAT0, LAT1], ccrs.PlateCarree())
         norm = BoundaryNorm(lev, CMAP.N)
-        pm = ax.pcolormesh(lons, lats, field, cmap=CMAP, norm=norm, shading="nearest")
+        pm = ax.pcolormesh(lons, lats, field, cmap=CMAP, norm=norm,
+                           shading="nearest", transform=ccrs.PlateCarree())
+        ax.coastlines(resolution="50m", lw=1.1, color="#333333", zorder=4)
+        ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.9,
+                       edgecolor="#555555", zorder=4)
         for r, rings in rp.items():
             if r not in ORDER:
                 continue
             for ring in rings:
-                ax.plot(ring[:, 0] % 360, ring[:, 1], color="#222222", lw=1.0)
+                ax.plot(ring[:, 0] % 360, ring[:, 1], color="#222222", lw=1.0,
+                        transform=ccrs.PlateCarree(), zorder=4)
         n_in = 0
         if gg:
             for g in gg.values():
@@ -151,25 +169,25 @@ def main() -> int:
                     continue
                 n_in += 1
                 ax.scatter([lo], [la], c=[mm], cmap=CMAP, norm=norm, s=42,
-                           edgecolors="black", linewidths=0.5, zorder=5)
-                ax.annotate(f"{mm:.0f}", (lo, la), xytext=(0, 5),
+                           edgecolors="black", linewidths=0.5, zorder=5,
+                           transform=ccrs.PlateCarree())
+                ax.annotate(f"{mm:.0f}", (lo % 360 - 360, la), xytext=(0, 5),
                             textcoords="offset points", ha="center",
                             fontsize=5.2, color="#111111", zorder=6,
                             path_effects=[pe.withStroke(linewidth=1.4,
-                                                        foreground="white")])
+                                                        foreground="white")],
+                            xycoords=ax.transData)
         ax.set_title(f"{title} · {n_in} gauges (values in mm)",
                      fontsize=12, fontweight="bold", loc="left")
-        ax.set_xlim(LON0, LON1); ax.set_ylim(LAT0, LAT1)
-        ax.set_aspect("equal")
-        ax.set_xticks([282, 284, 286, 288])
-        ax.set_xticklabels(["78°W", "76°W", "74°W", "72°W"], fontsize=9)
-        ax.tick_params(labelsize=9)
+        gl = ax.gridlines(draw_labels=True, lw=0.25, color="0.7", alpha=0.6,
+                          xlocs=[-78, -77, -76, -75, -74, -73], ylocs=[2, 3, 4, 5, 6, 7, 8])
+        gl.top_labels = gl.right_labels = False
+        gl.xlabel_style = {"size": 9}; gl.ylabel_style = {"size": 9}
         cb = fig.colorbar(pm, ax=ax, orientation="horizontal", fraction=0.035,
                           pad=0.035, aspect=42)
         cb.set_label("mm", fontsize=9)
-        fig.subplots_adjust(top=0.965, bottom=0.02, left=0.07, right=0.985)
         out = OUT_PNG.parent / fname
-        fig.savefig(out, dpi=125)
+        fig.savefig(out, dpi=125, bbox_inches="tight", pad_inches=0.15)
         plt.close(fig)
         print(f"wrote {out.relative_to(REPO)}")
 
