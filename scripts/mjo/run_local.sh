@@ -128,7 +128,10 @@ PREFETCH_PID=$!
 echo "priority prefetch started in background (pid $PREFETCH_PID)"
 
 # ── Stage 1: RMM core — publish the MJO forecast first ──
-if [ ! -f "$RMM_PNG" ]; then
+# Re-enter the stage when the IFS overlay was missing on an earlier pass
+# (IFS-ENS disseminates ~1-2 h after AIFS): AIFS gribs are store-cached,
+# so the re-run only costs the IFS fetch.
+if [ ! -f "$RMM_PNG" ] || [ -f "plots/rmm_${COMPACT}.png.missing" ]; then
   # Claim the cycle BEFORE the long u-fetch: mjo.yml's check job defers when it
   # sees a claim <3 h old for its target cycle, so the Actions fallback only
   # runs when this laptop is actually down — not merely slower than the cron
@@ -355,11 +358,13 @@ perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_ti
 # up (mark done, AIFS-only) once the cycle is old enough that IFS clearly isn't coming.
 HOV_MISS="$REPO/assets/sst/eq_wind_hovmoller.webp.missing"
 SOI_MISS="$REPO/assets/sst/soi_forecast.webp.missing"
+RMM_MISS="$REPO/scripts/mjo/plots/rmm_${COMPACT}.png.missing"
 INIT_EPOCH=$(date -j -u -f "%Y%m%d%H" "${DATE}${TIME}" +%s 2>/dev/null || echo 0)
 AGE_H=$(( ( $(date -u +%s) - ${INIT_EPOCH:-0} ) / 3600 ))
 if [ "${INIT_EPOCH:-0}" -gt 0 ] && [ "$AGE_H" -lt 10 ] \
-   && { grep -qxF ifs "$HOV_MISS" 2>/dev/null || grep -qxF ifs "$SOI_MISS" 2>/dev/null; }; then
-  echo "IFS-ENS ${COMPACT} not in the Hovmöller/SOI yet (cycle ${AGE_H}h old; rendered AIFS-only) — not marking done; a later poll will backfill IFS."
+   && { grep -qxF ifs "$HOV_MISS" 2>/dev/null || grep -qxF ifs "$SOI_MISS" 2>/dev/null \
+        || grep -qxF ifs "$RMM_MISS" 2>/dev/null; }; then
+  echo "IFS-ENS ${COMPACT} not in the Hovmöller/SOI/RMM yet (cycle ${AGE_H}h old; rendered AIFS-only) — not marking done; a later poll will backfill IFS."
   exit 0
 fi
 

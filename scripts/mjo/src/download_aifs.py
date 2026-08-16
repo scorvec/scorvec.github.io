@@ -343,6 +343,53 @@ def download(date: str, time: str, out_dir: Path) -> None:
     print("Download complete.")
 
 
+def download_ifs(date: str, time: str, out_dir: Path) -> bool:
+    """Fetch IFS-ENS u@850/200 + tp for the RMM comparison overlay.
+
+    IFS-ENS is disseminated ~1-2 h AFTER AIFS-ENS, so this is best-effort:
+    returns True only when both wind files landed (tp stays optional — the
+    RMM falls back to wind-only per model). The caller re-tries on later
+    polls via the plots/<stem>.png.missing sidecar."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stem = f"ifs_{date}_{time}z"
+    cyc = ecmwf.Cycle(date, time)
+    steps = tuple(rmm_steps(time))
+    # pf ONLY: IFS 0.25-deg enfo open data serves no separate cf through this
+    # path (the -enfo-cf index 404s and the client finds no cf entries;
+    # verified 2026-08-16) — 50 perturbed members are ample for the overlay.
+    ok = True
+    try:
+        src = ecmwf.ensure(cyc, ecmwf.Spec("ifs", "pf", "u", "pl",
+                                           ecmwf.LEVELS_RMM, steps))
+        dst = out_dir / f"{stem}.pf.u.grib2"
+        if dst.exists():
+            dst.unlink()
+        try:
+            os.link(src, dst)
+        except OSError:
+            shutil.copy2(src, dst)
+        print(f"  IFS pf u-wind: {dst.name}")
+    except Exception as e:                          # noqa: BLE001
+        print(f"  IFS pf u unavailable ({repr(e)[:60]})")
+        ok = False
+    if ok:
+        try:
+            tp_steps = tuple(s for s in steps if s > 0)
+            src = ecmwf.ensure(cyc, ecmwf.Spec("ifs", "pf", "tp", "sfc", (), tp_steps))
+            dst = out_dir / f"{stem}.pf.tp.grib2"
+            if dst.exists():
+                dst.unlink()
+            try:
+                os.link(src, dst)
+            except OSError:
+                shutil.copy2(src, dst)
+            print(f"  IFS pf tp: {dst.name}")
+        except Exception as e:                      # noqa: BLE001
+            print(f"  IFS pf tp unavailable ({repr(e)[:60]}) — wind-only")
+    return ok
+
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", default=None, help="YYYYMMDD (default: latest available)")

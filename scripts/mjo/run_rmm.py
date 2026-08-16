@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from download_aifs import download
+from download_aifs import download, download_ifs
 from rmm import compute_rmm
 from plot import plot_rmm
 import recent_analysis
@@ -101,6 +101,23 @@ def main() -> None:
     rmm_path = Path("data/aifs") / f"rmm_{args.date}_{args.time}z.nc"
     rmm.to_netcdf(rmm_path)
 
+    # 2c. IFS-ENS through the IDENTICAL machinery — the physics-model reference
+    # for the AI forecast (also a methodology cross-check against other vendors).
+    # Best-effort: IFS disseminates ~1-2 h after AIFS; when absent the sidecar
+    # below tells the hourly poll to re-run this stage until it lands.
+    rmm_ifs = None
+    try:
+        if download_ifs(args.date, args.time, Path("data/aifs")):
+            print("Computing IFS RMM …")
+            rmm_ifs = compute_rmm(Path("data/aifs"), args.date, args.time,
+                                  clim, eofs, mean120=mean120,
+                                  prcp_clim=prcp_clim, model="ifs")
+            print(f"  IFS channels: {rmm_ifs.attrs.get('channels')}")
+            rmm_ifs.to_netcdf(Path("data/aifs") / f"rmm_ifs_{args.date}_{args.time}z.nc")
+    except Exception as e:                          # noqa: BLE001
+        print(f"IFS RMM leg failed ({repr(e)[:80]}); plotting AIFS only")
+        rmm_ifs = None
+
     # 3. Extend the observed history with today's AIFS analysis (control, earliest
     #    lead). lead_day 0 if step 0 was downloaded, else the first forecast day —
     #    .isel keeps this robust to the daily-vs-6-hourly step choice.
@@ -111,7 +128,12 @@ def main() -> None:
     # 4. Plot
     Path(args.out_dir).mkdir(parents=True, exist_ok=True)
     out_png = Path(args.out_dir) / f"rmm_{args.date}_{args.time}z.png"
-    plot_rmm(rmm, obs=obs, out_path=out_png)
+    plot_rmm(rmm, obs=obs, out_path=out_png, ifs=rmm_ifs)
+    miss = Path(str(out_png) + ".missing")
+    if rmm_ifs is None:
+        miss.write_text("ifs\n")
+    elif miss.exists():
+        miss.unlink()
 
 
 if __name__ == "__main__":

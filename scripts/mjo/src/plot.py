@@ -97,6 +97,7 @@ def plot_rmm(
     rmm: xr.Dataset,
     obs: xr.Dataset | None = None,
     out_path: Path | None = None,
+    ifs: xr.Dataset | None = None,
 ) -> plt.Figure:
     date  = rmm.attrs.get("init_date", "")
     rtime = rmm.attrs.get("init_time", "00")
@@ -111,8 +112,9 @@ def plot_rmm(
     n_leads = len(lead_days)
 
     fig, ax = plt.subplots(figsize=(8.5, 8.5))
+    ttl = "AIFS vs IFS Ensemble RMM" if ifs is not None else "AIFS Ensemble RMM"
     ax.set_title(
-        f"AIFS Ensemble RMM  —  Init: {date[:4]}-{date[4:6]}-{date[6:8]} {rtime}Z",
+        f"{ttl}  —  Init: {date[:4]}-{date[4:6]}-{date[6:8]} {rtime}Z",
         fontsize=13, fontweight="bold",
     )
 
@@ -158,6 +160,24 @@ def plot_rmm(
             alpha=0.5, lw=1, zorder=3,
         )
         ax.add_patch(ell)
+
+    # IFS-ENS overlay: the SAME machinery applied to the physics model —
+    # members as a faint blue haze, ensemble mean as one bold blue line
+    # (day-0 pinned to its control, mirroring the AIFS mean above).
+    if ifs is not None:
+        i1 = ifs["rmm1"].values
+        i2 = ifs["rmm2"].values
+        for m in range(i1.shape[0]):
+            ax.plot(i1[m], i2[m], color="#2b6cb8", alpha=0.10, lw=0.6, zorder=1)
+        im1 = i1.mean(axis=0)
+        im2 = i2.mean(axis=0)
+        imem = [str(x) for x in ifs["member"].values]
+        icf = imem.index("cf") if "cf" in imem else 0
+        im1[0], im2[0] = i1[icf, 0], i2[icf, 0]
+        ax.plot(im1, im2, color="#1f5fb4", lw=2.4, zorder=4,
+                label="IFS-ENS mean")
+        ax.scatter(im1[-1], im2[-1], marker="s", c="#1f5fb4", s=55, zorder=7,
+                   label=f"IFS day {int(ifs['lead_day'].values[-1])}")
 
     # Observed history (AIFS analysis archive): faint connecting line, points
     # coloured by calendar month, with the start date marked and labelled.

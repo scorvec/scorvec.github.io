@@ -108,6 +108,7 @@ def compute_rmm(
     eofs: xr.Dataset,
     mean120: dict[str, np.ndarray] | None = None,
     prcp_clim: xr.Dataset | None = None,
+    model: str = "aifs",
 ) -> xr.Dataset:
     """Project the AIFS ensemble onto the wind portions of the reference EOFs.
 
@@ -124,7 +125,7 @@ def compute_rmm(
     (normalized by pc_std); rmm1_wind/rmm2_wind keep the wind-only values
     (obs_history stays wind-only). Missing tp → wind-only everywhere.
     """
-    stem = f"aifs_{date}_{run_time}z"
+    stem = f"{model}_{date}_{run_time}z"
 
     pf_path = aifs_dir / f"{stem}.pf.u.grib2"
     cf_path = aifs_dir / f"{stem}.cf.u.grib2"
@@ -154,6 +155,9 @@ def compute_rmm(
     init_dt = pd.Timestamp(f"{date[:4]}-{date[4:6]}-{date[6:8]}T{run_time}:00")
 
     for label, u_path in [("cf", cf_path), ("pf", pf_path)]:
+        if not u_path.exists():
+            print(f"  {label} winds missing for {stem} — skipped")
+            continue
         print(f"  Processing {label} …")
 
         u850, u200 = load_aifs_uwnd(u_path)
@@ -256,6 +260,8 @@ def compute_rmm(
                 rmm2_members.append(r2w)
             member_ids.append(mem_id)
 
+    if not member_ids:
+        raise FileNotFoundError(f"no wind GRIBs found for {stem}")
     full = have_prcp and prcp_clim is not None
     if not full:                       # any tp gap → wind-only for EVERY member
         rmm1_members, rmm2_members = rmm1w_members, rmm2w_members
@@ -270,6 +276,7 @@ def compute_rmm(
         attrs={
             "init_date": date,
             "init_time": run_time,
+            "model": model,
             "channels": "u850+u200+prcp-olr" if full else "u850+u200",
             "note": ("Full WH04 RMM: winds + pseudo-OLR from -(standardized "
                      "daily tp anomaly vs ERA5 1991-2020 band climatology)"
