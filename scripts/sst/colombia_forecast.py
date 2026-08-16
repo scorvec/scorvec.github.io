@@ -565,12 +565,15 @@ def stage_fan(dates, rain, rclim, verif) -> None:
             gtr = np.zeros((len(members), len(fdays)))
             state_const = (c["c0"] + c["storage_gwh_per_pt"] * gm["storage_anom_now"]
                            + c["nino_gwh_per_degc"] * gm["nino_now"])
+            br = gm.get("inflow_bridge", {"a": 0.0, "b": 1.0})
             for mi in range(len(members)):
                 buf = list(ia_hist)
                 for j, d in enumerate(fdays):
                     dy = min(d.item().timetuple().tm_yday, 365) - 1
                     buf.append(natI[mi, j] - In365[dy])
-                    ia7 = float(np.mean(buf[-7:]))
+                    # bridge: modeled (skill-corrected) composite anomaly ->
+                    # observed-inflow units the state model was trained on
+                    ia7 = br["a"] + br["b"] * float(np.mean(buf[-7:]))
                     alpha = a0 * np.exp(-(j + 1.0) / ptau)
                     state = state_const + c["inflow7_gwh_per_gwh"] * ia7
                     wd_ = d.item().weekday()

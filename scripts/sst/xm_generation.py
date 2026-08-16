@@ -146,6 +146,7 @@ def fit_gen_model(days, dates, G, doy):
     _s.path.insert(0, str(HERE))
     from xm_inflow_history import river_region
     from xm_storage import pct_anomaly_series
+    from rain_inflow_model import ema
 
     Gn = trailing_doy_norm(G, doy)
     wd = np.array([d.astype(datetime).weekday() for d in dates.astype("datetime64[s]")])
@@ -184,6 +185,69 @@ def fit_gen_model(days, dates, G, doy):
                       "full")[:len(Ia)]
     sdates, sanom = pct_anomaly_series()
     nat = np.nanmean(np.array([sanom[r] for r in ORDER_S]), axis=0)
+
+    # ── bridge: skill-corrected v3 inflow composite -> observed-inflow units
+    # (the engine feeds MODELED member inflows into the state equation that
+    # is trained on OBSERVED inflows; this regression aligns them)
+    bridge = {"a": 0.0, "b": 1.0, "r": None}
+    try:
+        tc = json.loads((Path.home() / "colombia_hydro" / "raw" /
+                         "imerg_basin_daily.json").read_text())
+        pr = json.loads((REPO / "colombia_hydro" / "data" /
+                         "rain_inflow_model.json").read_text())["params"]
+        icl = json.loads((REPO / "colombia_hydro" / "data" /
+                          "inflow_clim.json").read_text())["clim"]
+        ed = json.loads((REPO / "assets" / "sst" / "data" /
+                         "enso_daily.json").read_text())["daily"]
+        tdates = np.array([f"{d[:4]}-{d[4:6]}-{d[6:8]}" for d in tc["dates"]],
+                          dtype="datetime64[D]")
+        tdoy = np.array([min(d.item().timetuple().tm_yday, 365)
+                         for d in tdates])
+        er = np.array(ed["roni_d"], float)
+        edt = np.array(ed["dates"], dtype="datetime64[D]")
+        rr = np.full(len(tdates), np.nan)
+        _, ci_, ei_ = np.intersect1d(tdates, edt, return_indices=True)
+        rr[ci_] = er[ei_]
+        for i in range(1, len(rr)):
+            if not np.isfinite(rr[i]):
+                rr[i] = rr[i - 1]
+        for i in range(len(rr) - 2, -1, -1):
+            if not np.isfinite(rr[i]):
+                rr[i] = rr[i + 1]
+        san = {}
+        _, c2_, s2_ = np.intersect1d(tdates, sdates, return_indices=True)
+        comp = np.zeros(len(tdates))
+        for rg in ORDER_S:
+            v = np.full(len(tdates), 0.0)
+            v[c2_] = np.nan_to_num(sanom[rg][s2_])
+            v = np.roll(v, 1)
+            an = np.array(tc[rg], float) - np.array(tc[rg + "_clim"], float)
+            an = np.where(np.isfinite(an), an, 0)
+            pp = pr[rg]
+            kf = np.roll(ema(an, pp["tau_days"]), pp["lag_days"])
+            ks = np.roll(ema(an, pp["tau_slow_days"]), pp["lag_days"])
+            fitr = (pp["intercept4_pct"] + pp["gain4_pct_per_mmday"] * kf
+                    + pp["enso4_coef_pct_per_roni"] * rr
+                    + pp["slow4_pct_per_mmday"] * ks
+                    + pp["stor4_pct_per_pt"] * v)
+            comp += fitr / 100.0 * np.array(icl[rg]["mean"], float)[tdoy - 1]
+        # overlap with the observed-inflow axis
+        _, di_, ti_ = np.intersect1d(dates, tdates, return_indices=True)
+        comp_a = np.full(len(dates), np.nan)
+        comp_a[di_] = comp[ti_] - In[di_]          # anomaly in OBSERVED-norm units
+        comp7 = np.convolve(np.where(np.isfinite(comp_a), comp_a, 0),
+                            np.ones(7) / 7, "full")[:len(comp_a)]
+        comp7[~np.isfinite(comp_a)] = np.nan
+        mb = np.isfinite(comp7) & np.isfinite(Ia7) & (np.arange(len(dates))
+                                                      > len(dates) - 800)
+        if mb.sum() > 300:
+            bb = np.polyfit(comp7[mb], Ia7[mb], 1)
+            bridge = {"a": round(float(bb[1]), 3),
+                      "b": round(float(bb[0]), 3),
+                      "r": round(float(np.corrcoef(comp7[mb], Ia7[mb])[0, 1]),
+                                 3)}
+    except Exception as e:                          # noqa: BLE001
+        print(f"  bridge fit skipped: {repr(e)[:80]}")
     pan = np.full(len(days), np.nan)
     _, ci, si = np.intersect1d(dates, sdates, return_indices=True)
     pan[ci] = nat[si]
@@ -242,6 +306,7 @@ def fit_gen_model(days, dates, G, doy):
         "gn365_gwh": np.round(Gn365, 1).tolist(),
         "in365_gwh": np.round(In365, 1).tolist(),
         "ga_now_gwh": round(float(np.mean(ga_sm)), 2),
+        "inflow_bridge": bridge,
         "sigma_ga_gwh": round(float(np.nanstd(Ga)), 2),
         "ia_recent_gwh": np.round(ia_rec, 2).tolist(),
         "storage_anom_now": round(float(nat[np.isfinite(nat)][-1]), 2),
