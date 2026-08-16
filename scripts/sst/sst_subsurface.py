@@ -206,14 +206,14 @@ def interp_lon(field2d: np.ndarray, lons: np.ndarray) -> np.ndarray:
 # ── plotting ──────────────────────────────────────────────────────────────────
 TEMP_LEVELS = np.arange(8, 31.001, 1.0)
 TEMP_ISOTHERMS = [26, 28, 30]
-ANOM_LEVELS = np.arange(-10, 10.001, 0.5)   # extended ±8→±10: July 2026 event pushing past +8
+ANOM_LEVELS = np.arange(-12, 12.001, 0.5)   # ±8→±10 (Jul 2026) → ±12 (Aug 2026: +10.65 at the thermocline)
 ANOM_LIM = 10.0
 
 
 def plot_frame(temp2d, anom2d, lons, date, out_path):
     Tg = interp_lon(temp2d, lons)
     Ag = interp_lon(anom2d, lons)
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 7.6), sharex=True)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6.2), sharex=True)
     fig.suptitle(f"Equatorial Pacific (0°N) ocean temperature — {date:%d %b %Y}",
                  fontsize=12, fontweight="bold")
 
@@ -251,7 +251,7 @@ def plot_frame(temp2d, anom2d, lons, date, out_path):
 def plot_anom_pair(araw2d, adt2d, lons, date, out_path):
     """Companion frame: raw anomaly (top) vs the same with the 1991–2020 climate
     trend removed (bottom), so the secular signal's footprint is visible directly."""
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 7.6), sharex=True)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6.2), sharex=True)
     fig.suptitle(f"Equatorial Pacific (0°N) temperature anomaly — {date:%d %b %Y}",
                  fontsize=11.5, fontweight="bold")
     panels = [(ax1, interp_lon(araw2d, lons), "Anomaly (vs 1991–2020)"),
