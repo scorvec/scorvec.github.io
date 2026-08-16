@@ -104,6 +104,38 @@ provisional; they harden as the daily archive grows.</p>
 <div class="panel" style="margin-top:18px;max-width:760px"><img src="rain_gauges_scatter.webp?v=202608165"
   alt="IMERG vs gauge scatter with per-region bias factors"></div>
 
+<h2>What is an "inflow"? From raindrop to GWh</h2>
+<p class="note"><b>The quantity on this page is energy, not water.</b> XM's raw measurement
+is the <i>aporte h&iacute;drico</i> &mdash; streamflow in m&sup3;/s where each monitored
+river enters its reservoir &mdash; but what XM publishes per river (and what we plot) is
+<b>AporEner</b>: that water converted to its electric-energy equivalent via each river's
+<i>conversion factor</i> (kWh per m&sup3;), which encodes the head and efficiency of the
+plant chain the water can fall through. So
+<b>AporEner&nbsp;=&nbsp;Q&nbsp;&times;&nbsp;86,400&nbsp;s&nbsp;&times;&nbsp;factor</b>, and a
+river feeding a deep cascade is "worth" several times the GWh per cubic metre of a low-head
+run-of-river plant. Divide by 86,400&thinsp;&times;&thinsp;factor to recover m&sup3;/s.</p>
+<p class="note"><b>The pathway from rainfall to inflow:</b>
+rain falls on the catchment (only rain <i>inside the black basin outlines</i> ever reaches a
+turbine) &rarr; a large share &mdash; roughly 40&ndash;60&thinsp;% in these tropical basins
+&mdash; returns to the sky as evaporation and transpiration &rarr; the remainder becomes
+runoff on two timescales: a <b>fast storm response</b> (hours to a couple of days) and a
+<b>slow soil-and-groundwater release</b> that drains over weeks &mdash; this memory is why
+inflows stay elevated long after the rain stops, and why our rain&rarr;inflow model uses an
+exponential-decay kernel rather than same-day rain &rarr; channels route the water to the
+reservoir gauge (bigger basins, longer lags: 1&ndash;4&thinsp;days is typical here) &rarr;
+the metered m&sup3;/s is scaled by the plant head into energy.</p>
+<p class="note"><b>Why the total grows as dams are added, with zero change in the weather:</b>
+(1)&nbsp;a new dam on a previously unmetered river adds its whole catchment's water to the
+ledger; (2)&nbsp;a new plant <i>downstream</i> on an already-metered river raises that
+river's conversion factor &mdash; the same water now falls further and earns more kWh; and
+(3)&nbsp;the regional totals are energy-weighted, so high-head basins count extra. Metered
+rivers grew from 18 in 2000 to 41 today (Porce&nbsp;III&nbsp;2011, Sogamoso&nbsp;2014,
+El&nbsp;Quimbo&nbsp;2015, Ituango&nbsp;&mdash;&nbsp;now roughly a third of Antioquia&nbsp;&mdash;
+2018+), which is why the raw record doubles while a fixed 17-river panel rises only
+~10&ndash;15&thinsp;%. Every "% of normal" on this page is therefore computed against
+<b>per-river climatologies aggregated to today's fleet</b>, so fleet growth cancels and
+what remains is hydrology.</p>
+
 <h2>Inflows vs seasonal norms — the 26-year context</h2>
 <p class="note">XM's measured inflow energy (AporEner) for every region, every day since
 <b>2000</b> — including the historical river names that vanished from today's listings
