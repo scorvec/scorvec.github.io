@@ -79,6 +79,7 @@ perl -e 'alarm shift; exec @ARGV' 3600 "$PY" scripts/sst/imerg_gatun.py || echo 
 "$PY" scripts/sst/xm_storage.py || echo "XM storage failed; continuing"   # reservoir storage norms + outflow model (state for the fan)
 "$PY" scripts/sst/xm_generation.py || echo "XM generation failed; continuing"   # actual hydro gen history + gen model fit (draws gen fan)
 "$PY" scripts/sst/xm_load.py || echo "XM load failed; continuing"   # national demand history + temp link
+"$PY" scripts/sst/ons_data.py || echo "ONS data failed; continuing"   # Brazil ENA/EAR daily + charts
 "$PY" scripts/sst/dam_models.py || echo "Dam models failed; continuing"   # per-dam catchment kernels + states (draws dam fans)
 perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS+IFS rain -> inflow + storage fans (rides MJO tp GRIBs)
 "$PY" scripts/sst/xm_inflow_history.py || echo "XM inflow norms failed; continuing"   # inflow history + seasonal norms (draws the fan)
