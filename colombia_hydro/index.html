@@ -119,7 +119,17 @@ sharpest daily spikes (single storms, operational effects) live above the kernel
 fitted kernels are what the AIFS-ENS rainfall forecasts will drive to project inflows
 ahead &mdash; and because &tau; is long, a 15-day rain forecast moves the kernel slowly
 and predictably.</p>
-<div class="panel"><img src="rain_inflow_model.webp?v=202608161"
+<p class="note"><b>What about evaporation?</b> El&nbsp;Ni&ntilde;o should also cut inflows
+directly &mdash; hotter, sunnier air pulls more evapotranspiration from the catchments and
+drier soils absorb more of each storm. We tested it: adding the daily RONI index as a
+second regressor (dashed orange) changes the correlation by &le;0.02 in five of six
+basins. Over 2024&ndash;26, ENSO's influence on inflows is <i>almost entirely mediated by
+rainfall itself</i> &mdash; which is good news for forecasting, since rain is the part a
+15-day ensemble can actually predict. The direct evaporation channel is real physics but
+second-order here, and separating it cleanly needs the multi-decade record (a planned
+extension); Caribe's apparent ENSO term is an artifact of the 2026 Urr&aacute; flood
+spike.</p>
+<div class="panel"><img src="rain_inflow_model.webp?v=202608162"
   alt="Per-basin rain to inflow model: kernel-filtered IMERG rainfall anomaly vs inflow percent of norm"></div>
 
 <h2>What is an "inflow"? From raindrop to GWh</h2>
