@@ -142,6 +142,19 @@
      height and squeeze the plots into a letterbox strip. They shrink first now
      (the plots hold their min-height) and scroll internally if they run out. */
   .tables-wrap { flex: 0 1 auto; min-height: 0; overflow-y: auto; margin-top: 10px; }
+  /* Ultra-wide monitors: the card used to render as a near-square tower in
+     the middle of the screen (plots are height-driven; the tables stacked
+     BELOW pushed everything past the fold). When the viewport is much wider
+     than tall, the tables move to a RIGHT-HAND column instead — the plots
+     keep the full card height and the card's aspect follows the monitor's. */
+  @media (min-aspect-ratio: 3/2) and (min-width: 1600px) {
+    .dialog { width: min(96vw, calc(96vh * 1.55)); }
+    .dlg-body { flex-direction: row; gap: 12px; }
+    .dlg-body > .main { flex: 1 1 auto; min-width: 0; }
+    .dlg-body > .tables-wrap { flex: 0 0 clamp(430px, 26vw, 620px);
+      margin-top: 0; overflow-y: auto; }
+    .tables-grid { grid-template-columns: 1fr 1fr; }
+  }
   footer a { color: var(--accent); }
   .pctcell { padding: 1px 6px; border-radius: 4px; }
   .pctlab { color: var(--muted); font-size: 0.72em; margin-left: 5px; }
