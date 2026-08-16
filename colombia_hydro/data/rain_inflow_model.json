@@ -1,0 +1,61 @@
+{
+ "generated": "2026-08-16 16:17 UTC",
+ "window": "2024-07-22..2026-08-15",
+ "note": "y = intercept + gain * EMA_tau(rain anomaly, lagged); y is fleet-corrected inflow % of norm, 5-day trailing mean; multiplicative satellite bias cancels in r \u2014 apply region bias factors when driving with AIFS forecasts",
+ "params": {
+  "ANTIOQUIA": {
+   "tau_days": 30,
+   "lag_days": 0,
+   "r": 0.62,
+   "r_same_day": 0.228,
+   "gain_pct_per_mmday": 6.92,
+   "intercept_pct": 83.6,
+   "n": 755
+  },
+  "CALDAS": {
+   "tau_days": 20,
+   "lag_days": 0,
+   "r": 0.669,
+   "r_same_day": 0.228,
+   "gain_pct_per_mmday": 6.59,
+   "intercept_pct": 96.8,
+   "n": 755
+  },
+  "CARIBE": {
+   "tau_days": 45,
+   "lag_days": 0,
+   "r": 0.548,
+   "r_same_day": 0.151,
+   "gain_pct_per_mmday": 22.48,
+   "intercept_pct": 83.7,
+   "n": 755
+  },
+  "CENTRO": {
+   "tau_days": 7,
+   "lag_days": 2,
+   "r": 0.506,
+   "r_same_day": 0.135,
+   "gain_pct_per_mmday": 8.04,
+   "intercept_pct": 91.8,
+   "n": 753
+  },
+  "ORIENTE": {
+   "tau_days": 20,
+   "lag_days": 0,
+   "r": 0.525,
+   "r_same_day": 0.15,
+   "gain_pct_per_mmday": 13.62,
+   "intercept_pct": 91.1,
+   "n": 755
+  },
+  "VALLE": {
+   "tau_days": 45,
+   "lag_days": 0,
+   "r": 0.531,
+   "r_same_day": 0.146,
+   "gain_pct_per_mmday": 9.23,
+   "intercept_pct": 130.6,
+   "n": 755
+  }
+ }
+}

@@ -104,6 +104,24 @@ provisional; they harden as the daily archive grows.</p>
 <div class="panel" style="margin-top:18px;max-width:760px"><img src="rain_gauges_scatter.webp?v=202608165"
   alt="IMERG vs gauge scatter with per-region bias factors"></div>
 
+<h2>The rain &rarr; inflow model — memory is the skill</h2>
+<p class="note">Each basin's IMERG rainfall <b>anomaly</b> is passed through a causal
+<b>exponential memory kernel</b> (a running exponentially-weighted mean with time constant
+&tau;) and regressed against the fleet-corrected inflow <b>% of norm</b>. The kernel is
+the physics: rain doesn't become inflow on the day it falls — it drains out of soils and
+groundwater over weeks. Fitting &tau; per basin lifts correlations from
+<b>r&nbsp;&asymp;&nbsp;0.13&ndash;0.23</b> (same-day rain) to
+<b>r&nbsp;&asymp;&nbsp;0.51&ndash;0.67</b> &mdash; the fitted memories (&tau; = 20&ndash;45
+days for the slow-draining Andean basins, 7 days for the flashier Centro/Magdalena) are
+themselves a hydrological fingerprint of each basin. The red curve is rainfall alone
+predicting inflows: it captures the wet/dry regimes and their transitions, while the
+sharpest daily spikes (single storms, operational effects) live above the kernel. These
+fitted kernels are what the AIFS-ENS rainfall forecasts will drive to project inflows
+ahead &mdash; and because &tau; is long, a 15-day rain forecast moves the kernel slowly
+and predictably.</p>
+<div class="panel"><img src="rain_inflow_model.webp?v=202608161"
+  alt="Per-basin rain to inflow model: kernel-filtered IMERG rainfall anomaly vs inflow percent of norm"></div>
+
 <h2>What is an "inflow"? From raindrop to GWh</h2>
 <p class="note"><b>The quantity on this page is energy, not water.</b> XM's raw measurement
 is the <i>aporte h&iacute;drico</i> &mdash; streamflow in m&sup3;/s where each monitored
