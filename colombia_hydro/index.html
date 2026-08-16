@@ -93,14 +93,23 @@ the wet Antioquia slopes</b> (the classic orographic underestimate) and <b>high 
 upper-Magdalena valley</b> where 0.1&deg; cells straddle wet cordillera walls — exactly the
 corrections the rain&rarr;inflow model needs. Factors marked * rest on few gauges and are
 provisional; they harden as the daily archive grows.</p>
-<div class="panel"><img src="rain_gauges_daily.webp?v=202608165"
-  alt="IMERG daily rainfall with IDEAM gauge totals overlaid, values in mm"></div>
-<div class="cols" style="margin-top:18px">
-  <div class="panel"><img src="rain_gauges_7d.webp?v=202608165"
-    alt="7-day IMERG accumulation with gauge totals"></div>
-  <div class="panel"><img src="rain_gauges_30d.webp?v=202608165"
-    alt="30-day IMERG accumulation with gauge totals"></div>
-</div>
+<p class="note" style="margin-top:6px"><b>Left: raw IMERG. Right: gauge-corrected
+IMERG</b> &mdash; a cell-wise multiplicative correction field built from <b>549 stations'
+two-year satellite-vs-gauge ratios</b> (each with 120+ paired days), interpolated across
+the grid and relaxing to &times;1 away from stations, applied before any averaging. Watch
+the dry Magdalena corridor dry out and the Pacific-coast extremes tame toward their
+gauges. Windows are paired feed days, so the multi-week gauge-feed holes can't skew
+either side.</p>
+<div class="panel"><img src="rain_cmp_1d.webp?v=202608166"
+  alt="Raw vs gauge-corrected IMERG, last paired day"></div>
+<div class="panel" style="margin-top:18px"><img src="rain_cmp_7d.webp?v=202608166"
+  alt="Raw vs gauge-corrected IMERG, 7 paired days"></div>
+<div class="panel" style="margin-top:18px"><img src="rain_cmp_14d.webp?v=202608166"
+  alt="Raw vs gauge-corrected IMERG, 14 paired days"></div>
+<div class="panel" style="margin-top:18px"><img src="rain_cmp_30d.webp?v=202608166"
+  alt="Raw vs gauge-corrected IMERG, 30 paired days"></div>
+<div class="panel" style="margin-top:18px"><img src="rain_cmp_90d.webp?v=202608166"
+  alt="Raw vs gauge-corrected IMERG, 90 paired days"></div>
 <div class="panel" style="margin-top:18px;max-width:760px"><img src="rain_gauges_scatter.webp?v=202608165"
   alt="IMERG vs gauge scatter with per-region bias factors"></div>
 
