@@ -69,30 +69,18 @@ def trail(x: np.ndarray, n: int) -> np.ndarray:
 
 
 def main() -> int:
-    # ── rain side: regional daily means over the whole IMERG cache ─────────
-    files = sorted(IP.DAILY_CACHE.glob("*.npy"))
-    rdays = [f.stem for f in files]
-    rdates = np.array([f"{d[:4]}-{d[4:6]}-{d[6:8]}" for d in rdays], dtype="datetime64[D]")
-    ml, mt = IP._grid_axes()
-    lons = np.sort(IP._LON[ml])          # native -180..180 — geojson convention
-    lats = np.sort(IP._LAT[mt])
-    W = region_weights(REGIONS_GJ, lons, lats)
-    F = gauge_correction(lons, lats)      # corrected = IMERG * F (1.0 off-footprint)
-    import xarray as xr
-    clim = xr.open_dataset(CLIM_NC)["coef"].values
-    doys = np.array([min(int(np.datetime64(d).astype("datetime64[D]").item().timetuple().tm_yday), 365)
-                     for d in rdates])
-    rain = {r: np.full(len(files), np.nan) for r in ORDER}
-    rain_clim = {r: np.full(len(files), np.nan) for r in ORDER}
-    for i, f in enumerate(files):
-        g = np.load(f) * F                # gauge-corrected rain; clim gets the
-        c = eval_clim(clim, doys[i]) * F  # same field so anomalies stay consistent
-        for r in ORDER:
-            w = W[r]
-            sw = w.sum()
-            rain[r][i] = float((g * w).sum() / sw)
-            rain_clim[r][i] = float((c * w).sum() / sw)
-    print(f"rain series: {rdays[0]}..{rdays[-1]} ({len(files)} days)", flush=True)
+    # ── rain side: the engine's truth cache — gauge-blended corrected IMERG,
+    # guaranteed identical to the NWP verification space ────────────────────
+    tc = json.loads((Path.home() / "colombia_hydro" / "raw" /
+                     "imerg_basin_daily.json").read_text())
+    if tc.get("truth_version") != 2:
+        raise SystemExit("truth cache stale — run colombia_forecast.py first")
+    rdays = tc["dates"]
+    rdates = np.array([f"{d[:4]}-{d[4:6]}-{d[6:8]}" for d in rdays],
+                      dtype="datetime64[D]")
+    rain = {r: np.array(tc[r], float) for r in ORDER}
+    rain_clim = {r: np.array(tc[r + "_clim"], float) for r in ORDER}
+    print(f"rain series: {rdays[0]}..{rdays[-1]} ({len(rdays)} days)", flush=True)
 
     # ── inflow side: fleet-corrected % of norm ─────────────────────────────
     inf = json.loads(INFLOW_JSON.read_text())

@@ -66,6 +66,45 @@ def region_weights(path: Path, lon: np.ndarray, lat: np.ndarray) -> dict[str, np
     return out
 
 
+def gauge_blend_field(sat_corr: np.ndarray, day: str,
+                      lons: np.ndarray, lats: np.ndarray,
+                      k: float = 0.5) -> np.ndarray:
+    """Blend direct gauge measurements into the corrected-satellite field,
+    weighted by local gauge density: cells with n co-located stations get
+    w = n/(n+k) gauge weight (k=0.5 -> 0.67 for one station, 0.8 for two),
+    pure corrected satellite where the network is absent. `day` is
+    YYYYMMDD; missing gauge day -> field returned unchanged. Outlier guard
+    drops station-days wildly above the satellite (stuck counters)."""
+    from ideam_gauges import CACHE as GCACHE
+    f = GCACHE / f"{day}.json"
+    if not f.exists():
+        return sat_corr
+    try:
+        g = json.loads(f.read_text())
+    except ValueError:
+        return sat_corr
+    if not g:
+        return sat_corr
+    tl = np.asarray(lons) % 360
+    acc = np.zeros_like(sat_corr)
+    cnt = np.zeros_like(sat_corr)
+    for st in g.values():
+        la, lo, mm = st["la"], st["lo"] % 360, st["mm"]
+        if not (tl.min() <= lo <= tl.max() and lats.min() <= la <= lats.max()):
+            continue
+        i = int(np.argmin(np.abs(lats - la)))
+        j = int(np.argmin(np.abs(tl - lo)))
+        sat = sat_corr[i, j]
+        if np.isfinite(sat) and mm > max(100.0, 6.0 * (sat + 10.0)):
+            continue                       # stuck/cumulative counter
+        acc[i, j] += mm
+        cnt[i, j] += 1
+    w = cnt / (cnt + k)
+    with np.errstate(invalid="ignore"):
+        gv = np.where(cnt > 0, acc / np.maximum(cnt, 1), 0.0)
+    return np.where(cnt > 0, w * gv + (1 - w) * sat_corr, sat_corr)
+
+
 def gauge_correction(lons: np.ndarray, lats: np.ndarray) -> np.ndarray:
     """Gauge-correction field F (corrected = IMERG * F) embedded onto an
     arbitrary lat/lon grid: 1.0 outside the field's footprint. Built by

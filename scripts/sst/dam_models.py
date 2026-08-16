@@ -38,7 +38,7 @@ import matplotlib.dates as mdates
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import imerg_precip as IP                                    # noqa: E402
-from hydro_region_rain import gauge_correction               # noqa: E402
+from hydro_region_rain import gauge_correction, gauge_blend_field  # noqa: E402
 from build_imerg_clim import OUT as CLIM_NC, eval_clim       # noqa: E402
 from rain_inflow_model import ema, trail, TAUS, LAGS, YSMOOTH, TAU_SLOW  # noqa: E402
 from xm_inflow_history import SUCCESSOR                      # noqa: E402
@@ -129,7 +129,7 @@ def main() -> int:
         for r in DAMS:
             clim365[r][dy - 1] = float((c * W[r]).sum())
     for i, f in enumerate(files):
-        g = np.load(f) * F
+        g = gauge_blend_field(np.load(f) * F, f.stem, lons, lats)
         for r in DAMS:
             rain[r][i] = float((g * W[r]).sum())
             rain_clim[r][i] = clim365[r][doys[i] - 1]

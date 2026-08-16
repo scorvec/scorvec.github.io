@@ -166,11 +166,13 @@ ENSO, regional storage state), each with its own fitted &tau; and its own
 free-flowing rivers fit <i>better</i> than their parent regions &mdash; <b>Cauca
 Salvajina r&nbsp;=&nbsp;0.78, Betania 0.74, Grande 0.71, Sogamoso 0.68</b> &mdash;
 because the mask removes rain that was never going to reach the turbines.
-<b style="color:#8a4a00">Bogot&aacute; N.R. is flagged REGULATED</b> (kernel
-r&nbsp;=&nbsp;0.25): a third of Centro's inflow is operator decisions in a managed
-system, structurally beyond any rain model &mdash; treat its fan as persistence, not
-meteorology. Bat&aacute; (Chivor diversions) sits just above the flag line for the same
-reason.</p>
+Regulated systems get an automatic
+<b style="color:#8a4a00">REGULATED</b> flag when their rain skill falls below
+r&nbsp;=&nbsp;0.30 &mdash; operator decisions, not rainfall, set those flows. Notably,
+<b>Bogot&aacute; N.R. climbed off the flag</b> (kernel r 0.25&nbsp;&rarr;&nbsp;0.40) once
+the verification truth began density-weighting the dense Bogot&aacute; gauge network:
+real rain signal the satellite alone couldn't see. Bat&aacute; (Chivor diversions)
+remains the weakest rain responder.</p>
 <div class="panel"><img src="dam_models.webp?v=202608168"
   alt="Per-dam rain-to-inflow models: twelve major reservoirs driven by their own upstream catchment rain, with ensemble forecast fans"></div>
 

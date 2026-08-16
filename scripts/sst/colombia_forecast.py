@@ -50,7 +50,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import imerg_precip as IP                                   # noqa: E402
-from hydro_region_rain import region_weights, gauge_correction, gauge_correction_mtime  # noqa: E402
+from hydro_region_rain import region_weights, gauge_correction, gauge_correction_mtime, gauge_blend_field  # noqa: E402
 from build_imerg_clim import OUT as CLIM_NC, eval_clim      # noqa: E402
 from rain_inflow_model import ema                           # noqa: E402
 from matplotlib.path import Path as MplPath                 # noqa: E402
@@ -235,8 +235,8 @@ def truth_series() -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, np.ndar
     import xarray as xr
     cache = json.loads(TRUTH_CACHE.read_text()) if TRUTH_CACHE.exists() else {"dates": []}
     fmt = gauge_correction_mtime()
-    if cache.get("corr_mtime") != fmt:
-        cache = {"dates": [], "corr_mtime": fmt}
+    if cache.get("corr_mtime") != fmt or cache.get("truth_version") != 2:
+        cache = {"dates": [], "corr_mtime": fmt, "truth_version": 2}
     files = sorted(IP.DAILY_CACHE.glob("*.npy"))
     days = [f.stem for f in files]
     known = set(cache["dates"])
@@ -253,6 +253,7 @@ def truth_series() -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, np.ndar
             cache.setdefault(r + "_clim", [])
         for d in new:
             g = np.load(IP.DAILY_CACHE / f"{d}.npy") * F
+            g = gauge_blend_field(g, d, lons, lats)   # density-weighted gauges
             doy = min(datetime.strptime(d, "%Y%m%d").timetuple().tm_yday, 365)
             c = eval_clim(clim, doy) * F
             for r in ORDER:
@@ -334,7 +335,7 @@ def stage_verify(dates, rain, rclim) -> dict:
             counts[r][bi] = {"aifs": nA, "ifs": nI}
             spread[r][bi] = {"aifs": fA["sr"], "ifs": fI["sr"]}
     verif = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-             "truth": "GAUGE-CORRECTED IMERG basin-daily (kernel model v2 space)",
+             "truth": "gauge-blended corrected IMERG (density-weighted stations, truth v2)",
              "bands_lead_days": BANDS, "k_prior_days": K_PRIOR,
              "prior_ratio": PRIOR_RATIO,
              "min_pairs": MIN_PAIRS,
