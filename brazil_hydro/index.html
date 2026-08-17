@@ -15,6 +15,22 @@ h1{font-size:1.5em} h2{font-size:1.15em;margin-top:34px}
 2000&ndash;present, with ONS's own long-term-mean (MLT) norms. Rain products, per-basin
 kernel models and AIFS+IFS ensemble fans follow the Colombia architecture and are under
 construction. This page is unlinked and provisional.</p>
+<h2>Ground truth — what biases does IMERG have over Brazil?</h2>
+<p class="note">502 INMET automatic stations, 740 paired days. The verdict is far
+milder than Colombia's terrain extremes: overall factor &times;0.93, with a coherent
+geography &mdash; IMERG runs <b>wet over the interior highlands</b> (S&atilde;o Francisco
+&times;0.80, Tocantins &times;0.84, Parana&iacute;ba &times;0.85 &mdash; the classic
+dry-environment over-detection over the cerrado/sert&atilde;o) and slightly <b>dry along
+the coastal Atlantic serras</b> (the orographic underestimate), while the SE/S basins are
+essentially unbiased (Tiet&ecirc; &times;1.00, Jacu&iacute; &times;1.01). Held-out
+validation: 14% median error reduction, 61% of stations improved &mdash; smaller gains
+than Colombia because the raw product is simply better here (raw station error
+&times;1.17 vs Colombia's &times;2.04). The correction field drives the model truth and
+the NWP verification; basin correlations are unchanged (bias cancels in r) but forecast
+<i>levels</i> and %-of-normal maps now sit on gauge-anchored ground.</p>
+<div class="panel"><img src="bias_map.webp?v=1" alt="IMERG bias factor over Brazil from INMET stations"></div>
+<div class="panel" style="margin-top:16px"><img src="rain_cmp_30d.webp?v=1" alt="Raw vs gauge-corrected IMERG, last 30 paired days"></div>
+
 <h2>Rain &rarr; ENA models + ensemble forecasts</h2>
 <p class="note">Each basin's IMERG rainfall through fitted memory kernels (&tau; up to
 120 days for the continental basins &mdash; S&atilde;o Francisco carries a 90-day memory)

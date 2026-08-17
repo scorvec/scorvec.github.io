@@ -91,9 +91,16 @@ def harm_clim(x: np.ndarray, doy: np.ndarray) -> np.ndarray:
     return X @ beta
 
 
+CORR_NPZ = Path.home() / "brazil_hydro" / "raw" / "imerg_gauge_corr.npz"
+
+
 def rain_series() -> dict:
-    """Basin-mean daily rain over the whole IMERG cache, cached + incremental."""
+    """Basin-mean daily GAUGE-CORRECTED rain over the whole IMERG cache.
+    Cache stamps the correction-field mtime and rebuilds when it changes."""
     cache = json.loads(TRUTH.read_text()) if TRUTH.exists() else {"dates": []}
+    fmt = CORR_NPZ.stat().st_mtime if CORR_NPZ.exists() else 0.0
+    if cache.get("corr_mtime") != fmt:
+        cache = {"dates": [], "corr_mtime": fmt}
     files = sorted(IP.DAILY_CACHE.glob("*.npy"))
     days = [f.stem for f in files]
     new = [d for d in days if d not in set(cache["dates"])]
@@ -102,10 +109,15 @@ def rain_series() -> dict:
         lons = np.sort(IP._LON[ml])                        # -180..180
         lats = np.sort(IP._LAT[mt])
         W = basin_weights(lons, lats, set(MAJORS))
+        F = np.ones((len(lats), len(lons)))
+        if CORR_NPZ.exists():
+            z = np.load(CORR_NPZ)
+            if z["F"].shape == F.shape:
+                F = z["F"]
         for b in W:
             cache.setdefault(b, [])
         for d in new:
-            g = np.load(IP.DAILY_CACHE / f"{d}.npy")
+            g = np.load(IP.DAILY_CACHE / f"{d}.npy") * F
             for b, w in W.items():
                 cache[b].append(round(float((g * w).sum()), 3))
         cache["dates"] = cache["dates"] + new
