@@ -88,6 +88,7 @@ perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/brazil_forecast.py || e
 "$PY" scripts/sst/brazil_rain_chart.py || echo "Brazil rain charts failed; continuing"   # rain fans + skill-corrected map
 "$PY" scripts/sst/nwp_bias_leads.py || echo "bias-by-lead failed; continuing"   # AIFS/IFS bias curves, both countries
 "$PY" scripts/sst/brazil_cmo.py || echo "Brazil CMO failed; continuing"   # weekly price vs EAR/ENA
+"$PY" scripts/sst/brazil_price_seasonality.py || echo "price seasonality failed; continuing"   # 15-day leverage heatmap
 "$PY" scripts/sst/dam_models.py || echo "Dam models failed; continuing"   # per-dam catchment kernels + states (draws dam fans)
 perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS+IFS rain -> inflow + storage fans (rides MJO tp GRIBs)
 "$PY" scripts/sst/xm_inflow_history.py || echo "XM inflow norms failed; continuing"   # inflow history + seasonal norms (draws the fan)
