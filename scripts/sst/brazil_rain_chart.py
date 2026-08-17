@@ -60,6 +60,12 @@ PCT_COLS = ["#7a4a12", "#a8702a", "#cd9d57", "#e8cf9e", "#f6f5f0",
 PCT_CMAP = ListedColormap(PCT_COLS)
 PCT_CMAP.set_over("#3f1f66")
 LEV_PCT = [0, 25, 50, 75, 90, 110, 125, 150, 200, 300, 1000]
+ANOM_COLS = ["#6a3b0f", "#a8702a", "#d3aa66", "#eed9ac", "#f6f5f0",
+             "#cfe6f0", "#8fc4de", "#4292c6", "#1c5fa8", "#5b3f9e"]
+ANOM_CMAP = ListedColormap(ANOM_COLS)
+ANOM_CMAP.set_over("#3f1f66")
+ANOM_CMAP.set_under("#452508")
+LEV_ANOM = [-300, -150, -75, -30, -10, 10, 30, 75, 150, 300, 600]
 EXT = [-75.5, -33.5, -34.5, 6.0]
 BANDS = [(1, 3), (4, 7), (8, 15)]
 
@@ -233,8 +239,7 @@ def forecast_map(verif):
     ii = np.array([int(np.argmin(np.abs(flats - la))) for la in lats])
     jj = np.array([int(np.argmin(np.abs(flons - lo))) for lo in lons])
     clm = (clim_sum * Ffine)[np.ix_(ii, jj)]     # gauge correction at eval
-    with np.errstate(divide="ignore", invalid="ignore"):
-        pct = np.where(clm > 2.0, 100.0 * blended / clm, np.nan)
+    anom = blended - clm                      # mm vs the 25-yr corrected norm
 
     gj = json.loads(BASINS_GJ.read_text())
     rings = {ft["properties"]["basin"]: ft["geometry"]["coordinates"]
@@ -245,9 +250,8 @@ def forecast_map(verif):
     for k, (field, cmap, lev, ttl, msk_ocean) in enumerate([
             (blended, RAIN_CMAP, LEV_15D,
              f"Skill-corrected most-likely total (mm) · {span}", False),
-            (pct, PCT_CMAP, LEV_PCT,
-             f"Percent of normal (IMERG {clim_years} climatology, "
-             "gauge-corrected)", True)]):
+            (anom, ANOM_CMAP, LEV_ANOM,
+             f"Anomaly (mm vs {clim_years} corrected climatology)", True)]):
         ax = fig.add_axes([0.035 + k * 0.485, 0.09, 0.45, 0.80],
                           projection=ccrs.PlateCarree())
         nrm = BoundaryNorm(lev, cmap.N)
@@ -270,15 +274,16 @@ def forecast_map(verif):
         ax.set_extent(EXT, ccrs.PlateCarree())
         ax.set_title(ttl, fontsize=11, fontweight="bold", loc="left")
         cax = fig.add_axes([0.06 + k * 0.485, 0.045, 0.4, 0.016])
-        cb = fig.colorbar(pm, cax=cax, orientation="horizontal", extend="max")
-        cb.set_ticks(lev[1:-1] if cmap is PCT_CMAP else lev[:-1])
+        ext = "both" if cmap is ANOM_CMAP else "max"
+        cb = fig.colorbar(pm, cax=cax, orientation="horizontal", extend=ext)
+        cb.set_ticks(lev[1:-1] if cmap is ANOM_CMAP else lev[:-1])
         cb.ax.tick_params(labelsize=7.5)
     inits_s = " · ".join(f"{m.upper()} {d} {h}Z"
                          for m, (d, h) in latest.items())
-    fig.suptitle(f"Brazil — next {len(common)} days rainfall, blended "
-                 f"AIFS-ENS + IFS-ENS ensemble means, per-basin/lead bias "
-                 f"factors from the corrected-IMERG verification · {inits_s}",
-                 fontsize=12, fontweight="bold", y=0.985)
+    fig.suptitle(f"Brazil — next {len(common)} days rainfall · blended "
+                 f"AIFS-ENS + IFS-ENS, measured per-basin/lead bias factors\n"
+                 f"verified against gauge-corrected IMERG · {inits_s}",
+                 fontsize=11.5, fontweight="bold", y=0.99)
     fig.savefig(SITE / "forecast_map.webp", dpi=115)
     plt.close(fig)
     print("wrote brazil_hydro/forecast_map.webp", flush=True)
