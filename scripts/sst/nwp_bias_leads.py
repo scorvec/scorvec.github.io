@@ -75,37 +75,31 @@ def run(name, cfg):
     fig, axes = plt.subplots(rows, cols, figsize=cfg["fig"], sharex=True)
     leads = np.arange(1, MAXLEAD + 1)
     for ax, b in zip(np.ravel(axes), cfg["basins"]):
-        allv = []
         for mdl, col in (("aifs", "#1f4e8c"), ("ifs", "#c62828")):
-            ratio = [acc[mdl][b][ld][0] / acc[mdl][b][ld][1]
-                     if acc[mdl][b][ld][1] > 0 and acc[mdl][b][ld][3] >= 8
-                     else np.nan for ld in leads]
-            allv += [v for v in ratio if np.isfinite(v)]
+            bias = [(acc[mdl][b][ld][0] - acc[mdl][b][ld][1])
+                    / acc[mdl][b][ld][3]
+                    if acc[mdl][b][ld][3] >= 8 else np.nan for ld in leads]
+            mae = [acc[mdl][b][ld][2] / acc[mdl][b][ld][3]
+                   if acc[mdl][b][ld][3] >= 8 else np.nan for ld in leads]
             n1 = acc[mdl][b][1][3]
-            ax.plot(leads, ratio, color=col, lw=1.8, marker="o", ms=3.5,
-                    label=f"{mdl.upper()} (n={n1}/lead)")
-        ax.axhline(1.0, color="0.4", lw=0.9, ls="--")
-        ax.set_yscale("log")
-        lo = min(0.25, (min(allv) / 1.25) if allv else 0.25)
-        hi = max(8.0, (max(allv) * 1.25) if allv else 8.0)
-        ax.set_ylim(lo, hi)
-        tick_all = [0.1, 0.25, 0.5, 1, 2, 4, 8, 16, 32]
-        tk = [t for t in tick_all if lo <= t <= hi]
-        ax.set_yticks(tk)
-        ax.set_yticklabels([f"{t:g}" for t in tk])
+            ax.plot(leads, bias, color=col, lw=1.9, marker="o", ms=3.5,
+                    label=f"{mdl.upper()} bias (n={n1}/lead)")
+            ax.plot(leads, mae, color=col, lw=1.0, ls=":", alpha=0.7,
+                    label=f"{mdl.upper()} MAE")
+        ax.axhline(0.0, color="0.4", lw=0.9, ls="--")
         ax.set_title(b, fontsize=10, fontweight="bold", loc="left")
         ax.grid(lw=0.25, alpha=0.5)
         ax.tick_params(labelsize=8)
-        ax.set_ylabel("fcst / obs", fontsize=8)
+        ax.set_ylabel("mm/day", fontsize=8)
         if b == cfg["basins"][0]:
-            ax.legend(fontsize=7.5, loc="upper left")
+            ax.legend(fontsize=6.8, loc="upper left", ncol=2)
         ax.set_xticks([1, 3, 5, 7, 10, 13, 15])
     for ax in np.ravel(axes)[len(cfg["basins"]):]:
         ax.set_axis_off()
     for ax in np.ravel(axes)[-cols:]:
         ax.set_xlabel("lead (days)", fontsize=8.5)
-    fig.suptitle(cfg["title"] + "\nfcst/obs ratio per lead · >1 = too wet "
-                 "· log scale · dry-season ratios inflate on small denominators",
+    fig.suptitle(cfg["title"] + "\nsolid = mean bias (fcst − obs, mm/day; "
+                 ">0 = too wet) · dotted = MAE · ensemble means",
                  fontsize=11.5, fontweight="bold", y=0.995)
     fig.tight_layout(rect=(0, 0, 1, 0.955))
     fig.savefig(cfg["out"], dpi=115)
