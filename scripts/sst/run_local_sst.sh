@@ -80,6 +80,8 @@ perl -e 'alarm shift; exec @ARGV' 3600 "$PY" scripts/sst/imerg_gatun.py || echo 
 "$PY" scripts/sst/xm_generation.py || echo "XM generation failed; continuing"   # actual hydro gen history + gen model fit (draws gen fan)
 "$PY" scripts/sst/xm_load.py || echo "XM load failed; continuing"   # national demand history + temp link
 "$PY" scripts/sst/ons_data.py || echo "ONS data failed; continuing"   # Brazil ENA/EAR daily + charts
+"$PY" scripts/sst/brazil_gauges.py || echo "Brazil gauges failed; continuing"   # INMET day cache (monthly zip refresh)
+"$PY" scripts/sst/brazil_correction.py || echo "Brazil correction failed; continuing"   # gauge-corrected IMERG field + bias figs
 "$PY" scripts/sst/brazil_model.py || echo "Brazil models failed; continuing"   # rain->ENA kernels (draws fans)
 perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/brazil_forecast.py || echo "Brazil forecast failed; continuing"   # ENA fans
 "$PY" scripts/sst/dam_models.py || echo "Dam models failed; continuing"   # per-dam catchment kernels + states (draws dam fans)
