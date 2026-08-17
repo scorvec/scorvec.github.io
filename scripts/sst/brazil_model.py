@@ -41,6 +41,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import imerg_precip as IP                                   # noqa: E402
 from rain_inflow_model import ema, trail                    # noqa: E402
+from build_imerg_clim import OUT as CLIM_NC, eval_clim      # noqa: E402
 from matplotlib.path import Path as MplPath                 # noqa: E402
 
 REPO = HERE.parent.parent
@@ -128,11 +129,33 @@ def rain_series() -> dict:
     return cache
 
 
+def basin_clim365() -> dict:
+    """Per-basin daily clim from the 25-yr IMERG harmonic grid (x F)."""
+    import xarray as xr
+    ml, mt = IP._grid_axes()
+    lons = np.sort(IP._LON[ml])
+    lats = np.sort(IP._LAT[mt])
+    W = basin_weights(lons, lats, set(MAJORS))
+    F = np.ones((len(lats), len(lons)))
+    if CORR_NPZ.exists():
+        z = np.load(CORR_NPZ)
+        if z["F"].shape == F.shape:
+            F = z["F"]
+    coef = xr.open_dataset(CLIM_NC)["coef"].values
+    out = {b: np.full(365, np.nan) for b in W}
+    for dy in range(1, 366):
+        c = np.clip(eval_clim(coef, dy), 0, None) * F
+        for b, w in W.items():
+            out[b][dy - 1] = float((c * w).sum())
+    return out
+
+
 def main() -> int:
     tc = rain_series()
     rdates = np.array([f"{d[:4]}-{d[4:6]}-{d[6:8]}" for d in tc["dates"]],
                       dtype="datetime64[D]")
     doy = np.array([min(d.item().timetuple().tm_yday, 365) for d in rdates])
+    C365 = basin_clim365()
 
     with gzip.open(ENA_CACHE, "rt") as f:
         ena = json.load(f)
@@ -154,7 +177,8 @@ def main() -> int:
             ax.set_axis_off()
             continue
         rain = np.array(tc[b], float)
-        clim = harm_clim(rain, doy)
+        clim365_b = C365[b]
+        clim = clim365_b[doy - 1]
         x_an = rain - clim
 
         edays = sorted(ena.get(b, {}))
@@ -215,15 +239,7 @@ def main() -> int:
         s_now = float(sa[np.isfinite(sa)][-1])
         fit_now = (beta[0] + beta[1] * kf_full[-1 - lag]
                    + beta[2] * ks_full[-1 - lag] + beta[3] * s_now)
-        # harmonic clim by doy for the forecast engine
-        clim365 = np.full(365, np.nan)
-        for dd in range(1, 366):
-            mm = doy == dd
-            if mm.any():
-                clim365[dd - 1] = float(np.nanmean(clim[mm]))
-        bad = ~np.isfinite(clim365)
-        clim365[bad] = np.interp(np.where(bad)[0], np.where(~bad)[0],
-                                 clim365[~bad])
+        clim365 = clim365_b                     # 25-yr harmonic, corrected
         params[b] = {
             "tau_days": tau, "lag_days": lag,
             "r_kernel": round(r_k, 3), "r_full": round(r_v, 3),
@@ -273,7 +289,8 @@ def main() -> int:
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "note": ("y = c0 + c1*EMA_tau(rain anom, lag) + c2*EMA_180 + "
                  "c3*EAR_anom(-1d); y = ENA %% of MLT (3-d trail); rain = "
-                 "raw IMERG basin mean (no gauge correction yet)"),
+                 "gauge-corrected IMERG; anomalies vs the 25-yr (2001-2025) "
+                 "IMERG harmonic climatology x F"),
         "params": params}, indent=1)
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(payload)

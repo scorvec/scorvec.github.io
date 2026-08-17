@@ -250,6 +250,15 @@ tilt as the forecast archive grows.</p>
 <div class="panel"><img src="inflow_norms.webp?v=202608166"
   alt="XM regional hydro inflows vs day-of-year seasonal norms with 15-day ensemble forecast fan, 2000-2026"></div>
 
+<h2>Model bias by lead time</h2>
+<p class="note">The measured AIFS-ENS (blue) and IFS-ENS (red) wet bias at every lead,
+1&ndash;15 days, against the gauge-corrected truth. Two things stand out: the bias is
+<b>flat with lead</b> &mdash; it's systematic model climate, not error growth &mdash; and
+the model gap is persistent (AIFS &times;1.1&ndash;1.6, IFS &times;1.8&ndash;3). These
+curves are what the engine's banded bias factors approximate. Log scale; dry-season
+ratios (Caldas, Valle in August) inflate where the observed denominator is small.</p>
+<div class="panel"><img src="bias_by_lead.webp?v=1" alt="NWP rainfall bias ratio by lead time per basin, AIFS vs IFS"></div>
+
 <h2>How good are the rain forecasts? — the live scorecard</h2>
 <p class="note">Every 00/12Z cycle's <b>day-1 basin rainfall</b> (ensemble mean of the
 first full 24&nbsp;h) is scored against <b>gauge-corrected IMERG</b> as soon as the

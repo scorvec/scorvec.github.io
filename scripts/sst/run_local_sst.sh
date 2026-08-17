@@ -60,7 +60,8 @@ trap 'rm -rf "$LOCK" 2>/dev/null' EXIT
 
 DAY_Q='import json,os;p="assets/sst/manifest.json";print(json.load(open(p)).get("sst_valid_day","") if os.path.exists(p) else "")'
 PREV_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
-"$PY" scripts/sst/sst-roni.py || { echo "sst-roni failed"; exit 1; }
+"$PY" scripts/sst/sst-roni.py || { echo "sst-roni failed (retrying once)"; \
+  sleep 30; "$PY" scripts/sst/sst-roni.py || echo "sst-roni failed twice; continuing — downstream uses caches"; }
 NEW_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
 "$PY" scripts/sst/tao_subsurface.py --days 120 \
   --out scripts/sst/data/tao_eq_recent.nc \
@@ -85,6 +86,7 @@ perl -e 'alarm shift; exec @ARGV' 3600 "$PY" scripts/sst/imerg_gatun.py || echo 
 "$PY" scripts/sst/brazil_model.py || echo "Brazil models failed; continuing"   # rain->ENA kernels (draws fans)
 perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/brazil_forecast.py || echo "Brazil forecast failed; continuing"   # ENA fans
 "$PY" scripts/sst/brazil_rain_chart.py || echo "Brazil rain charts failed; continuing"   # rain fans + skill-corrected map
+"$PY" scripts/sst/nwp_bias_leads.py || echo "bias-by-lead failed; continuing"   # AIFS/IFS bias curves, both countries
 "$PY" scripts/sst/dam_models.py || echo "Dam models failed; continuing"   # per-dam catchment kernels + states (draws dam fans)
 perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS+IFS rain -> inflow + storage fans (rides MJO tp GRIBs)
 "$PY" scripts/sst/xm_inflow_history.py || echo "XM inflow norms failed; continuing"   # inflow history + seasonal norms (draws the fan)
