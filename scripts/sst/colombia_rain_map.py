@@ -127,6 +127,8 @@ def build_correction(days_all, fields_all, rdates, lons, lats):
     print(f"correction field: {len(pts)} stations qualify", flush=True)
     pts = np.array(pts) if pts else np.zeros((0, 2))
     logf = np.array(logf)
+    nds = np.array([ndays[c] for c in gsum
+                    if ndays[c] >= 120 and gsum[c] >= 50 and isum[c] >= 50])
     LO, LA = np.meshgrid(lons, lats)
     F = np.ones(LO.shape)
     if len(pts):
@@ -139,7 +141,8 @@ def build_correction(days_all, fields_all, rdates, lons, lats):
             w0 = 0.15                                  # unity-pulling background
             F[ii, :] = np.exp((w * logf[:, None]).sum(0) / (w.sum(0) + w0))
     CORR_NPZ.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(CORR_NPZ, F=F, lons=lons, lats=lats)   # lons 0..360
+    np.savez_compressed(CORR_NPZ, F=F, lons=lons, lats=lats,   # lons 0..360
+                        st_pts=pts, st_logf=logf, st_ndays=nds)
     print(f"correction field: {F.min():.2f}..{F.max():.2f} (x)", flush=True)
     return F
 
@@ -170,6 +173,62 @@ def main() -> int:
     rdates = np.array([f"{d:%Y-%m-%d}" for d in days])
 
     F = build_correction(days, fields, rdates, lons, lats)
+
+    # ── bias map: the correction field itself + station ratios ─────────────
+    z = np.load(CORR_NPZ)
+    if "st_pts" in z and len(z["st_pts"]):
+        FAC_COLS = ["#7a4a12", "#a8702a", "#cd9d57", "#e8cf9e", "#f6f5f0",
+                    "#c9e7c2", "#7cc87c", "#2e9e4f", "#1d6fb8", "#6a3d9a"]
+        FAC_CMAP = ListedColormap(FAC_COLS)
+        LEV_FAC = [0.33, 0.5, 0.67, 0.8, 0.95, 1.05, 1.25, 1.5, 2.0, 2.5, 3.0]
+        import matplotlib.patheffects as _pe
+        fig = plt.figure(figsize=(9.0, 9.6))
+        ax = fig.add_axes([0.05, 0.075, 0.9, 0.85],
+                          projection=ccrs.PlateCarree())
+        nrm = BoundaryNorm(LEV_FAC, FAC_CMAP.N)
+        pm = ax.pcolormesh(lons, lats, F, cmap=FAC_CMAP, norm=nrm,
+                           shading="nearest", transform=ccrs.PlateCarree(),
+                           rasterized=True)
+        ax.add_feature(cfeature.OCEAN.with_scale("50m"), facecolor="#e6ebf0",
+                       zorder=3)
+        ax.coastlines(resolution="50m", lw=0.9, color="#2b2b2b", zorder=4)
+        ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.7,
+                       edgecolor="#4a4a4a", zorder=4)
+        for r_, rings_ in rp.items():
+            if r_ not in ORDER:
+                continue
+            col = RCOL.get(r_, "#222222")
+            for ring in rings_:
+                ax.plot(ring[:, 0] % 360, ring[:, 1], color=col, lw=1.8,
+                        transform=ccrs.PlateCarree(), zorder=5,
+                        path_effects=[_pe.withStroke(linewidth=2.8,
+                                                     foreground="white")])
+            big = max(rings_, key=len)
+            ax.annotate(r_, ((big[:, 0] % 360).mean() - 360,
+                             big[:, 1].mean()), ha="center", fontsize=8.5,
+                        fontweight="bold", color=col, zorder=7,
+                        xycoords=ax.transData,
+                        path_effects=[_pe.withStroke(linewidth=2.4,
+                                                     foreground="white")])
+        stp = z["st_pts"]
+        ax.scatter(stp[:, 1], stp[:, 0], c=np.exp(z["st_logf"]),
+                   cmap=FAC_CMAP, norm=nrm, s=13, edgecolors="black",
+                   linewidths=0.35, zorder=6, transform=ccrs.PlateCarree())
+        ax.set_extent([LON0 - 360, LON1 - 360, LAT0, LAT1],
+                      ccrs.PlateCarree())
+        ax.set_title(f"IMERG bias over Colombia — gauge/satellite factor, "
+                     f"{len(stp)} IDEAM stations (2-yr paired archive)\n"
+                     "brown = satellite too wet (dry valleys) · green/blue = "
+                     "too dry (wet orographic slopes)",
+                     fontsize=10.5, fontweight="bold", loc="left")
+        cax = fig.add_axes([0.16, 0.038, 0.68, 0.017])
+        cb = fig.colorbar(pm, cax=cax, orientation="horizontal")
+        cb.ax.tick_params(labelsize=7.5)
+        cax.set_title("correction factor (corrected = IMERG × F)",
+                      fontsize=7.5)
+        fig.savefig(OUT_PNG.parent / "bias_map.webp", dpi=120)
+        plt.close(fig)
+        print("wrote colombia_hydro/bias_map.webp", flush=True)
 
     print("fetching gauges …", flush=True)
     gauges = fetch_range(end, 100)
