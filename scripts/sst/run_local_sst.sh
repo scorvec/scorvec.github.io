@@ -97,7 +97,10 @@ if [ "$(date -u +%F)" != "$(cat "$RPT_STAMP" 2>/dev/null)" ]; then
   perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/daily_report.py \
     && date -u +%F > "$RPT_STAMP" || echo "daily report failed; continuing"
   # daily data snapshot into the private research repo (handoff freshness)
-  ( cd "$HOME/colombia_hydro" && git add -A raw reports out 2>/dev/null \
+  ( cd "$HOME/colombia_hydro" && git add -A raw reports out site 2>/dev/null \
+    && git commit -q -m "data: daily snapshot $(date -u +%F)" 2>/dev/null \
+    && git push -q ) || true
+  ( cd "$HOME/brazil_hydro" && git add -A raw out site 2>/dev/null \
     && git commit -q -m "data: daily snapshot $(date -u +%F)" 2>/dev/null \
     && git push -q ) || true
 fi
@@ -129,7 +132,7 @@ if [ "$TODAY_UTC" != "$LAST_ANALOG" ] || { [ -n "$NEW_DAY" ] && [ "$NEW_DAY" != 
   [ "$ok" = 1 ] && echo "$TODAY_UTC" > "$ANALOG_STAMP"     # stamp only on full success → retry next poll otherwise
 fi
 
-git add sst.html enso-*.html assets/sst/ gatun/data.js colombia_hydro
+git add sst.html enso-*.html assets/sst/ gatun/data.js
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
 DAY=$("$PY" -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])" 2>/dev/null)
 source "$REPO/scripts/lib/gitlock.sh"
