@@ -45,12 +45,33 @@ trap 'rm -rf "$LOCK" 2>/dev/null' EXIT
 
 touch "$STAMP"
 
+# ── hydro tick: forecasts follow the GRIB cycles, not the OISST window ──────
+# engines + fan charts whenever a newer tp GRIB exists than last tick; the
+# daily PDF fires on the first tick of a new UTC day (~00-03Z).
+HTICK="$REPO/scripts/sst/data/.hydro_tick"
+NEWEST=$(ls -t "$REPO"/scripts/mjo/data/aifs/*tp.grib2 2>/dev/null | head -1)
+if [ -n "$NEWEST" ] && [ "$NEWEST" -nt "$HTICK" ]; then
+  echo "hydro tick: new NWP cycle $(basename "$NEWEST")"
+  perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "colombia engine failed; continuing"
+  perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/brazil_forecast.py || echo "brazil engine failed; continuing"
+  "$PY" scripts/sst/xm_inflow_history.py || echo "inflow chart failed; continuing"
+  "$PY" scripts/sst/brazil_model.py || echo "brazil models failed; continuing"
+  "$PY" scripts/sst/brazil_rain_chart.py || echo "brazil rain charts failed; continuing"
+  touch "$HTICK"
+fi
+RPT_STAMP="$HOME/.colombia_report_day"
+if [ "$(date -u +%F)" != "$(cat "$RPT_STAMP" 2>/dev/null)" ]; then
+  perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/daily_report.py \
+    && date -u +%F > "$RPT_STAMP" || echo "daily report failed; continuing"
+fi
+
 for p in assets/sst/data/tao_section.json \
          assets/sst/equatorial_xsection.webp \
          assets/sst/anim/equatorial assets/sst/anim/manifest.json \
          assets/sst/eq_current_hov.webp assets/sst/eq_uwind_hov.webp \
          assets/sst/anim/eq_cur_section assets/sst/anim/eq_cur_section_manifest.json \
          assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_map_manifest.json \
+         colombia_hydro brazil_hydro \
   ; do [ -e "$p" ] && git add "$p"; done
 if git diff --staged --quiet; then echo "light pass: no changes"; exit 0; fi
 trap 'git_unlock; rm -rf "$LOCK" 2>/dev/null' EXIT

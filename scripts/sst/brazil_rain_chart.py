@@ -34,14 +34,15 @@ import cartopy.feature as cfeature
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import imerg_precip as IP                                   # noqa: E402
-from brazil_model import basin_weights, MAJORS, harm_clim   # noqa: E402
+from brazil_model import basin_weights, MAJORS              # noqa: E402
+from build_imerg_clim import OUT as CLIM_NC, eval_clim      # noqa: E402
 from matplotlib.path import Path as MplPath                 # noqa: E402
 
 REPO = HERE.parent.parent
 PRIV = Path.home() / "brazil_hydro"
 TRUTH = PRIV / "raw" / "imerg_basin_daily.json"
 CORR_NPZ = PRIV / "raw" / "imerg_gauge_corr.npz"
-GRID_CLIM = PRIV / "raw" / "imerg_grid_clim.npz"
+MODELS_JSON = PRIV / "out" / "brazil_models.json"
 VERIF = PRIV / "out" / "fcst_verif.json"
 FAN_JSON = REPO / "brazil_hydro" / "data" / "ena_forecast.json"
 BASINS_GJ = PRIV / "out" / "brazil_basins.geojson"
@@ -70,6 +71,7 @@ def band_of(lead):
 
 def rain_fans(fan):
     tc = json.loads(TRUTH.read_text())
+    dm = json.loads(MODELS_JSON.read_text())["params"] if MODELS_JSON.exists() else {}
     rdates = [datetime.strptime(d, "%Y%m%d") for d in tc["dates"]]
     doy = np.array([min(d.timetuple().tm_yday, 365) for d in rdates])
     when = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -81,7 +83,8 @@ def rain_fans(fan):
             ax.set_axis_off()
             continue
         obs = np.array(tc[b], float)
-        cl = harm_clim(obs, doy)
+        cl = (np.array(dm[b]["clim365_mmday"], float)[doy - 1]
+              if b in dm else np.full(len(obs), np.nan))
         m = [i for i, d in enumerate(rdates) if d >= t0]
         td = [rdates[i] for i in m]
         ax.bar(td, obs[m], width=1.0, color="#a8c6e2", lw=0)
@@ -118,41 +121,19 @@ def rain_fans(fan):
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
         if b == MAJORS[0]:
             ax.legend(fontsize=6.6, loc="upper left")
-    fig.suptitle("Brazil basin rainfall — gauge-corrected IMERG vs seasonal "
-                 "norm, with the bias-corrected AIFS-ENS + IFS-ENS ensemble "
-                 "fan", fontsize=13, fontweight="bold", y=0.995)
+    fig.suptitle("Brazil basin rainfall — gauge-corrected IMERG vs the 25-yr "
+                 "seasonal norm, with the bias-corrected AIFS-ENS + IFS-ENS "
+                 "ensemble fan", fontsize=13, fontweight="bold", y=0.995)
     fig.tight_layout(rect=(0, 0, 1, 0.975))
     fig.savefig(SITE / "rain_fans.webp", dpi=110)
     plt.close(fig)
     print("wrote brazil_hydro/rain_fans.webp", flush=True)
 
 
-def grid_clim(lons, lats):
-    """Per-cell harmonic daily clim of CORRECTED IMERG, cached on F mtime."""
-    fmt = CORR_NPZ.stat().st_mtime if CORR_NPZ.exists() else 0.0
-    if GRID_CLIM.exists():
-        z = np.load(GRID_CLIM)
-        if float(z["corr_mtime"]) == fmt:
-            return z["coef"]                    # (5, ny, nx)
-    files = sorted(IP.DAILY_CACHE.glob("*.npy"))
-    F = np.ones((len(lats), len(lons)))
-    if CORR_NPZ.exists():
-        z = np.load(CORR_NPZ)
-        if z["F"].shape == F.shape:
-            F = z["F"]
-    doy = np.array([min(datetime.strptime(f.stem, "%Y%m%d")
-                        .timetuple().tm_yday, 365) for f in files])
-    th = 2 * np.pi * doy / 365.0
-    X = np.column_stack([np.ones_like(th), np.sin(th), np.cos(th),
-                         np.sin(2 * th), np.cos(2 * th)])
-    Y = np.stack([np.load(f) for f in files]) * F[None]
-    Yf = Y.reshape(len(files), -1)
-    beta, *_ = np.linalg.lstsq(X, np.nan_to_num(Yf), rcond=None)
-    coef = beta.reshape(5, len(lats), len(lons))
-    np.savez_compressed(GRID_CLIM, coef=coef.astype("float32"),
-                        corr_mtime=fmt)
-    print("gridded corrected clim fitted", flush=True)
-    return coef
+def grid_clim():
+    """25-yr (2001-2025) IMERG-Final harmonic coefficients, full grid."""
+    import xarray as xr
+    return xr.open_dataset(CLIM_NC)["coef"].values, "2001\u20132025"
 
 
 def forecast_map(verif):
@@ -240,15 +221,18 @@ def forecast_map(verif):
     ml, mt = IP._grid_axes()
     flons = np.sort(IP._LON[ml])
     flats = np.sort(IP._LAT[mt])
-    coef = grid_clim(flons, flats)
+    coef, clim_years = grid_clim()
     doys = np.array([min(d.item().timetuple().tm_yday, 365) for d in common])
-    th = 2 * np.pi * doys / 365.0
-    Xd = np.column_stack([np.ones_like(th), np.sin(th), np.cos(th),
-                          np.sin(2 * th), np.cos(2 * th)])
-    clim_sum = np.tensordot(Xd.sum(axis=0), coef, axes=(0, 0))
+    clim_sum = np.sum([np.clip(eval_clim(coef, int(dy)), 0, None)
+                       for dy in doys], axis=0)
+    Ffine = np.ones((len(flats), len(flons)))
+    if CORR_NPZ.exists():
+        zc = np.load(CORR_NPZ)
+        if zc["F"].shape == Ffine.shape:
+            Ffine = zc["F"]
     ii = np.array([int(np.argmin(np.abs(flats - la))) for la in lats])
     jj = np.array([int(np.argmin(np.abs(flons - lo))) for lo in lons])
-    clm = clim_sum[np.ix_(ii, jj)]
+    clm = (clim_sum * Ffine)[np.ix_(ii, jj)]     # gauge correction at eval
     with np.errstate(divide="ignore", invalid="ignore"):
         pct = np.where(clm > 2.0, 100.0 * blended / clm, np.nan)
 
@@ -261,7 +245,9 @@ def forecast_map(verif):
     for k, (field, cmap, lev, ttl, msk_ocean) in enumerate([
             (blended, RAIN_CMAP, LEV_15D,
              f"Skill-corrected most-likely total (mm) · {span}", False),
-            (pct, PCT_CMAP, LEV_PCT, "Percent of normal", True)]):
+            (pct, PCT_CMAP, LEV_PCT,
+             f"Percent of normal (IMERG {clim_years} climatology, "
+             "gauge-corrected)", True)]):
         ax = fig.add_axes([0.035 + k * 0.485, 0.09, 0.45, 0.80],
                           projection=ccrs.PlateCarree())
         nrm = BoundaryNorm(lev, cmap.N)
