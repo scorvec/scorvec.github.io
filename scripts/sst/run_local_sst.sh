@@ -90,6 +90,10 @@ perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/brazil_forecast.py || e
 "$PY" scripts/sst/brazil_cmo.py || echo "Brazil CMO failed; continuing"   # weekly price vs EAR/ENA
 "$PY" scripts/sst/brazil_price_seasonality.py || echo "price seasonality failed; continuing"   # 15-day leverage heatmap
 "$PY" scripts/sst/argentina_demand.py || echo "Argentina demand failed; continuing"   # CAMMESA V-curve + demand forecast
+"$PY" scripts/sst/argentina_regions.py || echo "Argentina regions failed; continuing"   # regional + distributor V-curves
+"$PY" scripts/sst/argentina_gas.py || echo "Argentina gas failed; continuing"   # res/com gas model
+"$PY" scripts/sst/argentina_sectors.py || echo "Argentina sectors failed; continuing"   # official sector split (monthly base zip)
+"$PY" scripts/sst/argentina_gas_outlook.py || echo "Argentina gas outlook failed; continuing"   # 14-d gas vs normal
 ( cd "$HOME/argentina_energy" && git add -A raw out site 2>/dev/null && git commit -q -m "data: daily snapshot $(date -u +%F)" 2>/dev/null && git push -q ) || true
 "$PY" scripts/sst/dam_models.py || echo "Dam models failed; continuing"   # per-dam catchment kernels + states (draws dam fans)
 perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS+IFS rain -> inflow + storage fans (rides MJO tp GRIBs)
