@@ -229,7 +229,7 @@ def stage_fan(tc, verif) -> None:
            .strftime("%Y-%m-%d %H:%M UTC"),
            "inits": {m: f"{r['init_date']} {r['init_hh']}Z"
                      for m, r in latest.items()},
-           "dates": [str(d) for d in fdays], "basins": {}}
+           "dates": [str(d) for d in fdays], "basins": {}, "rain": {}}
     for b, p in dm.items():
         tau, lag = p["tau_days"], p["lag_days"]
         c0, c1, c2, c3 = p["coefs"]
@@ -281,6 +281,44 @@ def stage_fan(tc, verif) -> None:
                 f"p{int(q*100)}": np.round(
                     [weighted_quantile(traces[:, j], tw, [q])[0]
                      for j in range(len(fdays))], 1).tolist() for q in qs}
+        # bias-corrected rain quantiles (mm/day), per-day valid masking
+        rr, rv, rw = [], [], []
+        for mdl, rec in latest.items():
+            if b not in rec["basins"]:
+                continue
+            vmap = {np.datetime64(v): i for i, v in enumerate(rec["valid"])}
+            wbar = float(np.mean([verif["weight_aifs"][b][bi]
+                                  for bi in verif["weight_aifs"][b]]))
+            wm = (wbar if mdl == "aifs" else 1 - wbar) / rec["n_members"]
+            d0 = np.datetime64(f"{rec['init_date'][:4]}-"
+                               f"{rec['init_date'][4:6]}-"
+                               f"{rec['init_date'][6:8]}")
+            valid = np.array([vmap.get(d) is not None for d in fdays])
+            for mem in rec["basins"][b]:
+                row = np.zeros(len(fdays))
+                for j, d in enumerate(fdays):
+                    li = vmap.get(d)
+                    if li is None:
+                        continue
+                    lead = max(int((d - d0).astype(int)), 1)
+                    row[j] = (verif["bias_factors"][b][band_of(lead)][mdl]
+                              * mem[li])
+                rr.append(row)
+                rv.append(valid)
+                rw.append(wm)
+        if rr:
+            rr = np.array(rr)
+            rv = np.array(rv)
+            rw = np.array(rw)
+            qd = {f"p{int(q*100)}": [] for q in qs}
+            for j in range(len(fdays)):
+                ok = rv[:, j]
+                for q in qs:
+                    qd[f"p{int(q*100)}"].append(
+                        round(float(weighted_quantile(rr[ok, j], rw[ok],
+                                                      [q])[0]), 2)
+                        if ok.sum() >= 8 else None)
+            out["rain"][b] = qd
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(json.dumps(out, separators=(",", ":")))
     print(f"ENA fans: {len(out['basins'])} basins, {len(fdays)} days "
