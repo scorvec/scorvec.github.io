@@ -71,8 +71,13 @@ for p in assets/sst/data/tao_section.json \
          assets/sst/eq_current_hov.webp assets/sst/eq_uwind_hov.webp \
          assets/sst/anim/eq_cur_section assets/sst/anim/eq_cur_section_manifest.json \
          assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_map_manifest.json \
-         colombia_hydro brazil_hydro \
   ; do [ -e "$p" ] && git add "$p"; done
+# hydro pages live in the private repos now (symlinked); snapshot them there
+for d in "$HOME/colombia_hydro" "$HOME/brazil_hydro"; do
+  ( cd "$d" && git add -A site raw out 2>/dev/null \
+    && git commit -q -m "site/data tick $(date -u +%FT%H:%MZ)" 2>/dev/null \
+    && git push -q ) || true
+done
 if git diff --staged --quiet; then echo "light pass: no changes"; exit 0; fi
 trap 'git_unlock; rm -rf "$LOCK" 2>/dev/null' EXIT
 git_lock || { echo "git lock busy; leaving as a local commit"; exit 0; }

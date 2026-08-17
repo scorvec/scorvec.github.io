@@ -115,3 +115,5 @@ local_archive/
 scripts/mjo/data/reference/arco_eq_u/
 scripts/mjo/data/reference/m2_eq_u/
 scripts/sfs/data/*.npy
+colombia_hydro
+brazil_hydro
