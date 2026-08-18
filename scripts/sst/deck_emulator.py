@@ -66,8 +66,14 @@ NCLUST = 10
 NAVY = "#13273d"; INK = "#1a2733"
 
 
+ASOF = None                                   # np.datetime64 day cutoff (backtests)
+
+
 def load_latest(model):
     fs = sorted(ARCH.glob(f"{model}_*.json.gz"))
+    if ASOF is not None:
+        fs = [f for f in fs if np.datetime64(
+            f"{f.name.split('_')[1][:4]}-{f.name.split('_')[1][4:6]}-{f.name.split('_')[1][6:8]}") <= ASOF]
     return json.loads(gzip.open(fs[-1], "rt").read()) if fs else None
 
 
@@ -94,9 +100,16 @@ def matured_pairs(model, truth, tdates, days_back=120):
     return pairs
 
 
-def main() -> int:
+def run(asof=None, make_fig=True):
+    global ASOF
+    ASOF = np.datetime64(asof) if asof else None
     tc = json.loads(TRUTH.read_text())
     tdates = np.array([f"{d[:4]}-{d[4:6]}-{d[6:8]}" for d in tc["dates"]], dtype="datetime64[D]")
+    if ASOF is not None:                     # truth known only up to the as-of day
+        keep = tdates <= ASOF
+        tc = {k: (v[:int(keep.sum())] if isinstance(v, list) and len(v) == len(tdates) else v)
+              for k, v in tc.items()}
+        tdates = tdates[keep]
     smap = json.loads(SMAP.read_text())["params"]
     basins = [b for b in smap if b in tc]
     models = [m for m in ("ifs", "aifs", "gefs") if load_latest(m)]
@@ -254,7 +267,8 @@ def main() -> int:
         ear = json.load(f)["SUDESTE"]
     with gzip.open(ENA, "rt") as f:
         ena_hist = json.load(f)
-    ear_now = float(ear[max(ear)])
+    ear_keys = [k for k in ear if ASOF is None or np.datetime64(k) <= ASOF]
+    ear_now = float(ear[max(ear_keys)])
     # SE ENA %MLT recent 90-d mean and MLT scale (sum over SE basins of MW/pct)
     se_hist = {}
     for b in SE_BASINS:
@@ -262,7 +276,7 @@ def main() -> int:
         for k, (mw, pc) in d.items():
             se_hist.setdefault(k, [0.0, 0.0])
             se_hist[k][0] += mw; se_hist[k][1] += mw / max(pc, 1e-3) * 100
-    hk = sorted(se_hist)[-90:]
+    hk = sorted(k for k in se_hist if ASOF is None or np.datetime64(k) <= ASOF)[-90:]
     mlt_se = np.mean([se_hist[k][1] for k in hk])                  # MW at 100%
     ena90_hist = np.mean([se_hist[k][0] for k in hk]) / mlt_se * 100
     # storage capacity SE (MWmes) from EAR pct + ENA: use CMO regression directly on
@@ -313,10 +327,14 @@ def main() -> int:
                      "price: statistical CMO proxy (log CMO ~ EAR + ENA90), not DECOMP"]}
     try:
         cw = json.load(gzip.open(CMO_W, "rt"))["SE"]
-        res["price_se"]["cmo_now_weekly"] = cw[max(cw)]
+        ck = [k for k in cw if ASOF is None or np.datetime64(k) <= ASOF]
+        res["price_se"]["cmo_now_weekly"] = cw[max(ck)]
     except Exception:
         pass
-    OUT_JSON.write_text(json.dumps(res, indent=1))
+    if ASOF is None:
+        OUT_JSON.write_text(json.dumps(res, indent=1))
+    if not make_fig:
+        return res
 
     # ── figure
     fd = [d.astype(object) for d in fdays]
@@ -370,6 +388,13 @@ def main() -> int:
     print(f"clusters: {[(c['n'], round(c['weight'],2), c['ena_se_mean_pct_mlt']) for c in clusters]}")
     print(f"expected CMO d1..d18: {np.round(exp_price[[0,6,13,17]],0)}  det: {np.round(np.array(p_det)[[0,6,13,17]],0)}")
     print(f"wrote {OUT_PNG}")
+    return res
+
+
+def main() -> int:
+    a = sys.argv[1:]
+    asof = a[a.index("--asof") + 1] if "--asof" in a else None
+    run(asof, make_fig=asof is None)
     return 0
 
 
