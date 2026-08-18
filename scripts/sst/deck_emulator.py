@@ -48,11 +48,13 @@ import sys
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from smap_ons import smap_run                                        # noqa: E402
+from rain_inflow_model import ema                                    # noqa: E402
 
 PRIV = Path.home() / "brazil_hydro"
 ARCH = PRIV / "raw" / "fcst_rain"
 TRUTH = PRIV / "raw" / "imerg_basin_daily.json"
 SMAP = PRIV / "out" / "smap_params.json"
+SELECTOR = PRIV / "out" / "ena_selector.json"
 ENA = PRIV / "raw" / "ena_bacia_daily.json.gz"
 EAR = PRIV / "raw" / "ear_subsistema_daily.json.gz"
 CMO_AN = PRIV / "out" / "cmo_analysis.json"
@@ -180,7 +182,16 @@ def main() -> int:
                                       for v in members_pool[b][rep][1]] for b in basins}})
     clusters.sort(key=lambda c: -c["weight"])
 
-    # ── Stage B: SMAP -> ENA for the deterministic conjunta and each cluster
+    # ── Stage B: rain -> ENA via the per-basin/season SELECTED model
+    #    (ena_selector.json: kernel_v3 / cascade / hybrid / smap_*), evaluated
+    #    on observed history + the forecast days so kernels carry true state.
+    selector = json.loads(SELECTOR.read_text())["basins"] if SELECTOR.exists() else {}
+    month_now = fdays[0].astype(object).month
+    season_now = "dry" if 5 <= month_now <= 10 else "wet"
+    hist_rain = {b: np.nan_to_num(np.array(tc[b], float)) for b in basins}
+    hdates = [d.astype(object) for d in tdates]
+    used_model = {}
+
     def ena_path(rain_by_basin):
         out = {}
         for b in basins:
@@ -191,8 +202,42 @@ def main() -> int:
                           for v in rain_by_basin[b]], float)
             m0 = [fdays[k].astype(object).month - 1 for k in range(len(fdays))]
             Ep = np.array([p["pet_monthly_mmday"][mm] for mm in m0])
-            Q, _ = smap_run(r, Ep, prm, states=tuple(p["states_end"]))
-            out[b] = Q
+            Q_smap, _ = smap_run(r, Ep, prm, states=tuple(p["states_end"]))
+            sel = selector.get(b, {})
+            mdl = sel.get("select", {}).get(season_now, {}).get("model", "smap_nse")
+            used_model[b] = mdl
+            if mdl.startswith("smap") or "fits" not in sel:
+                out[b] = Q_smap
+                continue
+            fits = sel["fits"]
+            full = np.concatenate([hist_rain[b], r])
+            nh = len(hist_rain[b])
+            alld = hdates + [d.astype(object) for d in fdays]
+            doy = np.array([min(d.timetuple().tm_yday, 365) for d in alld])
+            th = 2 * np.pi * doy / 365
+            season = np.column_stack([np.sin(th), np.cos(th)])
+            S = np.full(len(full), sel["ear_anom_now"])
+            if mdl == "kernel_v3" and "kernel_v3" in fits:
+                f = fits["kernel_v3"]
+                Pm = full - f["rain_mean"]
+                k = np.roll(ema(Pm, f["tau"]), f["lag"]); ks = np.roll(ema(Pm, 180), f["lag"])
+                X = np.column_stack([k, ks, S, season])
+                c = np.array(f["coefs"])
+                out[b] = (c[0] + X @ c[1:])[nh:]
+            elif mdl in ("cascade", "hybrid") and mdl in fits:
+                f = fits[mdl]
+                E = np.column_stack([ema(full, t) for t in f["taus"]])
+                cols = [E, season, -season, S[:, None], -S[:, None]]
+                if mdl == "hybrid":
+                    # smap runoff over the whole history+forecast (mm->MW via gain)
+                    Ep_full = np.array([p["pet_monthly_mmday"][d.month - 1] for d in alld])
+                    Qh, _ = smap_run(full, Ep_full, prm)
+                    cols = [Qh[:, None]] + cols
+                X = np.column_stack(cols)
+                c = np.array(f["coefs"])
+                out[b] = (c[0] + X @ c[1:])[nh:]
+            else:
+                out[b] = Q_smap
         return out
     det = ena_path({b: conj[b] for b in basins})
     for c in clusters:
@@ -260,6 +305,7 @@ def main() -> int:
                         "p90": np.round(wq(0.90), 1).tolist(),
                         "ear_now_pct": ear_now, "ena90_now_pct_mlt": round(ena90_hist, 1),
                         "cmo_now_weekly": None},
+           "rain_to_ena_model_used": used_model, "season": season_now,
            "notes": ["v0: MERGE reference not yet wired (corrected IMERG used)",
                      "v0: ETA not included; GEFS only if archived",
                      "clusters: k-means(10) on days 8-18 of the available members — "
@@ -277,7 +323,7 @@ def main() -> int:
     fig = plt.figure(figsize=(13.5, 9.5))
     hd = fig.add_axes([0, 0.93, 1, 0.07]); hd.set_axis_off()
     hd.add_patch(plt.Rectangle((0, 0), 1, 1, transform=hd.transAxes, facecolor=NAVY))
-    hd.text(0.03, 0.5, "BRAZIL — ONS DECK EMULATOR v0: what Thursday's DECOMP will see",
+    hd.text(0.03, 0.5, "BRAZIL — ONS DECK EMULATOR v0.1: what Thursday's DECOMP will see",
             transform=hd.transAxes, color="white", fontsize=13.5, fontweight="bold", va="center")
     hd.text(0.97, 0.5, " · ".join(f"{m.upper()} {latest[m]['init_date']} {latest[m]['init_hh']}Z" for m in models),
             transform=hd.transAxes, color="#b9c6d4", fontsize=9, va="center", ha="right")
@@ -296,7 +342,7 @@ def main() -> int:
         ax2.plot(fd, ena_se / mlt_se * 100, color="#b35806", lw=0.8 + 3 * c["weight"], alpha=0.7)
     ax2.plot(fd, ena_se_det / mlt_se * 100, color="k", lw=2, ls="--", label="deterministic conjunta")
     ax2.axhline(100, color="0.6", lw=0.7, ls=":")
-    ax2.set_title(f"SE/CO ENA scenarios via SMAP — {len(clusters)} clusters (line width ∝ weight)",
+    ax2.set_title(f"SE/CO ENA scenarios via selected models ({season_now}) — {len(clusters)} clusters",
                   fontsize=10, fontweight="bold", loc="left", color=INK)
     ax2.set_ylabel("% of MLT", fontsize=8.5); ax2.grid(lw=0.25, alpha=0.5)
     ax2.legend(fontsize=7.5); ax2.tick_params(labelsize=8)
