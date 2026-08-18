@@ -107,7 +107,8 @@
     display: flex; align-items: center; justify-content: center;
     padding: 6rem 2rem 4rem;
     position: relative;
-    background: url('IMG_2253.JPEG') center center / cover no-repeat;
+    /* hero photo: 1920px WebP (157 KB; the original 6 MB JPEG was the whole first paint) */
+    background: url('assets/hero.webp') center center / cover no-repeat;
     min-height: calc(100dvh - 57px - 57px);
   }
   .home::before {
@@ -251,6 +252,7 @@
 
   /* TABLET */
   @media (max-width: 768px) {
+    .home { background-image: url('assets/hero_m.webp'); }   /* 1024px, 41 KB */
     nav { padding: 1rem 1.5rem; }
     .nav-links { gap: 1.3rem; }
     .home { padding: 5rem 1.5rem 3rem; }
