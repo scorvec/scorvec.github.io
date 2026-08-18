@@ -109,7 +109,16 @@ def coarse_weights(lon, lat):
 
 
 def basin_series(path: Path):
-    """[(init, lead, member, basin)] -> mm/day, basin-mean on energy weights."""
+    """[(init, lead, member, basin, mm/day)] from one seasonal GRIB.
+
+    Dimension order is NOT assumed.  cfgrib returns these files as
+    (number, time, step, lat, lon) - member first, then init year - and
+    `step` is a RAGGED UNION of day-offsets, because a given lead month
+    is a different number of days after a leap-year init than a normal
+    one.  Positional indexing therefore silently reads members as years
+    and invents leads that were never requested.  Lead is instead derived
+    from valid_time minus init, in whole months, and empty cells dropped.
+    """
     import xarray as xr
     from hydro_region_rain import region_weights_energy
     ds = xr.open_dataset(path, engine="cfgrib", backend_kwargs={"indexpath": ""})
@@ -121,19 +130,44 @@ def basin_series(path: Path):
     W = region_weights_energy(da.longitude.values, da.latitude.values, ORDER)
     if W is None:
         W = coarse_weights(da.longitude.values, da.latitude.values)
+    if W is None:
+        raise RuntimeError("no usable basin weights on the C3S grid")
+
+    for d_ in ("number", "time", "step"):
+        if d_ not in da.dims:
+            da = da.expand_dims(d_)
+    da = da.transpose("number", "time", "step", "latitude", "longitude")
+    arr = da.values
+    nums = np.atleast_1d(da["number"].values)
+    times = np.atleast_1d(np.asarray(da["time"].values, dtype="datetime64[D]"))
+    vt = ds["valid_time"].values                        # (time, step) or (step,)
+    vt = np.atleast_2d(np.asarray(vt, dtype="datetime64[D]"))
+    if vt.shape[0] != len(times) and vt.shape[1] == len(times):
+        vt = vt.T
+    if vt.shape[0] == 1 and len(times) > 1:
+        vt = np.repeat(vt, len(times), axis=0)
+
+    Wv = {b: W[b].ravel() for b in ORDER}
     out = []
-    times = np.atleast_1d(ds["time"].values)
-    arr = da.values                                     # (member, lead, lat, lon)
-    if arr.ndim == 4:
-        arr = arr[:, :, None]                           # add init axis
-        arr = np.moveaxis(arr, 2, 0)
-    for ti, t in enumerate(times):
-        init = str(np.datetime64(t, "D"))
-        for li in range(arr.shape[2]):
-            for mi in range(arr.shape[1]):
-                g = arr[ti, mi, li]
+    for ti in range(arr.shape[1]):
+        init = times[ti]
+        iy, im = int(str(init)[:4]), int(str(init)[5:7])
+        for si in range(arr.shape[2]):
+            v = vt[ti, si] if si < vt.shape[1] else None
+            if v is None or not np.isfinite(np.datetime64(v).astype("int64")):
+                continue
+            vy, vm = int(str(v)[:4]), int(str(v)[5:7])
+            lead = (vy - iy) * 12 + (vm - im)
+            if not 1 <= lead <= len(LEADS):
+                continue
+            for mi in range(arr.shape[0]):
+                g = arr[mi, ti, si]
+                if not np.isfinite(g).any():
+                    continue
+                flat = g.ravel()
                 for b in ORDER:
-                    out.append((init, li + 1, mi, b, float((g * W[b]).sum())))
+                    out.append((str(init), lead, int(nums[mi]), b,
+                                float(np.dot(np.nan_to_num(flat), Wv[b]))))
     return out
 
 
