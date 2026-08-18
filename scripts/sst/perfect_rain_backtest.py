@@ -225,6 +225,40 @@ def run_period(d, basin, a0, a1, rng, arm="perfect"):
     nrl = NMEM if arm == "degraded" else 1
     mae_check = []
 
+    def perturb(true_abs, scale=None):
+        """Observed rain -> a forecast with the tracker's measured error.
+
+        Multiplicative lognormal for the wet-day error, which scales with
+        the amount, plus a calibration rescale of the residual so the
+        realised MAE actually hits the target per band.  Pure
+        multiplicative noise cannot: on a near-dry day it can only produce
+        a near-zero absolute error, whereas a real forecast's error there
+        is a false alarm, i.e. additive.  Measured undershoot before this
+        was ~25% (1.1-1.4 against a 1.67 target at d1-3).
+        """
+        lvl = np.maximum(true_abs, 0.15)
+        sig = np.array([min(2.5, band_mae(j + 1) / max(0.7979 * lvl[j], 0.05))
+                        for j in range(MAX_LEAD)])
+        z = rng.normal(size=MAX_LEAD)
+        err = lvl * (np.exp(sig * z - 0.5 * sig ** 2) - 1.0)
+        if scale is not None:
+            err = err * scale
+        return np.maximum(true_abs + err, 0.0)
+
+    scale = None
+    if arm == "degraded":                       # calibrate on a sample first
+        acc = np.zeros(MAX_LEAD); cnt = 0
+        for i0 in hi[::5]:
+            if i0 + MAX_LEAD >= n:
+                continue
+            ta = np.maximum(rabs[i0 + 1: i0 + 1 + MAX_LEAD], 0.0)
+            for _ in range(4):
+                acc += np.abs(perturb(ta) - ta); cnt += 1
+        if cnt:
+            realized = acc / cnt
+            tgt = np.array([band_mae(j + 1) for j in range(MAX_LEAD)])
+            scale = np.clip(tgt / np.maximum(realized, 1e-3), 0.5, 6.0)
+
     P = {h: [] for h in range(1, MAX_LEAD + 1)}
     O = {h: [] for h in range(1, MAX_LEAD + 1)}
     Q = {h: [] for h in range(1, MAX_LEAD + 1)}
@@ -241,15 +275,7 @@ def run_period(d, basin, a0, a1, rng, arm="perfect"):
             elif arm == "climo":
                 xf = np.zeros(MAX_LEAD)          # future rain = climatology
             else:
-                # sigma per lead so E|fcst-obs| matches the tracker's measured
-                # corrected MAE for that band, on ACTUAL mm/day (rain error is
-                # multiplicative, so it must be scaled off the real amount)
-                lvl = np.maximum(true_abs, 0.15)
-                sig = np.array([min(2.5, band_mae(j + 1) /
-                                    max(0.7979 * lvl[j], 0.05))
-                                for j in range(MAX_LEAD)])
-                z = rng.normal(size=MAX_LEAD)
-                fabs = lvl * np.exp(sig * z - 0.5 * sig ** 2)
+                fabs = perturb(true_abs, scale)
                 mae_check.append(np.abs(fabs - true_abs))
                 xf = fabs - cl
             sim = fwd(beta, off, sh, kf_h, ks_h, rain, roni, stor,
@@ -288,6 +314,80 @@ def run_period(d, basin, a0, a1, rng, arm="perfect"):
             "skill_vs_persistence": round(1 - rm / rp, 3),
             "skill_vs_climatology": round(1 - rm / rc, 3)}
     return res
+
+
+def figure(out):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    NAVY, INK = "#13273d", "#1a2733"
+    pers = [p for p in out["periods"] if out["periods"][p].get("perfect")]
+    if not pers:
+        return
+    fig = plt.figure(figsize=(5.2 * len(pers) + 1.0, 8.6))
+    hd = fig.add_axes([0, 0.935, 1, 0.065]); hd.set_axis_off()
+    hd.add_patch(plt.Rectangle((0, 0), 1, 1, transform=hd.transAxes, facecolor=NAVY))
+    hd.text(0.012, 0.62, "IS THE RAIN FORECAST THE BINDING CONSTRAINT?",
+            transform=hd.transAxes, color="white", fontsize=15,
+            fontweight="bold", va="center")
+    hd.text(0.012, 0.2, "the delta model driven by perfect rain, by rain "
+            "degraded to the AIFS-ENS measured error, and by climatology",
+            transform=hd.transAxes, color="#b9c6d4", fontsize=9, va="center")
+    arms = (("perfect", "#1f4e8c", "perfect rain (ceiling)"),
+            ("degraded", "#e08214", "AIFS-quality rain"),
+            ("climo", "#c62828", "climatology (no forecast)"))
+    for i, per in enumerate(pers):
+        ax = fig.add_axes([0.06 + i * (0.92 / len(pers)), 0.565,
+                           0.92 / len(pers) - 0.075, 0.33])
+        for arm, c, lab in arms:
+            nat = out["periods"][per].get(arm, {}).get("national_energy_weighted")
+            if not nat:
+                continue
+            hs = sorted(int(h) for h in nat)
+            ax.plot(hs, [nat[str(h)]["skill_vs_persistence"] if str(h) in nat
+                         else nat[h]["skill_vs_persistence"] for h in hs],
+                    color=c, lw=2.0, marker="o", ms=3.5, label=lab)
+        ax.axhline(0, color="0.45", lw=0.9)
+        ax.set_xlabel("lead, days", fontsize=9)
+        if i == 0:
+            ax.set_ylabel("national RMSE skill vs persistence", fontsize=9)
+            ax.legend(fontsize=8, loc="lower right")
+        ax.set_title(per, fontsize=10.5, fontweight="bold", loc="left", color=INK)
+        ax.grid(lw=0.25, alpha=0.5); ax.tick_params(labelsize=8)
+
+    ax2 = fig.add_axes([0.06, 0.09, 0.88, 0.36])
+    labs, gap_f, gap_c = [], [], []
+    for per in pers:
+        P = out["periods"][per].get("perfect", {}).get("national_energy_weighted", {})
+        D = out["periods"][per].get("degraded", {}).get("national_energy_weighted", {})
+        C = out["periods"][per].get("climo", {}).get("national_energy_weighted", {})
+        g = lambda D_, h: (D_.get(str(h), D_.get(h, {})) or {}).get("skill_vs_persistence")
+        for h in (1, 3, 7, 15):
+            if g(P, h) is None or g(C, h) is None:
+                continue
+            labs.append(f"{per.split(':')[0]}\nh{h}")
+            gap_c.append(g(D, h) - g(C, h) if g(D, h) is not None else np.nan)
+            gap_f.append(g(P, h) - g(D, h) if g(D, h) is not None else np.nan)
+    x = np.arange(len(labs))
+    ax2.bar(x, gap_c, 0.62, color="#e08214",
+            label="value of having a rain forecast at all (AIFS − climatology)")
+    ax2.bar(x, gap_f, 0.62, bottom=gap_c, color="#1f4e8c",
+            label="extra from making that forecast PERFECT")
+    ax2.set_xticks(x); ax2.set_xticklabels(labs, fontsize=7.4)
+    ax2.set_ylabel("skill contribution", fontsize=9)
+    ax2.set_title("Where the skill comes from — the blue slivers are what "
+                  "better rain forecasts could still buy",
+                  fontsize=11, fontweight="bold", loc="left", color=INK)
+    ax2.legend(fontsize=8.5); ax2.grid(lw=0.25, alpha=0.5, axis="y")
+    ax2.tick_params(labelsize=8)
+    fig.text(0.06, 0.022, "model fitted OUTSIDE each window with a 90-day "
+             "embargo · degraded arm calibrated so its realised MAE matches the "
+             "tracker's measured corrected AIFS error per lead band · pre-2024 "
+             "rain is corrected-satellite (no daily gauge blend)",
+             fontsize=7.6, color="#5a6b7a")
+    OUT_PNG.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(OUT_PNG, dpi=118); plt.close(fig)
+    print(f"wrote {OUT_PNG}")
 
 
 NATIONAL_W = {"ANTIOQUIA": 0.490, "CENTRO": 0.209, "ORIENTE": 0.166,
@@ -350,9 +450,15 @@ def main() -> int:
             print(f"{per} {arm:9} national skill vs persistence  {sk}", flush=True)
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(json.dumps(out, indent=1))
+    try:
+        figure(out)
+    except Exception as e:                       # noqa: BLE001
+        print(f"figure failed: {repr(e)[:140]}")
     print(f"wrote {OUT_JSON}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
