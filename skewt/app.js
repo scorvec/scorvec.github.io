@@ -44,6 +44,10 @@ let prev12 = null, prev12Key = "";      // the launch ~12 h earlier, for MSE tre
 let lastHourZ = 12;
 let lastProfFull = null;              // un-thinned profile for the full-res mobile card
 let EXPORT_PX = null, BARB_GAP = 22;  // overrides during full-res export
+// design aspect (w/h) of each on-screen plot — fitCanvas() letterboxes to
+// these and fitLayout() sizes the dialog so the two together fill its width
+const PLOT_ASPECT = { skewt: 19 / 21, hodo: 14 / 15 };
+const MOBILE_MQ = matchMedia("(max-width: 1020px)");   // mirrors the stacked-layout CSS breakpoint
 const hourOf = s => { const m = /[T ](\d{2}):/.exec(String(s)); return m ? +m[1] : 12; };
 function doyOf(ymd) {                     // "YYYY-MM-DD" -> 1..365
   const d = new Date(ymd.slice(0, 10) + "T00:00:00Z");
@@ -1200,6 +1204,8 @@ setTimeout(() => map.invalidateSize(), 400);
 let redrawTimer = null;
 function redrawCharts() {
   if (modal.hidden || !lastProf || !lastRes) return;
+  inRender = true;                          // we draw right below — no double draw
+  try { fitLayout(); } finally { inRender = false; }
   drawSkewT(lastProf, lastRes); drawHodo(lastProf, lastRes); drawMSE(lastProf);
 }
 addEventListener("resize", () => { clearTimeout(redrawTimer); redrawTimer = setTimeout(redrawCharts, 120); });
@@ -1213,7 +1219,10 @@ function setStatus(text, busy = false) {
     if (el) { el.textContent = text; el.classList.toggle("busy", busy); }
   }
 }
-function openModal() { modal.hidden = false; }
+function openModal() { modal.hidden = false; sizePlots(); }
+// give both plots their layout size before anything is drawn (a freshly
+// opened card would otherwise show the canvases at their attribute size)
+function sizePlots() { for (const id of ["skewt", "hodo"]) plotBox(document.getElementById(id)); }
 function closeModal() { modal.hidden = true; }
 document.getElementById("close").onclick = closeModal;
 modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
@@ -1654,7 +1663,7 @@ function buildExportCanvas(fscale = 1) {
   const grab = id => [...document.querySelectorAll(`#${id} tr`)]
     .map(tr => [...tr.children].map(td =>
       [...td.childNodes].map(n => n.textContent).join(" ").replace(/\s+/g, " ").trim()));
-  const columns = [                       // mirrors the page's tables-grid
+  const columns = [                       // the card's own 5-column layout
     [["Parcels", grab("pcl-table")], ["Moist static energy", grab("mse-table")]],
     [["Kinematics", grab("kin-table")]],
     [["Composites", grab("kin-table-b")], ["Winter", grab("winter-table")]],
@@ -2744,7 +2753,7 @@ function fitCanvas(cv) {                    // backing store = panel size × dpr
     return { W: w, H: h, ctx };
   }
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = cv.clientWidth, h = cv.clientHeight;
+  let { w, h } = plotBox(cv);
   const ctx = cv.getContext("2d");
   if (w && h) {
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
@@ -2752,6 +2761,26 @@ function fitCanvas(cv) {                    // backing store = panel size × dpr
     return { W: w, H: h, ctx };
   }
   return { W: cv.width, H: cv.height, ctx };
+}
+// The CSS size a plot should draw at. Desktop: both plots are laid out from
+// the space .main offers — the tallest pair of design-aspect rectangles that
+// fits its height AND width — and get explicit CSS sizes so their panels hug
+// them (auto grid columns, centred as a pair). Mobile: the stacked CSS pins
+// each canvas to width 100% at its aspect, so the box itself is right.
+function plotBox(cv) {
+  const R = PLOT_ASPECT[cv.id], main = cv.closest(".main");
+  if (R && main && !MOBILE_MQ.matches) {
+    const availH = main.clientHeight - 18, availW = main.clientWidth - 12 - 36;
+    if (availH <= 0 || availW <= 0) return { w: 0, h: 0 };   // modal hidden: leave the size alone
+    const H = Math.min(availH, availW / (PLOT_ASPECT.skewt + PLOT_ASPECT.hodo));
+    const w = Math.floor(H * R), h = Math.floor(H);
+    cv.style.width = w + "px"; cv.style.height = h + "px";
+    return { w, h };
+  }
+  cv.style.width = ""; cv.style.height = "";
+  let w = cv.clientWidth, h = cv.clientHeight;
+  if (R && w && h) { if (w / h > R) w = h * R; else h = w / R; }   // never stretch a plot
+  return { w: Math.floor(w), h: Math.floor(h) };
 }
 function drawSkewT(prof, res) {
   const cv = document.getElementById("skewt");
@@ -3091,6 +3120,7 @@ function drawBarbs(ctx, prof, x0, yOf) {
 // ---------- hodograph ----------
 function drawMSE(prof) {
   const cv = document.getElementById("mse");
+  if (!cv) return;                       // panel retired from the dialog; table remains
   const { W, H, ctx } = fitCanvas(cv);
   ctx.fillStyle = TH.bg; ctx.fillRect(0, 0, W, H);
   const m = mseProfile(prof);
@@ -3585,7 +3615,7 @@ function fillTables(prof, res) {
   document.getElementById("winter-table").innerHTML = winter.map(row).join("");
   document.getElementById("tropic-table").innerHTML = tropical.map(row).join("");
   queuePrev12();                        // MSE tendency arrives async, re-fills
-  fitTables();
+  fitLayout();
 }
 
 // Autoscale the parameter tables into whatever height the plots leave over:
@@ -3594,12 +3624,81 @@ function fillTables(prof, res) {
 function fitTables() {
   const wrap = document.querySelector(".tables-wrap");
   if (!wrap) return;
+  // fits = nothing scrolls vertically AND no table (the 8-column parcels grid
+  // is the wide one) overflows its multi-column column
+  const fits = () => wrap.clientHeight >= wrap.scrollHeight - 1 &&
+    [...wrap.querySelectorAll("table.params")].every(t => t.scrollWidth <= t.parentElement.clientWidth + 1);
   wrap.style.removeProperty("--tbl-fs");             // start from the CSS default
-  if (wrap.clientHeight >= wrap.scrollHeight - 1) return;
-  for (let fs = 0.66; fs >= 0.55; fs -= 0.03) {
+  if (fits()) return;
+  for (let fs = 0.66; fs >= 0.549; fs -= 0.03) {
     wrap.style.setProperty("--tbl-fs", fs + "rem");
-    if (wrap.clientHeight >= wrap.scrollHeight - 1) return;
+    if (fits()) return;
   }
+}
+// Size the sounding card. The index tables get at most ~a third of the body
+// (CSS max-height; fitTables shrinks their font to fit, and they scroll only
+// if that fails), the plots take the rest; both plots are height-driven at a
+// fixed aspect, so the width the card NEEDS is known once the plot height is.
+//  1. Tightest card: start wide and only narrow (the tables get taller as the
+//     card narrows, so a chase in both directions would oscillate) until the
+//     card just fits its two plots — nothing letterboxed, no space wasted.
+//  2. If that leaves the tables squeezed into few columns at a tiny font, widen
+//     — up to ~1.4x — to the narrowest width where they fit at >= 0.6rem (or
+//     at least fit at all). The plots don't change: they keep their height and
+//     sit centred with a little room either side, which is fine on a wide
+//     monitor and a better trade than 10px type.
+let inRender = false;                 // render()/redrawCharts() draw right after fitLayout — no double draw
+function fitLayout() {
+  const dlg = modal.querySelector(".dialog"), main = modal.querySelector(".main");
+  const wrap = modal.querySelector(".tables-wrap");
+  if (!dlg || !main || !wrap) return;
+  if (MOBILE_MQ.matches || modal.hidden) { dlg.style.width = ""; return; }
+  fitLayoutCore(dlg, main, wrap);
+  // Anything that re-fills the tables (the async 12-h MSE tendency, a unit
+  // toggle) can move the plot boxes; the ResizeObserver only sees .main, so
+  // redraw here whenever a plot's box no longer matches its bitmap.
+  if (inRender || !lastProf || !lastRes) return;
+  const sk = document.getElementById("skewt");
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const { w, h } = plotBox(sk);
+  if (Math.round(w * dpr) !== sk.width || Math.round(h * dpr) !== sk.height) {
+    drawSkewT(lastProf, lastRes); drawHodo(lastProf, lastRes);
+  }
+}
+function fitLayoutCore(dlg, main, wrap) {
+  const chromeW = 12 + 2 * 18 + 28 + 2;   // grid gap + panel padding/border + dialog padding/border
+  const ratio = PLOT_ASPECT.skewt + PLOT_ASPECT.hodo;
+  const maxW = Math.floor(window.innerWidth * 0.98), minW = Math.min(980, maxW);
+  const setW = w => { dlg.style.width = w + "px"; };
+  const need = () => Math.round((main.clientHeight - 18) * ratio + chromeW);
+  const tblFont = () => parseFloat(wrap.style.getPropertyValue("--tbl-fs")) || 0.68;
+  const tblFits = () => wrap.clientHeight >= wrap.scrollHeight - 1;
+  // 1. tight
+  let cur = maxW; setW(cur);
+  for (let i = 0; i < 5; i++) {
+    fitTables();
+    const w = Math.max(minW, Math.min(need(), cur));
+    if (cur - w < 1.5) break;
+    setW(w); cur = w;
+  }
+  fitTables();
+  const tight = cur;
+  if (tblFits() && tblFont() >= 0.6) return;
+  // 2. widen for the tables: the narrowest width where they fit at >= 0.6rem;
+  //    failing that the narrowest where they fit at all; failing THAT (short
+  //    laptop screens) whichever width leaves the least to scroll
+  let best = tight, bestFits = tblFits(), bestOver = wrap.scrollHeight - wrap.clientHeight;
+  const lim = Math.min(maxW, Math.round(tight * 1.4));
+  for (let w = tight; w < lim; ) {
+    w = Math.min(lim, Math.round(w * 1.07));
+    setW(w); fitTables();
+    const fits = tblFits(), fs = tblFont(), over = wrap.scrollHeight - wrap.clientHeight;
+    if (fits && fs >= 0.6) return;                    // narrowest comfortable width
+    if (fits ? !bestFits : (!bestFits && over < bestOver - 4)) {
+      best = w; bestFits = fits; bestOver = over;
+    }
+  }
+  setW(best); fitTables();
 }
 document.getElementById("dlg-footer").addEventListener("click",
   e => { if (e.target.tagName !== "A") e.currentTarget.classList.toggle("open"); });
@@ -3607,8 +3706,11 @@ document.getElementById("dlg-footer").addEventListener("click",
 // ---------- render ----------
 function clearPlot(msg) {
   setStatus(msg || "no data");
+  sizePlots();
   for (const id of ["skewt", "hodo", "mse"]) {
-    const cv = document.getElementById(id), ctx = cv.getContext("2d");
+    const cv = document.getElementById(id);
+    if (!cv) continue;
+    const ctx = cv.getContext("2d");
     ctx.fillStyle = "#0a0a14"; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.fillStyle = "#8b8ba3"; ctx.font = "600 16px Inter"; ctx.textAlign = "center";
     ctx.fillText(msg || "no data", cv.width / 2, cv.height / 2);
@@ -3668,11 +3770,16 @@ function render(prof) {
   const tpTop = tropopause(prof);
   SK.pTop = (isFinite(tpTop.wmoP) && tpTop.wmoP < 12500 &&
              prof.P[prof.P.length - 1] < 9000) ? 7000 : 10000;
+  // tables first: fillTables -> fitLayout settles the card width, so the
+  // plots draw once at their final size instead of drawing, then redrawing
+  inRender = true;
+  try {
+    if (hasT) fillTables(prof, res);
+    else try { fillTables(prof, res); } catch (e) { /* fall back to clearing */ }
+  } finally { inRender = false; }
   drawSkewT(prof, res);
   drawHodo(prof, res);
   drawMSE(prof);
-  if (hasT) fillTables(prof, res);
-  else try { fillTables(prof, res); } catch (e) { /* fall back to clearing */ }
   if (false) for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table"])
     document.getElementById(id).innerHTML = "";
 }

@@ -143,26 +143,27 @@ but the **ratio**: an entrainment efficiency of 55% means nearly half the advert
 
 ### Moist static energy — the quantity underneath it all
 
-ECAPE is built on **moist static energy**, so the explorer plots it directly (the narrow panel beside
-the hodograph):
+ECAPE is built on **moist static energy**, so the explorer reports it directly (the *Moist static
+energy* table under the plots):
 
 **h = cp·T + g·z + Lv·q**
 
 MSE is *conserved* under both dry and moist adiabatic ascent — a parcel carries its h upward
 unchanged, whether or not it's condensing. That makes it the natural currency for convection.
 
-The panel shows two curves:
+Two profiles matter:
 
-- **h** (blue) — the actual moist static energy of the air at each level.
-- **h\*** (red) — the **saturation** MSE: what h *would* be if that level were saturated. It depends
+- **h** — the actual moist static energy of the air at each level.
+- **h\*** — the **saturation** MSE: what h *would* be if that level were saturated. It depends
   only on temperature and pressure, so it's a property of the environment, not its moisture.
 
 A parcel lifted from the boundary layer conserves its h. It is **buoyant wherever its h exceeds the
-environment's h\*** — so the region shaded green (BL h > h\*) is precisely the layer that generates
-CAPE. The dashed gold line marks boundary-layer h, and the gap between it and the h\* curve *is* the
-instability, drawn to scale.
+environment's h\*** — the layer where BL h > h\* is precisely the layer that generates CAPE, and
+the gap between them *is* the instability. (An h / h\* profile panel used to sit beside the
+hodograph; it was retired in favour of larger skew-T and hodograph plots — `drawMSE()` in app.js
+still draws it if a `<canvas id="mse">` is present.)
 
-The scalars in the Thermo column:
+The scalars in the table:
 
 | Value | Meaning |
 |---|---|
