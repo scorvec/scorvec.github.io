@@ -159,6 +159,15 @@
   footer a { color: var(--accent); }
   .pctcell { padding: 1px 6px; border-radius: 4px; }
   .pctlab { color: var(--muted); font-size: 0.72em; margin-left: 5px; }
+  /* climatology tags: percentile pill (outside p10-p90) and ★/★★ record
+     marker + year — coloured by tail so they read at a glance */
+  .pcttag { display: inline-block; font-size: 0.78em; font-weight: 700; margin-left: 4px;
+            padding: 0 4px; border-radius: 3px; line-height: 1.5; letter-spacing: 0.02em; }
+  .pcttag.hi { color: #ffb4a4; background: rgba(224,70,55,0.28); border: 1px solid rgba(255,120,100,0.55); }
+  .pcttag.lo { color: #b8d3ff; background: rgba(56,120,216,0.30); border: 1px solid rgba(120,170,255,0.55); }
+  .rectag { font-weight: 700; margin-left: 2px; letter-spacing: 0.02em; }
+  .rectag.hi { color: #ffe066; text-shadow: 0 0 6px rgba(255,120,60,0.8); }
+  .rectag.lo { color: #d6ecff; text-shadow: 0 0 6px rgba(120,170,255,0.9); }
   #climo-modal { z-index: 2100; }
   .maplegend { background: rgba(17,17,28,0.94); color: #e8e8f0; padding: 9px 12px;
     border-radius: 8px; border: 1px solid #2e2e48;
@@ -415,6 +424,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=a9e09cd3"></script>
+<script src="app.js?v=861d5aef"></script>
 </body>
 </html>
