@@ -73,7 +73,7 @@ def main() -> int:
     # guaranteed identical to the NWP verification space ────────────────────
     tc = json.loads((Path.home() / "colombia_hydro" / "raw" /
                      "imerg_basin_daily.json").read_text())
-    if tc.get("truth_version") != 2:
+    if tc.get("truth_version") != 3:
         raise SystemExit("truth cache stale — run colombia_forecast.py first")
     rdays = tc["dates"]
     rdates = np.array([f"{d[:4]}-{d[4:6]}-{d[6:8]}" for d in rdays],

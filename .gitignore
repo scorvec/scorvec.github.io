@@ -117,3 +117,5 @@ scripts/mjo/data/reference/m2_eq_u/
 scripts/sfs/data/*.npy
 colombia_hydro
 brazil_hydro
+scripts/sst/.run.lock/
+scripts/sst/data/region_weights_energy.npz

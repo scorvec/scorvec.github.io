@@ -16,6 +16,7 @@ Outputs:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -30,6 +31,7 @@ import matplotlib.dates as mdates
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import imerg_precip as IP
 from build_imerg_clim import OUT as CLIM_NC, eval_clim
+from matplotlib.path import Path as MplPath
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -48,8 +50,8 @@ def _axes():
     return ds["lon"].values, ds["lat"].values, ds["coef"].values
 
 
-def region_weights(path: Path, lon: np.ndarray, lat: np.ndarray) -> dict[str, np.ndarray]:
-    """cos(lat)-weighted inside-mask per region on the IMERG grid."""
+def region_weights_area(path: Path, lon: np.ndarray, lat: np.ndarray) -> dict[str, np.ndarray]:
+    """cos(lat)-weighted inside-mask per region on the IMERG grid (area basis)."""
     import geopandas as gpd
     from shapely import contains_xy, prepare
     xx, yy = np.meshgrid(lon, lat)
@@ -63,6 +65,125 @@ def region_weights(path: Path, lon: np.ndarray, lat: np.ndarray) -> dict[str, np
         if w.sum() == 0:
             raise SystemExit(f"region {row['name']} matched no grid cells")
         out[row["name"]] = w / w.sum()
+    return out
+
+
+def region_weights(path: Path, lon: np.ndarray, lat: np.ndarray) -> dict[str, np.ndarray]:
+    """Per-region rainfall weights. Default ENERGY basis (each river's catchment
+    weighted by its trailing-year AporEner, regulated rivers excluded); falls
+    back to the AREA basis when catchments/energy are unavailable. Override with
+    CO_REGION_WEIGHTS=area."""
+    area = region_weights_area(path, lon, lat)
+    if os.environ.get("CO_REGION_WEIGHTS", "energy").lower() == "area":
+        return area
+    try:
+        ew = region_weights_energy(lon, lat, list(area))
+    except Exception as e:                               # noqa: BLE001
+        print(f"  energy weights failed ({repr(e)[:60]}) — area basis", flush=True)
+        ew = None
+    return ew if ew else area
+
+
+# ── energy-weighted region masks ──────────────────────────────────────────────
+# The XM regions are unions of river catchments, but their AREA is a poor proxy
+# for where inflow ENERGY comes from: CENTRO's largest polygon (61% of area)
+# holds both Sogamoso (the best rain responder) and the heavily REGULATED
+# Bogotá N.R., whose inflows are operator decisions; VALLE's Calima piece is 39%
+# of area for 3% of energy. Weighting each river's catchment by its trailing-year
+# AporEner energy — and dropping regulated rivers — lifts the rain→inflow fit in
+# both split-halves (CENTRO r .375→.432, VALLE .348→.446; audit 2026-08-18).
+# Switch with CO_REGION_WEIGHTS=area|energy (default energy); falls back to area
+# whenever catchments or energy are unavailable.
+CATCH_GJ = REPO / "colombia_hydro" / "data" / "xm_river_catchments.geojson"
+APOR_CACHE = Path.home() / "colombia_hydro" / "raw" / "aporener_daily.json.gz"
+DAM_MODELS = REPO / "colombia_hydro" / "data" / "dam_models.json"
+EW_CACHE = HERE / "data" / "region_weights_energy.npz"
+REGULATED_FALLBACK = {"BOGOTA N.R."}
+
+
+def _regulated_rivers() -> set:
+    """Rivers whose inflow is operator-driven (rain-insensitive): from the
+    per-dam models' REGULATED flag, plus a static fallback."""
+    out = set(REGULATED_FALLBACK)
+    try:
+        dm = json.loads(DAM_MODELS.read_text())["params"]
+        out |= {r for r, p in dm.items() if p.get("regulated")}
+    except Exception:                                   # noqa: BLE001
+        pass
+    return out
+
+
+def _river_energy() -> dict:
+    """Trailing-365-day mean AporEner per river, GWh/day."""
+    import gzip
+    with gzip.open(APOR_CACHE, "rt") as f:
+        apor = json.load(f)
+    days = sorted(apor)[-365:]
+    e = {}
+    for d in days:
+        for r, v in apor[d].items():
+            e[r] = e.get(r, 0.0) + v / len(days) / 1e6
+    return e
+
+
+def region_weights_energy(lon, lat, regions):
+    """{region: weight grid} — cos-lat catchment masks combined in proportion
+    to each river's energy, regulated rivers excluded. None if unavailable."""
+    import hashlib
+    key = hashlib.md5(f"{lon[0]}_{lon[-1]}_{len(lon)}_{lat[0]}_{lat[-1]}_{len(lat)}"
+                      .encode()).hexdigest()[:12]
+    if EW_CACHE.exists():
+        try:
+            z = np.load(EW_CACHE, allow_pickle=True)
+            if str(z["key"]) == key and float(z["apor_mtime"]) == APOR_CACHE.stat().st_mtime:
+                d = z["W"].item()
+                if all(r in d for r in regions):
+                    return {r: d[r] for r in regions}
+        except Exception:                               # noqa: BLE001
+            pass
+    if not CATCH_GJ.exists() or not APOR_CACHE.exists():
+        return None
+    egy = _river_energy()
+    reg = _regulated_rivers()
+    gj = json.loads(CATCH_GJ.read_text())
+    LO, LA = np.meshgrid(np.asarray(lon), np.asarray(lat))
+    pts = np.column_stack([LO.ravel() % 360, LA.ravel()])
+    coslat = np.cos(np.deg2rad(LA))
+    acc = {r: np.zeros(LO.shape) for r in regions}
+    used = {r: 0.0 for r in regions}
+    for ft in gj["features"]:
+        pr = ft["properties"]
+        rg, riv = pr.get("region"), pr.get("river")
+        if rg not in acc or riv in reg:
+            continue
+        e = egy.get(riv, 0.0)
+        if e <= 0:
+            continue
+        g = ft["geometry"]
+        polys = g["coordinates"] if g["type"] == "MultiPolygon" else [g["coordinates"]]
+        m = np.zeros(LO.shape, bool)
+        for pl in polys:
+            ring = np.array(pl[0])
+            if ring.ndim != 2 or len(ring) < 4:
+                continue
+            m |= MplPath(np.column_stack([ring[:, 0] % 360, ring[:, 1]])
+                         ).contains_points(pts).reshape(LO.shape)
+        w = np.where(m, coslat, 0.0)
+        if w.sum() == 0:
+            continue
+        acc[rg] += e * (w / w.sum())
+        used[rg] += e
+    out = {}
+    for r in regions:
+        if used[r] <= 0 or acc[r].sum() == 0:
+            return None                                  # incomplete -> caller falls back
+        out[r] = acc[r] / acc[r].sum()
+    try:
+        EW_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(EW_CACHE, W=np.array(out, dtype=object), key=key,
+                            apor_mtime=APOR_CACHE.stat().st_mtime)
+    except Exception:                                    # noqa: BLE001
+        pass
     return out
 
 
@@ -208,11 +329,13 @@ def main(argv=None) -> int:
         ax.tick_params(labelsize=7.5)
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
     axs[0, 0].legend(fontsize=7, loc="upper left")
-    fig.suptitle("Basin rainfall over XM hydro regions — GPM IMERG, area-weighted",
+    fig.suptitle("Basin rainfall over XM hydro regions — GPM IMERG, energy-weighted catchments",
                  fontsize=13, fontweight="bold")
     fig.text(0.5, 0.005,
              "regions = XM river list (servapibi.xm.com.co) mapped to IDEAM Zonificación "
-             "Hidrográfica subzonas · thin gray = HydroBASINS lev-12 contributing-area variant",
+             "Hidrográfica subzonas · cells weighted by each river's trailing-365d "
+             "generation energy (regulated rivers excluded) · thin gray = "
+             "HydroBASINS lev-12 contributing-area variant",
              ha="center", fontsize=7.5, color="0.4")
     fig.tight_layout(rect=(0, 0.015, 1, 1))
     fig.savefig(OUT_PNG, dpi=115, bbox_inches="tight", facecolor="white")

@@ -50,7 +50,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import imerg_precip as IP                                   # noqa: E402
-from hydro_region_rain import region_weights, gauge_correction, gauge_correction_mtime, gauge_blend_field  # noqa: E402
+from hydro_region_rain import region_weights, region_weights_energy, gauge_correction, gauge_correction_mtime, gauge_blend_field  # noqa: E402
 from build_imerg_clim import OUT as CLIM_NC, eval_clim      # noqa: E402
 from rain_inflow_model import ema                           # noqa: E402
 from matplotlib.path import Path as MplPath                 # noqa: E402
@@ -71,6 +71,8 @@ STORAGE_JSON = REPO / "colombia_hydro" / "data" / "storage.json"
 INFLOW_CLIM = REPO / "colombia_hydro" / "data" / "inflow_clim.json"
 GEN_MODEL = REPO / "colombia_hydro" / "data" / "gen_model.json"
 DAM_MODEL = REPO / "colombia_hydro" / "data" / "dam_models.json"
+REEXTRACT = "--reextract" in sys.argv[1:]   # rebuild archived cycles
+                                            # whose GRIBs still exist
 _CATCH_W: dict = {}                         # catchment masks, keyed by grid shape
 
 ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
@@ -117,6 +119,28 @@ def basin_weights(lons: np.ndarray, lats: np.ndarray) -> dict[str, np.ndarray]:
             w[i, j] = 1.0
         W[r] = w / w.sum()
     return W
+
+
+def _bas(rec: dict, r: str) -> list:
+    """Per-member lead series for basin r — AREA footprint by default.
+
+    Deliberately asymmetric with the truth, which is energy-weighted since
+    v3.  Measured 2026-08-18 on 3048 matured pairs: sampling the forecast
+    on the same energy footprint COSTS day-1 skill (mean r -0.025; CENTRO
+    AIFS 0.90 -> 0.74, ORIENTE IFS 0.67 -> 0.60), because on the 0.25 deg
+    NWP grid the energy mask collapses to ~20 effective cells for CENTRO
+    against 61 for area (IMERG's 0.1 deg grid holds 132).  NWP skill lives
+    at scales larger than a single high-head catchment, so the broader
+    average is the better predictor; the per-basin, per-band bias factor
+    is what maps it into the energy-weighted truth space.  The energy
+    footprint is archived too (basins_energy) so this is re-testable —
+    CO_FCST_FOOTPRINT=energy switches to it.
+    """
+    if os.environ.get("CO_FCST_FOOTPRINT", "area").lower() == "energy":
+        be = rec.get("basins_energy")
+        if be and r in be:
+            return be[r]
+    return rec["basins"][r]
 
 
 # ── stage 1: extract new cycles from the MJO GRIBs ──────────────────────────
@@ -192,6 +216,22 @@ def extract_cycle(model: str, date: str, hh: str) -> dict | None:
         w = W[r]
         out["basins"][r] = np.round(
             (daily * w[None, None]).sum(axis=(2, 3)), 2).tolist()   # [mem][lead]
+    # second footprint: energy-weighted catchments — the truth's basis since
+    # truth v3.  Archived alongside the area means so old cycles stay readable.
+    try:
+        lon_a, lat_a = da.longitude.values, da.latitude.values
+        si, sj = np.argsort(lat_a), np.argsort(lon_a)
+        key = ("EW", len(lon_a), len(lat_a))
+        if key not in _CATCH_W:
+            _CATCH_W[key] = region_weights_energy(lon_a[sj], lat_a[si], ORDER)
+        WE = _CATCH_W[key]
+        if WE:
+            oi, oj = np.argsort(si), np.argsort(sj)      # sorted -> native order
+            out["basins_energy"] = {
+                r: np.round((daily * WE[r][np.ix_(oi, oj)][None, None]
+                             ).sum(axis=(2, 3)), 2).tolist() for r in ORDER}
+    except Exception as e:                      # noqa: BLE001 — optional footprint
+        print(f"  energy footprint unavailable: {repr(e)[:70]}")
     if WC:
         out["rivers"] = {nm: np.round(
             (daily * w[None, None]).sum(axis=(2, 3)), 2).tolist()
@@ -209,7 +249,15 @@ def stage_extract() -> int:
         model, date, hh = m.groups()
         dest = ARCH / f"{model}_{date}_{hh}z.json.gz"
         if dest.exists():
-            continue
+            if not REEXTRACT:
+                continue
+            try:                                # upgrade cycles archived before
+                with gzip.open(dest, "rt") as fh:   # the energy footprint
+                    if "basins_energy" in json.load(fh):
+                        continue
+            except Exception:                   # noqa: BLE001
+                continue
+            print(f"  upgrading {dest.name} to dual footprint", flush=True)
         print(f"extracting {model} {date} {hh}Z ...", flush=True)
         try:
             rec = extract_cycle(model, date, hh)
@@ -235,8 +283,11 @@ def truth_series() -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, np.ndar
     import xarray as xr
     cache = json.loads(TRUTH_CACHE.read_text()) if TRUTH_CACHE.exists() else {"dates": []}
     fmt = gauge_correction_mtime()
-    if cache.get("corr_mtime") != fmt or cache.get("truth_version") != 2:
-        cache = {"dates": [], "corr_mtime": fmt, "truth_version": 2}
+    wb = os.environ.get("CO_REGION_WEIGHTS", "energy").lower()
+    if (cache.get("corr_mtime") != fmt or cache.get("truth_version") != 3
+            or cache.get("weights_basis") != wb):
+        cache = {"dates": [], "corr_mtime": fmt, "truth_version": 3,
+                 "weights_basis": wb}
     files = sorted(IP.DAILY_CACHE.glob("*.npy"))
     days = [f.stem for f in files]
     known = set(cache["dates"])
@@ -299,7 +350,7 @@ def stage_verify(dates, rain, rclim) -> dict:
                 obs = rain[r][i]
                 if not np.isfinite(obs):
                     continue
-                mems = np.array([mem[li] for mem in rec["basins"][r]])
+                mems = np.array([mem[li] for mem in _bas(rec, r)])
                 fc = float(mems.mean())
                 a = acc[mdl][r][band]
                 a[0] += fc
@@ -335,7 +386,7 @@ def stage_verify(dates, rain, rclim) -> dict:
             counts[r][bi] = {"aifs": nA, "ifs": nI}
             spread[r][bi] = {"aifs": fA["sr"], "ifs": fI["sr"]}
     verif = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-             "truth": "gauge-blended corrected IMERG (density-weighted stations, truth v2)",
+             "truth": "gauge-blended corrected IMERG, ENERGY-weighted basins (truth v3)",
              "bands_lead_days": BANDS, "k_prior_days": K_PRIOR,
              "prior_ratio": PRIOR_RATIO,
              "min_pairs": MIN_PAIRS,
@@ -413,7 +464,7 @@ def stage_fan(dates, rain, rclim, verif) -> None:
                             rec["init_date"][4:6] + "-" + rec["init_date"][6:8])
                             ).astype(int)
                     F = verif["bias_factors"][r][band_of(max(lead, 1))][mdl]
-                    x[di] = F * rec["basins"][r][mi][li]
+                    x[di] = F * _bas(rec, r)[mi][li]
                 tr[r] = x
             members.append(tr)
             # member weight: model blend weight (band-averaged) split over members
@@ -693,7 +744,7 @@ def stage_rain_scorecard(dates, rain) -> None:
             obs = rain[r][i]
             if not np.isfinite(obs):
                 continue
-            fc = float(np.mean([mem[0] for mem in rec["basins"][r]]))
+            fc = float(np.mean([mem[0] for mem in _bas(rec, r)]))
             recs.append((vd, rec["model"], rec["init_hh"], r, round(fc, 2),
                          round(float(obs), 2)))
 
