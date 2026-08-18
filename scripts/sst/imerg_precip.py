@@ -88,6 +88,7 @@ HOURLY_KEEP_H = max(w["span_h"] + w["units"] for w in WINDOWS if w["kind"] == "h
 # (30-day window + ~10-day loop), the Gatun tracker's 90-day window + loop
 # (imerg_gatun.py), and the Colombia hydro validation's multi-year record
 # (imerg_backfill.py / validate_region_rain.py) — hence 800 days (~1 MB/day).
+KEEP_DAILY_ARCHIVE = True      # never prune daily grids; see prune below
 DAILY_KEEP_H = max((max(w["span_h"] // 24 + w["units"] for w in WINDOWS if w["kind"] == "daily") + 2) * 24,
                    800 * 24)
 
@@ -358,7 +359,17 @@ def main(argv=None) -> int:
     # prune stale grid caches (per cadence) + raw granules (by product)
     hourly_cut = now_h - timedelta(hours=HOURLY_KEEP_H)
     daily_cut = now_h - timedelta(hours=DAILY_KEEP_H)
-    for cdir, fmt, cut in ((HOURLY_CACHE, "%Y%m%d%H", hourly_cut), (DAILY_CACHE, "%Y%m%d", daily_cut)):
+    # DAILY_CACHE IS A PERMANENT ARCHIVE — DO NOT PRUNE IT.
+    # It holds the backfilled 2000-> record (imerg_backfill.py, ~1 MB/day,
+    # ~10 GB for the full period) that the Colombia inflow models are
+    # calibrated and backtested on.  Re-downloading it costs hours.  Only
+    # the hourly grids, which are genuinely transient animation inputs,
+    # are pruned here.  If disk ever becomes a problem, thin the archive
+    # deliberately — never on the operational timer.
+    prune_dirs = ((HOURLY_CACHE, "%Y%m%d%H", hourly_cut),)
+    if not KEEP_DAILY_ARCHIVE:
+        prune_dirs = prune_dirs + ((DAILY_CACHE, "%Y%m%d", daily_cut),)
+    for cdir, fmt, cut in prune_dirs:
         if cdir.exists():
             for cf in cdir.glob("*.npy"):
                 try:
