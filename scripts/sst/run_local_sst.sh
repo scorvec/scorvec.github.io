@@ -99,6 +99,8 @@ perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/brazil_forecast.py || e
 perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS+IFS rain -> inflow + storage fans (rides MJO tp GRIBs)
 "$PY" scripts/sst/xm_inflow_history.py || echo "XM inflow norms failed; continuing"   # inflow history + seasonal norms (draws the fan)
 "$PY" scripts/sst/colombia_rain_map.py || echo "Colombia rain map failed; continuing"   # IMERG vs IDEAM gauges
+"$PY" scripts/sst/aifs_tracker.py || echo "AIFS tracker failed; continuing"   # walk-forward verification of the corrected AIFS-ENS (accumulating record)
+"$PY" scripts/sst/inflow_delta_forecast.py || echo "Delta forecast failed; continuing"   # per-basin daily inflow distributions (delta model + model residual)
 # daily PDF briefing: once per UTC day, first runner pass after 00Z
 RPT_STAMP="$HOME/.colombia_report_day"
 if [ "$(date -u +%F)" != "$(cat "$RPT_STAMP" 2>/dev/null)" ]; then
