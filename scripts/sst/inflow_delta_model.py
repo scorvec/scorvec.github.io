@@ -94,6 +94,34 @@ def ema(x: np.ndarray, tau: float) -> np.ndarray:
     return lfilter([a], [1.0, -(1.0 - a)], np.nan_to_num(x))
 
 
+BASELINE_WIN = 0             # 0 = recession pulls toward a fixed 100.
+                             # >0 = toward a causal trailing mean of that
+                             # many days.  Colombia's basins drift: VALLE
+                             # +15.8%/decade (94->118 from 2000-08 to
+                             # 2018-26), CALDAS -8.6%/decade, mostly fleet
+                             # composition rather than climate.  Over the
+                             # 757-day gauge-blended record there is too
+                             # little drift for it to matter (mean delta r
+                             # 0.476 vs 0.465, h7 skill +0.155 vs +0.160),
+                             # so it stays off by default and is switched
+                             # on for the long backfilled record where the
+                             # drift is real.
+
+
+def baseline_series(y: np.ndarray, win: int) -> np.ndarray:
+    """Causal trailing mean of observed inflow; 100 until 30 days exist."""
+    from collections import deque
+    out = np.full(len(y), 100.0)
+    q, sm = deque(), 0.0
+    for i, v in enumerate(y):
+        if np.isfinite(v):
+            q.append(v); sm += v
+            while len(q) > win:
+                sm -= q.popleft()
+        out[i] = sm / len(q) if len(q) >= 30 else 100.0
+    return np.roll(out, 1)
+
+
 def lagged(x: np.ndarray, k: int) -> np.ndarray:
     if k == 0:
         return x.copy()
@@ -154,7 +182,8 @@ def design(rain, y, roni, stor, tau, lag, use_rain=True):
     ks = lagged(ema(rain, TAU_SLOW), lag)
     rl = lagged(rain, lag)
     ym1 = lagged(y, 1)
-    cols = [ym1 - 100.0]
+    base = baseline_series(y, BASELINE_WIN) if BASELINE_WIN else 100.0
+    cols = [ym1 - base]
     if use_rain:
         cols += [rl, kf, ks]
     cols += [roni, stor]
@@ -708,11 +737,16 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--surrogates", type=int, default=100)
     ap.add_argument("--quick", action="store_true")
+    ap.add_argument("--baseline", type=int, default=0,
+                    help="trailing-mean window for the recession target "
+                         "(0 = fixed 100); use ~365 on the long record")
     ap.add_argument("--holdout", default=None,
                     help="YYYY-MM to hold out entirely; default = the "
                          "month with the largest inflow swing")
     a = ap.parse_args()
     rng = np.random.default_rng(20260818)
+    global BASELINE_WIN
+    BASELINE_WIN = a.baseline
 
     d = load()
     n = len(d["dates"])
