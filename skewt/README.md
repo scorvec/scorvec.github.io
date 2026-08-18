@@ -66,7 +66,7 @@ drift apart.
 | Parcels | SB/ML/MU — CAPE, **ECAPE**, CINH, LCL, LI, LFC, EL |
 | Kinematics | shear (0–1, 0–6 km, effective), SRH (0–1, 0–3 km, effective), effective inflow layer, Bunkers RM/LM (fixed **and** effective-layer), Corfidi up/downshear, critical angle, DTM |
 | Composites | EHI, SCP, STP, SHIP, max updraft (ECAPE vs undilute), ECAPE/CAPE |
-| Thermo & moisture | DCAPE, 0–3 km CAPE, NCAPE, PWAT (mm and inches), lapse rates, **column RH (CRH)**, mid-level RH, PBL top, K-index, Total Totals |
+| Thermo & moisture | DCAPE, 0–3 km CAPE, NCAPE, PWAT (mm and inches), lapse rates, **column RH (CRH)**, mid-level RH, PBL top |
 | Moist static energy | boundary-layer *h*, minimum *h\**, MSE deficit, column ∫h dp/g |
 | Levels | 850/700/500 hPa T/Td, 500 hPa height, 1000–500 thickness, freezing level, wet-bulb zero, **tropopause** (WMO + cold point) |
 | Winter | **dendritic growth zone** (with RH), Kuchera snow ratio, snow squall parameter, **precip type** (Bourgouin) |
@@ -187,7 +187,7 @@ breakpoints** (1/5/10/25/50/75/90/95/99) plus **record extremes with their year*
 small JSON per station on the `skewt-climo` branch, which the browser fetches on demand.
 
 Indices ranked: PWAT, 850/700/500 hPa temperature, 500 hPa height, 1000–500 thickness, freezing level,
-K-index, Total Totals, **ECAPE**, **SHIP**.
+**ECAPE**, **SHIP** (the JSON also carries K-index and Total Totals, which the UI no longer shows).
 
 ### Reading the colour shading
 

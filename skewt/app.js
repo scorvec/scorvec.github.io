@@ -87,7 +87,6 @@ const CLIMO_VARS = [
   ["850td", "850 hPa dewpoint", "°C"], ["700td", "700 hPa dewpoint", "°C"],
   ["h500", "500 hPa height", "m"], ["thick", "1000–500 hPa thickness", "m"],
   ["fzl", "Freezing level (AGL)", "m"], ["wbz", "Wet-bulb 0 °C (AGL)", "m"],
-  ["kidx", "K-index", ""], ["tott", "Total Totals", ""],
   ["ecape", "ECAPE (MU)", "J/kg"], ["ship", "Significant Hail (SHIP)", ""],
   ["850spd", "850 hPa wind speed", "m/s"], ["250spd", "250 hPa wind speed", "m/s"],
 ];
@@ -922,7 +921,7 @@ function pctColor(pct) {
   const high = pct >= CLIMO_HI;
   const frac = high ? (pct - CLIMO_HI) / (100 - CLIMO_HI)   // 0 at p90 -> 1 at p100
                     : (CLIMO_LO - pct) / CLIMO_LO;          // 0 at p10 -> 1 at p0
-  const a = 0.18 + 0.52 * Math.max(0, Math.min(1, frac));
+  const a = 0.26 + 0.5 * Math.max(0, Math.min(1, frac));
   const c = high ? [224, 70, 55] : [56, 120, 216];          // red high / blue low
   return `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(2)})`;
 }
@@ -938,10 +937,11 @@ function climoCell(key, v, txt) {
         ? `ALL-TIME station record ${r.rec.t} — previous ${r.rec.prev} (${r.rec.y})`
         : `record ${r.rec.t} for this time of year (±10 days) — previous ${r.rec.prev} (${r.rec.y})`)
     : `${ord}th percentile for this time of year`;
+  const hi = r.rec ? r.rec.t === "high" : r.pct >= CLIMO_HI;
   const star = r.rec
-    ? ` <span style="color:${r.rec.t === "high" ? "#ff5a3c" : "#5a9bf0"}">${r.rec.tier === "all" ? "★★" : "★"}${String(r.rec.y).slice(2)}</span>`
+    ? ` <span class="rectag ${hi ? "hi" : "lo"}">${r.rec.tier === "all" ? "★★" : "★"}${String(r.rec.y).slice(2)}</span>`
     : "";
-  const sub = r.rec ? "" : `<span class="pctlab">P${ord}</span>`;
+  const sub = r.rec ? "" : `<span class="pcttag ${hi ? "hi" : "lo"}">P${ord}</span>`;
   return `<span class="pctcell" style="background:${pctColor(r.pct)}" title="${tip}">${txt}${star}</span>${sub}`;
 }
 
@@ -3503,12 +3503,10 @@ function fillTables(prof, res) {
   const Cw = k => { const u = interpP(prof, "U", k * 100), v = interpP(prof, "V", k * 100);
     return (isFinite(u) && isFinite(v)) ? Math.hypot(u, v) : NaN; };
   const s850 = Cw(850), s250 = Cw(250);
-  const kidx = (t850 - t500) + d850 - (t700 - d700);
-  const totalT = t850 + d850 - 2 * t500;
+  // (K-index and Total Totals are deliberately NOT shown — legacy indices the
+  //  author has no use for; the climatology JSON still carries them)
   const fzl = freezingLvlAgl(prof);
   const g = (v, u, dp = 1) => isFinite(v) ? v.toFixed(dp) + u : "—";
-  thermo.push(["K-index", climoCell("kidx", kidx, g(kidx, "", 0))],
-              ["Total Totals", climoCell("tott", totalT, g(totalT, "", 0))]);
   const levels = [
     ["850 hPa T / Td", climoCell("850t", t850, g(t850, "°", 0)) + " / " +
       climoCell("850td", d850, g(d850, " °C", 0))],
@@ -3537,7 +3535,7 @@ function fillTables(prof, res) {
   climoNow = { pwat: o[15], "850t": t850, "700t": t700, "500t": t500,
     "850td": d850, "700td": d700,
     h500: h500, thick: (isFinite(h500) && isFinite(h1000)) ? h500 - h1000 : NaN,
-    fzl: fzl, kidx: kidx, tott: totalT,
+    fzl: fzl,
     ecape: o[42] === MISSING ? NaN : o[42], ship: o[43] === MISSING ? NaN : o[43],
     "850spd": s850, "250spd": s250,
     wbz: wbzAgl(prof) };
@@ -3642,11 +3640,11 @@ function fitTables() {
 //  1. Tightest card: start wide and only narrow (the tables get taller as the
 //     card narrows, so a chase in both directions would oscillate) until the
 //     card just fits its two plots — nothing letterboxed, no space wasted.
-//  2. If that leaves the tables squeezed into few columns at a tiny font, widen
-//     — up to ~1.4x — to the narrowest width where they fit at >= 0.6rem (or
-//     at least fit at all). The plots don't change: they keep their height and
-//     sit centred with a little room either side, which is fine on a wide
-//     monitor and a better trade than 10px type.
+//  2. If that leaves the tables squeezed into few columns at a reduced font,
+//     widen — up to ~1.5x — to the narrowest width where they fit at (near)
+//     full size, or at least fit at all. The plots don't change: they keep
+//     their height and sit centred with room either side, which is fine on a
+//     wide monitor and a better trade than 10px type.
 let inRender = false;                 // render()/redrawCharts() draw right after fitLayout — no double draw
 function fitLayout() {
   const dlg = modal.querySelector(".dialog"), main = modal.querySelector(".main");
@@ -3674,6 +3672,7 @@ function fitLayoutCore(dlg, main, wrap) {
   const tblFont = () => parseFloat(wrap.style.getPropertyValue("--tbl-fs")) || 0.68;
   const tblFits = () => wrap.clientHeight >= wrap.scrollHeight - 1;
   // 1. tight
+  wrap.style.maxHeight = "";              // back to the CSS cap (step 2 may have locked it)
   let cur = maxW; setW(cur);
   for (let i = 0; i < 5; i++) {
     fitTables();
@@ -3683,22 +3682,27 @@ function fitLayoutCore(dlg, main, wrap) {
   }
   fitTables();
   const tight = cur;
-  if (tblFits() && tblFont() >= 0.6) return;
-  // 2. widen for the tables: the narrowest width where they fit at >= 0.6rem;
-  //    failing that the narrowest where they fit at all; failing THAT (short
-  //    laptop screens) whichever width leaves the least to scroll
+  const GOOD_FS = 0.66;                 // one fit step below the 0.68rem default
+  if (tblFits() && tblFont() >= GOOD_FS) return;
+  // 2. widen for the tables: the narrowest width where they fit at (near) full
+  //    font; failing that the narrowest where they fit at all; failing THAT
+  //    (short laptop screens) whichever width leaves the least to scroll
   let best = tight, bestFits = tblFits(), bestOver = wrap.scrollHeight - wrap.clientHeight;
-  const lim = Math.min(maxW, Math.round(tight * 1.4));
-  for (let w = tight; w < lim; ) {
-    w = Math.min(lim, Math.round(w * 1.07));
+  // widening must not cost the plots height: hold the tables to what they
+  // have now, so a bigger font has to come from more columns, not more rows
+  wrap.style.maxHeight = wrap.clientHeight + "px";
+  const lim = Math.min(maxW, Math.round(tight * 1.5));
+  let done = false;
+  for (let w = tight; w < lim && !done; ) {
+    w = Math.min(lim, Math.round(w * 1.05));
     setW(w); fitTables();
     const fits = tblFits(), fs = tblFont(), over = wrap.scrollHeight - wrap.clientHeight;
-    if (fits && fs >= 0.6) return;                    // narrowest comfortable width
-    if (fits ? !bestFits : (!bestFits && over < bestOver - 4)) {
+    if (fits && fs >= GOOD_FS) { best = w; done = true; }   // narrowest comfortable width
+    else if (fits ? !bestFits : (!bestFits && over < bestOver - 4)) {
       best = w; bestFits = fits; bestOver = over;
     }
   }
-  setW(best); fitTables();
+  setW(best); fitTables();                // (the height lock stays until the next fit)
 }
 document.getElementById("dlg-footer").addEventListener("click",
   e => { if (e.target.tagName !== "A") e.currentTarget.classList.toggle("open"); });
