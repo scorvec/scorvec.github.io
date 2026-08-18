@@ -82,22 +82,35 @@
   .controls button.on { background: var(--accent); color: #08222e; border-color: var(--accent); }
   .controls button:hover { border-color: var(--accent); }
   #status { font-size: 0.9rem; color: var(--muted); }
-  .main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 0.42fr);
-          gap: 12px; align-items: stretch; flex: 1 1 auto;
-          min-height: min(54vh, 620px); }
+  /* Skew-T and hodograph side by side. They take whatever height the tables
+     leave (flex-basis 0 + grow); plotBox() in app.js sizes each canvas to the
+     tallest pair of design-aspect rectangles (19:21 and 14:15) that fits
+     .main's height AND width and sets that as its CSS size, so the panels hug
+     the plots and the pair sits centred — never stretched tall-and-skinny.
+     fitLayout() then sets the dialog width so there is no dead space. */
+  .main { display: grid; grid-template-columns: auto auto; justify-content: center;
+          gap: 12px; align-items: stretch; flex: 1 1 0; min-height: 0; }
   .main .panel { display: flex; align-items: center; justify-content: center;
                  min-height: 0; overflow: hidden; }
-  .main canvas { width: 100%; height: 100%; display: block; }
-  /* The canvas backing store is sized from its CSS box, so a short-and-wide
-     panel draws a short-and-wide sounding. Pin the plots to their design
-     aspect and letterbox instead: width = min(panel width, height x ratio). */
-  .main #skewt { width: auto; height: 100%; max-width: 100%; aspect-ratio: 19 / 21; }
-  .main #hodo  { width: auto; height: 100%; max-width: 100%; aspect-ratio: 14 / 15; }
-  .tables-grid { display: grid; grid-template-columns: 1.25fr 1fr 1fr 1.05fr 0.9fr; gap: 6px 18px; }
+  .main canvas { display: block; }
+  /* Index tables flow through CSS multi-column: the column count follows the
+     card width (a wide card gets 6-7 short columns, a narrow one 3-4) and the
+     browser balances the eight tables across them, so the block stays about
+     the same height whatever width fitLayout() settles on — a fixed 5-column
+     grid used to double in height as the cells wrapped on a narrower card. */
+  .tables-grid { columns: 300px; column-gap: 18px; }   /* 300: the 8-column parcels table's width */
+  /* (block order in the markup is tuned so the sequential column fill packs
+     tightly at 3–6 columns: the three tall tables land in separate columns) */
+  .tables-grid .tbl { break-inside: avoid; margin-bottom: 6px; }
+  /* index tables shrink to their content — a full-width table put half a
+     column of dead space between a short label and its value */
+  .tables-grid table.params { width: auto; }
+  #pcl-table th, #pcl-table td { padding: 0 3px; }
 
   .modal { position: fixed; inset: 0; background: rgba(4,4,9,0.78); z-index: 2000;
            display: flex; align-items: center; justify-content: center; }
   .modal[hidden] { display: none; }
+  /* (the sounding card's width is then set per screen by fitLayout() in app.js) */
   .dialog { background: var(--bg); border: 1px solid var(--rule); border-radius: 14px;
             width: min(1580px, 98vw); height: 96vh; display: flex; flex-direction: column;
             padding: 8px 14px 8px; box-shadow: 0 18px 60px rgba(0,0,0,0.6); }
@@ -125,7 +138,7 @@
                  font-size: var(--tbl-fs, 0.68rem); }
   table.params th, table.params td { padding: 0 4px; text-align: right;
     border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums;
-    line-height: 1.38; }
+    line-height: 1.3; }
   table.params th { color: var(--muted); font-weight: 600; }
   table.params td:first-child, table.params th:first-child { text-align: left; color: #c8c8dc; }
   h3 { font-family: var(--serif); font-weight: 500;
@@ -138,23 +151,11 @@
            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   footer.open { white-space: normal; }
   .dlg-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-  /* On a short monitor the parameter tables used to take their full natural
-     height and squeeze the plots into a letterbox strip. They shrink first now
-     (the plots hold their min-height) and scroll internally if they run out. */
-  .tables-wrap { flex: 0 1 auto; min-height: 0; overflow-y: auto; margin-top: 10px; }
-  /* Ultra-wide monitors: the card used to render as a near-square tower in
-     the middle of the screen (plots are height-driven; the tables stacked
-     BELOW pushed everything past the fold). When the viewport is much wider
-     than tall, the tables move to a RIGHT-HAND column instead — the plots
-     keep the full card height and the card's aspect follows the monitor's. */
-  @media (min-aspect-ratio: 3/2) and (min-width: 1600px) {
-    .dialog { width: min(96vw, calc(96vh * 1.55)); }
-    .dlg-body { flex-direction: row; gap: 12px; }
-    .dlg-body > .main { flex: 1 1 auto; min-width: 0; }
-    .dlg-body > .tables-wrap { flex: 0 0 clamp(430px, 26vw, 620px);
-      margin-top: 0; overflow-y: auto; }
-    .tables-grid { grid-template-columns: 1fr 1fr; }
-  }
+  /* Plots first: the index tables get at most 37% of the card body — fitTables()
+     steps their font down to fit that, and only if it can't do they scroll —
+     and the plots take everything else. */
+  .tables-wrap { flex: 0 1 auto; min-height: 0; max-height: 37%; overflow-y: auto;
+                 margin-top: 10px; }
   footer a { color: var(--accent); }
   .pctcell { padding: 1px 6px; border-radius: 4px; }
   .pctlab { color: var(--muted); font-size: 0.72em; margin-left: 5px; }
@@ -183,17 +184,18 @@
   }
   /* mobile — MUST be last: overrides the desktop dialog/flex rules above */
   @media (max-width: 1020px) {
-    .main, .tables-grid { grid-template-columns: 1fr; }
+    .tables-grid { columns: 260px; }
     .dialog { display: block; height: auto; max-height: 96vh; max-height: 96svh;
               overflow-y: auto; width: 97vw; }
     .dlg-head { position: static; }   /* flow above the charts, never overlapped */
     .dlg-body { display: block; }
     .main { display: block; min-height: 0; }
     .main .panel { display: block; overflow: visible; margin-bottom: 10px; }
-    .main canvas { width: 100%; height: auto; object-fit: initial; }
-    /* stacked layout: the plots size off width, so drop the desktop aspect pins */
-    .main #skewt, .main #hodo { width: 100%; height: auto; aspect-ratio: auto; }
-    .tables-wrap { overflow-y: visible; }
+    /* stacked layout: the plots size off width at their design aspect */
+    .main canvas { width: 100%; height: auto; }
+    .main #skewt { aspect-ratio: 19 / 21; }
+    .main #hodo  { aspect-ratio: 14 / 15; }
+    .tables-wrap { overflow-y: visible; max-height: none; }
     .controls .station { min-width: 0; flex-basis: 100%; }
     table.params { font-size: 0.76rem; }
     table.params td { overflow-wrap: anywhere; padding: 2px 4px; }
@@ -375,36 +377,25 @@
     <div class="main">
       <div class="panel"><canvas id="skewt" title="click for the full-resolution sounding (every wind level)" style="cursor:zoom-in" width="760" height="840"></canvas></div>
       <div class="panel hodo-panel"><canvas id="hodo" width="560" height="600"></canvas></div>
-      <div class="panel hodo-panel"><canvas id="mse" width="300" height="600" title="Moist static energy: h = cp·T + g·z + Lv·q, conserved as a parcel rises. Blue is the air's actual MSE; red is the saturation MSE (h*) — what it would be if that level were saturated. A boundary-layer parcel is buoyant wherever its h (gold) exceeds the environment's h*, i.e. the shaded layer — that region is the sounding's CAPE."></canvas></div>
     </div>
     <div class="panel tables-wrap">
       <div class="tables-grid">
-        <div>
-          <h3>Parcels</h3>
-          <table class="params" id="pcl-table"></table>
-          <h3>Moist static energy</h3>
-          <table class="params kin" id="mse-table"></table>
-        </div>
-        <div>
-          <h3>Kinematics</h3>
-          <table class="params kin" id="kin-table"></table>
-        </div>
-        <div>
-          <h3>Composites</h3>
-          <table class="params kin" id="kin-table-b"></table>
-          <h3>Tropical</h3>
-          <table class="params kin" id="tropic-table"></table>
-        </div>
-        <div>
-          <h3>Thermo &amp; moisture</h3>
-          <table class="params kin" id="kin-table2"></table>
-        </div>
-        <div>
-          <h3>Levels</h3>
-          <table class="params kin" id="kin-table3"></table>
-          <h3>Winter</h3>
-          <table class="params kin" id="winter-table"></table>
-        </div>
+        <div class="tbl"><h3>Parcels</h3>
+          <table class="params" id="pcl-table"></table></div>
+        <div class="tbl"><h3>Moist static energy</h3>
+          <table class="params kin" id="mse-table"></table></div>
+        <div class="tbl"><h3>Kinematics</h3>
+          <table class="params kin" id="kin-table"></table></div>
+        <div class="tbl"><h3>Composites</h3>
+          <table class="params kin" id="kin-table-b"></table></div>
+        <div class="tbl"><h3>Tropical</h3>
+          <table class="params kin" id="tropic-table"></table></div>
+        <div class="tbl"><h3>Winter</h3>
+          <table class="params kin" id="winter-table"></table></div>
+        <div class="tbl"><h3>Thermo &amp; moisture</h3>
+          <table class="params kin" id="kin-table2"></table></div>
+        <div class="tbl"><h3>Levels</h3>
+          <table class="params kin" id="kin-table3"></table></div>
       </div>
     </div>
     </div>
@@ -424,6 +415,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=63726b45"></script>
+<script src="app.js?v=a9e09cd3"></script>
 </body>
 </html>
