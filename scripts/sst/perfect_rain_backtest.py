@@ -177,6 +177,8 @@ def fwd(beta, off, sh, kf_h, ks_h, rain_h, roni, stor, tau, lag, i0, y0,
     kf = dict(); ks = dict(); rl = dict()
     for j in range(MAX_LEAD):
         i = i0 + 1 + j
+        if i >= n:
+            break
         x = rain_h[i] if xf is None else xf[j]
         kf[i] = (1 - a_f) * (kf.get(i - 1, kf_h[i - 1])) + a_f * x
         ks[i] = (1 - a_s) * (ks.get(i - 1, ks_h[i - 1])) + a_s * x
