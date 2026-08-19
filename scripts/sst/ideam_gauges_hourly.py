@@ -45,6 +45,13 @@ BASE = "https://www.datos.gov.co/resource/s54a-sgyg.json"
 CACHE = Path.home() / "colombia_hydro" / "raw" / "gauges_hourly"
 DAILY_CACHE = Path.home() / "colombia_hydro" / "raw" / "gauges"
 MAX_MM_HOUR = 200.0          # physical fence; world records sit near 300 mm/h
+# Socrata throttles unauthenticated clients. The first backfill ran flat out
+# and wrote 176 of 764 days before every later request began failing - and
+# because a retry-exhausted day returns {} WITHOUT writing a file, the run
+# still exited 0 and looked complete. Pace the requests and report failures
+# loudly rather than discovering the hole downstream.
+PACE_S = 1.5                 # minimum gap between requests
+_last_call = [0.0]
 
 
 def fetch_day(day: datetime, retries: int = 4) -> dict:
@@ -74,6 +81,10 @@ def fetch_day(day: datetime, retries: int = 4) -> dict:
     req = urllib.request.Request(url, headers={"User-Agent": "scorvec-hydro/1.0"})
     rows = None
     for attempt in range(retries):
+        gap = time.time() - _last_call[0]
+        if gap < PACE_S:
+            time.sleep(PACE_S - gap)
+        _last_call[0] = time.time()
         try:
             with urllib.request.urlopen(req, timeout=180) as r:
                 rows = json.load(r)
@@ -81,8 +92,8 @@ def fetch_day(day: datetime, retries: int = 4) -> dict:
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
             if attempt == retries - 1:
                 print(f"   {day:%Y-%m-%d} FAILED {repr(e)[:60]}", flush=True)
-                return {}
-            time.sleep(5 * (attempt + 1))
+                return None                      # None = failure, {} = no data
+            time.sleep(min(60, 5 * 2 ** attempt))   # exponential, capped
     out: dict = {}
     for row in rows or []:
         try:
@@ -116,20 +127,25 @@ def main(argv=None):
 
     todo = [d for d in days if not (CACHE / f"{d:%Y%m%d}.json.gz").exists()]
     print(f"{len(days)} days requested, {len(todo)} to fetch", flush=True)
-    ok = empty = 0
+    ok = empty = failed = 0
     t0 = time.time()
     for i, d in enumerate(todo, 1):
         r = fetch_day(d)
-        if r:
+        if r is None:
+            failed += 1
+        elif r:
             ok += 1
         else:
             empty += 1
         if i % 25 == 0 or i == len(todo):
             el = time.time() - t0
-            print(f"   {i}/{len(todo)}  {ok} with data, {empty} empty  "
-                  f"({el/i:.2f}s/day, ~{(len(todo)-i)*el/i/60:.0f} min left)",
-                  flush=True)
-    print(f"done: {ok} days with data, {empty} empty -> {CACHE}")
+            print(f"   {i}/{len(todo)}  {ok} data, {empty} empty, "
+                  f"{failed} FAILED  ({el/i:.2f}s/day, "
+                  f"~{(len(todo)-i)*el/i/60:.0f} min left)", flush=True)
+    print(f"done: {ok} days with data, {empty} empty, {failed} failed -> {CACHE}")
+    if failed:
+        print(f"WARNING: {failed} days could not be fetched and wrote no file. "
+              f"Rerun to retry them; do not treat this archive as complete.")
     return 0
 
 
