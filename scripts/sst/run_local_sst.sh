@@ -96,15 +96,25 @@ perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/brazil_forecast.py || e
 "$PY" scripts/sst/argentina_gas_outlook.py || echo "Argentina gas outlook failed; continuing"   # 14-d gas vs normal
 ( cd "$HOME/argentina_energy" && git add -A raw out site 2>/dev/null && git commit -q -m "data: daily snapshot $(date -u +%F)" 2>/dev/null && git push -q ) || true
 "$PY" scripts/sst/dam_models.py || echo "Dam models failed; continuing"   # per-dam catchment kernels + states (draws dam fans)
-perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS+IFS rain -> inflow + storage fans (rides MJO tp GRIBs)
+# CO_MODELS=aifs: day-1 verification vs gauge-corrected IMERG has AIFS ahead
+# of IFS on MAE and bias ratio in ALL SIX basins (ANTIOQUIA 1.87 vs 3.02 mm,
+# bias 1.09 vs 1.61), and IFS lands later so AIFS-only can use 12Z while IFS
+# still has 00Z. Unset CO_MODELS to restore the two-model blend.
+CO_MODELS=aifs perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS rain -> inflow + storage fans (rides MJO tp GRIBs)
 "$PY" scripts/sst/xm_inflow_history.py || echo "XM inflow norms failed; continuing"   # inflow history + seasonal norms (draws the fan)
 "$PY" scripts/sst/colombia_rain_map.py || echo "Colombia rain map failed; continuing"   # IMERG vs IDEAM gauges
+"$PY" scripts/sst/ideam_gauges_hourly.py --days 10 || echo "Hourly gauges failed; continuing"   # 10-min gauge feed -> hourly archive (sub-daily verification)
 "$PY" scripts/sst/aifs_tracker.py || echo "AIFS tracker failed; continuing"   # walk-forward verification of the corrected AIFS-ENS (accumulating record)
 "$PY" scripts/sst/inflow_delta_forecast.py || echo "Delta forecast failed; continuing"   # per-basin daily inflow distributions (delta model + model residual)
 "$PY" scripts/sst/national_inflow.py || echo "National inflow failed; continuing"   # national aggregate: daily bal-month + monthly to +6 (ENSO/storage/antecedent)
 # daily PDF briefing: once per UTC day, first runner pass after 00Z
 RPT_STAMP="$HOME/.colombia_report_day"
 if [ "$(date -u +%F)" != "$(cat "$RPT_STAMP" 2>/dev/null)" ]; then
+  # extent cache + bias maps refresh before the report so it reads current data
+  perl -e 'alarm shift; exec @ARGV' 900 "$PY" scripts/sst/wet_area_fraction.py --build \
+    || echo "wet-area rebuild failed; continuing"   # heavy-rain extent per basin-day
+  perl -e 'alarm shift; exec @ARGV' 900 "$PY" scripts/sst/rain_qmap.py --fit \
+    || echo "rain qmap fit failed; continuing"   # stage A/B quantile maps (self-opening gate)
   perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/daily_report.py \
     && date -u +%F > "$RPT_STAMP" || echo "daily report failed; continuing"
   # daily data snapshot into the private research repo (handoff freshness)
