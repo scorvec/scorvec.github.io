@@ -106,6 +106,55 @@ def month_fit(rows, keys, lead, use_target_oni):
     return beta, float(np.std(resid))
 
 
+def national_residuals_cond(d):
+    """(residual by lead, predicted level by lead) from blocked CV.
+
+    Returns the predicted level alongside each residual so the fan can
+    draw from the matching state band rather than one pooled pile.
+    """
+    import perfect_rain_backtest as PR
+    import delta_backtest_long as DB
+    import inflow_delta_model as M
+    M.BASELINE_WIN = 365
+    dd = DB.add_national(PR.load_all())
+    y, rain = dd["y"]["NATIONAL"], dd["rain"]["NATIONAL"]
+    roni, stor = dd["roni"], dd["stor"]["NATIONAL"]
+    n = len(y)
+    edges = np.linspace(0, n, 13).astype(int)
+    res = {h: [] for h in range(1, MAXLEAD_D + 1)}
+    lev = {h: [] for h in range(1, MAXLEAD_D + 1)}
+    for k in range(12):
+        a, b = edges[k], edges[k + 1]
+        te = np.zeros(n, bool); te[a:b] = True
+        tr = ~te
+        tr[max(0, a - 90):min(n, b + 90)] = False
+        if tr.sum() < 400:
+            continue
+        tau, lag = M.select_hyper(rain, y, roni, stor, tr, False)
+        X, dy = M.design(rain, y, roni, stor, tau, lag)
+        m = tr & np.isfinite(dy) & np.all(np.isfinite(X), axis=1)
+        beta = M.fit(X, dy, m)
+        sh, off = M.shrinkage(beta, rain, y, roni, stor, tau, lag, tr)
+        kf, ks = M.ema(rain, tau), M.ema(rain, M.TAU_SLOW)
+        for i0 in range(a, b):
+            if not np.isfinite(y[i0]):
+                continue
+            sim = PR.fwd(beta, off, sh, kf, ks, rain, roni, stor,
+                         tau, lag, i0, y[i0], None)
+            for j, v in enumerate(sim):
+                i = i0 + 1 + j
+                if i >= n or not np.isfinite(v) or not np.isfinite(y[i]):
+                    continue
+                p = y[i0] + off[j] + sh[j] * (v - y[i0])
+                res[j + 1].append(y[i] - p)
+                lev[j + 1].append(p)
+    return ({h: np.asarray(v) for h, v in res.items()},
+            {h: np.asarray(v) for h, v in lev.items()})
+
+
+MAXLEAD_D = 15
+
+
 def main() -> int:
     d = NI.load_national()
     rows = NI.monthly_frame(d)
@@ -231,12 +280,25 @@ def main() -> int:
     daily = None
     try:
         dr = NI.daily_regime(d, None)
-        resid = NI.national_residuals(d)
+        resid, resid_pred = national_residuals_cond(d)
+        # residuals conditioned on the state being forecast — see
+        # national_inflow.national_residuals for the measured spread
+        lev = {}
+        for j in range(len(dr["dates"])):
+            c = dr["paths"][:, j]
+            lev[j + 1] = float(np.nanmedian(c))
         rows_d = []
         for j, dt in enumerate(dr["dates"]):
             col = dr["paths"][:, j]
             col = col[np.isfinite(col)]
-            R = resid.get(j + 1, np.zeros(0))
+            R = np.asarray(resid.get(j + 1, np.zeros(0)), float)
+            Rp = np.asarray(resid_pred.get(j + 1, np.zeros(0)), float)
+            if len(R) > 200 and len(Rp) == len(R):
+                L = lev[j + 1]
+                band = ((Rp < 70) if L < 70 else
+                        (Rp >= 110) if L >= 110 else ((Rp >= 70) & (Rp < 110)))
+                if band.sum() > 100:
+                    R = R[band]
             full = (col[:, None] + R[None, :]).ravel() if len(R) > 30 else col
             full = np.clip(full, 0, None)
             doy = datetime.strptime(str(dt), "%Y-%m-%d").timetuple().tm_yday
@@ -310,9 +372,12 @@ def main() -> int:
                     m["days_unresolved"] = int(max(nres, 0))
                     m["fraction_open"] = round(frac_open, 3)
                     fused[name] = m["inflow_pct"]["p50"]
+    # history from the 1st of the current month only — the chart is about
+    # this month's balance, and a longer tail just compresses the y-axis
+    cm0 = str(d["dates"][-1])[:7]
     obs_recent = [{"date": str(dt), "pct": round(float(v), 1)}
-                  for dt, v in zip(d["dates"][-75:], d["pct"][-75:])
-                  if np.isfinite(v)]
+                  for dt, v in zip(d["dates"], d["pct"])
+                  if str(dt)[:7] == cm0 and np.isfinite(v)]
     out = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
            "reconcile": reconcile, "fused_current_month": fused,
            "observed_recent": obs_recent,

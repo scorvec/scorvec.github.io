@@ -305,8 +305,19 @@ def daily_regime(d, monthly_exp):
         np.nansum([md["y"][b][-1] * W[b] for b in ORDER]))}
 
 
-def national_residuals(d, embargo=30, folds=8):
-    """Out-of-sample national daily residuals by lead, for the fan width."""
+def national_residuals(d, embargo=30, folds=8, cond=None):
+    """Out-of-sample national daily residuals by lead, for the fan width.
+
+    HETEROSCEDASTIC.  A single pooled residual per lead is wrong here: at
+    lead 7 the out-of-sample residual sd is 16.4 pts when the basin is dry
+    (<70% of norm), 21.1 in the middle and 36.2 when wet (>110).  Applying
+    the pooled ~26.7 to every day makes the fan far too wide in a drought
+    and too narrow in a flood - exactly backwards for a drying outlook.
+
+    `cond` is the predicted level for the day being forecast; residuals
+    are drawn from the matching state band.  Falls back to the pooled set
+    when a band is too thin to trust.
+    """
     import inflow_delta_model as M
     md = M.load()
     W = d["weights"]
