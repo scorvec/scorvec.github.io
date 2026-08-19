@@ -159,7 +159,16 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=2)
     a = ap.parse_args()
     ev, ct, mag = pick_days(a.events, a.controls)
-    days = ev + ct
+    # INTERLEAVE events with their matched controls rather than fetching all
+    # events first. GES DISC throttling means a run of this size takes many
+    # hours, and an events-first order makes every partial sample a
+    # top-decile-only sample: with rain restricted to its own top decile the
+    # rain-inflow relationship collapses by range restriction (measured
+    # r = -0.036 against a full-record +0.46 on 2026-08-19), so a partial
+    # download cannot test anything. Interleaved, the sample is balanced and
+    # usable at every point along the way.
+    days = [d for pair in zip(ev, ct) for d in pair]
+    days += ev[len(ct):] + ct[len(ev):]
     print(f"{len(ev)} event days + {len(ct)} controls = {len(days)}")
     print(f"   event rain  {np.mean([mag[d] for d in ev]):5.1f} mm/d, "
           f"control rain {np.mean([mag[d] for d in ct]):5.1f} mm/d")
