@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -40,10 +41,22 @@ import matplotlib.dates as mdates
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 RAW = Path.home() / "colombia_hydro" / "raw"
-CACHE = RAW / "aporener_daily.json.gz"
+# CO_INFLOW_METRIC selects the target. AporEner (default) is kWh and
+# therefore volume x the head available downstream, so it moves when the
+# FLEET changes: CAUCA SALVAJINA's kWh-per-m3/s stepped 20,278 -> 63,190
+# at Hidroituango commissioning, and because riv_mu is a whole-record
+# climatology the same hydrology then reads 222% of norm after the step
+# and 81% before. AporCaudal is m3/s - pure water, no turbines - and is
+# what rain actually drives.
+METRIC = os.environ.get("CO_INFLOW_METRIC", "AporEner")
+_VOL = METRIC == "AporCaudal"
+# kWh -> GWh for energy; m3/s needs no conversion
+SCALE = 1.0 if _VOL else 1e6
+_SFX = "_vol" if _VOL else ""
+CACHE = RAW / (f"aporcaudal_daily.json.gz" if _VOL else "aporener_daily.json.gz")
 RIVERS_JSON = RAW / "xm_listado_rios.json"
-OUT_JSON = REPO / "colombia_hydro" / "data" / "inflow_clim.json"
-OUT_PNG = REPO / "colombia_hydro" / "inflow_norms.webp"
+OUT_JSON = REPO / "colombia_hydro" / "data" / f"inflow_clim{_SFX}.json"
+OUT_PNG = REPO / "colombia_hydro" / f"inflow_norms{_SFX}.webp"
 API = "https://servapibi.xm.com.co/daily"
 ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
 PCTS = [10, 25, 50, 75, 90]
@@ -86,7 +99,7 @@ def fetch_range(d0: datetime, d1: datetime) -> dict[str, dict[str, float]]:
         end = min(cur + timedelta(days=29), d1)
         for attempt in range(3):
             try:
-                r = requests.post(API, json={"MetricId": "AporEner",
+                r = requests.post(API, json={"MetricId": METRIC,
                                              "StartDate": f"{cur:%Y-%m-%d}",
                                              "EndDate": f"{end:%Y-%m-%d}",
                                              "Entity": "Rio"}, timeout=90)
@@ -167,7 +180,7 @@ def main() -> int:
             if name not in riv_series:
                 riv_series[name] = np.full(nd, np.nan)
             v = riv_series[name][i]
-            riv_series[name][i] = (0.0 if np.isnan(v) else v) + kwh / 1e6
+            riv_series[name][i] = (0.0 if np.isnan(v) else v) + kwh / SCALE
     unmatched = sorted(r for r in riv_series if r2r.get(r) is None)
     if unmatched:
         print(f"note: unmapped rivers dropped from norms: {unmatched}", flush=True)
