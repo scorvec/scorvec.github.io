@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -48,6 +49,16 @@ from matplotlib.path import Path as MplPath                        # noqa: E402
 
 PRIV = Path.home() / "colombia_hydro"
 CACHE = PRIV / "raw" / "catchment_rain.npz"
+
+# CO_CATCH_GJ swaps the catchment geometry without touching any caller:
+# the default is the IDEAM subzona (SZH) union set, and
+# xm_river_catchments_traced.geojson is the HydroBASINS lev-12 upstream
+# trace built by delineate_catchments.py. Set CO_CATCH_CACHE alongside it
+# so the two geometries do not overwrite each other's cache.
+_GJ_OVERRIDE = os.environ.get("CO_CATCH_GJ")
+if _GJ_OVERRIDE:
+    CATCH_GJ = Path(_GJ_OVERRIDE)
+CACHE = Path(os.environ.get("CO_CATCH_CACHE", CACHE))
 
 
 def build_masks(lons, lats, min_energy=0.3, include_regulated=False):
@@ -79,9 +90,22 @@ def build_masks(lons, lats, min_energy=0.3, include_regulated=False):
         m = np.zeros(LO.shape, bool)
         for pl in polys:
             ring = np.array(pl[0])
-            if ring.ndim == 2 and len(ring) >= 4:
-                m |= MplPath(np.column_stack([ring[:, 0] % 360, ring[:, 1]])
+            if ring.ndim != 2 or len(ring) < 4:
+                continue
+            inside = MplPath(np.column_stack([ring[:, 0] % 360, ring[:, 1]])
                              ).contains_points(pts).reshape(LO.shape)
+            # interior rings are real holes, not decoration: an INCREMENTAL
+            # traced catchment is its full upstream area minus the nested
+            # catchments below it, and those subtractions arrive as holes.
+            # Ignoring them would hand PORCE III its whole 3,768 km2 back
+            # and re-create the collinearity the trace exists to remove.
+            for hole in pl[1:]:
+                h = np.array(hole)
+                if h.ndim == 2 and len(h) >= 4:
+                    inside &= ~MplPath(
+                        np.column_stack([h[:, 0] % 360, h[:, 1]])
+                    ).contains_points(pts).reshape(LO.shape)
+            m |= inside
         w = np.where(m, cos, 0.0)
         if w.sum() <= 0:
             continue
