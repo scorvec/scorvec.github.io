@@ -81,6 +81,15 @@ MAX_LEAD = 15                               # days
 K_PRIOR = 6.0                               # prior strength, days of clim —
                                             # light on purpose: data dominates
                                             # within ~a week of matured leads
+# Which ensembles feed the blend. Day-1 verification vs gauge-corrected
+# IMERG (n=27 cycles) has AIFS ahead of IFS on MAE and bias ratio in ALL
+# SIX basins - ANTIOQUIA 1.87 vs 3.02 mm MAE, bias 1.09 vs 1.61 - and on
+# correlation in four of six. IFS also lands later, so an AIFS-only run
+# can use the 12Z cycle while IFS still has only 00Z.
+#     CO_MODELS=aifs   python scripts/sst/colombia_forecast.py
+MODELS = tuple(m.strip() for m in
+               os.environ.get("CO_MODELS", "aifs,ifs").split(",") if m.strip())
+
 PRIOR_RATIO = {"aifs": 1.0, "ifs": 0.75}    # prior bias-factor center: IFS
                                             # carries a known tropical wet bias
                                             # (user-asserted, ledger 2026-08-16);
@@ -230,6 +239,23 @@ def extract_cycle(model: str, date: str, hh: str) -> dict | None:
             out["basins_energy"] = {
                 r: np.round((daily * WE[r][np.ix_(oi, oj)][None, None]
                              ).sum(axis=(2, 3)), 2).tolist() for r in ORDER}
+            # HEAVY-RAIN EXTENT. Area >= 10 mm lifted spike amplitude by
+            # +0.024 (8/8 folds, p=0.0004) - the only term that moved it -
+            # and area >= 1 mm did NOT (it hurt rise days), so the threshold
+            # matters, not wetness in general. Archived, NOT yet used: the
+            # model was calibrated on 0.1 deg IMERG while these grids are
+            # 0.25 deg, ~6.2x the cell area, and a coarser grid smooths
+            # intensity so its exceedance fraction is on a different scale.
+            # Using it before that offset is calibrated would inject a
+            # mis-scaled predictor. Archiving now is what makes the
+            # calibration possible later.
+            wn = {r: WE[r][np.ix_(oi, oj)] for r in ORDER}
+            wn = {r: w / max(float(w.sum()), 1e-12) for r, w in wn.items()}
+            out["extent"] = {
+                f"{r}|{t}": np.round(
+                    ((daily >= t) * wn[r][None, None]).sum(axis=(2, 3)), 4
+                ).tolist()
+                for r in ORDER for t in (1.0, 5.0, 10.0, 20.0)}
     except Exception as e:                      # noqa: BLE001 — optional footprint
         print(f"  energy footprint unavailable: {repr(e)[:70]}")
     if WC:
@@ -294,7 +320,8 @@ def stage_extract() -> int:
             try:                                # upgrade cycles archived before
                 with gzip.open(dest, "rt") as fh:   # a footprint was added
                     old = json.load(fh)
-                if "basins_energy" in old and "catchments" in old:
+                if ("basins_energy" in old and "catchments" in old
+                        and "extent" in old):
                     continue
             except Exception:                   # noqa: BLE001
                 continue
@@ -373,10 +400,12 @@ def stage_verify(dates, rain, rclim) -> dict:
     dmap = {str(d): i for i, d in enumerate(dates)}
     # pairs[model][r][band] -> [sum_f, sum_o, sse, n]
     acc = {mdl: {r: {b: [0.0, 0.0, 0.0, 0, 0.0] for b in range(len(BANDS))} for r in ORDER}
-           for mdl in ("aifs", "ifs")}
+           for mdl in MODELS}
     for f in sorted(ARCH.glob("*.json.gz")):    # all buckets are calendar-aligned
         rec = json.loads(gzip.open(f, "rt").read())
         mdl = rec["model"]
+        if mdl not in MODELS:      # archive keeps every model ever pulled;
+            continue               # verify only what this run actually blends
         d0 = np.datetime64(f"{rec['init_date'][:4]}-{rec['init_date'][4:6]}-"
                            f"{rec['init_date'][6:8]}")
         for li, vd in enumerate(rec["valid"]):
@@ -406,7 +435,7 @@ def stage_verify(dates, rain, rclim) -> dict:
         for bi in range(len(BANDS)):
             P = K_PRIOR * clim_mean[r]
             fA, fI = {}, {}
-            for mdl in ("aifs", "ifs"):
+            for mdl in MODELS:
                 s_f, s_o, sse, n, ssp = acc[mdl][r][bi]
                 d_ = fA if mdl == "aifs" else fI
                 r0 = PRIOR_RATIO[mdl]
@@ -417,8 +446,21 @@ def stage_verify(dates, rain, rclim) -> dict:
                 # to inflate the fan once >=30 pairs (SPREAD_MIN_PAIRS)
                 d_["sr"] = round(float(np.sqrt(sse / n) / (ssp / n)), 3) \
                     if n and ssp > 0 else None
+            # a single-model run leaves the other dict empty; fall back to
+            # its prior ratio so the archive schema stays stable and any
+            # consumer reading bias_factors still finds both keys
+            for mdl_, d_ in (("aifs", fA), ("ifs", fI)):
+                d_.setdefault("F", PRIOR_RATIO[mdl_])
+                d_.setdefault("mse", np.nan)
+                d_.setdefault("n", 0)
+                d_.setdefault("sr", None)
             nA, nI = fA["n"], fI["n"]
-            if nA >= MIN_PAIRS and nI >= MIN_PAIRS and fA["mse"] > 0 and fI["mse"] > 0:
+            if "ifs" not in MODELS:
+                wa = 1.0                      # AIFS-only run
+            elif "aifs" not in MODELS:
+                wa = 0.0
+            elif (nA >= MIN_PAIRS and nI >= MIN_PAIRS
+                  and fA["mse"] > 0 and fI["mse"] > 0):
                 wa = (1 / fA["mse"]) / (1 / fA["mse"] + 1 / fI["mse"])
             else:
                 wa = 0.5
@@ -430,7 +472,7 @@ def stage_verify(dates, rain, rclim) -> dict:
              "truth": "gauge-blended corrected IMERG, ENERGY-weighted basins (truth v3)",
              "bands_lead_days": BANDS, "k_prior_days": K_PRIOR,
              "prior_ratio": PRIOR_RATIO,
-             "min_pairs": MIN_PAIRS,
+             "min_pairs": MIN_PAIRS, "models": list(MODELS),
              "bias_factors": factors, "weight_aifs": weights, "pairs": counts,
              "spread_ratio": spread}
     VERIF_JSON.parent.mkdir(parents=True, exist_ok=True)
@@ -494,7 +536,7 @@ def stage_fan(dates, rain, rclim, verif) -> None:
     params = json.loads(MODEL_JSON.read_text())["params"]
     # latest archived cycle per model
     latest = {}
-    for mdl in ("aifs", "ifs"):
+    for mdl in MODELS:
         fs = sorted(ARCH.glob(f"{mdl}_*.json.gz"))
         if fs:
             latest[mdl] = json.loads(gzip.open(fs[-1], "rt").read())
@@ -615,7 +657,7 @@ def stage_fan(dates, rain, rclim, verif) -> None:
         # spread inflation about the weighted median once verification says
         # the ensemble is over/under-dispersive (needs SPREAD_MIN_PAIRS pairs)
         srs = [verif["spread_ratio"][r][bi][mdl]
-               for bi in range(len(BANDS)) for mdl in ("aifs", "ifs")
+               for bi in range(len(BANDS)) for mdl in MODELS
                if verif["spread_ratio"][r][bi][mdl] is not None
                and min(verif["pairs"][r][bi].values()) >= SPREAD_MIN_PAIRS]
         if srs:
@@ -835,7 +877,7 @@ def stage_rain_scorecard(dates, rain) -> None:
                          round(float(obs), 2)))
 
     stats = {}
-    for mdl in ("aifs", "ifs"):
+    for mdl in MODELS:
         stats[mdl] = {}
         for r in ORDER:
             v = [(f_, o_) for (_, m_, _, r_, f_, o_) in recs
@@ -860,7 +902,7 @@ def stage_rain_scorecard(dates, rain) -> None:
             t = [_dt.strptime(x[0], "%Y-%m-%d") for x in vr]
             ax.plot(t, [x[1] for x in vr], color="k", lw=1.4, marker="o",
                     ms=3, label="corrected IMERG (obs)")
-        for mdl in ("aifs", "ifs"):
+        for mdl in MODELS:
             vm = sorted([(vd, f_) for (vd, m_, _, r_, f_, _) in recs
                          if r_ == r and m_ == mdl])
             if vm:
