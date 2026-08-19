@@ -1056,11 +1056,12 @@ def national_page(pdf, when: datetime) -> None:
     # on sight, which is the point of putting them on one axis.
     ax = fig.add_axes([0.07, 0.53, 0.88, 0.33])
     dbm = nat.get("daily_balance_of_month", [])
-    mtd_x, mtd_y = [], []
+    mtd_x, mtd_y, mtd_n = [], [], []
     for r in nat.get("observed_daily", []):
         dt = datetime.strptime(r["date"], "%Y-%m-%d")
         if dt >= when.replace(day=1) - timedelta(days=1):
             mtd_x.append(dt); mtd_y.append(r["pct"])
+            mtd_n.append(r.get("norm_gwh"))
     if dbm:
         xs = [datetime.strptime(r["date"], "%Y-%m-%d") for r in dbm]
         p50 = [r["gwh_p50"] for r in dbm]
@@ -1070,8 +1071,13 @@ def national_page(pdf, when: datetime) -> None:
         ax.fill_between(xs, lo, hi, color="#4d8fe8", alpha=0.22, lw=0,
                         label="p5\u2013p95")
         ax.plot(xs, p50, color="#1f4e9c", lw=2.2, label="median")
-        if all(n is not None for n in nrm):
-            ax.plot(xs, nrm, color="#888", lw=1.4, ls="--",
+        # seasonal norm across the WHOLE axis - observed days included.
+        # Drawn only over the forecast it gave no reference for the half of
+        # the chart the reader is actually checking against.
+        nx = ([d_ for d_ in mtd_x] if mtd_x else []) + list(xs)
+        nv = ([v for v in mtd_n] if mtd_x else []) + list(nrm)
+        if all(v is not None for v in nv):
+            ax.plot(nx, nv, color="#888", lw=1.5, ls="--", zorder=4,
                     label="seasonal norm (current fleet)")
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
         if mtd_x:
@@ -1177,42 +1183,52 @@ def price_page(pdf, when: datetime) -> None:
     p50 = np.array([r["price_p50"] for r in m])
     lo = np.array([r["price_p10"] for r in m])
     hi = np.array([r["price_p90"] for r in m])
-    # Short history only: enough recent context to read the forecast
-    # against, without the full record crowding it out.
+    # FULL RECORD. The bolsa spans two orders of magnitude across the ENSO
+    # cycle, so the forecast only means something against the whole series.
+    # Daily prints go in faintly behind the monthly means to show the range
+    # actually traded, which monthly averaging hides.
     import gzip as _gz, json as _j3, collections as _c3
-    hx, hy = [], []
+    hx, hy, dx, dy = [], [], [], []
     try:
         _b = _j3.load(_gz.open(PRIV / "raw" / "bolsa_daily.json.gz", "rt"))
         _agg = _c3.defaultdict(list)
-        for _k, _v in _b.items():
+        for _k, _v in sorted(_b.items()):
             try:
-                _agg[_k[:7]].append(float(_v))
+                _f = float(_v)
             except (TypeError, ValueError):
                 continue
-        for _k in sorted(_agg)[-18:]:
+            _agg[_k[:7]].append(_f)
+            dx.append(datetime.strptime(_k, "%Y-%m-%d")); dy.append(_f)
+        first_fc = m[0]["month"]
+        for _k in sorted(_agg):
+            # the current month is partial and is ALSO the first forecast
+            # month; keeping it would draw two points for one month and put
+            # a visible step at the join
+            if _k >= first_fc:
+                continue
             hx.append(datetime.strptime(_k + "-15", "%Y-%m-%d"))
             hy.append(float(np.mean(_agg[_k])))
     except Exception:                              # noqa: BLE001 - optional
         pass
     ax = fig.add_axes([0.08, 0.30, 0.87, 0.55])
     fx = [datetime.strptime(r["month"] + "-15", "%Y-%m-%d") for r in m]
+    if dx:
+        ax.plot(dx, dy, color="#b9a7c4", lw=0.45, alpha=0.75, zorder=1,
+                label="daily print")
     if hx:
-        ax.plot(hx, hy, "o-", color="#333", lw=1.6, ms=4,
+        ax.plot(hx, hy, color="#333", lw=1.3, zorder=3,
                 label="observed monthly mean")
-        # join observed to forecast - no floating gap
-        ax.plot([hx[-1], fx[0]], [hy[-1], p50[0]], color="#333", lw=1.6)
-    ax.fill_between(fx, lo, hi, color="#a05fb4", alpha=0.22, lw=0,
+        ax.plot([hx[-1], fx[0]], [hy[-1], p50[0]], color="#333", lw=1.3,
+                zorder=3)
+    ax.fill_between(fx, lo, hi, color="#a05fb4", alpha=0.30, lw=0, zorder=2,
                     label="forecast p10\u2013p90")
-    ax.plot(fx, p50, "o-", color="#6b2d7d", lw=2.4, ms=7,
+    ax.plot(fx, p50, "o-", color="#6b2d7d", lw=2.2, ms=5.5, zorder=4,
             label="forecast median")
-    for xi, v in zip(fx, p50):
-        ax.annotate(f"{v:.0f}", (xi, v), textcoords="offset points",
-                    xytext=(0, 9), ha="center", fontsize=8.5, fontweight="bold")
     ax.set_ylabel("COP/kWh", fontsize=9.5)
     ax.legend(fontsize=8.5, frameon=False, ncol=3, loc="upper left")
     ax.grid(alpha=0.25)
-    ax.set_title("Monthly mean spot price \u2014 recent history and the "
-                 "6-month outlook", fontsize=11, fontweight="bold")
+    ax.set_title("Spot price \u2014 full record since 2015 with the 6-month "
+                 "outlook", fontsize=11, fontweight="bold")
     txt = (f"Log-space fit on 2015\u20132026 monthly means: inflow anomaly, "
            f"storage, ONI, seasonal harmonics and the scarcity price "
            f"(the fuel-indexed ceiling the market runs toward under stress). "

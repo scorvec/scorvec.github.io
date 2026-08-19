@@ -412,6 +412,13 @@ def monthly_forecast(d, bt):
 
 
 
+
+def _doy_of(dt):
+    """0-based day-of-year for a numpy datetime64 or ISO string."""
+    ds = str(dt)[:10]
+    return (datetime.strptime(ds, "%Y-%m-%d").timetuple().tm_yday - 1)
+
+
 def _observed_monthly(d, n=24):
     """Observed national monthly means, for drawing behind the outlook."""
     import collections
@@ -561,7 +568,14 @@ def main() -> int:
            # an empty line - which is exactly how the daily briefing shipped
            # a national page with no history on it.
            "observed_daily": [
-               {"date": str(dt), "pct": round(float(v), 1)}
+               # norm_gwh travels WITH the observation so the seasonal norm
+               # can be drawn continuously across history and forecast; the
+               # forecast rows carry their own, and a norm line that starts
+               # only where the forecast starts is the wrong reference for
+               # the observed half of the chart.
+               {"date": str(dt), "pct": round(float(v), 1),
+                "norm_gwh": round(float(d["norm_gwh"][
+                    min(_doy_of(dt), len(d["norm_gwh"]) - 1)]), 1)}
                for dt, v in zip(d["dates"][-420:], d["pct"][-420:])
                if np.isfinite(v)],
            "observed_monthly": _observed_monthly(d),
