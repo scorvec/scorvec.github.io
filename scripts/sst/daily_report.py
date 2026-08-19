@@ -37,6 +37,7 @@ from build_imerg_clim import OUT as CLIM_NC, eval_clim      # noqa: E402
 from hydro_region_rain import gauge_correction              # noqa: E402
 
 REPO = HERE.parent.parent
+PRIV = Path.home() / "colombia_hydro"
 OUT_PDF = REPO / "colombia_hydro" / "report" / "colombia_hydro_daily.pdf"
 ARCHIVE = Path.home() / "colombia_hydro" / "reports"
 ORDER = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
@@ -136,7 +137,15 @@ def draw_map(ax, lons, lats, field, cmap, norm, rp, gauges=None,
     return pm, n_in
 
 
+_PAGE = [0]                      # running page number, stamped by header()
+
+
 def header(fig, when, subtitle, right2):
+    """`right2` is the units/context line; the page number is appended
+    automatically. Hardcoding it meant every reordering silently left stale
+    labels - the national page shipped as "page 4" while sitting tenth."""
+    _PAGE[0] += 1
+    right2 = f"{right2} \u00b7 page {_PAGE[0]}"
     hd = fig.add_axes([0, 0.925, 1, 0.075])
     hd.set_axis_off()
     hd.add_patch(plt.Rectangle((0, 0), 1, 1, transform=hd.transAxes,
@@ -445,7 +454,7 @@ def forecast_map_page(pdf, when: datetime) -> None:
            f"Most-likely rainfall, next {len(common)} days · blended "
            f"ensemble means, per-basin/lead bias factors + skill weights "
            f"from the live verification archive",
-           f"{inits_s} · page 7")
+           f"{inits_s}")
     H = 0.775
     aspect = (CRM.LON1 - CRM.LON0) / (CRM.LAT1 - CRM.LAT0)
     Wp = H * 8.27 / 11.69 * aspect
@@ -476,7 +485,7 @@ def forecast_map_page(pdf, when: datetime) -> None:
                      "factors mature against corrected IMERG twice daily")
     pdf.savefig(fig, dpi=200)
     plt.close(fig)
-    print("  page 7: most-likely 15-day rainfall", flush=True)
+    print(f"  page {_PAGE[0]}: most-likely 15-day rainfall", flush=True)
 
 
 def rain_fan_page(pdf, when: datetime) -> None:
@@ -501,7 +510,7 @@ def rain_fan_page(pdf, when: datetime) -> None:
     header(fig, when,
            "Basin rainfall vs seasonal norm · gauge-corrected IMERG observed "
            "· bias-corrected AIFS-ENS + IFS-ENS ensemble forecast",
-           "mm/day · page 8")
+           "mm/day")
     for k, r in enumerate(ORDER):
         row, col = divmod(k, 3)
         ax = fig.add_axes([0.052 + col * 0.325, 0.53 - row * 0.435,
@@ -561,7 +570,7 @@ def rain_fan_page(pdf, when: datetime) -> None:
                      "corrected satellite record · dotted line = today")
     pdf.savefig(fig, dpi=200)
     plt.close(fig)
-    print("  page 8: basin rain fans", flush=True)
+    print(f"  page {_PAGE[0]}: basin rain fans", flush=True)
 
 
 def inflow_page(pdf, when: datetime) -> None:
@@ -588,7 +597,7 @@ def inflow_page(pdf, when: datetime) -> None:
     header(fig, when,
            "Inflows vs seasonal norms · fleet-corrected per-river "
            "climatologies (2000–2026) · AIFS-ENS + IFS-ENS ensemble forecast",
-           "GWh/day · page 9")
+           "GWh/day")
     import matplotlib.dates as mdates
     for k, r in enumerate(ORDER):
         row, col = divmod(k, 3)
@@ -642,7 +651,7 @@ def inflow_page(pdf, when: datetime) -> None:
                      "to observations · dotted line = today")
     pdf.savefig(fig, dpi=200)
     plt.close(fig)
-    print("  page 9: inflows vs norms + fans", flush=True)
+    print(f"  page {_PAGE[0]}: inflows vs norms + fans", flush=True)
 
 
 
@@ -672,7 +681,7 @@ def storage_page(pdf, when: datetime) -> None:
     header(fig, when,
            "Reservoir storage · useful volume as % of useful capacity · "
            "fans integrate the member inflow forecasts through the water "
-           "balance", "% of capacity · page 10")
+           "balance", "% of capacity")
 
     def panel(ax, r, label_fs=9.8):
         env = np.array(st["pct_doy"][r], float)
@@ -721,7 +730,7 @@ def storage_page(pdf, when: datetime) -> None:
                      "blended with the ENSO-adjusted seasonal norm)")
     pdf.savefig(fig, dpi=200)
     plt.close(fig)
-    print("  page 10: reservoir storage", flush=True)
+    print(f"  page {_PAGE[0]}: reservoir storage", flush=True)
 
 
 def generation_page(pdf, when: datetime) -> None:
@@ -756,7 +765,7 @@ def generation_page(pdf, when: datetime) -> None:
     header(fig, when,
            "National hydro generation outlook · persistence + rain/storage "
            "state model driven by the same ensemble",
-           "GW (avg power) · page 11")
+           "GW (avg power)")
     ax = fig.add_axes([0.055, 0.40, 0.62, 0.475])
     ax.fill_between(axis, env[doyx, 0] / 24, env[doyx, 4] / 24,
                     color="#9db8d8", alpha=0.30, lw=0,
@@ -802,12 +811,47 @@ def generation_page(pdf, when: datetime) -> None:
                      k30, "full")[:len(shr)]
     ax2.plot([gdates[i] for i in my], sm[my], color="#b35806", lw=1.8,
              label="30-day mean")
-    ax2.axhline(np.nanmean(shr), color="0.6", lw=0.7, ls="--")
+    # NORM LINE. Total demand trends +2.6%/yr (p<0.0001), so an absolute
+    # GWh norm must be detrended - but the SHARE does not: hydro capacity
+    # has grown in step with demand, giving +0.13 pts/yr, p=0.69, and a
+    # full-record mean of 75.7% against a last-5-year 75.6%. A flat recent
+    # mean is therefore the correct reference here, and a trend line fitted
+    # to noise would be the error. Use the last 5 years, not the full
+    # record, so any slow drift that does exist cannot bias it.
+    yr5 = [i for i, d in enumerate(gdates) if d >= when - timedelta(days=5*365)]
+    norm_share = float(np.nanmean(shr[yr5])) if yr5 else float(np.nanmean(shr))
+    ax2.axhline(norm_share, color="#444", lw=1.1, ls="--",
+                label=f"5-yr norm {norm_share:.0f}%")
+    # forward view from the seasonal outlook, if present
+    try:
+        import json as _json
+        _o = _json.loads((PRIV / "out" / "outlook_2027.json").read_text())
+        _m = _o.get("months") or _o.get("monthly") or []
+        _x, _p50, _lo, _hi = [], [], [], []
+        for _r in _m:
+            _k = _r.get("month")
+            if not _k:
+                continue
+            _d = datetime.strptime(_k + "-15", "%Y-%m-%d")
+            _h = _r.get("hydro_share_pct") or {}
+            _s = _h.get("p50")
+            if _s is None:
+                continue
+            _x.append(_d); _p50.append(_s)
+            _lo.append(_h.get("p10", _s)); _hi.append(_h.get("p90", _s))
+        if _x:
+            ax2.fill_between(_x, _lo, _hi, color="#6b2d7d", alpha=0.16, lw=0)
+            ax2.plot(_x, _p50, "o--", color="#6b2d7d", lw=1.6, ms=4,
+                     label="outlook p50")
+            ax2.set_xlim(t0y, max(_x) + timedelta(days=20))
+    except Exception:                              # noqa: BLE001 - optional
+        pass
     ax2.set_ylabel("hydro %", fontsize=8)
-    ax2.set_xlim(t0y, t1)
-    ax2.set_title("Hydro share of total generation — thermal dispatch fills "
-                  "the gap as El Niño cuts inflows", fontsize=9.5,
-                  fontweight="bold", loc="left", color=INK)
+    if not ax2.get_xlim()[1] > mdates.date2num(t1):
+        ax2.set_xlim(t0y, t1)
+    ax2.set_title("Hydro share of total generation \u2014 observed against a "
+                  "5-year norm, with the seasonal outlook ahead",
+                  fontsize=9.5, fontweight="bold", loc="left", color=INK)
     ax2.grid(lw=0.25, alpha=0.5)
     ax2.tick_params(labelsize=7.5)
     ax2.legend(fontsize=7, loc="lower left", framealpha=0.9)
@@ -853,7 +897,7 @@ def generation_page(pdf, when: datetime) -> None:
     footer(fig)
     pdf.savefig(fig, dpi=200)
     plt.close(fig)
-    print("  page 11: national generation outlook", flush=True)
+    print(f"  page {_PAGE[0]}: national generation outlook", flush=True)
 
 
 
@@ -870,7 +914,7 @@ def load_page(pdf, when: datetime) -> None:
     fig = plt.figure(figsize=(11.69, 8.27))
     header(fig, when,
            "National electricity demand · XM DemaReal, daily average power",
-           "GW · page 12")
+           "GW")
     # 26-year evolution
     fd = [datetime.strptime(d, "%Y-%m-%d") for d in ld["full"]["dates"]]
     fg = np.array(ld["full"]["gw"], float)
@@ -951,7 +995,158 @@ def load_page(pdf, when: datetime) -> None:
     footer(fig)
     pdf.savefig(fig, dpi=200)
     plt.close(fig)
-    print("  page 12: national load", flush=True)
+    print(f"  page {_PAGE[0]}: national load", flush=True)
+
+
+
+def basin_map_page(pdf, when: datetime) -> None:
+    """Page 1: the physical setting — terrain, basins, plants.
+
+    Front-loaded deliberately. Everything downstream is an anomaly against
+    a norm, and an anomaly is meaningless until you know which piece of
+    ground it belongs to."""
+    import matplotlib.image as mpimg
+    img = REPO / "colombia_hydro" / "xm_regions_topo.webp"
+    fig = plt.figure(figsize=(11.69, 8.27))
+    header(fig, when,
+           "The physical setting \u00b7 XM hydrological regions over terrain, "
+           "with the generating fleet",
+           "orientation")
+    if img.exists():
+        ax = fig.add_axes([0.06, 0.06, 0.88, 0.80])
+        ax.imshow(mpimg.imread(str(img)))
+        ax.set_axis_off()
+    else:
+        ax = fig.add_axes([0.1, 0.3, 0.8, 0.4]); ax.set_axis_off()
+        ax.text(0.5, 0.5, "terrain map unavailable\n"
+                "(run scripts/sst/render_hydro_maps.py)",
+                ha="center", va="center", fontsize=11, color="0.4")
+    footer(fig, "Dams sit where rivers drop off the cordilleras, which is why "
+                "a basin's energy value depends on the drop below it as much "
+                "as the water in it.")
+    pdf.savefig(fig); plt.close(fig)
+    print(f"  page {_PAGE[0]}: basins over terrain", flush=True)
+
+
+def national_page(pdf, when: datetime) -> None:
+    """THE headline page: national inflow forecast and its uncertainty.
+
+    Placed ahead of the per-basin detail because it is the number the
+    report exists to deliver; the basins are the decomposition behind it."""
+    import json
+    import matplotlib.dates as mdates
+    nat_p = PRIV / "out" / "national_inflow.json"
+    fig = plt.figure(figsize=(11.69, 8.27))
+    header(fig, when,
+           "NATIONAL INFLOW FORECAST \u00b7 balance-of-month daily, then "
+           "monthly to +6 \u00b7 the headline deliverable",
+           "% of norm and GWh/day")
+    if not nat_p.exists():
+        ax = fig.add_axes([0.1, 0.4, 0.8, 0.2]); ax.set_axis_off()
+        ax.text(0.5, 0.5, "national_inflow.json not found", ha="center")
+        pdf.savefig(fig); plt.close(fig); return
+    nat = json.loads(nat_p.read_text())
+
+    # -- top: daily balance-of-month fan
+    ax = fig.add_axes([0.07, 0.53, 0.88, 0.33])
+    dbm = nat.get("daily_balance_of_month", [])
+    if dbm:
+        xs = [datetime.strptime(r["date"], "%Y-%m-%d") for r in dbm]
+        p50 = [r["gwh_p50"] for r in dbm]
+        lo = [r.get("gwh_p5", r["gwh_p50"]) for r in dbm]
+        hi = [r.get("gwh_p95", r["gwh_p50"]) for r in dbm]
+        nrm = [r.get("norm_gwh") for r in dbm]
+        ax.fill_between(xs, lo, hi, color="#4d8fe8", alpha=0.22, lw=0,
+                        label="p5\u2013p95")
+        ax.plot(xs, p50, color="#1f4e9c", lw=2.2, label="median")
+        if all(n is not None for n in nrm):
+            ax.plot(xs, nrm, color="#888", lw=1.4, ls="--",
+                    label="seasonal norm (current fleet)")
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
+        ax.legend(fontsize=8, frameon=False, ncol=3, loc="upper right")
+    ax.set_ylabel("GWh/day", fontsize=9)
+    ax.set_title("Balance of month \u2014 daily national inflow energy",
+                 fontsize=10.5, fontweight="bold")
+    ax.grid(alpha=0.25)
+
+    # -- bottom: monthly outlook to +6
+    ax2 = fig.add_axes([0.07, 0.10, 0.88, 0.31])
+    mf = nat.get("monthly_forecast", {}).get("months", [])
+    if mf:
+        lab = [r["month"] for r in mf]
+        x = np.arange(len(mf))
+        p50 = np.array([r["pct_p50"] for r in mf])
+        lo = np.array([r["pct_p10"] for r in mf])
+        hi = np.array([r["pct_p90"] for r in mf])
+        ax2.fill_between(x, lo, hi, color="#e8833a", alpha=0.22, lw=0,
+                         label="p10\u2013p90")
+        ax2.plot(x, p50, "o-", color="#b8551a", lw=2.2, ms=6, label="median")
+        ax2.axhline(100, color="#555", lw=1.2, ls="--", label="norm")
+        ax2.set_xticks(x); ax2.set_xticklabels(lab, fontsize=8.5)
+        for xi, v, h in zip(x, p50, hi):
+            ax2.annotate(f"{v:.0f}%", (xi, h), textcoords="offset points",
+                         xytext=(0, 5), ha="center", fontsize=8.5,
+                         fontweight="bold")
+        ax2.legend(fontsize=8, frameon=False, ncol=3)
+    ax2.set_ylabel("% of seasonal norm", fontsize=9)
+    ax2.set_title("Monthly outlook to +6 \u2014 % of norm with 80% interval",
+                  fontsize=10.5, fontweight="bold")
+    ax2.grid(alpha=0.25)
+    footer(fig, "Intervals are out-of-sample: the spread comes from blocked "
+                "cross-validation, not from the fit's own residuals.")
+    pdf.savefig(fig); plt.close(fig)
+    print(f"  page {_PAGE[0]}: NATIONAL inflow forecast", flush=True)
+
+
+def price_page(pdf, when: datetime) -> None:
+    """Spot-price outlook — the money translation of the water view."""
+    import json
+    pj = PRIV / "out" / "price_outlook.json"
+    fig = plt.figure(figsize=(11.69, 8.27))
+    header(fig, when,
+           "Spot price (bolsa) outlook \u00b7 driven by the inflow forecast "
+           "\u00b7 indicative, wide intervals",
+           "COP/kWh \u00b7 final page")
+    if not pj.exists():
+        ax = fig.add_axes([0.1, 0.4, 0.8, 0.2]); ax.set_axis_off()
+        ax.text(0.5, 0.5, "price_outlook.json not found \u2014 run "
+                "scripts/sst/price_outlook.py", ha="center")
+        pdf.savefig(fig); plt.close(fig); return
+    pr = json.loads(pj.read_text())
+    m = pr["months"]
+    x = np.arange(len(m))
+    p50 = np.array([r["price_p50"] for r in m])
+    lo = np.array([r["price_p10"] for r in m])
+    hi = np.array([r["price_p90"] for r in m])
+    ax = fig.add_axes([0.08, 0.30, 0.87, 0.55])
+    ax.fill_between(x, lo, hi, color="#a05fb4", alpha=0.20, lw=0,
+                    label="p10\u2013p90")
+    ax.plot(x, p50, "o-", color="#6b2d7d", lw=2.4, ms=7, label="median")
+    ax.set_xticks(x); ax.set_xticklabels([r["month"] for r in m], fontsize=9)
+    for xi, v in zip(x, p50):
+        ax.annotate(f"{v:.0f}", (xi, v), textcoords="offset points",
+                    xytext=(0, 9), ha="center", fontsize=9, fontweight="bold")
+    ax.set_ylabel("COP/kWh", fontsize=9.5)
+    ax.legend(fontsize=8.5, frameon=False)
+    ax.grid(alpha=0.25)
+    ax.set_title("Monthly mean spot price \u2014 80% interval",
+                 fontsize=11, fontweight="bold")
+    txt = (f"Log-space fit on 2015\u20132026 monthly means: inflow anomaly, "
+           f"storage, ONI, seasonal harmonics and the scarcity price "
+           f"(the fuel-indexed ceiling the market runs toward under stress). "
+           f"In-sample R\u00b2 {pr['r2_in_sample']:.2f}; blocked "
+           f"leave-one-year-out residual spread \u00d7"
+           f"{pr['one_sigma_multiplier']:.2f} one-sigma.\n"
+           f"The structural fit currently runs LOW \u2014 actual/model has a "
+           f"median of {pr.get('regime_anchor', 1):.2f} over the last three "
+           f"months, so a regime adjustment is applied in full at lead 1 and "
+           f"decayed to 1.0 by lead 6. Direction is well supported; the LEVEL "
+           f"is indicative only.")
+    fig.text(0.08, 0.19, txt, fontsize=8.6, va="top", wrap=True, color=INK)
+    footer(fig, "Not investment advice \u2014 a physical-dispatch model, not "
+                "a market model.")
+    pdf.savefig(fig); plt.close(fig)
+    print(f"  page {_PAGE[0]}: spot price outlook", flush=True)
 
 
 def main() -> int:
@@ -959,13 +1154,19 @@ def main() -> int:
     OUT_PDF.parent.mkdir(parents=True, exist_ok=True)
     ARCHIVE.mkdir(parents=True, exist_ok=True)
     with PdfPages(OUT_PDF) as pdf:
+        # Order follows the decision path: where -> what fell -> what is
+        # coming -> WHAT IT MEANS NATIONALLY (the deliverable) -> the basin
+        # decomposition behind it -> state -> generation -> price.
+        basin_map_page(pdf, when)
         through = rain_pages(pdf, when)
         forecast_map_page(pdf, when)
         rain_fan_page(pdf, when)
+        national_page(pdf, when)
         inflow_page(pdf, when)
         storage_page(pdf, when)
         generation_page(pdf, when)
         load_page(pdf, when)
+        price_page(pdf, when)
         d = pdf.infodict()
         d["Title"] = f"Colombia Hydro Daily Briefing — {when:%Y-%m-%d}"
         d["Author"] = "scorvec.com"
