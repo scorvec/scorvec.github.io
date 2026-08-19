@@ -14,6 +14,7 @@ Output:
 """
 from __future__ import annotations
 
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -1047,9 +1048,28 @@ def national_page(pdf, when: datetime) -> None:
         pdf.savefig(fig); plt.close(fig); return
     nat = json.loads(nat_p.read_text())
 
-    # -- top: daily balance-of-month fan
+    # -- top: month-to-date OBSERVED, then the balance-of-month fan.
+    # Showing only the forward fan hid an inconsistency for weeks: on
+    # 2026-08-19 the monthly model published 68.8% for August while 18
+    # observed days at 62.5% and the daily fan at 102.3% implied 79.2%.
+    # With the observed days drawn beside the forecast that gap is obvious
+    # on sight, which is the point of putting them on one axis.
     ax = fig.add_axes([0.07, 0.53, 0.88, 0.33])
     dbm = nat.get("daily_balance_of_month", [])
+    mtd_x, mtd_y = [], []
+    try:
+        import json as _j
+        _ic = _j.loads((REPO / "colombia_hydro" / "data" /
+                        ("inflow_clim_vol.json" if os.environ.get(
+                            "CO_INFLOW_METRIC") == "AporCaudal"
+                         else "inflow_clim.json")).read_text())
+        _f = _ic["full_pct_of_norm"]
+        _mk = when.strftime("%Y-%m")
+        for _d, _v in zip(_f["dates"], _f.get("NATIONAL", [])):
+            if _d.startswith(_mk) and _v:
+                mtd_x.append(datetime.strptime(_d, "%Y-%m-%d")); mtd_y.append(_v)
+    except Exception:                              # noqa: BLE001 - optional
+        pass
     if dbm:
         xs = [datetime.strptime(r["date"], "%Y-%m-%d") for r in dbm]
         p50 = [r["gwh_p50"] for r in dbm]
@@ -1063,7 +1083,16 @@ def national_page(pdf, when: datetime) -> None:
             ax.plot(xs, nrm, color="#888", lw=1.4, ls="--",
                     label="seasonal norm (current fleet)")
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
-        ax.legend(fontsize=8, frameon=False, ncol=3, loc="upper right")
+        if mtd_x:
+            gwn = {r["date"]: r.get("norm_gwh") for r in dbm}
+            nrm0 = next((v for v in gwn.values() if v), None)
+            if nrm0:
+                ax.plot(mtd_x, [v * nrm0 / 100.0 for v in mtd_y],
+                        color="#111", lw=2.0, marker="o", ms=3,
+                        label="observed, month to date", zorder=6)
+                ax.set_xlim(min(mtd_x) - timedelta(days=1),
+                            max(xs) + timedelta(days=1))
+        ax.legend(fontsize=8, frameon=False, ncol=4, loc="upper left")
     ax.set_ylabel("GWh/day", fontsize=9)
     ax.set_title("Balance of month \u2014 daily national inflow energy",
                  fontsize=10.5, fontweight="bold")
@@ -1072,6 +1101,22 @@ def national_page(pdf, when: datetime) -> None:
     # -- bottom: monthly outlook to +6
     ax2 = fig.add_axes([0.07, 0.10, 0.88, 0.31])
     mf = nat.get("monthly_forecast", {}).get("months", [])
+    hist = []
+    try:
+        import json as _j2, collections as _c
+        _ic2 = _j2.loads((REPO / "colombia_hydro" / "data" /
+                          ("inflow_clim_vol.json" if os.environ.get(
+                              "CO_INFLOW_METRIC") == "AporCaudal"
+                           else "inflow_clim.json")).read_text())
+        _f2 = _ic2["full_pct_of_norm"]
+        _agg = _c.defaultdict(list)
+        for _d, _v in zip(_f2["dates"], _f2.get("NATIONAL", [])):
+            if _v:
+                _agg[_d[:7]].append(_v)
+        hist = [(k, float(np.mean(v))) for k, v in sorted(_agg.items())
+                if len(v) >= 20][-18:]
+    except Exception:                              # noqa: BLE001 - optional
+        pass
     if mf:
         lab = [r["month"] for r in mf]
         x = np.arange(len(mf))
@@ -1082,7 +1127,19 @@ def national_page(pdf, when: datetime) -> None:
                          label="p10\u2013p90")
         ax2.plot(x, p50, "o-", color="#b8551a", lw=2.2, ms=6, label="median")
         ax2.axhline(100, color="#555", lw=1.2, ls="--", label="norm")
-        ax2.set_xticks(x); ax2.set_xticklabels(lab, fontsize=8.5)
+        if hist:
+            # the last 18 observed months, so the outlook is read as a
+            # continuation rather than a free-floating projection
+            hx = np.arange(-len(hist), 0)
+            ax2.plot(hx, [v for _, v in hist], "o-", color="#111", lw=1.6,
+                     ms=3.5, label="observed monthly mean", zorder=6)
+            x = x  # forecast keeps 0..n-1, history sits left of zero
+            lab = [k for k, _ in hist] + lab
+            ax2.set_xticks(list(hx) + list(np.arange(len(mf))))
+            ax2.set_xticklabels(lab, fontsize=6.6, rotation=60, ha="right")
+            ax2.set_xlim(hx[0] - 0.5, len(mf) - 0.5)
+        else:
+            ax2.set_xticks(x); ax2.set_xticklabels(lab, fontsize=8.5)
         for xi, v, h in zip(x, p50, hi):
             ax2.annotate(f"{v:.0f}%", (xi, h), textcoords="offset points",
                          xytext=(0, 5), ha="center", fontsize=8.5,
@@ -1118,19 +1175,47 @@ def price_page(pdf, when: datetime) -> None:
     p50 = np.array([r["price_p50"] for r in m])
     lo = np.array([r["price_p10"] for r in m])
     hi = np.array([r["price_p90"] for r in m])
+    # LONG HISTORY. Colombian spot price spans two orders of magnitude
+    # across the ENSO cycle - ~106 COP/kWh monthly mean in 2017 against
+    # ~1500 in the 2024 drought - so a six-month forecast shown alone is
+    # unreadable. The full 2015- record puts the level in context and makes
+    # plain that the forecast band, wide as it is, sits well inside the
+    # range the market has actually traded.
+    import gzip as _gz, json as _j3, collections as _c3
+    hx, hy = [], []
+    try:
+        _b = _j3.load(_gz.open(PRIV / "raw" / "bolsa_daily.json.gz", "rt"))
+        _agg = _c3.defaultdict(list)
+        for _k, _v in _b.items():
+            try:
+                _agg[_k[:7]].append(float(_v))
+            except (TypeError, ValueError):
+                continue
+        for _k in sorted(_agg):
+            hx.append(datetime.strptime(_k + "-15", "%Y-%m-%d"))
+            hy.append(float(np.mean(_agg[_k])))
+    except Exception:                              # noqa: BLE001 - optional
+        pass
     ax = fig.add_axes([0.08, 0.30, 0.87, 0.55])
-    ax.fill_between(x, lo, hi, color="#a05fb4", alpha=0.20, lw=0,
-                    label="p10\u2013p90")
-    ax.plot(x, p50, "o-", color="#6b2d7d", lw=2.4, ms=7, label="median")
-    ax.set_xticks(x); ax.set_xticklabels([r["month"] for r in m], fontsize=9)
-    for xi, v in zip(x, p50):
+    fx = [datetime.strptime(r["month"] + "-15", "%Y-%m-%d") for r in m]
+    if hx:
+        ax.plot(hx, hy, color="#333", lw=1.1, label="observed monthly mean")
+        ax.axvspan(hx[-1], fx[-1], color="#a05fb4", alpha=0.06, lw=0)
+    ax.fill_between(fx, lo, hi, color="#a05fb4", alpha=0.22, lw=0,
+                    label="forecast p10\u2013p90")
+    ax.plot(fx, p50, "o-", color="#6b2d7d", lw=2.4, ms=7, label="forecast median")
+    ax.set_yscale("log")
+    ax.set_yticks([50, 100, 200, 400, 800, 1600, 3200])
+    ax.get_yaxis().set_major_formatter(
+        __import__("matplotlib").ticker.ScalarFormatter())
+    for xi, v in zip(fx, p50):
         ax.annotate(f"{v:.0f}", (xi, v), textcoords="offset points",
-                    xytext=(0, 9), ha="center", fontsize=9, fontweight="bold")
-    ax.set_ylabel("COP/kWh", fontsize=9.5)
-    ax.legend(fontsize=8.5, frameon=False)
-    ax.grid(alpha=0.25)
-    ax.set_title("Monthly mean spot price \u2014 80% interval",
-                 fontsize=11, fontweight="bold")
+                    xytext=(0, 9), ha="center", fontsize=8.5, fontweight="bold")
+    ax.set_ylabel("COP/kWh  (log scale)", fontsize=9.5)
+    ax.legend(fontsize=8.5, frameon=False, ncol=3, loc="upper left")
+    ax.grid(alpha=0.25, which="both")
+    ax.set_title("Monthly mean spot price \u2014 full record since 2015, "
+                 "with the 6-month outlook", fontsize=11, fontweight="bold")
     txt = (f"Log-space fit on 2015\u20132026 monthly means: inflow anomaly, "
            f"storage, ONI, seasonal harmonics and the scarcity price "
            f"(the fuel-indexed ceiling the market runs toward under stress). "

@@ -400,6 +400,7 @@ def monthly_forecast(d, bt):
     o_now = rows[issue]["oni"]
     pctile = float(np.mean(onis <= o_now) * 100)
     return {"issue_month": issue, "oni_at_issue": round(o_now, 2),
+            "current_month_conditioned": None,     # filled in by main()
             "oni_percentile_in_record": round(pctile, 1),
             "extrapolating_on_enso": bool(pctile > 97 or pctile < 3),
             "severity_caveat": ("at extreme ONI the model overshoots the depth "
@@ -407,6 +408,72 @@ def monthly_forecast(d, bt):
             "storage_anom_at_issue": round(rows[issue]["stor_end"], 1),
             "observed_monthly_minimum": round(obs_min, 1),
             "log_space": LOG_SPACE, "months": out}
+
+
+
+def condition_current_month(fc_m, daily_rows, d):
+    """Replace the current month's UNCONDITIONAL estimate with one that uses
+    the days already observed.
+
+    The monthly model forecasts from monthly predictors - ENSO, storage,
+    antecedent state - and never sees the day-level record. Published 18
+    days into a month that has already banked its outcome, that is simply
+    the wrong number: for 2026-08 it read 68.8% while 18 observed days at
+    62.4% and a 13-day daily forecast at 102.3% imply **79.1%**. The
+    observed part is not a forecast at all, so leaving it out discards
+    certainty we already hold.
+
+    Weighted blend: observed days count as themselves, forecast days come
+    from the balance-of-month daily model, and the interval is scaled by
+    the fraction of the month still unknown - a month that is 90% observed
+    should have a narrow interval, which the unconditional model never
+    gives.
+    """
+    if not fc_m.get("months"):
+        return fc_m
+    m0 = fc_m["months"][0]
+    key = m0["month"]
+    dates = np.array([str(x) for x in d["dates"]])
+    y = d["pct"]                      # national % of norm (load_national)
+    obs = [y[i] for i, s_ in enumerate(dates)
+           if s_.startswith(key) and np.isfinite(y[i])]
+    fcst = []
+    for r in daily_rows:
+        if not str(r.get("date", "")).startswith(key):
+            continue
+        p = r.get("pct")
+        fcst.append(p["p50"] if isinstance(p, dict) else p)
+    n_obs, n_fc = len(obs), len(fcst)
+    if n_obs == 0 or n_obs + n_fc < 20:
+        return fc_m                        # too early to condition usefully
+    blended = (float(np.sum(obs)) + float(np.sum(fcst))) / (n_obs + n_fc)
+    frac_unknown = n_fc / float(n_obs + n_fc)
+    half = (m0["pct_p90"] - m0["pct_p10"]) / 2.0
+    lo = blended - half * frac_unknown
+    hi = blended + half * frac_unknown
+    gw = m0.get("norm_gwh", 0) / 100.0
+    fc_m["current_month_conditioned"] = {
+        "month": key, "observed_days": n_obs, "observed_mean": round(
+            float(np.mean(obs)), 1),
+        "forecast_days": n_fc, "forecast_mean": round(
+            float(np.mean(fcst)), 1) if n_fc else None,
+        "unconditional_p50": m0["pct_p50"],
+        "pct_p50": round(blended, 1),
+        "pct_p10": round(lo, 1), "pct_p90": round(hi, 1),
+        "gwh_p50": round(blended * gw, 1),
+        "note": ("blend of observed days and the balance-of-month daily "
+                 "forecast; interval scaled by the share of the month "
+                 "still unobserved")}
+    # publish the conditioned value as THE current-month number
+    m0["pct_p50"], m0["pct_p10"], m0["pct_p90"] = (round(blended, 1),
+                                                   round(lo, 1), round(hi, 1))
+    m0["gwh_p50"] = round(blended * gw, 1)
+    # the GWh band must follow the tightened pct band, or the page shows a
+    # 13-point % interval beside a 59 GWh one derived from the old spread
+    m0["gwh_p10"] = round(lo * gw, 1)
+    m0["gwh_p90"] = round(hi * gw, 1)
+    m0["conditioned_on_observed"] = True
+    return fc_m
 
 
 def main() -> int:
@@ -455,6 +522,17 @@ def main() -> int:
                          "gwh_p95": round(float(np.percentile(full, 95)) * gw, 1),
                          "rain_only_sd": round(float(np.std(col)), 1),
                          "norm_gwh": round(d["norm_gwh"][doy], 1)})
+
+    # condition the CURRENT month on the days already observed before it is
+    # published anywhere - the unconditional monthly estimate is the right
+    # number on day 1 of a month and the wrong one on day 18
+    fc_m = condition_current_month(fc_m, days, d)
+    cc = fc_m.get("current_month_conditioned")
+    if cc:
+        print(f"  current month {cc['month']}: {cc['observed_days']} d observed "
+              f"@ {cc['observed_mean']:.1f}% + {cc['forecast_days']} d forecast "
+              f"@ {cc['forecast_mean']:.1f}% -> {cc['pct_p50']:.1f}% "
+              f"(unconditional was {cc['unconditional_p50']:.1f}%)", flush=True)
 
     out = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
            "series": f"{d['dates'][0]}..{d['dates'][-1]}",
