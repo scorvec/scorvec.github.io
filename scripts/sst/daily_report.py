@@ -1261,7 +1261,6 @@ def main() -> int:
         rain_fan_page(pdf, when)
         national_page(pdf, when)
         inflow_page(pdf, when)
-        storage_page(pdf, when)
         generation_page(pdf, when)
         price_page(pdf, when)
         d = pdf.infodict()

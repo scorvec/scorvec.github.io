@@ -94,7 +94,31 @@ def ema(x: np.ndarray, tau: float) -> np.ndarray:
     return lfilter([a], [1.0, -(1.0 - a)], np.nan_to_num(x))
 
 
-BASELINE_WIN = 0             # 0 = recession pulls toward a fixed 100.
+# 0 = the recession pulls toward a FIXED 100% of norm.
+#
+# This looks physically wrong and is worth defending, because it invites
+# exactly one obvious "fix". With no future rain the model floors near 86%
+# of norm - while early August 2026 actually ran at 62.5% - so the model
+# will not carry a drought down to where the catchments really sit, and its
+# attractor is climatology rather than the current state.
+#
+# The obvious repair is a trailing baseline. Tested 2026-08-19: a 90-day
+# window puts the attractor at 67.3%, which matches the observed drought
+# state, and it even looks better on pooled daily-delta r (0.666 -> 0.684).
+# Per basin that gain evaporates (best is ANTIOQUIA +0.005, p=0.09; three
+# basins go negative), and on MULTI-LEAD trajectory RMSE - the metric an
+# asymptote actually drives - it is clearly WORSE at every lead:
+#
+#     lead      1      3      5      7     10     15    mean
+#     win=0   18.1   24.4   26.9   28.3   29.1   28.8   26.98
+#     win=90  19.0   27.0   30.3   31.9   32.6   32.4   30.16   (+11.8%)
+#
+# A trailing mean is itself a noisy, lagging estimate; pulling toward it
+# injects that noise into every step of the recursion, while a fixed 100 is
+# a stable attractor. So the physically-odd choice wins on the numbers and
+# stays. The real cost is stated rather than hidden: in a sustained drought
+# this model will over-forecast recovery.
+BASELINE_WIN = 0
                              # >0 = toward a causal trailing mean of that
                              # many days.  Colombia's basins drift: VALLE
                              # +15.8%/decade (94->118 from 2000-08 to
