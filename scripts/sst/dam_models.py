@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -47,7 +48,13 @@ from matplotlib.path import Path as MplPath                  # noqa: E402
 
 REPO = HERE.parent.parent
 CATCH_GJ = REPO / "colombia_hydro" / "data" / "xm_river_catchments.geojson"
-APOR_CACHE = Path.home() / "colombia_hydro" / "raw" / "aporener_daily.json.gz"
+# Per-dam kernels fit rain against that dam's own inflow. AporEner mixes in
+# the downstream head, which steps when the fleet changes (Cauca Salvajina
+# x2.79 at Hidroituango) - a discontinuity in the very series the kernel is
+# regressing on. AporCaudal is the water alone.
+_VOL = os.environ.get("CO_INFLOW_METRIC", "AporEner") == "AporCaudal"
+APOR_CACHE = Path.home() / "colombia_hydro" / "raw" / (
+    "aporcaudal_daily.json.gz" if _VOL else "aporener_daily.json.gz")
 ENSO_JSON = REPO / "assets" / "sst" / "data" / "enso_daily.json"
 FAN_JSON = REPO / "colombia_hydro" / "data" / "inflow_forecast.json"
 OUT_PNG = REPO / "colombia_hydro" / "dam_models.webp"

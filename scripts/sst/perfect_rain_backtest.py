@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,7 +47,16 @@ import inflow_delta_model as M                                     # noqa: E402
 
 REPO = HERE.parent.parent
 PRIV = Path.home() / "colombia_hydro"
-INFLOW_JSON = REPO / "colombia_hydro" / "data" / "inflow_clim.json"
+# CO_INFLOW_METRIC=AporCaudal switches the whole stack to the VOLUME target.
+# AporEner is volume x downstream head, so it steps when the fleet changes -
+# Cauca Salvajina reads 79% of norm before Hidroituango and 221% after, on
+# water that fell 43%. Volume is what rain drives. Daily-delta skill is
+# unchanged either way (0.363 vs 0.365, p=0.66) because differencing removes
+# a level step; it is LEVELS - the published % of norm, the monthly outlook,
+# the national aggregate - that inherit the error.
+_VOL = os.environ.get("CO_INFLOW_METRIC", "AporEner") == "AporCaudal"
+INFLOW_JSON = (REPO / "colombia_hydro" / "data" /
+               ("inflow_clim_vol.json" if _VOL else "inflow_clim.json"))
 NINO_JSON = REPO / "assets" / "sst" / "data" / "nino_history.json"
 CACHE = PRIV / "raw" / "basin_rain_long.npz"
 OUT_JSON = PRIV / "out" / "perfect_rain_backtest.json"

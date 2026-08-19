@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -45,7 +46,15 @@ sys.path.insert(0, str(HERE))
 
 REPO = HERE.parent.parent
 PRIV = Path.home() / "colombia_hydro"
-INFLOW_JSON = REPO / "colombia_hydro" / "data" / "inflow_clim.json"
+# The split this module already implements is exactly what the volume
+# rebuild needs: model the ANOMALY, convert to GWh only at the end via the
+# current fleet's norm. So the anomaly source moves to volume (pure
+# hydrology, no turbines) while national_norm_gwh() stays on AporEner - it
+# is deliberately the CURRENT fleet's energy norm, which is what converts a
+# hydrological anomaly into today's generation potential.
+_VOL = os.environ.get("CO_INFLOW_METRIC", "AporEner") == "AporCaudal"
+INFLOW_JSON = (REPO / "colombia_hydro" / "data" /
+               ("inflow_clim_vol.json" if _VOL else "inflow_clim.json"))
 NINO_JSON = REPO / "assets" / "sst" / "data" / "nino_history.json"
 APOR = PRIV / "raw" / "aporener_daily.json.gz"
 OUT_JSON = PRIV / "out" / "national_inflow.json"
