@@ -704,15 +704,17 @@ def page_balmonth(pdf, uo):
     ax.legend(fontsize=8); ax.grid(lw=0.25, alpha=0.5); ax.tick_params(labelsize=8)
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
 
+    ex = lambda r, k: (f"{r['exceed'][k]*100:.0f}%" if r.get("exceed") else "--")
     rows = [[r["date"], f"+{r['lead']}", f"{r['p10']:.0f}", f"{r['p50']:.0f}",
-             f"{r['p90']:.0f}", f"{r['gwh_p50']:.0f}"] for r in D]
+             f"{r['p90']:.0f}", ex(r, "gt125"), ex(r, "gt150")] for r in D]
     half = (len(rows) + 1) // 2
     for i, chunk in enumerate((rows[:half], rows[half:])):
         if not chunk:
             continue
         axt = fig.add_axes([0.055 + i * 0.475, 0.06, 0.44, 0.37])
-        table(axt, chunk, ["date", "lead", "p10", "p50", "p90", "GWh/day\n(p50)"],
-              [.26, .12, .13, .13, .13, .20], fs=8.2, SCALE=1.35)
+        table(axt, chunk, ["date", "lead", "p10", "p50", "p90",
+                           "P(>125%)", "P(>150%)"],
+              [.23, .10, .12, .12, .12, .15, .15], fs=8.0, SCALE=1.35)
     # reconcile the two halves: month-to-date observed + this forecast for the
     # balance gives an implied monthly mean, which can be compared with what the
     # monthly model said from last month's state.

@@ -303,10 +303,18 @@ def main() -> int:
             full = np.clip(full, 0, None)
             doy = datetime.strptime(str(dt), "%Y-%m-%d").timetuple().tm_yday
             gw = d["norm_gwh"][doy] / 100.0
+            # EXCEEDANCE PROBABILITIES.  A p10/p50/p90 band hides the thing
+            # that matters on event days.  Seven days before the 2026-08-17
+            # spike the model already carried P(>150% of norm) = 10% while
+            # its median was ~103 and the observed 160.6 landed near p93 --
+            # inside the distribution, but invisible in the band.
             rows_d.append({"date": str(dt), "lead": j + 1,
                            "p10": round(float(np.percentile(full, 10)), 1),
                            "p50": round(float(np.percentile(full, 50)), 1),
                            "p90": round(float(np.percentile(full, 90)), 1),
+                           "p97": round(float(np.percentile(full, 97)), 1),
+                           "exceed": {f"gt{t}": round(float(np.mean(full > t)), 3)
+                                      for t in (100, 125, 150)},
                            "gwh_p50": round(float(np.percentile(full, 50)) * gw, 1)})
         daily = rows_d
     except Exception as e:                          # noqa: BLE001
