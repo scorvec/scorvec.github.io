@@ -310,8 +310,12 @@ def main() -> int:
                     m["days_unresolved"] = int(max(nres, 0))
                     m["fraction_open"] = round(frac_open, 3)
                     fused[name] = m["inflow_pct"]["p50"]
+    obs_recent = [{"date": str(dt), "pct": round(float(v), 1)}
+                  for dt, v in zip(d["dates"][-75:], d["pct"][-75:])
+                  if np.isfinite(v)]
     out = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
            "reconcile": reconcile, "fused_current_month": fused,
+           "observed_recent": obs_recent,
            "issue_month": issue, "oni_at_issue": round(r0["oni"], 2),
            "storage_anom": round(r0["stor_end"], 1),
            "enso_forecast_issue": ef_issue,

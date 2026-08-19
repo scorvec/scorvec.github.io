@@ -681,14 +681,26 @@ def page_balmonth(pdf, uo):
          f"issued {uo['generated']}")
     t = [datetime.strptime(r["date"], "%Y-%m-%d") for r in D]
     ax = fig.add_axes([0.055, 0.50, 0.915, 0.36])
+    O = uo.get("observed_recent") or []
+    if O:
+        to = [datetime.strptime(r["date"], "%Y-%m-%d") for r in O]
+        ax.plot(to, [r["pct"] for r in O], color="#111", lw=1.9, marker="o",
+                ms=2.6, label="observed", zorder=5)
+        # join the last observation to the first forecast so the eye follows
+        ax.plot([to[-1], t[0]], [O[-1]["pct"], D[0]["p50"]], color="#1f4e8c",
+                lw=1.4, ls=":", zorder=4)
+        ax.axvline(to[-1], color="0.55", lw=1.0, ls="--", zorder=1)
+        ax.text(to[-1], ax.get_ylim()[1], "  forecast from here", fontsize=7.4,
+                color="#5a6b7a", va="top", zorder=6)
     ax.fill_between(t, [r["p10"] for r in D], [r["p90"] for r in D],
                     color="#1f4e8c", alpha=0.20, lw=0, label="10–90%")
     ax.plot(t, [r["p50"] for r in D], color="#1f4e8c", lw=2.4, marker="o",
             ms=4, label="median")
     ax.axhline(100, color="0.5", lw=1.0, ls=":", label="normal")
     ax.set_ylabel("national inflow, % of norm", fontsize=9)
-    ax.set_title("Day by day — this is the horizon the rain forecast actually "
-                 "covers", fontsize=10.5, fontweight="bold", loc="left", color=INK)
+    ax.set_title("Day by day — observed history and the horizon the rain "
+                 "forecast actually covers", fontsize=10.5, fontweight="bold",
+                 loc="left", color=INK)
     ax.legend(fontsize=8); ax.grid(lw=0.25, alpha=0.5); ax.tick_params(labelsize=8)
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
 
@@ -706,10 +718,11 @@ def page_balmonth(pdf, uo):
     # monthly model said from last month's state.
     rec = uo.get("reconcile")
     if rec:
-        axr = fig.add_axes([0.055, 0.435, 0.915, 0.055]); axr.set_axis_off()
-        axr.text(0, 0.5, rec, fontsize=9.0, color=INK, va="center",
-                 transform=axr.transAxes,
-                 bbox=dict(facecolor="#fdf0e3", edgecolor="#c9d2dc", pad=6))
+        import textwrap
+        axr = fig.add_axes([0.055, 0.425, 0.915, 0.065]); axr.set_axis_off()
+        axr.text(0.005, 0.72, "\n".join(textwrap.wrap(rec, 128)), fontsize=8.6,
+                 color=INK, va="top", transform=axr.transAxes, linespacing=1.5,
+                 bbox=dict(facecolor="#fdf0e3", edgecolor="#c9d2dc", pad=5))
     foot(fig, "Zero rain-forecast assumption here: these are the days the "
               "ensemble genuinely covers. Beyond ~15 days the outlook hands over "
               "to the monthly model on page 1.")
