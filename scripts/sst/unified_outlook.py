@@ -250,7 +250,28 @@ def main() -> int:
     except Exception as e:                          # noqa: BLE001
         print(f"daily regime unavailable: {repr(e)[:110]}")
 
+    # ---- reconcile the daily and monthly halves for the current month ----
+    reconcile = None
+    if daily:
+        cm = str(d["dates"][-1])[:7]
+        mtd = [float(v) for dt, v in zip(d["dates"], d["pct"])
+               if str(dt)[:7] == cm and np.isfinite(v)]
+        fwd = [r["p50"] for r in daily if r["date"][:7] == cm]
+        if mtd and fwd:
+            implied = (sum(mtd) + sum(fwd)) / (len(mtd) + len(fwd))
+            m1 = next((m for m in variants["ONI_ISSUE"] if m["month"] == cm), None)
+            said = m1["inflow_pct"]["p50"] if m1 else None
+            reconcile = (
+                f"{cm}: {len(mtd)} days observed at {np.mean(mtd):.0f}% of norm, "
+                f"{len(fwd)} days forecast at {np.mean(fwd):.0f}%  \u2192  implied "
+                f"monthly mean {implied:.0f}%."
+                + (f"  The monthly model, issued from {issue} state, said "
+                   f"{said:.0f}% \u2014 it had not seen this month. Where they "
+                   f"disagree inside the ensemble horizon, trust the daily half."
+                   if said is not None else ""))
+            print("\n" + reconcile)
     out = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+           "reconcile": reconcile,
            "issue_month": issue, "oni_at_issue": round(r0["oni"], 2),
            "storage_anom": round(r0["stor_end"], 1),
            "enso_forecast_issue": ef_issue,

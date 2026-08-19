@@ -221,6 +221,174 @@ def page_method(pdf):
 
 
 # ── page 3: daily backtest ──────────────────────────────────────────────────
+def _box(ax, x, y, w, h, txt, fc, ec, fs=8.0, bold=False, tc="#1a2733"):
+    from matplotlib.patches import FancyBboxPatch
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.006",
+                                linewidth=1.1, facecolor=fc, edgecolor=ec,
+                                transform=ax.transAxes, zorder=2))
+    ax.text(x + w / 2, y + h / 2, txt, ha="center", va="center", fontsize=fs,
+            color=tc, transform=ax.transAxes, zorder=3,
+            fontweight="bold" if bold else None, linespacing=1.35)
+
+
+def _arrow(ax, x0, y0, x1, y1, style="-|>", lw=1.2, color="#5a6b7a"):
+    ax.annotate("", xy=(x1, y1), xytext=(x0, y0), xycoords=ax.transAxes,
+                textcoords=ax.transAxes, zorder=1,
+                arrowprops=dict(arrowstyle=style, lw=lw, color=color,
+                                shrinkA=1, shrinkB=1))
+
+
+def page_flow(pdf):
+    """How data becomes a forecast — one picture."""
+    fig = plt.figure(figsize=(W, H))
+    head(fig, "HOW A FORECAST IS BUILT",
+         "inputs on the left, the two model chains in the middle, deliverables "
+         "on the right")
+    ax = fig.add_axes([0, 0, 1, 0.925]); ax.set_axis_off()
+    IN, MID, OUT_, ACC = "#eaf1f8", "#e8f3ec", "#fdf0e3", "#f2f4f7"
+    EI, EM, EO = "#1f4e8c", "#1f7a4d", "#b35806"
+
+    ax.text(0.055, 0.955, "OBSERVED INPUTS", fontsize=8.6, fontweight="bold",
+            color=EI, transform=ax.transAxes)
+    obs = [("GPM IMERG\n0.1°, 2000→ (9,574 d)", 0.86),
+           ("IDEAM gauges\n549 stations, 2024→", 0.755),
+           ("XM AporEner\nper-river inflow energy", 0.65),
+           ("XM generation\nhydro & total, 2000→", 0.545),
+           ("Reservoir storage\n% full vs doy norm", 0.44),
+           ("ONI / RONI\nENSO state", 0.335)]
+    for t, y in obs:
+        _box(ax, 0.045, y, 0.185, 0.075, t, IN, EI, fs=7.6)
+
+    _box(ax, 0.275, 0.79, 0.175, 0.075,
+         "Gauge correction\n$F$ field (log-IDW)", ACC, EI, fs=7.8)
+    _box(ax, 0.275, 0.66, 0.175, 0.085,
+         "Energy-weighted\nbasin rain  $x_t$\n(anomaly vs clim)", ACC, EI,
+         fs=7.8, bold=True)
+    _box(ax, 0.275, 0.545, 0.175, 0.075,
+         "EMA kernels\n$K^{\\tau}_t,\\;K^{90}_t$", ACC, EI, fs=8.4)
+    for y0 in (0.895, 0.79):
+        _arrow(ax, 0.232, y0, 0.273, 0.83)
+    _arrow(ax, 0.362, 0.788, 0.362, 0.747)
+    _arrow(ax, 0.362, 0.658, 0.362, 0.621)
+
+    _box(ax, 0.50, 0.60, 0.215, 0.145,
+         "DAILY CHAIN\n\nlinear reservoir on\nthe CHANGE, timestepped\n"
+         "one day at a time\n\n$\\Delta y_t = f(z_t,\\,x_{t+1})$",
+         MID, EM, fs=8.2, bold=True)
+    _box(ax, 0.50, 0.33, 0.215, 0.145,
+         "SEASONAL CHAIN\n\nlog-space monthly model\non ENSO, storage and\n"
+         "antecedent wetness\n\n$\\log y_{t+L} = g(N_t,S_t,A_t)$",
+         MID, EM, fs=8.2, bold=True)
+    _box(ax, 0.50, 0.13, 0.215, 0.115,
+         "SHARE MODEL\n\nlogit share on inflow\nand last month's\nOBSERVED share",
+         MID, EM, fs=8.2, bold=True)
+    _arrow(ax, 0.452, 0.583, 0.497, 0.672)
+    _arrow(ax, 0.232, 0.478, 0.497, 0.44)
+    _arrow(ax, 0.232, 0.372, 0.497, 0.41)
+    _arrow(ax, 0.232, 0.583, 0.497, 0.20)
+    _arrow(ax, 0.607, 0.325, 0.607, 0.248)
+
+    _box(ax, 0.765, 0.735, 0.19, 0.10,
+         "AIFS + IFS ensemble\n~101 members\nbias-corrected", IN, EI, fs=7.8)
+    _arrow(ax, 0.762, 0.785, 0.718, 0.71)
+
+    _box(ax, 0.765, 0.575, 0.19, 0.105,
+         "Balance of month\nDAILY distribution\n(p10/p50/p90)", OUT_, EO,
+         fs=8.0, bold=True)
+    _box(ax, 0.765, 0.375, 0.19, 0.105,
+         "Months +1..+6\nmonthly distributions\n% of norm & GWh/day", OUT_, EO,
+         fs=8.0, bold=True)
+    _box(ax, 0.765, 0.16, 0.19, 0.10,
+         "Hydro share of\nnational generation", OUT_, EO, fs=8.0, bold=True)
+    _arrow(ax, 0.718, 0.66, 0.762, 0.627)
+    _arrow(ax, 0.718, 0.40, 0.762, 0.427)
+    _arrow(ax, 0.718, 0.19, 0.762, 0.21)
+    _arrow(ax, 0.86, 0.573, 0.86, 0.482, style="-|>", color="#b35806")
+    ax.text(0.868, 0.527, "hands over at ~15 d", fontsize=7.2, color="#b35806",
+            transform=ax.transAxes, va="center")
+
+    ax.text(0.055, 0.075, "Every arrow into a model box is data known AT ISSUE "
+            "TIME. The only forecast input is the rain ensemble; the seasonal "
+            "chain uses none at all.", fontsize=8.4, color=INK,
+            transform=ax.transAxes)
+    ax.text(0.055, 0.040, "Validation mirrors the flow: the daily chain is scored "
+            "against persistence, the seasonal chain against a climatological "
+            "distribution, and the share model against climatology.",
+            fontsize=8.4, color=INK, transform=ax.transAxes)
+    pdf.savefig(fig); plt.close(fig)
+
+
+def page_steps(pdf):
+    """Step by step: what goes in, what comes out."""
+    fig = plt.figure(figsize=(W, H))
+    head(fig, "STEP BY STEP — INPUTS, EQUATION, OUTPUT",
+         "each row is one transformation; symbols are defined on the "
+         "methodology page")
+    rows = [
+        ["1", "Correct the satellite",
+         "IMERG $P^{raw}$; 549 IDEAM gauges",
+         "$P_t = P^{raw}_t \\cdot F(\\mathbf{s})$",
+         "gauge-corrected daily rain"],
+        ["2", "Reduce to basins",
+         "corrected grid; river catchments; AporEner",
+         "$P^b_t=\\sum_{\\mathbf{s}} w_b(\\mathbf{s})P_t(\\mathbf{s})$",
+         "basin rain, energy-weighted"],
+        ["3", "Take the anomaly",
+         "basin rain; harmonic climatology",
+         "$x_t = P^b_t - \\bar{P}^b(\\mathrm{doy})$",
+         "rain anomaly, mm/day"],
+        ["4", "Build memory",
+         "rain anomaly; fitted $\\tau$",
+         "$K^{\\tau}_t=(1-\\frac{1}{\\tau})K^{\\tau}_{t-1}"
+         "+\\frac{1}{\\tau}x_t$",
+         "fast + slow kernel states"],
+        ["5", "Predict the daily CHANGE",
+         "$y_{t-1}$, $x$, $K^{\\tau}$, $K^{90}$, $N_t$, $S_{t-1}$",
+         "$\\Delta y_t=a+b_{rec}(y_{t-1}-\\bar{y})+\\ldots$",
+         "$\\Delta$ inflow, % of norm"],
+        ["6", "Timestep forward",
+         "state $z_t$; next day's rain (ensemble member)",
+         "$y_{t+1}=y_t+\\Delta y(z_t,x_{t+1})$",
+         "15-day path, per member"],
+        ["7", "Calibrate amplitude",
+         "raw path; $s_h,\\alpha_h$ from inner CV",
+         "$\\hat{y}_{t+h}=y_t+\\alpha_h+s_h(\\hat{y}^{raw}_{t+h}-y_t)$",
+         "calibrated path"],
+        ["8", "Make it a distribution",
+         "member paths; CV residuals by lead",
+         "$F_h=\\{\\hat{y}^{(m)}_{t+h}+\\epsilon^{(j)}_h\\}$",
+         "daily p10/p50/p90"],
+        ["9", "Beyond the weather",
+         "$N_t$, $S_t$, $A^{30}_t$, $A^{90}_t$",
+         "$\\log y_{t+L}=c_0+c_1N_t+\\ldots$",
+         "monthly distributions, +1..+6"],
+        ["10", "Aggregate to national",
+         "basin series; energy shares $w_b$",
+         "$y^{nat}=\\sum_b w_b\\,y^b$",
+         "national % of norm"],
+        ["11", "Convert to energy",
+         "% of norm; CURRENT fleet doy norm",
+         "$\\mathrm{GWh/d}=\\frac{y^{nat}}{100}\\cdot\\mathrm{Norm(doy)}$",
+         "inflow energy, GWh/day"],
+        ["12", "Hydro share",
+         "inflow draw; $S$; last month's observed share",
+         "$\\mathrm{logit}(sh)=d_0+d_1\\log\\frac{y}{100}+\\ldots$",
+         "hydro % of generation"],
+    ]
+    ax = fig.add_axes([0.03, 0.05, 0.94, 0.85])
+    t = table(ax, rows, ["#", "step", "inputs", "equation", "output"],
+              [.035, .20, .265, .285, .215], fs=8.2, SCALE=2.05)
+    for (r, c), cell in t.get_celld().items():
+        if c == 3 and r > 0:
+            cell.set_text_props(fontsize=9.2)
+        if c in (0, 1) and r > 0:
+            cell.set_text_props(fontweight="bold" if c == 0 else None)
+    foot(fig, "Steps 1-8 are the daily chain, 9 the seasonal chain, 10-12 shared. "
+              "Only step 6 consumes a forecast; everything else is observed at "
+              "issue time.")
+    pdf.savefig(fig); plt.close(fig)
+
+
 def page_daily(pdf, gal, gal1, db):
     fig = plt.figure(figsize=(W, H))
     o, o1 = gal["overall"], (gal1 or {}).get("overall", {})
@@ -501,6 +669,53 @@ def page_limits(pdf, uo, gal):
     pdf.savefig(fig); plt.close(fig)
 
 
+def page_balmonth(pdf, uo):
+    """Colombia daily inflow through the balance of the month."""
+    fig = plt.figure(figsize=(W, H))
+    D = uo.get("daily") or []
+    if not D:
+        return
+    head(fig, "COLOMBIA — BALANCE OF MONTH, DAILY",
+         "national inflow from the live AIFS+IFS ensemble, member by member, "
+         "convolved with the model's own per-lead residual",
+         f"issued {uo['generated']}")
+    t = [datetime.strptime(r["date"], "%Y-%m-%d") for r in D]
+    ax = fig.add_axes([0.055, 0.50, 0.915, 0.36])
+    ax.fill_between(t, [r["p10"] for r in D], [r["p90"] for r in D],
+                    color="#1f4e8c", alpha=0.20, lw=0, label="10–90%")
+    ax.plot(t, [r["p50"] for r in D], color="#1f4e8c", lw=2.4, marker="o",
+            ms=4, label="median")
+    ax.axhline(100, color="0.5", lw=1.0, ls=":", label="normal")
+    ax.set_ylabel("national inflow, % of norm", fontsize=9)
+    ax.set_title("Day by day — this is the horizon the rain forecast actually "
+                 "covers", fontsize=10.5, fontweight="bold", loc="left", color=INK)
+    ax.legend(fontsize=8); ax.grid(lw=0.25, alpha=0.5); ax.tick_params(labelsize=8)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
+
+    rows = [[r["date"], f"+{r['lead']}", f"{r['p10']:.0f}", f"{r['p50']:.0f}",
+             f"{r['p90']:.0f}", f"{r['gwh_p50']:.0f}"] for r in D]
+    half = (len(rows) + 1) // 2
+    for i, chunk in enumerate((rows[:half], rows[half:])):
+        if not chunk:
+            continue
+        axt = fig.add_axes([0.055 + i * 0.475, 0.06, 0.44, 0.37])
+        table(axt, chunk, ["date", "lead", "p10", "p50", "p90", "GWh/day\n(p50)"],
+              [.26, .12, .13, .13, .13, .20], fs=8.2, SCALE=1.35)
+    # reconcile the two halves: month-to-date observed + this forecast for the
+    # balance gives an implied monthly mean, which can be compared with what the
+    # monthly model said from last month's state.
+    rec = uo.get("reconcile")
+    if rec:
+        axr = fig.add_axes([0.055, 0.435, 0.915, 0.055]); axr.set_axis_off()
+        axr.text(0, 0.5, rec, fontsize=9.0, color=INK, va="center",
+                 transform=axr.transAxes,
+                 bbox=dict(facecolor="#fdf0e3", edgecolor="#c9d2dc", pad=6))
+    foot(fig, "Zero rain-forecast assumption here: these are the days the "
+              "ensemble genuinely covers. Beyond ~15 days the outlook hands over "
+              "to the monthly model on page 1.")
+    pdf.savefig(fig); plt.close(fig)
+
+
 def page_brazil(pdf, bs):
     """Brazil DJF heat — the demand-side counterpart to the inflow story."""
     import textwrap
@@ -574,6 +789,24 @@ def page_brazil(pdf, bs):
     pdf.savefig(fig); plt.close(fig)
 
 
+def page_brazil_map(pdf, bs):
+    """The gridded anomaly, so the pop-weighted number has a picture behind it."""
+    png = PRIV / "site" / "brazil_summer_map.webp"
+    if not png.exists():
+        return
+    import matplotlib.image as mpimg
+    fig = plt.figure(figsize=(W, H))
+    head(fig, f"BRAZIL — {bs.get('season_label','')} TEMPERATURE ANOMALY",
+         "C3S SEAS5 ensemble mean against its own 1993-2016 hindcast · marker "
+         "size = metro population")
+    ax = fig.add_axes([0.13, 0.02, 0.74, 0.90]); ax.set_axis_off()
+    ax.imshow(mpimg.imread(str(png)))
+    foot(fig, "The population-weighted number on the previous page is this field "
+              "sampled at the metros — the Amazon warms most, but few people live "
+              "there.")
+    pdf.savefig(fig); plt.close(fig)
+
+
 def main() -> int:
     uo = load("unified_outlook.json"); ol = load("outlook_2027.json")
     gal = load("scatter_galaxy_h10.json"); gal1 = load("scatter_galaxy_h1.json")
@@ -587,12 +820,17 @@ def main() -> int:
     with PdfPages(pdf_path) as pdf:
         page_outlook(pdf, uo, ol)
         page_method(pdf)
+        page_flow(pdf)
+        page_steps(pdf)
         page_daily(pdf, gal, gal1, db)
         page_events(pdf, db, sc)
         page_seasonal(pdf, si, cv)
         page_limits(pdf, uo, gal)
+        if uo.get("daily"):
+            page_balmonth(pdf, uo)
         if bs:
             page_brazil(pdf, bs)
+            page_brazil_map(pdf, bs)
         d = pdf.infodict()
         d["Title"] = "Colombia national inflow — outlook and validation"
         d["Author"] = "scorvec"
