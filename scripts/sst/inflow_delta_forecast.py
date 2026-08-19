@@ -52,12 +52,24 @@ QS = [5, 10, 25, 50, 75, 90, 95]
 
 
 def latest_cycles():
-    """Newest archived cycle per model."""
+    """Newest archived cycle per model, restricted to CO_MODELS.
+
+    The archive keeps every model ever pulled, so without this filter an
+    AIFS-only run still blends whatever IFS cycle happens to be on disk -
+    and silently, since the only trace is the `init` stamp in the output.
+    Reads the same CO_MODELS variable colombia_forecast.py uses so the two
+    stages cannot disagree about which ensembles are in play.
+    """
+    import os
+    models = tuple(m.strip() for m in
+                   os.environ.get("CO_MODELS", "aifs,ifs").split(",") if m.strip())
     best = {}
     for f in sorted(glob.glob(str(ARCH / "*.json.gz"))):
         with gzip.open(f, "rt") as fh:
             rec = json.load(fh)
         k = rec["model"]
+        if k not in models:
+            continue
         stamp = f"{rec['init_date']}{rec['init_hh']}"
         if k not in best or stamp > best[k][0]:
             best[k] = (stamp, rec)
