@@ -105,9 +105,14 @@ def panel(ax, X, Y, xlab, ylab, title, sub, colour, diag=True):
                  color=INK, pad=14)
     ax.text(0.0, 1.012, sub, transform=ax.transAxes, fontsize=8.5,
             color="#666", va="bottom")
-    ax.text(0.035, 0.955, f"r = {r:.3f}\nslope = {sl:.2f}\n"
+    # lower-right is reliably empty on a positively-sloped scatter, and it
+    # keeps the block off both the point cloud and the panel subtitle
+    ax.text(0.97, 0.05, f"r = {r:.3f}\nslope = {sl:.2f}\n"
             f"top-decile capture {100*capt:.0f}%", transform=ax.transAxes,
-            va="top", fontsize=9.5, fontweight="bold", color="#c0392b")
+            va="bottom", ha="right", fontsize=9.5, fontweight="bold",
+            color="#c0392b",
+            bbox=dict(fc="white", ec="#e0d0d0", boxstyle="round,pad=0.45",
+                      alpha=0.92))
     ax.grid(alpha=0.2)
     return r, sl, capt
 
@@ -123,8 +128,8 @@ def main(argv=None) -> int:
     F1, O1, A1 = pairs(d, h, 1)
     F3, O3, A3 = pairs(d, h, 3)
 
-    fig = plt.figure(figsize=(13.2, 10.4), facecolor="white")
-    hd = fig.add_axes([0, 0.948, 1, 0.052]); hd.set_axis_off()
+    fig = plt.figure(figsize=(13.2, 11.2), facecolor="white")
+    hd = fig.add_axes([0, 0.951, 1, 0.049]); hd.set_axis_off()
     hd.add_patch(plt.Rectangle((0, 0), 1, 1, transform=hd.transAxes,
                                facecolor=NAVY))
     hd.text(0.012, 0.62, f"3-DAY MEAN INFLOW — FORECAST vs OBSERVED, "
@@ -134,38 +139,43 @@ def main(argv=None) -> int:
             "smoothed with observed history exactly as the observed series is",
             transform=hd.transAxes, color="#b9c6d4", fontsize=8.8, va="center")
 
-    ax = fig.add_axes([0.075, 0.545, 0.38, 0.33])
+    ax = fig.add_axes([0.075, 0.585, 0.38, 0.31])
     panel(ax, F1, O1, "forecast (% of norm)", "observed (% of norm)",
           "A · Daily value — level", "what a desk reads, daily", "#7d8fa8")
-    ax2 = fig.add_axes([0.575, 0.545, 0.38, 0.33])
+    ax2 = fig.add_axes([0.575, 0.585, 0.38, 0.31])
     panel(ax2, F3, O3, "forecast 3-day mean", "observed 3-day mean",
           "B · 3-day mean — level", "tighter, but see the caution below",
           "#1f6fb4")
 
-    ax3 = fig.add_axes([0.075, 0.075, 0.38, 0.33])
+    ax3 = fig.add_axes([0.075, 0.165, 0.38, 0.31])
     panel(ax3, F1 - A1, O1 - A1, f"predicted change over {h} d",
           "actual change", "C · Daily value — change",
           "the honest test: zero = persistence", "#7d8fa8")
-    ax4 = fig.add_axes([0.575, 0.075, 0.38, 0.33])
+    ax4 = fig.add_axes([0.575, 0.165, 0.38, 0.31])
     r4, s4, c4 = panel(ax4, F3 - A3, O3 - A3, f"predicted change over {h} d",
                        "actual change", "D · 3-day mean — change",
                        "the comparison that matters", "#1f6fb4")
 
-    fig.text(0.075, 0.040,
-             "Averaging does what it should: top-decile capture rises 54% -> "
-             "60% on the change panels, while correlation barely moves "
-             "(0.745 -> 0.732). Day-to-day variation that was never "
-             "predictable drops out; the signal does not.",
-             fontsize=9.5, color="#444", fontweight="bold")
-    fig.text(0.075, 0.014,
-             "Note the LEVEL panels score WORSE than the change panels "
-             "(r 0.65 vs 0.75), not better. At a 10-day lead the "
-             "autocorrelation that usually flatters a level scatter has "
-             "already decayed, so knowing today buys little. Every slope is "
-             "below 1 — the model under-states the size of moves at both "
-             "framings, which is the amplitude limit seen elsewhere.",
-             fontsize=9.0, color="#666")
-    fig.savefig(OUT, dpi=112, facecolor="white", bbox_inches="tight")
+    # matplotlib does not wrap fig.text, so wrap explicitly rather than let
+    # a long line run off the canvas
+    import textwrap
+    lead_txt = textwrap.fill(
+        "Averaging does what it should: top-decile capture rises 54% to 60% "
+        "on the change panels, while correlation barely moves (0.745 to "
+        "0.732). Day-to-day variation that was never predictable drops out; "
+        "the signal does not.", 118)
+    note_txt = textwrap.fill(
+        "Note the LEVEL panels score WORSE than the change panels (r 0.65 vs "
+        "0.75), not better. At a 10-day lead the autocorrelation that usually "
+        "flatters a level scatter has already decayed, so knowing today buys "
+        "little. Every slope is below 1 - the model under-states the size of "
+        "moves in both framings, which is the amplitude limit documented "
+        "elsewhere.", 132)
+    fig.text(0.075, 0.085, lead_txt, fontsize=9.5, color="#444",
+             fontweight="bold", va="top")
+    fig.text(0.075, 0.043, note_txt, fontsize=9.0, color="#666", va="top")
+    fig.savefig(OUT, dpi=112, facecolor="white")   # no tight bbox:
+    # it crops to drawn content and clips the full-width header bar
     print(f"wrote {OUT}")
     for lab, (F, O, A) in (("daily", (F1, O1, A1)), ("3-day", (F3, O3, A3))):
         big = (O - A) > np.percentile(O - A, 90)
