@@ -108,22 +108,34 @@ def fetch_day(day, W, session, idx):
         return f"only {len(gr)} granules"
     dt = datetime.strptime(day, "%Y-%m-%d")
     doy = dt.timetuple().tm_yday
-    rows, stamps = [], []
+    rows, stamps, miss = [], [], 0
     for g in sorted(gr, key=lambda x: x.data_links()[0]):
         fn = g.data_links()[0].split("/")[-1]
         url = (BASE.format(y=dt.year, doy=doy, fn=fn) +
                f".dap.nc4?dap4.ce=/precipitation%5B0%5D"
                f"%5B{i0}:{i1 - 1}%5D%5B{j0}:{j1 - 1}%5D")
+        # GES DISC OPeNDAP returns 503 under sustained load — six workers
+        # times 48 granules per day is enough to trigger it, and the first
+        # run wrote only 26 of 217 days because of it. Exponential backoff
+        # on 503 specifically, and a hard stop so a throttled run gives up
+        # on the day rather than grinding.
         buf = None
-        for _ in range(3):
+        for attempt in range(5):
             try:
                 r = session.get(url, timeout=180)
                 if r.status_code == 200 and len(r.content) > 20_000:
                     buf = r.content
                     break
+                if r.status_code in (503, 429, 500):
+                    time.sleep(min(60, 4 * (2 ** attempt)))
+                    continue
+                break                                   # 4xx: no retry
             except Exception:                                      # noqa: BLE001
-                time.sleep(1.0)
+                time.sleep(4 * (attempt + 1))
         if buf is None:
+            miss += 1
+            if miss > 8:                                # server is unhappy
+                return f"abandoned after {miss} misses"
             continue
         with tempfile.NamedTemporaryFile(suffix=".nc4", delete=True) as f:
             f.write(buf); f.flush()
@@ -144,7 +156,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--events", type=int, default=200)
     ap.add_argument("--controls", type=int, default=200)
-    ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument("--workers", type=int, default=2)
     a = ap.parse_args()
     ev, ct, mag = pick_days(a.events, a.controls)
     days = ev + ct

@@ -236,6 +236,46 @@ def extract_cycle(model: str, date: str, hh: str) -> dict | None:
         out["rivers"] = {nm: np.round(
             (daily * w[None, None]).sum(axis=(2, 3)), 2).tolist()
             for nm, w in WC.items()}
+    # per-CATCHMENT rain, for the decomposed model.  A basin mean averages
+    # across disconnected catchments — CENTRO's SOGAMOSO and EL QUIMBO are
+    # ~600 km apart and their daily rain correlates 0.212 — which dilutes
+    # exactly the localised storms that cause spikes.  Decomposing lifts
+    # skill on top-decile rises by ~23%, but the model cannot run
+    # operationally without the forecast resolved the same way.  Only the
+    # DISTINCT shapes are stored: several rivers share one polygon, so
+    # nominal river count overstates the real spatial resolution.
+    try:
+        from catchment_rain import build_masks
+        key = ("CATCH", len(da.longitude), len(da.latitude))
+        if key not in _CATCH_W:
+            si2, sj2 = np.argsort(da.latitude.values), np.argsort(da.longitude.values)
+            W2, meta2 = build_masks(da.longitude.values[sj2],
+                                    da.latitude.values[si2], min_energy=0.3)
+            oi2, oj2 = np.argsort(si2), np.argsort(sj2)
+            seen, keep = {}, {}
+            for k2, w2 in W2.items():
+                g2 = w2.reshape(len(si2), len(sj2))[np.ix_(oi2, oj2)]
+                sig = g2.tobytes()
+                if sig in seen:                 # identical polygon: merge
+                    keep[seen[sig]]["rivers"].append(meta2[k2]["river"])
+                    keep[seen[sig]]["energy"] += meta2[k2]["energy_gwh"]
+                    continue
+                seen[sig] = k2
+                keep[k2] = {"w": g2, "rivers": [meta2[k2]["river"]],
+                            "region": meta2[k2]["region"],
+                            "energy": meta2[k2]["energy_gwh"]}
+            _CATCH_W[key] = keep
+        KC = _CATCH_W[key]
+        if KC:
+            out["catchments"] = {k2: np.round(
+                (daily * v["w"][None, None]).sum(axis=(2, 3)), 2).tolist()
+                for k2, v in KC.items()}
+            out["catchment_meta"] = {k2: {"rivers": v["rivers"],
+                                          "region": v["region"],
+                                          "energy_gwh": round(v["energy"], 3)}
+                                     for k2, v in KC.items()}
+    except Exception as e:                      # noqa: BLE001 — optional
+        print(f"  catchment footprints unavailable: {repr(e)[:70]}")
     return out
 
 
@@ -252,9 +292,10 @@ def stage_extract() -> int:
             if not REEXTRACT:
                 continue
             try:                                # upgrade cycles archived before
-                with gzip.open(dest, "rt") as fh:   # the energy footprint
-                    if "basins_energy" in json.load(fh):
-                        continue
+                with gzip.open(dest, "rt") as fh:   # a footprint was added
+                    old = json.load(fh)
+                if "basins_energy" in old and "catchments" in old:
+                    continue
             except Exception:                   # noqa: BLE001
                 continue
             print(f"  upgrading {dest.name} to dual footprint", flush=True)
