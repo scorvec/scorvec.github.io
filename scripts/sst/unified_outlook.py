@@ -250,7 +250,20 @@ def main() -> int:
     except Exception as e:                          # noqa: BLE001
         print(f"daily regime unavailable: {repr(e)[:110]}")
 
-    # ---- reconcile the daily and monthly halves for the current month ----
+    # ---- FUSE the daily and monthly halves for the current month ----
+    # The seam is not a missing-rain problem.  GEFS was ingested and
+    # verified for days 10-35 (gefs_verify.py): anomaly correlation against
+    # gauge-corrected IMERG is +0.10 at d10-15, +0.07 at d16-22 and +0.01 by
+    # d23-35, so subseasonal rain carries no usable day-to-day information
+    # past the AIFS horizon and cannot close the gap.
+    #
+    # What actually causes the disagreement is that the monthly model is
+    # issued from LAST month's state and never sees the month in progress.
+    # For the current month the answer is already largely determined: the
+    # observed days are known and the ensemble covers most of the rest.  So
+    # that month is replaced by the fused value - observed month-to-date plus
+    # the daily fan for the balance - with the residual monthly uncertainty
+    # scaled by the fraction of the month still unresolved.
     reconcile = None
     if daily:
         cm = str(d["dates"][-1])[:7]
@@ -270,8 +283,35 @@ def main() -> int:
                    f"disagree inside the ensemble horizon, trust the daily half."
                    if said is not None else ""))
             print("\n" + reconcile)
+    fused = {}
+    if daily:
+        cm = str(d["dates"][-1])[:7]
+        mtd = [float(v) for dt, v in zip(d["dates"], d["pct"])
+               if str(dt)[:7] == cm and np.isfinite(v)]
+        fwd = [r for r in daily if r["date"][:7] == cm]
+        if mtd and fwd:
+            import calendar
+            ndays = calendar.monthrange(int(cm[:4]), int(cm[5:7]))[1]
+            nres = ndays - len(mtd) - len(fwd)          # days still unresolved
+            frac_open = max(nres, 0) / ndays
+            for name, months in variants.items():
+                for m in months:
+                    if m["month"] != cm:
+                        continue
+                    for q, key in ((10, "p10"), (50, "p50"), (90, "p90")):
+                        fq = [r[key] for r in fwd]
+                        # unresolved days fall back to the monthly quantile
+                        tail = m["inflow_pct"][key] * nres
+                        m["inflow_pct"][key] = round(
+                            (sum(mtd) + sum(fq) + tail) / ndays, 1)
+                    m["fused_with_daily"] = True
+                    m["days_observed"] = len(mtd)
+                    m["days_from_ensemble"] = len(fwd)
+                    m["days_unresolved"] = int(max(nres, 0))
+                    m["fraction_open"] = round(frac_open, 3)
+                    fused[name] = m["inflow_pct"]["p50"]
     out = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-           "reconcile": reconcile,
+           "reconcile": reconcile, "fused_current_month": fused,
            "issue_month": issue, "oni_at_issue": round(r0["oni"], 2),
            "storage_anom": round(r0["stor_end"], 1),
            "enso_forecast_issue": ef_issue,
