@@ -175,9 +175,27 @@ def run_init(d, init, beta, sh, off, tau, lag, resid, resid_lev, factors, W):
         rows.append({"date": dates[i], "lead": j + 1,
                      "p10": float(np.percentile(full, 10)),
                      "p50": float(np.percentile(full, 50)),
-                     "p90": float(np.percentile(full, 90)),
-                     "rain_p50": float(np.median(nmem[:, j])) if j < nmem.shape[1] else None})
-    return {"init": init, "y0": float(y[i0]), "rows": rows,
+                     "p90": float(np.percentile(full, 90))})
+    # forecast rain per MODEL, keyed by valid date.  Pooling AIFS and IFS
+    # members into one median is misleading here: on 17 Aug AIFS carried
+    # 18.7 mm/day against 18.7 observed while IFS carried 8-11, so the
+    # pooled median understates what the better model actually said.
+    rainf = {}
+    for mdl, rec in cyc.items():
+        nm = None
+        for b in ORDER:
+            arr = np.array(_bas(rec, b), float)
+            Fb = []
+            for v in rec["valid"]:
+                L = int((np.datetime64(v) - np.datetime64(init)).astype(int)) + 1
+                bd = band_of(L)
+                Fb.append(factors.get(b, {}).get(str(bd), {}).get(mdl, 1.0)
+                          if bd is not None else 1.0)
+            c = arr * np.array(Fb)[None, :] * W[b]
+            nm = c if nm is None else nm + c
+        rainf[mdl] = {v: float(np.mean(nm[:, li]))
+                      for li, v in enumerate(rec["valid"])}
+    return {"init": init, "y0": float(y[i0]), "rows": rows, "rainf": rainf,
             "models": {m: f"{r['init_date']} {r['init_hh']}Z" for m, r in cyc.items()}}
 
 
@@ -237,13 +255,18 @@ def figure(d, runs, out_png):
         ax2.bar(to, [rain[i] for i in k], width=0.8, color="#9db8d8",
                 label="observed basin rain")
     for c, run in zip(cols, runs):
-        R = [r for r in run["rows"] if r.get("rain_p50") is not None]
-        if R:
-            t = [datetime.strptime(r["date"], "%Y-%m-%d") for r in R]
-            ax2.plot(t, [r["rain_p50"] for r in R], color=c, lw=1.5, ls="--",
-                     marker="s", ms=3, label=f"forecast rain, {run['init']}")
+        for mdl, ls, mk in (("aifs", "--", "s"), ("ifs", ":", "^")):
+            rf = (run.get("rainf") or {}).get(mdl)
+            if not rf:
+                continue
+            it = sorted(rf)
+            t = [datetime.strptime(v, "%Y-%m-%d") for v in it]
+            ax2.plot(t, [rf[v] for v in it], color=c, lw=1.4, ls=ls,
+                     marker=mk, ms=3,
+                     label=f"{mdl.upper()} {run['init'][5:]}")
     ax2.set_ylabel("mm/day", fontsize=9)
-    ax2.set_title("The rain that drove it — forecast vs observed",
+    ax2.set_title("The rain that drove it — AIFS (dashed) and IFS (dotted) "
+                  "vs observed",
                   fontsize=10, fontweight="bold", loc="left", color=INK)
     ax2.legend(fontsize=7.6, ncol=4); ax2.grid(lw=0.25, alpha=0.5)
     ax2.tick_params(labelsize=8)
@@ -263,9 +286,11 @@ def figure(d, runs, out_png):
              fontweight="bold", color="#1f7a4d", va="top")
     for i, ln in enumerate(lines):
         ax3.text(0.005, 0.68 - i * 0.24, "• " + ln, fontsize=9, color=INK, va="top")
-    fig.text(0.055, 0.008, "The fans rise well before the event and the rain "
-             "forecast is close to what fell — the shortfall is amplitude, "
-             "which is the cross-validated shrinkage behaving as fitted.",
+    fig.text(0.055, 0.008, "AIFS had 18.7 mm/day for 17 Aug from the 10 Aug "
+             "cycle, exactly what fell; IFS carried 8-11. So the rain signal "
+             "was there eight days out — the shortfall is the inflow "
+             "amplitude, which is the cross-validated shrinkage behaving as "
+             "fitted, plus the blend being pulled down by the drier model.",
              fontsize=7.8, color="#5a6b7a")
     out_png.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_png, dpi=118); plt.close(fig)
