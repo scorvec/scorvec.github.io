@@ -439,6 +439,44 @@ def stage_verify(dates, rain, rclim) -> dict:
 
 
 # ── stage 4: the fan ────────────────────────────────────────────────────────
+QMAP_JSON = PRIV / "data" / "rain_qmap.json"
+_QMAP = None
+
+
+def qmap_for(mdl: str, region: str, band: int):
+    """Stage-A quantile map for this model/region/lead-band, or None.
+
+    Falls back region -> POOLED -> None. None means the caller keeps the
+    scalar multiplicative bias factor, which is the current state: the
+    archive spans too few DISTINCT valid days for a quantile map to be
+    anything but noise (see rain_qmap.MIN_DAYS_A). This is deliberately a
+    self-opening gate - once enough cycles accumulate, rain_qmap.py starts
+    writing stage-A cells and the engine picks them up with no code change.
+    """
+    global _QMAP
+    if _QMAP is None:
+        try:
+            _QMAP = json.loads(QMAP_JSON.read_text()).get("stageA", {})
+        except Exception:
+            _QMAP = {}
+    for key in (f"{mdl}|{region}|{band}", f"{mdl}|POOLED|{band}"):
+        m = _QMAP.get(key)
+        if m:
+            return m
+    return None
+
+
+def qmap_apply(x: float, m: dict) -> float:
+    """Apply a stage-A map to one member-day. Above the top knot the
+    correction RATIO is held constant rather than extrapolated, so a
+    single sampled outlier cannot set the slope for every future extreme."""
+    sq = np.asarray(m["src_q"], float)
+    tq = np.asarray(m["tgt_q"], float)
+    if x > sq[-1] and sq[-1] > 0:
+        return float(x * (tq[-1] / sq[-1]))
+    return float(np.interp(x, sq, tq))
+
+
 def weighted_quantile(vals: np.ndarray, wts: np.ndarray, qs) -> np.ndarray:
     i = np.argsort(vals)
     v, w = vals[i], wts[i]
@@ -504,8 +542,15 @@ def stage_fan(dates, rain, rclim, verif) -> None:
                     lead = (d - np.datetime64(rec["init_date"][:4] + "-" +
                             rec["init_date"][4:6] + "-" + rec["init_date"][6:8])
                             ).astype(int)
-                    F = verif["bias_factors"][r][band_of(max(lead, 1))][mdl]
-                    x[di] = F * _bas(rec, r)[mi][li]
+                    bi_ = band_of(max(lead, 1))
+                    raw = _bas(rec, r)[mi][li]
+                    qm = qmap_for(mdl, r, bi_)
+                    if qm is not None:
+                        # distribution-matching correction: preserves the
+                        # heavy tail a scalar factor would flatten
+                        x[di] = qmap_apply(raw, qm)
+                    else:
+                        x[di] = verif["bias_factors"][r][bi_][mdl] * raw
                 tr[r] = x
             members.append(tr)
             # member weight: model blend weight (band-averaged) split over members

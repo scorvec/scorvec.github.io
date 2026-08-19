@@ -55,6 +55,15 @@ REGIONS = ["ANTIOQUIA", "CALDAS", "CARIBE", "CENTRO", "ORIENTE", "VALLE"]
 BANDS = [(1, 3), (4, 7), (8, 15)]
 NQ = 60                       # quantile knots
 MIN_N = 150                   # below this a mapping is not fitted
+# Stage A samples are ENSEMBLE MEMBERS, so a cell can show n=810 while its
+# truth side rests on 17 distinct dates. Members inform the FORECAST
+# distribution but carry no extra information about truth, and a 60-knot
+# map fitted on ~20 independent days is noise. Stage A is therefore gated
+# on DISTINCT VALID DAYS, not row count, and stays unfitted until the
+# archive is deep enough. As of 2026-08-19 the whole archive spans 24
+# distinct days, so nothing qualifies and the engine keeps its scalar
+# factors - the gate opens by itself as cycles accumulate.
+MIN_DAYS_A = 120              # distinct valid days required for a stage-A map
 
 
 def qmap_fit(src, tgt, nq=NQ):
@@ -114,8 +123,22 @@ def basin_gauge_imerg(min_gauges=8):
     return rows
 
 
-def model_imerg_pairs():
-    """[(valid, model, region, lead, fcst, imerg_truth)] from the archive."""
+def model_imerg_pairs(member_level=True):
+    """Distribution samples for stage A.
+
+    Returns [(valid, model, region, lead, value, imerg_truth)] where
+    `value` is an individual ENSEMBLE MEMBER, not the ensemble mean.
+
+    This matters and it is easy to get wrong. colombia_forecast.py applies
+    the correction to each member separately, so the mapping must be
+    fitted on the distribution it will actually be applied to. The pooled
+    member distribution of a well-calibrated ensemble should match the
+    climatological distribution of truth - that is what calibration
+    means - whereas the ensemble MEAN is narrower than truth by
+    construction. A map fitted on means and applied to members would
+    squeeze every member toward the mean and silently collapse ensemble
+    spread.
+    """
     ml, mt = IP._grid_axes()
     lons, lats = np.sort(IP._LON[ml]), np.sort(IP._LAT[mt])
     W = region_weights_energy(lons, lats, REGIONS)
@@ -143,14 +166,21 @@ def model_imerg_pairs():
         for rg, arr in be.items():
             a = np.asarray(arr, float)
             if a.size % n == 0 and a.size // n == len(valid):
-                a = a.reshape(n, -1).mean(0)
-            elif a.size != len(valid):
+                a = a.reshape(n, -1)            # (member, lead)
+            elif a.size == len(valid):
+                a = a.reshape(1, -1)
+            else:
                 continue
+            if not member_level:
+                a = a.mean(0, keepdims=True)
             for L, v in enumerate(valid):
-                o = obs(v)
-                if o is None or rg not in o or L < 1:
+                if L < 1:
                     continue
-                rows.append((v, mdl, rg, L, float(a[L]), o[rg]))
+                o = obs(v)
+                if o is None or rg not in o:
+                    continue
+                for mi in range(a.shape[0]):
+                    rows.append((v, mdl, rg, L, float(a[mi, L]), o[rg]))
     return rows
 
 
@@ -200,18 +230,27 @@ def main(argv=None):
         maps["stageB"][r] = {"src_q": sq, "tgt_q": tq, "n": len(sel)}
 
     # ---- stage A: model -> IMERG, per (model, region, band) ----
+    skipped = []
     for mdl in sorted({x[1] for x in ma}):
         for r in REGIONS + ["POOLED"]:
             for bi in range(len(BANDS)):
                 sel = [x for x in ma if x[1] == mdl and band_of(x[3]) == bi
                        and (r == "POOLED" or x[2] == r)]
-                if len(sel) < MIN_N:
+                ndays = len({x[0] for x in sel})
+                if len(sel) < MIN_N or ndays < MIN_DAYS_A:
+                    skipped.append((f"{mdl}|{r}|{bi}", len(sel), ndays))
                     continue
                 s = np.array([x[4] for x in sel])
                 t = np.array([x[5] for x in sel])
                 sq, tq = qmap_fit(s, t)
                 maps["stageA"][f"{mdl}|{r}|{bi}"] = {
-                    "src_q": sq, "tgt_q": tq, "n": len(sel)}
+                    "src_q": sq, "tgt_q": tq, "n": len(sel), "n_days": ndays}
+
+    if skipped:
+        worst = max(d for _, _, d in skipped)
+        print(f"  stage A: {len(skipped)} cells UNFITTED - deepest has "
+              f"{worst} distinct valid days against a {MIN_DAYS_A} floor.")
+        print("  The engine keeps its scalar bias factors until this clears.")
 
     if a.fit:
         OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
