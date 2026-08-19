@@ -213,6 +213,9 @@ def figure(out, ev):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--event", default="2015-08:2016-01")
+    ap.add_argument("--events", default="2015-08:2016-01,2009-08:2010-03,"
+                                        "2010-09:2011-04,2023-08:2024-03",
+                    help="comma-separated windows, all replayed")
     ap.add_argument("--baseline", type=int, default=365)
     ap.add_argument("--folds", type=int, default=12)
     a = ap.parse_args()
@@ -244,19 +247,26 @@ def main() -> int:
               "".join(f"{g(h):+8.3f}" if g(h) is not None else f"{'--':>8}"
                       for h in (1, 3, 7, 15)), flush=True)
 
-    a0, a1 = a.event.split(":")
-    print(f"\nEVENT REPLAY {a.event} — window + {EMBARGO} d embargo held out")
-    print(f"{'series':11}{'tau':>5}{'lag':>5}" +
-          "".join(f"{'h'+str(h):>9}" for h in (1, 3, 5, 7, 10, 15)))
-    for b in ["NATIONAL"] + ORDER:
-        R = replay(d, b, a0, a1)
-        if not R:
-            continue
-        out["event"][b] = R
-        g = lambda h: R["leads"].get(h, {}).get("skill_vs_persistence")
-        print(f"{b:11}{R['tau_days']:5d}{R['lag_days']:5d}" +
-              "".join(f"{g(h):+9.3f}" if g(h) is not None else f"{'--':>9}"
-                      for h in (1, 3, 5, 7, 10, 15)), flush=True)
+    out["events"] = {}
+    for ev in a.events.split(","):
+        a0, a1 = ev.split(":")
+        print(f"\nEVENT REPLAY {ev} — window + {EMBARGO} d embargo held out")
+        print(f"{'series':11}{'tau':>5}{'lag':>5}" +
+              "".join(f"{'h'+str(h):>9}" for h in (1, 3, 5, 7, 10, 15)))
+        out["events"][ev] = {}
+        for b in ["NATIONAL"] + ORDER:
+            R = replay(d, b, a0, a1)
+            if not R:
+                continue
+            if ev != a.event:
+                R.pop("traj", None)          # keep only the headline trajectory
+            out["events"][ev][b] = R
+            if ev == a.event:
+                out["event"][b] = R
+            g = lambda h: R["leads"].get(h, {}).get("skill_vs_persistence")
+            print(f"{b:11}{R['tau_days']:5d}{R['lag_days']:5d}" +
+                  "".join(f"{g(h):+9.3f}" if g(h) is not None else f"{'--':>9}"
+                          for h in (1, 3, 5, 7, 10, 15)), flush=True)
     out["event_window"] = a.event
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(json.dumps(out, indent=1))
