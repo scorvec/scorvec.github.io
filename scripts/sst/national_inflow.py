@@ -411,6 +411,19 @@ def monthly_forecast(d, bt):
 
 
 
+
+def _observed_monthly(d, n=24):
+    """Observed national monthly means, for drawing behind the outlook."""
+    import collections
+    agg = collections.defaultdict(list)
+    for dt, v in zip(d["dates"], d["pct"]):
+        if np.isfinite(v):
+            agg[str(dt)[:7]].append(float(v))
+    out = [{"month": k, "pct": round(float(np.mean(v)), 1), "days": len(v)}
+           for k, v in sorted(agg.items()) if len(v) >= 20]
+    return out[-n:]
+
+
 def condition_current_month(fc_m, daily_rows, d):
     """Replace the current month's UNCONDITIONAL estimate with one that uses
     the days already observed.
@@ -542,6 +555,16 @@ def main() -> int:
            "monthly_backtest": bt["leads"],
            "monthly_forecast": fc_m,
            "daily_balance_of_month": days,
+           # OBSERVED national history, emitted here rather than recomputed
+           # downstream: inflow_clim.json carries only the six REGIONS, so a
+           # consumer looking for "NATIONAL" finds nothing and silently draws
+           # an empty line - which is exactly how the daily briefing shipped
+           # a national page with no history on it.
+           "observed_daily": [
+               {"date": str(dt), "pct": round(float(v), 1)}
+               for dt, v in zip(d["dates"][-420:], d["pct"][-420:])
+               if np.isfinite(v)],
+           "observed_monthly": _observed_monthly(d),
            "showcase": {}}
     a0, a1 = a.showcase.split(":")
     rows = monthly_frame(d)
