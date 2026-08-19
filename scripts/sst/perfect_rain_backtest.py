@@ -201,8 +201,16 @@ def fwd(beta, off, sh, kf_h, ks_h, rain_h, roni, stor, tau, lag, i0, y0,
         if i >= n:
             break
         il = i - lag
-        f = [yp - 100.0, getk(rl, rain_h, il), getk(kf, kf_h, il),
-             getk(ks, ks_h, il), roni[i], stor[i]]
+        rl_i, kf_i = getk(rl, rain_h, il), getk(kf, kf_h, il)
+        f = [yp - 100.0, rl_i, kf_i, getk(ks, ks_h, il), roni[i], stor[i]]
+        # MUST mirror M.design/M.simulate exactly. fwd() is a fast
+        # re-implementation of the same feature vector, so any column added
+        # to the model has to be added here too - otherwise beta and f drift
+        # out of step and the dot product fails (or worse, silently
+        # mis-aligns if the lengths happen to match).
+        if M.USE_FLOW_INTERACTION:
+            w = (yp - 100.0) / 100.0
+            f += [rl_i * w, kf_i * w]
         if not np.all(np.isfinite(f)):
             break
         yp = float(np.clip(yp + beta[0] + np.dot(beta[1:], f), *M.CLIP))
