@@ -614,6 +614,8 @@ def inflow_page(pdf, when: datetime) -> None:
         m = [i for i, d in enumerate(rdates) if d >= t0]
         ax.plot([rdates[i] for i in m], obs[m], color="#c62828", lw=1.4,
                 label="observed")
+        obs_last_d = rdates[m[-1]] if m else None
+        obs_last_v = float(obs[m[-1]]) if m else None
         last_pct = None
         v = np.array(ic["recent"]["pct_of_norm"][r], float)
         v = v[v > 0]
@@ -630,8 +632,25 @@ def inflow_page(pdf, when: datetime) -> None:
             ax.fill_between(fd, np.array(q["p25"]) * nrm,
                             np.array(q["p75"]) * nrm, color="#e08214",
                             alpha=0.35, lw=0)
-            ax.plot(fd, np.array(q["p50"]) * nrm, color="#b35806", lw=1.6,
+            p50g = np.array(q["p50"]) * nrm
+            ax.plot(fd, p50g, color="#b35806", lw=1.6,
                     ls="--", label="ensemble forecast")
+            # BRIDGE the reporting lag. XM publishes inflows a day or two in
+            # arrears, so the observed line stops short of the fan and the two
+            # float apart with nothing joining them. Interpolate across the
+            # gap and mark it as estimated - the reader gets a continuous
+            # series without an estimate being passed off as a measurement.
+            if obs_last_d is not None and len(fd):
+                gap_d = (fd[0] - obs_last_d).days
+                if gap_d >= 1:
+                    bx = [obs_last_d + timedelta(days=j)
+                          for j in range(gap_d + 1)]
+                    by = np.linspace(obs_last_v, float(p50g[0]), len(bx))
+                    ax.plot(bx, by, color="#c62828", lw=1.3, ls=":", zorder=5)
+                    if gap_d >= 1:
+                        ax.plot(bx[1:], by[1:], marker="o", ms=3.0, lw=0,
+                                mfc="white", mec="#c62828", mew=1.0, zorder=6,
+                                label="estimated" if k == 0 else None)
         ttl = f"{r}"
         if last_pct is not None:
             ttl += f"   ·   now {last_pct:.0f}% of norm"
@@ -647,9 +666,10 @@ def inflow_page(pdf, when: datetime) -> None:
         ax.xaxis.set_minor_locator(mdates.DayLocator([10, 20]))
         if k == 0:
             ax.legend(fontsize=6.6, loc="upper left", framealpha=0.9)
-    footer(fig, note="orange fan: ~101 bias-corrected AIFS-ENS + IFS-ENS members "
-                     "through each basin's fitted memory-kernel model, anchored "
-                     "to observations · dotted line = today")
+    footer(fig, note="orange fan: bias-corrected ensemble members through each "
+                     "basin's fitted memory-kernel model, anchored to "
+                     "observations \u00b7 hollow red points are ESTIMATED, "
+                     "bridging XM's reporting lag \u00b7 dotted vertical = today")
     pdf.savefig(fig, dpi=200)
     plt.close(fig)
     print(f"  page {_PAGE[0]}: inflows vs norms + fans", flush=True)
