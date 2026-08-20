@@ -76,6 +76,34 @@
     </div>
   </div>
 
+  <!-- ── BEYOND ENSO: PDO / IOD / SOUTH ATLANTIC ───────────────────────── -->
+  <div class="card">
+    <h2>Beyond ENSO &mdash; daily PDO, Indian Ocean Dipole &amp; South Atlantic</h2>
+    <p class="note">The same daily-OISST machinery pointed at the other basins.
+    The <b style="color:#f2f4f8">PDO</b> is the leading pattern of North Pacific SST
+    variability &mdash; here as a <i>daily</i> index: each day's anomaly field (global-mean
+    removed) projected onto the ERSST-derived PDO pattern and calibrated to NCEI's
+    published monthly scale. The <b style="color:#e8c04d">Indian Ocean Dipole</b> is the
+    west-minus-east tropical Indian Ocean gradient (DMI); events beyond &plusmn;0.4&thinsp;&deg;C
+    shift Australian and East-African rainfall and often lean on ENSO. The
+    <b style="color:var(--aqua)">South Atlantic</b> set tracks the Atlantic Ni&ntilde;o (ATL3),
+    the Tropical South Atlantic index, and the subtropical dipole (SASD) &mdash; the modes that
+    steer Brazilian and West-African rainfall.</p>
+    <div class="img-wrap">
+      <img src="assets/sst/pdo_daily.webp?v=__CACHE__" alt="Daily Pacific Decadal Oscillation index with 31-day mean" loading="lazy">
+    </div>
+    <div class="img-wrap">
+      <img src="assets/sst/iod_daily.webp?v=__CACHE__" alt="Daily Indian Ocean Dipole: DMI and its west and east poles" loading="lazy">
+    </div>
+    <div class="img-wrap">
+      <img src="assets/sst/satl_daily.webp?v=__CACHE__" alt="Daily South Atlantic indices: Atlantic Niño ATL3, TSA and subtropical dipole SASD" loading="lazy">
+    </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA OISST v2.1 daily &middot; base 1991&ndash;2020 &middot; PDO pattern: ERSST v5 North Pacific EOF, calibrated to NCEI (r&thinsp;=&thinsp;0.96) &middot; DMI: Saji boxes &middot; SASD: Morioka poles</span>
+      <span class="chart-updated">__SST_DAY__</span>
+    </div>
+  </div>
+
   <!-- ── 90-DAY ANIMATIONS ─────────────────────────────────────────────── -->
   <div class="chart-card">
     <div class="chart-card-header">
@@ -184,17 +212,6 @@
     <iframe class="anim-embed samsat" src="sst_anim.html?embed=1&amp;manifest=samsat_manifest.json&amp;region=samsat"
             title="Seamless South &amp; Central America longwave-IR satellite loop from the GMGSI global mosaic" loading="lazy"></iframe>
     <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
-  </div>
-
-  <!-- TROPICAL SOUTH AMERICA GLM LIGHTNING FLASH-DENSITY LOOP -->
-  <div class="chart-card media-narrow">
-    <div class="chart-card-header">
-      <h2>Tropical South America: Lightning Flash Density</h2>
-      <p>Detected lightning over Colombia, Venezuela and Brazil from NOAA's <b>Geostationary Lightning Mapper (GLM)</b> on GOES-East. Each frame accumulates every flash over a selectable window (1, 3 or 24 hours, from the <i>Accumulation</i> dropdown), binned to a 0.1&deg; grid as a log-scaled density, looping the last 72&nbsp;hours.</p>
-    </div>
-    <iframe class="anim-embed glmden" src="sst_anim.html?embed=1&amp;manifest=glmden_manifest.json&amp;region=glm_3h"
-            title="GOES-East GLM lightning flash-density loop over tropical South America (1/3/24-hour accumulation)" loading="lazy"></iframe>
-    <div class="chart-card-footer"><span class="chart-sources">NOAA GOES-East GLM L2 (Geostationary Lightning Mapper) &middot; flashes binned to 0.1&deg; &middot; 1/3/24&nbsp;h accumulation &middot; hourly, rolling 72&nbsp;h</span></div>
   </div>
 
   <!-- IMERG PRECIPITATION ACCUMULATION LOOPS (NASA GPM) -->

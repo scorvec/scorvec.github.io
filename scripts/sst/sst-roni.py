@@ -79,6 +79,25 @@ NINO_REGIONS = {
     "nino12": dict(lat=(-10, 0), lon=(270, 280), label="Niño-1+2", color="#bf3d8d"),  # 90°W–80°W, magenta
 }
 
+# Beyond-ENSO daily climate modes (all boxes lat S->N, lon degE 0-360).
+# IOD (Saji et al. 1999): DMI = WTIO minus SETIO, event threshold ±0.4 °C.
+IOD_WEST = dict(lat=(-10, 10), lon=(50, 70))    # WTIO 50–70°E, 10°S–10°N
+IOD_EAST = dict(lat=(-10, 0), lon=(90, 110))    # SETIO 90–110°E, 10°S–0°
+# Atlantic Niño (Zebiak ATL3) and Tropical South Atlantic (Enfield TSA).
+ATL3 = dict(lat=(-3, 3), lon=(340, 360))        # 20°W–0°, 3°S–3°N
+TSA = dict(lat=(-20, 0), lon=[(330, 360), (0, 10)])   # 30°W–10°E, crosses 0°
+# South Atlantic Subtropical Dipole (Morioka et al. 2011): SW pole − NE pole.
+SASD_SW = dict(lat=(-40, -30), lon=(330, 350))  # 30–10°W, 40–30°S
+SASD_NE = dict(lat=(-25, -15), lon=(340, 360))  # 20°W–0°, 25–15°S
+GLOBAL_OCEAN = dict(lat=(-60, 60), lon=(0, 360))
+# PDO: daily OISST anomalies (global-mean removed) projected onto the ERSST v5
+# North Pacific EOF pattern, calibrated to NCEI's monthly index (see
+# build_pdo_pattern.py, which writes this file and prints the verification).
+PDO_PATTERN = HERE / "reference" / "pdo_pattern.nc"
+PDO_NP_LAT = (20, 70)
+PDO_NP_LON = (110, 260)
+MODES_DAYS = 456        # ~15 months of context on the mode charts
+
 # Map extents and projection centering. The OISST grid is 0-360 in lon;
 # we center both maps on the dateline (central_longitude=180) so the
 # Pacific (and the ENSO cold tongue) sits in the middle, uninterrupted.
@@ -628,6 +647,203 @@ def render_nino_region_series(a_ser, b_ser, out_path):
     print(f"  wrote {out_path.name}")
 
 
+# ----------------------------------------------------------------------
+# Beyond-ENSO daily modes: PDO projection, IOD, South Atlantic boxes
+# ----------------------------------------------------------------------
+def _multibox_anom_series(mean_da, la, lo, lat_rng, lon_ranges):
+    """box_anom_series for a box assembled from several lon ranges (boxes that
+    cross the 0° meridian, e.g. TSA 30°W–10°E). Same weighting and clim-box
+    identity as oisst9120.box_anom_series.
+
+    Each lon range is selected as a contiguous slice and loaded eagerly — a
+    single wrap-around mask would make the lazy netCDF backend fancy-index
+    nearly the whole lon axis, decompressing every chunk per row (hours).
+    """
+    def sel(da):
+        band = da.sel({la: slice(lat_rng[0], lat_rng[1])})
+        if band.sizes[la] == 0:                      # descending-lat file
+            band = da.sel({la: slice(lat_rng[1], lat_rng[0])})
+        return xr.concat([band.sel({lo: slice(l0, l1)}).load()
+                          for l0, l1 in lon_ranges], dim=lo)
+
+    box = sel(mean_da)
+    w = np.cos(np.deg2rad(box[la]))
+    absser = box.weighted(w).mean(dim=(la, lo), skipna=True).to_series()
+    cbox = sel(oisst9120.ltm())
+    cw = np.cos(np.deg2rad(cbox[la]))
+    clim = np.asarray(cbox.weighted(cw).mean(dim=(la, lo), skipna=True).values,
+                      dtype="float64")
+    cidx = oisst9120.clim_indices(absser.index)
+    return absser - pd.Series(clim[cidx], index=absser.index)
+
+
+def _concat_box_series(mean_fields, la, lo, box):
+    """Daily box anomaly series across the loaded year files (wrap-aware)."""
+    parts = []
+    for f in mean_fields:
+        if isinstance(box["lon"], list):
+            parts.append(_multibox_anom_series(f, la, lo, box["lat"], box["lon"]))
+        else:
+            parts.append(oisst9120.box_anom_series(f, la, lo, box["lat"], box["lon"]))
+    return pd.concat(parts).sort_index()
+
+
+def daily_pdo_series(mean_fields, la, lo):
+    """Daily PDO: project daily OISST anomalies onto the ERSST-derived North
+    Pacific EOF pattern (reference/pdo_pattern.nc), on NCEI's index scale.
+
+    Global-mean removal folds in linearly — proj(a − g·1) = proj(a) − g·proj_one
+    — so only the North Pacific needs gridded anomalies; the global mean comes
+    from the cheap box-series helper.
+    """
+    pat = xr.open_dataset(PDO_PATTERN)
+    eof = pat["eof"]
+    w = np.cos(np.deg2rad(eof["lat"]))
+    den_full = float(((eof ** 2) * w).sum(("lat", "lon"), skipna=True))
+    slope = float(pat.attrs["calib_slope"])
+    intercept = float(pat.attrs["calib_intercept"])
+    proj_one = float(pat.attrs["proj_one"])
+
+    ltm_np = oisst9120.ltm().sel({la: slice(*PDO_NP_LAT), lo: slice(*PDO_NP_LON)}).load()
+    proj_parts, g_parts = [], []
+    for f in mean_fields:
+        np_abs = f.sel({la: slice(*PDO_NP_LAT), lo: slice(*PDO_NP_LON)})
+        nt = np_abs.sizes["time"]
+        for i0 in range(0, nt, 60):                    # bounded memory per chunk
+            chunk = np_abs.isel(time=slice(i0, i0 + 60)).load()
+            cidx = oisst9120.clim_indices(chunk["time"].values)
+            clim = (ltm_np.isel(time=xr.DataArray(cidx, dims="time"))
+                    .assign_coords(time=chunk["time"].values))
+            a = (chunk - clim).interp({la: eof["lat"].values,
+                                       lo: eof["lon"].values}, method="linear")
+            num = (a * eof * w).sum((la, lo), skipna=True)
+            den = ((eof ** 2) * w).where(a.notnull()).sum((la, lo))
+            proj_parts.append((num / den.where(den > 0.5 * den_full)).to_series())
+        g_parts.append(oisst9120.box_anom_series(
+            f, la, lo, GLOBAL_OCEAN["lat"], GLOBAL_OCEAN["lon"]))
+    proj = pd.concat(proj_parts).sort_index()
+    g = pd.concat(g_parts).sort_index()
+    return (proj - g * proj_one) * slope + intercept
+
+
+def _style_mode_axes(ax, t):
+    ax.axhline(0, color="#333", lw=0.8)
+    ax.grid(axis="y", alpha=0.2)
+    ax.margins(x=0.01)
+    ax.set_xlim(t[0], t[-1])
+
+
+_MODE_FOOTNOTE_KW = dict(fontsize=7, color="#888")
+_MODE_SAVE_KW = dict(dpi=100, facecolor="white", edgecolor="none",
+                     bbox_inches="tight", pad_inches=0.1,
+                     pil_kwargs={"quality": 85, "method": 6})
+
+
+def render_pdo_daily(pdo, out_path):
+    """Daily PDO with a 31-day centered mean, coloured by phase."""
+    t = pd.to_datetime(pdo.index)
+    sm = pdo.rolling(31, center=True, min_periods=16).mean()
+
+    fig, ax = plt.subplots(figsize=(12, 4.2), dpi=100)
+    ax.fill_between(t, pdo.values, 0, where=pdo.values >= 0,
+                    color="#d9402a", alpha=0.25, lw=0)
+    ax.fill_between(t, pdo.values, 0, where=pdo.values < 0,
+                    color="#2b6fd6", alpha=0.25, lw=0)
+    ax.plot(t, pdo.values, color="#555", lw=0.7, alpha=0.8, label="daily")
+    ax.plot(t, sm.values, color="#141414", lw=2.0, label="31-day mean")
+    _style_mode_axes(ax, t)
+    ax.set_ylabel("PDO index", fontsize=11)
+    span = f"{t[0]:%b %Y} – {t[-1]:%b %d, %Y}"
+    ax.set_title(f"Daily Pacific Decadal Oscillation — {span}",
+                 fontsize=11, loc="left", pad=8)
+    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=2)
+    ax.text(0.995, 0.04, f"latest daily {pdo.iloc[-1]:+.2f}   "
+            f"31-day {sm.dropna().iloc[-1]:+.2f}",
+            transform=ax.transAxes, fontsize=8, va="bottom", ha="right",
+            family="monospace",
+            bbox=dict(boxstyle="round,pad=0.35", facecolor="white",
+                      edgecolor="#bbb", alpha=0.85))
+    fig.autofmt_xdate()
+    fig.text(0.005, 0.005,
+             "Daily OISST v2.1 anomalies (global-mean removed) projected onto the "
+             "ERSST v5 North Pacific EOF pattern, calibrated to NCEI's monthly PDO "
+             "(r=0.96, 1950–present). Daily values are noisier than the published "
+             "monthly index.", **_MODE_FOOTNOTE_KW)
+    fig.savefig(out_path, **_MODE_SAVE_KW)
+    plt.close(fig)
+    print(f"  wrote {out_path.name}")
+
+
+def render_iod_daily(w_ser, e_ser, out_path):
+    """Indian Ocean Dipole: DMI and its two poles."""
+    dmi = w_ser - e_ser
+    t = pd.to_datetime(dmi.index)
+
+    fig, ax = plt.subplots(figsize=(12, 4.2), dpi=100)
+    ax.plot(t, w_ser.values, color="#e67e22", lw=1.4,
+            label="West pole (50–70°E, 10°S–10°N)")
+    ax.plot(t, e_ser.values, color="#0e8a80", lw=1.4,
+            label="East pole (90–110°E, 10°S–0°)")
+    ax.plot(t, dmi.values, color="#141414", lw=2.0, label="DMI = West − East")
+    for y in (0.4, -0.4):
+        ax.axhline(y, color="#888", lw=0.8, ls="--", alpha=0.6)
+    _style_mode_axes(ax, t)
+    ax.set_ylabel("SST anomaly (°C)", fontsize=11)
+    span = f"{t[0]:%b %Y} – {t[-1]:%b %d, %Y}"
+    ax.set_title(f"Daily Indian Ocean Dipole — {span}",
+                 fontsize=11, loc="left", pad=8)
+    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3)
+    ax.text(0.995, 0.04, f"latest DMI {dmi.iloc[-1]:+.2f} °C",
+            transform=ax.transAxes, fontsize=8, va="bottom", ha="right",
+            family="monospace",
+            bbox=dict(boxstyle="round,pad=0.35", facecolor="white",
+                      edgecolor="#bbb", alpha=0.85))
+    fig.autofmt_xdate()
+    fig.text(0.005, 0.005,
+             "Daily cosine-weighted box means from NOAA OISST v2.1 (anomalies vs "
+             "1991–2020) · Saji DMI · ±0.4 °C dashed = BOM "
+             "event threshold · daily values are noisier than weekly/monthly DMI.",
+             **_MODE_FOOTNOTE_KW)
+    fig.savefig(out_path, **_MODE_SAVE_KW)
+    plt.close(fig)
+    print(f"  wrote {out_path.name}")
+
+
+def render_satl_daily(atl3, tsa, sasd, out_path):
+    """South Atlantic: Atlantic Niño (ATL3), TSA, and the subtropical dipole."""
+    t = pd.to_datetime(atl3.index)
+
+    fig, ax = plt.subplots(figsize=(12, 4.2), dpi=100)
+    ax.plot(t, atl3.values, color="#bf3d8d", lw=1.6,
+            label="Atlantic Niño ATL3 (20°W–0°, 3°S–3°N)")
+    ax.plot(t, tsa.values, color="#2a8a4a", lw=1.6,
+            label="Tropical South Atlantic (30°W–10°E, 20°S–0°)")
+    ax.plot(t, sasd.values, color="#2b6fd6", lw=1.6,
+            label="Subtropical dipole SASD (SW − NE pole)")
+    _style_mode_axes(ax, t)
+    ax.set_ylabel("SST anomaly (°C)", fontsize=11)
+    span = f"{t[0]:%b %Y} – {t[-1]:%b %d, %Y}"
+    ax.set_title(f"Daily South Atlantic Indices — {span}",
+                 fontsize=11, loc="left", pad=8)
+    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3)
+    readout = (f"latest  ATL3 {atl3.iloc[-1]:+.2f}   TSA {tsa.iloc[-1]:+.2f}   "
+               f"SASD {sasd.iloc[-1]:+.2f}  °C")
+    ax.text(0.995, 0.04, readout,
+            transform=ax.transAxes, fontsize=8, va="bottom", ha="right",
+            family="monospace",
+            bbox=dict(boxstyle="round,pad=0.35", facecolor="white",
+                      edgecolor="#bbb", alpha=0.85))
+    fig.autofmt_xdate()
+    fig.text(0.005, 0.005,
+             "Daily cosine-weighted box means from NOAA OISST v2.1 (anomalies vs "
+             "1991–2020) · SASD = SW pole (30–10°W, 40–30°S) "
+             "− NE pole (20°W–0°, 25–15°S), "
+             "Morioka et al. convention.", **_MODE_FOOTNOTE_KW)
+    fig.savefig(out_path, **_MODE_SAVE_KW)
+    plt.close(fig)
+    print(f"  wrote {out_path.name}")
+
+
 # CPC overlapping-season labels for the centered 3-month mean, indexed by centre month (1=Jan).
 SEASONS = ["DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ", "JJA", "JAS", "ASO", "SON", "OND", "NDJ"]
 
@@ -911,6 +1127,22 @@ def main(argv=None) -> int:
                                          TROPICAL["lat"], TROPICAL["lon"])
     render_daily_three_metrics(n34_ytd, trop_ytd, ASSETS / "daily_indices.webp")
 
+    # --- Beyond-ENSO daily modes: PDO, IOD, South Atlantic (~15-month window) ---
+    print("Beyond-ENSO daily modes (PDO / IOD / South Atlantic):")
+    pdo = daily_pdo_series(mean_fields, la, lo).tail(MODES_DAYS)
+    render_pdo_daily(pdo, ASSETS / "pdo_daily.webp")
+    iod_w = _concat_box_series(mean_fields, la, lo, IOD_WEST).tail(MODES_DAYS)
+    iod_e = _concat_box_series(mean_fields, la, lo, IOD_EAST).tail(MODES_DAYS)
+    render_iod_daily(iod_w, iod_e, ASSETS / "iod_daily.webp")
+    atl3 = _concat_box_series(mean_fields, la, lo, ATL3).tail(MODES_DAYS)
+    tsa = _concat_box_series(mean_fields, la, lo, TSA).tail(MODES_DAYS)
+    sasd = (_concat_box_series(mean_fields, la, lo, SASD_SW)
+            - _concat_box_series(mean_fields, la, lo, SASD_NE)).tail(MODES_DAYS)
+    render_satl_daily(atl3, tsa, sasd, ASSETS / "satl_daily.webp")
+    dmi = iod_w - iod_e
+    print(f"  daily PDO {pdo.iloc[-1]:+.2f}, DMI {dmi.iloc[-1]:+.2f} degC, "
+          f"ATL3 {atl3.iloc[-1]:+.2f} degC")
+
     # --- Ni\u00f1o-region recent series: absolute SST + anomaly, all four boxes ---
     print("Ni\u00f1o-region recent series (absolute + anomaly):")
     reg_win = full_abs.isel(time=slice(-120, None))
@@ -957,6 +1189,9 @@ def main(argv=None) -> int:
         "daily_tropical_anom": round(day_trop, 3),
         "daily_relative": round(day_rel, 3),      # raw Niño-3.4 − tropical-mean (unscaled)
         "daily_roni": round(day_roni, 3),         # × σ-scale — matches the map/frame labels
+        "daily_pdo": round(float(pdo.iloc[-1]), 3),
+        "daily_dmi": round(float(dmi.iloc[-1]), 3),
+        "daily_atl3": round(float(atl3.iloc[-1]), 3),
         "anim_days": ANIM_DAYS,
         "files": {
             "global": "global_sst_anom.webp",
@@ -964,6 +1199,9 @@ def main(argv=None) -> int:
             "roni": "roni.webp",
             "daily_indices": "daily_indices.webp",
             "nino_regions": "nino_regions.webp",
+            "pdo": "pdo_daily.webp",
+            "iod": "iod_daily.webp",
+            "satl": "satl_daily.webp",
         },
     }
     (ASSETS / "manifest.json").write_text(json.dumps(manifest, indent=2))
