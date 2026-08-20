@@ -96,11 +96,19 @@ perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/brazil_forecast.py || e
 "$PY" scripts/sst/argentina_gas_outlook.py || echo "Argentina gas outlook failed; continuing"   # 14-d gas vs normal
 ( cd "$HOME/argentina_energy" && git add -A raw out site 2>/dev/null && git commit -q -m "data: daily snapshot $(date -u +%F)" 2>/dev/null && git push -q ) || true
 "$PY" scripts/sst/dam_models.py || echo "Dam models failed; continuing"   # per-dam catchment kernels + states (draws dam fans)
+# ---- Colombia hydro configuration, EXPORTED so every stage shares it ----
+# These were per-line prefixes and it went wrong immediately: only
+# colombia_forecast.py carried CO_MODELS, so on 2026-08-20 the engine
+# produced an AIFS-only fan (51 members) while inflow_delta_forecast.py and
+# national_inflow.py silently blended AIFS+IFS (101 members) off the same
+# archive. Export once; a stage added later inherits it by default.
+#
 # CO_MODELS=aifs: day-1 verification vs gauge-corrected IMERG has AIFS ahead
 # of IFS on MAE and bias ratio in ALL SIX basins (ANTIOQUIA 1.87 vs 3.02 mm,
 # bias 1.09 vs 1.61), and IFS lands later so AIFS-only can use 12Z while IFS
-# still has 00Z. Unset CO_MODELS to restore the two-model blend.
-CO_MODELS=aifs perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS rain -> inflow + storage fans (rides MJO tp GRIBs)
+# still has 00Z. Unset to restore the two-model blend.
+export CO_MODELS=aifs
+perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS rain -> inflow + storage fans (rides MJO tp GRIBs)
 "$PY" scripts/sst/xm_inflow_history.py || echo "XM inflow norms failed; continuing"   # inflow history + seasonal norms (draws the fan)
 "$PY" scripts/sst/colombia_rain_map.py || echo "Colombia rain map failed; continuing"   # IMERG vs IDEAM gauges
 "$PY" scripts/sst/ideam_gauges_hourly.py --days 10 || echo "Hourly gauges failed; continuing"   # 10-min gauge feed -> hourly archive (sub-daily verification)
