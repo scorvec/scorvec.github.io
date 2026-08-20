@@ -1,7 +1,11 @@
 /* lightbox.css — responsive images + click-to-enlarge overlay (pairs with lightbox.js)
    Usage: <link rel="stylesheet" href="/assets/lightbox.css"><script src="/assets/lightbox.js" defer></script>
    Auto-attaches to figure img, main img, .zoomable img, img[data-zoom]; opt out with data-nozoom. */
-img.lb-target{max-width:100%;height:auto;cursor:zoom-in}
+/* Content images always fit the monitor: never upscaled past native size, never
+   wider than their container, never taller than the viewport. Full size lives in
+   the overlay. Pages can override per-image with a more specific rule. */
+figure img,main img{max-width:100%;height:auto}
+img.lb-target{display:block;width:auto;height:auto;max-width:100%;max-height:88vh;margin-left:auto;margin-right:auto;cursor:zoom-in}
 .lb-overlay{position:fixed;inset:0;background:rgba(10,14,17,.92);z-index:9999;display:flex;
   align-items:center;justify-content:center;opacity:0;transition:opacity .18s ease;touch-action:none}
 .lb-overlay.lb-open{opacity:1}

@@ -91,7 +91,7 @@ function open(i){
   pic.src=im.currentSrc||im.src;
   cap.textContent=caption(im);
   document.body.style.overflow='hidden';
-  ov.style.display='flex'; requestAnimationFrame(function(){ov.classList.add('lb-open');});
+  ov.style.display='flex'; void ov.offsetHeight; ov.classList.add('lb-open');
   if(pic.complete) fit(); else pic.onload=fit;
 }
 function nav(d){

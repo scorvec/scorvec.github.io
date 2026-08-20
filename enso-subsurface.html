@@ -141,7 +141,7 @@
 
   .img-wrap { padding: 1rem 1.2rem; background: #fff; }
   .img-wrap + .img-wrap { padding-top: 0; }
-  .img-wrap img { display: block; width: 100%; height: auto; }
+  .img-wrap img { display: block; width: auto; max-width: 100%; max-height: 88vh; height: auto; margin: 0 auto; }
   /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
      sized to its exact content height via postMessage (see footer.html / sst_anim.html),
      which fills the card with no letterboxing at any width. */
