@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-20T13:10Z",
+  "updated": "2026-08-20T18:58Z",
   "stations": {
     "NGTA": {
       "name": "Tarawa",
@@ -14,7 +14,7 @@
       "name": "Christmas Is.",
       "lat": 2.0,
       "lon": -157.5,
-      "time": "2026-08-20T12:00Z",
+      "time": "2026-08-20T16:00Z",
       "dir": 0,
       "spd_kt": 0,
       "u_ms": -0.0
