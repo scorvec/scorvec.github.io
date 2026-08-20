@@ -89,9 +89,14 @@
     .frame-date { font-size: 0.7rem; }
     .controls { gap: 0.45rem; }
   }
-  /* embedded in a card iframe: the image fills the width at its natural aspect
-     and the parent sizes the iframe to image + controls via postMessage
-     (postHeight()), so there is never letterboxing at any viewport width. */
+  /* embedded in a card iframe: the parent sizes the iframe to image + controls
+     via postMessage (postHeight()), so there is never letterboxing at any
+     viewport width. The frame renders at most at native resolution and at most
+     88% of the top window's height (capHeight()) so the whole animation always
+     fits the monitor, like the site's still images. */
+  body.embed .frame-wrap:not(.panwide) img {
+    width: auto; max-width: 100%; height: auto; margin: 0 auto;
+  }
   body.embed {
     padding: 0; gap: 0; min-height: 0; overflow: hidden;
     justify-content: flex-start; background: var(--page);
@@ -157,8 +162,19 @@ const loadingEl = $("loading");
 // When embedded in a card iframe, tell the parent our exact content height so it can
 // size the iframe to the image + controls (no letterboxing). Fires on every frame
 // load and on resize (width change → image height changes since it scales to width).
+function capHeight() {
+  // keep image + controls within the top window's viewport (same-origin embed);
+  // panwide mode has its own CSS height cap — an inline max-height would override it
+  try {
+    const wrap = imgEl.closest(".frame-wrap");
+    if (wrap && wrap.classList.contains("panwide")) { imgEl.style.maxHeight = ""; return; }
+    const ch = document.querySelector(".controls").offsetHeight || 0;
+    imgEl.style.maxHeight = Math.max(240, Math.round(window.top.innerHeight * 0.88 - ch)) + "px";
+  } catch (e) {}
+}
 function postHeight() {
   if (!document.body.classList.contains("embed")) return;
+  capHeight();
   const h = Math.ceil(document.body.getBoundingClientRect().height);
   if (h > 0) parent.postMessage({ type: "sstAnimHeight", h }, "*");
 }
