@@ -119,3 +119,4 @@ colombia_hydro
 brazil_hydro
 scripts/sst/.run.lock/
 scripts/sst/data/region_weights_energy.npz
+scripts/verify/launchd_aifs.log
