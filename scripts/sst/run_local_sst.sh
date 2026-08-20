@@ -84,6 +84,10 @@ perl -e 'alarm shift; exec @ARGV' 3600 "$PY" scripts/sst/imerg_gatun.py || echo 
 "$PY" scripts/sst/brazil_gauges.py || echo "Brazil gauges failed; continuing"   # INMET day cache (monthly zip refresh)
 "$PY" scripts/sst/brazil_correction.py || echo "Brazil correction failed; continuing"   # gauge-corrected IMERG field + bias figs
 "$PY" scripts/sst/brazil_model.py || echo "Brazil models failed; continuing"   # rain->ENA kernels (draws fans)
+# INPE/CPTEC MERGE: gauge-anchored daily precip over Brazil on the same 0.1 deg
+# grid as the IMERG cache. CPTEC keeps a long archive but we only chase the
+# last few days; a --backfill 4 costs seconds and covers a weekend outage.
+"$PY" scripts/sst/merge_cptec.py --backfill 4 || echo "MERGE fetch failed; continuing"   # gauge truth for Brazil
 perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/brazil_forecast.py || echo "Brazil forecast failed; continuing"   # ENA fans
 "$PY" scripts/sst/brazil_rain_chart.py || echo "Brazil rain charts failed; continuing"   # rain fans + skill-corrected map
 "$PY" scripts/sst/nwp_bias_leads.py || echo "bias-by-lead failed; continuing"   # AIFS/IFS bias curves, both countries
@@ -109,6 +113,11 @@ perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/brazil_forecast.py || e
 # still has 00Z. Unset to restore the two-model blend.
 export CO_MODELS=aifs
 perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS rain -> inflow + storage fans (rides MJO tp GRIBs)
+# ECCC GDPS 15km precip -> the same fcst_rain archive as aifs_/ifs_. Datamart
+# retains only ~30 DAYS, so a gap longer than a month is unrecoverable - this
+# is the reason it runs daily rather than on demand. Deterministic, so it is
+# archived for verification and blending, not fed to the operational fan.
+perl -e 'alarm shift; exec @ARGV' 900 "$PY" scripts/sst/gdps_precip.py || echo "GDPS fetch failed; continuing"   # Canadian global model rain
 "$PY" scripts/sst/xm_inflow_history.py || echo "XM inflow norms failed; continuing"   # inflow history + seasonal norms (draws the fan)
 "$PY" scripts/sst/colombia_rain_map.py || echo "Colombia rain map failed; continuing"   # IMERG vs IDEAM gauges
 "$PY" scripts/sst/ideam_gauges_hourly.py --days 10 || echo "Hourly gauges failed; continuing"   # 10-min gauge feed -> hourly archive (sub-daily verification)
