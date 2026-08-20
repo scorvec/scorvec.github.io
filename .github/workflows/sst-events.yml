@@ -79,12 +79,13 @@ jobs:
           SNAP=$(mktemp -d)
           for f in $OUT; do [ -f "$f" ] && install -D "$f" "$SNAP/$f"; done
           for i in 1 2 3 4 5; do
-            git fetch origin main && git reset --hard origin/main
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "no changes" and fake success
+            git reset --hard origin/main
             (cd "$SNAP" && find . -type f -exec install -D {} "$GITHUB_WORKSPACE/{}" \;)
             git add $OUT
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi
             git commit -m "SST event comparisons: weekly refresh"
-            if git push; then echo "pushed (attempt $i)"; exit 0; fi
+            if timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
             sleep 5
           done
           echo "push failed"; exit 1
