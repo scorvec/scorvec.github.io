@@ -534,12 +534,15 @@ def main() -> int:
             doy = int(str(dt)[5:7]) and datetime.strptime(
                 str(dt), "%Y-%m-%d").timetuple().tm_yday
             gw = d["norm_gwh"][doy] / 100.0
+            # p10/p90 emitted alongside p5/p95 so the daily panel can draw
+            # the same nested bands the regional panels use, rather than the
+            # briefing quoting an 80% interval on one page and a 90% one on
+            # the next for the same quantity
+            qs = (5, 10, 25, 50, 75, 90, 95)
+            pq = {q: float(np.percentile(full, q)) for q in qs}
             days.append({"date": str(dt), "lead": j + 1,
-                         "pct": {f"p{q}": round(float(np.percentile(full, q)), 1)
-                                 for q in (5, 25, 50, 75, 95)},
-                         "gwh_p50": round(float(np.percentile(full, 50)) * gw, 1),
-                         "gwh_p5": round(float(np.percentile(full, 5)) * gw, 1),
-                         "gwh_p95": round(float(np.percentile(full, 95)) * gw, 1),
+                         "pct": {f"p{q}": round(pq[q], 1) for q in qs},
+                         **{f"gwh_p{q}": round(pq[q] * gw, 1) for q in qs},
                          "rain_only_sd": round(float(np.std(col)), 1),
                          "norm_gwh": round(d["norm_gwh"][doy], 1)})
 

@@ -1076,20 +1076,30 @@ def national_page(pdf, when: datetime) -> None:
     # on sight, which is the point of putting them on one axis.
     ax = fig.add_axes([0.07, 0.53, 0.88, 0.33])
     dbm = nat.get("daily_balance_of_month", [])
+    # 90 days of history, not just month-to-date: a two-week window makes any
+    # forecast look reasonable, where a season of context shows whether the
+    # model is tracking the level or has quietly drifted off it.
+    HIST_DAYS = 90
     mtd_x, mtd_y, mtd_n = [], [], []
     for r in nat.get("observed_daily", []):
         dt = datetime.strptime(r["date"], "%Y-%m-%d")
-        if dt >= when.replace(day=1) - timedelta(days=1):
+        if dt >= when - timedelta(days=HIST_DAYS):
             mtd_x.append(dt); mtd_y.append(r["pct"])
             mtd_n.append(r.get("norm_gwh"))
     if dbm:
         xs = [datetime.strptime(r["date"], "%Y-%m-%d") for r in dbm]
         p50 = [r["gwh_p50"] for r in dbm]
-        lo = [r.get("gwh_p5", r["gwh_p50"]) for r in dbm]
-        hi = [r.get("gwh_p95", r["gwh_p50"]) for r in dbm]
         nrm = [r.get("norm_gwh") for r in dbm]
-        ax.fill_between(xs, lo, hi, color="#4d8fe8", alpha=0.22, lw=0,
-                        label="p5\u2013p95")
+        # nested bands, matching the regional panels so the two pages quote
+        # the same intervals for the same quantity
+        p10 = [r.get("gwh_p10", r["gwh_p50"]) for r in dbm]
+        p90 = [r.get("gwh_p90", r["gwh_p50"]) for r in dbm]
+        p25 = [r.get("gwh_p25", r["gwh_p50"]) for r in dbm]
+        p75 = [r.get("gwh_p75", r["gwh_p50"]) for r in dbm]
+        ax.fill_between(xs, p10, p90, color="#4d8fe8", alpha=0.20, lw=0,
+                        label="p10\u2013p90")
+        ax.fill_between(xs, p25, p75, color="#2f6fbf", alpha=0.30, lw=0,
+                        label="p25\u2013p75")
         ax.plot(xs, p50, color="#1f4e9c", lw=2.2, label="median")
         # seasonal norm across the WHOLE axis - observed days included.
         # Drawn only over the forecast it gave no reference for the half of
@@ -1126,11 +1136,11 @@ def national_page(pdf, when: datetime) -> None:
                 else:
                     ax.plot([gap0, gap1], [og[-1], p50[0]], color="#111",
                             lw=2.0, zorder=6)
-                ax.set_xlim(min(mtd_x) - timedelta(days=1),
-                            max(xs) + timedelta(days=1))
-        ax.legend(fontsize=8, frameon=False, ncol=4, loc="upper left")
+                ax.set_xlim(min(mtd_x), max(xs) + timedelta(days=1))
+        ax.legend(fontsize=8, frameon=False, ncol=5, loc="upper left")
     ax.set_ylabel("GWh/day", fontsize=9)
-    ax.set_title("Balance of month \u2014 daily national inflow energy",
+    ax.set_title("Daily national inflow energy \u2014 90 days observed, "
+                 "then the balance-of-month forecast",
                  fontsize=10.5, fontweight="bold")
     ax.grid(alpha=0.25)
 
