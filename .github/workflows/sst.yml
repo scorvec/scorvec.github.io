@@ -15,6 +15,7 @@ name: SST anomalies & RONI (El Niño monitor)
 on:
   schedule:
     - cron: '23 19 * * *'   # 19:23 UTC — after PSL (~16:30 UTC) and the laptop window (17:59 UTC EDT / 18:59 UTC EST)
+    - cron: '23 23 * * *'   # 23:23 UTC — retry slot: the cron fires once a day, so a runner-infra hang (apt mirror, git stall) at 19:23 loses the whole day; this run exits "No changes" when 19:23 succeeded
   workflow_dispatch:
     inputs:
       force:
@@ -59,9 +60,15 @@ jobs:
 
       - name: Install cartopy system libs
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            libgeos-dev libproj-dev proj-bin
+          # Bounded + retried: an apt mirror hang here once ate the full 60-min job budget
+          # (2026-08-19 run, killed at timeout during this step).
+          for i in 1 2 3; do
+            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
+               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
+                 libgeos-dev libproj-dev proj-bin; then exit 0; fi
+            echo "apt attempt $i failed; retrying"; sleep 10
+          done
+          exit 1
 
       - name: Install Python dependencies
         run: pip install -r scripts/sst/requirements-sst.txt
@@ -106,9 +113,9 @@ jobs:
           DAY=$(python -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])")
           git commit -m "SST/RONI update: OISST ${DAY}"
           for i in 1 2 3 4 5; do
-            if git push; then echo "Pushed on attempt $i."; exit 0; fi
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; rebasing onto origin/main (keep our generated files)…"
-            git fetch origin main
+            timeout 120 git fetch origin main
             if ! git rebase -X theirs origin/main; then
               git rebase --abort || true
               git reset --hard origin/main

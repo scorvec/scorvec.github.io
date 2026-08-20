@@ -239,9 +239,9 @@ jobs:
           if git diff --staged --quiet; then echo "Frames published; no manifest change."; exit 0; fi
           git commit -m "synoptic maps: cycle ${COMPACT} (manifests; frames on synoptic-frames)"
           for i in 1 2 3 4 5; do
-            if git push; then echo "Pushed main on attempt $i."; exit 0; fi
+            if timeout 180 git push; then echo "Pushed main on attempt $i."; exit 0; fi
             echo "Push attempt $i rejected; rebasing onto origin/main..."
-            git fetch origin main
+            timeout 120 git fetch origin main
             if ! git rebase -X theirs origin/main; then
               git rebase --abort || true
               git reset --hard origin/main

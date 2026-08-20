@@ -63,4 +63,4 @@ jobs:
           BLOB_JSON=$(git hash-object -w data/asos5/asos5_latest.json)
           TREE=$(printf '100644 blob %s\tasos5_latest.js\n100644 blob %s\tasos5_latest.json\n' "$BLOB_JS" "$BLOB_JSON" | git mktree)
           COMMIT=$(git commit-tree "$TREE" -m "asos5 data $(date -u +%Y-%m-%dT%H:%M:%SZ)")
-          git push --force origin "$COMMIT:refs/heads/asos5-data"
+          timeout 180 git push --force origin "$COMMIT:refs/heads/asos5-data"

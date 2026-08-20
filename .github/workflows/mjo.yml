@@ -176,13 +176,14 @@ jobs:
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
-            git fetch origin main && git reset --hard origin/main
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "No changes" and fake success
+            git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
             git add $OUT
             if git diff --staged --quiet; then echo "No changes."; exit 0; fi
             git commit -m "MJO RMM: ${{ needs.check.outputs.compact }}"
-            if git push; then echo "Pushed on attempt $i."; exit 0; fi
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             sleep 5
           done
           echo "ERROR: could not push RMM." >&2
@@ -257,13 +258,14 @@ jobs:
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
-            git fetch origin main && git reset --hard origin/main
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "No changes" and fake success
+            git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm   # re-apply pruning
             git add $OUT
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "MJO RMM: ${{ needs.check.outputs.compact }}"
-            if git push; then echo "Pushed on attempt $i."; exit 0; fi
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; resyncing and retrying…"
             sleep 5
           done
