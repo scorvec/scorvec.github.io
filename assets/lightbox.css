@@ -1,0 +1,21 @@
+/* lightbox.css — responsive images + click-to-enlarge overlay (pairs with lightbox.js)
+   Usage: <link rel="stylesheet" href="/assets/lightbox.css"><script src="/assets/lightbox.js" defer></script>
+   Auto-attaches to figure img, main img, .zoomable img, img[data-zoom]; opt out with data-nozoom. */
+img.lb-target{max-width:100%;height:auto;cursor:zoom-in}
+.lb-overlay{position:fixed;inset:0;background:rgba(10,14,17,.92);z-index:9999;display:flex;
+  align-items:center;justify-content:center;opacity:0;transition:opacity .18s ease;touch-action:none}
+.lb-overlay.lb-open{opacity:1}
+.lb-overlay img{max-width:none;user-select:none;-webkit-user-drag:none;cursor:grab;
+  box-shadow:0 8px 40px rgba(0,0,0,.55);will-change:transform}
+.lb-overlay img.lb-panning{cursor:grabbing}
+.lb-cap{position:fixed;left:0;right:0;bottom:0;padding:10px 18px;color:#cfd8dd;font:13px/1.45 -apple-system,sans-serif;
+  background:linear-gradient(transparent,rgba(0,0,0,.65));text-align:center;pointer-events:none}
+.lb-x{position:fixed;top:10px;right:16px;color:#e6edf1;font:26px/1 -apple-system,sans-serif;background:none;border:0;
+  cursor:pointer;opacity:.75;z-index:10001}
+.lb-x:hover{opacity:1}
+.lb-hint{position:fixed;top:14px;left:18px;color:#93a4ad;font:12px -apple-system,sans-serif;pointer-events:none}
+.lb-nav{position:fixed;top:50%;transform:translateY(-50%);font:34px/1 -apple-system,sans-serif;color:#e6edf1;
+  background:none;border:0;cursor:pointer;opacity:.55;padding:18px 12px;z-index:10001}
+.lb-nav:hover{opacity:1}
+.lb-prev{left:6px}.lb-next{right:6px}
+@media (max-width:640px){.lb-nav{display:none}}
