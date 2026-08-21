@@ -41,7 +41,7 @@ jobs:
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "site stats: visitor map $(date -u +%Y-%m-%d)"
           for i in 1 2 3; do
-            timeout 120 git pull --rebase --autostash -X theirs && timeout 180 git push && exit 0
+            timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 180 git push && exit 0
             git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase
             sleep 5
           done
