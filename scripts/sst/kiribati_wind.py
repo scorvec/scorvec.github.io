@@ -81,11 +81,16 @@ def fetch(hours=72) -> pd.DataFrame:
 def update_history(new: pd.DataFrame) -> pd.DataFrame:
     CSV.parent.mkdir(parents=True, exist_ok=True)
     if CSV.exists():
-        old = pd.read_csv(CSV, parse_dates=["time"]).set_index("time")
+        # index_col=0: an empty-fetch cycle can write the file with an unnamed
+        # index column (combine_first drops the name), which parse_dates=["time"]
+        # then chokes on — read positionally and restore the name instead.
+        old = pd.read_csv(CSV, index_col=0, parse_dates=[0])
+        old.index.name = "time"
         hist = new.combine_first(old); hist.update(new)
     else:
         hist = new
     hist = hist.sort_index().apply(pd.to_numeric, errors="coerce")   # an empty fetch can object-ify cols
+    hist.index.name = "time"
     hist.to_csv(CSV)
     return hist
 
