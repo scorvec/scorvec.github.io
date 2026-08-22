@@ -303,7 +303,7 @@
       <div id="tao-xsec" style="width:100%;height:480px"></div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; 5-day smoothed &middot; anomaly vs 1991&ndash;2020 harmonic climatology &middot; linear interpolation between moorings</span>
-        <span class="chart-updated" id="tao-xsec-updated">TAO 2026-08-19</span>
+        <span class="chart-updated" id="tao-xsec-updated">TAO 2026-08-21</span>
       </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
@@ -422,7 +422,7 @@
               title="Equatorial Pacific subsurface temperature animation" loading="lazy"></iframe>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
-        <span class="chart-updated" id="subsurface-updated">TAO 2026-08-19</span>
+        <span class="chart-updated" id="subsurface-updated">TAO 2026-08-21</span>
       </div>
     </div>
 
@@ -452,7 +452,7 @@
     (function () {
       var DIV = document.getElementById('wwv-orbit');
       if (!DIV || typeof Plotly === 'undefined') return;
-      fetch('assets/sst/data/wwv_orbit.json?v=6e210499bafb').then(function (r) { return r.json(); })
+      fetch('assets/sst/data/wwv_orbit.json?v=eb35aba0faa5').then(function (r) { return r.json(); })
         .then(function (D) {
           var n = D.months.length;
           var traces = [{
