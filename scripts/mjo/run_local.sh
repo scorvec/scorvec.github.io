@@ -97,7 +97,8 @@ commit_push () {            # $1 = message; commits staged changes (if any) + pu
   git_lock || return 1     # serialise vs the other site pipelines (sst/synoptic/ens)
   git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" commit -m "$1"
   for i in 1 2 3 4 5; do
-    if git pull --rebase --autostash -X theirs && git push; then echo "  pushed: $1 (attempt $i)"; git_unlock; return 0; fi
+    if git pull --rebase --autostash -X theirs origin main && git push; then echo "  pushed: $1 (attempt $i)"; git_unlock; return 0; fi
+    git rebase --abort 2>/dev/null || true   # never leave a wedged rebase behind
     echo "  push attempt $i failed; retrying…"; sleep 5
   done
   echo "  ERROR: could not push: $1 (left as a local commit; the next run will carry it)"; git_unlock; return 1
@@ -112,7 +113,8 @@ publish () {                # $1 = message; $2.. = paths — ATOMIC stage+commit
   git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" commit -m "$msg"
   local i
   for i in 1 2 3 4 5; do
-    if git pull --rebase --autostash -X theirs && git push; then echo "  pushed: $msg (attempt $i)"; git_unlock; return 0; fi
+    if git pull --rebase --autostash -X theirs origin main && git push; then echo "  pushed: $msg (attempt $i)"; git_unlock; return 0; fi
+    git rebase --abort 2>/dev/null || true   # never leave a wedged rebase behind
     echo "  push attempt $i failed; retrying…"; sleep 5
   done
   echo "  ERROR: could not push: $msg (left as a local commit; the next run will carry it)"; git_unlock; return 1

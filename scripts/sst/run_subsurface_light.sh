@@ -84,7 +84,8 @@ git_lock || { echo "git lock busy; leaving as a local commit"; exit 0; }
 git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
     commit -m "Subsurface refresh (TAO + eq currents): $(date -u +%Y-%m-%dT%H:%MZ) (light)"
 for i in 1 2 3; do
-  if git pull --rebase --autostash -X theirs && git push; then echo "light pushed (attempt $i)"; git_unlock; exit 0; fi
+  if git pull --rebase --autostash -X theirs origin main && git push; then echo "light pushed (attempt $i)"; git_unlock; exit 0; fi
+  git rebase --abort 2>/dev/null || true   # never leave a wedged rebase behind
   sleep 5
 done
 echo "light pass: push failed"; git_unlock; exit 1
