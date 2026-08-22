@@ -35,9 +35,10 @@ trap 'git_unlock' EXIT
 git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
     commit -m "RMM: refresh 120-day low-frequency (ENSO) filter map (ARCO-ERA5)"
 for i in 1 2 3 4 5; do
-  if git pull --rebase --autostash -X theirs && git push; then
+  if git pull --rebase --autostash -X theirs origin main && git push; then
     echo "pushed (attempt $i)"; git_unlock; exit 0
   fi
+  git rebase --abort 2>/dev/null || true   # never leave a wedged rebase behind
   echo "push attempt $i failed; retrying…"; sleep 5
 done
 echo "ERROR: could not push after 5 attempts."; git_unlock; exit 1
