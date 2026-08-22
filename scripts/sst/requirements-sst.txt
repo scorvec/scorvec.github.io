@@ -3,6 +3,7 @@ numpy
 pandas
 requests
 xarray
+scipy            # xarray .interp() imports it at call time (daily PDO projection)
 netcdf4
 h5netcdf
 matplotlib
