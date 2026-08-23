@@ -1,0 +1,60 @@
+name: MUR 1-km equatorial Pacific SST
+
+# NASA JPL MUR v4.1 via NOAA CoastWatch ERDDAP (~1-2 day latency, credential
+# free). Independent of PSL, so these maps keep updating through PSL outages
+# like 2026-08-22. The daily page restamp (sst.yml / laptop) refreshes the
+# cache-buster for these images.
+on:
+  schedule:
+    - cron: '47 13 * * *'   # 13:47 UTC daily — ERDDAP has the new analysis by mid-morning UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mur-sst
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-mur-${{ runner.os }}-v1
+      - name: Install cartopy system libs
+        run: |
+          for i in 1 2 3; do
+            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
+               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
+                 libgeos-dev libproj-dev proj-bin; then exit 0; fi
+            echo "apt attempt $i failed; retrying"; sleep 10
+          done
+          exit 1
+      - name: Install Python dependencies
+        run: pip install --quiet numpy pandas xarray netcdf4 matplotlib "cartopy>=0.22" "shapely>=2.0" "pyproj>=3.5" Pillow
+      - name: Build MUR equatorial Pacific maps
+        run: python scripts/sst/mur_eqpac.py
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/sst/mur_eqpac.webp assets/sst/mur_coldtongue.webp
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "MUR equatorial Pacific maps: $(date -u +%Y-%m-%d)"
+          for i in 1 2 3 4 5; do
+            if timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
+            git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1
