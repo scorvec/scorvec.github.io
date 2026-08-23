@@ -85,14 +85,18 @@ function caption(im){
   var f=im.closest('figure'),c=f&&f.querySelector('figcaption');
   return (c&&c.textContent)||im.getAttribute('alt')||'';
 }
-function open(i){
+function show(src,text,single){
   if(!ov) build();
-  idx=i; var im=imgs[i];
-  pic.src=im.currentSrc||im.src;
-  cap.textContent=caption(im);
+  pic.src=src;
+  cap.textContent=text||'';
+  ov.classList.toggle('lb-single',!!single);   // hide prev/next for one-offs
   document.body.style.overflow='hidden';
   ov.style.display='flex'; void ov.offsetHeight; ov.classList.add('lb-open');
   if(pic.complete) fit(); else pic.onload=fit;
+}
+function open(i){
+  idx=i; var im=imgs[i];
+  show(im.currentSrc||im.src, caption(im), false);
 }
 function nav(d){
   var n=(idx+d+imgs.length)%imgs.length;
@@ -104,4 +108,12 @@ function close(){
 }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',collect); else collect();
 window.LB_rescan=collect;   // call after injecting images dynamically
+window.LB_show=function(src,text){show(src,text,true);};   // open an arbitrary image (no prev/next)
+// same-origin embeds (the animation player iframes) ask the parent page to
+// lightbox their current frame
+addEventListener('message',function(e){
+  var d=e.data;
+  if(e.origin===location.origin && d && d.type==='lb-show' && typeof d.src==='string')
+    window.LB_show(d.src, typeof d.caption==='string'?d.caption:'');
+});
 })();
