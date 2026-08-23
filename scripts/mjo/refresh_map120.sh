@@ -38,7 +38,7 @@ for i in 1 2 3 4 5; do
   if git pull --rebase --autostash -X theirs origin main && git push; then
     echo "pushed (attempt $i)"; git_unlock; exit 0
   fi
-  git rebase --abort 2>/dev/null || true   # never leave a wedged rebase behind
+  git_rebase_rescue   # finish the rebase past frame-count conflicts, else abort clean
   echo "push attempt $i failed; retrying…"; sleep 5
 done
 echo "ERROR: could not push after 5 attempts."; git_unlock; exit 1
