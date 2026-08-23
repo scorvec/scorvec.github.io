@@ -103,7 +103,88 @@ def download(url: str, dest: Path, force: bool = False, tries: int = 4) -> Path:
 
 
 def ensure_mean(year: int, force: bool = False) -> Path:
-    return download(MEAN_URL.format(year=year), DATA / f"sst.day.mean.{year}.nc", force=force)
+    dest = DATA / f"sst.day.mean.{year}.nc"
+    try:
+        return download(MEAN_URL.format(year=year), dest, force=force)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise                    # genuinely absent year file → caller's previous-year fallback
+        return _ensure_mean_ncei(year, dest)
+    except Exception:                # PSL unreachable (outage) → NCEI day-file assembly
+        return _ensure_mean_ncei(year, dest)
+
+
+# ── NCEI fallback: assemble the PSL-style yearly file from NCEI daily files ──
+# Same OISST v2.1 on the same grid, served by a different NOAA center on
+# different infrastructure (the 2026-08-22 PSL outage motivated this). NCEI
+# publishes finals with ~2 weeks lag plus `_preliminary` files for the recent
+# window, giving the same currency as PSL. When PSL recovers with newer data,
+# the normal Last-Modified check refreshes the cache from PSL wholesale.
+NCEI_BASE = ("https://www.ncei.noaa.gov/data/"
+             "sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr")
+
+
+def _ncei_fetch_day(day) -> xr.DataArray | None:
+    """One day's sst field from NCEI (final, else preliminary); None if neither
+    is published yet. Transient errors retry once, then raise."""
+    import shutil, time
+    for suffix in ("", "_preliminary"):
+        url = (f"{NCEI_BASE}/{day:%Y%m}/oisst-avhrr-v02r01.{day:%Y%m%d}{suffix}.nc")
+        tmp = DATA / f".ncei_day_{day:%Y%m%d}.nc"
+        for attempt in (1, 2):
+            try:
+                with urllib.request.urlopen(url, timeout=60) as r, open(tmp, "wb") as f:
+                    shutil.copyfileobj(r, f, 1 << 20)
+                with xr.open_dataset(tmp) as ds:
+                    da = ds["sst"].squeeze("zlev", drop=True).load()
+                tmp.unlink()
+                return da
+            except urllib.error.HTTPError as e:
+                if e.code in (403, 404):
+                    break            # this variant not published → try next suffix
+                if attempt == 2:
+                    raise
+                time.sleep(10)
+            except Exception:        # noqa: BLE001
+                if attempt == 2:
+                    raise
+                time.sleep(10)
+            finally:
+                tmp.unlink(missing_ok=True)
+    return None
+
+
+def _ensure_mean_ncei(year: int, dest: Path) -> Path:
+    print("  PSL unreachable → assembling from NCEI daily files", flush=True)
+    DATA.mkdir(parents=True, exist_ok=True)
+    today = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
+    end = min(pd.Timestamp(year=year, month=12, day=31), today)
+    base = None
+    start = pd.Timestamp(year=year, month=1, day=1)
+    if dest.exists() and _nc_ok(dest):
+        base = xr.open_dataset(dest)["sst"].load()
+        start = pd.Timestamp(base["time"].values[-1]).normalize() + pd.Timedelta(days=1)
+    new = []
+    for d in pd.date_range(start, end, freq="D"):
+        da = _ncei_fetch_day(d)
+        if da is None:
+            break                    # not yet published — nothing further exists
+        new.append(da)
+        print(f"    NCEI {d:%Y-%m-%d} ok", flush=True)
+    if not new:
+        if base is not None:
+            print("  NCEI has nothing newer than the cache; using cached file")
+            return dest
+        raise RuntimeError("NCEI fallback: no daily files retrievable")
+    merged = xr.concat(([base] if base is not None else []) + new, dim="time")
+    tmp = dest.with_suffix(".nc.ncei_tmp")
+    merged.to_dataset(name="sst").to_netcdf(
+        tmp, encoding={"sst": {"zlib": True, "complevel": 1, "dtype": "float32"}})
+    tmp.replace(dest)
+    print(f"  NCEI-assembled {dest.name}: through "
+          f"{pd.Timestamp(merged['time'].values[-1]):%Y-%m-%d} "
+          f"({dest.stat().st_size/1e6:.0f} MB)", flush=True)
+    return dest
 
 
 # ── climatology ──────────────────────────────────────────────────────────────
