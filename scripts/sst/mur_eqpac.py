@@ -40,7 +40,17 @@ SITE_ROOT = (Path(os.environ["SST_SITE_ROOT"]).resolve()
 ASSETS = SITE_ROOT / "assets" / "sst"
 DATA = HERE / "data" / "mur"
 
-ERDDAP = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/jplMURSST41"
+# CoastWatch intermittently 403s cloud-provider IPs (GitHub runners); a real
+# User-Agent and a mirror that also serves jplMURSST41 cover it.
+ERDDAP_HOSTS = ["https://coastwatch.pfeg.noaa.gov/erddap/griddap/jplMURSST41",
+                "https://upwell.pfeg.noaa.gov/erddap/griddap/jplMURSST41"]
+ERDDAP = ERDDAP_HOSTS[0]
+UA = {"User-Agent": "scorvec.com El Nino monitor (xarray/urllib; contact: site owner)"}
+
+
+def _open(url: str, timeout: int):
+    return urllib.request.urlopen(urllib.request.Request(url, headers=UA),
+                                  timeout=timeout)
 
 WIDE = dict(lat=(-10, 10), stride=5)          # 0.05° effective
 # Zoom crosses the antimeridian (an ERDDAP range cannot), so it fetches in two
@@ -59,13 +69,15 @@ def _auto_range(field):
     return lo, max(hi, lo + 2.0)
 
 
-def _fetch(url: str, dest: Path, tries: int = 3) -> Path:
+def _fetch(suffix: str, dest: Path, tries: int = 4) -> Path:
+    """Download an ERDDAP query, alternating mirrors between attempts."""
     DATA.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(dest.suffix + ".tmp")
     last = None
     for attempt in range(1, tries + 1):
+        url = ERDDAP_HOSTS[(attempt - 1) % len(ERDDAP_HOSTS)] + suffix
         try:
-            with urllib.request.urlopen(url, timeout=300) as r, open(tmp, "wb") as f:
+            with _open(url, timeout=300) as r, open(tmp, "wb") as f:
                 shutil.copyfileobj(r, f, 1 << 20)
             tmp.replace(dest)
             return dest
@@ -81,8 +93,9 @@ def _fetch(url: str, dest: Path, tries: int = 3) -> Path:
 def latest_time(tries: int = 4) -> pd.Timestamp:
     last = None
     for attempt in range(1, tries + 1):
+        host = ERDDAP_HOSTS[(attempt - 1) % len(ERDDAP_HOSTS)]
         try:
-            with urllib.request.urlopen(f"{ERDDAP}.das", timeout=60) as r:
+            with _open(f"{host}.das", timeout=60) as r:
                 das = r.read().decode("utf-8", errors="replace")
             m = re.search(r'time \{[^}]*actual_range ([0-9.e+]+), ([0-9.e+]+)',
                           das, re.S)
@@ -98,9 +111,9 @@ def latest_time(tries: int = 4) -> pd.Timestamp:
 def grab(t: pd.Timestamp, lat, lon, stride: int = 1, tag: str = "x") -> xr.DataArray:
     ts = t.strftime("%Y-%m-%dT%H:%M:%SZ")
     s = f":{stride}:" if stride > 1 else ":"
-    url = (f"{ERDDAP}.nc?analysed_sst%5B({ts})%5D"
-           f"%5B({lat[0]}){s}({lat[1]})%5D%5B({lon[0]}){s}({lon[1]})%5D")
-    p = _fetch(url, DATA / f"mur_{tag}.nc")
+    suffix = (f".nc?analysed_sst%5B({ts})%5D"
+              f"%5B({lat[0]}){s}({lat[1]})%5D%5B({lon[0]}){s}({lon[1]})%5D")
+    p = _fetch(suffix, DATA / f"mur_{tag}.nc")
     with xr.open_dataset(p) as ds:
         da = ds["analysed_sst"].squeeze("time", drop=True).load()
         if ds["analysed_sst"].attrs.get("units", "").lower().startswith("k"):
