@@ -28,6 +28,33 @@ git_lock() {
 
 git_unlock() { rm -rf "$GITLOCK" 2>/dev/null; }
 
+# Call after a failed `git pull --rebase -X theirs`: finishes a rebase paused on
+# conflicts that -X theirs cannot auto-resolve — modify/delete on generated
+# animation frames whose count drifts between builds (F119 stranded the laptop
+# pipeline for a whole day, twice). Every unmerged path resolves in favour of
+# the commit being replayed (REBASE_HEAD): keep its version if it has one, else
+# delete the path. Anything unexpected aborts, so the repo is never left
+# mid-rebase; the commit stays local and the next cycle retries.
+git_rebase_rescue() {
+  local i f unmerged
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+    [ -d "$(git rev-parse --git-path rebase-merge)" ] || \
+      [ -d "$(git rev-parse --git-path rebase-apply)" ] || return 0
+    unmerged="$(git diff --name-only --diff-filter=U)"
+    if [ -n "$unmerged" ]; then
+      while IFS= read -r f; do
+        if git cat-file -e "REBASE_HEAD:$f" 2>/dev/null; then
+          git checkout REBASE_HEAD -- "$f"
+        else
+          git rm -q -- "$f" 2>/dev/null || true
+        fi
+      done <<< "$unmerged"
+    fi
+    GIT_EDITOR=true git rebase --continue >/dev/null 2>&1 || break
+  done
+  git rebase --abort 2>/dev/null || true
+}
+
 # Refuse to run when the checkout is NOT on `main`. These pipelines commit+push, so a
 # scheduled render firing while the repo sits on a feature branch would strand (and
 # pollute) a whole day of products on the wrong branch — which happened once. Call this
