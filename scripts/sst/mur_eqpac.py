@@ -173,14 +173,13 @@ def render_stacked(field: xr.DataArray, rows: int, title: str, out: Path,
         _isotherms(ax, seg)
     np.atleast_1d(axes)[0].set_title(title, fontsize=10, loc="left", pad=4)
     cb = fig.colorbar(mesh, ax=list(np.atleast_1d(axes)),
-                      orientation="horizontal", fraction=0.05, pad=0.06,
-                      aspect=45)
-    cb.set_label("SST (°C)", fontsize=8)
-    cb.ax.tick_params(labelsize=7)
-    np.atleast_1d(axes)[-1].text(0.0, -0.55, note,
-                                 transform=np.atleast_1d(axes)[-1].transAxes,
-                                 fontsize=6, color="#666", va="top", ha="left",
-                                 wrap=True)
+                      orientation="horizontal", fraction=0.028, pad=0.03,
+                      aspect=32, shrink=0.55)
+    cb.set_label("SST (°C)", fontsize=7, labelpad=2)
+    cb.ax.tick_params(labelsize=6.5)
+    cb.ax.text(0.5, -3.0, "NASA JPL MUR SST v4.1 (~1 km) via NOAA CoastWatch ERDDAP",
+               transform=cb.ax.transAxes, fontsize=6, color="#666",
+               va="top", ha="center")
     fig.savefig(out, facecolor="white", bbox_inches="tight", pad_inches=0.05,
                 pil_kwargs={"quality": 84, "method": 6})
     plt.close(fig)
