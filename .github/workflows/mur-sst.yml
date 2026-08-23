@@ -45,11 +45,15 @@ jobs:
         run: pip install --quiet numpy pandas xarray netcdf4 matplotlib "cartopy>=0.22" "shapely>=2.0" "pyproj>=3.5" Pillow
       - name: Build MUR equatorial Pacific maps
         run: python scripts/sst/mur_eqpac.py
+
+      - name: Append event-animation frame
+        run: python scripts/sst/mur_eqpac.py --anim
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/sst/mur_eqpac.webp assets/sst/mur_coldtongue.webp
+          git add assets/sst/mur_eqpac.webp assets/sst/mur_coldtongue.webp \
+                  assets/sst/anim/mur_ct assets/sst/anim/mur_manifest.json
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "MUR equatorial Pacific maps: $(date -u +%Y-%m-%d)"
           for i in 1 2 3 4 5; do

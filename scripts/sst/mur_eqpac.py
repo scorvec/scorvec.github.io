@@ -43,13 +43,19 @@ DATA = HERE / "data" / "mur"
 ERDDAP = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/jplMURSST41"
 
 WIDE = dict(lat=(-10, 10), stride=5)          # 0.05° effective
-ZOOM = dict(lat=(-8, 8), lon=(-155, -79))     # native 0.01°, out to the Peru coast
-# Colour range adapts to each day's field (1st–99th percentile, rounded to
-# 0.5 °C): a fixed range wastes the palette when the cold tongue runs warm
-# (El Niño) and hides the TIW / front detail this product exists to show.
+# Zoom crosses the antimeridian (an ERDDAP range cannot), so it fetches in two
+# lon chunks: 170°E → the Peru coast.
+ZOOM = dict(lat=(-8, 8), lon_chunks=[(170, 179.99), (-179.99, -79)])
+ZOOM_EXTENT = (170, 281, -8, 8)
+ANIM_DIR = "mur_ct"                           # assets/sst/anim/<region>/
+ANIM_STRIDE = 4                               # 0.04° — plenty at animation size
+ANIM_START = "2026-04-01"                     # pre-onset context; RONI ≥ +0.5 from 2026-05-21
+# Colour range adapts to each day's field (0.5–99.5th percentile ± 0.5 °C,
+# rounded to 0.5): a fixed range wastes the palette when the cold tongue runs
+# warm (El Niño) and hides the TIW / front detail this product exists to show.
 def _auto_range(field):
-    lo = float(np.floor(np.nanpercentile(field, 1) * 2) / 2)
-    hi = float(np.ceil(np.nanpercentile(field, 99) * 2) / 2)
+    lo = float(np.floor((np.nanpercentile(field, 0.5) - 0.5) * 2) / 2)
+    hi = float(np.ceil((np.nanpercentile(field, 99.5) + 0.5) * 2) / 2)
     return lo, max(hi, lo + 2.0)
 
 
@@ -111,24 +117,46 @@ def _style(ax, extent):
     gl.xlabel_style = gl.ylabel_style = {"size": 8}
 
 
+def fetch_zoom(t: pd.Timestamp, stride: int = 1, tag: str = "zoom") -> xr.DataArray:
+    """The dateline-crossing zoom domain, pasted onto 0–360 longitudes."""
+    parts = []
+    for i, chunk in enumerate(ZOOM["lon_chunks"]):
+        da = grab(t, ZOOM["lat"], chunk, stride=stride, tag=f"{tag}_{i}")
+        parts.append(da.assign_coords(longitude=da["longitude"] % 360))
+    return xr.concat(parts, dim="longitude").sortby("longitude")
+
+
 def render(field: xr.DataArray, extent, title: str, out: Path,
-           figsize, note: str):
+           figsize, note: str, vrange=None, dpi=200):
     proj = ccrs.PlateCarree(central_longitude=180)
-    fig = plt.figure(figsize=figsize, dpi=200)
+    fig = plt.figure(figsize=figsize, dpi=dpi)
     ax = fig.add_subplot(1, 1, 1, projection=proj)
     _style(ax, extent)
     lon = field["longitude"].values
-    vmin, vmax = _auto_range(field.values)
+    vmin, vmax = vrange if vrange else _auto_range(field.values)
     mesh = ax.pcolormesh(lon, field["latitude"].values, field.values,
                          transform=ccrs.PlateCarree(), cmap="turbo",
                          vmin=vmin, vmax=vmax, rasterized=True)
+    # 26/28/30 °C isotherms, contoured on a ~0.06°-coarsened field so the
+    # lines follow the fronts instead of kilometre-scale pixel noise.
+    dlat = abs(float(field["latitude"][1] - field["latitude"][0]))
+    c = max(1, round(0.06 / dlat))
+    sm = (field.coarsen(latitude=c, longitude=c, boundary="trim").mean()
+          if c > 1 else field)
+    cs = ax.contour(sm["longitude"].values, sm["latitude"].values, sm.values,
+                    levels=[26, 28, 30], colors="#111111", linewidths=0.6,
+                    alpha=0.9, transform=ccrs.PlateCarree(), zorder=2)
+    ax.clabel(cs, fmt=lambda v: f"{v:.0f}°", fontsize=6, inline=True)
     cb = fig.colorbar(mesh, ax=ax, orientation="vertical", pad=0.012,
                       fraction=0.025, aspect=28)
     cb.set_label("SST (°C)", fontsize=9)
     cb.ax.tick_params(labelsize=8)
-    ax.set_title(title, fontsize=11, loc="left", pad=6)
-    fig.text(0.005, 0.005, note, fontsize=6.5, color="#666")
-    fig.savefig(out, facecolor="white", bbox_inches="tight", pad_inches=0.08,
+    ax.set_title(title, fontsize=11, loc="left", pad=4)
+    # Anchor the source note just under the axes (not the figure bottom) so
+    # bbox_inches="tight" can close up the whitespace band beneath the map.
+    ax.text(0.0, -0.16, note, transform=ax.transAxes, fontsize=6.5,
+            color="#666", va="top", ha="left")
+    fig.savefig(out, facecolor="white", bbox_inches="tight", pad_inches=0.05,
                 pil_kwargs={"quality": 84, "method": 6})
     plt.close(fig)
     print(f"  wrote {out.name} ({out.stat().st_size/1e3:.0f} kB)", flush=True)
@@ -149,17 +177,84 @@ def main() -> int:
     west = west.assign_coords(longitude=west["longitude"] % 360)
     wide = xr.concat([west, east], dim="longitude").sortby("longitude")
     render(wide, (160, 280, -10, 10),
-           f"Equatorial Pacific SST — MUR 1 km analysis (0.05° view) — {t:%Y-%m-%d}",
+           f"NASA JPL MUR SST v4.1 — 0.05° — {t:%Y-%m-%d}",
            ASSETS / "mur_eqpac.webp", figsize=(16, 3.6), note=note)
 
-    # Cold-tongue zoom at native resolution.
-    zoom = grab(t, ZOOM["lat"], ZOOM["lon"], tag="zoom")
-    zoom = zoom.assign_coords(longitude=zoom["longitude"] % 360)
-    render(zoom, (205, 281, -8, 8),
-           f"Cold tongue & tropical instability waves — MUR native 0.01° — {t:%Y-%m-%d}",
-           ASSETS / "mur_coldtongue.webp", figsize=(20, 4.0), note=note)
+    # Cold-tongue zoom at native resolution, 170°E → Peru coast.
+    zoom = fetch_zoom(t)
+    render(zoom, ZOOM_EXTENT,
+           f"NASA JPL MUR SST v4.1 — native 0.01° — {t:%Y-%m-%d}",
+           ASSETS / "mur_coldtongue.webp", figsize=(22, 3.9), note=note)
+    return 0
+
+
+# ── Event animation: one frame per day since ANIM_START ─────────────────────
+def anim(argv_start: str | None = None) -> int:
+    """Backfill/append daily frames of the zoom domain and write the manifest
+    the site's animation player reads. Idempotent: existing frames are kept;
+    only missing days are fetched (throttled — ERDDAP 503s under rapid fire).
+    The colour range is fixed across the whole animation (stored in the
+    manifest) so frames don't flicker as the field warms."""
+    import json
+    frames_dir = ASSETS / "anim" / ANIM_DIR
+    frames_dir.mkdir(parents=True, exist_ok=True)
+    man_path = ASSETS / "anim" / "mur_manifest.json"
+    note = ("NASA JPL MUR SST v4.1 (~1 km analysis, 0.04° frames) via NOAA "
+            "CoastWatch ERDDAP · fixed colour range across the event")
+
+    latest = latest_time()
+    start = pd.Timestamp(argv_start or ANIM_START)
+    days = pd.date_range(start, latest.normalize(), freq="D")
+
+    man = json.loads(man_path.read_text()) if man_path.exists() else {}
+    vrange = man.get("vrange")
+    if not vrange:
+        # Anchor the fixed range on both ends of the event: coldest early
+        # field and the current warm field.
+        a = fetch_zoom(days[0] + pd.Timedelta(hours=9), stride=ANIM_STRIDE, tag="vr0")
+        b = fetch_zoom(latest, stride=ANIM_STRIDE, tag="vr1")
+        lo = min(_auto_range(a.values)[0], _auto_range(b.values)[0])
+        hi = max(_auto_range(a.values)[1], _auto_range(b.values)[1])
+        vrange = [lo, hi]
+        print(f"  fixed animation range: {lo}–{hi} °C", flush=True)
+
+    made = 0
+    for d in days:
+        out = frames_dir / f"{d:%Y%m%d}.webp"
+        if out.exists():
+            continue
+        try:
+            f = fetch_zoom(d + pd.Timedelta(hours=9), stride=ANIM_STRIDE,
+                           tag="animday")
+        except Exception as e:                                  # noqa: BLE001
+            print(f"  {d:%Y-%m-%d}: fetch failed ({repr(e)[:60]}); skipping",
+                  flush=True)
+            continue
+        render(f, ZOOM_EXTENT, f"NASA JPL MUR SST v4.1 — 0.04° — {d:%Y-%m-%d}", out,
+               figsize=(22, 3.9), note=note, vrange=tuple(vrange), dpi=110)
+        made += 1
+        time.sleep(2)                       # be a polite ERDDAP citizen
+
+    frames = sorted(frames_dir.glob("*.webp"))
+    entries = [{"idx": i, "file": p.name,
+                "date": f"{p.stem[:4]}-{p.stem[4:6]}-{p.stem[6:8]}",
+                "label": pd.Timestamp(p.stem).strftime("%d %b")}
+               for i, p in enumerate(frames)]
+    man = {"ver": pd.Timestamp.now(tz="UTC").strftime("%Y%m%d%H"),
+           "vrange": vrange,
+           "regions": {ANIM_DIR: {
+               "label": "MUR 1 km — cold tongue since event onset",
+               "frames": entries}}}
+    man_path.write_text(json.dumps(man))
+    print(f"  animation: {len(entries)} frames ({made} new) → {man_path.name}",
+          flush=True)
     return 0
 
 
 if __name__ == "__main__":
+    if "--anim" in sys.argv:
+        s = None
+        if "--start" in sys.argv:
+            s = sys.argv[sys.argv.index("--start") + 1]
+        sys.exit(anim(s))
     sys.exit(main())
