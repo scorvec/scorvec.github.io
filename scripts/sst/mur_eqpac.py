@@ -2,12 +2,11 @@
 """
 Equatorial Pacific SST at kilometre scale — NASA JPL MUR v4.1 (GHRSST L4).
 
-Two daily images for the El Niño monitor:
-  assets/sst/mur_eqpac.webp      — 10°S–10°N, 160°E–80°W at 0.05° (strided):
-                                   the whole cold tongue / warm pool stage
-  assets/sst/mur_coldtongue.webp — 5°S–5°N, 145°W–85°W at native 0.01°:
-                                   tropical instability wave cusps, front
-                                   filaments, and the Galápagos wake
+Daily products for the El Niño monitor:
+  assets/sst/mur_coldtongue.webp — 8°S–8°N, 170°E–79°W at native 0.01°:
+                                   TIW cusps, front filaments, Galápagos wake
+  assets/sst/anim/mur_ct/        — daily 0.04° frames since event onset
+                                   (run with --anim), fixed colour range
 
 Source: NOAA CoastWatch ERDDAP (jplMURSST41) — credential-free HTTPS subsets,
 ~2-day latency. The AWS Open Data zarr mirror is a frozen archive (ends 2020),
@@ -52,7 +51,6 @@ def _open(url: str, timeout: int):
     return urllib.request.urlopen(urllib.request.Request(url, headers=UA),
                                   timeout=timeout)
 
-WIDE = dict(lat=(-10, 10), stride=5)          # 0.05° effective
 # Zoom crosses the antimeridian (an ERDDAP range cannot), so it fetches in two
 # lon chunks: 170°E → the Peru coast.
 ZOOM = dict(lat=(-8, 8), lon_chunks=[(170, 179.99), (-179.99, -79)])
@@ -139,6 +137,56 @@ def fetch_zoom(t: pd.Timestamp, stride: int = 1, tag: str = "zoom") -> xr.DataAr
     return xr.concat(parts, dim="longitude").sortby("longitude")
 
 
+def _isotherms(ax, field):
+    """26/28/30 °C isotherms, contoured on a ~0.06°-coarsened field so the
+    lines follow the fronts instead of kilometre-scale pixel noise."""
+    dlat = abs(float(field["latitude"][1] - field["latitude"][0]))
+    c = max(1, round(0.06 / dlat))
+    sm = (field.coarsen(latitude=c, longitude=c, boundary="trim").mean()
+          if c > 1 else field)
+    cs = ax.contour(sm["longitude"].values, sm["latitude"].values, sm.values,
+                    levels=[26, 28, 30], colors="#111111", linewidths=0.6,
+                    alpha=0.9, transform=ccrs.PlateCarree(), zorder=2)
+    ax.clabel(cs, fmt=lambda v: f"{v:.0f}°", fontsize=6, inline=True)
+
+
+def render_stacked(field: xr.DataArray, rows: int, title: str, out: Path,
+                   note: str, vrange=None, dpi=200):
+    """Mobile companion: the domain split into stacked lon segments, so the
+    whole plot is legible on a portrait phone without horizontal scrolling."""
+    lonv = field["longitude"].values
+    edges = np.linspace(float(lonv.min()), float(lonv.max()), rows + 1)
+    la0 = float(field["latitude"].min())
+    la1 = float(field["latitude"].max())
+    vmin, vmax = vrange if vrange else _auto_range(field.values)
+    proj = ccrs.PlateCarree(central_longitude=180)
+    fig, axes = plt.subplots(rows, 1, figsize=(7.2, 2.0 * rows + 1.1), dpi=dpi,
+                             subplot_kw={"projection": proj})
+    mesh = None
+    for i, ax in enumerate(np.atleast_1d(axes)):
+        seg = field.sel(longitude=slice(edges[i], edges[i + 1]))
+        _style(ax, (edges[i], edges[i + 1], la0, la1))
+        mesh = ax.pcolormesh(seg["longitude"].values, seg["latitude"].values,
+                             seg.values, transform=ccrs.PlateCarree(),
+                             cmap="turbo", vmin=vmin, vmax=vmax,
+                             rasterized=True)
+        _isotherms(ax, seg)
+    np.atleast_1d(axes)[0].set_title(title, fontsize=10, loc="left", pad=4)
+    cb = fig.colorbar(mesh, ax=list(np.atleast_1d(axes)),
+                      orientation="horizontal", fraction=0.05, pad=0.06,
+                      aspect=45)
+    cb.set_label("SST (°C)", fontsize=8)
+    cb.ax.tick_params(labelsize=7)
+    np.atleast_1d(axes)[-1].text(0.0, -0.55, note,
+                                 transform=np.atleast_1d(axes)[-1].transAxes,
+                                 fontsize=6, color="#666", va="top", ha="left",
+                                 wrap=True)
+    fig.savefig(out, facecolor="white", bbox_inches="tight", pad_inches=0.05,
+                pil_kwargs={"quality": 84, "method": 6})
+    plt.close(fig)
+    print(f"  wrote {out.name} ({out.stat().st_size/1e3:.0f} kB)", flush=True)
+
+
 def render(field: xr.DataArray, extent, title: str, out: Path,
            figsize, note: str, vrange=None, dpi=200):
     proj = ccrs.PlateCarree(central_longitude=180)
@@ -150,16 +198,7 @@ def render(field: xr.DataArray, extent, title: str, out: Path,
     mesh = ax.pcolormesh(lon, field["latitude"].values, field.values,
                          transform=ccrs.PlateCarree(), cmap="turbo",
                          vmin=vmin, vmax=vmax, rasterized=True)
-    # 26/28/30 °C isotherms, contoured on a ~0.06°-coarsened field so the
-    # lines follow the fronts instead of kilometre-scale pixel noise.
-    dlat = abs(float(field["latitude"][1] - field["latitude"][0]))
-    c = max(1, round(0.06 / dlat))
-    sm = (field.coarsen(latitude=c, longitude=c, boundary="trim").mean()
-          if c > 1 else field)
-    cs = ax.contour(sm["longitude"].values, sm["latitude"].values, sm.values,
-                    levels=[26, 28, 30], colors="#111111", linewidths=0.6,
-                    alpha=0.9, transform=ccrs.PlateCarree(), zorder=2)
-    ax.clabel(cs, fmt=lambda v: f"{v:.0f}°", fontsize=6, inline=True)
+    _isotherms(ax, field)
     cb = fig.colorbar(mesh, ax=ax, orientation="vertical", pad=0.012,
                       fraction=0.025, aspect=28)
     cb.set_label("SST (°C)", fontsize=9)
@@ -183,21 +222,16 @@ def main() -> int:
             "ERDDAP · MUR interpolates under cloud — fine structure is analysis, "
             "not direct observation.")
 
-    # Wide view: two lon chunks (ERDDAP ranges cannot cross the antimeridian).
-    west = grab(t, WIDE["lat"], (160, 179.99), stride=WIDE["stride"], tag="wide_w")
-    east = grab(t, WIDE["lat"], (-179.99, -80), stride=WIDE["stride"], tag="wide_e")
-    east = east.assign_coords(longitude=east["longitude"] % 360)
-    west = west.assign_coords(longitude=west["longitude"] % 360)
-    wide = xr.concat([west, east], dim="longitude").sortby("longitude")
-    render(wide, (160, 280, -10, 10),
-           f"NASA JPL MUR SST v4.1 — 0.05° — {t:%Y-%m-%d}",
-           ASSETS / "mur_eqpac.webp", figsize=(16, 3.6), note=note)
-
     # Cold-tongue zoom at native resolution, 170°E → Peru coast.
     zoom = fetch_zoom(t)
     render(zoom, ZOOM_EXTENT,
            f"NASA JPL MUR SST v4.1 — native 0.01° — {t:%Y-%m-%d}",
            ASSETS / "mur_coldtongue.webp", figsize=(22, 3.9), note=note)
+    # Mobile companion: same field, three stacked lon segments (west → east),
+    # served via <picture> so phones see the whole plot without scrolling.
+    render_stacked(zoom, 3,
+                   f"NASA JPL MUR SST v4.1 — 0.01° — {t:%Y-%m-%d}",
+                   ASSETS / "mur_coldtongue_m.webp", note=note)
     return 0
 
 

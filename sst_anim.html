@@ -191,10 +191,21 @@ function fitWide() {
 }
 imgEl.addEventListener("load", () => { fitWide(); postHeight(); });
 addEventListener("resize", () => { fitWide(); postHeight(); });
-imgEl.addEventListener("click", () => {          // tap → full frame, pinch-zoomable
-  if (imgEl.closest(".frame-wrap").classList.contains("panwide"))
-    window.open(imgEl.src, "_blank");
+imgEl.addEventListener("click", () => {          // click → larger version
+  // Embedded: ask the parent page to open its lightbox on the current frame
+  // (lightbox.js listens for same-origin lb-show messages). Standalone or no
+  // parent lightbox: open the raw frame, pinch-zoomable, in a new tab.
+  if (document.body.classList.contains("embed")) {
+    try {
+      parent.postMessage({ type: "lb-show", src: imgEl.src,
+                           caption: dateEl ? dateEl.textContent : "" },
+                         location.origin);
+      return;
+    } catch (e) { /* cross-origin parent — fall through */ }
+  }
+  window.open(imgEl.src, "_blank");
 });
+imgEl.style.cursor = "zoom-in";
 // the control bar's own height changes when the row wraps (narrow cards) or
 // fonts finish loading — observe it directly so the parent never miscounts
 if (window.ResizeObserver) new ResizeObserver(postHeight).observe(document.body);
