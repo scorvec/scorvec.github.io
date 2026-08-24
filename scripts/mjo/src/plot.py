@@ -112,7 +112,8 @@ def plot_rmm(
     n_leads = len(lead_days)
 
     fig, ax = plt.subplots(figsize=(8.5, 8.5))
-    ttl = "AIFS vs IFS Ensemble RMM" if ifs is not None else "AIFS Ensemble RMM"
+    name = rmm.attrs.get("model_label", "AIFS")
+    ttl = f"{name} vs IFS Ensemble RMM" if ifs is not None else f"{name} Ensemble RMM"
     ax.set_title(
         f"{ttl}  —  Init: {date[:4]}-{date[4:6]}-{date[6:8]} {rtime}Z",
         fontsize=13, fontweight="bold",

@@ -109,6 +109,7 @@ def compute_rmm(
     mean120: dict[str, np.ndarray] | None = None,
     prcp_clim: xr.Dataset | None = None,
     model: str = "aifs",
+    fields: dict | None = None,
 ) -> xr.Dataset:
     """Project the AIFS ensemble onto the wind portions of the reference EOFs.
 
@@ -154,23 +155,38 @@ def compute_rmm(
 
     init_dt = pd.Timestamp(f"{date[:4]}-{date[4:6]}-{date[6:8]}T{run_time}:00")
 
-    for label, u_path in [("cf", cf_path), ("pf", pf_path)]:
-        if not u_path.exists():
-            print(f"  {label} winds missing for {stem} — skipped")
-            continue
-        print(f"  Processing {label} …")
+    # ``fields`` bypasses the GRIB loading for non-AIFS models (WeatherNext):
+    # {label: (u850, u200, tp_or_None)} with the SAME conventions load_aifs_*
+    # produce — dims ([number,] step, latitude, longitude) on the 2.5° grid,
+    # step as timedelta, tp accumulated from init in mm.
+    sources = (list(fields.items()) if fields is not None
+               else [("cf", cf_path), ("pf", pf_path)])
+    for label, src in sources:
+        if fields is not None:
+            print(f"  Processing {label} …")
+            u850, u200, tp_d = src
+            if tp_d is not None:
+                tp_d = tp_d.sortby("step")
+            else:
+                have_prcp = False
+        else:
+            u_path = src
+            if not u_path.exists():
+                print(f"  {label} winds missing for {stem} — skipped")
+                continue
+            print(f"  Processing {label} …")
 
-        u850, u200 = load_aifs_uwnd(u_path)
+            u850, u200 = load_aifs_uwnd(u_path)
 
-        tp_path = aifs_dir / f"{stem}.{label}.tp.grib2"
-        tp_d = None
-        if prcp_clim is not None and tp_path.exists():
-            try:
-                tp_d = load_aifs_tp(tp_path).sortby("step").load()
-            except Exception as e:                    # noqa: BLE001
-                print(f"  tp load failed for {label} ({repr(e)[:60]}) — wind-only")
-        if tp_d is None:
-            have_prcp = False
+            tp_path = aifs_dir / f"{stem}.{label}.tp.grib2"
+            tp_d = None
+            if prcp_clim is not None and tp_path.exists():
+                try:
+                    tp_d = load_aifs_tp(tp_path).sortby("step").load()
+                except Exception as e:                    # noqa: BLE001
+                    print(f"  tp load failed for {label} ({repr(e)[:60]}) — wind-only")
+            if tp_d is None:
+                have_prcp = False
 
         # The download anchors forecast leads to 00Z VALID times (download_aifs.rmm_steps:
         # 00Z init → 0,24,…; 12Z init → 0,12,36,…), so 00Z and 12Z runs share ONE 00Z
