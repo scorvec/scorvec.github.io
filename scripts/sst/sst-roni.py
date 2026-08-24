@@ -427,13 +427,19 @@ def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS):
     sc = load_roni_scale()          # so the frames' "Daily RONI" matches the maps (scaled)
     for i in range(n):
         ann = None
+        title = f"{pfx} — {st[i]:%Y-%m-%d}"
         if cfg["kind"] == "anom":
+            # Same wording as the retired static maps — each frame carries that
+            # day's readout with the full index names.
             n34, trop, rel = daily_nino_readout(sel.isel(time=i), la, lo)
-            ann = (f"Daily ONI:  {n34:+.2f} °C\n"
-                   f"Trop-mean:  {trop:+.2f} °C\n"
-                   f"Daily RONI: {rel * sc.get(int(st[i].month), 1.0):+.2f} °C")
+            roni_d = rel * sc.get(int(st[i].month), 1.0)
+            ann = (f"Daily Ocean Niño Index: {n34:+.2f} °C\n"
+                   f"Daily Tropical Mean SST: {trop:+.2f} °C\n"
+                   f"Daily Relative Oceanic Niño Index: {roni_d:+.2f} °C")
+            title = (f"{pfx} — {st[i]:%Y-%m-%d} "
+                     f"(OISST v2.1, anomalies vs {oisst9120.BASE_LABEL})")
         tasks.append((sel.isel(time=i).values, lat_vals, lon_vals, la, lo, cfg["kind"],
-                      f"{pfx} — {st[i]:%Y-%m-%d}", str(out_dir / f"F{i:02d}.webp"), ann))
+                      title, str(out_dir / f"F{i:02d}.webp"), ann))
         frames.append({"idx": i, "file": f"F{i:02d}.webp",
                        "date": f"{st[i]:%Y-%m-%d}", "label": f"{st[i]:%a %b %d, %Y}"})
     with ProcessPoolExecutor(max_workers=RENDER_WORKERS) as ex:

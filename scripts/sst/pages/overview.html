@@ -30,22 +30,22 @@
     </a>
   </div>
 
-  <!-- ── TODAY'S OISST ANOMALY MAPS ────────────────────────────────────── -->
-  <div class="card">
-    <h2>Today's SST anomaly &mdash; OISST</h2>
-    <p class="note">The latest NOAA OISST v2.1 daily field, as anomalies vs 1991&ndash;2020 &mdash;
-    the raw material behind every index on this page. Global first, then the tropical
-    Pacific with the Ni&ntilde;o regions outlined; the daily ONI / tropical-mean / RONI
-    readout is stamped on the maps. Click to enlarge.</p>
-    <div class="img-wrap">
-      <img src="assets/sst/global_sst_anom.webp?v=__CACHE__" alt="Global sea-surface temperature anomaly map, latest OISST day" loading="lazy">
+  <!-- ── TODAY'S OISST ANOMALY — ANIMATED ──────────────────────────────── -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Today's SST anomaly &mdash; OISST</h2>
+      <p>The latest NOAA OISST v2.1 daily field, as anomalies vs 1991&ndash;2020 &mdash;
+      the raw material behind every index on this page &mdash; animated over the last
+      90 days. Global on top, the tropical Pacific below with the Ni&ntilde;o regions
+      outlined; each frame is stamped with that day's ONI / tropical-mean / RONI
+      readout. The panel's dropdown also offers the <b>global-mean-removed</b> variant,
+      which strips the uniform background warming and isolates the ENSO pattern.</p>
     </div>
-    <div class="img-wrap">
-      <img src="assets/sst/tropical_sst_anom.webp?v=__CACHE__" alt="Tropical Pacific SST anomaly map with Niño regions outlined, latest OISST day" loading="lazy">
-    </div>
+    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
+            title="Global and tropical Pacific SST anomaly animation, latest OISST day" loading="lazy"></iframe>
     <div class="chart-card-footer">
-      <span class="chart-sources">NOAA OISST v2.1 (PSL, NCEI fallback) &middot; 1/4&deg; &middot; anomalies vs 1991&ndash;2020 &middot; daily</span>
-      <span class="chart-updated">__SST_DAY__</span>
+      <span class="chart-sources">NOAA OISST v2.1 (PSL, NCEI fallback) &middot; 1/4&deg; &middot; anomalies vs 1991&ndash;2020 &middot; 90-day animation &middot; daily</span>
+      <span class="chart-updated" id="sst-updated">__SST_DAY__</span>
     </div>
   </div>
 
@@ -146,23 +146,7 @@
     </div>
   </div>
 
-  <!-- ── 90-DAY ANIMATIONS ─────────────────────────────────────────────── -->
-  <div class="chart-card">
-    <div class="chart-card-header">
-      <h2>Ninety days in motion &mdash; the anomaly</h2>
-      <p>The last 90 days of daily anomaly fields, global and tropical Pacific side by side,
-      with the Ni&ntilde;o regions outlined. The panel's dropdown also offers the
-      <b>global-mean-removed</b> variant, which strips the uniform background warming and
-      isolates the ENSO pattern.</p>
-    </div>
-    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
-            title="Global and tropical Pacific SST anomaly animation" loading="lazy"></iframe>
-    <div class="chart-card-footer">
-      <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; 90-day animation &middot; base 1991&ndash;2020</span>
-      <span class="chart-updated" id="sst-updated">__SST_DAY__</span>
-    </div>
-  </div>
-
+  <!-- ── 90-DAY ANIMATION: RAW SST ─────────────────────────────────────── -->
   <div class="chart-card">
     <div class="chart-card-header">
       <h2>Ninety days in motion &mdash; raw SST</h2>

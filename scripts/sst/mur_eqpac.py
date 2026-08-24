@@ -5,7 +5,7 @@ Equatorial Pacific SST at kilometre scale — NASA JPL MUR v4.1 (GHRSST L4).
 Daily products for the El Niño monitor:
   assets/sst/mur_coldtongue.webp — 8°S–8°N, 170°E–79°W at native 0.01°:
                                    TIW cusps, front filaments, Galápagos wake
-  assets/sst/anim/mur_ct/        — daily 0.04° frames since event onset
+  assets/sst/anim/mur_ct/        — daily native-0.01° frames since event onset
                                    (run with --anim), fixed colour range
 
 Source: NOAA CoastWatch ERDDAP (jplMURSST41) — credential-free HTTPS subsets,
@@ -56,7 +56,12 @@ def _open(url: str, timeout: int):
 ZOOM = dict(lat=(-8, 8), lon_chunks=[(170, 179.99), (-179.99, -79)])
 ZOOM_EXTENT = (170, 281, -8, 8)
 ANIM_DIR = "mur_ct"                           # assets/sst/anim/<region>/
-ANIM_STRIDE = 4                               # 0.04° — plenty at animation size
+ANIM_STRIDE = 1                               # native 0.01° — full MUR resolution
+ANIM_DPI = 200                                # matches the static render
+# Frames rendered before the 0.01° upgrade (0.04° @ dpi 110) are ~1930 px wide
+# after the tight-bbox trim; current dpi-200 frames are ~3500. Anything
+# narrower gets re-rendered in place.
+ANIM_MIN_WIDTH = 3000
 ANIM_START = "2026-04-01"                     # pre-onset context; RONI ≥ +0.5 from 2026-05-21
 # Colour range adapts to each day's field (0.5–99.5th percentile ± 0.5 °C,
 # rounded to 0.5): a fixed range wastes the palette when the cold tongue runs
@@ -245,7 +250,7 @@ def anim(argv_start: str | None = None) -> int:
     frames_dir = ASSETS / "anim" / ANIM_DIR
     frames_dir.mkdir(parents=True, exist_ok=True)
     man_path = ASSETS / "anim" / "mur_manifest.json"
-    note = ("NASA JPL MUR SST v4.1 (~1 km analysis, 0.04° frames) via NOAA "
+    note = ("NASA JPL MUR SST v4.1 (~1 km analysis, native 0.01° frames) via NOAA "
             "CoastWatch ERDDAP · fixed colour range across the event")
 
     latest = latest_time()
@@ -264,10 +269,23 @@ def anim(argv_start: str | None = None) -> int:
         vrange = [lo, hi]
         print(f"  fixed animation range: {lo}–{hi} °C", flush=True)
 
+    def _current(p: Path) -> bool:
+        """True if the frame exists at the post-upgrade resolution. Old 0.04°
+        frames (~2400 px wide) fail the width check and re-render in place, so
+        the upgrade is resumable and the frame files never disappear mid-run."""
+        if not p.exists():
+            return False
+        try:
+            from PIL import Image
+            with Image.open(p) as im:
+                return im.size[0] >= ANIM_MIN_WIDTH
+        except Exception:                                   # noqa: BLE001
+            return False
+
     made = 0
     for d in days:
         out = frames_dir / f"{d:%Y%m%d}.webp"
-        if out.exists():
+        if _current(out):
             continue
         try:
             f = fetch_zoom(d + pd.Timedelta(hours=9), stride=ANIM_STRIDE,
@@ -284,8 +302,9 @@ def anim(argv_start: str | None = None) -> int:
                   f"({np.isfinite(f.values).mean():.0%} finite); skipping",
                   flush=True)
             continue
-        render(f, ZOOM_EXTENT, f"NASA JPL MUR SST v4.1 — 0.04° — {d:%Y-%m-%d}", out,
-               figsize=(22, 3.9), note=note, vrange=tuple(vrange), dpi=110)
+        render(f, ZOOM_EXTENT, f"NASA JPL MUR SST v4.1 — native 0.01° — {d:%Y-%m-%d}",
+               out, figsize=(22, 3.9), note=note, vrange=tuple(vrange),
+               dpi=ANIM_DPI)
         made += 1
         time.sleep(2)                       # be a polite ERDDAP citizen
 
