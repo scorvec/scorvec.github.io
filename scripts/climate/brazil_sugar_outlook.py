@@ -57,7 +57,13 @@ def belt_avg(da, box):
 def era5_series(path, var_guess, months, box):
     ds = xr.open_dataset(path)
     var = var_guess if var_guess in ds else list(ds.data_vars)[0]
-    da = ds[var].sortby("lat")
+    da = ds[var]
+    ren = {k: v for k, v in dict(latitude="lat", longitude="lon",
+                                 valid_time="time").items()
+           if k in da.dims or k in da.coords}
+    da = da.rename(ren).sortby("lat")
+    if var == "t2m" and float(da.max()) > 200:
+        da = da - 273.15
     da = da.assign_coords(lon=(((da["lon"] + 180) % 360) - 180)).sortby("lon")
     t = pd.DatetimeIndex(da["time"].values).to_period("M").to_timestamp()
     da = da.assign_coords(time=t)
@@ -177,7 +183,8 @@ def main() -> int:
     t2 = ds5["t2m"].sortby("lat")
     t2 = t2.assign_coords(lon=(((t2["lon"] + 180) % 360) - 180)).sortby("lon")
     tt = pd.DatetimeIndex(t2["time"].values)
-    h_t = era5_series(v2.v1.ERA5, "t2m", [11, 12, 1, 2, 3], CS)
+    t2_path = v2.ERA5_HIRES if v2.ERA5_HIRES.exists() else v2.v1.ERA5
+    h_t = era5_series(t2_path, "t2m", [11, 12, 1, 2, 3], CS)
     la = lat_e
     fcs = []
     for m in v2.MONTHS:

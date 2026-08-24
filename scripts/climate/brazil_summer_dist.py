@@ -162,9 +162,10 @@ def main() -> int:
                  loc="left", fontsize=11)
     fig.suptitle("Brazil 2026/27 summer — national temperature outlook",
                  fontsize=13, x=0.02, ha="left")
+    grid_lbl = "0.25°" if v2.ERA5_HIRES.exists() else "2°"
     fig.text(0.01, -0.02,
-             "ERA5 2° grid, GeoNames city populations ≥15k as weights. "
-             "Forecast = v2 blend (stat + C3S for Nov–Jan).",
+             f"ERA5 {grid_lbl} grid, GeoNames city populations ≥15k as "
+             "weights. Forecast = v2 blend (stat + C3S for Nov–Jan).",
              fontsize=8, color="#555")
     out1 = Path.home() / "brazil_summer_dist_national.png"
     fig.savefig(out1, facecolor="white", bbox_inches="tight",
@@ -198,9 +199,10 @@ def main() -> int:
     fig.suptitle("City NDJFM temperature — history (1950/51–2025/26) vs "
                  "2026/27 forecast (red; dashed = 5-yr normal)",
                  fontsize=13, x=0.02, ha="left")
+    grid_lbl = "0.25°" if v2.ERA5_HIRES.exists() else "2°"
     fig.text(0.01, -0.015,
-             "Nearest ERA5 2° cell per city — regional means, not station "
-             "values.", fontsize=8, color="#555")
+             f"Nearest ERA5 {grid_lbl} cell per city — regional means, not "
+             "station values.", fontsize=8, color="#555")
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     out2 = Path.home() / "brazil_summer_dist_cities.png"
     fig.savefig(out2, facecolor="white", bbox_inches="tight",

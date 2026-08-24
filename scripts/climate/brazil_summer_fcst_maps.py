@@ -104,21 +104,41 @@ def obs_monthly_fingerprint():
     return out
 
 
-def model_monthly_fingerprint(lat_t, lon_t):
+def model_monthly_fingerprint(lat_t, lon_t, obs_unit=None):
     """Pooled, per-model-amplitude-scaled CMIP6 EP composite per month,
-    each model interpolated to the target grid before weighting."""
+    each model interpolated to the target grid before weighting.
+
+    obs_unit: dict month → 2-D array of the OBSERVED per-unit-RONI
+    fingerprint on the target grid. When given, each model's fingerprint is
+    additionally rescaled so its domain RMS per unit RONI matches the
+    observed one — models vote on the PATTERN, observations set the
+    AMPLITUDE. Without it, CMIP6 Amazon land-atmosphere feedback (MIROC6
+    especially) runs 2–3× the observed per-unit response, and EC-Earth3's
+    small index variance forces a ×3.9 linear extrapolation."""
     fps, ns = {m: [] for m in MONTHS}, []
+    obs_rms = None
+    if obs_unit is not None:
+        obs_rms = float(np.sqrt(np.nanmean(
+            [obs_unit[m] ** 2 for m in MONTHS])))
     for mdl in PASSERS:
         z = np.load(SCRATCH / f"cmip6_ep_monthly_{mdl}.npz")
         n, amp = int(z["n_ep"]), float(z["amp_sum"]) / int(z["n_ep"])
-        print(f"{mdl}: EP n={n}, mean amp {amp:+.2f} °C, "
-              f"scale ×{RONI_FC/amp:.2f}")
         ns.append(n)
+        scaled = {}
         for m in MONTHS:
             da = xr.DataArray(z[f"m{m}"] / n * (RONI_FC / amp),
                               coords=dict(lat=z["lat"], lon=z["lon"]),
                               dims=("lat", "lon")).sortby("lon")
-            fps[m].append(da.interp(lat=lat_t, lon=lon_t).values)
+            scaled[m] = da.interp(lat=lat_t, lon=lon_t).values
+        k = 1.0
+        if obs_rms is not None:
+            mdl_rms = float(np.sqrt(np.nanmean(
+                [(scaled[m] / RONI_FC) ** 2 for m in MONTHS])))
+            k = obs_rms / mdl_rms
+        print(f"{mdl}: EP n={n}, mean amp {amp:+.2f} °C, "
+              f"scale ×{RONI_FC/amp:.2f}, amplitude calib ×{k:.2f}")
+        for m in MONTHS:
+            fps[m].append(scaled[m] * k)
     w = np.array(ns, float) / sum(ns)
     return {m: sum(fp * wi for fp, wi in zip(fps[m], w)) for m in MONTHS}
 
@@ -154,11 +174,13 @@ def main() -> int:
     print(f"obs mean amp {amp_obs:+.2f} °C, scale ×{RONI_FC/amp_obs:.2f}")
     obs_fp = obs_monthly_fingerprint()
     lat_e, lon_e = t2["lat"].values, t2["lon"].values
-    mdl_fp = model_monthly_fingerprint(lat_e, lon_e)
+    obs_i = {m: obs_fp[m].interp(lat=lat_e, lon=lon_e).values
+             for m in MONTHS}
+    mdl_fp = model_monthly_fingerprint(
+        lat_e, lon_e, obs_unit={m: obs_i[m] / amp_obs for m in MONTHS})
     fp = {}
     for m in MONTHS:
-        o = obs_fp[m].interp(lat=lat_e, lon=lon_e).values * (RONI_FC / amp_obs)
-        fp[m] = 0.5 * o + 0.5 * mdl_fp[m]
+        fp[m] = 0.5 * obs_i[m] * (RONI_FC / amp_obs) + 0.5 * mdl_fp[m]
 
     # ── figures ──
     for nb in (30, 10, 5):

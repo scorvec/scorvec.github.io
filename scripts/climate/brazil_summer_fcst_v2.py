@@ -254,12 +254,31 @@ def draw_panel(fig, pos, lon, lat, fld, title, vmax=3.0, cmap="RdBu_r",
     return ax
 
 
+ERA5_HIRES = HERE.parent / "sst" / "data" / "era5_t2m_mon_sa_hires.nc"
+
+
+def load_era5():
+    """0.25° SA cache when present (CDS download), else the 2° global one."""
+    if ERA5_HIRES.exists():
+        ds = xr.open_dataset(ERA5_HIRES)
+        da = ds["t2m"]
+        ren = {k: v for k, v in dict(latitude="lat", longitude="lon",
+                                     valid_time="time").items()
+               if k in da.dims or k in da.coords}
+        da = da.rename(ren)
+        if float(da.max()) > 200:
+            da = da - 273.15
+        print(f"ERA5 base: 0.25° SA cache ({da.sizes})")
+        return da
+    print("ERA5 base: 2° global cache")
+    return xr.open_dataset(v1.ERA5)["t2m"]
+
+
 def compute() -> dict:
     """Build all forecast fields; returns everything the figures (and
     downstream diagnostics) need."""
     # ── ERA5 base (as v1) + 1993–2016 clim for dynamical anchoring ──
-    ds = xr.open_dataset(v1.ERA5)
-    t2 = ds["t2m"].sortby("lat")
+    t2 = load_era5().sortby("lat")
     t2 = t2.assign_coords(lon=(((t2["lon"] + 180) % 360) - 180)).sortby("lon")
     t2 = t2.sel(lat=slice(EXT[2] - 4, EXT[3] + 4),
                 lon=slice(EXT[0] - 4, EXT[1] + 4)).load()
@@ -282,12 +301,15 @@ def compute() -> dict:
         hcw = (yrs >= 1993) & (yrs <= 2016)
         clim9316[m] = sel.isel(time=hcw).mean("time").values
 
-    # ── EP fingerprint (v1 blend) ──
+    # ── EP fingerprint (v1 blend, model amplitude calibrated to obs) ──
     amp_obs = v1.obs_amplitude()
     obs_fp = v1.obs_monthly_fingerprint()
-    mdl_fp = v1.model_monthly_fingerprint(lat_e, lon_e)
-    fp = {m: 0.5 * obs_fp[m].interp(lat=lat_e, lon=lon_e).values
-          * (v1.RONI_FC / amp_obs) + 0.5 * mdl_fp[m] for m in MONTHS}
+    obs_i = {m: obs_fp[m].interp(lat=lat_e, lon=lon_e).values
+             for m in MONTHS}
+    mdl_fp = v1.model_monthly_fingerprint(
+        lat_e, lon_e, obs_unit={m: obs_i[m] / amp_obs for m in MONTHS})
+    fp = {m: 0.5 * obs_i[m] * (v1.RONI_FC / amp_obs) + 0.5 * mdl_fp[m]
+          for m in MONTHS}
 
     # ── teleconnections ──
     idx = monthly_index_table()
