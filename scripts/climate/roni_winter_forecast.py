@@ -52,6 +52,7 @@ CLIM0, CLIM1 = 1991, 2020      # anomaly base (winter start years)
 TARGET = 2026                  # forecast winter 2026/27
 WINTER_MONTHS = (11, 12, 1, 2, 3)
 P_SIG = 0.10                   # keep the RONI term only below this p-value
+HINGE_YEAR = 1970              # extra trend slope switches on here (accelerated warming)
 
 # ~100 cities, roughly evenly spread over CONUS (name, lat, lon degE-360-safe)
 CITIES = [
@@ -263,24 +264,32 @@ def fit_and_forecast(anom: pd.DataFrame, meta: pd.DataFrame,
         ser = anom[name].dropna()
         years = ser.index.intersection(roni.index)
         y = ser.loc[years].to_numpy()
+        # Piecewise-linear (hinge) climate trend: one slope for the full
+        # record plus an additional slope from 1970 on, so the forecast
+        # extrapolates the MODERN warming rate — a single century-long line
+        # understates it now that warming has accelerated.
         X_year = (years - 2000).to_numpy(dtype=float)
+        X_hinge = np.clip(years.to_numpy(dtype=float) - HINGE_YEAR, 0, None)
         X_roni = roni.loc[years].to_numpy()
-        A = np.column_stack([np.ones_like(X_year), X_year, X_roni])
+        A = np.column_stack([np.ones_like(X_year), X_year, X_hinge, X_roni])
         coef, *_ = np.linalg.lstsq(A, y, rcond=None)
         resid = y - A @ coef
-        dof = len(y) - 3
+        dof = len(y) - 4
         s2 = (resid @ resid) / dof
         cov = s2 * np.linalg.inv(A.T @ A)
-        t_roni = coef[2] / np.sqrt(cov[2, 2])
+        t_roni = coef[3] / np.sqrt(cov[3, 3])
         p_roni = 2 * stats.t.sf(abs(t_roni), dof)
         r = np.corrcoef(A @ coef, y)[0, 1]
-        c_used = coef[2] if p_roni < P_SIG else 0.0
-        fc = coef[0] + coef[1] * (TARGET - 2000) + c_used * roni_now
-        trend_part = coef[0] + coef[1] * (TARGET - 2000)
+        c_used = coef[3] if p_roni < P_SIG else 0.0
+        trend_part = (coef[0] + coef[1] * (TARGET - 2000)
+                      + coef[2] * (TARGET - HINGE_YEAR))
+        fc = trend_part + c_used * roni_now
         out.append(dict(city=name, lat=lat, lon=lon, forecast_F=fc,
                         trend_F=trend_part, roni_F=c_used * roni_now,
-                        roni_coef=coef[2], roni_p=p_roni,
-                        trend_per_decade=coef[1] * 10, fit_r=r,
+                        roni_coef=coef[3], roni_p=p_roni,
+                        trend_per_decade_pre=coef[1] * 10,
+                        trend_per_decade_modern=(coef[1] + coef[2]) * 10,
+                        fit_r=r,
                         station=row["station"], station_name=row["station_name"],
                         rec_start=row["rec_start"], n_winters=len(y)))
     return pd.DataFrame(out)
@@ -341,15 +350,18 @@ def draw_map(fc: pd.DataFrame, roni_now: float, out_path: Path):
     cb = fig.colorbar(cf, ax=ax, orientation="horizontal", fraction=0.05,
                       pad=0.03, aspect=45, shrink=0.8)
     cb.set_label("NDJFM 2-m temperature anomaly vs 1991–2020 (°F)", fontsize=10)
-    ax.set_title(f"Winter 2026–27 (NDJFM) outlook — RONI + linear trend only — "
-                 f"assumed RONI {roni_now:+.1f} °C",
+    ax.set_title(f"Winter 2026–27 (NDJFM) outlook — RONI + climate trend "
+                 f"(hinge {HINGE_YEAR}) — assumed RONI {roni_now:+.1f} °C",
                  fontsize=13, loc="left", pad=8)
     fig.text(0.015, 0.015,
              "Per-city OLS on GHCN-M v4 adjusted station observations (NDJFM means, "
-             "most records from ≤1905; winters through 2025/26): anomaly = a + b·year "
-             "+ c·RONI (ERSST-derived, Niño-3.4 − tropical mean, from 1900). RONI term "
-             "kept only where significant at 90% (filled dots; open = trend only). "
-             "Statistical outlook, not a dynamical forecast.",
+             "most records from ≤1905; winters through 2025/26):\n"
+             "anomaly = a + b·year + c·RONI (ERSST-derived, Niño-3.4 − tropical mean, "
+             "from 1900). RONI term kept only where significant at 90% (filled dots; "
+             "open = trend only).\n"
+             f"Trend is piecewise linear (extra slope from {HINGE_YEAR}) so the forecast "
+             "extrapolates the modern warming rate. Statistical outlook, not a "
+             "dynamical forecast.",
              fontsize=7.5, color="#555")
     fig.savefig(out_path, facecolor="white", bbox_inches="tight", pad_inches=0.12)
     plt.close(fig)
