@@ -276,6 +276,14 @@ def anim(argv_start: str | None = None) -> int:
             print(f"  {d:%Y-%m-%d}: fetch failed ({repr(e)[:60]}); skipping",
                   flush=True)
             continue
+        # ERDDAP sometimes advertises a day in .das before its data is
+        # populated — an all-NaN field renders as a colorbar with no map
+        # (bit the site 2026-08-24). Skip; the next run retries the day.
+        if np.isfinite(f.values).mean() < 0.5:
+            print(f"  {d:%Y-%m-%d}: field mostly empty "
+                  f"({np.isfinite(f.values).mean():.0%} finite); skipping",
+                  flush=True)
+            continue
         render(f, ZOOM_EXTENT, f"NASA JPL MUR SST v4.1 — 0.04° — {d:%Y-%m-%d}", out,
                figsize=(22, 3.9), note=note, vrange=tuple(vrange), dpi=110)
         made += 1

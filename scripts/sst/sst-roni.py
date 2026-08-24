@@ -89,6 +89,9 @@ TSA = dict(lat=(-20, 0), lon=[(330, 360), (0, 10)])   # 30°W–10°E, crosses 0
 # South Atlantic Subtropical Dipole (Morioka et al. 2011): SW pole − NE pole.
 SASD_SW = dict(lat=(-40, -30), lon=(330, 350))  # 30–10°W, 40–30°S
 SASD_NE = dict(lat=(-25, -15), lon=(340, 360))  # 20°W–0°, 25–15°S
+# Tropical North Atlantic (Enfield et al. 1999 / PSL box): controls the
+# Atlantic ITCZ's meridional position — the NE-Brazil rainfall lever.
+TNA = dict(lat=(5.5, 23.5), lon=(302.5, 345))   # 57.5–15°W, 5.5–23.5°N
 GLOBAL_OCEAN = dict(lat=(-60, 60), lon=(0, 360))
 # PDO: daily OISST anomalies (global-mean removed) projected onto the ERSST v5
 # North Pacific EOF pattern, calibrated to NCEI's monthly index (see
@@ -809,8 +812,8 @@ def render_iod_daily(w_ser, e_ser, out_path):
     print(f"  wrote {out_path.name}")
 
 
-def render_satl_daily(atl3, tsa, sasd, out_path):
-    """South Atlantic: Atlantic Niño (ATL3), TSA, and the subtropical dipole."""
+def render_satl_daily(atl3, tsa, sasd, tna, out_path):
+    """Atlantic indices: Atlantic Niño, TSA, subtropical dipole, and TNA."""
     t = pd.to_datetime(atl3.index)
 
     fig, ax = plt.subplots(figsize=(12, 4.2), dpi=100)
@@ -820,14 +823,16 @@ def render_satl_daily(atl3, tsa, sasd, out_path):
             label="Tropical South Atlantic (30°W–10°E, 20°S–0°)")
     ax.plot(t, sasd.values, color="#2b6fd6", lw=1.6,
             label="Subtropical dipole SASD (SW − NE pole)")
+    ax.plot(t, tna.values, color="#d9402a", lw=1.8,
+            label="Tropical North Atlantic TNA (57.5–15°W, 5.5–23.5°N)")
     _style_mode_axes(ax, t)
     ax.set_ylabel("SST anomaly (°C)", fontsize=11)
     span = f"{t[0]:%b %Y} – {t[-1]:%b %d, %Y}"
-    ax.set_title(f"Daily South Atlantic Indices — {span}",
+    ax.set_title(f"Daily Atlantic Indices — {span}",
                  fontsize=11, loc="left", pad=8)
-    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=3)
+    ax.legend(loc="upper left", fontsize=8, framealpha=0.85, ncols=2)
     readout = (f"latest  ATL3 {atl3.iloc[-1]:+.2f}   TSA {tsa.iloc[-1]:+.2f}   "
-               f"SASD {sasd.iloc[-1]:+.2f}  °C")
+               f"SASD {sasd.iloc[-1]:+.2f}   TNA {tna.iloc[-1]:+.2f}  °C")
     ax.text(0.995, 0.04, readout,
             transform=ax.transAxes, fontsize=8, va="bottom", ha="right",
             family="monospace",
@@ -837,8 +842,8 @@ def render_satl_daily(atl3, tsa, sasd, out_path):
     fig.text(0.005, 0.005,
              "Daily cosine-weighted box means from NOAA OISST v2.1 (anomalies vs "
              "1991–2020) · SASD = SW pole (30–10°W, 40–30°S) "
-             "− NE pole (20°W–0°, 25–15°S), "
-             "Morioka et al. convention.", **_MODE_FOOTNOTE_KW)
+             "− NE pole (20°W–0°, 25–15°S), Morioka convention · "
+             "TNA = Enfield/PSL box.", **_MODE_FOOTNOTE_KW)
     fig.savefig(out_path, **_MODE_SAVE_KW)
     plt.close(fig)
     print(f"  wrote {out_path.name}")
@@ -1138,10 +1143,11 @@ def main(argv=None) -> int:
     tsa = _concat_box_series(mean_fields, la, lo, TSA).tail(MODES_DAYS)
     sasd = (_concat_box_series(mean_fields, la, lo, SASD_SW)
             - _concat_box_series(mean_fields, la, lo, SASD_NE)).tail(MODES_DAYS)
-    render_satl_daily(atl3, tsa, sasd, ASSETS / "satl_daily.webp")
+    tna = _concat_box_series(mean_fields, la, lo, TNA).tail(MODES_DAYS)
+    render_satl_daily(atl3, tsa, sasd, tna, ASSETS / "satl_daily.webp")
     dmi = iod_w - iod_e
     print(f"  daily PDO {pdo.iloc[-1]:+.2f}, DMI {dmi.iloc[-1]:+.2f} degC, "
-          f"ATL3 {atl3.iloc[-1]:+.2f} degC")
+          f"ATL3 {atl3.iloc[-1]:+.2f} degC, TNA {tna.iloc[-1]:+.2f} degC")
 
     # --- Ni\u00f1o-region recent series: absolute SST + anomaly, all four boxes ---
     print("Ni\u00f1o-region recent series (absolute + anomaly):")
@@ -1192,6 +1198,7 @@ def main(argv=None) -> int:
         "daily_pdo": round(float(pdo.iloc[-1]), 3),
         "daily_dmi": round(float(dmi.iloc[-1]), 3),
         "daily_atl3": round(float(atl3.iloc[-1]), 3),
+        "daily_tna": round(float(tna.iloc[-1]), 3),
         "anim_days": ANIM_DAYS,
         "files": {
             "global": "global_sst_anom.webp",
