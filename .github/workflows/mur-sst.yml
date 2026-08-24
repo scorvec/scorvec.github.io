@@ -43,17 +43,16 @@ jobs:
           exit 1
       - name: Install Python dependencies
         run: pip install --quiet numpy pandas xarray netcdf4 matplotlib "cartopy>=0.22" "shapely>=2.0" "pyproj>=3.5" Pillow
-      - name: Build MUR equatorial Pacific maps
-        run: python scripts/sst/mur_eqpac.py
-
+      # The still maps are retired from the page for now — only the event
+      # animation runs daily (main() in mur_eqpac.py still renders the stills
+      # if they're ever wanted back).
       - name: Append event-animation frame
         run: python scripts/sst/mur_eqpac.py --anim
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/sst/mur_coldtongue.webp assets/sst/mur_coldtongue_m.webp \
-                  assets/sst/anim/mur_ct assets/sst/anim/mur_manifest.json
+          git add assets/sst/anim/mur_ct assets/sst/anim/mur_manifest.json
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "MUR equatorial Pacific maps: $(date -u +%Y-%m-%d)"
           for i in 1 2 3 4 5; do
