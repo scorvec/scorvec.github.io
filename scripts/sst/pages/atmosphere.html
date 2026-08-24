@@ -94,6 +94,48 @@
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0) &middot; member-weighted super-ensemble mean &middot; updated each 00/12Z cycle</span></div>
     </div>
 
+    <!-- GDPS MSLP + 10m WIND MAP ANIMATOR -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>GDPS MSLP &amp; 10 m Wind Forecast</h2>
+        <p>The same surface forecast from an independent physics model: ECCC's <b>GDPS</b>
+        (15&nbsp;km global deterministic) mean-sea-level pressure and 10&nbsp;m wind, animated
+        day&nbsp;1&ndash;10 on the same domain, shading and grammar as the super-ensemble maps
+        above, so the two can be flipped between directly. Where a third centre's physics
+        model agrees with the AI and ECMWF ensembles on an equatorial westerly push,
+        confidence in the wind burst &mdash; and the Kelvin-wave response behind it &mdash;
+        is high. Deterministic: one run, no spread, so expect more day-to-day jumpiness
+        than the ensemble mean.</p>
+      </div>
+      <iframe class="anim-embed mslp-wind" src="sst_anim.html?embed=1&amp;manifest=gdps_wind_manifest.json&amp;region=gdps_wind"
+              title="ECCC GDPS MSLP and 10 m wind forecast over the Pacific, animated" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECCC GDPS 15&nbsp;km deterministic (MSC Datamart open data) &middot; 00Z cycle, days 1&ndash;10 &middot; daily</span></div>
+    </div>
+
+    <!-- GDPS TROPICAL OLR HOVMÖLLER (GMGSI-IR colours) -->
+    <div class="chart-card media-narrow">
+      <div class="chart-card-header">
+        <h2>GDPS Tropical Convection Forecast &mdash; OLR</h2>
+        <p>Where the GDPS puts the deep convection that its winds respond to: forecast
+        top-of-atmosphere outgoing longwave radiation averaged 5&deg;S&ndash;5&deg;N,
+        longitude &times; forecast day&nbsp;1&ndash;10, as true daily means of the 3-hourly
+        fields. Coloured with the <b>same enhanced-IR colortable as the live GMGSI
+        satellite loops</b>: the warm, suppressed or clear scene stays grayscale, and the
+        ramp switches into colour below the 220&nbsp;W&nbsp;m&sup2; deep-convection
+        threshold (180 and 220&nbsp;W&nbsp;m&sup2; contoured) &mdash; so this reads as a
+        forecast extension of the observed IR loops. Convection holding on the dateline
+        rather than the Maritime Continent is the El&nbsp;Ni&ntilde;o-shifted Walker
+        circulation.</p>
+      </div>
+      <div class="img-wrap" style="max-width:700px;margin:0 auto">
+        <img src="assets/sst/gdps_olr.webp?v=__CACHE__" alt="GDPS tropical OLR forecast Hovmöller in GMGSI enhanced-IR colours" loading="lazy">
+      </div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ECCC GDPS top-of-atmosphere OLR (MSC Datamart) &middot; daily means of 3-hourly steps, days 1&ndash;10 &middot; GMGSI enhanced-IR colortable &middot; daily</span>
+        <span class="chart-updated">__SST_DAY__</span>
+      </div>
+    </div>
+
     <!-- 200 hPa VELOCITY POTENTIAL + IRROTATIONAL WIND (AIFS-ENS ensemble mean) -->
     <div class="chart-card">
       <div class="chart-card-header">
