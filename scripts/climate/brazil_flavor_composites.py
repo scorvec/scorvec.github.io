@@ -42,8 +42,10 @@ EXTENT = (-85, -30, -40, 12)          # South America, Brazil-centred
 Y0, Y1 = 1870, 2014
 
 
-def ndjfm_stack(path: Path, var: str, to=None) -> xr.DataArray:
-    """(summer, lat, lon) NDJFM means over the SA window, detrended per cell."""
+def ndjfm_stack(path: Path, var: str, to=None,
+                months=(11, 12, 1, 2, 3)) -> xr.DataArray:
+    """(summer, lat, lon) mean over `months` in the SA window, detrended per
+    cell. months=(m,) gives a single-month cube."""
     ds = xr.open_dataset(path)
     da = ds[var]
     lon = da["lon"]
@@ -65,10 +67,8 @@ def ndjfm_stack(path: Path, var: str, to=None) -> xr.DataArray:
     stacks = []
     yrs = []
     for y in range(Y0, Y1 + 1):
-        months = [pd.Timestamp(y, 11, 1), pd.Timestamp(y, 12, 1),
-                  pd.Timestamp(y + 1, 1, 1), pd.Timestamp(y + 1, 2, 1),
-                  pd.Timestamp(y + 1, 3, 1)]
-        idx = t.get_indexer(months)
+        stamps = [pd.Timestamp(y if m >= 11 else y + 1, m, 1) for m in months]
+        idx = t.get_indexer(stamps)
         if (idx < 0).any():
             continue
         stacks.append(da.isel(time=idx).mean("time"))
@@ -147,5 +147,60 @@ def main() -> int:
     return 0
 
 
+def monthly_main() -> int:
+    """Per-month composite differences: one figure per variable, rows = month,
+    cols = (EP − Modoki, EP − regular). Saved to the home folder."""
+    MNAME = {11: "Nov", 12: "Dec", 1: "Jan", 2: "Feb", 3: "Mar"}
+    specs = [("Temperature", DATA / "air.2m.mon.mean.nc", "air", "C",
+              "°C", 1.5, "RdBu_r", "temp"),
+             ("Precipitation", DATA / "apcp.mon.mean.nc", "apcp", "mmday",
+              "mm/day", 3.0, "BrBG", "precip")]
+    for label, path, var, conv, unit, vmax, cmap, tag in specs:
+        fig = plt.figure(figsize=(11.5, 24), dpi=140)
+        k = 0
+        groups = None
+        for m in (11, 12, 1, 2, 3):
+            cube = ndjfm_stack(path, var, to=conv, months=(m,))
+            if groups is None:
+                groups = {g: [y for y in EVENTS[g] if y in cube["summer"].values]
+                          for g in ("EP", "CP", "REG")}
+            A = cube.sel(summer=groups["EP"]).values
+            for other, ttl in (("CP", "EP − Modoki"), ("REG", "EP − regular")):
+                B = cube.sel(summer=groups[other]).values
+                d = A.mean(0) - B.mean(0)
+                p = welch_p(A, B)
+                k += 1
+                ax = fig.add_subplot(5, 2, k, projection=ccrs.PlateCarree())
+                ax.set_extent(EXTENT, crs=ccrs.PlateCarree())
+                lv = np.linspace(-vmax, vmax, 17)
+                cf = ax.contourf(cube["lon"], cube["lat"], d, levels=lv,
+                                 cmap=cmap, extend="both",
+                                 transform=ccrs.PlateCarree())
+                yy, xx = np.meshgrid(cube["lat"], cube["lon"], indexing="ij")
+                mk = p < 0.10
+                ax.plot(xx[mk], yy[mk], ".", color="#222", ms=0.9, alpha=0.6,
+                        transform=ccrs.PlateCarree())
+                ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.5,
+                               edgecolor="#333")
+                ax.coastlines("50m", lw=0.5, color="#333")
+                cb = fig.colorbar(cf, ax=ax, fraction=0.035, pad=0.02)
+                cb.set_label(unit, fontsize=8)
+                cb.ax.tick_params(labelsize=7)
+                ax.set_title(f"{MNAME[m]} — {ttl}", fontsize=10, loc="left")
+        fig.suptitle(f"{label}: El Niño flavor differences by month — 20CRv3 "
+                     f"detrended, 1870/71–2014/15\nEP n={len(groups['EP'])} "
+                     f"(1876, 1877, 1896, 1982, 1997) · Modoki "
+                     f"n={len(groups['CP'])} · regular n={len(groups['REG'])} "
+                     "· stippled Welch p<0.10", fontsize=12, x=0.03, ha="left")
+        out = Path.home() / f"brazil_flavor_monthly_{tag}.png"
+        fig.savefig(out, facecolor="white", bbox_inches="tight",
+                    pad_inches=0.15)
+        plt.close(fig)
+        print(f"wrote {out}")
+    return 0
+
+
 if __name__ == "__main__":
+    if "--monthly" in sys.argv:
+        sys.exit(monthly_main())
     sys.exit(main())
