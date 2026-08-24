@@ -99,6 +99,7 @@ def main() -> int:
     # observed monthly CDD panels + per-city/month fits → forecast
     obs = {m: {} for m in MONTHS}          # month -> year -> weighted CDD
     fc_cdd = {m: {} for m in MONTHS}       # month -> city -> forecast CDD
+    fc_cdd_trend = {m: {} for m in MONTHS}  # …with the RONI term zeroed
     norm_cdd = {m: {} for m in MONTHS}
     nsig = 0
     for c in cities:
@@ -110,6 +111,7 @@ def main() -> int:
             if len(base_t) < 12:
                 norm_cdd[m][c] = np.nan
                 fc_cdd[m][c] = np.nan
+                fc_cdd_trend[m][c] = np.nan
                 continue
             norm = base_t.mean()
             norm_cdd[m][c] = max(0.0, norm - BASE) * NDAYS[m]
@@ -127,9 +129,11 @@ def main() -> int:
             p = 2 * stats.t.sf(abs(coef[3] / np.sqrt(cov[3, 3])), dof)
             c_used = coef[3] if p < P_SIG else 0.0
             nsig += int(c_used != 0)
-            anom_fc = (coef[0] + coef[1] * (TARGET - 2000)
-                       + coef[2] * (TARGET - HINGE) + c_used * args.roni)
+            trend_fc = (coef[0] + coef[1] * (TARGET - 2000)
+                        + coef[2] * (TARGET - HINGE))
+            anom_fc = trend_fc + c_used * args.roni
             fc_cdd[m][c] = max(0.0, norm + anom_fc - BASE) * NDAYS[m]
+            fc_cdd_trend[m][c] = max(0.0, norm + trend_fc - BASE) * NDAYS[m]
             # observed CDDs for the history panels
             for y, tv in t.items():
                 obs[m].setdefault(y, {})[c] = max(0.0, tv - BASE) * NDAYS[m]
@@ -224,40 +228,58 @@ def main() -> int:
     plt.close(fig)
     print(f"wrote {p2}")
 
-    # ── scatter: NDJFM CDD vs NDJFM RONI, forecast starred ──
+    # ── scatter: TREND-REMOVED NDJFM CDD vs RONI, forecast starred ──
     roni_s = pd.Series({y: np.nanmean([roni_m.get(month_year(y, m), np.nan)
                                        for m in MONTHS]) for y in total.index})
-    both = pd.concat([total.rename("cdd"), roni_s.rename("roni")], axis=1).dropna()
+    yr = total.index.to_numpy(dtype=float)
+    Xt = np.column_stack([np.ones_like(yr), yr - 2000,
+                          np.clip(yr - HINGE, 0, None)])
+    ct, *_ = np.linalg.lstsq(Xt, total.values, rcond=None)
+    detr = pd.Series(total.values - Xt @ ct, index=total.index)
+    both = pd.concat([detr.rename("cdd"), roni_s.rename("roni")], axis=1).dropna()
+
+    # star: the RONI-driven excess alone (forecast minus its trend-only twin)
+    fcT = pd.Series({m: float((((pd.Series(fc_cdd_trend[m])
+                                 - pd.Series(norm_cdd[m])).dropna()
+                                * w).sum() / w[pd.Series(fc_cdd_trend[m]).notna()].sum())
+                              + norm_m[m]) for m in MONTHS})
+    star_y = fc_total - float(fcT.sum())
+
     fig, ax = plt.subplots(figsize=(9.5, 7.2), dpi=150)
     sc = ax.scatter(both.roni, both.cdd, c=both.index, cmap="viridis", s=42,
                     edgecolor="#333", lw=0.4, zorder=3)
     cb = fig.colorbar(sc, ax=ax, fraction=0.04, pad=0.02)
     cb.set_label("summer (Nov year)", fontsize=9)
     b, a = np.polyfit(both.roni, both.cdd, 1)
+    r = float(np.corrcoef(both.roni, both.cdd)[0, 1])
     xs = np.linspace(both.roni.min() - 0.3, max(both.roni.max(), args.roni) + 0.3, 50)
     ax.plot(xs, a + b * xs, color="#888", lw=1.2, ls="--", zorder=2,
-            label=f"OLS: {b:+.0f} CDD per RONI °C (raw, trend not removed)")
-    ax.scatter([args.roni], [fc_total], marker="*", s=560, color="#7a0018",
+            label=f"OLS on detrended: {b:+.0f} CDD per RONI °C (r={r:.2f})")
+    ax.axhline(0, color="#333", lw=0.8)
+    ax.scatter([args.roni], [star_y], marker="*", s=560, color="#7a0018",
                edgecolor="white", lw=1.2, zorder=5)
-    ax.annotate(f"2026–27 expectation\nRONI {args.roni:+.1f}, {fc_total:.0f} CDD",
-                (args.roni, fc_total), textcoords="offset points",
-                xytext=(-150, -12), fontsize=10, color="#7a0018",
+    ax.annotate(f"2026–27 expectation\nRONI {args.roni:+.1f}: "
+                f"+{star_y:.0f} CDD above trend",
+                (args.roni, star_y), textcoords="offset points",
+                xytext=(-168, -14), fontsize=10, color="#7a0018",
                 fontweight="bold")
     for y in both.index:
-        if both.cdd[y] >= both.cdd.nlargest(4).min() or both.roni[y] >= both.roni.nlargest(3).min():
+        if abs(both.cdd[y]) >= both.cdd.abs().nlargest(4).min() \
+           or both.roni[y] >= both.roni.nlargest(3).min():
             ax.annotate(str(y), (both.roni[y], both.cdd[y]),
                         textcoords="offset points", xytext=(4, 4), fontsize=7,
                         color="#555")
     ax.set_xlabel("NDJFM-mean RONI (°C)", fontsize=10)
-    ax.set_ylabel("NDJFM load-weighted CDD (base 18 °C)", fontsize=10)
+    ax.set_ylabel("NDJFM load-weighted CDD, departure from trend (base 18 °C)",
+                  fontsize=10)
     ax.grid(alpha=0.25)
     ax.legend(loc="lower right", fontsize=8.5)
-    ax.set_title("Brazil load-weighted NDJFM CDDs vs RONI — observed summers "
-                 "and the 2026/27 expectation", fontsize=12, loc="left", pad=8)
+    ax.set_title("Brazil load-weighted NDJFM CDDs vs RONI — trend removed — "
+                 "2026/27 expectation starred", fontsize=12, loc="left", pad=8)
     fig.text(0.012, 0.008,
-             "Colour = year: the upward drift at every RONI is the climate trend, "
-             "which the forecast model carries separately from the RONI term.",
-             fontsize=7.5, color="#666")
+             "Points: observed CDD minus the hinge-1970 trend fit for that year. "
+             "Star: the forecast's RONI-driven excess over its trend-only twin — "
+             "directly comparable to the points.", fontsize=7.5, color="#666")
     p3 = home / "brazil_cdd_vs_roni.png"
     fig.savefig(p3, facecolor="white", bbox_inches="tight", pad_inches=0.12)
     plt.close(fig)
