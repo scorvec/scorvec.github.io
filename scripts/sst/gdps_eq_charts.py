@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tropical Pacific forecast products from the ECCC GDPS — 10 m wind maps & OLR.
+"""Tropical Pacific forecast products from the ECCC GDPS — wind maps & simulated IR.
 
 The Canadian Global Deterministic Prediction System (15 km, open Datamart)
 as an independent physics model beside the AIFS-ENS / IFS-ENS products on
@@ -9,19 +9,20 @@ the Atmosphere page:
   + gdps_wind_manifest.json        days 1..10, same domain, shading and
                                    grammar as the super-ensemble animator
                                    (scripts/mjo/src/mslp_wind_anim.py)
-  assets/sst/gdps_olr.webp       — tropical OLR Hovmöller (5°S–5°N,
-                                   longitude × forecast day), absolute
-                                   values on the SAME enhanced-IR ramp as
-                                   the GMGSI satellite loops (OLR → Tb via
-                                   the inverted Ohring–Gruber relation the
-                                   synthetic-OLR products use forward)
+  assets/sst/anim/gdps_ir/       — SIMULATED IR satellite loop: forecast
+  + gdps_ir_manifest.json          top-of-atmosphere OLR converted to IR
+                                   brightness temperature (inverse of the
+                                   Ohring–Gruber relation the synthetic-OLR
+                                   products use forward) and rendered
+                                   exactly like the live GMGSI tropical
+                                   Pacific loop (pacific_satellite.py):
+                                   same domain, colortable and styling,
+                                   3-hourly frames to day 10
 
 GDPS is deterministic (one run, no spread) and Datamart serves whole-globe
 GRIBs only, but the files are small (~1–2 MB) and the 00Z cycle is up by
-~06 UTC. OLR rows are TRUE DAILY MEANS of the 3-hourly instantaneous
-fields — sampling one fixed UTC hour imprints the diurnal cycle as a
-standing stripe over the Indian Ocean (seen on the first cut of this
-chart).
+~06 UTC. Model OLR is smoother than real pixel IR — 15 km fields resolve
+the convective envelopes, not individual overshooting tops.
 
     python scripts/sst/gdps_eq_charts.py             # latest complete 00Z
     python scripts/sst/gdps_eq_charts.py --date 20260824
@@ -56,8 +57,9 @@ SITE_ROOT = (Path(os.environ["SST_SITE_ROOT"]).resolve()
              if os.environ.get("SST_SITE_ROOT") else HERE.parent.parent)
 ASSETS = SITE_ROOT / "assets" / "sst"
 sys.path.insert(0, str(HERE))
-# The GMGSI loops' enhanced-IR colortable.
-from pacific_satellite import IR_CMAP                           # noqa: E402
+# The GMGSI loops' enhanced-IR colortable + shared graticule helpers.
+from pacific_satellite import IR_CMAP, IR_NORM                  # noqa: E402
+import map_grid                                                 # noqa: E402
 from matplotlib.colors import BoundaryNorm, ListedColormap      # noqa: E402
 
 # Map domain + grammar copied from the super-ensemble animator
@@ -73,25 +75,32 @@ WCOLS = ["#dcefff", "#bfe0f5", "#9ccde9", "#73aedb", "#4a86c5", "#3559a8",
 WCMAP = ListedColormap(WCOLS); WCMAP.set_under("#ffffff00"); WCMAP.set_over("#d97706")
 WNORM = BoundaryNorm(WLEV, WCMAP.N)
 
+# Simulated-IR domain/styling: the "pacsat" preset of the live GMGSI loop
+# (pacific_satellite.REGIONS) — same crop the main page shows.
+IR_EXTENT = (100, 290, -40, 40)
+IR_CLON = 180.0
+IR_FIGSIZE = (12.4, 5.6)
+IR_DPI = 92
+IR_DLON, IR_DLAT = 20, 20
+
 BASE = "https://dd.weather.gc.ca/{date}/WXO-DD/model_gdps/15km/{cyc}/{lead:03d}"
 FILE = "{date}T{cyc}Z_MSC_GDPS_{var}_LatLon0.15_PT{lead:03d}H.grib2"
 VARS = {"u": "WindU_AGL-10m", "v": "WindV_AGL-10m", "p": "Pressure_MSL",
         "olr": "UpwardLongwaveRadiationFlux_NTAtm"}
-LEADS = list(range(24, 241, 24))                 # forecast days 1..10
-OLR_STEP = 3                                     # GDPS output cadence (hours)
+LEADS = list(range(24, 241, 24))                 # wind maps: forecast days 1..10
+IR_LEADS = list(range(3, 241, 3))                # simulated IR: 3-hourly loop
 MIN_LEADS = 8                                    # fewer → cycle not ready, fall back
-MIN_OLR_SAMPLES = 6                              # of 8 three-hourly steps per day
-LAT_BAND = 5.0
-LON_GRID = np.arange(0.0, 360.0, 1.0)
-LON_VIEW = (40.0, 290.0)                         # Indian Ocean → eastern Pacific
 
-# The GMGSI ramp is built for instantaneous pixel brightness temperatures; a
-# 5°S–5°N DAILY-MEAN band average never gets that cold (everything landed in
-# the grayscale half on the first cut). Same colours, renormalized in
-# OLR-space: the ramp's grayscale→enhancement break (240 K on the loops) is
-# pinned to the 220 W m⁻² deep-convection threshold the site's OLR products
-# contour, so colour = convectively active, grayscale = suppressed/clear.
-OLR_VMIN, OLR_VMAX = 140.0, 300.0        # break sits at (220−140)/160 = 0.5
+# OLR → IR brightness temperature: inverse of the Ohring–Gruber relation the
+# synthetic-OLR products use forward (Tf = Tb·(1.228 − 1.106e-3·Tb); OLR = σTf⁴).
+SIGMA = 5.670374419e-8
+_OG_A, _OG_B = 1.106e-3, 1.228
+
+
+def olr_to_tb(olr: np.ndarray) -> np.ndarray:
+    tf = (np.asarray(olr, float) / SIGMA) ** 0.25
+    disc = np.clip(_OG_B ** 2 - 4.0 * _OG_A * tf, 0.0, None)
+    return (_OG_B - np.sqrt(disc)) / (2.0 * _OG_A)
 
 
 # ── Datamart fetch ───────────────────────────────────────────────────────────
@@ -109,73 +118,43 @@ def fetch(date: str, cyc: str, lead: int, var: str) -> Path | None:
     return tmp
 
 
-def _open_field(path: Path) -> xr.DataArray | None:
-    """GDPS grids are lat-ascending, lon 0–360 — no reorientation needed."""
-    try:
-        ds = xr.open_dataset(path, engine="cfgrib",
-                             backend_kwargs={"indexpath": ""})
-    except Exception:                                   # noqa: BLE001
-        return None
-    return ds[list(ds.data_vars)[0]]
-
-
-def _grab_map(date: str, cyc: str, lead: int, var: str) -> xr.DataArray | None:
-    """One field subset to the map domain, loaded."""
+def _grab_map(date: str, cyc: str, lead: int, var: str, extent) -> xr.DataArray | None:
+    """One field subset to a map domain, loaded. GDPS grids are lat-ascending,
+    lon 0–360 — no reorientation needed."""
     p = fetch(date, cyc, lead, var)
     if p is None:
         return None
-    da = _open_field(p)
-    if da is not None:
-        da = da.sel(latitude=slice(EXTENT[2], EXTENT[3]),
-                    longitude=slice(EXTENT[0], EXTENT[1])).load()
+    try:
+        ds = xr.open_dataset(p, engine="cfgrib",
+                             backend_kwargs={"indexpath": ""})
+        da = ds[list(ds.data_vars)[0]].sel(
+            latitude=slice(extent[2], extent[3]),
+            longitude=slice(extent[0], extent[1])).load()
+    except Exception:                                   # noqa: BLE001
+        da = None
     p.unlink(missing_ok=True)
     return da
 
 
-def _grab_band(date: str, cyc: str, lead: int, var: str) -> np.ndarray | None:
-    """Cosine-weighted 5°S–5°N mean on LON_GRID."""
-    p = fetch(date, cyc, lead, var)
-    if p is None:
-        return None
-    da = _open_field(p)
-    if da is None:
-        p.unlink(missing_ok=True)
-        return None
-    da = da.sel(latitude=slice(-LAT_BAND, LAT_BAND))
-    w = np.cos(np.deg2rad(da.latitude))
-    out = da.weighted(w).mean("latitude").interp(longitude=LON_GRID).values
-    p.unlink(missing_ok=True)               # only after the lazy read resolves
-    return out
-
-
-def collect(date: str, cyc: str) -> dict | None:
-    """Per-forecast-day map fields (u, v, mslp) + daily-mean OLR band rows,
-    or None if the cycle is incomplete."""
-    maps, olr_rows, leads_ok = [], [], []
+def collect_maps(date: str, cyc: str) -> dict | None:
+    """Per-forecast-day (u, v, mslp) map fields, or None if incomplete."""
+    maps, leads_ok = [], []
     for lead in LEADS:
-        u = _grab_map(date, cyc, lead, "u")
-        v = _grab_map(date, cyc, lead, "v")
-        pr = _grab_map(date, cyc, lead, "p")
+        u = _grab_map(date, cyc, lead, "u", EXTENT)
+        v = _grab_map(date, cyc, lead, "v", EXTENT)
+        pr = _grab_map(date, cyc, lead, "p", EXTENT)
         if u is None or v is None or pr is None:
             print(f"  {date} {cyc}Z +{lead:03d}h: map fields missing — skipped",
                   flush=True)
             continue
-        samples = [b for h in range(lead - 24 + OLR_STEP, lead + 1, OLR_STEP)
-                   if (b := _grab_band(date, cyc, h, "olr")) is not None]
-        if len(samples) < MIN_OLR_SAMPLES:
-            print(f"  {date} {cyc}Z day {lead // 24}: only {len(samples)} OLR "
-                  f"steps — skipped", flush=True)
-            continue
         maps.append((u, v, pr))
-        olr_rows.append(np.mean(samples, axis=0))
         leads_ok.append(lead)
-        print(f"  {date} {cyc}Z day {lead // 24}: maps + {len(samples)}-step "
-              f"OLR mean", flush=True)
     if len(leads_ok) < MIN_LEADS:
         print(f"  {date} {cyc}Z: only {len(leads_ok)} days — cycle incomplete",
               flush=True)
         return None
-    return {"maps": maps, "olr": np.array(olr_rows), "leads": leads_ok}
+    print(f"  {date} {cyc}Z: {len(leads_ok)} wind-map days", flush=True)
+    return {"maps": maps, "leads": leads_ok}
 
 
 # ── MSLP + 10 m wind map frames (mirrors mslp_wind_anim.py) ─────────────────
@@ -266,51 +245,63 @@ def render_wind_maps(maps, leads, init: pd.Timestamp) -> None:
           flush=True)
 
 
-# ── OLR Hovmöller, GMGSI-IR colours ─────────────────────────────────────────
-def plot_olr(absf, lead_days, init: pd.Timestamp, out: Path):
-    m = (LON_GRID >= LON_VIEW[0]) & (LON_GRID <= LON_VIEW[1])
-    lons = LON_GRID[m]
-    fig = plt.figure(figsize=(5.4, 8.8))
-    gs = fig.add_gridspec(2, 1, height_ratios=[0.85, 6.5], hspace=0.05,
-                          left=0.10, right=0.86, top=0.87, bottom=0.07)
-    fig.suptitle(f"Tropical OLR forecast — init {init:%Y-%m-%d %HZ}\n"
-                 f"ECCC GDPS top-of-atmosphere OLR · 5°S–5°N daily mean\n"
-                 f"GMGSI enhanced-IR colours · colour = deep convection",
-                 fontsize=11, fontweight="bold")
-    axm = fig.add_subplot(gs[0], projection=ccrs.PlateCarree(central_longitude=180))
-    axm.set_extent([LON_VIEW[0], LON_VIEW[1], -15, 15], crs=ccrs.PlateCarree())
-    axm.set_aspect("auto")
-    axm.add_feature(cfeature.LAND.with_scale("110m"), facecolor="#d9d6cf", zorder=2)
-    axm.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#555",
-                    linewidth=0.3, zorder=3)
-    axm.add_patch(plt.Rectangle((LON_VIEW[0], -LAT_BAND),
-                  LON_VIEW[1] - LON_VIEW[0], 2 * LAT_BAND,
-                  transform=ccrs.PlateCarree(), facecolor="none",
-                  edgecolor="k", lw=0.6, ls="--", zorder=4))
-    ax = fig.add_subplot(gs[1])
-    im = ax.contourf(lons, lead_days, absf[:, m],
-                     levels=np.linspace(OLR_VMIN, OLR_VMAX, 81),
-                     cmap=IR_CMAP, extend="both")
-    ax.contour(lons, lead_days, absf[:, m], levels=[180, 220], colors="k",
-               linewidths=0.5, alpha=0.5)
-    ax.set_ylim(max(lead_days), min(lead_days))
-    ticks = [60, 120, 180, 240]
-    ax.set_xticks(ticks)
-    ax.set_xticklabels([f"{t}°E" if t <= 180 else f"{360 - t}°W" for t in ticks])
-    ax.tick_params(labelsize=8)
-    ax.axvline(180, color="0.6", lw=0.5, ls=":")
-    ax.set_xlabel("Longitude", fontsize=9)
-    ax.set_ylabel("Forecast lead (days)", fontsize=9)
-    cax = fig.add_axes([0.88, 0.09, 0.022, 0.72])
-    cb = fig.colorbar(im, cax=cax, extend="both")
-    cb.set_ticks(list(range(140, 301, 20)))
-    cb.set_label("OLR (W m⁻²) · colour below the 220 convective threshold",
-                 fontsize=8)
-    cb.ax.tick_params(labelsize=7)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=120, bbox_inches="tight")
+# ── Simulated IR loop (mirrors pacific_satellite.render_frame, pacsat) ──────
+def render_ir_frame(tb2d, lat, lon, init: pd.Timestamp, lead: int,
+                    out: Path) -> None:
+    valid = init + pd.Timedelta(hours=int(lead))
+    lo0, lo1, la0, la1 = IR_EXTENT
+    proj = ccrs.PlateCarree(central_longitude=IR_CLON)
+    pc = ccrs.PlateCarree()
+    fig = plt.figure(figsize=IR_FIGSIZE)
+    ax = plt.axes(projection=proj)
+    ax.set_extent([lo0, lo1, la0, la1], crs=pc)
+    ax.pcolormesh(lon, lat, tb2d, transform=pc, cmap=IR_CMAP, norm=IR_NORM,
+                  shading="auto", rasterized=True)
+    ax.coastlines(linewidth=0.7, color="#cfcfcf", resolution="110m")
+    gl = ax.gridlines(draw_labels=True, linewidth=0.5, color="w", alpha=0.55,
+                      linestyle=(0, (3, 3)))
+    gl.top_labels = gl.right_labels = False
+    lon_ticks = [((t + 180) % 360) - 180
+                 for t in range(int(lo0), int(lo1) + 1) if t % IR_DLON == 0]
+    gl.xlocator = mticker.FixedLocator(lon_ticks)
+    gl.ylocator = mticker.FixedLocator(map_grid.lat_ticks(la0, la1, IR_DLAT))
+    gl.xlabel_style = gl.ylabel_style = {"size": 8}
+    map_grid.add_ref_lines(ax, IR_EXTENT, color="w", lw=1.0)
+    ax.set_title(f"GDPS simulated enhanced IR — tropical Pacific  ·  "
+                 f"init {init:%Y-%m-%d %HZ}  ·  F{lead:03d} valid "
+                 f"{valid:%Y-%m-%d %HZ}  ·  colour = deep convection",
+                 fontsize=9, loc="left")
+    fig.savefig(out, dpi=IR_DPI, bbox_inches="tight",
+                pil_kwargs={"quality": 78, "method": 6})
     plt.close(fig)
-    print(f"  wrote {out.name}", flush=True)
+
+
+def build_ir_loop(date: str, cyc: str, init: pd.Timestamp) -> None:
+    """Stream the 3-hourly OLR steps → simulated-IR frames (one at a time, so
+    ~80 domain fields never sit in memory together)."""
+    anim = ASSETS / "anim" / "gdps_ir"
+    anim.mkdir(parents=True, exist_ok=True)
+    for old in anim.glob("F*.webp"):
+        old.unlink()
+    entries, made = [], 0
+    for lead in IR_LEADS:
+        da = _grab_map(date, cyc, lead, "olr", IR_EXTENT)
+        if da is None:
+            print(f"  IR +{lead:03d}h: missing — skipped", flush=True)
+            continue
+        fp = anim / f"F{lead:03d}.webp"
+        render_ir_frame(olr_to_tb(da.values), da.latitude.values,
+                        da.longitude.values, init, lead, fp)
+        valid = init + pd.Timedelta(hours=lead)
+        entries.append({"idx": made, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
+                        "label": f"F{lead:03d} · {valid:%Y-%m-%d %H}Z"})
+        made += 1
+    mani = {"ver": f"{init:%Y%m%d%H}",
+            "regions": {"gdps_ir": {"label": "GDPS simulated IR — forecast loop",
+                                    "frames": entries}}}
+    (ASSETS / "anim" / "gdps_ir_manifest.json").write_text(json.dumps(mani))
+    print(f"  wrote {made} simulated-IR frames + gdps_ir_manifest.json",
+          flush=True)
 
 
 def main(argv=None) -> int:
@@ -323,20 +314,20 @@ def main(argv=None) -> int:
     tries = ([args.date] if args.date
              else [today, (datetime.now(timezone.utc)
                            - timedelta(days=1)).strftime("%Y%m%d")])
-    data, init = None, None
+    data, init, date_ok = None, None, None
     for date in tries:
         print(f"GDPS {date} {args.cycle}Z:", flush=True)
-        data = collect(date, args.cycle)
+        data = collect_maps(date, args.cycle)
         if data is not None:
             init = pd.Timestamp(f"{date}T{args.cycle}:00")
+            date_ok = date
             break
     if data is None:
         print("no complete GDPS cycle available", flush=True)
         return 1
 
     render_wind_maps(data["maps"], data["leads"], init)
-    plot_olr(data["olr"], np.array(data["leads"]) / 24.0, init,
-             ASSETS / "gdps_olr.webp")
+    build_ir_loop(date_ok, args.cycle, init)
     return 0
 
 

@@ -112,28 +112,24 @@
       <div class="chart-card-footer"><span class="chart-sources">ECCC GDPS 15&nbsp;km deterministic (MSC Datamart open data) &middot; 00Z cycle, days 1&ndash;10 &middot; daily</span></div>
     </div>
 
-    <!-- GDPS TROPICAL OLR HOVMÖLLER (GMGSI-IR colours) -->
-    <div class="chart-card media-narrow">
+    <!-- GDPS SIMULATED IR FORECAST LOOP (GMGSI styling) -->
+    <div class="chart-card">
       <div class="chart-card-header">
-        <h2>GDPS Tropical Convection Forecast &mdash; OLR</h2>
-        <p>Where the GDPS puts the deep convection that its winds respond to: forecast
-        top-of-atmosphere outgoing longwave radiation averaged 5&deg;S&ndash;5&deg;N,
-        longitude &times; forecast day&nbsp;1&ndash;10, as true daily means of the 3-hourly
-        fields. Coloured with the <b>same enhanced-IR colortable as the live GMGSI
-        satellite loops</b>: the warm, suppressed or clear scene stays grayscale, and the
-        ramp switches into colour below the 220&nbsp;W&nbsp;m&sup2; deep-convection
-        threshold (180 and 220&nbsp;W&nbsp;m&sup2; contoured) &mdash; so this reads as a
-        forecast extension of the observed IR loops. Convection holding on the dateline
-        rather than the Maritime Continent is the El&nbsp;Ni&ntilde;o-shifted Walker
-        circulation.</p>
+        <h2>GDPS Simulated IR &mdash; Forecast Satellite Loop</h2>
+        <p>The satellite loop, ten days into the future: GDPS forecast top-of-atmosphere
+        outgoing longwave radiation converted to IR brightness temperature (the inverse of
+        the Ohring&ndash;Gruber relation the synthetic-OLR products use forward) and
+        rendered on the <b>same domain, colortable and styling as the live GMGSI tropical
+        Pacific loop</b> on the <a href="sst.html">Overview page</a> &mdash; so the observed
+        loop hands off directly to this forecast one. White and colour are cold cloud tops
+        (deep convection), 3-hourly frames to day&nbsp;10. A 15&nbsp;km model resolves the
+        convective envelopes, not individual overshooting tops, so the simulated imagery is
+        smoother than the real thing &mdash; watch where the envelopes root and propagate,
+        convection holding at the dateline being the El&nbsp;Ni&ntilde;o signature.</p>
       </div>
-      <div class="img-wrap" style="max-width:700px;margin:0 auto">
-        <img src="assets/sst/gdps_olr.webp?v=__CACHE__" alt="GDPS tropical OLR forecast Hovmöller in GMGSI enhanced-IR colours" loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">ECCC GDPS top-of-atmosphere OLR (MSC Datamart) &middot; daily means of 3-hourly steps, days 1&ndash;10 &middot; GMGSI enhanced-IR colortable &middot; daily</span>
-        <span class="chart-updated">__SST_DAY__</span>
-      </div>
+      <iframe class="anim-embed pacsat" src="sst_anim.html?embed=1&amp;manifest=gdps_ir_manifest.json&amp;region=gdps_ir"
+              title="GDPS simulated IR forecast satellite loop over the tropical Pacific" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECCC GDPS top-of-atmosphere OLR (MSC Datamart) &middot; OLR &rarr; T<sub>b</sub> via inverse Ohring&ndash;Gruber &middot; 3-hourly frames, days 0&ndash;10 &middot; GMGSI enhanced-IR colortable &middot; daily</span></div>
     </div>
 
     <!-- 200 hPa VELOCITY POTENTIAL + IRROTATIONAL WIND (AIFS-ENS ensemble mean) -->

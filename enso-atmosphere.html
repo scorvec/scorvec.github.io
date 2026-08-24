@@ -324,7 +324,7 @@
         <h2>Southern Oscillation Index Forecast</h2>
         <p>Extending the observed SOI forward: the same Troup SOI (the standardized Tahiti&minus;Darwin sea-level-pressure difference), here forecast from the combined AIFS-ENS + IFS-ENS ensemble (about 100 members). Observed values are from LongPaddock (Queensland Govt / BoM); the forecast is the Tahiti&minus;Darwin MSL from the ensembles, bias-corrected to the recent observed level. Bold lines are the 30-day running SOI; the faint daily series and shaded 10&ndash;90% band show the day-to-day spread. Sustained negative SOI (below &minus;7) is El Ni&ntilde;o-favorable; sustained positive (above +7) is La Ni&ntilde;a-favorable.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/soi_forecast.webp?v=7b8308725c8a" alt="Southern Oscillation Index: observed (LongPaddock/BoM) plus AIFS-ENS/IFS-ENS forecast" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/soi_forecast.webp?v=882f2932e846" alt="Southern Oscillation Index: observed (LongPaddock/BoM) plus AIFS-ENS/IFS-ENS forecast" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">LongPaddock daily SOI (BoM, 1933&ndash;1992 base) &middot; forecast: ECMWF AIFS-ENS + IFS-ENS MSL &middot; updated each 00/12Z cycle</span></div>
     </div>
 
@@ -355,7 +355,7 @@
         <h2>Equatorial Pacific 10 m Wind Forecast</h2>
         <p>Forecast 10 m zonal-wind anomaly (5&deg;S&ndash;5&deg;N), longitude &times; forecast day, from the AIFS-ENS (AI) and ECMWF IFS-ENS (physics) ensemble means versus the ERA5 1991&ndash;2020 climatology. Westerly (red) anomalies along the equator favor El Ni&ntilde;o development; easterly (blue) anomalies favor La Ni&ntilde;a. Agreement between the AI and physics ensembles raises confidence.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/eq_wind_hovmoller.webp?v=7b8308725c8a" alt="Equatorial Pacific 10 m zonal-wind anomaly Hovmöller forecast (AIFS-ENS and IFS-ENS)" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/eq_wind_hovmoller.webp?v=882f2932e846" alt="Equatorial Pacific 10 m zonal-wind anomaly Hovmöller forecast (AIFS-ENS and IFS-ENS)" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS &amp; IFS-ENS (open data) &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
     </div>
 
@@ -388,28 +388,24 @@
       <div class="chart-card-footer"><span class="chart-sources">ECCC GDPS 15&nbsp;km deterministic (MSC Datamart open data) &middot; 00Z cycle, days 1&ndash;10 &middot; daily</span></div>
     </div>
 
-    <!-- GDPS TROPICAL OLR HOVMÖLLER (GMGSI-IR colours) -->
-    <div class="chart-card media-narrow">
+    <!-- GDPS SIMULATED IR FORECAST LOOP (GMGSI styling) -->
+    <div class="chart-card">
       <div class="chart-card-header">
-        <h2>GDPS Tropical Convection Forecast &mdash; OLR</h2>
-        <p>Where the GDPS puts the deep convection that its winds respond to: forecast
-        top-of-atmosphere outgoing longwave radiation averaged 5&deg;S&ndash;5&deg;N,
-        longitude &times; forecast day&nbsp;1&ndash;10, as true daily means of the 3-hourly
-        fields. Coloured with the <b>same enhanced-IR colortable as the live GMGSI
-        satellite loops</b>: the warm, suppressed or clear scene stays grayscale, and the
-        ramp switches into colour below the 220&nbsp;W&nbsp;m&sup2; deep-convection
-        threshold (180 and 220&nbsp;W&nbsp;m&sup2; contoured) &mdash; so this reads as a
-        forecast extension of the observed IR loops. Convection holding on the dateline
-        rather than the Maritime Continent is the El&nbsp;Ni&ntilde;o-shifted Walker
-        circulation.</p>
+        <h2>GDPS Simulated IR &mdash; Forecast Satellite Loop</h2>
+        <p>The satellite loop, ten days into the future: GDPS forecast top-of-atmosphere
+        outgoing longwave radiation converted to IR brightness temperature (the inverse of
+        the Ohring&ndash;Gruber relation the synthetic-OLR products use forward) and
+        rendered on the <b>same domain, colortable and styling as the live GMGSI tropical
+        Pacific loop</b> on the <a href="sst.html">Overview page</a> &mdash; so the observed
+        loop hands off directly to this forecast one. White and colour are cold cloud tops
+        (deep convection), 3-hourly frames to day&nbsp;10. A 15&nbsp;km model resolves the
+        convective envelopes, not individual overshooting tops, so the simulated imagery is
+        smoother than the real thing &mdash; watch where the envelopes root and propagate,
+        convection holding at the dateline being the El&nbsp;Ni&ntilde;o signature.</p>
       </div>
-      <div class="img-wrap" style="max-width:700px;margin:0 auto">
-        <img src="assets/sst/gdps_olr.webp?v=7b8308725c8a" alt="GDPS tropical OLR forecast Hovmöller in GMGSI enhanced-IR colours" loading="lazy">
-      </div>
-      <div class="chart-card-footer">
-        <span class="chart-sources">ECCC GDPS top-of-atmosphere OLR (MSC Datamart) &middot; daily means of 3-hourly steps, days 1&ndash;10 &middot; GMGSI enhanced-IR colortable &middot; daily</span>
-        <span class="chart-updated">OISST 2026-08-23</span>
-      </div>
+      <iframe class="anim-embed pacsat" src="sst_anim.html?embed=1&amp;manifest=gdps_ir_manifest.json&amp;region=gdps_ir"
+              title="GDPS simulated IR forecast satellite loop over the tropical Pacific" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECCC GDPS top-of-atmosphere OLR (MSC Datamart) &middot; OLR &rarr; T<sub>b</sub> via inverse Ohring&ndash;Gruber &middot; 3-hourly frames, days 0&ndash;10 &middot; GMGSI enhanced-IR colortable &middot; daily</span></div>
     </div>
 
     <!-- 200 hPa VELOCITY POTENTIAL + IRROTATIONAL WIND (AIFS-ENS ensemble mean) -->
@@ -465,7 +461,7 @@
         <h2>Atmospheric Angular Momentum</h2>
         <p>Relative AAM is the angular momentum carried by the winds, the atmosphere's total westerly momentum, &int;&nbsp;u&middot;cos&sup2;&phi; over the whole globe. It is dominated by the upper-tropospheric subtropical jets and the deep tropics (largest moment arm), shown here for the globe and each hemisphere from the AIFS-ENS winds on 14 pressure levels (10&ndash;1000&nbsp;hPa &mdash; the full column, validated against the 37-level ERA5 integral and GFZ's ESMGFZ wind-term series to ~1%). The top panel is this year's observed AAM (black) and the 15-day forecast (red) on the climatological annual cycle; the hemispheres are strongly out of phase (each peaks in its own winter). The bottom panel is the anomaly (departure from the 1991&ndash;2020 normal), which removes the seasonal cycle. El&nbsp;Ni&ntilde;o strengthens the subtropical jets and weakens the trades, so the atmosphere holds more westerly momentum; conservation then requires the solid Earth to slow, so AAM ties directly to the measured length of day. The <span style="color:#2e7d32"><b>green trace</b></span> is GFZ's independent ESMGFZ wind-term series (computed from ECMWF's operational analyses for the Earth-rotation community) &mdash; a continuous external check on this pipeline.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/aam.webp?v=7b8308725c8a" alt="Global and hemispheric atmospheric angular momentum: observed + AIFS-ENS forecast, absolute and anomaly" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/aam.webp?v=882f2932e846" alt="Global and hemispheric atmospheric angular momentum: observed + AIFS-ENS forecast, absolute and anomaly" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">Forecast: ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; climatology &amp; this-year observed: ERA5 (Copernicus C3S / ECMWF) &middot; updated daily</span></div>
     </div>
 
@@ -474,7 +470,7 @@
       <div class="chart-card-header">
         <h2>AAM Forecast Trend (run-to-run)</h2>
       </div>
-      <div class="img-wrap"><img src="assets/sst/aam_trend.webp?v=7b8308725c8a" alt="Run-to-run trend of AIFS-ENS ensemble-mean AAM anomaly forecasts, global and hemispheric" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/aam_trend.webp?v=882f2932e846" alt="Run-to-run trend of AIFS-ENS ensemble-mean AAM anomaly forecasts, global and hemispheric" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 (Copernicus C3S) &middot; archived each cycle</span></div>
     </div>
 
@@ -484,7 +480,7 @@
         <h2>AAM Phase: Where the Momentum Is, and Where It&rsquo;s Going</h2>
         <p><b>Top</b>: relative AAM integrated in 1.5&deg; latitude bands &mdash; ~3 months observed (ERA5) plus the 15-day AIFS-ENS mean forecast &mdash; so poleward-propagating westerly anomalies and building subtropical momentum show as slanted warm streaks. <b>Bottom</b>: each hemisphere's trajectory through (AAM anomaly, tendency) phase space, the hemispheric analog of the Weickmann&ndash;Berry global wind oscillation orbit: grey trail = last 75 days, red = the forecast. The headline sentence is generated automatically from the forecast quadrant and the latitude band driving the change &mdash; e.g. <i>"NH: rising above-normal AAM &mdash; subtropical westerlies increasing."</i></p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/aam_phase.webp?v=7b8308725c8a" alt="Hemispheric AAM phase diagnostics: latitude-time anomaly heatmap and NH/SH phase-space orbits with forecast" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/aam_phase.webp?v=882f2932e846" alt="Hemispheric AAM phase diagnostics: latitude-time anomaly heatmap and NH/SH phase-space orbits with forecast" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ERA5 (local store) &middot; AIFS-ENS ensemble mean (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 &middot; updated daily</span></div>
     </div>
 
@@ -499,10 +495,10 @@
       </div>
       <iframe class="anim-embed torque" src="sst_anim.html?embed=1&amp;manifest=torque_manifest.json&amp;region=torque"
               title="AAM surface-torque anomaly animation (friction + mountain) over the AIFS-ENS forecast" loading="lazy"></iframe>
-      <div class="img-wrap"><img src="assets/sst/torque_timeseries.webp?v=7b8308725c8a" alt="Hemispheric AAM torque budget time series (friction, mountain, sum) for NH and SH" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/torque_ranges.webp?v=7b8308725c8a" alt="Mountain-torque anomaly broken down by range (Himalaya, Rockies, Andes, Greenland, Antarctica, Alps)" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/torque_seasonal.webp?v=7b8308725c8a" alt="Seasonal cycle of the three AAM surface-torque terms (friction, mountain, GWD) by latitude, ERA5 1991-2020" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/torque_seasonal_ts.webp?v=7b8308725c8a" alt="Seasonal cycle of the integrated AAM torque terms (friction, mountain, GWD, sum) for Global/NH/SH, ERA5 1991-2020" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/torque_timeseries.webp?v=882f2932e846" alt="Hemispheric AAM torque budget time series (friction, mountain, sum) for NH and SH" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/torque_ranges.webp?v=882f2932e846" alt="Mountain-torque anomaly broken down by range (Himalaya, Rockies, Andes, Greenland, Antarctica, Alps)" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/torque_seasonal.webp?v=882f2932e846" alt="Seasonal cycle of the three AAM surface-torque terms (friction, mountain, GWD) by latitude, ERA5 1991-2020" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/torque_seasonal_ts.webp?v=882f2932e846" alt="Seasonal cycle of the integrated AAM torque terms (friction, mountain, GWD, sum) for Global/NH/SH, ERA5 1991-2020" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS surface pressure (open data, CC BY 4.0) &middot; ERA5 orography + 1991–2020 torque climatology (Copernicus C3S, seasonal-cycle panel) &middot; daily means &middot; updated daily</span></div>
 
     <!-- E-P FLUX & WAVE DRIVING -->
@@ -559,7 +555,7 @@
         gauge. Below: the wave itself, as a longitude&ndash;height section per hemisphere
         &mdash; a single sine wave per level, animated through the forecast.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/wave1_amp.webp?v=7b8308725c8a" alt="Wave-1 and wave-2 amplitude of geopotential height at 500, 100 and 10 hPa versus forecast day, both hemispheres" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/wave1_amp.webp?v=882f2932e846" alt="Wave-1 and wave-2 amplitude of geopotential height at 500, 100 and 10 hPa versus forecast day, both hemispheres" loading="lazy"></div>
       <iframe class="anim-embed wave1-nh" style="aspect-ratio: 1323 / 736" src="sst_anim.html?embed=1&amp;manifest=wave1_nh_manifest.json&amp;region=wave1_nh"
               title="Northern Hemisphere wave-1 longitude-height section through the AIFS-ENS forecast" loading="lazy"></iframe>
       <iframe class="anim-embed wave1-sh" style="aspect-ratio: 1323 / 736" src="sst_anim.html?embed=1&amp;manifest=wave1_sh_manifest.json&amp;region=wave1_sh"
@@ -623,7 +619,7 @@
       </div>
       <iframe class="anim-embed jets" src="sst_anim.html?embed=1&amp;manifest=jets_manifest.json&amp;region=jets"
               title="Subtropical jet forecast animation: zonal-mean wind anomaly cross-section, day 0-15 from AIFS-ENS" loading="lazy"></iframe>
-      <div class="img-wrap"><img src="assets/sst/jets.webp?v=7b8308725c8a" alt="Subtropical jet monitor: zonal-mean wind cross-section anomaly and jet-core strength/latitude forecast vs ERA5 climatology" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/jets.webp?v=882f2932e846" alt="Subtropical jet monitor: zonal-mean wind cross-section anomaly and jet-core strength/latitude forecast vs ERA5 climatology" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind, 51 members (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 harmonic day-of-year normal &plusmn;1&sigma; (WeatherBench2 / Copernicus C3S) &middot; updated daily</span></div>
     </div>
 
