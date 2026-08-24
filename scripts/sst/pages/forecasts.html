@@ -90,6 +90,54 @@
     </div>
   </div>
 
+  <!-- ── SHORT-RANGE: GDPS EQUATORIAL WIND ─────────────────────────────── -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Ten days of equatorial wind &mdash; GDPS</h2>
+      <p>The Canadian <b>GDPS</b> (ECCC's 15&nbsp;km global deterministic model) as an
+      independent cross-check on the AIFS-ENS&nbsp;/&nbsp;IFS-ENS equatorial wind Hovm&ouml;ller
+      on the <a href="enso-atmosphere.html">Atmosphere page</a> &mdash; same layout, same
+      ERA5 1991&ndash;2020 climatology, so the columns read identically. Forecast 10&nbsp;m
+      zonal wind averaged 5&deg;S&ndash;5&deg;N, longitude &times; forecast day&nbsp;1&ndash;10:
+      <span style="color:#c0392b">red anomalies are westerly</span> (El&nbsp;Ni&ntilde;o-favorable /
+      westerly-wind-burst territory), <span style="color:#2471a3">blue are easterly</span>
+      (recovering trades). Where a physics model from a third centre agrees with the AI and
+      ECMWF ensembles on a wind burst, confidence in the Kelvin-wave response is high.</p>
+    </div>
+    <div class="img-wrap" style="max-width:760px;margin:0 auto">
+      <img src="assets/sst/gdps_eq_wind.webp?v=__CACHE__" alt="GDPS equatorial Pacific 10 m zonal-wind forecast Hovmöller, anomaly and absolute" loading="lazy">
+    </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECCC GDPS 15&nbsp;km deterministic (MSC Datamart) &middot; 00Z cycle, days 1&ndash;10 &middot; anomaly vs ERA5 1991&ndash;2020 &middot; daily</span>
+      <span class="chart-updated">__SST_DAY__</span>
+    </div>
+  </div>
+
+  <!-- ── SHORT-RANGE: GDPS TROPICAL OLR ────────────────────────────────── -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Ten days of tropical convection &mdash; GDPS OLR</h2>
+      <p>Where the model puts the deep convection that the winds respond to: GDPS
+      top-of-atmosphere outgoing longwave radiation averaged 5&deg;S&ndash;5&deg;N, as
+      true daily means of the 3-hourly forecast fields. In the anomaly column
+      (vs the NOAA interpolated-OLR 1979&ndash;2022 daily climatology),
+      <b style="color:#117a4a">green is low OLR</b> &mdash; enhanced deep convection &mdash; and
+      <b style="color:#9c6b1e">brown is suppressed</b>, the same convention as the observed
+      OLR Hovm&ouml;llers on the <a href="sst.html">Overview page</a>; convection parked on the
+      dateline with a suppressed Maritime Continent is the classic El&nbsp;Ni&ntilde;o Walker shift.
+      The absolute column shades OLR itself with the 180 / 220&nbsp;W&nbsp;m&sup2; convective
+      thresholds contoured. The anomaly is model-minus-observed-climatology, so a constant
+      model bias can tint the field &mdash; read the pattern, not the absolute numbers.</p>
+    </div>
+    <div class="img-wrap" style="max-width:760px;margin:0 auto">
+      <img src="assets/sst/gdps_olr.webp?v=__CACHE__" alt="GDPS tropical OLR forecast Hovmöller, anomaly vs NOAA climatology and absolute" loading="lazy">
+    </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECCC GDPS top-of-atmosphere OLR (MSC Datamart) &middot; daily means of 3-hourly steps, days 1&ndash;10 &middot; anomaly vs NOAA interp-OLR 1979&ndash;2022 &middot; daily</span>
+      <span class="chart-updated">__SST_DAY__</span>
+    </div>
+  </div>
+
   </main>
 
 <script>
