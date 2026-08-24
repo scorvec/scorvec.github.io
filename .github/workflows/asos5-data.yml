@@ -29,13 +29,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # the repo working tree is huge (satellite loops etc.); the fetcher
           # only needs its own script directory
           sparse-checkout: |
             scripts/asos5
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
@@ -45,7 +45,7 @@ jobs:
 
       # parsed per-hour MADIS extracts (a few KB each); with a warm cache the
       # script only downloads the 2-3 not-yet-settled hourly files (~10 MB)
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: scripts/asos5/cache
           key: asos5-madis-${{ github.run_id }}

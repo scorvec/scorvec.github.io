@@ -25,11 +25,11 @@ jobs:
       MPLBACKEND: Agg
       SST_SITE_ROOT: ${{ github.workspace }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
@@ -40,7 +40,7 @@ jobs:
       # (~260 MB) from PSL. Cuts the PSL transfer ~95%: repeated runner kills /
       # corrupt downloads all happened inside these long bulk pulls (2026-07-17).
       # download() probe-opens every cached .nc, so a bad cache self-heals.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             scripts/sst/data/sst.day.mean.1997.nc

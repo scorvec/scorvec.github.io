@@ -22,12 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: Cache historical IEM pulls
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: scripts/sst/citytemp_cache
           key: citytemp-iem-cache-v1     # static: historical onsets never change
