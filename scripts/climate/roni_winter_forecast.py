@@ -47,7 +47,7 @@ ERSST = REPO / "scripts" / "sst" / "data" / "ersst_v5_mnmean.nc"
 ERA5 = REPO / "scripts" / "sst" / "data" / "era5_t2m_mon.nc"
 MANIFEST = REPO / "assets" / "sst" / "manifest.json"
 
-Y0, Y1 = 1950, 2025            # winters 1950/51 … 2025/26 (year = Nov year)
+Y0, Y1 = 1900, 2025            # winters 1900/01 … 2025/26 (year = Nov year)
 CLIM0, CLIM1 = 1991, 2020      # anomaly base (winter start years)
 TARGET = 2026                  # forecast winter 2026/27
 WINTER_MONTHS = (11, 12, 1, 2, 3)
@@ -148,43 +148,123 @@ def roni_history() -> pd.Series:
     return pd.Series(out)
 
 
-def city_winters() -> tuple[pd.DataFrame, pd.Series]:
-    """(winters × cities) NDJFM t2m anomaly table (°F) + city normals check."""
-    ds = xr.open_dataset(ERA5)
-    t2m = ds["t2m"]
-    if float(t2m.max()) > 200:           # Kelvin
-        t2m = t2m - 273.15
-    t2m = t2m.assign_coords(lon=t2m["lon"] % 360).sortby("lon").sortby("lat")
+GHCN_URL = "https://www.ncei.noaa.gov/pub/data/ghcn/v4/ghcnm.tavg.latest.qcf.tar.gz"
+GHCN_DIR = HERE / "data" / "ghcnm"
 
-    # monthly series at each city's nearest grid cell
-    lats = xr.DataArray([c[1] for c in CITIES], dims="city")
-    lons = xr.DataArray([c[2] % 360 for c in CITIES], dims="city")
-    pts = t2m.sel(lat=lats, lon=lons, method="nearest").load()   # (time, city)
 
-    rows = {}
-    for y in range(Y0, Y1 + 1):
-        months = [pd.Timestamp(y, 11, 1), pd.Timestamp(y, 12, 1)] + \
-                 [pd.Timestamp(y + 1, m, 1) for m in (1, 2, 3)]
-        try:
-            sel = pts.sel(time=months)
-        except KeyError:
+def _ensure_ghcnm() -> tuple[Path, Path]:
+    """Download + extract GHCN-M v4 adjusted (qcf) monthly TAVG once."""
+    GHCN_DIR.mkdir(parents=True, exist_ok=True)
+    dats = sorted(GHCN_DIR.glob("**/*.qcf.dat"))
+    invs = sorted(GHCN_DIR.glob("**/*.qcf.inv"))
+    if dats and invs:
+        return dats[-1], invs[-1]
+    import tarfile
+    import urllib.request
+    tgz = GHCN_DIR / "ghcnm.tavg.latest.qcf.tar.gz"
+    print("downloading GHCN-M v4 (adjusted monthly TAVG, ~44 MB)…", flush=True)
+    urllib.request.urlretrieve(GHCN_URL, tgz)
+    with tarfile.open(tgz) as t:
+        t.extractall(GHCN_DIR)
+    tgz.unlink()
+    return (sorted(GHCN_DIR.glob("**/*.qcf.dat"))[-1],
+            sorted(GHCN_DIR.glob("**/*.qcf.inv"))[-1])
+
+
+def _pick_stations(inv_path: Path) -> list[dict]:
+    """Nearest long-record US GHCN station to each city — prefer records that
+    begin by 1905 (most major-city threads reach the 1870s–1890s)."""
+    stns = []
+    for ln in inv_path.read_text().splitlines():
+        sid = ln[:11]
+        if not sid.startswith("US"):
             continue
-        rows[y] = sel.mean("time").values
-    df = pd.DataFrame.from_dict(rows, orient="index",
-                                columns=[c[0] for c in CITIES])
-    normals = df.loc[CLIM0:CLIM1].mean()
-    anom_f = (df - normals) * 9.0 / 5.0            # °C anomaly → °F anomaly
-    return anom_f, normals
+        stns.append((sid, float(ln[12:20]), float(ln[21:30]), ln[38:68].strip()))
+    sarr = np.array([[s[1], s[2]] for s in stns])
+    picks = []
+    for name, clat, clon in CITIES:
+        d2 = (sarr[:, 0] - clat) ** 2 + ((sarr[:, 1] - clon)
+                                         * np.cos(np.deg2rad(clat))) ** 2
+        order = np.argsort(d2)
+        picks.append(dict(city=name, lat=clat, lon=clon,
+                          cand=[stns[i] for i in order[:12]],
+                          cand_d=np.sqrt(d2[order[:12]])))
+    return picks
 
 
-def fit_and_forecast(anom: pd.DataFrame, roni: pd.Series, roni_now: float):
-    """Per-city OLS on [year, RONI]; returns forecast + diagnostics DataFrame."""
-    years = anom.index.intersection(roni.index)
-    X_year = (years - 2000).to_numpy(dtype=float)
-    X_roni = roni.loc[years].to_numpy()
+def city_winters() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(winters × cities) NDJFM anomaly table (°F) from GHCN-M v4 station obs,
+    plus the chosen-station metadata."""
+    dat_path, inv_path = _ensure_ghcnm()
+    picks = _pick_stations(inv_path)
+
+    wanted = {c for p in picks for c, *_ in p["cand"]}
+    series: dict[str, dict] = {sid: {} for sid in wanted}
+    with open(dat_path) as f:
+        for ln in f:
+            sid = ln[:11]
+            if sid not in series:
+                continue
+            year = int(ln[11:15])
+            if not (Y0 - 1 <= year <= Y1 + 1):
+                continue
+            for m in range(12):
+                v = int(ln[19 + m * 8: 24 + m * 8])
+                if v != -9999:
+                    series[sid][(year, m + 1)] = v / 100.0    # 0.01 °C → °C
+
+    def winter_vals(sid):
+        s = series.get(sid, {})
+        out = {}
+        for y in range(Y0, Y1 + 1):
+            vals = [s.get((y, 11)), s.get((y, 12)), s.get((y + 1, 1)),
+                    s.get((y + 1, 2)), s.get((y + 1, 3))]
+            good = [v for v in vals if v is not None]
+            if len(good) >= 4:                     # ≥4 of 5 winter months
+                out[y] = float(np.mean(good))
+        return pd.Series(out, dtype=float)
+
+    cols, meta = {}, []
+    for p in picks:
+        best, best_ser, best_d = None, None, None
+        for (sid, slat, slon, sname), d in zip(p["cand"], p["cand_d"]):
+            ser = winter_vals(sid)
+            if len(ser) < 40 or not ser.index.max() >= Y1 - 1:
+                continue                            # too short / not current
+            if len(ser.loc[CLIM0:CLIM1]) < 20:
+                continue                            # unusable 1991–2020 base
+            starts_early = ser.index.min() <= 1905
+            if best is None or (starts_early and not best[4]) or \
+               (starts_early == best[4] and len(ser) > len(best_ser)):
+                best, best_ser, best_d = (sid, slat, slon, sname, starts_early), ser, d
+                if starts_early and d <= 0.6:
+                    break                           # close century record — done
+        if best is None:
+            print(f"  !! no usable station for {p['city']} — dropped")
+            continue
+        sid, slat, slon, sname, early = best
+        clim = best_ser.loc[CLIM0:CLIM1]
+        cols[p["city"]] = (best_ser - clim.mean()) * 9.0 / 5.0   # °F anomaly
+        meta.append(dict(city=p["city"], lat=p["lat"], lon=p["lon"],
+                         station=sid, station_name=sname,
+                         rec_start=int(best_ser.index.min()),
+                         n_winters=len(best_ser), dist_deg=round(float(best_d), 2)))
+    anom_f = pd.DataFrame(cols)
+    return anom_f, pd.DataFrame(meta)
+
+
+def fit_and_forecast(anom: pd.DataFrame, meta: pd.DataFrame,
+                     roni: pd.Series, roni_now: float):
+    """Per-city OLS on [year, RONI]; returns forecast + diagnostics DataFrame.
+    Each city uses its own station's available winters (records differ)."""
     out = []
-    for i, (name, lat, lon) in enumerate(CITIES):
-        y = anom.loc[years, name].to_numpy()
+    for _, row in meta.iterrows():
+        name, lat, lon = row["city"], row["lat"], row["lon"]
+        ser = anom[name].dropna()
+        years = ser.index.intersection(roni.index)
+        y = ser.loc[years].to_numpy()
+        X_year = (years - 2000).to_numpy(dtype=float)
+        X_roni = roni.loc[years].to_numpy()
         A = np.column_stack([np.ones_like(X_year), X_year, X_roni])
         coef, *_ = np.linalg.lstsq(A, y, rcond=None)
         resid = y - A @ coef
@@ -200,7 +280,9 @@ def fit_and_forecast(anom: pd.DataFrame, roni: pd.Series, roni_now: float):
         out.append(dict(city=name, lat=lat, lon=lon, forecast_F=fc,
                         trend_F=trend_part, roni_F=c_used * roni_now,
                         roni_coef=coef[2], roni_p=p_roni,
-                        trend_per_decade=coef[1] * 10, fit_r=r))
+                        trend_per_decade=coef[1] * 10, fit_r=r,
+                        station=row["station"], station_name=row["station_name"],
+                        rec_start=row["rec_start"], n_winters=len(y)))
     return pd.DataFrame(out)
 
 
@@ -210,12 +292,15 @@ def draw_map(fc: pd.DataFrame, roni_now: float, out_path: Path):
     ax = fig.add_subplot(1, 1, 1, projection=proj)
     ax.set_extent([-120.5, -73, 22.5, 50.5], crs=ccrs.PlateCarree())
 
-    # interpolate city values onto a fine lat/lon mesh
+    # smoothed thin-plate spline through the city values — griddata's linear
+    # facets + nearest-fill made angular banding across the northern Plains
+    from scipy.interpolate import RBFInterpolator
     gx, gy = np.meshgrid(np.arange(-125, -66, 0.25), np.arange(24, 50.1, 0.25))
-    pts = fc[["lon", "lat"]].to_numpy()
-    gz = griddata(pts, fc["forecast_F"].to_numpy(), (gx, gy), method="linear")
-    gz_n = griddata(pts, fc["forecast_F"].to_numpy(), (gx, gy), method="nearest")
-    gz = np.where(np.isnan(gz), gz_n, gz)          # fill edges beyond hull
+    pts = fc[["lon", "lat"]].to_numpy() * [np.cos(np.deg2rad(39.0)), 1.0]
+    rbf = RBFInterpolator(pts, fc["forecast_F"].to_numpy(),
+                          kernel="thin_plate_spline", smoothing=2.0)
+    gpts = np.column_stack([gx.ravel() * np.cos(np.deg2rad(39.0)), gy.ravel()])
+    gz = rbf(gpts).reshape(gx.shape)
 
     vmax = max(2.0, np.ceil(np.abs(fc["forecast_F"]).max() * 2) / 2)
     levels = np.arange(-vmax, vmax + 0.25, 0.5)
@@ -260,9 +345,10 @@ def draw_map(fc: pd.DataFrame, roni_now: float, out_path: Path):
                  f"assumed RONI {roni_now:+.1f} °C",
                  fontsize=13, loc="left", pad=8)
     fig.text(0.015, 0.015,
-             "Per-city OLS on ERA5 NDJFM means (2°, 1950/51–2025/26): "
-             "anomaly = a + b·year + c·RONI (ERSST-derived, Niño-3.4 − tropical mean). "
-             "RONI term kept only where significant at 90% (filled dots; open = trend only). "
+             "Per-city OLS on GHCN-M v4 adjusted station observations (NDJFM means, "
+             "most records from ≤1905; winters through 2025/26): anomaly = a + b·year "
+             "+ c·RONI (ERSST-derived, Niño-3.4 − tropical mean, from 1900). RONI term "
+             "kept only where significant at 90% (filled dots; open = trend only). "
              "Statistical outlook, not a dynamical forecast.",
              fontsize=7.5, color="#555")
     fig.savefig(out_path, facecolor="white", bbox_inches="tight", pad_inches=0.12)
@@ -287,10 +373,12 @@ def main() -> int:
     roni = roni_history()
     print(f"RONI winters: {roni.index.min()}–{roni.index.max()} "
           f"(latest complete {roni.index.max()}: {roni.iloc[-1]:+.2f})")
-    anom, _ = city_winters()
-    print(f"city winters: {anom.shape[0]} × {anom.shape[1]} cities")
+    anom, meta = city_winters()
+    early = int((meta.rec_start <= 1905).sum())
+    print(f"stations: {len(meta)} cities matched; {early} with records from ≤1905 "
+          f"(earliest {meta.rec_start.min()})")
 
-    fc = fit_and_forecast(anom, roni, roni_now)
+    fc = fit_and_forecast(anom, meta, roni, roni_now)
     nsig = int((fc.roni_F != 0).sum())
     print(f"RONI term significant (p<{P_SIG}) at {nsig}/{len(fc)} cities; "
           f"forecast range {fc.forecast_F.min():+.1f} … {fc.forecast_F.max():+.1f} °F")
