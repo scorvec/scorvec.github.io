@@ -28,18 +28,24 @@ sys.path.insert(0, str(HERE))
 from brazil_flavor_composites import ndjfm_stack, DATA, EXTENT   # noqa: E402
 
 MONTHS = [11, 12, 1, 2, 3, 4]
-MNAME = {11: "Nov 1997", 12: "Dec 1997", 1: "Jan 1998", 2: "Feb 1998",
-         3: "Mar 1998", 4: "Apr 1998"}
 
 
 def main() -> int:
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--year", type=int, default=1997,
+                    help="summer start year (Nov)")
+    args = ap.parse_args()
+    y0 = args.year
+    MNAME = {m: f"{['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m]} {y0 if m >= 11 else y0 + 1}"
+             for m in MONTHS}
     fig = plt.figure(figsize=(11.5, 27), dpi=140)
     k = 0
     for m in MONTHS:
         T = ndjfm_stack(DATA / "air.2m.mon.mean.nc", "air", to="C",
-                        months=(m,)).sel(summer=1997)
+                        months=(m,)).sel(summer=y0)
         P = ndjfm_stack(DATA / "apcp.mon.mean.nc", "apcp", to="mmday",
-                        months=(m,)).sel(summer=1997)
+                        months=(m,)).sel(summer=y0)
         for field, unit, vmax, cmap, lab in (
                 (T, "°C", 2.5, "RdBu_r", "temp"),
                 (P, "mm/day", 5.0, "BrBG", "precip")):
@@ -60,10 +66,10 @@ def main() -> int:
             cb.set_label(unit, fontsize=8)
             cb.ax.tick_params(labelsize=7)
             ax.set_title(f"{MNAME[m]} — {lab}", fontsize=10, loc="left")
-    fig.suptitle("1997/98 — the joint analog, month by month\n"
+    fig.suptitle(f"{y0}/{str(y0+1)[-2:]} — month by month\n"
                  "20CRv3 detrended anomalies (departure from each month's "
                  "1870–2014 gridcell trend)", fontsize=13, x=0.03, ha="left")
-    out = Path.home() / "analog_9798_monthly.png"
+    out = Path.home() / f"analog_{y0}_monthly.png"
     fig.savefig(out, facecolor="white", bbox_inches="tight", pad_inches=0.15)
     print(f"wrote {out}")
     return 0
