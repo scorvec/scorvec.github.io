@@ -254,7 +254,9 @@ def draw_panel(fig, pos, lon, lat, fld, title, vmax=3.0, cmap="RdBu_r",
     return ax
 
 
-def main() -> int:
+def compute() -> dict:
+    """Build all forecast fields; returns everything the figures (and
+    downstream diagnostics) need."""
     # ── ERA5 base (as v1) + 1993–2016 clim for dynamical anchoring ──
     ds = xr.open_dataset(v1.ERA5)
     t2 = ds["t2m"].sortby("lat")
@@ -305,6 +307,17 @@ def main() -> int:
             final_abs[m] = 0.5 * stat_abs[m] + 0.5 * dyn_abs
         else:
             final_abs[m] = stat_abs[m]
+    return dict(lat=lat_e, lon=lon_e, t2=t2, proj=proj, normals=normals,
+                clim9316=clim9316, fp=fp, tele=tele, mme=mme, nsys=nsys,
+                stat_abs=stat_abs, final_abs=final_abs)
+
+
+def main() -> int:
+    d = compute()
+    lat_e, lon_e = d["lat"], d["lon"]
+    proj, normals, clim9316 = d["proj"], d["normals"], d["clim9316"]
+    fp, tele, mme, nsys = d["fp"], d["tele"], d["mme"], d["nsys"]
+    stat_abs, final_abs = d["stat_abs"], d["final_abs"]
 
     # ── monthly figures vs normals ──
     for nb in (30, 10, 5):
