@@ -47,17 +47,26 @@ jobs:
       - name: Build GDPS products
         run: python scripts/sst/gdps_eq_charts.py
       - name: Commit & push
+        # Each run REPLACES the frame sets, so the frame count drifts between
+        # builds and a rebase hits modify/delete conflicts that -X theirs
+        # cannot resolve (bit the first run, 2026-08-25). Instead: move HEAD to
+        # fresh origin/main (mixed reset keeps our rendered working tree),
+        # stage only our product paths, commit, push. Retry re-does the whole
+        # fetch+reset+commit, so a concurrent push just shifts our base.
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/sst/anim/gdps_wind assets/sst/anim/gdps_wind_manifest.json \
-                  assets/sst/anim/gdps_outflow assets/sst/anim/gdps_outflow_manifest.json \
-                  assets/sst/anim/gdps_ir assets/sst/anim/gdps_ir_manifest.json
-          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "GDPS tropical products: $(date -u +%Y-%m-%d)"
+          PATHS="assets/sst/anim/gdps_wind assets/sst/anim/gdps_wind_manifest.json
+                 assets/sst/anim/gdps_outflow assets/sst/anim/gdps_outflow_manifest.json
+                 assets/sst/anim/gdps_ir assets/sst/anim/gdps_ir_manifest.json"
           for i in 1 2 3 4 5; do
-            if timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
-            git rebase --abort 2>/dev/null || true
+            timeout 120 git fetch origin main || { sleep 5; continue; }
+            git reset -q FETCH_HEAD
+            git add $PATHS
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -q -m "GDPS tropical products: $(date -u +%Y-%m-%d)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            git reset -q --soft HEAD^   # undo the commit; refetch and rebuild it
             sleep 5
           done
           echo "push failed after retries"; exit 1
