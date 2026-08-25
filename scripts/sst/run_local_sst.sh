@@ -77,72 +77,10 @@ perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/imerg_precip_anom.py ||
 # Lake Gatun steps disabled 2026-08-25 (turned off for now — uncomment to restore):
 #perl -e 'alarm shift; exec @ARGV' 3600 "$PY" scripts/sst/imerg_gatun.py || echo "IMERG Gatun tracker failed; continuing"   # Lake Gatun zoom + rain-vs-level chart
 #"$PY" scripts/gatun/fetch_data.py || echo "Gatun dashboard data failed; continuing"   # gatun/data.js: ACP levels/projection + ONI
-"$PY" scripts/sst/hydro_region_rain.py || echo "XM region rainfall failed; continuing"   # basin rain over XM hydro regions
-"$PY" scripts/sst/xm_storage.py || echo "XM storage failed; continuing"   # reservoir storage norms + outflow model (state for the fan)
-"$PY" scripts/sst/xm_generation.py || echo "XM generation failed; continuing"   # actual hydro gen history + gen model fit (draws gen fan)
-"$PY" scripts/sst/xm_load.py || echo "XM load failed; continuing"   # national demand history + temp link
-"$PY" scripts/sst/ons_data.py || echo "ONS data failed; continuing"   # Brazil ENA/EAR daily + charts
-"$PY" scripts/sst/brazil_gauges.py || echo "Brazil gauges failed; continuing"   # INMET day cache (monthly zip refresh)
-"$PY" scripts/sst/brazil_correction.py || echo "Brazil correction failed; continuing"   # gauge-corrected IMERG field + bias figs
-"$PY" scripts/sst/brazil_model.py || echo "Brazil models failed; continuing"   # rain->ENA kernels (draws fans)
-# INPE/CPTEC MERGE: gauge-anchored daily precip over Brazil on the same 0.1 deg
-# grid as the IMERG cache. CPTEC keeps a long archive but we only chase the
-# last few days; a --backfill 4 costs seconds and covers a weekend outage.
-"$PY" scripts/sst/merge_cptec.py --backfill 4 || echo "MERGE fetch failed; continuing"   # gauge truth for Brazil
-perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/brazil_forecast.py || echo "Brazil forecast failed; continuing"   # ENA fans
-"$PY" scripts/sst/brazil_rain_chart.py || echo "Brazil rain charts failed; continuing"   # rain fans + skill-corrected map
-"$PY" scripts/sst/nwp_bias_leads.py || echo "bias-by-lead failed; continuing"   # AIFS/IFS bias curves, both countries
-"$PY" scripts/sst/brazil_cmo.py || echo "Brazil CMO failed; continuing"   # weekly price vs EAR/ENA
-"$PY" scripts/sst/brazil_price_seasonality.py || echo "price seasonality failed; continuing"   # 15-day leverage heatmap
-"$PY" scripts/sst/argentina_demand.py || echo "Argentina demand failed; continuing"   # CAMMESA V-curve + demand forecast
-"$PY" scripts/sst/argentina_regions.py || echo "Argentina regions failed; continuing"   # regional + distributor V-curves
-"$PY" scripts/sst/argentina_gas.py || echo "Argentina gas failed; continuing"   # res/com gas model
-"$PY" scripts/sst/argentina_sectors.py || echo "Argentina sectors failed; continuing"   # official sector split (monthly base zip)
-"$PY" scripts/sst/argentina_gas_outlook.py || echo "Argentina gas outlook failed; continuing"   # 14-d gas vs normal
-( cd "$HOME/argentina_energy" && git add -A raw out site 2>/dev/null && git commit -q -m "data: daily snapshot $(date -u +%F)" 2>/dev/null && git push -q ) || true
-"$PY" scripts/sst/dam_models.py || echo "Dam models failed; continuing"   # per-dam catchment kernels + states (draws dam fans)
-# ---- Colombia hydro configuration, EXPORTED so every stage shares it ----
-# These were per-line prefixes and it went wrong immediately: only
-# colombia_forecast.py carried CO_MODELS, so on 2026-08-20 the engine
-# produced an AIFS-only fan (51 members) while inflow_delta_forecast.py and
-# national_inflow.py silently blended AIFS+IFS (101 members) off the same
-# archive. Export once; a stage added later inherits it by default.
-#
-# CO_MODELS=aifs: day-1 verification vs gauge-corrected IMERG has AIFS ahead
-# of IFS on MAE and bias ratio in ALL SIX basins (ANTIOQUIA 1.87 vs 3.02 mm,
-# bias 1.09 vs 1.61), and IFS lands later so AIFS-only can use 12Z while IFS
-# still has 00Z. Unset to restore the two-model blend.
-export CO_MODELS=aifs
-perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/colombia_forecast.py || echo "Colombia forecast failed; continuing"   # AIFS rain -> inflow + storage fans (rides MJO tp GRIBs)
-# ECCC GDPS 15km precip -> the same fcst_rain archive as aifs_/ifs_. Datamart
-# retains only ~30 DAYS, so a gap longer than a month is unrecoverable - this
-# is the reason it runs daily rather than on demand. Deterministic, so it is
-# archived for verification and blending, not fed to the operational fan.
-perl -e 'alarm shift; exec @ARGV' 900 "$PY" scripts/sst/gdps_precip.py || echo "GDPS fetch failed; continuing"   # Canadian global model rain
-"$PY" scripts/sst/xm_inflow_history.py || echo "XM inflow norms failed; continuing"   # inflow history + seasonal norms (draws the fan)
-"$PY" scripts/sst/colombia_rain_map.py || echo "Colombia rain map failed; continuing"   # IMERG vs IDEAM gauges
-"$PY" scripts/sst/ideam_gauges_hourly.py --days 10 || echo "Hourly gauges failed; continuing"   # 10-min gauge feed -> hourly archive (sub-daily verification)
-"$PY" scripts/sst/aifs_tracker.py || echo "AIFS tracker failed; continuing"   # walk-forward verification of the corrected AIFS-ENS (accumulating record)
-"$PY" scripts/sst/inflow_delta_forecast.py || echo "Delta forecast failed; continuing"   # per-basin daily inflow distributions (delta model + model residual)
-"$PY" scripts/sst/national_inflow.py || echo "National inflow failed; continuing"   # national aggregate: daily bal-month + monthly to +6 (ENSO/storage/antecedent)
-# daily PDF briefing: once per UTC day, first runner pass after 00Z
-RPT_STAMP="$HOME/.colombia_report_day"
-if [ "$(date -u +%F)" != "$(cat "$RPT_STAMP" 2>/dev/null)" ]; then
-  # extent cache + bias maps refresh before the report so it reads current data
-  perl -e 'alarm shift; exec @ARGV' 900 "$PY" scripts/sst/wet_area_fraction.py --build \
-    || echo "wet-area rebuild failed; continuing"   # heavy-rain extent per basin-day
-  perl -e 'alarm shift; exec @ARGV' 900 "$PY" scripts/sst/rain_qmap.py --fit \
-    || echo "rain qmap fit failed; continuing"   # stage A/B quantile maps (self-opening gate)
-  perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/daily_report.py \
-    && date -u +%F > "$RPT_STAMP" || echo "daily report failed; continuing"
-  # daily data snapshot into the private research repo (handoff freshness)
-  ( cd "$HOME/colombia_hydro" && git add -A raw reports out site 2>/dev/null \
-    && git commit -q -m "data: daily snapshot $(date -u +%F)" 2>/dev/null \
-    && git push -q ) || true
-  ( cd "$HOME/brazil_hydro" && git add -A raw out site 2>/dev/null \
-    && git commit -q -m "data: daily snapshot $(date -u +%F)" 2>/dev/null \
-    && git push -q ) || true
-fi
+# Energy/hydro research stack (Colombia + Brazil; Argentina retired) moved to
+# run_local_energy.sh 2026-08-25 (com.scorvec.energy LaunchAgent) — it was ~35
+# steps and most of this run's wall-clock, and none of it feeds the site.
+
 ( cd scripts/sst && "$PY" eq_current_section.py ) || echo "eq current section failed; continuing"
 ( cd scripts/sst && "$PY" eq_current_hovmoller.py ) || echo "eq current hovmoller failed; continuing"
 ( cd scripts/sst && "$PY" eq_uwind_hovmoller.py ) || echo "eq uwind hovmoller failed; continuing"
