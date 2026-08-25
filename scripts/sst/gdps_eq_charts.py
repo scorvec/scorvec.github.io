@@ -65,6 +65,8 @@ from matplotlib.colors import BoundaryNorm, ListedColormap      # noqa: E402
 # Map domain + grammar copied from the super-ensemble animator
 # (scripts/mjo/src/mslp_wind_anim.py) so the two products read identically.
 EXTENT = (100, 280, -30, 45)                    # lon0, lon1 (0..360), lat0, lat1
+# 150 hPa map reaches further east, over South America and the Atlantic ITCZ edge
+EXTENT_150 = (100, 300, -30, 45)
 STATIONS = {"Darwin (YPDN)": (130.9, -12.4), "Tarawa (NGTA)": (173.0, 1.4),
             "Christmas I. (PLCH)": (202.5, 2.0), "Tahiti (NTAA)": (210.4, -17.5)}
 MS2KT = 1.94384
@@ -90,6 +92,7 @@ BASE = "https://dd.weather.gc.ca/{date}/WXO-DD/model_gdps/15km/{cyc}/{lead:03d}"
 FILE = "{date}T{cyc}Z_MSC_GDPS_{var}_LatLon0.15_PT{lead:03d}H.grib2"
 VARS = {"u": "WindU_AGL-10m", "v": "WindV_AGL-10m", "p": "Pressure_MSL",
         "u150": "WindU_IsbL-0150", "v150": "WindV_IsbL-0150",
+        "z150": "GeopotentialHeight_IsbL-0150",
         "olr": "UpwardLongwaveRadiationFlux_NTAtm"}
 LEADS = list(range(24, 241, 24))                 # wind maps: forecast days 1..10
 IR_LEADS = list(range(3, 241, 3))                # simulated IR: 3-hourly loop
@@ -146,7 +149,9 @@ def collect_maps(date: str, cyc: str) -> dict | None:
     maps, leads_ok = [], []
     for lead in LEADS:
         f = {k: _grab_map(date, cyc, lead, k, EXTENT)
-             for k in ("u", "v", "p", "u150", "v150")}
+             for k in ("u", "v", "p")}
+        f.update({k: _grab_map(date, cyc, lead, k, EXTENT_150)
+                  for k in ("u150", "v150", "z150")})
         if any(v is None for v in f.values()):
             print(f"  {date} {cyc}Z +{lead:03d}h: map fields missing — skipped",
                   flush=True)
@@ -271,7 +276,7 @@ def render_outflow_maps(maps, leads, init: pd.Timestamp) -> None:
     pc = ccrs.PlateCarree()
     entries = []
     for k, (f, h) in enumerate(zip(maps, leads)):
-        u, v = f["u150"], f["v150"]
+        u, v, z = f["u150"], f["v150"], f["z150"]
         valid = init + pd.Timedelta(hours=int(h))
         lat = u.latitude.values; lon = u.longitude.values
         dx = abs(lat[1] - lat[0])
@@ -279,14 +284,27 @@ def render_outflow_maps(maps, leads, init: pd.Timestamp) -> None:
         # rather than 15 km speckle
         spd = gaussian_filter(np.hypot(u.values, v.values) * MS2KT,
                               0.5 / dx, mode=("nearest", "wrap"))
-        fig = plt.figure(figsize=(12.6, 6.2))
+        fig = plt.figure(figsize=(14.0, 6.2))
         ax = plt.axes(projection=proj)
-        ax.set_extent([EXTENT[0], EXTENT[1], EXTENT[2], EXTENT[3]], crs=pc)
+        ax.set_extent([EXTENT_150[0], EXTENT_150[1],
+                       EXTENT_150[2], EXTENT_150[3]], crs=pc)
         cf = ax.contourf(lon, lat, spd, levels=W150_LEV, cmap=W150_CMAP,
                          norm=W150_NORM, extend="both", transform=pc)
         cl = ax.contour(lon, lat, spd, levels=W150_LEV, colors="#4a5560",
                         linewidths=0.4, transform=pc)
         ax.clabel(cl, levels=W150_LEV[::2], inline=True, fontsize=6, fmt="%d")
+        # geopotential height (dam) — 6 dam (60 m) interval: 3 dam buried the
+        # fill under wall-to-wall lines in the jet regions
+        cz = ax.contour(lon, lat, gaussian_filter(z.values / 10.0, 2.0 * _GS,
+                                                  mode=("nearest", "wrap")),
+                        levels=np.arange(1320, 1452, 6), colors="#111111",
+                        linewidths=0.7, transform=pc)
+        ax.clabel(cz, inline=True, fontsize=6, fmt="%d")
+        bstride = max(1, int(round(4.0 / dx)))            # barbs ~every 4°
+        ax.barbs(lon[::bstride], lat[::bstride],
+                 u.values[::bstride, ::bstride] * MS2KT,
+                 v.values[::bstride, ::bstride] * MS2KT,
+                 length=4.0, linewidth=0.4, color="#263238", transform=pc)
         ax.coastlines(linewidth=1.0, color="0.05", zorder=4)
         ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="0.4", zorder=4)
         gl = ax.gridlines(draw_labels=True, linewidth=0.4, color="0.45", alpha=0.5,
@@ -297,9 +315,10 @@ def render_outflow_maps(maps, leads, init: pd.Timestamp) -> None:
         gl.xlabel_style = gl.ylabel_style = {"size": 6, "color": "0.3"}
         cax = fig.add_axes([0.13, 0.06, 0.74, 0.02])
         cb = fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both")
-        cb.set_label("150 hPa wind speed (kt) · white < 25 kt", fontsize=8)
+        cb.set_label("150 hPa wind speed (kt) · white < 25 kt · black contours = "
+                     "geopotential height (dam)", fontsize=8)
         cax.tick_params(labelsize=7)
-        ax.set_title(f"GDPS 150 hPa wind — isotachs  ·  "
+        ax.set_title(f"GDPS 150 hPa wind + height  ·  "
                      f"ECCC 15 km deterministic\ninit {init:%Y-%m-%d %H}Z  ·  "
                      f"F{int(h):03d} valid {valid:%Y-%m-%d %H}Z",
                      fontsize=10, loc="left")
