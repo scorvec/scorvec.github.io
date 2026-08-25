@@ -89,6 +89,7 @@ IR_DLON, IR_DLAT = 20, 20
 BASE = "https://dd.weather.gc.ca/{date}/WXO-DD/model_gdps/15km/{cyc}/{lead:03d}"
 FILE = "{date}T{cyc}Z_MSC_GDPS_{var}_LatLon0.15_PT{lead:03d}H.grib2"
 VARS = {"u": "WindU_AGL-10m", "v": "WindV_AGL-10m", "p": "Pressure_MSL",
+        "u150": "WindU_IsbL-0150", "v150": "WindV_IsbL-0150",
         "olr": "UpwardLongwaveRadiationFlux_NTAtm"}
 LEADS = list(range(24, 241, 24))                 # wind maps: forecast days 1..10
 IR_LEADS = list(range(3, 241, 3))                # simulated IR: 3-hourly loop
@@ -140,17 +141,17 @@ def _grab_map(date: str, cyc: str, lead: int, var: str, extent) -> xr.DataArray 
 
 
 def collect_maps(date: str, cyc: str) -> dict | None:
-    """Per-forecast-day (u, v, mslp) map fields, or None if incomplete."""
+    """Per-forecast-day map fields (surface u/v/mslp + 150 hPa u/v), or None
+    if the cycle is incomplete."""
     maps, leads_ok = [], []
     for lead in LEADS:
-        u = _grab_map(date, cyc, lead, "u", EXTENT)
-        v = _grab_map(date, cyc, lead, "v", EXTENT)
-        pr = _grab_map(date, cyc, lead, "p", EXTENT)
-        if u is None or v is None or pr is None:
+        f = {k: _grab_map(date, cyc, lead, k, EXTENT)
+             for k in ("u", "v", "p", "u150", "v150")}
+        if any(v is None for v in f.values()):
             print(f"  {date} {cyc}Z +{lead:03d}h: map fields missing — skipped",
                   flush=True)
             continue
-        maps.append((u, v, pr))
+        maps.append(f)
         leads_ok.append(lead)
     if len(leads_ok) < MIN_LEADS:
         print(f"  {date} {cyc}Z: only {len(leads_ok)} days — cycle incomplete",
@@ -192,7 +193,8 @@ def render_wind_maps(maps, leads, init: pd.Timestamp) -> None:
     proj = ccrs.PlateCarree(central_longitude=180)
     pc = ccrs.PlateCarree()
     entries = []
-    for k, ((u, v, pr), h) in enumerate(zip(maps, leads)):
+    for k, (f, h) in enumerate(zip(maps, leads)):
+        u, v, pr = f["u"], f["v"], f["p"]
         valid = init + pd.Timedelta(hours=int(h))
         lat = u.latitude.values; lon = u.longitude.values
         spd = np.hypot(u.values, v.values) * MS2KT
@@ -245,6 +247,96 @@ def render_wind_maps(maps, leads, init: pd.Timestamp) -> None:
                                       "frames": entries}}}
     (ASSETS / "anim" / "gdps_wind_manifest.json").write_text(json.dumps(mani))
     print(f"  wrote {len(entries)} wind-map frames + gdps_wind_manifest.json",
+          flush=True)
+
+
+# ── 150 hPa outflow maps: divergence shaded + streamlines + jet isotachs ────
+# Colour language matches the site's 200 hPa velocity-potential product
+# (wind200_vpot.py): GREEN = upper-level divergence (the outflow above deep
+# convection), ORANGE = convergence/subsidence, white = neutral.
+from matplotlib.colors import LinearSegmentedColormap                # noqa: E402
+DIV_CMAP = LinearSegmentedColormap.from_list(
+    "div150", ["#a8330f", "#df6a1e", "#f0a64b", "#fbe2bd", "#ffffff",
+               "#cfe8cf", "#86c98a", "#43a047", "#1b5e20"])
+# Heavier smoothing + wider bins than a first guess: at 2°/±1.5 the map
+# saturated into mesoscale blobs — 3° and ±3 leaves white background with
+# only the planetary-scale outflow/convergence centres coloured.
+DIV_LEVELS = [-20, -15, -10, -6, -3, 3, 6, 10, 15, 20]    # ×1e-6 s⁻¹, smoothed
+JET_LEVELS = [30, 50, 70]                                 # 150 hPa isotachs (m/s)
+DIV_SMOOTH_DEG = 3.0                                      # Gaussian sigma (degrees)
+
+
+def _divergence(u: xr.DataArray, v: xr.DataArray) -> np.ndarray:
+    """Spherical horizontal divergence (s⁻¹) of one (lat, lon) level."""
+    a = 6.371e6
+    lat_r = np.deg2rad(u.latitude.values)
+    lon_r = np.deg2rad(u.longitude.values)
+    coslat = np.cos(lat_r)[:, None]
+    dudx = np.gradient(u.values, lon_r, axis=1) / (a * coslat)
+    dvdy = np.gradient(v.values * coslat, lat_r, axis=0) / (a * coslat)
+    return dudx + dvdy
+
+
+def render_outflow_maps(maps, leads, init: pd.Timestamp) -> None:
+    anim = ASSETS / "anim" / "gdps_outflow"
+    anim.mkdir(parents=True, exist_ok=True)
+    for old in anim.glob("F*.webp"):
+        old.unlink()
+    proj = ccrs.PlateCarree(central_longitude=180)
+    pc = ccrs.PlateCarree()
+    entries = []
+    for k, (f, h) in enumerate(zip(maps, leads)):
+        u, v = f["u150"], f["v150"]
+        valid = init + pd.Timedelta(hours=int(h))
+        lat = u.latitude.values; lon = u.longitude.values
+        dx = abs(lat[1] - lat[0])
+        div = gaussian_filter(_divergence(u, v), DIV_SMOOTH_DEG / dx,
+                              mode=("nearest", "wrap")) * 1e6
+        spd = np.hypot(u.values, v.values)
+        fig = plt.figure(figsize=(12.6, 6.2))
+        ax = plt.axes(projection=proj)
+        ax.set_extent([EXTENT[0], EXTENT[1], EXTENT[2], EXTENT[3]], crs=pc)
+        cf = ax.contourf(lon, lat, div, levels=DIV_LEVELS, cmap=DIV_CMAP,
+                         extend="both", transform=pc)
+        cj = ax.contour(lon, lat, gaussian_filter(spd, 1.0 / dx,
+                                                  mode=("nearest", "wrap")),
+                        levels=JET_LEVELS, colors="#111111", linewidths=0.7,
+                        transform=pc)
+        ax.clabel(cj, inline=True, fontsize=6, fmt="%d")
+        # streamlines on a ~0.6° subsample — full 0.15° makes streamplot crawl
+        s = 4
+        lw = 0.35 + 1.1 * np.clip(spd[::s, ::s] / 60.0, 0, 1)
+        ax.streamplot(lon[::s], lat[::s], u.values[::s, ::s], v.values[::s, ::s],
+                      transform=pc, density=2.4, color="#37474f",
+                      linewidth=lw, arrowsize=0.7)
+        ax.coastlines(linewidth=1.0, color="0.05", zorder=4)
+        ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="0.4", zorder=4)
+        gl = ax.gridlines(draw_labels=True, linewidth=0.4, color="0.45", alpha=0.5,
+                          linestyle=(0, (3, 3)), zorder=3)
+        gl.top_labels = gl.right_labels = False
+        gl.xlocator = mticker.FixedLocator(list(range(-180, 181, 20)))
+        gl.ylocator = mticker.FixedLocator(list(range(-30, 46, 15)))
+        gl.xlabel_style = gl.ylabel_style = {"size": 6, "color": "0.3"}
+        cax = fig.add_axes([0.13, 0.06, 0.74, 0.02])
+        cb = fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both")
+        cb.set_label("150 hPa divergence (10⁻⁶ s⁻¹) · green = outflow above deep "
+                     "convection · orange = convergence · black contours = "
+                     "isotachs (m/s)", fontsize=8)
+        cax.tick_params(labelsize=7)
+        ax.set_title(f"GDPS 150 hPa outflow — divergence + streamlines  ·  "
+                     f"ECCC 15 km deterministic\ninit {init:%Y-%m-%d %H}Z  ·  "
+                     f"F{int(h):03d} valid {valid:%Y-%m-%d %H}Z",
+                     fontsize=10, loc="left")
+        fp = anim / f"F{k:02d}.webp"
+        fig.subplots_adjust(left=0.03, right=0.99, top=0.92, bottom=0.10)
+        fig.savefig(fp, dpi=104); plt.close(fig)
+        entries.append({"idx": k, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
+                        "label": f"F{int(h):03d} · {valid:%Y-%m-%d %H}Z"})
+    mani = {"ver": f"{init:%Y%m%d%H}",
+            "regions": {"gdps_outflow": {"label": "GDPS 150 hPa outflow",
+                                         "frames": entries}}}
+    (ASSETS / "anim" / "gdps_outflow_manifest.json").write_text(json.dumps(mani))
+    print(f"  wrote {len(entries)} outflow frames + gdps_outflow_manifest.json",
           flush=True)
 
 
@@ -337,6 +429,7 @@ def main(argv=None) -> int:
         return 1
 
     render_wind_maps(data["maps"], data["leads"], init)
+    render_outflow_maps(data["maps"], data["leads"], init)
     build_ir_loop(date_ok, args.cycle, init)
     return 0
 
