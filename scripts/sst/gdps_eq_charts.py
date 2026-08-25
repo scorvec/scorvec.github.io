@@ -76,11 +76,14 @@ WCMAP = ListedColormap(WCOLS); WCMAP.set_under("#ffffff00"); WCMAP.set_over("#d9
 WNORM = BoundaryNorm(WLEV, WCMAP.N)
 
 # Simulated-IR domain/styling: the "pacsat" preset of the live GMGSI loop
-# (pacific_satellite.REGIONS) — same crop the main page shows.
+# (pacific_satellite.REGIONS) — same crop the main page shows. Rendered at a
+# higher dpi than the live loop: the page column runs up to ~2000 px and the
+# lightbox serves the raw frame, so ~1550 px keeps the 15 km field at native
+# detail. Slightly taller figure than pacsat to make room for the colorbar.
 IR_EXTENT = (100, 290, -40, 40)
 IR_CLON = 180.0
-IR_FIGSIZE = (12.4, 5.6)
-IR_DPI = 92
+IR_FIGSIZE = (12.4, 6.1)
+IR_DPI = 150
 IR_DLON, IR_DLAT = 20, 20
 
 BASE = "https://dd.weather.gc.ca/{date}/WXO-DD/model_gdps/15km/{cyc}/{lead:03d}"
@@ -253,10 +256,10 @@ def render_ir_frame(tb2d, lat, lon, init: pd.Timestamp, lead: int,
     proj = ccrs.PlateCarree(central_longitude=IR_CLON)
     pc = ccrs.PlateCarree()
     fig = plt.figure(figsize=IR_FIGSIZE)
-    ax = plt.axes(projection=proj)
+    ax = fig.add_axes([0.045, 0.14, 0.93, 0.78], projection=proj)
     ax.set_extent([lo0, lo1, la0, la1], crs=pc)
-    ax.pcolormesh(lon, lat, tb2d, transform=pc, cmap=IR_CMAP, norm=IR_NORM,
-                  shading="auto", rasterized=True)
+    mesh = ax.pcolormesh(lon, lat, tb2d, transform=pc, cmap=IR_CMAP, norm=IR_NORM,
+                         shading="auto", rasterized=True)
     ax.coastlines(linewidth=0.7, color="#cfcfcf", resolution="110m")
     gl = ax.gridlines(draw_labels=True, linewidth=0.5, color="w", alpha=0.55,
                       linestyle=(0, (3, 3)))
@@ -271,8 +274,15 @@ def render_ir_frame(tb2d, lat, lon, init: pd.Timestamp, lead: int,
                  f"init {init:%Y-%m-%d %HZ}  ·  F{lead:03d} valid "
                  f"{valid:%Y-%m-%d %HZ}  ·  colour = deep convection",
                  fontsize=9, loc="left")
+    # legend: the enhanced-IR ramp with its brightness-temperature scale
+    cax = fig.add_axes([0.30, 0.045, 0.40, 0.020])
+    cb = fig.colorbar(mesh, cax=cax, orientation="horizontal")
+    cb.set_ticks(list(range(180, 301, 20)))
+    cb.set_label("IR brightness temperature (K) · colour = cold tops (deep "
+                 "convection), grayscale = warm / clear", fontsize=7)
+    cb.ax.tick_params(labelsize=6.5)
     fig.savefig(out, dpi=IR_DPI, bbox_inches="tight",
-                pil_kwargs={"quality": 78, "method": 6})
+                pil_kwargs={"quality": 74, "method": 6})
     plt.close(fig)
 
 
