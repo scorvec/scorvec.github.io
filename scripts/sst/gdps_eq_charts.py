@@ -150,8 +150,6 @@ def collect_maps(date: str, cyc: str) -> dict | None:
     for lead in LEADS:
         f = {k: _grab_map(date, cyc, lead, k, EXTENT)
              for k in ("u", "v", "p")}
-        f.update({k: _grab_map(date, cyc, lead, k, EXTENT_150)
-                  for k in ("u150", "v150", "z150")})
         if any(v is None for v in f.values()):
             print(f"  {date} {cyc}Z +{lead:03d}h: map fields missing — skipped",
                   flush=True)
@@ -267,71 +265,84 @@ W150_CMAP.set_under("#ffffff"); W150_CMAP.set_over("#b0289b")
 W150_NORM = BoundaryNorm(W150_LEV, W150_CMAP.N)
 
 
-def render_outflow_maps(maps, leads, init: pd.Timestamp) -> None:
+def render_outflow_frame(u, v, z, init: pd.Timestamp, h: int, fp: Path) -> None:
+    proj = ccrs.PlateCarree(central_longitude=180)
+    pc = ccrs.PlateCarree()
+    valid = init + pd.Timedelta(hours=int(h))
+    lat = u.latitude.values; lon = u.longitude.values
+    dx = abs(lat[1] - lat[0])
+    # light smoothing so the isotach lines follow the synoptic pattern
+    # rather than 15 km speckle
+    spd = gaussian_filter(np.hypot(u.values, v.values) * MS2KT,
+                          0.5 / dx, mode=("nearest", "wrap"))
+    fig = plt.figure(figsize=(14.0, 6.2))
+    ax = plt.axes(projection=proj)
+    ax.set_extent([EXTENT_150[0], EXTENT_150[1],
+                   EXTENT_150[2], EXTENT_150[3]], crs=pc)
+    cf = ax.contourf(lon, lat, spd, levels=W150_LEV, cmap=W150_CMAP,
+                     norm=W150_NORM, extend="both", transform=pc)
+    cl = ax.contour(lon, lat, spd, levels=W150_LEV, colors="#4a5560",
+                    linewidths=0.4, transform=pc)
+    ax.clabel(cl, levels=W150_LEV[::2], inline=True, fontsize=6, fmt="%d")
+    # geopotential height (dam) — 6 dam (60 m) interval: 3 dam buried the
+    # fill under wall-to-wall lines in the jet regions
+    cz = ax.contour(lon, lat, gaussian_filter(z.values / 10.0, 2.0 * _GS,
+                                              mode=("nearest", "wrap")),
+                    levels=np.arange(1320, 1452, 6), colors="#111111",
+                    linewidths=0.7, transform=pc)
+    ax.clabel(cz, inline=True, fontsize=6, fmt="%d")
+    bstride = max(1, int(round(4.0 / dx)))            # barbs ~every 4°
+    ax.barbs(lon[::bstride], lat[::bstride],
+             u.values[::bstride, ::bstride] * MS2KT,
+             v.values[::bstride, ::bstride] * MS2KT,
+             length=4.0, linewidth=0.4, color="#263238", transform=pc)
+    ax.coastlines(linewidth=1.0, color="0.05", zorder=4)
+    ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="0.4", zorder=4)
+    gl = ax.gridlines(draw_labels=True, linewidth=0.4, color="0.45", alpha=0.5,
+                      linestyle=(0, (3, 3)), zorder=3)
+    gl.top_labels = gl.right_labels = False
+    gl.xlocator = mticker.FixedLocator(list(range(-180, 181, 20)))
+    gl.ylocator = mticker.FixedLocator(list(range(-30, 46, 15)))
+    gl.xlabel_style = gl.ylabel_style = {"size": 6, "color": "0.3"}
+    cax = fig.add_axes([0.13, 0.06, 0.74, 0.02])
+    cb = fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both")
+    cb.set_label("150 hPa wind speed (kt) · white < 25 kt · black contours = "
+                 "geopotential height (dam)", fontsize=8)
+    cax.tick_params(labelsize=7)
+    ax.set_title(f"GDPS 150 hPa wind + height  ·  "
+                 f"ECCC 15 km deterministic\ninit {init:%Y-%m-%d %H}Z  ·  "
+                 f"F{int(h):03d} valid {valid:%Y-%m-%d %H}Z",
+                 fontsize=10, loc="left")
+    fig.subplots_adjust(left=0.03, right=0.99, top=0.92, bottom=0.10)
+    fig.savefig(fp, dpi=104); plt.close(fig)
+
+
+def build_outflow_loop(date: str, cyc: str, init: pd.Timestamp) -> None:
+    """3-hourly 150 hPa frames to day 10, streamed like the IR loop (fetch →
+    render → discard, so ~80 field triples never sit in memory together)."""
     anim = ASSETS / "anim" / "gdps_outflow"
     anim.mkdir(parents=True, exist_ok=True)
     for old in anim.glob("F*.webp"):
         old.unlink()
-    proj = ccrs.PlateCarree(central_longitude=180)
-    pc = ccrs.PlateCarree()
-    entries = []
-    for k, (f, h) in enumerate(zip(maps, leads)):
-        u, v, z = f["u150"], f["v150"], f["z150"]
-        valid = init + pd.Timedelta(hours=int(h))
-        lat = u.latitude.values; lon = u.longitude.values
-        dx = abs(lat[1] - lat[0])
-        # light smoothing so the isotach lines follow the synoptic pattern
-        # rather than 15 km speckle
-        spd = gaussian_filter(np.hypot(u.values, v.values) * MS2KT,
-                              0.5 / dx, mode=("nearest", "wrap"))
-        fig = plt.figure(figsize=(14.0, 6.2))
-        ax = plt.axes(projection=proj)
-        ax.set_extent([EXTENT_150[0], EXTENT_150[1],
-                       EXTENT_150[2], EXTENT_150[3]], crs=pc)
-        cf = ax.contourf(lon, lat, spd, levels=W150_LEV, cmap=W150_CMAP,
-                         norm=W150_NORM, extend="both", transform=pc)
-        cl = ax.contour(lon, lat, spd, levels=W150_LEV, colors="#4a5560",
-                        linewidths=0.4, transform=pc)
-        ax.clabel(cl, levels=W150_LEV[::2], inline=True, fontsize=6, fmt="%d")
-        # geopotential height (dam) — 6 dam (60 m) interval: 3 dam buried the
-        # fill under wall-to-wall lines in the jet regions
-        cz = ax.contour(lon, lat, gaussian_filter(z.values / 10.0, 2.0 * _GS,
-                                                  mode=("nearest", "wrap")),
-                        levels=np.arange(1320, 1452, 6), colors="#111111",
-                        linewidths=0.7, transform=pc)
-        ax.clabel(cz, inline=True, fontsize=6, fmt="%d")
-        bstride = max(1, int(round(4.0 / dx)))            # barbs ~every 4°
-        ax.barbs(lon[::bstride], lat[::bstride],
-                 u.values[::bstride, ::bstride] * MS2KT,
-                 v.values[::bstride, ::bstride] * MS2KT,
-                 length=4.0, linewidth=0.4, color="#263238", transform=pc)
-        ax.coastlines(linewidth=1.0, color="0.05", zorder=4)
-        ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="0.4", zorder=4)
-        gl = ax.gridlines(draw_labels=True, linewidth=0.4, color="0.45", alpha=0.5,
-                          linestyle=(0, (3, 3)), zorder=3)
-        gl.top_labels = gl.right_labels = False
-        gl.xlocator = mticker.FixedLocator(list(range(-180, 181, 20)))
-        gl.ylocator = mticker.FixedLocator(list(range(-30, 46, 15)))
-        gl.xlabel_style = gl.ylabel_style = {"size": 6, "color": "0.3"}
-        cax = fig.add_axes([0.13, 0.06, 0.74, 0.02])
-        cb = fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both")
-        cb.set_label("150 hPa wind speed (kt) · white < 25 kt · black contours = "
-                     "geopotential height (dam)", fontsize=8)
-        cax.tick_params(labelsize=7)
-        ax.set_title(f"GDPS 150 hPa wind + height  ·  "
-                     f"ECCC 15 km deterministic\ninit {init:%Y-%m-%d %H}Z  ·  "
-                     f"F{int(h):03d} valid {valid:%Y-%m-%d %H}Z",
-                     fontsize=10, loc="left")
-        fp = anim / f"F{k:02d}.webp"
-        fig.subplots_adjust(left=0.03, right=0.99, top=0.92, bottom=0.10)
-        fig.savefig(fp, dpi=104); plt.close(fig)
-        entries.append({"idx": k, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
-                        "label": f"F{int(h):03d} · {valid:%Y-%m-%d %H}Z"})
+    entries, made = [], 0
+    for lead in IR_LEADS:
+        u = _grab_map(date, cyc, lead, "u150", EXTENT_150)
+        v = _grab_map(date, cyc, lead, "v150", EXTENT_150)
+        z = _grab_map(date, cyc, lead, "z150", EXTENT_150)
+        if u is None or v is None or z is None:
+            print(f"  150 hPa +{lead:03d}h: missing — skipped", flush=True)
+            continue
+        fp = anim / f"F{lead:03d}.webp"
+        render_outflow_frame(u, v, z, init, lead, fp)
+        valid = init + pd.Timedelta(hours=lead)
+        entries.append({"idx": made, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
+                        "label": f"F{lead:03d} · {valid:%Y-%m-%d %H}Z"})
+        made += 1
     mani = {"ver": f"{init:%Y%m%d%H}",
             "regions": {"gdps_outflow": {"label": "GDPS 150 hPa wind",
                                          "frames": entries}}}
     (ASSETS / "anim" / "gdps_outflow_manifest.json").write_text(json.dumps(mani))
-    print(f"  wrote {len(entries)} outflow frames + gdps_outflow_manifest.json",
+    print(f"  wrote {made} outflow frames + gdps_outflow_manifest.json",
           flush=True)
 
 
@@ -424,7 +435,7 @@ def main(argv=None) -> int:
         return 1
 
     render_wind_maps(data["maps"], data["leads"], init)
-    render_outflow_maps(data["maps"], data["leads"], init)
+    build_outflow_loop(date_ok, args.cycle, init)
     build_ir_loop(date_ok, args.cycle, init)
     return 0
 
