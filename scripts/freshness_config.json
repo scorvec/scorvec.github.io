@@ -1,5 +1,5 @@
 {
-  "_comment": "path -> {branch, max_age_hours}; checked daily by data-freshness.yml. Synoptic + wind/solar/power checks removed 2026-08-10: products deliberately retired 2026-07-24/25 (power -> private repo; HRRR viewer asleep).",
+  "_comment": "path -> {branch, max_age_hours}; checked daily by data-freshness.yml. Synoptic + wind/solar/power checks removed 2026-08-10: products deliberately retired 2026-07-24/25 (power -> private repo; HRRR viewer asleep). Gatun check removed 2026-08-25: Gatun steps turned off in the SST pipeline for now.",
   "checks": {
     "manifest.json": {
       "branch": "skewt-data",
@@ -18,10 +18,6 @@
       "max_age_hours": 48
     },
     "assets/mjo": {
-      "branch": "main",
-      "max_age_hours": 48
-    },
-    "gatun": {
       "branch": "main",
       "max_age_hours": 48
     }

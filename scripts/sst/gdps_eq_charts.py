@@ -237,11 +237,15 @@ def render_wind_maps(maps, leads, init: pd.Timestamp) -> None:
         fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both").set_label(
             "10 m wind speed (kt)", fontsize=8)
         cax.tick_params(labelsize=7)
-        ax.set_title(f"GDPS MSLP (mb) + 10 m wind  ·  ECCC 15 km deterministic\n"
-                     f"init {init:%Y-%m-%d %H}Z  ·  F{int(h):03d} valid "
-                     f"{valid:%Y-%m-%d %H}Z", fontsize=10, loc="left")
+        # figure-level title at fixed canvas coords: ax.set_title sat above the
+        # axes box and matplotlib 3.11 (the CI pip install) pushed it off-canvas,
+        # shipping every frame title-less (2026-08-25)
+        fig.text(0.03, 0.99,
+                 f"GDPS MSLP (mb) + 10 m wind  ·  ECCC 15 km deterministic\n"
+                 f"init {init:%Y-%m-%d %H}Z  ·  F{int(h):03d} valid "
+                 f"{valid:%Y-%m-%d %H}Z", fontsize=10, ha="left", va="top")
         fp = anim / f"F{k:02d}.webp"
-        fig.subplots_adjust(left=0.03, right=0.99, top=0.92, bottom=0.10)
+        fig.subplots_adjust(left=0.03, right=0.99, top=0.90, bottom=0.10)
         fig.savefig(fp, dpi=104); plt.close(fig)
         entries.append({"idx": k, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
                         "label": f"F{int(h):03d} · {valid:%Y-%m-%d %H}Z"})
@@ -309,11 +313,14 @@ def render_outflow_frame(u, v, z, init: pd.Timestamp, h: int, fp: Path) -> None:
     cb.set_label("150 hPa wind speed (kt) · white < 25 kt · black contours = "
                  "geopotential height (dam)", fontsize=8)
     cax.tick_params(labelsize=7)
-    ax.set_title(f"GDPS 150 hPa wind + height  ·  "
-                 f"ECCC 15 km deterministic\ninit {init:%Y-%m-%d %H}Z  ·  "
-                 f"F{int(h):03d} valid {valid:%Y-%m-%d %H}Z",
-                 fontsize=10, loc="left")
-    fig.subplots_adjust(left=0.03, right=0.99, top=0.92, bottom=0.10)
+    # figure-level title (not ax.set_title): see render_wind_maps — mpl 3.11
+    # clipped axes titles off-canvas on CI
+    fig.text(0.03, 0.99,
+             f"GDPS 150 hPa wind + height  ·  "
+             f"ECCC 15 km deterministic\ninit {init:%Y-%m-%d %H}Z  ·  "
+             f"F{int(h):03d} valid {valid:%Y-%m-%d %H}Z",
+             fontsize=10, ha="left", va="top")
+    fig.subplots_adjust(left=0.03, right=0.99, top=0.90, bottom=0.10)
     fig.savefig(fp, dpi=104); plt.close(fig)
 
 
@@ -368,19 +375,24 @@ def render_ir_frame(tb2d, lat, lon, init: pd.Timestamp, lead: int,
     gl.ylocator = mticker.FixedLocator(map_grid.lat_ticks(la0, la1, IR_DLAT))
     gl.xlabel_style = gl.ylabel_style = {"size": 8}
     map_grid.add_ref_lines(ax, IR_EXTENT, color="w", lw=1.0)
-    ax.set_title(f"GDPS simulated enhanced IR — tropical Pacific  ·  "
-                 f"init {init:%Y-%m-%d %HZ}  ·  F{lead:03d} valid "
-                 f"{valid:%Y-%m-%d %HZ}  ·  colour = deep convection",
-                 fontsize=9, loc="left")
+    # figure-level title (not ax.set_title): see render_wind_maps — mpl 3.11
+    # clipped axes titles off-canvas on CI
+    fig.text(0.045, 0.985,
+             f"GDPS simulated enhanced IR — tropical Pacific  ·  "
+             f"init {init:%Y-%m-%d %HZ}  ·  F{lead:03d} valid "
+             f"{valid:%Y-%m-%d %HZ}  ·  colour = deep convection",
+             fontsize=9, ha="left", va="top")
     # legend: the enhanced-IR ramp with its brightness-temperature scale
-    cax = fig.add_axes([0.30, 0.045, 0.40, 0.020])
+    cax = fig.add_axes([0.30, 0.075, 0.40, 0.020])
     cb = fig.colorbar(mesh, cax=cax, orientation="horizontal")
     cb.set_ticks(list(range(180, 301, 20)))
     cb.set_label("IR brightness temperature (K) · colour = cold tops (deep "
                  "convection), grayscale = warm / clear", fontsize=7)
     cb.ax.tick_params(labelsize=6.5)
-    fig.savefig(out, dpi=IR_DPI, bbox_inches="tight",
-                pil_kwargs={"quality": 74, "method": 6})
+    # no bbox_inches="tight": under matplotlib 3.11 + cartopy the GeoAxes drops
+    # out of the tight bbox and every frame collapsed to just the colorbar
+    # (801×99 slivers, 2026-08-25); the fixed axes rect already frames the map
+    fig.savefig(out, dpi=IR_DPI, pil_kwargs={"quality": 74, "method": 6})
     plt.close(fig)
 
 

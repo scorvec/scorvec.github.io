@@ -74,8 +74,9 @@ NEW_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
 # alarm SIGALRMs the whole step; `|| echo` keeps the chain moving as usual.
 perl -e 'alarm shift; exec @ARGV' 5400 "$PY" scripts/sst/imerg_precip.py || echo "IMERG precip failed; continuing"   # NASA GPM IMERG, ~/.netrc Earthdata auth
 perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/imerg_precip_anom.py || echo "IMERG precip anomaly failed; continuing"   # vs the committed 20-yr clim
-perl -e 'alarm shift; exec @ARGV' 3600 "$PY" scripts/sst/imerg_gatun.py || echo "IMERG Gatun tracker failed; continuing"   # Lake Gatun zoom + rain-vs-level chart
-"$PY" scripts/gatun/fetch_data.py || echo "Gatun dashboard data failed; continuing"   # gatun/data.js: ACP levels/projection + ONI
+# Lake Gatun steps disabled 2026-08-25 (turned off for now — uncomment to restore):
+#perl -e 'alarm shift; exec @ARGV' 3600 "$PY" scripts/sst/imerg_gatun.py || echo "IMERG Gatun tracker failed; continuing"   # Lake Gatun zoom + rain-vs-level chart
+#"$PY" scripts/gatun/fetch_data.py || echo "Gatun dashboard data failed; continuing"   # gatun/data.js: ACP levels/projection + ONI
 "$PY" scripts/sst/hydro_region_rain.py || echo "XM region rainfall failed; continuing"   # basin rain over XM hydro regions
 "$PY" scripts/sst/xm_storage.py || echo "XM storage failed; continuing"   # reservoir storage norms + outflow model (state for the fan)
 "$PY" scripts/sst/xm_generation.py || echo "XM generation failed; continuing"   # actual hydro gen history + gen model fit (draws gen fan)
@@ -170,7 +171,7 @@ if [ "$TODAY_UTC" != "$LAST_ANALOG" ] || { [ -n "$NEW_DAY" ] && [ "$NEW_DAY" != 
   [ "$ok" = 1 ] && echo "$TODAY_UTC" > "$ANALOG_STAMP"     # stamp only on full success → retry next poll otherwise
 fi
 
-git add sst.html enso-*.html assets/sst/ gatun/data.js
+git add sst.html enso-*.html assets/sst/
 if git diff --staged --quiet; then echo "no changes to commit"; exit 0; fi
 DAY=$("$PY" -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])" 2>/dev/null)
 source "$REPO/scripts/lib/gitlock.sh"

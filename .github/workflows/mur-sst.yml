@@ -42,7 +42,7 @@ jobs:
           done
           exit 1
       - name: Install Python dependencies
-        run: pip install --quiet numpy pandas xarray netcdf4 matplotlib "cartopy>=0.22" "shapely>=2.0" "pyproj>=3.5" Pillow
+        run: pip install --quiet numpy pandas xarray netcdf4 matplotlib==3.10.9 "cartopy>=0.22" "shapely>=2.0" "pyproj>=3.5" Pillow
       # The still maps are retired from the page for now — only the event
       # animation runs daily (main() in mur_eqpac.py still renders the stills
       # if they're ever wanted back).

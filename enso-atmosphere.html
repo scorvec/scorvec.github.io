@@ -162,7 +162,7 @@
   .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
   .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
   .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
-  .anim-embed.gdps-ir { aspect-ratio: 1777 / 964; } /* image 1777×909 + controls bar */
+  .anim-embed.gdps-ir { aspect-ratio: 1860 / 970; } /* image 1860×915 + controls bar */
   .anim-embed.gdps-150 { aspect-ratio: 1456 / 700; } /* image 1456×644 + controls bar */
   .anim-embed.samsat { aspect-ratio: 1015 / 1115; }   /* image 1015×1065 + controls */
   .anim-embed.glmden { aspect-ratio: 591 / 677; }     /* image 591×622 (map + colourbar) + controls */
@@ -400,7 +400,7 @@
       <div class="chart-card-footer"><span class="chart-sources">ECCC GDPS top-of-atmosphere OLR (MSC Datamart) &middot; OLR &rarr; T<sub>b</sub> via inverse Ohring&ndash;Gruber &middot; 3-hourly frames, days 0&ndash;10 &middot; GMGSI enhanced-IR colortable &middot; daily</span></div>
     </div>
 
-    <!-- GDPS 150 hPa OUTFLOW: DIVERGENCE + STREAMLINES -->
+    <!-- GDPS 150 hPa WIND + HEIGHT: ISOTACHS, BARBS, Z CONTOURS -->
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>GDPS 150 hPa Wind &amp; Height Forecast</h2>
@@ -410,8 +410,8 @@
         25&nbsp;kt.</p>
       </div>
       <iframe class="anim-embed gdps-150" src="sst_anim.html?embed=1&amp;manifest=gdps_outflow_manifest.json&amp;region=gdps_outflow"
-              title="GDPS 150 hPa divergence and streamline forecast over the tropical Pacific, animated" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">ECCC GDPS 150&nbsp;hPa u/v (MSC Datamart) &middot; spherical divergence, ~3&deg; Gaussian smoothing &middot; 00Z cycle, days 1&ndash;10 &middot; daily</span></div>
+              title="GDPS 150 hPa wind and height forecast over the tropical Pacific, animated" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECCC GDPS 150&nbsp;hPa u/v + height (MSC Datamart) &middot; isotach fill/contours, height contours (6&nbsp;dam), wind barbs &middot; 00Z cycle, 3-hourly to day&nbsp;10 &middot; daily</span></div>
     </div>
 
     <!-- 200 hPa VELOCITY POTENTIAL + IRROTATIONAL WIND (AIFS-ENS ensemble mean) -->

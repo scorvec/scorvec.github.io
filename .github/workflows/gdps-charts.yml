@@ -43,7 +43,7 @@ jobs:
           done
           exit 1
       - name: Install Python dependencies
-        run: pip install --quiet numpy pandas scipy xarray netcdf4 cfgrib eccodes matplotlib "cartopy>=0.22" "shapely>=2.0" "pyproj>=3.5" Pillow
+        run: pip install --quiet numpy pandas scipy xarray netcdf4 cfgrib eccodes matplotlib==3.10.9 "cartopy>=0.22" "shapely>=2.0" "pyproj>=3.5" Pillow
       - name: Build GDPS products
         run: python scripts/sst/gdps_eq_charts.py
       - name: Commit & push

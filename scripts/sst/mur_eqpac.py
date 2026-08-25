@@ -29,6 +29,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import xarray as xr
@@ -155,6 +156,30 @@ def _isotherms(ax, field):
     ax.clabel(cs, fmt=lambda v: f"{v:.0f}°", fontsize=6, inline=True)
 
 
+# Niño index boxes (lon in 0–360 to match the pasted zoom domain). Niño-3.4 is
+# drawn inset (±4.6° instead of ±5°) in black so its horizontal edges don't sit
+# on top of the Niño-4/3 lines it overlaps.
+NINO_BOXES = [
+    # label, lon0, lon1, lat0, lat1, line colour, (label lon, lat)
+    ("Niño 4",   160, 210, -5.0, 5.0, "white", (174, 5.7)),
+    ("Niño 3.4", 190, 240, -4.6, 4.6, "black", (191, -5.9)),
+    ("Niño 3",   210, 270, -5.0, 5.0, "white", (212, 5.7)),
+    ("Niño 1+2", 270, 280, -10.0, 0.0, "white", (270.6, 0.7)),
+]
+
+
+def _nino_boxes(ax):
+    pc = ccrs.PlateCarree()
+    for label, lo0, lo1, la0, la1, col, (tx, ty) in NINO_BOXES:
+        halo = "black" if col == "white" else "white"
+        ax.plot([lo0, lo1, lo1, lo0, lo0], [la0, la0, la1, la1, la0],
+                transform=pc, color=col, lw=1.0, ls=(0, (5, 3)), zorder=5,
+                path_effects=[pe.withStroke(linewidth=2.0, foreground=halo)])
+        ax.text(tx, ty, label, transform=pc, fontsize=7, fontweight="bold",
+                color=col, ha="left", va="center", zorder=6,
+                path_effects=[pe.withStroke(linewidth=1.8, foreground=halo)])
+
+
 def render_stacked(field: xr.DataArray, rows: int, title: str, out: Path,
                    note: str, vrange=None, dpi=200):
     """Mobile companion: the domain split into stacked lon segments, so the
@@ -176,6 +201,7 @@ def render_stacked(field: xr.DataArray, rows: int, title: str, out: Path,
                              cmap="turbo", vmin=vmin, vmax=vmax,
                              rasterized=True)
         _isotherms(ax, seg)
+        _nino_boxes(ax)
     np.atleast_1d(axes)[0].set_title(title, fontsize=10, loc="left", pad=4)
     cb = fig.colorbar(mesh, ax=list(np.atleast_1d(axes)),
                       orientation="horizontal", fraction=0.028, pad=0.03,
@@ -203,6 +229,7 @@ def render(field: xr.DataArray, extent, title: str, out: Path,
                          transform=ccrs.PlateCarree(), cmap="turbo",
                          vmin=vmin, vmax=vmax, rasterized=True)
     _isotherms(ax, field)
+    _nino_boxes(ax)
     cb = fig.colorbar(mesh, ax=ax, orientation="vertical", pad=0.012,
                       fraction=0.025, aspect=28)
     cb.set_label("SST (°C)", fontsize=9)

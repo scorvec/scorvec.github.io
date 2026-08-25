@@ -7,7 +7,7 @@ netcdf4
 h5netcdf
 cfgrib
 eccodes
-matplotlib
+matplotlib==3.10.9  # 3.11 breaks cartopy GeoAxes tight-bbox/titles (2026-08-25)
 eofs
 requests
 ecmwf-opendata
