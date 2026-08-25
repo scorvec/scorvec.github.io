@@ -250,31 +250,16 @@ def render_wind_maps(maps, leads, init: pd.Timestamp) -> None:
           flush=True)
 
 
-# ── 150 hPa outflow maps: divergence shaded + streamlines + jet isotachs ────
-# Colour language matches the site's 200 hPa velocity-potential product
-# (wind200_vpot.py): GREEN = upper-level divergence (the outflow above deep
-# convection), ORANGE = convergence/subsidence, white = neutral.
-from matplotlib.colors import LinearSegmentedColormap                # noqa: E402
-DIV_CMAP = LinearSegmentedColormap.from_list(
-    "div150", ["#a8330f", "#df6a1e", "#f0a64b", "#fbe2bd", "#ffffff",
-               "#cfe8cf", "#86c98a", "#43a047", "#1b5e20"])
-# Heavier smoothing + wider bins than a first guess: at 2°/±1.5 the map
-# saturated into mesoscale blobs — 3° and ±3 leaves white background with
-# only the planetary-scale outflow/convergence centres coloured.
-DIV_LEVELS = [-20, -15, -10, -6, -3, 3, 6, 10, 15, 20]    # ×1e-6 s⁻¹, smoothed
-JET_LEVELS = [30, 50, 70]                                 # 150 hPa isotachs (m/s)
-DIV_SMOOTH_DEG = 3.0                                      # Gaussian sigma (degrees)
-
-
-def _divergence(u: xr.DataArray, v: xr.DataArray) -> np.ndarray:
-    """Spherical horizontal divergence (s⁻¹) of one (lat, lon) level."""
-    a = 6.371e6
-    lat_r = np.deg2rad(u.latitude.values)
-    lon_r = np.deg2rad(u.longitude.values)
-    coslat = np.cos(lat_r)[:, None]
-    dudx = np.gradient(u.values, lon_r, axis=1) / (a * coslat)
-    dvdy = np.gradient(v.values * coslat, lat_r, axis=0) / (a * coslat)
-    return dudx + dvdy
+# ── 150 hPa wind maps: isotach fill + contours ──────────────────────────────
+# White below 25 kt (the quiescent tropics stay blank), then a wide ladder —
+# blue → green → yellow → orange → red, magenta above 150 kt — so both the
+# modest outflow branches and the subtropical jet cores resolve on one scale.
+W150_LEV = [25, 35, 45, 55, 65, 80, 95, 110, 130, 150]        # kt
+W150_COLS = ["#dbeef8", "#a9d4ec", "#6fb4de", "#3f8fc7", "#61b26b",
+             "#b5d24a", "#f2d03a", "#f29b2c", "#e0562c"]
+W150_CMAP = ListedColormap(W150_COLS)
+W150_CMAP.set_under("#ffffff"); W150_CMAP.set_over("#b0289b")
+W150_NORM = BoundaryNorm(W150_LEV, W150_CMAP.N)
 
 
 def render_outflow_maps(maps, leads, init: pd.Timestamp) -> None:
@@ -290,25 +275,18 @@ def render_outflow_maps(maps, leads, init: pd.Timestamp) -> None:
         valid = init + pd.Timedelta(hours=int(h))
         lat = u.latitude.values; lon = u.longitude.values
         dx = abs(lat[1] - lat[0])
-        div = gaussian_filter(_divergence(u, v), DIV_SMOOTH_DEG / dx,
-                              mode=("nearest", "wrap")) * 1e6
-        spd = np.hypot(u.values, v.values)
+        # light smoothing so the isotach lines follow the synoptic pattern
+        # rather than 15 km speckle
+        spd = gaussian_filter(np.hypot(u.values, v.values) * MS2KT,
+                              0.5 / dx, mode=("nearest", "wrap"))
         fig = plt.figure(figsize=(12.6, 6.2))
         ax = plt.axes(projection=proj)
         ax.set_extent([EXTENT[0], EXTENT[1], EXTENT[2], EXTENT[3]], crs=pc)
-        cf = ax.contourf(lon, lat, div, levels=DIV_LEVELS, cmap=DIV_CMAP,
-                         extend="both", transform=pc)
-        cj = ax.contour(lon, lat, gaussian_filter(spd, 1.0 / dx,
-                                                  mode=("nearest", "wrap")),
-                        levels=JET_LEVELS, colors="#111111", linewidths=0.7,
-                        transform=pc)
-        ax.clabel(cj, inline=True, fontsize=6, fmt="%d")
-        # streamlines on a ~0.6° subsample — full 0.15° makes streamplot crawl
-        s = 4
-        lw = 0.35 + 1.1 * np.clip(spd[::s, ::s] / 60.0, 0, 1)
-        ax.streamplot(lon[::s], lat[::s], u.values[::s, ::s], v.values[::s, ::s],
-                      transform=pc, density=2.4, color="#37474f",
-                      linewidth=lw, arrowsize=0.7)
+        cf = ax.contourf(lon, lat, spd, levels=W150_LEV, cmap=W150_CMAP,
+                         norm=W150_NORM, extend="both", transform=pc)
+        cl = ax.contour(lon, lat, spd, levels=W150_LEV, colors="#4a5560",
+                        linewidths=0.4, transform=pc)
+        ax.clabel(cl, levels=W150_LEV[::2], inline=True, fontsize=6, fmt="%d")
         ax.coastlines(linewidth=1.0, color="0.05", zorder=4)
         ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="0.4", zorder=4)
         gl = ax.gridlines(draw_labels=True, linewidth=0.4, color="0.45", alpha=0.5,
@@ -319,11 +297,9 @@ def render_outflow_maps(maps, leads, init: pd.Timestamp) -> None:
         gl.xlabel_style = gl.ylabel_style = {"size": 6, "color": "0.3"}
         cax = fig.add_axes([0.13, 0.06, 0.74, 0.02])
         cb = fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both")
-        cb.set_label("150 hPa divergence (10⁻⁶ s⁻¹) · green = outflow above deep "
-                     "convection · orange = convergence · black contours = "
-                     "isotachs (m/s)", fontsize=8)
+        cb.set_label("150 hPa wind speed (kt) · white < 25 kt", fontsize=8)
         cax.tick_params(labelsize=7)
-        ax.set_title(f"GDPS 150 hPa outflow — divergence + streamlines  ·  "
+        ax.set_title(f"GDPS 150 hPa wind — isotachs  ·  "
                      f"ECCC 15 km deterministic\ninit {init:%Y-%m-%d %H}Z  ·  "
                      f"F{int(h):03d} valid {valid:%Y-%m-%d %H}Z",
                      fontsize=10, loc="left")
@@ -333,7 +309,7 @@ def render_outflow_maps(maps, leads, init: pd.Timestamp) -> None:
         entries.append({"idx": k, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
                         "label": f"F{int(h):03d} · {valid:%Y-%m-%d %H}Z"})
     mani = {"ver": f"{init:%Y%m%d%H}",
-            "regions": {"gdps_outflow": {"label": "GDPS 150 hPa outflow",
+            "regions": {"gdps_outflow": {"label": "GDPS 150 hPa wind",
                                          "frames": entries}}}
     (ASSETS / "anim" / "gdps_outflow_manifest.json").write_text(json.dumps(mani))
     print(f"  wrote {len(entries)} outflow frames + gdps_outflow_manifest.json",

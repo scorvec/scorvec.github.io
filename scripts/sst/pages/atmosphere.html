@@ -98,14 +98,10 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>GDPS MSLP &amp; 10 m Wind Forecast</h2>
-        <p>The same surface forecast from an independent physics model: ECCC's <b>GDPS</b>
-        (15&nbsp;km global deterministic) mean-sea-level pressure and 10&nbsp;m wind, animated
-        day&nbsp;1&ndash;10 on the same domain, shading and grammar as the super-ensemble maps
-        above, so the two can be flipped between directly. Where a third centre's physics
-        model agrees with the AI and ECMWF ensembles on an equatorial westerly push,
-        confidence in the wind burst &mdash; and the Kelvin-wave response behind it &mdash;
-        is high. Deterministic: one run, no spread, so expect more day-to-day jumpiness
-        than the ensemble mean.</p>
+        <p>ECCC's <b>GDPS</b> (15&nbsp;km global deterministic model): mean-sea-level
+        pressure and 10&nbsp;m wind, animated day&nbsp;1&ndash;10 &mdash; same domain and
+        styling as the super-ensemble maps above, as an independent physics-model
+        cross-check.</p>
       </div>
       <iframe class="anim-embed mslp-wind" src="sst_anim.html?embed=1&amp;manifest=gdps_wind_manifest.json&amp;region=gdps_wind"
               title="ECCC GDPS MSLP and 10 m wind forecast over the Pacific, animated" loading="lazy"></iframe>
@@ -116,16 +112,10 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>GDPS Simulated IR &mdash; Forecast Satellite Loop</h2>
-        <p>The satellite loop, ten days into the future: GDPS forecast top-of-atmosphere
-        outgoing longwave radiation converted to IR brightness temperature (the inverse of
-        the Ohring&ndash;Gruber relation the synthetic-OLR products use forward) and
-        rendered on the <b>same domain, colortable and styling as the live GMGSI tropical
-        Pacific loop</b> on the <a href="sst.html">Overview page</a> &mdash; so the observed
-        loop hands off directly to this forecast one. White and colour are cold cloud tops
-        (deep convection), 3-hourly frames to day&nbsp;10. A 15&nbsp;km model resolves the
-        convective envelopes, not individual overshooting tops, so the simulated imagery is
-        smoother than the real thing &mdash; watch where the envelopes root and propagate,
-        convection holding at the dateline being the El&nbsp;Ni&ntilde;o signature.</p>
+        <p>GDPS forecast top-of-atmosphere OLR converted to IR brightness temperature and
+        rendered like the live GMGSI tropical Pacific loop on the
+        <a href="sst.html">Overview page</a> &mdash; a simulated satellite loop, 3-hourly
+        frames to day&nbsp;10. White and colour are cold cloud tops (deep convection).</p>
       </div>
       <iframe class="anim-embed gdps-ir" src="sst_anim.html?embed=1&amp;manifest=gdps_ir_manifest.json&amp;region=gdps_ir"
               title="GDPS simulated IR forecast satellite loop over the tropical Pacific" loading="lazy"></iframe>
@@ -135,20 +125,10 @@
     <!-- GDPS 150 hPa OUTFLOW: DIVERGENCE + STREAMLINES -->
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>GDPS 150 hPa Outflow &mdash; Hadley &amp; Walker Cells</h2>
-        <p>The upper branch of the tropical circulation, where the Hadley and Walker cells
-        exhaust: GDPS 150&nbsp;hPa wind as <b>streamlines</b> (thicker = faster) with the
-        horizontal <b>divergence</b> shaded &mdash; <b style="color:#2e7d32">green is
-        upper-level divergence</b>, the outflow fanning out above deep convection, and
-        <b style="color:#df6a1e">orange is convergence</b>, the descending branches
-        (the same colour language as the 200&nbsp;hPa velocity-potential panel above).
-        Thin black contours are the 30&thinsp;/&thinsp;50&thinsp;/&thinsp;70&nbsp;m&nbsp;s&#8315;&sup1;
-        isotachs marking the subtropical jets, which the poleward Hadley branch feeds.
-        Watch the green centre sit over the dateline convection with twin anticyclones
-        flanking the equator &mdash; the El&nbsp;Ni&ntilde;o-shifted Walker cell &mdash; and the
-        cross-equatorial streamlines feeding the winter-hemisphere Hadley cell. Divergence
-        is smoothed to ~3&deg; so only the planetary-scale centres colour; animated
-        day&nbsp;1&ndash;10.</p>
+        <h2>GDPS 150 hPa Wind Forecast</h2>
+        <p>GDPS 150&nbsp;hPa wind speed as isotach fill and contours, animated
+        day&nbsp;1&ndash;10 &mdash; the Hadley/Walker outflow layer and the subtropical
+        jets. White is below 25&nbsp;kt.</p>
       </div>
       <iframe class="anim-embed mslp-wind" src="sst_anim.html?embed=1&amp;manifest=gdps_outflow_manifest.json&amp;region=gdps_outflow"
               title="GDPS 150 hPa divergence and streamline forecast over the tropical Pacific, animated" loading="lazy"></iframe>
