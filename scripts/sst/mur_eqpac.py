@@ -296,10 +296,13 @@ def anim(argv_start: str | None = None) -> int:
             continue
         # ERDDAP sometimes advertises a day in .das before its data is
         # populated — an all-NaN field renders as a colorbar with no map
-        # (bit the site 2026-08-24). Skip; the next run retries the day.
-        if np.isfinite(f.values).mean() < 0.5:
-            print(f"  {d:%Y-%m-%d}: field mostly empty "
-                  f"({np.isfinite(f.values).mean():.0%} finite); skipping",
+        # (bit the site 2026-08-24). A ZERO-SIZE response must also be caught:
+        # isfinite(empty).mean() is NaN and `NaN < 0.5` is False, which let a
+        # blank 5 kB frame through on 2026-08-25. Skip; the next run retries.
+        finite = float(np.isfinite(f.values).mean()) if f.values.size else 0.0
+        if not finite >= 0.5:
+            print(f"  {d:%Y-%m-%d}: field empty/mostly-NaN "
+                  f"({finite:.0%} finite of {f.values.size} px); skipping",
                   flush=True)
             continue
         render(f, ZOOM_EXTENT, f"NASA JPL MUR SST v4.1 — native 0.01° — {d:%Y-%m-%d}",
