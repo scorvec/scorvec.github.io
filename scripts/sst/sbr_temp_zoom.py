@@ -38,6 +38,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 OUTPNG = REPO / "brazil_hydro" / "sbr_temp_zoom.webp"
 
+BARB_DEG = 0.9            # barb spacing in degrees (overridable)
 BOX = dict(lon0=-52.0, lon1=-40.0, lat0=-28.0, lat1=-19.5)
 STEPS = [18, 42, 66, 90]                     # 18Z valids ≈ 3 pm BRT (default)
 GDPS = ("https://dd.weather.gc.ca/{date}/WXO-DD/model_gdps/15km/00/{lead:03d}/"
@@ -150,7 +151,7 @@ def panel(ax, d, name, tlev, cmap, nrm, states, label_left=None, title=None):
     ax.coastlines(resolution="10m", lw=1.0, color="#111")
     ax.add_feature(states, edgecolor="#444", lw=0.5)
     if "u10" in d and "v10" in d:
-        stride = max(1, int(round(0.9 / abs(lats[1] - lats[0]))))
+        stride = max(1, int(round(BARB_DEG / abs(lats[1] - lats[0]))))
         LO, LA = np.meshgrid(lons[::stride], lats[::stride])
         ax.barbs(LO, LA, d["u10"][::stride, ::stride] * 1.94384,
                  d["v10"][::stride, ::stride] * 1.94384,
@@ -336,7 +337,7 @@ def main():
             ax.coastlines(resolution="10m", lw=1.0, color="#111")
             ax.add_feature(states, edgecolor="#444", lw=0.5)
             if "u10" in d and "v10" in d:
-                stride = max(1, int(round(0.9 / abs(lats[1] - lats[0]))))
+                stride = max(1, int(round(BARB_DEG / abs(lats[1] - lats[0]))))
                 LO, LA = np.meshgrid(lons[::stride], lats[::stride])
                 ax.barbs(LO, LA, d["u10"][::stride, ::stride] * 1.94384,
                          d["v10"][::stride, ::stride] * 1.94384,
