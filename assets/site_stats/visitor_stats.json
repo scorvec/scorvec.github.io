@@ -1,13 +1,13 @@
 {
- "updated": "2026-08-25",
- "total_30d": 348,
- "countries_30d": 8,
- "total_all": 464,
+ "updated": "2026-08-26",
+ "total_30d": 336,
+ "countries_30d": 7,
+ "total_all": 474,
  "countries_all": 9,
  "top_pages_30d": [
   {
    "path": "/",
-   "count": 76
+   "count": 75
   },
   {
    "path": "/sst.html",
@@ -19,7 +19,7 @@
   },
   {
    "path": "/asos5.html",
-   "count": 30
+   "count": 31
   },
   {
    "path": "/mjo.html",
@@ -39,7 +39,7 @@
   },
   {
    "path": "/enso-forecasts.html",
-   "count": 10
+   "count": 9
   },
   {
    "path": "/sfs.html",
