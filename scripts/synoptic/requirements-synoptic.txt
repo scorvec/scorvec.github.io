@@ -13,7 +13,7 @@ herbie-data>=2024.0.0
 
 # Map rendering
 matplotlib>=3.7
-cartopy>=0.22
+cartopy>=0.25.0
 shapely>=2.0
 pyproj>=3.5
 pyshp>=2.3
