@@ -24,4 +24,4 @@ openpyxl>=3.1
 
 # Output
 pyarrow>=14.0
-plotly>=5.18
+plotly>=6.9.0
