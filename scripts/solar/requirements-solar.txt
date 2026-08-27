@@ -10,7 +10,7 @@ pytz  # gridstatus pins this; pvlib uses it for timezone handling
 # Geospatial / GRIB
 xarray>=2023.0
 cfgrib>=0.9.10
-eccodes>=1.6
+eccodes>=2.47.0
 herbie-data>=2024.0.0,<2027
 
 # Solar physics — sun position, tracker geometry, POA irradiance, PVWatts
