@@ -17,7 +17,7 @@ herbie-data>=2024.0.0,<2027
 pvlib>=0.10,<1
 
 # Web/data
-requests>=2.31
+requests>=2.34.2
 
 # Excel reading (for EIA-860M monthly data supplement)
 openpyxl>=3.1
