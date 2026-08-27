@@ -182,7 +182,7 @@ jobs:
             ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
             git add $OUT
             if git diff --staged --quiet; then echo "No changes."; exit 0; fi
-            git commit -m "MJO RMM: ${{ needs.check.outputs.compact }}"
+            git commit -m "data update: ${{ needs.check.outputs.compact }}"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             sleep 5
           done
@@ -264,7 +264,7 @@ jobs:
             ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm   # re-apply pruning
             git add $OUT
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-            git commit -m "MJO RMM: ${{ needs.check.outputs.compact }}"
+            git commit -m "data update: ${{ needs.check.outputs.compact }}"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; resyncing and retrying…"
             sleep 5

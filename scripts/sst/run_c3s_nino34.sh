@@ -90,7 +90,7 @@ source "$REPO/scripts/lib/gitlock.sh"
 trap 'git_unlock; rm -rf "$LOCK" 2>/dev/null' EXIT
 git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
 git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
-    commit -m "C3S multi-model Niño-3.4 (ONI+RONI): ${ISSUE_GUESS} refresh (${NMODELS:-?} models, local)"
+    commit -m "data update: "
 for i in 1 2 3 4 5; do
   if git pull --rebase --autostash -X theirs && git push; then
     echo "pushed (attempt $i)"

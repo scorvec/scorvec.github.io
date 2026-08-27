@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* one player chrome everywhere: the Lake Gatun navy, standalone or embedded */
+  /* one player chrome everywhere, standalone or embedded */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --page: #081120; --surface: #0d1a2e; --border: rgba(148,184,225,0.16);
@@ -215,8 +215,7 @@ async function init() {
     const MF = new URLSearchParams(location.search).get("manifest") || "manifest.json";
 { // "back" follows whichever product embeds the animator
   const b = (new URLSearchParams(location.search).get("base") || "").toLowerCase();
-  const dest = b.includes("mjo") ? ["mjo.html", "MJO Forecast"]
-    : b.includes("gatun") ? ["gatun/", "Lake Gatun"] : null;
+  const dest = b.includes("mjo") ? ["mjo.html", "MJO Forecast"] : null;
   const bl = document.getElementById("back-link");
   if (bl && dest) { bl.href = dest[0]; bl.innerHTML = "&larr; Back to " + dest[1]; }
 }

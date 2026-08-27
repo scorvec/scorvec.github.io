@@ -87,9 +87,6 @@ assets/synoptic/*/*/*.webp
 assets/sst/*.webp.missing
 scripts/sst/data/imerg/
 
-# Gatun raw CSV cache (rebuilt on every fetch)
-scripts/gatun/data/
-
 scripts/climate/data/
 scripts/synoptic/.julia_staging/
 scripts/synoptic/.julia_overlays/
@@ -115,8 +112,6 @@ local_archive/
 scripts/mjo/data/reference/arco_eq_u/
 scripts/mjo/data/reference/m2_eq_u/
 scripts/sfs/data/*.npy
-colombia_hydro
-brazil_hydro
 scripts/sst/.run.lock/
 scripts/sst/data/region_weights_energy.npz
 scripts/verify/launchd_aifs.log

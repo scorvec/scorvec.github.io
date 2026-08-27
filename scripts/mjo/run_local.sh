@@ -141,7 +141,7 @@ if [ ! -f "$RMM_PNG" ] || [ -f "plots/rmm_${COMPACT}.png.missing" ]; then
   mkdir -p "$REPO/assets/mjo"
   printf '{"cycle":"%s","started":"%s"}\n' "$COMPACT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     > "$REPO/assets/mjo/claim.json"
-  ( cd "$REPO" && publish "MJO claim: ${COMPACT} (local)" assets/mjo/claim.json ) || true
+  ( cd "$REPO" && publish "data update: ${COMPACT}" assets/mjo/claim.json ) || true
   "$PY" src/download_aifs.py --date "$DATE" --time "$TIME" --out-dir data/aifs || { echo "RMM fetch failed"; exit 1; }
   "$PY" run_rmm.py --skip-download --date "$DATE" --time "$TIME" || { echo "RMM build failed"; exit 1; }
   mkdir -p "$REPO/assets/mjo"
@@ -161,7 +161,7 @@ fi
 ( cd "$REPO" && git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc \
     scripts/mjo/data/reference/ensmean_history.json \
     scripts/energy/data/dd_archive.json \
-    && commit_push "MJO RMM: ${COMPACT} (local)" )
+    && commit_push "data update: ${COMPACT} (r)" )
 
 # ── Stage 2: dependency-tracked PARALLEL product groups (2026-07-24) ──────────
 # The old 2a/2b staging made every 200-hPa product wait for the full ~7 GB AAM
@@ -184,7 +184,7 @@ fi
   "$PY" src/mslp_wind_anim.py --date "$DATE" --time "$TIME" \
     --anim-dir "$REPO/assets/sst/anim/mslp_wind" \
     --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
-  ( cd "$REPO" && publish "TC + MSLP/wind: ${COMPACT} (priority, local)" \
+  ( cd "$REPO" && publish "data update: ${COMPACT} (p)" \
       assets/tc tc.html assets/sst/anim/mslp_wind assets/sst/anim/mslp_wind_manifest.json )
   "$PY" src/eq_hovmoller.py --date "$DATE" --time "$TIME" --data-dir data/u10 \
     --out "$REPO/assets/sst/eq_wind_hovmoller.webp" || echo "Hovmöller failed; continuing"
@@ -353,7 +353,7 @@ perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_ti
     assets/sst/anim/wave1_nh assets/sst/anim/wave1_nh_manifest.json \
     assets/sst/anim/wave1_sh assets/sst/anim/wave1_sh_manifest.json \
   ; do [ -e "$p" ] && git add "$p"; done \
-  ; commit_push "MJO atmospheric products (eq-wind/SOI + AAM/torque/MMSF/Walker/jets + MEI.v2): ${COMPACT} (local)" )
+  ; commit_push "data update: ${COMPACT} (a)" )
 
 # Self-heal for IFS-ENS latency: the physics model (IFS-ENS) is disseminated ~1-2 h LATER
 # than the AI model (AIFS-ENS), but this run triggers on AIFS availability — so the IFS leg

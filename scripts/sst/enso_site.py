@@ -69,7 +69,7 @@ def _read(p: Path) -> str:
 def assemble(page: dict) -> str:
     """Full HTML for one page (still containing the __…__ data tokens).
 
-    chrome="dark" swaps in the Gatun-style dark head (the overview); the
+    chrome="dark" swaps in the dark head (the overview); the
     themed subpages keep the light chrome. The nav partial is shared — its
     classes are styled by whichever head is in play.
     """

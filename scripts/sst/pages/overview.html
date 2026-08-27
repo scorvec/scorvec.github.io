@@ -240,29 +240,6 @@
     <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
   </div>
 
-  <!-- IMERG PRECIPITATION ACCUMULATION LOOPS (NASA GPM) -->
-  <div class="chart-card media-narrow">
-    <div class="chart-card-header">
-      <h2>Tropical South America: Precipitation Accumulation</h2>
-      <p>Accumulated rainfall over Colombia and Brazil from NASA's <b>GPM IMERG</b> (Early run, 0.1&deg; multi-satellite precipitation). Select the window from the <i>Accumulation</i> dropdown: 1&nbsp;hour, 24&nbsp;hours, 7&nbsp;days, 14&nbsp;days, or month-to-date. Short windows use the half-hourly product; multi-day and month-to-date totals use the daily product. The Magdalena River basin (Colombia) is outlined in white, with Brazilian state borders for orientation.</p>
-    </div>
-    <iframe class="anim-embed precip" src="sst_anim.html?embed=1&amp;manifest=precip_manifest.json&amp;region=precip_24h"
-            title="NASA GPM IMERG precipitation-accumulation loops over tropical South America (1h/24h/7d/14d/MTD)" loading="lazy"></iframe>
-    <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 Early run (0.1&deg;) &middot; 1h/24h from half-hourly, multi-day from daily &middot; rolling window, refreshed midday ET</span></div>
-  </div>
-
-  <!-- IMERG PRECIPITATION ANOMALY LOOPS (vs IMERG's own 25-yr climatology) -->
-  <div class="chart-card media-narrow">
-    <div class="chart-card-header">
-      <h2>Tropical South America: Precipitation Anomaly</h2>
-      <p>The departure of recent rainfall from normal: the IMERG accumulation minus its climatological value for the same dates. The climatology is built from IMERG's own 25-year record (GPM IMERG Final daily, 2001&ndash;2025), so it is a self-consistent, reanalysis-free, satellite-only anomaly. Select the window (7, 14, 30 days, month-to-date, or the running total <b>since May&nbsp;1</b> &mdash; the ENSO development season to date) from the dropdown. <b style="color:#117a4a">Green</b> is wetter than normal, <b style="color:#9c6b1e">brown</b> is drier than normal, white is near normal; the Magdalena River basin (Colombia) is outlined in black.</p>
-    </div>
-    <iframe class="anim-embed precip-anom" src="sst_anim.html?embed=1&amp;manifest=precip_anom_manifest.json&amp;region=precip_anom_14d"
-            title="NASA GPM IMERG precipitation-anomaly loops vs the 2001–2025 IMERG climatology (7d/14d/30d/MTD/since May 1)" loading="lazy"></iframe>
-    <div class="chart-card-footer"><span class="chart-sources">NASA GPM IMERG V07 &middot; anomaly = Early accumulation &minus; harmonic day-of-year climatology from IMERG Final daily 2001&ndash;2025 &middot; rolling, refreshed midday ET</span></div>
-  </div>
-
-
   <!-- OLR WHEELER-KILADIS WAVE DECOMPOSITION -->
   <div class="chart-card">
     <div class="chart-card-header">

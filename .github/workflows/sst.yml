@@ -111,10 +111,6 @@ jobs:
           fi
           python sst_ascat_winds.py || echo "ASCAT wind map failed; continuing"
 
-      # Lake Gatun step disabled 2026-08-25 (turned off for now — uncomment to restore):
-      # - name: Update Lake Gatun dashboard data (ACP levels + ONI)
-      #   run: python scripts/gatun/fetch_data.py || echo "Gatun fetch failed; keeping previous data.js"
-
       - name: Commit & push (generated outputs)
         run: |
           git config user.name "github-actions[bot]"
@@ -124,7 +120,7 @@ jobs:
             echo "No changes; skipping commit."; exit 0
           fi
           DAY=$(python -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])")
-          git commit -m "SST/RONI update: OISST ${DAY}"
+          git commit -m "data update: ${DAY}"
           for i in 1 2 3 4 5; do
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             echo "Push $i rejected; rebasing onto origin/main (keep our generated files)…"
@@ -133,7 +129,7 @@ jobs:
               git rebase --abort || true
               git reset --hard origin/main
               git add sst.html enso-*.html assets/sst/
-              git diff --staged --quiet || git commit -m "SST/RONI update: OISST ${DAY} (re-applied)"
+              git diff --staged --quiet || git commit -m "data update: ${DAY} (re-applied)"
             fi
             sleep 5
           done

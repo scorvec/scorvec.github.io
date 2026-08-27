@@ -69,17 +69,8 @@ NEW_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
 "$PY" scripts/sst/sst_subsurface.py || echo "subsurface failed; continuing"
 "$PY" scripts/sst/wwv_orbit.py || echo "WWV orbit failed; continuing"
 ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_ascat_winds.py ) || echo "ASCAT failed; continuing"
-# perl-alarm wall-clock caps: a hung Earthdata connection once pinned imerg_gatun
-# for 18 h, and the run lock then starved every later poll (2026-08-14/15). The
-# alarm SIGALRMs the whole step; `|| echo` keeps the chain moving as usual.
-perl -e 'alarm shift; exec @ARGV' 5400 "$PY" scripts/sst/imerg_precip.py || echo "IMERG precip failed; continuing"   # NASA GPM IMERG, ~/.netrc Earthdata auth
-perl -e 'alarm shift; exec @ARGV' 1800 "$PY" scripts/sst/imerg_precip_anom.py || echo "IMERG precip anomaly failed; continuing"   # vs the committed 20-yr clim
-# Lake Gatun steps disabled 2026-08-25 (turned off for now — uncomment to restore):
-#perl -e 'alarm shift; exec @ARGV' 3600 "$PY" scripts/sst/imerg_gatun.py || echo "IMERG Gatun tracker failed; continuing"   # Lake Gatun zoom + rain-vs-level chart
-#"$PY" scripts/gatun/fetch_data.py || echo "Gatun dashboard data failed; continuing"   # gatun/data.js: ACP levels/projection + ONI
-# Energy/hydro research stack (Colombia + Brazil; Argentina retired) moved to
-# run_local_energy.sh 2026-08-25 (com.scorvec.energy LaunchAgent) — it was ~35
-# steps and most of this run's wall-clock, and none of it feeds the site.
+# Optional machine-local post steps (not part of the site build):
+[ -x "$HOME/.local/hooks/sst_post.sh" ] && SST_SITE_ROOT="$REPO" "$HOME/.local/hooks/sst_post.sh"
 
 ( cd scripts/sst && "$PY" eq_current_section.py ) || echo "eq current section failed; continuing"
 ( cd scripts/sst && "$PY" eq_current_hovmoller.py ) || echo "eq current hovmoller failed; continuing"
@@ -116,7 +107,7 @@ source "$REPO/scripts/lib/gitlock.sh"
 trap 'git_unlock; rm -rf "$LOCK" 2>/dev/null' EXIT   # both cleanups (this trap replaces the lock-only one above)
 git_lock || { echo "git lock busy; leaving as a local commit for the next run"; exit 0; }
 git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
-    commit -m "SST/RONI update: OISST ${DAY} (local)"
+    commit -m "data update: $(date -u +%FT%H:%MZ)"
 for i in 1 2 3 4 5; do
   if git pull --rebase --autostash -X theirs origin main && git push; then echo "pushed (attempt $i)"; git_unlock; exit 0; fi
   git_rebase_rescue   # finish the rebase past frame-count conflicts, else abort clean

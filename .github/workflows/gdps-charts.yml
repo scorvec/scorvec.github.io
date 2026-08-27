@@ -64,7 +64,7 @@ jobs:
             git reset -q FETCH_HEAD
             git add $PATHS
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-            git commit -q -m "GDPS tropical products: $(date -u +%Y-%m-%d)"
+            git commit -q -m "data update: $(date -u +%Y-%m-%d)"
             if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
             git reset -q --soft HEAD^   # undo the commit; refetch and rebuild it
             sleep 5

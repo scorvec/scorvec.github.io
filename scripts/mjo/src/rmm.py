@@ -155,7 +155,7 @@ def compute_rmm(
 
     init_dt = pd.Timestamp(f"{date[:4]}-{date[4:6]}-{date[6:8]}T{run_time}:00")
 
-    # ``fields`` bypasses the GRIB loading for non-AIFS models (WeatherNext):
+    # ``fields`` bypasses the GRIB loading for non-AIFS models:
     # {label: (u850, u200, tp_or_None)} with the SAME conventions load_aifs_*
     # produce — dims ([number,] step, latitude, longitude) on the 2.5° grid,
     # step as timedelta, tp accumulated from init in mm.

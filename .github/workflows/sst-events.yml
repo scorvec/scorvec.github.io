@@ -84,7 +84,7 @@ jobs:
             (cd "$SNAP" && find . -type f -exec install -D {} "$GITHUB_WORKSPACE/{}" \;)
             git add $OUT
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-            git commit -m "SST event comparisons: weekly refresh"
+            git commit -m "data update (weekly)"
             if timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
             sleep 5
           done

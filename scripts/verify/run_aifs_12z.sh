@@ -16,5 +16,5 @@ git add assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500 \
 if [ "$(git diff --cached --name-only | grep -icE 'strat|telecon')" != "0" ]; then
   echo "PRIVATE FILES STAGED - aborting push"; git reset -q; exit 1
 fi
-git commit -q -m "AIFS animator loops: ${DATE} 12Z" && \
+git commit -q -m "data update:  12Z" && \
   git pull --rebase --autostash -q && git push -q

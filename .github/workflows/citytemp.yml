@@ -39,7 +39,7 @@ jobs:
           git config user.email "shawncorvec@hotmail.com"
           git add assets/sst/citytemp/*.webp
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "City temperatures vs El Niño analogs: $(date -u +%Y-%m-%d)"
+          git commit -m "data update: $(date -u +%Y-%m-%d)"
           for i in 1 2 3 4 5; do
             if timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
             git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase

@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
-  /* ── dark ENSO-monitor chrome: the Lake Gatun design language ── */
+  /* ── dark ENSO-monitor chrome ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --page: #081120; --surface: #0d1a2eCC; --surface-solid: #0d1a2e;
@@ -726,13 +726,13 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=ef0b5f6bc5b5").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=202608262201").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=ef0b5f6bc5b5").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=202608262201").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=ef0b5f6bc5b5").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=202608262201").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=ef0b5f6bc5b5").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=202608262201").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
