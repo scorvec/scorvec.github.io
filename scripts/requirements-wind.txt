@@ -25,4 +25,4 @@ plotly>=5.18
 #   actuals. Pinned to 0.34 since newer versions have tighter
 #   cryptography pins that conflict with other deps and cause pip
 #   backtracking.
-gridstatus==0.34.0
+gridstatus==0.36.0
