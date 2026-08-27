@@ -10,7 +10,7 @@ h5netcdf
 # bbox_inches="tight" drops the map (colorbar-only frames) and axes titles
 # clip off-canvas (seen on the GDPS/MUR products, 2026-08-25)
 matplotlib==3.10.9
-cartopy>=0.22
+cartopy>=0.25.0
 shapely>=2.0
 pyproj>=3.5
 Pillow
