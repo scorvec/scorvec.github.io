@@ -2,7 +2,7 @@
 # Mostly overlaps with requirements-wind.txt; pvlib is the new dependency.
 
 # Core scientific stack
-numpy>=1.24
+numpy>=2.5.2
 pandas>=2.0,<4
 scipy>=1.11
 pytz  # gridstatus pins this; pvlib uses it for timezone handling
