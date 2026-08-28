@@ -96,6 +96,7 @@
       <div class="deck-tabs">
         <button class="on">PDO · IOD · S Atlantic</button>
         <button>MUR 1 km</button>
+        <button>MUR Niño-3.4</button>
         <button>90 days, raw SST</button>
         <button>SOI vs record</button>
         <button>MEI.v2</button>
@@ -151,6 +152,17 @@
       <span class="chart-sources">NASA JPL MUR SST v4.1 (GHRSST L4) &middot; via NOAA CoastWatch ERDDAP &middot; ~1&ndash;2 day latency &middot; daily</span>
       <span class="chart-updated">__SST_DAY__</span>
     </div>
+      </div>
+
+      <div class="deck-panel" hidden>
+      <div class="chart-card-header">
+        <h2>Ni&ntilde;o-3.4 Absolute SST &mdash; MUR 1 km vs OISST</h2>
+        <p>The Ni&ntilde;o-3.4 box temperature itself, not its anomaly, from NASA JPL's <b>MUR v4.1</b> analysis, against MUR's own day-of-year climatology (band = p10&ndash;p90) and against NOAA OISST v2.1. Absolute rather than anomaly because the Ni&ntilde;o-3.4 seasonal cycle is ~2&nbsp;&deg;C peak-to-peak and an anomaly plot throws it away; here you can read "how warm is it" and "how unusual is that" at once.</p>
+        <p>This is an <b>independent</b> check, not a second copy of the OISST index: MUR is a GHRSST <b>foundation</b> SST (below the diurnal thermocline) built from a different sensor mix, while OISST v2.1 is a <b>bulk</b> SST anchored to drifting buoys. A steady offset between them is a property of those definitions; the lower panel exists so you can see when the offset <i>moves</i>, which would mean the analyses are disagreeing about the ocean rather than about their own conventions. It currently runs +0.04&nbsp;&deg;C with a 0.09&nbsp;&deg;C spread &mdash; they agree closely.</p>
+        <p><b>Note:</b> MUR starts in June 2002, so its climatology is 2003&ndash;2022. MUR departures are therefore <i>not</i> comparable with the OISST anomalies elsewhere on this site, which use 1991&ndash;2020.</p>
+      </div>
+      <div class="img-wrap"><img data-deferred alt="Niño-3.4 absolute SST from MUR 1 km against its 2003–2022 climatology and NOAA OISST" data-src="assets/sst/mur_nino34.webp?v=__CACHE__" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">NASA JPL MUR v4.1 (GHRSST L4) via NOAA CoastWatch ERDDAP &middot; 5&deg;S&ndash;5&deg;N, 170&deg;W&ndash;120&deg;W, cos-lat weighted &middot; ~2-day latency</span></div>
       </div>
 
       <div class="deck-panel" hidden>
