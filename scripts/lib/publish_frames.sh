@@ -35,13 +35,26 @@ fingerprint() {
   done | sort | shasum | cut -d' ' -f1
 }
 
+# Single-publisher lock. The launchd job fires every 15 min and a manual run
+# can land on top of it; two simultaneous force-pushes race and GitHub rejects
+# one with "cannot lock ref refs/heads/frames" (seen 2026-08-28). Serialise.
+LOCK="$REPO/scripts/lib/.frames.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +20 2>/dev/null)" ]; then
+    echo "  (stale frames lock >20 min — reclaiming)"; rm -rf "$LOCK"; mkdir "$LOCK" 2>/dev/null || exit 0
+  else
+    echo "frames publish already running — skipping"; exit 0
+  fi
+fi
+trap 'rm -rf "$LOCK" 2>/dev/null' EXIT
+
 FP="$(fingerprint)"
 if [ "${1:-}" != "--force" ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$FP" ]; then
   echo "frames unchanged — nothing to publish"; exit 0
 fi
 
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+trap 'rm -rf "$TMP" "$LOCK" 2>/dev/null' EXIT
 n=0
 for d in "${DIRS[@]}"; do
   [ -d "$d" ] || continue
