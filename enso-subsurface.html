@@ -281,9 +281,17 @@
      the page was a long scroll and EVERY animator iframe loaded at once. A deck
      shows one panel at a time and keeps the other iframes' src in data-src until
      first opened, so a page now loads exactly one animator instead of a dozen. */
+  .plot-deck .deck-head {
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.25rem 0.7rem;
+    padding: 1.1rem 1.8rem 0.55rem;
+  }
+  .plot-deck .deck-title {
+    font-size: 0.76rem; letter-spacing: 0.07em; text-transform: uppercase; color: #444;
+  }
+  .plot-deck .deck-hint { font-size: 0.74rem; color: #8d8d8d; }
   .plot-deck .deck-tabs {
     display: flex; flex-wrap: wrap; gap: 0.4rem;
-    padding: 1.1rem 1.8rem 0.9rem; border-bottom: 1px solid var(--rule, #e8e8e8);
+    padding: 0 1.8rem 0.9rem; border-bottom: 1px solid var(--rule, #e8e8e8);
   }
   .plot-deck .deck-tabs button {
     font: inherit; font-size: 0.76rem; padding: 0.32rem 0.8rem; cursor: pointer;
@@ -563,6 +571,10 @@
     <!-- SUBSURFACE CROSS-SECTION - DE-TRENDED COMPANION -->
     <!-- TROPICAL PACIFIC SURFACE-CURRENT SNAPSHOT (Copernicus Marine) -->
     <div class="chart-card plot-deck" data-deck="subsurface1">
+      <div class="deck-head">
+        <span class="deck-title">Select a figure</span>
+        <span class="deck-hint">5 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
+      </div>
       <div class="deck-tabs">
         <button class="on">Surface currents</button>
         <button>Undercurrent</button>
