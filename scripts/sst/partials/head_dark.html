@@ -60,7 +60,7 @@
   /* scale with the monitor: ~94% of the viewport up to 2000px, so laptops
      keep a visible frame and ultrawides get the full width */
   main { flex: 1; max-width: min(94vw, 2000px); margin: 0 auto; width: 100%;
-         padding: 7.4rem 1.8rem 4rem; }
+         padding: 6.2rem 1.6rem 2.2rem; }
 
   /* hero */
   .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.22em;
@@ -68,10 +68,10 @@
   h1 { font-family: var(--serif); font-weight: 400; font-size: 40px;
        letter-spacing: 0.01em; margin: 6px 0 4px; }
   h1 em { font-style: italic; color: var(--aqua); }
-  .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 20px; }
+  .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 12px; }
 
   /* stat chips */
-  .chips { display: flex; flex-wrap: wrap; gap: 11px; margin-bottom: 26px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 15px; }
   .chip { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
           padding: 11px 16px; min-width: 148px; backdrop-filter: blur(6px); }
   .chip .l { font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em;
@@ -83,7 +83,7 @@
   /* cards */
   .card, .chart-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-    padding: 20px 20px 12px; margin-bottom: 20px; backdrop-filter: blur(6px);
+    padding: 13px 15px 9px; margin-bottom: 12px; backdrop-filter: blur(6px);
   }
   .card h2, .chart-card-header h2 { font-family: var(--serif); font-weight: 500;
     font-size: 21px; margin-bottom: 3px; color: var(--ink); }
@@ -105,7 +105,7 @@
 
   /* topic cards */
   .topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 12px; margin-bottom: 22px; }
+                gap: 10px; margin-bottom: 13px; }
   .topic-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
                 padding: 14px 16px; text-decoration: none; transition: border-color .15s; }
   .topic-card:hover { border-color: var(--border-hi); }
@@ -147,39 +147,42 @@
      They were added to head.html first and the tab bars rendered unstyled here. */
   .plot-deck .deck-head {
     display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.25rem 0.7rem;
-    padding: 1.1rem 1.6rem 0.55rem;
+    padding: 0.8rem 1.1rem 0.4rem;
   }
   .plot-deck .deck-title {
-    font-size: 0.76rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink2);
+    font-size: 0.86rem; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--aqua);
   }
-  .plot-deck .deck-hint { font-size: 0.74rem; color: var(--muted); }
+  .plot-deck .deck-hint { font-size: 0.8rem; color: var(--ink2); }
   .plot-deck .deck-tabs {
     display: flex; flex-wrap: wrap; gap: 0.4rem;
-    padding: 0 1.6rem 0.9rem; border-bottom: 1px solid var(--border);
+    padding: 0 1.1rem 0.65rem; border-bottom: 1px solid var(--border);
   }
   .plot-deck .deck-tabs button, .fig-toggle button {
-    font: inherit; font-size: 0.76rem; padding: 0.32rem 0.8rem; cursor: pointer;
-    border: 1px solid var(--border-hi); background: transparent;
-    color: var(--ink2); border-radius: 2px; transition: background 0.15s, color 0.15s;
+    font: inherit; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.01em;
+    padding: 0.48rem 1.05rem; cursor: pointer; border-radius: 3px;
+    border: 1.5px solid var(--border-hi); background: rgba(148,184,225,0.06);
+    color: var(--ink); transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
   .plot-deck .deck-tabs button:hover, .fig-toggle button:hover {
     background: rgba(148,184,225,0.10); color: var(--ink);
   }
   .plot-deck .deck-tabs button.on, .fig-toggle button.on {
-    background: var(--aqua-deep); border-color: var(--aqua-deep); color: #06121f;
+    background: var(--aqua); border-color: var(--aqua); color: #06121f;
+    box-shadow: 0 1px 6px rgba(77,214,232,0.30);
   }
   .plot-deck .deck-panel[hidden] { display: none; }
   .plot-deck .deck-panel > .chart-card-header,
-  .plot-deck .deck-panel > .card-header { padding-top: 1.1rem; }
-  .fig-toggle { display: flex; gap: 0.4rem; padding: 0 1.6rem 0.7rem; flex-wrap: wrap; }
+  .plot-deck .deck-panel > .card-header { padding-top: 0.8rem; }
+  .fig-toggle { display: flex; gap: 0.4rem; padding: 0 1.1rem 0.55rem; flex-wrap: wrap; }
   .page-section {
-    width: 100%; margin: 1.4rem 0 -1.2rem;
+    width: 100%; margin: 0.7rem 0 -0.5rem;
     font-family: var(--serif); font-weight: 400; font-size: 1.12rem;
     color: var(--ink); scroll-margin-top: 5.5rem;
   }
   .page-section::after { content: ""; display: block; margin-top: 0.5rem;
     border-bottom: 1px solid var(--border); }
-  .section-nav { margin: 0 0 2.2rem; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem;
+  .section-nav { margin: 0 0 1.2rem; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem;
     font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase; }
   .section-nav a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
   .section-nav a:hover { color: var(--aqua); border-bottom-color: var(--aqua); }

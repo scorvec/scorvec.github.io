@@ -83,13 +83,13 @@
        keep a visible frame and ultrawides get the full width */
     max-width: min(94vw, 2000px);
     margin: 0 auto;
-    padding: 9.5rem 2.5rem 5rem;
+    padding: 6.4rem 2.2rem 2.5rem;
     width: 100%;
   }
 
   .page-header {
-    margin-bottom: 3rem;
-    padding-bottom: 2rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
     border-bottom: 1px solid var(--rule);
   }
   .page-header h1 {
@@ -118,7 +118,7 @@
   }
   .topic-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
 
-  .chart-stack { display: flex; flex-direction: column; gap: 3rem; }
+  .chart-stack { display: flex; flex-direction: column; gap: 1.5rem; }
 
   .chart-card {
     border: 1px solid var(--rule);
@@ -126,7 +126,7 @@
     overflow: hidden;
   }
   .chart-card-header {
-    padding: 1.5rem 1.8rem 1.3rem;
+    padding: 1rem 1.4rem 0.85rem;
     border-bottom: 1px solid var(--rule);
   }
   .chart-card-header h2 {
@@ -139,7 +139,7 @@
   .chart-card-header p + p { margin-top: 0.7rem; }
   .chart-card-header b { color: var(--ink); font-weight: 500; }
 
-  .img-wrap { padding: 1rem 1.2rem; background: #fff; }
+  .img-wrap { padding: 0.5rem 0.7rem; background: #fff; }
   .img-wrap + .img-wrap { padding-top: 0; }
   .img-wrap img { display: block; width: auto; max-width: 100%; max-height: 88vh; height: auto; margin: 0 auto; }
   /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
@@ -189,7 +189,7 @@
   .wwb-stn b { display: block; color: var(--ink); font-weight: 500; font-size: 0.92rem; }
 
   .chart-card-footer {
-    padding: 0.85rem 1.8rem;
+    padding: 0.6rem 1.4rem;
     border-top: 1px solid var(--rule);
     display: flex; justify-content: space-between; align-items: center;
     gap: 1rem; flex-wrap: wrap;
@@ -223,10 +223,10 @@
   @media (max-width: 768px) {
     nav { padding: 1rem 1.5rem; }
     .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
-    main { padding: 9rem 1.5rem 3.5rem; max-width: 100%; }
-    .page-header { margin-bottom: 2.2rem; padding-bottom: 1.5rem; }
+    main { padding: 6rem 1rem 2rem; max-width: 100%; }
+    .page-header { margin-bottom: 1.2rem; padding-bottom: 0.8rem; }
     .page-header h1 { font-size: 1.6rem; }
-    .chart-stack { gap: 2.2rem; }
+    .chart-stack { gap: 1.1rem; }
     .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
     .chart-card-footer { padding: 0.75rem 1.3rem; }
     footer { padding: 1rem 1.5rem; }
@@ -259,9 +259,9 @@
      and a switch instead of doubling the scroll length. */
   .fig-toggle { display: flex; gap: 0.4rem; padding: 0 1.8rem 0.7rem; flex-wrap: wrap; }
   .fig-toggle button {
-    font: inherit; font-size: 0.74rem; letter-spacing: 0.02em;
-    padding: 0.28rem 0.72rem; cursor: pointer;
-    border: 1px solid var(--rule, #ddd); background: #fff; color: #555; border-radius: 2px;
+    font: inherit; font-size: 0.86rem; font-weight: 600; letter-spacing: 0.01em;
+    padding: 0.4rem 0.95rem; cursor: pointer; border-radius: 3px;
+    border: 1.5px solid #c3d0de; background: #fff; color: #33475e;
   }
   .fig-toggle button:hover { background: #f4f4f4; }
   .fig-toggle button.on { background: #1f4e8c; border-color: #1f4e8c; color: #fff; }
@@ -271,7 +271,7 @@
      jump nav makes it navigable without splitting it into more pages. */
   .section-nav {
     /* aligns with main's content box, like .page-header and .chart-card */
-    margin: 0 0 2.2rem; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem;
+    margin: 0 0 1.2rem; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem;
     font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase;
   }
   .section-nav a { color: #7a7a7a; text-decoration: none; border-bottom: 1px solid transparent; }
@@ -283,27 +283,35 @@
      first opened, so a page now loads exactly one animator instead of a dozen. */
   .plot-deck .deck-head {
     display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.25rem 0.7rem;
-    padding: 1.1rem 1.8rem 0.55rem;
+    padding: 0.85rem 1.4rem 0.45rem;
   }
   .plot-deck .deck-title {
-    font-size: 0.76rem; letter-spacing: 0.07em; text-transform: uppercase; color: #444;
+    font-size: 0.86rem; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #1f4e8c;
   }
-  .plot-deck .deck-hint { font-size: 0.74rem; color: #8d8d8d; }
+  .plot-deck .deck-hint { font-size: 0.8rem; color: #7d7d7d; }
   .plot-deck .deck-tabs {
     display: flex; flex-wrap: wrap; gap: 0.4rem;
-    padding: 0 1.8rem 0.9rem; border-bottom: 1px solid var(--rule, #e8e8e8);
+    padding: 0 1.4rem 0.7rem; border-bottom: 1px solid var(--rule, #e8e8e8);
   }
   .plot-deck .deck-tabs button {
-    font: inherit; font-size: 0.76rem; padding: 0.32rem 0.8rem; cursor: pointer;
-    border: 1px solid var(--rule, #ddd); background: #fff; color: #555; border-radius: 2px;
+    /* the selector is the primary control on these pages now, so it is sized
+       like one: larger, semibold, with a border that reads at a glance */
+    font: inherit; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.01em;
+    padding: 0.48rem 1.05rem; cursor: pointer; border-radius: 3px;
+    border: 1.5px solid #c3d0de; background: #fff; color: #33475e;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .plot-deck .deck-tabs button:hover { background: #f4f4f4; }
-  .plot-deck .deck-tabs button.on { background: #1f4e8c; border-color: #1f4e8c; color: #fff; }
+  .plot-deck .deck-tabs button:hover { background: #eef3f9; border-color: #1f4e8c; color: #1f4e8c; }
+  .plot-deck .deck-tabs button.on {
+    background: #1f4e8c; border-color: #1f4e8c; color: #fff;
+    box-shadow: 0 1px 4px rgba(31,78,140,0.28);
+  }
   .plot-deck .deck-panel[hidden] { display: none; }
-  .plot-deck .deck-panel > .chart-card-header { padding-top: 1.2rem; }
+  .plot-deck .deck-panel > .chart-card-header { padding-top: 0.9rem; }
 
   .page-section {
-    width: 100%; margin: 1.4rem 0 -1.2rem;
+    width: 100%; margin: 0.7rem 0 -0.5rem;
     font-family: var(--serif, Georgia, serif); font-weight: 400; font-size: 1.12rem;
     color: #2b2b2b; scroll-margin-top: 5.5rem;
   }
