@@ -810,5 +810,27 @@
       }).catch(function () {});
   })();
 </script>
+<script>
+// Figure toggles. One delegated listener for every .fig-toggle on the page:
+// each button carries the src it should swap in, and the target is the <img> or
+// <iframe> with id "fig-<data-fig>". Progressive enhancement — with JS off the
+// card still shows its default figure, which is why the src is in the markup.
+(function () {
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest(".fig-toggle button") : null;
+    if (!b) return;
+    var wrap = b.parentNode, el = document.getElementById("fig-" + wrap.dataset.fig);
+    if (!el) return;
+    var src = b.getAttribute("data-src");
+    if (src && el.getAttribute("src") !== src) el.setAttribute("src", src);
+    // panels can differ in aspect ratio (each animator sizes to its own domain),
+    // so a button may carry the class its figure needs alongside the src
+    var cls = b.getAttribute("data-cls");
+    if (cls) el.className = cls;
+    Array.prototype.forEach.call(wrap.children, function (c) { c.classList.remove("on"); });
+    b.classList.add("on");
+  });
+})();
+</script>
 </body>
 </html>
