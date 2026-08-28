@@ -145,9 +145,17 @@
   /* Shared figure components — the dark pages (overview, forecasts) use this
      head, so the deck/toggle styles must exist here too, in the dark palette.
      They were added to head.html first and the tab bars rendered unstyled here. */
+  .plot-deck .deck-head {
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.25rem 0.7rem;
+    padding: 1.1rem 1.6rem 0.55rem;
+  }
+  .plot-deck .deck-title {
+    font-size: 0.76rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink2);
+  }
+  .plot-deck .deck-hint { font-size: 0.74rem; color: var(--muted); }
   .plot-deck .deck-tabs {
     display: flex; flex-wrap: wrap; gap: 0.4rem;
-    padding: 1.1rem 1.6rem 0.9rem; border-bottom: 1px solid var(--border);
+    padding: 0 1.6rem 0.9rem; border-bottom: 1px solid var(--border);
   }
   .plot-deck .deck-tabs button, .fig-toggle button {
     font: inherit; font-size: 0.76rem; padding: 0.32rem 0.8rem; cursor: pointer;
@@ -293,6 +301,10 @@
 
   <!-- ── BEYOND ENSO: PDO / IOD / SOUTH ATLANTIC ───────────────────────── -->
     <div class="chart-card plot-deck" data-deck="overview1">
+      <div class="deck-head">
+        <span class="deck-title">Select a figure</span>
+        <span class="deck-hint">10 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
+      </div>
       <div class="deck-tabs">
         <button class="on">PDO · IOD · S Atlantic</button>
         <button>MUR 1 km</button>

@@ -138,9 +138,14 @@ def make_deck(cards, deck_id: str) -> str:
             inner = re.sub(r'(<iframe[^>]*?)\ssrc="', r'\1 data-src="', inner, count=1)
         panels.append('      <div class="deck-panel"%s>\n%s\n      </div>'
                       % ("" if i == 0 else " hidden", inner))
-    return ('    <div class="chart-card plot-deck" data-deck="%s">\n'
+    head = ('      <div class="deck-head">\n'
+            '        <span class="deck-title">Select a figure</span>\n'
+            '        <span class="deck-hint">%d in this panel &middot; click a button to '
+            'switch &mdash; only the one you pick is loaded</span>\n'
+            '      </div>\n' % len(cards))
+    return ('    <div class="chart-card plot-deck" data-deck="%s">\n%s'
             '      <div class="deck-tabs">\n%s\n      </div>\n%s\n    </div>'
-            % (deck_id, "\n".join(tabs), "\n\n".join(panels)))
+            % (deck_id, head, "\n".join(tabs), "\n\n".join(panels)))
 
 
 def process(slug: str, dry: bool) -> None:
