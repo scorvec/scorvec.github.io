@@ -12,9 +12,11 @@ name: ASOS 5-min dashboard data
 # Each run force-pushes ONE parentless commit to the asos5-data branch (no main
 # history growth, no Pages rebuild). The copy of data/asos5/ on main is just the
 # page's first-paint fallback.
+# SCHEDULE RETIRED 2026-08-28. This job now runs from launchd on the laptop
+# (com.scorvec.frames' sibling com.scorvec.asos5, every 30 min) because GitHub
+# honoured only ~25% of the */15 cron. Kept here as a manual fallback for when
+# the laptop is off: run it from the Actions tab.
 on:
-  schedule:
-    - cron: '*/15 * * * *'    # overlay only; every ~15 min is plenty
   workflow_dispatch:
 
 permissions:
