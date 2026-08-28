@@ -122,3 +122,21 @@ scripts/verify/launchd_aifs.log
 scripts/lib/.frames_published
 scripts/lib/.frames.lock
 scripts/lib/frames.log
+
+# ── animation frames ────────────────────────────────────────────────────────
+# Frame webp are served from the orphan `frames` branch, not from main — the
+# daily churn was ~6 GB/month of permanent history and forced a full history
+# collapse on 2026-08-28. Published by scripts/lib/publish_frames.sh (launchd
+# com.scorvec.frames, every 15 min). The *_manifest.json files stay tracked, so
+# the viewers still fetch them same-origin.
+assets/*/anim/**/*.webp
+# EXCEPT the dirs built only by GitHub workflows. The frames branch has a
+# SINGLE publisher (the laptop) because several producers force-pushing one
+# orphan branch would clobber each other — so these must stay on main for the
+# laptop to pull and republish. They are ~10% of the churn.
+!assets/sst/anim/gdps_ir/*.webp
+!assets/sst/anim/gdps_wind/*.webp
+!assets/sst/anim/gdps_outflow/*.webp
+!assets/sst/anim/mur_ct/*.webp
+!assets/sst/anim/pacsat/*.webp
+!assets/sst/anim/samsat/*.webp
