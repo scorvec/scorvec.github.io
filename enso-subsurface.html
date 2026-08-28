@@ -304,7 +304,7 @@
       <div id="tao-xsec" style="width:100%;height:480px"></div>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; 5-day smoothed &middot; anomaly vs 1991&ndash;2020 harmonic climatology &middot; linear interpolation between moorings</span>
-        <span class="chart-updated" id="tao-xsec-updated">__TAO_DAY__</span>
+        <span class="chart-updated" id="tao-xsec-updated">TAO 2026-08-26</span>
       </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
@@ -423,7 +423,7 @@
               title="Equatorial Pacific subsurface temperature animation" loading="lazy"></iframe>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
-        <span class="chart-updated" id="subsurface-updated">__TAO_DAY__</span>
+        <span class="chart-updated" id="subsurface-updated">TAO 2026-08-26</span>
       </div>
     </div>
 
@@ -453,7 +453,7 @@
     (function () {
       var DIV = document.getElementById('wwv-orbit');
       if (!DIV || typeof Plotly === 'undefined') return;
-      fetch('assets/sst/data/wwv_orbit.json?v=4355a009dd1a').then(function (r) { return r.json(); })
+      fetch('assets/sst/data/wwv_orbit.json?v=5fd3d36bb021').then(function (r) { return r.json(); })
         .then(function (D) {
           var n = D.months.length;
           var traces = [{
@@ -560,7 +560,7 @@
         <h2>Subsurface Heat Content vs. Analogs</h2>
         <p>Equatorial Pacific upper-ocean (0&ndash;300 m) temperature anomaly (a heat-content proxy that leads the surface) through each event's development year and the next, current (bold red) overlaid on 1997, 2015 and 2023. The subsurface warm reservoir is the fuel for El Ni&ntilde;o; watch whether the current build-up keeps pace with the analogs.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/subsurface_events_hc.webp?v=4355a009dd1a" alt="Equatorial 0–300 m temperature-anomaly evolution: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_hc.webp?v=5fd3d36bb021" alt="Equatorial 0–300 m temperature-anomaly evolution: current vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; coverage varies by year</span></div>
     </div>
 
@@ -570,7 +570,7 @@
         <h2>Subsurface Heat Content vs. Analogs: De-trended</h2>
         <p>The same heat-content comparison with the 1991&ndash;2020 climate trend removed, so the four events sit on a common baseline. The net 0&ndash;300 m effect is modest (the subsurface warming and cooling trends largely cancel in the column average), but it eases the recent events (2023, current) down relative to 1997.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/subsurface_events_hc_detrended.webp?v=4355a009dd1a" alt="Equatorial 0–300 m temperature-anomaly evolution, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_hc_detrended.webp?v=5fd3d36bb021" alt="Equatorial 0–300 m temperature-anomaly evolution, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; de-trended 1991&ndash;2020 &middot; coverage varies by year</span></div>
     </div>
 
@@ -581,7 +581,7 @@
         <p>Equatorial depth&times;longitude temperature anomaly at the same phase (~the latest data week) of each event. The eastward-deepening warm anomaly along the thermocline is the classic El Ni&ntilde;o subsurface signature; comparing its depth and intensity against 1997/2015/2023 gauges how loaded the ocean is now.</p>
         <p><b>Note:</b> TAO mooring coverage varies by year (triangles mark moorings reporting), so 1997 and 2023 have missing longitudes.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec.webp?v=4355a009dd1a" alt="Equatorial subsurface temperature-anomaly cross-sections: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec.webp?v=5fd3d36bb021" alt="Equatorial subsurface temperature-anomaly cross-sections: current vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; 14-day mean &middot; coverage varies by year</span></div>
     </div>
 
@@ -592,7 +592,7 @@
         <p>The matching-phase cross-sections with the 1991&ndash;2020 climate trend removed. Because the trend has real depth&times;longitude structure (west-Pacific subsurface warming, eastern-thermocline cooling), de-trending reshapes the pattern more here than in the column-mean heat content above.</p>
         <p><b>Note:</b> TAO mooring coverage varies by year (triangles mark moorings reporting), so 1997 and 2023 have missing longitudes.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec_detrended.webp?v=4355a009dd1a" alt="Equatorial subsurface temperature-anomaly cross-sections, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/subsurface_events_xsec_detrended.webp?v=5fd3d36bb021" alt="Equatorial subsurface temperature-anomaly cross-sections, climate trend removed: current vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; de-trended 1991&ndash;2020 &middot; 14-day mean &middot; coverage varies by year</span></div>
     </div>
   </div>
