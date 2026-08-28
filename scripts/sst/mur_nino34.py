@@ -239,12 +239,16 @@ def render(s: pd.Series, clim) -> None:
     bx.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
     for x in (ax, bx):
         x.tick_params(labelsize=9)
-    fig.text(0.006, 0.005,
-             "NASA JPL MUR v4.1 GHRSST L4 via NOAA CoastWatch ERDDAP · box mean area-weighted by "
-             f"cos(lat), sampled at {STRIDE/100:.2f}° · MUR begins 2002-06 so its climatology is "
-             f"{CLIM_Y0}–{CLIM_Y1}, NOT the 1991–2020 base used for OISST anomalies",
+    # two short lines: one long line overran the canvas at this figure width
+    fig.text(0.006, 0.026,
+             "NASA JPL MUR v4.1 GHRSST L4 via NOAA CoastWatch ERDDAP  ·  box mean area-weighted "
+             f"by cos(lat), sampled at {STRIDE/100:.2f}°",
              fontsize=7.8, color="0.42", ha="left")
-    fig.tight_layout(rect=(0, 0.022, 1, 1))
+    fig.text(0.006, 0.006,
+             f"MUR begins 2002-06, so its climatology is {CLIM_Y0}–{CLIM_Y1} — NOT the 1991–2020 "
+             "base behind OISST anomalies, and a different SST definition besides",
+             fontsize=7.8, color="0.42", ha="left")
+    fig.tight_layout(rect=(0, 0.042, 1, 1))
     OUT_PNG.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT_PNG, dpi=110)
     plt.close(fig)

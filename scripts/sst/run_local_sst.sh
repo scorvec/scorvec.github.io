@@ -68,6 +68,11 @@ NEW_DAY=$("$PY" -c "$DAY_Q" 2>/dev/null || echo "")
   --ascii scripts/sst/data/tao_eq_recent.ascii || echo "TAO failed; continuing"
 "$PY" scripts/sst/sst_subsurface.py || echo "subsurface failed; continuing"
 "$PY" scripts/sst/wwv_orbit.py || echo "WWV orbit failed; continuing"
+# MUR Nino-3.4 absolute SST. Laptop-only on purpose: the 2002-present box-mean
+# series is cached under scripts/sst/data/ (gitignored), so an Actions run would
+# have no cache and refetch 24 years (~50 min) every time. Incremental here:
+# one small ERDDAP request appended to the cache.
+"$PY" scripts/sst/mur_nino34.py || echo "MUR Nino-3.4 failed; keeping previous figure"
 ( cd scripts/sst && SST_SITE_ROOT="$REPO" "$PY" sst_ascat_winds.py ) || echo "ASCAT failed; continuing"
 # Optional machine-local post steps (not part of the site build):
 [ -x "$HOME/.local/hooks/sst_post.sh" ] && SST_SITE_ROOT="$REPO" "$HOME/.local/hooks/sst_post.sh"
