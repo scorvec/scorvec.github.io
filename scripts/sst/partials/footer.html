@@ -79,5 +79,33 @@
   });
 })();
 </script>
+<script>
+// Plot decks. One delegated listener for every deck on the page. Panels other
+// than the first ship their iframe src in data-src, so a deck costs exactly one
+// animator load on page open and the rest only when the reader asks for them.
+(function () {
+  function reveal(panel) {
+    var f = panel.querySelectorAll("iframe[data-src], img[data-deferred]");
+    for (var i = 0; i < f.length; i++) {
+      var el = f[i], d = el.getAttribute("data-src");
+      if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }
+      el.removeAttribute("data-deferred");
+    }
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest(".plot-deck .deck-tabs button") : null;
+    if (!b) return;
+    var deck = b.closest(".plot-deck");
+    var tabs = deck.querySelectorAll(".deck-tabs button");
+    var panels = deck.querySelectorAll(".deck-panel");
+    var i = Array.prototype.indexOf.call(tabs, b);
+    for (var k = 0; k < panels.length; k++) {
+      if (k === i) { panels[k].hidden = false; reveal(panels[k]); }
+      else panels[k].hidden = true;
+      tabs[k].classList.toggle("on", k === i);
+    }
+  });
+})();
+</script>
 </body>
 </html>

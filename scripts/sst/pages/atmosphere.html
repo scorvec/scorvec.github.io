@@ -10,27 +10,35 @@
 
     <!-- OBSERVED ASCAT EQUATORIAL WINDS -->
     <h3 class="page-section" id="winds">Equatorial winds &amp; the Southern Oscillation</h3>
-    <div class="chart-card">
+    <div class="chart-card plot-deck" data-deck="atmosphere1">
+      <div class="deck-tabs">
+        <button class="on">ASCAT wind map</button>
+        <button>Zonal wind Hovmöller</button>
+        <button>SOI hourly</button>
+        <button>SOI forecast</button>
+        <button>WWB Tarawa</button>
+        <button>WWB vs past onsets</button>
+        <button>10 m wind forecast</button>
+      </div>
+      <div class="deck-panel">
       <div class="chart-card-header">
         <h2>Observed Equatorial Pacific Surface Wind</h2>
       </div>
       <iframe class="anim-embed ascat" src="sst_anim.html?embed=1&amp;manifest=ascat_manifest.json&amp;region=ascat"
               title="Daily 10°S–10°N Pacific surface wind speed and direction (ASCAT) animated over time" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; ~1&ndash;2 day latency &middot; updated daily &middot; drag the slider for recent days</span></div>
-    </div>
+      </div>
 
-    <!-- OBSERVED ASCAT EQUATORIAL ZONAL-WIND HOVMÖLLER -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>Observed Equatorial Zonal Wind: Strip / Hovm&ouml;ller</h2>
         <p>Longitude &times; time strip of the daily-mean surface zonal wind averaged 5&deg;S&ndash;5&deg;N, 150&deg;E&ndash;90&deg;W, from the same gap-filled scatterometer (ASCAT) L4 product as the map above. <span style="color:#c0392b">Red is westerly</span> (El&nbsp;Ni&ntilde;o-favorable), <span style="color:#2471a3">blue is easterly</span> (the trade winds). Westerly-wind bursts (red) over the warm pool force the downwelling Kelvin waves and eastward surface-current surges seen on the subsurface page. Newest day at the bottom.</p>
       </div>
       <div class="img-wrap" style="max-width:980px;margin:0 auto"><img id="eq-uwind-hov" data-src="assets/sst/eq_uwind_hov.webp" alt="Equatorial Pacific surface zonal-wind Hovmöller (observed ASCAT)" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; 5&deg;S&ndash;5&deg;N daily mean &middot; rolling ~9 months &middot; updated daily</span></div>
-    </div>
+      </div>
 
-    <!-- HOURLY SOI ESTIMATE (Darwin/Tahiti METAR) -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>Hourly SOI Estimate</h2>
         <p>The Southern Oscillation Index is a Troup standardisation of the Tahiti-minus-Darwin sea-level-pressure difference. It is published only monthly, and even LongPaddock's daily version lags 1&ndash;2 days. This estimates it in near-real time from the hourly QNH in the Darwin (YPDN) and Tahiti / Faa&rsquo;a (NTAA) airport METARs, updated hourly by a GitHub Action.</p>
@@ -43,20 +51,18 @@
       </div>
       <div class="img-wrap"><img id="soi-hourly" data-src="assets/sst/soi_hourly.webp" alt="Hourly SOI estimate from Darwin and Tahiti METAR" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">Darwin (YPDN) + Tahiti (NTAA) METAR via aviationweather.gov &middot; Troup normals &amp; calibration from LongPaddock (BoM 1887&ndash;1989 base) &middot; updated hourly</span></div>
-    </div>
+      </div>
 
-    <!-- SOI FORECAST (AIFS-ENS / IFS-ENS) -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>Southern Oscillation Index Forecast</h2>
         <p>Extending the observed SOI forward: the same Troup SOI (the standardized Tahiti&minus;Darwin sea-level-pressure difference), here forecast from the combined AIFS-ENS + IFS-ENS ensemble (about 100 members). Observed values are from LongPaddock (Queensland Govt / BoM); the forecast is the Tahiti&minus;Darwin MSL from the ensembles, bias-corrected to the recent observed level. Bold lines are the 30-day running SOI; the faint daily series and shaded 10&ndash;90% band show the day-to-day spread. Sustained negative SOI (below &minus;7) is El Ni&ntilde;o-favorable; sustained positive (above +7) is La Ni&ntilde;a-favorable.</p>
       </div>
       <div class="img-wrap"><img src="assets/sst/soi_forecast.webp?v=__CACHE__" alt="Southern Oscillation Index: observed (LongPaddock/BoM) plus AIFS-ENS/IFS-ENS forecast" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">LongPaddock daily SOI (BoM, 1933&ndash;1992 base) &middot; forecast: ECMWF AIFS-ENS + IFS-ENS MSL &middot; updated each 00/12Z cycle</span></div>
-    </div>
+      </div>
 
-    <!-- WESTERLY-WIND-BURST MONITOR (Tarawa METAR) -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>Westerly-Wind-Burst Monitor: Tarawa</h2>
         <p>Westerly wind bursts (WWBs) over the west-central equatorial Pacific are a key El&nbsp;Ni&ntilde;o trigger: the easterly trades briefly reverse to westerly, pushing warm water and convection eastward and forcing downwelling Kelvin waves. Tarawa / Bonriki (<b>NGTA, 1.4&deg;N 173&deg;E</b>) sits in that zone, so its hourly airport wind is a live proxy, with Christmas Island (PLCH, far to the east) shown for contrast. The arrows show the latest wind at each station (<span style="color:#d62728">red is westerly</span>, <span style="color:#1f77b4">blue is easterly</span>); the chart tracks the zonal wind component at Tarawa, where a sustained red excursion is an active WWB.</p>
@@ -64,26 +70,25 @@
       <div id="wwb-arrows" class="wwb-arrows"></div>
       <div class="img-wrap"><img id="kiribati-wind" data-src="assets/sst/kiribati_wind.webp" alt="Tarawa equatorial zonal-wind time series, westerly-wind-burst monitor" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">Tarawa / Bonriki (NGTA) + Christmas Is. / Kiritimati (PLCH) METAR via aviationweather.gov &middot; updated hourly</span></div>
-    </div>
+      </div>
 
-    <!-- TARAWA WWB ACTIVITY vs PAST EL NIÑO ONSETS (IEM archive) -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>WWB Activity vs Past El Ni&ntilde;o Onsets</h2>
         <p>Tarawa&rsquo;s daily airport wind from <b>1&nbsp;April</b> onward through recent El&nbsp;Ni&ntilde;o onset years, <span style="color:#4daf4a"><b>2015&ndash;16</b></span> (very strong) and <span style="color:#984ea3"><b>2023&ndash;24</b></span> (weaker), against the current year, from the Iowa Environmental Mesonet METAR archive. Both panels are a 7-day running mean of the hourly obs: top is zonal wind (westerly positive); bottom is the fraction of each day with westerly winds. In a developing El&nbsp;Ni&ntilde;o the easterly trades weaken and westerly bursts become more frequent, so both climb from the cold-state baseline.</p>
       </div>
       <div class="img-wrap"><img id="kiribati-history" data-src="assets/sst/kiribati_history.webp" alt="Tarawa monthly westerly-wind activity across the 2015, 2023 and current El Niño onsets" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">Tarawa (NGTT/NGTA) METAR &middot; Iowa Environmental Mesonet ASOS archive &middot; monthly zonal wind &amp; westerly fraction &middot; refreshed daily</span></div>
-    </div>
+      </div>
 
-    <!-- EQUATORIAL 10m WIND HOVMÖLLER -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>Equatorial Pacific 10 m Wind Forecast</h2>
         <p>Forecast 10 m zonal-wind anomaly (5&deg;S&ndash;5&deg;N), longitude &times; forecast day, from the AIFS-ENS (AI) and ECMWF IFS-ENS (physics) ensemble means versus the ERA5 1991&ndash;2020 climatology. Westerly (red) anomalies along the equator favor El Ni&ntilde;o development; easterly (blue) anomalies favor La Ni&ntilde;a. Agreement between the AI and physics ensembles raises confidence.</p>
       </div>
       <div class="img-wrap"><img src="assets/sst/eq_wind_hovmoller.webp?v=__CACHE__" alt="Equatorial Pacific 10 m zonal-wind anomaly Hovmöller forecast (AIFS-ENS and IFS-ENS)" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS &amp; IFS-ENS (open data) &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
+      </div>
     </div>
 
     <!-- MSLP + 10m WIND FORECAST — one card, two models -->
@@ -91,7 +96,13 @@
          the same styling, so it belongs behind a model switch rather than in a
          second card the reader has to scroll past to compare. -->
     <h3 class="page-section" id="maps">Forecast maps &amp; loops</h3>
-    <div class="chart-card">
+    <div class="chart-card plot-deck" data-deck="atmosphere2">
+      <div class="deck-tabs">
+        <button class="on">MSLP + wind</button>
+        <button>GDPS sim IR</button>
+        <button>GDPS 150 hPa</button>
+      </div>
+      <div class="deck-panel">
       <div class="chart-card-header">
         <h2>MSLP &amp; 10 m Wind Forecast</h2>
         <p>The full-field Pacific surface forecast behind the equatorial diagnostics: mean-sea-level pressure (contours, with H/L centres) and 10&nbsp;m wind (speed shaded in knots, plus barbs), animated over the tropical and subtropical Pacific. An equatorial westerly push between the Maritime Continent and the dateline is a wind-burst signature. Switch between the ECMWF <b>super-ensemble mean</b> (AIFS-ENS&nbsp;+&nbsp;IFS-ENS, days&nbsp;1&ndash;15) and <b>ECCC GDPS</b> (15&nbsp;km deterministic, days&nbsp;1&ndash;10) as an independent physics cross-check &mdash; same domain and styling, so differences are the models, not the plotting.</p>
@@ -103,10 +114,9 @@
       <iframe id="fig-mslpwind" class="anim-embed mslp-wind" src="sst_anim.html?embed=1&amp;manifest=mslp_wind_manifest.json&amp;region=mslp_wind"
               title="MSLP and 10 m wind forecast over the Pacific, animated" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0), member-weighted super-ensemble mean, each 00/12Z cycle &middot; ECCC GDPS 15&nbsp;km deterministic (MSC Datamart), 00Z cycle, daily</span></div>
-    </div>
+      </div>
 
-    <!-- GDPS SIMULATED IR FORECAST LOOP (GMGSI styling) -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>GDPS Simulated IR &mdash; Forecast Satellite Loop</h2>
         <p>GDPS forecast top-of-atmosphere OLR converted to IR brightness temperature and
@@ -114,13 +124,12 @@
         <a href="sst.html">Overview page</a> &mdash; a simulated satellite loop, 3-hourly
         frames to day&nbsp;10. White and colour are cold cloud tops (deep convection).</p>
       </div>
-      <iframe class="anim-embed gdps-ir" src="sst_anim.html?embed=1&amp;manifest=gdps_ir_manifest.json&amp;region=gdps_ir"
+      <iframe data-deferred class="anim-embed gdps-ir" data-src="sst_anim.html?embed=1&amp;manifest=gdps_ir_manifest.json&amp;region=gdps_ir"
               title="GDPS simulated IR forecast satellite loop over the tropical Pacific" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECCC GDPS top-of-atmosphere OLR (MSC Datamart) &middot; OLR &rarr; T<sub>b</sub> via inverse Ohring&ndash;Gruber &middot; 3-hourly frames, days 0&ndash;10 &middot; GMGSI enhanced-IR colortable &middot; daily</span></div>
-    </div>
+      </div>
 
-    <!-- GDPS 150 hPa OUTFLOW: DIVERGENCE + STREAMLINES -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>GDPS 150 hPa Wind &amp; Height Forecast</h2>
         <p>GDPS 150&nbsp;hPa wind as isotach fill and contours with wind barbs and
@@ -128,9 +137,10 @@
         the Hadley/Walker outflow layer and the subtropical jets. White is below
         25&nbsp;kt.</p>
       </div>
-      <iframe class="anim-embed gdps-150" src="sst_anim.html?embed=1&amp;manifest=gdps_outflow_manifest.json&amp;region=gdps_outflow"
+      <iframe data-deferred class="anim-embed gdps-150" data-src="sst_anim.html?embed=1&amp;manifest=gdps_outflow_manifest.json&amp;region=gdps_outflow"
               title="GDPS 150 hPa divergence and streamline forecast over the tropical Pacific, animated" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECCC GDPS 150&nbsp;hPa u/v (MSC Datamart) &middot; spherical divergence, ~3&deg; Gaussian smoothing &middot; 00Z cycle, days 1&ndash;10 &middot; daily</span></div>
+      </div>
     </div>
 
     <!-- 200 hPa VELOCITY POTENTIAL + IRROTATIONAL WIND (AIFS-ENS ensemble mean) -->
@@ -183,36 +193,41 @@
 
     <!-- ATMOSPHERIC ANGULAR MOMENTUM -->
     <h3 class="page-section" id="aam">Angular momentum &amp; wave driving</h3>
-    <div class="chart-card">
+    <div class="chart-card plot-deck" data-deck="atmosphere3">
+      <div class="deck-tabs">
+        <button class="on">AAM</button>
+        <button>AAM run-to-run</button>
+        <button>AAM phase</button>
+        <button>Torque · E–P flux · Wave-1</button>
+        <button>AAM by latitude</button>
+      </div>
+      <div class="deck-panel">
       <div class="chart-card-header">
         <h2>Atmospheric Angular Momentum</h2>
         <p>Relative AAM is the angular momentum carried by the winds, the atmosphere's total westerly momentum, &int;&nbsp;u&middot;cos&sup2;&phi; over the whole globe. It is dominated by the upper-tropospheric subtropical jets and the deep tropics (largest moment arm), shown here for the globe and each hemisphere from the AIFS-ENS winds on 14 pressure levels (10&ndash;1000&nbsp;hPa &mdash; the full column, validated against the 37-level ERA5 integral and GFZ's ESMGFZ wind-term series to ~1%). The top panel is this year's observed AAM (black) and the 15-day forecast (red) on the climatological annual cycle; the hemispheres are strongly out of phase (each peaks in its own winter). The bottom panel is the anomaly (departure from the 1991&ndash;2020 normal), which removes the seasonal cycle. El&nbsp;Ni&ntilde;o strengthens the subtropical jets and weakens the trades, so the atmosphere holds more westerly momentum; conservation then requires the solid Earth to slow, so AAM ties directly to the measured length of day. The <span style="color:#2e7d32"><b>green trace</b></span> is GFZ's independent ESMGFZ wind-term series (computed from ECMWF's operational analyses for the Earth-rotation community) &mdash; a continuous external check on this pipeline.</p>
       </div>
       <div class="img-wrap"><img src="assets/sst/aam.webp?v=__CACHE__" alt="Global and hemispheric atmospheric angular momentum: observed + AIFS-ENS forecast, absolute and anomaly" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">Forecast: ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; climatology &amp; this-year observed: ERA5 (Copernicus C3S / ECMWF) &middot; updated daily</span></div>
-    </div>
+      </div>
 
-    <!-- AAM FORECAST TREND -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>AAM Forecast Trend (run-to-run)</h2>
       </div>
       <div class="img-wrap"><img src="assets/sst/aam_trend.webp?v=__CACHE__" alt="Run-to-run trend of AIFS-ENS ensemble-mean AAM anomaly forecasts, global and hemispheric" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 (Copernicus C3S) &middot; archived each cycle</span></div>
-    </div>
+      </div>
 
-    <!-- AAM PHASE (hemispheric heatmap + orbits) -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>AAM Phase: Where the Momentum Is, and Where It&rsquo;s Going</h2>
         <p><b>Top</b>: relative AAM integrated in 1.5&deg; latitude bands &mdash; ~3 months observed (ERA5) plus the 15-day AIFS-ENS mean forecast &mdash; so poleward-propagating westerly anomalies and building subtropical momentum show as slanted warm streaks. <b>Bottom</b>: each hemisphere's trajectory through (AAM anomaly, tendency) phase space, the hemispheric analog of the Weickmann&ndash;Berry global wind oscillation orbit: grey trail = last 75 days, red = the forecast. The headline sentence is generated automatically from the forecast quadrant and the latitude band driving the change &mdash; e.g. <i>"NH: rising above-normal AAM &mdash; subtropical westerlies increasing."</i></p>
       </div>
       <div class="img-wrap"><img src="assets/sst/aam_phase.webp?v=__CACHE__" alt="Hemispheric AAM phase diagnostics: latitude-time anomaly heatmap and NH/SH phase-space orbits with forecast" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ERA5 (local store) &middot; AIFS-ENS ensemble mean (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 &middot; updated daily</span></div>
-    </div>
+      </div>
 
-    <!-- AAM TORQUE BUDGET -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>What Drives AAM: the Torque Budget</h2>
         <p>Atmospheric angular momentum only changes through torques the Earth exerts on the atmosphere. With $M$ the relative (wind) AAM, the budget has two resolved terms, <b>friction</b> (surface wind stress) and <b>mountain</b> (pressure on topography):</p>
@@ -220,7 +235,7 @@
         <p style="text-align:center;font-size:0.95rem">$$T_{\text{mtn}}=-a^2\!\iint p_s\,\frac{\partial h_s}{\partial\lambda}\,\cos\phi\;d\lambda\,d\phi,\qquad T_{\text{fric}}=-a^3\!\iint \tau_\lambda\,\cos^2\!\phi\;d\lambda\,d\phi$$</p>
         <p>The two panels show the torque <b>anomalies</b> (versus the ERA5 1991&ndash;2020 climatology, by day-of-year), so the standing El&nbsp;Ni&ntilde;o departure shows alongside the day-to-day synoptic systems. The grey contours are the surface-pressure anomaly, the field the torque uses (solid positive, dashed negative), so colours and contours read together. <b>Top, friction</b> ($\tau_\lambda\!\approx\!\rho\,C_d\,|V_{10}|\,u_{10}$): trade-wind and jet stress anomalies such as western-Pacific westerly bursts. <b>Bottom, mountain</b> (form drag $h_s\,\partial p_s/\partial\lambda$, the same net torque as $-p_s\,\partial h_s/\partial\lambda$): synoptic pressure systems crossing the Andes, Rockies, Himalaya/Tibet and Greenland. Insets are the &plusmn;60&deg; cos&phi;-weighted zonal-mean anomaly; AIFS-ENS ensemble mean of all 51 members, ~5&deg;. The sub-grid gravity-wave-drag term $T_{\text{gw}}$ appears only as the residual.</p>
       </div>
-      <iframe class="anim-embed torque" src="sst_anim.html?embed=1&amp;manifest=torque_manifest.json&amp;region=torque"
+      <iframe data-deferred class="anim-embed torque" data-src="sst_anim.html?embed=1&amp;manifest=torque_manifest.json&amp;region=torque"
               title="AAM surface-torque anomaly animation (friction + mountain) over the AIFS-ENS forecast" loading="lazy"></iframe>
       <div class="img-wrap"><img src="assets/sst/torque_timeseries.webp?v=__CACHE__" alt="Hemispheric AAM torque budget time series (friction, mountain, sum) for NH and SH" loading="lazy"></div>
       <div class="img-wrap"><img src="assets/sst/torque_ranges.webp?v=__CACHE__" alt="Mountain-torque anomaly broken down by range (Himalaya, Rockies, Andes, Greenland, Antarctica, Alps)" loading="lazy"></div>
@@ -299,22 +314,28 @@
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; wavenumber-1/2 Fourier components of Z, 55&ndash;65&deg; cos-weighted band mean &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
     </div>
     </div>
-    </div>
+      </div>
 
-    <!-- AAM ZONAL ANATOMY (where the AAM lives & where it changes) -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>Where the AAM Lives, and Where It&rsquo;s Changing</h2>
         <p>The torques above change the global AAM; this shows where that angular momentum sits and how the forecast moves it, as a latitude&ndash;pressure cross-section of the relative-AAM density whose integral over latitude and pressure is the global AAM. <b>Top panel, absolute</b>: where the AAM resides, dominated by the subtropical jets (the winter hemisphere&rsquo;s is strongest). <b>Bottom, change versus the 0-h analysis</b>: where the forecast is adding (red) or removing (blue) angular momentum, with the per-latitude breakdown of the global &Delta;AAM along the top strip. Black contours are the zonal-mean zonal wind (bold = zero). The bottom panel integrates to the &Delta;AAM in the title, tying it back to the torque budget above. AIFS-ENS 50-member ensemble mean; the slider steps the forecast Day&nbsp;0&ndash;15.</p>
       </div>
-      <iframe class="anim-embed aam-zonal" src="sst_anim.html?embed=1&amp;manifest=aam_zonal_manifest.json&amp;region=aam_zonal"
+      <iframe data-deferred class="anim-embed aam-zonal" data-src="sst_anim.html?embed=1&amp;manifest=aam_zonal_manifest.json&amp;region=aam_zonal"
               title="AIFS-ENS relative AAM anatomy: absolute and forecast change by latitude and pressure" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS zonal wind (13 tropospheric levels, 50&ndash;1000&nbsp;hPa) + surface pressure (open data, CC BY 4.0) &middot; ensemble mean &middot; updated daily</span></div>
+      </div>
     </div>
 
     <!-- MERIDIONAL MASS STREAMFUNCTION (Hadley cell response) -->
     <h3 class="page-section" id="overturning">Overturning &amp; jets</h3>
-    <div class="chart-card">
+    <div class="chart-card plot-deck" data-deck="atmosphere4">
+      <div class="deck-tabs">
+        <button class="on">Hadley cell</button>
+        <button>Walker cell</button>
+        <button>Subtropical jets</button>
+      </div>
+      <div class="deck-panel">
       <div class="chart-card-header">
         <h2>Meridional Overturning: the Hadley Cell Response</h2>
         <p>The zonal-mean meridional mass streamfunction $\Psi(\phi,p)$ traces the overturning cells (Hadley, Ferrel, polar) from the AIFS-ENS 0-h analysis:</p>
@@ -324,31 +345,30 @@
       <iframe class="anim-embed mmsf" src="sst_anim.html?embed=1&amp;manifest=mmsf_manifest.json&amp;region=mmsf"
               title="Meridional mass streamfunction anomaly animation from the AIFS-ENS 0-h analysis" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 0-h analysis meridional wind (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 &Psi; climatology (Copernicus C3S) &middot; 7-day running mean &middot; updated each cycle</span></div>
-    </div>
+      </div>
 
-    <!-- WALKER CIRCULATION (zonal overturning — the equatorial analog of the MMSF) -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>Zonal Overturning: the Walker Circulation</h2>
         <p>The equatorial companion to the Hadley-cell plot above: the zonal overturning streamfunction $\Psi_W(\lambda,p)$ built from the 5&deg;S&ndash;5&deg;N <b>divergent</b> zonal wind (velocity-potential decomposition, so the rotational flow that dwarfs it near the equator is removed):</p>
         <p style="text-align:center;font-size:0.95rem">$$\Psi_W(\lambda,p)=\frac{\Delta y}{g}\int_0^p u_D\,dp',\qquad u_D=\text{5&deg;S&ndash;5&deg;N divergent }u$$</p>
         <p>Colour is the anomaly from the ERA5 1991&ndash;2020 harmonic climatology; black contours are the absolute cells (ascent where $\Psi_W$ increases eastward &mdash; arrows show the vertical branches). The headline <b>Pacific Walker cell index</b> is the mean $\Psi_W$ over 140&deg;E&ndash;160&deg;W, 300&ndash;700&nbsp;hPa: on ERA5 Decembers it runs about +0.3&hellip;+0.4&times;10&sup1;&#8304; kg/s in La&nbsp;Ni&ntilde;a and <i>reverses sign</i> (&minus;0.1) in the 1982/1997/2015 super El&nbsp;Ni&ntilde;os &mdash; a direct, mass-flux measure of how far the Walker circulation has collapsed. Each frame is a 7-day trailing mean of the 0-h analyses.</p>
       </div>
-      <iframe class="anim-embed walker" src="sst_anim.html?embed=1&amp;manifest=walker_manifest.json&amp;region=walker"
+      <iframe data-deferred class="anim-embed walker" data-src="sst_anim.html?embed=1&amp;manifest=walker_manifest.json&amp;region=walker"
               title="Walker circulation (equatorial zonal streamfunction) anomaly animation from the AIFS-ENS 0-h analysis" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 0-h analysis u/v, 13 levels (open data, CC BY 4.0) &middot; velocity potential via spherical harmonics &middot; anomaly vs ERA5 1991&ndash;2020 &Psi;<sub>W</sub> climatology &middot; 7-day running mean &middot; updated each cycle</span></div>
-    </div>
+      </div>
 
-    <!-- SUBTROPICAL JETS -->
-    <div class="chart-card">
+      <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>Subtropical Jets: Strength &amp; Position vs Normal</h2>
         <p>A robust extratropical El&nbsp;Ni&ntilde;o signature is a stronger, equatorward-shifted subtropical jet in each winter hemisphere. <b>Top</b>: the zonal-mean zonal wind $[u](\phi,p)$ at the analysis &mdash; colour is the anomaly against the ERA5 1991&ndash;2020 day-of-year normal, contours the absolute jets, &#9660; the 200&nbsp;hPa subtropical cores. <b>Below</b>: the forecast evolution of each core's <b>speed</b> and <b>latitude</b> (max $[u]$ at 200&nbsp;hPa within 15&ndash;45&deg;), ensemble members and mean against the climatological normal &plusmn;1&sigma; band, with the analysis departure quoted in &sigma; &mdash; the "how anomalous are the jets right now" number. The animation steps the ensemble-mean cross-section through the 15-day forecast (&#9660; forecast cores, &#9661; their climatological positions).</p>
       </div>
-      <iframe class="anim-embed jets" src="sst_anim.html?embed=1&amp;manifest=jets_manifest.json&amp;region=jets"
+      <iframe data-deferred class="anim-embed jets" data-src="sst_anim.html?embed=1&amp;manifest=jets_manifest.json&amp;region=jets"
               title="Subtropical jet forecast animation: zonal-mean wind anomaly cross-section, day 0-15 from AIFS-ENS" loading="lazy"></iframe>
       <div class="img-wrap"><img src="assets/sst/jets.webp?v=__CACHE__" alt="Subtropical jet monitor: zonal-mean wind cross-section anomaly and jet-core strength/latitude forecast vs ERA5 climatology" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind, 51 members (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 harmonic day-of-year normal &plusmn;1&sigma; (WeatherBench2 / Copernicus C3S) &middot; updated daily</span></div>
+      </div>
     </div>
 
   </div>
