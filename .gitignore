@@ -140,3 +140,6 @@ assets/*/anim/**/*.webp
 !assets/sst/anim/mur_ct/*.webp
 !assets/sst/anim/pacsat/*.webp
 !assets/sst/anim/samsat/*.webp
+
+# asos5 local runner log
+scripts/asos5/asos5.log
