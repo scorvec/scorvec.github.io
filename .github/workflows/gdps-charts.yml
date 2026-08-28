@@ -1,0 +1,72 @@
+name: GDPS tropical forecast products
+
+# ECCC GDPS (open Datamart, credential-free): the 10 m wind maps, the 3-hourly
+# 150 hPa wind+height loop, and the simulated-IR loop on the Atmosphere page.
+# Moved out of the laptop's serial run_local_sst.sh (2026-08-25) so a slow or
+# skipped local run can't stall these; the script is idempotent and falls back
+# to yesterday's 00Z cycle when today's isn't complete yet.
+on:
+  schedule:
+    - cron: '20 6 * * *'   # 06:20 UTC — GDPS 00Z is fully on Datamart by ~05:45
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gdps-charts
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-gdps-${{ runner.os }}-v1
+      - name: Install cartopy system libs
+        run: |
+          for i in 1 2 3; do
+            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
+               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
+                 libgeos-dev libproj-dev proj-bin libeccodes0 libeccodes-data; then exit 0; fi
+            echo "apt attempt $i failed; retrying"; sleep 10
+          done
+          exit 1
+      - name: Install Python dependencies
+        run: pip install --quiet numpy pandas scipy xarray netcdf4 cfgrib eccodes matplotlib==3.10.9 "cartopy>=0.22" "shapely>=2.0" "pyproj>=3.5" Pillow
+      - name: Build GDPS products
+        run: python scripts/sst/gdps_eq_charts.py
+      - name: Commit & push
+        # Each run REPLACES the frame sets, so the frame count drifts between
+        # builds and a rebase hits modify/delete conflicts that -X theirs
+        # cannot resolve (bit the first run, 2026-08-25). Instead: move HEAD to
+        # fresh origin/main (mixed reset keeps our rendered working tree),
+        # stage only our product paths, commit, push. Retry re-does the whole
+        # fetch+reset+commit, so a concurrent push just shifts our base.
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          PATHS="assets/sst/anim/gdps_wind assets/sst/anim/gdps_wind_manifest.json
+                 assets/sst/anim/gdps_outflow assets/sst/anim/gdps_outflow_manifest.json
+                 assets/sst/anim/gdps_ir assets/sst/anim/gdps_ir_manifest.json"
+          for i in 1 2 3 4 5; do
+            timeout 120 git fetch origin main || { sleep 5; continue; }
+            git reset -q FETCH_HEAD
+            git add $PATHS
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -q -m "data update: $(date -u +%Y-%m-%d)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            git reset -q --soft HEAD^   # undo the commit; refetch and rebuild it
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

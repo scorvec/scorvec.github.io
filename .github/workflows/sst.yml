@@ -1,0 +1,145 @@
+name: SST anomalies & RONI (El Niño monitor)
+
+# NOAA OISST updates daily (1–2 day latency). We rebuild once a day; the script
+# always uses the latest available day, so a late update is simply picked up by
+# the next run. Manual dispatch with --force re-downloads regardless.
+#
+# Cron timing matters. Two constraints, both in UTC (GitHub cron is always UTC):
+#   1. PSL rewrites sst.day.anom.<YEAR>.nc with the previous day at ~16:30 UTC.
+#   2. The laptop primary (run_local_sst.sh) polls until 13:59 America/New_York,
+#      which is 17:59 UTC in EDT but 18:59 UTC in EST — the window MOVES with DST.
+# 19:23 UTC clears both year-round, so this fallback can only ever see the freshest
+# day and never overlaps the laptop (its single-instance lock doesn't span machines).
+# The old 16:23 UTC slot sat 8 min ahead of PSL and was saved only by GitHub's
+# 1–2 h scheduling delay; an on-time dispatch would have committed stale maps.
+on:
+  schedule:
+    - cron: '23 19 * * *'   # 19:23 UTC — after PSL (~16:30 UTC) and the laptop window (17:59 UTC EDT / 18:59 UTC EST)
+    - cron: '23 23 * * *'   # 23:23 UTC — retry slot: the cron fires once a day, so a runner-infra hang (apt mirror, git stall) at 19:23 loses the whole day; this run exits "No changes" when 19:23 succeeded
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Re-download OISST even if cached'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sst-roni
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+
+      # OISST cache: the 1.4 GB 1991-2020 climatology exists only on PSL, and
+      # the yearly file is ~470 MB per run — cache both so a PSL outage rides
+      # on the NCEI day-file fallback (oisst9120) instead of failing outright.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            scripts/sst/data/sst.day.mean.ltm.1991-2020.nc
+            scripts/sst/data/sst.day.mean.*.nc
+          key: oisst-data-${{ github.run_id }}
+          restore-keys: |
+            oisst-data-
+
+      # ASCAT daily-mean u/v archive: lets a plot-layout change re-render every
+      # frame in the window from cached fields instead of refetching Copernicus.
+      - uses: actions/cache@v4
+        with:
+          path: scripts/sst/data/ascat
+          key: ascat-data-${{ github.run_id }}
+          restore-keys: |
+            ascat-data-
+
+      - name: Install cartopy system libs
+        run: |
+          # Bounded + retried: an apt mirror hang here once ate the full 60-min job budget
+          # (2026-08-19 run, killed at timeout during this step).
+          for i in 1 2 3; do
+            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
+               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
+                 libgeos-dev libproj-dev proj-bin; then exit 0; fi
+            echo "apt attempt $i failed; retrying"; sleep 10
+          done
+          exit 1
+
+      - name: Install Python dependencies
+        run: pip install -r scripts/sst/requirements-sst.txt
+
+      - name: Build SST maps, RONI, and animation (OISST)
+        run: |
+          FORCE=""
+          [ "${{ inputs.force }}" = "true" ] && FORCE="--force"
+          python scripts/sst/sst-roni.py $FORCE
+
+      - name: Fetch TAO equatorial subsurface temperature (recent 120 days)
+        run: |
+          python scripts/sst/tao_subsurface.py --days 120 \
+            --out scripts/sst/data/tao_eq_recent.nc \
+            --ascii scripts/sst/data/tao_eq_recent.ascii
+
+      - name: Build equatorial subsurface cross-section + animation
+        run: python scripts/sst/sst_subsurface.py
+
+      - name: Build daily ASCAT equatorial-Pacific wind map (Copernicus Marine)
+        working-directory: scripts/sst
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: |
+          if [ -z "$COPERNICUSMARINE_SERVICE_USERNAME" ]; then
+            echo "Copernicus Marine credentials not set; skipping wind map."; exit 0
+          fi
+          python sst_ascat_winds.py || echo "ASCAT wind map failed; continuing"
+
+      - name: Commit & push (generated outputs)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sst.html enso-*.html assets/sst/
+          if git diff --staged --quiet; then
+            echo "No changes; skipping commit."; exit 0
+          fi
+          DAY=$(python -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])")
+          git commit -m "data update: ${DAY}"
+          for i in 1 2 3 4 5; do
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; rebasing onto origin/main (keep our generated files)…"
+            timeout 120 git fetch origin main
+            if ! git rebase -X theirs origin/main; then
+              git rebase --abort || true
+              git reset --hard origin/main
+              git add sst.html enso-*.html assets/sst/
+              git diff --staged --quiet || git commit -m "data update: ${DAY} (re-applied)"
+            fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### SST / RONI" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/sst.html](https://scorvec.com/sst.html)" >> "$GITHUB_STEP_SUMMARY"
+          [ -f assets/sst/manifest.json ] && \
+            echo "- $(python -c "import json;m=json.load(open('assets/sst/manifest.json'));print('OISST',m['sst_valid_day'],'· RONI',m['roni_latest_value'],'°C')" )" >> "$GITHUB_STEP_SUMMARY" || true

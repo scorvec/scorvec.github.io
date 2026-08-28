@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="description" content="Animated loops of global sea-surface temperature, wind, and precipitation anomalies.">
+<link rel="canonical" href="https://scorvec.com/sst_anim.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SST Anomaly Animation · Shawn Corvec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* one player chrome everywhere, standalone or embedded */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --page: #081120; --surface: #0d1a2e; --border: rgba(148,184,225,0.16);
+    --ink: #e9eff8; --ink2: #a7b8ce; --muted: #6d8099;
+    --aqua: #4dd6e8; --aqua-deep: #2aa5bd;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  body {
+    background: radial-gradient(1200px 700px at 70% -10%, #102440 0%, var(--page) 55%) fixed, var(--page);
+    color: var(--ink); font-family: var(--sans);
+    -webkit-font-smoothing: antialiased; padding: 1rem;
+    display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
+    min-height: 100vh;
+  }
+  .frame-wrap {
+    width: 100%; max-width: 1280px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    position: relative;
+  }
+  .frame-wrap img { display: block; width: 100%; height: auto; }
+  /* MOBILE + very wide products (global TC, ASCAT strips...): shrink-to-fit
+     makes raster text unreadable. Render at a legible height with horizontal
+     pan instead, and let a tap open the frame for native pinch-zoom. */
+  .frame-wrap.panwide { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .frame-wrap.panwide img { width: auto; max-width: none; height: 60vw;
+                            max-height: 380px; }
+  .frame-loading {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; color: var(--muted); font-size: 0.85rem;
+    background: rgba(8,17,32,0.55);
+  }
+  .frame-loading.hidden { display: none; }
+
+  /* ONE slim row: transport · slider · pickers · date. It wraps on narrow
+     screens (slider takes its own line); the old two-row + separate date
+     layout wasted ~50 px under every animation on the site. */
+  .controls {
+    width: 100%; max-width: 1280px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.45rem 0.65rem;
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  }
+  .btn {
+    border: 1px solid var(--border); background: transparent; color: var(--ink2);
+    border-radius: 8px; padding: 0.34rem 0.6rem; cursor: pointer;
+    font-size: 0.9rem; line-height: 1; transition: all 0.15s;
+  }
+  .btn:hover { color: var(--ink); border-color: rgba(148,184,225,0.45); }
+  .btn.play { background: var(--aqua); border-color: var(--aqua); color: #06222c;
+              min-width: 2.7rem; font-weight: 600; }
+  .btn.play:hover { background: #6ee0ef; }
+  select {
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink2);
+    border-radius: 999px; padding: 0.3rem 0.55rem; font-size: 0.8rem;
+    font-family: var(--sans); cursor: pointer;
+  }
+  label.ctl-label {
+    font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .slider { flex: 1; min-width: 140px; accent-color: var(--aqua); }
+  .frame-date {
+    font-size: 0.74rem; color: var(--muted); font-variant-numeric: tabular-nums;
+    margin-left: auto; white-space: nowrap;
+  }
+  .hint { display: none; font-size: 0.7rem; color: var(--muted); width: 100%; }
+  body:not(.embed) .hint { display: block; text-align: center; }
+  .speed { display: flex; align-items: center; gap: 0.3rem; }
+  a.back {
+    align-self: flex-start; font-size: 0.8rem; color: var(--aqua-deep);
+    text-decoration: none; max-width: 1280px; width: 100%;
+  }
+  @media (max-width: 600px) {
+    select, .btn { font-size: 16px; }
+    .slider { flex-basis: 100%; order: 10; }
+    .frame-date { font-size: 0.7rem; }
+    .controls { gap: 0.45rem; }
+  }
+  /* embedded in a card iframe: the parent sizes the iframe to image + controls
+     via postMessage (postHeight()), so there is never letterboxing at any
+     viewport width. The frame renders at most at native resolution and at most
+     88% of the top window's height (capHeight()) so the whole animation always
+     fits the monitor, like the site's still images. */
+  body.embed .frame-wrap:not(.panwide) img {
+    width: auto; max-width: 100%; height: auto; margin: 0 auto;
+  }
+  body.embed {
+    padding: 0; gap: 0; min-height: 0; overflow: hidden;
+    justify-content: flex-start; background: var(--page);
+  }
+  body.embed .frame-wrap {
+    width: 100%; max-width: none; display: block;
+    border: none; border-radius: 0; background: transparent;
+  }
+  body.embed .controls {
+    border: none; border-left: none; border-right: none; border-radius: 0;
+    border-top: 1px solid var(--border); background: rgba(13,26,46,0.6);
+    padding: 0.35rem 0.55rem;
+  }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+<a class="back" id="back-link" href="sst.html">&larr; Back to SST &amp; RONI</a>
+
+<div class="frame-wrap">
+  <img id="frame" alt="SST anomaly animation frame">
+  <div class="frame-loading" id="loading">Loading frames&hellip;</div>
+</div>
+
+<div class="controls">
+  <button class="btn" id="first" title="First (Home)">&#x23EE;</button>
+  <button class="btn" id="prev" title="Previous (&larr;)">&#x25C0;</button>
+  <button class="btn play" id="play" title="Play/Pause (Space)">&#x25B6;</button>
+  <button class="btn" id="next" title="Next (&rarr;)">&#x25B6;&#x25B6;</button>
+  <button class="btn" id="last" title="Last (End)">&#x23ED;</button>
+  <input type="range" class="slider" id="slider" min="0" max="0" value="0">
+  <label class="ctl-label" id="regionLabel">Region</label>
+  <select id="region"></select>
+  <span class="speed">
+    <select id="speed" title="playback speed">
+      <option value="0.5">0.5&times;</option>
+      <option value="1" selected>1&times;</option>
+      <option value="2">2&times;</option>
+      <option value="4">4&times;</option>
+    </select>
+  </span>
+  <span class="frame-date" id="date">&mdash;</span>
+  <span class="hint">Space play &middot; &larr; &rarr; step &middot; Home/End jump</span>
+</div>
+
+<script>
+const ANIM_BASE = new URLSearchParams(location.search).get("base") || "assets/sst/anim";
+let manifest = null;
+let region = null;
+let frames = [];
+let idx = 0;
+let playing = false;
+let timer = null;
+let baseDelay = 220;     // ms per frame at 1x
+let speed = 1;
+let preloaded = {};      // region -> array of Image objects
+
+const $ = id => document.getElementById(id);
+const imgEl = $("frame"), dateEl = $("date"), slider = $("slider");
+const loadingEl = $("loading");
+
+// When embedded in a card iframe, tell the parent our exact content height so it can
+// size the iframe to the image + controls (no letterboxing). Fires on every frame
+// load and on resize (width change → image height changes since it scales to width).
+function capHeight() {
+  // keep image + controls within the top window's viewport (same-origin embed);
+  // panwide mode has its own CSS height cap — an inline max-height would override it
+  try {
+    const wrap = imgEl.closest(".frame-wrap");
+    if (wrap && wrap.classList.contains("panwide")) { imgEl.style.maxHeight = ""; return; }
+    const ch = document.querySelector(".controls").offsetHeight || 0;
+    imgEl.style.maxHeight = Math.max(240, Math.round(window.top.innerHeight * 0.88 - ch)) + "px";
+  } catch (e) {}
+}
+function postHeight() {
+  if (!document.body.classList.contains("embed")) return;
+  capHeight();
+  const h = Math.ceil(document.body.getBoundingClientRect().height);
+  if (h > 0) parent.postMessage({ type: "sstAnimHeight", h }, "*");
+}
+imgEl.addEventListener("load", postHeight);
+addEventListener("resize", postHeight);
+
+// wide-image mobile handling: aspect > 2.4 on a narrow screen → pan mode
+function fitWide() {
+  const wrap = imgEl.closest(".frame-wrap");
+  if (!wrap || !imgEl.naturalWidth) return;
+  const wide = imgEl.naturalWidth / imgEl.naturalHeight > 2.4
+    && Math.min(window.innerWidth, document.body.clientWidth) < 700;
+  wrap.classList.toggle("panwide", wide);
+}
+imgEl.addEventListener("load", () => { fitWide(); postHeight(); });
+addEventListener("resize", () => { fitWide(); postHeight(); });
+imgEl.addEventListener("click", () => {          // click → larger version
+  // Embedded: ask the parent page to open its lightbox on the current frame
+  // (lightbox.js listens for same-origin lb-show messages). Standalone or no
+  // parent lightbox: open the raw frame, pinch-zoomable, in a new tab.
+  if (document.body.classList.contains("embed")) {
+    try {
+      parent.postMessage({ type: "lb-show", src: imgEl.src,
+                           caption: dateEl ? dateEl.textContent : "" },
+                         location.origin);
+      return;
+    } catch (e) { /* cross-origin parent — fall through */ }
+  }
+  window.open(imgEl.src, "_blank");
+});
+imgEl.style.cursor = "zoom-in";
+// the control bar's own height changes when the row wraps (narrow cards) or
+// fonts finish loading — observe it directly so the parent never miscounts
+if (window.ResizeObserver) new ResizeObserver(postHeight).observe(document.body);
+
+async function init() {
+  try {
+    const MF = new URLSearchParams(location.search).get("manifest") || "manifest.json";
+{ // "back" follows whichever product embeds the animator
+  const b = (new URLSearchParams(location.search).get("base") || "").toLowerCase();
+  const dest = b.includes("mjo") ? ["mjo.html", "MJO Forecast"] : null;
+  const bl = document.getElementById("back-link");
+  if (bl && dest) { bl.href = dest[0]; bl.innerHTML = "&larr; Back to " + dest[1]; }
+}
+    const r = await fetch(`${ANIM_BASE}/${MF}?v=${Date.now()}`);
+    manifest = await r.json();
+  } catch (e) {
+    dateEl.textContent = "Failed to load animation manifest.";
+    loadingEl.classList.add("hidden");
+    return;
+  }
+  // Populate region dropdown
+  const regSel = $("region");
+  regSel.innerHTML = "";
+  Object.entries(manifest.regions).forEach(([rid, rdata]) => {
+    const opt = document.createElement("option");
+    opt.value = rid;
+    opt.textContent = rdata.label;
+    regSel.appendChild(opt);
+  });
+  // Region from ?region=, #hash, or the manifest's default; ?embed=1 strips chrome for
+  // inline iframes — but a multi-region manifest (e.g. GLM 1h/3h/24h) keeps the picker so
+  // the viewer can switch. A manifest may relabel the picker via "selectorLabel".
+  const params = new URLSearchParams(location.search);
+  const want = params.get("region") || location.hash.replace("#", "") || manifest.default;
+  region = (want && manifest.regions[want]) ? want : regSel.value;
+  regSel.value = region;
+  const multiRegion = Object.keys(manifest.regions).length > 1;
+  const regLabel = document.getElementById("regionLabel");
+  if (manifest.selectorLabel && regLabel) regLabel.textContent = manifest.selectorLabel;
+  if (params.has("embed")) {
+    document.body.classList.add("embed");
+    const b = document.querySelector(".back"); if (b) b.style.display = "none";
+    if (!multiRegion) {                          // single-region embed: hide the picker
+      if (regLabel) regLabel.style.display = "none";
+      regSel.style.display = "none";
+    }
+  }
+  regSel.addEventListener("change", () => { switchRegion(regSel.value); });
+
+  setupRegion();
+}
+
+function setupRegion() {
+  frames = manifest.regions[region].frames;
+  slider.max = frames.length - 1;
+  // forecast-style embeds can ask to open on a specific frame (?start=0) and
+  // roll on load (?autoplay=1); observation loops keep the newest-frame default
+  const P = new URLSearchParams(location.search);
+  const s = P.get("start");
+  idx = s !== null ? Math.min(Math.max(parseInt(s) || 0, 0), frames.length - 1)
+                   : frames.length - 1;     // default: most recent
+  preload(region);
+  showFrame(idx);
+  if (P.get("autoplay") === "1" && !playing) play();
+}
+
+function switchRegion(rid) {
+  stop();
+  region = rid;
+  setupRegion();
+}
+
+// phones: decoding every full-size frame at once blows Safari's image budget
+// (frames go blank mid-loop) — preload a rolling window instead
+const EAGER = !(window.matchMedia && matchMedia("(pointer:coarse)").matches)
+  && screen.width > 700;
+function preloadWindow(rid, center) {
+  const fr = manifest.regions[rid].frames, span = 8;
+  for (let d = 0; d <= span; d++) {
+    const k = (center + d) % fr.length;
+    const im = new Image();
+    im.src = `${ANIM_BASE}/${rid}/${fr[k].file}?v=${fr[k].date}.${manifest.ver||""}`;
+    if (d === 0) {
+      if (im.complete) loadingEl.classList.add("hidden");
+      else im.onload = () => loadingEl.classList.add("hidden");
+    }
+  }
+}
+function preload(rid) {
+  if (!EAGER) { preloadWindow(rid, Math.max(0, manifest.regions[rid].frames.length - 1)); return; }
+  if (preloaded[rid]) return;
+  preloaded[rid] = manifest.regions[rid].frames.map(f => {
+    const im = new Image();
+    im.src = `${ANIM_BASE}/${rid}/${f.file}?v=${f.date}.${manifest.ver||""}`;   // bust cache when sliding-window content changes
+    return im;
+  });
+  // hide the loading overlay once the first frame of the region is ready
+  const first = preloaded[rid][frames.length - 1] || preloaded[rid][0];
+  if (first.complete) loadingEl.classList.add("hidden");
+  else first.onload = () => loadingEl.classList.add("hidden");
+}
+
+function showFrame(i) {
+  idx = (i + frames.length) % frames.length;
+  if (!EAGER && idx % 4 === 0) preloadWindow(region, idx);
+  const f = frames[idx];
+  imgEl.src = `${ANIM_BASE}/${region}/${f.file}?v=${f.date}.${manifest.ver||""}`;
+  dateEl.textContent = f.label;
+  slider.value = idx;
+}
+
+function step(d) { showFrame(idx + d); }
+
+function play() {
+  if (playing) { stop(); return; }
+  playing = true;
+  $("play").innerHTML = "&#x23F8;";   // pause glyph
+  const tick = () => {
+    if (!playing) return;
+    // loop back to start at the end
+    showFrame(idx + 1 >= frames.length ? 0 : idx + 1);
+    timer = setTimeout(tick, baseDelay / speed);
+  };
+  timer = setTimeout(tick, baseDelay / speed);
+}
+
+function stop() {
+  playing = false;
+  $("play").innerHTML = "&#x25B6;";
+  if (timer) clearTimeout(timer);
+}
+
+// Controls
+$("play").addEventListener("click", play);
+$("next").addEventListener("click", () => { stop(); step(1); });
+$("prev").addEventListener("click", () => { stop(); step(-1); });
+$("first").addEventListener("click", () => { stop(); showFrame(0); });
+$("last").addEventListener("click", () => { stop(); showFrame(frames.length - 1); });
+slider.addEventListener("input", () => { stop(); showFrame(parseInt(slider.value)); });
+$("speed").addEventListener("change", e => {
+  speed = parseFloat(e.target.value);
+  if (playing) { stop(); play(); }
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === " ") { e.preventDefault(); play(); }
+  else if (e.key === "ArrowRight") { stop(); step(1); }
+  else if (e.key === "ArrowLeft") { stop(); step(-1); }
+  else if (e.key === "Home") { stop(); showFrame(0); }
+  else if (e.key === "End") { stop(); showFrame(frames.length - 1); }
+});
+
+init();
+</script>
+</body>
+</html>

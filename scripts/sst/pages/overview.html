@@ -1,0 +1,469 @@
+<main>
+  <header>
+    <div class="eyebrow">Daily &middot; NOAA OISST v2.1 &middot; anomalies vs 1991&ndash;2020</div>
+    <h1>El <em>Ni&ntilde;o</em> Monitor</h1>
+    <p class="sub">Daily estimates of the Oceanic Ni&ntilde;o Index and its warming-era
+    replacement, RONI, ahead of the official monthly numbers &mdash; with every Ni&ntilde;o
+    region, the tropical background, and the maps behind them. Computed from source data,
+    updated every morning.</p>
+    <div class="chips" id="chips">
+      <div class="chip"><div class="l">Loading daily indices&hellip;</div><div class="v neut">&mdash;</div></div>
+    </div>
+  </header>
+
+  <div class="topic-grid">
+    <a class="topic-card" href="enso-subsurface.html">
+      <h3>Subsurface</h3>
+      <p>Equatorial depth&ndash;longitude temperature: the warm reservoir that leads the surface.</p>
+    </a>
+    <a class="topic-card" href="enso-analogs.html">
+      <h3>Analogs</h3>
+      <p>The current event against 1997, 2015 and 2023 in surface, subsurface and wind.</p>
+    </a>
+    <a class="topic-card" href="enso-forecasts.html">
+      <h3>Forecasts</h3>
+      <p>C3S multi-model seasonal Ni&ntilde;o-3.4 outlook and the ensemble SOI forecast.</p>
+    </a>
+    <a class="topic-card" href="enso-atmosphere.html">
+      <h3>Atmosphere</h3>
+      <p>Equatorial winds, the Southern Oscillation, and westerly-wind-burst activity.</p>
+    </a>
+  </div>
+
+  <!-- ── TODAY'S OISST ANOMALY — ANIMATED ──────────────────────────────── -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Today's SST anomaly &mdash; OISST</h2>
+      <p>The latest NOAA OISST v2.1 daily field, as anomalies vs 1991&ndash;2020 &mdash;
+      the raw material behind every index on this page &mdash; animated over the last
+      90 days. Global on top, the tropical Pacific below with the Ni&ntilde;o regions
+      outlined; each frame is stamped with that day's ONI / tropical-mean / RONI
+      readout. The panel's dropdown also offers the <b>global-mean-removed</b> variant,
+      which strips the uniform background warming and isolates the ENSO pattern.</p>
+    </div>
+    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
+            title="Global and tropical Pacific SST anomaly animation, latest OISST day" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA OISST v2.1 (PSL, NCEI fallback) &middot; 1/4&deg; &middot; anomalies vs 1991&ndash;2020 &middot; 90-day animation &middot; daily</span>
+      <span class="chart-updated" id="sst-updated">__SST_DAY__</span>
+    </div>
+  </div>
+
+  <!-- ── INTERACTIVE DAILY INDICES ─────────────────────────────────────── -->
+  <div class="card">
+    <h2>Daily ENSO indices &mdash; interactive</h2>
+    <p class="note">Every index is a daily area-weighted SST average, so today's value exists
+    today &mdash; no waiting for the month to close. <b style="color:#f2f4f8">Ni&ntilde;o-3.4</b>
+    is the raw material of ONI; the <b style="color:var(--aqua)">daily RONI</b> subtracts the
+    20&deg;S&ndash;20&deg;N tropical mean and rescales by the CPC/ECMWF &sigma;-factor, so it reads on
+    ONI's &plusmn;0.5&thinsp;&deg;C thresholds; the <b style="color:#e8c04d">90-day mean</b> is the
+    running daily estimate of ONI itself. Click legend entries to add
+    Ni&ntilde;o-1+2 / 3 / 4 and the tropical mean; drag to zoom, double-click to reset.</p>
+    <div class="controls">
+      <button class="pill on" data-mode="anom">Anomalies</button>
+      <button class="pill" data-mode="abs">Absolute &deg;C</button>
+      <span class="ctlsep">&middot;</span>
+      <button class="pill" data-range="90">90 days</button>
+      <button class="pill on" data-range="365">1 year</button>
+      <button class="pill" data-range="9999">Full record</button>
+    </div>
+    <div id="dailyChart" class="plot" style="height:440px"></div>
+    <div class="img-wrap" id="dailyFallback" hidden>
+      <img src="assets/sst/daily_indices.webp?v=__CACHE__" alt="Daily Niño-3.4, tropical-mean and relative SST indices" loading="lazy">
+    </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA OISST v2.1 daily &middot; cosine-weighted box means &middot; base 1991&ndash;2020 &middot; RONI scale: per-month &sigma;(ONI)/&sigma;(relative), CPC/ECMWF method</span>
+      <span class="chart-updated">__SST_DAY__</span>
+    </div>
+  </div>
+
+  <!-- ── MONTHLY ONI vs RONI ───────────────────────────────────────────── -->
+  <div class="card">
+    <h2>ONI vs RONI &mdash; the official convention</h2>
+    <p class="note">Three-month running means, the form CPC publishes. As the whole tropics warm,
+    conventional ONI drifts warm with the background; <b style="color:var(--aqua)">RONI</b> measures
+    Ni&ntilde;o-3.4 against the rest of the tropics and is the cleaner ENSO signal in a warming
+    ocean. When the two disagree, the atmosphere usually sides with RONI. Bars beyond
+    &plusmn;0.5&thinsp;&deg;C are El&nbsp;Ni&ntilde;o&nbsp;/&nbsp;La&nbsp;Ni&ntilde;a territory.</p>
+    <div id="monthlyChart" class="plot" style="height:340px"></div>
+    <div class="img-wrap" id="monthlyFallback" hidden>
+      <img src="assets/sst/roni.webp?v=__CACHE__" alt="ONI and RONI monthly time series" loading="lazy">
+    </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">Computed from NOAA OISST v2.1 &middot; 3-month centered means &middot; newest season still accumulating</span>
+      <span class="chart-updated" id="roni-updated">__RONI_MONTH__</span>
+    </div>
+  </div>
+
+  <!-- ── BEYOND ENSO: PDO / IOD / SOUTH ATLANTIC ───────────────────────── -->
+  <div class="card">
+    <h2>Beyond ENSO &mdash; daily PDO, Indian Ocean Dipole &amp; South Atlantic</h2>
+    <p class="note">The same daily-OISST machinery pointed at the other basins.
+    The <b style="color:#f2f4f8">PDO</b> is the leading pattern of North Pacific SST
+    variability &mdash; here as a <i>daily</i> index: each day's anomaly field (global-mean
+    removed) projected onto the ERSST-derived PDO pattern and calibrated to NCEI's
+    published monthly scale. The <b style="color:#e8c04d">Indian Ocean Dipole</b> is the
+    west-minus-east tropical Indian Ocean gradient (DMI); events beyond &plusmn;0.4&thinsp;&deg;C
+    shift Australian and East-African rainfall and often lean on ENSO. The
+    <b style="color:var(--aqua)">Atlantic</b> set tracks the Atlantic Ni&ntilde;o (ATL3),
+    the Tropical South Atlantic index, the subtropical dipole (SASD), and the
+    <b style="color:#ff8b7a">Tropical North Atlantic (TNA)</b> &mdash; the box average over
+    5.5&ndash;23.5&deg;N, 57.5&ndash;15&deg;W (Enfield convention). The TNA&ndash;TSA pair sets the
+    Atlantic ITCZ's position: a warm TNA pulls it north, the classic Nordeste-drought and
+    active-hurricane-season configuration.</p>
+    <div class="img-wrap">
+      <img src="assets/sst/pdo_daily.webp?v=__CACHE__" alt="Daily Pacific Decadal Oscillation index with 31-day mean" loading="lazy">
+    </div>
+    <div class="img-wrap">
+      <img src="assets/sst/iod_daily.webp?v=__CACHE__" alt="Daily Indian Ocean Dipole: DMI and its west and east poles" loading="lazy">
+    </div>
+    <div class="img-wrap">
+      <img src="assets/sst/satl_daily.webp?v=__CACHE__" alt="Daily South Atlantic indices: Atlantic Niño ATL3, TSA and subtropical dipole SASD" loading="lazy">
+    </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA OISST v2.1 daily &middot; base 1991&ndash;2020 &middot; PDO pattern: ERSST v5 North Pacific EOF, calibrated to NCEI (r&thinsp;=&thinsp;0.96) &middot; DMI: Saji boxes &middot; SASD: Morioka poles</span>
+      <span class="chart-updated">__SST_DAY__</span>
+    </div>
+  </div>
+
+  <!-- ── MUR 1-KM EQUATORIAL PACIFIC ───────────────────────────────────── -->
+  <div class="card">
+    <h2>Equatorial Pacific at kilometre scale &mdash; MUR</h2>
+    <p class="note">NASA JPL's <b>MUR</b> analysis blends infrared, microwave and in-situ SST
+    onto a ~1&nbsp;km grid &mdash; fine enough to resolve the <b style="color:var(--aqua)">tropical
+    instability wave</b> cusps rolling along the cold-tongue front, the Gal&aacute;pagos wake, and
+    the Peruvian coastal upwelling that the 0.25&deg; OISST maps above smooth over. One frame per
+    day from <b>1 April 2026</b> &mdash; just before this event's onset (sustained
+    RONI&nbsp;&ge;&nbsp;+0.5 from 21 May) &mdash; with a colour range fixed across the whole
+    sequence, so the eastern Pacific visibly warms while the instability waves ripple the front.
+    Click a frame to enlarge it. MUR interpolates under persistent cloud: treat the finest
+    structure as analysis, not direct observation.</p>
+    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;manifest=mur_manifest.json&amp;region=mur_ct"
+            title="Daily MUR SST animation of the equatorial Pacific cold tongue since event onset" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NASA JPL MUR SST v4.1 (GHRSST L4) &middot; via NOAA CoastWatch ERDDAP &middot; ~1&ndash;2 day latency &middot; daily</span>
+      <span class="chart-updated">__SST_DAY__</span>
+    </div>
+  </div>
+
+  <!-- ── 90-DAY ANIMATION: RAW SST ─────────────────────────────────────── -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Ninety days in motion &mdash; raw SST</h2>
+      <p>The actual sea-surface temperature field, not the anomaly: the West Pacific warm pool,
+      the equatorial cold tongue and the western boundary currents are visible directly, and the
+      28&ndash;29&nbsp;&deg;C convective threshold shows where deep convection can root.</p>
+    </div>
+    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=absolute"
+            title="Global and tropical Pacific absolute SST animation" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; absolute SST &middot; 90-day animation</span>
+      <span class="chart-updated">__SST_DAY__</span>
+    </div>
+  </div>
+
+  <!-- HISTORICAL DAILY SOI (30/90-day running means vs the record) -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Daily SOI: the Current Event vs the Record</h2>
+      <p><b>150 years of the Southern Oscillation, with today marked against the records.</b> <b>Top</b>: the Bureau of Meteorology's monthly Troup SOI computed one way from <b>1876 to the present</b> &mdash; monthly (light) and 3-month mean (bold), with dotted record lines: the all-time monthly extremes were set in Apr&nbsp;1905 (&minus;42.6) and Aug&nbsp;1917 (+34.8). <b>Middle</b>: the consistent <b>daily</b> record &mdash; LongPaddock's daily Troup index (10&middot;(&Delta;P&nbsp;&minus;&nbsp;m)/&sigma;, &Delta;P = Tahiti&nbsp;&minus;&nbsp;Darwin MSLP, fixed 1887&ndash;1989 base), June&nbsp;1991&ndash;present, as 30-day and 90-day running means with their own record max/min lines (1997&ndash;98 holds the 30-day minimum; 2010&ndash;11 the positive records). <b>Bottom</b>: the last 24 months with raw daily values as bars. Sustained values below &minus;8 are the classic Troup El&nbsp;Ni&ntilde;o threshold; the record lines show at a glance how the current excursion ranks in a century and a half of data.</p>
+    </div>
+    <div class="img-wrap"><img src="assets/sst/soi_history.webp?v=__CACHE__" alt="Daily SOI history: 30-day and 90-day running means with all-time record max/min lines" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">Queensland Govt LongPaddock / BoM daily Troup SOI &middot; fixed 1887&ndash;1989 base &middot; updated each cycle</span>
+    </div>
+  </div>
+
+  <!-- MEI.v2 DAILY NOWCAST -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>MEI.v2 Daily Nowcast</h2>
+      <p>NOAA PSL's Multivariate ENSO Index v2 is the leading combined-EOF of five tropical-Pacific fields (sea-level pressure, SST, surface zonal and meridional wind, and OLR), but it is published only as an overlapping bimonthly value with a roughly five-week lag. This is a daily nowcast of it: a regression of the published MEI.v2 onto freely-available daily ENSO components (the Ni&ntilde;o-3.4 SST anomaly, the Southern Oscillation Index, and the equatorial 850-hPa zonal wind), driven forward each day. The grey steps are the official bimonthly MEI.v2; the red line is the daily estimate, with a &plusmn;0.30 leave-one-year-out cross-validation band (the fit reproduces MEI.v2 at R&nbsp;=&nbsp;0.94). The model is SST-weighted, so during a fast SST-led transition it can lead MEI's slower atmospheric components.</p>
+    </div>
+    <div class="img-wrap">
+      <img src="assets/sst/mei/mei_nowcast.webp?v=__CACHE__"
+           alt="Daily nowcast of the Multivariate ENSO Index version 2" loading="lazy">
+    </div>
+    <div class="img-wrap">
+      <p class="img-label">Onset-year analogs: the current year against the major El Ni&ntilde;os</p>
+      <img src="assets/sst/mei/mei_analogs.webp?v=__CACHE__"
+           alt="MEI.v2 onset-year analogs: 1982, 1997, 2015, 2023 vs the current nowcast" loading="lazy">
+    </div>
+    <div class="img-wrap">
+      <p class="img-label">Full record since 1980</p>
+      <img src="assets/sst/mei/mei_history.webp?v=__CACHE__"
+           alt="Full Multivariate ENSO Index v2 record since 1980 with the live nowcast tail" loading="lazy">
+    </div>
+    <div class="img-wrap">
+      <p class="img-label">Out-of-sample skill: the 2015&ndash;16 El Ni&ntilde;o</p>
+      <img src="assets/sst/mei/mei_validation.webp?v=__CACHE__"
+           alt="Validation of the MEI.v2 nowcast over the 2015-16 El Niño" loading="lazy">
+    </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">Regression on NOAA OISST Ni&ntilde;o-3.4 &middot; SOI (BoM) &middot; ERA5 eq-u850 &middot; target: NOAA PSL MEI.v2</span>
+      <span class="chart-updated">nowcast, daily</span>
+    </div>
+  </div>
+
+  <!-- SYNTHETIC OLR HOVMÖLLER (GMGSI IR) -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Equatorial Convection: Synthetic OLR Hovm&ouml;ller</h2>
+      <p>A longitude &times; time Hovm&ouml;ller of deep convection along the equator. NOAA's interpolated-OLR product ended in 2022, so this derives an OLR proxy in real time from the <b>GMGSI</b> global longwave-IR satellite mosaic: the IR brightness temperature (cold cloud tops) is converted to outgoing longwave radiation, and the 5&deg;S&ndash;5&deg;N zonal mean is stacked over time. <span style="color:#e07b00">Yellow to red is low OLR (deep convection)</span>; blue is high OLR (suppressed or clear sky). An eastward (top to bottom-right) tilt is the MJO propagating east; convection parked at the dateline reflects the El&nbsp;Ni&ntilde;o-shifted warm pool. Newest day at the bottom.</p>
+    </div>
+    <div class="img-wrap" style="max-width:760px;margin:0 auto"><img id="olr-hovmoller" data-src="assets/sst/olr_hovmoller.webp" alt="Synthetic equatorial OLR Hovmöller from GMGSI longwave IR" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA GMGSI longwave-IR global mosaic &middot; McIDAS T_b + Ohring-Gruber OLR &middot; 5&deg;S&ndash;5&deg;N daily mean</span>
+      <span class="chart-updated">updated through the day</span>
+    </div>
+  </div>
+
+  <!-- TROPICAL PACIFIC IR SATELLITE LOOP (GMGSI) -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Tropical Pacific: Live IR Satellite Loop</h2>
+      <p>The clouds behind the OLR Hovm&ouml;ller. NOAA blends GOES-East/West, Himawari and Meteosat into the <b>GMGSI</b> global longwave-IR mosaic on a regular lat/lon grid, so the field is seamless and georeferenced with no stitching or satellite-switch parallax. Cropped to the tropical Pacific with coastlines for orientation, looping the last 72&nbsp;hours. White is cold cloud tops (deep convection).</p>
+    </div>
+    <iframe class="anim-embed pacsat" src="sst_anim.html?embed=1&amp;manifest=pacsat_manifest.json&amp;region=pacsat"
+            title="Seamless tropical-Pacific longwave-IR satellite loop from the GMGSI global mosaic" loading="lazy"></iframe>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
+  </div>
+
+  <!-- SOUTH & CENTRAL AMERICA IR SATELLITE LOOP (GMGSI) -->
+  <div class="chart-card media-narrow">
+    <div class="chart-card-header">
+      <h2>South &amp; Central America: Live IR Satellite Loop</h2>
+      <p>The same <b>GMGSI</b> longwave-IR mosaic cropped to the Americas, from southern Mexico and the Caribbean to Tierra del Fuego, across both the eastern Pacific and the tropical Atlantic. Georeferenced with coastlines, looping the last 72&nbsp;hours. White and colour are cold cloud tops (deep convection).</p>
+    </div>
+    <iframe class="anim-embed samsat" src="sst_anim.html?embed=1&amp;manifest=samsat_manifest.json&amp;region=samsat"
+            title="Seamless South &amp; Central America longwave-IR satellite loop from the GMGSI global mosaic" loading="lazy"></iframe>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA GMGSI longwave-IR global mosaic (GOES-E/W + Himawari + Meteosat) &middot; McIDAS brightness-temperature calibration &middot; hourly, rolling 72&nbsp;h</span></div>
+  </div>
+
+  <!-- OLR WHEELER-KILADIS WAVE DECOMPOSITION -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Tropical Waves and Variability: OLR Hovm&ouml;ller</h2>
+      <p>A longitude &times; time Hovm&ouml;ller of the equatorial outgoing-longwave-radiation (OLR) anomaly, averaged 5&deg;S&ndash;5&deg;N around the globe. OLR is derived in real time from the <b>GMGSI</b> longwave-IR mosaic (McIDAS brightness temperature to OLR), with the anomaly taken against NOAA's interpolated-OLR daily climatology (1979&ndash;2022). The shaded field is the total anomaly: <span style="color:#19975a">green is low OLR (deep convection)</span>, <span style="color:#9a6a18">brown is high OLR (suppressed)</span>.</p>
+      <p>Each overlaid component is isolated from that anomaly field and contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin is eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;30&nbsp;d, equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO is eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER is westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed.</p>
+    </div>
+    <div class="img-wrap" style="max-width:960px;margin:0 auto"><img id="olr-waves" data-src="assets/sst/olr_waves.webp" alt="Wheeler-Kiladis wave decomposition of equatorial OLR" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">GMGSI longwave-IR proxy &middot; Wheeler&ndash;Kiladis k&ndash;&omega; filtering (eq. depth 8&ndash;90&nbsp;m) &middot; climatology NOAA interp-OLR 1979&ndash;2022</span>
+      <span class="chart-updated">daily</span>
+    </div>
+  </div>
+
+  <!-- KELVIN / ER WAVE TRACKERS -->
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>Kelvin &amp; Equatorial Rossby Wave Trackers</h2>
+      <p>Each wave isolated in its own panel &mdash; the <b style="color:#1565c0">Kelvin</b>-filtered
+      (5&deg;S&ndash;5&deg;N) and <b style="color:#e6007e">equatorial-Rossby</b>-filtered
+      (15&deg;S&ndash;15&deg;N, n=1) OLR anomaly as shading &mdash; with the active
+      enhanced-convection packets <b>tracked</b>: the band's recent phase speed is fitted
+      by day-to-day lag correlation of the filtered field, today's packet centres are
+      located, and each characteristic is extrapolated ahead at that speed (dotted
+      line). Below the dashed today-line the shading is a true <b>forecast</b>: the
+      AIFS-ENS ensemble-mean precipitation (as a pseudo-OLR, standardized against an
+      ERA5 1991&ndash;2020 band climatology) is appended to the record and run through
+      the <em>same</em> Wheeler&ndash;Kiladis filter, so the wave field continues with
+      the model's dynamics &mdash; where the dotted constant-speed line and the model
+      streaks agree, confidence in the arrival time is high.</p>
+    </div>
+    <div class="img-wrap" style="max-width:1100px;margin:0 auto"><img id="wave-tracker" data-src="assets/sst/wave_tracker.webp" alt="Kelvin and equatorial Rossby wave trackers with phase-speed extrapolation" loading="lazy"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">Same GMGSI OLR proxy + Wheeler&ndash;Kiladis filters as above
+      &middot; phase speed from lag-1-day circular cross-correlation (last 15 days)
+      &middot; forecast strip: AIFS-ENS ens-mean precip pseudo-OLR, identically filtered
+      (falls back to constant-speed extrapolation if no cycle is cached)</span>
+      <span class="chart-updated">daily</span>
+    </div>
+  </div>
+
+  <div class="colophon">
+    <h3>About these plots</h3>
+    <p>This monitor pulls together a range of ENSO and tropical-climate diagnostics, each computed from public source data (not screen-scraped) and regenerated automatically on its own schedule, then committed to the site's GitHub repository. <b>Daily:</b> the global and tropical-Pacific SST anomaly maps, RONI, and indices (NOAA OISST); the equatorial subsurface-temperature cross-section (NOAA/PMEL TAO/TRITON moorings); observed equatorial surface winds (Copernicus Marine scatterometer / ASCAT); and, from the ECMWF AIFS-ENS / IFS-ENS ensembles, the equatorial wind Hovm&ouml;ller and the Southern Oscillation Index forecast. <b>Monthly:</b> the C3S multi-model Ni&ntilde;o-3.4 seasonal forecast &mdash; the Copernicus multi-system seasonal ensemble (ECMWF, UK Met Office, M&eacute;t&eacute;o-France, DWD, NCEP, ECCC/CanSIPS and the Australian BoM), shown as both traditional ONI and RONI, each model anomalized against its own 1993&ndash;2016 hindcast. <b>Weekly:</b> the El Ni&ntilde;o analog comparisons against 1997, 2015 and 2023. RONI is computed directly (the cosine-latitude-weighted Ni&ntilde;o-3.4 anomaly minus the 20&deg;S&ndash;20&deg;N tropical mean, 3-month smoothed) rather than fetched, then rescaled by the per-calendar-month &sigma;(ONI)/&sigma;(relative) factor (NOAA-CPC / ECMWF method) so it stays in &deg;C and comparable to ONI (1991&ndash;2020 OISST).</p>
+    <p><b>Data &amp; acknowledgments:</b> ECMWF AIFS-ENS and IFS-ENS forecasts (wind Hovm&ouml;ller, SOI) are used under the ECMWF open-data licence (CC&nbsp;BY&nbsp;4.0, &copy;&nbsp;ECMWF). Climatologies and the reanalysis-based fields use <b>ERA5</b> from the Copernicus Climate Change Service (C3S) / ECMWF; generated using Copernicus Climate Change Service information, and neither the European Commission nor ECMWF is responsible for any use of the data. The C3S multi-model Ni&ntilde;o-3.4 seasonal forecast is generated using Copernicus Climate Change Service information from the CDS seasonal multi-system (ECMWF, UK Met Office, M&eacute;t&eacute;o-France, DWD, NCEP, ECCC and the Australian BoM). Other sources: NOAA OISST &amp; PSL, NOAA/PMEL TAO/TRITON, Copernicus Marine Service (ASCAT winds), and the Australian Bureau of Meteorology / Queensland Govt LongPaddock (SOI).</p>
+    <p>Source on <a href="https://github.com/scorvec/scorvec.github.io" target="_blank" rel="noopener">GitHub</a>.</p>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  // display palette (the pipeline's map colors, brightened for the dark theme)
+  var C = { nino12: "#e86bb8", nino3: "#2fbfb2", nino34: "#f2f4f8", nino4: "#9b7ce8",
+            trop: "#8fa3bd", roni_d: "#4dd6e8", oni90: "#e8c04d" };
+  var GRID = "rgba(148,184,225,0.22)", AXIS = "#8296ad", INK2 = "#a7b8ce";
+  var state = { mode: "anom", range: 365, data: null };
+
+  function tone(v, th) { th = th || 0.5; return v >= th ? "warm" : v <= -th ? "cool" : "neut"; }
+  function fmt(v) { return v == null ? "—" : (v > 0 ? "+" : "") + v.toFixed(2); }
+  function arrow(d) {
+    if (d == null) return "";
+    var a = d > 0.005 ? "▲" : d < -0.005 ? "▼" : "•";
+    var cls = d > 0.005 ? "warm" : d < -0.005 ? "cool" : "neut";
+    return ' <span class="' + cls + '" style="font-size:12px">' + a + " " + fmt(d) + " / 7d</span>";
+  }
+  function ensoState(oni, roni) {
+    var v = roni;                                       // RONI is the cleaner signal
+    var name = v >= 0.5 ? "El Niño" : v <= -0.5 ? "La Niña" : "Neutral";
+    var strength = Math.abs(v) >= 1.5 ? "strong " : Math.abs(v) >= 1.0 ? "moderate " : "";
+    if (Math.abs(v) < 0.5 && Math.abs(oni) >= 0.5)
+      return { name: "Neutral by RONI", sub: "ONI says " + (oni > 0 ? "El Niño" : "La Niña") + " — background warming inflates it" };
+    return { name: strength + name, sub: "by RONI " + fmt(roni) + " · ONI " + fmt(oni) };
+  }
+
+  function buildChips(L) {
+    var st = ensoState(L.oni, L.roni);
+    var chips = [
+      { l: "ENSO state · " + L.oni_month, v: st.name, s: st.sub,
+        cls: tone(L.roni) },
+      { l: "Daily Niño-3.4", v: fmt(L.nino34) + " °C", s: "single day, " + L.date + arrow(L.nino34_d7),
+        cls: tone(L.nino34) },
+      { l: "Daily RONI", v: fmt(L.roni_d) + " °C", s: "relative, σ-scaled" + arrow(L.roni_d_d7),
+        cls: tone(L.roni_d) },
+      { l: "ONI est. (90-day)", v: fmt(L.oni90) + " °C", s: "running daily estimate" + arrow(L.oni90_d7),
+        cls: tone(L.oni90) },
+      { l: "ONI · " + L.oni_month, v: fmt(L.oni) + " °C", s: "official 3-month convention",
+        cls: tone(L.oni) },
+      { l: "RONI · " + L.oni_month, v: fmt(L.roni) + " °C", s: "3-month, σ-scaled",
+        cls: tone(L.roni) },
+      { l: "Tropical mean 20S–20N", v: fmt(L.trop) + " °C", s: "the warming background" + arrow(L.trop_d7),
+        cls: "neut" },
+    ];
+    document.getElementById("chips").innerHTML = chips.map(function (c) {
+      return '<div class="chip"><div class="l">' + c.l + '</div>' +
+             '<div class="v ' + c.cls + '">' + c.v + '</div>' +
+             '<div class="s">' + c.s + "</div></div>";
+    }).join("");
+  }
+
+  function layout(extra) {
+    var base = {
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: { family: "Inter, sans-serif", size: 12, color: INK2 },
+      margin: { l: 46, r: 12, t: 8, b: 34 },
+      xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, zeroline: false },
+      yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
+               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2, title: { text: "°C", standoff: 4 } },
+      legend: { orientation: "h", y: 1.08, font: { size: 11 } },
+      hovermode: "x unified",
+      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
+                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+    };
+    for (var k in extra) base[k] = extra[k];
+    return base;
+  }
+  var CONFIG = { displayModeBar: false, responsive: true };
+
+  function thresholdShapes(x0, x1) {
+    return [0.5, -0.5].map(function (y) {
+      return { type: "line", x0: x0, x1: x1, y0: y, y1: y,
+               line: { color: y > 0 ? "rgba(232,131,58,0.45)" : "rgba(77,143,232,0.45)",
+                       width: 1, dash: "dot" } };
+    });
+  }
+
+  function drawDaily() {
+    var D = state.data.daily, dates = D.dates;
+    var n = dates.length;
+    var i0 = Math.max(0, n - state.range);
+    var x = dates.slice(i0);
+    function tr(key, name, color, opts) {
+      var t = { x: x, y: D[key].slice(i0), name: name, type: "scatter", mode: "lines",
+                line: { color: color, width: 1.6 },
+                hovertemplate: "%{y:+.2f} °C" };
+      for (var k in (opts || {})) t[k] = opts[k];
+      return t;
+    }
+    var traces, shapes = [];
+    if (state.mode === "anom") {
+      traces = [
+        tr("nino12", "Niño-1+2", C.nino12, { visible: "legendonly" }),
+        tr("nino3", "Niño-3", C.nino3, { visible: "legendonly" }),
+        tr("nino4", "Niño-4", C.nino4, { visible: "legendonly" }),
+        tr("trop", "Tropical mean", C.trop, { visible: "legendonly",
+          line: { color: C.trop, width: 1.2, dash: "dot" } }),
+        tr("nino34", "Niño-3.4 (daily)", C.nino34),
+        tr("roni_d", "Daily RONI", C.roni_d, { line: { color: C.roni_d, width: 2.4 } }),
+        tr("oni90", "ONI est. (90-d mean)", C.oni90, { line: { color: C.oni90, width: 2.2 } }),
+      ];
+      shapes = thresholdShapes(x[0], x[x.length - 1]);
+    } else {
+      traces = [
+        tr("nino12_abs", "Niño-1+2", C.nino12),
+        tr("nino3_abs", "Niño-3", C.nino3),
+        tr("nino34_abs", "Niño-3.4", C.nino34, { line: { color: C.nino34, width: 2.2 } }),
+        tr("nino4_abs", "Niño-4", C.nino4),
+      ];
+    }
+    var lay = layout({ shapes: shapes });
+    if (state.mode === "abs") lay.yaxis.title.text = "SST (°C)";
+    Plotly.react("dailyChart", traces, lay, CONFIG);
+  }
+
+  function drawMonthly() {
+    var M = state.data.monthly;
+    // CPC season codes: the month in the feed is the CENTER of the 3-month
+    // running mean, so 2026-06 is MJJ. Year suffix keeps an 18-season axis
+    // unambiguous.
+    var SEA = "JFMAMJJASOND";
+    var labels = M.months.map(function (ym) {
+      var y = +ym.slice(0, 4), m = +ym.slice(5, 7);
+      return SEA[(m + 10) % 12] + SEA[(m - 1) % 12] + SEA[m % 12] +
+             " ’" + String(y).slice(2);
+    });
+    var lay = layout({
+      barmode: "group", bargap: 0.25,
+      shapes: thresholdShapes(labels[0], labels[labels.length - 1]),
+      margin: { l: 46, r: 12, t: 8, b: 42 },
+    });
+    lay.xaxis.type = "category"; lay.xaxis.tickangle = -35;
+    Plotly.react("monthlyChart", [
+      { x: labels, y: M.oni, name: "ONI", type: "bar",
+        marker: { color: "rgba(232,192,77,0.85)" }, hovertemplate: "%{y:+.2f} °C" },
+      { x: labels, y: M.roni, name: "RONI", type: "bar",
+        marker: { color: "rgba(77,214,232,0.9)" }, hovertemplate: "%{y:+.2f} °C" },
+    ], lay, CONFIG);
+  }
+
+  // pills
+  document.querySelectorAll(".pill[data-mode]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.mode = b.dataset.mode;
+      document.querySelectorAll(".pill[data-mode]").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      if (state.data) drawDaily();
+    });
+  });
+  document.querySelectorAll(".pill[data-range]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.range = +b.dataset.range;
+      document.querySelectorAll(".pill[data-range]").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      if (state.data) drawDaily();
+    });
+  });
+  fetch("assets/sst/data/enso_daily.json?v=__CACHE__")
+    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (d) {
+      state.data = d;
+      buildChips(d.latest);
+      drawDaily();
+      drawMonthly();
+    })
+    .catch(function () {
+      // feed not built yet (or fetch blocked): fall back to the static renders
+      document.getElementById("chips").innerHTML =
+        '<div class="chip"><div class="l">Daily index feed</div>' +
+        '<div class="v neut">building…</div>' +
+        '<div class="s">static charts shown below</div></div>';
+      document.getElementById("dailyChart").style.display = "none";
+      document.getElementById("monthlyChart").style.display = "none";
+      document.getElementById("dailyFallback").hidden = false;
+      document.getElementById("monthlyFallback").hidden = false;
+    });
+})();
+</script>

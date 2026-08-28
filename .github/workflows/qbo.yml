@@ -1,0 +1,37 @@
+name: qbo-tracker
+on:
+  schedule:
+    - cron: "15 7 * * 1"        # Mondays 07:15 UTC — QBO is a monthly beast
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qbo-tracker
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Update recent months from IGRA year-to-date
+        run: python scripts/qbo/qbo_tracker.py update
+      - name: Commit if changed
+        run: |
+          git config user.name "qbo-bot"
+          git config user.email "actions@github.com"
+          git add qbo/qbo.json
+          git diff --cached --quiet && echo "no change" && exit 0
+          git commit -m "data update (weekly)"
+          for i in 1 2 3; do
+            if timeout 120 git pull --rebase origin main && timeout 180 git push origin main; then echo "pushed (attempt $i)"; exit 0; fi
+            git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

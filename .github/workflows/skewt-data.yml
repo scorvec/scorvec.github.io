@@ -1,0 +1,112 @@
+name: Skew-T sounding mirror
+
+# Mirrors the latest University of Wyoming soundings (global, BUFR/GTS) to the
+# `skewt-data` branch for the client-side Skew-T Explorer at /skewt/. UW sends
+# no CORS headers, so the browser fetches raw.githubusercontent.com instead
+# (which serves Access-Control-Allow-Origin: *). Each run force-pushes ONE
+# parentless commit — no main history growth, no Pages rebuild (same pattern
+# as asos5-data). Deleting this workflow just freezes the explorer's data.
+
+on:
+  schedule:
+    - cron: '35 1,2,3,7,13,14,15,19 * * *'   # hourly 1.5-3.5h after each 00Z/12Z synoptic + stragglers: UW posts a cycle late some days (12Z arrived ~14:15 UTC on 2026-08-16, leaving the page blue-less between the 13:35 and 15:35 passes)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: skewt-data
+  cancel-in-progress: true          # newest data wins
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/skewt
+            skewt/stations.json
+            skewt/sharplib.js
+            skewt/sharplib.wasm
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/checkout@v4
+        with:
+          ref: skewt-data
+          path: prev-data
+        continue-on-error: true    # first run: branch may not exist
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install --quiet numpy      # flag_anomalies.py needs it
+
+      - name: Mirror soundings
+        run: python scripts/skewt/mirror_soundings.py /tmp/skewt-data prev-data
+
+      - uses: actions/checkout@v4
+        with:
+          ref: skewt-archive
+          path: archive-data
+        continue-on-error: true
+
+      - name: Bundle complete days into the permanent archive
+        run: |
+          python scripts/skewt/archive_days.py /tmp/skewt-data/soundings archive-data
+          cd archive-data
+          if [ ! -d .git ]; then git init -q -b skewt-archive; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --staged --quiet; then
+            git commit -q -m "Archive: $(date -u +%F)"
+            git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:skewt-archive || \
+            git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:skewt-archive
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: skewt-climo
+          path: climo-data
+        continue-on-error: true
+
+      - name: Flag near-record soundings (record watch)
+        run: |
+          # Do NOT silently swallow a failure here: a bare '|| echo {}' hid a
+          # missing-numpy ImportError on every single run, so the record watch
+          # was quietly dead while looking healthy. Fail loudly, but still emit a
+          # valid file so the data push itself survives.
+          if ! python scripts/skewt/flag_anomalies.py /tmp/skewt-data/soundings \
+                 climo-data/climo /tmp/skewt-data/anomalies.json; then
+            echo "::warning::flag_anomalies FAILED — record watch empty this cycle (data still publishes)"
+            echo '{}' > /tmp/skewt-data/anomalies.json
+          fi
+
+      - name: Force-push data branch (single parentless commit)
+        run: |
+          cd /tmp/skewt-data
+          git init -q -b skewt-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Sounding mirror: $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" skewt-data
+          # Purge the jsDelivr edge for the hot JSONs. jsDelivr is ghFetch's
+          # last-resort host (used when raw.githubusercontent is blocked and
+          # api.github.com is rate-limited, e.g. corporate networks); without
+          # a purge its branch cache can serve these up to ~12 h stale, which
+          # breaks the record map + "Extreme today" panel on those networks.
+          for f in manifest.json anomalies.json; do
+            curl -s "https://purge.jsdelivr.net/gh/${{ github.repository }}@skewt-data/$f" >/dev/null 2>&1 || true
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Sounding mirror $(date -u +%F)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/skewt/](https://scorvec.com/skewt/)" >> "$GITHUB_STEP_SUMMARY"

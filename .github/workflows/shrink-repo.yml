@@ -1,0 +1,56 @@
+name: Shrink repo (collapse history)
+
+# Manual, DESTRUCTIVE: collapses main to a single commit of the current tree
+# and force-pushes, orphaning all history so GitHub GC reclaims the stored
+# size. The daily animation-frame churn (GDPS loops, OISST two-panel frames,
+# satellite loops, AIFS animators) rewrites tens of MB of webp per day, so the
+# repo regrows by roughly 3-6 GB/month; run this every month or two.
+#
+# Generalized 2026-08-25 from the synoptic-specific version: a plain collapse
+# orphans every old blob, so no git-filter-repo pass is needed.
+#
+# AFTER RUNNING — on the laptop (its pipelines commit locally):
+#     cd ~/scorvec.github.io && git fetch origin \
+#       && git stash -u && git reset --hard origin/main && git stash pop
+# A pull --rebase against the collapsed main would try to replay the entire
+# old history; reset --hard is the correct move.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type SHRINK to confirm the history collapse + force-push of main'
+        required: true
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shrink-repo
+  cancel-in-progress: false
+
+jobs:
+  shrink:
+    if: ${{ inputs.confirm == 'SHRINK' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout tip
+        uses: actions/checkout@v4    # depth 1: only the current tree is kept anyway
+
+      - name: Collapse to one commit + force-push
+        run: |
+          git checkout --orphan _slim
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "site (history collapsed $(date -u +%Y-%m-%d); see shrink-repo.yml)"
+          git branch -D main
+          git branch -m _slim main
+          # one small pack (all blobs already on origin); HTTP/1.1 + big post
+          # buffer avoids the chunked-transfer 500 seen on big packs
+          git config http.postBuffer 524288000
+          git config http.version HTTP/1.1
+          git push --force origin main
+          echo "Force-pushed collapsed main. GitHub GCs the orphaned blobs over the next days."
+          echo "REMINDER: on the laptop run  git fetch && git stash -u && git reset --hard origin/main && git stash pop"

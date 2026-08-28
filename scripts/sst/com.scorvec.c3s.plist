@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LaunchAgent: local monthly C3S multi-model ENSO forecast (ONI + RONI) builder.
+     This job runs LOCALLY only (the lagged ensembles need ~20 GB RAM to decode, more
+     than a GitHub runner has), so there is no Action fallback. Install with:
+       cp scripts/sst/com.scorvec.c3s.plist ~/Library/LaunchAgents/
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.c3s.plist
+     Reload after edits:
+       launchctl bootout gui/$(id -u)/com.scorvec.c3s 2>/dev/null
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.c3s.plist
+     Run once now (test):
+       launchctl kickstart -k gui/$(id -u)/com.scorvec.c3s
+     Fires every 6 h (StartInterval — macOS silently skips wall-clock StartCalendarInterval
+     under power-management/App-Nap even while awake) and passes --poll; run_c3s_nino34.sh
+     then only acts on days 6–16 (the C3S monthly release window), at most once per day, and
+     no-ops for the rest of the month once all 7 models are committed. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.scorvec.c3s</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/shawn/scorvec.github.io/scripts/sst/run_c3s_nino34.sh</string>
+    <string>--poll</string>
+  </array>
+  <key>StartInterval</key><integer>21600</integer>
+  <key>StandardOutPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/c3s.launchd.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/c3s.launchd.err.log</string>
+  <key>RunAtLoad</key><false/>
+  <key>ProcessType</key><string>Background</string>
+</dict>
+</plist>
