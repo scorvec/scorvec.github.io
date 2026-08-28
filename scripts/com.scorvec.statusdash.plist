@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.scorvec.statusdash</string>
+    <!-- Local pipeline/jobs monitor at http://localhost:8787. RunAtLoad + KeepAlive so it
+         starts on login and is relaunched if it ever exits. mjo env python = full features
+         (ECMWF store download view + psutil throughput). -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python</string>
+        <string>/Users/shawn/scorvec.github.io/scripts/status_dash.py</string>
+        <string>--port</string><string>8787</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/shawn/scorvec.github.io</string>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+    <key>StandardOutPath</key><string>/tmp/com.scorvec.statusdash.out</string>
+    <key>StandardErrorPath</key><string>/tmp/com.scorvec.statusdash.err</string>
+</dict>
+</plist>

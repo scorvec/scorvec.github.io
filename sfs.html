@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOAA SFS Model Plots &mdash; Seasonal Forecast System Maps &amp; Charts &middot; Shawn Corvec</title>
+<meta name="description" content="Interactive plots from NOAA's new SFS (Seasonal Forecast System, the CFSv2 successor): all 31 ensemble members — Niño-3.4 & RONI plumes, global SST/temperature/precipitation/500-hPa anomaly maps, subseasonal teleconnections (AO, NAO, PNA, EPO), US heating & cooling degree days, IOD/PDO indices and stratospheric wave flux — every product bias-corrected against the model's own 30-year reforecast.">
+<meta name="keywords" content="SFS model, NOAA SFS, Seasonal Forecast System, SFS plots, SFS maps, SFS forecast, CFSv2 replacement, seasonal forecast ensemble, ENSO forecast, El Nino forecast, Nino 3.4, RONI, teleconnection forecast, AO NAO PNA EPO, heating degree days forecast, PDO forecast, IOD forecast">
+<link rel="canonical" href="https://scorvec.com/sfs.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NOAA SFS Model Plots — Seasonal Forecast System Maps & Charts">
+<meta property="og:description" content="All 31 SFS ensemble members, visualized: ENSO plumes, global anomaly maps, subseasonal teleconnections, US degree days and stratospheric diagnostics — bias-corrected against the model's own reforecast.">
+<meta property="og:url" content="https://scorvec.com/sfs.html">
+<meta property="og:image" content="https://scorvec.com/assets/sfs/anim/sfs_sst/F04.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="NOAA SFS Model Plots — Seasonal Forecast System Maps & Charts">
+<meta name="twitter:image" content="https://scorvec.com/assets/sfs/anim/sfs_sst/F04.webp">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage",
+ "name":"NOAA SFS Model Plots — Seasonal Forecast System Maps & Charts",
+ "url":"https://scorvec.com/sfs.html",
+ "description":"Interactive visualizations of NOAA's Seasonal Forecast System (SFS beta, the CFSv2 successor): 31-member ENSO plumes, global anomaly maps, subseasonal teleconnection and degree-day forecasts, all bias-corrected against the model's own 1991–2020 reforecast.",
+ "author":{"@type":"Person","name":"Shawn Corvec","url":"https://scorvec.com/"},
+ "about":[{"@type":"Thing","name":"NOAA Seasonal Forecast System (SFS)"},
+          {"@type":"Thing","name":"ENSO forecasting"},
+          {"@type":"Thing","name":"Seasonal climate prediction"}],
+ "isBasedOn":"https://registry.opendata.aws/noaa-oar-sfs/"}
+</script>
+<style>
+  :root {
+    --bg: #0a1220; --card: #0e1830; --rule: rgba(148,184,225,0.14);
+    --ink: #e9eff8; --ink2: #a7b8ce; --muted: #6d8099;
+    --aqua: #4dd6e8; --aqua-deep: #2e97ad; --gold: #e8c04d;
+    --serif: Georgia, "Times New Roman", serif;
+    --sans: Inter, -apple-system, "Segoe UI", sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 100%; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         font-weight: 300; line-height: 1.6; min-height: 100vh;
+         display: flex; flex-direction: column; }
+  a { color: var(--aqua); }
+  nav { display: flex; align-items: center; justify-content: space-between;
+        padding: 1.1rem 2rem; border-bottom: 1px solid var(--rule); }
+  .nav-name { font-family: var(--serif); font-size: 1.05rem; color: var(--ink);
+              text-decoration: none; font-weight: 500; }
+  .nav-links { display: flex; gap: 1.6rem; list-style: none; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+  .nav-links a:hover { color: var(--ink); }
+  main { flex: 1; max-width: min(94vw, 2000px); margin: 0 auto; width: 100%;
+         padding: 2.6rem 1.8rem 4rem; }
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.22em;
+             text-transform: uppercase; color: var(--aqua-deep); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 38px;
+       margin: 6px 0 4px; }
+  h1 em { font-style: italic; color: var(--aqua); }
+  .sub { color: var(--ink2); max-width: 82ch; margin-bottom: 20px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 26px; }
+  .chip { background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+          padding: 10px 16px; min-width: 160px; }
+  .chip .l { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
+             color: var(--muted); }
+  .chip .v { font-size: 21px; font-weight: 600; }
+  .chip .v.warm { color: #e8833a; } .chip .v.neut { color: var(--ink2); }
+  .chip .s { font-size: 11.5px; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 14px;
+          padding: 22px 24px 14px; margin-bottom: 26px; }
+  .card h2 { font-family: var(--serif); font-weight: 400; font-size: 23px;
+             margin-bottom: 8px; }
+  .note { font-size: 0.86rem; color: var(--ink2); margin-bottom: 12px; max-width: 110ch; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+              margin-bottom: 8px; }
+  .pill { background: transparent; border: 1px solid var(--rule); border-radius: 999px;
+          color: var(--ink2); font-size: 12.5px; padding: 4px 13px; cursor: pointer;
+          font-family: var(--sans); }
+  .pill.on { background: rgba(77,214,232,0.14); border-color: var(--aqua-deep);
+             color: var(--aqua); }
+  .plot { width: 100%; }
+  .chart-card-footer { display: flex; justify-content: space-between; gap: 14px;
+                       flex-wrap: wrap; border-top: 1px solid var(--rule);
+                       margin-top: 10px; padding-top: 8px; }
+  .chart-sources { font-size: 11px; color: var(--muted); max-width: 130ch; }
+  .chart-updated { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .colophon { color: var(--muted); font-size: 0.82rem; line-height: 1.7;
+              max-width: 110ch; margin-top: 2rem; }
+  footer { padding: 1.4rem 2rem; border-top: 1px solid var(--rule);
+           color: var(--muted); font-size: 0.78rem; }
+  @media (max-width: 700px) {
+    nav { padding: 0.8rem 1rem; } .nav-links { gap: 1rem; }
+    h1 { font-size: 28px; } main { max-width: 100%; padding: 1.8rem 1rem 3rem; }
+  }
+</style>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/lightbox.css">
+<script src="/assets/lightbox.js" defer></script>
+</head>
+<body>
+<nav>
+  <a class="nav-name" href="index.html">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="sst.html">El Ni&ntilde;o Monitor</a></li>
+    <li><a href="enso-forecasts.html">ENSO Forecasts</a></li>
+  </ul>
+</nav>
+<main>
+  <header>
+    <div class="eyebrow">Monthly &middot; NOAA SFS beta v1.0 &middot; UFS coupled &middot; 31 members</div>
+    <h1>SFS <em>Beta</em> Seasonal Outlook</h1>
+    <p class="sub">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based
+    successor to CFSv2, running in near-real-time beta since March 2026 with open zarr
+    output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the
+    <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11
+    members &times; 30 years), so drift and bias are removed the same way the C3S models
+    are handled on the <a href="enso-forecasts.html">ENSO forecasts page</a>.</p>
+    <div class="chips" id="chips">
+      <div class="chip"><div class="l">Loading feed&hellip;</div><div class="v neut">&mdash;</div></div>
+    </div>
+  </header>
+
+  <div class="card">
+    <h2>Ni&ntilde;o-3.4 &mdash; all 31 members</h2>
+    <p class="note">Shaded fan: member percentile spread (10&ndash;90% and 25&ndash;75%).
+    Bold white line: ensemble mean. The observed index leads in from the left
+    (ERSSTv5, 1991&ndash;2020 base), and the <b style="color:#e8c04d">gold dashes</b>
+    overlay the C3S seven-model multi-model mean from the same issue month for
+    comparison &mdash; two independent forecast systems on one chart. Monthly values,
+    anchored at the last observed month; toggle 3-month for the ONI convention.</p>
+    <div class="controls">
+      <button class="pill on" data-idx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
+      <button class="pill" data-idx="roni">RONI</button>
+      <span style="color:var(--muted)">&middot;</span>
+      <button class="pill on" data-sm="0">Monthly</button>
+      <button class="pill" data-sm="1">3-month (ONI convention)</button>
+      <span style="color:var(--muted)">&middot;</span>
+      <button class="pill" data-mem="1" id="memPill">Show all members</button>
+    </div>
+    <div id="plumeChart" class="plot" style="height:480px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">NOAA SFS beta v1.0 prototype (NODD zarr, ocn_monthly)
+      &middot; Ni&ntilde;o-3.4 (5&deg;S&ndash;5&deg;N, 170&ndash;120&deg;W), cos-weighted
+      &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead
+      &middot; C3S overlay: anomalies vs each model's own 1993&ndash;2016 hindcast
+      (&lesssim;0.1&thinsp;&deg;C base difference) &middot; observed: ERSSTv5, 1991&ndash;2020</span>
+      <span class="chart-updated" id="plume-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Derived climate indices &mdash; member spread</h2>
+    <p class="note">Beyond ENSO: box and pattern indices computed per member from the
+    same anomaly fields. <b>IOD</b> (Saji DMI), the <b>South Atlantic Subtropical
+    Dipole</b> (Morioka convention, SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a
+    <b>PDO</b> built honestly for a forecast system: North Pacific SST anomalies
+    (global-mean removed) projected onto the <b>model's own reforecast EOF1</b> and
+    normalized by the reforecast PC spread, in &sigma; units. Fan: member 10&ndash;90%
+    and 25&ndash;75%; line: ensemble mean.</p>
+    <div class="controls" id="idxPills"></div>
+    <div id="idxChart" class="plot" style="height:420px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta ocn_monthly zarr, 31 members &middot;
+      anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot;
+      PDO pattern: EOF1 of reforecast North Pacific SSTA (20&ndash;70&deg;N,
+      110&deg;E&ndash;100&deg;W, 30 yrs &times; 11 members &times; 10 leads pooled)</span>
+      <span class="chart-updated" id="idx-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Subseasonal degree days &mdash; Lower-48, all 31 members</h2>
+    <p class="note">Population-weighted (50 largest metros, base 65&thinsp;&deg;F) degree days
+    over the <b>subseasonal window &mdash; days 16&ndash;46</b>, in the beta's 48-hour
+    output steps, every member drawn. Weeks 1&ndash;2 are left to medium-range NWP;
+    this is the range only a seasonal system covers with members. The grey band is the
+    <b>model's own hindcast climatology</b> for the same init month and lead day
+    (30 years &times; 11 members = 330 samples per day) &mdash; so a member outside the
+    band is genuinely unusual, not just drifted. <b>Cumulative departure</b> runs the
+    running total of each member minus the hindcast mean: the number a heating/cooling
+    season actually settles on.</p>
+    <div class="controls" id="ddPills">
+      <button class="pill on" data-dd="hdd">HDD</button>
+      <button class="pill" data-dd="cdd">CDD</button>
+      <span style="color:var(--muted)">&middot;</span>
+      <button class="pill on" data-ddv="daily">Daily</button>
+      <button class="pill" data-ddv="cum">Cumulative departure</button>
+    </div>
+    <div id="ddChart" class="plot" style="height:420px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), TMP 2 m daily means
+      &middot; metros nearest-gridpoint, population-weighted &middot; climatology: own
+      reforecast 1991&ndash;2020, same init month, per lead day</span>
+      <span class="chart-updated" id="dd-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Subseasonal teleconnections &mdash; regime probabilities vs hindcast</h2>
+    <p class="note">PNA and EPO computed per member across the day-16&ndash;46 window
+    (48-hour steps) and standardized
+    against the model's own reforecast for that exact lead day &mdash; values are in
+    hindcast-&sigma; units, so the climatological base rate of any threshold is fixed
+    and the member fraction is directly comparable to it. The <b>strip</b> shows the
+    ensemble-mean state at a glance (red positive, blue negative); hover for member
+    probabilities. Click a pill for the full member fan. PNA uses the
+    Wallace&ndash;Gutzler centers and EPO the mid-Pacific/Alaska 500-hPa dipole
+    &mdash; both are zero-sum center combinations, structurally immune to the uniform
+    part of the beta's daily-stream height artifact. <b>AO and NAO are withheld for
+    now</b>: the diagnosed artifact is polar-amplified (annular, +11&thinsp;dam
+    &gt;60&deg;N vs +3 midlatitude), which projects directly onto those indices and
+    cannot be separated from real signal; they return when NOAA reconciles the beta's
+    daily stream.</p>
+    <div id="teleStrip" class="plot" style="height:190px"></div>
+    <div class="controls" id="telePills" style="margin-top:8px"></div>
+    <div id="teleChart" class="plot" style="height:380px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr &middot; standardization: own
+      reforecast 1991&ndash;2020, 330 samples per lead day &middot; probabilities are
+      member fractions; base rates by construction: P(&lt;0)=50%,
+      P(&gt;+1&sigma;)&asymp;16%</span>
+      <span class="chart-updated" id="tele-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Anomaly maps &mdash; step through the subseasonal window</h2>
+    <p class="note">For each valid step (days 16&ndash;46): <b>left</b>, the 31-member mean
+    <b>deviation from the model's own hindcast trend</b>, in detrended signal-&sigma;
+    units: the reference is the 1991&ndash;2020 reforecast mean plus the model's own
+    linear trend extrapolated to the forecast date, so the background warming doesn't
+    paint the whole map red &mdash; what remains is genuine forecast signal. The
+    &sigma; is the variability of hindcast ensemble means about that trend line at the
+    same lead day; &plusmn;1 is a normal-strength signal, &plusmn;3+ exceptional.
+    <b>Right</b>, the member spread divided by the hindcast spread: below 1 (orange)
+    the ensemble is more confident than climatology, above 1 (purple) less. Scrub
+    through the window to watch where the signal holds and where it dissolves.</p>
+    <h2 style="font-size:18px">500 hPa height</h2>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:3.2;border:0;border-radius:8px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500d_manifest.json&amp;region=sfs_z500d&amp;autoplay=0"
+      title="SFS 500 hPa height anomaly and spread loop" loading="lazy"></iframe>
+    <h2 style="font-size:18px;margin-top:14px">2 m temperature</h2>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:3.2;border:0;border-radius:8px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2md_manifest.json&amp;region=sfs_t2md&amp;autoplay=0"
+      title="SFS 2 m temperature anomaly and spread loop" loading="lazy"></iframe>
+    <h2 style="font-size:18px;margin-top:14px">Precipitation (global)</h2>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:2.2;border:0;border-radius:8px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_prcpd_manifest.json&amp;region=sfs_prcpd&amp;autoplay=0"
+      title="SFS global precipitation anomaly loop" loading="lazy"></iframe>
+    <h2 style="font-size:18px;margin-top:14px">200-hPa velocity potential (&chi;)</h2>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:2.2;border:0;border-radius:8px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chid_manifest.json&amp;region=sfs_chid&amp;autoplay=0"
+      title="SFS 200-hPa velocity potential anomaly loop" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;) &middot; anomaly = deviation from (hindcast mean + own linear trend evaluated at the forecast date), per lead day, physical units
+      &middot; spread ratio = member &sigma; / mean reforecast ensemble &sigma; at the same lead &middot;
+      20&ndash;90&deg;N</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>MJO &mdash; 31-member RMM phase space to day 46</h2>
+    <p class="note">The Wheeler&ndash;Hendon <b>RMM phase diagram</b> from every SFS
+    member's tropical U850/U200, pushed through the exact same machinery as the
+    <a href="mjo.html">AIFS-ENS MJO product</a> &mdash; same EOFs, same day-of-year
+    climatology, same 120-day low-frequency filter, same per-mode scaling &mdash; so
+    the two forecasts plot in the same coordinates and can be compared directly.
+    This is the full three-channel WH04 projection: the missing OLR channel is
+    built from &minus;standardized model precipitation (tropical rain and OLR
+    anticorrelate closely), standardized against the model's own 1991&ndash;2020
+    reforecast. The wind channels are raw &mdash; no bias or drift adjustment
+    &mdash; so at week-4+ leads model drift can read as slowly growing amplitude.
+    Teal spaghetti: members (every other day); red: ensemble mean (dashed grey:
+    wind-only reference); black: the observed track from the <em>official</em>
+    BoM RMM index.</p>
+    <img src="assets/sfs/mjo_rmm.webp?v=202608162" alt="SFS beta MJO RMM phase-space forecast, 31 members"
+      style="width:100%;max-width:820px;display:block;margin:0 auto;border-radius:8px" loading="lazy">
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr, UGRD 850/200 hPa +
+      PRATE &middot; full WH04 RMM with precip pseudo-OLR &middot; raw winds, no
+      drift adjustment &middot; shared reference EOFs/climatology with the
+      AIFS-ENS product</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Stratosphere &mdash; wave flux and the polar vortex, all members</h2>
+    <p class="note">Two classic lower-stratosphere diagnostics from the daily members:
+    the <b>100-hPa eddy heat flux</b> (45&ndash;75&deg;N zonal mean &mdash; proportional
+    to the wave activity propagating up into the stratosphere) and the <b>50-hPa
+    zonal-mean wind at 60&deg;N</b> (the strength of the polar-night jet; sustained
+    easterlies in winter mark a major warming). Every member against the model's own
+    hindcast climatology for the same init month and lead day. Shown for the day-16&ndash;46 subseasonal window (48-hour steps). These panels come
+    alive in the cold season, when pulses of wave flux and vortex swings set up
+    weeks-ahead pattern changes.</p>
+    <div class="controls" id="stratPills">
+      <button class="pill on" data-strat="vt100">100-hPa heat flux</button>
+      <button class="pill" data-strat="u50">50-hPa vortex wind</button>
+    </div>
+    <div id="stratChart" class="plot" style="height:400px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), VGRD/TMP 100 hPa
+      &amp; UGRD 50 hPa &middot; eddies = departures from the zonal mean &middot;
+      climatology: own reforecast 1991&ndash;2020, same init month, per lead day</span>
+      <span class="chart-updated" id="strat-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>100 hPa &mdash; daily polar view, first 46 days</h2>
+    <p class="note">The lower stratosphere from above: ensemble-mean <b>100-hPa
+    height anomaly</b> day by day (48-hour steps), with the absolute mean height
+    contoured and the mean 100-hPa wind as vectors. Each frame is measured against
+    the model's own 1991&ndash;2020 reforecast <em>per-lead-day</em> mean plus its
+    linear trend evaluated at the forecast year, so the baseline evolves with the
+    forecast. The monthly store stops at 200 hPa, so this is built from the daily
+    members. Bias shared by forecast and reforecast cancels in the anomaly, but the
+    near-real-time daily stream carries a height offset of its own &mdash; read the
+    <em>pattern</em>, not the absolute magnitude.</p>
+    <iframe class="anim-embed" style="width:100%;max-width:660px;aspect-ratio:0.95;border:0;border-radius:8px;display:block;margin:0 auto"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z100d_manifest.json&amp;region=sfs_z100d&amp;autoplay=0"
+      title="SFS daily 100 hPa height anomaly polar loop" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), HGT/UGRD/VGRD
+      100 hPa &middot; 31-member mean &middot; baseline: own reforecast 1991&ndash;2020
+      mean + trend at forecast year, same init month and leads &middot; 20&ndash;90&deg;N</span>
+    </div>
+  </div>
+
+    <div class="card">
+    <h2>Monthly anomaly maps &mdash; step through every lead</h2>
+    <p class="note">The same anomalies without seasonal averaging: one frame per
+    forecast month, in the loop player &mdash; scrub or step to watch the pattern
+    develop and decay month by month. Fixed color scale across all leads.</p>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_sst_manifest.json&amp;region=sfs_sst&amp;autoplay=0"
+      title="SFS monthly SST anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2m_manifest.json&amp;region=sfs_t2m&amp;autoplay=0"
+      title="SFS monthly 2m temperature anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_precip_manifest.json&amp;region=sfs_precip&amp;autoplay=0"
+      title="SFS monthly precipitation anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500_manifest.json&amp;region=sfs_z500&amp;autoplay=0"
+      title="SFS monthly 500 hPa height anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_mslp_manifest.json&amp;region=sfs_mslp&amp;autoplay=0"
+      title="SFS monthly MSLP anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_wind850_manifest.json&amp;region=sfs_wind850&amp;autoplay=0"
+      title="SFS monthly 850 hPa wind anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_wind200_manifest.json&amp;region=sfs_wind200&amp;autoplay=0"
+      title="SFS monthly 200 hPa wind anomaly loop" loading="lazy"></iframe>
+    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chi200_manifest.json&amp;region=sfs_chi200&amp;autoplay=0"
+      title="SFS monthly 200 hPa velocity potential anomaly loop" loading="lazy"></iframe>
+  </div>
+
+  <script>
+  addEventListener("message", function (e) {
+    var d = e.data; if (!d || d.type !== "sstAnimHeight") return;
+    var fr = document.querySelectorAll("iframe.anim-embed");
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + "px";
+        fr[i].style.aspectRatio = "auto";
+      }
+    }
+  });
+  </script>
+
+  <div class="colophon">
+    <p><b>Looking for SFS model plots?</b> This page is an independent visualization
+    suite for NOAA's new <b>SFS (Seasonal Forecast System)</b> — the UFS-based
+    replacement for CFSv2, running in near-real-time beta since March 2026. NOAA
+    publishes the raw ensemble output openly but (as of now) few graphical products;
+    everything here — the Ni&ntilde;o-3.4/RONI plumes, global anomaly maps, monthly map
+    loops, subseasonal AO/NAO/PNA/EPO teleconnection forecasts, Lower-48 heating and
+    cooling degree days, IOD/SASD/PDO indices and the stratospheric panels — is
+    computed directly from the full 31-member zarr output and refreshed with each
+    monthly issue.</p>
+    <p><b>About the system.</b> SFS beta is a NOAA research prototype (published by the
+    6th of each month), not yet an operational product &mdash; ensemble size, physics and
+    post-processing are still evolving, and months may occasionally be late or revised.
+    The reforecast climatology here uses 11 members per year over 1991&ndash;2020,
+    init-month specific, so lead-dependent drift cancels by construction. Data: NOAA Open
+    Data Dissemination, <code>noaa-oar-sfsdev-pds</code> on AWS.</p>
+  </div>
+</main>
+<footer>&copy; 2026 Shawn Corvec &middot; SFS beta data: NOAA/OAR via NODD (public domain) &middot; C3S overlay: Copernicus Climate Change Service</footer>
+<script>
+(function () {
+  "use strict";
+  var GRID = "rgba(148,184,225,0.22)", AXIS = "#8296ad", INK2 = "#a7b8ce";
+  var state = { idx: "n34", smooth: false, members: false,
+                sfs: null, c3s: null, hist: null };
+
+  function fmt(v, d) { return v == null || !isFinite(v) ? "—" : (v > 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
+  function mean(a) { var s = 0, n = 0; a.forEach(function (v) { if (isFinite(v)) { s += v; n++; } }); return n ? s / n : NaN; }
+  function pct(sorted, p) {
+    var i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
+  }
+  function roll3(arr) {
+    return arr.map(function (_, i) {
+      var w = arr.slice(Math.max(0, i - 1), Math.min(arr.length, i + 2)).filter(isFinite);
+      return w.length ? w.reduce(function (a, b) { return a + b; }) / w.length : NaN;
+    });
+  }
+
+  function draw() {
+    var S = state.sfs;
+    var valid = S.valid_months;
+    var useR = state.idx === "roni" && S.members_rnino;
+    var members = useR ? S.members_rnino : S.members;
+    var nL = valid.length, nM = members.length;
+
+    var obsX = [], obsY = [];
+    if (state.hist) {
+      obsX = state.hist.months.slice(-8);
+      var src = useR ? (state.hist.series.roni || state.hist.series.oni)
+                     : state.hist.series.oni;
+      obsY = (src.anom || src).slice(-8);
+    }
+    function smooth(fcArr) {
+      if (!state.smooth) return fcArr;
+      var bridge = obsY.slice(-2).concat(fcArr);
+      return roll3(bridge).slice(Math.min(2, obsY.length));
+    }
+
+    var fan = { p10: [], p25: [], p75: [], p90: [] }, mmm = [];
+    for (var L = 0; L < nL; L++) {
+      var pool = members.map(function (m) { return m[L]; })
+        .filter(isFinite).sort(function (a, b) { return a - b; });
+      fan.p10.push(pct(pool, 0.10)); fan.p25.push(pct(pool, 0.25));
+      fan.p75.push(pct(pool, 0.75)); fan.p90.push(pct(pool, 0.90));
+      mmm.push(mean(pool));
+    }
+
+    var x = obsX.concat(valid);
+    var pad = obsX.map(function () { return null; });
+    var bridgePad = pad.slice();
+    if (obsY.length) bridgePad[bridgePad.length - 1] = obsY[obsY.length - 1];
+
+    var traces = [];
+    [["p90", "p10", "10–90%", "rgba(77,214,232,0.13)"],
+     ["p75", "p25", "25–75%", "rgba(77,214,232,0.22)"]].forEach(function (b) {
+      traces.push({ x: x, y: pad.concat(smooth(fan[b[0]])), type: "scatter", mode: "lines",
+                    line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      traces.push({ x: x, y: pad.concat(smooth(fan[b[1]])), type: "scatter", mode: "lines",
+                    line: { width: 0 }, fill: "tonexty", fillcolor: b[3],
+                    name: b[2], hoverinfo: "skip" });
+    });
+    if (state.members) {
+      var gx = [], gy = [];
+      members.forEach(function (m) {
+        var tr = smooth(m.slice());
+        for (var L2 = 0; L2 < nL; L2++) { gx.push(valid[L2]); gy.push(tr[L2]); }
+        gx.push(valid[nL - 1]); gy.push(null);
+      });
+      traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
+                    line: { color: "rgba(190,208,228,0.45)", width: 1.1 },
+                    name: "members", hoverinfo: "skip" });
+    }
+    // C3S multi-model mean overlay, same issue window
+    if (state.c3s) {
+      var F = state.c3s, labels = Object.keys(F.models);
+      var cx = [], cy = [];
+      var fKey = useR ? "rnino" : "n34";
+      F.valid_months.forEach(function (ym, L3) {
+        var v = mean(labels.map(function (mo) { return mean(F.models[mo][fKey][L3]); }));
+        cx.push(ym); cy.push(v);
+      });
+      var cyPlot = state.smooth
+        ? roll3(obsY.slice(-2).concat(cy)).slice(Math.min(2, obsY.length)) : cy;
+      traces.push({ x: cx, y: cyPlot, type: "scatter", mode: "lines+markers",
+                    name: "C3S multi-model mean (7 models)",
+                    marker: { size: 4, symbol: "diamond" },
+                    line: { color: "#ffd45e", width: 2.8, dash: "dash" },
+                    hovertemplate: "%{y:+.2f} °C" });
+    }
+    traces.push({ x: x, y: bridgePad.concat(smooth(mmm)), type: "scatter", mode: "lines",
+                  name: "SFS ensemble mean", line: { color: "#f2f4f8", width: 3 },
+                  hovertemplate: "%{y:+.2f} °C" });
+    if (obsX.length)
+      traces.push({ x: obsX, y: obsY, type: "scatter", mode: "lines+markers",
+                    name: "Observed", marker: { size: 5 },
+                    line: { color: "#5fe6f8", width: 3 },
+                    hovertemplate: "%{y:+.2f} °C" });
+
+    var shapes = [];
+    [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (yv) {
+      shapes.push({ type: "line", x0: x[0], x1: x[x.length - 1], y0: yv, y1: yv,
+                    line: { color: yv > 0 ? "rgba(232,131,58,0.30)" : "rgba(77,143,232,0.30)",
+                            width: 1, dash: "dot" } });
+    });
+    Plotly.react("plumeChart", traces, {
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: { family: "Inter, sans-serif", size: 12, color: INK2 },
+      margin: { l: 46, r: 30, t: 10, b: 40 },
+      xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, type: "category" },
+      yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
+               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2,
+               title: { text: "anomaly (°C)", standoff: 4 } },
+      legend: { orientation: "h", y: 1.09, font: { size: 11 } },
+      hovermode: "x unified", shapes: shapes.concat([{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, layer: "above", line: { color: "rgba(205,222,240,0.9)", width: 2 } }]),
+      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
+                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+    }, { displayModeBar: false, responsive: true });
+    document.getElementById("plume-updated").textContent =
+      "issue " + S.issue + " · built " + S.generated;
+
+    var peak = { v: -99, i: 0 };
+    mmm.forEach(function (v, i) { if (v > peak.v) peak = { v: v, i: i }; });
+    var pool = members.map(function (m) { return m[peak.i]; })
+      .filter(isFinite).sort(function (a, b) { return a - b; });
+    var c3sPeak = null;
+    if (state.c3s) {
+      var F2 = state.c3s, labels2 = Object.keys(F2.models);
+      var fKey2 = useR ? "rnino" : "n34";
+      c3sPeak = Math.max.apply(null, F2.valid_months.map(function (_, L4) {
+        return mean(labels2.map(function (mo) { return mean(F2.models[mo][fKey2][L4]); }));
+      }));
+    }
+    var chips = [
+      { l: "Issue " + S.issue, v: nM + " members", s: "12 monthly leads · beta v1.0", cls: "neut" },
+      { l: "Peak " + (useR ? "RONI" : "Niño-3.4") + " · " + valid[peak.i], v: fmt(peak.v) + " °C",
+        s: "members P10–P90: " + fmt(pct(pool, 0.10), 1) + " … " + fmt(pct(pool, 0.90), 1),
+        cls: peak.v >= 0.5 ? "warm" : "neut" },
+      { l: "C3S seven-model peak", v: c3sPeak == null ? "—" : fmt(c3sPeak) + " °C",
+        s: "same issue month, own-hindcast base", cls: "neut" },
+      { l: "Climatology", v: "own reforecast", s: "1991–2020 · 11 members × 30 yrs", cls: "neut" },
+    ];
+    document.getElementById("chips").innerHTML = chips.map(function (c) {
+      return '<div class="chip"><div class="l">' + c.l + '</div>' +
+             '<div class="v ' + c.cls + '">' + c.v + '</div>' +
+             '<div class="s">' + c.s + "</div></div>";
+    }).join("");
+  }
+
+  document.querySelectorAll(".pill[data-idx]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.idx = b.dataset.idx;
+      document.querySelectorAll(".pill[data-idx]").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      if (state.sfs) draw();
+    });
+  });
+  document.querySelectorAll(".pill[data-sm]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.smooth = b.dataset.sm === "1";
+      document.querySelectorAll(".pill[data-sm]").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      if (state.sfs) draw();
+    });
+  });
+  document.querySelectorAll(".pill[data-mem]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.members = !state.members;
+      b.classList.toggle("on", state.members);
+      if (state.sfs) draw();
+    });
+  });
+
+  // ── daily cards (degree days + teleconnections) ──────────────────────────
+  var dailyState = { data: null, dd: "hdd", ddv: "daily", tele: "pna" };
+  var ZERO_SHAPE = { type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, layer: "above", line: { color: "rgba(205,222,240,0.9)", width: 2 } };
+  function plotDark(extra) {
+    var base = {
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: { family: "Inter, sans-serif", size: 12, color: INK2 },
+      margin: { l: 48, r: 16, t: 10, b: 40 },
+      xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS },
+      yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
+               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2 },
+      legend: { orientation: "h", y: 1.1, font: { size: 11 } },
+      hovermode: "x unified",
+      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
+                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+    };
+    for (var k in (extra || {})) base[k] = extra[k];
+    base.shapes = (base.shapes || []).concat([ZERO_SHAPE]);
+    return base;
+  }
+  function drawDD() {
+    var D = dailyState.data; if (!D) return;
+    var d = D[dailyState.dd], cum = dailyState.ddv === "cum";
+    var M = D.monthly ? D.monthly[dailyState.dd] : null;
+    var days = M ? D.days.concat(D.monthly.months) : D.days.slice();
+    var nD = D.days.length;
+    var cmean = M ? d.climo.mean.concat(M.climo.mean) : d.climo.mean;
+    function catc(key) { return M ? d.climo[key].concat(M.climo[key]) : d.climo[key]; }
+    function catm(i) { return M ? d.members[i].concat(M.members[i]) : d.members[i]; }
+    function xf(m) {                       // member series under current view
+      if (!cum) return m.slice();
+      var s = 0; return m.map(function (v, i) { s += v - cmean[i]; return s; });
+    }
+    var traces = [];
+    if (!cum) {
+      [["p90", "p10", "climo 10–90%", "rgba(148,184,225,0.10)"],
+       ["p75", "p25", "climo 25–75%", "rgba(148,184,225,0.16)"]].forEach(function (b) {
+        traces.push({ x: days, y: d.climo[b[0]], type: "scatter", mode: "lines",
+                      line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+        traces.push({ x: days, y: d.climo[b[1]], type: "scatter", mode: "lines",
+                      line: { width: 0 }, fill: "tonexty", fillcolor: b[3],
+                      name: b[2], hoverinfo: "skip" });
+      });
+      traces.push({ x: days, y: cmean, type: "scatter", mode: "lines",
+                    name: "hindcast mean", line: { color: "#b9cbdf", width: 2.2, dash: "dash" },
+                    hovertemplate: "%{y:.1f}" });
+    }
+    var gx = [], gy = [];
+    d.members.forEach(function (m) {
+      var s = xf(m);
+      for (var i = 0; i < s.length; i++) { gx.push(days[i]); gy.push(s[i]); }
+      gx.push(days[s.length - 1]); gy.push(null);
+    });
+    traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
+                  line: { color: "rgba(109,226,245,0.45)", width: 1.1 },
+                  name: "members", hoverinfo: "skip" });
+    var mm = days.map(function (_, i) {
+      return mean(d.members.map(function (m) { return xf(m)[i]; })); });
+    traces.push({ x: days, y: mm, type: "scatter", mode: "lines",
+                  name: "ensemble mean", line: { color: "#f2f4f8", width: 3 },
+                  hovertemplate: "%{y:.1f}" });
+    var lay = plotDark();
+    lay.xaxis.type = "category";
+    if (M) lay.shapes = [{ type: "line", x0: nD - 0.5, x1: nD - 0.5, yref: "paper",
+      y0: 0, y1: 1, line: { color: "rgba(232,192,77,0.5)", width: 1.5, dash: "dot" } }];
+    if (M) lay.annotations = [{ x: nD - 0.4, xanchor: "left", yref: "paper", y: 1.03,
+      text: "monthly means →", showarrow: false,
+      font: { size: 10.5, color: "#e8c04d" } }];
+    lay.yaxis.title = { text: (dailyState.dd === "hdd" ? "HDD" : "CDD")
+      + (cum ? " departure (cumulative)" : " per day (°F·day, pop-weighted)"), standoff: 4 };
+    Plotly.react("ddChart", traces, lay, { displayModeBar: false, responsive: true });
+    document.getElementById("dd-updated").textContent =
+      "issue " + D.issue + " · built " + D.generated;
+  }
+  function drawTeleStrip() {
+    var D = dailyState.data; if (!D) return;
+    var keys = ["pna", "epo"];   // AO/NAO withheld: annular daily-stream artifact
+    var z = [], text = [];
+    var xs = D.monthly ? D.days.concat(D.monthly.months) : D.days;
+    keys.forEach(function (k) {
+      var t = D.telecons[k];
+      var Mt = D.monthly ? D.monthly.telecons[k] : null;
+      var mem = t.members.map(function (m, mi) {
+        return Mt ? m.concat(Mt.members[mi]) : m; });
+      var pn = Mt ? t.p_neg.concat(Mt.p_neg) : t.p_neg;
+      var pp = Mt ? t.p_plus1.concat(Mt.p_plus1) : t.p_plus1;
+      var pm2 = Mt ? t.p_minus1.concat(Mt.p_minus1) : t.p_minus1;
+      var row = xs.map(function (_, i) {
+        return mean(mem.map(function (m) { return m[i]; })); });
+      z.push(row);
+      text.push(xs.map(function (_, i) {
+        return t.label + " · P(<0) " + Math.round(100 * pn[i]) + "%"
+          + " · P(>+1σ) " + Math.round(100 * pp[i]) + "%"
+          + " · P(<−1σ) " + Math.round(100 * pm2[i]) + "%"; }));
+    });
+    Plotly.react("teleStrip", [{
+      x: xs, y: keys.map(function (k) { return D.telecons[k].label; }),
+      z: z, type: "heatmap", colorscale: "RdBu",
+      zmin: -2, zmax: 2, text: text, hoverinfo: "text",
+      colorbar: { thickness: 10, len: 0.9, tickfont: { size: 10, color: INK2 },
+                  title: { text: "σ", font: { size: 11, color: INK2 } } },
+    }], plotDark({ margin: { l: 48, r: 16, t: 4, b: 30 }, hovermode: "closest" }),
+      { displayModeBar: false, responsive: true });
+  }
+  function drawTele() {
+    var D = dailyState.data; if (!D) return;
+    var t = D.telecons[dailyState.tele];
+    var Mt = D.monthly ? D.monthly.telecons[dailyState.tele] : null;
+    var nD = D.days.length;
+    var days = Mt ? D.days.concat(D.monthly.months) : D.days.slice();
+    var mem = t.members.map(function (m, mi) {
+      return Mt ? m.concat(Mt.members[mi]) : m; });
+    var fan = { p10: [], p25: [], p75: [], p90: [] }, mm = [];
+    for (var L = 0; L < days.length; L++) {
+      var pool = mem.map(function (m) { return m[L]; })
+        .filter(isFinite).sort(function (a, b) { return a - b; });
+      fan.p10.push(pct(pool, 0.10)); fan.p25.push(pct(pool, 0.25));
+      fan.p75.push(pct(pool, 0.75)); fan.p90.push(pct(pool, 0.90));
+      mm.push(mean(pool));
+    }
+    var traces = [];
+    [["p90", "p10", "10–90%", "rgba(77,214,232,0.13)"],
+     ["p75", "p25", "25–75%", "rgba(77,214,232,0.22)"]].forEach(function (b) {
+      traces.push({ x: days, y: fan[b[0]], type: "scatter", mode: "lines",
+                    line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      traces.push({ x: days, y: fan[b[1]], type: "scatter", mode: "lines",
+                    line: { width: 0 }, fill: "tonexty", fillcolor: b[3],
+                    name: b[2], hoverinfo: "skip" });
+    });
+    traces.push({ x: days, y: mm, type: "scatter", mode: "lines+markers",
+                  name: t.label + " ensemble mean", marker: { size: 4 },
+                  line: { color: "#f2f4f8", width: 3 },
+                  hovertemplate: "%{y:+.2f} σ" });
+    var shp = [1, -1].map(function (yv) {
+      return { type: "line", x0: days[0], x1: days[days.length - 1], y0: yv, y1: yv,
+               line: { color: "rgba(148,184,225,0.25)", width: 1, dash: "dot" } };
+    });
+    if (Mt) shp.push({ type: "line", x0: nD - 0.5, x1: nD - 0.5, yref: "paper",
+      y0: 0, y1: 1, line: { color: "rgba(232,192,77,0.5)", width: 1.5, dash: "dot" } });
+    var lay = plotDark({ shapes: shp });
+    lay.xaxis.type = "category";
+    if (Mt) lay.annotations = [{ x: nD - 0.4, xanchor: "left", yref: "paper", y: 1.03,
+      text: "monthly means →", showarrow: false,
+      font: { size: 10.5, color: "#e8c04d" } }];
+    lay.yaxis.title = { text: t.label + " (hindcast σ)", standoff: 4 };
+    Plotly.react("teleChart", traces, lay, { displayModeBar: false, responsive: true });
+    document.getElementById("tele-updated").textContent =
+      "issue " + D.issue + " · built " + D.generated;
+  }
+  function drawStrat() {
+    var D = dailyState.data; if (!D || !D.strat) return;
+    var key = dailyState.strat || "vt100";
+    var d = D.strat[key], days = D.days;
+    var traces = [];
+    [["p90", "p10", "climo 10–90%", "rgba(148,184,225,0.10)"],
+     ["p75", "p25", "climo 25–75%", "rgba(148,184,225,0.16)"]].forEach(function (b) {
+      traces.push({ x: days, y: d.climo[b[0]], type: "scatter", mode: "lines",
+                    line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      traces.push({ x: days, y: d.climo[b[1]], type: "scatter", mode: "lines",
+                    line: { width: 0 }, fill: "tonexty", fillcolor: b[3],
+                    name: b[2], hoverinfo: "skip" });
+    });
+    traces.push({ x: days, y: d.climo.mean, type: "scatter", mode: "lines",
+                  name: "hindcast mean", line: { color: "#b9cbdf", width: 2.2, dash: "dash" },
+                  hovertemplate: "%{y:.1f}" });
+    var gx = [], gy = [];
+    d.members.forEach(function (m) {
+      for (var i = 0; i < m.length; i++) { gx.push(days[i]); gy.push(m[i]); }
+      gx.push(days[m.length - 1]); gy.push(null);
+    });
+    traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
+                  line: { color: "rgba(109,226,245,0.45)", width: 1.1 },
+                  name: "members", hoverinfo: "skip" });
+    var mm = days.map(function (_, i) {
+      return mean(d.members.map(function (m) { return m[i]; })); });
+    traces.push({ x: days, y: mm, type: "scatter", mode: "lines",
+                  name: "ensemble mean", line: { color: "#f2f4f8", width: 3 },
+                  hovertemplate: "%{y:.1f} " + d.units });
+    var lay = plotDark();
+    lay.yaxis.title = { text: d.label + " (" + d.units + ")", standoff: 4 };
+    Plotly.react("stratChart", traces, lay, { displayModeBar: false, responsive: true });
+    document.getElementById("strat-updated").textContent =
+      "issue " + D.issue + " · built " + D.generated;
+  }
+  document.querySelectorAll("#stratPills .pill").forEach(function (b) {
+    b.addEventListener("click", function () {
+      dailyState.strat = b.dataset.strat;
+      document.querySelectorAll("#stratPills .pill").forEach(function (o) {
+        o.classList.toggle("on", o === b); });
+      drawStrat();
+    });
+  });
+  document.querySelectorAll("#ddPills .pill").forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (b.dataset.dd) { dailyState.dd = b.dataset.dd;
+        document.querySelectorAll("#ddPills .pill[data-dd]").forEach(function (o) {
+          o.classList.toggle("on", o === b); }); }
+      if (b.dataset.ddv) { dailyState.ddv = b.dataset.ddv;
+        document.querySelectorAll("#ddPills .pill[data-ddv]").forEach(function (o) {
+          o.classList.toggle("on", o === b); }); }
+      drawDD();
+    });
+  });
+  fetch("assets/sfs/data/sfs_daily.json?v=" + Date.now())
+    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (D) {
+      dailyState.data = D;
+      var host = document.getElementById("telePills");
+      ["pna", "epo"].forEach(function (k) {
+        var b = document.createElement("button");
+        b.className = "pill" + (k === dailyState.tele ? " on" : "");
+        b.textContent = D.telecons[k].label;
+        b.addEventListener("click", function () {
+          dailyState.tele = k;
+          host.querySelectorAll(".pill").forEach(function (o) {
+            o.classList.toggle("on", o === b); });
+          drawTele();
+        });
+        host.appendChild(b);
+      });
+      drawDD(); drawTeleStrip(); drawTele(); drawStrat();
+    })
+    .catch(function () {
+      ["ddChart", "teleStrip", "teleChart", "stratChart"].forEach(function (id) {
+        document.getElementById(id).innerHTML =
+          '<div style="padding:1.6rem;color:#888">daily feed building — check back after the monthly build</div>';
+      });
+    });
+
+  // ── derived indices card ─────────────────────────────────────────────────
+  var idxState = { data: null, key: "dmi" };
+  function drawIdx() {
+    var D = idxState.data;
+    if (!D) return;
+    var d = D.indices[idxState.key];
+    if (!d) return;
+    var valid = D.valid_months, nL = valid.length;
+    var fan = { p10: [], p25: [], p75: [], p90: [] }, mm = [];
+    for (var L = 0; L < nL; L++) {
+      var pool = d.members.map(function (m) { return m[L]; })
+        .filter(isFinite).sort(function (a, b) { return a - b; });
+      fan.p10.push(pct(pool, 0.10)); fan.p25.push(pct(pool, 0.25));
+      fan.p75.push(pct(pool, 0.75)); fan.p90.push(pct(pool, 0.90));
+      mm.push(mean(pool));
+    }
+    var traces = [];
+    [["p90", "p10", "10–90%", "rgba(77,214,232,0.13)"],
+     ["p75", "p25", "25–75%", "rgba(77,214,232,0.22)"]].forEach(function (b) {
+      traces.push({ x: valid, y: fan[b[0]], type: "scatter", mode: "lines",
+                    line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      traces.push({ x: valid, y: fan[b[1]], type: "scatter", mode: "lines",
+                    line: { width: 0 }, fill: "tonexty", fillcolor: b[3],
+                    name: b[2], hoverinfo: "skip" });
+    });
+    var gx = [], gy = [];
+    d.members.forEach(function (m) {
+      for (var L2 = 0; L2 < nL; L2++) { gx.push(valid[L2]); gy.push(m[L2]); }
+      gx.push(valid[nL - 1]); gy.push(null);
+    });
+    traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
+                  line: { color: "rgba(190,208,228,0.45)", width: 1.1 },
+                  name: "members", hoverinfo: "skip" });
+    traces.push({ x: valid, y: mm, type: "scatter", mode: "lines+markers",
+                  name: "ensemble mean", marker: { size: 5 },
+                  line: { color: "#f2f4f8", width: 3 },
+                  hovertemplate: "%{y:+.2f} " + d.units });
+    Plotly.react("idxChart", traces, {
+      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: { family: "Inter, sans-serif", size: 12, color: INK2 },
+      margin: { l: 46, r: 20, t: 10, b: 40 },
+      xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, type: "category" },
+      yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
+               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2,
+               title: { text: d.label + " (" + d.units + ")", standoff: 4 } },
+      legend: { orientation: "h", y: 1.12, font: { size: 11 } },
+      shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, layer: "above", line: { color: "rgba(205,222,240,0.9)", width: 2 } }],
+      hovermode: "x unified",
+      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
+                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+    }, { displayModeBar: false, responsive: true });
+    document.getElementById("idx-updated").textContent =
+      "issue " + D.issue + " · built " + D.generated;
+  }
+  fetch("assets/sfs/data/sfs_indices.json?v=" + Date.now())
+    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (D) {
+      idxState.data = D;
+      var order = ["dmi", "sasd", "pdo", "nino3", "nino4", "nino12"];
+      var host = document.getElementById("idxPills");
+      order.forEach(function (k) {
+        if (!D.indices[k]) return;
+        var b = document.createElement("button");
+        b.className = "pill" + (k === idxState.key ? " on" : "");
+        b.textContent = D.indices[k].label.split(" (")[0];
+        b.addEventListener("click", function () {
+          idxState.key = k;
+          host.querySelectorAll(".pill").forEach(function (o) {
+            o.classList.toggle("on", o === b); });
+          drawIdx();
+        });
+        host.appendChild(b);
+      });
+      drawIdx();
+    })
+    .catch(function () {
+      document.getElementById("idxChart").innerHTML =
+        '<div style="padding:2rem;color:#888">indices feed building — check back after the monthly build</div>';
+    });
+
+  Promise.all([
+    fetch("assets/sfs/data/sfs_nino34.json?v=" + Date.now()).then(function (r) {
+      if (!r.ok) throw 0; return r.json(); }),
+    fetch("assets/sst/data/enso_forecast.json?v=" + Date.now()).then(function (r) {
+      return r.ok ? r.json() : null; }).catch(function () { return null; }),
+    fetch("assets/sst/data/nino_history.json?v=" + Date.now()).then(function (r) {
+      return r.ok ? r.json() : null; }).catch(function () { return null; }),
+  ]).then(function (res) {
+    state.sfs = res[0]; state.c3s = res[1]; state.hist = res[2];
+    draw();
+  }).catch(function (e) {
+    console.error("SFS feed failed:", e);
+    document.getElementById("chips").innerHTML =
+      '<div class="chip"><div class="l">SFS feed</div><div class="v neut">unavailable</div>' +
+      '<div class="s">check back after the monthly build (~6th)</div></div>';
+  });
+})();
+</script>
+</body>
+</html>

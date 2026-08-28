@@ -1,0 +1,120 @@
+{
+ "events": [
+  {
+   "label": "1972\u201373",
+   "y0": 1972,
+   "months": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "current": false
+  },
+  {
+   "label": "1982\u201383",
+   "y0": 1982,
+   "months": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "current": false
+  },
+  {
+   "label": "1991\u201392",
+   "y0": 1991,
+   "months": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "current": false
+  },
+  {
+   "label": "1997\u201398",
+   "y0": 1997,
+   "months": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "current": false
+  },
+  {
+   "label": "2015\u201316",
+   "y0": 2015,
+   "months": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "current": false
+  },
+  {
+   "label": "2026\u201327 (current)",
+   "y0": 2026,
+   "months": [
+    6,
+    7
+   ],
+   "current": true
+  }
+ ],
+ "updated": "2026-08-28 13:43 UTC",
+ "vars": {
+  "z500": "500 hPa height anomaly",
+  "mslp": "Sea-level pressure anomaly",
+  "t2m": "2 m temperature anomaly",
+  "precip": "Precipitation anomaly",
+  "wind100": "100 m wind-speed anomaly"
+ },
+ "regions": {
+  "": "Pacific + North America",
+  "_sam": "South & Central America"
+ }
+}

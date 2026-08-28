@@ -1,0 +1,62 @@
+name: Deploy to GitHub Pages
+
+# Replaces the legacy "deploy from a branch" Pages build. The site is pushed ~30x/day by
+# ~15 data-pipeline jobs; the legacy build has no concurrency control, so when two pushes
+# land within ~1 min their deploys race at the CDN "syncing_files" step and one fails with
+# "Deployment failed, try again later." The concurrency group below SERIALISES deploys
+# (a new one waits for the in-progress one to finish) so they queue instead of racing.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One Pages deploy at a time. cancel-in-progress:false lets an in-flight deploy finish
+# (don't abort a CDN sync mid-way); subsequent pushes queue behind it.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy3.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+      # GitHub's Pages CDN sync ("syncing_files") intermittently returns
+      # "Deployment failed, try again later" even for a single serialized deploy
+      # (~10% of runs). The artifact is already uploaded, so just retry the
+      # deployment a couple times with a backoff before failing the run for real.
+      - name: Deploy to GitHub Pages (attempt 1)
+        id: deploy1
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: Backoff before retry
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 45
+      - name: Deploy to GitHub Pages (attempt 2)
+        id: deploy2
+        if: steps.deploy1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: Backoff before final retry
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 90
+      - name: Deploy to GitHub Pages (attempt 3)
+        id: deploy3
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        uses: actions/deploy-pages@v4

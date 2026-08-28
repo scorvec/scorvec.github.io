@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Real-time &amp; Archived Sounding Explorer — Shawn Corvec</title>
+<meta name="description" content="Interactive worldwide radiosonde Skew-T viewer: click any station for a full sounding analysis computed in-browser with SHARPlib (WebAssembly).">
+<link rel="canonical" href="https://scorvec.com/skewt/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta property="og:title" content="Global Real-time &amp; Archived Sounding Explorer">
+<meta property="og:description" content="Click any radiosonde station on Earth for a full skew-T analysis — real-time US soundings, nine decades of archives, ECAPE, hodographs, and per-station climatology, computed entirely in your browser.">
+<meta property="og:url" content="https://scorvec.com/skewt/">
+<meta property="og:image" content="https://scorvec.com/skewt/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Global Real-time &amp; Archived Sounding Explorer">
+<meta name="twitter:description" content="Every weather balloon on Earth, back nine decades — skew-Ts, hodographs, ECAPE and station climatology, all in-browser.">
+<meta name="twitter:image" content="https://scorvec.com/skewt/og-card.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Global Real-time & Archived Sounding Explorer",
+  "url": "https://scorvec.com/skewt/",
+  "description": "Interactive worldwide radiosonde viewer: real-time and archived atmospheric soundings with skew-T diagrams, hodographs, ECAPE, moist static energy, and per-station climatology, computed client-side with SHARPlib compiled to WebAssembly.",
+  "applicationCategory": "Weather",
+  "operatingSystem": "Any (browser)",
+  "isAccessibleForFree": true,
+  "author": { "@type": "Person", "name": "Shawn Corvec", "url": "https://scorvec.com/" },
+  "about": [
+    { "@type": "Thing", "name": "atmospheric sounding" },
+    { "@type": "Thing", "name": "skew-T log-P diagram" },
+    { "@type": "Thing", "name": "radiosonde" },
+    { "@type": "Thing", "name": "ECAPE" }
+  ]
+}
+</script>
+<!-- self-hosted (leaflet 1.9.4, fflate 0.8.2): an unpkg outage used to kill the
+     whole app at L-is-undefined while every data feed had a fallback -->
+<link rel="stylesheet" href="vendor/leaflet.css">
+<script src="vendor/leaflet.js"></script>
+<script src="vendor/fflate.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0b12; --panel: #11111c; --ink: #e8e8f0; --muted: #8b8ba3;
+    --accent: #64d2ff; --rule: #23233a;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  html { font-size: 115%; }
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; }
+  nav { display: flex; justify-content: space-between; align-items: flex-start;
+        gap: 1.5rem; padding: 0.7rem 1.4rem; border-bottom: 1px solid var(--rule); }
+  nav .nav-name, nav a.back { padding-top: 3px; white-space: nowrap; }
+  .nav-mid { flex: 1 1 auto; min-width: 0; }
+  .page-title { font-family: var(--serif); font-weight: 600; display: block; margin: 0;
+    line-height: 1.25; font-size: clamp(1.1rem, 1rem + 1.6vw, 2rem);
+    text-wrap: balance; }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  nav a.back { font-size: 0.9rem; letter-spacing: 0.05em; color: var(--muted); text-decoration: none; }
+  .wrap { max-width: 1380px; margin: 0 auto; padding: 1rem 1rem 2.5rem; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.4rem;
+       margin-bottom: 0.1rem; display: inline-block; margin-right: 0.8rem; }
+  .sub { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.7rem; display: inline; }
+  #map { position: absolute; inset: 0; background: #0b0b12; }
+  .leaflet-container { background: #171722; }
+  .leaflet-bottom.leaflet-left { bottom: 50%; transform: translateY(50%); }
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0.6rem 0; }
+  .controls .station { font-weight: 600; font-size: 1.05rem; min-width: 200px; }
+  .controls button, .controls input[type=date] {
+    font: 500 0.9rem var(--sans); color: var(--ink); background: var(--panel);
+    border: 1px solid var(--rule); border-radius: 7px; padding: 6px 13px; cursor: pointer;
+    color-scheme: dark;
+  }
+  .controls button.on { background: var(--accent); color: #08222e; border-color: var(--accent); }
+  .controls button:hover { border-color: var(--accent); }
+  #status { font-size: 0.9rem; color: var(--muted); }
+  /* Skew-T and hodograph side by side. They take whatever height the tables
+     leave (flex-basis 0 + grow); plotBox() in app.js sizes each canvas to the
+     tallest pair of design-aspect rectangles (19:21 and 14:15) that fits
+     .main's height AND width and sets that as its CSS size, so the panels hug
+     the plots and the pair sits centred — never stretched tall-and-skinny.
+     fitLayout() then sets the dialog width so there is no dead space. */
+  .main { display: grid; grid-template-columns: auto auto; justify-content: center;
+          gap: 12px; align-items: stretch; flex: 1 1 0; min-height: 0; }
+  .main .panel { display: flex; align-items: center; justify-content: center;
+                 min-height: 0; overflow: hidden; }
+  .main canvas { display: block; }
+  /* Index tables flow through CSS multi-column: the column count follows the
+     card width (a wide card gets 6-7 short columns, a narrow one 3-4) and the
+     browser balances the eight tables across them, so the block stays about
+     the same height whatever width fitLayout() settles on — a fixed 5-column
+     grid used to double in height as the cells wrapped on a narrower card. */
+  .tables-grid { columns: 300px; column-gap: 18px; }   /* 300: the 8-column parcels table's width */
+  /* (block order in the markup is tuned so the sequential column fill packs
+     tightly at 3–6 columns: the three tall tables land in separate columns) */
+  .tables-grid .tbl { break-inside: avoid; margin-bottom: 6px; }
+  /* index tables shrink to their content — a full-width table put half a
+     column of dead space between a short label and its value */
+  .tables-grid table.params { width: auto; }
+  #pcl-table th, #pcl-table td { padding: 0 3px; }
+
+  .modal { position: fixed; inset: 0; background: rgba(4,4,9,0.78); z-index: 2000;
+           display: flex; align-items: center; justify-content: center; }
+  .modal[hidden] { display: none; }
+  /* (the sounding card's width is then set per screen by fitLayout() in app.js) */
+  .dialog { background: var(--bg); border: 1px solid var(--rule); border-radius: 14px;
+            width: min(1580px, 98vw); height: 96vh; display: flex; flex-direction: column;
+            padding: 8px 14px 8px; box-shadow: 0 18px 60px rgba(0,0,0,0.6); }
+  .topbar { padding: 6px 1.4rem; border-bottom: 1px solid var(--rule); }
+  .mapwrap { position: relative; flex: 1 1 auto; min-height: 300px; }
+  #mstatus { font-size: 0.9rem; color: var(--muted); }
+  #status.busy, #mstatus.busy { color: #ffd60a; font-weight: 600;
+    animation: pulse 0.9s ease-in-out infinite alternate; }
+  @keyframes pulse { from { opacity: 1; } to { opacity: 0.45; } }
+  .dlg-head { display: flex; gap: 6px; row-gap: 4px; align-items: center; flex-wrap: wrap;
+              padding: 2px 2px 6px; position: sticky; top: 0; background: var(--bg);
+              z-index: 5; }
+  /* the toolbar wraps to two rows on a laptop; every pixel it spends is a pixel
+     the sounding doesn't get, so it runs tighter than the map's controls */
+  .dlg-head button, .dlg-head input[type=date] { font-size: 0.82rem; padding: 4px 9px; }
+  .dlg-head .station { font-size: 0.98rem; min-width: 0; }
+  #close { margin-left: auto; font-size: 1rem; line-height: 1; padding: 5px 10px; }
+  .panel { background: var(--panel); border: 1px solid var(--rule);
+           border-radius: 10px; padding: 8px; }
+  .side { display: flex; flex-direction: column; gap: 10px; }
+  canvas { display: block; width: 100%; height: auto; border-radius: 6px; }
+  /* --tbl-fs is set by fillTables' fit pass: it shrinks until the tables fit
+     the space the plots leave, instead of scrolling or wasting a big screen */
+  table.params { width: 100%; border-collapse: collapse;
+                 font-size: var(--tbl-fs, 0.68rem); }
+  table.params th, table.params td { padding: 0 4px; text-align: right;
+    border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums;
+    line-height: 1.3; }
+  table.params th { color: var(--muted); font-weight: 600; }
+  table.params td:first-child, table.params th:first-child { text-align: left; color: #c8c8dc; }
+  h3 { font-family: var(--serif); font-weight: 500;
+       font-size: calc(var(--tbl-fs, 0.68rem) * 1.18);
+       margin: 1px 0 1px; color: #c8c8dc; }
+  /* one ellipsized line by default — the credits don't get to tax the plots;
+     click to expand when someone actually wants to read them */
+  footer { color: var(--muted); font-size: 0.62rem; line-height: 1.4;
+           margin-top: 2px; max-width: none; cursor: pointer;
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  footer.open { white-space: normal; }
+  .dlg-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  /* Plots first: the index tables get at most 37% of the card body — fitTables()
+     steps their font down to fit that, and only if it can't do they scroll —
+     and the plots take everything else. */
+  .tables-wrap { flex: 0 1 auto; min-height: 0; max-height: 37%; overflow-y: auto;
+                 margin-top: 10px; }
+  footer a { color: var(--accent); }
+  .pctcell { padding: 1px 6px; border-radius: 4px; }
+  .pctlab { color: var(--muted); font-size: 0.72em; margin-left: 5px; }
+  /* climatology tags: percentile pill (outside p10-p90) and ★/★★ record
+     marker + year — coloured by tail so they read at a glance */
+  .pcttag { display: inline-block; font-size: 0.78em; font-weight: 700; margin-left: 4px;
+            padding: 0 4px; border-radius: 3px; line-height: 1.5; letter-spacing: 0.02em; }
+  .pcttag.hi { color: #ffb4a4; background: rgba(224,70,55,0.28); border: 1px solid rgba(255,120,100,0.55); }
+  .pcttag.lo { color: #b8d3ff; background: rgba(56,120,216,0.30); border: 1px solid rgba(120,170,255,0.55); }
+  .rectag { font-weight: 700; margin-left: 2px; letter-spacing: 0.02em; }
+  .rectag.hi { color: #ffe066; text-shadow: 0 0 6px rgba(255,120,60,0.8); }
+  .rectag.lo { color: #d6ecff; text-shadow: 0 0 6px rgba(120,170,255,0.9); }
+  #climo-modal { z-index: 2100; }
+  .maplegend { background: rgba(17,17,28,0.94); color: #e8e8f0; padding: 9px 12px;
+    border-radius: 8px; border: 1px solid #2e2e48;
+    font: 14.5px Inter, sans-serif; line-height: 1.85; }
+  #anom-list { list-style: none; margin: 0; padding: 0; font-size: 0.8rem;
+    columns: 2 320px; column-gap: 24px; }
+  #anom-list li { padding: 7px 6px; border-bottom: 1px solid var(--rule); cursor: pointer;
+    break-inside: avoid; }
+  #anom-list li:hover { background: rgba(255,255,255,0.05); }
+  #anom-list .hi { color: #ff6b55; }
+  #anom-list .lo { color: #6aa7f0; }
+  #export-btn, #share-btn, #climo-btn, #anom-toggle { white-space: nowrap; }
+  .maplegend .leg-chip { display: none; }        /* desktop: always full card */
+  @media (max-width: 700px) {
+    /* mobile default = collapsed chip; .expanded shows the full card */
+    .maplegend { padding: 0; cursor: pointer; border-radius: 16px; }
+    .maplegend .leg-chip { display: flex; align-items: center; justify-content: center;
+      gap: 3px; padding: 5px 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+    .maplegend .leg-body { display: none; }
+    .maplegend.expanded { padding: 6px 9px; font-size: 11px; line-height: 1.7; }
+    .maplegend.expanded .leg-chip { display: none; }
+    .maplegend.expanded .leg-body { display: block; }
+  }
+  /* mobile — MUST be last: overrides the desktop dialog/flex rules above */
+  @media (max-width: 1020px) {
+    .tables-grid { columns: 260px; }
+    .dialog { display: block; height: auto; max-height: 96vh; max-height: 96svh;
+              overflow-y: auto; width: 97vw; }
+    .dlg-head { position: static; }   /* flow above the charts, never overlapped */
+    .dlg-body { display: block; }
+    .main { display: block; min-height: 0; }
+    .main .panel { display: block; overflow: visible; margin-bottom: 10px; }
+    /* stacked layout: the plots size off width at their design aspect */
+    .main canvas { width: 100%; height: auto; }
+    .main #skewt { aspect-ratio: 19 / 21; }
+    .main #hodo  { aspect-ratio: 14 / 15; }
+    .tables-wrap { overflow-y: visible; max-height: none; }
+    .controls .station { min-width: 0; flex-basis: 100%; }
+    table.params { font-size: 0.76rem; }
+    table.params td { overflow-wrap: anywhere; padding: 2px 4px; }
+    table.params td:first-child { white-space: normal; }
+    .pctcell { padding: 1px 3px; }
+  }
+  @media (max-width: 700px) {
+    html { font-size: 100%; }
+    nav { flex-direction: column; gap: 0.4rem; }
+    nav .desc { display: none; }
+    footer { max-height: none; overflow: visible; white-space: normal; }
+    .topbar { padding: 6px 0.8rem; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <a href="../index.html" class="nav-name">Shawn Corvec</a>
+  <div class="nav-mid">
+  <h1 class="page-title">Global Real-time &amp; Archived Sounding Explorer</h1>
+    <span class="desc" style="color:var(--muted); font-family:var(--sans); font-size:0.82rem; display:block;
+    max-width:118ch; line-height:1.5; margin-top:2px">
+    Every weather-balloon (radiosonde) sounding ever released, anywhere on Earth, back more than a century.
+    <b style="color:var(--ink)">Blue</b> stations reported within the last 24&nbsp;h; <b style="color:#bf5af2">purple</b> ones launched off-hour (06/18Z) — usually a special release ahead of severe weather;
+    <b style="color:#33c495">teal</b> are active, <b style="color:#c0392b">red</b> are closed
+    (archive only). Click a station, then pick <b style="color:var(--ink)">Latest</b> or
+    <b style="color:var(--ink)">Archive</b> and a date. Recent launches load instantly;
+    <b style="color:var(--ink)">the first click on a station can take a few seconds to load, or
+    longer for archived data which has to be downloaded</b> (older soundings come from NOAA's global
+    archive as one big per-station file, with a pulsing note showing progress) — then every other
+    date at that station is instant. The full analysis — parcels, CAPE, shear, hodograph — runs entirely in
+    your browser via SHARPlib compiled to WebAssembly.
+    <b><a href="methodology.html" style="color:#ff453a; text-decoration:none; letter-spacing:0.04em">
+    READ THIS FIRST! →</a> &nbsp;·&nbsp;
+    <a href="gaps.html" style="color:var(--accent); text-decoration:none">
+    US sounding gap report →</a></b></span>
+  </div>
+  <a href="../index.html" class="back">← HOME</a>
+</nav>
+
+<div class="topbar controls">
+  <button data-act="latest" class="mctl on">Latest</button>
+    <button data-act="archive" class="mctl">Archive</button>
+    <span class="arch-controls" style="display:none">
+      <button data-act="dprev" title="previous day">◀</button>
+      <input type="date" class="datectl" min="1905-01-01">
+      <button data-act="dnext" title="next day">▶</button>
+      <button data-act="h00" class="hctl">00Z</button>
+      <button data-act="h12" class="hctl on">12Z</button>
+    </span>
+  <span id="status"></span>
+  <button id="anom-toggle" style="margin-left:auto" title="most anomalous soundings right now">⚡ Extreme today</button>
+</div>
+<div class="mapwrap"><div id="map"></div></div>
+
+<div id="anom-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog" style="height:auto; max-height:94vh; width:min(2000px,97vw); overflow-y:auto">
+    <div class="dlg-head controls">
+      <span class="station">⚡ Record watch — today's extremes</span>
+      <button id="anom-save" title="download this map as an image">📷 PNG</button>
+      <button id="anom-close" title="close" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <canvas id="anom-canvas" width="1240" height="760" style="width:100%; height:auto"></canvas>
+    </div>
+    <div class="panel" style="margin-top:8px">
+      <p style="font-size:0.72rem; color:var(--muted); margin:0 0 8px">ranked vs each station's own
+      day-of-year climatology · click a row to open the sounding</p>
+      <ul id="anom-list"></ul>
+    </div>
+  </div>
+</div>
+
+<div id="png-view" hidden
+  style="position:fixed; inset:0; z-index:3000; background:rgba(4,4,9,0.96); overflow:auto;
+         -webkit-overflow-scrolling:touch">
+  <div style="position:sticky; top:8px; text-align:right; padding-right:12px">
+    <button style="font:600 0.95rem var(--sans); background:var(--panel); color:var(--ink);
+      border:1px solid var(--rule); border-radius:8px; padding:7px 14px">✕ close</button>
+  </div>
+  <img id="png-view-img" alt="full sounding analysis image" style="max-width:none; width:1400px; display:block; margin:0 auto; padding:8px">
+</div>
+
+<div id="cloud-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog" style="height:auto; max-height:92vh; width:min(860px,96vw)">
+    <div class="dlg-head controls">
+      <span class="station">☁ Cloud layers</span>
+      <button id="cloud-close" title="close" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <canvas id="cloud-canvas" style="width:100%; height:min(52vh,460px); display:block"></canvas>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <table class="params kin" id="cloud-table" style="font-size:0.92rem"></table>
+    </div>
+    <p class="note" style="color:var(--muted); font-size:0.75rem; margin-top:8px">
+      Layers from RH (wrt ice below 0 °C), calibrated on 49,259 METAR cloud bases; teal band = dendritic growth zone (−12 to −18 °C). Method in the <a href="methodology.html#fog" target="_blank">methodology</a>.</p>
+  </div>
+</div>
+
+<div id="rec-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog" style="height:auto; max-height:90vh; width:min(820px,96vw); overflow-y:auto">
+    <div class="dlg-head controls">
+      <span class="station" id="rec-title">🏆 Station records</span>
+      <button id="rec-close" title="close" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px; overflow-x:auto">
+      <table class="params kin" id="rec-table" style="font-size:0.78rem"></table>
+    </div>
+    <p class="note" id="rec-note" style="color:var(--muted); font-size:0.75rem; margin-top:8px"></p>
+  </div>
+</div>
+<div id="fog-modal" class="modal" hidden style="z-index:2100">
+  <div class="dialog" style="height:auto; max-height:92vh; width:min(860px,96vw)">
+    <div class="dlg-head controls">
+      <span class="station">🌫 Fog · frost · dew</span>
+      <button id="fog-close" title="close" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <canvas id="fog-canvas" style="width:100%; height:min(48vh,420px); display:block"></canvas>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <table class="params kin" id="fog-table" style="font-size:0.92rem"></table>
+    </div>
+    <p class="note" style="color:var(--muted); font-size:0.75rem; margin-top:8px">
+      Probabilities are empirical (87,568 sounding–METAR pairs); FSI, bulk Richardson, frost point and the dew/frost logic are explained in the <a href="methodology.html#fog" target="_blank">methodology</a>.</p>
+  </div>
+</div>
+
+<div id="climo-modal" class="modal" hidden>
+  <div class="dialog" style="height:auto; max-height:92vh; width:min(1160px,96vw)">
+    <div class="dlg-head controls">
+      <span class="station" id="climo-title">—</span>
+      <select id="climo-var" style="font:500 0.85rem var(--sans); background:var(--panel);
+        color:var(--ink); border:1px solid var(--rule); border-radius:7px; padding:5px 9px;
+        color-scheme:dark"></select>
+      <span id="climo-sub" style="font-size:0.82rem; color:var(--muted)"></span>
+      <button id="climo-close" title="close (Esc)" style="margin-left:auto">✕</button>
+    </div>
+    <div class="panel" style="margin-top:6px">
+      <canvas id="climo-canvas" width="1200" height="560" style="width:100%;height:auto"></canvas>
+      <div id="climo-hist-note" style="color:var(--muted); font-size:0.8rem; margin:8px 4px 2px"></div>
+      <canvas id="climo-hist" width="1200" height="280" style="width:100%;height:auto"></canvas>
+    </div>
+    <p class="note" style="color:var(--muted); font-size:0.78rem; margin-top:8px">
+      Day-of-year climatology from this station's full radiosonde record (each point pools a ±10-day
+      window): shaded bands = 10th–90th and 25th–75th percentile, line = median, and the outer
+      envelope traces the all-time daily record high (red) and low (blue). The gold dot is the
+      sounding on display.</p>
+  </div>
+</div>
+
+<div id="modal" class="modal" hidden>
+  <div class="dialog">
+    <div class="dlg-head controls">
+      <span class="station" id="stn-label">—</span>
+      <button data-act="latest" class="mctl on">Latest</button>
+    <button data-act="archive" class="mctl">Archive</button>
+    <span class="arch-controls" style="display:none">
+      <button data-act="dprev" title="previous day">◀</button>
+      <input type="date" class="datectl" min="1905-01-01">
+      <button data-act="dnext" title="next day">▶</button>
+      <button data-act="h00" class="hctl">00Z</button>
+      <button data-act="h12" class="hctl on">12Z</button>
+    </span>
+      <span id="mstatus"></span>
+      <a id="uw-link" href="https://weather.uwyo.edu/upperair/sounding.shtml" target="_blank"
+         rel="noopener" style="font-size:0.78rem; color:var(--accent)">UW page ↗</a>
+      <button id="climo-btn" style="display:none">📊 Climatology</button>
+      <button id="rec-btn" style="display:none" title="station record extremes — all-time and for this date">🏆 Records</button>
+      <button id="fog-btn" title="fog, frost and dew diagnostics">🌫 Fog/frost</button>
+      <button id="cloud-btn" title="cloud layer estimate">☁ Clouds</button>
+      <button id="share-btn" title="copy a link to this exact sounding">🔗 Share</button>
+      <button id="export-btn" title="download skew-T + hodograph as an image">📷 PNG</button>
+      <button id="pin-btn" title="pin this sounding, then load another to overlay them">📌 Compare</button>
+      <button id="close" title="close (Esc)">✕</button>
+    </div>
+    <div class="dlg-body">
+    <div class="main">
+      <div class="panel"><canvas id="skewt" title="click for the full-resolution sounding (every wind level)" style="cursor:zoom-in" width="760" height="840"></canvas></div>
+      <div class="panel hodo-panel"><canvas id="hodo" width="560" height="600"></canvas></div>
+    </div>
+    <div class="panel tables-wrap">
+      <div class="tables-grid">
+        <div class="tbl"><h3>Parcels</h3>
+          <table class="params" id="pcl-table"></table></div>
+        <div class="tbl"><h3>Moist static energy</h3>
+          <table class="params kin" id="mse-table"></table></div>
+        <div class="tbl"><h3>Kinematics</h3>
+          <table class="params kin" id="kin-table"></table></div>
+        <div class="tbl"><h3>Composites</h3>
+          <table class="params kin" id="kin-table-b"></table></div>
+        <div class="tbl"><h3>Tropical</h3>
+          <table class="params kin" id="tropic-table"></table></div>
+        <div class="tbl"><h3>Winter</h3>
+          <table class="params kin" id="winter-table"></table></div>
+        <div class="tbl"><h3>Thermo &amp; moisture</h3>
+          <table class="params kin" id="kin-table2"></table></div>
+        <div class="tbl"><h3>Levels</h3>
+          <table class="params kin" id="kin-table3"></table></div>
+      </div>
+    </div>
+    </div>
+    <footer id="dlg-footer" title="click to expand">
+      <b>Tip:</b> click the skew-T to open a full-resolution card built from the un-thinned
+      profile with every reportable wind level — the PNG button saves that same image.
+      <b>Data:</b> latest soundings from the
+      <a href="https://weather.uwyo.edu/upperair/sounding.shtml">University of Wyoming</a> archive
+      (BUFR, mirrored 6×/day — UW sends no CORS headers); any historical date directly from
+      <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">NOAA
+      IGRA v2</a> (first load per station can be tens of MB, then cached).
+      <b>Analysis:</b> <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (K. Halbert,
+      NWS SPC lineage) as WebAssembly — SB/ML/MU parcels, LI, DCAPE, effective inflow, Bunkers,
+      SRH, effective shear, SCP/STP. Map: Leaflet &amp; OpenStreetMap. Built by Claude
+      (Anthropic's Claude Fable 5), directed by Shawn Corvec. Not for operational use.
+  </footer>
+  </div>
+</div>
+<script src="sharplib.js?v=92a2fd08"></script>
+<script src="app.js?v=861d5aef"></script>
+</body>
+</html>

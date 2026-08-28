@@ -1,0 +1,278 @@
+<main>
+  <div class="page-header">
+    <h1>Equatorial Pacific Subsurface Temperature</h1>
+    <p>Depth&ndash;longitude cross-sections along the equator from the TAO/TRITON moored-buoy array. The subsurface warm reservoir along the thermocline often leads the surface ENSO signal.</p>
+  </div>
+
+  <div class="chart-stack">
+
+    <!-- INTERACTIVE CROSS-SECTION EXPLORER -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Interactive Cross-Section Explorer</h2>
+        <p>The equatorial depth&ndash;longitude section as an explorable chart: hover any point for the exact temperature <i>and</i> anomaly, scrub through the last ~4 months, and switch between the full temperature field and its anomaly versus 1991&ndash;2020. Markers show the <b>actual TAO/TRITON moorings</b> the section is built from &mdash; <span style="color:#1a9850;font-weight:600">&#9660; green</span> buoys reported within the last week, <span style="color:#999;font-weight:600">&#9660; grey</span> are currently silent; the dotted columns mark each buoy's real sensor depths. Everything between moorings is interpolation &mdash; the markers show exactly where the ocean is truly being measured.</p>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:1.1rem 1.6rem;align-items:center;margin:.4rem 0 .6rem;font-size:.86rem">
+        <span style="display:flex;gap:.7rem;align-items:center">
+          <span style="font-weight:600;color:#555">Field</span>
+          <label><input type="radio" name="tao-field" value="anom" checked> Anomaly</label>
+          <label><input type="radio" name="tao-field" value="temp"> Temperature</label>
+        </span>
+        <span style="display:flex;gap:.55rem;align-items:center;flex:1 1 16rem">
+          <button id="tao-play" title="Animate" style="border:1px solid #ccc;background:#fff;border-radius:6px;padding:.15rem .55rem;cursor:pointer;font-size:.95rem">&#9654;</button>
+          <input id="tao-slider" type="range" min="0" max="0" value="0" style="flex:1">
+          <span id="tao-date" style="font-weight:600;color:#333;min-width:5.2rem;text-align:right"></span>
+        </span>
+      </div>
+      <div id="tao-xsec" style="width:100%;height:480px"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; 5-day smoothed &middot; anomaly vs 1991&ndash;2020 harmonic climatology &middot; linear interpolation between moorings</span>
+        <span class="chart-updated" id="tao-xsec-updated">__TAO_DAY__</span>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
+    <script>
+    (function () {
+      var DIV = document.getElementById('tao-xsec');
+      if (!DIV || typeof Plotly === 'undefined') return;
+      var D = null, cur = 0, playing = null;
+      var slider = document.getElementById('tao-slider');
+      var dateEl = document.getElementById('tao-date');
+      var playBtn = document.getElementById('tao-play');
+
+      fetch('assets/sst/data/tao_section.json?v=' + new Date().toISOString().slice(0, 10))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          D = d;
+          slider.max = d.snapshots.length - 1;
+          slider.value = cur = d.snapshots.length - 1;
+          wire(); render();
+        })
+        .catch(function () { DIV.innerHTML = '<p style="color:#999;padding:2rem">Could not load TAO section data.</p>'; });
+
+      function field() { return document.querySelector('input[name="tao-field"]:checked').value; }
+      function wire() {
+        document.querySelectorAll('input[name="tao-field"]').forEach(function (el) {
+          el.addEventListener('change', render);
+        });
+        slider.addEventListener('input', function () { cur = +slider.value; render(); });
+        playBtn.addEventListener('click', function () {
+          if (playing) { clearInterval(playing); playing = null; playBtn.textContent = '▶'; return; }
+          playBtn.textContent = '⏸';
+          playing = setInterval(function () {
+            cur = (cur + 1) % D.snapshots.length;
+            slider.value = cur; render();
+          }, 450);
+        });
+      }
+
+      function render() {
+        var s = D.snapshots[cur];
+        dateEl.textContent = s.date;
+        var isAnom = field() === 'anom';
+        var z = isAnom ? s.anom : s.temp;
+        var other = isAnom ? s.temp : s.anom;
+        var custom = z.map(function (row, i) {
+          return row.map(function (_, j) { return other[i][j]; });
+        });
+        var traces = [{
+          type: 'heatmap', x: D.lons, y: D.depths, z: z, customdata: custom,
+          zsmooth: 'best',
+          colorscale: isAnom ? 'RdBu' : [
+            [0, '#30123b'], [0.1, '#4458cb'], [0.2, '#3e9bfe'], [0.3, '#18d6cb'],
+            [0.4, '#46f884'], [0.5, '#a2fc3c'], [0.6, '#e1dd37'], [0.7, '#fea632'],
+            [0.8, '#f36315'], [0.9, '#c42503'], [1, '#7a0403']],
+          zmin: isAnom ? -12 : 8, zmax: isAnom ? 12 : 31, zmid: isAnom ? 0 : undefined,
+          colorbar: { title: { text: isAnom ? 'anom (°C)' : '°C', side: 'right' }, thickness: 14, len: 0.9 },
+          hovertemplate: (isAnom ? 'anom %{z:+.1f} °C · T %{customdata:.1f} °C'
+                                 : 'T %{z:.1f} °C · anom %{customdata:+.1f} °C')
+                       + '<br>%{y:.0f} m · lon %{x:.1f}°E<extra></extra>'
+        }, {
+          type: 'contour', x: D.lons, y: D.depths, z: s.temp, showscale: false,
+          autocontour: false, contours: { start: 20, end: 20, size: 1, coloring: 'none', showlabels: true, labelfont: { size: 9 } },
+          line: { color: '#111', width: 2 }, hoverinfo: 'skip', name: '20°C'
+        }, {
+          type: 'contour', x: D.lons, y: D.depths, z: s.temp, showscale: false,
+          autocontour: false, contours: { start: 26, end: 28, size: 2, coloring: 'none', showlabels: true, labelfont: { size: 9 } },
+          line: { color: '#111', width: 0.9, dash: 'dot' }, hoverinfo: 'skip'
+        }, {
+          type: 'contour', x: D.lons, y: D.depths, z: s.temp, showscale: false,
+          autocontour: false, contours: { start: 10, end: 10, size: 1, coloring: 'none', showlabels: true, labelfont: { size: 9 } },
+          line: { color: '#2c4ac9', width: 2, dash: 'dash' }, hoverinfo: 'skip', name: '10°C'
+        }];
+        // TAO buoy markers: triangle at the surface + dots at real sensor depths
+        var bx = [], by = [], bc = [], bt = [];
+        var sx = [], sy = [], sc = [];
+        D.buoys.forEach(function (b) {
+          bx.push(b.lon); by.push(-9);
+          bc.push(b.live ? '#1a9850' : '#999999');
+          bt.push('<b>' + b.label + '</b> · ' + (b.live ? 'reporting' : 'silent this week')
+                + '<br>' + b.depths.length + ' sensor depths');
+          b.depths.forEach(function (dd) {
+            sx.push(b.lon); sy.push(dd); sc.push(b.live ? '#1a9850' : '#aaaaaa');
+          });
+        });
+        traces.push({
+          type: 'scatter', mode: 'markers', x: sx, y: sy,
+          marker: { size: 4, color: sc, symbol: 'circle-open', line: { width: 1.2 } },
+          hoverinfo: 'skip'
+        });
+        traces.push({
+          type: 'scatter', mode: 'markers', x: bx, y: by,
+          marker: { size: 11, color: bc, symbol: 'triangle-down',
+                    line: { width: 1, color: '#333' } },
+          text: bt, hovertemplate: '%{text}<extra></extra>', cliponaxis: false
+        });
+        var ticks = D.buoys.map(function (b) { return b.lon; });
+        var tlabels = D.buoys.map(function (b) { return b.label.replace('0°N ', ''); });
+        Plotly.react(DIV, traces, {
+          margin: { l: 52, r: 10, t: 8, b: 42 },
+          xaxis: { tickvals: ticks, ticktext: tlabels, title: { text: 'TAO/TRITON mooring sites', font: { size: 11 } } },
+          yaxis: { range: [302, -20], title: 'Depth (m)', zeroline: false },
+          font: { family: 'Inter, sans-serif', size: 12 },
+          showlegend: false, plot_bgcolor: '#fff', paper_bgcolor: '#fff'
+        }, { responsive: true, displayModeBar: false });
+      }
+    })();
+    </script>
+
+    <!-- SUBSURFACE CROSS-SECTION -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Pacific Subsurface Temperature</h2>
+        <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed. The thermocline (here the 26&deg;C and 28&deg;C isotherms, with the 20&deg;C isotherm in solid black and the 10&deg;C isotherm dashed blue when it enters the section) tilts upward toward the east, and subsurface anomalies along it often lead the surface ENSO signal.</p>
+      </div>
+      <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial"
+              title="Equatorial Pacific subsurface temperature animation" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
+        <span class="chart-updated" id="subsurface-updated">__TAO_DAY__</span>
+      </div>
+    </div>
+
+    <!-- RECHARGE OSCILLATOR ORBIT (WWV vs Nino-3.4) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Recharge Oscillator &mdash; Where Are We in the ENSO Cycle?</h2>
+        <p>The equatorial Pacific's <b>warm water volume</b> (WWV &mdash; the volume of
+        water warmer than 20&deg;C, 5&deg;S&ndash;5&deg;N, official PMEL index) plotted
+        against the <b>Ni&ntilde;o-3.4</b> SST anomaly. In the recharge-oscillator view
+        of ENSO the system orbits this plane <i>counterclockwise</i>: heat builds along
+        the thermocline (top), discharges into an El&nbsp;Ni&ntilde;o (right), leaves the
+        basin depleted (bottom), and recharges through La&nbsp;Ni&ntilde;a (left). Because
+        WWV <b>leads</b> Ni&ntilde;o-3.4 by two to three seasons, the current vertical
+        position is a genuine glimpse ahead. Grey: every month since 1980; colored
+        loops: benchmark El&nbsp;Ni&ntilde;o events; red: the last 24 months.</p>
+      </div>
+      <div id="wwv-orbit" style="width:100%;height:520px;max-width:720px;margin:0 auto"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">WWV: NOAA/PMEL (McPhaden), monthly, ~6-week lag &middot;
+        Ni&ntilde;o-3.4: CPC ERSSTv5, anomalies vs 1991&ndash;2020 &middot;
+        framework: Jin (1997) recharge oscillator</span>
+        <span class="chart-updated" id="wwv-orbit-updated">&mdash;</span>
+      </div>
+    </div>
+    <script>
+    (function () {
+      var DIV = document.getElementById('wwv-orbit');
+      if (!DIV || typeof Plotly === 'undefined') return;
+      fetch('assets/sst/data/wwv_orbit.json?v=__CACHE__').then(function (r) { return r.json(); })
+        .then(function (D) {
+          var n = D.months.length;
+          var traces = [{
+            x: D.nino34, y: D.wwv, mode: 'lines', name: 'all months 1980–',
+            line: { color: 'rgba(120,120,120,0.35)', width: 1 },
+            text: D.months, hovertemplate: '%{text}<br>Niño-3.4 %{x:+.2f} °C · WWV %{y:+.2f}<extra></extra>'
+          }];
+          var palette = { '1982': '#8e6bb5', '1997': '#c98a2a', '2015': '#3b8bc4', '2023': '#4aa568' };
+          (D.events || []).forEach(function (ev) {
+            var col = palette[ev.id];
+            if (!col) return;
+            var i0 = D.months.indexOf(ev.onset + '-01');
+            if (i0 < 0) return;
+            var i1 = Math.min(i0 + 30, n);
+            traces.push({
+              x: D.nino34.slice(i0, i1), y: D.wwv.slice(i0, i1), mode: 'lines',
+              name: ev.label, line: { color: col, width: 1.6 },
+              text: D.months.slice(i0, i1),
+              hovertemplate: '%{text}<br>Niño-3.4 %{x:+.2f} °C · WWV %{y:+.2f}<extra>' + ev.label + '</extra>'
+            });
+          });
+          var j0 = Math.max(0, n - 24);
+          traces.push({
+            x: D.nino34.slice(j0), y: D.wwv.slice(j0), mode: 'lines+markers',
+            name: 'last 24 months', line: { color: '#c62828', width: 3 },
+            marker: { size: 5, color: '#c62828' }, text: D.months.slice(j0),
+            hovertemplate: '%{text}<br>Niño-3.4 %{x:+.2f} °C · WWV %{y:+.2f}<extra></extra>'
+          });
+          traces.push({
+            x: [D.nino34[n - 1]], y: [D.wwv[n - 1]], mode: 'markers+text',
+            marker: { size: 11, color: '#c62828', line: { color: '#fff', width: 1.5 } },
+            text: [D.months[n - 1]], textposition: 'top right',
+            textfont: { size: 11, color: '#7a1d1d' }, showlegend: false, hoverinfo: 'skip'
+          });
+          var qf = { size: 11, color: 'rgba(90,90,90,0.75)' };
+          Plotly.newPlot(DIV, traces, {
+            margin: { l: 55, r: 12, t: 8, b: 42 },
+            xaxis: { title: { text: 'Niño-3.4 anomaly (°C)' }, zeroline: true,
+                     zerolinecolor: '#999', zerolinewidth: 1.4, range: [-3, 3.2] },
+            yaxis: { title: { text: 'WWV anomaly (10¹⁴ m³)' }, zeroline: true,
+                     zerolinecolor: '#999', zerolinewidth: 1.4 },
+            legend: { orientation: 'h', y: -0.14 },
+            annotations: [
+              { x: -2.6, y: 2.9, text: 'recharged →', showarrow: false, font: qf },
+              { x: 2.7, y: 2.9, text: 'recharged + warm', showarrow: false, font: qf },
+              { x: 2.7, y: -2.9, text: '← discharging', showarrow: false, font: qf },
+              { x: -2.6, y: -2.9, text: 'depleted', showarrow: false, font: qf }
+            ]
+          }, { responsive: true, displayModeBar: false });
+          var upd = document.getElementById('wwv-orbit-updated');
+          if (upd) upd.textContent = 'WWV thru ' + D.latest_wwv_month;
+        });
+    })();
+    </script>
+
+    <!-- SUBSURFACE CROSS-SECTION - DE-TRENDED COMPANION -->
+    <!-- TROPICAL PACIFIC SURFACE-CURRENT SNAPSHOT (Copernicus Marine) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Tropical Pacific Surface Currents</h2>
+        <p>Daily surface-current fields over the last month for the equatorial Pacific (15&deg;S&ndash;15&deg;N, 130&deg;E&ndash;80&deg;W) from the Copernicus Marine 1/12&deg; ocean model: speed shaded (blue slow to red fast) with streamlines tracing the flow. The westward South Equatorial Current straddles the equator, the eastward North Equatorial Counter Current sits near 5&ndash;10&deg;N, and Tropical Instability Wave eddies ripple along the cold tongue.</p>
+      </div>
+      <iframe class="anim-embed eq-cur-map" src="sst_anim.html?embed=1&amp;manifest=eq_cur_map_manifest.json&amp;region=eq_cur_map"
+              title="Tropical Pacific surface-current animation (speed + streamlines)" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;) &middot; surface (~0.5&nbsp;m)</span>
+        <span class="chart-updated">daily</span>
+      </div>
+    </div>
+
+    <!-- EQUATORIAL ZONAL CURRENT + THERMOCLINE SECTION (Copernicus Marine) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Zonal Current &amp; the Undercurrent</h2>
+        <p>Depth&ndash;longitude slice along the equator (1.5&deg;S&ndash;1.5&deg;N), 160&deg;E&ndash;90&deg;W, from the Copernicus Marine 1/12&deg; global ocean model: zonal current (shaded, eastward in red) with the 20&deg;C isotherm (the thermocline) in black. It resolves the Equatorial Undercurrent, the eastward subsurface jet at about 50&ndash;200&nbsp;m, the surface-westward South Equatorial Current, and the east&ndash;west thermocline tilt. The loop is pinned to start 1&nbsp;March&nbsp;2026 and grows daily, so downwelling Kelvin waves (a deepening of the 20&deg;C isotherm with an eastward current pulse) can be followed across the basin.</p>
+      </div>
+      <iframe class="anim-embed eq-cur-section" src="sst_anim.html?embed=1&amp;manifest=eq_cur_section_manifest.json&amp;region=eq_cur_section"
+              title="Equatorial Pacific zonal current and thermocline animation" loading="lazy"></iframe>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg; Mercator) &middot; equator 1.5&deg;S&ndash;1.5&deg;N mean &middot; since 1 Mar 2026</span>
+        <span class="chart-updated">daily</span>
+      </div>
+    </div>
+
+    <!-- EQUATORIAL SURFACE-CURRENT STRIP / HOVMÖLLER (Copernicus Marine) -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>Equatorial Surface Current: Strip / Hovm&ouml;ller</h2>
+        <p>Longitude &times; time strip of the daily surface zonal current averaged 2&deg;S&ndash;2&deg;N, 150&deg;E&ndash;90&deg;W (same Copernicus Marine model). <span style="color:#c0392b">Red is eastward</span>, <span style="color:#2471a3">blue is westward</span>. The equatorial surface normally flows westward (the trade-driven South Equatorial Current); as El&nbsp;Ni&ntilde;o matures, downwelling Kelvin waves drive eastward surges into the east Pacific. Newest day at the bottom.</p>
+      </div>
+      <div class="img-wrap" style="max-width:640px;margin:0 auto"><img id="eq-current-hov" data-src="assets/sst/eq_current_hov.webp" alt="Equatorial Pacific surface zonal current Hovmöller" loading="lazy"></div>
+      <div class="chart-card-footer">
+        <span class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;) &middot; 2&deg;S&ndash;2&deg;N surface mean &middot; rolling ~9 months</span>
+        <span class="chart-updated">daily</span>
+      </div>
+    </div>
+
+  </div>
+</main>

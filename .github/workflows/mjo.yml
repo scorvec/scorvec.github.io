@@ -1,0 +1,279 @@
+name: MJO RMM (AIFS-ENS)
+
+# FALLBACK builder. The primary builder is a local launchd job on Shawn's laptop
+# (scripts/mjo/run_local.sh, ~02:45 ET for 00Z and ~14:45 ET for 12Z — soon after
+# each cycle's data lands ~06Z/~18Z) which does the heavy ENS download off
+# GitHub's queue. These polls fire a couple hours AFTER that, so on normal days
+# the laptop has already pushed the cycle and the light "check" job just skips
+# (sentinel = the cycle's PNG in assets/mjo/). When the laptop slept through its
+# window, this picks the cycle up promptly and does the full build itself.
+on:
+  schedule:
+    - cron: '37 8,11 * * *'     # 00Z cycle (data lands ~06Z) — fallback after laptop ~02:45 ET
+    - cron: '37 20,23 * * *'    # 12Z cycle (data lands ~18Z) — fallback after laptop ~14:45 ET
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Init date YYYYMMDD (empty = latest available)'
+        required: false
+        default: ''
+      time:
+        description: 'Init hour 00 or 12 (empty = latest available)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  actions: write   # gh run cancel: the u-fetch cancels its own run when ECMWF is too slow
+
+concurrency:
+  group: mjo-rmm
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      date: ${{ steps.decide.outputs.date }}
+      time: ${{ steps.decide.outputs.time }}
+      compact: ${{ steps.decide.outputs.compact }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install open-data client
+        run: pip install ecmwf-opendata
+      - name: Decide target cycle
+        id: decide
+        run: |
+          if [ -n "${{ inputs.date }}" ] && [ -n "${{ inputs.time }}" ]; then
+            DATE="${{ inputs.date }}"; TIME="${{ inputs.time }}"
+            echo "Manual dispatch: $DATE ${TIME}Z"
+          else
+            # Write the cycle to a FILE — newer ecmwf-opendata releases write a
+            # progress bar to STDOUT without a trailing newline, so stdout
+            # parsing (even a prefixed line) gets corrupted mid-line. Keep stderr
+            # in a log so a probe failure is diagnosable (a fully-silenced probe
+            # plus awk-on-missing-file hid the real error for two weeks).
+            (cd scripts/mjo/src && python -c \
+              "from download_aifs import latest_run; d,t=latest_run(); open('/tmp/aifs_cycle','w').write(f'{d} {t}')" \
+              >/dev/null 2>/tmp/aifs_probe.err) || true
+            DATE=$(awk '{print $1}' /tmp/aifs_cycle 2>/dev/null || true)
+            TIME=$(awk '{print $2}' /tmp/aifs_cycle 2>/dev/null || true)
+            echo "Latest available AIFS-ENS: $DATE ${TIME}Z"
+          fi
+          if ! echo "$DATE" | grep -qE '^[0-9]{8}$' || ! echo "$TIME" | grep -qE '^(00|12)$'; then
+            echo "ERROR: could not determine cycle (DATE='$DATE' TIME='$TIME')" >&2
+            echo "--- latest_run stderr (last 40 lines) ---" >&2
+            tail -40 /tmp/aifs_probe.err >&2 2>/dev/null || true
+            exit 1
+          fi
+          COMPACT="${DATE}_${TIME}z"
+          # Laptop claim: run_local.sh publishes assets/mjo/claim.json before its
+          # long u-fetch. A claim on this cycle younger than 3 h means the laptop
+          # is alive and mid-run — defer instead of racing the same download
+          # (2026-07-25: both fetched in parallel; the Action timed out for
+          # nothing). A stale claim (laptop crashed mid-run) is ignored, and a
+          # laptop that is down never claims at all, so the fallback still fires.
+          # Manual dispatches bypass the claim.
+          CLAIM_CYCLE=$(python -c "import json;print(json.load(open('assets/mjo/claim.json')).get('cycle',''))" 2>/dev/null || echo "")
+          CLAIM_AGE=$(python -c "import json;from datetime import datetime,timezone;t=datetime.fromisoformat(json.load(open('assets/mjo/claim.json'))['started'].replace('Z','+00:00'));print(int((datetime.now(timezone.utc)-t).total_seconds()//60))" 2>/dev/null || echo 99999)
+          if [ -f "assets/mjo/rmm_${COMPACT}.png" ]; then
+            echo "Already plotted (assets/mjo/rmm_${COMPACT}.png) — skipping."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" != "workflow_dispatch" ] \
+               && [ "$CLAIM_CYCLE" = "$COMPACT" ] \
+               && [ "$CLAIM_AGE" -ge -15 ] && [ "$CLAIM_AGE" -lt 180 ]; then
+            echo "Laptop claimed ${COMPACT} ${CLAIM_AGE} min ago — deferring to the local run."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not yet plotted, no fresh laptop claim — will run."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "time=$TIME" >> "$GITHUB_OUTPUT"
+          echo "compact=$COMPACT" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: check
+    if: ${{ needs.check.outputs.should_run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90   # step timeouts (45m self-cancelling u-fetch, 20m bulk fetch) bound the slow parts
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Install eccodes (GRIB decoder)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      # Two stages like run_local.sh: the light RMM u-wind pull (~1 GB) builds
+      # and COMMITS the MJO forecast first; the heavy multi-product ENS fetch
+      # (~5 GB) comes after, guarded, so slow mirrors (2026-07-17: ~500 kB/s →
+      # 60 m job timeout) or a fetch crash (same day: segfault at interpreter
+      # exit AFTER "Cycle cache ready", exit 139) can't take the RMM down too.
+      # A healthy u-pull takes ~25 m. If it can't finish in 45 m (slow ECMWF
+      # dissemination, 2026-07-25) the run CANCELS itself — grey, not a red
+      # failure — and the next scheduled cron retries the cycle from scratch.
+      - name: Fetch RMM u-wind (light — self-cancels when ECMWF is too slow)
+        timeout-minutes: 55   # backstop only; the 45 m `timeout` below acts first
+        working-directory: scripts/mjo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          timeout 45m python src/download_aifs.py --date "${{ needs.check.outputs.date }}" \
+                                                  --time "${{ needs.check.outputs.time }}" \
+                                                  --out-dir data/aifs
+          rc=$?
+          set -e
+          if [ "$rc" -eq 124 ]; then
+            echo "u-wind fetch exceeded 45 m — cancelling this run; a later cron retries."
+            gh run cancel "${{ github.run_id }}" --repo "${{ github.repository }}"
+            sleep 300   # wait to be killed by the cancellation
+            exit 1      # safety net if the cancel didn't land
+          fi
+          exit "$rc"
+
+      - name: Run RMM pipeline (computes + plots from the cached cycle)
+        working-directory: scripts/mjo
+        run: |
+          python run_rmm.py --skip-download \
+                            --date "${{ needs.check.outputs.date }}" \
+                            --time "${{ needs.check.outputs.time }}"
+
+      - name: Publish plot to assets/mjo
+        run: |
+          mkdir -p assets/mjo
+          cp "scripts/mjo/plots/rmm_${{ needs.check.outputs.compact }}.png" \
+             "assets/mjo/rmm_${{ needs.check.outputs.compact }}.png"
+          # keep the most recent 60 archived plots
+          ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
+
+      - name: Regenerate MJO page
+        run: python scripts/mjo/generate_page.py
+
+      - name: Commit & push (RMM forecast — goes live before the heavy fetches)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/mjo mjo.html scripts/mjo/data/reference/obs_history.nc scripts/mjo/data/reference/ensmean_history.json"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "No changes" and fake success
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm
+            git add $OUT
+            if git diff --staged --quiet; then echo "No changes."; exit 0; fi
+            git commit -m "data update: ${{ needs.check.outputs.compact }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "ERROR: could not push RMM." >&2
+          exit 1
+
+      - name: Fetch remaining ENS cycle (heavy — Hovmöller 10u + SOI msl)
+        timeout-minutes: 20
+        continue-on-error: true
+        working-directory: scripts/mjo
+        run: |
+          python src/ens_cycle.py --date "${{ needs.check.outputs.date }}" \
+                                  --time "${{ needs.check.outputs.time }}" \
+            || echo "ens_cycle had issues; downstream builds use whatever cached"
+
+      - name: Build equatorial 10m-wind Hovmöller (El Niño page)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst
+          python src/eq_hovmoller.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --data-dir data/u10 \
+            --out ../../assets/sst/eq_wind_hovmoller.webp \
+            || echo "Hovmöller build failed; continuing"
+
+      - name: Build SOI forecast (El Niño page)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst
+          python src/soi_forecast.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --data-dir data/msl \
+            --out ../../assets/sst/soi_forecast.webp \
+            || echo "SOI build failed; continuing"
+
+      - name: Build 200 hPa velocity potential (El Niño page)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/wind200
+          # Light: u@200 is already cached from the RMM pull above; only v@200 is fetched.
+          python src/wind200_vpot.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim/wind200 \
+            --manifest ../../assets/sst/anim/wind200_manifest.json \
+            --out ../../assets/sst/wind200.webp \
+            || echo "200 hPa velocity potential build failed; continuing"
+
+      - name: Build wave-activity flux (same u+v@200, clim is committed)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/waf
+          python src/waf.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim/waf \
+            --manifest ../../assets/sst/anim/waf_manifest.json \
+            --out ../../assets/sst/waf.webp \
+            || echo "WAF build failed; continuing"
+
+      - name: Commit & push (generated outputs)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Snapshot outputs, then commit on a clean sync of origin/main each attempt.
+          # The old rebase recovery could silently DISCARD the build: leftover unstaged
+          # files failed the rebase, and its reset --hard fallback reverted the outputs
+          # before re-adding them (bit sst-events.yml 2026-07-17 — "succeeded", pushed
+          # nothing). Snapshot+restore makes losing the outputs structurally impossible.
+          OUT="assets/mjo mjo.html scripts/mjo/data/reference/obs_history.nc scripts/mjo/data/reference/ensmean_history.json assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi   # falling through would hit "No changes" and fake success
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm   # re-apply pruning
+            git add $OUT
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: ${{ needs.check.outputs.compact }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### MJO RMM ${{ needs.check.outputs.compact }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/mjo.html](https://scorvec.com/mjo.html)" >> "$GITHUB_STEP_SUMMARY"

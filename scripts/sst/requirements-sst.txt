@@ -1,0 +1,17 @@
+# SST anomaly maps + RONI — Python requirements
+numpy
+pandas
+requests
+xarray
+scipy            # xarray .interp() imports it at call time (daily PDO projection)
+netcdf4
+h5netcdf
+# pinned <3.11: matplotlib 3.11 + cartopy 0.25 breaks GeoAxes layout on CI —
+# bbox_inches="tight" drops the map (colorbar-only frames) and axes titles
+# clip off-canvas (seen on the GDPS/MUR products, 2026-08-25)
+matplotlib==3.10.9
+cartopy>=0.22
+shapely>=2.0
+pyproj>=3.5
+Pillow
+copernicusmarine>=2.0
