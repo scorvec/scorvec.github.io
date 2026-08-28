@@ -145,6 +145,22 @@
 
 <script>
 const ANIM_BASE = new URLSearchParams(location.search).get("base") || "assets/sst/anim";
+// Frame webp live on the orphan `frames` branch, not on main — the daily churn
+// was ~6 GB/month of permanent history (see scripts/lib/publish_frames.sh).
+// MANIFESTS stay on main, so the manifest fetch below is still same-origin and
+// needs no CORS; only <img> goes cross-origin, and images never need CORS.
+// An explicit absolute ?base= (or a relative one outside assets/sst/anim) is
+// honoured for both, so callers can still point the viewer anywhere.
+const FRAME_ROOT = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
+const FRAME_BASE = ANIM_BASE.indexOf("//") === -1 ? FRAME_ROOT + ANIM_BASE : ANIM_BASE;
+// If the branch is missing a frame (mid-migration, or a renderer that has not
+// published yet) fall back to the copy on main exactly once, so a partial
+// branch degrades instead of showing a broken image.
+function frameSrc(im, rid, f, ver) {
+  const q = `?v=${f.date}.${ver || ""}`;
+  im.onerror = () => { if (!im._fellBack) { im._fellBack = 1; im.src = `${ANIM_BASE}/${rid}/${f.file}${q}`; } };
+  return `${FRAME_BASE}/${rid}/${f.file}${q}`;
+}
 let manifest = null;
 let region = null;
 let frames = [];
@@ -287,7 +303,7 @@ function preloadWindow(rid, center) {
   for (let d = 0; d <= span; d++) {
     const k = (center + d) % fr.length;
     const im = new Image();
-    im.src = `${ANIM_BASE}/${rid}/${fr[k].file}?v=${fr[k].date}.${manifest.ver||""}`;
+    im.src = frameSrc(im, rid, fr[k], manifest.ver);
     if (d === 0) {
       if (im.complete) loadingEl.classList.add("hidden");
       else im.onload = () => loadingEl.classList.add("hidden");
@@ -299,7 +315,7 @@ function preload(rid) {
   if (preloaded[rid]) return;
   preloaded[rid] = manifest.regions[rid].frames.map(f => {
     const im = new Image();
-    im.src = `${ANIM_BASE}/${rid}/${f.file}?v=${f.date}.${manifest.ver||""}`;   // bust cache when sliding-window content changes
+    im.src = frameSrc(im, rid, f, manifest.ver);   // bust cache when sliding-window content changes
     return im;
   });
   // hide the loading overlay once the first frame of the region is ready
@@ -312,7 +328,7 @@ function showFrame(i) {
   idx = (i + frames.length) % frames.length;
   if (!EAGER && idx % 4 === 0) preloadWindow(region, idx);
   const f = frames[idx];
-  imgEl.src = `${ANIM_BASE}/${region}/${f.file}?v=${f.date}.${manifest.ver||""}`;
+  imgEl.src = frameSrc(imgEl, region, f, manifest.ver);
   dateEl.textContent = f.label;
   slider.value = idx;
 }

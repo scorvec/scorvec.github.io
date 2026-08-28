@@ -1,0 +1,72 @@
+#!/bin/bash
+# Publish animation frames to the orphan `frames` branch.
+#
+# WHY: the daily frame churn (GDPS loops, OISST panels, satellite loops, AIFS
+# animators) rewrites tens of MB of webp per day. Committed to main that is
+# ~6 GB/month of permanent history — the repo hit 11 GB and had to be collapsed
+# 2026-08-28. Force-pushing a SINGLE PARENTLESS commit instead means the branch
+# never accumulates history: each push orphans the previous tree and GitHub GCs
+# it. Same pattern already proven by skewt-data and asos5-data.
+#
+# WHAT MOVES: only the frame webp (298 MB). The *_manifest.json files (276 KB
+# total) STAY on main, so the animator still fetches them same-origin and needs
+# no CORS; only <img> requests go cross-origin, and images never need CORS.
+#
+#     scripts/lib/publish_frames.sh            # publish if anything changed
+#     scripts/lib/publish_frames.sh --force    # publish regardless
+set -uo pipefail
+
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+BRANCH="frames"
+# every animation frame dir on the site. cptec/brazil/sfs are smaller than
+# sst but churn the same way, and keeping ONE branch for all of them means
+# the viewers need a single frame root rather than a per-product mapping.
+DIRS=(assets/sst/anim assets/tc/anim assets/cptec/anim assets/brazil/anim assets/sfs/anim)
+STAMP="$REPO/scripts/lib/.frames_published"
+cd "$REPO" || exit 1
+
+# Fingerprint the frame set so an unchanged cycle costs nothing. Names+sizes are
+# enough: a rewritten frame with identical size AND name is not a thing here
+# (the renderers stamp dates into the image), and hashing 300 MB every 15 min
+# would cost more than the push it saves.
+fingerprint() {
+  for d in "${DIRS[@]}"; do
+    [ -d "$d" ] && find "$d" -name '*.webp' -type f -exec stat -f '%N %z' {} + 2>/dev/null
+  done | sort | shasum | cut -d' ' -f1
+}
+
+FP="$(fingerprint)"
+if [ "${1:-}" != "--force" ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$FP" ]; then
+  echo "frames unchanged — nothing to publish"; exit 0
+fi
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+n=0
+for d in "${DIRS[@]}"; do
+  [ -d "$d" ] || continue
+  mkdir -p "$TMP/$d"
+  # frames only — manifests stay on main
+  ( cd "$d" && find . -name '*.webp' -type f -print0 \
+      | while IFS= read -r -d '' f; do
+          mkdir -p "$TMP/$d/$(dirname "$f")"; cp "$f" "$TMP/$d/$f"
+        done )
+  c=$(find "$TMP/$d" -name '*.webp' | wc -l | tr -d ' ')
+  echo "  $d: $c frames"; n=$((n + c))
+done
+[ "$n" -eq 0 ] && { echo "no frames found — refusing to publish an empty branch"; exit 1; }
+
+REMOTE="$(git config --get remote.origin.url)"
+(
+  cd "$TMP" || exit 1
+  git init -q -b "$BRANCH"
+  git add -A
+  git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
+      commit -q -m "animation frames $(date -u +%FT%H:%MZ)"
+  git config http.postBuffer 524288000
+  git config http.version HTTP/1.1
+  git push -q --force "$REMOTE" "$BRANCH:$BRANCH"
+) || { echo "frames push FAILED"; exit 1; }
+
+echo "$FP" > "$STAMP"
+echo "published $n frames to '$BRANCH'"
