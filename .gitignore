@@ -75,8 +75,6 @@ scripts/mjo/run_local.log.prev
 scripts/mjo/data/.cycle_done_*
 scripts/mjo/data/.u850_analogs_day
 
-# IEM raw-pull cache for citytemp_elnino.py (regenerable)
-scripts/sst/citytemp_cache/
 
 assets/sst/enso_maps/
 scripts/sst/enso_tmaps_cache/
