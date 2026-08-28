@@ -141,6 +141,40 @@
     h1 { font-size: 30px; } .chip { min-width: 44%; }
     main { padding-top: 8.2rem; max-width: 100%; }
   }
+
+  /* Shared figure components — the dark pages (overview, forecasts) use this
+     head, so the deck/toggle styles must exist here too, in the dark palette.
+     They were added to head.html first and the tab bars rendered unstyled here. */
+  .plot-deck .deck-tabs {
+    display: flex; flex-wrap: wrap; gap: 0.4rem;
+    padding: 1.1rem 1.6rem 0.9rem; border-bottom: 1px solid var(--border);
+  }
+  .plot-deck .deck-tabs button, .fig-toggle button {
+    font: inherit; font-size: 0.76rem; padding: 0.32rem 0.8rem; cursor: pointer;
+    border: 1px solid var(--border-hi); background: transparent;
+    color: var(--ink2); border-radius: 2px; transition: background 0.15s, color 0.15s;
+  }
+  .plot-deck .deck-tabs button:hover, .fig-toggle button:hover {
+    background: rgba(148,184,225,0.10); color: var(--ink);
+  }
+  .plot-deck .deck-tabs button.on, .fig-toggle button.on {
+    background: var(--aqua-deep); border-color: var(--aqua-deep); color: #06121f;
+  }
+  .plot-deck .deck-panel[hidden] { display: none; }
+  .plot-deck .deck-panel > .chart-card-header,
+  .plot-deck .deck-panel > .card-header { padding-top: 1.1rem; }
+  .fig-toggle { display: flex; gap: 0.4rem; padding: 0 1.6rem 0.7rem; flex-wrap: wrap; }
+  .page-section {
+    width: 100%; margin: 1.4rem 0 -1.2rem;
+    font-family: var(--serif); font-weight: 400; font-size: 1.12rem;
+    color: var(--ink); scroll-margin-top: 5.5rem;
+  }
+  .page-section::after { content: ""; display: block; margin-top: 0.5rem;
+    border-bottom: 1px solid var(--border); }
+  .section-nav { margin: 0 0 2.2rem; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem;
+    font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  .section-nav a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
+  .section-nav a:hover { color: var(--aqua); border-bottom-color: var(--aqua); }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="/assets/lightbox.css">
@@ -829,6 +863,34 @@
     if (cls) el.className = cls;
     Array.prototype.forEach.call(wrap.children, function (c) { c.classList.remove("on"); });
     b.classList.add("on");
+  });
+})();
+</script>
+<script>
+// Plot decks. One delegated listener for every deck on the page. Panels other
+// than the first ship their iframe src in data-src, so a deck costs exactly one
+// animator load on page open and the rest only when the reader asks for them.
+(function () {
+  function reveal(panel) {
+    var f = panel.querySelectorAll("iframe[data-src], img[data-deferred]");
+    for (var i = 0; i < f.length; i++) {
+      var el = f[i], d = el.getAttribute("data-src");
+      if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }
+      el.removeAttribute("data-deferred");
+    }
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest(".plot-deck .deck-tabs button") : null;
+    if (!b) return;
+    var deck = b.closest(".plot-deck");
+    var tabs = deck.querySelectorAll(".deck-tabs button");
+    var panels = deck.querySelectorAll(".deck-panel");
+    var i = Array.prototype.indexOf.call(tabs, b);
+    for (var k = 0; k < panels.length; k++) {
+      if (k === i) { panels[k].hidden = false; reveal(panels[k]); }
+      else panels[k].hidden = true;
+      tabs[k].classList.toggle("on", k === i);
+    }
   });
 })();
 </script>

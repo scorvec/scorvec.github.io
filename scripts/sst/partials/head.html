@@ -276,6 +276,24 @@
   }
   .section-nav a { color: #7a7a7a; text-decoration: none; border-bottom: 1px solid transparent; }
   .section-nav a:hover { color: #1f4e8c; border-bottom-color: #1f4e8c; }
+  /* Plot deck — one card holding several figures behind a tab bar.
+     Pages had grown to 12-22 cards, most of them a caption plus one figure, so
+     the page was a long scroll and EVERY animator iframe loaded at once. A deck
+     shows one panel at a time and keeps the other iframes' src in data-src until
+     first opened, so a page now loads exactly one animator instead of a dozen. */
+  .plot-deck .deck-tabs {
+    display: flex; flex-wrap: wrap; gap: 0.4rem;
+    padding: 1.1rem 1.8rem 0.9rem; border-bottom: 1px solid var(--rule, #e8e8e8);
+  }
+  .plot-deck .deck-tabs button {
+    font: inherit; font-size: 0.76rem; padding: 0.32rem 0.8rem; cursor: pointer;
+    border: 1px solid var(--rule, #ddd); background: #fff; color: #555; border-radius: 2px;
+  }
+  .plot-deck .deck-tabs button:hover { background: #f4f4f4; }
+  .plot-deck .deck-tabs button.on { background: #1f4e8c; border-color: #1f4e8c; color: #fff; }
+  .plot-deck .deck-panel[hidden] { display: none; }
+  .plot-deck .deck-panel > .chart-card-header { padding-top: 1.2rem; }
+
   .page-section {
     width: 100%; margin: 1.4rem 0 -1.2rem;
     font-family: var(--serif, Georgia, serif); font-weight: 400; font-size: 1.12rem;
