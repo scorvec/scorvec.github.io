@@ -4,9 +4,12 @@
     <p>The atmospheric side of ENSO: observed and forecast equatorial Pacific surface winds, the Southern Oscillation, and westerly-wind-burst activity.</p>
   </div>
 
+  <nav class="section-nav"><a href="#winds">Equatorial winds &amp; the Southern Oscillation</a><a href="#maps">Forecast maps &amp; loops</a><a href="#upper">Upper-level circulation</a><a href="#aam">Angular momentum &amp; wave driving</a><a href="#overturning">Overturning &amp; jets</a></nav>
+
   <div class="chart-stack">
 
     <!-- OBSERVED ASCAT EQUATORIAL WINDS -->
+    <h3 class="page-section" id="winds">Equatorial winds &amp; the Southern Oscillation</h3>
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Observed Equatorial Pacific Surface Wind</h2>
@@ -83,29 +86,23 @@
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS &amp; IFS-ENS (open data) &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
     </div>
 
-    <!-- SUPER-ENSEMBLE MSLP + 10m WIND MAP ANIMATOR -->
+    <!-- MSLP + 10m WIND FORECAST — one card, two models -->
+    <!-- Was two cards; the GDPS panel is the same field on the same domain with
+         the same styling, so it belongs behind a model switch rather than in a
+         second card the reader has to scroll past to compare. -->
+    <h3 class="page-section" id="maps">Forecast maps &amp; loops</h3>
     <div class="chart-card">
       <div class="chart-card-header">
-        <h2>Super-Ensemble MSLP &amp; 10 m Wind Forecast</h2>
-        <p>The full-field Pacific surface forecast behind the equatorial diagnostics: combined AIFS-ENS&nbsp;+&nbsp;IFS-ENS super-ensemble-mean mean-sea-level pressure (contours, with H/L centres) and 10&nbsp;m wind (speed shaded in knots, plus barbs), animated day&nbsp;1&ndash;15 over the tropical and subtropical Pacific. An equatorial westerly push between the Maritime Continent and the dateline is a wind-burst signature.</p>
+        <h2>MSLP &amp; 10 m Wind Forecast</h2>
+        <p>The full-field Pacific surface forecast behind the equatorial diagnostics: mean-sea-level pressure (contours, with H/L centres) and 10&nbsp;m wind (speed shaded in knots, plus barbs), animated over the tropical and subtropical Pacific. An equatorial westerly push between the Maritime Continent and the dateline is a wind-burst signature. Switch between the ECMWF <b>super-ensemble mean</b> (AIFS-ENS&nbsp;+&nbsp;IFS-ENS, days&nbsp;1&ndash;15) and <b>ECCC GDPS</b> (15&nbsp;km deterministic, days&nbsp;1&ndash;10) as an independent physics cross-check &mdash; same domain and styling, so differences are the models, not the plotting.</p>
       </div>
-      <iframe class="anim-embed mslp-wind" src="sst_anim.html?embed=1&amp;manifest=mslp_wind_manifest.json&amp;region=mslp_wind"
-              title="Super-ensemble mean MSLP and 10 m wind forecast over the Pacific, animated" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0) &middot; member-weighted super-ensemble mean &middot; updated each 00/12Z cycle</span></div>
-    </div>
-
-    <!-- GDPS MSLP + 10m WIND MAP ANIMATOR -->
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>GDPS MSLP &amp; 10 m Wind Forecast</h2>
-        <p>ECCC's <b>GDPS</b> (15&nbsp;km global deterministic model): mean-sea-level
-        pressure and 10&nbsp;m wind, animated day&nbsp;1&ndash;10 &mdash; same domain and
-        styling as the super-ensemble maps above, as an independent physics-model
-        cross-check.</p>
+      <div class="fig-toggle" data-fig="mslpwind">
+        <button class="on" data-src="sst_anim.html?embed=1&amp;manifest=mslp_wind_manifest.json&amp;region=mslp_wind">Super-ensemble (ECMWF)</button>
+        <button data-src="sst_anim.html?embed=1&amp;manifest=gdps_wind_manifest.json&amp;region=gdps_wind">GDPS (ECCC)</button>
       </div>
-      <iframe class="anim-embed mslp-wind" src="sst_anim.html?embed=1&amp;manifest=gdps_wind_manifest.json&amp;region=gdps_wind"
-              title="ECCC GDPS MSLP and 10 m wind forecast over the Pacific, animated" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">ECCC GDPS 15&nbsp;km deterministic (MSC Datamart open data) &middot; 00Z cycle, days 1&ndash;10 &middot; daily</span></div>
+      <iframe id="fig-mslpwind" class="anim-embed mslp-wind" src="sst_anim.html?embed=1&amp;manifest=mslp_wind_manifest.json&amp;region=mslp_wind"
+              title="MSLP and 10 m wind forecast over the Pacific, animated" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0), member-weighted super-ensemble mean, each 00/12Z cycle &middot; ECCC GDPS 15&nbsp;km deterministic (MSC Datamart), 00Z cycle, daily</span></div>
     </div>
 
     <!-- GDPS SIMULATED IR FORECAST LOOP (GMGSI styling) -->
@@ -137,6 +134,7 @@
     </div>
 
     <!-- 200 hPa VELOCITY POTENTIAL + IRROTATIONAL WIND (AIFS-ENS ensemble mean) -->
+    <h3 class="page-section" id="upper">Upper-level circulation</h3>
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>200 hPa Velocity Potential &amp; Irrotational Wind</h2>
@@ -184,6 +182,7 @@
          MJO_HEAVY_ATMOS=1. -->
 
     <!-- ATMOSPHERIC ANGULAR MOMENTUM -->
+    <h3 class="page-section" id="aam">Angular momentum &amp; wave driving</h3>
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Atmospheric Angular Momentum</h2>
@@ -314,6 +313,7 @@
     </div>
 
     <!-- MERIDIONAL MASS STREAMFUNCTION (Hadley cell response) -->
+    <h3 class="page-section" id="overturning">Overturning &amp; jets</h3>
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Meridional Overturning: the Hadley Cell Response</h2>

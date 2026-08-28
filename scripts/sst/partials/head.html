@@ -252,6 +252,39 @@
     .enso-subnav { gap: 0.7rem; }
     .page-header h1 { font-size: 1.28rem; }
   }
+
+  /* Figure toggles — one card, several versions of the same figure.
+     Pairs like raw/de-trended or the same field from two models were separate
+     cards; they are the same panel with one thing changed, so they share a card
+     and a switch instead of doubling the scroll length. */
+  .fig-toggle { display: flex; gap: 0.4rem; padding: 0 1.8rem 0.7rem; flex-wrap: wrap; }
+  .fig-toggle button {
+    font: inherit; font-size: 0.74rem; letter-spacing: 0.02em;
+    padding: 0.28rem 0.72rem; cursor: pointer;
+    border: 1px solid var(--rule, #ddd); background: #fff; color: #555; border-radius: 2px;
+  }
+  .fig-toggle button:hover { background: #f4f4f4; }
+  .fig-toggle button.on { background: #1f4e8c; border-color: #1f4e8c; color: #fff; }
+
+  /* Section grouping. The Atmospheric Response page carries ~22 cards across
+     five quite different topics; grouping them in place (no reordering) plus a
+     jump nav makes it navigable without splitting it into more pages. */
+  .section-nav {
+    /* aligns with main's content box, like .page-header and .chart-card */
+    margin: 0 0 2.2rem; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem;
+    font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .section-nav a { color: #7a7a7a; text-decoration: none; border-bottom: 1px solid transparent; }
+  .section-nav a:hover { color: #1f4e8c; border-bottom-color: #1f4e8c; }
+  .page-section {
+    width: 100%; margin: 1.4rem 0 -1.2rem;
+    font-family: var(--serif, Georgia, serif); font-weight: 400; font-size: 1.12rem;
+    color: #2b2b2b; scroll-margin-top: 5.5rem;
+  }
+  .page-section::after {
+    content: ""; display: block; margin-top: 0.5rem;
+    border-bottom: 1px solid var(--rule, #e2e2e2);
+  }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="/assets/lightbox.css">
