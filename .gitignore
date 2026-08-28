@@ -117,3 +117,6 @@ scripts/sfs/data/*.npy
 scripts/sst/.run.lock/
 scripts/sst/data/region_weights_energy.npz
 scripts/verify/launchd_aifs.log
+
+# local stamp for scripts/lib/publish_frames.sh
+scripts/lib/.frames_published

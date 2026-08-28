@@ -73,6 +73,11 @@
   var base = q.get("base") || "assets/sst/anim/";
   if (base.indexOf("..") !== -1 || base.indexOf("//") !== -1) base = "assets/sst/anim/";
   if (base.slice(-1) !== "/") base += "/";
+  // Frames moved off main to the orphan `frames` branch (scripts/lib/publish_frames.sh);
+  // manifests stayed, so `base` still resolves the manifest same-origin and only the
+  // <img> requests below go cross-origin. The "//" guard above still rejects a
+  // caller-supplied absolute base, so this root is a constant, never user input.
+  var FRAME_BASE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/" + base;
   var img = document.getElementById("frame"), scrub = document.getElementById("scrub");
   var playBtn = document.getElementById("play"), label = document.getElementById("label");
   var frames = [], imgs = [], okFrame = [], cur = 0, playing = false, timer = null;
@@ -172,11 +177,14 @@
           // seconds; without this the player silently skips those months
           if (tries++ < 1) {
             setTimeout(function () {
-              im.src = base + regionKey + "/" + fr.file + "?v=" + ver + "r";
+              im.src = FRAME_BASE + regionKey + "/" + fr.file + "?v=" + ver + "r";
             }, 2500);
           } else { done(); }
         };
-        im.src = base + regionKey + "/" + fr.file + "?v=" + ver;
+        im.onerror = (function (el, f2) {
+          return function () { if (!el._fellBack) { el._fellBack = 1; el.src = base + regionKey + "/" + f2.file; } };
+        })(im, fr);
+        im.src = FRAME_BASE + regionKey + "/" + fr.file + "?v=" + ver;
         return im;
       });
       function done() {
