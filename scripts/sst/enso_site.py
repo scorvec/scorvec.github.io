@@ -22,7 +22,7 @@ PARTIALS_DIR = HERE / "partials"
 PAGES_DIR = HERE / "pages"
 
 # sub-nav active-class placeholders, one per page (see partials/nav.html)
-_SUBNAV_KEYS = ["A_OVERVIEW", "A_SUBSURFACE", "A_ANALOGS", "A_FORECASTS", "A_ATMOSPHERE"]
+_SUBNAV_KEYS = ["A_OVERVIEW", "A_SUBSURFACE", "A_FORECASTS", "A_ATMOSPHERE"]
 
 PAGES = [
     dict(slug="overview", out="sst.html", active="A_OVERVIEW", chrome="dark",
@@ -35,13 +35,10 @@ PAGES = [
     dict(slug="subsurface", out="enso-subsurface.html", active="A_SUBSURFACE",
          title="Subsurface Temperature &middot; El Ni&ntilde;o Monitor",
          desc="Equatorial Pacific depth–longitude subsurface temperature cross-sections "
-              "(NOAA/PMEL TAO/TRITON), raw and with the 1991–2020 climate trend removed.",
+              "(NOAA/PMEL TAO/TRITON), raw and with the 1991–2020 climate trend removed, "
+              "plus upper-ocean heat content and cross-sections against the 1997, 2015 "
+              "and 2023 El Niños at matching phase.",
          canonical="https://scorvec.com/enso-subsurface.html"),
-    dict(slug="analogs", out="enso-analogs.html", active="A_ANALOGS",
-         title="El Ni&ntilde;o Analog Comparisons &middot; El Ni&ntilde;o Monitor",
-         desc="The current event vs the 1997, 2015 and 2023 El Niños at matching phase — "
-              "surface, subsurface and 850 hPa low-level wind.",
-         canonical="https://scorvec.com/enso-analogs.html"),
     dict(slug="forecasts", out="enso-forecasts.html", active="A_FORECASTS",
          chrome="dark",
          title="ENSO Forecasts &mdash; Interactive Multi-Model Outlook &middot; El Ni&ntilde;o Monitor",

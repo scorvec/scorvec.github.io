@@ -96,7 +96,10 @@ if [ "$TODAY_UTC" != "$LAST_ANALOG" ] || { [ -n "$NEW_DAY" ] && [ "$NEW_DAY" != 
   SST_SITE_ROOT="$REPO" "$PY" scripts/sst/build_nino_history.py || echo "nino history failed; keeping previous JSON"
   # Atmospheric fingerprint maps (ERA5 monthly, CDS): re-request only when a
   # newer month should exist, so this is a no-op most days.
-  SST_SITE_ROOT="$REPO" "$PY" scripts/sst/analog_atmos.py || echo "analog atmos failed; keeping previous maps"
+  # analog_atmos.py retired 2026-08-28 with the analogs page: its only consumer was enso-analogs.html.
+  # (Its super-El Nino composite also lacked volcanic screening — 1982 El Chichon
+  # and 1991 Pinatubo were 2 of the 5 composited events.)
+  #SST_SITE_ROOT="$REPO" "$PY" scripts/sst/analog_atmos.py || echo "analog atmos failed; keeping previous maps"
   [ "$ok" = 1 ] && echo "$TODAY_UTC" > "$ANALOG_STAMP"     # stamp only on full success → retry next poll otherwise
 fi
 

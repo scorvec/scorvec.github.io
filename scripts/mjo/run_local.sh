@@ -286,16 +286,16 @@ echo "all product groups finished"
 # the Action's clean checkout — the committed webps just carry over from the last local run.
 U850_SERIES="data/reference/eq_u850_bandseries.nc"
 U850_STAMP="data/.u850_analogs_day"
-if [ -f "$U850_SERIES" ] && [ "$(cat "$U850_STAMP" 2>/dev/null)" != "$(date -u +%Y-%m-%d)" ]; then
-  YR=$(date -u +%Y)
-  if ARCO_HOURS=12 "$PY" src/build_u850_bandseries.py --source arco --start "$YR" --end "$YR" \
-        --out "data/reference/eq_u850_${YR}_arco.nc" \
-     && "$PY" src/eq_u850_analogs.py \
-        --out-anom "$REPO/assets/sst/u850_analogs_anom.webp" \
-        --out-abs  "$REPO/assets/sst/u850_analogs_abs.webp"; then
-    date -u +%Y-%m-%d > "$U850_STAMP"
-  else echo "u850 analogs failed; continuing"; fi
-fi
+# u850 analog Hovmollers retired 2026-08-28 with the analogs page (only consumer was enso-analogs.html).
+#  YR=$(date -u +%Y)
+#  if ARCO_HOURS=12 "$PY" src/build_u850_bandseries.py --source arco --start "$YR" --end "$YR" \
+#        --out "data/reference/eq_u850_${YR}_arco.nc" \
+#     && "$PY" src/eq_u850_analogs.py \
+#        --out-anom "$REPO/assets/sst/u850_analogs_anom.webp" \
+#        --out-abs  "$REPO/assets/sst/u850_analogs_abs.webp"; then
+#    date -u +%Y-%m-%d > "$U850_STAMP"
+#  else echo "u850 analogs failed; continuing"; fi
+#fi
 
 # MEI.v2 daily nowcast — regression of the published bimonthly MEI.v2 onto daily Niño3.4
 # (OISST) + SOI (DailySOI) + eq-u850 (the ARCO tail refreshed just above). Cheap (~seconds);
