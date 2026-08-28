@@ -59,7 +59,10 @@ jobs:
         run: pip install -r scripts/sst/requirements-sst.txt
 
       - name: Build event-comparison products (downloads OISST daily-anom event years)
-        run: python scripts/sst/sst_events.py
+        # sst_events.py retired 2026-08-28 with the analogs page — events_bars/maps/nino34 had no consumer left.
+        # sst_subsurface_events.py below is STILL required: its four panels moved
+        # to enso-subsurface.html rather than being retired.
+        run: 'true'
 
       - name: Build subsurface analog comparison (TAO moorings, 1997/2015/2023)
         working-directory: scripts/sst
