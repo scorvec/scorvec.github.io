@@ -128,17 +128,17 @@ jobs:
           # The local first run proved a partial set publishes happily and exits
           # 0 - the frame count is the only thing that catches it.
           want=${#HOURS[@]}
-          for fld in ecape_ml ecape_mu ratio_ml ratio_mu; do
+          for fld in ecape_ml ecape_mu ratio_mu; do
             got=$(find "assets/ecape/anim/$fld" -name 'F*.webp' 2>/dev/null | wc -l | tr -d ' ')
             if [ "$got" -ne "$want" ]; then
               echo "::error::$fld has $got frames, expected $want — refusing to publish a partial loop"
               exit 1
             fi
           done
-          echo "frame count verified: $want per field across 4 fields"
+          echo "frame count verified: $want per field across 3 fields"
           python scripts/ecape/build_manifest.py assets/ecape/anim --cycle "$CYCLE"
           # Stills for the page's static panels come from the analysis frame.
-          for fld in ecape_ml ecape_mu ratio_ml ratio_mu; do
+          for fld in ecape_ml ecape_mu ratio_mu; do
             [ -f "assets/ecape/anim/$fld/F00.webp" ] && cp "assets/ecape/anim/$fld/F00.webp" "assets/ecape/$fld.webp"
           done
           du -sh assets/ecape/anim

@@ -184,7 +184,9 @@ def main(argv=None) -> int:
     elif a.field:
         names = a.field
     else:
-        names = ["ecape_ml", "ecape_mu", "ratio_ml", "ratio_mu"]
+        # ratio_ml dropped 2026-08-29: the MU ratio is the one that gets read,
+        # and the ML ratio tracked it closely enough not to earn its own panel.
+        names = ["ecape_ml", "ecape_mu", "ratio_mu"]
 
     # Forecast hours share one output directory, so anything past the analysis
     # gets an _fNN suffix - otherwise a multi-hour run silently overwrites

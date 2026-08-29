@@ -27,7 +27,6 @@ from pathlib import Path
 # Order here is the order of the picker buttons in the viewer.
 FIELDS = [
     ("ratio_mu", "ECAPE / CAPE — most-unstable"),
-    ("ratio_ml", "ECAPE / CAPE — mixed-layer"),
     ("ecape_mu", "ECAPE — most-unstable"),
     ("ecape_ml", "ECAPE — mixed-layer"),
 ]
