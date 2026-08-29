@@ -1,3 +1,4 @@
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
 <main>
   <header>
     <div class="eyebrow">Monthly &middot; Copernicus C3S seasonal multi-system &middot; 7 centres</div>
@@ -95,7 +96,7 @@
 <script>
 (function () {
   "use strict";
-  var GRID = "rgba(148,184,225,0.22)", AXIS = "#8296ad", INK2 = "#a7b8ce";
+  var GRID = "rgba(26,26,26,0.10)", AXIS = "#8a8680", INK2 = "#4a4744";
   var state = { idx: "n34", smooth: true, members: false,
                 fc: null, hist: null, dailyFeed: null };
 
@@ -124,12 +125,12 @@
       margin: { l: 46, r: 14, t: 10, b: 40 },
       xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, zeroline: false },
       yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
-               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2,
+               zerolinecolor: "rgba(26,26,26,0.45)", zerolinewidth: 2,
                title: { text: "anomaly (°C)", standoff: 4 } },
       legend: { orientation: "h", y: 1.09, font: { size: 11 } },
       hovermode: "x unified",
-      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
-                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+      hoverlabel: { bgcolor: "#ffffff", bordercolor: "rgba(26,26,26,0.25)",
+                    font: { family: "Inter", size: 12, color: "#1a1a1a" } },
     };
     for (var k in (extra || {})) base[k] = extra[k];
     return base;
@@ -138,10 +139,10 @@
   function thresholds(x0, x1) {
     var out = [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0,
                  layer: "above",
-                 line: { color: "rgba(205,222,240,0.9)", width: 2 } }];
+                 line: { color: "rgba(74,71,68,0.85)", width: 2 } }];
     [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (y) {
       out.push({ type: "line", x0: x0, x1: x1, y0: y, y1: y,
-                 line: { color: y > 0 ? "rgba(232,131,58,0.30)" : "rgba(77,143,232,0.30)",
+                 line: { color: y > 0 ? "rgba(180,84,31,0.32)" : "rgba(63,111,143,0.35)",
                          width: 1, dash: "dot" } });
     });
     return out;
@@ -202,8 +203,8 @@
     var bridgePad = pad.slice();
     if (obsY.length) bridgePad[bridgePad.length - 1] = obsY[obsY.length - 1];
     var traces = [];
-    [["p90", "p10", "10–90%", "rgba(77,214,232,0.13)"],
-     ["p75", "p25", "25–75%", "rgba(77,214,232,0.22)"]].forEach(function (b) {
+    [["p90", "p10", "10–90%", "rgba(138,75,42,0.13)"],
+     ["p75", "p25", "25–75%", "rgba(138,75,42,0.22)"]].forEach(function (b) {
       traces.push({ x: x, y: pad.concat(smooth(fan[b[0]])), type: "scatter", mode: "lines",
                     line: { width: 0 }, hoverinfo: "skip", showlegend: false });
       traces.push({ x: x, y: pad.concat(smooth(fan[b[1]])), type: "scatter", mode: "lines",
@@ -226,7 +227,7 @@
       // plain SVG scatter: one NaN-gapped trace is only ~3.4k points, and
       // scattergl throws a "WebGL not supported" banner on GPU-less browsers
       traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                    line: { color: "rgba(190,208,228,0.35)", width: 1.0 },
+                    line: { color: "rgba(74,71,68,0.28)", width: 1.0 },
                     name: "members", hoverinfo: "skip" });
     }
     labels.forEach(function (m) {
@@ -235,12 +236,12 @@
                     hovertemplate: "%{y:+.2f} °C" });
     });
     traces.push({ x: x, y: bridgePad.concat(smooth(mmm)), type: "scatter", mode: "lines",
-                  name: "Multi-model mean", line: { color: "#f2f4f8", width: 3 },
+                  name: "Multi-model mean", line: { color: "#1a1a1a", width: 3 },
                   hovertemplate: "%{y:+.2f} °C" });
     if (obsX.length)
       traces.push({ x: obsX, y: obsY, type: "scatter", mode: "lines+markers",
                     name: "Observed", marker: { size: 5 },
-                    line: { color: "#e8c04d", width: 2.4 },
+                    line: { color: "#b8912a", width: 2.4 },
                     hovertemplate: "%{y:+.2f} °C" });
 
     var lay = layout({ shapes: thresholds(x[0], x[x.length - 1]) });
@@ -290,7 +291,7 @@
     issues.forEach(function (iss, i) {
       var t = issues.length === 1 ? 1 : i / (issues.length - 1);
       var newest = i === issues.length - 1;
-      var colour = newest ? "#e8c04d" : evoColor(t);
+      var colour = newest ? "#b8912a" : evoColor(t);
       // ONI convention: bridge with the two observed months before lead 1
       var bridge = [addMonths(iss.valid_months[0], -2), addMonths(iss.valid_months[0], -1)]
         .map(function (m) { return obsAt[m]; })
@@ -330,7 +331,7 @@
       var oy = x.map(function (m) { return obsAt[m] != null ? obsAt[m] : null; });
       traces.push({ x: x, y: oy, type: "scatter", mode: "lines+markers",
                     name: "Observed", marker: { size: 5 },
-                    line: { color: "#f2f4f8", width: 2.6 },
+                    line: { color: "#1a1a1a", width: 2.6 },
                     hovertemplate: "%{y:+.2f} °C" });
     }
     var lay = layout({ shapes: thresholds(x[0], x[x.length - 1]) });
@@ -344,8 +345,8 @@
   // ── history overlay ──────────────────────────────────────────────────────
   // one DISTINCT hue per named event (strength-class colouring made every
   // strong El Niño the same orange); strength instead sets the line weight
-  var EVENT_PALETTE = ["#e8833a", "#4dd6e8", "#9b7ce8", "#57d9a3", "#e86bb8",
-                       "#6aa7f0", "#ff8a7a", "#2fbfb2", "#c9a0ff", "#b8d94d",
+  var EVENT_PALETTE = ["#e8833a", "#8a4b2a", "#9b7ce8", "#2f9e6e", "#e86bb8",
+                       "#6aa7f0", "#ff8a7a", "#1c8f85", "#c9a0ff", "#b8d94d",
                        "#f06a9b", "#d9a13d", "#8fd0ff", "#e0645c", "#7fe8c9",
                        "#d98fd0", "#a8c94d", "#5c8fe0"];
   var STRENGTH_W = { "very strong": 2.4, strong: 1.9, moderate: 1.5,
@@ -392,7 +393,7 @@
       gx.push(MONS[11]); gy.push(null);
     });
     traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                  line: { color: "rgba(190,208,228,0.4)", width: 1.0 },
+                  line: { color: "rgba(74,71,68,0.32)", width: 1.0 },
                   name: "all other years", hoverinfo: "skip" });
     (H.events || []).forEach(function (e, ei) {
       if (!byYear[e.onset] || e.current) return;
@@ -406,7 +407,7 @@
     });
     traces.push({ x: MONS, y: byYear[curYear], type: "scatter", mode: "lines+markers",
                   name: String(curYear) + " observed", marker: { size: 5 },
-                  line: { color: "#f2f4f8", width: 3 },
+                  line: { color: "#1a1a1a", width: 3 },
                   hovertemplate: "%{y:+.2f} °C" });
     if (F) {
       var labels = Object.keys(F.models);
@@ -429,7 +430,7 @@
       });
       traces.push({ x: fx, y: fy, type: "scatter", mode: "lines+markers",
                     name: "forecast (multi-model " + ((state.histIdx || "oni") === "roni" ? "RONI" : "ONI") + ")", marker: { size: 5, symbol: "diamond" },
-                    line: { color: "#e8c04d", width: 2.6, dash: "dash" },
+                    line: { color: "#b8912a", width: 2.6, dash: "dash" },
                     hovertemplate: "%{y:+.2f} °C" });
     }
     var lay = layout({ shapes: thresholds(MONS[0], MONS[11]) });

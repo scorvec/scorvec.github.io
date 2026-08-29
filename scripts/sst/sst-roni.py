@@ -877,16 +877,44 @@ def render_roni(df: pd.DataFrame, out_path: Path,
         return "#9a9a96"
     colors = [bar_color(v) for v in roni_vals]
 
-    ax.bar(x, roni_vals, width=0.8, color=colors, edgecolor="#fff",
-           linewidth=0.5, zorder=2)
+    # ONI alongside RONI: the card's whole point is the DISAGREEMENT between the
+    # official convention and the relative index, which one series cannot show. ONI is
+    # drawn in a flat gold so the eye reads it as the reference and RONI (threshold-
+    # coloured) as the signal.
+    oni_vals = df["oni"].values if "oni" in df else None
+    if oni_vals is not None:
+        ax.bar(x - 0.20, oni_vals, width=0.38, color="#c9a227", edgecolor="#fff",
+               linewidth=0.5, zorder=2, label="ONI (official)")
+        ax.bar(x + 0.20, roni_vals, width=0.38, color=colors, edgecolor="#fff",
+               linewidth=0.5, zorder=2, label="RONI")
+    else:
+        ax.bar(x, roni_vals, width=0.8, color=colors, edgecolor="#fff",
+               linewidth=0.5, zorder=2)
     # Every bar is a true 3-month season (compute_oni_roni uses min_periods=3, with the
     # prior year concatenated), so only the newest bar can be unsettled — hatch it while
     # the current month is still partial (e.g. MJJ drawn mid-July).
     prov = [last_partial and i == n - 1 for i in range(n)]
     for i in range(n):
-        if prov[i]:
+        if not prov[i]:
+            continue
+        if oni_vals is not None:
+            ax.bar(x[i] - 0.20, oni_vals[i], width=0.38, color="#c9a227",
+                   edgecolor="#222", linewidth=0.9, hatch="////", zorder=3)
+            ax.bar(x[i] + 0.20, roni_vals[i], width=0.38, color=colors[i],
+                   edgecolor="#222", linewidth=0.9, hatch="////", zorder=3)
+        else:
             ax.bar(x[i], roni_vals[i], width=0.8, color=colors[i], edgecolor="#222",
                    linewidth=0.9, hatch="////", zorder=3)
+        # spell it out rather than leaving the hatch to be decoded
+        _top = max(oni_vals[i] if oni_vals is not None else roni_vals[i], roni_vals[i])
+        _bot = min(oni_vals[i] if oni_vals is not None else roni_vals[i], roni_vals[i])
+        # the provisional season is the LAST bar, so a centred label runs off the axes
+        _ha = "right" if i >= n - 2 else "center"
+        ax.annotate("PRELIMINARY", xy=(x[i] + (0.42 if _ha == "right" else 0),
+                                       _top if _top > 0 else _bot),
+                    xytext=(0, 7 if _top > 0 else -14), textcoords="offset points",
+                    ha=_ha, va="bottom" if _top > 0 else "top",
+                    fontsize=7.5, fontweight="bold", color="#222", zorder=7)
 
     # ENSO threshold guides and zero line.
     for y, c in [(0.5, "#d9402a"), (-0.5, "#2b6fd6")]:
@@ -904,17 +932,20 @@ def render_roni(df: pd.DataFrame, out_path: Path,
 
     # Y-limits: include the data AND the +/-0.5 guides, with headroom, so
     # small bars stay visible instead of being dwarfed by the guide lines.
-    vmax = float(np.nanmax(roni_vals))
-    vmin = float(np.nanmin(roni_vals))
-    hi = max(vmax, 0.6) + 0.15
-    lo = min(vmin, -0.6) - 0.15
+    _all = roni_vals if oni_vals is None else np.concatenate([roni_vals, oni_vals])
+    vmax = float(np.nanmax(_all))
+    vmin = float(np.nanmin(_all))
+    hi = max(vmax, 0.6) + 0.28          # headroom for the PRELIMINARY tag
+    lo = min(vmin, -0.6) - 0.20
     ax.set_ylim(lo, hi)
 
-    ax.set_ylabel("RONI (\u00b0C)", fontsize=11)
-    ax.set_title("Relative Oceanic Ni\u00f1o Index (RONI, CPC/ECMWF) \u2014 (Ni\u00f1o-3.4 \u2212 tropical-mean) SST "
-                 "anomaly,\nvariance-rescaled to ONI per calendar month \u00b7 3-month running mean (\u00b0C)",
+    ax.set_ylabel("\u00b0C", fontsize=11)
+    ax.set_title("ONI vs RONI \u2014 the official 3-month convention against the relative index\n"
+                 "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean) SST anomaly, variance-rescaled to ONI per calendar month",
                  fontsize=10.5, loc="left", pad=8)
     ax.grid(axis="y", alpha=0.2)
+    if oni_vals is not None:
+        ax.legend(loc="upper left", fontsize=8.5, framealpha=0.9, ncol=2)
 
     # Current-value readout box.
     if latest_roni is not None:
@@ -935,7 +966,7 @@ def render_roni(df: pd.DataFrame, out_path: Path,
              "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean 20\u00b0S\u201320\u00b0N) anomaly rescaled by \u03c3(ONI)/\u03c3(relative) per calendar "
              "month (CPC/ECMWF), in \u00b0C, comparable to ONI (red >+0.5, blue <\u22120.5, grey neutral).\n"
              "Each bar is the centered 3-month season (e.g. May = AMJ); a hatched bar is provisional (its "
-             "season includes the incomplete current month). NOAA OISST v2.1, anomalies vs 1991\u20132020.",
+             "season includes the incomplete current month and is PRELIMINARY). NOAA OISST v2.1, anomalies vs 1991\u20132020.",
              fontsize=7, color="#888")
 
     fig.subplots_adjust(bottom=0.20, top=0.86)   # room for the 2-line season ticks + footnote

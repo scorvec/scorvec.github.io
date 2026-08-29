@@ -1,3 +1,4 @@
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
 <main>
   <header>
     <div class="eyebrow">Daily &middot; NOAA OISST v2.1 &middot; anomalies vs 1991&ndash;2020</div>
@@ -49,7 +50,7 @@
   <div class="card">
     <h2>Daily ENSO indices &mdash; interactive</h2>
     <p class="note">Every index is a daily area-weighted SST average, so today's value exists
-    today &mdash; no waiting for the month to close. <b style="color:#f2f4f8">Ni&ntilde;o-3.4</b>
+    today &mdash; no waiting for the month to close. <b style="color:#1a1a1a">Ni&ntilde;o-3.4</b>
     is the raw material of ONI; the <b style="color:var(--aqua)">daily RONI</b> subtracts the
     20&deg;S&ndash;20&deg;N tropical mean and rescales by the CPC/ECMWF &sigma;-factor, so it reads on
     ONI's &plusmn;0.5&thinsp;&deg;C thresholds; the <b style="color:#e8c04d">90-day mean</b> is the
@@ -77,16 +78,16 @@
   <div class="card">
     <h2>ONI vs RONI &mdash; the official convention</h2>
     <p class="note">Three-month running means, the form CPC publishes. As the whole tropics warm,
-    conventional ONI drifts warm with the background; <b style="color:var(--aqua)">RONI</b> measures
+    conventional ONI drifts warm with the background; <b>RONI</b> measures
     Ni&ntilde;o-3.4 against the rest of the tropics and is the cleaner ENSO signal in a warming
     ocean. When the two disagree, the atmosphere usually sides with RONI. Bars beyond
     &plusmn;0.5&thinsp;&deg;C are El&nbsp;Ni&ntilde;o&nbsp;/&nbsp;La&nbsp;Ni&ntilde;a territory.</p>
-    <div id="monthlyChart" class="plot" style="height:340px"></div>
-    <div class="img-wrap" id="monthlyFallback" hidden>
-      <img src="assets/sst/roni.webp?v=__CACHE__" alt="ONI and RONI monthly time series" loading="lazy">
+    <div class="img-wrap">
+      <img src="assets/sst/roni.webp?v=__CACHE__"
+           alt="ONI and RONI by 3-month season, newest season marked preliminary" loading="lazy">
     </div>
     <div class="chart-card-footer">
-      <span class="chart-sources">Computed from NOAA OISST v2.1 &middot; 3-month centered means &middot; newest season still accumulating</span>
+      <span class="chart-sources">Computed from NOAA OISST v2.1 &middot; 3-month centered means &middot; the newest season is preliminary (its final month is incomplete)</span>
       <span class="chart-updated" id="roni-updated">__RONI_MONTH__</span>
     </div>
   </div>
@@ -112,7 +113,7 @@
       <div class="deck-panel">
     <h2>Beyond ENSO &mdash; daily PDO, Indian Ocean Dipole &amp; South Atlantic</h2>
     <p class="note">The same daily-OISST machinery pointed at the other basins.
-    The <b style="color:#f2f4f8">PDO</b> is the leading pattern of North Pacific SST
+    The <b style="color:#1a1a1a">PDO</b> is the leading pattern of North Pacific SST
     variability &mdash; here as a <i>daily</i> index: each day's anomaly field (global-mean
     removed) projected onto the ERSST-derived PDO pattern and calibrated to NCEI's
     published monthly scale. The <b style="color:#e8c04d">Indian Ocean Dipole</b> is the
@@ -307,9 +308,9 @@
 (function () {
   "use strict";
   // display palette (the pipeline's map colors, brightened for the dark theme)
-  var C = { nino12: "#e86bb8", nino3: "#2fbfb2", nino34: "#f2f4f8", nino4: "#9b7ce8",
-            trop: "#8fa3bd", roni_d: "#4dd6e8", oni90: "#e8c04d" };
-  var GRID = "rgba(148,184,225,0.22)", AXIS = "#8296ad", INK2 = "#a7b8ce";
+  var C = { nino12: "#e86bb8", nino3: "#1c8f85", nino34: "#1a1a1a", nino4: "#9b7ce8",
+            trop: "#6b7280", roni_d: "#8a4b2a", oni90: "#b8912a" };
+  var GRID = "rgba(26,26,26,0.10)", AXIS = "#8a8680", INK2 = "#4a4744";
   var state = { mode: "anom", range: 365, data: null };
 
   function tone(v, th) { th = th || 0.5; return v >= th ? "warm" : v <= -th ? "cool" : "neut"; }
@@ -361,11 +362,11 @@
       margin: { l: 46, r: 12, t: 8, b: 34 },
       xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, zeroline: false },
       yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
-               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2, title: { text: "°C", standoff: 4 } },
+               zerolinecolor: "rgba(26,26,26,0.45)", zerolinewidth: 2, title: { text: "°C", standoff: 4 } },
       legend: { orientation: "h", y: 1.08, font: { size: 11 } },
       hovermode: "x unified",
-      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
-                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+      hoverlabel: { bgcolor: "#ffffff", bordercolor: "rgba(26,26,26,0.25)",
+                    font: { family: "Inter", size: 12, color: "#1a1a1a" } },
     };
     for (var k in extra) base[k] = extra[k];
     return base;
@@ -375,7 +376,7 @@
   function thresholdShapes(x0, x1) {
     return [0.5, -0.5].map(function (y) {
       return { type: "line", x0: x0, x1: x1, y0: y, y1: y,
-               line: { color: y > 0 ? "rgba(232,131,58,0.45)" : "rgba(77,143,232,0.45)",
+               line: { color: y > 0 ? "rgba(180,84,31,0.42)" : "rgba(63,111,143,0.45)",
                        width: 1, dash: "dot" } };
     });
   }
@@ -418,31 +419,6 @@
     Plotly.react("dailyChart", traces, lay, CONFIG);
   }
 
-  function drawMonthly() {
-    var M = state.data.monthly;
-    // CPC season codes: the month in the feed is the CENTER of the 3-month
-    // running mean, so 2026-06 is MJJ. Year suffix keeps an 18-season axis
-    // unambiguous.
-    var SEA = "JFMAMJJASOND";
-    var labels = M.months.map(function (ym) {
-      var y = +ym.slice(0, 4), m = +ym.slice(5, 7);
-      return SEA[(m + 10) % 12] + SEA[(m - 1) % 12] + SEA[m % 12] +
-             " ’" + String(y).slice(2);
-    });
-    var lay = layout({
-      barmode: "group", bargap: 0.25,
-      shapes: thresholdShapes(labels[0], labels[labels.length - 1]),
-      margin: { l: 46, r: 12, t: 8, b: 42 },
-    });
-    lay.xaxis.type = "category"; lay.xaxis.tickangle = -35;
-    Plotly.react("monthlyChart", [
-      { x: labels, y: M.oni, name: "ONI", type: "bar",
-        marker: { color: "rgba(232,192,77,0.85)" }, hovertemplate: "%{y:+.2f} °C" },
-      { x: labels, y: M.roni, name: "RONI", type: "bar",
-        marker: { color: "rgba(77,214,232,0.9)" }, hovertemplate: "%{y:+.2f} °C" },
-    ], lay, CONFIG);
-  }
-
   // pills
   document.querySelectorAll(".pill[data-mode]").forEach(function (b) {
     b.addEventListener("click", function () {
@@ -466,7 +442,6 @@
       state.data = d;
       buildChips(d.latest);
       drawDaily();
-      drawMonthly();
     })
     .catch(function () {
       // feed not built yet (or fetch blocked): fall back to the static renders
@@ -475,9 +450,7 @@
         '<div class="v neut">building…</div>' +
         '<div class="s">static charts shown below</div></div>';
       document.getElementById("dailyChart").style.display = "none";
-      document.getElementById("monthlyChart").style.display = "none";
       document.getElementById("dailyFallback").hidden = false;
-      document.getElementById("monthlyFallback").hidden = false;
     });
 })();
 </script>
