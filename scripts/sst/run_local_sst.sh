@@ -1,11 +1,25 @@
 #!/bin/bash
-# Local SST/RONI build (primary path; the GitHub Action sst.yml is the fallback
-# for when the laptop is off). Rebuilds the OISST anomaly maps + RONI + TAO
-# subsurface + ASCAT winds, then commits & pushes only if something changed.
+# Local SST/RONI build. MANUAL FALLBACK as of 2026-08-29 - sst.yml is now the
+# primary path and com.scorvec.sst has been unloaded, to keep the laptop's cores
+# free (it routinely runs WRF under mpirun -np 18). Run this by hand when you
+# want an immediate rebuild rather than waiting for the Action.
+#
+# The workflow now covers everything this does: it already built sst-roni,
+# sst_subsurface and tao_subsurface, and gained wwv_orbit, mur_nino34 and
+# build_nino_history on the same date. sst_events has its own weekly workflow;
+# analog_atmos was retired 2026-08-28 with the analogs page.
+#
+# The trade, stated plainly: this ran every 15 minutes, and GitHub honours only
+# about one cron firing every seven hours for this repo. SST products are daily,
+# so that is acceptable - but it is not equivalent, and a same-day correction
+# will not appear until the next firing unless you run this.
+#
+# Rebuilds the OISST anomaly maps + RONI + TAO subsurface + ASCAT winds, then
+# commits & pushes only if something changed.
 #
 # Idempotent: commits only when `git diff` is non-empty, so running it repeatedly
 # / alongside the Action is safe (whoever lands the new OISST day first wins; the
-# other run no-ops). Invoked daily by ~/Library/LaunchAgents/com.scorvec.sst.plist.
+# other run no-ops).
 #
 # OISST/PSL files are CACHED and only re-downloaded when PSL publishes newer data
 # (sst-roni HEAD-checks Last-Modified), so the 4-hourly polls don't re-pull the full
