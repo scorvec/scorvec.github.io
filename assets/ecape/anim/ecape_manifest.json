@@ -1,0 +1,56 @@
+{
+  "init": "2026-08-29 12Z",
+  "ver": "2026082912",
+  "selectorLabel": "Field",
+  "default": "ratio_mu",
+  "regions": {
+    "ratio_mu": {
+      "label": "ECAPE / CAPE \u2014 most-unstable",
+      "n_frames": 1,
+      "frames": [
+        {
+          "idx": 0,
+          "file": "F00.webp",
+          "date": "2026-08-29 12:00Z",
+          "label": "F00 \u00b7 valid Sat 29 Aug 12Z"
+        }
+      ]
+    },
+    "ratio_ml": {
+      "label": "ECAPE / CAPE \u2014 mixed-layer",
+      "n_frames": 1,
+      "frames": [
+        {
+          "idx": 0,
+          "file": "F00.webp",
+          "date": "2026-08-29 12:00Z",
+          "label": "F00 \u00b7 valid Sat 29 Aug 12Z"
+        }
+      ]
+    },
+    "ecape_mu": {
+      "label": "ECAPE \u2014 most-unstable",
+      "n_frames": 1,
+      "frames": [
+        {
+          "idx": 0,
+          "file": "F00.webp",
+          "date": "2026-08-29 12:00Z",
+          "label": "F00 \u00b7 valid Sat 29 Aug 12Z"
+        }
+      ]
+    },
+    "ecape_ml": {
+      "label": "ECAPE \u2014 mixed-layer",
+      "n_frames": 1,
+      "frames": [
+        {
+          "idx": 0,
+          "file": "F00.webp",
+          "date": "2026-08-29 12:00Z",
+          "label": "F00 \u00b7 valid Sat 29 Aug 12Z"
+        }
+      ]
+    }
+  }
+}
