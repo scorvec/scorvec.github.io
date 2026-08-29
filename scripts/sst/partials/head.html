@@ -269,21 +269,32 @@
   .fig-toggle button {
     font: inherit; font-size: 0.86rem; font-weight: 600; letter-spacing: 0.01em;
     padding: 0.4rem 0.95rem; cursor: pointer; border-radius: 3px;
-    border: 1.5px solid #d8d4cc; background: #fff; color: var(--ink2);
+    border: 1.5px solid var(--accent); background: var(--accent-light);
+    color: var(--accent);
   }
-  .fig-toggle button:hover { background: #f4f4f4; }
+  .fig-toggle button:hover { background: #ecdfd4; }
   .fig-toggle button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
   /* Section grouping. The Atmospheric Response page carries ~22 cards across
      five quite different topics; grouping them in place (no reordering) plus a
      jump nav makes it navigable without splitting it into more pages. */
   .section-nav {
-    /* aligns with main's content box, like .page-header and .chart-card */
-    margin: 0 0 1.2rem; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem;
-    font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase;
+    /* aligns with main's content box, like .page-header and .chart-card.
+       These were grey uppercase text with no border, which read as a caption
+       rather than as the jump links they are — same chip treatment as the
+       figure-selector buttons so the page has one visual language for controls. */
+    margin: 0 0 1.2rem; display: flex; flex-wrap: wrap; gap: 0.45rem;
+    font-size: 0.76rem; letter-spacing: 0.04em; text-transform: uppercase;
   }
-  .section-nav a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
-  .section-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .section-nav a {
+    color: var(--accent); text-decoration: none; font-weight: 600;
+    background: var(--accent-light); border: 1.5px solid var(--accent);
+    border-radius: 999px; padding: 0.3rem 0.85rem;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .section-nav a:hover, .section-nav a:focus-visible {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+  }
   /* Plot deck — one card holding several figures behind a tab bar.
      Pages had grown to 12-22 cards, most of them a caption plus one figure, so
      the page was a long scroll and EVERY animator iframe loaded at once. A deck
@@ -307,13 +318,14 @@
        like one: larger, semibold, with a border that reads at a glance */
     font: inherit; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.01em;
     padding: 0.48rem 1.05rem; cursor: pointer; border-radius: 3px;
-    border: 1.5px solid #d8d4cc; background: #fff; color: var(--ink2);
+    border: 1.5px solid var(--accent); background: var(--accent-light);
+    color: var(--accent);
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .plot-deck .deck-tabs button:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent-hi); }
   .plot-deck .deck-tabs button.on {
     background: var(--accent); border-color: var(--accent); color: #fff;
-    box-shadow: 0 1px 4px rgba(31,78,140,0.28);
+    box-shadow: 0 1px 5px rgba(138,75,42,0.38);
   }
   .plot-deck .deck-panel[hidden] { display: none; }
   .plot-deck .deck-panel > .chart-card-header { padding-top: 0.9rem; }
@@ -367,8 +379,8 @@
   /* controls */
   .controls { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center;
               margin-bottom: 0.5rem; }
-  .pill { font: 600 0.72rem var(--sans); letter-spacing: 0.02em; color: var(--ink2);
-          background: var(--surface); border: 1.5px solid #d8d4cc; border-radius: 999px;
+  .pill { font: 600 0.72rem var(--sans); letter-spacing: 0.02em; color: var(--accent);
+          background: var(--accent-light); border: 1.5px solid var(--accent); border-radius: 999px;
           padding: 0.34rem 0.85rem; cursor: pointer; transition: all .15s; }
   .pill:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
   .pill.on { color: #fff; background: var(--accent); border-color: var(--accent); }
