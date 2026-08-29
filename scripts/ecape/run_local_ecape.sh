@@ -82,7 +82,10 @@ if [ -z "$CYCLE" ]; then
   CYCLE="$($PY scripts/ecape/fetch_hrrr.py --print-cycle --extended-only --probe-fxx 48)" || exit 1
 fi
 [ -z "$FXX" ] && FXX="$(seq 0 1 18) $(seq 21 3 48)"
-read -r -a HOURS <<< "$FXX"
+# seq emits NEWLINES and `read -a` stops at the first one, so this silently
+# produced a single-element array and rendered only F00 while reporting success.
+# Normalise all whitespace to spaces before splitting.
+read -r -a HOURS <<< "$(printf '%s' "$FXX" | tr '\n\t' '  ')"
 echo "ECAPE  cycle $CYCLE  ${#HOURS[@]} forecast hours"
 
 # A previous cycle's frames must go: build_manifest globs this tree, so a
