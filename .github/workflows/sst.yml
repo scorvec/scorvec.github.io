@@ -111,6 +111,21 @@ jobs:
           fi
           python sst_ascat_winds.py || echo "ASCAT wind map failed; continuing"
 
+      # Products that only the laptop was building, moved here 2026-08-29 so the
+      # SST pipeline no longer needs run_local_sst.sh. Each is non-fatal: a
+      # single upstream outage should not take the whole cycle down, and the
+      # previous figure/JSON stays on the site until the next run succeeds.
+      - name: Warm-water volume orbit
+        run: python scripts/sst/wwv_orbit.py || echo "WWV orbit failed; continuing"
+
+      - name: MUR 1 km Nino-3.4 vs OISST
+        run: python scripts/sst/mur_nino34.py || echo "MUR Nino-3.4 failed; keeping previous figure"
+
+      - name: Nino-region history JSON
+        env:
+          SST_SITE_ROOT: ${{ github.workspace }}
+        run: python scripts/sst/build_nino_history.py || echo "nino history failed; keeping previous JSON"
+
       - name: Commit & push (generated outputs)
         run: |
           git config user.name "github-actions[bot]"
