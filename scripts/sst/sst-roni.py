@@ -1316,10 +1316,22 @@ def main(argv=None) -> int:
             old_trop.rmdir()
         except OSError:
             pass
-    # Overwrite manifest with our products; sst_subsurface.py merges
-    # 'equatorial' afterwards (the workflow runs it after this script).
-    (ASSETS / "anim" / "manifest.json").write_text(
-        json.dumps(anim_manifest, indent=2))
+    # Merge, don't overwrite. sst_subsurface.py owns 'equatorial'/'equatorial_dt'
+    # in this same manifest and runs after us, so overwriting left a window —
+    # between the two scripts, and any day this one runs and that one fails —
+    # where those regions simply did not exist. enso-subsurface.html filters its
+    # picker to them by id, so during that window it had nothing to show and fell
+    # back to advertising the surface products instead. Preserve any region we
+    # don't own; ours are still authoritative.
+    mpath = ASSETS / "anim" / "manifest.json"
+    if mpath.exists():
+        try:
+            prev = json.loads(mpath.read_text()).get("regions", {})
+        except (json.JSONDecodeError, OSError):
+            prev = {}
+        for rid, spec in prev.items():
+            anim_manifest["regions"].setdefault(rid, spec)
+    mpath.write_text(json.dumps(anim_manifest, indent=2))
     print("  wrote anim/manifest.json (anomaly, absolute, relative, tropical_rel)")
 
     # --- Manifest ---
