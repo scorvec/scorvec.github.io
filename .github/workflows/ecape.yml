@@ -18,13 +18,24 @@ name: HRRR ECAPE (CONUS)
 # is ~29 MB per cycle, and committing that to main is exactly the churn that
 # forced the 2026-08-28 history collapse. The manifest (small JSON) stays on
 # main so the animator fetches it same-origin.
-# NOT THE OPERATIONAL PATH. This runs on the laptop instead, via
-# scripts/ecape/run_local_ecape.sh: the kernel is core-bound, and 18 threads do a
-# frame in 14.7 s against ~96 s on a free 2-core runner - a 29-frame loop is
-# ~17 min locally versus ~52 min here. Kept dispatch-only as a fallback for when
-# the laptop is off, and as a record of the pipeline for the eventual paid
-# backend. No cron: nothing should fire this unattended.
+# THE OPERATIONAL PATH, as of 2026-08-29. Runs here rather than on the laptop so
+# the laptop's cores stay free (it is routinely running WRF under mpirun -np 18,
+# which was taking ECAPE from ~17 min to ~45). Measured on a runner: 135 s per
+# frame on 4 threads, ~70 min for the 29-frame loop - slower than the laptop's
+# ~7 min, but it costs nothing that matters and nobody waits on it.
+#
+# Scheduled just after each extended cycle's analysis lands. Only 00/06/12/18Z
+# run to F48, and HRRR writes a run out over ~1.5-2 h one forecast hour at a
+# time, so the driver resolves the cycle on F00 and then FOLLOWS the model:
+# each hour waits up to 40 min for its own file. The compute rides along behind
+# the model instead of idling until F48 is up and then starting.
+#
+# GitHub honours only a fraction of this repo's cron firings and delivers them
+# hours late (see the throttling note in the repo history), so treat this as
+# "whenever it fires" - a missed cycle costs freshness, never data.
 on:
+  schedule:
+    - cron: '50 0,6,12,18 * * *'
   workflow_dispatch:
     inputs:
       fxx:
@@ -74,7 +85,10 @@ jobs:
           set -euo pipefail
           C="${{ github.event.inputs.cycle || '' }}"
           if [ -z "$C" ]; then
-            C=$(python scripts/ecape/fetch_hrrr.py --print-cycle --extended-only --probe-fxx 48)
+            # Probe F00, not F48: --extended-only already restricts to the 00/06/12/18Z
+            # runs, so this picks the newest extended cycle whose ANALYSIS is up
+            # and the loop then follows the model as later hours publish.
+            C=$(python scripts/ecape/fetch_hrrr.py --print-cycle --extended-only --probe-fxx 0)
           fi
           echo "cycle=$C" >> "$GITHUB_OUTPUT"
           echo "resolved cycle: $C"
@@ -101,7 +115,7 @@ jobs:
           fetch_one() {   # $1 = forecast hour
             python scripts/ecape/fetch_hrrr.py \
               --date "${CYCLE:0:8}" --hour "${CYCLE:8:2}" --fxx "$1" \
-              --out "$RUNNER_TEMP/hrrr_f$1" --quiet
+              --out "$RUNNER_TEMP/hrrr_f$1" --quiet --wait-minutes 40
           }
           # The kernel is ~96 s on two cores and the fetch is ~30 s, and they
           # need nothing from each other - so pull hour N+1 while hour N is
@@ -144,7 +158,7 @@ jobs:
           du -sh assets/ecape/anim
 
       - name: Publish frames to the orphan branch
-        if: ${{ github.event.inputs.publish == 'true' }}
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.publish == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -176,7 +190,7 @@ jobs:
           echo "  pushed $(find assets -name '*.webp' | wc -l) frames"
 
       - name: Commit manifest & stills to main
-        if: ${{ github.event.inputs.publish == 'true' }}
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.publish == 'true' }}
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"

@@ -77,9 +77,11 @@ fi
 
 # --- cycle -------------------------------------------------------------------
 if [ -z "$CYCLE" ]; then
-  # Probe F48: only 00/06/12/18Z run that far, and a cycle's tail publishes well
-  # after its analysis, so this picks a run that is complete end to end.
-  CYCLE="$($PY scripts/ecape/fetch_hrrr.py --print-cycle --extended-only --probe-fxx 48)" || exit 1
+  # Probe F00, not F48. --extended-only already restricts to the 00/06/12/18Z
+  # runs; picking on the analysis lets the render start as soon as the cycle
+  # begins publishing and follow the model out, instead of idling until the
+  # whole 48 h run has landed.
+  CYCLE="$($PY scripts/ecape/fetch_hrrr.py --print-cycle --extended-only --probe-fxx 0)" || exit 1
 fi
 [ -z "$FXX" ] && FXX="$(seq 0 1 18) $(seq 21 3 48)"
 # seq emits NEWLINES and `read -a` stops at the first one, so this silently
@@ -94,7 +96,7 @@ rm -rf "$ANIM"; mkdir -p "$ANIM"
 
 fetch_one() {
   $PY scripts/ecape/fetch_hrrr.py --date "${CYCLE:0:8}" --hour "${CYCLE:8:2}" \
-      --fxx "$1" --out "$SCRATCH/f$1" --quiet
+      --fxx "$1" --out "$SCRATCH/f$1" --quiet --wait-minutes 40
 }
 
 # Fetch (~30 s) overlaps the kernel (~15 s here) — bandwidth is the binding
