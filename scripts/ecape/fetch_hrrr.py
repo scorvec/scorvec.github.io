@@ -43,8 +43,20 @@ SHORTNAME = {"pres": "PRES", "gh": "HGT", "t": "TMP",
              "q": "SPFH", "u": "UGRD", "v": "VGRD"}
 NVAR = len(VARS)
 LEVEL_TAG = "hybrid level"
-# HRRR hybrid levels are numbered 1 (model top) .. 50 (ground) in the .idx.
-NLEV = 50
+# HRRR publishes 50 hybrid levels; index 1 is nearest the ground and 50 is the
+# model top (~17 hPa).
+NLEV_MODEL = 50
+# We keep only the lowest 42 (up to ~70 hPa). Nothing above a parcel's
+# equilibrium level contributes to CAPE or to ECAPE, and the saving is real:
+# 16% off the download and 16% off the kernel, which scales with level count.
+#
+# 42 was measured, not guessed. Against the full 50-level cube the ECAPE_ML,
+# ECAPE_MU, MLCAPE and MUCAPE fields come out BIT-IDENTICAL over all 1,905,141
+# columns - zero differing values. Trimming further is not safe: at 38 levels
+# (~115 hPa top) SHARPlib throws "Both bottom and top must be MISSING" on 9,343
+# columns whose parcels reach an EL above the truncated profile. Do not lower
+# this without repeating that comparison.
+NLEV = 42
 TIMEOUT = 120
 
 
@@ -117,6 +129,8 @@ def wanted_ranges(rows):
         if var not in VARS or not lev.endswith(LEVEL_TAG):
             continue
         k = int(lev.split()[0])                    # "37 hybrid level" -> 37
+        if k > NLEV:                               # stratosphere: see NLEV above
+            continue
         ranges.append((off, end))
         keys.append((var, k))
     return ranges, keys
@@ -248,6 +262,7 @@ def decode(grib: Path, out_stem: Path, cycle: dict, quiet=False):
 
 
 def main(argv=None) -> int:
+    global NLEV
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", help="YYYYMMDD (default: latest available)")
     ap.add_argument("--hour", type=int, help="cycle hour UTC")
@@ -258,6 +273,9 @@ def main(argv=None) -> int:
     ap.add_argument("--grib", help="decode this local GRIB instead of downloading "
                                    "(iteration aid; skips the fetch entirely)")
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--levels", type=int, default=NLEV,
+                    help=f"hybrid levels to keep from the ground up "
+                         f"(default {NLEV}; 38 is known to fail - see NLEV)")
     ap.add_argument("--extended-only", action="store_true",
                     help="only consider 00/06/12/18Z cycles (the 48 h runs)")
     ap.add_argument("--print-cycle", action="store_true",
@@ -271,6 +289,7 @@ def main(argv=None) -> int:
                          "fetch so the whole run is known to be published")
     a = ap.parse_args(argv)
 
+    NLEV = a.levels
     if a.date and a.hour is not None:
         date, hour = a.date, a.hour
     else:
