@@ -24,6 +24,7 @@ import json
 import sys
 from pathlib import Path
 
+import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
@@ -206,8 +207,23 @@ def main(argv=None) -> int:
     # they are ~5 s for four; this is the last easy second to take off the
     # per-frame critical path.
     if len(jobs) > 1 and a.jobs != 1:
-        with ProcessPoolExecutor(max_workers=min(len(jobs), a.jobs or 4)) as ex:
-            results = list(ex.map(_render_one, jobs))
+        # Force "spawn". macOS defaults to it and Linux to "fork", and forking a
+        # parent that has already imported matplotlib and cartopy gives workers
+        # that die on the first render - which surfaces in the parent as
+        # `struct.error: unpack requires a buffer of N bytes` from the truncated
+        # result pickle, with no hint of the real cause. This passed every local
+        # test and failed the first time it ran on a Linux runner.
+        ctx = mp.get_context("spawn")
+        try:
+            with ProcessPoolExecutor(max_workers=min(len(jobs), a.jobs or 4),
+                                     mp_context=ctx) as ex:
+                results = list(ex.map(_render_one, jobs))
+        except Exception as e:                                      # noqa: BLE001
+            # Rendering serially is ~2 s slower per frame. Losing the frame
+            # entirely is worse, so degrade rather than fail the run.
+            print(f"  parallel render failed ({type(e).__name__}: {e}); "
+                  f"falling back to serial", file=sys.stderr, flush=True)
+            results = [_render_one(j) for j in jobs]
     else:
         results = [_render_one(j) for j in jobs]
     for name, dest, mx, p99 in results:
