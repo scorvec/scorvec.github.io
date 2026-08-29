@@ -106,6 +106,7 @@ scripts/strat/*
 !scripts/strat/nh_vortex.py
 !scripts/strat/wave1_monitor.py
 !scripts/strat/qbo_duct.py
+!scripts/strat/vortex_winds.py
 
 # removed-project local archive (ERCOT page + C3S winter analysis, restorable)
 local_archive/
