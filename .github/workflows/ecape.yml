@@ -91,7 +91,10 @@ jobs:
           # the new cycle's valid time.
           rm -rf assets/ecape/anim
           mkdir -p assets/ecape/anim
-          read -r -a HOURS <<< "$FXX"
+          # seq emits NEWLINES and `read -a` stops at the first one, so this silently
+# produced a single-element array and rendered only F00 while reporting success.
+# Normalise all whitespace to spaces before splitting.
+          read -r -a HOURS <<< "$(printf '%s' "$FXX" | tr '\n\t' '  ')"
           fetch_one() {   # $1 = forecast hour
             python scripts/ecape/fetch_hrrr.py \
               --date "${CYCLE:0:8}" --hour "${CYCLE:8:2}" --fxx "$1" \
