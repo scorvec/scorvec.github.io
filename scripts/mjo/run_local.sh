@@ -225,17 +225,21 @@ GRP_V200=$!
     --out "$REPO/assets/sst/hadley_timeseries.webp" \
     --json-out "$REPO/assets/sst/data/hadley_timeseries.json" \
     || echo "Hadley time series failed; continuing"
-  "$PY" "$REPO/scripts/strat/build_strat_products.py" \
-    || echo "Stratosphere products failed; continuing"
-  "$PY" "$REPO/scripts/strat/qbo_duct.py" --strip-only \
-    || echo "QBO strip failed; continuing"
-  "$PY" "$REPO/scripts/strat/wave1_monitor.py" \
-    || echo "wave-1 monitor failed; continuing"
+  # Stratosphere products disabled 2026-08-29 at the owner's request - the MJO
+  # run should not be carrying them. NOTE: this driver was the ONLY thing that
+  # ran them (no other script, no workflow), so stratosphere.html, nh_vortex,
+  # the wave-1 amplitude and the strat10/strat100 loops now go stale until
+  # something else owns them. Their scripts are also untracked, which is what
+  # blocked this pipeline from moving to Actions.
+  # "$PY" "$REPO/scripts/strat/build_strat_products.py" || echo "..."
+  # "$PY" "$REPO/scripts/strat/qbo_duct.py" --strip-only || echo "..."
+  # "$PY" "$REPO/scripts/strat/wave1_monitor.py" || echo "..."
   # AIFS is free (already cached); GEPS ~98 MB, GDPS ~31 MB, IFS ~28.5 MB per
   # member — IFS open data has no control at 10/100 hPa so members are the only
   # option. 5 keeps the cycle around 250 MB; raise --ifs-members for more spread.
-  "$PY" "$REPO/scripts/strat/nh_vortex.py" --models aifs,geps,gdps,ifs --ifs-members 5 \
-    || echo "NH polar vortex failed; continuing"
+  # NH polar vortex disabled with the rest of the strat block (was ~250 MB of
+  # GEPS/GDPS/IFS members per cycle).
+  # "$PY" "$REPO/scripts/strat/nh_vortex.py" --models aifs,geps,gdps,ifs --ifs-members 5 || echo "..."
   "$PY" "$REPO/scripts/verify/aifs_det_verify.py" --collect --verify \
     --date "$DATE" --time "$TIME" \
     || echo "AIFS det verification failed; continuing"
@@ -258,8 +262,8 @@ wait "$GRP_SFC" 2>/dev/null   # torque reads data/u10 + data/msl (extracted by g
 MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (heavy) had issues; continuing"
 "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
   --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
-"$PY" "$REPO/scripts/strat/qbo_duct.py" --epflux-only \
-  || echo "E-P flux ensemble loop failed; continuing"
+# E-P flux loop disabled with the rest of the strat block.
+# "$PY" "$REPO/scripts/strat/qbo_duct.py" --epflux-only || echo "..."
 "$PY" src/aam_zonal.py --date "$DATE" --time "$TIME" \
   --anim-dir "$REPO/assets/sst/anim/aam_zonal" \
   --manifest "$REPO/assets/sst/anim/aam_zonal_manifest.json" || echo "AAM zonal failed; continuing"
