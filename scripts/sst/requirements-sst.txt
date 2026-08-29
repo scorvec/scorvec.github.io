@@ -9,7 +9,7 @@ h5netcdf
 # pinned <3.11: matplotlib 3.11 + cartopy 0.25 breaks GeoAxes layout on CI —
 # bbox_inches="tight" drops the map (colorbar-only frames) and axes titles
 # clip off-canvas (seen on the GDPS/MUR products, 2026-08-25)
-matplotlib==3.10.9
+matplotlib==3.11.1
 cartopy>=0.22
 shapely>=2.0
 pyproj>=3.5
