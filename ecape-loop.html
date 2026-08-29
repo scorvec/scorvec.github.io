@@ -39,7 +39,7 @@
      frame is 1380x817, so width = available height x 1.689. */
   .stage { position: relative; background: var(--surface); border: 1px solid var(--rule);
            border-radius: 3px; overflow: hidden;
-           max-width: min(100%, calc((100vh - 11.5rem) * 1380 / 817)); margin: 0 auto; }
+           max-width: min(100%, calc((100vh - 14.5rem) * 1380 / 817)); margin: 0 auto; }
   /* Reserve the frame's aspect so the page does not jump while the first
      image decodes; frames are 1380x817. */
   .stage .holder { aspect-ratio: 1380 / 817; width: 100%; }
@@ -66,10 +66,29 @@
   .speed { font-size: 0.75rem; color: var(--muted); }
   .speed select { font-family: var(--sans); font-size: 0.75rem; padding: 0.2rem 0.3rem;
                   border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  .fielddesc { font-size: 0.78rem; color: var(--muted); line-height: 1.6; margin-bottom: 0.6rem;
+               max-width: 72rem; min-height: 1.5em; }
+  .fielddesc b { color: var(--ink); font-weight: 500; }
   .hint { margin-top: 0.6rem; font-size: 0.72rem; color: var(--muted); }
   .hint kbd { font-family: ui-monospace, monospace; font-size: 0.72rem; background: var(--accent-light);
               border: 1px solid var(--rule); border-radius: 3px; padding: 0 0.28rem; }
   .err { padding: 2rem; color: #a8143c; font-size: 0.85rem; }
+
+  .explain { margin: 2rem auto 0; max-width: 62rem; padding-top: 1.5rem;
+             border-top: 1px solid var(--rule); font-size: 0.82rem; color: var(--muted);
+             line-height: 1.7; }
+  .explain h2 { font-family: var(--serif); font-weight: 400; font-size: 1rem;
+                color: var(--ink); margin: 1.5rem 0 0.5rem; }
+  .explain h2:first-child { margin-top: 0; }
+  .explain p + p { margin-top: 0.7rem; }
+  .explain b { color: var(--ink); font-weight: 500; }
+  .explain a { color: var(--accent); }
+  .explain table { border-collapse: collapse; margin: 0.8rem 0; font-size: 0.78rem; }
+  .explain td, .explain th { border: 1px solid var(--rule); padding: 0.32rem 0.7rem;
+                             text-align: left; }
+  .explain th { background: var(--accent-light); color: var(--ink); font-weight: 500; }
+  .sw { display: inline-block; width: 0.72rem; height: 0.72rem; border: 1px solid #999;
+        vertical-align: -1px; margin-right: 0.3rem; }
 </style>
 </head>
 <body>
@@ -80,6 +99,7 @@
 </header>
 
 <div class="fields" id="fields"></div>
+<div class="fielddesc" id="fielddesc"></div>
 
 <div class="stage">
   <div class="holder"><img id="frame" alt="ECAPE forecast frame"></div>
@@ -110,6 +130,27 @@
   Frames preload before playback so the loop runs without flicker.
 </div>
 
+<div class="explain">
+  <h2>What you are looking at</h2>
+  <p>CAPE assumes an updraft that never mixes with its surroundings &mdash; a sealed parcel rising untouched through the environment. Real updrafts <b>entrain</b>, pulling in environmental air through their flanks, and if that air is drier or cooler than the parcel then the mixture is less buoyant than the parcel was. <b>ECAPE</b> (Peters et al. 2023) is the version of CAPE that accounts for the mixing, derived from the storm-relative wind and shear as well as the thermodynamic profile &mdash; because the kinematics are what set how wide an updraft can be and how much it must ingest.</p>
+  <p>Every frame is the <b>full HRRR 3&nbsp;km grid</b>: 1,905,141 columns, each one a sounding run through <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> &mdash; the same code the <a href="skewt/">Skew-T explorer</a> runs in your browser, so a point here and a click there come from the same routine. The loop is the 48-hour forecast from one of the extended cycles (00/06/12/18&nbsp;UTC are the only ones that run that far), hourly through F18 and 3-hourly to F48.</p>
+
+  <h2>Reading the ratio &mdash; and why it exceeds 1</h2>
+  <p>The two ratio fields are the reason this exists. Two places with identical CAPE can hand an updraft very different amounts of usable buoyancy, and no CAPE map can show you which is which.</p>
+  <table>
+    <tr><th>Ratio</th><th>What it means</th></tr>
+    <tr><td><span class="sw" style="background:#3c5a9a"></span>0.2&ndash;0.4</td><td>Entrainment-hostile. Plenty of CAPE on paper, little of it usable &mdash; typically weak storm-relative flow, so updrafts stay narrow and dilute quickly.</td></tr>
+    <tr><td><span class="sw" style="background:#57b56d"></span>0.5&ndash;0.7</td><td>The common case; the CONUS-wide mean sits near 0.56.</td></tr>
+    <tr><td><span class="sw" style="background:#f4e07a"></span>0.8&ndash;1.0</td><td>Efficient &mdash; wide updrafts, moist surroundings, or inflow strong enough that mixing costs little.</td></tr>
+    <tr><td><span class="sw" style="background:#e8503a"></span>above 1.0</td><td><b>Not an error.</b> The formulation nets a storm-relative kinetic-energy gain against the entrainment loss, so where inflow is vigorous enough it more than pays for the mixing. Far from rare: the 99th percentile of the ratio runs near 1.4, and the high values organise along sheared corridors rather than scattering as noise.</td></tr>
+  </table>
+  <p>The ratio is masked below 100&nbsp;J&nbsp;kg&#8315;&sup1; of CAPE, where it is two near-zero numbers divided and carries no signal.</p>
+
+  <h2>Caveats</h2>
+  <p>These are model soundings. They inherit whatever the HRRR gets wrong about the boundary layer and low-level moisture, and ECAPE&rsquo;s sensitivity to that moisture means a bias shows up amplified in the ratio. The updraft-width assumption inside the formulation is a parameterisation, not a measurement. And high ECAPE describes <i>available buoyancy only</i> &mdash; there is no forcing, no convergence and no cap strength in these panels, so it says nothing about whether anything will actually initiate.</p>
+  <p>Rendered locally and pushed; the timestamp in each frame title is authoritative. Fuller methodology on the <a href="ecape.html">ECAPE page</a>.</p>
+</div>
+
 <script>
 "use strict";
 // Frames live on the orphan `frames` branch (see scripts/lib/publish_frames.sh):
@@ -118,6 +159,16 @@
 // only <img> goes cross-origin, and images never need CORS.
 var ANIM_BASE  = "assets/ecape/anim";
 var FRAME_ROOT = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
+
+// One line of orientation per field. Someone can land on this page directly -
+// it is unlinked but shareable - so the active field has to explain itself
+// rather than assuming the reader came via the ECAPE page.
+var FIELD_DESC = {
+  ratio_mu: "<b>Fraction of CAPE that survives entrainment</b>, most-unstable parcel. Blue = entrainment eats the buoyancy; red = storm-relative inflow more than pays for the mixing (above 1 is real \u2014 see below). Masked where CAPE &lt; 100 J kg\u207b\u00b9.",
+  ratio_ml: "<b>Fraction of CAPE that survives entrainment</b>, mixed-layer parcel \u2014 the lowest 100 hPa, most representative of surface-based convection. Masked where CAPE &lt; 100 J kg\u207b\u00b9.",
+  ecape_mu: "<b>Entraining CAPE</b> for the most-unstable parcel \u2014 whichever parcel in the lowest 300 hPa has the most buoyancy, so this is the one that matters for elevated convection above a stable layer.",
+  ecape_ml: "<b>Entraining CAPE</b> for the mixed-layer parcel: what a real, finite-width updraft rising from the lowest 100 hPa actually gets, rather than the undiluted textbook value."
+};
 
 var manifest = null, field = null, frames = [], idx = 0, playing = false, timer = null;
 var cache = {};                       // field -> [Image], so a switch is instant
@@ -174,6 +225,7 @@ function setField(fld) {
   Array.prototype.forEach.call($("fields").children, function (b) {
     b.classList.toggle("on", b.dataset.f === fld);
   });
+  $("fielddesc").innerHTML = FIELD_DESC[fld] || "";
   $("scrub").max = frames.length - 1;
   var keep = Math.min(idx, frames.length - 1);   // hold the forecast hour across a switch
   preload(fld, function () { show(keep); });
