@@ -152,14 +152,27 @@ const ANIM_BASE = new URLSearchParams(location.search).get("base") || "assets/ss
 // An explicit absolute ?base= (or a relative one outside assets/sst/anim) is
 // honoured for both, so callers can still point the viewer anywhere.
 const FRAME_ROOT = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
-const FRAME_BASE = ANIM_BASE.indexOf("//") === -1 ? FRAME_ROOT + ANIM_BASE : ANIM_BASE;
-// If the branch is missing a frame (mid-migration, or a renderer that has not
-// published yet) fall back to the copy on main exactly once, so a partial
-// branch degrades instead of showing a broken image.
+// Only the directories publish_frames.sh actually mirrors live on that branch, and they
+// are all `assets/<product>/anim`. mjo.html passes base=assets (its frames sit in
+// assets/mjo/ on main) — routing it to the branch 404s every frame. Anything that is not
+// an /anim directory, and any absolute base, is served from where it already lives.
+const ON_FRAMES_BRANCH = ANIM_BASE.indexOf("//") === -1 && /\/anim$/.test(ANIM_BASE);
+const FRAME_BASE = ON_FRAMES_BRANCH ? FRAME_ROOT + ANIM_BASE : ANIM_BASE;
+// If the branch is missing a frame (mid-migration, or a renderer that has not published
+// yet) fall back to the copy on main. The flag is per-FRAME, not per-element: imgEl is
+// reused for every frame, so a single latched flag meant the first miss consumed the
+// fallback and every later frame showed a broken image (mjo.html did exactly this).
 function frameSrc(im, rid, f, ver) {
   const q = `?v=${f.date}.${ver || ""}`;
-  im.onerror = () => { if (!im._fellBack) { im._fellBack = 1; im.src = `${ANIM_BASE}/${rid}/${f.file}${q}`; } };
-  return `${FRAME_BASE}/${rid}/${f.file}${q}`;
+  const primary = `${FRAME_BASE}/${rid}/${f.file}${q}`;
+  const backup = `${ANIM_BASE}/${rid}/${f.file}${q}`;
+  im.onerror = () => {
+    if (im._fellBackFor !== primary && primary !== backup) {
+      im._fellBackFor = primary;
+      im.src = backup;
+    }
+  };
+  return primary;
 }
 let manifest = null;
 let region = null;
