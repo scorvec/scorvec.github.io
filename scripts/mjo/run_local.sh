@@ -231,7 +231,10 @@ GRP_V200=$!
     || echo "QBO strip failed; continuing"
   "$PY" "$REPO/scripts/strat/wave1_monitor.py" \
     || echo "wave-1 monitor failed; continuing"
-  "$PY" "$REPO/scripts/strat/nh_vortex.py" \
+  # AIFS is free (already cached); GEPS ~98 MB, GDPS ~31 MB, IFS ~28.5 MB per
+  # member — IFS open data has no control at 10/100 hPa so members are the only
+  # option. 5 keeps the cycle around 250 MB; raise --ifs-members for more spread.
+  "$PY" "$REPO/scripts/strat/nh_vortex.py" --models aifs,geps,gdps,ifs --ifs-members 5 \
     || echo "NH polar vortex failed; continuing"
   "$PY" "$REPO/scripts/verify/aifs_det_verify.py" --collect --verify \
     --date "$DATE" --time "$TIME" \
