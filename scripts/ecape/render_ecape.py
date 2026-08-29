@@ -207,12 +207,15 @@ def main(argv=None) -> int:
     # they are ~5 s for four; this is the last easy second to take off the
     # per-frame critical path.
     if len(jobs) > 1 and a.jobs != 1:
-        # Force "spawn". macOS defaults to it and Linux to "fork", and forking a
-        # parent that has already imported matplotlib and cartopy gives workers
-        # that die on the first render - which surfaces in the parent as
-        # `struct.error: unpack requires a buffer of N bytes` from the truncated
-        # result pickle, with no hint of the real cause. This passed every local
-        # test and failed the first time it ran on a Linux runner.
+        # Spawn rather than Linux's default fork. This was a guess at the cause
+        # of `struct.error: unpack requires a buffer of N bytes` on a GitHub
+        # runner, and it did NOT fix it - the pool still dies there, just with a
+        # different N. The real cause is unresolved. Left as spawn because it
+        # matches the start method this is actually tested under on macOS.
+        #
+        # Not worth chasing further: the fallback below costs ~3 s a frame
+        # against a 135 s kernel on that runner (~2%), and the pool works fine
+        # locally, which is where the 1.7x actually matters.
         ctx = mp.get_context("spawn")
         try:
             with ProcessPoolExecutor(max_workers=min(len(jobs), a.jobs or 4),
