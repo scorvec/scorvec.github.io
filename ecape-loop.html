@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>ECAPE Loop &middot; HRRR 48-hour forecast</title>
+<meta name="description" content="Animated 48-hour HRRR forecast of entraining CAPE (Peters et al. 2023) over CONUS: mixed-layer and most-unstable ECAPE and the ECAPE/CAPE ratio.">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --muted: #888580; --accent: #2c4a72;
+    --accent-light: #e8eef5; --rule: #e4e2dc; --surface: #fff;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; padding: 1.4rem 1.6rem 2.5rem; }
+  header { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;
+           margin-bottom: 0.9rem; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.35rem; }
+  .init { font-size: 0.8rem; color: var(--muted); }
+  .init b { color: var(--ink); font-weight: 500; }
+  a.back { margin-left: auto; font-size: 0.78rem; color: var(--muted); text-decoration: none; }
+  a.back:hover { color: var(--ink); }
+
+  .fields { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.7rem; }
+  .fields button {
+    font-family: var(--sans); font-size: 0.78rem; padding: 0.34rem 0.75rem;
+    border: 1px solid var(--rule); background: var(--surface); color: var(--muted);
+    border-radius: 4px; cursor: pointer; transition: all 0.15s;
+  }
+  .fields button:hover { border-color: var(--accent); color: var(--ink); }
+  .fields button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* Cap the stage from the VIEWPORT height so the map and the scrubber are on
+     screen together - an animator you have to scroll to drive is useless. The
+     frame is 1380x817, so width = available height x 1.689. */
+  .stage { position: relative; background: var(--surface); border: 1px solid var(--rule);
+           border-radius: 3px; overflow: hidden;
+           max-width: min(100%, calc((100vh - 11.5rem) * 1380 / 817)); margin: 0 auto; }
+  /* Reserve the frame's aspect so the page does not jump while the first
+     image decodes; frames are 1380x817. */
+  .stage .holder { aspect-ratio: 1380 / 817; width: 100%; }
+  .stage img { display: block; width: 100%; height: 100%; object-fit: contain; }
+  .stage img.hide { display: none; }
+  .loading { position: absolute; inset: 0; display: flex; align-items: center;
+             justify-content: center; flex-direction: column; gap: 0.6rem;
+             background: rgba(255,255,255,0.92); font-size: 0.8rem; color: var(--muted); }
+  .bar { width: 200px; height: 3px; background: var(--rule); border-radius: 2px; overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 0; background: var(--accent);
+              transition: width 0.15s; }
+
+  .controls { display: flex; align-items: center; gap: 0.7rem; margin-top: 0.7rem;
+              flex-wrap: wrap; }
+  .controls button {
+    font-family: var(--sans); font-size: 0.85rem; padding: 0.32rem 0.7rem; min-width: 2.4rem;
+    border: 1px solid var(--rule); background: var(--surface); color: var(--ink);
+    border-radius: 4px; cursor: pointer;
+  }
+  .controls button:hover { border-color: var(--accent); }
+  #scrub { flex: 1; min-width: 220px; accent-color: var(--accent); }
+  .stamp { font-size: 0.82rem; font-variant-numeric: tabular-nums; min-width: 15rem; }
+  .stamp b { font-weight: 500; }
+  .speed { font-size: 0.75rem; color: var(--muted); }
+  .speed select { font-family: var(--sans); font-size: 0.75rem; padding: 0.2rem 0.3rem;
+                  border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  .hint { margin-top: 0.6rem; font-size: 0.72rem; color: var(--muted); }
+  .hint kbd { font-family: ui-monospace, monospace; font-size: 0.72rem; background: var(--accent-light);
+              border: 1px solid var(--rule); border-radius: 3px; padding: 0 0.28rem; }
+  .err { padding: 2rem; color: #a8143c; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ECAPE &mdash; 48-hour HRRR loop</h1>
+  <div class="init">init <b id="init">…</b> &middot; <span id="count">…</span></div>
+  <a class="back" href="ecape.html">&larr; back to the ECAPE page</a>
+</header>
+
+<div class="fields" id="fields"></div>
+
+<div class="stage">
+  <div class="holder"><img id="frame" alt="ECAPE forecast frame"></div>
+  <div class="loading" id="loading">
+    <div id="loadtext">loading frames…</div>
+    <div class="bar"><span id="loadbar"></span></div>
+  </div>
+</div>
+
+<div class="controls">
+  <button id="play" title="Play/pause (space)">&#9654;</button>
+  <button id="prev" title="Previous frame (left arrow)">&#8249;</button>
+  <button id="next" title="Next frame (right arrow)">&#8250;</button>
+  <input type="range" id="scrub" min="0" max="0" value="0">
+  <span class="stamp" id="stamp">&nbsp;</span>
+  <span class="speed">speed
+    <select id="speed">
+      <option value="500">0.5&times;</option>
+      <option value="250" selected>1&times;</option>
+      <option value="125">2&times;</option>
+      <option value="60">4&times;</option>
+    </select>
+  </span>
+</div>
+<div class="hint">
+  <kbd>space</kbd> play/pause &middot; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> step &middot;
+  <kbd>home</kbd> <kbd>end</kbd> jump &middot; <kbd>1</kbd>&ndash;<kbd>4</kbd> switch field.
+  Frames preload before playback so the loop runs without flicker.
+</div>
+
+<script>
+"use strict";
+// Frames live on the orphan `frames` branch (see scripts/lib/publish_frames.sh):
+// committing ~20 MB of webp per cycle to main is what forced the 2026-08-28
+// history collapse. The manifest stays on main so this fetch is same-origin;
+// only <img> goes cross-origin, and images never need CORS.
+var ANIM_BASE  = "assets/ecape/anim";
+var FRAME_ROOT = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
+
+var manifest = null, field = null, frames = [], idx = 0, playing = false, timer = null;
+var cache = {};                       // field -> [Image], so a switch is instant
+var $ = function (id) { return document.getElementById(id); };
+
+function frameURL(fld, f) {
+  return FRAME_ROOT + ANIM_BASE + "/" + fld + "/" + f.file +
+         "?v=" + encodeURIComponent(manifest.ver || "");
+}
+
+// Preload every frame of a field before playing. 29 frames is ~5.5 MB; without
+// this the first pass through the loop stutters as each frame decodes, which is
+// exactly when someone is trying to read an evolving field.
+function preload(fld, done) {
+  if (cache[fld]) { done(); return; }
+  var list = manifest.regions[fld].frames, imgs = [], loaded = 0;
+  $("loading").style.display = "flex";
+  $("loadtext").textContent = "loading " + list.length + " frames…";
+  list.forEach(function (f, i) {
+    var im = new Image();
+    im.onload = im.onerror = function () {
+      loaded++;
+      $("loadbar").style.width = (100 * loaded / list.length) + "%";
+      if (loaded === list.length) {
+        cache[fld] = imgs;
+        $("loading").style.display = "none";
+        $("loadbar").style.width = "0";
+        done();
+      }
+    };
+    // Fall back to main if the branch is missing a frame (mid-publish, or a
+    // renderer that has not pushed yet). Per-image, not a latched flag.
+    im.onerror = function () {
+      if (!im._fellBack) { im._fellBack = true; im.src = ANIM_BASE + "/" + fld + "/" + f.file; }
+      else { loaded++; if (loaded === list.length) { cache[fld] = imgs; $("loading").style.display = "none"; done(); } }
+    };
+    im.src = frameURL(fld, f);
+    imgs[i] = im;
+  });
+}
+
+function show(i) {
+  if (!frames.length) return;
+  idx = (i + frames.length) % frames.length;
+  var f = frames[idx];
+  $("frame").src = (cache[field] && cache[field][idx]) ? cache[field][idx].src : frameURL(field, f);
+  $("scrub").value = idx;
+  $("stamp").innerHTML = "<b>" + f.label + "</b>";
+}
+
+function setField(fld) {
+  field = fld;
+  frames = manifest.regions[fld].frames;
+  Array.prototype.forEach.call($("fields").children, function (b) {
+    b.classList.toggle("on", b.dataset.f === fld);
+  });
+  $("scrub").max = frames.length - 1;
+  var keep = Math.min(idx, frames.length - 1);   // hold the forecast hour across a switch
+  preload(fld, function () { show(keep); });
+}
+
+function play(on) {
+  playing = on;
+  $("play").innerHTML = on ? "&#10073;&#10073;" : "&#9654;";
+  if (timer) { clearInterval(timer); timer = null; }
+  if (on) timer = setInterval(function () { show(idx + 1); }, +$("speed").value);
+}
+
+fetch(ANIM_BASE + "/ecape_manifest.json?t=" + Date.now())
+  .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(function (m) {
+    manifest = m;
+    $("init").textContent = m.init;
+    var ids = Object.keys(m.regions);
+    $("count").textContent = m.regions[ids[0]].n_frames + " frames · " + ids.length + " fields";
+    ids.forEach(function (id, n) {
+      var b = document.createElement("button");
+      b.textContent = m.regions[id].label;
+      b.dataset.f = id;
+      b.title = "key " + (n + 1);
+      b.onclick = function () { setField(id); };
+      $("fields").appendChild(b);
+    });
+    setField(m.default && m.regions[m.default] ? m.default : ids[0]);
+  })
+  .catch(function (e) {
+    document.querySelector(".stage").innerHTML =
+      '<div class="err">Could not load the ECAPE manifest (' + e.message + ').<br>' +
+      'The loop is rendered locally and pushed; if this persists the last run may not have completed.</div>';
+  });
+
+$("play").onclick = function () { play(!playing); };
+$("prev").onclick = function () { play(false); show(idx - 1); };
+$("next").onclick = function () { play(false); show(idx + 1); };
+$("scrub").oninput = function () { play(false); show(+this.value); };
+$("speed").onchange = function () { if (playing) play(true); };
+
+document.addEventListener("keydown", function (e) {
+  if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+  var ids = manifest ? Object.keys(manifest.regions) : [];
+  if (e.key === " ") { e.preventDefault(); play(!playing); }
+  else if (e.key === "ArrowLeft")  { play(false); show(idx - 1); }
+  else if (e.key === "ArrowRight") { play(false); show(idx + 1); }
+  else if (e.key === "Home")       { play(false); show(0); }
+  else if (e.key === "End")        { play(false); show(frames.length - 1); }
+  else if (e.key >= "1" && e.key <= "4" && ids[+e.key - 1]) setField(ids[+e.key - 1]);
+});
+</script>
+</body>
+</html>

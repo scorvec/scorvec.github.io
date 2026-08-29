@@ -121,6 +121,22 @@ for i in "${!HOURS[@]}"; do
 done
 echo "  frames rendered in $(( $(date +%s) - t0 )) s"
 
+# Guard. The first full run rendered ONE hour and still exited 0: the hour list
+# had collapsed to a single element and nothing downstream noticed, so a 1-frame
+# manifest was built, published and pushed. A success exit code proves nothing
+# here - the frame count is the only real check. Refuse to publish a set that
+# does not match what was asked for.
+want=${#HOURS[@]}
+for fld in ecape_ml ecape_mu ratio_ml ratio_mu; do
+  got=$(find "$ANIM/$fld" -name 'F*.webp' 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$got" -ne "$want" ]; then
+    echo "ABORT: $fld has $got frames, expected $want — refusing to publish a partial loop" >&2
+    echo "       (re-run, or pass --fxx explicitly if a short loop is intended)" >&2
+    exit 1
+  fi
+done
+echo "  frame count verified: $want per field across 4 fields"
+
 $PY scripts/ecape/build_manifest.py "$ANIM" --cycle "$CYCLE" || exit 1
 for fld in ecape_ml ecape_mu ratio_ml ratio_mu; do
   [ -f "$ANIM/$fld/F00.webp" ] && cp "$ANIM/$fld/F00.webp" "$REPO/assets/ecape/$fld.webp"
