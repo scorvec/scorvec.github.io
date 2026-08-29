@@ -158,8 +158,8 @@
   /* frames are 1080x675 (+~70px controls). Cap width from the VIEWPORT
      HEIGHT so the whole two-panel figure + scrubber always fits the
      monitor: H = W/1.6 + 70  =>  W <= 1.6*(88vh - 70px). */
-  .anim-embed.subsurface { aspect-ratio: 1080 / 745;
-    max-width: min(100%, calc(141vh - 112px)); margin: 0 auto; }
+  .anim-embed.subsurface { aspect-ratio: 1084 / 783;
+    max-width: min(100%, calc(134vh - 112px)); margin: 0 auto; }
   .anim-embed.torque { aspect-ratio: 1306 / 1055; }
   .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
   .anim-embed.walker { aspect-ratio: 1245 / 590; }  /* image + controls bar */
@@ -994,13 +994,13 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=0479f3216354").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=e6eb0eff10bc").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=0479f3216354").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=e6eb0eff10bc").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=0479f3216354").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=e6eb0eff10bc").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=0479f3216354").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=e6eb0eff10bc").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
