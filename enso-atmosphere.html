@@ -525,7 +525,7 @@
     <div class="chart-card plot-deck" data-deck="atmosphere2">
       <div class="deck-head">
         <span class="deck-title">Select a figure</span>
-        <span class="deck-hint">3 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
+        <span class="deck-hint">4 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
       </div>
       <div class="deck-tabs">
         <button class="on">MSLP + wind</button>
@@ -763,7 +763,7 @@
     </div>
 
     <!-- MERIDIONAL MASS STREAMFUNCTION (Hadley cell response) -->
-    <h3 class="page-section" id="overturning">Overturning &amp; jets</h3>
+    <h3 class="page-section" id="overturning">Overturning, jets &amp; the polar vortex</h3>
     <div class="chart-card plot-deck" data-deck="atmosphere4">
       <div class="deck-head">
         <span class="deck-title">Select a figure</span>
@@ -773,6 +773,7 @@
         <button class="on">Hadley cell</button>
         <button>Walker cell</button>
         <button>Subtropical jets</button>
+        <button>NH polar vortex</button>
       </div>
       <div class="deck-panel">
       <div class="chart-card-header">
@@ -807,6 +808,14 @@
               title="Subtropical jet forecast animation: zonal-mean wind anomaly cross-section, day 0-15 from AIFS-ENS" loading="lazy"></iframe>
       <div class="img-wrap"><img src="assets/sst/jets.webp?v=5fd3d36bb021" alt="Subtropical jet monitor: zonal-mean wind cross-section anomaly and jet-core strength/latitude forecast vs ERA5 climatology" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind, 51 members (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 harmonic day-of-year normal &plusmn;1&sigma; (WeatherBench2 / Copernicus C3S) &middot; updated daily</span></div>
+      </div>
+      <div class="deck-panel" hidden>
+      <div class="chart-card-header">
+        <h2>Northern Polar Vortex: 60&deg;N Winds &amp; Polar-Cap Height</h2>
+        <p>The stratospheric vortex is the slow variable that sets the odds for the surface weeks later, so it is worth watching before it moves. <b>Top</b>: the zonal-mean zonal wind at <b>10&nbsp;hPa, 60&deg;N</b> &mdash; the WMO sudden-stratospheric-warming diagnostic. A reversal to <i>easterly</i> here <i>is</i> an SSW, which is why the zero line is drawn heavy and the member fraction crossing it is called out. <b>Middle</b>: the same wind at <b>100&nbsp;hPa</b>. Anomalies that reach this far down are the ones with a path to the troposphere &mdash; a 10&nbsp;hPa event that never appears at 100&nbsp;hPa usually never reaches the surface. <b>Bottom</b>: the <b>100&nbsp;hPa polar-cap (65&ndash;90&deg;N) height anomaly</b>, positive for a weak or displaced vortex; this is the field that actually leads the AO/NAO response. Blue traces are AIFS-ENS members, orange their mean, dashed the control. The 100&nbsp;hPa height is control-only because ECMWF open data publishes no perturbed geopotential at that level.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/nh_vortex.webp?v=5fd3d36bb021" alt="Northern polar vortex monitor: AIFS-ENS 60N zonal-mean zonal wind at 10 and 100 hPa and 100 hPa polar-cap height anomaly vs MERRA-2 climatology" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS zonal wind and geopotential at 10/100&nbsp;hPa (open data, CC BY 4.0) &middot; reference: MERRA-2 1980&ndash;2026 day-of-year 10th&ndash;90th percentiles (NASA GMAO) &middot; analysis tail: ERA5 &middot; updated daily</span></div>
       </div>
     </div>
 
