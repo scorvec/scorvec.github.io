@@ -119,6 +119,20 @@ jobs:
             # A failed prefetch must fail the run, not silently skip an hour.
             if [ -n "$BG" ]; then wait "$BG"; fi
           done
+          # Same guard as run_local_ecape.sh. Without it a run that loses a
+          # forecast hour still publishes, force-pushing a short loop over the
+          # good one on the frames branch and committing a matching manifest.
+          # The local first run proved a partial set publishes happily and exits
+          # 0 - the frame count is the only thing that catches it.
+          want=${#HOURS[@]}
+          for fld in ecape_ml ecape_mu ratio_ml ratio_mu; do
+            got=$(find "assets/ecape/anim/$fld" -name 'F*.webp' 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$got" -ne "$want" ]; then
+              echo "::error::$fld has $got frames, expected $want — refusing to publish a partial loop"
+              exit 1
+            fi
+          done
+          echo "frame count verified: $want per field across 4 fields"
           python scripts/ecape/build_manifest.py assets/ecape/anim --cycle "$CYCLE"
           # Stills for the page's static panels come from the analysis frame.
           for fld in ecape_ml ecape_mu ratio_ml ratio_mu; do
