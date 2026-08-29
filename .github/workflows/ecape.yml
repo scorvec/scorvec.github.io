@@ -10,8 +10,8 @@ name: HRRR ECAPE (CONUS)
 #
 # Cost per cycle, measured rather than assumed:
 #   per forecast hour   ~397 MB download, ~2.3 GB scratch, ~100 s kernel on
-#                       2 cores (199 s CPU for 1,905,141 columns), ~40 s render
-#   29 frames           ~11.5 GB pulled, ~95 min wall
+#                       2 cores (199 s CPU for 1,905,141 columns), ~5 s render
+#   29 frames           ~11.5 GB pulled, ~52 min wall (fetch overlaps compute)
 # Scratch is deleted between hours, so disk never holds more than one.
 #
 # Frames go to the orphan `frames` branch, never to main: 29 frames x 4 fields
@@ -87,17 +87,30 @@ jobs:
           # the new cycle's valid time.
           rm -rf assets/ecape/anim
           mkdir -p assets/ecape/anim
-          for f in $FXX; do
+          read -r -a HOURS <<< "$FXX"
+          fetch_one() {   # $1 = forecast hour
+            python scripts/ecape/fetch_hrrr.py \
+              --date "${CYCLE:0:8}" --hour "${CYCLE:8:2}" --fxx "$1" \
+              --out "$RUNNER_TEMP/hrrr_f$1" --quiet
+          }
+          # The kernel is ~96 s on two cores and the fetch is ~30 s, and they
+          # need nothing from each other - so pull hour N+1 while hour N is
+          # computing. Costs one extra 2.3 GB scratch on disk (~4.6 GB of ~14 GB)
+          # and takes roughly 14 min off a 29-frame run.
+          fetch_one "${HOURS[0]}"
+          for i in "${!HOURS[@]}"; do
+            f="${HOURS[$i]}"
+            nxt="${HOURS[$((i+1))]:-}"
+            if [ -n "$nxt" ]; then fetch_one "$nxt" & BG=$!; else BG=""; fi
             echo "::group::F$f"
             STEM="$RUNNER_TEMP/hrrr_f$f"
-            python scripts/ecape/fetch_hrrr.py \
-              --date "${CYCLE:0:8}" --hour "${CYCLE:8:2}" --fxx "$f" \
-              --out "$STEM" --quiet
             ./scripts/ecape/ecape_grid "$STEM"
             python scripts/ecape/render_ecape.py "$STEM" --anim-root assets/ecape/anim
             rm -f "$STEM.f32" "${STEM}_ecape.f32" "$STEM.json" "${STEM}_ecape.json"
             df -h "$RUNNER_TEMP" | tail -1
             echo "::endgroup::"
+            # A failed prefetch must fail the run, not silently skip an hour.
+            if [ -n "$BG" ]; then wait "$BG"; fi
           done
           python scripts/ecape/build_manifest.py assets/ecape/anim --cycle "$CYCLE"
           # Stills for the page's static panels come from the analysis frame.
