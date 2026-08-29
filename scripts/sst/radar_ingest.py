@@ -24,7 +24,7 @@ Products
 Archive: ~/colombia_hydro/radar/{radar}/{date}/{product}/NNN.webp + manifest
 """
 from __future__ import annotations
-import argparse, json, urllib.parse, urllib.request, warnings
+import argparse, json, urllib.parse, urllib.request, warnings, os
 import xml.etree.ElementTree as ET
 from datetime import date, timedelta
 from pathlib import Path
@@ -33,7 +33,18 @@ warnings.filterwarnings("ignore")
 
 B="https://s3.amazonaws.com/s3-radaresideam"
 NS={"s":"http://s3.amazonaws.com/doc/2006-03-01/"}
-ARCH=Path.home()/"colombia_hydro"/"radar"
+ARCH=Path(os.environ.get("RADAR_ARCH") or
+          Path.home()/"colombia_hydro"/"radar")
+# The basin overlay is optional: it lives in the private ~/wrf tree, so a CI
+# runner has no copy and those frames come out without the yellow outlines.
+# Say so loudly — a silent skip makes CI and laptop frames diverge inside the
+# same loop, which reads as a rendering bug rather than a missing input.
+_warned=set()
+def _no_basins(path):
+    if "x" in _warned: return
+    _warned.add("x")
+    print(f"    note: no basin overlay ({path} absent) — frames omit region outlines")
+
 SITES={"Barrancabermeja":(6.933,-73.763),"Munchique":(2.845,-76.995),
        "santa_elena":(6.199,-75.500),"Guaviare":(2.573,-72.639),
        "Carimagua":(4.560,-71.336),"Tablazo":(5.000,-74.000)}
@@ -204,8 +215,10 @@ def render(radar, dstr, product, stride=3, dpi=105, keep=None, hh0=None, hh1=Non
             th=np.linspace(0,2*np.pi,361)
             ax.plot(lon0+rr*1000*np.sin(th)/(111320*np.cos(np.deg2rad(lat0))),
                     lat0+rr*1000*np.cos(th)/110540,color="#8296ad",lw=.45,alpha=.45,zorder=4)
-        gj=Path.home()/"wrf"/"data"/"colombia_hydro_regions.geojson"
-        if gj.exists():
+        gj=Path(os.environ.get("RADAR_BASINS") or
+                Path.home()/"wrf"/"data"/"colombia_hydro_regions.geojson")
+        if not gj.exists(): _no_basins(gj)
+        else:
             for ft in json.loads(gj.read_text())["features"]:
                 g=ft["geometry"]
                 for poly in (g["coordinates"] if g["type"]=="MultiPolygon" else [g["coordinates"]]):
