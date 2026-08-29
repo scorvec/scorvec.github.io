@@ -33,6 +33,9 @@ on:
       cycle:
         description: 'Cycle as YYYYMMDDHH (blank = newest extended run with F48 up)'
         default: ''
+      publish:
+        description: 'Publish to the site (false = render + upload artifacts only)'
+        default: 'false'
 
 permissions:
   contents: write
@@ -141,6 +144,7 @@ jobs:
           du -sh assets/ecape/anim
 
       - name: Publish frames to the orphan branch
+        if: ${{ github.event.inputs.publish == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -172,6 +176,7 @@ jobs:
           echo "  pushed $(find assets -name '*.webp' | wc -l) frames"
 
       - name: Commit manifest & stills to main
+        if: ${{ github.event.inputs.publish == 'true' }}
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
@@ -185,3 +190,14 @@ jobs:
             sleep 5
           done
           echo "push failed after retries"; exit 1
+
+      - name: Upload rendered loop (dry runs, and as a record of published ones)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecape-${{ steps.cyc.outputs.cycle }}
+          path: |
+            assets/ecape/anim/ecape_manifest.json
+            assets/ecape/anim/ratio_mu
+          if-no-files-found: warn
+          retention-days: 7
