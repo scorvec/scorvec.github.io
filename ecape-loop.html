@@ -126,7 +126,7 @@
 </div>
 <div class="hint">
   <kbd>space</kbd> play/pause &middot; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> step &middot;
-  <kbd>home</kbd> <kbd>end</kbd> jump &middot; <kbd>1</kbd>&ndash;<kbd>4</kbd> switch field.
+  <kbd>home</kbd> <kbd>end</kbd> jump &middot; <kbd>1</kbd>&ndash;<kbd>3</kbd> switch field.
   Frames preload before playback so the loop runs without flicker.
 </div>
 
@@ -163,6 +163,9 @@ var FRAME_ROOT = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/fr
 // One line of orientation per field. Someone can land on this page directly -
 // it is unlinked but shareable - so the active field has to explain itself
 // rather than assuming the reader came via the ECAPE page.
+// Keyed by field id and looked up only for fields the manifest actually
+// carries, so an entry for a retired field (ratio_ml, dropped 2026-08-29)
+// costs nothing and keeps the page working if it is ever restored.
 var FIELD_DESC = {
   ratio_mu: "<b>Fraction of CAPE that survives entrainment</b>, most-unstable parcel. Blue = entrainment eats the buoyancy; red = storm-relative inflow more than pays for the mixing (above 1 is real \u2014 see below). Masked where CAPE &lt; 100 J kg\u207b\u00b9.",
   ratio_ml: "<b>Fraction of CAPE that survives entrainment</b>, mixed-layer parcel \u2014 the lowest 100 hPa, most representative of surface-based convection. Masked where CAPE &lt; 100 J kg\u207b\u00b9.",
@@ -275,7 +278,7 @@ document.addEventListener("keydown", function (e) {
   else if (e.key === "ArrowRight") { play(false); show(idx + 1); }
   else if (e.key === "Home")       { play(false); show(0); }
   else if (e.key === "End")        { play(false); show(frames.length - 1); }
-  else if (e.key >= "1" && e.key <= "4" && ids[+e.key - 1]) setField(ids[+e.key - 1]);
+  else if (e.key >= "1" && e.key <= "9" && ids[+e.key - 1]) setField(ids[+e.key - 1]);
 });
 </script>
 </body>

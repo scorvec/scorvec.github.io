@@ -127,7 +127,7 @@ echo "  frames rendered in $(( $(date +%s) - t0 )) s"
 # here - the frame count is the only real check. Refuse to publish a set that
 # does not match what was asked for.
 want=${#HOURS[@]}
-for fld in ecape_ml ecape_mu ratio_ml ratio_mu; do
+for fld in ecape_ml ecape_mu ratio_mu; do
   got=$(find "$ANIM/$fld" -name 'F*.webp' 2>/dev/null | wc -l | tr -d ' ')
   if [ "$got" -ne "$want" ]; then
     echo "ABORT: $fld has $got frames, expected $want — refusing to publish a partial loop" >&2
@@ -135,10 +135,10 @@ for fld in ecape_ml ecape_mu ratio_ml ratio_mu; do
     exit 1
   fi
 done
-echo "  frame count verified: $want per field across 4 fields"
+echo "  frame count verified: $want per field across 3 fields"
 
 $PY scripts/ecape/build_manifest.py "$ANIM" --cycle "$CYCLE" || exit 1
-for fld in ecape_ml ecape_mu ratio_ml ratio_mu; do
+for fld in ecape_ml ecape_mu ratio_mu; do
   [ -f "$ANIM/$fld/F00.webp" ] && cp "$ANIM/$fld/F00.webp" "$REPO/assets/ecape/$fld.webp"
 done
 
