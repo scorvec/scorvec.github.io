@@ -1,7 +1,7 @@
 # Generic MJO-suite frame renderer (walker/jets/WAF/MMSF cross-sections and
 # maps). Spec-driven: python serializes per-frame layers (filled contours,
 # line contours, arrows, text labels) + axis config; this rasterizes them.
-# Pattern and JSON conventions follow tc_render.jl / synoptic_render.jl.
+# Pattern and JSON conventions follow synoptic_render.jl.
 #
 # spec.json: { staging, frames: [ { frame_id, out_png, figsize: [w,h],
 #   title, footer, xlabel, ylabel, ylog: bool, yreversed: bool,

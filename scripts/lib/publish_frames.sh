@@ -21,7 +21,7 @@ BRANCH="frames"
 # every animation frame dir on the site. cptec/brazil/sfs are smaller than
 # sst but churn the same way, and keeping ONE branch for all of them means
 # the viewers need a single frame root rather than a per-product mapping.
-DIRS=(assets/sst/anim assets/tc/anim assets/cptec/anim assets/brazil/anim assets/sfs/anim)
+DIRS=(assets/sst/anim assets/cptec/anim assets/brazil/anim assets/sfs/anim)
 STAMP="$REPO/scripts/lib/.frames_published"
 cd "$REPO" || exit 1
 

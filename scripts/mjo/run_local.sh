@@ -175,17 +175,14 @@ fi
 # publish() (atomic stage+commit inside the git lock). The prefetch itself is
 # launched before Stage 1 (see above) so it spans the RMM compute.
 
-# group SFC — surface batches: TC + invests + MSLP/wind publish first, then
+# group SFC — surface batches: MSLP/wind publishes first, then
 # Hovmöller + SOI (their 10u/msl series are extracted by ens_cycle light).
 ( "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "ens_cycle (light) had issues; continuing"
-  "$PY" ../tc/tc_tracker.py --date "$DATE" --time "$TIME" \
-    --out-dir "$REPO/assets/tc" || echo "TC tracker failed; continuing"
-  "$PY" ../tc/invest_models.py --out-dir "$REPO/assets/tc" || echo "invest plotter failed; continuing"
   "$PY" src/mslp_wind_anim.py --date "$DATE" --time "$TIME" \
     --anim-dir "$REPO/assets/sst/anim/mslp_wind" \
     --manifest "$REPO/assets/sst/anim/mslp_wind_manifest.json" || echo "MSLP/wind anim failed; continuing"
   ( cd "$REPO" && publish "data update: ${COMPACT} (p)" \
-      assets/tc tc.html assets/sst/anim/mslp_wind assets/sst/anim/mslp_wind_manifest.json )
+      assets/sst/anim/mslp_wind assets/sst/anim/mslp_wind_manifest.json )
   "$PY" src/eq_hovmoller.py --date "$DATE" --time "$TIME" --data-dir data/u10 \
     --out "$REPO/assets/sst/eq_wind_hovmoller.webp" || echo "Hovmöller failed; continuing"
   "$PY" src/soi_forecast.py --date "$DATE" --time "$TIME" --data-dir data/msl \
@@ -343,8 +340,7 @@ perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_ti
     assets/sst/anim/walker assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
     assets/sst/jets.webp assets/sst/anim/jets assets/sst/anim/jets_manifest.json \
     assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
-    assets/tc/anim assets/tc/storms assets/tc/tc_meta.json assets/tc/tracks.json tc.html \
-    assets/tc/invests assets/tc/invests_meta.json assets/spectra/ke_spectra.webp \
+    assets/spectra/ke_spectra.webp \
     scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
     scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
     scripts/mjo/data/reference/mei_fit.json \
