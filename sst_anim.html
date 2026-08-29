@@ -196,6 +196,19 @@ function postHeight() {
 }
 imgEl.addEventListener("load", postHeight);
 addEventListener("resize", postHeight);
+// The parent only learns our height from that "load" event, and it does NOT fire for an
+// image already decoded in cache — so on a warm reload the parent kept its fallback
+// aspect-ratio box. On a short viewport that box is smaller than the content and
+// body.embed{overflow:hidden} clipped the plot (seen on mjo.html at ~760px tall).
+// Post unconditionally once the layout settles, and again if the image was already done.
+function postHeightSoon() {
+  requestAnimationFrame(function () { requestAnimationFrame(postHeight); });
+  setTimeout(postHeight, 250);
+  setTimeout(postHeight, 1200);
+}
+if (imgEl.complete && imgEl.naturalWidth) { fitWide(); postHeightSoon(); }
+addEventListener("load", postHeightSoon);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(postHeight);
 
 // wide-image mobile handling: aspect > 2.4 on a narrow screen → pan mode
 function fitWide() {
