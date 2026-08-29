@@ -225,15 +225,10 @@ GRP_V200=$!
     --out "$REPO/assets/sst/hadley_timeseries.webp" \
     --json-out "$REPO/assets/sst/data/hadley_timeseries.json" \
     || echo "Hadley time series failed; continuing"
-  # Stratosphere products disabled 2026-08-29 at the owner's request - the MJO
-  # run should not be carrying them. NOTE: this driver was the ONLY thing that
-  # ran them (no other script, no workflow), so stratosphere.html, nh_vortex,
-  # the wave-1 amplitude and the strat10/strat100 loops now go stale until
-  # something else owns them. Their scripts are also untracked, which is what
-  # blocked this pipeline from moving to Actions.
+  # The three LIVE strat products moved to .github/workflows/strat.yml on
+  # 2026-08-29 and are no longer built here. build_strat_products stays local:
+  # it writes assets/strat/, which is private and only feeds stratosphere.html.
   # "$PY" "$REPO/scripts/strat/build_strat_products.py" || echo "..."
-  # "$PY" "$REPO/scripts/strat/qbo_duct.py" --strip-only || echo "..."
-  # "$PY" "$REPO/scripts/strat/wave1_monitor.py" || echo "..."
   # AIFS is free (already cached); GEPS ~98 MB, GDPS ~31 MB, IFS ~28.5 MB per
   # member — IFS open data has no control at 10/100 hPa so members are the only
   # option. 5 keeps the cycle around 250 MB; raise --ifs-members for more spread.
