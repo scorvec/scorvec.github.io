@@ -164,7 +164,17 @@ def decode(grib: Path, out_stem: Path, cycle: dict, quiet=False):
                 if arr is None:
                     ny = ec.codes_get(gid, "Ny")
                     nx = ec.codes_get(gid, "Nx")
-                    arr = np.full((NVAR, NLEV, ny, nx), np.nan, np.float32)
+                    # memmap, not an in-RAM array: the full cube is 2.3 GB, and
+                    # holding it resident is the one thing that would make this
+                    # job marginal on a 7 GB Actions runner. Writing through to
+                    # disk keeps peak RSS at a few tens of MB - the OS flushes
+                    # pages as we go - and the kernel mmaps the same file next.
+                    arr = np.memmap(out_stem.with_suffix(".f32"), np.float32,
+                                    mode="w+", shape=(NVAR, NLEV, ny, nx))
+                    # No NaN prefill: that would dirty all 2.3 GB for nothing.
+                    # Coverage is guaranteed instead by the `seen` check below,
+                    # which refuses to write metadata if any (var, level) is
+                    # absent - so an unwritten cell can never reach the kernel.
                     grid = dict(
                         ny=int(ny), nx=int(nx),
                         lat1=float(ec.codes_get(gid, "latitudeOfFirstGridPointInDegrees")),
@@ -194,7 +204,8 @@ def decode(grib: Path, out_stem: Path, cycle: dict, quiet=False):
         raise SystemExit(f"missing {missing} (var, level) messages, e.g. {where[:5]}")
 
     f32 = out_stem.with_suffix(".f32")
-    arr.tofile(f32)
+    arr.flush()
+    del arr
     meta = dict(cycle=cycle, vars=VARS, nlev=NLEV, grid=grid,
                 shape=[NVAR, NLEV, grid["ny"], grid["nx"]],
                 dtype="float32", order="C", scratch=str(f32.name))
