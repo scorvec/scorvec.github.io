@@ -206,6 +206,13 @@ def interp_lon(field2d: np.ndarray, lons: np.ndarray) -> np.ndarray:
 # ── plotting ──────────────────────────────────────────────────────────────────
 TEMP_LEVELS = np.arange(8, 31.001, 1.0)
 TEMP_ISOTHERMS = [26, 28, 30]
+# Z20 is the conventional thermocline proxy, so it gets a heavier line than the
+# warm-pool isotherms above. Z10 sits below 300 m in normal conditions — the
+# source profiles reach 500 m and 7.6 degC, but DEPTH_GRID stops at 300, so it
+# draws only if water that cold reaches into the plotted range. Both are guarded:
+# contour() on a level outside the data warns and draws nothing.
+THERMOCLINE_ISOTHERM = 20.0
+DEEP_ISOTHERM = 10.0
 ANOM_LEVELS = np.arange(-12, 12.001, 0.5)   # ±8→±10 (Jul 2026) → ±12 (Aug 2026: +10.65 at the thermocline)
 ANOM_LIM = 10.0
 
@@ -213,7 +220,7 @@ ANOM_LIM = 10.0
 def plot_frame(temp2d, anom2d, lons, date, out_path):
     Tg = interp_lon(temp2d, lons)
     Ag = interp_lon(anom2d, lons)
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6.2), sharex=True)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7.2), sharex=True)
     fig.suptitle(f"Equatorial Pacific (0°N) ocean temperature — {date:%d %b %Y}",
                  fontsize=12, fontweight="bold")
 
@@ -222,6 +229,15 @@ def plot_frame(temp2d, anom2d, lons, date, out_path):
     ci = ax1.contour(LON_GRID, DEPTH_GRID, Tg, levels=TEMP_ISOTHERMS,
                      colors="k", linewidths=1.3)
     ax1.clabel(ci, fmt="%d°C", fontsize=8)
+    tmin, tmax = np.nanmin(Tg), np.nanmax(Tg)
+    if tmin <= THERMOCLINE_ISOTHERM <= tmax:
+        c20 = ax1.contour(LON_GRID, DEPTH_GRID, Tg, levels=[THERMOCLINE_ISOTHERM],
+                          colors="k", linewidths=2.1)
+        ax1.clabel(c20, fmt="%d°C", fontsize=8)
+    if tmin <= DEEP_ISOTHERM <= tmax:
+        c10 = ax1.contour(LON_GRID, DEPTH_GRID, Tg, levels=[DEEP_ISOTHERM],
+                          colors="#1f5fbf", linewidths=1.5, linestyles="--")
+        ax1.clabel(c10, fmt="%d°C", fontsize=8)
     ax1.set_title("Temperature", fontsize=10, loc="left")
     fig.colorbar(cf1, ax=ax1, label="°C", pad=0.02, fraction=0.046)
 
@@ -251,7 +267,7 @@ def plot_frame(temp2d, anom2d, lons, date, out_path):
 def plot_anom_pair(araw2d, adt2d, lons, date, out_path):
     """Companion frame: raw anomaly (top) vs the same with the 1991–2020 climate
     trend removed (bottom), so the secular signal's footprint is visible directly."""
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6.2), sharex=True)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7.2), sharex=True)
     fig.suptitle(f"Equatorial Pacific (0°N) temperature anomaly — {date:%d %b %Y}",
                  fontsize=11.5, fontweight="bold")
     panels = [(ax1, interp_lon(araw2d, lons), "Anomaly (vs 1991–2020)"),

@@ -158,8 +158,8 @@
   /* frames are 1080x675 (+~70px controls). Cap width from the VIEWPORT
      HEIGHT so the whole two-panel figure + scrubber always fits the
      monitor: H = W/1.6 + 70  =>  W <= 1.6*(88vh - 70px). */
-  .anim-embed.subsurface { aspect-ratio: 1080 / 745;
-    max-width: min(100%, calc(141vh - 112px)); margin: 0 auto; }
+  .anim-embed.subsurface { aspect-ratio: 1084 / 783;
+    max-width: min(100%, calc(134vh - 112px)); margin: 0 auto; }
   .anim-embed.torque { aspect-ratio: 1306 / 1055; }
   .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
   .anim-embed.walker { aspect-ratio: 1245 / 590; }  /* image + controls bar */
@@ -574,9 +574,9 @@
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>Equatorial Pacific Subsurface Temperature</h2>
-        <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed. The thermocline (here the 26&deg;C and 28&deg;C isotherms, with the 20&deg;C isotherm in solid black and the 10&deg;C isotherm dashed blue when it enters the section) tilts upward toward the east, and subsurface anomalies along it often lead the surface ENSO signal.</p>
+        <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed. The thermocline (here the 26&deg;C and 28&deg;C isotherms, with the 20&deg;C isotherm &mdash; the standard thermocline proxy &mdash; in heavy solid black) tilts upward toward the east, and subsurface anomalies along it often lead the surface ENSO signal. The 10&deg;C isotherm is drawn dashed blue whenever it enters the section, which is rare: the panel runs to 300&nbsp;m and the water there sits near 12&nbsp;&deg;C, so Z10 normally lies below the frame.</p>
       </div>
-      <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial"
+      <iframe class="anim-embed subsurface" src="sst_anim.html?embed=1&amp;region=equatorial&amp;regions=equatorial,equatorial_dt"
               title="Equatorial Pacific subsurface temperature animation" loading="lazy"></iframe>
       <div class="chart-card-footer">
         <span class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; 120-day animation, latest shown</span>
