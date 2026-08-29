@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # to dispatch the Pages deploy below
 
 concurrency:
   group: colombia-radar
@@ -59,6 +60,7 @@ jobs:
       - name: Prune to a fortnight
         run: python scripts/sst/radar_archive.py --prune --keep-days 14
       - name: Commit & push
+        id: push
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
@@ -67,9 +69,20 @@ jobs:
           git commit -m "radar: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do
             if timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 300 git push; then
-              echo "pushed (attempt $i)"; exit 0
+              echo "pushed (attempt $i)"
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
+              exit 0
             fi
             git rebase --abort 2>/dev/null || true
             sleep 5
           done
           echo "push failed after retries"; exit 1
+      # A push made with the default GITHUB_TOKEN does NOT trigger `on: push`
+      # workflows, so the Pages deploy never fires for a commit this job made:
+      # the frames sit in main and the site keeps serving the old index until
+      # some other (laptop) push happens to deploy them. Dispatch it directly.
+      - name: Deploy to Pages
+        if: steps.push.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
