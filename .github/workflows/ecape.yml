@@ -1,32 +1,33 @@
 name: HRRR ECAPE (CONUS)
 
-# Gridded entraining CAPE (Peters et al. 2023) over the HRRR CONUS domain.
+# Gridded entraining CAPE (Peters et al. 2023) over the HRRR CONUS domain, as a
+# full 48 h forecast loop from one of the extended cycles.
 #
-# The heavy step is C++, not Python: ecape_grid links the same SHARPlib wrapper
-# the browser Skew-T runs through WebAssembly, and OpenMPs over columns. Measured
-# on an 18-core laptop the full 1,905,141-column 3 km grid takes 14.7 s wall /
-# 199 s CPU, so on a 2-core runner budget ~100 s for the kernel itself.
+# Only 00/06/12/18Z run past F18 - a 13Z cycle 404s on F24 - so the driver
+# resolves ONE extended cycle up front (probing F48, whose tail publishes well
+# after the analysis) and pins every forecast hour to it. Re-resolving per hour
+# could straddle two model runs midway through a loop.
 #
-# Sizing on a free ubuntu-latest runner (2 cores, 7 GB RAM, ~14 GB disk):
-#   download   ~397 MB   byte-ranged out of the 693 MB wrfnat file via its .idx
-#   scratch    ~2.3 GB   float32 cube, written through a memmap (low RSS)
-#   kernel     ~100 s    2 threads
-# Nothing here is close to a runner limit; disk is the largest single claim.
+# Cost per cycle, measured rather than assumed:
+#   per forecast hour   ~397 MB download, ~2.3 GB scratch, ~100 s kernel on
+#                       2 cores (199 s CPU for 1,905,141 columns), ~40 s render
+#   29 frames           ~11.5 GB pulled, ~95 min wall
+# Scratch is deleted between hours, so disk never holds more than one.
 #
-# Cadence: HRRR runs hourly, but GitHub honours only a fraction of this repo's
-# cron firings and delivers them hours late, so this is deliberately written as
-# "render whatever the newest published cycle is" rather than chasing a specific
-# hour. A missed firing costs freshness, never data.
+# Frames go to the orphan `frames` branch, never to main: 29 frames x 4 fields
+# is ~29 MB per cycle, and committing that to main is exactly the churn that
+# forced the 2026-08-28 history collapse. The manifest (small JSON) stays on
+# main so the animator fetches it same-origin.
 on:
   schedule:
-    - cron: '25 1,7,13,19 * * *'   # 4x daily; expect fewer to actually fire
+    - cron: '40 3,15 * * *'    # after the 00Z and 12Z extended runs finish
   workflow_dispatch:
     inputs:
       fxx:
-        description: 'Forecast hours to render (space-separated, e.g. "0 3 6")'
-        default: '0'
+        description: 'Forecast hours (space-separated). Default: hourly to 18, 3-hourly to 48'
+        default: ''
       cycle:
-        description: 'Cycle as YYYYMMDDHH (blank = newest published)'
+        description: 'Cycle as YYYYMMDDHH (blank = newest extended run with F48 up)'
         default: ''
 
 permissions:
@@ -39,7 +40,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
 
@@ -56,42 +57,92 @@ jobs:
       - run: pip install --quiet numpy matplotlib cartopy eccodes
 
       - name: Build the SHARPlib kernel
-        # ~5 s locally; clones SHARPlib + fmt the same way skewt/build_wasm.sh
-        # does, so the map and the browser Skew-T track one upstream.
         run: |
           chmod +x scripts/ecape/build.sh
           ./scripts/ecape/build.sh
-          ls -l scripts/ecape/ecape_grid
 
-      - name: Compute and render
+      - name: Resolve the cycle
+        id: cyc
         run: |
           set -euo pipefail
-          FXX="${{ github.event.inputs.fxx || '0' }}"
-          CYCLE="${{ github.event.inputs.cycle || '' }}"
-          CYCLE_ARGS=""
-          if [ -n "$CYCLE" ]; then
-            CYCLE_ARGS="--date ${CYCLE:0:8} --hour ${CYCLE:8:2}"
+          C="${{ github.event.inputs.cycle || '' }}"
+          if [ -z "$C" ]; then
+            C=$(python scripts/ecape/fetch_hrrr.py --print-cycle --extended-only --probe-fxx 48)
           fi
-          mkdir -p assets/ecape
+          echo "cycle=$C" >> "$GITHUB_OUTPUT"
+          echo "resolved cycle: $C"
+
+      - name: Compute and render the loop
+        run: |
+          set -euo pipefail
+          CYCLE="${{ steps.cyc.outputs.cycle }}"
+          FXX="${{ github.event.inputs.fxx }}"
+          if [ -z "$FXX" ]; then
+            # Hourly where it matters, 3-hourly out to 48 - the extra detail past
+            # day 1 is not worth 20 more forecast hours of runtime.
+            FXX="$(seq 0 1 18) $(seq 21 3 48)"
+          fi
+          # A previous cycle's frames MUST go: the manifest is built by globbing
+          # this tree, so a leftover F45 from an older run would be published with
+          # the new cycle's valid time.
+          rm -rf assets/ecape/anim
+          mkdir -p assets/ecape/anim
           for f in $FXX; do
             echo "::group::F$f"
-            STEM="$RUNNER_TEMP/hrrr_ecape_f$f"
-            # shellcheck disable=SC2086
-            python scripts/ecape/fetch_hrrr.py $CYCLE_ARGS --fxx "$f" --out "$STEM" --quiet
+            STEM="$RUNNER_TEMP/hrrr_f$f"
+            python scripts/ecape/fetch_hrrr.py \
+              --date "${CYCLE:0:8}" --hour "${CYCLE:8:2}" --fxx "$f" \
+              --out "$STEM" --quiet
             ./scripts/ecape/ecape_grid "$STEM"
-            python scripts/ecape/render_ecape.py "$STEM" --outdir assets/ecape
-            # 2.3 GB per forecast hour - never let two coexist on the runner
-            rm -f "$STEM.f32" "${STEM}_ecape.f32"
+            python scripts/ecape/render_ecape.py "$STEM" --anim-root assets/ecape/anim
+            rm -f "$STEM.f32" "${STEM}_ecape.f32" "$STEM.json" "${STEM}_ecape.json"
             df -h "$RUNNER_TEMP" | tail -1
             echo "::endgroup::"
           done
-          ls -lh assets/ecape/
+          python scripts/ecape/build_manifest.py assets/ecape/anim --cycle "$CYCLE"
+          # Stills for the page's static panels come from the analysis frame.
+          for fld in ecape_ml ecape_mu ratio_ml ratio_mu; do
+            [ -f "assets/ecape/anim/$fld/F00.webp" ] && cp "assets/ecape/anim/$fld/F00.webp" "assets/ecape/$fld.webp"
+          done
+          du -sh assets/ecape/anim
 
-      - name: Commit & push
+      - name: Publish frames to the orphan branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # The frames branch also carries sst/cptec/brazil/sfs frames. Force-
+          # pushing only our tree would DELETE them, so clone the existing branch,
+          # swap in just assets/ecape/anim, and re-orphan the combined result.
+          TMP=$(mktemp -d)
+          URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git clone --depth 1 --branch frames --single-branch -q "$URL" "$TMP/f"; then
+            echo "  cloned existing frames branch ($(du -sh "$TMP/f" | cut -f1))"
+          else
+            echo "  no frames branch yet - creating one"
+            mkdir -p "$TMP/f" && git -C "$TMP/f" init -q && git -C "$TMP/f" remote add origin "$URL"
+          fi
+          rm -rf "$TMP/f/assets/ecape/anim"
+          mkdir -p "$TMP/f/assets/ecape"
+          cp -r assets/ecape/anim "$TMP/f/assets/ecape/"
+          # The manifest belongs on main (same-origin fetch), not here.
+          rm -f "$TMP/f/assets/ecape/anim/ecape_manifest.json"
+          cd "$TMP/f"
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          git checkout -q --orphan fresh
+          git add -A
+          if git diff --cached --quiet; then echo "no frame changes"; exit 0; fi
+          git commit -q -m "animation frames $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push --force -q origin fresh:frames
+          echo "  pushed $(find assets -name '*.webp' | wc -l) frames"
+
+      - name: Commit manifest & stills to main
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
-          git add assets/ecape
+          # Only the manifest and the stills - never the frame webp.
+          git add assets/ecape/anim/ecape_manifest.json assets/ecape/*.webp
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do

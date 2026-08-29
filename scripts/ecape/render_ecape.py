@@ -155,6 +155,9 @@ def main(argv=None) -> int:
     ap.add_argument("--field", action="append",
                     help="field to render (repeatable); default: the four headline ones")
     ap.add_argument("--all", action="store_true", help="render every field")
+    ap.add_argument("--anim-root",
+                    help="write animation frames to <root>/<field>/F<fxx>.webp "
+                         "instead of flat <outdir>/<field>.webp")
     a = ap.parse_args(argv)
 
     stem = Path(a.stem)
@@ -172,11 +175,16 @@ def main(argv=None) -> int:
     fxx = int(meta["cycle"].get("fxx", 0))
     suffix = "" if fxx == 0 else f"_f{fxx:02d}"
     outdir = Path(a.outdir)
+    anim_root = Path(a.anim_root) if a.anim_root else None
     for n in names:
         if n not in fields:
             print(f"  skip {n}: not in output", file=sys.stderr)
             continue
-        p = render(fields[n], n, meta, outdir / f"{n}{suffix}.webp")
+        # Frame mode keeps one file per (field, forecast hour) so the animator
+        # can scrub the run; flat mode keeps the newest analysis as a still.
+        dest = (anim_root / n / f"F{fxx:02d}.webp") if anim_root \
+            else (outdir / f"{n}{suffix}.webp")
+        p = render(fields[n], n, meta, dest)
         d = fields[n]
         finite = d[np.isfinite(d)]
         print(f"  {n:9s} -> {p}  (max {finite.max():.2f}, "

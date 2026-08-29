@@ -44,6 +44,8 @@
   .chart-card-header p { font-size: 0.8rem; color: var(--muted); line-height: 1.65; }
   .chart-card-footer { padding: 0.85rem 1.8rem; border-top: 1px solid var(--rule);
                        font-size: 0.68rem; color: var(--muted); }
+  .anim-embed { width: 100%; border: 0; display: block; background: var(--bg);
+                aspect-ratio: 1380 / 887; }   /* frame 1380x817 + ~70px controls */
   .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
   @media (max-width: 1100px) { .pair { grid-template-columns: 1fr; } }
   .colophon { margin-top: 2.5rem; padding-top: 1.8rem; border-top: 1px solid var(--rule);
@@ -75,43 +77,35 @@
 </nav>
 <main>
   <h1>Entraining CAPE over CONUS</h1>
-  <p class="lede">CAPE assumes an updraft that never mixes with its surroundings &mdash; a sealed parcel rising through the environment untouched. Real updrafts entrain, and they lose buoyancy doing it. <b>ECAPE</b> (Peters et al. 2023) is the version that accounts for the mixing, derived from the storm-relative wind and shear as well as the thermodynamic profile. These maps run it on <b>every column of the HRRR 3&nbsp;km native-level grid</b> &mdash; 1,905,141 soundings per cycle &mdash; using <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a>, the same code the <a href="skewt/">Skew-T explorer</a> runs in your browser. A point on these maps and a click in the sounding tool come from the same routine, not merely the same library.</p>
+  <p class="lede">CAPE assumes an updraft that never mixes with its surroundings &mdash; a sealed parcel rising through the environment untouched. Real updrafts entrain, and they lose buoyancy doing it. <b>ECAPE</b> (Peters et al. 2023) is the version that accounts for the mixing, derived from the storm-relative wind and shear as well as the thermodynamic profile. These maps run it on <b>every column of the HRRR 3&nbsp;km native-level grid</b> &mdash; 1,905,141 soundings per cycle &mdash; across the full 48-hour forecast, using <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a>, the same code the <a href="skewt/">Skew-T explorer</a> runs in your browser. A point on these maps and a click in the sounding tool come from the same routine, not merely the same library.</p>
 
-  <div class="pair">
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>ECAPE &mdash; mixed-layer parcel</h2>
-        <p>The buoyancy available to an entraining updraft rising from the lowest 100&nbsp;hPa mixed layer. The parcel most representative of surface-based convection.</p>
-      </div>
-      <a href="assets/ecape/ecape_ml.webp" target="_blank"><img src="assets/ecape/ecape_ml.webp" alt="Mixed-layer ECAPE over the CONUS HRRR domain"></a>
-      <div class="chart-card-footer">NOAA HRRR wrfnat (AWS Open Data) &middot; 50 hybrid levels &middot; SHARPlib</div>
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <h2>48-hour forecast loop</h2>
+      <p>The full extended run, hourly through F18 and 3-hourly to F48. Use the buttons to switch between the two ECAPE fields and the two ratio fields; scrub or play to watch the entrainment environment evolve through the diurnal cycle. Each frame is labelled with its lead and valid time. Only the 00/06/12/18&nbsp;UTC cycles run this far &mdash; the loop is always from the newest one whose F48 has published.</p>
     </div>
+    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets/ecape/anim&amp;manifest=ecape_manifest.json&amp;region=ratio_mu"
+            title="HRRR ECAPE 48-hour forecast animation" loading="lazy"></iframe>
+    <div class="chart-card-footer">NOAA HRRR wrfnat (AWS Open Data) &middot; 50 hybrid levels &middot; SHARPlib &middot; 1,905,141 columns per frame</div>
+  </div>
+
+  <h2 style="font-family:var(--serif);font-weight:400;font-size:1.25rem;margin:2.5rem 0 0.9rem">Analysis snapshot</h2>
+  <div class="pair">
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>ECAPE &mdash; most-unstable parcel</h2>
-        <p>The same, for whichever parcel in the lowest 300&nbsp;hPa has the most buoyancy &mdash; the one that matters for elevated convection above a stable layer.</p>
+        <p>Buoyancy available to an entraining updraft from whichever parcel in the lowest 300&nbsp;hPa has the most of it &mdash; the one that matters for elevated convection above a stable layer.</p>
       </div>
       <a href="assets/ecape/ecape_mu.webp" target="_blank"><img src="assets/ecape/ecape_mu.webp" alt="Most-unstable ECAPE over the CONUS HRRR domain"></a>
-      <div class="chart-card-footer">NOAA HRRR wrfnat (AWS Open Data) &middot; 50 hybrid levels &middot; SHARPlib</div>
-    </div>
-  </div>
-
-  <div class="pair">
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>ECAPE / CAPE &mdash; mixed-layer parcel</h2>
-        <p>What fraction of the textbook CAPE survives entrainment. This is the field that carries the information a CAPE map cannot.</p>
-      </div>
-      <a href="assets/ecape/ratio_ml.webp" target="_blank"><img src="assets/ecape/ratio_ml.webp" alt="Mixed-layer ECAPE/CAPE ratio over CONUS"></a>
-      <div class="chart-card-footer">Masked where CAPE &lt; 100&nbsp;J&nbsp;kg&#8315;&sup1; &mdash; below that the ratio is two near-zero numbers divided</div>
+      <div class="chart-card-footer">Analysis hour (F00) of the current loop</div>
     </div>
     <div class="chart-card">
       <div class="chart-card-header">
         <h2>ECAPE / CAPE &mdash; most-unstable parcel</h2>
-        <p>Same ratio for the most-unstable parcel. Values above 1 are real, and are explained below.</p>
+        <p>What fraction of the textbook CAPE survives entrainment. This is the field that carries the information a CAPE map cannot &mdash; values above 1 are real, and are explained below.</p>
       </div>
       <a href="assets/ecape/ratio_mu.webp" target="_blank"><img src="assets/ecape/ratio_mu.webp" alt="Most-unstable ECAPE/CAPE ratio over CONUS"></a>
-      <div class="chart-card-footer">Masked where CAPE &lt; 100&nbsp;J&nbsp;kg&#8315;&sup1; &mdash; below that the ratio is two near-zero numbers divided</div>
+      <div class="chart-card-footer">Masked where CAPE &lt; 100&nbsp;J&nbsp;kg&#8315;&sup1;</div>
     </div>
   </div>
 
