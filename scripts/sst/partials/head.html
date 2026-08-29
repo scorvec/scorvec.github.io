@@ -22,12 +22,18 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #fafaf8;
-    --ink: #1c1c1a;
-    --muted: #888580;
-    --accent: #2c4a72;
-    --accent-light: #e8eef5;
-    --rule: #e4e2dc;
+    --bg: #fcfcfa;
+    --ink: #1a1a1a;
+    --ink2: #4a4744;          /* body copy inside cards */
+    --muted: #8a8680;
+    --accent: #8a4b2a;        /* burnt sienna — links, active tab, selected button */
+    --accent-hi: #a85c33;
+    --accent-light: #f6efe9;  /* accent at ~8%, for hover fills */
+    --rule: #e2e0da;
+    --edge: #c9c5bb;      /* card outline — deliberately darker than --rule */
+    --surface: #ffffff;
+    --warm: #b4541f;          /* El Nino / positive anomaly */
+    --cool: #3f6f8f;          /* La Nina / negative anomaly (data only, muted) */
     --serif: 'Lora', Georgia, serif;
     --sans: 'Inter', sans-serif;
   }
@@ -44,7 +50,7 @@
   /* fixed two-row header: site nav + ENSO monitor sub-nav */
   .site-header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-    background: rgba(250,250,248,0.95);
+    background: rgba(252,252,250,0.95);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid var(--rule);
   }
@@ -104,10 +110,10 @@
   /* Overview topic grid (links to the themed subpages) */
   .topic-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem; margin-bottom: 3rem;
+    gap: 1rem; margin-bottom: 1.5rem;
   }
   .topic-card {
-    display: block; border: 1px solid var(--rule); background: #fff;
+    display: block; border: 1.5px solid var(--edge); background: #fff;
     padding: 1.2rem 1.3rem; text-decoration: none;
     transition: border-color 0.2s, background 0.2s;
   }
@@ -121,10 +127,12 @@
   .chart-stack { display: flex; flex-direction: column; gap: 1.5rem; }
 
   .chart-card {
-    border: 1px solid var(--rule);
+    border: 1.5px solid var(--edge);
     background: #fff;
     overflow: hidden;
   }
+  /* a deck holds many figures, so give it a slightly heavier frame than a lone card */
+  .chart-card.plot-deck { border-width: 2px; border-color: #b8b3a8; }
   .chart-card-header {
     padding: 1rem 1.4rem 0.85rem;
     border-bottom: 1px solid var(--rule);
@@ -145,7 +153,7 @@
   /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
      sized to its exact content height via postMessage (see footer.html / sst_anim.html),
      which fills the card with no letterboxing at any width. */
-  .anim-embed { width: 100%; border: 0; display: block; background: #081120;
+  .anim-embed { width: 100%; border: 0; display: block; background: var(--bg);
                 aspect-ratio: 27 / 25; }
   /* frames are 1080x675 (+~70px controls). Cap width from the VIEWPORT
      HEIGHT so the whole two-panel figure + scrubber always fits the
@@ -261,10 +269,10 @@
   .fig-toggle button {
     font: inherit; font-size: 0.86rem; font-weight: 600; letter-spacing: 0.01em;
     padding: 0.4rem 0.95rem; cursor: pointer; border-radius: 3px;
-    border: 1.5px solid #c3d0de; background: #fff; color: #33475e;
+    border: 1.5px solid #d8d4cc; background: #fff; color: var(--ink2);
   }
   .fig-toggle button:hover { background: #f4f4f4; }
-  .fig-toggle button.on { background: #1f4e8c; border-color: #1f4e8c; color: #fff; }
+  .fig-toggle button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
   /* Section grouping. The Atmospheric Response page carries ~22 cards across
      five quite different topics; grouping them in place (no reordering) plus a
@@ -274,8 +282,8 @@
     margin: 0 0 1.2rem; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem;
     font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase;
   }
-  .section-nav a { color: #7a7a7a; text-decoration: none; border-bottom: 1px solid transparent; }
-  .section-nav a:hover { color: #1f4e8c; border-bottom-color: #1f4e8c; }
+  .section-nav a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
+  .section-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
   /* Plot deck — one card holding several figures behind a tab bar.
      Pages had grown to 12-22 cards, most of them a caption plus one figure, so
      the page was a long scroll and EVERY animator iframe loaded at once. A deck
@@ -287,9 +295,9 @@
   }
   .plot-deck .deck-title {
     font-size: 0.86rem; font-weight: 700; letter-spacing: 0.07em;
-    text-transform: uppercase; color: #1f4e8c;
+    text-transform: uppercase; color: var(--accent);
   }
-  .plot-deck .deck-hint { font-size: 0.8rem; color: #7d7d7d; }
+  .plot-deck .deck-hint { font-size: 0.8rem; color: var(--muted); }
   .plot-deck .deck-tabs {
     display: flex; flex-wrap: wrap; gap: 0.4rem;
     padding: 0 1.4rem 0.7rem; border-bottom: 1px solid var(--rule, #e8e8e8);
@@ -299,12 +307,12 @@
        like one: larger, semibold, with a border that reads at a glance */
     font: inherit; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.01em;
     padding: 0.48rem 1.05rem; cursor: pointer; border-radius: 3px;
-    border: 1.5px solid #c3d0de; background: #fff; color: #33475e;
+    border: 1.5px solid #d8d4cc; background: #fff; color: var(--ink2);
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .plot-deck .deck-tabs button:hover { background: #eef3f9; border-color: #1f4e8c; color: #1f4e8c; }
+  .plot-deck .deck-tabs button:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
   .plot-deck .deck-tabs button.on {
-    background: #1f4e8c; border-color: #1f4e8c; color: #fff;
+    background: var(--accent); border-color: var(--accent); color: #fff;
     box-shadow: 0 1px 4px rgba(31,78,140,0.28);
   }
   .plot-deck .deck-panel[hidden] { display: none; }
@@ -313,11 +321,81 @@
   .page-section {
     width: 100%; margin: 0.7rem 0 -0.5rem;
     font-family: var(--serif, Georgia, serif); font-weight: 400; font-size: 1.12rem;
-    color: #2b2b2b; scroll-margin-top: 5.5rem;
+    color: var(--ink); scroll-margin-top: 5.5rem;
   }
   .page-section::after {
     content: ""; display: block; margin-top: 0.5rem;
     border-bottom: 1px solid var(--rule, #e2e2e2);
+  }
+
+  /* ── components ported from the retired dark chrome (2026-08-28) ──
+     Overview and Forecasts used to ship their own navy/cyan stylesheet. They now
+     use this one, so these are the classes only their markup uses, restyled to
+     the warm-white palette. Keeping one stylesheet means a chrome change lands on
+     all four pages instead of two. */
+
+  /* hero */
+  .eyebrow { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.22em;
+             text-transform: uppercase; color: var(--accent); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 2.1rem;
+       letter-spacing: 0.01em; margin: 0.3rem 0 0.2rem; color: var(--ink); }
+  h1 em { font-style: italic; color: var(--accent); }
+  .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 0.9rem; }
+
+  /* stat chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
+  .chip { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
+          padding: 0.55rem 0.85rem; min-width: 148px; }
+  .chip .l { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em;
+             text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .chip .v { font-size: 1.28rem; font-weight: 600; margin-top: 2px;
+             font-variant-numeric: tabular-nums; }
+  .chip .s { font-size: 0.66rem; color: var(--ink2); }
+  .warm { color: var(--warm); } .cool { color: var(--cool); } .neut { color: var(--ink2); }
+
+  /* the legacy plain `card` container — same box as .chart-card */
+  .card {
+    background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
+    padding: 1rem 1.4rem 0.6rem; margin-bottom: 1.5rem;
+  }
+  .card h2, .card-header h2 { font-family: var(--serif); font-weight: 500;
+    font-size: 1.2rem; margin-bottom: 0.2rem; color: var(--ink); }
+  .card .note, .card-header p { font-size: 0.76rem; color: var(--ink2);
+    margin-bottom: 0.7rem; max-width: 100ch; }
+  .card-header { padding: 1rem 1.4rem 0.85rem; }
+
+  /* controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center;
+              margin-bottom: 0.5rem; }
+  .pill { font: 600 0.72rem var(--sans); letter-spacing: 0.02em; color: var(--ink2);
+          background: var(--surface); border: 1.5px solid #d8d4cc; border-radius: 999px;
+          padding: 0.34rem 0.85rem; cursor: pointer; transition: all .15s; }
+  .pill:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+  .pill.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ctlsep { color: var(--muted); font-size: 0.66rem; margin: 0 2px; }
+
+  /* media */
+  .img-label { font-size: 0.7rem; color: var(--muted); margin: 0.55rem 0 0.2rem; }
+  .heromap { position: relative; }
+  .heromap img { width: auto; max-width: 100%; max-height: 88vh; height: auto;
+                 margin: 0 auto; display: block; cursor: zoom-in; }
+  .heromap .full { position: absolute; right: 10px; bottom: 10px; font-size: 0.64rem;
+                   color: var(--ink2); background: rgba(255,255,255,0.9);
+                   border: 1px solid var(--rule); border-radius: 999px;
+                   padding: 3px 9px; text-decoration: none; }
+  .plot { width: 100%; }
+
+  .colophon { color: var(--muted); font-size: 0.72rem; line-height: 1.7;
+              border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 0.5rem; }
+  .colophon h3 { font-family: var(--serif); font-weight: 500; font-size: 0.88rem;
+                 color: var(--ink2); margin-bottom: 0.35rem; }
+  .colophon p { margin-bottom: 0.45rem; max-width: 110ch; }
+  footer .counter { opacity: 0.8; }
+
+  @media (max-width: 700px) {
+    h1 { font-size: 1.55rem; }
+    .chip { min-width: 44%; }
   }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>

@@ -25,7 +25,7 @@ PAGES_DIR = HERE / "pages"
 _SUBNAV_KEYS = ["A_OVERVIEW", "A_SUBSURFACE", "A_FORECASTS", "A_ATMOSPHERE"]
 
 PAGES = [
-    dict(slug="overview", out="sst.html", active="A_OVERVIEW", chrome="dark",
+    dict(slug="overview", out="sst.html", active="A_OVERVIEW",
          title="El Ni&ntilde;o Monitor &mdash; Daily ONI, RONI &amp; Ni&ntilde;o Indices &middot; Shawn Corvec",
          desc="Daily estimates of ONI and RONI with interactive Niño-region SST index "
               "charts, high-resolution global and tropical Pacific anomaly maps from "
@@ -40,7 +40,6 @@ PAGES = [
               "and 2023 El Niños at matching phase.",
          canonical="https://scorvec.com/enso-subsurface.html"),
     dict(slug="forecasts", out="enso-forecasts.html", active="A_FORECASTS",
-         chrome="dark",
          title="ENSO Forecasts &mdash; Interactive Multi-Model Outlook &middot; El Ni&ntilde;o Monitor",
          desc="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from "
               "seven centres, percentile fans, ONI vs RONI, and the forecast measured "
@@ -66,12 +65,12 @@ def _read(p: Path) -> str:
 def assemble(page: dict) -> str:
     """Full HTML for one page (still containing the __…__ data tokens).
 
-    chrome="dark" swaps in the dark head (the overview); the
-    themed subpages keep the light chrome. The nav partial is shared — its
-    classes are styled by whichever head is in play.
+    One head for every page since 2026-08-28: the navy/cyan dark chrome that
+    Overview and Forecasts used to ship was retired at the user's request, and its
+    components were folded into partials/head.html. A `chrome` key on a page entry
+    is now ignored.
     """
-    head_file = "head_dark.html" if page.get("chrome") == "dark" else "head.html"
-    head = (_read(PARTIALS_DIR / head_file)
+    head = (_read(PARTIALS_DIR / "head.html")
             .replace("{{TITLE}}", page["title"])
             .replace("{{DESC}}", page["desc"])
             .replace("{{CANONICAL}}", page["canonical"]))

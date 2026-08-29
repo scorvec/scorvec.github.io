@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>ENSO Forecasts &mdash; Interactive Multi-Model Outlook &middot; El Ni&ntilde;o Monitor</title>
 <meta name="description" content="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from seven centres, percentile fans, ONI vs RONI, and the forecast measured against every ENSO event since 1970.">
 <link rel="canonical" href="https://scorvec.com/enso-forecasts.html">
@@ -15,177 +14,389 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="ENSO Forecasts &mdash; Interactive Multi-Model Outlook &middot; El Ni&ntilde;o Monitor">
 <meta name="twitter:description" content="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from seven centres, percentile fans, ONI vs RONI, and the forecast measured against every ENSO event since 1970.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
 <style>
-  /* ── dark ENSO-monitor chrome ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --page: #081120; --surface: #0d1a2eCC; --surface-solid: #0d1a2e;
-    --border: rgba(148,184,225,0.13); --border-hi: rgba(148,184,225,0.4);
-    --ink: #e9eff8; --ink2: #a7b8ce; --muted: #6d8099;
-    --aqua: #4dd6e8; --aqua-deep: #2aa5bd;
-    --nino: #e8833a; --nina: #4d8fe8;
-    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+    --bg: #fcfcfa;
+    --ink: #1a1a1a;
+    --ink2: #4a4744;          /* body copy inside cards */
+    --muted: #8a8680;
+    --accent: #8a4b2a;        /* burnt sienna — links, active tab, selected button */
+    --accent-hi: #a85c33;
+    --accent-light: #f6efe9;  /* accent at ~8%, for hover fills */
+    --rule: #e2e0da;
+    --edge: #c9c5bb;      /* card outline — deliberately darker than --rule */
+    --surface: #ffffff;
+    --warm: #b4541f;          /* El Nino / positive anomaly */
+    --cool: #3f6f8f;          /* La Nina / negative anomaly (data only, muted) */
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
   }
-  html { font-size: 16px; scroll-behavior: smooth; }
+  html { font-size: 17.5px; }   /* nudge the whole page up from the 16px default */
+  html, body { height: 100%; }
   body {
-    background: radial-gradient(1200px 700px at 70% -10%, #102440 0%, var(--page) 55%) fixed, var(--page);
-    color: var(--ink); font: 14.5px/1.55 var(--sans); -webkit-font-smoothing: antialiased;
-    display: flex; flex-direction: column; min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
   }
-  a { color: var(--aqua-deep); }
 
-  /* fixed two-row header: site nav + monitor sub-nav */
+  /* fixed two-row header: site nav + ENSO monitor sub-nav */
   .site-header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-    background: rgba(8,17,32,0.88); backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--border);
+    background: rgba(252,252,250,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
   }
-  nav { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 2.4rem; }
-  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
-  .nav-links { display: flex; gap: 1.8rem; list-style: none; }
-  .nav-links a { font-size: 0.8rem; letter-spacing: 0.04em; text-decoration: none;
-                 color: var(--muted); transition: color 0.2s; }
-  .nav-links a:hover { color: var(--ink); }
-  .enso-subnav { display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
-                 padding: 0.5rem 2.4rem 0.6rem; border-top: 1px solid var(--border); }
-  .enso-subnav a { font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
-                   color: var(--muted); padding-bottom: 2px;
-                   border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
+  nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  .enso-subnav {
+    display: flex; gap: 1.6rem; align-items: center; flex-wrap: wrap;
+    padding: 0.55rem 3rem 0.7rem;
+    border-top: 1px solid var(--rule);
+  }
+  .enso-subnav a {
+    font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
+    color: var(--muted); padding-bottom: 2px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
   .enso-subnav a:hover { color: var(--ink); }
-  .enso-subnav a.active { color: var(--aqua); border-bottom-color: var(--aqua); font-weight: 500; }
+  .enso-subnav a.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
 
-  /* scale with the monitor: ~94% of the viewport up to 2000px, so laptops
-     keep a visible frame and ultrawides get the full width */
-  main { flex: 1; max-width: min(94vw, 2000px); margin: 0 auto; width: 100%;
-         padding: 6.2rem 1.6rem 2.2rem; }
-
-  /* hero */
-  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.22em;
-             text-transform: uppercase; color: var(--aqua-deep); }
-  h1 { font-family: var(--serif); font-weight: 400; font-size: 40px;
-       letter-spacing: 0.01em; margin: 6px 0 4px; }
-  h1 em { font-style: italic; color: var(--aqua); }
-  .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 12px; }
-
-  /* stat chips */
-  .chips { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 15px; }
-  .chip { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-          padding: 11px 16px; min-width: 148px; backdrop-filter: blur(6px); }
-  .chip .l { font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em;
-             text-transform: uppercase; color: var(--muted); white-space: nowrap; }
-  .chip .v { font-size: 23px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
-  .chip .s { font-size: 11.5px; color: var(--ink2); }
-  .warm { color: var(--nino); } .cool { color: var(--nina); } .neut { color: #cfd8e6; }
-
-  /* cards */
-  .card, .chart-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-    padding: 13px 15px 9px; margin-bottom: 12px; backdrop-filter: blur(6px);
+  main {
+    flex: 1;
+    /* scale with the monitor: ~94% of the viewport up to 2000px, so laptops
+       keep a visible frame and ultrawides get the full width */
+    max-width: min(94vw, 2000px);
+    margin: 0 auto;
+    padding: 6.4rem 2.2rem 2.5rem;
+    width: 100%;
   }
-  .card h2, .chart-card-header h2 { font-family: var(--serif); font-weight: 500;
-    font-size: 21px; margin-bottom: 3px; color: var(--ink); }
-  .card .note, .chart-card-header p { font-size: 12.8px; color: var(--ink2);
-    margin-bottom: 12px; max-width: 100ch; }
-  .chart-card-footer { display: flex; justify-content: space-between; gap: 10px;
-    flex-wrap: wrap; padding: 8px 2px 4px; }
-  .chart-sources, .chart-updated { font-size: 11px; color: var(--muted); }
 
-  /* controls */
-  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
-  .pill { font: 600 12px var(--sans); letter-spacing: 0.02em; color: var(--ink2);
-          background: transparent; border: 1px solid var(--border); border-radius: 999px;
-          padding: 6px 14px; cursor: pointer; transition: all .15s; }
-  .pill:hover { color: var(--ink); border-color: var(--border-hi); }
-  .pill.on { color: #06222c; background: var(--aqua); border-color: var(--aqua); }
-  .pill:focus-visible { outline: 2px solid var(--aqua); outline-offset: 2px; }
-  .ctlsep { color: var(--muted); font-size: 11px; margin: 0 2px; }
+  .page-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .page-header p {
+    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+  }
+  .page-header p + p { margin-top: 0.8rem; }
 
-  /* topic cards */
-  .topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 10px; margin-bottom: 13px; }
-  .topic-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-                padding: 14px 16px; text-decoration: none; transition: border-color .15s; }
-  .topic-card:hover { border-color: var(--border-hi); }
-  .topic-card h3 { font-family: var(--serif); font-weight: 500; font-size: 15.5px;
-                   color: var(--aqua); margin-bottom: 3px; }
-  .topic-card p { font-size: 12px; color: var(--ink2); }
+  /* Overview topic grid (links to the themed subpages) */
+  .topic-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem; margin-bottom: 1.5rem;
+  }
+  .topic-card {
+    display: block; border: 1.5px solid var(--edge); background: #fff;
+    padding: 1.2rem 1.3rem; text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .topic-card:hover { border-color: var(--accent); background: var(--accent-light); }
+  .topic-card h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.02rem;
+    color: var(--ink); margin-bottom: 0.3rem;
+  }
+  .topic-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
 
-  /* media */
-  .img-wrap { margin: 6px 0 10px; }
-  .img-wrap img { width: auto; max-width: 100%; max-height: 88vh; height: auto; margin: 0 auto; border-radius: 10px; display: block; }
-  .img-label { font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
-  .anim-embed { width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--border);
-                border-radius: 10px; background: #081120; display: block; }
-  .heromap { position: relative; }
-  .heromap img { width: auto; max-width: 100%; max-height: 88vh; height: auto; margin: 0 auto; border-radius: 10px; display: block; cursor: zoom-in; }
-  .heromap .full { position: absolute; right: 10px; bottom: 10px; font-size: 11px;
-                   color: var(--ink2); background: rgba(8,17,32,0.75); border: 1px solid var(--border);
-                   border-radius: 999px; padding: 4px 10px; text-decoration: none; }
+  .chart-stack { display: flex; flex-direction: column; gap: 1.5rem; }
 
-  .plot { width: 100%; }
-  .colophon { color: var(--muted); font-size: 12.3px; line-height: 1.7;
-              border-top: 1px solid var(--border); padding-top: 18px; margin-top: 8px; }
-  .colophon h3 { font-family: var(--serif); font-weight: 500; font-size: 15px;
-                 color: var(--ink2); margin-bottom: 6px; }
-  .colophon p { margin-bottom: 8px; max-width: 110ch; }
+  .chart-card {
+    border: 1.5px solid var(--edge);
+    background: #fff;
+    overflow: hidden;
+  }
+  /* a deck holds many figures, so give it a slightly heavier frame than a lone card */
+  .chart-card.plot-deck { border-width: 2px; border-color: #b8b3a8; }
+  .chart-card-header {
+    padding: 1rem 1.4rem 0.85rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
+    margin-bottom: 0.6rem; color: var(--ink);
+  }
+  .chart-card-header p {
+    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
+  }
+  .chart-card-header p + p { margin-top: 0.7rem; }
+  .chart-card-header b { color: var(--ink); font-weight: 500; }
 
-  footer { color: var(--muted); font-size: 12px; text-align: center; padding: 14px 0 26px; }
-  footer .counter { opacity: 0.8; }
+  .img-wrap { padding: 0.5rem 0.7rem; background: #fff; }
+  .img-wrap + .img-wrap { padding-top: 0; }
+  .img-wrap img { display: block; width: auto; max-width: 100%; max-height: 88vh; height: auto; margin: 0 auto; }
+  /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
+     sized to its exact content height via postMessage (see footer.html / sst_anim.html),
+     which fills the card with no letterboxing at any width. */
+  .anim-embed { width: 100%; border: 0; display: block; background: var(--bg);
+                aspect-ratio: 27 / 25; }
+  /* frames are 1080x675 (+~70px controls). Cap width from the VIEWPORT
+     HEIGHT so the whole two-panel figure + scrubber always fits the
+     monitor: H = W/1.6 + 70  =>  W <= 1.6*(88vh - 70px). */
+  .anim-embed.subsurface { aspect-ratio: 1080 / 745;
+    max-width: min(100%, calc(141vh - 112px)); margin: 0 auto; }
+  .anim-embed.torque { aspect-ratio: 1306 / 1055; }
+  .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
+  .anim-embed.walker { aspect-ratio: 1245 / 590; }  /* image + controls bar */
+  .anim-embed.waf { aspect-ratio: 1400 / 760; }     /* image + controls bar */
+  .anim-embed.jets { aspect-ratio: 1160 / 619; }    /* image 1160×569 + controls bar */
+  .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
+  .anim-embed.wind200 { aspect-ratio: 1496 / 776; }   /* image 1496×726 + controls bar */
+  .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
+  .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
+  .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
+  .anim-embed.gdps-ir { aspect-ratio: 1777 / 964; } /* image 1777×909 + controls bar */
+  .anim-embed.gdps-150 { aspect-ratio: 1456 / 700; } /* image 1456×644 + controls bar */
+  .anim-embed.samsat { aspect-ratio: 1015 / 1115; }   /* image 1015×1065 + controls */
+  .anim-embed.glmden { aspect-ratio: 591 / 677; }     /* image 591×622 (map + colourbar) + controls */
+  .anim-embed.precip { aspect-ratio: 771 / 823; }     /* image 771×768 (map + colourbar) + controls */
+  .anim-embed.precip-anom { aspect-ratio: 768 / 823; }  /* image 768×768 (map + colourbar) + controls */
+  /* near-square Americas maps: cap the whole CARD (image fills it) so it hugs the map and
+     doesn't stretch tall across the wide column — the card centers, page-gray on the sides. */
+  .chart-card.media-narrow { max-width: 640px; margin-inline: auto; }
+  .anim-embed.eq-cur-map { aspect-ratio: 1217 / 467; }      /* image 1217×412 + controls bar */
+  .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
+  .img-label {
+    font-size: 0.72rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 0 0 0.4rem 0.2rem;
+  }
 
-  @media (max-width: 700px) {
-    nav { padding: 0.7rem 1rem; } .enso-subnav { padding: 0.45rem 1rem 0.55rem; gap: 1rem; }
+  /* live wind-arrow widget (Tarawa WWB monitor) */
+  .wwb-arrows {
+    display: flex; justify-content: center; align-items: center; gap: 2.6rem;
+    flex-wrap: wrap; padding: 1.3rem 1.2rem 0.4rem;
+  }
+  .wwb-stn { text-align: center; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+  .wwb-stn svg { display: block; margin: 0 auto 0.35rem; }
+  .wwb-stn b { display: block; color: var(--ink); font-weight: 500; font-size: 0.92rem; }
+
+  .chart-card-footer {
+    padding: 0.6rem 1.4rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .chart-sources { font-size: 0.68rem; color: var(--muted); }
+  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+
+  .colophon {
+    margin-top: 4rem; padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+  }
+  .colophon h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    color: var(--ink); margin-bottom: 0.5rem;
+  }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .colophon a:hover { border-bottom-color: var(--accent); }
+
+  footer {
+    padding: 1.2rem 3rem; border-top: 1px solid var(--rule);
+    display: flex; justify-content: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
+    main { padding: 6rem 1rem 2rem; max-width: 100%; }
+    .page-header { margin-bottom: 1.2rem; padding-bottom: 0.8rem; }
+    .page-header h1 { font-size: 1.6rem; }
+    .chart-stack { gap: 1.1rem; }
+    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
+    .chart-card-footer { padding: 0.75rem 1.3rem; }
+    footer { padding: 1rem 1.5rem; }
+  }
+  @media (max-width: 480px) {
+    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .nav-name { font-size: 0.95rem; }
     .nav-links { gap: 1rem; }
-    h1 { font-size: 30px; } .chip { min-width: 44%; }
-    main { padding-top: 8.2rem; max-width: 100%; }
+    .nav-links a { font-size: 0.78rem; }
+    .enso-subnav { padding: 0.5rem 1.1rem 0.6rem; gap: 0.85rem; }
+    .enso-subnav a { font-size: 0.74rem; }
+    main { padding: 9.5rem 1rem 3rem; }
+    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
+    .chart-card-header h2 { font-size: 1.02rem; }
+    .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
+    .img-wrap { padding: 0.7rem 0.7rem; }
+    .chart-card-footer { padding: 0.7rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+    footer { padding: 0.9rem 1.1rem; }
+  }
+  @media (max-width: 360px) {
+    .nav-links { gap: 0.8rem; }
+    .nav-links a { font-size: 0.72rem; }
+    .enso-subnav { gap: 0.7rem; }
+    .page-header h1 { font-size: 1.28rem; }
   }
 
-  /* Shared figure components — the dark pages (overview, forecasts) use this
-     head, so the deck/toggle styles must exist here too, in the dark palette.
-     They were added to head.html first and the tab bars rendered unstyled here. */
+  /* Figure toggles — one card, several versions of the same figure.
+     Pairs like raw/de-trended or the same field from two models were separate
+     cards; they are the same panel with one thing changed, so they share a card
+     and a switch instead of doubling the scroll length. */
+  .fig-toggle { display: flex; gap: 0.4rem; padding: 0 1.8rem 0.7rem; flex-wrap: wrap; }
+  .fig-toggle button {
+    font: inherit; font-size: 0.86rem; font-weight: 600; letter-spacing: 0.01em;
+    padding: 0.4rem 0.95rem; cursor: pointer; border-radius: 3px;
+    border: 1.5px solid #d8d4cc; background: #fff; color: var(--ink2);
+  }
+  .fig-toggle button:hover { background: #f4f4f4; }
+  .fig-toggle button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* Section grouping. The Atmospheric Response page carries ~22 cards across
+     five quite different topics; grouping them in place (no reordering) plus a
+     jump nav makes it navigable without splitting it into more pages. */
+  .section-nav {
+    /* aligns with main's content box, like .page-header and .chart-card */
+    margin: 0 0 1.2rem; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem;
+    font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .section-nav a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
+  .section-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  /* Plot deck — one card holding several figures behind a tab bar.
+     Pages had grown to 12-22 cards, most of them a caption plus one figure, so
+     the page was a long scroll and EVERY animator iframe loaded at once. A deck
+     shows one panel at a time and keeps the other iframes' src in data-src until
+     first opened, so a page now loads exactly one animator instead of a dozen. */
   .plot-deck .deck-head {
     display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.25rem 0.7rem;
-    padding: 0.8rem 1.1rem 0.4rem;
+    padding: 0.85rem 1.4rem 0.45rem;
   }
   .plot-deck .deck-title {
     font-size: 0.86rem; font-weight: 700; letter-spacing: 0.07em;
-    text-transform: uppercase; color: var(--aqua);
+    text-transform: uppercase; color: var(--accent);
   }
-  .plot-deck .deck-hint { font-size: 0.8rem; color: var(--ink2); }
+  .plot-deck .deck-hint { font-size: 0.8rem; color: var(--muted); }
   .plot-deck .deck-tabs {
     display: flex; flex-wrap: wrap; gap: 0.4rem;
-    padding: 0 1.1rem 0.65rem; border-bottom: 1px solid var(--border);
+    padding: 0 1.4rem 0.7rem; border-bottom: 1px solid var(--rule, #e8e8e8);
   }
-  .plot-deck .deck-tabs button, .fig-toggle button {
+  .plot-deck .deck-tabs button {
+    /* the selector is the primary control on these pages now, so it is sized
+       like one: larger, semibold, with a border that reads at a glance */
     font: inherit; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.01em;
     padding: 0.48rem 1.05rem; cursor: pointer; border-radius: 3px;
-    border: 1.5px solid var(--border-hi); background: rgba(148,184,225,0.06);
-    color: var(--ink); transition: background 0.15s, color 0.15s, border-color 0.15s;
+    border: 1.5px solid #d8d4cc; background: #fff; color: var(--ink2);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .plot-deck .deck-tabs button:hover, .fig-toggle button:hover {
-    background: rgba(148,184,225,0.10); color: var(--ink);
-  }
-  .plot-deck .deck-tabs button.on, .fig-toggle button.on {
-    background: var(--aqua); border-color: var(--aqua); color: #06121f;
-    box-shadow: 0 1px 6px rgba(77,214,232,0.30);
+  .plot-deck .deck-tabs button:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+  .plot-deck .deck-tabs button.on {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+    box-shadow: 0 1px 4px rgba(31,78,140,0.28);
   }
   .plot-deck .deck-panel[hidden] { display: none; }
-  .plot-deck .deck-panel > .chart-card-header,
-  .plot-deck .deck-panel > .card-header { padding-top: 0.8rem; }
-  .fig-toggle { display: flex; gap: 0.4rem; padding: 0 1.1rem 0.55rem; flex-wrap: wrap; }
+  .plot-deck .deck-panel > .chart-card-header { padding-top: 0.9rem; }
+
   .page-section {
     width: 100%; margin: 0.7rem 0 -0.5rem;
-    font-family: var(--serif); font-weight: 400; font-size: 1.12rem;
+    font-family: var(--serif, Georgia, serif); font-weight: 400; font-size: 1.12rem;
     color: var(--ink); scroll-margin-top: 5.5rem;
   }
-  .page-section::after { content: ""; display: block; margin-top: 0.5rem;
-    border-bottom: 1px solid var(--border); }
-  .section-nav { margin: 0 0 1.2rem; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem;
-    font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase; }
-  .section-nav a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; }
-  .section-nav a:hover { color: var(--aqua); border-bottom-color: var(--aqua); }
+  .page-section::after {
+    content: ""; display: block; margin-top: 0.5rem;
+    border-bottom: 1px solid var(--rule, #e2e2e2);
+  }
+
+  /* ── components ported from the retired dark chrome (2026-08-28) ──
+     Overview and Forecasts used to ship their own navy/cyan stylesheet. They now
+     use this one, so these are the classes only their markup uses, restyled to
+     the warm-white palette. Keeping one stylesheet means a chrome change lands on
+     all four pages instead of two. */
+
+  /* hero */
+  .eyebrow { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.22em;
+             text-transform: uppercase; color: var(--accent); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 2.1rem;
+       letter-spacing: 0.01em; margin: 0.3rem 0 0.2rem; color: var(--ink); }
+  h1 em { font-style: italic; color: var(--accent); }
+  .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 0.9rem; }
+
+  /* stat chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
+  .chip { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
+          padding: 0.55rem 0.85rem; min-width: 148px; }
+  .chip .l { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em;
+             text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .chip .v { font-size: 1.28rem; font-weight: 600; margin-top: 2px;
+             font-variant-numeric: tabular-nums; }
+  .chip .s { font-size: 0.66rem; color: var(--ink2); }
+  .warm { color: var(--warm); } .cool { color: var(--cool); } .neut { color: var(--ink2); }
+
+  /* the legacy plain `card` container — same box as .chart-card */
+  .card {
+    background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
+    padding: 1rem 1.4rem 0.6rem; margin-bottom: 1.5rem;
+  }
+  .card h2, .card-header h2 { font-family: var(--serif); font-weight: 500;
+    font-size: 1.2rem; margin-bottom: 0.2rem; color: var(--ink); }
+  .card .note, .card-header p { font-size: 0.76rem; color: var(--ink2);
+    margin-bottom: 0.7rem; max-width: 100ch; }
+  .card-header { padding: 1rem 1.4rem 0.85rem; }
+
+  /* controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center;
+              margin-bottom: 0.5rem; }
+  .pill { font: 600 0.72rem var(--sans); letter-spacing: 0.02em; color: var(--ink2);
+          background: var(--surface); border: 1.5px solid #d8d4cc; border-radius: 999px;
+          padding: 0.34rem 0.85rem; cursor: pointer; transition: all .15s; }
+  .pill:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+  .pill.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ctlsep { color: var(--muted); font-size: 0.66rem; margin: 0 2px; }
+
+  /* media */
+  .img-label { font-size: 0.7rem; color: var(--muted); margin: 0.55rem 0 0.2rem; }
+  .heromap { position: relative; }
+  .heromap img { width: auto; max-width: 100%; max-height: 88vh; height: auto;
+                 margin: 0 auto; display: block; cursor: zoom-in; }
+  .heromap .full { position: absolute; right: 10px; bottom: 10px; font-size: 0.64rem;
+                   color: var(--ink2); background: rgba(255,255,255,0.9);
+                   border: 1px solid var(--rule); border-radius: 999px;
+                   padding: 3px 9px; text-decoration: none; }
+  .plot { width: 100%; }
+
+  .colophon { color: var(--muted); font-size: 0.72rem; line-height: 1.7;
+              border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 0.5rem; }
+  .colophon h3 { font-family: var(--serif); font-weight: 500; font-size: 0.88rem;
+                 color: var(--ink2); margin-bottom: 0.35rem; }
+  .colophon p { margin-bottom: 0.45rem; max-width: 110ch; }
+  footer .counter { opacity: 0.8; }
+
+  @media (max-width: 700px) {
+    h1 { font-size: 1.55rem; }
+    .chip { min-width: 44%; }
+  }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="/assets/lightbox.css">
@@ -209,6 +420,7 @@
     <a href="enso-atmosphere.html" class="">Atmospheric Response</a>
   </div>
 </header>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
 <main>
   <header>
     <div class="eyebrow">Monthly &middot; Copernicus C3S seasonal multi-system &middot; 7 centres</div>
@@ -306,7 +518,7 @@
 <script>
 (function () {
   "use strict";
-  var GRID = "rgba(148,184,225,0.22)", AXIS = "#8296ad", INK2 = "#a7b8ce";
+  var GRID = "rgba(26,26,26,0.10)", AXIS = "#8a8680", INK2 = "#4a4744";
   var state = { idx: "n34", smooth: true, members: false,
                 fc: null, hist: null, dailyFeed: null };
 
@@ -335,12 +547,12 @@
       margin: { l: 46, r: 14, t: 10, b: 40 },
       xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, zeroline: false },
       yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
-               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2,
+               zerolinecolor: "rgba(26,26,26,0.45)", zerolinewidth: 2,
                title: { text: "anomaly (°C)", standoff: 4 } },
       legend: { orientation: "h", y: 1.09, font: { size: 11 } },
       hovermode: "x unified",
-      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
-                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+      hoverlabel: { bgcolor: "#ffffff", bordercolor: "rgba(26,26,26,0.25)",
+                    font: { family: "Inter", size: 12, color: "#1a1a1a" } },
     };
     for (var k in (extra || {})) base[k] = extra[k];
     return base;
@@ -349,10 +561,10 @@
   function thresholds(x0, x1) {
     var out = [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0,
                  layer: "above",
-                 line: { color: "rgba(205,222,240,0.9)", width: 2 } }];
+                 line: { color: "rgba(74,71,68,0.85)", width: 2 } }];
     [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (y) {
       out.push({ type: "line", x0: x0, x1: x1, y0: y, y1: y,
-                 line: { color: y > 0 ? "rgba(232,131,58,0.30)" : "rgba(77,143,232,0.30)",
+                 line: { color: y > 0 ? "rgba(180,84,31,0.32)" : "rgba(63,111,143,0.35)",
                          width: 1, dash: "dot" } });
     });
     return out;
@@ -413,8 +625,8 @@
     var bridgePad = pad.slice();
     if (obsY.length) bridgePad[bridgePad.length - 1] = obsY[obsY.length - 1];
     var traces = [];
-    [["p90", "p10", "10–90%", "rgba(77,214,232,0.13)"],
-     ["p75", "p25", "25–75%", "rgba(77,214,232,0.22)"]].forEach(function (b) {
+    [["p90", "p10", "10–90%", "rgba(138,75,42,0.13)"],
+     ["p75", "p25", "25–75%", "rgba(138,75,42,0.22)"]].forEach(function (b) {
       traces.push({ x: x, y: pad.concat(smooth(fan[b[0]])), type: "scatter", mode: "lines",
                     line: { width: 0 }, hoverinfo: "skip", showlegend: false });
       traces.push({ x: x, y: pad.concat(smooth(fan[b[1]])), type: "scatter", mode: "lines",
@@ -437,7 +649,7 @@
       // plain SVG scatter: one NaN-gapped trace is only ~3.4k points, and
       // scattergl throws a "WebGL not supported" banner on GPU-less browsers
       traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                    line: { color: "rgba(190,208,228,0.35)", width: 1.0 },
+                    line: { color: "rgba(74,71,68,0.28)", width: 1.0 },
                     name: "members", hoverinfo: "skip" });
     }
     labels.forEach(function (m) {
@@ -446,12 +658,12 @@
                     hovertemplate: "%{y:+.2f} °C" });
     });
     traces.push({ x: x, y: bridgePad.concat(smooth(mmm)), type: "scatter", mode: "lines",
-                  name: "Multi-model mean", line: { color: "#f2f4f8", width: 3 },
+                  name: "Multi-model mean", line: { color: "#1a1a1a", width: 3 },
                   hovertemplate: "%{y:+.2f} °C" });
     if (obsX.length)
       traces.push({ x: obsX, y: obsY, type: "scatter", mode: "lines+markers",
                     name: "Observed", marker: { size: 5 },
-                    line: { color: "#e8c04d", width: 2.4 },
+                    line: { color: "#b8912a", width: 2.4 },
                     hovertemplate: "%{y:+.2f} °C" });
 
     var lay = layout({ shapes: thresholds(x[0], x[x.length - 1]) });
@@ -501,7 +713,7 @@
     issues.forEach(function (iss, i) {
       var t = issues.length === 1 ? 1 : i / (issues.length - 1);
       var newest = i === issues.length - 1;
-      var colour = newest ? "#e8c04d" : evoColor(t);
+      var colour = newest ? "#b8912a" : evoColor(t);
       // ONI convention: bridge with the two observed months before lead 1
       var bridge = [addMonths(iss.valid_months[0], -2), addMonths(iss.valid_months[0], -1)]
         .map(function (m) { return obsAt[m]; })
@@ -541,7 +753,7 @@
       var oy = x.map(function (m) { return obsAt[m] != null ? obsAt[m] : null; });
       traces.push({ x: x, y: oy, type: "scatter", mode: "lines+markers",
                     name: "Observed", marker: { size: 5 },
-                    line: { color: "#f2f4f8", width: 2.6 },
+                    line: { color: "#1a1a1a", width: 2.6 },
                     hovertemplate: "%{y:+.2f} °C" });
     }
     var lay = layout({ shapes: thresholds(x[0], x[x.length - 1]) });
@@ -555,8 +767,8 @@
   // ── history overlay ──────────────────────────────────────────────────────
   // one DISTINCT hue per named event (strength-class colouring made every
   // strong El Niño the same orange); strength instead sets the line weight
-  var EVENT_PALETTE = ["#e8833a", "#4dd6e8", "#9b7ce8", "#57d9a3", "#e86bb8",
-                       "#6aa7f0", "#ff8a7a", "#2fbfb2", "#c9a0ff", "#b8d94d",
+  var EVENT_PALETTE = ["#e8833a", "#8a4b2a", "#9b7ce8", "#2f9e6e", "#e86bb8",
+                       "#6aa7f0", "#ff8a7a", "#1c8f85", "#c9a0ff", "#b8d94d",
                        "#f06a9b", "#d9a13d", "#8fd0ff", "#e0645c", "#7fe8c9",
                        "#d98fd0", "#a8c94d", "#5c8fe0"];
   var STRENGTH_W = { "very strong": 2.4, strong: 1.9, moderate: 1.5,
@@ -603,7 +815,7 @@
       gx.push(MONS[11]); gy.push(null);
     });
     traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                  line: { color: "rgba(190,208,228,0.4)", width: 1.0 },
+                  line: { color: "rgba(74,71,68,0.32)", width: 1.0 },
                   name: "all other years", hoverinfo: "skip" });
     (H.events || []).forEach(function (e, ei) {
       if (!byYear[e.onset] || e.current) return;
@@ -617,7 +829,7 @@
     });
     traces.push({ x: MONS, y: byYear[curYear], type: "scatter", mode: "lines+markers",
                   name: String(curYear) + " observed", marker: { size: 5 },
-                  line: { color: "#f2f4f8", width: 3 },
+                  line: { color: "#1a1a1a", width: 3 },
                   hovertemplate: "%{y:+.2f} °C" });
     if (F) {
       var labels = Object.keys(F.models);
@@ -640,7 +852,7 @@
       });
       traces.push({ x: fx, y: fy, type: "scatter", mode: "lines+markers",
                     name: "forecast (multi-model " + ((state.histIdx || "oni") === "roni" ? "RONI" : "ONI") + ")", marker: { size: 5, symbol: "diamond" },
-                    line: { color: "#e8c04d", width: 2.6, dash: "dash" },
+                    line: { color: "#b8912a", width: 2.6, dash: "dash" },
                     hovertemplate: "%{y:+.2f} °C" });
     }
     var lay = layout({ shapes: thresholds(MONS[0], MONS[11]) });

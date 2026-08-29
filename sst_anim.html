@@ -13,13 +13,13 @@
   /* one player chrome everywhere, standalone or embedded */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --page: #081120; --surface: #0d1a2e; --border: rgba(148,184,225,0.16);
-    --ink: #e9eff8; --ink2: #a7b8ce; --muted: #6d8099;
-    --aqua: #4dd6e8; --aqua-deep: #2aa5bd;
+    --page: #fcfcfa; --surface: #ffffff; --border: #e2e0da;
+    --ink: #1a1a1a; --ink2: #4a4744; --muted: #8a8680;
+    --aqua: #8a4b2a; --aqua-deep: #a85c33;
     --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
   body {
-    background: radial-gradient(1200px 700px at 70% -10%, #102440 0%, var(--page) 55%) fixed, var(--page);
+    background: var(--page);
     color: var(--ink); font-family: var(--sans);
     -webkit-font-smoothing: antialiased; padding: 1rem;
     display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
@@ -40,7 +40,7 @@
   .frame-loading {
     position: absolute; inset: 0; display: flex; align-items: center;
     justify-content: center; color: var(--muted); font-size: 0.85rem;
-    background: rgba(8,17,32,0.55);
+    background: rgba(255,255,255,0.75);
   }
   .frame-loading.hidden { display: none; }
 
@@ -59,9 +59,9 @@
     font-size: 0.9rem; line-height: 1; transition: all 0.15s;
   }
   .btn:hover { color: var(--ink); border-color: rgba(148,184,225,0.45); }
-  .btn.play { background: var(--aqua); border-color: var(--aqua); color: #06222c;
+  .btn.play { background: var(--aqua); border-color: var(--aqua); color: #ffffff;
               min-width: 2.7rem; font-weight: 600; }
-  .btn.play:hover { background: #6ee0ef; }
+  .btn.play:hover { background: var(--aqua-deep); }
   select {
     border: 1px solid var(--border); background: var(--surface); color: var(--ink2);
     border-radius: 999px; padding: 0.3rem 0.55rem; font-size: 0.8rem;
@@ -107,7 +107,7 @@
   }
   body.embed .controls {
     border: none; border-left: none; border-right: none; border-radius: 0;
-    border-top: 1px solid var(--border); background: rgba(13,26,46,0.6);
+    border-top: 1px solid var(--border); background: rgba(252,252,250,0.85);
     padding: 0.35rem 0.55rem;
   }
 </style>
