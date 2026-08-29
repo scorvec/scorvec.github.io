@@ -231,6 +231,8 @@ GRP_V200=$!
     || echo "QBO strip failed; continuing"
   "$PY" "$REPO/scripts/strat/wave1_monitor.py" \
     || echo "wave-1 monitor failed; continuing"
+  "$PY" "$REPO/scripts/strat/nh_vortex.py" \
+    || echo "NH polar vortex failed; continuing"
   "$PY" "$REPO/scripts/verify/aifs_det_verify.py" --collect --verify \
     --date "$DATE" --time "$TIME" \
     || echo "AIFS det verification failed; continuing"
@@ -339,6 +341,7 @@ perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_ti
     scripts/mjo/data/reference/hadley_clim.nc \
     assets/sst/anim/walker assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
     assets/sst/jets.webp assets/sst/anim/jets assets/sst/anim/jets_manifest.json \
+    assets/sst/nh_vortex.webp \
     assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
     assets/spectra/ke_spectra.webp \
     scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
