@@ -289,9 +289,17 @@ async function init() {
     loadingEl.classList.add("hidden");
     return;
   }
-  // Populate the region buttons
+  // Populate the region buttons.
+  // ?regions=a,b,c limits the picker to a subset, in the order given, so one
+  // manifest can serve several pages: the SST page shows the surface products
+  // and leaves the equatorial cross-sections to enso-subsurface.html. Unknown
+  // ids are dropped; if that leaves nothing, fall back to the full set rather
+  // than render a picker with no buttons.
   const regBtns = $("regionBtns");
-  const regIds = Object.keys(manifest.regions);
+  const allRegIds = Object.keys(manifest.regions);
+  const onlyIds = (new URLSearchParams(location.search).get("regions") || "")
+    .split(",").map((s) => s.trim()).filter((s) => s && manifest.regions[s]);
+  const regIds = onlyIds.length ? onlyIds : allRegIds;
   regBtns.innerHTML = "";
   regIds.forEach((rid) => {
     const b = document.createElement("button");
