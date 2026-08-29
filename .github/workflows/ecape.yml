@@ -18,9 +18,13 @@ name: HRRR ECAPE (CONUS)
 # is ~29 MB per cycle, and committing that to main is exactly the churn that
 # forced the 2026-08-28 history collapse. The manifest (small JSON) stays on
 # main so the animator fetches it same-origin.
+# NOT THE OPERATIONAL PATH. This runs on the laptop instead, via
+# scripts/ecape/run_local_ecape.sh: the kernel is core-bound, and 18 threads do a
+# frame in 14.7 s against ~96 s on a free 2-core runner - a 29-frame loop is
+# ~17 min locally versus ~52 min here. Kept dispatch-only as a fallback for when
+# the laptop is off, and as a record of the pipeline for the eventual paid
+# backend. No cron: nothing should fire this unattended.
 on:
-  schedule:
-    - cron: '40 3,15 * * *'    # after the 00Z and 12Z extended runs finish
   workflow_dispatch:
     inputs:
       fxx:
