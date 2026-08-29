@@ -297,9 +297,15 @@ async function init() {
   // than render a picker with no buttons.
   const regBtns = $("regionBtns");
   const allRegIds = Object.keys(manifest.regions);
-  const onlyIds = (new URLSearchParams(location.search).get("regions") || "")
-    .split(",").map((s) => s.trim()).filter((s) => s && manifest.regions[s]);
-  const regIds = onlyIds.length ? onlyIds : allRegIds;
+  const regParam = new URLSearchParams(location.search).get("regions");
+  const onlyIds = (regParam || "").split(",").map((s) => s.trim())
+    .filter((s) => s && manifest.regions[s]);
+  // Honour ?regions= even when nothing in it matched. The manifest is written by
+  // two scripts in sequence, so it can briefly lack the regions the other owns;
+  // falling back to the full set there would advertise exactly the products the
+  // page asked to hide (the subsurface page showing only SST plots). Show no
+  // picker instead — a missing picker beats a wrong one.
+  const regIds = regParam !== null ? onlyIds : allRegIds;
   regBtns.innerHTML = "";
   regIds.forEach((rid) => {
     const b = document.createElement("button");
@@ -317,7 +323,7 @@ async function init() {
   // the viewer can switch. A manifest may relabel the picker via "selectorLabel".
   const params = new URLSearchParams(location.search);
   const want = params.get("region") || location.hash.replace("#", "") || manifest.default;
-  region = (want && manifest.regions[want]) ? want : regIds[0];
+  region = (want && manifest.regions[want]) ? want : (regIds[0] || allRegIds[0]);
   markRegion(region);
   const multiRegion = regIds.length > 1;
   const regLabel = document.getElementById("regionLabel");
