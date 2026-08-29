@@ -67,16 +67,29 @@ def fetch_index(url: str):
     return rows
 
 
-def latest_cycle(max_back_hours: int = 12):
+# Only these cycles run out to 48 h; every other hour stops at F18.
+EXTENDED_HOURS = (0, 6, 12, 18)
+
+
+def latest_cycle(max_back_hours: int = 12, extended_only: bool = False,
+                 fxx: int = 0):
     """Newest cycle whose wrfnat .idx is published. HRRR runs hourly but the
     native files land later than the surface ones, so walk back until one is
-    actually there rather than trusting the clock."""
+    actually there rather than trusting the clock.
+
+    extended_only restricts the search to the 00/06/12/18 UTC cycles, which are
+    the only ones carrying forecast hours past F18 - asking a 13Z cycle for F24
+    is a 404, not a wait. `fxx` is probed rather than F00 so we pick a cycle
+    whose *longest* needed hour has actually landed: the tail of a 48 h run
+    publishes well after its analysis."""
     import urllib.error
     import urllib.request
     now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-    for back in range(max_back_hours):
+    for back in range(max_back_hours * (4 if extended_only else 1)):
         t = now - timedelta(hours=back)
-        u = _url(t.strftime("%Y%m%d"), t.hour)
+        if extended_only and t.hour not in EXTENDED_HOURS:
+            continue
+        u = _url(t.strftime("%Y%m%d"), t.hour, fxx=fxx)
         try:
             req = urllib.request.Request(u + ".idx", method="HEAD")
             with urllib.request.urlopen(req, timeout=30) as r:
@@ -221,17 +234,36 @@ def main(argv=None) -> int:
     ap.add_argument("--date", help="YYYYMMDD (default: latest available)")
     ap.add_argument("--hour", type=int, help="cycle hour UTC")
     ap.add_argument("--fxx", type=int, default=0, help="forecast hour")
-    ap.add_argument("--out", required=True, help="output stem (no extension)")
+    ap.add_argument("--out", help="output stem (no extension); not needed "
+                                   "with --print-cycle")
     ap.add_argument("--keep-grib", action="store_true")
     ap.add_argument("--grib", help="decode this local GRIB instead of downloading "
                                    "(iteration aid; skips the fetch entirely)")
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--extended-only", action="store_true",
+                    help="only consider 00/06/12/18Z cycles (the 48 h runs)")
+    ap.add_argument("--print-cycle", action="store_true",
+                    help="resolve the cycle, print YYYYMMDDHH and exit. The "
+                         "driver calls this ONCE and passes the result to every "
+                         "forecast hour - re-resolving per hour could straddle "
+                         "two model runs midway through a loop.")
+    ap.add_argument("--probe-fxx", type=int, default=None,
+                    help="probe this forecast hour when picking a cycle "
+                         "(default: --fxx); use the longest hour you intend to "
+                         "fetch so the whole run is known to be published")
     a = ap.parse_args(argv)
 
     if a.date and a.hour is not None:
         date, hour = a.date, a.hour
     else:
-        date, hour = latest_cycle()
+        date, hour = latest_cycle(
+            extended_only=a.extended_only,
+            fxx=a.probe_fxx if a.probe_fxx is not None else a.fxx)
+    if a.print_cycle:
+        print(f"{date}{hour:02d}")
+        return 0
+    if not a.out:
+        ap.error("--out is required unless --print-cycle is given")
     url = _url(date, hour, fxx=a.fxx)
     print(f"HRRR wrfnat {date} t{hour:02d}z f{a.fxx:02d}", flush=True)
 
