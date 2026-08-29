@@ -1,0 +1,75 @@
+name: Colombia radar (IDEAM)
+
+# Derived radar products for the unlisted /radar page. The IDEAM bucket
+# (s3-radaresideam) carries RAW SIGMET volumes only — no QPE, CAPPI or
+# composite exists upstream — so everything is built here with Py-ART.
+#
+# The bucket lands in complete daily batches roughly a day behind, so this
+# ingests D-1 and D-2 (D-2 catches days that arrive late) and prunes the
+# published tree to a fortnight; anything older is re-derivable on demand.
+on:
+  schedule:
+    - cron: '40 9 * * *'          # ~04:40 Colombia, after the previous day lands
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Single date to (re)build, YYYYMMDD. Blank = D-1 and D-2.'
+        required: false
+      radar:
+        description: 'Single radar, e.g. Barrancabermeja. Blank = all available.'
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: colombia-radar
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90          # ~100 scans/radar-day, each a 5 MB download + decode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: |
+          pip install --quiet numpy scipy matplotlib pillow
+          pip install --quiet cartopy arm_pyart
+      - name: Ingest
+        run: |
+          set -e
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            DATES="${{ github.event.inputs.date }}"
+          else
+            DATES="$(date -u -d '1 day ago' +%Y%m%d) $(date -u -d '2 days ago' +%Y%m%d)"
+          fi
+          RADAR="${{ github.event.inputs.radar }}"
+          for D in $DATES; do
+            echo "::group::$D"
+            python scripts/sst/radar_ingest.py --date "$D" \
+              ${RADAR:+--radar "$RADAR"} --products ppi --stride 3 --keep 96 || true
+            echo "::endgroup::"
+          done
+      - name: Publish
+        run: python scripts/sst/radar_publish.py --max-days 14
+      - name: Prune to a fortnight
+        run: python scripts/sst/radar_archive.py --prune --keep-days 14
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git add radar/
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "radar: $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 300 git push; then
+              echo "pushed (attempt $i)"; exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

@@ -1,0 +1,62 @@
+{
+ "radars": {
+  "Barrancabermeja": {
+   "20260827": [
+    "ppi"
+   ],
+   "20260818": [
+    "ppi"
+   ],
+   "20260817": [
+    "ppi"
+   ],
+   "20260816": [
+    "ppi"
+   ]
+  },
+  "Munchique": {
+   "20260817": [
+    "ppi"
+   ]
+  }
+ },
+ "sites": {
+  "Barrancabermeja": [
+   6.933,
+   -73.763
+  ],
+  "Munchique": [
+   2.845,
+   -76.995
+  ],
+  "santa_elena": [
+   6.199,
+   -75.5
+  ],
+  "Guaviare": [
+   2.573,
+   -72.639
+  ],
+  "Carimagua": [
+   4.56,
+   -71.336
+  ],
+  "Tablazo": [
+   5.0,
+   -74.0
+  ],
+  "Bogota": [
+   4.658,
+   -74.094
+  ],
+  "San_Andres": [
+   12.583,
+   -81.7
+  ]
+ },
+ "products": {
+  "ppi": "Reflectivity",
+  "qpe": "Rain rate",
+  "vel": "Radial velocity"
+ }
+}

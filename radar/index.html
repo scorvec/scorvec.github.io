@@ -1,0 +1,199 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Colombia radar</title>
+<style>
+:root{--bg:#0f1626;--panel:#141d31;--rule:rgba(148,184,225,.18);--ink:#e9eff8;
+      --muted:#8296ad;--aqua:#5eead4;--gold:#ffd166}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 Inter,-apple-system,sans-serif;
+     padding:16px 20px;max-width:1720px;margin:0 auto}
+h1{font-size:21px} .sub{color:var(--muted);font-size:12.5px;margin:3px 0 14px}
+.layout{display:grid;grid-template-columns:440px 1fr;gap:18px;align-items:start}
+@media(max-width:1150px){.layout{grid-template-columns:1fr}}
+.side{background:var(--panel);border:1px solid var(--rule);border-radius:12px;padding:13px}
+.side h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);
+         margin:0 0 8px}
+#map{width:100%;height:520px;display:block;background:#0c1320;border-radius:8px;
+     border:1px solid var(--rule);margin-bottom:14px;cursor:pointer}
+select{width:100%;background:#1b2740;color:var(--ink);border:1px solid var(--rule);
+  border-radius:7px;font-size:13px;padding:7px 9px;font-family:inherit;margin-bottom:12px;cursor:pointer}
+.prods{display:flex;flex-direction:column;gap:6px}
+.prods button{background:#1b2740;border:1px solid var(--rule);color:var(--ink);
+  border-radius:7px;font-size:13px;padding:8px 11px;cursor:pointer;font-family:inherit;text-align:left}
+.prods button:hover{background:#26344f}
+.prods button.on{background:var(--aqua);color:#08111f;border-color:var(--aqua);font-weight:650}
+#wrap{position:relative;background:var(--panel);border:1px solid var(--rule);
+      border-radius:12px;overflow:hidden}
+#frame{display:block;width:100%;height:auto;user-select:none}
+#bar{display:flex;align-items:center;gap:10px;padding:9px 13px;background:#111a2c;
+     border-top:1px solid var(--rule);flex-wrap:wrap}
+#bar button{background:#1e2b45;border:1px solid var(--rule);color:var(--ink);border-radius:7px;
+   font-size:13px;padding:7px 12px;cursor:pointer;font-family:inherit;min-width:42px}
+#bar button:hover{background:#2a3a5c;border-color:var(--aqua)}
+#scrub{flex:1;height:24px;cursor:pointer;-webkit-appearance:none;background:transparent;min-width:150px}
+#scrub::-webkit-slider-runnable-track{height:7px;border-radius:4px;
+  background:linear-gradient(to right,var(--aqua) 0%,var(--aqua) var(--fill,0%),
+             rgba(148,184,225,.26) var(--fill,0%),rgba(148,184,225,.26) 100%)}
+#scrub::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;
+  background:var(--aqua);border:3px solid #fff;margin-top:-5px}
+#scrub::-moz-range-track{height:7px;border-radius:4px;background:rgba(148,184,225,.26)}
+#scrub::-moz-range-progress{height:7px;border-radius:4px;background:var(--aqua)}
+#scrub::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--aqua);border:3px solid #fff}
+#stamp{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:16ch;text-align:right}
+#load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      background:var(--panel);color:var(--muted);font-size:13px;z-index:4}
+.note{color:var(--muted);font-size:12px;margin-top:13px;max-width:1050px}
+.note b{color:var(--ink)}
+</style></head><body>
+<h1>Colombia weather radar</h1>
+<div class="sub" id="sub">IDEAM network · dual-pol quality controlled · derived products</div>
+<div class="layout">
+ <div class="side">
+   <h2>Radar</h2>
+   <canvas id="map" width="820" height="1000"></canvas>
+   <select id="date"></select>
+   <h2>Product</h2>
+   <div class="prods" id="prods"></div>
+ </div>
+ <div>
+   <div id="wrap">
+     <img id="frame" alt="radar frame">
+     <div id="load">select a radar</div>
+     <div id="bar">
+       <button id="play" title="space">&#9654;</button>
+       <button id="back" title="&larr;">&#9198;</button>
+       <button id="fwd" title="&rarr;">&#9197;</button>
+       <input id="scrub" type="range" min="0" max="0" value="0" step="1">
+       <span id="stamp">—</span>
+     </div>
+   </div>
+   <div class="note">
+     <b>Source.</b> IDEAM radar via AWS Open Data (<code>s3-radaresideam</code>), which carries raw
+     SIGMET volumes only — no QPE, CAPPI or composite products exist upstream, so everything here
+     is derived with Py-ART.
+     <br><br>
+     <b>Scan strategy.</b> One volume is split across four files on a ~5 minute cycle
+     (1.3° surveillance; 1.5/2.4/3.1/5.1; 6.4/8; 10/12.5/15). These loops use the 1.3°
+     surveillance sweep only — mixing tasks makes the beam tilt rather than the weather move.
+     <br><br>
+     <b>Quality control.</b> Gates are kept only where dual-pol RhoHV &gt; 0.85 and coherent power
+     &gt; 0.30, then despeckled. This removes roughly 80% of raw echo, nearly all clutter and biota.
+     Speckle at the radar site is residual clutter in the cone of silence.
+     <br><br>
+     <b>Latency.</b> The bucket lands in complete daily batches, so data is about a day behind —
+     this is an archive, not a nowcast. Gold outlines are the hydro basins used by the inflow model.
+   </div>
+ </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let IDX=null,radar=null,day=null,prod=null,F=[],IM=[],cur=0,playing=false,timer=null;
+const mapC=$("map"),mx=mapC.getContext("2d");
+function hit(e){                       // canvas coords from a pointer event
+  const r=mapC.getBoundingClientRect();
+  return [(e.clientX-r.left)*mapC.width/r.width,(e.clientY-r.top)*mapC.height/r.height];
+}
+function nearest(cx,cy){
+  let best=null,bd=1e9;
+  for(const [name,ll] of Object.entries(IDX.sites)){
+    if(!IDX.radars[name])continue;
+    const d=Math.hypot(px(ll[1])-cx,py(ll[0])-cy); if(d<bd){bd=d;best=name;}
+  }
+  return bd<90?best:null;              // generous target: markers are small
+}
+mapC.onmousemove=e=>{const [cx,cy]=hit(e);mapC.style.cursor=nearest(cx,cy)?"pointer":"default";};
+const B={lo0:-80,lo1:-66,la0:-4.5,la1:13.5};
+const px=lo=>(lo-B.lo0)/(B.lo1-B.lo0)*mapC.width, py=la=>(1-(la-B.la0)/(B.la1-B.la0))*mapC.height;
+let GEO=null;
+function drawMap(){
+  mx.clearRect(0,0,mapC.width,mapC.height);
+  mx.fillStyle="#0b1220";mx.fillRect(0,0,mapC.width,mapC.height);
+  // graticule
+  mx.strokeStyle="rgba(148,184,225,.09)";mx.lineWidth=1.4;
+  for(let lo=-80;lo<=-66;lo+=2){mx.beginPath();mx.moveTo(px(lo),0);mx.lineTo(px(lo),mapC.height);mx.stroke();}
+  for(let la=-4;la<=13;la+=2){mx.beginPath();mx.moveTo(0,py(la));mx.lineTo(mapC.width,py(la));mx.stroke();}
+  if(GEO){
+    const path=(segs,col,w)=>{mx.strokeStyle=col;mx.lineWidth=w;
+      segs.forEach(sg=>{mx.beginPath();
+        sg.forEach((p,i)=>{const x=px(p[0]),y=py(p[1]); i?mx.lineTo(x,y):mx.moveTo(x,y);});
+        mx.stroke();});};
+    path(GEO.borders,"rgba(148,184,225,.45)",1.6);      // country borders
+    path(GEO.coast,"#8ba3c4",2.2);                    // coastline
+  }
+  for(const [name,ll] of Object.entries(IDX.sites)){
+    const has=IDX.radars[name], x=px(ll[1]), y=py(ll[0]);
+    if(has){                                          // 250 km coverage ring
+      mx.beginPath();
+      mx.ellipse(x,y,250/111.32/Math.cos(ll[0]*Math.PI/180)*(mapC.width/(B.lo1-B.lo0)),
+                     250/110.54*(mapC.height/(B.la1-B.la0)),0,0,7);
+      mx.strokeStyle=name===radar?"rgba(94,234,212,.55)":"rgba(255,209,102,.22)";
+      mx.lineWidth=1.6;mx.stroke();
+      if(name===radar){mx.fillStyle="rgba(94,234,212,.09)";mx.fill();}
+    }
+    mx.beginPath();mx.arc(x,y,has?9:5,0,7);
+    mx.fillStyle=name===radar?"#5eead4":(has?"#ffd166":"#3b4a66");mx.fill();
+    if(has){mx.strokeStyle="#0b1220";mx.lineWidth=2.5;mx.stroke();}
+    mx.fillStyle=has?"#e9eff8":"#5d6b85";
+    mx.font=(name===radar?"bold ":"")+"18px Inter,sans-serif";mx.textAlign="center";
+    mx.fillText(name.replace(/_/g," "),x,y-16);
+  }
+  mx.fillStyle="#8296ad";mx.font="15px Inter,sans-serif";mx.textAlign="left";
+  mx.fillText("gold = data available · ring ≈ 250 km · click a site",12,mapC.height-14);
+}
+mapC.onclick=e=>{
+  const [cx,cy]=hit(e); const best=nearest(cx,cy);
+  if(best&&best!==radar){radar=best;day=null;prod=null;buildDates();}
+};
+function buildDates(){
+  const days=Object.keys(IDX.radars[radar]).sort().reverse();
+  day=day&&days.includes(day)?day:days[0];
+  $("date").innerHTML=days.map(d=>`<option${d===day?" selected":""}>${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}</option>`).join("");
+  buildProds(); drawMap();
+}
+$("date").onchange=e=>{day=e.target.value.replace(/-/g,"");buildProds();};
+function buildProds(){
+  const ps=IDX.radars[radar][day]||[];
+  prod=ps.includes(prod)?prod:ps[0];
+  $("prods").innerHTML="";
+  ps.forEach(p=>{const b=document.createElement("button");
+    b.textContent=IDX.products[p]||p; if(p===prod)b.classList.add("on");
+    b.onclick=()=>{prod=p;buildProds();};$("prods").appendChild(b);});
+  loadLoop();
+}
+function loadLoop(){
+  if(playing)play();
+  const base=`frames/${radar}/${day}/${prod}/`;
+  $("load").style.display="flex"; $("load").textContent="loading frames…";
+  fetch(base+"manifest.json?v="+Date.now()).then(r=>r.json()).then(m=>{
+    F=m.frames; IM=[]; $("scrub").max=F.length-1;
+    let n=0; F.forEach((f,i)=>{const im=new Image();
+      im.onload=()=>{if(++n===F.length)$("load").style.display="none";};
+      im.onerror=()=>{if(++n===F.length)$("load").style.display="none";};
+      im.src=base+f.file; IM[i]=im;});
+    $("sub").textContent=`${radar.replace(/_/g," ")} · ${day.slice(0,4)}-${day.slice(4,6)}-${day.slice(6)} · `
+      +`${IDX.products[prod]||prod} · ${F.length} frames · dual-pol QC`;
+    show(0);
+  }).catch(()=>{$("load").textContent="no frames for that selection";});
+}
+function show(i){if(!F.length)return;cur=(i+F.length)%F.length;
+  if(IM[cur])$("frame").src=IM[cur].src;
+  $("scrub").value=cur;$("scrub").style.setProperty("--fill",(100*cur/(F.length-1||1))+"%");
+  $("stamp").textContent=(F[cur].date||"").replace("T"," ").slice(0,16)+"Z";}
+function play(){playing=!playing;$("play").innerHTML=playing?"&#10074;&#10074;":"&#9654;";
+  clearInterval(timer); if(playing)timer=setInterval(()=>show(cur+1),260);}
+$("play").onclick=play;
+$("back").onclick=()=>{if(playing)play();show(cur-1)};
+$("fwd").onclick=()=>{if(playing)play();show(cur+1)};
+$("scrub").oninput=e=>{if(playing)play();show(+e.target.value)};
+addEventListener("keydown",e=>{
+  if(e.key==="ArrowLeft"){e.preventDefault();if(playing)play();show(cur-1)}
+  if(e.key==="ArrowRight"){e.preventDefault();if(playing)play();show(cur+1)}
+  if(e.key===" "){e.preventDefault();play()}});
+Promise.all([
+  fetch("index.json?v="+Date.now()).then(r=>r.json()),
+  fetch("geo.json").then(r=>r.json()).catch(()=>null)
+]).then(([j,g])=>{
+  IDX=j; GEO=g; radar=Object.keys(j.radars)[0]; drawMap(); if(radar)buildDates();
+});
+</script></body></html>
