@@ -109,6 +109,11 @@ GLOBAL_EXTENT = (-180, 180, -65, 65)        # near-global; in PC(clon=180) frame
 TROPICAL_CENTRAL_LON = 180.0
 # Tropical Pacific basin: 120E to 70W (i.e. 120..290 degE), 30S-30N.
 TROPICAL_EXTENT = (120, 290, -30, 30)
+# Whole tropical belt, all longitudes. Used by the tropical-mean-removed product:
+# the mean is taken over 20S-20N globally, so cropping to the Pacific would hide
+# the basins the signal is being measured against.
+TROPICS_BELT_EXTENT = (-180, 180, -30, 30)
+TROP_MEAN_LAT = (-20.0, 20.0)               # RONI's tropical-mean belt
 
 # Region definitions reused by the static maps AND the animation viewer.
 REGIONS = {
@@ -332,15 +337,26 @@ PRODUCTS = {
     "anomaly":  dict(kind="anom", label="SST Anomaly — Global & Tropical Pacific"),
     "absolute": dict(kind="abs",  label="Absolute SST — Global & Tropical Pacific"),
     "relative": dict(kind="rel",  label="SST Anomaly (global-mean removed)"),
+    # Single tropical-belt panel; RONI's convention made spatial (see
+    # tropical_mean_removed). Narrower colour range than the other anomaly
+    # products because removing the belt mean takes out most of the amplitude.
+    "tropical_rel": dict(kind="trel",
+                         label="Tropics — tropical-mean removed"),
 }
 _KIND_TITLE = {"anom": "SST Anomaly", "abs": "Absolute SST",
-               "rel": "SST Anomaly (global-mean removed)"}
+               "rel": "SST Anomaly (global-mean removed)",
+               "trel": "Tropical SST Anomaly (tropical-mean removed)"}
+# Products drawn as one tropical-belt panel instead of the global+Pacific pair.
+_ONE_PANEL_KINDS = {"trel"}
 
 
 def _kind_style(kind):
     if kind == "abs":
         return dict(cmap=plt.get_cmap("turbo"), vmin=-2.0, vmax=32.0,
                     cbar="SST (°C)")
+    if kind == "trel":
+        return dict(cmap=sst_anom_cmap(), vmin=-3.0, vmax=3.0,
+                    cbar="SST anomaly − tropical mean (°C)")
     return dict(cmap=sst_anom_cmap(), vmin=-5.0, vmax=5.0,
                 cbar="SST anomaly (°C)")
 
@@ -402,16 +418,59 @@ def render_2panel_frame(field, la, lo, kind, title, out_path, annotation=None):
     plt.close(fig)
 
 
+def render_1panel_frame(field, la, lo, kind, title, out_path, annotation=None):
+    """One tropical-belt panel (30S-30N, all longitudes) of one field.
+
+    The tropical-mean-removed product uses this rather than the global+Pacific
+    pair: the belt IS the domain the mean was taken over, so keeping every
+    longitude in frame shows where the compensating warm/cool signal sits."""
+    style = _kind_style(kind)
+    # Size the figure to the domain: the belt is 360 deg x 60 deg, so the axes must
+    # be 6:1 or cartopy's equal aspect letterboxes it with dead space. axes width =
+    # (right-left)*W = 0.88*12.5 = 11.0 in, so axes height = 11.0/6 = 1.83 in, and
+    # H = 1.83/(top-bottom) leaves just enough above for the title.
+    style_w, gs_l, gs_r, gs_t, gs_b = 12.5, 0.02, 0.90, 0.82, 0.06
+    aspect = (TROPICS_BELT_EXTENT[1] - TROPICS_BELT_EXTENT[0]) / \
+             (TROPICS_BELT_EXTENT[3] - TROPICS_BELT_EXTENT[2])
+    ax_h = (gs_r - gs_l) * style_w / aspect
+    fig = plt.figure(figsize=(style_w, ax_h / (gs_t - gs_b)), dpi=125)
+    gs = fig.add_gridspec(1, 1, left=gs_l, right=gs_r, top=gs_t, bottom=gs_b)
+    ax = fig.add_subplot(gs[0],
+                         projection=ccrs.PlateCarree(central_longitude=GLOBAL_CENTRAL_LON))
+    im = _draw_map_ax(ax, field, la, lo, TROPICS_BELT_EXTENT, style,
+                      nino_box=True, annotation=annotation)
+    fig.suptitle(title, fontsize=13, fontweight="bold", x=0.02, ha="left")
+    cax = fig.add_axes([0.915, gs_b, 0.012, gs_t - gs_b])
+    cb = fig.colorbar(im, cax=cax, extend="both")
+    # The belt panel is only ~2.4 in tall, so the full "SST anomaly - tropical
+    # mean (degC)" label overruns the figure. The title already names the field;
+    # the bar only needs units.
+    cb.set_label("°C", fontsize=10, rotation=0, labelpad=8, va="center")
+    cb.ax.tick_params(labelsize=9)
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=125, facecolor="white",
+                pil_kwargs={"quality": 82, "method": 6})
+    plt.close(fig)
+
+
 def _frame_task(args):
     """Process-pool worker: rebuild a light DataArray from the passed arrays and render
-    one 2-panel frame. (Passing raw numpy + coords avoids pickling lazy/dask DataArrays.)"""
+    one frame. (Passing raw numpy + coords avoids pickling lazy/dask DataArrays.)"""
     vals, lat_vals, lon_vals, la, lo, kind, title, out, ann = args
     import xarray as xr
     field = xr.DataArray(vals, dims=(la, lo), coords={la: lat_vals, lo: lon_vals})
-    render_2panel_frame(field, la, lo, kind, title, out, annotation=ann)
+    if kind in _ONE_PANEL_KINDS:
+        render_1panel_frame(field, la, lo, kind, title, out, annotation=ann)
+    else:
+        render_2panel_frame(field, la, lo, kind, title, out, annotation=ann)
 
 
-def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS):
+def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS,
+                        annotator=None):
+    """Render one product's frames. `annotator` is an optional callable
+    (timestamp) -> str for products whose readout can't be derived from the
+    plotted field itself (the tropical-mean-removed field no longer contains
+    the mean that was taken out of it)."""
     cfg = PRODUCTS[product_id]
     out_dir = ASSETS / "anim" / product_id
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -438,6 +497,10 @@ def render_product_anim(field_full, la, lo, product_id, n_days=ANIM_DAYS):
                    f"Daily Relative Oceanic Niño Index: {roni_d:+.2f} °C")
             title = (f"{pfx} — {st[i]:%Y-%m-%d} "
                      f"(OISST v2.1, anomalies vs {oisst9120.BASE_LABEL})")
+        elif annotator is not None:
+            ann = annotator(st[i])
+            title = (f"{pfx} — {st[i]:%Y-%m-%d} "
+                     f"(OISST v2.1, anomalies vs {oisst9120.BASE_LABEL})")
         tasks.append((sel.isel(time=i).values, lat_vals, lon_vals, la, lo, cfg["kind"],
                       title, str(out_dir / f"F{i:02d}.webp"), ann))
         frames.append({"idx": i, "file": f"F{i:02d}.webp",
@@ -454,6 +517,28 @@ def global_mean_removed(full, la, lo):
     valid = full.notnull()
     gmean = (full * w).sum(dim=(la, lo), skipna=True) / (w * valid).sum(dim=(la, lo))
     return full - gmean
+
+
+def tropical_mean(full, la, lo, lat_rng=TROP_MEAN_LAT):
+    """Cosine-weighted ocean-area mean over the 20S-20N belt, per time step."""
+    lat = full[la]
+    belt = (lat >= lat_rng[0]) & (lat <= lat_rng[1])
+    sub = full.where(belt)
+    w = np.cos(np.deg2rad(lat))
+    valid = sub.notnull()
+    return (sub * w).sum(dim=(la, lo), skipna=True) / (w * valid).sum(dim=(la, lo))
+
+
+def tropical_mean_removed(full, la, lo, lat_rng=TROP_MEAN_LAT):
+    """Per-time field minus its cosine-weighted 20S-20N mean.
+
+    This is RONI's convention applied to the whole field rather than to one box:
+    RONI is Nino-3.4 minus the tropical mean, and what is left here is the same
+    quantity everywhere — where the tropics are warm or cool *relative to the
+    tropics as a whole*, with uniform tropical warming taken out. Unlike the
+    global-mean-removed product it uses the same belt the index does, so the map
+    and the RONI number on the anomaly frames are the same subtraction."""
+    return full - tropical_mean(full, la, lo, lat_rng)
 
 
 # ----------------------------------------------------------------------
@@ -1198,10 +1283,26 @@ def main(argv=None) -> int:
     # --- Two-panel animated products: anomaly, absolute, relative ---
     print(f"Two-panel animations (last {ANIM_DAYS} days):")
     full_rel = global_mean_removed(anom_win, la, lo)
-    fields = {"anomaly": anom_win, "relative": full_rel, "absolute": full_abs}
+    full_trel = tropical_mean_removed(anom_win, la, lo)
+    fields = {"anomaly": anom_win, "relative": full_rel, "absolute": full_abs,
+              "tropical_rel": full_trel}
+    # The belt mean is gone from the plotted field, so carry it as an annotation:
+    # each frame states the number that was subtracted from it.
+    _tm = tropical_mean(anom_win, la, lo).load()
+    _tm_by_day = {pd.Timestamp(t).normalize(): float(v)
+                  for t, v in zip(_tm["time"].values, _tm.values)}
+
+    def _trel_annotation(ts):
+        v = _tm_by_day.get(pd.Timestamp(ts).normalize())
+        return None if v is None or not np.isfinite(v) else (
+            f"Tropical-mean SST anomaly removed: {v:+.2f} °C\n"
+            f"(20°S–20°N, cosine-weighted — RONI's belt)")
+
     anim_manifest = {"days": ANIM_DAYS, "regions": {}}
-    for pid in ("anomaly", "absolute", "relative"):
-        frames = render_product_anim(fields[pid], la, lo, pid, n_days=ANIM_DAYS)
+    for pid in ("anomaly", "absolute", "relative", "tropical_rel"):
+        frames = render_product_anim(
+            fields[pid], la, lo, pid, n_days=ANIM_DAYS,
+            annotator=_trel_annotation if pid == "tropical_rel" else None)
         anim_manifest["regions"][pid] = {
             "label": PRODUCTS[pid]["label"], "n_frames": len(frames),
             "frames": frames,
@@ -1219,7 +1320,7 @@ def main(argv=None) -> int:
     # 'equatorial' afterwards (the workflow runs it after this script).
     (ASSETS / "anim" / "manifest.json").write_text(
         json.dumps(anim_manifest, indent=2))
-    print("  wrote anim/manifest.json (anomaly, absolute, relative)")
+    print("  wrote anim/manifest.json (anomaly, absolute, relative, tropical_rel)")
 
     # --- Manifest ---
     manifest = {

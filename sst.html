@@ -469,10 +469,15 @@
       the raw material behind every index on this page &mdash; animated over the last
       90 days. Global on top, the tropical Pacific below with the Ni&ntilde;o regions
       outlined; each frame is stamped with that day's ONI / tropical-mean / RONI
-      readout. The panel's dropdown also offers the <b>global-mean-removed</b> variant,
-      which strips the uniform background warming and isolates the ENSO pattern.</p>
+      readout. The panel's buttons also offer two mean-removed variants: the
+      <b>global-mean-removed</b> field, which strips the uniform background warming
+      and isolates the ENSO pattern, and <b>tropics, tropical-mean removed</b> &mdash;
+      the whole 30&deg;S&ndash;30&deg;N belt with its own 20&deg;S&ndash;20&deg;N mean
+      subtracted. That last one is RONI's arithmetic drawn as a map: the same
+      subtraction the index makes at Ni&ntilde;o-3.4, applied everywhere, so you can
+      see which basins the Pacific is warm or cool <i>against</i>.</p>
     </div>
-    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly"
+    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly&amp;regions=anomaly,absolute,relative,tropical_rel"
             title="Global and tropical Pacific SST anomaly animation, latest OISST day" loading="lazy"></iframe>
     <div class="chart-card-footer">
       <span class="chart-sources">NOAA OISST v2.1 (PSL, NCEI fallback) &middot; 1/4&deg; &middot; anomalies vs 1991&ndash;2020 &middot; 90-day animation &middot; daily</span>
@@ -613,7 +618,7 @@
       &mdash; the SST at which deep convection sets in rises with the tropical mean, which is why
       RONI subtracts it.</p>
     </div>
-    <iframe data-deferred class="anim-embed" data-src="sst_anim.html?embed=1&amp;region=absolute"
+    <iframe data-deferred class="anim-embed" data-src="sst_anim.html?embed=1&amp;region=absolute&amp;regions=anomaly,absolute,relative,tropical_rel"
             title="Global and tropical Pacific absolute SST animation" loading="lazy"></iframe>
     <div class="chart-card-footer">
       <span class="chart-sources">NOAA OISST v2.1 (PSL) &middot; absolute SST &middot; 90-day animation</span>
