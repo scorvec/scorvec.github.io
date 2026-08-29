@@ -122,14 +122,23 @@ def wanted_ranges(rows):
     return ranges, keys
 
 
-def download(url: str, ranges, dest: Path, quiet=False):
+def download(url: str, ranges, dest: Path, quiet=False, workers: int = 8):
     """Concatenate the requested byte ranges into one local GRIB2 file.
 
     Adjacent messages are merged into a single request - the wanted fields are
-    interleaved with unwanted ones, but runs still collapse a few hundred
-    requests into far fewer.
+    interleaved with unwanted ones, but runs still collapse 300 messages into
+    ~100 requests.
+
+    Those requests then go out CONCURRENTLY. Issued one at a time the fetch runs
+    at ~13.8 MB/s and is round-trip-latency bound, not bandwidth bound; eight at
+    a time measures 41.3 MB/s, taking a 397 MB cycle from ~30 s to ~10 s.
+    Sixteen is slower than eight (35.2 MB/s), so the pool is deliberately small.
+    Results are reassembled in offset order - GRIB messages must land in the
+    file in the order the index lists them.
     """
     import urllib.request
+    from concurrent.futures import ThreadPoolExecutor
+
     merged = []
     for off, end in sorted(ranges):
         if merged and end is not None and merged[-1][1] is not None \
@@ -137,18 +146,27 @@ def download(url: str, ranges, dest: Path, quiet=False):
             merged[-1][1] = end
         else:
             merged.append([off, end])
+
+    def grab(item):
+        i, (off, end) = item
+        rng = f"bytes={off}-" + ("" if end is None else str(end))
+        req = urllib.request.Request(url, headers={"Range": rng})
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+            return i, r.read()
+
+    chunks = [None] * len(merged)
+    done = 0
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for i, buf in ex.map(grab, enumerate(merged)):
+            chunks[i] = buf
+            done += 1
+            if not quiet and (done % 25 == 0 or done == len(merged)):
+                print(f"  range {done}/{len(merged)}", flush=True)
     total = 0
     with open(dest, "wb") as fh:
-        for i, (off, end) in enumerate(merged):
-            rng = f"bytes={off}-" + ("" if end is None else str(end))
-            req = urllib.request.Request(url, headers={"Range": rng})
-            with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-                buf = r.read()
+        for buf in chunks:                 # offset order, not completion order
             fh.write(buf)
             total += len(buf)
-            if not quiet and (i % 20 == 0 or i == len(merged) - 1):
-                print(f"  range {i+1}/{len(merged)}  {total/1e6:7.1f} MB",
-                      flush=True)
     return total
 
 
