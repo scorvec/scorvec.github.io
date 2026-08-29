@@ -12,6 +12,13 @@
 #     scripts/ecape/run_local_ecape.sh --cycle 2026082912
 #     scripts/ecape/run_local_ecape.sh --fxx "0 3 6"    # short test loop
 #     scripts/ecape/run_local_ecape.sh --no-push        # render only
+#     scripts/ecape/run_local_ecape.sh --threads 6      # leave cores for WRF
+#
+# TIMING depends entirely on what else is running. The kernel is 199 s of CPU per
+# frame; wall time is that divided by the cores it actually gets. On an idle
+# 18-core box a 29-frame loop is ~17 min; alongside a full-machine WRF run it is
+# closer to 45. Use --threads to cap it, and expect the fetch (~35 s/frame) to be
+# the floor regardless.
 #
 # Frames go to the orphan `frames` branch via scripts/lib/publish_frames.sh
 # (assets/ecape/anim is registered in its DIRS); only the manifest and the F00
@@ -25,12 +32,21 @@ ANIM="$REPO/assets/ecape/anim"
 CYCLE=""
 FXX=""
 PUSH=1
+# Thread cap for the kernel. The box is often running WRF under `mpirun -np 18`,
+# which already claims every core; adding an 18-thread OpenMP job on top drove
+# the load average to 25 and cut effective parallelism to ~4.7 cores (measured:
+# 1378% CPU idle vs 474% under contention, same 199 s of CPU per frame either
+# way). Capping does not make this job faster - it stops it making WRF slower.
+THREADS="${ECAPE_THREADS:-}"
+NICE="${ECAPE_NICE:-10}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --cycle) CYCLE="$2"; shift 2 ;;
     --fxx)   FXX="$2"; shift 2 ;;
     --no-push) PUSH=0; shift ;;
+    --threads) THREADS="$2"; shift 2 ;;
+    --nice)    NICE="$2"; shift 2 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -87,7 +103,8 @@ for i in "${!HOURS[@]}"; do
   BG=""
   if [ -n "$nxt" ]; then fetch_one "$nxt" & BG=$!; fi
   printf '  F%-3s ' "$f"
-  if ./scripts/ecape/ecape_grid "$SCRATCH/f$f" >/dev/null 2>&1 \
+  if OMP_NUM_THREADS="${THREADS:-$(sysctl -n hw.ncpu 2>/dev/null || echo 4)}" \
+     nice -n "$NICE" ./scripts/ecape/ecape_grid "$SCRATCH/f$f" >/dev/null 2>&1 \
      && $PY scripts/ecape/render_ecape.py "$SCRATCH/f$f" --anim-root "$ANIM" >/dev/null 2>&1; then
     printf 'ok\n'
   else
