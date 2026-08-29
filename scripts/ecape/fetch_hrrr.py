@@ -64,6 +64,44 @@ def _url(date: str, hour: int, product: str = "wrfnat", fxx: int = 0) -> str:
     return f"{S3}/hrrr.{date}/conus/hrrr.t{hour:02d}z.{product}f{fxx:02d}.grib2"
 
 
+def idx_published(url: str) -> bool:
+    """Is this forecast hour's .idx up yet?"""
+    import urllib.error
+    import urllib.request
+    try:
+        req = urllib.request.Request(url + ".idx", method="HEAD")
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.status == 200
+    except (urllib.error.URLError, OSError):
+        return False
+
+
+def wait_for_idx(url: str, minutes: float, quiet=False) -> bool:
+    """Block until this forecast hour publishes, up to `minutes`.
+
+    HRRR writes a 48 h run out over roughly 1.5-2 h, one forecast hour at a
+    time. Waiting for F48 before starting means the whole render then runs
+    afterwards; waiting per hour instead lets the compute ride along behind the
+    model, so the loop finishes shortly after the model does rather than an hour
+    later. Poll interval is 30 s - the publish granularity is minutes, so
+    anything tighter is just requests.
+    """
+    import time
+    if minutes <= 0:
+        return idx_published(url)
+    deadline = time.time() + minutes * 60
+    first = True
+    while time.time() < deadline:
+        if idx_published(url):
+            return True
+        if first and not quiet:
+            print(f"  waiting for {url.rsplit('/', 1)[-1]} (up to {minutes:.0f} min) …",
+                  flush=True)
+            first = False
+        time.sleep(30)
+    return idx_published(url)
+
+
 def fetch_index(url: str):
     """Return [(msg_no, offset, var, level)] from the .idx sidecar."""
     import urllib.request
@@ -283,6 +321,11 @@ def main(argv=None) -> int:
                          "driver calls this ONCE and passes the result to every "
                          "forecast hour - re-resolving per hour could straddle "
                          "two model runs midway through a loop.")
+    ap.add_argument("--wait-minutes", type=float, default=0,
+                    help="block until this forecast hour publishes, up to N "
+                         "minutes (0 = fail immediately if it is not up). Lets "
+                         "the render follow the model instead of waiting for the "
+                         "whole run to land.")
     ap.add_argument("--probe-fxx", type=int, default=None,
                     help="probe this forecast hour when picking a cycle "
                          "(default: --fxx); use the longest hour you intend to "
@@ -304,6 +347,9 @@ def main(argv=None) -> int:
     url = _url(date, hour, fxx=a.fxx)
     print(f"HRRR wrfnat {date} t{hour:02d}z f{a.fxx:02d}", flush=True)
 
+    if not wait_for_idx(url, a.wait_minutes, quiet=a.quiet):
+        raise SystemExit(f"f{a.fxx:02d} not published after "
+                         f"{a.wait_minutes:.0f} min")
     rows = fetch_index(url)
     ranges, keys = wanted_ranges(rows)
     got = {v: 0 for v in VARS}
