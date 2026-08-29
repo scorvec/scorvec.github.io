@@ -93,9 +93,19 @@ scripts/strat/data/
 # private research — kept local only (2026-07-28)
 stratosphere.html
 assets/strat/
-scripts/strat/
 scripts/telecon/
 scripts/verify/data/
+# scripts/strat is excluded by CONTENTS (trailing /*), not as a directory: git
+# cannot re-include a file whose parent directory is excluded, so the three
+# negations below would silently do nothing under `scripts/strat/`.
+# Published 2026-08-29: only the scripts behind the LIVE figures on
+# enso-atmosphere.html (nh_vortex.webp, wave1_amp.webp, the E-P flux loop).
+# Everything else here still writes to assets/strat/, which stays private and
+# only feeds the local stratosphere.html.
+scripts/strat/*
+!scripts/strat/nh_vortex.py
+!scripts/strat/wave1_monitor.py
+!scripts/strat/qbo_duct.py
 
 # removed-project local archive (ERCOT page + C3S winter analysis, restorable)
 local_archive/
