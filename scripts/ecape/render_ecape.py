@@ -24,6 +24,8 @@ import json
 import sys
 from pathlib import Path
 
+from concurrent.futures import ProcessPoolExecutor
+
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -148,6 +150,18 @@ def render(field, name, meta, out_path: Path):
     return out_path
 
 
+def _render_one(args):
+    """Pool worker. Re-loads from the scratch rather than receiving the array:
+    the four panels together are ~30 MB of float32, and pickling that to every
+    worker costs more than the memmap read it replaces."""
+    stem, name, dest = args
+    meta, _, fields = load(Path(stem))
+    render(fields[name], name, meta, Path(dest))
+    d = fields[name]
+    finite = d[np.isfinite(d)]
+    return name, dest, float(finite.max()), float(np.percentile(finite, 99))
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("stem")
@@ -155,6 +169,8 @@ def main(argv=None) -> int:
     ap.add_argument("--field", action="append",
                     help="field to render (repeatable); default: the four headline ones")
     ap.add_argument("--all", action="store_true", help="render every field")
+    ap.add_argument("--jobs", type=int, default=4,
+                    help="parallel panel renders (1 disables the pool)")
     ap.add_argument("--anim-root",
                     help="write animation frames to <root>/<field>/F<fxx>.webp "
                          "instead of flat <outdir>/<field>.webp")
@@ -176,19 +192,26 @@ def main(argv=None) -> int:
     suffix = "" if fxx == 0 else f"_f{fxx:02d}"
     outdir = Path(a.outdir)
     anim_root = Path(a.anim_root) if a.anim_root else None
+    jobs = []
     for n in names:
         if n not in fields:
             print(f"  skip {n}: not in output", file=sys.stderr)
             continue
-        # Frame mode keeps one file per (field, forecast hour) so the animator
-        # can scrub the run; flat mode keeps the newest analysis as a still.
         dest = (anim_root / n / f"F{fxx:02d}.webp") if anim_root \
             else (outdir / f"{n}{suffix}.webp")
-        p = render(fields[n], n, meta, dest)
-        d = fields[n]
-        finite = d[np.isfinite(d)]
-        print(f"  {n:9s} -> {p}  (max {finite.max():.2f}, "
-              f"p99 {np.percentile(finite, 99):.2f})", flush=True)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        jobs.append((str(stem), n, str(dest)))
+
+    # The panels are independent cartopy renders, so run them in a pool. Serial
+    # they are ~5 s for four; this is the last easy second to take off the
+    # per-frame critical path.
+    if len(jobs) > 1 and a.jobs != 1:
+        with ProcessPoolExecutor(max_workers=min(len(jobs), a.jobs or 4)) as ex:
+            results = list(ex.map(_render_one, jobs))
+    else:
+        results = [_render_one(j) for j in jobs]
+    for name, dest, mx, p99 in results:
+        print(f"  {name:9s} -> {dest}  (max {mx:.2f}, p99 {p99:.2f})", flush=True)
     return 0
 
 
