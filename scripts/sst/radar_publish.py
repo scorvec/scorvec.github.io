@@ -6,12 +6,14 @@ radar/date/product available, and leaves the page to read it.
 
     python scripts/sst/radar_publish.py [--max-days 6]
 """
-import argparse, json, shutil
+import argparse, json, shutil, os
 from pathlib import Path
 from PIL import Image
 
-ARCH=Path.home()/"colombia_hydro"/"radar"
-SITE=Path.home()/"scorvec.github.io"/"radar"
+ARCH=Path(os.environ.get("RADAR_ARCH") or
+          Path.home()/"colombia_hydro"/"radar")
+SITE=Path(os.environ.get("RADAR_SITE") or
+          Path(__file__).resolve().parents[2]/"radar")
 SITES={"Barrancabermeja":(6.933,-73.763),"Munchique":(2.845,-76.995),
        "santa_elena":(6.199,-75.500),"Guaviare":(2.573,-72.639),
        "Carimagua":(4.560,-71.336),"Tablazo":(5.000,-74.000),

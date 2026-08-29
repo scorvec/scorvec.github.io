@@ -16,11 +16,12 @@ Retention: keep the most recent --keep-days per radar, always keep --pin
 dates (case studies), delete the rest from the published tree. The local
 archive under ~/colombia_hydro/radar is left alone.
 """
-import argparse, json, shutil
+import argparse, json, shutil, os
 from collections import defaultdict
 from pathlib import Path
 
-SITE=Path.home()/"scorvec.github.io"/"radar"
+SITE=Path(os.environ.get("RADAR_SITE") or
+          Path(__file__).resolve().parents[2]/"radar")
 LOCAL=Path.home()/"colombia_hydro"/"radar"
 GIT_SOFT_MB=900          # GitHub warns past ~1 GB; stay clear of it
 
