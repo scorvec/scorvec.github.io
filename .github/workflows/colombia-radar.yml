@@ -9,11 +9,14 @@ name: Colombia radar (IDEAM)
 # published tree to a fortnight; anything older is re-derivable on demand.
 on:
   schedule:
-    - cron: '40 9 * * *'          # ~04:40 Colombia, after the previous day lands
+    # Paused to Mondays while the rain spike runs its course (user, 2026-08-29).
+    # Nothing is lost: the S3 bucket keeps the raw volumes, so the Monday run
+    # backfills the whole weekend from the wider default window below.
+    - cron: '40 9 * * 1'          # ~04:40 Colombia Monday; '40 9 * * *' for daily
   workflow_dispatch:
     inputs:
       date:
-        description: 'Single date to (re)build, YYYYMMDD. Blank = D-1 and D-2.'
+        description: 'Single date to (re)build, YYYYMMDD. Blank = the last 5 days.'
         required: false
       radar:
         description: 'Single radar, e.g. Barrancabermeja. Blank = all available.'
@@ -46,7 +49,9 @@ jobs:
           if [ -n "${{ github.event.inputs.date }}" ]; then
             DATES="${{ github.event.inputs.date }}"
           else
-            DATES="$(date -u -d '1 day ago' +%Y%m%d) $(date -u -d '2 days ago' +%Y%m%d)"
+            # D-1 through D-5: enough to backfill a weekend the schedule skipped
+            # and to catch dates the bucket published late.
+            DATES="$(for n in 1 2 3 4 5; do date -u -d "$n days ago" +%Y%m%d; done)"
           fi
           RADAR="${{ github.event.inputs.radar }}"
           for D in $DATES; do
