@@ -1,0 +1,174 @@
+name: AAM (atmospheric angular momentum) — TRIAL
+
+# TRIAL, dispatch-only, and it does NOT commit anything: it uploads the figures
+# as artifacts instead. The point of the first runs is to measure the two things
+# static analysis could not answer, before this is trusted with the site:
+#
+#   1. Peak RSS of aam.py. The AAM integral spans 25 members x 12 levels x 16
+#      steps at 0.25 deg, and a 7 GB runner is the constraint. Every step is
+#      wrapped in /usr/bin/time -v and the maxima are printed in a summary.
+#   2. How many ERA5 history days it has to compute. observed_history() reads the
+#      tracked aam_history.nc and only fills missing 3-day slots, so a routine
+#      run should stream 0-2 days from ARCO-ERA5. A cold or post-gap run could
+#      want 5-10 and take much longer - the log line "computing N ERA5 history
+#      day(s)" is captured so we find out rather than guess.
+#
+# Why this is plausible at all: mjo.yml already runs ens_cycle.py on a free
+# runner, and ens_cycle's bulk list includes the AAM spec that store.py itself
+# annotates as "the heavy AAM/jets multi-level pull (~3 GB at 25 members)". The
+# run on 2026-08-26 09:21 did exactly that in 31.5 min and succeeded, so the
+# expensive download is already proven here - what is unproven is aam.py's own
+# footprint on top of it.
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Cycle date YYYYMMDD (blank = latest AIFS-ENS)'
+        default: ''
+      time:
+        description: 'Cycle hour, 00 or 12 (blank = latest)'
+        default: ''
+      skip_fetch:
+        description: 'Skip ens_cycle and use whatever is cached (faster re-test)'
+        default: 'false'
+
+permissions:
+  contents: read      # trial: reads only, nothing is pushed
+
+concurrency:
+  group: aam-trial
+  cancel-in-progress: false
+
+jobs:
+  trial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120     # the proven heavy path took 31.5 min; leave headroom
+    env:
+      MPLBACKEND: Agg
+      MJO_HEAVY_ATMOS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+
+      - name: Install eccodes (GRIB decoder)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Resolve cycle
+        id: cyc
+        working-directory: scripts/mjo/src
+        run: |
+          set -euo pipefail
+          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
+          if [ -z "$D" ] || [ -z "$T" ]; then
+            # Same trick mjo.yml uses: newer ecmwf-opendata writes a progress bar
+            # to stdout with no trailing newline, so parsing stdout corrupts the
+            # value. Write to a file instead.
+            python -c "from download_aifs import latest_run; d,t=latest_run(); open('/tmp/cyc','w').write(f'{d} {t}')" \
+              >/dev/null 2>/tmp/probe.err || true
+            D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
+            T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
+          fi
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
+            echo "ERROR: bad cycle (D='$D' T='$T')" >&2; tail -40 /tmp/probe.err >&2 || true; exit 1
+          fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
+          echo "cycle: $D ${T}Z"
+
+      - name: Disk and memory before
+        run: |
+          echo "cores: $(nproc)   mem: $(free -g | awk '/^Mem:/{print $2}') GB"
+          df -h / | tail -1
+
+      - name: Fetch the ENS cycle (includes the ~3 GB AAM levels)
+        if: ${{ github.event.inputs.skip_fetch != 'true' }}
+        working-directory: scripts/mjo
+        timeout-minutes: 75
+        run: |
+          set +e
+          /usr/bin/time -v python src/ens_cycle.py \
+            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            2> >(tee /tmp/ens_cycle.time >&2)
+          echo "ens_cycle rc=$?  (non-fatal: downstream uses whatever cached)"
+          du -sh data 2>/dev/null || true
+
+      # Each product is timed and memory-profiled separately. They are allowed to
+      # fail without sinking the trial - a partial answer ("aam.py fits, zonal
+      # does not") is still an answer.
+      - name: AAM main figure
+        working-directory: scripts/mjo
+        run: |
+          set +e
+          /usr/bin/time -v python src/aam.py \
+            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --data-dir data/aam --out /tmp/out/aam.webp \
+            2> >(tee /tmp/aam.time >&2)
+          echo "aam.py rc=$?"
+
+      - name: AAM zonal animation
+        working-directory: scripts/mjo
+        run: |
+          set +e
+          /usr/bin/time -v python src/aam_zonal.py \
+            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --anim-dir /tmp/out/anim/aam_zonal --manifest /tmp/out/anim/aam_zonal_manifest.json \
+            2> >(tee /tmp/aam_zonal.time >&2)
+          echo "aam_zonal.py rc=$?"
+
+      - name: AAM phase figure
+        working-directory: scripts/mjo
+        run: |
+          set +e
+          /usr/bin/time -v python src/aam_phase.py \
+            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --out /tmp/out/aam_phase.webp \
+            2> >(tee /tmp/aam_phase.time >&2)
+          echo "aam_phase.py rc=$?"
+
+      - name: Verdict
+        if: always()
+        run: |
+          echo "## AAM trial — ${{ steps.cyc.outputs.date }} ${{ steps.cyc.outputs.time }}Z" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| stage | wall | peak RSS | exit |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for f in ens_cycle aam aam_zonal aam_phase; do
+            t="/tmp/$f.time"
+            [ -f "$t" ] || { echo "| $f | (did not run) | | |" >> "$GITHUB_STEP_SUMMARY"; continue; }
+            wall=$(grep -m1 "Elapsed (wall clock)" "$t" | awk '{print $NF}')
+            rss=$(grep -m1 "Maximum resident set size" "$t" | awk '{print $NF}')
+            ec=$(grep -m1 "Exit status" "$t" | awk '{print $NF}')
+            rssg=$(awk -v k="${rss:-0}" 'BEGIN{printf "%.2f GB", k/1048576}')
+            echo "| $f | ${wall:-?} | $rssg | ${ec:-?} |" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          # The other unknown: how many ERA5 slots had to be streamed from ARCO.
+          era=$(grep -h "ERA5 history day" /tmp/*.time 2>/dev/null | head -1)
+          echo "ERA5 history: ${era:-none reported (cache was current)}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          df -h / | tail -1 >> "$GITHUB_STEP_SUMMARY"
+          free -g | sed -n '1,2p' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload figures (not committed — this is a trial)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aam-trial-${{ steps.cyc.outputs.date }}-${{ steps.cyc.outputs.time }}z
+          path: /tmp/out
+          if-no-files-found: warn
+          retention-days: 7
