@@ -4,7 +4,7 @@
     <p>The atmospheric side of ENSO: observed and forecast equatorial Pacific surface winds, the Southern Oscillation, and westerly-wind-burst activity.</p>
   </div>
 
-  <nav class="section-nav"><a href="#winds">Equatorial winds &amp; the Southern Oscillation</a><a href="#maps">Forecast maps &amp; loops</a><a href="#upper">Upper-level circulation</a><a href="#aam">Angular momentum &amp; wave driving</a><a href="#overturning">Overturning, jets &amp; the polar vortex</a></nav>
+  <nav class="section-nav"><a href="#winds">Equatorial winds &amp; the Southern Oscillation</a><a href="#maps">Forecast maps &amp; loops</a><a href="#upper">Upper-level circulation</a><a href="#aam">Angular momentum &amp; wave driving</a><a href="#overturning">Overturning &amp; jets</a><a href="#stratosphere">Stratosphere &amp; wave driving</a></nav>
 
   <div class="chart-stack">
 
@@ -103,7 +103,7 @@
     <div class="chart-card plot-deck" data-deck="atmosphere2">
       <div class="deck-head">
         <span class="deck-title">Select a figure</span>
-        <span class="deck-hint">4 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
+        <span class="deck-hint">3 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
       </div>
       <div class="deck-tabs">
         <button class="on">MSLP + wind</button>
@@ -200,7 +200,7 @@
          MJO_HEAVY_ATMOS=1. -->
 
     <!-- ATMOSPHERIC ANGULAR MOMENTUM -->
-    <h3 class="page-section" id="aam">Angular momentum &amp; wave driving</h3>
+    <h3 class="page-section" id="aam">Angular momentum &amp; torques</h3>
     <div class="chart-card plot-deck" data-deck="atmosphere3">
       <div class="deck-head">
         <span class="deck-title">Select a figure</span>
@@ -256,76 +256,7 @@
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS surface pressure &amp; 10 m wind (open data, CC BY 4.0) &middot; drag coefficient and torque climatology from ERA5 1991&ndash;2020 (Copernicus C3S) &middot; instantaneous once-daily fields &middot; updated daily</span></div>
 
     <!-- E-P FLUX & WAVE DRIVING -->
-    <div class="chart-card" id="ep-flux">
-      <div class="chart-card-header">
-        <h2>E&ndash;P Flux &amp; Wave Driving: the Force Behind the Momentum Budget</h2>
-        <p>Where the torque budget shows how the Earth exchanges angular momentum with the
-        atmosphere at the surface, the <b>Eliassen&ndash;Palm flux</b> shows how the waves
-        redistribute it internally &mdash; the same quasi-geostrophic diagnostic used to
-        diagnose sudden stratospheric warmings, computed live from AIFS-ENS and stepped
-        through the full 15-day forecast.</p>
-      </div>
-      <iframe class="anim-embed epflux" src="sst_anim.html?embed=1&amp;manifest=epflux_manifest.json&amp;region=epflux"
-              title="E-P flux and flux-divergence animation over the AIFS-ENS forecast" loading="lazy"></iframe>
-      <p class="note" style="margin-top:0.6rem"><b>How to read it:</b> arrows are the
-      E&ndash;P flux of planetary waves (zonal wavenumbers 1&ndash;3) &mdash;
-      F<sub>&phi;</sub> from the momentum flux [u&prime;v&prime;], F<sub>p</sub> from the
-      heat flux [v&prime;&theta;&prime;] &mdash; pointing along the wave packets' group
-      velocity: <b>up</b> = wave activity climbing into the stratosphere, <b>equatorward</b>
-      = venting toward the tropics. Shading is the flux <b>divergence as a zonal force</b>:
-      <span style="color:#5e35b1"><b>purple = convergence = wave drag</b></span> decelerating
-      the zonal-mean wind (sustained purple on the winter polar-night jet's flank is the
-      engine of a sudden stratospheric warming, and the deceleration that pumps AAM out of
-      the fast westerlies); orange = acceleration. Thin contours: zonal-mean wind every
-      10&nbsp;m&nbsp;s&#8315;&sup1;, with the u&nbsp;=&nbsp;0 critical line bold. The <span style="color:#c2185b"><b>dashed magenta contour</b></span> is the wave-1 <b>Charney&ndash;Drazin ceiling</b>, $\bar{u} = U_c$: between it and the black u&nbsp;=&nbsp;0 line lies the corridor where wave-1 can propagate vertically. Where the ceiling sits low over the winter jet, wave activity is trapped beneath it and vents equatorward &mdash; watch it lift as the jet weakens toward spring, opening the vortex to attack from below. Step
-      through the loop to watch the model move wave-driving episodes through the forecast.</p>
-      <p class="note" style="border-left:3px solid #c2185b; padding-left:0.8rem; margin-top:0.6rem">
-      <b>Charney&ndash;Drazin filtering, in brief:</b> planetary waves generated in the
-      troposphere (by mountains and land&ndash;sea heating contrasts) can propagate
-      <i>vertically</i> only through westerlies that are neither too weak nor too strong:
-      $0 < \bar{u} < U_c$, with the ceiling
-      $U_c = \beta\,[\,k^2 + l^2 + f^2/(4N^2H^2)\,]^{-1}$ shrinking as the wavenumber
-      grows. Three famous consequences follow. <b>Easterlies block everything</b> &mdash;
-      the summer stratosphere is wave-free and undisturbed. <b>Only the longest waves
-      (zonal wavenumbers 1&ndash;2) clear the ceiling</b> in winter westerlies &mdash; the
-      stratosphere sees planetary waves while the synoptic-scale weather is filtered out,
-      and sudden stratospheric warmings are always wave-1/2 events. And <b>a strong enough
-      jet blocks even wave-1</b> ($\bar{u} > U_c$): the midwinter Southern Hemisphere
-      polar-night jet exceeds the ceiling, so wave activity deposits its drag near the
-      tropopause and vents equatorward instead of reaching the vortex &mdash; which is why
-      major SH warmings are nearly nonexistent, and why the seasonal windows for vortex
-      disruption are early/late winter, when the jet sits inside the propagation range.
-      The dashed magenta line above is exactly this criterion &mdash; $\bar{u} = U_c$ for wave-1 with the standard meridional scale &mdash; evaluated on the live flow.</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; control + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
-
-    <!-- WAVE-1 MONITOR -->
-    <div class="chart-card" id="wave1-monitor">
-      <div class="chart-card-header">
-        <h2>Stationary Wave-1: the Forcing Behind the Wave Driving</h2>
-        <p>The E&ndash;P flux above shows where planetary-wave activity is going; this shows
-        <b>how much of it there is, and whether it's amplifying</b>. Top: wavenumber-1
-        amplitude of geopotential height in the 55&ndash;65&deg; band at 500 / 100 /
-        10&nbsp;hPa through the 15-day forecast (wave-2 dashed) &mdash; the vortex-forcing
-        gauge. Below: the wave itself, as a longitude&ndash;height section per hemisphere
-        &mdash; a single sine wave per level, animated through the forecast.</p>
-      </div>
-      <div class="img-wrap"><img src="assets/sst/wave1_amp.webp?v=__CACHE__" alt="Wave-1 and wave-2 amplitude of geopotential height at 500, 100 and 10 hPa versus forecast day, both hemispheres" loading="lazy"></div>
-      <iframe class="anim-embed wave1-nh" style="aspect-ratio: 1323 / 736" src="sst_anim.html?embed=1&amp;manifest=wave1_nh_manifest.json&amp;region=wave1_nh"
-              title="Northern Hemisphere wave-1 longitude-height section through the AIFS-ENS forecast" loading="lazy"></iframe>
-      <iframe class="anim-embed wave1-sh" style="aspect-ratio: 1323 / 736" src="sst_anim.html?embed=1&amp;manifest=wave1_sh_manifest.json&amp;region=wave1_sh"
-              title="Southern Hemisphere wave-1 longitude-height section through the AIFS-ENS forecast" loading="lazy"></iframe>
-      <p class="note" style="margin-top:0.6rem"><b>How to read the sections:</b> amplitude
-      must grow with height like &rho;<sup>&minus;&frac12;</sup> for a propagating wave
-      (thinning air, conserved energy) &mdash; a wave-1 that's tens of metres at 500&nbsp;hPa
-      becomes hundreds at 10&nbsp;hPa. The <b>westward tilt of the phase lines with
-      height</b> is the visual signature of upward wave-activity flux (it is the poleward
-      eddy heat flux, the F<sub>p</sub> term in the E&ndash;P diagnostic): tilted =
-      pumping the stratosphere, upright = barotropic and trapped, sheared-off top = the
-      Charney&ndash;Drazin ceiling doing its work. Watch the winter hemisphere's wave
-      amplify, tilt, and penetrate &mdash; or collapse &mdash; through the forecast.</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; wavenumber-1/2 Fourier components of Z, 55&ndash;65&deg; cos-weighted band mean &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
-    </div>
-    </div>
+    
       </div>
 
       <div class="deck-panel" hidden>
@@ -340,7 +271,7 @@
     </div>
 
     <!-- MERIDIONAL MASS STREAMFUNCTION (Hadley cell response) -->
-    <h3 class="page-section" id="overturning">Overturning, jets &amp; the polar vortex</h3>
+    <h3 class="page-section" id="overturning">Overturning &amp; jets</h3>
     <div class="chart-card plot-deck" data-deck="atmosphere4">
       <div class="deck-head">
         <span class="deck-title">Select a figure</span>
@@ -350,7 +281,6 @@
         <button class="on">Hadley cell</button>
         <button>Walker cell</button>
         <button>Subtropical jets</button>
-        <button>NH polar vortex</button>
       </div>
       <div class="deck-panel">
       <div class="chart-card-header">
@@ -386,13 +316,99 @@
       <div class="img-wrap"><img src="assets/sst/jets.webp?v=__CACHE__" alt="Subtropical jet monitor: zonal-mean wind cross-section anomaly and jet-core strength/latitude forecast vs ERA5 climatology" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind, 51 members (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 harmonic day-of-year normal &plusmn;1&sigma; (WeatherBench2 / Copernicus C3S) &middot; updated daily</span></div>
       </div>
-      <div class="deck-panel" hidden>
+      
+    </div>
+
+
+    <!-- STRATOSPHERE: the wave driving and the vortex it drives -->
+    <h3 class="page-section" id="stratosphere">Stratosphere &amp; wave driving</h3>
+    <div class="chart-card plot-deck" data-deck="atmosphere5">
+      <div class="deck-head">
+        <span class="deck-title">Select a figure</span>
+        <span class="deck-hint">3 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
+      </div>
+      <div class="deck-tabs">
+        <button class="on">NH polar vortex</button>
+        <button>E&ndash;P flux</button>
+        <button>Wave-1</button>
+      </div>
+      <div class="deck-panel">
       <div class="chart-card-header">
         <h2>Northern Polar Vortex: 60&deg;N Winds &amp; Polar-Cap Height</h2>
         <p>The stratospheric vortex is the slow variable that sets the odds for the surface weeks later, so it is worth watching before it moves. <b>Top</b>: the zonal-mean zonal wind at <b>10&nbsp;hPa, 60&deg;N</b> &mdash; the WMO sudden-stratospheric-warming diagnostic. A reversal to <i>easterly</i> here <i>is</i> an SSW, which is why the zero line is drawn heavy and the member fraction crossing it is called out. <b>Middle</b>: the same wind at <b>100&nbsp;hPa</b>. Anomalies that reach this far down are the ones with a path to the troposphere &mdash; a 10&nbsp;hPa event that never appears at 100&nbsp;hPa usually never reaches the surface. <b>Bottom</b>: the <b>100&nbsp;hPa polar-cap (65&ndash;90&deg;N) height anomaly</b>, positive for a weak or displaced vortex; this is the field that actually leads the AO/NAO response. Blue traces are AIFS-ENS members, orange their mean, dashed the control. The 100&nbsp;hPa height is control-only because ECMWF open data publishes no perturbed geopotential at that level.</p>
       </div>
       <div class="img-wrap"><img src="assets/sst/nh_vortex.webp?v=__CACHE__" alt="Northern polar vortex monitor: AIFS-ENS 60N zonal-mean zonal wind at 10 and 100 hPa and 100 hPa polar-cap height anomaly vs MERRA-2 climatology" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS zonal wind and geopotential at 10/100&nbsp;hPa (open data, CC BY 4.0) &middot; reference: MERRA-2 1980&ndash;2026 day-of-year 10th&ndash;90th percentiles (NASA GMAO) &middot; analysis tail: ERA5 &middot; updated daily</span></div>
+      </div>
+      <div class="deck-panel" hidden>
+      <div class="chart-card-header">
+        <h2>E&ndash;P Flux &amp; Wave Driving: the Force Behind the Momentum Budget</h2>
+        <p>Where the torque budget shows how the Earth exchanges angular momentum with the
+        atmosphere at the surface, the <b>Eliassen&ndash;Palm flux</b> shows how the waves
+        redistribute it internally &mdash; the same quasi-geostrophic diagnostic used to
+        diagnose sudden stratospheric warmings, computed live from AIFS-ENS and stepped
+        through the full 15-day forecast.</p>
+      </div>
+      <iframe data-deferred class="anim-embed epflux" data-src="sst_anim.html?embed=1&amp;manifest=epflux_manifest.json&amp;region=epflux"
+              title="E-P flux and flux-divergence animation over the AIFS-ENS forecast" loading="lazy"></iframe>
+      <p class="note" style="margin-top:0.6rem"><b>How to read it:</b> arrows are the
+      E&ndash;P flux of planetary waves (zonal wavenumbers 1&ndash;3) &mdash;
+      F<sub>&phi;</sub> from the momentum flux [u&prime;v&prime;], F<sub>p</sub> from the
+      heat flux [v&prime;&theta;&prime;] &mdash; pointing along the wave packets' group
+      velocity: <b>up</b> = wave activity climbing into the stratosphere, <b>equatorward</b>
+      = venting toward the tropics. Shading is the flux <b>divergence as a zonal force</b>:
+      <span style="color:#5e35b1"><b>purple = convergence = wave drag</b></span> decelerating
+      the zonal-mean wind (sustained purple on the winter polar-night jet's flank is the
+      engine of a sudden stratospheric warming, and the deceleration that pumps AAM out of
+      the fast westerlies); orange = acceleration. Thin contours: zonal-mean wind every
+      10&nbsp;m&nbsp;s&#8315;&sup1;, with the u&nbsp;=&nbsp;0 critical line bold. The <span style="color:#c2185b"><b>dashed magenta contour</b></span> is the wave-1 <b>Charney&ndash;Drazin ceiling</b>, $\bar{u} = U_c$: between it and the black u&nbsp;=&nbsp;0 line lies the corridor where wave-1 can propagate vertically. Where the ceiling sits low over the winter jet, wave activity is trapped beneath it and vents equatorward &mdash; watch it lift as the jet weakens toward spring, opening the vortex to attack from below. Step
+      through the loop to watch the model move wave-driving episodes through the forecast.</p>
+      <p class="note" style="border-left:3px solid #c2185b; padding-left:0.8rem; margin-top:0.6rem">
+      <b>Charney&ndash;Drazin filtering, in brief:</b> planetary waves generated in the
+      troposphere (by mountains and land&ndash;sea heating contrasts) can propagate
+      <i>vertically</i> only through westerlies that are neither too weak nor too strong:
+      $0 < \bar{u} < U_c$, with the ceiling
+      $U_c = \beta\,[\,k^2 + l^2 + f^2/(4N^2H^2)\,]^{-1}$ shrinking as the wavenumber
+      grows. Three famous consequences follow. <b>Easterlies block everything</b> &mdash;
+      the summer stratosphere is wave-free and undisturbed. <b>Only the longest waves
+      (zonal wavenumbers 1&ndash;2) clear the ceiling</b> in winter westerlies &mdash; the
+      stratosphere sees planetary waves while the synoptic-scale weather is filtered out,
+      and sudden stratospheric warmings are always wave-1/2 events. And <b>a strong enough
+      jet blocks even wave-1</b> ($\bar{u} > U_c$): the midwinter Southern Hemisphere
+      polar-night jet exceeds the ceiling, so wave activity deposits its drag near the
+      tropopause and vents equatorward instead of reaching the vortex &mdash; which is why
+      major SH warmings are nearly nonexistent, and why the seasonal windows for vortex
+      disruption are early/late winter, when the jet sits inside the propagation range.
+      The dashed magenta line above is exactly this criterion &mdash; $\bar{u} = U_c$ for wave-1 with the standard meridional scale &mdash; evaluated on the live flow.</p>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; control + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
+
+    <!-- WAVE-1 MONITOR -->
+      </div>
+      <div class="deck-panel" hidden>
+      <div class="chart-card-header">
+        <h2>Stationary Wave-1: the Forcing Behind the Wave Driving</h2>
+        <p>The E&ndash;P flux above shows where planetary-wave activity is going; this shows
+        <b>how much of it there is, and whether it's amplifying</b>. Top: wavenumber-1
+        amplitude of geopotential height in the 55&ndash;65&deg; band at 500 / 100 /
+        10&nbsp;hPa through the 15-day forecast (wave-2 dashed) &mdash; the vortex-forcing
+        gauge. Below: the wave itself, as a longitude&ndash;height section per hemisphere
+        &mdash; a single sine wave per level, animated through the forecast.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/wave1_amp.webp?v=__CACHE__" alt="Wave-1 and wave-2 amplitude of geopotential height at 500, 100 and 10 hPa versus forecast day, both hemispheres" loading="lazy"></div>
+      <iframe data-deferred class="anim-embed wave1-nh" style="aspect-ratio: 1323 / 736" data-src="sst_anim.html?embed=1&amp;manifest=wave1_nh_manifest.json&amp;region=wave1_nh"
+              title="Northern Hemisphere wave-1 longitude-height section through the AIFS-ENS forecast" loading="lazy"></iframe>
+      <iframe class="anim-embed wave1-sh" style="aspect-ratio: 1323 / 736" data-src="sst_anim.html?embed=1&amp;manifest=wave1_sh_manifest.json&amp;region=wave1_sh"
+              title="Southern Hemisphere wave-1 longitude-height section through the AIFS-ENS forecast" loading="lazy"></iframe>
+      <p class="note" style="margin-top:0.6rem"><b>How to read the sections:</b> amplitude
+      must grow with height like &rho;<sup>&minus;&frac12;</sup> for a propagating wave
+      (thinning air, conserved energy) &mdash; a wave-1 that's tens of metres at 500&nbsp;hPa
+      becomes hundreds at 10&nbsp;hPa. The <b>westward tilt of the phase lines with
+      height</b> is the visual signature of upward wave-activity flux (it is the poleward
+      eddy heat flux, the F<sub>p</sub> term in the E&ndash;P diagnostic): tilted =
+      pumping the stratosphere, upright = barotropic and trapped, sheared-off top = the
+      Charney&ndash;Drazin ceiling doing its work. Watch the winter hemisphere's wave
+      amplify, tilt, and penetrate &mdash; or collapse &mdash; through the forecast.</p>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; wavenumber-1/2 Fourier components of Z, 55&ndash;65&deg; cos-weighted band mean &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
       </div>
     </div>
 
