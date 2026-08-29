@@ -166,12 +166,17 @@ def main(argv=None) -> int:
     else:
         names = ["ecape_ml", "ecape_mu", "ratio_ml", "ratio_mu"]
 
+    # Forecast hours share one output directory, so anything past the analysis
+    # gets an _fNN suffix - otherwise a multi-hour run silently overwrites
+    # itself and the page shows whichever hour happened to render last.
+    fxx = int(meta["cycle"].get("fxx", 0))
+    suffix = "" if fxx == 0 else f"_f{fxx:02d}"
     outdir = Path(a.outdir)
     for n in names:
         if n not in fields:
             print(f"  skip {n}: not in output", file=sys.stderr)
             continue
-        p = render(fields[n], n, meta, outdir / f"{n}.webp")
+        p = render(fields[n], n, meta, outdir / f"{n}{suffix}.webp")
         d = fields[n]
         finite = d[np.isfinite(d)]
         print(f"  {n:9s} -> {p}  (max {finite.max():.2f}, "

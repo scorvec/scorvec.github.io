@@ -1,0 +1,102 @@
+name: HRRR ECAPE (CONUS)
+
+# Gridded entraining CAPE (Peters et al. 2023) over the HRRR CONUS domain.
+#
+# The heavy step is C++, not Python: ecape_grid links the same SHARPlib wrapper
+# the browser Skew-T runs through WebAssembly, and OpenMPs over columns. Measured
+# on an 18-core laptop the full 1,905,141-column 3 km grid takes 14.7 s wall /
+# 199 s CPU, so on a 2-core runner budget ~100 s for the kernel itself.
+#
+# Sizing on a free ubuntu-latest runner (2 cores, 7 GB RAM, ~14 GB disk):
+#   download   ~397 MB   byte-ranged out of the 693 MB wrfnat file via its .idx
+#   scratch    ~2.3 GB   float32 cube, written through a memmap (low RSS)
+#   kernel     ~100 s    2 threads
+# Nothing here is close to a runner limit; disk is the largest single claim.
+#
+# Cadence: HRRR runs hourly, but GitHub honours only a fraction of this repo's
+# cron firings and delivers them hours late, so this is deliberately written as
+# "render whatever the newest published cycle is" rather than chasing a specific
+# hour. A missed firing costs freshness, never data.
+on:
+  schedule:
+    - cron: '25 1,7,13,19 * * *'   # 4x daily; expect fewer to actually fire
+  workflow_dispatch:
+    inputs:
+      fxx:
+        description: 'Forecast hours to render (space-separated, e.g. "0 3 6")'
+        default: '0'
+      cycle:
+        description: 'Cycle as YYYYMMDDHH (blank = newest published)'
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ecape
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libeccodes0 libgeos-dev libproj-dev proj-bin
+
+      - run: pip install --quiet numpy matplotlib cartopy eccodes
+
+      - name: Build the SHARPlib kernel
+        # ~5 s locally; clones SHARPlib + fmt the same way skewt/build_wasm.sh
+        # does, so the map and the browser Skew-T track one upstream.
+        run: |
+          chmod +x scripts/ecape/build.sh
+          ./scripts/ecape/build.sh
+          ls -l scripts/ecape/ecape_grid
+
+      - name: Compute and render
+        run: |
+          set -euo pipefail
+          FXX="${{ github.event.inputs.fxx || '0' }}"
+          CYCLE="${{ github.event.inputs.cycle || '' }}"
+          CYCLE_ARGS=""
+          if [ -n "$CYCLE" ]; then
+            CYCLE_ARGS="--date ${CYCLE:0:8} --hour ${CYCLE:8:2}"
+          fi
+          mkdir -p assets/ecape
+          for f in $FXX; do
+            echo "::group::F$f"
+            STEM="$RUNNER_TEMP/hrrr_ecape_f$f"
+            # shellcheck disable=SC2086
+            python scripts/ecape/fetch_hrrr.py $CYCLE_ARGS --fxx "$f" --out "$STEM" --quiet
+            ./scripts/ecape/ecape_grid "$STEM"
+            python scripts/ecape/render_ecape.py "$STEM" --outdir assets/ecape
+            # 2.3 GB per forecast hour - never let two coexist on the runner
+            rm -f "$STEM.f32" "${STEM}_ecape.f32"
+            df -h "$RUNNER_TEMP" | tail -1
+            echo "::endgroup::"
+          done
+          ls -lh assets/ecape/
+
+      - name: Commit & push
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          git add assets/ecape
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
+            git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1

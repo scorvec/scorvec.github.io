@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Gridded ECAPE over CONUS &middot; Shawn Corvec</title>
+<meta name="description" content="Entraining CAPE (Peters et al. 2023) computed on every column of the HRRR 3 km native-level grid with SHARPlib: mixed-layer and most-unstable ECAPE, and the ECAPE/CAPE ratio that shows where entrainment actually bites.">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --muted: #888580; --accent: #2c4a72;
+    --accent-light: #e8eef5; --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  @media (min-width: 768px) { html { font-size: 110%; } }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; display: flex; flex-direction: column;
+         min-height: 100vh; }
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 1.2rem 3rem; background: rgba(250,250,248,0.95);
+        backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule); }
+  .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a { font-size: 0.82rem; letter-spacing: 0.04em; text-decoration: none;
+                 color: var(--muted); }
+  .nav-links a:hover { color: var(--ink); }
+  main { flex: 1; max-width: 1500px; margin: 0 auto; padding: 7.5rem 2.5rem 5rem; width: 100%; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.6rem; }
+  .lede { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 60rem;
+          margin-bottom: 2.2rem; }
+  .chart-card { border: 1px solid var(--rule); background: #fff; margin-bottom: 2rem; }
+  .chart-card img { display: block; width: 100%; height: auto; }
+  .chart-card-header { padding: 1rem 1.8rem 0.8rem; border-bottom: 1px solid var(--rule); }
+  .chart-card-header h2 { font-family: var(--serif); font-weight: 400; font-size: 1.1rem;
+                          margin-bottom: 0.4rem; }
+  .chart-card-header p { font-size: 0.8rem; color: var(--muted); line-height: 1.65; }
+  .chart-card-footer { padding: 0.85rem 1.8rem; border-top: 1px solid var(--rule);
+                       font-size: 0.68rem; color: var(--muted); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  @media (max-width: 1100px) { .pair { grid-template-columns: 1fr; } }
+  .colophon { margin-top: 2.5rem; padding-top: 1.8rem; border-top: 1px solid var(--rule);
+              font-size: 0.82rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
+  .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem;
+                 color: var(--ink); margin-bottom: 0.5rem; margin-top: 1.6rem; }
+  .colophon h3:first-child { margin-top: 0; }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon b { color: var(--ink); font-weight: 500; }
+  .colophon table { border-collapse: collapse; margin: 0.9rem 0; font-size: 0.78rem; }
+  .colophon td, .colophon th { border: 1px solid var(--rule); padding: 0.35rem 0.75rem;
+                               text-align: left; }
+  .colophon th { background: var(--accent-light); color: var(--ink); font-weight: 500; }
+  .swatch { display: inline-block; width: 0.75rem; height: 0.75rem; border: 1px solid #999;
+            vertical-align: -1px; margin-right: 0.3rem; }
+  @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 6.5rem 1.2rem 3rem; } }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/lightbox.css">
+<script src="/assets/lightbox.js" defer></script>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="nav-name">Shawn Corvec</a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="skewt/">Skew-T</a></li>
+  </ul>
+</nav>
+<main>
+  <h1>Entraining CAPE over CONUS</h1>
+  <p class="lede">CAPE assumes an updraft that never mixes with its surroundings &mdash; a sealed parcel rising through the environment untouched. Real updrafts entrain, and they lose buoyancy doing it. <b>ECAPE</b> (Peters et al. 2023) is the version that accounts for the mixing, derived from the storm-relative wind and shear as well as the thermodynamic profile. These maps run it on <b>every column of the HRRR 3&nbsp;km native-level grid</b> &mdash; 1,905,141 soundings per cycle &mdash; using <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a>, the same code the <a href="skewt/">Skew-T explorer</a> runs in your browser. A point on these maps and a click in the sounding tool come from the same routine, not merely the same library.</p>
+
+  <div class="pair">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>ECAPE &mdash; mixed-layer parcel</h2>
+        <p>The buoyancy available to an entraining updraft rising from the lowest 100&nbsp;hPa mixed layer. The parcel most representative of surface-based convection.</p>
+      </div>
+      <a href="assets/ecape/ecape_ml.webp" target="_blank"><img src="assets/ecape/ecape_ml.webp" alt="Mixed-layer ECAPE over the CONUS HRRR domain"></a>
+      <div class="chart-card-footer">NOAA HRRR wrfnat (AWS Open Data) &middot; 50 hybrid levels &middot; SHARPlib</div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>ECAPE &mdash; most-unstable parcel</h2>
+        <p>The same, for whichever parcel in the lowest 300&nbsp;hPa has the most buoyancy &mdash; the one that matters for elevated convection above a stable layer.</p>
+      </div>
+      <a href="assets/ecape/ecape_mu.webp" target="_blank"><img src="assets/ecape/ecape_mu.webp" alt="Most-unstable ECAPE over the CONUS HRRR domain"></a>
+      <div class="chart-card-footer">NOAA HRRR wrfnat (AWS Open Data) &middot; 50 hybrid levels &middot; SHARPlib</div>
+    </div>
+  </div>
+
+  <div class="pair">
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>ECAPE / CAPE &mdash; mixed-layer parcel</h2>
+        <p>What fraction of the textbook CAPE survives entrainment. This is the field that carries the information a CAPE map cannot.</p>
+      </div>
+      <a href="assets/ecape/ratio_ml.webp" target="_blank"><img src="assets/ecape/ratio_ml.webp" alt="Mixed-layer ECAPE/CAPE ratio over CONUS"></a>
+      <div class="chart-card-footer">Masked where CAPE &lt; 100&nbsp;J&nbsp;kg&#8315;&sup1; &mdash; below that the ratio is two near-zero numbers divided</div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <h2>ECAPE / CAPE &mdash; most-unstable parcel</h2>
+        <p>Same ratio for the most-unstable parcel. Values above 1 are real, and are explained below.</p>
+      </div>
+      <a href="assets/ecape/ratio_mu.webp" target="_blank"><img src="assets/ecape/ratio_mu.webp" alt="Most-unstable ECAPE/CAPE ratio over CONUS"></a>
+      <div class="chart-card-footer">Masked where CAPE &lt; 100&nbsp;J&nbsp;kg&#8315;&sup1; &mdash; below that the ratio is two near-zero numbers divided</div>
+    </div>
+  </div>
+
+  <div class="colophon">
+    <h3>What ECAPE is</h3>
+    <p>Ordinary CAPE integrates the buoyancy of a parcel lifted from some starting level to its equilibrium level, assuming the parcel keeps its own temperature and moisture the whole way up. That assumption is the reason CAPE is easy to compute and the reason it routinely overpromises: it describes an updraft of infinite width, which entrains nothing.</p>
+    <p>Real updrafts are finite. They pull environmental air in through their flanks, and if that air is drier or cooler than the parcel, the mixture is less buoyant than the parcel was. The narrower the updraft, the more surface-to-volume it has and the harder that dilution bites. <b>ECAPE</b> puts a number on it: Peters et al. (2023) derived an analytic form for the buoyancy an entraining updraft actually realises, given the environmental profile <i>and</i> the kinematics, because the storm-relative wind and shear are what set how wide the updraft can be and how much it must ingest.</p>
+    <p>The practical consequence is that CAPE alone cannot distinguish two soundings with identical buoyancy profiles but different flow. ECAPE can, and it usually says the atmosphere is less loaded than CAPE implies.</p>
+
+    <h3>Reading the ratio &mdash; including values above 1</h3>
+    <p>The ratio panels are the reason this product exists. Two places with the same 3,000&nbsp;J&nbsp;kg&#8315;&sup1; of CAPE can hand an updraft very different amounts of usable buoyancy, and the ratio is where you see it.</p>
+    <table>
+      <tr><th>Ratio</th><th>Interpretation</th></tr>
+      <tr><td><span class="swatch" style="background:#3c5a9a"></span>0.2&ndash;0.4</td><td>Entrainment-hostile. Plenty of CAPE on paper, little of it usable &mdash; typically deep moist layers with weak storm-relative flow, so updrafts stay narrow and dilute fast.</td></tr>
+      <tr><td><span class="swatch" style="background:#57b56d"></span>0.5&ndash;0.7</td><td>The common case. Roughly half to two-thirds of the buoyancy survives; the CONUS-wide mean sits near 0.56.</td></tr>
+      <tr><td><span class="swatch" style="background:#f4e07a"></span>0.8&ndash;1.0</td><td>Efficient. Wide updrafts, moist surroundings, or strong enough inflow that mixing costs little.</td></tr>
+      <tr><td><span class="swatch" style="background:#e8503a"></span>above 1.0</td><td><b>Inflow more than pays for the mixing.</b> Not an error &mdash; see below.</td></tr>
+    </table>
+    <p>A ratio above 1 looks impossible if you think of entrainment as pure subtraction, but the formulation nets a <b>storm-relative kinetic-energy gain</b> against the entrainment loss. Where inflow is vigorous enough, that gain exceeds what mixing takes away and ECAPE exceeds CAPE. These are not rare curiosities: on a representative cycle the 99th percentile of the ratio is about <b>1.40</b>, and the high values organise coherently along strongly-sheared corridors rather than scattering as noise. The colour scale deliberately gives everything above 1.0 its own band instead of flattening it against a ceiling.</p>
+    <p>The ratio is masked below 100&nbsp;J&nbsp;kg&#8315;&sup1; of CAPE. There it is the quotient of two numbers that are both nearly zero, and it carries no meteorological signal.</p>
+
+    <h3>Why native model levels</h3>
+    <p>ECAPE is a parcel quantity, so it is decided in the boundary layer &mdash; and the boundary layer is exactly where HRRR's pressure-level output is worst. The isobaric product is spaced 25&nbsp;hPa apart, about 250&nbsp;m near the ground; the native hybrid levels are 20&ndash;40&nbsp;m down there. Mixed-layer parcel definition and the low-level moisture that ECAPE is sensitive to both depend on that detail, so these maps are built from <code>wrfnat</code> rather than <code>wrfprs</code>. HRRR helpfully publishes geopotential height on the hybrid levels directly, so nothing has to be reconstructed from the hybrid coordinate.</p>
+
+    <h3>How it is computed</h3>
+    <p>Six fields &mdash; pressure, geopotential height, temperature, specific humidity and both wind components &mdash; are byte-ranged off the 693&nbsp;MB native file using its published index, which brings roughly 397&nbsp;MB rather than the whole thing. Dewpoint comes from specific humidity through vapour pressure. Every column is then handed to SHARPlib's <code>entrainment_cape()</code> for both the mixed-layer and most-unstable parcels.</p>
+    <p>The kernel is C++ with OpenMP over columns: all 1,905,141 of them in about 15&nbsp;seconds of wall time on a many-core machine, roughly 200&nbsp;seconds of CPU. It links the same wrapper that is compiled to WebAssembly for the browser Skew-T, which is what makes the map and the sounding tool genuinely consistent rather than merely similar. Worth noting for anyone tempted to assume the interpreted layer is the bottleneck: the WebAssembly build is within 10% of native per column, because it is the same C++ either way. The reason to go native here is parallelism and not having to move 2.3&nbsp;GB of profiles between processes.</p>
+
+    <h3>Caveats</h3>
+    <p>These are model soundings, not observations: they inherit whatever the HRRR's boundary layer and moisture fields get wrong, and ECAPE's sensitivity to low-level moisture means a dry or moist bias shows up amplified in the ratio. The updraft-width assumption inside the formulation is a parameterisation, not a measurement. And a high ECAPE is a statement about available buoyancy, not about whether anything will initiate &mdash; there is no forcing, no convergence and no cap-strength information in these panels.</p>
+    <p>Cadence is best-effort. HRRR runs hourly; this is rendered from whichever cycle is newest when the job actually fires, and the timestamp in each panel title is authoritative.</p>
+
+    <h3>Reference</h3>
+    <p>Peters, J. M., Morrison, H., Nowotarski, C. J., Mulholland, J. P., and Thompson, R. L. (2023): An analytic formula for entraining CAPE in mid-latitude storm environments. <i>Journal of the Atmospheric Sciences</i>. Implementation via <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (Kelton Halbert). HRRR data from the NOAA Big Data Program on AWS Open Data.</p>
+  </div>
+</main>
+</body>
+</html>
