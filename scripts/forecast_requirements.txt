@@ -1,6 +1,6 @@
 herbie-data==2026.3.0
 eccodes-python==1.7.1
-cfgrib==0.9.14.0
+cfgrib==0.9.15.1
 xarray==2024.2.0
 numpy==1.26.4
 pandas==2.2.2
