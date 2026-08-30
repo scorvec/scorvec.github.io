@@ -49,11 +49,20 @@ jobs:
       # if they're ever wanted back).
       - name: Append event-animation frame
         run: python scripts/sst/mur_eqpac.py --anim
+      # Frames go to the orphan branch, never main: 483 frame webp were
+      # being rewritten into main's history every cycle while an identical
+      # copy already sat on the branch. Only the manifest stays on main, so
+      # the page still fetches it same-origin.
+      - name: Publish frames to the orphan branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/mur_ct
+
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/sst/anim/mur_ct assets/sst/anim/mur_manifest.json
+          git add assets/sst/anim/mur_manifest.json
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%d)"
           for i in 1 2 3 4 5; do
