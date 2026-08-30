@@ -358,7 +358,6 @@ perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_ti
     assets/sst/anim/aifs_compare assets/sst/anim/aifs_compare_manifest.json \
     assets/sst/anim/aifs_z500 assets/sst/anim/aifs_z500_manifest.json \
     assets/sst/anim/epflux assets/sst/anim/epflux_manifest.json \
-    assets/sst/anim/qbo_strip assets/sst/anim/qbo_strip_manifest.json \
     assets/sst/anim/wave1_nh assets/sst/anim/wave1_nh_manifest.json \
     assets/sst/anim/wave1_sh assets/sst/anim/wave1_sh_manifest.json \
   ; do [ -e "$p" ] && git add "$p"; done \

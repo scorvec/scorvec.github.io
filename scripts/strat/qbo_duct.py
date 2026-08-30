@@ -1,27 +1,21 @@
 #!/usr/bin/env python3
-"""Tropical stratospheric winds + the planetary-wave channel, from AIFS-ENS.
+"""E-P flux and planetary-wave driving in the stratosphere, from AIFS-ENS.
 
 Per cycle:
 
-assets/sst/anim/qbo_strip/F##.webp (+ qbo_strip_manifest.json)
-    The QBO in map view, as a 16-frame day-0..15 forecast loop (site anim
-    player): wind SPEED (shaded) + direction vectors over the 30S-30N strip
-    at 10 / 50 / 100 hPa, from the AIFS-ENS control. Solid black: u = 0
-    critical line. Per-level colour range fixed across the loop at the 99.5th
-    percentile of speed over ALL steps (rounded up to 5), so nothing
-    saturates and frames are comparable. assets/strat/qbo_strip.webp is a
-    copy of the analysis frame (static fallback).
-    v at 10/50/100 for every step is fetched through the shared ecmwf store
-    (~35 MB/cycle, control only); u rides the AAM pull.
+assets/sst/anim/epflux/F##.webp (+ epflux_manifest.json)
+    16-frame day-0..15 loop of the Eliassen-Palm flux and its divergence -
+    the force planetary waves exert on the zonal-mean flow, i.e. what
+    actually decelerates the polar vortex. Ensemble mean over the AIFS-ENS
+    control + perturbed members; v and t are fetched through the shared
+    ecmwf store, u rides the RMM/AAM pulls. Julia (CairoMakie) renders the
+    frames, matplotlib re-renders any frame Julia drops.
+    assets/strat/epflux.webp is a copy of the analysis frame.
 
-assets/strat/wave_channel.webp
-    Where planetary waves CAN go, and where they ARE going: latitude x height
-    section (1000 -> 10 hPa, all 14 AIFS levels) of zonal-mean zonal wind,
-    with the u = 0 critical line, the ~28 m/s wave-1 Charney-Drazin ceiling,
-    hatching over the open wave-1 channel (0 < u < 28), and horizontal
-    arrows of the meridional flux of wave activity by planetary waves
-    (zonal wavenumbers 1-3): F_phi = -cos(phi) [u'v'], the horizontal EP flux
-    component - arrows point the way wave packets are propagating.
+Removed 2026-08-30: the QBO strip loop (assets/sst/anim/qbo_strip/) and the
+wave_channel section. The strip rendered 16 frames and a manifest every cycle
+but no page ever referenced it, and wave_channel had already lost its code -
+only the docstring still advertised it.
 
     python scripts/strat/qbo_duct.py
 """
@@ -40,17 +34,11 @@ import scipy.ndimage as ndi
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-from cartopy.util import add_cyclic_point
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 CACHE = REPO / "scripts" / "ecmwf" / "cache"
-OUT_STRIP = REPO / "assets" / "strat" / "qbo_strip.webp"
 OUT_CHAN = REPO / "assets" / "strat" / "epflux.webp"
-ANIM_DIR = REPO / "assets" / "sst" / "anim" / "qbo_strip"
-MANIFEST = REPO / "assets" / "sst" / "anim" / "qbo_strip_manifest.json"
 sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
 import store as ecmwf
 
@@ -63,148 +51,27 @@ def latest_cycle():
     for d in sorted(glob.glob(str(CACHE / "*z")), reverse=True):
         u_full = glob.glob(f"{d}/aifs-ens/cf_u_10-*x16.grib2")        # 12 lev, 0..360 h
         u_rmm = glob.glob(f"{d}/aifs-ens/cf_u_200-850_s0-*x16.grib2") # 200/850, 0..360 h
-        v_a14 = glob.glob(f"{d}/aifs-ens/cf_v_10-*_s0-0x1.grib2")     # 14 lev, analysis
-        if u_full and v_a14:
+        # Gate on the u files ONLY. This used to also require the 14-level
+        # analysis v (cf_v_10-*_s0-0x1), which the E-P flux never reads - it
+        # fetches its own v and t through ecmwf.ensure. On a fresh runner the
+        # store writes the 13-level analysis v (no 10 hPa), so that vestigial
+        # condition matched nothing and the whole script bailed with
+        # "no AIFS-ENS cycle with the needed files" while the data it actually
+        # needed was sitting right there.
+        if u_full:
             tag = Path(d).name
-            return u_full[0], (sorted(u_rmm)[-1] if u_rmm else None), v_a14[0], tag
-    raise SystemExit("no AIFS-ENS cycle with the needed files in the cache")
+            return u_full[0], (sorted(u_rmm)[-1] if u_rmm else None), tag
+    raise SystemExit("no AIFS-ENS cycle with the u files in the cache")
 
 
-def open_field(path, short, lev=None, step=None):
-    kw = {"shortName": short}
-    if lev is not None:
-        kw["level"] = lev
-    ds = xr.open_dataset(path, engine="cfgrib",
-                         backend_kwargs=dict(filter_by_keys=kw, indexpath=""))
-    da = ds[short]
-    if step is not None and "step" in da.dims:
-        da = da.sel(step=pd.Timedelta(hours=step))
-    return da.load()
 
 
-def smooth_lonwrap(f, sig):
-    return ndi.gaussian_filter(f, sigma=sig, mode=("nearest", "wrap"))
 
 
-def wave_uv_flux(u2d, v2d, lat):
-    """Zonal-mean meridional wave-activity flux by planetary waves:
-    F_phi = -cos(phi) [u'v'] with u', v' bandpassed to zonal wavenumbers
-    1..KMAX. Positive = wave packets propagating poleward... sign convention:
-    [u'v'] > 0 means poleward westerly-momentum flux = EQUATORWARD wave
-    propagation in the NH; the EP component -cos(phi)[u'v'] points WITH the
-    wave group velocity. Returns (nlat,) array."""
-    def band(f):
-        F = np.fft.rfft(f, axis=1)
-        F[:, 0] = 0.0
-        F[:, KMAX + 1:] = 0.0
-        return np.fft.irfft(F, n=f.shape[1], axis=1)
-    up, vp = band(u2d), band(v2d)
-    return -np.cos(np.deg2rad(lat)) * (up * vp).mean(axis=1)
 
 
-def load_strip(u_full, tag):
-    """(steps_h, latS, lon, {lev: (u, v)}) — full-forecast u and v on the
-    30S-30N strip, all steps. u rides the cached AAM pull; v is ensured
-    through the shared store (small, control only)."""
-    cyc = ecmwf.Cycle(tag[:8], tag[8:10])
-    vpath = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "v", "pl",
-                                         tuple(LEVS_STRIP), tuple(ecmwf.STEPS)))
-    out = {}
-    steps = None
-    latS = lon = None
-    for lev in LEVS_STRIP:
-        u = open_field(u_full, "u", lev)
-        v = open_field(vpath, "v", lev)
-        lat = u.latitude.values
-        m = (lat >= -30) & (lat <= 30)
-        latS, lon = lat[m], u.longitude.values
-        su = (u.step.values / np.timedelta64(1, "h")).astype(int)
-        sv = (v.step.values / np.timedelta64(1, "h")).astype(int)
-        steps = sorted(set(su) & set(sv)) if steps is None else \
-            [s for s in steps if s in set(su) & set(sv)]
-        out[lev] = (u.sel(latitude=u.latitude[m]),
-                    v.sel(latitude=v.latitude[m]))
-    return steps, latS, lon, out
 
 
-def strip_frames(u_full, tag, base):
-    steps, latS, lon, F = load_strip(u_full, tag)
-    pc = ccrs.PlateCarree()
-    proj = ccrs.PlateCarree(central_longitude=180.0)
-    titles = {10: "10 hPa", 50: "50 hPa", 100: "100 hPa"}
-    # colour range fixed across the whole loop, per level
-    caps = {}
-    for lev in LEVS_STRIP:
-        u, v = F[lev]
-        spd = np.hypot(u.values, v.values)
-        caps[lev] = max(15, float(np.ceil(np.percentile(spd, 99.5) / 5) * 5))
-
-    ANIM_DIR.mkdir(parents=True, exist_ok=True)
-    for old in ANIM_DIR.glob("F*.webp"):
-        old.unlink()
-    frames = []
-    qs_lat, qs_lon = 14, 30                     # vector subsample: ~3.5° × 7.5°
-    for i, s in enumerate(steps):
-        valid = base + pd.Timedelta(hours=s)
-        fig, axes = plt.subplots(3, 1, figsize=(13.0, 8.2),
-                                 subplot_kw={"projection": proj})
-        for ax, lev in zip(axes, LEVS_STRIP):
-            u, v = F[lev]
-            ug = u.sel(step=pd.Timedelta(hours=s)).values
-            vg = v.sel(step=pd.Timedelta(hours=s)).values
-            spd = np.hypot(ug, vg)
-            spdc, lonc = add_cyclic_point(spd, coord=lon)
-            lstep = 5 if caps[lev] >= 40 else 2.5
-            # below 10 m/s stays unfilled (transparent) — only real flow shows
-            cf = ax.contourf(lonc, latS, spdc, transform=pc,
-                             levels=np.arange(10, caps[lev] + 0.1, lstep),
-                             cmap="YlGnBu", extend="max")
-            uc, _ = add_cyclic_point(smooth_lonwrap(ug, (6, 6)), coord=lon)
-            ax.contour(lonc, latS, uc, transform=pc, levels=[0],
-                       colors="k", linewidths=1.8)
-            # unit direction vectors (ASCAT convention: shading carries speed)
-            with np.errstate(invalid="ignore"):
-                m = spd[::qs_lat, ::qs_lon] > 0.5
-                uq = np.where(m, (ug / np.maximum(spd, 0.1))[::qs_lat, ::qs_lon], np.nan)
-                vq = np.where(m, (vg / np.maximum(spd, 0.1))[::qs_lat, ::qs_lon], np.nan)
-            ax.quiver(lon[::qs_lon], latS[::qs_lat], uq, vq, transform=pc,
-                      scale=85, width=0.0011, headwidth=3.2,
-                      color="#222222", alpha=0.85, pivot="mid")
-            ax.set_xlim(-180, 180); ax.set_ylim(-30, 30)
-            # land tint under the (partly transparent) shading + bold coasts
-            ax.add_feature(cfeature.LAND, facecolor="0.90", zorder=0)
-            ax.coastlines(lw=1.0, color="0.15")
-            gl = ax.gridlines(draw_labels=True, lw=0.3, color="0.85",
-                              xlocs=range(-180, 181, 60),
-                              ylocs=[-30, -15, 0, 15, 30])
-            gl.top_labels = gl.right_labels = False
-            gl.xlabel_style = {"size": 8}; gl.ylabel_style = {"size": 8}
-            ax.set_title(f"{titles[lev]}   (shading to {caps[lev]:.0f} m s⁻¹)",
-                         fontsize=11.5, fontweight="bold", loc="left")
-            cb = fig.colorbar(cf, ax=ax, pad=0.012, fraction=0.05)
-            cb.set_label("wind speed (m s⁻¹)", fontsize=8.5)
-            cb.ax.tick_params(labelsize=7.5)
-        fig.suptitle(f"Tropical stratospheric wind (30°S–30°N) — AIFS-ENS "
-                     f"control · day {s // 24} · valid {valid:%a %b %d %HZ}",
-                     fontsize=13.5, fontweight="bold")
-        fig.text(0.09, 0.006,
-                 "Shading: wind speed (fixed per-level range across the loop) · vectors: direction · "
-                 "solid black: u = 0 critical line (stationary Rossby waves absorbed).",
-                 fontsize=8.6, va="bottom")
-        fig.tight_layout(rect=(0, 0.025, 1, 0.965))
-        out = ANIM_DIR / f"F{i:02d}.webp"
-        fig.savefig(out, dpi=110)
-        plt.close(fig)
-        frames.append({"idx": i, "file": out.name, "date": f"{valid:%Y-%m-%d}",
-                       "label": f"day {s // 24} · {valid:%b %d}"})
-    man = {"ver": int(time.time()), "days": len(frames),
-           "regions": {"qbo_strip": {
-               "label": "Tropical stratospheric wind (30°S–30°N) — AIFS-ENS, 10/50/100 hPa",
-               "n_frames": len(frames), "frames": frames}}}
-    MANIFEST.write_text(json.dumps(man))
-    OUT_STRIP.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(ANIM_DIR / "F00.webp", OUT_STRIP)
-    print(f"wrote {len(frames)} qbo_strip frames + manifest")
 
 
 def _band13(f):
@@ -509,16 +376,20 @@ def _epflux_frame_mpl(meta, fields, lat, out):
 
 def main():
     import argparse
+    # --epflux-only/--strip-only are accepted and ignored: the QBO strip was
+    # removed on 2026-08-30 (nothing on the site ever displayed it), so the
+    # E-P flux loop is the only product left. Kept as no-ops so an old caller
+    # does not hard-fail on an unknown flag.
     ap = argparse.ArgumentParser()
-    ap.add_argument("--strip-only", action="store_true")
-    ap.add_argument("--epflux-only", action="store_true")
+    ap.add_argument("--epflux-only", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--strip-only", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
-    u_full, u_rmm, v_a14, tag = latest_cycle()
+    if args.strip_only:
+        print("--strip-only: the QBO strip was removed; nothing to do")
+        return
+    u_full, u_rmm, tag = latest_cycle()
     base = pd.Timestamp(f"{tag[:4]}-{tag[4:6]}-{tag[6:8]} {tag[8:10]}:00")
-    if not args.epflux_only:
-        strip_frames(u_full, tag, base)
-    if not args.strip_only:
-        epflux_loop(u_full, u_rmm, tag, base)
+    epflux_loop(u_full, u_rmm, tag, base)
 
 
 if __name__ == "__main__":
