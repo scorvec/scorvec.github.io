@@ -45,6 +45,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -61,50 +62,64 @@ import store as ecmwf                                    # shared download manag
 
 PC = ccrs.PlateCarree()
 LEVELS = (10, 100)
+# 12-hourly rather than the store's daily STEPS. The vortex can displace or
+# split over a day, so daily frames alias the very evolution the loop exists to
+# show. Verified against the open-data index: u, v and z are all published at
+# both levels on every 12 h step. 31 frames to day 15.
+STEPS_12H = tuple(range(0, 361, 12))
 # Equatorward edge of each panel. 20 deg keeps the subtropical jet's poleward
 # flank in view, which is what you want for judging whether the 100 hPa flow is
 # connected to the troposphere rather than sitting on top of it.
 LAT_EDGE = 20.0
+# Streamline input is coarsened to this stride (lat, lon) - see panel().
+STREAM_STRIDE = (3, 4)
 
 # Per-level speed scales (m/s). Chosen from the climatological range at each
 # level rather than from one cycle, so the colour of a given wind speed means
 # the same thing every day - the figure is meant to be compared against itself
 # over a season.
+# Speeds below the first edge are left WHITE. A summer hemisphere is near-calm
+# from pole to subtropics and tinting all of it says "look here" about nothing;
+# blanking it makes the active hemisphere and the jet cores read immediately.
+# Thresholds are per level because 10 hPa runs far stronger than 100.
 SPEED = {
-    10:  dict(levels=np.arange(0, 121, 10), label="10 hPa wind speed (m s$^{-1}$)"),
-    100: dict(levels=np.arange(0, 61, 5),   label="100 hPa wind speed (m s$^{-1}$)"),
+    10:  dict(levels=[20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120],
+              label="10 hPa wind speed (m s$^{-1}$)"),
+    100: dict(levels=[10, 15, 20, 25, 30, 35, 40, 45, 50, 60],
+              label="100 hPa wind speed (m s$^{-1}$)"),
 }
 # Sequential, perceptually ordered, and light at the bottom so the streamlines
 # (dark) stay legible over weak flow where they matter most.
 CMAP = "YlGnBu"
 
 
-def open_field(path, short: str, lev: int, step_h: int):
-    """One (lat, lon) field for a shortName/level/step out of a cached grib."""
+def open_field(path, short: str, lev: int):
+    """The whole forecast for one shortName/level, step dimension intact.
+
+    Opened once per (var, level) rather than once per step: the loop walks 31
+    steps and re-opening would decode the same grib 31 times.
+    """
     ds = xr.open_dataset(path, engine="cfgrib", backend_kwargs=dict(
         filter_by_keys={"shortName": short, "level": lev}, indexpath=""))
-    da = ds[short] if short in ds else ds[list(ds.data_vars)[0]]
-    if "step" in da.dims:
-        steps = (da.step.values / np.timedelta64(1, "h")).astype(int)
-        if step_h not in set(steps):
-            raise SystemExit(f"step {step_h}h not in {short}@{lev} "
-                             f"(have {steps.min()}..{steps.max()})")
-        da = da.isel(step=int(np.where(steps == step_h)[0][0]))
-    return da
+    return ds[short] if short in ds else ds[list(ds.data_vars)[0]]
 
 
-def fetch(date: str, time: str, step_h: int):
-    """u and v at both levels for one step. u rides the AAM pull; v is small."""
+def at_step(da, step_h: int):
+    if "step" not in da.dims:
+        return da
+    steps = (da.step.values / np.timedelta64(1, "h")).astype(int)
+    if step_h not in set(steps):
+        raise SystemExit(f"step {step_h}h unavailable (have {steps.min()}..{steps.max()})")
+    return da.isel(step=int(np.where(steps == step_h)[0][0]))
+
+
+def fetch(date: str, time: str):
+    """u and v at both levels, every 12 h step, control only."""
     cyc = ecmwf.Cycle(date, time)
-    steps = tuple(ecmwf.STEPS)
-    upath = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "u", "pl", LEVELS, steps))
-    vpath = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "v", "pl", LEVELS, steps))
-    out = {}
-    for lev in LEVELS:
-        u = open_field(upath, "u", lev, step_h)
-        v = open_field(vpath, "v", lev, step_h)
-        out[lev] = (u, v)
-    return out
+    upath = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "u", "pl", LEVELS, STEPS_12H))
+    vpath = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "v", "pl", LEVELS, STEPS_12H))
+    return {lev: (open_field(upath, "u", lev), open_field(vpath, "v", lev))
+            for lev in LEVELS}
 
 
 def circular_boundary(ax):
@@ -135,13 +150,29 @@ def panel(ax, u, v, lev, hemi):
     circular_boundary(ax)
 
     cfg = SPEED[lev]
+    # "min" extend would colour the sub-threshold band; leaving it unset means
+    # anything below levels[0] is simply not drawn, so the white page shows
+    # through - which is the point.
     cf = ax.contourf(lon, la, spd, levels=cfg["levels"], cmap=CMAP,
                      extend="max", transform=PC, zorder=1)
 
     # Streamlines need a monotonically increasing latitude axis; the GRIB comes
     # north-to-south, and for the SH selection that leaves it descending.
-    order = np.argsort(la)
-    ax.streamplot(lon, la[order], U[order, :], V[order, :], transform=PC,
+    #
+    # Coarsened first, and this is the whole cost of the figure. Measured on the
+    # SH 10 hPa panel: streamplot at the native 0.25 deg takes 94.5 s while
+    # every other element of the panel together takes 0.2 s - cartopy has to
+    # transform ~400k wind vectors into projection space before matplotlib
+    # integrates a single streamline. At density 2.2 the integrator cannot
+    # resolve anything near 0.25 deg, so that work is discarded: dropping to
+    # 0.75 x 1.0 deg gives a visually identical panel in 8.0 s (12x). Shading
+    # keeps the full grid - contourf costs 0.1 s and the crisp speed field is
+    # what the eye actually reads.
+    ys, xs = STREAM_STRIDE
+    las, lons = la[::ys], lon[::xs]
+    order = np.argsort(las)
+    ax.streamplot(lons, las[order], U[::ys, ::xs][order, :],
+                  V[::ys, ::xs][order, :], transform=PC,
                   density=2.2, linewidth=0.55, arrowsize=0.65,
                   color="#22303a", zorder=3)
 
@@ -166,7 +197,7 @@ def panel(ax, u, v, lev, hemi):
     # latitude the reader is implicitly asked to judge.
     lat60 = 60.0 if north else -60.0
     ax.plot(np.linspace(-180, 180, 361), np.full(361, lat60), transform=PC,
-            color="#444", linewidth=0.9, linestyle=(0, (5, 3)), zorder=6)
+            color="#1a1a1a", linewidth=1.35, linestyle=(0, (5, 3)), zorder=7)
 
     peak = float(np.nanmax(spd))
     ax.set_title(f"{hemi} · {lev} hPa    max {peak:.0f} m s$^{{-1}}$",
@@ -216,17 +247,49 @@ def render(fields, date, time, step_h, out_path: Path):
     return out_path
 
 
+def build_loop(full, date, time, anim_dir: Path, manifest: Path) -> int:
+    """One frame per 12 h step, plus the animator manifest."""
+    import json
+    anim_dir.mkdir(parents=True, exist_ok=True)
+    for old in anim_dir.glob("F*.webp"):
+        old.unlink()
+    init = pd.Timestamp(f"{date}T{time}:00")
+    frames = []
+    for i, step_h in enumerate(STEPS_12H):
+        fields = {lev: (at_step(u, step_h), at_step(v, step_h))
+                  for lev, (u, v) in full.items()}
+        render(fields, date, time, step_h, anim_dir / f"F{i:02d}.webp")
+        valid = init + pd.Timedelta(hours=step_h)
+        frames.append({"idx": i, "file": f"F{i:02d}.webp",
+                       "date": f"{valid:%Y-%m-%d}",
+                       "label": f"F{step_h:03d} · valid {valid:%a %d %b %HZ}"})
+        print(f"    F{step_h:03d}", flush=True)
+    man = {"ver": f"{date}{time}", "days": len(frames),
+           "regions": {"vortex_winds": {
+               "label": "Vortex winds — 10 / 100 hPa, both hemispheres",
+               "n_frames": len(frames), "frames": frames}}}
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text(json.dumps(man))
+    print(f"  wrote {len(frames)} frames + {manifest.name}")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True, help="cycle date YYYYMMDD")
     ap.add_argument("--time", required=True, help="cycle hour, 00 or 12")
     ap.add_argument("--step", type=int, default=0, help="forecast hour (default 0)")
     ap.add_argument("--out", default="assets/sst/vortex_winds.webp")
+    ap.add_argument("--anim-dir", help="also render every 12 h step here")
+    ap.add_argument("--manifest", help="animator manifest path")
     a = ap.parse_args(argv)
 
-    fields = fetch(a.date, a.time, a.step)
-    p = render(fields, a.date, a.time, a.step, Path(a.out))
-    print(f"  wrote {p}")
+    full = fetch(a.date, a.time)
+    fields = {lev: (at_step(u, a.step), at_step(v, a.step))
+              for lev, (u, v) in full.items()}
+    print(f"  wrote {render(fields, a.date, a.time, a.step, Path(a.out))}")
+    if a.anim_dir and a.manifest:
+        build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest))
     return 0
 
 
