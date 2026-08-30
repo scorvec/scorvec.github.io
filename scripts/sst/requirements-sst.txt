@@ -11,7 +11,7 @@ h5netcdf
 # clip off-canvas (seen on the GDPS/MUR products, 2026-08-25)
 matplotlib==3.10.9
 cartopy>=0.22
-shapely>=2.0
+shapely>=2.1.2
 pyproj>=3.5
 Pillow
 copernicusmarine>=2.0
