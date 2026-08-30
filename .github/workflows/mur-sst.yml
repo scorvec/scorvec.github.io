@@ -47,6 +47,11 @@ jobs:
       # The still maps are retired from the page for now — only the event
       # animation runs daily (main() in mur_eqpac.py still renders the stills
       # if they're ever wanted back).
+      # Seed from the frames branch: these renderers append only what is
+      # missing, and the frames no longer arrive with the checkout.
+      - name: Seed existing frames
+        run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/mur_ct
+
       - name: Append event-animation frame
         run: python scripts/sst/mur_eqpac.py --anim
       # Frames go to the orphan branch, never main: 483 frame webp were
