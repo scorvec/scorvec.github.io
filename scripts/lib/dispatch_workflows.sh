@@ -34,12 +34,21 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# workflow | UTC HH:MM | extra `gh workflow run` args
+# workflow | slot | extra `gh workflow run` args
+#
+# Slot syntax:
+#   HH:MM     once daily at that UTC time
+#   *:MM      every hour at MM past
+#   */N:MM    every N hours at MM past (0, N, 2N ... UTC)
 #
 # Times match the crons in each workflow so behaviour is identical whichever
-# path fires. Deliberately NOT listing the hourly satellite/SOI jobs: they are
-# backfill-designed (each run repairs the whole window), so sparse firing costs
-# them nothing and dispatching 24x/day each would be load for no product gain.
+# path fires.
+#
+# The hourly jobs ARE listed. They are backfill-designed so sparse firing loses
+# no data, but GitHub was honouring roughly one firing in seven hours, which
+# left the satellite loops up to 7 h stale on the site - freshness is a real
+# product difference even when completeness is not. Each is ~1 min of runner
+# time and unlimited on a public repo.
 SCHEDULE=$(cat <<'EOF'
 sst.yml|19:23|
 ecape.yml|00:50|
@@ -50,6 +59,14 @@ strat.yml|07:35|
 strat.yml|19:35|
 gdps-charts.yml|06:20|-f cycle=00
 gdps-charts.yml|18:20|-f cycle=12
+soi-hourly.yml|*:12|
+pacific-satellite.yml|*:40|
+samerica-satellite.yml|*:25|
+olr-hovmoller.yml|01:25|
+olr-hovmoller.yml|07:25|
+olr-hovmoller.yml|13:25|
+olr-hovmoller.yml|19:25|
+kiribati-wind.yml|*/6:18|
 EOF
 )
 
@@ -96,6 +113,11 @@ fi
 # sleep without resurrecting a slot from days ago, which would publish a stale
 # cycle for no reason.
 MAX_AGE_H=20
+# A run that started shortly BEFORE a slot satisfies it. GitHub's own cron
+# straggles in at unpredictable times, and without this a cron firing at 00:39
+# for the 00:40 slot would be followed by our dispatch a minute later - two runs
+# of the same cycle. Well under the 60 min spacing of the tightest slot.
+GRACE_MIN=10
 yesterday=$(date -u -v-1d +%Y-%m-%d 2>/dev/null || date -u -d "yesterday" +%Y-%m-%d)
 
 while IFS='|' read -r wf hhmm extra; do
@@ -104,10 +126,31 @@ while IFS='|' read -r wf hhmm extra; do
   # the laptop slept through is simply lost once UTC midnight passes - the exact
   # failure this script exists to prevent.
   due_epoch=0
-  for d in "$today" "$yesterday"; do
-    e=$(date -j -u -f "%Y-%m-%d %H:%M:%S" "$d ${hhmm}:00" "+%s" 2>/dev/null) || continue
-    if [ "$e" -le "$now_epoch" ] && [ "$e" -gt "$due_epoch" ]; then due_epoch=$e; fi
-  done
+  case "$hhmm" in
+    \*:*|\*/*:*)
+      # Recurring slot. Walk back hour by hour from now to the most recent
+      # occurrence; 26 covers a full day plus the yesterday allowance without
+      # needing separate date arithmetic for the boundary.
+      mm="${hhmm##*:}"
+      every=1
+      case "$hhmm" in */*) every="${hhmm#*/}"; every="${every%%:*}" ;; esac
+      for back in $(seq 0 26); do
+        cand=$(( now_epoch - back * 3600 ))
+        ch=$(date -u -r "$cand" +%H 2>/dev/null) || continue
+        # 10# forces base 10: 08 and 09 are invalid octal and would abort here.
+        [ $(( 10#$ch % every )) -ne 0 ] && continue
+        cd_=$(date -u -r "$cand" +%Y-%m-%d 2>/dev/null) || continue
+        e=$(date -j -u -f "%Y-%m-%d %H:%M:%S" "$cd_ ${ch}:${mm}:00" "+%s" 2>/dev/null) || continue
+        if [ "$e" -le "$now_epoch" ]; then due_epoch=$e; break; fi
+      done
+      ;;
+    *)
+      for d in "$today" "$yesterday"; do
+        e=$(date -j -u -f "%Y-%m-%d %H:%M:%S" "$d ${hhmm}:00" "+%s" 2>/dev/null) || continue
+        if [ "$e" -le "$now_epoch" ] && [ "$e" -gt "$due_epoch" ]; then due_epoch=$e; fi
+      done
+      ;;
+  esac
   # Nothing due, or the due slot is older than we are willing to chase.
   [ "$due_epoch" -eq 0 ] && continue
   [ $(( (now_epoch - due_epoch) / 3600 )) -ge "$MAX_AGE_H" ] && continue
@@ -117,7 +160,7 @@ while IFS='|' read -r wf hhmm extra; do
   # then, which is the behaviour the cron could not give us.
   case " ${DONE[*]:-} " in *" $wf "*) skipped=$((skipped + 1)); continue ;; esac
   lr=$(last_run_epoch "$wf")
-  if [ "${lr:-0}" -ge "$due_epoch" ]; then
+  if [ "${lr:-0}" -ge $(( due_epoch - GRACE_MIN * 60 )) ]; then
     skipped=$((skipped + 1))
     continue
   fi
