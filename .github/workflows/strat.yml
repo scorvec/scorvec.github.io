@@ -1,29 +1,38 @@
 name: Stratosphere (vortex, wave-1, E-P flux)
 
 # The stratospheric products that appear on enso-atmosphere.html, moved off the
-# laptop on 2026-08-29:
+# laptop on 2026-08-29 and split into parallel jobs on 2026-08-30:
 #
 #   nh_vortex.py      -> assets/sst/nh_vortex.webp        60N winds + polar-cap height
 #   wave1_maps.py     -> assets/sst/wave1_maps.webp       wave-1 maps + 16-step loop
-#   qbo_duct.py       -> assets/sst/anim/epflux/          E-P flux loop
 #   vortex_winds.py   -> assets/sst/vortex_winds.webp     10/100 hPa, both hemispheres
 #                     -> assets/sst/anim/vortex_winds/    31-step 12-hourly loop
+#   qbo_duct.py       -> assets/sst/anim/epflux/          E-P flux loop
 #
-# Everything else in scripts/strat is proprietary and stays local; it writes to
-# assets/strat/, which is gitignored and only feeds a local page.
+# WHY FOUR JOBS. As one job this took ~70 min, and 23 of those were ens_cycle
+# populating a 10 GB shared cache that only HALF the products read:
 #
-# Cost: ens_cycle populates the shared ECMWF cache (~19 min, ~1.1 GB peak) and
-# nh_vortex pulls GEPS/GDPS/IFS members (~250 MB at --ifs-members 5). That cache
-# step is not optional - qbo_duct and nh_vortex GLOB the cache
-# rather than fetching, so without it they find nothing and produce nothing.
+#   nh_vortex, qbo_duct       GLOB the cache        -> need ens_cycle
+#   wave1_maps, vortex_winds  call ecmwf.ensure     -> fetch their own, few hundred MB
 #
-# Cycle-following is deliberately NOT used: unlike HRRR, an AIFS-ENS cycle is
-# either published or it is not, and the store's mirror rotation already handles
-# a partial one by falling through.
+# So the light pair no longer waits on a fetch it never touches, and the two
+# render jobs run concurrently. A failure in one no longer hides or blocks the
+# other, which matters because every render is wrapped in `|| echo ::warning::`
+# so that one upstream outage cannot sink the rest.
+#
+# The cycle is resolved ONCE, in its own job, and passed to both. Resolving it
+# per-job would let a cycle published between them put the two halves of the
+# page on different initialisations.
+#
+# Publishing is likewise a SINGLE job. Both the frames push and the commit to
+# main are force-push / rebase operations on shared refs: two render jobs
+# publishing concurrently would race, and on the frames branch the loser
+# silently deletes the winner's frames (clone-swap-reorphan reads the branch
+# before it writes it).
 on:
   schedule:
     # AIFS-ENS 00Z/12Z land on open data around 06-07Z and 18-19Z. These are
-    # daily products, so two firings is the right size — deliberately not more.
+    # daily products, so two firings is the right size - deliberately not more.
     - cron: '35 7,19 * * *'
   workflow_dispatch:
     inputs:
@@ -45,15 +54,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  # ---------------------------------------------------------------- cycle ---
+  cycle:
     runs-on: ubuntu-latest
-    # 120, not 90: ens_cycle is ~23 min and the vortex loop adds ~18 min of
-    # rendering measured locally (31 frames x 4 polar panels). A GitHub runner
-    # has 4 vCPU against this laptop's 10, so the loop can run longer there and
-    # the old 90 left no headroom for a slow ENS fetch on top.
-    timeout-minutes: 120
-    env:
-      MPLBACKEND: Agg
+    timeout-minutes: 10
+    outputs:
+      date: ${{ steps.cyc.outputs.date }}
+      time: ${{ steps.cyc.outputs.time }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -66,12 +73,9 @@ jobs:
           restore-keys: |
             pip-mjo-${{ runner.os }}-
 
-      - name: System libs
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            libeccodes0 libgeos-dev libproj-dev proj-bin
-
+      # The full requirements, not just ecmwf-opendata: download_aifs imports
+      # the shared store module at module scope, so a targeted install would
+      # break on its transitive imports. ~1 min against the pip cache.
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
@@ -96,43 +100,41 @@ jobs:
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
           echo "cycle: $D ${T}Z"
 
-      # Each product is independent and non-fatal. One upstream outage should not
-      # take the others down, and the previous figure stays on the site until the
-      # next successful run replaces it. `|| echo` rather than `set +e` so a
-      # failure is visible in the log instead of being swallowed by a green step
-      # (the AAM trial reported success while all three products had failed).
-      # qbo_duct and nh_vortex read the shared ECMWF cache by
-      # GLOBBING it - they do not fetch. On the laptop run_local.sh populates it
-      # with ens_cycle first; a fresh runner's cache is empty, which is why the
-      # first run here logged "no AIFS-ENS cycle with the needed files in the
-      # cache" and produced 0 E-P flux and 0 QBO strip frames while still
-      # exiting green.
-      - name: Populate the ENS cycle cache
-        working-directory: scripts/mjo
-        timeout-minutes: 60
-        env:
-          MJO_HEAVY_ATMOS: '1'
-        run: |
-          python src/ens_cycle.py --date "${{ steps.cyc.outputs.date }}" \
-                                  --time "${{ steps.cyc.outputs.time }}" \
-            || echo "::warning::ens_cycle had issues; downstream uses whatever cached"
-          du -sh data 2>/dev/null || true
+  # ------------------------------------------------- light: self-fetching ---
+  # wave1_maps and vortex_winds pull exactly the fields they plot through the
+  # shared ecmwf store, so they skip ens_cycle entirely. ~25 min, most of it the
+  # 31-frame vortex loop.
+  light:
+    needs: cycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
 
-      - name: NH polar vortex
+      - name: System libs
         run: |
-          python scripts/strat/nh_vortex.py --models aifs,geps,gdps,ifs --ifs-members 5 \
-            --cycle "${{ steps.cyc.outputs.date }}${{ steps.cyc.outputs.time }}" \
-            --out assets/sst/nh_vortex.webp \
-            || echo "::warning::nh_vortex failed; keeping the previous figure"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libeccodes0 libgeos-dev libproj-dev proj-bin
 
-      # wave1_maps.py renders the static figure AND the 16-step AIFS-ENS
-      # forecast loop. It replaced wave1_monitor.py, which was deleted on
-      # 2026-08-30: its amplitude figure had already been retired and its
-      # wave1_nh/wave1_sh loops were rendering to a page that never showed them.
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
       - name: Wave-1 maps + forecast loop
         run: |
           python scripts/strat/wave1_maps.py \
-            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
             --out assets/sst/wave1_maps.webp \
             --anim-dir assets/sst/anim/wave1_maps \
             --manifest assets/sst/anim/wave1_maps_manifest.json \
@@ -141,11 +143,94 @@ jobs:
       - name: Vortex winds, 10 and 100 hPa
         run: |
           python scripts/strat/vortex_winds.py \
-            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
             --out assets/sst/vortex_winds.webp \
             --anim-dir assets/sst/anim/vortex_winds \
             --manifest assets/sst/anim/vortex_winds_manifest.json \
             || echo "::warning::vortex_winds failed; keeping the previous figure"
+
+      - name: What was produced
+        if: always()
+        run: |
+          for f in assets/sst/wave1_maps.webp assets/sst/vortex_winds.webp; do
+            if [ -f "$f" ]; then
+              printf '  %-38s %s  (mtime %s)\n' "$f" "$(du -h "$f" | cut -f1)" "$(date -r "$f" -u +%H:%MZ)"
+            else
+              printf '  %-38s MISSING\n' "$f"
+            fi
+          done
+          for d in assets/sst/anim/wave1_maps assets/sst/anim/vortex_winds; do
+            printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
+          done
+
+      # Handed to the publish job rather than pushed here: see the header note
+      # on why publishing is single-threaded.
+      - name: Hand off to publish
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: strat-light
+          path: |
+            assets/sst/wave1_maps.webp
+            assets/sst/vortex_winds.webp
+            assets/sst/anim/wave1_maps/**
+            assets/sst/anim/vortex_winds/**
+            assets/sst/anim/wave1_maps_manifest.json
+            assets/sst/anim/vortex_winds_manifest.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ------------------------------------------------ heavy: needs the cache ---
+  # nh_vortex globs pf_u_10-* (the 25-member AIFS pull) and qbo_duct globs
+  # cf_u_10-*; both READ the cache rather than fetching, so ens_cycle is not
+  # optional here. Without it the first run logged "no AIFS-ENS cycle ... in the
+  # cache", produced nothing, and still exited green.
+  heavy:
+    needs: cycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libeccodes0 libgeos-dev libproj-dev proj-bin
+
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Populate the ENS cycle cache
+        working-directory: scripts/mjo
+        timeout-minutes: 60
+        env:
+          MJO_HEAVY_ATMOS: '1'
+        run: |
+          python src/ens_cycle.py --date "${{ needs.cycle.outputs.date }}" \
+                                  --time "${{ needs.cycle.outputs.time }}" \
+            || echo "::warning::ens_cycle had issues; downstream uses whatever cached"
+          du -sh data 2>/dev/null || true
+
+      # --cycle is matched against the cache directory name, which carries a
+      # trailing "z"; nh_vortex accepts it with or without.
+      - name: NH polar vortex
+        run: |
+          python scripts/strat/nh_vortex.py --models aifs,geps,gdps,ifs --ifs-members 5 \
+            --cycle "${{ needs.cycle.outputs.date }}${{ needs.cycle.outputs.time }}" \
+            --out assets/sst/nh_vortex.webp \
+            || echo "::warning::nh_vortex failed; keeping the previous figure"
 
       - name: E-P flux loop
         run: |
@@ -155,38 +240,67 @@ jobs:
       - name: What was produced
         if: always()
         run: |
+          if [ -f assets/sst/nh_vortex.webp ]; then
+            printf '  %-38s %s  (mtime %s)\n' assets/sst/nh_vortex.webp \
+              "$(du -h assets/sst/nh_vortex.webp | cut -f1)" \
+              "$(date -r assets/sst/nh_vortex.webp -u +%H:%MZ)"
+          else
+            printf '  %-38s MISSING\n' assets/sst/nh_vortex.webp
+          fi
+          printf '  %-38s %s frames\n' assets/sst/anim/epflux \
+            "$(ls assets/sst/anim/epflux/*.webp 2>/dev/null | wc -l | tr -d ' ')"
+
+      - name: Hand off to publish
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: strat-heavy
+          path: |
+            assets/sst/nh_vortex.webp
+            assets/sst/anim/epflux/**
+            assets/sst/anim/epflux_manifest.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  # -------------------------------------------------------------- publish ---
+  # always(): one render job failing must not strip the other's output from the
+  # site. Whatever arrived in the artifacts is published; a product that did not
+  # render simply is not in them, and both steps below leave its existing copy
+  # alone.
+  publish:
+    needs: [cycle, light, heavy]
+    if: ${{ always() && (github.event_name == 'schedule' || github.event.inputs.publish == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Collect the render jobs' output
+        uses: actions/download-artifact@v7
+        with:
+          pattern: strat-*
+          merge-multiple: true
+          path: .
+
+      - name: What arrived
+        run: |
           for f in assets/sst/nh_vortex.webp assets/sst/wave1_maps.webp assets/sst/vortex_winds.webp; do
-            if [ -f "$f" ]; then
-              printf '  %-38s %s  (mtime %s)\n' "$f" "$(du -h "$f" | cut -f1)" "$(date -r "$f" -u +%H:%MZ)"
-            else
-              printf '  %-38s MISSING\n' "$f"
-            fi
+            if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
+            else printf '  %-38s (not produced this run)\n' "$f"; fi
           done
           for d in assets/sst/anim/epflux assets/sst/anim/wave1_maps assets/sst/anim/vortex_winds; do
             printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
           done
 
-      - name: Upload figures
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: strat-${{ steps.cyc.outputs.date }}-${{ steps.cyc.outputs.time }}z
-          path: |
-            assets/sst/nh_vortex.webp
-            assets/sst/wave1_maps.webp
-            assets/sst/vortex_winds.webp
-          if-no-files-found: warn
-          retention-days: 7
-
-      # The three loops render ~63 frames per cycle. Those must reach the frames
+      # The loops render ~63 frames per cycle. Those must reach the frames
       # branch or the manifests committed below point at images that exist only
       # on the laptop - which is exactly what happened while this step was
       # missing. Same clone-swap-reorphan dance ecape.yml uses: the branch also
       # carries OISST, satellite, GDPS, ASCAT and ECAPE frames, and a plain
       # force-push of our tree alone would delete every one of them. Only the
-      # three strat subdirectories are swapped, never assets/sst/anim wholesale.
+      # strat subdirectories that actually rendered are swapped, never
+      # assets/sst/anim wholesale.
       - name: Publish loop frames to the orphan branch
-        if: ${{ github.event_name == 'schedule' || github.event.inputs.publish == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -208,7 +322,12 @@ jobs:
             mkdir -p "$TMP/f" && git -C "$TMP/f" init -q && git -C "$TMP/f" remote add origin "$URL"
           fi
           for d in epflux wave1_maps vortex_winds; do
-            [ -d "assets/sst/anim/$d" ] || continue
+            # A product that did not render must not blank its directory on the
+            # branch, so an empty one is skipped rather than swapped in.
+            c=$(find "assets/sst/anim/$d" -name '*.webp' 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$c" -eq 0 ]; then
+              echo "  $d: nothing rendered, leaving the branch copy"; continue
+            fi
             rm -rf "$TMP/f/assets/sst/anim/$d"
             mkdir -p "$TMP/f/assets/sst/anim"
             cp -r "assets/sst/anim/$d" "$TMP/f/assets/sst/anim/"
@@ -227,7 +346,6 @@ jobs:
 
       # Only the static figures and the manifests are committed to main.
       - name: Commit & push
-        if: ${{ github.event_name == 'schedule' || github.event.inputs.publish == 'true' }}
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
