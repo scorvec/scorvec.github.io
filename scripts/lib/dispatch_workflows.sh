@@ -84,17 +84,17 @@ kiribati-wind.yml|*/6:18|
 # Added 2026-08-30. These eleven had NO trigger but cron, which was delivering
 # 36% of firings over the preceding 24 h and running 4-6 h late when it did.
 # The crons stay as the laptop-off backstop; these slots mirror them exactly.
+# Trimmed 2026-08-30. mjo ran 8,11 and 20,23 and skewt-data ran eight passes,
+# both because a single cron firing was a coin flip. A slot now fires on time,
+# and a slot whose run FAILED re-opens after 120 min, so the duplicates were
+# paying for a problem the trigger already solves. skewt keeps two passes per
+# synoptic because UW genuinely posts a cycle late some days - that is upstream,
+# not scheduling.
 mjo.yml|08:37|
-mjo.yml|11:37|
 mjo.yml|20:37|
-mjo.yml|23:37|
-skewt-data.yml|01:35|
 skewt-data.yml|02:35|
-skewt-data.yml|03:35|
 skewt-data.yml|07:35|
-skewt-data.yml|13:35|
 skewt-data.yml|14:35|
-skewt-data.yml|15:35|
 skewt-data.yml|19:35|
 olr-waves.yml|02:40|
 site-stats.yml|05:17|

@@ -10,8 +10,12 @@ name: MJO RMM (AIFS-ENS)
 on:
   # CRON-TEST 2026-08-30 (restore: uncomment this block)
   # schedule:
-  # - cron: '37 8,11 * * *'     # 00Z cycle (data lands ~06Z) — fallback after laptop ~02:45 ET
-  # - cron: '37 20,23 * * *'    # 12Z cycle (data lands ~18Z) — fallback after laptop ~14:45 ET
+  # - cron: '37 8 * * *'    # 00Z cycle (data lands ~06Z)
+  # - cron: '37 20 * * *'   # 12Z cycle (data lands ~18Z)
+  # Was 8,11 and 20,23 - a second attempt per cycle, added when a cron
+  # firing was a coin flip. The dispatcher now fires each slot on time
+  # AND re-opens a slot whose run FAILED after 120 min, so the retry
+  # belongs to the trigger rather than to asking for the job twice.
   workflow_dispatch:
     inputs:
       date:
