@@ -337,6 +337,10 @@ def epflux_loop(u_full, u_rmm, tag, base):
                "label": "E\u2013P flux & wave driving (k=1\u20133) \u2014 AIFS-ENS ensemble",
                "n_frames": len(frames), "frames": frames}}}
     (REPO / "assets" / "sst" / "anim" / "epflux_manifest.json").write_text(json.dumps(man))
+    # assets/strat/ is gitignored (the local page), so on a fresh runner the
+    # directory does not exist and copy2 raised FileNotFoundError AFTER all 16
+    # frames had already rendered - the loop was fine, the still was not.
+    OUT_CHAN.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(outdir / "F00.webp", OUT_CHAN)
     print(f"wrote {len(frames)} epflux frames ({n_jl} via julia) + manifest")
 
