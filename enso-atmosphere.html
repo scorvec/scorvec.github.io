@@ -761,7 +761,7 @@
     <div class="chart-card plot-deck" data-deck="atmosphere5">
       <div class="deck-head">
         <span class="deck-title">Select a figure</span>
-        <span class="deck-hint">3 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
+        <span class="deck-hint">4 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
       </div>
       <div class="deck-tabs">
         <button class="on">NH polar vortex</button>
@@ -833,23 +833,26 @@
       <div class="chart-card-header">
         <h2>Stationary Wave-1: the Forcing Behind the Wave Driving</h2>
         <p>The E&ndash;P flux above shows where planetary-wave activity is going; this shows
-        <b>how much of it there is, and whether it's amplifying</b>. Top: wavenumber-1
-        amplitude of geopotential height in the 55&ndash;65&deg; band at 500 / 100 /
-        10&nbsp;hPa through the 15-day forecast (wave-2 dashed) &mdash; the vortex-forcing
-        gauge. Below: the wave itself, as a longitude&ndash;height section per hemisphere
-        &mdash; a single sine wave per level, animated through the forecast.</p>
+        <b>what is driving it, and where</b>. These are maps of the <b>zonal wavenumber-1
+        component</b> of geopotential height at <b>100</b> and <b>500&nbsp;hPa</b> in both
+        hemispheres &mdash; the stationary wave that does most of the work on the polar
+        vortex, isolated from everything else. Because only k&nbsp;=&nbsp;1 is retained,
+        the field is an anomaly by construction: red is a ridge, blue a trough, and the
+        zonal mean has already been removed. Thin contours are the <b>full</b> height
+        field, so you can see the wave against the flow it sits in. Values inside the
+        deadband are left white, so what is drawn is what is actually large.</p>
       </div>
       <div class="img-wrap"><img src="assets/sst/wave1_maps.webp?v=213b0d238c6f" alt="Zonal wavenumber-1 component of geopotential height at 100 and 500 hPa, both hemispheres, with the full height field contoured" loading="lazy"></div>
-      <p class="note" style="margin-top:0.6rem"><b>How to read the sections:</b> amplitude
-      must grow with height like &rho;<sup>&minus;&frac12;</sup> for a propagating wave
-      (thinning air, conserved energy) &mdash; a wave-1 that's tens of metres at 500&nbsp;hPa
-      becomes hundreds at 10&nbsp;hPa. The <b>westward tilt of the phase lines with
-      height</b> is the visual signature of upward wave-activity flux (it is the poleward
-      eddy heat flux, the F<sub>p</sub> term in the E&ndash;P diagnostic): tilted =
-      pumping the stratosphere, upright = barotropic and trapped, sheared-off top = the
-      Charney&ndash;Drazin ceiling doing its work. Watch the winter hemisphere's wave
-      amplify, tilt, and penetrate &mdash; or collapse &mdash; through the forecast.</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; wavenumber-1/2 Fourier components of Z, 55&ndash;65&deg; cos-weighted band mean &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
+      <iframe data-deferred class="anim-embed wave1_maps" data-src="sst_anim.html?embed=1&amp;manifest=wave1_maps_manifest.json&amp;region=wave1_maps"
+              title="Wave-1 height anomaly at 100 and 500 hPa through the AIFS-ENS forecast" loading="lazy"></iframe>
+      <p class="note" style="margin-top:0.6rem"><b>Why the forecast loop matters:</b> a
+      single analysis map cannot tell you whether the wave is <b>building</b>. Wave-1
+      amplifying at 100&nbsp;hPa over the following week is the classic precursor to a
+      disturbed vortex &mdash; it is the forcing that the E&ndash;P flux above then carries
+      upward. Step through the 16 frames and watch the winter hemisphere's ridge&ndash;trough
+      couplet deepen, drift, or wash out; compare it against the 10&nbsp;hPa wind panel to
+      see whether the vortex responds.</p>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0), 100 and 500&nbsp;hPa, day 0&ndash;15 &middot; zonal wavenumber-1 Fourier component of geopotential height (anomaly by construction), full height field contoured &middot; polar stereographic, both hemispheres &middot; updated each 00/12Z cycle</span></div>
       </div>
     </div>
 
