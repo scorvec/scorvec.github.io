@@ -38,6 +38,12 @@ done
 #
 # Slot syntax:
 #   HH:MM     once daily at that UTC time
+#
+# NOTE the `-f publish=true` on ecape and strat. Those workflows gate their
+# commit step on `event_name == 'schedule' || inputs.publish == 'true'`, so a
+# dispatch WITHOUT it renders everything and then publishes nothing - the first
+# RunAtLoad pass fired all three that way before this was spotted. Manual dry
+# runs are still available by dispatching them by hand without the flag.
 #   *:MM      every hour at MM past
 #   */N:MM    every N hours at MM past (0, N, 2N ... UTC)
 #
@@ -51,12 +57,12 @@ done
 # time and unlimited on a public repo.
 SCHEDULE=$(cat <<'EOF'
 sst.yml|19:23|
-ecape.yml|00:50|
-ecape.yml|06:50|
-ecape.yml|12:50|
-ecape.yml|18:50|
-strat.yml|07:35|
-strat.yml|19:35|
+ecape.yml|00:50|-f publish=true
+ecape.yml|06:50|-f publish=true
+ecape.yml|12:50|-f publish=true
+ecape.yml|18:50|-f publish=true
+strat.yml|07:35|-f publish=true
+strat.yml|19:35|-f publish=true
 gdps-charts.yml|06:20|-f cycle=00
 gdps-charts.yml|18:20|-f cycle=12
 soi-hourly.yml|*:12|
