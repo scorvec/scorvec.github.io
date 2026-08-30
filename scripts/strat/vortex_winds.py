@@ -208,39 +208,43 @@ def panel(ax, u, v, lev, hemi):
     return cf
 
 
-def render(fields, date, time, step_h, out_path: Path):
-    fig = plt.figure(figsize=(11.4, 11.0), dpi=125)
-    # Rows are levels, columns hemispheres; the right column is narrower only by
-    # the colourbar gutter, so the four panels stay the same physical size and
-    # NH/SH remain directly comparable.
-    gs = fig.add_gridspec(2, 3, width_ratios=[1, 1, 0.045],
-                          left=0.02, right=0.93, top=0.90, bottom=0.055,
-                          wspace=0.06, hspace=0.14)
-    for r, lev in enumerate(LEVELS):
-        cf = None
-        for c, hemi in enumerate(("NH", "SH")):
-            proj = (ccrs.NorthPolarStereo(central_longitude=0) if hemi == "NH"
-                    else ccrs.SouthPolarStereo(central_longitude=0))
-            ax = fig.add_subplot(gs[r, c], projection=proj)
-            u, v = fields[lev]
-            cf = panel(ax, u, v, lev, hemi)
-        cax = fig.add_subplot(gs[r, 2])
-        cb = fig.colorbar(cf, cax=cax, extend="max")
-        cb.set_label(SPEED[lev]["label"], fontsize=9)
-        cb.ax.tick_params(labelsize=8)
+def render(uv, lev, date, time, step_h, out_path: Path):
+    """ONE level, both hemispheres, side by side.
 
-    valid = f"F{step_h:03d}" if step_h else "analysis"
-    fig.suptitle("Stratospheric vortex winds — 10 and 100 hPa",
+    Unstacked for the same reason wave1_maps was: 10 and 100 hPa shared a 2x2
+    figure, which made the animation nearly square and very tall, pushing the
+    scrubber below the fold and making the loop awkward to control. One level
+    per frame halves the height, and the animator's selector switches levels.
+    """
+    fig = plt.figure(figsize=(11.4, 6.3), dpi=125)
+    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 0.045],
+                          left=0.02, right=0.93, top=0.83, bottom=0.085,
+                          wspace=0.06)
+    cf = None
+    for c, hemi in enumerate(("NH", "SH")):
+        proj = (ccrs.NorthPolarStereo(central_longitude=0) if hemi == "NH"
+                else ccrs.SouthPolarStereo(central_longitude=0))
+        ax = fig.add_subplot(gs[0, c], projection=proj)
+        u, v = uv
+        cf = panel(ax, u, v, lev, hemi)
+    cax = fig.add_subplot(gs[0, 2])
+    cb = fig.colorbar(cf, cax=cax, extend="max")
+    cb.set_label(SPEED[lev]["label"], fontsize=9)
+    cb.ax.tick_params(labelsize=8)
+
+    init = pd.Timestamp(f"{date}T{time}:00")
+    valid = init + pd.Timedelta(hours=step_h)
+    tag = f"F{step_h:03d}" if step_h else "analysis"
+    fig.suptitle(f"Stratospheric vortex winds — {lev} hPa",
                  fontsize=15, fontweight="bold", x=0.02, ha="left", y=0.975)
-    fig.text(0.02, 0.943,
+    fig.text(0.02, 0.925,
              f"ECMWF AIFS-ENS control · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z "
-             f"{valid} · speed shaded, streamlines overlaid · red: u = 0 "
-             f"(vortex edge) · dashed ring: 60\u00b0, the SSW diagnostic latitude",
+             f"{tag} · valid {valid:%a %d %b %HZ} · speed shaded, streamlines "
+             f"overlaid · red: u = 0 (vortex edge) · dashed ring: 60°",
              fontsize=9, color="#555", ha="left")
-    fig.text(0.02, 0.018,
-             "Per-level colour scales are fixed, so a colour means the same wind "
-             "speed every day; NH and SH share a scale at each level and are "
-             "directly comparable.",
+    fig.text(0.02, 0.020,
+             "Colour scales are fixed per level, so a colour means the same wind "
+             "speed every day; NH and SH share the scale and are directly comparable.",
              fontsize=8, color="#777", ha="left")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -250,30 +254,40 @@ def render(fields, date, time, step_h, out_path: Path):
     return out_path
 
 
-def build_loop(full, date, time, anim_dir: Path, manifest: Path) -> int:
-    """One frame per 12 h step, plus the animator manifest."""
+def build_loop(full, date, time, anim_root: Path, manifest: Path) -> int:
+    """One frame per 12 h step PER LEVEL, and a manifest with a level selector.
+
+    anim_root is the animation ROOT (assets/sst/anim); this writes
+    vortex_10/ and vortex_100/ under it, one region each.
+    """
     import json
-    anim_dir.mkdir(parents=True, exist_ok=True)
-    for old in anim_dir.glob("F*.webp"):
-        old.unlink()
     init = pd.Timestamp(f"{date}T{time}:00")
-    frames = []
-    for i, step_h in enumerate(STEPS_12H):
-        fields = {lev: (at_step(u, step_h), at_step(v, step_h))
-                  for lev, (u, v) in full.items()}
-        render(fields, date, time, step_h, anim_dir / f"F{i:02d}.webp")
-        valid = init + pd.Timedelta(hours=step_h)
-        frames.append({"idx": i, "file": f"F{i:02d}.webp",
-                       "date": f"{valid:%Y-%m-%d}",
-                       "label": f"F{step_h:03d} · valid {valid:%a %d %b %HZ}"})
-        print(f"    F{step_h:03d}", flush=True)
-    man = {"ver": f"{date}{time}", "days": len(frames),
-           "regions": {"vortex_winds": {
-               "label": "Vortex winds — 10 / 100 hPa, both hemispheres",
-               "n_frames": len(frames), "frames": frames}}}
+    regions = {}
+    for lev in LEVELS:
+        d = anim_root / f"vortex_{lev}"
+        d.mkdir(parents=True, exist_ok=True)
+        for old in d.glob("F*.webp"):
+            old.unlink()
+        frames = []
+        for i, step_h in enumerate(STEPS_12H):
+            u, v = full[lev]
+            render((at_step(u, step_h), at_step(v, step_h)), lev, date, time,
+                   step_h, d / f"F{i:02d}.webp")
+            valid = init + pd.Timedelta(hours=step_h)
+            frames.append({"idx": i, "file": f"F{i:02d}.webp",
+                           "date": f"{valid:%Y-%m-%d}",
+                           "label": f"F{step_h:03d} · valid {valid:%a %d %b %HZ}"})
+            print(f"    {lev} hPa  F{step_h:03d}", flush=True)
+        regions[f"vortex_{lev}"] = {
+            "label": f"Vortex winds — {lev} hPa, both hemispheres",
+            "n_frames": len(frames), "frames": frames}
+        print(f"  {lev} hPa: {len(frames)} frames -> {d}")
+    man = {"ver": f"{date}{time}", "days": len(STEPS_12H),
+           "selectorLabel": "Level", "default": "vortex_10",
+           "regions": regions}
     manifest.parent.mkdir(parents=True, exist_ok=True)
     manifest.write_text(json.dumps(man))
-    print(f"  wrote {len(frames)} frames + {manifest.name}")
+    print(f"  wrote {manifest.name} with {len(regions)} regions")
     return 0
 
 
@@ -282,15 +296,19 @@ def main(argv=None) -> int:
     ap.add_argument("--date", required=True, help="cycle date YYYYMMDD")
     ap.add_argument("--time", required=True, help="cycle hour, 00 or 12")
     ap.add_argument("--step", type=int, default=0, help="forecast hour (default 0)")
-    ap.add_argument("--out", default="assets/sst/vortex_winds.webp")
-    ap.add_argument("--anim-dir", help="also render every 12 h step here")
+    ap.add_argument("--out-dir", default="assets/sst",
+                    help="stills are written here as vortex_10.webp / vortex_100.webp")
+    ap.add_argument("--anim-dir", help="frames ROOT; vortex_10/ and vortex_100/ go under it")
     ap.add_argument("--manifest", help="animator manifest path")
     a = ap.parse_args(argv)
 
     full = fetch(a.date, a.time)
-    fields = {lev: (at_step(u, a.step), at_step(v, a.step))
-              for lev, (u, v) in full.items()}
-    print(f"  wrote {render(fields, a.date, a.time, a.step, Path(a.out))}")
+    # One still per level, separate files: they are separate charts on the page
+    # now, each with its own panel and loop.
+    outd = Path(a.out_dir)
+    for lev in LEVELS:
+        u, v = full[lev]
+        print(f"  wrote {render((at_step(u, a.step), at_step(v, a.step)), lev, a.date, a.time, a.step, outd / f'vortex_{lev}.webp')}")
     if a.anim_dir and a.manifest:
         build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest))
     return 0

@@ -6,8 +6,8 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 #   nh_vortex.py      -> assets/sst/nh_vortex.webp        60N winds + polar-cap height
 #   wave1_maps.py     -> assets/sst/wave1_{100,500}.webp  one still per level
 #                     -> assets/sst/anim/wave1_{100,500}/ 16-step loop per level
-#   vortex_winds.py   -> assets/sst/vortex_winds.webp     10/100 hPa, both hemispheres
-#                     -> assets/sst/anim/vortex_winds/    31-step 12-hourly loop
+#   vortex_winds.py   -> assets/sst/vortex_{10,100}.webp   one still per level
+#                     -> assets/sst/anim/vortex_{10,100}/  31-step 12-hourly loop
 #   qbo_duct.py       -> assets/sst/anim/epflux/          E-P flux loop
 #
 # WHY FOUR JOBS. As one job this took ~70 min, and 23 of those were ens_cycle
@@ -145,22 +145,22 @@ jobs:
         run: |
           python scripts/strat/vortex_winds.py \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            --out assets/sst/vortex_winds.webp \
-            --anim-dir assets/sst/anim/vortex_winds \
+            --out-dir assets/sst \
+            --anim-dir assets/sst/anim \
             --manifest assets/sst/anim/vortex_winds_manifest.json \
             || echo "::warning::vortex_winds failed; keeping the previous figure"
 
       - name: What was produced
         if: always()
         run: |
-          for f in assets/sst/wave1_100.webp assets/sst/wave1_500.webp assets/sst/vortex_winds.webp; do
+          for f in assets/sst/wave1_100.webp assets/sst/wave1_500.webp assets/sst/vortex_10.webp assets/sst/vortex_100.webp; do
             if [ -f "$f" ]; then
               printf '  %-38s %s  (mtime %s)\n' "$f" "$(du -h "$f" | cut -f1)" "$(date -r "$f" -u +%H:%MZ)"
             else
               printf '  %-38s MISSING\n' "$f"
             fi
           done
-          for d in assets/sst/anim/wave1_100 assets/sst/anim/wave1_500 assets/sst/anim/vortex_winds; do
+          for d in assets/sst/anim/wave1_100 assets/sst/anim/wave1_500 assets/sst/anim/vortex_10 assets/sst/anim/vortex_100; do
             printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
           done
 
@@ -174,10 +174,12 @@ jobs:
           path: |
             assets/sst/wave1_100.webp
             assets/sst/wave1_500.webp
-            assets/sst/vortex_winds.webp
+            assets/sst/vortex_10.webp
+            assets/sst/vortex_100.webp
             assets/sst/anim/wave1_100/**
             assets/sst/anim/wave1_500/**
-            assets/sst/anim/vortex_winds/**
+            assets/sst/anim/vortex_10/**
+            assets/sst/anim/vortex_100/**
             assets/sst/anim/wave1_maps_manifest.json
             assets/sst/anim/vortex_winds_manifest.json
           if-no-files-found: warn
@@ -287,11 +289,11 @@ jobs:
 
       - name: What arrived
         run: |
-          for f in assets/sst/nh_vortex.webp assets/sst/wave1_100.webp assets/sst/wave1_500.webp assets/sst/vortex_winds.webp; do
+          for f in assets/sst/nh_vortex.webp assets/sst/wave1_100.webp assets/sst/wave1_500.webp assets/sst/vortex_10.webp assets/sst/vortex_100.webp; do
             if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-38s (not produced this run)\n' "$f"; fi
           done
-          for d in assets/sst/anim/epflux assets/sst/anim/wave1_100 assets/sst/anim/wave1_500 assets/sst/anim/vortex_winds; do
+          for d in assets/sst/anim/epflux assets/sst/anim/wave1_100 assets/sst/anim/wave1_500 assets/sst/anim/vortex_10 assets/sst/anim/vortex_100; do
             printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
           done
 
@@ -308,9 +310,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # count_frames, not a bare find: under `set -euo pipefail` a find over
+          # a MISSING directory exits non-zero, pipefail carries that through the
+          # pipe, and set -e kills the step before it prints anything. The
+          # 13:11Z run died exactly that way - exit 1, zero output - because a
+          # product this job had not received simply has no directory here. In
+          # the old single job the render step always created them in the same
+          # workspace, so the bug could not show.
+          count_frames() {
+            [ -d "$1" ] || { echo 0; return 0; }
+            find "$1" -name '*.webp' 2>/dev/null | wc -l | tr -d ' '
+          }
           n=0
-          for d in epflux wave1_100 wave1_500 vortex_winds; do
-            c=$(find "assets/sst/anim/$d" -name '*.webp' 2>/dev/null | wc -l | tr -d ' ')
+          for d in epflux wave1_100 wave1_500 vortex_10 vortex_100; do
+            c=$(count_frames "assets/sst/anim/$d")
             echo "  $d: $c frames"; n=$((n + c))
           done
           if [ "$n" -eq 0 ]; then
@@ -324,10 +337,10 @@ jobs:
             echo "  no frames branch yet - creating one"
             mkdir -p "$TMP/f" && git -C "$TMP/f" init -q && git -C "$TMP/f" remote add origin "$URL"
           fi
-          for d in epflux wave1_100 wave1_500 vortex_winds; do
+          for d in epflux wave1_100 wave1_500 vortex_10 vortex_100; do
             # A product that did not render must not blank its directory on the
             # branch, so an empty one is skipped rather than swapped in.
-            c=$(find "assets/sst/anim/$d" -name '*.webp' 2>/dev/null | wc -l | tr -d ' ')
+            c=$(count_frames "assets/sst/anim/$d")
             if [ "$c" -eq 0 ]; then
               echo "  $d: nothing rendered, leaving the branch copy"; continue
             fi
@@ -353,7 +366,8 @@ jobs:
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
           git add assets/sst/nh_vortex.webp assets/sst/wave1_100.webp \
-                  assets/sst/wave1_500.webp assets/sst/vortex_winds.webp \
+                  assets/sst/wave1_500.webp assets/sst/vortex_10.webp \
+                  assets/sst/vortex_100.webp \
                   assets/sst/anim/*_manifest.json 2>/dev/null || true
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
