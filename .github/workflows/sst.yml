@@ -86,6 +86,12 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r scripts/sst/requirements-sst.txt
 
+      # Seed from the frames branch before rendering: ascat appends only what
+      # is missing, and frames stopped arriving with the checkout when they
+      # were taken off main.
+      - name: Seed existing frames
+        run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat
+
       - name: Build SST maps, RONI, and animation (OISST)
         run: |
           FORCE=""
@@ -126,6 +132,17 @@ jobs:
         env:
           SST_SITE_ROOT: ${{ github.workspace }}
         run: python scripts/sst/build_nino_history.py || echo "nino history failed; keeping previous JSON"
+
+      # WITHOUT THIS THE ANIMATIONS NEVER LEAVE THE RUNNER. .gitignore keeps
+      # frame webp off main, and this workflow had no frames-branch publisher
+      # at all - so every loop it rendered was discarded when the job ended.
+      # It went unnoticed while the laptop still had local copies and pushed
+      # them; once those were cleaned up on 2026-08-30 the loops froze on the
+      # branch, which is why a fix to the anomaly contours never appeared.
+      - name: Publish frames to the orphan branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat
 
       - name: Commit & push (generated outputs)
         run: |
