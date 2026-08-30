@@ -247,4 +247,33 @@ while IFS='|' read -r wf hhmm extra; do
   sleep 2
 done <<< "$SCHEDULE"
 
+# ---------------------------------------------------------------- pages ----
+# GitHub deliberately does NOT trigger workflows from pushes made with
+# GITHUB_TOKEN, so every commit CI makes to main - manifests, generated HTML,
+# static figures - sits undeployed until a human pushes. Measured 2026-08-30:
+# five CI commits stacked up behind a deploy that had last run 35 min earlier,
+# and assets/ecape/anim/index.json was on main while the site served a 404 for
+# it. Animation FRAMES hid the problem, because they come from
+# raw.githubusercontent on the frames branch and never touch Pages at all.
+#
+# So: deploy when main is actually ahead of the last deploy, rather than on a
+# timer. Two API calls, and it fires only when there is something to publish.
+pages_if_stale() {
+  local newest last
+  newest=$("$GH" api "repos/${REPO_SLUG}/commits/main" -q '.commit.committer.date' 2>/dev/null) || return 0
+  last=$("$GH" run list --workflow pages.yml --limit 1 --json createdAt -q '.[0].createdAt' 2>/dev/null) || return 0
+  [ -z "$newest" ] || [ -z "$last" ] && return 0
+  local ne le
+  ne=$(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$newest" "+%s" 2>/dev/null) || return 0
+  le=$(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$last" "+%s" 2>/dev/null) || return 0
+  # 60 s of slack: a deploy started moments before the commit landed has not
+  # published it, but one started after is fine.
+  if [ "$ne" -gt $(( le + 60 )) ]; then
+    echo "  main is $(( (ne - le) / 60 )) min ahead of the last Pages deploy"
+    dispatch "pages.yml" "" && fired=$((fired + 1))
+  fi
+}
+REPO_SLUG="$("$GH" repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo scorvec/scorvec.github.io)"
+[ "$DRY" = "1" ] || pages_if_stale
+
 echo "  fired $fired, already-satisfied $skipped"
