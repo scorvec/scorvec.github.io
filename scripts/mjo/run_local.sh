@@ -234,7 +234,11 @@ GRP_V200=$!
   # option. 5 keeps the cycle around 250 MB; raise --ifs-members for more spread.
   # NH polar vortex disabled with the rest of the strat block (was ~250 MB of
   # GEPS/GDPS/IFS members per cycle).
-  # "$PY" "$REPO/scripts/strat/nh_vortex.py" --models aifs,geps,gdps,ifs --ifs-members 5 || echo "..."
+  # nh_vortex now runs in Actions ONLY - .github/workflows/strat.yml, fired by
+  # scripts/lib/dispatch_workflows.sh at 07:35/19:35Z with the cron as backstop.
+  # Do not re-enable it here: the laptop would publish a figure built from the
+  # raw MERRA-2 archive over the runner's, and the point of the move was to get
+  # this off the laptop entirely.
   "$PY" "$REPO/scripts/verify/aifs_det_verify.py" --collect --verify \
     --date "$DATE" --time "$TIME" \
     || echo "AIFS det verification failed; continuing"
@@ -258,7 +262,9 @@ MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "
 "$PY" src/aam.py --date "$DATE" --time "$TIME" --data-dir data/aam \
   --out "$REPO/assets/sst/aam.webp" || echo "AAM failed; continuing"
 # E-P flux loop disabled with the rest of the strat block.
-# "$PY" "$REPO/scripts/strat/qbo_duct.py" --epflux-only || echo "..."
+# The E-P flux loop also runs in Actions ONLY (strat.yml), together with
+# wave1_maps and vortex_winds. Its frames are CI-owned: publish_frames.sh
+# carries them over from the branch rather than rebuilding them from here.
 "$PY" src/aam_zonal.py --date "$DATE" --time "$TIME" \
   --anim-dir "$REPO/assets/sst/anim/aam_zonal" \
   --manifest "$REPO/assets/sst/anim/aam_zonal_manifest.json" || echo "AAM zonal failed; continuing"
@@ -343,7 +349,6 @@ perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_ti
     scripts/mjo/data/reference/hadley_clim.nc \
     assets/sst/anim/walker assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
     assets/sst/jets.webp assets/sst/anim/jets assets/sst/anim/jets_manifest.json \
-    assets/sst/nh_vortex.webp \
     assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
     assets/spectra/ke_spectra.webp \
     scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
@@ -357,7 +362,6 @@ perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_ti
     assets/verify/aifs_det_scores.json \
     assets/sst/anim/aifs_compare assets/sst/anim/aifs_compare_manifest.json \
     assets/sst/anim/aifs_z500 assets/sst/anim/aifs_z500_manifest.json \
-    assets/sst/anim/epflux assets/sst/anim/epflux_manifest.json \
   ; do [ -e "$p" ] && git add "$p"; done \
   ; commit_push "data update: ${COMPACT} (a)" )
 
