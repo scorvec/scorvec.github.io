@@ -368,8 +368,8 @@ function switchRegion(rid) {
 
 // phones: decoding every full-size frame at once blows Safari's image budget
 // (frames go blank mid-loop) — preload a rolling window instead
-const EAGER = !(window.matchMedia && matchMedia("(pointer:coarse)").matches)
-  && screen.width > 700;
+// (EAGER removed 2026-08-30: every device now starts with a window and fetches
+// the rest on first interaction, so there is no device-dependent branch left.)
 function preloadWindow(rid, center) {
   const fr = manifest.regions[rid].frames, span = 8;
   for (let d = 0; d <= span; d++) {
@@ -382,15 +382,31 @@ function preloadWindow(rid, center) {
     }
   }
 }
+// ON LOAD: a WINDOW, never the whole loop — on any device.
+//
+// This used to preload every frame of the region as soon as the animator
+// appeared, on any screen wider than 700px. Measured on enso-atmosphere
+// (2026-08-30): 269 image requests on first paint, 113 of them ASCAT frames -
+// a four-month daily loop pulled in full before the reader had touched
+// anything. On a slow connection that IS the page-load time, and a visitor who
+// never presses play pays all of it for nothing.
+//
+// The full set is still fetched, just at the first sign the reader wants it
+// (play, scrub, or a region switch), by which point they are looking at the
+// animator rather than waiting for the page.
 function preload(rid) {
-  if (!EAGER) { preloadWindow(rid, Math.max(0, manifest.regions[rid].frames.length - 1)); return; }
+  preloadWindow(rid, Math.max(0, manifest.regions[rid].frames.length - 1));
+}
+
+// The rest of the loop, on demand. Idempotent, and cheap to call from every
+// interaction handler because of the preloaded[] guard.
+function preloadAll(rid) {
   if (preloaded[rid]) return;
   preloaded[rid] = manifest.regions[rid].frames.map(f => {
     const im = new Image();
     im.src = frameSrc(im, rid, f, manifest.ver);   // bust cache when sliding-window content changes
     return im;
   });
-  // hide the loading overlay once the first frame of the region is ready
   const first = preloaded[rid][frames.length - 1] || preloaded[rid][0];
   if (first.complete) loadingEl.classList.add("hidden");
   else first.onload = () => loadingEl.classList.add("hidden");
@@ -398,7 +414,10 @@ function preload(rid) {
 
 function showFrame(i) {
   idx = (i + frames.length) % frames.length;
-  if (!EAGER && idx % 4 === 0) preloadWindow(region, idx);
+  // Top up the window as the reader moves, until the full set has been
+  // fetched. Was gated on !EAGER (mobile only); now that every device starts
+  // windowed, desktop needs it too or scrubbing outruns the preloaded frames.
+  if (!preloaded[region] && idx % 4 === 0) preloadWindow(region, idx);
   const f = frames[idx];
   imgEl.src = frameSrc(imgEl, region, f, manifest.ver);
   dateEl.textContent = f.label;
@@ -409,6 +428,7 @@ function step(d) { showFrame(idx + d); }
 
 function play() {
   if (playing) { stop(); return; }
+  preloadAll(region);          // they want the loop: fetch the rest now
   playing = true;
   $("play").innerHTML = "&#x23F8;";   // pause glyph
   const tick = () => {
@@ -432,7 +452,7 @@ $("next").addEventListener("click", () => { stop(); step(1); });
 $("prev").addEventListener("click", () => { stop(); step(-1); });
 $("first").addEventListener("click", () => { stop(); showFrame(0); });
 $("last").addEventListener("click", () => { stop(); showFrame(frames.length - 1); });
-slider.addEventListener("input", () => { stop(); showFrame(parseInt(slider.value)); });
+slider.addEventListener("input", () => { stop(); preloadAll(region); showFrame(parseInt(slider.value)); });
 $("speed").addEventListener("change", e => {
   speed = parseFloat(e.target.value);
   if (playing) { stop(); play(); }
