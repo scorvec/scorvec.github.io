@@ -168,8 +168,24 @@ jobs:
               git add "assets/ecape/anim/ecape_$CYCLE.json" assets/ecape/anim/index.json 2>/dev/null || true
               git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
                   commit -q -m "ecape: partial loop $CYCLE (F00-F18)" 2>/dev/null || true
-              timeout 120 git pull --rebase --autostash -X theirs origin main >/dev/null 2>&1 || true
-              timeout 180 git push >/dev/null 2>&1 || echo "  (partial push skipped)"
+              # Retry, and SAY why on failure. The first version pushed once with
+              # both streams sent to /dev/null: on 2026-08-30 it lost a race with
+              # another workflow's data-update commit, printed "(partial push
+              # skipped)" and left index.json off main while its frames were
+              # already on the branch - a half-published cycle with no diagnostic.
+              # The final publish step has always retried five times; this one
+              # simply had not been given the same treatment.
+              pushed=0
+              for i in 1 2 3; do
+                if timeout 120 git pull --rebase --autostash -X theirs origin main \
+                   && timeout 180 git push; then
+                  echo "  partial manifest pushed (attempt $i)"; pushed=1; break
+                fi
+                git rebase --abort 2>/dev/null || true
+                echo "  partial push attempt $i failed; retrying"
+                sleep 5
+              done
+              [ "$pushed" = "1" ] || echo "::warning::partial manifest not pushed - the F18 frames are on the branch but index.json is not on main yet; the final publish will carry it"
               echo "::endgroup::"
             fi
           done
