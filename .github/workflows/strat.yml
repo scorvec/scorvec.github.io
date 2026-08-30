@@ -4,7 +4,7 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 # laptop on 2026-08-29:
 #
 #   nh_vortex.py      -> assets/sst/nh_vortex.webp        60N winds + polar-cap height
-#   wave1_monitor.py  -> assets/sst/wave1_amp.webp        wave-1/2 amplitude
+#   wave1_maps.py     -> assets/sst/wave1_maps.webp       wave-1 maps + 16-step loop
 #   qbo_duct.py       -> assets/sst/anim/epflux/          E-P flux loop
 #                     -> assets/sst/anim/qbo_strip/       QBO strip loop
 #   vortex_winds.py   -> assets/sst/vortex_winds.webp     10/100 hPa, both hemispheres
@@ -12,10 +12,10 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 # Everything else in scripts/strat is proprietary and stays local; it writes to
 # assets/strat/, which is gitignored and only feeds a local page.
 #
-# Cost: nh_vortex pulls GEPS/GDPS/IFS members (~250 MB/cycle at --ifs-members 5)
-# and qbo_duct ensures v at 10/50/100 (~35 MB, control only). u rides the AAM
-# levels the MJO pipeline already fetches, so on a cold runner the shared store
-# fetches it here instead.
+# Cost: ens_cycle populates the shared ECMWF cache (~19 min, ~1.1 GB peak) and
+# nh_vortex pulls GEPS/GDPS/IFS members (~250 MB at --ifs-members 5). That cache
+# step is not optional - qbo_duct, wave1_monitor and nh_vortex GLOB the cache
+# rather than fetching, so without it they find nothing and produce nothing.
 #
 # Cycle-following is deliberately NOT used: unlike HRRR, an AIFS-ENS cycle is
 # either published or it is not, and the store's mirror rotation already handles
@@ -97,6 +97,23 @@ jobs:
       # next successful run replaces it. `|| echo` rather than `set +e` so a
       # failure is visible in the log instead of being swallowed by a green step
       # (the AAM trial reported success while all three products had failed).
+      # qbo_duct, wave1_monitor and nh_vortex read the shared ECMWF cache by
+      # GLOBBING it - they do not fetch. On the laptop run_local.sh populates it
+      # with ens_cycle first; a fresh runner's cache is empty, which is why the
+      # first run here logged "no AIFS-ENS cycle with the needed files in the
+      # cache" and produced 0 E-P flux and 0 QBO strip frames while still
+      # exiting green.
+      - name: Populate the ENS cycle cache
+        working-directory: scripts/mjo
+        timeout-minutes: 60
+        env:
+          MJO_HEAVY_ATMOS: '1'
+        run: |
+          python src/ens_cycle.py --date "${{ steps.cyc.outputs.date }}" \
+                                  --time "${{ steps.cyc.outputs.time }}" \
+            || echo "::warning::ens_cycle had issues; downstream uses whatever cached"
+          du -sh data 2>/dev/null || true
+
       - name: NH polar vortex
         run: |
           python scripts/strat/nh_vortex.py --models aifs,geps,gdps,ifs --ifs-members 5 \
@@ -104,10 +121,17 @@ jobs:
             --out assets/sst/nh_vortex.webp \
             || echo "::warning::nh_vortex failed; keeping the previous figure"
 
-      - name: Wave-1 / wave-2 amplitude
+      # wave1_monitor.py built wave1_amp.webp, which was retired on 2026-08-29
+      # when the amplitude series was replaced by maps. wave1_maps.py renders the
+      # static figure AND the 16-step AIFS-ENS forecast loop.
+      - name: Wave-1 maps + forecast loop
         run: |
-          python scripts/strat/wave1_monitor.py \
-            || echo "::warning::wave1_monitor failed; keeping the previous figure"
+          python scripts/strat/wave1_maps.py \
+            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --out assets/sst/wave1_maps.webp \
+            --anim-dir assets/sst/anim/wave1_maps \
+            --manifest assets/sst/anim/wave1_maps_manifest.json \
+            || echo "::warning::wave1_maps failed; keeping the previous figure"
 
       - name: Vortex winds, 10 and 100 hPa
         run: |
@@ -129,14 +153,14 @@ jobs:
       - name: What was produced
         if: always()
         run: |
-          for f in assets/sst/nh_vortex.webp assets/sst/wave1_amp.webp assets/sst/vortex_winds.webp; do
+          for f in assets/sst/nh_vortex.webp assets/sst/wave1_maps.webp assets/sst/vortex_winds.webp; do
             if [ -f "$f" ]; then
               printf '  %-38s %s  (mtime %s)\n' "$f" "$(du -h "$f" | cut -f1)" "$(date -r "$f" -u +%H:%MZ)"
             else
               printf '  %-38s MISSING\n' "$f"
             fi
           done
-          for d in assets/sst/anim/epflux assets/sst/anim/qbo_strip; do
+          for d in assets/sst/anim/epflux assets/sst/anim/qbo_strip assets/sst/anim/wave1_maps; do
             printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
           done
 
@@ -147,7 +171,7 @@ jobs:
           name: strat-${{ steps.cyc.outputs.date }}-${{ steps.cyc.outputs.time }}z
           path: |
             assets/sst/nh_vortex.webp
-            assets/sst/wave1_amp.webp
+            assets/sst/wave1_maps.webp
             assets/sst/vortex_winds.webp
           if-no-files-found: warn
           retention-days: 7
@@ -159,7 +183,7 @@ jobs:
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
-          git add assets/sst/nh_vortex.webp assets/sst/wave1_amp.webp \
+          git add assets/sst/nh_vortex.webp assets/sst/wave1_maps.webp \
                   assets/sst/vortex_winds.webp \
                   assets/sst/anim/*_manifest.json 2>/dev/null || true
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
