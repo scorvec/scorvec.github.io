@@ -145,11 +145,14 @@ def forecast_latbands(date, time, latc):
             acc += um * w
             spacc += spm * w
         n += w
-        # The per-iteration arrays are dead here; dropping the references lets
-        # the next open_dataset reuse the memory instead of stacking on top.
-        del um, spm, u, ur, um_, spv, sp
+        # Capture the coordinate metadata BEFORE dropping the references - an
+        # earlier version deleted `u` on the line above these two and the whole
+        # product died with a NameError in 11 s.
         lat = u.latitude.values
         steps_h = (u.step / np.timedelta64(1, "h")).values.astype(int)
+        # The per-iteration arrays are dead now; dropping the references lets the
+        # next open_dataset reuse the memory instead of stacking on top.
+        del um, spm, u, ur, um_, spv, sp
     um, spm = acc / n, spacc / n
     dlon = np.deg2rad(0.25); dlat = np.deg2rad(0.25)
     cos2 = np.cos(np.deg2rad(lat)) ** 2
