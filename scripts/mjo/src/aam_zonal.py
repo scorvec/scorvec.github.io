@@ -68,9 +68,18 @@ def zonal_aam_density(up_rest: Path, up_rmm: Path, sp_path: Path):
     steps_h = (u.step / np.timedelta64(1, "h")).values.astype(int)
     cos2 = np.cos(np.deg2rad(lat)) ** 2
 
-    ubar = u.mean("number").transpose("step", "isobaricInhPa", "latitude", "longitude").values
+    # Sequential scheduler, not dask's default threaded one. The member mean is
+    # over 25 chunks of a (step, lev, lat, lon) field; threaded evaluation holds
+    # several in flight at once, and the 2026-08-29 Actions trial peaked at
+    # 14.5-14.7 GB on a 15 GB runner. Single-threaded costs a little wall time
+    # and bounds concurrent chunks to one. The result is identical - same
+    # reduction, just not computed in parallel.
+    ubar = u.mean("number").transpose(
+        "step", "isobaricInhPa", "latitude", "longitude").compute(
+        scheduler="single-threaded").values
     spv = dsp[[v for v in dsp.data_vars][0]]
-    spbar = spv.mean("number").transpose("step", "latitude", "longitude").values
+    spbar = spv.mean("number").transpose(
+        "step", "latitude", "longitude").compute(scheduler="single-threaded").values
     ubar_zm = ubar.mean(axis=3)                                  # (step,lev,lat) jet context
 
     nstep, nlev, nlat = ubar.shape[0], len(p_hpa), len(lat)

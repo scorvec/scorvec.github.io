@@ -123,14 +123,31 @@ def forecast_latbands(date, time, latc):
                              backend_kwargs={"filter_by_keys": {"shortName": "sp"},
                                              "indexpath": ""}, chunks={"number": 1})
         spv = sp[[v for v in sp.data_vars][0]]
+        # Sequential scheduler: see the note in aam_zonal.py. Threaded evaluation
+        # of a 25-member mean holds several full chunks at once.
         um = (u.mean("number") if "number" in u.dims else u).transpose(
-            "step", "isobaricInhPa", "latitude", "longitude").values
+            "step", "isobaricInhPa", "latitude", "longitude").compute(
+            scheduler="single-threaded").values
         spm = (spv.mean("number") if "number" in spv.dims else spv).transpose(
-            "step", "latitude", "longitude").values
+            "step", "latitude", "longitude").compute(
+            scheduler="single-threaded").values
         w = 50 if typ == "pf" else 1
-        acc = um * w if acc is None else acc + um * w
-        spacc = spm * w if spacc is None else spacc + spm * w
+        # In-place accumulation. `acc + um * w` builds two full-size float64
+        # temporaries on top of the two live arrays; at (16, 13, 721, 1440) that
+        # is 1.73 GB each. The 2026-08-29 Actions trial peaked at 14.72 GB on a
+        # 15 GB runner - about 2% of headroom - and this is the cheapest part of
+        # that to give back without touching the arithmetic. Results are
+        # bit-identical: same operations, same order, just no intermediates.
+        if acc is None:
+            acc = um * w
+            spacc = spm * w
+        else:
+            acc += um * w
+            spacc += spm * w
         n += w
+        # The per-iteration arrays are dead here; dropping the references lets
+        # the next open_dataset reuse the memory instead of stacking on top.
+        del um, spm, u, ur, um_, spv, sp
         lat = u.latitude.values
         steps_h = (u.step / np.timedelta64(1, "h")).values.astype(int)
     um, spm = acc / n, spacc / n

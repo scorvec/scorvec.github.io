@@ -5,6 +5,11 @@ xarray
 dask
 netcdf4
 h5netcdf
+zarr             # ARCO-ERA5 is a zarr store: aam.py's observed_history() and the
+gcsfs            # build_*_clim.py builders read it. Without these the ERA5 tail
+                 # SILENTLY vanishes - observed_history catches the ImportError
+                 # and returns None, so the figure still builds, just without its
+                 # observed history (seen on the 2026-08-29 Actions trial).
 cfgrib
 eccodes
 matplotlib==3.10.9  # 3.11 breaks cartopy GeoAxes tight-bbox/titles (2026-08-25)
