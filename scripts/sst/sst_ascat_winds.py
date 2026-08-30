@@ -73,19 +73,46 @@ def archive_data(dsd: xr.Dataset, day: pd.Timestamp) -> None:
 
 
 def build_manifest() -> None:
-    """Rebuild the animator manifest from the dated frame archive (oldest→newest), pruned."""
+    """Update the animator manifest: local frames MERGED over the existing list.
+
+    Deliberately not a pure rebuild-from-glob. The frames live on the orphan
+    `frames` branch (scripts/lib/publish_frames.sh), so a GitHub Actions checkout
+    of main sees only the one frame it just produced. A glob-driven rebuild there
+    wrote a 1-frame manifest over a 115-frame one and committed it - which is
+    exactly what happened on 2026-08-29 22:01Z, and went unnoticed for months
+    only because the laptop rebuilt the full manifest every 15 min afterwards.
+    Once SST moved to Actions there was nothing left to repair it.
+
+    So: entries already in the manifest are kept unless they age out, and local
+    frames are merged in. Whoever runs, laptop or runner, the list only grows and
+    prunes by date - it never shrinks to whatever happens to be checked out.
+    """
     _prune(ANIM_DIR, "*.webp")
-    dated = []
+    by_date: dict[str, dict] = {}
+    if MANIFEST.exists():
+        try:
+            prev = json.loads(MANIFEST.read_text())
+            for e in prev.get("regions", {}).get("ascat", {}).get("frames", []):
+                if e.get("date"):
+                    by_date[e["date"]] = e
+        except (json.JSONDecodeError, OSError):
+            pass                                   # corrupt/absent: fall back to the glob
     for f in sorted(ANIM_DIR.glob("*.webp")):
         if f.stat().st_size < MIN_OK_BYTES:        # never list a collapsed/empty frame
             continue
         try:
-            dated.append((pd.to_datetime(f.stem), f))
+            d = pd.to_datetime(f.stem)
         except Exception:                          # noqa: BLE001
-            pass
-    dated.sort()
-    frames = [{"idx": i, "file": f.name, "date": f"{d:%Y-%m-%d}", "label": f"{d:%a %b %d, %Y}"}
-              for i, (d, f) in enumerate(dated)]
+            continue
+        key = f"{d:%Y-%m-%d}"
+        by_date[key] = {"file": f.name, "date": key, "label": f"{d:%a %b %d, %Y}"}
+    # Age out on the same rolling window the frame files use, so the manifest and
+    # the branch stay in step.
+    cutoff = (pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(days=KEEP_DAYS))
+    keep = sorted((k for k in by_date
+                   if pd.to_datetime(k) >= cutoff), key=pd.to_datetime)
+    frames = [{"idx": i, **{k: v for k, v in by_date[d].items() if k != "idx"}}
+              for i, d in enumerate(keep)]
     manifest = {"ver": int(time.time()), "days": len(frames),
                 "regions": {"ascat": {
                     "label": "Equatorial Pacific surface wind (10°S–10°N) — gap-filled scatterometer (ASCAT) L4",
