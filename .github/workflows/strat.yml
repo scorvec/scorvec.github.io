@@ -4,8 +4,7 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 # laptop on 2026-08-29 and split into parallel jobs on 2026-08-30:
 #
 #   nh_vortex.py      -> assets/sst/nh_vortex.webp        60N winds + polar-cap height
-#   wave1_maps.py     -> assets/sst/wave1_100.webp        still (loop covers 500)
-#                     -> assets/sst/anim/wave1_{100,500}/ 16-step loop per level
+#   wave1_maps.py     -> assets/sst/anim/wave1_{nh,sh}/    loop only, no still
 #   vortex_winds.py   -> assets/sst/vortex_10.webp         still (loop covers 100)
 #                     -> assets/sst/anim/vortex_{10,100}/  31-step 12-hourly loop
 #   qbo_duct.py       -> assets/sst/anim/epflux/          E-P flux loop
@@ -137,10 +136,9 @@ jobs:
         run: |
           python scripts/strat/wave1_maps.py \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            --out-dir assets/sst \
             --anim-dir assets/sst/anim \
             --manifest assets/sst/anim/wave1_maps_manifest.json \
-            || echo "::warning::wave1_maps failed; keeping the previous figure"
+            || echo "::warning::wave1_maps failed; keeping the previous loop"
 
       - name: Vortex winds, 10 and 100 hPa
         run: |
@@ -151,19 +149,34 @@ jobs:
             --manifest assets/sst/anim/vortex_winds_manifest.json \
             || echo "::warning::vortex_winds failed; keeping the previous figure"
 
+      # FAILS the job when a product rendered nothing. Every render is wrapped in
+      # `|| echo ::warning::` so one upstream outage cannot sink the others - but
+      # that also turned a wave1_maps run that died in TWO SECONDS on an argparse
+      # error into a green step (2026-08-30: strat.yml still passed --out-dir
+      # after the script dropped it). A green tick that published nothing has now
+      # hidden four separate faults in one day. Publishing still happens: the
+      # publish job runs under always(), so the products that DID render reach
+      # the site and the run simply goes red so the failure is visible.
       - name: What was produced
         if: always()
         run: |
-          for f in assets/sst/wave1_100.webp assets/sst/vortex_10.webp; do
+          bad=0
+          for f in assets/sst/vortex_10.webp; do
             if [ -f "$f" ]; then
               printf '  %-38s %s  (mtime %s)\n' "$f" "$(du -h "$f" | cut -f1)" "$(date -r "$f" -u +%H:%MZ)"
             else
-              printf '  %-38s MISSING\n' "$f"
+              printf '  %-38s MISSING\n' "$f"; bad=$((bad + 1))
             fi
           done
-          for d in assets/sst/anim/wave1_100 assets/sst/anim/wave1_500 assets/sst/anim/vortex_10 assets/sst/anim/vortex_100; do
-            printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
+          for d in assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/vortex_10 assets/sst/anim/vortex_100; do
+            n=$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')
+            printf '  %-38s %s frames\n' "$d" "$n"
+            [ "$n" -eq 0 ] && bad=$((bad + 1))
           done
+          if [ "$bad" -gt 0 ]; then
+            echo "::error::$bad light product(s) produced nothing - see the warnings above"
+            exit 1
+          fi
 
       # Handed to the publish job rather than pushed here: see the header note
       # on why publishing is single-threaded.
@@ -181,8 +194,8 @@ jobs:
         run: |
           set -euo pipefail
           : > /tmp/light.list
-          for p in assets/sst/wave1_100.webp assets/sst/vortex_10.webp \
-                   assets/sst/anim/wave1_100 assets/sst/anim/wave1_500 \
+          for p in assets/sst/vortex_10.webp \
+                   assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh \
                    assets/sst/anim/vortex_10 assets/sst/anim/vortex_100 \
                    assets/sst/anim/wave1_maps_manifest.json \
                    assets/sst/anim/vortex_winds_manifest.json; do
@@ -263,15 +276,21 @@ jobs:
       - name: What was produced
         if: always()
         run: |
+          bad=0
           if [ -f assets/sst/nh_vortex.webp ]; then
             printf '  %-38s %s  (mtime %s)\n' assets/sst/nh_vortex.webp \
               "$(du -h assets/sst/nh_vortex.webp | cut -f1)" \
               "$(date -r assets/sst/nh_vortex.webp -u +%H:%MZ)"
           else
-            printf '  %-38s MISSING\n' assets/sst/nh_vortex.webp
+            printf '  %-38s MISSING\n' assets/sst/nh_vortex.webp; bad=$((bad + 1))
           fi
-          printf '  %-38s %s frames\n' assets/sst/anim/epflux \
-            "$(ls assets/sst/anim/epflux/*.webp 2>/dev/null | wc -l | tr -d ' ')"
+          n=$(ls assets/sst/anim/epflux/*.webp 2>/dev/null | wc -l | tr -d ' ')
+          printf '  %-38s %s frames\n' assets/sst/anim/epflux "$n"
+          [ "$n" -eq 0 ] && bad=$((bad + 1))
+          if [ "$bad" -gt 0 ]; then
+            echo "::error::$bad heavy product(s) produced nothing - see the warnings above"
+            exit 1
+          fi
 
       # Tarred for the same reason as light: see the note there.
       - name: Pack the outputs
@@ -333,11 +352,11 @@ jobs:
 
       - name: What arrived
         run: |
-          for f in assets/sst/nh_vortex.webp assets/sst/wave1_100.webp assets/sst/vortex_10.webp; do
+          for f in assets/sst/nh_vortex.webp assets/sst/vortex_10.webp; do
             if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-38s (not produced this run)\n' "$f"; fi
           done
-          for d in assets/sst/anim/epflux assets/sst/anim/wave1_100 assets/sst/anim/wave1_500 assets/sst/anim/vortex_10 assets/sst/anim/vortex_100; do
+          for d in assets/sst/anim/epflux assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh assets/sst/anim/vortex_10 assets/sst/anim/vortex_100; do
             printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
           done
 
@@ -366,7 +385,7 @@ jobs:
             find "$1" -name '*.webp' 2>/dev/null | wc -l | tr -d ' '
           }
           n=0
-          for d in epflux wave1_100 wave1_500 vortex_10 vortex_100; do
+          for d in epflux wave1_nh wave1_sh vortex_10 vortex_100; do
             c=$(count_frames "assets/sst/anim/$d")
             echo "  $d: $c frames"; n=$((n + c))
           done
@@ -381,7 +400,7 @@ jobs:
             echo "  no frames branch yet - creating one"
             mkdir -p "$TMP/f" && git -C "$TMP/f" init -q && git -C "$TMP/f" remote add origin "$URL"
           fi
-          for d in epflux wave1_100 wave1_500 vortex_10 vortex_100; do
+          for d in epflux wave1_nh wave1_sh vortex_10 vortex_100; do
             # A product that did not render must not blank its directory on the
             # branch, so an empty one is skipped rather than swapped in.
             c=$(count_frames "assets/sst/anim/$d")
@@ -409,8 +428,7 @@ jobs:
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
-          git add assets/sst/nh_vortex.webp assets/sst/wave1_100.webp \
-                  assets/sst/vortex_10.webp \
+          git add assets/sst/nh_vortex.webp assets/sst/vortex_10.webp \
                   assets/sst/anim/*_manifest.json 2>/dev/null || true
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"

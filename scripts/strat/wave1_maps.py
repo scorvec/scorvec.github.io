@@ -222,7 +222,7 @@ def superposition(Zband_coeff: complex, clim, amax=None):
     which is the more physical way to read it.
     """
     if clim is None or abs(clim) == 0:
-        return None, None
+        return None, None, None
     # An interference index needs something to interfere WITH. The NH
     # climatological wave-1 at 100 hPa falls to 8 gpm in midsummer against a
     # 147 gpm winter maximum, and S divides by |Zc|^2 - so an ordinary anomaly
@@ -231,13 +231,24 @@ def superposition(Zband_coeff: complex, clim, amax=None):
     # reinforce or cancel (and in the summer hemisphere the easterlies stop
     # planetary waves propagating anyway), so the index is simply not defined.
     if amax is not None and abs(clim) < 0.25 * amax:
-        return None, None
+        return None, None, None
     anom = Zband_coeff - clim
     s = (anom * np.conj(clim)).real / (abs(clim) ** 2)
     # k=1, so a radian of phase is a radian of longitude.
     dphi = np.degrees(np.angle(anom) - np.angle(clim))
     dphi = (dphi + 180.0) % 360.0 - 180.0
-    return float(s), float(dphi)
+    # TOTAL wave-1 power against climatology: |Zc+Za|^2/|Zc|^2 = 1 + 2S + r^2.
+    #
+    # S alone is a FIRST-ORDER diagnostic and only means what people take it to
+    # mean while the anomaly is small against the standing wave, so the cross
+    # term dominates the r^2 term. On 2026-08-30 the SH ran S = -1.28 at 100 hPa
+    # with r = 1.88: the anomaly was nearly twice the climatological wave, the
+    # quadratic term won, and TOTAL wave-1 power came out at 1.96x climatology.
+    # Labelling that "cancelling" off the sign of S was simply wrong - the wave
+    # had reversed phase and grown, not cancelled. Report the total so the
+    # reader can see when the linear reading has stopped applying.
+    tot = 1.0 + 2.0 * s + abs(anom / clim) ** 2
+    return float(s), float(dphi), float(tot)
 
 
 def band_coeff(Z, la, north: bool) -> complex:
@@ -309,12 +320,16 @@ def panel(ax, z, lev, hemi, valid=None):
     S = dphi = None
     if valid is not None:
         cc, amax = clim_coeff(lev, hemi, valid)
-        S, dphi = superposition(band_coeff(Z, la, north), cc, amax)
+        S, dphi, tot = superposition(band_coeff(Z, la, north), cc, amax)
     if S is not None:
-        if abs(dphi) <= 60:      word, col = "reinforcing", "#b3122b"
-        elif abs(dphi) >= 120:   word, col = "cancelling", "#1f4e9c"
-        else:                    word, col = "in quadrature", "#666666"
-        title += f"\nsuperposition S = {S:+.2f}  (Δφ = {dphi:+.0f}°)"
+        # The verdict follows the TOTAL, not the sign of S: what matters is
+        # whether wave-1 ends up larger or smaller than climatology, and with a
+        # big anomaly those two disagree.
+        if   tot >= 1.25:        word, col = "amplified", "#b3122b"
+        elif tot <= 0.75:        word, col = "suppressed", "#1f4e9c"
+        else:                    word, col = "near normal", "#666666"
+        title += (f"\nS = {S:+.2f}  (Δφ = {dphi:+.0f}°)   "
+                  f"total wave-1 = {tot:.2f}× clim")
         ax.set_title(title, fontsize=10.0, pad=6)
         # The verdict carries the meaning, so it gets the colour rather than
         # tinting the whole title. Inside the panel, top-left: a polar plot is
