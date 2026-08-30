@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas, with MJO Tracking</title>
+<meta name="description" content="Days 1-35 anomaly forecasts for North and South America from the ECCC GEPS extended ensemble, taken against a purpose-built 2001-2020 GEPS hindcast climatology at matching lead so model drift is removed. Daily animations and weekly means for eight fields, plus a full three-field Wheeler-Hendon RMM phase diagram and a tropical convection Hovmoller.">
+<link rel="canonical" href="https://scorvec.com/subseasonal.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
+<meta property="og:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, de-drifted against a 2001-2020 model hindcast climatology, with full three-field MJO tracking.">
+<meta property="og:url" content="https://scorvec.com/subseasonal.html">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
+<meta name="twitter:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, de-drifted against a 2001-2020 model hindcast climatology, with full three-field MJO tracking.">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf8;
+    --ink: #1c1c1a;
+    --muted: #888580;
+    --accent: #2c4a72;
+    --accent-light: #e8eef5;
+    --rule: #e4e2dc;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html { font-size: 17.5px; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+
+  .site-header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(250,250,248,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+  nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1.2rem 3rem;
+  }
+  .nav-name {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    text-decoration: none; color: var(--ink);
+  }
+  .nav-links { display: flex; gap: 2rem; list-style: none; }
+  .nav-links a {
+    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--muted); transition: color 0.2s;
+  }
+  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
+
+  .sub-nav {
+    display: flex; gap: 1.6rem; align-items: center; flex-wrap: wrap;
+    padding: 0.55rem 3rem 0.7rem;
+    border-top: 1px solid var(--rule);
+  }
+  .sub-nav a {
+    font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
+    color: var(--accent); padding-bottom: 2px;
+    border-bottom: 2px solid var(--accent-light);
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .sub-nav a:hover { border-bottom-color: var(--accent); }
+
+  main {
+    flex: 1; max-width: 1400px; margin: 0 auto;
+    padding: 6.2rem 2.5rem 2rem; width: 100%;
+  }
+
+  .page-header { margin-bottom: 1.1rem; padding-bottom: 0.9rem; border-bottom: 1px solid var(--rule); }
+  .page-header h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.5rem; }
+  .page-header p { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
+  .page-header p + p { margin-top: 0.8rem; }
+  .page-header b { color: var(--ink); font-weight: 500; }
+
+  .cycle-strip {
+    display: flex; gap: 1.8rem; flex-wrap: wrap; align-items: baseline;
+    margin-top: 0.8rem; padding: 0.5rem 1rem; background: var(--accent-light);
+  }
+  .cycle-strip div { font-size: 0.78rem; color: #4a5a6e; line-height: 1.5; }
+  .cycle-strip b { display: block; font-family: var(--serif); font-size: 1rem; color: var(--accent); font-weight: 500; }
+
+  .chart-stack { display: flex; flex-direction: column; gap: 2.6rem; }
+
+  .chart-card { border: 1px solid var(--rule); background: #fff; overflow: hidden; }
+  .chart-card-header { padding: 1.5rem 1.8rem 1.3rem; border-bottom: 1px solid var(--rule); }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
+    margin-bottom: 0.6rem; color: var(--ink);
+  }
+  .chart-card-header p { font-size: 0.85rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
+  .chart-card-header p + p { margin-top: 0.7rem; }
+  .chart-card-header b { color: var(--ink); font-weight: 500; }
+
+  .img-wrap { padding: 1rem 1.2rem; background: #fff; }
+  .img-wrap img { display: block; width: 100%; height: auto; }
+  .img-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase;
+               letter-spacing: 0.06em; margin: 0 0 0.4rem 0.2rem; }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; padding: 1rem 1.2rem; }
+  @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
+  .pair img { display: block; width: 100%; height: auto; }
+
+  /* obvious, high-contrast selectors */
+  .seg { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+         padding: 1rem 1.2rem 0; }
+  .seg + .seg { padding-top: 0.5rem; }
+  .seg-label {
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--muted); margin-right: 0.35rem;
+  }
+  .seg button {
+    font-family: var(--sans); font-size: 0.78rem; line-height: 1;
+    padding: 0.5rem 0.9rem; cursor: pointer;
+    border: 1px solid var(--accent); background: #fff; color: var(--accent);
+    transition: background 0.15s, color 0.15s;
+  }
+  .seg button:hover { background: var(--accent-light); }
+  .seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+
+  .controls {
+    display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;
+    padding: 1rem 1.2rem; border-bottom: 1px solid var(--rule); background: #fcfcfa;
+  }
+  .controls select {
+    font-family: var(--sans); font-size: 0.9rem; font-weight: 600;
+    padding: 0.5rem 0.8rem; border: 1px solid var(--accent);
+    background: #fff; color: var(--accent); cursor: pointer;
+  }
+  .stage { padding: 1rem 1.2rem; min-height: 320px; }
+  .stage img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+  .stage iframe { width: 100%; border: 0; display: block; background: #fff; }
+  .stage .cap { font-size: 0.78rem; color: var(--muted); margin-top: 0.6rem; }
+  details.method { margin-top: 2rem; border-top: 1px solid var(--rule); padding-top: 1.2rem; }
+  details.method summary {
+    cursor: pointer; font-family: var(--serif); font-size: 1rem; color: var(--ink);
+    margin-bottom: 0.8rem;
+  }
+  details.method p { font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+                     max-width: 62rem; margin-top: 0.8rem; }
+  details.method b { color: var(--ink); font-weight: 500; }
+  details.method code { font-size: 0.78rem; background: #f2f0ec; padding: 0.05rem 0.3rem; }
+  .view > [data-key] { display: none; }
+  .view > [data-key].on { display: block; }
+  .anim-embed { width: 100%; border: 0; display: block; background: #fff; }
+  .anim-embed.na { aspect-ratio: 760 / 640; }
+  .anim-embed.sa { aspect-ratio: 760 / 1041; }
+  .anim-embed.strat { aspect-ratio: 1139 / 610; }
+
+  .chart-card-footer {
+    padding: 0.85rem 1.8rem; border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .chart-sources, .chart-updated { font-size: 0.68rem; color: var(--muted); }
+
+  .colophon { margin-top: 3.5rem; padding-top: 2rem; border-top: 1px solid var(--rule);
+              font-size: 0.82rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
+  .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem;
+                 color: var(--ink); margin-bottom: 0.5rem; }
+  .colophon h3 + p { margin-top: 0; }
+  .colophon p + p, .colophon p + h3 { margin-top: 0.9rem; }
+  .colophon b { color: var(--ink); font-weight: 500; }
+  .colophon code { font-size: 0.78rem; background: #f2f0ec; padding: 0.05rem 0.3rem; }
+
+  footer { padding: 1.2rem 3rem; border-top: 1px solid var(--rule); display: flex; justify-content: center; }
+  .counter { font-size: 0.72rem; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .sub-nav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
+    main { padding: 9rem 1.5rem 3.5rem; }
+    .page-header h1 { font-size: 1.6rem; }
+    .chart-stack { gap: 2rem; }
+    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
+    .chart-card-footer { padding: 0.75rem 1.3rem; }
+    footer { padding: 1rem 1.5rem; }
+  }
+  @media (max-width: 480px) {
+    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .nav-links { gap: 1rem; }
+    .nav-links a { font-size: 0.78rem; }
+    main { padding: 9.5rem 1rem 3rem; }
+    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
+  }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <nav>
+    <a href="index.html" class="nav-name">Shawn Corvec</a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resume.html">Resume</a></li>
+      <li><a href="research.html">Research</a></li>
+      <li><a href="mjo.html">MJO</a></li>
+      <li><a href="sst.html">El Ni&ntilde;o</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <div class="page-header">
+    <h1>Subseasonal Outlook &mdash; days 1&ndash;35</h1>
+    <p>ECCC GEPS extended ensemble, de-drifted against a purpose-built GEPS8
+    2001&ndash;2020 hindcast climatology.</p>
+    <div class="cycle-strip">
+      <div><b>2026-08-27 00Z</b>cycle</div>
+      <div><b>Aug 28 &ndash; Oct 1</b>valid</div>
+      <div><b>21</b>members</div>
+      <div><b>2001&ndash;2020</b>lead-matched base</div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="controls">
+      <select id="product"></select>
+      <div class="seg" id="opts-a" style="padding:0"></div>
+      <div class="seg" id="opts-b" style="padding:0"></div>
+    </div>
+    <div class="stage">
+      <div id="stage"></div>
+      <p class="cap" id="cap"></p>
+    </div>
+  </div>
+
+  <details class="method">
+    <summary>How it is built</summary>
+    <p><b>The climatology.</b> The GEPS8 reforecast (2001&ndash;2020, four starts a week, four
+    members, 39 leads) was pulled from the IRI Data Library for eight variables &mdash; 1,920
+    monthly files, 116&nbsp;GB &mdash; and reduced to a lead-dependent model climatology: for each
+    variable, lead and day-of-year, the mean over hindcast starts within &plusmn;15 days of that
+    date across all twenty years, roughly 340&ndash;560 starts per cell. Anomalies are taken against
+    that, at matching lead, so what the maps show is departure from how GEPS itself normally behaves
+    that far into a forecast.</p>
+    <p><b>Two corrections worth naming</b>, because both were wrong first and both were visible.
+    The climatology is indexed by the day-of-year of the <i>start</i>, so it must be read at the
+    forecast's init day-of-year, the same for every lead; reading it at each valid date instead
+    compared a day-35 forecast against runs launched 35 days later, which over an autumn continent
+    made the reference about 8&nbsp;K too cold and produced a fake warming that grew with lead. And
+    the ensemble mean must be weighted by <i>member count</i>: the perturbed file holds 20 members
+    and the control one, so averaging the two files equally gave the control half the weight instead
+    of a twenty-first, leaking one member's small-scale noise into every map.</p>
+    <p><b>The anomaly is computed on the climatology's grid, not the forecast's.</b>
+    The hindcast is 1&deg; and the live forecast 0.5&deg;, exactly nested. Interpolating
+    the climatology up to 0.5&deg; to keep forecast detail seems free but is not: the
+    forecast resolves terrain and coastlines the 1&deg; reference cannot represent, so
+    that structure does not cancel and comes out as grid-scale speckle along every
+    mountain range and shoreline &mdash; mean state masquerading as anomaly, and worst
+    in precipitation. The forecast is now band-limited to the coarse grid first and the
+    difference taken there. An anomaly cannot carry more resolution than its reference.</p>
+    <p><b>Outgoing longwave carries a model-version offset, and it is removed.</b>
+    The live operational GEPS radiates about 7.6&nbsp;W&nbsp;m<sup>&minus;2</sup>
+    differently from the GEPS8 reforecast the climatology was built on &mdash; flat
+    across all 35 leads (spread 0.53), so it is not a forecast signal; a global-mean OLR
+    anomaly that size is not physically possible. Left in, it tinted every map green and
+    put spurious widespread negative anomalies over North America. The per-lead global
+    mean is removed for OLR, as it is for height. It is irrelevant to the RMM, where a
+    uniform offset moves the projection by less than 0.05.</p>
+    <p><b>Height is treated differently from the rest.</b> Between the 2001&ndash;2020 hindcast
+    epoch and today there is a real climate offset in geopotential height &mdash; a flat
+    +16&nbsp;m at every lead, measured &mdash; which would otherwise sit over every 500&nbsp;hPa map
+    as a uniform ridge. For z500 the per-lead global mean is removed so the circulation shows. For
+    temperature and precipitation the raw anomaly is kept, because there the departure from the
+    2001&ndash;2020 climate is part of what you want to see. Each figure says which it is.</p>
+    <p><b>The OLR channel.</b> ERA5's top-of-atmosphere longwave runs about 13&nbsp;W&nbsp;m<sup>&minus;2</sup>
+    above the NOAA-based reference climatology the RMM EOFs were built on, so a per-longitude offset
+    measured over three whole years is removed before anything is projected. The GMGSI proxy that
+    covers the final few days is offset-corrected onto ERA5 over their 220-day overlap (r&nbsp;=&nbsp;0.80
+    in the anomaly, spread within 3% of ERA5's) and screened day by day &mdash; the mosaic
+    occasionally publishes a day with missing passes, and one such day at the end of the record
+    would otherwise become the observed MJO's latest point.</p>
+    <p><b>The stratosphere uses ERA5, not the hindcast — because it has to.</b> Everything
+    else on this page is de-drifted against the GEPS8 reforecast, which is the better
+    reference. That archive cannot serve the vortex: it carries <code>ua</code>/<code>va</code>
+    at 100, 200 and 850&nbsp;hPa only, <code>zg</code> at 200 and 500 only, and <b>no
+    pressure-level temperature at all</b>. There is no 10&nbsp;hPa anything in it. So the
+    stratospheric anomalies are taken against ERA5 instead, and the model bias that the
+    reforecast would have removed is measured rather than assumed: GEPS analysis against
+    ERA5 on the same day runs &minus;26&nbsp;m at 10&nbsp;hPa globally and +0.5&nbsp;m over
+    the polar cap, with temperature within 0.5&nbsp;K &mdash; small enough to leave alone,
+    and stated here so it is not mistaken for signal. (100&nbsp;hPa <i>zonal wind</i> is the
+    one stratospheric field the hindcast could de-drift, and is a candidate for later.)</p>
+    <p>ERA5 was also checked against <b>MERRA-2</b>, the reference the site&rsquo;s existing
+    vortex monitor uses, so the two are not silently disagreeing: over 2,156 matching days
+    they differ by 0.13&nbsp;m/s in u(60&deg;N) at 10&nbsp;hPa (r&nbsp;0.999), 0.11&nbsp;K in
+    cap temperature (r&nbsp;0.997) and 9&nbsp;m in cap height from 2001 onward. An
+    archive-wide sweep of both records found a single corrupt day in 46 years of MERRA-2
+    &mdash; 1991-06-30, where the polar-cap height collapses to 0.80&nbsp;m &mdash; now
+    screened out; removing it also moved MERRA-2&rsquo;s own height trend from +18.7 to
+    +18.1&nbsp;m/decade, against +18.9 measured independently from ERA5.</p>
+    <p><b>Caveats.</b> This is an ensemble mean, so it understates the range of outcomes
+    everywhere and increasingly so with lead; nothing here is a probability. Twenty-one
+    members is also not many for precipitation: a single member differs from the member
+    mean by about the field's own magnitude, so roughly a fifth of single-member variance
+    survives into the mean and shows up as coherent-looking blobs at long lead. Those are
+    ensemble sampling noise, not forecast structure. Extended cycles run
+    Monday and Thursday only. The hindcast is a fixed model version while the live forecast is the
+    current operational one, so a slow model change is not captured by the 2001&ndash;2020
+    reference &mdash; the outgoing-longwave offset above is exactly that showing up.</p>
+    <p>Data: ECCC GEPS via the MSC Datamart (Environment and Climate Change Canada, Open Government
+    Licence). GEPS8 reforecast via the IRI Data Library, Columbia University. ERA5 via the
+    Analysis-Ready Cloud-Optimized store, Copernicus Climate Change Service. GMGSI via NOAA on AWS.
+    RMM reference EOFs after Wheeler &amp; Hendon (2004).</p>
+  </details>
+</main>
+
+<footer><span class="counter">GEPS days 1&ndash;35</span></footer>
+
+<script>
+// One dropdown picks the product; the button rows below it pick that product's
+// options. Only one figure is ever in the DOM, so the page is a single screen
+// instead of a scroll through fourteen images.
+var FIELDS = [["t2m","2 m temp"],["pr","Precip"],["zg500","500 hPa Z"],["olr","OLR"],
+              ["u850","850 u"],["u200","200 u"],["v850","850 v"],["v200","200 v"]];
+var P = {
+  mjo: {label: "MJO", a: {label:"View", items:[["phase","Phase diagram"],["hov","Propagation"]]},
+        img: function (a) { return "assets/geps/geps_mjo_" + (a==="phase"?"phase":"hovmoller") + ".webp"; },
+        cap: function (a) { return a==="phase"
+          ? "Three-field RMM (OLR + U850 + U200), 21-member plume, days 1\u201335."
+          : "OLR and 850 hPa zonal wind anomaly, 15\u00B0S\u201315\u00B0N, lead \u00D7 longitude."; }},
+  weekly: {label: "Weekly means, weeks 1\u20135", fit: false,
+        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
+                                   ["glb","Global (Mercator)"]]},
+        b: {label:"Field", items: FIELDS},
+        img: function (a,b) { return "assets/geps/geps_" + a + "_" + b + "_weekly.webp"; },
+        cap: function () { return "Five seven-day means, anomaly vs the lead-matched GEPS hindcast."; }},
+  daily: {label: "Daily animation",
+        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
+                                   ["glb","Global (Mercator)"]]},
+        frame: function (a) { return "sst_anim.html?base=assets/geps/anim&manifest=geps_" + a + "_manifest.json&embed=1"; },
+        ratio: function (a) { return a==="na" ? "760/640"
+                             : (a==="sa" ? "760/1041" : "1191/700"); },
+        cap: function () { return "One frame per forecast day, eight fields. 24-hour means."; }},
+  vortex: {label: "Polar vortex \u2014 diagnostics",
+        a: {label:"Hemisphere", items:[["nh","Northern"],["sh","Southern"]]},
+        img: function (a) { return "assets/geps/strat_" + a + "_series.webp"; },
+        cap: function () { return "u(60\u00B0) at 10 and 100 hPa, polar-cap T and height. Ensemble spread, 14-day analysis tail."; }},
+  vloop: {label: "Polar vortex \u2014 daily loop",
+        a: {label:"", items:[["all","10 and 100 hPa"]]},
+        frame: function () { return "sst_anim.html?base=assets/geps/anim&manifest=geps_strat_manifest.json&embed=1"; },
+        ratio: function () { return "1139/610"; },
+        cap: function () { return "Analysis to day 35, both hemispheres and levels."; }}
+};
+var sel = {p: "mjo", a: null, b: null};
+var $ = function (id) { return document.getElementById(id); };
+
+function buttons(host, group, key) {
+  host.innerHTML = "";
+  if (!group) return null;
+  if (group.label) {
+    var l = document.createElement("span");
+    l.className = "seg-label"; l.textContent = group.label; host.appendChild(l);
+  }
+  group.items.forEach(function (it, i) {
+    var b = document.createElement("button");
+    b.textContent = it[1]; b.dataset.v = it[0];
+    if (sel[key] === it[0] || (sel[key] === null && i === 0)) { b.classList.add("on"); sel[key] = it[0]; }
+    b.onclick = function () { sel[key] = it[0]; render(); };
+    host.appendChild(b);
+  });
+  return sel[key];
+}
+
+// Size the figure to the viewport so it is read, not scrolled. The height is
+// measured from where the stage actually starts rather than guessed from a
+// constant, so it survives the header wrapping on a narrow window. Products
+// whose figure is intrinsically tall (stacked weekly strips) opt out with
+// fit:false and scroll normally — shrinking those to one screen would make them
+// unreadable, which defeats the point.
+function fitStage() {
+  var st = $("stage"), img = st.querySelector("img");
+  if (!img) return;
+  if (P[sel.p].fit === false) { img.style.maxHeight = ""; img.style.width = "100%"; return; }
+  var avail = window.innerHeight - st.getBoundingClientRect().top
+            - $("cap").offsetHeight - 34;
+  img.style.maxHeight = Math.max(260, avail) + "px";
+  img.style.width = "auto";
+}
+addEventListener("resize", fitStage);
+
+function render() {
+  var p = P[sel.p];
+  buttons($("opts-a"), p.a, "a");
+  buttons($("opts-b"), p.b, "b");
+  var st = $("stage");
+  if (p.frame) {
+    st.innerHTML = '<iframe src="' + p.frame(sel.a) + '" style="aspect-ratio:'
+                 + p.ratio(sel.a) + '" title="animation"></iframe>';
+  } else {
+    st.innerHTML = '<img src="' + p.img(sel.a, sel.b) + '" alt="' + p.label + '">';
+  }
+  $("cap").textContent = p.cap(sel.a, sel.b);
+  var im = $("stage").querySelector("img");
+  if (im) { im.onload = fitStage; }
+  fitStage();
+}
+
+(function init() {
+  var d = $("product");
+  Object.keys(P).forEach(function (k) {
+    var o = document.createElement("option");
+    o.value = k; o.textContent = P[k].label; d.appendChild(o);
+  });
+  d.onchange = function () { sel = {p: d.value, a: null, b: null}; render(); };
+  render();
+})();
+
+// the animator reports its own height so the iframe hugs its content
+addEventListener("message", function (e) {
+  var x = e.data; if (!x || x.type !== "sstAnimHeight") return;
+  var f = document.querySelector("#stage iframe");
+  if (f && f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
+});
+</script>
+</body>
+</html>
