@@ -189,6 +189,8 @@ def download(url: str, ranges, dest: Path, quiet=False, workers: int = 8):
     file in the order the index lists them.
     """
     import urllib.request
+    import urllib.error          # grab() retries on it
+    import time                   # ... and backs off between attempts
     from concurrent.futures import ThreadPoolExecutor
 
     merged = []
@@ -199,12 +201,29 @@ def download(url: str, ranges, dest: Path, quiet=False, workers: int = 8):
         else:
             merged.append([off, end])
 
-    def grab(item):
+    def grab(item, tries=4):
+        """One byte range, with retries.
+
+        A 48 h ECAPE run makes tens of thousands of range requests across ~29
+        forecast hours, so a transient failure is not unlikely - it is expected.
+        Without a retry ONE of them takes the whole run with it: on 2026-08-30 a
+        single `_ssl.c:999: The handshake operation timed out` at F45 killed a
+        job that had already spent 70 minutes and published 57 frames. The cost
+        of retrying is a few seconds; the cost of not retrying is the run.
+        """
         i, (off, end) = item
         rng = f"bytes={off}-" + ("" if end is None else str(end))
-        req = urllib.request.Request(url, headers={"Range": rng})
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-            return i, r.read()
+        last = None
+        for attempt in range(1, tries + 1):
+            try:
+                req = urllib.request.Request(url, headers={"Range": rng})
+                with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+                    return i, r.read()
+            except (urllib.error.URLError, OSError, TimeoutError) as e:
+                last = e
+                if attempt < tries:
+                    time.sleep(2 ** attempt)          # 2, 4, 8 s
+        raise RuntimeError(f"range {rng} failed after {tries} attempts: {last!r}")
 
     chunks = [None] * len(merged)
     done = 0
