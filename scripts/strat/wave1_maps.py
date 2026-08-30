@@ -38,6 +38,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -58,25 +59,44 @@ LAT_EDGE = 20.0
 # Symmetric per-level scales in geopotential metres, fixed so a colour means the
 # same wave amplitude every day. 100 hPa runs roughly twice 500 hPa.
 SCALE = {100: 400.0, 500: 200.0}
+# Amplitudes inside the innermost pair are left WHITE rather than tinted. A pale
+# wash over a whole summer hemisphere reads as "something is happening here"
+# when nothing is; blanking the weak values makes the hemisphere that is
+# actually active obvious at a glance, and stops the eye chasing noise in the
+# other one.
+#
+# Written out rather than computed with linspace so the colourbar carries round
+# numbers a reader can actually use - an evenly divided range gave ticks like
+# 116.7 and 343.3.
+POS = {100: [60, 100, 150, 200, 300, 400],
+       500: [30, 50, 75, 100, 150, 200]}
 # Contour interval for the FULL height field drawn over the shading.
 FULL_CI = {100: 120.0, 500: 60.0}
 CMAP = "RdBu_r"
 
 
-def open_field(path, short: str, lev: int, step_h: int):
+def open_level(path, lev: int):
+    """The whole forecast for one level, step dimension intact.
+
+    Opened once per level rather than once per (level, step): the animation
+    walks 16 steps and re-opening the grib for each would decode the same file
+    16 times.
+    """
     ds = xr.open_dataset(path, engine="cfgrib", backend_kwargs=dict(
-        filter_by_keys={"shortName": short, "level": lev}, indexpath=""))
-    da = ds[short] if short in ds else ds[list(ds.data_vars)[0]]
-    if "step" in da.dims:
-        steps = (da.step.values / np.timedelta64(1, "h")).astype(int)
-        if step_h not in set(steps):
-            raise SystemExit(f"step {step_h}h not in z@{lev} "
-                             f"(have {steps.min()}..{steps.max()})")
-        da = da.isel(step=int(np.where(steps == step_h)[0][0]))
-    return da
+        filter_by_keys={"shortName": "z", "level": lev}, indexpath=""))
+    return ds["z"] if "z" in ds else ds[list(ds.data_vars)[0]]
 
 
-def fetch(date: str, time: str, step_h: int):
+def at_step(da, step_h: int):
+    if "step" not in da.dims:
+        return da
+    steps = (da.step.values / np.timedelta64(1, "h")).astype(int)
+    if step_h not in set(steps):
+        raise SystemExit(f"step {step_h}h not available (have {steps.min()}..{steps.max()})")
+    return da.isel(step=int(np.where(steps == step_h)[0][0]))
+
+
+def fetch(date: str, time: str):
     """Geopotential at both levels, control only.
 
     z is not in the store's bulk list - it was dropped 2026-07-24 as ~0.5 GB a
@@ -86,7 +106,7 @@ def fetch(date: str, time: str, step_h: int):
     cyc = ecmwf.Cycle(date, time)
     path = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "z", "pl",
                                         LEVELS, tuple(ecmwf.STEPS)))
-    return {lev: open_field(path, "z", lev, step_h) for lev in LEVELS}
+    return {lev: open_level(path, lev) for lev in LEVELS}
 
 
 def wave1(field2d: np.ndarray) -> np.ndarray:
@@ -122,9 +142,16 @@ def panel(ax, z, lev, hemi):
                    90 if north else -LAT_EDGE], crs=PC)
     circular_boundary(ax)
 
-    s = SCALE[lev]
-    lv = np.linspace(-s, s, 17)
-    cf = ax.contourf(lon, la, W1, levels=lv, cmap=CMAP, extend="both",
+    s, dz = SCALE[lev], DEADBAND[lev]
+    # Six bands each side of a white deadband, so the colour steps stay even
+    # while the middle is explicitly blank.
+    # 14 edges -> 13 bands: 6 negative, the white deadband spanning -dz..+dz,
+    # then 6 positive.
+    lv = np.concatenate([np.linspace(-s, -dz, 7), np.linspace(dz, s, 7)])
+    cmap = plt.get_cmap(CMAP)
+    cols = ([cmap(x) for x in np.linspace(0.02, 0.42, 6)] + ["#ffffff"] +
+            [cmap(x) for x in np.linspace(0.58, 0.98, 6)])
+    cf = ax.contourf(lon, la, W1, levels=lv, colors=cols, extend="both",
                      transform=PC, zorder=1)
 
     # Full height field over the top: the shading says where wave-1 is, these
@@ -194,15 +221,53 @@ def render(fields, date, time, step_h, out_path: Path):
     return out_path
 
 
+def build_loop(full, date, time, anim_dir: Path, manifest: Path) -> int:
+    """One frame per AIFS-ENS step, plus the animator manifest.
+
+    The forecast is the point of this loop: wave-1 amplifying at 100 hPa over
+    the next week is the signal that the vortex is about to be disturbed, and a
+    single analysis map cannot show it developing.
+    """
+    import json
+    anim_dir.mkdir(parents=True, exist_ok=True)
+    for old in anim_dir.glob("F*.webp"):
+        old.unlink()
+    init = pd.Timestamp(f"{date}T{time}:00")
+    frames = []
+    for i, step_h in enumerate(ecmwf.STEPS):
+        fields = {lev: at_step(full[lev], step_h) for lev in LEVELS}
+        render(fields, date, time, step_h, anim_dir / f"F{i:02d}.webp")
+        valid = init + pd.Timedelta(hours=step_h)
+        frames.append({"idx": i, "file": f"F{i:02d}.webp",
+                       "date": f"{valid:%Y-%m-%d}",
+                       "label": f"F{step_h:03d} · valid {valid:%a %d %b %HZ}"})
+        print(f"    F{step_h:03d}", flush=True)
+    man = {"ver": f"{date}{time}", "days": len(frames),
+           "regions": {"wave1_maps": {
+               "label": "Wave-1 height anomaly — 100 / 500 hPa, both hemispheres",
+               "n_frames": len(frames), "frames": frames}}}
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text(json.dumps(man))
+    print(f"  wrote {len(frames)} frames + {manifest.name}")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True)
     ap.add_argument("--time", required=True)
     ap.add_argument("--step", type=int, default=0)
     ap.add_argument("--out", default="assets/sst/wave1_maps.webp")
+    ap.add_argument("--anim-dir", help="also render every AIFS-ENS step here")
+    ap.add_argument("--manifest", help="animator manifest path")
     a = ap.parse_args(argv)
-    fields = fetch(a.date, a.time, a.step)
+    full = fetch(a.date, a.time)
+    # The static figure stays: it is what the page shows before the loop is
+    # loaded, and what a reader sees if the animator fails.
+    fields = {lev: at_step(full[lev], a.step) for lev in LEVELS}
     print(f"  wrote {render(fields, a.date, a.time, a.step, Path(a.out))}")
+    if a.anim_dir and a.manifest:
+        build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest))
     return 0
 
 
