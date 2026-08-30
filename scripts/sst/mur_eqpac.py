@@ -94,7 +94,16 @@ def _fetch(suffix: str, dest: Path, tries: int = 4) -> Path:
     raise last
 
 
-def latest_time(tries: int = 4) -> pd.Timestamp:
+# ERDDAP answers a runner's IP with a bare 403 from time to time - NOAA
+# throttles datacentre ranges, and both configured hosts are pfeg.noaa.gov, so
+# alternating between them does not escape it (checked 2026-08-30: no other
+# ERDDAP mirror serves jplMURSST41 at all - polarwatch, aoml and pifsc all 404).
+# The same request succeeds from a residential IP at the same moment, with any
+# User-Agent. So the answer is patience, not a different URL: six attempts with
+# a longer backoff rides out a throttling window instead of failing a daily job
+# for the day. If it still cannot fetch, it FAILS - loudly - rather than
+# publishing a stale frame.
+def latest_time(tries: int = 6) -> pd.Timestamp:
     last = None
     for attempt in range(1, tries + 1):
         host = ERDDAP_HOSTS[(attempt - 1) % len(ERDDAP_HOSTS)]
@@ -108,7 +117,7 @@ def latest_time(tries: int = 4) -> pd.Timestamp:
             last = e
             print(f"  .das attempt {attempt}/{tries} failed ({repr(e)[:60]})",
                   flush=True)
-            time.sleep(30 * attempt)
+            time.sleep(min(300, 30 * attempt * attempt))   # 30s,2m,4.5m,5m,5m
     raise last
 
 
