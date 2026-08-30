@@ -327,15 +327,13 @@
     <div class="chart-card plot-deck" data-deck="atmosphere5">
       <div class="deck-head">
         <span class="deck-title">Select a figure</span>
-        <span class="deck-hint">6 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
+        <span class="deck-hint">4 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
       </div>
       <div class="deck-tabs">
         <button class="on">NH polar vortex</button>
-        <button>Vortex winds 10&nbsp;hPa</button>
-        <button>Vortex winds 100&nbsp;hPa</button>
+        <button>Vortex winds</button>
         <button>E&ndash;P flux</button>
-        <button>Wave-1 100&nbsp;hPa</button>
-        <button>Wave-1 500&nbsp;hPa</button>
+        <button>Wave-1 maps</button>
       </div>
       <div class="deck-panel">
       <div class="chart-card-header">
@@ -347,7 +345,7 @@
       </div>
       <div class="deck-panel" hidden>
       <div class="chart-card-header">
-        <h2>Vortex Winds at 10&nbsp;hPa, Both Hemispheres</h2>
+        <h2>Vortex Winds: 10 and 100&nbsp;hPa, Both Hemispheres</h2>
         <p>The vortex as it actually looks, rather than as an index. Wind <b>speed</b> is
         shaded with <b>streamlines</b> over it at <b>10&nbsp;hPa</b>. This is where the vortex lives and where an SSW is declared &mdash; the level the WMO diagnostic is evaluated on. The red contour
         is <b>u&nbsp;=&nbsp;0</b>, the vortex edge in the zonal sense: inside it the flow is
@@ -363,34 +361,14 @@
       <p class="note" style="margin-top:0.6rem"><b>The loop</b> steps every <b>12&nbsp;hours out
       to day&nbsp;15</b> on a fixed colour scale, so a colour means the same wind speed in every
       frame and the vortex can be watched strengthening, shifting off the pole, or breaking down
-      rather than inferred from an index. The animator's <b>Level</b> selector switches to
-      100&nbsp;hPa on the same forecast hour.</p>
+      rather than inferred from an index. The still above is <b>10&nbsp;hPa</b>, where the vortex lives and
+      where an SSW is declared; the loop's <b>Level</b> selector switches to
+      <b>100&nbsp;hPa</b>, which is what decides whether any of it reaches the surface &mdash;
+      a 10&nbsp;hPa anomaly that never appears at 100&nbsp;hPa usually goes nowhere.</p>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0) &middot; 10&nbsp;hPa speed shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</span></div>
       </div>
 
-      <div class="deck-panel" hidden>
-      <div class="chart-card-header">
-        <h2>Vortex Winds at 100&nbsp;hPa, Both Hemispheres</h2>
-        <p>The vortex as it actually looks, rather than as an index. Wind <b>speed</b> is
-        shaded with <b>streamlines</b> over it at <b>100&nbsp;hPa</b>. This is the level that decides whether any of it reaches the surface: a 10&nbsp;hPa anomaly that never appears at 100&nbsp;hPa usually goes nowhere. The red contour
-        is <b>u&nbsp;=&nbsp;0</b>, the vortex edge in the zonal sense: inside it the flow is
-        westerly and planetary waves can propagate, outside it they cannot. The dashed ring is
-        60&deg;, the latitude the SSW diagnostic is evaluated at. Speeds below the first contour
-        are left white, which is why the summer hemisphere is largely blank &mdash; there is no
-        vortex there to draw. Both hemispheres share the colour scale, so they are directly
-        comparable.</p>
-      </div>
-      <div class="img-wrap"><img src="assets/sst/vortex_100.webp?v=__CACHE__" alt="Wind speed and streamlines at 100 hPa over both polar caps, with the u=0 vortex edge contoured" loading="lazy"></div>
-      <iframe data-deferred class="anim-embed vortex_winds" data-src="sst_anim.html?embed=1&amp;manifest=vortex_winds_manifest.json&amp;region=vortex_100"
-              title="Vortex winds at 100 hPa through the AIFS-ENS forecast, 12-hourly" loading="lazy"></iframe>
-      <p class="note" style="margin-top:0.6rem"><b>The loop</b> steps every <b>12&nbsp;hours out
-      to day&nbsp;15</b> on a fixed colour scale, so a colour means the same wind speed in every
-      frame and the vortex can be watched strengthening, shifting off the pole, or breaking down
-      rather than inferred from an index. The animator's <b>Level</b> selector switches to
-      10&nbsp;hPa on the same forecast hour.</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0) &middot; 100&nbsp;hPa speed shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</span></div>
-      </div>
-      <div class="deck-panel" hidden>
+            <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>E&ndash;P Flux &amp; Wave Driving: the Force Behind the Momentum Budget</h2>
         <p>Where the torque budget shows how the Earth exchanges angular momentum with the
@@ -436,7 +414,7 @@
       </div>
       <div class="deck-panel" hidden>
       <div class="chart-card-header">
-        <h2>Stationary Wave-1 at 100&nbsp;hPa: the Forcing Behind the Wave Driving</h2>
+        <h2>Stationary Wave-1: the Forcing Behind the Wave Driving</h2>
         <p>The <b>zonal wavenumber-1 component</b> of geopotential height at <b>100&nbsp;hPa</b>,
         both hemispheres. This is the level the vortex actually feels: wave driving that reaches here is what disturbs it. Because only k&nbsp;=&nbsp;1 is retained the field is an
         anomaly by construction: red is a ridge, blue a trough, and the zonal mean has already
@@ -451,9 +429,11 @@
       <p class="note" style="margin-top:0.6rem"><b>The forecast loop</b> steps day&nbsp;0&ndash;15.
       A single analysis map cannot tell you whether the wave is <b>building</b>, and wave-1
       amplifying at 100&nbsp;hPa over the following week is the classic precursor to a disturbed
-      vortex &mdash; the forcing the E&ndash;P flux then carries upward. The animator's
-      <b>Level</b> selector switches to 500&nbsp;hPa on the same forecast hour, which is how
-      you check whether a tropospheric ridge is genuinely connected upward.</p>
+      vortex &mdash; the forcing the E&ndash;P flux then carries upward. The still above is
+      100&nbsp;hPa &mdash; the level the vortex actually feels &mdash; and the loop's
+      <b>Level</b> selector switches to <b>500&nbsp;hPa</b>, the mid-tropospheric source
+      region, on the same forecast hour. Flipping between them is how you check whether a
+      tropospheric ridge is genuinely connected upward.</p>
       <p class="note" style="margin-top:0.5rem"><b>The superposition index S.</b> Amplitude alone
       is misleading &mdash; a large wave-1 over the <i>climatological</i> ridge and one over the
       climatological trough are the same size and opposite events. Splitting the forecast wave
@@ -472,44 +452,7 @@
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS <b>ensemble mean</b> (open data, CC&nbsp;BY&nbsp;4.0), 100&nbsp;hPa, day 0&ndash;15 &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; superposition index vs ERA5 1991&ndash;2020 (WeatherBench2) &middot; polar stereographic &middot; updated each 00/12Z cycle</span></div>
       </div>
 
-      <div class="deck-panel" hidden>
-      <div class="chart-card-header">
-        <h2>Stationary Wave-1 at 500&nbsp;hPa: the Forcing Behind the Wave Driving</h2>
-        <p>The <b>zonal wavenumber-1 component</b> of geopotential height at <b>500&nbsp;hPa</b>,
-        both hemispheres. This is the mid-tropospheric source region &mdash; where the wave is generated, before any of it propagates upward. Because only k&nbsp;=&nbsp;1 is retained the field is an
-        anomaly by construction: red is a ridge, blue a trough, and the zonal mean has already
-        been removed. Thin contours are the <b>full</b> height field, so the wave is visible
-        against the flow it sits in; values inside the deadband are left white so what is drawn
-        is what is actually large. The map is the <b>ensemble mean</b> &mdash; the part of the
-        wave the forecast agrees on, which is the only part whose phase is worth reading.</p>
-      </div>
-      <div class="img-wrap"><img src="assets/sst/wave1_500.webp?v=__CACHE__" alt="Zonal wavenumber-1 component of geopotential height at 500 hPa, both hemispheres, with the full height field contoured" loading="lazy"></div>
-      <iframe data-deferred class="anim-embed wave1_maps" data-src="sst_anim.html?embed=1&amp;manifest=wave1_maps_manifest.json&amp;region=wave1_500"
-              title="Wave-1 height anomaly at 500 hPa through the AIFS-ENS forecast" loading="lazy"></iframe>
-      <p class="note" style="margin-top:0.6rem"><b>The forecast loop</b> steps day&nbsp;0&ndash;15.
-      A single analysis map cannot tell you whether the wave is <b>building</b>, and wave-1
-      amplifying at 100&nbsp;hPa over the following week is the classic precursor to a disturbed
-      vortex &mdash; the forcing the E&ndash;P flux then carries upward. The animator's
-      <b>Level</b> selector switches to 100&nbsp;hPa on the same forecast hour, which is how
-      you check whether a tropospheric ridge is genuinely connected upward.</p>
-      <p class="note" style="margin-top:0.5rem"><b>The superposition index S.</b> Amplitude alone
-      is misleading &mdash; a large wave-1 over the <i>climatological</i> ridge and one over the
-      climatological trough are the same size and opposite events. Splitting the forecast wave
-      into the standing wave plus an anomaly, Z&nbsp;=&nbsp;Z<sub>c</sub>&nbsp;+&nbsp;Z<sub>a</sub>,
-      the total wave activity |Z|<sup>2</sup> picks up a cross term
-      2&nbsp;Re(Z<sub>c</sub>&nbsp;Z<sub>a</sub><sup>*</sup>) &mdash; the <b>linear
-      interference</b>, the only term whose sign can change.
-      <b>S&nbsp;=&nbsp;Re(Z<sub>a</sub>Z<sub>c</sub><sup>*</sup>)/|Z<sub>c</sub>|<sup>2</sup></b>
-      measures it against the 1991&ndash;2020 ERA5 standing wave in the 55&ndash;65&deg; band:
-      <span style="color:#b3122b"><b>positive = reinforcing</b></span>,
-      <span style="color:#1f4e9c"><b>negative = cancelling</b></span>, near zero = <b>in
-      quadrature</b> (90&deg; out of phase, contributing nothing at first order however large).
-      Where the climatological wave is too weak to interfere with &mdash; the summer hemisphere,
-      where the easterlies stop planetary waves propagating anyway &mdash; the panel says
-      <b>NO STANDING WAVE</b> rather than quoting a meaningless number.</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS <b>ensemble mean</b> (open data, CC&nbsp;BY&nbsp;4.0), 500&nbsp;hPa, day 0&ndash;15 &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; superposition index vs ERA5 1991&ndash;2020 (WeatherBench2) &middot; polar stereographic &middot; updated each 00/12Z cycle</span></div>
-      </div>
-    </div>
+          </div>
 
   </div>
 </main>

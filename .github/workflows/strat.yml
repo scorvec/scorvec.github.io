@@ -4,9 +4,9 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 # laptop on 2026-08-29 and split into parallel jobs on 2026-08-30:
 #
 #   nh_vortex.py      -> assets/sst/nh_vortex.webp        60N winds + polar-cap height
-#   wave1_maps.py     -> assets/sst/wave1_{100,500}.webp  one still per level
+#   wave1_maps.py     -> assets/sst/wave1_100.webp        still (loop covers 500)
 #                     -> assets/sst/anim/wave1_{100,500}/ 16-step loop per level
-#   vortex_winds.py   -> assets/sst/vortex_{10,100}.webp   one still per level
+#   vortex_winds.py   -> assets/sst/vortex_10.webp         still (loop covers 100)
 #                     -> assets/sst/anim/vortex_{10,100}/  31-step 12-hourly loop
 #   qbo_duct.py       -> assets/sst/anim/epflux/          E-P flux loop
 #
@@ -153,7 +153,7 @@ jobs:
       - name: What was produced
         if: always()
         run: |
-          for f in assets/sst/wave1_100.webp assets/sst/wave1_500.webp assets/sst/vortex_10.webp assets/sst/vortex_100.webp; do
+          for f in assets/sst/wave1_100.webp assets/sst/vortex_10.webp; do
             if [ -f "$f" ]; then
               printf '  %-38s %s  (mtime %s)\n' "$f" "$(du -h "$f" | cut -f1)" "$(date -r "$f" -u +%H:%MZ)"
             else
@@ -173,9 +173,7 @@ jobs:
           name: strat-light
           path: |
             assets/sst/wave1_100.webp
-            assets/sst/wave1_500.webp
             assets/sst/vortex_10.webp
-            assets/sst/vortex_100.webp
             assets/sst/anim/wave1_100/**
             assets/sst/anim/wave1_500/**
             assets/sst/anim/vortex_10/**
@@ -289,7 +287,7 @@ jobs:
 
       - name: What arrived
         run: |
-          for f in assets/sst/nh_vortex.webp assets/sst/wave1_100.webp assets/sst/wave1_500.webp assets/sst/vortex_10.webp assets/sst/vortex_100.webp; do
+          for f in assets/sst/nh_vortex.webp assets/sst/wave1_100.webp assets/sst/vortex_10.webp; do
             if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-38s (not produced this run)\n' "$f"; fi
           done
@@ -366,8 +364,7 @@ jobs:
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
           git add assets/sst/nh_vortex.webp assets/sst/wave1_100.webp \
-                  assets/sst/wave1_500.webp assets/sst/vortex_10.webp \
-                  assets/sst/vortex_100.webp \
+                  assets/sst/vortex_10.webp \
                   assets/sst/anim/*_manifest.json 2>/dev/null || true
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
