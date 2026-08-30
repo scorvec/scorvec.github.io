@@ -11,6 +11,20 @@ updates:
   - package-ecosystem: pip
     directory: /scripts/sst
     schedule: { interval: weekly, day: monday }
+    ignore:
+      # matplotlib 3.11 + cartopy 0.25 breaks GeoAxes tight-bbox/titles and the
+      # CI layout (2026-08-25). The pin is deliberate and documented in the
+      # requirements file; without this dependabot re-raises the bump weekly.
+      # Revisit when cartopy ships a fix.
+      - dependency-name: matplotlib
+        versions: [">=3.11"]
   - package-ecosystem: pip
     directory: /scripts/mjo
     schedule: { interval: weekly, day: monday }
+    ignore:
+      # matplotlib 3.11 + cartopy 0.25 breaks GeoAxes tight-bbox/titles and the
+      # CI layout (2026-08-25). The pin is deliberate and documented in the
+      # requirements file; without this dependabot re-raises the bump weekly.
+      # Revisit when cartopy ships a fix.
+      - dependency-name: matplotlib
+        versions: [">=3.11"]
