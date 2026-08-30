@@ -29,11 +29,20 @@ jobs:
       # `bbox_inches="tight"` crop + dropped the title, blowing up the frame geometry.
       - run: pip install --quiet numpy xarray netcdf4 matplotlib==3.10.9 cartopy==0.25.0 shapely
       - run: python scripts/sst/pacific_satellite.py --region samsat
+      # Frames go to the orphan branch, never main: 483 frame webp were
+      # being rewritten into main's history every cycle while an identical
+      # copy already sat on the branch. Only the manifest stays on main, so
+      # the page still fetches it same-origin.
+      - name: Publish frames to the orphan branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/samsat
+
       - name: Commit & push
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
-          git add -A assets/sst/anim/samsat assets/sst/anim/samsat_manifest.json
+          git add -A assets/sst/anim/samsat_manifest.json
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do

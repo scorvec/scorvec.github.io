@@ -70,6 +70,13 @@ jobs:
           fi
           echo "GDPS cycle ${C}Z"
           python scripts/sst/gdps_eq_charts.py --cycle "$C"
+      - name: Publish frames to the orphan branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          scripts/lib/publish_frames_ci.sh assets/sst/anim/gdps_wind \
+            assets/sst/anim/gdps_outflow assets/sst/anim/gdps_ir
+
       - name: Commit & push
         # Each run REPLACES the frame sets, so the frame count drifts between
         # builds and a rebase hits modify/delete conflicts that -X theirs
@@ -80,9 +87,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          PATHS="assets/sst/anim/gdps_wind assets/sst/anim/gdps_wind_manifest.json
-                 assets/sst/anim/gdps_outflow assets/sst/anim/gdps_outflow_manifest.json
-                 assets/sst/anim/gdps_ir assets/sst/anim/gdps_ir_manifest.json"
+          # Manifests only - the frame webp go to the orphan branch (see the
+          # publish step above), so main stops carrying 188 images per cycle.
+          PATHS="assets/sst/anim/gdps_wind_manifest.json
+                 assets/sst/anim/gdps_outflow_manifest.json
+                 assets/sst/anim/gdps_ir_manifest.json"
           for i in 1 2 3 4 5; do
             timeout 120 git fetch origin main || { sleep 5; continue; }
             git reset -q FETCH_HEAD

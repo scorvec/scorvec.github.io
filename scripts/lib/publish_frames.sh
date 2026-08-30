@@ -87,11 +87,33 @@ PRUNE="${PRUNE:-}"
 git fetch -q origin "$BRANCH" 2>/dev/null || true
 if git rev-parse -q --verify "origin/$BRANCH" >/dev/null; then
   kept=0
+  # The branch is one orphan commit, so every file on it shares this date.
+  # Local frames OLDER than it are stale leftovers, not a fresh render.
+  branch_epoch=$(git log -1 --format=%ct "origin/$BRANCH" 2>/dev/null || echo 0)
   for d in "${DIRS[@]}"; do
     # every immediate subdirectory of an anim root on the branch
     for sub in $(git ls-tree --name-only "origin/$BRANCH" "$d/" 2>/dev/null); do
       name="$(basename "$sub")"
-      [ -d "$sub" ] && continue                       # rendered locally: ours wins
+      # "Do I have this?" is not the same question as "did I just render it?".
+      # ECAPE moved to Actions but its old frame directories stayed on this
+      # disk; on 2026-08-30 that made this script push day-old ECAPE frames
+      # over the runner's fresh ones, so the manifest advertised the 12Z cycle
+      # while the images were from the previous afternoon. Local wins only if
+      # it is genuinely NEWER than what the branch already carries.
+      if [ -d "$sub" ]; then
+        newest=$(find "$sub" -name '*.webp' -type f -exec stat -f '%m' {} + 2>/dev/null | sort -rn | head -1)
+        newest=${newest:-0}
+        # 12 h of grace, not a bare comparison. The branch's date moves every
+        # time ANY product publishes, including from CI, so a strict test would
+        # reject frames this machine had rendered perfectly well an hour before
+        # some unrelated runner pushed. Everything here renders at least daily,
+        # so "more than 12 h older than the branch" is staleness, not lag.
+        if [ "$newest" -ge $(( branch_epoch - 43200 )) ]; then
+          continue                                    # freshly rendered here: ours wins
+        fi
+        age_h=$(( (branch_epoch - newest) / 3600 ))
+        echo "  $name: local copy is ${age_h}h stale - keeping the branch's"
+      fi
       case " $PRUNE " in *" $name "*)
         echo "  $name: pruned (explicitly retired)"; continue ;;
       esac
