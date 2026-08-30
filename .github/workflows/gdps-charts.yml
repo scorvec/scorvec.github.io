@@ -53,6 +53,12 @@ jobs:
           exit 1
       - name: Install Python dependencies
         run: pip install --quiet numpy pandas scipy xarray netcdf4 cfgrib eccodes matplotlib==3.10.9 "cartopy>=0.22" "shapely>=2.0" "pyproj>=3.5" Pillow
+      # These renderers append only what is missing (`if not fp.exists()`),
+      # and the frames stopped arriving with the checkout when they moved off
+      # main - without this the whole rolling window rebuilds every run.
+      - name: Seed existing frames
+        run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/gdps_wind assets/sst/anim/gdps_outflow assets/sst/anim/gdps_ir
+
       - name: Build GDPS products
         run: |
           # Which cycle this run is for is decided by WHICH cron fired, not by

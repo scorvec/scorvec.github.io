@@ -28,6 +28,12 @@ jobs:
       # Pin matplotlib+cartopy: an unpinned upgrade (~2026-06-12) regressed the GeoAxes
       # `bbox_inches="tight"` crop + dropped the title, blowing up the frame geometry.
       - run: pip install --quiet numpy xarray netcdf4 matplotlib==3.10.9 cartopy==0.25.0 shapely
+      # These renderers append only what is missing (`if not fp.exists()`),
+      # and the frames stopped arriving with the checkout when they moved off
+      # main - without this the whole rolling window rebuilds every run.
+      - name: Seed existing frames
+        run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/pacsat
+
       - run: python scripts/sst/pacific_satellite.py
       # Frames go to the orphan branch, never main: 483 frame webp were
       # being rewritten into main's history every cycle while an identical
