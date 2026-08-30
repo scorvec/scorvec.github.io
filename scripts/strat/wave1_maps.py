@@ -142,6 +142,19 @@ def fetch(date: str, time: str, members: int = MEMBERS):
         return {lev: open_level(path, lev) for lev in LEVELS}, "control"
 
 
+def fetch_analysis(date: str, time: str):
+    """Step 0 from the CONTROL, for the analysis frame.
+
+    The rest of the loop is the ensemble mean, but a mean is the wrong thing at
+    step 0: the perturbed members differ from the analysis only BY their
+    perturbations, so averaging them smooths the very state the analysis is. The
+    control at step 0 IS the analysis. One extra field per level, ~1 MB.
+    """
+    cyc = ecmwf.Cycle(date, time)
+    path = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "z", "pl", LEVELS, (0,)))
+    return {lev: open_level(path, lev) for lev in LEVELS}
+
+
 def wave1(field2d: np.ndarray) -> np.ndarray:
     """Zonal wavenumber-1 component, per latitude row.
 
@@ -320,46 +333,51 @@ def panel(ax, z, lev, hemi, valid=None):
     return cf
 
 
-def render(z, lev, date, time, step_h, out_path: Path, source="ensemble mean"):
-    """ONE level, both hemispheres, side by side.
+def render(levels_at_step, hemi, date, time, step_h, out_path: Path,
+           source="ensemble mean"):
+    """ONE hemisphere, both levels side by side: 100 hPa left, 500 hPa right.
 
-    Unstacked deliberately. The two levels used to share a 2x2 figure, which
-    made the animation nearly square and very tall on screen - the scrubber
-    ended up below the fold and the loop was awkward to control. One level per
-    frame halves the height and the animator's own selector switches between
-    them, which is also the honest division: the reader compares 100 and 500
-    hPa by flipping, and each view is big enough to actually read the phase.
+    Transposed from the earlier layout, which put the two hemispheres in one
+    frame and switched LEVEL with the selector. The comparison that carries the
+    physics is between levels, not hemispheres: a wave-1 that leans westward
+    with height is driving the vortex, one sitting over the same longitude at
+    both levels is not. That has to be readable in a single glance, so the two
+    levels share a frame and the hemisphere moved to the selector - only one of
+    them has a vortex worth watching at any time of year anyway.
+
+    Each level keeps its OWN colourbar: wave amplitude grows with height, so
+    100 and 500 hPa cannot share a scale without flattening one of them.
     """
-    fig = plt.figure(figsize=(11.4, 6.15), dpi=125)
-    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 0.045],
-                          left=0.02, right=0.93, top=0.83, bottom=0.10,
-                          wspace=0.06)
+    fig = plt.figure(figsize=(12.4, 6.4), dpi=125)
+    gs = fig.add_gridspec(1, 4, width_ratios=[1, 0.042, 1, 0.042],
+                          left=0.015, right=0.955, top=0.83, bottom=0.10,
+                          wspace=0.10)
     init = pd.Timestamp(f"{date}T{time}:00")
     valid = init + pd.Timedelta(hours=step_h)
-    cf = None
-    for c, hemi in enumerate(("NH", "SH")):
-        proj = (ccrs.NorthPolarStereo(central_longitude=0) if hemi == "NH"
-                else ccrs.SouthPolarStereo(central_longitude=0))
-        ax = fig.add_subplot(gs[0, c], projection=proj)
-        cf = panel(ax, z, lev, hemi, valid)
-    cax = fig.add_subplot(gs[0, 2])
-    cb = fig.colorbar(cf, cax=cax, extend="both")
-    cb.set_label(f"{lev} hPa wave-1 height anomaly (gpm)", fontsize=9)
-    cb.ax.tick_params(labelsize=8)
+    proj = (ccrs.NorthPolarStereo(central_longitude=0) if hemi == "NH"
+            else ccrs.SouthPolarStereo(central_longitude=0))
+    for c, lev in enumerate(LEVELS):
+        ax = fig.add_subplot(gs[0, c * 2], projection=proj)
+        cf = panel(ax, levels_at_step[lev], lev, hemi, valid)
+        cax = fig.add_subplot(gs[0, c * 2 + 1])
+        cb = fig.colorbar(cf, cax=cax, extend="both")
+        cb.set_label(f"{lev} hPa wave-1 height anomaly (gpm)", fontsize=8.5)
+        cb.ax.tick_params(labelsize=7.5)
 
+    full = "Northern Hemisphere" if hemi == "NH" else "Southern Hemisphere"
     tag = f"F{step_h:03d}" if step_h else "analysis"
-    fig.suptitle(f"Planetary wave-1 in geopotential height — {lev} hPa",
-                 fontsize=15, fontweight="bold", x=0.02, ha="left", y=0.975)
-    fig.text(0.02, 0.925,
+    fig.suptitle(f"Planetary wave-1 in geopotential height — {full}",
+                 fontsize=15, fontweight="bold", x=0.015, ha="left", y=0.975)
+    fig.text(0.015, 0.925,
              f"ECMWF AIFS-ENS {source} · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z "
              f"{tag} · valid {valid:%a %d %b %HZ} · shaded: zonal wavenumber-1 "
              f"component · contours: full height field",
              fontsize=9, color="#555", ha="left")
-    fig.text(0.02, 0.038,
-             "Wave-1 is an anomaly by construction — the zonal mean is k = 0 and is "
-             "discarded — so no climatology is involved in the SHADING.",
+    fig.text(0.015, 0.038,
+             "Compare the two panels: a ridge that leans WESTWARD with height is actively "
+             "driving the vortex; one sitting over the same longitude at both levels is not.",
              fontsize=8, color="#777", ha="left")
-    fig.text(0.02, 0.014,
+    fig.text(0.015, 0.014,
              "S is the linear-interference term Re(Za·conj(Zc))/|Zc|²  against the "
              "1991–2020 standing wave: + reinforcing, − cancelling, 0 in quadrature.",
              fontsize=8, color="#777", ha="left")
@@ -371,44 +389,74 @@ def render(z, lev, date, time, step_h, out_path: Path, source="ensemble mean"):
     return out_path
 
 
+def active_hemisphere(full) -> str:
+    """Whichever hemisphere currently carries the larger 100 hPa wave-1.
+
+    Used for the still and the animator's default region. In August the NH
+    stratosphere has no standing wave at all, so leading with a blank northern
+    panel would be a poor default; this follows the season instead of hard-coding
+    a hemisphere that is only interesting half the year.
+    """
+    amp = {}
+    for hemi in ("NH", "SH"):
+        z = at_step(full[100], 0)   # step 0 of whatever was passed in
+        lat = z.latitude.values
+        north = hemi == "NH"
+        sel = (lat >= LAT_EDGE) if north else (lat <= -LAT_EDGE)
+        Z = z.values[sel, :] / G
+        amp[hemi] = abs(band_coeff(Z, lat[sel], north))
+    return "NH" if amp["NH"] >= amp["SH"] else "SH"
+
+
 def build_loop(full, date, time, anim_root: Path, manifest: Path,
-               source="ensemble mean") -> int:
-    """One frame per step PER LEVEL, and a manifest the animator can switch on.
+               source="ensemble mean", default_hemi="NH") -> int:
+    """One frame per step PER HEMISPHERE, and a manifest the animator switches on.
 
-    anim_root is the animation ROOT (assets/sst/anim); this writes
-    wave1_100/ and wave1_500/ under it, one region each.
-
-    Two regions rather than one figure with both levels: see render(). The
-    animator renders `selectorLabel` as a control, so the reader picks the
-    level and the loop stays short and wide.
+    anim_root is the animation ROOT (assets/sst/anim); this writes wave1_nh/
+    and wave1_sh/ under it, one region each.
     """
     import json
     init = pd.Timestamp(f"{date}T{time}:00")
+    # Analysis first, then the forecast. The analysis frame comes from the
+    # CONTROL (see fetch_analysis) while every forecast frame is the ensemble
+    # mean, so the loop starts from the state the forecast was launched from
+    # rather than from a smoothed version of it.
+    steps = [0] + [h for h in ecmwf.STEPS if h > 0]
+    ana = fetch_analysis(date, time)
     regions = {}
-    for lev in LEVELS:
-        d = anim_root / f"wave1_{lev}"
+    for hemi in ("NH", "SH"):
+        key = f"wave1_{hemi.lower()}"
+        d = anim_root / key
         d.mkdir(parents=True, exist_ok=True)
         for old in d.glob("F*.webp"):
             old.unlink()
         frames = []
-        for i, step_h in enumerate(ecmwf.STEPS):
-            render(at_step(full[lev], step_h), lev, date, time, step_h,
-                   d / f"F{i:02d}.webp", source)
+        for i, step_h in enumerate(steps):
+            if step_h == 0:
+                fields = {lev: at_step(ana[lev], 0) for lev in LEVELS}
+                src = "control (analysis)"
+            else:
+                fields = {lev: at_step(full[lev], step_h) for lev in LEVELS}
+                src = source
+            render(fields, hemi, date, time, step_h, d / f"F{i:02d}.webp", src)
             valid = init + pd.Timedelta(hours=step_h)
+            lab = (f"analysis · {valid:%a %d %b %HZ}" if step_h == 0
+                   else f"F{step_h:03d} · valid {valid:%a %d %b %HZ}")
             frames.append({"idx": i, "file": f"F{i:02d}.webp",
-                           "date": f"{valid:%Y-%m-%d}",
-                           "label": f"F{step_h:03d} · valid {valid:%a %d %b %HZ}"})
-            print(f"    {lev} hPa  F{step_h:03d}", flush=True)
-        regions[f"wave1_{lev}"] = {
-            "label": f"Wave-1 height anomaly — {lev} hPa, both hemispheres",
+                           "date": f"{valid:%Y-%m-%d}", "label": lab})
+            print(f"    {hemi}  {'analysis' if step_h == 0 else f'F{step_h:03d}'}", flush=True)
+        regions[key] = {
+            "label": ("Northern" if hemi == "NH" else "Southern")
+                     + " Hemisphere — wave-1 at 100 and 500 hPa",
             "n_frames": len(frames), "frames": frames}
-        print(f"  {lev} hPa: {len(frames)} frames -> {d}")
-    man = {"ver": f"{date}{time}", "days": len(ecmwf.STEPS),
-           "selectorLabel": "Level", "default": "wave1_100",
+        print(f"  {hemi}: {len(frames)} frames -> {d}")
+    man = {"ver": f"{date}{time}", "days": len(steps),
+           "selectorLabel": "Hemisphere",
+           "default": f"wave1_{default_hemi.lower()}",
            "regions": regions}
     manifest.parent.mkdir(parents=True, exist_ok=True)
     manifest.write_text(json.dumps(man))
-    print(f"  wrote {manifest.name} with {len(regions)} regions")
+    print(f"  wrote {manifest.name}, default {default_hemi}")
     return 0
 
 
@@ -417,21 +465,22 @@ def main(argv=None) -> int:
     ap.add_argument("--date", required=True)
     ap.add_argument("--time", required=True)
     ap.add_argument("--step", type=int, default=0)
-    ap.add_argument("--out-dir", default="assets/sst",
-                    help="the still is written here as wave1_100.webp")
+    ap.add_argument("--hemi", choices=["NH", "SH", "auto"], default="auto",
+                    help="hemisphere for the still (default: whichever is active)")
     ap.add_argument("--members", type=int, default=MEMBERS)
-    ap.add_argument("--anim-dir", help="frames ROOT; wave1_100/ and wave1_500/ are created under it")
+    ap.add_argument("--anim-dir", help="frames ROOT; wave1_nh/ and wave1_sh/ go under it")
     ap.add_argument("--manifest", help="animator manifest path")
     a = ap.parse_args(argv)
     full, source = fetch(a.date, a.time, a.members)
-    # ONE still, at STILL_LEVEL. The loop carries both levels as separate
-    # regions and the animator's own selector switches between them, so a
-    # second still would be an unused file committed on every cycle - the page
-    # has one panel per product, not one per level.
-    outd = Path(a.out_dir)
-    print(f"  wrote {render(at_step(full[STILL_LEVEL], a.step), STILL_LEVEL, a.date, a.time, a.step, outd / f'wave1_{STILL_LEVEL}.webp', source)}")
-    if a.anim_dir and a.manifest:
-        build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source)
+    hemi = active_hemisphere(full) if a.hemi == "auto" else a.hemi
+    print(f"  leading hemisphere: {hemi}", flush=True)
+    # No still. It duplicated the loop's first frame, and on the page it was the
+    # analysis - the one view that cannot answer whether the wave is building.
+    if not (a.anim_dir and a.manifest):
+        print("  nothing to do: --anim-dir and --manifest are required "
+              "(the loop is the product; there is no still)")
+        return 2
+    build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source, hemi)
     return 0
 
 
