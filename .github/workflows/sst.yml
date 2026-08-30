@@ -38,11 +38,11 @@ jobs:
       MPLBACKEND: Agg
       SST_SITE_ROOT: ${{ github.workspace }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
@@ -52,7 +52,7 @@ jobs:
       # OISST cache: the 1.4 GB 1991-2020 climatology exists only on PSL, and
       # the yearly file is ~470 MB per run — cache both so a PSL outage rides
       # on the NCEI day-file fallback (oisst9120) instead of failing outright.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             scripts/sst/data/sst.day.mean.ltm.1991-2020.nc
@@ -63,7 +63,7 @@ jobs:
 
       # ASCAT daily-mean u/v archive: lets a plot-layout change re-render every
       # frame in the window from cached fields instead of refetching Copernicus.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: scripts/sst/data/ascat
           key: ascat-data-${{ github.run_id }}
