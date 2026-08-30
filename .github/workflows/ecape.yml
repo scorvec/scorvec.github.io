@@ -35,7 +35,7 @@ name: HRRR ECAPE (CONUS)
 # "whenever it fires" - a missed cycle costs freshness, never data.
 on:
   schedule:
-    - cron: '50 0,6,12,18 * * *'
+    - cron: '20 1,7,13,19 * * *'
   workflow_dispatch:
     inputs:
       fxx:
@@ -92,8 +92,20 @@ jobs:
           fi
           echo "cycle=$C" >> "$GITHUB_OUTPUT"
           echo "resolved cycle: $C"
+          # Already published? Then there is nothing to do. Measured 2026-08-30:
+          # the 06:55Z run resolved 2026083000 because the 06Z analysis was not
+          # up yet, spent 72 min re-rendering an identical loop and committed
+          # "no changes". Skipping costs one file read.
+          PUB=$(python -c "import json;print(json.load(open('assets/ecape/anim/ecape_manifest.json'))['ver'])" 2>/dev/null || echo "")
+          if [ -n "$PUB" ] && [ "$PUB" = "$C" ] && [ -z "${{ github.event.inputs.cycle }}" ]; then
+            echo "cycle $C is already the published one (manifest ver=$PUB) - nothing to do"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Compute and render the loop
+        if: ${{ steps.cyc.outputs.skip != 'true' }}
         run: |
           set -euo pipefail
           CYCLE="${{ steps.cyc.outputs.cycle }}"
@@ -158,7 +170,7 @@ jobs:
           du -sh assets/ecape/anim
 
       - name: Publish frames to the orphan branch
-        if: ${{ github.event_name == 'schedule' || github.event.inputs.publish == 'true' }}
+        if: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && steps.cyc.outputs.skip != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -190,7 +202,7 @@ jobs:
           echo "  pushed $(find assets -name '*.webp' | wc -l) frames"
 
       - name: Commit manifest & stills to main
-        if: ${{ github.event_name == 'schedule' || github.event.inputs.publish == 'true' }}
+        if: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && steps.cyc.outputs.skip != 'true' }}
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
