@@ -5,8 +5,9 @@ name: MUR 1-km equatorial Pacific SST
 # like 2026-08-22. The daily page restamp (sst.yml / laptop) refreshes the
 # cache-buster for these images.
 on:
-  schedule:
-    - cron: '47 13 * * *'   # 13:47 UTC daily — ERDDAP has the new analysis by mid-morning UTC
+  # CRON-TEST 2026-08-30 (restore: uncomment this block)
+  # schedule:
+  # - cron: '47 13 * * *'   # 13:47 UTC daily — ERDDAP has the new analysis by mid-morning UTC
   workflow_dispatch:
 
 permissions:

@@ -8,11 +8,12 @@ name: Colombia radar (IDEAM)
 # ingests D-1 and D-2 (D-2 catches days that arrive late) and prunes the
 # published tree to a fortnight; anything older is re-derivable on demand.
 on:
-  schedule:
-    # Paused to Mondays while the rain spike runs its course (user, 2026-08-29).
-    # Nothing is lost: the S3 bucket keeps the raw volumes, so the Monday run
-    # backfills the whole weekend from the wider default window below.
-    - cron: '40 9 * * 1'          # ~04:40 Colombia Monday; '40 9 * * *' for daily
+  # CRON-TEST 2026-08-30 (restore: uncomment this block)
+  # schedule:
+  # # Paused to Mondays while the rain spike runs its course (user, 2026-08-29).
+  # # Nothing is lost: the S3 bucket keeps the raw volumes, so the Monday run
+  # # backfills the whole weekend from the wider default window below.
+  # - cron: '40 9 * * 1'          # ~04:40 Colombia Monday; '40 9 * * *' for daily
   workflow_dispatch:
     inputs:
       date:

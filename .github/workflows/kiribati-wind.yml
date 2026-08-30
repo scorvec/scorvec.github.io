@@ -4,8 +4,9 @@ name: Tarawa WWB monitor (METAR)
 # METAR. Light: one API call + a small plot + a tiny JSON for the live wind-arrow widget.
 # Commits only its own files, so it can't collide with the laptop pipelines.
 on:
-  schedule:
-    - cron: '18 */6 * * *'      # every 6 h (script backfills 72 h of METARs, no data lost)
+  # CRON-TEST 2026-08-30 (restore: uncomment this block)
+  # schedule:
+  # - cron: '18 */6 * * *'      # every 6 h (script backfills 72 h of METARs, no data lost)
   workflow_dispatch:
 
 permissions:

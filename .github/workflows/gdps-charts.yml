@@ -6,9 +6,10 @@ name: GDPS tropical forecast products
 # skipped local run can't stall these; the script is idempotent and falls back
 # to yesterday's 00Z cycle when today's isn't complete yet.
 on:
-  schedule:
-    - cron: '20 6 * * *'    # 06:20 UTC — GDPS 00Z is fully on Datamart by ~05:45
-    - cron: '20 18 * * *'   # 18:20 UTC — the 12Z cycle, same ~5h45m lag
+  # CRON-TEST 2026-08-30 (restore: uncomment this block)
+  # schedule:
+  # - cron: '20 6 * * *'    # 06:20 UTC — GDPS 00Z is fully on Datamart by ~05:45
+  # - cron: '20 18 * * *'   # 18:20 UTC — the 12Z cycle, same ~5h45m lag
   workflow_dispatch:
     inputs:
       cycle:

@@ -13,9 +13,10 @@ name: SST anomalies & RONI (El Niño monitor)
 # The old 16:23 UTC slot sat 8 min ahead of PSL and was saved only by GitHub's
 # 1–2 h scheduling delay; an on-time dispatch would have committed stale maps.
 on:
-  schedule:
-    - cron: '23 19 * * *'   # 19:23 UTC — after PSL publishes OISST (~16:30 UTC). Everything this job builds is daily at most (OISST, TAO, MUR, ASCAT; WWV is monthly-ish), so two firings a day is the right size — deliberately NOT more. The laptop's 15-min cadence was always over-serving it; com.scorvec.sst was unloaded 2026-08-29.
-    - cron: '23 23 * * *'   # 23:23 UTC — retry slot: the cron fires once a day, so a runner-infra hang (apt mirror, git stall) at 19:23 loses the whole day; this run exits "No changes" when 19:23 succeeded
+  # CRON-TEST 2026-08-30 (restore: uncomment this block)
+  # schedule:
+  # - cron: '23 19 * * *'   # 19:23 UTC — after PSL publishes OISST (~16:30 UTC). Everything this job builds is daily at most (OISST, TAO, MUR, ASCAT; WWV is monthly-ish), so two firings a day is the right size — deliberately NOT more. The laptop's 15-min cadence was always over-serving it; com.scorvec.sst was unloaded 2026-08-29.
+  # - cron: '23 23 * * *'   # 23:23 UTC — retry slot: the cron fires once a day, so a runner-infra hang (apt mirror, git stall) at 19:23 loses the whole day; this run exits "No changes" when 19:23 succeeded
   workflow_dispatch:
     inputs:
       force:
