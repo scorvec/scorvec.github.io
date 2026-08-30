@@ -47,7 +47,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # 120, not 90: ens_cycle is ~23 min and the vortex loop adds ~18 min of
+    # rendering measured locally (31 frames x 4 polar panels). A GitHub runner
+    # has 4 vCPU against this laptop's 10, so the loop can run longer there and
+    # the old 90 left no headroom for a slow ENS fetch on top.
+    timeout-minutes: 120
     env:
       MPLBACKEND: Agg
     steps:
