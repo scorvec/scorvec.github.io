@@ -415,18 +415,21 @@ def main(argv=None) -> int:
     ap.add_argument("--date", required=True)
     ap.add_argument("--time", required=True)
     ap.add_argument("--step", type=int, default=0)
-    ap.add_argument("--out", default="assets/sst/wave1_maps.webp",
-                    help="static figure; --out-level picks which level it shows")
-    ap.add_argument("--out-level", type=int, default=100, choices=list(LEVELS))
+    ap.add_argument("--out-dir", default="assets/sst",
+                    help="stills are written here as wave1_100.webp / wave1_500.webp")
     ap.add_argument("--members", type=int, default=MEMBERS)
     ap.add_argument("--anim-dir", help="frames ROOT; wave1_100/ and wave1_500/ are created under it")
     ap.add_argument("--manifest", help="animator manifest path")
     a = ap.parse_args(argv)
     full, source = fetch(a.date, a.time, a.members)
-    # The static figure stays: it is what the page shows before the loop is
-    # loaded, and what a reader sees if the animator fails. 100 hPa by default -
-    # it is the level the vortex actually feels.
-    print(f"  wrote {render(at_step(full[a.out_level], a.step), a.out_level, a.date, a.time, a.step, Path(a.out), source)}")
+    # ONE STILL PER LEVEL, in separate files. The levels used to share a 2x2
+    # figure; they are separate charts on the page now, each with its own
+    # panel and its own loop, so neither is wedged into the other's layout.
+    # The stills matter beyond the loop: they are what the page shows before
+    # the animator loads, and what a reader sees if it fails.
+    outd = Path(a.out_dir)
+    for lev in LEVELS:
+        print(f"  wrote {render(at_step(full[lev], a.step), lev, a.date, a.time, a.step, outd / f'wave1_{lev}.webp', source)}")
     if a.anim_dir and a.manifest:
         build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source)
     return 0
