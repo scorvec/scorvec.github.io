@@ -50,6 +50,13 @@ done
 # Times match the crons in each workflow so behaviour is identical whichever
 # path fires.
 #
+# ECAPE fires at cycle+1h20, not cycle+50min. At 06:55Z on 2026-08-30 the HRRR
+# 06Z analysis was not posted yet, so the resolver fell back to 00Z and the run
+# spent 72 min re-rendering a loop that was already on the site. Each cycle was
+# therefore reaching the page roughly six hours late, when the NEXT slot finally
+# saw it. The workflow now also skips outright when the resolved cycle is the
+# one already published.
+#
 # The hourly jobs ARE listed. They are backfill-designed so sparse firing loses
 # no data, but GitHub was honouring roughly one firing in seven hours, which
 # left the satellite loops up to 7 h stale on the site - freshness is a real
@@ -57,10 +64,10 @@ done
 # time and unlimited on a public repo.
 SCHEDULE=$(cat <<'EOF'
 sst.yml|19:23|
-ecape.yml|00:50|-f publish=true
-ecape.yml|06:50|-f publish=true
-ecape.yml|12:50|-f publish=true
-ecape.yml|18:50|-f publish=true
+ecape.yml|01:20|-f publish=true
+ecape.yml|07:20|-f publish=true
+ecape.yml|13:20|-f publish=true
+ecape.yml|19:20|-f publish=true
 strat.yml|07:35|-f publish=true
 strat.yml|19:35|-f publish=true
 gdps-charts.yml|06:20|-f cycle=00
