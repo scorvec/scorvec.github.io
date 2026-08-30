@@ -108,6 +108,7 @@ scripts/strat/*
 !scripts/strat/vortex_winds.py
 !scripts/strat/wave1_maps.py
 !scripts/strat/build_m2_reference.py
+!scripts/strat/build_wave1_clim.py
 # The MERRA-2 reference cache (282 KB) that replaces the 690 MB laptop-only
 # archive for nh_vortex on a runner. The directory itself must be re-included
 # first - git will not descend into an excluded directory to find the file.

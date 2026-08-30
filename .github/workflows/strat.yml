@@ -136,7 +136,7 @@ jobs:
           python scripts/strat/wave1_maps.py \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
             --out assets/sst/wave1_maps.webp \
-            --anim-dir assets/sst/anim/wave1_maps \
+            --anim-dir assets/sst/anim \
             --manifest assets/sst/anim/wave1_maps_manifest.json \
             || echo "::warning::wave1_maps failed; keeping the previous figure"
 
@@ -159,7 +159,7 @@ jobs:
               printf '  %-38s MISSING\n' "$f"
             fi
           done
-          for d in assets/sst/anim/wave1_maps assets/sst/anim/vortex_winds; do
+          for d in assets/sst/anim/wave1_100 assets/sst/anim/wave1_500 assets/sst/anim/vortex_winds; do
             printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
           done
 
@@ -173,7 +173,8 @@ jobs:
           path: |
             assets/sst/wave1_maps.webp
             assets/sst/vortex_winds.webp
-            assets/sst/anim/wave1_maps/**
+            assets/sst/anim/wave1_100/**
+            assets/sst/anim/wave1_500/**
             assets/sst/anim/vortex_winds/**
             assets/sst/anim/wave1_maps_manifest.json
             assets/sst/anim/vortex_winds_manifest.json
@@ -288,7 +289,7 @@ jobs:
             if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-38s (not produced this run)\n' "$f"; fi
           done
-          for d in assets/sst/anim/epflux assets/sst/anim/wave1_maps assets/sst/anim/vortex_winds; do
+          for d in assets/sst/anim/epflux assets/sst/anim/wave1_100 assets/sst/anim/wave1_500 assets/sst/anim/vortex_winds; do
             printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
           done
 
@@ -306,7 +307,7 @@ jobs:
         run: |
           set -euo pipefail
           n=0
-          for d in epflux wave1_maps vortex_winds; do
+          for d in epflux wave1_100 wave1_500 vortex_winds; do
             c=$(find "assets/sst/anim/$d" -name '*.webp' 2>/dev/null | wc -l | tr -d ' ')
             echo "  $d: $c frames"; n=$((n + c))
           done
@@ -321,7 +322,7 @@ jobs:
             echo "  no frames branch yet - creating one"
             mkdir -p "$TMP/f" && git -C "$TMP/f" init -q && git -C "$TMP/f" remote add origin "$URL"
           fi
-          for d in epflux wave1_maps vortex_winds; do
+          for d in epflux wave1_100 wave1_500 vortex_winds; do
             # A product that did not render must not blank its directory on the
             # branch, so an empty one is skipped rather than swapped in.
             c=$(find "assets/sst/anim/$d" -name '*.webp' 2>/dev/null | wc -l | tr -d ' ')
