@@ -44,6 +44,14 @@
   .chart-card-header p { font-size: 0.8rem; color: var(--muted); line-height: 1.65; }
   .chart-card-footer { padding: 0.85rem 1.8rem; border-top: 1px solid var(--rule);
                        font-size: 0.68rem; color: var(--muted); }
+  .run-picker { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+                padding: 0.7rem 1.8rem 0; }
+  .run-picker .run-label { font-size: 0.7rem; letter-spacing: 0.06em;
+                text-transform: uppercase; color: var(--muted); margin-right: 0.3rem; }
+  .run-picker button { font: inherit; font-size: 0.8rem; padding: 0.2rem 0.6rem;
+                border: 1px solid var(--rule); background: #fff; border-radius: 6px;
+                cursor: pointer; color: #333; }
+  .run-picker button.on { background: #1f4e9c; border-color: #1f4e9c; color: #fff; }
   .anim-embed { width: 100%; border: 0; display: block; background: var(--bg);
                 aspect-ratio: 1380 / 887; }   /* frame 1380x817 + ~70px controls */
   .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
@@ -84,8 +92,8 @@
       <h2>48-hour forecast loop</h2>
       <p>The full extended run, hourly through F18 and 3-hourly to F48. Use the buttons to switch between the two ECAPE fields and the two ratio fields; scrub or play to watch the entrainment environment evolve through the diurnal cycle. Each frame is labelled with its lead and valid time. Only the 00/06/12/18&nbsp;UTC cycles run this far &mdash; the loop is always from the newest one whose F48 has published.</p>
     </div>
-    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets/ecape/anim&amp;manifest=ecape_manifest.json&amp;region=ratio_mu"
-            title="HRRR ECAPE 48-hour forecast animation" loading="lazy"></iframe>
+    <div id="run-picker" class="run-picker" hidden><span class="run-label">Run</span></div>
+    <iframe id="ecape-anim" class="anim-embed" title="HRRR ECAPE 48-hour forecast animation" loading="lazy"></iframe>
     <div class="chart-card-footer">NOAA HRRR wrfnat (AWS Open Data) &middot; 50 hybrid levels &middot; SHARPlib &middot; 1,905,141 columns per frame</div>
   </div>
 
@@ -140,6 +148,44 @@
       }
     }
   });
+</script>
+<script>
+  // Run picker. The archive keeps a few days of cycles as
+  // assets/ecape/anim/<cycle>/<field>/, one manifest each, listed newest-first
+  // in index.json - so the buttons are built from data rather than baked into
+  // this page, and a cycle dropped by retention disappears on its own.
+  (function () {
+    var host = document.getElementById('run-picker');
+    var frame = document.getElementById('ecape-anim');
+    if (!host || !frame) return;
+    function load(m) {
+      frame.src = 'sst_anim.html?embed=1&base=assets/ecape/anim&manifest=' + m;
+    }
+    fetch('assets/ecape/anim/index.json?v=' + Date.now())
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.cycles || !d.cycles.length) { load('ecape_manifest.json'); return; }
+        d.cycles.forEach(function (c, i) {
+          var b = document.createElement('button');
+          // "30 Aug 12Z" reads faster than a 10-digit cycle string.
+          var t = c.init.split(' ');
+          var dt = new Date(t[0] + 'T00:00:00Z');
+          b.textContent = dt.getUTCDate() + ' ' +
+            ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.getUTCMonth()] +
+            ' ' + t[1];
+          if (i === 0) b.className = 'on';
+          b.onclick = function () {
+            host.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
+            b.classList.add('on');
+            load(c.manifest);
+          };
+          host.appendChild(b);
+        });
+        host.hidden = false;
+        load(d.cycles[0].manifest);
+      })
+      .catch(function () { load('ecape_manifest.json'); });
+  })();
 </script>
 </body>
 </html>

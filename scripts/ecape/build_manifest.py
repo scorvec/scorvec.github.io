@@ -8,9 +8,17 @@ can lose its fetch. Building the manifest from the frames on disk means a
 partial cycle still animates over the hours it got, instead of the viewer
 requesting files that were never written.
 
-Frames live at  <root>/<field>/F<fxx>.webp  and are served from the orphan
-`frames` branch (see scripts/lib/publish_frames.sh); the manifest itself stays
-on main so the animator fetches it same-origin.
+Frames live at  <root>/<cycle>/<field>/F<fxx>.webp  and are served from the
+orphan `frames` branch; the manifest itself stays on main so the animator
+fetches it same-origin.
+
+CYCLE-SCOPED since 2026-08-30, so several runs can be kept side by side and the
+page can offer a run picker. Region ids are "<cycle>/<field>" because the viewer
+builds a frame URL as <base>/<region>/<file> - putting the cycle in the region
+id makes the archive work with no viewer change at all.
+
+Also maintains <root>/index.json, the list of archived cycles newest-first, which
+is what the run picker reads.
 
 Usage:
   python build_manifest.py assets/ecape/anim --cycle 2026082812
@@ -43,10 +51,11 @@ def main(argv=None) -> int:
 
     root = Path(a.root)
     init = datetime.strptime(a.cycle, "%Y%m%d%H").replace(tzinfo=timezone.utc)
+    cdir = root / a.cycle
 
     regions = {}
     for fid, label in FIELDS:
-        d = root / fid
+        d = cdir / fid
         if not d.is_dir():
             continue
         hours = sorted(int(m.group(1))
@@ -65,10 +74,11 @@ def main(argv=None) -> int:
                 # a reader can tell "F27" from "Thu 15Z" without arithmetic.
                 "label": f"F{fxx:02d} · valid {valid:%a %d %b %HZ}",
             })
-        regions[fid] = {"label": label, "n_frames": len(frames), "frames": frames}
+        regions[f"{a.cycle}/{fid}"] = {"label": label,
+                                       "n_frames": len(frames), "frames": frames}
 
     if not regions:
-        print(f"no frames under {root}", file=sys.stderr)
+        print(f"no frames under {cdir}", file=sys.stderr)
         return 1
 
     manifest = {
@@ -79,14 +89,28 @@ def main(argv=None) -> int:
         # this to every frame request.
         "ver": a.cycle,
         "selectorLabel": "Field",
-        "default": FIELDS[0][0],
+        "default": f"{a.cycle}/{FIELDS[0][0]}",
         "regions": regions,
     }
-    out = Path(a.out) if a.out else root / "ecape_manifest.json"
+    out = Path(a.out) if a.out else root / f"ecape_{a.cycle}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(manifest, indent=2))
-    span = {k: v["n_frames"] for k, v in regions.items()}
+    span = {k.split("/")[-1]: v["n_frames"] for k, v in regions.items()}
     print(f"  wrote {out} — init {manifest['init']}, frames per field: {span}")
+
+    # index.json: every cycle that still has frames on disk, newest first. The
+    # page's run picker reads this, so a cycle pruned for retention disappears
+    # from the picker in the same step that removes its frames.
+    cycles = sorted((d.name for d in root.iterdir()
+                     if d.is_dir() and re.fullmatch(r"\d{10}", d.name)
+                     and any(d.glob("*/F*.webp"))), reverse=True)
+    idx = {"cycles": [{"cycle": c,
+                       "init": datetime.strptime(c, "%Y%m%d%H")
+                               .replace(tzinfo=timezone.utc).strftime("%Y-%m-%d %HZ"),
+                       "manifest": f"ecape_{c}.json"} for c in cycles],
+           "latest": cycles[0] if cycles else None}
+    (root / "index.json").write_text(json.dumps(idx, indent=2))
+    print(f"  index.json: {len(cycles)} cycle(s) archived — {', '.join(cycles) or 'none'}")
     return 0
 
 

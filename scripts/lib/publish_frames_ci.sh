@@ -19,6 +19,8 @@
 #
 # An empty or missing directory is SKIPPED rather than swapped in: a product
 # that failed to render must not blank its own frames on the branch.
+#
+# PRUNE="<path> ..." deletes paths from the branch, for retention.
 set -euo pipefail
 
 [ $# -gt 0 ] || { echo "usage: $0 <frame-dir> [frame-dir ...]"; exit 2; }
@@ -67,6 +69,16 @@ for d in "$@"; do
   cp -r "$d" "$TMP/f/$(dirname "$d")/"
   # Manifests live on main so the page fetches them same-origin.
   find "$TMP/f/$d" -name '*_manifest.json' -delete 2>/dev/null || true
+done
+
+# PRUNE removes paths from the branch outright - retention, not publication.
+# The swap loop above only ever REPLACES what it is given, so without this an
+# archive would grow forever: nothing that stops being rendered is ever removed.
+for d in ${PRUNE:-}; do
+  if [ -e "$TMP/f/$d" ]; then
+    rm -rf "${TMP:?}/f/$d"
+    echo "  pruned $d from $BRANCH"
+  fi
 done
 
 cd "$TMP/f"
