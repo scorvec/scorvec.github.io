@@ -119,12 +119,34 @@ declare -a DONE=()
 
 # Newest run start for a workflow, as an epoch. Uses createdAt because that is
 # when the run was requested; startedAt can lag on a busy queue.
+# A FAILED run does not satisfy a slot forever. It used to: this read only
+# createdAt, so when mur-sst died on an upstream HTTP 403 at 16:48Z the slot
+# counted as done and the job would not have run again until the next day - a
+# job silently not running, which is the whole failure mode this script exists
+# to remove. After RETRY_AFTER_MIN a failed slot goes back to unsatisfied and
+# the next pass fires it again; MAX_AGE_H still bounds how long that continues,
+# and each retry moves the timestamp, so a permanently broken job retries on
+# that interval rather than every pass.
+RETRY_AFTER_MIN=120
 last_run_epoch() {
-  local wf="$1" iso
-  iso=$("$GH" run list --workflow "$wf" --limit 1 \
-        --json createdAt -q '.[0].createdAt' 2>/dev/null) || return 1
-  [ -z "$iso" ] && { echo 0; return 0; }
-  date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$iso" "+%s" 2>/dev/null || echo 0
+  local wf="$1" line iso concl
+  line=$("$GH" run list --workflow "$wf" --limit 1 \
+        --json createdAt,conclusion,status -q '.[0] | "\(.createdAt)|\(.conclusion)|\(.status)"' 2>/dev/null) || return 1
+  [ -z "$line" ] || [ "$line" = "null" ] && { echo 0; return 0; }
+  iso="${line%%|*}"; concl="$(echo "$line" | cut -d'|' -f2)"
+  local st; st="$(echo "$line" | cut -d'|' -f3)"
+  local e; e=$(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$iso" "+%s" 2>/dev/null || echo 0)
+  # Still running counts as satisfied - do not stack a second copy on top.
+  if [ "$st" != "completed" ]; then echo "$e"; return 0; fi
+  case "$concl" in
+    failure|timed_out|cancelled|startup_failure)
+      if [ $(( now_epoch - e )) -ge $(( RETRY_AFTER_MIN * 60 )) ]; then
+        echo 0                                   # eligible to retry
+        return 0
+      fi
+      ;;
+  esac
+  echo "$e"
 }
 
 dispatch() {
