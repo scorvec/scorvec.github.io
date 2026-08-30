@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fires GitHub Actions workflows on a reliable schedule from the laptop.
+
+  Install:
+      cp scripts/lib/com.scorvec.dispatch.plist ~/Library/LaunchAgents/
+      launchctl load ~/Library/LaunchAgents/com.scorvec.dispatch.plist
+
+  Every 15 minutes it asks dispatch_workflows.sh whether any slot is overdue and
+  unsatisfied, and fires the ones that are. That is one `gh` API call per due
+  slot - no cores, no downloads, nothing that competes with WRF. The compute
+  still happens on the runner, which is the whole point of having moved these
+  jobs off this machine.
+
+  Cheap to run: on a pass with nothing due it makes one `gh run list` call per
+  scheduled workflow and exits in a second or two.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.scorvec.dispatch</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/shawn/scorvec.github.io/scripts/lib/dispatch_workflows.sh</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- launchd gives a minimal PATH; gh and git must be findable. -->
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <key>StartInterval</key>
+  <integer>900</integer>
+
+  <!-- Fire once at load so a freshly-woken laptop catches up immediately
+       rather than waiting out the first interval. -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/shawn/scorvec.github.io/scripts/lib/dispatch.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/shawn/scorvec.github.io/scripts/lib/dispatch.err.log</string>
+</dict>
+</plist>
