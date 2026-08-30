@@ -97,7 +97,7 @@ jobs:
           # the 06:55Z run resolved 2026083000 because the 06Z analysis was not
           # up yet, spent 72 min re-rendering an identical loop and committed
           # "no changes". Skipping costs one file read.
-          PUB=$(python -c "import json;print(json.load(open('assets/ecape/anim/ecape_manifest.json'))['ver'])" 2>/dev/null || echo "")
+          PUB=$(python -c "import json;print(json.load(open('assets/ecape/anim/index.json'))['latest'] or '')" 2>/dev/null || echo "")
           if [ -n "$PUB" ] && [ "$PUB" = "$C" ] && [ -z "${{ github.event.inputs.cycle }}" ]; then
             echo "cycle $C is already the published one (manifest ver=$PUB) - nothing to do"
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -107,6 +107,9 @@ jobs:
 
       - name: Compute and render the loop
         if: ${{ steps.cyc.outputs.skip != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DO_PUBLISH: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && '1' || '0' }}
         run: |
           set -euo pipefail
           CYCLE="${{ steps.cyc.outputs.cycle }}"
@@ -119,8 +122,13 @@ jobs:
           # A previous cycle's frames MUST go: the manifest is built by globbing
           # this tree, so a leftover F45 from an older run would be published with
           # the new cycle's valid time.
-          rm -rf assets/ecape/anim
-          mkdir -p assets/ecape/anim
+          # ARCHIVE: frames are cycle-scoped (assets/ecape/anim/<cycle>/...) so
+          # several runs sit side by side and the page can offer a run picker.
+          # Only THIS cycle's directory is cleared - a leftover frame from an
+          # earlier attempt at the SAME cycle would otherwise be published with
+          # the new valid times, which is what the old wholesale rm guarded.
+          rm -rf "assets/ecape/anim/$CYCLE"
+          mkdir -p "assets/ecape/anim/$CYCLE"
           # seq emits NEWLINES and `read -a` stops at the first one, so this
           # silently produced a single-element array and rendered only F00 while
           # reporting success. Normalise whitespace to spaces before splitting.
@@ -142,12 +150,28 @@ jobs:
             echo "::group::F$f"
             STEM="$RUNNER_TEMP/hrrr_f$f"
             ./scripts/ecape/ecape_grid "$STEM"
-            python scripts/ecape/render_ecape.py "$STEM" --anim-root assets/ecape/anim
+            python scripts/ecape/render_ecape.py "$STEM" --anim-root "assets/ecape/anim/$CYCLE"
             rm -f "$STEM.f32" "${STEM}_ecape.f32" "$STEM.json" "${STEM}_ecape.json"
             df -h "$RUNNER_TEMP" | tail -1
             echo "::endgroup::"
             # A failed prefetch must fail the run, not silently skip an hour.
             if [ -n "$BG" ]; then wait "$BG"; fi
+            # RENDER AS THEY COME IN. Publish once the hourly block is done, so
+            # the first 19 frames reach the site ~25 min in rather than after the
+            # whole 48 h run. Costs one extra branch clone against a loop that
+            # otherwise shows nothing for over an hour. Everything here is
+            # best-effort: a partial publish must never fail the run.
+            if [ "$f" = "18" ] && [ "${DO_PUBLISH:-0}" = "1" ]; then
+              echo "::group::progressive publish at F18"
+              python scripts/ecape/build_manifest.py assets/ecape/anim --cycle "$CYCLE" || true
+              scripts/lib/publish_frames_ci.sh "assets/ecape/anim/$CYCLE" || true
+              git add "assets/ecape/anim/ecape_$CYCLE.json" assets/ecape/anim/index.json 2>/dev/null || true
+              git -c user.name="Shawn Corvec" -c user.email="shawncorvec@hotmail.com" \
+                  commit -q -m "ecape: partial loop $CYCLE (F00-F18)" 2>/dev/null || true
+              timeout 120 git pull --rebase --autostash -X theirs origin main >/dev/null 2>&1 || true
+              timeout 180 git push >/dev/null 2>&1 || echo "  (partial push skipped)"
+              echo "::endgroup::"
+            fi
           done
           # Same guard as run_local_ecape.sh. Without it a run that loses a
           # forecast hour still publishes, force-pushing a short loop over the
@@ -165,20 +189,36 @@ jobs:
             find "$1" -name 'F*.webp' 2>/dev/null | wc -l | tr -d ' '
           }
           for fld in ecape_ml ecape_mu ratio_mu; do
-            got=$(count_frames "assets/ecape/anim/$fld")
+            got=$(count_frames "assets/ecape/anim/$CYCLE/$fld")
             if [ "$got" -ne "$want" ]; then
               echo "::error::$fld has $got frames, expected $want — refusing to publish a partial loop"
               exit 1
             fi
           done
           echo "frame count verified: $want per field across 3 fields"
+          # Bring the rest of the archive into the workspace so index.json lists
+          # every retained cycle, not just this one. EXCLUDE leaves this run's
+          # own directory alone.
+          EXCLUDE="$CYCLE" scripts/lib/fetch_frames_ci.sh assets/ecape/anim || true
+          # RETENTION: keep the newest KEEP cycles. Dropped from the workspace
+          # AND recorded for PRUNE, because publishing only ever REPLACES what it
+          # is handed - without an explicit prune the archive grows forever.
+          KEEP=12                      # 4 runs/day -> about 3 days
+          PRUNE_LIST=""
+          for old in $(ls -1d assets/ecape/anim/[0-9]* 2>/dev/null | sort -r | tail -n +$((KEEP + 1))); do
+            PRUNE_LIST="$PRUNE_LIST $old"
+            rm -rf "$old"
+            rm -f "assets/ecape/anim/ecape_$(basename "$old").json"
+            echo "  retention: dropped $(basename "$old")"
+          done
+          echo "PRUNE_LIST=$PRUNE_LIST" >> "$GITHUB_ENV"
           python scripts/ecape/build_manifest.py assets/ecape/anim --cycle "$CYCLE"
           # No stills: the page's static panels were removed on 2026-08-30. They
           # duplicated the loop's F00 frame, and on mobile they were the ONLY
           # thing visible - the animator's iframe kept its hardcoded aspect
           # ratio there and clipped its own controls - so they read as the whole
           # product rather than a fallback.
-          du -sh assets/ecape/anim
+          du -sh "assets/ecape/anim/$CYCLE"
 
       - name: Publish frames to the orphan branch
         if: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && steps.cyc.outputs.skip != 'true' }}
@@ -218,7 +258,7 @@ jobs:
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
           # Only the manifest - never the frame webp, and no stills any more.
-          git add assets/ecape/anim/ecape_manifest.json
+          git add "assets/ecape/anim/ecape_${{ steps.cyc.outputs.cycle }}.json" assets/ecape/anim/index.json
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do

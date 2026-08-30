@@ -29,13 +29,36 @@ if ! git clone --depth 1 --branch "$BRANCH" --single-branch -q "$REPO_URL" "$TMP
   exit 0
 fi
 
+# EXCLUDE names a CHILD directory not to seed - used by the ECAPE archive so a
+# cycle this run has just rendered is never topped up with its own older frames
+# from the branch (a leftover F45 from a previous attempt would otherwise be
+# published carrying the new run's valid times).
+EXCLUDE="${EXCLUDE:-}"
+
+seed_one() {
+  local src="$1" dst="$2"
+  mkdir -p "$dst"
+  # -n: never overwrite something this run has already produced.
+  cp -rn "$src/." "$dst/" 2>/dev/null || true
+  echo "  $dst: seeded $(find "$dst" -name '*.webp' -type f 2>/dev/null | wc -l | tr -d ' ') frames"
+}
+
 for d in "$@"; do
   if [ ! -d "$TMP/f/$d" ]; then
     echo "  $d: not on $BRANCH yet"
     continue
   fi
-  mkdir -p "$d"
-  # -n: never overwrite something this run has already produced.
-  cp -rn "$TMP/f/$d/." "$d/" 2>/dev/null || true
-  echo "  $d: seeded $(find "$d" -name '*.webp' -type f 2>/dev/null | wc -l | tr -d ' ') frames"
+  if [ -n "$EXCLUDE" ]; then
+    for child in "$TMP/f/$d"/*; do
+      [ -d "$child" ] || continue
+      name="$(basename "$child")"
+      if [ "$name" = "$EXCLUDE" ]; then
+        echo "  $d/$name: skipped (rendered by this run)"
+        continue
+      fi
+      seed_one "$child" "$d/$name"
+    done
+  else
+    seed_one "$TMP/f/$d" "$d"
+  fi
 done
