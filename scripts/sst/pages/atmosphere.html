@@ -415,25 +415,29 @@
       <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>Stationary Wave-1: the Forcing Behind the Wave Driving</h2>
-        <p>The <b>zonal wavenumber-1 component</b> of geopotential height at <b>100&nbsp;hPa</b>,
-        both hemispheres. This is the level the vortex actually feels: wave driving that reaches here is what disturbs it. Because only k&nbsp;=&nbsp;1 is retained the field is an
-        anomaly by construction: red is a ridge, blue a trough, and the zonal mean has already
-        been removed. Thin contours are the <b>full</b> height field, so the wave is visible
-        against the flow it sits in; values inside the deadband are left white so what is drawn
-        is what is actually large. The map is the <b>ensemble mean</b> &mdash; the part of the
-        wave the forecast agrees on, which is the only part whose phase is worth reading.</p>
+        <p>The <b>zonal wavenumber-1 component</b> of geopotential height, <b>100&nbsp;hPa beside
+        500&nbsp;hPa</b> for one hemisphere at a time &mdash; the <b>Hemisphere</b> selector switches
+        between them, and the loop opens on whichever one currently carries the larger wave. The two
+        levels share a frame because that is the comparison that carries the physics:
+        <b>100&nbsp;hPa</b> is what the vortex feels, <b>500&nbsp;hPa</b> is the tropospheric source,
+        and a ridge that <b>leans westward with height</b> is actively driving the vortex while one
+        sitting over the same longitude at both levels is not. Each level keeps its own colourbar
+        &mdash; wave amplitude grows with height, so a shared scale would flatten the lower one.
+        Because only k&nbsp;=&nbsp;1 is retained the field is an anomaly by construction: red is a
+        ridge, blue a trough, the zonal mean already removed. Thin contours are the <b>full</b>
+        height field; values inside the deadband are left white. The map is the <b>ensemble
+        mean</b> &mdash; the part of the wave the forecast agrees on, which is the only part whose
+        phase is worth reading.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/wave1_100.webp?v=__CACHE__" alt="Zonal wavenumber-1 component of geopotential height at 100 hPa, both hemispheres, with the full height field contoured" loading="lazy"></div>
-      <iframe data-deferred class="anim-embed wave1_maps" data-src="sst_anim.html?embed=1&amp;manifest=wave1_maps_manifest.json&amp;region=wave1_100"
-              title="Wave-1 height anomaly at 100 hPa through the AIFS-ENS forecast" loading="lazy"></iframe>
-      <p class="note" style="margin-top:0.6rem"><b>The forecast loop</b> steps day&nbsp;0&ndash;15.
-      A single analysis map cannot tell you whether the wave is <b>building</b>, and wave-1
-      amplifying at 100&nbsp;hPa over the following week is the classic precursor to a disturbed
-      vortex &mdash; the forcing the E&ndash;P flux then carries upward. The still above is
-      100&nbsp;hPa &mdash; the level the vortex actually feels &mdash; and the loop's
-      <b>Level</b> selector switches to <b>500&nbsp;hPa</b>, the mid-tropospheric source
-      region, on the same forecast hour. Flipping between them is how you check whether a
-      tropospheric ridge is genuinely connected upward.</p>
+      <iframe data-deferred class="anim-embed wave1_maps" data-src="sst_anim.html?embed=1&amp;manifest=wave1_maps_manifest.json"
+              title="Wave-1 height anomaly at 100 and 500 hPa through the AIFS-ENS forecast" loading="lazy"></iframe>
+      <p class="note" style="margin-top:0.6rem"><b>The loop opens on the analysis</b>
+      and runs to day&nbsp;15. That first frame is the <b>control</b>, not the ensemble mean:
+      at step&nbsp;0 the perturbed members differ from the analysis only by their perturbations,
+      so averaging them smooths the very state the forecast was launched from. Every later frame
+      is the mean. Watch whether wave-1 <b>builds</b> from there &mdash; amplifying at
+      100&nbsp;hPa over the following week is the classic precursor to a disturbed vortex, the
+      forcing the E&ndash;P flux then carries upward.</p>
       <p class="note" style="margin-top:0.5rem"><b>The superposition index S.</b> Amplitude alone
       is misleading &mdash; a large wave-1 over the <i>climatological</i> ridge and one over the
       climatological trough are the same size and opposite events. Splitting the forecast wave
@@ -449,7 +453,7 @@
       Where the climatological wave is too weak to interfere with &mdash; the summer hemisphere,
       where the easterlies stop planetary waves propagating anyway &mdash; the panel says
       <b>NO STANDING WAVE</b> rather than quoting a meaningless number.</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS <b>ensemble mean</b> (open data, CC&nbsp;BY&nbsp;4.0), 100&nbsp;hPa, day 0&ndash;15 &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; superposition index vs ERA5 1991&ndash;2020 (WeatherBench2) &middot; polar stereographic &middot; updated each 00/12Z cycle</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS <b>ensemble mean</b> (open data, CC&nbsp;BY&nbsp;4.0), 100 and 500&nbsp;hPa, analysis to day&nbsp;15 &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; superposition index vs ERA5 1991&ndash;2020 (WeatherBench2) &middot; polar stereographic &middot; updated each 00/12Z cycle</span></div>
       </div>
 
           </div>
