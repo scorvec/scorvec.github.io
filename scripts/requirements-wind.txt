@@ -1,5 +1,5 @@
 # Core scientific stack
-numpy>=1.24
+numpy>=2.5.2
 pandas>=2.0,<4
 scipy>=1.11
 pytz  # gridstatus 0.34 imports pytz; pandas 3.x doesn't pull it in
