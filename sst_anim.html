@@ -129,7 +129,19 @@
     padding: 0.35rem 0.55rem;
   }
 </style>
-<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script>
+  // Count this page ONLY when it is opened directly, never when it is embedded.
+  // It is the animator: enso-atmosphere alone embeds it four times, so an
+  // unconditional beacon turned one visit into five pageviews and inflated
+  // every figure on stats.html.
+  if (!new URLSearchParams(location.search).has("embed")) {
+    var gc = document.createElement("script");
+    gc.async = true; gc.src = "//gc.zgo.at/count.js";
+    gc.setAttribute("data-goatcounter", "https://scorvec.goatcounter.com/count");
+    document.head.appendChild(gc);
+  }
+</script>
+<meta name="robots" content="noindex">
 </head>
 <body>
 
