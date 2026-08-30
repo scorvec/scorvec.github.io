@@ -320,8 +320,9 @@
 // One dropdown picks the product; the button rows below it pick that product's
 // options. Only one figure is ever in the DOM, so the page is a single screen
 // instead of a scroll through fourteen images.
-var FIELDS = [["t2m","2 m temp"],["pr","Precip"],["zg500","500 hPa Z"],["olr","OLR"],
-              ["u850","850 u"],["u200","200 u"],["v850","850 v"],["v200","200 v"]];
+var FIELDS = [["t2m","2 m temp"],["pr","Precip"],["mslp","MSLP"],["zg500","500 hPa Z"],
+              ["olr","OLR"],["u850","850 u"],["u200","200 u"],["v850","850 v"],
+              ["v200","200 v"]];
 var P = {
   mjo: {label: "MJO", a: {label:"View", items:[["phase","Phase diagram"],["hov","Propagation"]]},
         img: function (a) { return "assets/geps/geps_mjo_" + (a==="phase"?"phase":"hovmoller") + ".webp"; },
