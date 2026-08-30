@@ -74,6 +74,9 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 DATA = HERE / "data"
 M2 = REPO / "scripts" / "telecon" / "data" / "m2_strat"
+# Committed fallback when the raw archive is absent (any runner).
+M2_CACHE = REPO / "scripts" / "strat" / "reference" / "m2_strat_daily.nc"
+OBS_CACHE = REPO / "scripts" / "strat" / "reference" / "strat_obs_daily.nc"
 CACHE = REPO / "scripts" / "ecmwf" / "cache"
 DL = DATA / "vortex_dl"                    # downloaded GRIB, reused within a cycle
 OUT = REPO / "assets" / "sst" / "nh_vortex.webp"
@@ -281,22 +284,39 @@ def clim_doy(series):
     return q(0.10), q(0.50), q(0.90)
 
 
-def load_clim(epoch):
+def _clim_series():
+    """The three MERRA-2 daily series, from the raw archive or the cache.
+
+    The raw archive (690 MB, gitignored) is laptop-only, so on a runner this
+    falls back to reference/m2_strat_daily.nc - the same three series reduced
+    by build_m2_reference.py. Without it nh_vortex died with "no MERRA-2 files"
+    on every Actions run while the step still went green.
+    """
     fs = sorted(glob.glob(str(M2 / "m2_strat_*.nc")))
-    if not fs:
-        raise SystemExit(f"no MERRA-2 files under {M2}")
-    d = xr.open_mfdataset(fs, combine="by_coords", chunks=None)
-    idx = pd.DatetimeIndex(d.time.values)
-    zb = d["zbar"].sel(lev=100.0)
-    sel = zb.where((zb.lat >= CAP[0]) & (zb.lat <= CAP[1]), drop=True)
-    w = np.cos(np.deg2rad(sel.lat))
-    out = {
-        "u10": pd.Series(np.asarray(d["u60"].sel(lev=10.0).values), index=idx).dropna(),
-        "u100": pd.Series(np.asarray(d["u60"].sel(lev=100.0).values), index=idx).dropna(),
-        "zcap": pd.Series(np.asarray(((sel * w).sum("lat") / w.sum()).values),
-                          index=idx).dropna(),
-    }
-    print(f"  MERRA-2 reference {idx[0]:%Y-%m-%d}..{idx[-1]:%Y-%m-%d} ({len(idx)} days)",
+    if fs:
+        d = xr.open_mfdataset(fs, combine="by_coords", chunks=None)
+        idx = pd.DatetimeIndex(d.time.values)
+        zb = d["zbar"].sel(lev=100.0)
+        sel = zb.where((zb.lat >= CAP[0]) & (zb.lat <= CAP[1]), drop=True)
+        w = np.cos(np.deg2rad(sel.lat))
+        return idx, {
+            "u10": np.asarray(d["u60"].sel(lev=10.0).values),
+            "u100": np.asarray(d["u60"].sel(lev=100.0).values),
+            "zcap": np.asarray(((sel * w).sum("lat") / w.sum()).values),
+        }, "MERRA-2 raw"
+    if M2_CACHE.exists():
+        c = xr.open_dataset(M2_CACHE)
+        idx = pd.DatetimeIndex(c.time.values)
+        return idx, {k: np.asarray(c[k].values) for k in ("u10", "u100", "zcap")}, \
+            "MERRA-2 cache"
+    raise SystemExit(f"no MERRA-2 files under {M2} and no cache at {M2_CACHE} "
+                     f"(build it with scripts/strat/build_m2_reference.py)")
+
+
+def load_clim(epoch):
+    idx, raw, src = _clim_series()
+    out = {k: pd.Series(v, index=idx).dropna() for k, v in raw.items()}
+    print(f"  {src} reference {idx[0]:%Y-%m-%d}..{idx[-1]:%Y-%m-%d} ({len(idx)} days)",
           flush=True)
     for k in list(out):
         ix = pd.DatetimeIndex(out[k].index)
@@ -315,6 +335,55 @@ def load_clim(epoch):
 
 
 def analysis():
+    """Observed ERA5 tail: the raw rolling archive, else the committed cache.
+
+    strat_obs.nc is 237 MB of 3-D fields on a rolling 150-day window and is
+    gitignored, so on a runner this used to return {} - silently dropping the
+    observed history the figure is supposed to start from, with no error. The
+    cache holds the same two reduced series (u10, zcap) that _analysis_raw
+    derives, and is refreshed by build_m2_reference.py on the laptop.
+    """
+    out = _analysis_raw()
+    if out:
+        _refresh_obs_cache(out)
+        return out
+    if OBS_CACHE.exists():
+        c = xr.open_dataset(OBS_CACHE)
+        ci = pd.DatetimeIndex(c.time.values)
+        age = (pd.Timestamp.utcnow().tz_localize(None) - ci[-1]).days
+        print(f"  observed tail from cache {ci[0]:%Y-%m-%d}..{ci[-1]:%Y-%m-%d} "
+              f"({age} d old)" + ("  [STALE - rerun build_m2_reference.py]"
+                                  if age > 10 else ""), flush=True)
+        return {k: pd.Series(np.asarray(c[k].values), index=ci).dropna()
+                for k in ("u10", "zcap")}
+    print("  no observed tail available (no strat_obs.nc, no cache)", flush=True)
+    return {}
+
+
+def _refresh_obs_cache(out):
+    """Keep the committed obs cache current, for free, whenever the raw file is here.
+
+    strat_obs.nc is a ROLLING window, so the cache would otherwise drift stale
+    between manual rebuilds. Every laptop run has the raw data in hand and the
+    reduction is two 150-day series, so refresh it here rather than relying on
+    anyone remembering to run build_m2_reference.py. Best-effort: a failure to
+    write the cache must never take down the figure.
+    """
+    try:
+        df = pd.DataFrame({k: out[k] for k in ("u10", "zcap")}).dropna(how="all")
+        if df.empty:
+            return
+        ds = xr.Dataset({c: ("time", df[c].values.astype("float32")) for c in df.columns},
+                        coords={"time": df.index.values})
+        ds.attrs["source"] = "ERA5 via scripts/strat/data/strat_obs.nc (rolling window)"
+        OBS_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        ds.to_netcdf(OBS_CACHE,
+                     encoding={c: {"zlib": True, "complevel": 6} for c in df.columns})
+    except Exception as e:                                  # noqa: BLE001
+        print(f"  (obs cache refresh skipped: {type(e).__name__}: {e})", flush=True)
+
+
+def _analysis_raw():
     p = DATA / "strat_obs.nc"
     if not p.exists():
         return {}

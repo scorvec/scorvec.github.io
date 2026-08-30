@@ -108,6 +108,13 @@ scripts/strat/*
 !scripts/strat/qbo_duct.py
 !scripts/strat/vortex_winds.py
 !scripts/strat/wave1_maps.py
+!scripts/strat/build_m2_reference.py
+# The MERRA-2 reference cache (282 KB) that replaces the 690 MB laptop-only
+# archive for nh_vortex on a runner. The directory itself must be re-included
+# first - git will not descend into an excluded directory to find the file.
+!scripts/strat/reference/
+!scripts/strat/reference/m2_strat_daily.nc
+!scripts/strat/reference/strat_obs_daily.nc
 
 # removed-project local archive (ERCOT page + C3S winter analysis, restorable)
 local_archive/
