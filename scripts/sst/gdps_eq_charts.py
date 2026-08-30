@@ -436,10 +436,29 @@ def main(argv=None) -> int:
     ap.add_argument("--cycle", default="00")
     args = ap.parse_args(argv)
 
-    today = datetime.now(timezone.utc).strftime("%Y%m%d")
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y%m%d")
     tries = ([args.date] if args.date
-             else [today, (datetime.now(timezone.utc)
-                           - timedelta(days=1)).strftime("%Y%m%d")])
+             else [today, (now - timedelta(days=1)).strftime("%Y%m%d")])
+    # Drop candidates whose init has not happened yet, or is too fresh to be on
+    # Datamart. Asking for 20260830 12Z at 01:11Z means probing a cycle eleven
+    # hours in the FUTURE: 40 leads x 3 fields = 120 requests that cannot
+    # succeed, before the fallback to yesterday even starts. The completeness
+    # check still handles a cycle that is late; this only skips ones that are
+    # impossible. GDPS is fully published ~5h45m after init, so 4 h is a
+    # permissive floor rather than a guess at readiness.
+    MIN_AGE_H = 4
+    def _too_early(d: str) -> bool:
+        init = datetime.strptime(f"{d}{args.cycle}", "%Y%m%d%H").replace(tzinfo=timezone.utc)
+        return (now - init) < timedelta(hours=MIN_AGE_H)
+    usable = [d for d in tries if not _too_early(d)]
+    for d in tries:
+        if d not in usable:
+            init = datetime.strptime(f"{d}{args.cycle}", "%Y%m%d%H")
+            age = (now - init.replace(tzinfo=timezone.utc)).total_seconds() / 3600
+            print(f"  skipping {d} {args.cycle}Z: init is {age:+.1f} h old "
+                  f"(need {MIN_AGE_H} h)", flush=True)
+    tries = usable
     data, init, date_ok = None, None, None
     for date in tries:
         print(f"GDPS {date} {args.cycle}Z:", flush=True)
