@@ -308,6 +308,14 @@ def plot_anom_pair(araw2d, adt2d, lons, date, out_path):
         cf = ax.contourf(LON_GRID, DEPTH_GRID, Ag, levels=ANOM_LEVELS, cmap="RdBu_r",
                          extend="both", norm=mcolors.TwoSlopeNorm(0, -ANOM_LIM, ANOM_LIM))
         ax.contour(LON_GRID, DEPTH_GRID, Ag, levels=[0], colors="k", linewidths=1.5)
+        # The detrended companion had only the zero line: the +10 core it shares
+        # with the raw panel was unlabelled, so switching between them looked
+        # like the contour had been lost.
+        lvc = [v for v in ANOM_CONTOURS if np.nanmin(Ag) <= v <= np.nanmax(Ag)]
+        if lvc:
+            cc = ax.contour(LON_GRID, DEPTH_GRID, Ag, levels=lvc, colors="k",
+                            linewidths=0.8)
+            ax.clabel(cc, fmt="%+d", fontsize=7)
         c5 = ax.contour(LON_GRID, DEPTH_GRID, Ag, levels=[-7, -5, 5, 7], colors="k", linewidths=0.8)
         ax.clabel(c5, fmt="%+d", fontsize=7)
         ax.set_title(title, fontsize=10, loc="left")
