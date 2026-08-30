@@ -157,11 +157,15 @@ def panel(ax, z, lev, hemi):
     # much of the pattern wave-1 accounts for.
     ci = FULL_CI[lev]
     lo, hi = np.floor(Z.min() / ci) * ci, np.ceil(Z.max() / ci) * ci
-    ax.contour(lon, la, Z, levels=np.arange(lo, hi + ci, ci), colors="#3a3a3a",
-               linewidths=0.5, transform=PC, zorder=3)
+    # Height contours are CONTEXT - they sit behind the geography, so they are
+    # lighter than the coastline rather than darker (they were #3a3a3a/0.5
+    # against a #555/0.5 coast, which made the data contours the most
+    # prominent lines on a map).
+    ax.contour(lon, la, Z, levels=np.arange(lo, hi + ci, ci), colors="#6e6e6e",
+               linewidths=0.45, transform=PC, zorder=3)
 
-    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#555",
-                   linewidth=0.5, zorder=4)
+    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#0d0d0d",
+                   linewidth=1.0, zorder=4)
     gl = ax.gridlines(linewidth=0.3, color="#8a8a8a", alpha=0.45, zorder=5)
     gl.ylocator = plt.FixedLocator([20, 40, 60, 80] if north else [-80, -60, -40, -20])
     lat60 = 60.0 if north else -60.0

@@ -188,8 +188,11 @@ def panel(ax, u, v, lev, hemi):
     ax.contour(lon, la, Us, levels=[0], colors="#b3122b", linewidths=1.4,
                transform=PC, zorder=4)
 
-    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#2b2b2b",
-                   linewidth=0.6, zorder=5)
+    # Geography reads FIRST: darker and heavier than the streamlines (0.55) so
+    # the eye locates the vortex over the map rather than hunting for the
+    # coast among the flow lines.
+    ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#0d0d0d",
+                   linewidth=1.05, zorder=6)
     gl = ax.gridlines(linewidth=0.35, color="#8a8a8a", alpha=0.5, zorder=6)
     gl.ylocator = plt.FixedLocator([20, 40, 60, 80] if north else [-80, -60, -40, -20])
     # 60 deg gets its own heavier ring: the WMO sudden-stratospheric-warming

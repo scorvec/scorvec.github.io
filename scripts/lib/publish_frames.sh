@@ -14,6 +14,7 @@
 #
 #     scripts/lib/publish_frames.sh            # publish if anything changed
 #     scripts/lib/publish_frames.sh --force    # publish regardless
+#     PRUNE="wave1_nh wave1_sh" scripts/lib/publish_frames.sh --force   # retire products
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -21,7 +22,7 @@ BRANCH="frames"
 # every animation frame dir on the site. cptec/brazil/sfs are smaller than
 # sst but churn the same way, and keeping ONE branch for all of them means
 # the viewers need a single frame root rather than a per-product mapping.
-DIRS=(assets/sst/anim assets/cptec/anim assets/brazil/anim assets/sfs/anim assets/ecape/anim)
+DIRS=(assets/sst/anim assets/cptec/anim assets/brazil/anim assets/sfs/anim assets/ecape/anim assets/geps/anim)
 STAMP="$REPO/scripts/lib/.frames_published"
 cd "$REPO" || exit 1
 
@@ -68,6 +69,41 @@ for d in "${DIRS[@]}"; do
   echo "  $d: $c frames"; n=$((n + c))
 done
 [ "$n" -eq 0 ] && { echo "no frames found — refusing to publish an empty branch"; exit 1; }
+
+# Carry over every product the LAPTOP does not render.
+#
+# This branch is force-pushed as one parentless commit, so whatever is not in
+# the tree we build is deleted. That was safe while every animation was made
+# here, but the stratosphere loops (wave1_maps, vortex_winds) now render only
+# in GitHub Actions. On 2026-08-30 CI published them at 05:24Z and this script
+# force-pushed at 11:06Z with no such directories on disk, silently deleting 47
+# frames - the manifests on main then pointed at 404s and the panels showed
+# only their static image.
+#
+# So: anything present on the branch but absent locally is restored from the
+# branch itself. Retiring a product is now EXPLICIT via --prune, rather than a
+# side effect of it not happening to be on this disk.
+PRUNE="${PRUNE:-}"
+git fetch -q origin "$BRANCH" 2>/dev/null || true
+if git rev-parse -q --verify "origin/$BRANCH" >/dev/null; then
+  kept=0
+  for d in "${DIRS[@]}"; do
+    # every immediate subdirectory of an anim root on the branch
+    for sub in $(git ls-tree --name-only "origin/$BRANCH" "$d/" 2>/dev/null); do
+      name="$(basename "$sub")"
+      [ -d "$sub" ] && continue                       # rendered locally: ours wins
+      case " $PRUNE " in *" $name "*)
+        echo "  $name: pruned (explicitly retired)"; continue ;;
+      esac
+      mkdir -p "$TMP/$(dirname "$sub")"
+      git archive "origin/$BRANCH" "$sub" | tar -x -C "$TMP" 2>/dev/null || continue
+      c=$(find "$TMP/$sub" -name '*.webp' 2>/dev/null | wc -l | tr -d ' ')
+      [ "$c" -gt 0 ] && { echo "  $name: $c frames carried over (not rendered here)"; \
+                          kept=$((kept + c)); n=$((n + c)); }
+    done
+  done
+  [ "$kept" -gt 0 ] && echo "  carried over $kept frames from the existing branch"
+fi
 
 REMOTE="$(git config --get remote.origin.url)"
 (
