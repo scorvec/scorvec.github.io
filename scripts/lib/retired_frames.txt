@@ -1,0 +1,15 @@
+# Frame directories on the `frames` branch that are RETIRED and may be deleted
+# by scripts/lib/gc_frames.py --prune.
+#
+# Nothing is pruned unless it is listed here AND unreferenced by every manifest
+# on main. Being unreferenced is not enough on its own: several products are
+# private, their manifests live only on the laptop, and from a runner they look
+# identical to an orphan. Add a path here only when you know the product is
+# gone for good.
+#
+# One path per line.
+
+# Replaced 2026-08-30 by per-hemisphere loops (wave1_nh / wave1_sh).
+assets/sst/anim/wave1_maps
+# Replaced 2026-08-30 by per-level loops (vortex_10 / vortex_100).
+assets/sst/anim/vortex_winds
