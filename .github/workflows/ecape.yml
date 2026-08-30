@@ -172,10 +172,11 @@ jobs:
           done
           echo "frame count verified: $want per field across 3 fields"
           python scripts/ecape/build_manifest.py assets/ecape/anim --cycle "$CYCLE"
-          # Stills for the page's static panels come from the analysis frame.
-          for fld in ecape_ml ecape_mu ratio_mu; do
-            [ -f "assets/ecape/anim/$fld/F00.webp" ] && cp "assets/ecape/anim/$fld/F00.webp" "assets/ecape/$fld.webp"
-          done
+          # No stills: the page's static panels were removed on 2026-08-30. They
+          # duplicated the loop's F00 frame, and on mobile they were the ONLY
+          # thing visible - the animator's iframe kept its hardcoded aspect
+          # ratio there and clipped its own controls - so they read as the whole
+          # product rather than a fallback.
           du -sh assets/ecape/anim
 
       - name: Publish frames to the orphan branch
@@ -210,13 +211,13 @@ jobs:
           git push --force -q origin fresh:frames
           echo "  pushed $(find assets -name '*.webp' | wc -l) frames"
 
-      - name: Commit manifest & stills to main
+      - name: Commit the manifest to main
         if: ${{ (github.event_name == 'schedule' || github.event.inputs.publish == 'true') && steps.cyc.outputs.skip != 'true' }}
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
-          # Only the manifest and the stills - never the frame webp.
-          git add assets/ecape/anim/ecape_manifest.json assets/ecape/*.webp
+          # Only the manifest - never the frame webp, and no stills any more.
+          git add assets/ecape/anim/ecape_manifest.json
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
           for i in 1 2 3 4 5; do
