@@ -94,9 +94,15 @@ VARS = {"u": "WindU_AGL-10m", "v": "WindV_AGL-10m", "p": "Pressure_MSL",
         "u150": "WindU_IsbL-0150", "v150": "WindV_IsbL-0150",
         "z150": "GeopotentialHeight_IsbL-0150",
         "olr": "UpwardLongwaveRadiationFlux_NTAtm"}
-LEADS = list(range(24, 241, 24))                 # wind maps: forecast days 1..10
+# Wind maps went 24-hourly -> 6-hourly on 2026-08-29: these are animation
+# frames, not a static panel grid, so finer spacing just makes the loop smoother
+# rather than crowding a figure. 40 frames instead of 10.
+LEADS = list(range(6, 241, 6))                   # wind maps: 6-hourly to day 10
 IR_LEADS = list(range(3, 241, 3))                # simulated IR: 3-hourly loop
-MIN_LEADS = 8                                    # fewer → cycle not ready, fall back
+# Scaled with LEADS to keep the same 80% completeness bar. A GDPS cycle that is
+# still being written out has its tail missing; below this we fall back a day
+# rather than publish a truncated loop.
+MIN_LEADS = int(0.8 * len(LEADS))
 
 # OLR → IR brightness temperature: inverse of the Ohring–Gruber relation the
 # synthetic-OLR products use forward (Tf = Tb·(1.228 − 1.106e-3·Tb); OLR = σTf⁴).
