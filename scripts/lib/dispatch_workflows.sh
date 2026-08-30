@@ -105,6 +105,9 @@ qbo.yml|mon@07:15|
 colombia-radar.yml|mon@09:40|
 sst-events.yml|mon@18:41|
 skewt-gaps.yml|tue,fri@08:40|
+# Daily frames-branch GC. Waits for a quiet moment itself and skips rather
+# than racing a publisher, so a late firing costs nothing.
+gc.yml|04:52|
 EOF
 )
 

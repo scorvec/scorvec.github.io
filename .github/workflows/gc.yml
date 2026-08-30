@@ -1,0 +1,97 @@
+name: Garbage collect the frames branch
+
+# Daily housekeeping for the orphan `frames` branch: report every frame
+# directory no manifest references any more, and delete the ones explicitly
+# listed as retired.
+#
+# WHY IT WAITS FOR QUIET. The branch is force-pushed as a single parentless
+# commit by every product that publishes frames. Two publishers overlapping
+# means the loser's frames are silently deleted - that is what emptied
+# wave1_maps and vortex_winds on 2026-08-30. This job takes the same lock
+# everyone else does by simply refusing to run while anything else is in
+# flight, and tries again tomorrow rather than racing.
+#
+# WHY IT DELETES SO LITTLE. Several products are private: their manifests live
+# only on the laptop, so from a runner their frames are indistinguishable from
+# orphans. 23 directories were "unreferenced" for exactly that reason. Deletion
+# is therefore opt-in per path via scripts/lib/retired_frames.txt, protected
+# prefixes are never touched, and everything else is only reported. See
+# scripts/lib/gc_frames.py.
+#
+# ONE FIRING A DAY, in line with the rule that came out of the cron measurements
+# on 2026-08-30: workflows asking for once a day were honoured 5/5, hourly ones
+# 15/72. 04:52Z is a genuinely quiet slot - the hourly loops run at :12/:25/:40,
+# ECAPE at 01:20 and 07:20, site-stats at 05:17.
+on:
+  schedule:
+    - cron: '52 4 * * *'
+  workflow_dispatch:
+    inputs:
+      prune:
+        description: 'Actually delete the retired paths (false = report only)'
+        default: 'true'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gc-frames
+  cancel-in-progress: false
+
+jobs:
+  gc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      # Refuse to run alongside anything that might be publishing frames.
+      # Checked immediately before the work, not at queue time, because a run
+      # can start while this one waits for a runner.
+      - name: Wait for a quiet moment
+        id: quiet
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3 4 5 6; do
+            busy=$(gh run list --limit 60 --json databaseId,status \
+                   -q "[.[] | select(.status != \"completed\") | select(.databaseId != ${{ github.run_id }})] | length" 2>/dev/null || echo 0)
+            if [ "${busy:-0}" -eq 0 ]; then
+              echo "  nothing else in flight - proceeding"
+              echo "quiet=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            echo "  $busy run(s) still in flight; waiting (attempt $attempt/6)"
+            sleep 120
+          done
+          echo "::warning::still busy after 12 min - skipping today's GC rather than racing a publisher"
+          echo "quiet=false" >> "$GITHUB_OUTPUT"
+
+      - name: Report and prune
+        if: ${{ steps.quiet.outputs.quiet == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python scripts/lib/gc_frames.py --prune | tee /tmp/gc.txt
+          PATHS=$(grep -oE '^PRUNE_PATHS=.*' /tmp/gc.txt | cut -d= -f2- || true)
+          if [ -n "${PATHS:-}" ] && [ "${{ github.event.inputs.prune || 'true' }}" = "true" ]; then
+            echo "  pruning: $PATHS"
+            PRUNE="$PATHS" scripts/lib/publish_frames_ci.sh
+          else
+            echo "  nothing to prune (or prune disabled for this run)"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Frames GC — $(date -u +%Y-%m-%dT%H:%MZ)"
+            echo ''
+            echo '```'
+            cat /tmp/gc.txt 2>/dev/null || echo "(did not run - another job was in flight)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

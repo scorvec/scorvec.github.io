@@ -23,7 +23,11 @@
 # PRUNE="<path> ..." deletes paths from the branch, for retention.
 set -euo pipefail
 
-[ $# -gt 0 ] || { echo "usage: $0 <frame-dir> [frame-dir ...]"; exit 2; }
+# No directories is valid when PRUNE is set: that is the GC's prune-only call.
+if [ $# -eq 0 ] && [ -z "${PRUNE:-}" ]; then
+  echo "usage: $0 <frame-dir> [frame-dir ...]   (or set PRUNE=... for prune-only)"
+  exit 2
+fi
 : "${GH_TOKEN:?GH_TOKEN is required}"
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 BRANCH="${FRAMES_BRANCH:-frames}"
@@ -43,7 +47,10 @@ for d in "$@"; do
   echo "  $d: $c frames"
   n=$((n + c))
 done
-if [ "$n" -eq 0 ]; then
+# Nothing to publish is normally a reason to stop - but not when the caller is
+# here to PRUNE. The GC job passes no directories at all, and an early exit
+# would have made it a no-op that reported success.
+if [ "$n" -eq 0 ] && [ -z "${PRUNE:-}" ]; then
   echo "::warning::nothing rendered; leaving the frames branch untouched"
   exit 0
 fi
