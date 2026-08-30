@@ -21,13 +21,21 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      - name: Install plotting dependencies
+        run: pip install -q numpy pandas matplotlib pillow
+
       - name: Update recent months from IGRA year-to-date
         run: python scripts/qbo/qbo_tracker.py update
+
+      # The page is static now - no Plotly, no client-side redraw. These four
+      # figures ARE the charts, so they have to be rebuilt whenever the data is.
+      - name: Render the figures
+        run: python scripts/qbo/render_qbo.py --out-dir assets/qbo
       - name: Commit if changed
         run: |
           git config user.name "qbo-bot"
           git config user.email "actions@github.com"
-          git add qbo/qbo.json
+          git add qbo/qbo.json assets/qbo qbo/index.html
           git diff --cached --quiet && echo "no change" && exit 0
           git commit -m "data update (weekly)"
           for i in 1 2 3; do

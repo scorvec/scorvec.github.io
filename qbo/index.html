@@ -12,7 +12,6 @@
 <meta property="og:description" content="Time–height record of the Quasi-Biennial Oscillation built from equatorial radiosondes: Singapore, Kuala Lumpur, the Amazon chain, Micronesia. Updated weekly.">
 <meta property="og:url" content="https://scorvec.com/qbo/">
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root { --bg:#0b0b12; --panel:#11111c; --ink:#e8e8f0; --muted:#8b8ba3;
@@ -25,6 +24,9 @@
   .nav-name { font-family:var(--serif); font-size:1rem; text-decoration:none; color:var(--ink); }
   nav a.back { font-size:0.85rem; letter-spacing:0.05em; color:var(--muted); text-decoration:none; }
   .wrap { max-width:1150px; margin:0 auto; padding:1.8rem 1.2rem 3rem; }
+  .panel img { width:100%; height:auto; display:block; border-radius:8px; margin-top:0.7rem; }
+  .cap { color:var(--muted); font-size:0.86rem; line-height:1.6; margin-top:0.35rem; }
+  .cap em { color:var(--ink); font-style:normal; font-weight:500; }
   .eyebrow { font-size:0.74rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--accent); }
   h1 { font-family:var(--serif); font-weight:600; font-size:clamp(1.6rem,3.6vw,2.3rem);
        margin:0.35rem 0 0.5rem; text-wrap:balance; }
@@ -68,21 +70,47 @@
   <div class="cards" id="cards"></div>
 
   <div class="panel">
-    <h2>Time–height section — monthly mean zonal wind (m/s)</h2>
-    <div id="hov" style="height:430px"></div>
+    <h2>Time–height section</h2>
+    <p class="cap">The QBO is a <em>descending</em> pattern, so this is the only honest primary
+    view: height against time, with the u&nbsp;=&nbsp;0 contour drawn heavy. Its downward slope
+    <em>is</em> the descent — read the rate straight off it. A flat stretch is a shear zone that
+    has stalled, which is how both the 2016 and 2020 disruptions announce themselves.</p>
+    <img src="../assets/qbo/qbo_section.webp" alt="Time-height section of tropical mean zonal wind, 10 to 100 hPa, showing the descending QBO regimes" loading="lazy">
   </div>
+
   <div class="panel">
-    <h2>Index levels — 30 &amp; 50 hPa</h2>
-    <div id="series" style="height:300px"></div>
+    <h2>Where the cycle is now</h2>
+    <p class="cap">The two leading EOFs of the wind profile, which between them carry most of the
+    variance. One full QBO cycle is one loop around the origin and the radius is the strength of
+    the oscillation — so a loop that shrinks toward the centre without closing is a
+    <em>disruption</em>, the QBO stalling mid-descent. That is visible here and almost nowhere
+    else.</p>
+    <img src="../assets/qbo/qbo_phase.webp" alt="QBO phase space: the two leading EOFs with the last 36 months traced and the current month marked" loading="lazy">
   </div>
+
   <div class="panel">
-    <h2>Latest tropical mean zonal wind profile (100–10 hPa) <span id="prof-when" style="color:var(--muted); font-size:0.75rem; font-weight:400"></span></h2>
-    <div id="prof" style="height:420px"></div>
+    <h2>How fast it descends</h2>
+    <p class="cap">Every regime onset, followed level by level as it arrives lower and lower.
+    Tracking a single u&nbsp;=&nbsp;0 height per month does <em>not</em> work — the QBO carries
+    two or three crossings at once — but when each level changes regime is unambiguous, and
+    chaining those gives one line per onset whose slope is a real descent rate. A line that stops
+    before reaching 50–70&nbsp;hPa is an onset that never made it down.</p>
+    <img src="../assets/qbo/qbo_descent.webp" alt="Descent paths of each QBO regime onset by level, with a histogram of descent rates" loading="lazy">
   </div>
+
+  <div class="panel">
+    <h2>This cycle against the record</h2>
+    <p class="cap">Every cycle since the record begins, aligned on the month the 30&nbsp;hPa wind
+    turned westerly, with the current one drawn over the top. "Unusually long" or "stalled"
+    becomes something you can see rather than something a caption asserts.</p>
+    <img src="../assets/qbo/qbo_cycles.webp" alt="All QBO cycles aligned on the 30 hPa westerly onset with the current cycle highlighted" loading="lazy">
+  </div>
+
   <div class="panel">
     <h2>Latest month by station</h2>
     <div style="overflow-x:auto"><table id="stns"></table></div>
   </div>
+
   <p class="note" id="method"></p>
 </div>
 <footer>
@@ -93,11 +121,14 @@
   Corvec. <a href="../skewt/methodology.html">Sounding methodology</a>.
 </footer>
 <script>
+// Cards and the station table only - every chart on this page is now a static
+// figure rendered by scripts/qbo/render_qbo.py. No plotting library is loaded:
+// the four figures ARE the charts, so the page ships one small fetch instead of
+// a ~1 MB bundle that had to redraw everything client-side.
 const W = "#ff7a6e", E = "#6ec1ff";
 fetch("qbo.json").then(r => r.json()).then(d => {
   const { levels, months, u, latest } = d;
   const li30 = levels.indexOf(30), li50 = levels.indexOf(50);
-  // ---- phase cards ----
   const lastIdx = (li) => { for (let i = months.length - 1; i >= 0; i--) if (u[li][i] !== null) return i; };
   const i30 = lastIdx(li30), i50 = lastIdx(li50);
   const u30 = u[li30][i30], u50 = u[li50][i50];
@@ -116,30 +147,6 @@ fetch("qbo.json").then(r => r.json()).then(d => {
     <div class="card"><div class="k">Record</div>
       <div class="v">${months[0].slice(0, 4)}–</div>
       <div class="s">${months.length} months · updated ${d.updated.slice(0, 10)}</div></div>`;
-  // ---- time-height heatmap ----
-  const layout = {
-    paper_bgcolor: "#11111c", plot_bgcolor: "#11111c",
-    font: { color: "#c3c3d4", family: "Inter, sans-serif", size: 12 },
-    margin: { l: 58, r: 12, t: 8, b: 44 },
-    xaxis: { gridcolor: "#23233a", range: [months[Math.max(0, months.length - 240)], months[months.length - 1]] },
-    yaxis: { title: "hPa", type: "log", autorange: "reversed", gridcolor: "#23233a",
-             tickvals: levels, ticktext: levels.map(String) },
-  };
-  Plotly.newPlot("hov", [{
-    type: "heatmap", x: months, y: levels, z: u, zmid: 0, zmin: -35, zmax: 35,
-    colorscale: [[0, "#1e5bbf"], [0.35, "#63a3e8"], [0.5, "#101018"], [0.65, "#e8756a"], [1, "#c22a1e"]],
-    colorbar: { title: "m/s", outlinewidth: 0, tickfont: { color: "#c3c3d4" } },
-    hovertemplate: "%{x} · %{y} hPa · %{z} m/s<extra></extra>",
-  }], layout, { responsive: true, displaylogo: false });
-  // ---- 30/50 series ----
-  Plotly.newPlot("series", [
-    { x: months, y: u[li30], name: "30 hPa", line: { color: W, width: 1.6 }, connectgaps: false },
-    { x: months, y: u[li50], name: "50 hPa", line: { color: E, width: 1.6 }, connectgaps: false },
-  ], { ...layout,
-    yaxis: { title: "u (m/s)", gridcolor: "#23233a", zerolinecolor: "#3d5a8f" },
-    legend: { orientation: "h", y: 1.12 },
-  }, { responsive: true, displaylogo: false });
-  // ---- station table ----
   const head = "<tr><th>Station</th><th>Month</th>" + levels.map(l => `<th>${l} hPa</th>`).join("") + "</tr>";
   const names = { 48698: "Singapore", 48650: "Kuala Lumpur", 96441: "Bintulu", 91334: "Chuuk",
     91348: "Pohnpei", 91413: "Yap", 82022: "Boa Vista", 82099: "Macapá",
@@ -158,78 +165,7 @@ fetch("qbo.json").then(r => r.json()).then(d => {
     `the month (≥3 required); the cross-station mean currently draws on up to ` +
     `${Object.keys(latest).length} stations spanning Africa, the Maritime Continent, the western ` +
     `Pacific and the Amazon.`;
-}).catch(() => {
-  document.getElementById("cards").innerHTML =
-    '<div class="card"><div class="k">Error</div><div class="v">Data unavailable</div>' +
-    '<div class="s">qbo.json failed to load — try reloading</div></div>';
-});
-
-// ---- latest tropical mean u(p): straight from the sounding mirror ----
-// (updates with every mirror run, so effectively daily; no cron needed)
-const MIRROR = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-data/soundings/";
-const PROF_STNS = ["48650", "96441", "91334", "91348", "91413", "82022", "82099",
-                   "82107", "82244", "82332", "82411", "96996", "91376"];
-const GRID = [100, 80, 70, 60, 50, 40, 30, 25, 20, 15, 10];
-Promise.all(PROF_STNS.map(id => fetch(MIRROR + id + ".csv")
-  .then(r => r.ok ? r.text() : null).catch(() => null)))
-.then(texts => {
-  const perStn = [], stamps = [];
-  texts.forEach((txt, si) => {
-    if (!txt) return;
-    const pts = [];                        // [ln p, u]
-    for (const line of txt.split("\n").slice(1)) {
-      const c = line.split(",");
-      if (c.length < 13) continue;
-      const pr = +c[3], wd = +c[11], ws = +c[12];
-      if (!isFinite(pr) || !isFinite(wd) || !isFinite(ws) || pr < 5) continue;
-      pts.push([Math.log(pr), -ws * Math.sin(wd * Math.PI / 180)]);
-      if (!stamps.length || line.slice(0, 10) > stamps[stamps.length - 1])
-        stamps.push(line.slice(0, 10));
-    }
-    if (pts.length < 15) return;
-    pts.sort((a, b) => b[0] - a[0]);
-    const prof = GRID.map(tgt => {
-      const lt = Math.log(tgt);
-      for (let i = 1; i < pts.length; i++) {
-        const [a, b] = [pts[i - 1], pts[i]];
-        if (b[0] <= lt && lt <= a[0] && a[0] - b[0] < 0.5) {
-          const f = (a[0] - lt) / Math.max(1e-9, a[0] - b[0]);
-          return a[1] + f * (b[1] - a[1]);
-        }
-      }
-      return null;
-    });
-    perStn.push({ id: PROF_STNS[si], prof });
-  });
-  if (perStn.length < 4) return;
-  const mean = GRID.map((_, gi) => {
-    const v = perStn.map(s => s.prof[gi]).filter(x => x !== null);
-    return v.length >= 4 ? v.reduce((a, b) => a + b) / v.length : null;
-  });
-  const layout2 = {
-    paper_bgcolor: "#11111c", plot_bgcolor: "#11111c",
-    font: { color: "#c3c3d4", family: "Inter, sans-serif", size: 12 },
-    margin: { l: 58, r: 12, t: 8, b: 44 },
-    xaxis: { title: "zonal wind u (m/s)", gridcolor: "#23233a", zerolinecolor: "#3d5a8f",
-             zerolinewidth: 1.5 },
-    yaxis: { title: "hPa", type: "log", autorange: "reversed", gridcolor: "#23233a",
-             tickvals: [100, 70, 50, 30, 20, 15, 10],
-             ticktext: ["100", "70", "50", "30", "20", "15", "10"] },
-    showlegend: false,
-  };
-  const traces = perStn.map(s => ({
-    x: s.prof, y: GRID, mode: "lines", connectgaps: false,
-    line: { color: "rgba(139,139,163,0.35)", width: 1 },
-    hovertemplate: s.id + " · %{y} hPa · %{x:.1f} m/s<extra></extra>",
-  }));
-  traces.push({ x: mean, y: GRID, mode: "lines+markers", connectgaps: false,
-    line: { color: "#64d2ff", width: 3 }, marker: { size: 5 },
-    hovertemplate: "mean · %{y} hPa · %{x:.1f} m/s<extra></extra>" });
-  Plotly.newPlot("prof", traces, layout2, { responsive: true, displaylogo: false });
-  document.getElementById("prof-when").textContent =
-    `— ${perStn.length} stations, latest soundings (${stamps[stamps.length - 1] || ""}), ` +
-    `grey = individual stations, blue = tropical mean`;
-});
+}).catch(() => {});
 </script>
 </body>
 </html>
