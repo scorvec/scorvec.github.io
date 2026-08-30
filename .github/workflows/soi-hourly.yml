@@ -3,9 +3,17 @@ name: Hourly SOI estimate (Darwin/Tahiti METAR)
 # Near-real-time SOI from the Darwin (YPDN) + Tahiti (NTAA) airport METARs. Light:
 # one API call + a small plot. Commits its own files only (rolling CSV + webp), so it
 # never collides with the laptop pipelines.
+# NO CRON OF ITS OWN. Measured 2026-08-30: GitHub honoured 5 of 24 hourly
+# firings for this workflow (21%), and stripping the repo to this single cron
+# still only got 2 of 6 over six hours - so the throttle follows the WORKFLOW's
+# requested frequency, not repo load. Workflows asking for one firing a day were
+# honoured 5 of 5.
+#
+# So the schedule lives in 24 one-line-per-hour callers (soi-h00.yml ...
+# soi-h23.yml), each asking for a single daily firing, and the work stays here
+# as a reusable workflow. One copy of the logic, 24 cheap schedules.
 on:
-  schedule:
-    - cron: '12 * * * *'        # hourly, at :12
+  workflow_call:
   workflow_dispatch:
 
 permissions:
