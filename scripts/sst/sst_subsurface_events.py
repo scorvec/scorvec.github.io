@@ -26,6 +26,7 @@ import xarray as xr
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 
 import tao_subsurface as tao
 import sst_subsurface as ss
@@ -103,6 +104,21 @@ def event_anom(year: int, cur_year: int, cur_ds: xr.Dataset) -> xr.DataArray:
 def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path, detr: bool = False):
     years = [cur_year] + ANALOGS
     labels = [f"{cur_year} (current)"] + [f"{y}–{str(y + 1)[2:]}" for y in ANALOGS]
+    # Set the shared anomaly scale from THESE panels' data.
+    #
+    # ss.ANOM_LEVELS is a module default until sst_subsurface.main() replaces it
+    # at runtime - and that never happens here, because this is a separate
+    # entry point. So this figure quietly kept the fixed +/-12 while the other
+    # product had moved to a data-driven scale, and its 2026 panel was clipping
+    # exactly the way the animation used to. One scale across all four panels,
+    # chosen from all four, or the comparison between events is meaningless.
+    allA = []
+    for yr in years:
+        a = events[yr]
+        end = pd.Timestamp(yr, match.month, match.day)
+        w = a.sel(time=slice(end - pd.Timedelta(days=XSEC_WIN - 1), end)).mean("time")
+        allA.append(np.asarray(w.values, float))
+    ss.set_anom_scale(np.concatenate([x.ravel() for x in allA]))
     fig, axes = plt.subplots(2, 2, figsize=(12, 7.4), sharex=True, sharey=True)
     im = None
     for ax, yr, lab in zip(axes.ravel(), years, labels):
@@ -113,8 +129,16 @@ def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path, detr: bool
         if len(lons) >= 2:
             Ag = ss.interp_lon(win.values, lons)
             im = ax.contourf(ss.LON_GRID, ss.DEPTH_GRID, Ag, levels=ss.ANOM_LEVELS,
-                             cmap="RdBu_r", extend="both")
+                             cmap="RdBu_r", extend="both",
+                             norm=mcolors.TwoSlopeNorm(0, -ss.ANOM_LIM, ss.ANOM_LIM))
             ax.contour(ss.LON_GRID, ss.DEPTH_GRID, Ag, levels=[0], colors="k", linewidths=0.6)
+            # The strongest cores had no line on them at all - contours stopped
+            # at zero here while the field reaches past +10.
+            lv = [v for v in ss.ANOM_CONTOURS if np.nanmin(Ag) <= v <= np.nanmax(Ag)]
+            if lv:
+                cc = ax.contour(ss.LON_GRID, ss.DEPTH_GRID, Ag, levels=lv,
+                                colors="k", linewidths=0.7)
+                ax.clabel(cc, fmt="%+d", fontsize=6)
         ax.scatter(lons, np.full(len(lons), 6), marker="v", s=18, color="k", zorder=5)
         ax.set_ylim(300, 0)
         ax.set_title(lab, fontsize=10)
