@@ -213,8 +213,38 @@ TEMP_ISOTHERMS = [26, 28, 30]
 # contour() on a level outside the data warns and draws nothing.
 THERMOCLINE_ISOTHERM = 20.0
 DEEP_ISOTHERM = 10.0
-ANOM_LEVELS = np.arange(-12, 12.001, 0.5)   # ±8→±10 (Jul 2026) → ±12 (Aug 2026: +10.65 at the thermocline)
-ANOM_LIM = 10.0
+# Anomaly scale, SET FROM THE DATA once per run rather than hand-bumped.
+#
+# It had been raised three times as the event grew (±8 → ±10 in Jul 2026 → ±12
+# in Aug 2026) and was wrong again by 2026-08-30. Worse, the two constants had
+# drifted apart: the contour bands ran to ±12 while TwoSlopeNorm still clipped
+# the COLOUR mapping at ±10, so everything above +10 was painted the same red -
+# genuinely off the scale - while the colourbar implied headroom that did not
+# exist. One number now drives both.
+#
+# Chosen ONCE from the whole series, not per frame: the animation is only
+# readable if a colour means the same anomaly in every frame.
+ANOM_LIM = 12.0                       # replaced by set_anom_scale() at runtime
+ANOM_LEVELS = np.arange(-ANOM_LIM, ANOM_LIM + 0.001, 0.5)
+# Labelled contours on the anomaly panel. +10 was missing entirely while the
+# field was reaching +11.6, so the strongest core on the plot had no line on it.
+ANOM_CONTOURS = [-10, -7, -5, 5, 7, 10, 12, 14]
+
+
+def set_anom_scale(anom, floor=12.0, step=2.0):
+    """Fix the anomaly scale from the data, rounded up, with a floor.
+
+    The floor keeps the scale stable through ordinary conditions so frames stay
+    comparable month to month; the round-up means a record event widens it
+    automatically instead of saturating and waiting for someone to notice.
+    """
+    global ANOM_LIM, ANOM_LEVELS
+    peak = float(np.nanmax(np.abs(np.asarray(anom, float))))
+    lim = max(floor, step * np.ceil(peak / step))
+    ANOM_LIM = lim
+    ANOM_LEVELS = np.arange(-lim, lim + 0.001, 0.5)
+    print(f"  anomaly scale ±{lim:.0f} °C (peak |anomaly| {peak:.2f})", flush=True)
+    return lim
 
 
 def plot_frame(temp2d, anom2d, lons, date, out_path):
@@ -245,8 +275,10 @@ def plot_frame(temp2d, anom2d, lons, date, out_path):
                        cmap="RdBu_r", extend="both",
                        norm=mcolors.TwoSlopeNorm(0, -ANOM_LIM, ANOM_LIM))
     ax2.contour(LON_GRID, DEPTH_GRID, Ag, levels=[0], colors="k", linewidths=1.5)
-    c5 = ax2.contour(LON_GRID, DEPTH_GRID, Ag, levels=[-7, -5, 5, 7], colors="k", linewidths=0.8)
-    ax2.clabel(c5, fmt="%+d", fontsize=7)
+    lv = [v for v in ANOM_CONTOURS if np.nanmin(Ag) <= v <= np.nanmax(Ag)]
+    if lv:
+        c5 = ax2.contour(LON_GRID, DEPTH_GRID, Ag, levels=lv, colors="k", linewidths=0.8)
+        ax2.clabel(c5, fmt="%+d", fontsize=7)
     ax2.set_title("Anomaly (vs 1991–2020)", fontsize=10, loc="left")
     fig.colorbar(cf2, ax=ax2, label="°C", pad=0.02, fraction=0.046)
 
@@ -396,6 +428,9 @@ def main() -> int:
             for f in d.glob("F*.webp"):
                 f.unlink()
 
+    # One scale for every frame, from the whole series - see set_anom_scale().
+    set_anom_scale(np.concatenate([np.asarray(anom, float).ravel(),
+                                   np.asarray(anom_dt, float).ravel()]))
     print(f"rendering {len(sel)} frames (+ de-trended companion) …")
     frames, dates = [], []
     frames_dt = []
