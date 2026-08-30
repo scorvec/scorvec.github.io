@@ -166,20 +166,39 @@ jobs:
 
       # Handed to the publish job rather than pushed here: see the header note
       # on why publishing is single-threaded.
+      #
+      # TARRED, not uploaded as a path list. upload-artifact strips the
+      # least-common-ancestor of the paths it is given: a mixed list of
+      # assets/sst/wave1_100.webp and assets/sst/anim/** arrives rooted at
+      # `wave1_100.webp` and `anim/`, so publish - which looks under
+      # assets/sst/anim - found nothing, published an empty set and still went
+      # green. Worse, that root MOVES with whichever files happen to exist, so
+      # simply downloading into assets/sst would break the first time a product
+      # failed to render. A tarball keeps the paths exactly as they are.
+      - name: Pack the outputs
+        if: always()
+        run: |
+          set -euo pipefail
+          : > /tmp/light.list
+          for p in assets/sst/wave1_100.webp assets/sst/vortex_10.webp \
+                   assets/sst/anim/wave1_100 assets/sst/anim/wave1_500 \
+                   assets/sst/anim/vortex_10 assets/sst/anim/vortex_100 \
+                   assets/sst/anim/wave1_maps_manifest.json \
+                   assets/sst/anim/vortex_winds_manifest.json; do
+            [ -e "$p" ] && echo "$p" >> /tmp/light.list
+          done
+          if [ ! -s /tmp/light.list ]; then
+            echo "::warning::light produced nothing to hand off"; : > /tmp/strat-light.tgz; exit 0
+          fi
+          tar -czf /tmp/strat-light.tgz -T /tmp/light.list
+          echo "  packed $(tar -tzf /tmp/strat-light.tgz | grep -c '\.webp$') webp"
+
       - name: Hand off to publish
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: strat-light
-          path: |
-            assets/sst/wave1_100.webp
-            assets/sst/vortex_10.webp
-            assets/sst/anim/wave1_100/**
-            assets/sst/anim/wave1_500/**
-            assets/sst/anim/vortex_10/**
-            assets/sst/anim/vortex_100/**
-            assets/sst/anim/wave1_maps_manifest.json
-            assets/sst/anim/vortex_winds_manifest.json
+          path: /tmp/strat-light.tgz
           if-no-files-found: warn
           retention-days: 7
 
@@ -253,15 +272,28 @@ jobs:
           printf '  %-38s %s frames\n' assets/sst/anim/epflux \
             "$(ls assets/sst/anim/epflux/*.webp 2>/dev/null | wc -l | tr -d ' ')"
 
+      # Tarred for the same reason as light: see the note there.
+      - name: Pack the outputs
+        if: always()
+        run: |
+          set -euo pipefail
+          : > /tmp/heavy.list
+          for p in assets/sst/nh_vortex.webp assets/sst/anim/epflux \
+                   assets/sst/anim/epflux_manifest.json; do
+            [ -e "$p" ] && echo "$p" >> /tmp/heavy.list
+          done
+          if [ ! -s /tmp/heavy.list ]; then
+            echo "::warning::heavy produced nothing to hand off"; : > /tmp/strat-heavy.tgz; exit 0
+          fi
+          tar -czf /tmp/strat-heavy.tgz -T /tmp/heavy.list
+          echo "  packed $(tar -tzf /tmp/strat-heavy.tgz | grep -c '\.webp$') webp"
+
       - name: Hand off to publish
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: strat-heavy
-          path: |
-            assets/sst/nh_vortex.webp
-            assets/sst/anim/epflux/**
-            assets/sst/anim/epflux_manifest.json
+          path: /tmp/strat-heavy.tgz
           if-no-files-found: warn
           retention-days: 7
 
@@ -283,7 +315,20 @@ jobs:
         with:
           pattern: strat-*
           merge-multiple: true
-          path: .
+          path: /tmp/art
+
+      - name: Unpack into the workspace
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          n=0
+          for t in /tmp/art/*.tgz; do
+            [ -s "$t" ] || { echo "  $(basename "$t"): empty, skipped"; continue; }
+            tar -xzf "$t" -C .
+            c=$(tar -tzf "$t" | grep -c '\.webp$' || true)
+            echo "  $(basename "$t"): $c webp restored"; n=$((n + c))
+          done
+          echo "  $n frames unpacked"
 
       - name: What arrived
         run: |
