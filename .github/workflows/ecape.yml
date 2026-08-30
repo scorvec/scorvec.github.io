@@ -154,8 +154,17 @@ jobs:
           # The local first run proved a partial set publishes happily and exits
           # 0 - the frame count is the only thing that catches it.
           want=${#HOURS[@]}
+          # [ -d ] first: under `set -euo pipefail` a find over a MISSING
+          # directory exits non-zero and pipefail + set -e kill the step
+          # instantly - which would skip the very ::error:: below that this
+          # guard exists to print. A field that produced nothing at all is
+          # exactly the case it most needs to report.
+          count_frames() {
+            [ -d "$1" ] || { echo 0; return 0; }
+            find "$1" -name 'F*.webp' 2>/dev/null | wc -l | tr -d ' '
+          }
           for fld in ecape_ml ecape_mu ratio_mu; do
-            got=$(find "assets/ecape/anim/$fld" -name 'F*.webp' 2>/dev/null | wc -l | tr -d ' ')
+            got=$(count_frames "assets/ecape/anim/$fld")
             if [ "$got" -ne "$want" ]; then
               echo "::error::$fld has $got frames, expected $want — refusing to publish a partial loop"
               exit 1

@@ -327,11 +327,12 @@
     <div class="chart-card plot-deck" data-deck="atmosphere5">
       <div class="deck-head">
         <span class="deck-title">Select a figure</span>
-        <span class="deck-hint">5 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
+        <span class="deck-hint">6 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
       </div>
       <div class="deck-tabs">
         <button class="on">NH polar vortex</button>
-        <button>Vortex winds 10/100</button>
+        <button>Vortex winds 10&nbsp;hPa</button>
+        <button>Vortex winds 100&nbsp;hPa</button>
         <button>E&ndash;P flux</button>
         <button>Wave-1 100&nbsp;hPa</button>
         <button>Wave-1 500&nbsp;hPa</button>
@@ -346,20 +347,48 @@
       </div>
       <div class="deck-panel" hidden>
       <div class="chart-card-header">
-        <h2>Vortex Winds: 10 and 100&nbsp;hPa, Both Hemispheres</h2>
-        <p>The vortex as it actually looks, rather than as an index. Wind <b>speed</b> is shaded and <b>streamlines</b> are drawn over it, at <b>10&nbsp;hPa</b> (where the vortex lives, and where an SSW is declared) above <b>100&nbsp;hPa</b> (which decides whether any of it reaches the surface &mdash; a 10&nbsp;hPa anomaly that never appears at 100&nbsp;hPa usually goes nowhere). The red contour is <b>u&nbsp;=&nbsp;0</b>, the vortex edge in the zonal sense: inside it the flow is westerly and planetary waves can propagate, outside it they cannot. The dashed ring is 60&deg;, the latitude the SSW diagnostic is evaluated at. Both hemispheres are shown on a shared per-level colour scale, so the active one is obvious at a glance and the two are directly comparable.</p>
+        <h2>Vortex Winds at 10&nbsp;hPa, Both Hemispheres</h2>
+        <p>The vortex as it actually looks, rather than as an index. Wind <b>speed</b> is
+        shaded with <b>streamlines</b> over it at <b>10&nbsp;hPa</b>. This is where the vortex lives and where an SSW is declared &mdash; the level the WMO diagnostic is evaluated on. The red contour
+        is <b>u&nbsp;=&nbsp;0</b>, the vortex edge in the zonal sense: inside it the flow is
+        westerly and planetary waves can propagate, outside it they cannot. The dashed ring is
+        60&deg;, the latitude the SSW diagnostic is evaluated at. Speeds below the first contour
+        are left white, which is why the summer hemisphere is largely blank &mdash; there is no
+        vortex there to draw. Both hemispheres share the colour scale, so they are directly
+        comparable.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/vortex_winds.webp?v=__CACHE__" alt="Wind speed and streamlines at 10 and 100 hPa over both polar caps, with the u=0 vortex edge contoured" loading="lazy"></div>
-      <iframe data-deferred class="anim-embed vortex_winds" data-src="sst_anim.html?embed=1&amp;manifest=vortex_winds_manifest.json&amp;region=vortex_winds"
-              title="Vortex winds at 10 and 100 hPa through the AIFS-ENS forecast, 12-hourly" loading="lazy"></iframe>
-      <p class="note" style="margin-top:0.6rem"><b>The loop</b> steps the same four
-      panels through the forecast every <b>12&nbsp;hours out to day&nbsp;15</b>, on the
-      same fixed colour scales &mdash; so a colour means the same wind speed in every
-      frame and the vortex can be watched strengthening, shifting off the pole, or
-      breaking down rather than inferred from an index. Speeds below the first contour
-      are left white, which is why the summer hemisphere is mostly blank: there is no
-      vortex there to draw.</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0) &middot; speed shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed per-level colour scales &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</span></div>
+      <div class="img-wrap"><img src="assets/sst/vortex_10.webp?v=__CACHE__" alt="Wind speed and streamlines at 10 hPa over both polar caps, with the u=0 vortex edge contoured" loading="lazy"></div>
+      <iframe data-deferred class="anim-embed vortex_winds" data-src="sst_anim.html?embed=1&amp;manifest=vortex_winds_manifest.json&amp;region=vortex_10"
+              title="Vortex winds at 10 hPa through the AIFS-ENS forecast, 12-hourly" loading="lazy"></iframe>
+      <p class="note" style="margin-top:0.6rem"><b>The loop</b> steps every <b>12&nbsp;hours out
+      to day&nbsp;15</b> on a fixed colour scale, so a colour means the same wind speed in every
+      frame and the vortex can be watched strengthening, shifting off the pole, or breaking down
+      rather than inferred from an index. The animator's <b>Level</b> selector switches to
+      100&nbsp;hPa on the same forecast hour.</p>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0) &middot; 10&nbsp;hPa speed shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</span></div>
+      </div>
+
+      <div class="deck-panel" hidden>
+      <div class="chart-card-header">
+        <h2>Vortex Winds at 100&nbsp;hPa, Both Hemispheres</h2>
+        <p>The vortex as it actually looks, rather than as an index. Wind <b>speed</b> is
+        shaded with <b>streamlines</b> over it at <b>100&nbsp;hPa</b>. This is the level that decides whether any of it reaches the surface: a 10&nbsp;hPa anomaly that never appears at 100&nbsp;hPa usually goes nowhere. The red contour
+        is <b>u&nbsp;=&nbsp;0</b>, the vortex edge in the zonal sense: inside it the flow is
+        westerly and planetary waves can propagate, outside it they cannot. The dashed ring is
+        60&deg;, the latitude the SSW diagnostic is evaluated at. Speeds below the first contour
+        are left white, which is why the summer hemisphere is largely blank &mdash; there is no
+        vortex there to draw. Both hemispheres share the colour scale, so they are directly
+        comparable.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/vortex_100.webp?v=__CACHE__" alt="Wind speed and streamlines at 100 hPa over both polar caps, with the u=0 vortex edge contoured" loading="lazy"></div>
+      <iframe data-deferred class="anim-embed vortex_winds" data-src="sst_anim.html?embed=1&amp;manifest=vortex_winds_manifest.json&amp;region=vortex_100"
+              title="Vortex winds at 100 hPa through the AIFS-ENS forecast, 12-hourly" loading="lazy"></iframe>
+      <p class="note" style="margin-top:0.6rem"><b>The loop</b> steps every <b>12&nbsp;hours out
+      to day&nbsp;15</b> on a fixed colour scale, so a colour means the same wind speed in every
+      frame and the vortex can be watched strengthening, shifting off the pole, or breaking down
+      rather than inferred from an index. The animator's <b>Level</b> selector switches to
+      10&nbsp;hPa on the same forecast hour.</p>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0) &middot; 100&nbsp;hPa speed shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</span></div>
       </div>
       <div class="deck-panel" hidden>
       <div class="chart-card-header">
