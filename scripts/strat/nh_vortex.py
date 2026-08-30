@@ -367,7 +367,12 @@ def main() -> int:
 
     cdirs = sorted(glob.glob(str(CACHE / "*z")))
     if a.cycle:
-        cdirs = [d for d in cdirs if Path(d).name == a.cycle]
+        # Cache dirs are named "20260829 12" + "z" ("2026082912z"). Accept the
+        # cycle with or without the trailing z: strat.yml passes date+time with
+        # no suffix, and an exact-match filter silently emptied the list, which
+        # surfaced as the misleading "no AIFS-ENS cycle in the cache".
+        want_c = a.cycle.lower().rstrip("z") + "z"
+        cdirs = [d for d in cdirs if Path(d).name.lower() == want_c]
     cdir = base = None
     for d in reversed(cdirs):
         if glob.glob(f"{d}/aifs-ens/pf_u_10-*.grib2"):

@@ -142,15 +142,13 @@ def panel(ax, z, lev, hemi):
                    90 if north else -LAT_EDGE], crs=PC)
     circular_boundary(ax)
 
-    s, dz = SCALE[lev], DEADBAND[lev]
-    # Six bands each side of a white deadband, so the colour steps stay even
-    # while the middle is explicitly blank.
-    # 14 edges -> 13 bands: 6 negative, the white deadband spanning -dz..+dz,
-    # then 6 positive.
-    lv = np.concatenate([np.linspace(-s, -dz, 7), np.linspace(dz, s, 7)])
+    pos = POS[lev]
+    # 12 edges -> 11 bands: 5 negative, the white deadband spanning
+    # -pos[0]..+pos[0], then 5 positive.
+    lv = np.array([-v for v in reversed(pos)] + pos, float)
     cmap = plt.get_cmap(CMAP)
-    cols = ([cmap(x) for x in np.linspace(0.02, 0.42, 6)] + ["#ffffff"] +
-            [cmap(x) for x in np.linspace(0.58, 0.98, 6)])
+    cols = ([cmap(x) for x in np.linspace(0.02, 0.40, 5)] + ["#ffffff"] +
+            [cmap(x) for x in np.linspace(0.60, 0.98, 5)])
     cf = ax.contourf(lon, la, W1, levels=lv, colors=cols, extend="both",
                      transform=PC, zorder=1)
 
