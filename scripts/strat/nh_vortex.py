@@ -313,9 +313,32 @@ def _clim_series():
                      f"(build it with scripts/strat/build_m2_reference.py)")
 
 
+# Physically impossible values, used to screen the reference before it becomes a
+# percentile band. MERRA-2 carries one corrupt day in 46 years — 1991-06-30, where
+# the polar-cap height collapses to 0.80 m at 100 hPa and 3.19 m at 10 hPa (zbar
+# goes negative) — and a single garbage day inside a day-of-year bin of ~46
+# samples visibly drags that day's 10th percentile. Found by an archive-wide
+# sweep on 2026-08-30; the rest of the archive is clean, and the NaNs at 1000/975
+# hPa near the pole are just the pressure surface being below ground.
+PHYSICAL = {"u10": (-150.0, 200.0), "u100": (-150.0, 200.0), "zcap": (10000.0, 20000.0)}
+
+
+def _screen(out):
+    for k, (lo, hi) in PHYSICAL.items():
+        if k not in out:
+            continue
+        s = out[k]
+        bad = (s < lo) | (s > hi)
+        if bad.any():
+            print(f"    {k}: dropped {int(bad.sum())} non-physical day(s) "
+                  f"({', '.join(f'{d:%Y-%m-%d}' for d in s.index[bad][:3])})", flush=True)
+            out[k] = s[~bad]
+    return out
+
+
 def load_clim(epoch):
     idx, raw, src = _clim_series()
-    out = {k: pd.Series(v, index=idx).dropna() for k, v in raw.items()}
+    out = _screen({k: pd.Series(v, index=idx).dropna() for k, v in raw.items()})
     print(f"  {src} reference {idx[0]:%Y-%m-%d}..{idx[-1]:%Y-%m-%d} ({len(idx)} days)",
           flush=True)
     for k in list(out):

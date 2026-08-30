@@ -8,6 +8,7 @@ Per-variable yearly files:
     ~/era5_store/wb2_1p5_daily/<var>/<var>_<YYYY>.nc   (time, latitude 0-90N, longitude)
 
   z500  geopotential height at 500 hPa, daily mean of the 4 synoptic hours (m)
+  u850 / v850  daily-mean 850 hPa wind (m/s)
   t2m   2 m temperature, daily mean (K)
   prcp  total precipitation, daily sum (mm)
   u200 / v200  daily-mean 200 hPa wind (m/s)
@@ -40,7 +41,7 @@ WB2 = ("gs://weatherbench2/datasets/era5/"
 ARCO = "gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3"
 G = 9.80665
 
-VARS = ("z500", "t2m", "prcp", "u200", "v200", "zplev", "slp")
+VARS = ("z500", "t2m", "prcp", "u200", "v200", "u850", "v850", "zplev", "slp")
 LEVS13 = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]
 
 
@@ -68,6 +69,11 @@ def open_fields(source):
         "prcp": ds[pv],
         "u200": ds["u_component_of_wind"].sel(level=200),
         "v200": ds["v_component_of_wind"].sel(level=200),
+        # 850 hPa added 2026-08-30: the subseasonal maps carry u850/v850 and the
+        # store had only 200 hPa, so a standard-normal base could not be formed
+        # for the low-level wind fields.
+        "u850": ds["u_component_of_wind"].sel(level=850),
+        "v850": ds["v_component_of_wind"].sel(level=850),
         "zplev": ds["geopotential"].sel(level=LEVS13) / G,
         "slp": ds["mean_sea_level_pressure"] / 100.0,
     }
