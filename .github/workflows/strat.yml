@@ -14,7 +14,7 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 #
 # Cost: ens_cycle populates the shared ECMWF cache (~19 min, ~1.1 GB peak) and
 # nh_vortex pulls GEPS/GDPS/IFS members (~250 MB at --ifs-members 5). That cache
-# step is not optional - qbo_duct, wave1_monitor and nh_vortex GLOB the cache
+# step is not optional - qbo_duct and nh_vortex GLOB the cache
 # rather than fetching, so without it they find nothing and produce nothing.
 #
 # Cycle-following is deliberately NOT used: unlike HRRR, an AIFS-ENS cycle is
@@ -101,7 +101,7 @@ jobs:
       # next successful run replaces it. `|| echo` rather than `set +e` so a
       # failure is visible in the log instead of being swallowed by a green step
       # (the AAM trial reported success while all three products had failed).
-      # qbo_duct, wave1_monitor and nh_vortex read the shared ECMWF cache by
+      # qbo_duct and nh_vortex read the shared ECMWF cache by
       # GLOBBING it - they do not fetch. On the laptop run_local.sh populates it
       # with ens_cycle first; a fresh runner's cache is empty, which is why the
       # first run here logged "no AIFS-ENS cycle with the needed files in the
@@ -125,9 +125,10 @@ jobs:
             --out assets/sst/nh_vortex.webp \
             || echo "::warning::nh_vortex failed; keeping the previous figure"
 
-      # wave1_monitor.py built wave1_amp.webp, which was retired on 2026-08-29
-      # when the amplitude series was replaced by maps. wave1_maps.py renders the
-      # static figure AND the 16-step AIFS-ENS forecast loop.
+      # wave1_maps.py renders the static figure AND the 16-step AIFS-ENS
+      # forecast loop. It replaced wave1_monitor.py, which was deleted on
+      # 2026-08-30: its amplitude figure had already been retired and its
+      # wave1_nh/wave1_sh loops were rendering to a page that never showed them.
       - name: Wave-1 maps + forecast loop
         run: |
           python scripts/strat/wave1_maps.py \

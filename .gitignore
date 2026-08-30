@@ -104,7 +104,6 @@ scripts/verify/data/
 # only feeds the local stratosphere.html.
 scripts/strat/*
 !scripts/strat/nh_vortex.py
-!scripts/strat/wave1_monitor.py
 !scripts/strat/qbo_duct.py
 !scripts/strat/vortex_winds.py
 !scripts/strat/wave1_maps.py
