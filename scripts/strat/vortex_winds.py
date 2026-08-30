@@ -73,6 +73,8 @@ STEPS_12H = tuple(range(0, 361, 12))
 LAT_EDGE = 20.0
 # Streamline input is coarsened to this stride (lat, lon) - see panel().
 STREAM_STRIDE = (3, 4)
+# The still shows where the vortex lives and where an SSW is declared.
+STILL_LEVEL = 10
 
 # Per-level speed scales (m/s). Chosen from the climatological range at each
 # level rather than from one cycle, so the colour of a given wind speed means
@@ -297,18 +299,18 @@ def main(argv=None) -> int:
     ap.add_argument("--time", required=True, help="cycle hour, 00 or 12")
     ap.add_argument("--step", type=int, default=0, help="forecast hour (default 0)")
     ap.add_argument("--out-dir", default="assets/sst",
-                    help="stills are written here as vortex_10.webp / vortex_100.webp")
+                    help="the still is written here as vortex_10.webp")
     ap.add_argument("--anim-dir", help="frames ROOT; vortex_10/ and vortex_100/ go under it")
     ap.add_argument("--manifest", help="animator manifest path")
     a = ap.parse_args(argv)
 
     full = fetch(a.date, a.time)
-    # One still per level, separate files: they are separate charts on the page
-    # now, each with its own panel and loop.
+    # ONE still, at STILL_LEVEL - the loop carries both levels as regions and
+    # the animator switches between them, so a second still would just be an
+    # unused file committed every cycle.
     outd = Path(a.out_dir)
-    for lev in LEVELS:
-        u, v = full[lev]
-        print(f"  wrote {render((at_step(u, a.step), at_step(v, a.step)), lev, a.date, a.time, a.step, outd / f'vortex_{lev}.webp')}")
+    u, v = full[STILL_LEVEL]
+    print(f"  wrote {render((at_step(u, a.step), at_step(v, a.step)), STILL_LEVEL, a.date, a.time, a.step, outd / f'vortex_{STILL_LEVEL}.webp')}")
     if a.anim_dir and a.manifest:
         build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest))
     return 0

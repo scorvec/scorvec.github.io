@@ -60,6 +60,8 @@ LAT_EDGE = 20.0
 # one z field per member per level per step, so 50 would double a ~0.5 GB fetch
 # for a change too small to see on the map.
 MEMBERS = 25
+# The still shows the level the vortex actually feels; the loop carries both.
+STILL_LEVEL = 100
 
 # Symmetric per-level scales in geopotential metres, fixed so a colour means the
 # same wave amplitude every day. 100 hPa runs roughly twice 500 hPa.
@@ -416,20 +418,18 @@ def main(argv=None) -> int:
     ap.add_argument("--time", required=True)
     ap.add_argument("--step", type=int, default=0)
     ap.add_argument("--out-dir", default="assets/sst",
-                    help="stills are written here as wave1_100.webp / wave1_500.webp")
+                    help="the still is written here as wave1_100.webp")
     ap.add_argument("--members", type=int, default=MEMBERS)
     ap.add_argument("--anim-dir", help="frames ROOT; wave1_100/ and wave1_500/ are created under it")
     ap.add_argument("--manifest", help="animator manifest path")
     a = ap.parse_args(argv)
     full, source = fetch(a.date, a.time, a.members)
-    # ONE STILL PER LEVEL, in separate files. The levels used to share a 2x2
-    # figure; they are separate charts on the page now, each with its own
-    # panel and its own loop, so neither is wedged into the other's layout.
-    # The stills matter beyond the loop: they are what the page shows before
-    # the animator loads, and what a reader sees if it fails.
+    # ONE still, at STILL_LEVEL. The loop carries both levels as separate
+    # regions and the animator's own selector switches between them, so a
+    # second still would be an unused file committed on every cycle - the page
+    # has one panel per product, not one per level.
     outd = Path(a.out_dir)
-    for lev in LEVELS:
-        print(f"  wrote {render(at_step(full[lev], a.step), lev, a.date, a.time, a.step, outd / f'wave1_{lev}.webp', source)}")
+    print(f"  wrote {render(at_step(full[STILL_LEVEL], a.step), STILL_LEVEL, a.date, a.time, a.step, outd / f'wave1_{STILL_LEVEL}.webp', source)}")
     if a.anim_dir and a.manifest:
         build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source)
     return 0
