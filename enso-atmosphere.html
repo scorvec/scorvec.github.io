@@ -537,7 +537,7 @@
     <div class="chart-card plot-deck" data-deck="atmosphere2">
       <div class="deck-head">
         <span class="deck-title">Select a figure</span>
-        <span class="deck-hint">3 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
+        <span class="deck-hint">4 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
       </div>
       <div class="deck-tabs">
         <button class="on">MSLP + wind</button>
@@ -763,8 +763,9 @@
       </div>
       <div class="deck-tabs">
         <button class="on">NH polar vortex</button>
+        <button>Vortex winds 10/100</button>
         <button>E&ndash;P flux</button>
-        <button>Wave-1</button>
+        <button>Wave-1 maps</button>
       </div>
       <div class="deck-panel">
       <div class="chart-card-header">
@@ -773,6 +774,11 @@
       </div>
       <div class="img-wrap"><img src="assets/sst/nh_vortex.webp?v=80b2b8f88657" alt="Northern polar vortex monitor: AIFS-ENS 60N zonal-mean zonal wind at 10 and 100 hPa and 100 hPa polar-cap height anomaly vs MERRA-2 climatology" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS zonal wind and geopotential at 10/100&nbsp;hPa (open data, CC BY 4.0) &middot; reference: MERRA-2 1980&ndash;2026 day-of-year 10th&ndash;90th percentiles (NASA GMAO) &middot; analysis tail: ERA5 &middot; updated daily</span></div>
+      </div>
+      <div class="deck-panel" hidden>
+      <div class="chart-card-header">
+        <h2>Vortex Winds: 10 and 100&nbsp;hPa, Both Hemispheres</h2>
+        <p>The vortex as it actually looks, rather than as an index. Wind <b>speed</b> is shaded and <b>streamlines</b> are drawn over it, at <b>10&nbsp;hPa</b> (where the vortex lives, and where an SSW is declared) above <b>100&nbsp;hPa</b> (which decides whether any of it reaches the surface &mdash; a 10&nbsp;hPa anomaly that never appears at 100&nbsp;hPa usually goes nowhere). The red contour is <b>u&nbsp;=&nbsp;0</b>, the vortex edge in the zonal sense: inside it the flow is westerly and planetary waves can propagate, outside it they cannot. The dashed ring is 60&deg;, the latitude the SSW diagnostic is evaluated at. Both hemispheres are shown on a shared per-level colour scale, so the active one is obvious at a glance and the two are directly comparable.</p>
       </div>
       <div class="deck-panel" hidden>
       <div class="chart-card-header">
@@ -828,11 +834,7 @@
         gauge. Below: the wave itself, as a longitude&ndash;height section per hemisphere
         &mdash; a single sine wave per level, animated through the forecast.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/wave1_amp.webp?v=80b2b8f88657" alt="Wave-1 and wave-2 amplitude of geopotential height at 500, 100 and 10 hPa versus forecast day, both hemispheres" loading="lazy"></div>
-      <iframe data-deferred class="anim-embed wave1-nh" style="aspect-ratio: 1323 / 736" data-src="sst_anim.html?embed=1&amp;manifest=wave1_nh_manifest.json&amp;region=wave1_nh"
-              title="Northern Hemisphere wave-1 longitude-height section through the AIFS-ENS forecast" loading="lazy"></iframe>
-      <iframe class="anim-embed wave1-sh" style="aspect-ratio: 1323 / 736" data-src="sst_anim.html?embed=1&amp;manifest=wave1_sh_manifest.json&amp;region=wave1_sh"
-              title="Southern Hemisphere wave-1 longitude-height section through the AIFS-ENS forecast" loading="lazy"></iframe>
+      <div class="img-wrap"><img src="assets/sst/wave1_maps.webp" alt="Zonal wavenumber-1 component of geopotential height at 100 and 500 hPa, both hemispheres, with the full height field contoured" loading="lazy"></div>
       <p class="note" style="margin-top:0.6rem"><b>How to read the sections:</b> amplitude
       must grow with height like &rho;<sup>&minus;&frac12;</sup> for a propagating wave
       (thinning air, conserved energy) &mdash; a wave-1 that's tens of metres at 500&nbsp;hPa
