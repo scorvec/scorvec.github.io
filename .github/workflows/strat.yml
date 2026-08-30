@@ -1,0 +1,172 @@
+name: Stratosphere (vortex, wave-1, E-P flux)
+
+# The stratospheric products that appear on enso-atmosphere.html, moved off the
+# laptop on 2026-08-29:
+#
+#   nh_vortex.py      -> assets/sst/nh_vortex.webp        60N winds + polar-cap height
+#   wave1_monitor.py  -> assets/sst/wave1_amp.webp        wave-1/2 amplitude
+#   qbo_duct.py       -> assets/sst/anim/epflux/          E-P flux loop
+#                     -> assets/sst/anim/qbo_strip/       QBO strip loop
+#   vortex_winds.py   -> assets/sst/vortex_winds.webp     10/100 hPa, both hemispheres
+#
+# Everything else in scripts/strat is proprietary and stays local; it writes to
+# assets/strat/, which is gitignored and only feeds a local page.
+#
+# Cost: nh_vortex pulls GEPS/GDPS/IFS members (~250 MB/cycle at --ifs-members 5)
+# and qbo_duct ensures v at 10/50/100 (~35 MB, control only). u rides the AAM
+# levels the MJO pipeline already fetches, so on a cold runner the shared store
+# fetches it here instead.
+#
+# Cycle-following is deliberately NOT used: unlike HRRR, an AIFS-ENS cycle is
+# either published or it is not, and the store's mirror rotation already handles
+# a partial one by falling through.
+on:
+  schedule:
+    # AIFS-ENS 00Z/12Z land on open data around 06-07Z and 18-19Z. These are
+    # daily products, so two firings is the right size — deliberately not more.
+    - cron: '35 7,19 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Cycle date YYYYMMDD (blank = latest AIFS-ENS)'
+        default: ''
+      time:
+        description: 'Cycle hour 00 or 12 (blank = latest)'
+        default: ''
+      publish:
+        description: 'Commit the figures (false = render + artifacts only)'
+        default: 'false'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: strat
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+
+      - name: System libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libeccodes0 libgeos-dev libproj-dev proj-bin
+
+      - name: Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Resolve cycle
+        id: cyc
+        working-directory: scripts/mjo/src
+        run: |
+          set -euo pipefail
+          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
+          if [ -z "$D" ] || [ -z "$T" ]; then
+            # Written to a file, not stdout: newer ecmwf-opendata emits a progress
+            # bar with no trailing newline and corrupts stdout parsing (same trick
+            # mjo.yml uses).
+            python -c "from download_aifs import latest_run; d,t=latest_run(); open('/tmp/cyc','w').write(f'{d} {t}')" \
+              >/dev/null 2>/tmp/probe.err || true
+            D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
+            T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
+          fi
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
+            echo "ERROR: bad cycle (D='$D' T='$T')" >&2; tail -40 /tmp/probe.err >&2 || true; exit 1
+          fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
+          echo "cycle: $D ${T}Z"
+
+      # Each product is independent and non-fatal. One upstream outage should not
+      # take the others down, and the previous figure stays on the site until the
+      # next successful run replaces it. `|| echo` rather than `set +e` so a
+      # failure is visible in the log instead of being swallowed by a green step
+      # (the AAM trial reported success while all three products had failed).
+      - name: NH polar vortex
+        run: |
+          python scripts/strat/nh_vortex.py --models aifs,geps,gdps,ifs --ifs-members 5 \
+            --cycle "${{ steps.cyc.outputs.date }}${{ steps.cyc.outputs.time }}" \
+            --out assets/sst/nh_vortex.webp \
+            || echo "::warning::nh_vortex failed; keeping the previous figure"
+
+      - name: Wave-1 / wave-2 amplitude
+        run: |
+          python scripts/strat/wave1_monitor.py \
+            || echo "::warning::wave1_monitor failed; keeping the previous figure"
+
+      - name: Vortex winds, 10 and 100 hPa
+        run: |
+          python scripts/strat/vortex_winds.py \
+            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --out assets/sst/vortex_winds.webp \
+            || echo "::warning::vortex_winds failed; keeping the previous figure"
+
+      - name: E-P flux loop
+        run: |
+          python scripts/strat/qbo_duct.py --epflux-only \
+            || echo "::warning::E-P flux loop failed; keeping the previous frames"
+
+      - name: QBO strip loop
+        run: |
+          python scripts/strat/qbo_duct.py --strip-only \
+            || echo "::warning::QBO strip failed; keeping the previous frames"
+
+      - name: What was produced
+        if: always()
+        run: |
+          for f in assets/sst/nh_vortex.webp assets/sst/wave1_amp.webp assets/sst/vortex_winds.webp; do
+            if [ -f "$f" ]; then
+              printf '  %-38s %s  (mtime %s)\n' "$f" "$(du -h "$f" | cut -f1)" "$(date -r "$f" -u +%H:%MZ)"
+            else
+              printf '  %-38s MISSING\n' "$f"
+            fi
+          done
+          for d in assets/sst/anim/epflux assets/sst/anim/qbo_strip; do
+            printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
+          done
+
+      - name: Upload figures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strat-${{ steps.cyc.outputs.date }}-${{ steps.cyc.outputs.time }}z
+          path: |
+            assets/sst/nh_vortex.webp
+            assets/sst/wave1_amp.webp
+            assets/sst/vortex_winds.webp
+          if-no-files-found: warn
+          retention-days: 7
+
+      # Frames go to the orphan branch, never main: see scripts/lib/publish_frames.sh.
+      # Only the static figures and the manifests are committed here.
+      - name: Commit & push
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.publish == 'true' }}
+        run: |
+          git config user.name "Shawn Corvec"
+          git config user.email "shawncorvec@hotmail.com"
+          git add assets/sst/nh_vortex.webp assets/sst/wave1_amp.webp \
+                  assets/sst/vortex_winds.webp \
+                  assets/sst/anim/*_manifest.json 2>/dev/null || true
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            if timeout 120 git pull --rebase --autostash -X theirs origin main && timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
+            git rebase --abort 2>/dev/null || true   # a timed-out pull can strand a half-done rebase
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1
