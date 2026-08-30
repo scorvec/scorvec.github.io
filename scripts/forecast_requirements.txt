@@ -1,4 +1,4 @@
-herbie-data==2024.8.0
+herbie-data==2026.3.0
 eccodes-python==1.7.1
 cfgrib==0.9.14.0
 xarray==2024.2.0
