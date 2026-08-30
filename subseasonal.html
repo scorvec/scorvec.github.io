@@ -8,12 +8,12 @@
 <link rel="canonical" href="https://scorvec.com/subseasonal.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
-<meta property="og:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, de-drifted against a 2001-2020 model hindcast climatology, with full three-field MJO tracking.">
+<meta property="og:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, expressed against the 1991-2020 normal, with model drift removed using a 2001-2020 GEPS hindcast.">
 <meta property="og:url" content="https://scorvec.com/subseasonal.html">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
-<meta name="twitter:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, de-drifted against a 2001-2020 model hindcast climatology, with full three-field MJO tracking.">
+<meta name="twitter:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, expressed against the 1991-2020 normal, with model drift removed using a 2001-2020 GEPS hindcast.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -211,13 +211,14 @@
 <main>
   <div class="page-header">
     <h1>Subseasonal Outlook &mdash; days 1&ndash;35</h1>
-    <p>ECCC GEPS extended ensemble, de-drifted against a purpose-built GEPS8
-    2001&ndash;2020 hindcast climatology.</p>
+    <p>ECCC GEPS extended ensemble. Anomalies are against the <b>1991&ndash;2020
+    normal</b>, with the model's own drift removed first using a purpose-built
+    GEPS8 hindcast.</p>
     <div class="cycle-strip">
       <div><b>2026-08-27 00Z</b>cycle</div>
       <div><b>Aug 28 &ndash; Oct 1</b>valid</div>
       <div><b>21</b>members</div>
-      <div><b>2001&ndash;2020</b>lead-matched base</div>
+      <div><b>1991&ndash;2020</b>anomaly base</div>
     </div>
   </div>
 
@@ -235,6 +236,32 @@
 
   <details class="method">
     <summary>How it is built</summary>
+    <p><b>What the anomalies are measured against.</b> The <b>1991&ndash;2020
+    normal</b>, the period everyone quotes. Reaching it takes a step, because the
+    hindcast spans 2001&ndash;2020 and the model's 1991&ndash;2020 climatology
+    therefore does not exist &mdash; it has to be estimated. It is estimated by
+    shifting the model climatology by the <i>observed</i> change between the two
+    periods, so what is computed is</p>
+    <p style="font-family:ui-monospace,monospace;font-size:0.82rem;color:var(--ink);
+       background:#f4f2ee;padding:0.7rem 1rem;">anomaly(L)&nbsp;=&nbsp;[&nbsp;forecast(L)
+       &minus; model&nbsp;climatology(L)&nbsp;]&nbsp;&minus;&nbsp;[&nbsp;ERA5&nbsp;1991&ndash;2020
+       &minus; ERA5&nbsp;2001&ndash;2020&nbsp;]</p>
+    <p>The first bracket removes GEPS's drift <i>and</i> its mean bias, because both
+    terms are the same model at the same lead &mdash; that is what the hindcast
+    archive is for. The second moves the reference period, and nothing else: it is
+    two decades of climate, measured from observations, with no model in it.</p>
+    <p>The correction is small and physical, which is the point: 1991&ndash;2020 is
+    <b>0.12&nbsp;K cooler</b> than 2001&ndash;2020 and its 500&nbsp;hPa surface sits
+    2.7&nbsp;m lower, so anomalies quoted here are correspondingly warmer and higher.
+    Precipitation moves 0.03&nbsp;mm/day, outgoing longwave 0.05&nbsp;W/m&sup2;, the
+    winds under 0.06&nbsp;m/s.</p>
+    <p><b>What this deliberately avoids.</b> Differencing straight against ERA5 would
+    also be &ldquo;vs 1991&ndash;2020&rdquo;, and is the obvious way to do it &mdash;
+    but it hands the model's mean bias back into the anomaly, measured here at
+    <b>+0.55&nbsp;mm/day</b> on precipitation and <b>+9.7&nbsp;W/m&sup2;</b> on
+    outgoing longwave. Those are an order of magnitude larger than the base-period
+    change they would be sitting alongside, and they are a property of the model, not
+    of the weather.</p>
     <p><b>The climatology.</b> The GEPS8 reforecast (2001&ndash;2020, four starts a week, four
     members, 39 leads) was pulled from the IRI Data Library for eight variables &mdash; 1,920
     monthly files, 116&nbsp;GB &mdash; and reduced to a lead-dependent model climatology: for each
