@@ -4,7 +4,8 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 # laptop on 2026-08-29 and split into parallel jobs on 2026-08-30:
 #
 #   nh_vortex.py      -> assets/sst/nh_vortex.webp        60N winds + polar-cap height
-#   wave1_maps.py     -> assets/sst/wave1_maps.webp       wave-1 maps + 16-step loop
+#   wave1_maps.py     -> assets/sst/wave1_{100,500}.webp  one still per level
+#                     -> assets/sst/anim/wave1_{100,500}/ 16-step loop per level
 #   vortex_winds.py   -> assets/sst/vortex_winds.webp     10/100 hPa, both hemispheres
 #                     -> assets/sst/anim/vortex_winds/    31-step 12-hourly loop
 #   qbo_duct.py       -> assets/sst/anim/epflux/          E-P flux loop
@@ -135,7 +136,7 @@ jobs:
         run: |
           python scripts/strat/wave1_maps.py \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
-            --out assets/sst/wave1_maps.webp \
+            --out-dir assets/sst \
             --anim-dir assets/sst/anim \
             --manifest assets/sst/anim/wave1_maps_manifest.json \
             || echo "::warning::wave1_maps failed; keeping the previous figure"
@@ -152,7 +153,7 @@ jobs:
       - name: What was produced
         if: always()
         run: |
-          for f in assets/sst/wave1_maps.webp assets/sst/vortex_winds.webp; do
+          for f in assets/sst/wave1_100.webp assets/sst/wave1_500.webp assets/sst/vortex_winds.webp; do
             if [ -f "$f" ]; then
               printf '  %-38s %s  (mtime %s)\n' "$f" "$(du -h "$f" | cut -f1)" "$(date -r "$f" -u +%H:%MZ)"
             else
@@ -171,7 +172,8 @@ jobs:
         with:
           name: strat-light
           path: |
-            assets/sst/wave1_maps.webp
+            assets/sst/wave1_100.webp
+            assets/sst/wave1_500.webp
             assets/sst/vortex_winds.webp
             assets/sst/anim/wave1_100/**
             assets/sst/anim/wave1_500/**
@@ -285,7 +287,7 @@ jobs:
 
       - name: What arrived
         run: |
-          for f in assets/sst/nh_vortex.webp assets/sst/wave1_maps.webp assets/sst/vortex_winds.webp; do
+          for f in assets/sst/nh_vortex.webp assets/sst/wave1_100.webp assets/sst/wave1_500.webp assets/sst/vortex_winds.webp; do
             if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-38s (not produced this run)\n' "$f"; fi
           done
@@ -350,8 +352,8 @@ jobs:
         run: |
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
-          git add assets/sst/nh_vortex.webp assets/sst/wave1_maps.webp \
-                  assets/sst/vortex_winds.webp \
+          git add assets/sst/nh_vortex.webp assets/sst/wave1_100.webp \
+                  assets/sst/wave1_500.webp assets/sst/vortex_winds.webp \
                   assets/sst/anim/*_manifest.json 2>/dev/null || true
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
