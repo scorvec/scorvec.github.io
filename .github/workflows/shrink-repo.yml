@@ -36,7 +36,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout tip
-        uses: actions/checkout@v4    # depth 1: only the current tree is kept anyway
+        uses: actions/checkout@v7    # depth 1: only the current tree is kept anyway
 
       - name: Collapse to one commit + force-push
         run: |
