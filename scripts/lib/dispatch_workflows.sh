@@ -46,6 +46,7 @@ done
 # runs are still available by dispatching them by hand without the flag.
 #   *:MM      every hour at MM past
 #   */N:MM    every N hours at MM past (0, N, 2N ... UTC)
+#   DOW@HH:MM once a week on that day ("mon@09:40", "tue,fri@08:40")
 #
 # Times match the crons in each workflow so behaviour is identical whichever
 # path fires.
@@ -80,6 +81,30 @@ olr-hovmoller.yml|07:25|
 olr-hovmoller.yml|13:25|
 olr-hovmoller.yml|19:25|
 kiribati-wind.yml|*/6:18|
+# Added 2026-08-30. These eleven had NO trigger but cron, which was delivering
+# 36% of firings over the preceding 24 h and running 4-6 h late when it did.
+# The crons stay as the laptop-off backstop; these slots mirror them exactly.
+mjo.yml|08:37|
+mjo.yml|11:37|
+mjo.yml|20:37|
+mjo.yml|23:37|
+skewt-data.yml|01:35|
+skewt-data.yml|02:35|
+skewt-data.yml|03:35|
+skewt-data.yml|07:35|
+skewt-data.yml|13:35|
+skewt-data.yml|14:35|
+skewt-data.yml|15:35|
+skewt-data.yml|19:35|
+olr-waves.yml|02:40|
+site-stats.yml|05:17|
+mur-sst.yml|13:47|
+data-freshness.yml|14:25|
+kiribati-history.yml|14:40|
+qbo.yml|mon@07:15|
+colombia-radar.yml|mon@09:40|
+sst-events.yml|mon@18:41|
+skewt-gaps.yml|tue,fri@08:40|
 EOF
 )
 
@@ -155,6 +180,18 @@ while IFS='|' read -r wf hhmm extra; do
         cd_=$(date -u -r "$cand" +%Y-%m-%d 2>/dev/null) || continue
         e=$(date -j -u -f "%Y-%m-%d %H:%M:%S" "$cd_ ${ch}:${mm}:00" "+%s" 2>/dev/null) || continue
         if [ "$e" -le "$now_epoch" ]; then due_epoch=$e; break; fi
+      done
+      ;;
+    *@*)
+      # Weekly slot: "mon@09:40", or several days "tue,fri@08:40". Needed
+      # because four of the products run weekly and cron alone was honouring
+      # ~36% of firings - a missed weekly slot is a missed WEEK, not an hour.
+      dows="${hhmm%@*}"; t="${hhmm#*@}"
+      for d in "$today" "$yesterday"; do
+        wd=$(date -j -u -f "%Y-%m-%d" "$d" "+%a" 2>/dev/null | tr '[:upper:]' '[:lower:]') || continue
+        case ",$dows," in *",$wd,"*) ;; *) continue ;; esac
+        e=$(date -j -u -f "%Y-%m-%d %H:%M:%S" "$d ${t}:00" "+%s" 2>/dev/null) || continue
+        if [ "$e" -le "$now_epoch" ] && [ "$e" -gt "$due_epoch" ]; then due_epoch=$e; fi
       done
       ;;
     *)

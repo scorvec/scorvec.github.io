@@ -89,26 +89,6 @@
     <div class="chart-card-footer">NOAA HRRR wrfnat (AWS Open Data) &middot; 50 hybrid levels &middot; SHARPlib &middot; 1,905,141 columns per frame</div>
   </div>
 
-  <h2 style="font-family:var(--serif);font-weight:400;font-size:1.25rem;margin:2.5rem 0 0.9rem">Analysis snapshot</h2>
-  <div class="pair">
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>ECAPE &mdash; most-unstable parcel</h2>
-        <p>Buoyancy available to an entraining updraft from whichever parcel in the lowest 300&nbsp;hPa has the most of it &mdash; the one that matters for elevated convection above a stable layer.</p>
-      </div>
-      <a href="assets/ecape/ecape_mu.webp" target="_blank"><img src="assets/ecape/ecape_mu.webp" alt="Most-unstable ECAPE over the CONUS HRRR domain"></a>
-      <div class="chart-card-footer">Analysis hour (F00) of the current loop</div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-card-header">
-        <h2>ECAPE / CAPE &mdash; most-unstable parcel</h2>
-        <p>What fraction of the textbook CAPE survives entrainment. This is the field that carries the information a CAPE map cannot &mdash; values above 1 are real, and are explained below.</p>
-      </div>
-      <a href="assets/ecape/ratio_mu.webp" target="_blank"><img src="assets/ecape/ratio_mu.webp" alt="Most-unstable ECAPE/CAPE ratio over CONUS"></a>
-      <div class="chart-card-footer">Masked where CAPE &lt; 100&nbsp;J&nbsp;kg&#8315;&sup1;</div>
-    </div>
-  </div>
-
   <div class="colophon">
     <h3>What ECAPE is</h3>
     <p>Ordinary CAPE integrates the buoyancy of a parcel lifted from some starting level to its equilibrium level, assuming the parcel keeps its own temperature and moisture the whole way up. That assumption is the reason CAPE is easy to compute and the reason it routinely overpromises: it describes an updraft of infinite width, which entrains nothing.</p>
@@ -142,5 +122,24 @@
     <p>Peters, J. M., Morrison, H., Nowotarski, C. J., Mulholland, J. P., and Thompson, R. L. (2023): An analytic formula for entraining CAPE in mid-latitude storm environments. <i>Journal of the Atmospheric Sciences</i>. Implementation via <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (Kelton Halbert). HRRR data from the NOAA Big Data Program on AWS Open Data.</p>
   </div>
 </main>
+<script>
+  // Size the animation iframe to the embedded content's exact height (image +
+  // controls). WITHOUT this the iframe keeps the hardcoded aspect-ratio box,
+  // which on a phone is a few hundred pixels tall - and sst_anim.html sets
+  // body.embed{overflow:hidden}, so the controls were clipped straight out of
+  // view. On mobile that left the animator looking absent, buttons and all.
+  // enso-atmosphere.html and mjo.html have carried this listener for months;
+  // this page never got it.
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + 'px';
+        fr[i].style.aspectRatio = 'auto';
+      }
+    }
+  });
+</script>
 </body>
 </html>
