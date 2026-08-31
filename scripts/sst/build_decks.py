@@ -71,9 +71,11 @@ LABELS = {
     "Atmospheric Angular Momentum": "AAM",
     "AAM Forecast Trend": "AAM run-to-run",
     "AAM Phase": "AAM phase",
-    # this one card carries three headings (torque, E-P flux, wave-1), so the
-    # tab must not claim it is only the torque budget
-    "What Drives AAM": "Torque · E–P flux · Wave-1",
+    # Was "Torque · E–P flux · Wave-1" back when this one card carried all
+    # three headings. The torque section was cut to what the data supports
+    # (c762ad4e) and E–P flux and wave-1 became their own cards below, so
+    # the tab now names only what it opens.
+    "What Drives AAM": "Surface torques",
     "E&ndash;P Flux": "E–P flux",
     "Stationary Wave-1": "Wave-1",
     "Where the AAM Lives": "AAM by latitude",
