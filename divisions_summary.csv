@@ -1,0 +1,43 @@
+fcst_gp,division,region,name_on_normals_page,n_basins,area_sqmi
+MC_MAIN,Columbia River Basin abv The Dalles,Columbia River Main Stem,True,10,19900.9
+LCOLUMBIA,Lower Columbia River Main Stem,Columbia River Main Stem,False,5,1830.5
+MC_LTRIB,Middle Columbia Lower Tributaries,Middle Columbia Basin,True,17,21801.7
+MC_UTRIB,Middle Columbia Upper Tributaries,Middle Columbia Basin,True,11,11983.4
+MC_YAK,Yakima River Basin abv Kiona,Middle Columbia Basin,True,13,5612.9
+LS_CLEAR,Clearwater River Basin,Snake River,True,7,9305.2
+LS_GRONDE,Grande Ronde River Basin,Snake River,True,5,3964.0
+US_HENRY,Henrys Fork River Basin,Snake River,True,6,3029.6
+MS_MOB,Malheur-Owyhee-Boise River Basins,Snake River,True,18,20215.3
+MS_TRIB,Middle Snake Tributaries,Snake River,True,12,7212.7
+LS_PALOUS,Palouse River Basin,Snake River,True,3,2800.3
+MS_PAYET,Payette River Basin,Snake River,True,7,3290.1
+LS_SALMN,Salmon River Basin,Snake River,True,5,13580.3
+MS_MAIN,Snake River Basin abv Hells Canyon Dam,Snake River,True,7,16363.5
+LS_MAIN,Snake River Basin abv Ice Harbor Dam,Snake River,True,5,5279.9
+US_MAIN,Upper Snake River Basin abv American Falls Dam,Snake River,True,12,11889.6
+US_TRIB,Upper Snake Tributaries,Snake River,True,8,4449.3
+PO_CLARK,Clark Fork River Basin,Upper Columbia Basin,True,12,10743.2
+UC_MAIN,Columbia River Basin abv Arrow Dam,Upper Columbia Basin,True,8,24152.3
+PO_FLAT,Flathead River Basin,Upper Columbia Basin,True,10,8990.8
+UC_KOOT,Kootenai River Basin,Upper Columbia Basin,True,9,19377.5
+PO_MAIN,Pend Oreille River Basin abv Waneta Dam,Upper Columbia Basin,True,9,5646.0
+UC_SPOK,Spokane River Basin,Upper Columbia Basin,True,10,6007.1
+WILURBAN,Clackamas River Basin,Western Oregon,True,6,1395.1
+COASTAL,Coastal River Basins,Western Oregon,True,10,2464.9
+COQUILLE,Coquille River Basin,Western Oregon,True,5,1210.6
+ROGUE,Rogue-Illinois River Basins,Western Oregon,True,12,4326.4
+SANTIAM,Santiam River Basin,Western Oregon,True,9,1798.2
+UMPQUA,Umpqua River Basin,Western Oregon,True,11,3742.6
+WILHDWTR,Willamette Headwater River Basins,Western Oregon,True,10,2445.6
+WILMAIN,Willamette River Basin above Portland,Western Oregon,True,7,2132.3
+WILSOUTH,Willamette River Basin abv Harrisburg,Western Oregon,True,18,3755.7
+CHEHALIS,Chehalis River Basin,Western Washington,True,10,1451.8
+COWLITZ,Cowlitz River Basin,Western Washington,True,9,2230.1
+LEWIS,Lewis River Basin,Western Washington,True,1,739.6
+MID_SOUND,Middle Sound River Basins,Western Washington,True,6,584.4
+NW_WASH,Northwest Washington River Basins,Western Washington,True,10,1412.2
+OLYMPICS,Olympics River Basins,Western Washington,True,9,787.5
+SATSOP,Satsop River Basin,Western Washington,True,1,296.9
+SKAGIT,Skagit River Basin,Western Washington,True,11,3110.7
+SNOHOMISH,Snohomish River Basin,Western Washington,True,14,1762.1
+SouthSound,South Sound River Basins,Western Washington,True,11,1565.6
