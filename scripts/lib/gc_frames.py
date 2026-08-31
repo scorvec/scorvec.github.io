@@ -54,9 +54,20 @@ def sh(*a: str) -> str:
 
 
 def referenced() -> set[str]:
-    """Frame directories named by any manifest tracked on main."""
+    """Frame directories named by any manifest tracked on main.
+
+    Manifests are enumerated from origin/main's TREE, not from `git ls-files`.
+    The index lists what the local checkout knows about, so a working copy that
+    has not pulled misses manifests that exist on the remote - and every
+    directory they reference then shows up as an orphan. Seen on 2026-08-31: a
+    local run reported the newest ECAPE cycle's three directories as
+    unreferenced because ecape_2026083100.json was on main but not in this
+    index. Nothing was deleted (the retired list gates that), but a report that
+    names live data as garbage is one edit away from being acted on.
+    """
     out: set[str] = set()
-    for m in (p for p in sh("git", "ls-files").split()
+    tree = sh("git", "ls-tree", "-r", "--name-only", "origin/main").split()
+    for m in (p for p in tree
               if re.match(r"assets/[^/]+/anim/.*\.json$", p)):
         try:
             d = json.loads(sh("git", "show", f"origin/main:{m}") or "{}")
