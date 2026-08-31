@@ -62,13 +62,37 @@ def get(url: str, timeout: int = 60, tries: int = 1, backoff: int = 5) -> bytes:
 def synoptic_hours(n: int = 5):
     """Most recent synoptic slots, newest first, stepping every SIX hours.
 
-    Stepping 12 h only ever looked at 00Z/12Z, so US sites that launch off-hour
-    (06Z/18Z — special releases ahead of severe weather, for instance) were
-    invisible to the mirror entirely.
+    NO 2-HOUR LOOKBACK. It used to subtract 2 h before flooring, which does not
+    merely wait for data - it skips a whole slot: a run at 19:46Z floored to 12Z
+    and never asked UW about 18Z at all. That is why the 24 extra North American
+    launches at 18Z on 2026-08-31 were absent from the map. An empty manifest for
+    a slot whose data has not landed yet costs one cheap request; missing the slot
+    costs six hours of coverage.
     """
-    now = datetime.now(timezone.utc) - timedelta(hours=2)
-    h0 = now.replace(hour=(now.hour // 6) * 6, minute=0, second=0, microsecond=0)
+    h0 = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    h0 = h0.replace(hour=(h0.hour // 6) * 6)
     return [h0 - timedelta(hours=6 * k) for k in range(n)]
+
+
+def offhour_hours(n: int = 24):
+    """Every NON-synoptic hour in the last n hours, newest first.
+
+    True off-hour releases exist and were invisible to 6-hourly stepping: on
+    2026-08-31 five stations reported at 15Z and nowhere else. They are cheap to
+    look for - the manifest call is small and, crucially, a station already
+    claimed by a synoptic slot is never re-fetched.
+
+    WHY THESE ARE MERGED SECOND, NOT BY RECENCY. UW's manifest smears a synoptic
+    launch across neighbouring hours: on 2026-08-31 the 12Z launches also came
+    back for 10Z, 11Z, 13Z and 14Z (311, 312, 311, 275 stations). The manifest
+    carries no per-station launch time, and both the saved filename and the
+    profile URL use the QUERY hour - so accepting the smear would have written
+    the same 12Z ascent three times as phantom 11Z/13Z launches. Taking off-hours
+    only for stations no synoptic slot claimed keeps the genuine 15Z releases and
+    drops the duplicates. A real off-hour launch appears at its own hour alone.
+    """
+    h0 = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    return [h for h in (h0 - timedelta(hours=k) for k in range(n)) if h.hour % 6]
 
 
 def manifest_for(dt: datetime) -> list:
@@ -153,8 +177,17 @@ def main() -> int:
         per_slot[dt] = len(got)
         for e in got:
             entries.setdefault(e["id"], e)
+    n_syn = len(entries)
+    # Second pass ONLY - see offhour_hours() for why recency must not reorder it.
+    off = 0
+    for dt in offhour_hours(24):
+        for e in manifest_for(dt):
+            if e["id"] not in entries:
+                entries[e["id"]] = e
+                off += 1
     print(f"  UW manifest union: {len(entries)} stations "
-          f"({', '.join(f'{d:%H}Z:{n}' for d, n in per_slot.items())})", flush=True)
+          f"({', '.join(f'{d:%H}Z:{n}' for d, n in per_slot.items())})"
+          f" + {off} off-hour", flush=True)
 
     # The map's live (blue) dots are exactly the stations that reported at the
     # newest regular slot. Lose that slot and every dot greys out even though the
