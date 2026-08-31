@@ -172,6 +172,16 @@
   .anim-embed.jets { aspect-ratio: 1160 / 619; }    /* image 1160×569 + controls bar */
   .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
   .anim-embed.wind200 { aspect-ratio: 1496 / 776; }   /* image 1496×726 + controls bar */
+  /* Added 2026-08-31. These three loops shipped without a sizing rule, so their
+     embeds had no reserved height at all: the panel collapsed to nothing and the
+     page jumped when the frames finally painted. Ratios measured off F00 of each
+     loop, plus ~50px for the controls bar, same as the rules above. */
+  .anim-embed.epflux { aspect-ratio: 1380 / 855; }        /* image 1380×805 + controls bar */
+  .anim-embed.vortex_winds { aspect-ratio: 1425 / 837; }  /* image 1425×787 + controls bar */
+  .anim-embed.wave1_maps { aspect-ratio: 1550 / 850; }    /* image 1550×800 + controls bar */
+  /* An animator that has not been pulled in yet still holds its space, but an
+     empty box the same colour as the page reads as broken rather than pending. */
+  .anim-embed[data-src] { background: #fafafa; border: 1px solid #f0f0f0; }
   .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
   .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
   .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
@@ -467,7 +477,7 @@
       <div class="chart-card-header">
         <h2>Observed Equatorial Pacific Surface Wind</h2>
       </div>
-      <iframe class="anim-embed ascat" src="sst_anim.html?embed=1&amp;manifest=ascat_manifest.json&amp;region=ascat"
+      <iframe class="anim-embed ascat" data-src="sst_anim.html?embed=1&amp;manifest=ascat_manifest.json&amp;region=ascat"
               title="Daily 10°S–10°N Pacific surface wind speed and direction (ASCAT) animated over time" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; ~1&ndash;2 day latency &middot; updated daily &middot; drag the slider for recent days</span></div>
       </div>
@@ -558,7 +568,7 @@
         <button class="on" data-src="sst_anim.html?embed=1&amp;manifest=mslp_wind_manifest.json&amp;region=mslp_wind">Super-ensemble (ECMWF)</button>
         <button data-src="sst_anim.html?embed=1&amp;manifest=gdps_wind_manifest.json&amp;region=gdps_wind">GDPS (ECCC)</button>
       </div>
-      <iframe id="fig-mslpwind" class="anim-embed mslp-wind" src="sst_anim.html?embed=1&amp;manifest=mslp_wind_manifest.json&amp;region=mslp_wind"
+      <iframe id="fig-mslpwind" class="anim-embed mslp-wind" data-src="sst_anim.html?embed=1&amp;manifest=mslp_wind_manifest.json&amp;region=mslp_wind"
               title="MSLP and 10 m wind forecast over the Pacific, animated" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0), member-weighted super-ensemble mean, each 00/12Z cycle &middot; ECCC GDPS 15&nbsp;km deterministic (MSC Datamart), 00Z cycle, daily</span></div>
       </div>
@@ -597,7 +607,7 @@
         <h2>200 hPa Velocity Potential &amp; Irrotational Wind</h2>
         <p>The large-scale divergent circulation aloft from the AIFS-ENS ensemble mean: the 200 hPa velocity-potential anomaly shaded, with the irrotational (divergent) wind as vectors. <b style="color:#2e7d32">Green</b> is upper-level divergence (the outflow above deep convection); <b style="color:#df6a1e">orange</b> is convergence (subsidence). The vectors point out of the divergence centres, tracing the rising and sinking branches of the Walker and Hadley circulations; in El&nbsp;Ni&ntilde;o the divergence shifts east over the central Pacific. Anomaly is versus the ERA5 1991&ndash;2020 climatology. The first frame is the analysis, the rest is the forecast to day&nbsp;14.</p>
       </div>
-      <iframe class="anim-embed wind200" src="sst_anim.html?embed=1&amp;manifest=wind200_manifest.json&amp;region=wind200"
+      <iframe class="anim-embed wind200" data-src="sst_anim.html?embed=1&amp;manifest=wind200_manifest.json&amp;region=wind200"
               title="AIFS-ENS ensemble-mean 200 hPa velocity-potential anomaly and irrotational wind, analysis through day-14 forecast" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 200 hPa u/v, 50-member mean (open data, CC&nbsp;BY&nbsp;4.0) &middot; velocity potential via spherical-harmonic inversion &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
     </div>
@@ -610,7 +620,7 @@
         <p style="text-align:center;font-size:0.95rem">$$\mathbf{W}=\frac{p\cos\phi}{2\,|\mathbf{U}|}\begin{pmatrix}U(\psi_x'^2-\psi'\psi_{xx}')+V(\psi_x'\psi_y'-\psi'\psi_{xy}')\\[2pt]U(\psi_x'\psi_y'-\psi'\psi_{xy}')+V(\psi_y'^2-\psi'\psi_{yy}')\end{pmatrix}$$</p>
         <p>Computed at 200&nbsp;hPa from the AIFS-ENS ensemble mean at every daily lead to day&nbsp;15: the streamfunction anomaly $\psi'$ (spherical-harmonic inversion of the vorticity) on the ERA5 1991&ndash;2020 day-of-year basic state $(U,V)$. <b>Shading is the flux convergence</b> $-\nabla\!\cdot\!\mathbf{W}$ — red marks where wave activity is piling up and the downstream flow amplifies over the following days (blue marks emission regions); <b>grey contours</b> are $\psi'$ (the anomalous ridges/troughs, dashed negative), <b>arrows</b> the wave activity flux, <b style="color:#2e7d32">green contours</b> the forecast’s own 200&nbsp;hPa jet at that lead (25/35/45&nbsp;m/s) &mdash; the actual waveguide the packets follow (the flux itself is evaluated on the climatological basic state, per TN01). Fluxes are masked equatorward of 20&deg; and outside westerlies, where the quasi-stationary linear theory does not apply; the diagnostic is most meaningful for 3&ndash;10-day downstream development, not fast transients. Both hemispheres are shown &mdash; the Southern Hemisphere winter waveguide is the active one in austral winter, a view few live sites carry.</p>
       </div>
-      <iframe class="anim-embed waf" src="sst_anim.html?embed=1&amp;manifest=waf_manifest.json&amp;region=waf"
+      <iframe class="anim-embed waf" data-src="sst_anim.html?embed=1&amp;manifest=waf_manifest.json&amp;region=waf"
               title="Takaya-Nakamura 2001 wave activity flux at 200 hPa: Rossby wave packet propagation and streamfunction anomaly through the AIFS-ENS forecast" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 200 hPa u/v ensemble mean (open data, CC&nbsp;BY&nbsp;4.0) &middot; Takaya &amp; Nakamura (2001, JAS) eq.&nbsp;38 &middot; basic state &amp; &psi; climatology: ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
     </div>
@@ -728,7 +738,7 @@
         <p style="text-align:center;font-size:0.95rem">$$\Psi(\phi,p)=\frac{2\pi a\cos\phi}{g}\int_0^p [v]\,dp',\qquad [v]=\text{zonal-mean }v$$</p>
         <p>Shown as the anomaly $\Psi'$ from the ERA5 1991&ndash;2020 harmonic climatology (mean + annual + semiannual, by day-of-year), how the overturning departs from its normal seasonal state. The black contours are the absolute $\Psi$ (the actual cells) and the arrows show the vertical motion (up is ascent, scaled by strength); the strong equatorial signal tracks the El Ni&ntilde;o Walker/Hadley response. Each frame is a 7-day running mean (the 0-h analyses are stashed into a rolling history and trailing-week-averaged), which smooths the day-to-day wobble so the evolution of the Hadley-cell strength is legible. Fixed colour scale.</p>
       </div>
-      <iframe class="anim-embed mmsf" src="sst_anim.html?embed=1&amp;manifest=mmsf_manifest.json&amp;region=mmsf"
+      <iframe class="anim-embed mmsf" data-src="sst_anim.html?embed=1&amp;manifest=mmsf_manifest.json&amp;region=mmsf"
               title="Meridional mass streamfunction anomaly animation from the AIFS-ENS 0-h analysis" loading="lazy"></iframe>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 0-h analysis meridional wind (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 &Psi; climatology (Copernicus C3S) &middot; 7-day running mean &middot; updated each cycle</span></div>
       </div>
@@ -1010,3 +1020,36 @@
 </script>
 </body>
 </html>
+<script>
+// Animators load when they come NEAR the viewport, not on page open.
+//
+// enso-atmosphere shipped five decks, each auto-loading its first panel's
+// animator: five sst_anim documents, five manifests and five frame windows
+// racing on open, so the page showed a wall of "Loading frames..." before
+// anything was readable. Only the top deck is on screen at that moment.
+//
+// Hidden deck panels have display:none, so they have no layout box and never
+// intersect - a panel behind a tab stays deferred until reveal() opens it,
+// exactly as before. This observer therefore only ever pulls in the panel a
+// reader is actually approaching.
+(function () {
+  var q = function () { return document.querySelectorAll("iframe[data-src]"); };
+  function load(el) {
+    var d = el.getAttribute("data-src");
+    if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }
+  }
+  if (!("IntersectionObserver" in window)) {           // old browser: no deferral
+    Array.prototype.forEach.call(q(), load); return;
+  }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { load(e.target); io.unobserve(e.target); }
+    });
+  }, { rootMargin: "500px 0px" });                     // start ~a screen early
+  function observeAll() { Array.prototype.forEach.call(q(), function (el) { io.observe(el); }); }
+  observeAll();
+  // Panels revealed by a tab click can expose iframes that were display:none
+  // when this ran, so pick those up too.
+  document.addEventListener("click", function () { setTimeout(observeAll, 0); });
+})();
+</script>

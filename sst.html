@@ -172,6 +172,16 @@
   .anim-embed.jets { aspect-ratio: 1160 / 619; }    /* image 1160×569 + controls bar */
   .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
   .anim-embed.wind200 { aspect-ratio: 1496 / 776; }   /* image 1496×726 + controls bar */
+  /* Added 2026-08-31. These three loops shipped without a sizing rule, so their
+     embeds had no reserved height at all: the panel collapsed to nothing and the
+     page jumped when the frames finally painted. Ratios measured off F00 of each
+     loop, plus ~50px for the controls bar, same as the rules above. */
+  .anim-embed.epflux { aspect-ratio: 1380 / 855; }        /* image 1380×805 + controls bar */
+  .anim-embed.vortex_winds { aspect-ratio: 1425 / 837; }  /* image 1425×787 + controls bar */
+  .anim-embed.wave1_maps { aspect-ratio: 1550 / 850; }    /* image 1550×800 + controls bar */
+  /* An animator that has not been pulled in yet still holds its space, but an
+     empty box the same colour as the page reads as broken rather than pending. */
+  .anim-embed[data-src] { background: #fafafa; border: 1px solid #f0f0f0; }
   .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
   .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
   .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
@@ -482,7 +492,7 @@
       subtraction the index makes at Ni&ntilde;o-3.4, applied everywhere, so you can
       see which basins the Pacific is warm or cool <i>against</i>.</p>
     </div>
-    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;region=anomaly&amp;regions=anomaly,absolute,relative,tropical_rel"
+    <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;region=anomaly&amp;regions=anomaly,absolute,relative,tropical_rel"
             title="Global and tropical Pacific SST anomaly animation, latest OISST day" loading="lazy"></iframe>
     <div class="chart-card-footer">
       <span class="chart-sources">NOAA OISST v2.1 (PSL, NCEI fallback) &middot; 1/4&deg; &middot; anomalies vs 1991&ndash;2020 &middot; 90-day animation &middot; daily</span>
@@ -1009,3 +1019,36 @@
 </script>
 </body>
 </html>
+<script>
+// Animators load when they come NEAR the viewport, not on page open.
+//
+// enso-atmosphere shipped five decks, each auto-loading its first panel's
+// animator: five sst_anim documents, five manifests and five frame windows
+// racing on open, so the page showed a wall of "Loading frames..." before
+// anything was readable. Only the top deck is on screen at that moment.
+//
+// Hidden deck panels have display:none, so they have no layout box and never
+// intersect - a panel behind a tab stays deferred until reveal() opens it,
+// exactly as before. This observer therefore only ever pulls in the panel a
+// reader is actually approaching.
+(function () {
+  var q = function () { return document.querySelectorAll("iframe[data-src]"); };
+  function load(el) {
+    var d = el.getAttribute("data-src");
+    if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }
+  }
+  if (!("IntersectionObserver" in window)) {           // old browser: no deferral
+    Array.prototype.forEach.call(q(), load); return;
+  }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { load(e.target); io.unobserve(e.target); }
+    });
+  }, { rootMargin: "500px 0px" });                     // start ~a screen early
+  function observeAll() { Array.prototype.forEach.call(q(), function (el) { io.observe(el); }); }
+  observeAll();
+  // Panels revealed by a tab click can expose iframes that were display:none
+  // when this ran, so pick those up too.
+  document.addEventListener("click", function () { setTimeout(observeAll, 0); });
+})();
+</script>
