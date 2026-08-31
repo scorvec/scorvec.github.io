@@ -85,9 +85,9 @@
   Amplitude is the radial distance (rings at 1, 2, 3).
   Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
-    <p class="lede" style="margin:0.5rem 0 1.2rem">Latest init: <strong>2026-08-31 00Z</strong>. Drag the slider to step through successive forecast runs (oldest → latest) and watch the predicted MJO track evolve.</p>
-  <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>
-  <p class="meta">Updated 2026-08-31 08:14Z · Auto-generated from the AIFS-ENS open-data
+    <p class="lede" style="margin:0.5rem 0 1.2rem">Latest init: <strong>2026-08-31 12Z</strong>. Drag the slider to step through successive forecast runs (oldest → latest) and watch the predicted MJO track evolve.</p>
+  <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>
+  <p class="meta">Updated 2026-08-31 18:57Z · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
@@ -102,39 +102,6 @@
       if (fr[i].contentWindow === e.source) { fr[i].style.height = d.h + 'px'; fr[i].style.aspectRatio = 'auto'; }
     }
   });
-</script>
-<script>
-// Animators load when they come NEAR the viewport, not on page open.
-//
-// enso-atmosphere shipped five decks, each auto-loading its first panel's
-// animator: five sst_anim documents, five manifests and five frame windows
-// racing on open, so the page showed a wall of "Loading frames..." before
-// anything was readable. Only the top deck is on screen at that moment.
-//
-// Hidden deck panels have display:none, so they have no layout box and never
-// intersect - a panel behind a tab stays deferred until reveal() opens it,
-// exactly as before. This observer therefore only ever pulls in the panel a
-// reader is actually approaching.
-(function () {
-  var q = function () { return document.querySelectorAll("iframe[data-src]"); };
-  function load(el) {
-    var d = el.getAttribute("data-src");
-    if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }
-  }
-  if (!("IntersectionObserver" in window)) {           // old browser: no deferral
-    Array.prototype.forEach.call(q(), load); return;
-  }
-  var io = new IntersectionObserver(function (entries) {
-    entries.forEach(function (e) {
-      if (e.isIntersecting) { load(e.target); io.unobserve(e.target); }
-    });
-  }, { rootMargin: "500px 0px" });                     // start ~a screen early
-  function observeAll() { Array.prototype.forEach.call(q(), function (el) { io.observe(el); }); }
-  observeAll();
-  // Panels revealed by a tab click can expose iframes that were display:none
-  // when this ran, so pick those up too.
-  document.addEventListener("click", function () { setTimeout(observeAll, 0); });
-})();
 </script>
 </body>
 </html>
