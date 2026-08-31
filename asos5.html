@@ -89,7 +89,12 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .card .now { font-family: var(--serif); font-size: 1.5rem; margin: 0.3rem 0 0.05rem; }
   .card .now small { font-size: 0.62rem; color: var(--muted); font-family: var(--sans); margin-left: 0.3rem; }
-  .card .mm { display: flex; gap: 0.9rem; margin-top: 0.25rem; font-size: 0.74rem; }
+  .card .mm { display: block; margin-top: 0.25rem; font-size: 0.74rem; }
+  .card .mm .mmrow { display: grid; grid-template-columns: 2.6em 1fr 1fr;
+                     gap: 0.25rem; align-items: baseline; white-space: nowrap; }
+  .card .mm .mmrow.yday { margin-top: 0.1rem; opacity: 0.9; }
+  .card .mm .mmtag { color: var(--muted); font-weight: 500; font-size: 0.92em; }
+  .card .mm .mmsrc { color: var(--muted); font-weight: 400; font-size: 0.9em; }
   .card .mm .hi { color: var(--hot); font-weight: 600; }
   .card .mm .lo { color: var(--cold); font-weight: 600; }
   .card .mm span small { color: var(--muted); font-weight: 400; margin-left: 0.22em; font-size: 0.85em; }
@@ -390,7 +395,11 @@
     var daymm = dayFromShown(obs, sixhr, official, w0);
     var dp = localParts(m0 + 7200, meta.tz);
     var reports = repList;
+    // `official` is the raw 24-h climate-day group; `daymm` below is the merged
+    // window extreme. The card shows BOTH now, so the raw one has to survive the
+    // merge instead of being folded away into a single number.
     return { id: meta.id, name: meta.name, tz: meta.tz, cadence_min: cadence,
+             official: official,
              day_local: dp.year + "-" + dp.month + "-" + dp.day,
              obs: obs, sixhr: sixhr, daymm: daymm, abs: computeAbs(obs, sixhr, m0),
              reports: reports };
@@ -763,11 +772,35 @@
         var ex = displayExtremes(st);
         nowHtml = lastRec ? fmtT(lastRec[xi]) +
           "<small>" + localHM(lastRec[0], st.tz) + "</small>" : "&ndash;";
+        // TWO rows, because they answer different questions and merging them is
+        // exactly why the official value almost never showed: with 5-minute
+        // sampling today's trace usually catches the true peak first, so the
+        // official 24-h group only won when it happened to be MORE extreme and
+        // the label read "sampled" all day.
+        //   today     - high/low so far on the station's local calendar day
+        //   yesterday - the official 24-h climate day from the METAR 4-group
+        //
+        // The cards are ~150px wide, so the times CANNOT sit inline next to the
+        // values - adding the row label pushed the low clean out of the card.
+        // They move to the row tooltip instead.
+        var offc = st.official;
+        var tTip = "today so far" +
+          (ex.hi ? "  high " + fmtT(ex.hi.v) + " at " + extLabel(ex.hi, st.tz) : "") +
+          (ex.lo ? "  low " + fmtT(ex.lo.v) + " at " + extLabel(ex.lo, st.tz) : "");
         mmHtml =
-          '<span class="hi">&#9650; ' + (ex.hi ? fmtT(ex.hi.v) : "&ndash;") +
-          (ex.hi ? "<small>" + extLabel(ex.hi, st.tz) + "</small>" : "") + "</span>" +
-          '<span class="lo">&#9660; ' + (ex.lo ? fmtT(ex.lo.v) : "&ndash;") +
-          (ex.lo ? "<small>" + extLabel(ex.lo, st.tz) + "</small>" : "") + "</span>";
+          '<div class="mmrow" title="' + tTip.replace(/"/g, "&quot;") + '">' +
+          '<span class="mmtag">today</span>' +
+          '<span class="hi">&#9650;' + (ex.hi ? fmtT(ex.hi.v) : "&ndash;") + "</span>" +
+          '<span class="lo">&#9660;' + (ex.lo ? fmtT(ex.lo.v) : "&ndash;") + "</span>" +
+          "</div>" +
+          '<div class="mmrow yday" title="Official 24-hour climate day, from the ' +
+          'METAR 4-group (4snTxTxTxsnTnTnTn)">' +
+          '<span class="mmtag">yest</span>' +
+          (offc && (offc.max != null || offc.min != null)
+            ? '<span class="hi">&#9650;' + (offc.max != null ? fmtT(offc.max) : "&ndash;") + "</span>" +
+              '<span class="lo">&#9660;' + (offc.min != null ? fmtT(offc.min) : "&ndash;") + "</span>"
+            : '<span class="mmsrc">not in yet</span>') +
+          "</div>";
       } else if (vr === "v" || vr === "c") {
         var fmt = vr === "v" ? fmtVis : fmtCeil;
         nowHtml = lastRec ? fmt(lastRec[xi]) +
