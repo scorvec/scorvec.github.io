@@ -376,8 +376,12 @@
       if (byMin[k] != null) return;
       var mv = metarVals(r.raw);
       if (mv.t == null && mv.wspd == null && mv.vis == null) return;
+      // index 9 marks a record synthesised from a METAR/SPECI rather than
+      // sampled from the 5-minute feed. Shape is otherwise unchanged, so
+      // nothing downstream cares; the card uses it to show a real 5-minute
+      // value as "now" instead of whichever METAR happened to land last.
       byMin[k] = [r.e, mv.t, mv.d, mv.wdir, mv.wspd, mv.vis, mv.ceil, mv.wx,
-                  mv.gust];
+                  mv.gust, 1];
     });
     var obs = Object.keys(byMin).map(function (k) { return byMin[k]; })
                     .sort(function (a, b) { return a[0] - b[0]; });
@@ -761,12 +765,19 @@
     state.data.stations.forEach(function (st, i) {
       var vr = state.vr, xi = VIDX[vr];
       // latest record with ANY data (v/c/w legitimately report null = clear)
-      var lastRec = null;
+      // Prefer the newest SAMPLED record (the 5-minute feed); fall back to a
+      // METAR-derived one only when the station has no sampled value, which is
+      // the normal case for the two hourly-only stations. METARs are folded into
+      // the stream because they arrive 20-50 min earlier, but that meant the
+      // headline number on a 5-minute station was often just the last METAR.
+      var lastRec = null, lastAny = null;
       for (var k = st.obs.length - 1; k >= 0; k--) {
-        if (vr === "t" || vr === "d") {
-          if (st.obs[k][xi] != null) { lastRec = st.obs[k]; break; }
-        } else { lastRec = st.obs[k]; break; }
+        var o = st.obs[k], has = (vr === "t" || vr === "d") ? o[xi] != null : true;
+        if (!has) continue;
+        if (lastAny == null) lastAny = o;
+        if (o[9] !== 1) { lastRec = o; break; }
       }
+      if (lastRec == null) lastRec = lastAny;
       var nowHtml = "&ndash;", mmHtml = "";
       if (vr === "t" || vr === "d") {
         var ex = displayExtremes(st);
