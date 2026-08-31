@@ -4,8 +4,7 @@ name: Synthetic OLR Hovmöller (GMGSI IR)
 # (AWS). Every 6 h it (re)computes the latest day or two and re-renders. Commits only its
 # own files (tiny daily store + webp).
 on:
-  schedule:
-    - cron: '25 1,7,13,19 * * *'    # ~1h after the 00/06/12/18Z representative hours
+  workflow_call:
   workflow_dispatch:
 
 permissions:

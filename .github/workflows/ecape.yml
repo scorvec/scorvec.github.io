@@ -34,8 +34,7 @@ name: HRRR ECAPE (CONUS)
 # hours late (see the throttling note in the repo history), so treat this as
 # "whenever it fires" - a missed cycle costs freshness, never data.
 on:
-  schedule:
-    - cron: '20 1,7,13,19 * * *'
+  workflow_call:
   workflow_dispatch:
     inputs:
       fxx:

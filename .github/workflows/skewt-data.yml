@@ -8,14 +8,13 @@ name: Skew-T sounding mirror
 # as asos5-data). Deleting this workflow just freezes the explorer's data.
 
 on:
-  schedule:
-    - cron: '35 2,7,14,19 * * *'   # one prompt + one late attempt per synoptic
   # Was 1,2,3,7,13,14,15,19. The 1 and 13 passes sat 1.5 h after the
   # synoptic and were usually too early to find anything; 3 and 15 were a
   # third bite at a cycle 2 and 14 had already taken. What is real is UW
   # posting a cycle LATE (12Z arrived ~14:15 UTC on 2026-08-16), which the
   # 7 and 19 passes still cover - halved, not cut to one per cycle, because
   # that lateness is an upstream fact a reliable trigger does not fix.
+  workflow_call:
   workflow_dispatch:
 
 permissions:

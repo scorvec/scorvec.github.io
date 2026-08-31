@@ -30,10 +30,9 @@ name: Stratosphere (vortex, wave-1, E-P flux)
 # silently deletes the winner's frames (clone-swap-reorphan reads the branch
 # before it writes it).
 on:
-  schedule:
   # # AIFS-ENS 00Z/12Z land on open data around 06-07Z and 18-19Z. These are
   # # daily products, so two firings is the right size - deliberately not more.
-    - cron: '35 7,19 * * *'
+  workflow_call:
   workflow_dispatch:
     inputs:
       date:

@@ -1,0 +1,18 @@
+name: Stratosphere — 07Z
+
+# One of 2 schedule-only callers for strat.yml. Each asks GitHub for a
+# SINGLE firing per day - the frequency band measured as honoured far more often
+# than one workflow asking for several. All the work lives in the reusable
+# workflow; this file is only the schedule.
+on:
+  schedule:
+    - cron: '35 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/strat.yml
+    secrets: inherit

@@ -1,0 +1,20 @@
+name: GDPS charts — 06Z
+
+# One of 2 schedule-only callers for gdps-charts.yml. Each asks GitHub for a
+# SINGLE firing per day - the frequency band measured as honoured far more often
+# than one workflow asking for several. All the work lives in the reusable
+# workflow; this file is only the schedule.
+on:
+  schedule:
+    - cron: '20 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/gdps-charts.yml
+    with:
+      cycle: '00'
+    secrets: inherit
