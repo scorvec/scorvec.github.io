@@ -13,3 +13,9 @@
 assets/sst/anim/wave1_maps
 # Replaced 2026-08-30 by per-level loops (vortex_10 / vortex_100).
 assets/sst/anim/vortex_winds
+
+# Superseded 2026-08-30 when the wave-1 loop was transposed: the selector now
+# switches HEMISPHERE (wave1_nh / wave1_sh) with both levels in one frame, so
+# the per-LEVEL directories have nothing pointing at them.
+assets/sst/anim/wave1_100
+assets/sst/anim/wave1_500
