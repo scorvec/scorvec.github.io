@@ -495,7 +495,7 @@
     (function () {
       var DIV = document.getElementById('wwv-orbit');
       if (!DIV || typeof Plotly === 'undefined') return;
-      fetch('assets/sst/data/wwv_orbit.json?v=8c4e8a6dfa84').then(function (r) { return r.json(); })
+      fetch('assets/sst/data/wwv_orbit.json?v=dfae0bc87f71').then(function (r) { return r.json(); })
         .then(function (D) {
           var n = D.months.length;
           var traces = [{
@@ -609,10 +609,10 @@
         <p>Equatorial Pacific upper-ocean (0&ndash;300&nbsp;m) temperature anomaly &mdash; a heat-content proxy that leads the surface &mdash; through each event's development year and the next, current (bold red) over 1997, 2015 and 2023. The subsurface warm reservoir is the fuel for El&nbsp;Ni&ntilde;o. <b>De-trended</b> removes the 1991&ndash;2020 climate trend so the four events sit on a common baseline; the net 0&ndash;300&nbsp;m effect is modest because the subsurface warming and cooling trends largely cancel in the column average.</p>
       </div>
       <div class="fig-toggle" data-fig="hc">
-        <button class="on" data-src="assets/sst/subsurface_events_hc.webp?v=8c4e8a6dfa84">Raw</button>
-        <button data-src="assets/sst/subsurface_events_hc_detrended.webp?v=8c4e8a6dfa84">De-trended</button>
+        <button class="on" data-src="assets/sst/subsurface_events_hc.webp?v=dfae0bc87f71">Raw</button>
+        <button data-src="assets/sst/subsurface_events_hc_detrended.webp?v=dfae0bc87f71">De-trended</button>
       </div>
-      <div class="img-wrap"><img id="fig-hc" src="assets/sst/subsurface_events_hc.webp?v=8c4e8a6dfa84" alt="Equatorial 0–300 m temperature-anomaly evolution: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="img-wrap"><img id="fig-hc" src="assets/sst/subsurface_events_hc.webp?v=dfae0bc87f71" alt="Equatorial 0–300 m temperature-anomaly evolution: current vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; coverage varies by year</span></div>
       </div>
 
@@ -622,10 +622,10 @@
         <p>Equatorial depth&times;longitude temperature anomaly at the same phase (~the latest data week) of each event. The eastward-deepening warm anomaly along the thermocline is the classic El&nbsp;Ni&ntilde;o subsurface signature. <b>De-trended</b> reshapes the pattern more than it does the column-mean heat content above, because the trend itself has depth&times;longitude structure (west-Pacific subsurface warming, eastern-thermocline cooling). TAO coverage varies by year (triangles mark reporting moorings), so 1997 and 2023 have missing longitudes.</p>
       </div>
       <div class="fig-toggle" data-fig="xsec">
-        <button class="on" data-src="assets/sst/subsurface_events_xsec.webp?v=8c4e8a6dfa84">Raw</button>
-        <button data-src="assets/sst/subsurface_events_xsec_detrended.webp?v=8c4e8a6dfa84">De-trended</button>
+        <button class="on" data-src="assets/sst/subsurface_events_xsec.webp?v=dfae0bc87f71">Raw</button>
+        <button data-src="assets/sst/subsurface_events_xsec_detrended.webp?v=dfae0bc87f71">De-trended</button>
       </div>
-      <div class="img-wrap"><img id="fig-xsec" src="assets/sst/subsurface_events_xsec.webp?v=8c4e8a6dfa84" alt="Equatorial subsurface temperature-anomaly cross-sections: current vs 1997/2015/2023" loading="lazy"></div>
+      <div class="img-wrap"><img id="fig-xsec" src="assets/sst/subsurface_events_xsec.webp?v=dfae0bc87f71" alt="Equatorial subsurface temperature-anomaly cross-sections: current vs 1997/2015/2023" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; 14-day mean &middot; coverage varies by year</span></div>
       </div>
     </div>
