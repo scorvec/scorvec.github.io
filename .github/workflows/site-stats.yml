@@ -4,9 +4,8 @@ name: Site visitor stats & map
 # stats dashboard (stats.html). No-ops gracefully until the GOATCOUNTER_TOKEN
 # repo secret exists (GoatCounter → Settings → API tokens, "read statistics").
 on:
-  # CRON-TEST 2026-08-30 (restore: uncomment this block)
-  # schedule:
-  # - cron: '17 5 * * *'      # daily ~05:17 UTC
+  schedule:
+    - cron: '17 5 * * *'      # daily ~05:17 UTC
   workflow_dispatch:
 
 permissions:

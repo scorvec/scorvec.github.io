@@ -8,10 +8,9 @@ name: MJO RMM (AIFS-ENS)
 # (sentinel = the cycle's PNG in assets/mjo/). When the laptop slept through its
 # window, this picks the cycle up promptly and does the full build itself.
 on:
-  # CRON-TEST 2026-08-30 (restore: uncomment this block)
-  # schedule:
-  # - cron: '37 8 * * *'    # 00Z cycle (data lands ~06Z)
-  # - cron: '37 20 * * *'   # 12Z cycle (data lands ~18Z)
+  schedule:
+    - cron: '37 8 * * *'    # 00Z cycle (data lands ~06Z)
+    - cron: '37 20 * * *'   # 12Z cycle (data lands ~18Z)
   # Was 8,11 and 20,23 - a second attempt per cycle, added when a cron
   # firing was a coin flip. The dispatcher now fires each slot on time
   # AND re-opens a slot whose run FAILED after 120 min, so the retry

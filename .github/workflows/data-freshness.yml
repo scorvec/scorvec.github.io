@@ -1,8 +1,7 @@
 name: data-freshness
 on:
-  # CRON-TEST 2026-08-30 (restore: uncomment this block)
-  # schedule:
-  # - cron: "25 14 * * *"       # daily, after the morning update crons
+  schedule:
+    - cron: "25 14 * * *"       # daily, after the morning update crons
   workflow_dispatch:
 
 permissions:

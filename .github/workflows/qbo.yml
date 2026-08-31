@@ -1,8 +1,7 @@
 name: qbo-tracker
 on:
-  # CRON-TEST 2026-08-30 (restore: uncomment this block)
-  # schedule:
-  # - cron: "15 7 * * 1"        # Mondays 07:15 UTC — QBO is a monthly beast
+  schedule:
+    - cron: "15 7 * * 1"        # Mondays 07:15 UTC — QBO is a monthly beast
   workflow_dispatch:
 
 permissions:

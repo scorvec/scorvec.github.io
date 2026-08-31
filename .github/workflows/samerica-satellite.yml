@@ -4,9 +4,8 @@ name: South & Central America IR satellite loop (GMGSI)
 # Hourly: render the newest frame(s), trim the rolling 72-hour window, rebuild the manifest.
 # Each fresh checkout already carries the committed window, so only 1-2 frames render per run.
 on:
-  # CRON-TEST 2026-08-30 (restore: uncomment this block)
-  # schedule:
-  # - cron: '25 * * * *'    # hourly; offset from the Pacific loop (':40') so they don't hit S3 together
+  schedule:
+    - cron: '25 * * * *'    # hourly; offset from the Pacific loop (':40') so they don't hit S3 together
   workflow_dispatch:
 
 permissions:

@@ -4,9 +4,8 @@ name: Daily Tarawa WWB history (IEM)
 # each run re-fetches only the current year from the IEM archive (one gentle request).
 # Commits only its own files.
 on:
-  # CRON-TEST 2026-08-30 (restore: uncomment this block)
-  # schedule:
-  # - cron: '40 14 * * *'        # daily ~14:40 UTC
+  schedule:
+    - cron: '40 14 * * *'        # daily ~14:40 UTC
   workflow_dispatch:
 
 permissions:

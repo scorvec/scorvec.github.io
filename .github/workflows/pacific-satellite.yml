@@ -4,9 +4,8 @@ name: Tropical Pacific IR satellite loop (GMGSI)
 # Hourly: render the newest frame(s), trim the rolling 48-hour window, rebuild the manifest.
 # Each fresh checkout already carries the committed window, so only 1-2 frames render per run.
 on:
-  # CRON-TEST 2026-08-30 (restore: uncomment this block)
-  # schedule:
-  # - cron: '40 * * * *'    # hourly, after the latest GMGSI hour has posted
+  schedule:
+    - cron: '40 * * * *'    # hourly, after the latest GMGSI hour has posted
   workflow_dispatch:
 
 permissions:
