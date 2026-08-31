@@ -343,7 +343,14 @@
       branchSt.obs.forEach(function (o) { if (o[0] >= w0) byMin[Math.round(o[0] / 60)] = o; });
     if (branchSt) cadence = branchSt.cadence_min;
     if (live && live.obs) {
-      cadence = live.cadence_min;
+      // The badge must describe the MERGED trace. Taking the live cadence
+      // unconditionally made a station read "hourly" as soon as the
+      // api.weather.gov fetch landed, even when the branch had already supplied
+      // a full day of 5-minute obs - the label contradicted the curve under it.
+      // Finer of the two wins.
+      cadence = (branchSt && branchSt.cadence_min)
+                ? Math.min(branchSt.cadence_min, live.cadence_min)
+                : live.cadence_min;
       live.obs.forEach(function (o) { if (o[0] < w0) return; var k = Math.round(o[0] / 60); if (byMin[k] == null) byMin[k] = o; });
     }
     // Official METAR/SPECI reports ARE observations — and IEM delivers them

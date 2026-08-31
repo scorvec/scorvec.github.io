@@ -379,11 +379,23 @@ def main():
 
     stations_out = []
     for sid, name, tz, src in STATIONS:
+        win_start = datetime.fromtimestamp(w0, timezone.utc).replace(
+            minute=0, second=0, microsecond=0)
         if src == "hfmetar":
             recs = merged.get(sid, {})
             label, cadence = "NWS/MADIS 5-min ASOS", 5
+            if not recs:
+                # MADIS drops a station from the HFMETAR feed for days at a
+                # time — KCLT did exactly that, 0 obs across a whole 36-h
+                # window while every other station carried ~430. With no
+                # fallback the card rendered completely empty, which reads as
+                # a broken site rather than an upstream gap. Hourly METAR is a
+                # poor substitute for the 5-min feed but it is not nothing.
+                recs = fetch_nws_hourly(sid, win_start)
+                label, cadence = "NWS API hourly METAR (MADIS gap)", 60
+                print(f"  {sid}: no MADIS 5-min obs — fell back to hourly API",
+                      flush=True)
         else:
-            win_start = datetime.fromtimestamp(w0, timezone.utc).replace(minute=0, second=0, microsecond=0)
             recs = fetch_nws_hourly(sid, win_start)
             label, cadence = "NWS API hourly METAR", 60
         m0 = int(midnights[sid].timestamp())
