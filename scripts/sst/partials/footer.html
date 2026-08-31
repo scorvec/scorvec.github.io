@@ -85,7 +85,7 @@
 // animator load on page open and the rest only when the reader asks for them.
 (function () {
   function reveal(panel) {
-    var f = panel.querySelectorAll("iframe[data-src], img[data-deferred]");
+    var f = panel.querySelectorAll("iframe[data-src], img[data-src], img[data-deferred]");
     for (var i = 0; i < f.length; i++) {
       var el = f[i], d = el.getAttribute("data-src");
       if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }

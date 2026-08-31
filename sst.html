@@ -150,6 +150,11 @@
   .img-wrap { padding: 0.5rem 0.7rem; background: #fff; }
   .img-wrap + .img-wrap { padding-top: 0; }
   .img-wrap img { display: block; width: auto; max-width: 100%; max-height: 88vh; height: auto; margin: 0 auto; }
+  /* A deferred figure has no src until its tab is opened. Without this it paints
+     the browser's broken-image glyph and collapses to nothing, so the panel looks
+     broken and then jumps when the real image arrives. Hold the space, show a
+     neutral field, and let the swap fill it. */
+  .img-wrap img:not([src]) { min-height: 260px; background: #fafafa; border: 1px solid #f0f0f0; }
   /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
      sized to its exact content height via postMessage (see footer.html / sst_anim.html),
      which fills the card with no letterboxing at any width. */
@@ -523,7 +528,7 @@
     &plusmn;0.5&thinsp;&deg;C are El&nbsp;Ni&ntilde;o&nbsp;/&nbsp;La&nbsp;Ni&ntilde;a territory.</p>
     <div class="img-wrap">
       <img src="assets/sst/roni.webp?v=8c4e8a6dfa84"
-           alt="ONI and RONI by 3-month season, newest season marked preliminary" loading="lazy">
+           alt="ONI and RONI by 3-month season, newest season marked preliminary" loading="eager" fetchpriority="high">
     </div>
     <div class="chart-card-footer">
       <span class="chart-sources">Computed from NOAA OISST v2.1 &middot; 3-month centered means &middot; the newest season is preliminary (its final month is incomplete)</span>
@@ -980,7 +985,7 @@
 // animator load on page open and the rest only when the reader asks for them.
 (function () {
   function reveal(panel) {
-    var f = panel.querySelectorAll("iframe[data-src], img[data-deferred]");
+    var f = panel.querySelectorAll("iframe[data-src], img[data-src], img[data-deferred]");
     for (var i = 0; i < f.length; i++) {
       var el = f[i], d = el.getAttribute("data-src");
       if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }

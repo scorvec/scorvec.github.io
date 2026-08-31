@@ -260,7 +260,7 @@
         <p>Unique visitors by country (IP-geolocated at country level only — no personal data), last 30 days and all time. Updated daily.</p>
       </div>
       <div class="chart-img-wrap">
-        <img src="assets/site_stats/visitor_map.webp" alt="World map of unique visitors to scorvec.com by country" loading="lazy" style="width:100%;height:auto;" onerror="this.closest('.chart-card').querySelector('p').textContent='Map appears after the first daily stats run.'">
+        <img src="assets/site_stats/visitor_map.webp" alt="World map of unique visitors to scorvec.com by country" loading="eager" fetchpriority="high" style="width:100%;height:auto;" onerror="this.closest('.chart-card').querySelector('p').textContent='Map appears after the first daily stats run.'">
       </div>
       <div class="chart-card-footer">
         <span class="chart-sources">GoatCounter API &middot; country-level geolocation &middot; daily</span>

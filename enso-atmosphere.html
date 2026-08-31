@@ -150,6 +150,11 @@
   .img-wrap { padding: 0.5rem 0.7rem; background: #fff; }
   .img-wrap + .img-wrap { padding-top: 0; }
   .img-wrap img { display: block; width: auto; max-width: 100%; max-height: 88vh; height: auto; margin: 0 auto; }
+  /* A deferred figure has no src until its tab is opened. Without this it paints
+     the browser's broken-image glyph and collapses to nothing, so the panel looks
+     broken and then jumps when the real image arrives. Hold the space, show a
+     neutral field, and let the swap fill it. */
+  .img-wrap img:not([src]) { min-height: 260px; background: #fafafa; border: 1px solid #f0f0f0; }
   /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
      sized to its exact content height via postMessage (see footer.html / sst_anim.html),
      which fills the card with no letterboxing at any width. */
@@ -652,7 +657,7 @@
         <h2>Atmospheric Angular Momentum</h2>
         <p>Relative AAM is the angular momentum carried by the winds, the atmosphere's total westerly momentum, &int;&nbsp;u&middot;cos&sup2;&phi; over the whole globe. It is dominated by the upper-tropospheric subtropical jets and the deep tropics (largest moment arm), shown here for the globe and each hemisphere from the AIFS-ENS winds on 14 pressure levels (10&ndash;1000&nbsp;hPa &mdash; the full column, validated against the 37-level ERA5 integral and GFZ's ESMGFZ wind-term series to ~1%). The top panel is this year's observed AAM (black) and the 15-day forecast (red) on the climatological annual cycle; the hemispheres are strongly out of phase (each peaks in its own winter). The bottom panel is the anomaly (departure from the 1991&ndash;2020 normal), which removes the seasonal cycle. El&nbsp;Ni&ntilde;o strengthens the subtropical jets and weakens the trades, so the atmosphere holds more westerly momentum; conservation then requires the solid Earth to slow, so AAM ties directly to the measured length of day. The <span style="color:#2e7d32"><b>green trace</b></span> is GFZ's independent ESMGFZ wind-term series (computed from ECMWF's operational analyses for the Earth-rotation community) &mdash; a continuous external check on this pipeline.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/aam.webp?v=202608310845" alt="Global and hemispheric atmospheric angular momentum: observed + AIFS-ENS forecast, absolute and anomaly" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/aam.webp?v=202608310845" alt="Global and hemispheric atmospheric angular momentum: observed + AIFS-ENS forecast, absolute and anomaly" loading="eager" fetchpriority="high"></div>
       <div class="chart-card-footer"><span class="chart-sources">Forecast: ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; climatology &amp; this-year observed: ERA5 (Copernicus C3S / ECMWF) &middot; updated daily</span></div>
       </div>
 
@@ -981,7 +986,7 @@
 // animator load on page open and the rest only when the reader asks for them.
 (function () {
   function reveal(panel) {
-    var f = panel.querySelectorAll("iframe[data-src], img[data-deferred]");
+    var f = panel.querySelectorAll("iframe[data-src], img[data-src], img[data-deferred]");
     for (var i = 0; i < f.length; i++) {
       var el = f[i], d = el.getAttribute("data-src");
       if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }
