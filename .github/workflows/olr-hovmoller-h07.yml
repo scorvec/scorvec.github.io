@@ -5,8 +5,9 @@ name: OLR Hovmoller — 07Z
 # than one workflow asking for several. All the work lives in the reusable
 # workflow; this file is only the schedule.
 on:
-  schedule:
-    - cron: '25 7 * * *'
+  # CRON-PAUSED 2026-09-01 (restore: uncomment the block below)
+  # schedule:
+  # - cron: '25 7 * * *'
   workflow_dispatch:
 
 permissions:

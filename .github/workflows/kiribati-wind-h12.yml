@@ -5,8 +5,9 @@ name: Kiribati wind — 12Z
 # than one workflow asking for several. All the work lives in the reusable
 # workflow; this file is only the schedule.
 on:
-  schedule:
-    - cron: '18 12 * * *'
+  # CRON-PAUSED 2026-09-01 (restore: uncomment the block below)
+  # schedule:
+  # - cron: '18 12 * * *'
   workflow_dispatch:
 
 permissions:

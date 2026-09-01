@@ -5,8 +5,9 @@ name: Skew-T data — 02Z
 # than one workflow asking for several. All the work lives in the reusable
 # workflow; this file is only the schedule.
 on:
-  schedule:
-    - cron: '35 2 * * *'
+  # CRON-PAUSED 2026-09-01 (restore: uncomment the block below)
+  # schedule:
+  # - cron: '35 2 * * *'
   workflow_dispatch:
 
 permissions:

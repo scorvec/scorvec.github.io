@@ -5,8 +5,9 @@ name: SOI hourly — 17Z
 # 2026-08-30 measurements, instead of one workflow asking for 24 and getting
 # five. All the work lives in the reusable workflow; this file is the schedule.
 on:
-  schedule:
-    - cron: '12 17 * * *'
+  # CRON-PAUSED 2026-09-01 (restore: uncomment the block below)
+  # schedule:
+  # - cron: '12 17 * * *'
   workflow_dispatch:
 
 permissions:
