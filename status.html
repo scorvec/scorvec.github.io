@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Product freshness · Shawn Corvec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  /* Every product on the site, when it last updated, and whether that is on
+     time. Computed HERE, in the browser, from the same manifests and data
+     files the product pages read - so green means the page a visitor opens
+     is fresh, not that some job somewhere reported success. No build step,
+     no job, nothing to go stale itself. */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fcfcfa; --ink: #1a1a1a; --ink2: #4a4744; --muted: #8a8680;
+    --accent: #8a4b2a; --rule: #e2e0da; --edge: #c9c5bb; --surface: #fff;
+    --ok: #2e7d32; --ok-bg: #e8f3e9; --late: #b26a00; --late-bg: #fbf1e0;
+    --stale: #b3261e; --stale-bg: #fbe9e7; --unk: #8a8680; --unk-bg: #f1f0ec;
+    --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
+  }
+  html { font-size: 16px; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
+         -webkit-font-smoothing: antialiased; padding: 2.2rem 1.4rem 4rem; }
+  main { max-width: 1040px; margin: 0 auto; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: 1.7rem; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: .9rem; margin: .35rem 0 1.4rem; line-height: 1.5; }
+  .sub a { color: var(--accent); text-decoration: none; }
+  .totals { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 1.6rem; align-items: center; }
+  .tot { border: 1px solid var(--edge); border-radius: 999px; padding: .3rem .85rem; font-size: .85rem;
+         background: var(--surface); }
+  .tot b { font-weight: 500; }
+  .tot.ok b { color: var(--ok); } .tot.late b { color: var(--late); } .tot.stale b { color: var(--stale); }
+  .checked { margin-left: auto; color: var(--muted); font-size: .8rem; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.05rem; margin: 1.6rem 0 .5rem;
+       display: flex; align-items: baseline; gap: .6rem; }
+  h2 a { color: var(--accent); text-decoration: none; font-family: var(--sans); font-size: .8rem; font-weight: 400; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--edge);
+          border-radius: 8px; overflow: hidden; font-size: .88rem; }
+  th { text-align: left; font-weight: 500; color: var(--muted); font-size: .72rem; letter-spacing: .06em;
+       text-transform: uppercase; padding: .5rem .8rem; border-bottom: 1px solid var(--rule); }
+  td { padding: .5rem .8rem; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  td.name { width: 34%; } td.name small { display: block; color: var(--muted); font-size: .74rem; margin-top: .1rem; }
+  td.when { font-variant-numeric: tabular-nums; color: var(--ink2); white-space: nowrap; }
+  td.age { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.cad { color: var(--muted); white-space: nowrap; }
+  td.st { width: 92px; }
+  .pill { display: inline-block; border-radius: 999px; padding: .12rem .6rem; font-size: .74rem; font-weight: 500; }
+  .pill.ok { color: var(--ok); background: var(--ok-bg); }
+  .pill.late { color: var(--late); background: var(--late-bg); }
+  .pill.stale { color: var(--stale); background: var(--stale-bg); }
+  .pill.unk { color: var(--unk); background: var(--unk-bg); }
+  tr.stale td.name { color: var(--stale); }
+  .foot { color: var(--muted); font-size: .78rem; margin-top: 2rem; line-height: 1.55; }
+  .foot code { font-family: ui-monospace, Menlo, monospace; font-size: .74rem; }
+  @media (max-width: 640px) { td.cad, th.cad { display: none; } html { font-size: 15px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Product freshness</h1>
+  <p class="sub">Every product on the site and when it last updated, read in this browser from the same
+     files the pages load. <b>On time</b> is within the product's normal cadence; <b>late</b> is past it
+     (usually a queued job); <b>stale</b> is more than twice over. Refreshes itself every five minutes.</p>
+  <div class="totals" id="totals"></div>
+  <div id="groups"></div>
+  <p class="foot">Timestamps are the render/issue time each product records in its own manifest or data
+     file (<code>ver</code>, <code>generated</code>, <code>updated</code>, <code>init</code>…). Products
+     that publish only an image carry no timestamp, so their last commit is asked of the GitHub API
+     instead - that has a 60/hour unauthenticated budget and is cached here for ten minutes.
+     Forecast products dated by model <em>init</em> (GDPS, ECAPE) are naturally a few hours behind the
+     clock; their cadence allows for it. Date-only products (radar, visitor stats) are judged at the
+     end of the day they name.</p>
+</main>
+
+<script>
+"use strict";
+// ---- registry -------------------------------------------------------------
+// every: normal interval in hours. late > 1.5x every, stale > 2.5x every.
+// src kinds: json (path inside the file, dotted; [-1] = last element),
+//            commit (last commit touching a path on a branch, via the API).
+const RAW = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/";
+const GROUPS = [
+ { title: "SST & ENSO", page: "sst.html", items: [
+   { name: "OISST daily indices", note: "Niño regions, RONI, daily anomalies", src: "assets/sst/manifest.json", field: "generated", every: 24 },
+   { name: "OISST anomaly loops", note: "anomaly · relative · absolute · equatorial", src: "assets/sst/data/enso_daily.json", field: "generated", every: 24 },
+   { name: "MUR SST loop", note: "1 km foundation SST, 2-panel", src: "assets/sst/anim/mur_manifest.json", field: "ver", every: 24 },
+   { name: "MUR Niño-3.4", src: "assets/sst/data/mur_nino34.json", field: "updated", every: 24, dateOnly: true, lag: 24 },
+   { name: "Pacific satellite loop", src: "assets/sst/anim/pacsat_manifest.json", field: "ver", every: 4 },
+   { name: "S. America satellite loop", src: "assets/sst/anim/samsat_manifest.json", field: "ver", every: 4 },
+   { name: "Warm water volume", note: "WWV × Niño-3.4 orbit", src: "assets/sst/data/wwv_orbit.json", field: "generated", every: 24 },
+   { name: "SOI hourly", src: "assets/sst/soi_hourly.webp", kind: "commit", every: 2 },
+   { name: "Kiribati winds", src: "assets/sst/kiribati_wind.json", field: "updated", every: 6 },
+   { name: "OLR Hovmöller", src: "assets/sst/olr_hovmoller.webp", kind: "commit", every: 6 },
+   { name: "OLR waves & trackers", src: "assets/sst/olr_waves.webp", kind: "commit", every: 24 },
+   { name: "C3S ENSO plume", note: "monthly issue", src: "assets/sst/data/enso_forecast.json", field: "generated", every: 24 * 32 },
+ ]},
+ { title: "Atmosphere", page: "enso-atmosphere.html", items: [
+   { name: "AAM zonal", src: "assets/sst/anim/aam_zonal_manifest.json", field: "ver", every: 12 },
+   { name: "Surface torques", src: "assets/sst/anim/torque_manifest.json", field: "ver", every: 12 },
+   { name: "Jets", src: "assets/sst/anim/jets_manifest.json", field: "ver", every: 12 },
+   { name: "Wave activity flux", src: "assets/sst/anim/waf_manifest.json", field: "ver", every: 12 },
+   { name: "Hadley / MMSF", src: "assets/sst/anim/mmsf_manifest.json", field: "ver", every: 12 },
+   { name: "Hadley timeseries", src: "assets/sst/data/hadley_timeseries.json", field: "updated", every: 12 },
+   { name: "Walker circulation", src: "assets/sst/anim/walker_manifest.json", field: "ver", every: 24 },
+   { name: "200 hPa velocity potential", src: "assets/sst/anim/wind200_manifest.json", field: "ver", every: 12 },
+   { name: "ASCAT winds", src: "assets/sst/anim/ascat_manifest.json", field: "ver", every: 24 },
+   { name: "GDPS charts", note: "IR · outflow · wind, dated by init", src: "assets/sst/anim/gdps_ir_manifest.json", field: "ver", every: 12, init: true },
+   { name: "MSLP & wind", note: "dated by init", src: "assets/sst/anim/mslp_wind_manifest.json", field: "ver", every: 12, init: true },
+   { name: "Vortex winds", note: "dated by init", src: "assets/sst/anim/vortex_winds_manifest.json", field: "ver", every: 24, init: true },
+   { name: "E-P flux", src: "assets/sst/anim/epflux_manifest.json", field: "ver", every: 12 },
+   { name: "Wave-1 maps", note: "dated by init", src: "assets/sst/anim/wave1_maps_manifest.json", field: "ver", every: 24, init: true },
+ ]},
+ { title: "Subsurface", page: "enso-subsurface.html", items: [
+   { name: "Equatorial currents", note: "map + section", src: "assets/sst/anim/eq_cur_map_manifest.json", field: "ver", every: 24, dateOnly: true },
+   { name: "TAO section", src: "assets/sst/data/tao_section.json", field: "snapshots[-1].date", every: 24, dateOnly: true, lag: 24 },
+ ]},
+ { title: "Stratosphere & QBO", page: "qbo/", items: [
+   { name: "10 / 100 hPa loops", src: "assets/sst/anim/strat10_manifest.json", field: "ver", every: 12 },
+   { name: "QBO", note: "weekly", src: "qbo/qbo.json", field: "updated", every: 24 * 7 },
+ ]},
+ { title: "MJO & subseasonal", page: "mjo.html", items: [
+   { name: "RMM / MJO", src: "assets/mjo/rmm_manifest.json", field: "ver", every: 12 },
+   { name: "GEPS days 1-35", note: "Mon / Thu cycles", src: "assets/geps/anim/geps_glb_manifest.json", field: "ver", every: 96 },
+   { name: "SFS seasonal", note: "monthly issue", src: "assets/sfs/data/sfs_daily.json", field: "generated", every: 24 * 32 },
+ ]},
+ { title: "Convection & verification", page: "ecape.html", items: [
+   { name: "ECAPE (HRRR)", note: "dated by init, 6-hourly", src: "assets/ecape/anim/index.json", field: "latest", every: 6, init: true },
+   { name: "AIFS deterministic scores", src: "assets/verify/aifs_det_scores.json", field: "generated", every: 24 },
+   { name: "AIFS z500 loop", src: "assets/sst/anim/aifs_z500_manifest.json", field: "ver", every: 24 },
+ ]},
+ { title: "Observations", page: "asos5.html", items: [
+   { name: "ASOS 5-minute", src: RAW + "asos5-data/asos5_latest.json", field: "generated_utc", every: 1 },
+   { name: "Soundings mirror", src: RAW + "skewt-data/manifest.json", field: "generated", every: 6 },
+   { name: "Sounding gaps", src: "skewt/gaps.json", field: "updated", every: 24 * 5 },
+   { name: "Colombia radar", note: "weekly, newest scan day", src: "radar/index.json", field: "@radar", every: 24 * 7, dateOnly: true },
+   { name: "Visitor stats", src: "assets/site_stats/visitor_stats.json", field: "updated", every: 24, dateOnly: true },
+ ]},
+];
+
+// ---- timestamp parsing -----------------------------------------------------
+function parseWhen(v) {
+  if (v == null) return null;
+  if (typeof v === "number") return new Date((v < 1e11 ? v * 1000 : v));
+  const s = String(v).trim();
+  let m;
+  if ((m = s.match(/^(\d{4})(\d{2})(\d{2})(\d{2})?$/)))            // 2026090112 / 20260901
+    return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], m[4] ? +m[4] : 0));
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):?(\d{2})?Z?$/)))   // 2026-09-01 12Z, 2026-09-01T12:00Z
+    return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], m[5] ? +m[5] : 0));
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}) UTC$/)))
+    return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]));
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)))
+    return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+function dig(obj, path) {
+  if (path === "@radar") {                     // newest day across every radar
+    let best = null;
+    for (const r of Object.values(obj.radars || {}))
+      for (const d of Object.keys(r)) if (!best || d > best) best = d;
+    return best;
+  }
+  let cur = obj;
+  for (const part of path.split(".")) {
+    const m = part.match(/^(\w+)\[(-?\d+)\]$/);
+    if (m) { cur = cur?.[m[1]]; const i = +m[2]; cur = cur?.[i < 0 ? cur.length + i : i]; }
+    else cur = cur?.[part];
+    if (cur == null) return null;
+  }
+  return cur;
+}
+
+// ---- sources ---------------------------------------------------------------
+const bust = () => "?v=" + Math.floor(Date.now() / 300000);
+async function fromJson(it) {
+  const r = await fetch(it.src + bust(), { cache: "no-store" });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return parseWhen(dig(await r.json(), it.field));
+}
+const CK = "status.commit.";
+async function fromCommit(it) {
+  const key = CK + it.src, hit = (() => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } })();
+  if (hit && Date.now() - hit.t < 600000) return new Date(hit.when);
+  const branch = it.branch || "main";
+  const r = await fetch(`https://api.github.com/repos/scorvec/scorvec.github.io/commits?path=${encodeURIComponent(it.src)}&sha=${branch}&per_page=1`);
+  if (r.status === 403 || r.status === 429) throw new Error("API budget");
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const j = await r.json();
+  if (!j.length) return null;
+  const when = j[0].commit.committer.date;
+  try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), when })); } catch {}
+  return new Date(when);
+}
+
+// ---- rendering -------------------------------------------------------------
+const fmtWhen = d => d.toISOString().slice(0, 16).replace("T", " ") + "Z";
+function fmtAge(h) {
+  if (h < 1) return Math.round(h * 60) + " min";
+  if (h < 48) return h.toFixed(h < 10 ? 1 : 0) + " h";
+  return (h / 24).toFixed(1) + " d";
+}
+function fmtCad(h) {
+  if (h < 24) return "every " + h + " h";
+  if (h % 168 === 0) return "weekly";
+  if (h >= 24 * 28) return "monthly";
+  return "every " + (h / 24) + " d";
+}
+function judge(it, when) {
+  if (!when) return { cls: "unk", label: "no data", age: null };
+  let ageH = (Date.now() - when.getTime()) / 36e5;
+  if (it.dateOnly) ageH -= 24;                  // judged at the end of the named day
+  if (it.init) ageH -= 3;                       // model init precedes availability by a few hours
+  if (it.lag) ageH -= it.lag;                   // known source latency (MUR, TAO publish ~2 days behind)
+  const shown = (Date.now() - when.getTime()) / 36e5;
+  if (ageH > 2.5 * it.every) return { cls: "stale", label: "stale", age: shown };
+  if (ageH > 1.5 * it.every) return { cls: "late", label: "late", age: shown };
+  return { cls: "ok", label: "on time", age: shown };
+}
+
+async function check(it) {
+  try {
+    const when = it.kind === "commit" ? await fromCommit(it) : await fromJson(it);
+    return { when, ...judge(it, when) };
+  } catch (e) {
+    return { when: null, cls: "unk", label: e.message === "API budget" ? "API limit" : "unreachable", age: null };
+  }
+}
+
+async function run() {
+  const groupsEl = document.getElementById("groups");
+  groupsEl.innerHTML = "";
+  const tally = { ok: 0, late: 0, stale: 0, unk: 0 };
+  const jobs = [];
+  for (const g of GROUPS) {
+    const h = document.createElement("h2");
+    h.innerHTML = `${g.title} <a href="${g.page}">${g.page} →</a>`;
+    const t = document.createElement("table");
+    t.innerHTML = `<thead><tr><th>Product</th><th>Last update</th><th>Age</th><th class="cad">Cadence</th><th>Status</th></tr></thead><tbody></tbody>`;
+    const tb = t.querySelector("tbody");
+    for (const it of g.items) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="name">${it.name}${it.note ? `<small>${it.note}</small>` : ""}</td>
+        <td class="when">…</td><td class="age"></td><td class="cad">${fmtCad(it.every)}</td>
+        <td class="st"><span class="pill unk">checking</span></td>`;
+      tb.appendChild(tr);
+      jobs.push(check(it).then(res => {
+        tr.className = res.cls;
+        tr.querySelector(".when").textContent = res.when ? fmtWhen(res.when) : "—";
+        tr.querySelector(".age").textContent = res.age != null ? fmtAge(res.age) + " ago" : "";
+        tr.querySelector(".st").innerHTML = `<span class="pill ${res.cls}">${res.label}</span>`;
+        tally[res.cls]++;
+      }));
+    }
+    groupsEl.appendChild(h); groupsEl.appendChild(t);
+  }
+  await Promise.all(jobs);
+  const n = GROUPS.reduce((a, g) => a + g.items.length, 0);
+  document.getElementById("totals").innerHTML =
+    `<span class="tot ok"><b>${tally.ok}</b> on time</span>
+     <span class="tot late"><b>${tally.late}</b> late</span>
+     <span class="tot stale"><b>${tally.stale}</b> stale</span>
+     ${tally.unk ? `<span class="tot"><b>${tally.unk}</b> unknown</span>` : ""}
+     <span class="tot">${n} products</span>
+     <span class="checked">checked ${fmtWhen(new Date())}</span>`;
+  document.title = (tally.stale ? `${tally.stale} stale · ` : tally.late ? `${tally.late} late · ` : "all fresh · ") + "Product freshness";
+}
+run();
+setInterval(run, 300000);
+</script>
+</body>
+</html>
