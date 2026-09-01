@@ -72,11 +72,11 @@ REGIONS = {
     "pacsat": dict(extent=(100, 290, -40, 40), clon=180.0, figsize=(12.4, 5.6),
                    dlon=20, dlat=20, where="tropical Pacific",
                    label="Tropical Pacific IR (GMGSI)",
-                   scale="110m", borders=False, states=None, dpi=92),
+                   scale="110m", borders=False, states=None, dpi=200),
     "samsat": dict(extent=(245, 330, -58, 32), clon=287.5, figsize=(8.6, 9.2),
                    dlon=15, dlat=15, where="South & Central America",
                    label="South & Central America IR (GMGSI)",
-                   scale="50m", borders=True, states="Brazil", dpi=140),
+                   scale="50m", borders=True, states="Brazil", dpi=200),
 }
 
 
@@ -169,9 +169,22 @@ def render_frame(dt: datetime, out: Path, cfg: dict) -> bool:
     map_grid.add_ref_lines(ax, (lo0, lo1, la0, la1), color="w", lw=1.0)
     ax.set_title(f"GMGSI enhanced IR — {cfg['where']}  ·  {dt:%Y-%m-%d %HZ}  ·  "
                  "colour = deep convection (cold tops)", fontsize=9, loc="left")
-    fig.savefig(out, dpi=cfg.get("dpi", 92), bbox_inches="tight",
-                pil_kwargs={"quality": 78, "method": 6}); plt.close(fig)
+    # 200 dpi puts the Pacific frame at ~2030 px across, close to the GMGSI
+    # mosaic's own 0.07 deg pixels; the 92 dpi / 934 px frames were a 3x
+    # downsample that read as blurry (2026-09-01). ~380 KB a frame at q80.
+    fig.savefig(out, dpi=cfg.get("dpi", 200), bbox_inches="tight",
+                pil_kwargs={"quality": 80, "method": 6}); plt.close(fig)
     return True
+
+
+def _undersized(fp: Path, cfg: dict) -> bool:
+    """A frame rendered before a resolution bump, to be replaced in place."""
+    try:
+        from PIL import Image
+        with Image.open(fp) as im:
+            return im.size[0] < 0.8 * cfg["figsize"][0] * cfg.get("dpi", 200)
+    except Exception:
+        return True
 
 
 def main(argv=None) -> int:
@@ -188,7 +201,7 @@ def main(argv=None) -> int:
     for h in range(min(args.hours, KEEP_H) - 1, -1, -1):       # render only missing frames
         dt = now - timedelta(hours=h)
         fp = anim / f"{dt:%Y%m%d%H}.webp"
-        if not fp.exists() and render_frame(dt, fp, cfg):
+        if (not fp.exists() or _undersized(fp, cfg)) and render_frame(dt, fp, cfg):
             print(f"  rendered {dt:%Y-%m-%d %HZ}", flush=True)
     # trim frames older than the rolling window + build the manifest from what remains
     cutoff = now - timedelta(hours=KEEP_H)
