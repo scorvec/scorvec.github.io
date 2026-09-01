@@ -9,8 +9,13 @@ on:
     - cron: '37 8 * * *'
   workflow_dispatch:
 
+# mjo.yml requests actions:write (it re-opens its own slot on failure). A
+# reusable workflow cannot hold MORE permission than its caller, so a caller
+# granting only contents:write is rejected at startup - which is exactly how
+# the 20Z slot died on 2026-09-01, before any step ran.
 permissions:
   contents: write
+  actions: write
 
 jobs:
   run:
