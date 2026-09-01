@@ -126,7 +126,13 @@ def fetch(date: str, cyc: str, lead: int, var: str) -> Path | None:
             data = r.read()
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
         return None
-    tmp = Path(tempfile.mkstemp(suffix=".grib2")[1])
+    # mkstemp returns an OPEN fd alongside the path; keeping only the path
+    # leaks it (unlink drops the name, not the descriptor). This runs ~320
+    # times per cycle, so the leak is real even if the runner's limit
+    # usually absorbs it. Same bug as geps_subx/forecast.py::_grab.
+    _fd, _name = tempfile.mkstemp(suffix=".grib2")
+    os.close(_fd)
+    tmp = Path(_name)
     tmp.write_bytes(data)
     return tmp
 
@@ -149,19 +155,61 @@ def _grab_map(date: str, cyc: str, lead: int, var: str, extent) -> xr.DataArray 
     return da
 
 
+WORKERS = int(os.environ.get("GDPS_WORKERS", "8"))    # 1 = old serial behaviour
+CHUNK = int(os.environ.get("GDPS_CHUNK", "8"))        # leads fetched concurrently
+
+
+def _grab_chunk(date, cyc, leads, varnames, extent):
+    """Fetch several (lead, var) fields CONCURRENTLY -> {(lead, var): DataArray}.
+
+    The three GDPS loops were strictly serial fetch -> render -> next, and the
+    fetch is a Datamart download: ~320 of them per cycle for the outflow loop
+    alone. Rendering is not the bottleneck - a full wind frame measures 0.9 s
+    locally with every real contourf/contour/barb call - so concurrency belongs
+    on the I/O, not on matplotlib (which is not thread-safe anyway).
+
+    Chunked rather than all-at-once on purpose: the outflow and IR loops were
+    written to stream so ~80 field triples never sit in memory together, and
+    prefetching everything would throw that property away. A chunk holds CHUNK
+    triples, not one and not eighty.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    jobs = [(l, v) for l in leads for v in varnames]
+    if WORKERS <= 1:
+        return {(l, v): _grab_map(date, cyc, l, v, extent) for l, v in jobs}
+    out = {}
+    with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+        futs = {ex.submit(_grab_map, date, cyc, l, v, extent): (l, v)
+                for l, v in jobs}
+        for f in futs:
+            pass
+        for f, key in futs.items():
+            try:
+                out[key] = f.result()
+            except Exception:                              # noqa: BLE001
+                out[key] = None
+    return out
+
+
+def _chunks(seq, n):
+    for i in range(0, len(seq), n):
+        yield seq[i:i + n]
+
+
 def collect_maps(date: str, cyc: str) -> dict | None:
     """Per-forecast-day map fields (surface u/v/mslp + 150 hPa u/v), or None
     if the cycle is incomplete."""
     maps, leads_ok = [], []
-    for lead in LEADS:
-        f = {k: _grab_map(date, cyc, lead, k, EXTENT)
-             for k in ("u", "v", "p")}
-        if any(v is None for v in f.values()):
-            print(f"  {date} {cyc}Z +{lead:03d}h: map fields missing — skipped",
-                  flush=True)
-            continue
-        maps.append(f)
-        leads_ok.append(lead)
+    for group in _chunks(list(LEADS), CHUNK):
+        got = _grab_chunk(date, cyc, group, ("u", "v", "p"), EXTENT)
+        for lead in group:
+            f = {k: got.get((lead, k)) for k in ("u", "v", "p")}
+            if any(v is None for v in f.values()):
+                print(f"  {date} {cyc}Z +{lead:03d}h: map fields missing — skipped",
+                      flush=True)
+                continue
+            maps.append(f)
+            leads_ok.append(lead)
     if len(leads_ok) < MIN_LEADS:
         print(f"  {date} {cyc}Z: only {len(leads_ok)} days — cycle incomplete",
               flush=True)
@@ -338,19 +386,20 @@ def build_outflow_loop(date: str, cyc: str, init: pd.Timestamp) -> None:
     for old in anim.glob("F*.webp"):
         old.unlink()
     entries, made = [], 0
-    for lead in IR_LEADS:
-        u = _grab_map(date, cyc, lead, "u150", EXTENT_150)
-        v = _grab_map(date, cyc, lead, "v150", EXTENT_150)
-        z = _grab_map(date, cyc, lead, "z150", EXTENT_150)
-        if u is None or v is None or z is None:
-            print(f"  150 hPa +{lead:03d}h: missing — skipped", flush=True)
-            continue
-        fp = anim / f"F{lead:03d}.webp"
-        render_outflow_frame(u, v, z, init, lead, fp)
-        valid = init + pd.Timedelta(hours=lead)
-        entries.append({"idx": made, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
-                        "label": f"F{lead:03d} · {valid:%Y-%m-%d %H}Z"})
-        made += 1
+    for group in _chunks(list(IR_LEADS), CHUNK):
+        got = _grab_chunk(date, cyc, group, ("u150", "v150", "z150"), EXTENT_150)
+        for lead in group:
+            u, v, z = (got.get((lead, k)) for k in ("u150", "v150", "z150"))
+            if u is None or v is None or z is None:
+                print(f"  150 hPa +{lead:03d}h: missing — skipped", flush=True)
+                continue
+            fp = anim / f"F{lead:03d}.webp"
+            render_outflow_frame(u, v, z, init, lead, fp)
+            valid = init + pd.Timedelta(hours=lead)
+            entries.append({"idx": made, "file": fp.name,
+                            "date": f"{valid:%Y-%m-%d}",
+                            "label": f"F{lead:03d} · {valid:%Y-%m-%d %H}Z"})
+            made += 1
     mani = {"ver": f"{init:%Y%m%d%H}",
             "regions": {"gdps_outflow": {"label": "GDPS 150 hPa wind",
                                          "frames": entries}}}
@@ -410,18 +459,21 @@ def build_ir_loop(date: str, cyc: str, init: pd.Timestamp) -> None:
     for old in anim.glob("F*.webp"):
         old.unlink()
     entries, made = [], 0
-    for lead in IR_LEADS:
-        da = _grab_map(date, cyc, lead, "olr", IR_EXTENT)
-        if da is None:
-            print(f"  IR +{lead:03d}h: missing — skipped", flush=True)
-            continue
-        fp = anim / f"F{lead:03d}.webp"
-        render_ir_frame(olr_to_tb(da.values), da.latitude.values,
-                        da.longitude.values, init, lead, fp)
-        valid = init + pd.Timedelta(hours=lead)
-        entries.append({"idx": made, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
-                        "label": f"F{lead:03d} · {valid:%Y-%m-%d %H}Z"})
-        made += 1
+    for group in _chunks(list(IR_LEADS), CHUNK):
+        got = _grab_chunk(date, cyc, group, ("olr",), IR_EXTENT)
+        for lead in group:
+            da = got.get((lead, "olr"))
+            if da is None:
+                print(f"  IR +{lead:03d}h: missing — skipped", flush=True)
+                continue
+            fp = anim / f"F{lead:03d}.webp"
+            render_ir_frame(olr_to_tb(da.values), da.latitude.values,
+                            da.longitude.values, init, lead, fp)
+            valid = init + pd.Timedelta(hours=lead)
+            entries.append({"idx": made, "file": fp.name,
+                            "date": f"{valid:%Y-%m-%d}",
+                            "label": f"F{lead:03d} · {valid:%Y-%m-%d %H}Z"})
+            made += 1
     mani = {"ver": f"{init:%Y%m%d%H}",
             "regions": {"gdps_ir": {"label": "GDPS simulated IR — forecast loop",
                                     "frames": entries}}}
