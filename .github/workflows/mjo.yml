@@ -12,7 +12,23 @@ on:
   # firing was a coin flip. The dispatcher now fires each slot on time
   # AND re-opens a slot whose run FAILED after 120 min, so the retry
   # belongs to the trigger rather than to asking for the job twice.
+  # date/time MUST be declared HERE, not only under workflow_dispatch. The job
+  # body reads ${{ inputs.date }} / ${{ inputs.time }}, and under workflow_call
+  # the `inputs` context holds ONLY the workflow_call inputs — an undeclared
+  # reference is invalid and the run dies with startup_failure before a single
+  # step runs. That is what killed the 20Z caller on 2026-09-01.
   workflow_call:
+    inputs:
+      date:
+        description: 'Init date YYYYMMDD (empty = latest available)'
+        type: string
+        required: false
+        default: ''
+      time:
+        description: 'Init hour 00 or 12 (empty = latest available)'
+        type: string
+        required: false
+        default: ''
   workflow_dispatch:
     inputs:
       date:
