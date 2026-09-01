@@ -135,6 +135,23 @@ jobs:
       - name: Warm-water volume orbit
         run: python scripts/sst/wwv_orbit.py || echo "WWV orbit failed; continuing"
 
+      # THE MUR SERIES CACHE. Without this the step costs 40 min - 72% of the
+      # whole job - and it is not MUR being slow. scripts/sst/data/ is gitignored
+      # (.gitignore:15), so nino34_series.json never reaches a runner, and
+      # mur_nino34.py falls back to `start = MUR_START if s.empty`: it re-fetches
+      # the ENTIRE record from ERDDAP every run. With the series restored it
+      # fetches only the days it is missing, which is one or two.
+      #
+      # run_id in the key so every run writes a fresh entry, restore-keys to fall
+      # back to the newest previous one - the read-only pattern, since a fixed key
+      # would save once and then never update as the series grows.
+      - uses: actions/cache@v6
+        with:
+          path: scripts/sst/data/mur
+          key: mur-nino34-series-${{ github.run_id }}
+          restore-keys: |
+            mur-nino34-series-
+
       - name: MUR 1 km Nino-3.4 vs OISST
         run: python scripts/sst/mur_nino34.py || echo "MUR Nino-3.4 failed; keeping previous figure"
 
