@@ -37,7 +37,14 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # 90, not 60. The job legitimately runs ~56 min and one firing already died
+    # at 60m21s (2026-08-31 23:14Z). 'MUR 1 km Nino-3.4 vs OISST' alone is
+    # 40.3 min of that - 72% of the job - because mur_nino34.py pulls MUR 1 km
+    # granules from ERDDAP. It cannot simply move to mur-sst.yml: it reads
+    # assets/data/enso_daily.json, which the OISST step earlier in THIS job
+    # produces, so splitting it would score MUR against the previous cycle's
+    # OISST. Raising the cap is the honest fix until that tradeoff is decided.
+    timeout-minutes: 90
     env:
       MPLBACKEND: Agg
       SST_SITE_ROOT: ${{ github.workspace }}
