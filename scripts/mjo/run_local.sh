@@ -153,14 +153,8 @@ fi
 # Build the page + publish RMM. Runs even when the plot already existed (e.g. an
 # earlier run was interrupted before its commit); commit_push no-ops when clean.
 ( cd "$REPO" && "$PY" scripts/mjo/generate_page.py )
-# degree-day surprise tracker: page PARKED (local_archive/degree_days,
-# 2026-08-16) but the per-cycle archive keeps accumulating so the revision
-# history is deep when it returns; the webp renders locally only.
-"$PY" "$REPO/scripts/energy/dd_surprise.py" --date "$DATE" --time "$TIME" \
-  || echo "degree-day tracker failed; continuing"
 ( cd "$REPO" && git add assets/mjo/ mjo.html scripts/mjo/data/reference/obs_history.nc \
     scripts/mjo/data/reference/ensmean_history.json \
-    scripts/energy/data/dd_archive.json \
     && commit_push "data update: ${COMPACT} (r)" )
 
 # ── Stage 2: dependency-tracked PARALLEL product groups (2026-07-24) ──────────
