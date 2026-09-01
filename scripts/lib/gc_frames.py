@@ -46,6 +46,12 @@ PROTECT_PREFIXES = (
     "assets/brazil/anim",
     "assets/sfs/anim",
     "assets/sst/anim/gatun",
+    # The IMERG precip loops: rendered by imerg_precip.py / imerg_precip_anom.py
+    # / imerg_gatun.py and consumed by gatun/index.html, whose manifest is not
+    # tracked on main - so they look exactly like orphans and were reported as
+    # "needs a decision" (167 frames) on EVERY daily run. They are live; the
+    # recurring false positive was the only thing wrong with them.
+    "assets/sst/anim/precip",
 )
 
 
