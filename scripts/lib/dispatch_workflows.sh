@@ -74,8 +74,17 @@ strat.yml|19:35|-f publish=true
 gdps-charts.yml|06:20|-f cycle=00
 gdps-charts.yml|18:20|-f cycle=12
 soi-hourly.yml|*:12|
-pacific-satellite.yml|*:40|
-samerica-satellite.yml|*:25|
+# The two hourly satellite loops were merged into satellite-loops.yml on
+# 2026-08-31 and their workflow files deleted; these entries kept pointing at
+# workflows that no longer exist, so the dispatcher reported them overdue for
+# a day and dispatched nothing, while the MERGED job had no laptop path at all
+# and fell back to the queue. Six slots, matching its per-hour callers.
+satellite-loops.yml|01:40|
+satellite-loops.yml|05:40|
+satellite-loops.yml|09:40|
+satellite-loops.yml|13:40|
+satellite-loops.yml|17:40|
+satellite-loops.yml|21:40|
 olr-hovmoller.yml|01:25|
 olr-hovmoller.yml|07:25|
 olr-hovmoller.yml|13:25|
