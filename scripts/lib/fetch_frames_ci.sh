@@ -19,6 +19,12 @@ set -uo pipefail
 
 [ $# -gt 0 ] || { echo "usage: $0 <frame-dir> [frame-dir ...]"; exit 2; }
 BRANCH="${FRAMES_BRANCH:-frames}"
+
+. "$(dirname "$0")/frames_env.sh"
+if frames_store_ready; then
+  "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" seed ${EXCLUDE:+--exclude "$EXCLUDE"} "$@"
+  exit 0
+fi
 REPO_URL="https://github.com/${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}.git"
 
 TMP=$(mktemp -d)

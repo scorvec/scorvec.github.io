@@ -49,6 +49,28 @@ if ! mkdir "$LOCK" 2>/dev/null; then
 fi
 trap 'rm -rf "$LOCK" 2>/dev/null' EXIT
 
+# Object store: every immediate product directory under the anim roots that
+# exists on this disk, guarded so a directory CI renders (ECAPE, the strat
+# loops) is never overwritten by a stale local leftover - the same 12 h rule the
+# branch carry-over below applies. Per-directory writes, so nothing needs to
+# be "carried over": what this machine does not render is simply not touched.
+. "$REPO/scripts/lib/frames_env.sh"
+if frames_store_ready; then
+  subs=()
+  for d in "${DIRS[@]}"; do
+    for sub in "$d"/*/; do
+      sub="${sub%/}"; [ -d "$sub" ] || continue
+      [ -n "$(find "$sub" -name '*.webp' -type f -print -quit 2>/dev/null)" ] && subs+=("$sub")
+    done
+  done
+  [ ${#subs[@]} -gt 0 ] && "$FRAMES_PY" "$REPO/scripts/lib/frames_store.py" sync --guard-stale "${subs[@]}"
+  if [ -n "${PRUNE:-}" ]; then
+    pp=(); for name in $PRUNE; do for d in "${DIRS[@]}"; do pp+=("$d/$name"); done; done
+    "$FRAMES_PY" "$REPO/scripts/lib/frames_store.py" prune "${pp[@]}"
+  fi
+  [ "${FRAMES_BRANCH:-frames}" = "off" ] && { echo "published to the frames store"; exit 0; }
+fi
+
 FP="$(fingerprint)"
 if [ "${1:-}" != "--force" ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP")" = "$FP" ]; then
   echo "frames unchanged — nothing to publish"; exit 0

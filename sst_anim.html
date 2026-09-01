@@ -176,6 +176,7 @@
   <span class="hint">Space play &middot; &larr; &rarr; step &middot; Home/End jump</span>
 </div>
 
+<script src="assets/frames_root.js"></script>
 <script>
 const ANIM_BASE = new URLSearchParams(location.search).get("base") || "assets/sst/anim";
 // Frame webp live on the orphan `frames` branch, not on main — the daily churn
@@ -184,7 +185,7 @@ const ANIM_BASE = new URLSearchParams(location.search).get("base") || "assets/ss
 // needs no CORS; only <img> goes cross-origin, and images never need CORS.
 // An explicit absolute ?base= (or a relative one outside assets/sst/anim) is
 // honoured for both, so callers can still point the viewer anywhere.
-const FRAME_ROOT = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
+const FRAME_ROOT = window.FRAME_ROOT;   // assets/frames_root.js
 // Only the directories publish_frames.sh actually mirrors live on that branch, and they
 // are all `assets/<product>/anim`. mjo.html passes base=assets (its frames sit in
 // assets/mjo/ on main) — routing it to the branch 404s every frame. Anything that is not

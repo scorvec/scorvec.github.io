@@ -18,6 +18,14 @@ on:
   workflow_call:
   workflow_dispatch:
 
+# Frame store (Cloudflare R2, S3 API). Absent secrets leave these empty and the
+# publishers fall back to the orphan `frames` branch - see scripts/lib/frames_env.sh.
+env:
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+
 permissions:
   contents: write
 

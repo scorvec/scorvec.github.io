@@ -64,6 +64,7 @@
   </select>
   <span id="label">&mdash;</span>
 </div>
+<script src="assets/frames_root.js"></script>
 <script>
 (function () {
   "use strict";
@@ -78,7 +79,7 @@
   // manifests stayed, so `base` still resolves the manifest same-origin and only the
   // <img> requests below go cross-origin. The "//" guard above still rejects a
   // caller-supplied absolute base, so this root is a constant, never user input.
-  var FRAME_BASE = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/" + base;
+  var FRAME_BASE = window.FRAME_ROOT + base;   // assets/frames_root.js
   var img = document.getElementById("frame"), scrub = document.getElementById("scrub");
   var playBtn = document.getElementById("play"), label = document.getElementById("label");
   var frames = [], imgs = [], okFrame = [], cur = 0, playing = false, timer = null;

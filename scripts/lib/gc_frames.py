@@ -86,8 +86,16 @@ def referenced() -> set[str]:
 
 
 def on_branch() -> dict[str, int]:
-    """Frame directories on the branch, with their frame counts."""
+    """Frame directories in the store (when configured) or on the branch."""
     counts: dict[str, int] = {}
+    sys.path.insert(0, str(HERE))
+    import frames_store
+    if frames_store.configured():
+        s3 = frames_store.client()
+        for k in frames_store.remote_listing(s3, "assets"):
+            if k.endswith(".webp"):
+                counts[os.path.dirname(k)] = counts.get(os.path.dirname(k), 0) + 1
+        return counts
     for p in sh("git", "ls-tree", "-r", "--name-only", f"origin/{BRANCH}").split():
         if p.endswith(".webp"):
             counts[os.path.dirname(p)] = counts.get(os.path.dirname(p), 0) + 1

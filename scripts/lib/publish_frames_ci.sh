@@ -32,6 +32,17 @@ fi
 : "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 BRANCH="${FRAMES_BRANCH:-frames}"
 
+# Object store first. `sync` writes only the directories it is given, so there
+# is no race to lose here - see frames_store.py. While the viewers still read
+# the branch (FRAMES_BRANCH != off) the branch is published as well, so the two
+# stay in step until the cutover commit flips assets/frames_root.js.
+. "$(dirname "$0")/frames_env.sh"
+if frames_store_ready; then
+  [ $# -gt 0 ] && "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" sync "$@"
+  [ -n "${PRUNE:-}" ] && "$FRAMES_PY" "$FRAMES_LIB/frames_store.py" prune ${PRUNE}
+  [ "$BRANCH" = "off" ] && exit 0
+fi
+
 # [ -d ] first: under `set -euo pipefail` a find over a missing directory exits
 # non-zero, pipefail carries it through the pipe and set -e kills the script
 # before it prints anything. That cost a silent exit-1 in strat.yml on

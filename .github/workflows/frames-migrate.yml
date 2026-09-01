@@ -1,0 +1,41 @@
+name: Frames - copy the branch into the object store
+
+# ONE-SHOT, manual. Copies every frame on the orphan `frames` branch into the
+# S3 bucket the FRAMES_S3_* secrets point at, then lists what the store holds.
+# Idempotent: re-running uploads only what changed. Run it once the secrets are
+# in place, before flipping assets/frames_root.js to the bucket URL.
+on:
+  workflow_dispatch:
+
+env:
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Copy the branch into the store
+        run: |
+          set -euo pipefail
+          . scripts/lib/frames_env.sh
+          frames_store_ready || { echo "::error::FRAMES_S3_* secrets are not set"; exit 1; }
+          git clone --depth 1 --branch frames --single-branch -q \
+            "https://github.com/${GITHUB_REPOSITORY}.git" /tmp/f
+          echo "  branch: $(find /tmp/f/assets -name '*.webp' | wc -l) frames, $(du -sh /tmp/f/assets | cut -f1)"
+          cp -r /tmp/f/assets/. assets/
+          dirs=$(ls -d assets/*/anim)
+          "$FRAMES_PY" scripts/lib/frames_store.py sync $dirs
+          echo; echo "store now holds:"
+          "$FRAMES_PY" scripts/lib/frames_store.py ls | tee /tmp/ls.txt
+          { echo "## Frames store after migration"; echo '```'; cat /tmp/ls.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

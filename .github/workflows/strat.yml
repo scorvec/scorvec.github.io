@@ -45,6 +45,14 @@ on:
         description: 'Commit the figures (false = render + artifacts only)'
         default: 'false'
 
+# Frame store (Cloudflare R2, S3 API). Absent secrets leave these empty and the
+# publishers fall back to the orphan `frames` branch - see scripts/lib/frames_env.sh.
+env:
+  FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
+  FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.FRAMES_S3_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.FRAMES_S3_SECRET_ACCESS_KEY }}
+
 permissions:
   contents: write
 
@@ -358,68 +366,17 @@ jobs:
             printf '  %-38s %s frames\n' "$d" "$(ls "$d"/*.webp 2>/dev/null | wc -l | tr -d ' ')"
           done
 
-      # The loops render ~63 frames per cycle. Those must reach the frames
-      # branch or the manifests committed below point at images that exist only
+      # The loops render ~63 frames per cycle. Those must reach the frame
+      # store or the manifests committed below point at images that exist only
       # on the laptop - which is exactly what happened while this step was
-      # missing. Same clone-swap-reorphan dance ecape.yml uses: the branch also
-      # carries OISST, satellite, GDPS, ASCAT and ECAPE frames, and a plain
-      # force-push of our tree alone would delete every one of them. Only the
-      # strat subdirectories that actually rendered are swapped, never
-      # assets/sst/anim wholesale.
-      - name: Publish loop frames to the orphan branch
+      # missing. The shared publisher swaps in only the directories that
+      # rendered; an empty one is left alone rather than blanked.
+      - name: Publish loop frames
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
-          # count_frames, not a bare find: under `set -euo pipefail` a find over
-          # a MISSING directory exits non-zero, pipefail carries that through the
-          # pipe, and set -e kills the step before it prints anything. The
-          # 13:11Z run died exactly that way - exit 1, zero output - because a
-          # product this job had not received simply has no directory here. In
-          # the old single job the render step always created them in the same
-          # workspace, so the bug could not show.
-          count_frames() {
-            [ -d "$1" ] || { echo 0; return 0; }
-            find "$1" -name '*.webp' 2>/dev/null | wc -l | tr -d ' '
-          }
-          n=0
-          for d in epflux wave1_nh wave1_sh vortex_10 vortex_100; do
-            c=$(count_frames "assets/sst/anim/$d")
-            echo "  $d: $c frames"; n=$((n + c))
-          done
-          if [ "$n" -eq 0 ]; then
-            echo "::warning::no loop frames rendered; leaving the frames branch alone"; exit 0
-          fi
-          TMP=$(mktemp -d)
-          URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          if git clone --depth 1 --branch frames --single-branch -q "$URL" "$TMP/f"; then
-            echo "  cloned frames branch ($(du -sh "$TMP/f" | cut -f1))"
-          else
-            echo "  no frames branch yet - creating one"
-            mkdir -p "$TMP/f" && git -C "$TMP/f" init -q && git -C "$TMP/f" remote add origin "$URL"
-          fi
-          for d in epflux wave1_nh wave1_sh vortex_10 vortex_100; do
-            # A product that did not render must not blank its directory on the
-            # branch, so an empty one is skipped rather than swapped in.
-            c=$(count_frames "assets/sst/anim/$d")
-            if [ "$c" -eq 0 ]; then
-              echo "  $d: nothing rendered, leaving the branch copy"; continue
-            fi
-            rm -rf "$TMP/f/assets/sst/anim/$d"
-            mkdir -p "$TMP/f/assets/sst/anim"
-            cp -r "assets/sst/anim/$d" "$TMP/f/assets/sst/anim/"
-            # manifests live on main for the same-origin fetch
-            find "$TMP/f/assets/sst/anim/$d" -name '*_manifest.json' -delete
-          done
-          cd "$TMP/f"
-          git config user.name "Shawn Corvec"
-          git config user.email "shawncorvec@hotmail.com"
-          git checkout -q --orphan fresh
-          git add -A
-          if git diff --cached --quiet; then echo "no frame changes"; exit 0; fi
-          git commit -q -m "animation frames $(date -u +%Y-%m-%dT%H:%MZ)"
-          git push --force -q origin fresh:frames
-          echo "  pushed $(find assets -name '*.webp' | wc -l) frames total"
+          scripts/lib/publish_frames_ci.sh assets/sst/anim/epflux assets/sst/anim/wave1_nh \
+            assets/sst/anim/wave1_sh assets/sst/anim/vortex_10 assets/sst/anim/vortex_100
 
       # Only the static figures and the manifests are committed to main.
       - name: Commit & push

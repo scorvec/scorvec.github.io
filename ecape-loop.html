@@ -151,6 +151,7 @@
   <p>Rendered locally and pushed; the timestamp in each frame title is authoritative. Fuller methodology on the <a href="ecape.html">ECAPE page</a>.</p>
 </div>
 
+<script src="assets/frames_root.js"></script>
 <script>
 "use strict";
 // Frames live on the orphan `frames` branch (see scripts/lib/publish_frames.sh):
@@ -158,7 +159,7 @@
 // history collapse. The manifest stays on main so this fetch is same-origin;
 // only <img> goes cross-origin, and images never need CORS.
 var ANIM_BASE  = "assets/ecape/anim";
-var FRAME_ROOT = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
+var FRAME_ROOT = window.FRAME_ROOT;   // assets/frames_root.js
 
 // One line of orientation per field. Someone can land on this page directly -
 // it is unlinked but shareable - so the active field has to explain itself
