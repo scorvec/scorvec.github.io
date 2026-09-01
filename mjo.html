@@ -49,9 +49,13 @@
                border-radius: 4px; transition: border-color .15s; }
   .thumb:hover img { border-color: var(--accent); }
   .thumb span { display: block; margin-top: 0.35rem; }
-  .anim-embed { width: 100%; max-width: min(72vh, 920px); margin: 0 auto; display: block;
+  /* Plot is 1259×1140 + a ~70px control row; the animator caps it at 88% of the
+     window height, so the width that fits is (88vh - 70px) × 1259/1140 - the old
+     72vh / 920px cap left a third of a laptop screen unused. */
+  .anim-embed { width: 100%; max-width: min(100%, calc((88vh - 70px) * 1259 / 1140));
+               margin: 0 auto; display: block;
                border: 1px solid var(--rule); border-radius: 6px; background: #0f0f0d;
-               aspect-ratio: 1259 / 1235; }
+               aspect-ratio: 1259 / 1210; max-height: 92vh; }
   @media (max-width: 768px) { .anim-embed { aspect-ratio: 1259 / 1330; } }
   .meta { color: var(--muted); font-size: 0.8rem; margin-top: 2.5rem;
           border-top: 1px solid var(--rule); padding-top: 1rem; }
@@ -99,8 +103,15 @@
     var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
     var fr = document.querySelectorAll('iframe.anim-embed');
     for (var i = 0; i < fr.length; i++) {
-      if (fr[i].contentWindow === e.source) { fr[i].style.height = d.h + 'px'; fr[i].style.aspectRatio = 'auto'; }
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + 'px'; fr[i].style.aspectRatio = 'auto'; fr[i].style.maxHeight = 'none';
+        fr[i].style.maxWidth = d.w ? d.w + 'px' : '';   // hug the height-capped plot (see sst.html)
+      }
     }
+  });
+  addEventListener('resize', function () {
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) fr[i].style.maxWidth = '';
   });
 </script>
 </body>

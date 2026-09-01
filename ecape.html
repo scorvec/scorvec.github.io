@@ -51,8 +51,8 @@
                 border: 1px solid var(--rule); background: #fff; border-radius: 6px;
                 cursor: pointer; color: #333; }
   .run-picker button.on { background: #1f4e9c; border-color: #1f4e9c; color: #fff; }
-  .anim-embed { width: 100%; border: 0; display: block; background: var(--bg);
-                aspect-ratio: 1380 / 887; }   /* frame 1380x817 + ~70px controls */
+  .anim-embed { width: 100%; border: 0; display: block; background: var(--bg); margin: 0 auto;
+                aspect-ratio: 1380 / 887; max-height: 92vh; }   /* frame 1380x817 + ~70px controls */
   .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
   @media (max-width: 1100px) { .pair { grid-template-columns: 1fr; } }
   .colophon { margin-top: 2.5rem; padding-top: 1.8rem; border-top: 1px solid var(--rule);
@@ -145,8 +145,19 @@
       if (fr[i].contentWindow === e.source) {
         fr[i].style.height = d.h + 'px';
         fr[i].style.aspectRatio = 'auto';
+        fr[i].style.maxHeight = 'none';
+        // d.w = the width the frame actually renders at when it is height-capped
+        // (portrait/square loops); pin the iframe to it so it hugs the picture and
+        // centres. 0 = the frame fills the width, no pin.
+        fr[i].style.maxWidth = d.w ? d.w + 'px' : '';
       }
     }
+  });
+  // A pinned width must be released when the window grows, or the loop could
+  // never re-expand; the animator re-measures and re-posts as soon as it widens.
+  addEventListener('resize', function () {
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) fr[i].style.maxWidth = '';
   });
 </script>
 <script>

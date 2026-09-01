@@ -159,15 +159,21 @@
      sized to its exact content height via postMessage (see footer.html / sst_anim.html),
      which fills the card with no letterboxing at any width. */
   .anim-embed { width: 100%; border: 0; display: block; background: var(--bg);
-                aspect-ratio: 27 / 25; }
-  /* frames are 1080x675 (+~70px controls). Cap width from the VIEWPORT
-     HEIGHT so the whole two-panel figure + scrubber always fits the
-     monitor: H = W/1.6 + 70  =>  W <= 1.6*(88vh - 70px). */
-  .anim-embed.subsurface { aspect-ratio: 1084 / 783;
-    max-width: min(100%, calc(134vh - 112px)); margin: 0 auto; }
-  .anim-embed.torque { aspect-ratio: 1306 / 1055; }
-  .anim-embed.mmsf { aspect-ratio: 1040 / 615; }
-  .anim-embed.walker { aspect-ratio: 1245 / 590; }  /* image + controls bar */
+                margin: 0 auto; aspect-ratio: 1312 / 1080;   /* default = the OISST anomaly loop */
+                /* pre-JS ceiling: a tall placeholder (aam-zonal, torque, samsat) must not
+                   run past the viewport before the animator posts its real height */
+                max-height: 92vh; }
+  /* Once loaded, the animator also posts the width its frame actually renders at
+     (sizing is height-capped at 88vh, so a portrait or square loop is narrower than
+     the card). The host pins the iframe to that width and centres it, page-grey on
+     the sides, instead of leaving a full-width box with a small picture in the
+     middle. Per-loop caps below are only the pre-JS estimate of the same thing. */
+  .anim-embed.subsurface { aspect-ratio: 1084 / 835;   /* image 1084×783 + controls */
+    max-width: min(100%, calc((88vh - 40px) * 1084 / 783)); }
+  .anim-embed.torque { aspect-ratio: 1184 / 1030;      /* image 1184×975 + controls */
+    max-width: min(100%, calc((88vh - 40px) * 1184 / 975)); }
+  .anim-embed.mmsf { aspect-ratio: 1042 / 630; }
+  .anim-embed.walker { aspect-ratio: 1471 / 620; }  /* image 1471×566 + controls bar */
   .anim-embed.waf { aspect-ratio: 1400 / 760; }     /* image + controls bar */
   .anim-embed.jets { aspect-ratio: 1160 / 619; }    /* image 1160×569 + controls bar */
   .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
@@ -182,19 +188,22 @@
   /* An animator that has not been pulled in yet still holds its space, but an
      empty box the same colour as the page reads as broken rather than pending. */
   .anim-embed[data-src] { background: #fafafa; border: 1px solid #f0f0f0; }
-  .anim-embed.aam-zonal { aspect-ratio: 1128 / 1080; }
-  .anim-embed.ascat { aspect-ratio: 1429 / 470; }   /* image 1429×374 + controls bar */
-  .anim-embed.pacsat { aspect-ratio: 931 / 478; }   /* image 931×423 + controls bar */
-  .anim-embed.gdps-ir { aspect-ratio: 1777 / 964; } /* image 1777×909 + controls bar */
+  .anim-embed.aam-zonal { aspect-ratio: 1408 / 1000; }  /* image 1408×946 + controls bar */
+  .anim-embed.ascat { aspect-ratio: 1385 / 365; }   /* image 1385×311 + controls bar */
+  .anim-embed.mur { aspect-ratio: 3504 / 705; }     /* image 3504×650 + controls bar */
+  /* GMGSI loops re-rendered at 200 dpi on 2026-09-01: 2031×918 and 1454×1520 */
+  .anim-embed.pacsat { aspect-ratio: 2031 / 985; }  /* image 2031×918 + controls bar */
+  .anim-embed.gdps-ir { aspect-ratio: 1860 / 975; } /* image 1860×915 + controls bar */
   .anim-embed.gdps-150 { aspect-ratio: 1456 / 700; } /* image 1456×644 + controls bar */
-  .anim-embed.samsat { aspect-ratio: 1015 / 1115; }   /* image 1015×1065 + controls */
+  .anim-embed.samsat { aspect-ratio: 1454 / 1587;   /* image 1454×1520 + controls */
+    max-width: min(100%, calc((88vh - 40px) * 1454 / 1520)); }
   .anim-embed.glmden { aspect-ratio: 591 / 677; }     /* image 591×622 (map + colourbar) + controls */
   .anim-embed.precip { aspect-ratio: 771 / 823; }     /* image 771×768 (map + colourbar) + controls */
   .anim-embed.precip-anom { aspect-ratio: 768 / 823; }  /* image 768×768 (map + colourbar) + controls */
   /* near-square Americas maps: cap the whole CARD (image fills it) so it hugs the map and
      doesn't stretch tall across the wide column — the card centers, page-gray on the sides. */
   .chart-card.media-narrow { max-width: 640px; margin-inline: auto; }
-  .anim-embed.eq-cur-map { aspect-ratio: 1217 / 467; }      /* image 1217×412 + controls bar */
+  .anim-embed.eq-cur-map { aspect-ratio: 1355 / 470; }      /* image 1355×417 + controls bar */
   .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
   .img-label {
     font-size: 0.72rem; color: var(--muted);
@@ -605,7 +614,7 @@
     sequence, so the eastern Pacific visibly warms while the instability waves ripple the front.
     Click a frame to enlarge it. MUR interpolates under persistent cloud: treat the finest
     structure as analysis, not direct observation.</p>
-    <iframe data-deferred class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=mur_manifest.json&amp;region=mur_ct"
+    <iframe data-deferred class="anim-embed mur" data-src="sst_anim.html?embed=1&amp;manifest=mur_manifest.json&amp;region=mur_ct"
             title="Daily MUR SST animation of the equatorial Pacific cold tongue since event onset" loading="lazy"></iframe>
     <div class="chart-card-footer">
       <span class="chart-sources">NASA JPL MUR SST v4.1 (GHRSST L4) &middot; via NOAA CoastWatch ERDDAP &middot; ~1&ndash;2 day latency &middot; daily</span>
@@ -929,8 +938,19 @@
       if (fr[i].contentWindow === e.source) {
         fr[i].style.height = d.h + 'px';
         fr[i].style.aspectRatio = 'auto';
+        fr[i].style.maxHeight = 'none';
+        // d.w = the width the frame actually renders at when it is height-capped
+        // (portrait/square loops); pin the iframe to it so it hugs the picture and
+        // centres. 0 = the frame fills the width, no pin.
+        fr[i].style.maxWidth = d.w ? d.w + 'px' : '';
       }
     }
+  });
+  // A pinned width must be released when the window grows, or the loop could
+  // never re-expand; the animator re-measures and re-posts as soon as it widens.
+  addEventListener('resize', function () {
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) fr[i].style.maxWidth = '';
   });
   // Hourly-updating images (committed by their own GitHub Actions, not the page build):
   // load with an hour-granular cache-buster so the latest render shows without churning

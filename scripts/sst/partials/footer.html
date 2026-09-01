@@ -19,8 +19,19 @@
       if (fr[i].contentWindow === e.source) {
         fr[i].style.height = d.h + 'px';
         fr[i].style.aspectRatio = 'auto';
+        fr[i].style.maxHeight = 'none';
+        // d.w = the width the frame actually renders at when it is height-capped
+        // (portrait/square loops); pin the iframe to it so it hugs the picture and
+        // centres. 0 = the frame fills the width, no pin.
+        fr[i].style.maxWidth = d.w ? d.w + 'px' : '';
       }
     }
+  });
+  // A pinned width must be released when the window grows, or the loop could
+  // never re-expand; the animator re-measures and re-posts as soon as it widens.
+  addEventListener('resize', function () {
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) fr[i].style.maxWidth = '';
   });
   // Hourly-updating images (committed by their own GitHub Actions, not the page build):
   // load with an hour-granular cache-buster so the latest render shows without churning
