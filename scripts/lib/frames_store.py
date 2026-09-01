@@ -24,6 +24,10 @@ Environment (the same on a runner and on the laptop):
     FRAMES_S3_BUCKET      bucket name                          (required)
     FRAMES_S3_ENDPOINT    https://<account>.r2.cloudflarestorage.com (required)
     AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY                  (required)
+    FRAMES_S3_REGION      "auto" (R2) | nyc3 (DO Spaces) | us-west-004 (B2) | us-east-1
+    FRAMES_S3_ACL         "public-read" where objects are private by default
+                          (DO Spaces, B2 with a private bucket, S3 with ACLs on);
+                          unset for R2 / any bucket made public at bucket level
 Nothing set -> `configured` exits 1 and the shell wrappers fall back to the
 branch, so this can be wired in before the bucket exists.
 """
@@ -62,7 +66,8 @@ def client():
     from botocore.config import Config
     # R2 rejects the CRC-based checksum headers boto3 >= 1.36 sends by default;
     # "when_required" restores the plain MD5 behaviour R2 (and S3) accept.
-    cfg = Config(region_name="auto", max_pool_connections=WORKERS + 4,
+    cfg = Config(region_name=os.environ.get("FRAMES_S3_REGION", "auto"),
+                 max_pool_connections=WORKERS + 4,
                  retries={"max_attempts": 5, "mode": "standard"},
                  request_checksum_calculation="when_required",
                  response_checksum_validation="when_required")
@@ -127,9 +132,11 @@ def cmd_sync(dirs: list[str], guard_stale: bool) -> int:
 
         def put(k: str) -> None:
             p = loc[k]
-            s3.upload_file(str(p), bucket(), k, ExtraArgs={
-                "ContentType": CONTENT_TYPES.get(p.suffix, "application/octet-stream"),
-                "CacheControl": CACHE_CONTROL})
+            extra = {"ContentType": CONTENT_TYPES.get(p.suffix, "application/octet-stream"),
+                     "CacheControl": CACHE_CONTROL}
+            if os.environ.get("FRAMES_S3_ACL"):
+                extra["ACL"] = os.environ["FRAMES_S3_ACL"]
+            s3.upload_file(str(p), bucket(), k, ExtraArgs=extra)
 
         with ThreadPoolExecutor(WORKERS) as ex:
             list(ex.map(put, to_up))
