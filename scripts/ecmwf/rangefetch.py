@@ -167,7 +167,7 @@ def fetch(date: str, hh: str, model: str, step: int, *, param=None,
           levelist=None, numbers=None, kind: str = "pf",
           sources: list[str] | None = None, out: Path | None = None) -> bytes:
     """Top-level: index → select → coalesce → parallel ranges → GRIB bytes."""
-    idx = fetch_index(date, hh, model, step, kind, sources)
+    idx = fetch_index(date, hh, model, step, kind, sources=sources)
     want = select(idx, param=param, levelist=levelist, numbers=numbers)
     if not want:
         raise RuntimeError(f"no messages matched (param={param} lev={levelist})")
