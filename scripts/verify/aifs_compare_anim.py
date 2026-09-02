@@ -380,15 +380,44 @@ def z500_clim_on(lat, lon, doy, var="z500"):
     c = d[var][min(int(doy), 366) - 1].astype(float)             # (120, 240)
     if var == "t2m" and np.nanmean(c) > 100:
         c = c - 273.15
+    # The WB2 source grid ends at 358.5E, so the climatology's last 1.5° column
+    # (centre 359.125E) was never filled: NaN there spread into a wedge from
+    # the pole to the Greenwich meridian on every anomaly map. Fill it by
+    # wrapping between its neighbours.
+    if np.isnan(c[:, -1]).all() and not np.isnan(c[:, -2]).all():
+        c[:, -1] = 0.5 * (c[:, -2] + c[:, 0])
     clat = 90.0 - 0.25 * (np.arange(720).reshape(120, 6).mean(axis=1))
     clon = 0.25 * (np.arange(1440).reshape(240, 6).mean(axis=1))
     da = xr.DataArray(c, coords=dict(latitude=clat, longitude=clon),
                       dims=("latitude", "longitude"))
-    da = xr.concat([da, da.isel(longitude=0).assign_coords(longitude=clon[0] + 360.0)],
+    # pad BOTH ends: the 1.5° cell centres run 0.75..359.25, so a 0.25° point
+    # between 359.25 and 360 or between 0 and 0.75 fell outside the range and
+    # came back NaN - a white wedge from the pole to the Greenwich meridian
+    da = xr.concat([da.isel(longitude=-1).assign_coords(longitude=clon[-1] - 360.0),
+                    da,
+                    da.isel(longitude=0).assign_coords(longitude=clon[0] + 360.0)],
                    dim="longitude")
     lon360 = np.mod(lon, 360.0)
     out = da.interp(latitude=("y", lat), longitude=("x", lon360), method="linear").values
     return out / 10.0 if var == "z500" else out
+
+
+def _subset(lat, lon, arr, lat0, lat1, lon0, lon1):
+    """Cut a global (lat, lon) field to a lon/lat box (lon in -180..180) and
+    return 2-D meshgrids: contouring 1.3 M global points onto a projection was
+    what made a frame cost 24 s on a runner; the box is ~5% of that, and
+    transform_first=True lets cartopy project the points before contouring."""
+    lon180 = np.where(lon > 180, lon - 360, lon)
+    order = np.argsort(lon180)
+    lon180 = lon180[order]; arr = arr[:, order]
+    mi = (lat >= lat0) & (lat <= lat1)
+    mj = (lon180 >= lon0) & (lon180 <= lon1)
+    X, Y = np.meshgrid(lon180[mj], lat[mi])
+    return X, Y, arr[np.ix_(mi, mj)]
+
+
+NA_BOX = (12.0, 66.0, -150.0, -40.0)          # generous around EXTENT for the LCC corners
+TF = dict(transform_first=True)
 
 
 def _na_axes(ax, cfeature, ccrs):
@@ -421,15 +450,31 @@ def _draw_frame(job):
         clim = z500_clim_on(lat, lon, valid.dayofyear)
         for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS control")):
             z5 = F[mkey]["z"].sel(step=sd, isobaricInhPa=500).values / G / 10.0
-            z5c, lonc = add_cyclic_point(z5, coord=lon)
+            # polar view: subset to the hemisphere (the saving) but let cartopy
+            # transform the contours (transform_first folds the grid at the
+            # pole and produced a solid black frame, 2026-09-02)
+            nh = lat >= 12.0
+            latn = lat[nh]
+            # Start the longitude axis at the projection's antimeridian (80E for
+            # a -100 central meridian) so the data wrap and the map boundary
+            # coincide: otherwise contourf leaves a white seam from the pole to
+            # the boundary where its polygons are clipped.
+            lon360 = np.mod(lon, 360.0)
+            order = np.argsort(lon360)                       # -180..180 input → 0..360 monotonic
+            lon360 = lon360[order]
+            k = int(np.argmin(np.abs(lon360 - 80.0)))
+            lonr = np.concatenate([lon360[k:], lon360[:k] + 360.0])
+            zs = z5[nh][:, order]
+            z5c, lonc = add_cyclic_point(np.roll(zs, -k, axis=1), coord=lonr)
             if clim is not None:
-                ac, _ = add_cyclic_point(z5 - clim, coord=lon)
-                cf = ax.contourf(lonc, lat, ac, levels=alev, cmap="RdBu_r", extend="both",
+                a_s = (z5 - clim)[nh][:, order]
+                ac, _ = add_cyclic_point(np.roll(a_s, -k, axis=1), coord=lonr)
+                cf = ax.contourf(lonc, latn, ac, levels=alev, cmap="RdBu_r", extend="both",
                                  transform=ccrs.PlateCarree())
             else:
-                cf = ax.contourf(lonc, lat, z5c, levels=levels, cmap="turbo", extend="both",
+                cf = ax.contourf(lonc, latn, z5c, levels=levels, cmap="turbo", extend="both",
                                  transform=ccrs.PlateCarree())
-            cl = ax.contour(lonc, lat, z5c, levels=levels, colors="k", linewidths=0.55,
+            cl = ax.contour(lonc, latn, z5c, levels=levels, colors="k", linewidths=0.55,
                             transform=ccrs.PlateCarree())
             ax.clabel(cl, levels=levels[::2], fmt="%d", fontsize=6.5, inline_spacing=2)
             ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
@@ -455,18 +500,28 @@ def _draw_frame(job):
             return None
         for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS control")):
             t2 = F[mkey]["t2m"].sel(step=sd).values - 273.15
-            cf = ax.contourf(lon, lat, t2 - clim, levels=alev, cmap="RdBu_r", extend="both",
-                             transform=ccrs.PlateCarree())
-            ct = ax.contour(lon, lat, t2, levels=tlev, colors="0.25", linewidths=0.5,
-                            transform=ccrs.PlateCarree())
+            # The climatology is a DAILY MEAN (WB2), so an instantaneous field
+            # against it reads cold every morning and warm every evening. The
+            # anomaly is therefore of the 24-h mean centred on the valid time
+            # (the 6-h steps within ±12 h, truncated at the run's ends); the
+            # contours stay instantaneous.
+            steps = F[mkey]["t2m"].step.values
+            win = [st for st in steps if abs((st - sd) / np.timedelta64(1, "h")) <= 12]
+            t24 = F[mkey]["t2m"].sel(step=win).mean("step").values - 273.15
+            X, Y, T = _subset(lat, lon, t2, *NA_BOX)
+            _, _, A = _subset(lat, lon, t24 - clim, *NA_BOX)
+            cf = ax.contourf(X, Y, A, levels=alev, cmap="RdBu_r", extend="both",
+                             transform=ccrs.PlateCarree(), **TF)
+            ct = ax.contour(X, Y, T, levels=tlev, colors="0.25", linewidths=0.5,
+                            transform=ccrs.PlateCarree(), **TF)
             ax.clabel(ct, levels=tlev[::2], fmt="%d", fontsize=6, inline_spacing=2)
-            c0 = ax.contour(lon, lat, t2, levels=[0], colors="#1565c0", linewidths=1.5,
-                            transform=ccrs.PlateCarree())
+            c0 = ax.contour(X, Y, T, levels=[0], colors="#1565c0", linewidths=1.5,
+                            transform=ccrs.PlateCarree(), **TF)
             ax.clabel(c0, fmt="%d°C", fontsize=6.5, inline_spacing=2)
             _na_axes(ax, cfeature, ccrs)
             ax.set_title(name, fontsize=11.5, fontweight="bold", loc="left")
         cb = fig.colorbar(cf, ax=list(axes), orientation="horizontal", pad=0.02, fraction=0.05, aspect=48)
-        cb.set_label("2 m temperature anomaly vs 1991–2020 (°C) · contours: 2 m temperature (°C, every 5; 0 °C blue)",
+        cb.set_label("24-h mean 2 m temperature anomaly vs 1991–2020 (°C) · contours: 2 m temperature now (°C, every 5; 0 °C blue)",
                      fontsize=8.5)
         cb.ax.tick_params(labelsize=7)
         fig.suptitle(f"2 m temperature anomaly + temperature — hour {s} · valid {valid:%a %b %d %HZ}"
@@ -484,18 +539,21 @@ def _draw_frame(job):
                 pr = np.zeros_like(msl)
             else:
                 pr = d["tp"].sel(step=sd).values - d["tp"].sel(step=sd - pd.Timedelta(hours=6)).values
-            cf = ax.contourf(lon, lat, np.clip(pr, 0, None), levels=P_LEVELS, colors=P_COLORS,
-                             extend="max", transform=ccrs.PlateCarree())
+            X, Y, PR = _subset(lat, lon, np.clip(pr, 0, None), *NA_BOX)
+            _, _, TH = _subset(lat, lon, thk, *NA_BOX)
+            _, _, MS = _subset(lat, lon, msl, *NA_BOX)
+            cf = ax.contourf(X, Y, PR, levels=P_LEVELS, colors=P_COLORS,
+                             extend="max", transform=ccrs.PlateCarree(), **TF)
             for rng, col in (((410, 540), "#1565c0"), ((546, 620), "#c62828")):
-                ct = ax.contour(lon, lat, thk, levels=np.arange(rng[0], rng[1], 6), colors=col,
-                                linewidths=0.6, linestyles="--", transform=ccrs.PlateCarree())
+                ct = ax.contour(X, Y, TH, levels=np.arange(rng[0], rng[1], 6), colors=col,
+                                linewidths=0.6, linestyles="--", transform=ccrs.PlateCarree(), **TF)
                 if len(ct.levels):
                     ax.clabel(ct, levels=list(ct.levels)[::2], fmt="%d", fontsize=5.5, inline_spacing=2)
-            c540 = ax.contour(lon, lat, thk, levels=[540], colors="#1565c0", linewidths=1.6,
-                              linestyles="--", transform=ccrs.PlateCarree())
+            c540 = ax.contour(X, Y, TH, levels=[540], colors="#1565c0", linewidths=1.6,
+                              linestyles="--", transform=ccrs.PlateCarree(), **TF)
             ax.clabel(c540, fmt="%d", fontsize=6, inline_spacing=2)
-            cs = ax.contour(lon, lat, msl, levels=np.arange(940, 1061, 4), colors="k", linewidths=0.75,
-                            transform=ccrs.PlateCarree())
+            cs = ax.contour(X, Y, MS, levels=np.arange(940, 1061, 4), colors="k", linewidths=0.75,
+                            transform=ccrs.PlateCarree(), **TF)
             ax.clabel(cs, levels=np.arange(940, 1061, 8), fmt="%d", fontsize=6)
             _na_axes(ax, cfeature, ccrs)
             ax.set_title(name, fontsize=11.5, fontweight="bold", loc="left")

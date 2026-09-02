@@ -343,9 +343,12 @@ def load_clim():
     if not p.exists():
         return {}
     d = np.load(p)
-    out = {k: d[k] for k in d.files}
+    out = {k: d[k].astype(np.float32) for k in d.files}
     if "t2m" in out and np.nanmean(out["t2m"]) > 100:      # stored in K → °C
         out["t2m"] = out["t2m"] - 273.15
+    for k, c in out.items():                              # WB2 ends at 358.5E: the last
+        if c.ndim == 3 and np.isnan(c[:, :, -1]).all():   # 1.5° column was never filled,
+            c[:, :, -1] = 0.5 * (c[:, :, -2] + c[:, :, 0])   # which NaN'd stations near 0E
     return out
 
 
