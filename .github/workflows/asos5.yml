@@ -34,7 +34,7 @@ jobs:
           restore-keys: |
             asos5-cache-
       - name: Install Python dependencies
-        run: pip install numpy
+        run: pip install numpy netCDF4
       - name: Update
         run: python scripts/asos5/asos5_update.py
       - name: Push the overlay branch
