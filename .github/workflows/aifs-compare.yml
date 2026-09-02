@@ -91,7 +91,7 @@ jobs:
         timeout-minutes: 45
         run: |
           mkdir -p assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500
-          python scripts/verify/aifs_compare_anim.py \
+          python scripts/verify/aifs_compare_anim.py --engine mpl \
             --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
             || echo "AIFS comparison loops failed; continuing"
 
