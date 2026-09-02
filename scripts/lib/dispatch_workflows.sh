@@ -105,10 +105,7 @@ aam.yml|09:20|
 aam.yml|21:20|
 asos5.yml|*:05|
 asos5.yml|*:35|
-skewt-data.yml|02:35|
-skewt-data.yml|07:35|
-skewt-data.yml|14:35|
-skewt-data.yml|19:35|
+skewt-data.yml|*:50|
 olr-waves.yml|02:40|
 site-stats.yml|05:17|
 mur-sst.yml|13:47|
