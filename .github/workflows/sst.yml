@@ -139,6 +139,35 @@ jobs:
           fi
           python sst_ascat_winds.py || echo "ASCAT wind map failed; continuing"
 
+      # Copernicus Marine equatorial CURRENT products (zonal-current section
+      # loop, surface-current map loop, current + wind Hovmollers). These ran
+      # only in run_local_sst.sh and stopped with the laptop launchd job on
+      # 2026-08-29; they were left out of the offload and enso-subsurface.html
+      # froze at Aug 29. The scripts keep a latitude-mean NetCDF store under
+      # scripts/sst/data/cmems (gitignored) so a daily run downloads only the
+      # new day(s); without the cache the section rebuilds from 1 Mar 2026.
+      # Same read-only cache pattern as the MUR series below.
+      - uses: actions/cache@v6
+        with:
+          path: scripts/sst/data/cmems
+          key: cmems-eq-stores-${{ github.run_id }}
+          restore-keys: |
+            cmems-eq-stores-
+
+      - name: Equatorial current section, map, and Hovmollers (Copernicus Marine)
+        working-directory: scripts/sst
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: |
+          if [ -z "$COPERNICUSMARINE_SERVICE_USERNAME" ]; then
+            echo "Copernicus Marine credentials not set; skipping current products."; exit 0
+          fi
+          python eq_current_section.py || echo "eq current section failed; continuing"
+          python eq_current_hovmoller.py || echo "eq current hovmoller failed; continuing"
+          python eq_uwind_hovmoller.py || echo "eq uwind hovmoller failed; continuing"
+          python eq_current_map.py || echo "eq current map failed; continuing"
+
       # Products that only the laptop was building, moved here 2026-08-29 so the
       # SST pipeline no longer needs run_local_sst.sh. Each is non-fatal: a
       # single upstream outage should not take the whole cycle down, and the
