@@ -49,7 +49,9 @@ fi
 # 2026-08-30 - the step failed with zero output and a green-looking run.
 count_frames() {
   [ -d "$1" ] || { echo 0; return 0; }
-  find "$1" -name '*.webp' -type f 2>/dev/null | wc -l | tr -d ' '
+  # *.nc: the sst workflow round-trips its Copernicus stores through the
+  # branch under scripts/sst/data/cmems; they count as content too.
+  find "$1" -type f \( -name '*.webp' -o -name '*.nc' \) 2>/dev/null | wc -l | tr -d ' '
 }
 
 n=0

@@ -111,7 +111,7 @@ jobs:
       # is missing, and frames stopped arriving with the checkout when they
       # were taken off main.
       - name: Seed existing frames
-        run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat
+        run: scripts/lib/fetch_frames_ci.sh scripts/sst/data/cmems assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat
 
       - name: Build SST maps, RONI, and animation (OISST)
         run: |
@@ -143,17 +143,13 @@ jobs:
       # loop, surface-current map loop, current + wind Hovmollers). These ran
       # only in run_local_sst.sh and stopped with the laptop launchd job on
       # 2026-08-29; they were left out of the offload and enso-subsurface.html
-      # froze at Aug 29. The scripts keep a latitude-mean NetCDF store under
-      # scripts/sst/data/cmems (gitignored) so a daily run downloads only the
-      # new day(s); without the cache the section rebuilds from 1 Mar 2026.
-      # Same read-only cache pattern as the MUR series below.
-      - uses: actions/cache@v6
-        with:
-          path: scripts/sst/data/cmems
-          key: cmems-eq-stores-${{ github.run_id }}
-          restore-keys: |
-            cmems-eq-stores-
-
+      # froze at Aug 29. The scripts keep latitude-mean NetCDF stores under
+      # scripts/sst/data/cmems (gitignored): section_store.nc (every day since
+      # 1 Mar 2026, ~0.3 MB/day) and the two rolling Hovmoller stores. The
+      # stores ride the frames branch with the loops (seeded above, published
+      # below) so a run downloads ONLY the new day(s) - NO run may ever rebuild
+      # months of section from Copernicus; the laptop copies were seeded there
+      # on 2026-09-02. Frames are skipped when present, so nothing re-renders.
       - name: Equatorial current section, map, and Hovmollers (Copernicus Marine)
         working-directory: scripts/sst
         env:
@@ -167,6 +163,7 @@ jobs:
           python eq_current_hovmoller.py || echo "eq current hovmoller failed; continuing"
           python eq_uwind_hovmoller.py || echo "eq uwind hovmoller failed; continuing"
           python eq_current_map.py || echo "eq current map failed; continuing"
+          rm -f data/cmems/*_chunk.nc data/cmems/map_block.nc   # transient subsets; only the stores go back to the branch
 
       # Products that only the laptop was building, moved here 2026-08-29 so the
       # SST pipeline no longer needs run_local_sst.sh. Each is non-fatal: a
@@ -209,7 +206,7 @@ jobs:
       - name: Publish frames to the orphan branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat
+        run: scripts/lib/publish_frames_ci.sh scripts/sst/data/cmems assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat
 
       - name: Commit & push (generated outputs)
         run: |
