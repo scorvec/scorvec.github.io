@@ -51,7 +51,7 @@ count_frames() {
   [ -d "$1" ] || { echo 0; return 0; }
   # *.nc: the sst workflow round-trips its Copernicus stores through the
   # branch under scripts/sst/data/cmems; they count as content too.
-  find "$1" -type f \( -name '*.webp' -o -name '*.nc' \) 2>/dev/null | wc -l | tr -d ' '
+  find "$1" -type f \( -name '*.webp' -o -name '*.nc' -o -name '*.npz' \) 2>/dev/null | wc -l | tr -d ' '
 }
 
 n=0

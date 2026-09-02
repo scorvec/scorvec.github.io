@@ -5,42 +5,61 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AIFS single vs AIFS-ENS control — Live Verification · Shawn Corvec</title>
-<meta name="description" content="DCT kinetic-energy power spectra of HRRR and RRFS native-level winds: effective resolution, mesoscale spin-up and analysis smoothness, updated from the latest cycles.">
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<meta name="description" content="Live deterministic verification of ECMWF's AIFS single against the AIFS-ENS control: both models spectrally truncated to the same scale, scored against radiosonde 500 hPa heights and surface temperature and against ERA5, with the power spectra by lead.">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg: #fafaf8; --ink: #1c1c1a; --muted: #888580; --accent: #2c4a72;
     --accent-light: #e8eef5; --rule: #e4e2dc;
+    --single: #b3372f; --control: #2c5f8a;
     --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
   }
-  @media (min-width: 768px) { html { font-size: 110%; } }
+  @media (min-width: 768px) { html { font-size: 108%; } }
   body { background: var(--bg); color: var(--ink); font-family: var(--sans);
-         -webkit-font-smoothing: antialiased; display: flex; flex-direction: column;
-         min-height: 100vh; }
-  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-        display: flex; justify-content: space-between; align-items: center;
-        padding: 1.2rem 3rem; background: rgba(250,250,248,0.95);
+         -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; min-height: 100vh; }
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 10; display: flex; justify-content: space-between;
+        align-items: center; padding: 1.2rem 3rem; background: rgba(250,250,248,0.95);
         backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule); }
   .nav-name { font-family: var(--serif); font-size: 1rem; text-decoration: none; color: var(--ink); }
   .nav-links { display: flex; gap: 2rem; list-style: none; }
-  .nav-links a { font-size: 0.82rem; letter-spacing: 0.04em; text-decoration: none;
-                 color: var(--muted); }
+  .nav-links a { font-size: 0.82rem; letter-spacing: 0.04em; text-decoration: none; color: var(--muted); }
   .nav-links a:hover { color: var(--ink); }
-  main { flex: 1; max-width: min(94vw, 2100px); margin: 0 auto; padding: 7.5rem 2.5rem 5rem; width: 100%; }
-  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.6rem; }
-  .lede { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 60rem;
-          margin-bottom: 2.2rem; }
-  .chart-card { border: 1px solid var(--rule); background: #fff; margin-bottom: 2rem; }
-  .chart-card img { display: block; width: 100%; height: auto; }
-  .chart-card-footer { padding: 0.85rem 1.8rem; border-top: 1px solid var(--rule);
-                       font-size: 0.68rem; color: var(--muted); }
-  .colophon { margin-top: 2.5rem; padding-top: 1.8rem; border-top: 1px solid var(--rule);
-              font-size: 0.82rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
-  .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem;
-                 color: var(--ink); margin-bottom: 0.5rem; }
+  main { flex: 1; max-width: min(94vw, 1500px); margin: 0 auto; padding: 7.2rem 2.5rem 5rem; width: 100%; }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.6rem; text-wrap: balance; }
+  .lede { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 62rem; margin-bottom: 1.8rem; }
+  .lede b { color: var(--ink); font-weight: 500; }
+  .verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.7rem; margin-bottom: 1.6rem; }
+  .verdict .kpi { border: 1px solid var(--rule); background: #fff; border-radius: 9px; padding: 0.75rem 0.95rem; }
+  .kpi .lab { font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .kpi .val { font-family: var(--serif); font-size: 1.45rem; margin-top: 0.15rem; font-variant-numeric: tabular-nums; }
+  .kpi .val small { font-family: var(--sans); font-size: 0.68rem; color: var(--muted); margin-left: 0.35rem; }
+  .kpi .val.single { color: var(--single); } .kpi .val.control { color: var(--control); }
+  .card { border: 1px solid var(--rule); background: #fff; border-radius: 10px; margin-bottom: 1.6rem; overflow: hidden; }
+  .card-head { padding: 1rem 1.4rem 0.4rem; }
+  .card-head h2 { font-family: var(--serif); font-weight: 500; font-size: 1.12rem; }
+  .card-head p { font-size: 0.78rem; color: var(--muted); line-height: 1.55; margin-top: 0.25rem; max-width: 72rem; }
+  .card-foot { padding: 0.65rem 1.4rem; border-top: 1px solid var(--rule); font-size: 0.7rem; color: var(--muted); }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center; padding: 0.5rem 1.4rem 0.6rem; }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; background: #fff; }
+  .seg button { border: 0; background: transparent; padding: 0.36rem 0.8rem; font: 500 0.76rem var(--sans);
+                color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .legend { display: inline-flex; gap: 1rem; font-size: 0.74rem; color: var(--muted); margin-left: auto; }
+  .legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+  .grid4 { display: grid; grid-template-columns: 1fr 1fr; }
+  .grid4 > div { height: 300px; }
+  @media (max-width: 800px) { .grid4 { grid-template-columns: 1fr; } .grid4 > div { height: 260px; } }
+  .empty { padding: 2rem 1.4rem; color: var(--muted); font-size: 0.85rem; text-align: center; }
+  .anim-embed { width: 100%; aspect-ratio: 1460 / 680; border: 0; display: block; }
+  .colophon { margin-top: 2.4rem; padding-top: 1.6rem; border-top: 1px solid var(--rule); font-size: 0.82rem;
+              color: var(--muted); line-height: 1.7; max-width: 64rem; }
+  .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem; color: var(--ink); margin-bottom: 0.5rem; }
   .colophon p + p { margin-top: 0.7rem; }
-  @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 6.5rem 1.2rem 3rem; max-width: 100%; } }
+  .colophon b { color: var(--ink); font-weight: 500; }
+  @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 6.3rem 1rem 3rem; max-width: 100%; } }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
@@ -51,169 +70,269 @@
   <a href="index.html" class="nav-name">Shawn Corvec</a>
   <ul class="nav-links">
     <li><a href="index.html">Home</a></li>
-    <li><a href="mjo.html">MJO</a></li>
+    <li><a href="skewt/">Soundings</a></li>
     <li><a href="spectra.html">KE Spectra</a></li>
   </ul>
 </nav>
 <main>
   <h1>AIFS single vs AIFS-ENS control &mdash; a live deterministic bake-off</h1>
-  <p class="lede"><b>The hypothesis:</b> ECMWF's deterministic AIFS is trained on an
-  MSE-type objective, which rewards hedging &mdash; it progressively <i>blurs</i> with lead
-  time, sliding toward an ensemble-mean-like state. The AIFS-ENS members are trained on an
-  ensemble (CRPS-type) objective, which punishes blurring &mdash; each member, including
-  the <b>control</b>, keeps a realistic kinetic-energy spectrum ten days in. If the
-  control's headline scores match the single's when compared fairly, the control &mdash;
-  published only minutes later &mdash; may simply be the <b>better deterministic
-  product</b>. Few people seem to have benchmarked this publicly. This page does, on every
-  00Z run.</p>
+  <p class="lede"><b>The hypothesis:</b> ECMWF's deterministic AIFS is trained on an MSE-type objective, which
+  rewards hedging &mdash; it blurs with lead time toward an ensemble-mean-like state. The AIFS-ENS members are
+  trained on a CRPS-type objective that punishes blurring, so the <b>control</b> keeps a realistic spectrum ten
+  days out. If the control matches the single on headline scores <i>when both are compared at the same
+  scale</i>, the control &mdash; published minutes later &mdash; is simply the better deterministic product.
+  This page tests that on every 00Z and 12Z run: both models are truncated to the same spherical-harmonic degree
+  before scoring, the truth is <b>independent radiosondes</b> from the <a href="skewt/">sounding explorer</a>
+  (with ERA5 alongside), and the power spectra that motivate the whole question are shown by lead.</p>
 
-  <div class="chart-card">
-    <div style="padding:1.2rem 1.8rem 0.4rem"><b>Running scores &mdash; RMSE, anomaly correlation &amp; activity vs lead</b></div>
-    <div style="padding:0 1.8rem 0.4rem;font-size:0.8rem;color:#888">
-      Verified against ERA5 at the valid 00Z on a common 1.5&deg; grid (block means of both
-      models' 0.25&deg; fields &mdash; so smoothness is <b>not</b> rewarded by resolution
-      mismatch). The <b>activity ratio</b> is the smoothness police: std(forecast anomaly)
-      / std(ERA5 anomaly). A model can buy RMSE by damping variance; the ratio exposes the
-      purchase. ERA5 lags ~6 days, so points appear about a week after each init and curves
-      firm up as runs accumulate.</div>
-    <div class="controls" style="padding:0 1.8rem 0.6rem">
-      <select id="varSel" style="font-size:0.85rem;padding:0.2rem">
-        <option value="z500">z500</option><option value="msl">MSLP</option>
-        <option value="u850">u850 (RMSE/activity only)</option>
-      </select>
+  <div class="verdict" id="verdict"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Scores by lead</h2>
+      <p>Mean over verified runs with a &plusmn;1 standard-error band. Anomalies are against the ERA5 1991&ndash;2020
+      day-of-year climatology; the <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly) across
+      stations &mdash; the smoothness police. A model can buy RMSE by damping variance; the ratio shows the purchase.</p>
     </div>
-    <div id="charts" style="display:none">
-      <div id="rmseChart" style="height:430px"></div>
-      <div id="accChart" style="height:430px"></div>
-      <div id="actChart" style="height:390px"></div>
+    <div class="controls">
+      <span class="seg" id="truthSeg">
+        <button data-t="raob:z500:nh" class="on">z500 &middot; radiosondes</button><button data-t="raob:t2m:nh">2 m temperature &middot; radiosondes</button><button data-t="era5:z500:nh">z500 &middot; ERA5</button><button data-t="era5:msl:nh">MSLP &middot; ERA5</button><button data-t="era5:t2m:nh">2 m temperature &middot; ERA5</button>
+      </span>
+      <span class="seg" id="regionSeg" title="radiosonde scores only">
+        <button data-r="nh" class="on">NH 20&ndash;80&deg;N</button><button data-r="glb">global</button>
+      </span>
+      <span class="legend"><span><i style="background:var(--single)"></i>AIFS single</span><span><i style="background:var(--control)"></i>ENS control</span></span>
     </div>
-    <div id="collecting" style="padding:2.2rem 1.8rem;text-align:center;color:#888;font-size:0.9rem">
-      &#9203; Collecting &mdash; every 00Z and 12Z run is archived (00Z since 2026-08-09)
-      and verified against ERA5 as it matures (~6-day lag). First scored points land around
-      <b>2026-08-16</b>; curves firm up as runs accumulate.
+    <div class="grid4" id="scoreGrid">
+      <div id="c-rmse"></div><div id="c-acc"></div><div id="c-bias"></div><div id="c-act"></div>
     </div>
-    <div class="chart-card-footer" id="score-note">no verified inits yet</div>
+    <div class="empty" id="scoreEmpty">Collecting &mdash; every 00Z and 12Z run is archived and verified as its radiosondes and ERA5 arrive.</div>
+    <div class="card-foot" id="scoreNote">no verified runs yet</div>
   </div>
 
-  <div class="chart-card">
-    <div style="padding:1.2rem 1.8rem 0.6rem"><b>Side-by-side forecast loop &mdash; MSLP &middot; 1000&ndash;500 thickness &middot; 6-h precipitation</b></div>
-    <div style="padding:0 1.8rem 0.6rem;font-size:0.8rem;color:#888">Every 6 hours through the full run, refreshed each 00Z/12Z cycle. Watch the single's precipitation smear into washes at range while the control keeps convective texture &mdash; same synoptic systems, different sharpness.</div>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:1460/680;border:0" data-src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single vs ENS control forecast comparison loop" loading="lazy"></iframe>
-    <div class="chart-card-footer">ECMWF AIFS &amp; AIFS-ENS open data (CC BY 4.0) &middot; North America &middot; 61 frames per run</div>
+  <div class="card">
+    <div class="card-head">
+      <h2>Power spectra by lead &mdash; the blurring, measured</h2>
+      <p>Spherical-harmonic power of each model's global field against total wavenumber, averaged over the archived
+      runs. The single is expected to lose power at high wavenumber as lead grows; the control should not. The dotted
+      line is the common truncation applied before scoring: nothing to its right enters any score above.</p>
+    </div>
+    <div class="controls">
+      <span class="seg" id="specVar"><button data-v="z500" class="on">z500</button><button data-v="msl">MSLP</button><button data-v="t2m">2 m temperature</button></span>
+      <span class="seg" id="specLead"><button data-l="24">day 1</button><button data-l="120" class="on">day 5</button><button data-l="240">day 10</button></span>
+      <span class="seg" id="specMode"><button data-m="abs" class="on">power</button><button data-m="ratio">control / single</button></span>
+    </div>
+    <div id="c-spec" style="height:400px"></div>
+    <div class="empty" id="specEmpty">no spectra yet</div>
+    <div class="card-foot" id="specNote"></div>
   </div>
 
+  <div class="card">
+    <div class="card-head">
+      <h2>Side-by-side forecast loop &mdash; MSLP &middot; 1000&ndash;500 thickness &middot; 6-h precipitation</h2>
+      <p>Every 6 hours through the run, refreshed each 00Z/12Z cycle. Watch the single's precipitation smear into
+      washes at range while the control keeps convective texture &mdash; same synoptic systems, different sharpness.</p>
     </div>
+    <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single vs ENS control, North America loop"></iframe>
+    <div class="card-foot">ECMWF AIFS &amp; AIFS-ENS open data (CC BY 4.0) &middot; North America &middot; 61 frames per run</div>
+  </div>
 
+  <div class="card">
+    <div class="card-head">
+      <h2>500 hPa height &mdash; Northern Hemisphere loop</h2>
+      <p>The same two runs on the polar view: a pattern comparison for the field the scores above are built on.</p>
     </div>
+    <iframe class="anim-embed" style="aspect-ratio: 1460 / 760" data-src="sst_anim.html?embed=1&amp;manifest=aifs_z500_manifest.json&amp;region=aifs_z500" title="AIFS single vs ENS control, 500 hPa height loop"></iframe>
+    <div class="card-foot">contour-filled 500 hPa height, 6-hourly to hour 360</div>
+  </div>
 
   <div class="colophon">
     <h3>Method</h3>
-    <p><b>Fair comparison:</b> both models are block-averaged to a common 1.5&deg; grid
-    before scoring &mdash; headline scores compare what both fully resolve, so the blurred
-    model is not punished at scales the sharp one carries, and the sharp model is not
-    punished for realistic small-scale displacement (the double penalty). The
-    <b>activity ratio</b> then reports the smoothness directly.</p>
-    <p><b>Scores:</b> RMSE and anomaly correlation over the NH extratropics
-    (20&ndash;80&deg;N, cosine-weighted); anomalies vs the ERA5 1991&ndash;2020 &plusmn;7-day
-    day-of-year climatology. Truth is ERA5 at the valid 00Z (ARCO), never either model's
-    own analyses. z500, MSLP, u850; leads 24&ndash;240 h; every 00Z run archived since
-    2026-08-09.</p>
-    <p><b>The stakes:</b> if the control matches the single on RMSE/ACC while keeping an
-    activity ratio near 1, the deterministic AIFS is dominated &mdash; you would simply use
-    the control (a few minutes later on the feed) and get realistic sharpness for free,
-    plus 50 siblings quantifying its uncertainty.</p>
+    <p><b>Same spectrum, not just same grid.</b> Each 0.25&deg; global field is expanded in spherical harmonics
+    (pyshtools). Its power spectrum is kept, and <b>both</b> models are truncated at the same degree
+    (T120, about 1.5&deg;) before anything is scored &mdash; the blurred model is not punished at scales the
+    sharp one carries, and the sharp model is not punished for realistic small-scale displacement. A 1.5&deg;
+    block mean, which this page used until September 2026, still passed much of the 300&ndash;600 km power; the
+    old method is kept as a selectable ERA5 series so the change is visible.</p>
+    <p><b>Independent truth.</b> ERA5 is an IFS analysis with its own smoothness, and both models were trained
+    on it. The primary truth here is the radiosonde network the <a href="skewt/">sounding explorer</a> mirrors
+    every hour: 500 hPa height is interpolated in log-pressure from each station's own sounding, and the sounding's
+    surface temperature stands in for 2 m temperature at the same sites and times. Stations are sampled from the
+    truncated fields by bilinear interpolation. ERA5 scores (NH 20&ndash;80&deg;N, cosine-weighted, 1.5&deg;) are
+    kept alongside, from the same truncated fields, and are the only truth for MSLP. Radiosonde scores arrive within
+    hours of the valid time; ERA5's lag ~6 days.</p>
+    <p><b>Scores.</b> RMSE, bias, anomaly correlation and activity ratio, leads 24&ndash;240 h, per run; the page
+    shows the mean across runs with a &plusmn;1 standard-error band. Anomalies use the ERA5 1991&ndash;2020
+    &plusmn;7-day day-of-year climatology (WeatherBench2), interpolated to the stations; it covers the Northern
+    Hemisphere, so anomaly scores are NH-only while RMSE and bias are also reported globally.</p>
+    <p><b>The stakes.</b> If the control matches the single on RMSE/ACC at the common scale while keeping an
+    activity ratio near 1, the deterministic AIFS is dominated: use the control, a few minutes later on the feed,
+    and get realistic sharpness for free &mdash; plus 50 siblings quantifying its uncertainty.</p>
   </div>
 </main>
 <script>
-addEventListener("message", function (e) {
-  var d = e.data; if (!d || d.type !== "sstAnimHeight") return;
-  var fr = document.querySelectorAll("iframe.anim-embed");
-  for (var i = 0; i < fr.length; i++) {
-    if (fr[i].contentWindow === e.source) {
-      fr[i].style.height = d.h + "px";
-      fr[i].style.aspectRatio = "auto";
+(function () {
+  "use strict";
+  var COL = { single: "#b3372f", control: "#2c5f8a" };
+  var NAME = { single: "AIFS single", control: "ENS control" };
+  var UNIT = { z500: "m", msl: "hPa", t2m: "°C" };
+  var state = { truth: "raob", var: "z500", region: "nh", specVar: "z500", specLead: 120, specMode: "abs", D: null };
+
+  function seg(id, key, cb) {
+    var el = document.getElementById(id);
+    el.addEventListener("click", function (ev) {
+      var b = ev.target.closest("button"); if (!b) return;
+      el.querySelectorAll("button").forEach(function (x) { x.classList.remove("on"); });
+      b.classList.add("on"); cb(b.dataset[key]);
+    });
+  }
+  seg("truthSeg", "t", function (v) { var p = v.split(":"); state.truth = p[0]; state.var = p[1];
+    document.getElementById("regionSeg").style.opacity = state.truth === "raob" ? 1 : 0.4; drawScores(); });
+  seg("regionSeg", "r", function (v) { state.region = v; drawScores(); });
+  seg("specVar", "v", function (v) { state.specVar = v; drawSpec(); });
+  seg("specLead", "l", function (v) { state.specLead = +v; drawSpec(); });
+  seg("specMode", "m", function (v) { state.specMode = v; drawSpec(); });
+
+  var BASE = { paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+               font: { family: "Inter, sans-serif", size: 11.5, color: "#1c1c1a" },
+               margin: { l: 52, r: 16, t: 34, b: 38 }, showlegend: false, hovermode: "x unified",
+               xaxis: { title: { text: "lead (days)", font: { size: 10.5, color: "#888580" } }, gridcolor: "#eeece6",
+                        zeroline: false, dtick: 1, range: [0.6, 10.4] },
+               yaxis: { gridcolor: "#eeece6", zeroline: false } };
+  function stat(recs) {           // -> {leads, mean, se, n} for one (model) series
+    var by = {};
+    recs.forEach(function (r) { (by[r.lead] = by[r.lead] || []).push(r); });
+    var leads = Object.keys(by).map(Number).sort(function (a, b) { return a - b; });
+    return leads.map(function (L) {
+      var vals = by[L]; return { lead: L, n: vals.length,
+        mean: function (k) { var a = vals.map(function (r) { return r[k]; }).filter(function (v) { return v != null; });
+          if (!a.length) return null; var m = a.reduce(function (s, v) { return s + v; }, 0) / a.length; return m; },
+        se: function (k) { var a = vals.map(function (r) { return r[k]; }).filter(function (v) { return v != null; });
+          if (a.length < 2) return 0; var m = a.reduce(function (s, v) { return s + v; }, 0) / a.length;
+          var v = a.reduce(function (s, x) { return s + (x - m) * (x - m); }, 0) / (a.length - 1); return Math.sqrt(v / a.length); } };
+    });
+  }
+  function series(model, metric, S, unit) {
+    var x = S.map(function (p) { return p.lead / 24; });
+    var y = S.map(function (p) { return p.mean(metric); });
+    var e = S.map(function (p) { return p.se(metric); });
+    var band = { x: x.concat(x.slice().reverse()),
+                 y: y.map(function (v, i) { return v == null ? null : v + e[i]; }).concat(y.map(function (v, i) { return v == null ? null : v - e[i]; }).reverse()),
+                 fill: "toself", fillcolor: COL[model] + "22", line: { width: 0 }, hoverinfo: "skip", showlegend: false, type: "scatter" };
+    var line = { x: x, y: y, name: NAME[model], mode: "lines+markers", type: "scatter",
+                 line: { color: COL[model], width: 2.2 }, marker: { size: 5.5, color: COL[model] },
+                 hovertemplate: NAME[model] + " %{y:.3~f}" + unit + "<extra></extra>",
+                 customdata: S.map(function (p) { return p.n; }) };
+    return [band, line];
+  }
+  function panel(id, title, metric, R, unit, ref) {
+    var traces = [];
+    ["single", "control"].forEach(function (m) {
+      var S = stat(R.filter(function (r) { return r.model === m; }));
+      if (S.length) traces = traces.concat(series(m, metric, S, unit));
+    });
+    var lay = JSON.parse(JSON.stringify(BASE));
+    lay.title = { text: title, font: { family: "Lora, serif", size: 13.5 }, x: 0.02, xanchor: "left" };
+    if (ref != null) lay.shapes = [{ type: "line", x0: 0.6, x1: 10.4, y0: ref, y1: ref, line: { color: "#888", dash: "dot", width: 1 } }];
+    if (metric === "acc") lay.yaxis.range = [0.5, 1.005];
+    Plotly.react(id, traces, lay, { displayModeBar: false, responsive: true });
+  }
+  function drawScores() {
+    var D = state.D; if (!D) return;
+    var region = state.truth === "raob" ? state.region : "nh";
+    var R = D.records.filter(function (r) { return r.truth === state.truth && r.var === state.var && r.region === region; });
+    var grid = document.getElementById("scoreGrid"), empty = document.getElementById("scoreEmpty");
+    if (!R.length) { grid.style.display = "none"; empty.style.display = ""; empty.textContent = "no verified runs yet for this combination"; return; }
+    grid.style.display = ""; empty.style.display = "none";
+    var u = " " + UNIT[state.var];
+    panel("c-rmse", "RMSE (" + UNIT[state.var] + ")", "rmse", R, u, null);
+    panel("c-acc", "Anomaly correlation", "acc", R, "", null);
+    panel("c-bias", "Bias, forecast − observed (" + UNIT[state.var] + ")", "bias", R, u, 0);
+    panel("c-act", "Activity ratio (1 = observed variance)", "act", R, "", 1);
+    var inits = {}; R.forEach(function (r) { inits[r.init] = 1; });
+    var nst = R.filter(function (r) { return r.lead === 24; }).map(function (r) { return r.n; });
+    var meanN = nst.length ? Math.round(nst.reduce(function (s, v) { return s + v; }, 0) / nst.length) : null;
+    document.getElementById("scoreNote").textContent =
+      Object.keys(inits).length + " verified runs · " + (state.truth === "raob" ? (meanN + " stations per lead · truth: radiosondes (explorer mirror)") : "truth: ERA5, NH 20–80°N, 1.5°") +
+      " · both models truncated at T" + D.lmax_t + " · updated " + D.generated;
+  }
+  function drawSpec() {
+    var D = state.D; if (!D || !D.spectra) return;
+    var ks = { single: D.spectra["single_" + state.specVar + "_" + state.specLead], control: D.spectra["control_" + state.specVar + "_" + state.specLead] };
+    var el = document.getElementById("c-spec"), empty = document.getElementById("specEmpty");
+    if (!ks.single || !ks.control) { el.style.display = "none"; empty.style.display = ""; return; }
+    el.style.display = ""; empty.style.display = "none";
+    var l = ks.single.mean.map(function (_, i) { return i; }).slice(1);
+    var traces = [];
+    var lay = JSON.parse(JSON.stringify(BASE));
+    lay.hovermode = "x";
+    lay.xaxis = { title: { text: "total wavenumber (spherical-harmonic degree)", font: { size: 10.5, color: "#888580" } },
+                  type: "log", gridcolor: "#eeece6", zeroline: false, range: [0, Math.log10(360)] };
+    if (state.specMode === "abs") {
+      ["single", "control"].forEach(function (m) {
+        traces.push({ x: l, y: ks[m].mean.slice(1), name: NAME[m], mode: "lines", line: { color: COL[m], width: 2.2 },
+                      hovertemplate: NAME[m] + " %{y:.3~g}<extra></extra>" });
+      });
+      lay.yaxis = { title: { text: "power (" + UNIT[state.specVar] + "²)", font: { size: 10.5, color: "#888580" } }, type: "log", gridcolor: "#eeece6", zeroline: false };
+    } else {
+      var ratio = ks.control.mean.map(function (v, i) { return ks.single.mean[i] > 0 ? v / ks.single.mean[i] : null; }).slice(1);
+      traces.push({ x: l, y: ratio, name: "control / single", mode: "lines", line: { color: "#1c1c1a", width: 2.2 },
+                    hovertemplate: "control / single %{y:.2f}<extra></extra>" });
+      lay.yaxis = { title: { text: "power ratio, control / single", font: { size: 10.5, color: "#888580" } }, gridcolor: "#eeece6", zeroline: false };
+      lay.shapes = [{ type: "line", x0: 0, x1: Math.log10(360), xref: "x", y0: 1, y1: 1, line: { color: "#888", dash: "dot", width: 1 } }];
+    }
+    lay.shapes = (lay.shapes || []).concat([{ type: "line", x0: Math.log10(D.lmax_t), x1: Math.log10(D.lmax_t), xref: "x", yref: "paper", y0: 0, y1: 1,
+                                             line: { color: "#2c4a72", dash: "dot", width: 1.2 } }]);
+    lay.annotations = [{ x: Math.log10(D.lmax_t), y: 1, xref: "x", yref: "paper", text: "T" + D.lmax_t + " truncation", showarrow: false,
+                         xanchor: "right", yanchor: "top", font: { size: 10, color: "#2c4a72" }, xshift: -4 }];
+    lay.margin.t = 18;
+    Plotly.react(el, traces, lay, { displayModeBar: false, responsive: true });
+    document.getElementById("specNote").textContent = "mean over " + ks.single.n + " runs · day " + (state.specLead / 24) +
+      " · last run " + (ks.single.last_init || "");
+  }
+  function verdict(D) {
+    var host = document.getElementById("verdict"); host.innerHTML = "";
+    function kpi(lab, val, cls, small) {
+      var d = document.createElement("div"); d.className = "kpi";
+      d.innerHTML = '<div class="lab">' + lab + '</div><div class="val ' + (cls || "") + '">' + val + (small ? "<small>" + small + "</small>" : "") + "</div>";
+      host.appendChild(d);
+    }
+    var R = D.records.filter(function (r) { return r.truth === "raob" && r.var === "z500" && r.region === "nh" && r.lead === 120; });
+    var byM = {}; R.forEach(function (r) { (byM[r.model] = byM[r.model] || []).push(r); });
+    function m(model, k) { var a = (byM[model] || []).map(function (r) { return r[k]; }).filter(function (v) { return v != null; });
+      return a.length ? a.reduce(function (s, v) { return s + v; }, 0) / a.length : null; }
+    var inits = {}; D.records.forEach(function (r) { inits[r.init] = 1; });
+    kpi("verified runs", Object.keys(inits).length, "", "00Z + 12Z");
+    if (m("single", "rmse") != null) {
+      kpi("day-5 z500 RMSE vs radiosondes", m("single", "rmse").toFixed(1) + " m", "single", "single");
+      kpi("day-5 z500 RMSE vs radiosondes", m("control", "rmse").toFixed(1) + " m", "control", "control");
+    }
+    if (m("single", "act") != null) {
+      kpi("day-5 activity ratio", m("single", "act").toFixed(2), "single", "single");
+      kpi("day-5 activity ratio", m("control", "act").toFixed(2), "control", "control");
     }
   }
-});
-(function () {
-  fetch("assets/verify/aifs_det_scores.json?v=" + Date.now()).then(function (r) {
-    if (!r.ok) throw 0; return r.json();
-  }).then(function (D) {
-    if (!D.records || !D.records.length) return;
-    document.getElementById("charts").style.display = "";
-    document.getElementById("collecting").style.display = "none";
-    var sel = document.getElementById("varSel");
-    function draw() {
-      var v = sel.value;
-      var by = {};
-      D.records.filter(function (r) { return r.var === v; }).forEach(function (r) {
-        var k = r.model + "|" + r.lead;
-        (by[k] = by[k] || []).push(r);
-      });
-      var leads = [], models = ["single", "control"];
-      D.records.forEach(function (r) { if (leads.indexOf(r.lead) < 0) leads.push(r.lead); });
-      leads.sort(function (a, b) { return a - b; });
-      function mean(a, key) { var s = 0, n = 0; a.forEach(function (r) {
-        if (r[key] != null) { s += r[key]; n++; } }); return n ? s / n : null; }
-      var colors = { single: "#c62828", control: "#1565c0" };
-      ["rmse", "acc", "act"].forEach(function (metric, mi) {
-        var traces = models.map(function (m) {
-          return { x: leads.map(function (L) { return L / 24; }),
-                   y: leads.map(function (L) { return mean(by[m + "|" + L] || [], metric); }),
-                   name: (m === "single" ? "AIFS single" : "ENS control"),
-                   mode: "lines+markers", line: { color: colors[m], width: 2.4 } };
-        });
-        var lay = { margin: { l: 55, r: 20, t: 34, b: 40 },
-                    title: { text: { rmse: "RMSE", acc: "Anomaly correlation",
-                                     act: "Activity ratio (1 = ERA5-like variance)" }[metric] + " — " + v,
-                             font: { size: 13 } },
-                    xaxis: { title: "lead (days)" }, yaxis: {} };
-        if (metric === "act") lay.shapes = [{ type: "line", x0: 1, x1: 10, y0: 1, y1: 1,
-                                              line: { color: "#888", dash: "dot", width: 1 } }];
-        Plotly.react(["rmseChart", "accChart", "actChart"][mi], traces, lay,
-                     { displayModeBar: false, responsive: true });
-      });
-      var n = D.records.filter(function (r) { return r.var === "z500" && r.model === "single"; }).length;
-      document.getElementById("score-note").textContent =
-        (n / 10) + " verified inits · updated " + D.generated + " · truth ERA5 (ARCO)";
-    }
-    sel.addEventListener("change", draw);
-    draw();
-  }).catch(function () { /* empty state text stands */ });
+  fetch("assets/verify/aifs_scores_v2.json?v=" + Date.now()).then(function (r) { if (!r.ok) throw 0; return r.json(); })
+    .then(function (D) { state.D = D; verdict(D); drawScores(); drawSpec(); })
+    .catch(function () { /* the empty states stand */ });
 })();
 </script>
 <script>
-// Animators load when they come NEAR the viewport, not on page open.
-//
-// enso-atmosphere shipped five decks, each auto-loading its first panel's
-// animator: five sst_anim documents, five manifests and five frame windows
-// racing on open, so the page showed a wall of "Loading frames..." before
-// anything was readable. Only the top deck is on screen at that moment.
-//
-// Hidden deck panels have display:none, so they have no layout box and never
-// intersect - a panel behind a tab stays deferred until reveal() opens it,
-// exactly as before. This observer therefore only ever pulls in the panel a
-// reader is actually approaching.
+// Animators load when they come near the viewport, not on page open.
 (function () {
   var q = function () { return document.querySelectorAll("iframe[data-src]"); };
-  function load(el) {
-    var d = el.getAttribute("data-src");
-    if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }
-  }
-  if (!("IntersectionObserver" in window)) {           // old browser: no deferral
-    Array.prototype.forEach.call(q(), load); return;
-  }
+  function load(el) { var d = el.getAttribute("data-src"); if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); } }
+  if (!("IntersectionObserver" in window)) { Array.prototype.forEach.call(q(), load); return; }
   var io = new IntersectionObserver(function (entries) {
-    entries.forEach(function (e) {
-      if (e.isIntersecting) { load(e.target); io.unobserve(e.target); }
-    });
-  }, { rootMargin: "500px 0px" });                     // start ~a screen early
-  function observeAll() { Array.prototype.forEach.call(q(), function (el) { io.observe(el); }); }
-  observeAll();
-  // Panels revealed by a tab click can expose iframes that were display:none
-  // when this ran, so pick those up too.
-  document.addEventListener("click", function () { setTimeout(observeAll, 0); });
+    entries.forEach(function (e) { if (e.isIntersecting) { load(e.target); io.unobserve(e.target); } });
+  }, { rootMargin: "500px 0px" });
+  Array.prototype.forEach.call(q(), function (el) { io.observe(el); });
 })();
+addEventListener("message", function (e) {
+  var d = e.data; if (!d || d.type !== "sstAnimHeight") return;
+  var fr = document.querySelectorAll("iframe.anim-embed");
+  for (var i = 0; i < fr.length; i++) if (fr[i].contentWindow === e.source) { fr[i].style.height = d.h + "px"; fr[i].style.aspectRatio = "auto"; }
+});
 </script>
 </body>
 </html>

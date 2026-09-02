@@ -7,10 +7,10 @@ name: AIFS comparison loops + KE spectra
 # products were the laptop's run_local.sh ANALYSIS group + com.scorvec.aifsanim
 # until then.
 #
-# AIFS deterministic SCORES (aifs_det_verify.py) need the WB2 1991-2020
-# climatology store (~/era5_store, ~100 GB on the laptop). No runner has it,
-# so the scores stay laptop-only until that store is hosted somewhere; the
-# step is gated on the directory and simply skips here.
+# The deterministic SCORES moved to aifs_station_verify.py on 2026-09-02:
+# spherical-harmonic truncation of both models at the same degree, verified
+# against the explorer's radiosondes (z500, surface T) and ERA5. Its only
+# large input, the 1991-2020 climatology, lives on the frames branch.
 on:
   workflow_dispatch:
     inputs:
@@ -70,17 +70,22 @@ jobs:
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
           echo "cycle: $D ${T}Z"
 
-      - name: AIFS deterministic scores (laptop-only until the WB2 store is hosted)
-        timeout-minutes: 15
+      # Verification state rides the frames branch: the 46 MB ERA5 climatology
+      # (z500/msl/t2m, built once from the WB2 store on the laptop), the ERA5
+      # truth cache, the radiosonde truth cache and the per-cycle station
+      # archive. Seeded 2026-09-02; published back below after every run.
+      - name: Seed verification state from the frames branch
+        run: scripts/lib/fetch_frames_ci.sh scripts/verify/data/clim scripts/verify/data/truth scripts/verify/data/truth_st scripts/verify/data/st_archive
+
+      - name: Spectrally fair verification (radiosondes + ERA5)
+        timeout-minutes: 25
         run: |
           mkdir -p assets/verify
-          if [ -d "$HOME/era5_store/wb2_1p5_daily" ]; then
-            python scripts/verify/aifs_det_verify.py --collect --verify \
-              --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-              || echo "AIFS det verification failed; continuing"
-          else
-            echo "no WB2 climatology store on this runner - skipping the deterministic scores"
-          fi
+          python scripts/verify/aifs_station_verify.py --collect \
+            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            || echo "verification collect failed; continuing"
+          python scripts/verify/aifs_station_verify.py --verify || echo "verification scoring failed; continuing"
+          rm -rf scripts/verify/data/uw_cache
 
       - name: AIFS comparison loops
         timeout-minutes: 45
@@ -101,13 +106,15 @@ jobs:
       - name: Publish loop frames to the frames branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500
+        run: |
+          scripts/lib/publish_frames_ci.sh assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500 \
+            scripts/verify/data/truth scripts/verify/data/truth_st scripts/verify/data/st_archive
 
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUT="assets/verify/aifs_det_scores.json assets/sst/anim/aifs_compare_manifest.json \
+          OUT="assets/verify/aifs_scores_v2.json assets/verify/aifs_det_scores.json assets/sst/anim/aifs_compare_manifest.json \
                assets/sst/anim/aifs_z500_manifest.json assets/spectra/ke_spectra.webp"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
