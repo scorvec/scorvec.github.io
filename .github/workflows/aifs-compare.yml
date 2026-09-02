@@ -31,7 +31,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 110
     env:
       MPLBACKEND: Agg
     steps:
@@ -88,7 +88,7 @@ jobs:
           rm -rf scripts/verify/data/uw_cache
 
       - name: AIFS comparison loops
-        timeout-minutes: 45
+        timeout-minutes: 60
         run: |
           mkdir -p assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500
           python scripts/verify/aifs_compare_anim.py --engine mpl \

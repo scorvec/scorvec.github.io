@@ -350,91 +350,22 @@ def publish(specpath: Path):
 
 
 # ------------------------------------------------- matplotlib fallback path
-def render_mpl(date: str, hh: str, paths):
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    base = pd.Timestamp(f"{date[:4]}-{date[4:6]}-{date[6:8]} {hh}:00")
-    F = load_all(paths)
-    ANIM.mkdir(parents=True, exist_ok=True)
-    for old in ANIM.glob("F*.webp"):
-        old.unlink()
-    frames = []
-    lat = F["single"]["msl"].latitude.values
-    lon = F["single"]["msl"].longitude.values
-    proj = ccrs.LambertConformal(central_longitude=-97, central_latitude=39)
-    for i, s in enumerate(STEPS):
-        valid = base + pd.Timedelta(hours=s)
-        fig, axes = plt.subplots(1, 2, figsize=(14.6, 6.1),
-                                 constrained_layout=True,
-                                 subplot_kw={"projection": proj})
-        for ax, mkey, name in zip(axes, ("single", "ens"),
-                                  ("AIFS single", "AIFS-ENS control")):
-            d = F[mkey]
-            sd = pd.Timedelta(hours=s)
-            msl = d["msl"].sel(step=sd).values / 100.0
-            thk = ((d["z"].sel(step=sd, isobaricInhPa=500)
-                    - d["z"].sel(step=sd, isobaricInhPa=1000)).values / G / 10.0)
-            if s == 0:
-                pr = np.zeros_like(msl)
-            else:
-                pr = (d["tp"].sel(step=sd).values
-                      - d["tp"].sel(step=sd - pd.Timedelta(hours=6)).values)
-            cf = ax.contourf(lon, lat, np.clip(pr, 0, None), levels=P_LEVELS,
-                             colors=P_COLORS, extend="max",
-                             transform=ccrs.PlateCarree())
-            for rng, col in (((410, 540), "#1565c0"), ((546, 620), "#c62828")):
-                ct = ax.contour(lon, lat, thk, levels=np.arange(rng[0], rng[1], 6),
-                                colors=col, linewidths=0.6, linestyles="--",
-                                transform=ccrs.PlateCarree())
-                if len(ct.levels):
-                    ax.clabel(ct, levels=list(ct.levels)[::2],
-                              fmt="%d", fontsize=5.5, inline_spacing=2)
-            c540 = ax.contour(lon, lat, thk, levels=[540], colors="#1565c0",
-                              linewidths=1.6, linestyles="--",
-                              transform=ccrs.PlateCarree())
-            ax.clabel(c540, fmt="%d", fontsize=6, inline_spacing=2)
-            cs = ax.contour(lon, lat, msl, levels=np.arange(940, 1061, 4),
-                            colors="k", linewidths=0.75,
-                            transform=ccrs.PlateCarree())
-            ax.clabel(cs, levels=np.arange(940, 1061, 8), fmt="%d", fontsize=6)
-            ax.set_extent(EXTENT, ccrs.PlateCarree())
-            ax.coastlines(lw=1.1, color="0.05")
-            ax.add_feature(cfeature.BORDERS, lw=0.8, edgecolor="0.15",
-                           facecolor="none")
-            ax.add_feature(cfeature.STATES, lw=0.55, edgecolor="0.3",
-                           facecolor="none")
-            ax.add_feature(cfeature.LAKES, lw=0.55, edgecolor="0.3",
-                           facecolor="none")
-            ax.set_title(name, fontsize=11.5, fontweight="bold", loc="left")
-        cb = fig.colorbar(cf, ax=list(axes), orientation="horizontal",
-                          pad=0.02, fraction=0.05, aspect=48)
-        cb.set_label("6-h precipitation (mm)", fontsize=8.5)
-        cb.ax.tick_params(labelsize=7)
-        fig.suptitle(f"MSLP (hPa) · 1000–500 thickness (dam, 540 bold) · "
-                     f"6-h precip — hour {s} · valid {valid:%a %b %d %HZ} · "
-                     f"init {base:%Y-%m-%d %HZ}",
-                     fontsize=12, fontweight="bold")
-        out = ANIM / f"F{i:02d}.webp"
-        fig.savefig(out, dpi=150)
-        plt.close(fig)
-        frames.append({"idx": i, "file": out.name, "date": f"{valid:%Y-%m-%d}",
-                       "label": f"h{s:03d} · {valid:%b %d %HZ}"})
-        if i % 12 == 0:
-            print(f"  frame {i}/{len(STEPS)}", flush=True)
-    man = {"ver": int(time.time()), "days": len(frames),
-           "regions": {"aifs_compare": {
-               "label": "AIFS single vs AIFS-ENS control — MSLP/thickness/precip",
-               "n_frames": len(frames), "frames": frames}}}
-    MANIFEST.write_text(json.dumps(man))
-    print(f"wrote {len(frames)} frames + manifest")
-    render_z500_mpl(F, base)
-    render_t2m_mpl(F, base)
-
-
+# ---------------------------------------------------------------- matplotlib
+# Three loops, every frame drawn by one function; frames are rendered in
+# parallel across the machine's cores (fork: the loaded fields are inherited,
+# nothing is pickled). Serial on a 4-core runner the three loops took the
+# best part of an hour (2026-09-02) - past the step timeout, so nothing was
+# ever published.
 Z500_CLIM = REPO / "scripts" / "verify" / "data" / "clim" / "clim_1p5.npz"
+LOOPS = {
+    "compare": dict(anim=ANIM, manifest=MANIFEST, region="aifs_compare",
+                    label="AIFS single vs AIFS-ENS control — MSLP/thickness/precip"),
+    "z500": dict(anim=ANIM_Z, manifest=MANIFEST_Z, region="aifs_z500",
+                 label="AIFS single vs AIFS-ENS control — 500 hPa height anomaly + height (NH)"),
+    "t2m": dict(anim=ANIM_T, manifest=MANIFEST_T, region="aifs_t2m",
+                label="AIFS single vs AIFS-ENS control — 2 m temperature anomaly (North America)"),
+}
+_G = {}                                   # fields shared with forked workers
 
 
 def z500_clim_on(lat, lon, doy, var="z500"):
@@ -460,139 +391,165 @@ def z500_clim_on(lat, lon, doy, var="z500"):
     return out / 10.0 if var == "z500" else out
 
 
-def render_t2m_mpl(F, base):
-    """2 m temperature ANOMALY (shaded) with the actual 2 m temperature
-    contoured, North America, both models side by side."""
+def _na_axes(ax, cfeature, ccrs):
+    ax.set_extent(EXTENT, ccrs.PlateCarree())
+    ax.coastlines(lw=1.1, color="0.05")
+    ax.add_feature(cfeature.BORDERS, lw=0.8, edgecolor="0.15", facecolor="none")
+    ax.add_feature(cfeature.STATES, lw=0.55, edgecolor="0.3", facecolor="none")
+    ax.add_feature(cfeature.LAKES, lw=0.55, edgecolor="0.3", facecolor="none")
+
+
+def _draw_frame(job):
+    """Render one frame of one loop; returns the manifest entry."""
+    kind, i, s = job
+    import matplotlib
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
-    ANIM_T.mkdir(parents=True, exist_ok=True)
-    for old in ANIM_T.glob("F*.webp"):
-        old.unlink()
-    frames = []
-    lat = F["single"]["t2m"].latitude.values
-    lon = F["single"]["t2m"].longitude.values
-    proj = ccrs.LambertConformal(central_longitude=-97, central_latitude=39)
-    alev = np.arange(-16, 16.1, 2)                            # anomaly, °C
-    tlev = np.arange(-40, 46, 5)                               # actual, °C
-    for i, s in enumerate(STEPS):
-        valid = base + pd.Timedelta(hours=s)
-        clim = z500_clim_on(lat, lon, valid.dayofyear, var="t2m")
-        if clim is None:
-            print("  no t2m climatology — skipping the 2 m temperature loop", flush=True)
-            return
-        fig, axes = plt.subplots(1, 2, figsize=(14.6, 6.1),
-                                 constrained_layout=True,
-                                 subplot_kw={"projection": proj})
-        for ax, mkey, name in zip(axes, ("single", "ens"),
-                                  ("AIFS single", "AIFS-ENS control")):
-            t2 = F[mkey]["t2m"].sel(step=pd.Timedelta(hours=s)).values - 273.15
-            cf = ax.contourf(lon, lat, t2 - clim, levels=alev, cmap="RdBu_r",
-                             extend="both", transform=ccrs.PlateCarree())
-            ct = ax.contour(lon, lat, t2, levels=tlev, colors="0.25",
-                            linewidths=0.5, transform=ccrs.PlateCarree())
-            ax.clabel(ct, levels=tlev[::2], fmt="%d", fontsize=6, inline_spacing=2)
-            c0 = ax.contour(lon, lat, t2, levels=[0], colors="#1565c0",
-                            linewidths=1.5, transform=ccrs.PlateCarree())
-            ax.clabel(c0, fmt="%d°C", fontsize=6.5, inline_spacing=2)
-            ax.set_extent(EXTENT, ccrs.PlateCarree())
-            ax.coastlines(lw=1.1, color="0.05")
-            ax.add_feature(cfeature.BORDERS, lw=0.8, edgecolor="0.15", facecolor="none")
-            ax.add_feature(cfeature.STATES, lw=0.55, edgecolor="0.3", facecolor="none")
-            ax.add_feature(cfeature.LAKES, lw=0.55, edgecolor="0.3", facecolor="none")
-            ax.set_title(name, fontsize=11.5, fontweight="bold", loc="left")
-        cb = fig.colorbar(cf, ax=list(axes), orientation="horizontal",
-                          pad=0.02, fraction=0.05, aspect=48)
-        cb.set_label("2 m temperature anomaly vs 1991–2020 (°C) · contours: 2 m temperature (°C, every 5; 0 °C blue)",
-                     fontsize=8.5)
-        cb.ax.tick_params(labelsize=7)
-        fig.suptitle(f"2 m temperature anomaly + temperature — hour {s} · "
-                     f"valid {valid:%a %b %d %HZ} · init {base:%Y-%m-%d %HZ}",
-                     fontsize=12, fontweight="bold")
-        out = ANIM_T / f"F{i:02d}.webp"
-        fig.savefig(out, dpi=150)
-        plt.close(fig)
-        frames.append({"idx": i, "file": out.name, "date": f"{valid:%Y-%m-%d}",
-                       "label": f"h{s:03d} · {valid:%b %d %HZ}"})
-        if i % 12 == 0:
-            print(f"  t2m frame {i}/{len(STEPS)}", flush=True)
-    man = {"ver": int(time.time()), "days": len(frames),
-           "regions": {"aifs_t2m": {
-               "label": "AIFS single vs AIFS-ENS control — 2 m temperature anomaly (North America)",
-               "n_frames": len(frames), "frames": frames}}}
-    MANIFEST_T.write_text(json.dumps(man))
-    print(f"wrote {len(frames)} t2m frames + manifest")
-
-
-def render_z500_mpl(F, base):
-    import matplotlib.pyplot as plt
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    ANIM_Z.mkdir(parents=True, exist_ok=True)
-    for old in ANIM_Z.glob("F*.webp"):
-        old.unlink()
-    frames = []
-    lat = F["single"]["z"].latitude.values
-    lon = F["single"]["z"].longitude.values
-    proj = ccrs.NorthPolarStereo(central_longitude=-100)
-    levels = np.arange(486, 601, 6)                          # actual heights, dam
-    alev = np.arange(-27, 27.1, 3)                            # anomaly shading, dam
     from cartopy.util import add_cyclic_point
-    for i, s in enumerate(STEPS):
-        valid = base + pd.Timedelta(hours=s)
-        clim = z500_clim_on(lat, lon, valid.dayofyear)
-        fig, axes = plt.subplots(1, 2, figsize=(12.8, 6.6),
-                                 constrained_layout=True,
+    F, base = _G["F"], _G["base"]
+    valid = base + pd.Timedelta(hours=s)
+    sd = pd.Timedelta(hours=s)
+    lat, lon = _G["lat"], _G["lon"]
+    if kind == "z500":
+        proj = ccrs.NorthPolarStereo(central_longitude=-100)
+        fig, axes = plt.subplots(1, 2, figsize=(12.8, 6.6), constrained_layout=True,
                                  subplot_kw={"projection": proj})
-        for ax, mkey, name in zip(axes, ("single", "ens"),
-                                  ("AIFS single", "AIFS-ENS control")):
-            z5 = (F[mkey]["z"].sel(step=pd.Timedelta(hours=s),
-                                   isobaricInhPa=500).values / G / 10.0)
-            # a global field on a polar view needs the cyclic column, else a
-            # white seam runs from the pole to the dateline
+        levels = np.arange(486, 601, 6)
+        alev = np.arange(-27, 27.1, 3)
+        clim = z500_clim_on(lat, lon, valid.dayofyear)
+        for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS control")):
+            z5 = F[mkey]["z"].sel(step=sd, isobaricInhPa=500).values / G / 10.0
             z5c, lonc = add_cyclic_point(z5, coord=lon)
-            # SHADING = height ANOMALY vs the day-of-year climatology (the
-            # signal: ridges and troughs relative to normal); CONTOURS = the
-            # actual heights, so the flow itself is still readable.
             if clim is not None:
                 ac, _ = add_cyclic_point(z5 - clim, coord=lon)
-                cf = ax.contourf(lonc, lat, ac, levels=alev, cmap="RdBu_r",
-                                 extend="both", transform=ccrs.PlateCarree())
+                cf = ax.contourf(lonc, lat, ac, levels=alev, cmap="RdBu_r", extend="both",
+                                 transform=ccrs.PlateCarree())
             else:
-                cf = ax.contourf(lonc, lat, z5c, levels=levels, cmap="turbo",
-                                 extend="both", transform=ccrs.PlateCarree())
-            cl = ax.contour(lonc, lat, z5c, levels=levels, colors="k",
-                            linewidths=0.55, transform=ccrs.PlateCarree())
-            ax.clabel(cl, levels=levels[::2], fmt="%d", fontsize=6.5,
-                      inline_spacing=2)
+                cf = ax.contourf(lonc, lat, z5c, levels=levels, cmap="turbo", extend="both",
+                                 transform=ccrs.PlateCarree())
+            cl = ax.contour(lonc, lat, z5c, levels=levels, colors="k", linewidths=0.55,
+                            transform=ccrs.PlateCarree())
+            ax.clabel(cl, levels=levels[::2], fmt="%d", fontsize=6.5, inline_spacing=2)
             ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
             ax.coastlines(lw=0.8, color="0.15")
-            ax.add_feature(cfeature.BORDERS, lw=0.4, edgecolor="0.3",
-                           facecolor="none")
-            ax.gridlines(lw=0.3, color="0.75", ylocs=[30, 50, 70],
-                         xlocs=range(-180, 181, 60))
+            ax.add_feature(cfeature.BORDERS, lw=0.4, edgecolor="0.3", facecolor="none")
+            ax.gridlines(lw=0.3, color="0.75", ylocs=[30, 50, 70], xlocs=range(-180, 181, 60))
             ax.set_title(name, fontsize=11.5, fontweight="bold", loc="left")
-        cb = fig.colorbar(cf, ax=list(axes), orientation="horizontal",
-                          pad=0.02, fraction=0.05, aspect=48)
+        cb = fig.colorbar(cf, ax=list(axes), orientation="horizontal", pad=0.02, fraction=0.05, aspect=48)
         cb.set_label("500 hPa height anomaly vs 1991–2020 (dam) · contours: height (dam, every 6)"
                      if clim is not None else "500 hPa height (dam)", fontsize=8.5)
         cb.ax.tick_params(labelsize=7)
-        fig.suptitle(f"500 hPa height anomaly + height · NH — hour {s} · "
-                     f"valid {valid:%a %b %d %HZ} · init {base:%Y-%m-%d %HZ}",
+        fig.suptitle(f"500 hPa height anomaly + height · NH — hour {s} · valid {valid:%a %b %d %HZ}"
+                     f" · init {base:%Y-%m-%d %HZ}", fontsize=12, fontweight="bold")
+    elif kind == "t2m":
+        proj = ccrs.LambertConformal(central_longitude=-97, central_latitude=39)
+        fig, axes = plt.subplots(1, 2, figsize=(14.6, 6.1), constrained_layout=True,
+                                 subplot_kw={"projection": proj})
+        alev = np.arange(-16, 16.1, 2)
+        tlev = np.arange(-40, 46, 5)
+        clim = z500_clim_on(lat, lon, valid.dayofyear, var="t2m")
+        if clim is None:
+            plt.close(fig)
+            return None
+        for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS control")):
+            t2 = F[mkey]["t2m"].sel(step=sd).values - 273.15
+            cf = ax.contourf(lon, lat, t2 - clim, levels=alev, cmap="RdBu_r", extend="both",
+                             transform=ccrs.PlateCarree())
+            ct = ax.contour(lon, lat, t2, levels=tlev, colors="0.25", linewidths=0.5,
+                            transform=ccrs.PlateCarree())
+            ax.clabel(ct, levels=tlev[::2], fmt="%d", fontsize=6, inline_spacing=2)
+            c0 = ax.contour(lon, lat, t2, levels=[0], colors="#1565c0", linewidths=1.5,
+                            transform=ccrs.PlateCarree())
+            ax.clabel(c0, fmt="%d°C", fontsize=6.5, inline_spacing=2)
+            _na_axes(ax, cfeature, ccrs)
+            ax.set_title(name, fontsize=11.5, fontweight="bold", loc="left")
+        cb = fig.colorbar(cf, ax=list(axes), orientation="horizontal", pad=0.02, fraction=0.05, aspect=48)
+        cb.set_label("2 m temperature anomaly vs 1991–2020 (°C) · contours: 2 m temperature (°C, every 5; 0 °C blue)",
+                     fontsize=8.5)
+        cb.ax.tick_params(labelsize=7)
+        fig.suptitle(f"2 m temperature anomaly + temperature — hour {s} · valid {valid:%a %b %d %HZ}"
+                     f" · init {base:%Y-%m-%d %HZ}", fontsize=12, fontweight="bold")
+    else:                                                   # compare: MSLP / thickness / precip
+        proj = ccrs.LambertConformal(central_longitude=-97, central_latitude=39)
+        fig, axes = plt.subplots(1, 2, figsize=(14.6, 6.1), constrained_layout=True,
+                                 subplot_kw={"projection": proj})
+        for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS control")):
+            d = F[mkey]
+            msl = d["msl"].sel(step=sd).values / 100.0
+            thk = ((d["z"].sel(step=sd, isobaricInhPa=500)
+                    - d["z"].sel(step=sd, isobaricInhPa=1000)).values / G / 10.0)
+            if s == 0:
+                pr = np.zeros_like(msl)
+            else:
+                pr = d["tp"].sel(step=sd).values - d["tp"].sel(step=sd - pd.Timedelta(hours=6)).values
+            cf = ax.contourf(lon, lat, np.clip(pr, 0, None), levels=P_LEVELS, colors=P_COLORS,
+                             extend="max", transform=ccrs.PlateCarree())
+            for rng, col in (((410, 540), "#1565c0"), ((546, 620), "#c62828")):
+                ct = ax.contour(lon, lat, thk, levels=np.arange(rng[0], rng[1], 6), colors=col,
+                                linewidths=0.6, linestyles="--", transform=ccrs.PlateCarree())
+                if len(ct.levels):
+                    ax.clabel(ct, levels=list(ct.levels)[::2], fmt="%d", fontsize=5.5, inline_spacing=2)
+            c540 = ax.contour(lon, lat, thk, levels=[540], colors="#1565c0", linewidths=1.6,
+                              linestyles="--", transform=ccrs.PlateCarree())
+            ax.clabel(c540, fmt="%d", fontsize=6, inline_spacing=2)
+            cs = ax.contour(lon, lat, msl, levels=np.arange(940, 1061, 4), colors="k", linewidths=0.75,
+                            transform=ccrs.PlateCarree())
+            ax.clabel(cs, levels=np.arange(940, 1061, 8), fmt="%d", fontsize=6)
+            _na_axes(ax, cfeature, ccrs)
+            ax.set_title(name, fontsize=11.5, fontweight="bold", loc="left")
+        cb = fig.colorbar(cf, ax=list(axes), orientation="horizontal", pad=0.02, fraction=0.05, aspect=48)
+        cb.set_label("6-h precipitation (mm)", fontsize=8.5)
+        cb.ax.tick_params(labelsize=7)
+        fig.suptitle(f"MSLP (hPa) · 1000–500 thickness (dam, 540 bold) · 6-h precip — hour {s}"
+                     f" · valid {valid:%a %b %d %HZ} · init {base:%Y-%m-%d %HZ}",
                      fontsize=12, fontweight="bold")
-        out = ANIM_Z / f"F{i:02d}.webp"
-        fig.savefig(out, dpi=150)
-        plt.close(fig)
-        frames.append({"idx": i, "file": out.name, "date": f"{valid:%Y-%m-%d}",
-                       "label": f"h{s:03d} · {valid:%b %d %HZ}"})
-        if i % 12 == 0:
-            print(f"  z500 frame {i}/{len(STEPS)}", flush=True)
-    man = {"ver": int(time.time()), "days": len(frames),
-           "regions": {"aifs_z500": {
-               "label": "AIFS single vs AIFS-ENS control — 500 hPa height anomaly + height (NH)",
-               "n_frames": len(frames), "frames": frames}}}
-    MANIFEST_Z.write_text(json.dumps(man))
-    print(f"wrote {len(frames)} z500 frames + manifest")
+    out = LOOPS[kind]["anim"] / f"F{i:02d}.webp"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    return (kind, {"idx": i, "file": out.name, "date": f"{valid:%Y-%m-%d}",
+                   "label": f"h{s:03d} · {valid:%b %d %HZ}"})
+
+
+def render_mpl(date: str, hh: str, paths, kinds=("compare", "z500", "t2m"), workers=None):
+    import multiprocessing as mp
+    import os
+    base = pd.Timestamp(f"{date[:4]}-{date[4:6]}-{date[6:8]} {hh}:00")
+    F = load_all(paths)
+    # cfgrib is lazy: read everything once in the parent so forked workers
+    # never touch the GRIB files concurrently
+    for mkey in F:
+        for k in list(F[mkey]):
+            F[mkey][k] = F[mkey][k].load()
+    _G.update(F=F, base=base, lat=F["single"]["msl"].latitude.values,
+              lon=F["single"]["msl"].longitude.values)
+    for kind in kinds:
+        LOOPS[kind]["anim"].mkdir(parents=True, exist_ok=True)
+        for old in LOOPS[kind]["anim"].glob("F*.webp"):
+            old.unlink()
+    jobs = [(kind, i, s) for kind in kinds for i, s in enumerate(STEPS)]
+    workers = workers or max(1, min(os.cpu_count() or 2, 8))
+    t0 = time.time()
+    frames = {k: [] for k in kinds}
+    ctx = mp.get_context("fork")
+    with ctx.Pool(workers) as pool:
+        for n, res in enumerate(pool.imap_unordered(_draw_frame, jobs, chunksize=2), 1):
+            if res:
+                frames[res[0]].append(res[1])
+            if n % 30 == 0:
+                print(f"  {n}/{len(jobs)} frames in {time.time() - t0:.0f}s ({workers} workers)", flush=True)
+    for kind in kinds:
+        fr = sorted(frames[kind], key=lambda f: f["idx"])
+        if not fr:
+            print(f"  {kind}: no frames rendered — manifest untouched", flush=True)
+            continue
+        man = {"ver": int(time.time()), "days": len(fr),
+               "regions": {LOOPS[kind]["region"]: {"label": LOOPS[kind]["label"],
+                                                   "n_frames": len(fr), "frames": fr}}}
+        LOOPS[kind]["manifest"].write_text(json.dumps(man))
+        print(f"wrote {len(fr)} {kind} frames + manifest", flush=True)
+    print(f"rendered {len(jobs)} frames in {time.time() - t0:.0f}s", flush=True)
 
 
 def main():
