@@ -26,7 +26,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: aifs-compare          # never alongside the regular run: same archive dir
+  group: aifs-backfill         # the regular run MERGES into the shared archive, so both may run
   cancel-in-progress: false
 
 jobs:
@@ -88,7 +88,7 @@ jobs:
       - name: Publish verification state to the frames branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh scripts/verify/data/clim scripts/verify/data/truth scripts/verify/data/truth_st scripts/verify/data/st_archive
+        run: scripts/lib/publish_frames_ci.sh +scripts/verify/data/clim +scripts/verify/data/truth +scripts/verify/data/truth_st +scripts/verify/data/st_archive
 
       - name: Commit & push the scores
         run: |

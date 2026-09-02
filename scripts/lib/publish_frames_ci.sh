@@ -56,7 +56,7 @@ count_frames() {
 
 n=0
 for d in "$@"; do
-  c=$(count_frames "$d")
+  c=$(count_frames "${d#+}")
   echo "  $d: $c frames"
   n=$((n + c))
 done
@@ -91,15 +91,31 @@ else
   BASE=""
 fi
 
+# Two modes per argument:
+#   dir    SWAP  - the branch copy is replaced by ours (a loop's frame set is
+#                  regenerated whole; stale frames must go)
+#   +dir   MERGE - our files are added to / overwrite the branch copy, nothing
+#                  is deleted. For state that several jobs extend concurrently
+#                  (the AIFS verification archive: the twice-daily run adds one
+#                  cycle while a backfill adds a hundred). A swap from either
+#                  side would silently delete the other's work.
 for d in "$@"; do
+  merge=0
+  case "$d" in +*) merge=1; d="${d#+}" ;; esac
   c=$(count_frames "$d")
   if [ "$c" -eq 0 ]; then
     echo "  $(basename "$d"): nothing rendered, keeping the branch copy"
     continue
   fi
-  rm -rf "${TMP:?}/f/$d"
-  mkdir -p "$TMP/f/$(dirname "$d")"
-  cp -r "$d" "$TMP/f/$(dirname "$d")/"
+  if [ "$merge" -eq 1 ]; then
+    mkdir -p "$TMP/f/$d"
+    cp -r "$d/." "$TMP/f/$d/"
+    echo "  $(basename "$d"): merged $c file(s) into the branch copy"
+  else
+    rm -rf "${TMP:?}/f/$d"
+    mkdir -p "$TMP/f/$(dirname "$d")"
+    cp -r "$d" "$TMP/f/$(dirname "$d")/"
+  fi
   # Manifests live on main so the page fetches them same-origin.
   find "$TMP/f/$d" -name '*_manifest.json' -delete 2>/dev/null || true
 done
