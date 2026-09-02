@@ -79,7 +79,8 @@ jobs:
           # webps before re-adding them (bit us 2026-07-17 — ran "successfully", pushed
           # nothing). Snapshot+restore makes losing the outputs structurally impossible.
           OUT="assets/sst/events_nino34.webp assets/sst/events_bars.webp assets/sst/events_maps.webp \
-               assets/sst/subsurface_events_hc.webp assets/sst/subsurface_events_xsec.webp"
+               assets/sst/subsurface_events_hc.webp assets/sst/subsurface_events_xsec.webp \
+               assets/sst/subsurface_events_hc_detrended.webp assets/sst/subsurface_events_xsec_detrended.webp"
           SNAP=$(mktemp -d)
           for f in $OUT; do [ -f "$f" ] && install -D "$f" "$SNAP/$f"; done
           for i in 1 2 3 4 5; do
