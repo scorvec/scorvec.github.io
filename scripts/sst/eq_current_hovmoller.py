@@ -77,7 +77,7 @@ def update_store() -> xr.Dataset:
     uo = uo.sel(time=uo["time"] >= np.datetime64(window_start))                   # trim to the full window
     out = uo.to_dataset(name="uo")
     STORE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = STORE.with_suffix(".nc.tmp"); out.to_netcdf(tmp); tmp.replace(STORE)
+    tmp = STORE.with_suffix(".nc.tmp"); out.to_netcdf(tmp, encoding={v: {'zlib': True, 'complevel': 4} for v in out.data_vars}); tmp.replace(STORE)
     print(f"store: {out.sizes['time']} d × {out.sizes['longitude']} lon "
           f"({str(out['time'].values[0])[:10]}→{str(out['time'].values[-1])[:10]})", flush=True)
     return out

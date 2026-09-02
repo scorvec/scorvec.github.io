@@ -68,14 +68,27 @@ if [ "$n" -eq 0 ] && [ -z "${PRUNE:-}" ]; then
   exit 0
 fi
 
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
 URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+# THE RACE THIS CLOSES (2026-09-02): sst, mjo, aam, aifs-compare, strat, ecape,
+# satellite and gdps all publish here and can overlap. Each clones the branch,
+# swaps its own dirs in and force-pushes ONE parentless commit - so if two ran
+# at once the second push silently threw away the first one's frames. The
+# push below is --force-with-lease against the tip we cloned: if the branch
+# moved meanwhile the push is refused, and we re-clone (now containing the
+# other job's frames), re-swap and try again. Nothing is ever overwritten
+# unseen.
+ORIG_PWD="$PWD"
+publish_once() {
+cd "$ORIG_PWD" || return 1                 # a retry starts from the workspace again
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' RETURN
 if git clone --depth 1 --branch "$BRANCH" --single-branch -q "$URL" "$TMP/f"; then
   echo "  cloned $BRANCH ($(du -sh "$TMP/f" | cut -f1))"
+  BASE=$(git -C "$TMP/f" rev-parse HEAD)
 else
   echo "  no $BRANCH yet - creating it"
   mkdir -p "$TMP/f" && git -C "$TMP/f" init -q && git -C "$TMP/f" remote add origin "$URL"
+  BASE=""
 fi
 
 for d in "$@"; do
@@ -106,8 +119,23 @@ git config user.name "Shawn Corvec"
 git config user.email "shawncorvec@hotmail.com"
 git checkout -q --orphan fresh
 git add -A
-if git diff --cached --quiet; then echo "  no frame changes"; exit 0; fi
+if git diff --cached --quiet; then echo "  no frame changes"; return 0; fi
 git commit -q -m "animation frames $(date -u +%Y-%m-%dT%H:%MZ)"
 git config http.postBuffer 524288000
-git push --force -q origin "fresh:$BRANCH"
+if [ -n "$BASE" ]; then
+  git push -q --force-with-lease="$BRANCH:$BASE" origin "fresh:$BRANCH" || return 75
+else
+  git push -q --force origin "fresh:$BRANCH" || return 75
+fi
 echo "  pushed $(find assets -name '*.webp' | wc -l | tr -d ' ') frames total to $BRANCH"
+return 0
+}
+for attempt in 1 2 3 4 5; do
+  publish_once "$@" && exit 0
+  rc=$?
+  [ "$rc" -eq 75 ] || exit "$rc"
+  echo "  $BRANCH moved under us (another job published) - re-cloning, attempt $((attempt + 1))/5"
+  sleep $((attempt * 7))
+done
+echo "::error::could not publish to $BRANCH after 5 attempts (branch kept moving)"
+exit 1

@@ -89,7 +89,7 @@ def update_store(start: date, today: date) -> xr.Dataset:
         ds = ds.isel(time=~pd.Index(ds["time"].values).duplicated(keep="last"))     # dedup re-pulled days
         ds = ds.sel(time=ds["time"] >= np.datetime64(start))                         # honour the fixed start
         STORE.parent.mkdir(parents=True, exist_ok=True)
-        tmp = STORE.with_suffix(".nc.tmp"); ds.to_netcdf(tmp); tmp.replace(STORE)    # atomic write
+        tmp = STORE.with_suffix(".nc.tmp"); ds.to_netcdf(tmp, encoding={v: {'zlib': True, 'complevel': 4} for v in ds.data_vars}); tmp.replace(STORE)    # atomic write
         print(f"  cache: +{len(need)} day(s), {ds.sizes['time']} total "
               f"({str(ds['time'].values[0])[:10]}→{str(ds['time'].values[-1])[:10]})", flush=True)
     else:

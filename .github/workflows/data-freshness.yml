@@ -1,11 +1,12 @@
 name: data-freshness
 on:
   schedule:
-  - cron: "25 14 * * *"       # daily, after the morning update crons
+  - cron: "25 2 * * *"        # twice daily: the report on the status page is
+  - cron: "25 14 * * *"       # what catches a product that froze overnight
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write            # commits assets/status/freshness.json
   issues: write
   actions: read
 
@@ -15,13 +16,29 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-        with:
-          sparse-checkout: scripts
       - name: Check every data product's last update
         id: fresh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/check_freshness.py || echo "stale=1" >> "$GITHUB_OUTPUT"
+      # The same report the issue is built from, as data: status.html renders it
+      # as "server-verified file ages", so a frozen product is visible on the
+      # site itself (and to the laptop dispatcher, which notifies) rather than
+      # only in an issue nobody reads.
+      - name: Publish the report to the status page
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3 4 5; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            python scripts/check_freshness.py >/dev/null 2>&1 || true
+            git add assets/status/freshness.json
+            if git diff --staged --quiet; then echo "no change"; exit 0; fi
+            git commit -q -m "status: freshness report $(date -u +%Y-%m-%dT%H:%MZ)"
+            if git push -q; then exit 0; fi
+            sleep 5
+          done
+          echo "::warning::could not push the freshness report"
       - name: Open/update the stale-data issue
         if: steps.fresh.outputs.stale == '1'
         env:

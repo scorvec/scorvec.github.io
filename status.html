@@ -258,6 +258,40 @@ async function run() {
     }
     groupsEl.appendChild(h); groupsEl.appendChild(t);
   }
+  // Server-verified file ages: the twice-daily freshness workflow checks the
+  // last commit touching every product FILE (not directory) and publishes
+  // the result. This is the row that catches a figure nobody's manifest
+  // covers - the Copernicus loops froze for four days in Aug 2026 while every
+  // manifest-based row above stayed green.
+  try {
+    const r = await fetch("assets/status/freshness.json" + bust(), { cache: "no-store" });
+    if (r.ok) {
+      const rep = await r.json();
+      const h = document.createElement("h2");
+      const bad = (rep.items || []).filter(i => i.state !== "ok");
+      h.innerHTML = `Server-verified file ages <small style="font-weight:400;color:var(--muted)">checked ${rep.generated} · ${rep.n_ok} fresh, ${rep.n_stale} stale</small>`;
+      const t = document.createElement("table");
+      t.innerHTML = `<thead><tr><th>File</th><th>Branch</th><th>Age</th><th class="cad">Limit</th><th>Status</th></tr></thead><tbody></tbody>`;
+      const tb = t.querySelector("tbody");
+      const rows = bad.length ? bad : [];
+      if (!rows.length) {
+        const tr = document.createElement("tr"); tr.className = "ok";
+        tr.innerHTML = `<td class="name" colspan="4">every checked file was inside its limit at ${rep.generated}</td><td class="st"><span class="pill ok">on time</span></td>`;
+        tb.appendChild(tr);
+      }
+      for (const it of rows) {
+        const tr = document.createElement("tr");
+        tr.className = it.state === "stale" ? "stale" : "unk";
+        tr.innerHTML = `<td class="name">${it.path}</td><td>${it.branch}</td>
+          <td class="age">${it.age_h == null ? "—" : fmtAge(it.age_h) + " ago"}</td>
+          <td class="cad">${it.limit_h} h</td>
+          <td class="st"><span class="pill ${tr.className}">${it.state}</span></td>`;
+        tb.appendChild(tr);
+        tally[tr.className]++;
+      }
+      groupsEl.appendChild(h); groupsEl.appendChild(t);
+    }
+  } catch (e) { /* report not published yet */ }
   await Promise.all(jobs);
   const n = GROUPS.reduce((a, g) => a + g.items.length, 0);
   document.getElementById("totals").innerHTML =

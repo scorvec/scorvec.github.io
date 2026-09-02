@@ -57,6 +57,8 @@ def main() -> int:
     cfg = json.load(open(os.path.join(os.path.dirname(__file__),
                                       "freshness_config.json")))
     stale, ok = [], 0
+    report = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
+              "items": []}          # mirrored to assets/status/freshness.json
     for wf, spec in cfg.get("deploy_checks", {}).items():
         try:
             age = last_deploy_success_age_h(wf)
@@ -83,7 +85,12 @@ def main() -> int:
             continue
         if age is None:
             print(f"  warn: {path} has no commits on {spec['branch']} — skipped")
+            report["items"].append({"path": path, "branch": spec["branch"], "age_h": None,
+                                    "limit_h": spec["max_age_hours"], "state": "missing"})
             continue
+        report["items"].append({"path": path, "branch": spec["branch"], "age_h": round(age, 1),
+                                "limit_h": spec["max_age_hours"],
+                                "state": "stale" if age > spec["max_age_hours"] else "ok"})
         if age > spec["max_age_hours"]:
             stale.append(f"- `{path}` ({spec['branch']}): last updated "
                          f"{age:.0f} h ago (limit {spec['max_age_hours']} h)")
@@ -91,6 +98,11 @@ def main() -> int:
             ok += 1
             print(f"  ok: {path} — {age:.1f} h")
     print(f"{ok} fresh, {len(stale)} stale")
+    report["n_ok"], report["n_stale"] = ok, len(stale)
+    out = os.path.join(os.path.dirname(__file__), "..", "assets", "status", "freshness.json")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with open(out, "w") as f:
+        json.dump(report, f, indent=1)
     if stale:
         with open("stale_report.md", "w") as f:
             f.write("The freshness sentinel found data products that have "
