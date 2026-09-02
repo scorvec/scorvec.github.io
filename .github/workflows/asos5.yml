@@ -33,6 +33,8 @@ jobs:
           key: asos5-cache-${{ github.run_id }}
           restore-keys: |
             asos5-cache-
+      - name: Install Python dependencies
+        run: pip install numpy
       - name: Update
         run: python scripts/asos5/asos5_update.py
       - name: Push the overlay branch
