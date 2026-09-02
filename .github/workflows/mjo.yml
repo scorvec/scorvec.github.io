@@ -278,8 +278,12 @@ jobs:
       # steps above already pulled (ens_cycle light: sfc + step-0 winds); every
       # builder self-fetches anything missing through store.ensure(). Each is
       # non-fatal so one upstream hiccup does not sink the cycle. The AAM /
-      # torque / jets heavy leg lives in aam.yml (needs the ~3 GB 14-level pull).
+      # torque / jets heavy leg lives in aam.yml (needs the ~3 GB 14-level pull);
+      # the AIFS comparison loops + KE spectra live in aifs-compare.yml (they
+      # took 30+ min here and the cycle's figures were still uncommitted when
+      # the run was cancelled on 2026-09-02).
       - name: MSLP + 10 m wind loop
+        timeout-minutes: 12
         working-directory: scripts/mjo
         run: |
           mkdir -p ../../assets/sst/anim/mslp_wind
@@ -292,6 +296,7 @@ jobs:
         run: python src/soi_history.py --out ../../assets/sst/soi_history.webp || echo "SOI history failed; continuing"
 
       - name: Walker + MMSF cross-sections
+        timeout-minutes: 15
         working-directory: scripts/mjo
         run: |
           mkdir -p ../../assets/sst/anim/walker ../../assets/sst/anim/mmsf
@@ -317,27 +322,6 @@ jobs:
         run: |
           python src/refresh_map120.py || echo "map120 refresh failed; map left untouched"
 
-      # AIFS single vs ENS-control deterministic scores (ERA5 truth via ARCO)
-      # and the AIFS comparison loops. Was the laptop's run_local.sh + the
-      # com.scorvec.aifsanim 12Z job.
-      - name: AIFS deterministic verification + comparison loops
-        run: |
-          mkdir -p assets/verify assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500
-          python scripts/verify/aifs_det_verify.py --collect --verify \
-            --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
-            || echo "AIFS det verification failed; continuing"
-          python scripts/verify/aifs_compare_anim.py \
-            --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
-            || echo "AIFS comparison loops failed; continuing"
-
-      # HRRR vs RRFS KE spectra from the AWS open-data buckets (no ECMWF data).
-      - name: KE spectra (HRRR vs RRFS)
-        working-directory: scripts/spectra
-        run: |
-          mkdir -p ../../assets/spectra
-          python ke_spectra.py --date "${{ needs.check.outputs.date }}" --cycle "${{ needs.check.outputs.time }}" \
-            --fxx 0 6 24 48 --out ../../assets/spectra/ke_spectra.webp || echo "KE spectra failed; continuing"
-
       # Cache-bust the static <img>s this run rebuilt (sst.html / enso-atmosphere.html
       # only re-stamp their own ?v= on the SST build otherwise).
       - name: Cache-bust the rebuilt figures
@@ -353,7 +337,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/wind200 assets/sst/anim/waf assets/sst/anim/mslp_wind \
-            assets/sst/anim/walker assets/sst/anim/mmsf assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500
+            assets/sst/anim/walker assets/sst/anim/mmsf
 
       - name: Commit & push (generated outputs)
         run: |
@@ -374,9 +358,7 @@ jobs:
                assets/sst/anim/mslp_wind_manifest.json \
                assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
                assets/sst/anim/mmsf_manifest.json assets/sst/mmsf_anom.webp \
-               assets/sst/hadley_timeseries.webp assets/sst/data/hadley_timeseries.json \
-               assets/verify/aifs_det_scores.json assets/sst/anim/aifs_compare_manifest.json assets/sst/anim/aifs_z500_manifest.json \
-               assets/spectra/ke_spectra.webp"
+               assets/sst/hadley_timeseries.webp assets/sst/data/hadley_timeseries.json"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do

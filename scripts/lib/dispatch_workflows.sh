@@ -103,6 +103,8 @@ mjo.yml|08:37|
 mjo.yml|20:37|
 aam.yml|09:20|
 aam.yml|21:20|
+aifs-compare.yml|09:45|
+aifs-compare.yml|21:45|
 asos5.yml|*:05|
 asos5.yml|*:35|
 skewt-data.yml|*:50|

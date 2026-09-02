@@ -1,0 +1,125 @@
+name: AIFS comparison loops + KE spectra
+
+# The slow, optional tail of the atmosphere products, kept OUT of mjo.yml so
+# a 30-minute ENS pull here can never hold the cycle's figures hostage (which
+# is what happened on the first combined run, 2026-09-02). Fired by the laptop
+# dispatcher ~1 h after mjo.yml (scripts/lib/dispatch_workflows.sh); the
+# products were the laptop's run_local.sh ANALYSIS group + com.scorvec.aifsanim
+# until then.
+#
+# AIFS deterministic SCORES (aifs_det_verify.py) need the WB2 1991-2020
+# climatology store (~/era5_store, ~100 GB on the laptop). No runner has it,
+# so the scores stay laptop-only until that store is hosted somewhere; the
+# step is gated on the directory and simply skips here.
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Cycle date YYYYMMDD (blank = latest AIFS-ENS)'
+        default: ''
+      time:
+        description: 'Cycle hour, 00 or 12 (blank = latest)'
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aifs-compare
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Install eccodes (GRIB decoder)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Resolve cycle
+        id: cyc
+        working-directory: scripts/mjo/src
+        run: |
+          set -euo pipefail
+          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
+          if [ -z "$D" ] || [ -z "$T" ]; then
+            python -c "from download_aifs import latest_run; d,t=latest_run(); open('/tmp/cyc','w').write(f'{d} {t}')" \
+              >/dev/null 2>/tmp/probe.err || true
+            D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
+            T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
+          fi
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
+            echo "ERROR: bad cycle (D='$D' T='$T')" >&2; tail -40 /tmp/probe.err >&2 || true; exit 1
+          fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
+          echo "cycle: $D ${T}Z"
+
+      - name: AIFS deterministic scores (laptop-only until the WB2 store is hosted)
+        timeout-minutes: 15
+        run: |
+          mkdir -p assets/verify
+          if [ -d "$HOME/era5_store/wb2_1p5_daily" ]; then
+            python scripts/verify/aifs_det_verify.py --collect --verify \
+              --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+              || echo "AIFS det verification failed; continuing"
+          else
+            echo "no WB2 climatology store on this runner - skipping the deterministic scores"
+          fi
+
+      - name: AIFS comparison loops
+        timeout-minutes: 45
+        run: |
+          mkdir -p assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500
+          python scripts/verify/aifs_compare_anim.py \
+            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            || echo "AIFS comparison loops failed; continuing"
+
+      - name: KE spectra (HRRR vs RRFS)
+        timeout-minutes: 12
+        working-directory: scripts/spectra
+        run: |
+          mkdir -p ../../assets/spectra
+          python ke_spectra.py --date "${{ steps.cyc.outputs.date }}" --cycle "${{ steps.cyc.outputs.time }}" \
+            --fxx 0 6 24 48 --out ../../assets/spectra/ke_spectra.webp || echo "KE spectra failed; continuing"
+
+      - name: Publish loop frames to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/verify/aifs_det_scores.json assets/sst/anim/aifs_compare_manifest.json \
+               assets/sst/anim/aifs_z500_manifest.json assets/spectra/ke_spectra.webp"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: ${{ steps.cyc.outputs.date }}_${{ steps.cyc.outputs.time }}z (v)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
