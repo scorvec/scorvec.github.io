@@ -5,9 +5,8 @@ name: IR satellite — 09Z
 # than one workflow asking for several. All the work lives in the reusable
 # workflow; this file is only the schedule.
 on:
-  # CRON-PAUSED 2026-09-01 (restore: uncomment the block below)
-  # schedule:
-  # - cron: '40 9 * * *'
+  schedule:
+  - cron: '40 9 * * *'
   workflow_dispatch:
 
 permissions:

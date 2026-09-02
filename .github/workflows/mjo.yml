@@ -1,12 +1,9 @@
 name: MJO RMM (AIFS-ENS)
 
-# FALLBACK builder. The primary builder is a local launchd job on Shawn's laptop
-# (scripts/mjo/run_local.sh, ~02:45 ET for 00Z and ~14:45 ET for 12Z — soon after
-# each cycle's data lands ~06Z/~18Z) which does the heavy ENS download off
-# GitHub's queue. These polls fire a couple hours AFTER that, so on normal days
-# the laptop has already pushed the cycle and the light "check" job just skips
-# (sentinel = the cycle's PNG in assets/mjo/). When the laptop slept through its
-# window, this picks the cycle up promptly and does the full build itself.
+# THE builder since 2026-09-02 (the laptop's com.scorvec.mjo launchd job is
+# unloaded; the laptop only dispatches). The "check" job still skips a cycle
+# whose RMM PNG already exists and still honours a fresh laptop claim, so a
+# one-off local run cannot double-publish. `force=true` rebuilds regardless.
 on:
   # Was 8,11 and 20,23 - a second attempt per cycle, added when a cron
   # firing was a coin flip. The dispatcher now fires each slot on time
@@ -29,6 +26,11 @@ on:
         type: string
         required: false
         default: ''
+      force:
+        description: 'Run even if the cycle is already plotted (rebuild every product)'
+        type: string
+        required: false
+        default: 'false'
   workflow_dispatch:
     inputs:
       date:
@@ -39,6 +41,10 @@ on:
         description: 'Init hour 00 or 12 (empty = latest available)'
         required: false
         default: ''
+      force:
+        description: 'Run even if the cycle is already plotted (rebuild every product)'
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
@@ -99,7 +105,10 @@ jobs:
           # Manual dispatches bypass the claim.
           CLAIM_CYCLE=$(python -c "import json;print(json.load(open('assets/mjo/claim.json')).get('cycle',''))" 2>/dev/null || echo "")
           CLAIM_AGE=$(python -c "import json;from datetime import datetime,timezone;t=datetime.fromisoformat(json.load(open('assets/mjo/claim.json'))['started'].replace('Z','+00:00'));print(int((datetime.now(timezone.utc)-t).total_seconds()//60))" 2>/dev/null || echo 99999)
-          if [ -f "assets/mjo/rmm_${COMPACT}.png" ]; then
+          if [ "${{ inputs.force }}" = "true" ]; then
+            echo "force=true — rebuilding ${COMPACT} regardless."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          elif [ -f "assets/mjo/rmm_${COMPACT}.png" ]; then
             echo "Already plotted (assets/mjo/rmm_${COMPACT}.png) — skipping."
             echo "should_run=false" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" != "workflow_dispatch" ] \
@@ -263,6 +272,89 @@ jobs:
             --out ../../assets/sst/waf.webp \
             || echo "WAF build failed; continuing"
 
+      # ── Products that until 2026-09-02 were built ONLY by the laptop's
+      # run_local.sh stage "(a)" (its launchd job was never unloaded in the
+      # 2026-08-29 offload, so they kept coming from the laptop). Same data the
+      # steps above already pulled (ens_cycle light: sfc + step-0 winds); every
+      # builder self-fetches anything missing through store.ensure(). Each is
+      # non-fatal so one upstream hiccup does not sink the cycle. The AAM /
+      # torque / jets heavy leg lives in aam.yml (needs the ~3 GB 14-level pull).
+      - name: MSLP + 10 m wind loop
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/mslp_wind
+          python src/mslp_wind_anim.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim/mslp_wind --manifest ../../assets/sst/anim/mslp_wind_manifest.json \
+            || echo "MSLP/wind loop failed; continuing"
+
+      - name: SOI history
+        working-directory: scripts/mjo
+        run: python src/soi_history.py --out ../../assets/sst/soi_history.webp || echo "SOI history failed; continuing"
+
+      - name: Walker + MMSF cross-sections
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/walker ../../assets/sst/anim/mmsf
+          python src/walker.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim/walker --manifest ../../assets/sst/anim/walker_manifest.json \
+            --out ../../assets/sst/walker_anom.webp || echo "Walker failed; continuing"
+          python src/mmsf.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" --data-dir data/mmsf \
+            --anim-dir ../../assets/sst/anim/mmsf --manifest ../../assets/sst/anim/mmsf_manifest.json \
+            --out ../../assets/sst/mmsf_anom.webp || echo "MMSF failed; continuing"
+
+      - name: Hadley intensity + edge series
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/data
+          python src/hadley_timeseries.py --out ../../assets/sst/hadley_timeseries.webp \
+            --json-out ../../assets/sst/data/hadley_timeseries.json || echo "Hadley series failed; continuing"
+
+      # RMM low-frequency filter map: ARCO-ERA5 band means, persistent cache
+      # arco_uwind_cache.nc is TRACKED so only the new days are read. Was the
+      # laptop's com.scorvec.mjo.map120 daily job.
+      - name: Refresh the RMM 120-day filter map (ARCO-ERA5)
+        working-directory: scripts/mjo
+        run: |
+          python src/refresh_map120.py || echo "map120 refresh failed; map left untouched"
+
+      # AIFS single vs ENS-control deterministic scores (ERA5 truth via ARCO)
+      # and the AIFS comparison loops. Was the laptop's run_local.sh + the
+      # com.scorvec.aifsanim 12Z job.
+      - name: AIFS deterministic verification + comparison loops
+        run: |
+          mkdir -p assets/verify assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500
+          python scripts/verify/aifs_det_verify.py --collect --verify \
+            --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
+            || echo "AIFS det verification failed; continuing"
+          python scripts/verify/aifs_compare_anim.py \
+            --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
+            || echo "AIFS comparison loops failed; continuing"
+
+      # HRRR vs RRFS KE spectra from the AWS open-data buckets (no ECMWF data).
+      - name: KE spectra (HRRR vs RRFS)
+        working-directory: scripts/spectra
+        run: |
+          mkdir -p ../../assets/spectra
+          python ke_spectra.py --date "${{ needs.check.outputs.date }}" --cycle "${{ needs.check.outputs.time }}" \
+            --fxx 0 6 24 48 --out ../../assets/spectra/ke_spectra.webp || echo "KE spectra failed; continuing"
+
+      # Cache-bust the static <img>s this run rebuilt (sst.html / enso-atmosphere.html
+      # only re-stamp their own ?v= on the SST build otherwise).
+      - name: Cache-bust the rebuilt figures
+        run: |
+          CB=$(date -u +%Y%m%d%H%M)
+          perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" sst.html enso-atmosphere.html
+          perl -0pi -e "s/((?:mmsf_anom|walker_anom|hadley_timeseries)\.webp)\?v=\w+/\${1}?v=$CB/g" enso-atmosphere.html
+
+      # The loop frames are gitignored on main; without this they never leave
+      # the runner (the laptop's publish_frames.sh used to carry them).
+      - name: Publish loop frames to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          scripts/lib/publish_frames_ci.sh assets/sst/anim/wind200 assets/sst/anim/waf assets/sst/anim/mslp_wind \
+            assets/sst/anim/walker assets/sst/anim/mmsf assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500
+
       - name: Commit & push (generated outputs)
         run: |
           git config user.name "github-actions[bot]"
@@ -272,7 +364,19 @@ jobs:
           # files failed the rebase, and its reset --hard fallback reverted the outputs
           # before re-adding them (bit sst-events.yml 2026-07-17 — "succeeded", pushed
           # nothing). Snapshot+restore makes losing the outputs structurally impossible.
-          OUT="assets/mjo mjo.html scripts/mjo/data/reference/obs_history.nc scripts/mjo/data/reference/ensmean_history.json assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp"
+          OUT="assets/mjo mjo.html sst.html enso-atmosphere.html \
+               scripts/mjo/data/reference/obs_history.nc scripts/mjo/data/reference/ensmean_history.json \
+               scripts/mjo/data/reference/wind_map120.nc scripts/mjo/data/reference/arco_uwind_cache.nc \
+               scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
+               assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/soi_history.webp \
+               assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp \
+               assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
+               assets/sst/anim/mslp_wind_manifest.json \
+               assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
+               assets/sst/anim/mmsf_manifest.json assets/sst/mmsf_anom.webp \
+               assets/sst/hadley_timeseries.webp assets/sst/data/hadley_timeseries.json \
+               assets/verify/aifs_det_scores.json assets/sst/anim/aifs_compare_manifest.json assets/sst/anim/aifs_z500_manifest.json \
+               assets/spectra/ke_spectra.webp"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
@@ -280,7 +384,7 @@ jobs:
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar"
             ls -t assets/mjo/rmm_*z.png 2>/dev/null | tail -n +61 | xargs -r rm   # re-apply pruning
-            git add $OUT
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -m "data update: ${{ needs.check.outputs.compact }}"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi

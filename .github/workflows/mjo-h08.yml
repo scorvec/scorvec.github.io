@@ -5,9 +5,8 @@ name: MJO RMM — 08Z
 # than one workflow asking for several. All the work lives in the reusable
 # workflow; this file is only the schedule.
 on:
-  # CRON-PAUSED 2026-09-01 (restore: uncomment the block below)
-  # schedule:
-  # - cron: '37 8 * * *'
+  schedule:
+  - cron: '37 8 * * *'
   workflow_dispatch:
 
 # mjo.yml requests actions:write (it re-opens its own slot on failure). A

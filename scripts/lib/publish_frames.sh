@@ -147,6 +147,19 @@ if git rev-parse -q --verify "origin/$BRANCH" >/dev/null; then
     done
   done
   [ "$kept" -gt 0 ] && echo "  carried over $kept frames from the existing branch"
+  # Anything on the branch OUTSIDE this publisher's DIRS is CI-owned and must
+  # survive the force-push untouched: the sst workflow's Copernicus stores
+  # under scripts/sst/data/cmems (2026-09-02), and whatever else a workflow
+  # decides to round-trip through the branch. Carry every such top-level path
+  # over verbatim. (The trap this closes: a laptop publish would otherwise
+  # silently delete them - the branch is ONE parentless commit.)
+  for top in $(git ls-tree --name-only "origin/$BRANCH" 2>/dev/null); do
+    owned=0
+    for d in "${DIRS[@]}"; do case "$d/" in "$top/"*) owned=1 ;; esac; done
+    [ "$owned" -eq 1 ] && continue
+    git archive "origin/$BRANCH" "$top" | tar -x -C "$TMP" 2>/dev/null \
+      && echo "  $top: CI-owned, carried over" || echo "  $top: carry-over failed"
+  done
 fi
 
 REMOTE="$(git config --get remote.origin.url)"

@@ -1,0 +1,49 @@
+name: ASOS5 overlay data
+
+# Refreshes data/asos5/asos5_latest.{js,json} (IEM HFMETAR per-hour records)
+# and force-pushes them as a single parentless commit to the asos5-data branch,
+# exactly as scripts/asos5/run_asos5.sh did from the laptop every 30 min until
+# 2026-09-02 (the laptop now only dispatches: scripts/lib/dispatch_workflows.sh
+# fires this at :05 and :35). Settled hours are cached under scripts/asos5/cache
+# (gitignored) so a run fetches only the hours that can still change; the
+# actions cache keeps that warm between runs (read-only pattern: run_id key,
+# restore-keys fall back to the newest).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: asos5
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: scripts/asos5/cache
+          key: asos5-cache-${{ github.run_id }}
+          restore-keys: |
+            asos5-cache-
+      - name: Update
+        run: python scripts/asos5/asos5_update.py
+      - name: Push the overlay branch
+        run: |
+          set -euo pipefail
+          JS="data/asos5/asos5_latest.js"; JSON="data/asos5/asos5_latest.json"
+          for f in "$JS" "$JSON"; do [ -s "$f" ] || { echo "missing/empty $f - not pushing"; exit 1; }; done
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BLOB_JS=$(git hash-object -w "$JS"); BLOB_JSON=$(git hash-object -w "$JSON")
+          TREE=$(printf '100644 blob %s\tasos5_latest.js\n100644 blob %s\tasos5_latest.json\n' "$BLOB_JS" "$BLOB_JSON" | git mktree)
+          COMMIT=$(git commit-tree "$TREE" -m "asos5 data $(date -u +%Y-%m-%dT%H:%M:%SZ)")
+          git push --force -q origin "$COMMIT:refs/heads/asos5-data"
+          echo "asos5 overlay pushed $(date -u +%FT%TZ)"

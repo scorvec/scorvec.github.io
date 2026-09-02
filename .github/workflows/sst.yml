@@ -13,9 +13,8 @@ name: SST anomalies & RONI (El Niño monitor)
 # The old 16:23 UTC slot sat 8 min ahead of PSL and was saved only by GitHub's
 # 1–2 h scheduling delay; an on-time dispatch would have committed stale maps.
 on:
-  # CRON-PAUSED 2026-09-01 (restore: uncomment the block below)
-  # schedule:
-  # - cron: '23 19 * * *'   # 19:23 UTC — after PSL publishes OISST (~16:30 UTC). Everything this job builds is daily at most (OISST, TAO, MUR, ASCAT; WWV is monthly-ish), so two firings a day is the right size — deliberately NOT more. The laptop's 15-min cadence was always over-serving it; com.scorvec.sst was unloaded 2026-08-29.
+  schedule:
+  - cron: '23 19 * * *'   # 19:23 UTC — after PSL publishes OISST (~16:30 UTC). Everything this job builds is daily at most (OISST, TAO, MUR, ASCAT; WWV is monthly-ish), so two firings a day is the right size — deliberately NOT more. The laptop's 15-min cadence was always over-serving it; com.scorvec.sst was unloaded 2026-08-29.
   # (The 23:23 retry slot was removed 2026-08-30. It existed because "the
   # cron fires once a day, so a runner-infra hang at 19:23 loses the whole
   # day" - which is now the dispatcher's job: a failed, timed-out or

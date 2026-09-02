@@ -1,24 +1,15 @@
-name: AAM (atmospheric angular momentum) — TRIAL
+name: AAM, torque and jets (ECMWF ENS heavy levels)
 
-# TRIAL, dispatch-only, and it does NOT commit anything: it uploads the figures
-# as artifacts instead. The point of the first runs is to measure the two things
-# static analysis could not answer, before this is trusted with the site:
+# The heavy leg of the atmosphere page: atmospheric angular momentum (main
+# figure + trend, zonal loop, phase), the torque budget (loop + time series +
+# ranges) and the jets figure/loop. They need the ~3 GB 14-level ENS pull, so
+# they live apart from mjo.yml (RMM + the light products) and are fired by the
+# laptop dispatcher ~40 min after it (scripts/lib/dispatch_workflows.sh).
 #
-#   1. Peak RSS of aam.py. The AAM integral spans 25 members x 12 levels x 16
-#      steps at 0.25 deg, and a 7 GB runner is the constraint. Every step is
-#      wrapped in /usr/bin/time -v and the maxima are printed in a summary.
-#   2. How many ERA5 history days it has to compute. observed_history() reads the
-#      tracked aam_history.nc and only fills missing 3-day slots, so a routine
-#      run should stream 0-2 days from ARCO-ERA5. A cold or post-gap run could
-#      want 5-10 and take much longer - the log line "computing N ERA5 history
-#      day(s)" is captured so we find out rather than guess.
-#
-# Why this is plausible at all: mjo.yml already runs ens_cycle.py on a free
-# runner, and ens_cycle's bulk list includes the AAM spec that store.py itself
-# annotates as "the heavy AAM/jets multi-level pull (~3 GB at 25 members)". The
-# run on 2026-08-26 09:21 did exactly that in 31.5 min and succeeded, so the
-# expensive download is already proven here - what is unproven is aam.py's own
-# footprint on top of it.
+# Until 2026-09-02 this was a dispatch-only TRIAL that uploaded artifacts; the
+# three trial runs (2026-08-29/30) succeeded in ~27 min on a 16 GB runner with
+# the ERA5 history cache current, which is what this now trusts. The laptop's
+# run_local.sh HEAVY group that used to build these is no longer scheduled.
 on:
   workflow_dispatch:
     inputs:
@@ -28,21 +19,18 @@ on:
       time:
         description: 'Cycle hour, 00 or 12 (blank = latest)'
         default: ''
-      skip_fetch:
-        description: 'Skip ens_cycle and use whatever is cached (faster re-test)'
-        default: 'false'
 
 permissions:
-  contents: read      # trial: reads only, nothing is pushed
+  contents: write
 
 concurrency:
-  group: aam-trial
+  group: aam
   cancel-in-progress: false
 
 jobs:
-  trial:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 120     # the proven heavy path took 31.5 min; leave headroom
+    timeout-minutes: 120
     env:
       MPLBACKEND: Agg
       MJO_HEAVY_ATMOS: '1'
@@ -73,9 +61,8 @@ jobs:
           set -euo pipefail
           D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
           if [ -z "$D" ] || [ -z "$T" ]; then
-            # Same trick mjo.yml uses: newer ecmwf-opendata writes a progress bar
-            # to stdout with no trailing newline, so parsing stdout corrupts the
-            # value. Write to a file instead.
+            # newer ecmwf-opendata writes a progress bar to stdout with no trailing
+            # newline, so the value goes through a file, not stdout.
             python -c "from download_aifs import latest_run; d,t=latest_run(); open('/tmp/cyc','w').write(f'{d} {t}')" \
               >/dev/null 2>/tmp/probe.err || true
             D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true)
@@ -87,88 +74,91 @@ jobs:
           echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"
           echo "cycle: $D ${T}Z"
 
-      - name: Disk and memory before
-        run: |
-          echo "cores: $(nproc)   mem: $(free -g | awk '/^Mem:/{print $2}') GB"
-          df -h / | tail -1
-
-      - name: Fetch the ENS cycle (includes the ~3 GB AAM levels)
-        if: ${{ github.event.inputs.skip_fetch != 'true' }}
+      # The light pass first (sfc 10u/msl series the torque budget reads), then
+      # the 14-level pull. Non-fatal: the builders use whatever is cached.
+      - name: Fetch the ENS cycle (light sfc + the ~3 GB AAM levels)
         working-directory: scripts/mjo
         timeout-minutes: 75
         run: |
-          set +e
-          /usr/bin/time -v python src/ens_cycle.py \
-            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            2> >(tee /tmp/ens_cycle.time >&2)
-          echo "ens_cycle rc=$?  (non-fatal: downstream uses whatever cached)"
+          MJO_HEAVY_ATMOS= python src/ens_cycle.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            || echo "ens_cycle (light) had issues; continuing"
+          python src/ens_cycle.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            || echo "ens_cycle (heavy) had issues; continuing"
           du -sh data 2>/dev/null || true
 
-      # Each product is timed and memory-profiled separately. They are allowed to
-      # fail without sinking the trial - a partial answer ("aam.py fits, zonal
-      # does not") is still an answer.
-      - name: AAM main figure
+      - name: AAM main figure + trend
         working-directory: scripts/mjo
         run: |
-          set +e
-          /usr/bin/time -v python src/aam.py \
-            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            --data-dir data/aam --out /tmp/out/aam.webp \
-            2> >(tee /tmp/aam.time >&2)
-          echo "aam.py rc=$?"
+          python src/aam.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --data-dir data/aam --out ../../assets/sst/aam.webp || echo "AAM failed; continuing"
 
-      - name: AAM zonal animation
+      - name: AAM zonal loop
         working-directory: scripts/mjo
         run: |
-          set +e
-          /usr/bin/time -v python src/aam_zonal.py \
-            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            --anim-dir /tmp/out/anim/aam_zonal --manifest /tmp/out/anim/aam_zonal_manifest.json \
-            2> >(tee /tmp/aam_zonal.time >&2)
-          echo "aam_zonal.py rc=$?"
+          mkdir -p ../../assets/sst/anim/aam_zonal
+          python src/aam_zonal.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim/aam_zonal --manifest ../../assets/sst/anim/aam_zonal_manifest.json \
+            || echo "AAM zonal failed; continuing"
 
       - name: AAM phase figure
         working-directory: scripts/mjo
         run: |
-          set +e
-          /usr/bin/time -v python src/aam_phase.py \
-            --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
-            --out /tmp/out/aam_phase.webp \
-            2> >(tee /tmp/aam_phase.time >&2)
-          echo "aam_phase.py rc=$?"
+          python src/aam_phase.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --out ../../assets/sst/aam_phase.webp || echo "AAM phase failed; continuing"
 
-      - name: Verdict
-        if: always()
+      - name: Torque budget (loop, time series, ranges)
+        working-directory: scripts/mjo
         run: |
-          echo "## AAM trial — ${{ steps.cyc.outputs.date }} ${{ steps.cyc.outputs.time }}Z" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| stage | wall | peak RSS | exit |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          for f in ens_cycle aam aam_zonal aam_phase; do
-            t="/tmp/$f.time"
-            [ -f "$t" ] || { echo "| $f | (did not run) | | |" >> "$GITHUB_STEP_SUMMARY"; continue; }
-            wall=$(grep -m1 "Elapsed (wall clock)" "$t" | awk '{print $NF}')
-            rss=$(grep -m1 "Maximum resident set size" "$t" | awk '{print $NF}')
-            ec=$(grep -m1 "Exit status" "$t" | awk '{print $NF}')
-            rssg=$(awk -v k="${rss:-0}" 'BEGIN{printf "%.2f GB", k/1048576}')
-            echo "| $f | ${wall:-?} | $rssg | ${ec:-?} |" >> "$GITHUB_STEP_SUMMARY"
-          done
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          # The other unknown: how many ERA5 slots had to be streamed from ARCO.
-          era=$(grep -h "ERA5 history day" /tmp/*.time 2>/dev/null | head -1)
-          echo "ERA5 history: ${era:-none reported (cache was current)}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          df -h / | tail -1 >> "$GITHUB_STEP_SUMMARY"
-          free -g | sed -n '1,2p' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat "$GITHUB_STEP_SUMMARY"
+          mkdir -p ../../assets/sst/anim/torque
+          python src/torque_map_anim.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --data-dir data/torque --sp-dir data/aam --u10-dir data/u10 --msl-dir data/msl \
+            --anim-dir ../../assets/sst/anim/torque --manifest ../../assets/sst/anim/torque_manifest.json \
+            --ts-out ../../assets/sst/torque_timeseries.webp --ranges-out ../../assets/sst/torque_ranges.webp \
+            || echo "torque budget failed; continuing"
 
-      - name: Upload figures (not committed — this is a trial)
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: aam-trial-${{ steps.cyc.outputs.date }}-${{ steps.cyc.outputs.time }}z
-          path: /tmp/out
-          if-no-files-found: warn
-          retention-days: 7
+      - name: Jets
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/jets
+          python src/jets.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --out ../../assets/sst/jets.webp \
+            --anim-dir ../../assets/sst/anim/jets --manifest ../../assets/sst/anim/jets_manifest.json \
+            || echo "jets failed; continuing"
+
+      - name: Cache-bust the rebuilt figures
+        run: |
+          CB=$(date -u +%Y%m%d%H%M)
+          perl -0pi -e "s/((?:aam|aam_trend|aam_phase|jets|torque_timeseries|torque_ranges)\.webp)\?v=\w+/\${1}?v=$CB/g" enso-atmosphere.html
+
+      - name: Publish loop frames to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/aam_zonal assets/sst/anim/torque assets/sst/anim/jets
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Snapshot outputs, then commit on a clean sync of origin/main each attempt
+          # (same pattern as mjo.yml: losing the build to a rebase is structurally impossible).
+          OUT="enso-atmosphere.html \
+               assets/sst/aam.webp assets/sst/aam_trend.webp assets/sst/aam_phase.webp \
+               assets/sst/anim/aam_zonal_manifest.json assets/sst/anim/torque_manifest.json assets/sst/anim/jets_manifest.json \
+               assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp assets/sst/jets.webp \
+               scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
+               scripts/mjo/data/reference/aam_latband_history.nc"
+          SNAP=$(mktemp -d)
+          tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: ${{ steps.cyc.outputs.date }}_${{ steps.cyc.outputs.time }}z (a)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1

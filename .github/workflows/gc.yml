@@ -23,9 +23,8 @@ name: Garbage collect the frames branch
 # 15/72. 04:52Z is a genuinely quiet slot - the hourly loops run at :12/:25/:40,
 # ECAPE at 01:20 and 07:20, site-stats at 05:17.
 on:
-  # CRON-PAUSED 2026-09-01 (restore: uncomment the block below)
-  # schedule:
-  # - cron: '52 4 * * *'
+  schedule:
+  - cron: '52 4 * * *'
   workflow_dispatch:
     inputs:
       prune:

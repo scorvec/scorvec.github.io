@@ -101,6 +101,10 @@ kiribati-wind.yml|*/6:18|
 # not scheduling.
 mjo.yml|08:37|
 mjo.yml|20:37|
+aam.yml|09:20|
+aam.yml|21:20|
+asos5.yml|*:05|
+asos5.yml|*:35|
 skewt-data.yml|02:35|
 skewt-data.yml|07:35|
 skewt-data.yml|14:35|
