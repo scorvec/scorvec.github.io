@@ -214,7 +214,9 @@ jobs:
         working-directory: scripts/mjo
         run: |
           set +e
-          python -c "import sys; sys.path.insert(0, 'src'); from pathlib import Path; from soi_forecast import fetch_obs; fetch_obs(Path('data/soi/DailySOI.txt'))" \
+          mkdir -p data/soi
+          curl -sSf --max-time 120 -o data/soi/DailySOI.txt \
+            "https://data.longpaddock.qld.gov.au/SeasonalClimateOutlook/SouthernOscillationIndex/SOIDataFiles/DailySOI1887-1989Base.txt" \
             || echo "daily SOI download failed; nowcast will use whatever is cached"
           python src/refresh_u850_tail.py || echo "u850 tail refresh failed; nowcast uses the seeded tail"
           if [ -f data/reference/eq_u850_bandseries.nc ]; then

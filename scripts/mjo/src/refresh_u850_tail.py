@@ -31,7 +31,7 @@ LON_GRID = np.arange(0.0, 360.0, 1.0)
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--year", type=int, default=pd.Timestamp.utcnow().year)
+    ap.add_argument("--year", type=int, default=pd.Timestamp.now("UTC").year)
     ap.add_argument("--hours", default="12", help="UTC hours per day to read (12 = one chunk/day)")
     ap.add_argument("--max-days", type=int, default=10, help="cap per run; the rest next time")
     ap.add_argument("--lag-days", type=int, default=5, help="ARCO trails real time by ~5-7 d")
@@ -53,27 +53,44 @@ def main() -> int:
     else:
         start = pd.Timestamp(a.year, 1, 1)
     end = min(pd.Timestamp(a.year, 12, 31),
-              pd.Timestamp.utcnow().tz_localize(None).normalize() - pd.Timedelta(days=a.lag_days))
+              pd.Timestamp.now("UTC").tz_localize(None).normalize() - pd.Timedelta(days=a.lag_days))
     if start > end:
         print(f"tail {out.name}: up to date ({start - pd.Timedelta(days=1):%Y-%m-%d})")
         return 0
     end = min(end, start + pd.Timedelta(days=a.max_days - 1))
     t0 = time.time()
-    ds = xr.open_zarr(ARCO, storage_options={"token": "anon"})
-    u = ds["u_component_of_wind"].sel(level=850).sortby("latitude").sel(latitude=slice(-6, 6))
-    u = u.sel(time=slice(f"{start:%Y-%m-%d}", f"{end:%Y-%m-%d} 23:00"))
-    u = u.sel(time=u.time.dt.hour.isin(hours))
-    if u.sizes["time"] == 0:
-        print(f"tail: ARCO has nothing yet for {start:%Y-%m-%d}..{end:%Y-%m-%d}")
+    # chunks=None: plain zarr reads of exactly the requested slices, one day at
+    # a time. The dask path (open_zarr default) on a 7 GB runner got the job
+    # killed mid-read on 2026-09-02 ("The operation was canceled" = runner OOM).
+    ds = xr.open_zarr(ARCO, chunks=None, storage_options={"token": "anon"})
+    u_all = ds["u_component_of_wind"]
+    lat_all = u_all.latitude.values
+    lat_sel = np.where(np.abs(lat_all) <= 6.0)[0]
+    days = []
+    for day in pd.date_range(start, end, freq="1D"):
+        vals = []
+        for h in hours:
+            t = pd.Timestamp(day) + pd.Timedelta(hours=h)
+            try:
+                v = u_all.sel(time=t, level=850).isel(latitude=lat_sel).values
+            except KeyError:
+                v = None
+            if v is None or not np.isfinite(v).all():
+                vals = []; break                       # ARCO has not finished this day
+            vals.append(v)
+        if not vals:
+            break                                      # stop at the first incomplete day
+        days.append((day, np.mean(vals, axis=0)))
+    if not days:
+        print(f"tail: ARCO has nothing complete yet for {start:%Y-%m-%d}..{end:%Y-%m-%d}")
         return 0
-    lat = u.latitude
+    lat = xr.DataArray(lat_all[lat_sel], dims="latitude")
     w = np.cos(np.deg2rad(lat)).where(np.abs(lat) <= LAT_BAND, 0.0)
-    band = u.weighted(w).mean("latitude").resample(time="1D").mean().compute()
-    if not np.isfinite(band.values).all():             # a day ARCO has not finished yet
-        ok = np.isfinite(band.values).all(axis=1)
-        band = band.isel(time=ok)
-        if band.sizes["time"] == 0:
-            print("tail: newest days not complete in ARCO yet"); return 0
+    stack = xr.DataArray(np.stack([d[1] for d in days]),
+                         coords=dict(time=[d[0] for d in days], latitude=lat_all[lat_sel],
+                                     longitude=u_all.longitude.values),
+                         dims=("time", "latitude", "longitude"))
+    band = stack.weighted(w).mean("latitude")
     if float(band.longitude.min()) < 0:
         band = band.assign_coords(longitude=band.longitude % 360).sortby("longitude")
     band = band.interp(longitude=LON_GRID)
