@@ -531,6 +531,10 @@ def main():
         sys.exit("another aifs animator instance is running — aborting")
 
     paths = fetch(args.date, args.time)
+    (HERE / "data").mkdir(parents=True, exist_ok=True)      # overlay caches live here; absent on a fresh runner
+    if args.engine == "julia" and shutil.which("julia") is None:
+        print("julia not on PATH (Actions runner) — rendering with matplotlib", flush=True)
+        args.engine = "mpl"
     if args.engine == "julia":
         sp = stage(args.date, args.time, paths)
         if render_julia(sp):
