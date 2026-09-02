@@ -276,6 +276,10 @@
     "assets/verify/aifs_scores_v2.json": {
       "branch": "main",
       "max_age_hours": 36
+    },
+    "assets/sst/anim/aifs_t2m_manifest.json": {
+      "branch": "main",
+      "max_age_hours": 72
     }
   },
   "deploy_checks": {

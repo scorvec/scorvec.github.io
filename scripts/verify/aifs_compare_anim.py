@@ -537,6 +537,7 @@ def render_z500_mpl(F, base):
     proj = ccrs.NorthPolarStereo(central_longitude=-100)
     levels = np.arange(486, 601, 6)                          # actual heights, dam
     alev = np.arange(-27, 27.1, 3)                            # anomaly shading, dam
+    from cartopy.util import add_cyclic_point
     for i, s in enumerate(STEPS):
         valid = base + pd.Timedelta(hours=s)
         clim = z500_clim_on(lat, lon, valid.dayofyear)
@@ -547,16 +548,20 @@ def render_z500_mpl(F, base):
                                   ("AIFS single", "AIFS-ENS control")):
             z5 = (F[mkey]["z"].sel(step=pd.Timedelta(hours=s),
                                    isobaricInhPa=500).values / G / 10.0)
+            # a global field on a polar view needs the cyclic column, else a
+            # white seam runs from the pole to the dateline
+            z5c, lonc = add_cyclic_point(z5, coord=lon)
             # SHADING = height ANOMALY vs the day-of-year climatology (the
             # signal: ridges and troughs relative to normal); CONTOURS = the
             # actual heights, so the flow itself is still readable.
             if clim is not None:
-                cf = ax.contourf(lon, lat, z5 - clim, levels=alev, cmap="RdBu_r",
+                ac, _ = add_cyclic_point(z5 - clim, coord=lon)
+                cf = ax.contourf(lonc, lat, ac, levels=alev, cmap="RdBu_r",
                                  extend="both", transform=ccrs.PlateCarree())
             else:
-                cf = ax.contourf(lon, lat, z5, levels=levels, cmap="turbo",
+                cf = ax.contourf(lonc, lat, z5c, levels=levels, cmap="turbo",
                                  extend="both", transform=ccrs.PlateCarree())
-            cl = ax.contour(lon, lat, z5, levels=levels, colors="k",
+            cl = ax.contour(lonc, lat, z5c, levels=levels, colors="k",
                             linewidths=0.55, transform=ccrs.PlateCarree())
             ax.clabel(cl, levels=levels[::2], fmt="%d", fontsize=6.5,
                       inline_spacing=2)
