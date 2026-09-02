@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-02T21:28Z",
+ "generated": "2026-09-02T21:30Z",
  "items": [
   {
    "path": "assets/sst/soi_hourly.webp",
@@ -207,7 +207,7 @@
   {
    "path": "assets/sst/kiribati_history.webp",
    "branch": "main",
-   "age_h": 6.6,
+   "age_h": 6.7,
    "limit_h": 48,
    "state": "ok"
   },
@@ -403,28 +403,28 @@
   {
    "path": "assets/sst/anim/strat10_manifest.json",
    "branch": "main",
-   "age_h": 95.4,
+   "age_h": 95.5,
    "limit_h": 36,
    "state": "stale"
   },
   {
    "path": "assets/sst/anim/aifs_z500_manifest.json",
    "branch": "main",
-   "age_h": 2.4,
+   "age_h": 2.5,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/aifs_compare_manifest.json",
    "branch": "main",
-   "age_h": 2.4,
+   "age_h": 2.5,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/mjo/rmm_manifest.json",
    "branch": "main",
-   "age_h": 1.6,
+   "age_h": 1.7,
    "limit_h": 36,
    "state": "ok"
   },
@@ -445,7 +445,7 @@
   {
    "path": "skewt/gaps.json",
    "branch": "main",
-   "age_h": 31.7,
+   "age_h": 31.8,
    "limit_h": 120,
    "state": "ok"
   },
