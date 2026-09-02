@@ -13,14 +13,18 @@ Two things it fixes, both raised on 2026-09-02:
 
   2. INDEPENDENT TRUTH. ERA5 is an IFS analysis with its own smoothness and both
      models were trained on it. Radiosondes are independent, global, and here
-     within hours: 500 hPa height is interpolated in log-pressure from each
-     station's mirrored sounding (the explorer's own skewt-data / skewt-archive
-     branches), and the sounding's surface temperature stands in for 2 m
-     temperature at the same sites. ERA5 scores are kept (from the truncated
-     fields, so they are consistent) for continuity and for MSLP.
+     within hours: 500 hPa height and 850 hPa temperature are interpolated in
+     log-pressure from each station's mirrored sounding (the explorer's own
+     skewt-data / skewt-archive branches). A radiosonde cannot verify 2 m
+     temperature, so that stays ERA5-only. ERA5 scores are kept (from the
+     truncated fields, so they are consistent) for MSLP, 2 m temperature and
+     continuity.
 
-Anomalies (z500, t2m) are against the ERA5 1991-2020 ±7-day day-of-year
-climatology interpolated to the stations; ACC and the activity ratio
+Station anomalies (z500, t850) are against each station's OWN day-of-year
+median from its full IGRA record (the explorer's skewt-climo branch, 5-day
+anchors, n ≥ 30) — an observation-based baseline at the point itself. ERA5
+scores use the ERA5 1991-2020 ±7-day climatology (z500, msl, t2m; none for
+t850, so it gets RMSE/bias only there). ACC and the activity ratio
 std(forecast anomaly)/std(observed anomaly) are computed across stations.
 
     python aifs_station_verify.py --collect --date YYYYMMDD --time 00|12
@@ -69,7 +73,10 @@ LEADS = list(range(24, 241, 24))
 G = 9.80665
 LMAX_T = 120                      # common truncation: T120 ≈ 1.5° (matches the legacy grid)
 MODELS = {"single": ("aifs-single", "fc"), "control": ("aifs-ens", "cf")}
-VARS = ("z500", "msl", "t2m")
+VARS = ("z500", "t850", "msl", "t2m")
+RAOB_VARS = ("z500", "t850")      # what a radiosonde can verify (2 m temperature it cannot)
+CLIMO_ST = DATA / "clim" / "station_climo.npz"
+CLIMO_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/skewt-climo/climo/{gid}.json"
 KEEP_CYCLES = 400                 # archive retention on the branch (~200 days of 2 cycles)
 GRID_DAYS = 12                    # keep the 1.5° grids this long (ERA5 lags ~6 d), then strip them
 
@@ -151,6 +158,7 @@ def collect(date: str, hh: str) -> bool:
     for mkey, (model, typ) in MODELS.items():
         try:
             ppl = ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "z", "pl", (500,), S))
+            pt8 = ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "t", "pl", (850,), S))
             pms = ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "msl", "sfc", (), S))
             p2t = ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "2t", "sfc", (), S))
         except Exception as e:                            # noqa: BLE001
@@ -158,14 +166,19 @@ def collect(date: str, hh: str) -> bool:
             return False
         kw = dict(engine="cfgrib", backend_kwargs={"indexpath": ""})
         dz = xr.open_dataset(ppl, **kw); dm = xr.open_dataset(pms, **kw); dt = xr.open_dataset(p2t, **kw)
+        d8 = xr.open_dataset(pt8, **kw)
         t0 = time.time()
         for step in LEADS:
             sd = pd.Timedelta(hours=step)
             zsel = dz["z"].sel(step=sd)
             if "isobaricInhPa" in zsel.dims:                  # scalar coord when one level was fetched
                 zsel = zsel.sel(isobaricInhPa=500)
+            tsel = d8["t"].sel(step=sd)
+            if "isobaricInhPa" in tsel.dims:
+                tsel = tsel.sel(isobaricInhPa=850)
             fields = {
                 "z500": to_dh(zsel) / G,
+                "t850": to_dh(tsel) - 273.15,
                 "msl": to_dh(dm["msl"].sel(step=sd)) / 100.0,
                 "t2m": to_dh(dt["t2m"].sel(step=sd)) - 273.15,
             }
@@ -175,7 +188,7 @@ def collect(date: str, hh: str) -> bool:
                 stash[(mkey, var, step)] = (sample_points(vt, lats, lons),
                                             coarsen(vt).astype(np.float32),
                                             coarsen(v).astype(np.float32))
-        dz.close(); dm.close(); dt.close()
+        dz.close(); dm.close(); dt.close(); d8.close()
         print(f"{date} {hh}Z {mkey}: {len(LEADS)} leads, spectra + T{LMAX_T} in {time.time() - t0:.0f} s",
               flush=True)
     payload = {"ids": np.array(ids), "lats": lats.astype(np.float32), "lons": lons.astype(np.float32),
@@ -191,8 +204,25 @@ def collect(date: str, hh: str) -> bool:
 
 
 # ────────────────────────────────────────────────────────────── truth: RAOB
+def _interp_logp(P, X, p0, lo, hi):
+    """X at pressure p0 by log-p interpolation between the bracketing levels
+    (P sorted descending); NaN unless the brackets sit within (lo, hi) hPa."""
+    hit = np.where(np.abs(P - p0) < 0.6)[0]
+    if hit.size and np.isfinite(X[hit[0]]):
+        return float(X[hit[0]])
+    ok = np.isfinite(X)
+    below = np.where((P > p0) & ok)[0]; above = np.where((P < p0) & ok)[0]
+    if not (below.size and above.size):
+        return np.nan
+    i, j = below[-1], above[0]
+    if not (lo > P[i] and P[j] > hi):
+        return np.nan
+    f = (np.log(P[i]) - np.log(p0)) / (np.log(P[i]) - np.log(P[j]))
+    return float(X[i] + f * (X[j] - X[i]))
+
+
 def _z500_from_csv(text):
-    """(z500 m, surface T °C, surface p hPa) from a UW TEXT:CSV sounding."""
+    """(z500 m, t850 °C, surface T °C, surface p hPa) from a UW TEXT:CSV sounding."""
     rows = text.strip().split("\n")
     if not rows or not rows[0].startswith("time"):
         return None
@@ -213,20 +243,13 @@ def _z500_from_csv(text):
     P = np.array(P); Z = np.array(Z); T = np.array(T)
     order = np.argsort(-P); P, Z, T = P[order], Z[order], T[order]
     sfc_t, sfc_p = T[0], P[0]
-    z500 = np.nan
-    hit = np.where(np.abs(P - 500.0) < 0.6)[0]
-    if hit.size:
-        z500 = Z[hit[0]]
-    else:
-        above = np.where(P < 500)[0]; below = np.where(P > 500)[0]
-        if above.size and below.size:
-            i, j = below[-1], above[0]
-            if P[i] < 700 and P[j] > 350:                  # bracketing levels close enough
-                f = (np.log(P[i]) - np.log(500.0)) / (np.log(P[i]) - np.log(P[j]))
-                z500 = Z[i] + f * (Z[j] - Z[i])
-    if not np.isfinite(z500) or not (4500 < z500 < 6200):
+    z500 = _interp_logp(P, Z, 500.0, 700.0, 350.0)
+    if not (4500 < z500 < 6200):
         z500 = np.nan
-    return z500, sfc_t, sfc_p
+    t850 = _interp_logp(P, T, 850.0, 1000.0, 700.0) if sfc_p > 860 else np.nan   # below ground otherwise
+    if not (-45 < t850 < 40):
+        t850 = np.nan
+    return z500, t850, sfc_t, sfc_p
 
 
 def _http(url, timeout=120):
@@ -272,15 +295,17 @@ def truth_raob(valid: pd.Timestamp) -> bool:
     if len(files) < 50:
         print(f"  raob {tag}: only {len(files)} soundings — not enough yet", flush=True)
         return False
-    ids, z, t, p = [], [], [], []
+    ids, z, t8, t, p = [], [], [], [], []
     for sid, text in files.items():
         r = _z500_from_csv(text)
         if r is None:
             continue
-        ids.append(sid); z.append(r[0]); t.append(r[1]); p.append(r[2])
+        ids.append(sid); z.append(r[0]); t8.append(r[1]); t.append(r[2]); p.append(r[3])
     np.savez_compressed(out, ids=np.array(ids), z500=np.array(z, np.float32),
-                        t2m=np.array(t, np.float32), psfc=np.array(p, np.float32))
-    print(f"  raob {tag}: {len(ids)} stations, {int(np.isfinite(z).sum())} with z500", flush=True)
+                        t850=np.array(t8, np.float32), tsfc=np.array(t, np.float32),
+                        psfc=np.array(p, np.float32))
+    print(f"  raob {tag}: {len(ids)} stations, {int(np.isfinite(z).sum())} with z500, "
+          f"{int(np.isfinite(t8).sum())} with t850", flush=True)
     return True
 
 
@@ -289,7 +314,7 @@ def truth_era5(valid: pd.Timestamp) -> bool:
     out = TRUTH / f"{valid:%Y%m%d%H}.npz"
     if out.exists():
         d = np.load(out)
-        if "t2m" in d.files:
+        if "t2m" in d.files and "t850" in d.files:
             return True
     TRUTH.mkdir(parents=True, exist_ok=True)
     try:
@@ -300,12 +325,14 @@ def truth_era5(valid: pd.Timestamp) -> bool:
             return False
         m = ds["mean_sea_level_pressure"].sel(time=t).values
         t2 = ds["2m_temperature"].sel(time=t).values
+        t8 = ds["temperature"].sel(time=t, level=850).values
     except Exception as e:                                # noqa: BLE001
         print(f"  era5 {valid:%Y-%m-%d %HZ}: {str(e)[:70]}", file=sys.stderr)
         return False
     np.savez_compressed(out, z500=coarsen(z[:720]).astype(np.float32) / G,
                         msl=coarsen(m[:720]).astype(np.float32) / 100.0,
-                        t2m=coarsen(t2[:720]).astype(np.float32) - 273.15)
+                        t2m=coarsen(t2[:720]).astype(np.float32) - 273.15,
+                        t850=coarsen(t8[:720]).astype(np.float32) - 273.15)
     print(f"  era5 {valid:%Y-%m-%d %HZ} ✓", flush=True)
     return True
 
@@ -320,6 +347,49 @@ def load_clim():
     if "t2m" in out and np.nanmean(out["t2m"]) > 100:      # stored in K → °C
         out["t2m"] = out["t2m"] - 273.15
     return out
+
+
+def station_climo(ids):
+    """Per-station day-of-year MEDIAN of h500 and 850 T from each station's
+    full IGRA record (skewt-climo branch: 73 five-day anchors, percentile list
+    [1,5,10,25,50,75,90,95,99], n per anchor). Built once (~900 small fetches)
+    and cached; stations without a climatology get NaN → no anomaly scores."""
+    ids = list(ids)
+    if CLIMO_ST.exists():
+        d = np.load(CLIMO_ST, allow_pickle=False)
+        if list(d["ids"]) == ids:
+            return {"z500": d["z500"], "t850": d["t850"]}
+    st = json.loads(STATIONS_JSON.read_text())["stations"]
+    gid = {s["id"]: s["gid"] for s in st if s.get("id")}
+    z = np.full((len(ids), 73), np.nan, np.float32); t = np.full((len(ids), 73), np.nan, np.float32)
+    got = 0
+    for i, sid in enumerate(ids):
+        g = gid.get(sid)
+        if not g:
+            continue
+        try:
+            c = json.loads(_http(CLIMO_URL.format(gid=g), timeout=30))
+        except Exception:                                 # noqa: BLE001
+            continue
+        for var, key, arr in (("z500", "h500", z), ("t850", "850t", t)):
+            a = (c.get("idx") or {}).get(key)
+            if not a:
+                continue
+            nn = a.get("n") or [0] * 73
+            for k in range(min(73, len(a.get("p", [])))):
+                if a["p"][k] and a["p"][k][4] is not None and nn[k] >= 30:
+                    arr[i, k] = a["p"][k][4]
+        got += 1
+    CLIMO_ST.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(CLIMO_ST, ids=np.array(ids), z500=z, t850=t)
+    print(f"  station climatology: {got}/{len(ids)} stations", flush=True)
+    return {"z500": z, "t850": t}
+
+
+def station_clim_at(sc, var, doy):
+    """Nearest 5-day anchor (anchors at doy 1, 6, 11, …, 361)."""
+    k = int(round((min(doy, 366) - 1) / 5.0)) % 73
+    return sc[var][:, k].astype(float)
 
 
 def clim_at_points(clim, var, doy, lats, lons):
@@ -363,7 +433,7 @@ def verify() -> int:
     band = (lat >= 20) & (lat <= 80)
     wg = (np.cos(np.deg2rad(lat[band]))[:, None] * np.ones((band.sum(), len(lon))))
     recs, spectra = [], {}
-    meta = {}
+    sclim = None
     if SCORES.exists():
         old = json.loads(SCORES.read_text())
         recs = old.get("records", []); spectra = old.get("spectra", {})
@@ -384,6 +454,8 @@ def verify() -> int:
                     if A is None:
                         A = np.load(arch, allow_pickle=False)
                         ids = list(A["ids"]); lats = A["lats"].astype(float); lons = A["lons"].astype(float)
+                    if f"spec_{k}" not in A.files:
+                        continue
                     sp = A[f"spec_{k}"].astype(float)
                     ent = ent or {"n": 0, "mean": [0.0] * len(sp), "inits": []}
                     n = ent["n"]; mean = np.array(ent["mean"])
@@ -409,17 +481,18 @@ def verify() -> int:
                 tid = list(T["ids"]); pos = {s: i for i, s in enumerate(tid)}
                 sel = np.array([pos.get(s, -1) for s in ids])
                 has = sel >= 0
-                for var, tkey in (("z500", "z500"), ("t2m", "t2m")):
-                    o = np.full(len(ids), np.nan, np.float32); o[has] = T[tkey][sel[has]]
-                    if var == "t2m":                              # a >100 hPa mismatch means the
-                        ps = np.full(len(ids), np.nan, np.float32); ps[has] = T["psfc"][sel[has]]
-                        o[~np.isfinite(ps)] = np.nan
-                    ca = clim_at_points(clim, var, doy, lats, lons)
-                    oa = None if ca is None else o - ca
+                if sclim is None:
+                    sclim = station_climo(ids)
+                for var in RAOB_VARS:
+                    if var not in T.files or f"st_single_{var}_{lead}" not in A.files:
+                        continue
+                    o = np.full(len(ids), np.nan, np.float32); o[has] = T[var][sel[has]]
+                    ca = station_clim_at(sclim, var, doy)
+                    oa = o - ca
                     for region, msk in (("nh", (lats >= 20) & (lats <= 80)), ("glb", np.ones(len(ids), bool))):
                         for mkey in MODELS:
                             f = A[f"st_{mkey}_{var}_{lead}"].astype(float)
-                            fa = None if ca is None else f - ca
+                            fa = f - ca
                             fm = f.copy(); om = o.copy(); fm[~msk] = np.nan; om[~msk] = np.nan
                             fam = None if fa is None else np.where(msk, fa, np.nan)
                             oam = None if oa is None else np.where(msk, oa, np.nan)
@@ -433,7 +506,7 @@ def verify() -> int:
             if ekey not in done and truth_era5(valid):
                 E = np.load(TRUTH / f"{valid:%Y%m%d%H}.npz")
                 for var in VARS:
-                    if var not in E.files:
+                    if var not in E.files or f"gt_single_{var}_{lead}" not in A.files:
                         continue
                     o = E[var][band]
                     cv = clim.get(var)
@@ -455,10 +528,11 @@ def verify() -> int:
         SCORES.write_text(json.dumps(
             {"generated": pd.Timestamp.now("UTC").strftime("%Y-%m-%d %H:%M UTC"),
              "method": f"spherical-harmonic truncation of both models at T{LMAX_T} before scoring",
-             "truths": {"raob": "radiosondes (explorer mirror): z500 log-p interpolated, surface T as 2 m proxy",
+             "truths": {"raob": "radiosondes (explorer mirror): z500 and 850 hPa T, log-p interpolated",
                         "era5": "ERA5 (ARCO) 1.5° block means of the truncated fields, NH 20-80N",
                         "era5-block": "legacy: 1.5° block means of the raw 0.25° fields"},
-             "acc_base": "ERA5 1991-2020 ±7d day-of-year climatology (WB2), NH",
+             "acc_base": {"raob": "each station's own IGRA day-of-year median (skewt-climo)",
+                          "era5": "ERA5 1991-2020 ±7d day-of-year climatology (WB2), NH; none for t850"},
              "lmax_t": LMAX_T, "leads": LEADS,
              "records": recs, "spectra": spectra}, separators=(",", ":")))
         print(f"scores: +{n_new} records → {len(recs)} total; spectra keys {len(spectra)}")

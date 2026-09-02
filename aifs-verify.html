@@ -90,13 +90,14 @@
   <div class="card">
     <div class="card-head">
       <h2>Scores by lead</h2>
-      <p>Mean over verified runs with a &plusmn;1 standard-error band. Anomalies are against the ERA5 1991&ndash;2020
-      day-of-year climatology; the <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly) across
-      stations &mdash; the smoothness police. A model can buy RMSE by damping variance; the ratio shows the purchase.</p>
+      <p>Mean over verified runs with a &plusmn;1 standard-error band. Station anomalies are against each station's
+      <b>own</b> day-of-year median from its full radiosonde record; ERA5 anomalies against the ERA5 1991&ndash;2020
+      climatology. The <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly) &mdash; the smoothness
+      police. A model can buy RMSE by damping variance; the ratio shows the purchase.</p>
     </div>
     <div class="controls">
       <span class="seg" id="truthSeg">
-        <button data-t="raob:z500:nh" class="on">z500 &middot; radiosondes</button><button data-t="raob:t2m:nh">2 m temperature &middot; radiosondes</button><button data-t="era5:z500:nh">z500 &middot; ERA5</button><button data-t="era5:msl:nh">MSLP &middot; ERA5</button><button data-t="era5:t2m:nh">2 m temperature &middot; ERA5</button>
+        <button data-t="raob:z500:nh" class="on">z500 &middot; radiosondes</button><button data-t="raob:t850:nh">850 hPa T &middot; radiosondes</button><button data-t="era5:z500:nh">z500 &middot; ERA5</button><button data-t="era5:t850:nh">850 hPa T &middot; ERA5</button><button data-t="era5:msl:nh">MSLP &middot; ERA5</button><button data-t="era5:t2m:nh">2 m T &middot; ERA5</button><button data-t="era5-block:z500:nh">z500 &middot; ERA5, old block-mean method</button>
       </span>
       <span class="seg" id="regionSeg" title="radiosonde scores only">
         <button data-r="nh" class="on">NH 20&ndash;80&deg;N</button><button data-r="glb">global</button>
@@ -118,7 +119,7 @@
       line is the common truncation applied before scoring: nothing to its right enters any score above.</p>
     </div>
     <div class="controls">
-      <span class="seg" id="specVar"><button data-v="z500" class="on">z500</button><button data-v="msl">MSLP</button><button data-v="t2m">2 m temperature</button></span>
+      <span class="seg" id="specVar"><button data-v="z500" class="on">z500</button><button data-v="t850">850 hPa T</button><button data-v="msl">MSLP</button><button data-v="t2m">2 m temperature</button></span>
       <span class="seg" id="specLead"><button data-l="24">day 1</button><button data-l="120" class="on">day 5</button><button data-l="240">day 10</button></span>
       <span class="seg" id="specMode"><button data-m="abs" class="on">power</button><button data-m="ratio">control / single</button></span>
     </div>
@@ -139,11 +140,12 @@
 
   <div class="card">
     <div class="card-head">
-      <h2>500 hPa height &mdash; Northern Hemisphere loop</h2>
-      <p>The same two runs on the polar view: a pattern comparison for the field the scores above are built on.</p>
+      <h2>500 hPa height anomaly &mdash; Northern Hemisphere loop</h2>
+      <p>Shading is the height anomaly against the 1991&ndash;2020 day-of-year climatology (ridges warm, troughs
+      cool); the black contours are the actual heights every 6 dam, so the flow stays readable under the anomaly.</p>
     </div>
     <iframe class="anim-embed" style="aspect-ratio: 1460 / 760" data-src="sst_anim.html?embed=1&amp;manifest=aifs_z500_manifest.json&amp;region=aifs_z500" title="AIFS single vs ENS control, 500 hPa height loop"></iframe>
-    <div class="card-foot">contour-filled 500 hPa height, 6-hourly to hour 360</div>
+    <div class="card-foot">anomaly shading + height contours, 6-hourly to hour 360 &middot; climatology: ERA5 via WeatherBench2</div>
   </div>
 
   <div class="colophon">
@@ -156,15 +158,17 @@
     old method is kept as a selectable ERA5 series so the change is visible.</p>
     <p><b>Independent truth.</b> ERA5 is an IFS analysis with its own smoothness, and both models were trained
     on it. The primary truth here is the radiosonde network the <a href="skewt/">sounding explorer</a> mirrors
-    every hour: 500 hPa height is interpolated in log-pressure from each station's own sounding, and the sounding's
-    surface temperature stands in for 2 m temperature at the same sites and times. Stations are sampled from the
-    truncated fields by bilinear interpolation. ERA5 scores (NH 20&ndash;80&deg;N, cosine-weighted, 1.5&deg;) are
-    kept alongside, from the same truncated fields, and are the only truth for MSLP. Radiosonde scores arrive within
-    hours of the valid time; ERA5's lag ~6 days.</p>
+    every hour: 500 hPa height and 850 hPa temperature are interpolated in log-pressure from each station's own
+    sounding. A radiosonde cannot verify 2 m temperature, so that is scored against ERA5 only. Stations are sampled
+    from the truncated fields by bilinear interpolation. ERA5 scores (NH 20&ndash;80&deg;N, cosine-weighted,
+    1.5&deg;) are kept alongside from the same truncated fields, and are the only truth for MSLP and 2 m temperature.
+    Radiosonde scores arrive within hours of the valid time; ERA5's lag ~6 days.</p>
     <p><b>Scores.</b> RMSE, bias, anomaly correlation and activity ratio, leads 24&ndash;240 h, per run; the page
-    shows the mean across runs with a &plusmn;1 standard-error band. Anomalies use the ERA5 1991&ndash;2020
-    &plusmn;7-day day-of-year climatology (WeatherBench2), interpolated to the stations; it covers the Northern
-    Hemisphere, so anomaly scores are NH-only while RMSE and bias are also reported globally.</p>
+    shows the mean across runs with a &plusmn;1 standard-error band. Station anomalies use each station's own
+    day-of-year median from its full IGRA record (the explorer's climatology, 5-day anchors, at least 30 soundings
+    per anchor) &mdash; a baseline measured at the point itself. ERA5 anomalies use the ERA5 1991&ndash;2020
+    &plusmn;7-day climatology (WeatherBench2), which covers the Northern Hemisphere; 850 hPa temperature has no
+    ERA5 climatology here, so its ERA5 panel carries RMSE and bias only.</p>
     <p><b>The stakes.</b> If the control matches the single on RMSE/ACC at the common scale while keeping an
     activity ratio near 1, the deterministic AIFS is dominated: use the control, a few minutes later on the feed,
     and get realistic sharpness for free &mdash; plus 50 siblings quantifying its uncertainty.</p>
@@ -175,7 +179,7 @@
   "use strict";
   var COL = { single: "#b3372f", control: "#2c5f8a" };
   var NAME = { single: "AIFS single", control: "ENS control" };
-  var UNIT = { z500: "m", msl: "hPa", t2m: "°C" };
+  var UNIT = { z500: "m", t850: "°C", msl: "hPa", t2m: "°C" };
   var state = { truth: "raob", var: "z500", region: "nh", specVar: "z500", specLead: 120, specMode: "abs", D: null };
 
   function seg(id, key, cb) {
@@ -279,9 +283,10 @@
       traces.push({ x: l, y: ratio, name: "control / single", mode: "lines", line: { color: "#1c1c1a", width: 2.2 },
                     hovertemplate: "control / single %{y:.2f}<extra></extra>" });
       lay.yaxis = { title: { text: "power ratio, control / single", font: { size: 10.5, color: "#888580" } }, gridcolor: "#eeece6", zeroline: false };
-      lay.shapes = [{ type: "line", x0: 0, x1: Math.log10(360), xref: "x", y0: 1, y1: 1, line: { color: "#888", dash: "dot", width: 1 } }];
+      lay.shapes = [{ type: "line", x0: 1, x1: 360, xref: "x", y0: 1, y1: 1, line: { color: "#888", dash: "dot", width: 1 } }];
     }
-    lay.shapes = (lay.shapes || []).concat([{ type: "line", x0: Math.log10(D.lmax_t), x1: Math.log10(D.lmax_t), xref: "x", yref: "paper", y0: 0, y1: 1,
+    // Plotly quirk: on a log axis SHAPES take raw data values, ANNOTATIONS take log10
+    lay.shapes = (lay.shapes || []).concat([{ type: "line", x0: D.lmax_t, x1: D.lmax_t, xref: "x", yref: "paper", y0: 0, y1: 1,
                                              line: { color: "#2c4a72", dash: "dot", width: 1.2 } }]);
     lay.annotations = [{ x: Math.log10(D.lmax_t), y: 1, xref: "x", yref: "paper", text: "T" + D.lmax_t + " truncation", showarrow: false,
                          xanchor: "right", yanchor: "top", font: { size: 10, color: "#2c4a72" }, xshift: -4 }];
@@ -304,12 +309,12 @@
     var inits = {}; D.records.forEach(function (r) { inits[r.init] = 1; });
     kpi("verified runs", Object.keys(inits).length, "", "00Z + 12Z");
     if (m("single", "rmse") != null) {
-      kpi("day-5 z500 RMSE vs radiosondes", m("single", "rmse").toFixed(1) + " m", "single", "single");
-      kpi("day-5 z500 RMSE vs radiosondes", m("control", "rmse").toFixed(1) + " m", "control", "control");
+      kpi("day-5 z500 RMSE vs radiosondes", m("single", "rmse").toFixed(1) + " m", "single", "AIFS single");
+      kpi("day-5 z500 RMSE vs radiosondes", m("control", "rmse").toFixed(1) + " m", "control", "ENS control");
     }
     if (m("single", "act") != null) {
-      kpi("day-5 activity ratio", m("single", "act").toFixed(2), "single", "single");
-      kpi("day-5 activity ratio", m("control", "act").toFixed(2), "control", "control");
+      kpi("day-5 z500 activity ratio", m("single", "act").toFixed(2), "single", "AIFS single");
+      kpi("day-5 z500 activity ratio", m("control", "act").toFixed(2), "control", "ENS control");
     }
   }
   fetch("assets/verify/aifs_scores_v2.json?v=" + Date.now()).then(function (r) { if (!r.ok) throw 0; return r.json(); })

@@ -427,6 +427,27 @@ def render_mpl(date: str, hh: str, paths):
     render_z500_mpl(F, base)
 
 
+Z500_CLIM = REPO / "scripts" / "verify" / "data" / "clim" / "clim_1p5.npz"
+
+
+def z500_clim_on(lat, lon, doy):
+    """ERA5 1991-2020 ±7 d day-of-year z500 climatology (dam) on the model grid.
+    The climatology lives on a 1.5° NH grid (see aifs_station_verify.py);
+    NaN south of the equator, which the NH loop never shows."""
+    if not Z500_CLIM.exists():
+        return None
+    c = np.load(Z500_CLIM)["z500"][min(int(doy), 366) - 1]      # (120, 240) m
+    clat = 90.0 - 0.25 * (np.arange(720).reshape(120, 6).mean(axis=1))
+    clon = 0.25 * (np.arange(1440).reshape(240, 6).mean(axis=1))
+    da = xr.DataArray(c, coords=dict(latitude=clat, longitude=clon),
+                      dims=("latitude", "longitude"))
+    da = xr.concat([da, da.isel(longitude=0).assign_coords(longitude=clon[0] + 360.0)],
+                   dim="longitude")
+    lon360 = np.mod(lon, 360.0)
+    out = da.interp(latitude=("y", lat), longitude=("x", lon360), method="linear").values
+    return out / 10.0
+
+
 def render_z500_mpl(F, base):
     import matplotlib.pyplot as plt
     import cartopy.crs as ccrs
@@ -438,9 +459,11 @@ def render_z500_mpl(F, base):
     lat = F["single"]["z"].latitude.values
     lon = F["single"]["z"].longitude.values
     proj = ccrs.NorthPolarStereo(central_longitude=-100)
-    levels = np.arange(486, 601, 6)
+    levels = np.arange(486, 601, 6)                          # actual heights, dam
+    alev = np.arange(-27, 27.1, 3)                            # anomaly shading, dam
     for i, s in enumerate(STEPS):
         valid = base + pd.Timedelta(hours=s)
+        clim = z500_clim_on(lat, lon, valid.dayofyear)
         fig, axes = plt.subplots(1, 2, figsize=(12.8, 6.6),
                                  constrained_layout=True,
                                  subplot_kw={"projection": proj})
@@ -448,11 +471,18 @@ def render_z500_mpl(F, base):
                                   ("AIFS single", "AIFS-ENS control")):
             z5 = (F[mkey]["z"].sel(step=pd.Timedelta(hours=s),
                                    isobaricInhPa=500).values / G / 10.0)
-            cf = ax.contourf(lon, lat, z5, levels=levels, cmap="turbo",
-                             extend="both", transform=ccrs.PlateCarree())
-            cl = ax.contour(lon, lat, z5, levels=levels[::2], colors="k",
-                            linewidths=0.5, transform=ccrs.PlateCarree())
-            ax.clabel(cl, levels=levels[::4], fmt="%d", fontsize=6,
+            # SHADING = height ANOMALY vs the day-of-year climatology (the
+            # signal: ridges and troughs relative to normal); CONTOURS = the
+            # actual heights, so the flow itself is still readable.
+            if clim is not None:
+                cf = ax.contourf(lon, lat, z5 - clim, levels=alev, cmap="RdBu_r",
+                                 extend="both", transform=ccrs.PlateCarree())
+            else:
+                cf = ax.contourf(lon, lat, z5, levels=levels, cmap="turbo",
+                                 extend="both", transform=ccrs.PlateCarree())
+            cl = ax.contour(lon, lat, z5, levels=levels, colors="k",
+                            linewidths=0.55, transform=ccrs.PlateCarree())
+            ax.clabel(cl, levels=levels[::2], fmt="%d", fontsize=6.5,
                       inline_spacing=2)
             ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
             ax.coastlines(lw=0.8, color="0.15")
@@ -463,9 +493,10 @@ def render_z500_mpl(F, base):
             ax.set_title(name, fontsize=11.5, fontweight="bold", loc="left")
         cb = fig.colorbar(cf, ax=list(axes), orientation="horizontal",
                           pad=0.02, fraction=0.05, aspect=48)
-        cb.set_label("500 hPa height (dam)", fontsize=8.5)
+        cb.set_label("500 hPa height anomaly vs 1991–2020 (dam) · contours: height (dam, every 6)"
+                     if clim is not None else "500 hPa height (dam)", fontsize=8.5)
         cb.ax.tick_params(labelsize=7)
-        fig.suptitle(f"500 hPa geopotential height · NH — hour {s} · "
+        fig.suptitle(f"500 hPa height anomaly + height · NH — hour {s} · "
                      f"valid {valid:%a %b %d %HZ} · init {base:%Y-%m-%d %HZ}",
                      fontsize=12, fontweight="bold")
         out = ANIM_Z / f"F{i:02d}.webp"
@@ -477,7 +508,7 @@ def render_z500_mpl(F, base):
             print(f"  z500 frame {i}/{len(STEPS)}", flush=True)
     man = {"ver": int(time.time()), "days": len(frames),
            "regions": {"aifs_z500": {
-               "label": "AIFS single vs AIFS-ENS control — 500 hPa height (NH)",
+               "label": "AIFS single vs AIFS-ENS control — 500 hPa height anomaly + height (NH)",
                "n_frames": len(frames), "frames": frames}}}
     MANIFEST_Z.write_text(json.dumps(man))
     print(f"wrote {len(frames)} z500 frames + manifest")

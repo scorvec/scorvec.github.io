@@ -272,6 +272,10 @@
     "asos5_latest.json": {
       "branch": "asos5-data",
       "max_age_hours": 3
+    },
+    "assets/verify/aifs_scores_v2.json": {
+      "branch": "main",
+      "max_age_hours": 36
     }
   },
   "deploy_checks": {

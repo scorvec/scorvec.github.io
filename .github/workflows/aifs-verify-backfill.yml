@@ -1,0 +1,108 @@
+name: AIFS verification backfill
+
+# One-off / occasional: archive past 00Z and 12Z cycles for the AIFS single vs
+# ENS-control verification (scripts/verify/aifs_station_verify.py) from the
+# ECMWF open-data mirrors, which keep every cycle (the Google mirror served
+# 422 cycles back to July 2025 for the Colombia backfill), then score them.
+#
+# Radiosonde truth exists from 2026-07-10 (the explorer's day bundles); ERA5
+# truth for everything. Runs SEQUENTIALLY in one job on purpose: the archive
+# directory is published to the frames branch as a whole, so parallel chunks
+# would overwrite each other's cycles. ~1.5 min per cycle: 110 cycles ≈ 3 h.
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: 'first cycle date YYYYMMDD'
+        default: '20260710'
+      end:
+        description: 'last cycle date YYYYMMDD (blank = yesterday)'
+        default: ''
+      hours:
+        description: 'cycles per day: "00 12" or "00"'
+        default: '00 12'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aifs-compare          # never alongside the regular run: same archive dir
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Install eccodes (GRIB decoder)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Seed verification state from the frames branch
+        run: scripts/lib/fetch_frames_ci.sh scripts/verify/data/clim scripts/verify/data/truth scripts/verify/data/truth_st scripts/verify/data/st_archive
+
+      - name: Archive the cycles
+        timeout-minutes: 300
+        run: |
+          set +e
+          START="${{ github.event.inputs.start }}"
+          END="${{ github.event.inputs.end }}"
+          [ -z "$END" ] && END=$(date -u -d 'yesterday' +%Y%m%d)
+          d="$START"; n=0; fail=0
+          while [ "$d" -le "$END" ]; do
+            for hh in ${{ github.event.inputs.hours }}; do
+              if [ -f "scripts/verify/data/st_archive/${d}${hh}.npz" ]; then continue; fi
+              if python scripts/verify/aifs_station_verify.py --collect --date "$d" --time "$hh"; then
+                n=$((n + 1))
+              else
+                fail=$((fail + 1)); echo "::warning::$d ${hh}Z could not be archived"
+              fi
+              # the GRIBs are not needed once the cycle is archived
+              rm -rf scripts/ecmwf/cache 2>/dev/null || true
+            done
+            d=$(date -u -d "$d + 1 day" +%Y%m%d)
+          done
+          echo "archived $n new cycles, $fail failed"
+
+      - name: Score everything that has truth
+        timeout-minutes: 45
+        run: |
+          python scripts/verify/aifs_station_verify.py --verify || echo "::warning::scoring hit an error; partial scores kept"
+          rm -rf scripts/verify/data/uw_cache
+
+      - name: Publish verification state to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh scripts/verify/data/clim scripts/verify/data/truth scripts/verify/data/truth_st scripts/verify/data/st_archive
+
+      - name: Commit & push the scores
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/verify/aifs_scores_v2.json"
+          SNAP=$(mktemp -d); cp "$OUT" "$SNAP/" 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            cp "$SNAP/aifs_scores_v2.json" "$OUT" 2>/dev/null || true
+            git add "$OUT"
+            if git diff --staged --quiet; then echo "no change"; exit 0; fi
+            git commit -q -m "data update: aifs verification backfill"
+            if git push -q; then exit 0; fi
+            sleep 5
+          done
+          echo "::warning::could not push the scores"

@@ -128,7 +128,7 @@ const GROUPS = [
  ]},
  { title: "Convection & verification", page: "ecape.html", items: [
    { name: "ECAPE (HRRR)", note: "dated by init, 6-hourly", src: "assets/ecape/anim/index.json", field: "latest", every: 6, init: true },
-   { name: "AIFS deterministic scores", src: "assets/verify/aifs_det_scores.json", field: "generated", every: 24 },
+   { name: "AIFS verification scores", note: "radiosondes + ERA5, both models at T120", src: "assets/verify/aifs_scores_v2.json", field: "generated", every: 12 },
    { name: "AIFS z500 loop", src: "assets/sst/anim/aifs_z500_manifest.json", field: "ver", every: 24 },
  ]},
  { title: "Observations", page: "asos5.html", items: [
