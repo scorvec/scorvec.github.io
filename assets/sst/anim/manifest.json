@@ -2187,7 +2187,7 @@
     },
     "equatorial": {
       "label": "Equatorial Pacific T(z) cross-section",
-      "n_frames": 119,
+      "n_frames": 120,
       "frames": [
         {
           "idx": 0,
@@ -2902,12 +2902,18 @@
           "file": "F118.webp",
           "date": "2026-08-31",
           "label": "Mon Aug 31, 2026"
+        },
+        {
+          "idx": 119,
+          "file": "F119.webp",
+          "date": "2026-09-01",
+          "label": "Tue Sep 01, 2026"
         }
       ]
     },
     "equatorial_dt": {
       "label": "Equatorial Pacific anomaly \u2014 raw vs de-trended",
-      "n_frames": 119,
+      "n_frames": 120,
       "frames": [
         {
           "idx": 0,
@@ -3622,6 +3628,12 @@
           "file": "F118.webp",
           "date": "2026-08-31",
           "label": "Mon Aug 31, 2026"
+        },
+        {
+          "idx": 119,
+          "file": "F119.webp",
+          "date": "2026-09-01",
+          "label": "Tue Sep 01, 2026"
         }
       ]
     }
