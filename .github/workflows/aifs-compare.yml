@@ -107,7 +107,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          scripts/lib/publish_frames_ci.sh assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500 \
+          scripts/lib/publish_frames_ci.sh assets/sst/anim/aifs_compare assets/sst/anim/aifs_z500 assets/sst/anim/aifs_t2m \
             scripts/verify/data/truth scripts/verify/data/truth_st scripts/verify/data/st_archive
 
       - name: Commit & push
@@ -115,7 +115,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           OUT="assets/verify/aifs_scores_v2.json assets/verify/aifs_det_scores.json assets/sst/anim/aifs_compare_manifest.json \
-               assets/sst/anim/aifs_z500_manifest.json assets/spectra/ke_spectra.webp"
+               assets/sst/anim/aifs_z500_manifest.json assets/sst/anim/aifs_t2m_manifest.json assets/spectra/ke_spectra.webp"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do

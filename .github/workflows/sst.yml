@@ -196,6 +196,36 @@ jobs:
           SST_SITE_ROOT: ${{ github.workspace }}
         run: python scripts/sst/build_nino_history.py || echo "nino history failed; keeping previous JSON"
 
+      # ── MEI.v2 daily nowcast (moved from the laptop 2026-09-02) ─────────────
+      # Regression of the bimonthly MEI.v2 on daily Niño-3.4 (the OISST means
+      # this job already downloaded), the daily SOI and the equatorial 850 hPa
+      # zonal wind. The two gitignored inputs it needs ride the frames branch
+      # under scripts/mjo/data/reference_big: the 1959-2023 band series (64 MB,
+      # static) and the current-year ERA5 tail, which refresh_u850_tail.py
+      # extends by the few new days ARCO has (never a whole-year rebuild).
+      - name: Seed the MEI inputs from the frames branch
+        run: |
+          scripts/lib/fetch_frames_ci.sh scripts/mjo/data/reference_big
+          cp -n scripts/mjo/data/reference_big/*.nc scripts/mjo/data/reference/ 2>/dev/null || true
+          pip install -q zarr gcsfs
+
+      - name: MEI nowcast
+        timeout-minutes: 20
+        working-directory: scripts/mjo
+        run: |
+          set +e
+          python -c "import sys; sys.path.insert(0, 'src'); from pathlib import Path; from soi_forecast import fetch_obs; fetch_obs(Path('data/soi/DailySOI.txt'))" \
+            || echo "daily SOI download failed; nowcast will use whatever is cached"
+          python src/refresh_u850_tail.py || echo "u850 tail refresh failed; nowcast uses the seeded tail"
+          if [ -f data/reference/eq_u850_bandseries.nc ]; then
+            python src/build_mei_nowcast.py --apply "$(date -u +%Y)" || echo "MEI nowcast failed; keeping previous figures"
+            cp -f data/reference/eq_u850_*_arco.nc data/reference_big/ 2>/dev/null || true
+          else
+            echo "no u850 band series on this runner - skipping the MEI nowcast"
+          fi
+          CB=$(date -u +%Y%m%d%H%M)
+          perl -0pi -e "s/((?:mei\/mei_nowcast|mei\/mei_analogs|mei\/mei_history)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../sst.html
+
       # WITHOUT THIS THE ANIMATIONS NEVER LEAVE THE RUNNER. .gitignore keeps
       # frame webp off main, and this workflow had no frames-branch publisher
       # at all - so every loop it rendered was discarded when the job ended.
@@ -205,7 +235,7 @@ jobs:
       - name: Publish frames to the orphan branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh scripts/sst/data/cmems assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat
+        run: scripts/lib/publish_frames_ci.sh scripts/sst/data/cmems scripts/mjo/data/reference_big assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat
 
       - name: Commit & push (generated outputs)
         run: |

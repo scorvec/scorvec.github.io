@@ -148,6 +148,16 @@
     <div class="card-foot">anomaly shading + height contours, 6-hourly to hour 360 &middot; climatology: ERA5 via WeatherBench2</div>
   </div>
 
+  <div class="card">
+    <div class="card-head">
+      <h2>2 m temperature anomaly &mdash; North America loop</h2>
+      <p>Shading is the 2 m temperature anomaly against the 1991&ndash;2020 day-of-year climatology; grey contours are
+      the actual 2 m temperature every 5 &deg;C with the freezing line in blue. The same two runs, 6-hourly to hour 360.</p>
+    </div>
+    <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_t2m_manifest.json&amp;region=aifs_t2m" title="AIFS single vs ENS control, 2 m temperature anomaly loop"></iframe>
+    <div class="card-foot">climatology: ERA5 via WeatherBench2 &middot; a radiosonde cannot verify 2 m temperature, so its scores above are against ERA5</div>
+  </div>
+
   <div class="colophon">
     <h3>Method</h3>
     <p><b>Same spectrum, not just same grid.</b> Each 0.25&deg; global field is expanded in spherical harmonics

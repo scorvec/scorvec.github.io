@@ -41,6 +41,8 @@ ANIM = REPO / "assets" / "sst" / "anim" / "aifs_compare"
 MANIFEST = REPO / "assets" / "sst" / "anim" / "aifs_compare_manifest.json"
 ANIM_Z = REPO / "assets" / "sst" / "anim" / "aifs_z500"
 MANIFEST_Z = REPO / "assets" / "sst" / "anim" / "aifs_z500_manifest.json"
+ANIM_T = REPO / "assets" / "sst" / "anim" / "aifs_t2m"
+MANIFEST_T = REPO / "assets" / "sst" / "anim" / "aifs_t2m_manifest.json"
 STAGE = HERE / "data" / "anim_stage"
 OVCACHE = HERE / "data"
 JULIA_SCRIPT = REPO / "scripts" / "julia" / "aifs_render.jl"
@@ -64,6 +66,8 @@ def fetch(date: str, hh: str) -> dict:
                              ("ens", "aifs-ens", "cf")):
         out[(mkey, "sfc")] = ecmwf.ensure(
             cyc, ecmwf.Spec(model, typ, ("msl", "tp"), "sfc", (), S))
+        out[(mkey, "2t")] = ecmwf.ensure(
+            cyc, ecmwf.Spec(model, typ, "2t", "sfc", (), S))
         out[(mkey, "z")] = ecmwf.ensure(
             cyc, ecmwf.Spec(model, typ, "z", "pl", (1000, 500), S))
     return out
@@ -79,7 +83,9 @@ def load_all(paths):
             filter_by_keys={"shortName": "tp"}, indexpath=""), **kw)
         z = xr.open_dataset(paths[(mkey, "z")],
                             backend_kwargs={"indexpath": ""}, **kw)
-        out[mkey] = dict(msl=msl["msl"], tp=tp["tp"], z=z["z"])
+        t2 = xr.open_dataset(paths[(mkey, "2t")],
+                             backend_kwargs={"indexpath": ""}, **kw)
+        out[mkey] = dict(msl=msl["msl"], tp=tp["tp"], z=z["z"], t2m=t2["t2m"])
     return out
 
 
@@ -425,18 +431,24 @@ def render_mpl(date: str, hh: str, paths):
     MANIFEST.write_text(json.dumps(man))
     print(f"wrote {len(frames)} frames + manifest")
     render_z500_mpl(F, base)
+    render_t2m_mpl(F, base)
 
 
 Z500_CLIM = REPO / "scripts" / "verify" / "data" / "clim" / "clim_1p5.npz"
 
 
-def z500_clim_on(lat, lon, doy):
-    """ERA5 1991-2020 ±7 d day-of-year z500 climatology (dam) on the model grid.
-    The climatology lives on a 1.5° NH grid (see aifs_station_verify.py);
-    NaN south of the equator, which the NH loop never shows."""
+def z500_clim_on(lat, lon, doy, var="z500"):
+    """ERA5 1991-2020 ±7 d day-of-year climatology on the model grid: z500 in
+    dam, t2m in °C. The climatology lives on a 1.5° NH grid (see
+    aifs_station_verify.py); NaN south of the equator, which neither loop shows."""
     if not Z500_CLIM.exists():
         return None
-    c = np.load(Z500_CLIM)["z500"][min(int(doy), 366) - 1]      # (120, 240) m
+    d = np.load(Z500_CLIM)
+    if var not in d.files:
+        return None
+    c = d[var][min(int(doy), 366) - 1].astype(float)             # (120, 240)
+    if var == "t2m" and np.nanmean(c) > 100:
+        c = c - 273.15
     clat = 90.0 - 0.25 * (np.arange(720).reshape(120, 6).mean(axis=1))
     clon = 0.25 * (np.arange(1440).reshape(240, 6).mean(axis=1))
     da = xr.DataArray(c, coords=dict(latitude=clat, longitude=clon),
@@ -445,7 +457,71 @@ def z500_clim_on(lat, lon, doy):
                    dim="longitude")
     lon360 = np.mod(lon, 360.0)
     out = da.interp(latitude=("y", lat), longitude=("x", lon360), method="linear").values
-    return out / 10.0
+    return out / 10.0 if var == "z500" else out
+
+
+def render_t2m_mpl(F, base):
+    """2 m temperature ANOMALY (shaded) with the actual 2 m temperature
+    contoured, North America, both models side by side."""
+    import matplotlib.pyplot as plt
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    ANIM_T.mkdir(parents=True, exist_ok=True)
+    for old in ANIM_T.glob("F*.webp"):
+        old.unlink()
+    frames = []
+    lat = F["single"]["t2m"].latitude.values
+    lon = F["single"]["t2m"].longitude.values
+    proj = ccrs.LambertConformal(central_longitude=-97, central_latitude=39)
+    alev = np.arange(-16, 16.1, 2)                            # anomaly, °C
+    tlev = np.arange(-40, 46, 5)                               # actual, °C
+    for i, s in enumerate(STEPS):
+        valid = base + pd.Timedelta(hours=s)
+        clim = z500_clim_on(lat, lon, valid.dayofyear, var="t2m")
+        if clim is None:
+            print("  no t2m climatology — skipping the 2 m temperature loop", flush=True)
+            return
+        fig, axes = plt.subplots(1, 2, figsize=(14.6, 6.1),
+                                 constrained_layout=True,
+                                 subplot_kw={"projection": proj})
+        for ax, mkey, name in zip(axes, ("single", "ens"),
+                                  ("AIFS single", "AIFS-ENS control")):
+            t2 = F[mkey]["t2m"].sel(step=pd.Timedelta(hours=s)).values - 273.15
+            cf = ax.contourf(lon, lat, t2 - clim, levels=alev, cmap="RdBu_r",
+                             extend="both", transform=ccrs.PlateCarree())
+            ct = ax.contour(lon, lat, t2, levels=tlev, colors="0.25",
+                            linewidths=0.5, transform=ccrs.PlateCarree())
+            ax.clabel(ct, levels=tlev[::2], fmt="%d", fontsize=6, inline_spacing=2)
+            c0 = ax.contour(lon, lat, t2, levels=[0], colors="#1565c0",
+                            linewidths=1.5, transform=ccrs.PlateCarree())
+            ax.clabel(c0, fmt="%d°C", fontsize=6.5, inline_spacing=2)
+            ax.set_extent(EXTENT, ccrs.PlateCarree())
+            ax.coastlines(lw=1.1, color="0.05")
+            ax.add_feature(cfeature.BORDERS, lw=0.8, edgecolor="0.15", facecolor="none")
+            ax.add_feature(cfeature.STATES, lw=0.55, edgecolor="0.3", facecolor="none")
+            ax.add_feature(cfeature.LAKES, lw=0.55, edgecolor="0.3", facecolor="none")
+            ax.set_title(name, fontsize=11.5, fontweight="bold", loc="left")
+        cb = fig.colorbar(cf, ax=list(axes), orientation="horizontal",
+                          pad=0.02, fraction=0.05, aspect=48)
+        cb.set_label("2 m temperature anomaly vs 1991–2020 (°C) · contours: 2 m temperature (°C, every 5; 0 °C blue)",
+                     fontsize=8.5)
+        cb.ax.tick_params(labelsize=7)
+        fig.suptitle(f"2 m temperature anomaly + temperature — hour {s} · "
+                     f"valid {valid:%a %b %d %HZ} · init {base:%Y-%m-%d %HZ}",
+                     fontsize=12, fontweight="bold")
+        out = ANIM_T / f"F{i:02d}.webp"
+        fig.savefig(out, dpi=150)
+        plt.close(fig)
+        frames.append({"idx": i, "file": out.name, "date": f"{valid:%Y-%m-%d}",
+                       "label": f"h{s:03d} · {valid:%b %d %HZ}"})
+        if i % 12 == 0:
+            print(f"  t2m frame {i}/{len(STEPS)}", flush=True)
+    man = {"ver": int(time.time()), "days": len(frames),
+           "regions": {"aifs_t2m": {
+               "label": "AIFS single vs AIFS-ENS control — 2 m temperature anomaly (North America)",
+               "n_frames": len(frames), "frames": frames}}}
+    MANIFEST_T.write_text(json.dumps(man))
+    print(f"wrote {len(frames)} t2m frames + manifest")
 
 
 def render_z500_mpl(F, base):
