@@ -428,8 +428,38 @@ def _na_axes(ax, cfeature, ccrs):
     ax.add_feature(cfeature.LAKES, lw=0.55, edgecolor="0.3", facecolor="none")
 
 
+def _prewarm_features():
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    for proj, ext in ((ccrs.LambertConformal(central_longitude=-97, central_latitude=39), EXTENT),
+                      (ccrs.NorthPolarStereo(central_longitude=-100), [-180, 180, 20, 90])):
+        fig = plt.figure(figsize=(2, 2))
+        ax = fig.add_subplot(1, 1, 1, projection=proj)
+        ax.set_extent(ext, ccrs.PlateCarree())
+        ax.coastlines(lw=0.5)
+        for f in (cfeature.BORDERS, cfeature.STATES, cfeature.LAKES):
+            ax.add_feature(f, lw=0.3, facecolor="none")
+        fig.canvas.draw()
+        plt.close(fig)
+
+
 def _draw_frame(job):
-    """Render one frame of one loop; returns the manifest entry."""
+    """Render one frame of one loop; returns the manifest entry. One retry:
+    a transient failure must not take the whole loop down."""
+    for attempt in (1, 2):
+        try:
+            return _draw_frame_once(job)
+        except Exception as e:                            # noqa: BLE001
+            if attempt == 2:
+                print(f"  frame {job} failed twice: {str(e)[:90]}", flush=True)
+                return None
+            time.sleep(2)
+
+
+def _draw_frame_once(job):
     kind, i, s = job
     import matplotlib
     matplotlib.use("Agg")
@@ -586,6 +616,10 @@ def render_mpl(date: str, hh: str, paths, kinds=("compare", "z500", "t2m"), work
         LOOPS[kind]["anim"].mkdir(parents=True, exist_ok=True)
         for old in LOOPS[kind]["anim"].glob("F*.webp"):
             old.unlink()
+    # Pre-warm cartopy's Natural Earth cache in the PARENT: on a fresh runner
+    # every forked worker otherwise downloads the same shapefiles at once and
+    # one of them reads a half-written file (struct.error, 2026-09-02).
+    _prewarm_features()
     jobs = [(kind, i, s) for kind in kinds for i, s in enumerate(STEPS)]
     workers = workers or max(1, min(os.cpu_count() or 2, 8))
     t0 = time.time()
