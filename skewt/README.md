@@ -20,7 +20,7 @@ always names the one you're looking at, so you're never guessing.
 |---|---|---|---|---|
 | **SPC observed** (`spc.noaa.gov/exper/soundings`) | US | Fastest — ~1 h post-synoptic | ~110–200 levels | ✅ |
 | **IEM RAOB** (`mesonet.agron.iastate.edu`) | US + Canada | ~1 h behind SPC | ~180–250 levels | ✅ |
-| **UW mirror** (`weather.uwyo.edu`, mirrored) | Global | 6×/day cron | Full BUFR, thinned to 260 | ❌ → mirrored |
+| **UW mirror** (`weather.uwyo.edu`, mirrored) | Global | hourly mirror | Full BUFR, thinned to 260 | ❌ → mirrored |
 | **NOAA IGRA v2** (`ncei.noaa.gov`) | Global, 1905–present | ~1–2 day lag | Mandatory + significant levels | ✅ |
 
 ### The physics floor on "real-time"
@@ -36,10 +36,20 @@ higher-resolution profile of the same launch.
 ### Why the University of Wyoming is mirrored, not fetched
 
 UW sends no `Access-Control-Allow-Origin` header, so a browser cannot fetch it directly. A GitHub
-Action pulls ~600 stations 6×/day and force-pushes them to a `skewt-data` branch, which
+Action pulls ~700 stations every hour (only what is new — settled launches are carried
+forward) and force-pushes them to a `skewt-data` branch, which
 `raw.githubusercontent.com` serves CORS-open. Complete UTC days are additionally bundled into
 `uw-YYYYMMDD.zip` on an append-only `skewt-archive` branch — a permanent, growing high-resolution
 archive (~16 MB/day) that the browser fetches and unzips client-side with `fflate`.
+
+### Off-hour launches
+
+Synoptic launches are 00Z and 12Z, but stations also release at 06Z/18Z and at genuinely odd hours
+(a 15Z special ahead of severe weather). The mirror asks for every hour of the last day and keeps a
+per-station list of the launches it actually holds (`hours` in the manifest), so the explorer's
+controls are built from launches that exist rather than a fixed 00/12 pair: the **launch strip**
+under the station name lists the mirror's window (specials in purple), the hour chips in archive
+mode show only the hours with a launch on that date, and ◀ ▶ step from launch to launch.
 
 ### Archive mode resolution order
 
@@ -272,7 +282,7 @@ scripts/skewt/
   mirror_soundings.py  UW mirror
 
 branches (data, served CORS-open via raw.githubusercontent.com)
-  skewt-data     latest soundings + manifest + anomalies.json   (force-pushed, 6×/day)
+  skewt-data     latest soundings + manifest + anomalies.json   (force-pushed hourly)
   skewt-archive  uw-YYYYMMDD.zip day bundles                     (append-only, grows forever)
   skewt-climo    climo/{gid}.json per-station climatology        (rebuilt on methodology change)
 ```

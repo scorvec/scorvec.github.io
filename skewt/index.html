@@ -46,6 +46,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }   /* wins over `canvas { display: block }` */
   :root {
     --bg: #0b0b12; --panel: #11111c; --ink: #e8e8f0; --muted: #8b8ba3;
     --accent: #64d2ff; --rule: #23233a;
@@ -127,7 +128,7 @@
      the sounding doesn't get, so it runs tighter than the map's controls */
   .dlg-head button, .dlg-head input[type=date] { font-size: 0.82rem; padding: 4px 9px; }
   .dlg-head .station { font-size: 0.98rem; min-width: 0; }
-  #close { margin-left: auto; font-size: 1rem; line-height: 1; padding: 5px 10px; }
+  #close { margin-left: 4px; font-size: 1rem; line-height: 1; padding: 5px 10px; }
   .panel { background: var(--panel); border: 1px solid var(--rule);
            border-radius: 10px; padding: 8px; }
   .side { display: flex; flex-direction: column; gap: 10px; }
@@ -191,6 +192,77 @@
     .maplegend.expanded .leg-chip { display: none; }
     .maplegend.expanded .leg-body { display: block; }
   }
+
+  /* ── page header: one line of purpose; the manual folds away ─────────── */
+  .tagline { color: var(--muted); font-size: 0.86rem; line-height: 1.45; margin-top: 3px;
+             max-width: 112ch; }
+  .tagline b { color: var(--ink); font-weight: 600; }
+  .links a { color: var(--accent); text-decoration: none; white-space: nowrap; }
+  .links a.first { color: #ff8a7a; font-weight: 600; }
+  details.howto { margin-top: 3px; font-size: 0.8rem; color: var(--muted); max-width: 112ch;
+                  line-height: 1.5; }
+  details.howto summary { cursor: pointer; color: var(--accent); list-style: none;
+                          display: inline-flex; gap: 6px; align-items: center; width: max-content; }
+  details.howto summary::-webkit-details-marker { display: none; }
+  details.howto summary::before { content: "▸"; font-size: 0.8em; transition: transform .15s; }
+  details.howto[open] summary::before { transform: rotate(90deg); }
+  details.howto p { margin-top: 5px; }
+  details.howto b { color: var(--ink); }
+
+  /* segmented control: Latest | Archive */
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px;
+         overflow: hidden; background: var(--panel); }
+  .controls .seg button { border: 0; border-radius: 0; background: transparent; }
+  .controls .seg button + button { border-left: 1px solid var(--rule); }
+  .controls .seg button.on { background: var(--accent); color: #08222e; }
+  .arch-controls { display: inline-flex; gap: 6px; align-items: center; }
+
+  /* hour chips: built from the launches that EXIST on the chosen date, so a
+     06Z or 18Z special is a button, not a guess */
+  .hours { display: inline-flex; gap: 4px; }
+  .controls .hours button { padding: 4px 8px; font-variant-numeric: tabular-nums; }
+  .controls .hours button.special { border-color: rgba(191,90,242,0.7); color: #d9a8ff; }
+  .controls .hours button.special.on { background: #bf5af2; color: #1a0a26; border-color: #bf5af2; }
+
+  /* THE LAUNCH STRIP — this station's actual releases over the mirror's
+     window, oldest left, newest right. Off-hour releases are purple: the
+     whole point of the strip is that they exist and are one click away. */
+  .launches { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; width: 100%;
+              padding: 1px 0 0; min-height: 0; }
+  .launches:empty { display: none; }
+  .launches .lbl { color: var(--muted); font-size: 0.68rem; margin-right: 4px;
+                   letter-spacing: 0.06em; text-transform: uppercase; }
+  .launches .day { color: var(--muted); font-size: 0.7rem; margin: 0 1px 0 7px;
+                   font-variant-numeric: tabular-nums; }
+  .launches .day:first-of-type { margin-left: 0; }
+  .controls .launches button { font: 500 0.72rem var(--sans); padding: 2px 7px; border-radius: 5px;
+    border: 1px solid var(--rule); background: transparent; color: #c8c8dc;
+    font-variant-numeric: tabular-nums; }
+  .controls .launches button.special { color: #d9a8ff; border-color: rgba(191,90,242,0.6); }
+  .controls .launches button.on { background: #e8e8f0; color: #0b0b12; border-color: #e8e8f0; font-weight: 600; }
+  .controls .launches button.special.on { background: #bf5af2; color: #1a0a26; border-color: #bf5af2; }
+
+  /* toolbar groups: analysis tools | actions */
+  .grp { display: inline-flex; gap: 4px; align-items: center; }
+  .grp + .grp { margin-left: 4px; padding-left: 8px; border-left: 1px solid var(--rule); }
+
+  /* map key, inline in the control bar on desktop (the floating card is mobile-only) */
+  .key { display: inline-flex; gap: 11px; align-items: center; color: var(--muted);
+         font-size: 0.76rem; flex-wrap: wrap; }
+  .key .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+              margin-right: 4px; vertical-align: -1px; }
+  .key .ring { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+               border: 2px solid; margin-right: 4px; vertical-align: -1px; box-sizing: border-box; }
+  .key label { cursor: pointer; }
+  .key input { vertical-align: -1px; margin-right: 3px; }
+  @media (min-width: 701px) { .maplegend { display: none; } }
+
+  button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { #status.busy, #mstatus.busy { animation: none; } }
+  /* numbers never break mid-value: the parcels table scrolls sideways instead */
+  #pcl-table td, #pcl-table th { white-space: nowrap; }
+  .tables-grid .tbl.pcl { overflow-x: auto; }
   /* mobile — MUST be last: overrides the desktop dialog/flex rules above */
   @media (max-width: 1020px) {
     .tables-grid { columns: 260px; }
@@ -208,13 +280,16 @@
     .controls .station { min-width: 0; flex-basis: 100%; }
     table.params { font-size: 0.76rem; }
     table.params td { overflow-wrap: anywhere; padding: 2px 4px; }
+    #pcl-table td { overflow-wrap: normal; }
+    .key { display: none; }
+    .launches .lbl { display: none; }
     table.params td:first-child { white-space: normal; }
     .pctcell { padding: 1px 3px; }
   }
   @media (max-width: 700px) {
     html { font-size: 100%; }
     nav { flex-direction: column; gap: 0.4rem; }
-    nav .desc { display: none; }
+    .tagline { font-size: 0.8rem; }
     footer { max-height: none; overflow: visible; white-space: normal; }
     .topbar { padding: 6px 0.8rem; }
   }
@@ -225,47 +300,56 @@
 <nav>
   <a href="../index.html" class="nav-name">Shawn Corvec</a>
   <div class="nav-mid">
-  <h1 class="page-title">Global Real-time &amp; Archived Sounding Explorer</h1>
-    <span class="desc" style="color:var(--muted); font-family:var(--sans); font-size:0.82rem; display:block;
-    max-width:118ch; line-height:1.5; margin-top:2px">
-    Every weather-balloon (radiosonde) sounding ever released, anywhere on Earth, back more than a century.
-    <b style="color:var(--ink)">Blue</b> stations reported within the last 24&nbsp;h; <b style="color:#bf5af2">purple</b> ones launched off-hour (06/18Z) — usually a special release ahead of severe weather;
-    <b style="color:#33c495">teal</b> are active, <b style="color:#c0392b">red</b> are closed
-    (archive only). Click a station, then pick <b style="color:var(--ink)">Latest</b> or
-    <b style="color:var(--ink)">Archive</b> and a date. Recent launches load instantly;
-    <b style="color:var(--ink)">the first click on a station can take a few seconds to load, or
-    longer for archived data which has to be downloaded</b> (older soundings come from NOAA's global
-    archive as one big per-station file, with a pulsing note showing progress) — then every other
-    date at that station is instant. The full analysis — parcels, CAPE, shear, hodograph — runs entirely in
-    your browser via SHARPlib compiled to WebAssembly.
-    <b><a href="methodology.html" style="color:#ff453a; text-decoration:none; letter-spacing:0.04em">
-    READ THIS FIRST! →</a> &nbsp;·&nbsp;
-    <a href="gaps.html" style="color:var(--accent); text-decoration:none">
-    US sounding gap report →</a></b></span>
+    <h1 class="page-title">Global Real-time &amp; Archived Sounding Explorer</h1>
+    <p class="tagline">Every radiosonde launch on Earth — live, and back more than a century.
+      Click a station for the full analysis: parcels, ECAPE, shear, hodograph and where each value
+      ranks in that station's own climatology, computed in your browser.
+      <span class="links"><a class="first" href="methodology.html">Read the methodology first →</a>
+      &nbsp;·&nbsp; <a href="gaps.html">US sounding gap report →</a></span></p>
+    <details class="howto">
+      <summary>How to use it</summary>
+      <p><b style="color:#4a7ab5">Blue</b> stations reported at the last 00Z/12Z interval;
+      <b style="color:#bf5af2">purple</b> ones launched off-hour (06Z, 15Z, 18Z…) — usually a special
+      release ahead of severe weather; <b style="color:#33c495">teal</b> are active but missed the last
+      slot, <b style="color:#c0392b">red</b> are closed (archive only). Click a station, then pick
+      <b>Latest</b> or <b>Archive</b>. The launch strip under the station name lists every release the
+      mirror holds for the last four days, specials included — click one to open it, or step through
+      launches with ◀ ▶. Recent launches load instantly; <b>the first click on a station can take a few
+      seconds, or longer for archived dates</b> (older soundings come from NOAA's global archive as one
+      per-station file, with a pulsing note showing progress) — then every other date at that station
+      is instant. The analysis runs entirely in your browser via SHARPlib compiled to WebAssembly.</p>
+    </details>
   </div>
   <a href="../index.html" class="back">← HOME</a>
 </nav>
 
 <div class="topbar controls">
-  <button data-act="latest" class="mctl on">Latest</button>
-    <button data-act="archive" class="mctl">Archive</button>
-    <span class="arch-controls" style="display:none">
-      <button data-act="dprev" title="previous day">◀</button>
-      <input type="date" class="datectl" min="1905-01-01">
-      <button data-act="dnext" title="next day">▶</button>
-      <button data-act="h00" class="hctl">00Z</button>
-      <button data-act="h12" class="hctl on">12Z</button>
-    </span>
+  <span class="seg"><button data-act="latest" class="mctl on">Latest</button><button data-act="archive" class="mctl">Archive</button></span>
+  <span class="arch-controls" style="display:none">
+    <button data-act="dprev" title="previous launch">◀</button>
+    <input type="date" class="datectl" min="1905-01-01">
+    <button data-act="dnext" title="next launch">▶</button>
+    <span class="hours"></span>
+  </span>
   <span id="status"></span>
-  <button id="anom-toggle" style="margin-left:auto" title="most anomalous soundings right now">⚡ Extreme today</button>
+  <span class="key" style="margin-left:auto">
+    <span><i class="dot" style="background:#4a7ab5"></i>reported at the last 00/12Z</span>
+    <span><i class="dot" style="background:#bf5af2"></i>special (off-hour) release</span>
+    <span><i class="dot" style="background:#33c495"></i>active</span>
+    <span><i class="dot" style="background:#c0392b"></i>closed</span>
+    <span><i class="ring" style="border-color:#ff2d2d"></i>record set today</span>
+    <span><i class="ring" style="border-color:rgba(255,150,110,0.85)"></i>top / bottom 5 % for the date</span>
+    <label><input type="checkbox" id="show-closed-top">show closed</label>
+  </span>
+  <button id="anom-toggle" title="the most anomalous soundings right now, ranked against each station's own record">Extreme today</button>
 </div>
 <div class="mapwrap"><div id="map"></div></div>
 
 <div id="anom-modal" class="modal" hidden style="z-index:2100">
   <div class="dialog" style="height:auto; max-height:94vh; width:min(2000px,97vw); overflow-y:auto">
     <div class="dlg-head controls">
-      <span class="station">⚡ Record watch — today's extremes</span>
-      <button id="anom-save" title="download this map as an image">📷 PNG</button>
+      <span class="station">Record watch — today's extremes</span>
+      <button id="anom-save" title="download this map as an image">PNG</button>
       <button id="anom-close" title="close" style="margin-left:auto">✕</button>
     </div>
     <div class="panel" style="margin-top:6px">
@@ -292,7 +376,7 @@
 <div id="cloud-modal" class="modal" hidden style="z-index:2100">
   <div class="dialog" style="height:auto; max-height:92vh; width:min(860px,96vw)">
     <div class="dlg-head controls">
-      <span class="station">☁ Cloud layers</span>
+      <span class="station">Cloud layers</span>
       <button id="cloud-close" title="close" style="margin-left:auto">✕</button>
     </div>
     <div class="panel" style="margin-top:6px">
@@ -309,7 +393,7 @@
 <div id="rec-modal" class="modal" hidden style="z-index:2100">
   <div class="dialog" style="height:auto; max-height:90vh; width:min(820px,96vw); overflow-y:auto">
     <div class="dlg-head controls">
-      <span class="station" id="rec-title">🏆 Station records</span>
+      <span class="station" id="rec-title">Station records</span>
       <button id="rec-close" title="close" style="margin-left:auto">✕</button>
     </div>
     <div class="panel" style="margin-top:6px; overflow-x:auto">
@@ -321,7 +405,7 @@
 <div id="fog-modal" class="modal" hidden style="z-index:2100">
   <div class="dialog" style="height:auto; max-height:92vh; width:min(860px,96vw)">
     <div class="dlg-head controls">
-      <span class="station">🌫 Fog · frost · dew</span>
+      <span class="station">Fog · frost · dew</span>
       <button id="fog-close" title="close" style="margin-left:auto">✕</button>
     </div>
     <div class="panel" style="margin-top:6px">
@@ -362,26 +446,29 @@
   <div class="dialog">
     <div class="dlg-head controls">
       <span class="station" id="stn-label">—</span>
-      <button data-act="latest" class="mctl on">Latest</button>
-    <button data-act="archive" class="mctl">Archive</button>
-    <span class="arch-controls" style="display:none">
-      <button data-act="dprev" title="previous day">◀</button>
-      <input type="date" class="datectl" min="1905-01-01">
-      <button data-act="dnext" title="next day">▶</button>
-      <button data-act="h00" class="hctl">00Z</button>
-      <button data-act="h12" class="hctl on">12Z</button>
-    </span>
+      <span class="seg"><button data-act="latest" class="mctl on">Latest</button><button data-act="archive" class="mctl">Archive</button></span>
+      <span class="arch-controls" style="display:none">
+        <button data-act="dprev" title="previous launch">◀</button>
+        <input type="date" class="datectl" min="1905-01-01">
+        <button data-act="dnext" title="next launch">▶</button>
+        <span class="hours"></span>
+      </span>
       <span id="mstatus"></span>
       <a id="uw-link" href="https://weather.uwyo.edu/upperair/sounding.shtml" target="_blank"
          rel="noopener" style="font-size:0.78rem; color:var(--accent)">UW page ↗</a>
-      <button id="climo-btn" style="display:none">📊 Climatology</button>
-      <button id="rec-btn" style="display:none" title="station record extremes — all-time and for this date">🏆 Records</button>
-      <button id="fog-btn" title="fog, frost and dew diagnostics">🌫 Fog/frost</button>
-      <button id="cloud-btn" title="cloud layer estimate">☁ Clouds</button>
-      <button id="share-btn" title="copy a link to this exact sounding">🔗 Share</button>
-      <button id="export-btn" title="download skew-T + hodograph as an image">📷 PNG</button>
-      <button id="pin-btn" title="pin this sounding, then load another to overlay them">📌 Compare</button>
+      <span class="grp" style="margin-left:auto">
+        <button id="climo-btn" style="display:none" title="annual cycle of any ranked variable at this station">Climatology</button>
+        <button id="rec-btn" style="display:none" title="station record extremes — all-time and for this date">Records</button>
+        <button id="fog-btn" title="fog, frost and dew diagnostics">Fog &amp; frost</button>
+        <button id="cloud-btn" title="cloud layer estimate">Clouds</button>
+      </span>
+      <span class="grp">
+        <button id="pin-btn" title="pin this sounding, then load another to overlay them">Compare</button>
+        <button id="share-btn" title="copy a link to this exact sounding">Share</button>
+        <button id="export-btn" title="download skew-T + hodograph as an image">PNG</button>
+      </span>
       <button id="close" title="close (Esc)">✕</button>
+      <div class="launches" id="launches"></div>
     </div>
     <div class="dlg-body">
     <div class="main">
@@ -390,7 +477,7 @@
     </div>
     <div class="panel tables-wrap">
       <div class="tables-grid">
-        <div class="tbl"><h3>Parcels</h3>
+        <div class="tbl pcl"><h3>Parcels</h3>
           <table class="params" id="pcl-table"></table></div>
         <div class="tbl"><h3>Moist static energy</h3>
           <table class="params kin" id="mse-table"></table></div>
@@ -414,7 +501,7 @@
       profile with every reportable wind level — the PNG button saves that same image.
       <b>Data:</b> latest soundings from the
       <a href="https://weather.uwyo.edu/upperair/sounding.shtml">University of Wyoming</a> archive
-      (BUFR, mirrored 6×/day — UW sends no CORS headers); any historical date directly from
+      (BUFR, mirrored hourly — UW sends no CORS headers); any historical date directly from
       <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">NOAA
       IGRA v2</a> (first load per station can be tens of MB, then cached).
       <b>Analysis:</b> <a href="https://github.com/keltonhalbert/SHARPlib">SHARPlib</a> (K. Halbert,
@@ -425,6 +512,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=861d5aef"></script>
+<script src="app.js?v=a742d273"></script>
 </body>
 </html>

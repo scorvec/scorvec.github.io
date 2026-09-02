@@ -788,7 +788,9 @@ async function drawClimoDist(key) {
   const cv = document.getElementById("climo-hist"), x = cv.getContext("2d");
   x.clearRect(0, 0, cv.width, cv.height);
   if (!current || !current.gid || lastDoy === null) { note.textContent = ""; return; }
+  cv.hidden = false;
   if (["pwat", "fzl", "ecape", "ship"].includes(key)) {
+    cv.hidden = true;                       // the dialog shrinks to the chart
     note.textContent = "distribution view: not available for this variable"; return;
   }
   if (!igraCache.has(current.gid + ":por")) {
@@ -986,7 +988,7 @@ function openRecords() {
       ` ${rec.t} (previous ${fmtV(rec.prev)}, ${rec.y})`);
   }
   document.getElementById("rec-title").textContent =
-    `🏆 ${(current && current.n) || "Station"} records`;
+    `${(current && current.n) || "Station"} records`;
   document.getElementById("rec-table").innerHTML =
     `<tr><th></th><th colspan="2">all-time ${climo.yr0}–${climo.yr1}</th>` +
     `<th colspan="2">this time of year (±10 d)</th><th>this sounding</th></tr>` +
@@ -1326,9 +1328,17 @@ Promise.all([
     const ig = igraStations[byWmo[id]];
     if (ig || /dtype|Name:/i.test(s.n || "")) s.n = (ig && ig.n) || id;
     const flag = anomalies[id];
-    if (flag) {                                          // record watch: red ring underneath
-      L.circleMarker([s.la, s.lo], { radius: RAD.live + 4, weight: 3,
-        color: "#ff2d2d", opacity: 0.95, fill: false }).addTo(map);
+    if (flag) {
+      // record watch, in two voices: a station that SET a record today (for
+      // the date or all-time) gets the loud red ring; one merely outside its
+      // 5th/95th percentile gets a thin warm ring. On 2026-09-02 222 stations
+      // carried a P95 flag and 34 set records — one ring for both made the
+      // whole map look like an emergency and hid the stations that mattered.
+      const isRec = flag.flags.some(f => f.rec);
+      L.circleMarker([s.la, s.lo], isRec
+        ? { radius: RAD.live + 4, weight: 3, color: "#ff2d2d", opacity: 0.95, fill: false }
+        : { radius: RAD.live + 3, weight: 1.4, color: "#ff9a6e", opacity: 0.75, fill: false }
+      ).addTo(map);
     }
     const off = isOffHour(s.dt);                         // 06Z / 18Z special release
     const m = L.circleMarker([s.la, s.lo], {
@@ -1792,11 +1802,11 @@ document.getElementById("pin-btn").addEventListener("click", () => {
   const b = document.getElementById("pin-btn");
   if (pinned) {
     pinned = null;
-    b.textContent = "📌 Compare";
+    b.textContent = "Compare";
     b.title = "pin this sounding, then load another to overlay them";
   } else if (lastProf) {
     pinned = { prof: lastProf, title: plotTitle };
-    b.textContent = "📌 Unpin";
+    b.textContent = "Unpin";
     b.title = "comparing against " + pinned.title;
     modal.hidden = true;                    // straight back to the map — no manual close
     setStatus(`📌 pinned ${pinned.title} — click any station (or use the date arrows) to compare`);
@@ -1815,7 +1825,8 @@ legend.onAdd = () => {
     '<span style="color:#bf5af2;font-size:1.05em">●</span> off-hour (06/18Z)<br>' +
     '<span style="color:#33c495;font-size:1.05em">●</span> active &nbsp;&nbsp;' +
     '<span style="color:#c0392b;font-size:1.05em">●</span> closed<br>' +
-    '<span style="color:#ff2d2d">◎</span> near record &nbsp;&nbsp;' +
+    '<span style="color:#ff2d2d">◎</span> record today &nbsp;&nbsp;' +
+    '<span style="color:#ff9a6e">◎</span> top/bottom 5% &nbsp;&nbsp;' +
     '<span style="color:#ffd60a">◎</span> selected<br>' +
     '<label style="cursor:pointer"><input type="checkbox" id="show-closed"> show closed stations</label></div>';
   div.addEventListener("click", e => {          // chip toggles on mobile; CSS gates visibility
@@ -1826,8 +1837,16 @@ legend.onAdd = () => {
   return div;
 };
 legend.addTo(map);
-document.getElementById("show-closed").onchange = e =>
-  e.target.checked ? closedLayer.addTo(map) : map.removeLayer(closedLayer);
+for (const id of ["show-closed", "show-closed-top"]) {
+  const box = document.getElementById(id);
+  if (!box) continue;
+  box.onchange = e => {
+    e.target.checked ? closedLayer.addTo(map) : map.removeLayer(closedLayer);
+    for (const o of ["show-closed", "show-closed-top"]) {   // keep both boxes in step
+      const b = document.getElementById(o); if (b && b !== e.target) b.checked = e.target.checked;
+    }
+  };
+}
 
 function highlight(marker) {
   if (selectedMarker)                      // restore BOTH weight and color, else
@@ -1844,16 +1863,130 @@ function syncControls() {
     b.classList.toggle("on", mode === "latest"));
   document.querySelectorAll('[data-act="archive"]').forEach(b =>
     b.classList.toggle("on", mode === "archive"));
-  document.querySelectorAll('[data-act="h00"]').forEach(b =>
-    b.classList.toggle("on", archHour === 0));
-  document.querySelectorAll('[data-act="h12"]').forEach(b =>
-    b.classList.toggle("on", archHour === 12));
   document.querySelectorAll(".arch-controls").forEach(el =>
-    el.style.display = mode === "archive" ? "inline" : "none");
+    el.style.display = mode === "archive" ? "inline-flex" : "none");
   document.querySelectorAll(".datectl").forEach(el => { el.value = archDate; });
+  renderHours();
+  renderLaunchStrip();
 }
 
-function setMode(m2) { mode = m2; syncControls(); }
+// ── launches: what actually happened at this station, hour by hour ───────
+// The old controls offered 00Z and 12Z and nothing else, so an 18Z special
+// release that the mirror already held was unreachable — the map could show a
+// purple dot the card could not open. Everything below is built from the
+// launches that EXIST: the mirror's per-station hour list (last ~4 days), the
+// day bundles already unzipped, and the IGRA header lines once that text is
+// loaded. Hours are only guessed (00/12) where nothing is known yet.
+const igraLaunchCache = new Map();          // gid -> ["YYYY-MM-DD HH:MM", ...] sorted
+function igraLaunches(text, gid) {
+  if (igraLaunchCache.has(gid)) return igraLaunchCache.get(gid);
+  const re = new RegExp("^#" + gid + " ([0-9]{4}) ([0-9]{2}) ([0-9]{2}) ([0-9]{2})", "gm");
+  const seen = new Set();
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const hh = m[4] === "99" ? "12" : m[4];          // 99 = hour unknown, IGRA convention
+    seen.add(`${m[1]}-${m[2]}-${m[3]} ${hh}:00`);
+  }
+  const arr = [...seen].sort();
+  igraLaunchCache.set(gid, arr);
+  return arr;
+}
+function knownLaunches() {
+  if (!current) return [];
+  const set = new Set();
+  const me = current.id ? entries[current.id] : null;
+  if (me) { (me.hours || []).forEach(h => set.add(h)); if (me.dt) set.add(me.dt); }
+  if (current.id) {
+    for (const [dkey, bundle] of dayZipCache) {
+      if (!bundle) continue;
+      const pre = current.id + "_" + dkey;
+      for (const k of Object.keys(bundle)) if (k.startsWith(pre))
+        set.add(`${dkey.slice(0, 4)}-${dkey.slice(4, 6)}-${dkey.slice(6, 8)} ${k.slice(-6, -4)}:00`);
+    }
+  }
+  if (current.gid && igraLaunchCache.has(current.gid))
+    igraLaunchCache.get(current.gid).forEach(h => set.add(h));
+  if (lastValidDt) set.add(lastValidDt);
+  return [...set].sort();
+}
+const hourZ = h => String(h).padStart(2, "0") + "Z";
+// hours with a known launch on `ymd`; [] when nothing is known for that day
+function hoursOn(ymd) {
+  return knownLaunches().filter(h => h.startsWith(ymd)).map(h => +h.slice(11, 13));
+}
+function renderHours() {
+  const known = hoursOn(archDate);
+  // nothing known (station not loaded, or a date before the mirror window with
+  // no IGRA text yet): fall back to the synoptic pair and say so via title
+  const hours = known.length ? known : [0, 12];
+  if (!hours.includes(archHour)) {
+    // the chosen hour does not exist on this date — snap to the nearest one
+    archHour = hours.reduce((a, b) => Math.abs(b - archHour) < Math.abs(a - archHour) ? b : a);
+  }
+  const html = hours.map(h =>
+    `<button data-hour="${h}" class="${h % 6 ? "special" : ""}${h === archHour ? " on" : ""}"` +
+    ` title="${known.length ? (h % 6 ? "off-hour (special) release" : "synoptic launch")
+                             : "no launch list for this date yet — 00Z/12Z assumed"}">${hourZ(h)}</button>`).join("");
+  document.querySelectorAll(".hours").forEach(el => { el.innerHTML = html; });
+}
+const MON_S = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function renderLaunchStrip() {
+  const el = document.getElementById("launches");
+  if (!el) return;
+  if (!current || !current.id || !entries[current.id]) { el.innerHTML = ""; return; }
+  // the strip is the MIRROR's window (the last ~4 days), plus whatever is on
+  // screen — a full IGRA record would be thousands of chips
+  const me = entries[current.id];
+  const set = new Set(me.hours || []); if (me.dt) set.add(me.dt);
+  if (lastValidDt) set.add(lastValidDt);
+  const list = [...set].sort();
+  if (!list.length) { el.innerHTML = ""; return; }
+  const shown = list.slice(-14);
+  const specials = shown.filter(h => +h.slice(11, 13) % 6).length;
+  let html = `<span class="lbl" title="every release the mirror holds for this station">launches</span>`;
+  let day = "";
+  for (const h of shown) {
+    const d = h.slice(0, 10), hh = +h.slice(11, 13);
+    if (d !== day) {
+      day = d;
+      html += `<span class="day">${MON_S[+d.slice(5, 7) - 1]} ${+d.slice(8, 10)}</span>`;
+    }
+    const on = lastValidDt === h;
+    html += `<button data-launch="${h}" class="${hh % 6 ? "special" : ""}${on ? " on" : ""}"` +
+      ` title="${d} ${hourZ(hh)}${hh % 6 ? " — off-hour (special) release" : ""}${on ? " — on screen" : ""}">${hourZ(hh)}</button>`;
+  }
+  if (specials) html += `<span class="day" style="margin-left:8px; color:#d9a8ff">` +
+    `${specials} special release${specials > 1 ? "s" : ""}</span>`;
+  el.innerHTML = html;
+}
+document.getElementById("launches").addEventListener("click", e => {
+  const b = e.target.closest("button[data-launch]");
+  if (!b) return;
+  const h = b.dataset.launch;
+  archDate = h.slice(0, 10); archHour = +h.slice(11, 13);
+  // the newest launch is what "Latest" shows; anything else is the archive
+  const me = current && current.id ? entries[current.id] : null;
+  mode = (me && me.dt === h) ? "latest" : "archive";
+  syncControls();
+  maybeReload();
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest(".hours button[data-hour]");
+  if (!b) return;
+  archHour = +b.dataset.hour;
+  if (mode !== "archive") mode = "archive";
+  syncControls();
+  maybeReload();
+});
+
+function setMode(m2) {
+  mode = m2;
+  if (m2 === "latest" && current && current.id && entries[current.id] && entries[current.id].dt) {
+    const dt = entries[current.id].dt;                  // keep the controls honest
+    archDate = dt.slice(0, 10); archHour = +dt.slice(11, 13);
+  }
+  syncControls();
+}
 
 function maybeReload() {
   if (!current) return;
@@ -1862,9 +1995,25 @@ function maybeReload() {
 }
 
 function stepDate(dir) {
-  // Step to the NEXT SOUNDING, not the next calendar day: toggle 12Z<->00Z
-  // within a day first, and use the station's actual launch-date list (cached
-  // after the first archive load) for the day jumps, skipping gap days.
+  // Step to the NEXT LAUNCH, whatever hour it was. The known-launch list
+  // (mirror hours, unzipped day bundles, IGRA headers once loaded) is walked
+  // first; only beyond its ends does the old 00Z/12Z day-stepping apply.
+  const cur = `${archDate} ${String(archHour).padStart(2, "0")}:00`;
+  const known = knownLaunches();
+  if (known.length) {
+    let i = known.findIndex(h => h >= cur);
+    if (i < 0) i = known.length;                        // past the newest
+    let j;
+    if (dir < 0) j = (known[i] === cur) ? i - 1 : i - 1;
+    else j = (known[i] === cur) ? i + 1 : i;
+    if (j >= 0 && j < known.length) {
+      archDate = known[j].slice(0, 10); archHour = +known[j].slice(11, 13);
+      if (mode !== "archive") mode = "archive";
+      syncControls();
+      maybeReload();
+      return;
+    }
+  }
   const dates = (current && current.gid && igraDatesCache.get(current.gid)) || null;
   const dayStep = d => {
     if (dates && dates.length) {
@@ -1893,8 +2042,6 @@ document.querySelectorAll("[data-act]").forEach(b => {
   b.addEventListener("click", () => {
     const a = b.dataset.act;
     if (a === "latest" || a === "archive") { setMode(a); maybeReload(); }
-    else if (a === "h00") { archHour = 0; syncControls(); maybeReload(); }
-    else if (a === "h12") { archHour = 12; syncControls(); maybeReload(); }
     else if (a === "dprev") stepDate(-1);
     else if (a === "dnext") stepDate(1);
   });
@@ -2244,6 +2391,7 @@ async function loadSounding() {
   const text = await igraText(current.gid, +ymd.slice(0, 4));
   if (stale()) return;
   if (!text) { clearPlot("IGRA archive file unavailable for this station"); return; }
+  igraLaunches(text, current.gid);          // hour chips + ◀ ▶ now know every launch
   let shown = ymd, fellBack = false;
   let got = parseIGRA(text, current.gid, ymd, archHour, current.e || 0);
   if (!got) {
@@ -3784,6 +3932,7 @@ function render(prof) {
   drawSkewT(prof, res);
   drawHodo(prof, res);
   drawMSE(prof);
+  renderLaunchStrip(); renderHours();
   if (false) for (const id of ["pcl-table", "kin-table", "kin-table-b", "kin-table2", "kin-table3", "mse-table", "winter-table"])
     document.getElementById(id).innerHTML = "";
 }
