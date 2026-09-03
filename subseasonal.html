@@ -236,6 +236,7 @@
       <select id="product"></select>
       <div class="seg" id="opts-a" style="padding:0"></div>
       <div class="seg" id="opts-b" style="padding:0"></div>
+      <div class="seg" id="opts-c" style="padding:0"></div>
     </div>
     <div class="stage">
       <div id="stage"></div>
@@ -401,6 +402,29 @@
     amplitude, the slope restores it. The hindcast mean is four members against 21 live, so the
     slope is slightly conservative. A weekly mean of a daily-sd index is a smoother quantity than
     the daily values, so a weekly mean beyond &plusmn;1 is a strong signal.</p>
+    <p><b>Skill mask and probability maps.</b> The same hindcast that calibrates the indices
+    is scored gridpoint by gridpoint: every 2001&ndash;2020 start&rsquo;s weekly-mean anomaly,
+    de-drifted and re-based exactly as the live maps, against an independent analysis on the same
+    2.5&deg; grid &mdash; NCEP/NCAR R1 2&nbsp;m temperature, 500&nbsp;hPa height and sea-level
+    pressure, and the CPC unified gauge analysis for precipitation, which exists over land only
+    &mdash; pooled by calendar month. The anomaly correlation from that is the skill mask (hatched
+    below 0.25; cross-hatched where there is no truth), and the gridpoint regression of observed on
+    forecast weekly anomaly, with its residual spread, turns the ensemble mean into a calibrated
+    probability of a week above the 1991&ndash;2020 median. The raw member fraction is shown beside
+    it: where the two disagree the hindcast is saying the ensemble is over- or under-confident there.
+    Gaussian residuals are an approximation for precipitation; at a weekly mean and 2.5&deg; it is a
+    fair one.</p>
+    <p><b>MJO skill.</b> Every hindcast start is projected onto the same Wheeler&ndash;Hendon EOFs
+    with the same arithmetic as the live RMM &mdash; band means, lead-matched de-drift, frame shift,
+    120-day mean removed &mdash; and verified against the Bureau of Meteorology&rsquo;s RMM on the
+    valid date, giving the bivariate correlation, RMSE and amplitude ratio by lead, for all starts,
+    by season, for strong initial MJO, and for the starts within &plusmn;45 days of today. The one
+    approximation: the WH04 120-day mean before each start is taken from the hindcast&rsquo;s own
+    day-1 channels of the preceding 120 days rather than from observations, which are not in this
+    archive for 2001&ndash;2020; day-1 skill is ~0.95 and the term is slowly varying. The ECMWF
+    marks are the published extended-range reforecast values (Vitart 2017 and the ECMWF verification
+    memoranda), not a like-for-like computation &mdash; the S2S reforecasts sit behind a research
+    licence and are not on this site.</p>
     <p><b>Caveats.</b> The maps are an ensemble mean, so they understate the range of outcomes
     everywhere and increasingly so with lead; outside the teleconnection section nothing here
     is a probability. Twenty-one
@@ -428,17 +452,31 @@ var FIELDS = [["t2m","2 m temp"],["pr","Precip"],["mslp","MSLP"],["zg500","500 h
               ["olr","OLR"],["u850","850 u"],["u200","200 u"],["v850","850 v"],
               ["v200","200 v"]];
 var P = {
-  mjo: {label: "MJO", a: {label:"View", items:[["phase","Phase diagram"],["hov","Propagation"]]},
-        img: function (a) { return "assets/geps/geps_mjo_" + (a==="phase"?"phase":"hovmoller") + ".webp"; },
+  mjo: {label: "MJO", a: {label:"View", items:[["phase","Phase diagram"],["hov","Propagation"],["skill","Hindcast skill"]]},
+        img: function (a) { return a==="skill" ? "assets/geps/geps_mjo_skill.webp"
+                                  : "assets/geps/geps_mjo_" + (a==="phase"?"phase":"hovmoller") + ".webp"; },
         cap: function (a) { return a==="phase"
           ? "Three-field RMM (OLR + U850 + U200), 21-member plume, days 1\u201335."
-          : "OLR and 850 hPa zonal wind anomaly, 15\u00B0S\u201315\u00B0N, lead \u00D7 longitude."; }},
+          : (a==="hov" ? "OLR and 850 hPa zonal wind anomaly, 15\u00B0S\u201315\u00B0N, lead \u00D7 longitude."
+                       : "Bivariate RMM correlation, RMSE and amplitude ratio of the 2001\u20132020 GEPS8 hindcasts against BoM\u2019s RMM, by lead: all starts, by season, strong initial MJO, and the starts within \u00B145 days of today. Red marks: ECMWF\u2019s published extended-range values for reference."); }},
   weekly: {label: "Weekly means, weeks 1\u20135", fit: false,
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
         b: {label:"Field", items: FIELDS},
-        img: function (a,b) { return "assets/geps/geps_" + a + "_" + b + "_weekly.webp"; },
-        cap: function () { return "Five seven-day means, anomaly vs the lead-matched GEPS hindcast."; }},
+        c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill mask", items:[["off","Off"],["on","On"]]} : null; },
+        img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
+        cap: function (a,b,c) { return "Five seven-day means, anomaly vs the lead-matched GEPS hindcast."
+          + (c==="on" ? " Hatched where the 2001\u20132020 hindcast has anomaly correlation below 0.25 for this week and season; cross-hatched where there is no verification data." : ""); }},
+  probs: {label: "Weekly probabilities \u2014 temperature & precipitation", fit: false,
+        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
+                                   ["glb","Global (Mercator)"]]},
+        b: {label:"Field", items:[["t2m","2 m temp"],["pr","Precip"]]},
+        c: {label:"Probability", items:[["raw","Raw members"],["cal","Hindcast-calibrated"]]},
+        img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_prob_" + c + ".webp"; },
+        cap: function (a,b,c) { return (c==="raw"
+          ? "Fraction of the 21 members with a weekly mean above the 1991\u20132020 median for that week of the year."
+          : "The ensemble-mean weekly anomaly passed through the gridpoint regression fitted on 2001\u20132020 hindcasts for this month and week, with the residual spread as the distribution \u2014 climatology where the model has no skill, amplitude restored where it has some.")
+          + " Hatched: hindcast skill below 0.25." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean." : ""); }},
   change: {label: "Change vs previous run, weeks 1\u20135", fit: false,
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
@@ -471,12 +509,13 @@ var P = {
         ratio: function () { return "1139/610"; },
         cap: function () { return "Analysis to day 35, both hemispheres and levels."; }}
 };
+var MASKABLE = ["t2m","pr","zg500","mslp"];   // fields with a hindcast skill file
 var TELE_IDS = [["board","All indices (board)"],["ao","AO \u2014 Arctic Oscillation"],["nao","NAO \u2014 North Atlantic Oscillation"],
   ["pna","PNA \u2014 Pacific / North American"],["epo","EPO \u2014 Eastern Pacific Oscillation"],["wpo","WPO \u2014 Western Pacific Oscillation"],
   ["ea","EA \u2014 East Atlantic"],["wp","WP \u2014 West Pacific"],["epnp","EP/NP \u2014 East Pacific / North Pacific"],
   ["eawr","EA/WR \u2014 East Atlantic / West Russia"],["sca","SCA \u2014 Scandinavia"],["tnh","TNH \u2014 Tropical / N. Hemisphere (Dec\u2013Feb)"],
   ["pol","POL \u2014 Polar / Eurasia"],["nam100","NAM 100 hPa \u2014 Northern Annular Mode"],["aao","AAO \u2014 Antarctic Oscillation (SAM)"]];
-var sel = {p: "mjo", a: null, b: null};
+var sel = {p: "mjo", a: null, b: null, c: null};
 var $ = function (id) { return document.getElementById(id); };
 
 function buttons(host, group, key) {
@@ -529,14 +568,15 @@ function render() {
   var p = P[sel.p];
   buttons($("opts-a"), p.a, "a");
   buttons($("opts-b"), (typeof p.b === "function") ? p.b(sel.a) : p.b, "b");
+  buttons($("opts-c"), (typeof p.c === "function") ? p.c(sel.a, sel.b) : (p.c || null), "c");
   var st = $("stage");
   if (p.frame) {
     st.innerHTML = '<iframe src="' + p.frame(sel.a) + '" style="aspect-ratio:'
                  + p.ratio(sel.a) + '" title="animation"></iframe>';
   } else {
-    st.innerHTML = '<img src="' + p.img(sel.a, sel.b) + '" alt="' + p.label + '">';
+    st.innerHTML = '<img src="' + p.img(sel.a, sel.b, sel.c) + '" alt="' + p.label + '">';
   }
-  $("cap").textContent = p.cap(sel.a, sel.b);
+  $("cap").textContent = p.cap(sel.a, sel.b, sel.c);
   teleTable(sel.p === "telecon");
   var im = $("stage").querySelector("img");
   if (im) { im.onload = fitStage; }
@@ -592,7 +632,7 @@ function teleTable(show) {
     var o = document.createElement("option");
     o.value = k; o.textContent = P[k].label; d.appendChild(o);
   });
-  d.onchange = function () { sel = {p: d.value, a: null, b: null}; render(); };
+  d.onchange = function () { sel = {p: d.value, a: null, b: null, c: null}; render(); };
   render();
 })();
 
