@@ -355,7 +355,10 @@ def _kind_style(kind):
         return dict(cmap=plt.get_cmap("turbo"), vmin=-2.0, vmax=32.0,
                     cbar="SST (°C)")
     if kind == "trel":
-        return dict(cmap=sst_anom_cmap(), vmin=-3.0, vmax=3.0,
+        # ±4: ±3 pinned the Niño-3 core of the 2026 event and pushed ordinary
+        # noise to the ends of the ramp (user, 2026-09-03); ±5 like the global
+        # products would wash the belt out again.
+        return dict(cmap=sst_anom_cmap(), vmin=-4.0, vmax=4.0,
                     cbar="SST anomaly − tropical mean (°C)")
     return dict(cmap=sst_anom_cmap(), vmin=-5.0, vmax=5.0,
                 cbar="SST anomaly (°C)")
