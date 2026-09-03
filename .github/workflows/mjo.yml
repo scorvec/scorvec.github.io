@@ -376,6 +376,16 @@ jobs:
           echo "ERROR: could not push after 5 attempts." >&2
           exit 1
 
+      # A commit pushed with GITHUB_TOKEN does not trigger the Pages deploy, so
+      # the site would wait for the laptop dispatcher's next tick (up to 15 min)
+      # to notice main is ahead. workflow_dispatch IS allowed from a token, so
+      # deploy right away; pages.yml's concurrency group folds overlapping ones.
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
+
       - name: Summary
         if: always()
         run: |
