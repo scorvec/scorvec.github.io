@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas, with MJO Tracking</title>
-<meta name="description" content="Days 1-35 anomaly forecasts for North and South America from the ECCC GEPS extended ensemble, taken against a purpose-built 2001-2020 GEPS hindcast climatology at matching lead so model drift is removed. Daily animations and weekly means for eight fields, plus a full three-field Wheeler-Hendon RMM phase diagram and a tropical convection Hovmoller.">
+<meta name="description" content="Days 1-35 anomaly forecasts for North and South America from the ECCC GEPS extended ensemble, taken against a purpose-built 2001-2020 GEPS hindcast climatology at matching lead so model drift is removed. Daily animations and weekly means for eight fields, plus run-over-run change panels, a full three-field Wheeler-Hendon RMM phase diagram, a tropical convection Hovmoller, polar-vortex diagnostics and probabilistic teleconnection indices (AO, NAO, PNA, AAO and the CPC set) from all 21 members.">
 <link rel="canonical" href="https://scorvec.com/subseasonal.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
@@ -97,6 +97,13 @@
   }
   .chart-card-header p { font-size: 0.85rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
   .chart-card-header p + p { margin-top: 0.7rem; }
+  table.tele { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
+  table.tele th, table.tele td { padding: 0.35rem 0.4rem; text-align: center; border-bottom: 1px solid var(--rule); }
+  table.tele thead th { font-weight: 600; color: var(--ink); }
+  table.tele tbody th { text-align: left; font-weight: 600; white-space: nowrap; }
+  table.tele th span, table.tele td span { display: block; font-weight: 400; font-size: 0.7rem; color: var(--muted); }
+  table.tele td i { font-style: normal; color: #4a4640; }
+  table.tele td.r { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
   .chart-card-header b { color: var(--ink); font-weight: 500; }
 
   .img-wrap { padding: 1rem 1.2rem; background: #fff; }
@@ -231,6 +238,7 @@
     <div class="stage">
       <div id="stage"></div>
       <p class="cap" id="cap"></p>
+      <div id="tele-table" hidden></div>
     </div>
   </div>
 
@@ -325,8 +333,60 @@
     &mdash; 1991-06-30, where the polar-cap height collapses to 0.80&nbsp;m &mdash; now
     screened out; removing it also moved MERRA-2&rsquo;s own height trend from +18.7 to
     +18.1&nbsp;m/decade, against +18.9 measured independently from ERA5.</p>
-    <p><b>Caveats.</b> This is an ensemble mean, so it understates the range of outcomes
-    everywhere and increasingly so with lead; nothing here is a probability. Twenty-one
+    <p><b>Change vs previous run.</b> Extended cycles are Monday and Thursday, so the
+    previous run started 3 or 4 days earlier and its forecast for any given calendar day sits
+    at a longer lead. The change panels align the two on the <i>valid date</i> and difference
+    them only where both exist &mdash; days 1&ndash;32 or 1&ndash;31 of the current run &mdash; so
+    week 5 is a partial mean and is labelled with the number of common days. Nothing is drawn
+    where only one run has a forecast: zero-padding a partial week would read as &ldquo;no
+    change&rdquo; where the truth is &ldquo;no comparison&rdquo;. The vortex and teleconnection
+    plots carry the previous run&rsquo;s ensemble mean as a dashed line on the same rule.</p>
+    <p><b>Teleconnections, member by member.</b> The map anomalies are ensemble means;
+    the teleconnection section is the one place on this page built from all 21 members, so
+    that phase can be stated as a probability. The indices are a reproduction of CPC&rsquo;s,
+    on the reanalysis CPC defines them on (NCEP/NCAR R1, 2.5&deg;), and the reproduction is
+    <i>measured</i> rather than assumed. The AO and AAO are the leading EOF of monthly
+    sea-level pressure poleward of 20&deg; (Thompson &amp; Wallace 1998), signed so the
+    positive phase has low pressure over the pole; projected day by day they track CPC&rsquo;s
+    daily AO and AAO at r&nbsp;0.97 and 0.96. The 500&nbsp;hPa patterns (NAO, PNA, EA, WP, EP/NP,
+    EA/WR, SCA, TNH, POL) are defined by regression: for each pattern and each calendar month, the
+    map of monthly height anomalies 20&ndash;90&deg;N &mdash; standardized by calendar month and
+    weighted by &radic;cos&nbsp;&phi;, as in Barnston &amp; Livezey (1987) &mdash; regressed on
+    CPC&rsquo;s published monthly index over the months within one of that calendar month, and
+    the nine maps of a month combined into a least-squares projector so each index is read with
+    the others accounted for. Month-by-month matters: CPC derives its modes separately for every
+    calendar month and the PNA in particular changes shape with season, so a single all-year
+    rotated PCA reproduced CPC&rsquo;s PNA at only r&nbsp;0.54, the seasonal regression at 0.74.
+    Fidelity is scored <b>out of sample</b> &mdash; patterns fitted on 1991&ndash;2005, scored on
+    2006&ndash;2020 against CPC&rsquo;s monthly indices for every pattern and against its daily
+    NAO and PNA &mdash; and those are the correlations in the table; the operational projector is
+    then refitted on all thirty years. A daily index is the daily anomaly projected the same way
+    and divided by the 1991&ndash;2020 standard deviation of the daily projection, which is how
+    CPC computes its daily AO, NAO and PNA. Each GEPS member&rsquo;s de-drifted, re-based
+    500&nbsp;hPa and sea-level-pressure anomaly &mdash; the same anomaly the maps show &mdash; is
+    projected identically, so the forecast index carries no model drift; the tail is GEPS&rsquo;s
+    own day-0 analyses of the last weeks, anomalised the same way (against the model climatology at
+    lead 0.5 and re-based), so analysis and forecast sit on one rule &mdash; against the NCEP
+    climatology instead, the GEPS-versus-R1 height offset projected onto the monopole-like patterns
+    as a spurious step at the seam. CPC&rsquo;s own published daily values are drawn beside the
+    tail. Raw probabilities are member fractions, so they resolve to about 5% and 0% means
+    &ldquo;no member&rdquo;, not certainty.</p>
+    <p><b>Calibrated on the hindcast.</b> The same projectors are applied to every GEPS8 hindcast
+    start of 2001&ndash;2020 &mdash; four a week, 39 daily leads, de-drifted and re-based exactly
+    as the live product &mdash; and scored against the observed index on the valid date from
+    NCEP/NCAR R1. For each index and week, the starts within &plusmn;45 days of the current init
+    day-of-year (about a thousand) give the anomaly correlation of the hindcast ensemble mean
+    (the <b>skill</b> quoted in the table) and a regression of the observed weekly index on the
+    forecast one; today&rsquo;s ensemble-mean weekly index passed through that regression, with the
+    residual spread as the distribution, is the <b>calibrated probability</b>. Where the model has
+    no skill the regression slope goes to zero and the calibrated probability collapses to
+    climatology, which is the honest statement for a week-5 NAO; where it has skill but too little
+    amplitude, the slope restores it. The hindcast mean is four members against 21 live, so the
+    slope is slightly conservative. A weekly mean of a daily-sd index is a smoother quantity than
+    the daily values, so a weekly mean beyond &plusmn;1 is a strong signal.</p>
+    <p><b>Caveats.</b> The maps are an ensemble mean, so they understate the range of outcomes
+    everywhere and increasingly so with lead; outside the teleconnection section nothing here
+    is a probability. Twenty-one
     members is also not many for precipitation: a single member differs from the member
     mean by about the field's own magnitude, so roughly a fifth of single-member variance
     survives into the mean and shows up as coherent-looking blobs at long lead. Those are
@@ -362,6 +422,19 @@ var P = {
         b: {label:"Field", items: FIELDS},
         img: function (a,b) { return "assets/geps/geps_" + a + "_" + b + "_weekly.webp"; },
         cap: function () { return "Five seven-day means, anomaly vs the lead-matched GEPS hindcast."; }},
+  change: {label: "Change vs previous run, weeks 1\u20135", fit: false,
+        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
+                                   ["glb","Global (Mercator)"]]},
+        b: {label:"Field", items: FIELDS},
+        img: function (a,b) { return "assets/geps/geps_" + a + "_" + b + "_change.webp"; },
+        cap: function () { return "This run minus the previous extended run (3\u20134 days earlier), weekly means over the valid days both forecast. Week 5 is a partial week and says so."; }},
+  telecon: {label: "Teleconnections \u2014 AO, NAO, PNA, AAO \u2026", fit: false,
+        a: {label:"View", items:[["series","Index plumes"],["probs","Weekly probabilities"],["patterns","Loading patterns"]]},
+        img: function (a) { return "assets/geps/geps_telecon_" + a + ".webp"; },
+        cap: function (a) { return a==="series"
+          ? "Every member projected on CPC-style loading patterns; the tail is GEPS\u2019s own day-0 analyses on the same projection, CPC\u2019s published index as crosses, previous run dashed. Units: standard deviations of the daily index."
+          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond \u00B10.5 sd. Thin lower bar: the same probabilities calibrated on 20 years of GEPS8 hindcasts, with the hindcast skill (anomaly correlation) for that index and week."
+                         : "Regression of the monthly field on each index (m or hPa per +1 sd), NCEP/NCAR R1 1991\u20132020, with the correlation of this reproduction against CPC\u2019s own index."); }},
   daily: {label: "Daily animation",
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
@@ -372,7 +445,7 @@ var P = {
   vortex: {label: "Polar vortex \u2014 diagnostics",
         a: {label:"Hemisphere", items:[["nh","Northern"],["sh","Southern"]]},
         img: function (a) { return "assets/geps/strat_" + a + "_series.webp"; },
-        cap: function () { return "u(60\u00B0) at 10 and 100 hPa, polar-cap T and height. Ensemble spread, 14-day analysis tail."; }},
+        cap: function () { return "u(60\u00B0) at 10 and 100 hPa, polar-cap T and height. Ensemble spread, 14-day analysis tail, previous run\u2019s mean dashed on the common days."; }},
   vloop: {label: "Polar vortex \u2014 daily loop",
         a: {label:"", items:[["all","10 and 100 hPa"]]},
         frame: function () { return "sst_anim.html?base=assets/geps/anim&manifest=geps_strat_manifest.json&embed=1"; },
@@ -428,9 +501,51 @@ function render() {
     st.innerHTML = '<img src="' + p.img(sel.a, sel.b) + '" alt="' + p.label + '">';
   }
   $("cap").textContent = p.cap(sel.a, sel.b);
+  teleTable(sel.p === "telecon");
   var im = $("stage").querySelector("img");
   if (im) { im.onload = fitStage; }
   fitStage();
+}
+
+// The numbers behind the teleconnection figures: one row per index, one cell
+// per week with P(<= -0.5) / P(>= +0.5), the weekly mean and its change since
+// the previous run. Rendered from telecon.json so it never drifts from the plots.
+var TELE = null;
+function teleTable(show) {
+  var host = $("tele-table");
+  host.hidden = !show;
+  if (!show) return;
+  if (TELE === null) {
+    TELE = false;
+    fetch("assets/geps/telecon.json").then(function (r) { return r.json(); })
+      .then(function (j) { TELE = j; teleTable(sel.p === "telecon"); })
+      .catch(function () { host.innerHTML = ""; });
+    return;
+  }
+  if (!TELE) return;
+  var ids = Object.keys(TELE.indices);
+  var wk = TELE.indices[ids[0]].weeks;
+  var h = '<table class="tele"><thead><tr><th>index</th>';
+  wk.forEach(function (w) {
+    h += "<th>week " + w.week + "<span>" + w.d0.slice(5).replace("-", "/") + " \u2013 " + w.d1.slice(5).replace("-", "/") + (w.ndays < 7 ? " (" + w.ndays + " d)" : "") + "</span></th>";
+  });
+  h += "<th>vs CPC<span>out of sample</span></th></tr></thead><tbody>";
+  ids.forEach(function (id) {
+    var x = TELE.indices[id];
+    h += "<tr><th>" + id.toUpperCase() + "<span>" + x.name + "</span></th>";
+    x.weeks.forEach(function (w) {
+      var tilt = w.p_pos - w.p_neg;
+      var bg = tilt > 0 ? "rgba(180,69,60," + (0.08 + 0.55 * tilt) + ")"
+                        : "rgba(44,95,168," + (0.08 - 0.55 * tilt) + ")";
+      var d = ("prev_mean" in w) ? " <i>\u0394" + (w.mean - w.prev_mean >= 0 ? "+" : "") + (w.mean - w.prev_mean).toFixed(1) + "</i>" : "";
+      var cal = ("skill_r" in w) ? "<span>cal " + Math.round(w.cal_p_neg * 100) + "% / " + Math.round(w.cal_p_pos * 100) + "% \u00B7 skill r " + w.skill_r.toFixed(2) + "</span>" : "";
+      h += '<td style="background:' + bg + '"><b>' + Math.round(w.p_neg * 100) + "% / " + Math.round(w.p_pos * 100) + "%</b><span>mean " + (w.mean >= 0 ? "+" : "") + w.mean.toFixed(1) + d + "</span>" + cal + "</td>";
+    });
+    var r = x.r_daily != null ? "r " + x.r_daily.toFixed(2) + " daily" : (x.r_monthly != null ? "r " + x.r_monthly.toFixed(2) + " monthly" : "\u2014");
+    h += "<td class=\"r\">" + r + "</td></tr>";
+  });
+  h += "</tbody></table><p class=\"cap\">P(weekly mean \u2264 \u2212" + TELE.threshold + " sd) / P(\u2265 +" + TELE.threshold + " sd) over " + TELE.n_members + " members; cells tilt red toward the positive phase, blue toward the negative. \u0394 is the change in the weekly mean since the " + TELE.prev_cycle.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") + " run. \u201Ccal\u201D is the calibrated probability: the observed weekly index regressed on the hindcast ensemble-mean index over 2001\u20132020 starts within \u00B145 days of this date, applied to today\u2019s ensemble mean, with the residual spread; skill r is the anomaly correlation of that hindcast fit, so a cal near 31% / 31% with r near 0 is climatology. r is the correlation of this index reproduction with CPC\u2019s published index, scored out of sample (patterns fitted 1991\u20132005, scored 2006\u20132020; AO/AAO are EOFs with no fit to CPC).</p>";
+  host.innerHTML = h;
 }
 
 (function init() {

@@ -288,6 +288,14 @@
     "assets/sst/anim/aifs_t2m_manifest.json": {
       "branch": "main",
       "max_age_hours": 72
+    },
+    "assets/geps/geps_telecon_series.webp": {
+      "branch": "main",
+      "max_age_hours": 120
+    },
+    "assets/geps/geps_na_t2m_change.webp": {
+      "branch": "main",
+      "max_age_hours": 120
     }
   },
   "deploy_checks": {
