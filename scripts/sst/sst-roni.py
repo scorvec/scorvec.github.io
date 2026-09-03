@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 import os
 import sys
 import urllib.request
@@ -1353,6 +1354,10 @@ def main(argv=None) -> int:
         "daily_atl3": round(float(atl3.iloc[-1]), 3),
         "daily_tna": round(float(tna.iloc[-1]), 3),
         "anim_days": ANIM_DAYS,
+        # render stamp: the animator keys frame URLs on it so a re-rendered
+        # F00..F89 (same file names, rolling window) is never served from a
+        # stale or failed cached response (phone stuck on "Loading frames", 2026-09-03)
+        "ver": int(time.time()),
         "files": {
             "global": "global_sst_anom.webp",
             "tropical": "tropical_sst_anom.webp",

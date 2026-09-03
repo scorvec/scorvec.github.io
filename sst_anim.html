@@ -197,7 +197,9 @@ const FRAME_BASE = ON_FRAMES_BRANCH ? FRAME_ROOT + ANIM_BASE : ANIM_BASE;
 // reused for every frame, so a single latched flag meant the first miss consumed the
 // fallback and every later frame showed a broken image (mjo.html did exactly this).
 function frameSrc(im, rid, f, ver) {
-  const q = `?v=${f.date}.${ver || ""}`;
+  // manifests without a render stamp (the SST loops until 2026-09-03) get an
+  // hourly key so a re-render or a transient miss is not cached forever
+  const q = `?v=${f.date}.${ver || Math.floor(Date.now() / 3.6e6)}`;
   const primary = `${FRAME_BASE}/${rid}/${f.file}${q}`;
   const backup = `${ANIM_BASE}/${rid}/${f.file}${q}`;
   im.onerror = () => {
