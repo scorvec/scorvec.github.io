@@ -153,19 +153,16 @@ if git rev-parse -q --verify "origin/$BRANCH" >/dev/null; then
     done
   done
   [ "$kept" -gt 0 ] && echo "  carried over $kept frames from the existing branch"
-  # Anything on the branch OUTSIDE this publisher's DIRS is CI-owned and must
-  # survive the force-push untouched: the sst workflow's Copernicus stores
-  # under scripts/sst/data/cmems (2026-09-02), and whatever else a workflow
-  # decides to round-trip through the branch. Carry every such top-level path
-  # over verbatim. (The trap this closes: a laptop publish would otherwise
-  # silently delete them - the branch is ONE parentless commit.)
-  for top in $(git ls-tree --name-only "origin/$BRANCH" 2>/dev/null); do
-    owned=0
-    for d in "${DIRS[@]}"; do case "$d/" in "$top/"*) owned=1 ;; esac; done
-    [ "$owned" -eq 1 ] && continue
-    git archive "origin/$BRANCH" "$top" | tar -x -C "$TMP" 2>/dev/null \
-      && echo "  $top: CI-owned, carried over" || echo "  $top: carry-over failed"
-  done
+  # Everything on the branch OUTSIDE this publisher's DIRS is CI-owned and
+  # must survive untouched (the sst workflow's Copernicus stores, the AIFS
+  # verification state, every CI-rendered loop). Extract the WHOLE branch tree
+  # minus DIRS underneath what was staged above. The earlier version walked
+  # top-level paths and called `assets` "owned" because assets/geps/anim is
+  # under it - and on 2026-09-03 01:15Z that dropped every other loop from
+  # the branch. Never reason about ownership above the DIRS entries themselves.
+  git archive "origin/$BRANCH" | tar -x -C "$TMP" $(for d in "${DIRS[@]}"; do printf -- "--exclude=%s " "$d"; done) 2>/dev/null \
+    && echo "  carried over everything outside ${DIRS[*]} from the branch" \
+    || echo "  WARNING: could not carry over the branch tree"
 fi
 
 REMOTE="$(git config --get remote.origin.url)"
