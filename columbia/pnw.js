@@ -1,18 +1,19 @@
 /* Columbia basin precipitation page. Reads pnw_latest.json (divisions,
  * composites, Stage IV ledger, newest issue per model with deltas) and
  * pnw_history.json (period mm / % of normal per issue, same-day dprev). */
-const S = { latest: null, hist: null, basin: 'Columbia abv The Dalles', model: 'gefs',
+const S = { latest: null, hist: null, basin: 'Columbia abv The Dalles', model: 'blend',
             period: 'd1-10', heatwhat: 'pct', nruns: 12 };
 const $ = (id) => document.getElementById(id);
 const cyc = (c) => `${c.slice(4, 6)}/${c.slice(6, 8)} ${c.slice(8, 10)}Z`;
 const cycDay = (c) => `${c.slice(4, 6)}/${c.slice(6, 8)}`;
-const MODEL_LABEL = { gfs: 'GFS', gefs: 'GEFS', ecmwf: 'ECMWF IFS', ecmwf_ens: 'ECMWF ENS',
+const MODEL_LABEL = { blend: 'Blend', gfs: 'GFS', gefs: 'GEFS', ecmwf: 'ECMWF IFS', ecmwf_ens: 'ECMWF ENS',
                       aifs: 'AIFS', gdps: 'GDPS', geps: 'GEPS', geps_ext: 'GEPS ext. (Mon/Thu 00Z, 32 d)',
                       wn2: 'WeatherNext-2', wn3: 'WeatherNext-3' };
-const MODEL_ORDER = ['gefs', 'ecmwf_ens', 'geps', 'gfs', 'ecmwf', 'aifs', 'gdps', 'geps_ext', 'wn2', 'wn3'];
-const MODEL_COLOR = { gfs: '#2b6cb0', gefs: '#6fa8dc', ecmwf: '#b3372a', ecmwf_ens: '#e0745f',
+const MODEL_ORDER = ['blend', 'gefs', 'ecmwf_ens', 'geps', 'gfs', 'ecmwf', 'aifs', 'gdps', 'geps_ext', 'wn2', 'wn3'];
+const MODEL_COLOR = { blend: '#0f172a', gfs: '#2b6cb0', gefs: '#6fa8dc', ecmwf: '#b3372a', ecmwf_ens: '#e0745f',
                       aifs: '#2f855a', gdps: '#b8860b', geps: '#d9b45b', geps_ext: '#8a6d1f',
                       wn2: '#8a5cc0', wn3: '#5a3f98' };
+const hasBlend = () => !!(S.latest && S.latest.models && S.latest.models.blend);
 const PERIOD_LABEL = { 'd1-5': 'days 1–5', 'd6-10': 'days 6–10', 'd11-15': 'days 11–15',
                        'd1-10': 'days 1–10', 'd1-15': 'days 1–15', 'd16-32': 'days 16–32 (GEPS ext.)' };
 const limb = (v) => (v > 0 ? 'green' : 'brown');   // wet green, dry brown (user, 3 Sep 2026)
@@ -82,7 +83,9 @@ function normOn(k, date) {
 /* ---- plume ----------------------------------------------------------------------------- */
 function plume() {
   const host = $('plume'); const k = S.basin;
-  const ms = models().filter((m) => entry(m).series[k]);
+  // the 32-day GEPS extension joins the plume only when it is the band model,
+  // so the 16-day plume is not squeezed into half the width the rest of the time
+  const ms = models().filter((m) => entry(m).series[k] && (m !== 'geps_ext' || S.model === 'geps_ext'));
   const odates = S.latest.obs.dates.slice(-30);
   const obs = obsFor(k) ? obsFor(k).slice(-30) : [];
   const fdates = [...new Set(ms.flatMap((m) => entry(m).dates))].sort();
@@ -120,20 +123,30 @@ function plume() {
   let nd = '';
   dates.forEach((d) => { const n = normOn(k, d); if (n === null) return; nd += `${nd ? 'L' : 'M'}${X(d).toFixed(1)} ${Y(n).toFixed(1)}`; });
   P.push(`<path d="${nd}" fill="none" stroke="#0f172a" stroke-width="1.2" stroke-dasharray="5 3" opacity=".7"/>`);
-  // band for chosen model
+  // band for the chosen model, then EVERY member as a thin trace (user:
+  // "for ensembles I would like to see the full plumes with all members")
   const b = ser.find((x) => x.m === S.model);
   if (b) {
     let up = '', dn = '';
     b.e.dates.forEach((d, i) => { if (b.s.p10[i] === null || b.s.p90[i] === null) return;
       up += `${up ? 'L' : 'M'}${X(d).toFixed(1)} ${Y(b.s.p90[i]).toFixed(1)}`; dn = `L${X(d).toFixed(1)} ${Y(b.s.p10[i]).toFixed(1)}` + dn; });
-    if (up) P.push(`<path d="${up}${dn}Z" fill="${MODEL_COLOR[b.m] || '#999'}" opacity=".16"/>`);
+    if (up) P.push(`<path d="${up}${dn}Z" fill="${MODEL_COLOR[b.m] || '#999'}" opacity=".13"/>`);
+    if (b.s.members) {
+      const nm = b.s.members.length; const op = nm > 30 ? 0.22 : nm > 15 ? 0.3 : 0.4;
+      b.s.members.forEach((row) => {
+        let d = ''; let pen = false;
+        b.e.dates.forEach((dd, i) => { const v = row[i]; if (v === null || v === undefined) { pen = false; return; }
+          d += `${pen ? 'L' : 'M'}${X(dd).toFixed(1)} ${Y(Math.min(v, y1)).toFixed(1)}`; pen = true; });
+        P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[b.m] || '#999'}" stroke-width=".9" opacity="${op}" stroke-linejoin="round"/>`);
+      });
+    }
   }
   ser.forEach((x) => {
     let d = '';
     x.e.dates.forEach((dd, i) => { if (x.s.mean[i] === null) return; d += `${d ? 'L' : 'M'}${X(dd).toFixed(1)} ${Y(x.s.mean[i]).toFixed(1)}`; });
-    P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[x.m] || '#999'}" stroke-width="${x.m === S.model ? 2.6 : 1.5}" stroke-linejoin="round"/>`);
+    P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[x.m] || '#999'}" stroke-width="${x.m === S.model ? 3.2 : x.m === 'blend' ? 2.8 : 1.8}" stroke-linejoin="round" stroke-linecap="round"/>`);
   });
-  const mn = meanSeries(k);
+  const mn = hasBlend() ? null : meanSeries(k);
   if (mn && ser.length > 1) {
     let d = ''; mn.dates.forEach((dd, i) => { if (mn.mean[i] === null) return; d += `${d ? 'L' : 'M'}${X(dd).toFixed(1)} ${Y(mn.mean[i]).toFixed(1)}`; });
     P.push(`<path d="${d}" fill="none" stroke="#0f172a" stroke-width="3" stroke-linejoin="round" opacity=".85"/>`);
@@ -188,12 +201,14 @@ function plume() {
   });
   P.push('</svg>');
   const chips = ser.map((x) => `<span class="${x.m === S.model ? 'new' : ''}"><i style="border-color:${MODEL_COLOR[x.m] || '#999'}"></i>${MODEL_LABEL[x.m] || x.m} ${cyc(x.e.cycle)}</span>`).join('')
-    + (ser.length > 1 ? `<span class="new"><i style="border-color:#0f172a;border-top-width:3px"></i>mean of models</span>` : '')
+    + (ser.length > 1 && !hasBlend() ? `<span class="new"><i style="border-color:#0f172a;border-top-width:3px"></i>mean of models</span>` : '')
+    + (b && b.s.members ? `<span><i style="border-color:${MODEL_COLOR[b.m] || '#999'};border-top-width:1px;opacity:.6"></i>${b.s.members.length} members</span>` : '')
     + `<span><i style="border-color:#7ea8d5;border-top-width:6px"></i>Stage IV</span><span><i style="border-color:#0f172a;border-top-style:dashed"></i>1991–2020 normal</span>`;
   host.innerHTML = `<div class="evolegend">${chips}</div>` + P.join('');
   HEAT.wireTips(host);
   const di = divInfo(k);
-  $('sub1').textContent = `${label(k)}${di ? ` · ${di.region} · ${di.area.toLocaleString()} sq mi` : ' · area-weighted union of NWRFC divisions'} · member mean per model, p10–p90 band for ${MODEL_LABEL[S.model] || S.model}`;
+  $('sub1').innerHTML = `${label(k)}${di ? ` · ${di.region} · ${di.area.toLocaleString()} sq mi` : ' · area-weighted union of NWRFC divisions'} · member mean per model, p10–p90 band and members for ${MODEL_LABEL[S.model] || S.model} · <a class="histlink" id="plumehist">member histogram ▤</a>`;
+  $('plumehist').addEventListener('click', () => openHist(k, S.period));
 }
 
 /* ---- models mean ------------------------------------------------------------------------------------ */
@@ -226,25 +241,44 @@ function meanSeries(k) {
   return { dates, mean };
 }
 
+function headPeriod(k, p) {
+  // the headline: the blend when there is one, else the equal-weight mean
+  if (hasBlend()) {
+    const v = (entry('blend').periods[k] || {})[p]; if (!v) return null;
+    const others = models().filter((m) => m !== 'blend' && m !== 'geps_ext').map((m) => showVal((entry(m).periods[k] || {})[p])).filter((x) => x !== null && x !== undefined);
+    const e = Object.assign({}, v, { models: others.length, lo: others.length ? Math.min(...others) : showVal(v), hi: others.length ? Math.max(...others) : showVal(v) });
+    return e;
+  }
+  return meanPeriod(k, p);
+}
+function headDelta(k, p) {
+  if (hasBlend()) { const pr = entry('blend').prev[0]; return pr ? (((pr.delta[k] || {}).periods || {})[p] || null) : null; }
+  return meanDelta(k, p);
+}
 function scorecard() {
   const keys = Object.keys(S.latest.composites);
   const periods = S.latest.periods.filter((p) => p !== 'd11-15' && (p !== 'd16-32' || models().some((m) => Object.values(entry(m).periods).some((pp) => pp['d16-32']))));
   const rows = keys.map((k) => ({ key: k, label: k, cls: k === S.basin ? 'cons' : '' }));
   const cols = periods.map((p) => ({ key: p, label: PERIOD_LABEL[p] }));
   HEAT.table($('score'), rows, cols, (k, p) => {
-    const v = meanPeriod(k, p); if (!v) return null;
+    const v = headPeriod(k, p); if (!v) return null;
     const main = showVal(v); if (main === null) return null;
-    const d = showDelta(meanDelta(k, p));
+    const d = showDelta(headDelta(k, p));
     const fm = (x) => (S.heatwhat === 'anom' ? `${sgn(x, 0)} mm` : showFmt(x));
     // colour by the reading itself (vs normal), the change rides in small type
     const colv = S.heatwhat === 'pct' ? main - 100 : S.heatwhat === 'anom' ? main : main;
     return { v: colv, text: `${fm(main)} <small>${fm(v.lo)}–${fm(v.hi)}${d === null ? '' : ' · ' + showSgn(d)}</small>`,
              mark: v.n < v.want ? '<i class="sh">*</i>' : '',
-             tip: `${k} · ${PERIOD_LABEL[p]} · mean of ${v.models} models\n${v.mm.toFixed(1)} mm${v.normal !== undefined ? ` / normal ${v.normal.toFixed(1)} = ${v.pct.toFixed(0)}% (${sgn(v.mm - v.normal, 1)} mm)` : ''}\nmodels range ${fm(v.lo)} to ${fm(v.hi)}` + (d === null ? '' : `\nmean same-day change vs previous issues: ${showSgn(d)}`) };
+             tip: `${k} · ${PERIOD_LABEL[p]} · ${hasBlend() ? 'blend' : 'mean'} of ${v.models} models\n${v.mm.toFixed(1)} mm${v.normal !== undefined ? ` / normal ${v.normal.toFixed(1)} = ${v.pct.toFixed(0)}% (${sgn(v.mm - v.normal, 1)} mm)` : ''}\nmodels range ${fm(v.lo)} to ${fm(v.hi)}` + (d === null ? '' : `\nsame-day change vs the previous issue: ${showSgn(d)}`) };
   }, [], { limb: S.heatwhat === 'mm' ? limbAbs : limb, scale: S.heatwhat === 'pct' ? 150 : 'auto', nice: showNice(), fmt: (v) => showFmt(v) });
-  $('score').querySelectorAll('td.k').forEach((td, i) => td.addEventListener('click', () => { S.basin = keys[i]; $('basin').value = S.basin; render(); }));
-  $('subsc').textContent = `mean of ${models().length} models · ${SHOW[S.heatwhat]} · small type: model range, then the mean same-day change vs the previous issue`;
-  $('scnote').textContent = 'Composites are area-weighted unions of NWRFC divisions; Columbia above The Dalles is the whole basin above the dam, not the NWRFC mainstem reach. Click a row to open it.';
+  $('score').querySelectorAll('td.k').forEach((td, i) => { td.addEventListener('click', () => { S.basin = keys[i]; $('basin').value = S.basin; render(); });
+    td.innerHTML += ` <a class="histlink" title="member histogram">▤</a>`;
+    td.querySelector('.histlink').addEventListener('click', (ev) => { ev.stopPropagation(); openHist(keys[i], S.period); }); });
+  const bw = S.latest.blend_weights || null; const bs = hasBlend() ? entry('blend').sources : null;
+  $('subsc').textContent = `${hasBlend() ? 'blend' : 'mean'} of the models · ${SHOW[S.heatwhat]} · small type: model range, then the same-day change vs the previous issue`;
+  $('scnote').innerHTML = (bs ? `<b>Blend</b> ${cyc(entry('blend').cycle)}: ` + Object.entries(bs).sort((a, b) => b[1].weight - a[1].weight).map(([m, x]) => `${MODEL_LABEL[m] || m} ${(x.weight * 100).toFixed(0)}%${x.cycle !== entry('blend').cycle ? ` (${cyc(x.cycle)})` : ''}`).join(', ')
+    + ' — members pooled with weight w/n, so a 21-member ensemble does not outvote a 10-member one; prior weights until Stage IV verification accrues, then pulled halfway toward inverse-MAE. ' : '')
+    + 'Composites are area-weighted unions of NWRFC divisions; Columbia above The Dalles is the whole basin above the dam, not the NWRFC mainstem reach. Click a row to open it.';
 }
 
 function obstab() {
@@ -289,40 +323,70 @@ function mapValue(code) {
   const f = ob.reduce((a, b) => a + b, 0), g = nm.some((x) => x === null) ? null : nm.reduce((a, b) => a + b, 0);
   return mapCell(f, g, `${o.dates.slice(-n)[0]} → ${o.dates[o.dates.length - 1]}: `);
 }
+// Albers equal-area conic, standard parallels 43 and 50 N, central meridian
+// 117 W: the projection the NWRFC and USGS draw the basin in, so the shapes
+// look right instead of the squashed plate carrée.
+const ALB = (() => {
+  const d2r = Math.PI / 180, p1 = 43 * d2r, p2 = 50 * d2r, lam0 = -117 * d2r, phi0 = 47 * d2r;
+  const n = (Math.sin(p1) + Math.sin(p2)) / 2, C = Math.cos(p1) ** 2 + 2 * n * Math.sin(p1);
+  const rho = (phi) => Math.sqrt(C - 2 * n * Math.sin(phi)) / n, rho0 = rho(phi0);
+  return (lon, lat) => { const th = n * (lon * d2r - lam0), r = rho(lat * d2r); return [r * Math.sin(th), rho0 - r * Math.cos(th)]; };
+})();
+let BASE = null;
 function mapPanel() {
   const host = $('map'); if (!GEO) { host.innerHTML = '<div class="empty">Loading geometry…</div>'; return; }
-  const lon0 = -124.6, lon1 = -109.6, lat0 = 41.0, lat1 = 53.0;
-  const K = 62, cosk = Math.cos(47 * Math.PI / 180);
-  const W = Math.round((lon1 - lon0) * K * cosk) + 12, H = Math.round((lat1 - lat0) * K) + 12;
-  const X = (lo) => 6 + (lo - lon0) * K * cosk, Y = (la) => 6 + (lat1 - la) * K;
+  // frame: the divisions' extent with a margin, in projected units
+  const corners = [[-125.6, 40.4], [-108.9, 40.4], [-125.6, 53.6], [-108.9, 53.6], [-117, 40.4], [-117, 53.6]].map((c) => ALB(c[0], c[1]));
+  const px0 = Math.min(...corners.map((c) => c[0])), px1 = Math.max(...corners.map((c) => c[0]));
+  const py0 = Math.min(...corners.map((c) => c[1])), py1 = Math.max(...corners.map((c) => c[1]));
+  const W = 700, K = (W - 4) / (px1 - px0), H = Math.round((py1 - py0) * K) + 4;
+  const PX = (lon, lat) => { const p = ALB(lon, lat); return [2 + (p[0] - px0) * K, 2 + (py1 - p[1]) * K]; };
+  const X = (lo) => PX(lo, 47)[0], Y = (la) => PX(-117, la)[1];        // only used for the label centroid fallback
+  const pathOf = (geom) => {
+    const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates
+      : geom.type === 'LineString' ? [[geom.coordinates]] : geom.type === 'MultiLineString' ? geom.coordinates.map((l) => [l]) : [];
+    let d = '';
+    for (const poly of polys) for (const ring of poly) d += ring.map((c, i) => { const p = PX(c[0], c[1]); return `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`; }).join('') + (geom.type.endsWith('Polygon') ? 'Z' : '');
+    return d;
+  };
+  const baseLayer = (name) => (BASE ? BASE.features.filter((f) => f.properties.layer === name).map((f) => pathOf(f.geometry)).join('') : '');
   const vals = GEO.features.map((f) => mapValue(f.properties.code)).filter(Boolean).map((x) => x.v);
   const absMode = S.heatwhat === 'mm' && S.mapwhat !== 'change';
   const scale = absMode ? Math.max(1, ...vals) : S.heatwhat === 'pct' && S.mapwhat !== 'change' ? 150 : HEAT.autoScale(vals, showNice());
   const mlimb = absMode ? limbAbs : limb;
-  const P = [`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`];
+  const P = [`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="basemap">`];
+  // ocean, then land, then the coloured divisions, then water and borders on top
+  P.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#cfe0ef"/>`);
+  P.push(`<path d="${baseLayer('land')}" fill="#f4f1ea" stroke="none"/>`);
   const labels = [];
   for (const f of GEO.features) {
     const p = f.properties; const x = mapValue(p.code);
-    const col = x ? HEAT.color(x.v, scale, mlimb) : { bg: '#f1f4f7', ink: 'var(--ink3)' };
+    const col = x ? HEAT.color(x.v, scale, mlimb) : { bg: '#e9e6df', ink: 'var(--ink3)' };
     const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
-    let d = ''; let best = null;
+    let best = null;
     for (const poly of polys) {
-      for (const ring of poly) { d += ring.map((c, i) => `${i ? 'L' : 'M'}${X(c[0]).toFixed(1)} ${Y(c[1]).toFixed(1)}`).join('') + 'Z'; }
       const ring = poly[0]; let sx = 0, sy = 0; ring.forEach((c) => { sx += c[0]; sy += c[1]; });
       if (!best || ring.length > best.n) best = { n: ring.length, x: sx / ring.length, y: sy / ring.length };
     }
-    const tip = `${p.name} (${p.code}) · ${p.region} · ${Math.round(p.area).toLocaleString()} sq mi${x ? '\n' + x.tip : '\nno value'}`;
-    P.push(`<path d="${d}" fill="${col.bg || '#f1f4f7'}" class="${p.code === S.basin ? 'sel' : ''}" data-code="${p.code}" data-t="${tip}"/>`);
-    if (best) labels.push(`<text class="lab" x="${X(best.x).toFixed(1)}" y="${(Y(best.y) + 3).toFixed(1)}" text-anchor="middle" fill="${x ? 'var(--ink)' : 'var(--ink3)'}">${x ? x.text : '–'}</text>`);
+    const tip = `${p.name} (${p.code}) · ${p.region} · ${Math.round(p.area).toLocaleString()} sq mi${x ? '\n' + x.tip : '\nno value'}\nclick for the member histogram`;
+    P.push(`<path d="${pathOf(f.geometry)}" fill="${col.bg || '#e9e6df'}" class="div ${p.code === S.basin ? 'sel' : ''}" data-code="${p.code}" data-t="${tip}"/>`);
+    if (best) { const q = PX(best.x, best.y); labels.push(`<text class="lab" x="${q[0].toFixed(1)}" y="${(q[1] + 3).toFixed(1)}" text-anchor="middle" fill="${x ? 'var(--ink)' : 'var(--ink3)'}">${x ? x.text : '–'}</text>`); }
   }
+  P.push(`<path d="${baseLayer('lakes')}" fill="#bcd4ea" stroke="#7fa6cc" stroke-width=".5"/>`);
+  P.push(`<path d="${baseLayer('rivers')}" fill="none" stroke="#6f9ccb" stroke-width=".9" opacity=".8"/>`);
+  P.push(`<path d="${baseLayer('admin1')}" fill="none" stroke="#5a6b7d" stroke-width=".8" stroke-dasharray="3 2"/>`);
+  P.push(`<path d="${baseLayer('admin0')}" fill="none" stroke="#2c3a4a" stroke-width="1.4"/>`);
+  P.push(`<path d="${baseLayer('coast')}" fill="none" stroke="#3b5a78" stroke-width=".9"/>`);
   P.push(labels.join('')); P.push('</svg>');
   host.innerHTML = P.join('');
-  host.querySelectorAll('path[data-code]').forEach((el) => el.addEventListener('click', () => { S.basin = el.dataset.code; $('basin').value = S.basin; render(); }));
+  host.querySelectorAll('path[data-code]').forEach((el) => el.addEventListener('click', () => openHist(el.dataset.code, S.period)));
+  host.querySelector('svg').insertAdjacentHTML('beforeend', `<text x="${W - 6}" y="${H - 6}" text-anchor="end" fill="#5a6b7d" style="font-size:9px">Albers · Natural Earth 10 m · NWRFC divisions</text>`);
   HEAT.wireTips(host);
   const e = entry(S.model);
   const what = SHOW[S.heatwhat];
   $('submap').textContent = S.mapwhat === 'model' ? `${MODEL_LABEL[S.model] || S.model} ${e ? cyc(e.cycle) : ''} · ${PERIOD_LABEL[S.period]} · ${what} by division` :
-    S.mapwhat === 'change' ? `${MODEL_LABEL[S.model] || S.model} · ${PERIOD_LABEL[S.period]} · same-day change vs the previous issue, ${S.heatwhat === 'pct' ? 'percentage points of normal' : 'mm'}` : `NCEP Stage IV · ${MAPWHAT[S.mapwhat].replace('% of normal', what)} · click a division to open it`;
+    S.mapwhat === 'change' ? `${MODEL_LABEL[S.model] || S.model} · ${PERIOD_LABEL[S.period]} · same-day change vs the previous issue, ${S.heatwhat === 'pct' ? 'percentage points of normal' : 'mm'}` : `NCEP Stage IV · ${MAPWHAT[S.mapwhat].replace('% of normal', what)}`;
+  $('submap').textContent += ' · click a division for its member histogram';
   const sw = (l, t) => `<i style="background:${HEAT.mix(HEAT.RAMP[l], t)}"></i>`;
   $('maplegend').innerHTML = absMode ? `<span class="lg">0 mm ${[.15, .33, .5, .66, .83, 1].map((t) => sw('green', t)).join('')}<b>${scale.toFixed(0)} mm</b></span>`
     : S.mapwhat === 'change' ? HEAT.legend(scale, limb, 'drier', 'wetter', (x) => x + showUnitDelta())
@@ -330,11 +394,97 @@ function mapPanel() {
     : `<span class="lg">${[1, .66, .33].map((t) => sw('brown', t)).join('')}<b>0%</b> &nbsp; 50% &nbsp; <b>100% of normal</b> &nbsp; 150% &nbsp; <b>≥250%</b>${[.33, .66, 1].map((t) => sw('green', t)).join('')}</span>`;
 }
 
+/* ---- member histogram pop-up ------------------------------------------------------------------------ */
+S.histKey = null; S.histPeriod = null;
+// member period totals for one model on one basin, in the page's reading
+function memberTotals(m, k, p) {
+  const e = entry(m); const st = e.series[k]; if (!st || !st.members) return null;
+  const [a, b] = PERIOD_DAYS_JS[p]; const idx = [];
+  for (let i = a - 1; i < Math.min(b, e.dates.length); i++) idx.push(i);
+  if (!idx.length) return null;
+  let normal = 0; for (const i of idx) { const n = normOn(k, e.dates[i]); if (n === null) { normal = null; break; } normal += n; }
+  const vals = [], w = [];
+  st.members.forEach((row, j) => {
+    let t = 0, ok = true; for (const i of idx) { if (row[i] === null || row[i] === undefined) { ok = false; break; } t += row[i]; }
+    if (!ok) return;
+    const v = S.heatwhat === 'mm' ? t : normal === null || normal <= 0 ? null : S.heatwhat === 'pct' ? 100 * t / normal : t - normal;
+    if (v === null) return;
+    vals.push(v); w.push(st.weights ? st.weights[j] : 1);
+  });
+  return vals.length ? { vals, w, normal, n: idx.length, want: b - a + 1 } : null;
+}
+function detTotal(m, k, p) {
+  const v = (entry(m).periods[k] || {})[p]; return v ? showVal(v) : null;
+}
+const PERIOD_DAYS_JS = { 'd1-5': [1, 5], 'd6-10': [6, 10], 'd11-15': [11, 15], 'd1-10': [1, 10], 'd1-15': [1, 15], 'd16-32': [16, 32] };
+function wq(vals, w, q) {
+  const o = vals.map((v, i) => [v, w[i]]).sort((x, y) => x[0] - y[0]); const tot = o.reduce((a, x) => a + x[1], 0);
+  let c = 0; for (const [v, ww] of o) { c += ww; if (c >= q * tot) return v; } return o[o.length - 1][0];
+}
+function openHist(k, p) {
+  S.histKey = k; S.histPeriod = p || S.histPeriod || S.period;
+  const modal = $('hist'); modal.hidden = false;
+  $('histname').textContent = label(k);
+  const di = divInfo(k);
+  $('histwhen').textContent = di ? `${di.region} · ${Math.round(di.area).toLocaleString()} sq mi` : 'area-weighted union of NWRFC divisions';
+  fill($('histperiod'), Object.keys(PERIOD_DAYS_JS).filter((pp) => S.latest.periods.includes(pp)), S.histPeriod, (pp) => PERIOD_LABEL[pp]);
+  renderHist();
+}
+function renderHist() {
+  const k = S.histKey, p = S.histPeriod; const host = $('histbody');
+  const ens = models().filter((m) => entry(m).series[k] && entry(m).series[k].members).map((m) => ({ m, d: memberTotals(m, k, p) })).filter((x) => x.d);
+  const det = models().filter((m) => !(entry(m).series[k] && entry(m).series[k].members)).map((m) => ({ m, v: detTotal(m, k, p) })).filter((x) => x.v !== null);
+  if (!ens.length && !det.length) { host.innerHTML = '<div class="empty">No members for this period.</div>'; $('histnote').textContent = ''; return; }
+  const unit = S.heatwhat === 'pct' ? '% of normal' : 'mm' + (S.heatwhat === 'anom' ? ' vs normal' : '');
+  const all = ens.flatMap((x) => x.d.vals).concat(det.map((x) => x.v));
+  let lo = Math.min(...all), hi = Math.max(...all);
+  const ref = S.heatwhat === 'pct' ? 100 : 0; lo = Math.min(lo, ref); hi = Math.max(hi, ref);
+  const pad = (hi - lo) * 0.06 || 1; lo -= pad; hi += pad;
+  const nb = 18, bw = (hi - lo) / nb;
+  const W = 900, H = 330, M = { l: 44, r: 16, t: 26, b: 54 };
+  const X = (v) => M.l + (v - lo) / (hi - lo) * (W - M.l - M.r);
+  // weighted share per bin per ensemble
+  const hists = ens.map((x) => { const h = new Array(nb).fill(0); const tot = x.d.w.reduce((a, b) => a + b, 0);
+    x.d.vals.forEach((v, i) => { const bi = Math.min(nb - 1, Math.max(0, Math.floor((v - lo) / bw))); h[bi] += x.d.w[i] / tot; }); return { m: x.m, h, d: x.d }; });
+  const ymax = Math.max(0.05, ...hists.flatMap((x) => x.h)) * 1.15;
+  const Y = (f) => M.t + (H - M.t - M.b) * (1 - f / ymax);
+  const primary = hists.find((x) => x.m === S.model) || hists.find((x) => x.m === 'blend') || hists[0];
+  const P = [`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="width:100%;height:auto">`];
+  for (let i = 0; i <= 4; i++) { const f = ymax * i / 4; P.push(`<line x1="${M.l}" x2="${W - M.r}" y1="${Y(f).toFixed(1)}" y2="${Y(f).toFixed(1)}" stroke="#eef2f5"/><text x="${M.l - 6}" y="${(Y(f) + 3).toFixed(1)}" text-anchor="end">${(f * 100).toFixed(0)}%</text>`); }
+  // primary as bars
+  if (primary) primary.h.forEach((f, i) => { if (!f) return; P.push(`<rect x="${(X(lo + i * bw) + 1).toFixed(1)}" y="${Y(f).toFixed(1)}" width="${(X(lo + (i + 1) * bw) - X(lo + i * bw) - 2).toFixed(1)}" height="${(Y(0) - Y(f)).toFixed(1)}" fill="${MODEL_COLOR[primary.m] || '#999'}" opacity=".55"/>`); });
+  // other ensembles as step outlines
+  hists.filter((x) => x !== primary).forEach((x) => { let d = ''; x.h.forEach((f, i) => { const x0 = X(lo + i * bw), x1 = X(lo + (i + 1) * bw), y = Y(f); d += `${d ? 'L' : 'M'}${x0.toFixed(1)} ${y.toFixed(1)}L${x1.toFixed(1)} ${y.toFixed(1)}`; });
+    P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[x.m] || '#999'}" stroke-width="2" stroke-linejoin="round"/>`); });
+  // reference (normal) and deterministic ticks
+  P.push(`<line x1="${X(ref).toFixed(1)}" x2="${X(ref).toFixed(1)}" y1="${M.t}" y2="${Y(0)}" stroke="#0f172a" stroke-dasharray="5 3"/><text x="${(X(ref) + 4).toFixed(1)}" y="${M.t + 10}" fill="#0f172a">normal</text>`);
+  det.forEach((x, i) => { P.push(`<line x1="${X(x.v).toFixed(1)}" x2="${X(x.v).toFixed(1)}" y1="${Y(0)}" y2="${Y(0) + 14}" stroke="${MODEL_COLOR[x.m] || '#999'}" stroke-width="2.5"/>`);
+    P.push(`<text x="${X(x.v).toFixed(1)}" y="${Y(0) + 26 + (i % 2) * 11}" text-anchor="middle" fill="${MODEL_COLOR[x.m] || '#999'}" class="chg">${MODEL_LABEL[x.m] || x.m}</text>`); });
+  // x axis
+  for (let i = 0; i <= 6; i++) { const v = lo + (hi - lo) * i / 6; P.push(`<text x="${X(v).toFixed(1)}" y="${H - 6}" text-anchor="middle">${S.heatwhat === 'pct' ? v.toFixed(0) + '%' : (S.heatwhat === 'anom' ? sgn(v, 0) : v.toFixed(0)) + ' mm'}</text>`); }
+  P.push(`<text class="ttl" x="${M.l}" y="${M.t - 10}">${PERIOD_LABEL[p]} · share of members per bin · ${unit}</text>`);
+  P.push('</svg>');
+  // summary row per ensemble
+  const rows = hists.map((x) => { const q = (qq) => wq(x.d.vals, x.d.w, qq); const tot = x.d.w.reduce((a, b) => a + b, 0);
+    const above = x.d.vals.reduce((a, v, i) => a + (v > ref ? x.d.w[i] : 0), 0) / tot; const big = x.d.vals.reduce((a, v, i) => a + ((S.heatwhat === 'pct' ? v > 150 : v > ref + (S.heatwhat === 'mm' ? 0 : 0)) ? x.d.w[i] : 0), 0) / tot;
+    const fm = (v) => (S.heatwhat === 'pct' ? `${v.toFixed(0)}%` : `${S.heatwhat === 'anom' ? sgn(v, 0) : v.toFixed(0)} mm`);
+    return `<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${MODEL_COLOR[x.m] || '#999'};margin-right:5px;vertical-align:-1px"></i>${MODEL_LABEL[x.m] || x.m} <b>${x.d.vals.length}</b> members · p10 <b>${fm(q(0.1))}</b> · median <b>${fm(q(0.5))}</b> · p90 <b>${fm(q(0.9))}</b> · above normal <b>${(above * 100).toFixed(0)}%</b>${S.heatwhat === 'pct' ? ` · above 150% <b>${(big * 100).toFixed(0)}%</b>` : ''}${x.d.n < x.d.want ? ' <i class="sh">*</i>' : ''}</span>`; });
+  host.innerHTML = P.join('') + `<div class="histrow">${rows.join('')}</div>`;
+  $('histnote').textContent = 'Bars: ' + (primary ? MODEL_LABEL[primary.m] || primary.m : '') + ' (weighted member share per bin); outlines: the other ensembles; ticks: deterministic runs. ' + (S.heatwhat === 'pct' ? 'Percent of the 1991–2020 normal over the period.' : '') + ' * period not fully covered by the run.';
+}
+function wireHist() {
+  $('histclose').addEventListener('click', () => { $('hist').hidden = true; });
+  $('histback').addEventListener('click', () => { $('hist').hidden = true; });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('hist').hidden = true; });
+  $('histperiod').addEventListener('change', (e) => { S.histPeriod = e.target.value; renderHist(); });
+  $('histopen').addEventListener('click', () => { S.basin = S.histKey; $('basin').value = S.basin; $('hist').hidden = true; render(); });
+}
+
 /* ---- by period ----------------------------------------------------------------------------- */
 function ptab() {
   const k = S.basin; const ms = models().filter((m) => entry(m).periods[k]);
   const cols = S.latest.periods.map((p) => ({ key: p, label: PERIOD_LABEL[p] }));
-  const rows = (ms.length > 1 ? [{ key: '__mean', label: 'Mean of models', cls: 'blend' }] : []).concat(ms.map((m) => ({ key: m, label: MODEL_LABEL[m] || m })));
+  const rows = (ms.length > 1 && !hasBlend() ? [{ key: '__mean', label: 'Mean of models', cls: 'blend' }] : []).concat(ms.map((m) => ({ key: m, label: MODEL_LABEL[m] || m, cls: m === 'blend' ? 'blend' : '' })));
   HEAT.table($('ptab'), rows, cols, (m, p) => {
     if (m === '__mean') {
       const v = meanPeriod(k, p); if (!v) return null; const main = showVal(v); if (main === null) return null;
@@ -365,7 +515,7 @@ function small() {
     const ser = ms.filter((m) => entry(m).series[k]).map((m) => ({ m, e: entry(m), s: entry(m).series[k] }));
     const fdates = [...new Set(ser.flatMap((x) => x.e.dates))].sort();
     const dates = [...new Set(odates.concat(fdates))].sort();
-    const W = 360, H = 164, M = { l: 30, r: 6, t: 32, b: 16 };
+    const W = 420, H = 190, M = { l: 32, r: 8, t: 34, b: 18 };
     const X = (d) => M.l + dates.indexOf(d) * (W - M.l - M.r) / Math.max(1, dates.length - 1);
     const step = (W - M.l - M.r) / Math.max(1, dates.length - 1);
     const vals = obs.filter((v) => v !== null).concat(ser.flatMap((x) => x.s.mean).filter((v) => v !== null));
@@ -377,7 +527,7 @@ function small() {
     let nd = ''; dates.forEach((d) => { const n = normOn(k, d); if (n === null) return; nd += `${nd ? 'L' : 'M'}${X(d).toFixed(1)} ${Y(n).toFixed(1)}`; });
     P.push(`<path d="${nd}" fill="none" stroke="#0f172a" stroke-width="1" stroke-dasharray="4 3" opacity=".7"/>`);
     ser.forEach((x) => { let d = ''; x.e.dates.forEach((dd, i) => { if (x.s.mean[i] === null) return; d += `${d ? 'L' : 'M'}${X(dd).toFixed(1)} ${Y(x.s.mean[i]).toFixed(1)}`; });
-      P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[x.m] || '#999'}" stroke-width="${x.m === S.model ? 2 : 1.2}"/>`); });
+      P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[x.m] || '#999'}" stroke-width="${x.m === 'blend' ? 2.4 : x.m === S.model ? 2 : 1.2}" stroke-linejoin="round"/>`); });
     // headline: chosen period % of normal per model, mean of models
     const pcts = ser.map((x) => showVal((x.e.periods[k] || {})[S.period])).filter((v) => v !== null && v !== undefined);
     const fm = (v) => (S.heatwhat === 'pct' ? `${Math.round(v)}%` : S.heatwhat === 'anom' ? `${sgn(v, 0)} mm` : `${Math.round(v)} mm`);
@@ -453,10 +603,11 @@ function render() {
   const ms = models(); const o = S.latest.obs.dates;
   $('runbadge').textContent = `${ms.length} models · Stage IV through ${o[o.length - 1] || '–'}`;
   const newest = ms.map((m) => entry(m).cycle).sort().slice(-1)[0];
-  const cd = meanPeriod('Columbia abv The Dalles', 'd1-10');
-  $('intro').innerHTML = `Precipitation forecasts for the Columbia River basin from ${ms.map((m) => MODEL_LABEL[m] || m).join(', ')}, `
+  const cd = headPeriod('Columbia abv The Dalles', 'd1-10');
+  const shortLabel = (m) => (m === 'geps_ext' ? 'the GEPS Mon/Thu extension to 32 days' : MODEL_LABEL[m] || m);
+  $('intro').innerHTML = `Precipitation forecasts for the Columbia River basin from ${ms.filter((m) => m !== 'blend').map(shortLabel).join(', ')}${hasBlend() ? ', and a weighted blend' : ''}, `
     + `averaged over the Northwest River Forecast Center's water-supply divisions and read against the 1991–2020 normal and against NCEP Stage IV observed rainfall. `
-    + (cd && cd.pct !== undefined ? `Newest issue ${cyc(newest)}: the basin above The Dalles is forecast at <b>${cd.pct.toFixed(0)}% of normal</b> over days 1–10 (${cd.mm.toFixed(0)} mm against a normal ${cd.normal.toFixed(0)}; models ${cd.lo.toFixed(0)}–${cd.hi.toFixed(0)}%). ` : '')
+    + (cd && cd.pct !== undefined ? `${hasBlend() ? 'Blend' : 'Mean of models'} ${cyc(hasBlend() ? entry('blend').cycle : newest)}: the basin above The Dalles is forecast at <b>${cd.pct.toFixed(0)}% of normal</b> over days 1–10 (${cd.mm.toFixed(0)} mm against a normal ${cd.normal.toFixed(0)}; individual models ${S.heatwhat === 'pct' ? `${cd.lo.toFixed(0)}–${cd.hi.toFixed(0)}%` : ''}). ` : '')
     + `Every table can be read as percent of normal, as the departure in mm, or as absolute mm.`;
   $('credits').innerHTML = 'Sources: NWRFC forecast basins and mean-areal-precipitation normals (NOAA/NWS); NCEP Stage IV multi-sensor precipitation analysis via NOMADS and the Iowa Environmental Mesonet archive; '
     + 'ECMWF open data (IFS, AIFS, ENS) © ECMWF, CC BY 4.0; NOAA GFS and GEFS via NOMADS; Environment and Climate Change Canada GDPS via MSC Datamart. Model output is unadjusted.';
@@ -488,9 +639,10 @@ async function load() {
   S.latest = await (await fetch(DATA + 'pnw_latest.json?t=' + Date.now())).json();
   S.hist = await (await fetch(DATA + 'pnw_history.json?t=' + Date.now())).json();
   if (!GEO) { try { GEO = await (await fetch('pnw_divisions.geojson')).json(); } catch (e) { GEO = null; } }
+  if (!BASE) { try { BASE = await (await fetch('pnw_base.geojson')).json(); } catch (e) { BASE = null; } }
 }
 (async () => {
-  await load(); controls(); render();
+  await load(); controls(); wireHist(); render();
   setInterval(async () => {
     try { const l = await (await fetch(DATA + 'pnw_latest.json?t=' + Date.now())).json();
       if (l.built !== S.latest.built) { await load(); render(); } } catch (e) { /* keep */ }

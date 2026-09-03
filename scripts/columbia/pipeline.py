@@ -50,7 +50,15 @@ PERIODS = ["d1-5", "d6-10", "d11-15", "d1-10", "d1-15", "d16-32"]
 PERIOD_DAYS = {"d1-5": (1, 5), "d6-10": (6, 10), "d11-15": (11, 15), "d1-10": (1, 10), "d1-15": (1, 15),
                "d16-32": (16, 32)}          # weeks 3-5: the GEPS Monday/Thursday extension only
 MODEL_LABEL = {"gfs": "GFS", "gefs": "GEFS", "ecmwf": "ECMWF IFS", "aifs": "AIFS",
-               "ecmwf_ens": "ECMWF ENS", "gdps": "GDPS", "geps": "GEPS", "geps_ext": "GEPS ext."}
+               "ecmwf_ens": "ECMWF ENS", "gdps": "GDPS", "geps": "GEPS", "geps_ext": "GEPS ext.",
+               "blend": "Blend"}
+# Blend prior weights (sum to 1 over whatever contributed, renormalised per
+# date). Ensembles carry the weight; the deterministic runs add placement.
+# Once Stage IV verification has >= 20 pairs per model the prior is averaged
+# 50/50 with an inverse-MAE weight (see blend_weights).
+BLEND_PRIOR = {"ecmwf_ens": 0.28, "gefs": 0.20, "geps": 0.14, "aifs": 0.12,
+               "ecmwf": 0.10, "gdps": 0.08, "gfs": 0.08}
+BLEND_MIN_ON_TARGET = 0.5        # share of weight that must come from cycles == the target
 COMPOSITES = {
     "Columbia abv The Dalles": {"regions": ["Columbia River Main Stem", "Middle Columbia Basin",
                                             "Snake River", "Upper Columbia Basin"], "exclude": ["LCOLUMBIA"]},
@@ -465,9 +473,9 @@ def cycles(model):
     return sorted(os.path.basename(p)[len(model) + 1:-8] for p in glob.glob(os.path.join(ARCH, f"{model}_??????????.json.gz")))
 
 
-def run_cycle(model: str, workers=6, min_complete=0.95):
+def run_cycle(model: str, workers=6, min_complete=0.95, cyc=None):
     m = MODELS[model]()
-    cyc = latest_cycle(m)
+    cyc = cyc or latest_cycle(m)
     if cyc is None:
         print(f"  {model}: no cycle available"); return None
     tag = cyc.strftime("%Y%m%d%H")
@@ -590,7 +598,10 @@ def composite_series(div_daily):
             continue
         w = np.array([a[c] for c in cs]); w = w / w.sum()
         arr = np.stack([np.array(div_daily[c]["members"], float) for c in cs])
-        out[name] = {"members": np.tensordot(w, arr, axes=(0, 0)).round(2).tolist()}
+        e = {"members": np.tensordot(w, arr, axes=(0, 0)).round(2).tolist()}
+        if div_daily[cs[0]].get("weights"):
+            e["weights"] = div_daily[cs[0]]["weights"]
+        out[name] = e
     return out
 
 
@@ -598,17 +609,50 @@ def full_series(rec):
     s = dict(rec["div"]); s.update(composite_series(rec["div"])); return s
 
 
-def stats_of(members):
+def wquant(vals, w, q):
+    """Weighted quantile of the finite entries (weights renormalised)."""
+    m = np.isfinite(vals)
+    if not m.any():
+        return np.nan
+    v, ww = vals[m], w[m]
+    o = np.argsort(v); v, ww = v[o], ww[o]
+    c = np.cumsum(ww) - 0.5 * ww
+    return float(np.interp(q * ww.sum(), c, v))
+
+
+def stats_of(members, weights=None):
     a = np.array(members, float)
     f = lambda v: [None if not np.isfinite(x) else round(float(x), 2) for x in v]
-    with np.errstate(all="ignore"):
-        return {"mean": f(np.nanmean(a, 0)), "p10": f(np.nanpercentile(a, 10, axis=0)), "p90": f(np.nanpercentile(a, 90, axis=0))}
+    if weights is None:
+        with np.errstate(all="ignore"):
+            return {"mean": f(np.nanmean(a, 0)), "p10": f(np.nanpercentile(a, 10, axis=0)),
+                    "p90": f(np.nanpercentile(a, 90, axis=0))}
+    w = np.array(weights, float)
+    mean, p10, p90 = [], [], []
+    for j in range(a.shape[1]):
+        col = a[:, j]; m = np.isfinite(col)
+        mean.append(float((col[m] * w[m]).sum() / w[m].sum()) if m.any() else np.nan)
+        p10.append(wquant(col, w, 0.10)); p90.append(wquant(col, w, 0.90))
+    return {"mean": f(mean), "p10": f(p10), "p90": f(p90)}
+
+
+def wmean(members, weights=None):
+    a = np.array(members, float)
+    if weights is None:
+        with np.errstate(all="ignore"):
+            return np.nanmean(a, 0)
+    w = np.array(weights, float); out = np.full(a.shape[1], np.nan)
+    for j in range(a.shape[1]):
+        col = a[:, j]; m = np.isfinite(col)
+        if m.any():
+            out[j] = (col[m] * w[m]).sum() / w[m].sum()
+    return out
 
 
 def periods_of(series, dates):
     out = {}
     for key, v in series.items():
-        mean = np.nanmean(np.array(v["members"], float), 0); pr = {}
+        mean = wmean(v["members"], v.get("weights")); pr = {}
         for p, (a, b) in PERIOD_DAYS.items():
             vals = [(mean[i], normal_mm(key, dates[i])) for i in range(a - 1, min(b, len(dates))) if np.isfinite(mean[i])]
             if not vals:
@@ -628,7 +672,7 @@ def delta(a_s, a_d, b_s, b_d):
         vb = b_s.get(key)
         if not vb:
             continue
-        ma = np.nanmean(np.array(va["members"], float), 0); mb = np.nanmean(np.array(vb["members"], float), 0)
+        ma = wmean(va["members"], va.get("weights")); mb = wmean(vb["members"], vb.get("weights"))
         dd = [None if ib.get(d) is None or not np.isfinite(ma[i]) or not np.isfinite(mb[ib[d]]) else round(float(ma[i] - mb[ib[d]]), 2)
               for i, d in enumerate(a_d)]
         pr = {}
@@ -658,7 +702,7 @@ def verification(recs_by_model, obs):
                 for k in COMPOSITES:
                     if k not in s:
                         continue
-                    f = float(np.nanmean(np.array(s[k]["members"], float)[:, i]))
+                    f = float(wmean(s[k]["members"], s[k].get("weights"))[i])
                     cs = [c for c in members_of(k) if c in o]
                     if not cs or not np.isfinite(f):
                         continue
@@ -670,6 +714,85 @@ def verification(recs_by_model, obs):
             out[m][lead] = {"n": len(pairs), "ratio": round(float(f.sum() / o.sum()), 2) if o.sum() > 0 else None,
                             "mae": round(float(np.mean(np.abs(f - o))), 2)}
     return out
+
+
+def blend_weights(verif: dict | None) -> dict:
+    """Prior weights, pulled halfway toward inverse-MAE once a model has
+    >= 20 verified composite-days over leads 1-7."""
+    w = dict(BLEND_PRIOR)
+    if verif:
+        inv = {}
+        for m in w:
+            v = verif.get(m) or {}
+            pairs = [(x["mae"], x["n"]) for l, x in v.items() if int(l) <= 7 and x.get("mae")]
+            n = sum(p[1] for p in pairs)
+            if n >= 20:
+                inv[m] = 1.0 / max(1e-6, sum(a * b for a, b in pairs) / n)
+        if len(inv) >= 3:
+            tot = sum(inv.values())
+            for m in inv:
+                w[m] = 0.5 * w[m] + 0.5 * inv[m] / tot * sum(w[k] for k in inv)
+    return w
+
+
+def make_blends(verif=None, max_back_days=12):
+    """A blend archive per target cycle: each core model's newest cycle at or
+    before the target within 12 h, member-pooled with weight w_m / n_m, and
+    only if >= BLEND_MIN_ON_TARGET of the weight comes from cycles that ARE
+    the target -- a blend of stale runs relabelled as a new issue would say
+    "the models did not move" when they had not run."""
+    W = blend_weights(verif)
+    by = {m: cycles(m) for m in W}
+    targets = sorted({c for m in W for c in by[m]})
+    cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=max_back_days)).strftime("%Y%m%d%H")
+    made = []
+    for T in targets:
+        if T < cutoff or os.path.exists(apath("blend", T)):
+            continue
+        tT = dt.datetime.strptime(T, "%Y%m%d%H")
+        pick = {}
+        for m, cs in by.items():
+            ok = [c for c in cs if c <= T and (tT - dt.datetime.strptime(c, "%Y%m%d%H")).total_seconds() <= 12 * 3600]
+            if ok:
+                pick[m] = ok[-1]
+        if not pick:
+            continue
+        wt = sum(W[m] for m in pick); on = sum(W[m] for m, c in pick.items() if c == T)
+        if on / wt < BLEND_MIN_ON_TARGET:
+            continue
+        recs = {m: load(m, c) for m, c in pick.items()}
+        recs = {m: r for m, r in recs.items() if r}
+        if not recs:
+            continue
+        dates = sorted({d for r in recs.values() for d in r["dates"]})
+        cs_all = sorted({c for r in recs.values() for c in r["div"]})
+        div = {}
+        mem_w = []
+        for m, r in recs.items():
+            mem_w += [W[m] / r["n_members"]] * r["n_members"]
+        for c in cs_all:
+            rows = []
+            for m, r in recs.items():
+                dm = r["div"].get(c)
+                ix = {d: i for i, d in enumerate(r["dates"])}
+                for k in range(r["n_members"]):
+                    row = []
+                    for d in dates:
+                        i = ix.get(d)
+                        row.append(None if dm is None or i is None else dm["members"][k][i])
+                    rows.append(row)
+            div[c] = {"members": rows, "weights": [round(x, 5) for x in mem_w]}
+        rec = {"model": "blend", "cycle": T, "init": tT.strftime("%Y-%m-%dT%HZ"), "run_day0": dates[0],
+               "dates": dates, "n_members": len(mem_w), "div": div,
+               "sources": {m: {"cycle": c, "weight": round(W[m] / wt, 3)} for m, c in pick.items()}}
+        os.makedirs(ARCH, exist_ok=True)
+        with gzip.open(apath("blend", T), "wt") as f:
+            json.dump(rec, f, separators=(",", ":"))
+        made.append(T)
+    if made:
+        print(f"  blend: {len(made)} issues ({made[0]} .. {made[-1]}), weights "
+              + " ".join(f"{m} {W[m]:.2f}" for m in W))
+    return W
 
 
 def build(keep_prev=4, hist_keep=40, obs_days=120):
@@ -697,6 +820,14 @@ def build(keep_prev=4, hist_keep=40, obs_days=120):
     latest = {"built": built, "divisions": divs, "composites": {k: members_of(k) for k in COMPOSITES},
               "periods": PERIODS, "obs": obs_out, "models": {}}
     hist = {"built": built, "periods": PERIODS, "models": {}}
+    # verification of the raw models first, so the blend weights can use it
+    pre = {}
+    for m in BLEND_PRIOR:
+        rs = [r for r in (load(m, c) for c in cycles(m)[-hist_keep:]) if r]
+        if rs:
+            pre[m] = rs
+    W = make_blends(verification(pre, obs))
+    latest["blend_weights"] = W
     recs_by_model = {}
     for m in sorted({os.path.basename(p).rsplit("_", 1)[0] for p in glob.glob(os.path.join(ARCH, "*_??????????.json.gz"))}):
         cs = cycles(m)
@@ -710,7 +841,17 @@ def build(keep_prev=4, hist_keep=40, obs_days=120):
         recs_by_model[m] = recs
         cur = recs[-1]; s_cur = full_series(cur)
         e = {k: cur[k] for k in ("cycle", "init", "run_day0", "dates", "n_members")}
-        e["series"] = {k: stats_of(v["members"]) for k, v in s_cur.items()}
+        if cur.get("sources"):
+            e["sources"] = cur["sources"]
+        e["series"] = {k: stats_of(v["members"], v.get("weights")) for k, v in s_cur.items()}
+        # every member, for the plumes (user: "full plumes with all members");
+        # composites and divisions alike, one decimal
+        if cur["n_members"] > 1:
+            for k, v in s_cur.items():
+                e["series"][k]["members"] = [[None if x is None or not np.isfinite(x) else round(float(x), 1) for x in row]
+                                             for row in np.array(v["members"], float).tolist()]
+                if v.get("weights"):
+                    e["series"][k]["weights"] = v["weights"]
         e["periods"] = periods_of(s_cur, cur["dates"])
         e["prev"] = [{"cycle": pr["cycle"], "init": pr["init"], "delta": delta(s_cur, cur["dates"], full_series(pr), pr["dates"])}
                      for pr in recs[-1 - keep_prev:-1][::-1]]
@@ -734,18 +875,46 @@ def build(keep_prev=4, hist_keep=40, obs_days=120):
     print(f"  built: {list(latest['models'])}, Stage IV {odates[0] if odates else '-'} .. {odates[-1] if odates else '-'}")
 
 
+def backfill(models, days, workers):
+    """Every cycle of the last `days` days not yet archived, oldest first.
+    GDPS/GEPS keep ~a day on Datamart and simply fail their probe further
+    back; the S3 and Google mirrors reach back for the rest."""
+    now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+    for model in models:
+        m = MODELS[model]()
+        have = set(cycles(model))
+        day = (now - dt.timedelta(days=days)).date()
+        while day <= now.date():
+            for h in sorted(m.cycles):
+                c = dt.datetime(day.year, day.month, day.day, h)
+                tag = c.strftime("%Y%m%d%H")
+                if tag in have or c > now - dt.timedelta(hours=m.lag_h):
+                    continue
+                if not m.available(c):
+                    continue
+                try:
+                    run_cycle(model, workers=workers, cyc=c)
+                except Exception as e:
+                    print(f"  {model} {tag}: {type(e).__name__}: {e}")
+            day += dt.timedelta(days=1)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--models", default=os.environ.get("COLUMBIA_MODELS", "gfs,ecmwf,aifs,gdps,geps,geps_ext,gefs,ecmwf_ens"))
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--obs-days", type=int, default=20)
     ap.add_argument("--no-fetch", action="store_true", help="rebuild the JSON from the archive only")
+    ap.add_argument("--backfill", type=int, default=0, help="also archive every cycle of the last N days")
     a = ap.parse_args()
+    ms = [x for x in a.models.split(",") if x]
     if not a.no_fetch:
         got = backfill_obs(a.obs_days)
         if got:
             print(f"  stage4: {len(got)} new days ({got[0]} .. {got[-1]})")
-        for m in [x for x in a.models.split(",") if x]:
+        if a.backfill:
+            backfill(ms, a.backfill, a.workers)
+        for m in ms:
             try:
                 run_cycle(m, workers=a.workers)
             except Exception as e:

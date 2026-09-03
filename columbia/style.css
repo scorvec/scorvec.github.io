@@ -386,15 +386,16 @@ table.heat tbody tr:hover td.k{background:#e6eef7}
 
 /* ---- renewables / PNW pages ---- */
 table.heat td.v small{font-weight:500;font-size:10px;opacity:.85;margin-left:3px}
-.smallgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:10px}
+.smallgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px}
 .smallcard{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 4px 2px;cursor:pointer}
 .smallcard:hover{border-color:#b9d0e8;background:#fbfdff}
 .smallcard svg{display:block;width:100%;height:auto}
 
 .pnwmap svg{display:block;max-width:100%;height:auto}
-.pnwmap path{stroke:#0f172a;stroke-width:.6;cursor:pointer}
-.pnwmap path:hover{stroke-width:1.6}
-.pnwmap path.sel{stroke:#b3372a;stroke-width:2}
+.pnwmap path.div{stroke:#2f3f52;stroke-width:.55;cursor:pointer}
+.pnwmap path.div:hover{stroke-width:1.8;stroke:#0f172a}
+.pnwmap path.div.sel{stroke:#b3372a;stroke-width:2.2}
+.pnwmap svg.basemap{border-radius:6px}
 .pnwmap text.lab{font:600 9px var(--mono);pointer-events:none;paint-order:stroke fill;stroke:#fff;stroke-width:2.5px}
 
 /* larger sub-daily renewables chart */
@@ -411,7 +412,7 @@ table.heat td.v small{font-weight:500;font-size:10px;opacity:.85;margin-left:3px
 
 /* Columbia page layout */
 .intro{max-width:1100px;font-size:14px;line-height:1.6;color:var(--ink2);margin:4px 0 18px}
-.twocol{display:grid;grid-template-columns:minmax(560px,660px) 1fr;gap:22px;align-items:start;margin-bottom:26px}
+.twocol{display:grid;grid-template-columns:minmax(600px,720px) 1fr;gap:22px;align-items:start;margin-bottom:26px}
 @media (max-width:1180px){.twocol{grid-template-columns:1fr}}
 .twocol section{margin-bottom:0}
 table.heat td.v.blend,table.heat tr.blend td{font-weight:700}
@@ -419,3 +420,23 @@ table.heat tr.blend td.k{background:#eef3f8;box-shadow:inset 3px 0 0 var(--navy)
 .twocol .scroll{width:100%}
 .twocol table.heat{width:100%}
 .twocol table.heat td.v{padding:8px 6px}
+
+/* Columbia page: chart legibility */
+.pnwpage svg{shape-rendering:geometricPrecision;text-rendering:optimizeLegibility}
+.pnwpage svg text{font-size:11.5px}
+.pnwpage .bigchart svg text{font-size:12.5px}
+.pnwpage svg text.ttl{font-size:13.5px}
+.pnwpage .smallcard svg text{font-size:11px}
+.pnwpage .smallcard svg text.ttl{font-size:12.5px}
+
+/* member histogram pop-up (Columbia page) */
+.modal[hidden]{display:none!important}
+.histcard{width:min(940px,94vw)}
+.histsel{margin-left:auto;font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:6px}
+#histopen{border:1px solid var(--line);background:#fff;border-radius:5px;padding:4px 9px;font-size:12px;cursor:pointer;margin-left:8px}
+#histopen:hover{background:#f3f7fb}
+.histrow{display:flex;gap:18px;flex-wrap:wrap;margin:6px 0 2px;font-size:12px;color:var(--ink2)}
+.histrow b{font-family:var(--mono);color:var(--ink)}
+.pnwpage .pnwmap path{cursor:pointer}
+.histlink{color:#1d5c96;cursor:pointer;font-weight:600;margin-left:4px}
+.histlink:hover{text-decoration:underline}

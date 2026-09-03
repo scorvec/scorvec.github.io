@@ -22,6 +22,9 @@ on:
       obs_days:
         description: 'Stage IV days to backfill'
         default: '20'
+      backfill_days:
+        description: 'also archive every cycle of the last N days (mirrors keep GFS/GEFS/ECMWF; GDPS/GEPS only ~1 day)'
+        default: '0'
 
 permissions:
   contents: write
@@ -34,7 +37,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -64,7 +67,8 @@ jobs:
         run: |
           python scripts/columbia/pipeline.py \
             ${COLUMBIA_MODELS:+--models "$COLUMBIA_MODELS"} \
-            --obs-days "${{ github.event.inputs.obs_days || '20' }}" --workers 8
+            --obs-days "${{ github.event.inputs.obs_days || '20' }}" \
+            --backfill "${{ github.event.inputs.backfill_days || '0' }}" --workers 8
 
       - name: Commit & push
         run: |

@@ -23,7 +23,7 @@
   <label>runs <select id="nruns"></select></label>
 </div>
 
-<main>
+<main class="pnwpage">
   <p class="intro" id="intro"></p>
 
   <div class="twocol">
@@ -78,6 +78,20 @@
   <p class="note" id="credits"></p>
 </main>
 <div class="tip" id="tip"></div>
+
+<div class="modal" id="hist" hidden>
+  <div class="modal-back" id="histback"></div>
+  <div class="modal-card histcard">
+    <div class="ctyhead">
+      <b id="histname"></b><span class="thin" id="histwhen"></span>
+      <label class="histsel">period <select id="histperiod"></select></label>
+      <button id="histopen" title="open this basin in the page">open below</button>
+      <button id="histclose" title="close (Esc)">×</button>
+    </div>
+    <div id="histbody"></div>
+    <p class="note" id="histnote"></p>
+  </div>
+</div>
 <script src="heat.js"></script>
 <script>window.PNW_DATA = "./data/";</script>
 <script src="pnw.js"></script>
