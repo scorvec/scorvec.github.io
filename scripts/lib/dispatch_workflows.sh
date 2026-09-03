@@ -113,6 +113,9 @@ site-stats.yml|05:17|
 mur-sst.yml|13:47|
 data-freshness.yml|14:25|
 kiribati-history.yml|14:40|
+# Oil & products board (2026-09-03): one run a day at 18:10 ET, after the
+# NYMEX settlement and the EIA spot post; sends the daily close e-mail.
+oil.yml|22:10|-f email=true
 qbo.yml|mon@07:15|
 colombia-radar.yml|mon@09:40|
 sst-events.yml|mon@18:41|
