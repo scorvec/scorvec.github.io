@@ -243,7 +243,15 @@
     },
     "assets/geps/anim/geps_glb_manifest.json": {
       "branch": "main",
-      "max_age_hours": 288
+      "max_age_hours": 120
+    },
+    "assets/geps/geps_mjo_phase.webp": {
+      "branch": "main",
+      "max_age_hours": 120
+    },
+    "assets/geps/strat_nh_series.webp": {
+      "branch": "main",
+      "max_age_hours": 120
     },
     "assets/ecape/anim/index.json": {
       "branch": "main",
