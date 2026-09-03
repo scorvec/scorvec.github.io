@@ -1,0 +1,421 @@
+:root{
+  --bg:#fbfcfd; --card:#fff; --line:#e2e7ec; --line2:#eef2f5;
+  --ink:#0f172a; --ink2:#55637a; --ink3:#93a1b5;
+  --navy:#0f2942; --navy2:#1d4266;
+  --up:#b3372a; --dn:#2b6cb0; --hot:#e8b4a8; --cold:#b9d0e8;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:13px/1.5 var(--sans);
+  -webkit-font-smoothing:antialiased}
+
+header{display:flex;align-items:center;gap:14px;background:var(--navy);color:#fff;
+  padding:11px 20px}
+.brand{font-size:16px;font-weight:650;letter-spacing:-.15px}
+.brand .thin{font-weight:400;color:#9db4cc;margin-left:6px;font-size:13px}
+.badge{margin-left:auto;background:var(--navy2);border-radius:5px;padding:5px 12px;
+  font:12px/1.2 var(--mono);letter-spacing:.2px}
+.clock{font:11px/1 var(--mono);color:#8fa8c2;min-width:58px;text-align:right}
+
+nav.tabs{display:flex;gap:2px;padding:9px 20px 0;background:var(--navy);
+  overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{border:0;background:transparent;color:#a8bed4;padding:7px 14px;
+  border-radius:5px 5px 0 0;cursor:pointer;font:600 12px/1 var(--sans);
+  letter-spacing:.3px;white-space:nowrap;position:relative}
+nav.tabs button:hover{background:rgba(255,255,255,.08);color:#fff}
+nav.tabs button[aria-selected=true]{background:var(--bg);color:var(--ink)}
+nav.tabs button .dot{display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:#e0a030;margin-left:6px;vertical-align:middle}
+nav.tabs button[aria-selected=true] .dot{background:#c98000}
+
+.bar{display:flex;align-items:center;gap:16px;padding:10px 20px;background:var(--card);
+  border-bottom:1px solid var(--line);flex-wrap:wrap}
+.bar.sub{border:0;background:transparent;padding:0 0 10px;gap:8px}
+.bar label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink3);
+  text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+select{border:1px solid var(--line);background:#fff;border-radius:5px;padding:5px 9px;
+  font:13px var(--sans);color:var(--ink);text-transform:none;letter-spacing:0;
+  font-weight:400;cursor:pointer}
+select:focus{outline:2px solid #b9d0e8;outline-offset:1px}
+select:disabled{opacity:.45;cursor:not-allowed}
+.chk{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink2);font-size:12px}
+.chk input{margin:0}
+
+.banner{padding:9px 20px;font-size:12.5px;border-bottom:1px solid var(--line)}
+.banner.live{background:#fff7e8;color:#8a5a00;border-color:#f0dcb4}
+.banner.warn{background:#fdf1f0;color:#8d3226;border-color:#f2d5d1}
+.banner b{font-family:var(--mono)}
+
+main{padding:16px 20px 56px;max-width:1560px}
+section{margin-bottom:26px}
+h2{font:600 12px/1 var(--sans);letter-spacing:.7px;text-transform:uppercase;
+  color:var(--ink2);margin:0 0 10px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+h2 .thin{text-transform:none;letter-spacing:0;color:var(--ink3);font-weight:400;
+  margin-left:8px;font-size:12px}
+.chart-wrap{background:var(--card);border:1px solid var(--line);border-radius:8px;
+  padding:8px 4px 2px;overflow-x:auto}
+.totals{display:flex;gap:24px;flex-wrap:wrap;margin-top:12px;font-size:13px;
+  align-items:baseline}
+.totals .lab{color:var(--ink3);font-size:11px;text-transform:uppercase;letter-spacing:.6px;
+  font-weight:600}
+.totals .item b{font-family:var(--mono);font-size:14px}
+.totals .item span{color:var(--ink3);font-size:11px}
+
+.scroll{overflow-x:auto;background:var(--card);border:1px solid var(--line);
+  border-radius:8px}
+table.grid{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums;
+  width:100%}
+table.grid th,table.grid td{padding:5px 9px;text-align:right;white-space:nowrap}
+table.grid thead th{position:sticky;top:0;background:var(--card);z-index:2;
+  font:600 10.5px/1 var(--sans);color:var(--ink3);letter-spacing:.5px;
+  text-transform:uppercase;border-bottom:1px solid var(--line)}
+table.grid th.k,table.grid td.k{text-align:left;font-weight:600;color:var(--ink);
+  position:sticky;left:0;background:var(--card);z-index:1}
+table.grid tbody tr:hover td{background:#f6f9fc}
+table.grid tbody tr:hover td.k{background:#eef4fa}
+table.grid td.k.on{color:var(--dn)}
+table.grid td.k{cursor:pointer}
+table.grid td.v{font-family:var(--mono);font-size:12px}
+table.grid td.n{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+table.grid tr.rule td{border-top:1px solid var(--line2)}
+.empty{padding:22px;color:var(--ink3);font-size:12.5px}
+
+.note{color:var(--ink3);font-size:11.5px;margin:10px 0 0;max-width:1080px;line-height:1.6}
+svg text{font:10px var(--sans)}
+svg text:not([fill]){fill:var(--ink2)}
+svg text.band{font:600 11px var(--sans)}
+svg text.chg{font:700 9.5px var(--mono)}
+svg text.ttl{font:600 12px var(--sans)}
+svg text.ttl:not([fill]){fill:var(--ink)}
+.tip{position:fixed;pointer-events:none;background:#0f172a;color:#fff;padding:6px 9px;
+  border-radius:5px;font:11.5px/1.4 var(--mono);opacity:0;transition:opacity .1s;
+  z-index:20;white-space:pre;box-shadow:0 3px 12px rgba(0,0,0,.2)}
+
+/* --- tab cycle stamp and status dots ------------------------------------- */
+nav.tabs button i{font-style:normal;font-weight:400;font-size:10.5px;opacity:.62;
+  margin-left:6px;font-family:var(--mono)}
+nav.tabs button .dot.live{background:#3fbf6f;animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* --- totals strip -------------------------------------------------------- */
+.totals .item{display:flex;flex-direction:column;gap:2px}
+.totals .item b{font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-.3px}
+.totals .chgv{font:600 12px var(--mono);margin-left:2px}
+.totals .chgv.warm{color:var(--up)}
+.totals .chgv.cool{color:var(--dn)}
+.totals .note{color:var(--ink3);font-size:11px;align-self:center}
+
+/* --- tables -------------------------------------------------------------- */
+table.grid thead th{border-left:1px solid var(--line2)}
+table.grid thead th:first-child,table.grid thead th.k{border-left:0}
+table.grid td.d{font:600 11.5px var(--mono);color:var(--ink);min-width:44px}
+table.grid td.v.hi{color:#8d3226}
+table.grid td.v.lo{color:#2b5c8f}
+table.grid tr.on td.k{color:var(--dn);box-shadow:inset 3px 0 0 var(--dn)}
+table.grid td.k i.livetag{font-style:normal;font-size:9.5px;font-weight:700;color:#1e8a4c;
+  background:#e6f6ec;border-radius:3px;padding:1px 4px;margin-left:5px;
+  text-transform:uppercase;letter-spacing:.4px}
+svg rect.hit:hover{fill:rgba(15,41,66,.045)}
+
+/* --- period column groups ------------------------------------------------ */
+main{max-width:1880px}
+table.grid thead th.sub{font-size:9.5px;font-weight:600;color:#a6b2c2;padding:2px 9px 5px;
+  letter-spacing:.4px;text-transform:none;border-bottom:1px solid var(--line)}
+table.grid thead tr:first-child th{border-bottom:0;padding-bottom:3px}
+table.grid thead th.grp,table.grid tbody td.grp{border-left:1px solid var(--line)}
+table.grid tbody td:nth-child(odd).v{border-left:1px solid var(--line2)}
+table.grid tr.cons td{background:#f4f7fa;font-weight:600;border-top:1.5px solid var(--line)}
+table.grid tr.cons td.k{background:#eef3f8}
+table.grid th.pad,table.grid td.pad{width:100%;padding:0;border:0}
+table.grid td.v,table.grid td.d{min-width:52px}
+table.grid tbody td:nth-child(odd).v{border-left:0}
+
+/* --- sticky chrome ------------------------------------------------------- */
+.sticky{position:sticky;top:0;z-index:30;box-shadow:0 1px 0 var(--line),0 6px 18px -12px rgba(15,41,66,.35)}
+.scroll.tall{max-height:560px;overflow-y:auto}
+.scroll.tall table.grid thead th{top:0}
+.scroll{width:max-content;max-width:100%}
+.chart-wrap{width:max-content;max-width:100%}
+.totals .se{font:11px var(--mono);color:var(--ink3);margin-left:3px}
+.totals .note{max-width:520px;line-height:1.45;font-size:10.5px}
+
+/* --- county map ---------------------------------------------------------- */
+.mapwrap{position:relative;background:var(--card);border:1px solid var(--line);
+  border-radius:8px;padding:6px;width:max-content;max-width:100%}
+#map{display:block;cursor:crosshair;border-radius:5px}
+.maplegend{position:absolute;right:16px;bottom:14px;background:rgba(255,255,255,.92);
+  border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:10px;
+  color:var(--ink2);line-height:1.3}
+.maplegend .bar-g{height:9px;width:190px;border-radius:2px;margin:3px 0}
+.maplegend .ends{display:flex;justify-content:space-between;font-family:var(--mono);
+  font-size:9.5px;color:var(--ink3)}
+.maplegend .cap{font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+  font-size:9px;color:var(--ink3)}
+
+/* --- map player ---------------------------------------------------------- */
+.player{display:flex;align-items:center;gap:9px}
+.player button{border:1px solid var(--line);background:#fff;border-radius:5px;
+  width:28px;height:26px;cursor:pointer;font-size:11px;color:var(--ink);line-height:1;
+  display:flex;align-items:center;justify-content:center}
+.player button:hover{background:#f2f6fa}
+.player button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.player input[type=range]{width:230px;accent-color:var(--navy2)}
+.player b{font:600 12px var(--mono);color:var(--ink);min-width:96px}
+
+/* Cards hug their table: the slack column was only there to keep the period
+   pairs tight while the table stretched, and a max-content card does that
+   without a spare cell in every row. */
+table.grid{width:auto}
+table.grid th.pad,table.grid td.pad{display:none}
+
+/* --- evolution panels ---------------------------------------------------- */
+h3.sub2{font:600 11px/1 var(--sans);letter-spacing:.6px;text-transform:uppercase;
+  color:var(--ink3);margin:18px 0 8px}
+svg text.mini{font:600 9.5px var(--sans)}
+svg text.miniv{font:700 10px var(--mono)}
+svg text.minid{font:600 9px var(--mono)}
+
+/* --- county click-through ------------------------------------------------ */
+.ctypanel{margin-top:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:8px;padding:10px 12px 6px;width:max-content;max-width:100%}
+.ctyhead{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.ctyhead b{font-size:14px;letter-spacing:-.2px}
+.ctyhead .thin{color:var(--ink3);font-size:11.5px}
+.ctyhead button{margin-left:auto;border:1px solid var(--line);background:#fff;
+  border-radius:5px;width:24px;height:22px;cursor:pointer;color:var(--ink2);line-height:1}
+.ctyhead button:hover{background:#f2f6fa}
+#map{cursor:pointer}
+
+/* --- county modal -------------------------------------------------------- */
+/* [hidden] is a UA rule; ANY author display declaration beats it, so the
+   modal must opt out explicitly or it shows as a blank full-screen overlay
+   that nothing can dismiss. */
+.modal[hidden]{display:none}
+.modal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;
+  justify-content:center;padding:24px}
+.modal-back{position:absolute;inset:0;background:rgba(15,41,66,.42);
+  backdrop-filter:blur(1.5px)}
+.modal-card{position:relative;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:14px 16px 8px;box-shadow:0 18px 48px -12px rgba(15,41,66,.45);
+  max-width:min(1120px,94vw);max-height:88vh;overflow:auto}
+.modal .ctyhead{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+.modal .ctyhead b{font-size:15px;letter-spacing:-.2px}
+.modal .ctyhead .thin{color:var(--ink3);font-size:11.5px}
+.modal .ctyhead button{margin-left:auto;border:1px solid var(--line);background:#fff;
+  border-radius:5px;width:26px;height:24px;cursor:pointer;color:var(--ink2);
+  font-size:15px;line-height:1}
+.modal .ctyhead button:hover{background:#f2f6fa}
+
+/* --- notes: readable, not decorative ------------------------------------- */
+.note{color:var(--ink2);font-size:12.5px;line-height:1.65;max-width:1180px}
+.note b,.note strong{color:var(--ink);font-weight:650}
+.note .k{font:600 12.5px var(--mono);color:var(--ink)}
+.note .lab{font-weight:650;color:var(--ink)}
+.note .muted{color:var(--ink3)}
+.note .row{margin-top:4px}
+#trendnote,#ctynote,#legend,#foot{font-size:12.5px;color:var(--ink2)}
+#foot{max-width:1180px}
+.totals .anom{font:600 10px var(--mono);color:var(--ink3);margin-top:1px}
+.totals .anom span{margin-right:7px}
+
+/* --- chart legend (CWG-style index switcher) ----------------------------- */
+.legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button.ser{border:1px solid var(--line);background:#fff;border-radius:6px;
+  padding:5px 11px;cursor:pointer;font:600 12px var(--sans);color:var(--ink2);
+  border-left:3px solid var(--c)}
+button.ser:hover{background:#f4f8fb}
+button.ser.on{background:var(--c);border-color:var(--c);color:#fff}
+button.ser b{font:700 12px var(--mono);margin-left:5px}
+label.chk.mem{margin-left:6px}
+.legcap{margin-top:7px;font-size:11.5px}
+svg text.chg{font:700 10px var(--mono)}
+svg text.ttl{font:600 12.5px var(--sans);fill:var(--ink)}
+.legcap{flex-basis:100%;margin-top:8px;font-size:11.5px}
+.totals{align-items:center}
+
+/* ========================================================================
+   READABILITY PASS
+   The palette had drifted to the point where the explanatory text -- the
+   part that says what a number means -- was the least legible thing on the
+   page. Small grey type is a design habit, not a hierarchy: rank by weight
+   and colour, not by making the secondary text too pale to read. Nothing
+   below changes a layout, only size and contrast.
+   ======================================================================== */
+:root{
+  --ink2:#46536a;          /* was #55637a */
+  --ink3:#6b7a8d;          /* was #93a1b5 -- the main offender */
+}
+body{font-size:13.5px}
+
+/* chrome */
+.brand .thin{color:#b9cbdd;font-size:13.5px}
+.badge{font-size:12.5px}
+.clock{font-size:11.5px;color:#a9c0d6}
+nav.tabs button{font-size:12.5px}
+nav.tabs button i{font-size:11px;opacity:.75}
+.bar label{font-size:11.5px;color:var(--ink2)}
+select{font-size:13px}
+
+/* section headers and their subtitles */
+h2{font-size:12.5px;color:var(--ink2)}
+h2 .thin{font-size:12.5px;color:var(--ink2)}
+h3.sub2{font-size:11.5px;color:var(--ink2)}
+
+/* tables */
+table.grid td.v,table.grid td.n{font-size:12.5px}
+table.grid td.d{font-size:12.5px}
+table.grid thead th{font-size:11px;color:var(--ink2)}
+table.grid thead th.sub{font-size:10.5px;color:var(--ink3)}
+table.grid td.k,table.grid th.k{font-size:12.5px}
+
+/* charts: nothing under 10px, and axis text is ink2 not ink3.
+   :not([fill]) matters -- a CSS fill BEATS an SVG presentation attribute, so a
+   blanket `svg text{fill:...}` silently repaints every colour-coded label
+   (change values, climo lines, warmer/colder) in the same grey. Only elements
+   that have not asked for a colour get the default. */
+svg text:not([fill]){fill:var(--ink2)}
+svg text{font-size:11px}
+svg text.band{font-size:11.5px}
+svg text.band:not([fill]){fill:var(--ink2)}
+svg text.chg{font-size:11px;font-weight:700}
+svg text.mini{font-size:10.5px}
+svg text.mini:not([fill]){fill:var(--ink2)}
+svg text.minid{font-size:10.5px;font-weight:700}
+svg text.miniv{font-size:11.5px}
+svg text.ttl{font-size:13px}
+
+/* legends and notes */
+.maplegend{font-size:11px;color:var(--ink2)}
+.maplegend .cap{font-size:10px;color:var(--ink2)}
+.maplegend .ends{font-size:10.5px;color:var(--ink2)}
+.note{font-size:12.5px;color:var(--ink2)}
+.note .muted{color:var(--ink3)}
+.totals .lab{font-size:11.5px;color:var(--ink2)}
+.totals .anom{font-size:11px;color:var(--ink2)}
+.totals .se{font-size:11.5px;color:var(--ink2)}
+.empty{font-size:13px;color:var(--ink2)}
+.tip{font-size:12px}
+
+/* ---- run picker -------------------------------------------------------- */
+/* Selecting an older cycle changes what every panel on the page means, so it
+   gets a standing marker rather than only the dropdown's own value. */
+.histflag { display: none; }
+body.histrun .histflag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--warn-bg, #7a4a00);
+  color: var(--warn-ink, #ffe6bf);
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+}
+body.histrun .runpick select {
+  border-color: var(--warn-bg, #7a4a00);
+  font-weight: 600;
+}
+body.histrun #livechk { opacity: .4; pointer-events: none; }
+/* The archived-run cycle sits on the SELECTED tab, which is light, so it needs
+   a dark amber rather than the cream that reads on the badge's dark ground.
+   It is the one label that tells you the page is not showing the latest run,
+   so it is the last thing that should be faint. */
+.tabs button.histtab i { color: #a1520a; font-weight: 700; opacity: 1; }
+.tabs button.histtab { box-shadow: inset 0 -2px 0 #a1520a; }
+.dot.old { background: #a1520a; }
+
+/* Histogram bin labels sit over the KDE curve, so they carry a halo in the
+   panel's own background colour: paint-order puts the stroke behind the fill,
+   which is the only way to knock a line out from under text in SVG. */
+.binlab { paint-order: stroke fill; stroke: var(--card, #fff); stroke-width: 3px;
+          stroke-linejoin: round; font-weight: 600; }
+.pagelinks{margin:6px 20px 0;font-size:12.5px}
+.pagelinks a{color:#1d5c96;font-weight:600;text-decoration:none}
+.pagelinks a:hover{text-decoration:underline}
+/* Small multiples: one smile per region, same axes, so the shapes can be
+   compared at a glance rather than one at a time. */
+.smilegrid{display:grid;gap:10px;padding:0 20px;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.smilecell{background:var(--card);border:1px solid var(--line);border-radius:8px;
+  padding:6px 8px 2px}
+.smilecell h4{margin:0 0 2px;font-size:12px;font-weight:700;color:var(--ink)}
+.smilecell .k{font-size:10.5px;color:var(--ink2);font-weight:600}
+.smilecell.on{border-color:#1d5c96;box-shadow:0 0 0 1px #1d5c96}
+.grid2{display:grid;gap:14px;padding:0 20px;grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+.grid2 .chart-wrap,.grid2 .scroll{margin-left:0;margin-right:0}
+p.lead{margin:2px 20px 8px;font-size:13px;color:var(--ink);max-width:1180px}
+p.lead b{font-weight:700}
+table.grid tr.best td{background:#eaf5ec}
+table.grid tr.worstrow td{background:#fdeeec}
+/* The season table carries a sentence of explanation in its last cell; without
+   a cap it forces the table wider than its column and the text runs off. */
+#gasskill td:last-child{max-width:320px;white-space:normal;line-height:1.35}
+
+/* ---- run-over-run heatmaps (change.html) ---- */
+table.heat{border-collapse:separate;border-spacing:2px;font-variant-numeric:tabular-nums;
+  font-size:12px;width:100%;table-layout:auto}
+table.heat th,table.heat td{padding:5px 6px;text-align:center;white-space:nowrap}
+table.heat thead th{position:sticky;top:0;background:var(--card);z-index:2;
+  font:600 10.5px var(--mono);color:var(--ink2);vertical-align:bottom;padding-bottom:4px}
+table.heat thead th .d{display:block;font:600 10px var(--sans);color:var(--ink3);height:14px}
+table.heat thead th.grp{border-left:1px solid var(--line)}
+table.heat th.k,table.heat td.k{position:sticky;left:0;background:var(--card);z-index:1;
+  text-align:left;font-weight:600;color:var(--ink);padding-right:14px;width:1%;white-space:nowrap}
+table.heat td.v{font:600 12.5px var(--mono);border-radius:3px;min-width:56px;cursor:default;padding:7px 6px}
+table.heat td.v i.sh{font-style:normal;font-size:9px;opacity:.55;vertical-align:top;margin-left:1px}
+table.heat td.v.none{color:var(--ink3);background:transparent;font-weight:400}
+table.heat td.x{font:500 11.5px var(--mono);color:var(--ink2);border-left:1px solid var(--line);
+  min-width:64px}
+table.heat td.x.tot{font-weight:600;color:var(--ink)}
+table.heat th.x{border-left:1px solid var(--line);font:600 10px var(--sans);color:var(--ink3);
+  text-transform:uppercase;letter-spacing:.4px}
+table.heat tr.cons td.k{background:#eef3f8;box-shadow:inset 3px 0 0 var(--navy)}
+table.heat tbody tr:hover td.k{background:#e6eef7}
+.lg{display:inline-flex;align-items:center;gap:3px;margin-left:8px;font-size:11px;color:var(--ink2)}
+.lg i{display:inline-block;width:14px;height:11px;border-radius:2px}
+.lg b{font-family:var(--mono);margin:0 2px}
+
+/* ---- day-by-day: legend chips and change panel ---- */
+.evolegend{display:flex;flex-wrap:wrap;gap:4px 14px;padding:4px 6px 0 46px;font-size:11px;color:var(--ink2)}
+.evolegend span{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono)}
+.evolegend span i{display:inline-block;width:18px;height:0;border-top:2px solid}
+.evolegend span.new{font-weight:700;color:var(--ink)}
+.evolegend span.new i{border-top-width:3px}
+
+/* ---- renewables / PNW pages ---- */
+table.heat td.v small{font-weight:500;font-size:10px;opacity:.85;margin-left:3px}
+.smallgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:10px}
+.smallcard{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 4px 2px;cursor:pointer}
+.smallcard:hover{border-color:#b9d0e8;background:#fbfdff}
+.smallcard svg{display:block;width:100%;height:auto}
+
+.pnwmap svg{display:block;max-width:100%;height:auto}
+.pnwmap path{stroke:#0f172a;stroke-width:.6;cursor:pointer}
+.pnwmap path:hover{stroke-width:1.6}
+.pnwmap path.sel{stroke:#b3372a;stroke-width:2}
+.pnwmap text.lab{font:600 9px var(--mono);pointer-events:none;paint-order:stroke fill;stroke:#fff;stroke-width:2.5px}
+
+/* larger sub-daily renewables chart */
+.bigchart svg{display:block;max-width:100%;height:auto}
+.bigchart svg text{font-size:12px}
+.bigchart svg text.ttl{font-size:13px}
+.bigchart svg text.chg{font-size:11px}
+.bigchart .evolegend{font-size:12.5px}
+
+/* full-width chart wrappers: the default .chart-wrap is width:max-content,
+   which cannot host a responsive svg (max-width:100% of max-content shrinks) */
+.chart-wrap.bigchart{width:100%;max-width:100%;display:block}
+.chart-wrap.bigchart svg{width:100%;height:auto}
+
+/* Columbia page layout */
+.intro{max-width:1100px;font-size:14px;line-height:1.6;color:var(--ink2);margin:4px 0 18px}
+.twocol{display:grid;grid-template-columns:minmax(560px,660px) 1fr;gap:22px;align-items:start;margin-bottom:26px}
+@media (max-width:1180px){.twocol{grid-template-columns:1fr}}
+.twocol section{margin-bottom:0}
+table.heat td.v.blend,table.heat tr.blend td{font-weight:700}
+table.heat tr.blend td.k{background:#eef3f8;box-shadow:inset 3px 0 0 var(--navy)}
+.twocol .scroll{width:100%}
+.twocol table.heat{width:100%}
+.twocol table.heat td.v{padding:8px 6px}

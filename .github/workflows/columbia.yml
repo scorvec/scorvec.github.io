@@ -1,0 +1,91 @@
+name: Columbia basin precipitation
+
+# The Columbia River basin page (columbia/): every model's precipitation on
+# the NWRFC water-supply divisions, % of normal, and Stage IV observed.
+# Precipitation only, PNW box only, byte-ranged from the AWS/Google mirrors
+# (never NOMADS, which rate-limits by request count), so a run is a few
+# hundred MB and a few minutes. The archive is ~2 kB per model cycle and lives
+# in columbia/data/archive; a partial cycle is never archived, so a run that
+# lands while a model is still publishing simply catches it next time.
+#
+# Cron here is a hint, not a clock: GitHub honours a fraction of this repo's
+# firings, hours late. The job always takes the NEWEST complete cycle per
+# model, so whenever it runs it does the right thing.
+on:
+  schedule:
+    - cron: '35 4,10,16,22 * * *'
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'comma list (default gfs,ecmwf,aifs,gdps,geps,gefs,ecmwf_ens)'
+        default: ''
+      obs_days:
+        description: 'Stage IV days to backfill'
+        default: '20'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: columbia
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/pip
+            .cache/columbia
+          key: columbia-${{ runner.os }}-v1
+      - name: Install eccodes
+        run: |
+          for i in 1 2 3; do
+            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
+               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
+                 libeccodes0 libeccodes-data; then exit 0; fi
+            echo "apt attempt $i failed; retrying"; sleep 10
+          done
+          exit 1
+      - name: Install Python dependencies
+        run: pip install --quiet numpy "shapely>=2.0" eccodes ecmwf-opendata requests
+
+      - name: Fetch models and Stage IV, build the page data
+        env:
+          COLUMBIA_MODELS: ${{ github.event.inputs.models }}
+        run: |
+          python scripts/columbia/pipeline.py \
+            ${COLUMBIA_MODELS:+--models "$COLUMBIA_MODELS"} \
+            --obs-days "${{ github.event.inputs.obs_days || '20' }}" --workers 8
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          PATHS="columbia/data"
+          for i in 1 2 3 4 5; do
+            timeout 120 git fetch origin main || { sleep 5; continue; }
+            git reset -q FETCH_HEAD
+            git add -A $PATHS
+            if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+            git commit -q -m "data update: $(date -u +%Y-%m-%d)"
+            if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
+            git reset -q --soft HEAD^
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1
+
+      # A push made with GITHUB_TOKEN does not trigger pages.yml on its own.
+      - name: Deploy pages
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --ref main || echo "pages dispatch skipped"

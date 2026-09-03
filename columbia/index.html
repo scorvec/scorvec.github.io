@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Columbia River basin precipitation — Shawn Corvec</title>
+<meta name="description" content="Model precipitation forecasts for the Columbia River basin on the NWRFC water-supply divisions, as percent of normal and against NCEP Stage IV observed rainfall.">
+<link rel="stylesheet" href="style.css">
+
+<header class="top">
+  <span class="brand">Columbia River basin precipitation</span>
+  <span class="thin">every model's rain on the NWRFC water-supply divisions, against normal and against Stage IV</span>
+  <span class="badge" id="runbadge">loading…</span>
+</header>
+
+<p class="pagelinks"><a href="../index.html">&larr; scorvec.com</a>
+  &nbsp;·&nbsp; <a href="../subseasonal.html">GEPS subseasonal &rarr;</a>
+  &nbsp;·&nbsp; <a href="../sst.html">El Niño monitor &rarr;</a></p>
+
+<div class="bar">
+  <label>basin <select id="basin"></select></label>
+  <label>band <select id="model"></select></label>
+  <label>period <select id="period"></select></label>
+  <label>show <select id="heatwhat"></select></label>
+  <label>runs <select id="nruns"></select></label>
+</div>
+
+<main>
+  <p class="intro" id="intro"></p>
+
+  <div class="twocol">
+    <section>
+      <h2>Map <span class="thin" id="submap"></span></h2>
+      <div class="bar sub">
+        <label><select id="mapwhat"></select></label>
+        <span class="thin" id="maplegend"></span>
+      </div>
+      <div class="chart-wrap pnwmap"><div id="map"></div></div>
+    </section>
+    <section>
+      <h2>Scorecard <span class="thin" id="subsc"></span></h2>
+      <div class="scroll"><table id="score" class="heat"></table></div>
+      <p class="note" id="scnote"></p>
+      <h2 style="margin-top:18px">Observed, Stage IV <span class="thin" id="subobs"></span></h2>
+      <div class="scroll"><table id="obstab" class="heat"></table></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>Plume <span class="thin" id="sub1"></span></h2>
+    <div class="chart-wrap bigchart"><div id="plume"></div></div>
+  </section>
+
+  <section>
+    <h2>By period <span class="thin" id="sub2"></span></h2>
+    <div class="scroll"><table id="ptab" class="heat"></table></div>
+  </section>
+
+  <section>
+    <h2>Composites at a glance <span class="thin" id="sub5"></span></h2>
+    <div id="small" class="smallgrid"></div>
+  </section>
+
+  <section>
+    <h2>Run over run <span class="thin" id="sub3"></span></h2>
+    <div class="scroll"><table id="h3" class="heat"></table></div>
+  </section>
+
+  <section>
+    <h2>Every basin, latest issue <span class="thin" id="sub4"></span></h2>
+    <div class="scroll"><table id="h4" class="heat"></table></div>
+  </section>
+
+  <section>
+    <h2>Verification vs Stage IV <span class="thin" id="sub6"></span></h2>
+    <div class="scroll"><table id="verif" class="heat"></table></div>
+  </section>
+
+  <p class="note" id="foot"></p>
+  <p class="note" id="credits"></p>
+</main>
+<div class="tip" id="tip"></div>
+<script src="heat.js"></script>
+<script>window.PNW_DATA = "./data/";</script>
+<script src="pnw.js"></script>

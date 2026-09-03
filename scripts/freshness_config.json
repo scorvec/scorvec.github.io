@@ -304,6 +304,10 @@
     "assets/geps/geps_na_t2m_prob_cal.webp": {
       "branch": "main",
       "max_age_hours": 120
+    },
+    "columbia/data/pnw_latest.json": {
+      "branch": "main",
+      "max_age_hours": 36
     }
   },
   "deploy_checks": {

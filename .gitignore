@@ -150,3 +150,6 @@ assets/*/anim/**/*.webp
 
 # asos5 local runner log
 scripts/asos5/asos5.log
+
+# columbia pipeline weights cache
+.cache/
