@@ -132,8 +132,13 @@ def render(field, name, meta, out_path: Path):
                    linewidth=0.6, zorder=3)
 
     c = meta["cycle"]
-    stamp = f"HRRR {c['date'][:4]}-{c['date'][4:6]}-{c['date'][6:]} {c['hour']:02d}Z"
-    stamp += f" F{c['fxx']:02d}" if c["fxx"] else " analysis"
+    from datetime import datetime, timedelta
+    init = datetime(int(c["date"][:4]), int(c["date"][4:6]), int(c["date"][6:]), int(c["hour"]))
+    fxx = int(c.get("fxx", 0))
+    valid = init + timedelta(hours=fxx)
+    stamp = f"HRRR {init:%Y-%m-%d %H}Z"
+    stamp += f" F{fxx:02d}" if fxx else " analysis"
+    stamp += f" · valid {valid:%a %b %d %H}Z"
     fig.suptitle(f"{fm['title']} — {stamp}", fontsize=13, fontweight="bold",
                  x=L, ha="left")
     ax.set_title("SHARPlib · Peters et al. (2023) entraining CAPE · HRRR 3 km native levels",
