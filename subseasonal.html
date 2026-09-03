@@ -104,6 +104,8 @@
   table.tele th span, table.tele td span { display: block; font-weight: 400; font-size: 0.7rem; color: var(--muted); }
   table.tele td i { font-style: normal; color: #4a4640; }
   table.tele td.r { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+  table.tele td.noskill { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.55) 0 4px, rgba(140,136,128,0.35) 4px 6px) !important; color: var(--muted); }
+  table.tele td.noskill b { color: var(--muted); }
   .chart-card-header b { color: var(--ink); font-weight: 500; }
 
   .img-wrap { padding: 1rem 1.2rem; background: #fff; }
@@ -369,7 +371,16 @@
     lead 0.5 and re-based), so analysis and forecast sit on one rule &mdash; against the NCEP
     climatology instead, the GEPS-versus-R1 height offset projected onto the monopole-like patterns
     as a spurious step at the seam. CPC&rsquo;s own published daily values are drawn beside the
-    tail. Raw probabilities are member fractions, so they resolve to about 5% and 0% means
+    tail. Two Pacific indices forecasters use that are not in CPC&rsquo;s set are added on
+    PSL&rsquo;s definitions &mdash; box differences of 500&nbsp;hPa height anomaly, EPO
+    (20&ndash;35&deg;N minus 55&ndash;65&deg;N over 160&ndash;125&deg;W) and WPO (25&ndash;40&deg;N
+    minus 50&ndash;70&deg;N over 140&deg;E&ndash;150&deg;W) &mdash; and reproduce PSL&rsquo;s daily
+    series at r&nbsp;0.97 and 0.99. The <b>NAM at 100&nbsp;hPa</b>, the stratosphere&ndash;troposphere
+    coupling index, is the leading EOF of 100&nbsp;hPa height anomalies poleward of 20&deg;N with the
+    hemispheric mean removed first (the +19&nbsp;m/decade height trend at that level would otherwise
+    read as a permanently weak vortex), taken from the 21 members&rsquo; 100&nbsp;hPa heights; the
+    GEPS8 hindcast carries nothing above 200&nbsp;hPa, so it is a plain anomaly against the NCEP
+    climatology and gets no calibration. Raw probabilities are member fractions, so they resolve to about 5% and 0% means
     &ldquo;no member&rdquo;, not certainty.</p>
     <p><b>Calibrated on the hindcast.</b> The same projectors are applied to every GEPS8 hindcast
     start of 2001&ndash;2020 &mdash; four a week, 39 daily leads, de-drifted and re-based exactly
@@ -428,12 +439,14 @@ var P = {
         b: {label:"Field", items: FIELDS},
         img: function (a,b) { return "assets/geps/geps_" + a + "_" + b + "_change.webp"; },
         cap: function () { return "This run minus the previous extended run (3\u20134 days earlier), weekly means over the valid days both forecast. Week 5 is a partial week and says so."; }},
-  telecon: {label: "Teleconnections \u2014 AO, NAO, PNA, AAO \u2026", fit: false,
+  telecon: {label: "Teleconnections \u2014 AO, NAO, PNA, EPO, WPO, NAM \u2026", fit: false,
         a: {label:"View", items:[["series","Index plumes"],["probs","Weekly probabilities"],["patterns","Loading patterns"]]},
-        img: function (a) { return "assets/geps/geps_telecon_" + a + ".webp"; },
+        b: function (a) { return a === "series" ? {label:"Index", select: true, items: TELE_IDS} : null; },
+        img: function (a,b) { return a === "series" && b && b !== "board"
+          ? "assets/geps/geps_telecon_plume_" + b + ".webp" : "assets/geps/geps_telecon_" + a + ".webp"; },
         cap: function (a) { return a==="series"
-          ? "Every member projected on CPC-style loading patterns; the tail is GEPS\u2019s own day-0 analyses on the same projection, CPC\u2019s published index as crosses, previous run dashed. Units: standard deviations of the daily index."
-          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond \u00B10.5 sd. Thin lower bar: the same probabilities calibrated on 20 years of GEPS8 hindcasts, with the hindcast skill (anomaly correlation) for that index and week."
+          ? "Every member projected on CPC-style loading patterns (EPO/WPO on PSL\u2019s box definitions, NAM at 100 hPa as the annular EOF); the tail is GEPS\u2019s own day-0 analyses on the same projection, the published daily index as crosses, previous run dashed. Pick one index for a full-size plume. Units: standard deviations of the daily index."
+          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond \u00B10.5 sd. Thin lower bar: the same probabilities calibrated on 20 years of GEPS8 hindcasts, with the hindcast skill (anomaly correlation) for that index and week. Hatched cells: skill below 0.25 \u2014 the members\u2019 opinion is shown but should not be trusted."
                          : "Regression of the monthly field on each index (m or hPa per +1 sd), NCEP/NCAR R1 1991\u20132020, with the correlation of this reproduction against CPC\u2019s own index."); }},
   daily: {label: "Daily animation",
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
@@ -452,6 +465,11 @@ var P = {
         ratio: function () { return "1139/610"; },
         cap: function () { return "Analysis to day 35, both hemispheres and levels."; }}
 };
+var TELE_IDS = [["board","All indices (board)"],["ao","AO \u2014 Arctic Oscillation"],["nao","NAO \u2014 North Atlantic Oscillation"],
+  ["pna","PNA \u2014 Pacific / North American"],["epo","EPO \u2014 Eastern Pacific Oscillation"],["wpo","WPO \u2014 Western Pacific Oscillation"],
+  ["ea","EA \u2014 East Atlantic"],["wp","WP \u2014 West Pacific"],["epnp","EP/NP \u2014 East Pacific / North Pacific"],
+  ["eawr","EA/WR \u2014 East Atlantic / West Russia"],["sca","SCA \u2014 Scandinavia"],["tnh","TNH \u2014 Tropical / N. Hemisphere (Dec\u2013Feb)"],
+  ["pol","POL \u2014 Polar / Eurasia"],["nam100","NAM 100 hPa \u2014 Northern Annular Mode"],["aao","AAO \u2014 Antarctic Oscillation (SAM)"]];
 var sel = {p: "mjo", a: null, b: null};
 var $ = function (id) { return document.getElementById(id); };
 
@@ -461,6 +479,18 @@ function buttons(host, group, key) {
   if (group.label) {
     var l = document.createElement("span");
     l.className = "seg-label"; l.textContent = group.label; host.appendChild(l);
+  }
+  if (group.select) {
+    var se = document.createElement("select");
+    group.items.forEach(function (it, i) {
+      var o = document.createElement("option");
+      o.value = it[0]; o.textContent = it[1];
+      if (sel[key] === it[0] || (sel[key] === null && i === 0)) { o.selected = true; sel[key] = it[0]; }
+      se.appendChild(o);
+    });
+    se.onchange = function () { sel[key] = se.value; render(); };
+    host.appendChild(se);
+    return sel[key];
   }
   group.items.forEach(function (it, i) {
     var b = document.createElement("button");
@@ -492,7 +522,7 @@ addEventListener("resize", fitStage);
 function render() {
   var p = P[sel.p];
   buttons($("opts-a"), p.a, "a");
-  buttons($("opts-b"), p.b, "b");
+  buttons($("opts-b"), (typeof p.b === "function") ? p.b(sel.a) : p.b, "b");
   var st = $("stage");
   if (p.frame) {
     st.innerHTML = '<iframe src="' + p.frame(sel.a) + '" style="aspect-ratio:'
@@ -538,13 +568,15 @@ function teleTable(show) {
       var bg = tilt > 0 ? "rgba(180,69,60," + (0.08 + 0.55 * tilt) + ")"
                         : "rgba(44,95,168," + (0.08 - 0.55 * tilt) + ")";
       var d = ("prev_mean" in w) ? " <i>\u0394" + (w.mean - w.prev_mean >= 0 ? "+" : "") + (w.mean - w.prev_mean).toFixed(1) + "</i>" : "";
-      var cal = ("skill_r" in w) ? "<span>cal " + Math.round(w.cal_p_neg * 100) + "% / " + Math.round(w.cal_p_pos * 100) + "% \u00B7 skill r " + w.skill_r.toFixed(2) + "</span>" : "";
-      h += '<td style="background:' + bg + '"><b>' + Math.round(w.p_neg * 100) + "% / " + Math.round(w.p_pos * 100) + "%</b><span>mean " + (w.mean >= 0 ? "+" : "") + w.mean.toFixed(1) + d + "</span>" + cal + "</td>";
+      var cal = ("skill_r" in w) ? "<span>cal " + Math.round(w.cal_p_neg * 100) + "% / " + Math.round(w.cal_p_pos * 100) + "% \u00B7 skill r " + w.skill_r.toFixed(2) + "</span>"
+                                 : (x.has_hindcast ? "" : "<span><i>no hindcast</i></span>");
+      var cls = w.no_skill ? ' class="noskill"' : "";
+      h += '<td' + cls + ' style="background:' + bg + '"><b>' + Math.round(w.p_neg * 100) + "% / " + Math.round(w.p_pos * 100) + "%</b><span>mean " + (w.mean >= 0 ? "+" : "") + w.mean.toFixed(1) + d + "</span>" + cal + "</td>";
     });
     var r = x.r_daily != null ? "r " + x.r_daily.toFixed(2) + " daily" : (x.r_monthly != null ? "r " + x.r_monthly.toFixed(2) + " monthly" : "\u2014");
     h += "<td class=\"r\">" + r + "</td></tr>";
   });
-  h += "</tbody></table><p class=\"cap\">P(weekly mean \u2264 \u2212" + TELE.threshold + " sd) / P(\u2265 +" + TELE.threshold + " sd) over " + TELE.n_members + " members; cells tilt red toward the positive phase, blue toward the negative. \u0394 is the change in the weekly mean since the " + TELE.prev_cycle.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") + " run. \u201Ccal\u201D is the calibrated probability: the observed weekly index regressed on the hindcast ensemble-mean index over 2001\u20132020 starts within \u00B145 days of this date, applied to today\u2019s ensemble mean, with the residual spread; skill r is the anomaly correlation of that hindcast fit, so a cal near 31% / 31% with r near 0 is climatology. r is the correlation of this index reproduction with CPC\u2019s published index, scored out of sample (patterns fitted 1991\u20132005, scored 2006\u20132020; AO/AAO are EOFs with no fit to CPC).</p>";
+  h += "</tbody></table><p class=\"cap\">P(weekly mean \u2264 \u2212" + TELE.threshold + " sd) / P(\u2265 +" + TELE.threshold + " sd) over " + TELE.n_members + " members; cells tilt red toward the positive phase, blue toward the negative. \u0394 is the change in the weekly mean since the " + TELE.prev_cycle.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") + " run. \u201Ccal\u201D is the calibrated probability: the observed weekly index regressed on the hindcast ensemble-mean index over 2001\u20132020 starts within \u00B145 days of this date, applied to today\u2019s ensemble mean, with the residual spread; skill r is the anomaly correlation of that hindcast fit, so a cal near 31% / 31% with r near 0 is climatology. Hatched cells have skill r below " + TELE.skill_min + "; NAM 100 hPa has no hindcast (the GEPS8 archive stops at 200 hPa) and is uncalibrated. r is the correlation of this index reproduction with CPC\u2019s published index, scored out of sample (patterns fitted 1991\u20132005, scored 2006\u20132020; AO/AAO are EOFs with no fit to CPC).</p>";
   host.innerHTML = h;
 }
 
