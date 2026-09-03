@@ -22,7 +22,13 @@ BRANCH="frames"
 # every animation frame dir on the site. cptec/brazil/sfs are smaller than
 # sst but churn the same way, and keeping ONE branch for all of them means
 # the viewers need a single frame root rather than a per-product mapping.
-DIRS=(assets/sst/anim assets/cptec/anim assets/brazil/anim assets/sfs/anim assets/ecape/anim assets/geps/anim)
+# 2026-09-03: GEPS is the ONLY loop still rendered on the laptop (user rule:
+# the laptop dispatches, it does not render). Everything else is CI-owned and
+# carried over from the branch untouched. This used to list every anim dir,
+# and at 00:43Z on 2026-09-03 it pushed the laptop's stale 19:03Z AIFS loops
+# over the CI render because their mtime looked "fresh" - the exact clobber
+# the carry-over rule was meant to prevent.
+DIRS=(assets/geps/anim)
 STAMP="$REPO/scripts/lib/.frames_published"
 cd "$REPO" || exit 1
 
