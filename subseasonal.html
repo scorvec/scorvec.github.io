@@ -242,6 +242,7 @@
       <div id="stage"></div>
       <p class="cap" id="cap"></p>
       <div id="tele-table" hidden></div>
+      <div id="mjo-table" hidden></div>
     </div>
   </div>
 
@@ -424,7 +425,25 @@
     archive for 2001&ndash;2020; day-1 skill is ~0.95 and the term is slowly varying. The ECMWF
     marks are the published extended-range reforecast values (Vitart 2017 and the ECMWF verification
     memoranda), not a like-for-like computation &mdash; the S2S reforecasts sit behind a research
-    licence and are not on this site.</p>
+    licence and are not on this site, and ECMWF&rsquo;s open data stops at day 15, so no live
+    comparison beyond that is possible either.</p>
+    <p><b>Reading the MJO score honestly.</b> Over all 4,794 starts the bivariate correlation falls
+    through 0.6 at day 15 and 0.5 at day 19; winter starts hold on longest (0.6 at day 16), the
+    late-summer window the site is in now is the weakest (0.6 at day 13). Against the published
+    ECMWF figures of day 27&ndash;30 that is about two weeks of skill less, and the following
+    caveats move it a few days, not two weeks. <i>Ensemble size:</i> the hindcast mean is four
+    members and the operational GEPS runs 21; a larger mean removes unpredictable noise and is
+    typically worth two to three days at the 0.6 level, while ECMWF&rsquo;s published numbers come
+    from an eleven-member mean, closer to their operational system. <i>Model vintage:</i> GEPS8 is
+    the version this reforecast belongs to, not the current cycle, and ECMWF&rsquo;s quoted range
+    spans 2016 to the early 2020s. <i>Verification target:</i> BoM&rsquo;s RMM removed an ENSO
+    component before 2014 and not after, and ECMWF scores against its own analysis; a day at most.
+    <i>The 120-day mean:</i> approximated from the hindcast&rsquo;s own day-1 channels, a slowly
+    varying term with day-1 skill near 0.95. <i>What the scores describe:</i> the ensemble mean
+    only &mdash; the plume&rsquo;s spread is not scored here, and an ensemble mean is damped by
+    construction, which is what the amplitude panel shows. The practical reading is that the MJO
+    phase diagram on this page is reliable to about two weeks, useful with care to about three, and
+    beyond that is a model opinion.</p>
     <p><b>Caveats.</b> The maps are an ensemble mean, so they understate the range of outcomes
     everywhere and increasingly so with lead; outside the teleconnection section nothing here
     is a probability. Twenty-one
@@ -578,6 +597,7 @@ function render() {
   }
   $("cap").textContent = p.cap(sel.a, sel.b, sel.c);
   teleTable(sel.p === "telecon");
+  mjoTable(sel.p === "mjo" && sel.a === "skill");
   var im = $("stage").querySelector("img");
   if (im) { im.onload = fitStage; }
   fitStage();
@@ -623,6 +643,38 @@ function teleTable(show) {
     h += "<td class=\"r\">" + r + "</td></tr>";
   });
   h += "</tbody></table><p class=\"cap\">P(weekly mean \u2264 \u2212" + TELE.threshold + " seasonal sd) / P(\u2265 +" + TELE.threshold + " seasonal sd) over " + TELE.n_members + " members; cells tilt red toward the positive phase, blue toward the negative. \u0394 is the change in the weekly mean since the " + TELE.prev_cycle.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") + " run. \u201Ccal\u201D is the calibrated probability: the observed weekly index regressed on the hindcast ensemble-mean index over 2001\u20132020 starts within \u00B145 days of this date, applied to today\u2019s ensemble mean, with the residual spread; skill r is the anomaly correlation of that hindcast fit, so a cal near 31% / 31% with r near 0 is climatology. Hatched cells have skill r below " + TELE.skill_min + "; NAM 100 hPa has no hindcast (the GEPS8 archive stops at 200 hPa) and is uncalibrated. r is the correlation of this index reproduction with CPC\u2019s published index, scored out of sample (patterns fitted 1991\u20132005, scored 2006\u20132020; AO/AAO are EOFs with no fit to CPC).</p>";
+  host.innerHTML = h;
+}
+
+// MJO hindcast skill numbers, from mjo_skill.json: the forecast day at which
+// the bivariate correlation falls through 0.6 and 0.5, and the correlation at
+// fixed leads, per subset of starts.
+var MJOS = null;
+function mjoTable(show) {
+  var host = $("mjo-table");
+  host.hidden = !show;
+  if (!show) return;
+  if (MJOS === null) {
+    MJOS = false;
+    fetch("assets/geps/mjo_skill.json").then(function (r) { return r.json(); })
+      .then(function (j) { MJOS = j; mjoTable(sel.p === "mjo" && sel.a === "skill"); })
+      .catch(function () { host.innerHTML = ""; });
+    return;
+  }
+  if (!MJOS) return;
+  var days = [5, 10, 15, 20, 25, 30];
+  var h = '<table class="tele"><thead><tr><th>starts</th><th>n</th><th>day COR = 0.6</th><th>day COR = 0.5</th>';
+  days.forEach(function (d) { h += "<th>COR day " + d + "</th>"; });
+  h += "</tr></thead><tbody>";
+  Object.keys(MJOS.subsets).forEach(function (k) {
+    var x = MJOS.subsets[k];
+    h += "<tr><th>" + k + "</th><td>" + x.n_starts + "</td><td><b>" + (x["day_cor_0.6"] == null ? "\u2014" : x["day_cor_0.6"].toFixed(1)) + "</b></td><td><b>" + (x["day_cor_0.5"] == null ? "\u2014" : x["day_cor_0.5"].toFixed(1)) + "</b></td>";
+    days.forEach(function (d) { h += "<td>" + x.cor[d - 1].toFixed(2) + "</td>"; });
+    h += "</tr>";
+  });
+  var e = MJOS.ecmwf_reference;
+  h += '<tr><th>ECMWF extended range, published</th><td>\u2014</td><td><b>' + e["COR 0.6"][0] + "\u2013" + e["COR 0.6"][1] + '</b></td><td><b>' + e["COR 0.5"][0] + "\u2013" + e["COR 0.5"][1] + "</b></td><td colspan=\"6\"><span>Vitart (2017, QJRMS) and ECMWF verification memoranda; 11-member reforecast mean, own analysis as truth \u2014 a reference, not a like-for-like score</span></td></tr>";
+  h += "</tbody></table><p class=\"cap\">GEPS8 hindcast, 2001\u20132020, four-member ensemble mean, verified against BoM\u2019s RMM on the valid date. \u201Cnow\u201D is the starts within \u00B145 days of day-of-year " + MJOS.doy_now + ". The operational 21-member mean should reach each threshold two to three days later than these hindcast numbers.</p>";
   host.innerHTML = h;
 }
 
