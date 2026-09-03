@@ -193,7 +193,7 @@ function preload(fld, done) {
   $("loadtext").textContent = "loading " + list.length + " frames…";
   list.forEach(function (f, i) {
     var im = new Image();
-    im.onload = im.onerror = function () {
+    function tick() {
       loaded++;
       $("loadbar").style.width = (100 * loaded / list.length) + "%";
       if (loaded === list.length) {
@@ -202,14 +202,13 @@ function preload(fld, done) {
         $("loadbar").style.width = "0";
         done();
       }
-    };
-    // Fall back to main if the branch is missing a frame (mid-publish, or a
-    // renderer that has not pushed yet). Per-image, not a latched flag.
-    im.onerror = function () {
-      if (!im._fellBack) { im._fellBack = true; im.src = ANIM_BASE + "/" + fld + "/" + f.file; }
-      else { loaded++; if (loaded === list.length) { cache[fld] = imgs; $("loading").style.display = "none"; done(); } }
-    };
-    im.src = frameURL(fld, f);
+    }
+    im.onload = tick;
+    // raw.githubusercontent.com -> jsDelivr mirror -> copy on main
+    // (assets/frames_root.js); a frame missing everywhere still counts, so the
+    // loader finishes instead of hanging at 28/29.
+    var rel = ANIM_BASE + "/" + fld + "/" + f.file;
+    window.frameLoad(im, rel, "?v=" + encodeURIComponent(manifest.ver || ""), rel, tick);
     imgs[i] = im;
   });
 }

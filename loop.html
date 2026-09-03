@@ -79,7 +79,6 @@
   // manifests stayed, so `base` still resolves the manifest same-origin and only the
   // <img> requests below go cross-origin. The "//" guard above still rejects a
   // caller-supplied absolute base, so this root is a constant, never user input.
-  var FRAME_BASE = window.FRAME_ROOT + base;   // assets/frames_root.js
   var img = document.getElementById("frame"), scrub = document.getElementById("scrub");
   var playBtn = document.getElementById("play"), label = document.getElementById("label");
   var frames = [], imgs = [], okFrame = [], cur = 0, playing = false, timer = null;
@@ -172,21 +171,14 @@
       var ver = man.ver || 0, loaded = 0;
       okFrame = frames.map(function () { return false; });
       imgs = frames.map(function (fr, i) {
-        var im = new Image(), tries = 0;
+        var im = new Image();
         im.onload = function () { okFrame[i] = true; done(); };
-        im.onerror = function () {
-          // one delayed retry — freshly-deployed frames can lag the CDN by
-          // seconds; without this the player silently skips those months
-          if (tries++ < 1) {
-            setTimeout(function () {
-              im.src = FRAME_BASE + regionKey + "/" + fr.file + "?v=" + ver + "r";
-            }, 2500);
-          } else { done(); }
-        };
-        im.onerror = (function (el, f2) {
-          return function () { if (!el._fellBack) { el._fellBack = 1; el.src = base + regionKey + "/" + f2.file; } };
-        })(im, fr);
-        im.src = FRAME_BASE + regionKey + "/" + fr.file + "?v=" + ver;
+        // raw.githubusercontent.com -> jsDelivr mirror -> copy on main, then
+        // count the frame as done either way so the progress bar completes
+        // (assets/frames_root.js). The old code assigned onerror twice, so the
+        // retry never ran and a missing frame stalled the loader for good.
+        window.frameLoad(im, base + regionKey + "/" + fr.file, "?v=" + ver,
+                         base + regionKey + "/" + fr.file, function () { done(); });
         return im;
       });
       function done() {

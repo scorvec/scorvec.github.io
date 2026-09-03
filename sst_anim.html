@@ -43,6 +43,7 @@
     background: rgba(255,255,255,0.75);
   }
   .frame-loading.hidden { display: none; }
+  .hostnote { font-size: 0.72rem; color: var(--muted); padding: 2px 6px; }
 
   /* ONE slim row: transport · slider · pickers · date. It wraps on narrow
      screens (slider takes its own line); the old two-row + separate date
@@ -200,16 +201,34 @@ function frameSrc(im, rid, f, ver) {
   // manifests without a render stamp (the SST loops until 2026-09-03) get an
   // hourly key so a re-render or a transient miss is not cached forever
   const q = `?v=${f.date}.${ver || Math.floor(Date.now() / 3.6e6)}`;
-  const primary = `${FRAME_BASE}/${rid}/${f.file}${q}`;
-  const backup = `${ANIM_BASE}/${rid}/${f.file}${q}`;
-  im.onerror = () => {
-    if (im._fellBackFor !== primary && primary !== backup) {
-      im._fellBackFor = primary;
-      im.src = backup;
-    }
-  };
-  return primary;
+  const rel = `${ANIM_BASE}/${rid}/${f.file}`;
+  if (ON_FRAMES_BRANCH && window.frameLoad) {
+    // raw.githubusercontent.com -> cdn.jsdelivr.net mirror -> copy on main
+    // (assets/frames_root.js); the chain is per-FRAME because imgEl is reused
+    window.frameLoad(im, rel, q, rel);
+  } else {
+    im.onerror = null;
+    im.src = rel + q;
+  }
+  return im.src;
 }
+// Frame-host status (assets/frames_root.js): say WHY nothing shows instead of
+// spinning forever, and note when the slower mirror is carrying the loop.
+document.addEventListener("framehost", ev => {
+  const d = ev.detail || {};
+  if (d.dead) {
+    loadingEl.classList.remove("hidden");
+    loadingEl.innerHTML = "Frames could not be loaded. This network appears to block GitHub content hosts " +
+      "(raw.githubusercontent.com and cdn.jsdelivr.net) &mdash; try another connection.";
+  } else if (d.mirror) {
+    let n = document.getElementById("hostnote");
+    if (!n) {
+      n = document.createElement("div"); n.id = "hostnote"; n.className = "hostnote";
+      document.querySelector(".frame-wrap").insertAdjacentElement("afterend", n);
+    }
+    n.textContent = "Frames via the cdn.jsdelivr.net mirror: raw.githubusercontent.com is unreachable on this network, so loops can lag a few hours.";
+  }
+});
 let manifest = null;
 let region = null;
 let frames = [];
@@ -412,7 +431,7 @@ function preloadWindow(rid, center) {
   for (let d = 0; d <= span; d++) {
     const k = (center + d) % fr.length;
     const im = new Image();
-    im.src = frameSrc(im, rid, fr[k], manifest.ver);
+    frameSrc(im, rid, fr[k], manifest.ver);
     if (d === 0) {
       if (im.complete) loadingEl.classList.add("hidden");
       else im.onload = () => loadingEl.classList.add("hidden");
@@ -441,7 +460,7 @@ function preloadAll(rid) {
   if (preloaded[rid]) return;
   preloaded[rid] = manifest.regions[rid].frames.map(f => {
     const im = new Image();
-    im.src = frameSrc(im, rid, f, manifest.ver);   // bust cache when sliding-window content changes
+    frameSrc(im, rid, f, manifest.ver);   // bust cache when sliding-window content changes
     return im;
   });
   const first = preloaded[rid][frames.length - 1] || preloaded[rid][0];
@@ -456,7 +475,7 @@ function showFrame(i) {
   // windowed, desktop needs it too or scrubbing outruns the preloaded frames.
   if (!preloaded[region] && idx % 4 === 0) preloadWindow(region, idx);
   const f = frames[idx];
-  imgEl.src = frameSrc(imgEl, region, f, manifest.ver);
+  frameSrc(imgEl, region, f, manifest.ver);
   dateEl.textContent = f.label;
   slider.value = idx;
 }
