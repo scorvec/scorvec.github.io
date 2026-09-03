@@ -59,14 +59,26 @@ def main() -> int:
     stale, ok = [], 0
     report = {"generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
               "items": []}          # mirrored to assets/status/freshness.json
+    # EVERY check lands in items — deploy checks and failed API calls included —
+    # so the status page's list and the n_ok/n_stale counters describe the same
+    # set (2026-09-03: the JSON said 11 stale while listing zero stale items,
+    # because the deploy checks and "check FAILED" lines only went to the issue).
+    def item(path, branch, age, limit, state, note=None):
+        it = {"path": path, "branch": branch, "age_h": None if age is None else round(age, 1),
+              "limit_h": limit, "state": state}
+        if note:
+            it["note"] = note
+        report["items"].append(it)
     for wf, spec in cfg.get("deploy_checks", {}).items():
         try:
             age = last_deploy_success_age_h(wf)
         except Exception as e:  # noqa: BLE001
             stale.append(f"- deploy `{wf}`: check FAILED — {e}")
+            item(f"deploy {wf}", "actions", None, spec["max_age_hours"], "failed", str(e)[:200])
             continue
         if age is None:
             stale.append(f"- deploy `{wf}`: NO successful runs found")
+            item(f"deploy {wf}", "actions", None, spec["max_age_hours"], "stale", "no successful runs")
         elif age > spec["max_age_hours"]:
             stale.append(f"- deploy `{wf}`: last SUCCESSFUL deploy {age:.0f} h "
                          f"ago (limit {spec['max_age_hours']} h) — live site "
@@ -74,23 +86,24 @@ def main() -> int:
                          f"see scorvec-site-pipelines memory / runbook: check "
                          f"deployments API for a 'waiting' deployment holding "
                          f"the pages concurrency group")
+            item(f"deploy {wf}", "actions", age, spec["max_age_hours"], "stale", "live site may be frozen")
         else:
             ok += 1
+            item(f"deploy {wf}", "actions", age, spec["max_age_hours"], "ok")
             print(f"  ok: deploy {wf} — {age:.1f} h since last success")
     for path, spec in cfg["checks"].items():
         try:
             age = last_commit_age_h(path, spec["branch"])
         except Exception as e:  # noqa: BLE001
             stale.append(f"- `{path}` ({spec['branch']}): check FAILED — {e}")
+            item(path, spec["branch"], None, spec["max_age_hours"], "failed", str(e)[:200])
             continue
         if age is None:
             print(f"  warn: {path} has no commits on {spec['branch']} — skipped")
-            report["items"].append({"path": path, "branch": spec["branch"], "age_h": None,
-                                    "limit_h": spec["max_age_hours"], "state": "missing"})
+            item(path, spec["branch"], None, spec["max_age_hours"], "missing")
             continue
-        report["items"].append({"path": path, "branch": spec["branch"], "age_h": round(age, 1),
-                                "limit_h": spec["max_age_hours"],
-                                "state": "stale" if age > spec["max_age_hours"] else "ok"})
+        item(path, spec["branch"], age, spec["max_age_hours"],
+             "stale" if age > spec["max_age_hours"] else "ok")
         if age > spec["max_age_hours"]:
             stale.append(f"- `{path}` ({spec['branch']}): last updated "
                          f"{age:.0f} h ago (limit {spec['max_age_hours']} h)")
@@ -99,6 +112,8 @@ def main() -> int:
             print(f"  ok: {path} — {age:.1f} h")
     print(f"{ok} fresh, {len(stale)} stale")
     report["n_ok"], report["n_stale"] = ok, len(stale)
+    assert ok == sum(i["state"] == "ok" for i in report["items"])
+    assert len(stale) == sum(i["state"] in ("stale", "failed") for i in report["items"])
     out = os.path.join(os.path.dirname(__file__), "..", "assets", "status", "freshness.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w") as f:

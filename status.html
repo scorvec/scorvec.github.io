@@ -280,8 +280,8 @@ async function run() {
       }
       for (const it of rows) {
         const tr = document.createElement("tr");
-        tr.className = it.state === "stale" ? "stale" : "unk";
-        tr.innerHTML = `<td class="name">${it.path}</td><td>${it.branch}</td>
+        tr.className = (it.state === "stale" || it.state === "failed") ? "stale" : "unk";
+        tr.innerHTML = `<td class="name">${it.path}${it.note ? ` <small style="color:var(--muted)">${it.note}</small>` : ""}</td><td>${it.branch}</td>
           <td class="age">${it.age_h == null ? "—" : fmtAge(it.age_h) + " ago"}</td>
           <td class="cad">${it.limit_h} h</td>
           <td class="st"><span class="pill ${tr.className}">${it.state}</span></td>`;

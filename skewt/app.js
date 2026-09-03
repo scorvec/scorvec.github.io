@@ -3559,9 +3559,99 @@ function fillTables(prof, res) {
   const effIL = (o[28] === MISSING || o[29] === MISSING) ? "—"
     : `${(o[28] / 100).toFixed(0)}–${(o[29] / 100).toFixed(0)} hPa`;
   const pair = (a, b) => `${a} <span class="pctlab">/</span> ${b}`;
+  const tip = (txt, t) => `<span title="${t}">${txt}</span>`;
+
+  // ---- rows added 2026-09-03 (user request: SRH 0-500 m, convective T/CCL,
+  //      cap, DCAPE gust, hail growth zone, inversion, Haines, sounding top) ----
+  // SRH 0-500 m, Bunkers right mover — same integration jsKinematics uses
+  const srh500 = (() => {
+    if (o[22] === MISSING || !isFinite(o[22])) return NaN;
+    let sum = 0, prev = null;
+    for (let h = 0; h <= 500; h += 50) {
+      const uv = windAt(prof, h);
+      if (!uv || !isFinite(uv[0]) || !isFinite(uv[1])) continue;
+      if (prev) sum += (uv[0] - o[22]) * (prev[1] - o[23]) - (prev[0] - o[22]) * (uv[1] - o[23]);
+      prev = uv;
+    }
+    return prev ? sum : NaN;
+  })();
+  // Convective temperature and CCL from the mixed-layer (lowest 100 hPa) mixing
+  // ratio: the CCL is where that moisture saturates against the environment,
+  // Tc is the CCL temperature brought dry-adiabatically back to the surface.
+  const mixr = (Tdk, Pa) => { const e = 611.2 * Math.exp(17.67 * (Tdk - 273.15) / (Tdk - 29.65)); return 0.622 * e / (Pa - e); };
+  const tdOfW = (w, Pa) => { const l = Math.log(w * Pa / (0.622 + w) / 611.2); return 243.5 * l / (17.67 - l) + 273.15; };
+  const convT = (() => {
+    const P = prof.P, T = prof.T, D = prof.D;
+    let sw = 0, n = 0;
+    for (let i = 0; i < P.length && P[0] - P[i] <= 10000; i++) if (isFinite(D[i]) && isFinite(P[i])) { sw += mixr(D[i], P[i]); n++; }
+    if (!n || !isFinite(T[0])) return null;
+    const w = sw / n;
+    if (tdOfW(w, P[0]) >= T[0]) return { pC: P[0], zC: 0, tConv: T[0] - 273.15 };   // saturated at the ground
+    for (let i = 1; i < P.length && P[i] > 30000; i++) {
+      if (!isFinite(T[i]) || !isFinite(T[i - 1])) continue;
+      const d0 = tdOfW(w, P[i - 1]) - T[i - 1], d1 = tdOfW(w, P[i]) - T[i];
+      if (d1 >= 0) {
+        const f = d0 < 0 ? d0 / (d0 - d1) : 1;
+        const pC = P[i - 1] + f * (P[i] - P[i - 1]), tC = T[i - 1] + f * (T[i] - T[i - 1]);
+        return { pC, zC: interpHagl(prof, pC), tConv: tC * Math.pow(P[0] / pC, 0.2854) - 273.15 };
+      }
+    }
+    return null;
+  })();
+  // Cap: the largest warm excess of the environment over the mixed-layer parcel
+  // between its LCL and LFC (the parcel trace is on the profile's own levels)
+  const cap = (() => {
+    const tr = res.ml, pL = o[7], pF = o[8];
+    if (!tr || !tr.length || pL === MISSING || !isFinite(pL)) return null;
+    if (pF === MISSING || !isFinite(pF)) return { noLFC: true };
+    let mx = 0;
+    for (let i = 0; i < prof.P.length; i++) {
+      if (prof.P[i] > pL || prof.P[i] < pF) continue;
+      if (!(tr[i] > 150 && tr[i] < 350) || !isFinite(prof.T[i])) continue;
+      mx = Math.max(mx, prof.T[i] - tr[i]);
+    }
+    const zL = interpHagl(prof, pL), zF = interpHagl(prof, pF);
+    return { mx, depth: (zL !== null && zF !== null) ? zF - zL : NaN };
+  })();
+  // Hail growth zone: the -10 to -30 °C layer (first crossings from the ground up)
+  const pAtT = tc => {
+    const P = prof.P, T = prof.T;
+    for (let i = 1; i < P.length; i++) {
+      if (!isFinite(T[i]) || !isFinite(T[i - 1])) continue;
+      const a = T[i - 1] - 273.15, b = T[i] - 273.15;
+      if (a !== b && (a - tc) * (b - tc) <= 0) return P[i - 1] * Math.pow(P[i] / P[i - 1], (a - tc) / (a - b));
+    }
+    return NaN;
+  };
+  const hgz = (() => {
+    const pb = pAtT(-10), pt = pAtT(-30);
+    if (!isFinite(pb) || !isFinite(pt) || pt >= pb) return null;
+    const zb = interpHagl(prof, pb), zt = interpHagl(prof, pt);
+    if (zb === null || zt === null) return null;
+    return { zb, zt, rh: layerRH(prof, pb, pt) };
+  })();
+  // Strongest temperature inversion in the lowest 3 km (contiguous warming layers)
+  const inv = (() => {
+    const P = prof.P, T = prof.T, H = prof.H, z0 = H[0];
+    let best = null, cur = null;
+    for (let i = 1; i < P.length; i++) {
+      const z = H[i] - z0;
+      if (z > 3000) break;
+      if (!isFinite(T[i]) || !isFinite(T[i - 1])) { cur = null; continue; }
+      if (T[i] > T[i - 1]) {
+        if (!cur) cur = { zb: H[i - 1] - z0, tb: T[i - 1], zt: z, tt: T[i] };
+        else { cur.zt = z; cur.tt = T[i]; }
+        if (!best || cur.tt - cur.tb > best.tt - best.tb) best = { ...cur };
+      } else cur = null;
+    }
+    return best;
+  })();
   const kinem = [
     ["Shear 0–1 / 0–6 km", pair(ktf(o[20], o[21]), ktf(o[18], o[19]))],
     ["SRH 0–1 / 0–3 km", pair(fmt(o[26]), fmt(o[27])) + " m²/s²"],
+    ["SRH 0–500 m", isFinite(srh500)
+      ? tip(srh500.toFixed(0) + " m²/s²", "storm-relative helicity in the lowest 500 m (Bunkers right mover) — " +
+            "the layer that best separates significant tornadoes from the rest (Coffer et al. 2019)") : "—"],
     ["Eff. SRH / shear", pair(fmt(o[30]) + " m²/s²",
       o[31] === MISSING ? "—" : (o[31] * KT).toFixed(0) + " kt")],
     ["Eff. inflow", effIL],
@@ -3632,7 +3722,10 @@ function fillTables(prof, res) {
       `<span title="${tp}">${sgn((M.col - p12.M.col) / 1e6, 0, " MJ/m²")}</span>`]);
   }
   const thermo = [
-    ["DCAPE", fmt(o[39]) + " J/kg"],
+    ["DCAPE", fmt(o[39]) + " J/kg" + (o[39] !== MISSING && o[39] > 0
+      ? " · " + tip(`≤${Math.round(Math.sqrt(2 * o[39]) * KT)} kt`,
+                    "√(2·DCAPE): the theoretical downdraft speed, an upper bound on the surface gust — real gusts run about half to two-thirds of it")
+      : "")],
     ["0–3 km CAPE", fmt(o[40]) + " J/kg"], ["NCAPE", fmt(o[41], 2)],
     ["PWAT", climoCell("pwat", o[15], (o[15] === MISSING || !isFinite(o[15])) ? "—"
       : `${o[15].toFixed(1)} mm · ${(o[15] / 25.4).toFixed(2)}"`)],
@@ -3648,6 +3741,19 @@ function fillTables(prof, res) {
       const zz = interpHagl(prof, pp);
       return (zz === null ? "—" : Math.round(zz) + " m AGL") + ` · ${(pp / 100).toFixed(0)} hPa`;
     })()],
+    ["Conv. temp · CCL", convT && isFinite(convT.tConv)
+      ? tip(`${convT.tConv.toFixed(0)} °C (sfc ${(prof.T[0] - 273.15).toFixed(0)}) · CCL ${convT.zC === null ? "—" : Math.round(convT.zC) + " m"}`,
+            "surface temperature at which heating alone lifts the mixed-layer moisture to its convective condensation level; " +
+            "the closer the forecast high gets to it, the more likely surface-based storms fire without a trigger") : "—"],
+    ["Cap (ML)", !cap ? "—" : cap.noLFC ? tip("no LFC", "the mixed-layer parcel never becomes buoyant — capped, or no instability at all")
+      : tip(`${cap.mx.toFixed(1)} °C · LCL→LFC ${isFinite(cap.depth) ? Math.round(cap.depth) + " m" : "—"}`,
+            "largest warm excess of the environment over the mixed-layer parcel between its LCL and LFC — what heating or lift must " +
+            "overcome; ≳2 °C usually holds without forcing")],
+    ["Hail growth zone", hgz
+      ? tip(`${(hgz.zb / 1000).toFixed(1)}–${(hgz.zt / 1000).toFixed(1)} km · ${Math.round(hgz.zt - hgz.zb)} m` +
+            (isFinite(hgz.rh) ? ` · RH ${hgz.rh.toFixed(0)}%` : ""),
+            "the −10 to −30 °C layer where hail embryos grow: deep and moist favors large hail; " +
+            "pair with SHIP, the wet-bulb zero and the updraft speed above") : "—"],
   ];
 
   // --- level values & classic thermodynamic indices (from the profile) ---
@@ -3686,6 +3792,32 @@ function fillTables(prof, res) {
     ["Tropopause (WMO)", (() => { const tp = tropopause(prof);
       if (!isFinite(tp.wmoZ)) return "—";
       return `${(tp.wmoZ / 1000).toFixed(1)} km · ${(tp.wmoZ * 3.28084 / 1000).toFixed(1)} kft · ${Math.round(tp.wmoP / 100)} hPa`;
+    })()],
+    ["Inversion (<3 km)", inv
+      ? tip(`${inv.zb < 30 ? "sfc" : "base " + Math.round(inv.zb) + " m"} · ${Math.round(inv.zt - inv.zb)} m deep · +${(inv.tt - inv.tb).toFixed(1)} °C`,
+            "strongest temperature inversion in the lowest 3 km: base height AGL, depth, and the warming across it — " +
+            "fog, smoke and cold-pool lid") : "none"],
+    ["Haines index", (() => {
+      // variant by station elevation: low <300 m, mid 300–900 m, high >900 m
+      const elev = prof.H[0];
+      let v, a, b, aTh, bTh;
+      if (elev < 300)      { v = "low";  a = C(950) - C(850); b = C(850) - Cd(850); aTh = [4, 8];   bTh = [6, 10]; }
+      else if (elev < 900) { v = "mid";  a = C(850) - C(700); b = C(850) - Cd(850); aTh = [6, 11];  bTh = [6, 13]; }
+      else                 { v = "high"; a = C(700) - C(500); b = C(700) - Cd(700); aTh = [18, 22]; bTh = [15, 21]; }
+      if (!isFinite(a) || !isFinite(b)) return "—";
+      const cls = (x, th) => x < th[0] ? 1 : x < th[1] ? 2 : 3;
+      const A = cls(a, aTh), B = cls(b, bTh), tot = A + B;
+      const word = tot <= 3 ? "very low" : tot === 4 ? "low" : tot === 5 ? "moderate" : "high";
+      return tip(`${tot} · ${word} <span class="pctlab">${v}-elevation · A${A} B${B}</span>`,
+                 `Haines (Lower Atmosphere Severity) index, ${v}-elevation variant: stability term A (lapse ${a.toFixed(0)} °C) ` +
+                 `+ moisture term B (dewpoint depression ${b.toFixed(0)} °C); 6 = high potential for large plume-dominated fire growth`);
+    })()],
+    ["Sounding top", (() => {
+      const P = prof.P, H = prof.H;
+      const pt = P[P.length - 1], zt = H[H.length - 1] - H[0];
+      return (isFinite(pt) && isFinite(zt))
+        ? tip(`${(pt / 100).toFixed(pt < 10000 ? 1 : 0)} hPa · ${(zt / 1000).toFixed(1)} km AGL · ${P.length} levels`,
+              "how far the balloon got: a record ring on a flight that burst low deserves more skepticism") : "—";
     })()],
   ];
 
@@ -3787,7 +3919,8 @@ function fitTables(vertical = true) {
     [...wrap.querySelectorAll("table.params")].every(t => t.scrollWidth <= t.parentElement.clientWidth + 1);
   wrap.style.removeProperty("--tbl-fs");             // start from the CSS default
   if (fits()) return;
-  for (let fs = 0.66; fs >= 0.549; fs -= 0.03) {
+  // floor 0.62rem: below that the tables are unreadable, so they scroll instead
+  for (let fs = 0.66; fs >= 0.615; fs -= 0.03) {
     wrap.style.setProperty("--tbl-fs", fs + "rem");
     if (fits()) return;
   }

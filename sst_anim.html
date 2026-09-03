@@ -226,7 +226,20 @@ document.addEventListener("framehost", ev => {
       n = document.createElement("div"); n.id = "hostnote"; n.className = "hostnote";
       document.querySelector(".frame-wrap").insertAdjacentElement("afterend", n);
     }
-    n.textContent = "Frames via the cdn.jsdelivr.net mirror: raw.githubusercontent.com is unreachable on this network, so loops can lag a few hours.";
+    const base = "Frames via the cdn.jsdelivr.net mirror: raw.githubusercontent.com is unreachable on this network, so loops can lag a few hours.";
+    n.textContent = base;
+    // say HOW stale: jsDelivr exposes `age` (seconds its cache has held the copy)
+    const probe = () => {
+      const src = imgEl.currentSrc || imgEl.src;
+      if (!src || src.indexOf(window.FRAME_ROOT_MIRROR) !== 0) return;
+      fetch(src, { method: "HEAD" }).then(r => {
+        const a = parseFloat(r.headers.get("age"));
+        if (!isFinite(a) || a < 60) return;
+        n.textContent = base + " The frame on screen was cached " +
+          (a < 5400 ? Math.round(a / 60) + " min" : (a / 3600).toFixed(1) + " h") + " ago.";
+      }).catch(() => {});
+    };
+    setTimeout(probe, 1500);
   }
 });
 let manifest = null;

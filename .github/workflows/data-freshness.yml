@@ -29,13 +29,17 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Re-publish the report the sentinel step just wrote — do NOT re-run it
+          # here: this step had no GITHUB_TOKEN, so the re-run hit the anonymous
+          # API rate limit and published "11 stale" (all of them failed checks).
+          SNAP=$(mktemp -d); cp assets/status/freshness.json "$SNAP/"
           for i in 1 2 3 4 5; do
             git fetch -q origin main && git reset -q --hard origin/main
-            python scripts/check_freshness.py >/dev/null 2>&1 || true
+            cp "$SNAP/freshness.json" assets/status/freshness.json
             git add assets/status/freshness.json
             if git diff --staged --quiet; then echo "no change"; exit 0; fi
             git commit -q -m "status: freshness report $(date -u +%Y-%m-%dT%H:%MZ)"
-            if git push -q; then exit 0; fi
+            if git push origin HEAD:main; then exit 0; fi
             sleep 5
           done
           echo "::warning::could not push the freshness report"
