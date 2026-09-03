@@ -363,8 +363,14 @@
     2006&ndash;2020 against CPC&rsquo;s monthly indices for every pattern and against its daily
     NAO and PNA &mdash; and those are the correlations in the table; the operational projector is
     then refitted on all thirty years. A daily index is the daily anomaly projected the same way
-    and divided by the 1991&ndash;2020 standard deviation of the daily projection, which is how
-    CPC computes its daily AO, NAO and PNA. Each GEPS member&rsquo;s de-drifted, re-based
+    and divided by the <b>seasonal</b> standard deviation of the daily projection &mdash; the
+    spread within &plusmn;15 days of that day of year over 1991&ndash;2020 &mdash; so &ldquo;+1&rdquo;
+    means one standard deviation for the time of year. CPC standardizes its daily AO, NAO and PNA
+    by a single annual figure instead; on that convention the indices projected from raw height
+    or pressure (AO, AAO, NAM, EPO, WPO) read as permanently quiet in summer and every
+    &plusmn;0.5 threshold is easy in January and hard in July. The published CPC and PSL values
+    drawn on the plumes are rescaled to the seasonal unit, and the correlations quoted against
+    them are computed on the annual convention, like for like. Each GEPS member&rsquo;s de-drifted, re-based
     500&nbsp;hPa and sea-level-pressure anomaly &mdash; the same anomaly the maps show &mdash; is
     projected identically, so the forecast index carries no model drift; the tail is GEPS&rsquo;s
     own day-0 analyses of the last weeks, anomalised the same way (against the model climatology at
@@ -445,8 +451,8 @@ var P = {
         img: function (a,b) { return a === "series" && b && b !== "board"
           ? "assets/geps/geps_telecon_plume_" + b + ".webp" : "assets/geps/geps_telecon_" + a + ".webp"; },
         cap: function (a) { return a==="series"
-          ? "Every member projected on CPC-style loading patterns (EPO/WPO on PSL\u2019s box definitions, NAM at 100 hPa as the annular EOF); the tail is GEPS\u2019s own day-0 analyses on the same projection, the published daily index as crosses, previous run dashed. Pick one index for a full-size plume. Units: standard deviations of the daily index."
-          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond \u00B10.5 sd. Thin lower bar: the same probabilities calibrated on 20 years of GEPS8 hindcasts, with the hindcast skill (anomaly correlation) for that index and week. Hatched cells: skill below 0.25 \u2014 the members\u2019 opinion is shown but should not be trusted."
+          ? "Every member projected on CPC-style loading patterns (EPO/WPO on PSL\u2019s box definitions, NAM at 100 hPa as the annular EOF); the tail is GEPS\u2019s own day-0 analyses on the same projection, the published daily index as crosses, previous run dashed. Pick one index for a full-size plume. Units: seasonal standard deviations of the daily index, i.e. relative to this time of year."
+          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond \u00B10.5 seasonal sd. Thin lower bar: the same probabilities calibrated on 20 years of GEPS8 hindcasts, with the hindcast skill (anomaly correlation) for that index and week. Hatched cells: skill below 0.25 \u2014 the members\u2019 opinion is shown but should not be trusted."
                          : "Regression of the monthly field on each index (m or hPa per +1 sd), NCEP/NCAR R1 1991\u20132020, with the correlation of this reproduction against CPC\u2019s own index."); }},
   daily: {label: "Daily animation",
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
@@ -576,7 +582,7 @@ function teleTable(show) {
     var r = x.r_daily != null ? "r " + x.r_daily.toFixed(2) + " daily" : (x.r_monthly != null ? "r " + x.r_monthly.toFixed(2) + " monthly" : "\u2014");
     h += "<td class=\"r\">" + r + "</td></tr>";
   });
-  h += "</tbody></table><p class=\"cap\">P(weekly mean \u2264 \u2212" + TELE.threshold + " sd) / P(\u2265 +" + TELE.threshold + " sd) over " + TELE.n_members + " members; cells tilt red toward the positive phase, blue toward the negative. \u0394 is the change in the weekly mean since the " + TELE.prev_cycle.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") + " run. \u201Ccal\u201D is the calibrated probability: the observed weekly index regressed on the hindcast ensemble-mean index over 2001\u20132020 starts within \u00B145 days of this date, applied to today\u2019s ensemble mean, with the residual spread; skill r is the anomaly correlation of that hindcast fit, so a cal near 31% / 31% with r near 0 is climatology. Hatched cells have skill r below " + TELE.skill_min + "; NAM 100 hPa has no hindcast (the GEPS8 archive stops at 200 hPa) and is uncalibrated. r is the correlation of this index reproduction with CPC\u2019s published index, scored out of sample (patterns fitted 1991\u20132005, scored 2006\u20132020; AO/AAO are EOFs with no fit to CPC).</p>";
+  h += "</tbody></table><p class=\"cap\">P(weekly mean \u2264 \u2212" + TELE.threshold + " seasonal sd) / P(\u2265 +" + TELE.threshold + " seasonal sd) over " + TELE.n_members + " members; cells tilt red toward the positive phase, blue toward the negative. \u0394 is the change in the weekly mean since the " + TELE.prev_cycle.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") + " run. \u201Ccal\u201D is the calibrated probability: the observed weekly index regressed on the hindcast ensemble-mean index over 2001\u20132020 starts within \u00B145 days of this date, applied to today\u2019s ensemble mean, with the residual spread; skill r is the anomaly correlation of that hindcast fit, so a cal near 31% / 31% with r near 0 is climatology. Hatched cells have skill r below " + TELE.skill_min + "; NAM 100 hPa has no hindcast (the GEPS8 archive stops at 200 hPa) and is uncalibrated. r is the correlation of this index reproduction with CPC\u2019s published index, scored out of sample (patterns fitted 1991\u20132005, scored 2006\u20132020; AO/AAO are EOFs with no fit to CPC).</p>";
   host.innerHTML = h;
 }
 
