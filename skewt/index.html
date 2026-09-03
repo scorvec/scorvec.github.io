@@ -157,6 +157,17 @@
      and the plots take everything else. */
   .tables-wrap { flex: 0 1 auto; min-height: 0; max-height: 37%; overflow-y: auto;
                  margin-top: 10px; }
+  /* Landscape screens: the tables sit BESIDE the plots. fitLayout() puts the
+     card in this mode whenever it gives the plots more height than stacking —
+     on a 1366x640 laptop the stacked skew-T was 264px tall with half the card
+     empty either side. The tables column takes what the plots leave (>=300px),
+     keeps its font, and scrolls when the screen is short. */
+  .dlg-body.side { flex-direction: row; gap: 12px; align-items: stretch; }
+  /* centred, not stretched: when the card is width-limited the plot panels hug
+     their plots instead of boxing empty space above and below them */
+  .dlg-body.side .main { flex: 0 0 auto; align-self: center; }
+  .dlg-body.side .tables-wrap { flex: 0 0 var(--tables-w, 320px); width: var(--tables-w, 320px);
+                                max-height: none; margin-top: 0; min-width: 0; }
   footer a { color: var(--accent); }
   .pctcell { padding: 1px 6px; border-radius: 4px; }
   .pctlab { color: var(--muted); font-size: 0.72em; margin-left: 5px; }
@@ -512,6 +523,6 @@
   </div>
 </div>
 <script src="sharplib.js?v=92a2fd08"></script>
-<script src="app.js?v=a742d273"></script>
+<script src="app.js?v=8d702442"></script>
 </body>
 </html>

@@ -47,6 +47,7 @@ let EXPORT_PX = null, BARB_GAP = 22;  // overrides during full-res export
 // design aspect (w/h) of each on-screen plot — fitCanvas() letterboxes to
 // these and fitLayout() sizes the dialog so the two together fill its width
 const PLOT_ASPECT = { skewt: 19 / 21, hodo: 14 / 15 };
+const SIDE_GAP = 12, TBL_MIN_W = 352, TBL_MAX_W = 660;   // side-by-side card: tables column bounds (352 = the 300px parcels table + panel padding + scrollbar)
 const MOBILE_MQ = matchMedia("(max-width: 1020px)");   // mirrors the stacked-layout CSS breakpoint
 const hourOf = s => { const m = /[T ](\d{2}):/.exec(String(s)); return m ? +m[1] : 12; };
 function doyOf(ymd) {                     // "YYYY-MM-DD" -> 1..365
@@ -2918,7 +2919,15 @@ function fitCanvas(cv) {                    // backing store = panel size × dpr
 function plotBox(cv) {
   const R = PLOT_ASPECT[cv.id], main = cv.closest(".main");
   if (R && main && !MOBILE_MQ.matches) {
-    const availH = main.clientHeight - 18, availW = main.clientWidth - 12 - 36;
+    const body = main.parentElement, side = body && body.classList.contains("side");
+    // side mode: .main is centred (not stretched), so its own height follows the
+    // plots — measure the body, or a redraw would shrink the plots each pass
+    const availH = (side ? body.clientHeight : main.clientHeight) - 18;
+    // side mode: .main hugs its plots, so the width on offer is the body minus
+    // the tables column (fitLayoutCore sets --tables-w) and the gap between them
+    const availW = side
+      ? body.clientWidth - (parseFloat(body.style.getPropertyValue("--tables-w")) || 320) - SIDE_GAP - 12 - 36
+      : main.clientWidth - 12 - 36;
     if (availH <= 0 || availW <= 0) return { w: 0, h: 0 };   // modal hidden: leave the size alone
     const H = Math.min(availH, availW / (PLOT_ASPECT.skewt + PLOT_ASPECT.hodo));
     const w = Math.floor(H * R), h = Math.floor(H);
@@ -3767,12 +3776,14 @@ function fillTables(prof, res) {
 // Autoscale the parameter tables into whatever height the plots leave over:
 // step the font down (never below 0.55rem) until nothing scrolls, and let a
 // big monitor keep the full 0.68rem. Runs after every fill and on resize.
-function fitTables() {
+function fitTables(vertical = true) {
   const wrap = document.querySelector(".tables-wrap");
   if (!wrap) return;
   // fits = nothing scrolls vertically AND no table (the 8-column parcels grid
-  // is the wide one) overflows its multi-column column
-  const fits = () => wrap.clientHeight >= wrap.scrollHeight - 1 &&
+  // is the wide one) overflows its multi-column column. Side-by-side cards pass
+  // vertical=false: there the column scrolls by design and only width matters,
+  // so the font is never shrunk to 0.55rem just to dodge a scrollbar.
+  const fits = () => (!vertical || wrap.clientHeight >= wrap.scrollHeight - 1) &&
     [...wrap.querySelectorAll("table.params")].every(t => t.scrollWidth <= t.parentElement.clientWidth + 1);
   wrap.style.removeProperty("--tbl-fs");             // start from the CSS default
   if (fits()) return;
@@ -3798,7 +3809,12 @@ function fitLayout() {
   const dlg = modal.querySelector(".dialog"), main = modal.querySelector(".main");
   const wrap = modal.querySelector(".tables-wrap");
   if (!dlg || !main || !wrap) return;
-  if (MOBILE_MQ.matches || modal.hidden) { dlg.style.width = ""; return; }
+  if (MOBILE_MQ.matches || modal.hidden) {
+    dlg.style.width = "";
+    const body = modal.querySelector(".dlg-body");
+    if (body) { body.classList.remove("side"); body.style.removeProperty("--tables-w"); }
+    return;
+  }
   fitLayoutCore(dlg, main, wrap);
   // Anything that re-fills the tables (the async 12-h MSE tendency, a unit
   // toggle) can move the plot boxes; the ResizeObserver only sees .main, so
@@ -3819,9 +3835,14 @@ function fitLayoutCore(dlg, main, wrap) {
   const need = () => Math.round((main.clientHeight - 18) * ratio + chromeW);
   const tblFont = () => parseFloat(wrap.style.getPropertyValue("--tbl-fs")) || 0.68;
   const tblFits = () => wrap.clientHeight >= wrap.scrollHeight - 1;
+  // Stacked first (steps 1-2 below), then the side-by-side alternative (step 3)
+  // — whichever gives the plots more height wins.
+  const body = main.parentElement;
+  body.classList.remove("side"); body.style.removeProperty("--tables-w");
   // 1. tight
   wrap.style.maxHeight = "";              // back to the CSS cap (step 2 may have locked it)
   let cur = maxW; setW(cur);
+  const bodyH = body.clientHeight;        // the card body is 96vh minus the header: width-independent
   for (let i = 0; i < 5; i++) {
     fitTables();
     const w = Math.max(minW, Math.min(need(), cur));
@@ -3831,7 +3852,31 @@ function fitLayoutCore(dlg, main, wrap) {
   fitTables();
   const tight = cur;
   const GOOD_FS = 0.66;                 // one fit step below the 0.68rem default
-  if (tblFits() && tblFont() >= GOOD_FS) return;
+  if (!(tblFits() && tblFont() >= GOOD_FS)) widenForTables(tight);
+  // 3. side-by-side: plots at (nearly) the full body height, tables in a column
+  //    on the right. Taken when it beats stacking by a clear margin (a 1366x640
+  //    laptop: 264 -> 482px skew-T; a 2304x1188 monitor: 619 -> 1004px).
+  const skc = document.getElementById("skewt");
+  const hStack = plotBox(skc).h;
+  const hSide = Math.floor(Math.min(bodyH - 18, (maxW - chromeW - SIDE_GAP - TBL_MIN_W) / ratio));
+  if (hSide > hStack * 1.12) {
+    const plotsW = Math.round(hSide * ratio) + 12 + 36;              // both panels incl. gap/padding
+    const tblW = Math.max(TBL_MIN_W, Math.min(TBL_MAX_W, maxW - 30 - SIDE_GAP - plotsW));
+    wrap.style.maxHeight = "";
+    body.classList.add("side");
+    body.style.setProperty("--tables-w", tblW + "px");
+    setW(Math.min(maxW, plotsW + SIDE_GAP + tblW + 30));
+    fitTables(false);
+  }
+  return;
+}
+function widenForTables(tight) {
+  const dlg = modal.querySelector(".dialog"), wrap = modal.querySelector(".tables-wrap");
+  const maxW = Math.floor(window.innerWidth * 0.98);
+  const setW = w => { dlg.style.width = w + "px"; };
+  const tblFont = () => parseFloat(wrap.style.getPropertyValue("--tbl-fs")) || 0.68;
+  const tblFits = () => wrap.clientHeight >= wrap.scrollHeight - 1;
+  const GOOD_FS = 0.66;
   // 2. widen for the tables: the narrowest width where they fit at (near) full
   //    font; failing that the narrowest where they fit at all; failing THAT
   //    (short laptop screens) whichever width leaves the least to scroll
