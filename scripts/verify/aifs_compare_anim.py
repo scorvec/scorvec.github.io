@@ -368,18 +368,42 @@ LOOPS = {
 _G = {}                                   # fields shared with forked workers
 
 
-def z500_clim_on(lat, lon, doy, var="z500"):
+T2M_CLIM_6H = REPO / "scripts" / "verify" / "data" / "clim" / "clim_1p5_t2m6h.npz"
+
+
+def t2m_clim_6h(doy, hour):
+    """Hour-of-day (00/06/12/18Z) 2 m climatology → (120, 240) °C on the
+    verifier grid (NH rows filled, SH NaN), or None if the file is absent.
+    Built by build_t2m_clim_6h.py; 18Z temperatures get an 18Z normal."""
+    if not T2M_CLIM_6H.exists():
+        return None
+    d = np.load(T2M_CLIM_6H)
+    key = f"t2m_h{int(round(hour / 6.0)) * 6 % 24:02d}"
+    if key not in d.files:
+        return None
+    nh = d[key][min(int(doy), 366) - 1].astype(float) - 273.15       # (60, 240)
+    full = np.full((120, 240), np.nan)
+    full[:nh.shape[0]] = nh
+    return full
+
+
+def z500_clim_on(lat, lon, doy, var="z500", hour=None):
     """ERA5 1991-2020 ±7 d day-of-year climatology on the model grid: z500 in
-    dam, t2m in °C. The climatology lives on a 1.5° NH grid (see
-    aifs_station_verify.py); NaN south of the equator, which neither loop shows."""
+    dam, t2m in °C (hour-matched when the 6-hourly file exists). The
+    climatology lives on a 1.5° NH grid (see aifs_station_verify.py); NaN
+    south of the equator, which neither loop shows."""
     if not Z500_CLIM.exists():
         return None
     d = np.load(Z500_CLIM)
     if var not in d.files:
         return None
-    c = d[var][min(int(doy), 366) - 1].astype(float)             # (120, 240)
-    if var == "t2m" and np.nanmean(c) > 100:
-        c = c - 273.15
+    c = None
+    if var == "t2m" and hour is not None:
+        c = t2m_clim_6h(doy, hour)
+    if c is None:
+        c = d[var][min(int(doy), 366) - 1].astype(float)             # (120, 240)
+        if var == "t2m" and np.nanmean(c) > 100:
+            c = c - 273.15
     # The WB2 source grid ends at 358.5E, so the climatology's last 1.5° column
     # (centre 359.125E) was never filled: NaN there spread into a wedge from
     # the pole to the Greenwich meridian on every anomaly map. Fill it by
@@ -524,22 +548,25 @@ def _draw_frame_once(job):
                                  subplot_kw={"projection": proj})
         alev = np.arange(-16, 16.1, 2)
         tlev = np.arange(-40, 46, 5)
-        clim = z500_clim_on(lat, lon, valid.dayofyear, var="t2m")
+        clim = z500_clim_on(lat, lon, valid.dayofyear, var="t2m", hour=valid.hour)
+        hourly = T2M_CLIM_6H.exists()
         if clim is None:
             plt.close(fig)
             return None
         for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS control")):
             t2 = F[mkey]["t2m"].sel(step=sd).values - 273.15
-            # The climatology is a DAILY MEAN (WB2), so an instantaneous field
-            # against it reads cold every morning and warm every evening. The
-            # anomaly is therefore of the 24-h mean centred on the valid time
-            # (the 6-h steps within ±12 h, truncated at the run's ends); the
-            # contours stay instantaneous.
-            steps = F[mkey]["t2m"].step.values
-            win = [st for st in steps if abs((st - sd) / np.timedelta64(1, "h")) <= 12]
-            t24 = F[mkey]["t2m"].sel(step=win).mean("step").values - 273.15
+            if hourly:
+                # hour-matched normal: the anomaly of THIS hour's temperature
+                anom_src = t2
+            else:
+                # daily-mean normal only: an instantaneous field against it
+                # reads cold every morning and warm every evening, so fall
+                # back to the 24-h mean centred on the valid time
+                steps = F[mkey]["t2m"].step.values
+                win = [st for st in steps if abs((st - sd) / np.timedelta64(1, "h")) <= 12]
+                anom_src = F[mkey]["t2m"].sel(step=win).mean("step").values - 273.15
             X, Y, T = _subset(lat, lon, t2, *NA_BOX)
-            _, _, A = _subset(lat, lon, t24 - clim, *NA_BOX)
+            _, _, A = _subset(lat, lon, anom_src - clim, *NA_BOX)
             cf = ax.contourf(X, Y, A, levels=alev, cmap="RdBu_r", extend="both",
                              transform=ccrs.PlateCarree(), **TF)
             ct = ax.contour(X, Y, T, levels=tlev, colors="0.25", linewidths=0.5,
@@ -551,8 +578,9 @@ def _draw_frame_once(job):
             _na_axes(ax, cfeature, ccrs)
             ax.set_title(name, fontsize=11.5, fontweight="bold", loc="left")
         cb = fig.colorbar(cf, ax=list(axes), orientation="horizontal", pad=0.02, fraction=0.05, aspect=48)
-        cb.set_label("24-h mean 2 m temperature anomaly vs 1991–2020 (°C) · contours: 2 m temperature now (°C, every 5; 0 °C blue)",
-                     fontsize=8.5)
+        cb.set_label(("2 m temperature anomaly vs the 1991–2020 normal for this hour (°C)" if hourly
+                      else "24-h mean 2 m temperature anomaly vs 1991–2020 (°C)")
+                     + " · contours: 2 m temperature now (°C, every 5; 0 °C blue)", fontsize=8.5)
         cb.ax.tick_params(labelsize=7)
         fig.suptitle(f"2 m temperature anomaly + temperature — hour {s} · valid {valid:%a %b %d %HZ}"
                      f" · init {base:%Y-%m-%d %HZ}", fontsize=12, fontweight="bold")

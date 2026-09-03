@@ -338,12 +338,24 @@ def truth_era5(valid: pd.Timestamp) -> bool:
 
 
 # ────────────────────────────────────────────────────────────────── scoring
+CLIM_T2M_6H = DATA / "clim" / "clim_1p5_t2m6h.npz"
+
+
 def load_clim():
     p = CLIM if CLIM.exists() else CLIM_LEGACY
     if not p.exists():
         return {}
     d = np.load(p)
     out = {k: d[k].astype(np.float32) for k in d.files}
+    # hour-of-day 2 m normals (00/06/12/18Z, NH, K): a 12Z field scored
+    # against a daily-mean normal carries the diurnal cycle in its anomaly
+    if CLIM_T2M_6H.exists():
+        h = np.load(CLIM_T2M_6H)
+        for k in h.files:
+            if k.startswith("t2m_h"):
+                full = np.full((366, 120, 240), np.nan, np.float32)
+                full[:, :h[k].shape[1]] = h[k].astype(np.float32) - 273.15
+                out[k] = full
     if "t2m" in out and np.nanmean(out["t2m"]) > 100:      # stored in K → °C
         out["t2m"] = out["t2m"] - 273.15
     for k, c in out.items():                              # WB2 ends at 358.5E: the last
@@ -513,6 +525,8 @@ def verify() -> int:
                         continue
                     o = E[var][band]
                     cv = clim.get(var)
+                    if var == "t2m":                                   # hour-matched when built
+                        cv = clim.get(f"t2m_h{valid.hour:02d}", cv)
                     ca = None if cv is None else cv[doy - 1][band]
                     oa = None if ca is None else o - ca
                     for mkey in MODELS:
