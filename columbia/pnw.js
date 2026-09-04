@@ -40,6 +40,20 @@ const showUnitDelta = () => (S.heatwhat === 'pct' ? ' pts' : ' mm');
 const showNice = () => (S.heatwhat === 'pct' ? NICE_PCT : NICE_MM);
 const sgn = (v, n = 0) => (v === null || v === undefined ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(n));
 
+// segmented button groups: items [{v, label, color?, cls?}] or plain values
+function seg(id, items, value, onPick, labeller) {
+  const host = $(id); if (!host) return; host.innerHTML = '';
+  for (const it of items) {
+    const o = typeof it === 'object' ? it : { v: it, label: labeller ? labeller(it) : it };
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.v = o.v;
+    b.innerHTML = (o.color ? `<i class="dot" style="background:${o.color}"></i>` : '') + o.label;
+    if (o.cls) b.className = o.cls; if (o.title) b.title = o.title;
+    b.setAttribute('aria-pressed', String(o.v) === String(value));
+    b.addEventListener('click', () => { setSeg(id, o.v); onPick(o.v); });
+    host.appendChild(b);
+  }
+}
+function setSeg(id, value) { const host = $(id); if (!host) return; host.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v) === String(value))); }
 function fill(sel, items, value, labeller) {
   sel.innerHTML = '';
   for (const it of items) {
@@ -124,9 +138,10 @@ function runList(m) {
   return cs.sort().reverse();
 }
 function fillRuns() {
-  const m = S.model; const cs = runList(m); const newest = S.latest.models[m] && S.latest.models[m].cycle;
+  const m = S.model; const cs = runList(m).slice(0, 6); const newest = S.latest.models[m] && S.latest.models[m].cycle;
   const cur = S.pick[m] ? S.pick[m].cycle : newest;
-  fill($('runsel'), cs, cur, (c) => (c === newest ? `latest · ${cyc(c)}` : cyc(c)));
+  seg('runsel', cs.map((c) => ({ v: c, label: c === newest ? `latest ${cyc(c)}` : cyc(c), cls: c === newest ? '' : 'muted' })), cur,
+      async (c) => { await pickRun(S.model, c); render(); });
 }
 const isComp = (k) => !!S.latest.composites[k];
 const divInfo = (code) => S.latest.divisions.find((d) => d.code === code);
@@ -347,7 +362,7 @@ function scorecard() {
              mark: v.n < v.want ? '<i class="sh">*</i>' : '',
              tip: `${k} · ${PERIOD_LABEL[p]} · ${hasBlend() ? 'blend' : 'mean'} of ${v.models} models\n${v.mm.toFixed(1)} mm${v.normal !== undefined ? ` / normal ${v.normal.toFixed(1)} = ${v.pct.toFixed(0)}% (${sgn(v.mm - v.normal, 1)} mm)` : ''}\nmodels range ${fm(v.lo)} to ${fm(v.hi)}` + (d === null ? '' : `\nsame-day change vs the previous issue: ${showSgn(d)}`) };
   }, [], { limb: S.heatwhat === 'mm' ? limbAbs : limb, scale: S.heatwhat === 'pct' ? 150 : 'auto', nice: showNice(), fmt: (v) => showFmt(v) });
-  $('score').querySelectorAll('td.k').forEach((td, i) => { td.addEventListener('click', () => { S.basin = keys[i]; $('basin').value = S.basin; render(); });
+  $('score').querySelectorAll('td.k').forEach((td, i) => { td.addEventListener('click', () => { S.basin = keys[i]; setBasin(S.basin); render(); });
     td.innerHTML += ` <a class="histlink" title="cumulative member plumes">▤</a>`;
     td.querySelector('.histlink').addEventListener('click', (ev) => { ev.stopPropagation(); openHist(keys[i], S.period); }); });
   const bw = S.latest.blend_weights || null; const bs = hasBlend() ? entry('blend').sources : null;
@@ -507,7 +522,7 @@ function openHist(k, p) {
   $('histwhen').textContent = di ? `${di.region} · ${Math.round(di.area).toLocaleString()} sq mi` : 'area-weighted union of NWRFC divisions';
   const ens = models().filter((m) => entry(m).series[k] && entry(m).series[k].members);
   if (!ens.includes(S.histModel)) S.histModel = ens.includes(S.model) ? S.model : ens[0];
-  fill($('histperiod'), ens, S.histModel, (m) => MODEL_LABEL[m] || m);
+  seg('histperiod', ens.map((m) => ({ v: m, label: MODEL_LABEL[m] || m, color: MODEL_COLOR[m] || '#999' })), S.histModel, (m) => { S.histModel = m; renderHist(); });
   renderHist();
 }
 S.histModel = null;
@@ -574,8 +589,7 @@ function wireHist() {
   $('histclose').addEventListener('click', () => { $('hist').hidden = true; });
   $('histback').addEventListener('click', () => { $('hist').hidden = true; });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('hist').hidden = true; });
-  $('histperiod').addEventListener('change', (e) => { S.histModel = e.target.value; renderHist(); });
-  $('histopen').addEventListener('click', () => { S.basin = S.histKey; $('basin').value = S.basin; $('hist').hidden = true; render(); });
+  $('histopen').addEventListener('click', () => { S.basin = S.histKey; setBasin(S.basin); $('hist').hidden = true; render(); });
 }
 
 /* ---- by period ----------------------------------------------------------------------------- */
@@ -636,7 +650,7 @@ function small() {
       P.push(`<text x="${X(d).toFixed(1)}" y="${H - 3}" text-anchor="middle">${dt.getMonth() + 1}/${dt.getDate()}</text>`); });
     P.push('</svg>');
     const div = document.createElement('div'); div.className = 'smallcard'; div.innerHTML = P.join('');
-    div.addEventListener('click', () => { S.basin = k; $('basin').value = k; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    div.addEventListener('click', () => { S.basin = k; setBasin(k); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
     host.appendChild(div);
   }
   $('sub5').textContent = `last 20 days of Stage IV, normal dashed, each model's newest run · click a card to open it`;
@@ -725,20 +739,29 @@ function render() {
     + `pnw_history.json built ${S.hist.built || ''}.`;
 }
 
+const PERIOD_SHORT = { 'd1-5': 'days 1–5', 'd6-10': '6–10', 'd11-15': '11–15', 'd1-10': '1–10', 'd1-15': '1–15', 'd16-32': '16–32 ext.' };
+const MAP_SHORT = { model: 'model', change: 'change vs prior', obs7: 'observed 7 d', obs14: '14 d', obs30: '30 d', obs60: '60 d', obs90: '90 d' };
+function setBasin(k) {
+  setSeg('basin', k);
+  const dsel = $('basindiv'); if (dsel) dsel.value = isComp(k) ? '' : k;
+}
 function controls() {
-  fill($('basin'), basinList(), S.basin);
+  const comps = Object.keys(S.latest.composites);
+  seg('basin', comps.map((k) => ({ v: k, label: k.replace('Columbia abv ', 'Columbia ↑ ').replace('Snake abv ', 'Snake ↑ ') })), S.basin, (k) => { S.basin = k; setBasin(k); render(); });
+  const dsel = $('basindiv'); dsel.innerHTML = '<option value="">…or a division</option>';
+  const byReg = {}; for (const d of S.latest.divisions) (byReg[d.region] = byReg[d.region] || []).push(d);
+  for (const r of Object.keys(byReg).sort()) { const g = document.createElement('optgroup'); g.label = r;
+    for (const d of byReg[r].sort((a, b) => a.name.localeCompare(b.name))) { const o = document.createElement('option'); o.value = d.code; o.textContent = d.name; g.appendChild(o); }
+    dsel.appendChild(g); }
+  dsel.addEventListener('change', (e) => { if (!e.target.value) return; S.basin = e.target.value; setBasin(S.basin); render(); });
   const ms = models(); if (!ms.includes(S.model)) S.model = ms[0];
-  fill($('model'), ms, S.model, (m) => MODEL_LABEL[m] || m);
-  fill($('period'), S.latest.periods, S.period, (p) => PERIOD_LABEL[p]);
-  fill($('heatwhat'), Object.keys(SHOW), S.heatwhat, (k) => SHOW[k]);
-  fill($('nruns'), ['8', '12', '20', '30'], String(S.nruns), (n) => `last ${n}`);
-  fill($('mapwhat'), Object.keys(MAPWHAT), S.mapwhat, (k) => MAPWHAT[k]);
+  seg('model', ms.map((m) => ({ v: m, label: (MODEL_LABEL[m] || m).replace(' (Mon/Thu 00Z, 32 d)', ''), color: MODEL_COLOR[m] || '#999' })), S.model, (m) => { S.model = m; fillRuns(); render(); });
+  seg('period', S.latest.periods, S.period, (p) => { S.period = p; render(); }, (p) => PERIOD_SHORT[p] || p);
+  seg('heatwhat', Object.keys(SHOW), S.heatwhat, (k) => { S.heatwhat = k; render(); }, (k) => ({ pct: '% of normal', anom: 'mm vs normal', mm: 'mm' })[k]);
+  seg('nruns', ['8', '12', '20', '30'], String(S.nruns), (n) => { S.nruns = +n; render(); });
+  seg('mapwhat', Object.keys(MAPWHAT), S.mapwhat, (k) => { S.mapwhat = k; render(); }, (k) => MAP_SHORT[k]);
   fillRuns();
-  const on = (id, f) => $(id).addEventListener('change', (e) => { f(e.target.value); render(); });
-  on('basin', (v) => { S.basin = v; }); on('period', (v) => { S.period = v; });
-  $('model').addEventListener('change', (e) => { S.model = e.target.value; fillRuns(); render(); });
-  $('runsel').addEventListener('change', async (e) => { await pickRun(S.model, e.target.value); render(); });
-  on('heatwhat', (v) => { S.heatwhat = v; }); on('nruns', (v) => { S.nruns = +v; }); on('mapwhat', (v) => { S.mapwhat = v; });
+  setBasin(S.basin);
 }
 
 const DATA = DATA_BASE();
