@@ -113,9 +113,6 @@ site-stats.yml|05:17|
 mur-sst.yml|13:47|
 data-freshness.yml|14:25|
 kiribati-history.yml|14:40|
-# Oil & products board (2026-09-03): one run a day at 18:10 ET, after the
-# NYMEX settlement and the EIA spot post; sends the daily close e-mail.
-oil.yml|22:10|-f email=true
 qbo.yml|mon@07:15|
 colombia-radar.yml|mon@09:40|
 sst-events.yml|mon@18:41|
@@ -125,6 +122,12 @@ skewt-gaps.yml|tue,fri@08:40|
 gc.yml|04:52|
 EOF
 )
+# Slots for workflows that live in other (private) repos are kept out of the
+# tree: one line per slot, same syntax, extra args carrying `-R owner/repo`,
+# in scripts/lib/dispatch_extra.txt (listed in .git/info/exclude).
+EXTRA="$REPO/scripts/lib/dispatch_extra.txt"
+if [ -f "$EXTRA" ]; then SCHEDULE="$SCHEDULE
+$(grep -v '^#' "$EXTRA")"; fi
 
 now_epoch=$(date -u +%s)
 today=$(date -u +%Y-%m-%d)
@@ -147,8 +150,13 @@ declare -a DONE=()
 # that interval rather than every pass.
 RETRY_AFTER_MIN=120
 last_run_epoch() {
-  local wf="$1" line iso concl
-  line=$("$GH" run list --workflow "$wf" --limit 1 \
+  local wf="$1" line iso concl repo=""
+  # A slot whose extra args carry `-R owner/repo` lives in another repo; the
+  # run check must look there too or it would never be satisfied and fire
+  # every pass.
+  case "$2" in *"-R "*) repo="-R $(echo "$2" | sed -n 's/.*-R \([^ ]*\).*/\1/p')" ;; esac
+  # shellcheck disable=SC2086
+  line=$("$GH" run list $repo --workflow "$wf" --limit 1 \
         --json createdAt,conclusion,status -q '.[0] | "\(.createdAt)|\(.conclusion)|\(.status)"' 2>/dev/null) || return 1
   [ -z "$line" ] || [ "$line" = "null" ] && { echo 0; return 0; }
   iso="${line%%|*}"; concl="$(echo "$line" | cut -d'|' -f2)"
@@ -249,7 +257,7 @@ while IFS='|' read -r wf hhmm extra; do
   # asleep at 06:20 and wakes at 09:00, the slot is still unsatisfied and fires
   # then, which is the behaviour the cron could not give us.
   case " ${DONE[*]:-} " in *" $wf "*) skipped=$((skipped + 1)); continue ;; esac
-  lr=$(last_run_epoch "$wf")
+  lr=$(last_run_epoch "$wf" "$extra")
   if [ "${lr:-0}" -ge $(( due_epoch - GRACE_MIN * 60 )) ]; then
     skipped=$((skipped + 1))
     continue

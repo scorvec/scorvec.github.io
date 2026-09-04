@@ -153,6 +153,3 @@ scripts/asos5/asos5.log
 
 # columbia pipeline weights cache
 .cache/
-
-# oil board: PDFs are built on the laptop at send time (scripts/oil/oil_mail_local.py); keep them out of the repo
-data/oil/report/

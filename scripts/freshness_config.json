@@ -297,10 +297,6 @@
       "branch": "main",
       "max_age_hours": 120
     },
-    "data/oil/latest.json": {
-      "branch": "main",
-      "max_age_hours": 36
-    },
     "assets/geps/geps_na_t2m_prob_cal.webp": {
       "branch": "main",
       "max_age_hours": 120

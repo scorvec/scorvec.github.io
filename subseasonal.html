@@ -410,9 +410,20 @@
     pressure, and the CPC unified gauge analysis for precipitation, which exists over land only
     &mdash; pooled by calendar month. The anomaly correlation from that is the skill mask (hatched
     below 0.25; cross-hatched where there is no truth), and the gridpoint regression of observed on
-    forecast weekly anomaly, with its residual spread, turns the ensemble mean into a calibrated
-    probability of a week above the 1991&ndash;2020 median. The raw member fraction is shown beside
-    it: where the two disagree the hindcast is saying the ensemble is over- or under-confident there.
+    forecast weekly anomaly, with its residual spread, turns the ensemble mean into calibrated
+    <b>tercile</b> probabilities, below, near and above normal, drawn CPC-style as the most likely
+    category with its probability as intensity. The terciles are those of the <b>2016&ndash;2025</b>
+    weekly anomaly for that week of the year, not 1991&ndash;2020: against the older base the 2026
+    maps read &ldquo;above&rdquo; nearly everywhere before the forecast says anything, which is the
+    warming since the base period, not weather. The calibration is applied to the departure from the
+    recent median, using the hindcast slope but not its intercept &mdash; the intercept is the
+    2001&ndash;2020 mean state, and a no-skill regression that returned it printed the hindcast-era
+    climate as &ldquo;below normal&rdquo; against a recent threshold. With no skill the three
+    probabilities go to a third each. Near-normal is the tercile models forecast worst; its
+    probability rarely clears 40% beyond week 1, and with 21 members its raw fraction is noisy.
+    Precipitation terciles are undefined where the climatological week is dry, so those cells are
+    masked as CPC masks them. The raw member fraction is shown beside the calibrated map: where the
+    two disagree the hindcast is saying the ensemble is over- or under-confident there.
     Gaussian residuals are an approximation for precipitation; at a weekly mean and 2.5&deg; it is a
     fair one.</p>
     <p><b>MJO skill.</b> Every hindcast start is projected onto the same Wheeler&ndash;Hendon EOFs
@@ -486,16 +497,16 @@ var P = {
         img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
         cap: function (a,b,c) { return "Five seven-day means, anomaly vs the lead-matched GEPS hindcast."
           + (c==="on" ? " Hatched where the 2001\u20132020 hindcast has anomaly correlation below 0.25 for this week and season; cross-hatched where there is no verification data." : ""); }},
-  probs: {label: "Weekly probabilities \u2014 temperature & precipitation", fit: false,
+  probs: {label: "Weekly terciles \u2014 temperature & precipitation", fit: false,
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
         b: {label:"Field", items:[["t2m","2 m temp"],["pr","Precip"]]},
         c: {label:"Probability", items:[["raw","Raw members"],["cal","Hindcast-calibrated"]]},
         img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_prob_" + c + ".webp"; },
         cap: function (a,b,c) { return (c==="raw"
-          ? "Fraction of the 21 members with a weekly mean above the 1991\u20132020 median for that week of the year."
-          : "The ensemble-mean weekly anomaly passed through the gridpoint regression fitted on 2001\u20132020 hindcasts for this month and week, with the residual spread as the distribution \u2014 climatology where the model has no skill, amplitude restored where it has some.")
-          + " Hatched: hindcast skill below 0.25." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean." : ""); }},
+          ? "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 21 members in each tercile of the 2016\u20132025 weekly anomaly \u2014 a recent-decade normal, so the warming since 1991\u20132020 is not counted as a forecast."
+          : "Most likely tercile by week, calibrated: the ensemble-mean departure from the 2016\u20132025 median scaled by the gridpoint regression slope fitted on 2001\u20132020 hindcasts for this month and week, the residual spread giving the three tercile probabilities \u2014 one third each where the model has no skill, amplitude restored where it has some.")
+          + " Hatched: hindcast skill below 0.25." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
   change: {label: "Change vs previous run, weeks 1\u20135", fit: false,
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
