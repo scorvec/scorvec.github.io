@@ -5,27 +5,45 @@ name: Columbia basin precipitation
 # Precipitation only, PNW box only, byte-ranged from the AWS/Google mirrors
 # (never NOMADS, which rate-limits by request count), so a run is a few
 # hundred MB and a few minutes. The archive is ~2 kB per model cycle and lives
-# in columbia/data/archive; a partial cycle is never archived, so a run that
-# lands while a model is still publishing simply catches it next time.
+# in columbia/data/archive; a partial cycle is never archived.
 #
-# Cron here is a hint, not a clock: GitHub honours a fraction of this repo's
-# firings, hours late. The job always takes the NEWEST complete cycle per
-# model, so whenever it runs it does the right thing.
+# Scheduling follows what this repo learned the hard way: GitHub honours a
+# fraction of cron firings, hours late, and one-firing-per-day workflows are
+# honoured far more often than one workflow asking for several. So this file
+# holds the WORK (workflow_call + manual dispatch) and four schedule-only
+# callers each ask for a single firing: columbia-h06/h09 for the 00Z runs,
+# columbia-h18/h21 for the 12Z runs. Every run also backfills the last three
+# days from the mirrors and skips what is already archived, so a slot that
+# never fires costs nothing but latency: the next one fills the gap.
 on:
-  schedule:
-    - cron: '35 4,10,16,22 * * *'
+  workflow_call:
+    inputs:
+      models:
+        description: 'comma list (empty = every model)'
+        type: string
+        default: ''
+      backfill_days:
+        description: 'archive every 00Z/12Z cycle of the last N days that is missing'
+        type: string
+        default: '3'
+      obs_days:
+        description: 'Stage IV days to backfill'
+        type: string
+        default: '20'
   workflow_dispatch:
     inputs:
       models:
-        description: 'comma list (default gfs,ecmwf,aifs,gdps,geps,gefs,ecmwf_ens)'
+        description: 'comma list (default gfs,ecmwf,aifs,gdps,geps,geps_ext,gefs,ecmwf_ens)'
         default: ''
+      backfill_days:
+        description: 'also archive every cycle of the last N days (mirrors keep GFS/GEFS/ECMWF; Datamart ~10 days)'
+        default: '3'
       obs_days:
         description: 'Stage IV days to backfill'
         default: '20'
-      backfill_days:
-        description: 'also archive every cycle of the last N days (mirrors keep GFS/GEFS/ECMWF; GDPS/GEPS only ~1 day)'
-        default: '0'
 
+# actions:write for the pages dispatch below; a schedule-only caller must
+# grant the same or the reusable workflow is rejected at startup.
 permissions:
   contents: write
   actions: write
@@ -63,12 +81,13 @@ jobs:
 
       - name: Fetch models and Stage IV, build the page data
         env:
-          COLUMBIA_MODELS: ${{ github.event.inputs.models }}
+          COLUMBIA_MODELS: ${{ inputs.models }}
+          BACKFILL: ${{ inputs.backfill_days }}
+          OBS_DAYS: ${{ inputs.obs_days }}
         run: |
           python scripts/columbia/pipeline.py \
             ${COLUMBIA_MODELS:+--models "$COLUMBIA_MODELS"} \
-            --obs-days "${{ github.event.inputs.obs_days || '20' }}" \
-            --backfill "${{ github.event.inputs.backfill_days || '0' }}" --workers 8
+            --obs-days "${OBS_DAYS:-20}" --backfill "${BACKFILL:-3}" --workers 8
 
       - name: Commit & push
         run: |

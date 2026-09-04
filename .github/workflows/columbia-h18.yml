@@ -1,0 +1,23 @@
+name: Columbia basin — 18Z
+
+# One of four schedule-only callers for columbia.yml (this one: 12Z slot).
+# Each asks GitHub for a SINGLE firing per day, the frequency band measured as
+# honoured far more often than one workflow asking for several. All the work
+# lives in the reusable workflow; this file is only the schedule. The job
+# takes the newest complete 00Z/12Z cycle per model and backfills three days,
+# so a missed or late firing never leaves a hole.
+on:
+  schedule:
+  - cron: '22 18 * * *'
+  workflow_dispatch:
+
+# columbia.yml requests actions:write (pages dispatch); a reusable workflow
+# cannot hold more permission than its caller.
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  run:
+    uses: ./.github/workflows/columbia.yml
+    secrets: inherit

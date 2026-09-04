@@ -182,7 +182,7 @@ def box(v, lat, lon):
 
 # ---- models ------------------------------------------------------------------------- #
 class Model:
-    name = ""; cycles = (0, 6, 12, 18); lag_h = 4.0; steps: list[int] = []; members = ("",)
+    name = ""; cycles = (0, 12); lag_h = 4.0; steps: list[int] = []; members = ("",)   # 00Z/12Z only
     kind = "bucket"            # 'bucket' (interval, with span) | 'acc' (since init)
     def url(self, init, step, member): ...
     def fetch(self, init, step, member=""):
@@ -275,7 +275,7 @@ class IFS(_ECMWF):
 
 
 class AIFS(_ECMWF):
-    name = "aifs"; model = "aifs-single"; steps = list(range(0, 361, 6)); lag_h = 5.0
+    name = "aifs"; model = "aifs-single"; steps = list(range(0, 361, 6)); lag_h = 5.0; cycles = (0, 12)
 
 
 class ENS(_ECMWF):

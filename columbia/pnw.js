@@ -339,7 +339,7 @@ function mapPanel() {
   const corners = [[-125.6, 40.4], [-108.9, 40.4], [-125.6, 53.6], [-108.9, 53.6], [-117, 40.4], [-117, 53.6]].map((c) => ALB(c[0], c[1]));
   const px0 = Math.min(...corners.map((c) => c[0])), px1 = Math.max(...corners.map((c) => c[0]));
   const py0 = Math.min(...corners.map((c) => c[1])), py1 = Math.max(...corners.map((c) => c[1]));
-  const W = 700, K = (W - 4) / (px1 - px0), H = Math.round((py1 - py0) * K) + 4;
+  const W = 1400, K = (W - 4) / (px1 - px0), H = Math.round((py1 - py0) * K) + 4;   // 2x (user, 3 Sep 2026)
   const PX = (lon, lat) => { const p = ALB(lon, lat); return [2 + (p[0] - px0) * K, 2 + (py1 - p[1]) * K]; };
   const X = (lo) => PX(lo, 47)[0], Y = (la) => PX(-117, la)[1];        // only used for the label centroid fallback
   const pathOf = (geom) => {
@@ -380,7 +380,7 @@ function mapPanel() {
   P.push(labels.join('')); P.push('</svg>');
   host.innerHTML = P.join('');
   host.querySelectorAll('path[data-code]').forEach((el) => el.addEventListener('click', () => openHist(el.dataset.code, S.period)));
-  host.querySelector('svg').insertAdjacentHTML('beforeend', `<text x="${W - 6}" y="${H - 6}" text-anchor="end" fill="#5a6b7d" style="font-size:9px">Albers · Natural Earth 10 m · NWRFC divisions</text>`);
+  host.querySelector('svg').insertAdjacentHTML('beforeend', `<text x="${W - 8}" y="${H - 8}" text-anchor="end" fill="#5a6b7d" style="font-size:12px">Albers equal-area · Natural Earth 10 m · NWRFC water-supply divisions</text>`);
   HEAT.wireTips(host);
   const e = entry(S.model);
   const what = SHOW[S.heatwhat];
@@ -609,8 +609,12 @@ function render() {
     + `averaged over the Northwest River Forecast Center's water-supply divisions and read against the 1991–2020 normal and against NCEP Stage IV observed rainfall. `
     + (cd && cd.pct !== undefined ? `${hasBlend() ? 'Blend' : 'Mean of models'} ${cyc(hasBlend() ? entry('blend').cycle : newest)}: the basin above The Dalles is forecast at <b>${cd.pct.toFixed(0)}% of normal</b> over days 1–10 (${cd.mm.toFixed(0)} mm against a normal ${cd.normal.toFixed(0)}; individual models ${S.heatwhat === 'pct' ? `${cd.lo.toFixed(0)}–${cd.hi.toFixed(0)}%` : ''}). ` : '')
     + `Every table can be read as percent of normal, as the departure in mm, or as absolute mm.`;
-  $('credits').innerHTML = 'Sources: NWRFC forecast basins and mean-areal-precipitation normals (NOAA/NWS); NCEP Stage IV multi-sensor precipitation analysis via NOMADS and the Iowa Environmental Mesonet archive; '
-    + 'ECMWF open data (IFS, AIFS, ENS) © ECMWF, CC BY 4.0; NOAA GFS and GEFS via NOMADS; Environment and Climate Change Canada GDPS via MSC Datamart. Model output is unadjusted.';
+  $('credits').innerHTML = '<b>Sources and licences.</b> Basins and 1991–2020 mean-areal-precipitation normals: NOAA/NWS Northwest River Forecast Center (public domain). '
+    + 'Observed rainfall: NCEP Stage IV multi-sensor precipitation analysis (NOAA, public domain), served by NOMADS and by the Iowa Environmental Mesonet archive. '
+    + 'GFS and GEFS: NOAA/NCEP (public domain), from the NOAA Open Data Dissemination buckets on AWS. '
+    + 'IFS, AIFS and ENS: ECMWF open data, © ECMWF, licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; basin averages are derived by this site and are not an official ECMWF product. '
+    + 'GDPS and GEPS: Data Source: Environment and Climate Change Canada (MSC Datamart), used under the ECCC data servers end-use licence; ECCC does not endorse this site. '
+    + 'Basemap: Natural Earth (public domain). Model output is shown unadjusted; nothing here is an official forecast. Built by Shawn Corvec.';
   $('foot').innerHTML = 'Divisions and 1991–2020 mean-areal-precipitation normals are the NWRFC water-supply divisions (42, dissolved from the 379 NWRFC forecast basins); '
     + 'the composites are area-weighted unions — the NWRFC mainstem groups are LOCAL reach areas, so "above The Dalles" here is the union of every Columbia, Snake, Middle and Upper Columbia division, not the mainstem row on the NWRFC page. '
     + 'Days are 12Z–12Z, labelled by the ending date, matching the Stage IV 24 h product; a 00Z run\'s first day is its hours 12–36. '

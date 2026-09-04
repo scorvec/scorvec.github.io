@@ -26,20 +26,23 @@
 <main class="pnwpage">
   <p class="intro" id="intro"></p>
 
+  <section>
+    <h2>Map <span class="thin" id="submap"></span></h2>
+    <div class="bar sub">
+      <label><select id="mapwhat"></select></label>
+      <span class="thin" id="maplegend"></span>
+    </div>
+    <div class="chart-wrap pnwmap bigchart"><div id="map"></div></div>
+  </section>
+
   <div class="twocol">
-    <section>
-      <h2>Map <span class="thin" id="submap"></span></h2>
-      <div class="bar sub">
-        <label><select id="mapwhat"></select></label>
-        <span class="thin" id="maplegend"></span>
-      </div>
-      <div class="chart-wrap pnwmap"><div id="map"></div></div>
-    </section>
     <section>
       <h2>Scorecard <span class="thin" id="subsc"></span></h2>
       <div class="scroll"><table id="score" class="heat"></table></div>
       <p class="note" id="scnote"></p>
-      <h2 style="margin-top:18px">Observed, Stage IV <span class="thin" id="subobs"></span></h2>
+    </section>
+    <section>
+      <h2>Observed, Stage IV <span class="thin" id="subobs"></span></h2>
       <div class="scroll"><table id="obstab" class="heat"></table></div>
     </section>
   </div>
