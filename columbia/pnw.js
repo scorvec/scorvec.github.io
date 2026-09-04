@@ -51,7 +51,83 @@ function fill(sel, items, value, labeller) {
   sel.value = value;
 }
 const models = () => MODEL_ORDER.filter((m) => S.latest.models[m]).concat(Object.keys(S.latest.models).filter((m) => !MODEL_ORDER.includes(m)));
-const entry = (m) => S.latest.models[m];
+// A picked archived issue stands in for the newest one of its model. Same
+// trick as the tracker's run picker: nothing downstream needs to know.
+S.pick = {};
+const entry = (m) => S.pick[m] || S.latest.models[m];
+const ARCH = window.PNW_ARCH || (DATA_BASE() + 'archive/');
+function DATA_BASE() { return window.PNW_DATA || '../data/out/'; }
+async function loadArchive(m, cycle) {
+  const r = await fetch(`${ARCH}${m}_${cycle}.json.gz?t=${Date.now()}`);
+  if (!r.ok) throw new Error('archive not found');
+  const buf = await r.arrayBuffer();
+  let text;
+  try {   // GitHub Pages serves .gz as application/gzip without content-encoding
+    const ds = new DecompressionStream('gzip');
+    text = await new Response(new Blob([buf]).stream().pipeThrough(ds)).text();
+  } catch (e) { text = new TextDecoder().decode(buf); }   // already decompressed by the server
+  return JSON.parse(text);
+}
+function statsOf(members, weights) {
+  const nd = members[0].length; const out = { mean: [], p10: [], p90: [] };
+  for (let j = 0; j < nd; j++) {
+    const v = [], w = [];
+    members.forEach((row, i) => { if (row[j] !== null && row[j] !== undefined) { v.push(row[j]); w.push(weights ? weights[i] : 1); } });
+    if (!v.length) { out.mean.push(null); out.p10.push(null); out.p90.push(null); continue; }
+    const tot = w.reduce((a, b) => a + b, 0);
+    out.mean.push(Math.round(100 * v.reduce((a, x, i) => a + x * w[i], 0) / tot) / 100);
+    out.p10.push(Math.round(100 * wq(v, w, 0.1)) / 100); out.p90.push(Math.round(100 * wq(v, w, 0.9)) / 100);
+  }
+  return out;
+}
+function issueEntry(rec) {
+  // divisions + area-weighted composites -> series with stats and members;
+  // periods with % of normal, mirroring the server's periods_of
+  const series = {};
+  for (const [c, v] of Object.entries(rec.div)) series[c] = { members: v.members, weights: v.weights };
+  for (const [name, cs0] of Object.entries(S.latest.composites)) {
+    const cs = cs0.filter((c) => rec.div[c]); if (!cs.length) continue;
+    const area = cs.map((c) => divInfo(c).area); const tot = area.reduce((a, b) => a + b, 0);
+    const nm = rec.div[cs[0]].members.length; const nd = rec.dates.length;
+    const mem = Array.from({ length: nm }, (_, i) => Array.from({ length: nd }, (_, j) => {
+      let t = 0; for (let k = 0; k < cs.length; k++) { const x = rec.div[cs[k]].members[i][j]; if (x === null || x === undefined) return null; t += x * area[k]; } return Math.round(100 * t / tot) / 100; }));
+    series[name] = { members: mem, weights: rec.div[cs[0]].weights };
+  }
+  const out = {};
+  for (const [k, v] of Object.entries(series)) { const st = statsOf(v.members, v.weights); if (rec.n_members > 1) { st.members = v.members; if (v.weights) st.weights = v.weights; } out[k] = st; }
+  const periods = {};
+  for (const [k, st] of Object.entries(out)) {
+    const pr = {};
+    for (const [p, [a, b]] of Object.entries(PERIOD_DAYS_JS)) {
+      let mm = 0, nn = 0, n = 0, ok = true;
+      for (let i = a - 1; i < Math.min(b, rec.dates.length); i++) { const v = st.mean[i]; if (v === null) continue; mm += v; n++; const no = normOn(k, rec.dates[i]); if (no === null) ok = false; else nn += no; }
+      if (!n) continue;
+      const e = { mm: Math.round(mm * 10) / 10, n, want: b - a + 1 };
+      if (ok && nn > 0) { e.normal = Math.round(nn * 10) / 10; e.pct = Math.round(100 * mm / nn); }
+      pr[p] = e;
+    }
+    periods[k] = pr;
+  }
+  return { cycle: rec.cycle, init: rec.init, run_day0: rec.run_day0, dates: rec.dates, n_members: rec.n_members,
+           sources: rec.sources, series: out, periods, prev: [], picked: true };
+}
+async function pickRun(m, cycle) {
+  const newest = S.latest.models[m] && S.latest.models[m].cycle;
+  if (!cycle || cycle === newest) { delete S.pick[m]; return; }
+  try { S.pick[m] = issueEntry(await loadArchive(m, cycle)); }
+  catch (e) { delete S.pick[m]; alert && console.warn('archive load failed', e); }
+}
+function runList(m) {
+  const cs = ((S.hist && S.hist.models && S.hist.models[m]) || []).map((x) => x.cycle);
+  const newest = S.latest.models[m] && S.latest.models[m].cycle;
+  if (newest && !cs.includes(newest)) cs.push(newest);
+  return cs.sort().reverse();
+}
+function fillRuns() {
+  const m = S.model; const cs = runList(m); const newest = S.latest.models[m] && S.latest.models[m].cycle;
+  const cur = S.pick[m] ? S.pick[m].cycle : newest;
+  fill($('runsel'), cs, cur, (c) => (c === newest ? `latest · ${cyc(c)}` : cyc(c)));
+}
 const isComp = (k) => !!S.latest.composites[k];
 const divInfo = (code) => S.latest.divisions.find((d) => d.code === code);
 const label = (k) => (isComp(k) ? k : (divInfo(k) || { name: k }).name);
@@ -523,8 +599,8 @@ function ptab() {
     const txt = `${S.heatwhat === 'anom' ? sgn(main, 0) + ' mm' : showFmt(main)} <small>${other} ${d === null ? '' : showSgn(d)}</small>`;
     return { v: d === null ? 0 : d, text: txt, mark: v.n < v.want ? '<i class="sh">*</i>' : '',
              tip: `${MODEL_LABEL[m] || m} ${cyc(e.cycle)} · ${label(k)} · ${PERIOD_LABEL[p]}\n${v.mm.toFixed(1)} mm` + (v.normal ? ` / normal ${v.normal.toFixed(1)} = ${v.pct.toFixed(0)}%` : '')
-               + (pr ? `\nsame-day change vs ${cyc(pr.cycle)}: ${sgn(dd.mm, 1)} mm${dd.pct !== undefined ? `, ${sgn(dd.pct)} pts` : ''}` : '') };
-  }, [{ label: 'issue', value: (m) => (m === '__mean' ? { text: '', cls: 'tot' } : { text: cyc(entry(m).cycle), cls: 'tot' }) }], { limb, fmt: (v) => sgn(v), nice: showNice() });
+               + (pr && dd ? `\nsame-day change vs ${cyc(pr.cycle)}: ${sgn(dd.mm, 1)} mm${dd.pct !== undefined ? `, ${sgn(dd.pct)} pts` : ''}` : '') };
+  }, [{ label: 'issue', value: (m) => (m === '__mean' ? { text: '', cls: 'tot' } : { text: cyc(entry(m).cycle) + (S.pick[m] ? ' ▸' : ''), cls: 'tot' }) }], { limb, fmt: (v) => sgn(v), nice: showNice() });
   $('sub2').innerHTML = `${label(k)} · ${SHOW[S.heatwhat]}, and in small type the same-day change vs the model's previous issue`;
 }
 
@@ -623,7 +699,9 @@ function verif() {
 function render() {
   scorecard(); obstab(); plume(); mapPanel(); ptab(); small(); board3(); board4(); verif();
   const ms = models(); const o = S.latest.obs.dates;
-  $('runbadge').textContent = `${ms.length} models · Stage IV through ${o[o.length - 1] || '–'}`;
+  const picked = Object.keys(S.pick);
+  $('runbadge').textContent = `${ms.length} models · Stage IV through ${o[o.length - 1] || '–'}` + (picked.length ? ` · viewing archived ${picked.map((m) => `${MODEL_LABEL[m] || m} ${cyc(S.pick[m].cycle)}`).join(', ')}` : '');
+  document.body.classList.toggle('histrun', picked.length > 0);
   const newest = ms.map((m) => entry(m).cycle).sort().slice(-1)[0];
   const cd = headPeriod('Columbia abv The Dalles', 'd1-10');
   const shortLabel = (m) => (m === 'geps_ext' ? 'the GEPS Mon/Thu extension to 32 days' : MODEL_LABEL[m] || m);
@@ -655,12 +733,15 @@ function controls() {
   fill($('heatwhat'), Object.keys(SHOW), S.heatwhat, (k) => SHOW[k]);
   fill($('nruns'), ['8', '12', '20', '30'], String(S.nruns), (n) => `last ${n}`);
   fill($('mapwhat'), Object.keys(MAPWHAT), S.mapwhat, (k) => MAPWHAT[k]);
+  fillRuns();
   const on = (id, f) => $(id).addEventListener('change', (e) => { f(e.target.value); render(); });
-  on('basin', (v) => { S.basin = v; }); on('model', (v) => { S.model = v; }); on('period', (v) => { S.period = v; });
+  on('basin', (v) => { S.basin = v; }); on('period', (v) => { S.period = v; });
+  $('model').addEventListener('change', (e) => { S.model = e.target.value; fillRuns(); render(); });
+  $('runsel').addEventListener('change', async (e) => { await pickRun(S.model, e.target.value); render(); });
   on('heatwhat', (v) => { S.heatwhat = v; }); on('nruns', (v) => { S.nruns = +v; }); on('mapwhat', (v) => { S.mapwhat = v; });
 }
 
-const DATA = window.PNW_DATA || '../data/out/';
+const DATA = DATA_BASE();
 async function load() {
   S.latest = await (await fetch(DATA + 'pnw_latest.json?t=' + Date.now())).json();
   S.hist = await (await fetch(DATA + 'pnw_history.json?t=' + Date.now())).json();
