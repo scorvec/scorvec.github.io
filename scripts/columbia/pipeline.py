@@ -901,13 +901,16 @@ def backfill(models, days, workers):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--models", default=os.environ.get("COLUMBIA_MODELS", "gfs,ecmwf,aifs,gdps,geps,geps_ext,gefs,ecmwf_ens"))
+    # `or`, not a dict default: Actions exports an EMPTY string for an unset
+    # workflow input, which read as "no models" and silently fetched nothing.
+    ap.add_argument("--models", default=os.environ.get("COLUMBIA_MODELS") or "gfs,ecmwf,aifs,gdps,geps,geps_ext,gefs,ecmwf_ens")
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--obs-days", type=int, default=20)
     ap.add_argument("--no-fetch", action="store_true", help="rebuild the JSON from the archive only")
     ap.add_argument("--backfill", type=int, default=0, help="also archive every cycle of the last N days")
     a = ap.parse_args()
-    ms = [x for x in a.models.split(",") if x]
+    ms = [x.strip() for x in a.models.split(",") if x.strip()] or ["gfs", "ecmwf", "aifs", "gdps", "geps", "geps_ext", "gefs", "ecmwf_ens"]
+    print(f"  models: {','.join(ms)}")
     if not a.no_fetch:
         got = backfill_obs(a.obs_days)
         if got:
