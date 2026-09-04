@@ -44,7 +44,7 @@ jobs:
           restore-keys: |
             pip-sst-${{ runner.os }}-
       - name: Install
-        run: run: pip install -r scripts/sst/requirements-sst.txt
+        run: pip install -r scripts/sst/requirements-sst.txt
       - name: Seed existing frames
         run: scripts/lib/fetch_frames_ci.sh scripts/sst/data/cmems assets/sst/anim/equatorial assets/sst/anim/equatorial_dt
       - name: Fetch TAO equatorial subsurface temperature (recent 120 days)
