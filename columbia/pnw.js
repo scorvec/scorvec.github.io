@@ -522,14 +522,15 @@ function openHist(k, p) {
   $('histwhen').textContent = di ? `${di.region} · ${Math.round(di.area).toLocaleString()} sq mi` : 'area-weighted union of NWRFC divisions';
   const ens = models().filter((m) => entry(m).series[k] && entry(m).series[k].members);
   if (!ens.includes(S.histModel)) S.histModel = ens.includes(S.model) ? S.model : ens[0];
-  seg('histperiod', ens.map((m) => ({ v: m, label: MODEL_LABEL[m] || m, color: MODEL_COLOR[m] || '#999' })), S.histModel, (m) => { S.histModel = m; renderHist(); });
+  seg('histperiod', ens.map((m) => ({ v: m, label: (MODEL_LABEL[m] || m).replace(' (Mon/Thu 00Z, 32 d)', ' 32 d'), color: MODEL_COLOR[m] || '#999' })), S.histModel, (m) => { S.histModel = m; renderHist(); });
   renderHist();
 }
 S.histModel = null;
 function renderHist() {
-  // cumulative precipitation plumes (user, 3 Sep 2026): every member of the
-  // chosen ensemble accumulated from day 1, the other models' means, the
-  // cumulative normal, and Stage IV's recent run-up on the left
+  // Cumulative precipitation plumes for one basin: every member of the chosen
+  // ensemble accumulated from day 1, the other models' means, the cumulative
+  // normal, and the Stage IV run-up on the left. Big, with a legend that
+  // toggles, end labels that never collide, and a table of run totals.
   const k = S.histKey, m = S.histModel; const host = $('histbody');
   const e = m && entry(m); const st = e && e.series[k];
   if (!st || !st.members) { host.innerHTML = '<div class="empty">No members for this basin.</div>'; $('histnote').textContent = ''; return; }
@@ -538,52 +539,77 @@ function renderHist() {
   const mem = st.members.map(cum);
   const norm = []; let tn = 0; dates.forEach((d) => { const n = normOn(k, d); tn = n === null || tn === null ? null : tn + n; norm.push(tn); });
   const others = models().filter((x) => x !== m && x !== 'geps_ext' && entry(x).series[k]).map((x) => ({ x, c: cum(entry(x).series[k].mean), dates: entry(x).dates }));
-  // observed run-up: last 10 days of Stage IV, accumulated backwards to the forecast start
   const o = S.latest.obs; const ob = (obsFor(k) || []).slice(-10), od = o.dates.slice(-10);
   const obsCum = []; let to = 0; ob.forEach((v) => { to = v === null || to === null ? null : to + v; obsCum.push(to); });
   const onorm = []; let tno = 0; od.forEach((d) => { const n = normOn(k, d); tno = n === null || tno === null ? null : tno + n; onorm.push(tno); });
-  const W = 900, H = 380, M = { l: 50, r: 118, t: 28, b: 40 };   // room for the end labels
+  const W = 1300, H = 560, M = { l: 62, r: 200, t: 34, b: 44 };
   const nl = od.length, nx = nl + nd;
-  const X = (i) => M.l + (i / Math.max(1, nx - 1)) * (W - M.l - M.r);          // i: 0..nl-1 observed, nl..nx-1 forecast
+  const X = (i) => M.l + (i / Math.max(1, nx - 1)) * (W - M.l - M.r);
   const ymax = Math.max(5, ...mem.flat().filter((v) => v !== null), ...others.flatMap((z) => z.c).filter((v) => v !== null), ...norm.filter((v) => v !== null), ...obsCum.filter((v) => v !== null)) * 1.06;
   const Y = (v) => M.t + (H - M.t - M.b) * (1 - v / ymax);
+  const col = MODEL_COLOR[m] || '#999';
   const P = [`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="width:100%;height:auto">`];
-  for (let i = 0; i <= 5; i++) { const v = ymax * i / 5; P.push(`<line x1="${M.l}" x2="${W - M.r}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="#eef2f5"/><text x="${M.l - 7}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end">${v.toFixed(0)}</text>`); }
-  const xd = (X(nl - 1) + X(nl)) / 2;
-  if (nl) { P.push(`<line x1="${xd.toFixed(1)}" x2="${xd.toFixed(1)}" y1="${M.t}" y2="${H - M.b}" stroke="#93a1b5" stroke-dasharray="3 3"/>`);
-    P.push(`<text x="${(xd - 5).toFixed(1)}" y="${M.t + 11}" text-anchor="end" fill="#55637a">Stage IV, last ${nl} d</text><text x="${(xd + 5).toFixed(1)}" y="${M.t + 11}" fill="#55637a">forecast, cumulative from day 1</text>`); }
-  // observed cumulative and its normal
+  for (let i = 0; i <= 5; i++) { const v = ymax * i / 5; P.push(`<line x1="${M.l}" x2="${W - M.r}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="#e6ebf0"/><text x="${M.l - 8}" y="${(Y(v) + 4).toFixed(1)}" text-anchor="end">${v.toFixed(0)}</text>`); }
+  P.push(`<text x="${M.l - 8}" y="${M.t - 12}" text-anchor="end" fill="#55637a">mm</text>`);
+  const xd = nl ? (X(nl - 1) + X(nl)) / 2 : M.l;
+  if (nl) {
+    P.push(`<rect x="${M.l}" y="${M.t}" width="${(xd - M.l).toFixed(1)}" height="${H - M.t - M.b}" fill="#f3f6f9"/>`);
+    P.push(`<line x1="${xd.toFixed(1)}" x2="${xd.toFixed(1)}" y1="${M.t}" y2="${H - M.b}" stroke="#93a1b5" stroke-dasharray="4 3"/>`);
+    P.push(`<text class="ttl" x="${(xd - 8).toFixed(1)}" y="${M.t - 12}" text-anchor="end" fill="#55637a">observed, last ${nl} days (Stage IV)</text><text class="ttl" x="${(xd + 8).toFixed(1)}" y="${M.t - 12}" fill="#55637a">forecast, accumulated from day 1 · ${MODEL_LABEL[m] || m} ${cyc(e.cycle)}</text>`);
+  }
   let dO = '', dON = ''; obsCum.forEach((v, i) => { if (v !== null) dO += `${dO ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`; if (onorm[i] !== null) dON += `${dON ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(onorm[i]).toFixed(1)}`; });
-  P.push(`<path d="${dON}" fill="none" stroke="#0f172a" stroke-width="1.2" stroke-dasharray="5 3" opacity=".6"/>`);
-  P.push(`<path d="${dO}" fill="none" stroke="#4f84bd" stroke-width="2.6"/>`);
-  // forecast: members, normal, other models' means, this model's mean
-  const col = MODEL_COLOR[m] || '#999'; const op = mem.length > 30 ? 0.28 : mem.length > 15 ? 0.36 : 0.5;
+  P.push(`<path d="${dON}" fill="none" stroke="#0f172a" stroke-width="1.4" stroke-dasharray="6 4" opacity=".6" data-k="normal"/>`);
+  P.push(`<path d="${dO}" fill="none" stroke="#4f84bd" stroke-width="3" data-k="obs"/>`);
+  const op = mem.length > 30 ? 0.22 : mem.length > 15 ? 0.3 : 0.45;
   mem.forEach((row) => { let d = ''; row.forEach((v, i) => { if (v === null) return; d += `${d ? 'L' : 'M'}${X(nl + i).toFixed(1)} ${Y(v).toFixed(1)}`; });
-    P.push(`<path d="${d}" fill="none" stroke="${col}" stroke-width="1" opacity="${op}"/>`); });
+    P.push(`<path d="${d}" fill="none" stroke="${col}" stroke-width="1" opacity="${op}" data-k="members"/>`); });
   let dN = ''; norm.forEach((v, i) => { if (v !== null) dN += `${dN ? 'L' : 'M'}${X(nl + i).toFixed(1)} ${Y(v).toFixed(1)}`; });
-  P.push(`<path d="${dN}" fill="none" stroke="#0f172a" stroke-width="1.6" stroke-dasharray="6 3"/>`);
+  P.push(`<path d="${dN}" fill="none" stroke="#0f172a" stroke-width="2" stroke-dasharray="7 4" data-k="normal"/>`);
   others.forEach((z) => { let d = ''; z.dates.forEach((dd, i) => { const j = dates.indexOf(dd); const v = z.c[i]; if (j < 0 || v === null) return; d += `${d ? 'L' : 'M'}${X(nl + j).toFixed(1)} ${Y(v).toFixed(1)}`; });
-    P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[z.x] || '#999'}" stroke-width="${z.x === 'blend' ? 2.4 : 1.4}" opacity=".9"/>`); });
+    P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[z.x] || '#999'}" stroke-width="${z.x === 'blend' ? 2.6 : 1.6}" opacity=".9" data-k="${z.x}"/>`); });
   const mc = cum(st.mean); let dM = ''; mc.forEach((v, i) => { if (v !== null) dM += `${dM ? 'L' : 'M'}${X(nl + i).toFixed(1)} ${Y(v).toFixed(1)}`; });
-  P.push(`<path d="${dM}" fill="none" stroke="${col}" stroke-width="3.2"/>`);
-  // end labels: this model's mean and the normal, as % of normal
-  const last = mc.map((v, i) => [v, i]).filter((x) => x[0] !== null).pop(); const nlast = norm[last ? last[1] : nd - 1];
-  if (last) P.push(`<text class="chg" x="${(X(nl + last[1]) + 5).toFixed(1)}" y="${(Y(last[0]) + 4).toFixed(1)}" fill="${col}">${last[0].toFixed(0)} mm${nlast ? ` · ${(100 * last[0] / nlast).toFixed(0)}%` : ''}</text>`);
-  if (nlast) P.push(`<text class="chg" x="${(X(nl + (last ? last[1] : nd - 1)) + 5).toFixed(1)}" y="${(Y(nlast) + 4).toFixed(1)}" fill="#0f172a">normal ${nlast.toFixed(0)}</text>`);
-  // x axis
+  P.push(`<path d="${dM}" fill="none" stroke="${col}" stroke-width="3.6" data-k="mean"/>`);
+  // end labels in the right margin, pushed apart where they collide
+  const ends = [];
+  const lastOf = (arr, ds) => { const i = arr.map((v, j) => [v, j]).filter((x) => x[0] !== null).pop(); return i ? { v: i[0], j: dates.indexOf(ds[i[1]]) } : null; };
+  const lm = lastOf(mc, dates); const nlast = norm[lm ? lm.j : nd - 1];
+  if (lm) ends.push({ y: Y(lm.v), txt: `${MODEL_LABEL[m] || m} ${lm.v.toFixed(0)} mm${nlast ? ` · ${(100 * lm.v / nlast).toFixed(0)}%` : ''}`, color: col, bold: true, k: 'mean' });
+  // a model that stops earlier is labelled against the normal to ITS last day,
+  // and says so, otherwise a 10-day total reads as a percentage of 15 days
+  others.forEach((z) => { const l = lastOf(z.c, z.dates); if (!l || l.j < 0) return; const nn = norm[l.j]; const shorter = l.j + 1 < nd;
+    ends.push({ y: Y(l.v), txt: `${MODEL_LABEL[z.x] || z.x} ${l.v.toFixed(0)}${nn ? ` · ${(100 * l.v / nn).toFixed(0)}%${shorter ? ` of ${l.j + 1} d` : ''}` : ''}`, color: MODEL_COLOR[z.x] || '#999', k: z.x }); });
+  if (nlast) ends.push({ y: Y(nlast), txt: `normal ${nlast.toFixed(0)} mm`, color: '#0f172a', k: 'normal' });
+  ends.sort((p, q) => p.y - q.y);
+  let prev = -1e9; ends.forEach((it) => { it.ly = Math.max(it.y, prev + 15); prev = it.ly; });
+  const over = ends.length ? ends[ends.length - 1].ly - (H - M.b) : 0; if (over > 0) ends.forEach((it) => { it.ly -= over; });
+  ends.forEach((it) => { const x0 = X(nx - 1) + 4, x1 = W - M.r + 14;
+    P.push(`<line x1="${x0.toFixed(1)}" y1="${it.y.toFixed(1)}" x2="${(x1 - 4).toFixed(1)}" y2="${it.ly.toFixed(1)}" stroke="${it.color}" stroke-width=".8" opacity=".6" data-k="${it.k}"/>`);
+    P.push(`<text x="${x1.toFixed(1)}" y="${(it.ly + 4).toFixed(1)}" fill="${it.color}" style="font:${it.bold ? 700 : 500} 12px var(--mono)" data-k="${it.k}">${it.txt}</text>`); });
   const allDates = od.concat(dates);
   allDates.forEach((d, i) => { if (allDates.length > 20 && i % 2) return; const dt = new Date(d + 'T00:00:00');
-    P.push(`<text x="${X(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" fill="${dt.getDay() % 6 === 0 ? '#b3392b' : '#55637a'}">${dt.getMonth() + 1}/${dt.getDate()}</text>`); });
-  P.push(`<text class="ttl" x="${M.l}" y="${M.t - 12}">cumulative precipitation, mm · ${MODEL_LABEL[m] || m} ${cyc(e.cycle)} · ${mem.length} members</text>`);
+    P.push(`<text x="${X(i).toFixed(1)}" y="${H - 10}" text-anchor="middle" fill="${dt.getDay() % 6 === 0 ? '#b3392b' : '#55637a'}">${dt.getMonth() + 1}/${dt.getDate()}</text>`); });
+  // hover columns
+  const step = (W - M.l - M.r) / Math.max(1, nx - 1);
+  allDates.forEach((d, i) => { const lines = [d]; if (i < nl) { if (obsCum[i] !== null) lines.push(`Stage IV to date  ${obsCum[i].toFixed(1)} mm`); if (onorm[i] !== null) lines.push(`normal to date  ${onorm[i].toFixed(1)} mm`); }
+    else { const j = i - nl; if (norm[j] !== null) lines.push(`normal from day 1  ${norm[j].toFixed(1)} mm`); if (mc[j] !== null) lines.push(`${MODEL_LABEL[m] || m} mean  ${mc[j].toFixed(1)} mm`);
+      const col_ = mem.map((r) => r[j]).filter((v) => v !== null); if (col_.length) { const w = st.weights || col_.map(() => 1); lines.push(`members p10 ${wq(col_, w.slice(0, col_.length), .1).toFixed(0)} · p50 ${wq(col_, w.slice(0, col_.length), .5).toFixed(0)} · p90 ${wq(col_, w.slice(0, col_.length), .9).toFixed(0)} mm`); }
+      others.forEach((z) => { const jj = z.dates.indexOf(dates[j]); if (jj >= 0 && z.c[jj] !== null) lines.push(`${MODEL_LABEL[z.x] || z.x}  ${z.c[jj].toFixed(1)} mm`); }); }
+    P.push(`<rect class="hit" x="${(X(i) - step / 2).toFixed(1)}" y="${M.t}" width="${step.toFixed(1)}" height="${H - M.t - M.b}" fill="transparent" data-t="${lines.join('\n')}"/>`); });
   P.push('</svg>');
-  // end-of-run distribution across members
-  const ends = mem.map((row) => row.filter((v) => v !== null).pop()).filter((v) => v !== undefined && v !== null);
-  const w = st.weights || ends.map(() => 1);
-  const q = (qq) => wq(ends, w.slice(0, ends.length), qq); const tot = w.slice(0, ends.length).reduce((a, b) => a + b, 0);
-  const above = nlast ? ends.reduce((a, v, i) => a + (v > nlast ? w[i] : 0), 0) / tot : null;
-  const pct = (v) => (nlast ? ` (${(100 * v / nlast).toFixed(0)}%)` : '');
-  host.innerHTML = P.join('') + `<div class="histrow"><span>run total over ${dates.length} days: p10 <b>${q(0.1).toFixed(0)} mm${pct(q(0.1))}</b> · median <b>${q(0.5).toFixed(0)} mm${pct(q(0.5))}</b> · p90 <b>${q(0.9).toFixed(0)} mm${pct(q(0.9))}</b>${above !== null ? ` · members above normal <b>${(above * 100).toFixed(0)}%</b>` : ''}</span></div>`;
-  $('histnote').textContent = `Thin lines: every ${MODEL_LABEL[m] || m} member accumulated from day 1; thick: its mean; other colours: the other models' means; dashed: the cumulative 1991–2020 normal. Left of the divider, Stage IV accumulated over the last ${nl} days against the same normal.`;
+  const chips = [`<span class="new" data-k="mean"><i style="border-color:${col};border-top-width:3px"></i>${MODEL_LABEL[m] || m} mean</span>`,
+    `<span data-k="members"><i style="border-color:${col};border-top-width:1px;opacity:.6"></i>${mem.length} members</span>`]
+    .concat(others.map((z) => `<span data-k="${z.x}"><i style="border-color:${MODEL_COLOR[z.x] || '#999'}"></i>${MODEL_LABEL[z.x] || z.x} mean</span>`))
+    .concat([`<span data-k="normal"><i style="border-color:#0f172a;border-top-style:dashed"></i>1991–2020 normal</span>`, `<span data-k="obs"><i style="border-color:#4f84bd;border-top-width:3px"></i>Stage IV observed</span>`]).join('');
+  // run totals table
+  const endv = mem.map((row) => row.filter((v) => v !== null).pop()).filter((v) => v !== undefined && v !== null);
+  const w = (st.weights || endv.map(() => 1)).slice(0, endv.length); const tot = w.reduce((a, b) => a + b, 0);
+  const q = (qq) => wq(endv, w, qq); const above = nlast ? endv.reduce((a, v, i) => a + (v > nlast ? w[i] : 0), 0) / tot : null;
+  const pct = (v) => (nlast ? `${(100 * v / nlast).toFixed(0)}%` : '–');
+  const rows = [[`${MODEL_LABEL[m] || m} members`, `p10 ${q(0.1).toFixed(0)} mm (${pct(q(0.1))})`, `median ${q(0.5).toFixed(0)} mm (${pct(q(0.5))})`, `p90 ${q(0.9).toFixed(0)} mm (${pct(q(0.9))})`, above !== null ? `${(above * 100).toFixed(0)}% of members above normal` : '']];
+  const tbl = `<table class="heat histtab"><thead><tr><th class="k">${nd}-day total</th><th>low (p10)</th><th>middle (median)</th><th>high (p90)</th><th></th></tr></thead><tbody>${rows.map((r) => `<tr><td class="k">${r[0]}</td>${r.slice(1).map((c) => `<td class="x">${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  host.innerHTML = `<div class="evolegend">${chips}</div>` + P.join('') + tbl;
+  HEAT.wireTips(host); HEAT.wireToggles(host, 'histplume');
+  $('histnote').textContent = `Left of the divider: the last ${nl} days of Stage IV, accumulated, against the same normal. Right: every ${MODEL_LABEL[m] || m} member accumulated from day 1, its mean (bold), the other models' means, and the cumulative 1991–2020 normal (dashed). End labels give each run's total and its percent of normal. Click a legend label to hide it; hover a day for the numbers.`;
 }
 function wireHist() {
   $('histclose').addEventListener('click', () => { $('hist').hidden = true; });

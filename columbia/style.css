@@ -431,7 +431,7 @@ table.heat tr.blend td.k{background:#eef3f8;box-shadow:inset 3px 0 0 var(--navy)
 
 /* member histogram pop-up (Columbia page) */
 .modal[hidden]{display:none!important}
-.histcard{width:min(940px,94vw)}
+.histcard{width:min(1400px,96vw)}
 .histsel{margin-left:auto;font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:6px}
 #histopen{border:1px solid var(--line);background:#fff;border-radius:5px;padding:4px 9px;font-size:12px;cursor:pointer;margin-left:8px}
 #histopen:hover{background:#f3f7fb}
@@ -486,3 +486,5 @@ header .brand + .thin,header .thin{font-size:13.5px}
 .seg button.muted{color:var(--ink3)}
 select.mini{font-size:12px;padding:4px 6px;max-width:220px}
 .histsel{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;margin-left:auto}
+.histmodel{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+.histmodel .histsel{margin-left:0}
