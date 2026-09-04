@@ -31,6 +31,9 @@ if [ "${ALLOW_LOCAL_RENDER:-0}" != "1" ]; then
   echo "$(basename "$0"): local rendering is retired; dispatch the workflow instead." >&2
   exit 0
 fi
+# A deliberate manual run may push the products it just rendered; the pre-push
+# hook would otherwise reject them (see scripts/lib/pre-push.hook).
+export ALLOW_LOCAL_ASSET_PUSH=1
 # ---------------------------------------------------------------------------
 
 PY="${C3S_PY:-/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python}"
