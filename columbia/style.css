@@ -463,3 +463,9 @@ header .brand + .thin,header .thin{font-size:13.5px}
 .pnwmap.bigchart svg{width:auto;max-width:100%;max-height:78vh;display:block;margin:0 auto}
 .pnwmap svg text.lab{font-size:15px}
 .evolegend{font-size:12.5px}
+
+/* map column sized to the map, no side whitespace */
+.hero{grid-template-columns:auto 1fr}
+.hero .heromap{min-width:0}
+.hero .pnwmap.bigchart{width:fit-content;max-width:100%;padding:6px}
+.pnwmap.bigchart svg{margin:0}

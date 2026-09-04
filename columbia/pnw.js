@@ -336,7 +336,9 @@ let BASE = null;
 function mapPanel() {
   const host = $('map'); if (!GEO) { host.innerHTML = '<div class="empty">Loading geometry…</div>'; return; }
   // frame: the divisions' extent with a margin, in projected units
-  const corners = [[-125.6, 40.4], [-108.9, 40.4], [-125.6, 53.6], [-108.9, 53.6], [-117, 40.4], [-117, 53.6]].map((c) => ALB(c[0], c[1]));
+  // frame hugs the divisions (a third of a degree of margin), so the box is not
+  // mostly ocean and Alberta
+  const corners = [[-124.9, 40.9], [-109.4, 40.9], [-124.9, 53.2], [-109.4, 53.2], [-117, 40.9], [-117, 53.2]].map((c) => ALB(c[0], c[1]));
   const px0 = Math.min(...corners.map((c) => c[0])), px1 = Math.max(...corners.map((c) => c[0]));
   const py0 = Math.min(...corners.map((c) => c[1])), py1 = Math.max(...corners.map((c) => c[1]));
   const W = 1400, K = (W - 4) / (px1 - px0), H = Math.round((py1 - py0) * K) + 4;   // 2x (user, 3 Sep 2026)
