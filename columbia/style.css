@@ -469,3 +469,7 @@ header .brand + .thin,header .thin{font-size:13.5px}
 .hero .heromap{min-width:0}
 .hero .pnwmap.bigchart{width:fit-content;max-width:100%;padding:6px}
 .pnwmap.bigchart svg{margin:0}
+.evolegend span[data-k]{cursor:pointer;user-select:none}
+.evolegend span[data-k]:hover{text-decoration:underline}
+.evolegend span.off{opacity:.38;text-decoration:line-through}
+.evolegend::after{content:'click a label to hide it · shift-click to show it alone';color:var(--ink3);font-size:10.5px;margin-left:auto;font-family:var(--sans)}

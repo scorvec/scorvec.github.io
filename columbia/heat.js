@@ -92,5 +92,33 @@ window.HEAT = (() => {
       + `<b>−${f(s)}</b> ${dnLabel} &nbsp;&nbsp; 0 &nbsp;&nbsp; ${upLabel} <b>+${f(s)}</b>`
       + `${[.33, .66, 1].map((t) => sw(limb(1), t)).join('')}</span>`;
   }
-  return { RAMP, mix, color, table, legend, wireTips, autoScale, NICE };
+  /* Legend toggles (user, 4 Sep 2026: "make it possible to select on and off
+   * the different lines"). A chart tags its legend chips and every SVG element
+   * of a series with data-k; clicking a chip hides that key. Hidden keys are
+   * remembered per chart id, so a re-render (new data, control change) keeps
+   * the reader's selection. Shift-click isolates one series. */
+  const hidden = {};
+  function applyToggles(host, id) {
+    const off = hidden[id] || new Set();
+    host.querySelectorAll('[data-k]').forEach((el) => {
+      const on = !off.has(el.dataset.k);
+      if (el.tagName === 'SPAN') el.classList.toggle('off', !on);
+      else el.style.visibility = on ? '' : 'hidden';
+    });
+  }
+  function wireToggles(host, id) {
+    hidden[id] = hidden[id] || new Set();
+    const chips = host.querySelectorAll('.evolegend span[data-k]');
+    chips.forEach((ch) => ch.addEventListener('click', (ev) => {
+      const k = ch.dataset.k; const off = hidden[id];
+      if (ev.shiftKey) {            // isolate: everything else off, or all back on
+        const others = [...chips].map((c) => c.dataset.k).filter((x) => x !== k);
+        const alone = others.every((x) => off.has(x)) && !off.has(k);
+        if (alone) off.clear(); else { off.clear(); others.forEach((x) => off.add(x)); }
+      } else if (off.has(k)) off.delete(k); else off.add(k);
+      applyToggles(host, id);
+    }));
+    applyToggles(host, id);
+  }
+  return { RAMP, mix, color, table, legend, wireTips, autoScale, NICE, wireToggles, applyToggles, hidden };
 })();

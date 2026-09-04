@@ -186,7 +186,7 @@ function plume() {
   // observed bars
   odates.forEach((d, i) => {
     const v = obs[i]; if (v === null || v === undefined) return;
-    P.push(`<rect x="${(X(d) - step * 0.36).toFixed(1)}" y="${Y(v).toFixed(1)}" width="${(step * 0.72).toFixed(1)}" height="${Math.max(0.5, Y(0) - Y(v)).toFixed(1)}" fill="#7ea8d5"/>`);
+    P.push(`<rect x="${(X(d) - step * 0.36).toFixed(1)}" y="${Y(v).toFixed(1)}" width="${(step * 0.72).toFixed(1)}" height="${Math.max(0.5, Y(0) - Y(v)).toFixed(1)}" fill="#7ea8d5" data-k="obs"/>`);
   });
   // divider between observed and forecast
   if (fdates.length && odates.length) {
@@ -198,7 +198,7 @@ function plume() {
   // daily normal, dashed
   let nd = '';
   dates.forEach((d) => { const n = normOn(k, d); if (n === null) return; nd += `${nd ? 'L' : 'M'}${X(d).toFixed(1)} ${Y(n).toFixed(1)}`; });
-  P.push(`<path d="${nd}" fill="none" stroke="#0f172a" stroke-width="1.2" stroke-dasharray="5 3" opacity=".7"/>`);
+  P.push(`<path d="${nd}" fill="none" stroke="#0f172a" stroke-width="1.2" stroke-dasharray="5 3" opacity=".7" data-k="normal"/>`);
   // band for the chosen model, then EVERY member as a thin trace (user:
   // "for ensembles I would like to see the full plumes with all members")
   const b = ser.find((x) => x.m === S.model);
@@ -206,26 +206,26 @@ function plume() {
     let up = '', dn = '';
     b.e.dates.forEach((d, i) => { if (b.s.p10[i] === null || b.s.p90[i] === null) return;
       up += `${up ? 'L' : 'M'}${X(d).toFixed(1)} ${Y(b.s.p90[i]).toFixed(1)}`; dn = `L${X(d).toFixed(1)} ${Y(b.s.p10[i]).toFixed(1)}` + dn; });
-    if (up) P.push(`<path d="${up}${dn}Z" fill="${MODEL_COLOR[b.m] || '#999'}" opacity=".13"/>`);
+    if (up) P.push(`<path d="${up}${dn}Z" fill="${MODEL_COLOR[b.m] || '#999'}" opacity=".13" data-k="${b.m}"/>`);
     if (b.s.members) {
       const nm = b.s.members.length; const op = nm > 30 ? 0.22 : nm > 15 ? 0.3 : 0.4;
       b.s.members.forEach((row) => {
         let d = ''; let pen = false;
         b.e.dates.forEach((dd, i) => { const v = row[i]; if (v === null || v === undefined) { pen = false; return; }
           d += `${pen ? 'L' : 'M'}${X(dd).toFixed(1)} ${Y(Math.min(v, y1)).toFixed(1)}`; pen = true; });
-        P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[b.m] || '#999'}" stroke-width=".9" opacity="${op}" stroke-linejoin="round"/>`);
+        P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[b.m] || '#999'}" stroke-width=".9" opacity="${op}" stroke-linejoin="round" data-k="members"/>`);
       });
     }
   }
   ser.forEach((x) => {
     let d = '';
     x.e.dates.forEach((dd, i) => { if (x.s.mean[i] === null) return; d += `${d ? 'L' : 'M'}${X(dd).toFixed(1)} ${Y(x.s.mean[i]).toFixed(1)}`; });
-    P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[x.m] || '#999'}" stroke-width="${x.m === S.model ? 3.2 : x.m === 'blend' ? 2.8 : 1.8}" stroke-linejoin="round" stroke-linecap="round"/>`);
+    P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[x.m] || '#999'}" stroke-width="${x.m === S.model ? 3.2 : x.m === 'blend' ? 2.8 : 1.8}" stroke-linejoin="round" stroke-linecap="round" data-k="${x.m}"/>`);
   });
   const mn = hasBlend() ? null : meanSeries(k);
   if (mn && ser.length > 1) {
     let d = ''; mn.dates.forEach((dd, i) => { if (mn.mean[i] === null) return; d += `${d ? 'L' : 'M'}${X(dd).toFixed(1)} ${Y(mn.mean[i]).toFixed(1)}`; });
-    P.push(`<path d="${d}" fill="none" stroke="#0f172a" stroke-width="3" stroke-linejoin="round" opacity=".85"/>`);
+    P.push(`<path d="${d}" fill="none" stroke="#0f172a" stroke-width="3" stroke-linejoin="round" opacity=".85" data-k="mean"/>`);
   }
   // ---- lower panel: cumulative % of normal through the forecast
   const top2 = H1 + GAP;
@@ -249,17 +249,17 @@ function plume() {
     P.push(`<text x="${M.l - 7}" y="${(Y2(v) + 3).toFixed(1)}" text-anchor="end">${v}%</text>`);
   }
   let od = ''; odates.forEach((d, i) => { if (opct[i] === null) return; od += `${od ? 'L' : 'M'}${X(d).toFixed(1)} ${Y2(opct[i]).toFixed(1)}`; });
-  P.push(`<path d="${od}" fill="none" stroke="#4f84bd" stroke-width="2"/>`);
+  P.push(`<path d="${od}" fill="none" stroke="#4f84bd" stroke-width="2" data-k="obs"/>`);
   const lused = [];
   cum.forEach((c) => { let d = ''; c.dates.forEach((dd, i) => { if (c.pct[i] === null) return; d += `${d ? 'L' : 'M'}${X(dd).toFixed(1)} ${Y2(c.pct[i]).toFixed(1)}`; });
-    P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[c.m] || '#999'}" stroke-width="${c.m === S.model ? 2.4 : 1.4}"/>`);
+    P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[c.m] || '#999'}" stroke-width="${c.m === S.model ? 2.4 : 1.4}" data-k="${c.m}"/>`);
     const last = c.pct.map((v, i) => [v, i]).filter((x) => x[0] !== null).pop();
     if (last) {
       // end labels pushed apart where runs converge
       let y = Y2(last[0]);
       while (lused.some((u) => Math.abs(u - y) < 10)) y += 10;
       lused.push(y);
-      P.push(`<text class="chg" x="${(X(c.dates[last[1]]) + 4).toFixed(1)}" y="${(y + 3).toFixed(1)}" fill="${MODEL_COLOR[c.m] || '#999'}">${last[0].toFixed(0)}%</text>`);
+      P.push(`<text class="chg" x="${(X(c.dates[last[1]]) + 4).toFixed(1)}" y="${(y + 3).toFixed(1)}" fill="${MODEL_COLOR[c.m] || '#999'}" data-k="${c.m}">${last[0].toFixed(0)}%</text>`);
     }
   });
   dates.forEach((d, i) => {
@@ -276,12 +276,12 @@ function plume() {
     P.push(`<rect class="hit" x="${(X(d) - step / 2).toFixed(1)}" y="${M.t}" width="${step.toFixed(1)}" height="${H - M.t - AX}" fill="transparent" data-t="${lines.join('\n')}"/>`);
   });
   P.push('</svg>');
-  const chips = ser.map((x) => `<span class="${x.m === S.model ? 'new' : ''}"><i style="border-color:${MODEL_COLOR[x.m] || '#999'}"></i>${MODEL_LABEL[x.m] || x.m} ${cyc(x.e.cycle)}</span>`).join('')
-    + (ser.length > 1 && !hasBlend() ? `<span class="new"><i style="border-color:#0f172a;border-top-width:3px"></i>mean of models</span>` : '')
-    + (b && b.s.members ? `<span><i style="border-color:${MODEL_COLOR[b.m] || '#999'};border-top-width:1px;opacity:.6"></i>${b.s.members.length} members</span>` : '')
-    + `<span><i style="border-color:#7ea8d5;border-top-width:6px"></i>Stage IV</span><span><i style="border-color:#0f172a;border-top-style:dashed"></i>1991–2020 normal</span>`;
+  const chips = ser.map((x) => `<span class="${x.m === S.model ? 'new' : ''}" data-k="${x.m}"><i style="border-color:${MODEL_COLOR[x.m] || '#999'}"></i>${MODEL_LABEL[x.m] || x.m} ${cyc(x.e.cycle)}</span>`).join('')
+    + (ser.length > 1 && !hasBlend() ? `<span class="new" data-k="mean"><i style="border-color:#0f172a;border-top-width:3px"></i>mean of models</span>` : '')
+    + (b && b.s.members ? `<span data-k="members"><i style="border-color:${MODEL_COLOR[b.m] || '#999'};border-top-width:1px;opacity:.6"></i>${b.s.members.length} members</span>` : '')
+    + `<span data-k="obs"><i style="border-color:#7ea8d5;border-top-width:6px"></i>Stage IV</span><span data-k="normal"><i style="border-color:#0f172a;border-top-style:dashed"></i>1991–2020 normal</span>`;
   host.innerHTML = `<div class="evolegend">${chips}</div>` + P.join('');
-  HEAT.wireTips(host);
+  HEAT.wireTips(host); HEAT.wireToggles(host, 'plume');
   const di = divInfo(k);
   $('sub1').innerHTML = `${label(k)}${di ? ` · ${di.region} · ${di.area.toLocaleString()} sq mi` : ' · area-weighted union of NWRFC divisions'} · member mean per model, p10–p90 band and members for ${MODEL_LABEL[S.model] || S.model} · <a class="histlink" id="plumehist">cumulative member plumes ▤</a>`;
   $('plumehist').addEventListener('click', () => openHist(k, S.period));
