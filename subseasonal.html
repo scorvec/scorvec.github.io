@@ -426,6 +426,23 @@
     two disagree the hindcast is saying the ensemble is over- or under-confident there.
     Gaussian residuals are an approximation for precipitation; at a weekly mean and 2.5&deg; it is a
     fair one.</p>
+    <p><b>Weather regimes.</b> The Euro-Atlantic and North American sectors each get four
+    regimes from k-means on 5-day-mean 500&nbsp;hPa anomalies (NCEP/NCAR R1, 1991&ndash;2020, the
+    leading 14 EOFs, 30 restarts), separately for the cold half-year (October&ndash;March) and the
+    warm (April&ndash;September), because summer regimes are not winter regimes with less amplitude.
+    The cold Euro-Atlantic set comes out as the classic four &mdash; NAO+, Scandinavian blocking,
+    Atlantic ridge, NAO&minus;/Greenland blocking &mdash; and the North American set as Pacific
+    trough, Alaskan ridge, Pacific ridge and Greenland high, the Lee et al. (2019) quartet; the
+    warm-season sets are named by inspection and say so. Each of the 21 members&rsquo; de-drifted
+    500&nbsp;hPa anomaly is smoothed the same way and assigned to the nearest centroid, or to
+    &ldquo;no regime&rdquo; when its pattern correlation with every centroid is below 0.25, as in
+    the ECMWF product; the member fraction is the regime probability. The set for the init
+    month&rsquo;s season is held for the whole forecast so a plume crossing the October or April
+    boundary is not reclassified mid-way. The hindcast hit rate below the plume is the share of
+    2001&ndash;2020 starts within &plusmn;45 days of the date whose ensemble-mean regime matched the
+    observed one, against persistence of the initial regime and the most common regime. On raw
+    k-means of height anomalies alone the value is modest, and the hit rate shows it: what earns
+    the panel its place is the member fractions with that skill curve beside them.</p>
     <p><b>MJO skill.</b> Every hindcast start is projected onto the same Wheeler&ndash;Hendon EOFs
     with the same arithmetic as the live RMM &mdash; band means, lead-matched de-drift, frame shift,
     120-day mean removed &mdash; and verified against the Bureau of Meteorology&rsquo;s RMM on the
@@ -522,6 +539,13 @@ var P = {
           ? "Every member projected on CPC-style loading patterns (EPO/WPO on PSL\u2019s box definitions, NAM at 100 hPa as the annular EOF); the tail is GEPS\u2019s own day-0 analyses on the same projection, the published daily index as crosses, previous run dashed. Pick one index for a full-size plume. Units: seasonal standard deviations of the daily index, i.e. relative to this time of year."
           : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond \u00B10.5 seasonal sd. Thin lower bar: the same probabilities calibrated on 20 years of GEPS8 hindcasts, with the hindcast skill (anomaly correlation) for that index and week. Hatched cells: skill below 0.25 \u2014 the members\u2019 opinion is shown but should not be trusted."
                          : "Regression of the monthly field on each index (m or hPa per +1 sd), NCEP/NCAR R1 1991\u20132020, with the correlation of this reproduction against CPC\u2019s own index."); }},
+  regimes: {label: "Weather regimes \u2014 Euro-Atlantic & North America", fit: false,
+        a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},
+        b: {label:"View", items:[["fc","Forecast"],["centroids","Regime patterns"]]},
+        img: function (a,b) { return b==="fc" ? "assets/geps/geps_regimes_" + a + "_fc.webp" : "assets/geps/geps_regimes_" + a + ".webp"; },
+        cap: function (a,b) { return b==="fc"
+          ? "Each member-day assigned to the nearest of four k-means regimes (or to none when its pattern correlation is below 0.25): the fraction of members in each regime by day, the observed regime from GEPS analyses, the previous run\u2019s boundaries dashed, and the 2001\u20132020 hindcast hit rate by lead against persistence and climatology."
+          : "The four cold-season and four warm-season regimes: k-means on 5-day-mean 500 hPa anomalies, NCEP/NCAR R1 1991\u20132020, named by inspection. Frequencies are the share of days in the base period."; }},
   daily: {label: "Daily animation",
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
