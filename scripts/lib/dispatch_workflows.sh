@@ -65,6 +65,10 @@ done
 # time and unlimited on a public repo.
 SCHEDULE=$(cat <<'EOF'
 sst.yml|19:23|
+# TAO subsurface only (light): PMEL posts a day's buoys ~a day later, so a
+# morning pass keeps enso-subsurface a day fresher than the evening sst run.
+tao-subsurface.yml|09:10|
+tao-subsurface.yml|14:40|
 ecape.yml|01:20|-f publish=true
 ecape.yml|07:20|-f publish=true
 ecape.yml|13:20|-f publish=true
