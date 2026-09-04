@@ -7,10 +7,10 @@ divisions:
 
     model   source                          steps        cost / run
     gfs     AWS noaa-gfs-bdp-pds, APCP byte-ranged   3 h to 240   81 x 0.5 MB
-    gefs    AWS noaa-gefs-pds, APCP byte-ranged      6 h to 240   41 x 10 members x 0.4 MB
+    gefs    AWS noaa-gefs-pds, APCP byte-ranged      6 h to 240   41 x 31 members x 0.3 MB
     ecmwf   ECMWF open data (Google mirror), tp      3 h/6 h to 240
     aifs    ECMWF open data (Google mirror), tp      6 h to 360
-    ecmwf_ens  same, 10 perturbed members            6 h to 240
+    ecmwf_ens  same, all 50 perturbed members        6 h to 240   41 x 50 x 0.6 MB
     gdps    MSC Datamart Precip-Accum_Sfc            6 h to 240   41 x 3 MB
     geps    MSC Datamart APCP allmbrs (21 members)   6 h to 384, and to 768+ on the
             Monday/Thursday 00Z extended runs (user: "even subseasonal when available")
@@ -220,12 +220,12 @@ class GFS(Model):
 
 class GEFS(Model):
     """AWS mirror (user: 'for GEFS use a mirror, AWS has one'): the APCP record
-    byte-ranged out of each member file, no NOMADS request at all. Ten members
-    at 6 h to 240 keeps a run at ~160 MB; COLUMBIA_GEFS_MEMBERS raises it."""
+    byte-ranged out of each member file, no NOMADS request at all. All 31
+    members at 6 h to 240 is ~350 MB a run; COLUMBIA_GEFS_MEMBERS lowers it."""
     name = "gefs"; lag_h = 5.5; steps = list(range(0, 241, 6))
     @property
     def members(self):
-        n = int(os.environ.get("COLUMBIA_GEFS_MEMBERS", 10))
+        n = int(os.environ.get("COLUMBIA_GEFS_MEMBERS", 31))      # all 31 (user, 3 Sep 2026)
         return tuple(["c00"] + [f"p{i:02d}" for i in range(1, n)])
     def fetch(self, init, step, member="c00"):
         d, h = init.strftime("%Y%m%d"), init.strftime("%H")
@@ -283,7 +283,7 @@ class ENS(_ECMWF):
     steps = list(range(0, 241, 6))
     @property
     def members(self):
-        return tuple(str(i) for i in range(1, int(os.environ.get("COLUMBIA_ENS_MEMBERS", 10)) + 1))
+        return tuple(str(i) for i in range(1, int(os.environ.get("COLUMBIA_ENS_MEMBERS", 50)) + 1))   # all 50
 
 
 class GDPS(Model):
