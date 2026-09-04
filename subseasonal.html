@@ -444,17 +444,20 @@
     k-means of height anomalies alone the value is modest, and the hit rate shows it: what earns
     the panel its place is the member fractions with that skill curve beside them.</p>
     <p><b>Ensemble scenarios.</b> Distinct from the regimes: no fixed centroids. Each week the 21
-    members&rsquo; weekly-mean 500&nbsp;hPa anomalies over a sector are split into three clusters by
-    k-means and drawn as cluster means with member counts, so that when the ensemble mean is a blend
-    of two circulations the scenarios and their support are visible. With 21 members a three-way
-    split is crude, and k-means on pure noise also explains a fair share of spread, so each split is
-    tested against a null: the members&rsquo; deviations are rotated by random orthogonal matrices
-    in member space, which keeps the spatial covariance and destroys any grouping, and re-clustered
-    sixty times. A split that does not beat the 90th percentile of that null is labelled
-    &ldquo;not a real split&rdquo; and watermarked. On the first cycle most weeks failed that test,
-    which is the honest answer to whether three-way scenario clustering of a 21-member ensemble
-    carries much information: usually not, occasionally in weeks 3&ndash;4, and the test says which.
-    Each cluster mean is labelled with its nearest weather regime and the pattern correlation.</p>
+    members&rsquo; weekly-mean 500&nbsp;hPa anomalies over a sector are clustered by k-means with
+    k&nbsp;=&nbsp;2, 3 and 4, and the number of scenarios is chosen, not fixed: each k is tested
+    against a null in which the members&rsquo; deviations are rotated by random orthogonal matrices
+    in member space &mdash; the spatial covariance is kept exactly, any grouping is destroyed
+    &mdash; and re-clustered a hundred times with the same k-means effort. The k that beats the 95th
+    percentile of its null by the widest margin is drawn as scenario means with member counts; if
+    none does, the ensemble is one scenario with spread and the two-way split is shown faded. This
+    is the Ferranti and Corti (2011) recipe ECMWF uses to pick its cluster count. It was calibrated
+    on this ensemble: Gaussian ensembles pass 5&ndash;7% of the time, a two-scenario ensemble with
+    groups three standard deviations apart is caught 60% of the time at k&nbsp;=&nbsp;2 and 95% at
+    four apart, but a forced k&nbsp;=&nbsp;3 caught those only 25% and 50% of the time, which is why
+    a fixed three-way split was abandoned. Groups closer than about two standard deviations cannot be
+    told from a continuum with 21 members, and the usual verdict is one or two scenarios. Each
+    scenario mean is labelled with its nearest weather regime and the pattern correlation.</p>
     <p><b>MJO skill.</b> Every hindcast start is projected onto the same Wheeler&ndash;Hendon EOFs
     with the same arithmetic as the live RMM &mdash; band means, lead-matched de-drift, frame shift,
     120-day mean removed &mdash; and verified against the Bureau of Meteorology&rsquo;s RMM on the
@@ -561,7 +564,7 @@ var P = {
   clusters: {label: "500 hPa scenarios \u2014 ensemble clusters by week", fit: false,
         a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},
         img: function (a) { return "assets/geps/geps_clusters_" + a + ".webp"; },
-        cap: function () { return "For each week the 21 members\u2019 weekly 500 hPa patterns split into three k-means clusters, shown as cluster means with member counts and their nearest weather regime. Each week states how much member spread the split explains against what random rotations of the same members would give; below that, the clusters are noise and are marked so."; }},
+        cap: function () { return "For each week the 21 members\u2019 weekly 500 hPa patterns are clustered with k = 2, 3 and 4, each tested against random rotations of the same members; the k that beats its null by most is shown as scenario means with member counts and nearest regime. If none does, the ensemble is one scenario with spread and the two-way split is drawn faded."; }},
   daily: {label: "Daily animation",
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
