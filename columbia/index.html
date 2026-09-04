@@ -17,32 +17,30 @@
 
 <div class="bar">
   <label>basin <select id="basin"></select></label>
-  <label>band <select id="model"></select></label>
+  <label>plume band &amp; members <select id="model"></select></label>
   <label>period <select id="period"></select></label>
-  <label>show <select id="heatwhat"></select></label>
-  <label>runs <select id="nruns"></select></label>
+  <label>units <select id="heatwhat"></select></label>
+  <label>issues shown <select id="nruns"></select></label>
 </div>
+<p class="howto"><b>How to read this page.</b> Pick a basin, the ensemble whose members and band to draw, and a forecast period. <b>Units</b> switches every table and the map between percent of the 1991–2020 normal, the departure from normal in mm, and absolute mm. Click a division on the map for its cumulative member plumes; click a scorecard row to open that basin below.</p>
 
 <main class="pnwpage">
   <p class="intro" id="intro"></p>
 
-  <section>
-    <h2>Map <span class="thin" id="submap"></span></h2>
-    <div class="bar sub">
-      <label><select id="mapwhat"></select></label>
-      <span class="thin" id="maplegend"></span>
-    </div>
-    <div class="chart-wrap pnwmap bigchart"><div id="map"></div></div>
-  </section>
-
-  <div class="twocol">
-    <section>
+  <div class="hero">
+    <section class="heromap">
+      <h2>Map <span class="thin" id="submap"></span></h2>
+      <div class="bar sub">
+        <label><select id="mapwhat"></select></label>
+        <span class="thin" id="maplegend"></span>
+      </div>
+      <div class="chart-wrap pnwmap bigchart"><div id="map"></div></div>
+    </section>
+    <section class="herotables">
       <h2>Scorecard <span class="thin" id="subsc"></span></h2>
       <div class="scroll"><table id="score" class="heat"></table></div>
       <p class="note" id="scnote"></p>
-    </section>
-    <section>
-      <h2>Observed, Stage IV <span class="thin" id="subobs"></span></h2>
+      <h2 style="margin-top:16px">Observed, Stage IV <span class="thin" id="subobs"></span></h2>
       <div class="scroll"><table id="obstab" class="heat"></table></div>
     </section>
   </div>

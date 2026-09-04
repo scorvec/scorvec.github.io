@@ -446,3 +446,20 @@ table.heat tr.blend td.k{background:#eef3f8;box-shadow:inset 3px 0 0 var(--navy)
 .pnwmap path.div{stroke-width:.9}
 .pnwmap path.div.sel{stroke-width:3}
 #histopen{white-space:nowrap}
+
+/* Columbia page: readability pass (user, 3 Sep 2026) */
+.pnwpage h2{font-size:15px;letter-spacing:.4px}
+.pnwpage h2 .thin{font-size:12.5px}
+.pnwpage .intro{font-size:15px;max-width:1240px}
+.howto{max-width:1240px;font-size:13.5px;line-height:1.55;color:var(--ink2);margin:6px 20px 0;padding:8px 12px;background:#f3f7fb;border:1px solid #dfe8f1;border-radius:6px}
+header .brand{font-size:21px}
+header .brand + .thin,header .thin{font-size:13.5px}
+.hero{display:grid;grid-template-columns:minmax(560px,58%) 1fr;gap:22px;align-items:start;margin-bottom:22px}
+@media (max-width:1180px){.hero{grid-template-columns:1fr}}
+.hero section{margin-bottom:0}
+.hero .scroll,.hero table.heat{width:100%}
+.hero table.heat td.v{padding:8px 6px;font-size:13px}
+.hero table.heat td.k{font-size:13px}
+.pnwmap.bigchart svg{width:auto;max-width:100%;max-height:78vh;display:block;margin:0 auto}
+.pnwmap svg text.lab{font-size:15px}
+.evolegend{font-size:12.5px}
