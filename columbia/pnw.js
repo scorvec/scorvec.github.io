@@ -207,7 +207,7 @@ function plume() {
   host.innerHTML = `<div class="evolegend">${chips}</div>` + P.join('');
   HEAT.wireTips(host);
   const di = divInfo(k);
-  $('sub1').innerHTML = `${label(k)}${di ? ` · ${di.region} · ${di.area.toLocaleString()} sq mi` : ' · area-weighted union of NWRFC divisions'} · member mean per model, p10–p90 band and members for ${MODEL_LABEL[S.model] || S.model} · <a class="histlink" id="plumehist">member histogram ▤</a>`;
+  $('sub1').innerHTML = `${label(k)}${di ? ` · ${di.region} · ${di.area.toLocaleString()} sq mi` : ' · area-weighted union of NWRFC divisions'} · member mean per model, p10–p90 band and members for ${MODEL_LABEL[S.model] || S.model} · <a class="histlink" id="plumehist">cumulative member plumes ▤</a>`;
   $('plumehist').addEventListener('click', () => openHist(k, S.period));
 }
 
@@ -272,7 +272,7 @@ function scorecard() {
              tip: `${k} · ${PERIOD_LABEL[p]} · ${hasBlend() ? 'blend' : 'mean'} of ${v.models} models\n${v.mm.toFixed(1)} mm${v.normal !== undefined ? ` / normal ${v.normal.toFixed(1)} = ${v.pct.toFixed(0)}% (${sgn(v.mm - v.normal, 1)} mm)` : ''}\nmodels range ${fm(v.lo)} to ${fm(v.hi)}` + (d === null ? '' : `\nsame-day change vs the previous issue: ${showSgn(d)}`) };
   }, [], { limb: S.heatwhat === 'mm' ? limbAbs : limb, scale: S.heatwhat === 'pct' ? 150 : 'auto', nice: showNice(), fmt: (v) => showFmt(v) });
   $('score').querySelectorAll('td.k').forEach((td, i) => { td.addEventListener('click', () => { S.basin = keys[i]; $('basin').value = S.basin; render(); });
-    td.innerHTML += ` <a class="histlink" title="member histogram">▤</a>`;
+    td.innerHTML += ` <a class="histlink" title="cumulative member plumes">▤</a>`;
     td.querySelector('.histlink').addEventListener('click', (ev) => { ev.stopPropagation(); openHist(keys[i], S.period); }); });
   const bw = S.latest.blend_weights || null; const bs = hasBlend() ? entry('blend').sources : null;
   $('subsc').textContent = `${hasBlend() ? 'blend' : 'mean'} of the models · ${SHOW[S.heatwhat]} · small type: model range, then the same-day change vs the previous issue`;
@@ -368,7 +368,7 @@ function mapPanel() {
       const ring = poly[0]; let sx = 0, sy = 0; ring.forEach((c) => { sx += c[0]; sy += c[1]; });
       if (!best || ring.length > best.n) best = { n: ring.length, x: sx / ring.length, y: sy / ring.length };
     }
-    const tip = `${p.name} (${p.code}) · ${p.region} · ${Math.round(p.area).toLocaleString()} sq mi${x ? '\n' + x.tip : '\nno value'}\nclick for the member histogram`;
+    const tip = `${p.name} (${p.code}) · ${p.region} · ${Math.round(p.area).toLocaleString()} sq mi${x ? '\n' + x.tip : '\nno value'}\nclick for the cumulative plumes`;
     P.push(`<path d="${pathOf(f.geometry)}" fill="${col.bg || '#e9e6df'}" class="div ${p.code === S.basin ? 'sel' : ''}" data-code="${p.code}" data-t="${tip}"/>`);
     if (best) { const q = PX(best.x, best.y); labels.push(`<text class="lab" x="${q[0].toFixed(1)}" y="${(q[1] + 3).toFixed(1)}" text-anchor="middle" fill="${x ? 'var(--ink)' : 'var(--ink3)'}">${x ? x.text : '–'}</text>`); }
   }
@@ -386,7 +386,7 @@ function mapPanel() {
   const what = SHOW[S.heatwhat];
   $('submap').textContent = S.mapwhat === 'model' ? `${MODEL_LABEL[S.model] || S.model} ${e ? cyc(e.cycle) : ''} · ${PERIOD_LABEL[S.period]} · ${what} by division` :
     S.mapwhat === 'change' ? `${MODEL_LABEL[S.model] || S.model} · ${PERIOD_LABEL[S.period]} · same-day change vs the previous issue, ${S.heatwhat === 'pct' ? 'percentage points of normal' : 'mm'}` : `NCEP Stage IV · ${MAPWHAT[S.mapwhat].replace('% of normal', what)}`;
-  $('submap').textContent += ' · click a division for its member histogram';
+  $('submap').textContent += ' · click a division for its cumulative member plumes';
   const sw = (l, t) => `<i style="background:${HEAT.mix(HEAT.RAMP[l], t)}"></i>`;
   $('maplegend').innerHTML = absMode ? `<span class="lg">0 mm ${[.15, .33, .5, .66, .83, 1].map((t) => sw('green', t)).join('')}<b>${scale.toFixed(0)} mm</b></span>`
     : S.mapwhat === 'change' ? HEAT.legend(scale, limb, 'drier', 'wetter', (x) => x + showUnitDelta())
@@ -422,61 +422,81 @@ function wq(vals, w, q) {
   let c = 0; for (const [v, ww] of o) { c += ww; if (c >= q * tot) return v; } return o[o.length - 1][0];
 }
 function openHist(k, p) {
-  S.histKey = k; S.histPeriod = p || S.histPeriod || S.period;
+  S.histKey = k;
   const modal = $('hist'); modal.hidden = false;
   $('histname').textContent = label(k);
   const di = divInfo(k);
   $('histwhen').textContent = di ? `${di.region} · ${Math.round(di.area).toLocaleString()} sq mi` : 'area-weighted union of NWRFC divisions';
-  fill($('histperiod'), Object.keys(PERIOD_DAYS_JS).filter((pp) => S.latest.periods.includes(pp)), S.histPeriod, (pp) => PERIOD_LABEL[pp]);
+  const ens = models().filter((m) => entry(m).series[k] && entry(m).series[k].members);
+  if (!ens.includes(S.histModel)) S.histModel = ens.includes(S.model) ? S.model : ens[0];
+  fill($('histperiod'), ens, S.histModel, (m) => MODEL_LABEL[m] || m);
   renderHist();
 }
+S.histModel = null;
 function renderHist() {
-  const k = S.histKey, p = S.histPeriod; const host = $('histbody');
-  const ens = models().filter((m) => entry(m).series[k] && entry(m).series[k].members).map((m) => ({ m, d: memberTotals(m, k, p) })).filter((x) => x.d);
-  const det = models().filter((m) => !(entry(m).series[k] && entry(m).series[k].members)).map((m) => ({ m, v: detTotal(m, k, p) })).filter((x) => x.v !== null);
-  if (!ens.length && !det.length) { host.innerHTML = '<div class="empty">No members for this period.</div>'; $('histnote').textContent = ''; return; }
-  const unit = S.heatwhat === 'pct' ? '% of normal' : 'mm' + (S.heatwhat === 'anom' ? ' vs normal' : '');
-  const all = ens.flatMap((x) => x.d.vals).concat(det.map((x) => x.v));
-  let lo = Math.min(...all), hi = Math.max(...all);
-  const ref = S.heatwhat === 'pct' ? 100 : 0; lo = Math.min(lo, ref); hi = Math.max(hi, ref);
-  const pad = (hi - lo) * 0.06 || 1; lo -= pad; hi += pad;
-  const nb = 18, bw = (hi - lo) / nb;
-  const W = 900, H = 330, M = { l: 44, r: 16, t: 26, b: 54 };
-  const X = (v) => M.l + (v - lo) / (hi - lo) * (W - M.l - M.r);
-  // weighted share per bin per ensemble
-  const hists = ens.map((x) => { const h = new Array(nb).fill(0); const tot = x.d.w.reduce((a, b) => a + b, 0);
-    x.d.vals.forEach((v, i) => { const bi = Math.min(nb - 1, Math.max(0, Math.floor((v - lo) / bw))); h[bi] += x.d.w[i] / tot; }); return { m: x.m, h, d: x.d }; });
-  const ymax = Math.max(0.05, ...hists.flatMap((x) => x.h)) * 1.15;
-  const Y = (f) => M.t + (H - M.t - M.b) * (1 - f / ymax);
-  const primary = hists.find((x) => x.m === S.model) || hists.find((x) => x.m === 'blend') || hists[0];
+  // cumulative precipitation plumes (user, 3 Sep 2026): every member of the
+  // chosen ensemble accumulated from day 1, the other models' means, the
+  // cumulative normal, and Stage IV's recent run-up on the left
+  const k = S.histKey, m = S.histModel; const host = $('histbody');
+  const e = m && entry(m); const st = e && e.series[k];
+  if (!st || !st.members) { host.innerHTML = '<div class="empty">No members for this basin.</div>'; $('histnote').textContent = ''; return; }
+  const dates = e.dates; const nd = dates.length;
+  const cum = (row) => { let t = 0; return row.map((v) => (v === null || v === undefined || t === null) ? (t = null) : (t += v)); };
+  const mem = st.members.map(cum);
+  const norm = []; let tn = 0; dates.forEach((d) => { const n = normOn(k, d); tn = n === null || tn === null ? null : tn + n; norm.push(tn); });
+  const others = models().filter((x) => x !== m && x !== 'geps_ext' && entry(x).series[k]).map((x) => ({ x, c: cum(entry(x).series[k].mean), dates: entry(x).dates }));
+  // observed run-up: last 10 days of Stage IV, accumulated backwards to the forecast start
+  const o = S.latest.obs; const ob = (obsFor(k) || []).slice(-10), od = o.dates.slice(-10);
+  const obsCum = []; let to = 0; ob.forEach((v) => { to = v === null || to === null ? null : to + v; obsCum.push(to); });
+  const onorm = []; let tno = 0; od.forEach((d) => { const n = normOn(k, d); tno = n === null || tno === null ? null : tno + n; onorm.push(tno); });
+  const W = 900, H = 380, M = { l: 50, r: 118, t: 28, b: 40 };   // room for the end labels
+  const nl = od.length, nx = nl + nd;
+  const X = (i) => M.l + (i / Math.max(1, nx - 1)) * (W - M.l - M.r);          // i: 0..nl-1 observed, nl..nx-1 forecast
+  const ymax = Math.max(5, ...mem.flat().filter((v) => v !== null), ...others.flatMap((z) => z.c).filter((v) => v !== null), ...norm.filter((v) => v !== null), ...obsCum.filter((v) => v !== null)) * 1.06;
+  const Y = (v) => M.t + (H - M.t - M.b) * (1 - v / ymax);
   const P = [`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="width:100%;height:auto">`];
-  for (let i = 0; i <= 4; i++) { const f = ymax * i / 4; P.push(`<line x1="${M.l}" x2="${W - M.r}" y1="${Y(f).toFixed(1)}" y2="${Y(f).toFixed(1)}" stroke="#eef2f5"/><text x="${M.l - 6}" y="${(Y(f) + 3).toFixed(1)}" text-anchor="end">${(f * 100).toFixed(0)}%</text>`); }
-  // primary as bars
-  if (primary) primary.h.forEach((f, i) => { if (!f) return; P.push(`<rect x="${(X(lo + i * bw) + 1).toFixed(1)}" y="${Y(f).toFixed(1)}" width="${(X(lo + (i + 1) * bw) - X(lo + i * bw) - 2).toFixed(1)}" height="${(Y(0) - Y(f)).toFixed(1)}" fill="${MODEL_COLOR[primary.m] || '#999'}" opacity=".55"/>`); });
-  // other ensembles as step outlines
-  hists.filter((x) => x !== primary).forEach((x) => { let d = ''; x.h.forEach((f, i) => { const x0 = X(lo + i * bw), x1 = X(lo + (i + 1) * bw), y = Y(f); d += `${d ? 'L' : 'M'}${x0.toFixed(1)} ${y.toFixed(1)}L${x1.toFixed(1)} ${y.toFixed(1)}`; });
-    P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[x.m] || '#999'}" stroke-width="2" stroke-linejoin="round"/>`); });
-  // reference (normal) and deterministic ticks
-  P.push(`<line x1="${X(ref).toFixed(1)}" x2="${X(ref).toFixed(1)}" y1="${M.t}" y2="${Y(0)}" stroke="#0f172a" stroke-dasharray="5 3"/><text x="${(X(ref) + 4).toFixed(1)}" y="${M.t + 10}" fill="#0f172a">normal</text>`);
-  det.forEach((x, i) => { P.push(`<line x1="${X(x.v).toFixed(1)}" x2="${X(x.v).toFixed(1)}" y1="${Y(0)}" y2="${Y(0) + 14}" stroke="${MODEL_COLOR[x.m] || '#999'}" stroke-width="2.5"/>`);
-    P.push(`<text x="${X(x.v).toFixed(1)}" y="${Y(0) + 26 + (i % 2) * 11}" text-anchor="middle" fill="${MODEL_COLOR[x.m] || '#999'}" class="chg">${MODEL_LABEL[x.m] || x.m}</text>`); });
+  for (let i = 0; i <= 5; i++) { const v = ymax * i / 5; P.push(`<line x1="${M.l}" x2="${W - M.r}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="#eef2f5"/><text x="${M.l - 7}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end">${v.toFixed(0)}</text>`); }
+  const xd = (X(nl - 1) + X(nl)) / 2;
+  if (nl) { P.push(`<line x1="${xd.toFixed(1)}" x2="${xd.toFixed(1)}" y1="${M.t}" y2="${H - M.b}" stroke="#93a1b5" stroke-dasharray="3 3"/>`);
+    P.push(`<text x="${(xd - 5).toFixed(1)}" y="${M.t + 11}" text-anchor="end" fill="#55637a">Stage IV, last ${nl} d</text><text x="${(xd + 5).toFixed(1)}" y="${M.t + 11}" fill="#55637a">forecast, cumulative from day 1</text>`); }
+  // observed cumulative and its normal
+  let dO = '', dON = ''; obsCum.forEach((v, i) => { if (v !== null) dO += `${dO ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`; if (onorm[i] !== null) dON += `${dON ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(onorm[i]).toFixed(1)}`; });
+  P.push(`<path d="${dON}" fill="none" stroke="#0f172a" stroke-width="1.2" stroke-dasharray="5 3" opacity=".6"/>`);
+  P.push(`<path d="${dO}" fill="none" stroke="#4f84bd" stroke-width="2.6"/>`);
+  // forecast: members, normal, other models' means, this model's mean
+  const col = MODEL_COLOR[m] || '#999'; const op = mem.length > 30 ? 0.28 : mem.length > 15 ? 0.36 : 0.5;
+  mem.forEach((row) => { let d = ''; row.forEach((v, i) => { if (v === null) return; d += `${d ? 'L' : 'M'}${X(nl + i).toFixed(1)} ${Y(v).toFixed(1)}`; });
+    P.push(`<path d="${d}" fill="none" stroke="${col}" stroke-width="1" opacity="${op}"/>`); });
+  let dN = ''; norm.forEach((v, i) => { if (v !== null) dN += `${dN ? 'L' : 'M'}${X(nl + i).toFixed(1)} ${Y(v).toFixed(1)}`; });
+  P.push(`<path d="${dN}" fill="none" stroke="#0f172a" stroke-width="1.6" stroke-dasharray="6 3"/>`);
+  others.forEach((z) => { let d = ''; z.dates.forEach((dd, i) => { const j = dates.indexOf(dd); const v = z.c[i]; if (j < 0 || v === null) return; d += `${d ? 'L' : 'M'}${X(nl + j).toFixed(1)} ${Y(v).toFixed(1)}`; });
+    P.push(`<path d="${d}" fill="none" stroke="${MODEL_COLOR[z.x] || '#999'}" stroke-width="${z.x === 'blend' ? 2.4 : 1.4}" opacity=".9"/>`); });
+  const mc = cum(st.mean); let dM = ''; mc.forEach((v, i) => { if (v !== null) dM += `${dM ? 'L' : 'M'}${X(nl + i).toFixed(1)} ${Y(v).toFixed(1)}`; });
+  P.push(`<path d="${dM}" fill="none" stroke="${col}" stroke-width="3.2"/>`);
+  // end labels: this model's mean and the normal, as % of normal
+  const last = mc.map((v, i) => [v, i]).filter((x) => x[0] !== null).pop(); const nlast = norm[last ? last[1] : nd - 1];
+  if (last) P.push(`<text class="chg" x="${(X(nl + last[1]) + 5).toFixed(1)}" y="${(Y(last[0]) + 4).toFixed(1)}" fill="${col}">${last[0].toFixed(0)} mm${nlast ? ` · ${(100 * last[0] / nlast).toFixed(0)}%` : ''}</text>`);
+  if (nlast) P.push(`<text class="chg" x="${(X(nl + (last ? last[1] : nd - 1)) + 5).toFixed(1)}" y="${(Y(nlast) + 4).toFixed(1)}" fill="#0f172a">normal ${nlast.toFixed(0)}</text>`);
   // x axis
-  for (let i = 0; i <= 6; i++) { const v = lo + (hi - lo) * i / 6; P.push(`<text x="${X(v).toFixed(1)}" y="${H - 6}" text-anchor="middle">${S.heatwhat === 'pct' ? v.toFixed(0) + '%' : (S.heatwhat === 'anom' ? sgn(v, 0) : v.toFixed(0)) + ' mm'}</text>`); }
-  P.push(`<text class="ttl" x="${M.l}" y="${M.t - 10}">${PERIOD_LABEL[p]} · share of members per bin · ${unit}</text>`);
+  const allDates = od.concat(dates);
+  allDates.forEach((d, i) => { if (allDates.length > 20 && i % 2) return; const dt = new Date(d + 'T00:00:00');
+    P.push(`<text x="${X(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" fill="${dt.getDay() % 6 === 0 ? '#b3392b' : '#55637a'}">${dt.getMonth() + 1}/${dt.getDate()}</text>`); });
+  P.push(`<text class="ttl" x="${M.l}" y="${M.t - 12}">cumulative precipitation, mm · ${MODEL_LABEL[m] || m} ${cyc(e.cycle)} · ${mem.length} members</text>`);
   P.push('</svg>');
-  // summary row per ensemble
-  const rows = hists.map((x) => { const q = (qq) => wq(x.d.vals, x.d.w, qq); const tot = x.d.w.reduce((a, b) => a + b, 0);
-    const above = x.d.vals.reduce((a, v, i) => a + (v > ref ? x.d.w[i] : 0), 0) / tot; const big = x.d.vals.reduce((a, v, i) => a + ((S.heatwhat === 'pct' ? v > 150 : v > ref + (S.heatwhat === 'mm' ? 0 : 0)) ? x.d.w[i] : 0), 0) / tot;
-    const fm = (v) => (S.heatwhat === 'pct' ? `${v.toFixed(0)}%` : `${S.heatwhat === 'anom' ? sgn(v, 0) : v.toFixed(0)} mm`);
-    return `<span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${MODEL_COLOR[x.m] || '#999'};margin-right:5px;vertical-align:-1px"></i>${MODEL_LABEL[x.m] || x.m} <b>${x.d.vals.length}</b> members · p10 <b>${fm(q(0.1))}</b> · median <b>${fm(q(0.5))}</b> · p90 <b>${fm(q(0.9))}</b> · above normal <b>${(above * 100).toFixed(0)}%</b>${S.heatwhat === 'pct' ? ` · above 150% <b>${(big * 100).toFixed(0)}%</b>` : ''}${x.d.n < x.d.want ? ' <i class="sh">*</i>' : ''}</span>`; });
-  host.innerHTML = P.join('') + `<div class="histrow">${rows.join('')}</div>`;
-  $('histnote').textContent = 'Bars: ' + (primary ? MODEL_LABEL[primary.m] || primary.m : '') + ' (weighted member share per bin); outlines: the other ensembles; ticks: deterministic runs. ' + (S.heatwhat === 'pct' ? 'Percent of the 1991–2020 normal over the period.' : '') + ' * period not fully covered by the run.';
+  // end-of-run distribution across members
+  const ends = mem.map((row) => row.filter((v) => v !== null).pop()).filter((v) => v !== undefined && v !== null);
+  const w = st.weights || ends.map(() => 1);
+  const q = (qq) => wq(ends, w.slice(0, ends.length), qq); const tot = w.slice(0, ends.length).reduce((a, b) => a + b, 0);
+  const above = nlast ? ends.reduce((a, v, i) => a + (v > nlast ? w[i] : 0), 0) / tot : null;
+  const pct = (v) => (nlast ? ` (${(100 * v / nlast).toFixed(0)}%)` : '');
+  host.innerHTML = P.join('') + `<div class="histrow"><span>run total over ${dates.length} days: p10 <b>${q(0.1).toFixed(0)} mm${pct(q(0.1))}</b> · median <b>${q(0.5).toFixed(0)} mm${pct(q(0.5))}</b> · p90 <b>${q(0.9).toFixed(0)} mm${pct(q(0.9))}</b>${above !== null ? ` · members above normal <b>${(above * 100).toFixed(0)}%</b>` : ''}</span></div>`;
+  $('histnote').textContent = `Thin lines: every ${MODEL_LABEL[m] || m} member accumulated from day 1; thick: its mean; other colours: the other models' means; dashed: the cumulative 1991–2020 normal. Left of the divider, Stage IV accumulated over the last ${nl} days against the same normal.`;
 }
 function wireHist() {
   $('histclose').addEventListener('click', () => { $('hist').hidden = true; });
   $('histback').addEventListener('click', () => { $('hist').hidden = true; });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('hist').hidden = true; });
-  $('histperiod').addEventListener('change', (e) => { S.histPeriod = e.target.value; renderHist(); });
+  $('histperiod').addEventListener('change', (e) => { S.histModel = e.target.value; renderHist(); });
   $('histopen').addEventListener('click', () => { S.basin = S.histKey; $('basin').value = S.basin; $('hist').hidden = true; render(); });
 }
 

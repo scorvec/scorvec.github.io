@@ -445,3 +445,4 @@ table.heat tr.blend td.k{background:#eef3f8;box-shadow:inset 3px 0 0 var(--navy)
 .pnwmap svg text.lab{font-size:15px;stroke-width:3.5px}
 .pnwmap path.div{stroke-width:.9}
 .pnwmap path.div.sel{stroke-width:3}
+#histopen{white-space:nowrap}
