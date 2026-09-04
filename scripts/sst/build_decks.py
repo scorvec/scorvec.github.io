@@ -31,7 +31,6 @@ PAGES = Path(__file__).resolve().parent / "pages"
 # Cards to leave alone, matched on their <h2>. These are the interactive ones.
 KEEP = [
     "Interactive Cross-Section Explorer",
-    "Recharge Oscillator",
     "Daily ENSO indices",
     "ONI vs RONI",
 ]
