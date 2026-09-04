@@ -6,6 +6,22 @@
 # stale (user report 2026-08-16). Shares the main runner's single-instance
 # lock; commits only the subsurface/current products it owns.
 set -uo pipefail
+
+# ---------------------------------------------------------------------------
+# RETIRED 2026-09-04 (user: "no more locally rendered jobs pushing images to
+# github, except GEPS"). This script rendered site products on the laptop and
+# pushed them to main, racing the GitHub Actions renders: on 2026-09-04 its
+# 15-minute pass overwrote the CI's TAO cross-section with a day-old frame, so
+# enso-subsurface showed Sep 1 under a Sep 2 manifest. Its launchd job is in
+# ~/Library/LaunchAgents/disabled/. Rendering belongs to Actions; the laptop
+# dispatches (scripts/lib/dispatch_workflows.sh). A .git/hooks/pre-push guard
+# blocks the push even if this runs. Set ALLOW_LOCAL_RENDER=1 for a manual,
+# deliberate one-off.
+if [ "${ALLOW_LOCAL_RENDER:-0}" != "1" ]; then
+  echo "$(basename "$0"): local rendering is retired; dispatch the workflow instead." >&2
+  exit 0
+fi
+# ---------------------------------------------------------------------------
 PY="${SST_PY:-/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python}"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 export MPLBACKEND=Agg SST_SITE_ROOT="$REPO" \

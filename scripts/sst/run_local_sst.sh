@@ -27,6 +27,22 @@
 # Action runs from a clean checkout, so it has no cache to reuse.
 set -uo pipefail
 
+# ---------------------------------------------------------------------------
+# RETIRED 2026-09-04 (user: "no more locally rendered jobs pushing images to
+# github, except GEPS"). This script rendered site products on the laptop and
+# pushed them to main, racing the GitHub Actions renders: on 2026-09-04 its
+# 15-minute pass overwrote the CI's TAO cross-section with a day-old frame, so
+# enso-subsurface showed Sep 1 under a Sep 2 manifest. Its launchd job is in
+# ~/Library/LaunchAgents/disabled/. Rendering belongs to Actions; the laptop
+# dispatches (scripts/lib/dispatch_workflows.sh). A .git/hooks/pre-push guard
+# blocks the push even if this runs. Set ALLOW_LOCAL_RENDER=1 for a manual,
+# deliberate one-off.
+if [ "${ALLOW_LOCAL_RENDER:-0}" != "1" ]; then
+  echo "$(basename "$0"): local rendering is retired; dispatch the workflow instead." >&2
+  exit 0
+fi
+# ---------------------------------------------------------------------------
+
 # Scheduled poll window: the launchd agent fires every 15 min (StartInterval) and passes
 # --poll; only actually check during 09:00–13:59 ET (OISST typically posts ~midday ET), so
 # the other fires exit instantly. Manual runs (no --poll) always proceed.

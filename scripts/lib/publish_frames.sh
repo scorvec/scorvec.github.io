@@ -172,10 +172,32 @@ REMOTE="$(git config --get remote.origin.url)"
   git add -A
   git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
       commit -q -m "animation frames $(date -u +%FT%H:%MZ)"
+
+  # GUARD (2026-09-04). This is a FORCE push of a whole tree, so anything that
+  # is stale in $TMP silently replaces the CI's copy. It has bitten twice: the
+  # 09-03 wipe of every CI loop, and on 09-04 the equatorial frames reverted a
+  # day (the page then showed Sep 1 under a Sep 2 manifest). Outside DIRS this
+  # tree must be byte-identical to the branch we fetched; if it is not, the
+  # branch moved under us - skip and let the next tick rebuild from a fresh
+  # fetch. Never force-push a tree you did not just derive from the branch.
+  own=$(IFS='|'; echo "${DIRS[*]}")
+  ours=$(git ls-tree -r HEAD --format='%(objectname) %(path)' \
+         | grep -vE "^[0-9a-f]+ ($own)/" | sort)
+  theirs=$(git -C "$REPO" ls-tree -r "origin/$BRANCH" --format='%(objectname) %(path)' \
+           | grep -vE "^[0-9a-f]+ ($own)/" | sort)
+  if [ "$ours" != "$theirs" ]; then
+    echo "  GUARD: tree outside ${DIRS[*]} differs from origin/$BRANCH - not pushing"
+    diff <(printf '%s\n' "$theirs") <(printf '%s\n' "$ours") | head -8
+    exit 3
+  fi
+
   git config http.postBuffer 524288000
   git config http.version HTTP/1.1
   git push -q --force "$REMOTE" "$BRANCH:$BRANCH"
-) || { echo "frames push FAILED"; exit 1; }
+)
+rc=$?
+[ "$rc" = "3" ] && { echo "frames push skipped (branch moved); next tick retries"; exit 0; }
+[ "$rc" = "0" ] || { echo "frames push FAILED"; exit 1; }
 
 echo "$FP" > "$STAMP"
 echo "published $n frames to '$BRANCH'"
