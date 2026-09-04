@@ -13,6 +13,13 @@ on:
     - cron: '10 9 * * *'
 
 env:
+  # sst_subsurface.py resolves its output root from SST_SITE_ROOT and falls back
+  # to the SCRIPT's directory - without this it wrote scripts/sst/assets/... and
+  # the publisher then re-published the seeded (stale) frames, so the page kept a
+  # day-old cross-section under a current manifest (2026-09-04). sst.yml sets this
+  # the same way; any job running these scripts must.
+  SST_SITE_ROOT: ${{ github.workspace }}
+  MPLBACKEND: Agg
   FRAMES_S3_BUCKET: ${{ secrets.FRAMES_S3_BUCKET }}
   FRAMES_S3_ENDPOINT: ${{ secrets.FRAMES_S3_ENDPOINT }}
   FRAMES_S3_REGION: ${{ secrets.FRAMES_S3_REGION }}
