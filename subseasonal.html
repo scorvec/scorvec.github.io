@@ -443,6 +443,18 @@
     observed one, against persistence of the initial regime and the most common regime. On raw
     k-means of height anomalies alone the value is modest, and the hit rate shows it: what earns
     the panel its place is the member fractions with that skill curve beside them.</p>
+    <p><b>Ensemble scenarios.</b> Distinct from the regimes: no fixed centroids. Each week the 21
+    members&rsquo; weekly-mean 500&nbsp;hPa anomalies over a sector are split into three clusters by
+    k-means and drawn as cluster means with member counts, so that when the ensemble mean is a blend
+    of two circulations the scenarios and their support are visible. With 21 members a three-way
+    split is crude, and k-means on pure noise also explains a fair share of spread, so each split is
+    tested against a null: the members&rsquo; deviations are rotated by random orthogonal matrices
+    in member space, which keeps the spatial covariance and destroys any grouping, and re-clustered
+    sixty times. A split that does not beat the 90th percentile of that null is labelled
+    &ldquo;not a real split&rdquo; and watermarked. On the first cycle most weeks failed that test,
+    which is the honest answer to whether three-way scenario clustering of a 21-member ensemble
+    carries much information: usually not, occasionally in weeks 3&ndash;4, and the test says which.
+    Each cluster mean is labelled with its nearest weather regime and the pattern correlation.</p>
     <p><b>MJO skill.</b> Every hindcast start is projected onto the same Wheeler&ndash;Hendon EOFs
     with the same arithmetic as the live RMM &mdash; band means, lead-matched de-drift, frame shift,
     120-day mean removed &mdash; and verified against the Bureau of Meteorology&rsquo;s RMM on the
@@ -546,6 +558,10 @@ var P = {
         cap: function (a,b) { return b==="fc"
           ? "Each member-day assigned to the nearest of four k-means regimes (or to none when its pattern correlation is below 0.25): the fraction of members in each regime by day, the observed regime from GEPS analyses, the previous run\u2019s boundaries dashed, and the 2001\u20132020 hindcast hit rate by lead against persistence and climatology."
           : "The four cold-season and four warm-season regimes: k-means on 5-day-mean 500 hPa anomalies, NCEP/NCAR R1 1991\u20132020, named by inspection. Frequencies are the share of days in the base period."; }},
+  clusters: {label: "500 hPa scenarios \u2014 ensemble clusters by week", fit: false,
+        a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},
+        img: function (a) { return "assets/geps/geps_clusters_" + a + ".webp"; },
+        cap: function () { return "For each week the 21 members\u2019 weekly 500 hPa patterns split into three k-means clusters, shown as cluster means with member counts and their nearest weather regime. Each week states how much member spread the split explains against what random rotations of the same members would give; below that, the clusters are noise and are marked so."; }},
   daily: {label: "Daily animation",
         a: {label:"Domain", items:[["na","North America"],["sa","South America"],
                                    ["glb","Global (Mercator)"]]},
