@@ -6,7 +6,7 @@
   "regions": {
     "2026090406/ratio_mu": {
       "label": "ECAPE / CAPE \u2014 most-unstable",
-      "n_frames": 19,
+      "n_frames": 29,
       "frames": [
         {
           "idx": 0,
@@ -121,12 +121,72 @@
           "file": "F18.webp",
           "date": "2026-09-05 00:00Z",
           "label": "F18 \u00b7 valid Sat 05 Sep 00Z"
+        },
+        {
+          "idx": 19,
+          "file": "F21.webp",
+          "date": "2026-09-05 03:00Z",
+          "label": "F21 \u00b7 valid Sat 05 Sep 03Z"
+        },
+        {
+          "idx": 20,
+          "file": "F24.webp",
+          "date": "2026-09-05 06:00Z",
+          "label": "F24 \u00b7 valid Sat 05 Sep 06Z"
+        },
+        {
+          "idx": 21,
+          "file": "F27.webp",
+          "date": "2026-09-05 09:00Z",
+          "label": "F27 \u00b7 valid Sat 05 Sep 09Z"
+        },
+        {
+          "idx": 22,
+          "file": "F30.webp",
+          "date": "2026-09-05 12:00Z",
+          "label": "F30 \u00b7 valid Sat 05 Sep 12Z"
+        },
+        {
+          "idx": 23,
+          "file": "F33.webp",
+          "date": "2026-09-05 15:00Z",
+          "label": "F33 \u00b7 valid Sat 05 Sep 15Z"
+        },
+        {
+          "idx": 24,
+          "file": "F36.webp",
+          "date": "2026-09-05 18:00Z",
+          "label": "F36 \u00b7 valid Sat 05 Sep 18Z"
+        },
+        {
+          "idx": 25,
+          "file": "F39.webp",
+          "date": "2026-09-05 21:00Z",
+          "label": "F39 \u00b7 valid Sat 05 Sep 21Z"
+        },
+        {
+          "idx": 26,
+          "file": "F42.webp",
+          "date": "2026-09-06 00:00Z",
+          "label": "F42 \u00b7 valid Sun 06 Sep 00Z"
+        },
+        {
+          "idx": 27,
+          "file": "F45.webp",
+          "date": "2026-09-06 03:00Z",
+          "label": "F45 \u00b7 valid Sun 06 Sep 03Z"
+        },
+        {
+          "idx": 28,
+          "file": "F48.webp",
+          "date": "2026-09-06 06:00Z",
+          "label": "F48 \u00b7 valid Sun 06 Sep 06Z"
         }
       ]
     },
     "2026090406/ecape_mu": {
       "label": "ECAPE \u2014 most-unstable",
-      "n_frames": 19,
+      "n_frames": 29,
       "frames": [
         {
           "idx": 0,
@@ -241,12 +301,72 @@
           "file": "F18.webp",
           "date": "2026-09-05 00:00Z",
           "label": "F18 \u00b7 valid Sat 05 Sep 00Z"
+        },
+        {
+          "idx": 19,
+          "file": "F21.webp",
+          "date": "2026-09-05 03:00Z",
+          "label": "F21 \u00b7 valid Sat 05 Sep 03Z"
+        },
+        {
+          "idx": 20,
+          "file": "F24.webp",
+          "date": "2026-09-05 06:00Z",
+          "label": "F24 \u00b7 valid Sat 05 Sep 06Z"
+        },
+        {
+          "idx": 21,
+          "file": "F27.webp",
+          "date": "2026-09-05 09:00Z",
+          "label": "F27 \u00b7 valid Sat 05 Sep 09Z"
+        },
+        {
+          "idx": 22,
+          "file": "F30.webp",
+          "date": "2026-09-05 12:00Z",
+          "label": "F30 \u00b7 valid Sat 05 Sep 12Z"
+        },
+        {
+          "idx": 23,
+          "file": "F33.webp",
+          "date": "2026-09-05 15:00Z",
+          "label": "F33 \u00b7 valid Sat 05 Sep 15Z"
+        },
+        {
+          "idx": 24,
+          "file": "F36.webp",
+          "date": "2026-09-05 18:00Z",
+          "label": "F36 \u00b7 valid Sat 05 Sep 18Z"
+        },
+        {
+          "idx": 25,
+          "file": "F39.webp",
+          "date": "2026-09-05 21:00Z",
+          "label": "F39 \u00b7 valid Sat 05 Sep 21Z"
+        },
+        {
+          "idx": 26,
+          "file": "F42.webp",
+          "date": "2026-09-06 00:00Z",
+          "label": "F42 \u00b7 valid Sun 06 Sep 00Z"
+        },
+        {
+          "idx": 27,
+          "file": "F45.webp",
+          "date": "2026-09-06 03:00Z",
+          "label": "F45 \u00b7 valid Sun 06 Sep 03Z"
+        },
+        {
+          "idx": 28,
+          "file": "F48.webp",
+          "date": "2026-09-06 06:00Z",
+          "label": "F48 \u00b7 valid Sun 06 Sep 06Z"
         }
       ]
     },
     "2026090406/ecape_ml": {
       "label": "ECAPE \u2014 mixed-layer",
-      "n_frames": 19,
+      "n_frames": 29,
       "frames": [
         {
           "idx": 0,
@@ -361,6 +481,66 @@
           "file": "F18.webp",
           "date": "2026-09-05 00:00Z",
           "label": "F18 \u00b7 valid Sat 05 Sep 00Z"
+        },
+        {
+          "idx": 19,
+          "file": "F21.webp",
+          "date": "2026-09-05 03:00Z",
+          "label": "F21 \u00b7 valid Sat 05 Sep 03Z"
+        },
+        {
+          "idx": 20,
+          "file": "F24.webp",
+          "date": "2026-09-05 06:00Z",
+          "label": "F24 \u00b7 valid Sat 05 Sep 06Z"
+        },
+        {
+          "idx": 21,
+          "file": "F27.webp",
+          "date": "2026-09-05 09:00Z",
+          "label": "F27 \u00b7 valid Sat 05 Sep 09Z"
+        },
+        {
+          "idx": 22,
+          "file": "F30.webp",
+          "date": "2026-09-05 12:00Z",
+          "label": "F30 \u00b7 valid Sat 05 Sep 12Z"
+        },
+        {
+          "idx": 23,
+          "file": "F33.webp",
+          "date": "2026-09-05 15:00Z",
+          "label": "F33 \u00b7 valid Sat 05 Sep 15Z"
+        },
+        {
+          "idx": 24,
+          "file": "F36.webp",
+          "date": "2026-09-05 18:00Z",
+          "label": "F36 \u00b7 valid Sat 05 Sep 18Z"
+        },
+        {
+          "idx": 25,
+          "file": "F39.webp",
+          "date": "2026-09-05 21:00Z",
+          "label": "F39 \u00b7 valid Sat 05 Sep 21Z"
+        },
+        {
+          "idx": 26,
+          "file": "F42.webp",
+          "date": "2026-09-06 00:00Z",
+          "label": "F42 \u00b7 valid Sun 06 Sep 00Z"
+        },
+        {
+          "idx": 27,
+          "file": "F45.webp",
+          "date": "2026-09-06 03:00Z",
+          "label": "F45 \u00b7 valid Sun 06 Sep 03Z"
+        },
+        {
+          "idx": 28,
+          "file": "F48.webp",
+          "date": "2026-09-06 06:00Z",
+          "label": "F48 \u00b7 valid Sun 06 Sep 06Z"
         }
       ]
     }
