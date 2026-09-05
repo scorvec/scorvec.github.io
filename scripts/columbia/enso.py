@@ -53,6 +53,8 @@ import pipeline as P  # noqa: E402
 SNOW = os.path.join(P.DATA, "snow")
 OUT = os.path.join(P.DATA, "enso_regression.json")
 PSL = "https://psl.noaa.gov/data/correlation/{}.data"
+MEI = "https://psl.noaa.gov/enso/mei/data/meiv2.data"
+RONI = "https://www.cpc.ncep.noaa.gov/data/indices/RONI.ascii.txt"
 # The ENSO winter that builds an April snowpack: Nov and Dec of the previous
 # calendar year and Jan of this one.
 WINDOW = ((-1, 11), (-1, 12), (0, 1))
@@ -84,6 +86,79 @@ def psl_series(name: str) -> dict:
             if miss is None or abs(v - miss) > 1e-6:
                 out[(y, m)] = v
     return out
+
+
+def psl_url(url: str) -> dict:
+    """Same monthly-table format as psl_series, at an arbitrary URL."""
+    raw = P.get(url, tries=3)
+    if not raw:
+        return {}
+    out, miss = {}, None
+    for line in raw.decode("utf-8", "ignore").splitlines():
+        f = line.split()
+        if len(f) == 2 and all(x.lstrip("-").isdigit() for x in f):
+            continue
+        if len(f) == 1:
+            try:
+                miss = float(f[0])
+            except ValueError:
+                pass
+            continue
+        if len(f) != 13:
+            continue
+        try:
+            y = int(f[0]); vals = [float(x) for x in f[1:]]
+        except ValueError:
+            continue
+        for m, v in enumerate(vals, 1):
+            if miss is None or abs(v - miss) > 1e-6:
+                out[(y, m)] = v
+    return out
+
+
+def roni_seasonal() -> dict:
+    """{(year, 'NDJ'): value} -- RONI is published already 3-month averaged."""
+    raw = P.get(RONI, tries=3)
+    if not raw:
+        return {}
+    out = {}
+    for line in raw.decode("utf-8", "ignore").splitlines()[1:]:
+        f = line.split()
+        if len(f) != 3:
+            continue
+        try:
+            out[(int(f[1]), f[0])] = float(f[2])
+        except ValueError:
+            continue
+    return out
+
+
+def roni_winter(seas: dict, wy: int, offset: int):
+    return seas.get((wy + offset, "NDJ"))
+
+
+def resolve_roni_offset(seas: dict, oni: dict, years) -> int:
+    """Which calendar year CPC labels the NDJ season with, decided by the data.
+
+    NDJ spans two calendar years, and guessing the label wrong would shift
+    every RONI value by a year -- which would not error, just quietly weaken
+    every correlation. So both candidates are scored against the monthly ONI
+    and the better one wins; they differ enormously (r near 1 vs near 0), so
+    the choice is never ambiguous.
+    """
+    best, bestr = 0, -2.0
+    for off in (-1, 0):
+        xs, ys = [], []
+        for y in years:
+            a, b = roni_winter(seas, y, off), winter(oni, y)
+            if a is not None and b is not None:
+                xs.append(a); ys.append(b)
+        if len(xs) > 5:
+            r = float(np.corrcoef(xs, ys)[0, 1])
+            if r > bestr:
+                best, bestr = off, r
+    print(f"  RONI NDJ label resolved to year{best:+d} (r = {bestr:.3f} against the monthly ONI)")
+    return best
 
 
 def winter(idx: dict, wy: int):
@@ -155,7 +230,9 @@ def main():
     a = ap.parse_args()
 
     oni, pdo = psl_series("oni"), psl_series("pdo")
-    print(f"  ONI {len(oni)} months, PDO {len(pdo)} months")
+    mei = psl_url(MEI)
+    seas = roni_seasonal()
+    print(f"  ONI {len(oni)} months, PDO {len(pdo)}, MEI.v2 {len(mei)}, RONI {len(seas)} seasons")
     swe_by_month = {}
     for m in MONTHS:
         v = swe_on(m, a.day)
@@ -166,6 +243,30 @@ def main():
     swe = swe_by_month.get(4) or next(iter(swe_by_month.values()))
     years = sorted({y for v in swe.values() for y in v})
     print(f"  {len(swe)} basins, {len(swe_by_month)} months, water years {years[0]}-{years[-1]}")
+
+    roff = resolve_roni_offset(seas, oni, years)
+    roni = {}
+    for y in years:
+        v = roni_winter(seas, y, roff)
+        if v is not None:
+            roni[y] = v
+
+    # How much do the four actually differ? The answer belongs in the output,
+    # because if they agree to r = 0.99 then showing all four is four columns
+    # of the same number and a reader should be told so.
+    idx_pairs = {}
+    base = {y: winter(oni, y) for y in years}
+    for nm, series in (("pdo", {y: winter(pdo, y) for y in years}),
+                       ("mei", {y: winter(mei, y) for y in years}),
+                       ("roni", roni)):
+        xs = [(base[y], series.get(y)) for y in years
+              if base.get(y) is not None and series.get(y) is not None]
+        if len(xs) > 5:
+            idx_pairs[nm] = round(float(np.corrcoef([a for a, _ in xs], [b for _, b in xs])[0, 1]), 3)
+    doc_index_r = idx_pairs
+
+    PREDICTORS = (("oni", lambda y: winter(oni, y)), ("roni", lambda y: roni.get(y)),
+                  ("mei", lambda y: winter(mei, y)), ("pdo", lambda y: winter(pdo, y)))
 
     # ONI and PDO are NOT independent predictors over this window. Measured
     # r = 0.48 across these winters, so "23 basins significant on ONI and 23
@@ -190,17 +291,19 @@ def main():
            "note_months": ("the ENSO predictor is Nov-Jan for EVERY target month, so the "
                            "months are comparable; for targets before February that index "
                            "is not known in advance, so this is a diagnostic, not a forecast"),
-           "oni_by_year": {}, "pdo_by_year": {},
+           "predictors": ["oni", "roni", "mei", "pdo"],
+           "index_r_vs_oni": {},
+           "oni_by_year": {}, "roni_by_year": {}, "mei_by_year": {}, "pdo_by_year": {},
            "basins": {}}
     # the predictor is the same for every basin and month, so it is stored once
+    doc["index_r_vs_oni"] = doc_index_r
     for y in years:
-        w, q = winter(oni, y), winter(pdo, y)
-        if w is not None:
-            doc["oni_by_year"][str(y)] = round(w, 2)
-        if q is not None:
-            doc["pdo_by_year"][str(y)] = round(q, 2)
+        for key, val in (("oni_by_year", winter(oni, y)), ("roni_by_year", roni.get(y)),
+                         ("mei_by_year", winter(mei, y)), ("pdo_by_year", winter(pdo, y))):
+            if val is not None:
+                doc[key][str(y)] = round(val, 2)
 
-    sig = {"oni": 0, "pdo": 0}
+    sig = {k: 0 for k, _ in PREDICTORS}
     rows = []
     for c in sorted({b for v in swe_by_month.values() for b in v}):
         per_month = {}
@@ -210,10 +313,10 @@ def main():
                 continue
             ys = sorted(series)
             rec = {}
-            for nm, idx in (("oni", oni), ("pdo", pdo)):
+            for nm, getx in PREDICTORS:
                 xs, vs = [], []
                 for y in ys:
-                    w = winter(idx, y)
+                    w = getx(y)
                     if w is not None:
                         xs.append(w); vs.append(series[y])
                 f = fit(xs, vs)
@@ -253,9 +356,13 @@ def main():
             print("  ..."); continue
         print(f"  {c:28s} {f['n']:3d} {f['r']:7.3f} {f['p']:7.4f} "
               f"{f['slope']:8.1f}+-{f['slope_se']:.0f} {f['mean']:7.1f}")
-    print(f"\n  significant at p<0.05: ONI {sig['oni']} of {nb} basins, "
-          f"PDO {sig['pdo']} of {nb}; expected by chance {doc['expected_by_chance']}")
-    print(f"  ONI vs PDO over these winters: r = {oni_pdo} -- largely one signal, not two")
+    print(f"\n  significant at p<0.05, 1 April: "
+          + ", ".join(f"{k.upper()} {v}" for k, v in sig.items())
+          + f" of {nb} basins; expected by chance {doc['expected_by_chance']}")
+    print("  how far the indices differ, correlated against the ONI over these winters:")
+    for k, v in doc_index_r.items():
+        print(f"    {k.upper():5s} r = {v}"
+              + ("   -- effectively the same predictor" if abs(v) > 0.95 else ""))
     print(f"  wrote {OUT}")
 
 

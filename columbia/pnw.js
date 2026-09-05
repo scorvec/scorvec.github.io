@@ -434,11 +434,19 @@ function ensoBar() {
     bar.parentNode.insertBefore(host, bar.nextSibling);
   }
   const ms = (ENSOREG && ENSOREG.months || []).map(String);
+  const idxs = (ENSOREG && ENSOREG.predictors) || ['oni'];
+  const rv = ENSOREG && ENSOREG.index_r_vs_oni || {};
   host.innerHTML = `<span class="lab">1st of</span><span class="seg" id="ensomonth">`
     + ms.map((m) => `<button type="button" data-v="${m}" aria-pressed="${m === S.ensoMonth}">${MONTH_LAB[+m]}</button>`).join('')
+    + `</span><span class="lab">index</span><span class="seg" id="ensoidx">`
+    + idxs.map((k) => `<button type="button" data-v="${k}" aria-pressed="${k === S.ensoIdx}"`
+        + ` title="${IDX_LONG[k] || k}${rv[k] !== undefined ? ` · correlates with the ONI at ${rv[k]} here` : ''}">${IDX_LAB[k] || k}</button>`).join('')
     + `</span><span class="thin">click a division for its scatter</span>`;
   host.querySelectorAll('#ensomonth button').forEach((b) => {
     b.onclick = () => { S.ensoMonth = b.dataset.v; render(); };
+  });
+  host.querySelectorAll('#ensoidx button').forEach((b) => {
+    b.onclick = () => { S.ensoIdx = b.dataset.v; render(); };
   });
 }
 
@@ -647,6 +655,10 @@ function mapCell(mm, normal, tipHead) {
    rather than coloured as though they said something. */
 let ENSOREG = null;
 S.ensoMonth = '4';                         // 1 April, the water-supply benchmark
+S.ensoIdx = 'oni';
+const IDX_LAB = { oni: 'ONI', roni: 'RONI', mei: 'MEI.v2', pdo: 'PDO' };
+const IDX_LONG = { oni: 'Oceanic Niño Index', roni: 'Relative ONI', mei: 'Multivariate ENSO Index v2',
+                   pdo: 'Pacific Decadal Oscillation' };
 const MONTH_LAB = { 11: 'Nov', 12: 'Dec', 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun' };
 
 async function ensoReg() {
@@ -658,17 +670,17 @@ async function ensoReg() {
 function ensoFit(code, month) {
   const B = ENSOREG && ENSOREG.basins && ENSOREG.basins[code];
   const M = B && B[month || S.ensoMonth];
-  return M && M.oni ? M : null;
+  return M && M[S.ensoIdx] ? M : null;
 }
 function ensoValue(code) {
   const M = ensoFit(code);
   if (!M) return null;
-  const f = M.oni;
+  const f = M[S.ensoIdx];
   const weak = f.p >= 0.05;
   return { v: weak ? 0 : f.r,
            text: `${f.r.toFixed(2)}${weak ? '' : '*'}`,
-           tip: `${code} · 1 April SWE vs NDJ ONI\nr ${f.r.toFixed(2)}, p ${f.p.toFixed(3)}, n ${f.n}`
-                + `\nslope ${f.slope.toFixed(0)} ± ${f.slope_se.toFixed(0)} mm per 1 K of ONI`
+           tip: `${code} · 1 ${MONTH_LAB[+S.ensoMonth]} SWE vs NDJ ${IDX_LAB[S.ensoIdx]}\nr ${f.r.toFixed(2)}, p ${f.p.toFixed(3)}, n ${f.n}`
+                + `\nslope ${f.slope.toFixed(0)} ± ${f.slope_se.toFixed(0)} mm per unit ${IDX_LAB[S.ensoIdx]}`
                 + `\nmean ${f.mean.toFixed(0)} mm, sd ${f.sd.toFixed(0)}`
                 + (weak ? '\nnot significant at p<0.05 (n=23 needs |r|>0.41)' : '')
                 + '\nclick for the scatter' };
@@ -681,8 +693,8 @@ function ensoValue(code) {
 function ensoScatter(code) {
   const M = ensoFit(code); const host = $('histbody');
   if (!M) { host.innerHTML = '<div class="empty">No ENSO fit for this basin.</div>'; return; }
-  const f = M.oni, pts = [];
-  const ONI = ENSOREG.oni_by_year || {};
+  const f = M[S.ensoIdx], pts = [];
+  const ONI = ENSOREG[S.ensoIdx + '_by_year'] || {};
   for (const [y, v] of Object.entries(M.swe || {})) {
     if (ONI[y] !== undefined) pts.push({ y: +y, x: ONI[y], v });
   }
@@ -718,16 +730,20 @@ function ensoScatter(code) {
     P.push(`<circle cx="${X(p.x)}" cy="${Y(p.v)}" r="5.5" fill="${p.x > 0.5 ? '#c95a45' : p.x < -0.5 ? '#4f84bd' : '#8a97a6'}" fill-opacity=".85"/>`);
     P.push(`<text x="${X(p.x)}" y="${Y(p.v) - 10}" text-anchor="middle" class="mini">${String(p.y).slice(2)}</text>`);
   }
-  P.push(`<text x="${Mg.l}" y="18" class="ttl">${label(code)} · 1 ${MONTH_LAB[+S.ensoMonth]} snow water vs the Nov–Jan ONI</text>`);
-  P.push(`<text x="${W / 2}" y="${H - 6}" text-anchor="middle" class="mini">ONI, °C (Nov–Jan mean)</text>`);
+  P.push(`<text x="${Mg.l}" y="18" class="ttl">${label(code)} · 1 ${MONTH_LAB[+S.ensoMonth]} snow water vs the Nov–Jan ${IDX_LAB[S.ensoIdx]}</text>`);
+  P.push(`<text x="${W / 2}" y="${H - 6}" text-anchor="middle" class="mini">${IDX_LONG[S.ensoIdx]}, Nov–Jan mean</text>`);
   P.push('</svg>');
   host.innerHTML = P.join('');
   $('histnote').innerHTML =
-    `r ${f.r.toFixed(2)}, p ${f.p.toFixed(3)}, n ${f.n} · slope <b>${f.slope.toFixed(0)} ± ${f.slope_se.toFixed(0)} mm</b> per 1 K of ONI`
+    `r ${f.r.toFixed(2)}, p ${f.p.toFixed(3)}, n ${f.n} · slope <b>${f.slope.toFixed(0)} ± ${f.slope_se.toFixed(0)} mm</b> per unit ${IDX_LAB[S.ensoIdx]}`
     + ` · mean ${f.mean.toFixed(0)} mm, sd ${f.sd.toFixed(0)}`
     + (f.p < 0.05 ? '' : ' · <b>not significant</b>, the line is dashed for that reason')
-    + `<br>With 23 winters an r of this size carries an interval roughly ±0.35 wide, and the ONI`
-    + ` and PDO are themselves correlated at ${ENSOREG.oni_pdo_r} here — read the scatter, not the coefficient.`;
+    + `<br>With 23 winters an r of this size carries an interval roughly ±0.35 wide — read the scatter,`
+    + ` not the coefficient.`
+    + (S.ensoIdx !== 'oni' && (ENSOREG.index_r_vs_oni || {})[S.ensoIdx] !== undefined
+       ? ` ${IDX_LAB[S.ensoIdx]} correlates with the ONI at ${ENSOREG.index_r_vs_oni[S.ensoIdx]} over these winters`
+         + (Math.abs(ENSOREG.index_r_vs_oni[S.ensoIdx]) > 0.95 ? ', i.e. it is very nearly the same predictor.' : '.')
+       : '');
 }
 
 function mapValue(code) {
@@ -837,10 +853,13 @@ function mapPanel() {
     const R = ENSOREG || {};
     const sig = (R.significant || {}).oni;
     $('submap').textContent =
-      `correlation of 1 ${MONTH_LAB[+S.ensoMonth]} snow water with the Nov–Jan ONI, ${(R.basins && Object.values(R.basins)[0] || {}).oni ? Object.values(R.basins)[0].oni.n : 23} water years`
+      `correlation of 1 ${MONTH_LAB[+S.ensoMonth]} snow water with the Nov–Jan ${IDX_LAB[S.ensoIdx]}, 23 water years`
       + ` · blue = more snow in a warm ENSO winter, red = less`
-      + (sig !== undefined ? ` · ${sig} of ${Object.keys(R.basins || {}).length} basins reach p<0.05, ~${R.expected_by_chance} expected by chance`
-                           : '')
+      + ((R.significant || {})[S.ensoIdx] !== undefined
+         ? ` · ${R.significant[S.ensoIdx]} of ${Object.keys(R.basins || {}).length} basins reach p<0.05, ~${R.expected_by_chance} expected by chance`
+         : '')
+      + (S.ensoIdx !== 'oni' && (R.index_r_vs_oni || {})[S.ensoIdx] !== undefined
+         ? ` · r ${R.index_r_vs_oni[S.ensoIdx]} with the ONI` : '')
       + ` · hollow = not significant`;
     $('maplegend').innerHTML = diverging('warm', 'cold', 'less snow', 'more snow',
                                          'correlation r, ±0.7');
