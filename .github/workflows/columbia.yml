@@ -103,6 +103,12 @@ jobs:
             --obs-days "${OBS_DAYS:-20}" --backfill "${BACKFILL:-3}" --workers 8 \
             --obs-extend "${OBS_EXTEND:-0}"
 
+      # NWRFC keeps its temperature forcing for about ten days and offers no
+      # deeper archive, so this has to run daily or the record is simply lost.
+      - name: NWRFC temperature
+        continue-on-error: true
+        run: python scripts/columbia/nwrfc_temp.py --all
+
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
