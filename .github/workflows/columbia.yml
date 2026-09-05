@@ -30,6 +30,10 @@ on:
         description: 'Stage IV days to backfill'
         type: string
         default: '20'
+      obs_extend:
+        description: 'oldest missing Stage IV days to add per run (the slow tail to 2002)'
+        type: string
+        default: '15'
   workflow_dispatch:
     inputs:
       models:
@@ -41,6 +45,9 @@ on:
       obs_days:
         description: 'Stage IV days to backfill'
         default: '20'
+      obs_extend:
+        description: 'oldest missing Stage IV days to add per run (the slow tail to 2002)'
+        default: '15'
 
 # actions:write for the pages dispatch below; a schedule-only caller must
 # grant the same or the reusable workflow is rejected at startup.
@@ -84,10 +91,16 @@ jobs:
           COLUMBIA_MODELS: ${{ inputs.models }}
           BACKFILL: ${{ inputs.backfill_days }}
           OBS_DAYS: ${{ inputs.obs_days }}
+          # The slow tail of the Stage IV record, 2016 back towards 2002. Only
+          # the IEM mirror has those years, so it is 15 days a run rather than
+          # a sweep -- roughly 60 a day, and the ~5,100 remaining days land
+          # over about three months without leaning on a free service.
+          OBS_EXTEND: ${{ inputs.obs_extend }}
         run: |
           python scripts/columbia/pipeline.py \
             ${COLUMBIA_MODELS:+--models "$COLUMBIA_MODELS"} \
-            --obs-days "${OBS_DAYS:-20}" --backfill "${BACKFILL:-3}" --workers 8
+            --obs-days "${OBS_DAYS:-20}" --backfill "${BACKFILL:-3}" --workers 8 \
+            --obs-extend "${OBS_EXTEND:-15}"
 
       - name: Commit & push
         run: |

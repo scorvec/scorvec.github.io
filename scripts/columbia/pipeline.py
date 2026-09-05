@@ -631,6 +631,37 @@ def backfill_obs(days):
     return got
 
 
+# Stage IV itself begins in 2002; NOAA's own archive only goes back to 2016,
+# so the earlier years exist on the IEM mirror alone. That is a free academic
+# service, so the deeper history is taken a small slice per run rather than in
+# one 5,000-file sweep -- see --obs-extend, wired into the daily job.
+ST4_FLOOR = "2002-01-01"
+
+
+def extend_obs(n, floor=ST4_FLOOR):
+    """Fetch the N OLDEST missing observed days, walking backwards in time.
+
+    Deliberately serial and small: this is the polite tail of the backfill,
+    not a sweep. Stops at the first date that is genuinely unavailable rather
+    than grinding through a decade of 404s.
+    """
+    have = {os.path.basename(x)[:-5] for x in glob.glob(os.path.join(OBS, "????-??-??.json"))}
+    if not have:
+        return []
+    d = dt.date.fromisoformat(min(have)) - dt.timedelta(days=1)
+    stop = dt.date.fromisoformat(floor)
+    got, misses = [], 0
+    while len(got) < n and d >= stop and misses < 5:
+        k = d.strftime("%Y-%m-%d")
+        if k not in have:
+            if fetch_obs(k):
+                got.append(k); misses = 0
+            else:
+                misses += 1
+        d -= dt.timedelta(days=1)
+    return got
+
+
 def backfill_obs_from(start, workers=5):
     """Every missing observed day from `start` to today, newest first.
 
@@ -984,12 +1015,18 @@ def main():
     ap.add_argument("--backfill", type=int, default=0, help="also archive every cycle of the last N days")
     ap.add_argument("--obs-from", default=None, metavar="YYYY-MM-DD",
                     help="backfill observed Stage IV from this date (NOAA archive covers 2016-01-01 on)")
+    ap.add_argument("--obs-extend", type=int, default=0, metavar="N",
+                    help="fetch the N oldest missing observed days (the slow tail back to 2002)")
     a = ap.parse_args()
     ms = [x.strip() for x in a.models.split(",") if x.strip()] or ["gfs", "ecmwf", "aifs", "gdps", "geps", "geps_ext", "gefs", "ecmwf_ens"]
     print(f"  models: {','.join(ms)}")
     if a.obs_from:
         ok, miss = backfill_obs_from(a.obs_from, a.workers)
         print(f"  stage4 backfill done: {ok} days written, {miss} unavailable")
+    if a.obs_extend:
+        ext = extend_obs(a.obs_extend)
+        print(f"  stage4 extend: {len(ext)} older days"
+              + (f" ({ext[-1]} .. {ext[0]})" if ext else " (nothing older available)"))
     if not a.no_fetch:
         got = backfill_obs(a.obs_days)
         if got:
