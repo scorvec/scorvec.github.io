@@ -22,7 +22,16 @@ permissions:
 
 concurrency:
   group: skewt-data
-  cancel-in-progress: true          # newest data wins
+  # Queue overlapping runs, do NOT cancel (changed 2026-09-05). This used to be
+  # cancel-in-progress, on the reasoning that the newest data wins - but the two
+  # triggers land a minute apart by construction: the laptop dispatches this
+  # hourly at :50, while the four schedule-only callers ask for :35 and GitHub
+  # delays crons by hours, so a delayed caller regularly starts just before the
+  # :50 dispatch and gets killed by it. Each run force-pushes one parentless
+  # commit, so letting the older finish costs a few redundant minutes on a
+  # public repo and the final state is still the newest push. The cancellations
+  # were pure noise - a red run and a mail for work that was about to be redone.
+  cancel-in-progress: false
 
 jobs:
   mirror:
