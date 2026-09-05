@@ -436,15 +436,33 @@ function ensoBar() {
   const ms = (ENSOREG && ENSOREG.months || []).map(String);
   const idxs = (ENSOREG && ENSOREG.predictors) || ['oni'];
   const rv = ENSOREG && ENSOREG.index_r_vs_oni || {};
-  const targets = ms.concat(((ENSOREG || {}).rain) ? ['rain'] : []);
-  host.innerHTML = `<span class="lab">target</span><span class="seg" id="ensomonth">`
-    + targets.map((m) => `<button type="button" data-v="${m}" aria-pressed="${m === S.ensoMonth}"`
-        + `${m === 'rain' ? ' title="Oct–Mar Stage IV rainfall total — only 10 seasons, so much weaker power"' : ''}>`
-        + `${m === 'rain' ? 'rain' : '1 ' + MONTH_LAB[+m]}</button>`).join('')
-    + `</span><span class="lab">index</span><span class="seg" id="ensoidx">`
+  // Snow vs rain was buried as the last button of a long month strip and was
+  // missed (user, 5 Sep 2026). It is a different VARIABLE, not another target
+  // date, so it gets its own control at the front; the month strip then
+  // belongs to snowpack alone and is hidden when rainfall is showing, since
+  // rainfall is a single Oct-Mar season and has no month to pick.
+  const hasRain = !!((ENSOREG || {}).rain);
+  host.innerHTML = `<span class="lab">variable</span><span class="seg" id="ensovar">`
+    + `<button type="button" data-v="snow" aria-pressed="${!isRain()}" title="SNODAS snow water equivalent, 23 water years">snowpack</button>`
+    + (hasRain ? `<button type="button" data-v="rain" aria-pressed="${isRain()}" title="Oct–Mar Stage IV rainfall total — only 10 seasons, so much weaker power">rainfall</button>` : '')
+    + `</span>`
+    + (isRain()
+        ? `<span class="thin">Oct–Mar total · ${(((ENSOREG || {}).rain || {}).years || []).length} seasons</span>`
+        : `<span class="lab">on the 1st of</span><span class="seg" id="ensomonth">`
+          + ms.map((m) => `<button type="button" data-v="${m}" aria-pressed="${m === S.ensoMonth}">${MONTH_LAB[+m]}</button>`).join('')
+          + `</span>`)
+    + `<span class="lab">index</span><span class="seg" id="ensoidx">`
     + idxs.map((k) => `<button type="button" data-v="${k}" aria-pressed="${k === S.ensoIdx}"`
         + ` title="${IDX_LONG[k] || k}${rv[k] !== undefined ? ` · correlates with the ONI at ${rv[k]} here` : ''}">${IDX_LAB[k] || k}</button>`).join('')
     + `</span><span class="thin">click a division for its scatter</span>`;
+  host.querySelectorAll('#ensovar button').forEach((b) => {
+    b.onclick = () => {
+      // remember the month picked for snow, so switching back restores it
+      if (b.dataset.v === 'rain') { S.ensoLastMonth = S.ensoMonth; S.ensoMonth = 'rain'; }
+      else { S.ensoMonth = S.ensoLastMonth || '4'; }
+      render();
+    };
+  });
   host.querySelectorAll('#ensomonth button').forEach((b) => {
     b.onclick = () => { S.ensoMonth = b.dataset.v; render(); };
   });
@@ -659,6 +677,7 @@ function mapCell(mm, normal, tipHead) {
 let ENSOREG = null;
 S.ensoMonth = '4';                         // 1 April, the water-supply benchmark
 S.ensoIdx = 'oni';
+S.ensoLastMonth = '4';
 const IDX_LAB = { oni: 'ONI', roni: 'RONI', mei: 'MEI.v2', pdo: 'PDO' };
 const IDX_LONG = { oni: 'Oceanic Niño Index', roni: 'Relative ONI', mei: 'Multivariate ENSO Index v2',
                    pdo: 'Pacific Decadal Oscillation' };

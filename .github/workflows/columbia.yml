@@ -111,6 +111,16 @@ jobs:
           for i in 1 2 3 4 5; do
             timeout 120 git fetch origin main || { sleep 5; continue; }
             git reset -q FETCH_HEAD
+            # `git reset` is MIXED: it moves the index to FETCH_HEAD but leaves
+            # the working tree at whatever this job checked out. Anything added
+            # to $PATHS after that checkout is therefore in the index and NOT on
+            # disk, and the `git add -A` below would stage it as a DELETION and
+            # push that. It ate columbia/data/snow_climo.json exactly this way.
+            # So restore files the fetched tree has and this working tree lacks
+            # -- and only those, so freshly generated data is never clobbered.
+            git ls-tree -r --name-only FETCH_HEAD -- $PATHS | while read -r f; do
+              [ -e "$f" ] || git checkout -q FETCH_HEAD -- "$f" || true
+            done
             git add -A $PATHS
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi
             git commit -q -m "data update: $(date -u +%Y-%m-%d)"
