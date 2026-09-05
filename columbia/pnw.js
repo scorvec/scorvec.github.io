@@ -412,7 +412,111 @@ function obstab() {
 /* ---- map ---------------------------------------------------------------------------------------- */
 const MAPWHAT = { model: 'model, % of normal', change: 'model, change vs prior issue', obs7: 'Stage IV last 7 d, % of normal',
                   obs14: 'Stage IV last 14 d, % of normal', obs30: 'Stage IV last 30 d, % of normal',
-                  obs60: 'Stage IV last 60 d, % of normal', obs90: 'Stage IV last 90 d, % of normal' };
+                  obs60: 'Stage IV last 60 d, % of normal', obs90: 'Stage IV last 90 d, % of normal',
+                  day: 'one day: rain, snow water, snow depth' };
+
+/* Date picker + field buttons, shown only while the day view is open. Placed
+   in the map's own sub-bar so it inherits the layout and the mobile rules. */
+function dayBar() {
+  let host = document.getElementById('daybar');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'daybar'; host.className = 'daybar';
+    const bar = document.querySelector('.heromap .bar.sub');
+    if (!bar) return;
+    bar.parentNode.insertBefore(host, bar.nextSibling);
+  }
+  const ix = DAYIX || { obs: [], snow: [] };
+  // The two archives start in different years -- snow in 2003, rain in 2016 --
+  // so the picker spans their UNION and the caption explains which of the two
+  // has nothing for the chosen day.
+  const all = ix.all || [];
+  const first = all[0] || '2016-01-01', last = all[all.length - 1] || S.dayDate;
+  host.innerHTML =
+    `<button id="dayprev" title="previous day">◀</button>`
+    + `<input type="date" id="daypick" value="${S.dayDate || ''}" min="${first}" max="${last}">`
+    + `<button id="daynext" title="next day">▶</button>`
+    + `<span class="seg" id="dayfield">`
+    + Object.keys(DAY_FIELDS).map((k) =>
+        `<button type="button" data-v="${k}" aria-pressed="${k === S.dayField}">${DAY_FIELDS[k].split(',')[0]}</button>`).join('')
+    + `</span>`
+    + `<span class="thin">${ix.obs.length} days of rain from ${ix.obs[0] || '–'} · `
+    + `${ix.snow.length} snow analyses from ${ix.snow[0] || '–'}</span>`;
+  const step = async (n) => {
+    const i = all.indexOf(S.dayDate);
+    const j = i < 0 ? all.length - 1 : Math.min(Math.max(i + n, 0), all.length - 1);
+    S.dayDate = all[j]; await loadDay(S.dayDate); render();
+  };
+  host.querySelector('#dayprev').onclick = () => step(-1);
+  host.querySelector('#daynext').onclick = () => step(1);
+  host.querySelector('#daypick').onchange = async (e) => {
+    if (!e.target.value) return;
+    S.dayDate = e.target.value; await loadDay(S.dayDate); render();
+  };
+  host.querySelectorAll('#dayfield button').forEach((b) => {
+    b.onclick = () => { S.dayField = b.dataset.v; render(); };
+  });
+}
+
+/* ---- the day browser -------------------------------------------------------
+   Every observed day is already published as its own small file, so browsing
+   the archive is a fetch rather than anything the main payload has to carry:
+   3,900 days of Stage IV and 568 of SNODAS would be tens of megabytes in
+   pnw_latest.json. The two index files list what exists, and are themselves
+   only pulled when this view is first opened. */
+S.day = null;              // the loaded record: {date, precip:{}, swe:{}, depth:{}}
+S.dayField = 'precip';
+S.dayDate = null;
+let DAYIX = null;          // {obs:[dates], snow:[dates]}
+const DAY_FIELDS = { precip: 'rain, mm', swe: 'snow water, mm', depth: 'snow depth, cm' };
+
+async function dayIndex() {
+  if (DAYIX) return DAYIX;
+  const g = async (f) => { try { return (await (await fetch(DATA_BASE() + f)).json()).dates || []; }
+                           catch (e) { return []; } };
+  const obs = await g('obs_index.json'), snow = await g('snow_index.json');
+  DAYIX = { obs, snow, all: [...new Set([...obs, ...snow])].sort() };
+  return DAYIX;
+}
+
+/* The nearest snow day at or before `d`. SNODAS is twice monthly before the
+   current water year, so an exact match is not always available and the panel
+   says which day it actually drew. */
+function nearestSnow(d) {
+  if (!DAYIX || !DAYIX.snow.length) return null;
+  let best = null;
+  for (const s of DAYIX.snow) { if (s <= d) best = s; else break; }
+  return best;
+}
+
+async function loadDay(d) {
+  await dayIndex();
+  const j = async (u) => { try { const r = await fetch(u); return r.ok ? await r.json() : null; }
+                           catch (e) { return null; } };
+  const sd = nearestSnow(d);
+  const [ob, sn] = await Promise.all([
+    j(`${DATA_BASE()}obs/${d}.json`),
+    sd ? j(`${DATA_BASE()}snow/${sd}.json`) : Promise.resolve(null)]);
+  S.day = { date: d, snowDate: sd,
+            precip: (ob && ob.div) || null,
+            swe: (sn && sn.div) || null,
+            depth: (sn && sn.depth) || null };
+  return S.day;
+}
+
+function dayValue(code) {
+  const D = S.day; if (!D) return null;
+  const f = S.dayField;
+  const src = f === 'precip' ? D.precip : f === 'swe' ? D.swe : D.depth;
+  if (!src) return null;
+  const v = src[code];
+  if (v === null || v === undefined) return null;
+  const unit = f === 'depth' ? 'cm' : 'mm';
+  const when = f === 'precip' ? D.date : D.snowDate;
+  return { v, text: v >= 100 ? v.toFixed(0) : v.toFixed(1),
+           tip: `${code} · ${DAY_FIELDS[f]}\n${when}: ${v.toFixed(1)} ${unit}`
+                + (f !== 'precip' && D.snowDate !== D.date ? `\n(nearest snow analysis to ${D.date})` : '') };
+}
 S.mapwhat = 'model';
 let GEO = null;
 // {mm, normal} -> the map's colour value and label under S.heatwhat
@@ -425,6 +529,7 @@ function mapCell(mm, normal, tipHead) {
 }
 function mapValue(code) {
   const w = S.mapwhat;
+  if (w === 'day') return dayValue(code);
   if (w === 'model') { const e = entry(S.model); const v = e && ((e.periods[code] || {})[S.period]); return v ? mapCell(v.mm, v.normal ?? null, '') : null; }
   if (w === 'change') { const e = entry(S.model); const pr = e && e.prev[0]; if (!pr) return null;
     const d = ((pr.delta[code] || {}).periods || {})[S.period]; const v = showDelta(d); if (v === null) return null;
@@ -466,7 +571,9 @@ function mapPanel() {
   };
   const baseLayer = (name) => (BASE ? BASE.features.filter((f) => f.properties.layer === name).map((f) => pathOf(f.geometry)).join('') : '');
   const vals = GEO.features.map((f) => mapValue(f.properties.code)).filter(Boolean).map((x) => x.v);
-  const absMode = S.heatwhat === 'mm' && S.mapwhat !== 'change';
+  // A single day has no percent-of-normal -- there is no daily normal here --
+  // so the day view is always drawn on its own absolute scale.
+  const absMode = (S.heatwhat === 'mm' && S.mapwhat !== 'change') || S.mapwhat === 'day';
   const scale = absMode ? Math.max(1, ...vals) : S.heatwhat === 'pct' && S.mapwhat !== 'change' ? 150 : HEAT.autoScale(vals, showNice());
   const mlimb = absMode ? limbAbs : limb;
   const P = [`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="basemap">`];
@@ -499,6 +606,28 @@ function mapPanel() {
   HEAT.wireTips(host);
   const e = entry(S.model);
   const what = SHOW[S.heatwhat];
+  if (S.mapwhat === 'day') {
+    const D = S.day;
+    let txt = 'pick a date';
+    if (D) {
+      const f = S.dayField;
+      const src = f === 'precip' ? D.precip : f === 'swe' ? D.swe : D.depth;
+      if (f === 'precip') {
+        // rain is a 24 h accumulation; snow is a state at an instant. Saying
+        // "24 h to 12Z" over a SWE field would be simply wrong.
+        txt = src ? `Stage IV rain, 24 h to 12Z ${D.date}, mm`
+                  : `no Stage IV for ${D.date} — the observed archive starts ${(DAYIX && DAYIX.obs[0]) || '2016'}`;
+      } else {
+        txt = src
+          ? `SNODAS ${f === 'swe' ? 'snow water equivalent, mm' : 'snow depth, cm'} · analysis of ${D.snowDate}`
+            + (D.snowDate !== D.date ? ` (nearest to ${D.date}; twice-monthly before this water year)` : '')
+          : `no SNODAS analysis at or before ${D.date} — the snow archive starts ${(DAYIX && DAYIX.snow[0]) || '2003-10-01'}`;
+      }
+    }
+    $('submap').textContent = txt;
+    dayBar();
+    return;
+  }
   $('submap').textContent = S.mapwhat === 'model' ? `${MODEL_LABEL[S.model] || S.model} ${e ? cyc(e.cycle) : ''} · ${PERIOD_LABEL[S.period]} · ${what} by division` :
     S.mapwhat === 'change' ? `${MODEL_LABEL[S.model] || S.model} · ${PERIOD_LABEL[S.period]} · same-day change vs the previous issue, ${S.heatwhat === 'pct' ? 'percentage points of normal' : 'mm'}` : `NCEP Stage IV · ${MAPWHAT[S.mapwhat].replace('% of normal', what)}`;
   $('submap').textContent += ' · click a division for its cumulative member plumes';
@@ -809,7 +938,7 @@ function render() {
 }
 
 const PERIOD_SHORT = { 'd1-5': 'days 1–5', 'd6-10': '6–10', 'd11-15': '11–15', 'd1-10': '1–10', 'd1-15': '1–15', 'd16-32': '16–32 ext.' };
-const MAP_SHORT = { model: 'model', change: 'change vs prior', obs7: 'observed 7 d', obs14: '14 d', obs30: '30 d', obs60: '60 d', obs90: '90 d' };
+const MAP_SHORT = { model: 'model', change: 'change vs prior', obs7: 'observed 7 d', obs14: '14 d', obs30: '30 d', obs60: '60 d', obs90: '90 d', day: 'pick a day' };
 function setBasin(k) {
   setSeg('basin', k);
   const dsel = $('basindiv'); if (dsel) dsel.value = isComp(k) ? '' : k;
@@ -828,7 +957,17 @@ function controls() {
   seg('period', S.latest.periods, S.period, (p) => { S.period = p; render(); }, (p) => PERIOD_SHORT[p] || p);
   seg('heatwhat', Object.keys(SHOW), S.heatwhat, (k) => { S.heatwhat = k; render(); }, (k) => ({ pct: '% of normal', anom: 'mm vs normal', mm: 'mm' })[k]);
   seg('nruns', ['8', '12', '20', '30'], String(S.nruns), (n) => { S.nruns = +n; render(); });
-  seg('mapwhat', Object.keys(MAPWHAT), S.mapwhat, (k) => { S.mapwhat = k; render(); }, (k) => MAP_SHORT[k]);
+  seg('mapwhat', Object.keys(MAPWHAT), S.mapwhat, async (k) => {
+    S.mapwhat = k;
+    if (k === 'day') {
+      await dayIndex();
+      if (!S.dayDate) S.dayDate = (DAYIX.obs[DAYIX.obs.length - 1] || null);
+      if (S.dayDate && (!S.day || S.day.date !== S.dayDate)) await loadDay(S.dayDate);
+    } else {
+      const b = document.getElementById('daybar'); if (b) b.remove();
+    }
+    render();
+  }, (k) => MAP_SHORT[k]);
   fillRuns();
   setBasin(S.basin);
 }

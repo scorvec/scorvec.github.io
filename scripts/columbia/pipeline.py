@@ -908,6 +908,25 @@ def make_blends(verif=None, max_back_days=12):
     return W
 
 
+def write_indices():
+    """Date lists for the observed archives, so the browser knows what exists.
+
+    The per-day files are already published; without an index the page would
+    have to probe for 404s to find out which days it can show. Fetched only
+    when someone opens the day browser.
+    """
+    for sub, name in (("obs", "obs_index.json"), ("snow", "snow_index.json")):
+        d = os.path.join(DATA, sub)
+        if not os.path.isdir(d):
+            continue
+        days = sorted(os.path.basename(x)[:-5]
+                      for x in glob.glob(os.path.join(d, "????-??-??.json")))
+        json.dump({"first": days[0] if days else None,
+                   "last": days[-1] if days else None,
+                   "n": len(days), "dates": days},
+                  open(os.path.join(DATA, name), "w"), separators=(",", ":"))
+
+
 def build(keep_prev=4, hist_keep=40, obs_days=120):
     divs = divisions(); a = area()
     obs = {}
@@ -985,6 +1004,7 @@ def build(keep_prev=4, hist_keep=40, obs_days=120):
     for name, obj in (("pnw_latest.json", latest), ("pnw_history.json", hist)):
         tmp = os.path.join(DATA, name + ".tmp")
         json.dump(obj, open(tmp, "w"), separators=(",", ":")); os.replace(tmp, os.path.join(DATA, name))
+    write_indices()
     print(f"  built: {list(latest['models'])}, Stage IV {odates[0] if odates else '-'} .. {odates[-1] if odates else '-'}")
 
 

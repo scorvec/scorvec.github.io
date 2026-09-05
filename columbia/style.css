@@ -634,3 +634,18 @@ select.mini{font-size:12px;padding:4px 6px;max-width:220px}
   .ctlbar .ctl-model{order:-1}                 /* model first when stacked */
   .ctlbar .ctl-model .lab{color:var(--ink)}
 }
+
+/* the day browser's date picker, under the map's own sub-bar */
+.daybar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 20px 2px;font-size:12.5px}
+.daybar input[type=date]{font:12.5px var(--sans);padding:4px 6px;border:1px solid var(--line);
+  border-radius:6px;background:var(--card);color:var(--ink)}
+.daybar > button{border:1px solid var(--line);background:var(--card);border-radius:6px;
+  min-width:30px;min-height:30px;cursor:pointer;color:var(--ink2);font-size:11px}
+.daybar > button:hover{border-color:#b9d0e8;color:var(--ink)}
+.daybar .thin{margin-left:auto}
+@media (max-width:700px){
+  .daybar{padding:6px 14px 2px}
+  .daybar > button{min-width:40px;min-height:40px}
+  .daybar input[type=date]{min-height:40px;flex:1}
+  .daybar .thin{margin-left:0;flex:1 0 100%}
+}
