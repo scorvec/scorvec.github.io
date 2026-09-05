@@ -745,10 +745,24 @@ function render() {
   const newest = ms.map((m) => entry(m).cycle).sort().slice(-1)[0];
   const cd = headPeriod('Columbia abv The Dalles', 'd1-10');
   const shortLabel = (m) => (m === 'geps_ext' ? 'the GEPS Mon/Thu extension to 32 days' : MODEL_LABEL[m] || m);
+  // The one number worth seeing without reading anything stays out in the
+  // open; the descriptive prose lives in a <details> beside it. On a phone
+  // those two paragraphs were 518 px of the 1,249 px that stood between the
+  // top of the page and the map.
+  $('introhead').innerHTML = (cd && cd.pct !== undefined)
+    ? `${hasBlend() ? 'Blend' : 'Mean of models'} ${cyc(hasBlend() ? entry('blend').cycle : newest)}: Columbia above The Dalles `
+      + `<b>${cd.pct.toFixed(0)}% of normal</b> over days 1–10 · ${cd.mm.toFixed(0)} mm against a normal ${cd.normal.toFixed(0)}`
+      + (S.heatwhat === 'pct' ? ` · models ${cd.lo.toFixed(0)}–${cd.hi.toFixed(0)}%` : '')
+    : '';
   $('intro').innerHTML = `Precipitation forecasts for the Columbia River basin from ${ms.filter((m) => m !== 'blend').map(shortLabel).join(', ')}${hasBlend() ? ', and a weighted blend' : ''}, `
     + `averaged over the Northwest River Forecast Center's water-supply divisions and read against the 1991–2020 normal and against NCEP Stage IV observed rainfall. `
-    + (cd && cd.pct !== undefined ? `${hasBlend() ? 'Blend' : 'Mean of models'} ${cyc(hasBlend() ? entry('blend').cycle : newest)}: the basin above The Dalles is forecast at <b>${cd.pct.toFixed(0)}% of normal</b> over days 1–10 (${cd.mm.toFixed(0)} mm against a normal ${cd.normal.toFixed(0)}; individual models ${S.heatwhat === 'pct' ? `${cd.lo.toFixed(0)}–${cd.hi.toFixed(0)}%` : ''}). ` : '')
     + `Every table can be read as percent of normal, as the departure in mm, or as absolute mm.`;
+  // What the collapsed control bar says it is set to, so the state is legible
+  // without opening it.
+  const nowbits = [S.basin.replace('Columbia abv ', 'Columbia ↑ ').replace('Snake abv ', 'Snake ↑ '),
+                   MODEL_LABEL[S.model] || S.model, PERIOD_SHORT[S.period] || S.period,
+                   ({ pct: '% of normal', anom: 'mm vs normal', mm: 'mm' })[S.heatwhat]];
+  $('ctlnow').textContent = nowbits.filter(Boolean).join(' · ');
   $('credits').innerHTML = '<b>Sources and licences.</b> Basins and 1991–2020 mean-areal-precipitation normals: NOAA/NWS Northwest River Forecast Center (public domain). '
     + 'Observed rainfall: NCEP Stage IV multi-sensor precipitation analysis (NOAA, public domain), served by NOMADS and by the Iowa Environmental Mesonet archive. '
     + 'GFS and GEFS: NOAA/NCEP (public domain), from the NOAA Open Data Dissemination buckets on AWS. '
@@ -797,7 +811,20 @@ async function load() {
   if (!GEO) { try { GEO = await (await fetch('pnw_divisions.geojson')).json(); } catch (e) { GEO = null; } }
   if (!BASE) { try { BASE = await (await fetch('pnw_base.geojson')).json(); } catch (e) { BASE = null; } }
 }
+// The control panel ships open, which is what a desktop wants and what a
+// browser with JS off should get. On a phone it is 517 px of buttons above
+// the fold, so it starts collapsed there -- the summary bar stays pinned, so
+// the controls are one tap away from anywhere on the page rather than a
+// scroll back to the top.
+const NARROW = '(max-width: 700px)';
+function fitControls() {
+  const box = document.getElementById('ctlbox');
+  if (box) box.open = !window.matchMedia(NARROW).matches;
+}
+
 (async () => {
+  fitControls();
+  window.matchMedia(NARROW).addEventListener('change', fitControls);
   await load(); controls(); wireHist(); render();
   setInterval(async () => {
     try { const l = await (await fetch(DATA + 'pnw_latest.json?t=' + Date.now())).json();

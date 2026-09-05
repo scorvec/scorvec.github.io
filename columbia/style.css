@@ -539,3 +539,73 @@ select.mini{font-size:12px;padding:4px 6px;max-width:220px}
   .pnwmap path.div{stroke-width:2}
   .pnwmap path.div.sel{stroke-width:6}
 }
+
+/* ---- collapsible, pinned control panel + folded prose ---------------------
+   Reported 5 Sep 2026: "Too much scrolling on mobile to use the buttons ...
+   Reduce unnecessary text blocks". Measured at 390 px the map did not begin
+   until y=1249: header 127, links 38, control bar 517, how-to 206, intro 312.
+   The control bar was the worst of it because every group wrapped onto three
+   or four rows of buttons.
+
+   So: the controls collapse to a single pinned summary line that reports what
+   they are set to, and the two prose blocks fold into <details>. The headline
+   number from the intro stays visible -- it is the one thing worth reading
+   without opening anything. */
+.ctlbox{border-bottom:1px solid var(--line)}
+/* Desktop shows the controls unconditionally and hides the summary. Note this
+   does NOT consult [open]: a closed <details> still lays its children out when
+   they carry their own display (the bar is display:flex from .bar), so relying
+   on the UA to hide them is not dependable -- and more to the point, no bug in
+   the collapse logic should ever be able to leave a desktop visitor with no
+   controls at all. Collapsing is a phone-only behaviour, expressed only in the
+   narrow media query below. */
+.ctlbox > summary{display:none}
+.ctlbox[open] .ctlbar{border-bottom:0}
+.introhead{margin:0 0 10px;padding:0 20px;font-size:14px;color:var(--ink2)}
+.introhead b{color:var(--ink)}
+.explain{margin:0 0 12px}
+.explain > summary{cursor:pointer;padding:6px 20px;font-size:12.5px;color:var(--ink3);
+  list-style:none;display:flex;align-items:center;gap:6px;user-select:none}
+@media (max-width:700px){.explain > summary{min-height:40px;padding:8px 14px}}
+.explain > summary::-webkit-details-marker{display:none}
+.explain > summary::before{content:'▸';font-size:10px;transition:transform .12s}
+.explain[open] > summary::before{transform:rotate(90deg)}
+.explain > summary:hover{color:var(--ink2)}
+.explain .howto,.explain .intro{margin-top:0}
+
+@media (max-width:700px){
+  /* the strapline repeats what the intro says two lines later */
+  header .thin{display:none}
+  header{padding-top:10px;padding-bottom:10px}
+  .pagelinks{font-size:12px;padding:6px 14px;margin:0}
+
+  /* pinned summary: the controls are reachable from anywhere on the page
+     instead of only from the top of it */
+  .ctlbox{position:sticky;top:0;z-index:60;background:var(--card);
+    box-shadow:0 1px 6px rgba(16,32,56,.12)}
+  .ctlbox > summary{display:flex;align-items:center;gap:8px;cursor:pointer;
+    padding:9px 14px;min-height:44px;font:600 12.5px var(--sans);color:var(--ink);
+    list-style:none;user-select:none}   /* 44 px: it is a touch target */
+  .ctlbox > summary::-webkit-details-marker{display:none}
+  .ctlbox > summary #ctlnow{flex:1;min-width:0;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+  .ctlcue::after{content:'change ▾';font:500 11px var(--sans);color:var(--accent, #2b6cb0);white-space:nowrap}
+  .ctlbox[open] .ctlcue::after{content:'done ▴'}
+
+  /* open, the panel is capped and scrolls internally rather than burying the
+     page; one row per control, scrolling sideways, instead of wrapping to
+     three or four rows each */
+  /* explicit, rather than trusting the UA to hide a closed <details> */
+  .ctlbox:not([open]) .ctlbar{display:none}
+  .ctlbox[open] .ctlbar{max-height:52vh;overflow-y:auto;
+    flex-direction:column;align-items:stretch;gap:2px;padding:4px 12px 10px}
+  .ctlbar .ctl{flex-wrap:nowrap;overflow-x:auto;gap:6px;padding:3px 0;
+    scrollbar-width:none}
+  .ctlbar .ctl::-webkit-scrollbar{display:none}
+  .ctlbar .ctl .lab{position:sticky;left:0;background:var(--card);padding-right:4px;z-index:1}
+  .ctlbar .ctl .seg{flex-wrap:nowrap}
+  select.mini{max-width:60vw}
+
+  .introhead{padding:0 14px;font-size:13.5px}
+  .explain > summary{padding:6px 14px}
+}

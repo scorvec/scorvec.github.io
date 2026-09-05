@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Columbia River basin precipitation — Shawn Corvec</title>
 <meta name="description" content="Model precipitation forecasts for the Columbia River basin on the NWRFC water-supply divisions, as percent of normal and against NCEP Stage IV observed rainfall.">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=202609050915">
 
 <header class="top">
   <span class="brand">Columbia River basin precipitation</span>
@@ -15,6 +15,8 @@
   &nbsp;·&nbsp; <a href="../subseasonal.html">GEPS subseasonal &rarr;</a>
   &nbsp;·&nbsp; <a href="../sst.html">El Niño monitor &rarr;</a></p>
 
+<details id="ctlbox" class="ctlbox" open>
+<summary class="ctlsum"><span id="ctlnow">controls</span><span class="ctlcue"></span></summary>
 <div class="bar ctlbar">
   <div class="ctl"><span class="lab">basin</span><div class="seg" id="basin"></div><select id="basindiv" class="mini"></select></div>
   <div class="ctl"><span class="lab">plume model</span><div class="seg" id="model"></div></div>
@@ -23,10 +25,16 @@
   <div class="ctl"><span class="lab">units</span><div class="seg" id="heatwhat"></div></div>
   <div class="ctl"><span class="lab">issues shown</span><div class="seg" id="nruns"></div></div>
 </div>
+</details>
+<details class="explain"><summary>How to read this page</summary>
 <p class="howto"><b>How to read this page.</b> Pick a basin (or a division from the list), the model whose members and band to draw, and a forecast period. <b>Units</b> switches every table and the map between percent of the 1991–2020 normal, the departure from normal in mm, and absolute mm. <b>Issue</b> steps back through earlier runs of the chosen model. Click a division on the map for its cumulative member plumes; click a scorecard row to open that basin below.</p>
+</details>
 
 <main class="pnwpage">
-  <p class="intro" id="intro"></p>
+  <p class="introhead" id="introhead"></p>
+  <details class="explain"><summary>About these forecasts</summary>
+    <p class="intro" id="intro"></p>
+  </details>
 
   <div class="hero">
     <section class="heromap">
@@ -94,7 +102,7 @@
     <p class="note" id="histnote"></p>
   </div>
 </div>
-<script src="heat.js"></script>
+<script src="heat.js?v=202609050915"></script>
 <script>window.PNW_DATA = "./data/";</script>
 <script>window.PNW_ARCH = "./data/archive/";</script>
-<script src="pnw.js"></script>
+<script src="pnw.js?v=202609050915"></script>
