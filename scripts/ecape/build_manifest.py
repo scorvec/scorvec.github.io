@@ -38,6 +38,11 @@ FIELDS = [
     ("ecape_mu", "ECAPE — most-unstable"),
     ("ecape_ml", "ECAPE — mixed-layer"),
 ]
+# Which field the viewer opens on. Kept separate from the button order so the
+# landing panel can change without reshuffling the picker (user, 2026-09-05:
+# open on most-unstable ECAPE rather than the ratio). Falls back to the first
+# field present if this one did not render for a cycle.
+DEFAULT_FIELD = "ecape_mu"
 FRAME_RE = re.compile(r"^F(\d{2,3})\.webp$")
 
 
@@ -89,7 +94,8 @@ def main(argv=None) -> int:
         # this to every frame request.
         "ver": a.cycle,
         "selectorLabel": "Field",
-        "default": f"{a.cycle}/{FIELDS[0][0]}",
+        "default": f"{a.cycle}/{DEFAULT_FIELD}"
+                   if f"{a.cycle}/{DEFAULT_FIELD}" in regions else next(iter(regions)),
         "regions": regions,
     }
     out = Path(a.out) if a.out else root / f"ecape_{a.cycle}.json"
