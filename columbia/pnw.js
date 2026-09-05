@@ -413,7 +413,8 @@ function obstab() {
 const MAPWHAT = { model: 'model, % of normal', change: 'model, change vs prior issue', obs7: 'Stage IV last 7 d, % of normal',
                   obs14: 'Stage IV last 14 d, % of normal', obs30: 'Stage IV last 30 d, % of normal',
                   obs60: 'Stage IV last 60 d, % of normal', obs90: 'Stage IV last 90 d, % of normal',
-                  day: 'one day: rain, snow water, snow depth' };
+                  day: 'one day: rain, snow water, snow depth',
+                  enso: 'ENSO correlation with 1 April snowpack' };
 
 /* Date picker + field buttons, shown only while the day view is open. Placed
    in the map's own sub-bar so it inherits the layout and the mobile rules. */
@@ -440,6 +441,10 @@ function dayBar() {
     + Object.keys(DAY_FIELDS).map((k) =>
         `<button type="button" data-v="${k}" aria-pressed="${k === S.dayField}">${DAY_FIELDS[k].split(',')[0]}</button>`).join('')
     + `</span>`
+    + `<span class="seg" id="daymode">`
+    + [['value', 'value'], ['anom', 'vs normal']].map(([k, l]) =>
+        `<button type="button" data-v="${k}" aria-pressed="${k === S.dayMode}">${l}</button>`).join('')
+    + `</span>`
     + `<span class="thin">${ix.obs.length} days of rain from ${ix.obs[0] || '–'} · `
     + `${ix.snow.length} snow analyses from ${ix.snow[0] || '–'}</span>`;
   const step = async (n) => {
@@ -454,7 +459,18 @@ function dayBar() {
     S.dayDate = e.target.value; await loadDay(S.dayDate); render();
   };
   host.querySelectorAll('#dayfield button').forEach((b) => {
-    b.onclick = () => { S.dayField = b.dataset.v; render(); };
+    b.onclick = async () => {
+      S.dayField = b.dataset.v;
+      if (isSnow() && S.dayMode === 'anom') await snowClimo();
+      render();
+    };
+  });
+  host.querySelectorAll('#daymode button').forEach((b) => {
+    b.onclick = async () => {
+      S.dayMode = b.dataset.v;
+      if (S.dayMode === 'anom' && isSnow()) await snowClimo();
+      render();
+    };
   });
 }
 
@@ -467,8 +483,61 @@ function dayBar() {
 S.day = null;              // the loaded record: {date, precip:{}, swe:{}, depth:{}}
 S.dayField = 'precip';
 S.dayDate = null;
+S.dayMode = 'value';       // value | anom
 let DAYIX = null;          // {obs:[dates], snow:[dates]}
+let SNOWCLIMO = null;
 const DAY_FIELDS = { precip: 'rain, mm', swe: 'snow water, mm', depth: 'snow depth, cm' };
+
+/* Snow is drawn on NOHRSC's convention -- blue where there is more snow than
+   normal, red where there is less -- rather than the wet-green/dry-brown the
+   precipitation fields use, so the two are never confused at a glance. */
+const limbSnow = (v) => (v > 0 ? 'cold' : 'warm');
+const limbSnowAbs = () => 'cold';
+const isSnow = () => S.dayField !== 'precip';
+
+async function snowClimo() {
+  if (SNOWCLIMO) return SNOWCLIMO;
+  try { SNOWCLIMO = await (await fetch(DATA_BASE() + 'snow_climo.json')).json(); }
+  catch (e) { SNOWCLIMO = { climo: {}, grid: [] }; }
+  return SNOWCLIMO;
+}
+
+const dayOfYear = (d) => {
+  const t = new Date(d + 'T00:00:00');
+  return Math.floor((t - new Date(t.getFullYear(), 0, 0)) / 86400000);
+};
+
+/* The climatology is stored on a 5-day grid, so read it with linear
+   interpolation rather than snapping to the nearest point. */
+function climoAt(code, field, date) {
+  const C = SNOWCLIMO && SNOWCLIMO.climo && SNOWCLIMO.climo[code];
+  if (!C || !SNOWCLIMO.grid) return null;
+  const arr = C[field === 'swe' ? 'swe' : 'depth'];
+  if (!arr) return null;
+  const g = SNOWCLIMO.grid, k = dayOfYear(date);
+  let i = 0;
+  while (i < g.length - 1 && g[i + 1] <= k) i++;
+  const a = arr[i], b = arr[Math.min(i + 1, arr.length - 1)];
+  if (a === null || a === undefined) return null;
+  if (b === null || b === undefined) return a;
+  const span = (g[Math.min(i + 1, g.length - 1)] - g[i]) || 1;
+  return a + (b - a) * Math.min(1, Math.max(0, (k - g[i]) / span));
+}
+
+/* Rain has a published normal: the NWRFC monthly value spread evenly over the
+   month, the same definition the rest of the page uses. */
+function rainNormal(code, date) {
+  const div = (S.latest.divisions || []).find((d) => d.code === code);
+  const [y, m] = date.split('-').map(Number);
+  const dim = new Date(y, m, 0).getDate();
+  if (div && div.normals) return div.normals[m - 1] / dim;
+  const comp = S.latest.composites && S.latest.composites[code];
+  if (!comp) return null;
+  const ds = (S.latest.divisions || []).filter((d) => comp.includes(d.code) && d.normals);
+  if (!ds.length) return null;
+  const w = ds.map((d) => d.area), tw = w.reduce((a, b) => a + b, 0);
+  return ds.reduce((a, d, i) => a + d.normals[m - 1] * w[i], 0) / tw / dim;
+}
 
 async function dayIndex() {
   if (DAYIX) return DAYIX;
@@ -513,9 +582,21 @@ function dayValue(code) {
   if (v === null || v === undefined) return null;
   const unit = f === 'depth' ? 'cm' : 'mm';
   const when = f === 'precip' ? D.date : D.snowDate;
-  return { v, text: v >= 100 ? v.toFixed(0) : v.toFixed(1),
-           tip: `${code} · ${DAY_FIELDS[f]}\n${when}: ${v.toFixed(1)} ${unit}`
-                + (f !== 'precip' && D.snowDate !== D.date ? `\n(nearest snow analysis to ${D.date})` : '') };
+  const base = `${code} · ${DAY_FIELDS[f]}\n${when}: ${v.toFixed(1)} ${unit}`
+    + (f !== 'precip' && D.snowDate !== D.date ? `\n(nearest snow analysis to ${D.date})` : '');
+  if (S.dayMode !== 'anom') {
+    return { v, text: v >= 100 ? v.toFixed(0) : v.toFixed(1), tip: base };
+  }
+  // Rain against the published NWRFC normal; snow against SNODAS's own
+  // day-of-year climatology, because there is no published snow normal here
+  // and an anomaly only means anything against the same dataset.
+  const nrm = f === 'precip' ? rainNormal(code, D.date) : climoAt(code, f, when || D.date);
+  if (nrm === null || nrm === undefined) return null;
+  const a = v - nrm;
+  return { v: a, text: (Math.abs(a) >= 100 ? a.toFixed(0) : a.toFixed(1)),
+           tip: `${base}\nnormal ${nrm.toFixed(1)} ${unit} · anomaly ${sgn(a, 1)} ${unit}`
+                + (f === 'precip' ? '\n(NWRFC monthly normal spread over the month)'
+                                  : '\n(SNODAS day-of-year mean, 2003-2026)') };
 }
 S.mapwhat = 'model';
 let GEO = null;
@@ -527,9 +608,41 @@ function mapCell(mm, normal, tipHead) {
   if (normal === null || normal === undefined || !(normal > 0)) return null;
   return S.heatwhat === 'pct' ? { v: pct - 100, text: `${pct.toFixed(0)}%`, tip } : { v: mm - normal, text: sgn(mm - normal), tip };
 }
+/* ---- ENSO ------------------------------------------------------------------
+   Each basin's 1 April snow water equivalent regressed on the ONI averaged
+   over November-January, the winter that built it. Drawn on the snow colours:
+   blue where a warm ENSO winter means MORE snow, red where it means less --
+   and it is red almost everywhere, which is the known Pacific Northwest
+   relationship rather than anything this page fitted for.
+
+   The sample is 23 water years. |r| must exceed 0.41 to reach p < 0.05, and
+   testing 48 basins at that level yields about two hits by chance, so the
+   caption carries both numbers and basins that fall short are drawn hollow
+   rather than coloured as though they said something. */
+let ENSOREG = null;
+async function ensoReg() {
+  if (ENSOREG) return ENSOREG;
+  try { ENSOREG = await (await fetch(DATA_BASE() + 'enso_regression.json')).json(); }
+  catch (e) { ENSOREG = { basins: {} }; }
+  return ENSOREG;
+}
+function ensoValue(code) {
+  const B = ENSOREG && ENSOREG.basins && ENSOREG.basins[code];
+  if (!B || !B.oni) return null;
+  const f = B.oni;
+  const weak = f.p >= 0.05;
+  return { v: weak ? 0 : f.r,
+           text: `${f.r.toFixed(2)}${weak ? '' : '*'}`,
+           tip: `${code} · 1 April SWE vs NDJ ONI\nr ${f.r.toFixed(2)}, p ${f.p.toFixed(3)}, n ${f.n}`
+                + `\nslope ${f.slope.toFixed(0)} ± ${f.slope_se.toFixed(0)} mm per 1 K of ONI`
+                + `\nmean ${f.mean.toFixed(0)} mm, sd ${f.sd.toFixed(0)}`
+                + (weak ? '\nnot significant at p<0.05 (n=23 needs |r|>0.41)' : '') };
+}
+
 function mapValue(code) {
   const w = S.mapwhat;
   if (w === 'day') return dayValue(code);
+  if (w === 'enso') return ensoValue(code);
   if (w === 'model') { const e = entry(S.model); const v = e && ((e.periods[code] || {})[S.period]); return v ? mapCell(v.mm, v.normal ?? null, '') : null; }
   if (w === 'change') { const e = entry(S.model); const pr = e && e.prev[0]; if (!pr) return null;
     const d = ((pr.delta[code] || {}).periods || {})[S.period]; const v = showDelta(d); if (v === null) return null;
@@ -571,11 +684,18 @@ function mapPanel() {
   };
   const baseLayer = (name) => (BASE ? BASE.features.filter((f) => f.properties.layer === name).map((f) => pathOf(f.geometry)).join('') : '');
   const vals = GEO.features.map((f) => mapValue(f.properties.code)).filter(Boolean).map((x) => x.v);
-  // A single day has no percent-of-normal -- there is no daily normal here --
-  // so the day view is always drawn on its own absolute scale.
-  const absMode = (S.heatwhat === 'mm' && S.mapwhat !== 'change') || S.mapwhat === 'day';
-  const scale = absMode ? Math.max(1, ...vals) : S.heatwhat === 'pct' && S.mapwhat !== 'change' ? 150 : HEAT.autoScale(vals, showNice());
-  const mlimb = absMode ? limbAbs : limb;
+  // A single day's VALUE is one-sided and drawn on its own absolute scale; its
+  // ANOMALY is diverging and drawn about zero. Snow uses the NOHRSC
+  // convention throughout -- blue for more snow, red for less.
+  const dayAnom = S.mapwhat === 'day' && S.dayMode === 'anom';
+  const absMode = ((S.heatwhat === 'mm' && S.mapwhat !== 'change') || S.mapwhat === 'day') && !dayAnom;
+  const scale = S.mapwhat === 'enso' ? 0.7
+    : absMode ? Math.max(1, ...vals)
+    : dayAnom ? HEAT.autoScale(vals, showNice())
+    : S.heatwhat === 'pct' && S.mapwhat !== 'change' ? 150 : HEAT.autoScale(vals, showNice());
+  let mlimb = absMode ? limbAbs : limb;
+  if (S.mapwhat === 'day' && isSnow()) mlimb = dayAnom ? limbSnow : limbSnowAbs;
+  if (S.mapwhat === 'enso') mlimb = limbSnow;      // it is a snowpack signal
   const P = [`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="basemap">`];
   // ocean, then land, then the coloured divisions, then water and borders on top
   P.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#cfe0ef"/>`);
@@ -606,32 +726,68 @@ function mapPanel() {
   HEAT.wireTips(host);
   const e = entry(S.model);
   const what = SHOW[S.heatwhat];
+  // The legend has to be set inside each branch: the day and ENSO views return
+  // early, so the shared legend below never runs for them and the page was
+  // left showing the previous view's brown/green precipitation scale over a
+  // red/blue map.
+  const sw = (l, t) => `<i style="background:${HEAT.mix(HEAT.RAMP[l], t)}"></i>`;
+  const diverging = (lo, hi, dn, up, fmt) =>
+    `<span class="lg">${[1, .66, .33].map((t) => sw(lo, t)).join('')}<b>${dn}</b>`
+    + ` &nbsp; <b>0</b> &nbsp; <b>${up}</b>${[.33, .66, 1].map((t) => sw(hi, t)).join('')}`
+    + (fmt ? ` &nbsp; <span class="thin">${fmt}</span>` : '') + `</span>`;
+  const oneSided = (l, unit) =>
+    `<span class="lg">0 ${[.15, .33, .5, .66, .83, 1].map((t) => sw(l, t)).join('')}`
+    + `<b>${scale.toFixed(0)} ${unit}</b></span>`;
+
+  if (S.mapwhat === 'enso') {
+    const R = ENSOREG || {};
+    const sig = (R.significant || {}).oni;
+    $('submap').textContent =
+      `correlation of 1 April snow water with the Nov–Jan ONI, ${(R.basins && Object.values(R.basins)[0] || {}).oni ? Object.values(R.basins)[0].oni.n : 23} water years`
+      + ` · blue = more snow in a warm ENSO winter, red = less`
+      + (sig !== undefined ? ` · ${sig} of ${Object.keys(R.basins || {}).length} basins reach p<0.05, ~${R.expected_by_chance} expected by chance`
+                           : '')
+      + ` · hollow = not significant`;
+    $('maplegend').innerHTML = diverging('warm', 'cold', 'less snow', 'more snow',
+                                         'correlation r, ±0.7');
+    const b = document.getElementById('daybar'); if (b) b.remove();
+    return;
+  }
   if (S.mapwhat === 'day') {
     const D = S.day;
     let txt = 'pick a date';
     if (D) {
       const f = S.dayField;
       const src = f === 'precip' ? D.precip : f === 'swe' ? D.swe : D.depth;
+      const anom = S.dayMode === 'anom';
       if (f === 'precip') {
         // rain is a 24 h accumulation; snow is a state at an instant. Saying
         // "24 h to 12Z" over a SWE field would be simply wrong.
-        txt = src ? `Stage IV rain, 24 h to 12Z ${D.date}, mm`
-                  : `no Stage IV for ${D.date} — the observed archive starts ${(DAYIX && DAYIX.obs[0]) || '2016'}`;
+        txt = src ? (anom
+              ? `Stage IV rain vs normal, 24 h to 12Z ${D.date}, mm — NWRFC monthly normal spread over the month`
+              : `Stage IV rain, 24 h to 12Z ${D.date}, mm`)
+            : `no Stage IV for ${D.date} — the observed archive starts ${(DAYIX && DAYIX.obs[0]) || '2016'}`;
       } else {
+        const what = f === 'swe' ? 'snow water equivalent, mm' : 'snow depth, cm';
         txt = src
-          ? `SNODAS ${f === 'swe' ? 'snow water equivalent, mm' : 'snow depth, cm'} · analysis of ${D.snowDate}`
+          ? `SNODAS ${what}${anom ? ' vs day-of-year mean' : ''} · analysis of ${D.snowDate}`
             + (D.snowDate !== D.date ? ` (nearest to ${D.date}; twice-monthly before this water year)` : '')
+            + (anom ? ' · climatology is SNODAS 2003–2026, 23 water years' : '')
           : `no SNODAS analysis at or before ${D.date} — the snow archive starts ${(DAYIX && DAYIX.snow[0]) || '2003-10-01'}`;
       }
     }
     $('submap').textContent = txt;
+    const unit = S.dayField === 'depth' ? 'cm' : 'mm';
+    $('maplegend').innerHTML = S.dayMode === 'anom'
+      ? (isSnow() ? diverging('warm', 'cold', 'below normal', 'above normal', `±${scale.toFixed(0)} ${unit}`)
+                  : diverging('brown', 'green', 'below normal', 'above normal', `±${scale.toFixed(0)} ${unit}`))
+      : oneSided(isSnow() ? 'cold' : 'green', unit);
     dayBar();
     return;
   }
   $('submap').textContent = S.mapwhat === 'model' ? `${MODEL_LABEL[S.model] || S.model} ${e ? cyc(e.cycle) : ''} · ${PERIOD_LABEL[S.period]} · ${what} by division` :
     S.mapwhat === 'change' ? `${MODEL_LABEL[S.model] || S.model} · ${PERIOD_LABEL[S.period]} · same-day change vs the previous issue, ${S.heatwhat === 'pct' ? 'percentage points of normal' : 'mm'}` : `NCEP Stage IV · ${MAPWHAT[S.mapwhat].replace('% of normal', what)}`;
   $('submap').textContent += ' · click a division for its cumulative member plumes';
-  const sw = (l, t) => `<i style="background:${HEAT.mix(HEAT.RAMP[l], t)}"></i>`;
   $('maplegend').innerHTML = absMode ? `<span class="lg">0 mm ${[.15, .33, .5, .66, .83, 1].map((t) => sw('green', t)).join('')}<b>${scale.toFixed(0)} mm</b></span>`
     : S.mapwhat === 'change' ? HEAT.legend(scale, limb, 'drier', 'wetter', (x) => x + showUnitDelta())
     : S.heatwhat === 'anom' ? HEAT.legend(scale, limb, 'below normal', 'above normal', (x) => x + ' mm')
@@ -938,7 +1094,7 @@ function render() {
 }
 
 const PERIOD_SHORT = { 'd1-5': 'days 1–5', 'd6-10': '6–10', 'd11-15': '11–15', 'd1-10': '1–10', 'd1-15': '1–15', 'd16-32': '16–32 ext.' };
-const MAP_SHORT = { model: 'model', change: 'change vs prior', obs7: 'observed 7 d', obs14: '14 d', obs30: '30 d', obs60: '60 d', obs90: '90 d', day: 'pick a day' };
+const MAP_SHORT = { model: 'model', change: 'change vs prior', obs7: 'observed 7 d', obs14: '14 d', obs30: '30 d', obs60: '60 d', obs90: '90 d', day: 'pick a day', enso: 'ENSO' };
 function setBasin(k) {
   setSeg('basin', k);
   const dsel = $('basindiv'); if (dsel) dsel.value = isComp(k) ? '' : k;
@@ -959,6 +1115,7 @@ function controls() {
   seg('nruns', ['8', '12', '20', '30'], String(S.nruns), (n) => { S.nruns = +n; render(); });
   seg('mapwhat', Object.keys(MAPWHAT), S.mapwhat, async (k) => {
     S.mapwhat = k;
+    if (k === 'enso') await ensoReg();
     if (k === 'day') {
       await dayIndex();
       if (!S.dayDate) S.dayDate = (DAYIX.obs[DAYIX.obs.length - 1] || null);
