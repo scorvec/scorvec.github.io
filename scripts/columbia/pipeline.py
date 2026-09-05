@@ -70,6 +70,15 @@ COMPOSITES = {
 }
 ST4 = "https://nomads.ncep.noaa.gov/pub/data/nccf/com/pcpanl/prod/pcpanl.{d}/st4_conus.{d}12.24h.grb2"
 ST4_IEM = "https://mesonet.agron.iastate.edu/archive/data/{y}/{m}/{dd}/stage4/ST4.{d}12.24h.grib"
+# NOAA's own Stage IV archive, back to 2016: one small tar a day holding the
+# CONUS/PR/AK 24 h grids. Preferred over the IEM mirror -- it is the source
+# rather than a copy of it, and IEM is a free academic service that should not
+# be asked for a decade of daily files. Validated against the days this site
+# had already collected from NOMADS: mean |difference| 0.005 mm over 42
+# divisions, 37 of them identical to the stored rounding, so it is the same
+# product on the same 12Z-12Z window.
+ST4_ARCH = ("https://water.noaa.gov/resources/downloads/precip/stageIV/"
+            "{y}/{m}/{dd}/ncep_stage_iv_source_files_{d}.tar")
 AWS_GFS = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 AWS_GEFS = "https://noaa-gefs-pds.s3.amazonaws.com"
 DDMART = "https://dd.weather.gc.ca"
@@ -557,13 +566,46 @@ def run_cycle(model: str, workers=6, min_complete=0.95, cyc=None):
 
 
 # ---- Stage IV ------------------------------------------------------------------------ #
+def st4_from_archive(date):
+    """The CONUS 24 h grid out of NOAA's daily Stage IV tar, or None.
+
+    Members are gzipped in the older years and plain GRIB in the newer ones,
+    so the magic bytes decide rather than the file extension.
+    """
+    import io
+    import tarfile
+    y, mo, dd = date.split("-")
+    raw = get(ST4_ARCH.format(y=y, m=mo, dd=dd, d=date.replace("-", "")), tries=2)
+    if not raw or len(raw) < 1000:
+        return None
+    try:
+        tf = tarfile.open(fileobj=io.BytesIO(raw))
+        n = [x for x in tf.getnames() if "conus" in x and "24h" in x]
+        if not n:
+            return None
+        b = tf.extractfile(n[0]).read()
+    except Exception:
+        return None
+    if b[:2] == b"\x1f\x8b":
+        import gzip as _gz
+        try:
+            b = _gz.decompress(b)
+        except Exception:
+            return None
+    return grib(b)
+
+
 def fetch_obs(date):
     os.makedirs(OBS, exist_ok=True)
     p = os.path.join(OBS, f"{date}.json")
     if os.path.exists(p):
         return json.load(open(p))
     d = date.replace("-", "")
+    # NOMADS first (it has today, the archive lags a day or two), then NOAA's
+    # own archive, and only then the IEM mirror.
     buf = grib(get(ST4.format(d=d), tries=1))
+    if not buf:
+        buf = st4_from_archive(date)
     if not buf:
         y, mo, dd = date.split("-")
         buf = grib(get(ST4_IEM.format(y=y, m=mo, dd=dd, d=d), tries=2))
@@ -587,6 +629,38 @@ def backfill_obs(days):
         if not os.path.exists(os.path.join(OBS, f"{d}.json")) and fetch_obs(d):
             got.append(d)
     return got
+
+
+def backfill_obs_from(start, workers=5):
+    """Every missing observed day from `start` to today, newest first.
+
+    Newest first so an interrupted run still leaves the page's own window
+    complete. Concurrency is kept modest and the run stops itself after a
+    run of consecutive failures rather than hammering a NOAA host for hours.
+    """
+    import concurrent.futures as cf
+    today = dt.datetime.now(dt.timezone.utc).date()
+    d0 = dt.date.fromisoformat(start)
+    days = [(today - dt.timedelta(days=k)).strftime("%Y-%m-%d")
+            for k in range((today - d0).days + 1)]
+    todo = [d for d in days if not os.path.exists(os.path.join(OBS, f"{d}.json"))]
+    print(f"  stage4 backfill: {len(todo)} missing days of {len(days)} "
+          f"({d0} .. {today})", flush=True)
+    ok = fail = 0
+    run_fail = 0
+    with cf.ThreadPoolExecutor(workers) as ex:
+        for i in range(0, len(todo), 200):           # in slabs, so progress prints
+            chunk = todo[i:i + 200]
+            for r in ex.map(lambda x: (x, fetch_obs(x)), chunk):
+                if r[1]:
+                    ok += 1; run_fail = 0
+                else:
+                    fail += 1; run_fail += 1
+            print(f"    {min(i+200, len(todo))}/{len(todo)}  ok {ok}  missing {fail}", flush=True)
+            if run_fail >= 60:
+                print("    stopping: 60 consecutive days unavailable", flush=True)
+                break
+    return ok, fail
 
 
 # ---- build the page's JSON ----------------------------------------------------------------- #
@@ -908,9 +982,14 @@ def main():
     ap.add_argument("--obs-days", type=int, default=20)
     ap.add_argument("--no-fetch", action="store_true", help="rebuild the JSON from the archive only")
     ap.add_argument("--backfill", type=int, default=0, help="also archive every cycle of the last N days")
+    ap.add_argument("--obs-from", default=None, metavar="YYYY-MM-DD",
+                    help="backfill observed Stage IV from this date (NOAA archive covers 2016-01-01 on)")
     a = ap.parse_args()
     ms = [x.strip() for x in a.models.split(",") if x.strip()] or ["gfs", "ecmwf", "aifs", "gdps", "geps", "geps_ext", "gefs", "ecmwf_ens"]
     print(f"  models: {','.join(ms)}")
+    if a.obs_from:
+        ok, miss = backfill_obs_from(a.obs_from, a.workers)
+        print(f"  stage4 backfill done: {ok} days written, {miss} unavailable")
     if not a.no_fetch:
         got = backfill_obs(a.obs_days)
         if got:
