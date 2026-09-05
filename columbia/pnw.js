@@ -922,24 +922,21 @@ function mapPanel() {
   if (S.mapwhat === 'enso') {
     const R = ENSOREG || {};
     const sig = (R.significant || {}).oni;
+    // Kept short: at 390 px the long form ran 193 characters over five lines,
+    // and most of it repeated the legend, which already says which colour
+    // means more snow and that a star marks p<0.05.
+    const nyr = isRain() ? (((R.rain || {}).years || []).length || 10) : 23;
+    const cnt = (isRain() ? (R.significant_rain || {}) : (R.significant || {}))[S.ensoIdx];
     $('submap').textContent =
-      (isRain()
-        ? `correlation of ${rainMonth() ? MONTH_LAB[rainMonth()] : 'Oct–Mar'} rainfall with the Nov–Jan ${IDX_LAB[S.ensoIdx]}, `
-          + `about 10 water years — |r| must exceed 0.63 for p<0.05, so read the PATTERN, not the stars`
-        : `correlation of 1 ${MONTH_LAB[+S.ensoMonth]} snow water with the Nov–Jan ${IDX_LAB[S.ensoIdx]}, 23 water years`)
-      + ` · blue = ${isRain() ? 'wetter' : 'more snow'} in a warm ENSO winter, red = ${isRain() ? 'drier' : 'less'}`
-      + (() => { const c = isRain() ? (R.significant_rain || {}) : (R.significant || {});
-                 return c[S.ensoIdx] !== undefined
-                   ? ` · ${c[S.ensoIdx]} of ${Object.keys(R.basins || {}).length} basins reach p<0.05, ~${R.expected_by_chance} expected by chance`
-                   : ''; })()
-      + (S.ensoIdx !== 'oni' && (R.index_r_vs_oni || {})[S.ensoIdx] !== undefined
-         ? ` · r ${R.index_r_vs_oni[S.ensoIdx]} with the ONI` : '')
-      + (isRain() && (R.rain || {}).matched
-         ? ` · over these same years snowpack scores ${R.rain.matched.snow_r_rain_years} and rain `
-           + `${R.rain.matched.rain_r} — the same; the stronger ${R.rain.matched.snow_r_all_years} `
-           + `for snow is the longer record, not the variable`
+      (isRain() ? `${rainMonth() ? MONTH_LAB[rainMonth()] : 'Oct–Mar'} rainfall`
+                : `1 ${MONTH_LAB[+S.ensoMonth]} snow water`)
+      + ` vs the Nov–Jan ${IDX_LAB[S.ensoIdx]} · ${nyr} water years`
+      + (cnt !== undefined
+         ? ` · ${cnt} of ${Object.keys(R.basins || {}).length} basins p<0.05 (≈${R.expected_by_chance} by chance)`
          : '')
-      + ` · star = p<0.05`;
+      + (isRain() ? ' · needs |r|>0.63 here, so read the pattern' : '')
+      + (S.ensoIdx !== 'oni' && (R.index_r_vs_oni || {})[S.ensoIdx] !== undefined
+         ? ` · r ${R.index_r_vs_oni[S.ensoIdx]} with the ONI` : '');
     $('maplegend').innerHTML = diverging('warm', 'cold', 'less snow', 'more snow',
                                          'detrended correlation r, ±0.7 · star = p<0.05');
     ensoBar();
@@ -1211,7 +1208,7 @@ function small() {
 }
 
 /* ---- run over run ---------------------------------------------------------------------------- */
-function issuesOf(m) { return (S.hist.models || {})[m] || []; }
+function issuesOf(m) { return ((S.hist && S.hist.models) || {})[m] || []; }
 function board3() {
   const k = S.basin; const ms = models();
   const cycles = [...new Set(ms.flatMap((m) => issuesOf(m).map((x) => x.cycle)))].sort().slice(-S.nruns);
@@ -1352,12 +1349,23 @@ function controls() {
 }
 
 const DATA = DATA_BASE();
-async function load() {
+/* pnw_history.json is 0.5 MB gzipped and nothing above the fold needs it --
+   only the run picker's older cycles and the run-over-run board further down.
+   Fetching it before the first render made every visitor wait for 0.8 MB
+   rather than 0.3 before seeing the map. It now arrives afterwards and the
+   page re-renders; `issuesOf` and `runList` already cope with it being
+   absent, so the first paint is simply the newest run. */
+S.hist = { models: {} };
+async function loadCore() {
   S.latest = await (await fetch(DATA + 'pnw_latest.json?t=' + Date.now())).json();
-  S.hist = await (await fetch(DATA + 'pnw_history.json?t=' + Date.now())).json();
   if (!GEO) { try { GEO = await (await fetch('pnw_divisions.geojson')).json(); } catch (e) { GEO = null; } }
   if (!BASE) { try { BASE = await (await fetch('pnw_base.geojson')).json(); } catch (e) { BASE = null; } }
 }
+async function loadHist() {
+  try { S.hist = await (await fetch(DATA + 'pnw_history.json?t=' + Date.now())).json(); }
+  catch (e) { /* the page works without it, just without older runs */ }
+}
+async function load() { await loadCore(); await loadHist(); }
 // The control panel ships open, which is what a desktop wants and what a
 // browser with JS off should get. On a phone it is 517 px of buttons above
 // the fold, so it starts collapsed there -- the summary bar stays pinned, so
@@ -1372,7 +1380,8 @@ function fitControls() {
 (async () => {
   fitControls();
   window.matchMedia(NARROW).addEventListener('change', fitControls);
-  await load(); controls(); wireHist(); render();
+  await loadCore(); controls(); wireHist(); render();
+  loadHist().then(() => { controls(); render(); });
   setInterval(async () => {
     try { const l = await (await fetch(DATA + 'pnw_latest.json?t=' + Date.now())).json();
       if (l.built !== S.latest.built) { await load(); render(); } } catch (e) { /* keep */ }

@@ -585,12 +585,14 @@ def main():
     doc["significant_partial_vs_oni"] = part
     # significance counts for the rainfall target, which has its own (much
     # shorter) record and must not borrow the snow counts
-    rsig = {}
+    # initialised with zeros: a predictor with no significant basin must read
+    # "0 of 48", not vanish from the caption as though it were unmeasured
+    rsig = {nm: 0 for nm in ("oni", "roni", "mei", "pdo")}
     for c, per in doc["basins"].items():
         f = (per.get("rain") or {})
         for nm in ("oni", "roni", "mei", "pdo"):
             g = f.get(nm)
-            if g and g["p"] < 0.05:
+            if g and g.get("p_dt", g["p"]) < 0.05:
                 rsig[nm] = rsig.get(nm, 0) + 1
     doc["significant_rain"] = rsig
     print(f"\n  AFTER removing the ONI, still significant at p<0.05 (of {nb} basins, "

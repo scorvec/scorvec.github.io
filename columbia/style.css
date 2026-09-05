@@ -517,13 +517,21 @@ select.mini{font-size:12px;padding:4px 6px;max-width:220px}
   .hero>*{min-width:0}                 /* let the tables scroll instead of pushing */
   .hero .scroll{width:100%}
   .hero .pnwmap.bigchart{width:100%;max-width:100%}
-  .pnwmap.bigchart svg{width:100%;height:auto;max-height:none}
+  /* Stacked, the map may fill the width but never more than a screenful: at
+     1024 px it rendered 971x1037, taller than the viewport, so a tablet could
+     not see the whole basin at once. `width:auto` rather than 100% so the
+     element shrinks with the drawing and centres, instead of staying full
+     width and letterboxing the map inside it. */
+  .pnwmap.bigchart svg{width:auto;max-width:100%;height:auto;max-height:76vh;margin:0 auto}
 }
 
 /* Map labels are sized in viewBox user units, so a 1400-unit-wide map scaled
    into a 390 px phone renders 15 px text at about 4 px. Scale the labels up on
    small screens so the map is legible rather than merely present. */
 @media (max-width:700px){
+  /* a phone is far below the height cap (390 px gives 337x360), so there the
+     map simply takes the full width */
+  .pnwmap.bigchart svg{width:100%}
   /* the control bar is a non-wrapping flex row; the basin buttons plus the
      division <select> ran 79 px past a 386 px viewport, which was the last
      real source of horizontal scroll on the page */
