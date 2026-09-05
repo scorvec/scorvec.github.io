@@ -372,21 +372,41 @@ function scorecard() {
     + 'Composites are area-weighted unions of NWRFC divisions; Columbia above The Dalles is the whole basin above the dam, not the NWRFC mainstem reach. Click a row to open it.';
 }
 
+/* The observed record ends a day or two BEFORE the end of the date list --
+   Stage IV lags, and the newest entries are legitimately null. Slicing the
+   last n days off the end of the list therefore always caught a trailing
+   null, and a single null blanked the cell: every span of the observed table
+   and every observed map field came out empty. Anchor the window on the last
+   day that actually has data instead, and report that day as the end date. */
+function obsWindow(series, normals, n) {
+  const a = series || [];
+  let end = a.length - 1;
+  while (end >= 0 && (a[end] === null || a[end] === undefined)) end--;
+  if (end < n - 1) return null;
+  const ob = a.slice(end - n + 1, end + 1);
+  if (ob.some((x) => x === null || x === undefined)) return null;   // a real gap still blanks
+  const nm = (normals || []).slice(end - n + 1, end + 1);
+  return { ob, nm, end };
+}
+
 function obstab() {
   const o = S.latest.obs; const keys = Object.keys(S.latest.composites);
   const spans = [7, 14, 30, 60, 90].filter((n) => n <= o.dates.length);
   const rows = keys.map((k) => ({ key: k, label: k, cls: k === S.basin ? 'cons' : '' }));
   const cols = spans.map((n) => ({ key: String(n), label: `last ${n} d` }));
   HEAT.table($('obstab'), rows, cols, (k, n) => {
-    const ob = (o.comp[k] || []).slice(-n), nm = (o.normal[k] || []).slice(-n);
-    if (!ob.length || ob.some((x) => x === null || x === undefined)) return null;
+    const w = obsWindow(o.comp[k], o.normal[k], n);
+    if (!w) return null;
+    const ob = w.ob, nm = w.nm;
     const mm = ob.reduce((a, b) => a + b, 0); const normal = nm.some((x) => x === null) ? undefined : nm.reduce((a, b) => a + b, 0);
     const v = { mm, normal, pct: normal ? 100 * mm / normal : undefined };
     const main = showVal(v); if (main === null) return null;
     return { v: S.heatwhat === 'pct' ? main - 100 : main, text: S.heatwhat === 'anom' ? `${sgn(main, 0)} mm` : showFmt(main),
-             tip: `${k} · last ${n} days to ${o.dates[o.dates.length - 1]}\nStage IV ${mm.toFixed(1)} mm${normal ? ` / normal ${normal.toFixed(1)} = ${v.pct.toFixed(0)}% (${sgn(mm - normal, 1)} mm)` : ''}` };
+             tip: `${k} · last ${n} days to ${o.dates[w.end]}\nStage IV ${mm.toFixed(1)} mm${normal ? ` / normal ${normal.toFixed(1)} = ${v.pct.toFixed(0)}% (${sgn(mm - normal, 1)} mm)` : ''}` };
   }, [], { limb: S.heatwhat === 'mm' ? limbAbs : limb, scale: S.heatwhat === 'pct' ? 150 : 'auto', nice: showNice(), fmt: (v) => showFmt(v) });
-  $('subobs').textContent = `NCEP Stage IV through ${o.dates[o.dates.length - 1]} · ${SHOW[S.heatwhat]}`;
+  const lastObs = (() => { const a = o.comp[keys[0]] || []; let i = a.length - 1;
+    while (i >= 0 && (a[i] === null || a[i] === undefined)) i--; return i >= 0 ? o.dates[i] : '–'; })();
+  $('subobs').textContent = `NCEP Stage IV through ${lastObs} · ${SHOW[S.heatwhat]}`;
 }
 
 /* ---- map ---------------------------------------------------------------------------------------- */
@@ -409,10 +429,12 @@ function mapValue(code) {
   if (w === 'change') { const e = entry(S.model); const pr = e && e.prev[0]; if (!pr) return null;
     const d = ((pr.delta[code] || {}).periods || {})[S.period]; const v = showDelta(d); if (v === null) return null;
     return { v, text: sgn(v, S.heatwhat === 'pct' ? 0 : 1), tip: `${sgn(d.mm, 1)} mm${d.pct !== undefined ? `, ${sgn(d.pct)} pts` : ''} vs ${cyc(pr.cycle)}` }; }
-  const n = +w.slice(3); const o = S.latest.obs; const ob = (o.div[code] || []).slice(-n), nm = (o.normal[code] || []).slice(-n);
-  if (!ob.length || ob.some((x) => x === null)) return null;
-  const f = ob.reduce((a, b) => a + b, 0), g = nm.some((x) => x === null) ? null : nm.reduce((a, b) => a + b, 0);
-  return mapCell(f, g, `${o.dates.slice(-n)[0]} → ${o.dates[o.dates.length - 1]}: `);
+  const n = +w.slice(3); const o = S.latest.obs;
+  const win = obsWindow(o.div[code], o.normal[code], n);
+  if (!win) return null;
+  const f = win.ob.reduce((a, b) => a + b, 0);
+  const g = win.nm.some((x) => x === null) ? null : win.nm.reduce((a, b) => a + b, 0);
+  return mapCell(f, g, `${o.dates[win.end - n + 1]} → ${o.dates[win.end]}: `);
 }
 // Albers equal-area conic, standard parallels 43 and 50 N, central meridian
 // 117 W: the projection the NWRFC and USGS draw the basin in, so the shapes

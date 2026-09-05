@@ -617,7 +617,15 @@ def fetch_obs(date):
     cs, Wm = weights_2d(g["lat"], g["lon"])
     v = np.nan_to_num(g["values"].ravel()); cov = (np.isfinite(g["values"].ravel())[None, :] * Wm).sum(1)
     out = Wm @ v
-    rec = {"date": date, "source": "stage4_24h_12z", "div": {c: round(float(out[i]), 2) for i, c in enumerate(cs) if cov[i] > 0.9}}
+    div = {c: round(float(out[i]), 2) for i, c in enumerate(cs) if cov[i] > 0.9}
+    # Never persist an empty or barely-covered day. Today's file can exist on
+    # NOMADS while the 24 h accumulation is still incomplete, and writing that
+    # poisons the cache permanently: the file is on disk, so fetch_obs returns
+    # it forever and the day is never retried. Two such records (2026-09-04
+    # and -05) blanked every observed cell on the page.
+    if len(div) < 0.5 * len(cs):
+        return None
+    rec = {"date": date, "source": "stage4_24h_12z", "div": div}
     json.dump(rec, open(p, "w"))
     return rec
 
