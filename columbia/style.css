@@ -661,3 +661,6 @@ select.mini{font-size:12px;padding:4px 6px;max-width:220px}
 #histbody svg.scatter{display:block;width:100%;height:auto;max-width:940px;margin:0 auto}
 #histbody svg.scatter text.mini{font:11px var(--mono);fill:var(--ink3)}
 #histbody svg.scatter text.ttl{font:600 13px var(--sans);fill:var(--ink)}
+/* the significance hatch sits above the fill but must not intercept clicks or
+   hover, so the division underneath keeps its tooltip and its pop-up */
+.pnwmap path.nsig{pointer-events:none}

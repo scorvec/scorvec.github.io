@@ -728,8 +728,8 @@ function ensoValue(code) {
   // a perfectly coherent north-negative / south-positive dipole. The spatial
   // COHERENCE is the evidence at this sample size; per-basin significance is
   // not. Significance is annotated with a star instead.
-  return { v: r,
-           text: `${r.toFixed(2)}${weak ? '' : '*'}`,
+  return { v: r, weak,
+           text: r.toFixed(2),
            tip: `${code} · 1 ${MONTH_LAB[+S.ensoMonth]} SWE vs NDJ ${IDX_LAB[S.ensoIdx]}\nr ${f.r.toFixed(2)}, p ${f.p.toFixed(3)}, n ${f.n}`
                 + `\nslope ${f.slope.toFixed(0)} ± ${f.slope_se.toFixed(0)} mm per unit ${IDX_LAB[S.ensoIdx]}`
                 + `\nmean ${f.mean.toFixed(0)} mm, sd ${f.sd.toFixed(0)}`
@@ -737,7 +737,7 @@ function ensoValue(code) {
                    ? `\nshown detrended: ${f.r_dt} (raw ${f.r})` : '')
                 + (trendy ? `\nboth series trend hard over this window `
                             + `(index ${f.trend_x}, target ${f.trend_y}) — the raw r is inflated` : '')
-                + (weak ? '\nnot significant at p<0.05' : '')
+                + (weak ? '\nHATCHED: not significant at p<0.05' : '\nsignificant at p<0.05')
                 + '\nclick for the scatter' };
 }
 
@@ -874,6 +874,14 @@ function mapPanel() {
   if (S.mapwhat === 'day' && isSnow()) mlimb = dayAnom ? limbSnow : limbSnowAbs;
   if (S.mapwhat === 'enso') mlimb = limbSnow;      // it is a snowpack signal
   const P = [`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="basemap">`];
+  // Diagonal hatching marks a value that does NOT reach p<0.05. Marking the
+  // unreliable ones rather than the reliable ones is deliberate: on the
+  // rainfall view nothing clears significance, so the whole map hatches and
+  // says so at a glance. A star on a number was too easy to miss, which is
+  // exactly how a spurious correlation gets read as a real one.
+  P.push('<defs><pattern id="nsig" width="7" height="7" patternUnits="userSpaceOnUse"'
+    + ' patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7"'
+    + ' stroke="rgba(30,45,70,.55)" stroke-width="2.2"/></pattern></defs>');
   // ocean, then land, then the coloured divisions, then water and borders on top
   P.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#cfe0ef"/>`);
   P.push(`<path d="${baseLayer('land')}" fill="#f4f1ea" stroke="none"/>`);
@@ -889,6 +897,10 @@ function mapPanel() {
     }
     const tip = `${p.name} (${p.code}) · ${p.region} · ${Math.round(p.area).toLocaleString()} sq mi${x ? '\n' + x.tip : '\nno value'}\nclick for the cumulative plumes`;
     P.push(`<path d="${pathOf(f.geometry)}" fill="${col.bg || '#e9e6df'}" class="div ${p.code === S.basin ? 'sel' : ''}" data-code="${p.code}" data-t="${tip}"/>`);
+    if (x && x.weak) {
+      // pointer-events none so the hatch never swallows a click on the division
+      P.push(`<path d="${pathOf(f.geometry)}" fill="url(#nsig)" class="nsig" pointer-events="none"/>`);
+    }
     if (best) { const q = PX(best.x, best.y); labels.push(`<text class="lab" x="${q[0].toFixed(1)}" y="${(q[1] + 3).toFixed(1)}" text-anchor="middle" fill="${x ? 'var(--ink)' : 'var(--ink3)'}">${x ? x.text : '–'}</text>`); }
   }
   P.push(`<path d="${baseLayer('lakes')}" fill="#bcd4ea" stroke="#7fa6cc" stroke-width=".5"/>`);
@@ -938,7 +950,7 @@ function mapPanel() {
       + (S.ensoIdx !== 'oni' && (R.index_r_vs_oni || {})[S.ensoIdx] !== undefined
          ? ` · r ${R.index_r_vs_oni[S.ensoIdx]} with the ONI` : '');
     $('maplegend').innerHTML = diverging('warm', 'cold', 'less snow', 'more snow',
-                                         'detrended correlation r, ±0.7 · star = p<0.05');
+                                         'detrended correlation r, ±0.7 · hatched = NOT significant');
     ensoBar();
     const b = document.getElementById('daybar'); if (b) b.remove();
     return;
