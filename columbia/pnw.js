@@ -416,6 +416,27 @@ const MAPWHAT = { model: 'model, % of normal', change: 'model, change vs prior i
                   day: 'one day: rain, snow water, snow depth',
                   enso: 'ENSO correlation with 1 April snowpack' };
 
+/* Month strip for the ENSO map: the same fit at each month of the snow
+   season, so the build and decay of the relationship is visible rather than
+   being a single April number. */
+function ensoBar() {
+  let host = document.getElementById('ensobar');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'ensobar'; host.className = 'daybar';
+    const bar = document.querySelector('.heromap .bar.sub');
+    if (!bar) return;
+    bar.parentNode.insertBefore(host, bar.nextSibling);
+  }
+  const ms = (ENSOREG && ENSOREG.months || []).map(String);
+  host.innerHTML = `<span class="lab">1st of</span><span class="seg" id="ensomonth">`
+    + ms.map((m) => `<button type="button" data-v="${m}" aria-pressed="${m === S.ensoMonth}">${MONTH_LAB[+m]}</button>`).join('')
+    + `</span><span class="thin">click a division for its scatter</span>`;
+  host.querySelectorAll('#ensomonth button').forEach((b) => {
+    b.onclick = () => { S.ensoMonth = b.dataset.v; render(); };
+  });
+}
+
 /* Date picker + field buttons, shown only while the day view is open. Placed
    in the map's own sub-bar so it inherits the layout and the mobile rules. */
 function dayBar() {
@@ -620,23 +641,88 @@ function mapCell(mm, normal, tipHead) {
    caption carries both numbers and basins that fall short are drawn hollow
    rather than coloured as though they said something. */
 let ENSOREG = null;
+S.ensoMonth = '4';                         // 1 April, the water-supply benchmark
+const MONTH_LAB = { 11: 'Nov', 12: 'Dec', 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun' };
+
 async function ensoReg() {
   if (ENSOREG) return ENSOREG;
   try { ENSOREG = await (await fetch(DATA_BASE() + 'enso_regression.json')).json(); }
   catch (e) { ENSOREG = { basins: {} }; }
   return ENSOREG;
 }
-function ensoValue(code) {
+function ensoFit(code, month) {
   const B = ENSOREG && ENSOREG.basins && ENSOREG.basins[code];
-  if (!B || !B.oni) return null;
-  const f = B.oni;
+  const M = B && B[month || S.ensoMonth];
+  return M && M.oni ? M : null;
+}
+function ensoValue(code) {
+  const M = ensoFit(code);
+  if (!M) return null;
+  const f = M.oni;
   const weak = f.p >= 0.05;
   return { v: weak ? 0 : f.r,
            text: `${f.r.toFixed(2)}${weak ? '' : '*'}`,
            tip: `${code} · 1 April SWE vs NDJ ONI\nr ${f.r.toFixed(2)}, p ${f.p.toFixed(3)}, n ${f.n}`
                 + `\nslope ${f.slope.toFixed(0)} ± ${f.slope_se.toFixed(0)} mm per 1 K of ONI`
                 + `\nmean ${f.mean.toFixed(0)} mm, sd ${f.sd.toFixed(0)}`
-                + (weak ? '\nnot significant at p<0.05 (n=23 needs |r|>0.41)' : '') };
+                + (weak ? '\nnot significant at p<0.05 (n=23 needs |r|>0.41)' : '')
+                + '\nclick for the scatter' };
+}
+
+/* The scatter behind one basin's r: 23 winters, the fitted line, and the
+   points labelled by water year. An r is a summary and a summary can hide a
+   single year doing all the work, so the points are shown rather than
+   asserted. */
+function ensoScatter(code) {
+  const M = ensoFit(code); const host = $('histbody');
+  if (!M) { host.innerHTML = '<div class="empty">No ENSO fit for this basin.</div>'; return; }
+  const f = M.oni, pts = [];
+  const ONI = ENSOREG.oni_by_year || {};
+  for (const [y, v] of Object.entries(M.swe || {})) {
+    if (ONI[y] !== undefined) pts.push({ y: +y, x: ONI[y], v });
+  }
+  if (pts.length < 3) { host.innerHTML = '<div class="empty">Too few years.</div>'; return; }
+  const W = 900, H = 460, Mg = { l: 66, r: 22, t: 30, b: 46 };
+  const xs = pts.map((p) => p.x), vs = pts.map((p) => p.v);
+  const x0 = Math.min(-2.2, ...xs), x1 = Math.max(2.2, ...xs);
+  const v1 = Math.max(...vs) * 1.08, v0 = 0;
+  const X = (x) => Mg.l + (x - x0) / (x1 - x0) * (W - Mg.l - Mg.r);
+  const Y = (v) => H - Mg.b - (v - v0) / (v1 - v0 || 1) * (H - Mg.t - Mg.b);
+  const P = [`<svg viewBox="0 0 ${W} ${H}" class="scatter" width="${W}" height="${H}">`];
+  P.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="var(--card)"/>`);
+  // La Nina / El Nino shading, so the sign is readable without doing algebra
+  P.push(`<rect x="${X(x0)}" y="${Mg.t}" width="${X(-0.5) - X(x0)}" height="${H - Mg.t - Mg.b}" fill="#eef4fb"/>`);
+  P.push(`<rect x="${X(0.5)}" y="${Mg.t}" width="${X(x1) - X(0.5)}" height="${H - Mg.t - Mg.b}" fill="#fdf3f0"/>`);
+  P.push(`<text x="${X(x0) + 8}" y="${Mg.t + 14}" class="mini" fill="#4f84bd">La Niña</text>`);
+  P.push(`<text x="${X(x1) - 8}" y="${Mg.t + 14}" class="mini" fill="#c95a45" text-anchor="end">El Niño</text>`);
+  for (const g of [-2, -1, 0, 1, 2]) {
+    P.push(`<line x1="${X(g)}" y1="${Mg.t}" x2="${X(g)}" y2="${H - Mg.b}" stroke="#dde3ea"/>`);
+    P.push(`<text x="${X(g)}" y="${H - Mg.b + 16}" text-anchor="middle" class="mini">${g > 0 ? '+' : ''}${g}</text>`);
+  }
+  const ticks = 4;
+  for (let i = 0; i <= ticks; i++) {
+    const v = v0 + (v1 - v0) * i / ticks;
+    P.push(`<line x1="${Mg.l}" y1="${Y(v)}" x2="${W - Mg.r}" y2="${Y(v)}" stroke="#eef1f5"/>`);
+    P.push(`<text x="${Mg.l - 8}" y="${Y(v) + 4}" text-anchor="end" class="mini">${v.toFixed(0)}</text>`);
+  }
+  // the fitted line, drawn only across the range the data actually covers
+  const lx0 = Math.min(...xs), lx1 = Math.max(...xs);
+  P.push(`<line x1="${X(lx0)}" y1="${Y(f.intercept + f.slope * lx0)}" x2="${X(lx1)}" y2="${Y(f.intercept + f.slope * lx1)}" `
+    + `stroke="${f.p < 0.05 ? '#25609a' : '#9aa7b6'}" stroke-width="2.5" stroke-dasharray="${f.p < 0.05 ? '' : '5 4'}"/>`);
+  for (const p of pts) {
+    P.push(`<circle cx="${X(p.x)}" cy="${Y(p.v)}" r="5.5" fill="${p.x > 0.5 ? '#c95a45' : p.x < -0.5 ? '#4f84bd' : '#8a97a6'}" fill-opacity=".85"/>`);
+    P.push(`<text x="${X(p.x)}" y="${Y(p.v) - 10}" text-anchor="middle" class="mini">${String(p.y).slice(2)}</text>`);
+  }
+  P.push(`<text x="${Mg.l}" y="18" class="ttl">${label(code)} · 1 ${MONTH_LAB[+S.ensoMonth]} snow water vs the Nov–Jan ONI</text>`);
+  P.push(`<text x="${W / 2}" y="${H - 6}" text-anchor="middle" class="mini">ONI, °C (Nov–Jan mean)</text>`);
+  P.push('</svg>');
+  host.innerHTML = P.join('');
+  $('histnote').innerHTML =
+    `r ${f.r.toFixed(2)}, p ${f.p.toFixed(3)}, n ${f.n} · slope <b>${f.slope.toFixed(0)} ± ${f.slope_se.toFixed(0)} mm</b> per 1 K of ONI`
+    + ` · mean ${f.mean.toFixed(0)} mm, sd ${f.sd.toFixed(0)}`
+    + (f.p < 0.05 ? '' : ' · <b>not significant</b>, the line is dashed for that reason')
+    + `<br>With 23 winters an r of this size carries an interval roughly ±0.35 wide, and the ONI`
+    + ` and PDO are themselves correlated at ${ENSOREG.oni_pdo_r} here — read the scatter, not the coefficient.`;
 }
 
 function mapValue(code) {
@@ -721,7 +807,10 @@ function mapPanel() {
   P.push(`<path d="${baseLayer('coast')}" fill="none" stroke="#3b5a78" stroke-width=".9"/>`);
   P.push(labels.join('')); P.push('</svg>');
   host.innerHTML = P.join('');
-  host.querySelectorAll('path[data-code]').forEach((el) => el.addEventListener('click', () => openHist(el.dataset.code, S.period)));
+  host.querySelectorAll('path[data-code]').forEach((el) => el.addEventListener('click', () => {
+    if (S.mapwhat === 'enso') { openEnso(el.dataset.code); return; }
+    openHist(el.dataset.code, S.period);
+  }));
   host.querySelector('svg').insertAdjacentHTML('beforeend', `<text x="${W - 8}" y="${H - 8}" text-anchor="end" fill="#5a6b7d" style="font-size:12px">Albers equal-area · Natural Earth 10 m · NWRFC water-supply divisions</text>`);
   HEAT.wireTips(host);
   const e = entry(S.model);
@@ -743,13 +832,14 @@ function mapPanel() {
     const R = ENSOREG || {};
     const sig = (R.significant || {}).oni;
     $('submap').textContent =
-      `correlation of 1 April snow water with the Nov–Jan ONI, ${(R.basins && Object.values(R.basins)[0] || {}).oni ? Object.values(R.basins)[0].oni.n : 23} water years`
+      `correlation of 1 ${MONTH_LAB[+S.ensoMonth]} snow water with the Nov–Jan ONI, ${(R.basins && Object.values(R.basins)[0] || {}).oni ? Object.values(R.basins)[0].oni.n : 23} water years`
       + ` · blue = more snow in a warm ENSO winter, red = less`
       + (sig !== undefined ? ` · ${sig} of ${Object.keys(R.basins || {}).length} basins reach p<0.05, ~${R.expected_by_chance} expected by chance`
                            : '')
       + ` · hollow = not significant`;
     $('maplegend').innerHTML = diverging('warm', 'cold', 'less snow', 'more snow',
                                          'correlation r, ±0.7');
+    ensoBar();
     const b = document.getElementById('daybar'); if (b) b.remove();
     return;
   }
@@ -783,6 +873,7 @@ function mapPanel() {
                   : diverging('brown', 'green', 'below normal', 'above normal', `±${scale.toFixed(0)} ${unit}`))
       : oneSided(isSnow() ? 'cold' : 'green', unit);
     dayBar();
+    const e2 = document.getElementById('ensobar'); if (e2) e2.remove();
     return;
   }
   $('submap').textContent = S.mapwhat === 'model' ? `${MODEL_LABEL[S.model] || S.model} ${e ? cyc(e.cycle) : ''} · ${PERIOD_LABEL[S.period]} · ${what} by division` :
@@ -822,7 +913,9 @@ function wq(vals, w, q) {
   let c = 0; for (const [v, ww] of o) { c += ww; if (c >= q * tot) return v; } return o[o.length - 1][0];
 }
 function openHist(k, p) {
-  S.histKey = k;
+  S.histKey = k; S.histView = 'plume';
+  const lab0 = document.querySelector('.histmodel .histsel');
+  if (lab0) lab0.textContent = 'model';
   const modal = $('hist'); modal.hidden = false;
   $('histname').textContent = label(k);
   const di = divInfo(k);
@@ -833,6 +926,25 @@ function openHist(k, p) {
   renderHist();
 }
 S.histModel = null;
+
+/* Reuses the plume pop-up's frame, with the month strip in place of the model
+   strip: the same basin's relationship at each month of the snow season. */
+function openEnso(k) {
+  S.histKey = k; S.histView = 'enso';
+  const modal = $('hist'); modal.hidden = false;
+  $('histname').textContent = label(k);
+  const di = divInfo(k);
+  $('histwhen').textContent = di ? `${di.region} · ${Math.round(di.area).toLocaleString()} sq mi`
+                                 : 'area-weighted union of NWRFC divisions';
+  const have = ((ENSOREG.basins || {})[k]) || {};
+  const months = (ENSOREG.months || []).map(String).filter((m) => have[m]);
+  if (!months.includes(S.ensoMonth)) S.ensoMonth = months[months.length - 1];
+  const lab = document.querySelector('.histmodel .histsel');
+  if (lab) lab.textContent = 'snowpack on the 1st of';
+  seg('histperiod', months.map((m) => ({ v: m, label: MONTH_LAB[+m] })), S.ensoMonth,
+      (m) => { S.ensoMonth = m; ensoScatter(S.histKey); render(); });
+  ensoScatter(k);
+}
 function renderHist() {
   // Cumulative precipitation plumes for one basin: every member of the chosen
   // ensemble accumulated from day 1, the other models' means, the cumulative
@@ -1123,6 +1235,7 @@ function controls() {
     } else {
       const b = document.getElementById('daybar'); if (b) b.remove();
     }
+    if (k !== 'enso') { const e2 = document.getElementById('ensobar'); if (e2) e2.remove(); }
     render();
   }, (k) => MAP_SHORT[k]);
   fillRuns();

@@ -649,3 +649,7 @@ select.mini{font-size:12px;padding:4px 6px;max-width:220px}
   .daybar input[type=date]{min-height:40px;flex:1}
   .daybar .thin{margin-left:0;flex:1 0 100%}
 }
+.daybar .lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink3)}
+#histbody svg.scatter{display:block;width:100%;height:auto;max-width:940px;margin:0 auto}
+#histbody svg.scatter text.mini{font:11px var(--mono);fill:var(--ink3)}
+#histbody svg.scatter text.ttl{font:600 13px var(--sans);fill:var(--ink)}
