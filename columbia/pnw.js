@@ -434,7 +434,16 @@ function ensoBar() {
     bar.parentNode.insertBefore(host, bar.nextSibling);
   }
   const ms = (ENSOREG && ENSOREG.months || []).map(String);
-  const idxs = (ENSOREG && ENSOREG.predictors) || ['oni'];
+  // PDO is deliberately NOT offered (user, 5 Sep 2026). It correlates with
+  // the ONI at 0.48 here, so on its own it looks like a signal -- 23 of 48
+  // basins -- but after the ONI is partialled out only 2 of 48 survive
+  // against 2.4 expected by chance, and on Daymet's 46 years just 1. Leaving
+  // the button there invited precisely the misreading the hatching exists to
+  // prevent. The fits are still computed and stored; they are simply not a
+  // tab. See enso_regression.json -> significant_partial_vs_oni.
+  const HIDE_IDX = new Set(['pdo']);
+  const idxs = ((ENSOREG && ENSOREG.predictors) || ['oni']).filter((k) => !HIDE_IDX.has(k));
+  if (HIDE_IDX.has(S.ensoIdx)) S.ensoIdx = idxs[0] || 'oni';
   const rv = ENSOREG && ENSOREG.index_r_vs_oni || {};
   // Snow vs rain was buried as the last button of a long month strip and was
   // missed (user, 5 Sep 2026). It is a different VARIABLE, not another target
