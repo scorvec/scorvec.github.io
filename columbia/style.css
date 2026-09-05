@@ -337,13 +337,13 @@ body.histrun #livechk { opacity: .4; pointer-events: none; }
 /* Small multiples: one smile per region, same axes, so the shapes can be
    compared at a glance rather than one at a time. */
 .smilegrid{display:grid;gap:10px;padding:0 20px;
-  grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+  grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}
 .smilecell{background:var(--card);border:1px solid var(--line);border-radius:8px;
   padding:6px 8px 2px}
 .smilecell h4{margin:0 0 2px;font-size:12px;font-weight:700;color:var(--ink)}
 .smilecell .k{font-size:10.5px;color:var(--ink2);font-weight:600}
 .smilecell.on{border-color:#1d5c96;box-shadow:0 0 0 1px #1d5c96}
-.grid2{display:grid;gap:14px;padding:0 20px;grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+.grid2{display:grid;gap:14px;padding:0 20px;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr))}
 .grid2 .chart-wrap,.grid2 .scroll{margin-left:0;margin-right:0}
 p.lead{margin:2px 20px 8px;font-size:13px;color:var(--ink);max-width:1180px}
 p.lead b{font-weight:700}
@@ -386,7 +386,7 @@ table.heat tbody tr:hover td.k{background:#e6eef7}
 
 /* ---- renewables / PNW pages ---- */
 table.heat td.v small{font-weight:500;font-size:10px;opacity:.85;margin-left:3px}
-.smallgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px}
+.smallgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(420px,100%),1fr));gap:12px}
 .smallcard{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 4px 2px;cursor:pointer}
 .smallcard:hover{border-color:#b9d0e8;background:#fbfdff}
 .smallcard svg{display:block;width:100%;height:auto}
@@ -464,8 +464,14 @@ header .brand + .thin,header .thin{font-size:13.5px}
 .pnwmap svg text.lab{font-size:15px}
 .evolegend{font-size:12.5px}
 
-/* map column sized to the map, no side whitespace */
-.hero{grid-template-columns:auto 1fr}
+/* map column sized to the map, no side whitespace.
+   Both tracks need an explicit 0 minimum: a grid item's default min-width is
+   min-content, and the scorecard is a max-content table, so without this it
+   dictated a ~1050 px track and the map got whatever was left -- 274 px on a
+   1400 px laptop, 0 px on a phone. With minmax(0,..) the table scrolls inside
+   its own .scroll box, which is what that box is for. */
+.hero{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+.hero>*{min-width:0}
 .hero .heromap{min-width:0}
 .hero .pnwmap.bigchart{width:fit-content;max-width:100%;padding:6px}
 .pnwmap.bigchart svg{margin:0}
@@ -488,3 +494,48 @@ select.mini{font-size:12px;padding:4px 6px;max-width:220px}
 .histsel{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.6px;margin-left:auto}
 .histmodel{display:flex;align-items:center;gap:10px;margin:0 0 8px}
 .histmodel .histsel{margin-left:0}
+
+/* ---- mobile: stack the hero, and give the map an actual width -------------
+   Reported 5 Sep 2026: "I cant see the map on mobile". Measured at 386 px the
+   map column was 0 px wide and the SVG rendered 0x0 -- not shrunk, absent --
+   with 705 px of horizontal overflow beside it. Two independent causes, and
+   the map stays invisible unless both are fixed:
+
+   1. `.hero{grid-template-columns:auto 1fr}` above re-declares the grid AFTER
+      the `@media (max-width:1180px)` rule that stacks it. Same specificity,
+      later wins, so a phone kept the two-column layout.
+   2. Grid items default to `min-width:auto`, i.e. min-content. The scorecard
+      table is `width:max-content`, so it set a ~1050 px floor on the `1fr`
+      track; the `auto` map track got what was left, which was nothing. This
+      is why `overflow-x:auto` on `.scroll` was not saving it -- the track
+      never got the chance to be narrow.
+
+   This block is deliberately LAST in the file. Do not add `.hero` grid rules
+   below it, or bug 1 comes straight back. */
+@media (max-width:1180px){
+  .hero{grid-template-columns:1fr}
+  .hero>*{min-width:0}                 /* let the tables scroll instead of pushing */
+  .hero .scroll{width:100%}
+  .hero .pnwmap.bigchart{width:100%;max-width:100%}
+  .pnwmap.bigchart svg{width:100%;height:auto;max-height:none}
+}
+
+/* Map labels are sized in viewBox user units, so a 1400-unit-wide map scaled
+   into a 390 px phone renders 15 px text at about 4 px. Scale the labels up on
+   small screens so the map is legible rather than merely present. */
+@media (max-width:700px){
+  /* the control bar is a non-wrapping flex row; the basin buttons plus the
+     division <select> ran 79 px past a 386 px viewport, which was the last
+     real source of horizontal scroll on the page */
+  .ctl{flex-wrap:wrap}
+  select.mini{max-width:100%}
+  /* the header is a nowrap flex row: on a phone it squeezed the title, the
+     strapline and the run badge into three narrow columns 143 px tall */
+  header{flex-wrap:wrap;gap:6px 12px}
+  header .brand{font-size:18px;flex:1 0 100%}
+  header .thin{font-size:12.5px}
+  header .badge{margin-left:0}
+  .pnwmap svg text.lab{font-size:38px;stroke-width:9px}
+  .pnwmap path.div{stroke-width:2}
+  .pnwmap path.div.sel{stroke-width:6}
+}
