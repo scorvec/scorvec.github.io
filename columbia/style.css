@@ -599,8 +599,13 @@ select.mini{font-size:12px;padding:4px 6px;max-width:220px}
   .ctlbox:not([open]) .ctlbar{display:none}
   .ctlbox[open] .ctlbar{max-height:52vh;overflow-y:auto;
     flex-direction:column;align-items:stretch;gap:2px;padding:4px 12px 10px}
+  /* min-width:0 is what makes overflow-x:auto actually engage: a flex item
+     defaults to min-width:auto, so without this each row sized to the sum of
+     its buttons (the model row came out 1135 px inside a 386 px screen) and
+     the only way to reach the last model was to drag the whole panel
+     sideways. With it, each row scrolls on its own. */
   .ctlbar .ctl{flex-wrap:nowrap;overflow-x:auto;gap:6px;padding:3px 0;
-    scrollbar-width:none}
+    min-width:0;max-width:100%;scrollbar-width:none}
   .ctlbar .ctl::-webkit-scrollbar{display:none}
   .ctlbar .ctl .lab{position:sticky;left:0;background:var(--card);padding-right:4px;z-index:1}
   .ctlbar .ctl .seg{flex-wrap:nowrap}
@@ -608,4 +613,24 @@ select.mini{font-size:12px;padding:4px 6px;max-width:220px}
 
   .introhead{padding:0 14px;font-size:13.5px}
   .explain > summary{padding:6px 14px}
+}
+
+/* ---- the collapsed control summary ---------------------------------------
+   The model is the setting that decides what the map is coloured by, so it
+   leads the line, carries the same colour swatch the buttons use, and is the
+   one part that never truncates -- the basin/period/units tail ellipsises
+   before it does. */
+.ctlsum #ctlnow{display:flex;align-items:center;gap:6px;min-width:0}
+.ctlsum #ctlnow > b{font-weight:700;white-space:nowrap;flex:0 0 auto}
+.ctlsum i.dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.ctlsum .ctlrest{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-weight:500;color:var(--ink2)}
+.ctlsum .sep{opacity:.45;margin:0 5px}
+
+/* the model row is the one people reach for most, so it reads as the primary
+   control rather than the second of six identical rows */
+.ctl-model .lab{color:var(--ink2);font-weight:700}
+@media (max-width:700px){
+  .ctlbar .ctl-model{order:-1}                 /* model first when stacked */
+  .ctlbar .ctl-model .lab{color:var(--ink)}
 }

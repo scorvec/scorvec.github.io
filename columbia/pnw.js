@@ -758,11 +758,18 @@ function render() {
     + `averaged over the Northwest River Forecast Center's water-supply divisions and read against the 1991–2020 normal and against NCEP Stage IV observed rainfall. `
     + `Every table can be read as percent of normal, as the departure in mm, or as absolute mm.`;
   // What the collapsed control bar says it is set to, so the state is legible
-  // without opening it.
-  const nowbits = [S.basin.replace('Columbia abv ', 'Columbia ↑ ').replace('Snake abv ', 'Snake ↑ '),
-                   MODEL_LABEL[S.model] || S.model, PERIOD_SHORT[S.period] || S.period,
-                   ({ pct: '% of normal', anom: 'mm vs normal', mm: 'mm' })[S.heatwhat]];
-  $('ctlnow').textContent = nowbits.filter(Boolean).join(' · ');
+  // without opening it. The MODEL leads and carries its own colour swatch --
+  // it is the setting that changes what the map is showing, and in a plain
+  // dot-separated list it read as just another word.
+  const unitLab = ({ pct: '% of normal', anom: 'mm vs normal', mm: 'mm' })[S.heatwhat];
+  $('ctlnow').innerHTML =
+    `<i class="dot" style="background:${MODEL_COLOR[S.model] || '#999'}"></i>`
+    + `<b>${MODEL_LABEL[S.model] || S.model}</b>`
+    + `<span class="ctlrest">`
+    + `<span class="sep">·</span>${S.basin.replace('Columbia abv ', 'Columbia ↑ ').replace('Snake abv ', 'Snake ↑ ')}`
+    + `<span class="sep">·</span>${PERIOD_SHORT[S.period] || S.period}`
+    + `<span class="sep">·</span>${unitLab}`
+    + `</span>`;
   $('credits').innerHTML = '<b>Sources and licences.</b> Basins and 1991–2020 mean-areal-precipitation normals: NOAA/NWS Northwest River Forecast Center (public domain). '
     + 'Observed rainfall: NCEP Stage IV multi-sensor precipitation analysis (NOAA, public domain), served by NOMADS and by the Iowa Environmental Mesonet archive. '
     + 'GFS and GEFS: NOAA/NCEP (public domain), from the NOAA Open Data Dissemination buckets on AWS. '
