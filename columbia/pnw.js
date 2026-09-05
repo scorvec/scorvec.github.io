@@ -70,6 +70,11 @@ const models = () => MODEL_ORDER.filter((m) => S.latest.models[m]).concat(Object
 S.pick = {};
 const entry = (m) => S.pick[m] || S.latest.models[m];
 const ARCH = window.PNW_ARCH || (DATA_BASE() + 'archive/');
+// Cache key for the lazily loaded side files. They change whenever the
+// pipeline reruns, and unlike pnw_latest.json they were fetched without one,
+// so a returning visitor kept a stale ENSO fit or snow climatology behind a
+// freshly versioned pnw.js. Tied to the page's own asset version.
+const STAMP = (document.querySelector('script[src*="pnw.js"]') || {}).src?.split('v=')[1] || Date.now();
 function DATA_BASE() { return window.PNW_DATA || '../data/out/'; }
 async function loadArchive(m, cycle) {
   const r = await fetch(`${ARCH}${m}_${cycle}.json.gz?t=${Date.now()}`);
@@ -518,7 +523,7 @@ const isSnow = () => S.dayField !== 'precip';
 
 async function snowClimo() {
   if (SNOWCLIMO) return SNOWCLIMO;
-  try { SNOWCLIMO = await (await fetch(DATA_BASE() + 'snow_climo.json')).json(); }
+  try { SNOWCLIMO = await (await fetch(DATA_BASE() + 'snow_climo.json?t=' + STAMP)).json(); }
   catch (e) { SNOWCLIMO = { climo: {}, grid: [] }; }
   return SNOWCLIMO;
 }
@@ -562,7 +567,7 @@ function rainNormal(code, date) {
 
 async function dayIndex() {
   if (DAYIX) return DAYIX;
-  const g = async (f) => { try { return (await (await fetch(DATA_BASE() + f)).json()).dates || []; }
+  const g = async (f) => { try { return (await (await fetch(DATA_BASE() + f + '?t=' + STAMP)).json()).dates || []; }
                            catch (e) { return []; } };
   const obs = await g('obs_index.json'), snow = await g('snow_index.json');
   DAYIX = { obs, snow, all: [...new Set([...obs, ...snow])].sort() };
@@ -646,7 +651,7 @@ const MONTH_LAB = { 11: 'Nov', 12: 'Dec', 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr'
 
 async function ensoReg() {
   if (ENSOREG) return ENSOREG;
-  try { ENSOREG = await (await fetch(DATA_BASE() + 'enso_regression.json')).json(); }
+  try { ENSOREG = await (await fetch(DATA_BASE() + 'enso_regression.json?t=' + STAMP)).json(); }
   catch (e) { ENSOREG = { basins: {} }; }
   return ENSOREG;
 }
