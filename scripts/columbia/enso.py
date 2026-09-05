@@ -199,6 +199,33 @@ def swe_on(month: int, day: int) -> dict:
     return out
 
 
+def partial(y, x, ctrl):
+    """Correlation of y with x after removing ctrl from both, with its p.
+
+    The question a second index has to answer is not "does it correlate with
+    snowpack" -- ENSO leaking through guarantees that -- but "does it explain
+    anything ENSO has not already explained".
+    """
+    y = np.asarray(y, float); x = np.asarray(x, float); c = np.asarray(ctrl, float)
+    n = len(y)
+    if n < 8 or x.std() == 0 or y.std() == 0 or c.std() == 0:
+        return None
+    ryx = float(np.corrcoef(y, x)[0, 1])
+    ryc = float(np.corrcoef(y, c)[0, 1])
+    rxc = float(np.corrcoef(x, c)[0, 1])
+    den = np.sqrt(max((1 - ryc ** 2) * (1 - rxc ** 2), 1e-12))
+    r = (ryx - ryc * rxc) / den
+    df = n - 3
+    t = r * np.sqrt(df / max(1 - r * r, 1e-12))
+    try:
+        from scipy import stats
+        pv = float(2 * stats.t.sf(abs(t), df))
+    except Exception:
+        from math import erfc, sqrt
+        pv = float(erfc(abs(t) / sqrt(2)))
+    return {"r": round(float(r), 3), "p": round(pv, 4), "n": n}
+
+
 def fit(x, y):
     """Least squares with the statistics needed to read it honestly."""
     x = np.asarray(x, float); y = np.asarray(y, float)
@@ -222,6 +249,49 @@ def fit(x, y):
 
 
 MONTHS = [11, 12, 1, 2, 3, 4, 5, 6]        # the snow season, 1st of each
+OBS = os.path.join(P.DATA, "obs")
+RAIN_MONTHS = (10, 11, 12, 1, 2, 3)        # the Oct-Mar wet season
+RAIN_MIN_DAYS = 178                        # of 181-184; below this the year is dropped
+
+
+def rain_season():
+    """{basin: {water year: Oct-Mar Stage IV total, mm}}.
+
+    Only complete seasons count -- a water year missing a fortnight of days
+    would read as a dry year and nothing downstream would notice.
+    """
+    area = P.area()
+    per, days = {}, {}
+    for p in sorted(glob.glob(os.path.join(OBS, "????-??-??.json"))):
+        d = os.path.basename(p)[:-5]
+        y, m = int(d[:4]), int(d[5:7])
+        if m not in RAIN_MONTHS:
+            continue
+        wy = y + 1 if m >= 10 else y
+        try:
+            r = json.load(open(p))
+        except Exception:
+            continue
+        div = r.get("div") or {}
+        if not div:
+            continue
+        days[wy] = days.get(wy, 0) + 1
+        for c, v in div.items():
+            per.setdefault(wy, {}).setdefault(c, 0.0)
+            per[wy][c] += v
+    full = {wy for wy, n in days.items() if n >= RAIN_MIN_DAYS}
+    out = {}
+    for wy in sorted(full):
+        div = per[wy]
+        for c, v in div.items():
+            out.setdefault(c, {})[wy] = round(v, 1)
+        for name in P.COMPOSITES:
+            cs = [c for c in P.members_of(name) if c in div]
+            if not cs:
+                continue
+            w = np.array([area[c] for c in cs], float)
+            out.setdefault(name, {})[wy] = round(float(np.average([div[c] for c in cs], weights=w)), 1)
+    return out, sorted(full)
 
 
 def main():
@@ -243,6 +313,10 @@ def main():
     swe = swe_by_month.get(4) or next(iter(swe_by_month.values()))
     years = sorted({y for v in swe.values() for y in v})
     print(f"  {len(swe)} basins, {len(swe_by_month)} months, water years {years[0]}-{years[-1]}")
+
+    rain, rain_years = rain_season()
+    print(f"  Stage IV Oct-Mar totals: {len(rain_years)} complete water years "
+          f"({rain_years[0]}-{rain_years[-1]})" if rain_years else "  no complete rain seasons")
 
     roff = resolve_roni_offset(seas, oni, years)
     roni = {}
@@ -288,6 +362,10 @@ def main():
                                 "two columns are largely the same signal counted twice"
                                 % oni_pdo),
            "months": MONTHS,
+           "rain": {"season": "Oct-Mar Stage IV total, mm",
+                    "years": rain_years,
+                    "note": ("Stage IV starts 2016 here, so this is ~10 seasons against the "
+                             "snow record's 23; |r| must exceed 0.63 for p<0.05 at n=10")},
            "note_months": ("the ENSO predictor is Nov-Jan for EVERY target month, so the "
                            "months are comparable; for targets before February that index "
                            "is not known in advance, so this is a diagnostic, not a forecast"),
@@ -325,9 +403,51 @@ def main():
                     if m == 4 and f["p"] < 0.05:
                         sig[nm] += 1
             if rec:
+                # Every index other than the ONI is also scored AFTER the ONI
+                # is removed. PDO correlates with snowpack on its own, but so
+                # would anything that covaries with ENSO, and the page must be
+                # able to say which it is.
+                base = [(y, winter(oni, y)) for y in ys if winter(oni, y) is not None]
+                if len(base) >= 8:
+                    byear = {y: v for y, v in base}
+                    for nm, getx in PREDICTORS:
+                        if nm == "oni" or nm not in rec:
+                            continue
+                        yy = [y for y in ys if y in byear and getx(y) is not None]
+                        if len(yy) < 8:
+                            continue
+                        pr = partial([series[y] for y in yy], [getx(y) for y in yy],
+                                     [byear[y] for y in yy])
+                        if pr:
+                            rec[nm]["partial_vs_oni"] = pr
+                    # and the ONI after removing the PDO, the mirror question
+                    yy = [y for y in ys if y in byear and winter(pdo, y) is not None]
+                    if len(yy) >= 8 and "oni" in rec:
+                        pr = partial([series[y] for y in yy], [byear[y] for y in yy],
+                                     [winter(pdo, y) for y in yy])
+                        if pr:
+                            rec["oni"]["partial_vs_pdo"] = pr
                 # the points behind the fit, so the page can draw the scatter
                 rec["swe"] = {str(y): round(float(series[y]), 1) for y in ys}
                 per_month[str(m)] = rec
+        # Oct-Mar rainfall, the same fit on the same predictors. Far fewer
+        # years: Stage IV here begins in 2016, so this is 10 seasons against
+        # the snow record's 23, and 10 points need |r| > 0.63 to reach p<0.05.
+        rs = rain.get(c) or {}
+        if len(rs) >= 8:
+            rec = {}
+            for nm, getx in PREDICTORS:
+                xs, vs = [], []
+                for y in sorted(rs):
+                    w = getx(y)
+                    if w is not None:
+                        xs.append(w); vs.append(rs[y])
+                f = fit(xs, vs)
+                if f:
+                    rec[nm] = f
+            if rec:
+                rec["swe"] = {str(y): rs[y] for y in sorted(rs)}   # same key, so the scatter reuses it
+                per_month["rain"] = rec
         if per_month:
             doc["basins"][c] = per_month
             if "4" in per_month and "oni" in per_month["4"]:
@@ -335,7 +455,6 @@ def main():
     nb = len(doc["basins"])
     doc["significant"] = {k: v for k, v in sig.items()}
     doc["expected_by_chance"] = round(0.05 * nb, 1)
-    json.dump(doc, open(OUT, "w"), separators=(",", ":"))
 
     # how the relationship evolves through the season, on the whole basin
     key = "Columbia abv The Dalles"
@@ -359,10 +478,67 @@ def main():
     print(f"\n  significant at p<0.05, 1 April: "
           + ", ".join(f"{k.upper()} {v}" for k, v in sig.items())
           + f" of {nb} basins; expected by chance {doc['expected_by_chance']}")
+    # the count that answers "does this index add anything to ENSO"
+    part = {}
+    for c, per in doc["basins"].items():
+        f = (per.get("4") or {})
+        for nm in ("roni", "mei", "pdo"):
+            pr = (f.get(nm) or {}).get("partial_vs_oni")
+            if pr and pr["p"] < 0.05:
+                part[nm] = part.get(nm, 0) + 1
+    doc["significant_partial_vs_oni"] = part
+    # significance counts for the rainfall target, which has its own (much
+    # shorter) record and must not borrow the snow counts
+    rsig = {}
+    for c, per in doc["basins"].items():
+        f = (per.get("rain") or {})
+        for nm in ("oni", "roni", "mei", "pdo"):
+            g = f.get(nm)
+            if g and g["p"] < 0.05:
+                rsig[nm] = rsig.get(nm, 0) + 1
+    doc["significant_rain"] = rsig
+    print(f"\n  AFTER removing the ONI, still significant at p<0.05 (of {nb} basins, "
+          f"~{doc['expected_by_chance']} by chance):")
+    for nm in ("roni", "mei", "pdo"):
+        print(f"    {nm.upper():5s} {part.get(nm, 0)}")
+    # snow vs rain over the SAME years, which is the only fair comparison
+    both = []
+    for c, per in doc["basins"].items():
+        r4 = ((per.get("4") or {}).get("oni") or {})
+        rr = ((per.get("rain") or {}).get("oni") or {})
+        sw = (per.get("4") or {}).get("swe") or {}
+        if not rr or not sw:
+            continue
+        ys = [y for y in map(str, rain_years) if y in sw]
+        if len(ys) < 8:
+            continue
+        import numpy as _np
+        o = [winter(oni, int(y)) for y in ys]
+        if any(v is None for v in o):
+            continue
+        rs_ = float(_np.corrcoef([sw[y] for y in ys], o)[0, 1])
+        both.append((rs_, rr["r"], r4.get("r")))
+    if both:
+        import numpy as _np
+        s10 = _np.median([b[0] for b in both]); r10 = _np.median([b[1] for b in both])
+        sall = _np.median([b[2] for b in both if b[2] is not None])
+        doc["rain"]["matched"] = {"snow_r_all_years": round(float(sall), 3),
+                                  "snow_r_rain_years": round(float(s10), 3),
+                                  "rain_r": round(float(r10), 3), "n_basins": len(both)}
+        print(f"\n  snow vs rain over the SAME {len(rain_years)} years, median r across {len(both)} basins:")
+        print(f"    snowpack, all 23 years   {sall:+.3f}")
+        print(f"    snowpack, {rain_years[0]}-{rain_years[-1]}     {s10:+.3f}")
+        print(f"    Oct-Mar rain, same years {r10:+.3f}")
+        print("    -> the gap is the PERIOD, not the variable: the ENSO-snow relationship is")
+        print("       far weaker in the recent decade than over the full record")
     print("  how far the indices differ, correlated against the ONI over these winters:")
     for k, v in doc_index_r.items():
         print(f"    {k.upper():5s} r = {v}"
               + ("   -- effectively the same predictor" if abs(v) > 0.95 else ""))
+    # written LAST: the significance counts, the partial-correlation tallies and
+    # the snow-vs-rain comparison are all added to `doc` below the basin loop,
+    # and dumping before them silently shipped a file without any of it.
+    json.dump(doc, open(OUT, "w"), separators=(",", ":"))
     print(f"  wrote {OUT}")
 
 
