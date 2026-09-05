@@ -254,6 +254,50 @@ RAIN_MONTHS = (10, 11, 12, 1, 2, 3)        # the Oct-Mar wet season
 RAIN_MIN_DAYS = 178                        # of 181-184; below this the year is dropped
 
 
+def rain_months():
+    """{basin: {month: {water year: monthly total mm}}} for Oct-Mar.
+
+    Monthly totals as well as the season total, so rainfall can be stepped
+    through month by month exactly as snowpack is.
+    """
+    area = P.area()
+    per, days = {}, {}
+    for p in sorted(glob.glob(os.path.join(OBS, "????-??-??.json"))):
+        d = os.path.basename(p)[:-5]
+        y, m = int(d[:4]), int(d[5:7])
+        if m not in RAIN_MONTHS:
+            continue
+        wy = y + 1 if m >= 10 else y
+        try:
+            r = json.load(open(p))
+        except Exception:
+            continue
+        div = r.get("div") or {}
+        if not div:
+            continue
+        days.setdefault((wy, m), 0)
+        days[(wy, m)] += 1
+        for c, v in div.items():
+            per.setdefault((wy, m), {}).setdefault(c, 0.0)
+            per[(wy, m)][c] += v
+    import calendar
+    out = {}
+    for (wy, m), div in per.items():
+        cy = wy - 1 if m >= 10 else wy
+        if days[(wy, m)] < calendar.monthrange(cy, m)[1] - 2:      # near-complete only
+            continue
+        for c, v in div.items():
+            out.setdefault(c, {}).setdefault(m, {})[wy] = round(v, 1)
+        for name in P.COMPOSITES:
+            cs = [c for c in P.members_of(name) if c in div]
+            if not cs:
+                continue
+            w = np.array([area[c] for c in cs], float)
+            out.setdefault(name, {}).setdefault(m, {})[wy] = round(
+                float(np.average([div[c] for c in cs], weights=w)), 1)
+    return out
+
+
 def rain_season():
     """{basin: {water year: Oct-Mar Stage IV total, mm}}.
 
@@ -315,6 +359,7 @@ def main():
     print(f"  {len(swe)} basins, {len(swe_by_month)} months, water years {years[0]}-{years[-1]}")
 
     rain, rain_years = rain_season()
+    rainm = rain_months()
     print(f"  Stage IV Oct-Mar totals: {len(rain_years)} complete water years "
           f"({rain_years[0]}-{rain_years[-1]})" if rain_years else "  no complete rain seasons")
 
@@ -362,6 +407,7 @@ def main():
                                 "two columns are largely the same signal counted twice"
                                 % oni_pdo),
            "months": MONTHS,
+           "rain_months": list(RAIN_MONTHS),
            "rain": {"season": "Oct-Mar Stage IV total, mm",
                     "years": rain_years,
                     "note": ("Stage IV starts 2016 here, so this is ~10 seasons against the "
@@ -448,6 +494,23 @@ def main():
             if rec:
                 rec["swe"] = {str(y): rs[y] for y in sorted(rs)}   # same key, so the scatter reuses it
                 per_month["rain"] = rec
+        # and month by month, so rainfall can be stepped through like snowpack
+        for m, series in (rainm.get(c) or {}).items():
+            if len(series) < 8:
+                continue
+            rec = {}
+            for nm, getx in PREDICTORS:
+                xs, vs = [], []
+                for y in sorted(series):
+                    w = getx(y)
+                    if w is not None:
+                        xs.append(w); vs.append(series[y])
+                f = fit(xs, vs)
+                if f:
+                    rec[nm] = f
+            if rec:
+                rec["swe"] = {str(y): series[y] for y in sorted(series)}
+                per_month[f"rain{m}"] = rec
         if per_month:
             doc["basins"][c] = per_month
             if "4" in per_month and "oni" in per_month["4"]:

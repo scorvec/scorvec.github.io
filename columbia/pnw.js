@@ -447,7 +447,12 @@ function ensoBar() {
     + (hasRain ? `<button type="button" data-v="rain" aria-pressed="${isRain()}" title="Oct–Mar Stage IV rainfall total — only 10 seasons, so much weaker power">rainfall</button>` : '')
     + `</span>`
     + (isRain()
-        ? `<span class="thin">Oct–Mar total · ${(((ENSOREG || {}).rain || {}).years || []).length} seasons</span>`
+        // rainfall steps through its own months plus the whole-season total
+        ? `<span class="lab">month</span><span class="seg" id="ensomonth">`
+          + `<button type="button" data-v="rain" aria-pressed="${S.ensoMonth === 'rain'}" title="the whole Oct–Mar season">Oct–Mar</button>`
+          + ((ENSOREG.rain_months || []).map((m) =>
+              `<button type="button" data-v="rain${m}" aria-pressed="${S.ensoMonth === 'rain' + m}">${MONTH_LAB[+m]}</button>`).join(''))
+          + `</span>`
         : `<span class="lab">on the 1st of</span><span class="seg" id="ensomonth">`
           + ms.map((m) => `<button type="button" data-v="${m}" aria-pressed="${m === S.ensoMonth}">${MONTH_LAB[+m]}</button>`).join('')
           + `</span>`)
@@ -459,7 +464,7 @@ function ensoBar() {
     b.onclick = () => {
       // remember the month picked for snow, so switching back restores it
       if (b.dataset.v === 'rain') { S.ensoLastMonth = S.ensoMonth; S.ensoMonth = 'rain'; }
-      else { S.ensoMonth = S.ensoLastMonth || '4'; }
+      else { S.ensoMonth = (S.ensoLastMonth && !String(S.ensoLastMonth).startsWith('rain')) ? S.ensoLastMonth : '4'; }
       render();
     };
   });
@@ -681,12 +686,16 @@ S.ensoLastMonth = '4';
 const IDX_LAB = { oni: 'ONI', roni: 'RONI', mei: 'MEI.v2', pdo: 'PDO' };
 const IDX_LONG = { oni: 'Oceanic Niño Index', roni: 'Relative ONI', mei: 'Multivariate ENSO Index v2',
                    pdo: 'Pacific Decadal Oscillation' };
-const MONTH_LAB = { 11: 'Nov', 12: 'Dec', 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
-                    rain: 'Oct–Mar rain' };
+// 10 is here for the rainfall months: the snow season starts in November but
+// the wet season starts in October, and without it the Oct button read
+// "undefined".
+const MONTH_LAB = { 10: 'Oct', 11: 'Nov', 12: 'Dec', 1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr',
+                    5: 'May', 6: 'Jun', rain: 'Oct–Mar rain' };
 /* The rainfall target sits in the same strip as the months but is a different
    quantity on a much shorter record -- Stage IV starts 2016 here, so 10
    seasons against the snow record's 23. */
-const isRain = () => S.ensoMonth === 'rain';
+const isRain = () => String(S.ensoMonth).startsWith('rain');
+const rainMonth = () => (S.ensoMonth === 'rain' ? null : +String(S.ensoMonth).slice(4));
 
 async function ensoReg() {
   if (ENSOREG) return ENSOREG;
@@ -704,7 +713,13 @@ function ensoValue(code) {
   if (!M) return null;
   const f = M[S.ensoIdx];
   const weak = f.p >= 0.05;
-  return { v: weak ? 0 : f.r,
+  // Colour by r whether or not it clears p<0.05. Blanking the weak ones was
+  // meant as caution and did the opposite: at n=10 for rainfall almost
+  // nothing is individually significant, so the entire map went grey and hid
+  // a perfectly coherent north-negative / south-positive dipole. The spatial
+  // COHERENCE is the evidence at this sample size; per-basin significance is
+  // not. Significance is annotated with a star instead.
+  return { v: f.r,
            text: `${f.r.toFixed(2)}${weak ? '' : '*'}`,
            tip: `${code} · 1 ${MONTH_LAB[+S.ensoMonth]} SWE vs NDJ ${IDX_LAB[S.ensoIdx]}\nr ${f.r.toFixed(2)}, p ${f.p.toFixed(3)}, n ${f.n}`
                 + `\nslope ${f.slope.toFixed(0)} ± ${f.slope_se.toFixed(0)} mm per unit ${IDX_LAB[S.ensoIdx]}`
@@ -758,7 +773,7 @@ function ensoScatter(code) {
     P.push(`<text x="${X(p.x)}" y="${Y(p.v) - 10}" text-anchor="middle" class="mini">${String(p.y).slice(2)}</text>`);
   }
   P.push(`<text x="${Mg.l}" y="18" class="ttl">${label(code)} · `
-    + `${isRain() ? 'Oct–Mar rainfall' : '1 ' + MONTH_LAB[+S.ensoMonth] + ' snow water'}`
+    + `${isRain() ? (rainMonth() ? MONTH_LAB[rainMonth()] + ' rainfall' : 'Oct–Mar rainfall') : '1 ' + MONTH_LAB[+S.ensoMonth] + ' snow water'}`
     + ` vs the Nov–Jan ${IDX_LAB[S.ensoIdx]}</text>`);
   P.push(`<text x="${W / 2}" y="${H - 6}" text-anchor="middle" class="mini">${IDX_LONG[S.ensoIdx]}, Nov–Jan mean</text>`);
   P.push('</svg>');
@@ -891,8 +906,8 @@ function mapPanel() {
     const sig = (R.significant || {}).oni;
     $('submap').textContent =
       (isRain()
-        ? `correlation of Oct–Mar rainfall with the Nov–Jan ${IDX_LAB[S.ensoIdx]}, `
-          + `${((R.rain || {}).years || []).length} water years — |r| must exceed 0.63 here`
+        ? `correlation of ${rainMonth() ? MONTH_LAB[rainMonth()] : 'Oct–Mar'} rainfall with the Nov–Jan ${IDX_LAB[S.ensoIdx]}, `
+          + `about 10 water years — |r| must exceed 0.63 for p<0.05, so read the PATTERN, not the stars`
         : `correlation of 1 ${MONTH_LAB[+S.ensoMonth]} snow water with the Nov–Jan ${IDX_LAB[S.ensoIdx]}, 23 water years`)
       + ` · blue = ${isRain() ? 'wetter' : 'more snow'} in a warm ENSO winter, red = ${isRain() ? 'drier' : 'less'}`
       + (() => { const c = isRain() ? (R.significant_rain || {}) : (R.significant || {});
@@ -906,9 +921,9 @@ function mapPanel() {
            + `${R.rain.matched.rain_r} — the same; the stronger ${R.rain.matched.snow_r_all_years} `
            + `for snow is the longer record, not the variable`
          : '')
-      + ` · hollow = not significant`;
+      + ` · star = p<0.05`;
     $('maplegend').innerHTML = diverging('warm', 'cold', 'less snow', 'more snow',
-                                         'correlation r, ±0.7');
+                                         'correlation r, ±0.7 · star = p<0.05');
     ensoBar();
     const b = document.getElementById('daybar'); if (b) b.remove();
     return;
@@ -1007,12 +1022,17 @@ function openEnso(k) {
   $('histwhen').textContent = di ? `${di.region} · ${Math.round(di.area).toLocaleString()} sq mi`
                                  : 'area-weighted union of NWRFC divisions';
   const have = ((ENSOREG.basins || {})[k]) || {};
-  const months = (ENSOREG.months || []).map(String).concat(have.rain ? ['rain'] : [])
-    .filter((m) => have[m]);
+  // the modal offers whichever family is on screen: snow months, or the
+  // Oct-Mar season plus its months
+  const months = (isRain()
+    ? ['rain'].concat((ENSOREG.rain_months || []).map((m) => 'rain' + m))
+    : (ENSOREG.months || []).map(String)).filter((m) => have[m]);
   if (!months.includes(S.ensoMonth)) S.ensoMonth = months[months.length - 1];
   const lab = document.querySelector('.histmodel .histsel');
   if (lab) lab.textContent = 'target';
-  seg('histperiod', months.map((m) => ({ v: m, label: m === 'rain' ? 'rain' : MONTH_LAB[+m] })), S.ensoMonth,
+  const mlab = (m) => (m === 'rain' ? 'Oct–Mar'
+    : String(m).startsWith('rain') ? MONTH_LAB[+String(m).slice(4)] : MONTH_LAB[+m]);
+  seg('histperiod', months.map((m) => ({ v: m, label: mlab(m) })), S.ensoMonth,
       (m) => { S.ensoMonth = m; ensoScatter(S.histKey); render(); });
   ensoScatter(k);
 }
