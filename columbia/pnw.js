@@ -712,19 +712,32 @@ function ensoValue(code) {
   const M = ensoFit(code);
   if (!M) return null;
   const f = M[S.ensoIdx];
-  const weak = f.p >= 0.05;
+  // Draw the DETRENDED correlation. Over 2017-2025 the PDO fell almost
+  // monotonically into its cold phase while coastal December rainfall rose,
+  // and correlating two trending series over nine points gave r = -0.92 at
+  // p = 0.0004 for a relationship that vanishes on detrending (-0.06 on
+  // Snohomish). On the 23-year snow record the two agree to three decimals,
+  // so this costs nothing where the record is long enough to be trusted.
+  const r = (f.r_dt !== undefined) ? f.r_dt : f.r;
+  const pv = (f.p_dt !== undefined) ? f.p_dt : f.p;
+  const weak = pv >= 0.05;
+  const trendy = f.trend_x !== undefined && Math.abs(f.trend_x) > 0.7 && Math.abs(f.trend_y) > 0.7;
   // Colour by r whether or not it clears p<0.05. Blanking the weak ones was
   // meant as caution and did the opposite: at n=10 for rainfall almost
   // nothing is individually significant, so the entire map went grey and hid
   // a perfectly coherent north-negative / south-positive dipole. The spatial
   // COHERENCE is the evidence at this sample size; per-basin significance is
   // not. Significance is annotated with a star instead.
-  return { v: f.r,
-           text: `${f.r.toFixed(2)}${weak ? '' : '*'}`,
+  return { v: r,
+           text: `${r.toFixed(2)}${weak ? '' : '*'}`,
            tip: `${code} · 1 ${MONTH_LAB[+S.ensoMonth]} SWE vs NDJ ${IDX_LAB[S.ensoIdx]}\nr ${f.r.toFixed(2)}, p ${f.p.toFixed(3)}, n ${f.n}`
                 + `\nslope ${f.slope.toFixed(0)} ± ${f.slope_se.toFixed(0)} mm per unit ${IDX_LAB[S.ensoIdx]}`
                 + `\nmean ${f.mean.toFixed(0)} mm, sd ${f.sd.toFixed(0)}`
-                + (weak ? '\nnot significant at p<0.05 (n=23 needs |r|>0.41)' : '')
+                + (f.r_dt !== undefined && Math.abs(f.r_dt - f.r) > 0.05
+                   ? `\nshown detrended: ${f.r_dt} (raw ${f.r})` : '')
+                + (trendy ? `\nboth series trend hard over this window `
+                            + `(index ${f.trend_x}, target ${f.trend_y}) — the raw r is inflated` : '')
+                + (weak ? '\nnot significant at p<0.05' : '')
                 + '\nclick for the scatter' };
 }
 
@@ -782,7 +795,12 @@ function ensoScatter(code) {
     `r ${f.r.toFixed(2)}, p ${f.p.toFixed(3)}, n ${f.n} · slope <b>${f.slope.toFixed(0)} ± ${f.slope_se.toFixed(0)} mm</b> per unit ${IDX_LAB[S.ensoIdx]}`
     + ` · mean ${f.mean.toFixed(0)} mm, sd ${f.sd.toFixed(0)}`
     + (f.p < 0.05 ? '' : ' · <b>not significant</b>, the line is dashed for that reason')
-    + `<br>With 23 winters an r of this size carries an interval roughly ±0.35 wide — read the scatter,`
+    + (f.r_dt !== undefined && Math.abs(f.r_dt - f.r) > 0.05
+       ? `<br><b>The map shows ${f.r_dt}, not ${f.r}</b>: both series trend over this window`
+         + ` (index vs time ${f.trend_x}, target vs time ${f.trend_y}), and correlating two trends`
+         + ` inflates r. The line above is the raw fit; the detrended value is the one to believe.`
+       : '')
+    + `<br>With ${f.n} points an r of this size carries a wide interval — read the scatter,`
     + ` not the coefficient.`
     + (S.ensoIdx !== 'oni' && (ENSOREG.index_r_vs_oni || {})[S.ensoIdx] !== undefined
        ? ` ${IDX_LAB[S.ensoIdx]} correlates with the ONI at ${ENSOREG.index_r_vs_oni[S.ensoIdx]} over these winters`
@@ -923,7 +941,7 @@ function mapPanel() {
          : '')
       + ` · star = p<0.05`;
     $('maplegend').innerHTML = diverging('warm', 'cold', 'less snow', 'more snow',
-                                         'correlation r, ±0.7 · star = p<0.05');
+                                         'detrended correlation r, ±0.7 · star = p<0.05');
     ensoBar();
     const b = document.getElementById('daybar'); if (b) b.remove();
     return;

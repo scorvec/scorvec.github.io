@@ -226,8 +226,30 @@ def partial(y, x, ctrl):
     return {"r": round(float(r), 3), "p": round(pv, 4), "n": n}
 
 
-def fit(x, y):
-    """Least squares with the statistics needed to read it honestly."""
+def _p_of_r(r, n, k=2):
+    t = r * np.sqrt((n - k) / max(1 - r * r, 1e-12))
+    try:
+        from scipy import stats
+        return float(2 * stats.t.sf(abs(t), n - k))
+    except Exception:
+        from math import erfc, sqrt
+        return float(erfc(abs(t) / sqrt(2)))
+
+
+def fit(x, y, years=None):
+    """Least squares with the statistics needed to read it honestly.
+
+    Also returns the correlation after a linear time trend is removed from
+    BOTH series, and each series' own correlation with time. This is not
+    fussiness: over 2017-2025 the PDO fell almost monotonically into its cold
+    phase (r with time -0.90) while December rainfall on the Washington coast
+    rose almost monotonically (+0.88 to +0.96). Correlating two trending
+    series over nine points produced r = -0.92 at p = 0.0004 for a
+    relationship that is not there -- detrended it collapses to -0.06 on
+    Snohomish and +0.21 on Lewis. The detrended value is the one to believe;
+    over the 23-year snow record the two barely differ (-0.404 against
+    -0.402), so detrending costs nothing where the record is long enough.
+    """
     x = np.asarray(x, float); y = np.asarray(y, float)
     n = len(x)
     if n < 8 or x.std() == 0 or y.std() == 0:
@@ -243,9 +265,20 @@ def fit(x, y):
         from math import erfc, sqrt
         p = float(erfc(abs(t) / sqrt(2)))
     se = float(np.sqrt((1 - r * r) * y.var(ddof=1) / max(x.var(ddof=1), 1e-12) / (n - 2)))
-    return {"n": n, "slope": round(float(b), 2), "intercept": round(float(a), 1),
-            "r": round(r, 3), "p": round(p, 4), "slope_se": round(se, 2),
-            "mean": round(float(y.mean()), 1), "sd": round(float(y.std(ddof=1)), 1)}
+    out = {"n": n, "slope": round(float(b), 2), "intercept": round(float(a), 1),
+           "r": round(r, 3), "p": round(p, 4), "slope_se": round(se, 2),
+           "mean": round(float(y.mean()), 1), "sd": round(float(y.std(ddof=1)), 1)}
+    t = np.asarray(years, float) if years is not None and len(years) == n else np.arange(n, dtype=float)
+    if t.std() > 0:
+        rx = x - np.polyval(np.polyfit(t, x, 1), t)
+        ry = y - np.polyval(np.polyfit(t, y, 1), t)
+        if rx.std() > 0 and ry.std() > 0:
+            rd = float(np.corrcoef(rx, ry)[0, 1])
+            out["r_dt"] = round(rd, 3)
+            out["p_dt"] = round(_p_of_r(rd, n, 3), 4)
+            out["trend_x"] = round(float(np.corrcoef(t, x)[0, 1]), 3)
+            out["trend_y"] = round(float(np.corrcoef(t, y)[0, 1]), 3)
+    return out
 
 
 MONTHS = [11, 12, 1, 2, 3, 4, 5, 6]        # the snow season, 1st of each
@@ -438,15 +471,15 @@ def main():
             ys = sorted(series)
             rec = {}
             for nm, getx in PREDICTORS:
-                xs, vs = [], []
+                xs, vs, yy = [], [], []
                 for y in ys:
                     w = getx(y)
                     if w is not None:
-                        xs.append(w); vs.append(series[y])
-                f = fit(xs, vs)
+                        xs.append(w); vs.append(series[y]); yy.append(y)
+                f = fit(xs, vs, yy)
                 if f:
                     rec[nm] = f
-                    if m == 4 and f["p"] < 0.05:
+                    if m == 4 and f.get("p_dt", f["p"]) < 0.05:
                         sig[nm] += 1
             if rec:
                 # Every index other than the ONI is also scored AFTER the ONI
@@ -483,12 +516,12 @@ def main():
         if len(rs) >= 8:
             rec = {}
             for nm, getx in PREDICTORS:
-                xs, vs = [], []
+                xs, vs, yy = [], [], []
                 for y in sorted(rs):
                     w = getx(y)
                     if w is not None:
-                        xs.append(w); vs.append(rs[y])
-                f = fit(xs, vs)
+                        xs.append(w); vs.append(rs[y]); yy.append(y)
+                f = fit(xs, vs, yy)
                 if f:
                     rec[nm] = f
             if rec:
@@ -500,12 +533,12 @@ def main():
                 continue
             rec = {}
             for nm, getx in PREDICTORS:
-                xs, vs = [], []
+                xs, vs, yy = [], [], []
                 for y in sorted(series):
                     w = getx(y)
                     if w is not None:
-                        xs.append(w); vs.append(series[y])
-                f = fit(xs, vs)
+                        xs.append(w); vs.append(series[y]); yy.append(y)
+                f = fit(xs, vs, yy)
                 if f:
                     rec[nm] = f
             if rec:
