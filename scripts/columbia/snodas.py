@@ -1,4 +1,4 @@
-"""SNODAS snow water equivalent, averaged onto the NWRFC water-supply divisions.
+"""SNODAS snow water equivalent and snow depth, on the NWRFC water-supply divisions.
 
 Why SNODAS rather than a precipitation grid: water supply in this basin is
 snowpack, and SNODAS is the only openly available analysis that covers the
@@ -10,7 +10,9 @@ division (52.87 N) by a hair; measured coverage is 0.987 on all 42.
 
     https://noaadata.apps.nsidc.org/NOAA/G02158/masked/{YYYY}/{MM}_{Mon}/SNODAS_{YYYYMMDD}.tar
 
-about 15 MB a day, 30 September 2003 to present, no key. Product 1034 is SWE.
+about 15 MB a day, 30 September 2003 to present, no key. Product 1034 is SWE
+(kept in mm, the water-supply convention) and 1036 snow depth (converted to
+cm, which is how depth is normally read).
 
 Three things the documentation does not make obvious, each of which cost a
 run to find:
@@ -49,7 +51,17 @@ SNOW = os.path.join(P.DATA, "snow")     # alongside the Stage IV obs archive
 URL = ("https://noaadata.apps.nsidc.org/NOAA/G02158/masked/{y}/{m:02d}_{mon}/"
        "SNODAS_{d}.tar")
 FIRST = dt.date(2003, 10, 1)
-SWE_PRODUCT = "1034"
+# 1034 SWE and 1036 snow depth, both mm, both in the same daily tar -- so
+# taking depth as well costs nothing beyond the parse. The tar also carries
+# 1025 (solid/liquid precipitation forcing), which unlike Stage IV covers the
+# Canadian headwaters and reaches back to 2003; not stored yet, but that is
+# where a full-basin precipitation history would come from.
+PRODUCTS = {"div": "1034", "depth": "1036"}      # `div` stays SWE for compatibility
+# SWE is reported in mm, the water-supply convention; snow DEPTH in cm, which
+# is how depth is normally read and quoted (user, 5 Sep 2026). SNODAS gives
+# both as mm, so depth is divided by ten on the way out.
+UNITS = {"div": "mm", "depth": "cm"}
+SCALE = {"div": 1.0, "depth": 0.1}
 FILL = (-9999, 32767)
 # The window the divisions live in. Subsetting before anything else keeps the
 # whole job inside a few hundred MB.
@@ -112,21 +124,8 @@ def _division_index(lons, lats):
     return out
 
 
-def swe_for(date: str, tries: int = 3):
-    """{code: mean SWE mm} for one date, or None when the day is not published."""
-    d = dt.date.fromisoformat(date)
-    raw = P.get(_url(d), tries=tries, timeout=300)
-    if not raw or len(raw) < 100000:
-        return None
-    try:
-        tf = tarfile.open(fileobj=io.BytesIO(raw))
-        mem = [n for n in tf.getnames() if SWE_PRODUCT in n]
-        hdr = gzip.decompress(tf.extractfile(
-            [n for n in mem if n.endswith("txt.gz")][0]).read()).decode("latin-1")
-        dat = gzip.decompress(tf.extractfile(
-            [n for n in mem if n.endswith("dat.gz")][0]).read())
-    except Exception:
-        return None
+def _means(dat, hdr):
+    """{code: division mean} for one product's raw grid."""
     nx, ny, lons, lats = _grid(hdr)
     a = np.frombuffer(dat, dtype=">i2").astype(np.float32).reshape(ny, nx)
     jm = (lons > BOX[0]) & (lons < BOX[1])
@@ -135,9 +134,8 @@ def swe_for(date: str, tries: int = 3):
     for f in FILL:
         sub = np.where(sub == f, np.nan, sub)
     flat = sub.ravel()
-    idx = _division_index(lons[jm], lats[im])
     out = {}
-    for c, ix in idx.items():
+    for c, ix in _division_index(lons[jm], lats[im]).items():
         if ix.size == 0:
             continue
         v = flat[ix]
@@ -145,7 +143,38 @@ def swe_for(date: str, tries: int = 3):
         if good.mean() < 0.9:            # same completeness rule as Stage IV
             continue
         out[c] = round(float(v[good].mean()), 1)
-    return out or None
+    return out
+
+
+def swe_for(date: str, tries: int = 3):
+    """{field: {code: mm}} for one date, or None when the day is not published.
+
+    One download yields both fields; SWE keeps the key `div` so the files
+    written before depth was added stay readable.
+    """
+    d = dt.date.fromisoformat(date)
+    raw = P.get(_url(d), tries=tries, timeout=300)
+    if not raw or len(raw) < 100000:
+        return None
+    try:
+        tf = tarfile.open(fileobj=io.BytesIO(raw))
+        names = tf.getnames()
+        got = {}
+        for field, code in PRODUCTS.items():
+            mem = [n for n in names if code in n]
+            h = [n for n in mem if n.endswith("txt.gz")]
+            b = [n for n in mem if n.endswith("dat.gz")]
+            if not h or not b:
+                continue
+            hdr = gzip.decompress(tf.extractfile(h[0]).read()).decode("latin-1")
+            dat = gzip.decompress(tf.extractfile(b[0]).read())
+            v = _means(dat, hdr)
+            if v:
+                k = SCALE[field]
+                got[field] = v if k == 1.0 else {c: round(x * k, 1) for c, x in v.items()}
+    except Exception:
+        return None
+    return got if got.get("div") else None
 
 
 def store(date: str, force: bool = False):
@@ -156,7 +185,9 @@ def store(date: str, force: bool = False):
     v = swe_for(date)
     if not v:
         return None
-    rec = {"date": date, "source": "snodas_masked_swe_1034", "units": "mm", "div": v}
+    rec = {"date": date, "source": "snodas_masked", "units": UNITS,
+           "fields": {"div": "swe_1034", "depth": "snow_depth_1036"}}
+    rec.update(v)
     json.dump(rec, open(p, "w"))
     return rec
 
