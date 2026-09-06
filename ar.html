@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atmospheric River Monitor &mdash; AIFS-ENS IVT, West Coast landfall probabilities &middot; Shawn Corvec</title>
+<meta name="description" content="Atmospheric river forecast monitor from the ECMWF AIFS ensemble: probability of AR conditions (IVT ≥ 250 kg/m/s) day by day over the North Pacific, a West Coast landfall tool from Baja California to southeast Alaska, exact control-member IVT maps, and AR-scale (Ralph et al. 2019) category probabilities at named coastal locations. Updated twice daily.">
+<link rel="canonical" href="https://scorvec.com/ar.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Atmospheric River Monitor — AIFS-ENS IVT and West Coast landfall probabilities">
+<meta property="og:description" content="Probability of atmospheric-river conditions by day, a coastal landfall tool and AR-scale probabilities from the 51-member ECMWF AIFS ensemble.">
+<meta property="og:url" content="https://scorvec.com/ar.html">
+<meta property="og:image" content="https://scorvec.com/assets/ar/ar_coast.webp">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage",
+ "name":"Atmospheric River Monitor — AIFS-ENS IVT and West Coast landfall probabilities",
+ "url":"https://scorvec.com/ar.html",
+ "description":"Atmospheric-river forecast products from the ECMWF AIFS ensemble open data: integrated vapour transport, probability of AR conditions, a West Coast landfall tool and Ralph-scale category probabilities.",
+ "author":{"@type":"Person","name":"Shawn Corvec","url":"https://scorvec.com/"}}
+</script>
+<style>
+  :root {
+    --bg: #fafaf8; --ink: #1c1c1a; --muted: #888580; --accent: #2c4a72; --rule: #e6e3dc; --panel: #ffffff;
+    --serif: "Newsreader", Georgia, serif; --sans: "Schibsted Grotesk", Inter, -apple-system, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.55; }
+  main { max-width: 1240px; margin: 0 auto; padding: 1.5rem 1.2rem 3rem; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.15; margin: 0.4rem 0 0.6rem; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; margin: 0 0 0.5rem; }
+  .lede { color: #444; max-width: 62rem; font-size: 1.02rem; }
+  .kicker { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.2rem 1.3rem 1rem; margin: 1.4rem 0; }
+  .card p.note { color: #444; font-size: 0.95rem; max-width: 70rem; margin: 0.2rem 0 0.9rem; }
+  .card img { display: block; width: 100%; height: auto; border-radius: 6px; }
+  .chart-card-footer { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 0.7rem; font-size: 0.8rem; color: var(--muted); }
+  table.ar { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  table.ar th, table.ar td { padding: 0.4rem 0.55rem; border-bottom: 1px solid var(--rule); text-align: center; }
+  table.ar th { font-weight: 500; color: #333; background: #f3f1ec; }
+  table.ar td:first-child, table.ar th:first-child { text-align: left; }
+  td.c1 { background: #fff7e0; } td.c2 { background: #ffe9b8; } td.c3 { background: #ffcf8a; } td.c4 { background: #f7a25e; color: #fff; } td.c5 { background: #c9382c; color: #fff; }
+  .scale { font-size: 0.85rem; color: #444; }
+  .scale b { color: var(--ink); }
+  @media (max-width: 720px) { main { padding: 1rem 0.8rem 2rem; } table.ar { font-size: 0.8rem; } }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">El Niño</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/sst.html">El Niño monitor</a></li>
+              <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
+              <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              <li><a href="/enso-atmosphere.html">Atmospheric response</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Days 1–15</button>
+          <div class="sh-menu sh-menu--list" id="sh-g1">
+            <ul>
+              <li><a href="/ar.html" aria-current="page">Atmospheric rivers</a></li>
+              <li><a href="/ecape.html">Entraining CAPE</a></li>
+              <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+              <li><a href="/mjo.html">MJO forecast</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Beyond two weeks</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/subseasonal.html">Subseasonal outlook, weeks 1–5</a></li>
+              <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
+              <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g3">
+            <ul>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Model checks</button>
+          <div class="sh-menu sh-menu--list" id="sh-g4">
+            <ul>
+              <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+              <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+  <p class="kicker">Twice daily &middot; ECMWF AIFS-ENS &middot; <span id="initLabel">&mdash;</span></p>
+  <h1>Atmospheric River Monitor</h1>
+  <p class="lede">Integrated vapour transport from the 51-member ECMWF AIFS ensemble, read the way forecasters read atmospheric rivers: the probability that IVT reaches the 250&nbsp;kg&nbsp;m<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup> threshold on each day, a landfall tool along the West Coast from Baja California to southeast Alaska, exact control-member IVT for the next three days, and the chance of each Ralph-scale category at named coastal locations. Every member is carried to day 15 at 12-hour steps, so AR duration, not only intensity, enters the scale.</p>
+
+  <div class="card">
+    <h2>Where the rivers will make landfall, and how strong</h2>
+    <p class="note">Coast latitude against forecast time. Left: the ensemble-mean IVT at the first ocean point west of the coast, with the control member&rsquo;s 250 and 500 contours in red. Middle: the fraction of members at or above 250, the AR threshold, with the fraction above 500 contoured. Right: the 90th-percentile member, the strong-AR tail the mean hides. Named locations are marked along the left axis.</p>
+    <img id="imgCoast" src="assets/ar/ar_coast.webp" alt="West Coast atmospheric river landfall tool: ensemble-mean IVT, probability of AR conditions and the 90th-percentile member by coast latitude and forecast time" loading="lazy">
+  </div>
+
+  <div class="card">
+    <h2>AR-scale probabilities at named locations</h2>
+    <p class="note">For each member, the strongest spell with IVT at or above 250 at the location sets a category on the Ralph et&nbsp;al. (2019) scale: a preliminary rank from the peak IVT (250, 500, 750, 1000, 1250 for AR1&ndash;AR5), lowered one step if the spell is shorter than 24&nbsp;hours and raised one if it lasts 48&nbsp;hours or more. The table gives the fraction of members reaching each category within the 15 days, the most likely category, the median peak IVT, and the median onset time.</p>
+    <div style="overflow-x:auto"><table class="ar" id="arTable"></table></div>
+    <p class="scale" style="margin-top:0.7rem"><b>AR1</b> weak, primarily beneficial &middot; <b>AR2</b> moderate, mostly beneficial &middot; <b>AR3</b> strong, balance of beneficial and hazardous &middot; <b>AR4</b> extreme, mostly hazardous &middot; <b>AR5</b> exceptional, primarily hazardous. Duration is sampled at 12&nbsp;hours here, so a one-step spell counts as under 24&nbsp;hours.</p>
+  </div>
+
+  <div class="card">
+    <h2>Probability of AR conditions by day</h2>
+    <p class="note">The share of members whose IVT reaches 250 at some point during each forecast day, over the North Pacific and North America; the red contours are the ensemble-mean daily-maximum IVT at 250 and 500.</p>
+    <img id="imgProb" src="assets/ar/ar_prob.webp" alt="Probability of atmospheric river conditions (IVT at or above 250) for forecast days 1 to 10 from the AIFS ensemble" loading="lazy">
+  </div>
+
+  <div class="card">
+    <h2>Now and the next three days: exact IVT, control member</h2>
+    <p class="note">The full integral (1/g)&int;&thinsp;q&thinsp;V&thinsp;dp over 1000&ndash;300&nbsp;hPa for the control member at the analysis and at 24, 48 and 72 hours, with the IVT vector. This is also the field the ensemble proxy is calibrated against each cycle.</p>
+    <img id="imgNow" src="assets/ar/ar_now.webp" alt="Control-member integrated vapour transport magnitude and vectors at the analysis and days 1 to 3" loading="lazy">
+  </div>
+
+  <div class="card">
+    <h2>Method and honesty box</h2>
+    <p class="note" id="methodNote">Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the control member&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The control member itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p>
+    <div class="chart-card-footer">
+      <span>ECMWF AIFS-ENS open data (CC BY 4.0): total column water, 850&nbsp;hPa wind, and q/u/v on six levels for the control &middot; 0.25&deg;, 12-hourly to day 15 &middot; coast transect from Natural Earth</span>
+      <span id="genLabel">&mdash;</span>
+    </div>
+  </div>
+</main>
+<script>
+(function () {
+  fetch("assets/ar/ar_monitor.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d) return;
+    var v = "?v=" + encodeURIComponent(d.generated);
+    ["imgCoast", "imgProb", "imgNow"].forEach(function (id) { var el = document.getElementById(id); el.src = el.getAttribute("src").split("?")[0] + v; });
+    document.getElementById("initLabel").textContent = "init " + d.init.replace("T", " ");
+    document.getElementById("genLabel").textContent = "built " + d.generated + " · proxy k = " + d.proxy.k.toFixed(3) + ", r = " + d.proxy.r.toFixed(2) + " over " + d.proxy.n.toLocaleString() + " control points";
+    var rows = ['<tr><th>Location</th><th>Any AR</th><th>≥ AR1</th><th>≥ AR2</th><th>≥ AR3</th><th>≥ AR4</th><th>AR5</th><th>Most likely</th><th>Median peak IVT</th><th>Median onset</th><th>Control</th></tr>'];
+    d.named.forEach(function (n) {
+      var cls = function (c) { return c > 0 ? ' class="c' + c + '"' : ''; };
+      var pct = function (x) { return Math.round(x * 100) + "%"; };
+      rows.push('<tr><td>' + n.name + '</td><td>' + pct(n.p_ar) + '</td>' + [1, 2, 3, 4, 5].map(function (c) { return '<td>' + pct(n.p_ge[String(c)]) + '</td>'; }).join('') +
+        '<td' + cls(n.most_likely) + '>' + (n.most_likely ? "AR" + n.most_likely : "none") + '</td><td>' + (n.median_peak ? Math.round(n.median_peak) : "—") + '</td><td>' + (n.onset_h_median == null ? "—" : "+" + n.onset_h_median + " h") + '</td><td' + cls(n.control_rank) + '>' + (n.control_rank ? "AR" + n.control_rank : "none") + '</td></tr>');
+    });
+    document.getElementById("arTable").innerHTML = rows.join("");
+  }).catch(function () {});
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

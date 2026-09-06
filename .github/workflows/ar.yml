@@ -1,0 +1,90 @@
+name: Atmospheric river monitor (AIFS-ENS IVT)
+
+# ar.html: IVT proxy for all 51 AIFS-ENS members (TCW × 850 hPa wind, calibrated each
+# cycle on the control's exact IVT), 12-hourly to day 15; West Coast landfall tool,
+# AR-scale probabilities, probability maps. ~3.5 GB of open data per cycle through the
+# shared ECMWF store. Fired by the laptop dispatcher after the cycle is on the mirror.
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Cycle date YYYYMMDD (blank = latest AIFS-ENS)'
+        default: ''
+      time:
+        description: 'Cycle hour, 00 or 12 (blank = latest)'
+        default: ''
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: ar
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-mjo-${{ runner.os }}-${{ hashFiles('scripts/mjo/requirements-mjo.txt') }}
+          restore-keys: |
+            pip-mjo-${{ runner.os }}-
+      - name: Install eccodes and cartopy system libs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libeccodes0 libgeos-dev libproj-dev proj-bin
+      - name: Install Python dependencies
+        run: pip install -r scripts/mjo/requirements-mjo.txt
+
+      - name: Resolve cycle
+        id: cyc
+        working-directory: scripts/mjo/src
+        run: |
+          set -euo pipefail
+          D="${{ github.event.inputs.date }}"; T="${{ github.event.inputs.time }}"
+          if [ -z "$D" ] || [ -z "$T" ]; then
+            python -c "from download_aifs import latest_run; d,t=latest_run(); open('/tmp/cyc','w').write(f'{d} {t}')" >/dev/null 2>/tmp/probe.err || true
+            D=$(awk '{print $1}' /tmp/cyc 2>/dev/null || true); T=$(awk '{print $2}' /tmp/cyc 2>/dev/null || true)
+          fi
+          if ! echo "$D" | grep -qE '^[0-9]{8}$' || ! echo "$T" | grep -qE '^(00|12)$'; then
+            echo "ERROR: bad cycle (D='$D' T='$T')" >&2; tail -40 /tmp/probe.err >&2 || true; exit 1
+          fi
+          echo "date=$D" >> "$GITHUB_OUTPUT"; echo "time=$T" >> "$GITHUB_OUTPUT"; echo "cycle: $D ${T}Z"
+
+      - name: Build the AR products
+        run: python scripts/ar/ar_monitor.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}"
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          OUT="assets/ar/ar_prob.webp assets/ar/ar_coast.webp assets/ar/ar_now.webp assets/ar/ar_monitor.json"
+          SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar"
+            for f in $OUT; do [ -e "$f" ] && git add "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -m "data update: AR ${{ steps.cyc.outputs.date }}_${{ steps.cyc.outputs.time }}z"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1
+
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --ref main || echo "pages dispatch skipped"

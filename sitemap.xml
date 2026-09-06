@@ -86,6 +86,12 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://scorvec.com/ar.html</loc>
+    <lastmod>2026-09-06</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://scorvec.com/ecape.html</loc>
     <lastmod>2026-09-06</lastmod>
     <priority>0.8</priority>

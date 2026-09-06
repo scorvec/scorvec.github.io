@@ -107,6 +107,8 @@ mjo.yml|08:37|
 mjo.yml|20:37|
 aam.yml|09:20|
 aam.yml|21:20|
+ar.yml|09:05|
+ar.yml|21:05|
 aifs-compare.yml|09:45|
 aifs-compare.yml|21:45|
 asos5.yml|*:05|

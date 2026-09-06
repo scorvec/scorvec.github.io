@@ -32,6 +32,7 @@ PRODUCTS = [
         ("/enso-atmosphere.html", "Atmospheric response"),
     ]),
     ("Days 1–15", "Short and medium range, refreshed with every model cycle", [
+        ("/ar.html", "Atmospheric rivers"),
         ("/ecape.html", "Entraining CAPE"),
         ("/columbia/", "Columbia River basin precipitation"),
         ("/mjo.html", "MJO forecast"),
@@ -123,6 +124,7 @@ PAGES = [
         ("main { padding: 5.4rem 0.8rem 2rem; }", "main { padding: 1.2rem 0.8rem 2rem; }"),
     ]),
     dict(path="sfs.html", mode="nav"),
+    dict(path="ar.html", mode="after-body"),
     dict(path="research.html", mode="nav", fixes=[
         ("padding: 7.5rem 2rem 5rem;", "padding: 2.5rem 2rem 5rem;"),
         ("main { padding: 6rem 1.5rem 4rem; }", "main { padding: 1.5rem 1.5rem 4rem; }"),
