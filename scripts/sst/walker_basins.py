@@ -118,7 +118,7 @@ def render(out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30,
     import cartopy.feature as cfeature
     import textwrap
     fig = plt.figure(figsize=(13.4, 12.4))
-    gs = GridSpec(6, 2, height_ratios=[0.62, 0.14, 1.2, 1.0, 0.62, 0.55], hspace=0.5, wspace=0.1, left=0.055, right=0.985, top=0.925, bottom=0.03)
+    gs = GridSpec(6, 2, height_ratios=[0.5, 0.06, 1.2, 1.0, 0.5, 0.75], hspace=0.5, wspace=0.1, left=0.055, right=0.985, top=0.925, bottom=0.02)
     pc = ccrs.PlateCarree(central_longitude=180)
     boxes = json.loads(ref.attrs["boxes"]); basins = json.loads(ref.attrs["basin_lon"])
     lev = np.arange(-2.4, 2.41, 0.3)
@@ -140,7 +140,7 @@ def render(out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30,
     cf = sst_panel(0, ssta, f"SST anomaly, OISST {window[0]:%d %b}–{window[1]:%d %b} (1991–2020 base, trend removed)")
     sst_panel(1, ssta_res, "The same field with the ENSO regression pattern removed")
     b0 = gs[1, 0].get_position(fig)
-    cax = fig.add_axes([0.40, b0.y0 + 0.55 * b0.height, 0.20, 0.006]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=6.5); cb.set_label("°C   ·   boxes: red Niño-3.4, green IOD poles and basin (dashed), orange ATL3 and TNA", fontsize=7)
+    cax = fig.add_axes([0.40, b0.y0 + 1.6 * b0.height, 0.20, 0.006]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=6.5); cb.set_label("°C   ·   boxes: red Niño-3.4, green IOD poles and basin (dashed), orange ATL3 and TNA", fontsize=7)
 
     # W profile
     ax = fig.add_subplot(gs[2, :])
@@ -194,18 +194,35 @@ def render(out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30,
         ax.set_title(title, fontsize=8.8, loc="left", fontweight="bold")
         gl = ax.gridlines(draw_labels=True, lw=0.3, color="#bbb", x_inline=False, y_inline=False); gl.top_labels = gl.right_labels = False; gl.left_labels = (k == 0); gl.xlabel_style = gl.ylabel_style = {"size": 6.5}
 
-    # summary text
+    # summary: sector table (what each basin does where) + the index line
     ax = fig.add_subplot(gs[5, :]); ax.axis("off")
-    pac = (LON2 >= PAC_BOX[0]) & (LON2 <= PAC_BOX[1])
-    def pm_(a): return float(np.nanmean(np.asarray(a)[pac]))
-    lines = [f"Indices from the last 30 days, detrended, in σ of the month:  " + "   ".join(f"{LABEL[k]} {idx_sig[k]:+.1f}σ ({idx[k]:+.2f} °C)" for k in ("n34", "dmi", "iob", "atl3", "tna")),
-             f"Pacific Walker box (140°E–160°W) W anomaly, m/s:  observed {pm_(w30):+.2f} (30 d) / {pm_(w7):+.2f} (7 d)   ·   regression total {pm_(reg['total']):+.2f} = ENSO {pm_(reg['enso']):+.2f} + Indian {pm_(reg['indian']):+.2f} + Atlantic {pm_(reg['atlantic']):+.2f}",
-             f"Gill model over the same box:  Pacific {pm_(gill['pacific']):+.2f}   Indian (ENSO removed) {pm_(gill['indian']):+.2f}   Atlantic (ENSO removed) {pm_(gill['atlantic']):+.2f}   ·   negative = Pacific cell weakened",
-             f"Read across the two legs: where the regression and Gill Indian/Atlantic curves agree in sign and size, the attribution is robust; where they differ, the statistical link is not a linear SST-forced one. R² this month: ENSO alone {r2[month - 1, 0]:.2f}, all basins {r2[month - 1, 3]:.2f}."]
-    wrapped = []
-    for ln in lines:
-        wrapped += textwrap.wrap(ln, 175, subsequent_indent="      ")
-    ax.text(0, 1, "\n".join(wrapped), transform=ax.transAxes, fontsize=8.1, va="top", color=INK, linespacing=1.5)
+    sectors = [("Indian Ocean, 50–100°E", 50, 100), ("Maritime Continent, 100–150°E", 100, 150), ("Pacific Walker box, 140°E–160°W", 140, 200), ("East Pacific, 160–90°W", 200, 270)]
+    def sm(a, lo, hi):
+        m = (LON2 >= lo) & (LON2 <= hi); return float(np.nanmean(np.asarray(a)[m]))
+    cols = ["Sector", "Observed (30 d)", "ENSO part", "Indian, ENSO removed\nregression / Gill", "Atlantic, ENSO removed\nregression / Gill", "Residual"]
+    rows = []
+    for name, lo, hi in sectors:
+        o, e, i_r, i_g, a_r, a_g = (sm(w30, lo, hi), sm(reg["enso"], lo, hi), sm(reg["indian"], lo, hi), sm(gill["indian"], lo, hi), sm(reg["atlantic"], lo, hi), sm(gill["atlantic"], lo, hi))
+        rows.append([name, f"{o:+.1f}", f"{e:+.1f}", f"{i_r:+.1f} / {i_g:+.1f}", f"{a_r:+.1f} / {a_g:+.1f}", f"{o - e - i_r - a_r:+.1f}"])
+    tb = ax.table(cellText=rows, colLabels=cols, loc="upper left", cellLoc="center", colLoc="center", bbox=[0.0, 0.18, 0.76, 0.82],
+                  colWidths=[0.26, 0.13, 0.11, 0.18, 0.18, 0.10])
+    tb.auto_set_font_size(False); tb.set_fontsize(7.6)
+    for (r, c), cell in tb.get_celld().items():
+        cell.set_edgecolor("#d9d6d0"); cell.set_linewidth(0.6)
+        if r == 0:
+            cell.set_facecolor("#f1efe9"); cell.set_text_props(fontweight="bold", color=INK); cell.set_height(cell.get_height() * 1.5)
+        elif c == 0:
+            cell.set_text_props(ha="left", color=INK); cell._loc = "left"; cell.PAD = 0.03
+        # colour the sign of the basin parts: same sign as ENSO = reinforcing, opposite = damping
+        if r > 0 and c in (3, 4):
+            e = float(rows[r - 1][2]); v = float(rows[r - 1][c].split(" / ")[0])
+            if abs(v) >= 0.15:
+                cell.set_facecolor("#fbe9e7" if np.sign(v) == np.sign(e) else "#e8f3ea")
+    ax.text(0.775, 0.97, "\n".join(textwrap.wrap("Units m/s of W; negative = overturning weakened. Basin cells are tinted where the part is at least 0.15 m/s: "
+            "red = same sign as the ENSO part (reinforcing), green = opposite (damping). Where regression and Gill agree in sign the attribution is robust.", 58)),
+            transform=ax.transAxes, fontsize=7.3, va="top", color=MUTED, linespacing=1.35)
+    ax.text(0.0, 0.08, "Indices, last 30 days, detrended, σ of the month:  " + "   ".join(f"{LABEL[k]} {idx_sig[k]:+.1f}σ" for k in ("n34", "dmi", "iob", "atl3", "tna"))
+            + f"      R² this month: ENSO alone {r2[month - 1, 0]:.2f}, all basins {r2[month - 1, 3]:.2f}", transform=ax.transAxes, fontsize=7.8, va="top", color=INK)
     fig.suptitle("Walker circulation by ocean basin — the Indian and Atlantic contributions with ENSO removed", fontsize=13.5, fontweight="bold", x=0.055, ha="left", y=0.985)
     fig.text(0.055, 0.967, "\n".join(textwrap.wrap("Observed: AIFS-ENS 0-h analyses (divergent wind at 200 minus 850 hPa, 5°S–5°N) as an anomaly against ERA5 1991–2020, latest analysis "
              f"{tlast:%Y-%m-%d %HZ}. Regression: ERA5 + ERSST 1991–2020, Niño-3.4 (now and 3 months ago) first, then the Indian and Atlantic indices as residuals after ENSO — so their parts are ENSO-independent by construction. "

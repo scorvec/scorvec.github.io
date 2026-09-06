@@ -235,8 +235,8 @@ def render(init, valid, ix, u_mean_day0, ref, tail, torque, lag, out: Path) -> d
     import cartopy.feature as cfeature
 
     nmem = ix["extension"].shape[0]
-    fig = plt.figure(figsize=(13.4, 14.4))
-    gs = GridSpec(6, 2, height_ratios=[1.35, 0.16, 0.55, 1, 1, 0.95], hspace=0.55, wspace=0.16, left=0.055, right=0.985, top=0.925, bottom=0.05)
+    fig = plt.figure(figsize=(13.4, 13.0))
+    gs = GridSpec(6, 2, height_ratios=[2.2, 0.3, 1.3, 2.3, 2.3, 2.1], hspace=0.42, wspace=0.12, left=0.055, right=0.985, top=0.912, bottom=0.045)
     pc = ccrs.PlateCarree(central_longitude=180)
     lat, lon = ref.latitude.values, ref.longitude.values
     doy0 = valid[0].dayofyear
@@ -261,7 +261,7 @@ def render(init, valid, ix, u_mean_day0, ref, tail, torque, lag, out: Path) -> d
         gl = ax.gridlines(draw_labels=True, lw=0.3, color="#bbb", x_inline=False, y_inline=False)
         gl.top_labels = gl.right_labels = False; gl.left_labels = (k == 0); gl.xlabel_style = gl.ylabel_style = {"size": 7}
     bs = gs[1, 0].get_position(fig)
-    cax = fig.add_axes([0.35, bs.y0 + 0.55 * bs.height, 0.30, 0.007])
+    cax = fig.add_axes([0.35, bs.y0 + 1.1 * bs.height, 0.30, 0.007])
     cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=7); cb.set_label("u anomaly vs ERA5 day-of-year normal (m/s) · black: u (m/s) · green: extension pattern (EOF1, m/s per σ) · gold: exit region", fontsize=7.5)
 
     # torque strip
@@ -377,8 +377,8 @@ def render_z500(init, valid, zi, ref, tail, torque, lag, out: Path) -> dict:
     comp = xr.open_dataset(COMP) if COMP.exists() else None
     lat, lon = ref.zlat.values, ref.zlon.values
     nmem = zi["alaska"].shape[0]
-    fig = plt.figure(figsize=(13.4, 8.6))
-    gs = GridSpec(3, 4, height_ratios=[0.62, 0.62, 1.3], hspace=0.3, wspace=0.06, left=0.04, right=0.945, top=0.9, bottom=0.065)
+    fig = plt.figure(figsize=(13.4, 10.2))
+    gs = GridSpec(3, 2, height_ratios=[1, 1, 1.05], hspace=0.28, wspace=0.05, left=0.04, right=0.945, top=0.905, bottom=0.06)
     pc = ccrs.PlateCarree(central_longitude=200)
     lev = np.arange(-60, 61, 10); levm = np.arange(-150, 151, 25)
 
@@ -396,24 +396,22 @@ def render_z500(init, valid, zi, ref, tail, torque, lag, out: Path) -> dict:
 
     cfc = None
     if comp is not None and season in comp.season.values:
-        for k, L in enumerate((3, 6, 9, 12)):
+        for k, L in enumerate((6, 12)):
             ax = fig.add_subplot(gs[0, k], projection=pc)
             c = comp.z500_comp.sel(season=season, lag=L).values; pv = comp.z500_p.sel(season=season, lag=L).values
             cfc = ax.contourf(lon, lat, c, levels=lev, cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
             sig = pv < 0.05
             yy, xx = np.meshgrid(lat, lon, indexing="ij")
-            ax.scatter(xx[sig][::2], yy[sig][::2], s=1.2, color="k", alpha=0.55, transform=ccrs.PlateCarree(), zorder=5)
-            frame(ax, (f"ERA5 composite +{L} d (n = {int(comp.n_events.sel(season=season))}, {season})" if k == 0 else f"+{L} d after the torque peak"), first=(k == 0))
+            ax.scatter(xx[sig], yy[sig], s=1.6, color="k", alpha=0.55, transform=ccrs.PlateCarree(), zorder=5)
+            frame(ax, (f"ERA5 composite +{L} d after the torque peak (n = {int(comp.n_events.sel(season=season))}, {season})" if k == 0 else f"ERA5 composite +{L} d"), first=(k == 0))
     else:
         ax = fig.add_subplot(gs[0, :]); ax.axis("off"); ax.text(0.5, 0.5, "no composite for this season", ha="center", va="center", color=MUTED)
     cfm = None
-    row2 = []
-    for k, (title, sl) in enumerate((("AIFS 0-h analysis", slice(0, 1)), ("AIFS days 1–5", slice(1, 6)), ("AIFS days 6–10", slice(6, 11)), ("AIFS days 11–15", slice(11, 16)))):
-        ax = fig.add_subplot(gs[1, k], projection=pc); row2.append(ax)
+    for k, (title, sl) in enumerate((("AIFS days 1–7, ensemble mean", slice(1, 8)), ("AIFS days 8–15, ensemble mean", slice(8, 16)))):
+        ax = fig.add_subplot(gs[1, k], projection=pc)
         a = zi["zanom"][:, sl].mean((0, 1))
         cfm = ax.contourf(lon, lat, a, levels=levm, cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
         frame(ax, title, first=(k == 0))
-    # vertical colour bars in the right margin, spanning each map row
     def vbar(mappable, row, label):
         b0 = gs[row, 0].get_position(fig); cax = fig.add_axes([0.952, b0.y0 + 0.2 * b0.height, 0.008, 0.6 * b0.height])
         cb = fig.colorbar(mappable, cax=cax, orientation="vertical"); cb.ax.tick_params(labelsize=6.5); cb.set_label(label, fontsize=6.8)
@@ -424,7 +422,7 @@ def render_z500(init, valid, zi, ref, tail, torque, lag, out: Path) -> dict:
     peak = torque_peak(torque)
     for k, (key, title, colr) in enumerate((("alaska", "Alaska ridge index: 500 hPa anomaly 55–70°N 165–125°W (σ of the day of year)", "#c2185b"),
                                             ("goa", "Gulf of Alaska / West Coast ridge index: 40–60°N 145–120°W (σ)", GOLD))):
-        ax = fig.add_subplot(gs[2, 2 * k:2 * k + 2])
+        ax = fig.add_subplot(gs[2, k])
         M = zi[key]
         ax.axhspan(-1, 1, color="#000", alpha=0.05); ax.axhline(0, color="#555", lw=0.8)
         for m in range(nmem):
@@ -454,7 +452,7 @@ def render_z500(init, valid, zi, ref, tail, torque, lag, out: Path) -> dict:
                          "mean": [stat(M[:, d]) for d in range(M.shape[1])], "p10": q10.round(2).tolist(), "p90": q90.round(2).tolist(),
                          "p_above_1": [round(float(np.nanmean(M[:, d] >= 1)), 2) for d in range(M.shape[1])]}
     fig.suptitle(f"Downstream of the torque: 500 hPa ridging over Alaska and the Gulf of Alaska — AIFS-ENS {nmem} members, init {init:%Y-%m-%d %HZ}", fontsize=13, fontweight="bold", x=0.04, ha="left", y=0.985)
-    fig.text(0.04, 0.962, "\n".join(textwrap.wrap("Top: what ERA5 1991–2020 says usually follows a Himalayan mountain-torque day ≥ +1.5σ in this season — the composite 500 hPa height anomaly 3, 6, 9 and 12 days later, stippled where fewer than 5% of "
+    fig.text(0.04, 0.962, "\n".join(textwrap.wrap("Top: what ERA5 1991–2020 says usually follows a Himalayan mountain-torque day ≥ +1.5σ in this season — the composite 500 hPa height anomaly 6 and 12 days later, stippled where fewer than 5% of "
              "random same-season date sets are as extreme. Middle: this cycle's AIFS-ENS ensemble-mean height anomaly. Bottom: the Alaska (magenta box) and Gulf of Alaska / West Coast (gold box) ridge indices, members and mean, "
              "with the ERA5 record (black), the AIFS analyses (grey) and the composite expectation anchored on this cycle's torque peak (dashed red, with its random-date band).", 205)), fontsize=8, color=MUTED, va="top", linespacing=1.3)
     out.parent.mkdir(parents=True, exist_ok=True)
