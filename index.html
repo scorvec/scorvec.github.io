@@ -108,7 +108,7 @@
   /* ── Hero: the photograph, full viewport, nothing on top of the storm ── */
   .hero {
     position: relative;
-    height: 100svh; min-height: 34rem;
+    height: clamp(28rem, 66svh, 42rem);
     overflow: hidden;
     background: var(--sky);
   }
@@ -117,7 +117,7 @@
     width: 100%; height: 100%;
     object-fit: cover;
     /* keep the updraft in frame when the viewport is narrower than 4:3 */
-    object-position: 42% 55%;
+    object-position: 42% 58%;
   }
   /* a low band of shade over the fields so the name reads; the sky stays untouched */
   .hero::after {
@@ -235,7 +235,7 @@
     .hero figcaption { display: none; }
   }
   @media (max-width: 520px) {
-    .hero img { object-position: 40% 50%; }
+    .hero img { object-position: 40% 55%; }
   }
 </style>
 <link rel="stylesheet" href="/assets/site.css">
@@ -263,7 +263,6 @@
                 <li><a href="/mjo.html">MJO forecast</a></li>
                 <li><a href="/subseasonal.html">Subseasonal outlook</a></li>
                 <li><a href="/qbo/">QBO tracker</a></li>
-                <li><a href="/gatun/">Lake Gatún</a></li>
               </ul>
             </div>
             <div>
@@ -331,7 +330,6 @@
         <li class="row"><a href="/mjo.html">MJO forecast</a><span class="what">Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track.</span><span class="when">Twice daily</span></li>
         <li class="row"><a href="/subseasonal.html">Subseasonal outlook</a><span class="what">GEPS weeks 1 to 5 for the Americas, the tropics and the polar vortex, with change since the previous run.</span><span class="when">Mondays and Thursdays</span></li>
         <li class="row"><a href="/qbo/">QBO tracker</a><span class="what">Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.</span><span class="when">Weekly</span></li>
-        <li class="row"><a href="/gatun/">Lake Gatún</a><span class="what">Panama Canal reservoir level against ENSO, with IMERG rainfall over the watershed.</span><span class="when">Daily</span></li>
       </ul>
     </div>
 

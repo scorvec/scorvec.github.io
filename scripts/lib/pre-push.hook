@@ -21,7 +21,7 @@ bad=""
 while read -r lref lsha rref rsha; do
   [ "$lsha" = "$z" ] && continue                       # branch deletion
   if [ "$rsha" = "$z" ]; then files=$(git ls-tree -r --name-only "$lsha");
-  else files=$(git diff --name-only "$rsha" "$lsha"); fi
+  else files=$(git diff --name-only --diff-filter=d "$rsha" "$lsha"); fi   # deletions are not renders
   hit=$(printf '%s\n' "$files" | grep -E '^assets/' \
         | grep -vE '^assets/(geps|pjm)/' | grep -vE '\.(js|css)$' \
         | grep -vE '^assets/sst/(seas5_[a-z0-9_]+\.webp|data/seas5_outlook\.json)$' || true)

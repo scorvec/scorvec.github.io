@@ -30,7 +30,6 @@ PRODUCTS = [
         ("/mjo.html", "MJO forecast"),
         ("/subseasonal.html", "Subseasonal outlook"),
         ("/qbo/", "QBO tracker"),
-        ("/gatun/", "Lake Gatún"),
     ]),
     ("Convection and observations", [
         ("/ecape.html", "Entraining CAPE"),
@@ -126,7 +125,8 @@ PAGES = [
     ]),
     dict(path="resume.html", mode="nav", fixes=[
         ("    min-height: 100vh;\n    padding-top: 57px;", "    min-height: calc(100vh - 57px);"),
-        ("    position: sticky;\n    top: 57px;", "    position: sticky;\n    top: 56px;"),
+        ("    position: sticky;\n    top: 57px;", "    position: sticky;\n    top: 64px;"),
+        ("    position: sticky;\n    top: 56px;", "    position: sticky;\n    top: 64px;"),
     ]),
     dict(path="stats.html", mode="nav", fixes=[
         ("padding: 7.5rem 2.5rem 5rem;", "padding: 2.5rem 2.5rem 5rem;"),
@@ -141,7 +141,6 @@ PAGES = [
     dict(path="skewt/methodology.html", mode="nav", tabs="skewt"),
     dict(path="skewt/gaps.html", mode="nav", tabs="skewt"),
     dict(path="qbo/index.html", mode="nav"),
-    dict(path="gatun/index.html", mode="after-body", skin="dark"),   # background set without a --bg variable
     dict(path="columbia/index.html", mode="before", anchor='<header class="top">',
          drop=r'<p class="pagelinks"><a href="\.\./index\.html">&larr; scorvec\.com</a>\s*&nbsp;·&nbsp; '),
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
