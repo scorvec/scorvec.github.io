@@ -465,7 +465,7 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
     from matplotlib.lines import Line2D
     keys = doc["groups"][group]
     ncol = 4; nrow = int(np.ceil(len(keys) / ncol))
-    fig, axes = plt.subplots(nrow, ncol, figsize=(4.3 * ncol, 2.9 * nrow + 1.3), squeeze=False)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(4.3 * ncol, 3.2 * nrow + 1.9), squeeze=False)
     issue, prev = doc["issue"], doc["previous"]
     for k, key in enumerate(keys):
         ax = axes[k // ncol, k % ncol]
@@ -498,8 +498,9 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
         if e.get("skill"):
             for xv, rr in zip(xs, e["skill"]):
                 if rr is not None:
-                    ax.text(xv, 0.015, f"r {rr:+.2f}", transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=6.4, rotation=90,
+                    ax.text(xv, -0.24, f"{rr:+.2f}", transform=ax.get_xaxis_transform(), ha="center", va="top", fontsize=6.6, rotation=90,
                             color=(INK if rr >= SKILL_MIN else "#aaa"), fontweight=("bold" if rr >= 0.5 else "normal"))
+            ax.text(xs[0] - 0.8, -0.24, "skill r", transform=ax.get_xaxis_transform(), ha="right", va="top", fontsize=6.6, color=MUTED)
         ax.set_xlim(x0 - 0.5, xs[-1] + 0.5)
         ticks = list(range(x0, xs[-1] + 1, 2)) if (xs[-1] - x0) > 14 else list(range(x0, xs[-1] + 1))
         ax.set_xticks(ticks); ax.set_xticklabels([_fmt_month(t) for t in ticks], fontsize=7.2)
@@ -509,8 +510,8 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
         for sp in ("top", "right"):
             ax.spines[sp].set_visible(False)
         if not e.get("obs_tail"):
-            ax.text(0.02, 0.96, ("ERA5 series not in the local store; CPC's published index shown" if e.get("cpc_tail") else "no ERA5 reference in the local store"),
-                    transform=ax.transAxes, fontsize=7, color=MUTED, va="top", style="italic")
+            ax.text(0.98, 0.96, ("ERA5 series not in the local store; CPC's published index shown" if e.get("cpc_tail") else "no ERA5 reference in the local store"),
+                    transform=ax.transAxes, fontsize=7, color=MUTED, va="top", ha="right", style="italic")
     for k in range(len(keys), nrow * ncol):
         axes[k // ncol, k % ncol].axis("off")
     import calendar
@@ -524,7 +525,7 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
     fig.suptitle(("Teleconnection indices" if group == "tele" else "Stratosphere and annular-mode indices") + f" — SEAS5, 51 members, {il(issue)} issue", x=0.01, ha="left", fontsize=13, fontweight="bold", y=0.995)
     fig.text(0.01, 1 - 0.36 / fig.get_figheight(), "Monthly means. Anomalies against the 1993–2016 hindcast (model) and the 1993–2016 ERA5 mean (observed); r = correlation of the 24 hindcast years' ensemble mean with ERA5 for that "
              "calendar month and lead (grey below 0.25). Dotted line: last observed month in the store.", fontsize=8, color=MUTED, va="top")
-    fig.subplots_adjust(left=0.045, right=0.99, top=1 - 0.85 / fig.get_figheight(), bottom=0.7 / fig.get_figheight(), hspace=0.5, wspace=0.22)
+    fig.subplots_adjust(left=0.045, right=0.99, top=1 - 0.85 / fig.get_figheight(), bottom=1.3 / fig.get_figheight(), hspace=0.78, wspace=0.22)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
     print(f"  wrote {out.name}", flush=True)
 

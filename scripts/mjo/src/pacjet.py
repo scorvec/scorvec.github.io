@@ -259,7 +259,7 @@ def render(init, valid, ix, u_mean_day0, ref, tail, torque, lag, out: Path) -> d
         ax.set_extent([SECTOR["lon"][0], SECTOR["lon"][1], SECTOR["lat"][0], SECTOR["lat"][1]], crs=ccrs.PlateCarree())
         ax.set_title(f"200 hPa wind — {title}", fontsize=10.5, loc="left", fontweight="bold")
         gl = ax.gridlines(draw_labels=True, lw=0.3, color="#bbb", x_inline=False, y_inline=False)
-        gl.top_labels = gl.right_labels = False; gl.xlabel_style = gl.ylabel_style = {"size": 7}
+        gl.top_labels = gl.right_labels = False; gl.left_labels = (k == 0); gl.xlabel_style = gl.ylabel_style = {"size": 7}
     bs = gs[1, 0].get_position(fig)
     cax = fig.add_axes([0.35, bs.y0 + 0.55 * bs.height, 0.30, 0.007])
     cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=7); cb.set_label("u anomaly vs ERA5 day-of-year normal (m/s) · black: u (m/s) · green: extension pattern (EOF1, m/s per σ) · gold: exit region", fontsize=7.5)
@@ -386,12 +386,12 @@ def render_z500(init, valid, zi, ref, tail, torque, lag, out: Path) -> dict:
         for box, colr in ((ALASKA, "#c2185b"), (GOA, GOLD)):
             ax.add_patch(plt.Rectangle((box["lon"][0], box["lat"][0]), box["lon"][1] - box["lon"][0], box["lat"][1] - box["lat"][0], fill=False, ec=colr, lw=1.5, transform=ccrs.PlateCarree(), zorder=6))
 
-    def frame(ax, title):
+    def frame(ax, title, first=False):
         ax.coastlines(lw=0.5, color="#555"); ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#777")
         ax.set_extent([ZDOM["lon"][0], ZDOM["lon"][1], ZDOM["lat"][0], ZDOM["lat"][1]], crs=ccrs.PlateCarree())
         ax.set_title(title, fontsize=9, loc="left", fontweight="bold")
         gl = ax.gridlines(draw_labels=True, lw=0.3, color="#bbb", x_inline=False, y_inline=False)
-        gl.top_labels = gl.right_labels = False; gl.xlabel_style = gl.ylabel_style = {"size": 6.5}
+        gl.top_labels = gl.right_labels = False; gl.left_labels = first; gl.xlabel_style = gl.ylabel_style = {"size": 6.5}
         boxes(ax)
 
     cfc = None
@@ -403,7 +403,7 @@ def render_z500(init, valid, zi, ref, tail, torque, lag, out: Path) -> dict:
             sig = pv < 0.05
             yy, xx = np.meshgrid(lat, lon, indexing="ij")
             ax.scatter(xx[sig][::2], yy[sig][::2], s=1.2, color="k", alpha=0.55, transform=ccrs.PlateCarree(), zorder=5)
-            frame(ax, (f"ERA5 composite +{L} d (n = {int(comp.n_events.sel(season=season))}, {season})" if k == 0 else f"+{L} d after the torque peak"))
+            frame(ax, (f"ERA5 composite +{L} d (n = {int(comp.n_events.sel(season=season))}, {season})" if k == 0 else f"+{L} d after the torque peak"), first=(k == 0))
     else:
         ax = fig.add_subplot(gs[0, :]); ax.axis("off"); ax.text(0.5, 0.5, "no composite for this season", ha="center", va="center", color=MUTED)
     cfm = None
@@ -412,14 +412,14 @@ def render_z500(init, valid, zi, ref, tail, torque, lag, out: Path) -> dict:
         ax = fig.add_subplot(gs[1, k], projection=pc); row2.append(ax)
         a = zi["zanom"][:, sl].mean((0, 1))
         cfm = ax.contourf(lon, lat, a, levels=levm, cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
-        frame(ax, title)
+        frame(ax, title, first=(k == 0))
     # vertical colour bars in the right margin, spanning each map row
     def vbar(mappable, row, label):
         b0 = gs[row, 0].get_position(fig); cax = fig.add_axes([0.952, b0.y0 + 0.2 * b0.height, 0.008, 0.6 * b0.height])
         cb = fig.colorbar(mappable, cax=cax, orientation="vertical"); cb.ax.tick_params(labelsize=6.5); cb.set_label(label, fontsize=6.8)
     if cfc is not None:
-        vbar(cfc, 0, "composite anomaly (m); stippled p < 0.05")
-    vbar(cfm, 1, "AIFS anomaly vs ERA5 normal (m)")
+        vbar(cfc, 0, "composite anomaly (m)")
+    vbar(cfm, 1, "AIFS anomaly (m)")
     summ = {}
     peak = torque_peak(torque)
     for k, (key, title, colr) in enumerate((("alaska", "Alaska ridge index: 500 hPa anomaly 55–70°N 165–125°W (σ of the day of year)", "#c2185b"),
@@ -440,7 +440,9 @@ def render_z500(init, valid, zi, ref, tail, torque, lag, out: Path) -> dict:
         if peak is not None:
             ax.axvline(peak[0], color=BROWN, lw=1.2, ls="--"); ax.text(peak[0], 0.97, " torque peak", transform=ax.get_xaxis_transform(), fontsize=7, color=BROWN, va="top")
         ax.axvline(init, color="#999", lw=0.8, ls=":")
-        ax.set_title(title, fontsize=9.2, loc="left", fontweight="bold", color=INK); ax.set_ylabel("σ", fontsize=8)
+        ax.set_title(title, fontsize=9.2, loc="left", fontweight="bold", color=INK)
+        if k == 0:
+            ax.set_ylabel("σ", fontsize=8)
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=7)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
         ax.tick_params(labelsize=7.5); ax.grid(True, alpha=0.2)
         ax.set_xlim(init - pd.Timedelta(days=TAIL_DAYS), valid[-1] + pd.Timedelta(days=1))
