@@ -1,0 +1,215 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>City temperature forecasts — Shawn Corvec</title>
+<meta name="description" content="Forecast high and low temperatures for US cities: a consensus alongside NBM, ECMWF, AIFS, GFS, GEFS, GDPS and GEPS, day by day for the next two weeks.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">El Niño</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/sst.html">El Niño monitor</a></li>
+              <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
+              <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              <li><a href="/enso-atmosphere.html">Atmospheric response</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Days 1–15</button>
+          <div class="sh-menu sh-menu--list" id="sh-g1">
+            <ul>
+              <li><a href="/ecape.html">Entraining CAPE</a></li>
+              <li><a href="/columbia/" aria-current="page">Columbia River basin precipitation</a></li>
+              <li><a href="/mjo.html">MJO forecast</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Beyond two weeks</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/subseasonal.html">Subseasonal outlook, weeks 1–5</a></li>
+              <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
+              <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g3">
+            <ul>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Model checks</button>
+          <div class="sh-menu sh-menu--list" id="sh-g4">
+            <ul>
+              <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+              <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<style>
+:root{--ink:#10203a;--mut:#5b6a80;--line:#d7dee8;--hi:#b42d2d;--lo:#264e96}
+.cpage{max-width:1500px;margin:0 auto;padding:14px 16px 40px;font-family:"Schibsted Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink)}
+.cpage h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:6px 0 2px}
+.sub{color:var(--mut);font-size:13px;margin:0 0 12px}
+.bar{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;padding:10px 0 12px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:12px;position:sticky;top:0;background:#fff;z-index:5}
+.grp{display:flex;align-items:center;gap:6px}.grp>span{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+select,input[type=text],button{font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+button{cursor:pointer}button:hover{background:#eef2f7}
+input[type=range]{width:170px}#daylab{font-variant-numeric:tabular-nums;font-weight:600;min-width:150px;display:inline-block}
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.wrap{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;width:100%}
+th{position:sticky;top:0;background:#fff;font-weight:500;color:var(--mut);text-align:right;padding:6px 7px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none;z-index:1}
+th.l,td.l{text-align:left}th.on{color:var(--ink);font-weight:600}
+th.g{text-align:center;color:var(--ink);background:#f3f6fa;border-bottom:none;font-weight:600;font-size:11.5px;letter-spacing:.03em;cursor:default}
+td{padding:4px 7px;text-align:right;border-bottom:1px solid #eef1f6;cursor:pointer;white-space:nowrap}
+tr:hover td{background:#f3f6fa}tr.sel td{background:#e6eef8}
+.d{font-size:11px;color:var(--mut);margin-left:3px}
+.chart{border:1px solid var(--line);border-radius:8px;padding:10px 12px 6px}
+.chart .t{font-weight:600;font-size:13.5px;margin:0 0 2px}.chart .h{color:var(--mut);font-size:12px;margin:0 0 6px}
+canvas{display:block;width:100%}
+.leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--mut);padding-top:6px}
+.leg i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+.note{color:var(--mut);font-size:12px;margin:10px 0 0}
+@media (max-width:640px){.cpage{padding:10px}input[type=range]{width:120px}}
+</style>
+
+<main class="cpage">
+  <h1>City temperature forecasts</h1>
+  <p class="sub" id="sub">loading…</p>
+  <div class="bar">
+    <div class="grp"><span>day</span><button id="dprev">‹</button><input type="range" id="day" min="0" max="14" value="0"><button id="dnext">›</button><b id="daylab"></b></div>
+    <div class="grp"><span>show</span><select id="metric"><option value="hi">high</option><option value="lo">low</option><option value="both">high &amp; low</option></select></div>
+    <div class="grp"><span>state</span><select id="state"><option value="">all</option></select></div>
+    <div class="grp"><span>find</span><input type="text" id="find" placeholder="city or ICAO" size="13"></div>
+    <div class="grp"><label style="font-size:12px;color:var(--mut);display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="core" checked> major cities only</label></div>
+  </div>
+  <div class="grid">
+    <div class="chart" id="chartbox" hidden>
+      <p class="t" id="ct"></p><p class="h" id="ch"></p>
+      <canvas id="cv"></canvas>
+      <div class="leg" id="leg"></div>
+    </div>
+    <div class="wrap"><table id="tbl"></table></div>
+  </div>
+  <p class="note">Temperatures in °F. <b>Consensus</b> is a weighted blend of the forecast models shown; NBM is shown for comparison only. <b>vs normal</b> is the departure from the 1991–2020 normal. <b>Model range</b> is the difference between the warmest and coldest model that day. Click a city for its two-week chart; click a column header to sort.</p>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let D = null, DAYI = 0, sel = null, sortKey = 'cons', sortDir = -1;
+const COL = { nbm: '#2a7a4a', ecmwf: '#264e96', ecmwf_ens: '#5b8fd6', aifs: '#7a3fa0', aifs_ens: '#b08ad0', gfs: '#c8422a', gefs: '#e69a7b', gdps: '#b8860b', geps: '#d9b45b' };
+const fmt = (v, d = 0) => (v == null || !isFinite(v)) ? '' : v.toFixed(d);
+const sg = (v, d = 0) => v == null ? '' : `<span style="color:${v > 0 ? 'var(--hi)' : v < 0 ? 'var(--lo)' : '#7b8798'}">${v > 0 ? '+' : ''}${v.toFixed(d)}</span>`;
+const CORE = new Set(['KABQ','KATL','KAUS','KBDL','KBNA','KBOI','KBOS','KBUF','KBWI','KCLE','KCLT','KCMH','KCVG','KDCA','KDEN','KDFW','KDSM','KDTW','KELP','KEWR','KIAH','KIND','KJAX','KJFK','KLAS','KLAX','KLGA','KLIT','KMCI','KMCO','KMDW','KMEM','KMIA','KMKE','KMSP','KMSY','KOKC','KOMA','KORD','KPDX','KPHL','KPHX','KPIT','KRDU','KRIC','KSAN','KSAT','KSEA','KSFO','KSLC','KSTL','KTPA','KTUL','KBHM','KBIL','KBIS','KCHS','KFAR','KGEG','KGRR','KICT','KJAN','KLBB','KOAK','KRNO','KSAC','KSDF','KSGF','KSHV','KTUS','KTYS','KABI','KAMA','KCOS','KFAT','KFSD','KGRB','KGSO','KMSN','KORF','KPVD','KROC','KSJC','KSMF','KSYR','KTLH','KALB','KBTV','KBRO','KCRP','KDAY','KEUG','KHOU','KSPS','KTYR']);
+
+function rowsFor(){
+  const st = $('#state').value, q = $('#find').value.trim().toLowerCase(), m = $('#metric').value, k = m === 'both' ? 'hi' : m;
+  let r = Object.entries(D.cities).map(([icao, c]) => {
+    const j = DAYI, vals = {};
+    for (const mm of D.models){ const v = c.models[mm] && c.models[mm][k] ? c.models[mm][k][j] : null; vals[mm] = v; }
+    const cons = c.consensus[k][j], live = Object.values(vals).filter(v => v != null);
+    return { icao, name: c.name, state: c.state, core: CORE.has(icao),
+             cons, hi: c.consensus.hi[j], lo: c.consensus.lo[j], vals,
+             vsnorm: c.normal && c.normal[k] && c.normal[k][j] != null && cons != null ? cons - c.normal[k][j] : null,
+             range: live.length ? Math.max(...live) - Math.min(...live) : null };
+  });
+  if ($('#core').checked) r = r.filter(x => x.core);
+  if (st) r = r.filter(x => x.state === st);
+  if (q) r = r.filter(x => x.name.toLowerCase().includes(q) || x.icao.toLowerCase().includes(q));
+  const txt = k2 => k2 === 'name' || k2 === 'state' || k2 === 'icao';
+  const val = (x, k2) => k2.startsWith('m:') ? x.vals[k2.slice(2)] : x[k2];
+  r.sort((a, b) => txt(sortKey) ? sortDir * String(a[sortKey]).localeCompare(String(b[sortKey])) : sortDir * ((val(a, sortKey) ?? -1e9) - (val(b, sortKey) ?? -1e9)));
+  return r;
+}
+function table(){
+  const r = rowsFor(), m = $('#metric').value, k = m === 'both' ? 'hi' : m, lab = m === 'lo' ? 'low' : 'high';
+  const cols = [['name', 'city', 'l'], ['state', 'st', 'l'], ['icao', 'ICAO', 'l'], ['cons', `consensus ${lab}`, ''], ['vsnorm', 'vs normal', ''], ['range', 'model range', '']]
+    .concat(D.models.map(mm => [`m:${mm}`, D.labels[mm] || mm, '']));
+  let h = '<thead><tr><th class="g" colspan="3"></th><th class="g" colspan="3">consensus</th><th class="g" colspan="' + D.models.length + '">models — value and difference from the consensus</th></tr><tr>'
+    + cols.map(([kk, l, c]) => `<th class="${c}${kk === sortKey ? ' on' : ''}" data-k="${kk}">${l}${kk === sortKey ? (sortDir < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('') + '</tr></thead><tbody>';
+  for (const x of r){
+    h += `<tr data-i="${x.icao}"${x.icao === sel ? ' class="sel"' : ''}><td class="l">${x.name}</td><td class="l">${x.state}</td><td class="l">${x.icao}</td>`
+      + `<td><b>${m === 'both' ? `<span style="color:var(--hi)">${fmt(x.hi)}</span> / <span style="color:var(--lo)">${fmt(x.lo)}</span>` : fmt(x.cons)}</b></td><td>${sg(x.vsnorm)}</td><td>${fmt(x.range)}</td>`
+      + D.models.map(mm => { const v = x.vals[mm]; return `<td>${fmt(v)}${v != null && x.cons != null ? `<span class="d">${sg(v - x.cons)}</span>` : ''}</td>`; }).join('') + '</tr>';
+  }
+  $('#tbl').innerHTML = h + '</tbody>';
+  $('#tbl').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const kk = th.dataset.k; if (kk === sortKey) sortDir = -sortDir; else { sortKey = kk; sortDir = ['name', 'state', 'icao'].includes(kk) ? 1 : -1; } table(); });
+  $('#tbl').querySelectorAll('tr[data-i]').forEach(tr => tr.onclick = () => { sel = tr.dataset.i; table(); chart(); });
+}
+function chart(){
+  if (!sel || !D.cities[sel]) return;
+  const c = D.cities[sel], N = D.dates.length, box = $('#chartbox'); box.hidden = false;
+  const cv = $('#cv'), dpr = window.devicePixelRatio || 1, W = box.clientWidth - 26, H = 300;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const L = 42, R = 12, T = 12, B = 30;
+  const all = [].concat(c.consensus.hi, c.consensus.lo, ...D.models.flatMap(mm => [c.models[mm].hi, c.models[mm].lo]), (c.normal && c.normal.hi) || [], (c.normal && c.normal.lo) || []).filter(v => v != null);
+  let lo = Math.min(...all), hi = Math.max(...all); const pad = (hi - lo) * .06 || 1; lo -= pad; hi += pad;
+  const X = i => L + i * (W - L - R) / (N - 1), Y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  g.clearRect(0, 0, W, H); g.strokeStyle = '#eef1f6'; g.fillStyle = '#7b8798'; g.font = '11px system-ui'; g.textAlign = 'right';
+  const step = [2, 5, 10, 20].find(s => (hi - lo) / s <= 8) || 20;
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step){ g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke(); g.fillText(v.toFixed(0), L - 6, Y(v) + 3.5); }
+  g.fillStyle = 'rgba(16,32,58,.06)'; const w1 = (W - L - R) / (N - 1); g.fillRect(X(DAYI) - w1 / 2, T, w1, H - T - B);
+  const line = (arr, col, lw, dash, alpha) => { if (!arr) return; g.globalAlpha = alpha; g.setLineDash(dash); g.strokeStyle = col; g.lineWidth = lw; g.lineJoin = 'round'; g.beginPath();
+    let pen = false; arr.forEach((v, i) => { if (v == null){ pen = false; return; } g[pen ? 'lineTo' : 'moveTo'](X(i), Y(v)); pen = true; }); g.stroke(); g.setLineDash([]); g.globalAlpha = 1; };
+  for (const mm of D.models){ line(c.models[mm].hi, COL[mm] || '#999', 1.2, [], .6); line(c.models[mm].lo, COL[mm] || '#999', 1.2, [], .6); }
+  if (c.normal){ line(c.normal.hi, '#8a94a4', 1.3, [2, 3], 1); line(c.normal.lo, '#8a94a4', 1.3, [2, 3], 1); }
+  line(c.consensus.hi, '#10203a', 3, [], 1); line(c.consensus.lo, '#10203a', 3, [], 1);
+  g.font = 'bold 11px system-ui'; g.textAlign = 'center';
+  c.consensus.hi.forEach((v, i) => { if (v != null){ g.fillStyle = 'var(--hi)'; g.fillStyle = '#b42d2d'; g.fillText(Math.round(v), X(i), Y(v) - 7); } });
+  c.consensus.lo.forEach((v, i) => { if (v != null){ g.fillStyle = '#264e96'; g.fillText(Math.round(v), X(i), Y(v) + 15); } });
+  g.fillStyle = '#5b6a80'; g.font = '11px system-ui';
+  D.dates.forEach((d, i) => { if (N <= 16 || i % 2 === 0) g.fillText(d.slice(5).replace('-', '/'), X(i), H - B + 18); });
+  $('#ct').textContent = `${c.name}, ${c.state} (${sel}) — high and low, next ${N} days`;
+  $('#ch').textContent = 'black = consensus (printed per day) · coloured = each model · dotted grey = 1991–2020 normal · shaded column = the day selected above';
+  $('#leg').innerHTML = `<span><i style="background:#10203a"></i>consensus</span>` + D.models.map(mm => `<span><i style="background:${COL[mm] || '#999'}"></i>${D.labels[mm] || mm}</span>`).join('') + `<span><i style="background:#8a94a4"></i>normal</span>`;
+}
+function refresh(){ $('#daylab').textContent = `${D.dates[DAYI]} · day ${DAYI + 1}`; table(); if (sel) chart(); }
+function step(d){ DAYI = Math.max(0, Math.min(D.dates.length - 1, DAYI + d)); $('#day').value = DAYI; refresh(); }
+async function load(){
+  const r = await fetch('data/cities_light.json', { cache: 'no-store' });
+  if (!r.ok){ $('#sub').textContent = 'data unavailable'; return; }
+  D = await r.json();
+  $('#day').max = D.dates.length - 1;
+  const states = [...new Set(Object.values(D.cities).map(c => c.state).filter(Boolean))].sort();
+  $('#state').innerHTML = '<option value="">all</option>' + states.map(s => `<option>${s}</option>`).join('');
+  const init = D.init || D.cycle;
+  $('#sub').textContent = `${D.n} stations · models initialised ${init} · consensus compared with ${D.models.map(m => D.labels[m] || m).join(', ')} · updated ${D.built.replace('T', ' ').replace('Z', ' UTC')}`;
+  sel = D.cities.KORD ? 'KORD' : Object.keys(D.cities)[0];
+  refresh();
+}
+['#metric', '#state', '#core'].forEach(id => $(id).addEventListener('change', refresh));
+$('#find').addEventListener('input', table);
+$('#day').addEventListener('input', () => { DAYI = +$('#day').value; refresh(); });
+$('#dprev').onclick = () => step(-1); $('#dnext').onclick = () => step(1);
+addEventListener('keydown', e => { if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); });
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (sel) chart(); }, 120); });
+load();
+</script>
