@@ -158,7 +158,8 @@
   text-shadow: 0 1px 2px rgba(20, 30, 45, 0.55), 0 2px 14px rgba(20, 30, 45, 0.45);
   background: linear-gradient(to bottom, rgba(18, 26, 14, 0.42), rgba(18, 26, 14, 0));
 }
-.sh--overlay .sh-in { min-height: 84px; }
+.sh--overlay .sh-in { min-height: 84px; justify-content: flex-end; }
+.sh--overlay .sh-brand { display: none; }   /* the hero carries the name; the header would repeat it */
 .sh--overlay .sh-brand { font-size: 1.7rem; }
 .sh--overlay .sh-link { font-size: 1.15rem; padding: 0.8rem 1.15rem; }
 .sh--overlay .sh-link:hover, .sh--overlay .sh-has-menu.is-open > .sh-menubtn { background: rgba(255, 255, 255, 0.18); }

@@ -159,10 +159,6 @@
     text-decoration-color: rgba(255,255,255,0.5);
   }
   .hero-text .scroll:hover { text-decoration-color: #fff; }
-  .hero figcaption {
-    position: absolute; z-index: 2; right: clamp(1.25rem, 4vw, 3.5rem); bottom: 0.9rem;
-    font-size: 0.78rem; color: rgba(255, 255, 255, 0.7);
-  }
 
   /* ── The index: what is on this site, as a list rather than a wall of tiles ── */
   .wrap { max-width: var(--measure); margin: 0 auto; padding: 0 clamp(1.25rem, 4vw, 3.5rem); }
@@ -232,7 +228,6 @@
     .row .when { text-align: left; }
     .about { grid-template-columns: 1fr; }
     .about img { width: 5.5rem; height: 5.5rem; }
-    .hero figcaption { display: none; }
   }
   @media (max-width: 520px) {
     .hero img { object-position: 40% 55%; }
@@ -310,7 +305,6 @@
     <p>Numerical weather prediction, operational forecasting, and the weather behind energy markets. This site runs a set of live diagnostics built from open model and observation data.</p>
     <a class="scroll" href="#products">See what is running</a>
   </div>
-  <figcaption>Supercell over the prairie</figcaption>
 </header>
 
 <main class="wrap">
