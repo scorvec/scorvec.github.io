@@ -39,6 +39,8 @@ fi
 "$PY" seas5_normals.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  normals FAILED" >> "$LOG"
 # population-weighted temperature distributions from the 6-hourly members (US, Brazil); best-effort
 "$PY" seas5_popT.py all --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  popT FAILED (main products still publish)" >> "$LOG"
+# P − E distributions by region (Brazil ONS subsystems, Colombia); best-effort
+"$PY" seas5_pme_regions.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  pme regions FAILED (main products still publish)" >> "$LOG"
 
 # Publish: only the SEAS5 outputs. A concurrent CI data commit just shifts our base.
 ( cd "$SITE" && git add assets/sst/seas5_*.webp assets/sst/data/seas5_*.json \

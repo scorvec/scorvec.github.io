@@ -11,9 +11,10 @@ What this module serves, and where it comes from:
 
   monthly(var)           monthly means [time, lat, lon] on the 1.5° grid
       t2m   wb2_1p5_daily_global/t2m   1991–2026, K                (global)
-      z500  wb2_1p5_daily_global/z500  1991–2020, m² s⁻² → m       (global)
-      slp   wb2_1p5_daily_global/slp   1991–2020, Pa → hPa         (global)
-      tp    wb2_1p5_daily/prcp         1959–2023, m/day → mm/day   (0–90°N only)
+      z500  wb2_1p5_daily_global/z500  1991–2020, m (attribute lies: m² s⁻²) (global)
+      slp   wb2_1p5_daily_global/slp   1991–2020, hPa (attribute says Pa)   (global)
+      tp    wb2_1p5_daily/prcp         1959–2023, mm/day (attribute says m)  (0–90°N only)
+      slp_nh wb2_1p5_daily/slp         1959–2026, hPa                        (0–90°N only)
       z<L>  wb2_1p5_daily/zplev        1959–2026, m, L in 50…1000  (0–90°N only)
       Cached after the first aggregation in data/seas5/era5/local_monthly_<var>.nc
       (a few minutes per variable the first time, seconds after).
@@ -38,9 +39,10 @@ CACHE = Path(__file__).resolve().parent / "data" / "seas5" / "era5"
 
 SOURCES = {
     "t2m": ("wb2_1p5_daily_global/t2m", "t2m", 1.0, 0.0),
-    "z500": ("wb2_1p5_daily_global/z500", "z500", 1.0 / 9.80665, 0.0),
-    "slp": ("wb2_1p5_daily_global/slp", "slp", 0.01, 0.0),
-    "tp": ("wb2_1p5_daily/prcp", "prcp", 1000.0, 0.0),
+    "z500": ("wb2_1p5_daily_global/z500", "z500", 1.0, 0.0),   # files say m**2 s**-2 but hold metres (README: m)
+    "slp": ("wb2_1p5_daily_global/slp", "slp", 1.0, 0.0),   # already hPa despite the Pa attribute
+    "tp": ("wb2_1p5_daily/prcp", "prcp", 1.0, 0.0),   # already mm/day (README: mm)
+    "slp_nh": ("wb2_1p5_daily/slp", "slp", 1.0, 0.0),   # 0–90°N, 1959–2026, hPa (attribute says Pa)
 }
 
 
@@ -68,7 +70,7 @@ def monthly(var: str, level: int | None = None) -> xr.DataArray | None:
     """Monthly means for the whole record the store holds, cached. `var` is one of
     SOURCES or "z" with a `level` from the 13-level stack. Returns None if absent."""
     CACHE.mkdir(parents=True, exist_ok=True)
-    key = f"{var}{level}" if level else var
+    key = f"{var}lev{level}" if level else var           # "zlev500", distinct from the global "z500" cache
     cpath = CACHE / f"local_monthly_{key}.nc"
     if var == "z" and level:
         files = _files("wb2_1p5_daily/zplev", "zplev")

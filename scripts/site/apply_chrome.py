@@ -134,7 +134,6 @@ PAGES = [
         ("main { padding: 5.5rem 1rem 3rem; }", "main { padding: 1rem 1rem 3rem; }"),
         ('style="margin:4.5rem 0 0.5rem;"', 'style="margin:0.5rem 0 0.5rem;"'),
     ]),
-    dict(path="status.html", mode="after-body", footer=False),
     dict(path="skewt/index.html", mode="before", anchor="<nav>", tabs="skewt", footer=False,
          drop=[r'\s*<a href="\.\./index\.html" class="nav-name">Shawn Corvec</a>',
                r'\s*<a href="\.\./index\.html" class="back">← HOME</a>']),

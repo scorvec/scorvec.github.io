@@ -115,7 +115,6 @@ skewt-data.yml|*:50|
 olr-waves.yml|02:40|
 site-stats.yml|05:17|
 mur-sst.yml|13:47|
-data-freshness.yml|14:25|
 kiribati-history.yml|14:40|
 qbo.yml|mon@07:15|
 sst-events.yml|mon@18:41|
@@ -301,25 +300,5 @@ pages_if_stale() {
 }
 REPO_SLUG="$("$GH" repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo scorvec/scorvec.github.io)"
 [ "$DRY" = "1" ] || pages_if_stale
-
-# ── Freshness alarm (2026-09-02): the laptop is the one place a human is
-# looking, so once a day read the freshness report the data-freshness
-# workflow publishes and raise a macOS notification if anything is stale.
-# One notification per UTC day; the status page has the details.
-FRESH_STAMP="$REPO/scripts/lib/.freshness_notified"
-if [ "$DRY" != "1" ] && [ "$(cat "$FRESH_STAMP" 2>/dev/null)" != "$today" ] && [ "$(date -u +%H)" -ge 15 ]; then
-  rep=$(curl -s --max-time 20 "https://raw.githubusercontent.com/scorvec/scorvec.github.io/main/assets/status/freshness.json?t=$now_epoch")
-  if [ -n "$rep" ]; then
-    nstale=$(printf '%s' "$rep" | /usr/bin/python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("n_stale",0))' 2>/dev/null || echo "")
-    if [ -n "$nstale" ]; then
-      echo "$today" > "$FRESH_STAMP"
-      if [ "$nstale" != "0" ]; then
-        first=$(printf '%s' "$rep" | /usr/bin/python3 -c 'import json,sys; d=json.load(sys.stdin); print(", ".join(i["path"].split("/")[-1] for i in d["items"] if i["state"]!="ok")[:120])' 2>/dev/null)
-        echo "  FRESHNESS: $nstale stale product(s): $first"
-        osascript -e "display notification \"$nstale stale: $first\" with title \"scorvec.com freshness\" subtitle \"see /status.html\"" 2>/dev/null || true
-      fi
-    fi
-  fi
-fi
 
 echo "  fired $fired, already-satisfied $skipped"

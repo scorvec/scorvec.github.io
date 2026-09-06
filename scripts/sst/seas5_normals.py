@@ -59,6 +59,7 @@ VARS = {
 REFS = {"hc": "SEAS5 hindcast 1993–2016", "obs30": "ERA5 1991–2020 normal", "obs10": "ERA5 2016–2025 normal", "trend": "ERA5 trend extrapolated to the forecast year"}
 LEVELS = {"pme": [-3, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 3], "t2m": [-4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4], "z500": [-60, -45, -30, -20, -10, -5, 5, 10, 20, 30, 45, 60],
           "si10": [-1.5, -1, -0.6, -0.3, -0.1, 0.1, 0.3, 0.6, 1, 1.5], "tp": [40, 55, 70, 85, 95, 105, 120, 145, 180, 250], "ssrd": [80, 86, 92, 96, 98, 102, 104, 108, 114, 120]}
+STD_LEVELS = [-3, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 3]   # standardised anomaly, σ of the reference's interannual spread
 CMAPS = {"pme": "BrBG", "t2m": "RdBu_r", "z500": "RdBu_r", "si10": "PuOr_r", "tp": "BrBG", "ssrd": "RdYlBu_r"}
 LAND_ONLY = {"t2m", "tp", "si10", "ssrd", "pme"}
 
@@ -197,15 +198,36 @@ def panels_for(ym: str, var: str, ref: str):
     vm = valid_months(ym)
     out = []
 
+    valid_year = int(vm[0][:4])
+
     def one(members, hcm, refs_list, title):
+        nonlocal valid_year
         """members [sample, lat, lon] model values; hcm [lat, lon] hindcast mean; refs_list: per-month reference dicts (1 or 3)."""
         if ref == "hc":
-            a = np.nanmean(members, 0) - hcm
             hsub = hcs
+            ny = 24
+            yr = np.arange(ny) - (ny - 1) / 2                      # samples are member-major, year fastest
+            if var == "z500":
+                # heights carry the warming trend: the hindcast reference is its linear trend at the
+                # valid year (per grid point), and the spread is the residual spread — same as the caps
+                hy = hsub.reshape(-1, ny, *hsub.shape[1:])         # [member, year, lat, lon]
+                ym_ = np.nanmean(hy, axis=0)                         # per-year ensemble mean
+                slope = (yr[:, None, None] * (ym_ - ym_.mean(0))).sum(0) / (yr ** 2).sum()
+                target = (valid_year - 1993) - (ny - 1) / 2
+                hcm_ref = ym_.mean(0) + slope * target
+                resid = hsub - (hcm + slope[None] * np.tile(yr, hsub.shape[0] // ny)[:, None, None])
+                lo, hi = np.nanpercentile(resid + hcm_ref[None], [100 / 3, 200 / 3], axis=0)
+                a = np.nanmean(members, 0) - hcm_ref
+                below = (members < lo[None]).mean(0); above = (members > hi[None]).mean(0)
+                sd = np.nanstd(ym_ - slope[None] * yr[:, None, None], axis=0)
+                return dict(title=title, anom=a, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan))
+            a = np.nanmean(members, 0) - hcm
             lo, hi = np.nanpercentile(hsub, [100 / 3, 200 / 3], axis=0)
             anom = (np.nanmean(members, 0) / hcm * 100.0) if mult else a
             below = (members < lo[None]).mean(0); above = (members > hi[None]).mean(0)
-            return dict(title=title, anom=anom, below=below, above=above)
+            yr_means = np.nanmean(hsub.reshape(-1, ny, *hsub.shape[1:]), axis=0)   # interannual spread, not member noise
+            sd = np.nanstd(yr_means, axis=0)
+            return dict(title=title, anom=anom, below=below, above=above, std=a / np.where(sd > 0, sd, np.nan))
         # observed space: average the per-month references over the season
         m9316 = np.mean([_regrid_to(r["m9316"], r["lat"], r["lon"], lat, lon) for r in refs_list], axis=0)
         rmean = np.mean([_regrid_to(r["mean"][ref], r["lat"], r["lon"], lat, lon) for r in refs_list], axis=0)
@@ -225,13 +247,18 @@ def panels_for(ym: str, var: str, ref: str):
             lo, hi = rmean - Z_TERC * sd, rmean + Z_TERC * sd
             anom = np.nanmean(corr, 0) - rmean
         below = (corr < lo[None]).mean(0); above = (corr > hi[None]).mean(0)
-        return dict(title=title, anom=anom, below=below, above=above)
+        if mult:
+            samp_sd = np.nanstd(samp, axis=0)
+            std = (np.nanmean(corr, 0) - rmean) / np.where(samp_sd > 0, samp_sd, np.nan)
+        else:
+            std = (np.nanmean(corr, 0) - rmean) / np.where(sd > 0, sd, np.nan)
+        return dict(title=title, anom=anom, below=below, above=above, std=std)
 
     refs_cache = {}
     panels_for.last_span = None
     for L, v in enumerate(vm):
         y, m = int(v[:4]), int(v[5:])
-        hcs = hc[:, L]
+        hcs = hc[:, L]; valid_year = y
         rl = [] if ref == "hc" else [refs_cache.setdefault((y, m), references(var, m, y))]
         if ref != "hc" and rl[0] is None:
             return None, None, None
@@ -240,7 +267,7 @@ def panels_for(ym: str, var: str, ref: str):
         out.append(one(fc[:, L], hc_mean[L], rl, f"{calendar.month_abbr[m]} {y}"))
     for leads in SEASON_LEADS:
         idx = [Lx - 1 for Lx in leads]
-        hcs = hc[:, idx].mean(1)
+        hcs = hc[:, idx].mean(1); valid_year = int(vm[idx[1]][:4])
         rl = [] if ref == "hc" else [refs_cache[(int(vm[i][:4]), int(vm[i][5:]))] for i in idx]
         y0s, y1s = vm[idx[0]][:4], vm[idx[-1]][:4]
         out.append(one(fc[:, idx].mean(1), hc_mean[idx].mean(0), rl, f"{season_label(ym, leads)} {y0s if y0s == y1s else y0s + '–' + y1s[2:]}"))
@@ -272,6 +299,9 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
         if kind == "anom":
             lev = LEVELS[var]
             mesh = ax.pcolormesh(lon, lat, pnl["anom"], cmap=plt.get_cmap(CMAPS[var], len(lev) - 1), norm=BoundaryNorm(lev, len(lev) - 1), transform=pc, shading="auto", zorder=1)
+        elif kind == "std":
+            lev = STD_LEVELS
+            mesh = ax.pcolormesh(lon, lat, pnl["std"], cmap=plt.get_cmap(CMAPS[var], len(lev) - 1), norm=BoundaryNorm(lev, len(lev) - 1), transform=pc, shading="auto", zorder=1)
         else:
             for arr, other, cols in ((pnl["above"], pnl["below"], warm), (pnl["below"], pnl["above"], cool)):
                 normal = 1.0 - pnl["above"] - pnl["below"]
@@ -284,7 +314,7 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
         ax.add_feature(cfeature.STATES, linewidth=0.2, edgecolor="#999", zorder=3)
         ax.set_title(pnl["title"], fontsize=12, loc="left")
     y0, m0 = ym[:4], int(ym[4:])
-    what = ("anomaly" if kind == "anom" else "most likely tercile")
+    what = {"anom": "anomaly", "terc": "most likely tercile", "std": "standardised anomaly"}[kind]
     if ref == "hc":
         sub = "Reference: the model's own 1993–2016 hindcast at the same lead (bias-free by construction)."
     else:
@@ -293,15 +323,17 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
                + (", multiplicatively" if mult else "") + "), then compared with " + REFS[ref] + (f" (ERA5 years used: {span})" if span else "") + ".")
     if kind == "terc":
         sub += "  White: no category reaches 40 %; near-normal not drawn."
+    if kind == "std":
+        sub += "  Ensemble-mean anomaly divided by the reference's year-to-year standard deviation, so the shading is comparable across latitudes and variables (±1σ is a typical year's swing)."
     if ref != "hc" and var == "tp" and not (ERA5 / "era5_am_sfc_1991-2025.grib").exists():
         sub += "  ERA5 precipitation comes from the local store, which covers 0–90°N: south of the equator is blank until the CDS pull completes."
     import textwrap
     sub = "\n".join(textwrap.wrap(sub, 175))
     head_text(fig, H, f"SEAS5 {label}: {what} vs {REFS[ref]}, {calendar.month_name[m0]} {y0} issue", sub)
-    if kind == "anom":
+    if kind in ("anom", "std"):
         cax = fig.add_axes([0.3, 0.5 / H, 0.4, 0.14 / H])
         cb = fig.colorbar(mesh, cax=cax, orientation="horizontal", extend="both")
-        cb.set_label(("% of reference" if mult else f"ensemble-mean anomaly ({units})"), fontsize=10)
+        cb.set_label(("standardised anomaly (σ)" if kind == "std" else "% of reference" if mult else f"ensemble-mean anomaly ({units})"), fontsize=10)
     else:
         from matplotlib.patches import Patch
         h1 = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(warm)]
@@ -325,7 +357,7 @@ def build(ym: str, only_vars=None, only_refs=None) -> None:
             panels, lat, lon = panels_for(ym, var, ref)
             if panels is None:
                 print(f"  {var} vs {ref}: fields not on disk — skipped", flush=True); continue
-            for kind in ("anom", "terc"):
+            for kind in ("anom", "std", "terc"):
                 name = render(ym, var, ref, kind, panels, lat, lon, ASSETS)
                 man["figures"][f"{var}|{ref}|{kind}"] = name
                 print(f"  wrote {name}", flush=True)

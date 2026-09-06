@@ -488,13 +488,16 @@
   <header>
     <div class="eyebrow">Monthly &middot; ECMWF SEAS5 &middot; <span id="issueLabel">latest issue</span> &middot; 51 members</div>
     <h1>SEAS5 <em>Outlook</em></h1>
-    <p class="sub">One system, read in full: the ENSO indices from the coastal Ni&ntilde;o-1+2 to the
-    central-Pacific Ni&ntilde;o-4, each against the previous three issues; the Pacific Decadal,
-    Atlantic and Indian Ocean indices from the same SST fields; calibrated tercile maps of
-    temperature, rainfall and 500&nbsp;hPa height over the Americas; and the polar stratosphere.
-    Every anomaly is the member minus SEAS5&rsquo;s own 1993&ndash;2016 hindcast for the same start
-    month and lead, so model drift is removed before anything is drawn. The multi-model
-    <a href="enso-forecasts.html">C3S page</a> follows once the other centres publish.</p>
+    <p class="sub">ECMWF&rsquo;s seasonal system, read in full and checked against observations: the ENSO
+    indices from the coastal Ni&ntilde;o-1+2 to the central-Pacific Ni&ntilde;o-4, each against the
+    previous three issues; the Pacific, Atlantic and Indian Ocean indices from the same fields;
+    what changed since last month; the CPC teleconnection patterns and the stratosphere, each
+    with the model&rsquo;s own hindcast skill; anomaly and tercile maps against the hindcast and
+    against observed normals; and the forecast for population-weighted temperature in the United
+    States and Brazil set against normals and records. Model drift is removed everywhere by
+    anomalising each member against SEAS5&rsquo;s own 1993&ndash;2016 hindcast for the same start
+    month and lead. The multi-model <a href="enso-forecasts.html">C3S page</a> follows once the
+    other centres publish.</p>
     <div class="chips" id="chips">
       <div class="chip"><div class="l">Loading forecast feed&hellip;</div><div class="v neut">&mdash;</div></div>
     </div>
@@ -581,7 +584,9 @@
     1993&ndash;2016, so two decades of warming (and the thickness rise that goes with it) sit
     inside &ldquo;above normal&rdquo; before any El&nbsp;Ni&ntilde;o signal is added &mdash; read
     those maps for their pattern and their below-normal exceptions, the subtropical jet trough
-    across the southern United States above all, rather than the sheer extent of warm shading.</p>
+    across the southern United States above all, rather than the sheer extent of warm shading; the
+    <a href="#normCard">normals card</a> below puts the same members against the 1991&ndash;2020 normal,
+    the last decade and today&rsquo;s trend, which is where the winter picture becomes discriminating.</p>
     <div class="map-grid" id="mapGrid"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 monthly means, 1&deg; grid, 75&deg;N&ndash;60&deg;S &middot; temperature and precipitation over land, 500 hPa height everywhere &middot; thresholds: 1993&ndash;2016 hindcast terciles</span>
@@ -593,13 +598,17 @@
   <div class="card" id="teleCard">
     <h2>Teleconnection indices, member by member</h2>
     <p class="note">The CPC patterns &mdash; NAO, PNA, AO, the East Atlantic, West Pacific and the rest &mdash;
-    read from each member&rsquo;s monthly 500&nbsp;hPa height (sea-level pressure for the AO)
-    with the same projectors the <a href="subseasonal.html">GEPS subseasonal page</a> uses, so the
-    scale is CPC&rsquo;s own. The Southern Oscillation index comes from Tahiti and Darwin
-    pressure. The number that matters most sits under each plume: the correlation of the
-    model&rsquo;s 24 hindcast years with ERA5 for that month and lead. Where it is near zero
-    the tilt is noise, however confident the fan looks; for the winter NAO from a September
-    start that is usually the case, for the PNA in an El&nbsp;Ni&ntilde;o winter it is not.</p>
+    read from each member&rsquo;s monthly 500&nbsp;hPa height (sea-level pressure for the AO) with the same
+    projectors the <a href="subseasonal.html">GEPS subseasonal page</a> uses, so the scale is CPC&rsquo;s own.
+    The Southern Oscillation index is Tahiti minus Darwin pressure. Two things keep this honest. First, the
+    observed record: the black line is ERA5 passed through the same projection, and the red crosses are
+    CPC&rsquo;s published monthly index, an independent check on sign and size. Second, skill: for every index
+    and month the 24 hindcast years&rsquo; ensemble mean is correlated with ERA5, and the observed index is
+    regressed on the forecast to give a calibrated probability of each phase. Where the correlation is below
+    0.25 the cell is hatched &mdash; the members still say something, but the hindcast says not to trust it, and
+    the calibrated bar falls back to climatology by construction. The board reads the six months at a glance;
+    the chart below it lets you look at one index at a time.</p>
+    <div class="map-grid" id="teleFigs" style="margin-bottom:1rem"></div>
     <div class="controls" id="telePills"></div>
     <div class="idx-note" id="teleNote"></div>
     <div id="teleChart" class="plot" style="height:440px"></div>
@@ -621,6 +630,7 @@
     signed so that positive is a strong vortex, from 10&nbsp;hPa down to the surface &mdash; read
     them top to bottom for downward coupling. Wave-1 and wave-2 amplitudes at 100&nbsp;hPa are the
     planetary-wave forcing that precedes a warming.</p>
+    <div class="map-grid" id="stratFigs" style="margin-bottom:1rem"></div>
     <div class="controls" id="stratPills"></div>
     <div class="idx-note" id="stratNote"></div>
     <div id="stratChart" class="plot" style="height:440px"></div>
@@ -633,22 +643,39 @@
 
   <!-- ── POPULATION-WEIGHTED TEMPERATURE ──────────────────────────────────── -->
   <div class="card" id="popCard">
-    <h2>Population-weighted temperature: the whole distribution, month by month</h2>
-    <p class="note">Built from SEAS5&rsquo;s <b>6-hourly</b> members rather than the monthly means: every
-    member&rsquo;s 2 m temperature is population-weighted into one national daily series
-    (geonames places of 15,000 or more, summed onto the 1&deg; grid), and each month pools all
-    51 members&rsquo; days into a distribution &mdash; about 1,500 values. This issue is drawn
-    over the previous one, so a shift in the mean, a change in spread and a fatter tail are
-    all visible at once. The top row is the model&rsquo;s own temperature, bias and all, which
-    is identical between issues and therefore compares cleanly; the bottom row removes each
-    issue&rsquo;s hindcast monthly mean at every grid point, so the two issues sit on the same
-    footing despite their different leads. Degrees Fahrenheit for the United States, Celsius
-    for Brazil.</p>
+    <h2>Population-weighted temperature: the forecast for each month, against normal and record</h2>
+    <p class="note">For the United States and Brazil, each member&rsquo;s 6-hourly 2 m temperature is weighted by where
+    people live (geonames places of 15,000 or more, on the 1&deg; grid) into one national series, and the
+    monthly mean of every member is bias-corrected into observed space. Each curve is therefore the
+    forecast probability distribution for that month&rsquo;s population-weighted temperature: gold is
+    this issue, blue is last month&rsquo;s, the ticks under the curve are the 51 members themselves. The
+    black lines are what a normal month is, 1991&ndash;2020 and 2016&ndash;2025, from the local ERA5 record;
+    the dotted lines are the warmest and coldest month on record. The text under each panel gives
+    the forecast mean, its distance from normal, the change since last month, and the share of
+    members warmer than each normal and than the record. Degrees Fahrenheit for the United States,
+    Celsius for Brazil.</p>
     <div style="overflow-x:auto"><table class="chg" id="popTable"></table></div>
     <div class="map-grid" id="popGrid" style="margin-top:1rem"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 6-hourly 2 m temperature (seasonal-original-single-levels), 51 members, 1&deg; &middot; population: geonames cities15000, sections of cities excluded &middot; anomalies vs the 1993&ndash;2016 hindcast monthly mean</span>
       <span class="chart-updated" id="popUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="card" id="pmeCard">
+    <h2>Precipitation minus evaporation by region: Brazil and Colombia</h2>
+    <p class="note">The drought-relevant water balance, month by month. For each region, every member&rsquo;s monthly
+    precipitation minus evaporation is averaged over the region and the 51 values are drawn as a distribution:
+    gold is this issue, blue is last month&rsquo;s, the ticks under the curve are the members. The black line is
+    the model&rsquo;s own normal for that month and the grey band its year-to-year range, so a gold curve sitting
+    left of the band is a forecast drier than most years. Negative values mean the region loses more water to
+    evaporation than it receives. Brazil is shown by ONS subsystem (Southeast/Centre-West, South, Northeast,
+    North). The table lists the months where three quarters or more of the members are drier than normal.</p>
+    <div style="overflow-x:auto"><table class="chg" id="pmeTable"></table></div>
+    <div class="map-grid" id="pmeGrid" style="margin-top:1rem"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 total precipitation and evaporation, 51 members, 1&deg; &middot; normal: 1993&ndash;2016 hindcast</span>
+      <span class="chart-updated" id="pmeUpdated">&mdash;</span>
     </div>
   </div>
 
@@ -688,15 +715,16 @@
     <div class="controls" id="polarPills"></div>
     <div id="polarChart" class="plot" style="height:420px"></div>
     <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 geopotential, 2&deg; grid, cosine-weighted 60&ndash;90&deg; cap mean &middot; anomalies vs the 1993&ndash;2016 hindcast</span>
+      <span class="chart-sources">ECMWF SEAS5 geopotential, 2&deg; grid, cosine-weighted 60&ndash;90&deg; cap mean &middot; anomalies vs the 1993&ndash;2016 hindcast&rsquo;s linear trend at the valid year</span>
       <span class="chart-updated" id="polarUpdated">&mdash;</span>
     </div>
   </div>
 
   <div class="colophon">
     <h3>Data and method</h3>
-    <p>Forecast: ECMWF SEAS5 (C3S <code>originating_centre=ecmwf</code>, <code>system=51</code>), 51 members, monthly means for lead months 1&ndash;6, from the Copernicus Climate Data Store; hindcast: the same system&rsquo;s 1993&ndash;2016 re-forecasts, 25 members, for the same start month. Sea-surface temperature on a 2&deg; grid between 70&deg;S and 70&deg;N; 2 m temperature, precipitation and 500 hPa geopotential on a 1&deg; grid over 170&deg;W&ndash;30&deg;W, 60&deg;S&ndash;75&deg;N; geopotential at 10, 50 and 100 hPa poleward of 60&deg; in each hemisphere.</p>
-    <p>Indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead. Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site (Ni&ntilde;o-3.4 minus the 20&deg;S&ndash;20&deg;N tropical mean, rescaled per calendar month by &sigma;(ONI)/&sigma;(relative)). The Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001): standardised Ni&ntilde;o-1+2 minus standardised Ni&ntilde;o-4, standardised here by the hindcast spread at each lead. Previous issues are processed identically against their own start-month hindcasts. Terciles: per grid point, per season, thresholds at the 33.3rd and 66.7th percentiles of the 600 hindcast seasonal means; probabilities are member fractions. Built by <code>scripts/sst/seas5_outlook.py</code>; the JSON behind the charts is <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>.</p>
+    <p>Forecast: ECMWF SEAS5 (C3S <code>originating_centre=ecmwf</code>, <code>system=51</code>), 51 members, monthly means for lead months 1&ndash;6 and the 6-hourly 2 m temperature, from the Copernicus Climate Data Store; hindcast: the same system&rsquo;s 1993&ndash;2016 re-forecasts, 25 members, for the same start month, and likewise for the previous issue. Sea-surface temperature, 500 and 1000 hPa height, sea-level pressure and stratospheric winds on a 2&deg; grid; 2 m temperature, precipitation, evaporation, 10 m wind, solar radiation and 500 hPa height on a 1&deg; grid over the Americas; geopotential at 10, 50 and 100 hPa poleward of 60&deg; in each hemisphere.</p>
+    <p>Observations: ERA5 from a local archive (daily 1.5&deg; fields, 1959 or 1991 to the present depending on the field), monthly-meaned for normals, trends, records and skill; CPC ERSSTv5 for the observed Ni&ntilde;o indices. Teleconnection projectors are the CPC-style regression patterns built for the GEPS page on NCEP/NCAR R1 (1991&ndash;2020). Population weights: geonames places of 15,000 or more people.</p>
+    <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of a Gaussian centred on the regression prediction with the residual spread &mdash; an in-sample fit at n&nbsp;=&nbsp;24, so the quoted r is slightly optimistic; below r&nbsp;=&nbsp;0.25 the probabilities are treated as climatology. The AO, EPO, WPO and SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_pme_regions.json">seas5_pme_regions.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>.</p>
     <p>Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use of this information.</p>
   </div>
 </main>
@@ -887,18 +915,23 @@
     tr.push({x: x.concat(x.slice().reverse()), y: e.p25.concat(e.p75.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.30)", line: {width: 0}, hoverinfo: "skip", name: "P25–P75"});
     if (e.members) { var nm = e.members[0].length; for (var m = 0; m < nm; m++) tr.push({x: x, y: e.members.map(function (r) { return r[m]; }), mode: "lines", line: {color: "rgba(184,134,11,0.18)", width: 0.6}, hoverinfo: "skip", showlegend: m === 0, name: "members"}); }
     tr.push({x: x, y: e.mean, mode: "lines+markers", line: {color: GOLD, width: 3}, marker: {size: 5}, name: issueLabel(T.issue) + " issue mean"});
+    if (e.obs_tail && e.obs_tail.length) tr.push({x: e.obs_tail.map(function (r) { return monthDate(r[0]); }), y: e.obs_tail.map(function (r) { return r[1]; }), mode: "lines+markers", line: {color: "#333", width: 1.6}, marker: {size: 4}, name: "observed (ERA5, same projection)"});
+    if (e.cpc_tail && e.cpc_tail.length) tr.push({x: e.cpc_tail.map(function (r) { return monthDate(r[0]); }), y: e.cpc_tail.map(function (r) { return r[1]; }), mode: "markers", marker: {symbol: "x", size: 7, color: "#8b1a1a"}, name: "published index (CPC), its own scale"});
     if (key.indexOf("u60") === 0) tr.push({x: [x[0], x[x.length - 1]], y: [0, 0], mode: "lines", line: {color: "#c2185b", width: 1.2, dash: "dash"}, name: "easterly below"});
     return tr;
   }
   function idxTable(T, key) {
     var e = T.indices[key], pe = T.previous_indices && T.previous_indices[key];
-    var head = '<tr><th>Month</th><th>Mean</th><th>P10–P90</th>' + (e.p_easterly ? '<th>P(easterly)</th>' : '<th>P(+)</th><th>P(−)</th>') + (pe ? '<th>' + issueLabel(T.previous) + ' mean</th>' : '') + '<th>Skill r</th></tr>';
+    var thr = T.thr || 0.5, hasCal = !!(e.cal && e.cal.some(function (c) { return c && c.p_neg != null; }));
+    var head = '<tr><th>Month</th><th>Mean</th><th>P10–P90</th>' + (e.p_easterly ? '<th>P(easterly)</th>' : (e.p_neg05 ? '<th>Members ≤ −' + thr + 'σ / ≥ +' + thr + 'σ</th>' : '<th>P(+)</th><th>P(−)</th>')) + (hasCal ? '<th>Calibrated ≤ −' + thr + 'σ / ≥ +' + thr + 'σ</th>' : '') + (pe ? '<th>' + issueLabel(T.previous) + ' mean</th>' : '') + '<th>Skill r</th></tr>';
     var rows = e.valid.map(function (v, i) {
-      if (e.mean[i] == null) return '<tr><td>' + mmm(v) + '</td><td colspan="6" class="flat">not defined by CPC in this month</td></tr>';
-      var pv = pe ? pe.valid.indexOf(v) : -1, sk = e.skill && e.skill[i] != null ? e.skill[i].toFixed(2) : "—";
-      var skc = e.skill && e.skill[i] != null ? (e.skill[i] >= 0.5 ? "up" : e.skill[i] < 0.3 ? "flat" : "") : "flat";
+      if (e.mean[i] == null) return '<tr><td>' + mmm(v) + '</td><td colspan="7" class="flat">not defined by CPC in this month</td></tr>';
+      var pv = pe ? pe.valid.indexOf(v) : -1, sk = e.skill && e.skill[i] != null ? e.skill[i].toFixed(2) : "—", c = e.cal ? e.cal[i] : null;
+      var skc = e.skill && e.skill[i] != null ? (e.skill[i] >= 0.5 ? "up" : e.skill[i] < (T.skill_min || 0.25) ? "flat" : "") : "flat";
+      var pct = function (x) { return x == null ? "—" : Math.round(x * 100) + "%"; };
       return '<tr><td>' + mmm(v) + '</td><td>' + fmt(e.mean[i], 2) + '</td><td>' + fmt(e.p10[i], 2) + ' … ' + fmt(e.p90[i], 2) + '</td>' +
-        (e.p_easterly ? '<td>' + Math.round(e.p_easterly[i] * 100) + '%</td>' : '<td>' + Math.round(e.p_pos[i] * 100) + '%</td><td>' + Math.round(e.p_neg[i] * 100) + '%</td>') +
+        (e.p_easterly ? '<td>' + pct(e.p_easterly[i]) + '</td>' : (e.p_neg05 ? '<td>' + pct(e.p_neg05[i]) + ' / ' + pct(e.p_pos05[i]) + '</td>' : '<td>' + pct(e.p_pos[i]) + '</td><td>' + pct(e.p_neg[i]) + '</td>')) +
+        (hasCal ? '<td class="' + (c && c.no_skill ? "flat" : "") + '">' + (c && c.p_neg != null ? pct(c.p_neg) + ' / ' + pct(c.p_pos) + (c.no_skill ? " (no skill)" : "") : "—") + '</td>' : '') +
         (pe ? '<td>' + (pv >= 0 && pe.mean[pv] != null ? fmt(pe.mean[pv], 2) : "—") + '</td>' : '') + '<td class="' + skc + '">' + sk + '</td></tr>';
     }).join("");
     return head + rows;
@@ -909,15 +942,28 @@
     function draw(k) {
       var e = T.indices[k];
       document.getElementById(noteId).textContent = e.note + (T.skill_note ? "  Skill r: " + T.skill_note + "." : "");
-      Plotly.react(chartId, idxTraces(T, k), layout(e.label, e.units, [monthDate(T.previous_indices && T.previous_indices[k] ? T.previous_indices[k].valid[0] : e.valid[0]), monthDate(e.valid[e.valid.length - 1])]), {displayModeBar: false, responsive: true});
+      var x0 = T.previous_indices && T.previous_indices[k] ? T.previous_indices[k].valid[0] : e.valid[0];
+      var tails = [].concat(e.obs_tail || [], e.cpc_tail || []).map(function (r) { return r[0]; }).sort();
+      if (tails.length && tails[0] < x0) x0 = tails[0];
+      Plotly.react(chartId, idxTraces(T, k), layout(e.label, e.units, [monthDate(x0), monthDate(e.valid[e.valid.length - 1])]), {displayModeBar: false, responsive: true});
       document.getElementById(tableId).innerHTML = idxTable(T, k);
     }
     pills(pillsId, keys.map(function (k) { return {key: k, label: T.indices[k].label}; }), cur, draw);
     draw(cur);
     document.getElementById(updId).textContent = "built " + T.generated;
   }
+  function teleFigs(T) {
+    var F = T.figures || {}, v = "?v=" + encodeURIComponent(T.generated);
+    function fig(file, alt, cap) { return '<figure><a href="assets/sst/' + file + v + '" target="_blank" rel="noopener"><img src="assets/sst/' + file + v + '" alt="' + alt + '" loading="lazy"></a><figcaption>' + cap + '</figcaption></figure>'; }
+    var t = "";
+    if (F.tele_probs) t += fig(F.tele_probs, "SEAS5 teleconnection phase probabilities by month", "<b>Phase probabilities by month.</b> Upper bar: the share of the 51 members at or beyond ±" + (T.thr || 0.5) + "σ. Thin lower bar: the same after hindcast calibration. Hatched cells have no usable hindcast skill (r below " + (T.skill_min || 0.25) + ").");
+    if (F.tele_series) t += fig(F.tele_series, "SEAS5 teleconnection indices with the observed ERA5 tail", "<b>Each index against its observed record.</b> Black: ERA5 through the last month in the local store; red crosses: CPC's published index; bands and navy line: this issue; dashed: last month's. Small r values are the hindcast skill for each month.");
+    document.getElementById("teleFigs").innerHTML = t;
+    document.getElementById("stratFigs").innerHTML = F.strat_series ? fig(F.strat_series, "SEAS5 stratosphere and annular-mode indices with the observed ERA5 tail", "<b>Vortex, QBO, NAM by level and 100 hPa waves</b> against ERA5 where the local store holds the field (the 10–50 hPa winds await the CDS pull, so those panels have no observed tail yet).") : "";
+  }
   function teleView(T) {
     if (!T) { document.getElementById("teleCard").hidden = true; document.getElementById("stratCard").hidden = true; return; }
+    teleFigs(T);
     indexCard(T, "tele", "telePills", "teleNote", "teleChart", "teleTable", "teleUpdated", "pna");
     indexCard(T, "strat", "stratPills", "stratNote", "stratChart", "stratTable", "stratUpdated", "u60n10");
   }
@@ -931,12 +977,12 @@
     function show() {
       var f = N.figures[st.v + "|" + st.r + "|" + st.k], g = document.getElementById("normGrid");
       if (!f) { g.innerHTML = "<p class='note'>Not built for this combination yet.</p>"; return; }
-      g.innerHTML = '<figure><a href="assets/sst/' + f + '?v=' + encodeURIComponent(N.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + f + '?v=' + encodeURIComponent(N.generated) + '" alt="SEAS5 ' + N.vars[st.v].label + ' ' + (st.k === "anom" ? "anomaly" : "most likely tercile") + ' vs ' + N.refs[st.r] + '"></a>' +
-        '<figcaption><b>' + N.vars[st.v].label + '</b>, ' + (st.k === "anom" ? "ensemble-mean anomaly" : "most likely tercile") + ' against <b>' + N.refs[st.r] + '</b>. Six lead months on the first two rows, the three overlapping seasons on the last.</figcaption></figure>';
+      g.innerHTML = '<figure><a href="assets/sst/' + f + '?v=' + encodeURIComponent(N.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + f + '?v=' + encodeURIComponent(N.generated) + '" alt="SEAS5 ' + N.vars[st.v].label + ' ' + ({anom: "anomaly", std: "standardised anomaly", terc: "most likely tercile"}[st.k]) + ' vs ' + N.refs[st.r] + '"></a>' +
+        '<figcaption><b>' + N.vars[st.v].label + '</b>, ' + ({anom: "ensemble-mean anomaly", std: "standardised anomaly (σ of the reference's year-to-year spread)", terc: "most likely tercile"}[st.k]) + ' against <b>' + N.refs[st.r] + '</b>. Six lead months on the first two rows, the three overlapping seasons on the last.</figcaption></figure>';
     }
     pills("normVar", vars.map(function (v) { return {key: v, label: N.vars[v].label}; }), st.v, function (k) { st.v = k; show(); });
     pills("normRef", refs.map(function (r) { return {key: r, label: N.refs[r]}; }), st.r, function (k) { st.r = k; show(); });
-    pills("normKind", [{key: "anom", label: "Anomaly"}, {key: "terc", label: "Most likely tercile"}], st.k, function (k) { st.k = k; show(); });
+    pills("normKind", [{key: "anom", label: "Anomaly"}, {key: "std", label: "Standardised anomaly"}, {key: "terc", label: "Most likely tercile"}], st.k, function (k) { st.k = k; show(); });
     show();
     document.getElementById("normUpdated").textContent = "built " + N.generated;
   }
@@ -944,22 +990,46 @@
   function popView(P) {
     var card = document.getElementById("popCard");
     if (!P || !P.regions) { card.hidden = true; return; }
-    var rows = ['<tr><th>Country</th><th>Month</th><th>' + issueLabel(P.previous) + ' mean</th><th>' + issueLabel(P.issue) + ' mean</th><th>Change</th><th>P90 change</th><th>Spread change</th></tr>'];
+    var rows = ['<tr><th>Country</th><th>Month</th><th>1991–2020 normal</th><th>Forecast mean</th><th>vs normal</th><th>vs ' + issueLabel(P.previous) + ' issue</th><th>Members above normal</th></tr>'];
     var html = "";
     Object.keys(P.regions).forEach(function (rk) {
       var r = P.regions[rk], unit = "°" + r.unit;
       Object.keys(r.months).sort().forEach(function (mon) {
-        var a = r.months[mon]["abs_" + P.previous], b = r.months[mon]["abs_" + P.issue];
-        if (!a || !b) return;
-        var d = b.mean - a.mean, cls = d > 0.3 ? "up" : d < -0.3 ? "down" : "flat";
-        rows.push('<tr><td>' + r.label + '</td><td>' + mmm(mon) + '</td><td>' + a.mean.toFixed(1) + unit + '</td><td>' + b.mean.toFixed(1) + unit + '</td><td class="' + cls + '">' + fmt(d, 1) + '</td><td>' + fmt(b.p90 - a.p90, 1) + '</td><td>' + fmt(b.sd - a.sd, 1) + '</td></tr>');
+        var m = r.months[mon], b = m["monthly_" + P.issue], a = m["monthly_" + P.previous], ref = m.reference;
+        if (!b) return;
+        var d = ref ? b.mean - ref.normal30 : null, cls = d == null ? "flat" : d > 0.5 ? "up" : d < -0.5 ? "down" : "flat";
+        rows.push('<tr><td>' + r.label + '</td><td>' + mmm(mon) + '</td><td>' + (ref ? ref.normal30.toFixed(1) + unit : "—") + '</td><td>' + b.mean.toFixed(1) + unit + '</td><td class="' + cls + '">' + (d == null ? "—" : fmt(d, 1)) + '</td><td>' + (a ? fmt(b.mean - a.mean, 1) : "—") + '</td><td>' + (ref && b.p_above_normal30 != null ? Math.round(b.p_above_normal30 * 100) + "%" : "—") + '</td></tr>');
       });
-      html += '<figure><a href="assets/sst/' + r.file + '?v=' + encodeURIComponent(P.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + r.file + '?v=' + encodeURIComponent(P.generated) + '" alt="SEAS5 population-weighted temperature distributions, ' + r.label + '" loading="lazy"></a>' +
-              '<figcaption><b>' + r.label + '</b> — daily population-weighted 2 m temperature, all members, ' + issueLabel(P.issue) + ' issue (gold) against ' + issueLabel(P.previous) + ' (blue); top row model temperature in ' + unit + ', bottom row anomaly against the hindcast.</figcaption></figure>';
+      html += '<figure><a href="assets/sst/' + r.file + '?v=' + encodeURIComponent(P.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + r.file + '?v=' + encodeURIComponent(P.generated) + '" alt="SEAS5 forecast distributions of monthly population-weighted temperature, ' + r.label + '" loading="lazy"></a>' +
+              '<figcaption><b>' + r.label + '</b> — forecast distribution of the monthly mean population-weighted temperature, ' + issueLabel(P.issue) + ' issue (gold) against ' + issueLabel(P.previous) + ' (blue), with ERA5 normals and record months.</figcaption></figure>';
     });
     document.getElementById("popTable").innerHTML = rows.join("");
     document.getElementById("popGrid").innerHTML = html;
     document.getElementById("popUpdated").textContent = "built " + P.generated;
+  }
+
+  function pmeView(P) {
+    var card = document.getElementById("pmeCard");
+    if (!P || !P.countries) { card.hidden = true; return; }
+    var rows = ['<tr><th>Region</th><th>Month</th><th>Normal (mm/day)</th><th>Forecast mean</th><th>vs normal</th><th>vs ' + issueLabel(P.previous) + ' issue</th><th>Members drier than normal</th></tr>'];
+    var html = "";
+    Object.keys(P.countries).forEach(function (ck) {
+      var c = P.countries[ck];
+      c.regions.forEach(function (reg) {
+        var months = c.months[reg] || {};
+        Object.keys(months).sort().forEach(function (mon) {
+          var m = months[mon]; if (m.p_dry < 0.75) return;
+          var d = m.mean - m.normal, cls = d < -0.25 ? "down" : d > 0.25 ? "up" : "flat";
+          rows.push('<tr><td>' + c.label + ' — ' + reg + '</td><td>' + mmm(mon) + '</td><td>' + m.normal.toFixed(2) + '</td><td>' + m.mean.toFixed(2) + '</td><td class="' + cls + '">' + fmt(d, 2) + '</td><td>' + (m.prev_mean == null ? "—" : fmt(m.mean - m.prev_mean, 2)) + '</td><td>' + Math.round(m.p_dry * 100) + '%</td></tr>');
+        });
+      });
+      html += '<figure><a href="assets/sst/' + c.file + '?v=' + encodeURIComponent(P.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + c.file + '?v=' + encodeURIComponent(P.generated) + '" alt="SEAS5 forecast distributions of monthly precipitation minus evaporation by region, ' + c.label + '" loading="lazy"></a>' +
+              '<figcaption><b>' + c.label + '</b> — monthly P &minus; E by region, ' + issueLabel(P.issue) + ' issue (gold) against ' + issueLabel(P.previous) + ' (blue), with the model normal and its year-to-year range.</figcaption></figure>';
+    });
+    if (rows.length === 1) rows.push('<tr><td colspan="7">No region has three quarters of the members drier than normal in any month.</td></tr>');
+    document.getElementById("pmeTable").innerHTML = rows.join("");
+    document.getElementById("pmeGrid").innerHTML = html;
+    document.getElementById("pmeUpdated").textContent = "built " + P.generated;
   }
 
   function maps() {
@@ -974,11 +1044,12 @@
   }
 
   var popP = fetch("assets/sst/data/seas5_popT.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  var pmeP = fetch("assets/sst/data/seas5_pme_regions.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
   var teleP = fetch("assets/sst/data/seas5_tele.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
   var normP = fetch("assets/sst/data/seas5_normals.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
   fetch("assets/sst/data/seas5_outlook.json?v=" + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
     J = d;
-    popP.then(popView); teleP.then(teleView); normP.then(normView);
+    popP.then(popView); pmeP.then(pmeView); teleP.then(teleView); normP.then(normView);
     document.getElementById("issueLabel").textContent = issueLabel(J.issue) + " issue";
     ["ensoUpdated", "otherUpdated", "mapUpdated", "polarUpdated"].forEach(function (id) { document.getElementById(id).textContent = "built " + J.generated; });
     pills("ensoPills", J.enso_keys.map(function (k) { return {key: k, label: meta(k).label}; }), state.enso, function (k) { state.enso = k; drawEnso(); });

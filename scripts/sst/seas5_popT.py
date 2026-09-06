@@ -254,13 +254,13 @@ def build(ym: str) -> None:
             print(f"  {region}: nothing to draw", flush=True); continue
 
         ref = era5_pop_reference(region, w, lat, lon) if w is not None else None
-        fig, axes = plt.subplots(2, len(months), figsize=(3.1 * len(months) + 1, 7.6), squeeze=False)
+        fig, axes = plt.subplots(1, len(months), figsize=(3.1 * len(months) + 1, 5.6), squeeze=False)
         reg = {"label": label, "unit": unit, "months": {}, "observed_space": ref is not None}
         conv = (9 / 5) if unit == "F" else 1.0
         for col, mon in enumerate(months):
             entry = data[mon]; cm = int(mon[5:])
             rm = ref["by_month"][cm] if ref else None
-            for row, mode in enumerate(("abs", "monthly")):
+            for row, mode in enumerate(("monthly",)):
                 ax = axes[row, col]
                 xs_all = []
                 for iss, colr, name, z in ((prev, "#3f7fbf", f"{calendar.month_abbr[int(prev[4:])]} issue", 1), (ym, "#b8860b", f"{calendar.month_abbr[int(ym[4:])]} issue", 2)):
@@ -283,18 +283,23 @@ def build(ym: str) -> None:
                     # top row: every member-day; bottom row: each member's MONTHLY mean (51 values)
                     flat = vals.ravel() if mode == "abs" else vals.mean(axis=1)
                     xs_all.append(flat)
-                    kde = gaussian_kde(flat, bw_method=0.35 if mode == "monthly" else None)
+                    kde = gaussian_kde(flat, bw_method=0.55 if mode == "monthly" else None)   # 51 samples: a narrow kernel invents modes
                     lo, hi = np.percentile(flat, [0.2, 99.8]); pad = (0.35 if mode == "monthly" else 0.1) * (hi - lo)
                     x = np.linspace(lo - pad, hi + pad, 240)
                     ax.fill_between(x, kde(x), color=colr, alpha=0.22, zorder=z)
                     ax.plot(x, kde(x), color=colr, lw=1.6, label=name, zorder=z + 2)
                     ax.axvline(flat.mean(), color=colr, lw=1.1, ls="--", zorder=z + 2)
+                    if mode == "monthly":                             # the 51 members themselves, as ticks
+                        ax.plot(flat, np.full(flat.shape, -0.012 * kde(x).max() * (1 if iss == ym else 2.2)), "|", color=colr, ms=5, mew=0.8, alpha=0.7, zorder=z + 2, clip_on=False)
                     mm = vals.mean(axis=1)                        # monthly mean per member
                     key = f"{mode}_{iss}"
-                    reg["months"].setdefault(mon, {})[key] = dict(mean=round(float(flat.mean()), 2), p10=round(float(np.percentile(flat, 10)), 2),
-                                                                   p50=round(float(np.percentile(flat, 50)), 2), p90=round(float(np.percentile(flat, 90)), 2),
-                                                                   sd=round(float(flat.std()), 2), member_monthly_p10=round(float(np.percentile(mm, 10)), 2),
-                                                                   member_monthly_p90=round(float(np.percentile(mm, 90)), 2))
+                    ent = dict(mean=round(float(flat.mean()), 2), p10=round(float(np.percentile(flat, 10)), 2),
+                               p50=round(float(np.percentile(flat, 50)), 2), p90=round(float(np.percentile(flat, 90)), 2), sd=round(float(flat.std()), 2))
+                    if ref is not None and mode == "monthly":
+                        ent.update(p_above_normal30=round(float(np.mean(flat > to_unit(rm["normal30"], unit))), 3),
+                                   p_above_normal10=round(float(np.mean(flat > to_unit(rm["normal10"], unit))), 3),
+                                   p_record_warm=round(float(np.mean(flat > to_unit(rm["record_warm"][0], unit))), 3))
+                    reg["months"].setdefault(mon, {})[key] = ent
                 # observed normals and records as vertical marks (observed space only)
                 if ref is not None:
                     n30, n10 = to_unit(rm["normal30"], unit), to_unit(rm["normal10"], unit)
@@ -311,42 +316,44 @@ def build(ym: str) -> None:
                     ax.text(rc, ylim * 0.96, yc, color="#2a5da8", fontsize=7, ha="center", va="top")
                     if mode == "monthly" and len(xs_all):
                         cur = xs_all[-1]
-                        ax.text(0.0, -0.28, f"P(month above 1991–2020 normal)  {np.mean(cur > n30):.0%}\nP(above 2016–2025 normal)  {np.mean(cur > n10):.0%}\nP(record warm month)  {np.mean(cur > rw):.0%}",
-                                transform=ax.transAxes, ha="left", va="top", fontsize=7.4, color="#333", linespacing=1.35)
+                        ax.text(0.0, -0.44, f"Warmer than the 1991–2020 normal: {np.mean(cur > n30):.0%} of members\nWarmer than the 2016–2025 normal: {np.mean(cur > n10):.0%}\nWarmer than the record month: {np.mean(cur > rw):.0%}",
+                                transform=ax.transAxes, ha="left", va="top", fontsize=7.6, color="#333", linespacing=1.4)
                     reg["months"].setdefault(mon, {})["reference"] = dict(normal30=round(float(to_unit(rm["normal30"], unit)), 2), normal10=round(float(to_unit(rm["normal10"], unit)), 2),
                                                                         record_warm_month=[round(float(to_unit(rm["record_warm"][0], unit)), 2), rm["record_warm"][1]],
                                                                         record_cold_month=[round(float(to_unit(rm["record_cold"][0], unit)), 2), rm["record_cold"][1]],
                                                                         record_warm_day=[round(float(to_unit(rm["day_warm"][0], unit)), 2), rm["day_warm"][1]],
                                                                         record_cold_day=[round(float(to_unit(rm["day_cold"][0], unit)), 2), rm["day_cold"][1]], years=ref["daily_years"])
-                if len(xs_all) == 2:
-                    d = xs_all[1].mean() - xs_all[0].mean(); ds_ = xs_all[1].std() - xs_all[0].std()
-                    ax.text(0.02, 0.72, f"Δmean {d:+.1f}°{unit}\nΔspread {ds_:+.1f}", transform=ax.transAxes, va="top", fontsize=8.5, color="#333")
+                if len(xs_all):
+                    cur = xs_all[-1]
+                    lines = [f"Forecast mean {cur.mean():.1f}°{unit}" + (f"  ({cur.mean() - to_unit(rm['normal30'], unit):+.1f} vs 1991–2020 normal)" if ref else "")]
+                    if len(xs_all) == 2:
+                        lines.append(f"Change since the {calendar.month_abbr[int(prev[4:])]} issue: {cur.mean() - xs_all[0].mean():+.1f}°{unit}")
+                    ax.text(0.0, -0.20, "\n".join(lines), transform=ax.transAxes, ha="left", va="top", fontsize=7.8, color="#222", linespacing=1.4)
                 if row == 0:
                     ax.set_title(f"{calendar.month_abbr[int(mon[5:])]} {mon[:4]}", fontsize=12, loc="left")
+
                 ax.set_yticks([]); ax.spines[["left", "top", "right"]].set_visible(False)
                 ax.tick_params(labelsize=8.5)
                 if mode == "monthly" and ref is None:
                     ax.axvline(0, color="#666", lw=0.8)
                 if col == 0:
-                    ax.set_ylabel(("daily values, observed space" if ref else "daily values, model") if mode == "abs" else ("member monthly means" if ref else "monthly anomaly vs hindcast"), fontsize=9.5)
+                    ax.set_ylabel("share of members", fontsize=9)
         handles, labels = axes[0, 0].get_legend_handles_labels()
         if ref is not None:
             from matplotlib.lines import Line2D
             handles += [Line2D([], [], color="#222", lw=1.0), Line2D([], [], color="#222", lw=1.0, ls=(0, (4, 3))), Line2D([], [], color="#b0352a", lw=0.9, ls=":"), Line2D([], [], color="#2a5da8", lw=0.9, ls=":")]
-            labels += ["1991–2020 normal", "2016–2025 normal", "record warm (day, top; month, bottom)", "record cold (day, top; month, bottom)"]
-        fig.legend(handles, labels, loc="lower center", ncol=len(labels), fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.0))
-        fig.suptitle(f"SEAS5 population-weighted 2 m temperature, {label}: daily values, all 51 members, {calendar.month_name[int(ym[4:])]} {ym[:4]} issue vs {calendar.month_name[int(prev[4:])]}",
+            labels += ["1991–2020 normal", "2016–2025 normal", "warmest month on record", "coldest month on record"]
+        fig.legend(handles, labels, loc="lower center", ncol=len(labels), fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.01))
+        fig.suptitle(f"{label}: SEAS5 forecast of the monthly mean population-weighted temperature (°{unit}), {calendar.month_name[int(ym[4:])]} {ym[:4]} issue",
                      x=0.02, y=0.99, ha="left", fontsize=13)
         if ref is not None:
-            note = (f"Top row: every member's daily population-weighted mean (≈1,500 values a month; °{unit}), bias-corrected into observed space "
-                    f"(member − hindcast month mean + ERA5 1993–2016 month mean); dotted marks are the warmest and coldest population-weighted DAY of that calendar month in ERA5 {ref['daily_years']}. "
-                    "Bottom row: the 51 members' MONTHLY means, with the warmest and coldest MONTH on record. Black: ERA5 monthly normals, 1991–2020 (solid) and 2016–2025 (dashed). "
-                    "Dashed coloured lines: distribution means.")
+            note = (f"Each curve is the spread of the 51 members' monthly means (gold: this issue; blue: last month's issue), built from the 6-hourly member fields, population-weighted, "
+                    f"bias-corrected to observations. Black lines: what a normal month is, 1991–2020 (solid) and 2016–2025 (dashed). Dotted: the warmest and coldest month on record in ERA5 {ref['daily_years']}, year labelled.")
         else:
-            note = (f"Each curve pools every member's daily population-weighted mean (≈1,500 values a month; °{unit}). Dashed lines: distribution means. "
-                    "Top row is the model's own temperature (SEAS5 bias included, identical for both issues); bottom row removes each issue's hindcast monthly mean at every grid point.")
-        fig.text(0.02, 0.935, note, fontsize=8.8, color="#444", va="top", wrap=True)
-        fig.subplots_adjust(left=0.05, right=0.99, top=0.85, bottom=0.22, hspace=0.35, wspace=0.12)
+            note = "Each curve is the spread of the 51 members' monthly means (gold: this issue; blue: last month's issue) in the model's own temperature."
+        import textwrap
+        fig.text(0.02, 0.925, "\n".join(textwrap.wrap(note, 210)), fontsize=8.8, color="#444", va="top", linespacing=1.35)
+        fig.subplots_adjust(left=0.05, right=0.99, top=0.78, bottom=0.36, wspace=0.12)
         out = ASSETS / f"seas5_popT_{region}.webp"
         fig.savefig(out, dpi=110, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
         reg["file"] = out.name
