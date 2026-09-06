@@ -112,7 +112,7 @@ def fetch_ecmwf(model: str, date: str, stream: str, typ: str,
     t = tempfile.NamedTemporaryFile(suffix=".grib2", delete=False)
     t.close()
     try:
-        c = Client(source="ecmwf", model=model)
+        c = Client(source="google", model=model)
         with open(os.devnull, "w") as dn, contextlib.redirect_stdout(dn):
             c.retrieve(date=date, time=0, stream=stream, type=typ,
                        param=["2t", "10u", "10v"], step=steps or STEPS,
