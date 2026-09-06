@@ -48,7 +48,28 @@ ERDDAP = ERDDAP_HOSTS[0]
 UA = {"User-Agent": "scorvec.com El Nino monitor (xarray/urllib; contact: site owner)"}
 
 
+# Every ERDDAP wait draws on one budget: the worst case of the retry ladders below
+# (6 × 60 s .das + backoffs, then 4 × 300 s per data chunk) added up to more than
+# the 25-minute job limit, so a throttled run was killed by the runner instead of
+# failing on its own terms (2026-09-05 and 2026-09-06, 16:xx UTC both days).
+BUDGET_S = 15 * 60
+_T0 = time.monotonic()
+
+
+def _left() -> float:
+    return BUDGET_S - (time.monotonic() - _T0)
+
+
+def _sleep(sec: float) -> None:
+    if _left() - sec < 30:
+        raise TimeoutError(f"ERDDAP time budget ({BUDGET_S // 60} min) exhausted")
+    time.sleep(sec)
+
+
 def _open(url: str, timeout: int):
+    timeout = max(10, min(timeout, int(_left()) - 10))
+    if timeout <= 10:
+        raise TimeoutError(f"ERDDAP time budget ({BUDGET_S // 60} min) exhausted")
     return urllib.request.urlopen(urllib.request.Request(url, headers=UA),
                                   timeout=timeout)
 
@@ -81,7 +102,7 @@ def _fetch(suffix: str, dest: Path, tries: int = 4) -> Path:
     for attempt in range(1, tries + 1):
         url = ERDDAP_HOSTS[(attempt - 1) % len(ERDDAP_HOSTS)] + suffix
         try:
-            with _open(url, timeout=300) as r, open(tmp, "wb") as f:
+            with _open(url, timeout=180) as r, open(tmp, "wb") as f:
                 shutil.copyfileobj(r, f, 1 << 20)
             tmp.replace(dest)
             return dest
@@ -90,7 +111,7 @@ def _fetch(suffix: str, dest: Path, tries: int = 4) -> Path:
             print(f"  fetch attempt {attempt}/{tries} failed ({repr(e)[:70]})",
                   flush=True)
             tmp.unlink(missing_ok=True)
-            time.sleep(20 * attempt)
+            _sleep(20 * attempt)
     raise last
 
 
@@ -117,7 +138,7 @@ def latest_time(tries: int = 6) -> pd.Timestamp:
             last = e
             print(f"  .das attempt {attempt}/{tries} failed ({repr(e)[:60]})",
                   flush=True)
-            time.sleep(min(300, 30 * attempt * attempt))   # 30s,2m,4.5m,5m,5m
+            _sleep(min(300, 30 * attempt * attempt))       # 30s,2m,4.5m,5m,5m — within the budget
     raise last
 
 
@@ -289,11 +310,19 @@ def anim(argv_start: str | None = None) -> int:
     note = ("NASA JPL MUR SST v4.1 (~1 km analysis, native 0.01° frames) via NOAA "
             "CoastWatch ERDDAP · fixed colour range across the event")
 
+    man = json.loads(man_path.read_text()) if man_path.exists() else {}
+    # MUR's newest analysis is yesterday's (published ~D+1): if that frame is already on
+    # disk there is nothing to fetch, and asking ERDDAP again is what gets a runner IP
+    # throttled. Retry runs after a throttled morning therefore cost nothing.
+    yday = (pd.Timestamp.now(tz="UTC").normalize() - pd.Timedelta(days=1)).tz_localize(None)
+    if argv_start is None and (frames_dir / f"{yday:%Y%m%d}.webp").exists() and man.get("regions"):
+        print(f"  {yday:%Y-%m-%d} frame already published; MUR has nothing newer yet — skipping the fetch", flush=True)
+        return 0
+
     latest = latest_time()
     start = pd.Timestamp(argv_start or ANIM_START)
     days = pd.date_range(start, latest.normalize(), freq="D")
 
-    man = json.loads(man_path.read_text()) if man_path.exists() else {}
     vrange = man.get("vrange")
     if not vrange:
         # Anchor the fixed range on both ends of the event: coldest early
