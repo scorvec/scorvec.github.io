@@ -1,542 +1,542 @@
 {
- "generated": "2026-09-06T07:13Z",
+ "generated": "2026-09-06T14:32Z",
  "items": [
   {
    "path": "deploy pages.yml",
    "branch": "actions",
-   "age_h": 0.6,
+   "age_h": 0.2,
    "limit_h": 12,
    "state": "ok"
   },
   {
    "path": "assets/sst/soi_hourly.webp",
    "branch": "main",
-   "age_h": 0.1,
+   "age_h": 0.4,
    "limit_h": 6,
    "state": "ok"
   },
   {
    "path": "assets/sst/kiribati_wind.webp",
    "branch": "main",
-   "age_h": 0.9,
+   "age_h": 2.0,
    "limit_h": 24,
    "state": "ok"
   },
   {
    "path": "assets/sst/olr_hovmoller.webp",
    "branch": "main",
-   "age_h": 5.8,
+   "age_h": 1.0,
    "limit_h": 24,
    "state": "ok"
   },
   {
    "path": "assets/sst/eq_wind_hovmoller.webp",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/soi_forecast.webp",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/soi_history.webp",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 17.0,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/aam.webp",
    "branch": "main",
-   "age_h": 9.0,
+   "age_h": 4.5,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/aam_trend.webp",
    "branch": "main",
-   "age_h": 9.0,
+   "age_h": 4.5,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/aam_phase.webp",
    "branch": "main",
-   "age_h": 9.0,
+   "age_h": 4.5,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/jets.webp",
    "branch": "main",
-   "age_h": 9.0,
+   "age_h": 4.5,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/torque_timeseries.webp",
    "branch": "main",
-   "age_h": 9.0,
+   "age_h": 4.5,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/torque_ranges.webp",
    "branch": "main",
-   "age_h": 9.0,
+   "age_h": 4.5,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/walker_anom.webp",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/mmsf_anom.webp",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/hadley_timeseries.webp",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/wind200.webp",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/waf.webp",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/nh_vortex.webp",
    "branch": "main",
-   "age_h": 10.4,
+   "age_h": 4.0,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/spectra/ke_spectra.webp",
    "branch": "main",
-   "age_h": 9.1,
+   "age_h": 4.4,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/roni.webp",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/daily_indices.webp",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/iod_daily.webp",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/pdo_daily.webp",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/satl_daily.webp",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/mur_nino34.webp",
    "branch": "main",
-   "age_h": 9.5,
+   "age_h": 16.8,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/equatorial_xsection.webp",
    "branch": "main",
-   "age_h": 9.5,
+   "age_h": 5.1,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/eq_current_hov.webp",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/eq_uwind_hov.webp",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/data/wwv_orbit.json",
    "branch": "main",
-   "age_h": 9.5,
+   "age_h": 16.8,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/sst/kiribati_history.webp",
    "branch": "main",
-   "age_h": 14.3,
+   "age_h": 21.6,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/mei/mei_nowcast.webp",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/sst/mei/mei_analogs.webp",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/sst/mei/mei_history.webp",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/sst/olr_waves.webp",
    "branch": "main",
-   "age_h": 4.5,
+   "age_h": 11.8,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/sst/wave_tracker.webp",
    "branch": "main",
-   "age_h": 4.5,
+   "age_h": 11.8,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/site_stats/visitor_map.webp",
    "branch": "main",
-   "age_h": 1.9,
+   "age_h": 9.2,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/subsurface_events_hc.webp",
    "branch": "main",
-   "age_h": 38.4,
+   "age_h": 45.7,
    "limit_h": 200,
    "state": "ok"
   },
   {
    "path": "assets/sst/subsurface_events_xsec.webp",
    "branch": "main",
-   "age_h": 38.4,
+   "age_h": 45.7,
    "limit_h": 200,
    "state": "ok"
   },
   {
    "path": "assets/sst/subsurface_events_hc_detrended.webp",
    "branch": "main",
-   "age_h": 38.4,
+   "age_h": 45.7,
    "limit_h": 200,
    "state": "ok"
   },
   {
    "path": "assets/sst/subsurface_events_xsec_detrended.webp",
    "branch": "main",
-   "age_h": 38.4,
+   "age_h": 45.7,
    "limit_h": 200,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/aam_zonal_manifest.json",
    "branch": "main",
-   "age_h": 9.0,
+   "age_h": 4.5,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/torque_manifest.json",
    "branch": "main",
-   "age_h": 9.0,
+   "age_h": 4.5,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/jets_manifest.json",
    "branch": "main",
-   "age_h": 9.0,
+   "age_h": 4.5,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/waf_manifest.json",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/mmsf_manifest.json",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/walker_manifest.json",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/wind200_manifest.json",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/mslp_wind_manifest.json",
    "branch": "main",
-   "age_h": 9.7,
+   "age_h": 5.2,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/ascat_manifest.json",
    "branch": "main",
-   "age_h": 9.5,
+   "age_h": 16.8,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/gdps_ir_manifest.json",
    "branch": "main",
-   "age_h": 10.5,
+   "age_h": 3.1,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/vortex_winds_manifest.json",
    "branch": "main",
-   "age_h": 10.4,
+   "age_h": 5.9,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/epflux_manifest.json",
    "branch": "main",
-   "age_h": 8.6,
+   "age_h": 1.8,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/wave1_maps_manifest.json",
    "branch": "main",
-   "age_h": 10.4,
+   "age_h": 5.9,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/eq_cur_map_manifest.json",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/eq_cur_section_manifest.json",
    "branch": "main",
-   "age_h": 11.4,
+   "age_h": 18.7,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/data/tao_section.json",
    "branch": "main",
-   "age_h": 9.5,
+   "age_h": 5.1,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/manifest.json",
    "branch": "main",
-   "age_h": 9.5,
+   "age_h": 5.1,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/aifs_z500_manifest.json",
    "branch": "main",
-   "age_h": 9.1,
+   "age_h": 4.4,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/aifs_compare_manifest.json",
    "branch": "main",
-   "age_h": 9.1,
+   "age_h": 4.4,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/mjo/rmm_manifest.json",
    "branch": "main",
-   "age_h": 10.1,
+   "age_h": 5.5,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/geps/anim/geps_glb_manifest.json",
    "branch": "main",
-   "age_h": 58.2,
+   "age_h": 65.5,
    "limit_h": 120,
    "state": "ok"
   },
   {
    "path": "assets/geps/geps_mjo_phase.webp",
    "branch": "main",
-   "age_h": 58.2,
+   "age_h": 65.5,
    "limit_h": 120,
    "state": "ok"
   },
   {
    "path": "assets/geps/strat_nh_series.webp",
    "branch": "main",
-   "age_h": 57.4,
+   "age_h": 64.7,
    "limit_h": 120,
    "state": "ok"
   },
   {
    "path": "assets/ecape/anim/index.json",
    "branch": "main",
-   "age_h": 4.8,
+   "age_h": 6.0,
    "limit_h": 24,
    "state": "ok"
   },
   {
    "path": "skewt/gaps.json",
    "branch": "main",
-   "age_h": 42.3,
+   "age_h": 49.6,
    "limit_h": 120,
    "state": "ok"
   },
   {
    "path": "qbo/qbo.json",
    "branch": "main",
-   "age_h": 143.9,
+   "age_h": 151.2,
    "limit_h": 200,
    "state": "ok"
   },
   {
    "path": "radar/index.json",
    "branch": "main",
-   "age_h": 140.8,
+   "age_h": 148.2,
    "limit_h": 200,
    "state": "ok"
   },
   {
    "path": "assets/site_stats/visitor_stats.json",
    "branch": "main",
-   "age_h": 1.9,
+   "age_h": 9.2,
    "limit_h": 48,
    "state": "ok"
   },
   {
    "path": "manifest.json",
    "branch": "skewt-data",
-   "age_h": 0.1,
+   "age_h": 0.5,
    "limit_h": 6,
    "state": "ok"
   },
   {
    "path": "asos5_latest.json",
    "branch": "asos5-data",
-   "age_h": 0.4,
+   "age_h": 0.3,
    "limit_h": 3,
    "state": "ok"
   },
   {
    "path": "assets/verify/aifs_scores_v2.json",
    "branch": "main",
-   "age_h": 9.1,
+   "age_h": 4.4,
    "limit_h": 36,
    "state": "ok"
   },
   {
    "path": "assets/sst/anim/aifs_t2m_manifest.json",
    "branch": "main",
-   "age_h": 9.1,
+   "age_h": 4.4,
    "limit_h": 72,
    "state": "ok"
   },
   {
    "path": "assets/geps/geps_telecon_series.webp",
    "branch": "main",
-   "age_h": 56.7,
+   "age_h": 64.0,
    "limit_h": 120,
    "state": "ok"
   },
   {
    "path": "assets/geps/geps_na_t2m_change.webp",
    "branch": "main",
-   "age_h": 57.4,
+   "age_h": 64.7,
    "limit_h": 120,
    "state": "ok"
   },
   {
    "path": "assets/geps/geps_na_t2m_prob_cal.webp",
    "branch": "main",
-   "age_h": 54.7,
+   "age_h": 62.1,
    "limit_h": 120,
    "state": "ok"
   },
   {
    "path": "columbia/data/pnw_latest.json",
    "branch": "main",
-   "age_h": 8.0,
+   "age_h": 1.4,
    "limit_h": 36,
    "state": "ok"
   }
