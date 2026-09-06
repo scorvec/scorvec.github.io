@@ -195,7 +195,6 @@ const GROUPS = [
    { name: "ASOS 5-minute", src: RAW + "asos5-data/asos5_latest.json", field: "generated_utc", every: 1 },
    { name: "Soundings mirror", src: RAW + "skewt-data/manifest.json", field: "generated", every: 6 },
    { name: "Sounding gaps", src: "skewt/gaps.json", field: "updated", every: 24 * 5 },
-   { name: "Colombia radar", note: "weekly, newest scan day", src: "radar/index.json", field: "@radar", every: 24 * 7, dateOnly: true },
    { name: "Visitor stats", src: "assets/site_stats/visitor_stats.json", field: "updated", every: 24, dateOnly: true },
  ]},
 ];

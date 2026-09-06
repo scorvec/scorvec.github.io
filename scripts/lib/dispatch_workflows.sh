@@ -118,7 +118,6 @@ mur-sst.yml|13:47|
 data-freshness.yml|14:25|
 kiribati-history.yml|14:40|
 qbo.yml|mon@07:15|
-colombia-radar.yml|mon@09:40|
 sst-events.yml|mon@18:41|
 skewt-gaps.yml|tue,fri@08:40|
 # Daily frames-branch GC. Waits for a quiet moment itself and skips rather
