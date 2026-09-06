@@ -84,6 +84,8 @@ select,input[type=text],button{font:inherit;font-size:13px;padding:4px 8px;borde
 button{cursor:pointer}button:hover{background:#eef2f7}
 input[type=range]{width:170px}#daylab{font-variant-numeric:tabular-nums;font-weight:600;min-width:150px;display:inline-block}
 .grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+@media (min-width:1100px){.grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.grid .wrap{grid-column:1/-1}}
+.sw{display:inline-block;height:9px;width:150px;border-radius:4px;vertical-align:middle;margin:0 6px}
 .wrap{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:8px}
 table{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;width:100%}
 th{position:sticky;top:0;background:#fff;font-weight:500;color:var(--mut);text-align:right;padding:6px 7px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none;z-index:1}
@@ -109,9 +111,15 @@ canvas{display:block;width:100%}
     <div class="grp"><span>show</span><select id="metric"><option value="hi">high</option><option value="lo">low</option><option value="both">high &amp; low</option></select></div>
     <div class="grp"><span>state</span><select id="state"><option value="">all</option></select></div>
     <div class="grp"><span>find</span><input type="text" id="find" placeholder="city or ICAO" size="13"></div>
+    <div class="grp"><span>map colour</span><select id="colour"><option value="value">temperature</option><option value="vsnorm">vs normal</option><option value="range">model range</option></select></div>
     <div class="grp"><label style="font-size:12px;color:var(--mut);display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="core" checked> major cities only</label></div>
   </div>
   <div class="grid">
+    <div class="chart" id="mapbox">
+      <p class="t" id="mt"></p><p class="h">one dot per station · click a dot for its chart · hover for the numbers</p>
+      <canvas id="map"></canvas>
+      <div class="leg" id="mleg"></div>
+    </div>
     <div class="chart" id="chartbox" hidden>
       <p class="t" id="ct"></p><p class="h" id="ch"></p>
       <canvas id="cv"></canvas>
@@ -162,7 +170,7 @@ function table(){
   }
   $('#tbl').innerHTML = h + '</tbody>';
   $('#tbl').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const kk = th.dataset.k; if (kk === sortKey) sortDir = -sortDir; else { sortKey = kk; sortDir = ['name', 'state', 'icao'].includes(kk) ? 1 : -1; } table(); });
-  $('#tbl').querySelectorAll('tr[data-i]').forEach(tr => tr.onclick = () => { sel = tr.dataset.i; table(); chart(); });
+  $('#tbl').querySelectorAll('tr[data-i]').forEach(tr => tr.onclick = () => { sel = tr.dataset.i; table(); chart(); drawMap(); });
 }
 function chart(){
   if (!sel || !D.cities[sel]) return;
@@ -192,12 +200,71 @@ function chart(){
   $('#ch').textContent = 'black = consensus (printed per day) · coloured = each model · dotted grey = 1991–2020 normal · shaded column = the day selected above';
   $('#leg').innerHTML = `<span><i style="background:#10203a"></i>consensus</span>` + D.models.map(mm => `<span><i style="background:${COL[mm] || '#999'}"></i>${D.labels[mm] || mm}</span>`).join('') + `<span><i style="background:#8a94a4"></i>normal</span>`;
 }
-function refresh(){ $('#daylab').textContent = `${D.dates[DAYI]} · day ${DAYI + 1}`; table(); if (sel) chart(); }
+
+/* ---------- map ---------- */
+let GEO = null, MAPG = null, DOTS = [];
+function albers(lon, lat){ const d = Math.PI / 180, p1 = 29.5 * d, p2 = 45.5 * d, lam0 = -96 * d, phi0 = 37.5 * d;
+  const n = .5 * (Math.sin(p1) + Math.sin(p2)), C = Math.cos(p1) ** 2 + 2 * n * Math.sin(p1), rho0 = Math.sqrt(C - 2 * n * Math.sin(phi0)) / n;
+  const rho = Math.sqrt(Math.max(0, C - 2 * n * Math.sin(lat * d))) / n, th = n * (lon * d - lam0); return [rho * Math.sin(th), rho * Math.cos(th) - rho0]; }
+function decodeTopo(topo){ const [sx, sy] = topo.transform.scale, [tx, ty] = topo.transform.translate;
+  return topo.arcs.map(arc => { let x = 0, y = 0; return arc.map(([dx, dy]) => { x += dx; y += dy; return albers(x * sx + tx, y * sy + ty); }); }); }
+function ringPts(arcs, idxs){ const out = []; for (const i of idxs){ const a = i < 0 ? arcs[~i].slice().reverse() : arcs[i]; if (out.length) out.push(...a.slice(1)); else out.push(...a); } return out; }
+function buildMap(W, H){
+  const arcs = decodeTopo(GEO); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (const a of arcs) for (const [x, y] of a){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  const pad = 6, k = Math.min((W - 2 * pad) / (x1 - x0), (H - 2 * pad) / (y1 - y0)), ox = (W - k * (x1 - x0)) / 2 - k * x0, oy = (H - k * (y1 - y0)) / 2 - k * y0;
+  const P = p => [p[0] * k + ox, p[1] * k + oy];
+  const paths = GEO.objects.states.geometries.map(g => { const path = new Path2D(); const polys = g.type === 'Polygon' ? [g.arcs] : g.arcs;
+    for (const poly of polys) for (const r of poly){ const pts = ringPts(arcs, r); if (pts.length < 2) continue; let p = P(pts[0]); path.moveTo(p[0], p[1]);
+      for (let i = 1; i < pts.length; i++){ p = P(pts[i]); path.lineTo(p[0], p[1]); } path.closePath(); } return path; });
+  MAPG = { states: paths, proj: (lon, lat) => P(albers(lon, lat)), W, H };
+}
+const ramp = (stops, t) => { t = Math.max(0, Math.min(1, t)); const x = t * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(x)), f = x - i; const a = stops[i], b = stops[i + 1];
+  return `rgb(${Math.round(a[0] + (b[0] - a[0]) * f)},${Math.round(a[1] + (b[1] - a[1]) * f)},${Math.round(a[2] + (b[2] - a[2]) * f)})`; };
+const SEQ = [[38, 78, 150], [92, 148, 200], [224, 224, 224], [221, 140, 90], [178, 45, 45]], DIV = [[38, 78, 150], [130, 170, 215], [240, 240, 240], [225, 140, 130], [178, 45, 45]], MAG = [[240, 244, 248], [200, 190, 220], [150, 100, 180], [110, 40, 120]];
+function drawMap(){
+  const cv = $('#map'); if (!cv || !GEO || !D) return;
+  const box = $('#mapbox'), dpr = window.devicePixelRatio || 1, W = box.clientWidth - 26, H = Math.round(W * 0.62);
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  if (!MAPG || MAPG.W !== W) buildMap(W, H);
+  g.fillStyle = '#f3f5f8'; g.strokeStyle = '#c9d2de'; g.lineWidth = .9;
+  for (const p of MAPG.states){ g.fill(p); g.stroke(p); }
+  const cb = $('#colour').value, m = $('#metric').value, k = m === 'both' ? 'hi' : m;
+  const r = rowsFor(), val = x => cb === 'value' ? x.cons : cb === 'vsnorm' ? x.vsnorm : x.range;
+  const v = r.map(val).filter(x => x != null && isFinite(x));
+  let lo = Math.min(...v), hi = Math.max(...v), stops = SEQ, f, lab;
+  if (cb === 'value'){ f = x => ramp(SEQ, (x - lo) / (hi - lo || 1)); lab = [fmt(lo), fmt(hi)]; }
+  else if (cb === 'vsnorm'){ const a = Math.max(...v.map(Math.abs)) || 1; lo = -a; hi = a; stops = DIV; f = x => ramp(DIV, .5 + x / (2 * a)); lab = [`−${a.toFixed(0)}`, `+${a.toFixed(0)}`]; }
+  else { lo = 0; hi = Math.max(...v) || 1; stops = MAG; f = x => ramp(MAG, x / hi); lab = ['0', fmt(hi)]; }
+  DOTS = [];
+  for (const x of r){ const c = D.cities[x.icao]; if (c.lat == null || c.lon == null) continue;
+    const [px, py] = MAPG.proj(c.lon, c.lat), vv = val(x); DOTS.push({ x: px, y: py, icao: x.icao });
+    g.beginPath(); g.arc(px, py, x.icao === sel ? 6.5 : 4.5, 0, 2 * Math.PI); g.fillStyle = vv == null ? '#d8dde5' : f(vv); g.fill();
+    g.lineWidth = x.icao === sel ? 2 : .7; g.strokeStyle = x.icao === sel ? '#10203a' : 'rgba(16,32,58,.45)'; g.stroke(); }
+  const what = { value: `consensus ${k === 'hi' ? 'high' : 'low'}`, vsnorm: `${k === 'hi' ? 'high' : 'low'} vs normal`, range: `model range (${k === 'hi' ? 'high' : 'low'})` }[cb];
+  $('#mt').textContent = `${what} · ${D.dates[DAYI]} · day ${DAYI + 1}`;
+  $('#mleg').innerHTML = `<span>${lab[0]}</span><span class="sw" style="background:linear-gradient(90deg,${[0, .25, .5, .75, 1].map(t => ramp(stops, t)).join(',')})"></span><span>${lab[1]}</span><span style="margin-left:10px">${r.length} stations</span>`;
+}
+const tipEl = (() => { const t = document.createElement('div'); t.style.cssText = 'position:fixed;pointer-events:none;background:#10203a;color:#fff;padding:6px 9px;border-radius:6px;font-size:12px;line-height:1.35;opacity:0;transition:opacity .08s;z-index:30;font-variant-numeric:tabular-nums;max-width:360px'; document.body.appendChild(t); return t; })();
+function nearestDot(e){ const r = $('#map').getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; let best = null, bd = 144; for (const d of DOTS){ const dd = (d.x - mx) ** 2 + (d.y - my) ** 2; if (dd < bd){ bd = dd; best = d; } } return best; }
+$('#map').addEventListener('pointermove', e => {
+  const b = nearestDot(e); if (!b){ tipEl.style.opacity = 0; return; }
+  const c = D.cities[b.icao], j = DAYI, k = $('#metric').value === 'lo' ? 'lo' : 'hi';
+  const nm = c.normal && c.normal[k] ? c.normal[k][j] : null;
+  tipEl.innerHTML = `<b>${c.name}, ${c.state}</b> (${b.icao}) · ${D.dates[j]}<br>consensus high <b>${fmt(c.consensus.hi[j])}</b> · low <b>${fmt(c.consensus.lo[j])}</b>${nm != null ? ` · normal ${k} ${fmt(nm)}` : ''}<br>`
+    + D.models.map(mm => `${D.labels[mm] || mm} ${fmt(c.models[mm][k][j])}`).join(' · ');
+  tipEl.style.opacity = 1; tipEl.style.left = Math.min(innerWidth - 380, e.clientX + 14) + 'px'; tipEl.style.top = (e.clientY - 60) + 'px';
+});
+$('#map').addEventListener('pointerleave', () => { tipEl.style.opacity = 0; });
+$('#map').addEventListener('click', e => { const b = nearestDot(e); if (b){ sel = b.icao; table(); chart(); drawMap(); } });
+
+function refresh(){ $('#daylab').textContent = `${D.dates[DAYI]} · day ${DAYI + 1}`; drawMap(); table(); if (sel) chart(); }
 function step(d){ DAYI = Math.max(0, Math.min(D.dates.length - 1, DAYI + d)); $('#day').value = DAYI; refresh(); }
 async function load(){
-  const r = await fetch('data/cities_light.json', { cache: 'no-store' });
+  const [r, gr] = await Promise.all([fetch('data/cities_light.json', { cache: 'no-store' }), fetch('geo/states_l48.json')]);
   if (!r.ok){ $('#sub').textContent = 'data unavailable'; return; }
-  D = await r.json();
+  D = await r.json(); GEO = gr.ok ? await gr.json() : null;
   $('#day').max = D.dates.length - 1;
   const states = [...new Set(Object.values(D.cities).map(c => c.state).filter(Boolean))].sort();
   $('#state').innerHTML = '<option value="">all</option>' + states.map(s => `<option>${s}</option>`).join('');
@@ -206,11 +273,11 @@ async function load(){
   sel = D.cities.KORD ? 'KORD' : Object.keys(D.cities)[0];
   refresh();
 }
-['#metric', '#state', '#core'].forEach(id => $(id).addEventListener('change', refresh));
-$('#find').addEventListener('input', table);
+['#metric', '#state', '#core', '#colour'].forEach(id => $(id).addEventListener('change', refresh));
+$('#find').addEventListener('input', () => { table(); drawMap(); });
 $('#day').addEventListener('input', () => { DAYI = +$('#day').value; refresh(); });
 $('#dprev').onclick = () => step(-1); $('#dnext').onclick = () => step(1);
 addEventListener('keydown', e => { if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); });
-let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (sel) chart(); }, 120); });
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { MAPG = null; drawMap(); if (sel) chart(); }, 120); });
 load();
 </script>
