@@ -119,6 +119,11 @@ jobs:
           [ "${{ inputs.force }}" = "true" ] && FORCE="--force"
           python scripts/sst/sst-roni.py $FORCE
 
+      # Walker circulation by basin (Indian/Atlantic with ENSO removed): needs the OISST file the
+      # step above just refreshed and walker_ud_history.nc that mjo.yml commits. Best-effort.
+      - name: Walker circulation by ocean basin
+        run: python scripts/sst/walker_basins.py || echo "walker_basins failed; continuing"
+
       - name: Fetch TAO equatorial subsurface temperature (recent 120 days)
         run: |
           python scripts/sst/tao_subsurface.py --days 120 \
@@ -228,6 +233,7 @@ jobs:
           fi
           CB=$(date -u +%Y%m%d%H%M)
           perl -0pi -e "s/((?:mei\/mei_nowcast|mei\/mei_analogs|mei\/mei_history)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../sst.html
+          perl -0pi -e "s/(walker_basins\.webp)\?v=\w+/\${1}?v=$CB/g" ../../enso-atmosphere.html
 
       # WITHOUT THIS THE ANIMATIONS NEVER LEAVE THE RUNNER. .gitignore keeps
       # frame webp off main, and this workflow had no frames-branch publisher
