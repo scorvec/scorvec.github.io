@@ -35,6 +35,27 @@ from download_aifs import latest_run
 RETAIN_DAYS = 7        # store cache retention — raw gribs dropped after this many days
 
 
+def fetch_strat(date: str, time: str) -> None:
+    """Only what the stratosphere page reads from the store cache.
+
+    nh_vortex globs aifs-ens pf_u_10-*/cf_u_10-* (the 12-level AAM u pull) and
+    qbo_duct gates on cf_u_10-*x16 + cf_u_200-850_s0-*x16 (it fetches its own v
+    and t). Nothing on that page reads the Hovmöller/SOI surface batches or
+    IFS-ENS - yet strat.yml ran the full fetch() and inherited its IFS-ENS
+    dependency: at the 07:35Z dispatch IFS 00Z is not on open data, and the
+    two attempts at that one file (Hovmöller, then SOI) consumed the whole
+    60-min step budget on 2026-09-05 and 2026-09-06. ~5 min instead of ~19."""
+    print("== stratosphere subset: AIFS-ENS u @ 200/850 + the 12 AAM levels ==", flush=True)
+    cyc = store.Cycle(date, time); S = tuple(store.STEPS)
+    specs = [store.Spec("aifs-ens", "cf", "u", "pl", store.LEVELS_RMM, S),
+             store.Spec("aifs-ens", "pf", "u", "pl", store.LEVELS_RMM, S),
+             store.Spec("aifs-ens", "cf", "u", "pl", store.LEVELS_AAM_REST, S),
+             store.Spec("aifs-ens", "pf", "u", "pl", store.LEVELS_AAM_REST, S,
+                        store.AAM_PF_MEMBERS)]
+    for sp in specs:                       # the core u files: let a failure propagate
+        store.ensure(cyc, sp)
+
+
 def fetch(date: str, time: str, data_root: Path) -> None:
     # RMM is the core product — let a failure here propagate (fail the cycle).
     print("== AIFS-ENS u@200/850 (RMM) ==", flush=True)
@@ -132,6 +153,9 @@ def main() -> int:
     ap.add_argument("--date", help="YYYYMMDD (default: latest available)")
     ap.add_argument("--time", help="00 or 12 (default: latest available)")
     ap.add_argument("--data-root", default="data", help="cache root (per-product subdirs)")
+    ap.add_argument("--only", choices=("all", "strat"), default="all",
+                    help="'strat': just the AIFS-ENS u files the stratosphere page reads "
+                         "(no IFS-ENS, no surface batches) - see fetch_strat()")
     args = ap.parse_args()
 
     if args.date and args.time:
@@ -142,7 +166,17 @@ def main() -> int:
     print(f"Fetching ENS cycle {date} {time}Z", flush=True)
 
     t0 = _time.time()
-    fetch(date, time, Path(args.data_root))
+    if args.only == "strat":
+        try:
+            fetch_strat(date, time)
+        except store.NotPublished as e:
+            # Not an error in the fetcher: the cycle is not on the mirrors yet.
+            # Exit non-zero so the caller's `|| warning` fires, without a traceback.
+            print(f"ens_cycle: {e}", flush=True)
+            return 2
+        store.prune(days=RETAIN_DAYS)
+    else:
+        fetch(date, time, Path(args.data_root))
     print(f"Done in {(_time.time() - t0) / 60:.1f} min.")
     return 0
 

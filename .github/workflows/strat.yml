@@ -229,10 +229,11 @@ jobs:
   # cf_u_10-*; both READ the cache rather than fetching, so ens_cycle is not
   # optional here. Without it the first run logged "no AIFS-ENS cycle ... in the
   # cache", produced nothing, and still exited green.
+  # Budget: populate ~5 + nh_vortex ~4 + E-P flux ~30 (10 of it fetching v/t).
   heavy:
     needs: cycle
     runs-on: ubuntu-latest
-    timeout-minutes: 110
+    timeout-minutes: 80
     env:
       MPLBACKEND: Agg
     steps:
@@ -256,16 +257,21 @@ jobs:
       - name: Python dependencies
         run: pip install -r scripts/mjo/requirements-mjo.txt
 
+      # --only strat (2026-09-06): the four AIFS-ENS u files these two renderers
+      # glob, and nothing else. The full ens_cycle also pulled the Hovmöller/SOI
+      # surface batches AND IFS-ENS, and at the 07:35Z dispatch IFS 00Z is not
+      # on open data yet - two attempts at that one missing file ate the whole
+      # 60-min budget on 2026-09-05 and 2026-09-06 (E-P flux: 0 frames). The
+      # subset is ~5 min against ~19; the budget below is sized to that.
       - name: Populate the ENS cycle cache
         working-directory: scripts/mjo
-        timeout-minutes: 60
-        env:
-          MJO_HEAVY_ATMOS: '1'
+        timeout-minutes: 30
         run: |
-          python src/ens_cycle.py --date "${{ needs.cycle.outputs.date }}" \
+          python src/ens_cycle.py --only strat \
+                                  --date "${{ needs.cycle.outputs.date }}" \
                                   --time "${{ needs.cycle.outputs.time }}" \
             || echo "::warning::ens_cycle had issues; downstream uses whatever cached"
-          du -sh data 2>/dev/null || true
+          du -sh ../ecmwf/cache 2>/dev/null || true
 
       # --cycle is matched against the cache directory name, which carries a
       # trailing "z"; nh_vortex accepts it with or without.

@@ -53,8 +53,33 @@ _throttle_events = 0
 
 def path_for(date: str, hh: str, model: str, step: int, kind: str = "pf",
              stream: str = "enfo", resol: str = "0p25") -> str:
+    # IFS publishes control + perturbed members in ONE file per step, named
+    # "-enfo-ef" (ecmwf-opendata maps type cf/pf -> "ef" for it); AIFS-ENS
+    # keeps separate -cf / -pf files. Until 2026-09-06 this built "-enfo-pf"
+    # for IFS, so every IFS fetch 404'd here and fell back to the slow client
+    # path (~3 MB/s vs ~11) - and, worse, an IFS 404 could not be told apart
+    # from a cycle that was simply not published yet. Filter the mixed ef
+    # index by type in select().
+    if model == "ifs" and kind in ("cf", "pf"):
+        kind = "ef"
     return (f"{date}/{hh}z/{model}/{resol}/{stream}/"
             f"{date}{hh}0000-{step}h-{stream}-{kind}")
+
+
+class IndexUnavailable(RuntimeError):
+    """The step's .index could not be fetched from any mirror.
+
+    `not_found` is True when the failure looks like PUBLICATION rather than
+    transport: no mirror returned 200 and at least two distinct mirrors said
+    404. That is the "cycle not disseminated yet" signature (2026-09-06, IFS-ENS
+    00Z at 07:47Z: google 404, azure 404, aws 503, data.ecmwf.int stalled). The
+    caller should treat it as terminal for this run instead of falling back to a
+    slower path that will re-discover the same absence one step at a time.
+    """
+    def __init__(self, msg: str, not_found: bool = False, statuses: dict | None = None):
+        super().__init__(msg)
+        self.not_found = not_found
+        self.statuses = statuses or {}
 
 
 def fetch_index(date: str, hh: str, model: str, step: int, kind: str = "pf",
@@ -63,11 +88,13 @@ def fetch_index(date: str, hh: str, model: str, step: int, kind: str = "pf",
     """Parse the .index file: list of message dicts with _offset/_length."""
     rel = path_for(date, hh, model, step, kind, stream=stream) + ".index"
     last_err = None
+    statuses: dict = {}                                    # mirror -> last HTTP status seen
     for attempt in range(3):
         for src in sources or ["google", "aws", "azure", "ecmwf"]:
             try:
                 budget.acquire(src)
                 r = requests.get(f"{MIRRORS[src]}/{rel}", timeout=TIMEOUT)
+                statuses[src] = r.status_code
                 if r.status_code == 200:
                     return [json.loads(line) for line in r.text.splitlines() if line.strip()]
                 last_err = RuntimeError(f"{src}: HTTP {r.status_code}")
@@ -76,16 +103,27 @@ def fetch_index(date: str, hh: str, model: str, step: int, kind: str = "pf",
                     time.sleep(1.5 + 3.0 * attempt)
             except Exception as e:                             # noqa: BLE001
                 last_err = e
-    raise RuntimeError(f"index unavailable for {rel}: {last_err}")
+        # Two mirrors agreeing the object does not exist is publication, not a
+        # blip: stop probing after the first pass rather than sleeping through
+        # two more rounds of 404s.
+        if sum(1 for c in statuses.values() if c == 404) >= 2:
+            break
+    n404 = sum(1 for c in statuses.values() if c == 404)
+    raise IndexUnavailable(f"index unavailable for {rel}: {last_err}",
+                           not_found=(n404 >= 2 and 200 not in statuses.values()),
+                           statuses=statuses)
 
 
 def select(entries: list[dict], param: str | list | None = None,
-           levelist: list | None = None, numbers: list | None = None) -> list[dict]:
+           levelist: list | None = None, numbers: list | None = None,
+           type: str | None = None) -> list[dict]:
     params = {param} if isinstance(param, str) else (set(param) if param else None)
     levs = {str(l) for l in levelist} if levelist else None
     nums = {str(n) for n in numbers} if numbers else None
     out = []
     for e in entries:
+        if type and e.get("type") != type:                 # IFS ef files mix cf + pf
+            continue
         if params and e.get("param") not in params:
             continue
         if levs and str(e.get("levelist")) not in levs:

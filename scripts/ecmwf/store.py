@@ -653,10 +653,40 @@ def _to_req(cycle: Cycle, spec: Spec) -> dict:
     return r
 
 
+class NotPublished(RuntimeError):
+    """The cycle/spec is not (yet) on the open-data mirrors.
+
+    Raised by ensure() when the range fetcher finds a step's .index missing on
+    two or more mirrors with no mirror serving it. Terminal for this process:
+    the legacy client path used to take over here and rotate six times per
+    step through the same 404s (~3 min a step, 33 min for a 15-step IFS file,
+    then a second 33 min when the next product asked for the SAME file) —
+    which is what timed out the Stratosphere heavy job on 2026-09-05/06.
+    Callers already treat any ensure() failure as "this model is missing for
+    this cycle"; this just makes that verdict arrive in seconds.
+    """
+
+
+_NOT_PUBLISHED: set = set()       # (cycle.tag, model, filename) seen missing this process
+_NP_LOCK = threading.Lock()
+
+
+def _remember_not_published(cycle: Cycle, spec: Spec) -> None:
+    with _NP_LOCK:
+        _NOT_PUBLISHED.add((cycle.tag, spec.model, spec.filename))
+
+
+def _known_not_published(cycle: Cycle, spec: Spec) -> bool:
+    with _NP_LOCK:
+        return (cycle.tag, spec.model, spec.filename) in _NOT_PUBLISHED
+
+
 def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
     """Coalesced-range fetch of the whole spec into `target` (all steps,
     sequential; each step ~24-way parallel inside rangefetch). Returns the
-    source label, or None to signal fallback to the legacy client path."""
+    source label, or None to signal fallback to the legacy client path.
+    Raises NotPublished (does NOT fall back) when a step's index is missing
+    on the mirrors — see NotPublished."""
     if os.environ.get("ECMWF_FETCH", "v2") != "v2":
         return None
     try:
@@ -677,7 +707,7 @@ def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
                                      int(step), spec.type, stream=stream,
                                      sources=srcs)
                 want = rf.select(idx, param=list(spec.params), levelist=levl,
-                                 numbers=nums)
+                                 numbers=nums, type=spec.type)
                 if not want:
                     raise RuntimeError(f"step {step}: 0 msgs matched")
                 ranges = rf.coalesce(want)
@@ -689,9 +719,14 @@ def _fetch_v2(cycle: Cycle, spec: Spec, target: str) -> str | None:
         top = max(stats, key=stats.get) if stats else srcs[0]   # mirror that served the most bytes
         return f"v2:{top}"
     except Exception as e:                                 # noqa: BLE001
+        Path(target).unlink(missing_ok=True)
+        if isinstance(e, getattr(rf, "IndexUnavailable", ())) and e.not_found \
+                and os.environ.get("ECMWF_NOTFOUND_TERMINAL", "1") != "0":
+            st = " ".join(f"{k}:{v}" for k, v in sorted(e.statuses.items()))
+            raise NotPublished(f"{spec.model}/{spec.filename}: not on the mirrors "
+                               f"({st}) — cycle {cycle.tag} not published yet") from e
         print(f"  fetch-v2 failed ({str(e)[:90]}) — falling back to client path",
               flush=True)
-        Path(target).unlink(missing_ok=True)
         return None
 
 
@@ -701,6 +736,9 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
     p = path(cycle, spec); expected = spec.n_expected()
     if _complete(p, expected):
         return p
+    if _known_not_published(cycle, spec):                  # same file, same process: no re-probe
+        raise NotPublished(f"{spec.model}/{spec.filename}: not published "
+                           f"(cycle {cycle.tag}; seen earlier this run)")
     with _lock(p):
         if _complete(p, expected):                         # someone else just finished
             return p
@@ -712,7 +750,13 @@ def ensure(cycle: Cycle, spec: Spec) -> Path:
         req = _to_req(cycle, spec); members = spec.members()
         got, src = 0, None
         t0 = time.time()
-        v2src = _fetch_v2(cycle, spec, str(stage))
+        try:
+            v2src = _fetch_v2(cycle, spec, str(stage))
+        except NotPublished as e:
+            _remember_not_published(cycle, spec)
+            _clean(str(stage)); shutil.rmtree(f"{stage}.parts", ignore_errors=True)
+            print(f"  ECMWF {cycle.tag} {spec.model}/{spec.filename}: ✗ {e}", flush=True)
+            raise
         if v2src:
             got = count_msgs(str(stage))
             if got >= expected:
