@@ -108,6 +108,11 @@
   border-top: 1px solid var(--c-rule); font-size: 0.92rem; color: var(--c-muted);
 }
 .sh-menu .sh-all a { display: inline; padding: 0; color: var(--c-accent); text-decoration: underline; text-underline-offset: 0.16em; }
+/* One short list per top-level group: a narrow panel under its own button. The last
+   groups open leftwards so nothing spills past the right edge of the page. */
+.sh-menu--list { left: 0; right: auto; width: max-content; min-width: 15rem; max-width: 24rem; grid-template-columns: 1fr; padding: 0.7rem 1.1rem 0.75rem; }
+.sh-item:nth-last-child(-n + 4) > .sh-menu--list { left: auto; right: 0; }
+.sh-menu--list a { padding: 0.42rem 0; white-space: nowrap; }
 
 /* mobile toggle */
 .sh-toggle {
@@ -148,6 +153,11 @@
   }
   .sh-menu h3 { margin-bottom: 0.15rem; }
   .sh-menu a { padding: 0.35rem 0; }
+  /* phones: every group is shown open, so a page is one tap away — the group buttons are headings here */
+  .sh-menu--list { display: grid; min-width: 0; width: auto; max-width: none; padding: 0.15rem 0 0.7rem 0.9rem; }
+  .sh-menu--list a { white-space: normal; font-size: 1.02rem; }
+  .sh-has-menu > .sh-menubtn { pointer-events: none; color: var(--c-muted); font-size: 0.95rem; text-transform: none; padding-top: 1rem; padding-bottom: 0.3rem; border-bottom: 0; }
+  .sh-has-menu > .sh-menubtn::after { display: none; }
 }
 
 /* Overlay skin: the homepage hero. Transparent, white type, sits on the photograph. */
@@ -161,7 +171,7 @@
 .sh--overlay .sh-in { min-height: 84px; justify-content: flex-end; }
 .sh--overlay .sh-brand { display: none; }   /* the hero carries the name; the header would repeat it */
 .sh--overlay .sh-brand { font-size: 1.7rem; }
-.sh--overlay .sh-link { font-size: 1.15rem; padding: 0.8rem 1.15rem; }
+.sh--overlay .sh-link { font-size: 1.06rem; padding: 0.75rem 0.85rem; }
 .sh--overlay .sh-link:hover, .sh--overlay .sh-has-menu.is-open > .sh-menubtn { background: rgba(255, 255, 255, 0.18); }
 .sh--overlay .sh-toggle { font-size: 1.1rem; padding: 0.65rem 1.1rem; }
 .sh--overlay .sh-menu { --c-ink: #29321f; --c-accent: #274b7a; --c-muted: #5c6b73; --c-rule: #dfe3dc; text-shadow: none; }

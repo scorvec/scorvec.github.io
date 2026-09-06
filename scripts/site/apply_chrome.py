@@ -22,26 +22,31 @@ REPO = Path(__file__).resolve().parents[2]
 
 # ── the navigation, as data ──────────────────────────────────────────────────
 PRODUCTS = [
-    ("Tropics and El Niño", [
+    # Each group is a top-level menu with a short flat list — nothing sits more than one
+    # click deep. Grouped by what a forecaster is looking for: the El Niño set (shared tab
+    # row), the next two weeks, beyond that, raw observations, and model checks.
+    ("El Niño", "The event as it stands: ocean, subsurface, model forecasts and the atmosphere's response", [
         ("/sst.html", "El Niño monitor"),
         ("/enso-subsurface.html", "Subsurface temperature"),
         ("/enso-forecasts.html", "ENSO forecasts"),
         ("/enso-atmosphere.html", "Atmospheric response"),
-        ("/mjo.html", "MJO forecast"),
-        ("/subseasonal.html", "Subseasonal outlook"),
-        ("/qbo/", "QBO tracker"),
     ]),
-    ("Convection and observations", [
+    ("Days 1–15", "Short and medium range, refreshed with every model cycle", [
         ("/ecape.html", "Entraining CAPE"),
-        ("/skewt/", "Sounding explorer"),
-        ("/asos5.html", "Five-minute airport observations"),
         ("/columbia/", "Columbia River basin precipitation"),
+        ("/mjo.html", "MJO forecast"),
     ]),
-    ("Seasonal", [
+    ("Beyond two weeks", "Subseasonal to seasonal", [
+        ("/subseasonal.html", "Subseasonal outlook, weeks 1–5"),
         ("/seas5.html", "ECMWF SEAS5 outlook"),
         ("/sfs.html", "NOAA SFS outlook"),
     ]),
-    ("Model verification", [
+    ("Observations", "Measured, not modelled", [
+        ("/skewt/", "Sounding explorer"),
+        ("/asos5.html", "Five-minute airport observations"),
+        ("/qbo/", "QBO tracker"),
+    ]),
+    ("Model checks", "How the models are doing against observations", [
         ("/aifs-verify.html", "AIFS single versus ensemble control"),
         ("/spectra.html", "HRRR and RRFS kinetic-energy spectra"),
     ]),
@@ -166,22 +171,20 @@ def _current(href: str, page: str) -> str:
 
 def header_html(page: str, skin: str) -> str:
     cls = "sh" + (f" sh--{skin}" if skin else "")
-    in_products = any(h == page for _, items in PRODUCTS for h, _ in items)
     out = [f'<!-- sh:start -->\n<header class="{cls}" id="site-header">\n  <div class="sh-in">',
            '    <a class="sh-brand" href="/">Shawn Corvec</a>',
            '    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>',
-           '    <nav class="sh-nav" id="sh-menu" aria-label="Site">\n      <ul class="sh-list">',
-           '        <li class="sh-item sh-has-menu">',
-           f'          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-products"'
-           f'{" aria-current=page" if in_products else ""}>Products</button>',
-           '          <div class="sh-menu" id="sh-products">']
-    for title, items in PRODUCTS:
-        out.append(f'            <div>\n              <h3>{title}</h3>\n              <ul>')
+           '    <nav class="sh-nav" id="sh-menu" aria-label="Site">\n      <ul class="sh-list">']
+    for n, (title, _blurb, items) in enumerate(PRODUCTS):
+        in_group = any(h == page for h, _ in items)
+        mid = f"sh-g{n}"
+        out.append('        <li class="sh-item sh-has-menu">')
+        out.append(f'          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="{mid}"'
+                   f'{" aria-current=page" if in_group else ""}>{title}</button>')
+        out.append(f'          <div class="sh-menu sh-menu--list" id="{mid}">\n            <ul>')
         for href, label in items:
-            out.append(f'                <li><a href="{href}"{_current(href, page)}>{label}</a></li>')
-        out.append('              </ul>\n            </div>')
-    out.append('            <p class="sh-all">Every product, with what it shows and how often it updates, is listed on the <a href="/#products">home page</a>.</p>')
-    out.append('          </div>\n        </li>')
+            out.append(f'              <li><a href="{href}"{_current(href, page)}>{label}</a></li>')
+        out.append('            </ul>\n          </div>\n        </li>')
     for href, label in PRIMARY:
         out.append(f'        <li class="sh-item"><a class="sh-link" href="{href}"{_current(href, page)}>{label}</a></li>')
     out.append('      </ul>\n    </nav>\n  </div>\n</header>')
