@@ -80,9 +80,28 @@ KINDS = {
                     variable=["geopotential"], pressure_level=["10", "50", "100"], area=[90, -180, 60, 180], grid=[2.0, 2.0]),
     "polar_s": dict(dataset="seasonal-monthly-pressure-levels",
                     variable=["geopotential"], pressure_level=["10", "50", "100"], area=[-60, -180, -90, 180], grid=[2.0, 2.0]),
+    # teleconnections (added 2026-09-06): NH + tropics heights at 500/1000 and msl on 2°
+    "nh_z": dict(dataset="seasonal-monthly-pressure-levels",
+                 variable=["geopotential"], pressure_level=["500", "1000"], area=[90, -180, -30, 180], grid=[2.0, 2.0]),
+    "nh_msl": dict(dataset="seasonal-monthly-single-levels",
+                   variable=["mean_sea_level_pressure"], area=[90, -180, -30, 180], grid=[2.0, 2.0]),
+    # stratospheric zonal wind: vortex (60°N/S at 10 hPa) and the QBO (equatorial 10–50 hPa)
+    "strat_u": dict(dataset="seasonal-monthly-pressure-levels",
+                    variable=["u_component_of_wind"], pressure_level=["10", "30", "50"], area=[90, -180, -90, 180], grid=[2.0, 2.0]),
+    # subtropical jet over the Pacific and the Americas
+    "u200": dict(dataset="seasonal-monthly-pressure-levels",
+                 variable=["u_component_of_wind"], pressure_level=["200"], area=[75, -180, -60, -30], grid=[2.0, 2.0]),
+    # energy fields over the Americas at 1°
+    "energy": dict(dataset="seasonal-monthly-single-levels",
+                   variable=["10m_wind_speed", "surface_solar_radiation_downwards"], area=[75, -170, -60, -30], grid=[1.0, 1.0]),
+    # water balance: evaporation (negative upward, m of water per day) for P − E drought maps
+    "water": dict(dataset="seasonal-monthly-single-levels",
+                  variable=["evaporation"], area=[75, -170, -60, -30], grid=[1.0, 1.0]),
 }
-# previous issues only need SST (the plume-evolution panels)
+# the immediately previous issue is pulled in full (change maps, polar-cap
+# comparison); older issues only need SST (the plume-evolution lines)
 PREVIOUS_KINDS = ["sst"]
+PREVIOUS_FULL = list(KINDS)
 
 
 def _client():
@@ -100,7 +119,7 @@ def _retrieve(kind: str, years: list[str], month: str, dest: Path) -> bool:
            "area": k["area"], "grid": k["grid"], "data_format": "grib"}
     if "pressure_level" in k:
         req["pressure_level"] = k["pressure_level"]
-    tmp = dest.with_suffix(".part")
+    tmp = dest.with_suffix(f".part{os.getpid()}")                    # parallel fetchers never share a partial file
     for attempt in range(3):
         t0 = time.time()
         try:
@@ -139,22 +158,23 @@ def previous_issues(ym: str, n: int) -> list[str]:
     return out
 
 
-def fetch(ym: str, n_prev: int) -> dict:
+def fetch(ym: str, n_prev: int, kinds=None) -> dict:
     """Pull everything for the issue (and SST for the previous issues). Returns
     {(kind, ym|hc-month): ok}. Order: the issue's forecasts first (cheap, and
     they tell us whether the issue is out at all), then hindcasts, then the
     previous issues."""
     got = {}
     month = ym[4:]
-    for kind in KINDS:
+    want = [k for k in KINDS if (kinds is None or k in kinds)]
+    for kind in want:
         got[("fc", kind, ym)] = _retrieve(kind, [ym[:4]], month, fc_path(kind, ym))
-    if not got[("fc", "sst", ym)]:
+    if kinds is None and not got[("fc", "sst", ym)]:
         print(f"SEAS5 {ym} is not on the CDS yet — nothing more to do", flush=True)
         return got
-    for kind in KINDS:
+    for kind in want:
         got[("hc", kind, month)] = _retrieve(kind, CLIM_YEARS, month, hc_path(kind, month))
-    for prev in previous_issues(ym, n_prev):
-        for kind in PREVIOUS_KINDS:
+    for i, prev in enumerate(previous_issues(ym, n_prev)):
+        for kind in [k for k in (PREVIOUS_FULL if i == 0 else PREVIOUS_KINDS) if (kinds is None or k in kinds)]:
             ok = _retrieve(kind, [prev[:4]], prev[4:], fc_path(kind, prev))
             got[("fc", kind, prev)] = ok
             if ok:
@@ -167,11 +187,12 @@ def main(argv=None) -> int:
     ap.add_argument("cmd", nargs="?", default="all", choices=["fetch", "build", "all"])
     ap.add_argument("--issue", default=None, help="YYYYMM (default: this month)")
     ap.add_argument("--previous", type=int, default=3, help="earlier issues to draw for the plume evolution")
+    ap.add_argument("--kinds", nargs="*", help="fetch only these field kinds (a parallel worker)")
     args = ap.parse_args(argv)
     import datetime as _dt
     ym = args.issue or _dt.datetime.utcnow().strftime("%Y%m")
     if args.cmd in ("fetch", "all"):
-        got = fetch(ym, args.previous)
+        got = fetch(ym, args.previous, args.kinds)
         bad = [k for k, v in got.items() if not v]
         print(f"fetch {ym}: {len(got) - len(bad)} ok, {len(bad)} missing" + (f" {bad}" if bad else ""), flush=True)
     if args.cmd in ("build", "all"):

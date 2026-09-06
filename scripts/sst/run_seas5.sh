@@ -34,9 +34,14 @@ if grep -q "is not on the CDS yet" "$LOG"; then
   echo "  $ISSUE not on the CDS yet; will try again tomorrow" >> "$LOG"; exit 0
 fi
 "$PY" seas5_outlook.py build --issue "$ISSUE" --previous 3 >> "$LOG" 2>&1 || { echo "  BUILD FAILED" >> "$LOG"; exit 1; }
+"$PY" seas5_era5.py >> "$LOG" 2>&1 || echo "  ERA5 reference pull incomplete (normals/skill degrade gracefully)" >> "$LOG"   # cached; a no-op after the first run
+"$PY" seas5_tele.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  teleconnections FAILED" >> "$LOG"
+"$PY" seas5_normals.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  normals FAILED" >> "$LOG"
+# population-weighted temperature distributions from the 6-hourly members (US, Brazil); best-effort
+"$PY" seas5_popT.py all --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  popT FAILED (main products still publish)" >> "$LOG"
 
 # Publish: only the SEAS5 outputs. A concurrent CI data commit just shifts our base.
-( cd "$SITE" && git add assets/sst/seas5_*.webp assets/sst/data/seas5_outlook.json \
+( cd "$SITE" && git add assets/sst/seas5_*.webp assets/sst/data/seas5_*.json \
   && { git diff --staged --quiet && echo "  no change to publish" && exit 0; \
        git -c user.name="Shawn Corvec" -c user.email="scorvec@outlook.com" \
            commit -q -m "data update: SEAS5 ${ISSUE:0:4}-${ISSUE:4:2} issue" \

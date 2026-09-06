@@ -403,6 +403,13 @@
   .legend-row { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.78rem; color: var(--ink2); margin: 0.3rem 0 0.8rem; }
   .legend-row span::before { content: ""; display: inline-block; width: 22px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--sw); }
   .legend-row span.band::before { height: 12px; opacity: 0.5; }
+  table.chg { border-collapse: collapse; width: 100%; max-width: 46rem; font-size: 0.9rem; margin: 0.4rem 0 0.6rem; }
+  table.chg th, table.chg td { text-align: right; padding: 0.42rem 0.7rem; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  table.chg th:first-child, table.chg td:first-child { text-align: left; }
+  table.chg th { font-weight: 600; color: var(--ink2); font-size: 0.78rem; letter-spacing: 0.02em; }
+  table.chg td.up { color: var(--warm); font-weight: 600; }
+  table.chg td.down { color: var(--cool); font-weight: 600; }
+  table.chg td.flat { color: var(--muted); }
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -537,6 +544,25 @@
     </div>
   </div>
 
+  <!-- ── CHANGE SINCE THE PREVIOUS ISSUE ──────────────────────────────────── -->
+  <div class="card" id="changeCard">
+    <h2>What changed since the <span class="prevName">previous</span> issue</h2>
+    <p class="note">The same calendar months from both issues, each issue anomalised against its own
+    start-month hindcast, so a difference here is a real shift in the forecast rather than
+    drift. The table averages the ensemble means over the months both issues cover; the maps
+    show the shift in the ensemble-mean anomaly season by season. The newest season of this
+    issue has no counterpart in the earlier one and is left out.</p>
+    <div class="idx-note" id="changeMonths"></div>
+    <div style="overflow-x:auto">
+      <table class="chg" id="changeTable"></table>
+    </div>
+    <div class="map-grid" id="changeGrid" style="margin-top:1rem"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5, consecutive monthly issues &middot; anomalies vs each issue&rsquo;s own 1993&ndash;2016 start-month hindcast</span>
+      <span class="chart-updated" id="changeUpdated">&mdash;</span>
+    </div>
+  </div>
+
   <!-- ── TERCILES ─────────────────────────────────────────────────────────── -->
   <div class="card">
     <h2>Calibrated terciles over the Americas</h2>
@@ -556,6 +582,91 @@
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 monthly means, 1&deg; grid, 75&deg;N&ndash;60&deg;S &middot; temperature and precipitation over land, 500 hPa height everywhere &middot; thresholds: 1993&ndash;2016 hindcast terciles</span>
       <span class="chart-updated" id="mapUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── TELECONNECTIONS ──────────────────────────────────────────────────── -->
+  <div class="card" id="teleCard">
+    <h2>Teleconnection indices, member by member</h2>
+    <p class="note">The CPC patterns &mdash; NAO, PNA, AO, the East Atlantic, West Pacific and the rest &mdash;
+    read from each member&rsquo;s monthly 500&nbsp;hPa height (sea-level pressure for the AO)
+    with the same projectors the <a href="subseasonal.html">GEPS subseasonal page</a> uses, so the
+    scale is CPC&rsquo;s own. The Southern Oscillation index comes from Tahiti and Darwin
+    pressure. The number that matters most sits under each plume: the correlation of the
+    model&rsquo;s 24 hindcast years with ERA5 for that month and lead. Where it is near zero
+    the tilt is noise, however confident the fan looks; for the winter NAO from a September
+    start that is usually the case, for the PNA in an El&nbsp;Ni&ntilde;o winter it is not.</p>
+    <div class="controls" id="telePills"></div>
+    <div class="idx-note" id="teleNote"></div>
+    <div id="teleChart" class="plot" style="height:440px"></div>
+    <div style="overflow-x:auto"><table class="chg" id="teleTable"></table></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 500 hPa height and msl, 2&deg;, anomalies vs the 1993&ndash;2016 hindcast, interpolated to the 2.5&deg; NCEP grid of the patterns &middot; patterns: CPC-style regression maps (NCEP/NCAR R1, 1991&ndash;2020) &middot; skill: hindcast ensemble mean vs ERA5</span>
+      <span class="chart-updated" id="teleUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── STRATOSPHERE INDICES ─────────────────────────────────────────────── -->
+  <div class="card" id="stratCard">
+    <h2>Vortex, QBO and annular mode</h2>
+    <p class="note">The zonal-mean 10&nbsp;hPa wind at 60&deg;N is the standard vortex-strength measure
+    (its 60&deg;S twin covers the southern spring breakdown); the probability of an easterly
+    reading is the sudden-warming side of the distribution. The equatorial 10, 30 and 50&nbsp;hPa
+    winds are SEAS5&rsquo;s own QBO, which sets the Holton&ndash;Tan tilt on the vortex. The
+    NAM-by-level indices are polar-cap height anomalies standardised by the hindcast and
+    signed so that positive is a strong vortex, from 10&nbsp;hPa down to the surface &mdash; read
+    them top to bottom for downward coupling. Wave-1 and wave-2 amplitudes at 100&nbsp;hPa are the
+    planetary-wave forcing that precedes a warming.</p>
+    <div class="controls" id="stratPills"></div>
+    <div class="idx-note" id="stratNote"></div>
+    <div id="stratChart" class="plot" style="height:440px"></div>
+    <div style="overflow-x:auto"><table class="chg" id="stratTable"></table></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 u and z at 10&ndash;1000 hPa, 2&deg; &middot; anomalies and spreads vs the 1993&ndash;2016 hindcast &middot; skill: hindcast ensemble mean vs ERA5</span>
+      <span class="chart-updated" id="stratUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── POPULATION-WEIGHTED TEMPERATURE ──────────────────────────────────── -->
+  <div class="card" id="popCard">
+    <h2>Population-weighted temperature: the whole distribution, month by month</h2>
+    <p class="note">Built from SEAS5&rsquo;s <b>6-hourly</b> members rather than the monthly means: every
+    member&rsquo;s 2 m temperature is population-weighted into one national daily series
+    (geonames places of 15,000 or more, summed onto the 1&deg; grid), and each month pools all
+    51 members&rsquo; days into a distribution &mdash; about 1,500 values. This issue is drawn
+    over the previous one, so a shift in the mean, a change in spread and a fatter tail are
+    all visible at once. The top row is the model&rsquo;s own temperature, bias and all, which
+    is identical between issues and therefore compares cleanly; the bottom row removes each
+    issue&rsquo;s hindcast monthly mean at every grid point, so the two issues sit on the same
+    footing despite their different leads. Degrees Fahrenheit for the United States, Celsius
+    for Brazil.</p>
+    <div style="overflow-x:auto"><table class="chg" id="popTable"></table></div>
+    <div class="map-grid" id="popGrid" style="margin-top:1rem"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 6-hourly 2 m temperature (seasonal-original-single-levels), 51 members, 1&deg; &middot; population: geonames cities15000, sections of cities excluded &middot; anomalies vs the 1993&ndash;2016 hindcast monthly mean</span>
+      <span class="chart-updated" id="popUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── NORMALS: ANOMALY AND TERCILE MAPS VS OBSERVED REFERENCES ─────────── -->
+  <div class="card" id="normCard">
+    <h2>Anomalies and terciles against observed normals, monthly and seasonal</h2>
+    <p class="note">The default terciles above are relative to the model&rsquo;s own 1993&ndash;2016 hindcast,
+    which removes bias but answers a low-bar question in a warming climate. Here the same
+    members are moved into observed space (member minus hindcast mean plus the ERA5
+    1993&ndash;2016 mean at each grid point, multiplicatively for rain and sunshine) and
+    compared with four references: the hindcast itself, the ERA5 <b>1991&ndash;2020</b> normal,
+    the <b>last decade</b> (2016&ndash;2025), and the ERA5 1991&ndash;2025 <b>trend extrapolated</b> to the
+    forecast month &mdash; what normal is expected to be now. Tercile bounds are &plusmn;0.43&sigma; of the
+    observed 1991&ndash;2020 spread around each reference (detrended for the trend reference;
+    empirical percentiles for rain and sunshine). Six months and three seasons per figure.</p>
+    <div class="controls" id="normVar"></div>
+    <div class="controls" id="normRef"></div>
+    <div class="controls" id="normKind"></div>
+    <div class="map-grid" id="normGrid"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 monthly means, 1&deg; &middot; ERA5 monthly means 1991&ndash;2025, 1&deg; &middot; bias correction per grid point and calendar month</span>
+      <span class="chart-updated" id="normUpdated">&mdash;</span>
     </div>
   </div>
 
@@ -671,9 +782,12 @@
     tr.push({x: x.concat(x.slice().reverse()), y: e.p25.concat(e.p75.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.30)", line: {width: 0}, hoverinfo: "skip", name: "P25–P75"});
     var nm = e.members[0].length;
     for (var m = 0; m < nm; m++) tr.push({x: x, y: e.members.map(function (r) { return r[m]; }), mode: "lines", line: {color: "rgba(184,134,11,0.22)", width: 0.7}, hoverinfo: "skip", showlegend: m === 0, name: "members"});
-    tr.push({x: x, y: e.mean, mode: "lines+markers", line: {color: GOLD, width: 3}, marker: {size: 5}, name: "ensemble mean", hovertemplate: "%{y:.0f} m<extra>mean</extra>"});
+    var pe = J.polar_previous && J.polar_previous[key];
+    if (pe) tr.push({x: pe.valid.map(monthDate), y: pe.mean, mode: "lines", line: {color: "#3f7fbf", width: 1.8, dash: "dot"}, name: issueLabel(J.previous) + " issue mean", hovertemplate: "%{y:.0f} m<extra>" + issueLabel(J.previous) + "</extra>"});
+    tr.push({x: x, y: e.mean, mode: "lines+markers", line: {color: GOLD, width: 3}, marker: {size: 5}, name: issueLabel(J.issue) + " issue mean", hovertemplate: "%{y:.0f} m<extra>mean</extra>"});
     var title = (state.hemi === "nh" ? "Northern" : "Southern") + " polar cap, " + state.lev + " hPa height anomaly";
-    Plotly.react("polarChart", tr, layout(title, "m", [x[0], x[x.length - 1]]), {displayModeBar: false, responsive: true});
+    var x0 = pe ? monthDate(pe.valid[0]) : x[0];
+    Plotly.react("polarChart", tr, layout(title, "m", [x0, x[x.length - 1]]), {displayModeBar: false, responsive: true});
   }
 
   function pills(elId, keys, cur, onpick) {
@@ -718,6 +832,123 @@
     document.getElementById("chips").innerHTML = out.join("");
   }
 
+  function changeView() {
+    var prev = J.previous, cur = J.indices[J.issue], old = J.indices[prev];
+    var card = document.getElementById("changeCard");
+    if (!old) { card.hidden = true; return; }
+    Array.prototype.forEach.call(document.querySelectorAll(".prevName"), function (el) { el.textContent = issueLabel(prev); });
+    var shared = cur.valid.filter(function (m) { return old.valid.indexOf(m) >= 0; });
+    document.getElementById("changeMonths").textContent = "Averaged over " + shared.map(mmm).join(", ") + " (" + shared.length + " months both issues forecast).";
+    var rows = ['<tr><th>Index</th><th>' + issueLabel(prev) + '</th><th>' + issueLabel(J.issue) + '</th><th>Change</th><th>Last shared month</th></tr>'];
+    J.enso_keys.concat(J.other_keys).forEach(function (k) {
+      if (!cur[k] || !old[k]) return;
+      var m = meta(k), d = m.units === "σ" || k === "pdo" ? 1 : 2;
+      function avg(e, valid) { var v = shared.map(function (mo) { return e.mean[valid.indexOf(mo)]; }); return v.reduce(function (a, b) { return a + b; }, 0) / v.length; }
+      var a = avg(old[k], old.valid), b = avg(cur[k], cur.valid), dlt = b - a;
+      var last = shared[shared.length - 1], lb = cur[k].mean[cur.valid.indexOf(last)] - old[k].mean[old.valid.indexOf(last)];
+      var thr = Math.max(0.05, 0.15 * (cur[k].clim_sd[cur.valid.indexOf(last)] || 1));
+      var cls = dlt > thr ? "up" : dlt < -thr ? "down" : "flat";
+      rows.push('<tr><td>' + m.label + '</td><td>' + fmt(a, d) + '</td><td>' + fmt(b, d) + '</td><td class="' + cls + '">' + fmt(dlt, d) + ' ' + m.units + '</td><td>' + mmm(last) + ': ' + fmt(lb, d) + '</td></tr>');
+    });
+    document.getElementById("changeTable").innerHTML = rows.join("");
+    var g = document.getElementById("changeGrid"), names = {t2m: "2 m temperature", tp: "Precipitation", z500: "500 hPa height"}, html = "";
+    ["t2m", "tp", "z500"].forEach(function (k) {
+      var t = J.changes && J.changes[k]; if (!t) return;
+      var seasons = t.seasons.map(function (s) { return s.label; }).join(" and ");
+      html += '<figure><a href="assets/sst/' + t.file + '?v=' + encodeURIComponent(J.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + t.file + '?v=' + encodeURIComponent(J.generated) + '" alt="Change in SEAS5 ' + names[k] + ' ensemble-mean anomaly since the previous issue, ' + seasons + '" loading="lazy"></a>' +
+              '<figcaption><b>' + names[k] + '</b> — ' + issueLabel(J.issue) + ' issue minus ' + issueLabel(prev) + ' issue, ' + seasons + '. ' + (k === "tp" ? "Green wetter than last month's forecast, brown drier." : "Red warmer or higher than last month's forecast, blue cooler or lower.") + '</figcaption></figure>';
+    });
+    g.innerHTML = html;
+    document.getElementById("changeUpdated").textContent = "built " + J.generated;
+  }
+
+  // generic member-index plume for the teleconnection / stratosphere JSON
+  function idxTraces(T, key) {
+    var e = T.indices[key], pe = T.previous_indices && T.previous_indices[key], x = e.valid.map(monthDate), tr = [];
+    var absolute = !!e.absolute, base = absolute ? e.clim_mean : e.clim_mean.map(function () { return 0; });
+    tr.push({x: x.concat(x.slice().reverse()), y: base.map(function (b, i) { return b + e.clim_sd[i]; }).concat(base.map(function (b, i) { return b - e.clim_sd[i]; }).reverse()),
+             mode: "lines", fill: "toself", fillcolor: CLIM, line: {width: 0}, hoverinfo: "skip", name: absolute ? "hindcast mean ±1σ" : "hindcast ±1σ"});
+    if (absolute) tr.push({x: x, y: e.clim_mean, mode: "lines", line: {color: "#888", width: 1, dash: "dash"}, name: "hindcast mean", hoverinfo: "skip"});
+    if (pe) tr.push({x: pe.valid.map(monthDate), y: pe.mean, mode: "lines", line: {color: "#3f7fbf", width: 1.8, dash: "dot"}, name: issueLabel(T.previous) + " issue mean"});
+    tr.push({x: x.concat(x.slice().reverse()), y: e.p10.concat(e.p90.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.16)", line: {width: 0}, hoverinfo: "skip", name: "P10–P90"});
+    tr.push({x: x.concat(x.slice().reverse()), y: e.p25.concat(e.p75.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.30)", line: {width: 0}, hoverinfo: "skip", name: "P25–P75"});
+    if (e.members) { var nm = e.members[0].length; for (var m = 0; m < nm; m++) tr.push({x: x, y: e.members.map(function (r) { return r[m]; }), mode: "lines", line: {color: "rgba(184,134,11,0.18)", width: 0.6}, hoverinfo: "skip", showlegend: m === 0, name: "members"}); }
+    tr.push({x: x, y: e.mean, mode: "lines+markers", line: {color: GOLD, width: 3}, marker: {size: 5}, name: issueLabel(T.issue) + " issue mean"});
+    if (key.indexOf("u60") === 0) tr.push({x: [x[0], x[x.length - 1]], y: [0, 0], mode: "lines", line: {color: "#c2185b", width: 1.2, dash: "dash"}, name: "easterly below"});
+    return tr;
+  }
+  function idxTable(T, key) {
+    var e = T.indices[key], pe = T.previous_indices && T.previous_indices[key];
+    var head = '<tr><th>Month</th><th>Mean</th><th>P10–P90</th>' + (e.p_easterly ? '<th>P(easterly)</th>' : '<th>P(+)</th><th>P(−)</th>') + (pe ? '<th>' + issueLabel(T.previous) + ' mean</th>' : '') + '<th>Skill r</th></tr>';
+    var rows = e.valid.map(function (v, i) {
+      if (e.mean[i] == null) return '<tr><td>' + mmm(v) + '</td><td colspan="6" class="flat">not defined by CPC in this month</td></tr>';
+      var pv = pe ? pe.valid.indexOf(v) : -1, sk = e.skill && e.skill[i] != null ? e.skill[i].toFixed(2) : "—";
+      var skc = e.skill && e.skill[i] != null ? (e.skill[i] >= 0.5 ? "up" : e.skill[i] < 0.3 ? "flat" : "") : "flat";
+      return '<tr><td>' + mmm(v) + '</td><td>' + fmt(e.mean[i], 2) + '</td><td>' + fmt(e.p10[i], 2) + ' … ' + fmt(e.p90[i], 2) + '</td>' +
+        (e.p_easterly ? '<td>' + Math.round(e.p_easterly[i] * 100) + '%</td>' : '<td>' + Math.round(e.p_pos[i] * 100) + '%</td><td>' + Math.round(e.p_neg[i] * 100) + '%</td>') +
+        (pe ? '<td>' + (pv >= 0 && pe.mean[pv] != null ? fmt(pe.mean[pv], 2) : "—") + '</td>' : '') + '<td class="' + skc + '">' + sk + '</td></tr>';
+    }).join("");
+    return head + rows;
+  }
+  function indexCard(T, group, pillsId, noteId, chartId, tableId, updId, first) {
+    var keys = T.groups[group]; if (!keys || !keys.length) { document.getElementById(chartId).closest(".card").hidden = true; return; }
+    var cur = first && keys.indexOf(first) >= 0 ? first : keys[0];
+    function draw(k) {
+      var e = T.indices[k];
+      document.getElementById(noteId).textContent = e.note + (T.skill_note ? "  Skill r: " + T.skill_note + "." : "");
+      Plotly.react(chartId, idxTraces(T, k), layout(e.label, e.units, [monthDate(T.previous_indices && T.previous_indices[k] ? T.previous_indices[k].valid[0] : e.valid[0]), monthDate(e.valid[e.valid.length - 1])]), {displayModeBar: false, responsive: true});
+      document.getElementById(tableId).innerHTML = idxTable(T, k);
+    }
+    pills(pillsId, keys.map(function (k) { return {key: k, label: T.indices[k].label}; }), cur, draw);
+    draw(cur);
+    document.getElementById(updId).textContent = "built " + T.generated;
+  }
+  function teleView(T) {
+    if (!T) { document.getElementById("teleCard").hidden = true; document.getElementById("stratCard").hidden = true; return; }
+    indexCard(T, "tele", "telePills", "teleNote", "teleChart", "teleTable", "teleUpdated", "pna");
+    indexCard(T, "strat", "stratPills", "stratNote", "stratChart", "stratTable", "stratUpdated", "u60n10");
+  }
+
+  function normView(N) {
+    var card = document.getElementById("normCard");
+    if (!N || !N.figures || !Object.keys(N.figures).length) { card.hidden = true; return; }
+    var st = {v: "t2m", r: "obs30", k: "anom"};
+    var vars = Object.keys(N.vars).filter(function (v) { return Object.keys(N.figures).some(function (f) { return f.indexOf(v + "|") === 0; }); });
+    var refs = Object.keys(N.refs);
+    function show() {
+      var f = N.figures[st.v + "|" + st.r + "|" + st.k], g = document.getElementById("normGrid");
+      if (!f) { g.innerHTML = "<p class='note'>Not built for this combination yet.</p>"; return; }
+      g.innerHTML = '<figure><a href="assets/sst/' + f + '?v=' + encodeURIComponent(N.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + f + '?v=' + encodeURIComponent(N.generated) + '" alt="SEAS5 ' + N.vars[st.v].label + ' ' + (st.k === "anom" ? "anomaly" : "most likely tercile") + ' vs ' + N.refs[st.r] + '"></a>' +
+        '<figcaption><b>' + N.vars[st.v].label + '</b>, ' + (st.k === "anom" ? "ensemble-mean anomaly" : "most likely tercile") + ' against <b>' + N.refs[st.r] + '</b>. Six lead months on the first two rows, the three overlapping seasons on the last.</figcaption></figure>';
+    }
+    pills("normVar", vars.map(function (v) { return {key: v, label: N.vars[v].label}; }), st.v, function (k) { st.v = k; show(); });
+    pills("normRef", refs.map(function (r) { return {key: r, label: N.refs[r]}; }), st.r, function (k) { st.r = k; show(); });
+    pills("normKind", [{key: "anom", label: "Anomaly"}, {key: "terc", label: "Most likely tercile"}], st.k, function (k) { st.k = k; show(); });
+    show();
+    document.getElementById("normUpdated").textContent = "built " + N.generated;
+  }
+
+  function popView(P) {
+    var card = document.getElementById("popCard");
+    if (!P || !P.regions) { card.hidden = true; return; }
+    var rows = ['<tr><th>Country</th><th>Month</th><th>' + issueLabel(P.previous) + ' mean</th><th>' + issueLabel(P.issue) + ' mean</th><th>Change</th><th>P90 change</th><th>Spread change</th></tr>'];
+    var html = "";
+    Object.keys(P.regions).forEach(function (rk) {
+      var r = P.regions[rk], unit = "°" + r.unit;
+      Object.keys(r.months).sort().forEach(function (mon) {
+        var a = r.months[mon]["abs_" + P.previous], b = r.months[mon]["abs_" + P.issue];
+        if (!a || !b) return;
+        var d = b.mean - a.mean, cls = d > 0.3 ? "up" : d < -0.3 ? "down" : "flat";
+        rows.push('<tr><td>' + r.label + '</td><td>' + mmm(mon) + '</td><td>' + a.mean.toFixed(1) + unit + '</td><td>' + b.mean.toFixed(1) + unit + '</td><td class="' + cls + '">' + fmt(d, 1) + '</td><td>' + fmt(b.p90 - a.p90, 1) + '</td><td>' + fmt(b.sd - a.sd, 1) + '</td></tr>');
+      });
+      html += '<figure><a href="assets/sst/' + r.file + '?v=' + encodeURIComponent(P.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + r.file + '?v=' + encodeURIComponent(P.generated) + '" alt="SEAS5 population-weighted temperature distributions, ' + r.label + '" loading="lazy"></a>' +
+              '<figcaption><b>' + r.label + '</b> — daily population-weighted 2 m temperature, all members, ' + issueLabel(P.issue) + ' issue (gold) against ' + issueLabel(P.previous) + ' (blue); top row model temperature in ' + unit + ', bottom row anomaly against the hindcast.</figcaption></figure>';
+    });
+    document.getElementById("popTable").innerHTML = rows.join("");
+    document.getElementById("popGrid").innerHTML = html;
+    document.getElementById("popUpdated").textContent = "built " + P.generated;
+  }
+
   function maps() {
     var g = document.getElementById("mapGrid"), names = {t2m: "2 m temperature", tp: "Precipitation", z500: "500 hPa height"}, html = "";
     ["t2m", "tp", "z500"].forEach(function (k) {
@@ -729,8 +960,12 @@
     g.innerHTML = html || "<p class='note'>Tercile maps are not part of this issue.</p>";
   }
 
+  var popP = fetch("assets/sst/data/seas5_popT.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  var teleP = fetch("assets/sst/data/seas5_tele.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  var normP = fetch("assets/sst/data/seas5_normals.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
   fetch("assets/sst/data/seas5_outlook.json?v=" + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
     J = d;
+    popP.then(popView); teleP.then(teleView); normP.then(normView);
     document.getElementById("issueLabel").textContent = issueLabel(J.issue) + " issue";
     ["ensoUpdated", "otherUpdated", "mapUpdated", "polarUpdated"].forEach(function (id) { document.getElementById(id).textContent = "built " + J.generated; });
     pills("ensoPills", J.enso_keys.map(function (k) { return {key: k, label: meta(k).label}; }), state.enso, function (k) { state.enso = k; drawEnso(); });
@@ -749,7 +984,7 @@
     document.getElementById("membersPill").addEventListener("click", function () { state.members = !state.members; this.classList.toggle("on", state.members); drawEnso(); });
     document.getElementById("smMonthly").addEventListener("click", function () { state.sm = 0; this.classList.add("on"); document.getElementById("sm3").classList.remove("on"); drawEnso(); drawOther(); });
     document.getElementById("sm3").addEventListener("click", function () { state.sm = 1; this.classList.add("on"); document.getElementById("smMonthly").classList.remove("on"); drawEnso(); drawOther(); });
-    chips(); drawEnso(); drawOther(); maps(); drawPolar();
+    chips(); drawEnso(); drawOther(); changeView(); maps(); drawPolar();
   }).catch(function (e) {
     document.getElementById("chips").innerHTML = '<div class="chip"><div class="l">Forecast feed</div><div class="v neut">unavailable</div><div class="s">' + String(e).slice(0, 80) + '</div></div>';
   });

@@ -276,8 +276,99 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
     return meta
 
 
+# ── change since the previous issue ──────────────────────────────────────────
+def shared_seasons(ym: str, prev: str) -> list[tuple[tuple[int, ...], tuple[int, ...]]]:
+    """(leads_now, leads_prev) for each of this issue's seasons the previous issue
+    also covers. A month-earlier start reaches the same calendar months one lead
+    later, so its final season falls off the end (DJF from a September start is
+    leads 4–6; from August it would be 5–7, which does not exist)."""
+    vm_now, vm_prev = valid_months(ym), valid_months(prev)
+    out = []
+    for leads in SEASON_LEADS:
+        months = [vm_now[L - 1] for L in leads]
+        if all(m in vm_prev for m in months):
+            out.append((leads, tuple(vm_prev.index(m) + 1 for m in months)))
+    return out
+
+
+def load_fields(ym: str) -> dict:
+    """{var: (fc, hc, lat, lon)} for the tercile / change maps, whatever is on disk."""
+    fields = {}
+    if fc_path("sfc", ym).exists() and hc_path("sfc", ym[4:]).exists():
+        for var, short, fac in (("t2m", "t2m", 1.0), ("tp", "tprate", 86400.0 * 1000)):
+            fc, lat, lon = load_field(fc_path("sfc", ym), short)
+            hc, _, _ = load_field(hc_path("sfc", ym[4:]), short)
+            fields[var] = (fc * fac, hc * fac, lat, lon)
+    if fc_path("z500", ym).exists() and hc_path("z500", ym[4:]).exists():
+        fc, lat, lon = load_field(fc_path("z500", ym), "z")
+        hc, _, _ = load_field(hc_path("z500", ym[4:]), "z")
+        fields["z500"] = (fc / G0, hc / G0, lat, lon)
+    return fields
+
+
+def render_changes(ym: str, prev: str, now: dict, before: dict, out_dir: Path) -> dict:
+    """One figure per variable: ensemble-mean anomaly of this issue minus the previous
+    issue, each anomaly against its own start-month hindcast, on the shared seasons."""
+    import calendar
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import BoundaryNorm
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+
+    pairs = shared_seasons(ym, prev)
+    if not pairs:
+        return {}
+    spec = {"t2m": ("2 m temperature", "°C", [-2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2], "RdBu_r"),
+            "tp": ("Precipitation", "mm/day", [-2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2], "BrBG"),
+            "z500": ("500 hPa height", "m", [-40, -30, -20, -10, -5, 5, 10, 20, 30, 40], "RdBu_r")}
+    proj, pc = ccrs.PlateCarree(central_longitude=-90), ccrs.PlateCarree()
+    meta = {}
+    for var in ("t2m", "tp", "z500"):
+        if var not in now or var not in before:
+            continue
+        fc_n, hc_n, lat, lon = now[var]; fc_p, hc_p, _, _ = before[var]
+        title, units, levels, cmap = spec[var]
+        fig, axes = plt.subplots(1, len(pairs), figsize=(5.2 * len(pairs) + 1.2, 7.4), subplot_kw={"projection": proj}, squeeze=False)
+        seasons = []
+        for ax, (ln, lp) in zip(axes[0], pairs):
+            a_now = _season_means(fc_n, ln).mean(0) - _season_means(hc_n, ln).mean(0)
+            a_prev = _season_means(fc_p, lp).mean(0) - _season_means(hc_p, lp).mean(0)
+            d = a_now - a_prev
+            ax.set_extent([-170, -30, -60, 75], crs=pc)
+            ax.add_feature(cfeature.LAND, facecolor="#f4f4f1", zorder=0)
+            m = ax.pcolormesh(lon, lat, d, cmap=plt.get_cmap(cmap, len(levels) - 1), norm=BoundaryNorm(levels, len(levels) - 1),
+                              transform=pc, shading="auto", zorder=1)
+            if var in ("t2m", "tp"):
+                ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2)
+                ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
+            ax.coastlines(linewidth=0.5, color="#444", zorder=3)
+            ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="#777", zorder=3)
+            ax.add_feature(cfeature.STATES, linewidth=0.2, edgecolor="#999", zorder=3)
+            lab = season_label(ym, ln); vm = valid_months(ym)
+            y0s, y1s = vm[ln[0] - 1][:4], vm[ln[-1] - 1][:4]
+            ax.set_title(f"{lab} {y0s if y0s == y1s else y0s + '–' + y1s[2:]}", fontsize=13, loc="left")
+            land = np.isfinite(d)
+            seasons.append(dict(label=lab, mean_change=float(np.nanmean(d)), abs_change_p90=float(np.nanpercentile(np.abs(d[land]), 90))))
+        cax = fig.add_axes([0.28, 0.075, 0.44, 0.022])                 # its own strip under the maps, never over them
+        cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both")
+        cb.set_label(f"change in ensemble-mean anomaly ({units}), {calendar.month_name[int(ym[4:])]} issue minus {calendar.month_name[int(prev[4:])]} issue", fontsize=10)
+        cb.ax.tick_params(labelsize=9)
+        fig.suptitle(f"SEAS5 {title}: change since the {calendar.month_name[int(prev[4:])]} issue", x=0.02, y=0.985, ha="left", fontsize=15)
+        fig.text(0.02, 0.925, "Each issue's ensemble mean is an anomaly against its own start-month hindcast, so this is the shift in the forecast, not a drift artefact.\n"
+                 "Only the seasons both issues cover are shown; the newest season has no counterpart in the earlier issue.",
+                 fontsize=9.5, color="#444", va="top", linespacing=1.4)
+        fig.subplots_adjust(left=0.02, right=0.98, top=0.86, bottom=0.14, wspace=0.05)
+        out = out_dir / f"seas5_change_{var}.webp"
+        fig.savefig(out, dpi=105, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
+        meta[var] = dict(file=out.name, seasons=seasons, previous=prev)
+        print(f"  wrote {out.name}", flush=True)
+    return meta
+
+
 # ── polar caps ───────────────────────────────────────────────────────────────
-def polar_caps(ym: str) -> dict:
+def polar_caps(ym: str, members: bool = True) -> dict:
     out = {}
     for hemi, kind, box in (("nh", "polar_n", (60, 90, -180, 180)), ("sh", "polar_s", (-90, -60, -180, 180))):
         fcp, hcp = fc_path(kind, ym), hc_path(kind, ym[4:])
@@ -288,8 +379,11 @@ def polar_caps(ym: str) -> dict:
             hc, _, _ = load_field(hcp, "z", level=lev)
             f = box_mean(fc / G0, lat, lon, box); h = box_mean(hc / G0, lat, lon, box)
             a = f - h.mean(0)
-            out[f"{hemi}_z{lev}"] = dict(**_summ(a), members=a.round(1).tolist(), clim_sd=h.std(0).round(1).tolist(),
-                                          clim_mean=h.mean(0).round(1).tolist(), units="m")
+            e = dict(**_summ(a), clim_sd=h.std(0).round(1).tolist(), clim_mean=h.mean(0).round(1).tolist(), units="m",
+                     valid=valid_months(ym))
+            if members:
+                e["members"] = a.round(1).tolist()
+            out[f"{hemi}_z{lev}"] = e
     return out
 
 
@@ -333,19 +427,17 @@ def build(ym: str, n_prev: int = 3) -> None:
     if ym not in issues:
         raise SystemExit(f"no SEAS5 {ym} SST data — run fetch first")
 
-    fields = {}
-    if fc_path("sfc", ym).exists() and hc_path("sfc", ym[4:]).exists():
-        for var, short, fac in (("t2m", "t2m", 1.0), ("tp", "tprate", 86400.0 * 1000)):
-            fc, lat, lon = load_field(fc_path("sfc", ym), short)
-            hc, _, _ = load_field(hc_path("sfc", ym[4:]), short)
-            fields[var] = (fc * fac, hc * fac, lat, lon)
-    if fc_path("z500", ym).exists() and hc_path("z500", ym[4:]).exists():
-        fc, lat, lon = load_field(fc_path("z500", ym), "z")
-        hc, _, _ = load_field(hc_path("z500", ym[4:]), "z")
-        fields["z500"] = (fc / G0, hc / G0, lat, lon)
+    fields = load_fields(ym)
     terc = render_terciles(ym, fields, ASSETS) if fields else {}
 
+    prev = previous_issues(ym, 1)[0]
+    before = load_fields(prev)
+    changes = render_changes(ym, prev, fields, before, ASSETS) if fields and before else {}
+    if not changes:
+        print(f"  change maps skipped: previous issue {prev} fields not on disk", flush=True)
+
     polar = polar_caps(ym)
+    polar_prev = polar_caps(prev, members=False)
 
     doc = {
         "generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()),
@@ -356,7 +448,10 @@ def build(ym: str, n_prev: int = 3) -> None:
         "indices": issues,
         "observed": observed_indices(),
         "terciles": terc,
+        "changes": changes,
+        "previous": prev,
         "polar": polar,
+        "polar_previous": polar_prev,
     }
     OUT_JSON.write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {OUT_JSON} ({OUT_JSON.stat().st_size / 1e3:.0f} kB) in {(time.time() - t0) / 60:.1f} min", flush=True)
