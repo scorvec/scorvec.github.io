@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECMWF SEAS5 Seasonal Outlook &mdash; ENSO indices, terciles, stratosphere &middot; Shawn Corvec</title>
+<meta name="description" content="ECMWF SEAS5 seasonal outlook, every month: Niño-1+2, Niño-3, Niño-3.4, Niño-4, relative Niño-3.4 and Trans-Niño plumes against the previous issues, PDO, AMO, IOD and Atlantic Niño, calibrated tercile maps of temperature, precipitation and 500 hPa height over the Americas, and polar-cap stratospheric heights. Anomalies against the model's own 1993–2016 hindcast.">
+<link rel="canonical" href="https://scorvec.com/seas5.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ECMWF SEAS5 Seasonal Outlook">
+<meta property="og:description" content="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from seven centres, percentile fans, ONI vs RONI, and the forecast measured against every ENSO event since 1970.">
+<meta property="og:url" content="https://scorvec.com/seas5.html">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ECMWF SEAS5 Seasonal Outlook">
+<meta name="twitter:description" content="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from seven centres, percentile fans, ONI vs RONI, and the forecast measured against every ENSO event since 1970.">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fcfcfa;
+    --ink: #1a1a1a;
+    --ink2: #4a4744;          /* body copy inside cards */
+    --muted: #8a8680;
+    --accent: #8a4b2a;        /* burnt sienna — links, active tab, selected button */
+    --accent-hi: #a85c33;
+    --accent-light: #f6efe9;  /* accent at ~8%, for hover fills */
+    --rule: #e2e0da;
+    --edge: #c9c5bb;      /* card outline — deliberately darker than --rule */
+    --surface: #ffffff;
+    --warm: #b4541f;          /* El Nino / positive anomaly */
+    --cool: #3f6f8f;          /* La Nina / negative anomaly (data only, muted) */
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', sans-serif;
+  }
+  html { font-size: 17.5px; }   /* nudge the whole page up from the 16px default */
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+
+  main {
+    flex: 1;
+    /* scale with the monitor: ~94% of the viewport up to 2000px, so laptops
+       keep a visible frame and ultrawides get the full width */
+    max-width: min(94vw, 2000px);
+    margin: 0 auto;
+    padding: 2rem 2.2rem 2.5rem;
+    width: 100%;
+  }
+
+  .page-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .page-header p {
+    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+  }
+  .page-header p + p { margin-top: 0.8rem; }
+
+  /* Overview topic grid (links to the themed subpages) */
+  .topic-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem; margin-bottom: 1.5rem;
+  }
+  .topic-card {
+    display: block; border: 1.5px solid var(--edge); background: #fff;
+    padding: 1.2rem 1.3rem; text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .topic-card:hover { border-color: var(--accent); background: var(--accent-light); }
+  .topic-card h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.02rem;
+    color: var(--ink); margin-bottom: 0.3rem;
+  }
+  .topic-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
+
+  .chart-stack { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  .chart-card {
+    border: 1.5px solid var(--edge);
+    background: #fff;
+    overflow: hidden;
+  }
+  /* a deck holds many figures, so give it a slightly heavier frame than a lone card */
+  .chart-card.plot-deck { border-width: 2px; border-color: #b8b3a8; }
+  .chart-card-header {
+    padding: 1rem 1.4rem 0.85rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .chart-card-header h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
+    margin-bottom: 0.6rem; color: var(--ink);
+  }
+  .chart-card-header p {
+    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
+  }
+  .chart-card-header p + p { margin-top: 0.7rem; }
+  .chart-card-header b { color: var(--ink); font-weight: 500; }
+
+  .img-wrap { padding: 0.5rem 0.7rem; background: #fff; }
+  .img-wrap + .img-wrap { padding-top: 0; }
+  .img-wrap img { display: block; width: auto; max-width: 100%; max-height: 88vh; height: auto; margin: 0 auto; }
+  /* A deferred figure has no src until its tab is opened. Without this it paints
+     the browser's broken-image glyph and collapses to nothing, so the panel looks
+     broken and then jumps when the real image arrives. Hold the space, show a
+     neutral field, and let the swap fill it. */
+  .img-wrap img:not([src]) { min-height: 260px; background: #fafafa; border: 1px solid #f0f0f0; }
+  /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
+     sized to its exact content height via postMessage (see footer.html / sst_anim.html),
+     which fills the card with no letterboxing at any width. */
+  .anim-embed { width: 100%; border: 0; display: block; background: var(--bg);
+                margin: 0 auto; aspect-ratio: 1312 / 1080;   /* default = the OISST anomaly loop */
+                /* pre-JS ceiling: a tall placeholder (aam-zonal, torque, samsat) must not
+                   run past the viewport before the animator posts its real height */
+                max-height: 92vh; }
+  /* Once loaded, the animator also posts the width its frame actually renders at
+     (sizing is height-capped at 88vh, so a portrait or square loop is narrower than
+     the card). The host pins the iframe to that width and centres it, page-grey on
+     the sides, instead of leaving a full-width box with a small picture in the
+     middle. Per-loop caps below are only the pre-JS estimate of the same thing. */
+  .anim-embed.subsurface { aspect-ratio: 1084 / 835;   /* image 1084×783 + controls */
+    max-width: min(100%, calc((88vh - 40px) * 1084 / 783)); }
+  .anim-embed.torque { aspect-ratio: 1184 / 1030;      /* image 1184×975 + controls */
+    max-width: min(100%, calc((88vh - 40px) * 1184 / 975)); }
+  .anim-embed.mmsf { aspect-ratio: 1042 / 630; }
+  .anim-embed.walker { aspect-ratio: 1471 / 620; }  /* image 1471×566 + controls bar */
+  .anim-embed.waf { aspect-ratio: 1400 / 760; }     /* image + controls bar */
+  .anim-embed.jets { aspect-ratio: 1160 / 619; }    /* image 1160×569 + controls bar */
+  .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
+  .anim-embed.wind200 { aspect-ratio: 1496 / 776; }   /* image 1496×726 + controls bar */
+  /* Added 2026-08-31. These three loops shipped without a sizing rule, so their
+     embeds had no reserved height at all: the panel collapsed to nothing and the
+     page jumped when the frames finally painted. Ratios measured off F00 of each
+     loop, plus ~50px for the controls bar, same as the rules above. */
+  .anim-embed.epflux { aspect-ratio: 1380 / 855; }        /* image 1380×805 + controls bar */
+  .anim-embed.vortex_winds { aspect-ratio: 1425 / 837; }  /* image 1425×787 + controls bar */
+  .anim-embed.wave1_maps { aspect-ratio: 1550 / 850; }    /* image 1550×800 + controls bar */
+  /* An animator that has not been pulled in yet still holds its space, but an
+     empty box the same colour as the page reads as broken rather than pending. */
+  .anim-embed[data-src] { background: #fafafa; border: 1px solid #f0f0f0; }
+  .anim-embed.aam-zonal { aspect-ratio: 1408 / 1000; }  /* image 1408×946 + controls bar */
+  .anim-embed.ascat { aspect-ratio: 1385 / 365; }   /* image 1385×311 + controls bar */
+  .anim-embed.mur { aspect-ratio: 3504 / 705; }     /* image 3504×650 + controls bar */
+  /* GMGSI loops re-rendered at 200 dpi on 2026-09-01: 2031×918 and 1454×1520 */
+  .anim-embed.pacsat { aspect-ratio: 2031 / 985; }  /* image 2031×918 + controls bar */
+  .anim-embed.gdps-ir { aspect-ratio: 1860 / 975; } /* image 1860×915 + controls bar */
+  .anim-embed.gdps-150 { aspect-ratio: 1456 / 700; } /* image 1456×644 + controls bar */
+  .anim-embed.samsat { aspect-ratio: 1454 / 1587;   /* image 1454×1520 + controls */
+    max-width: min(100%, calc((88vh - 40px) * 1454 / 1520)); }
+  .anim-embed.glmden { aspect-ratio: 591 / 677; }     /* image 591×622 (map + colourbar) + controls */
+  .anim-embed.precip { aspect-ratio: 771 / 823; }     /* image 771×768 (map + colourbar) + controls */
+  .anim-embed.precip-anom { aspect-ratio: 768 / 823; }  /* image 768×768 (map + colourbar) + controls */
+  /* near-square Americas maps: cap the whole CARD (image fills it) so it hugs the map and
+     doesn't stretch tall across the wide column — the card centers, page-gray on the sides. */
+  .chart-card.media-narrow { max-width: 640px; margin-inline: auto; }
+  .anim-embed.eq-cur-map { aspect-ratio: 1355 / 470; }      /* image 1355×417 + controls bar */
+  .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
+  .img-label {
+    font-size: 0.72rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 0 0 0.4rem 0.2rem;
+  }
+
+  /* live wind-arrow widget (Tarawa WWB monitor) */
+  .wwb-arrows {
+    display: flex; justify-content: center; align-items: center; gap: 2.6rem;
+    flex-wrap: wrap; padding: 1.3rem 1.2rem 0.4rem;
+  }
+  .wwb-stn { text-align: center; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+  .wwb-stn svg { display: block; margin: 0 auto 0.35rem; }
+  .wwb-stn b { display: block; color: var(--ink); font-weight: 500; font-size: 0.92rem; }
+
+  .chart-card-footer {
+    padding: 0.6rem 1.4rem;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .chart-sources { font-size: 0.68rem; color: var(--muted); }
+  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+
+  .colophon {
+    margin-top: 4rem; padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+  }
+  .colophon h3 {
+    font-family: var(--serif); font-weight: 400; font-size: 1rem;
+    color: var(--ink); margin-bottom: 0.5rem;
+  }
+  .colophon p + p { margin-top: 0.7rem; }
+  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .colophon a:hover { border-bottom-color: var(--accent); }
+
+  footer {
+    padding: 1.2rem 3rem; border-top: 1px solid var(--rule);
+    display: flex; justify-content: center;
+  }
+  .counter {
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .counter span { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
+    main { padding: 1.5rem 1rem 2rem; max-width: 100%; }
+    .page-header { margin-bottom: 1.2rem; padding-bottom: 0.8rem; }
+    .page-header h1 { font-size: 1.6rem; }
+    .chart-stack { gap: 1.1rem; }
+    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
+    .chart-card-footer { padding: 0.75rem 1.3rem; }
+    footer { padding: 1rem 1.5rem; }
+  }
+  @media (max-width: 480px) {
+    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .nav-name { font-size: 0.95rem; }
+    .nav-links { gap: 1rem; }
+    .nav-links a { font-size: 0.78rem; }
+    .enso-subnav { padding: 0.5rem 1.1rem 0.6rem; gap: 0.85rem; }
+    .enso-subnav a { font-size: 0.74rem; }
+    main { padding: 1.5rem 1rem 3rem; }
+    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
+    .chart-card-header h2 { font-size: 1.02rem; }
+    .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
+    .img-wrap { padding: 0.7rem 0.7rem; }
+    .chart-card-footer { padding: 0.7rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
+    footer { padding: 0.9rem 1.1rem; }
+  }
+  @media (max-width: 360px) {
+    .nav-links { gap: 0.8rem; }
+    .nav-links a { font-size: 0.72rem; }
+    .enso-subnav { gap: 0.7rem; }
+    .page-header h1 { font-size: 1.28rem; }
+  }
+
+  /* Figure toggles — one card, several versions of the same figure.
+     Pairs like raw/de-trended or the same field from two models were separate
+     cards; they are the same panel with one thing changed, so they share a card
+     and a switch instead of doubling the scroll length. */
+  .fig-toggle { display: flex; gap: 0.4rem; padding: 0 1.8rem 0.7rem; flex-wrap: wrap; }
+  .fig-toggle button {
+    font: inherit; font-size: 0.86rem; font-weight: 600; letter-spacing: 0.01em;
+    padding: 0.4rem 0.95rem; cursor: pointer; border-radius: 3px;
+    border: 1.5px solid var(--accent); background: var(--accent-light);
+    color: var(--accent);
+  }
+  .fig-toggle button:hover { background: #ecdfd4; }
+  .fig-toggle button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* Section grouping. The Atmospheric Response page carries ~22 cards across
+     five quite different topics; grouping them in place (no reordering) plus a
+     jump nav makes it navigable without splitting it into more pages. */
+  .section-nav {
+    /* aligns with main's content box, like .page-header and .chart-card.
+       These were grey uppercase text with no border, which read as a caption
+       rather than as the jump links they are — same chip treatment as the
+       figure-selector buttons so the page has one visual language for controls. */
+    margin: 0 0 1.2rem; display: flex; flex-wrap: wrap; gap: 0.45rem;
+    font-size: 0.76rem; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .section-nav a {
+    color: var(--accent); text-decoration: none; font-weight: 600;
+    background: var(--accent-light); border: 1.5px solid var(--accent);
+    border-radius: 999px; padding: 0.3rem 0.85rem;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .section-nav a:hover, .section-nav a:focus-visible {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+  }
+  /* Plot deck — one card holding several figures behind a tab bar.
+     Pages had grown to 12-22 cards, most of them a caption plus one figure, so
+     the page was a long scroll and EVERY animator iframe loaded at once. A deck
+     shows one panel at a time and keeps the other iframes' src in data-src until
+     first opened, so a page now loads exactly one animator instead of a dozen. */
+  .plot-deck .deck-head {
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.25rem 0.7rem;
+    padding: 0.85rem 1.4rem 0.45rem;
+  }
+  .plot-deck .deck-title {
+    font-size: 0.86rem; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--accent);
+  }
+  .plot-deck .deck-hint { font-size: 0.8rem; color: var(--muted); }
+  .plot-deck .deck-tabs {
+    display: flex; flex-wrap: wrap; gap: 0.4rem;
+    padding: 0 1.4rem 0.7rem; border-bottom: 1px solid var(--rule, #e8e8e8);
+  }
+  .plot-deck .deck-tabs button {
+    /* the selector is the primary control on these pages now, so it is sized
+       like one: larger, semibold, with a border that reads at a glance */
+    font: inherit; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.01em;
+    padding: 0.48rem 1.05rem; cursor: pointer; border-radius: 3px;
+    border: 1.5px solid var(--accent); background: var(--accent-light);
+    color: var(--accent);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent-hi); }
+  .plot-deck .deck-tabs button.on {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+    box-shadow: 0 1px 5px rgba(138,75,42,0.38);
+  }
+  .plot-deck .deck-panel[hidden] { display: none; }
+  .plot-deck .deck-panel > .chart-card-header { padding-top: 0.9rem; }
+
+  .page-section {
+    width: 100%; margin: 0.7rem 0 -0.5rem;
+    font-family: var(--serif, Georgia, serif); font-weight: 400; font-size: 1.12rem;
+    color: var(--ink); scroll-margin-top: 5.5rem;
+  }
+  .page-section::after {
+    content: ""; display: block; margin-top: 0.5rem;
+    border-bottom: 1px solid var(--rule, #e2e2e2);
+  }
+
+  /* ── components ported from the retired dark chrome (2026-08-28) ──
+     Overview and Forecasts used to ship their own navy/cyan stylesheet. They now
+     use this one, so these are the classes only their markup uses, restyled to
+     the warm-white palette. Keeping one stylesheet means a chrome change lands on
+     all four pages instead of two. */
+
+  /* hero */
+  .eyebrow { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.22em;
+             text-transform: uppercase; color: var(--accent); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: 2.1rem;
+       letter-spacing: 0.01em; margin: 0.3rem 0 0.2rem; color: var(--ink); }
+  h1 em { font-style: italic; color: var(--accent); }
+  .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 0.9rem; }
+
+  /* stat chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
+  .chip { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
+          padding: 0.55rem 0.85rem; min-width: 148px; }
+  .chip .l { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em;
+             text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .chip .v { font-size: 1.28rem; font-weight: 600; margin-top: 2px;
+             font-variant-numeric: tabular-nums; }
+  .chip .s { font-size: 0.66rem; color: var(--ink2); }
+  .warm { color: var(--warm); } .cool { color: var(--cool); } .neut { color: var(--ink2); }
+
+  /* the legacy plain `card` container — same box as .chart-card */
+  .card {
+    background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
+    padding: 1rem 1.4rem 0.6rem; margin-bottom: 1.5rem;
+  }
+  .card h2, .card-header h2 { font-family: var(--serif); font-weight: 500;
+    font-size: 1.2rem; margin-bottom: 0.2rem; color: var(--ink); }
+  .card .note, .card-header p { font-size: 0.76rem; color: var(--ink2);
+    margin-bottom: 0.7rem; max-width: 100ch; }
+  .card-header { padding: 1rem 1.4rem 0.85rem; }
+
+  /* controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center;
+              margin-bottom: 0.5rem; }
+  .pill { font: 600 0.72rem var(--sans); letter-spacing: 0.02em; color: var(--accent);
+          background: var(--accent-light); border: 1.5px solid var(--accent); border-radius: 999px;
+          padding: 0.34rem 0.85rem; cursor: pointer; transition: all .15s; }
+  .pill:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+  .pill.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+  .pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ctlsep { color: var(--muted); font-size: 0.66rem; margin: 0 2px; }
+
+  /* media */
+  .img-label { font-size: 0.7rem; color: var(--muted); margin: 0.55rem 0 0.2rem; }
+  .heromap { position: relative; }
+  .heromap img { width: auto; max-width: 100%; max-height: 88vh; height: auto;
+                 margin: 0 auto; display: block; cursor: zoom-in; }
+  .heromap .full { position: absolute; right: 10px; bottom: 10px; font-size: 0.64rem;
+                   color: var(--ink2); background: rgba(255,255,255,0.9);
+                   border: 1px solid var(--rule); border-radius: 999px;
+                   padding: 3px 9px; text-decoration: none; }
+  .plot { width: 100%; }
+
+  .colophon { color: var(--muted); font-size: 0.72rem; line-height: 1.7;
+              border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 0.5rem; }
+  .colophon h3 { font-family: var(--serif); font-weight: 500; font-size: 0.88rem;
+                 color: var(--ink2); margin-bottom: 0.35rem; }
+  .colophon p { margin-bottom: 0.45rem; max-width: 110ch; }
+  footer .counter { opacity: 0.8; }
+
+  @media (max-width: 700px) {
+    h1 { font-size: 1.55rem; }
+    .chip { min-width: 44%; }
+  }
+</style>
+<style>
+  .idx-note { font-size: 0.8rem; color: var(--ink2); margin: 0.2rem 0 0.6rem; min-height: 1.2em; }
+  .map-grid { display: grid; gap: 1rem; }
+  .map-grid figure { margin: 0; background: #fff; border: 1px solid var(--rule); padding: 0.5rem; }
+  .map-grid img { display: block; width: 100%; height: auto; }
+  .map-grid figcaption { font-size: 0.8rem; color: var(--ink2); padding: 0.5rem 0.3rem 0.2rem; line-height: 1.5; }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.78rem; color: var(--ink2); margin: 0.3rem 0 0.8rem; }
+  .legend-row span::before { content: ""; display: inline-block; width: 22px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--sw); }
+  .legend-row span.band::before { height: 12px; opacity: 0.5; }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-products" aria-current="page">Products</button>
+          <div class="sh-menu" id="sh-products">
+            <div>
+              <h3>Tropics and El Niño</h3>
+              <ul>
+                <li><a href="/sst.html">El Niño monitor</a></li>
+                <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/enso-atmosphere.html">Atmospheric response</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/subseasonal.html">Subseasonal outlook</a></li>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/gatun/">Lake Gatún</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Convection and observations</h3>
+              <ul>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/skewt/">Sounding explorer</a></li>
+                <li><a href="/asos5.html">Five-minute airport observations</a></li>
+                <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasonal</h3>
+              <ul>
+                <li><a href="/seas5.html" aria-current="page">ECMWF SEAS5 outlook</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Model verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
+              </ul>
+            </div>
+            <p class="sh-all">Every product, with what it shows and how often it updates, is listed on the <a href="/#products">home page</a>.</p>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<nav class="st" aria-label="Section">
+  <div class="st-in">
+    <a href="/sst.html">Overview</a>
+    <a href="/enso-subsurface.html">Subsurface</a>
+    <a href="/enso-forecasts.html">Forecasts</a>
+    <a href="/seas5.html" aria-current="page">SEAS5</a>
+    <a href="/enso-atmosphere.html">Atmospheric response</a>
+  </div>
+</nav>
+<!-- sh:end -->
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
+<main>
+  <header>
+    <div class="eyebrow">Monthly &middot; ECMWF SEAS5 &middot; <span id="issueLabel">latest issue</span> &middot; 51 members</div>
+    <h1>SEAS5 <em>Outlook</em></h1>
+    <p class="sub">One system, read in full: the ENSO indices from the coastal Ni&ntilde;o-1+2 to the
+    central-Pacific Ni&ntilde;o-4, each against the previous three issues; the Pacific Decadal,
+    Atlantic and Indian Ocean indices from the same SST fields; calibrated tercile maps of
+    temperature, rainfall and 500&nbsp;hPa height over the Americas; and the polar stratosphere.
+    Every anomaly is the member minus SEAS5&rsquo;s own 1993&ndash;2016 hindcast for the same start
+    month and lead, so model drift is removed before anything is drawn. The multi-model
+    <a href="enso-forecasts.html">C3S page</a> follows once the other centres publish.</p>
+    <div class="chips" id="chips">
+      <div class="chip"><div class="l">Loading forecast feed&hellip;</div><div class="v neut">&mdash;</div></div>
+    </div>
+  </header>
+
+  <!-- ── ENSO INDICES ─────────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>ENSO indices &mdash; this issue against the last three</h2>
+    <p class="note">The shaded fan is <b>this issue</b> (P10&ndash;P90 and P25&ndash;P75 of the 51 members) with its
+    mean in gold; the coloured lines are the ensemble means of the <b>previous issues</b>, oldest
+    darkest, each drawn over its own valid months, so the run-to-run shift is read directly.
+    The grey band is the hindcast&rsquo;s year-to-year spread (&plusmn;1&sigma;), the model&rsquo;s own
+    &ldquo;normal range&rdquo;. Black is observed (CPC ERSSTv5, 1991&ndash;2020 base) where an
+    observed series exists. East-based indices matter this year: a warm Ni&ntilde;o-1+2 with a
+    cooler Ni&ntilde;o-4 is a different event from the reverse, and the Trans-Ni&ntilde;o index
+    puts that gradient on one axis.</p>
+    <div class="controls" id="ensoPills"></div>
+    <div class="idx-note" id="ensoNote"></div>
+    <div class="controls">
+      <button class="pill" data-members="1" id="membersPill">Show all 51 members</button>
+      <button class="pill on" data-sm="0" id="smMonthly">Monthly</button>
+      <button class="pill" data-sm="1" id="sm3">3-month running mean</button>
+    </div>
+    <div id="ensoChart" class="plot" style="height:480px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 via the Copernicus CDS &middot; anomalies vs the 1993&ndash;2016 hindcast (25 members) at the same lead &middot; relative Ni&ntilde;o-3.4 scaled by the site&rsquo;s &sigma;(ONI)/&sigma;(relative) per calendar month &middot; observed: CPC ERSSTv5</span>
+      <span class="chart-updated" id="ensoUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── OTHER INDICES ────────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>PDO, AMO, Indian Ocean Dipole, Atlantic Ni&ntilde;o</h2>
+    <p class="note">Same fields, same treatment. The <b>PDO</b> is the projection of each member&rsquo;s
+    North Pacific anomaly onto the ERSST EOF pattern the daily monitor uses, with the global
+    mean removed and NCEI&rsquo;s scale applied; the <b>AMO</b> is the relative form (North Atlantic
+    minus the 60&deg;S&ndash;60&deg;N mean), so the warming trend does not masquerade as a basin
+    mode. Because the anomaly base here is the model&rsquo;s 1993&ndash;2016 hindcast rather than
+    1991&ndash;2020 observations, absolute levels can sit a tenth or two from the published
+    indices; the shape and the run-to-run change are what to read.</p>
+    <div class="controls" id="otherPills"></div>
+    <div class="idx-note" id="otherNote"></div>
+    <div id="otherChart" class="plot" style="height:440px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 SST, 2&deg; grid &middot; PDO pattern: EOF1 of ERSSTv5 North Pacific SSTA (reference/pdo_pattern.nc) &middot; hindcast &plusmn;1&sigma; band from the 24 hindcast years</span>
+      <span class="chart-updated" id="otherUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── TERCILES ─────────────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>Calibrated terciles over the Americas</h2>
+    <p class="note">For each grid point, season and lead, the tercile boundaries come from SEAS5&rsquo;s
+    <b>own hindcast</b> &mdash; 24 years &times; 25 members, 600 seasonal means &mdash; and the 51
+    forecast members are counted against them. That removes the model&rsquo;s mean bias and its
+    spread bias point by point, which is the calibration that matters most for a
+    single-system tercile map. Shading is the most likely category and its probability; white
+    means no category reaches 40&nbsp;%. Near-normal is not drawn: with a realistic spread it is
+    almost never the most likely tercile, and where it is, the signal is weak anyway. Three
+    overlapping seasons follow the start month. One caveat for temperature and for 500&nbsp;hPa height: the hindcast base is
+    1993&ndash;2016, so two decades of warming (and the thickness rise that goes with it) sit
+    inside &ldquo;above normal&rdquo; before any El&nbsp;Ni&ntilde;o signal is added &mdash; read
+    those maps for their pattern and their below-normal exceptions, the subtropical jet trough
+    across the southern United States above all, rather than the sheer extent of warm shading.</p>
+    <div class="map-grid" id="mapGrid"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 monthly means, 1&deg; grid, 75&deg;N&ndash;60&deg;S &middot; temperature and precipitation over land, 500 hPa height everywhere &middot; thresholds: 1993&ndash;2016 hindcast terciles</span>
+      <span class="chart-updated" id="mapUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── STRATOSPHERE ─────────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>Polar stratosphere &mdash; cap-mean heights</h2>
+    <p class="note">The 60&ndash;90&deg; polar-cap mean geopotential height at 100, 50 and 10&nbsp;hPa, as an
+    anomaly against the hindcast at each lead. A <b>high</b> cap at 100&nbsp;hPa is a weak, warm
+    vortex (the SSW-side reading); a low cap is a strong, cold one. The hindcast &plusmn;1&sigma; band
+    shows how far a seasonal model normally strays, which at these levels is not far &mdash; read
+    the sign of the tilt and whether the members agree, not the amplitude. Both hemispheres;
+    the southern vortex is in its spring breakdown season at a September start.</p>
+    <div class="controls" id="polarPills"></div>
+    <div id="polarChart" class="plot" style="height:420px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 geopotential, 2&deg; grid, cosine-weighted 60&ndash;90&deg; cap mean &middot; anomalies vs the 1993&ndash;2016 hindcast</span>
+      <span class="chart-updated" id="polarUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="colophon">
+    <h3>Data and method</h3>
+    <p>Forecast: ECMWF SEAS5 (C3S <code>originating_centre=ecmwf</code>, <code>system=51</code>), 51 members, monthly means for lead months 1&ndash;6, from the Copernicus Climate Data Store; hindcast: the same system&rsquo;s 1993&ndash;2016 re-forecasts, 25 members, for the same start month. Sea-surface temperature on a 2&deg; grid between 70&deg;S and 70&deg;N; 2 m temperature, precipitation and 500 hPa geopotential on a 1&deg; grid over 170&deg;W&ndash;30&deg;W, 60&deg;S&ndash;75&deg;N; geopotential at 10, 50 and 100 hPa poleward of 60&deg; in each hemisphere.</p>
+    <p>Indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead. Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site (Ni&ntilde;o-3.4 minus the 20&deg;S&ndash;20&deg;N tropical mean, rescaled per calendar month by &sigma;(ONI)/&sigma;(relative)). The Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001): standardised Ni&ntilde;o-1+2 minus standardised Ni&ntilde;o-4, standardised here by the hindcast spread at each lead. Previous issues are processed identically against their own start-month hindcasts. Terciles: per grid point, per season, thresholds at the 33.3rd and 66.7th percentiles of the 600 hindcast seasonal means; probabilities are member fractions. Built by <code>scripts/sst/seas5_outlook.py</code>; the JSON behind the charts is <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>.</p>
+    <p>Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use of this information.</p>
+  </div>
+</main>
+
+<script>
+(function () {
+  var J = null;
+  var ORDER = ["#3b2a8c", "#3f7fbf", "#39b3b0"];           // previous issues, oldest first
+  var GOLD = "#b8860b", FAN = "rgba(184,134,11,", CLIM = "rgba(120,120,120,0.16)";
+  var state = { enso: "nino34", other: "pdo", members: false, sm: 0, hemi: "nh", lev: "100" };
+  var OBS_KEY = { nino12: "nino12", nino3: "nino3", nino34: "nino34", nino4: "nino4", rnino34: "roni" };
+
+  function monthDate(ym) { return ym + "-15"; }
+  function mmm(ym) { var m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return m[parseInt(ym.slice(5), 10) - 1] + " " + ym.slice(0, 4); }
+  function issueLabel(ym) { return mmm(ym.slice(0, 4) + "-" + ym.slice(4)); }
+  function run3(a) { var o = []; for (var i = 0; i < a.length; i++) { if (i < 2) { o.push(null); continue; } o.push((a[i] + a[i-1] + a[i-2]) / 3); } return o; }
+  function fmt(v, d) { return v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
+  function meta(key) { for (var i = 0; i < J.index_meta.length; i++) if (J.index_meta[i].key === key) return J.index_meta[i]; return {label: key, units: "", note: ""}; }
+
+  function layout(title, yunits, xr) {
+    return { margin: {l: 52, r: 16, t: 28, b: 40}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff",
+      font: {family: "Inter, sans-serif", size: 12, color: "#1a1a1a"}, showlegend: true,
+      legend: {orientation: "h", y: -0.16, x: 0, font: {size: 11}},
+      xaxis: {type: "date", range: xr, gridcolor: "#eee", tickformat: "%b %Y", zeroline: false},
+      yaxis: {title: {text: yunits, standoff: 6}, gridcolor: "#eee", zeroline: true, zerolinecolor: "#999"},
+      hovermode: "x unified", title: {text: title, x: 0, font: {size: 13}} };
+  }
+
+  function seriesFor(entry, key) {
+    var e = entry[key]; if (!e) return null;
+    var f = state.sm ? run3 : function (a) { return a; };
+    return { x: entry.valid.map(monthDate), mean: f(e.mean), p10: f(e.p10), p25: f(e.p25), p75: f(e.p75), p90: f(e.p90), sd: e.clim_sd, members: e.members };
+  }
+
+  function indexTraces(key, withObs) {
+    var cur = J.indices[J.issue], s = seriesFor(cur, key); if (!s) return [];
+    var tr = [];
+    // hindcast ±1σ band, on the current issue's valid months
+    tr.push({x: s.x.concat(s.x.slice().reverse()), y: s.sd.map(function (v) { return v; }).concat(s.sd.map(function (v) { return -v; }).reverse()),
+             mode: "lines", fill: "toself", fillcolor: CLIM, line: {width: 0}, hoverinfo: "skip", name: "hindcast ±1σ", showlegend: true});
+    // previous issues, oldest first
+    var prev = J.issues.filter(function (i) { return i !== J.issue; }).sort();
+    prev.forEach(function (iss, k) {
+      var p = seriesFor(J.indices[iss], key); if (!p) return;
+      tr.push({x: p.x, y: p.mean, mode: "lines", line: {color: ORDER[k % ORDER.length], width: 1.8, dash: k === prev.length - 1 ? "solid" : "dot"},
+               name: issueLabel(iss) + " issue", hovertemplate: "%{y:.2f}<extra>" + issueLabel(iss) + "</extra>"});
+    });
+    // this issue: fans, members, mean
+    tr.push({x: s.x.concat(s.x.slice().reverse()), y: s.p10.concat(s.p90.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.16)", line: {width: 0}, hoverinfo: "skip", name: "P10–P90"});
+    tr.push({x: s.x.concat(s.x.slice().reverse()), y: s.p25.concat(s.p75.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.30)", line: {width: 0}, hoverinfo: "skip", name: "P25–P75"});
+    if (state.members && s.members) {
+      var f = state.sm ? run3 : function (a) { return a; };
+      // members are [lead][member]
+      var nm = s.members[0].length;
+      for (var m = 0; m < nm; m++) {
+        var y = f(s.members.map(function (row) { return row[m]; }));
+        tr.push({x: s.x, y: y, mode: "lines", line: {color: "rgba(184,134,11,0.25)", width: 0.7}, hoverinfo: "skip", showlegend: m === 0, name: "members"});
+      }
+    }
+    tr.push({x: s.x, y: s.mean, mode: "lines+markers", line: {color: GOLD, width: 3}, marker: {size: 5}, name: issueLabel(J.issue) + " issue (this)", hovertemplate: "%{y:.2f}<extra>mean</extra>"});
+    if (withObs && J.observed && J.observed[OBS_KEY[key]]) {
+      var ox = J.observed.months.map(monthDate), oy = J.observed[OBS_KEY[key]];
+      tr.push({x: ox, y: oy, mode: "lines+markers", line: {color: "#111", width: 2}, marker: {size: 4}, name: "observed" + (key === "rnino34" ? " RONI (3-month)" : ""), hovertemplate: "%{y:.2f}<extra>observed</extra>"});
+    }
+    return tr;
+  }
+
+  function xrange() {
+    var v = J.indices[J.issue].valid; var obs = J.observed && J.observed.months ? J.observed.months : [];
+    var start = obs.length ? obs[Math.max(0, obs.length - 12)] : v[0];
+    return [monthDate(start), monthDate(v[v.length - 1])];
+  }
+
+  function drawEnso() {
+    var m = meta(state.enso);
+    document.getElementById("ensoNote").textContent = m.note;
+    Plotly.react("ensoChart", indexTraces(state.enso, true), layout(m.label + " anomaly", m.units, xrange()), {displayModeBar: false, responsive: true});
+  }
+  function drawOther() {
+    var m = meta(state.other);
+    document.getElementById("otherNote").textContent = m.note;
+    Plotly.react("otherChart", indexTraces(state.other, false), layout(m.label, m.units, xrange()), {displayModeBar: false, responsive: true});
+  }
+  function drawPolar() {
+    var key = state.hemi + "_z" + state.lev, e = J.polar[key]; if (!e) { document.getElementById("polarChart").textContent = "no data for " + key; return; }
+    var x = J.indices[J.issue].valid.map(monthDate), tr = [];
+    tr.push({x: x.concat(x.slice().reverse()), y: e.clim_sd.concat(e.clim_sd.map(function (v) { return -v; }).reverse()), mode: "lines", fill: "toself", fillcolor: CLIM, line: {width: 0}, hoverinfo: "skip", name: "hindcast ±1σ"});
+    tr.push({x: x.concat(x.slice().reverse()), y: e.p10.concat(e.p90.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.16)", line: {width: 0}, hoverinfo: "skip", name: "P10–P90"});
+    tr.push({x: x.concat(x.slice().reverse()), y: e.p25.concat(e.p75.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.30)", line: {width: 0}, hoverinfo: "skip", name: "P25–P75"});
+    var nm = e.members[0].length;
+    for (var m = 0; m < nm; m++) tr.push({x: x, y: e.members.map(function (r) { return r[m]; }), mode: "lines", line: {color: "rgba(184,134,11,0.22)", width: 0.7}, hoverinfo: "skip", showlegend: m === 0, name: "members"});
+    tr.push({x: x, y: e.mean, mode: "lines+markers", line: {color: GOLD, width: 3}, marker: {size: 5}, name: "ensemble mean", hovertemplate: "%{y:.0f} m<extra>mean</extra>"});
+    var title = (state.hemi === "nh" ? "Northern" : "Southern") + " polar cap, " + state.lev + " hPa height anomaly";
+    Plotly.react("polarChart", tr, layout(title, "m", [x[0], x[x.length - 1]]), {displayModeBar: false, responsive: true});
+  }
+
+  function pills(elId, keys, cur, onpick) {
+    var el = document.getElementById(elId); el.innerHTML = "";
+    keys.forEach(function (k) {
+      var b = document.createElement("button"); b.className = "pill" + (k.key === cur ? " on" : ""); b.textContent = k.label;
+      b.addEventListener("click", function () { onpick(k.key); Array.prototype.forEach.call(el.children, function (c) { c.classList.toggle("on", c === b); }); });
+      el.appendChild(b);
+    });
+  }
+
+  function seasonMean(e, leads) { // ensemble-mean seasonal mean and member fractions
+    var rows = e.members, nm = rows[0].length, vals = [];
+    for (var m = 0; m < nm; m++) { var s = 0; leads.forEach(function (L) { s += rows[L - 1][m]; }); vals.push(s / leads.length); }
+    var mean = vals.reduce(function (a, b) { return a + b; }, 0) / nm;
+    return { mean: mean, pWarm: vals.filter(function (v) { return v >= 0.5; }).length / nm, pCold: vals.filter(function (v) { return v <= -0.5; }).length / nm };
+  }
+
+  function seasonName(v, leads) { // e.g. DJF 2026–27 from the valid months of the leads
+    var M = "JFMAMJJASOND", lab = leads.map(function (L) { return M[parseInt(v[L - 1].slice(5), 10) - 1]; }).join("");
+    var y0 = v[leads[0] - 1].slice(0, 4), y1 = v[leads[leads.length - 1] - 1].slice(0, 4);
+    return lab + " " + (y0 === y1 ? y0 : y0 + "–" + y1.slice(2));
+  }
+  function seasonStats(e, leads) {
+    var rows = e.members, nm = rows[0].length, vals = [];
+    for (var m = 0; m < nm; m++) { var s = 0; leads.forEach(function (L) { s += rows[L - 1][m]; }); vals.push(s / leads.length); }
+    vals.sort(function (a, b) { return a - b; });
+    var q = function (f) { return vals[Math.min(nm - 1, Math.floor(f * nm))]; };
+    return { mean: vals.reduce(function (a, b) { return a + b; }, 0) / nm, p10: q(0.10), p90: q(0.90) };
+  }
+  function chips() {
+    var cur = J.indices[J.issue], v = cur.valid, out = [], late = [4, 5, 6], early = [2, 3, 4];
+    function chip(l, val, s, cls) { out.push('<div class="chip"><div class="l">' + l + '</div><div class="v ' + (cls || "neut") + '">' + val + '</div><div class="s">' + s + '</div></div>'); }
+    function tone(x, t) { return x <= -t ? "cool" : x >= t ? "warm" : "neut"; }
+    function rng(a, d) { return "P10 " + fmt(a.p10, d) + " · P90 " + fmt(a.p90, d); }
+    if (cur.nino34) { var a = seasonStats(cur.nino34, late); chip("Niño-3.4 · " + seasonName(v, late), fmt(a.mean) + " °C", rng(a), tone(a.mean, 0.5)); }
+    if (cur.rnino34) { var r = seasonStats(cur.rnino34, late); chip("Relative Niño-3.4 · " + seasonName(v, late), fmt(r.mean) + " °C", rng(r), tone(r.mean, 0.5)); }
+    if (cur.nino12) { var e = seasonStats(cur.nino12, early); chip("Niño-1+2 · " + seasonName(v, early), fmt(e.mean) + " °C", rng(e), tone(e.mean, 0.5)); }
+    if (cur.tni) { var t = seasonStats(cur.tni, late); chip("Trans-Niño · " + seasonName(v, late), fmt(t.mean, 1) + " σ", t.mean > 0.3 ? "east-loaded event" : t.mean < -0.3 ? "west-loaded event" : "no zonal tilt", "neut"); }
+    if (cur.pdo) { var pd = seasonStats(cur.pdo, late); chip("PDO · " + seasonName(v, late), fmt(pd.mean), rng(pd), tone(pd.mean, 0.5)); }
+    if (J.polar && J.polar.nh_z100) { var z = J.polar.nh_z100, zm = (z.mean[3] + z.mean[4] + z.mean[5]) / 3; chip("NH cap z100 · " + seasonName(v, late), fmt(zm, 0) + " m", zm > 0 ? "weaker-vortex side" : "stronger-vortex side", zm > 0 ? "warm" : "cool"); }
+    document.getElementById("chips").innerHTML = out.join("");
+  }
+
+  function maps() {
+    var g = document.getElementById("mapGrid"), names = {t2m: "2 m temperature", tp: "Precipitation", z500: "500 hPa height"}, html = "";
+    ["t2m", "tp", "z500"].forEach(function (k) {
+      var t = J.terciles[k]; if (!t) return;
+      var seasons = t.seasons.map(function (s) { return s.label; }).join(", ");
+      html += '<figure><a href="assets/sst/' + t.file + '?v=' + encodeURIComponent(J.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + t.file + '?v=' + encodeURIComponent(J.generated) + '" alt="SEAS5 ' + names[k] + ' most-likely tercile over the Americas, ' + seasons + '" loading="lazy"></a>' +
+              '<figcaption><b>' + names[k] + '</b> — most likely tercile for ' + seasons + '. ' + (k === "z500" ? "Heights above normal shade warm colours; a ridge signal over the north and a trough to its south is the classic wintertime read." : k === "tp" ? "Greens wetter than the model's own normal, browns drier; over land only." : "Warm colours above normal, blues below; over land only.") + '</figcaption></figure>';
+    });
+    g.innerHTML = html || "<p class='note'>Tercile maps are not part of this issue.</p>";
+  }
+
+  fetch("assets/sst/data/seas5_outlook.json?v=" + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
+    J = d;
+    document.getElementById("issueLabel").textContent = issueLabel(J.issue) + " issue";
+    ["ensoUpdated", "otherUpdated", "mapUpdated", "polarUpdated"].forEach(function (id) { document.getElementById(id).textContent = "built " + J.generated; });
+    pills("ensoPills", J.enso_keys.map(function (k) { return {key: k, label: meta(k).label}; }), state.enso, function (k) { state.enso = k; drawEnso(); });
+    pills("otherPills", J.other_keys.map(function (k) { return {key: k, label: meta(k).label}; }), state.other, function (k) { state.other = k; drawOther(); });
+    var pp = [{key: "nh", label: "Northern cap"}, {key: "sh", label: "Southern cap"}];
+    var el = document.getElementById("polarPills"); el.innerHTML = "";
+    pp.forEach(function (k) { var b = document.createElement("button"); b.className = "pill" + (k.key === state.hemi ? " on" : ""); b.textContent = k.label; b.dataset.hemi = k.key; el.appendChild(b); });
+    var sep = document.createElement("span"); sep.className = "ctlsep"; sep.textContent = "·"; el.appendChild(sep);
+    ["100", "50", "10"].forEach(function (lv) { var b = document.createElement("button"); b.className = "pill" + (lv === state.lev ? " on" : ""); b.textContent = lv + " hPa"; b.dataset.lev = lv; el.appendChild(b); });
+    el.addEventListener("click", function (ev) {
+      var b = ev.target.closest("button"); if (!b) return;
+      if (b.dataset.hemi) { state.hemi = b.dataset.hemi; } else { state.lev = b.dataset.lev; }
+      Array.prototype.forEach.call(el.querySelectorAll("button"), function (c) { c.classList.toggle("on", (c.dataset.hemi && c.dataset.hemi === state.hemi) || (c.dataset.lev && c.dataset.lev === state.lev)); });
+      drawPolar();
+    });
+    document.getElementById("membersPill").addEventListener("click", function () { state.members = !state.members; this.classList.toggle("on", state.members); drawEnso(); });
+    document.getElementById("smMonthly").addEventListener("click", function () { state.sm = 0; this.classList.add("on"); document.getElementById("sm3").classList.remove("on"); drawEnso(); drawOther(); });
+    document.getElementById("sm3").addEventListener("click", function () { state.sm = 1; this.classList.add("on"); document.getElementById("smMonthly").classList.remove("on"); drawEnso(); drawOther(); });
+    chips(); drawEnso(); drawOther(); maps(); drawPolar();
+  }).catch(function (e) {
+    document.getElementById("chips").innerHTML = '<div class="chip"><div class="l">Forecast feed</div><div class="v neut">unavailable</div><div class="s">' + String(e).slice(0, 80) + '</div></div>';
+  });
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

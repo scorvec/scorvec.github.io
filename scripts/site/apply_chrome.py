@@ -39,6 +39,7 @@ PRODUCTS = [
         ("/columbia/", "Columbia River basin precipitation"),
     ]),
     ("Seasonal", [
+        ("/seas5.html", "ECMWF SEAS5 outlook"),
         ("/sfs.html", "NOAA SFS outlook"),
     ]),
     ("Model verification", [
@@ -54,6 +55,7 @@ TABS = {
         ("/sst.html", "Overview"),
         ("/enso-subsurface.html", "Subsurface"),
         ("/enso-forecasts.html", "Forecasts"),
+        ("/seas5.html", "SEAS5"),
         ("/enso-atmosphere.html", "Atmospheric response"),
     ],
     "skewt": [
@@ -93,6 +95,7 @@ PAGES = [
         ("main { padding: 6rem 1rem 2rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 2rem; max-width: 100%; }"),
         ("main { padding: 9.5rem 1rem 3rem; }", "main { padding: 1.5rem 1rem 3rem; }"),
     ]),
+    dict(path="seas5.html", mode="after-body", tabs="enso"),
     dict(path="subseasonal.html", mode="site-header", fixes=[
         ("padding: 6.2rem 2.5rem 2rem; width: 100%;", "padding: 2rem 2.5rem 2rem; width: 100%;"),
         ("main { padding: 9rem 1.5rem 3.5rem; }", "main { padding: 1.5rem 1.5rem 3.5rem; }"),

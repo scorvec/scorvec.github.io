@@ -1,0 +1,108 @@
+name: SEAS5 seasonal outlook
+
+# ECMWF SEAS5 from the Copernicus CDS: ENSO index plumes against the previous
+# issues, PDO/AMO/IOD/ATL3, calibrated tercile maps over the Americas, and
+# polar-cap stratospheric heights (scripts/sst/seas5_outlook.py → seas5.html).
+#
+# SEAS5 for month M is on the CDS from about the 5th of M. The cron fires daily
+# from the 5th to the 12th; the script exits quietly when the issue is not there
+# yet and a later firing picks it up, so a late release costs nothing. Hindcast
+# GRIBs (~1 GB for a start month) are kept in the Actions cache keyed by start
+# month, so only the first run for a given calendar month pays for them.
+#
+# Needs the CDS credentials as repository secrets: CDSAPI_URL (the API base,
+# https://cds.climate.copernicus.eu/api) and CDSAPI_KEY (the personal access
+# token). Without them the job fails at the first retrieval - by design, so a
+# missing secret is a red run rather than a silently stale page.
+on:
+  schedule:
+    - cron: '40 12 5-12 * *'
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: 'Issue month YYYYMM (blank = this month)'
+        default: ''
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: seas5
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      MPLBACKEND: Agg
+      SST_SITE_ROOT: ${{ github.workspace }}
+      CDSAPI_URL: ${{ secrets.CDSAPI_URL }}
+      CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-seas5-${{ runner.os }}-v1
+      # hindcasts are per start month and never change: cache them by month
+      - name: Start month
+        id: sm
+        run: |
+          ISSUE="${{ github.event.inputs.issue }}"
+          [ -n "$ISSUE" ] || ISSUE=$(date -u +%Y%m)
+          echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
+          echo "month=${ISSUE:4:2}" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: scripts/sst/data/seas5/hindcast
+          key: seas5-hindcast-${{ steps.sm.outputs.month }}-v1
+      - uses: actions/cache@v6
+        with:
+          path: scripts/sst/data/seas5/forecast
+          key: seas5-forecast-${{ steps.sm.outputs.issue }}-${{ github.run_id }}
+          restore-keys: |
+            seas5-forecast-
+      - name: Install cartopy system libs
+        run: |
+          for i in 1 2 3; do
+            if sudo timeout 240 apt-get update -qq -o Acquire::Retries=3 && \
+               sudo timeout 300 apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
+                 libgeos-dev libproj-dev proj-bin libeccodes0 libeccodes-data; then exit 0; fi
+            echo "apt attempt $i failed; retrying"; sleep 10
+          done
+          exit 1
+      - name: Install Python dependencies
+        run: pip install --quiet numpy pandas xarray cfgrib eccodes netcdf4 scipy matplotlib==3.10.9 "cartopy>=0.22" "shapely>=2.0" "pyproj>=3.5" Pillow cdsapi
+
+      - name: Fetch and build
+        run: |
+          python scripts/sst/seas5_outlook.py all --issue "${{ steps.sm.outputs.issue }}" --previous 3 | tee /tmp/seas5.log
+          if grep -q "is not on the CDS yet" /tmp/seas5.log; then
+            echo "::notice::SEAS5 ${{ steps.sm.outputs.issue }} not published yet; nothing to commit"
+          fi
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/sst/seas5_*.webp assets/sst/data/seas5_outlook.json 2>/dev/null || true
+          if git diff --staged --quiet; then echo "no changes"; exit 0; fi
+          git commit -q -m "data update: SEAS5 ${{ steps.sm.outputs.issue }}"
+          for i in 1 2 3 4 5; do
+            if timeout 180 git push; then echo "pushed (attempt $i)"; exit 0; fi
+            timeout 120 git fetch origin main
+            git rebase -X theirs origin/main || { git rebase --abort; git reset --hard origin/main; git add assets/sst/seas5_*.webp assets/sst/data/seas5_outlook.json; git commit -q -m "data update: SEAS5 ${{ steps.sm.outputs.issue }} (re-applied)" || true; }
+            sleep 5
+          done
+          echo "push failed after retries"; exit 1
+
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
