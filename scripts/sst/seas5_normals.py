@@ -81,7 +81,23 @@ def era5_monthly(key: str, short: str):
     gshort = "e" if short == "e_raw" else short
     p = ERA5 / f"era5_{key}_1991-2025.grib"
     if not p.exists():
-        return None
+        # LOCAL STORE FIRST: ~/era5_store holds daily t2m (global), z500 (global to 2020) and
+        # NH precipitation; the CDS file is only the fallback for what the store lacks.
+        local = {"t2m": "t2m", "z": "z500", "tp": "tp"}.get(gshort)
+        if local is None:
+            return None
+        import era5_local
+        m = era5_local.monthly(local)
+        if m is None:
+            return None
+        m = era5_local.to_lon180(m)
+        t = m.time.values
+        yrs = np.array([int(str(x)[:4]) for x in t]); mos = np.array([int(str(x)[5:7]) for x in t])
+        v = m.values.astype(np.float64)
+        if gshort == "t2m":
+            v = v - 273.15
+        _ERA[(key, short)] = (v, yrs, mos, m.latitude.values, m.longitude.values)
+        return _ERA[(key, short)]
     ds = _open(p, shortName=gshort)
     da = ds[list(ds.data_vars)[0]].transpose("time", "latitude", "longitude")
     t = da.time.values
@@ -113,17 +129,23 @@ def references(var: str, month: int, year: int) -> dict | None:
     if r is None:
         return None
     v, yrs, mos, lat, lon = r
-    s30, _ = _sel_month(v, yrs, mos, month, 1991, 2020)
-    s10, _ = _sel_month(v, yrs, mos, month, 2016, 2025)
+    s30, y30 = _sel_month(v, yrs, mos, month, 1991, 2020)
+    s10, y10 = _sel_month(v, yrs, mos, month, 2016, 2025)
     s9316, _ = _sel_month(v, yrs, mos, month, 1993, 2016)
     sall, yall = _sel_month(v, yrs, mos, month, 1991, 2025)
+    if len(s30) < 25 or len(s10) < 4:
+        return None
+    # NaN-safe: a store year with missing months would otherwise poison the means
+    s30 = s30[np.isfinite(s30).all(axis=(1, 2))]; s10 = s10[np.isfinite(s10).all(axis=(1, 2))]
+    ok = np.isfinite(sall).all(axis=(1, 2)); sall, yall = sall[ok], yall[ok]
     x = yall - yall.mean()
     slope = (x[:, None, None] * (sall - sall.mean(0))).sum(0) / (x ** 2).sum()
     trend_val = sall.mean(0) + slope * (year - yall.mean())
     resid_sd = (sall - (sall.mean(0) + slope * x[:, None, None])).std(0, ddof=2)
     return dict(lat=lat, lon=lon, m9316=s9316.mean(0), sample30=s30,
                 mean={"obs30": s30.mean(0), "obs10": s10.mean(0), "trend": trend_val},
-                sd={"obs30": s30.std(0, ddof=1), "obs10": s30.std(0, ddof=1), "trend": resid_sd})
+                sd={"obs30": s30.std(0, ddof=1), "obs10": s30.std(0, ddof=1), "trend": resid_sd},
+                span={"obs30": f"{y30.min()}–{y30.max()}", "obs10": f"{y10.min()}–{y10.max()}", "trend": f"{yall.min()}–{yall.max()} fit"})
 
 
 # ── model fields ─────────────────────────────────────────────────────────────
@@ -151,10 +173,16 @@ def model_fields(ym: str, var: str):
     return fc, hc, lat, lon
 
 
-def _regrid_to(src, slat, slon, lat, lon):
-    """nearest-neighbour selection of a [lat, lon] (or [..., lat, lon]) ERA5 field onto the model grid."""
+def _regrid_to(src, slat, slon, lat, lon, reach: float = 1.1):
+    """Nearest-neighbour selection of a [lat, lon] (or [..., lat, lon]) ERA5 field onto the model
+    grid. Target points farther than `reach` degrees from any source point are NaN — the store's
+    precipitation covers 0–90°N only, and without this the equator row would be smeared over
+    South America."""
     ilat = np.array([int(np.argmin(np.abs(slat - v))) for v in lat]); ilon = np.array([int(np.argmin(np.abs(slon - v))) for v in lon])
-    return src[..., ilat[:, None], ilon[None, :]]
+    out = src[..., ilat[:, None], ilon[None, :]].astype(np.float64, copy=True)
+    far_lat = np.abs(slat[ilat] - lat) > reach; far_lon = np.abs(slon[ilon] - lon) > reach
+    out[..., far_lat, :] = np.nan; out[..., :, far_lon] = np.nan
+    return out
 
 
 # ── products ─────────────────────────────────────────────────────────────────
@@ -200,12 +228,15 @@ def panels_for(ym: str, var: str, ref: str):
         return dict(title=title, anom=anom, below=below, above=above)
 
     refs_cache = {}
+    panels_for.last_span = None
     for L, v in enumerate(vm):
         y, m = int(v[:4]), int(v[5:])
         hcs = hc[:, L]
         rl = [] if ref == "hc" else [refs_cache.setdefault((y, m), references(var, m, y))]
         if ref != "hc" and rl[0] is None:
             return None, None, None
+        if ref != "hc" and panels_for.last_span is None:
+            panels_for.last_span = rl[0]["span"][ref]
         out.append(one(fc[:, L], hc_mean[L], rl, f"{calendar.month_abbr[m]} {y}"))
     for leads in SEASON_LEADS:
         idx = [Lx - 1 for Lx in leads]
@@ -257,10 +288,15 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
     if ref == "hc":
         sub = "Reference: the model's own 1993–2016 hindcast at the same lead (bias-free by construction)."
     else:
+        span = getattr(panels_for, "last_span", None)
         sub = ("Members moved into observed space with a per-point mean bias correction (member − hindcast mean + ERA5 1993–2016 mean"
-               + (", multiplicatively" if mult else "") + "), then compared with " + REFS[ref] + ".")
+               + (", multiplicatively" if mult else "") + "), then compared with " + REFS[ref] + (f" (ERA5 years used: {span})" if span else "") + ".")
     if kind == "terc":
         sub += "  White: no category reaches 40 %; near-normal not drawn."
+    if ref != "hc" and var == "tp" and not (ERA5 / "era5_am_sfc_1991-2025.grib").exists():
+        sub += "  ERA5 precipitation comes from the local store, which covers 0–90°N: south of the equator is blank until the CDS pull completes."
+    import textwrap
+    sub = "\n".join(textwrap.wrap(sub, 175))
     head_text(fig, H, f"SEAS5 {label}: {what} vs {REFS[ref]}, {calendar.month_name[m0]} {y0} issue", sub)
     if kind == "anom":
         cax = fig.add_axes([0.3, 0.5 / H, 0.4, 0.14 / H])

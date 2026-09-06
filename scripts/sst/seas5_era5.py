@@ -13,7 +13,9 @@ Two products need an observed record next to the model:
     the ERA5 equivalents (NAO, PNA, AO, vortex wind, QBO, SOI), so each plume can
     carry the model's own out-of-sample correlation for that month.
 
-Both are single retrievals per dataset, cached under scripts/sst/data/seas5/era5/.
+Only what the LOCAL store (~/era5_store, see era5_local.py) lacks is pulled here:
+wind speed, solar radiation, evaporation, Southern Hemisphere precipitation and the
+10/30/50 hPa winds. Cached under scripts/sst/data/seas5/era5/.
 
     python scripts/sst/seas5_era5.py
 """
@@ -37,25 +39,13 @@ PULLS = {
                    req=dict(product_type=["monthly_averaged_reanalysis"],
                             variable=["2m_temperature", "total_precipitation", "10m_wind_speed", "surface_solar_radiation_downwards"],
                             year=YEARS, month=MONTHS, time=["00:00"], area=[75, -170, -60, -30], grid=[1.0, 1.0], data_format="grib")),
-    "am_z500": dict(dataset="reanalysis-era5-pressure-levels-monthly-means",
-                    req=dict(product_type=["monthly_averaged_reanalysis"], variable=["geopotential"], pressure_level=["500"],
-                             year=YEARS, month=MONTHS, time=["00:00"], area=[75, -170, -60, -30], grid=[1.0, 1.0], data_format="grib")),
     # evaporation for P − E (kept separate so the first pull's request stays cached)
     "am_e": dict(dataset="reanalysis-era5-single-levels-monthly-means",
                  req=dict(product_type=["monthly_averaged_reanalysis"], variable=["evaporation"],
                           year=YEARS, month=MONTHS, time=["00:00"], area=[75, -170, -60, -30], grid=[1.0, 1.0], data_format="grib")),
-    # long 2 m temperature record for the population-weighted normals and records (1940–2025)
-    "am_t2m_long": dict(dataset="reanalysis-era5-single-levels-monthly-means",
-                        req=dict(product_type=["monthly_averaged_reanalysis"], variable=["2m_temperature"],
-                                 year=[str(y) for y in range(1940, 2026)], month=MONTHS, time=["00:00"],
-                                 area=[75, -170, -60, -30], grid=[1.0, 1.0], data_format="grib")),
-    # global 2°: teleconnection and stratosphere references
-    "gl_sfc": dict(dataset="reanalysis-era5-single-levels-monthly-means",
-                   req=dict(product_type=["monthly_averaged_reanalysis"], variable=["mean_sea_level_pressure", "sea_surface_temperature"],
-                            year=YEARS, month=MONTHS, time=["00:00"], area=[90, -180, -90, 180], grid=[2.0, 2.0], data_format="grib")),
     "gl_pl": dict(dataset="reanalysis-era5-pressure-levels-monthly-means",
-                  req=dict(product_type=["monthly_averaged_reanalysis"], variable=["geopotential", "u_component_of_wind"],
-                           pressure_level=["10", "30", "50", "100", "200", "500", "1000"],
+                  req=dict(product_type=["monthly_averaged_reanalysis"], variable=["u_component_of_wind"],
+                           pressure_level=["10", "30", "50"],
                            year=YEARS, month=MONTHS, time=["00:00"], area=[90, -180, -90, 180], grid=[2.0, 2.0], data_format="grib")),
 }
 

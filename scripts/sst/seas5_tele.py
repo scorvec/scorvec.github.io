@@ -236,51 +236,56 @@ def compute(ym: str, pats: Patterns, with_members: bool) -> dict:
 
 # ── skill against ERA5 ───────────────────────────────────────────────────────
 def era5_indices(pats: Patterns) -> dict | None:
-    """{key: DataFrame-like dict of {(year, month): value}} from ERA5 monthly means, anomalies vs 1993–2016."""
-    gl_pl, gl_sfc = ERA5 / "era5_gl_pl_1991-2025.grib", ERA5 / "era5_gl_sfc_1991-2025.grib"
-    if not (gl_pl.exists() and gl_sfc.exists()):
+    """{key: {(year, month): value}} observed indices, anomalies vs 1993–2016 by calendar month.
+    From the LOCAL ERA5 store (monthly means of the daily 1.5° files): z500 and slp (global,
+    1991–2020) for the CPC patterns and the SOI; the NH 13-level stack for the NAM rungs at
+    50/100/500/1000 hPa and the 100 hPa waves. The stratospheric winds (10/30/50 hPa) are
+    not in the store, so u60N/u60S/QBO carry no skill until a CDS pressure-level file exists."""
+    import era5_local
+    if not era5_local.available():
         return None
     out = {}
-    def monthly(ds_var):
-        t = ds_var.time.values
-        yrs = np.array([int(str(x)[:4]) for x in t]); mos = np.array([int(str(x)[5:7]) for x in t])
-        return yrs, mos
-    def anom(da, yrs, mos):
+
+    def ym_keys(da):
+        t = da.time.values
+        return np.array([int(str(x)[:4]) for x in t]), np.array([int(str(x)[5:7]) for x in t])
+
+    def anom(vals, yrs, mos):
         base = (yrs >= 1993) & (yrs <= 2016)
-        clim = np.stack([np.nanmean(da[(mos == m) & base], axis=0) for m in range(1, 13)])
-        return da - clim[mos - 1]
-    ds = _open(gl_pl, shortName="z", level=500)
-    z = ds["z"].transpose("time", "latitude", "longitude"); yrs, mos = monthly(z)
-    za = anom(z.values / G0, yrs, mos)
-    dsm = _open(gl_sfc, shortName="msl")
-    pm = dsm["msl"].transpose("time", "latitude", "longitude")
-    pa = anom(pm.values / 100.0, yrs, mos)
-    lat, lon = z.latitude.values, z.longitude.values
-    nz = pats.to_ncep(xr.DataArray(za, dims=("t", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon}))
-    npm = pats.to_ncep(xr.DataArray(pa, dims=("t", "latitude", "longitude"), coords={"latitude": lat, "longitude": lon}))
-    for sid in pats.ids:
-        src = npm if pats.meta[sid].get("field") == "slp" else nz
-        out[sid] = dict(zip(zip(yrs, mos), pats.index(sid, src, mos)))
-    tah = pm.values[:, int(np.argmin(np.abs(lat + 17.5))), int(np.argmin(np.abs(lon + 149.5)))]
-    dar = pm.values[:, int(np.argmin(np.abs(lat + 12.5))), int(np.argmin(np.abs(lon - 130.5)))]
-    d = (tah - dar) / 100.0
-    out["soi"] = dict(zip(zip(yrs, mos), d))                         # raw hPa; correlation is scale-free
-    for lev, key in ((10, "u60n10"),):
-        dsu = _open(gl_pl, shortName="u", level=lev); u = dsu["u"].transpose("time", "latitude", "longitude")
-        vals = u.values; i = int(np.argmin(np.abs(u.latitude.values - 60)))
-        out[key] = dict(zip(zip(yrs, mos), np.nanmean(vals[:, i, :], axis=-1)))
-        j = int(np.argmin(np.abs(u.latitude.values + 60)))
-        out["u60s10"] = dict(zip(zip(yrs, mos), np.nanmean(vals[:, j, :], axis=-1)))
-        for lv in (10, 30, 50):
-            dsu = _open(gl_pl, shortName="u", level=lv); uu = dsu["u"].transpose("time", "latitude", "longitude")
-            m = (uu.latitude.values >= -5) & (uu.latitude.values <= 5)
-            out[f"qbo{lv}"] = dict(zip(zip(yrs, mos), np.nanmean(uu.values[:, m, :], axis=(1, 2))))
-    for lev in (10, 50, 100, 500, 1000):
-        dsz = _open(gl_pl, shortName="z", level=lev); zz = dsz["z"].transpose("time", "latitude", "longitude")
-        m = zz.latitude.values >= 65; w = np.cos(np.deg2rad(zz.latitude.values[m]))
-        cap = np.nansum(np.nanmean(zz.values[:, m, :], axis=-1) * w, axis=-1) / w.sum() / G0
-        out[f"nam{lev}"] = dict(zip(zip(yrs, mos), -cap))              # sign as the model index
-    return out
+        clim = np.stack([np.nanmean(vals[(mos == m) & base], axis=0) for m in range(1, 13)])
+        return vals - clim[mos - 1]
+
+    z = era5_local.monthly("z500"); pm = era5_local.monthly("slp")
+    if z is not None and pm is not None:
+        z, pm = era5_local.to_lon180(z), era5_local.to_lon180(pm)
+        yrs, mos = ym_keys(z)
+        za = anom(z.values.astype(np.float64), yrs, mos)
+        ypm, mpm = ym_keys(pm)
+        pa = anom(pm.values.astype(np.float64), ypm, mpm)
+        nz = pats.to_ncep(xr.DataArray(za, dims=("t", "latitude", "longitude"), coords={"latitude": z.latitude.values, "longitude": z.longitude.values}))
+        npm = pats.to_ncep(xr.DataArray(pa, dims=("t", "latitude", "longitude"), coords={"latitude": pm.latitude.values, "longitude": pm.longitude.values}))
+        for sid in pats.ids:
+            slp = pats.meta[sid].get("field") == "slp"
+            src, yy, mm = (npm, ypm, mpm) if slp else (nz, yrs, mos)
+            out[sid] = dict(zip(zip(yy, mm), pats.index(sid, src, mm)))
+        lat, lon = pm.latitude.values, pm.longitude.values
+        tah = pm.values[:, int(np.argmin(np.abs(lat + 17.5))), int(np.argmin(np.abs(lon + 149.5)))]
+        dar = pm.values[:, int(np.argmin(np.abs(lat + 12.5))), int(np.argmin(np.abs(lon - 130.5)))]
+        out["soi"] = dict(zip(zip(ypm, mpm), tah - dar))                # hPa difference; correlation is scale-free
+    for lev in (50, 100, 500, 1000):
+        zl = era5_local.monthly("z", lev)
+        if zl is None:
+            continue
+        yy, mm = ym_keys(zl)
+        m = zl.latitude.values >= 65; w = np.cos(np.deg2rad(zl.latitude.values[m]))
+        cap = np.nansum(np.nanmean(zl.values[:, m, :], axis=-1) * w, axis=-1) / w.sum()
+        out[f"nam{lev}"] = dict(zip(zip(yy, mm), -cap))
+        if lev == 100:
+            i = int(np.argmin(np.abs(zl.latitude.values - 60)))
+            spec = np.fft.rfft(zl.values[:, i, :], axis=-1)
+            for k in (1, 2):
+                out[f"wave{k}_100"] = dict(zip(zip(yy, mm), 2.0 * np.abs(spec[:, k]) / zl.shape[-1]))
+    return out or None
 
 
 def add_skill(idx: dict, ym: str, era: dict | None) -> None:
@@ -323,7 +328,8 @@ def main(argv=None) -> int:
         e.pop("_hc", None)
     doc = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "previous": prev,
            "groups": {"tele": [k for k in cur if cur[k]["group"] == "tele"], "strat": [k for k in cur if cur[k]["group"] == "strat"]},
-           "indices": cur, "previous_indices": pv, "skill_note": "correlation of the 24 hindcast years' ensemble mean with ERA5 at the valid month" if era else None}
+           "indices": cur, "previous_indices": pv,
+           "skill_note": "correlation of the 24 hindcast years' ensemble mean with ERA5 (local store) at the valid month; blank where ERA5 lacks the field (stratospheric winds)" if era else None}
     def clean(o):                                                  # NaN is not JSON; browsers reject the whole file
         if isinstance(o, dict):
             return {k: clean(v) for k, v in o.items()}
