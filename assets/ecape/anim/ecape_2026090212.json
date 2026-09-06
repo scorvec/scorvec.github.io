@@ -1,0 +1,548 @@
+{
+  "init": "2026-09-02 12Z",
+  "ver": "2026090212",
+  "selectorLabel": "Field",
+  "default": "2026090212/ratio_mu",
+  "regions": {
+    "2026090212/ratio_mu": {
+      "label": "ECAPE / CAPE \u2014 most-unstable",
+      "n_frames": 29,
+      "frames": [
+        {
+          "idx": 0,
+          "file": "F00.webp",
+          "date": "2026-09-02 12:00Z",
+          "label": "F00 \u00b7 valid Wed 02 Sep 12Z"
+        },
+        {
+          "idx": 1,
+          "file": "F01.webp",
+          "date": "2026-09-02 13:00Z",
+          "label": "F01 \u00b7 valid Wed 02 Sep 13Z"
+        },
+        {
+          "idx": 2,
+          "file": "F02.webp",
+          "date": "2026-09-02 14:00Z",
+          "label": "F02 \u00b7 valid Wed 02 Sep 14Z"
+        },
+        {
+          "idx": 3,
+          "file": "F03.webp",
+          "date": "2026-09-02 15:00Z",
+          "label": "F03 \u00b7 valid Wed 02 Sep 15Z"
+        },
+        {
+          "idx": 4,
+          "file": "F04.webp",
+          "date": "2026-09-02 16:00Z",
+          "label": "F04 \u00b7 valid Wed 02 Sep 16Z"
+        },
+        {
+          "idx": 5,
+          "file": "F05.webp",
+          "date": "2026-09-02 17:00Z",
+          "label": "F05 \u00b7 valid Wed 02 Sep 17Z"
+        },
+        {
+          "idx": 6,
+          "file": "F06.webp",
+          "date": "2026-09-02 18:00Z",
+          "label": "F06 \u00b7 valid Wed 02 Sep 18Z"
+        },
+        {
+          "idx": 7,
+          "file": "F07.webp",
+          "date": "2026-09-02 19:00Z",
+          "label": "F07 \u00b7 valid Wed 02 Sep 19Z"
+        },
+        {
+          "idx": 8,
+          "file": "F08.webp",
+          "date": "2026-09-02 20:00Z",
+          "label": "F08 \u00b7 valid Wed 02 Sep 20Z"
+        },
+        {
+          "idx": 9,
+          "file": "F09.webp",
+          "date": "2026-09-02 21:00Z",
+          "label": "F09 \u00b7 valid Wed 02 Sep 21Z"
+        },
+        {
+          "idx": 10,
+          "file": "F10.webp",
+          "date": "2026-09-02 22:00Z",
+          "label": "F10 \u00b7 valid Wed 02 Sep 22Z"
+        },
+        {
+          "idx": 11,
+          "file": "F11.webp",
+          "date": "2026-09-02 23:00Z",
+          "label": "F11 \u00b7 valid Wed 02 Sep 23Z"
+        },
+        {
+          "idx": 12,
+          "file": "F12.webp",
+          "date": "2026-09-03 00:00Z",
+          "label": "F12 \u00b7 valid Thu 03 Sep 00Z"
+        },
+        {
+          "idx": 13,
+          "file": "F13.webp",
+          "date": "2026-09-03 01:00Z",
+          "label": "F13 \u00b7 valid Thu 03 Sep 01Z"
+        },
+        {
+          "idx": 14,
+          "file": "F14.webp",
+          "date": "2026-09-03 02:00Z",
+          "label": "F14 \u00b7 valid Thu 03 Sep 02Z"
+        },
+        {
+          "idx": 15,
+          "file": "F15.webp",
+          "date": "2026-09-03 03:00Z",
+          "label": "F15 \u00b7 valid Thu 03 Sep 03Z"
+        },
+        {
+          "idx": 16,
+          "file": "F16.webp",
+          "date": "2026-09-03 04:00Z",
+          "label": "F16 \u00b7 valid Thu 03 Sep 04Z"
+        },
+        {
+          "idx": 17,
+          "file": "F17.webp",
+          "date": "2026-09-03 05:00Z",
+          "label": "F17 \u00b7 valid Thu 03 Sep 05Z"
+        },
+        {
+          "idx": 18,
+          "file": "F18.webp",
+          "date": "2026-09-03 06:00Z",
+          "label": "F18 \u00b7 valid Thu 03 Sep 06Z"
+        },
+        {
+          "idx": 19,
+          "file": "F21.webp",
+          "date": "2026-09-03 09:00Z",
+          "label": "F21 \u00b7 valid Thu 03 Sep 09Z"
+        },
+        {
+          "idx": 20,
+          "file": "F24.webp",
+          "date": "2026-09-03 12:00Z",
+          "label": "F24 \u00b7 valid Thu 03 Sep 12Z"
+        },
+        {
+          "idx": 21,
+          "file": "F27.webp",
+          "date": "2026-09-03 15:00Z",
+          "label": "F27 \u00b7 valid Thu 03 Sep 15Z"
+        },
+        {
+          "idx": 22,
+          "file": "F30.webp",
+          "date": "2026-09-03 18:00Z",
+          "label": "F30 \u00b7 valid Thu 03 Sep 18Z"
+        },
+        {
+          "idx": 23,
+          "file": "F33.webp",
+          "date": "2026-09-03 21:00Z",
+          "label": "F33 \u00b7 valid Thu 03 Sep 21Z"
+        },
+        {
+          "idx": 24,
+          "file": "F36.webp",
+          "date": "2026-09-04 00:00Z",
+          "label": "F36 \u00b7 valid Fri 04 Sep 00Z"
+        },
+        {
+          "idx": 25,
+          "file": "F39.webp",
+          "date": "2026-09-04 03:00Z",
+          "label": "F39 \u00b7 valid Fri 04 Sep 03Z"
+        },
+        {
+          "idx": 26,
+          "file": "F42.webp",
+          "date": "2026-09-04 06:00Z",
+          "label": "F42 \u00b7 valid Fri 04 Sep 06Z"
+        },
+        {
+          "idx": 27,
+          "file": "F45.webp",
+          "date": "2026-09-04 09:00Z",
+          "label": "F45 \u00b7 valid Fri 04 Sep 09Z"
+        },
+        {
+          "idx": 28,
+          "file": "F48.webp",
+          "date": "2026-09-04 12:00Z",
+          "label": "F48 \u00b7 valid Fri 04 Sep 12Z"
+        }
+      ]
+    },
+    "2026090212/ecape_mu": {
+      "label": "ECAPE \u2014 most-unstable",
+      "n_frames": 29,
+      "frames": [
+        {
+          "idx": 0,
+          "file": "F00.webp",
+          "date": "2026-09-02 12:00Z",
+          "label": "F00 \u00b7 valid Wed 02 Sep 12Z"
+        },
+        {
+          "idx": 1,
+          "file": "F01.webp",
+          "date": "2026-09-02 13:00Z",
+          "label": "F01 \u00b7 valid Wed 02 Sep 13Z"
+        },
+        {
+          "idx": 2,
+          "file": "F02.webp",
+          "date": "2026-09-02 14:00Z",
+          "label": "F02 \u00b7 valid Wed 02 Sep 14Z"
+        },
+        {
+          "idx": 3,
+          "file": "F03.webp",
+          "date": "2026-09-02 15:00Z",
+          "label": "F03 \u00b7 valid Wed 02 Sep 15Z"
+        },
+        {
+          "idx": 4,
+          "file": "F04.webp",
+          "date": "2026-09-02 16:00Z",
+          "label": "F04 \u00b7 valid Wed 02 Sep 16Z"
+        },
+        {
+          "idx": 5,
+          "file": "F05.webp",
+          "date": "2026-09-02 17:00Z",
+          "label": "F05 \u00b7 valid Wed 02 Sep 17Z"
+        },
+        {
+          "idx": 6,
+          "file": "F06.webp",
+          "date": "2026-09-02 18:00Z",
+          "label": "F06 \u00b7 valid Wed 02 Sep 18Z"
+        },
+        {
+          "idx": 7,
+          "file": "F07.webp",
+          "date": "2026-09-02 19:00Z",
+          "label": "F07 \u00b7 valid Wed 02 Sep 19Z"
+        },
+        {
+          "idx": 8,
+          "file": "F08.webp",
+          "date": "2026-09-02 20:00Z",
+          "label": "F08 \u00b7 valid Wed 02 Sep 20Z"
+        },
+        {
+          "idx": 9,
+          "file": "F09.webp",
+          "date": "2026-09-02 21:00Z",
+          "label": "F09 \u00b7 valid Wed 02 Sep 21Z"
+        },
+        {
+          "idx": 10,
+          "file": "F10.webp",
+          "date": "2026-09-02 22:00Z",
+          "label": "F10 \u00b7 valid Wed 02 Sep 22Z"
+        },
+        {
+          "idx": 11,
+          "file": "F11.webp",
+          "date": "2026-09-02 23:00Z",
+          "label": "F11 \u00b7 valid Wed 02 Sep 23Z"
+        },
+        {
+          "idx": 12,
+          "file": "F12.webp",
+          "date": "2026-09-03 00:00Z",
+          "label": "F12 \u00b7 valid Thu 03 Sep 00Z"
+        },
+        {
+          "idx": 13,
+          "file": "F13.webp",
+          "date": "2026-09-03 01:00Z",
+          "label": "F13 \u00b7 valid Thu 03 Sep 01Z"
+        },
+        {
+          "idx": 14,
+          "file": "F14.webp",
+          "date": "2026-09-03 02:00Z",
+          "label": "F14 \u00b7 valid Thu 03 Sep 02Z"
+        },
+        {
+          "idx": 15,
+          "file": "F15.webp",
+          "date": "2026-09-03 03:00Z",
+          "label": "F15 \u00b7 valid Thu 03 Sep 03Z"
+        },
+        {
+          "idx": 16,
+          "file": "F16.webp",
+          "date": "2026-09-03 04:00Z",
+          "label": "F16 \u00b7 valid Thu 03 Sep 04Z"
+        },
+        {
+          "idx": 17,
+          "file": "F17.webp",
+          "date": "2026-09-03 05:00Z",
+          "label": "F17 \u00b7 valid Thu 03 Sep 05Z"
+        },
+        {
+          "idx": 18,
+          "file": "F18.webp",
+          "date": "2026-09-03 06:00Z",
+          "label": "F18 \u00b7 valid Thu 03 Sep 06Z"
+        },
+        {
+          "idx": 19,
+          "file": "F21.webp",
+          "date": "2026-09-03 09:00Z",
+          "label": "F21 \u00b7 valid Thu 03 Sep 09Z"
+        },
+        {
+          "idx": 20,
+          "file": "F24.webp",
+          "date": "2026-09-03 12:00Z",
+          "label": "F24 \u00b7 valid Thu 03 Sep 12Z"
+        },
+        {
+          "idx": 21,
+          "file": "F27.webp",
+          "date": "2026-09-03 15:00Z",
+          "label": "F27 \u00b7 valid Thu 03 Sep 15Z"
+        },
+        {
+          "idx": 22,
+          "file": "F30.webp",
+          "date": "2026-09-03 18:00Z",
+          "label": "F30 \u00b7 valid Thu 03 Sep 18Z"
+        },
+        {
+          "idx": 23,
+          "file": "F33.webp",
+          "date": "2026-09-03 21:00Z",
+          "label": "F33 \u00b7 valid Thu 03 Sep 21Z"
+        },
+        {
+          "idx": 24,
+          "file": "F36.webp",
+          "date": "2026-09-04 00:00Z",
+          "label": "F36 \u00b7 valid Fri 04 Sep 00Z"
+        },
+        {
+          "idx": 25,
+          "file": "F39.webp",
+          "date": "2026-09-04 03:00Z",
+          "label": "F39 \u00b7 valid Fri 04 Sep 03Z"
+        },
+        {
+          "idx": 26,
+          "file": "F42.webp",
+          "date": "2026-09-04 06:00Z",
+          "label": "F42 \u00b7 valid Fri 04 Sep 06Z"
+        },
+        {
+          "idx": 27,
+          "file": "F45.webp",
+          "date": "2026-09-04 09:00Z",
+          "label": "F45 \u00b7 valid Fri 04 Sep 09Z"
+        },
+        {
+          "idx": 28,
+          "file": "F48.webp",
+          "date": "2026-09-04 12:00Z",
+          "label": "F48 \u00b7 valid Fri 04 Sep 12Z"
+        }
+      ]
+    },
+    "2026090212/ecape_ml": {
+      "label": "ECAPE \u2014 mixed-layer",
+      "n_frames": 29,
+      "frames": [
+        {
+          "idx": 0,
+          "file": "F00.webp",
+          "date": "2026-09-02 12:00Z",
+          "label": "F00 \u00b7 valid Wed 02 Sep 12Z"
+        },
+        {
+          "idx": 1,
+          "file": "F01.webp",
+          "date": "2026-09-02 13:00Z",
+          "label": "F01 \u00b7 valid Wed 02 Sep 13Z"
+        },
+        {
+          "idx": 2,
+          "file": "F02.webp",
+          "date": "2026-09-02 14:00Z",
+          "label": "F02 \u00b7 valid Wed 02 Sep 14Z"
+        },
+        {
+          "idx": 3,
+          "file": "F03.webp",
+          "date": "2026-09-02 15:00Z",
+          "label": "F03 \u00b7 valid Wed 02 Sep 15Z"
+        },
+        {
+          "idx": 4,
+          "file": "F04.webp",
+          "date": "2026-09-02 16:00Z",
+          "label": "F04 \u00b7 valid Wed 02 Sep 16Z"
+        },
+        {
+          "idx": 5,
+          "file": "F05.webp",
+          "date": "2026-09-02 17:00Z",
+          "label": "F05 \u00b7 valid Wed 02 Sep 17Z"
+        },
+        {
+          "idx": 6,
+          "file": "F06.webp",
+          "date": "2026-09-02 18:00Z",
+          "label": "F06 \u00b7 valid Wed 02 Sep 18Z"
+        },
+        {
+          "idx": 7,
+          "file": "F07.webp",
+          "date": "2026-09-02 19:00Z",
+          "label": "F07 \u00b7 valid Wed 02 Sep 19Z"
+        },
+        {
+          "idx": 8,
+          "file": "F08.webp",
+          "date": "2026-09-02 20:00Z",
+          "label": "F08 \u00b7 valid Wed 02 Sep 20Z"
+        },
+        {
+          "idx": 9,
+          "file": "F09.webp",
+          "date": "2026-09-02 21:00Z",
+          "label": "F09 \u00b7 valid Wed 02 Sep 21Z"
+        },
+        {
+          "idx": 10,
+          "file": "F10.webp",
+          "date": "2026-09-02 22:00Z",
+          "label": "F10 \u00b7 valid Wed 02 Sep 22Z"
+        },
+        {
+          "idx": 11,
+          "file": "F11.webp",
+          "date": "2026-09-02 23:00Z",
+          "label": "F11 \u00b7 valid Wed 02 Sep 23Z"
+        },
+        {
+          "idx": 12,
+          "file": "F12.webp",
+          "date": "2026-09-03 00:00Z",
+          "label": "F12 \u00b7 valid Thu 03 Sep 00Z"
+        },
+        {
+          "idx": 13,
+          "file": "F13.webp",
+          "date": "2026-09-03 01:00Z",
+          "label": "F13 \u00b7 valid Thu 03 Sep 01Z"
+        },
+        {
+          "idx": 14,
+          "file": "F14.webp",
+          "date": "2026-09-03 02:00Z",
+          "label": "F14 \u00b7 valid Thu 03 Sep 02Z"
+        },
+        {
+          "idx": 15,
+          "file": "F15.webp",
+          "date": "2026-09-03 03:00Z",
+          "label": "F15 \u00b7 valid Thu 03 Sep 03Z"
+        },
+        {
+          "idx": 16,
+          "file": "F16.webp",
+          "date": "2026-09-03 04:00Z",
+          "label": "F16 \u00b7 valid Thu 03 Sep 04Z"
+        },
+        {
+          "idx": 17,
+          "file": "F17.webp",
+          "date": "2026-09-03 05:00Z",
+          "label": "F17 \u00b7 valid Thu 03 Sep 05Z"
+        },
+        {
+          "idx": 18,
+          "file": "F18.webp",
+          "date": "2026-09-03 06:00Z",
+          "label": "F18 \u00b7 valid Thu 03 Sep 06Z"
+        },
+        {
+          "idx": 19,
+          "file": "F21.webp",
+          "date": "2026-09-03 09:00Z",
+          "label": "F21 \u00b7 valid Thu 03 Sep 09Z"
+        },
+        {
+          "idx": 20,
+          "file": "F24.webp",
+          "date": "2026-09-03 12:00Z",
+          "label": "F24 \u00b7 valid Thu 03 Sep 12Z"
+        },
+        {
+          "idx": 21,
+          "file": "F27.webp",
+          "date": "2026-09-03 15:00Z",
+          "label": "F27 \u00b7 valid Thu 03 Sep 15Z"
+        },
+        {
+          "idx": 22,
+          "file": "F30.webp",
+          "date": "2026-09-03 18:00Z",
+          "label": "F30 \u00b7 valid Thu 03 Sep 18Z"
+        },
+        {
+          "idx": 23,
+          "file": "F33.webp",
+          "date": "2026-09-03 21:00Z",
+          "label": "F33 \u00b7 valid Thu 03 Sep 21Z"
+        },
+        {
+          "idx": 24,
+          "file": "F36.webp",
+          "date": "2026-09-04 00:00Z",
+          "label": "F36 \u00b7 valid Fri 04 Sep 00Z"
+        },
+        {
+          "idx": 25,
+          "file": "F39.webp",
+          "date": "2026-09-04 03:00Z",
+          "label": "F39 \u00b7 valid Fri 04 Sep 03Z"
+        },
+        {
+          "idx": 26,
+          "file": "F42.webp",
+          "date": "2026-09-04 06:00Z",
+          "label": "F42 \u00b7 valid Fri 04 Sep 06Z"
+        },
+        {
+          "idx": 27,
+          "file": "F45.webp",
+          "date": "2026-09-04 09:00Z",
+          "label": "F45 \u00b7 valid Fri 04 Sep 09Z"
+        },
+        {
+          "idx": 28,
+          "file": "F48.webp",
+          "date": "2026-09-04 12:00Z",
+          "label": "F48 \u00b7 valid Fri 04 Sep 12Z"
+        }
+      ]
+    }
+  }
+}
