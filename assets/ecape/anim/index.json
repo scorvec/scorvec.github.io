@@ -4,6 +4,61 @@
       "cycle": "2026090618",
       "init": "2026-09-06 18Z",
       "manifest": "ecape_2026090618.json"
+    },
+    {
+      "cycle": "2026090612",
+      "init": "2026-09-06 12Z",
+      "manifest": "ecape_2026090612.json"
+    },
+    {
+      "cycle": "2026090606",
+      "init": "2026-09-06 06Z",
+      "manifest": "ecape_2026090606.json"
+    },
+    {
+      "cycle": "2026090600",
+      "init": "2026-09-06 00Z",
+      "manifest": "ecape_2026090600.json"
+    },
+    {
+      "cycle": "2026090518",
+      "init": "2026-09-05 18Z",
+      "manifest": "ecape_2026090518.json"
+    },
+    {
+      "cycle": "2026090512",
+      "init": "2026-09-05 12Z",
+      "manifest": "ecape_2026090512.json"
+    },
+    {
+      "cycle": "2026090506",
+      "init": "2026-09-05 06Z",
+      "manifest": "ecape_2026090506.json"
+    },
+    {
+      "cycle": "2026090500",
+      "init": "2026-09-05 00Z",
+      "manifest": "ecape_2026090500.json"
+    },
+    {
+      "cycle": "2026090418",
+      "init": "2026-09-04 18Z",
+      "manifest": "ecape_2026090418.json"
+    },
+    {
+      "cycle": "2026090412",
+      "init": "2026-09-04 12Z",
+      "manifest": "ecape_2026090412.json"
+    },
+    {
+      "cycle": "2026090406",
+      "init": "2026-09-04 06Z",
+      "manifest": "ecape_2026090406.json"
+    },
+    {
+      "cycle": "2026090400",
+      "init": "2026-09-04 00Z",
+      "manifest": "ecape_2026090400.json"
     }
   ],
   "latest": "2026090618"
