@@ -89,7 +89,7 @@
        keep a visible frame and ultrawides get the full width */
     max-width: min(94vw, 2000px);
     margin: 0 auto;
-    padding: 2rem 2.2rem 2.5rem;
+    padding: 6.4rem 2.2rem 2.5rem;
     width: 100%;
   }
 
@@ -255,7 +255,7 @@
   @media (max-width: 768px) {
     nav { padding: 1rem 1.5rem; }
     .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
-    main { padding: 1.5rem 1rem 2rem; max-width: 100%; }
+    main { padding: 6rem 1rem 2rem; max-width: 100%; }
     .page-header { margin-bottom: 1.2rem; padding-bottom: 0.8rem; }
     .page-header h1 { font-size: 1.6rem; }
     .chart-stack { gap: 1.1rem; }
@@ -270,7 +270,7 @@
     .nav-links a { font-size: 0.78rem; }
     .enso-subnav { padding: 0.5rem 1.1rem 0.6rem; gap: 0.85rem; }
     .enso-subnav a { font-size: 0.74rem; }
-    main { padding: 1.5rem 1rem 3rem; }
+    main { padding: 9.5rem 1rem 3rem; }
     .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
     .chart-card-header h2 { font-size: 1.02rem; }
     .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
@@ -437,78 +437,25 @@
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="/assets/lightbox.css">
 <script src="/assets/lightbox.js" defer></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css">
-<script src="/assets/site.js" defer></script>
 </head>
 <body>
 
-<!-- sh:start -->
-<header class="sh" id="site-header">
-  <div class="sh-in">
-    <a class="sh-brand" href="/">Shawn Corvec</a>
-    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
-    <nav class="sh-nav" id="sh-menu" aria-label="Site">
-      <ul class="sh-list">
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-products" aria-current="page">Products</button>
-          <div class="sh-menu" id="sh-products">
-            <div>
-              <h3>Tropics and El Niño</h3>
-              <ul>
-                <li><a href="/sst.html">El Niño monitor</a></li>
-                <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
-                <li><a href="/enso-forecasts.html" aria-current="page">ENSO forecasts</a></li>
-                <li><a href="/enso-atmosphere.html">Atmospheric response</a></li>
-                <li><a href="/mjo.html">MJO forecast</a></li>
-                <li><a href="/subseasonal.html">Subseasonal outlook</a></li>
-                <li><a href="/qbo/">QBO tracker</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Convection and observations</h3>
-              <ul>
-                <li><a href="/ecape.html">Entraining CAPE</a></li>
-                <li><a href="/skewt/">Sounding explorer</a></li>
-                <li><a href="/asos5.html">Five-minute airport observations</a></li>
-                <li><a href="/columbia/">Columbia River basin precipitation</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Seasonal</h3>
-              <ul>
-                <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
-                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Model verification</h3>
-              <ul>
-                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
-                <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
-              </ul>
-            </div>
-            <p class="sh-all">Every product, with what it shows and how often it updates, is listed on the <a href="/#products">home page</a>.</p>
-          </div>
-        </li>
-        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
-        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
-      </ul>
-    </nav>
+<header class="site-header">
+  <nav>
+    <a href="index.html" class="nav-name">Shawn Corvec</a>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="resume.html">Resume</a></li>
+      <li><a href="research.html">Research</a></li>
+    </ul>
+  </nav>
+  <div class="enso-subnav">
+    <a href="sst.html" class="">Overview</a>
+    <a href="enso-subsurface.html" class="">Subsurface</a>
+    <a href="enso-forecasts.html" class="active">Forecasts</a>
+    <a href="enso-atmosphere.html" class="">Atmospheric Response</a>
   </div>
 </header>
-<nav class="st" aria-label="Section">
-  <div class="st-in">
-    <a href="/sst.html">Overview</a>
-    <a href="/enso-subsurface.html">Subsurface</a>
-    <a href="/enso-forecasts.html" aria-current="page">Forecasts</a>
-    <a href="/seas5.html">SEAS5</a>
-    <a href="/enso-atmosphere.html">Atmospheric response</a>
-  </div>
-</nav>
-<!-- sh:end -->
     <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
 <main>
   <header>
@@ -1071,13 +1018,13 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=695e31f306c4").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=807a8901eca8").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=695e31f306c4").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=807a8901eca8").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=695e31f306c4").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=807a8901eca8").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=695e31f306c4").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=807a8901eca8").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
@@ -1217,23 +1164,6 @@
   });
 })();
 </script>
-<!-- sf:start -->
-<footer class="sf">
-  <div class="sf-in">
-    <ul>
-      <li><a href="/">Home</a></li>
-      <li><a href="/#products">Products</a></li>
-      <li><a href="/research.html">Research</a></li>
-      <li><a href="/resume.html">Resume</a></li>
-      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
-      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
-      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
-      <li><a href="/stats.html">Visitor stats</a></li>
-    </ul>
-    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
-  </div>
-</footer>
-<!-- sf:end -->
 </body>
 </html>
 <script>
