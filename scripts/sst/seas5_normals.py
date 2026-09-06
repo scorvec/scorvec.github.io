@@ -99,7 +99,7 @@ def era5_monthly(key: str, short: str):
             v = v - 273.15
         _ERA[(key, short)] = (v, yrs, mos, m.latitude.values, m.longitude.values)
         return _ERA[(key, short)]
-    ds = _open(p, shortName=gshort)
+    ds = _open(p, shortName={"t2m": "2t", "si10": "10si"}.get(gshort, gshort))   # GRIB names differ from the netCDF ones
     da = ds[list(ds.data_vars)[0]].transpose("time", "latitude", "longitude")
     t = da.time.values
     yrs = np.array([int(str(x)[:4]) for x in t]); mos = np.array([int(str(x)[5:7]) for x in t])
