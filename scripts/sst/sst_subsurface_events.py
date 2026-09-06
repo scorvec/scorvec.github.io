@@ -159,23 +159,61 @@ def xsec(events: dict, cur_year: int, match: pd.Timestamp, out: Path, detr: bool
 
 
 # ── 2. heat-content (0–300 m T anomaly) evolution overlay ─────────────────────
+# A mooring that stops reporting is carried forward at its last anomaly for at
+# most this many days, then the index goes to NaN rather than silently
+# re-weighting itself onto whichever moorings are left.
+HC_PERSIST_DAYS = 10
+HC_MIN_MOORINGS = 6                       # of the 8 equatorial TAO/TRITON sites
+
+
 def heat_content(events: dict, cur_year: int, out: Path, detr: bool = False):
-    def hc(a: xr.DataArray) -> pd.Series:
+    def hc(a: xr.DataArray):
+        """0-300 m anomaly index with FIXED mooring weights.
+
+        The old version was mean(depth) then a plain nanmean over whichever
+        moorings reported. That is not a coverage-robust estimator: the
+        anomaly has a strong zonal gradient in an ENSO year (warm at depth in
+        the east, cool in the shoaling west), so when the western moorings
+        drop out the mean silently moves onto the eastern ones and reads warm.
+        Measured 2026-09-06: 165E/180/170W went dark on Sep 1; the east-only
+        mean ran +0.9 to +1.0 C above the all-mooring mean all August, and the
+        published index jumped +0.74 C in the five days the west was missing.
+
+        So each mooring keeps a fixed 1/8 weight. A silent mooring is carried
+        forward at its own last anomaly (subsurface anomalies change slowly)
+        for up to HC_PERSIST_DAYS; with fewer than HC_MIN_MOORINGS live or
+        persisted the index is NaN. The returned `persisted` series marks days
+        that used any carried value, so the plot can show them as such.
+        """
         col = a.sel(depth=slice(0, 300)).mean("depth", skipna=True)   # (time, lon)
-        s = pd.Series(col.mean("longitude", skipna=True).values,
-                      index=pd.to_datetime(a.time.values)).dropna()
-        return s.rolling(HC_SMOOTH, center=True, min_periods=5).mean()
+        df = pd.DataFrame(col.values, index=pd.to_datetime(a.time.values),
+                          columns=[float(x) for x in col.longitude.values])
+        live = df.notna()
+        filled = df.ffill(limit=HC_PERSIST_DAYS)
+        used = filled.notna()
+        s = filled.mean(axis=1, skipna=True)
+        s[used.sum(axis=1) < HC_MIN_MOORINGS] = np.nan
+        persisted = (used.sum(axis=1) > live.sum(axis=1)) & s.notna()
+        s = s.rolling(HC_SMOOTH, center=True, min_periods=5).mean()
+        return s, persisted.reindex(s.index).fillna(False)
 
     fig, ax = plt.subplots(figsize=(9.5, 5.2))
     def devdays(idx, yr):
         return (idx - pd.Timestamp(yr, 1, 1)).days
     for yr in ANALOGS:
-        s = hc(events[yr])
+        s, _ = hc(events[yr])
         ax.plot(devdays(s.index, yr), s.values, color=ANALOG_COLORS[yr], lw=1.8,
                 label=f"{yr}–{str(yr + 1)[2:]}")
-    cur = hc(events[cur_year])
+    cur, pers = hc(events[cur_year])
     ax.plot(devdays(cur.index, cur_year), cur.values, color="#d62728", lw=3.0,
             label=f"{cur_year} (current)", zorder=5)
+    # days where a silent mooring was carried forward: same line, hollow
+    # markers, so a reader can see which part of the tail rests on persistence
+    if pers.any():
+        pi = cur.index[pers.values]
+        ax.plot(devdays(pi, cur_year), cur.loc[pi].values, "o", ms=4.5, mfc="white",
+                mec="#d62728", mew=1.4, zorder=6,
+                label=f"{cur_year}: a mooring carried forward (≤{HC_PERSIST_DAYS} d)")
     ax.axhline(0, color="0.6", lw=0.8)
     ticks = [pd.Timestamp(2001, m, 1).dayofyear - 1 for m in (1, 4, 7, 10)]
     ticks = ticks + [t + 365 for t in ticks]
@@ -197,7 +235,8 @@ def heat_content(events: dict, cur_year: int, out: Path, detr: bool = False):
     fig.tight_layout()
     fig.savefig(out, dpi=120, bbox_inches="tight")
     plt.close(fig)
-    print(f"wrote {out} (current latest {cur.dropna().index[-1]:%b %d} {cur.dropna().iloc[-1]:+.2f}°C)")
+    print(f"wrote {out} (current latest {cur.dropna().index[-1]:%b %d} {cur.dropna().iloc[-1]:+.2f}°C"
+          f"{', ' + str(int(pers.sum())) + ' day(s) with a mooring carried forward' if pers.any() else ''})")
 
 
 def main() -> int:
