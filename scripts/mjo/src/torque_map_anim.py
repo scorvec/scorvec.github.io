@@ -154,6 +154,8 @@ def main() -> int:
     ap.add_argument("--manifest", default="assets/sst/anim/torque_manifest.json")
     ap.add_argument("--ts-out", default="assets/sst/torque_timeseries.webp")
     ap.add_argument("--ranges-out", default="assets/sst/torque_ranges.webp")
+    ap.add_argument("--series-out", default="assets/sst/data/torque_ranges.json",
+                    help="ensemble-mean torque anomaly by range per forecast day (read by pacjet.py)")
     args = ap.parse_args()
     init = pd.Timestamp(f"{args.date}T{args.time}:00")
     dd = Path(args.data_dir); dd.mkdir(parents=True, exist_ok=True)
@@ -488,6 +490,16 @@ def main() -> int:
     series = {nm: box_net5(ma, bx) for nm, bx in RANGES.items()}
     gtot = box_net5(ma, (0, 360, -90, 90))
     order = sorted(series, key=lambda k: -np.abs(series[k]).max())
+    if args.series_out:
+        import json as _json
+        Path(args.series_out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.series_out).write_text(_json.dumps({
+            "init": init.strftime("%Y-%m-%dT%HZ"), "valid": [v.strftime("%Y-%m-%d") for v in valid],
+            "units": "Hadley (1e18 N m), ensemble-mean mountain-torque anomaly vs ERA5 1991-2020",
+            "ranges": {nm: [round(float(x), 2) for x in series[nm]] for nm in series},
+            "global": [round(float(x), 2) for x in gtot],
+            "sd": {k: round(v, 2) for k, v in sd.items()}}, separators=(",", ":")))
+        print(f"saved {args.series_out}")
 
     fig = plt.figure(figsize=(12.6, 7.6))
     gs = GridSpec(3, 3, height_ratios=[1.45, 1, 1], hspace=0.72, wspace=0.24,

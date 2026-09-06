@@ -119,6 +119,11 @@ def get_v(time, levels) -> xr.DataArray:
     return _get_pl("v", "v_component_of_wind", time, levels)
 
 
+def get_z(time, levels) -> xr.DataArray:
+    """Geopotential (m² s⁻², divide by g for height) — see _get_pl."""
+    return _get_pl("z", "geopotential", time, levels)
+
+
 CONUS = dict(latitude=slice(55, 20), longitude=slice(-130 % 360, -60 % 360))
 
 

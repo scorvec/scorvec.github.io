@@ -733,12 +733,13 @@
     <div class="chart-card plot-deck" data-deck="atmosphere4">
       <div class="deck-head">
         <span class="deck-title">Select a figure</span>
-        <span class="deck-hint">3 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
+        <span class="deck-hint">4 in this panel &middot; click a button to switch &mdash; only the one you pick is loaded</span>
       </div>
       <div class="deck-tabs">
         <button class="on">Hadley cell</button>
         <button>Walker cell</button>
         <button>Subtropical jets</button>
+        <button>Pacific jet &amp; torque</button>
       </div>
       <div class="deck-panel">
       <div class="chart-card-header">
@@ -773,6 +774,17 @@
               title="Subtropical jet forecast animation: zonal-mean wind anomaly cross-section, day 0-15 from AIFS-ENS" loading="lazy"></iframe>
       <div class="img-wrap"><img src="assets/sst/jets.webp?v=807a8901eca8" alt="Subtropical jet monitor: zonal-mean wind cross-section anomaly and jet-core strength/latitude forecast vs ERA5 climatology" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind, 51 members (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 harmonic day-of-year normal &plusmn;1&sigma; (WeatherBench2 / Copernicus C3S) &middot; updated daily</span></div>
+      </div>
+
+      <div class="deck-panel" hidden>
+      <div class="chart-card-header">
+        <h2>North Pacific Jet: Extension, Shift and the Torque Upstream</h2>
+        <p>The 200&nbsp;hPa jet over 10&ndash;70&deg;N, 100&deg;E&ndash;120&deg;W, member by member: an <b>extension index</b> (the leading Nov&ndash;Mar EOF of the ERA5 1991&ndash;2020 anomalies, positive when the jet reaches east across the Pacific), a <b>shift index</b> (the second EOF, positive poleward), the plain <b>exit-region</b> wind anomaly over 30&ndash;40&deg;N 170&deg;E&ndash;150&deg;W, and the <b>jet terminus</b> &mdash; the easternmost longitude the 30&nbsp;m/s core reaches. The black tail is ERA5 through the same projection (about six days behind), the grey dots are the AIFS analyses, so the forecast starts from an observed state rather than a model one.</p>
+        <p>The link to the <b>Himalayan mountain torque</b> above is tested, not assumed: over 30 years of ERA5 the exit-region wind correlates with the torque at $r\approx0.25$ five to seven days later, and the composite extension after torque days of +1.5&sigma; or more rises to about +0.2&sigma; a week on &mdash; modest, but outside what random dates produce. The dashed red curve on the plumes is that composite anchored on this cycle&rsquo;s torque peak: the historical expectation the members can be read against. The second figure follows the chain downstream to 500&nbsp;hPa, where the composite response is a Gulf-of-Alaska ridge nine to twelve days after the torque (weaker over Alaska itself), set beside the model&rsquo;s own height anomalies and two ridge indices.</p>
+      </div>
+      <div class="img-wrap"><img src="assets/sst/pacjet.webp?v=202609061700" alt="North Pacific jet extension, shift, exit-region wind and terminus from AIFS-ENS with the Himalayan mountain torque and ERA5 lag statistics" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/pacjet_z500.webp?v=202609061700" alt="500 hPa response downstream of the Himalayan torque: ERA5 composites, AIFS-ENS height anomalies, Alaska and Gulf of Alaska ridge indices" loading="lazy"></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 200 hPa u and 500 hPa z, 51 members (open data, CC BY 4.0) &middot; reference: ERA5 1991&ndash;2020 via WeatherBench2 (Copernicus C3S), EOFs after Jaffe et al. (2011) and Winters et al. (2019) &middot; observed tail: ERA5 (ARCO) and AIFS analyses &middot; updated daily</span></div>
       </div>
       
     </div>
