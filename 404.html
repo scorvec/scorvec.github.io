@@ -6,15 +6,75 @@
 <meta name="robots" content="noindex">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
-body{background:#0b0b12;color:#e8e8f0;font-family:Inter,system-ui,sans-serif;display:flex;
-min-height:100vh;align-items:center;justify-content:center;margin:0;text-align:center;line-height:1.6}
+body{background:#0b0b12;color:#e8e8f0;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;
+min-height:100vh;margin:0;text-align:center;line-height:1.6}
 h1{font-family:Lora,Georgia,serif;font-weight:600;font-size:2.2rem;margin:0 0 .5rem}
-p{color:#8b8ba3}a{color:#64d2ff}
+p{color:#8b8ba3}a{color:#64d2ff}body>div{margin:auto;padding:2rem}
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <meta name="description" content="Page not found on scorvec.com — operational weather and climate diagnostics by Shawn Corvec.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
 </head>
-<body><div>
+<body>
+<!-- sh:start -->
+<header class="sh sh--dark" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-products">Products</button>
+          <div class="sh-menu" id="sh-products">
+            <div>
+              <h3>Tropics and El Niño</h3>
+              <ul>
+                <li><a href="/sst.html">El Niño monitor</a></li>
+                <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/enso-atmosphere.html">Atmospheric response</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/subseasonal.html">Subseasonal outlook</a></li>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/gatun/">Lake Gatún</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Convection and observations</h3>
+              <ul>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/skewt/">Sounding explorer</a></li>
+                <li><a href="/asos5.html">Five-minute airport observations</a></li>
+                <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasonal</h3>
+              <ul>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Model verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
+              </ul>
+            </div>
+            <p class="sh-all">Every product, with what it shows and how often it updates, is listed on the <a href="/#products">home page</a>.</p>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end --><div>
 <h1>404 — that page drifted off with the balloon</h1>
 <p>Try the <a href="/">homepage</a>, the <a href="/skewt/">Sounding Explorer</a>,
 or the <a href="/sst.html">Sea Surface Temperatures</a>.</p>

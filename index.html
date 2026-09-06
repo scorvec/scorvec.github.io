@@ -7,400 +7,382 @@
 
 <!-- Primary SEO metadata -->
 <title>Shawn Corvec — Meteorologist & Atmospheric Scientist</title>
-<meta name="description" content="Shawn Corvec is a meteorologist and atmospheric scientist working in numerical weather prediction, operational forecasting, and energy markets. Personal site, research, and projects.">
+<meta name="description" content="Shawn Corvec is a meteorologist and atmospheric scientist working in numerical weather prediction, operational forecasting, and energy markets. Live ENSO, MJO, subseasonal, convection and verification products built from open model data.">
 <meta name="author" content="Shawn Corvec">
-<meta name="keywords" content="Shawn Corvec, meteorologist, atmospheric scientist, numerical weather prediction, energy forecasting, wind generation forecast, HRRR">
 <link rel="canonical" href="https://scorvec.com/">
 <meta name="robots" content="index, follow">
 
 <!-- Open Graph (link previews on social, Slack, iMessage) -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="Shawn Corvec — Meteorologist & Atmospheric Scientist">
-<meta property="og:description" content="Quantitative meteorologist working on numerical weather prediction, operational forecasting, and energy markets.">
+<meta property="og:description" content="Quantitative meteorologist working on numerical weather prediction, operational forecasting, and energy markets. Live weather and climate products from open model data.">
 <meta property="og:url" content="https://scorvec.com/">
-<meta property="og:image" content="https://scorvec.com/profile.jpg">
-<meta property="og:image:alt" content="Shawn Corvec">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:image:alt" content="A supercell thunderstorm over green prairie under a blue sky">
 <meta property="og:site_name" content="Shawn Corvec">
 <meta property="og:locale" content="en_US">
 
 <!-- Twitter card -->
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Shawn Corvec — Meteorologist & Atmospheric Scientist">
 <meta name="twitter:description" content="Meteorologist working on numerical weather prediction, operational forecasting, and energy markets.">
-<meta name="twitter:image" content="https://scorvec.com/profile.jpg">
+<meta name="twitter:image" content="https://scorvec.com/hero-supercell-1280.webp">
 
-<!-- Structured data: tells Google this page is about a person, enables knowledge panel -->
+<!-- Structured data: a person, and the site itself -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "Person",
-  "name": "Shawn Corvec",
-  "url": "https://scorvec.com",
-  "image": "https://scorvec.com/profile.jpg",
-  "jobTitle": "Meteorologist & Atmospheric Scientist",
-  "description": "Quantitative meteorologist with experience in numerical weather prediction, operational forecasting, and energy markets.",
-  "knowsAbout": [
-    "Numerical weather prediction",
-    "Operational forecasting",
-    "Energy markets",
-    "Atmospheric science",
-    "Wind generation forecasting"
-  ],
-  "sameAs": [
-    "https://www.linkedin.com/in/shawn-corvec-35895b231/",
-    "https://www.researchgate.net/profile/Shawn-Corvec",
-    "https://scholar.google.com/citations?user=EYLRCJIAAAAJ&hl=en",
-    "https://github.com/scorvec"
+  "@graph": [
+    {
+      "@type": "Person",
+      "@id": "https://scorvec.com/#person",
+      "name": "Shawn Corvec",
+      "url": "https://scorvec.com/",
+      "image": "https://scorvec.com/profile.jpg",
+      "jobTitle": "Meteorologist & Atmospheric Scientist",
+      "description": "Quantitative meteorologist with experience in numerical weather prediction, operational forecasting, and energy markets.",
+      "knowsAbout": [
+        "Numerical weather prediction",
+        "Operational forecasting",
+        "Energy markets",
+        "Atmospheric science",
+        "El Niño–Southern Oscillation",
+        "Madden–Julian Oscillation",
+        "Wind generation forecasting"
+      ],
+      "sameAs": [
+        "https://www.linkedin.com/in/shawn-corvec-35895b231/",
+        "https://www.researchgate.net/profile/Shawn-Corvec",
+        "https://scholar.google.com/citations?user=EYLRCJIAAAAJ&hl=en",
+        "https://github.com/scorvec"
+      ]
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://scorvec.com/#website",
+      "url": "https://scorvec.com/",
+      "name": "Shawn Corvec",
+      "author": { "@id": "https://scorvec.com/#person" },
+      "inLanguage": "en"
+    }
   ]
 }
 </script>
 
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<!-- The hero photograph is the largest contentful paint: fetch it before the stylesheet parses. -->
+<link rel="preload" as="image"
+      imagesrcset="/hero-supercell-800.webp 800w, /hero-supercell-1280.webp 1280w, /hero-supercell-1920.webp 1920w"
+      imagesizes="100vw">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Palette sampled from the photograph: sky, cloud, storm base, hills, prairie. */
   :root {
-    --bg: #fafaf8;
-    --ink: #1c1c1a;
-    --muted: #888580;
-    --accent: #2c4a72;
-    --rule: #e4e2dc;
-    --serif: 'Lora', Georgia, serif;
-    --sans: 'Inter', sans-serif;
+    --sky: #4878af;
+    --sky-deep: #274b7a;
+    --cloud: #eef0eb;
+    --cloud-2: #e3e6df;
+    --storm: #5c6b73;
+    --prairie: #29321f;
+    --grass: #9a8342;
+    --serif: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    --sans: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif;
+    --measure: 66rem;
   }
-  html { height: 100%; }
-  /* desktop reads a touch small on wide monitors — nudge the root up (mobile unchanged) */
-  @media (min-width: 768px) { html { font-size: 110%; } }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   body {
-    background: var(--bg);
-    color: var(--ink);
+    background: var(--cloud);
+    color: var(--prairie);
     font-family: var(--sans);
+    font-size: 1.0625rem;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
-    display: flex; flex-direction: column;
-    /* grow past the viewport (and scroll) when content is taller than the screen,
-       instead of hard-capping at 100% and clipping the centered hero. */
-    min-height: 100dvh;
   }
+  a { color: inherit; }
+  a:focus-visible { outline: 2px solid var(--sky); outline-offset: 3px; }
 
-  /* NAV */
-  nav {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 1.2rem 3rem;
-    background: rgba(250,250,248,0.95);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--rule);
-  }
-  .nav-name {
-    font-family: var(--serif); font-weight: 400; font-size: 1rem;
-    text-decoration: none; color: var(--ink);
-  }
-  .nav-links { display: flex; gap: 2rem; list-style: none; }
-  .nav-links a {
-    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
-    text-decoration: none; color: var(--muted); transition: color 0.2s;
-  }
-  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
-
-  /* HERO BACKGROUND */
-  .home {
-    flex: 1;
-    display: flex; align-items: center; justify-content: center;
-    padding: 6rem 2rem 4rem;
+  /* ── Hero: the photograph, full viewport, nothing on top of the storm ── */
+  .hero {
     position: relative;
-    /* hero photo: 1920px WebP (157 KB; the original 6 MB JPEG was the whole first paint) */
-    background: url('assets/hero.webp') center center / cover no-repeat;
-    min-height: calc(100dvh - 57px - 57px);
+    height: 100svh; min-height: 34rem;
+    overflow: hidden;
+    background: var(--sky);
   }
-  .home::before {
-    content: '';
+  .hero img {
     position: absolute; inset: 0;
-    background: linear-gradient(
-      to bottom,
-      rgba(10,14,20,0.55) 0%,
-      rgba(10,14,20,0.65) 60%,
-      rgba(10,14,20,0.75) 100%
-    );
+    width: 100%; height: 100%;
+    object-fit: cover;
+    /* keep the updraft in frame when the viewport is narrower than 4:3 */
+    object-position: 42% 55%;
   }
-  .home-inner {
-    position: relative; z-index: 1;
-    display: flex; flex-direction: column; align-items: center;
-    text-align: center; max-width: 600px; width: 100%;
+  /* a low band of shade over the fields so the name reads; the sky stays untouched */
+  .hero::after {
+    content: '';
+    position: absolute; left: 0; right: 0; bottom: 0; height: 46%;
+    background: linear-gradient(to top, rgba(18, 26, 14, 0.78) 0%, rgba(18, 26, 14, 0.42) 45%, rgba(18, 26, 14, 0) 100%);
+    pointer-events: none;
   }
-
-  /* PHOTO */
-  .photo-wrap {
-    width: 160px; height: 160px;
-    border-radius: 50%;
-    background: #dddbd4;
-    overflow: hidden; margin-bottom: 2rem;
-    border: 2px solid rgba(255,255,255,0.2);
-  }
-  .photo-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-  /* TEXT */
-  h1 {
-    font-family: var(--serif); font-weight: 400;
-    font-size: 2rem; margin-bottom: 0.3rem;
+  .hero-text {
+    position: absolute; z-index: 2;
+    left: clamp(1.25rem, 4vw, 3.5rem); right: clamp(1.25rem, 4vw, 3.5rem);
+    bottom: clamp(2rem, 6vh, 4.5rem);
     color: #fff;
+    max-width: 38rem;
   }
-  .title {
-    font-size: 0.78rem; font-weight: 400; letter-spacing: 0.1em;
-    text-transform: uppercase; color: rgba(180,205,235,0.9);
-    margin-bottom: 1.4rem;
+  .hero-text h1 {
+    font-family: var(--serif);
+    font-size: clamp(2.6rem, 6.2vw, 4.6rem);
+    font-weight: 400; line-height: 1.02; letter-spacing: -0.012em;
+    font-variation-settings: 'opsz' 72;
+    margin-bottom: 0.55rem;
   }
-  .bio {
-    font-size: 0.93rem; font-weight: 300; line-height: 1.85;
-    color: rgba(255,255,255,0.78); margin-bottom: 2rem;
+  .hero-text .role {
+    font-family: var(--serif); font-style: italic;
+    font-size: clamp(1.25rem, 2.1vw, 1.6rem);
+    font-variation-settings: 'opsz' 24;
+    line-height: 1.3;
+    color: rgba(255, 255, 255, 0.92);
+    margin-bottom: 1rem;
   }
-
-  /* LINKS */
-  .home-links {
-    display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center;
+  .hero-text p {
+    font-size: 1rem; line-height: 1.55; max-width: 34rem;
+    color: rgba(255, 255, 255, 0.86);
   }
-  .btn {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    font-size: 0.76rem; font-weight: 500;
-    letter-spacing: 0.07em; text-transform: uppercase; text-decoration: none;
-    padding: 0.65rem 1.5rem;
-    border: 1px solid rgba(255,255,255,0.55); color: #fff;
-    transition: all 0.2s;
-    backdrop-filter: blur(4px);
-    background: rgba(255,255,255,0.07);
+  .hero-text .scroll {
+    display: inline-block; margin-top: 1.4rem;
+    font-size: 0.95rem; color: #fff;
+    text-decoration: underline; text-underline-offset: 0.25em;
+    text-decoration-color: rgba(255,255,255,0.5);
   }
-  .btn:hover { background: rgba(255,255,255,0.2); border-color: #fff; }
-  .btn svg { flex-shrink: 0; }
-
-  /* FEATURE BUTTONS — live monitors, larger, above the small links */
-  .feature-links {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 0.8rem;
-    margin-bottom: 1.5rem; width: 100%;
-  }
-  .feature-btn {
-    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-    text-decoration: none; color: #fff;
-    padding: 1rem 1.4rem; min-width: 0;
-    background: rgba(255,255,255,0.10);
-    border: 1px solid rgba(255,255,255,0.42);
-    backdrop-filter: blur(4px);
-    transition: all 0.2s;
-  }
-  .feature-btn:hover { background: rgba(255,255,255,0.2); border-color: #fff; }
-  .feature-btn.gh-btn { background: rgba(255,255,255,0.05);
-                        border-style: dashed; border-color: rgba(255,255,255,0.32); }
-  .feature-btn.gh-btn:hover { background: rgba(255,255,255,0.16); border-style: solid;
-                              border-color: #fff; }
-  .feature-btn .fb-label {
-    font-size: 0.62rem; font-weight: 500; letter-spacing: 0.15em;
-    text-transform: uppercase; color: rgba(220,180,100,0.95);
-    margin-bottom: 0.35rem;
-  }
-  .feature-btn .fb-title {
-    font-family: var(--serif); font-weight: 400; font-size: 1.08rem;
+  .hero-text .scroll:hover { text-decoration-color: #fff; }
+  .hero figcaption {
+    position: absolute; z-index: 2; right: clamp(1.25rem, 4vw, 3.5rem); bottom: 0.9rem;
+    font-size: 0.78rem; color: rgba(255, 255, 255, 0.7);
   }
 
-  /* FEATURED CALLOUT — live forecasts */
-  .featured {
-    display: flex; flex-direction: column; align-items: center;
-    margin: 0 0 2rem;
-    padding: 1.5rem 1.8rem;
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.22);
-    backdrop-filter: blur(4px);
-    text-decoration: none; color: #fff;
-    max-width: 100%;
-    transition: all 0.2s;
-    text-align: center;
+  /* ── The index: what is on this site, as a list rather than a wall of tiles ── */
+  .wrap { max-width: var(--measure); margin: 0 auto; padding: 0 clamp(1.25rem, 4vw, 3.5rem); }
+  .index { padding: clamp(3rem, 7vw, 5.5rem) 0 clamp(2rem, 5vw, 3.5rem); }
+  .index-head {
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 2rem 4rem; align-items: end;
+    margin-bottom: clamp(2.5rem, 5vw, 4rem);
   }
-  .featured:hover {
-    background: rgba(255,255,255,0.14);
-    border-color: rgba(255,255,255,0.45);
-  }
-  .featured-label {
-    font-size: 0.68rem; font-weight: 500;
-    letter-spacing: 0.16em; text-transform: uppercase;
-    color: rgba(220,180,100,0.95);
-    margin-bottom: 0.45rem;
-  }
-  .featured-title {
+  .index-head h2 {
     font-family: var(--serif); font-weight: 400;
-    font-size: 1.2rem; color: #fff;
-    margin-bottom: 0.45rem;
+    font-size: clamp(2rem, 3.6vw, 2.9rem); line-height: 1.08; letter-spacing: -0.01em;
+    font-variation-settings: 'opsz' 60;
   }
-  .featured-desc {
-    font-size: 0.85rem; font-weight: 300; line-height: 1.55;
-    color: rgba(255,255,255,0.78);
-    max-width: 38ch;
+  .index-head p { color: var(--storm); max-width: 40rem; }
+  .index-head p a { text-decoration-color: rgba(92,107,115,0.5); text-underline-offset: 0.2em; }
+
+  .group { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 1rem 3rem; padding: 1.6rem 0 0.4rem; border-top: 1px solid var(--cloud-2); }
+  .group + .group { margin-top: 1.2rem; }
+  .group h3 {
+    font-family: var(--serif); font-weight: 500; font-size: 1.2rem; line-height: 1.3;
+    font-variation-settings: 'opsz' 20;
+    color: var(--sky-deep);
   }
-  .featured-arrow {
-    font-size: 0.85rem; margin-left: 0.4rem;
-    transition: transform 0.2s;
-    display: inline-block;
+  .group h3 small { display: block; font-family: var(--sans); font-weight: 400; font-size: 0.86rem; color: var(--storm); margin-top: 0.3rem; }
+  .rows { list-style: none; }
+  .row {
+    display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) 8.5rem;
+    gap: 0.4rem 1.5rem; align-items: baseline;
+    padding: 0.85rem 0;
   }
-  .featured:hover .featured-arrow { transform: translateX(3px); }
-
-  /* FOOTER */
-  footer {
-    padding: 1.2rem 3rem;
-    border-top: 1px solid var(--rule);
-    display: flex; justify-content: center; align-items: center;
+  .row + .row { border-top: 1px solid var(--cloud-2); }
+  .row a {
+    font-family: var(--serif); font-size: 1.28rem; font-weight: 400; line-height: 1.25;
+    font-variation-settings: 'opsz' 24;
+    text-decoration: none;
   }
-  .counter {
-    font-size: 0.72rem; font-weight: 400; letter-spacing: 0.08em;
-    color: var(--muted); text-transform: uppercase;
+  .row a:hover { text-decoration: underline; text-underline-offset: 0.18em; text-decoration-color: var(--grass); }
+  .row .what { color: var(--storm); font-size: 0.98rem; }
+  .row .when { color: var(--grass); font-size: 0.9rem; text-align: right; white-space: nowrap; }
+
+  /* ── About ───────────────────────────────────────────────────────────── */
+  .about {
+    border-top: 1px solid var(--cloud-2);
+    padding: clamp(2.5rem, 6vw, 4.5rem) 0 clamp(3rem, 7vw, 5rem);
+    display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 1.5rem 3rem; align-items: start;
   }
-  .counter span { color: var(--ink); font-weight: 500; }
-
-  /* TABLET */
-  @media (max-width: 768px) {
-    .home { background-image: url('assets/hero_m.webp'); }   /* 1024px, 41 KB */
-    nav { padding: 1rem 1.5rem; }
-    .nav-links { gap: 1.3rem; }
-    .home { padding: 5rem 1.5rem 3rem; }
-    footer { padding: 1rem 1.5rem; }
+  .about img { width: 7.5rem; height: 7.5rem; border-radius: 50%; object-fit: cover; display: block; }
+  .about h2 {
+    font-family: var(--serif); font-weight: 400; font-size: 1.9rem; line-height: 1.15;
+    font-variation-settings: 'opsz' 40; margin-bottom: 0.9rem;
   }
+  .about p { max-width: 42rem; margin-bottom: 0.9rem; }
+  .about p:last-of-type { color: var(--storm); }
+  .links { display: flex; flex-wrap: wrap; gap: 0.6rem 1.6rem; margin-top: 1.3rem; list-style: none; }
+  .links a { text-decoration: underline; text-underline-offset: 0.22em; text-decoration-color: rgba(41,50,31,0.35); }
+  .links a:hover { text-decoration-color: var(--prairie); }
 
-  /* PHONE */
-  @media (max-width: 480px) {
-    nav {
-      padding: 0.85rem 1.1rem;
-      flex-wrap: wrap; gap: 0.5rem;
-    }
-    .nav-name { font-size: 0.95rem; }
-    .nav-links { gap: 1rem; }
-    .nav-links a { font-size: 0.78rem; }
+  footer { border-top: 1px solid var(--cloud-2); padding: 1.4rem 0 2rem; font-size: 0.9rem; color: var(--storm); }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 2rem; }
+  footer a { text-decoration: underline; text-underline-offset: 0.2em; text-decoration-color: rgba(92,107,115,0.45); }
 
-    .home { padding: 4.5rem 1.2rem 2.5rem; }
-    .feature-links { flex-direction: column; gap: 0.7rem; }
-    .feature-btn { width: 100%; min-width: 0; padding: 0.9rem 1.2rem; }
-    .photo-wrap {
-      width: 120px; height: 120px;
-      margin-bottom: 1.5rem;
-    }
-    h1 { font-size: 1.6rem; }
-    .title { font-size: 0.72rem; margin-bottom: 1.2rem; }
-    .bio { font-size: 0.9rem; line-height: 1.75; }
-
-    .home-links { gap: 0.6rem; }
-    .btn {
-      font-size: 0.72rem;
-      padding: 0.6rem 1.1rem;
-    }
-
-    .featured { padding: 1.2rem 1.3rem; }
-    .featured-title { font-size: 1.1rem; }
-    .featured-desc { font-size: 0.82rem; }
-
-    footer { padding: 0.9rem 1.1rem; }
+  @media (max-width: 860px) {
+    .index-head { grid-template-columns: 1fr; gap: 1rem; }
+    .group { grid-template-columns: 1fr; gap: 0.4rem; }
+    .row { grid-template-columns: 1fr; gap: 0.25rem; padding: 0.95rem 0; }
+    .row .when { text-align: left; }
+    .about { grid-template-columns: 1fr; }
+    .about img { width: 5.5rem; height: 5.5rem; }
+    .hero figcaption { display: none; }
   }
-
-  /* VERY NARROW (older/small phones) */
-  @media (max-width: 360px) {
-    .nav-links { gap: 0.8rem; }
-    .nav-links a { font-size: 0.72rem; }
-    h1 { font-size: 1.45rem; }
-    .btn {
-      font-size: 0.68rem;
-      padding: 0.55rem 0.9rem;
-      letter-spacing: 0.05em;
-    }
+  @media (max-width: 520px) {
+    .hero img { object-position: 40% 50%; }
   }
 </style>
-<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
 </head>
+
 <body>
-<nav>
-  <a href="index.html" class="nav-name">Shawn Corvec</a>
-  <ul class="nav-links">
-    <li><a href="index.html" class="active">Home</a></li>
-    <li><a href="resume.html">Resume</a></li>
-    <li><a href="research.html">Research</a></li>
-    <li><a href="mjo.html">MJO</a></li>
-    <li><a href="subseasonal.html">Subseasonal</a></li>
-    <li><a href="sst.html">El Niño</a></li>
-    <li><a href="columbia/">Columbia</a></li>
-  </ul>
-</nav>
-
-<main class="home">
-  <div class="home-inner">
-    <div class="photo-wrap">
-      <img src="profile.jpg" alt="Shawn Corvec">
-    </div>
-
-    <h1>Shawn Corvec</h1>
-    <div class="title">Meteorologist · Atmospheric Scientist</div>
-
-    <div class="feature-links">
-      <a href="sst.html" class="feature-btn">
-        <span class="fb-label">Live &middot; daily</span>
-        <span class="fb-title">El Ni&ntilde;o / La Ni&ntilde;a Monitor</span>
-      </a>
-      <a href="mjo.html" class="feature-btn">
-        <span class="fb-label">Live &middot; 2&times; daily</span>
-        <span class="fb-title">AIFS-ENS MJO Forecast</span>
-      </a>
-      <a href="subseasonal.html" class="feature-btn">
-        <span class="fb-label">Days 1&ndash;35 &middot; Americas, tropics, polar vortex</span>
-        <span class="fb-title">GEPS Subseasonal (Mon/Thurs 00Z)</span>
-      </a>
-      <a href="columbia/" class="feature-btn">
-        <span class="fb-label">Live &middot; 7 models &middot; NWRFC basins vs Stage IV</span>
-        <span class="fb-title">Columbia River Basin Precipitation</span>
-      </a>
-      <a href="asos5.html" class="feature-btn">
-        <span class="fb-label">Live &middot; ASOS</span>
-        <span class="fb-title">5-minute METAR Data</span>
-      </a>
-      <a href="ecape.html" class="feature-btn">
-        <span class="fb-label">HRRR 3&nbsp;km &middot; 48-hour loop</span>
-        <span class="fb-title">Entraining CAPE over CONUS</span>
-      </a>
-      <a href="skewt/" class="feature-btn">
-        <span class="fb-label">Worldwide &middot; real-time &middot; in-browser</span>
-        <span class="fb-title">Sounding Explorer</span>
-      </a>
-      <a href="aifs-verify.html" class="feature-btn">
-        <span class="fb-label">Live &middot; every 00Z/12Z run</span>
-        <span class="fb-title">AIFS single vs AIFS-ENS control</span>
-      </a>
-      <a href="sfs.html" class="feature-btn">
-        <span class="fb-label">Monthly &middot; NOAA beta &middot; 31 members</span>
-        <span class="fb-title">SFS Seasonal Outlook</span>
-      </a>
-      <a href="qbo/" class="feature-btn">
-        <span class="fb-label">1950&ndash;present &middot; weekly</span>
-        <span class="fb-title">QBO Tracker</span>
-      </a>
-      <a href="https://github.com/scorvec" class="feature-btn gh-btn" target="_blank" rel="noopener">
-        <span class="fb-label">Source code &middot; all projects</span>
-        <span class="fb-title">
-          <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"
-               style="vertical-align:-2px; margin-right:6px"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>GitHub
-        </span>
-      </a>
-    </div>
-
-
-    <div class="home-links">
-      <a href="resume.html" class="btn">Resume</a>
-      <a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" class="btn" target="_blank" rel="noopener">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.37V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.28V1.72C24 .77 23.2 0 22.22 0z"/></svg>
-        LinkedIn
-      </a>
-      <a href="https://www.researchgate.net/profile/Shawn-Corvec" class="btn" target="_blank" rel="noopener">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.586 0C16.834 0 14.5 2.31 14.5 5.06v6.92c0 2.75 2.334 5.05 5.086 5.05h.83V12.85h-.83c-.563 0-1.034-.46-1.034-1.02V5.06c0-.56.47-1.02 1.034-1.02h.83V0h-.83zM4.05 24c-1.133 0-2.05-.917-2.05-2.05V2.05C2 .917 2.917 0 4.05 0h7.65v4.05H6.1v15.9h11.7v-3.7h4.1v5.7c0 1.13-.92 2.05-2.05 2.05H4.05z"/></svg>
-        ResearchGate
-      </a>
-      <a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&hl=en" class="btn" target="_blank" rel="noopener">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
-        Google Scholar
-      </a>
-    </div>
+<!-- sh:start -->
+<header class="sh sh--overlay" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-products">Products</button>
+          <div class="sh-menu" id="sh-products">
+            <div>
+              <h3>Tropics and El Niño</h3>
+              <ul>
+                <li><a href="/sst.html">El Niño monitor</a></li>
+                <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/enso-atmosphere.html">Atmospheric response</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/subseasonal.html">Subseasonal outlook</a></li>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/gatun/">Lake Gatún</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Convection and observations</h3>
+              <ul>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/skewt/">Sounding explorer</a></li>
+                <li><a href="/asos5.html">Five-minute airport observations</a></li>
+                <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasonal</h3>
+              <ul>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Model verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
+              </ul>
+            </div>
+            <p class="sh-all">Every product, with what it shows and how often it updates, is listed on the <a href="/#products">home page</a>.</p>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
   </div>
+</header>
+<!-- sh:end -->
+
+<header class="hero">
+  <img src="/hero-supercell-1920.webp"
+       srcset="/hero-supercell-800.webp 800w, /hero-supercell-1280.webp 1280w, /hero-supercell-1920.webp 1920w"
+       sizes="100vw" fetchpriority="high" decoding="async"
+       alt="A supercell thunderstorm builds over green prairie under a blue sky, its anvil spreading downwind.">
+  <div class="hero-text">
+    <h1>Shawn Corvec</h1>
+    <p class="role">Meteorologist and atmospheric scientist</p>
+    <p>Numerical weather prediction, operational forecasting, and the weather behind energy markets. This site runs a set of live diagnostics built from open model and observation data.</p>
+    <a class="scroll" href="#products">See what is running</a>
+  </div>
+  <figcaption>Supercell over the prairie</figcaption>
+</header>
+
+<main class="wrap">
+  <section class="index" id="products">
+    <div class="index-head">
+      <h2>Live products, rebuilt automatically as new model runs and observations arrive.</h2>
+      <p>Everything here is computed from public data (ECMWF and Environment Canada open data, NOAA, NASA, IDEAM) by pipelines that run on a schedule. Each page says when it was last updated; the <a href="/status.html">freshness board</a> shows the whole set at a glance.</p>
+    </div>
+
+    <div class="group">
+      <h3>Tropics and El Niño<small>Ocean and atmosphere, from the daily state to the seasonal outlook</small></h3>
+      <ul class="rows">
+        <li class="row"><a href="/sst.html">El Niño monitor</a><span class="what">Daily ONI and RONI, Niño-region sea surface temperatures, and SST anomaly maps and animation.</span><span class="when">Daily</span></li>
+        <li class="row"><a href="/enso-subsurface.html">Subsurface temperature</a><span class="what">Equatorial Pacific depth–longitude sections from the TAO/TRITON array, raw and with the climate trend removed.</span><span class="when">Daily</span></li>
+        <li class="row"><a href="/enso-forecasts.html">ENSO forecasts</a><span class="what">Every member of seven centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.</span><span class="when">Monthly</span></li>
+        <li class="row"><a href="/enso-atmosphere.html">Atmospheric response</a><span class="what">Wave activity flux, angular momentum and torques, and the Walker circulation from the AIFS ensemble.</span><span class="when">Daily</span></li>
+        <li class="row"><a href="/mjo.html">MJO forecast</a><span class="what">Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track.</span><span class="when">Twice daily</span></li>
+        <li class="row"><a href="/subseasonal.html">Subseasonal outlook</a><span class="what">GEPS weeks 1 to 5 for the Americas, the tropics and the polar vortex, with change since the previous run.</span><span class="when">Mondays and Thursdays</span></li>
+        <li class="row"><a href="/qbo/">QBO tracker</a><span class="what">Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.</span><span class="when">Weekly</span></li>
+        <li class="row"><a href="/gatun/">Lake Gatún</a><span class="what">Panama Canal reservoir level against ENSO, with IMERG rainfall over the watershed.</span><span class="when">Daily</span></li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Convection and observations<small>Short-range convective diagnostics and raw observations</small></h3>
+      <ul class="rows">
+        <li class="row"><a href="/ecape.html">Entraining CAPE</a><span class="what">Gridded ECAPE over the continental US from the 3 km HRRR, hourly to 18 hours and 3-hourly to 48.</span><span class="when">Four times daily</span></li>
+        <li class="row"><a href="/skewt/">Sounding explorer</a><span class="what">Real-time and archived radiosondes worldwide, drawn and analysed in the browser, with launch history and record rings.</span><span class="when">Hourly mirror</span></li>
+        <li class="row"><a href="/asos5.html">Five-minute airport observations</a><span class="what">Temperature at major US airports every five minutes from ASOS, with running daily highs and lows.</span><span class="when">Live</span></li>
+        <li class="row"><a href="/columbia/">Columbia River basin precipitation</a><span class="what">Seven models' precipitation on the NWRFC water-supply divisions, as percent of normal and against Stage IV observations.</span><span class="when">Four times daily</span></li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Seasonal<small>Beyond a month</small></h3>
+      <ul class="rows">
+        <li class="row"><a href="/sfs.html">NOAA SFS outlook</a><span class="what">Maps from NOAA's new Seasonal Forecast System, 31 members, for the months ahead.</span><span class="when">Monthly</span></li>
+      </ul>
+    </div>
+
+    <div class="group">
+      <h3>Model verification<small>How the models are doing, measured against observations</small></h3>
+      <ul class="rows">
+        <li class="row"><a href="/aifs-verify.html">AIFS single versus ensemble control</a><span class="what">Live verification of the two ECMWF AIFS configurations against radiosondes and ERA5, run by run.</span><span class="when">Every 00Z and 12Z run</span></li>
+        <li class="row"><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a><span class="what">Effective resolution and mesoscale spin-up of the two US convection-allowing models, from their native-level winds.</span><span class="when">Study</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="about" id="about">
+    <img src="/profile.jpg" alt="Shawn Corvec" width="120" height="120" loading="lazy">
+    <div>
+      <h2>About</h2>
+      <p>I am a meteorologist and atmospheric scientist. My work sits between numerical weather prediction and the people who have to act on it: operational forecasting, model verification, and the weather-driven side of power and gas markets, from wind generation to hydro inflows.</p>
+      <p>The products above started as tools I wanted for my own analysis. They are open because the data behind them is open, and because a forecast you can check is worth more than one you cannot.</p>
+      <ul class="links">
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Research and publications</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+        <li><a href="https://www.researchgate.net/profile/Shawn-Corvec" rel="noopener">ResearchGate</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      </ul>
+    </div>
+  </section>
 </main>
 
 <footer>
-  <p class="counter">Unique viewers: <span id="count">—</span> · <a href="stats.html" style="color:inherit;">map</a></p>
+  <div class="wrap">
+    <span>Unique viewers: <span id="count">—</span>, <a href="/stats.html">by location</a></span>
+    <span>Photograph and site by Shawn Corvec</span>
+  </div>
 </footer>
 
 <script>

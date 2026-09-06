@@ -1,0 +1,218 @@
+/* Site chrome shared by every page: header, section tabs, footer, buttons.
+   Stamped into the pages by scripts/site/apply_chrome.py; edit the markup
+   there, the look here. Every rule is scoped under .sh / .st / .sf / .button
+   and carries its own variables, because each page still brings its own
+   palette (light monitors, the dark sounding explorer, the dark 404). */
+
+.sh, .st, .sf {
+  --c-bg: #f5f6f3;
+  --c-panel: #ffffff;
+  --c-ink: #29321f;
+  --c-muted: #5c6b73;
+  --c-rule: #dfe3dc;
+  --c-accent: #274b7a;
+  --c-accent-soft: rgba(39, 75, 122, 0.09);
+  --f-sans: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif;
+  --f-serif: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  font-family: var(--f-sans);
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--c-ink);
+  -webkit-font-smoothing: antialiased;
+}
+.sh--dark, .st--dark, .sf--dark {
+  --c-bg: #11111c;
+  --c-panel: #171724;
+  --c-ink: #e8e8f0;
+  --c-muted: #8b8ba3;
+  --c-rule: #23233a;
+  --c-accent: #64d2ff;
+  --c-accent-soft: rgba(100, 210, 255, 0.12);
+}
+.sh *, .st *, .sf * { box-sizing: border-box; }
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+.sh {
+  position: sticky; top: 0; z-index: 1000;
+  background: var(--c-bg);
+  border-bottom: 1px solid var(--c-rule);
+}
+.sh-in {
+  max-width: 1500px; margin: 0 auto;
+  padding: 0 clamp(1rem, 3vw, 2.5rem);
+  min-height: 56px;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+}
+.sh-brand {
+  font-family: var(--f-serif); font-size: 1.25rem; font-weight: 500;
+  color: var(--c-ink); text-decoration: none; letter-spacing: 0.005em;
+  white-space: nowrap;
+}
+.sh-brand:hover { color: var(--c-accent); }
+
+/* the page's own `nav { position: fixed … }` rules must not reach this nav */
+.sh nav.sh-nav {
+  position: static; display: block; top: auto; left: auto; right: auto;
+  width: auto; max-width: none; height: auto; min-height: 0;
+  margin: 0; padding: 0; border: 0; background: transparent;
+  box-shadow: none; backdrop-filter: none; z-index: auto; flex: none;
+}
+.sh-list { display: flex; align-items: center; gap: 0.2rem; list-style: none; margin: 0; padding: 0; }
+.sh-item { position: relative; margin: 0; padding: 0; }
+.sh-link {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.55rem 0.8rem; border-radius: 6px;
+  font: inherit; color: var(--c-ink); text-decoration: none;
+  background: none; border: 0; cursor: pointer; white-space: nowrap;
+}
+.sh-link:hover { background: var(--c-accent-soft); }
+.sh-link:focus-visible, .sh-toggle:focus-visible, .sh-menu a:focus-visible, .st a:focus-visible, .sf a:focus-visible, .button:focus-visible {
+  outline: 2px solid var(--c-accent); outline-offset: 2px;
+}
+.sh-link[aria-current="page"] { font-weight: 500; color: var(--c-accent); }
+.sh-menubtn::after {
+  content: ''; width: 0.42em; height: 0.42em; margin-top: -0.2em;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg); transition: transform 0.15s;
+}
+.sh-has-menu.is-open > .sh-menubtn { background: var(--c-accent-soft); }
+.sh-has-menu.is-open > .sh-menubtn::after { transform: rotate(225deg); margin-top: 0.2em; }
+
+/* Products dropdown */
+.sh-menu {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  display: none; grid-template-columns: repeat(2, minmax(14rem, 1fr)); gap: 1.1rem 2rem;
+  width: min(46rem, calc(100vw - 2rem));
+  padding: 1.25rem 1.5rem 1.1rem;
+  background: var(--c-panel); color: var(--c-ink);
+  border: 1px solid var(--c-rule); border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(20, 30, 45, 0.16);
+  text-align: left;
+}
+.sh-has-menu.is-open > .sh-menu { display: grid; }
+.sh-menu h3 {
+  font-family: var(--f-serif); font-size: 1.02rem; font-weight: 500; line-height: 1.3;
+  color: var(--c-accent); margin: 0 0 0.4rem;
+}
+.sh-menu ul { list-style: none; margin: 0; padding: 0; }
+.sh-menu li { margin: 0; padding: 0; }
+.sh-menu a {
+  display: block; padding: 0.3rem 0; font-size: 0.95rem;
+  color: var(--c-ink); text-decoration: none;
+}
+.sh-menu a:hover { color: var(--c-accent); text-decoration: underline; text-underline-offset: 0.16em; }
+.sh-menu a[aria-current="page"] { font-weight: 500; color: var(--c-accent); }
+.sh-menu .sh-all {
+  grid-column: 1 / -1; margin-top: 0.3rem; padding-top: 0.8rem;
+  border-top: 1px solid var(--c-rule); font-size: 0.92rem; color: var(--c-muted);
+}
+.sh-menu .sh-all a { display: inline; padding: 0; color: var(--c-accent); text-decoration: underline; text-underline-offset: 0.16em; }
+
+/* mobile toggle */
+.sh-toggle {
+  display: none; align-items: center; gap: 0.5rem;
+  font: inherit; color: var(--c-ink); background: none; border: 1px solid var(--c-rule);
+  border-radius: 6px; padding: 0.4rem 0.75rem; cursor: pointer;
+}
+.sh-toggle::before {
+  content: ''; width: 16px; height: 12px;
+  background:
+    linear-gradient(currentColor, currentColor) 0 0 / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) 0 5px / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) 0 10px / 100% 2px no-repeat;
+}
+.sh.is-open .sh-toggle::before {
+  background:
+    linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 2px 100% no-repeat;
+  width: 12px;
+}
+
+@media (max-width: 860px) {
+  .sh-toggle { display: inline-flex; }
+  .sh nav.sh-nav {
+    display: none; position: absolute; left: 0; right: 0; top: 100%;
+    background: var(--c-bg); border-bottom: 1px solid var(--c-rule);
+    padding: 0.4rem clamp(1rem, 3vw, 2.5rem) 1rem;
+    max-height: calc(100vh - 56px); overflow: auto;
+    box-shadow: 0 14px 30px rgba(20, 30, 45, 0.12);
+  }
+  .sh.is-open nav.sh-nav { display: block; }
+  .sh-list { flex-direction: column; align-items: stretch; gap: 0; }
+  .sh-link { width: 100%; padding: 0.8rem 0.25rem; border-radius: 0; border-bottom: 1px solid var(--c-rule); justify-content: space-between; }
+  .sh-link:hover { background: none; color: var(--c-accent); }
+  .sh-menu {
+    position: static; width: auto; grid-template-columns: 1fr; gap: 0.9rem;
+    padding: 0.5rem 0.25rem 0.9rem; background: none; border: 0; border-radius: 0; box-shadow: none;
+  }
+  .sh-menu h3 { margin-bottom: 0.15rem; }
+  .sh-menu a { padding: 0.35rem 0; }
+}
+
+/* Overlay skin: the homepage hero. Transparent, white type, sits on the photograph. */
+.sh--overlay {
+  position: absolute; top: 0; left: 0; right: 0;
+  background: transparent; border-bottom: 0;
+  --c-ink: #ffffff; --c-accent: #ffffff; --c-accent-soft: rgba(255, 255, 255, 0.14);
+  text-shadow: 0 1px 10px rgba(20, 30, 45, 0.45);
+}
+.sh--overlay .sh-menu { --c-ink: #29321f; --c-accent: #274b7a; --c-muted: #5c6b73; --c-rule: #dfe3dc; text-shadow: none; }
+.sh--overlay .sh-toggle { border-color: rgba(255, 255, 255, 0.55); }
+@media (max-width: 860px) {
+  .sh--overlay nav.sh-nav { background: rgba(18, 26, 14, 0.94); border-bottom: 0; --c-rule: rgba(255, 255, 255, 0.16); }
+  .sh--overlay .sh-menu { --c-ink: #ffffff; --c-accent: #ffffff; --c-muted: rgba(255,255,255,0.7); --c-rule: rgba(255,255,255,0.16); }
+}
+
+/* ── Section tabs (a product family's pages) ─────────────────────────── */
+.st {
+  background: var(--c-bg);
+  border-bottom: 1px solid var(--c-rule);
+}
+.st-in {
+  max-width: 1500px; margin: 0 auto;
+  padding: 0 clamp(1rem, 3vw, 2.5rem);
+  display: flex; gap: 0.25rem; overflow-x: auto; scrollbar-width: none;
+}
+.st-in::-webkit-scrollbar { display: none; }
+.st a {
+  display: inline-block; padding: 0.7rem 0.75rem 0.6rem;
+  color: var(--c-muted); text-decoration: none; white-space: nowrap;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.st a:hover { color: var(--c-ink); }
+.st a[aria-current="page"] { color: var(--c-accent); border-bottom-color: var(--c-accent); font-weight: 500; }
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.sf {
+  margin-top: 3rem;
+  border-top: 1px solid var(--c-rule);
+  background: var(--c-bg);
+  color: var(--c-muted);
+  font-size: 0.9rem;
+}
+.sf-in {
+  max-width: 1500px; margin: 0 auto;
+  padding: 1.5rem clamp(1rem, 3vw, 2.5rem) 2rem;
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.8rem 2rem;
+}
+.sf ul { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; list-style: none; margin: 0; padding: 0; }
+.sf li { margin: 0; padding: 0; }
+.sf a { color: var(--c-ink); text-decoration: none; }
+.sf a:hover { color: var(--c-accent); text-decoration: underline; text-underline-offset: 0.16em; }
+.sf p { margin: 0; }
+
+/* ── Buttons, for pages that want a standard one ─────────────────────── */
+.button {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.6rem 1.1rem; border-radius: 6px;
+  font-family: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif; font-size: 0.95rem; font-weight: 500; line-height: 1.2;
+  background: #274b7a; color: #fff; border: 1px solid #274b7a;
+  text-decoration: none; cursor: pointer;
+}
+.button:hover { background: #1e3c62; border-color: #1e3c62; }
+.button--secondary { background: transparent; color: #274b7a; }
+.button--secondary:hover { background: rgba(39, 75, 122, 0.09); color: #1e3c62; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-menubtn::after { transition: none; }
+}

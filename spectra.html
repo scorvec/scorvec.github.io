@@ -27,7 +27,7 @@
   .nav-links a { font-size: 0.82rem; letter-spacing: 0.04em; text-decoration: none;
                  color: var(--muted); }
   .nav-links a:hover { color: var(--ink); }
-  main { flex: 1; max-width: 1500px; margin: 0 auto; padding: 7.5rem 2.5rem 5rem; width: 100%; }
+  main { flex: 1; max-width: 1500px; margin: 0 auto; padding: 2.5rem 2.5rem 5rem; width: 100%; }
   h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.6rem; }
   .lede { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 60rem;
           margin-bottom: 2.2rem; }
@@ -40,20 +40,74 @@
   .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem;
                  color: var(--ink); margin-bottom: 0.5rem; }
   .colophon p + p { margin-top: 0.7rem; }
-  @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 6.5rem 1.2rem 3rem; } }
+  @media (max-width: 768px) { nav { padding: 1rem 1.5rem; } main { padding: 1.5rem 1.2rem 3rem; } }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="/assets/lightbox.css">
 <script src="/assets/lightbox.js" defer></script>
 <link rel="canonical" href="https://scorvec.com/spectra.html">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
 </head>
 <body>
-<nav>
-  <a href="index.html" class="nav-name">Shawn Corvec</a>
-  <ul class="nav-links">
-    <li><a href="index.html">Home</a></li>
-  </ul>
-</nav>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-products" aria-current="page">Products</button>
+          <div class="sh-menu" id="sh-products">
+            <div>
+              <h3>Tropics and El Niño</h3>
+              <ul>
+                <li><a href="/sst.html">El Niño monitor</a></li>
+                <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/enso-atmosphere.html">Atmospheric response</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/subseasonal.html">Subseasonal outlook</a></li>
+                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/gatun/">Lake Gatún</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Convection and observations</h3>
+              <ul>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/skewt/">Sounding explorer</a></li>
+                <li><a href="/asos5.html">Five-minute airport observations</a></li>
+                <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasonal</h3>
+              <ul>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Model verification</h3>
+              <ul>
+                <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+                <li><a href="/spectra.html" aria-current="page">HRRR and RRFS kinetic-energy spectra</a></li>
+              </ul>
+            </div>
+            <p class="sh-all">Every product, with what it shows and how often it updates, is listed on the <a href="/#products">home page</a>.</p>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
 <main>
   <h1>HRRR vs RRFS Kinetic-Energy Power Spectra</h1>
   <p class="lede">Power spectra of the kinetic energy in each model's <b>native hybrid-level</b> winds (~250&nbsp;hPa), computed with a 2D discrete cosine transform over a common ~1,500&nbsp;km central-CONUS box and binned into a 1D spectrum. Pressure-level output is smoothed by post-processing and would flatter both models &mdash; native levels show what the dynamics actually resolve. The wavelength where a spectrum peels away from the k<sup>&minus;5/3</sup> mesoscale slope is that model's <b>effective resolution</b>; comparing F00 with later leads shows how quickly small scales <b>spin up</b> from the analysis.</p>
@@ -67,5 +121,22 @@
     <p>At F00 the RRFS analysis retains more small-scale variance than the HRRR's; by F06 the HRRR has spun up its mesoscale and the two swap. Differences between the models' curves at later leads are genuine differences in how much fine-scale energy the dynamics and physics sustain.</p>
   </div>
 </main>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+  </div>
+</footer>
+<!-- sf:end -->
 </body>
 </html>
