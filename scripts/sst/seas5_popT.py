@@ -311,8 +311,8 @@ def build(ym: str) -> None:
                     ax.text(rc, ylim * 0.96, yc, color="#2a5da8", fontsize=7, ha="center", va="top")
                     if mode == "monthly" and len(xs_all):
                         cur = xs_all[-1]
-                        ax.text(0.0, -0.30, f"P(month above 1991–2020 normal) {np.mean(cur > n30):.0%}   ·   above 2016–2025 normal {np.mean(cur > n10):.0%}   ·   record warm month {np.mean(cur > rw):.0%}",
-                                transform=ax.transAxes, ha="left", va="top", fontsize=7.4, color="#333")
+                        ax.text(0.0, -0.28, f"P(month above 1991–2020 normal)  {np.mean(cur > n30):.0%}\nP(above 2016–2025 normal)  {np.mean(cur > n10):.0%}\nP(record warm month)  {np.mean(cur > rw):.0%}",
+                                transform=ax.transAxes, ha="left", va="top", fontsize=7.4, color="#333", linespacing=1.35)
                     reg["months"].setdefault(mon, {})["reference"] = dict(normal30=round(float(to_unit(rm["normal30"], unit)), 2), normal10=round(float(to_unit(rm["normal10"], unit)), 2),
                                                                         record_warm_month=[round(float(to_unit(rm["record_warm"][0], unit)), 2), rm["record_warm"][1]],
                                                                         record_cold_month=[round(float(to_unit(rm["record_cold"][0], unit)), 2), rm["record_cold"][1]],
@@ -346,7 +346,7 @@ def build(ym: str) -> None:
             note = (f"Each curve pools every member's daily population-weighted mean (≈1,500 values a month; °{unit}). Dashed lines: distribution means. "
                     "Top row is the model's own temperature (SEAS5 bias included, identical for both issues); bottom row removes each issue's hindcast monthly mean at every grid point.")
         fig.text(0.02, 0.935, note, fontsize=8.8, color="#444", va="top", wrap=True)
-        fig.subplots_adjust(left=0.05, right=0.99, top=0.85, bottom=0.15, hspace=0.35, wspace=0.12)
+        fig.subplots_adjust(left=0.05, right=0.99, top=0.85, bottom=0.22, hspace=0.35, wspace=0.12)
         out = ASSETS / f"seas5_popT_{region}.webp"
         fig.savefig(out, dpi=110, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
         reg["file"] = out.name
