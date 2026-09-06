@@ -122,9 +122,23 @@ def fetch(date: str, cyc: str, lead: int, var: str) -> Path | None:
            + FILE.format(date=date, cyc=cyc, var=VARS[var], lead=lead))
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "scorvec-enso/1.0"})
-        with urllib.request.urlopen(req, timeout=180) as r:
+        # 90 s, was 180: a GDPS field is a few MB, so anything slower than that
+        # is Datamart hanging, not a big download - and with 8 workers on
+        # 24-request chunks the timeout is what sets how long a dead cycle
+        # takes to give up on (2026-09-06 06:34Z: 69 min of nothing but
+        # timeouts before "no complete GDPS cycle available").
+        with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as r:
             data = r.read()
-    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
+        # Say what KIND of failure it was, once per kind: the per-lead
+        # "map fields missing" lines cannot tell a 404 (cycle not there yet)
+        # from a hang (Datamart unresponsive), and the two want different
+        # responses from whoever reads the log.
+        tag = f"{type(e).__name__} {getattr(e, 'code', None) or getattr(e, 'reason', '')}"[:70]
+        if tag not in _ERR_SEEN:
+            _ERR_SEEN.add(tag)
+            print(f"  fetch: {tag} ({url.rsplit('/', 1)[-1]}; further identical "
+                  f"errors not repeated)", flush=True)
         return None
     # mkstemp returns an OPEN fd alongside the path; keeping only the path
     # leaks it (unlink drops the name, not the descriptor). This runs ~320
@@ -157,6 +171,55 @@ def _grab_map(date: str, cyc: str, lead: int, var: str, extent) -> xr.DataArray 
 
 WORKERS = int(os.environ.get("GDPS_WORKERS", "8"))    # 1 = old serial behaviour
 CHUNK = int(os.environ.get("GDPS_CHUNK", "8"))        # leads fetched concurrently
+FETCH_TIMEOUT = int(os.environ.get("GDPS_FETCH_TIMEOUT", "90"))   # s per Datamart request
+_ERR_SEEN: set = set()                                # fetch failure kinds already logged
+
+# ── frame rendering in parallel ─────────────────────────────────────────────
+# The three loops render 40 + 68 + 80 cartopy frames serially at ~10 s, ~3 s
+# and ~2 s each (2026-09-06 run: 7.3 + 3.8 + 2.5 min). The frames are
+# independent, so they go to a small process pool. FORK, not spawn: the
+# fields are already in this process (the wind maps hold all 40 in memory,
+# the streamed loops one chunk), and a forked child sees them through a
+# module global with no pickling - spawn would ship ~14 MB per frame through
+# a pipe and re-import cartopy per worker. Fork is Linux-only here (the
+# runner); macOS falls back to serial unless GDPS_RENDER_FORK=1 (tests).
+# Frame 0 of every batch renders in the PARENT first so cartopy's Natural
+# Earth downloads happen once, not raced by four children.
+RENDER_WORKERS = int(os.environ.get("GDPS_RENDER_WORKERS",
+                                    str(min(4, os.cpu_count() or 1))))
+_POOL_DATA: dict = {}                                 # what the forked workers read
+
+
+def _pool_ctx():
+    if RENDER_WORKERS <= 1:
+        return None
+    if not (sys.platform.startswith("linux") or os.environ.get("GDPS_RENDER_FORK") == "1"):
+        return None
+    import multiprocessing as mp
+    return mp.get_context("fork")
+
+
+def _pmap(fn, keys):
+    """fn(key) for each key: first one here, the rest in a fork pool (or all
+    here when the pool is unavailable). Falls back to serial on any pool
+    failure rather than losing frames. Results in key order."""
+    keys = list(keys)
+    if not keys:
+        return []
+    ctx = _pool_ctx()
+    head = [fn(keys[0])]
+    rest = keys[1:]
+    if ctx is None or len(rest) < 2:
+        return head + [fn(k) for k in rest]
+    from concurrent.futures import ProcessPoolExecutor
+    try:
+        with ProcessPoolExecutor(max_workers=min(RENDER_WORKERS, len(rest)),
+                                 mp_context=ctx) as ex:
+            return head + list(ex.map(fn, rest))
+    except Exception as e:                              # noqa: BLE001
+        print(f"  parallel render failed ({type(e).__name__}: {e}); "
+              f"rendering serially", flush=True)
+        return head + [fn(k) for k in rest]
 
 
 def _grab_chunk(date, cyc, leads, varnames, extent):
@@ -199,17 +262,35 @@ def _chunks(seq, n):
 def collect_maps(date: str, cyc: str) -> dict | None:
     """Per-forecast-day map fields (surface u/v/mslp + 150 hPa u/v), or None
     if the cycle is incomplete."""
-    maps, leads_ok = [], []
-    for group in _chunks(list(LEADS), CHUNK):
+    maps, leads_ok, missing = [], [], 0
+    allowed_missing = len(LEADS) - MIN_LEADS
+    for gi, group in enumerate(_chunks(list(LEADS), CHUNK)):
         got = _grab_chunk(date, cyc, group, ("u", "v", "p"), EXTENT)
         for lead in group:
             f = {k: got.get((lead, k)) for k in ("u", "v", "p")}
             if any(v is None for v in f.values()):
                 print(f"  {date} {cyc}Z +{lead:03d}h: map fields missing — skipped",
                       flush=True)
+                missing += 1
                 continue
             maps.append(f)
             leads_ok.append(lead)
+        # Fail fast. Datamart writes a cycle in lead order, so a first chunk
+        # with NOTHING in it is a cycle that is not there (or a Datamart that
+        # is not answering) - not one still being written; and once more
+        # leads are missing than the completeness bar tolerates, the rest
+        # cannot change the verdict. Before this, a dead cycle cost all 40
+        # leads x 3 fields at the full timeout, twice (today's, then
+        # yesterday's): 69 min on 2026-09-06 to conclude nothing was usable.
+        if gi == 0 and not leads_ok:
+            print(f"  {date} {cyc}Z: first {len(group)} leads all missing — "
+                  f"cycle not on Datamart (or Datamart unresponsive); abandoning",
+                  flush=True)
+            return None
+        if missing > allowed_missing:
+            print(f"  {date} {cyc}Z: {missing} leads missing — cannot reach "
+                  f"{MIN_LEADS} of {len(LEADS)}; abandoning", flush=True)
+            return None
     if len(leads_ok) < MIN_LEADS:
         print(f"  {date} {cyc}Z: only {len(leads_ok)} days — cycle incomplete",
               flush=True)
@@ -242,67 +323,75 @@ def _hl(p2d, lat, lon, ax, proj):
                     ha="center", va="top", transform=proj, clip_on=True)
 
 
+def _wind_frame(k: int) -> dict:
+    """One MSLP + 10 m wind frame; reads its inputs from _POOL_DATA so a
+    forked worker needs nothing pickled. Returns the manifest entry."""
+    d = _POOL_DATA
+    f, h, init, anim = d["maps"][k], d["leads"][k], d["init"], d["anim"]
+    proj = ccrs.PlateCarree(central_longitude=180)
+    pc = ccrs.PlateCarree()
+    u, v, pr = f["u"], f["v"], f["p"]
+    valid = init + pd.Timedelta(hours=int(h))
+    lat = u.latitude.values; lon = u.longitude.values
+    spd = np.hypot(u.values, v.values) * MS2KT
+    p_hpa = pr.values / 100.0
+    bstride = max(1, int(round(3.5 / abs(lat[1] - lat[0]))))
+    fig = plt.figure(figsize=(12.6, 6.2))
+    ax = plt.axes(projection=proj)
+    ax.set_extent([EXTENT[0], EXTENT[1], EXTENT[2], EXTENT[3]], crs=pc)
+    cf = ax.contourf(lon, lat, spd, levels=WLEV, cmap=WCMAP, norm=WNORM,
+                     extend="both", transform=pc)
+    cs = ax.contour(lon, lat, gaussian_filter(p_hpa, 1.2 * _GS,
+                                              mode=("nearest", "wrap")),
+                    levels=PLEVS, colors="#333", linewidths=0.6, transform=pc)
+    ax.clabel(cs, inline=True, fontsize=6, fmt="%d")
+    ax.barbs(lon[::bstride], lat[::bstride],
+             u.values[::bstride, ::bstride] * MS2KT,
+             v.values[::bstride, ::bstride] * MS2KT,
+             length=4.2, linewidth=0.4, color="#222", transform=pc)
+    _hl(p_hpa, lat, lon, ax, pc)
+    ax.add_feature(cfeature.LAND, facecolor="none", edgecolor="0.05",
+                   linewidth=1.1, zorder=4)
+    ax.coastlines(linewidth=1.1, color="0.05", zorder=4)
+    ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="0.4", zorder=4)
+    gl = ax.gridlines(draw_labels=True, linewidth=0.4, color="0.45", alpha=0.5,
+                      linestyle=(0, (3, 3)), zorder=3)
+    gl.top_labels = gl.right_labels = False
+    gl.xlocator = mticker.FixedLocator(list(range(-180, 181, 20)))
+    gl.ylocator = mticker.FixedLocator(list(range(-30, 46, 15)))
+    gl.xlabel_style = gl.ylabel_style = {"size": 6, "color": "0.3"}
+    for name, (slon, slat) in STATIONS.items():
+        ax.plot(slon, slat, marker="o", ms=4.5, mfc="#ffd400", mec="k",
+                mew=0.7, transform=pc, zorder=7)
+        ax.text(slon, slat + 1.6, name, fontsize=6.2, fontweight="bold",
+                ha="center", va="bottom", color="k", transform=pc, zorder=7,
+                path_effects=[pe.withStroke(linewidth=1.8, foreground="white")])
+    cax = fig.add_axes([0.13, 0.06, 0.74, 0.02])
+    fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both").set_label(
+        "10 m wind speed (kt)", fontsize=8)
+    cax.tick_params(labelsize=7)
+    # figure-level title at fixed canvas coords: ax.set_title sat above the
+    # axes box and matplotlib 3.11 (the CI pip install) pushed it off-canvas,
+    # shipping every frame title-less (2026-08-25)
+    fig.text(0.03, 0.99,
+             f"GDPS MSLP (mb) + 10 m wind  ·  ECCC 15 km deterministic\n"
+             f"init {init:%Y-%m-%d %H}Z  ·  F{int(h):03d} valid "
+             f"{valid:%Y-%m-%d %H}Z", fontsize=10, ha="left", va="top")
+    fp = anim / f"F{k:02d}.webp"
+    fig.subplots_adjust(left=0.03, right=0.99, top=0.90, bottom=0.10)
+    fig.savefig(fp, dpi=104); plt.close(fig)
+    return {"idx": k, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
+            "label": f"F{int(h):03d} · {valid:%Y-%m-%d %H}Z"}
+
+
 def render_wind_maps(maps, leads, init: pd.Timestamp) -> None:
     anim = ASSETS / "anim" / "gdps_wind"
     anim.mkdir(parents=True, exist_ok=True)
     for old in anim.glob("F*.webp"):
         old.unlink()
-    proj = ccrs.PlateCarree(central_longitude=180)
-    pc = ccrs.PlateCarree()
-    entries = []
-    for k, (f, h) in enumerate(zip(maps, leads)):
-        u, v, pr = f["u"], f["v"], f["p"]
-        valid = init + pd.Timedelta(hours=int(h))
-        lat = u.latitude.values; lon = u.longitude.values
-        spd = np.hypot(u.values, v.values) * MS2KT
-        p_hpa = pr.values / 100.0
-        bstride = max(1, int(round(3.5 / abs(lat[1] - lat[0]))))
-        fig = plt.figure(figsize=(12.6, 6.2))
-        ax = plt.axes(projection=proj)
-        ax.set_extent([EXTENT[0], EXTENT[1], EXTENT[2], EXTENT[3]], crs=pc)
-        cf = ax.contourf(lon, lat, spd, levels=WLEV, cmap=WCMAP, norm=WNORM,
-                         extend="both", transform=pc)
-        cs = ax.contour(lon, lat, gaussian_filter(p_hpa, 1.2 * _GS,
-                                                  mode=("nearest", "wrap")),
-                        levels=PLEVS, colors="#333", linewidths=0.6, transform=pc)
-        ax.clabel(cs, inline=True, fontsize=6, fmt="%d")
-        ax.barbs(lon[::bstride], lat[::bstride],
-                 u.values[::bstride, ::bstride] * MS2KT,
-                 v.values[::bstride, ::bstride] * MS2KT,
-                 length=4.2, linewidth=0.4, color="#222", transform=pc)
-        _hl(p_hpa, lat, lon, ax, pc)
-        ax.add_feature(cfeature.LAND, facecolor="none", edgecolor="0.05",
-                       linewidth=1.1, zorder=4)
-        ax.coastlines(linewidth=1.1, color="0.05", zorder=4)
-        ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="0.4", zorder=4)
-        gl = ax.gridlines(draw_labels=True, linewidth=0.4, color="0.45", alpha=0.5,
-                          linestyle=(0, (3, 3)), zorder=3)
-        gl.top_labels = gl.right_labels = False
-        gl.xlocator = mticker.FixedLocator(list(range(-180, 181, 20)))
-        gl.ylocator = mticker.FixedLocator(list(range(-30, 46, 15)))
-        gl.xlabel_style = gl.ylabel_style = {"size": 6, "color": "0.3"}
-        for name, (slon, slat) in STATIONS.items():
-            ax.plot(slon, slat, marker="o", ms=4.5, mfc="#ffd400", mec="k",
-                    mew=0.7, transform=pc, zorder=7)
-            ax.text(slon, slat + 1.6, name, fontsize=6.2, fontweight="bold",
-                    ha="center", va="bottom", color="k", transform=pc, zorder=7,
-                    path_effects=[pe.withStroke(linewidth=1.8, foreground="white")])
-        cax = fig.add_axes([0.13, 0.06, 0.74, 0.02])
-        fig.colorbar(cf, cax=cax, orientation="horizontal", extend="both").set_label(
-            "10 m wind speed (kt)", fontsize=8)
-        cax.tick_params(labelsize=7)
-        # figure-level title at fixed canvas coords: ax.set_title sat above the
-        # axes box and matplotlib 3.11 (the CI pip install) pushed it off-canvas,
-        # shipping every frame title-less (2026-08-25)
-        fig.text(0.03, 0.99,
-                 f"GDPS MSLP (mb) + 10 m wind  ·  ECCC 15 km deterministic\n"
-                 f"init {init:%Y-%m-%d %H}Z  ·  F{int(h):03d} valid "
-                 f"{valid:%Y-%m-%d %H}Z", fontsize=10, ha="left", va="top")
-        fp = anim / f"F{k:02d}.webp"
-        fig.subplots_adjust(left=0.03, right=0.99, top=0.90, bottom=0.10)
-        fig.savefig(fp, dpi=104); plt.close(fig)
-        entries.append({"idx": k, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
-                        "label": f"F{int(h):03d} · {valid:%Y-%m-%d %H}Z"})
+    _POOL_DATA.clear()
+    _POOL_DATA.update(maps=list(maps), leads=list(leads), init=init, anim=anim)
+    entries = _pmap(_wind_frame, range(len(maps)))
     mani = {"ver": f"{init:%Y%m%d%H}",
             "regions": {"gdps_wind": {"label": "GDPS MSLP + 10 m wind",
                                       "frames": entries}}}
@@ -378,6 +467,13 @@ def render_outflow_frame(u, v, z, init: pd.Timestamp, h: int, fp: Path) -> None:
     fig.savefig(fp, dpi=104); plt.close(fig)
 
 
+def _outflow_frame(lead: int) -> int:
+    d = _POOL_DATA
+    u, v, z = (d["got"][(lead, k)] for k in ("u150", "v150", "z150"))
+    render_outflow_frame(u, v, z, d["init"], lead, d["anim"] / f"F{lead:03d}.webp")
+    return lead
+
+
 def build_outflow_loop(date: str, cyc: str, init: pd.Timestamp) -> None:
     """3-hourly 150 hPa frames to day 10, streamed like the IR loop (fetch →
     render → discard, so ~80 field triples never sit in memory together)."""
@@ -388,13 +484,17 @@ def build_outflow_loop(date: str, cyc: str, init: pd.Timestamp) -> None:
     entries, made = [], 0
     for group in _chunks(list(IR_LEADS), CHUNK):
         got = _grab_chunk(date, cyc, group, ("u150", "v150", "z150"), EXTENT_150)
+        have = []
         for lead in group:
-            u, v, z = (got.get((lead, k)) for k in ("u150", "v150", "z150"))
-            if u is None or v is None or z is None:
+            if any(got.get((lead, k)) is None for k in ("u150", "v150", "z150")):
                 print(f"  150 hPa +{lead:03d}h: missing — skipped", flush=True)
                 continue
+            have.append(lead)
+        _POOL_DATA.clear()
+        _POOL_DATA.update(got=got, init=init, anim=anim)
+        _pmap(_outflow_frame, have)
+        for lead in have:
             fp = anim / f"F{lead:03d}.webp"
-            render_outflow_frame(u, v, z, init, lead, fp)
             valid = init + pd.Timedelta(hours=lead)
             entries.append({"idx": made, "file": fp.name,
                             "date": f"{valid:%Y-%m-%d}",
@@ -451,6 +551,14 @@ def render_ir_frame(tb2d, lat, lon, init: pd.Timestamp, lead: int,
     plt.close(fig)
 
 
+def _ir_frame(lead: int) -> int:
+    d = _POOL_DATA
+    da = d["got"][(lead, "olr")]
+    render_ir_frame(olr_to_tb(da.values), da.latitude.values, da.longitude.values,
+                    d["init"], lead, d["anim"] / f"F{lead:03d}.webp")
+    return lead
+
+
 def build_ir_loop(date: str, cyc: str, init: pd.Timestamp) -> None:
     """Stream the 3-hourly OLR steps → simulated-IR frames (one at a time, so
     ~80 domain fields never sit in memory together)."""
@@ -461,14 +569,17 @@ def build_ir_loop(date: str, cyc: str, init: pd.Timestamp) -> None:
     entries, made = [], 0
     for group in _chunks(list(IR_LEADS), CHUNK):
         got = _grab_chunk(date, cyc, group, ("olr",), IR_EXTENT)
+        have = []
         for lead in group:
-            da = got.get((lead, "olr"))
-            if da is None:
+            if got.get((lead, "olr")) is None:
                 print(f"  IR +{lead:03d}h: missing — skipped", flush=True)
                 continue
+            have.append(lead)
+        _POOL_DATA.clear()
+        _POOL_DATA.update(got=got, init=init, anim=anim)
+        _pmap(_ir_frame, have)
+        for lead in have:
             fp = anim / f"F{lead:03d}.webp"
-            render_ir_frame(olr_to_tb(da.values), da.latitude.values,
-                            da.longitude.values, init, lead, fp)
             valid = init + pd.Timedelta(hours=lead)
             entries.append({"idx": made, "file": fp.name,
                             "date": f"{valid:%Y-%m-%d}",
