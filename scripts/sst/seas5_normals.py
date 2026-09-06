@@ -40,7 +40,7 @@ import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS, fc_path, hc_path  # noqa: E402
-from seas5_build import G0, SEASON_LEADS, _open, load_field, season_label, valid_months  # noqa: E402
+from seas5_build import G0, SEASON_LEADS, TERC_BINS, TERC_PALETTES, _open, head_text, load_field, map_layout, season_label, valid_months  # noqa: E402
 
 ERA5 = Path(__file__).resolve().parent / "data" / "seas5" / "era5"
 OUT_JSON = ASSETS / "data" / "seas5_normals.json"
@@ -226,13 +226,14 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
 
     label, _, _, _, _, _, units, mult = VARS[var]
     proj, pc = ccrs.PlateCarree(central_longitude=-90), ccrs.PlateCarree()
-    fig, axes = plt.subplots(3, 3, figsize=(15.2, 15.6), subplot_kw={"projection": proj})
-    bins = [0.40, 0.50, 0.60, 0.70, 0.80, 1.001]
-    warm = ["#fde0c8", "#f9b98b", "#f18a4e", "#dc5a23", "#a83a0f"]; cool = ["#d6e7f5", "#a9cbe8", "#6fa6d5", "#3d7ebf", "#21569a"]
-    if var in ("tp",):
-        warm, cool = ["#d8efd2", "#a8dba0", "#6dbf6a", "#3a9a44", "#1d6b2f"], ["#f1e2c7", "#e1c391", "#c9a05a", "#a97b31", "#7b5518"]
+    H, adj = map_layout(15.2, 3, 3, top_in=1.25, bottom_in=(0.72 if kind == "terc" else 1.05), hspace=0.12)
+    fig, axes = plt.subplots(3, 3, figsize=(15.2, H), subplot_kw={"projection": proj})
+    bins = TERC_BINS
+    warm, cool = TERC_PALETTES["warm"], TERC_PALETTES["cool"]
+    if var in ("tp", "pme"):
+        warm, cool = TERC_PALETTES["wet"], TERC_PALETTES["dry"]
     if var == "ssrd":
-        warm, cool = ["#fff2c2", "#ffe08a", "#ffc94d", "#f5a623", "#d67f00"], ["#dfe6ee", "#bcc9d8", "#94a9bf", "#6c8aa6", "#4a6a88"]
+        warm, cool = TERC_PALETTES["sunny"], TERC_PALETTES["dull"]
     mesh = None
     for ax, pnl in zip(axes.ravel(), panels):
         ax.set_extent([-170, -30, -60, 75], crs=pc)
@@ -253,7 +254,6 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
         ax.set_title(pnl["title"], fontsize=12, loc="left")
     y0, m0 = ym[:4], int(ym[4:])
     what = ("anomaly" if kind == "anom" else "most likely tercile")
-    fig.suptitle(f"SEAS5 {label}: {what} vs {REFS[ref]}, {calendar.month_name[m0]} {y0} issue", x=0.02, y=0.99, ha="left", fontsize=15)
     if ref == "hc":
         sub = "Reference: the model's own 1993–2016 hindcast at the same lead (bias-free by construction)."
     else:
@@ -261,19 +261,19 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
                + (", multiplicatively" if mult else "") + "), then compared with " + REFS[ref] + ".")
     if kind == "terc":
         sub += "  White: no category reaches 40 %; near-normal not drawn."
-    fig.text(0.02, 0.955, sub, fontsize=9.5, color="#444", va="top")
+    head_text(fig, H, f"SEAS5 {label}: {what} vs {REFS[ref]}, {calendar.month_name[m0]} {y0} issue", sub)
     if kind == "anom":
-        cax = fig.add_axes([0.3, 0.035, 0.4, 0.012])
+        cax = fig.add_axes([0.3, 0.5 / H, 0.4, 0.14 / H])
         cb = fig.colorbar(mesh, cax=cax, orientation="horizontal", extend="both")
         cb.set_label(("% of reference" if mult else f"ensemble-mean anomaly ({units})"), fontsize=10)
     else:
         from matplotlib.patches import Patch
         h1 = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(warm)]
         h2 = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(cool)]
-        l1 = fig.legend(handles=h1, loc="lower left", bbox_to_anchor=(0.06, 0.012), ncol=5, frameon=False, title="Above normal most likely", fontsize=9, title_fontsize=10)
+        l1 = fig.legend(handles=h1, loc="lower left", bbox_to_anchor=(0.04, 0.004), ncol=6, frameon=False, title="Above normal most likely", fontsize=9, title_fontsize=10)
         fig.add_artist(l1)
-        fig.legend(handles=h2, loc="lower right", bbox_to_anchor=(0.94, 0.012), ncol=5, frameon=False, title="Below normal most likely", fontsize=9, title_fontsize=10)
-    fig.subplots_adjust(left=0.02, right=0.98, top=0.93, bottom=0.065, wspace=0.05, hspace=0.12)
+        fig.legend(handles=h2, loc="lower right", bbox_to_anchor=(0.96, 0.004), ncol=6, frameon=False, title="Below normal most likely", fontsize=9, title_fontsize=10)
+    fig.subplots_adjust(**adj)
     out = out_dir / f"seas5_norm_{var}_{ref}_{kind}.webp"
     fig.savefig(out, dpi=95, pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
     return out.name

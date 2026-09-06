@@ -203,6 +203,41 @@ def season_label(ym: str, leads) -> str:
     return "".join(MONTHS[(m0 - 1 + L - 1) % 12] for L in leads)
 
 
+# Tercile probability bins: six steps to 100 % so a 95 % cell reads darker than an 82 % one
+# (user 2026-09-06: "don't make 80–100 % all the same colour").
+TERC_BINS = [0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.001]
+TERC_PALETTES = {
+    "warm": ["#fde4cf", "#fbc39c", "#f59d68", "#e8703c", "#c8451c", "#8f2a0d"],
+    "cool": ["#dbe9f6", "#b7d2ec", "#8ab6df", "#5c95cd", "#3672b6", "#1f4f8f"],
+    "wet": ["#dcf0d6", "#b6dfad", "#89c983", "#5aae5c", "#338c3f", "#1b6229"],
+    "dry": ["#f3e6cd", "#e6cd9f", "#d3af6f", "#b98d45", "#976c27", "#6b4b14"],
+    "sunny": ["#fff4cc", "#ffe59a", "#ffd166", "#fbb53a", "#e59318", "#b86f00"],
+    "dull": ["#e3e9ef", "#c4d0dc", "#a1b4c5", "#7d97ad", "#5c7a93", "#405c74"],
+}
+# Americas extent 170W–30W × 60S–75N is ~1.04 wide:tall on PlateCarree; a figure that
+# ignores that leaves dead bands above and below the maps. Size the figure from the panels.
+MAP_ASPECT = 135.0 / 140.0                                          # height / width of one panel
+
+
+def map_layout(width: float, ncols: int, nrows: int, top_in: float, bottom_in: float,
+               wspace: float = 0.05, hspace: float = 0.10, side: float = 0.02):
+    """Figure height and subplot fractions so that nrows × ncols Americas panels fill the
+    figure exactly, with `top_in` inches reserved above the panels (title, subtitle, panel
+    titles) and `bottom_in` below (legend / colour bar). Fixed inches, so the text bands
+    are the same size whatever the figure height and never overlap the maps."""
+    panel_w = width * (1 - 2 * side) / (ncols + (ncols - 1) * wspace)
+    panel_h = panel_w * MAP_ASPECT
+    rows_h = nrows * panel_h + (nrows - 1) * hspace * panel_h
+    h = rows_h + top_in + bottom_in
+    return h, dict(left=side, right=1 - side, top=1 - top_in / h, bottom=bottom_in / h, wspace=wspace, hspace=hspace)
+
+
+def head_text(fig, h, title, sub, title_size=15, sub_size=9.5):
+    """Title at the very top, subtitle just under it, both measured in inches from the top."""
+    fig.suptitle(title, x=0.02, y=1 - 0.10 / h, ha="left", va="top", fontsize=title_size)
+    fig.text(0.02, 1 - 0.42 / h, sub, fontsize=sub_size, color="#444", va="top", linespacing=1.35)
+
+
 def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
     """One figure per variable: three seasons side by side, most-likely tercile shaded
     by its probability. Returns {var: {file, seasons}}."""
@@ -213,18 +248,16 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
 
-    bins = [0.40, 0.50, 0.60, 0.70, 0.80, 1.001]
-    palettes = {
-        "t2m": (["#fde0c8", "#f9b98b", "#f18a4e", "#dc5a23", "#a83a0f"], ["#d6e7f5", "#a9cbe8", "#6fa6d5", "#3d7ebf", "#21569a"]),
-        "tp": (["#d8efd2", "#a8dba0", "#6dbf6a", "#3a9a44", "#1d6b2f"], ["#f1e2c7", "#e1c391", "#c9a05a", "#a97b31", "#7b5518"]),
-        "z500": (["#fde0c8", "#f9b98b", "#f18a4e", "#dc5a23", "#a83a0f"], ["#d6e7f5", "#a9cbe8", "#6fa6d5", "#3d7ebf", "#21569a"]),
-    }
+    bins = TERC_BINS
+    palettes = {"t2m": (TERC_PALETTES["warm"], TERC_PALETTES["cool"]), "tp": (TERC_PALETTES["wet"], TERC_PALETTES["dry"]),
+                "z500": (TERC_PALETTES["warm"], TERC_PALETTES["cool"])}
     titles = {"t2m": "2 m temperature", "tp": "Precipitation", "z500": "500 hPa height"}
     proj = ccrs.PlateCarree(central_longitude=-90)
     pc = ccrs.PlateCarree()
     meta = {}
     for var, (fc, hc, lat, lon) in fields.items():
-        fig, axes = plt.subplots(1, 3, figsize=(15.5, 7.6), subplot_kw={"projection": proj})
+        H, adj = map_layout(15.5, 3, 1, top_in=1.25, bottom_in=0.72)
+        fig, axes = plt.subplots(1, 3, figsize=(15.5, H), subplot_kw={"projection": proj})
         seasons = []
         for ax, leads in zip(axes, SEASON_LEADS):
             pr = tercile_probs(fc, hc, leads)
@@ -252,23 +285,21 @@ def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
             seasons.append(dict(label=lab, leads=list(leads),
                                 frac_above=float(np.nanmean(pr["above"] >= 0.40)), frac_below=float(np.nanmean(pr["below"] >= 0.40))))
         # legends: two rows of swatches
+        import calendar
+        y0, m0 = ym[:4], int(ym[4:])
         from matplotlib.patches import Patch
         handles = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(palettes[var][0])]
         handles2 = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(palettes[var][1])]
-        l1 = fig.legend(handles=handles, loc="lower left", bbox_to_anchor=(0.06, 0.02), ncol=5, frameon=False,
+        l1 = fig.legend(handles=handles, loc="lower left", bbox_to_anchor=(0.04, 0.005), ncol=6, frameon=False,
                         title="Above normal most likely", fontsize=9, title_fontsize=10)
         fig.add_artist(l1)
-        fig.legend(handles=handles2, loc="lower right", bbox_to_anchor=(0.94, 0.02), ncol=5, frameon=False,
+        fig.legend(handles=handles2, loc="lower right", bbox_to_anchor=(0.96, 0.005), ncol=6, frameon=False,
                    title="Below normal most likely", fontsize=9, title_fontsize=10)
-        import calendar
-        y0, m0 = ym[:4], int(ym[4:])
-        fig.suptitle(f"SEAS5 {titles[var]}: most likely tercile, {calendar.month_name[m0]} {y0} issue (51 members)",
-                     x=0.02, y=0.985, ha="left", fontsize=15)
-        fig.text(0.02, 0.925, "Terciles from SEAS5's own 1993–2016 hindcast at each grid point (24 years × 25 members), so bias and spread drift are removed before counting.\n"
-                 "White: no category reaches 40 %. Near-normal is rarely the most likely tercile in a well-spread ensemble and is not drawn."
-                 + ("  With a 1993–2016 base, the warming trend alone tilts temperature toward above normal." if var == "t2m" else ""),
-                 fontsize=9.5, color="#444", va="top", linespacing=1.4)
-        fig.subplots_adjust(left=0.02, right=0.98, top=0.86, bottom=0.10, wspace=0.05)
+        head_text(fig, H, f"SEAS5 {titles[var]}: most likely tercile, {calendar.month_name[m0]} {y0} issue (51 members)",
+                  "Terciles from SEAS5's own 1993–2016 hindcast at each grid point (24 years × 25 members), so bias and spread drift are removed before counting.\n"
+                  "White: no category reaches 40 %. Near-normal is rarely the most likely tercile in a well-spread ensemble and is not drawn."
+                  + ("  With a 1993–2016 base, the warming trend alone tilts temperature toward above normal." if var == "t2m" else ""))
+        fig.subplots_adjust(**adj)
         out = out_dir / f"seas5_terciles_{var}.webp"
         fig.savefig(out, dpi=105, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
         meta[var] = dict(file=out.name, seasons=seasons)
@@ -306,68 +337,116 @@ def load_fields(ym: str) -> dict:
     return fields
 
 
+def _change_panel(ax, d, lat, lon, var, levels, cmap, title, pc):
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import BoundaryNorm
+    import cartopy.feature as cfeature
+    ax.set_extent([-170, -30, -60, 75], crs=pc)
+    ax.add_feature(cfeature.LAND, facecolor="#f4f4f1", zorder=0)
+    m = ax.pcolormesh(lon, lat, d, cmap=plt.get_cmap(cmap, len(levels) - 1), norm=BoundaryNorm(levels, len(levels) - 1),
+                      transform=pc, shading="auto", zorder=1)
+    if var in ("t2m", "tp"):
+        ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2)
+        ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
+    ax.coastlines(linewidth=0.5, color="#444", zorder=3)
+    ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="#777", zorder=3)
+    ax.add_feature(cfeature.STATES, linewidth=0.2, edgecolor="#999", zorder=3)
+    ax.set_title(title, fontsize=12, loc="left")
+    return m
+
+
 def render_changes(ym: str, prev: str, now: dict, before: dict, out_dir: Path) -> dict:
-    """One figure per variable: ensemble-mean anomaly of this issue minus the previous
-    issue, each anomaly against its own start-month hindcast, on the shared seasons."""
+    """Per variable, two figures: the shared SEASONS side by side, and the shared MONTHS on a
+    2 × 3 grid. Both are ensemble-mean anomaly of this issue minus the previous issue, each
+    anomaly against its own start-month hindcast."""
     import calendar
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.colors import BoundaryNorm
     import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
 
     pairs = shared_seasons(ym, prev)
-    if not pairs:
+    vm_now, vm_prev = valid_months(ym), valid_months(prev)
+    months = [(L + 1, vm_prev.index(v) + 1, v) for L, v in enumerate(vm_now) if v in vm_prev]   # (lead_now, lead_prev, month)
+    if not pairs and not months:
         return {}
     spec = {"t2m": ("2 m temperature", "°C", [-2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2], "RdBu_r"),
             "tp": ("Precipitation", "mm/day", [-2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2], "BrBG"),
             "z500": ("500 hPa height", "m", [-40, -30, -20, -10, -5, 5, 10, 20, 30, 40], "RdBu_r")}
     proj, pc = ccrs.PlateCarree(central_longitude=-90), ccrs.PlateCarree()
+    sub = ("Each issue's ensemble mean is an anomaly against its own start-month hindcast, so this is the shift in the forecast, not a drift artefact.\n"
+           "Only the periods both issues cover are shown; the newest has no counterpart in the earlier issue.")
     meta = {}
     for var in ("t2m", "tp", "z500"):
         if var not in now or var not in before:
             continue
         fc_n, hc_n, lat, lon = now[var]; fc_p, hc_p, _, _ = before[var]
         title, units, levels, cmap = spec[var]
-        fig, axes = plt.subplots(1, len(pairs), figsize=(5.2 * len(pairs) + 1.2, 7.4), subplot_kw={"projection": proj}, squeeze=False)
-        seasons = []
-        for ax, (ln, lp) in zip(axes[0], pairs):
-            a_now = _season_means(fc_n, ln).mean(0) - _season_means(hc_n, ln).mean(0)
-            a_prev = _season_means(fc_p, lp).mean(0) - _season_means(hc_p, lp).mean(0)
-            d = a_now - a_prev
-            ax.set_extent([-170, -30, -60, 75], crs=pc)
-            ax.add_feature(cfeature.LAND, facecolor="#f4f4f1", zorder=0)
-            m = ax.pcolormesh(lon, lat, d, cmap=plt.get_cmap(cmap, len(levels) - 1), norm=BoundaryNorm(levels, len(levels) - 1),
-                              transform=pc, shading="auto", zorder=1)
-            if var in ("t2m", "tp"):
-                ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2)
-                ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
-            ax.coastlines(linewidth=0.5, color="#444", zorder=3)
-            ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="#777", zorder=3)
-            ax.add_feature(cfeature.STATES, linewidth=0.2, edgecolor="#999", zorder=3)
-            lab = season_label(ym, ln); vm = valid_months(ym)
-            y0s, y1s = vm[ln[0] - 1][:4], vm[ln[-1] - 1][:4]
-            ax.set_title(f"{lab} {y0s if y0s == y1s else y0s + '–' + y1s[2:]}", fontsize=13, loc="left")
-            land = np.isfinite(d)
-            seasons.append(dict(label=lab, mean_change=float(np.nanmean(d)), abs_change_p90=float(np.nanpercentile(np.abs(d[land]), 90))))
-        cax = fig.add_axes([0.28, 0.075, 0.44, 0.022])                 # its own strip under the maps, never over them
-        cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both")
-        cb.set_label(f"change in ensemble-mean anomaly ({units}), {calendar.month_name[int(ym[4:])]} issue minus {calendar.month_name[int(prev[4:])]} issue", fontsize=10)
-        cb.ax.tick_params(labelsize=9)
-        fig.suptitle(f"SEAS5 {title}: change since the {calendar.month_name[int(prev[4:])]} issue", x=0.02, y=0.985, ha="left", fontsize=15)
-        fig.text(0.02, 0.925, "Each issue's ensemble mean is an anomaly against its own start-month hindcast, so this is the shift in the forecast, not a drift artefact.\n"
-                 "Only the seasons both issues cover are shown; the newest season has no counterpart in the earlier issue.",
-                 fontsize=9.5, color="#444", va="top", linespacing=1.4)
-        fig.subplots_adjust(left=0.02, right=0.98, top=0.86, bottom=0.14, wspace=0.05)
-        out = out_dir / f"seas5_change_{var}.webp"
-        fig.savefig(out, dpi=105, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
-        meta[var] = dict(file=out.name, seasons=seasons, previous=prev)
-        print(f"  wrote {out.name}", flush=True)
+        cb_label = f"change in ensemble-mean anomaly ({units}), {calendar.month_name[int(ym[4:])]} issue minus {calendar.month_name[int(prev[4:])]} issue"
+        entry = {"previous": prev}
+        # seasonal
+        if pairs:
+            W = 5.2 * len(pairs) + 1.2
+            H, adj = map_layout(W, len(pairs), 1, top_in=1.25, bottom_in=1.15)
+            fig, axes = plt.subplots(1, len(pairs), figsize=(W, H), subplot_kw={"projection": proj}, squeeze=False)
+            seasons = []
+            for ax, (ln, lp) in zip(axes[0], pairs):
+                d = (_season_means(fc_n, ln).mean(0) - _season_means(hc_n, ln).mean(0)) - (_season_means(fc_p, lp).mean(0) - _season_means(hc_p, lp).mean(0))
+                y0s, y1s = vm_now[ln[0] - 1][:4], vm_now[ln[-1] - 1][:4]
+                m = _change_panel(ax, d, lat, lon, var, levels, cmap, f"{season_label(ym, ln)} {y0s if y0s == y1s else y0s + '–' + y1s[2:]}", pc)
+                seasons.append(dict(label=season_label(ym, ln), leads=list(ln), mean_change=float(np.nanmean(d))))
+            cax = fig.add_axes([0.28, 0.55 / H, 0.44, 0.16 / H])
+            cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both"); cb.set_label(cb_label, fontsize=10); cb.ax.tick_params(labelsize=9)
+            head_text(fig, H, f"SEAS5 {title}: change since the {calendar.month_name[int(prev[4:])]} issue, by season", sub)
+            fig.subplots_adjust(**adj)
+            out = out_dir / f"seas5_change_{var}.webp"
+            fig.savefig(out, dpi=105, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
+            entry.update(file=out.name, seasons=seasons); print(f"  wrote {out.name}", flush=True)
+        # monthly, 2 × 3
+        if months:
+            ncols, nrows = 3, 2
+            W = 15.5
+            H, adj = map_layout(W, ncols, nrows, top_in=1.25, bottom_in=1.15, hspace=0.12)
+            fig, axes = plt.subplots(nrows, ncols, figsize=(W, H), subplot_kw={"projection": proj})
+            mlist = []
+            for ax, (ln, lp, v) in zip(axes.ravel(), months):
+                d = (fc_n[:, ln - 1].mean(0) - hc_n[:, ln - 1].mean(0)) - (fc_p[:, lp - 1].mean(0) - hc_p[:, lp - 1].mean(0))
+                m = _change_panel(ax, d, lat, lon, var, levels, cmap, f"{calendar.month_abbr[int(v[5:])]} {v[:4]}", pc)
+                mlist.append(dict(month=v, mean_change=float(np.nanmean(d))))
+            for ax in axes.ravel()[len(months):]:
+                ax.set_visible(False)
+            cax = fig.add_axes([0.28, 0.55 / H, 0.44, 0.16 / H])
+            cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both"); cb.set_label(cb_label, fontsize=10); cb.ax.tick_params(labelsize=9)
+            head_text(fig, H, f"SEAS5 {title}: change since the {calendar.month_name[int(prev[4:])]} issue, by month", sub)
+            fig.subplots_adjust(**adj)
+            out = out_dir / f"seas5_change_{var}_monthly.webp"
+            fig.savefig(out, dpi=105, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
+            entry.update(file_monthly=out.name, months=mlist); print(f"  wrote {out.name}", flush=True)
+        meta[var] = entry
     return meta
 
 
 # ── polar caps ───────────────────────────────────────────────────────────────
+def hindcast_years(n_samples: int, n_years: int = 24):
+    """Year index of each hindcast sample: xarray stacks (number, time) with time fastest."""
+    return np.tile(np.arange(n_years), n_samples // n_years)
+
+
+def detrend_pair(f: np.ndarray, h: np.ndarray, ym: str):
+    """f [members, lead], h [samples, lead] hindcast (member-major) → (forecast anomaly vs the
+    hindcast's linear trend extrapolated to each lead's valid year, hindcast residuals)."""
+    vm = valid_months(ym)
+    yrs = 1993 + hindcast_years(h.shape[0])
+    x = yrs - yrs.mean()
+    fa = np.empty_like(f); hr = np.empty_like(h)
+    for L in range(h.shape[1]):
+        y = h[:, L]; ok = np.isfinite(y)
+        b = (x[ok] * (y[ok] - y[ok].mean())).sum() / (x[ok] ** 2).sum(); a0 = y[ok].mean()
+        target = int(vm[L][:4]) - yrs.mean()
+        fa[:, L] = f[:, L] - (a0 + b * target)
+        hr[:, L] = y - (a0 + b * x)
+    return fa, hr
+
 def polar_caps(ym: str, members: bool = True) -> dict:
     out = {}
     for hemi, kind, box in (("nh", "polar_n", (60, 90, -180, 180)), ("sh", "polar_s", (-90, -60, -180, 180))):
@@ -378,9 +457,13 @@ def polar_caps(ym: str, members: bool = True) -> dict:
             fc, lat, lon = load_field(fcp, "z", level=lev)
             hc, _, _ = load_field(hcp, "z", level=lev)
             f = box_mean(fc / G0, lat, lon, box); h = box_mean(hc / G0, lat, lon, box)
-            a = f - h.mean(0)
-            e = dict(**_summ(a), clim_sd=h.std(0).round(1).tolist(), clim_mean=h.mean(0).round(1).tolist(), units="m",
-                     valid=valid_months(ym))
+            # DETRENDED: geopotential carries the warming trend (thickness), so an anomaly vs the
+            # 1993–2016 mean reads high by construction in 2026. Fit the hindcast's linear trend
+            # per lead across its 24 years and take the anomaly against that line extrapolated to
+            # the valid year; the hindcast spread is the spread of the residuals.
+            a, hr = detrend_pair(f, h, ym)
+            e = dict(**_summ(a), clim_sd=hr.std(0).round(1).tolist(), clim_mean=h.mean(0).round(1).tolist(), units="m",
+                     valid=valid_months(ym), detrended=True)
             if members:
                 e["members"] = a.round(1).tolist()
             out[f"{hemi}_z{lev}"] = e

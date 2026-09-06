@@ -556,7 +556,11 @@
     <div style="overflow-x:auto">
       <table class="chg" id="changeTable"></table>
     </div>
-    <div class="map-grid" id="changeGrid" style="margin-top:1rem"></div>
+    <div class="controls" id="changeKind" style="margin-top:0.8rem">
+      <button class="pill on" data-ck="seasonal">By season</button>
+      <button class="pill" data-ck="monthly">By month</button>
+    </div>
+    <div class="map-grid" id="changeGrid"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5, consecutive monthly issues &middot; anomalies vs each issue&rsquo;s own 1993&ndash;2016 start-month hindcast</span>
       <span class="chart-updated" id="changeUpdated">&mdash;</span>
@@ -674,7 +678,9 @@
   <div class="card">
     <h2>Polar stratosphere &mdash; cap-mean heights</h2>
     <p class="note">The 60&ndash;90&deg; polar-cap mean geopotential height at 100, 50 and 10&nbsp;hPa, as an
-    anomaly against the hindcast at each lead. A <b>high</b> cap at 100&nbsp;hPa is a weak, warm
+    anomaly against the hindcast&rsquo;s <b>linear trend</b> at each lead, extrapolated to the forecast
+    year &mdash; heights carry the warming trend, so an anomaly against the 1993&ndash;2016 mean would
+    read high before any circulation signal. A <b>high</b> cap at 100&nbsp;hPa is a weak, warm
     vortex (the SSW-side reading); a low cap is a strong, cold one. The hindcast &plusmn;1&sigma; band
     shows how far a seasonal model normally strays, which at these levels is not far &mdash; read
     the sign of the tilt and whether the members agree, not the amplitude. Both hemispheres;
@@ -851,14 +857,21 @@
       rows.push('<tr><td>' + m.label + '</td><td>' + fmt(a, d) + '</td><td>' + fmt(b, d) + '</td><td class="' + cls + '">' + fmt(dlt, d) + ' ' + m.units + '</td><td>' + mmm(last) + ': ' + fmt(lb, d) + '</td></tr>');
     });
     document.getElementById("changeTable").innerHTML = rows.join("");
-    var g = document.getElementById("changeGrid"), names = {t2m: "2 m temperature", tp: "Precipitation", z500: "500 hPa height"}, html = "";
-    ["t2m", "tp", "z500"].forEach(function (k) {
-      var t = J.changes && J.changes[k]; if (!t) return;
-      var seasons = t.seasons.map(function (s) { return s.label; }).join(" and ");
-      html += '<figure><a href="assets/sst/' + t.file + '?v=' + encodeURIComponent(J.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + t.file + '?v=' + encodeURIComponent(J.generated) + '" alt="Change in SEAS5 ' + names[k] + ' ensemble-mean anomaly since the previous issue, ' + seasons + '" loading="lazy"></a>' +
-              '<figcaption><b>' + names[k] + '</b> — ' + issueLabel(J.issue) + ' issue minus ' + issueLabel(prev) + ' issue, ' + seasons + '. ' + (k === "tp" ? "Green wetter than last month's forecast, brown drier." : "Red warmer or higher than last month's forecast, blue cooler or lower.") + '</figcaption></figure>';
-    });
-    g.innerHTML = html;
+    var g = document.getElementById("changeGrid"), names = {t2m: "2 m temperature", tp: "Precipitation", z500: "500 hPa height"};
+    function drawChanges(kind) {
+      var html = "";
+      ["t2m", "tp", "z500"].forEach(function (k) {
+        var t = J.changes && J.changes[k]; if (!t) return;
+        var file = kind === "monthly" ? t.file_monthly : t.file; if (!file) return;
+        var span = kind === "monthly" ? (t.months || []).map(function (m) { return mmm(m.month); }).join(", ") : (t.seasons || []).map(function (s) { return s.label; }).join(" and ");
+        html += '<figure><a href="assets/sst/' + file + '?v=' + encodeURIComponent(J.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + file + '?v=' + encodeURIComponent(J.generated) + '" alt="Change in SEAS5 ' + names[k] + ' ensemble-mean anomaly since the previous issue, ' + span + '" loading="lazy"></a>' +
+                '<figcaption><b>' + names[k] + '</b> — ' + issueLabel(J.issue) + ' issue minus ' + issueLabel(prev) + ' issue, ' + span + '. ' + (k === "tp" ? "Green wetter than last month's forecast, brown drier." : "Red warmer or higher than last month's forecast, blue cooler or lower.") + '</figcaption></figure>';
+      });
+      g.innerHTML = html;
+    }
+    var ck = document.getElementById("changeKind");
+    ck.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; Array.prototype.forEach.call(ck.children, function (c) { c.classList.toggle("on", c === b); }); drawChanges(b.dataset.ck); });
+    drawChanges("seasonal");
     document.getElementById("changeUpdated").textContent = "built " + J.generated;
   }
 

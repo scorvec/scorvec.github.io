@@ -44,6 +44,11 @@ PULLS = {
     "am_e": dict(dataset="reanalysis-era5-single-levels-monthly-means",
                  req=dict(product_type=["monthly_averaged_reanalysis"], variable=["evaporation"],
                           year=YEARS, month=MONTHS, time=["00:00"], area=[75, -170, -60, -30], grid=[1.0, 1.0], data_format="grib")),
+    # long 2 m temperature record for the population-weighted normals and records (1940–2025)
+    "am_t2m_long": dict(dataset="reanalysis-era5-single-levels-monthly-means",
+                        req=dict(product_type=["monthly_averaged_reanalysis"], variable=["2m_temperature"],
+                                 year=[str(y) for y in range(1940, 2026)], month=MONTHS, time=["00:00"],
+                                 area=[75, -170, -60, -30], grid=[1.0, 1.0], data_format="grib")),
     # global 2°: teleconnection and stratosphere references
     "gl_sfc": dict(dataset="reanalysis-era5-single-levels-monthly-means",
                    req=dict(product_type=["monthly_averaged_reanalysis"], variable=["mean_sea_level_pressure", "sea_surface_temperature"],

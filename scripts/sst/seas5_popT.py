@@ -178,6 +178,39 @@ def hindcast_month_mean(ym: str, region: str, k: int, w: np.ndarray, lat: np.nda
     return float(np.nansum(sub * wn))
 
 
+def era5_pop_reference(region: str, w: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> dict | None:
+    """Population-weighted ERA5 monthly-mean 2 m temperature (K) for the region, by year and
+    month, from the 1940–2025 Americas pull (or the 1991–2025 one if that is all we have).
+    → {"years": [...], "months": [...], "t": [...], plus per calendar month: normal30, normal10,
+    record_warm (value, year), record_cold (value, year), mean9316}."""
+    import xarray as xr
+    era = Path(__file__).resolve().parent / "data" / "seas5" / "era5"
+    src = next((era / f for f in ("era5_am_t2m_long_1940-2025.grib", "era5_am_sfc_1991-2025.grib") if (era / f).exists()), None)
+    if src is None:
+        return None
+    ds = xr.open_dataset(src, engine="cfgrib", backend_kwargs={"indexpath": "", "filter_by_keys": {"shortName": "2t"}})
+    da = ds[list(ds.data_vars)[0]].transpose("time", "latitude", "longitude")
+    t = da.time.values
+    yrs = np.array([int(str(x)[:4]) for x in t]); mos = np.array([int(str(x)[5:7]) for x in t])
+    ilat = np.array([int(np.argmin(np.abs(da.latitude.values - v))) for v in lat])
+    ilon = np.array([int(np.argmin(np.abs(da.longitude.values - v))) for v in lon])
+    sub = da.values[:, ilat[:, None], ilon[None, :]].astype(np.float64)
+    ds.close()
+    wn = w / w.sum()
+    series = np.tensordot(sub, wn, axes=([1, 2], [0, 1]))           # [time] K
+    out = {"years": yrs.tolist(), "months": mos.tolist(), "t": series.tolist(), "by_month": {}}
+    for m in range(1, 13):
+        sel = mos == m
+        y, v = yrs[sel], series[sel]
+        n30 = v[(y >= 1991) & (y <= 2020)].mean() if ((y >= 1991) & (y <= 2020)).any() else np.nan
+        n10 = v[(y >= 2016) & (y <= 2025)].mean() if ((y >= 2016) & (y <= 2025)).any() else np.nan
+        m9316 = v[(y >= 1993) & (y <= 2016)].mean() if ((y >= 1993) & (y <= 2016)).any() else np.nan
+        iw, ic = int(np.argmax(v)), int(np.argmin(v))
+        out["by_month"][m] = dict(normal30=float(n30), normal10=float(n10), mean9316=float(m9316),
+                                  record_warm=(float(v[iw]), int(y[iw])), record_cold=(float(v[ic]), int(y[ic])), n_years=int(len(y)))
+    return out
+
+
 def to_unit(k_arr, unit):
     c = np.asarray(k_arr) - 273.15
     return c * 9 / 5 + 32 if unit == "F" else c
@@ -210,10 +243,13 @@ def build(ym: str) -> None:
         if not months:
             print(f"  {region}: nothing to draw", flush=True); continue
 
+        ref = era5_pop_reference(region, w, lat, lon) if w is not None else None
         fig, axes = plt.subplots(2, len(months), figsize=(3.1 * len(months) + 1, 7.6), squeeze=False)
-        reg = {"label": label, "unit": unit, "months": {}}
+        reg = {"label": label, "unit": unit, "months": {}, "observed_space": ref is not None}
+        conv = (9 / 5) if unit == "F" else 1.0
         for col, mon in enumerate(months):
-            entry = data[mon]
+            entry = data[mon]; cm = int(mon[5:])
+            rm = ref["by_month"][cm] if ref else None
             for row, mode in enumerate(("abs", "anom")):
                 ax = axes[row, col]
                 xs_all = []
@@ -221,12 +257,19 @@ def build(ym: str) -> None:
                     if iss not in entry:
                         continue
                     daily, clim = entry[iss]
-                    if mode == "abs":
-                        vals = to_unit(daily, unit)
+                    if clim is None and ref is not None:
+                        continue
+                    if ref is not None:
+                        # observed space: member − hindcast month mean + ERA5 1993–2016 month mean (all population-weighted)
+                        corrected = daily - clim + rm["mean9316"]
+                        vals = to_unit(corrected, unit) if mode == "abs" else (corrected - rm["normal30"]) * conv
                     else:
-                        if clim is None:
-                            continue
-                        vals = (daily - clim) * (9 / 5 if unit == "F" else 1.0)
+                        if mode == "abs":
+                            vals = to_unit(daily, unit)
+                        else:
+                            if clim is None:
+                                continue
+                            vals = (daily - clim) * conv
                     flat = vals.ravel()
                     xs_all.append(flat)
                     kde = gaussian_kde(flat)
@@ -241,23 +284,52 @@ def build(ym: str) -> None:
                                                                    p50=round(float(np.percentile(flat, 50)), 2), p90=round(float(np.percentile(flat, 90)), 2),
                                                                    sd=round(float(flat.std()), 2), member_monthly_p10=round(float(np.percentile(mm, 10)), 2),
                                                                    member_monthly_p90=round(float(np.percentile(mm, 90)), 2))
+                # observed normals and records as vertical marks (observed space only)
+                if ref is not None:
+                    if mode == "abs":
+                        n30, n10 = to_unit(rm["normal30"], unit), to_unit(rm["normal10"], unit)
+                        rw, rc = to_unit(rm["record_warm"][0], unit), to_unit(rm["record_cold"][0], unit)
+                    else:
+                        n30, n10 = 0.0, (rm["normal10"] - rm["normal30"]) * conv
+                        rw, rc = (rm["record_warm"][0] - rm["normal30"]) * conv, (rm["record_cold"][0] - rm["normal30"]) * conv
+                    ax.axvline(n30, color="#222", lw=1.0, zorder=4)
+                    ax.axvline(n10, color="#222", lw=1.0, ls=(0, (4, 3)), zorder=4)
+                    ax.axvline(rw, color="#b0352a", lw=0.9, ls=":", zorder=4)
+                    ax.axvline(rc, color="#2a5da8", lw=0.9, ls=":", zorder=4)
+                    ylim = ax.get_ylim()[1]
+                    ax.text(rw, ylim * 0.98, f"{rm['record_warm'][1]}", color="#b0352a", fontsize=7, ha="center", va="top")
+                    ax.text(rc, ylim * 0.98, f"{rm['record_cold'][1]}", color="#2a5da8", fontsize=7, ha="center", va="top")
+                    reg["months"].setdefault(mon, {})["reference"] = dict(normal30=round(float(to_unit(rm["normal30"], unit)), 2), normal10=round(float(to_unit(rm["normal10"], unit)), 2),
+                                                                        record_warm=[round(float(to_unit(rm["record_warm"][0], unit)), 2), rm["record_warm"][1]],
+                                                                        record_cold=[round(float(to_unit(rm["record_cold"][0], unit)), 2), rm["record_cold"][1]], n_years=rm["n_years"])
                 if len(xs_all) == 2:
                     d = xs_all[1].mean() - xs_all[0].mean(); ds_ = xs_all[1].std() - xs_all[0].std()
-                    ax.text(0.02, 0.95, f"Δmean {d:+.1f}°{unit if mode == 'abs' else unit}\nΔspread {ds_:+.1f}", transform=ax.transAxes, va="top", fontsize=8.5, color="#333")
+                    ax.text(0.02, 0.95, f"Δmean {d:+.1f}°{unit}\nΔspread {ds_:+.1f}", transform=ax.transAxes, va="top", fontsize=8.5, color="#333")
                 if row == 0:
                     ax.set_title(f"{calendar.month_abbr[int(mon[5:])]} {mon[:4]}", fontsize=12, loc="left")
                 ax.set_yticks([]); ax.spines[["left", "top", "right"]].set_visible(False)
                 ax.tick_params(labelsize=8.5)
-                if mode == "anom":
+                if mode == "anom" and ref is None:
                     ax.axvline(0, color="#666", lw=0.8)
                 if col == 0:
-                    ax.set_ylabel("model temperature" if mode == "abs" else "anomaly vs hindcast", fontsize=9.5)
-        axes[0, 0].legend(loc="upper right", fontsize=8.5, frameon=False)
+                    ax.set_ylabel(("temperature, observed space" if ref else "model temperature") if mode == "abs" else ("anomaly vs 1991–2020" if ref else "anomaly vs hindcast"), fontsize=9.5)
+        handles, labels = axes[0, 0].get_legend_handles_labels()
+        if ref is not None:
+            from matplotlib.lines import Line2D
+            handles += [Line2D([], [], color="#222", lw=1.0), Line2D([], [], color="#222", lw=1.0, ls=(0, (4, 3))), Line2D([], [], color="#b0352a", lw=0.9, ls=":"), Line2D([], [], color="#2a5da8", lw=0.9, ls=":")]
+            labels += ["1991–2020 normal", "2016–2025 normal", "record warm month", "record cold month"]
+        axes[0, 0].legend(handles, labels, loc="upper right", fontsize=8, frameon=False)
         fig.suptitle(f"SEAS5 population-weighted 2 m temperature, {label}: daily values, all 51 members, {calendar.month_name[int(ym[4:])]} {ym[:4]} issue vs {calendar.month_name[int(prev[4:])]}",
                      x=0.02, y=0.99, ha="left", fontsize=13)
-        fig.text(0.02, 0.935, f"Each curve pools every member's daily population-weighted mean (≈1,500 values a month; °{unit}). Dashed lines: distribution means. "
-                 "Top row is the model's own temperature (SEAS5 bias included, identical for both issues); bottom row removes each issue's hindcast monthly mean at every grid point.",
-                 fontsize=8.8, color="#444", va="top", wrap=True)
+        if ref is not None:
+            nyr = ref["by_month"][int(months[0][5:])]["n_years"]
+            note = (f"Each curve pools every member's daily population-weighted mean (≈1,500 values a month; °{unit}), bias-corrected into observed space "
+                    f"(member − hindcast month mean + ERA5 1993–2016 month mean). Dashed coloured lines: distribution means. Black: ERA5 population-weighted monthly normals, "
+                    f"1991–2020 (solid) and 2016–2025 (dashed); dotted: warmest and coldest month of the ERA5 record ({nyr} years), year labelled. Bottom row: the same, as anomalies from the 1991–2020 normal.")
+        else:
+            note = (f"Each curve pools every member's daily population-weighted mean (≈1,500 values a month; °{unit}). Dashed lines: distribution means. "
+                    "Top row is the model's own temperature (SEAS5 bias included, identical for both issues); bottom row removes each issue's hindcast monthly mean at every grid point.")
+        fig.text(0.02, 0.935, note, fontsize=8.8, color="#444", va="top", wrap=True)
         fig.subplots_adjust(left=0.05, right=0.99, top=0.85, bottom=0.07, hspace=0.35, wspace=0.12)
         out = ASSETS / f"seas5_popT_{region}.webp"
         fig.savefig(out, dpi=110, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)

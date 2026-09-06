@@ -44,7 +44,7 @@ import xarray as xr
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seas5_outlook import ASSETS, fc_path, hc_path, previous_issues  # noqa: E402
-from seas5_build import G0, _open, _summ, load_field, valid_months  # noqa: E402
+from seas5_build import G0, _open, _summ, detrend_pair, load_field, valid_months  # noqa: E402
 
 TC = Path.home() / "data_archive" / "geps_subx" / "telecon"
 OUT_JSON = ASSETS / "data" / "seas5_tele.json"
@@ -217,9 +217,10 @@ def compute(ym: str, pats: Patterns, with_members: bool) -> dict:
             continue
         fz, hz, lat, lon = r
         fc_cap, hc_cap = _cap(fz / G0, lat, 65), _cap(hz / G0, lat, 65)
-        sd = np.nanstd(hc_cap, axis=0)
-        fi = -(fc_cap - hc_cap.mean(0)) / sd; hi = -(hc_cap - hc_cap.mean(0)) / sd
-        e = entry(fi, hi, f"NAM at {lev} hPa", "σ", "Polar-cap (65–90°N) height anomaly, standardised by the hindcast and sign-flipped: positive = strong vortex / low polar heights.", "strat")
+        fa, hr = detrend_pair(fc_cap, hc_cap, ym)                   # heights carry the warming trend: anomaly vs the hindcast trend line
+        sd = np.nanstd(hr, axis=0)
+        fi = -fa / sd; hi = -hr / sd
+        e = entry(fi, hi, f"NAM at {lev} hPa", "σ", "Polar-cap (65–90°N) height anomaly against the hindcast's linear trend (detrended), standardised and sign-flipped: positive = strong vortex / low polar heights.", "strat")
         e["_hc"] = hi
         out[f"nam{lev}"] = e
     r = _pair("polar_n", ym, "z", level=100)
