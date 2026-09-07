@@ -449,7 +449,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
-<script src="/assets/rail.js" defer></script>
 </head>
 <body>
 
@@ -515,7 +514,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<main data-rail>
+<main>
   <div class="page-header">
     <h1>Atmospheric response</h1>
     <p>The atmospheric side of ENSO: observed and forecast equatorial Pacific surface winds, the Southern Oscillation, and westerly-wind-burst activity.</p>
@@ -579,7 +578,7 @@
         <h2>Southern Oscillation Index Forecast</h2>
         <p>Extending the observed SOI forward: the same Troup SOI (the standardized Tahiti&minus;Darwin sea-level-pressure difference), here forecast from the combined AIFS-ENS + IFS-ENS ensemble (about 100 members). Observed values are from LongPaddock (Queensland Govt / BoM); the forecast is the Tahiti&minus;Darwin MSL from the ensembles, bias-corrected to the recent observed level. Bold lines are the 30-day running SOI; the faint daily series and shaded 10&ndash;90% band show the day-to-day spread. Sustained negative SOI (below &minus;7) is El Ni&ntilde;o-favorable; sustained positive (above +7) is La Ni&ntilde;a-favorable.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/soi_forecast.webp?v=202609071542" alt="Southern Oscillation Index: observed (LongPaddock/BoM) plus AIFS-ENS/IFS-ENS forecast" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/soi_forecast.webp?v=202609071623" alt="Southern Oscillation Index: observed (LongPaddock/BoM) plus AIFS-ENS/IFS-ENS forecast" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">LongPaddock daily SOI (BoM, 1887&ndash;1989 base) &middot; forecast: ECMWF AIFS-ENS + IFS-ENS MSL &middot; updated each 00/12Z cycle</span></div>
       </div>
 
@@ -607,7 +606,7 @@
         <h2>Equatorial Pacific 10 m Wind Forecast</h2>
         <p>Forecast 10 m zonal-wind anomaly (5&deg;S&ndash;5&deg;N), longitude &times; forecast day, from the AIFS-ENS (AI) and ECMWF IFS-ENS (physics) ensemble means versus the ERA5 1991&ndash;2020 climatology. Westerly (red) anomalies along the equator favor El Ni&ntilde;o development; easterly (blue) anomalies favor La Ni&ntilde;a. Agreement between the AI and physics ensembles raises confidence.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/eq_wind_hovmoller.webp?v=202609071542" alt="Equatorial Pacific 10 m zonal-wind anomaly Hovmöller forecast (AIFS-ENS and IFS-ENS)" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/eq_wind_hovmoller.webp?v=202609071623" alt="Equatorial Pacific 10 m zonal-wind anomaly Hovmöller forecast (AIFS-ENS and IFS-ENS)" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS &amp; IFS-ENS (open data) &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
       </div>
     </div>
@@ -670,7 +669,7 @@
 
     <!-- 200 hPa VELOCITY POTENTIAL + IRROTATIONAL WIND (AIFS-ENS ensemble mean) -->
     <h3 class="page-section" id="upper">Upper-level circulation</h3>
-    <div class="chart-card" data-label="Velocity potential">
+    <div class="chart-card">
       <div class="chart-card-header">
         <h2>200 hPa Velocity Potential &amp; Irrotational Wind</h2>
         <p>The large-scale divergent circulation aloft from the AIFS-ENS ensemble mean: the 200 hPa velocity-potential anomaly shaded, with the irrotational (divergent) wind as vectors. <b style="color:#2e7d32">Green</b> is upper-level divergence (the outflow above deep convection); <b style="color:#df6a1e">orange</b> is convergence (subsidence). The vectors point out of the divergence centres, tracing the rising and sinking branches of the Walker and Hadley circulations; in El&nbsp;Ni&ntilde;o the divergence shifts east over the central Pacific. Anomaly is versus the ERA5 1991&ndash;2020 climatology. The first frame is the analysis, the rest is the forecast to day&nbsp;14.</p>
@@ -681,7 +680,7 @@
     </div>
 
     <!-- WAVE ACTIVITY FLUX (Takaya–Nakamura 2001) — Rossby wave-packet radar -->
-    <div class="chart-card" id="wave-activity-flux" data-label="Wave activity flux">
+    <div class="chart-card" id="wave-activity-flux">
       <div class="chart-card-header">
         <h2>Wave Activity Flux: Where Rossby Wave Packets Are Heading</h2>
         <p>The <b>Takaya&ndash;Nakamura (2001) wave activity flux</b> is a phase-independent vector diagnostic of quasi-stationary <b>Rossby wave propagation</b>: unlike watching ridges and troughs move, the flux <b>W</b> points along the wave packet's <i>group velocity</i> &mdash; where the wave energy itself is travelling, ducted along the jet-stream waveguides &mdash; and its <b>convergence marks where the downstream flow will amplify</b> days later. That makes it a practical forecast tool for <b>downstream development, blocking onset, and teleconnection excitation</b>: watch packets radiate out of the tropical Pacific convection (the El&nbsp;Ni&ntilde;o&ndash;PNA pathway) or off a mountain-torque event, arc along the subtropical jet, and pile into an amplifying ridge.</p>
@@ -694,7 +693,7 @@
     </div>
 
     <!-- DYNAMIC TROPOPAUSE — PV-based view of the upper flow, control member only -->
-    <div class="chart-card" id="dynamic-tropopause" data-label="Dynamic tropopause">
+    <div class="chart-card" id="dynamic-tropopause">
       <div class="chart-card-header">
         <h2>Dynamic Tropopause: &theta; on the 2-PVU Surface and Isentropic PV</h2>
         <p>The upper-level flow as PV thinkers read it. Ertel potential vorticity is computed on the AIFS-ENS <b>control member&rsquo;s</b> temperature and wind on nine levels from 700 to 100&nbsp;hPa &mdash; the control alone, because PV does not survive ensemble averaging: a mean of fifty folds is a smear. The <b>dynamic tropopause</b> is the 2-PVU surface, found by searching upward from 700&nbsp;hPa; its potential temperature is shaded (low &theta;, blue, is stratospheric or polar air reaching down; high &theta;, red, is a tropical tropopause), its pressure contoured, and the wind on it drawn. Troughs, cut-off lows and ridges are the &theta; pattern itself; a tight gradient is the jet; a tongue of low &theta; wrapping up is a Rossby wave breaking. The other two loops give PV on the 330 and 350&nbsp;K isentropes with the 2-PVU line in dark red &mdash; 330&nbsp;K sits near the winter jet, 350&nbsp;K near the summer and subtropical one. 12-hourly to day 10, North Pacific to the Atlantic.</p>
