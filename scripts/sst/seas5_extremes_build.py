@@ -107,6 +107,27 @@ def cpc_normal(region: str, stat: str, lat, lon) -> tuple[dict, list[int]]:
     return acc, used
 
 
+# City labels on the threshold-day maps (user 2026-09-07: "label some major cities on the Brazil
+# hot days plots"). (name, lat, lon, label side: "r" right of the dot, "l" left).
+CITIES = {
+    "br": [("Manaus", -3.12, -60.02, "r"), ("Belém", -1.46, -48.50, "r"), ("Fortaleza", -3.72, -38.54, "l"),
+           ("Recife", -8.05, -34.88, "l"), ("Salvador", -12.97, -38.51, "l"), ("Brasília", -15.79, -47.88, "r"),
+           ("Cuiabá", -15.60, -56.10, "l"), ("Goiânia", -16.68, -49.25, "l"), ("Belo Horizonte", -19.92, -43.94, "r"),
+           ("Campo Grande", -20.45, -54.62, "l"), ("Rio de Janeiro", -22.91, -43.17, "r"), ("São Paulo", -23.55, -46.63, "l"),
+           ("Curitiba", -25.43, -49.27, "l"), ("Porto Alegre", -30.03, -51.23, "l")],
+    "us": [],
+}
+
+
+def draw_cities(ax, region, pc):
+    import matplotlib.patheffects as pe
+    halo = [pe.withStroke(linewidth=2.2, foreground="white")]
+    for name, la, lo, side in CITIES.get(region, []):
+        ax.plot(lo, la, "o", ms=3.8, mfc="#111", mec="white", mew=0.6, transform=pc, zorder=6)
+        ax.text(lo + (0.45 if side == "r" else -0.45), la, name, fontsize=8.4, color="#111", ha="left" if side == "r" else "right",
+                va="center", transform=pc, zorder=6, path_effects=halo)
+
+
 def pct_map(ratio, lat, lon, normal, region, thr_label, plabel, issue_lbl, out: Path, cold: bool = False):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -128,6 +149,7 @@ def pct_map(ratio, lat, lon, normal, region, thr_label, plabel, issue_lbl, out: 
     ax.coastlines(resolution="50m", linewidth=0.5, color="#333", zorder=3)
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.3, edgecolor="#666", zorder=3)
     ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.2, edgecolor="#999", zorder=3)
+    draw_cities(ax, region, pc)
     fig.text(0.03, 1 - 0.14 / H, f"SEAS5 {thr_label} · {plabel} · {issue_lbl}", fontsize=13, fontweight="bold", va="top")
     import textwrap
     fig.text(0.03, 1 - 0.50 / H, "\n".join(textwrap.wrap("Ensemble-mean count of threshold days as % of the CPC 1991–2020 count for the month, on 1° cells; members quantile-mapped per cell from the SEAS5 hindcast onto the CPC record. Hatched: normal under half a day a month.", int(W * 13))),
