@@ -544,15 +544,16 @@
         months.forEach(function (mo) {
           rows.push("<tr><td>" + mmm(mo) + "</td>" + thrs.map(function (t) {
             var e = R.months[mo][t]; if (!e) return "<td>–</td>";
-            var cls = e.pct == null ? "flat" : e.pct > 115 ? (st.r === "us" ? "down" : "up") : e.pct < 85 ? (st.r === "us" ? "up" : "down") : "flat";
-            return '<td class="' + cls + '"><b>' + d1(e.days, 1) + "</b> · " + (e.normal == null ? "–" : d1(e.normal, 1)) + " · " + (e.pct == null ? "–" : Math.round(e.pct) + "%") + ' <span style="color:var(--muted);font-weight:400">' + d1(e.p10, 1) + "–" + d1(e.p90, 1) + "</span></td>";
+            var rare = e.normal != null && e.normal < 0.1;                       // a % of a near-zero normal is noise
+            var cls = e.pct == null || rare ? "flat" : e.pct > 115 ? (st.r === "us" ? "down" : "up") : e.pct < 85 ? (st.r === "us" ? "up" : "down") : "flat";
+            return '<td class="' + cls + '"><b>' + d1(e.days, 1) + "</b> · " + (e.normal == null ? "–" : d1(e.normal, 1)) + " · " + (e.pct == null ? "–" : rare ? "rare" : Math.round(e.pct) + "%") + ' <span style="color:var(--muted);font-weight:400">' + d1(e.p10, 1) + "–" + d1(e.p90, 1) + "</span></td>";
           }).join("") + "</tr>");
         });
         document.getElementById("xdTable").innerHTML = rows.join("");
         tb.innerHTML = '<span class="ctlsep">Map threshold</span>' + thrs.map(function (t) { return '<button class="pill' + (t === st.t ? " on" : "") + '" data-t="' + t + '">' + t + " °C</button>"; }).join("");
         mb.innerHTML = '<span class="ctlsep">Month</span>' + months.map(function (mo) { return '<button class="pill' + (mo === st.m ? " on" : "") + '" data-m="' + mo + '">' + mmm(mo) + "</button>"; }).join("");
         var e = R.months[st.m][st.t];
-        document.getElementById("xdMap").innerHTML = e && e.map ? '<figure><a href="assets/sst/' + e.map + '?v=' + encodeURIComponent(X.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + e.map + '?v=' + encodeURIComponent(X.generated) + '" alt="' + R.label + " " + R.kind + " " + st.t + " °C, % of normal, " + mmm(st.m) + '" loading="lazy"></a><figcaption><b>' + R.kind + " " + st.t + " °C</b>, " + mmm(st.m) + ": population-weighted " + d1(e.days, 1) + " days against a normal of " + (e.normal == null ? "–" : d1(e.normal, 1)) + (e.pct == null ? "" : " (" + Math.round(e.pct) + "% of normal)") + ". Members p10–p90 " + d1(e.p10, 1) + "–" + d1(e.p90, 1) + " days.</figcaption></figure>" : '<p class="note">No map for this month yet.</p>';
+        document.getElementById("xdMap").innerHTML = e && e.map ? '<figure><a href="assets/sst/' + e.map + '?v=' + encodeURIComponent(X.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + e.map + '?v=' + encodeURIComponent(X.generated) + '" alt="' + R.label + " " + R.kind + " " + st.t + " °C, % of normal, " + mmm(st.m) + '" loading="lazy"></a><figcaption><b>' + R.kind + " " + st.t + " °C</b>, " + mmm(st.m) + ": population-weighted " + d1(e.days, 1) + " days against a normal of " + (e.normal == null ? "–" : d1(e.normal, 1)) + (e.pct == null || (e.normal != null && e.normal < 0.1) ? "" : " (" + Math.round(e.pct) + "% of normal)") + ". Members p10–p90 " + d1(e.p10, 1) + "–" + d1(e.p90, 1) + " days.</figcaption></figure>" : '<p class="note">No map for this month yet.</p>';
       }
       rb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.r = b.dataset.r; Array.prototype.forEach.call(rb.children, function (c) { c.classList.toggle("on", c === b); }); draw(); });
       tb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.t = b.dataset.t; draw(); });

@@ -24,7 +24,7 @@ from seas5_extremes import xchunk_path, hchunk_path, cpc_path, THRESH, YEARS    
 from seas5_build import load_field, valid_months                                    # noqa: E402
 
 OUT_JSON = ASSETS / "data" / "seas5_extremes.json"
-PCT_LEVELS = [0, 25, 50, 75, 90, 110, 125, 150, 200, 300]
+PCT_LEVELS = [0, 25, 50, 75, 90, 110, 125, 150, 200, 300, 500]
 _ERA5_NORMAL: dict = {}
 
 
@@ -113,13 +113,13 @@ def pct_map(ratio, lat, lon, normal, region, thr_label, plabel, issue_lbl, out: 
     from matplotlib.colors import BoundaryNorm, ListedColormap
     import cartopy.crs as ccrs, cartopy.feature as cfeature
     pc = ccrs.PlateCarree(); area = REGIONS[region][2]
-    cols = ["#1f4f8f", "#3672b6", "#8ab6df", "#dbe9f6", "#f4f4f1", "#fde4cf", "#f59d68", "#e8703c", "#8f2a0d"] if region == "us" else \
-           ["#1b6229", "#5aae5c", "#b6dfad", "#dcf0d6", "#f4f4f1", "#fde4cf", "#f59d68", "#e8703c", "#8f2a0d"]
-    W = 11.0; H = W * (area[0] - area[2]) / (area[3] - area[1]) + 1.9
-    fig = plt.figure(figsize=(W, H)); ax = fig.add_axes([0.03, 0.95 / H, 0.94, (H - 1.9) / H], projection=pc)
+    cols = ["#1f4f8f", "#3672b6", "#8ab6df", "#dbe9f6", "#f4f4f1", "#fde4cf", "#f59d68", "#e8703c", "#c8451c", "#8f2a0d"] if region == "us" else \
+           ["#1b6229", "#5aae5c", "#b6dfad", "#dcf0d6", "#f4f4f1", "#fde4cf", "#f59d68", "#e8703c", "#c8451c", "#8f2a0d"]
+    W = 11.0; H = W * (area[0] - area[2]) / (area[3] - area[1]) + 2.1
+    fig = plt.figure(figsize=(W, H)); ax = fig.add_axes([0.03, 0.95 / H, 0.94, (H - 2.1) / H], projection=pc)
     ax.set_extent([area[1], area[3], area[2], area[0]], crs=pc)
     ax.add_feature(cfeature.LAND, facecolor="#f4f4f1", zorder=0)
-    r = np.where(normal >= 0.5, np.clip(ratio * 100, 0, 299.9), np.nan)
+    r = np.where(normal >= 0.5, np.clip(ratio * 100, 0, 499.9), np.nan)
     m = ax.pcolormesh(lon, lat, r, cmap=ListedColormap(cols), norm=BoundaryNorm(PCT_LEVELS, len(cols)), transform=pc, shading="auto", zorder=1)
     thin = np.where(normal < 0.5, 1.0, np.nan)
     ax.contourf(lon, lat, np.ma.masked_invalid(thin), levels=[0.5, 1.5], colors="none", hatches=["////"], transform=pc, zorder=2)
@@ -128,8 +128,9 @@ def pct_map(ratio, lat, lon, normal, region, thr_label, plabel, issue_lbl, out: 
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.3, edgecolor="#666", zorder=3)
     ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.2, edgecolor="#999", zorder=3)
     fig.text(0.03, 1 - 0.14 / H, f"SEAS5 {thr_label} · {plabel} · {issue_lbl}", fontsize=13, fontweight="bold", va="top")
-    fig.text(0.03, 1 - 0.50 / H, "Ensemble-mean count of threshold days as % of the CPC 1991–2020 count for the month, on 1° cells; members quantile-mapped per cell from the SEAS5 hindcast onto the CPC record. Hatched: normal under half a day a month.",
-             fontsize=8.4, color="#444", va="top")
+    import textwrap
+    fig.text(0.03, 1 - 0.50 / H, "\n".join(textwrap.wrap("Ensemble-mean count of threshold days as % of the CPC 1991–2020 count for the month, on 1° cells; members quantile-mapped per cell from the SEAS5 hindcast onto the CPC record. Hatched: normal under half a day a month.", int(W * 13))),
+             fontsize=8.4, color="#444", va="top", linespacing=1.3)
     cax = fig.add_axes([0.25, 0.40 / H, 0.50, 0.14 / H]); cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="max")
     cb.set_label("% of normal frequency", fontsize=8.5); cb.ax.tick_params(labelsize=7)
     fig.savefig(out, dpi=120, pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
