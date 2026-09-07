@@ -52,7 +52,7 @@ ERA5 = Path(__file__).resolve().parent / "data" / "seas5" / "era5"
 
 TELE_ORDER = ["nao", "pna", "ao", "ea", "wp", "epnp", "eawr", "sca", "tnh", "pol", "epo", "wpo"]
 DEFINED_MONTHS = {"tnh": {12, 1, 2}, "epnp": set(range(1, 13)) - {8, 9}}
-TELE_LABEL = {"nao": "NAO", "pna": "PNA", "ao": "Arctic Oscillation", "ea": "East Atlantic", "wp": "West Pacific",
+TELE_LABEL = {"eqsoi": "Equatorial SOI", "nao": "NAO", "pna": "PNA", "ao": "Arctic Oscillation", "ea": "East Atlantic", "wp": "West Pacific",
               "epnp": "East Pacific / North Pacific", "eawr": "East Atlantic / West Russia", "sca": "Scandinavia",
               "tnh": "Tropical / Northern Hemisphere", "pol": "Polar / Eurasia", "epo": "EPO", "wpo": "WPO"}
 
@@ -202,6 +202,21 @@ def compute(ym: str, pats: Patterns, with_members: bool, scale: dict | None = No
         out["soi"] = entry(fa, ha, "Southern Oscillation index", "σ",
                            f"Tahiti minus Darwin sea-level pressure anomaly; unit: {unit_note}; negative with El Niño.", "tele")
         out["soi"]["_hc"] = ha
+        # Equatorial SOI (CPC): standardised SLP anomaly, eastern equatorial Pacific (5°N–5°S, 130–80°W)
+        # minus Indonesia (5°N–5°S, 90–140°E) — the pressure gradient that drives the Walker circulation,
+        # far less station-noisy than Tahiti−Darwin (user 2026-09-07: "a more physically consistent
+        # zonal pressure difference index"). Negative in El Niño, like the SOI.
+        def _boxm(v, la0, la1, lo0, lo1):
+            ml = (lat >= la0) & (lat <= la1); mo = (lon >= lo0) & (lon <= lo1)
+            w = np.cos(np.deg2rad(lat[ml]))[:, None]
+            sub = v[..., ml, :][..., mo]
+            return (sub * w).sum(axis=(-2, -1)) / (w.sum() * mo.sum())
+        fe = _boxm(fp, -5, 5, -130, -80) - _boxm(fp, -5, 5, 90, 140)
+        he = _boxm(hp, -5, 5, -130, -80) - _boxm(hp, -5, 5, 90, 140)
+        fa2, ha2, unit_note2 = to_sigma("eqsoi", (fe - he.mean(0)) / 100.0, (he - he.mean(0)) / 100.0)
+        out["eqsoi"] = entry(fa2, ha2, "Equatorial SOI", "σ",
+                             f"Eastern equatorial Pacific minus Indonesian sea-level pressure anomaly (5°N–5°S boxes, CPC definition); unit: {unit_note2}; negative with El Niño. The equatorial gradient that drives the Walker circulation, without the Tahiti–Darwin station noise.", "tele")
+        out["eqsoi"]["_hc"] = ha2
     # stratospheric wind
     u = _pair("strat_u", ym, "u", level=10)
     if u:
@@ -301,6 +316,12 @@ def era5_indices(pats: Patterns):
         soi = anom((tah - dar).astype(np.float64), yg, mg)                # hPa
         scale["soi"] = month_sd(soi, yg, mg)
         out["soi"] = series(soi / np.array([scale["soi"][k] for k in mg]), yg, mg)
+        def _bx(la0, la1, lo0, lo1):
+            ml = (lat >= la0) & (lat <= la1); mo = (lon >= lo0) & (lon <= lo1); w = np.cos(np.deg2rad(lat[ml]))[:, None]
+            sub = g.values[:, ml, :][:, :, mo]; return (sub * w).sum(axis=(1, 2)) / (w.sum() * mo.sum())
+        eq = anom((_bx(-5, 5, -130, -80) - _bx(-5, 5, 90, 140)).astype(np.float64), yg, mg)
+        scale["eqsoi"] = month_sd(eq, yg, mg)
+        out["eqsoi"] = series(eq / np.array([scale["eqsoi"][k] for k in mg]), yg, mg)
     for lev in (50, 100, 500, 1000):
         zl = era5_local.monthly("z", lev)
         if zl is None:
@@ -331,6 +352,7 @@ CPC_FILES = {
     "tele_index.nh": "https://ftp.cpc.ncep.noaa.gov/wd52dg/data/indices/tele_index.nh",
     "monthly.ao.index.txt": "https://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_ao_index/monthly.ao.index.b50.current.ascii",
     "soi.txt": "https://www.cpc.ncep.noaa.gov/data/indices/soi",
+    "reqsoi.for": "https://www.cpc.ncep.noaa.gov/data/indices/reqsoi.for",
 }
 CPC_COLS = {"nao": "NAO", "ea": "EA", "wp": "WP", "epnp": "EP/NP", "pna": "PNA", "eawr": "EA/WR", "sca": "SCA", "tnh": "TNH", "pol": "POL"}
 
@@ -386,11 +408,22 @@ def cpc_published() -> dict:
                     if v > -999:
                         soi[(int(m.group(1)), k + 1)] = v
         out["soi"] = soi
+    f = d / "reqsoi.for"
+    if f.exists():
+        eq = {}
+        for ln in f.read_text(errors="replace").splitlines():
+            m = re.match(r"^\s*(\d{4})((?:\s+-?\d+\.\d)+)\s*$", ln)
+            if m:
+                vals = [float(x) for x in re.findall(r"-?\d+\.\d", m.group(2))]
+                for k, v in enumerate(vals[:12]):
+                    if v < 900:
+                        eq[(int(m.group(1)), k + 1)] = v
+        out["eqsoi"] = eq
     return out
 
 
 THR = 0.5          # phase threshold in index units (σ)
-CPC_CALIBRATED = {"soi"}   # indices whose observed reference for skill and calibration is CPC's own series
+CPC_CALIBRATED = {"soi", "eqsoi"}   # indices whose observed reference for skill and calibration is CPC's own series
 SKILL_MIN = 0.25   # below this hindcast correlation the calibrated probabilities are climatology and the cell is hatched
 TAIL_MONTHS = 4    # observed months drawn before the issue (user 2026-09-07: "I mainly care about the forecasts")
 
