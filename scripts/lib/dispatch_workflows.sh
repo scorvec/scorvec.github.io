@@ -109,6 +109,12 @@ aam.yml|09:20|
 aam.yml|21:20|
 ar.yml|09:05|
 ar.yml|21:05|
+# Columbia basin: the four schedule-only callers were cron-only and ran 1-6 h
+# late every cycle (audit 2026-09-07); dispatch them at their cron minute.
+columbia-h06.yml|06:22|
+columbia-h09.yml|09:41|
+columbia-h18.yml|18:22|
+columbia-h21.yml|21:41|
 aifs-compare.yml|09:45|
 aifs-compare.yml|21:45|
 asos5.yml|*:05|
