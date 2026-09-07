@@ -390,6 +390,7 @@ def cpc_published() -> dict:
 
 
 THR = 0.5          # phase threshold in index units (σ)
+CPC_CALIBRATED = {"soi"}   # indices whose observed reference for skill and calibration is CPC's own series
 SKILL_MIN = 0.25   # below this hindcast correlation the calibrated probabilities are climatology and the cell is hatched
 TAIL_MONTHS = 18
 
@@ -414,9 +415,14 @@ def add_skill(idx: dict, ym: str, era: dict | None, cpc: dict | None = None) -> 
         with np.errstate(invalid="ignore"):
             e["p_neg05"] = [None if not np.isfinite(fc[:, L]).any() else round(float(np.nanmean(fc[:, L] <= -THR)), 3) for L in range(fc.shape[1])] if fc is not None and not e.get("absolute") else None
             e["p_pos05"] = [None if not np.isfinite(fc[:, L]).any() else round(float(np.nanmean(fc[:, L] >= THR)), 3) for L in range(fc.shape[1])] if fc is not None and not e.get("absolute") else None
-        obs = era.get(key) if era else None
-        e["obs_tail"] = [[f"{y}-{m:02d}", round(obs[(y, m)], 3)] for (y, m) in tail if obs and (y, m) in obs] if obs else None
         pub = cpc.get(key) if cpc else None
+        # SOI: calibrate against CPC's published (station-based, standardised) index rather than the ERA5
+        # grid-point version, so the plume sits on the scale people quote and the CPC tail is its own
+        # reference (user 2026-09-07: the ERA5-scaled SOI "keeps getting whipped around"); the ERA5 store's
+        # global pressure also stops in 2020, so it had no observed tail at all.
+        obs = pub if (key in CPC_CALIBRATED and pub) else (era.get(key) if era else None)
+        e["obs_source"] = "CPC" if (key in CPC_CALIBRATED and pub) else ("ERA5" if obs else None)
+        e["obs_tail"] = [[f"{y}-{m:02d}", round(obs[(y, m)], 3)] for (y, m) in tail if obs and (y, m) in obs] if obs else None
         e["cpc_tail"] = [[f"{y}-{m:02d}", round(pub[(y, m)], 2)] for (y, m) in tail if (y, m) in pub] if pub else None
         if hc is None or obs is None:
             e["skill"] = None; e["cal"] = None; continue

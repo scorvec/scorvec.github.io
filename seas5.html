@@ -645,17 +645,29 @@
   }
 
   // generic member-index plume for the teleconnection / stratosphere JSON
+  var IDX_MODE = { cal: true };   // calibrated view first where the hindcast regression exists (user 2026-09-07: SOI)
+  function hasCal(e) { return !!(e.cal && e.cal.some(function (c) { return c && c.mu != null && c.s != null && !c.no_skill; })); }
   function idxTraces(T, key) {
     var e = T.indices[key], pe = T.previous_indices && T.previous_indices[key], x = e.valid.map(monthDate), tr = [];
     var absolute = !!e.absolute, base = absolute ? e.clim_mean : null, hv = { units: e.units, digits: 2, signed: !absolute };
+    var calOn = IDX_MODE.cal && hasCal(e) && !absolute;
     tr = tr.concat(OC.climBand(x, e.clim_sd, base, absolute ? "hindcast mean ±1σ" : "hindcast ±1σ"));
     if (absolute) tr.push(OC.hindMeanTrace(x, e.clim_mean, "hindcast mean"));
-    if (pe) tr = tr.concat(OC.prevTraces([{ x: pe.valid.map(monthDate), y: pe.mean, name: issueLabel(T.previous) + " issue mean" }], hv));
-    tr = tr.concat(OC.fanTraces(x, e));
-    if (e.members) tr.push(OC.memberTrace(x, OC.memberRows(e.members, x.length)));
-    tr.push(OC.meanTrace(x, e.mean, issueLabel(T.issue) + " issue mean", hv));
-    if (e.obs_tail && e.obs_tail.length) tr.push(OC.obsTrace(e.obs_tail.map(function (r) { return monthDate(r[0]); }), e.obs_tail.map(function (r) { return r[1]; }), "observed (ERA5, same projection)", hv));
-    if (e.cpc_tail && e.cpc_tail.length) tr.push(OC.markerTrace(e.cpc_tail.map(function (r) { return monthDate(r[0]); }), e.cpc_tail.map(function (r) { return r[1]; }), "published index (CPC), its own scale", hv));
+    if (pe) tr = tr.concat(OC.prevTraces([{ x: pe.valid.map(monthDate), y: pe.mean, name: issueLabel(T.previous) + " issue mean (raw)" }], hv));
+    if (calOn) {
+      // calibrated: N(a·x̄ + b, s²) per lead from the 24 hindcast years; bands at the 10–90 and 25–75 % quantiles
+      var mu = e.cal.map(function (c, i) { return c && c.mu != null && !c.no_skill ? c.mu : e.mean[i]; }), sd = e.cal.map(function (c) { return c && c.s != null ? c.s : null; });
+      var q = function (z) { return mu.map(function (m, i) { return sd[i] == null ? null : m + z * sd[i]; }); };
+      tr = tr.concat(OC.fanTraces(x, { p10: q(-1.2816), p90: q(1.2816), p25: q(-0.6745), p75: q(0.6745) }));
+      tr.push(OC.meanTrace(x, mu, issueLabel(T.issue) + " issue, calibrated to observations", hv));
+      tr.push({ x: x, y: e.mean, mode: "lines", line: { color: "#8a4b2a", width: 1.6, dash: "dot" }, name: "raw model mean", hovertemplate: "%{y:+.2f}<extra>raw model mean</extra>" });
+    } else {
+      tr = tr.concat(OC.fanTraces(x, e));
+      if (e.members) tr.push(OC.memberTrace(x, OC.memberRows(e.members, x.length)));
+      tr.push(OC.meanTrace(x, e.mean, issueLabel(T.issue) + " issue mean", hv));
+    }
+    if (e.obs_tail && e.obs_tail.length) tr.push(OC.obsTrace(e.obs_tail.map(function (r) { return monthDate(r[0]); }), e.obs_tail.map(function (r) { return r[1]; }), e.obs_source === "CPC" ? "observed (CPC index)" : "observed (ERA5, same projection)", hv));
+    if (e.cpc_tail && e.cpc_tail.length && e.obs_source !== "CPC") tr.push(OC.markerTrace(e.cpc_tail.map(function (r) { return monthDate(r[0]); }), e.cpc_tail.map(function (r) { return r[1]; }), "published index (CPC), its own scale", hv));
     if (key.indexOf("u60") === 0) tr.push({x: [x[0], x[x.length - 1]], y: [0, 0], mode: "lines", line: {color: "#c2185b", width: 1.4, dash: "dash"}, name: "easterly below", hoverinfo: "skip"});
     return tr;
   }
@@ -683,11 +695,16 @@
   function indexCard(T, group, pillsId, noteId, chartId, tableId, updId, first) {
     var keys = T.groups[group]; if (!keys || !keys.length) { document.getElementById(chartId).closest(".card").hidden = true; return; }
     var cur = first && keys.indexOf(first) >= 0 ? first : keys[0];
+    var modeId = pillsId + "Mode", modeEl = document.getElementById(modeId);
+    if (!modeEl) { modeEl = document.createElement("div"); modeEl.className = "controls"; modeEl.id = modeId; document.getElementById(pillsId).insertAdjacentElement("afterend", modeEl); }
     function draw(k) {
       var e = T.indices[k];
-      document.getElementById(noteId).textContent = e.note + (T.skill_note ? "  Skill r: " + T.skill_note + "." : "");
-      OC.react(chartId, idxTraces(T, k), { title: e.label, yunits: e.units, xrange: idxRange(T, k), includeZero: !e.absolute || /^(u60|qbo)/.test(k) });
+      document.getElementById(noteId).textContent = e.note + (T.skill_note ? "  Skill r: " + T.skill_note + "." : "") + (hasCal(e) && IDX_MODE.cal ? "  Calibrated view: the observed index regressed on the hindcast ensemble mean for this month and lead (24 years); mean and spread from that fit" + (e.obs_source === "CPC" ? ", against CPC's published index." : ".") : "");
+      OC.react(chartId, idxTraces(T, k), { title: e.label + (hasCal(e) && IDX_MODE.cal && !e.absolute ? " (calibrated)" : ""), yunits: e.units, xrange: idxRange(T, k), includeZero: !e.absolute || /^(u60|qbo)/.test(k) });
       document.getElementById(tableId).innerHTML = idxTable(T, k);
+      modeEl.hidden = !hasCal(e) || !!e.absolute;
+      modeEl.innerHTML = modeEl.hidden ? "" : '<span class="ctlsep">View</span><button class="pill' + (IDX_MODE.cal ? " on" : "") + '" data-mode="cal">Calibrated to observations</button><button class="pill' + (!IDX_MODE.cal ? " on" : "") + '" data-mode="raw">Raw model members</button>';
+      modeEl.onclick = function (ev) { var b = ev.target.closest("button"); if (!b) return; IDX_MODE.cal = b.dataset.mode === "cal"; draw(k); };
     }
     pills(pillsId, keys.map(function (k) { return {key: k, label: T.indices[k].label}; }), cur, draw);
     draw(cur);
