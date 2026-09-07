@@ -433,11 +433,14 @@ MAP_SPEC = {
             [-2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2], "RdBu_r", None, None),
     "tp": ("Precipitation", "mm/day", [-3, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 3],
            [-2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2], "BrBG", None, None),
-    "z500": ("500 hPa height", "m", [-60, -45, -30, -20, -10, -5, 5, 10, 20, 30, 45, 60],
-             [-40, -30, -20, -10, -5, 5, 10, 20, 30, 40], "RdBu_r", None, None),
+    # heights are standardised by the hindcast's interannual σ (per cell, lead, or season): a warm-climate
+    # +60 m everywhere saturated a metre scale (user 2026-09-07)
+    "z500": ("500 hPa height, standardised", "σ", [-3, -2.5, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 2.5, 3],
+             [-2, -1.5, -1, -0.75, -0.5, -0.25, 0.25, 0.5, 0.75, 1, 1.5, 2], "RdBu_r", None, None),
     # SST: fine steps and labelled isolines (user 2026-09-07: "make it highly detailed")
-    "sst": ("Sea surface temperature", "°C", [round(x, 2) for x in np.arange(-3.0, 3.01, 0.2)],
-            [round(x, 2) for x in np.arange(-1.5, 1.51, 0.1)], "RdBu_r", 0.5, 0.25),
+    # ±3 °C at 0.2 steps saturated on the 2026 El Niño (user 2026-09-07): 0.2 steps to ±3, then 0.5 steps to ±5
+    "sst": ("Sea surface temperature", "°C", [-5, -4.5, -4, -3.5] + [round(x, 2) for x in np.arange(-3.0, 3.01, 0.2)] + [3.5, 4, 4.5, 5],
+            [-2.5, -2] + [round(x, 2) for x in np.arange(-1.5, 1.51, 0.1)] + [2, 2.5], "RdBu_r", 0.5, 0.25),
     # North America snowfall (monthly mean rate, mm of water equivalent per day; ×10 ≈ cm of snow)
     "sf": ("Snowfall, water equivalent", "mm/day", [-3, -2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2, 3],
            [-2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2], "BrBG", None, None),
@@ -462,7 +465,11 @@ def load_global(ym: str) -> dict:
     if fc_path("gl_z500", ym).exists() and hc_path("gl_z500", ym[4:]).exists():
         fc, lat, lon = load_field(fc_path("gl_z500", ym), "z")
         hc, _, _ = load_field(hc_path("gl_z500", ym[4:]), "z")
-        out["z500"] = (fc / G0, np.nanmean(hc, axis=0) / G0, lat, lon); del hc
+        # samples are member-major, year fastest (_stack_samples): per-year ensemble means give the
+        # interannual σ used to standardise heights (user 2026-09-07: "standardize 500 mb heights")
+        ny = 24 if hc.shape[0] % 24 == 0 else 1
+        hc_ym = np.nanmean(hc.reshape(-1, ny, *hc.shape[1:]), axis=0) / G0 if ny > 1 else None
+        out["z500"] = (fc / G0, np.nanmean(hc, axis=0) / G0, lat, lon, hc_ym); del hc
     if fc_path("na_snow", ym).exists() and hc_path("na_snow", ym[4:]).exists():
         fac = 86400.0 * 1000                                                  # m w.e. s⁻¹ → mm/day
         fc, lat, lon = load_field(fc_path("na_snow", ym), "mtsfr")
@@ -540,7 +547,7 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
     fig.savefig(out, dpi=125, pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
 
 
-def render_global_maps(ym: str, prev: str | None, out_dir: Path) -> dict:
+def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> dict:
     """One image per (variable, period, kind): the ensemble-mean anomaly of this issue against its
     own hindcast, and the change against the previous issue (each anomalised against its own
     start-month hindcast). Plate carrée, most of the world. Files: seas5_map_{var}_{anom|chg}_{period}.webp."""
@@ -553,22 +560,30 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path) -> dict:
     prev_lbl = f"{calendar.month_name[int(prev[4:])]} issue" if prev else ""
     periods = _period_sets(ym, prev if before else None)
     meta = {"periods": [dict(key=k, label=l, kind="month" if len(ln) == 1 else "season") for k, l, ln, _ in periods], "vars": {}}
-    for var, (fc, hcm, lat, lon) in now.items():
+    for var, tup in now.items():
+        if only and var not in only:
+            continue
+        fc, hcm, lat, lon = tup[:4]; hc_ym = tup[4] if len(tup) > 4 else None
         label, units, lv_a, lv_c, cmap, cs_a, cs_c = MAP_SPEC[var]
         fcm = np.nanmean(fc, axis=0)                                            # [lead, lat, lon]
-        entry = {"label": label, "units": units, "anom": {}, "chg": {}}
+        entry = {"label": label, "units": units, "anom": {}, "chg": {}, "standardised": hc_ym is not None}
         pb = before.get(var)
         for key, plabel, ln, lp in periods:
             idx = [L - 1 for L in ln]
             a = fcm[idx].mean(0) - hcm[idx].mean(0)
+            if hc_ym is not None:                                               # σ of the per-year ensemble means over the period
+                sd = np.nanstd(hc_ym[:, idx].mean(1), axis=0); a = a / np.where(sd > 0, sd, np.nan)
             out = out_dir / f"seas5_map_{var}_anom_{key}.webp"
             _global_map(a, lat, lon, var, lv_a, cmap, cs_a, f"SEAS5 {label} anomaly · {plabel} · {issue_lbl}",
                         "Ensemble mean of 51 members minus the 1993–2016 start-month hindcast mean (25 members × 24 years), 1° grid.",
                         f"anomaly ({units})", out)
             entry["anom"][key] = dict(file=out.name, mean=float(np.nanmean(a)))
             if pb is not None and lp is not None:
-                fcp, hcp, _, _ = pb; ip = [L - 1 for L in lp]
-                c = a - (np.nanmean(fcp, axis=0)[ip].mean(0) - hcp[ip].mean(0))
+                fcp, hcp = pb[0], pb[1]; ip = [L - 1 for L in lp]
+                ap = np.nanmean(fcp, axis=0)[ip].mean(0) - hcp[ip].mean(0)
+                if hc_ym is not None:
+                    ap = ap / np.where(sd > 0, sd, np.nan)                      # same σ, so the change is in the same units
+                c = a - ap
                 out = out_dir / f"seas5_map_{var}_chg_{key}.webp"
                 _global_map(c, lat, lon, var, lv_c, cmap, cs_c, f"SEAS5 {label}: change since the {prev_lbl} · {plabel} · {issue_lbl}",
                             "Each issue's ensemble mean anomalised against its own start-month hindcast, so this is the shift in the forecast, not drift. Periods the earlier issue does not cover are not drawn.",

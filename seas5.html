@@ -191,9 +191,9 @@
     <div class="controls" id="mapKind" style="margin-top:0.4rem">
       <button class="pill on" data-k="anom">Anomaly</button>
       <button class="pill" data-k="chg">Change since previous issue</button>
-      <label style="margin-left:0.8rem;font:600 0.72rem var(--sans);color:var(--ink2)">Period
-        <select id="mapPeriod" style="font:inherit;margin-left:0.3rem"></select></label>
     </div>
+    <div class="controls" id="mapPeriod" style="margin-top:0.4rem"></div>
+    <div class="controls" id="mapSeasons"></div>
     <div class="map-grid" id="mapSingle"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5, consecutive monthly issues &middot; anomalies vs each issue&rsquo;s own 1993&ndash;2016 start-month hindcast &middot; 1&deg; grid</span>
@@ -572,29 +572,56 @@
     });
     document.getElementById("changeTable").innerHTML = rows.join("");
     var M = J.maps || {}, V = M.vars || {}, P = M.periods || [];
-    var state = { v: V.sst ? "sst" : Object.keys(V)[0], k: "anom", p: null };
-    var vb = document.getElementById("mapVar"), kb = document.getElementById("mapKind"), sel = document.getElementById("mapPeriod"), g = document.getElementById("mapSingle");
+    var state = { v: V.sst ? "sst" : Object.keys(V)[0], k: "anom", p: null, playing: false, timer: null, delay: 900 };
+    var vb = document.getElementById("mapVar"), kb = document.getElementById("mapKind"), pb = document.getElementById("mapPeriod"), sb = document.getElementById("mapSeasons"), g = document.getElementById("mapSingle");
     Array.prototype.forEach.call(vb.children, function (b) { b.hidden = !V[b.dataset.v]; b.classList.toggle("on", b.dataset.v === state.v); });
+    function entries() { return V[state.v] ? V[state.v][state.k] || {} : {}; }
+    function months() { var e = entries(); return P.filter(function (q) { return q.kind === "month" && e[q.key]; }); }
+    function seasons() { var e = entries(); return P.filter(function (q) { return q.kind === "season" && e[q.key]; }); }
+    function src(e) { return "assets/sst/" + e.file + "?v=" + encodeURIComponent(J.generated); }
+    function stop() { state.playing = false; if (state.timer) { clearInterval(state.timer); state.timer = null; } var b = document.getElementById("mapPlay"); if (b) b.textContent = "▶ Play"; }
+    function step(dir) { var ms = months(); if (!ms.length) return; var i = ms.map(function (q) { return q.key; }).indexOf(state.p); i = (i + dir + ms.length) % ms.length; state.p = ms[i].key; drawMap(); }
+    function play() { var ms = months(); if (ms.length < 2) return; state.playing = true; document.getElementById("mapPlay").textContent = "❚❚ Pause"; if (ms.map(function (q) { return q.key; }).indexOf(state.p) < 0) state.p = ms[0].key; state.timer = setInterval(function () { step(1); }, state.delay); }
     function fillPeriods() {
-      var e = V[state.v] ? V[state.v][state.k] || {} : {};
-      var opts = P.filter(function (q) { return e[q.key]; });
-      sel.innerHTML = opts.map(function (q) { return '<option value="' + q.key + '">' + q.label + (q.kind === "season" ? " (season)" : "") + "</option>"; }).join("");
-      if (!opts.some(function (q) { return q.key === state.p; })) state.p = opts.length ? opts[0].key : null;
-      if (state.p) sel.value = state.p;
+      stop();
+      var ms = months(), ss = seasons(), e = entries();
+      var all = ms.concat(ss);
+      if (!all.some(function (q) { return q.key === state.p; })) state.p = all.length ? all[0].key : null;
+      // month animator: play/pause, step, a slider over the months, speed
+      pb.innerHTML = ms.length ? '<span class="ctlsep">Months</span><button class="pill" id="mapPlay" type="button">▶ Play</button><button class="pill" id="mapPrev" type="button" title="previous month">‹</button>' +
+        '<input type="range" id="mapSlider" min="0" max="' + (ms.length - 1) + '" step="1" value="0" style="width:min(320px,40vw);vertical-align:middle;accent-color:var(--accent)">' +
+        '<button class="pill" id="mapNext" type="button" title="next month">›</button><span id="mapFrame" style="font:600 0.8rem var(--sans);color:var(--ink);min-width:6rem"></span>' +
+        '<button class="pill" id="mapSpeed" type="button" title="frame time">' + (state.delay >= 900 ? "slow" : "fast") + '</button>' : "";
+      sb.innerHTML = ss.length ? '<span class="ctlsep">Seasons</span>' + ss.map(function (q) { return '<button class="pill' + (q.key === state.p ? " on" : "") + '" data-p="' + q.key + '">' + q.label + "</button>"; }).join("") : "";
+      // preload the month frames so playback does not stutter
+      ms.forEach(function (q) { var im = new Image(); im.src = src(e[q.key]); });
+      if (ms.length) {
+        document.getElementById("mapPlay").onclick = function () { state.playing ? stop() : play(); };
+        document.getElementById("mapPrev").onclick = function () { stop(); step(-1); };
+        document.getElementById("mapNext").onclick = function () { stop(); step(1); };
+        document.getElementById("mapSpeed").onclick = function () { state.delay = state.delay >= 900 ? 450 : 900; this.textContent = state.delay >= 900 ? "slow" : "fast"; if (state.playing) { stop(); play(); } };
+        document.getElementById("mapSlider").oninput = function () { stop(); state.p = ms[+this.value].key; drawMap(); };
+      }
     }
     function drawMap() {
-      var e = V[state.v] && V[state.v][state.k] && state.p ? V[state.v][state.k][state.p] : null;
-      if (!e) { g.innerHTML = '<p class="note">No map for this selection.</p>'; return; }
+      var e = entries()[state.p];
+      var ms = months(), mi = ms.map(function (q) { return q.key; }).indexOf(state.p);
+      var sl = document.getElementById("mapSlider"), fr = document.getElementById("mapFrame");
+      if (sl && mi >= 0) sl.value = mi;
+      Array.prototype.forEach.call(sb.querySelectorAll("button"), function (b) { b.classList.toggle("on", b.dataset.p === state.p); });
+      if (!e) { g.innerHTML = '<p class="note">No map for this selection.</p>'; if (fr) fr.textContent = ""; return; }
       var q = P.filter(function (x) { return x.key === state.p; })[0] || {}, vv = V[state.v];
-      var src = "assets/sst/" + e.file + "?v=" + encodeURIComponent(J.generated);
+      if (fr) fr.textContent = mi >= 0 ? q.label + " (" + (mi + 1) + "/" + ms.length + ")" : "";
       var what = state.k === "anom" ? "anomaly vs the 1993–2016 hindcast" : issueLabel(J.issue) + " issue minus " + issueLabel(prev) + " issue";
-      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "sf" ? "Green more snow (water equivalent; ×10 is roughly centimetres of snow), brown less." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing)." : "Red warmer, blue cooler.";
-      g.innerHTML = '<figure><a href="' + src + '" target="_blank" rel="noopener"><img src="' + src + '" alt="SEAS5 ' + vv.label + ' ' + what + ', ' + q.label + '"></a>' +
+      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "sf" ? "Green more snow (water equivalent; ×10 is roughly centimetres of snow), brown less." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing), in σ of the hindcast's year-to-year spread." : "Red warmer, blue cooler.";
+      var old = g.querySelector("img");
+      if (old && old.dataset.frame) { old.src = src(e); old.alt = "SEAS5 " + vv.label + " " + what + ", " + q.label; g.querySelector("a").href = src(e); g.querySelector("figcaption").innerHTML = "<b>" + vv.label + "</b> — " + what + ", " + q.label + ". Area mean " + (e.mean >= 0 ? "+" : "") + fmt(e.mean, 2) + " " + vv.units + ". " + read; return; }
+      g.innerHTML = '<figure><a href="' + src(e) + '" target="_blank" rel="noopener"><img data-frame="1" src="' + src(e) + '" alt="SEAS5 ' + vv.label + ' ' + what + ', ' + q.label + '"></a>' +
         '<figcaption><b>' + vv.label + '</b> — ' + what + ', ' + q.label + '. Area mean ' + (e.mean >= 0 ? "+" : "") + fmt(e.mean, 2) + " " + vv.units + ". " + read + "</figcaption></figure>";
     }
     vb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; state.v = b.dataset.v; Array.prototype.forEach.call(vb.children, function (c) { c.classList.toggle("on", c === b); }); fillPeriods(); drawMap(); });
     kb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; state.k = b.dataset.k; Array.prototype.forEach.call(kb.querySelectorAll("button"), function (c) { c.classList.toggle("on", c === b); }); fillPeriods(); drawMap(); });
-    sel.addEventListener("change", function () { state.p = sel.value; drawMap(); });
+    sb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; stop(); state.p = b.dataset.p; drawMap(); });
     fillPeriods(); drawMap();
     document.getElementById("changeUpdated").textContent = "built " + J.generated;
   }

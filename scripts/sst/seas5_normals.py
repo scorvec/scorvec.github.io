@@ -156,12 +156,13 @@ def references(var: str, month: int, year: int) -> dict | None:
 def model_fields(ym: str, var: str):
     label, kind, mvar, _, _, fac, _, _ = VARS[var]
     if var == "pme":
-        tp = model_fields(ym, "tp")
-        f, h = fc_path("water", ym), hc_path("water", ym[4:])
-        if tp is None or not (f.exists() and h.exists()):
+        # evaporation is an Americas-box pull, so P − E uses the Americas precipitation (not the global kind)
+        f, h = fc_path("water", ym), hc_path("water", ym[4:]); ft, ht = fc_path("sfc", ym), hc_path("sfc", ym[4:])
+        if not (f.exists() and h.exists() and ft.exists() and ht.exists()):
             return None
         fe, lat, lon = load_field(f, "e"); he, _, _ = load_field(h, "e")
-        return tp[0] + fe * 86400.0 * 1000, tp[1] + he * 86400.0 * 1000, lat, lon   # e is m/s (rate), negative upward
+        ftp, _, _ = load_field(ft, "tprate"); htp, _, _ = load_field(ht, "tprate")
+        return (ftp + fe) * 86400.0 * 1000, (htp + he) * 86400.0 * 1000, lat, lon   # e is m/s (rate), negative upward
     f, h = fc_path(kind, ym), hc_path(kind, ym[4:])
     if not (f.exists() and h.exists()):
         alt = {"gl": "sfc", "gl_z500": "z500"}.get(kind)              # Americas fallback for the global kinds
@@ -187,9 +188,10 @@ def _regrid_to(src, slat, slon, lat, lon, reach: float = 1.1):
     grid. Target points farther than `reach` degrees from any source point are NaN — the store's
     precipitation covers 0–90°N only, and without this the equator row would be smeared over
     South America."""
-    ilat = np.array([int(np.argmin(np.abs(slat - v))) for v in lat]); ilon = np.array([int(np.argmin(np.abs(slon - v))) for v in lon])
+    dlon = lambda a, b: np.abs((a - b + 180.0) % 360.0 - 180.0)          # circular: the 180° column must not fall in a gap
+    ilat = np.array([int(np.argmin(np.abs(slat - v))) for v in lat]); ilon = np.array([int(np.argmin(dlon(slon, v))) for v in lon])
     out = src[..., ilat[:, None], ilon[None, :]].astype(np.float64, copy=True)
-    far_lat = np.abs(slat[ilat] - lat) > reach; far_lon = np.abs(slon[ilon] - lon) > reach
+    far_lat = np.abs(slat[ilat] - lat) > reach; far_lon = dlon(slon[ilon], lon) > reach
     out[..., far_lat, :] = np.nan; out[..., :, far_lon] = np.nan
     return out
 
@@ -379,7 +381,10 @@ def build(ym: str, only_vars=None, only_refs=None) -> None:
            "vars": {k: dict(label=v[0], units=v[6]) for k, v in VARS.items()}, "figures": {}, "periods": [], "extent": {}}
     for var in (only_vars or VARS):
         for ref in (only_refs or REFS):
-            panels, lat, lon = panels_for(ym, var, ref)
+            try:
+                panels, lat, lon = panels_for(ym, var, ref)
+            except Exception as e:                                    # noqa: BLE001 — one variable must not sink the rest
+                print(f"  {var} vs {ref}: FAILED ({str(e)[:120]})", flush=True); continue
             if panels is None:
                 print(f"  {var} vs {ref}: fields not on disk — skipped", flush=True); continue
             if not man["periods"]:
