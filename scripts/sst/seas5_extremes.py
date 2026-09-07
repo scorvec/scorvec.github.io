@@ -31,7 +31,14 @@ from seas5_popT import REGIONS, SIXH, MONTHS, month_hours                       
 
 ERA5D = DATA / "era5" / "daily"
 YEARS = list(range(1991, 2021))
-THRESH = {"us": ("tn", "cold days, T min ≤", [0, -10, -20], "le"), "br": ("tx", "hot days, T max >", [35, 37, 40], "gt")}
+# threshold sets per region: (set key, daily statistic, label, thresholds °C, operator); more thresholds
+# and both tails per region (user 2026-09-07: "add more temperature thresholds for these regions")
+THRESH = {
+    "us": [("cold", "tn", "cold days, T min ≤", [5, 0, -5, -10, -15, -20], "le"),
+           ("hot", "tx", "hot days, T max ≥", [30, 35, 38, 40], "ge")],
+    "br": [("hot", "tx", "hot days, T max ≥", [30, 32, 35, 37, 40], "ge"),
+           ("cool", "tn", "cool nights, T min ≤", [15, 10, 5], "le")],
+}
 
 
 def xchunk_path(region: str, ym: str, k: int) -> Path:

@@ -94,27 +94,28 @@ def cpc_normal(region: str, stat: str, lat, lon) -> tuple[dict, list[int]]:
     key = (region, stat)
     if key in _ERA5_NORMAL:
         return _ERA5_NORMAL[key]
-    _, _, thrs, op = THRESH[region]
+    _, _, _, thrs, op = [t for t in THRESH[region] if t[1] == stat][0]
     vals, months, used = cpc_daily(stat, region, YEARS, lat, lon)
     acc = {t: np.full((12, lat.size, lon.size), np.nan) for t in thrs}
     if used:
         for m in range(1, 13):
             sel = months == m; nyr = len(used)
             for t in thrs:
-                hit = (vals[sel] <= t) if op == "le" else (vals[sel] > t)
+                hit = (vals[sel] <= t) if op == "le" else (vals[sel] >= t)
                 acc[t][m - 1] = np.where(np.isfinite(vals[sel]).all(0), hit.sum(0) / nyr, np.nan)
     _ERA5_NORMAL[key] = (acc, used)
     return acc, used
 
 
-def pct_map(ratio, lat, lon, normal, region, thr_label, plabel, issue_lbl, out: Path):
+def pct_map(ratio, lat, lon, normal, region, thr_label, plabel, issue_lbl, out: Path, cold: bool = False):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.colors import BoundaryNorm, ListedColormap
     import cartopy.crs as ccrs, cartopy.feature as cfeature
     pc = ccrs.PlateCarree(); area = REGIONS[region][2]
-    cols = ["#1f4f8f", "#3672b6", "#8ab6df", "#dbe9f6", "#f4f4f1", "#fde4cf", "#f59d68", "#e8703c", "#c8451c", "#8f2a0d"] if region == "us" else \
-           ["#1b6229", "#5aae5c", "#b6dfad", "#dcf0d6", "#f4f4f1", "#fde4cf", "#f59d68", "#e8703c", "#c8451c", "#8f2a0d"]
+    # cold-day sets: fewer cold days than normal reads warm (red), more reads blue; hot-day sets the reverse
+    warm_side = ["#fde4cf", "#f59d68", "#e8703c", "#c8451c", "#8f2a0d"]; cool_side = ["#1f4f8f", "#3672b6", "#8ab6df", "#dbe9f6"]
+    cols = (warm_side[::-1] + ["#f4f4f1"] + cool_side[::-1]) if cold else (cool_side + ["#f4f4f1"] + warm_side)
     W = 11.0; H = W * (area[0] - area[2]) / (area[3] - area[1]) + 2.1
     fig = plt.figure(figsize=(W, H)); ax = fig.add_axes([0.03, 0.95 / H, 0.94, (H - 2.1) / H], projection=pc)
     ax.set_extent([area[1], area[3], area[2], area[0]], crs=pc)
@@ -141,44 +142,48 @@ def build(ym: str) -> dict:
     doc = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "regions": {}}
     issue_lbl = f"{calendar.month_name[int(ym[4:])]} {ym[:4]} issue"
     for region, (label, cc, area, unit) in REGIONS.items():
-        stat, thr_label, thrs, op = THRESH[region]
-        entry = {"label": label, "kind": thr_label, "thresholds": thrs, "months": {}, "normal_years": None}
-        w = None
-        for k in range(1, 7):
-            if not xchunk_path(region, ym, k).exists():
-                continue
-            tx, tn, lat, lon = daily_extremes(region, ym, k)
-            if w is None:
-                w = pop_grid(region, lat, lon); wn = w / w.sum()
-            vm = valid_months(ym)[k - 1]; mo = int(vm[5:]); plabel = f"{calendar.month_abbr[mo]} {vm[:4]}"
-            raw = tn if stat == "tn" else tx
-            hc = hindcast_extremes(region, ym, k, stat)
-            ov, om, oyrs = cpc_daily(stat, region, range(1993, 2017), lat, lon)
-            if hc is not None and ov is not None and len(oyrs) >= 20:
-                field = quantile_map(raw, hc, ov[om == mo]); corr = "quantile-mapped (hindcast → CPC 1993–2016)"
-                del hc
-            else:
-                shift = bias_shift(ym, k, region, lat, lon)
-                field = raw - (shift[None, None] if shift is not None else 0.0); corr = "mean shift" if shift is not None else "uncorrected"
-            normal, used = cpc_normal(region, stat, lat, lon); entry["normal_years"] = [min(used), max(used), len(used)] if used else None
-            mrec = {}
-            for t in thrs:
-                hit = (field <= t) if op == "le" else (field > t)
-                cnt = hit.sum(1).astype(np.float32)                                # [member, lat, lon] days
-                pop_days = np.tensordot(cnt, wn, axes=([1, 2], [0, 1]))          # [member]
-                nrm = normal[t][mo - 1] if used else np.full(cnt.shape[1:], np.nan)
-                pop_norm = float(np.nansum(np.where(np.isfinite(nrm), nrm, 0) * wn) / max(np.sum(wn[np.isfinite(nrm)]), 1e-9)) if used else None
-                mean_cnt = cnt.mean(0)
-                out = ASSETS / f"seas5_xdays_{region}_{abs(t)}{'m' if t < 0 else ''}_{vm.replace('-', '_')}.webp"
-                if used:
-                    ratio = np.where(nrm > 0, mean_cnt / np.maximum(nrm, 1e-6), np.nan)
-                    pct_map(ratio, lat, lon, nrm, region, f"{thr_label} {t} °C, % of normal", plabel, issue_lbl, out)
-                mrec[str(t)] = {"days": round(float(pop_days.mean()), 2), "p10": round(float(np.percentile(pop_days, 10)), 2),
-                                "p90": round(float(np.percentile(pop_days, 90)), 2), "normal": round(pop_norm, 2) if pop_norm is not None else None,
-                                "pct": round(100 * float(pop_days.mean()) / pop_norm, 1) if pop_norm else None,
-                                "map": out.name if used else None, "correction": corr}
-            entry["months"][vm] = mrec
-            print(f"  {region} {vm} [{corr}]: " + ", ".join(f"{t}°C {v['days']:.1f} d (normal {v['normal']}, {v['pct']}%)" for t, v in mrec.items()), flush=True)
+        entry = {"label": label, "sets": {}, "normal_years": None}
+        w = None; cache = {}
+        for set_key, stat, thr_label, thrs, op in THRESH[region]:
+            sub = {"kind": thr_label, "stat": stat, "thresholds": thrs, "months": {}}
+            for k in range(1, 7):
+                if not xchunk_path(region, ym, k).exists():
+                    continue
+                if k not in cache:
+                    cache.clear(); cache[k] = daily_extremes(region, ym, k)
+                tx, tn, lat, lon = cache[k]
+                if w is None:
+                    w = pop_grid(region, lat, lon); wn = w / w.sum()
+                vm = valid_months(ym)[k - 1]; mo = int(vm[5:]); plabel = f"{calendar.month_abbr[mo]} {vm[:4]}"
+                raw = tn if stat == "tn" else tx
+                hc = hindcast_extremes(region, ym, k, stat)
+                ov, om, oyrs = cpc_daily(stat, region, range(1993, 2017), lat, lon)
+                if hc is not None and ov is not None and len(oyrs) >= 20:
+                    field = quantile_map(raw, hc, ov[om == mo]); corr = "quantile-mapped (hindcast → CPC 1993–2016)"
+                    del hc
+                else:
+                    shift = bias_shift(ym, k, region, lat, lon)
+                    field = raw - (shift[None, None] if shift is not None else 0.0); corr = "mean shift" if shift is not None else "uncorrected"
+                normal, used = cpc_normal(region, stat, lat, lon); entry["normal_years"] = [min(used), max(used), len(used)] if used else None
+                mrec = {}
+                for t in thrs:
+                    hit = (field <= t) if op == "le" else (field >= t)
+                    cnt = hit.sum(1).astype(np.float32)                                # [member, lat, lon] days
+                    pop_days = np.tensordot(cnt, wn, axes=([1, 2], [0, 1]))          # [member]
+                    nrm = normal[t][mo - 1] if used else np.full(cnt.shape[1:], np.nan)
+                    pop_norm = float(np.nansum(np.where(np.isfinite(nrm), nrm, 0) * wn) / max(np.sum(wn[np.isfinite(nrm)]), 1e-9)) if used else None
+                    mean_cnt = cnt.mean(0)
+                    out = ASSETS / f"seas5_xdays_{region}_{stat}_{abs(t)}{'m' if t < 0 else ''}_{vm.replace('-', '_')}.webp"
+                    if used:
+                        ratio = np.where(nrm > 0, mean_cnt / np.maximum(nrm, 1e-6), np.nan)
+                        pct_map(ratio, lat, lon, nrm, region, f"{thr_label} {t} °C, % of normal", plabel, issue_lbl, out, cold=(op == "le"))
+                    mrec[str(t)] = {"days": round(float(pop_days.mean()), 2), "p10": round(float(np.percentile(pop_days, 10)), 2),
+                                    "p90": round(float(np.percentile(pop_days, 90)), 2), "normal": round(pop_norm, 2) if pop_norm is not None else None,
+                                    "pct": round(100 * float(pop_days.mean()) / pop_norm, 1) if pop_norm else None,
+                                    "map": out.name if used else None, "correction": corr}
+                sub["months"][vm] = mrec
+                print(f"  {region} {set_key} {vm} [{corr}]: " + ", ".join(f"{t}°C {v['days']:.1f} d (normal {v['normal']}, {v['pct']}%)" for t, v in mrec.items()), flush=True)
+            entry["sets"][set_key] = sub
         doc["regions"][region] = entry
     OUT_JSON.write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {OUT_JSON} in {(time.time() - t0) / 60:.1f} min", flush=True)
