@@ -73,7 +73,19 @@ def main():
                 ' predicted MJO track evolve.</p>\n'
                 '  <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets'
                 '&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" '
-                'title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>')
+                'title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>
+  <p class="lede lede--wide" style="margin-top:1.4rem">Real-time Multivariate MJO (RMM) phase-space forecast from the
+  ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
+  Wheeler &amp; Hendon (2004). Full three-channel projection: U850/U200 plus a
+  pseudo-OLR channel built from &minus;standardized tropical precipitation (tropical
+  rain and OLR anticorrelate closely); falls back to wind-only if precip is
+  unavailable for a cycle. The physics-based <strong>IFS-ENS</strong> (50 members)
+  is overlaid in blue through the <em>identical</em> machinery whenever its data
+  has landed — a direct AI-vs-physics comparison in the same coordinates.
+  Amplitude is the radial distance (rings at 1, 2, 3).
+  Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
+  degrees of the official BoM RMM phase).</p>
+')
     else:
         body = '<p class="empty">No forecasts yet — the first scheduled run will populate this page.</p>'
 
@@ -147,17 +159,6 @@ def main():
 {NAV}
 <main>
   <h1>MJO forecast from the AIFS ensemble</h1>
-  <p class="lede lede--wide">Real-time Multivariate MJO (RMM) phase-space forecast from the
-  ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
-  Wheeler &amp; Hendon (2004). Full three-channel projection: U850/U200 plus a
-  pseudo-OLR channel built from &minus;standardized tropical precipitation (tropical
-  rain and OLR anticorrelate closely); falls back to wind-only if precip is
-  unavailable for a cycle. The physics-based <strong>IFS-ENS</strong> (50 members)
-  is overlaid in blue through the <em>identical</em> machinery whenever its data
-  has landed — a direct AI-vs-physics comparison in the same coordinates.
-  Amplitude is the radial distance (rings at 1, 2, 3).
-  Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
-  degrees of the official BoM RMM phase).</p>
   {body}
   <p class="meta">Updated {updated} · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +

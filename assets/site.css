@@ -340,3 +340,9 @@ html main > .lede.lede--wide, html .wrap > .lede.lede--wide {
   max-width: none; column-count: 2; column-gap: 2.6rem; font-size: 1rem; line-height: 1.55; padding: 0.9rem 1.3rem;
 }
 @media (max-width: 900px) { html main > .lede.lede--wide, html .wrap > .lede.lede--wide { column-count: 1; } }
+
+/* Every figure fits the viewport it is shown on (user rule, 2026-09-07): images, loops and
+   embedded plots never exceed their container; wide tables scroll inside their wrapper. */
+html img, html video, html canvas { max-width: 100%; height: auto; }
+html iframe { max-width: 100%; }
+html .img-wrap, html .table-wrap { max-width: 100%; overflow-x: auto; }
