@@ -41,6 +41,20 @@ BASE = "https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1"
 LAT0 = 20          # plot + load domain: 20N poleward
 
 
+
+def lead_days_of(lead) -> np.ndarray:
+    """Lead in whole days whether the store's `lead` decodes as timedelta or as integer days
+    (xarray 2026.7 leaves the int64 'days' coordinate undecoded; pd.to_timedelta on ints reads
+    nanoseconds and every lead became 0, 2026-09-07)."""
+    v = np.asarray(lead.values if hasattr(lead, "values") else lead)
+    if np.issubdtype(v.dtype, np.timedelta64):
+        return (v / np.timedelta64(1, "D")).astype(int)
+    units = str(getattr(lead, "attrs", {}).get("units", "days")).lower()
+    v = v.astype(float)
+    if units.startswith("hour"): v = v / 24.0
+    elif units.startswith("second"): v = v / 86400.0
+    return np.round(v).astype(int)
+
 def _open(url):
     import fsspec
     return xr.open_zarr(fsspec.get_mapper(url), consolidated=True,
@@ -53,7 +67,7 @@ def _nh(ds):
 
 def _msel(ds, maxday=None):
     """Even-lead (instantaneous-field) indices, optionally capped by valid day."""
-    days = pd.to_timedelta(ds.lead.values).days.values
+    days = lead_days_of(ds.lead)
     probe = ds.HGT_100mb
     idx = {"member": 0, "lat": 0, "lon": 0}
     if "init" in probe.dims:
@@ -148,7 +162,7 @@ def main():
 
     ds = _nh(_open(f"{BASE}/forecast/{issue}/atm_daily.zarr"))
     lat, lon = ds.lat.values, ds.lon.values
-    lead_days = pd.to_timedelta(ds.lead.values).days.values
+    lead_days = lead_days_of(ds.lead)
     sel = _msel(ds)                                   # all even leads
     z = ds.HGT_100mb.values[:, sel].mean(axis=0) / 10.0   # (n, lat, lon) dam
     u = ds.UGRD_100mb.values[:, sel].mean(axis=0)

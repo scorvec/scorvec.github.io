@@ -43,6 +43,20 @@ OUTJSON = REPO / "assets" / "sfs" / "data" / "sfs_mjo.json"
 BASE = "https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1"
 
 
+
+def lead_days_of(lead) -> np.ndarray:
+    """Lead in whole days whether the store's `lead` decodes as timedelta or as integer days
+    (xarray 2026.7 leaves the int64 'days' coordinate undecoded; pd.to_timedelta on ints reads
+    nanoseconds and every lead became 0, 2026-09-07)."""
+    v = np.asarray(lead.values if hasattr(lead, "values") else lead)
+    if np.issubdtype(v.dtype, np.timedelta64):
+        return (v / np.timedelta64(1, "D")).astype(int)
+    units = str(getattr(lead, "attrs", {}).get("units", "days")).lower()
+    v = v.astype(float)
+    if units.startswith("hour"): v = v / 24.0
+    elif units.startswith("second"): v = v / 86400.0
+    return np.round(v).astype(int)
+
 def _open(url):
     import fsspec
     return xr.open_zarr(fsspec.get_mapper(url), consolidated=True,
@@ -145,7 +159,7 @@ def main():
     lat, lon = band.lat.values, band.lon.values
     u850 = band.UGRD_850mb.values                     # (31, 47, ~33, 360)
     u200 = band.UGRD_200mb.values
-    lead_days = pd.to_timedelta(ds.lead.values).days.values
+    lead_days = lead_days_of(ds.lead)
     sel = np.where(np.isfinite(u850[0, :, 0, 180]))[0]
     valid = [t0 + pd.Timedelta(days=int(d)) for d in lead_days[sel]]
 

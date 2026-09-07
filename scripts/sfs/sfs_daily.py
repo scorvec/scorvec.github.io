@@ -79,6 +79,20 @@ EPO_N = (55, 65, 200, 235)   # north box, −
 AO_DOM = (20, 90)            # 1000-hPa EOF domain, all longitudes, at 2°
 
 
+
+def lead_days_of(lead) -> np.ndarray:
+    """Lead in whole days whether the store's `lead` decodes as timedelta or as integer days
+    (xarray 2026.7 leaves the int64 'days' coordinate undecoded; pd.to_timedelta on ints reads
+    nanoseconds and every lead became 0, 2026-09-07)."""
+    v = np.asarray(lead.values if hasattr(lead, "values") else lead)
+    if np.issubdtype(v.dtype, np.timedelta64):
+        return (v / np.timedelta64(1, "D")).astype(int)
+    units = str(getattr(lead, "attrs", {}).get("units", "days")).lower()
+    v = v.astype(float)
+    if units.startswith("hour"): v = v / 24.0
+    elif units.startswith("second"): v = v / 86400.0
+    return np.round(v).astype(int)
+
 def _open(url):
     import fsspec
     import xarray as xr
@@ -411,9 +425,10 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
             import sys as _sys2; _sys2.path.insert(0, str(REPO / "scripts" / "sst")); import mapstyle as MS
             from matplotlib.colors import BoundaryNorm
             if glob:
-                fig, ax, H, pc = MS.open_map(kind="atm"); levels = MS.symmetric_levels(15, 6); cmap = "BrBG"
+                fig, ax, H, pc = MS.open_map(kind="atm"); levels = [-15, -10, -6, -4, -2, -1, 1, 2, 4, 6, 10, 15]; cmap = "BrBG"
             else:
-                fig, ax, H, pc = MS.open_map(kind="atm", extent=[-180, 180, 20, 90]); levels = MS.symmetric_levels(10 if key == "t2md" else 24, 6); cmap = "RdBu_r"
+                fig, ax, H, pc = MS.open_map(kind="atm", extent=[-180, 180, 20, 90]); cmap = "RdBu_r"
+                levels = [-10, -7, -5, -3, -2, -1, 1, 2, 3, 5, 7, 10] if key == "t2md" else [-24, -18, -12, -8, -4, -2, 2, 4, 8, 12, 18, 24]
             pm0 = ax.pcolormesh(LONg, LATg, ens[i], cmap=plt.get_cmap(cmap, len(levels) - 1), norm=BoundaryNorm(levels, len(levels) - 1),
                                 transform=pc, shading="auto", rasterized=True, zorder=1)
             if zabs is not None:
@@ -600,7 +615,7 @@ def main():
     # all-NaN; the reforecast is fully daily). Keep the finite leads from day
     # 16 on — the subseasonal weeks-3-to-6.5 window where this system adds
     # value beyond medium-range NWP.
-    lead_days = pd.to_timedelta(ds.lead.values).days.values
+    lead_days = lead_days_of(ds.lead)
     finite = np.isfinite(t2[0, :, 90, 180])
     sel = np.where(finite & (lead_days >= 16))[0]
     t2, z5, z1, pm = t2[:, sel], z5[:, sel], z1[:, sel], pm[:, sel]
