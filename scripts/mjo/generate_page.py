@@ -187,6 +187,16 @@ def main():
 """
     OUT.write_text(html)
     print(f"wrote {OUT} ({len(items)} plot(s); latest {label(*[items[0][0], items[0][1]]) if items else 'none'})")
+    # The template above carries the OLD nav; the shared header/tabs/footer live in
+    # scripts/site/apply_chrome.py and must be stamped after every regeneration (the same
+    # trap that bit the SST pages 2026-09-06: a green run shipped the old nav for a day).
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("apply_chrome", Path(__file__).resolve().parents[1] / "site" / "apply_chrome.py")
+        chrome = importlib.util.module_from_spec(spec); spec.loader.exec_module(chrome)
+        chrome.stamp_all(only=[str(OUT)], quiet=True)
+    except Exception as e:                                          # noqa: BLE001
+        print(f"  WARNING: site chrome not applied ({e!r}) — run scripts/site/apply_chrome.py", flush=True)
 
 
 if __name__ == "__main__":

@@ -194,6 +194,8 @@ jobs:
 
       - name: Regenerate MJO page
         run: python scripts/mjo/generate_page.py
+      - name: Re-apply the site chrome to the regenerated page
+        run: python scripts/site/apply_chrome.py || true
 
       - name: Commit & push (RMM forecast — goes live before the heavy fetches)
         run: |
