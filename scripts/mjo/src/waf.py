@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
-"""Rossby wave-activity flux (Takaya–Nakamura 2001) at 200 hPa through the
+"""Rossby wave-activity flux (Takaya–Nakamura 2001) at 250 hPa through the
 AIFS-ENS forecast — a live "wave-packet radar".
+
+Since 2026-09-07 (user review): (1) the flux is computed PER MEMBER and averaged — W is
+quadratic in ψ′, so the flux of the ensemble mean fades with lead as members decorrelate,
+which read as "waves dying" when they were merely uncertain; (2) 250 hPa instead of 200 —
+the mid-latitude jet core and the stationary-wave ψ maximum sit at 250–300 hPa, and 200 hPa
+is lowermost stratosphere poleward of ~50°N in winter; (3) ψ′ is low-passed with a 5-day
+running mean along the lead before the flux (TN01 is a quasi-stationary theory; fast synoptic
+packets enter the phase-independent form with error); (4) the shading is hatched where
+members disagree on the sign. The basic state is still the ERA5 day-of-year climatology (a
+low-passed analysis basic state is the next step).
 
 W is the phase-independent flux of quasi-stationary Rossby wave activity: its
 vectors point along the group velocity (where packet energy is HEADING, ducted
@@ -15,19 +25,19 @@ into the PNA and other teleconnection arcs.
          [ U(ψ′ₓ² − ψ′ψ′ₓₓ) + V(ψ′ₓψ′ᵧ − ψ′ψ′ₓᵧ) ,
            U(ψ′ₓψ′ᵧ − ψ′ψ′ₓᵧ) + V(ψ′ᵧ² − ψ′ψ′ᵧᵧ) ]        (TN01 eq. 38, horizontal)
 
-with p̂ = 200/1000 and (U, V) the ERA5 1991–2020 day-of-year basic state
+with p̂ = 250/1000 and (U, V) the ERA5 1991–2020 day-of-year basic state
 (build_waf_clim.py). Masked where |lat| < 20° or the basic-state wind < 3 m/s
 (the quasi-stationary linear theory needs a westerly waveguide).
 
-Data cost: ZERO new downloads — ens-mean u@200 (RMM/AAM pull) and v@200
-(velocity-potential pull) at every daily lead are already cached per cycle.
+Data cost: u and v at 250 hPa for NMEMBERS perturbed members at the 16 daily frame steps
+(~2 × 200 MB per cycle); the store caches them for the cycle.
 
     python src/waf.py --date 20260718 --time 00 \
         --anim-dir assets/sst/anim/waf --manifest assets/sst/anim/waf_manifest.json \
         --out assets/sst/waf.webp
 """
 from __future__ import annotations
-import argparse, json, sys
+import argparse, json, os, sys, warnings
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -46,10 +56,13 @@ from wind200_vpot import _ens_mean, _to_0360
 A = 6.371e6
 LMAX = 63                                    # ψ truncation (~2.8°): synoptic + planetary
 LFILT = 15                                   # ∇·W shown at planetary scale (T15, ≳2500 km)
-PHAT = 200.0 / 1000.0                        # p/p0 factor at 200 hPa
+LEVEL = int(os.environ.get("WAF_LEVEL", "250"))
+PHAT = LEVEL / 1000.0                        # p/p0 factor
 UMIN, LATMIN = 3.0, 20.0                     # basic-state westerly / tropics mask
+NMEMBERS = int(os.environ.get("WAF_MEMBERS", "25"))   # perturbed members for the flux average
+TSMOOTH = 5                                  # days: running mean of ψ′ along the lead (quasi-stationary)
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
-CLIM = REF / "waf_clim_coeffs.nc"            # U, V, ψ harmonic clims on the DH2 grid
+CLIM = REF / ("waf_clim_coeffs.nc" if LEVEL == 200 else f"waf_clim_coeffs_{LEVEL}.nc")   # U, V, ψ harmonic clims on the DH2 grid
 
 
 def streamfunction_psi(u2d: xr.DataArray, v2d: xr.DataArray, lmax: int = LMAX):
@@ -108,7 +121,7 @@ def eval_clim(coefs: np.ndarray, doy: float) -> np.ndarray:
     return np.tensordot(b, coefs, axes=(0, 0))
 
 
-def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Path, vlim: float,
+def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Path, vlim: float, agree=None,
            spd_fc=None):
     fig = plt.figure(figsize=(12.8, 6.4))
     proj = ccrs.PlateCarree(central_longitude=180)
@@ -118,6 +131,9 @@ def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Pat
     # the downstream flow amplifies over the following days; blue = emission.
     cf = ax.contourf(lon, lat, -divw * 1e6, levels=np.linspace(-vlim, vlim, 21),
                      cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
+    if agree is not None:                                   # hatch where members DISAGREE on the sign of ∇·W
+        ax.contourf(lon, lat, np.where(np.isfinite(agree), agree, 1.0), levels=[-0.01, 0.6], colors="none",
+                    hatches=["//"], transform=ccrs.PlateCarree(), zorder=2)
     if spd_fc is not None:
         # the REAL waveguide: the forecast's own 200 hPa jet at this lead
         ax.contour(spd_fc[2], spd_fc[1], spd_fc[0], levels=[25, 35, 45],
@@ -161,56 +177,83 @@ def main() -> int:
 
     import download_aifs
     all_steps = list(download_aifs.rmm_steps(args.time))
-    frame_steps = all_steps[:16]
+    frame_steps = tuple(all_steps[:16])
     cyc = ecmwf.Cycle(args.date, args.time)
-    ds = _ens_mean(cyc, all_steps, frame_steps)
+    up = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "u", "pl", (LEVEL,), frame_steps, NMEMBERS))
+    vp = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", "v", "pl", (LEVEL,), frame_steps, NMEMBERS))
+    ku = dict(engine="cfgrib", backend_kwargs={"indexpath": ""})
+    U = xr.open_dataset(up, **ku)["u"]; Vv = xr.open_dataset(vp, **ku)["v"]
+    if "isobaricInhPa" in U.dims:
+        U = U.sel(isobaricInhPa=LEVEL); Vv = Vv.sel(isobaricInhPa=LEVEL)
+    U = U.squeeze(drop=True); Vv = Vv.squeeze(drop=True)
     init = pd.Timestamp(f"{args.date}T{args.time}:00")
-    steps_h = (ds.step / np.timedelta64(1, "h")).round().astype(int).values
+    steps_h = (U.step / np.timedelta64(1, "h")).round().astype(int).values
+    members = list(U.number.values)
+    nstep = len(steps_h)
 
-    # pass 1: ψ′ per frame for a common colour scale
+    # ψ′ per member and step (the expensive part: nmember × nstep inversions, ~0.1 s each)
+    psi_a = np.zeros((len(members), nstep, len(clat), len(clon)), dtype="float32")
+    for m, num in enumerate(members):
+        for i in range(nstep):
+            valid = init + pd.Timedelta(hours=int(steps_h[i]))
+            psi, plat, plon = streamfunction_psi(U.sel(number=num).isel(step=i), Vv.sel(number=num).isel(step=i))
+            if m == 0 and i == 0:
+                assert np.allclose(plat, clat) and np.allclose(plon, clon), \
+                    "clim grid != live DH2 grid — rebuild waf_clim with the same LMAX"
+            psi_a[m, i] = psi - eval_clim(c["psi"].values, float(valid.dayofyear))
+    # quasi-stationary: running mean of ψ′ along the lead (TSMOOTH days, shrinking at the ends)
+    half = TSMOOTH // 2
+    psi_s = np.empty_like(psi_a)
+    for i in range(nstep):
+        psi_s[:, i] = psi_a[:, max(0, i - half):min(nstep, i + half + 1)].mean(axis=1)
     fields = []
     for i, sh in enumerate(steps_h):
         valid = init + pd.Timedelta(hours=int(sh))
-        psi, plat, plon = streamfunction_psi(ds["u"].isel(step=i), ds["v"].isel(step=i))
-        assert np.allclose(plat, clat) and np.allclose(plon, clon), \
-            "clim grid != live DH2 grid — rebuild waf_clim with the same LMAX"
         doy = float(valid.dayofyear)
-        psi_a = psi - eval_clim(c["psi"].values, doy)
         Uc, Vc = eval_clim(c["U"].values, doy), eval_clim(c["V"].values, doy)
-        wx, wy, divw = tn01_flux(psi_a, Uc, Vc, clat, clon)
-        uf = ds["u"].isel(step=i); vf = ds["v"].isel(step=i)
-        spd_fc = (np.hypot(uf.values, vf.values),
-                  uf.latitude.values, uf.longitude.values)
-        fields.append((valid, sh, psi_a, wx, wy, divw, Uc, Vc, spd_fc))
+        WX, WY, DV = [], [], []
+        for m in range(len(members)):
+            wx, wy, divw = tn01_flux(psi_s[m, i].astype("float64"), Uc, Vc, clat, clon)
+            WX.append(wx); WY.append(wy); DV.append(divw)
+        WX, WY, DV = np.stack(WX), np.stack(WY), np.stack(DV)
+        with np.errstate(all="ignore"), warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)          # all-NaN masked cells
+            wx, wy, divw = np.nanmean(WX, 0), np.nanmean(WY, 0), np.nanmean(DV, 0)
+        sign = np.sign(DV); agree = np.nanmax(np.stack([(sign > 0).mean(0), (sign < 0).mean(0)]), 0)
+        agree = np.where(np.isfinite(divw), agree, np.nan)
+        um = U.isel(step=i).mean("number"); vm = Vv.isel(step=i).mean("number")
+        spd_fc = (np.hypot(um.values, vm.values), um.latitude.values, um.longitude.values)
+        fields.append((valid, sh, psi_s[:, i].mean(0), wx, wy, divw, Uc, Vc, spd_fc, agree))
     vlim = float(np.nanpercentile(np.abs(np.stack([f[5] for f in fields])) * 1e6, 99.0)) or 5.0
 
     anim = Path(args.anim_dir); anim.mkdir(parents=True, exist_ok=True)
     for old in anim.glob("F*.webp"):
         old.unlink()
-    sub = ("arrows = Takaya–Nakamura (2001) wave-activity flux, computed on the CLIMATOLOGICAL basic state "
-           "(ψ′ = forecast − clim) · shading = −∇·W at planetary scale (T15; red ⇒ downstream amplification)\n"
-           "green = the forecast's own 200 hPa jet at this lead (25/35/45 m/s) — the waveguide the packets follow · "
+    sub = (f"arrows = Takaya–Nakamura (2001) wave-activity flux, mean of {len(members)} members' fluxes on the climatological basic state "
+           f"(ψ′ = member − ERA5 clim, {TSMOOTH}-day running mean) · shading = −∇·W at planetary scale (T15; red ⇒ downstream amplification), "
+           "hatched where fewer than 60% of members agree on the sign\n"
+           f"green = the ensemble-mean {LEVEL} hPa jet at this lead (25/35/45 m/s) — the waveguide the packets follow · "
            "masked equatorward of 20° / basic-state wind < 3 m/s")
     frames = []
-    for i, (valid, sh, psi_a, wx, wy, divw, Uc, Vc, spd_fc) in enumerate(fields):
+    for i, (valid, sh, pa, wx, wy, divw, Uc, Vc, spd_fc, agree) in enumerate(fields):
         fp = anim / f"F{i:02d}.webp"
         lead = int(round(sh / 24))
-        render(psi_a, wx, wy, divw, Uc, Vc, clat, clon,
-               f"Rossby wave-activity flux (TN01) 200 hPa — AIFS-ENS mean · "
+        render(pa, wx, wy, divw, Uc, Vc, clat, clon,
+               f"Rossby wave-activity flux (TN01) {LEVEL} hPa — AIFS-ENS, member-mean flux · "
                f"init {init:%Y-%m-%d %HZ} · day {lead} (valid {valid:%a %b %d})",
-               sub, fp, vlim, spd_fc=spd_fc)
+               sub, fp, vlim, agree=agree, spd_fc=spd_fc)
         frames.append({"idx": i, "file": fp.name, "date": f"{valid:%Y-%m-%d}",
                        "label": f"day {lead} · {valid:%b %d}"})
     mani = {"ver": int(pd.Timestamp.now().timestamp()), "days": len(frames),
-            "regions": {"waf": {"label": "Wave-activity flux (TN01, 200 hPa)",
+            "regions": {"waf": {"label": f"Wave-activity flux (TN01, {LEVEL} hPa)",
                                 "n_frames": len(frames), "frames": frames}}}
     Path(args.manifest).parent.mkdir(parents=True, exist_ok=True)
     Path(args.manifest).write_text(json.dumps(mani))
     # static latest = the analysis frame
-    valid, sh, psi_a, wx, wy, divw, Uc, Vc, spd_fc = fields[0]
-    render(psi_a, wx, wy, divw, Uc, Vc, clat, clon,
-           f"Rossby wave-activity flux (TN01) 200 hPa — analysis {init:%Y-%m-%d %HZ}",
-           sub, Path(args.out), vlim, spd_fc=spd_fc)
+    valid, sh, pa, wx, wy, divw, Uc, Vc, spd_fc, agree = fields[0]
+    render(pa, wx, wy, divw, Uc, Vc, clat, clon,
+           f"Rossby wave-activity flux (TN01) {LEVEL} hPa — analysis {init:%Y-%m-%d %HZ}",
+           sub, Path(args.out), vlim, agree=agree, spd_fc=spd_fc)
     print(f"  wrote {len(frames)} frames + manifest; conv vlim ±{vlim:.0f}×10⁻⁶ m/s²")
     return 0
 
