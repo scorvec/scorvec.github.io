@@ -124,7 +124,7 @@ def render(country: str, label: str, series_now: dict, series_prev: dict | None,
     vm, vmp = valid_months(ym), valid_months(prev)
     regions = list(series_now)
     ncol = len(vm)
-    fig, axes = plt.subplots(len(regions), ncol, figsize=(3.05 * ncol + 1.1, 2.55 * len(regions) + 1.9), squeeze=False)
+    fig, axes = plt.subplots(len(regions), ncol, figsize=(3.05 * ncol + 1.1, 2.55 * len(regions) + (1.9 if len(regions) > 1 else 2.4)), squeeze=False)
     summary = {}
     for r, name in enumerate(regions):
         fcn, hcn = series_now[name]
@@ -167,10 +167,10 @@ def render(country: str, label: str, series_now: dict, series_prev: dict | None,
                plt.Rectangle((0, 0), 1, 1, color="#000", alpha=0.06)]
     labels = [f"{calendar.month_abbr[int(ym[4:])]} issue (51 members)", f"{calendar.month_abbr[int(prev[4:])]} issue", "normal (hindcast mean)", "normal year-to-year range (±1σ)"]
     fig.legend(handles, labels, loc="lower center", ncol=4, fontsize=8.5, frameon=False, bbox_to_anchor=(0.5, 0.012))
-    fig.suptitle(f"{label}: SEAS5 forecast of monthly P − E by region (mm/day), {calendar.month_name[int(ym[4:])]} {ym[:4]} issue", x=0.02, y=0.995, ha="left", fontsize=13)
+    fig.suptitle(f"{label}: SEAS5 forecast of monthly P − E{' by region' if len(regions) > 1 else ''} (mm/day), {calendar.month_name[int(ym[4:])]} {ym[:4]} issue", x=0.02, y=0.995, ha="left", fontsize=13)
     fig.text(0.02, 1 - 0.42 / fig.get_figheight(), "Each curve is the spread of the 51 members' monthly precipitation minus evaporation, averaged over the region (gold: this issue; blue: last month's). "
              "Negative values are net drying. Black: the model's normal for that month, with its year-to-year range shaded.", fontsize=8.6, color="#444", va="top")
-    top = 1 - 0.95 / fig.get_figheight(); bottom = 1.15 / fig.get_figheight()
+    top = 1 - 0.95 / fig.get_figheight(); bottom = (1.15 if len(regions) > 1 else 1.55) / fig.get_figheight()
     fig.subplots_adjust(left=0.06, right=0.99, top=top, bottom=bottom, hspace=0.62, wspace=0.14)
     fig.savefig(out, dpi=105, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
     print(f"  wrote {out.name}", flush=True)
