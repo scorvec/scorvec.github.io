@@ -115,13 +115,13 @@ CITIES = {
            ("Cuiabá", -15.60, -56.10, "l"), ("Goiânia", -16.68, -49.25, "l"), ("Belo Horizonte", -19.92, -43.94, "r"),
            ("Campo Grande", -20.45, -54.62, "l"), ("Rio de Janeiro", -22.91, -43.17, "r"), ("São Paulo", -23.55, -46.63, "l"),
            ("Curitiba", -25.43, -49.27, "l"), ("Porto Alegre", -30.03, -51.23, "l")],
-    "us": [("Seattle", 47.61, -122.33, "r"), ("Portland", 45.52, -122.68, "r"), ("San Francisco", 37.77, -122.42, "l"),
+    "us": [("Seattle", 47.61, -122.33, "r"), ("Portland", 45.52, -122.68, "r"), ("San Francisco", 37.77, -122.42, "r"),
            ("Los Angeles", 34.05, -118.24, "l"), ("Phoenix", 33.45, -112.07, "r"), ("Salt Lake City", 40.76, -111.89, "r"),
            ("Denver", 39.74, -104.99, "r"), ("Dallas", 32.78, -96.80, "r"), ("Houston", 29.76, -95.37, "r"),
            ("Kansas City", 39.10, -94.58, "l"), ("Minneapolis", 44.98, -93.27, "r"), ("St. Louis", 38.63, -90.20, "r"),
            ("Chicago", 41.88, -87.63, "l"), ("Detroit", 42.33, -83.05, "r"), ("Nashville", 36.16, -86.78, "r"),
-           ("Atlanta", 33.75, -84.39, "r"), ("Miami", 25.76, -80.19, "r"), ("Washington", 38.90, -77.04, "r"),
-           ("Philadelphia", 39.95, -75.17, "r"), ("New York", 40.71, -74.01, "r"), ("Boston", 42.36, -71.06, "r"),
+           ("Atlanta", 33.75, -84.39, "r"), ("Miami", 25.76, -80.19, "r"), ("Washington", 38.90, -77.04, "l", -0.2),
+           ("Philadelphia", 39.95, -75.17, "l", 0.35), ("New York", 40.71, -74.01, "r", 0.3), ("Boston", 42.36, -71.06, "r", 0.2),
            ("Toronto", 43.65, -79.38, "l"), ("Montréal", 45.50, -73.57, "r")],
 }
 MAP_W = 11.0                                            # figure width (in); the axes box is fixed so the page can overlay cities
@@ -149,13 +149,14 @@ def draw_cities(ax, region, pc):
     if region not in _CITY_PX:                           # measure once from the real transform (cartopy may
         fig = ax.figure; px = {}                         # re-fit the view to the box, so the nominal geometry drifts)
         ax.apply_aspect()                                # the equal-aspect box shrink happens at draw time — apply it now
-        for name, la, lo, side in CITIES.get(region, []):
+        for name, la, lo, side in (c[:4] for c in CITIES.get(region, [])):
             x, y = ax.transData.transform((lo, la))
             px[name] = (round(float(x / fig.bbox.width), 4), round(float(1.0 - y / fig.bbox.height), 4))
         _CITY_PX[region] = px
-    for name, la, lo, side in CITIES.get(region, []):
+    for city in CITIES.get(region, []):
+        name, la, lo, side = city[:4]; dy = city[4] if len(city) > 4 else 0.0      # optional label nudge (deg lat)
         ax.plot(lo, la, "o", ms=5.0, mfc="#111", mec="white", mew=0.9, transform=pc, zorder=6)
-        ax.text(lo + (0.55 if side == "r" else -0.55), la, name, fontsize=10.5, fontweight="semibold", color="#111",
+        ax.text(lo + (0.55 if side == "r" else -0.55), la + dy, name, fontsize=10.5, fontweight="semibold", color="#111",
                 ha="left" if side == "r" else "right", va="center", transform=pc, zorder=6, path_effects=halo)
 
 
@@ -195,7 +196,7 @@ def build(ym: str) -> dict:
     issue_lbl = f"{calendar.month_name[int(ym[4:])]} {ym[:4]} issue"
     for region, (label, cc, area, unit) in REGIONS.items():
         entry = {"label": label, "sets": {}, "normal_years": None, "cities": {}}
-        for name, la, lo, side in CITIES.get(region, []):
+        for name, la, lo, side in (c[:4] for c in CITIES.get(region, [])):
             fx, fy = city_fractions(region, la, lo)
             entry["cities"][name] = {"lat": la, "lon": lo, "x": fx, "y": fy, "side": side, "sets": {}}
         w = None; cache = {}
@@ -221,7 +222,7 @@ def build(ym: str) -> dict:
                     field = raw - (shift[None, None] if shift is not None else 0.0); corr = "mean shift" if shift is not None else "uncorrected"
                 normal, used = cpc_normal(region, stat, lat, lon); entry["normal_years"] = [min(used), max(used), len(used)] if used else None
                 mrec = {}
-                ci = [(name, int(np.abs(lat - la).argmin()), int(np.abs(lon - lo).argmin())) for name, la, lo, _ in CITIES.get(region, [])]
+                ci = [(name, int(np.abs(lat - la).argmin()), int(np.abs(lon - lo).argmin())) for name, la, lo, _ in (c[:4] for c in CITIES.get(region, []))]
                 for t in thrs:
                     hit = (field <= t) if op == "le" else (field >= t)
                     cnt = hit.sum(1).astype(np.float32)                                # [member, lat, lon] days
