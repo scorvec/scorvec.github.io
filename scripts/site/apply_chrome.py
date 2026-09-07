@@ -30,6 +30,7 @@ PRODUCTS = [
         ("/skewt/", "Sounding explorer"),
         ("/asos5.html", "Five-minute airport observations"),
         ("/qbo/", "QBO tracker"),
+        ("/climate.html", "US climate trends"),
     ]),
     ("Model forecasts", "From the next two weeks to the coming seasons", [
         ("Days 1–15", [
@@ -134,6 +135,7 @@ PAGES = [
     ]),
     dict(path="sfs.html", mode="nav"),
     dict(path="ar.html", mode="after-body"),
+    dict(path="climate.html", mode="after-body"),
     dict(path="research.html", mode="nav", fixes=[
         ("padding: 7.5rem 2rem 5rem;", "padding: 2.5rem 2rem 5rem;"),
         ("main { padding: 6rem 1.5rem 4rem; }", "main { padding: 1.5rem 1.5rem 4rem; }"),

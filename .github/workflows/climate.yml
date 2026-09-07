@@ -1,0 +1,38 @@
+name: US climate trends (nClimDiv, monthly)
+
+# climate.html: county × month trends, normals and trend-adjusted normals from NOAA nClimDiv.
+# NOAA refreshes the county files around the 6th–8th; this runs on the 9th and can be
+# dispatched. Every output lives under assets/climate/anim and goes to the orphan `frames`
+# branch (replaced wholesale), so nothing accumulates in main's history — the page reads it
+# through assets/frames_root.js like the animation frames.
+on:
+  schedule:
+  - cron: '20 15 9 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: climate
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SST_SITE_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install Python dependencies
+        run: pip install --quiet numpy scipy
+      - name: Download nClimDiv and compute the trends
+        run: python scripts/climate/trends/nclimdiv_trends.py
+      - name: Publish the data set to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/climate/anim/data assets/climate/anim/series

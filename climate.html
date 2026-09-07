@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US Climate Trends by County and Month &mdash; temperature, precipitation and degree days since 1895 &middot; Shawn Corvec</title>
+<meta name="description" content="Observed US climate trends for every county and calendar month from NOAA nClimDiv (1895 to last month): temperature, minimum and maximum temperature, precipitation, heating and cooling degree days, trend per decade since 1970, 1950 or 1895 with significance, the 1991–2020 normal and the trend-adjusted normal for the current year, a month-by-state heatmap and a county time-series explorer.">
+<link rel="canonical" href="https://scorvec.com/climate.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="US Climate Trends by County and Month">
+<meta property="og:description" content="Trends per decade for every US county and month since 1895, with significance, the 1991–2020 normal and what normal is now.">
+<meta property="og:url" content="https://scorvec.com/climate.html">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","name":"US Climate Trends by County and Month","url":"https://scorvec.com/climate.html",
+ "description":"County and month climate trends for the United States from NOAA nClimDiv, 1895 to present.","author":{"@type":"Person","name":"Shawn Corvec","url":"https://scorvec.com/"},
+ "isBasedOn":"https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/"}
+</script>
+<style>
+  :root { --bg: #fafaf8; --ink: #1c1c1a; --muted: #888580; --accent: #2c4a72; --rule: #e6e3dc; --panel: #ffffff;
+          --serif: "Newsreader", Georgia, serif; --sans: "Schibsted Grotesk", Inter, -apple-system, sans-serif; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.55; }
+  main { max-width: 1240px; margin: 0 auto; padding: 1.5rem 1.2rem 3rem; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.15; margin: 0.4rem 0 0.6rem; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; margin: 0 0 0.5rem; }
+  .lede { color: #444; max-width: 62rem; font-size: 1.02rem; }
+  .kicker { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.2rem 1.3rem 1rem; margin: 1.4rem 0; }
+  .card p.note { color: #444; font-size: 0.95rem; max-width: 70rem; margin: 0.2rem 0 0.9rem; }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; margin: 0.4rem 0 0.8rem; font-size: 0.92rem; }
+  .controls label { color: #444; }
+  .controls select { font: inherit; padding: 0.25rem 0.4rem; border: 1px solid var(--rule); border-radius: 6px; background: #fff; }
+  .pills button { font: inherit; font-size: 0.86rem; padding: 0.25rem 0.7rem; border: 1px solid var(--rule); background: #fff; border-radius: 999px; cursor: pointer; color: #333; }
+  .pills button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  #map { width: 100%; height: auto; display: block; }
+  #map path.county { stroke: none; }
+  #map path.state { fill: none; stroke: #fff; stroke-width: 0.6; pointer-events: none; }
+  #map path.county.sig { stroke: none; }
+  .legend { display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; color: #444; margin: 0.4rem 0 0; flex-wrap: wrap; }
+  .legend .bar { display: flex; height: 12px; }
+  .legend .bar span { width: 24px; height: 12px; }
+  .tip { position: absolute; pointer-events: none; background: #fff; border: 1px solid var(--rule); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.82rem; box-shadow: 0 6px 18px rgba(0,0,0,0.08); display: none; z-index: 20; max-width: 22rem; }
+  table.hm { border-collapse: collapse; font-size: 0.78rem; }
+  table.hm th, table.hm td { padding: 0.15rem 0.3rem; text-align: center; border-bottom: 1px solid #f1efe9; }
+  table.hm th { font-weight: 500; color: #333; }
+  table.hm td.name { text-align: left; white-space: nowrap; }
+  table.hm td.v { min-width: 2.4rem; color: #222; }
+  table.hm tr.region td { background: #f3f1ec; font-weight: 500; color: #333; }
+  #series { width: 100%; height: 420px; }
+  table.dd { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+  table.dd th, table.dd td { padding: 0.3rem 0.45rem; border-bottom: 1px solid var(--rule); text-align: right; }
+  table.dd th { font-weight: 500; background: #f3f1ec; color: #333; }
+  table.dd td:first-child, table.dd th:first-child { text-align: left; }
+  .chart-card-footer { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 0.7rem; font-size: 0.8rem; color: var(--muted); }
+  .status { font-size: 0.85rem; color: var(--muted); }
+  @media (max-width: 720px) { main { padding: 1rem 0.8rem 2rem; } }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0" aria-current="page">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/sst.html">El Niño monitor</a></li>
+              <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html" aria-current="page">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/enso-atmosphere.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">Subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+              <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+  <p class="kicker">Monthly &middot; NOAA nClimDiv &middot; <span id="metaLabel">&mdash;</span></p>
+  <h1>US Climate Trends by County and Month</h1>
+  <p class="lede">Every US county, every calendar month, 1895 to last month, from NOAA&rsquo;s nClimDiv county dataset: average, maximum and minimum temperature, precipitation, heating and cooling degree days. For each the page shows the trend per decade since 1970 (or 1950, or 1895) with its significance, the 1991&ndash;2020 normal, and the <b>trend-adjusted normal</b>, what normal is now if the last five decades&rsquo; trend holds. That last number is the one to keep in mind when reading any forecast on this site against a 1991&ndash;2020 base.</p>
+
+  <div class="card" style="position:relative">
+    <h2>County map</h2>
+    <div class="controls">
+      <label>Variable <select id="selVar"><option value="tavg">Average temperature</option><option value="tmin">Minimum temperature</option><option value="tmax">Maximum temperature</option><option value="pcpn">Precipitation</option><option value="hdd">Heating degree days</option><option value="cdd">Cooling degree days</option></select></label>
+      <label>Month or season <select id="selCol"></select></label>
+      <label>Trend since <select id="selStart"><option value="1970">1970</option><option value="1950">1950</option><option value="1895">1895</option></select></label>
+      <span class="pills" id="viewPills"></span>
+      <label style="margin-left:auto"><input type="checkbox" id="chkSig" checked> fade where p &gt; 0.05</label>
+    </div>
+    <svg id="map" viewBox="0 0 975 610" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend" id="legend"></div>
+    <div class="tip" id="tip"></div>
+    <p class="status" id="mapStatus">Loading counties and data&hellip;</p>
+    <p class="note" style="margin-top:0.6rem">Trend is the ordinary least-squares slope over the chosen period in units per decade (precipitation in percent of the 1991&ndash;2020 normal per decade), fitted to the calendar-month or seasonal series; the Theil&ndash;Sen slope and a Mann&ndash;Kendall p-value are computed alongside and shown in the tooltip. Counties fade where the trend is not significant at the 5% level. &ldquo;Normal shift&rdquo; is the trend-adjusted normal minus the 1991&ndash;2020 normal.</p>
+  </div>
+
+  <div class="card">
+    <h2>Where and when: trend by state and month</h2>
+    <p class="note">The chosen variable and start year, one row per state grouped by NOAA climate region, one column per calendar month plus the seasons. The colour is the state-mean trend per decade. Read across a row for the seasonality of a state&rsquo;s change, down a column for its geography.</p>
+    <div style="overflow-x:auto"><table class="hm" id="heat"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>One county over time</h2>
+    <p class="note">Click a county on the map, or choose one here. The monthly series for the chosen month or season with the fitted trend for each start year, the 1991&ndash;2020 normal band, and the latest value ranked against the full record.</p>
+    <div class="controls">
+      <label>State <select id="selState"></select></label>
+      <label>County <select id="selCounty"></select></label>
+      <span class="status" id="seriesStatus"></span>
+    </div>
+    <div id="series"></div>
+  </div>
+
+  <div class="card">
+    <h2>What normal is now: state degree days by month</h2>
+    <p class="note">Heating and cooling degree days by month for a state: the official 1991&ndash;2020 normal from the state series, the 1970-start trend-adjusted normal for this year, and the difference in percent. The energy-weather reading of the trend.</p>
+    <div class="controls"><label>State <select id="selDDState"></select></label></div>
+    <div style="overflow-x:auto"><table class="dd" id="ddTable"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Method and caveats</h2>
+    <p class="note">County values in nClimDiv are area means of NOAA&rsquo;s 5&nbsp;km nClimGrid, itself interpolated from homogenised station data (COOP, RAWS, SNOTEL and neighbours), not raw station records; the network behind them thins before 1950, so the 1895-start trends carry more uncertainty than their p-values suggest. A linear trend is a description of the chosen period, not a projection, and the start year is a choice: the 1970 start is the period over which the forced warming is close to linear, the others are there so the sensitivity is visible. Precipitation trends are in percent of the normal so dry western counties do not read as large in inches. Degree days come from NOAA&rsquo;s own daily-based county series, not from monthly means. Data are refreshed on about the 8th of each month.</p>
+    <div class="chart-card-footer"><span>NOAA NCEI nClimDiv county, division and state monthly files (climdiv-*cy/dv/st) &middot; county boundaries: US Atlas (TopoJSON) &middot; statistics: numpy/scipy, computed monthly</span><span id="genLabel">&mdash;</span></div>
+  </div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script src="/assets/frames_root.js"></script>
+<script>
+(function () {
+  var COLS = ["01","02","03","04","05","06","07","08","09","10","11","12","DJF","MAM","JJA","SON","ANN"];
+  var COLNAME = {"01":"January","02":"February","03":"March","04":"April","05":"May","06":"June","07":"July","08":"August","09":"September","10":"October","11":"November","12":"December","DJF":"Winter (DJF)","MAM":"Spring (MAM)","JJA":"Summer (JJA)","SON":"Autumn (SON)","ANN":"Annual"};
+  var UNITS = {tavg:"°F", tmin:"°F", tmax:"°F", pcpn:"in", hdd:"degree days", cdd:"degree days"};
+  var st = {v:"tavg", col: String(new Date().getMonth()+1).padStart(2,"0"), start:"1970", view:"trend", sig:true};
+  var cache = {}, topo = null, names = {}, meta = null, regions = null, seriesIdx = null;
+  var DATA_ROOT_LOCAL = "assets/climate/anim/data/", SERIES_ROOT_LOCAL = "assets/climate/anim/series/";
+  function dataUrl(f, series) {
+    var rel = (series ? "assets/climate/anim/series/" : "assets/climate/anim/data/") + f;
+    return (window.FRAME_ROOT || "") + rel;
+  }
+  function getJSON(f) {
+    if (cache[f]) return cache[f];
+    var p = fetch(dataUrl(f) + "?v=" + Math.floor(Date.now()/3.6e6)).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .catch(function () { return fetch((f.indexOf("series/")===0 ? "" : DATA_ROOT_LOCAL) + f).then(function (r) { return r.json(); }); });
+    cache[f] = p; return p;
+  }
+  function getBin(f) {
+    var key = "bin:" + f; if (cache[key]) return cache[key];
+    var p = fetch(dataUrl(f, true)).then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .catch(function () { return fetch(SERIES_ROOT_LOCAL + f).then(function (r) { return r.arrayBuffer(); }); }).then(function (b) { return new Int16Array(b); });
+    cache[key] = p; return p;
+  }
+  // colour scales
+  function scaleFor(v, view) {
+    var lim, cmap;
+    if (view === "trend") {
+      lim = v === "pcpn" ? 6 : (v === "hdd" ? 60 : v === "cdd" ? 40 : 1.2);
+      cmap = v === "pcpn" ? d3.interpolateBrBG : (v === "hdd" ? function (t) { return d3.interpolateRdBu(t); } : d3.interpolateRdBu);
+      var inv = (v !== "pcpn" && v !== "hdd");        // warming red; more heating demand blue→red reversed
+      return {lim: lim, f: function (x) { var t = (x / lim + 1) / 2; t = Math.max(0, Math.min(1, t)); return cmap(inv ? 1 - t : (v === "hdd" ? t : t)); }};
+    }
+    if (view === "shift") {
+      lim = v === "pcpn" ? 1.2 : (v === "hdd" ? 250 : v === "cdd" ? 150 : 2.0);
+      var cm2 = v === "pcpn" ? d3.interpolateBrBG : d3.interpolateRdBu; var inv2 = (v !== "pcpn" && v !== "hdd");
+      return {lim: lim, f: function (x) { var t = (x / lim + 1) / 2; t = Math.max(0, Math.min(1, t)); return cm2(inv2 ? 1 - t : t); }};
+    }
+    return {lim: null, f: null};
+  }
+  function legend(sc, label) {
+    var el = document.getElementById("legend"); if (!sc.f) { el.innerHTML = ""; return; }
+    var bar = '<div class="bar">' + d3.range(-1, 1.001, 0.1).map(function (t) { return '<span style="background:' + sc.f(t * sc.lim) + '"></span>'; }).join("") + '</div>';
+    el.innerHTML = '<span>−' + sc.lim + '</span>' + bar + '<span>+' + sc.lim + '</span><span style="margin-left:0.6rem">' + label + '</span>';
+  }
+  var pathGen = d3.geoPath();     // replaced at boot: us-atlas ships pre-projected, other builds ship lon/lat
+  function drawMap() {
+    if (!topo) return;
+    var ci = COLS.indexOf(st.col), v = st.v;
+    Promise.all([getJSON("trends_" + v + "_" + st.start + ".json"), getJSON("normals_" + v + ".json")]).then(function (res) {
+      var T = res[0], N = res[1];
+      var view = st.view, units = T.units;
+      var sc = scaleFor(v, view === "normal" ? "trend" : view);
+      var vals = {};
+      if (view === "normal") {
+        var arr = Object.keys(N.normal).map(function (k) { return N.normal[k][ci]; }).filter(function (x) { return x != null; }).sort(d3.ascending);
+        var q = [d3.quantile(arr, 0.02), d3.quantile(arr, 0.98)];
+        var cmN = (v === "pcpn") ? d3.interpolateYlGnBu : (v === "hdd" ? d3.interpolateBlues : (v === "cdd" ? d3.interpolateOrRd : d3.interpolateTurbo));
+        sc = {lim: null, f: function (x) { return cmN(Math.max(0, Math.min(1, (x - q[0]) / (q[1] - q[0])))); }, q: q};
+      }
+      d3.select("#map").selectAll("path.county").each(function () {
+        var f = this.__data__, fips = f.id, val = null, p = null;
+        if (view === "trend") { val = T.ols[fips] ? T.ols[fips][ci] : null; p = T.p[fips] ? T.p[fips][ci] : null; }
+        else if (view === "shift") { var a = N.adjusted_1970[fips], n = N.normal[fips]; if (a && n && a[ci] != null && n[ci] != null) { val = a[ci] - n[ci]; if (v === "pcpn") val = n[ci] > 0.05 ? (a[ci] - n[ci]) : null; } }
+        else { val = N.normal[fips] ? N.normal[fips][ci] : null; }
+        vals[fips] = {val: val, p: p};
+        var fill = (val == null || !isFinite(val)) ? "#e8e6e0" : sc.f(val);
+        var fade = (view === "trend" && st.sig && p != null && p > 0.05);
+        d3.select(this).attr("fill", fill).attr("fill-opacity", fade ? 0.28 : 1);
+      });
+      var lab = view === "trend" ? (units + ", " + T.start + "–" + T.end) : view === "shift" ? ("trend-adjusted normal minus 1991–2020 normal (" + (v === "pcpn" ? "in" : UNITS[v]) + ")") : ("1991–2020 normal (" + UNITS[v] + "); colour spans the 2nd–98th percentile of counties, " + sc.q[0].toFixed(1) + " to " + sc.q[1].toFixed(1));
+      legend(sc, lab);
+      document.getElementById("mapStatus").textContent = COLNAME[st.col] + " · " + document.getElementById("selVar").selectedOptions[0].text + " · " + (view === "trend" ? "trend since " + st.start : view === "shift" ? "normal shift" : "1991–2020 normal");
+      d3.select("#map").selectAll("path.county").on("mousemove", function (ev) {
+        var f = this.__data__, fips = f.id, r = vals[fips] || {}, tip = document.getElementById("tip");
+        var n = N.normal[fips], a = N.adjusted_1970[fips], sen = T.sen[fips];
+        var html = "<b>" + (names[fips] || fips) + "</b><br>" + COLNAME[st.col] + "<br>";
+        if (n && n[ci] != null) html += "1991–2020 normal: " + n[ci].toFixed(v === "pcpn" ? 2 : 1) + " " + UNITS[v] + "<br>";
+        if (a && a[ci] != null) html += "trend-adjusted normal now: " + a[ci].toFixed(v === "pcpn" ? 2 : 1) + " " + UNITS[v] + "<br>";
+        if (T.ols[fips] && T.ols[fips][ci] != null) html += "trend since " + T.start + ": " + (T.ols[fips][ci] > 0 ? "+" : "") + T.ols[fips][ci].toFixed(2) + " " + units + (sen && sen[ci] != null ? " (Theil–Sen " + (sen[ci] > 0 ? "+" : "") + sen[ci].toFixed(2) + ")" : "") + "<br>p = " + (T.p[fips][ci] == null ? "—" : T.p[fips][ci].toFixed(3));
+        tip.innerHTML = html; tip.style.display = "block";
+        var card = tip.parentElement.getBoundingClientRect();
+        tip.style.left = (ev.clientX - card.left + 14) + "px"; tip.style.top = (ev.clientY - card.top + 14) + "px";
+      }).on("mouseleave", function () { document.getElementById("tip").style.display = "none"; })
+        .on("click", function () { var fips = this.__data__.id; document.getElementById("selState").value = fips.slice(0, 2); fillCounties(fips.slice(0, 2), fips); drawSeries(fips); });
+    });
+  }
+  function pills(id, items, cur, cb) {
+    var el = document.getElementById(id); el.innerHTML = items.map(function (it) { return '<button data-k="' + it.key + '"' + (it.key === cur ? ' class="on"' : '') + '>' + it.label + '</button>'; }).join(" ");
+    el.querySelectorAll("button").forEach(function (b) { b.addEventListener("click", function () { el.querySelectorAll("button").forEach(function (x) { x.classList.remove("on"); }); b.classList.add("on"); cb(b.dataset.k); }); });
+  }
+  // heatmap
+  function drawHeat() {
+    if (!regions) return;
+    var v = st.v, key = v + "_" + st.start;
+    var sc = scaleFor(v, "trend");
+    var rows = ['<tr><th></th>' + COLS.map(function (c) { return "<th>" + (c.length === 2 ? COLNAME[c].slice(0, 3) : c) + "</th>"; }).join("") + "</tr>"];
+    Object.keys(regions.regions).forEach(function (rg) {
+      rows.push('<tr class="region"><td class="name">' + rg + '</td><td colspan="17"></td></tr>');
+      regions.regions[rg].forEach(function (sf) {
+        var s = regions.states[sf]; if (!s || !s[key]) return;
+        rows.push('<tr><td class="name">' + s.name + '</td>' + s[key].map(function (x) { return x == null ? "<td></td>" : '<td class="v" style="background:' + sc.f(x) + ';color:' + (Math.abs(x) > 0.6 * sc.lim ? '#fff' : '#222') + '">' + (x > 0 ? "+" : "") + x.toFixed(v === "pcpn" || v.startsWith("t") ? 1 : 0) + "</td>"; }).join("") + "</tr>");
+      });
+    });
+    document.getElementById("heat").innerHTML = rows.join("");
+  }
+  // explorer
+  function fillStates() {
+    var sel = document.getElementById("selState"), sel2 = document.getElementById("selDDState");
+    var opts = Object.keys(regions.states).sort(function (a, b) { return regions.states[a].name.localeCompare(regions.states[b].name); }).map(function (k) { return '<option value="' + k + '">' + regions.states[k].name + "</option>"; }).join("");
+    sel.innerHTML = opts; sel2.innerHTML = opts;
+    sel.value = "48"; sel2.value = "48";
+  }
+  function fillCounties(sf, pick) {
+    var sel = document.getElementById("selCounty"); var fl = (seriesIdx[sf] || {}).fips || [];
+    sel.innerHTML = fl.map(function (f) { return '<option value="' + f + '">' + (names[f] || f) + "</option>"; }).join("");
+    if (pick) sel.value = pick;
+  }
+  function drawSeries(fips) {
+    var sf = fips.slice(0, 2), v = st.v, ci = COLS.indexOf(st.col), idx = seriesIdx[sf];
+    if (!idx) return;
+    document.getElementById("seriesStatus").textContent = "loading…";
+    getBin(sf + "_" + v + ".bin").then(function (arr) {
+      var nY = idx.years[1] - idx.years[0] + 1, k = idx.fips.indexOf(fips), scale = idx["scale_" + v] || 100;
+      if (k < 0) return;
+      var years = [], vals = [];
+      for (var y = 0; y < nY; y++) {
+        var val;
+        if (ci < 12) { var raw = arr[(k * nY + y) * 12 + ci]; val = raw === -32768 ? null : raw / scale; }
+        else {
+          var months = {DJF:[12,1,2], MAM:[3,4,5], JJA:[6,7,8], SON:[9,10,11], ANN:[1,2,3,4,5,6,7,8,9,10,11,12]}[st.col], acc = 0, ok = true;
+          months.forEach(function (m) { var yy = (st.col === "DJF" && m === 12) ? y - 1 : y; if (yy < 0) { ok = false; return; } var r = arr[(k * nY + yy) * 12 + (m - 1)]; if (r === -32768) ok = false; else acc += r / scale; });
+          val = ok ? (v.startsWith("t") ? acc / months.length : acc) : null;
+        }
+        years.push(idx.years[0] + y); vals.push(val);
+      }
+      var good = vals.map(function (x, i) { return x == null ? null : [years[i], x]; }).filter(Boolean);
+      var last = good[good.length - 1];
+      var rank = good.filter(function (p) { return p[1] > last[1]; }).length + 1;
+      var traces = [{x: good.map(function (p) { return p[0]; }), y: good.map(function (p) { return p[1]; }), mode: "lines+markers", line: {color: "#1b365d", width: 1.4}, marker: {size: 3}, name: names[fips] || fips}];
+      var nsel = good.filter(function (p) { return p[0] >= 1991 && p[0] <= 2020; }).map(function (p) { return p[1]; });
+      var nm = d3.mean(nsel), nsd = d3.deviation(nsel);
+      traces.push({x: [years[0], years[years.length - 1]], y: [nm, nm], mode: "lines", line: {color: "#888", dash: "dash", width: 1}, name: "1991–2020 normal"});
+      [["1970", "#b4453c"], ["1950", "#d0801a"], ["1895", "#2b7a3d"]].forEach(function (s) {
+        var pts = good.filter(function (p) { return p[0] >= +s[0]; }); if (pts.length < 20) return;
+        var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; }), mx = d3.mean(xs), my = d3.mean(ys);
+        var b = d3.sum(xs.map(function (x, i) { return (x - mx) * (ys[i] - my); })) / d3.sum(xs.map(function (x) { return (x - mx) * (x - mx); }));
+        traces.push({x: [xs[0], xs[xs.length - 1] + 1], y: [my + b * (xs[0] - mx), my + b * (xs[xs.length - 1] + 1 - mx)], mode: "lines", line: {color: s[1], width: 2}, name: "trend since " + s[0] + ": " + (b * 10 > 0 ? "+" : "") + (b * 10).toFixed(2) + " " + UNITS[v] + "/decade"});
+      });
+      Plotly.react("series", traces, {margin: {l: 50, r: 16, t: 34, b: 40}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff", font: {family: "Inter, sans-serif", size: 12},
+        title: {text: (names[fips] || fips) + " — " + COLNAME[st.col] + " " + document.getElementById("selVar").selectedOptions[0].text.toLowerCase() + " (" + UNITS[v] + ")", x: 0, font: {size: 13}},
+        xaxis: {gridcolor: "#eee"}, yaxis: {gridcolor: "#eee"}, legend: {orientation: "h", y: -0.15, font: {size: 11}}, shapes: [{type: "rect", xref: "paper", x0: 0, x1: 1, y0: nm - nsd, y1: nm + nsd, fillcolor: "rgba(0,0,0,0.05)", line: {width: 0}}]}, {displayModeBar: false, responsive: true});
+      document.getElementById("seriesStatus").textContent = "latest: " + last[0] + " = " + last[1].toFixed(v === "pcpn" ? 2 : 1) + " " + UNITS[v] + ", rank " + rank + " of " + good.length + " (1 = highest)";
+    });
+  }
+  function drawDD() {
+    var sf = document.getElementById("selDDState").value, s = regions.states[sf]; if (!s) return;
+    var rows = ['<tr><th>Month</th><th>HDD normal</th><th>HDD now</th><th>Δ%</th><th>CDD normal</th><th>CDD now</th><th>Δ%</th></tr>'];
+    var yrs = (meta.last_full_year_hdd || 2025) + 1;
+    COLS.forEach(function (c, i) {
+      var hn = s.hdd_normal ? s.hdd_normal[i] : null, cn = s.cdd_normal ? s.cdd_normal[i] : null;
+      var ht = s.hdd_1970 ? s.hdd_1970[i] : null, ct = s.cdd_1970 ? s.cdd_1970[i] : null;
+      var hnow = (hn != null && ht != null) ? hn + ht / 10 * (yrs - 2005.5) : null, cnow = (cn != null && ct != null) ? cn + ct / 10 * (yrs - 2005.5) : null;
+      var pct = function (a, b) { return (a == null || b == null || b < 5) ? "—" : ((a - b) / b * 100 > 0 ? "+" : "") + ((a - b) / b * 100).toFixed(0) + "%"; };
+      rows.push("<tr><td>" + (c.length === 2 ? COLNAME[c] : COLNAME[c]) + "</td><td>" + (hn == null ? "—" : Math.round(hn)) + "</td><td>" + (hnow == null ? "—" : Math.round(hnow)) + "</td><td>" + pct(hnow, hn) + "</td><td>" + (cn == null ? "—" : Math.round(cn)) + "</td><td>" + (cnow == null ? "—" : Math.round(cnow)) + "</td><td>" + pct(cnow, cn) + "</td></tr>");
+    });
+    document.getElementById("ddTable").innerHTML = rows.join("");
+  }
+  // boot
+  document.getElementById("selCol").innerHTML = COLS.map(function (c) { return '<option value="' + c + '">' + COLNAME[c] + "</option>"; }).join("");
+  document.getElementById("selCol").value = st.col;
+  pills("viewPills", [{key: "trend", label: "Trend per decade"}, {key: "shift", label: "Normal shift"}, {key: "normal", label: "1991–2020 normal"}], st.view, function (k) { st.view = k; drawMap(); });
+  ["selVar", "selCol", "selStart"].forEach(function (id) { document.getElementById(id).addEventListener("change", function () { st.v = document.getElementById("selVar").value; st.col = document.getElementById("selCol").value; st.start = document.getElementById("selStart").value; drawMap(); drawHeat(); var c = document.getElementById("selCounty").value; if (c) drawSeries(c); }); });
+  document.getElementById("chkSig").addEventListener("change", function () { st.sig = this.checked; drawMap(); });
+  document.getElementById("selState").addEventListener("change", function () { fillCounties(this.value); var c = document.getElementById("selCounty").value; if (c) drawSeries(c); });
+  document.getElementById("selCounty").addEventListener("change", function () { drawSeries(this.value); });
+  document.getElementById("selDDState").addEventListener("change", drawDD);
+  Promise.all([
+    fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json").then(function (r) { return r.json(); }),
+    getJSON("meta.json"), getJSON("regions.json"), getJSON("series_index.json")
+  ]).then(function (res) {
+    topo = res[0]; meta = res[1]; regions = res[2]; seriesIdx = res[3];
+    var counties = topojson.feature(topo, topo.objects.counties).features;
+    var states = topojson.mesh(topo, topo.objects.states, function (a, b) { return a !== b; });
+    // projected or geographic coordinates? (the CDN build turned out to be lon/lat)
+    var probe = d3.geoBounds({type: "FeatureCollection", features: counties.slice(0, 50)});
+    var geographic = Math.abs(probe[0][0]) <= 180 && Math.abs(probe[1][1]) <= 90;
+    pathGen = geographic ? d3.geoPath(d3.geoAlbersUsa().scale(1300).translate([487.5, 305])) : d3.geoPath();
+    counties.forEach(function (f) { names[f.id] = f.properties.name + ", " + ((regions.states[f.id.slice(0, 2)] || {}).name || f.id.slice(0, 2)); });
+    var svg = d3.select("#map");
+    svg.append("g").selectAll("path").data(counties).join("path").attr("class", "county").attr("d", pathGen).attr("fill", "#e8e6e0");
+    svg.append("path").datum(states).attr("class", "state").attr("d", pathGen);
+    document.getElementById("metaLabel").textContent = "data through " + (meta.last_month_tavg || "—");
+    document.getElementById("genLabel").textContent = "built " + meta.generated;
+    fillStates(); fillCounties("48", "48113");
+    drawMap(); drawHeat(); drawSeries("48113"); drawDD();
+  }).catch(function (e) { document.getElementById("mapStatus").textContent = "Data not available yet (" + e + ")."; });
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>
