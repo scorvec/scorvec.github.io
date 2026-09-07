@@ -9,8 +9,10 @@ the mid-latitude jet core and the stationary-wave ψ maximum sit at 250–300 hP
 is lowermost stratosphere poleward of ~50°N in winter; (3) ψ′ is low-passed with a 5-day
 running mean along the lead before the flux (TN01 is a quasi-stationary theory; fast synoptic
 packets enter the phase-independent form with error); (4) the shading is hatched where
-members disagree on the sign. The basic state is still the ERA5 day-of-year climatology (a
-low-passed analysis basic state is the next step).
+members disagree on the sign; (5) the basic state is the ERA5 day-of-year climatology PLUS the
+30-day mean anomaly of the AIFS 0-h control analyses (waf_basic.py), and ψ′ is taken against the
+same low-passed flow, so perturbation and basic state are consistent — in a year with a displaced
+jet the packets are steered by the waveguide that is actually there.
 
 W is the phase-independent flux of quasi-stationary Rossby wave activity: its
 vectors point along the group velocity (where packet energy is HEADING, ducted
@@ -52,6 +54,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import store as ecmwf
 from wind200_vpot import _ens_mean, _to_0360
+import waf_basic as wb
 
 A = 6.371e6
 LMAX = 63                                    # ψ truncation (~2.8°): synoptic + planetary
@@ -191,6 +194,25 @@ def main() -> int:
     members = list(U.number.values)
     nstep = len(steps_h)
 
+    # low-passed analysis basic state: archive this cycle's 0-h control, then the 30-day mean anomaly
+    anom, n_an = None, 0
+    try:
+        ucp = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "u", "pl", (LEVEL,), (0,)))
+        vcp = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "v", "pl", (LEVEL,), (0,)))
+        uc0 = xr.open_dataset(ucp, **ku)["u"].squeeze(drop=True); vc0 = xr.open_dataset(vcp, **ku)["v"].squeeze(drop=True)
+        psi0, p0lat, p0lon = streamfunction_psi(uc0, vc0)
+        hist = wb.update_history(Path(args.anim_dir) / wb.HIST_NAME,
+                                 wb.record(wb.to3(uc0.values, uc0.latitude.values, uc0.longitude.values),
+                                           wb.to3(vc0.values, vc0.latitude.values, vc0.longitude.values),
+                                           wb.to3(psi0, p0lat, p0lon), init, LEVEL))
+        anom, n_an = wb.lowpass_anomaly(hist, eval_clim, c, clat, clon, init)
+        print(f"  basic state: {'clim + 30-d analysis anomaly' if anom else 'climatology only'} ({n_an} analyses in the window)", flush=True)
+    except Exception as ex:                                       # noqa: BLE001
+        print(f"  basic-state history unavailable ({str(ex)[:80]}); climatology only", flush=True)
+    psi_ref = (lambda doy: eval_clim(c["psi"].values, doy) + anom["psi"]) if anom else (lambda doy: eval_clim(c["psi"].values, doy))
+    U_ref = (lambda doy: eval_clim(c["U"].values, doy) + anom["u"]) if anom else (lambda doy: eval_clim(c["U"].values, doy))
+    V_ref = (lambda doy: eval_clim(c["V"].values, doy) + anom["v"]) if anom else (lambda doy: eval_clim(c["V"].values, doy))
+
     # ψ′ per member and step (the expensive part: nmember × nstep inversions, ~0.1 s each)
     psi_a = np.zeros((len(members), nstep, len(clat), len(clon)), dtype="float32")
     for m, num in enumerate(members):
@@ -200,7 +222,7 @@ def main() -> int:
             if m == 0 and i == 0:
                 assert np.allclose(plat, clat) and np.allclose(plon, clon), \
                     "clim grid != live DH2 grid — rebuild waf_clim with the same LMAX"
-            psi_a[m, i] = psi - eval_clim(c["psi"].values, float(valid.dayofyear))
+            psi_a[m, i] = psi - psi_ref(float(valid.dayofyear))
     # quasi-stationary: running mean of ψ′ along the lead (TSMOOTH days, shrinking at the ends)
     half = TSMOOTH // 2
     psi_s = np.empty_like(psi_a)
@@ -210,7 +232,7 @@ def main() -> int:
     for i, sh in enumerate(steps_h):
         valid = init + pd.Timedelta(hours=int(sh))
         doy = float(valid.dayofyear)
-        Uc, Vc = eval_clim(c["U"].values, doy), eval_clim(c["V"].values, doy)
+        Uc, Vc = U_ref(doy), V_ref(doy)
         WX, WY, DV = [], [], []
         for m in range(len(members)):
             wx, wy, divw = tn01_flux(psi_s[m, i].astype("float64"), Uc, Vc, clat, clon)
@@ -229,8 +251,9 @@ def main() -> int:
     anim = Path(args.anim_dir); anim.mkdir(parents=True, exist_ok=True)
     for old in anim.glob("F*.webp"):
         old.unlink()
-    sub = (f"arrows = Takaya–Nakamura (2001) wave-activity flux, mean of {len(members)} members' fluxes on the climatological basic state "
-           f"(ψ′ = member − ERA5 clim, {TSMOOTH}-day running mean) · shading = −∇·W at planetary scale (T15; red ⇒ downstream amplification), "
+    basic = (f"ERA5 clim + 30-day mean anomaly of the AIFS 0-h analyses ({n_an} analyses)" if anom else "ERA5 climatology (analysis history too short)")
+    sub = (f"arrows = Takaya–Nakamura (2001) wave-activity flux, mean of {len(members)} members' fluxes · basic state and ψ′ reference = {basic} "
+           f"({TSMOOTH}-day running mean of ψ′ along the lead) · shading = −∇·W at planetary scale (T15; red ⇒ downstream amplification), "
            "hatched where fewer than 60% of members agree on the sign\n"
            f"green = the ensemble-mean {LEVEL} hPa jet at this lead (25/35/45 m/s) — the waveguide the packets follow · "
            "masked equatorward of 20° / basic-state wind < 3 m/s")

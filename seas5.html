@@ -78,7 +78,7 @@
             <div>
               <h3>Beyond two weeks</h3>
               <ul>
-                <li><a href="/subseasonal.html">Subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
                 <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
                 <li><a href="/seas5.html" aria-current="page">ECMWF SEAS5 outlook</a></li>
                 <li><a href="/sfs.html">NOAA SFS outlook</a></li>
@@ -185,6 +185,7 @@
       <button class="pill" data-v="t2m">2 m temperature</button>
       <button class="pill" data-v="tp">Precipitation</button>
       <button class="pill" data-v="z500">500 hPa height</button>
+      <button class="pill" data-v="sf">Snowfall (N. America)</button>
     </div>
     <div class="controls" id="mapKind" style="margin-top:0.4rem">
       <button class="pill on" data-k="anom">Anomaly</button>
@@ -288,6 +289,26 @@
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 6-hourly 2 m temperature (seasonal-original-single-levels), 51 members, 1&deg; &middot; population: geonames cities15000, sections of cities excluded &middot; anomalies vs the 1993&ndash;2016 hindcast monthly mean</span>
       <span class="chart-updated" id="popUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="card" id="xdaysCard" hidden>
+    <h2>Threshold days: cold days over the United States, hot days over Brazil</h2>
+    <p class="note">From every member&rsquo;s daily extremes (6-hourly SEAS5 output, the &ldquo;in the last 24 hours&rdquo;
+    maximum and minimum): the number of days a month with the minimum at or below 0, &minus;10 and &minus;20&nbsp;&deg;C
+    over the United States, and the maximum above 35, 37 and 40&nbsp;&deg;C over Brazil, after a per-cell monthly
+    bias shift (the model&rsquo;s own hindcast mean against the observed mean). <b>Normal</b> is the NOAA CPC
+    1991&ndash;2020 daily record counted the same way. The table is population-weighted (expected days per month
+    for the average resident); the maps show each cell as a percentage of its normal frequency, hatched where
+    the normal is under half a day a month.</p>
+    <div class="controls" id="xdRegion"></div>
+    <div style="overflow-x:auto"><table class="chg" id="xdTable"></table></div>
+    <div class="controls" id="xdThr" style="margin-top:0.6rem"></div>
+    <div class="controls" id="xdMonth"></div>
+    <div class="map-grid" id="xdMap"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 6-hourly members &middot; SEAS5 1993&ndash;2016 hindcast (bias) &middot; NOAA CPC Global Unified daily Tmax/Tmin 1991&ndash;2020 (normal) &middot; geonames population</span>
+      <span class="chart-updated" id="xdUpdated">&mdash;</span>
     </div>
   </div>
 
@@ -495,6 +516,40 @@
     document.getElementById("chips").innerHTML = out.join("");
   }
 
+  function xdaysView() {
+    function d1(v) { return v == null ? "–" : Number(v).toFixed(1); }
+    fetch("assets/sst/data/seas5_extremes.json?v=" + encodeURIComponent(J.generated)).then(function (r) { return r.ok ? r.json() : null; }).then(function (X) {
+      if (!X || !X.regions) return;
+      var card = document.getElementById("xdaysCard"); card.hidden = false;
+      var st = { r: X.regions.us ? "us" : Object.keys(X.regions)[0], t: null, m: null };
+      var rb = document.getElementById("xdRegion"), tb = document.getElementById("xdThr"), mb = document.getElementById("xdMonth");
+      rb.innerHTML = Object.keys(X.regions).map(function (k) { return '<button class="pill' + (k === st.r ? " on" : "") + '" data-r="' + k + '">' + X.regions[k].label + " — " + X.regions[k].kind.replace(/,.*$/, "") + "</button>"; }).join("");
+      function draw() {
+        var R = X.regions[st.r], months = Object.keys(R.months).sort(), thrs = R.thresholds.map(String);
+        if (thrs.indexOf(st.t) < 0) st.t = thrs[0];
+        if (months.indexOf(st.m) < 0) st.m = months[0];
+        var rows = ['<tr><th>Month</th>' + thrs.map(function (t) { return "<th>" + R.kind + " " + t + " °C<br><span style=\"font-weight:400\">days · normal · % · p10–p90</span></th>"; }).join("") + "</tr>"];
+        months.forEach(function (mo) {
+          rows.push("<tr><td>" + mmm(mo) + "</td>" + thrs.map(function (t) {
+            var e = R.months[mo][t]; if (!e) return "<td>–</td>";
+            var cls = e.pct == null ? "flat" : e.pct > 115 ? (st.r === "us" ? "down" : "up") : e.pct < 85 ? (st.r === "us" ? "up" : "down") : "flat";
+            return '<td class="' + cls + '"><b>' + d1(e.days, 1) + "</b> · " + (e.normal == null ? "–" : d1(e.normal, 1)) + " · " + (e.pct == null ? "–" : Math.round(e.pct) + "%") + ' <span style="color:var(--muted);font-weight:400">' + d1(e.p10, 1) + "–" + d1(e.p90, 1) + "</span></td>";
+          }).join("") + "</tr>");
+        });
+        document.getElementById("xdTable").innerHTML = rows.join("");
+        tb.innerHTML = '<span class="ctlsep">Map threshold</span>' + thrs.map(function (t) { return '<button class="pill' + (t === st.t ? " on" : "") + '" data-t="' + t + '">' + t + " °C</button>"; }).join("");
+        mb.innerHTML = '<span class="ctlsep">Month</span>' + months.map(function (mo) { return '<button class="pill' + (mo === st.m ? " on" : "") + '" data-m="' + mo + '">' + mmm(mo) + "</button>"; }).join("");
+        var e = R.months[st.m][st.t];
+        document.getElementById("xdMap").innerHTML = e && e.map ? '<figure><a href="assets/sst/' + e.map + '?v=' + encodeURIComponent(X.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + e.map + '?v=' + encodeURIComponent(X.generated) + '" alt="' + R.label + " " + R.kind + " " + st.t + " °C, % of normal, " + mmm(st.m) + '" loading="lazy"></a><figcaption><b>' + R.kind + " " + st.t + " °C</b>, " + mmm(st.m) + ": population-weighted " + d1(e.days, 1) + " days against a normal of " + (e.normal == null ? "–" : d1(e.normal, 1)) + (e.pct == null ? "" : " (" + Math.round(e.pct) + "% of normal)") + ". Members p10–p90 " + d1(e.p10, 1) + "–" + d1(e.p90, 1) + " days.</figcaption></figure>" : '<p class="note">No map for this month yet.</p>';
+      }
+      rb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.r = b.dataset.r; Array.prototype.forEach.call(rb.children, function (c) { c.classList.toggle("on", c === b); }); draw(); });
+      tb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.t = b.dataset.t; draw(); });
+      mb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.m = b.dataset.m; draw(); });
+      document.getElementById("xdUpdated").textContent = "built " + X.generated + " · issue " + issueLabel(X.issue) + (X.regions[st.r].normal_years ? " · normal " + X.regions[st.r].normal_years[0] + "–" + X.regions[st.r].normal_years[1] : "");
+      draw();
+    }).catch(function () {});
+  }
+
   function changeView() {
     var prev = J.previous, cur = J.indices[J.issue], old = J.indices[prev];
     var card = document.getElementById("changeCard");
@@ -531,7 +586,7 @@
       var q = P.filter(function (x) { return x.key === state.p; })[0] || {}, vv = V[state.v];
       var src = "assets/sst/" + e.file + "?v=" + encodeURIComponent(J.generated);
       var what = state.k === "anom" ? "anomaly vs the 1993–2016 hindcast" : issueLabel(J.issue) + " issue minus " + issueLabel(prev) + " issue";
-      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing)." : "Red warmer, blue cooler.";
+      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "sf" ? "Green more snow (water equivalent; ×10 is roughly centimetres of snow), brown less." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing)." : "Red warmer, blue cooler.";
       g.innerHTML = '<figure><a href="' + src + '" target="_blank" rel="noopener"><img src="' + src + '" alt="SEAS5 ' + vv.label + ' ' + what + ', ' + q.label + '"></a>' +
         '<figcaption><b>' + vv.label + '</b> — ' + what + ', ' + q.label + '. Area mean ' + (e.mean >= 0 ? "+" : "") + fmt(e.mean, 2) + " " + vv.units + ". " + read + "</figcaption></figure>";
     }
@@ -707,7 +762,7 @@
     document.getElementById("membersPill").addEventListener("click", function () { state.members = !state.members; this.classList.toggle("on", state.members); drawEnso(); });
     document.getElementById("smMonthly").addEventListener("click", function () { state.sm = 0; this.classList.add("on"); document.getElementById("sm3").classList.remove("on"); drawEnso(); drawOther(); });
     document.getElementById("sm3").addEventListener("click", function () { state.sm = 1; this.classList.add("on"); document.getElementById("smMonthly").classList.remove("on"); drawEnso(); drawOther(); });
-    chips(); drawEnso(); drawOther(); changeView(); maps(); drawPolar();
+    chips(); drawEnso(); drawOther(); changeView(); xdaysView(); maps(); drawPolar();
   }).catch(function (e) {
     document.getElementById("chips").innerHTML = '<div class="chip"><div class="l">Forecast feed</div><div class="v neut">unavailable</div><div class="s">' + String(e).slice(0, 80) + '</div></div>';
   });

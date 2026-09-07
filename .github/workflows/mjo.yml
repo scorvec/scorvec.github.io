@@ -297,10 +297,11 @@ jobs:
         working-directory: scripts/mjo
         run: python src/soi_history.py --out ../../assets/sst/soi_history.webp || echo "SOI history failed; continuing"
 
-      # The Walker loop dir also carries walker_chi_history.nc (tropical velocity potential per
-      # analysis, ~40 KB each) for the weekly departure maps; seed it so the append has a past.
-      - name: Seed the Walker frames and χ history from the frames branch
-        run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/walker || true
+      # The Walker loop dir carries walker_chi_history.nc (tropical velocity potential per analysis)
+      # and the WAF dir waf_basic_history.nc (0-h control u/v/ψ for the low-passed basic state);
+      # seed both so the appends have a past.
+      - name: Seed the Walker and WAF frame dirs and their analysis histories from the frames branch
+        run: scripts/lib/fetch_frames_ci.sh assets/sst/anim/walker assets/sst/anim/waf || true
 
       - name: Walker + MMSF cross-sections
         timeout-minutes: 15

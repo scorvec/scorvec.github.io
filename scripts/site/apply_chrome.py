@@ -42,7 +42,7 @@ PRODUCTS = [
             ("/enso-atmosphere.html", "Global circulation and jets"),
         ]),
         ("Beyond two weeks", [
-            ("/subseasonal.html", "Subseasonal outlook, weeks 1–5"),
+            ("/subseasonal.html", "GEPS subseasonal outlook, weeks 1–5"),
             ("/enso-forecasts.html", "ENSO forecasts"),
             ("/seas5.html", "ECMWF SEAS5 outlook"),
             ("/sfs.html", "NOAA SFS outlook"),
