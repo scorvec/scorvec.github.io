@@ -15,88 +15,43 @@
 <meta name="twitter:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
 <meta name="twitter:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, expressed against the 1991-2020 normal, with model drift removed using a 2001-2020 GEPS hindcast.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/outlook.css">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #fafaf8;
-    --ink: #1c1c1a;
-    --muted: #888580;
-    --accent: #2c4a72;
-    --accent-light: #e8eef5;
-    --rule: #e4e2dc;
-    --serif: 'Lora', Georgia, serif;
-    --sans: 'Inter', sans-serif;
-  }
-  html { font-size: 17.5px; }
-  html, body { height: 100%; }
-  body {
-    background: var(--bg); color: var(--ink);
-    font-family: var(--sans); -webkit-font-smoothing: antialiased;
-    display: flex; flex-direction: column;
-  }
-
-  .site-header {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-    background: rgba(250,250,248,0.95);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--rule);
-  }
-  nav {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 1.2rem 3rem;
-  }
-  .nav-name {
-    font-family: var(--serif); font-weight: 400; font-size: 1rem;
-    text-decoration: none; color: var(--ink);
-  }
-  .nav-links { display: flex; gap: 2rem; list-style: none; }
-  .nav-links a {
-    font-size: 0.82rem; font-weight: 400; letter-spacing: 0.04em;
-    text-decoration: none; color: var(--muted); transition: color 0.2s;
-  }
-  .nav-links a:hover, .nav-links a.active { color: var(--ink); }
-
-  .sub-nav {
-    display: flex; gap: 1.6rem; align-items: center; flex-wrap: wrap;
-    padding: 0.55rem 3rem 0.7rem;
-    border-top: 1px solid var(--rule);
-  }
-  .sub-nav a {
-    font-size: 0.78rem; letter-spacing: 0.03em; text-decoration: none;
-    color: var(--accent); padding-bottom: 2px;
-    border-bottom: 2px solid var(--accent-light);
-    transition: color 0.2s, border-color 0.2s;
-  }
-  .sub-nav a:hover { border-bottom-color: var(--accent); }
-
-  main {
-    flex: 1; max-width: 1400px; margin: 0 auto;
-    padding: 2rem 2.5rem 2rem; width: 100%;
-  }
-
-  .page-header { margin-bottom: 1.1rem; padding-bottom: 0.9rem; border-bottom: 1px solid var(--rule); }
-  .page-header h1 { font-family: var(--serif); font-weight: 400; font-size: 1.9rem; margin-bottom: 0.5rem; }
-  .page-header p { font-size: 0.88rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
-  .page-header p + p { margin-top: 0.8rem; }
-  .page-header b { color: var(--ink); font-weight: 500; }
-
-  .cycle-strip {
-    display: flex; gap: 1.8rem; flex-wrap: wrap; align-items: baseline;
-    margin-top: 0.8rem; padding: 0.5rem 1rem; background: var(--accent-light);
-  }
-  .cycle-strip div { font-size: 0.78rem; color: #4a5a6e; line-height: 1.5; }
-  .cycle-strip b { display: block; font-family: var(--serif); font-size: 1rem; color: var(--accent); font-weight: 500; }
-
-  .chart-stack { display: flex; flex-direction: column; gap: 2.6rem; }
-
-  .chart-card { border: 1px solid var(--rule); background: #fff; overflow: hidden; }
-  .chart-card-header { padding: 1.5rem 1.8rem 1.3rem; border-bottom: 1px solid var(--rule); }
-  .chart-card-header h2 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
-    margin-bottom: 0.6rem; color: var(--ink);
-  }
-  .chart-card-header p { font-size: 0.85rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
-  .chart-card-header p + p { margin-top: 0.7rem; }
+  /* subseasonal.html — page-specific rules on top of /assets/outlook.css (shared with seas5 and sfs).
+     Redesigned 2026-09-07: the product dropdown became a menu rail (user: "too much is hidden in a
+     drop-down ... redesign with menus and buttons ... a more advanced design"). */
+  .ss-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 1.2rem; align-items: start; }
+  .ss-rail { position: sticky; top: 4.6rem; background: var(--surface); border: 1.5px solid var(--edge);
+             border-radius: 4px; padding: 0.7rem 0.6rem 0.4rem; }
+  .rail-group { margin-bottom: 0.75rem; }
+  .rail-title { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+                color: var(--muted); padding: 0.2rem 0.55rem 0.3rem; }
+  .rail-group button { display: flex; align-items: center; gap: 0.55rem; width: 100%; text-align: left;
+    font: 500 0.84rem var(--sans); color: var(--ink2); background: transparent; border: 0; border-left: 3px solid transparent;
+    border-radius: 0 3px 3px 0; padding: 0.42rem 0.55rem; cursor: pointer; transition: background .15s, color .15s; }
+  .rail-group button:hover { background: var(--accent-light); color: var(--accent); }
+  .rail-group button.on { background: var(--accent-light); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+  .rail-group button .ico { width: 1.1rem; text-align: center; font-size: 0.9rem; opacity: 0.85; }
+  .rail-group button small { display: block; font-weight: 400; font-size: 0.68rem; color: var(--muted); }
+  .ss-main { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px; overflow: hidden; }
+  .crumb { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap;
+           padding: 0.7rem 1.2rem; border-bottom: 1px solid var(--rule); background: #fbfaf7; }
+  .crumb .path { font-family: var(--serif); font-size: 1.02rem; color: var(--ink); }
+  .crumb .path span { color: var(--muted); margin: 0 0.35rem; }
+  .crumb .nav { display: flex; gap: 0.3rem; }
+  .crumb .nav button { font: 600 0.72rem var(--sans); color: var(--accent); background: var(--accent-light);
+    border: 1.5px solid var(--accent); border-radius: 999px; padding: 0.28rem 0.7rem; cursor: pointer; }
+  .crumb .nav button:hover { background: var(--accent); color: #fff; }
+  .opts { padding: 0.75rem 1.2rem 0; }
+  .opts .controls { margin-bottom: 0.45rem; }
+  .seg-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+               color: var(--muted); margin-right: 0.35rem; min-width: 5.2rem; }
+  .stage { padding: 0.8rem 1.2rem 0.6rem; min-height: 320px; }
+  .stage img { display: block; max-width: 100%; height: auto; margin: 0 auto; cursor: zoom-in; }
+  .stage iframe { width: 100%; border: 0; display: block; background: #fff; }
+  .stage .cap { font-size: 0.78rem; color: var(--ink2); margin-top: 0.6rem; max-width: 110ch; }
+  .kbd { font: 600 0.66rem var(--sans); color: var(--muted); border: 1px solid var(--rule); border-radius: 3px; padding: 0 0.3rem; }
+  .hint { font-size: 0.7rem; color: var(--muted); padding: 0 1.2rem 0.7rem; }
   table.tele { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
   table.tele th, table.tele td { padding: 0.35rem 0.4rem; text-align: center; border-bottom: 1px solid var(--rule); }
   table.tele thead th { font-weight: 600; color: var(--ink); }
@@ -106,98 +61,21 @@
   table.tele td.r { color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
   table.tele td.noskill { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.55) 0 4px, rgba(140,136,128,0.35) 4px 6px) !important; color: var(--muted); }
   table.tele td.noskill b { color: var(--muted); }
-  .chart-card-header b { color: var(--ink); font-weight: 500; }
-
-  .img-wrap { padding: 1rem 1.2rem; background: #fff; }
-  .img-wrap img { display: block; width: 100%; height: auto; }
-  .img-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase;
-               letter-spacing: 0.06em; margin: 0 0 0.4rem 0.2rem; }
-
-  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; padding: 1rem 1.2rem; }
-  @media (max-width: 900px) { .pair { grid-template-columns: 1fr; } }
-  .pair img { display: block; width: 100%; height: auto; }
-
-  /* obvious, high-contrast selectors */
-  .seg { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
-         padding: 1rem 1.2rem 0; }
-  .seg + .seg { padding-top: 0.5rem; }
-  .seg-label {
-    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em;
-    color: var(--muted); margin-right: 0.35rem;
-  }
-  .seg button {
-    font-family: var(--sans); font-size: 0.78rem; line-height: 1;
-    padding: 0.5rem 0.9rem; cursor: pointer;
-    border: 1px solid var(--accent); background: #fff; color: var(--accent);
-    transition: background 0.15s, color 0.15s;
-  }
-  .seg button:hover { background: var(--accent-light); }
-  .seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
-
-  .controls {
-    display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;
-    padding: 1rem 1.2rem; border-bottom: 1px solid var(--rule); background: #fcfcfa;
-  }
-  .controls select {
-    font-family: var(--sans); font-size: 0.9rem; font-weight: 600;
-    padding: 0.5rem 0.8rem; border: 1px solid var(--accent);
-    background: #fff; color: var(--accent); cursor: pointer;
-  }
-  .stage { padding: 1rem 1.2rem; min-height: 320px; }
-  .stage img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
-  .stage iframe { width: 100%; border: 0; display: block; background: #fff; }
-  .stage .cap { font-size: 0.78rem; color: var(--muted); margin-top: 0.6rem; }
   details.method { margin-top: 2rem; border-top: 1px solid var(--rule); padding-top: 1.2rem; }
-  details.method summary {
-    cursor: pointer; font-family: var(--serif); font-size: 1rem; color: var(--ink);
-    margin-bottom: 0.8rem;
-  }
-  details.method p { font-size: 0.82rem; color: var(--muted); line-height: 1.7;
-                     max-width: 62rem; margin-top: 0.8rem; }
+  details.method summary { cursor: pointer; font-family: var(--serif); font-size: 1rem; color: var(--ink); margin-bottom: 0.8rem; }
+  details.method p { font-size: 0.82rem; color: var(--ink2); line-height: 1.7; max-width: 62rem; margin-top: 0.8rem; }
   details.method b { color: var(--ink); font-weight: 500; }
   details.method code { font-size: 0.78rem; background: #f2f0ec; padding: 0.05rem 0.3rem; }
-  .view > [data-key] { display: none; }
-  .view > [data-key].on { display: block; }
-  .anim-embed { width: 100%; border: 0; display: block; background: #fff; }
-  .anim-embed.na { aspect-ratio: 760 / 640; }
-  .anim-embed.sa { aspect-ratio: 760 / 1041; }
-  .anim-embed.strat { aspect-ratio: 1139 / 610; }
-
-  .chart-card-footer {
-    padding: 0.85rem 1.8rem; border-top: 1px solid var(--rule);
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 1rem; flex-wrap: wrap;
-  }
-  .chart-sources, .chart-updated { font-size: 0.68rem; color: var(--muted); }
-
-  .colophon { margin-top: 3.5rem; padding-top: 2rem; border-top: 1px solid var(--rule);
-              font-size: 0.82rem; color: var(--muted); line-height: 1.7; max-width: 62rem; }
-  .colophon h3 { font-family: var(--serif); font-weight: 400; font-size: 1rem;
-                 color: var(--ink); margin-bottom: 0.5rem; }
-  .colophon h3 + p { margin-top: 0; }
-  .colophon p + p, .colophon p + h3 { margin-top: 0.9rem; }
-  .colophon b { color: var(--ink); font-weight: 500; }
-  .colophon code { font-size: 0.78rem; background: #f2f0ec; padding: 0.05rem 0.3rem; }
-
-  footer { padding: 1.2rem 3rem; border-top: 1px solid var(--rule); display: flex; justify-content: center; }
-  .counter { font-size: 0.72rem; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
-
-  @media (max-width: 768px) {
-    nav { padding: 1rem 1.5rem; }
-    .sub-nav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
-    main { padding: 1.5rem 1.5rem 3.5rem; }
-    .page-header h1 { font-size: 1.6rem; }
-    .chart-stack { gap: 2rem; }
-    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
-    .chart-card-footer { padding: 0.75rem 1.3rem; }
-    footer { padding: 1rem 1.5rem; }
-  }
-  @media (max-width: 480px) {
-    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
-    .nav-links { gap: 1rem; }
-    .nav-links a { font-size: 0.78rem; }
-    main { padding: 1.5rem 1rem 3rem; }
-    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
+  .lightbox { position: fixed; inset: 0; background: rgba(20,18,14,0.92); z-index: 50; display: none; align-items: center; justify-content: center; cursor: zoom-out; }
+  .lightbox.on { display: flex; }
+  .lightbox img { max-width: 96vw; max-height: 94vh; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+  @media (max-width: 1000px) {
+    .ss-layout { grid-template-columns: 1fr; }
+    .ss-rail { position: static; display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; padding: 0.5rem 0.6rem; }
+    .rail-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; margin: 0.2rem 0; }
+    .rail-group button { width: auto; border: 1.5px solid var(--accent); border-radius: 999px; padding: 0.3rem 0.75rem; font-size: 0.76rem; }
+    .rail-group button.on { background: var(--accent); color: #fff; }
+    .rail-group button small, .rail-group button .ico { display: none; }
   }
 </style>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
@@ -274,32 +152,45 @@
 
 <main>
   <div class="page-header">
-    <h1>Subseasonal outlook, days 1 to 35</h1>
-    <p>ECCC GEPS extended ensemble. Anomalies are against the <b>1991&ndash;2020
-    normal</b>, with the model's own drift removed first using a purpose-built
-    GEPS8 hindcast.</p>
-    <div class="cycle-strip">
-      <div><b>2026-09-07 00Z</b>cycle</div>
-      <div><b>Aug 28 &ndash; Oct 1</b>valid</div>
-      <div><b>21</b>members</div>
-      <div><b>1991&ndash;2020</b>anomaly base</div>
+    <p class="eyebrow">Days 1 to 35, from the ECCC GEPS extended ensemble, twice a week</p>
+    <h1>Subseasonal outlook</h1>
+    <p class="sub">Anomalies against the <b>1991&ndash;2020 normal</b>, with the model's own drift removed first using a
+    purpose-built GEPS8 hindcast. Weekly maps, tercile odds, the change since the last run, teleconnection
+    plumes, weather regimes, MJO and the polar vortex &mdash; one figure at a time, picked from the menu.</p>
+    <div class="chips">
+      <div class="chip"><div class="l">cycle</div><div class="v">2026-09-07 00Z</div><div class="s">extended run</div></div>
+      <div class="chip"><div class="l">valid</div><div class="v"><b data-valid>Sep 8 &ndash; Oct 12</b></div><div class="s">days 1&ndash;35</div></div>
+      <div class="chip"><div class="l">members</div><div class="v">21</div><div class="s">GEPS extended</div></div>
+      <div class="chip"><div class="l">anomaly base</div><div class="v">1991&ndash;2020</div><div class="s">via the 2001&ndash;2020 GEPS8 hindcast</div></div>
     </div>
   </div>
 
-  <div class="chart-card">
-    <div class="controls">
-      <select id="product"></select>
-      <div class="seg" id="opts-a" style="padding:0"></div>
-      <div class="seg" id="opts-b" style="padding:0"></div>
-      <div class="seg" id="opts-c" style="padding:0"></div>
-    </div>
-    <div class="stage">
-      <div id="stage"></div>
-      <p class="cap" id="cap"></p>
-      <div id="tele-table" hidden></div>
-      <div id="mjo-table" hidden></div>
-    </div>
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Products"></aside>
+    <section class="ss-main">
+      <div class="crumb">
+        <div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div>
+      </div>
+      <div class="opts">
+        <div class="controls" id="opts-a"></div>
+        <div class="controls" id="opts-b"></div>
+        <div class="controls" id="opts-c"></div>
+      </div>
+      <div class="stage">
+        <div id="stage"></div>
+        <p class="cap" id="cap"></p>
+        <div id="tele-table" hidden></div>
+        <div id="mjo-table" hidden></div>
+      </div>
+      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the last option row &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change product &middot; click a map to enlarge &middot; the address bar carries the selection, so a view can be linked.</p>
+      <div class="chart-card-footer">
+        <span class="chart-sources">ECCC GEPS extended ensemble (MSC Datamart) &middot; GEPS8 hindcast 2001&ndash;2020 &middot; ERA5 1991&ndash;2020</span>
+        <span class="chart-updated">init 2026-09-07 00Z</span>
+      </div>
+    </section>
   </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
 
   <details class="method">
     <summary>How it is built</summary>
@@ -563,9 +454,9 @@
 <footer><span class="counter">GEPS days 1&ndash;35</span></footer>
 
 <script>
-// One dropdown picks the product; the button rows below it pick that product's
-// options. Only one figure is ever in the DOM, so the page is a single screen
-// instead of a scroll through fourteen images.
+// A menu rail picks the product; the option rows pick that product's settings. Only one
+// figure is ever in the DOM. The selection lives in the URL hash (#product/a/b/c) so any
+// view can be linked; arrow keys step through options and products.
 var FIELDS = [["t2m","2 m temp"],["pr","Precip"],["mslp","MSLP"],["zg500","500 hPa Z"],
               ["olr","OLR"],["u850","850 u"],["u200","200 u"],["v850","850 v"],
               ["v200","200 v"]];
@@ -603,7 +494,7 @@ var P = {
         cap: function () { return "This run minus the previous extended run (3\u20134 days earlier), weekly means over the valid days both forecast. Week 5 is a partial week and says so."; }},
   telecon: {label: "Teleconnections \u2014 AO, NAO, PNA, EPO, WPO, NAM \u2026", fit: false,
         a: {label:"View", items:[["series","Index plumes"],["probs","Weekly probabilities"],["patterns","Loading patterns"]]},
-        b: function (a) { return a === "series" ? {label:"Index", select: true, items: TELE_IDS} : null; },
+        b: function (a) { return a === "series" ? {label:"Index", items: TELE_IDS} : null; },
         img: function (a,b) { return a === "series" && b && b !== "board"
           ? "assets/geps/geps_telecon_plume_" + b + ".webp" : "assets/geps/geps_telecon_" + a + ".webp"; },
         cap: function (a) { return a==="series"
@@ -644,8 +535,28 @@ var TELE_IDS = [["board","All indices (board)"],["ao","AO \u2014 Arctic Oscillat
   ["ea","EA \u2014 East Atlantic"],["wp","WP \u2014 West Pacific"],["epnp","EP/NP \u2014 East Pacific / North Pacific"],
   ["eawr","EA/WR \u2014 East Atlantic / West Russia"],["sca","SCA \u2014 Scandinavia"],["tnh","TNH \u2014 Tropical / N. Hemisphere (Dec\u2013Feb)"],
   ["pol","POL \u2014 Polar / Eurasia"],["nam100","NAM 100 hPa \u2014 Northern Annular Mode"],["aao","AAO \u2014 Antarctic Oscillation (SAM)"]];
-var sel = {p: "mjo", a: null, b: null, c: null};
+var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1\u20135, nine fields"],["probs","Weekly terciles","temperature and precipitation"],["change","Change vs previous run","this run minus the last"],["daily","Daily animation","eight fields, day by day"]]],
+              ["Patterns", "\u2699", [["telecon","Teleconnections","AO, NAO, PNA, EPO \u2026"],["regimes","Weather regimes","Euro-Atlantic, N. America"],["clusters","500 hPa scenarios","ensemble clusters by week"]]],
+              ["Tropics", "\u{1F30A}", [["mjo","MJO","RMM plume, propagation, skill"]]],
+              ["Stratosphere", "\u2744", [["vortex","Polar vortex diagnostics","u(60\u00B0), cap T and Z"],["vloop","Polar vortex loop","10 and 100 hPa, daily"]]]];
+var ORDER = []; GROUPS.forEach(function (g) { g[2].forEach(function (p) { ORDER.push(p[0]); }); });
+var sel = {p: "weekly", a: null, b: null, c: null};
 var $ = function (id) { return document.getElementById(id); };
+
+function buildRail() {
+  var host = $("rail"); host.innerHTML = "";
+  GROUPS.forEach(function (g) {
+    var d = document.createElement("div"); d.className = "rail-group";
+    var t = document.createElement("div"); t.className = "rail-title"; t.textContent = g[0]; d.appendChild(t);
+    g[2].forEach(function (p) {
+      var b = document.createElement("button"); b.type = "button"; b.dataset.p = p[0];
+      b.innerHTML = '<span class="ico">' + g[1] + '</span><span>' + p[1] + '<small>' + p[2] + '</small></span>';
+      b.onclick = function () { sel = {p: p[0], a: null, b: null, c: null}; render(); };
+      d.appendChild(b);
+    });
+    host.appendChild(d);
+  });
+}
 
 function buttons(host, group, key) {
   host.innerHTML = "";
@@ -654,21 +565,9 @@ function buttons(host, group, key) {
     var l = document.createElement("span");
     l.className = "seg-label"; l.textContent = group.label; host.appendChild(l);
   }
-  if (group.select) {
-    var se = document.createElement("select");
-    group.items.forEach(function (it, i) {
-      var o = document.createElement("option");
-      o.value = it[0]; o.textContent = it[1];
-      if (sel[key] === it[0] || (sel[key] === null && i === 0)) { o.selected = true; sel[key] = it[0]; }
-      se.appendChild(o);
-    });
-    se.onchange = function () { sel[key] = se.value; render(); };
-    host.appendChild(se);
-    return sel[key];
-  }
   group.items.forEach(function (it, i) {
     var b = document.createElement("button");
-    b.textContent = it[1]; b.dataset.v = it[0];
+    b.className = "pill"; b.type = "button"; b.textContent = it[1]; b.dataset.v = it[0];
     if (sel[key] === it[0] || (sel[key] === null && i === 0)) { b.classList.add("on"); sel[key] = it[0]; }
     b.onclick = function () { sel[key] = it[0]; render(); };
     host.appendChild(b);
@@ -676,42 +575,66 @@ function buttons(host, group, key) {
   return sel[key];
 }
 
-// Size the figure to the viewport so it is read, not scrolled. The height is
-// measured from where the stage actually starts rather than guessed from a
-// constant, so it survives the header wrapping on a narrow window. Products
-// whose figure is intrinsically tall (stacked weekly strips) opt out with
-// fit:false and scroll normally — shrinking those to one screen would make them
-// unreadable, which defeats the point.
+// Size the figure to the viewport so it is read, not scrolled. Products whose figure is
+// intrinsically tall (stacked weekly strips) opt out with fit:false and scroll normally.
 function fitStage() {
   var st = $("stage"), img = st.querySelector("img");
   if (!img) return;
   if (P[sel.p].fit === false) { img.style.maxHeight = ""; img.style.width = "100%"; return; }
-  var avail = window.innerHeight - st.getBoundingClientRect().top
-            - $("cap").offsetHeight - 34;
+  var avail = window.innerHeight - st.getBoundingClientRect().top - $("cap").offsetHeight - 34;
   img.style.maxHeight = Math.max(260, avail) + "px";
   img.style.width = "auto";
 }
 addEventListener("resize", fitStage);
 
+function groupOf(p) { for (var i = 0; i < GROUPS.length; i++) for (var j = 0; j < GROUPS[i][2].length; j++) if (GROUPS[i][2][j][0] === p) return [GROUPS[i][0], GROUPS[i][2][j][1]]; return ["", p]; }
+function labelOf(group, v) { if (!group) return null; for (var i = 0; i < group.items.length; i++) if (group.items[i][0] === v) return group.items[i][1]; return null; }
+
 function render() {
   var p = P[sel.p];
-  buttons($("opts-a"), p.a, "a");
-  buttons($("opts-b"), (typeof p.b === "function") ? p.b(sel.a) : p.b, "b");
-  buttons($("opts-c"), (typeof p.c === "function") ? p.c(sel.a, sel.b) : (p.c || null), "c");
+  Array.prototype.forEach.call(document.querySelectorAll("#rail button"), function (b) { b.classList.toggle("on", b.dataset.p === sel.p); });
+  var ga = p.a, gb = (typeof p.b === "function") ? p.b(sel.a) : p.b, gc = (typeof p.c === "function") ? p.c(sel.a, sel.b) : (p.c || null);
+  buttons($("opts-a"), ga, "a"); gb = (typeof p.b === "function") ? p.b(sel.a) : p.b; buttons($("opts-b"), gb, "b");
+  gc = (typeof p.c === "function") ? p.c(sel.a, sel.b) : (p.c || null); buttons($("opts-c"), gc, "c");
   var st = $("stage");
   if (p.frame) {
-    st.innerHTML = '<iframe src="' + p.frame(sel.a) + '" style="aspect-ratio:'
-                 + p.ratio(sel.a) + '" title="animation"></iframe>';
+    st.innerHTML = '<iframe src="' + p.frame(sel.a) + '" style="aspect-ratio:' + p.ratio(sel.a) + '" title="animation"></iframe>';
   } else {
     st.innerHTML = '<img src="' + p.img(sel.a, sel.b, sel.c) + '" alt="' + p.label + '">';
   }
   $("cap").textContent = p.cap(sel.a, sel.b, sel.c);
+  var g = groupOf(sel.p), parts = [g[0], g[1]];
+  [[ga, sel.a], [gb, sel.b], [gc, sel.c]].forEach(function (x) { var l = labelOf(x[0], x[1]); if (l && x[0].items.length > 1) parts.push(l); });
+  $("crumb").innerHTML = parts.map(function (t) { return "<b>" + t + "</b>"; }).join("<span>\u203A</span>");
   teleTable(sel.p === "telecon");
   mjoTable(sel.p === "mjo" && sel.a === "skill");
-  var im = $("stage").querySelector("img");
-  if (im) { im.onload = fitStage; }
+  var im = st.querySelector("img");
+  if (im) { im.onload = fitStage; im.onclick = function () { var lb = $("lightbox"); lb.querySelector("img").src = im.src; lb.classList.add("on"); }; }
   fitStage();
+  var h = "#" + [sel.p, sel.a, sel.b, sel.c].filter(function (x) { return x; }).join("/");
+  if (location.hash !== h) history.replaceState(null, "", h);
 }
+
+// step the deepest option row (or the product) with the arrow keys and the prev/next buttons
+function lastRow() {
+  var rows = ["c", "b", "a"];
+  for (var i = 0; i < rows.length; i++) { var bs = document.querySelectorAll("#opts-" + rows[i] + " button"); if (bs.length > 1) return [rows[i], bs]; }
+  return null;
+}
+function step(dir) {
+  var r = lastRow(); if (!r) return stepProduct(dir);
+  var bs = r[1], i = -1; for (var k = 0; k < bs.length; k++) if (bs[k].classList.contains("on")) i = k;
+  bs[(i + dir + bs.length) % bs.length].click();
+}
+function stepProduct(dir) { var i = ORDER.indexOf(sel.p); sel = {p: ORDER[(i + dir + ORDER.length) % ORDER.length], a: null, b: null, c: null}; render(); }
+$("prevBtn").onclick = function () { step(-1); }; $("nextBtn").onclick = function () { step(1); };
+addEventListener("keydown", function (e) {
+  if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.key === "ArrowRight") { step(1); e.preventDefault(); } else if (e.key === "ArrowLeft") { step(-1); e.preventDefault(); }
+  else if (e.key === "ArrowDown") { stepProduct(1); e.preventDefault(); } else if (e.key === "ArrowUp") { stepProduct(-1); e.preventDefault(); }
+  else if (e.key === "Escape") { $("lightbox").classList.remove("on"); }
+});
+$("lightbox").onclick = function () { this.classList.remove("on"); };
 
 // The numbers behind the teleconnection figures: one row per index, one cell
 // per week with P(<= -0.5) / P(>= +0.5), the weekly mean and its change since
@@ -789,12 +712,9 @@ function mjoTable(show) {
 }
 
 (function init() {
-  var d = $("product");
-  Object.keys(P).forEach(function (k) {
-    var o = document.createElement("option");
-    o.value = k; o.textContent = P[k].label; d.appendChild(o);
-  });
-  d.onchange = function () { sel = {p: d.value, a: null, b: null, c: null}; render(); };
+  buildRail();
+  var h = location.hash.replace(/^#/, "").split("/");
+  if (h[0] && P[h[0]]) sel = {p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null};
   render();
 })();
 

@@ -111,11 +111,7 @@ PAGES = [
         ("main { padding: 9.5rem 1rem 3rem; }", "main { padding: 1.5rem 1rem 3rem; }"),
     ]),
     dict(path="seas5.html", mode="after-body", tabs="enso"),
-    dict(path="subseasonal.html", mode="site-header", fixes=[
-        ("padding: 6.2rem 2.5rem 2rem; width: 100%;", "padding: 2rem 2.5rem 2rem; width: 100%;"),
-        ("main { padding: 9rem 1.5rem 3.5rem; }", "main { padding: 1.5rem 1.5rem 3.5rem; }"),
-        ("main { padding: 9.5rem 1rem 3rem; }", "main { padding: 1.5rem 1rem 3rem; }"),
-    ]),
+    dict(path="subseasonal.html", mode="site-header", fixes=[]),   # page restyled 2026-09-07 on /assets/outlook.css; no padding patches needed
     dict(path="mjo.html", mode="nav"),
     dict(path="ecape.html", mode="nav", fixes=[
         ("padding: 7.5rem 2.5rem 5rem;", "padding: 2.5rem 2.5rem 5rem;"),
