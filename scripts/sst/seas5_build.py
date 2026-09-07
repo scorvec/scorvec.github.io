@@ -435,7 +435,7 @@ MAP_SPEC = {
            [-2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2], "BrBG", None, None),
     # heights are standardised by the hindcast's interannual σ (per cell, lead, or season): a warm-climate
     # +60 m everywhere saturated a metre scale (user 2026-09-07)
-    "z500": ("500 hPa height, standardised", "σ", [-3, -2.5, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 2.5, 3],
+    "z500": ("500 hPa height, standardised", "σ", [-5, -4, -3, -2.5, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5],
              [-2, -1.5, -1, -0.75, -0.5, -0.25, 0.25, 0.5, 0.75, 1, 1.5, 2], "RdBu_r", None, None),
     # SST: fine steps and labelled isolines (user 2026-09-07: "make it highly detailed")
     # ±3 °C at 0.2 steps saturated on the 2026 El Niño (user 2026-09-07): 0.2 steps to ±3, then 0.5 steps to ±5
@@ -540,10 +540,10 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
     fig.text(0.03, 1 - 0.14 / H, title, fontsize=13.5, fontweight="bold", va="top")
     fig.text(0.03, 1 - 0.50 / H, sub, fontsize=8.6, color="#444", va="top")
     cax = fig.add_axes([0.25, 0.42 / H, 0.50, 0.14 / H])
-    cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both"); cb.set_label(cb_label, fontsize=8.5)
+    cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both", spacing="uniform"); cb.set_label(cb_label, fontsize=8.5)
     cb.ax.tick_params(labelsize=7)
-    if len(levels) > 16:
-        cb.set_ticks([x for x in levels if abs(round(x / (cstep or 0.5)) * (cstep or 0.5) - x) < 1e-6])
+    if len(levels) > 16:                                                        # fine steps: label whole degrees only
+        cb.set_ticks([x for x in levels if abs(x - round(x)) < 1e-6])
     fig.savefig(out, dpi=125, pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
 
 
@@ -571,18 +571,28 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
         for key, plabel, ln, lp in periods:
             idx = [L - 1 for L in ln]
             a = fcm[idx].mean(0) - hcm[idx].mean(0)
-            if hc_ym is not None:                                               # σ of the per-year ensemble means over the period
-                sd = np.nanstd(hc_ym[:, idx].mean(1), axis=0); a = a / np.where(sd > 0, sd, np.nan)
+            if hc_ym is not None:
+                # heights carry the warming trend (+40–60 m over the tropics against a 1993–2016 mean, which is
+                # many σ where the year-to-year spread is small): the reference is the hindcast's linear trend
+                # evaluated at the valid year, the σ its residual spread — the same construction as the normals
+                ym_ = hc_ym[:, idx].mean(1); ny = ym_.shape[0]; yr = np.arange(ny) - (ny - 1) / 2
+                slope = (yr[:, None, None] * (ym_ - ym_.mean(0))).sum(0) / (yr ** 2).sum()
+                vyear = int(valid_months(ym)[idx[len(idx) // 2]][:4]); target = (vyear - 1993) - (ny - 1) / 2
+                ref = ym_.mean(0) + slope * target; sd = np.nanstd(ym_ - slope[None] * yr[:, None, None], axis=0)
+                a = (fcm[idx].mean(0) - ref) / np.where(sd > 0, sd, np.nan)
             out = out_dir / f"seas5_map_{var}_anom_{key}.webp"
             _global_map(a, lat, lon, var, lv_a, cmap, cs_a, f"SEAS5 {label} anomaly · {plabel} · {issue_lbl}",
-                        "Ensemble mean of 51 members minus the 1993–2016 start-month hindcast mean (25 members × 24 years), 1° grid.",
+                        "Ensemble mean of 51 members minus the 1993–2016 start-month hindcast mean (25 members × 24 years), 1° grid." + (" Heights: departure from the hindcast's linear trend at the valid year, in σ of the residual year-to-year spread; the whole tropical belt sits 3–4σ high in this El Niño." if hc_ym is not None else ""),
                         f"anomaly ({units})", out)
             entry["anom"][key] = dict(file=out.name, mean=float(np.nanmean(a)))
             if pb is not None and lp is not None:
                 fcp, hcp = pb[0], pb[1]; ip = [L - 1 for L in lp]
                 ap = np.nanmean(fcp, axis=0)[ip].mean(0) - hcp[ip].mean(0)
-                if hc_ym is not None:
-                    ap = ap / np.where(sd > 0, sd, np.nan)                      # same σ, so the change is in the same units
+                if hc_ym is not None and len(pb) > 4 and pb[4] is not None:     # previous issue: its own trend reference, this σ
+                    ymp = pb[4][:, ip].mean(1); nyp = ymp.shape[0]; yrp = np.arange(nyp) - (nyp - 1) / 2
+                    slp = (yrp[:, None, None] * (ymp - ymp.mean(0))).sum(0) / (yrp ** 2).sum()
+                    refp = ymp.mean(0) + slp * ((vyear - 1993) - (nyp - 1) / 2)
+                    ap = (np.nanmean(fcp, axis=0)[ip].mean(0) - refp) / np.where(sd > 0, sd, np.nan)
                 c = a - ap
                 out = out_dir / f"seas5_map_{var}_chg_{key}.webp"
                 _global_map(c, lat, lon, var, lv_c, cmap, cs_c, f"SEAS5 {label}: change since the {prev_lbl} · {plabel} · {issue_lbl}",

@@ -109,16 +109,7 @@
   <header>
     <div class="eyebrow">Monthly, from ECMWF SEAS5 with 51 members, <span id="issueLabel">latest issue</span></div>
     <h1>SEAS5 outlook</h1>
-    <p class="sub">ECMWF&rsquo;s seasonal system, read in full and checked against observations: the ENSO
-    indices from the coastal Ni&ntilde;o-1+2 to the central-Pacific Ni&ntilde;o-4, each against the
-    previous three issues; the Pacific, Atlantic and Indian Ocean indices from the same fields;
-    what changed since last month; the CPC teleconnection patterns and the stratosphere, each
-    with the model&rsquo;s own hindcast skill; anomaly and tercile maps against the hindcast and
-    against observed normals; and the forecast for population-weighted temperature in the United
-    States and Brazil set against normals and records. Model drift is removed everywhere by
-    anomalising each member against SEAS5&rsquo;s own 1993&ndash;2016 hindcast for the same start
-    month and lead. The multi-model <a href="enso-forecasts.html">C3S page</a> follows once the
-    other centres publish.</p>
+    <p class="sub">ECMWF&rsquo;s seasonal forecast every month: ENSO and ocean indices, global maps, teleconnections, the stratosphere and impacts, each member anomalised against the model&rsquo;s own 1993&ndash;2016 hindcast. Pick a figure from the rail.</p>
     <div class="chips" id="chips">
       <div class="chip"><div class="l">Loading forecast feed&hellip;</div><div class="v neut">&mdash;</div></div>
     </div>
@@ -379,6 +370,22 @@
     <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of a Gaussian centred on the regression prediction with the residual spread &mdash; an in-sample fit at n&nbsp;=&nbsp;24, so the quoted r is slightly optimistic; below r&nbsp;=&nbsp;0.25 the probabilities are treated as climatology. The AO, EPO, WPO and SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_pme_regions.json">seas5_pme_regions.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>.</p>
     <p>Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use of this information.</p>
   </div>
+
+  <div class="card" id="aboutCard" data-label="About this page" data-group="About">
+    <h2>What this page reads, and how</h2>
+    <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">ECMWF&rsquo;s seasonal system, read in full and checked against observations: the ENSO
+    indices from the coastal Ni&ntilde;o-1+2 to the central-Pacific Ni&ntilde;o-4, each against the
+    previous three issues; the Pacific, Atlantic and Indian Ocean indices from the same fields;
+    what changed since last month; the CPC teleconnection patterns and the stratosphere, each
+    with the model&rsquo;s own hindcast skill; anomaly and tercile maps against the hindcast and
+    against observed normals; and the forecast for population-weighted temperature in the United
+    States and Brazil set against normals and records. Model drift is removed everywhere by
+    anomalising each member against SEAS5&rsquo;s own 1993&ndash;2016 hindcast for the same start
+    month and lead. The multi-model <a href="enso-forecasts.html">C3S page</a> follows once the
+    other centres publish.</p>
+    <div class="chart-card-footer"><span class="chart-sources">ECMWF SEAS5 via the Copernicus Climate Data Store</span><span class="chart-updated">built by scripts/sst/seas5_outlook.py</span></div>
+  </div>
+
 </main>
 
 <script>
@@ -396,13 +403,15 @@
   function fmt(v, d) { return v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
   function meta(key) { for (var i = 0; i < J.index_meta.length; i++) if (J.index_meta[i].key === key) return J.index_meta[i]; return {label: key, units: "", note: ""}; }
 
+  // Chart chrome (user 2026-09-07: "make the timeseries plots a bit more clear"): larger type, the legend
+  // above the plot in reading order, one tick per month, a firm zero line, thicker lines.
   function layout(title, yunits, xr) {
-    return { margin: {l: 52, r: 16, t: 28, b: 40}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff",
-      font: {family: "Inter, sans-serif", size: 12, color: "#1a1a1a"}, showlegend: true,
-      legend: {orientation: "h", y: -0.16, x: 0, font: {size: 11}},
-      xaxis: {type: "date", range: xr, gridcolor: "#eee", tickformat: "%b %Y", zeroline: false},
-      yaxis: {title: {text: yunits, standoff: 6}, gridcolor: "#eee", zeroline: true, zerolinecolor: "#999"},
-      hovermode: "x unified", title: {text: title, x: 0, font: {size: 13}} };
+    return { margin: {l: 58, r: 24, t: 70, b: 46}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff",
+      font: {family: "Inter, sans-serif", size: 14, color: "#1a1a1a"}, showlegend: true,
+      legend: {orientation: "h", y: 1.02, yanchor: "bottom", x: 0, font: {size: 12.5}, itemwidth: 30, traceorder: "normal"},
+      xaxis: {type: "date", range: xr, gridcolor: "#e8e6e0", tickformat: "%b\n%Y", dtick: "M1", zeroline: false, showspikes: true, spikecolor: "#bbb", spikethickness: 1, spikemode: "across", tickfont: {size: 12.5}},
+      yaxis: {title: {text: yunits, standoff: 8, font: {size: 13}}, gridcolor: "#e8e6e0", zeroline: true, zerolinecolor: "#666", zerolinewidth: 1.6, tickfont: {size: 12.5}},
+      hovermode: "x unified", hoverlabel: {font: {size: 12.5}}, title: {text: title, x: 0, xanchor: "left", y: 0.98, font: {size: 15}} };
   }
 
   function seriesFor(entry, key) {
@@ -421,7 +430,7 @@
     var prev = J.issues.filter(function (i) { return i !== J.issue; }).sort();
     prev.forEach(function (iss, k) {
       var p = seriesFor(J.indices[iss], key); if (!p) return;
-      tr.push({x: p.x, y: p.mean, mode: "lines", line: {color: ORDER[k % ORDER.length], width: 1.8, dash: k === prev.length - 1 ? "solid" : "dot"},
+      tr.push({x: p.x, y: p.mean, mode: "lines", line: {color: ORDER[k % ORDER.length], width: 2.4, dash: ["dot", "dash", "solid"][Math.max(0, 3 - prev.length + k)] || "solid"},
                name: issueLabel(iss) + " issue", hovertemplate: "%{y:.2f}<extra>" + issueLabel(iss) + "</extra>"});
     });
     // this issue: fans, members, mean
@@ -436,10 +445,10 @@
         tr.push({x: s.x, y: y, mode: "lines", line: {color: "rgba(184,134,11,0.25)", width: 0.7}, hoverinfo: "skip", showlegend: m === 0, name: "members"});
       }
     }
-    tr.push({x: s.x, y: s.mean, mode: "lines+markers", line: {color: GOLD, width: 3}, marker: {size: 5}, name: issueLabel(J.issue) + " issue (this)", hovertemplate: "%{y:.2f}<extra>mean</extra>"});
+    tr.push({x: s.x, y: s.mean, mode: "lines+markers", line: {color: GOLD, width: 4}, marker: {size: 7, line: {color: "#fff", width: 1}}, name: issueLabel(J.issue) + " issue (this)", hovertemplate: "%{y:.2f}<extra>mean</extra>"});
     if (withObs && J.observed && J.observed[OBS_KEY[key]]) {
       var ox = J.observed.months.map(monthDate), oy = J.observed[OBS_KEY[key]];
-      tr.push({x: ox, y: oy, mode: "lines+markers", line: {color: "#111", width: 2}, marker: {size: 4}, name: "observed" + (key === "rnino34" ? " RONI (3-month)" : ""), hovertemplate: "%{y:.2f}<extra>observed</extra>"});
+      tr.push({x: ox, y: oy, mode: "lines+markers", line: {color: "#111", width: 3}, marker: {size: 5}, name: "observed" + (key === "rnino34" ? " RONI (3-month)" : ""), hovertemplate: "%{y:.2f}<extra>observed</extra>"});
     }
     return tr;
   }
@@ -469,8 +478,8 @@
     var nm = e.members[0].length;
     for (var m = 0; m < nm; m++) tr.push({x: x, y: e.members.map(function (r) { return r[m]; }), mode: "lines", line: {color: "rgba(184,134,11,0.22)", width: 0.7}, hoverinfo: "skip", showlegend: m === 0, name: "members"});
     var pe = J.polar_previous && J.polar_previous[key];
-    if (pe) tr.push({x: pe.valid.map(monthDate), y: pe.mean, mode: "lines", line: {color: "#3f7fbf", width: 1.8, dash: "dot"}, name: issueLabel(J.previous) + " issue mean", hovertemplate: "%{y:.0f} m<extra>" + issueLabel(J.previous) + "</extra>"});
-    tr.push({x: x, y: e.mean, mode: "lines+markers", line: {color: GOLD, width: 3}, marker: {size: 5}, name: issueLabel(J.issue) + " issue mean", hovertemplate: "%{y:.0f} m<extra>mean</extra>"});
+    if (pe) tr.push({x: pe.valid.map(monthDate), y: pe.mean, mode: "lines", line: {color: "#3f7fbf", width: 2.4, dash: "dash"}, name: issueLabel(J.previous) + " issue mean", hovertemplate: "%{y:.0f} m<extra>" + issueLabel(J.previous) + "</extra>"});
+    tr.push({x: x, y: e.mean, mode: "lines+markers", line: {color: GOLD, width: 4}, marker: {size: 7, line: {color: "#fff", width: 1}}, name: issueLabel(J.issue) + " issue mean", hovertemplate: "%{y:.0f} m<extra>mean</extra>"});
     var title = (state.hemi === "nh" ? "Northern" : "Southern") + " polar cap, " + state.lev + " hPa height anomaly";
     var x0 = pe ? monthDate(pe.valid[0]) : x[0];
     Plotly.react("polarChart", tr, layout(title, "m", [x0, x[x.length - 1]]), {displayModeBar: false, responsive: true});
@@ -633,12 +642,12 @@
     tr.push({x: x.concat(x.slice().reverse()), y: base.map(function (b, i) { return b + e.clim_sd[i]; }).concat(base.map(function (b, i) { return b - e.clim_sd[i]; }).reverse()),
              mode: "lines", fill: "toself", fillcolor: CLIM, line: {width: 0}, hoverinfo: "skip", name: absolute ? "hindcast mean ±1σ" : "hindcast ±1σ"});
     if (absolute) tr.push({x: x, y: e.clim_mean, mode: "lines", line: {color: "#888", width: 1, dash: "dash"}, name: "hindcast mean", hoverinfo: "skip"});
-    if (pe) tr.push({x: pe.valid.map(monthDate), y: pe.mean, mode: "lines", line: {color: "#3f7fbf", width: 1.8, dash: "dot"}, name: issueLabel(T.previous) + " issue mean"});
+    if (pe) tr.push({x: pe.valid.map(monthDate), y: pe.mean, mode: "lines", line: {color: "#3f7fbf", width: 2.4, dash: "dash"}, name: issueLabel(T.previous) + " issue mean"});
     tr.push({x: x.concat(x.slice().reverse()), y: e.p10.concat(e.p90.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.16)", line: {width: 0}, hoverinfo: "skip", name: "P10–P90"});
     tr.push({x: x.concat(x.slice().reverse()), y: e.p25.concat(e.p75.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.30)", line: {width: 0}, hoverinfo: "skip", name: "P25–P75"});
     if (e.members) { var nm = e.members[0].length; for (var m = 0; m < nm; m++) tr.push({x: x, y: e.members.map(function (r) { return r[m]; }), mode: "lines", line: {color: "rgba(184,134,11,0.18)", width: 0.6}, hoverinfo: "skip", showlegend: m === 0, name: "members"}); }
-    tr.push({x: x, y: e.mean, mode: "lines+markers", line: {color: GOLD, width: 3}, marker: {size: 5}, name: issueLabel(T.issue) + " issue mean"});
-    if (e.obs_tail && e.obs_tail.length) tr.push({x: e.obs_tail.map(function (r) { return monthDate(r[0]); }), y: e.obs_tail.map(function (r) { return r[1]; }), mode: "lines+markers", line: {color: "#333", width: 1.6}, marker: {size: 4}, name: "observed (ERA5, same projection)"});
+    tr.push({x: x, y: e.mean, mode: "lines+markers", line: {color: GOLD, width: 4}, marker: {size: 7, line: {color: "#fff", width: 1}}, name: issueLabel(T.issue) + " issue mean"});
+    if (e.obs_tail && e.obs_tail.length) tr.push({x: e.obs_tail.map(function (r) { return monthDate(r[0]); }), y: e.obs_tail.map(function (r) { return r[1]; }), mode: "lines+markers", line: {color: "#111", width: 3}, marker: {size: 5}, name: "observed (ERA5, same projection)"});
     if (e.cpc_tail && e.cpc_tail.length) tr.push({x: e.cpc_tail.map(function (r) { return monthDate(r[0]); }), y: e.cpc_tail.map(function (r) { return r[1]; }), mode: "markers", marker: {symbol: "x", size: 7, color: "#8b1a1a"}, name: "published index (CPC), its own scale"});
     if (key.indexOf("u60") === 0) tr.push({x: [x[0], x[x.length - 1]], y: [0, 0], mode: "lines", line: {color: "#c2185b", width: 1.2, dash: "dash"}, name: "easterly below"});
     return tr;
