@@ -7,9 +7,9 @@ From temperature and wind on nine pressure levels (700–100 hPa), 12-hourly to 
                                    interpolated linearly in PV between the bracketing levels
   isentropic PV                    PV and wind interpolated in θ onto 330 K and 350 K
 Rendered on a North-Pacific-to-Atlantic polar stereographic view (20–90°N) as three loops
-(assets/sst/anim/dt, dt_pv330, dt_pv350 + dt_manifest.json) and a static four-panel DT figure.
+(assets/sst/anim/dt, dt_pv330, dt_pv350 + dt_manifest.json). The static four-panel figure was dropped 2026-09-07 (user).
     python src/dt_charts.py --date 20260906 --time 00 --anim-dir ../../assets/sst/anim \
-        --manifest ../../assets/sst/anim/dt_manifest.json --out ../../assets/sst/dt_now.webp
+        --manifest ../../assets/sst/anim/dt_manifest.json
 """
 from __future__ import annotations
 
@@ -175,7 +175,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True); ap.add_argument("--time", default="00")
     ap.add_argument("--anim-dir", default="assets/sst/anim"); ap.add_argument("--manifest", default="assets/sst/anim/dt_manifest.json")
-    ap.add_argument("--out", default="assets/sst/dt_now.webp"); ap.add_argument("--max-steps", type=int, default=0, help="render only the first N steps (timing tests)")
+    ap.add_argument("--max-steps", type=int, default=0, help="render only the first N steps (timing tests)")
     a = ap.parse_args()
     import matplotlib
     matplotlib.use("Agg")
@@ -224,18 +224,7 @@ def main() -> int:
                         "dt_pv330": {"label": "PV on 330 K", "frames": entries["dt_pv330"]},
                         "dt_pv350": {"label": "PV on 350 K", "frames": entries["dt_pv350"]}}}
     Path(a.manifest).parent.mkdir(parents=True, exist_ok=True); Path(a.manifest).write_text(json.dumps(mani))
-    # static four-panel: analysis and days 2, 4, 6
-    fig = plt.figure(figsize=(15, 15.6))
-    for n, (h, dt) in enumerate(sorted(keep.items())):
-        ax = _polar_axes(fig, [0.01 + 0.5 * (n % 2), 0.505 - 0.47 * (n // 2), 0.48, 0.43])
-        cf = draw_dt(ax, lat, lon, dt, ("analysis" if h == 0 else f"+{h} h · day {h // 24}") + f" · {(init + pd.Timedelta(hours=h)):%a %d %b %HZ}")
-    cax = fig.add_axes([0.25, 0.03, 0.5, 0.012]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=9)
-    cb.set_label("θ on the 2-PVU surface (K) · contours: DT pressure 200/300/400/500 hPa · arrows: wind on the DT", fontsize=9)
-    fig.suptitle(f"Dynamic tropopause potential temperature — AIFS-ENS control, init {init:%Y-%m-%d %HZ}", fontsize=15, fontweight="bold", x=0.02, ha="left", y=0.985)
-    fig.text(0.02, 0.966, "Low θ (blue) is stratospheric or polar air reaching down into the troposphere; high θ (red) is a tropical tropopause. Troughs, cut-offs and ridges read as the θ pattern; a tight gradient is the jet.", fontsize=10, color="#666")
-    Path(a.out).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(a.out, dpi=96, facecolor="white", pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
-    print(f"wrote {len(entries['dt'])} frames × 3 loops, {a.manifest}, {a.out} in {(time.time() - t0) / 60:.1f} min", flush=True)
+    print(f"wrote {len(entries['dt'])} frames × 3 loops, {a.manifest} in {(time.time() - t0) / 60:.1f} min", flush=True)
     return 0
 
 
