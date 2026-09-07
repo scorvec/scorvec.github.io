@@ -31,6 +31,10 @@
                  background: rgba(255,255,255,0.92); padding: 0.05rem 0.3rem; border-radius: 3px; display: none; }
   .xd-city.r .nm { left: 100%; } .xd-city.l .nm { right: 100%; }
   #xdCity { min-height: 0; }
+  @media (max-width: 700px) {
+    .xd-city { width: 16px; height: 16px; }
+    .xd-city .dot { width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-width: 1.5px; }
+  }
   #xdCityWrap { margin-top: 0.8rem; }
   #xdCityWrap .lead { font-size: 0.86rem; color: var(--ink2); margin: 0 0 0.3rem; }
   .legend-row { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.78rem; color: var(--ink2); margin: 0.3rem 0 0.8rem; }
@@ -638,20 +642,25 @@
     fetch("assets/sst/data/seas5_snow.json?v=" + encodeURIComponent(J.generated)).then(function (r) { return r.ok ? r.json() : null; }).then(function (X) {
       if (!X || !X.months || !Object.keys(X.months).length) return;
       var card = document.getElementById("snowCard"); card.hidden = false;
-      var PRODS = [["snow1d", "Chance of a big day"], ["mean", "Monthly total, mean"], ["snowtot", "Chance of a monthly total"]];   // % of normal lives in the maps viewer
-      var st = { p: "snow1d", t: null, m: null, c: null }, months = Object.keys(X.months).sort();
+      var months = Object.keys(X.months).sort();
+      var hasR = months.some(function (mo) { return X.months[mo].snow1d_pct && Object.keys(X.months[mo].snow1d_pct).length; });
+      var PRODS = (hasR ? [["snow1d_pct", "Big day, vs normal chance"], ["snowtot_pct", "Monthly total, vs normal chance"]] : [])
+                  .concat([["snow1d", "Big day, raw chance"], ["mean", "Monthly total, mean"], ["snowtot", "Monthly total, raw chance"]]);   // % of normal total lives in the maps viewer
+      var st = { p: hasR ? "snow1d_pct" : "snow1d", t: null, m: null, c: null };
       var pb = document.getElementById("snProd"), tb = document.getElementById("snThr"), mb = document.getElementById("snMonth");
-      function thrs() { return st.p === "snow1d" ? X.thr1d.map(String) : st.p === "snowtot" ? X.thrtot.map(String) : []; }
+      function thrs() { return /^snow1d/.test(st.p) ? X.thr1d.map(String) : /^snowtot/.test(st.p) ? X.thrtot.map(String) : []; }
       function draw() {
         pb.innerHTML = PRODS.map(function (q) { return '<button class="pill' + (q[0] === st.p ? " on" : "") + '" data-p="' + q[0] + '">' + q[1] + "</button>"; }).join("");
         var T = thrs(); if (T.length && T.indexOf(st.t) < 0) st.t = T[1] || T[0];
         tb.innerHTML = T.length ? '<span class="ctlsep">Threshold</span>' + T.map(function (t) { return '<button class="pill' + (t === st.t ? " on" : "") + '" data-t="' + t + '">' + t + " cm</button>"; }).join("") : "";
         if (months.indexOf(st.m) < 0) st.m = months[Math.min(3, months.length - 1)];   // open on the first winter month
         mb.innerHTML = '<span class="ctlsep">Month</span>' + months.map(function (mo) { return '<button class="pill' + (mo === st.m ? " on" : "") + '" data-m="' + mo + '">' + mmm(mo) + "</button>"; }).join("");
-        var R = X.months[st.m], f = st.p === "snow1d" ? R.snow1d[st.t] : st.p === "snowtot" ? R.snowtot[st.t] : st.p === "mean" ? R.mean_total : R.pct;
+        var R = X.months[st.m], f = st.p === "mean" ? R.mean_total : st.p === "pct" ? R.pct : (R[st.p] || {})[st.t];
         var C = X.cities || {}, names = Object.keys(C).filter(function (n) { return C[n].x != null; });
         var src = f ? "assets/sst/" + f + "?v=" + encodeURIComponent(X.generated) : null;
         var cap = st.p === "snow1d" ? "share of members with at least one day of " + st.t + " cm or more in " + mmm(st.m) :
+                  st.p === "snow1d_pct" ? "chance of a day with " + st.t + " cm or more in " + mmm(st.m) + " as % of the same chance in the model's 1993–2016 hindcast (hatched: normal chance under 5%)" :
+                  st.p === "snowtot_pct" ? "chance the " + mmm(st.m) + " total reaches " + st.t + " cm as % of the same chance in the model's 1993–2016 hindcast (hatched: normal chance under 5%)" :
                   st.p === "snowtot" ? "share of members whose " + mmm(st.m) + " total reaches " + st.t + " cm" :
                   st.p === "mean" ? "ensemble-mean snowfall in " + mmm(st.m) + ", cm" : "ensemble-mean " + mmm(st.m) + " snowfall as % of the SEAS5 1993–2016 hindcast mean (hatched: normal under 1 cm)";
         document.getElementById("snMap").innerHTML = src ? '<figure><div class="xd-map"><img src="' + src + '" alt="SEAS5 snowfall ' + cap + '" loading="lazy">' +
@@ -663,19 +672,23 @@
       function drawCity() {
         var wrap = document.getElementById("snCityWrap"), C = X.cities || {}, c = st.c && C[st.c];
         if (!c) { wrap.hidden = true; return; }
-        var acc = OC.colors.accent, traces = [], txt = [], nx = [], ny = [], ymax = 1, T = st.p === "snow1d" ? +st.t : null;
+        var acc = OC.colors.accent, traces = [], txt = [], nx = [], ny = [], ymax = 1, T = /^snow1d/.test(st.p) ? +st.t : null;
+        var narrow = document.getElementById("snCity").getBoundingClientRect().width < 640;
         months.forEach(function (mo, i) {
           var d = c.months[mo]; if (!d) return;
           var m = d.tot.slice().sort(function (a, b) { return a - b; }), q = function (p) { return m[Math.min(m.length - 1, Math.max(0, Math.round(p * (m.length - 1))))]; };
           var mean = m.reduce(function (a, b) { return a + b; }, 0) / m.length, pbig = T != null ? Math.round(100 * d.max1d.filter(function (v) { return v >= T; }).length / d.max1d.length) : null;
+          var hbig = T != null && d.h1d && d.h1d[String(T)] != null ? Math.round(100 * d.h1d[String(T)]) : null;
           ymax = Math.max(ymax, q(0.9), d.normal || 0);
           traces.push({ type: "box", x: m.map(function () { return i; }), y: m, name: mmm(mo), boxpoints: false, whiskerwidth: 0.5, width: 0.55, marker: { color: acc }, line: { color: acc, width: 1.4 }, fillcolor: "rgba(138,75,42,0.18)", quartilemethod: "linear",
                         hovertemplate: mmm(mo) + "<br>total p10–p90 " + q(0.1) + "–" + q(0.9) + " cm · median " + q(0.5) + " · mean " + mean.toFixed(1) + " cm<extra></extra>", showlegend: false });
           if (d.normal != null) { nx.push(i); ny.push(d.normal); }
-          txt.push({ x: i, y: q(0.9), text: mean.toFixed(1) + " cm" + (pbig != null ? " · P(day ≥ " + T + ") " + pbig + "%" : ""), showarrow: false, yshift: 14, font: { size: 11, color: OC.colors.ink2 } });
+          txt.push({ x: i, y: q(0.9), text: narrow ? mean.toFixed(0) + (pbig != null ? "<br>" + pbig + "%" + (hbig != null ? "/" + hbig : "") : "")
+                                              : mean.toFixed(1) + " cm" + (pbig != null ? " · P(day ≥ " + T + ") " + pbig + "%" + (hbig != null ? " (normal " + hbig + "%)" : "") : ""),
+                     showarrow: false, yshift: narrow ? 18 : 14, font: { size: narrow ? 9.5 : 11, color: OC.colors.ink2 } });
         });
         if (nx.length) traces.push({ type: "scatter", mode: "lines+markers", x: nx, y: ny, name: "SEAS5 1993–2016 hindcast mean", line: { color: OC.colors.obs, width: 1.4, dash: "dot" }, marker: { symbol: "diamond", size: 9, color: OC.colors.obs }, hovertemplate: "hindcast normal %{y:.1f} cm<extra></extra>" });
-        document.getElementById("snCityLead").innerHTML = "<b>" + st.c + "</b> · monthly snowfall at the city's 1° cell, members (box p25–p75, whiskers p10–p90, label = mean" + (T != null ? " and the share of members with a day of " + T + " cm or more" : "") + ") against the model's own hindcast mean.";
+        document.getElementById("snCityLead").innerHTML = "<b>" + st.c + "</b> · monthly snowfall at the city's 1° cell: members (box p25–p75, whiskers p10–p90), label = mean" + (T != null ? " and the share of members with a day of " + T + " cm or more" + (narrow ? " (forecast/normal %)" : ", with the hindcast's normal share in brackets") : "") + "; diamonds = the model's own 1993–2016 hindcast mean.";
         wrap.hidden = false;
         OC.react("snCity", traces, { xtype: "linear", yunits: "cm of snow", yrange: [0, ymax * 1.25 + 1], height: 330, endLabels: false, annotations: txt,
           layout: function (L) { L.xaxis.tickmode = "array"; L.xaxis.tickvals = months.map(function (_, i) { return i; }); L.xaxis.ticktext = months.map(mmm); L.xaxis.range = [-0.6, months.length - 0.4]; L.xaxis.showspikes = false; L.legend = { orientation: "h", y: 1.12, x: 0 }; L.boxmode = "overlay"; } });

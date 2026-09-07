@@ -25,7 +25,7 @@ import argparse, calendar, json, os, sys, time
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, _client, fc_path, hc_path   # noqa: E402
+from seas5_outlook import ASSETS, DATA, CENTRE, SYSTEM, CLIM_YEARS, _client, fc_path, hc_path   # noqa: E402
 from seas5_build import load_field, valid_months                                       # noqa: E402
 from seas5_popT import SIXH, month_hours                                                          # noqa: E402
 from seas5_extremes_build import CITIES                                                          # noqa: E402
@@ -63,6 +63,54 @@ def fetch(ym: str) -> bool:
         except Exception as e:                                                   # noqa: BLE001
             print(f"    attempt {attempt + 1} failed ({str(e)[:120]})", flush=True); time.sleep(30)
     return False
+
+
+def hc_sf_path(ym: str, k: int) -> Path:
+    return SIXH / f"hc_na_{ym[4:]}_m{k}_sf.grib"
+
+
+def fetch_hindcast(ym: str, k: int) -> bool:
+    """Hindcast accumulated snowfall for forecast month k (25 members × 1993–2016, daily steps, plus the
+    step before the month so the first day can be differenced) — the normal frequency for the ratio maps
+    (user 2026-09-07: "might be better if you showed it as ratio of normal frequency")."""
+    dest = hc_sf_path(ym, k)
+    if dest.exists() and dest.stat().st_size > 0:
+        return True
+    hours = sorted({int(h) for h in month_hours(ym, k) if int(h) % 24 == 0 and int(h) <= 5160})
+    if hours[0] > 24: hours = [hours[0] - 24] + hours
+    req = {"originating_centre": CENTRE, "system": SYSTEM, "variable": ["snowfall"],
+           "year": [str(y) for y in CLIM_YEARS], "month": [ym[4:]], "day": ["01"], "leadtime_hour": [str(h) for h in hours],
+           "area": AREA, "grid": [1.0, 1.0], "data_format": "grib"}
+    tmp = dest.with_suffix(f".part{os.getpid()}")
+    for attempt in range(3):
+        t0 = time.time()
+        try:
+            print(f"  CDS snowfall hindcast NA start {ym[4:]} month {k} ({len(hours)} steps × {len(CLIM_YEARS)} yr) …", flush=True)
+            _client().retrieve("seasonal-original-single-levels", req, str(tmp))
+            if tmp.exists() and tmp.stat().st_size > 0:
+                os.replace(tmp, dest); print(f"    done {dest.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min", flush=True)
+                return True
+        except Exception as e:                                                   # noqa: BLE001
+            print(f"    attempt {attempt + 1} failed ({str(e)[:120]})", flush=True); time.sleep(30)
+    return False
+
+
+def load_hindcast_daily(ym: str, k: int):
+    """(sample, day, lat, lon) daily snowfall in cm of snow for forecast month k of the hindcast, samples =
+    member × year; the leading extra step is used for the difference and dropped."""
+    import xarray as xr
+    ds = xr.open_dataset(hc_sf_path(ym, k), engine="cfgrib", backend_kwargs={"indexpath": ""})
+    v = ds[[n for n in ds.data_vars][0]].sortby("step")
+    dims = [d for d in v.dims if d not in ("latitude", "longitude", "step")]      # number, time (year)
+    v = v.stack(sample=dims).transpose("sample", "step", "latitude", "longitude")
+    acc = v.values
+    hours = (v.step.values / np.timedelta64(1, "h")).astype(int)
+    if hours[0] > 24:                                                              # leading step from the previous month: diff drops it
+        daily = np.diff(acc, axis=1)
+    else:                                                                          # month 1 starts at 24 h: the first day is the accumulation itself
+        daily = np.diff(np.concatenate([np.zeros_like(acc[:, :1]), acc], axis=1), axis=1)
+    daily = np.clip(daily, 0, None) * 1000.0 / 10.0 * RATIO
+    return daily.astype(np.float32), v.latitude.values, v.longitude.values
 
 
 def load_daily(ym: str):
@@ -147,19 +195,39 @@ def build(ym: str) -> dict:
         d = daily[:, sel]                                                            # (member, day, lat, lon)
         mx = d.max(axis=1); tot = d.sum(axis=1)                                      # (member, lat, lon)
         mo = int(vm[5:]); plabel = f"{calendar.month_abbr[mo]} {vm[:4]}"; key = vm.replace("-", "_")
-        rec = {"days": int(sel.sum()), "snow1d": {}, "snowtot": {}, "mean_total": None, "pct": None}
+        rec = {"days": int(sel.sum()), "snow1d": {}, "snowtot": {}, "snow1d_pct": {}, "snowtot_pct": {}, "mean_total": None, "pct": None}
         sub = f"SEAS5 51 members, daily snowfall from the accumulated field, {RATIO:.0f}:1 snow-to-liquid ratio, 1° cells, no bias correction. {issue_lbl}."
+        hmx = htot = None
+        if hc_sf_path(ym, k).exists():                                              # hindcast frequencies for the ratio maps
+            try:
+                hd, hlat, hlon = load_hindcast_daily(ym, k)
+                if hd.shape[1] >= 20 and hlat.shape == lat.shape and hlon.shape == lon.shape:
+                    hmx = hd.max(axis=1); htot = hd.sum(axis=1); del hd
+                    print(f"    hindcast month {k}: {hmx.shape[0]} samples", flush=True)
+            except Exception as e:                                                   # noqa: BLE001
+                print(f"    hindcast month {k} unreadable ({str(e)[:80]})", flush=True)
+        subr = f"Share of the 51 members divided by the same share in SEAS5's own 1993–2016 hindcast (25 members × 24 years, same start month and lead), so the model's snowfall bias cancels; hatched where the normal chance is under 5 %. {RATIO:.0f}:1 ratio. {issue_lbl}."
         for T in SNOW1D:
-            p = 100.0 * (mx >= T).mean(axis=0); out = ASSETS / f"seas5_snow1d_{T}_{key}.webp"
+            pf = (mx >= T).mean(axis=0); p = 100.0 * pf; out = ASSETS / f"seas5_snow1d_{T}_{key}.webp"
             draw_map(p, lat, lon, PROB_LEVELS, PROB_COLORS, "probability (%)", f"SEAS5 · chance of a day with ≥ {T} cm of snow · {plabel}", sub, out, extend="neither")
             rec["snow1d"][str(T)] = out.name
+            if hmx is not None:
+                ph = (hmx >= T).mean(axis=0); r = np.where(ph >= 0.05, np.clip(100.0 * pf / np.maximum(ph, 1e-6), 0, 9999), np.nan)
+                out = ASSETS / f"seas5_snow1d_{T}_pct_{key}.webp"
+                draw_map(r, lat, lon, PCT_LEVELS, PCT_COLORS, "% of the normal chance", f"SEAS5 · chance of a day with ≥ {T} cm, as % of normal · {plabel}", subr, out, extend="max", hatch=np.where(ph < 0.05, 1.0, np.nan))
+                rec["snow1d_pct"][str(T)] = out.name
         mean_tot = tot.mean(axis=0); out = ASSETS / f"seas5_snowtot_mean_{key}.webp"
         draw_map(mean_tot, lat, lon, TOT_LEVELS, TOT_COLORS, "cm of snow", f"SEAS5 · ensemble-mean monthly snowfall · {plabel}", sub, out, extend="max")
         rec["mean_total"] = out.name
         for T in SNOWTOT:
-            p = 100.0 * (tot >= T).mean(axis=0); out = ASSETS / f"seas5_snowtot_{T}_{key}.webp"
+            pf = (tot >= T).mean(axis=0); p = 100.0 * pf; out = ASSETS / f"seas5_snowtot_{T}_{key}.webp"
             draw_map(p, lat, lon, PROB_LEVELS, PROB_COLORS, "probability (%)", f"SEAS5 · chance the month's snowfall reaches {T} cm · {plabel}", sub, out, extend="neither")
             rec["snowtot"][str(T)] = out.name
+            if htot is not None:
+                ph = (htot >= T).mean(axis=0); r = np.where(ph >= 0.05, np.clip(100.0 * pf / np.maximum(ph, 1e-6), 0, 9999), np.nan)
+                out = ASSETS / f"seas5_snowtot_{T}_pct_{key}.webp"
+                draw_map(r, lat, lon, PCT_LEVELS, PCT_COLORS, "% of the normal chance", f"SEAS5 · chance the month reaches {T} cm, as % of normal · {plabel}", subr, out, extend="max", hatch=np.where(ph < 0.05, 1.0, np.nan))
+                rec["snowtot_pct"][str(T)] = out.name
         if normal is not None and k - 1 < normal.shape[0]:
             nrm = normal[k - 1] * 86400.0 * calendar.monthrange(int(vm[:4]), mo)[1] * 100.0 * RATIO    # m w.e./s → cm snow per month
             pct = np.where(nrm >= 1.0, np.clip(100.0 * mean_tot / np.maximum(nrm, 1e-6), 0, 9999), np.nan)
@@ -170,6 +238,9 @@ def build(ym: str) -> dict:
             rec["pct"] = out.name
         for name, i, j in ci:
             doc["cities"][name]["months"][vm] = {"tot": [round(float(v), 1) for v in tot[:, i, j]], "max1d": [round(float(v), 1) for v in mx[:, i, j]],
+                                                 "h1d": ({str(T): round(float((hmx[:, i, j] >= T).mean()), 3) for T in SNOW1D} if hmx is not None else None),
+                                                 "htot": ({str(T): round(float((htot[:, i, j] >= T).mean()), 3) for T in SNOWTOT} if htot is not None else None),
+                                                 "htot_mean": (round(float(htot[:, i, j].mean()), 1) if htot is not None else None),
                                                  "normal": (round(float(normal[k - 1][i, j] * 86400.0 * calendar.monthrange(int(vm[:4]), mo)[1] * 100.0 * RATIO), 1) if normal is not None and k - 1 < normal.shape[0] else None)}
         doc["months"][vm] = rec
         print(f"  {vm}: {sel.sum()} days, mean total at Chicago {tot[:, ci[12][1], ci[12][2]].mean():.1f} cm", flush=True)
@@ -181,10 +252,12 @@ def build(ym: str) -> dict:
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(); ap.add_argument("cmd", choices=["fetch", "build"]); ap.add_argument("--issue", default=None)
+    ap = argparse.ArgumentParser(); ap.add_argument("cmd", choices=["fetch", "hindcast", "build"]); ap.add_argument("--issue", default=None)
     a = ap.parse_args()
     import datetime as _dt
     ym = a.issue or _dt.datetime.utcnow().strftime("%Y%m")
     if a.cmd == "fetch":
         sys.exit(0 if fetch(ym) else 1)
+    if a.cmd == "hindcast":
+        ok = all([fetch_hindcast(ym, k) for k in range(1, 7)]); sys.exit(0 if ok else 1)
     build(ym)
