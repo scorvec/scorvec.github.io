@@ -135,10 +135,11 @@
   }
   .hero-text {
     position: absolute; z-index: 2;
-    left: clamp(1.25rem, 4vw, 3.5rem); right: clamp(1.25rem, 4vw, 3.5rem);
+    left: 50%; transform: translateX(-50%);
     bottom: clamp(2rem, 6vh, 4.5rem);
+    width: min(44rem, calc(100% - 2.5rem));
+    text-align: center;
     color: #fff;
-    max-width: 38rem;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 6px 24px rgba(0, 0, 0, 0.35);
   }
   .hero-text h1 {
@@ -183,6 +184,7 @@
   }
   .index-head p { color: var(--storm); max-width: 40rem; }
   .index-head p a { text-decoration-color: rgba(92,107,115,0.5); text-underline-offset: 0.2em; }
+  .index-head .disclaimer { grid-column: 1 / -1; max-width: 70ch; font-size: 0.98rem; color: var(--storm); border-left: 3px solid var(--cloud-2); padding-left: 1rem; margin-top: 0.25rem; }
 
   .group { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 1rem 3rem; padding: 1.6rem 0 0.4rem; border-top: 1px solid var(--cloud-2); }
   .group + .group { margin-top: 1.2rem; }
@@ -196,8 +198,13 @@
   .row {
     display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) 8.5rem;
     gap: 0.4rem 1.5rem; align-items: baseline;
-    padding: 0.85rem 0;
+    padding: 0.85rem 0.6rem; margin: 0 -0.6rem;
+    position: relative; border-radius: 6px;
   }
+  /* the whole row is the link: the anchor's ::after covers the row (user, 2026-09-07) */
+  .row a::after { content: ''; position: absolute; inset: 0; border-radius: 6px; }
+  .row:hover { background: var(--cloud-1, rgba(0,0,0,0.035)); }
+  .row:focus-within { outline: 2px solid var(--grass); outline-offset: -2px; }
   .row + .row { border-top: 1px solid var(--cloud-2); }
   .rows .sub { list-style: none; margin: 0; padding: 1.1rem 0 0.3rem; font-family: var(--sans); font-size: 0.8rem; letter-spacing: 0.05em; color: var(--storm); }
   .rows .sub + .row { border-top: 0; }
@@ -206,7 +213,7 @@
     font-variation-settings: 'opsz' 24;
     text-decoration: none;
   }
-  .row a:hover { text-decoration: underline; text-underline-offset: 0.18em; text-decoration-color: var(--grass); }
+  .row:hover a { text-decoration: underline; text-underline-offset: 0.18em; text-decoration-color: var(--grass); }
   .row .what { color: var(--storm); font-size: 0.98rem; }
   .row .when { color: var(--grass); font-size: 0.9rem; text-align: right; white-space: nowrap; }
 
@@ -329,6 +336,7 @@
     <div class="index-head">
       <h2>Live products, rebuilt automatically as new model runs and observations arrive.</h2>
       <p>Everything here is computed from public data (ECMWF and Environment Canada open data, NOAA, NASA, etc.) by pipelines that run on a schedule. Each page says when it was last updated.</p>
+      <p class="disclaimer"><strong>A note on reliability.</strong> This site is under constant development. Products change without notice, pipelines break, and nothing here is checked before it is published. There should be no expectation of accuracy, completeness or availability, and nothing on this site should be relied on for decisions of any kind.</p>
     </div>
 
     <div class="group">

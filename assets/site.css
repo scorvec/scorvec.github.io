@@ -299,3 +299,19 @@ html .note, html .hint, html .sub, html .cap, html .when, html .meta,
 html .chart-sources, html .chart-updated, html small, html figcaption { font-size: 0.9rem; line-height: 1.5; }
 html table, html th, html td, html select, html input, html button { font-family: var(--f-sans); }
 html td, html th { font-variant-numeric: tabular-nums; }
+
+/* ── Page title blocks (2026-09-07, user): centred, plain, no coloured accent word, no tracked
+   all-caps eyebrow. Matches the pages' three title structures: children of <main> or .wrap, a
+   .page-header box, or a top-level <header> (the ENSO decks, the cities board). The site header
+   (.sh) and the homepage hero are excluded. */
+html h1 em, html h1 i, html h1 span.accent { font-style: normal; color: inherit; }
+html .kicker, html .eyebrow { font-size: 0.92rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted, var(--c-muted, #5c6b73)); }
+html main > :is(h1, .kicker, .eyebrow, .lede, .sub),
+html .wrap > :is(h1, .kicker, .eyebrow, .lede),
+html .page-header,
+html body > header:not(.sh) > :is(h1, .kicker, .eyebrow, .lede, .sub),
+html main > header:not(.sh) { text-align: center; }
+html main > :is(.lede, .sub, .kicker, .eyebrow), html .wrap > :is(.lede, .kicker, .eyebrow), html .page-header > p,
+html body > header:not(.sh) > :is(.lede, .sub), html main > header:not(.sh) > :is(.lede, .sub, p) { margin-left: auto; margin-right: auto; }
+
+.sf .sf-disclaimer { font-size: 0.85rem; color: var(--c-muted); max-width: 80ch; margin-top: 0.5rem; }

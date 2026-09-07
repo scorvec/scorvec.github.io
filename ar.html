@@ -116,8 +116,8 @@
 </header>
 <!-- sh:end -->
 <main>
-  <p class="kicker">Twice daily &middot; ECMWF AIFS-ENS &middot; <span id="initLabel">&mdash;</span></p>
-  <h1>Atmospheric River Monitor</h1>
+  <p class="kicker">Twice daily from the ECMWF AIFS ensemble, <span id="initLabel">&mdash;</span></p>
+  <h1>Atmospheric river monitor</h1>
   <p class="lede">Integrated vapour transport from the 51-member ECMWF AIFS ensemble, read the way forecasters read atmospheric rivers: the probability that IVT reaches the 250&nbsp;kg&nbsp;m<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup> threshold at each 12-hourly step, a landfall tool along the West Coast from Baja California to southeast Alaska, exact control-member IVT for the next three days, and the chance of each Ralph-scale category at named coastal locations. Every member is carried to day 15 at 12-hour steps, so AR duration, not only intensity, enters the scale.</p>
 
   <div class="card">
@@ -154,7 +154,7 @@
     if (!d) return;
     var v = "?v=" + encodeURIComponent(d.generated);
     ["imgCoast"].forEach(function (id) { var el = document.getElementById(id); el.src = el.getAttribute("src").split("?")[0] + v; });
-    document.getElementById("initLabel").textContent = "init " + d.init.replace("T", " ");
+    document.getElementById("initLabel").textContent = "run of " + d.init.replace("T", " ");
     document.getElementById("genLabel").textContent = "built " + d.generated + " · proxy k = " + d.proxy.k.toFixed(3) + ", r = " + d.proxy.r.toFixed(2) + " over " + d.proxy.n.toLocaleString() + " control points";
     var rows = ['<tr><th>Location</th><th>Any AR</th><th>≥ AR1</th><th>≥ AR2</th><th>≥ AR3</th><th>≥ AR4</th><th>AR5</th><th>Most likely</th><th>Median peak IVT</th><th>Median onset</th><th>Control</th></tr>'];
     d.named.forEach(function (n) {
@@ -181,6 +181,7 @@
       <li><a href="/stats.html">Visitor stats</a></li>
     </ul>
     <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
   </div>
 </footer>
 <!-- sf:end -->

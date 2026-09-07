@@ -146,7 +146,7 @@ def main():
 <body>
 {NAV}
 <main>
-  <h1>MJO Forecast — AIFS-ENS</h1>
+  <h1>MJO forecast from the AIFS ensemble</h1>
   <p class="lede">Real-time Multivariate MJO (RMM) phase-space forecast from the
   ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
   Wheeler &amp; Hendon (2004). Full three-channel projection: U850/U200 plus a

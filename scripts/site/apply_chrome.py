@@ -232,6 +232,7 @@ def footer_html(dark: bool) -> str:
         '      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>\n'
         '      <li><a href="/stats.html">Visitor stats</a></li>\n    </ul>\n'
         '    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>\n'
+        '    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>\n'
         '  </div>\n</footer>\n<!-- sf:end -->'
     )
 
@@ -303,8 +304,10 @@ def stamp(cfg: dict) -> tuple[str, str]:
         foot = footer_html(dark)
         if "<!-- sf:start -->" in html:
             html = re.sub(r"<!-- sf:start -->.*?<!-- sf:end -->", lambda _: foot, html, count=1, flags=re.S)
-        else:
+        elif "</body>" in html:
             html = html.replace("</body>", foot + "\n</body>", 1)
+        else:                                              # bare document (no <body>): footer goes last
+            html = html.rstrip() + "\n" + foot + "\n"
     return orig, html
 
 
