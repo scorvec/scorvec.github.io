@@ -36,7 +36,10 @@ sys.path.insert(0, str(HERE)); sys.path.insert(0, str(HERE.parents[1] / "scripts
 import oisst9120                                                     # noqa: E402
 from gill_model import LAT2, LON2, A_EARTH, basin_mask, gill_response, heating_from_ssta   # noqa: E402
 import walker_chi as wc                                              # noqa: E402
-from wind200_vpot import VP_CMAP, VP_LEVELS                          # noqa: E402
+from matplotlib.colors import LinearSegmentedColormap                # noqa: E402
+# same palette and levels as wind200_vpot.py (not imported: that module needs pyshtools, which the sst runner lacks)
+VP_CMAP = LinearSegmentedColormap.from_list("vpot", ["#1b5e20", "#43a047", "#86c98a", "#cfe8cf", "#ffffff", "#fbe2bd", "#f0a64b", "#df6a1e", "#a8330f"])
+VP_LEVELS = [-16, -12, -8, -5, -3, -1.5, 1.5, 3, 5, 8, 12, 16]
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
 ASSETS = SITE / "assets" / "sst"

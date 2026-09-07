@@ -14,8 +14,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from wind200_vpot import velocity_potential
-
 LMAX = 42
 LEVELS = (200, 850)
 STRIP = 32.0
@@ -26,6 +24,7 @@ SEED = Path(__file__).resolve().parent.parent / "data" / "reference" / "walker_c
 
 def chi_strip(u2d: xr.DataArray, v2d: xr.DataArray):
     """χ (m² s⁻¹) on the DH2 grid restricted to |lat| ≤ STRIP. Returns (chi, lat, lon)."""
+    from wind200_vpot import velocity_potential                       # pyshtools: only the producers need it, not the sst.yml renderer
     chi, dlat, dlon = velocity_potential(u2d, v2d, lmax=LMAX)
     m = np.abs(dlat) <= STRIP
     return chi[m].astype("float32"), dlat[m], dlon
