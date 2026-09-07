@@ -143,7 +143,7 @@ def season_values(m: np.ndarray, y0: int, var: str) -> np.ndarray:
     """(years, 17): 12 months then DJF MAM JJA SON ANN. DJF uses Dec of the previous year.
     Temperatures average; precipitation and degree days sum."""
     n = m.shape[0]; out = np.full((n, 17), np.nan); out[:, :12] = m
-    agg = np.nanmean if var in ("tavg", "tmax", "tmin") else np.nansum
+    agg = np.nanmean if var in ("tavg", "tmax", "tmin", "tdew") else np.nansum
     for k, (name, months) in enumerate(SEASONS.items()):
         for i in range(n):
             if name == "DJF":
@@ -169,6 +169,37 @@ def trend_stats(y: np.ndarray, years: np.ndarray, start: int, last: int):
     return slope * 10, ts * 10, p, intercept + slope * (last + 1)
 
 
+def load_tdew():
+    """PRISM county dewpoint archive (prism_tdmean.py) → ({fips: {year: [12]}}, {state: {year: [12]}}) in °F,
+    or None if the archive is absent. State series are cell-count-weighted means of the counties."""
+    for d in (OUT, HERE / "seed"):
+        b, j = d / "tdmean_county.bin", d / "tdmean_index.json"
+        if b.exists() and j.exists():
+            break
+    else:
+        return None
+    idx = json.loads(j.read_text()); n = len(idx["fips"]); nm = idx["n_months"]
+    arr = np.fromfile(b, dtype="<i2").reshape(n, nm).astype("float64")
+    arr[arr == -32768] = np.nan; arr /= 100.0
+    y0 = int(idx["first"][:4]); ny = (nm + 11) // 12
+    full = np.full((n, ny * 12), np.nan); full[:, :nm] = arr; full = full.reshape(n, ny, 12)
+    counts = np.array(idx["counts"], float)
+    cy, st = {}, {}
+    for i, f in enumerate(idx["fips"]):
+        if counts[i] <= 0 or len(f) != 5:
+            continue
+        cy[f] = {y0 + k: full[i, k] for k in range(ny)}
+    for sf in sorted({f[:2] for f in cy}):
+        ii = [i for i, f in enumerate(idx["fips"]) if f[:2] == sf and counts[i] > 0]
+        w = counts[ii][:, None, None]; v = full[ii]
+        num = np.nansum(v * w, axis=0); den = np.sum(np.where(np.isfinite(v), w, 0.0), axis=0)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            sv = np.where(den > 0, num / den, np.nan)
+        st[sf] = {y0 + k: sv[k] for k in range(ny)}
+    print(f"  tdew: {len(cy)} counties from PRISM ({idx.get('first')} → {idx.get('last')})", flush=True)
+    return cy, st
+
+
 def build_units(var: str, normal: float, slope_dec: float):
     """Precipitation trends as % of normal per decade; the rest in native units per decade."""
     if var == "pcpn":
@@ -188,8 +219,12 @@ def main() -> int:
     meta = {"files": {f"{v}_{s}": p.name for (v, s), p in files.items()}, "starts": list(STARTS), "normal": list(NORMAL),
             "columns": [f"{m:02d}" for m in range(1, 13)] + list(SEASONS)}
     regions = {}
-    for var in VARS:
-        cy = parse(files[(var, "cy")], county=True, var=var)
+    tdew = load_tdew()
+    for var in list(VARS) + (["tdew"] if tdew else []):
+        if var == "tdew":
+            cy, st_series = tdew
+        else:
+            cy = parse(files[(var, "cy")], county=True, var=var)
         years_all = sorted({y for s in cy.values() for y in s})
         y0, ylast = years_all[0], years_all[-1]
         # last complete year: the current year is partial (values through last month only)
@@ -236,9 +271,9 @@ def main() -> int:
             arr.tofile(SERIES / f"{st}_{var}.bin")
             series_index.setdefault(st, {"fips": fips_list, "years": [int(y0), int(ylast)]})
             series_index[st][f"scale_{var}"] = scale
-        # states (from the state files) for the heatmap
-        if (var, "st") in files:
-            stt = parse(files[(var, "st")], county=False, var=var, scope="st")
+        # states (from the state files; dewpoint: cell-weighted county mean) for the heatmap
+        if var == "tdew" or (var, "st") in files:
+            stt = st_series if var == "tdew" else parse(files[(var, "st")], county=False, var=var, scope="st")
             for st, ser in stt.items():
                 m = to_matrix(ser, y0, ylast); sv = season_values(m, y0, var)
                 nsel = (years >= NORMAL[0]) & (years <= NORMAL[1]); nrm = np.nanmean(sv[nsel], axis=0)

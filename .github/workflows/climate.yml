@@ -29,7 +29,12 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install Python dependencies
-        run: pip install --quiet numpy scipy
+        run: pip install --quiet numpy scipy rasterio shapely
+      # the dewpoint archive lives on the frames branch (a seed copy is in the repo for a cold start)
+      - name: Seed the climate data set from the frames branch
+        run: scripts/lib/fetch_frames_ci.sh assets/climate/anim/data || true
+      - name: Append the latest PRISM dewpoint months
+        run: python scripts/climate/trends/prism_tdmean.py --update || echo "PRISM update failed; using the archive as is"
       - name: Download nClimDiv and compute the trends
         run: python scripts/climate/trends/nclimdiv_trends.py
       - name: Publish the data set to the frames branch
