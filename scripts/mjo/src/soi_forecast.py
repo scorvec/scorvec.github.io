@@ -193,8 +193,11 @@ def plot(obs: pd.DataFrame, normals: dict, diff: xr.DataArray,
             label="Forecast 30-day SOI (ens. mean)")
     lo, hi = np.nanpercentile(fc, [10, 90], axis=0)
     ax.fill_between(fdates, lo, hi, color="#d62728", alpha=0.12,
-                    label="Forecast daily SOI (10–90%)")
-    ax.plot(fdates, np.nanmean(fc, axis=0), color="#d62728", lw=1.6, ls=":", alpha=0.9)
+                    label="Forecast daily SOI (10–90%; dotted: 3-day mean)")
+    # daily ensemble mean, 3-day centred mean: the members carry a coherent ~2-day oscillation in the
+    # Tahiti−Darwin difference that made the raw daily line saw-tooth (user 2026-09-07)
+    dm = pd.Series(np.nanmean(fc, axis=0), index=fdates).rolling(3, center=True, min_periods=1).mean()
+    ax.plot(dm.index, dm.values, color="#d62728", lw=1.6, ls=":", alpha=0.9)
     ax.axvline(init_d, color="0.4", lw=0.8, ls=":")
 
     ax.set_xlim(p0, fdates[-1])
