@@ -107,25 +107,56 @@ def cpc_normal(region: str, stat: str, lat, lon) -> tuple[dict, list[int]]:
     return acc, used
 
 
-# City labels on the threshold-day maps (user 2026-09-07: "label some major cities on the Brazil
-# hot days plots"). (name, lat, lon, label side: "r" right of the dot, "l" left).
+# City labels on the threshold-day maps and the clickable city distributions on the page (user
+# 2026-09-07). (name, lat, lon, label side: "r" right of the dot, "l" left).
 CITIES = {
     "br": [("Manaus", -3.12, -60.02, "r"), ("Belém", -1.46, -48.50, "r"), ("Fortaleza", -3.72, -38.54, "l"),
            ("Recife", -8.05, -34.88, "l"), ("Salvador", -12.97, -38.51, "l"), ("Brasília", -15.79, -47.88, "r"),
            ("Cuiabá", -15.60, -56.10, "l"), ("Goiânia", -16.68, -49.25, "l"), ("Belo Horizonte", -19.92, -43.94, "r"),
            ("Campo Grande", -20.45, -54.62, "l"), ("Rio de Janeiro", -22.91, -43.17, "r"), ("São Paulo", -23.55, -46.63, "l"),
            ("Curitiba", -25.43, -49.27, "l"), ("Porto Alegre", -30.03, -51.23, "l")],
-    "us": [],
+    "us": [("Seattle", 47.61, -122.33, "r"), ("Portland", 45.52, -122.68, "r"), ("San Francisco", 37.77, -122.42, "l"),
+           ("Los Angeles", 34.05, -118.24, "l"), ("Phoenix", 33.45, -112.07, "r"), ("Salt Lake City", 40.76, -111.89, "r"),
+           ("Denver", 39.74, -104.99, "r"), ("Dallas", 32.78, -96.80, "r"), ("Houston", 29.76, -95.37, "r"),
+           ("Kansas City", 39.10, -94.58, "l"), ("Minneapolis", 44.98, -93.27, "r"), ("St. Louis", 38.63, -90.20, "r"),
+           ("Chicago", 41.88, -87.63, "l"), ("Detroit", 42.33, -83.05, "r"), ("Nashville", 36.16, -86.78, "r"),
+           ("Atlanta", 33.75, -84.39, "r"), ("Miami", 25.76, -80.19, "r"), ("Washington", 38.90, -77.04, "r"),
+           ("Philadelphia", 39.95, -75.17, "r"), ("New York", 40.71, -74.01, "r"), ("Boston", 42.36, -71.06, "r"),
+           ("Toronto", 43.65, -79.38, "l"), ("Montréal", 45.50, -73.57, "r")],
 }
+MAP_W = 11.0                                            # figure width (in); the axes box is fixed so the page can overlay cities
+
+
+def map_geometry(region):
+    area = REGIONS[region][2]; W = MAP_W; H = W * (area[0] - area[2]) / (area[3] - area[1]) + 2.1
+    return area, W, H, [0.03, 0.95 / H, 0.94, (H - 2.1) / H]
+
+
+def city_fractions(region, lat, lon):
+    """Position of a point as fractions of the saved image (x from the left, y from the top)."""
+    area, W, H, box = map_geometry(region)
+    fx = box[0] + box[2] * (lon - area[1]) / (area[3] - area[1])
+    fy = 1.0 - (box[1] + box[3] * (lat - area[2]) / (area[0] - area[2]))
+    return round(float(fx), 4), round(float(fy), 4)
+
+
+_CITY_PX = {}                                            # region -> {name: (x, y)} measured on the drawn axes
 
 
 def draw_cities(ax, region, pc):
     import matplotlib.patheffects as pe
-    halo = [pe.withStroke(linewidth=2.2, foreground="white")]
+    halo = [pe.withStroke(linewidth=3.0, foreground="white")]
+    if region not in _CITY_PX:                           # measure once from the real transform (cartopy may
+        fig = ax.figure; px = {}                         # re-fit the view to the box, so the nominal geometry drifts)
+        ax.apply_aspect()                                # the equal-aspect box shrink happens at draw time — apply it now
+        for name, la, lo, side in CITIES.get(region, []):
+            x, y = ax.transData.transform((lo, la))
+            px[name] = (round(float(x / fig.bbox.width), 4), round(float(1.0 - y / fig.bbox.height), 4))
+        _CITY_PX[region] = px
     for name, la, lo, side in CITIES.get(region, []):
-        ax.plot(lo, la, "o", ms=3.8, mfc="#111", mec="white", mew=0.6, transform=pc, zorder=6)
-        ax.text(lo + (0.45 if side == "r" else -0.45), la, name, fontsize=8.4, color="#111", ha="left" if side == "r" else "right",
-                va="center", transform=pc, zorder=6, path_effects=halo)
+        ax.plot(lo, la, "o", ms=5.0, mfc="#111", mec="white", mew=0.9, transform=pc, zorder=6)
+        ax.text(lo + (0.55 if side == "r" else -0.55), la, name, fontsize=10.5, fontweight="semibold", color="#111",
+                ha="left" if side == "r" else "right", va="center", transform=pc, zorder=6, path_effects=halo)
 
 
 def pct_map(ratio, lat, lon, normal, region, thr_label, plabel, issue_lbl, out: Path, cold: bool = False):
@@ -133,12 +164,11 @@ def pct_map(ratio, lat, lon, normal, region, thr_label, plabel, issue_lbl, out: 
     import matplotlib.pyplot as plt
     from matplotlib.colors import BoundaryNorm, ListedColormap
     import cartopy.crs as ccrs, cartopy.feature as cfeature
-    pc = ccrs.PlateCarree(); area = REGIONS[region][2]
+    pc = ccrs.PlateCarree(); area, W, H, box = map_geometry(region)
     # cold-day sets: fewer cold days than normal reads warm (red), more reads blue; hot-day sets the reverse
     warm_side = ["#fde4cf", "#f59d68", "#e8703c", "#c8451c", "#8f2a0d"]; cool_side = ["#1f4f8f", "#3672b6", "#8ab6df", "#dbe9f6"]
     cols = (warm_side[::-1] + ["#f4f4f1"] + cool_side[::-1]) if cold else (cool_side + ["#f4f4f1"] + warm_side)
-    W = 11.0; H = W * (area[0] - area[2]) / (area[3] - area[1]) + 2.1
-    fig = plt.figure(figsize=(W, H)); ax = fig.add_axes([0.03, 0.95 / H, 0.94, (H - 2.1) / H], projection=pc)
+    fig = plt.figure(figsize=(W, H)); ax = fig.add_axes(box, projection=pc)
     ax.set_extent([area[1], area[3], area[2], area[0]], crs=pc)
     ax.add_feature(cfeature.LAND, facecolor="#f4f4f1", zorder=0)
     r = np.where(normal >= 0.5, np.clip(ratio * 100, 0, 499.9), np.nan)
@@ -164,7 +194,10 @@ def build(ym: str) -> dict:
     doc = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "regions": {}}
     issue_lbl = f"{calendar.month_name[int(ym[4:])]} {ym[:4]} issue"
     for region, (label, cc, area, unit) in REGIONS.items():
-        entry = {"label": label, "sets": {}, "normal_years": None}
+        entry = {"label": label, "sets": {}, "normal_years": None, "cities": {}}
+        for name, la, lo, side in CITIES.get(region, []):
+            fx, fy = city_fractions(region, la, lo)
+            entry["cities"][name] = {"lat": la, "lon": lo, "x": fx, "y": fy, "side": side, "sets": {}}
         w = None; cache = {}
         for set_key, stat, thr_label, thrs, op in THRESH[region]:
             sub = {"kind": thr_label, "stat": stat, "thresholds": thrs, "months": {}}
@@ -188,9 +221,14 @@ def build(ym: str) -> dict:
                     field = raw - (shift[None, None] if shift is not None else 0.0); corr = "mean shift" if shift is not None else "uncorrected"
                 normal, used = cpc_normal(region, stat, lat, lon); entry["normal_years"] = [min(used), max(used), len(used)] if used else None
                 mrec = {}
+                ci = [(name, int(np.abs(lat - la).argmin()), int(np.abs(lon - lo).argmin())) for name, la, lo, _ in CITIES.get(region, [])]
                 for t in thrs:
                     hit = (field <= t) if op == "le" else (field >= t)
                     cnt = hit.sum(1).astype(np.float32)                                # [member, lat, lon] days
+                    for name, i, j in ci:                                                # member counts at the city's cell
+                        cs = entry["cities"][name]["sets"].setdefault(set_key, {}).setdefault(vm, {})
+                        nv = float(normal[t][mo - 1][i, j]) if used else float("nan")
+                        cs[str(t)] = {"m": [int(v) for v in cnt[:, i, j]], "n": (round(nv, 2) if np.isfinite(nv) else None)}
                     pop_days = np.tensordot(cnt, wn, axes=([1, 2], [0, 1]))          # [member]
                     nrm = normal[t][mo - 1] if used else np.full(cnt.shape[1:], np.nan)
                     pop_norm = float(np.nansum(np.where(np.isfinite(nrm), nrm, 0) * wn) / max(np.sum(wn[np.isfinite(nrm)]), 1e-9)) if used else None
@@ -206,6 +244,8 @@ def build(ym: str) -> dict:
                 sub["months"][vm] = mrec
                 print(f"  {region} {set_key} {vm} [{corr}]: " + ", ".join(f"{t}°C {v['days']:.1f} d (normal {v['normal']}, {v['pct']}%)" for t, v in mrec.items()), flush=True)
             entry["sets"][set_key] = sub
+        for name, (fx, fy) in _CITY_PX.get(region, {}).items():
+            entry["cities"][name]["x"], entry["cities"][name]["y"] = fx, fy
         doc["regions"][region] = entry
     OUT_JSON.write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {OUT_JSON} in {(time.time() - t0) / 60:.1f} min", flush=True)

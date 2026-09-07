@@ -22,6 +22,17 @@
   .map-grid figure { margin: 0; background: #fff; border: 1px solid var(--rule); padding: 0.5rem; }
   .map-grid img { display: block; width: 100%; height: auto; }
   .map-grid figcaption { font-size: 0.8rem; color: var(--ink2); padding: 0.5rem 0.3rem 0.2rem; line-height: 1.5; }
+  /* clickable cities over the threshold-day maps (positions are image fractions from the builder) */
+  .xd-map { position: relative; display: block; }
+  .xd-city { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+  .xd-city .dot { position: absolute; left: 50%; top: 50%; width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; border-radius: 50%; background: #111; border: 2px solid #fff; box-shadow: 0 0 0 1px #111; transition: transform .12s; }
+  .xd-city:hover .dot, .xd-city.on .dot { background: var(--accent); box-shadow: 0 0 0 2px var(--accent); transform: scale(1.25); }
+  .xd-city .nm { position: absolute; top: 50%; transform: translateY(-50%); font: 600 0.8rem var(--sans); color: var(--accent); white-space: nowrap; pointer-events: none;
+                 background: rgba(255,255,255,0.92); padding: 0.05rem 0.3rem; border-radius: 3px; display: none; }
+  .xd-city.r .nm { left: 100%; } .xd-city.l .nm { right: 100%; }
+  #xdCity { min-height: 0; }
+  #xdCityWrap { margin-top: 0.8rem; }
+  #xdCityWrap .lead { font-size: 0.86rem; color: var(--ink2); margin: 0 0 0.3rem; }
   .legend-row { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.78rem; color: var(--ink2); margin: 0.3rem 0 0.8rem; }
   .legend-row span::before { content: ""; display: inline-block; width: 22px; height: 3px; margin-right: 6px; vertical-align: middle; background: var(--sw); }
   .legend-row span.band::before { height: 12px; opacity: 0.5; }
@@ -304,6 +315,7 @@
     <div class="controls" id="xdThr" style="margin-top:0.6rem"></div>
     <div class="controls" id="xdMonth"></div>
     <div class="map-grid" id="xdMap"></div>
+    <div id="xdCityWrap" hidden><p class="lead" id="xdCityLead"></p><div id="xdCity"></div></div>
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 6-hourly members &middot; SEAS5 1993&ndash;2016 hindcast (bias) &middot; NOAA CPC Global Unified daily Tmax/Tmin 1991&ndash;2020 (normal) &middot; geonames population</span>
       <span class="chart-updated" id="xdUpdated">&mdash;</span>
@@ -538,7 +550,7 @@
     fetch("assets/sst/data/seas5_extremes.json?v=" + encodeURIComponent(J.generated)).then(function (r) { return r.ok ? r.json() : null; }).then(function (X) {
       if (!X || !X.regions) return;
       var card = document.getElementById("xdaysCard"); card.hidden = false;
-      var st = { r: X.regions.us ? "us" : Object.keys(X.regions)[0], s: null, t: null, m: null };
+      var st = { r: X.regions.us ? "us" : Object.keys(X.regions)[0], s: null, t: null, m: null, c: null };
       var rb = document.getElementById("xdRegion"), sb = document.getElementById("xdSet"), tb = document.getElementById("xdThr"), mb = document.getElementById("xdMonth");
       rb.innerHTML = Object.keys(X.regions).map(function (k) { return '<button class="pill' + (k === st.r ? " on" : "") + '" data-r="' + k + '">' + X.regions[k].label + "</button>"; }).join("");
       function sets() { return X.regions[st.r].sets || {}; }
@@ -561,8 +573,39 @@
         document.getElementById("xdTable").innerHTML = rows.join("");
         tb.innerHTML = '<span class="ctlsep">Map threshold</span>' + thrs.map(function (t) { return '<button class="pill' + (t === st.t ? " on" : "") + '" data-t="' + t + '">' + t + " °C</button>"; }).join("");
         mb.innerHTML = '<span class="ctlsep">Month</span>' + months.map(function (mo) { return '<button class="pill' + (mo === st.m ? " on" : "") + '" data-m="' + mo + '">' + mmm(mo) + "</button>"; }).join("");
-        var e = R.months[st.m][st.t];
-        document.getElementById("xdMap").innerHTML = e && e.map ? '<figure><a href="assets/sst/' + e.map + '?v=' + encodeURIComponent(X.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + e.map + '?v=' + encodeURIComponent(X.generated) + '" alt="' + X.regions[st.r].label + " " + R.kind + " " + st.t + " °C, % of normal, " + mmm(st.m) + '" loading="lazy"></a><figcaption><b>' + R.kind + " " + st.t + " °C</b>, " + mmm(st.m) + ": population-weighted " + d1(e.days) + " days against a normal of " + (e.normal == null ? "–" : d1(e.normal)) + (e.pct == null || (e.normal != null && e.normal < 0.1) ? "" : " (" + Math.round(e.pct) + "% of normal)") + ". Members p10–p90 " + d1(e.p10) + "–" + d1(e.p90) + " days. " + (cold ? "Red: fewer cold days than normal; blue: more." : "Red: more hot days than normal; green: fewer.") + "</figcaption></figure>" : '<p class="note">No map for this month yet.</p>';
+        var e = R.months[st.m][st.t], C = X.regions[st.r].cities || {}, names = Object.keys(C);
+        if (names.length && names.indexOf(st.c) < 0) st.c = null;
+        var src = e && e.map ? "assets/sst/" + e.map + "?v=" + encodeURIComponent(X.generated) : null;
+        document.getElementById("xdMap").innerHTML = src ? '<figure><div class="xd-map"><img src="' + src + '" alt="' + X.regions[st.r].label + " " + R.kind + " " + st.t + " °C, % of normal, " + mmm(st.m) + '" loading="lazy">' +
+          names.map(function (n) { var c = C[n]; return '<button type="button" class="xd-city ' + (c.side || "r") + (n === st.c ? " on" : "") + '" style="left:' + (100 * c.x).toFixed(2) + "%;top:" + (100 * c.y).toFixed(2) + '%" data-c="' + n.replace(/"/g, "&quot;") + '" title="' + n + '"><span class="dot"></span><span class="nm">' + n + "</span></button>"; }).join("") +
+          '</div><figcaption><b>' + R.kind + " " + st.t + " °C</b>, " + mmm(st.m) + ": population-weighted " + d1(e.days) + " days against a normal of " + (e.normal == null ? "–" : d1(e.normal)) + (e.pct == null || (e.normal != null && e.normal < 0.1) ? "" : " (" + Math.round(e.pct) + "% of normal)") + ". Members p10–p90 " + d1(e.p10) + "–" + d1(e.p90) + " days. " + (cold ? "Red: fewer cold days than normal; blue: more." : "Red: more hot days than normal; green: fewer.") + (names.length ? " <b>Click a city</b> for its member distribution by month." : "") + ' <a href="' + src + '" target="_blank" rel="noopener">Full-size map</a>.</figcaption></figure>' : '<p class="note">No map for this month yet.</p>';
+        _stamp(); drawCity();
+      }
+      function drawCity() {
+        var wrap = document.getElementById("xdCityWrap"), C = X.regions[st.r].cities || {}, c = st.c && C[st.c];
+        if (!c || !c.sets[st.s]) { wrap.hidden = true; return; }
+        var R = sets()[st.s], months = Object.keys(R.months).sort(), cold = R.stat === "tn", acc = OC.colors.accent;
+        var traces = [], ann = [], ymax = 1, nx = [], ny = [], txt = [];
+        months.forEach(function (mo, i) {
+          var d = (c.sets[st.s][mo] || {})[st.t]; if (!d) return;
+          var m = d.m.slice().sort(function (a, b) { return a - b; }), q = function (p) { return m[Math.min(m.length - 1, Math.max(0, Math.round(p * (m.length - 1))))]; };
+          var mean = m.reduce(function (a, b) { return a + b; }, 0) / m.length;
+          ymax = Math.max(ymax, q(0.9), d.n || 0);
+          traces.push({ type: "box", x: m.map(function () { return i; }), y: m, name: mmm(mo), boxpoints: false, whiskerwidth: 0.5, width: 0.55,
+                        marker: { color: acc }, line: { color: acc, width: 1.4 }, fillcolor: "rgba(138,75,42,0.18)", quartilemethod: "linear",
+                        hovertemplate: mmm(mo) + "<br>p10–p90 " + q(0.1) + "–" + q(0.9) + " d · median " + q(0.5) + " d · mean " + mean.toFixed(1) + " d<extra></extra>", showlegend: false });
+          if (d.n != null) { nx.push(i); ny.push(d.n); }
+          txt.push({ x: i, y: q(0.9), text: mean.toFixed(1) + " d" + (d.n != null && d.n >= 0.5 ? " · " + Math.round(100 * mean / d.n) + "%" : ""), showarrow: false, yshift: 14, font: { size: 11, color: OC.colors.ink2 } });
+        });
+        if (nx.length) traces.push({ type: "scatter", mode: "lines+markers", x: nx, y: ny, name: "normal (CPC 1991–2020)", line: { color: OC.colors.obs, width: 1.4, dash: "dot" }, marker: { symbol: "diamond", size: 9, color: OC.colors.obs },
+                                     hovertemplate: "normal %{y:.1f} d<extra></extra>" });
+        document.getElementById("xdCityLead").innerHTML = "<b>" + st.c + "</b> · " + R.kind + " " + st.t + " °C · members per month at the city's 1° cell (box p25–p75, whiskers p10–p90, label = mean and % of normal) against the CPC 1991–2020 normal.";
+        wrap.hidden = false;
+        OC.react("xdCity", traces, { xtype: "linear", yunits: "days a month", yrange: [0, ymax * 1.25 + 0.5], height: 330, endLabels: false, annotations: txt,
+          layout: function (L) { L.xaxis.tickmode = "array"; L.xaxis.tickvals = months.map(function (_, i) { return i; }); L.xaxis.ticktext = months.map(mmm); L.xaxis.range = [-0.6, months.length - 0.4]; L.xaxis.showspikes = false; L.legend = { orientation: "h", y: 1.12, x: 0 }; L.boxmode = "overlay"; } });
+      }
+      document.getElementById("xdMap").addEventListener("click", function (ev) { var b = ev.target.closest(".xd-city"); if (!b) return; st.c = st.c === b.dataset.c ? null : b.dataset.c; Array.prototype.forEach.call(document.querySelectorAll("#xdMap .xd-city"), function (x) { x.classList.toggle("on", x.dataset.c === st.c); }); drawCity(); });
+      function _stamp() {
         document.getElementById("xdUpdated").textContent = "built " + X.generated + " · issue " + issueLabel(X.issue) + (X.regions[st.r].normal_years ? " · normal " + X.regions[st.r].normal_years[0] + "–" + X.regions[st.r].normal_years[1] : "");
       }
       rb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.r = b.dataset.r; st.s = null; Array.prototype.forEach.call(rb.children, function (c) { c.classList.toggle("on", c === b); }); draw(); });
