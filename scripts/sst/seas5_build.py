@@ -460,9 +460,11 @@ MAP_SPEC = {
     # 850 hPa zonal wind (user 2026-09-07): positive = westerly anomaly; the trade-wind / jet signal of ENSO
     "u850": ("850 hPa zonal wind", "m/s", [-8, -6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6, 8],
              [-4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4], "PuOr_r", None, None),
-    # North America snowfall (monthly mean rate, mm of water equivalent per day; ×10 ≈ cm of snow)
-    "sf": ("Snowfall, water equivalent", "mm/day", [-3, -2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2, 3],
-           [-2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2], "BrBG", None, None),
+    # North America snowfall as cm of snow per month at a 10:1 snow-to-liquid ratio (user 2026-09-07:
+    # "instead of mm/day, estimate snowfall using 10:1 ratio")
+    # shown as % of the hindcast normal (user: "% of normal might be a good choice"); change in % points
+    "sf": ("Snowfall, % of normal", "% of normal", [0, 25, 50, 75, 90, 110, 125, 150, 200, 300, 400],
+           [-100, -50, -25, -10, 10, 25, 50, 100], "BrBG", None, None),
 }
 MAP_CENTRAL = {"sst": -160.0, "sf": -110.0}   # SST cut at 20°E (Africa); everything else at 40°E; snow is a NA box
 MAP_CENTRAL_DEFAULT = -140.0
@@ -494,10 +496,12 @@ def load_global(ym: str) -> dict:
         hc, _, _ = load_field(hc_path("gl_u850", ym[4:]), "u")
         out["u850"] = (fc, np.nanmean(hc, axis=0), lat, lon); del hc
     if fc_path("na_snow", ym).exists() and hc_path("na_snow", ym[4:]).exists():
-        fac = 86400.0 * 1000                                                  # m w.e. s⁻¹ → mm/day
+        import calendar as _cal
+        days = np.array([_cal.monthrange(int(v[:4]), int(v[5:]))[1] for v in valid_months(ym)], dtype=np.float32)
+        fac = 86400.0 * 100.0 * 10.0 * days[None, :, None, None]             # m w.e. s⁻¹ → cm w.e./month → cm snow (10:1)
         fc, lat, lon = load_field(fc_path("na_snow", ym), "mtsfr")
         hc, _, _ = load_field(hc_path("na_snow", ym[4:]), "mtsfr")
-        out["sf"] = (fc * fac, np.nanmean(hc, axis=0) * fac, lat, lon); del hc
+        out["sf"] = (fc * fac, np.nanmean(hc, axis=0) * fac[0], lat, lon); del hc
     return out
 
 
@@ -594,6 +598,8 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
         for key, plabel, ln, lp in periods:
             idx = [L - 1 for L in ln]
             a = fcm[idx].mean(0) - hcm[idx].mean(0)
+            if var == "sf":                                                     # % of the hindcast normal, blank under 1 cm/month
+                nrm = hcm[idx].mean(0); a = np.where(nrm >= 1.0, 100.0 * fcm[idx].mean(0) / np.maximum(nrm, 1e-6), np.nan)
             if hc_ym is not None:
                 # heights carry the warming trend (+40–60 m over the tropics against a 1993–2016 mean, which is
                 # many σ where the year-to-year spread is small): the reference is the hindcast's linear trend
@@ -604,13 +610,16 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
                 ref = ym_.mean(0) + slope * target; sd = np.nanstd(ym_ - slope[None] * yr[:, None, None], axis=0)
                 a = (fcm[idx].mean(0) - ref) / np.where(sd > 0, sd, np.nan)
             out = out_dir / f"seas5_map_{var}_anom_{key}.webp"
-            _global_map(a, lat, lon, var, lv_a, cmap, cs_a, f"SEAS5 {label} anomaly · {plabel} · {issue_lbl}",
-                        "Ensemble mean of 51 members minus the 1993–2016 start-month hindcast mean (25 members × 24 years), 1° grid." + (" Heights: departure from the hindcast's linear trend at the valid year, in σ of the residual year-to-year spread; the whole tropical belt sits 3–4σ high in this El Niño." if hc_ym is not None else ""),
-                        f"anomaly ({units})", out)
+            _global_map(a, lat, lon, var, lv_a, cmap, cs_a, f"SEAS5 {label}{'' if var == 'sf' else ' anomaly'} · {plabel} · {issue_lbl}",
+                        ("Ensemble-mean snowfall (10:1 snow-to-liquid ratio) as % of the 1993–2016 start-month hindcast mean for the same lead (25 members × 24 years), 1° grid; blank where the normal is under 1 cm a month." if var == "sf" else
+                         "Ensemble mean of 51 members minus the 1993–2016 start-month hindcast mean (25 members × 24 years), 1° grid." + (" Heights: departure from the hindcast's linear trend at the valid year, in σ of the residual year-to-year spread; the whole tropical belt sits 3–4σ high in this El Niño." if hc_ym is not None else "")),
+                        ("% of the hindcast normal" if var == "sf" else f"anomaly ({units})"), out)
             entry["anom"][key] = dict(file=out.name, mean=float(np.nanmean(a)))
             if pb is not None and lp is not None:
                 fcp, hcp = pb[0], pb[1]; ip = [L - 1 for L in lp]
                 ap = np.nanmean(fcp, axis=0)[ip].mean(0) - hcp[ip].mean(0)
+                if var == "sf":
+                    nrmp = hcp[ip].mean(0); ap = np.where(nrmp >= 1.0, 100.0 * np.nanmean(fcp, axis=0)[ip].mean(0) / np.maximum(nrmp, 1e-6), np.nan)
                 if hc_ym is not None and len(pb) > 4 and pb[4] is not None:     # previous issue: its own trend reference, this σ
                     ymp = pb[4][:, ip].mean(1); nyp = ymp.shape[0]; yrp = np.arange(nyp) - (nyp - 1) / 2
                     slp = (yrp[:, None, None] * (ymp - ymp.mean(0))).sum(0) / (yrp ** 2).sum()
@@ -620,7 +629,7 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
                 out = out_dir / f"seas5_map_{var}_chg_{key}.webp"
                 _global_map(c, lat, lon, var, lv_c, cmap, cs_c, f"SEAS5 {label}: change since the {prev_lbl} · {plabel} · {issue_lbl}",
                             "Each issue's ensemble mean anomalised against its own start-month hindcast, so this is the shift in the forecast, not drift. Periods the earlier issue does not cover are not drawn.",
-                            f"change in ensemble-mean anomaly ({units}), {issue_lbl} minus {prev_lbl}", out)
+                            (f"change in % of normal (points), {issue_lbl} minus {prev_lbl}" if var == "sf" else f"change in ensemble-mean anomaly ({units}), {issue_lbl} minus {prev_lbl}"), out)
                 entry["chg"][key] = dict(file=out.name, mean=float(np.nanmean(c)))
         meta["vars"][var] = entry
         print(f"  global maps {var}: {len(entry['anom'])} anomaly, {len(entry['chg'])} change", flush=True)

@@ -189,7 +189,7 @@
       <button class="pill" data-v="tp">Precipitation</button>
       <button class="pill" data-v="z500">500 hPa height</button>
       <button class="pill" data-v="u850">850 hPa wind</button>
-      <button class="pill" data-v="sf">Snowfall (N. America)</button>
+      <button class="pill" data-v="sf">Snowfall, % of normal (N. America)</button>
     </div>
     <div class="controls" id="mapKind" style="margin-top:0.4rem">
       <button class="pill on" data-k="anom">Anomaly</button>
@@ -319,6 +319,24 @@
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 6-hourly members &middot; SEAS5 1993&ndash;2016 hindcast (bias) &middot; NOAA CPC Global Unified daily Tmax/Tmin 1991&ndash;2020 (normal) &middot; geonames population</span>
       <span class="chart-updated" id="xdUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="card" id="snowCard" hidden data-label="Snowfall" data-group="Impacts">
+    <h2>Snowfall: big days and monthly totals over North America</h2>
+    <p class="note">Every member&rsquo;s daily snowfall from SEAS5&rsquo;s accumulated snowfall field (daily steps, 51 members,
+    1&deg; cells, a 10:1 snow-to-liquid ratio). <b>Chance of a big day</b> is the share of members with at least one day at or
+    above the threshold in the month; <b>monthly total</b> is the ensemble mean, with the share of members reaching a total, and
+    the <a href="#changeCard">maps viewer</a> shows the total as a percentage of SEAS5&rsquo;s own 1993&ndash;2016 hindcast mean &mdash;
+    the calibrated read, since the raw members carry the model&rsquo;s snowfall bias. Click a city for its members by month.</p>
+    <div class="controls" id="snProd"></div>
+    <div class="controls" id="snThr"></div>
+    <div class="controls" id="snMonth"></div>
+    <div class="map-grid" id="snMap"></div>
+    <div id="snCityWrap" hidden><p class="lead" id="snCityLead"></p><div id="snCity"></div></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 daily accumulated snowfall, 51 members &middot; SEAS5 1993&ndash;2016 monthly hindcast (normal)</span>
+      <span class="chart-updated" id="snUpdated">&mdash;</span>
     </div>
   </div>
 
@@ -616,6 +634,60 @@
     }).catch(function () {});
   }
 
+  function snowView() {
+    fetch("assets/sst/data/seas5_snow.json?v=" + encodeURIComponent(J.generated)).then(function (r) { return r.ok ? r.json() : null; }).then(function (X) {
+      if (!X || !X.months || !Object.keys(X.months).length) return;
+      var card = document.getElementById("snowCard"); card.hidden = false;
+      var PRODS = [["snow1d", "Chance of a big day"], ["mean", "Monthly total, mean"], ["snowtot", "Chance of a monthly total"]];   // % of normal lives in the maps viewer
+      var st = { p: "snow1d", t: null, m: null, c: null }, months = Object.keys(X.months).sort();
+      var pb = document.getElementById("snProd"), tb = document.getElementById("snThr"), mb = document.getElementById("snMonth");
+      function thrs() { return st.p === "snow1d" ? X.thr1d.map(String) : st.p === "snowtot" ? X.thrtot.map(String) : []; }
+      function draw() {
+        pb.innerHTML = PRODS.map(function (q) { return '<button class="pill' + (q[0] === st.p ? " on" : "") + '" data-p="' + q[0] + '">' + q[1] + "</button>"; }).join("");
+        var T = thrs(); if (T.length && T.indexOf(st.t) < 0) st.t = T[1] || T[0];
+        tb.innerHTML = T.length ? '<span class="ctlsep">Threshold</span>' + T.map(function (t) { return '<button class="pill' + (t === st.t ? " on" : "") + '" data-t="' + t + '">' + t + " cm</button>"; }).join("") : "";
+        if (months.indexOf(st.m) < 0) st.m = months[Math.min(3, months.length - 1)];   // open on the first winter month
+        mb.innerHTML = '<span class="ctlsep">Month</span>' + months.map(function (mo) { return '<button class="pill' + (mo === st.m ? " on" : "") + '" data-m="' + mo + '">' + mmm(mo) + "</button>"; }).join("");
+        var R = X.months[st.m], f = st.p === "snow1d" ? R.snow1d[st.t] : st.p === "snowtot" ? R.snowtot[st.t] : st.p === "mean" ? R.mean_total : R.pct;
+        var C = X.cities || {}, names = Object.keys(C).filter(function (n) { return C[n].x != null; });
+        var src = f ? "assets/sst/" + f + "?v=" + encodeURIComponent(X.generated) : null;
+        var cap = st.p === "snow1d" ? "share of members with at least one day of " + st.t + " cm or more in " + mmm(st.m) :
+                  st.p === "snowtot" ? "share of members whose " + mmm(st.m) + " total reaches " + st.t + " cm" :
+                  st.p === "mean" ? "ensemble-mean snowfall in " + mmm(st.m) + ", cm" : "ensemble-mean " + mmm(st.m) + " snowfall as % of the SEAS5 1993–2016 hindcast mean (hatched: normal under 1 cm)";
+        document.getElementById("snMap").innerHTML = src ? '<figure><div class="xd-map"><img src="' + src + '" alt="SEAS5 snowfall ' + cap + '" loading="lazy">' +
+          names.map(function (n) { var c = C[n]; return '<button type="button" class="xd-city ' + (c.side || "r") + (n === st.c ? " on" : "") + '" style="left:' + (100 * c.x).toFixed(2) + "%;top:" + (100 * c.y).toFixed(2) + '%" data-c="' + n.replace(/"/g, "&quot;") + '" title="' + n + '"><span class="dot"></span></button>'; }).join("") +
+          "</div><figcaption>" + cap.charAt(0).toUpperCase() + cap.slice(1) + ". Raw members, 10:1 ratio. <b>Click a city</b> for its members by month. <a href=\"" + src + "\" target=\"_blank\" rel=\"noopener\">Full-size map</a>.</figcaption></figure>" : '<p class="note">No map for this selection.</p>';
+        document.getElementById("snUpdated").textContent = "built " + X.generated + " · issue " + issueLabel(X.issue);
+        drawCity();
+      }
+      function drawCity() {
+        var wrap = document.getElementById("snCityWrap"), C = X.cities || {}, c = st.c && C[st.c];
+        if (!c) { wrap.hidden = true; return; }
+        var acc = OC.colors.accent, traces = [], txt = [], nx = [], ny = [], ymax = 1, T = st.p === "snow1d" ? +st.t : null;
+        months.forEach(function (mo, i) {
+          var d = c.months[mo]; if (!d) return;
+          var m = d.tot.slice().sort(function (a, b) { return a - b; }), q = function (p) { return m[Math.min(m.length - 1, Math.max(0, Math.round(p * (m.length - 1))))]; };
+          var mean = m.reduce(function (a, b) { return a + b; }, 0) / m.length, pbig = T != null ? Math.round(100 * d.max1d.filter(function (v) { return v >= T; }).length / d.max1d.length) : null;
+          ymax = Math.max(ymax, q(0.9), d.normal || 0);
+          traces.push({ type: "box", x: m.map(function () { return i; }), y: m, name: mmm(mo), boxpoints: false, whiskerwidth: 0.5, width: 0.55, marker: { color: acc }, line: { color: acc, width: 1.4 }, fillcolor: "rgba(138,75,42,0.18)", quartilemethod: "linear",
+                        hovertemplate: mmm(mo) + "<br>total p10–p90 " + q(0.1) + "–" + q(0.9) + " cm · median " + q(0.5) + " · mean " + mean.toFixed(1) + " cm<extra></extra>", showlegend: false });
+          if (d.normal != null) { nx.push(i); ny.push(d.normal); }
+          txt.push({ x: i, y: q(0.9), text: mean.toFixed(1) + " cm" + (pbig != null ? " · P(day ≥ " + T + ") " + pbig + "%" : ""), showarrow: false, yshift: 14, font: { size: 11, color: OC.colors.ink2 } });
+        });
+        if (nx.length) traces.push({ type: "scatter", mode: "lines+markers", x: nx, y: ny, name: "SEAS5 1993–2016 hindcast mean", line: { color: OC.colors.obs, width: 1.4, dash: "dot" }, marker: { symbol: "diamond", size: 9, color: OC.colors.obs }, hovertemplate: "hindcast normal %{y:.1f} cm<extra></extra>" });
+        document.getElementById("snCityLead").innerHTML = "<b>" + st.c + "</b> · monthly snowfall at the city's 1° cell, members (box p25–p75, whiskers p10–p90, label = mean" + (T != null ? " and the share of members with a day of " + T + " cm or more" : "") + ") against the model's own hindcast mean.";
+        wrap.hidden = false;
+        OC.react("snCity", traces, { xtype: "linear", yunits: "cm of snow", yrange: [0, ymax * 1.25 + 1], height: 330, endLabels: false, annotations: txt,
+          layout: function (L) { L.xaxis.tickmode = "array"; L.xaxis.tickvals = months.map(function (_, i) { return i; }); L.xaxis.ticktext = months.map(mmm); L.xaxis.range = [-0.6, months.length - 0.4]; L.xaxis.showspikes = false; L.legend = { orientation: "h", y: 1.12, x: 0 }; L.boxmode = "overlay"; } });
+      }
+      pb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.p = b.dataset.p; st.t = null; draw(); });
+      tb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.t = b.dataset.t; draw(); });
+      mb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.m = b.dataset.m; draw(); });
+      document.getElementById("snMap").addEventListener("click", function (ev) { var b = ev.target.closest(".xd-city"); if (!b) return; st.c = st.c === b.dataset.c ? null : b.dataset.c; Array.prototype.forEach.call(document.querySelectorAll("#snMap .xd-city"), function (x) { x.classList.toggle("on", x.dataset.c === st.c); }); drawCity(); });
+      draw();
+    }).catch(function () {});
+  }
+
   function changeView() {
     var prev = J.previous, cur = J.indices[J.issue], old = J.indices[prev];
     var card = document.getElementById("changeCard");
@@ -677,7 +749,7 @@
       var q = P.filter(function (x) { return x.key === state.p; })[0] || {}, vv = V[state.v];
       if (fr) fr.textContent = mi >= 0 ? q.label + " (" + (mi + 1) + "/" + ms.length + ")" : "";
       var what = state.k === "anom" ? "anomaly vs the 1993–2016 hindcast" : issueLabel(J.issue) + " issue minus " + issueLabel(prev) + " issue";
-      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "u850" ? "Orange westerly anomaly, purple easterly." : state.v === "sf" ? "Green more snow (water equivalent; ×10 is roughly centimetres of snow), brown less." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing), in σ of the hindcast's year-to-year spread." : "Red warmer, blue cooler.";
+      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "u850" ? "Orange westerly anomaly, purple easterly." : state.v === "sf" ? "Green more snow than the model\u2019s 1993\u20132016 normal, brown less, as % of that normal (10:1 snow-to-liquid ratio; blank where the normal is under 1 cm a month)." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing), in σ of the hindcast's year-to-year spread." : "Red warmer, blue cooler.";
       var old = g.querySelector("img");
       if (old && old.dataset.frame) { old.src = src(e); old.alt = "SEAS5 " + vv.label + " " + what + ", " + q.label; g.querySelector("a").href = src(e); g.querySelector("figcaption").innerHTML = "<b>" + vv.label + "</b> — " + what + ", " + q.label + ". Area mean " + (e.mean >= 0 ? "+" : "") + fmt(e.mean, 2) + " " + vv.units + ". " + read; return; }
       g.innerHTML = '<figure><a href="' + src(e) + '" target="_blank" rel="noopener"><img data-frame="1" src="' + src(e) + '" alt="SEAS5 ' + vv.label + ' ' + what + ', ' + q.label + '"></a>' +
@@ -901,7 +973,7 @@
     document.getElementById("membersPill").addEventListener("click", function () { state.members = !state.members; this.classList.toggle("on", state.members); drawEnso(); });
     document.getElementById("smMonthly").addEventListener("click", function () { state.sm = 0; this.classList.add("on"); document.getElementById("sm3").classList.remove("on"); drawEnso(); drawOther(); });
     document.getElementById("sm3").addEventListener("click", function () { state.sm = 1; this.classList.add("on"); document.getElementById("smMonthly").classList.remove("on"); drawEnso(); drawOther(); });
-    chips(); drawEnso(); drawOther(); changeView(); xdaysView(); maps(); drawPolar();
+    chips(); drawEnso(); drawOther(); changeView(); xdaysView(); snowView(); maps(); drawPolar();
   }).catch(function (e) {
     document.getElementById("chips").innerHTML = '<div class="chip"><div class="l">Forecast feed</div><div class="v neut">unavailable</div><div class="s">' + String(e).slice(0, 80) + '</div></div>';
   });
