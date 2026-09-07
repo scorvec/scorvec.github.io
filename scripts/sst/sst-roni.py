@@ -1100,8 +1100,8 @@ def publish_enso_daily_json(mean_fields, la, lo, idx, valid, out_path):
     try:
         nh = json.loads((ASSETS / "data" / "nino_history.json").read_text())
         mo = np.asarray(nh["months"]); base = (mo >= "1991-01") & (mo <= "2020-12")
-        s12 = float(np.nanstd(np.asarray(nh["series"]["nino12"], float)[base]))
-        s4 = float(np.nanstd(np.asarray(nh["series"]["nino4"], float)[base]))
+        s12 = float(np.nanstd(np.asarray(nh["series"]["nino12"]["anom"], float)[base]))
+        s4 = float(np.nanstd(np.asarray(nh["series"]["nino4"]["anom"], float)[base]))
         if s12 > 0 and s4 > 0:
             tni = a["nino12"] / s12 - a["nino4"] / s4
             print(f"  TNI σ(1991–2020, ERSST monthly): Niño-1+2 {s12:.2f} °C, Niño-4 {s4:.2f} °C")
