@@ -41,16 +41,18 @@
   }
 
   .page-header {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.6rem;
     border-bottom: 1px solid var(--rule);
   }
+  /* title larger, lede wider (user 2026-09-07: "Title font can be made bigger ... expand
+     text box horizontally so it doesn't need so much space") */
   .page-header h1 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
+    font-family: var(--serif); font-weight: 400; font-size: 2.8rem;
     margin-bottom: 0.5rem;
   }
   .page-header p {
-    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
+    font-size: 0.95rem; color: var(--muted); line-height: 1.6;
   }
   .page-header p + p { margin-top: 0.8rem; }
 
@@ -204,7 +206,7 @@
     .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
     main { padding: 1.5rem 1rem 2rem; max-width: 100%; }
     .page-header { margin-bottom: 1.2rem; padding-bottom: 0.8rem; }
-    .page-header h1 { font-size: 1.6rem; }
+    .page-header h1 { font-size: 1.9rem; }
     .chart-stack { gap: 1.1rem; }
     .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
     .chart-card-footer { padding: 0.75rem 1.3rem; }
@@ -327,9 +329,10 @@
   main > header .sub { margin-left: auto; margin-right: auto; }
   main > header .chips { justify-content: center; }
   .page-header { text-align: center; }
-  .page-header p { margin-left: auto; margin-right: auto; max-width: 76ch; }
+  .page-header p { margin-left: auto; margin-right: auto; max-width: 150ch; }
 
   .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 0.9rem; }
+  .page-header .sub { max-width: 150ch; margin-bottom: 0.7rem; }
 
   /* stat chips */
   .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }

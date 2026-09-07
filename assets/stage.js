@@ -19,9 +19,13 @@
 
   function buildRail() {
     var host = $("rail"); host.innerHTML = "";
+    // accordion: only the group holding the selected figure is expanded, the others show their
+    // title and count (user 2026-09-07: "rearrange them somehow so you don't have to scroll")
     GROUPS.forEach(function (g) {
-      var d = document.createElement("div"); d.className = "rail-group";
-      var t = document.createElement("div"); t.className = "rail-title"; t.textContent = g.label; d.appendChild(t);
+      var d = document.createElement("div"); d.className = "rail-group"; d.dataset.g = g.label;
+      var t = document.createElement("button"); t.type = "button"; t.className = "rail-title";
+      t.innerHTML = '<span class="car"></span>' + (g.ico ? '<span class="ico">' + g.ico + '</span>' : "") + '<span class="lbl">' + g.label + '</span><span class="n">' + g.items.length + '</span>';
+      t.onclick = function () { d.classList.toggle("open"); }; d.appendChild(t);
       g.items.forEach(function (p) {
         var b = document.createElement("button"); b.type = "button"; b.dataset.p = p[0];
         b.innerHTML = (g.ico ? '<span class="ico">' + g.ico + '</span>' : "") + '<span>' + p[1] + (p[2] ? '<small>' + p[2] + '</small>' : "") + '</span>';
@@ -47,12 +51,23 @@
   // One rendered width for every still (user, 2026-09-07: "make them look around the same size"):
   // the image always spans the stage; its height is capped to the viewport so a tall panel does
   // not tower over a wide one (object-fit: contain in stage.css letterboxes inside that box).
+  // height budget for the figure: the page-top state (stage top in document coordinates), so
+  // the whole figure and its caption fit the first screen without scrolling (user 2026-09-07:
+  // "minimal scrolling"); the floor keeps a short viewport from shrinking it to a stamp
+  function stageCap() {
+    var st = $("stage"), top0 = st.getBoundingClientRect().top + window.scrollY;
+    var avail = window.innerHeight - top0 - Math.max($("cap").offsetHeight, 40) - 34;
+    return Math.round(Math.max(360, Math.min(avail, window.innerHeight * 0.85)));
+  }
   function fitStage() {
-    var st = $("stage"), img = st.querySelector("img");
-    if (!img) return;
-    var avail = window.innerHeight - st.getBoundingClientRect().top - $("cap").offsetHeight - 34;
-    var cap = Math.max(320, Math.min(avail, window.innerHeight * 0.8));
-    img.style.width = "100%"; img.style.maxHeight = (P[sel.p].fit === false ? Math.max(cap, 560) : cap) + "px";
+    var st = $("stage"), img = st.querySelector("img"), fr = st.querySelector("iframe");
+    if (!img && !fr) return;
+    var cap = stageCap();
+    if (img) { img.style.width = "100%"; img.style.maxHeight = cap + "px"; }
+    if (fr) {                                                   // embeds keep their aspect: cap the width instead
+      var m = /^\s*([\d.]+)\s*\/\s*([\d.]+)/.exec(fr.style.aspectRatio || "");
+      if (m) fr.style.maxWidth = Math.round(cap * parseFloat(m[1]) / parseFloat(m[2])) + "px";
+    }
   }
   addEventListener("resize", fitStage);
   function groupOf(p) { for (var i = 0; i < GROUPS.length; i++) for (var j = 0; j < GROUPS[i].items.length; j++) if (GROUPS[i].items[j][0] === p) return [GROUPS[i].label, GROUPS[i].items[j][1]]; return ["", p]; }
@@ -63,7 +78,10 @@
   }
   function render() {
     var p = P[sel.p]; if (!p) { sel.p = ORDER[0]; p = P[sel.p]; }
-    Array.prototype.forEach.call(document.querySelectorAll("#rail button"), function (b) { b.classList.toggle("on", b.dataset.p === sel.p); });
+    Array.prototype.forEach.call(document.querySelectorAll("#rail button[data-p]"), function (b) { b.classList.toggle("on", b.dataset.p === sel.p); });
+    Array.prototype.forEach.call(document.querySelectorAll("#rail .rail-group"), function (d) {
+      var mine = !!d.querySelector('button[data-p="' + sel.p + '"]'); d.classList.toggle("has", mine); if (mine) d.classList.add("open"); else d.classList.remove("open");
+    });
     var ga = typeof p.a === "function" ? p.a() : (p.a || null); buttons($("opts-a"), ga, "a");
     var gb = typeof p.b === "function" ? p.b(sel.a) : (p.b || null); buttons($("opts-b"), gb, "b");
     var gc = typeof p.c === "function" ? p.c(sel.a, sel.b) : (p.c || null); buttons($("opts-c"), gc, "c");
@@ -73,8 +91,9 @@
       if (el) { mountedHome = { parent: el.parentNode, next: el.nextSibling }; mounted = el; st.appendChild(el); el.hidden = false;
         if (window.Plotly) Array.prototype.forEach.call(el.querySelectorAll(".js-plotly-plot"), function (g) { try { window.Plotly.Plots.resize(g); } catch (e) {} }); }
     } else if (p.frame && p.frame(sel.a, sel.b, sel.c)) {          // frame() may return null for an option that is a still
-      var f = document.createElement("iframe"); f.src = p.frame(sel.a, sel.b, sel.c); f.title = p.label; f.loading = "lazy";
-      f.style.aspectRatio = (p.ratio ? p.ratio(sel.a, sel.b, sel.c) : "1259/700"); st.appendChild(f);
+      var f = document.createElement("iframe"); f.title = p.label; f.loading = "lazy";
+      var fsrc = p.frame(sel.a, sel.b, sel.c); f.src = fsrc + (fsrc.indexOf("?") < 0 ? "?" : "&") + "maxh=" + stageCap();   // the embed caps its picture to the same budget
+      f.style.aspectRatio = (p.ratio ? p.ratio(sel.a, sel.b, sel.c) : "1259/700"); st.appendChild(f); fitStage();
     } else {
       var src = p.img(sel.a, sel.b, sel.c); if (p.bust === "hourly") src += (src.indexOf("?") < 0 ? "?" : "&") + "v=" + hourKey();
       var im = document.createElement("img"); im.src = src; im.alt = p.label; st.appendChild(im);
