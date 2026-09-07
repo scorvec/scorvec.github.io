@@ -703,7 +703,7 @@
       </div>
       <iframe data-deferred class="anim-embed dt" data-src="sst_anim.html?embed=1&amp;manifest=dt_manifest.json&amp;region=dt"
               title="Dynamic tropopause potential temperature and isentropic PV loops from the AIFS-ENS control, 12-hourly to day 10" loading="lazy"></iframe>
-      <div class="img-wrap"><img src="assets/sst/dt_now.webp?v=28703f7a5ea6" alt="Dynamic tropopause potential temperature at the analysis and days 2, 4 and 6 from the AIFS-ENS control" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/dt_now.webp?v=202609071006" alt="Dynamic tropopause potential temperature at the analysis and days 2, 4 and 6 from the AIFS-ENS control" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control t/u/v on 700&ndash;100 hPa (open data, CC&nbsp;BY&nbsp;4.0), 0.25&deg; &middot; Ertel PV on pressure levels, 2-PVU surface by linear interpolation in PV, isentropic PV by interpolation in &theta; &middot; updated each 00/12Z cycle</span></div>
     </div>
     <script type="application/ld+json">
@@ -749,7 +749,7 @@
         <h2>Atmospheric Angular Momentum</h2>
         <p>Relative AAM is the angular momentum carried by the winds: $M_r=(a^3/g)\iiint u\cos^2\!\phi\,d\lambda\,d\phi\,dp$, the atmosphere's total westerly momentum about the rotation axis. It is dominated by the upper-tropospheric subtropical jets: the $\cos^2\phi$ weight peaks at the equator, but the deep tropics carry weak or easterly mass-weighted flow, so they contribute little to the total &mdash; what they dominate is the <i>variability</i>, because a small change in the trades acts over a huge area at the largest weight. It is shown here for the globe and each hemisphere from the AIFS-ENS winds on 14 pressure levels (10&ndash;1000&nbsp;hPa &mdash; effectively the full column; the same integral on ERA5's 37 levels is the reference check). The top panel is this year's observed AAM (black) and the 15-day forecast (red) on the climatological annual cycle; the hemispheres are strongly out of phase (each peaks in its own winter). The bottom panel is the anomaly (departure from the 1991&ndash;2020 normal), which removes the seasonal cycle. El&nbsp;Ni&ntilde;o strengthens the subtropical jets and weakens the trades, so the atmosphere holds more westerly momentum; conservation then requires the solid Earth to slow, so AAM ties directly to the measured length of day. The <span style="color:#2e7d32"><b>green trace</b></span> is GFZ's ESMGFZ wind-term series (computed from ECMWF's operational analyses for the Earth-rotation community, its published anomaly rescaled onto absolute momentum) &mdash; an external check on the pipeline's day-to-day variability.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/aam.webp?v=28703f7a5ea6" alt="Global and hemispheric atmospheric angular momentum: observed + AIFS-ENS forecast, absolute and anomaly" loading="eager" fetchpriority="high"></div>
+      <div class="img-wrap"><img src="assets/sst/aam.webp?v=202609071006" alt="Global and hemispheric atmospheric angular momentum: observed + AIFS-ENS forecast, absolute and anomaly" loading="eager" fetchpriority="high"></div>
       <div class="chart-card-footer"><span class="chart-sources">Forecast: ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; climatology &amp; this-year observed: ERA5 (Copernicus C3S / ECMWF) &middot; updated daily</span></div>
       </div>
 
@@ -757,7 +757,7 @@
       <div class="chart-card-header">
         <h2>AAM Forecast Trend (run-to-run)</h2>
       </div>
-      <div class="img-wrap"><img src="assets/sst/aam_trend.webp?v=28703f7a5ea6" alt="Run-to-run trend of AIFS-ENS ensemble-mean AAM anomaly forecasts, global and hemispheric" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/aam_trend.webp?v=202609071006" alt="Run-to-run trend of AIFS-ENS ensemble-mean AAM anomaly forecasts, global and hemispheric" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 (Copernicus C3S) &middot; archived each cycle</span></div>
       </div>
 
@@ -766,7 +766,7 @@
         <h2>AAM Phase: Where the Momentum Is, and Where It&rsquo;s Going</h2>
         <p><b>Top</b>: relative AAM integrated in 1.5&deg; latitude bands &mdash; ~3 months observed (ERA5) plus the 15-day AIFS-ENS mean forecast &mdash; so poleward-propagating westerly anomalies and building subtropical momentum show as slanted warm streaks. <b>Bottom</b>: each hemisphere's trajectory through (AAM anomaly, tendency) phase space, the hemispheric analog of the Weickmann&ndash;Berry global wind oscillation orbit: grey trail = last 75 days, red = the forecast. The headline sentence is generated automatically from the forecast quadrant and the latitude band driving the change &mdash; e.g. <i>"NH: rising above-normal AAM &mdash; subtropical westerlies increasing."</i></p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/aam_phase.webp?v=28703f7a5ea6" alt="Hemispheric AAM phase diagnostics: latitude-time anomaly heatmap and NH/SH phase-space orbits with forecast" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/aam_phase.webp?v=202609071006" alt="Hemispheric AAM phase diagnostics: latitude-time anomaly heatmap and NH/SH phase-space orbits with forecast" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ERA5 (local store) &middot; AIFS-ENS ensemble mean (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 &middot; updated daily</span></div>
       </div>
 
@@ -782,8 +782,8 @@
       </div>
       <iframe data-deferred class="anim-embed torque" data-src="sst_anim.html?embed=1&amp;manifest=torque_manifest.json&amp;region=torque"
               title="AAM surface-torque anomaly animation (friction + mountain) over the AIFS-ENS forecast" loading="lazy"></iframe>
-      <div class="img-wrap"><img src="assets/sst/torque_timeseries.webp?v=28703f7a5ea6" alt="AAM torque anomalies for globe, Northern and Southern Hemisphere" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/torque_ranges.webp?v=28703f7a5ea6" alt="Mountain-torque anomaly broken down by range (Himalaya, Rockies, Andes, Greenland, Antarctica, Alps)" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/torque_timeseries.webp?v=202609071006" alt="AAM torque anomalies for globe, Northern and Southern Hemisphere" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/torque_ranges.webp?v=202609071006" alt="Mountain-torque anomaly broken down by range (Himalaya, Rockies, Andes, Greenland, Antarctica, Alps)" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS surface pressure &amp; 10 m wind (open data, CC BY 4.0) &middot; drag coefficient and torque climatology from ERA5 1991&ndash;2020 (Copernicus C3S) &middot; instantaneous once-daily fields &middot; updated daily</span></div>
 
     <!-- E-P FLUX & WAVE DRIVING -->
@@ -849,7 +849,7 @@
       </div>
       <iframe data-deferred class="anim-embed jets" data-src="sst_anim.html?embed=1&amp;manifest=jets_manifest.json&amp;region=jets"
               title="Subtropical jet forecast animation: zonal-mean wind anomaly cross-section, day 0-15 from AIFS-ENS" loading="lazy"></iframe>
-      <div class="img-wrap"><img src="assets/sst/jets.webp?v=28703f7a5ea6" alt="Subtropical jet monitor: zonal-mean wind cross-section anomaly and jet-core strength/latitude forecast vs ERA5 climatology" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/jets.webp?v=202609071006" alt="Subtropical jet monitor: zonal-mean wind cross-section anomaly and jet-core strength/latitude forecast vs ERA5 climatology" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind, control + 25 perturbed members (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 harmonic day-of-year normal &plusmn;1&sigma; (WeatherBench2 / Copernicus C3S) &middot; updated daily</span></div>
       </div>
 
@@ -859,8 +859,8 @@
         <p>The 200&nbsp;hPa jet over 10&ndash;70&deg;N, 100&deg;E&ndash;120&deg;W, member by member: an <b>extension index</b> (the leading Nov&ndash;Mar EOF of the ERA5 1991&ndash;2020 anomalies, positive when the jet reaches east across the Pacific), a <b>shift index</b> (the second EOF, positive poleward), the plain <b>exit-region</b> wind anomaly over 30&ndash;40&deg;N 170&deg;E&ndash;150&deg;W, and the <b>jet terminus</b> &mdash; the easternmost longitude the 30&nbsp;m/s core reaches. The black tail is ERA5 through the same projection (about six days behind), the grey dots are the AIFS analyses, so the forecast starts from an observed state rather than a model one.</p>
         <p>The link to the <b>Himalayan mountain torque</b> above is tested, not assumed: over 30 years of ERA5 the exit-region wind correlates with the torque at $r\approx0.25$ five to seven days later, and the composite extension after torque days of +1.5&sigma; or more rises to about +0.2&sigma; a week on &mdash; modest, but outside what random dates produce. The dashed red curve on the plumes is that composite anchored on this cycle&rsquo;s torque peak: the historical expectation the members can be read against. The second figure follows the chain downstream to 500&nbsp;hPa, where the composite response is a Gulf-of-Alaska ridge nine to twelve days after the torque (weaker over Alaska itself), set beside the model&rsquo;s own height anomalies and two ridge indices.</p>
       </div>
-      <div class="img-wrap"><img src="assets/sst/pacjet.webp?v=28703f7a5ea6" alt="North Pacific jet extension, shift, exit-region wind and terminus from AIFS-ENS with the Himalayan mountain torque and ERA5 lag statistics" loading="lazy"></div>
-      <div class="img-wrap"><img src="assets/sst/pacjet_z500.webp?v=28703f7a5ea6" alt="500 hPa response downstream of the Himalayan torque: ERA5 composites, AIFS-ENS height anomalies, Alaska and Gulf of Alaska ridge indices" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/pacjet.webp?v=202609071006" alt="North Pacific jet extension, shift, exit-region wind and terminus from AIFS-ENS with the Himalayan mountain torque and ERA5 lag statistics" loading="lazy"></div>
+      <div class="img-wrap"><img src="assets/sst/pacjet_z500.webp?v=202609071006" alt="500 hPa response downstream of the Himalayan torque: ERA5 composites, AIFS-ENS height anomalies, Alaska and Gulf of Alaska ridge indices" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 200 hPa u and 500 hPa z, 51 members (open data, CC BY 4.0) &middot; reference: ERA5 1991&ndash;2020 via WeatherBench2 (Copernicus C3S), EOFs after Jaffe et al. (2011) and Winters et al. (2019) &middot; observed tail: ERA5 (ARCO) and AIFS analyses &middot; updated daily</span></div>
       </div>
       
