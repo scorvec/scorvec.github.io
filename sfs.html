@@ -26,68 +26,23 @@
           {"@type":"Thing","name":"Seasonal climate prediction"}],
  "isBasedOn":"https://registry.opendata.aws/noaa-oar-sfs/"}
 </script>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/outlook.css">
 <style>
-  :root {
-    --bg: #0a1220; --card: #0e1830; --rule: rgba(148,184,225,0.14);
-    --ink: #e9eff8; --ink2: #a7b8ce; --muted: #6d8099;
-    --aqua: #4dd6e8; --aqua-deep: #2e97ad; --gold: #e8c04d;
-    --serif: Georgia, "Times New Roman", serif;
-    --sans: Inter, -apple-system, "Segoe UI", sans-serif;
-  }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html { font-size: 100%; }
-  body { background: var(--bg); color: var(--ink); font-family: var(--sans);
-         font-weight: 300; line-height: 1.6; min-height: 100vh;
-         display: flex; flex-direction: column; }
-  a { color: var(--aqua); }
-  nav { display: flex; align-items: center; justify-content: space-between;
-        padding: 1.1rem 2rem; border-bottom: 1px solid var(--rule); }
-  .nav-name { font-family: var(--serif); font-size: 1.05rem; color: var(--ink);
-              text-decoration: none; font-weight: 500; }
-  .nav-links { display: flex; gap: 1.6rem; list-style: none; }
-  .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
-  .nav-links a:hover { color: var(--ink); }
-  main { flex: 1; max-width: min(94vw, 2000px); margin: 0 auto; width: 100%;
-         padding: 2.6rem 1.8rem 4rem; }
-  .eyebrow { font-size: 0.9rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); }
-  h1 { font-family: var(--serif); font-weight: 400; font-size: 38px;
-       margin: 6px 0 4px; }
-  h1 em { font-style: normal; color: inherit; }
-  .sub { color: var(--ink2); max-width: 82ch; margin-bottom: 20px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 26px; }
-  .chip { background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
-          padding: 10px 16px; min-width: 160px; }
-  .chip .l { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase;
-             color: var(--muted); }
-  .chip .v { font-size: 21px; font-weight: 600; }
-  .chip .v.warm { color: #e8833a; } .chip .v.neut { color: var(--ink2); }
-  .chip .s { font-size: 11.5px; color: var(--muted); }
-  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 14px;
-          padding: 22px 24px 14px; margin-bottom: 26px; }
-  .card h2 { font-family: var(--serif); font-weight: 400; font-size: 23px;
-             margin-bottom: 8px; }
-  .note { font-size: 0.86rem; color: var(--ink2); margin-bottom: 12px; max-width: 110ch; }
-  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-              margin-bottom: 8px; }
-  .pill { background: transparent; border: 1px solid var(--rule); border-radius: 999px;
-          color: var(--ink2); font-size: 12.5px; padding: 4px 13px; cursor: pointer;
-          font-family: var(--sans); }
-  .pill.on { background: rgba(77,214,232,0.14); border-color: var(--aqua-deep);
-             color: var(--aqua); }
-  .plot { width: 100%; }
-  .chart-card-footer { display: flex; justify-content: space-between; gap: 14px;
-                       flex-wrap: wrap; border-top: 1px solid var(--rule);
-                       margin-top: 10px; padding-top: 8px; }
-  .chart-sources { font-size: 11px; color: var(--muted); max-width: 130ch; }
-  .chart-updated { font-size: 11px; color: var(--muted); white-space: nowrap; }
-  .colophon { color: var(--muted); font-size: 0.82rem; line-height: 1.7;
-              max-width: 110ch; margin-top: 2rem; }
-  footer { padding: 1.4rem 2rem; border-top: 1px solid var(--rule);
-           color: var(--muted); font-size: 0.78rem; }
-  @media (max-width: 700px) {
-    nav { padding: 0.8rem 1rem; } .nav-links { gap: 1rem; }
-    h1 { font-size: 28px; } main { max-width: 100%; padding: 1.8rem 1rem 3rem; }
-  }
+  /* sfs.html — page-specific rules only. Cards, pills, chips, decks and footers
+     come from /assets/outlook.css, shared with seas5.html. */
+  .anim-embed.sfs-sub   { aspect-ratio: 3.2; }              /* two-panel signal + spread strips, 20–90N */
+  .anim-embed.sfs-trop  { aspect-ratio: 2.2; }              /* global precipitation / chi */
+  .anim-embed.sfs-month { aspect-ratio: 1.65; }             /* monthly global maps */
+  .anim-embed.sfs-polar { aspect-ratio: 0.95; max-width: 660px; }
+  .card.plot-deck { border-width: 2px; border-color: #b8b3a8; }
+  /* the deck head/tabs carry their own 1.4rem gutter for .chart-card; inside a padded .card it doubles */
+  .card.plot-deck .deck-head { padding: 0.55rem 0 0.4rem; }
+  .card.plot-deck .deck-tabs { padding: 0 0 0.75rem; margin-bottom: 0.7rem; }
+  .card.plot-deck .img-label { margin: 0 0 0.4rem; }
+  .card .anim-embed { margin-bottom: 0.4rem; }
+  .img-wrap.sfs-mjo img { max-width: 820px; }
+  .plot { margin-bottom: 0.4rem; }
 </style>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
@@ -101,7 +56,7 @@
 </head>
 <body>
 <!-- sh:start -->
-<header class="sh sh--dark" id="site-header">
+<header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
     <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
@@ -164,34 +119,36 @@
 <!-- sh:end -->
 <main>
   <header>
-    <div class="eyebrow">Monthly, from the NOAA SFS beta (UFS coupled, 31 members)</div>
+    <div class="eyebrow">Monthly, from the NOAA SFS beta (UFS coupled, 31 members), <span id="issueLabel">latest issue</span></div>
     <h1>SFS beta seasonal outlook</h1>
     <p class="sub">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based
     successor to CFSv2, running in near-real-time beta since March 2026 with open zarr
     output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the
     <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11
     members &times; 30 years), so drift and bias are removed the same way the C3S models
-    are handled on the <a href="enso-forecasts.html">ENSO forecasts page</a>.</p>
+    are handled on the <a href="enso-forecasts.html">ENSO forecasts page</a>. The ECMWF
+    system gets the same treatment on the <a href="seas5.html">SEAS5 page</a>.</p>
     <div class="chips" id="chips">
       <div class="chip"><div class="l">Loading feed&hellip;</div><div class="v neut">&mdash;</div></div>
     </div>
   </header>
 
+  <!-- ── NIÑO-3.4 PLUME ──────────────────────────────────────────────────── -->
   <div class="card">
     <h2>Ni&ntilde;o-3.4 &mdash; all 31 members</h2>
     <p class="note">Shaded fan: member percentile spread (10&ndash;90% and 25&ndash;75%).
-    Bold white line: ensemble mean. The observed index leads in from the left
-    (ERSSTv5, 1991&ndash;2020 base), and the <b style="color:#e8c04d">gold dashes</b>
+    Bold sienna line: ensemble mean. The observed index leads in from the left in black
+    (ERSSTv5, 1991&ndash;2020 base), and the <b style="color:var(--cool)">blue dashes</b>
     overlay the C3S seven-model multi-model mean from the same issue month for
     comparison &mdash; two independent forecast systems on one chart. Monthly values,
     anchored at the last observed month; toggle 3-month for the ONI convention.</p>
     <div class="controls">
       <button class="pill on" data-idx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
       <button class="pill" data-idx="roni">RONI</button>
-      <span style="color:var(--muted)">&middot;</span>
+      <span class="ctlsep">&middot;</span>
       <button class="pill on" data-sm="0">Monthly</button>
       <button class="pill" data-sm="1">3-month (ONI convention)</button>
-      <span style="color:var(--muted)">&middot;</span>
+      <span class="ctlsep">&middot;</span>
       <button class="pill" data-mem="1" id="memPill">Show all members</button>
     </div>
     <div id="plumeChart" class="plot" style="height:480px"></div>
@@ -205,6 +162,7 @@
     </div>
   </div>
 
+  <!-- ── DERIVED INDICES ─────────────────────────────────────────────────── -->
   <div class="card">
     <h2>Derived climate indices &mdash; member spread</h2>
     <p class="note">Beyond ENSO: box and pattern indices computed per member from the
@@ -225,6 +183,7 @@
     </div>
   </div>
 
+  <!-- ── DEGREE DAYS ─────────────────────────────────────────────────────── -->
   <div class="card">
     <h2>Subseasonal degree days &mdash; Lower-48, all 31 members</h2>
     <p class="note">Population-weighted (50 largest metros, base 65&thinsp;&deg;F) degree days
@@ -239,7 +198,7 @@
     <div class="controls" id="ddPills">
       <button class="pill on" data-dd="hdd">HDD</button>
       <button class="pill" data-dd="cdd">CDD</button>
-      <span style="color:var(--muted)">&middot;</span>
+      <span class="ctlsep">&middot;</span>
       <button class="pill on" data-ddv="daily">Daily</button>
       <button class="pill" data-ddv="cum">Cumulative departure</button>
     </div>
@@ -252,6 +211,7 @@
     </div>
   </div>
 
+  <!-- ── TELECONNECTIONS ─────────────────────────────────────────────────── -->
   <div class="card">
     <h2>Subseasonal teleconnections &mdash; regime probabilities vs hindcast</h2>
     <p class="note">PNA and EPO computed per member across the day-16&ndash;46 window
@@ -269,7 +229,7 @@
     cannot be separated from real signal; they return when NOAA reconciles the beta's
     daily stream.</p>
     <div id="teleStrip" class="plot" style="height:190px"></div>
-    <div class="controls" id="telePills" style="margin-top:8px"></div>
+    <div class="controls" id="telePills" style="margin-top:0.5rem"></div>
     <div id="teleChart" class="plot" style="height:380px"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">SFS beta atm_daily zarr &middot; standardization: own
@@ -280,7 +240,8 @@
     </div>
   </div>
 
-  <div class="card">
+  <!-- ── SUBSEASONAL ANOMALY MAPS (deck) ─────────────────────────────────── -->
+  <div class="card plot-deck" data-deck="sfs-subseasonal">
     <h2>Anomaly maps &mdash; step through the subseasonal window</h2>
     <p class="note">For each valid step (days 16&ndash;46): <b>left</b>, the 31-member mean
     <b>deviation from the model's own hindcast trend</b>, in detrended signal-&sigma;
@@ -292,29 +253,49 @@
     <b>Right</b>, the member spread divided by the hindcast spread: below 1 (orange)
     the ensemble is more confident than climatology, above 1 (purple) less. Scrub
     through the window to watch where the signal holds and where it dissolves.</p>
-    <h2 style="font-size:18px">500 hPa height</h2>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:3.2;border:0;border-radius:8px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500d_manifest.json&amp;region=sfs_z500d&amp;autoplay=0"
-      title="SFS 500 hPa height anomaly and spread loop" loading="lazy"></iframe>
-    <h2 style="font-size:18px;margin-top:14px">2 m temperature</h2>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:3.2;border:0;border-radius:8px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2md_manifest.json&amp;region=sfs_t2md&amp;autoplay=0"
-      title="SFS 2 m temperature anomaly and spread loop" loading="lazy"></iframe>
-    <h2 style="font-size:18px;margin-top:14px">Precipitation (global)</h2>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:2.2;border:0;border-radius:8px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_prcpd_manifest.json&amp;region=sfs_prcpd&amp;autoplay=0"
-      title="SFS global precipitation anomaly loop" loading="lazy"></iframe>
-    <h2 style="font-size:18px;margin-top:14px">200-hPa velocity potential (&chi;)</h2>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:2.2;border:0;border-radius:8px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chid_manifest.json&amp;region=sfs_chid&amp;autoplay=0"
-      title="SFS 200-hPa velocity potential anomaly loop" loading="lazy"></iframe>
+    <div class="deck-head">
+      <span class="deck-title">Select a field</span>
+      <span class="deck-hint">4 loops in this panel &middot; only the one you pick is loaded</span>
+    </div>
+    <div class="deck-tabs">
+      <button class="on">500 hPa height</button>
+      <button>2 m temperature</button>
+      <button>Precipitation</button>
+      <button>200 hPa &chi;</button>
+    </div>
+    <div class="deck-panel">
+      <div class="img-label">500 hPa height &middot; 20&ndash;90&deg;N &middot; signal (left) and spread ratio (right)</div>
+      <iframe class="anim-embed sfs-sub"
+        src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500d_manifest.json&amp;region=sfs_z500d&amp;autoplay=0"
+        title="SFS 500 hPa height anomaly and spread loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">2 m temperature &middot; 20&ndash;90&deg;N &middot; signal (left) and spread ratio (right)</div>
+      <iframe class="anim-embed sfs-sub"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2md_manifest.json&amp;region=sfs_t2md&amp;autoplay=0"
+        title="SFS 2 m temperature anomaly and spread loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">Precipitation &middot; global</div>
+      <iframe class="anim-embed sfs-trop"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_prcpd_manifest.json&amp;region=sfs_prcpd&amp;autoplay=0"
+        title="SFS global precipitation anomaly loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">200 hPa velocity potential (&chi;) &middot; global</div>
+      <iframe class="anim-embed sfs-trop"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chid_manifest.json&amp;region=sfs_chid&amp;autoplay=0"
+        title="SFS 200-hPa velocity potential anomaly loop" loading="lazy"></iframe>
+    </div>
     <div class="chart-card-footer">
       <span class="chart-sources">SFS beta atm_daily zarr (1&deg;) &middot; anomaly = deviation from (hindcast mean + own linear trend evaluated at the forecast date), per lead day, physical units
       &middot; spread ratio = member &sigma; / mean reforecast ensemble &sigma; at the same lead &middot;
       20&ndash;90&deg;N</span>
+      <span class="chart-updated" id="maps-updated">&mdash;</span>
     </div>
   </div>
 
+  <!-- ── MJO ─────────────────────────────────────────────────────────────── -->
   <div class="card">
     <h2>MJO &mdash; 31-member RMM phase space to day 46</h2>
     <p class="note">The Wheeler&ndash;Hendon <b>RMM phase diagram</b> from every SFS
@@ -330,16 +311,19 @@
     Teal spaghetti: members (every other day); red: ensemble mean (dashed grey:
     wind-only reference); black: the observed track from the <em>official</em>
     BoM RMM index.</p>
-    <img src="assets/sfs/mjo_rmm.webp?v=202608162" alt="SFS beta MJO RMM phase-space forecast, 31 members"
-      style="width:100%;max-width:820px;display:block;margin:0 auto;border-radius:8px" loading="eager" fetchpriority="high">
+    <div class="img-wrap sfs-mjo">
+      <img src="assets/sfs/mjo_rmm.webp?v=202608162" alt="SFS beta MJO RMM phase-space forecast, 31 members" loading="eager" fetchpriority="high">
+    </div>
     <div class="chart-card-footer">
       <span class="chart-sources">SFS beta atm_daily zarr, UGRD 850/200 hPa +
       PRATE &middot; full WH04 RMM with precip pseudo-OLR &middot; raw winds, no
       drift adjustment &middot; shared reference EOFs/climatology with the
-      AIFS-ENS product</span>
+      AIFS-ENS product &middot; observed: BoM RMM</span>
+      <span class="chart-updated" id="mjo-updated">&mdash;</span>
     </div>
   </div>
 
+  <!-- ── STRATOSPHERE ────────────────────────────────────────────────────── -->
   <div class="card">
     <h2>Stratosphere &mdash; wave flux and the polar vortex, all members</h2>
     <p class="note">Two classic lower-stratosphere diagnostics from the daily members:
@@ -363,6 +347,7 @@
     </div>
   </div>
 
+  <!-- ── 100 hPa POLAR VIEW ──────────────────────────────────────────────── -->
   <div class="card">
     <h2>100 hPa &mdash; daily polar view, first 46 days</h2>
     <p class="note">The lower stratosphere from above: ensemble-mean <b>100-hPa
@@ -374,48 +359,94 @@
     members. Bias shared by forecast and reforecast cancels in the anomaly, but the
     near-real-time daily stream carries a height offset of its own &mdash; read the
     <em>pattern</em>, not the absolute magnitude.</p>
-    <iframe class="anim-embed" style="width:100%;max-width:660px;aspect-ratio:0.95;border:0;border-radius:8px;display:block;margin:0 auto"
+    <iframe class="anim-embed sfs-polar"
       src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z100d_manifest.json&amp;region=sfs_z100d&amp;autoplay=0"
       title="SFS daily 100 hPa height anomaly polar loop" loading="lazy"></iframe>
     <div class="chart-card-footer">
       <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), HGT/UGRD/VGRD
       100 hPa &middot; 31-member mean &middot; baseline: own reforecast 1991&ndash;2020
       mean + trend at forecast year, same init month and leads &middot; 20&ndash;90&deg;N</span>
+      <span class="chart-updated" id="polar-updated">&mdash;</span>
     </div>
   </div>
 
-    <div class="card">
+  <!-- ── MONTHLY ANOMALY MAPS (deck) ─────────────────────────────────────── -->
+  <div class="card plot-deck" data-deck="sfs-monthly">
     <h2>Monthly anomaly maps &mdash; step through every lead</h2>
     <p class="note">The same anomalies without seasonal averaging: one frame per
     forecast month, in the loop player &mdash; scrub or step to watch the pattern
     develop and decay month by month. Fixed color scale across all leads.</p>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_sst_manifest.json&amp;region=sfs_sst&amp;autoplay=0"
-      title="SFS monthly SST anomaly loop" loading="lazy"></iframe>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2m_manifest.json&amp;region=sfs_t2m&amp;autoplay=0"
-      title="SFS monthly 2m temperature anomaly loop" loading="lazy"></iframe>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_precip_manifest.json&amp;region=sfs_precip&amp;autoplay=0"
-      title="SFS monthly precipitation anomaly loop" loading="lazy"></iframe>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500_manifest.json&amp;region=sfs_z500&amp;autoplay=0"
-      title="SFS monthly 500 hPa height anomaly loop" loading="lazy"></iframe>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_mslp_manifest.json&amp;region=sfs_mslp&amp;autoplay=0"
-      title="SFS monthly MSLP anomaly loop" loading="lazy"></iframe>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_wind850_manifest.json&amp;region=sfs_wind850&amp;autoplay=0"
-      title="SFS monthly 850 hPa wind anomaly loop" loading="lazy"></iframe>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_wind200_manifest.json&amp;region=sfs_wind200&amp;autoplay=0"
-      title="SFS monthly 200 hPa wind anomaly loop" loading="lazy"></iframe>
-    <iframe class="anim-embed" style="width:100%;aspect-ratio:1.65;border:0;border-radius:8px;margin-top:12px"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chi200_manifest.json&amp;region=sfs_chi200&amp;autoplay=0"
-      title="SFS monthly 200 hPa velocity potential anomaly loop" loading="lazy"></iframe>
+    <div class="deck-head">
+      <span class="deck-title">Select a field</span>
+      <span class="deck-hint">8 loops in this panel &middot; only the one you pick is loaded</span>
+    </div>
+    <div class="deck-tabs">
+      <button class="on">SST</button>
+      <button>2 m temperature</button>
+      <button>Precipitation</button>
+      <button>500 hPa height</button>
+      <button>MSLP</button>
+      <button>850 hPa wind</button>
+      <button>200 hPa wind</button>
+      <button>200 hPa &chi;</button>
+    </div>
+    <div class="deck-panel">
+      <div class="img-label">Sea-surface temperature anomaly, monthly means</div>
+      <iframe class="anim-embed sfs-month"
+        src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_sst_manifest.json&amp;region=sfs_sst&amp;autoplay=0"
+        title="SFS monthly SST anomaly loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">2 m temperature anomaly, monthly means</div>
+      <iframe class="anim-embed sfs-month"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2m_manifest.json&amp;region=sfs_t2m&amp;autoplay=0"
+        title="SFS monthly 2m temperature anomaly loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">Precipitation anomaly, monthly means</div>
+      <iframe class="anim-embed sfs-month"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_precip_manifest.json&amp;region=sfs_precip&amp;autoplay=0"
+        title="SFS monthly precipitation anomaly loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">500 hPa height anomaly, monthly means</div>
+      <iframe class="anim-embed sfs-month"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500_manifest.json&amp;region=sfs_z500&amp;autoplay=0"
+        title="SFS monthly 500 hPa height anomaly loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">Mean sea-level pressure anomaly, monthly means</div>
+      <iframe class="anim-embed sfs-month"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_mslp_manifest.json&amp;region=sfs_mslp&amp;autoplay=0"
+        title="SFS monthly MSLP anomaly loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">850 hPa wind anomaly, monthly means</div>
+      <iframe class="anim-embed sfs-month"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_wind850_manifest.json&amp;region=sfs_wind850&amp;autoplay=0"
+        title="SFS monthly 850 hPa wind anomaly loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">200 hPa wind anomaly, monthly means</div>
+      <iframe class="anim-embed sfs-month"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_wind200_manifest.json&amp;region=sfs_wind200&amp;autoplay=0"
+        title="SFS monthly 200 hPa wind anomaly loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">200 hPa velocity potential (&chi;) anomaly, monthly means</div>
+      <iframe class="anim-embed sfs-month"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chi200_manifest.json&amp;region=sfs_chi200&amp;autoplay=0"
+        title="SFS monthly 200 hPa velocity potential anomaly loop" loading="lazy"></iframe>
+    </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta ocn_monthly / atm_monthly zarr (1&deg;), 31-member mean
+      &middot; anomalies vs own reforecast 1991&ndash;2020 per init month &amp; lead &middot; fixed colour scale across leads</span>
+      <span class="chart-updated" id="monthly-updated">&mdash;</span>
+    </div>
   </div>
 
   <script>
+  // Animator iframes post their rendered height once loaded; pin each to it.
   addEventListener("message", function (e) {
     var d = e.data; if (!d || d.type !== "sstAnimHeight") return;
     var fr = document.querySelectorAll("iframe.anim-embed");
@@ -423,12 +454,41 @@
       if (fr[i].contentWindow === e.source) {
         fr[i].style.height = d.h + "px";
         fr[i].style.aspectRatio = "auto";
+        // outlook.css caps the pre-JS placeholder at 92vh; the animator's real
+        // height (a wide loop at full width runs past that) must not be clipped
+        fr[i].style.maxHeight = "none";
       }
     }
   });
+  // Plot decks (same pattern as the ENSO pages): one delegated listener; panels
+  // other than the first keep their iframe src in data-src until first opened,
+  // so a deck costs exactly one animator load on page open.
+  (function () {
+    function reveal(panel) {
+      var f = panel.querySelectorAll("iframe[data-src], img[data-src]");
+      for (var i = 0; i < f.length; i++) {
+        var el = f[i], d = el.getAttribute("data-src");
+        if (d) { el.setAttribute("src", d); el.removeAttribute("data-src"); }
+      }
+    }
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest(".plot-deck .deck-tabs button") : null;
+      if (!b) return;
+      var deck = b.closest(".plot-deck");
+      var tabs = deck.querySelectorAll(".deck-tabs button");
+      var panels = deck.querySelectorAll(".deck-panel");
+      var i = Array.prototype.indexOf.call(tabs, b);
+      for (var k = 0; k < panels.length; k++) {
+        if (k === i) { panels[k].hidden = false; reveal(panels[k]); }
+        else panels[k].hidden = true;
+        tabs[k].classList.toggle("on", k === i);
+      }
+    });
+  })();
   </script>
 
   <div class="colophon">
+    <h3>About this page</h3>
     <p><b>Looking for SFS model plots?</b> This page is an independent visualization
     suite for NOAA's new <b>SFS (Seasonal Forecast System)</b> — the UFS-based
     replacement for CFSv2, running in near-real-time beta since March 2026. NOAA
@@ -444,13 +504,16 @@
     The reforecast climatology here uses 11 members per year over 1991&ndash;2020,
     init-month specific, so lead-dependent drift cancels by construction. Data: NOAA Open
     Data Dissemination, <code>noaa-oar-sfsdev-pds</code> on AWS.</p>
+    <p>SFS beta data: NOAA/OAR via NODD (public domain) &middot; C3S overlay: Copernicus
+    Climate Change Service &middot; observed indices: NOAA CPC ERSSTv5, BoM RMM.</p>
   </div>
 </main>
-<footer>&copy; 2026 Shawn Corvec &middot; SFS beta data: NOAA/OAR via NODD (public domain) &middot; C3S overlay: Copernicus Climate Change Service</footer>
 <script>
 (function () {
   "use strict";
-  var GRID = "rgba(148,184,225,0.22)", AXIS = "#8296ad", INK2 = "#a7b8ce";
+  var GRID = "#e2e0da", AXIS = "#c9c5bb", INK = "#1a1a1a", INK2 = "#4a4744",
+      ACCENT = "#8a4b2a", COOL = "#3f6f8f", MEMBER = "rgba(63,111,143,0.28)",
+      FAN = "rgba(138,75,42,", CLIM = "rgba(120,120,120,";
   var state = { idx: "n34", smooth: false, members: false,
                 sfs: null, c3s: null, hist: null };
 
@@ -502,8 +565,8 @@
     if (obsY.length) bridgePad[bridgePad.length - 1] = obsY[obsY.length - 1];
 
     var traces = [];
-    [["p90", "p10", "10–90%", "rgba(77,214,232,0.13)"],
-     ["p75", "p25", "25–75%", "rgba(77,214,232,0.22)"]].forEach(function (b) {
+    [["p90", "p10", "10–90%", FAN + "0.14)"],
+     ["p75", "p25", "25–75%", FAN + "0.28)"]].forEach(function (b) {
       traces.push({ x: x, y: pad.concat(smooth(fan[b[0]])), type: "scatter", mode: "lines",
                     line: { width: 0 }, hoverinfo: "skip", showlegend: false });
       traces.push({ x: x, y: pad.concat(smooth(fan[b[1]])), type: "scatter", mode: "lines",
@@ -518,7 +581,7 @@
         gx.push(valid[nL - 1]); gy.push(null);
       });
       traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                    line: { color: "rgba(190,208,228,0.45)", width: 1.1 },
+                    line: { color: MEMBER, width: 1.1 },
                     name: "members", hoverinfo: "skip" });
     }
     // C3S multi-model mean overlay, same issue window
@@ -535,39 +598,44 @@
       traces.push({ x: cx, y: cyPlot, type: "scatter", mode: "lines+markers",
                     name: "C3S multi-model mean (7 models)",
                     marker: { size: 4, symbol: "diamond" },
-                    line: { color: "#ffd45e", width: 2.8, dash: "dash" },
+                    line: { color: COOL, width: 2.8, dash: "dash" },
                     hovertemplate: "%{y:+.2f} °C" });
     }
     traces.push({ x: x, y: bridgePad.concat(smooth(mmm)), type: "scatter", mode: "lines",
-                  name: "SFS ensemble mean", line: { color: "#f2f4f8", width: 3 },
+                  name: "SFS ensemble mean", line: { color: ACCENT, width: 3 },
                   hovertemplate: "%{y:+.2f} °C" });
     if (obsX.length)
       traces.push({ x: obsX, y: obsY, type: "scatter", mode: "lines+markers",
                     name: "Observed", marker: { size: 5 },
-                    line: { color: "#5fe6f8", width: 3 },
+                    line: { color: INK, width: 2.4 },
                     hovertemplate: "%{y:+.2f} °C" });
 
     var shapes = [];
     [0.5, 1.0, 1.5, 2.0, -0.5, -1.0, -1.5, -2.0].forEach(function (yv) {
       shapes.push({ type: "line", x0: x[0], x1: x[x.length - 1], y0: yv, y1: yv,
-                    line: { color: yv > 0 ? "rgba(232,131,58,0.30)" : "rgba(77,143,232,0.30)",
+                    line: { color: yv > 0 ? "rgba(180,84,31,0.35)" : "rgba(63,111,143,0.35)",
                             width: 1, dash: "dot" } });
     });
     Plotly.react("plumeChart", traces, {
-      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-      font: { family: "Inter, sans-serif", size: 12, color: INK2 },
+      paper_bgcolor: "#ffffff", plot_bgcolor: "#ffffff",
+      font: { family: "Inter, sans-serif", size: 12, color: INK },
       margin: { l: 46, r: 30, t: 10, b: 40 },
       xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, type: "category" },
       yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
-               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2,
+               zerolinecolor: "#c9c5bb", zerolinewidth: 2,
                title: { text: "anomaly (°C)", standoff: 4 } },
       legend: { orientation: "h", y: 1.09, font: { size: 11 } },
-      hovermode: "x unified", shapes: shapes.concat([{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, layer: "above", line: { color: "rgba(205,222,240,0.9)", width: 2 } }]),
-      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
-                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+      hovermode: "x unified", shapes: shapes.concat([{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, layer: "above", line: { color: "#8a8680", width: 1.5 } }]),
+      hoverlabel: { bgcolor: "#ffffff", bordercolor: "#c9c5bb",
+                    font: { family: "Inter", size: 12, color: INK } },
     }, { displayModeBar: false, responsive: true });
     document.getElementById("plume-updated").textContent =
       "issue " + S.issue + " · built " + S.generated;
+    document.getElementById("issueLabel").textContent = "issue " + S.issue;
+    ["maps-updated", "mjo-updated", "polar-updated", "monthly-updated"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = "issue " + S.issue + " · built " + S.generated;
+    });
 
     var peak = { v: -99, i: 0 };
     mmm.forEach(function (v, i) { if (v > peak.v) peak = { v: v, i: i }; });
@@ -623,19 +691,19 @@
 
   // ── daily cards (degree days + teleconnections) ──────────────────────────
   var dailyState = { data: null, dd: "hdd", ddv: "daily", tele: "pna" };
-  var ZERO_SHAPE = { type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, layer: "above", line: { color: "rgba(205,222,240,0.9)", width: 2 } };
-  function plotDark(extra) {
+  var ZERO_SHAPE = { type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, layer: "above", line: { color: "#8a8680", width: 1.5 } };
+  function plotLight(extra) {
     var base = {
-      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-      font: { family: "Inter, sans-serif", size: 12, color: INK2 },
+      paper_bgcolor: "#ffffff", plot_bgcolor: "#ffffff",
+      font: { family: "Inter, sans-serif", size: 12, color: INK },
       margin: { l: 48, r: 16, t: 10, b: 40 },
       xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS },
       yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
-               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2 },
+               zerolinecolor: "#c9c5bb", zerolinewidth: 2 },
       legend: { orientation: "h", y: 1.1, font: { size: 11 } },
       hovermode: "x unified",
-      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
-                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+      hoverlabel: { bgcolor: "#ffffff", bordercolor: "#c9c5bb",
+                    font: { family: "Inter", size: 12, color: INK } },
     };
     for (var k in (extra || {})) base[k] = extra[k];
     base.shapes = (base.shapes || []).concat([ZERO_SHAPE]);
@@ -656,8 +724,8 @@
     }
     var traces = [];
     if (!cum) {
-      [["p90", "p10", "climo 10–90%", "rgba(148,184,225,0.10)"],
-       ["p75", "p25", "climo 25–75%", "rgba(148,184,225,0.16)"]].forEach(function (b) {
+      [["p90", "p10", "climo 10–90%", CLIM + "0.12)"],
+       ["p75", "p25", "climo 25–75%", CLIM + "0.20)"]].forEach(function (b) {
         traces.push({ x: days, y: d.climo[b[0]], type: "scatter", mode: "lines",
                       line: { width: 0 }, hoverinfo: "skip", showlegend: false });
         traces.push({ x: days, y: d.climo[b[1]], type: "scatter", mode: "lines",
@@ -665,7 +733,7 @@
                       name: b[2], hoverinfo: "skip" });
       });
       traces.push({ x: days, y: cmean, type: "scatter", mode: "lines",
-                    name: "hindcast mean", line: { color: "#b9cbdf", width: 2.2, dash: "dash" },
+                    name: "hindcast mean", line: { color: "#8a8680", width: 2.2, dash: "dash" },
                     hovertemplate: "%{y:.1f}" });
     }
     var gx = [], gy = [];
@@ -675,20 +743,20 @@
       gx.push(days[s.length - 1]); gy.push(null);
     });
     traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                  line: { color: "rgba(109,226,245,0.45)", width: 1.1 },
+                  line: { color: MEMBER, width: 1.1 },
                   name: "members", hoverinfo: "skip" });
     var mm = days.map(function (_, i) {
       return mean(d.members.map(function (m) { return xf(m)[i]; })); });
     traces.push({ x: days, y: mm, type: "scatter", mode: "lines",
-                  name: "ensemble mean", line: { color: "#f2f4f8", width: 3 },
+                  name: "ensemble mean", line: { color: ACCENT, width: 3 },
                   hovertemplate: "%{y:.1f}" });
-    var lay = plotDark();
+    var lay = plotLight();
     lay.xaxis.type = "category";
     if (M) lay.shapes = [{ type: "line", x0: nD - 0.5, x1: nD - 0.5, yref: "paper",
-      y0: 0, y1: 1, line: { color: "rgba(232,192,77,0.5)", width: 1.5, dash: "dot" } }];
+      y0: 0, y1: 1, line: { color: "rgba(138,75,42,0.5)", width: 1.5, dash: "dot" } }];
     if (M) lay.annotations = [{ x: nD - 0.4, xanchor: "left", yref: "paper", y: 1.03,
       text: "monthly means →", showarrow: false,
-      font: { size: 10.5, color: "#e8c04d" } }];
+      font: { size: 10.5, color: ACCENT } }];
     lay.yaxis.title = { text: (dailyState.dd === "hdd" ? "HDD" : "CDD")
       + (cum ? " departure (cumulative)" : " per day (°F·day, pop-weighted)"), standoff: 4 };
     Plotly.react("ddChart", traces, lay, { displayModeBar: false, responsive: true });
@@ -722,7 +790,7 @@
       zmin: -2, zmax: 2, text: text, hoverinfo: "text",
       colorbar: { thickness: 10, len: 0.9, tickfont: { size: 10, color: INK2 },
                   title: { text: "σ", font: { size: 11, color: INK2 } } },
-    }], plotDark({ margin: { l: 48, r: 16, t: 4, b: 30 }, hovermode: "closest" }),
+    }], plotLight({ margin: { l: 48, r: 16, t: 4, b: 30 }, hovermode: "closest" }),
       { displayModeBar: false, responsive: true });
   }
   function drawTele() {
@@ -742,8 +810,8 @@
       mm.push(mean(pool));
     }
     var traces = [];
-    [["p90", "p10", "10–90%", "rgba(77,214,232,0.13)"],
-     ["p75", "p25", "25–75%", "rgba(77,214,232,0.22)"]].forEach(function (b) {
+    [["p90", "p10", "10–90%", FAN + "0.14)"],
+     ["p75", "p25", "25–75%", FAN + "0.28)"]].forEach(function (b) {
       traces.push({ x: days, y: fan[b[0]], type: "scatter", mode: "lines",
                     line: { width: 0 }, hoverinfo: "skip", showlegend: false });
       traces.push({ x: days, y: fan[b[1]], type: "scatter", mode: "lines",
@@ -752,19 +820,19 @@
     });
     traces.push({ x: days, y: mm, type: "scatter", mode: "lines+markers",
                   name: t.label + " ensemble mean", marker: { size: 4 },
-                  line: { color: "#f2f4f8", width: 3 },
+                  line: { color: ACCENT, width: 3 },
                   hovertemplate: "%{y:+.2f} σ" });
     var shp = [1, -1].map(function (yv) {
       return { type: "line", x0: days[0], x1: days[days.length - 1], y0: yv, y1: yv,
-               line: { color: "rgba(148,184,225,0.25)", width: 1, dash: "dot" } };
+               line: { color: "rgba(74,71,68,0.3)", width: 1, dash: "dot" } };
     });
     if (Mt) shp.push({ type: "line", x0: nD - 0.5, x1: nD - 0.5, yref: "paper",
-      y0: 0, y1: 1, line: { color: "rgba(232,192,77,0.5)", width: 1.5, dash: "dot" } });
-    var lay = plotDark({ shapes: shp });
+      y0: 0, y1: 1, line: { color: "rgba(138,75,42,0.5)", width: 1.5, dash: "dot" } });
+    var lay = plotLight({ shapes: shp });
     lay.xaxis.type = "category";
     if (Mt) lay.annotations = [{ x: nD - 0.4, xanchor: "left", yref: "paper", y: 1.03,
       text: "monthly means →", showarrow: false,
-      font: { size: 10.5, color: "#e8c04d" } }];
+      font: { size: 10.5, color: ACCENT } }];
     lay.yaxis.title = { text: t.label + " (hindcast σ)", standoff: 4 };
     Plotly.react("teleChart", traces, lay, { displayModeBar: false, responsive: true });
     document.getElementById("tele-updated").textContent =
@@ -775,8 +843,8 @@
     var key = dailyState.strat || "vt100";
     var d = D.strat[key], days = D.days;
     var traces = [];
-    [["p90", "p10", "climo 10–90%", "rgba(148,184,225,0.10)"],
-     ["p75", "p25", "climo 25–75%", "rgba(148,184,225,0.16)"]].forEach(function (b) {
+    [["p90", "p10", "climo 10–90%", CLIM + "0.12)"],
+     ["p75", "p25", "climo 25–75%", CLIM + "0.20)"]].forEach(function (b) {
       traces.push({ x: days, y: d.climo[b[0]], type: "scatter", mode: "lines",
                     line: { width: 0 }, hoverinfo: "skip", showlegend: false });
       traces.push({ x: days, y: d.climo[b[1]], type: "scatter", mode: "lines",
@@ -784,7 +852,7 @@
                     name: b[2], hoverinfo: "skip" });
     });
     traces.push({ x: days, y: d.climo.mean, type: "scatter", mode: "lines",
-                  name: "hindcast mean", line: { color: "#b9cbdf", width: 2.2, dash: "dash" },
+                  name: "hindcast mean", line: { color: "#8a8680", width: 2.2, dash: "dash" },
                   hovertemplate: "%{y:.1f}" });
     var gx = [], gy = [];
     d.members.forEach(function (m) {
@@ -792,14 +860,14 @@
       gx.push(days[m.length - 1]); gy.push(null);
     });
     traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                  line: { color: "rgba(109,226,245,0.45)", width: 1.1 },
+                  line: { color: MEMBER, width: 1.1 },
                   name: "members", hoverinfo: "skip" });
     var mm = days.map(function (_, i) {
       return mean(d.members.map(function (m) { return m[i]; })); });
     traces.push({ x: days, y: mm, type: "scatter", mode: "lines",
-                  name: "ensemble mean", line: { color: "#f2f4f8", width: 3 },
+                  name: "ensemble mean", line: { color: ACCENT, width: 3 },
                   hovertemplate: "%{y:.1f} " + d.units });
-    var lay = plotDark();
+    var lay = plotLight();
     lay.yaxis.title = { text: d.label + " (" + d.units + ")", standoff: 4 };
     Plotly.react("stratChart", traces, lay, { displayModeBar: false, responsive: true });
     document.getElementById("strat-updated").textContent =
@@ -846,7 +914,7 @@
     .catch(function () {
       ["ddChart", "teleStrip", "teleChart", "stratChart"].forEach(function (id) {
         document.getElementById(id).innerHTML =
-          '<div style="padding:1.6rem;color:#888">daily feed building — check back after the monthly build</div>';
+          '<div style="padding:1.6rem;color:var(--muted)">daily feed building — check back after the monthly build</div>';
       });
     });
 
@@ -867,8 +935,8 @@
       mm.push(mean(pool));
     }
     var traces = [];
-    [["p90", "p10", "10–90%", "rgba(77,214,232,0.13)"],
-     ["p75", "p25", "25–75%", "rgba(77,214,232,0.22)"]].forEach(function (b) {
+    [["p90", "p10", "10–90%", FAN + "0.14)"],
+     ["p75", "p25", "25–75%", FAN + "0.28)"]].forEach(function (b) {
       traces.push({ x: valid, y: fan[b[0]], type: "scatter", mode: "lines",
                     line: { width: 0 }, hoverinfo: "skip", showlegend: false });
       traces.push({ x: valid, y: fan[b[1]], type: "scatter", mode: "lines",
@@ -881,25 +949,25 @@
       gx.push(valid[nL - 1]); gy.push(null);
     });
     traces.push({ x: gx, y: gy, type: "scatter", mode: "lines",
-                  line: { color: "rgba(190,208,228,0.45)", width: 1.1 },
+                  line: { color: MEMBER, width: 1.1 },
                   name: "members", hoverinfo: "skip" });
     traces.push({ x: valid, y: mm, type: "scatter", mode: "lines+markers",
                   name: "ensemble mean", marker: { size: 5 },
-                  line: { color: "#f2f4f8", width: 3 },
+                  line: { color: ACCENT, width: 3 },
                   hovertemplate: "%{y:+.2f} " + d.units });
     Plotly.react("idxChart", traces, {
-      paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
-      font: { family: "Inter, sans-serif", size: 12, color: INK2 },
+      paper_bgcolor: "#ffffff", plot_bgcolor: "#ffffff",
+      font: { family: "Inter, sans-serif", size: 12, color: INK },
       margin: { l: 46, r: 20, t: 10, b: 40 },
       xaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS, type: "category" },
       yaxis: { gridcolor: GRID, linecolor: GRID, tickcolor: AXIS,
-               zerolinecolor: "rgba(148,184,225,0.75)", zerolinewidth: 2,
+               zerolinecolor: "#c9c5bb", zerolinewidth: 2,
                title: { text: d.label + " (" + d.units + ")", standoff: 4 } },
       legend: { orientation: "h", y: 1.12, font: { size: 11 } },
-      shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, layer: "above", line: { color: "rgba(205,222,240,0.9)", width: 2 } }],
+      shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 0, y1: 0, layer: "above", line: { color: "#8a8680", width: 1.5 } }],
       hovermode: "x unified",
-      hoverlabel: { bgcolor: "#0d1a2e", bordercolor: "rgba(148,184,225,0.4)",
-                    font: { family: "Inter", size: 12, color: "#e9eff8" } },
+      hoverlabel: { bgcolor: "#ffffff", bordercolor: "#c9c5bb",
+                    font: { family: "Inter", size: 12, color: INK } },
     }, { displayModeBar: false, responsive: true });
     document.getElementById("idx-updated").textContent =
       "issue " + D.issue + " · built " + D.generated;
@@ -927,7 +995,7 @@
     })
     .catch(function () {
       document.getElementById("idxChart").innerHTML =
-        '<div style="padding:2rem;color:#888">indices feed building — check back after the monthly build</div>';
+        '<div style="padding:2rem;color:var(--muted)">indices feed building — check back after the monthly build</div>';
     });
 
   Promise.all([
@@ -949,7 +1017,7 @@
 })();
 </script>
 <!-- sf:start -->
-<footer class="sf sf--dark">
+<footer class="sf">
   <div class="sf-in">
     <ul>
       <li><a href="/">Home</a></li>
