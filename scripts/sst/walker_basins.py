@@ -117,8 +117,8 @@ def render(out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30,
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
     import textwrap
-    fig = plt.figure(figsize=(13.4, 12.4))
-    gs = GridSpec(6, 2, height_ratios=[0.5, 0.06, 1.2, 1.0, 0.5, 0.75], hspace=0.5, wspace=0.1, left=0.055, right=0.985, top=0.925, bottom=0.02)
+    fig = plt.figure(figsize=(13.4, 11.8))
+    gs = GridSpec(6, 2, height_ratios=[0.44, 0.02, 1.2, 1.0, 0.44, 0.8], hspace=0.5, wspace=0.1, left=0.055, right=0.985, top=0.932, bottom=0.02)
     pc = ccrs.PlateCarree(central_longitude=180)
     boxes = json.loads(ref.attrs["boxes"]); basins = json.loads(ref.attrs["basin_lon"])
     lev = np.arange(-2.4, 2.41, 0.3)
@@ -139,8 +139,9 @@ def render(out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30,
         return cf
     cf = sst_panel(0, ssta, f"SST anomaly, OISST {window[0]:%d %b}–{window[1]:%d %b} (1991–2020 base, trend removed)")
     sst_panel(1, ssta_res, "The same field with the ENSO regression pattern removed")
-    b0 = gs[1, 0].get_position(fig)
-    cax = fig.add_axes([0.40, b0.y0 + 1.6 * b0.height, 0.20, 0.006]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=6.5); cb.set_label("°C   ·   boxes: red Niño-3.4, green IOD poles and basin (dashed), orange ATL3 and TNA", fontsize=7)
+    fig.canvas.draw()                                                   # cartopy fixes the map aspect at draw time
+    b0 = min((a.get_position() for a in fig.axes if getattr(a, "projection", None) is not None), key=lambda b: b.y0)
+    cax = fig.add_axes([0.40, b0.y0 - 0.022, 0.20, 0.006]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=6.5); cb.set_label("°C   ·   boxes: red Niño-3.4, green IOD poles and basin (dashed), orange ATL3 and TNA", fontsize=7)
 
     # W profile
     ax = fig.add_subplot(gs[2, :])
@@ -158,7 +159,8 @@ def render(out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30,
     ax.set_xlim(0, 360); ax.set_xticks(range(0, 361, 30)); ax.set_xticklabels([f"{x}°E" if x <= 180 else f"{360 - x}°W" for x in range(0, 361, 30)], fontsize=7.5)
     ax.set_ylabel("W = u_D(200) − u_D(850), m/s", fontsize=8); ax.tick_params(labelsize=7.5); ax.grid(True, alpha=0.2)
     ax.set_title("Zonal overturning anomaly along the equator: observed vs the ENSO-first regression (+ = upper-level eastward, lower-level westward divergent flow)", fontsize=9.2, loc="left", fontweight="bold")
-    ax.legend(fontsize=7.2, ncol=3, frameon=False, loc="upper left")
+    lo, hi = ax.get_ylim(); ax.set_yticks([t for t in ax.get_yticks() if lo <= t <= hi]); ax.set_ylim(lo - 0.42 * (hi - lo), hi)   # blank band under the data for the legend
+    ax.legend(fontsize=7.4, ncol=3, frameon=False, loc="lower center")
 
     # Gill profiles + skill
     ax = fig.add_subplot(gs[3, 0])
@@ -171,7 +173,8 @@ def render(out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30,
     ax.set_xlim(0, 360); ax.set_xticks(range(0, 361, 60)); ax.set_xticklabels([f"{x}°E" if x <= 180 else f"{360 - x}°W" for x in range(0, 361, 60)], fontsize=7.5)
     ax.set_ylabel("W-equivalent, m/s", fontsize=8); ax.tick_params(labelsize=7.5); ax.grid(True, alpha=0.2)
     ax.set_title("Gill (1980) response to each basin's SST anomaly, amplitude calibrated on ENSO", fontsize=9.2, loc="left", fontweight="bold")
-    ax.legend(fontsize=6.8, ncol=2, frameon=False)
+    lo, hi = ax.get_ylim(); ax.set_yticks([t for t in ax.get_yticks() if lo <= t <= hi]); ax.set_ylim(lo - 0.38 * (hi - lo), hi)
+    ax.legend(fontsize=6.8, ncol=2, frameon=False, loc="lower left")
     ax = fig.add_subplot(gs[3, 1])
     mm = np.arange(1, 13); wdt = 0.2
     for k, (col, lab, c) in enumerate(((0, "ENSO only", RED), (1, "+ Indian", GREEN), (2, "+ Atlantic", ORANGE), (3, "all", NAVY))):
@@ -218,16 +221,16 @@ def render(out: Path, ref, ssta, ssta_res, window, month, idx, idx_sig, w7, w30,
             e = float(rows[r - 1][2]); v = float(rows[r - 1][c].split(" / ")[0])
             if abs(v) >= 0.15:
                 cell.set_facecolor("#fbe9e7" if np.sign(v) == np.sign(e) else "#e8f3ea")
-    ax.text(0.775, 0.97, "\n".join(textwrap.wrap("Units m/s of W; negative = overturning weakened. Basin cells are tinted where the part is at least 0.15 m/s: "
-            "red = same sign as the ENSO part (reinforcing), green = opposite (damping). Where regression and Gill agree in sign the attribution is robust.", 58)),
-            transform=ax.transAxes, fontsize=7.3, va="top", color=MUTED, linespacing=1.35)
+    ax.text(0.775, 0.99, "\n".join(textwrap.wrap("Units m/s of W; negative = overturning weakened. Basin cells are tinted where the part is at least 0.15 m/s: "
+            "red = same sign as the ENSO part (reinforcing), green = opposite (damping). Where regression and Gill agree in sign the attribution is robust. "
+            "Regression: ERA5 + ERSST 1991–2020, Niño-3.4 (now and 3 months ago) first, the Indian and Atlantic indices as residuals after ENSO. "
+            "Gill: linear equatorial response to heating ∝ SST anomaly over water warmer than 27 °C, the ENSO pattern removed from the Indian and Atlantic fields, one amplitude calibrated on ENSO.", 54)),
+            transform=ax.transAxes, fontsize=6.9, va="top", color=MUTED, linespacing=1.3)
     ax.text(0.0, 0.08, "Indices, last 30 days, detrended, σ of the month:  " + "   ".join(f"{LABEL[k]} {idx_sig[k]:+.1f}σ" for k in ("n34", "dmi", "iob", "atl3", "tna"))
             + f"      R² this month: ENSO alone {r2[month - 1, 0]:.2f}, all basins {r2[month - 1, 3]:.2f}", transform=ax.transAxes, fontsize=7.8, va="top", color=INK)
-    fig.suptitle("Walker circulation by ocean basin — the Indian and Atlantic contributions with ENSO removed", fontsize=13.5, fontweight="bold", x=0.055, ha="left", y=0.985)
-    fig.text(0.055, 0.967, "\n".join(textwrap.wrap("Observed: AIFS-ENS 0-h analyses (divergent wind at 200 minus 850 hPa, 5°S–5°N) as an anomaly against ERA5 1991–2020, latest analysis "
-             f"{tlast:%Y-%m-%d %HZ}. Regression: ERA5 + ERSST 1991–2020, Niño-3.4 (now and 3 months ago) first, then the Indian and Atlantic indices as residuals after ENSO — so their parts are ENSO-independent by construction. "
-             "Gill: linear equatorial β-plane response to heating ∝ SST anomaly over water warmer than 27 °C; the ENSO regression pattern is subtracted from the Indian and Atlantic SST before forcing; one amplitude, calibrated on ENSO, for all basins.", 205)),
-             fontsize=8, color=MUTED, va="top", linespacing=1.3)
+    fig.suptitle("Walker circulation by ocean basin — the Indian and Atlantic contributions with ENSO removed", fontsize=13.5, fontweight="bold", x=0.055, ha="left", y=0.988)
+    fig.text(0.055, 0.966, f"Observed: AIFS-ENS 0-h analyses, divergent wind at 200 minus 850 hPa over 5°S–5°N, anomaly against ERA5 1991–2020 · latest analysis {tlast:%Y-%m-%d %HZ} · SST: OISST last 30 days, detrended",
+             fontsize=8, color=MUTED, va="top")
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
     print(f"saved {out}", flush=True)
