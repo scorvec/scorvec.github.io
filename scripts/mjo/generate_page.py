@@ -68,7 +68,7 @@ def main():
         write_manifest(items)
         # Animator only (with the slider) — no separate static hero image. The iframe auto-sizes
         # to fit the plot + slider via the sstAnimHeight postMessage listener below.
-        body = (f'  <p class="lede">Latest init: <strong>{label(d, h)}</strong>.'
+        body = (f'  <p class="sub" style="margin-bottom:1rem">Latest init: <strong>{label(d, h)}</strong>.'
                 ' Drag the slider to step through successive forecast runs (oldest → latest) and watch the'
                 ' predicted MJO track evolve.</p>\n'
                 '  <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets'
@@ -147,7 +147,7 @@ def main():
 {NAV}
 <main>
   <h1>MJO forecast from the AIFS ensemble</h1>
-  <p class="lede">Real-time Multivariate MJO (RMM) phase-space forecast from the
+  <p class="lede lede--wide">Real-time Multivariate MJO (RMM) phase-space forecast from the
   ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
   Wheeler &amp; Hendon (2004). Full three-channel projection: U850/U200 plus a
   pseudo-OLR channel built from &minus;standardized tropical precipitation (tropical

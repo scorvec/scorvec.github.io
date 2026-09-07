@@ -334,3 +334,9 @@ html main > .lede + .lede, html .wrap > .lede + .lede { margin-top: -0.6rem; }
 
 /* verification-page explainer (cities/verify.html .howto) was 13px */
 html .howto { font-size: 1.02rem; line-height: 1.55; padding: 0.8rem 1.3rem; }
+
+/* A long lede: full content width in two columns instead of a tall narrow box (MJO page, user 2026-09-07). */
+html main > .lede.lede--wide, html .wrap > .lede.lede--wide {
+  max-width: none; column-count: 2; column-gap: 2.6rem; font-size: 1rem; line-height: 1.55; padding: 0.9rem 1.3rem;
+}
+@media (max-width: 900px) { html main > .lede.lede--wide, html .wrap > .lede.lede--wide { column-count: 1; } }
