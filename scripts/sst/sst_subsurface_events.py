@@ -194,7 +194,13 @@ def heat_content(events: dict, cur_year: int, out: Path, detr: bool = False):
         s = filled.mean(axis=1, skipna=True)
         s[used.sum(axis=1) < HC_MIN_MOORINGS] = np.nan
         persisted = (used.sum(axis=1) > live.sum(axis=1)) & s.notna()
-        s = s.rolling(HC_SMOOTH, center=True, min_periods=5).mean()
+        # Centred running mean where the full window exists; at the tail a centred window with a
+        # low min_periods under-smooths the newest days and draws a hook (the 2026-09 chart ran
+        # +0.3 C above the fixed-weight value on its last week), so the tail falls back to the
+        # trailing mean, which lags a little but cannot hook.
+        centred = s.rolling(HC_SMOOTH, center=True, min_periods=HC_SMOOTH).mean()
+        trailing = s.rolling(HC_SMOOTH, min_periods=HC_SMOOTH // 2 + 1).mean()
+        s = centred.fillna(trailing)
         return s, persisted.reindex(s.index).fillna(False)
 
     fig, ax = plt.subplots(figsize=(9.5, 5.2))
