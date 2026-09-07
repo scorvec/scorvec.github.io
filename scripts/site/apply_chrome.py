@@ -26,7 +26,6 @@ PRODUCTS = [
     # A group's items may be a flat list or a list of (subtitle, items) columns.
     ("Observations", "What the instruments say, as it comes in", [
         ("/enso.html", "El Niño monitor"),
-        ("/enso-subsurface.html", "Subsurface temperature"),
         ("/skewt/", "Sounding explorer"),
         ("/asos5.html", "Five-minute airport observations"),
         ("/qbo/", "QBO tracker"),
@@ -68,7 +67,6 @@ PRIMARY = [("/research.html", "Research"), ("/resume.html", "Resume")]
 TABS = {
     "enso": [
         ("/enso.html", "Overview"),
-        ("/enso-subsurface.html", "Subsurface"),
         ("/enso-forecasts.html", "Forecasts"),
         ("/seas5.html", "SEAS5"),
         ("/circulation.html", "Atmospheric response"),
@@ -89,11 +87,6 @@ TABS = {
 # fixes: literal (old, new) substrings — the top padding that used to clear a fixed nav.
 PAGES = [
     dict(path="index.html", mode="nav", skin="overlay", footer=False),
-    dict(path="enso-subsurface.html", mode="site-header", tabs="enso", fixes=[
-        ("padding: 6.4rem 2.2rem 2.5rem;", "padding: 2rem 2.2rem 2.5rem;"),
-        ("main { padding: 6rem 1rem 2rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 2rem; max-width: 100%; }"),
-        ("main { padding: 9.5rem 1rem 3rem; }", "main { padding: 1.5rem 1rem 3rem; }"),
-    ]),
     dict(path="enso-forecasts.html", mode="site-header", tabs="enso", fixes=[
         ("padding: 6.4rem 2.2rem 2.5rem;", "padding: 2rem 2.2rem 2.5rem;"),
         ("main { padding: 6rem 1rem 2rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 2rem; max-width: 100%; }"),
@@ -103,6 +96,7 @@ PAGES = [
     dict(path="enso.html", mode="after-body", tabs="enso"),
     dict(path="circulation.html", mode="after-body", tabs="enso"),
     dict(path="subseasonal.html", mode="site-header", fixes=[]),   # page restyled 2026-09-07 on /assets/outlook.css; no padding patches needed
+    dict(path="subseasonal-method.html", mode="site-header"),      # methodology note split out of subseasonal.html; linked from there only, not in PRODUCTS
     dict(path="mjo.html", mode="nav"),
     dict(path="ecape.html", mode="nav", fixes=[
         ("padding: 7.5rem 2.5rem 5rem;", "padding: 2.5rem 2.5rem 5rem;"),

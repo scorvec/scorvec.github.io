@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How the subseasonal outlook is built &mdash; Shawn Corvec</title>
+<meta name="description" content="Methodology for the GEPS subseasonal outlook: the 1991-2020 reference via the 2001-2020 GEPS8 hindcast, drift and bias removal, the stratosphere against ERA5, teleconnection calibration, skill masks, weather regimes, ensemble scenarios and MJO skill.">
+<link rel="canonical" href="https://scorvec.com/subseasonal-method.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="How the subseasonal outlook is built">
+<meta property="og:description" content="Methodology note for the GEPS weeks 1-5 outlook: what the anomalies are measured against, and how every panel is calibrated on the hindcast.">
+<meta property="og:url" content="https://scorvec.com/subseasonal-method.html">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/outlook.css">
+<style>
+  /* subseasonal-method.html — the methodology note split out of subseasonal.html (2026-09-07);
+     page-specific rules on top of /assets/outlook.css. */
+  main { max-width: 62rem; }
+  .page-header { text-align: left; }
+  .page-header p { margin-left: 0; }
+  .page-header a, .method a, .backlink a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
+  .page-header a:hover, .method a:hover, .backlink a:hover { border-bottom-color: var(--accent); }
+  .method h2 { font-family: var(--serif); font-weight: 500; font-size: 1.25rem; color: var(--ink); margin: 2rem 0 0.6rem; }
+  .method h2:first-child { margin-top: 0.4rem; }
+  .method p { font-size: 0.9rem; color: var(--ink2); line-height: 1.75; margin: 0 0 0.9rem; }
+  .method b { color: var(--ink); font-weight: 500; }
+  .method code { font-size: 0.82rem; background: #f2f0ec; padding: 0.05rem 0.3rem; }
+  .backlink { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: 0.88rem; }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+              <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+
+<main>
+  <div class="page-header">
+    <p class="eyebrow">Methodology note for the <a href="/subseasonal.html">GEPS subseasonal outlook</a></p>
+    <h1>How the subseasonal outlook is built</h1>
+    <p class="sub">What the days 1&ndash;35 anomalies are measured against, how the model's drift and bias are removed,
+    and how every calibrated panel &mdash; teleconnections, tercile maps, regimes, scenarios and the MJO &mdash; is scored
+    on the 2001&ndash;2020 GEPS8 hindcast.</p>
+  </div>
+
+  <article class="method">
+    <h2>The reference period</h2>
+    <p><b>What the anomalies are measured against.</b> The <b>1991&ndash;2020
+    normal</b>, the period everyone quotes. Reaching it takes a step, because the
+    hindcast spans 2001&ndash;2020 and the model's 1991&ndash;2020 climatology
+    therefore does not exist &mdash; it has to be estimated. It is estimated by
+    shifting the model climatology by the <i>observed</i> change between the two
+    periods, so what is computed is</p>
+    <p style="font-family:ui-monospace,monospace;font-size:0.82rem;color:var(--ink);
+       background:#f4f2ee;padding:0.7rem 1rem;">anomaly(L)&nbsp;=&nbsp;[&nbsp;forecast(L)
+       &minus; model&nbsp;climatology(L)&nbsp;]&nbsp;&minus;&nbsp;[&nbsp;ERA5&nbsp;1991&ndash;2020
+       &minus; ERA5&nbsp;2001&ndash;2020&nbsp;]</p>
+    <p>The first bracket removes GEPS's drift <i>and</i> its mean bias, because both
+    terms are the same model at the same lead &mdash; that is what the hindcast
+    archive is for. The second moves the reference period, and nothing else: it is
+    two decades of climate, measured from observations, with no model in it.</p>
+    <p>The correction is small and physical, which is the point: 1991&ndash;2020 is
+    <b>0.12&nbsp;K cooler</b> than 2001&ndash;2020 and its 500&nbsp;hPa surface sits
+    2.7&nbsp;m lower, so anomalies quoted here are correspondingly warmer and higher.
+    Precipitation moves 0.03&nbsp;mm/day, outgoing longwave 0.05&nbsp;W/m&sup2;, the
+    winds under 0.06&nbsp;m/s.</p>
+    <p><b>What this deliberately avoids.</b> Differencing straight against ERA5 would
+    also be &ldquo;vs 1991&ndash;2020&rdquo;, and is the obvious way to do it &mdash;
+    but it hands the model's mean bias back into the anomaly, measured here at
+    <b>+0.55&nbsp;mm/day</b> on precipitation and <b>+9.7&nbsp;W/m&sup2;</b> on
+    outgoing longwave. Those are an order of magnitude larger than the base-period
+    change they would be sitting alongside, and they are a property of the model, not
+    of the weather.</p>
+    <h2>The model climatology and its corrections</h2>
+    <p><b>The climatology.</b> The GEPS8 reforecast (2001&ndash;2020, four starts a week, four
+    members, 39 leads) was pulled from the IRI Data Library for eight variables &mdash; 1,920
+    monthly files, 116&nbsp;GB &mdash; and reduced to a lead-dependent model climatology: for each
+    variable, lead and day-of-year, the mean over hindcast starts within &plusmn;15 days of that
+    date across all twenty years, roughly 340&ndash;560 starts per cell. Anomalies are taken against
+    that, at matching lead, so what the maps show is departure from how GEPS itself normally behaves
+    that far into a forecast.</p>
+    <p><b>Two corrections worth naming</b>, because both were wrong first and both were visible.
+    The climatology is indexed by the day-of-year of the <i>start</i>, so it must be read at the
+    forecast's init day-of-year, the same for every lead; reading it at each valid date instead
+    compared a day-35 forecast against runs launched 35 days later, which over an autumn continent
+    made the reference about 8&nbsp;K too cold and produced a fake warming that grew with lead. And
+    the ensemble mean must be weighted by <i>member count</i>: the perturbed file holds 20 members
+    and the control one, so averaging the two files equally gave the control half the weight instead
+    of a twenty-first, leaking one member's small-scale noise into every map.</p>
+    <p><b>The anomaly is computed on the climatology's grid, not the forecast's.</b>
+    The hindcast is 1&deg; and the live forecast 0.5&deg;, exactly nested. Interpolating
+    the climatology up to 0.5&deg; to keep forecast detail seems free but is not: the
+    forecast resolves terrain and coastlines the 1&deg; reference cannot represent, so
+    that structure does not cancel and comes out as grid-scale speckle along every
+    mountain range and shoreline &mdash; mean state masquerading as anomaly, and worst
+    in precipitation. The forecast is now band-limited to the coarse grid first and the
+    difference taken there. An anomaly cannot carry more resolution than its reference.</p>
+    <p><b>Outgoing longwave carries a model-version offset, and it is removed.</b>
+    The live operational GEPS radiates about 7.6&nbsp;W&nbsp;m<sup>&minus;2</sup>
+    differently from the GEPS8 reforecast the climatology was built on &mdash; flat
+    across all 35 leads (spread 0.53), so it is not a forecast signal; a global-mean OLR
+    anomaly that size is not physically possible. Left in, it tinted every map green and
+    put spurious widespread negative anomalies over North America. The per-lead global
+    mean is removed for OLR, as it is for height. It is irrelevant to the RMM, where a
+    uniform offset moves the projection by less than 0.05.</p>
+    <p><b>Height is treated differently from the rest.</b> Between the 2001&ndash;2020 hindcast
+    epoch and today there is a real climate offset in geopotential height &mdash; a flat
+    +16&nbsp;m at every lead, measured &mdash; which would otherwise sit over every 500&nbsp;hPa map
+    as a uniform ridge. For z500 the per-lead global mean is removed so the circulation shows. For
+    temperature and precipitation the raw anomaly is kept, because there the departure from the
+    2001&ndash;2020 climate is part of what you want to see. Each figure says which it is.</p>
+    <p><b>The OLR channel.</b> ERA5's top-of-atmosphere longwave runs about 13&nbsp;W&nbsp;m<sup>&minus;2</sup>
+    above the NOAA-based reference climatology the RMM EOFs were built on, so a per-longitude offset
+    measured over three whole years is removed before anything is projected. The GMGSI proxy that
+    covers the final few days is offset-corrected onto ERA5 over their 220-day overlap (r&nbsp;=&nbsp;0.80
+    in the anomaly, spread within 3% of ERA5's) and screened day by day &mdash; the mosaic
+    occasionally publishes a day with missing passes, and one such day at the end of the record
+    would otherwise become the observed MJO's latest point.</p>
+    <h2>The stratosphere</h2>
+    <p><b>The stratosphere uses ERA5, not the hindcast — because it has to.</b> Everything
+    else on this page is de-drifted against the GEPS8 reforecast, which is the better
+    reference. That archive cannot serve the vortex: it carries <code>ua</code>/<code>va</code>
+    at 100, 200 and 850&nbsp;hPa only, <code>zg</code> at 200 and 500 only, and <b>no
+    pressure-level temperature at all</b>. There is no 10&nbsp;hPa anything in it. So the
+    stratospheric anomalies are taken against ERA5 instead, and the model bias that the
+    reforecast would have removed is measured rather than assumed: GEPS analysis against
+    ERA5 on the same day runs &minus;26&nbsp;m at 10&nbsp;hPa globally and +0.5&nbsp;m over
+    the polar cap, with temperature within 0.5&nbsp;K &mdash; small enough to leave alone,
+    and stated here so it is not mistaken for signal. (100&nbsp;hPa <i>zonal wind</i> is the
+    one stratospheric field the hindcast could de-drift, and is a candidate for later.)</p>
+    <p>ERA5 was also checked against <b>MERRA-2</b>, the reference the site&rsquo;s existing
+    vortex monitor uses, so the two are not silently disagreeing: over 2,156 matching days
+    they differ by 0.13&nbsp;m/s in u(60&deg;N) at 10&nbsp;hPa (r&nbsp;0.999), 0.11&nbsp;K in
+    cap temperature (r&nbsp;0.997) and 9&nbsp;m in cap height from 2001 onward. An
+    archive-wide sweep of both records found a single corrupt day in 46 years of MERRA-2
+    &mdash; 1991-06-30, where the polar-cap height collapses to 0.80&nbsp;m &mdash; now
+    screened out; removing it also moved MERRA-2&rsquo;s own height trend from +18.7 to
+    +18.1&nbsp;m/decade, against +18.9 measured independently from ERA5.</p>
+    <h2>Change against the previous run</h2>
+    <p><b>Change vs previous run.</b> Extended cycles are Monday and Thursday, so the
+    previous run started 3 or 4 days earlier and its forecast for any given calendar day sits
+    at a longer lead. The change panels align the two on the <i>valid date</i> and difference
+    them only where both exist &mdash; days 1&ndash;32 or 1&ndash;31 of the current run &mdash; so
+    week 5 is a partial mean and is labelled with the number of common days. Nothing is drawn
+    where only one run has a forecast: zero-padding a partial week would read as &ldquo;no
+    change&rdquo; where the truth is &ldquo;no comparison&rdquo;. The vortex and teleconnection
+    plots carry the previous run&rsquo;s ensemble mean as a dashed line on the same rule.</p>
+    <h2>Teleconnection indices</h2>
+    <p><b>Teleconnections, member by member.</b> The map anomalies are ensemble means;
+    the teleconnection section is the one place on this page built from all 21 members, so
+    that phase can be stated as a probability. The indices are a reproduction of CPC&rsquo;s,
+    on the reanalysis CPC defines them on (NCEP/NCAR R1, 2.5&deg;), and the reproduction is
+    <i>measured</i> rather than assumed. The AO and AAO are the leading EOF of monthly
+    sea-level pressure poleward of 20&deg; in each hemisphere (Thompson &amp; Wallace 1998), signed so the
+    positive phase has low pressure over the pole &mdash; CPC builds its own on 1000&nbsp;hPa and 700&nbsp;hPa height
+    respectively, so the AAO in particular is a close relative rather than a copy; projected day by day they track CPC&rsquo;s
+    daily AO and AAO at r&nbsp;0.97 and 0.96. The 500&nbsp;hPa patterns (NAO, PNA, EA, WP, EP/NP,
+    EA/WR, SCA, TNH, POL) are defined by regression: for each pattern and each calendar month, the
+    map of monthly height anomalies 20&ndash;90&deg;N &mdash; standardized by calendar month and
+    weighted by &radic;cos&nbsp;&phi;, as in Barnston &amp; Livezey (1987) &mdash; regressed on
+    CPC&rsquo;s published monthly index over the months within one of that calendar month, and
+    the nine maps of a month combined into a least-squares projector so each index is read with
+    the others accounted for. Month-by-month matters: CPC derives its modes separately for every
+    calendar month and the PNA in particular changes shape with season, so a single all-year
+    rotated PCA reproduced CPC&rsquo;s PNA at only r&nbsp;0.54, the seasonal regression at 0.74.
+    Fidelity is scored <b>out of sample</b> &mdash; patterns fitted on 1991&ndash;2005, scored on
+    2006&ndash;2020 against CPC&rsquo;s monthly indices for every pattern and against its daily
+    NAO and PNA &mdash; and those are the correlations in the table; the operational projector is
+    then refitted on all thirty years. A daily index is the daily anomaly projected the same way
+    and divided by the <b>seasonal</b> standard deviation of the daily projection &mdash; the
+    spread within &plusmn;15 days of that day of year over 1991&ndash;2020 &mdash; so &ldquo;+1&rdquo;
+    means one standard deviation for the time of year. CPC standardizes its daily AO, NAO and PNA
+    by a single annual figure instead; on that convention the indices projected from raw height
+    or pressure (AO, AAO, NAM, EPO, WPO) read as permanently quiet in summer and every
+    &plusmn;0.5 threshold is easy in January and hard in July. The published CPC and PSL values
+    drawn on the plumes are rescaled to the seasonal unit, and the correlations quoted against
+    them are computed on the annual convention, like for like. Each GEPS member&rsquo;s de-drifted, re-based
+    500&nbsp;hPa and sea-level-pressure anomaly &mdash; the same anomaly the maps show &mdash; is
+    projected identically, so the forecast index carries no model drift; the tail is GEPS&rsquo;s
+    own day-0 analyses of the last weeks, anomalised the same way (against the model climatology at
+    lead 0.5 and re-based), so analysis and forecast sit on one rule &mdash; against the NCEP
+    climatology instead, the GEPS-versus-R1 height offset projected onto the monopole-like patterns
+    as a spurious step at the seam. CPC&rsquo;s own published daily values are drawn beside the
+    tail. Two Pacific indices forecasters use that are not in CPC&rsquo;s set are added on
+    PSL&rsquo;s definitions &mdash; box differences of 500&nbsp;hPa height anomaly, EPO
+    (20&ndash;35&deg;N minus 55&ndash;65&deg;N over 160&ndash;125&deg;W) and WPO (25&ndash;40&deg;N
+    minus 50&ndash;70&deg;N over 140&deg;E&ndash;150&deg;W) &mdash; and reproduce PSL&rsquo;s daily
+    series at r&nbsp;0.97 and 0.99. The <b>NAM at 100&nbsp;hPa</b>, the stratosphere&ndash;troposphere
+    coupling index, is the leading EOF of 100&nbsp;hPa height anomalies poleward of 20&deg;N with the
+    hemispheric mean removed first (the +19&nbsp;m/decade height trend at that level would otherwise
+    read as a permanently weak vortex), taken from the 21 members&rsquo; 100&nbsp;hPa heights; the
+    GEPS8 hindcast carries nothing above 200&nbsp;hPa, so it is a plain anomaly against the NCEP
+    climatology and gets no calibration. Raw probabilities are member fractions, so they resolve to about 5% and 0% means
+    &ldquo;no member&rdquo;, not certainty.</p>
+    <p><b>Calibrated on the hindcast.</b> The same projectors are applied to every GEPS8 hindcast
+    start of 2001&ndash;2020 &mdash; four a week, 39 daily leads, de-drifted and re-based exactly
+    as the live product &mdash; and scored against the observed index on the valid date from
+    NCEP/NCAR R1. For each index and week, the starts within &plusmn;45 days of the current init
+    day-of-year (about a thousand) give the anomaly correlation of the hindcast ensemble mean
+    (the <b>skill</b> quoted in the table) and a regression of the observed weekly index on the
+    forecast one; today&rsquo;s ensemble-mean weekly index passed through that regression, with the
+    residual spread as the distribution, is the <b>calibrated probability</b>. Where the model has
+    no skill the regression slope goes to zero and the calibrated probability collapses to
+    climatology, which is the honest statement for a week-5 NAO; where it has skill but too little
+    amplitude, the slope restores it. The hindcast mean is four members against 21 live, so the
+    slope is slightly conservative. A weekly mean of a daily-sd index is a smoother quantity than
+    the daily values, so a weekly mean beyond &plusmn;1 is a strong signal.</p>
+    <h2>Skill masks and tercile probabilities</h2>
+    <p><b>Skill mask and probability maps.</b> The same hindcast that calibrates the indices
+    is scored gridpoint by gridpoint: every 2001&ndash;2020 start&rsquo;s weekly-mean anomaly,
+    de-drifted and re-based exactly as the live maps, against an independent analysis on the same
+    2.5&deg; grid &mdash; NCEP/NCAR R1 2&nbsp;m temperature, 500&nbsp;hPa height and sea-level
+    pressure, and the CPC unified gauge analysis for precipitation, which exists over land only
+    &mdash; pooled by calendar month. The anomaly correlation from that is the skill mask (hatched
+    below 0.25; cross-hatched where there is no truth), and the gridpoint regression of observed on
+    forecast weekly anomaly, with its residual spread, turns the ensemble mean into calibrated
+    <b>tercile</b> probabilities, below, near and above normal, drawn CPC-style as the most likely
+    category with its probability as intensity. The terciles are those of the <b>2016&ndash;2025</b>
+    weekly anomaly for that week of the year, not 1991&ndash;2020: against the older base the 2026
+    maps read &ldquo;above&rdquo; nearly everywhere before the forecast says anything, which is the
+    warming since the base period, not weather. The calibration is applied to the departure from the
+    recent median, using the hindcast slope but not its intercept &mdash; the intercept is the
+    2001&ndash;2020 mean state, and a no-skill regression that returned it printed the hindcast-era
+    climate as &ldquo;below normal&rdquo; against a recent threshold. With no skill the three
+    probabilities go to a third each. Near-normal is the tercile models forecast worst; its
+    probability rarely clears 40% beyond week 1, and with 21 members its raw fraction is noisy.
+    Precipitation terciles are undefined where the climatological week is dry, so those cells are
+    masked as CPC masks them. The raw member fraction is shown beside the calibrated map: where the
+    two disagree the hindcast is saying the ensemble is over- or under-confident there.
+    Gaussian residuals are an approximation for precipitation; at a weekly mean and 2.5&deg; it is a
+    fair one.</p>
+    <h2>Weather regimes and ensemble scenarios</h2>
+    <p><b>Weather regimes.</b> The Euro-Atlantic and North American sectors each get four
+    regimes from k-means on 5-day-mean 500&nbsp;hPa anomalies (NCEP/NCAR R1, 1991&ndash;2020, the
+    leading 14 EOFs, 30 restarts), separately for the cold half-year (October&ndash;March) and the
+    warm (April&ndash;September), because summer regimes are not winter regimes with less amplitude.
+    The cold Euro-Atlantic set comes out as the classic four &mdash; NAO+, Scandinavian blocking,
+    Atlantic ridge, NAO&minus;/Greenland blocking &mdash; and the North American set as Pacific
+    trough, Alaskan ridge, Pacific ridge and Greenland high, the Lee et al. (2019) quartet; the
+    warm-season sets are named by inspection and say so. Each of the 21 members&rsquo; de-drifted
+    500&nbsp;hPa anomaly is smoothed the same way and assigned to the nearest centroid, or to
+    &ldquo;no regime&rdquo; when its pattern correlation with every centroid is below 0.25, as in
+    the ECMWF product; the member fraction is the regime probability. The set for the init
+    month&rsquo;s season is held for the whole forecast so a plume crossing the October or April
+    boundary is not reclassified mid-way. The hindcast hit rate below the plume is the share of
+    2001&ndash;2020 starts within &plusmn;45 days of the date whose ensemble-mean regime matched the
+    observed one, against persistence of the initial regime and the most common regime. On raw
+    k-means of height anomalies alone the value is modest, and the hit rate shows it: what earns
+    the panel its place is the member fractions with that skill curve beside them.</p>
+    <p><b>Ensemble scenarios.</b> Distinct from the regimes: no fixed centroids. Each week the 21
+    members&rsquo; weekly-mean 500&nbsp;hPa anomalies over a sector are clustered by k-means with
+    k&nbsp;=&nbsp;2, 3 and 4, and the number of scenarios is chosen, not fixed: each k is tested
+    against a null in which the members&rsquo; deviations are rotated by random orthogonal matrices
+    in member space &mdash; the spatial covariance is kept exactly, any grouping is destroyed
+    &mdash; and re-clustered a hundred times with the same k-means effort. The k that beats the 95th
+    percentile of its null by the widest margin is drawn as scenario means with member counts; if
+    none does, the ensemble is one scenario with spread and the two-way split is shown faded. This
+    is the Ferranti and Corti (2011) recipe ECMWF uses to pick its cluster count. It was calibrated
+    on this ensemble: Gaussian ensembles pass 5&ndash;7% of the time, a two-scenario ensemble with
+    groups three standard deviations apart is caught 60% of the time at k&nbsp;=&nbsp;2 and 95% at
+    four apart, but a forced k&nbsp;=&nbsp;3 caught those only 25% and 50% of the time, which is why
+    a fixed three-way split was abandoned. Groups closer than about two standard deviations cannot be
+    told from a continuum with 21 members, and the usual verdict is one or two scenarios. Each
+    scenario mean is labelled with its nearest weather regime and the pattern correlation.</p>
+    <h2>MJO skill</h2>
+    <p><b>MJO skill.</b> Every hindcast start is projected onto the same Wheeler&ndash;Hendon EOFs
+    with the same arithmetic as the live RMM &mdash; band means, lead-matched de-drift, frame shift,
+    120-day mean removed &mdash; and verified against the Bureau of Meteorology&rsquo;s RMM on the
+    valid date, giving the bivariate correlation, RMSE and amplitude ratio by lead, for all starts,
+    by season, for strong initial MJO, and for the starts within &plusmn;45 days of today. The one
+    approximation: the WH04 120-day mean before each start is taken from the hindcast&rsquo;s own
+    day-1 channels of the preceding 120 days rather than from observations, which are not in this
+    archive for 2001&ndash;2020; day-1 skill is ~0.95 and the term is slowly varying. The ECMWF
+    marks are the published extended-range reforecast values (Vitart 2017 and the ECMWF verification
+    memoranda), not a like-for-like computation &mdash; the S2S reforecasts sit behind a research
+    licence and are not on this site, and ECMWF&rsquo;s open data stops at day 15, so no live
+    comparison beyond that is possible either.</p>
+    <p><b>Reading the MJO score honestly.</b> Over all 4,794 starts the bivariate correlation falls
+    through 0.6 at day 15 and 0.5 at day 19; winter starts hold on longest (0.6 at day 16), the
+    late-summer window the site is in now is the weakest (0.6 at day 13). Against the published
+    ECMWF figures of day 27&ndash;30 that is about two weeks of skill less, and the following
+    caveats move it a few days, not two weeks. <i>Ensemble size:</i> the hindcast mean is four
+    members and the operational GEPS runs 21; a larger mean removes unpredictable noise and is
+    typically worth two to three days at the 0.6 level, while ECMWF&rsquo;s published numbers come
+    from an eleven-member mean, closer to their operational system. <i>Model vintage:</i> GEPS8 is
+    the version this reforecast belongs to, not the current cycle, and ECMWF&rsquo;s quoted range
+    spans 2016 to the early 2020s. <i>Verification target:</i> BoM&rsquo;s RMM removed an ENSO
+    component before 2014 and not after, and ECMWF scores against its own analysis; a day at most.
+    <i>The 120-day mean:</i> approximated from the hindcast&rsquo;s own day-1 channels, a slowly
+    varying term with day-1 skill near 0.95. <i>What the scores describe:</i> the ensemble mean
+    only &mdash; the plume&rsquo;s spread is not scored here, and an ensemble mean is damped by
+    construction, which is what the amplitude panel shows. The practical reading is that the MJO
+    phase diagram on this page is reliable to about two weeks, useful with care to about three, and
+    beyond that is a model opinion.</p>
+    <h2>Caveats and data</h2>
+    <p><b>Caveats.</b> The maps are an ensemble mean, so they understate the range of outcomes
+    everywhere and increasingly so with lead; outside the teleconnection section nothing here
+    is a probability. Twenty-one
+    members is also not many for precipitation: a single member differs from the member
+    mean by about the field's own magnitude, so roughly a fifth of single-member variance
+    survives into the mean and shows up as coherent-looking blobs at long lead. Those are
+    ensemble sampling noise, not forecast structure. Extended cycles run
+    Monday and Thursday only. The hindcast is a fixed model version while the live forecast is the
+    current operational one, so a slow model change is not captured by the 2001&ndash;2020
+    reference &mdash; the outgoing-longwave offset above is exactly that showing up.</p>
+    <p>Data: ECCC GEPS via the MSC Datamart (Environment and Climate Change Canada, Open Government
+    Licence). GEPS8 reforecast via the IRI Data Library, Columbia University. ERA5 via the
+    Analysis-Ready Cloud-Optimized store, Copernicus Climate Change Service. GMGSI via NOAA on AWS.
+    RMM reference EOFs after Wheeler &amp; Hendon (2004).</p>
+  </article>
+
+  <p class="backlink"><a href="/subseasonal.html">&larr; Back to the outlook</a></p>
+</main>
+
+<footer><span class="counter">GEPS days 1&ndash;35</span></footer>
+
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

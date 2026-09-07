@@ -45,6 +45,17 @@
   .scale { font-size: 0.85rem; color: #444; }
   .scale b { color: var(--ink); }
   @media (max-width: 720px) { main { padding: 1rem 0.8rem 2rem; } table.ar { font-size: 0.8rem; } }
+  /* phones: drop the columns a reader can live without (≥AR1 duplicates Any AR, AR4/AR5 are rare, onset and
+     control are detail) and let the rest wrap, so the table fits without sideways scrolling */
+  .ar-narrow { display: none; font-size: 0.78rem; color: var(--muted); margin: 0.4rem 0 0; }
+  @media (max-width: 480px) {
+    table.ar { font-size: 0.76rem; }
+    table.ar th, table.ar td { padding: 0.35rem 0.25rem; white-space: normal; overflow-wrap: anywhere; }
+    table.ar th:nth-child(3), table.ar td:nth-child(3), table.ar th:nth-child(6), table.ar td:nth-child(6),
+    table.ar th:nth-child(7), table.ar td:nth-child(7), table.ar th:nth-child(10), table.ar td:nth-child(10),
+    table.ar th:nth-child(11), table.ar td:nth-child(11) { display: none; }
+    .ar-narrow { display: block; }
+  }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -66,7 +77,6 @@
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
               <li><a href="/enso.html">El Niño monitor</a></li>
-              <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
               <li><a href="/skewt/">Sounding explorer</a></li>
               <li><a href="/asos5.html">Five-minute airport observations</a></li>
               <li><a href="/qbo/">QBO tracker</a></li>
@@ -131,6 +141,7 @@
     <h2>AR-scale probabilities at named locations</h2>
     <p class="note">For each member, the strongest spell with IVT at or above 250 at the location sets a category on the Ralph et&nbsp;al. (2019) scale: a preliminary rank from the peak IVT (250, 500, 750, 1000, 1250 for AR1&ndash;AR5), lowered one step if the spell is shorter than 24&nbsp;hours &mdash; which drops a bare AR1 out of the count altogether &mdash; and raised one if it lasts 48&nbsp;hours or more. The table gives the fraction of members reaching each category within the 15 days, the most likely category, the median peak IVT, and the median onset time.</p>
     <div style="overflow-x:auto"><table class="ar" id="arTable"></table></div>
+    <p class="ar-narrow">Narrow screen: the &ge;&nbsp;AR1, &ge;&nbsp;AR4, AR5, onset and control columns are hidden &mdash; turn the phone sideways for the full table.</p>
     <p class="scale" style="margin-top:0.7rem"><b>AR1</b> weak, primarily beneficial &middot; <b>AR2</b> moderate, mostly beneficial &middot; <b>AR3</b> strong, balance of beneficial and hazardous &middot; <b>AR4</b> extreme, mostly hazardous &middot; <b>AR5</b> exceptional, primarily hazardous. Duration is sampled at 12&nbsp;hours here, so a one-step spell counts as under 24&nbsp;hours.</p>
   </div>
 

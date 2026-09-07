@@ -46,11 +46,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://scorvec.com/enso-subsurface.html</loc>
-    <lastmod>2026-09-06</lastmod>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://scorvec.com/research.html</loc>
     <lastmod>2026-09-06</lastmod>
     <priority>0.6</priority>
@@ -100,6 +95,11 @@
     <loc>https://scorvec.com/subseasonal.html</loc>
     <lastmod>2026-09-06</lastmod>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://scorvec.com/subseasonal-method.html</loc>
+    <lastmod>2026-09-07</lastmod>
+    <priority>0.5</priority>
   </url>
   <url>
     <loc>https://scorvec.com/columbia/</loc>

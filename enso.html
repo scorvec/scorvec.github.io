@@ -40,7 +40,6 @@
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
               <li><a href="/enso.html" aria-current="page">El Niño monitor</a></li>
-              <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
               <li><a href="/skewt/">Sounding explorer</a></li>
               <li><a href="/asos5.html">Five-minute airport observations</a></li>
               <li><a href="/qbo/">QBO tracker</a></li>
@@ -94,7 +93,7 @@
   <div class="page-header">
     <p class="eyebrow">Daily, from NOAA OISST v2.1, anomalies against 1991&ndash;2020</p>
     <h1>El Ni&ntilde;o monitor</h1>
-    <p class="sub">Daily estimates of the Oceanic Ni&ntilde;o Index and its warming-era replacement, RONI, ahead of the official monthly numbers &mdash; with every Ni&ntilde;o region, the tropical background, the satellite view and the maps behind them. Computed from source data, updated every morning; one figure at a time, picked from the menu.</p>
+    <p class="sub">Daily estimates of the Oceanic Ni&ntilde;o Index and its warming-era replacement, RONI, ahead of the official monthly numbers &mdash; with every Ni&ntilde;o region, the tropical background, the satellite view, the equatorial winds and the Southern Oscillation, and the subsurface ocean beneath it all. Computed from source data, updated every morning; one figure at a time, picked from the menu.</p>
     <div class="chips" id="chips"><div class="chip"><div class="l">Loading daily indices&hellip;</div><div class="v neut">&mdash;</div></div></div>
   </div>
   <div class="ss-layout">
@@ -112,6 +111,10 @@
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder" id="dom-holder">
+    <div id="dom-wwb" class="card" hidden>
+      <div class="img-wrap"><img id="kiribati-wind" data-src="assets/sst/kiribati_wind.webp" alt="Tarawa equatorial zonal-wind time series, westerly-wind-burst monitor" loading="lazy"></div>
+      <div id="wwb-arrows" class="wwb-arrows"></div>
+    </div>
     <div id="dom-indices" class="card" hidden>
 <div class="controls">
       <button class="pill on" data-mode="anom">Anomalies</button>
@@ -234,6 +237,71 @@
       &middot; forecast strip: AIFS-ENS ens-mean precip pseudo-OLR, identically filtered
       (falls back to constant-speed extrapolation if no cycle is cached)</p>
 </template>
+<template id="about-ascat">
+
+<p class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; ~1&ndash;2 day latency &middot; updated daily &middot; drag the slider for recent days</p>
+</template>
+
+<template id="about-eqwind">
+<p>Longitude &times; time strip of the daily-mean surface zonal wind averaged 5&deg;S&ndash;5&deg;N, 150&deg;E&ndash;90&deg;W, from the same gap-filled scatterometer (ASCAT) L4 product as the map above. <span style="color:#c0392b">Red is westerly</span> (El&nbsp;Ni&ntilde;o-favorable), <span style="color:#2471a3">blue is easterly</span> (the trade winds). Westerly-wind bursts (red) over the warm pool force the downwelling Kelvin waves and eastward surface-current surges seen on the subsurface page. Newest day at the bottom.</p>
+<p class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; 5&deg;S&ndash;5&deg;N daily mean &middot; rolling ~9 months &middot; updated daily</p>
+</template>
+
+<template id="about-soi_h">
+<p>The Southern Oscillation Index is a Troup standardisation of the Tahiti-minus-Darwin sea-level-pressure difference. It is published only monthly, and even LongPaddock's daily version lags 1&ndash;2 days. This estimates it in near-real time from the hourly QNH in the Darwin (YPDN) and Tahiti / Faa&rsquo;a (NTAA) airport METARs, updated hourly by a GitHub Action.</p>
+<p><b>The exact formula (Troup, 1965):</b></p>
+<p style="text-align:center; font-size:1.08em; margin:.35em 0 .15em">
+          SOI = 10 &times; ( P<sub>diff</sub> &minus; <span style="border-top:1px solid; padding-top:1px">P<sub>diff</sub></span> ) &divide; &sigma;<sub>diff</sub>
+        </p>
+<p style="font-size:.93em">where <b>P<sub>diff</sub></b> = mean-sea-level pressure at <b>Tahiti minus Darwin</b> (monthly mean), <b><span style="border-top:1px solid; padding-top:1px">P<sub>diff</sub></span></b> is the long-term average of that difference for the given <b>calendar month</b>, and <b>&sigma;<sub>diff</sub></b> its standard deviation, both taken over the <b>1887&ndash;1989</b> base period. The factor of 10 is Troup&rsquo;s scaling (so the index mostly falls within &plusmn;35). Crucially, &sigma;<sub>diff</sub> is the spread of <i>monthly</i> values (&asymp;1.3&ndash;2.1&nbsp;hPa), not the much wider day-to-day spread; the exact monthly mean and &sigma; are recovered by regressing LongPaddock&rsquo;s published SOI against its own Tahiti&minus;Darwin pressure record, then applied to the live METAR pressures.</p>
+<p>The grey line is the published LongPaddock daily SOI; the bold red line is the 24-hour-mean estimate, nudged onto the LongPaddock scale, which runs a day or two ahead of it. The faint blue line is the raw hourly SOI, very noisy (the semidiurnal pressure tide, passing weather, and 1-hPa METAR rounding). Negative is El&nbsp;Ni&ntilde;o-favorable.</p>
+<p class="chart-sources">Darwin (YPDN) + Tahiti (NTAA) METAR via aviationweather.gov &middot; Troup normals &amp; calibration from LongPaddock (BoM 1887&ndash;1989 base) &middot; updated hourly</p>
+</template>
+
+<template id="about-soi_f">
+<p>Extending the observed SOI forward: the same Troup SOI (the standardized Tahiti&minus;Darwin sea-level-pressure difference), here forecast from the combined AIFS-ENS + IFS-ENS ensemble (about 100 members). Observed values are from LongPaddock (Queensland Govt / BoM); the forecast is the Tahiti&minus;Darwin MSL from the ensembles, bias-corrected to the recent observed level. Bold lines are the 30-day running SOI; the faint daily series and shaded 10&ndash;90% band show the day-to-day spread. Sustained negative SOI (below &minus;7) is El Ni&ntilde;o-favorable; sustained positive (above +7) is La Ni&ntilde;a-favorable.</p>
+<p class="chart-sources">LongPaddock daily SOI (BoM, 1887&ndash;1989 base) &middot; forecast: ECMWF AIFS-ENS + IFS-ENS MSL &middot; updated each 00/12Z cycle</p>
+</template>
+
+<template id="about-wwb_t">
+<p>Westerly wind bursts (WWBs) over the west-central equatorial Pacific are a key El&nbsp;Ni&ntilde;o trigger: the easterly trades briefly reverse to westerly, pushing warm water and convection eastward and forcing downwelling Kelvin waves. Tarawa / Bonriki (<b>NGTA, 1.4&deg;N 173&deg;E</b>) sits in that zone, so its hourly airport wind is a live proxy, with Christmas Island (PLCH, far to the east) shown for contrast. The arrows show the latest wind at each station (<span style="color:#d62728">red is westerly</span>, <span style="color:#1f77b4">blue is easterly</span>); the chart tracks the zonal wind component at Tarawa, where a sustained red excursion is an active WWB.</p>
+<p class="chart-sources">Tarawa / Bonriki (NGTA) + Christmas Is. / Kiritimati (PLCH) METAR via aviationweather.gov &middot; updated hourly</p>
+</template>
+
+<template id="about-wwb_o">
+<p>Tarawa&rsquo;s daily airport wind from <b>1&nbsp;April</b> onward through recent El&nbsp;Ni&ntilde;o onset years, <span style="color:#4daf4a"><b>2015&ndash;16</b></span> (very strong) and <span style="color:#984ea3"><b>2023&ndash;24</b></span> (weaker), against the current year, from the Iowa Environmental Mesonet METAR archive. Both panels are a 7-day running mean of the hourly obs: top is zonal wind (westerly positive); bottom is the fraction of each day with westerly winds. In a developing El&nbsp;Ni&ntilde;o the easterly trades weaken and westerly bursts become more frequent, so both climb from the cold-state baseline.</p>
+<p class="chart-sources">Tarawa (NGTT/NGTA) METAR &middot; Iowa Environmental Mesonet ASOS archive &middot; monthly zonal wind &amp; westerly fraction &middot; refreshed daily</p>
+</template>
+
+<template id="about-wind10">
+<p>Forecast 10 m zonal-wind anomaly (5&deg;S&ndash;5&deg;N), longitude &times; forecast day, from the AIFS-ENS (AI) and ECMWF IFS-ENS (physics) ensemble means versus the ERA5 1991&ndash;2020 climatology. Westerly (red) anomalies along the equator favor El Ni&ntilde;o development; easterly (blue) anomalies favor La Ni&ntilde;a. Agreement between the AI and physics ensembles raises confidence.</p>
+<p class="chart-sources">ECMWF AIFS-ENS &amp; IFS-ENS (open data) &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</p>
+</template>
+
+<template id="about-subtemp">
+<p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed. The thermocline (here the 26&deg;C and 28&deg;C isotherms, with the 20&deg;C isotherm &mdash; the standard thermocline proxy &mdash; in heavy solid black) tilts upward toward the east, and subsurface anomalies along it often lead the surface ENSO signal. The 10&deg;C isotherm is drawn dashed blue whenever it enters the section.</p>
+<p class="chart-sources">NOAA/PMEL TAO/TRITON (DISDEL) &middot; base 1991&ndash;2020 &middot; 120-day animation, latest shown</p>
+</template>
+<template id="about-hc">
+<p>Equatorial Pacific upper-ocean (0&ndash;300&nbsp;m) temperature anomaly &mdash; a heat-content proxy that leads the surface &mdash; through each event's development year and the next, current (bold red) over 1997, 2015 and 2023. The subsurface warm reservoir is the fuel for El&nbsp;Ni&ntilde;o. <b>De-trended</b> removes the 1991&ndash;2020 climate trend so the four events sit on a common baseline; the net 0&ndash;300&nbsp;m effect is modest because the subsurface warming and cooling trends largely cancel in the column average.</p>
+<p class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; coverage varies by year</p>
+</template>
+<template id="about-xsec">
+<p>Equatorial depth&times;longitude temperature anomaly at the same phase (~the latest data week) of each event. The eastward-deepening warm anomaly along the thermocline is the classic El&nbsp;Ni&ntilde;o subsurface signature. <b>De-trended</b> reshapes the pattern more than it does the column-mean heat content above, because the trend itself has depth&times;longitude structure (west-Pacific subsurface warming, eastern-thermocline cooling). TAO coverage varies by year (triangles mark reporting moorings), so 1997 and 2023 have missing longitudes.</p>
+<p class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; 14-day mean &middot; coverage varies by year</p>
+</template>
+<template id="about-cur_map">
+<p>Daily surface-current fields over the last month for the equatorial Pacific (15&deg;S&ndash;15&deg;N, 130&deg;E&ndash;80&deg;W) from the Copernicus Marine 1/12&deg; ocean model: speed shaded (blue slow to red fast) with streamlines tracing the flow. The westward South Equatorial Current straddles the equator, the eastward North Equatorial Counter Current sits near 5&ndash;10&deg;N, and Tropical Instability Wave eddies ripple along the cold tongue.</p>
+<p class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;) &middot; surface (~0.5&nbsp;m)</p>
+</template>
+<template id="about-cur_sec">
+<p>Depth&ndash;longitude slice along the equator (1.5&deg;S&ndash;1.5&deg;N), 160&deg;E&ndash;90&deg;W, from the Copernicus Marine 1/12&deg; global ocean model: zonal current (shaded, eastward in red) with the 20&deg;C isotherm (the thermocline) in black. It resolves the Equatorial Undercurrent, the eastward subsurface jet at about 50&ndash;200&nbsp;m, the surface-westward South Equatorial Current, and the east&ndash;west thermocline tilt. The loop is pinned to start 1&nbsp;March&nbsp;2026 and grows daily, so downwelling Kelvin waves (a deepening of the 20&deg;C isotherm with an eastward current pulse) can be followed across the basin.</p>
+<p class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg; Mercator) &middot; equator 1.5&deg;S&ndash;1.5&deg;N mean &middot; since 1 Mar 2026</p>
+</template>
+<template id="about-cur_hov">
+<p>Longitude &times; time strip of the daily surface zonal current averaged 2&deg;S&ndash;2&deg;N, 150&deg;E&ndash;90&deg;W (same Copernicus Marine model). <span style="color:#c0392b">Red is eastward</span>, <span style="color:#2471a3">blue is westward</span>. The equatorial surface normally flows westward (the trade-driven South Equatorial Current); as El&nbsp;Ni&ntilde;o matures, downwelling Kelvin waves drive eastward surges into the east Pacific. Newest day at the bottom.</p>
+<p class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;) &middot; 2&deg;S&ndash;2&deg;N surface mean &middot; rolling ~9 months</p>
+</template>
 </main>
 
 <script>
@@ -242,7 +310,9 @@ window.STAGE = {
   {label: "SST & indices", ico: "\u{1F321}", items: [["sstmaps","SST anomaly maps","global, tropics, relative"],["indices","Daily indices, interactive","Niño-3.4, RONI, ONI estimate"],["onironi","ONI vs RONI","the official 3-month convention"],["beyond","PDO, IOD, South Atlantic","daily, beyond ENSO"]]},
   {label: "Satellite & MUR", ico: "\u{1F6F0}", items: [["mur","MUR 1 km loop","cold tongue since onset"],["mur34","MUR Niño-3.4","1 km against OISST"],["ir","Infrared loop","live GOES/Himawari composite"]]},
   {label: "SOI & MEI", ico: "\u{1F4C8}", items: [["soirec","SOI against the record","daily, since 1887"],["mei","MEI.v2 nowcast","daily, analogs, history"]]},
-  {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"]]}
+  {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"]]},
+  {label: "Winds & SOI", ico: "\u{1F32C}", items: [["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["soi","Southern Oscillation Index","hourly estimate, forecast"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS, to day 15"]]},
+  {label: "Subsurface", ico: "\u{1F30A}", items: [["subtemp","Temperature section","TAO/TRITON, raw and detrended"],["hc","Heat content vs analogs","0–300 m, 1997 · 2015 · 2023"],["xsec","Cross-section vs analogs","same week of each event"],["cur_map","Surface currents","tropical Pacific"],["cur_sec","Undercurrent section","zonal current with depth"],["cur_hov","Current Hovmöller","equatorial strip"]]}
 ],
   products: {
   sstmaps: {label: "SST anomaly maps", a: {label: "Field", items: [["anomaly","Anomaly"],["absolute","Absolute SST"],["relative","Global mean removed"],["tropical_rel","Tropics, tropical mean removed"]]},
@@ -271,7 +341,32 @@ window.STAGE = {
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,
           cap: function () { return "The OLR anomaly filtered into the Wheeler–Kiladis bands: MJO, Kelvin, equatorial Rossby and the rest."; }},
   trackers: {label: "Kelvin and Rossby wave trackers", img: function () { return "assets/sst/wave_tracker.webp"; }, bust: "hourly", about: "about-trackers", fit: false,
-          cap: function () { return "Where the active Kelvin and equatorial Rossby wave packets are along the equator, and where they are heading."; }}
+          cap: function () { return "Where the active Kelvin and equatorial Rossby wave packets are along the equator, and where they are heading."; }},
+  ascat: {label: "ASCAT equatorial Pacific wind", frame: function () { return "sst_anim.html?embed=1&manifest=ascat_manifest.json&region=ascat"; }, about: "about-ascat",
+          cap: function () { return "Copernicus Marine L4 scatterometer wind over 10°S–10°N, one frame a day, gap-filled; drag the slider for recent days."; }},
+  eqwind: {label: "Equatorial zonal wind, Hovmöller", img: function () { return "assets/sst/eq_uwind_hov.webp"; }, bust: "hourly", about: "about-eqwind",
+          cap: function () { return "Zonal wind anomaly along the equator against time: westerly bursts as red streaks moving east."; }},
+  soi: {label: "Southern Oscillation Index", a: {label: "View", items: [["hourly","Hourly estimate"],["forecast","Ensemble forecast"]]},
+          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : "assets/sst/soi_forecast.webp?v=202609071730"; }, bust: "hourly",
+          about: "about-soi_h", cap: function (a) { return a === "hourly" ? "Darwin minus Tahiti pressure from hourly METARs, on the BoM 1887–1989 base, so the index exists today rather than at month end." : "The same index carried through the AIFS-ENS and IFS-ENS 15-day forecasts, member by member."; }},
+  wwb: {label: "Westerly wind bursts", a: {label: "View", items: [["tarawa","Tarawa monitor"],["onsets","Against past onsets"]]},
+          dom: function (a) { return a === "tarawa" ? "dom-wwb" : null; }, img: function () { return "assets/sst/kiribati_history.webp"; }, bust: "hourly",
+          about: "about-wwb_t", cap: function (a) { return a === "tarawa" ? "Hourly surface wind at Tarawa and Kiritimati: westerlies at the dateline are the trigger for oceanic Kelvin waves. Live arrows below the chart." : "This year's westerly-burst activity against the onset years of past El Niños."; }},
+  wind10: {label: "Equatorial 10 m wind forecast", img: function () { return "assets/sst/eq_wind_hovmoller.webp?v=202609071730"; }, about: "about-wind10",
+          cap: function () { return "Forecast zonal wind along the equator, ensemble mean and spread, out to day 15."; }},
+  subtemp: {label: "Subsurface temperature section", a: {label: "Field", items: [["equatorial","Temperature and anomaly"],["equatorial_dt","Anomaly, trend removed"]]},
+          frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=equatorial,equatorial_dt"; }, about: "about-subtemp",
+          cap: function (a) { return a === "equatorial" ? "TAO/TRITON depth–longitude section along the equator, 5-day average: temperature on top, the anomaly against 1991–2020 below; the 20 °C isotherm is the thermocline proxy." : "The same anomaly with the 1991–2020 linear trend removed at each depth and longitude, so the warming ocean is not read as an event."; }},
+  hc: {label: "Heat content against analogs", img: function () { return "assets/sst/subsurface_events_hc.webp?v=202609071730"; }, about: "about-hc", fit: false,
+          cap: function () { return "Equatorial 0–300 m temperature anomaly, fixed mooring weights, this event against 1997, 2015 and 2023 on a common calendar; hollow markers mark days a silent mooring was carried forward."; }},
+  xsec: {label: "Cross-section against analogs", img: function () { return "assets/sst/subsurface_events_xsec.webp?v=202609071730"; }, about: "about-xsec", fit: false,
+          cap: function () { return "The depth–longitude anomaly this week beside the same week of the 1997, 2015 and 2023 events."; }},
+  cur_map: {label: "Surface currents", frame: function () { return "sst_anim.html?embed=1&manifest=eq_cur_map_manifest.json&region=eq_cur_map"; }, about: "about-cur_map",
+          cap: function () { return "Tropical Pacific surface current from the Copernicus Marine analysis: the South Equatorial Current, the counter-current and their anomalies."; }},
+  cur_sec: {label: "Undercurrent section", frame: function () { return "sst_anim.html?embed=1&manifest=eq_cur_section_manifest.json&region=eq_cur_section"; }, about: "about-cur_sec",
+          cap: function () { return "Zonal current along the equator with depth: the eastward Equatorial Undercurrent beneath the westward surface flow."; }},
+  cur_hov: {label: "Surface current Hovmöller", img: function () { return "assets/sst/eq_current_hov.webp"; }, bust: "hourly", about: "about-cur_hov", fit: false,
+          cap: function () { return "Equatorial surface zonal current against time: eastward pulses follow westerly wind bursts."; }}
 }
 };
 </script>

@@ -55,6 +55,17 @@
     margin: 1.3rem 0 1.1rem;
   }
   .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; background: #fff; }
+  /* a segmented strip wider than the screen scrolls sideways; the shadows (painted under the
+     transparent buttons, attached to the scroll content) only show at an edge that has more. */
+  .seg { max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+    background:
+      linear-gradient(to right, #fff 30%, rgba(255,255,255,0)),
+      linear-gradient(to right, rgba(255,255,255,0), #fff 70%) 100% 0,
+      radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.25), rgba(0,0,0,0)),
+      radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.25), rgba(0,0,0,0)) 100% 0;
+    background-repeat: no-repeat; background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+    background-attachment: local, local, scroll, scroll; }
+  .seg button { white-space: nowrap; }
   .seg button {
     border: 0; background: transparent; padding: 0.38rem 0.85rem;
     font: 500 0.78rem var(--sans); color: var(--muted); cursor: pointer;
@@ -74,7 +85,7 @@
   .card:hover { border-color: var(--accent); }
   .card.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
   .card.dim { opacity: 0.38; }
-  .card .row1 { display: flex; justify-content: space-between; align-items: baseline; }
+  .card .row1 { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.15rem 0.4rem; }
   .card .sid { font-weight: 600; font-size: 0.92rem; }
   .card .sid::before {
     content: ""; display: inline-block; width: 0.55em; height: 0.55em;
@@ -83,6 +94,7 @@
   .card .badge {
     font-size: 0.6rem; letter-spacing: 0.05em; color: var(--muted);
     border: 1px solid var(--rule); border-radius: 4px; padding: 0.08rem 0.3rem;
+    white-space: nowrap; flex-shrink: 0;   /* whole chips wrap; never "5-\nmin" */
   }
   .card .badge.hourly { color: #a05a1e; border-color: #e5c9a8; background: #fdf6ec; }
   .card .name { font-size: 0.66rem; color: var(--muted); margin-top: 0.1rem;
@@ -134,7 +146,6 @@
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
               <li><a href="/enso.html">El Niño monitor</a></li>
-              <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
               <li><a href="/skewt/">Sounding explorer</a></li>
               <li><a href="/asos5.html" aria-current="page">Five-minute airport observations</a></li>
               <li><a href="/qbo/">QBO tracker</a></li>

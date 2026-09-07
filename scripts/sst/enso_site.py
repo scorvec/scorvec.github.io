@@ -32,13 +32,6 @@ PAGES = [
               "NOAA OISST v2.1, MUR 1 km SST, the SOI and MEI, and equatorial convection — "
               "one figure at a time.",
          canonical="https://scorvec.com/enso.html"),
-    dict(slug="subsurface", out="enso-subsurface.html", active="A_SUBSURFACE",
-         title="Subsurface Temperature &middot; El Ni&ntilde;o Monitor",
-         desc="Equatorial Pacific depth–longitude subsurface temperature cross-sections "
-              "(NOAA/PMEL TAO/TRITON), raw and with the 1991–2020 climate trend removed, "
-              "plus upper-ocean heat content and cross-sections against the 1997, 2015 "
-              "and 2023 El Niños at matching phase.",
-         canonical="https://scorvec.com/enso-subsurface.html"),
     dict(slug="forecasts", out="enso-forecasts.html", active="A_FORECASTS",
          title="ENSO Forecasts &mdash; Interactive Multi-Model Outlook &middot; El Ni&ntilde;o Monitor",
          desc="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from "
