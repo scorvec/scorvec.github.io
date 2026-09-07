@@ -69,18 +69,21 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add enso-subsurface.html assets/sst/
-          if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-          git commit -m "data update: subsurface $(date -u +%Y-%m-%dT%H:%MZ)"
+          # snapshot + clean resync each attempt (mjo.yml / sst.yml pattern): the old rebase
+          # recovery discarded the outputs when a push collided and reported success.
+          SNAP=$(mktemp -d)
+          git add -A enso-subsurface.html assets/sst/ 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
           for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A enso-subsurface.html assets/sst/
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: subsurface $(date -u +%Y-%m-%dT%H:%MZ)"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
-            timeout 120 git fetch origin main
-            if ! git rebase -X theirs origin/main; then
-              git rebase --abort || true
-              git reset --hard origin/main
-              git add enso-subsurface.html assets/sst/
-              git diff --staged --quiet || git commit -m "data update: subsurface (re-applied)"
-            fi
+            echo "Push $i rejected; resyncing and retrying…"
             sleep 5
           done
           exit 1
