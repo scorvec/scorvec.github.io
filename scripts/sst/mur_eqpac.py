@@ -75,8 +75,12 @@ def _open(url: str, timeout: int):
 
 # Zoom crosses the antimeridian (an ERDDAP range cannot), so it fetches in two
 # lon chunks: 170°E → the Peru coast.
-ZOOM = dict(lat=(-8, 8), lon_chunks=[(170, 179.99), (-179.99, -79)])
-ZOOM_EXTENT = (170, 281, -8, 8)
+# Domain widened 2026-09-07 (user): 10° further west so the whole Niño-4 box is in frame, and
+# ±10° so the Niño-1+2 box and the ITCZ edge are. Frames rendered on the old 170°E/±8° domain
+# are re-rendered in place, newest first, by the height check in anim() — a few days of runs.
+ZOOM = dict(lat=(-10, 10), lon_chunks=[(160, 179.99), (-179.99, -79)])
+ZOOM_EXTENT = (160, 281, -10, 10)
+FIGSIZE = (22, 4.75)                          # 121° × 20° map + title row at the same width as before
 ANIM_DIR = "mur_ct"                           # assets/sst/anim/<region>/
 ANIM_STRIDE = 1                               # native 0.01° — full MUR resolution
 ANIM_DPI = 200                                # matches the static render
@@ -84,6 +88,7 @@ ANIM_DPI = 200                                # matches the static render
 # after the tight-bbox trim; current dpi-200 frames are ~3500. Anything
 # narrower gets re-rendered in place.
 ANIM_MIN_WIDTH = 3000
+ANIM_MIN_HEIGHT = 700                         # frames on the pre-2026-09-07 ±8° domain are ~650 px tall
 ANIM_START = "2026-04-01"                     # pre-onset context; RONI ≥ +0.5 from 2026-05-21
 # Colour range adapts to each day's field (0.5–99.5th percentile ± 0.5 °C,
 # rounded to 0.5): a fixed range wastes the palette when the cold tongue runs
@@ -188,13 +193,15 @@ def _isotherms(ax, field):
 
 # Niño index boxes (lon in 0–360 to match the pasted zoom domain). Niño-3.4 is
 # drawn inset (±4.6° instead of ±5°) in black so its horizontal edges don't sit
-# on top of the Niño-4/3 lines it overlaps.
+# on top of the Niño-4/3 lines it overlaps. Each label sits at the CENTRE of its
+# own box's edge (Niño-4 and Niño-3 above, Niño-3.4 below, Niño-1+2 above) so it
+# cannot be read as belonging to the neighbour it overlaps.
 NINO_BOXES = [
     # label, lon0, lon1, lat0, lat1, line colour, (label lon, lat)
-    ("Niño 4",   160, 210, -5.0, 5.0, "white", (174, 5.7)),
-    ("Niño 3.4", 190, 240, -4.6, 4.6, "black", (191, -5.9)),
-    ("Niño 3",   210, 270, -5.0, 5.0, "white", (212, 5.7)),
-    ("Niño 1+2", 270, 280, -10.0, 0.0, "white", (270.6, 0.7)),
+    ("Niño 4 (160°E–150°W)",   160, 210, -5.0, 5.0, "white", (185, 5.8)),
+    ("Niño 3.4 (170°W–120°W)", 190, 240, -4.6, 4.6, "black", (215, -5.8)),
+    ("Niño 3 (150°W–90°W)",    210, 270, -5.0, 5.0, "white", (240, 5.8)),
+    ("Niño 1+2 (90–80°W, 10°S–0)", 270, 280, -10.0, 0.0, "white", (275, 0.8)),
 ]
 
 
@@ -206,7 +213,7 @@ def _nino_boxes(ax):
                 transform=pc, color=col, lw=1.0, ls=(0, (5, 3)), zorder=5,
                 path_effects=[pe.withStroke(linewidth=2.0, foreground=halo)])
         ax.text(tx, ty, label, transform=pc, fontsize=7, fontweight="bold",
-                color=col, ha="left", va="center", zorder=6,
+                color=col, ha="center", va="center", zorder=6,
                 path_effects=[pe.withStroke(linewidth=1.8, foreground=halo)])
 
 
@@ -287,7 +294,7 @@ def main() -> int:
     zoom = fetch_zoom(t)
     render(zoom, ZOOM_EXTENT,
            f"NASA JPL MUR SST v4.1 — native 0.01° — {t:%Y-%m-%d}",
-           ASSETS / "mur_coldtongue.webp", figsize=(22, 3.9), note=note)
+           ASSETS / "mur_coldtongue.webp", figsize=FIGSIZE, note=note)
     # Mobile companion: same field, three stacked lon segments (west → east),
     # served via <picture> so phones see the whole plot without scrolling.
     render_stacked(zoom, 3,
@@ -343,12 +350,12 @@ def anim(argv_start: str | None = None) -> int:
         try:
             from PIL import Image
             with Image.open(p) as im:
-                return im.size[0] >= ANIM_MIN_WIDTH
+                return im.size[0] >= ANIM_MIN_WIDTH and im.size[1] >= ANIM_MIN_HEIGHT
         except Exception:                                   # noqa: BLE001
             return False
 
     made = 0
-    for d in days:
+    for d in reversed(days):                    # newest first: today's frame before any re-render
         out = frames_dir / f"{d:%Y%m%d}.webp"
         if _current(out):
             continue
@@ -371,7 +378,7 @@ def anim(argv_start: str | None = None) -> int:
                   flush=True)
             continue
         render(f, ZOOM_EXTENT, f"NASA JPL MUR SST v4.1 — native 0.01° — {d:%Y-%m-%d}",
-               out, figsize=(22, 3.9), note=note, vrange=tuple(vrange),
+               out, figsize=FIGSIZE, note=note, vrange=tuple(vrange),
                dpi=ANIM_DPI)
         made += 1
         time.sleep(2)                       # be a polite ERDDAP citizen
