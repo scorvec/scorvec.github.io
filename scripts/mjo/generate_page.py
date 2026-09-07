@@ -68,7 +68,7 @@ def main():
         write_manifest(items)
         # Animator only (with the slider) — no separate static hero image. The iframe auto-sizes
         # to fit the plot + slider via the sstAnimHeight postMessage listener below.
-        body = (f'  <p class="lede" style="margin:0.5rem 0 1.2rem">Latest init: <strong>{label(d, h)}</strong>.'
+        body = (f'  <p class="lede">Latest init: <strong>{label(d, h)}</strong>.'
                 ' Drag the slider to step through successive forecast runs (oldest → latest) and watch the'
                 ' predicted MJO track evolve.</p>\n'
                 '  <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets'

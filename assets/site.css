@@ -315,3 +315,22 @@ html main > :is(.lede, .sub, .kicker, .eyebrow), html .wrap > :is(.lede, .kicker
 html body > header:not(.sh) > :is(.lede, .sub), html main > header:not(.sh) > :is(.lede, .sub, p) { margin-left: auto; margin-right: auto; }
 
 .sf .sf-disclaimer { font-size: 0.85rem; color: var(--c-muted); max-width: 80ch; margin-top: 0.5rem; }
+
+/* Lede paragraphs (the descriptor under a page title): left-aligned text in a quiet box, centred
+   as a block — a long paragraph set centred is hard to read (user, 2026-09-07, MJO page). Colours
+   derive from the page's own text colour so dark pages get the same treatment. */
+html main > .lede, html .wrap > .lede, html body > header:not(.sh) > .lede, html main > header:not(.sh) > .lede {
+  text-align: left;
+  max-width: 76ch;
+  margin: 0.9rem auto 1.4rem;
+  padding: 1rem 1.3rem;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  border-radius: 8px;
+  font-size: 1.08rem;
+  line-height: 1.6;
+}
+html main > .lede + .lede, html .wrap > .lede + .lede { margin-top: -0.6rem; }
+
+/* verification-page explainer (cities/verify.html .howto) was 13px */
+html .howto { font-size: 1.02rem; line-height: 1.55; padding: 0.8rem 1.3rem; }
