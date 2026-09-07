@@ -1,6 +1,6 @@
 name: Stratosphere (vortex, wave-1, E-P flux)
 
-# The stratospheric products that appear on enso-atmosphere.html, moved off the
+# The stratospheric products that appear on circulation.html, moved off the
 # laptop on 2026-08-29 and split into parallel jobs on 2026-08-30:
 #
 #   nh_vortex.py      -> assets/sst/nh_vortex.webp        60N winds + polar-cap height

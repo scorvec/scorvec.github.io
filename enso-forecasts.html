@@ -191,7 +191,7 @@
   .anim-embed[data-src] { background: #fafafa; border: 1px solid #f0f0f0; }
   .anim-embed.aam-zonal { aspect-ratio: 1408 / 1000; }  /* image 1408×946 + controls bar */
   .anim-embed.ascat { aspect-ratio: 1385 / 365; }   /* image 1385×311 + controls bar */
-  .anim-embed.mur { aspect-ratio: 3504 / 705; }     /* image 3504×650 + controls bar */
+  .anim-embed.mur { aspect-ratio: 3530 / 820; }     /* image 3530×765 (160°E–79°W, ±10°) + controls bar */
   /* GMGSI loops re-rendered at 200 dpi on 2026-09-01: 2031×918 and 1454×1520 */
   .anim-embed.pacsat { aspect-ratio: 2031 / 985; }  /* image 2031×918 + controls bar */
   .anim-embed.gdps-ir { aspect-ratio: 1860 / 975; } /* image 1860×915 + controls bar */
@@ -446,7 +446,7 @@
 <script src="/assets/lightbox.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
@@ -464,7 +464,7 @@
           <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
-              <li><a href="/sst.html">El Niño monitor</a></li>
+              <li><a href="/enso.html">El Niño monitor</a></li>
               <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
               <li><a href="/skewt/">Sounding explorer</a></li>
               <li><a href="/asos5.html">Five-minute airport observations</a></li>
@@ -484,7 +484,7 @@
                 <li><a href="/ecape.html">Entraining CAPE</a></li>
                 <li><a href="/columbia/">Columbia River basin precipitation</a></li>
                 <li><a href="/mjo.html">MJO forecast</a></li>
-                <li><a href="/enso-atmosphere.html">Global circulation and jets</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
               </ul>
             </div>
             <div>
@@ -1077,13 +1077,13 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=28703f7a5ea6").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=202609071500").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=28703f7a5ea6").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=202609071500").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=28703f7a5ea6").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=202609071500").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=28703f7a5ea6").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=202609071500").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];

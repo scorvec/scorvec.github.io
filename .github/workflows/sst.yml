@@ -242,8 +242,8 @@ jobs:
             echo "no u850 band series on this runner - skipping the MEI nowcast"
           fi
           CB=$(date -u +%Y%m%d%H%M)
-          perl -0pi -e "s/((?:mei\/mei_nowcast|mei\/mei_analogs|mei\/mei_history)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../sst.html
-          perl -0pi -e "s/((?:walker_basins|walker_chi_weekly)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../enso-atmosphere.html
+          perl -0pi -e "s/((?:mei\/mei_nowcast|mei\/mei_analogs|mei\/mei_history)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../enso.html
+          perl -0pi -e "s/((?:walker_basins|walker_chi_weekly)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../circulation.html
 
       # WITHOUT THIS THE ANIMATIONS NEVER LEAVE THE RUNNER. .gitignore keeps
       # frame webp off main, and this workflow had no frames-branch publisher
@@ -267,14 +267,14 @@ jobs:
           # (2026-09-07 03:03Z: a rendered walker_basins.webp never reached main).
           DAY=$(python -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])" 2>/dev/null || date -u +%Y-%m-%d)
           SNAP=$(mktemp -d)
-          git add -A sst.html enso-*.html assets/sst/ 2>/dev/null || true
+          git add -A enso.html circulation.html sst.html enso-*.html assets/sst/ 2>/dev/null || true
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
-            git add -A sst.html enso-*.html assets/sst/
+            git add -A enso.html circulation.html sst.html enso-*.html assets/sst/
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "data update: ${DAY}"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
@@ -298,6 +298,6 @@ jobs:
         if: always()
         run: |
           echo "### SST / RONI" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Page: [/sst.html](https://scorvec.com/sst.html)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/enso.html](https://scorvec.com/enso.html)" >> "$GITHUB_STEP_SUMMARY"
           [ -f assets/sst/manifest.json ] && \
             echo "- $(python -c "import json;m=json.load(open('assets/sst/manifest.json'));print('OISST',m['sst_valid_day'],'· RONI',m['roni_latest_value'],'°C')" )" >> "$GITHUB_STEP_SUMMARY" || true

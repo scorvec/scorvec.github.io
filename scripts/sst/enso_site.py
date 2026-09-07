@@ -25,13 +25,13 @@ PAGES_DIR = HERE / "pages"
 _SUBNAV_KEYS = ["A_OVERVIEW", "A_SUBSURFACE", "A_FORECASTS", "A_ATMOSPHERE"]
 
 PAGES = [
-    dict(slug="overview", out="sst.html", active="A_OVERVIEW",
+    dict(slug="enso", out="enso.html", active="A_OVERVIEW", layout="stage",
          title="El Ni&ntilde;o Monitor &mdash; Daily ONI, RONI &amp; Ni&ntilde;o Indices &middot; Shawn Corvec",
          desc="Daily estimates of ONI and RONI with interactive Niño-region SST index "
               "charts, high-resolution global and tropical Pacific anomaly maps from "
-              "NOAA OISST v2.1, and ENSO subsurface, analog, forecast and atmospheric "
-              "diagnostics.",
-         canonical="https://scorvec.com/sst.html"),
+              "NOAA OISST v2.1, MUR 1 km SST, the SOI and MEI, and equatorial convection — "
+              "one figure at a time.",
+         canonical="https://scorvec.com/enso.html"),
     dict(slug="subsurface", out="enso-subsurface.html", active="A_SUBSURFACE",
          title="Subsurface Temperature &middot; El Ni&ntilde;o Monitor",
          desc="Equatorial Pacific depth–longitude subsurface temperature cross-sections "
@@ -45,16 +45,14 @@ PAGES = [
               "seven centres, percentile fans, ONI vs RONI, and the forecast measured "
               "against every ENSO event since 1970.",
          canonical="https://scorvec.com/enso-forecasts.html"),
-    dict(slug="atmosphere", out="enso-atmosphere.html", active="A_ATMOSPHERE",
-         title="Wave Activity Flux, Angular Momentum &amp; Walker Circulation &mdash; "
-               "Live Atmospheric Circulation Diagnostics &middot; El Ni&ntilde;o Monitor",
-         desc="Daily global circulation diagnostics updated from ECMWF AIFS-ENS: "
-              "Takaya-Nakamura wave activity flux (Rossby wave packets, blocking "
-              "precursors), atmospheric angular momentum (AAM) with its mountain and "
-              "friction torque budget, Hadley cell and Walker circulation "
-              "streamfunctions, subtropical jet strength vs climatology, 200 hPa "
-              "velocity potential, and equatorial wind forecasts for ENSO.",
-         canonical="https://scorvec.com/enso-atmosphere.html"),
+    dict(slug="circulation", out="circulation.html", active="A_ATMOSPHERE", layout="stage",
+         title="Global Circulation and Jets &mdash; Wave Activity Flux, Angular Momentum, Walker Cell "
+               "and the Stratosphere &middot; Shawn Corvec",
+         desc="Daily global circulation diagnostics from ECMWF AIFS-ENS: Takaya-Nakamura wave "
+              "activity flux, dynamic tropopause, atmospheric angular momentum and its torque "
+              "budget, Hadley and Walker cells, subtropical and North Pacific jets, polar vortex "
+              "and E-P flux, plus equatorial winds and the Southern Oscillation.",
+         canonical="https://scorvec.com/circulation.html"),
 ]
 
 
@@ -70,15 +68,16 @@ def assemble(page: dict) -> str:
     components were folded into partials/head.html. A `chrome` key on a page entry
     is now ignored.
     """
-    head = (_read(PARTIALS_DIR / "head.html")
+    stage = page.get("layout") == "stage"          # rail + stage pages (2026-09-07): outlook.css look, no legacy nav
+    head = (_read(PARTIALS_DIR / ("head_stage.html" if stage else "head.html"))
             .replace("{{TITLE}}", page["title"])
             .replace("{{DESC}}", page["desc"])
             .replace("{{CANONICAL}}", page["canonical"]))
-    nav = _read(PARTIALS_DIR / "nav.html")
+    nav = "" if stage else _read(PARTIALS_DIR / "nav.html")
     for key in _SUBNAV_KEYS:
         nav = nav.replace("{{%s}}" % key, "active" if key == page["active"] else "")
     body = _read(PAGES_DIR / f"{page['slug']}.html")
-    foot = _read(PARTIALS_DIR / "footer.html")
+    foot = _read(PARTIALS_DIR / ("footer_stage.html" if stage else "footer.html"))
     return head + nav + body + foot
 
 

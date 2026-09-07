@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Circulation and Jets &mdash; Wave Activity Flux, Angular Momentum, Walker Cell and the Stratosphere &middot; Shawn Corvec</title>
+<meta name="description" content="Daily global circulation diagnostics from ECMWF AIFS-ENS: Takaya-Nakamura wave activity flux, dynamic tropopause, atmospheric angular momentum and its torque budget, Hadley and Walker cells, subtropical and North Pacific jets, polar vortex and E-P flux, plus equatorial winds and the Southern Oscillation.">
+<link rel="canonical" href="https://scorvec.com/circulation.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Global Circulation and Jets &mdash; Wave Activity Flux, Angular Momentum, Walker Cell and the Stratosphere &middot; Shawn Corvec">
+<meta property="og:description" content="Daily global circulation diagnostics from ECMWF AIFS-ENS: Takaya-Nakamura wave activity flux, dynamic tropopause, atmospheric angular momentum and its torque budget, Hadley and Walker cells, subtropical and North Pacific jets, polar vortex and E-P flux, plus equatorial winds and the Southern Oscillation.">
+<meta property="og:url" content="https://scorvec.com/circulation.html">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Global Circulation and Jets &mdash; Wave Activity Flux, Angular Momentum, Walker Cell and the Stratosphere &middot; Shawn Corvec">
+<meta name="twitter:description" content="Daily global circulation diagnostics from ECMWF AIFS-ENS: Takaya-Nakamura wave activity flux, dynamic tropopause, atmospheric angular momentum and its torque budget, Hadley and Walker cells, subtropical and North Pacific jets, polar vortex and E-P flux, plus equatorial winds and the Southern Oscillation.">
+<link rel="stylesheet" href="/assets/outlook.css">
+<link rel="stylesheet" href="/assets/stage.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html" aria-current="page">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+              <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+  <div class="page-header">
+    <p class="eyebrow">Daily, from the ECMWF AIFS ensemble and the ECCC GDPS, anomalies against ERA5 1991&ndash;2020</p>
+    <h1>Global circulation and jets</h1>
+    <p class="sub">The atmosphere's response to the tropical ocean and what it does downstream: equatorial winds and the Southern Oscillation, the upper-level flow, angular momentum and its torques, the overturning cells, the jets and the stratosphere &mdash; one figure at a time, picked from the menu. Every figure carries its method and sources under the caption.</p>
+
+  </div>
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0) &middot; ECCC GDPS (MSC Datamart) &middot; ERA5 1991&ndash;2020 normals &middot; updated each 00/12Z cycle</span><span class="chart-updated">2026-09-05</span></div>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder" id="dom-holder">
+    <div id="dom-wwb" class="card" hidden>
+      <div class="img-wrap"><img id="kiribati-wind" data-src="assets/sst/kiribati_wind.webp" alt="Tarawa equatorial zonal-wind time series, westerly-wind-burst monitor" loading="lazy"></div>
+      <div id="wwb-arrows" class="wwb-arrows"></div>
+    </div>
+  </div>
+<template id="about-ascat">
+
+<p class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; ~1&ndash;2 day latency &middot; updated daily &middot; drag the slider for recent days</p>
+</template>
+<template id="about-eqwind">
+<p>Longitude &times; time strip of the daily-mean surface zonal wind averaged 5&deg;S&ndash;5&deg;N, 150&deg;E&ndash;90&deg;W, from the same gap-filled scatterometer (ASCAT) L4 product as the map above. <span style="color:#c0392b">Red is westerly</span> (El&nbsp;Ni&ntilde;o-favorable), <span style="color:#2471a3">blue is easterly</span> (the trade winds). Westerly-wind bursts (red) over the warm pool force the downwelling Kelvin waves and eastward surface-current surges seen on the subsurface page. Newest day at the bottom.</p>
+<p class="chart-sources">Copernicus Marine WIND_GLO_PHY_L4_NRT (scatterometer / ASCAT) &middot; 5&deg;S&ndash;5&deg;N daily mean &middot; rolling ~9 months &middot; updated daily</p>
+</template>
+<template id="about-soi_h">
+<p>The Southern Oscillation Index is a Troup standardisation of the Tahiti-minus-Darwin sea-level-pressure difference. It is published only monthly, and even LongPaddock's daily version lags 1&ndash;2 days. This estimates it in near-real time from the hourly QNH in the Darwin (YPDN) and Tahiti / Faa&rsquo;a (NTAA) airport METARs, updated hourly by a GitHub Action.</p>
+<p><b>The exact formula (Troup, 1965):</b></p>
+<p style="text-align:center; font-size:1.08em; margin:.35em 0 .15em">
+          SOI = 10 &times; ( P<sub>diff</sub> &minus; <span style="border-top:1px solid; padding-top:1px">P<sub>diff</sub></span> ) &divide; &sigma;<sub>diff</sub>
+        </p>
+<p style="font-size:.93em">where <b>P<sub>diff</sub></b> = mean-sea-level pressure at <b>Tahiti minus Darwin</b> (monthly mean), <b><span style="border-top:1px solid; padding-top:1px">P<sub>diff</sub></span></b> is the long-term average of that difference for the given <b>calendar month</b>, and <b>&sigma;<sub>diff</sub></b> its standard deviation, both taken over the <b>1887&ndash;1989</b> base period. The factor of 10 is Troup&rsquo;s scaling (so the index mostly falls within &plusmn;35). Crucially, &sigma;<sub>diff</sub> is the spread of <i>monthly</i> values (&asymp;1.3&ndash;2.1&nbsp;hPa), not the much wider day-to-day spread; the exact monthly mean and &sigma; are recovered by regressing LongPaddock&rsquo;s published SOI against its own Tahiti&minus;Darwin pressure record, then applied to the live METAR pressures.</p>
+<p>The grey line is the published LongPaddock daily SOI; the bold red line is the 24-hour-mean estimate, nudged onto the LongPaddock scale, which runs a day or two ahead of it. The faint blue line is the raw hourly SOI, very noisy (the semidiurnal pressure tide, passing weather, and 1-hPa METAR rounding). Negative is El&nbsp;Ni&ntilde;o-favorable.</p>
+<p class="chart-sources">Darwin (YPDN) + Tahiti (NTAA) METAR via aviationweather.gov &middot; Troup normals &amp; calibration from LongPaddock (BoM 1887&ndash;1989 base) &middot; updated hourly</p>
+</template>
+<template id="about-soi_f">
+<p>Extending the observed SOI forward: the same Troup SOI (the standardized Tahiti&minus;Darwin sea-level-pressure difference), here forecast from the combined AIFS-ENS + IFS-ENS ensemble (about 100 members). Observed values are from LongPaddock (Queensland Govt / BoM); the forecast is the Tahiti&minus;Darwin MSL from the ensembles, bias-corrected to the recent observed level. Bold lines are the 30-day running SOI; the faint daily series and shaded 10&ndash;90% band show the day-to-day spread. Sustained negative SOI (below &minus;7) is El Ni&ntilde;o-favorable; sustained positive (above +7) is La Ni&ntilde;a-favorable.</p>
+<p class="chart-sources">LongPaddock daily SOI (BoM, 1887&ndash;1989 base) &middot; forecast: ECMWF AIFS-ENS + IFS-ENS MSL &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-wwb_t">
+<p>Westerly wind bursts (WWBs) over the west-central equatorial Pacific are a key El&nbsp;Ni&ntilde;o trigger: the easterly trades briefly reverse to westerly, pushing warm water and convection eastward and forcing downwelling Kelvin waves. Tarawa / Bonriki (<b>NGTA, 1.4&deg;N 173&deg;E</b>) sits in that zone, so its hourly airport wind is a live proxy, with Christmas Island (PLCH, far to the east) shown for contrast. The arrows show the latest wind at each station (<span style="color:#d62728">red is westerly</span>, <span style="color:#1f77b4">blue is easterly</span>); the chart tracks the zonal wind component at Tarawa, where a sustained red excursion is an active WWB.</p>
+<p class="chart-sources">Tarawa / Bonriki (NGTA) + Christmas Is. / Kiritimati (PLCH) METAR via aviationweather.gov &middot; updated hourly</p>
+</template>
+<template id="about-wwb_o">
+<p>Tarawa&rsquo;s daily airport wind from <b>1&nbsp;April</b> onward through recent El&nbsp;Ni&ntilde;o onset years, <span style="color:#4daf4a"><b>2015&ndash;16</b></span> (very strong) and <span style="color:#984ea3"><b>2023&ndash;24</b></span> (weaker), against the current year, from the Iowa Environmental Mesonet METAR archive. Both panels are a 7-day running mean of the hourly obs: top is zonal wind (westerly positive); bottom is the fraction of each day with westerly winds. In a developing El&nbsp;Ni&ntilde;o the easterly trades weaken and westerly bursts become more frequent, so both climb from the cold-state baseline.</p>
+<p class="chart-sources">Tarawa (NGTT/NGTA) METAR &middot; Iowa Environmental Mesonet ASOS archive &middot; monthly zonal wind &amp; westerly fraction &middot; refreshed daily</p>
+</template>
+<template id="about-wind10">
+<p>Forecast 10 m zonal-wind anomaly (5&deg;S&ndash;5&deg;N), longitude &times; forecast day, from the AIFS-ENS (AI) and ECMWF IFS-ENS (physics) ensemble means versus the ERA5 1991&ndash;2020 climatology. Westerly (red) anomalies along the equator favor El Ni&ntilde;o development; easterly (blue) anomalies favor La Ni&ntilde;a. Agreement between the AI and physics ensembles raises confidence.</p>
+<p class="chart-sources">ECMWF AIFS-ENS &amp; IFS-ENS (open data) &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-mslp">
+<p>The full-field Pacific surface forecast behind the equatorial diagnostics: mean-sea-level pressure (contours, with H/L centres) and 10&nbsp;m wind (speed shaded in knots, plus barbs), animated over the tropical and subtropical Pacific. An equatorial westerly push between the Maritime Continent and the dateline is a wind-burst signature. Switch between the ECMWF <b>super-ensemble mean</b> (AIFS-ENS&nbsp;+&nbsp;IFS-ENS, days&nbsp;1&ndash;15) and <b>ECCC GDPS</b> (15&nbsp;km deterministic, days&nbsp;1&ndash;10) as an independent physics cross-check &mdash; same domain and styling, so differences are the models, not the plotting.</p>
+<p class="chart-sources">ECMWF AIFS-ENS + IFS-ENS (open data, CC&nbsp;BY&nbsp;4.0), member-weighted super-ensemble mean, each 00/12Z cycle &middot; ECCC GDPS 15&nbsp;km deterministic (MSC Datamart), 00Z cycle, daily</p>
+</template>
+<template id="about-gdps_ir">
+<p>GDPS forecast top-of-atmosphere OLR converted to IR brightness temperature and
+        rendered like the live GMGSI tropical Pacific loop on the
+        <a href="enso.html">Overview page</a> &mdash; a simulated satellite loop, 3-hourly
+        frames to day&nbsp;10. White and colour are cold cloud tops (deep convection).</p>
+<p class="chart-sources">ECCC GDPS top-of-atmosphere OLR (MSC Datamart) &middot; OLR &rarr; T<sub>b</sub> via inverse Ohring&ndash;Gruber &middot; 3-hourly frames, days 0&ndash;10 &middot; GMGSI enhanced-IR colortable &middot; daily</p>
+</template>
+<template id="about-gdps150">
+<p>GDPS 150&nbsp;hPa wind as isotach fill and contours with wind barbs and
+        geopotential height (6&nbsp;dam interval), 3-hourly frames to day&nbsp;10 &mdash;
+        the Hadley/Walker outflow layer and the subtropical jets. White is below
+        25&nbsp;kt.</p>
+<p class="chart-sources">ECCC GDPS 150&nbsp;hPa u/v and geopotential height (MSC Datamart) &middot; isotach fill, barbs, 6&nbsp;dam height contours &middot; 00Z cycle, days 1&ndash;10 &middot; daily</p>
+</template>
+<template id="about-vpot">
+<p>The large-scale divergent circulation aloft from the AIFS-ENS ensemble mean: the 200 hPa velocity-potential anomaly shaded, with the irrotational (divergent) wind as vectors. <b style="color:#2e7d32">Green</b> is upper-level divergence (the outflow above deep convection); <b style="color:#df6a1e">orange</b> is convergence (subsidence). The vectors point out of the divergence centres, tracing the rising and sinking branches of the Walker and Hadley circulations; in El&nbsp;Ni&ntilde;o the divergence shifts east over the central Pacific. Anomaly is versus the ERA5 1991&ndash;2020 climatology. The first frame is the analysis, the rest is the forecast to day&nbsp;14.</p>
+<p class="chart-sources">ECMWF AIFS-ENS 200 hPa u/v, 50-member mean (open data, CC&nbsp;BY&nbsp;4.0) &middot; velocity potential via spherical-harmonic inversion &middot; anomaly vs ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-waf">
+<p>The <b>Takaya&ndash;Nakamura (2001) wave activity flux</b> is a phase-independent vector diagnostic of quasi-stationary <b>Rossby wave propagation</b>: unlike watching ridges and troughs move, the flux <b>W</b> points along the wave packet's <i>group velocity</i> &mdash; where the wave energy itself is travelling, ducted along the jet-stream waveguides &mdash; and its <b>convergence marks where the downstream flow will amplify</b> days later. That makes it a practical forecast tool for <b>downstream development, blocking onset, and teleconnection excitation</b>: watch packets radiate out of the tropical Pacific convection (the El&nbsp;Ni&ntilde;o&ndash;PNA pathway) or off a mountain-torque event, arc along the subtropical jet, and pile into an amplifying ridge.</p>
+<p style="text-align:center;font-size:0.95rem">$$\mathbf{W}=\frac{p\cos\phi}{2\,|\mathbf{U}|}\begin{pmatrix}U(\psi_x'^2-\psi'\psi_{xx}')+V(\psi_x'\psi_y'-\psi'\psi_{xy}')\\[2pt]U(\psi_x'\psi_y'-\psi'\psi_{xy}')+V(\psi_y'^2-\psi'\psi_{yy}')\end{pmatrix}$$</p>
+<p>Computed at 250&nbsp;hPa &mdash; the level of the mid-latitude jet core and the stationary-wave maximum &mdash; for each of 25 AIFS-ENS members at every daily lead to day&nbsp;15, then averaged: the flux is quadratic in $\psi'$, so the flux of the ensemble mean fades with lead as members decorrelate, whereas the mean of the members' fluxes keeps the packets that are actually forecast. Each member's streamfunction anomaly $\psi'$ (spherical-harmonic inversion of the vorticity, against the ERA5 1991&ndash;2020 day-of-year climatology) is smoothed with a 5-day running mean along the lead before the flux is formed, because the theory is for quasi-stationary waves and fast synoptic packets enter the phase-independent form with error; the basic state $(U,V)$ is the ERA5 day-of-year climatology plus the 30-day mean anomaly of the AIFS 0-h analyses, and $\psi'$ is taken against that same low-passed flow &mdash; so in a year with a displaced jet the packets are steered by the waveguide that is actually there, and perturbation and basic state are consistent. <b>Shading is the flux convergence</b> $-\nabla\!\cdot\!\mathbf{W}$ &mdash; red marks where wave activity is piling up and the downstream flow amplifies over the following days (blue marks emission regions) &mdash; <b>hatched where fewer than 60% of members agree on its sign</b>; <b>grey contours</b> are $\psi'$ (the anomalous ridges/troughs, dashed negative), <b>arrows</b> the member-mean wave activity flux, <b style="color:#2e7d32">green contours</b> the ensemble-mean 250&nbsp;hPa jet at that lead (25/35/45&nbsp;m/s) &mdash; the actual waveguide the packets follow. Fluxes are masked equatorward of 20&deg; and outside westerlies, where the quasi-stationary linear theory does not apply; the diagnostic is most meaningful for 3&ndash;10-day downstream development, not fast transients. Both hemispheres are shown &mdash; the Southern Hemisphere winter waveguide is the active one in austral winter, a view few live sites carry.</p>
+<p class="chart-sources">ECMWF AIFS-ENS 250 hPa u/v, 25 perturbed members (open data, CC&nbsp;BY&nbsp;4.0) &middot; Takaya &amp; Nakamura (2001, JAS) eq.&nbsp;38, member-mean flux &middot; basic state &amp; &psi; climatology: ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-dt">
+<p>The upper-level flow as PV thinkers read it. Ertel potential vorticity is computed on the AIFS-ENS <b>control member&rsquo;s</b> temperature and wind on nine levels from 700 to 100&nbsp;hPa &mdash; the control alone, because PV does not survive ensemble averaging: a mean of fifty folds is a smear. The <b>dynamic tropopause</b> is the 2-PVU surface, found by searching upward from 700&nbsp;hPa; its potential temperature is shaded (low &theta;, blue, is stratospheric or polar air reaching down; high &theta;, red, is a tropical tropopause), its pressure contoured, and the wind on it drawn. Troughs, cut-off lows and ridges are the &theta; pattern itself; a tight gradient is the jet; a tongue of low &theta; wrapping up is a Rossby wave breaking. The other two loops give PV on the 330 and 350&nbsp;K isentropes with the 2-PVU line in dark red &mdash; 330&nbsp;K sits near the winter jet, 350&nbsp;K near the summer and subtropical one. 12-hourly to day 10, North Pacific to the Atlantic.</p>
+<p class="chart-sources">ECMWF AIFS-ENS control t/u/v on 700&ndash;100 hPa (open data, CC&nbsp;BY&nbsp;4.0), 0.25&deg; &middot; Ertel PV on pressure levels, 2-PVU surface by linear interpolation in PV, isentropic PV by interpolation in &theta; &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-aam">
+<p>The upper-level flow as PV thinkers read it. Ertel potential vorticity is computed on the AIFS-ENS <b>control member&rsquo;s</b> temperature and wind on nine levels from 700 to 100&nbsp;hPa &mdash; the control alone, because PV does not survive ensemble averaging: a mean of fifty folds is a smear. The <b>dynamic tropopause</b> is the 2-PVU surface, found by searching upward from 700&nbsp;hPa; its potential temperature is shaded (low &theta;, blue, is stratospheric or polar air reaching down; high &theta;, red, is a tropical tropopause), its pressure contoured, and the wind on it drawn. Troughs, cut-off lows and ridges are the &theta; pattern itself; a tight gradient is the jet; a tongue of low &theta; wrapping up is a Rossby wave breaking. The other two loops give PV on the 330 and 350&nbsp;K isentropes with the 2-PVU line in dark red &mdash; 330&nbsp;K sits near the winter jet, 350&nbsp;K near the summer and subtropical one. 12-hourly to day 10, North Pacific to the Atlantic.</p>
+<p class="chart-sources">ECMWF AIFS-ENS control t/u/v on 700&ndash;100 hPa (open data, CC&nbsp;BY&nbsp;4.0), 0.25&deg; &middot; Ertel PV on pressure levels, 2-PVU surface by linear interpolation in PV, isentropic PV by interpolation in &theta; &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-aam_trend">
+
+<p class="chart-sources">ECMWF AIFS-ENS (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 (Copernicus C3S) &middot; archived each cycle</p>
+</template>
+<template id="about-aam_phase">
+<p><b>Top</b>: relative AAM integrated in 1.5&deg; latitude bands &mdash; ~3 months observed (ERA5) plus the 15-day AIFS-ENS mean forecast &mdash; so poleward-propagating westerly anomalies and building subtropical momentum show as slanted warm streaks. <b>Bottom</b>: each hemisphere's trajectory through (AAM anomaly, tendency) phase space, the hemispheric analog of the Weickmann&ndash;Berry global wind oscillation orbit: grey trail = last 75 days, red = the forecast. The headline sentence is generated automatically from the forecast quadrant and the latitude band driving the change &mdash; e.g. <i>"NH: rising above-normal AAM &mdash; subtropical westerlies increasing."</i></p>
+<p class="chart-sources">ERA5 (local store) &middot; AIFS-ENS ensemble mean (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 &middot; updated daily</p>
+</template>
+<template id="about-aam_zonal">
+<p>The torques above change the global AAM; this shows where that angular momentum sits and how the forecast moves it, as a latitude&ndash;pressure cross-section of the relative-AAM density whose integral over latitude and pressure through the 50&ndash;1000&nbsp;hPa layer is essentially the global AAM. <b>Top panel, absolute</b>: where the AAM resides, dominated by the subtropical jets (the winter hemisphere&rsquo;s is strongest). <b>Bottom, change versus the 0-h analysis</b>: where the forecast is adding (red) or removing (blue) angular momentum, with the per-latitude breakdown of the global &Delta;AAM along the top strip. Black contours are the zonal-mean zonal wind (bold = zero). The bottom panel integrates to the &Delta;AAM in the title, tying it back to the torque budget above. AIFS-ENS ensemble mean over the control and 25 perturbed members; the slider steps the forecast Day&nbsp;0&ndash;15.</p>
+<p class="chart-sources">ECMWF AIFS-ENS zonal wind (13 levels, 50&ndash;1000&nbsp;hPa) + surface pressure (open data, CC BY 4.0) &middot; ensemble mean &middot; updated daily</p>
+</template>
+<template id="about-torque">
+<p>Atmospheric angular momentum changes only through torques the Earth exerts on the atmosphere. Three torques act: <b>friction</b>, the surface wind stress; <b>mountain</b> torque, pressure pushing on resolved topography; and the <b>gravity-wave drag</b> the model exerts on sub-gridscale terrain. The first two are resolved live &mdash; the open-data forecast stream carries no gravity-wave stress, so that term is left in the residual. The budget applies to <b>total</b> AAM &mdash; the wind (relative) part plus the mass term the rotating Earth carries in its surface-pressure field. Only the wind term is computed here; it tracks the total closely on subseasonal timescales but is not identical to it.</p>
+<p style="text-align:center;font-size:0.95rem">$$\frac{dM}{dt}=T_{\text{fric}}+T_{\text{mtn}}\;(+\,T_{\text{gw}}),\qquad T_{\text{mtn}}=a^2\!\iint h_s\,\frac{\partial p_s}{\partial\lambda}\,\cos\phi\;d\lambda\,d\phi$$</p>
+<p><b>Everything here is an anomaly</b> against the ERA5 1991&ndash;2020 climatology at the same time of year, and that is deliberate. The <i>absolute</i> budget cannot be made to close: ERA5&rsquo;s own three terms sum to &minus;4.5&nbsp;&plusmn;&nbsp;0.7&nbsp;Hadley in the annual mean against a required zero, the resolved mountain torque is not resolution-converged (+3.1&nbsp;Hadley at 0.25&deg;, &minus;7.7 at 0.5&deg;, &minus;23.7 at 1&deg;), and the semidiurnal pressure tide cannot be sampled away at twice a day. Every one of those errors sits in the <i>mean</i> and cancels in an anomaly.</p>
+<p><b>Maps</b>: friction (top) and mountain (bottom) torque-density anomaly, day&nbsp;0&ndash;15 &mdash; red adds westerly momentum, blue removes it. Grey contours are the standardized surface-pressure anomaly the mountain torque acts on, so colour and contour read together: high to the west of a range and low to its east is a braking event. <b>Series</b>: the same anomalies integrated over the globe and each hemisphere; the gap between net surface torque and $dM/dt$ is the unresolved gravity-wave-drag torque (the sub-gridscale companion of the mountain term, which ERA5 carries but the open-data forecast fields do not) plus, hemisphere by hemisphere, cross-equatorial transport &mdash; an internal flux that cancels in the global integral. <b>By range</b>: which barriers are doing the work.</p>
+<p><b>How much is this worth?</b> Tested against 30 years of ERA5: over a two-week-to-two-month window the net surface torque tracks a substantial fraction of the actual change in atmospheric angular momentum, and the <b>mountain term carries most of that information</b>. Two limits are worth knowing. The regression slope comes out well below 1, which is what errors-in-variables predicts when a 30&nbsp;Hadley-scale quantity is sampled only every five days &mdash; the torques are correctly sized and merely sampled too coarsely to integrate. And the skill vanishes beyond a season &mdash; AAM is mean-reverting, so there is no annual-scale change left to explain. Read these as a driver of week-to-month swings, never as something to accumulate.</p>
+<p style="font-size:0.9em;color:var(--muted)">Friction uses a drag coefficient solved <b>per grid cell and calendar month</b> against ERA5&rsquo;s own boundary-layer stress, rather than one global constant. A drag coefficient is a property of the surface, not of a latitude: the fitted field runs 1.3&times;10<sup>&minus;3</sup> over ocean to 1.8&times;10<sup>&minus;2</sup> over rough land and reproduces ERA5&rsquo;s stress with a median $r^2$ of 0.95, where the old constant carried 72% of the true variability and had the wrong sign in the global mean. The climatology these anomalies are taken against is rebuilt with the identical field, so forecast and reference are the same quantity.</p>
+<p class="chart-sources">ECMWF AIFS-ENS surface pressure &amp; 10 m wind (open data, CC BY 4.0) &middot; drag coefficient and torque climatology from ERA5 1991&ndash;2020 (Copernicus C3S) &middot; instantaneous once-daily fields &middot; updated daily</p>
+</template>
+<template id="about-hadley">
+<p>The zonal-mean meridional mass streamfunction $\Psi(\phi,p)$ traces the overturning cells (Hadley, Ferrel, polar) from the AIFS-ENS 0-h analysis:</p>
+<p style="text-align:center;font-size:0.95rem">$$\Psi(\phi,p)=\frac{2\pi a\cos\phi}{g}\int_0^p [v]\,dp',\qquad [v]=\text{zonal-mean }v$$</p>
+<p>Shown as the anomaly $\Psi'$ from the ERA5 1991&ndash;2020 harmonic climatology (mean + annual + semiannual, by day-of-year), how the overturning departs from its normal seasonal state. The black contours are the absolute $\Psi$ (the actual cells) and the arrows show the vertical motion (up is ascent, scaled by strength); the strong equatorial signal tracks the El Ni&ntilde;o Walker/Hadley response. Each frame is a 7-day running mean (the 0-h analyses are stashed into a rolling history and trailing-week-averaged), which smooths the day-to-day wobble so the evolution of the Hadley-cell strength is legible. Fixed colour scale.</p>
+<p class="chart-sources">ECMWF AIFS-ENS 0-h analysis meridional wind (open data, CC BY 4.0) &middot; anomaly vs ERA5 1991&ndash;2020 &Psi; climatology (Copernicus C3S) &middot; 7-day running mean &middot; updated each cycle</p>
+</template>
+<template id="about-walker">
+<p>The equatorial companion to the Hadley-cell plot above: the zonal overturning streamfunction $\Psi_W(\lambda,p)$ built from the 5&deg;S&ndash;5&deg;N <b>divergent</b> zonal wind (velocity-potential decomposition, so the rotational flow that dwarfs it near the equator is removed):</p>
+<p style="text-align:center;font-size:0.95rem">$$\Psi_W(\lambda,p)=\frac{\Delta y}{g}\int_0^p u_D\,dp',\qquad u_D=\text{5&deg;S&ndash;5&deg;N divergent }u$$</p>
+<p>Colour is the anomaly from the ERA5 1991&ndash;2020 harmonic climatology; black contours are the absolute cells (ascent where $\Psi_W$ increases eastward &mdash; arrows show the vertical branches). The headline <b>Pacific Walker cell index</b> is the mean $\Psi_W$ over 140&deg;E&ndash;160&deg;W, 300&ndash;700&nbsp;hPa: on ERA5 Decembers it runs about +0.3&hellip;+0.4&times;10&sup1;&#8304; kg/s in La&nbsp;Ni&ntilde;a and <i>reverses sign</i> (&minus;0.1) in the 1982/1997/2015 super El&nbsp;Ni&ntilde;os &mdash; a direct, mass-flux measure of how far the Walker circulation has weakened, shifted or reversed. Each frame is a 7-day trailing mean of the 0-h analyses.</p>
+<p><b>By ocean basin.</b> The figure below asks what the Indian and Atlantic Oceans are doing to this circulation once ENSO is taken out, two ways. First a regression on ERA5 and ERSST 1991&ndash;2020: the two-level Walker proxy (divergent zonal wind at 200 minus 850&nbsp;hPa along the equator) is regressed on Ni&ntilde;o-3.4 and its three-month lag first, and the Indian Ocean Dipole, Indian Ocean basin, Atlantic Ni&ntilde;o and tropical North Atlantic indices enter only as the residuals left after that, so their parts are ENSO-independent by construction. Second an idealised simulation: the Gill (1980) linear equatorial response to the observed SST anomaly of each basin, with the ENSO regression pattern subtracted from the Indian and Atlantic fields before forcing and a single amplitude calibrated on ENSO. All anomalies are detrended, so a warming ocean is not read as a forcing. Where the two legs agree in sign and size the attribution is robust; where they part, the statistical link is not a simple SST-forced one.</p>
+<p class="chart-sources">ECMWF AIFS-ENS 0-h analysis u/v, 13 levels (open data, CC BY 4.0) &middot; velocity potential via spherical harmonics &middot; anomaly vs ERA5 1991&ndash;2020 &Psi;<sub>W</sub> climatology &middot; 7-day running mean &middot; updated each cycle &middot; basins: OISST v2.1 and ERSSTv5 (NOAA), regression and Gill model as described, updated twice daily</p>
+</template>
+<template id="about-jets">
+<p>A robust extratropical El&nbsp;Ni&ntilde;o signature is a stronger, equatorward-shifted subtropical jet in each winter hemisphere. <b>Top</b>: the zonal-mean zonal wind $[u](\phi,p)$ at the analysis &mdash; colour is the anomaly against the ERA5 1991&ndash;2020 day-of-year normal, contours the absolute jets, &#9660; the 200&nbsp;hPa subtropical cores. <b>Below</b>: the forecast evolution of each core's <b>speed</b> and <b>latitude</b> (max $[u]$ at 200&nbsp;hPa within 15&ndash;45&deg;), ensemble members and mean against the climatological normal &plusmn;1&sigma; band, with the analysis departure quoted in &sigma; &mdash; the "how anomalous are the jets right now" number. The animation steps the ensemble-mean cross-section through the 15-day forecast (&#9660; forecast cores, &#9661; their climatological positions).</p>
+<p class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind, control + 25 perturbed members (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 harmonic day-of-year normal &plusmn;1&sigma; (WeatherBench2 / Copernicus C3S) &middot; updated daily</p>
+</template>
+<template id="about-pacjet">
+<p>The 200&nbsp;hPa jet over 10&ndash;70&deg;N, 100&deg;E&ndash;120&deg;W, member by member: an <b>extension index</b> (the leading Nov&ndash;Mar EOF of the ERA5 1991&ndash;2020 anomalies, positive when the jet reaches east across the Pacific), a <b>shift index</b> (the second EOF, positive poleward), the plain <b>exit-region</b> wind anomaly over 30&ndash;40&deg;N 170&deg;E&ndash;150&deg;W, and the <b>jet terminus</b> &mdash; the easternmost longitude the 30&nbsp;m/s core reaches. The black tail is ERA5 through the same projection (about six days behind), the grey dots are the AIFS analyses, so the forecast starts from an observed state rather than a model one.</p>
+<p>The link to the <b>Himalayan mountain torque</b> above is tested, not assumed: over 30 years of ERA5 the exit-region wind correlates with the torque at $r\approx0.25$ five to seven days later, and the composite extension after torque days of +1.5&sigma; or more rises to about +0.2&sigma; a week on &mdash; modest, but outside what random dates produce. The dashed red curve on the plumes is that composite anchored on this cycle&rsquo;s torque peak: the historical expectation the members can be read against. The second figure follows the chain downstream to 500&nbsp;hPa, where the composite response is a Gulf-of-Alaska ridge nine to twelve days after the torque (weaker over Alaska itself), set beside the model&rsquo;s own height anomalies and two ridge indices.</p>
+<p class="chart-sources">ECMWF AIFS-ENS 200 hPa u and 500 hPa z, 51 members (open data, CC BY 4.0) &middot; reference: ERA5 1991&ndash;2020 via WeatherBench2 (Copernicus C3S), EOFs after Jaffe et al. (2011) and Winters et al. (2019) &middot; observed tail: ERA5 (ARCO) and AIFS analyses &middot; updated daily</p>
+</template>
+<template id="about-vortex">
+<p>The stratospheric vortex is the slow variable that sets the odds for the surface weeks later, so it is worth watching before it moves. <b>Top</b>: the zonal-mean zonal wind at <b>10&nbsp;hPa, 60&deg;N</b> &mdash; the standard sudden-stratospheric-warming diagnostic. A reversal to <i>easterly</i> here in winter is a major SSW (the original WMO definition also asked for a reversed 60&ndash;90&deg; temperature gradient), which is why the zero line is drawn heavy and the member fraction crossing it is called out. <b>Middle</b>: the same wind at <b>100&nbsp;hPa</b>. Anomalies that reach this far down are the ones with a path to the troposphere &mdash; a 10&nbsp;hPa event that never appears at 100&nbsp;hPa usually never reaches the surface. <b>Bottom</b>: the <b>100&nbsp;hPa polar-cap (65&ndash;90&deg;N) height anomaly</b>, positive for a weak or displaced vortex; this is the field that actually leads the AO/NAO response. Blue traces are AIFS-ENS members, orange their mean, dashed the control. The 100&nbsp;hPa height is control-only because ECMWF open data publishes no perturbed geopotential at that level.</p>
+<p class="chart-sources">ECMWF AIFS-ENS zonal wind and geopotential at 10/100&nbsp;hPa (open data, CC BY 4.0) &middot; reference: MERRA-2 1980&ndash;2026 day-of-year 10th&ndash;90th percentiles (NASA GMAO) &middot; analysis tail: ERA5 &middot; updated daily</p>
+</template>
+<template id="about-vwinds">
+<p>The vortex as it actually looks, rather than as an index. Wind <b>speed</b> is
+        shaded with <b>streamlines</b> over it at <b>10&nbsp;hPa</b>. This is where the vortex lives and where an SSW is declared &mdash; the level the WMO diagnostic is evaluated on. The red contour
+        is <b>u&nbsp;=&nbsp;0</b>: where the westerlies end in the zonal sense (not the PV-gradient
+        vortex edge), and the outer bound of the corridor $0<\bar{u}<U_c$ in which planetary waves can propagate vertically; outside it they cannot. The dashed ring is
+        60&deg;, the latitude the SSW diagnostic is evaluated at. Speeds below the first contour
+        are left white, which is why the summer hemisphere is largely blank &mdash; there is no
+        vortex there to draw. Both hemispheres share the colour scale, so they are directly
+        comparable.</p>
+<p class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0) &middot; 10&nbsp;hPa speed shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-epflux">
+<p>Where the torque budget shows how the Earth exchanges angular momentum with the
+        atmosphere at the surface, the <b>Eliassen&ndash;Palm flux</b> shows how the waves
+        redistribute it internally &mdash; the same quasi-geostrophic diagnostic used to
+        diagnose sudden stratospheric warmings, computed live from AIFS-ENS and stepped
+        through the full 15-day forecast.</p>
+<p class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; control + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-wave1">
+<p>The <b>zonal wavenumber-1 component</b> of geopotential height, <b>100&nbsp;hPa beside
+        500&nbsp;hPa</b> for one hemisphere at a time &mdash; the <b>Hemisphere</b> selector switches
+        between them, and the loop opens on whichever one currently carries the larger wave. The two
+        levels share a frame because that is the comparison that carries the physics:
+        <b>100&nbsp;hPa</b> is what the vortex feels, <b>500&nbsp;hPa</b> is the tropospheric source,
+        and a ridge that <b>leans westward with height</b> is actively driving the vortex while one
+        sitting over the same longitude at both levels is not. Each level keeps its own colourbar
+        &mdash; wave amplitude grows with height, so a shared scale would flatten the lower one.
+        Because only k&nbsp;=&nbsp;1 is retained the field is an anomaly by construction: red is a
+        ridge, blue a trough, the zonal mean already removed. Thin contours are the <b>full</b>
+        height field; values inside the deadband are left white. The map is the <b>ensemble
+        mean</b> &mdash; the part of the wave the forecast agrees on, which is the only part whose
+        phase is worth reading.</p>
+<p class="chart-sources">ECMWF AIFS-ENS <b>ensemble mean</b> (open data, CC&nbsp;BY&nbsp;4.0), 100 and 500&nbsp;hPa, analysis to day&nbsp;15 &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; superposition index vs ERA5 1991&ndash;2020 (WeatherBench2) &middot; polar stereographic &middot; updated each 00/12Z cycle</p>
+</template>
+</main>
+<script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Live Atmospheric Circulation Diagnostics — Wave Activity Flux, AAM, Walker Circulation",
+      "url": "https://scorvec.com/circulation.html",
+      "description": "Daily-updated global circulation diagnostics from ECMWF AIFS-ENS: Takaya-Nakamura wave activity flux (Rossby wave packet propagation, blocking precursors), atmospheric angular momentum and its mountain/friction torque budget, Hadley and Walker circulation mass streamfunctions, subtropical jet strength versus ERA5 climatology, 200 hPa velocity potential, and equatorial wind forecasts for ENSO monitoring.",
+      "isPartOf": {"@type": "WebSite", "name": "Shawn Corvec — Weather & Climate Monitors", "url": "https://scorvec.com/"},
+      "about": [
+        {"@type": "Thing", "name": "Wave activity flux", "sameAs": "https://en.wikipedia.org/wiki/Rossby_wave"},
+        {"@type": "Thing", "name": "Atmospheric angular momentum"},
+        {"@type": "Thing", "name": "Walker circulation", "sameAs": "https://en.wikipedia.org/wiki/Walker_circulation"},
+        {"@type": "Thing", "name": "Hadley cell", "sameAs": "https://en.wikipedia.org/wiki/Hadley_cell"},
+        {"@type": "Thing", "name": "El Niño–Southern Oscillation", "sameAs": "https://en.wikipedia.org/wiki/El_Ni%C3%B1o%E2%80%93Southern_Oscillation"},
+        {"@type": "Thing", "name": "Jet stream", "sameAs": "https://en.wikipedia.org/wiki/Jet_stream"}
+      ]
+    }
+    </script>
+<script>
+window.STAGE = {
+  groups: [
+  {label: "Equatorial winds & SOI", ico: "\u{1F32C}", items: [["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["soi","Southern Oscillation Index","hourly estimate, forecast"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS"]]},
+  {label: "Forecast loops", ico: "\u{1F5FA}", items: [["mslp","MSLP and 10 m wind","ensemble mean, days 0–15"],["gdps_ir","GDPS simulated IR","forecast satellite loop"],["gdps150","GDPS 150 hPa","wind and height"]]},
+  {label: "Upper-level dynamics", ico: "\u2699", items: [["vpot","Velocity potential","200 hPa, irrotational wind"],["waf","Wave activity flux","Rossby packets, 250 hPa"],["dt","Dynamic tropopause","θ on 2 PVU, isentropic PV"]]},
+  {label: "Angular momentum & torques", ico: "\u2696", items: [["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]},
+  {label: "Overturning & jets", ico: "\u{1F30D}", items: [["hadley","Hadley cells","meridional streamfunction"],["walker","Walker circulation","loop, by basin, weekly departure"],["jets","Subtropical jets","strength and position"],["pacjet","North Pacific jet","extension, shift, torque"]]},
+  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"]]}
+],
+  products: {
+  ascat: {label: "ASCAT equatorial Pacific wind", frame: function () { return "sst_anim.html?embed=1&manifest=ascat_manifest.json&region=ascat"; }, about: "about-ascat",
+          cap: function () { return "Copernicus Marine L4 scatterometer wind over 10°S–10°N, one frame a day, gap-filled; drag the slider for recent days."; }},
+  eqwind: {label: "Equatorial zonal wind, Hovmöller", img: function () { return "assets/sst/eq_uwind_hov.webp"; }, bust: "hourly", about: "about-eqwind",
+          cap: function () { return "Zonal wind anomaly along the equator against time: westerly bursts as red streaks moving east."; }},
+  soi: {label: "Southern Oscillation Index", a: {label: "View", items: [["hourly","Hourly estimate"],["forecast","Ensemble forecast"]]},
+          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : "assets/sst/soi_forecast.webp?v=202609071500"; }, bust: "hourly",
+          about: "about-soi_h", cap: function (a) { return a === "hourly" ? "Darwin minus Tahiti pressure from hourly METARs, on the BoM 1887–1989 base, so the index exists today rather than at month end." : "The same index carried through the AIFS-ENS and IFS-ENS 15-day forecasts, member by member."; }},
+  wwb: {label: "Westerly wind bursts", a: {label: "View", items: [["tarawa","Tarawa monitor"],["onsets","Against past onsets"]]},
+          dom: function (a) { return a === "tarawa" ? "dom-wwb" : null; }, img: function () { return "assets/sst/kiribati_history.webp"; }, bust: "hourly",
+          about: "about-wwb_t", cap: function (a) { return a === "tarawa" ? "Hourly surface wind at Tarawa and Kiritimati: westerlies at the dateline are the trigger for oceanic Kelvin waves. Live arrows below the chart." : "This year's westerly-burst activity against the onset years of past El Niños."; }},
+  wind10: {label: "Equatorial 10 m wind forecast", img: function () { return "assets/sst/eq_wind_hovmoller.webp?v=202609071500"; }, about: "about-wind10",
+          cap: function () { return "Forecast zonal wind along the equator, ensemble mean and spread, out to day 15."; }},
+  mslp: {label: "MSLP and 10 m wind", frame: function () { return "sst_anim.html?embed=1&manifest=mslp_wind_manifest.json&region=mslp_wind"; }, about: "about-mslp", cap: function () { return "Ensemble-mean sea-level pressure and 10 m wind, days 0–15."; }},
+  gdps_ir: {label: "GDPS simulated infrared", frame: function () { return "sst_anim.html?embed=1&manifest=gdps_ir_manifest.json&region=gdps_ir"; }, about: "about-gdps_ir", cap: function () { return "Forecast top-of-atmosphere brightness temperature from the GDPS, read like a satellite loop."; }},
+  gdps150: {label: "GDPS 150 hPa wind and height", frame: function () { return "sst_anim.html?embed=1&manifest=gdps_outflow_manifest.json&region=gdps_outflow"; }, about: "about-gdps150", cap: function () { return "Isotach fill, barbs and 6 dam height contours at 150 hPa, days 1–10."; }},
+  vpot: {label: "200 hPa velocity potential", frame: function () { return "sst_anim.html?embed=1&manifest=wind200_manifest.json&region=wind200"; }, about: "about-vpot", cap: function () { return "χ200 anomaly and irrotational wind, ensemble mean: where the tropics are venting and where they are subsiding."; }},
+  waf: {label: "Wave activity flux", frame: function () { return "sst_anim.html?embed=1&manifest=waf_manifest.json&region=waf"; }, about: "about-waf", cap: function () { return "Takaya–Nakamura flux at 250 hPa, mean of 25 members' fluxes on the low-passed analysis basic state; red = wave activity converging, hatched where members disagree."; }},
+  dt: {label: "Dynamic tropopause", a: {label: "Field", items: [["dt","θ on 2 PVU"],["dt_pv330","PV on 330 K"],["dt_pv350","PV on 350 K"]]},
+          frame: function (a) { return "sst_anim.html?embed=1&manifest=dt_manifest.json&region=" + a; }, about: "about-dt",
+          cap: function (a) { return a === "dt" ? "Potential temperature on the 2-PVU surface, AIFS-ENS control, 12-hourly to day 10: low θ is polar or stratospheric air reaching down." : "Ertel PV on the " + (a === "dt_pv330" ? "330" : "350") + " K isentrope, control member."; }},
+  aam: {label: "Atmospheric angular momentum", a: {label: "View", items: [["series","Series and forecast"],["trend","Run-to-run trend"],["phase","Phase"],["zonal","By latitude (loop)"]]},
+          frame: function (a) { return a === "zonal" ? "sst_anim.html?embed=1&manifest=aam_zonal_manifest.json&region=aam_zonal" : null; },
+          img: function (a) { return "assets/sst/aam" + (a === "trend" ? "_trend" : a === "phase" ? "_phase" : "") + ".webp?v=202609071500"; },
+          about: "about-aam", cap: function (a) { return {series: "Relative AAM, globe and hemispheres, on the 1991–2020 annual cycle with the 15-day forecast; GFZ's ESMGFZ series in green.", trend: "How successive runs have moved the AAM forecast.", phase: "AAM against its tendency: where the momentum is and where it is heading.", zonal: "Latitude–pressure cross-section of the AAM density and the forecast change."}[a]; }},
+  torque: {label: "Surface torques", a: {label: "View", items: [["maps","Torque maps (loop)"],["series","Series"],["ranges","By mountain range"]]},
+          frame: function (a) { return a === "maps" ? "sst_anim.html?embed=1&manifest=torque_manifest.json&region=torque" : null; },
+          img: function (a) { return "assets/sst/torque_" + (a === "series" ? "timeseries" : "ranges") + ".webp?v=202609071500"; },
+          about: "about-torque", cap: function (a) { return a === "maps" ? "Friction and mountain torque-density anomalies with the surface-pressure anomaly, days 0–15." : a === "series" ? "The two torques integrated over the globe and each hemisphere against the actual change in AAM." : "Which barriers are doing the work."; }},
+  hadley: {label: "Hadley cells", frame: function () { return "sst_anim.html?embed=1&manifest=mmsf_manifest.json&region=mmsf"; }, about: "about-hadley", cap: function () { return "Meridional mass streamfunction anomaly, 7-day mean of the analyses, against ERA5 1991–2020."; }},
+  walker: {label: "Walker circulation", a: {label: "View", items: [["loop","Streamfunction loop"],["basins","By ocean basin"],["weekly","Weekly departure from Pacific forcing"]]},
+          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=walker_manifest.json&region=walker" : null; }, fit: false,
+          img: function (a) { return "assets/sst/walker_" + (a === "basins" ? "basins" : "chi_weekly") + ".webp?v=202609071500"; },
+          about: "about-walker", cap: function (a) { return a === "loop" ? "Zonal overturning streamfunction along the equator, 7-day trailing mean, anomaly against ERA5." : a === "basins" ? "What the Indian and Atlantic Oceans are doing to the overturning once ENSO is removed: regression and Gill model side by side." : "Weekly χ200 departure from the Pacific-forced part, and how much of it the Indian and Atlantic SST can claim."; }},
+  jets: {label: "Subtropical jets", a: {label: "View", items: [["loop","Cross-section loop"],["series","Strength and position"]]},
+          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=202609071500"; },
+          about: "about-jets", cap: function (a) { return a === "loop" ? "Zonal-mean zonal wind anomaly cross-section through the 15-day forecast, cores marked." : "Speed and latitude of each hemisphere's subtropical jet core, members and mean against the normal band."; }},
+  pacjet: {label: "North Pacific jet", a: {label: "View", items: [["indices","Extension, shift, torque"],["z500","Downstream ridge maps"]]},
+          img: function (a) { return "assets/sst/pacjet" + (a === "z500" ? "_z500" : "") + ".webp?v=202609071500"; }, fit: false,
+          about: "about-pacjet", cap: function (a) { return a === "indices" ? "Jet extension and shift indices with the Himalayan mountain torque upstream: the observed tail, the ensemble forecast and the ERA5 lag relationships." : "500 hPa composites after strong torque days and the forecast, days 1–7 and 8–15."; }},
+  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=202609071500"; }, about: "about-vortex", fit: false,
+          cap: function () { return "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height, members against the MERRA-2 percentile bands."; }},
+  vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
+          frame: function (a) { return "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=" + a; }, about: "about-vwinds",
+          cap: function (a) { return "Wind speed and streamlines at " + (a === "vortex_10" ? "10" : "100") + " hPa, both hemispheres; the red contour is u = 0."; }},
+  epflux: {label: "E–P flux and wave driving", frame: function () { return "sst_anim.html?embed=1&manifest=epflux_manifest.json&region=epflux"; }, about: "about-epflux", cap: function () { return "Eliassen–Palm flux for wavenumbers 1–3 and its divergence, per-member fluxes averaged."; }},
+  wave1: {label: "Stationary wave-1", a: {label: "Hemisphere", items: [["wave1_nh","Northern"],["wave1_sh","Southern"]]},
+          frame: function (a) { return "sst_anim.html?embed=1&manifest=wave1_maps_manifest.json&region=" + a; }, about: "about-wave1",
+          cap: function () { return "The wave-1 component of geopotential at 100 and 500 hPa, the forcing behind the wave driving above."; }}
+}
+};
+</script>
+
+
+<script>
+  // hourly-updating images (committed by their own Actions jobs) take an hour-granular cache key
+  ['kiribati-wind'].forEach(function (id) {
+    var im = document.getElementById(id);
+    if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
+  });
+  // live wind-arrow widget for the Tarawa WWB monitor (arrow points the way the wind blows TO)
+  (function () {
+    var host = document.getElementById('wwb-arrows'); if (!host) return;
+    fetch('assets/sst/kiribati_wind.json?v=' + new Date().toISOString().slice(0, 13))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.stations) return;
+        var html = '';
+        Object.keys(d.stations).forEach(function (icao) {
+          var s = d.stations[icao], west = s.u_ms > 0, col = west ? '#d62728' : '#1f77b4';
+          var bearing = (s.dir + 180) % 360;
+          var lab = Math.abs(s.u_ms) < 0.5 ? 'calm' : (west ? 'westerly' : 'easterly');
+          html += '<div class="wwb-stn"><svg width="92" height="92" viewBox="0 0 100 100">'
+            + '<circle cx="50" cy="50" r="44" fill="none" stroke="#ddd"/>'
+            + '<text x="50" y="13" text-anchor="middle" font-size="9" fill="#bbb">N</text>'
+            + '<g transform="rotate(' + bearing + ' 50 50)">'
+            + '<line x1="50" y1="52" x2="50" y2="24" stroke="' + col + '" stroke-width="4"/>'
+            + '<path d="M50 12 L42 30 L50 25 L58 30 Z" fill="' + col + '"/></g>'
+            + '<circle cx="50" cy="50" r="3.5" fill="' + col + '"/></svg>'
+            + '<b>' + s.name + '</b><span style="color:' + col + '">' + s.dir + '° / '
+            + s.spd_kt + ' kt &middot; ' + lab + '</span></div>';
+        });
+        host.innerHTML = html + '<div class="wwb-stn" style="max-width:9em">updated<br>' + d.updated + '</div>';
+      }).catch(function () {});
+  })();
+</script>
+<script src="/assets/stage.js" defer></script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

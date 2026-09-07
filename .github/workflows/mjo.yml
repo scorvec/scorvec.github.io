@@ -330,13 +330,13 @@ jobs:
         run: |
           python src/refresh_map120.py || echo "map120 refresh failed; map left untouched"
 
-      # Cache-bust the static <img>s this run rebuilt (sst.html / enso-atmosphere.html
+      # Cache-bust the static <img>s this run rebuilt (enso.html / circulation.html
       # only re-stamp their own ?v= on the SST build otherwise).
       - name: Cache-bust the rebuilt figures
         run: |
           CB=$(date -u +%Y%m%d%H%M)
-          perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" sst.html enso-atmosphere.html
-          perl -0pi -e "s/((?:mmsf_anom|walker_anom|hadley_timeseries)\.webp)\?v=\w+/\${1}?v=$CB/g" enso-atmosphere.html
+          perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html circulation.html
+          perl -0pi -e "s/((?:mmsf_anom|walker_anom|hadley_timeseries)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
 
       # The loop frames are gitignored on main; without this they never leave
       # the runner (the laptop's publish_frames.sh used to carry them).
@@ -356,7 +356,7 @@ jobs:
           # files failed the rebase, and its reset --hard fallback reverted the outputs
           # before re-adding them (bit sst-events.yml 2026-07-17 — "succeeded", pushed
           # nothing). Snapshot+restore makes losing the outputs structurally impossible.
-          OUT="assets/mjo mjo.html sst.html enso-atmosphere.html \
+          OUT="assets/mjo mjo.html enso.html circulation.html \
                scripts/mjo/data/reference/obs_history.nc scripts/mjo/data/reference/ensmean_history.json \
                scripts/mjo/data/reference/wind_map120.nc scripts/mjo/data/reference/arco_uwind_cache.nc \
                scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \

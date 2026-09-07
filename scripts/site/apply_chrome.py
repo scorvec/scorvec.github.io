@@ -25,7 +25,7 @@ PRODUCTS = [
     # Three groups (user, 2026-09-06): what is measured, what the models say, how the models score.
     # A group's items may be a flat list or a list of (subtitle, items) columns.
     ("Observations", "What the instruments say, as it comes in", [
-        ("/sst.html", "El Niño monitor"),
+        ("/enso.html", "El Niño monitor"),
         ("/enso-subsurface.html", "Subsurface temperature"),
         ("/skewt/", "Sounding explorer"),
         ("/asos5.html", "Five-minute airport observations"),
@@ -39,7 +39,7 @@ PRODUCTS = [
             ("/ecape.html", "Entraining CAPE"),
             ("/columbia/", "Columbia River basin precipitation"),
             ("/mjo.html", "MJO forecast"),
-            ("/enso-atmosphere.html", "Global circulation and jets"),
+            ("/circulation.html", "Global circulation and jets"),
         ]),
         ("Beyond two weeks", [
             ("/subseasonal.html", "GEPS subseasonal outlook, weeks 1–5"),
@@ -67,11 +67,11 @@ PRIMARY = [("/research.html", "Research"), ("/resume.html", "Resume")]
 # Tab rows for page families. Keys are referenced from PAGES.
 TABS = {
     "enso": [
-        ("/sst.html", "Overview"),
+        ("/enso.html", "Overview"),
         ("/enso-subsurface.html", "Subsurface"),
         ("/enso-forecasts.html", "Forecasts"),
         ("/seas5.html", "SEAS5"),
-        ("/enso-atmosphere.html", "Atmospheric response"),
+        ("/circulation.html", "Atmospheric response"),
     ],
     "skewt": [
         ("/skewt/", "Explorer"),
@@ -89,12 +89,6 @@ TABS = {
 # fixes: literal (old, new) substrings — the top padding that used to clear a fixed nav.
 PAGES = [
     dict(path="index.html", mode="nav", skin="overlay", footer=False),
-    dict(path="sst.html", mode="site-header", tabs="enso", fixes=[
-        ("padding: 6.4rem 2.2rem 2.5rem;", "padding: 2rem 2.2rem 2.5rem;"),
-        ("main { padding: 6rem 1rem 2rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 2rem; max-width: 100%; }"),
-        ("main { padding: 9.5rem 1rem 3rem; }", "main { padding: 1.5rem 1rem 3rem; }"),
-        ("scroll-margin-top: 5.5rem;", "scroll-margin-top: 4.5rem;"),
-    ]),
     dict(path="enso-subsurface.html", mode="site-header", tabs="enso", fixes=[
         ("padding: 6.4rem 2.2rem 2.5rem;", "padding: 2rem 2.2rem 2.5rem;"),
         ("main { padding: 6rem 1rem 2rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 2rem; max-width: 100%; }"),
@@ -105,12 +99,9 @@ PAGES = [
         ("main { padding: 6rem 1rem 2rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 2rem; max-width: 100%; }"),
         ("main { padding: 9.5rem 1rem 3rem; }", "main { padding: 1.5rem 1rem 3rem; }"),
     ]),
-    dict(path="enso-atmosphere.html", mode="site-header", tabs="enso", fixes=[
-        ("padding: 6.4rem 2.2rem 2.5rem;", "padding: 2rem 2.2rem 2.5rem;"),
-        ("main { padding: 6rem 1rem 2rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 2rem; max-width: 100%; }"),
-        ("main { padding: 9.5rem 1rem 3rem; }", "main { padding: 1.5rem 1rem 3rem; }"),
-    ]),
     dict(path="seas5.html", mode="after-body", tabs="enso"),
+    dict(path="enso.html", mode="after-body", tabs="enso"),
+    dict(path="circulation.html", mode="after-body", tabs="enso"),
     dict(path="subseasonal.html", mode="site-header", fixes=[]),   # page restyled 2026-09-07 on /assets/outlook.css; no padding patches needed
     dict(path="mjo.html", mode="nav"),
     dict(path="ecape.html", mode="nav", fixes=[

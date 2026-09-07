@@ -147,7 +147,7 @@ jobs:
       - name: Cache-bust the rebuilt figures
         run: |
           CB=$(date -u +%Y%m%d%H%M)
-          perl -0pi -e "s/((?:aam|aam_trend|aam_phase|jets|torque_timeseries|torque_ranges|pacjet|pacjet_z500)\.webp)\?v=\w+/\${1}?v=$CB/g" enso-atmosphere.html
+          perl -0pi -e "s/((?:aam|aam_trend|aam_phase|jets|torque_timeseries|torque_ranges|pacjet|pacjet_z500)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
 
       - name: Publish loop frames to the frames branch
         env:
@@ -160,7 +160,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Snapshot outputs, then commit on a clean sync of origin/main each attempt
           # (same pattern as mjo.yml: losing the build to a rebase is structurally impossible).
-          OUT="enso-atmosphere.html \
+          OUT="circulation.html \
                assets/sst/aam.webp assets/sst/aam_trend.webp assets/sst/aam_phase.webp \
                assets/sst/anim/aam_zonal_manifest.json assets/sst/anim/torque_manifest.json assets/sst/anim/jets_manifest.json \
                assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp assets/sst/jets.webp \
