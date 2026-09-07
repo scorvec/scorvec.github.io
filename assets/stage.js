@@ -44,12 +44,15 @@
     });
     return sel[key];
   }
+  // One rendered width for every still (user, 2026-09-07: "make them look around the same size"):
+  // the image always spans the stage; its height is capped to the viewport so a tall panel does
+  // not tower over a wide one (object-fit: contain in stage.css letterboxes inside that box).
   function fitStage() {
     var st = $("stage"), img = st.querySelector("img");
     if (!img) return;
-    if (P[sel.p].fit === false) { img.style.maxHeight = ""; img.style.width = "100%"; return; }
     var avail = window.innerHeight - st.getBoundingClientRect().top - $("cap").offsetHeight - 34;
-    img.style.maxHeight = Math.max(280, avail) + "px"; img.style.width = "auto";
+    var cap = Math.max(320, Math.min(avail, window.innerHeight * 0.8));
+    img.style.width = "100%"; img.style.maxHeight = (P[sel.p].fit === false ? Math.max(cap, 560) : cap) + "px";
   }
   addEventListener("resize", fitStage);
   function groupOf(p) { for (var i = 0; i < GROUPS.length; i++) for (var j = 0; j < GROUPS[i].items.length; j++) if (GROUPS[i].items[j][0] === p) return [GROUPS[i].label, GROUPS[i].items[j][1]]; return ["", p]; }
@@ -79,9 +82,10 @@
     }
     $("cap").innerHTML = p.cap ? p.cap(sel.a, sel.b, sel.c) : "";
     var ab = $("about"); ab.innerHTML = "";
-    if (p.about && $(p.about)) {
+    var aboutId = typeof p.about === "function" ? p.about(sel.a, sel.b, sel.c) : p.about;
+    if (aboutId && $(aboutId)) {
       var d = document.createElement("details"); d.className = "about";
-      d.innerHTML = "<summary>About this figure and its sources</summary>" + $(p.about).innerHTML; ab.appendChild(d);
+      d.innerHTML = "<summary>About this figure and its sources</summary>" + $(aboutId).innerHTML; ab.appendChild(d);
       if (window.renderMathInElement) { try { window.renderMathInElement(d, { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "$", right: "$", display: false }] }); } catch (e) {} }
     }
     var g = groupOf(sel.p), parts = [g[0], g[1]];

@@ -111,6 +111,17 @@
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
   <div class="dom-holder" id="dom-holder">
+    <div id="dom-soi-seas" class="card" hidden>
+      <div class="controls">
+        <button class="pill on" data-ss-index="soi">Southern Oscillation Index</button>
+        <button class="pill" data-ss-index="eqsoi">Equatorial SOI</button>
+        <span class="ctlsep">&middot;</span>
+        <button class="pill on" data-ss-view="cal">Calibrated</button>
+        <button class="pill" data-ss-view="raw">Raw members</button>
+      </div>
+      <div id="soiSeasChart" class="plot" style="height:430px"></div>
+      <p class="note" id="soiSeasNote"></p>
+    </div>
     <div id="dom-wwb" class="card" hidden>
       <div class="img-wrap"><img id="kiribati-wind" data-src="assets/sst/kiribati_wind.webp" alt="Tarawa equatorial zonal-wind time series, westerly-wind-burst monitor" loading="lazy"></div>
       <div id="wwb-arrows" class="wwb-arrows"></div>
@@ -302,6 +313,15 @@
 <p>Longitude &times; time strip of the daily surface zonal current averaged 2&deg;S&ndash;2&deg;N, 150&deg;E&ndash;90&deg;W (same Copernicus Marine model). <span style="color:#c0392b">Red is eastward</span>, <span style="color:#2471a3">blue is westward</span>. The equatorial surface normally flows westward (the trade-driven South Equatorial Current); as El&nbsp;Ni&ntilde;o matures, downwelling Kelvin waves drive eastward surges into the east Pacific. Newest day at the bottom.</p>
 <p class="chart-sources">Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 (1/12&deg;) &middot; 2&deg;S&ndash;2&deg;N surface mean &middot; rolling ~9 months</p>
 </template>
+<template id="about-eqsoi">
+<p>The <b>Equatorial SOI</b> is CPC&rsquo;s zonal pressure index for the equatorial Pacific: the standardised anomaly of the area-mean sea-level pressure over the eastern equatorial Pacific (5&deg;N&ndash;5&deg;S, 130&ndash;80&deg;W) minus that over Indonesia (5&deg;N&ndash;5&deg;S, 90&ndash;140&deg;E). It measures the pressure gradient that drives the equatorial trades directly, on the equator, where the classic Tahiti&ndash;Darwin SOI samples two stations well off it; the two agree closely in the mean but the equatorial index is less noisy and more physically tied to the Walker circulation. Negative values go with El&nbsp;Ni&ntilde;o.</p>
+<p>Here the box means are taken from the AIFS-ENS and IFS-ENS sea-level pressure forecasts (control and perturbed members, days 1&ndash;15), standardised with ERA5 1991&ndash;2020 per-month statistics of the monthly-mean box difference, then placed on CPC&rsquo;s scale by a linear fit to CPC&rsquo;s published monthly series over 1991&ndash;2020 (r&nbsp;=&nbsp;0.94, slope 0.94). The bars are CPC&rsquo;s monthly values; the black tail is the day-1 ensemble mean archived each cycle, a stand-in for a daily analysis until a proper one is added. Daily values scatter more than the monthly index they are drawn against.</p>
+<p class="chart-sources">NOAA CPC Equatorial SOI (reqsoi.for) &middot; ECMWF AIFS-ENS and IFS-ENS MSL (open data, CC&nbsp;BY&nbsp;4.0) &middot; ERA5 1991&ndash;2020 standardisation &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-soi_seas">
+<p>ECMWF SEAS5&rsquo;s 51 members carried through the coming six months as the Southern Oscillation Index (Tahiti minus Darwin) and CPC&rsquo;s Equatorial SOI (east-minus-west equatorial box pressure), in seasonal standard deviations. The <b>calibrated</b> view regresses CPC&rsquo;s observed index on the model&rsquo;s ensemble mean over the 1993&ndash;2016 hindcast, lead by lead: the mean is shrunk or stretched to the model&rsquo;s demonstrated skill and the band is the residual spread (10&ndash;90% and 25&ndash;75%), so a lead with no skill shows climatology rather than a confident wrong answer. The <b>raw</b> view is the members as they come. CPC&rsquo;s last four monthly values are drawn in black.</p>
+<p class="chart-sources">ECMWF SEAS5 via the Copernicus Climate Data Store (issue from the SEAS5 page) &middot; NOAA CPC SOI and Equatorial SOI &middot; calibration: 1993&ndash;2016 hindcast, 24 years</p>
+</template>
 </main>
 
 <script>
@@ -311,7 +331,7 @@ window.STAGE = {
   {label: "Satellite & MUR", ico: "\u{1F6F0}", items: [["mur","MUR 1 km loop","cold tongue since onset"],["mur34","MUR Niño-3.4","1 km against OISST"],["ir","Infrared loop","live GOES/Himawari composite"]]},
   {label: "SOI & MEI", ico: "\u{1F4C8}", items: [["soirec","SOI against the record","daily, since 1887"],["mei","MEI.v2 nowcast","daily, analogs, history"]]},
   {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"]]},
-  {label: "Winds & SOI", ico: "\u{1F32C}", items: [["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["soi","Southern Oscillation Index","hourly estimate, forecast"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS, to day 15"]]},
+  {label: "Winds & SOI", ico: "\u{1F32C}", items: [["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS, to day 15"]]},
   {label: "Subsurface", ico: "\u{1F30A}", items: [["subtemp","Temperature section","TAO/TRITON, raw and detrended"],["hc","Heat content vs analogs","0–300 m, 1997 · 2015 · 2023"],["xsec","Cross-section vs analogs","same week of each event"],["cur_map","Surface currents","tropical Pacific"],["cur_sec","Undercurrent section","zonal current with depth"],["cur_hov","Current Hovmöller","equatorial strip"]]}
 ],
   products: {
@@ -346,9 +366,12 @@ window.STAGE = {
           cap: function () { return "Copernicus Marine L4 scatterometer wind over 10°S–10°N, one frame a day, gap-filled; drag the slider for recent days."; }},
   eqwind: {label: "Equatorial zonal wind, Hovmöller", img: function () { return "assets/sst/eq_uwind_hov.webp"; }, bust: "hourly", about: "about-eqwind",
           cap: function () { return "Zonal wind anomaly along the equator against time: westerly bursts as red streaks moving east."; }},
-  soi: {label: "Southern Oscillation Index", a: {label: "View", items: [["hourly","Hourly estimate"],["forecast","Ensemble forecast"]]},
-          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : "assets/sst/soi_forecast.webp?v=202609071730"; }, bust: "hourly",
-          about: "about-soi_h", cap: function (a) { return a === "hourly" ? "Darwin minus Tahiti pressure from hourly METARs, on the BoM 1887–1989 base, so the index exists today rather than at month end." : "The same index carried through the AIFS-ENS and IFS-ENS 15-day forecasts, member by member."; }},
+  soi: {label: "Southern Oscillation Index", a: {label: "View", items: [["hourly","SOI, hourly estimate"],["forecast","SOI, ensemble forecast"],["eqsoi","Equatorial SOI, observed and forecast"]]},
+          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : a === "forecast" ? "assets/sst/soi_forecast.webp?v=202609071730" : "assets/sst/eqsoi_forecast.webp?v=202609071730"; }, bust: "hourly",
+          about: function (a) { return a === "eqsoi" ? "about-eqsoi" : a === "forecast" ? "about-soi_f" : "about-soi_h"; },
+          cap: function (a) { return a === "hourly" ? "Darwin minus Tahiti pressure from hourly METARs, on the BoM 1887–1989 base, so the index exists today rather than at month end." : a === "forecast" ? "The same index carried through the AIFS-ENS and IFS-ENS 15-day forecasts, member by member." : "CPC's Equatorial SOI — the east-minus-west equatorial Pacific box pressure difference, standardised — monthly to the last complete month, with the ensembles' daily 15-day forecast on the same scale; negative favours El Niño."; }},
+  soi_seas: {label: "Seasonal SOI outlook", dom: function () { return "dom-soi-seas"; }, about: "about-soi_seas",
+          cap: function () { return "ECMWF SEAS5's monthly Southern Oscillation and Equatorial SOI for the coming six months, calibrated against CPC's published series on the 1993–2016 hindcast; the raw ensemble mean is dotted, CPC's last four months in black."; }},
   wwb: {label: "Westerly wind bursts", a: {label: "View", items: [["tarawa","Tarawa monitor"],["onsets","Against past onsets"]]},
           dom: function (a) { return a === "tarawa" ? "dom-wwb" : null; }, img: function () { return "assets/sst/kiribati_history.webp"; }, bust: "hourly",
           about: "about-wwb_t", cap: function (a) { return a === "tarawa" ? "Hourly surface wind at Tarawa and Kiritimati: westerlies at the dateline are the trigger for oceanic Kelvin waves. Live arrows below the chart." : "This year's westerly-burst activity against the onset years of past El Niños."; }},
@@ -519,6 +542,38 @@ window.STAGE = {
       document.getElementById("dailyChart").style.display = "none";
       document.getElementById("dailyFallback").hidden = false;
     });
+})();
+</script>
+<script src="/assets/outlook-charts.js"></script>
+<script>
+(function () {
+  var T = null, st = { index: "soi", view: "cal" };
+  function draw() {
+    if (!T || !window.OutlookCharts || !window.Plotly) return;
+    var OC = window.OutlookCharts, s = T.indices[st.index]; if (!s) return;
+    var x = s.valid.map(function (m) { return m + "-15"; });
+    var tr = [];
+    if (st.view === "cal" && s.cal) {
+      var mu = s.cal.map(function (c) { return c ? c.mu : null; }), sd = s.cal.map(function (c) { return c ? c.s : null; });
+      var f = function (k) { return mu.map(function (m, i) { return m == null || sd[i] == null ? null : m + k * sd[i]; }); };
+      tr = tr.concat(OC.fanTraces(x, { p10: f(-1.28), p25: f(-0.674), p75: f(0.674), p90: f(1.28) }, { outerName: "calibrated 10–90%", innerName: "calibrated 25–75%" }));
+      tr.push(OC.refTrace(x, s.mean, "raw ensemble mean", { dash: "dot" }));
+      tr.push(OC.meanTrace(x, mu, "calibrated mean", { digits: 1, signed: true }));
+    } else {
+      tr = tr.concat(OC.fanTraces(x, s));
+      tr.push(OC.meanTrace(x, s.mean, "ensemble mean", { digits: 1, signed: true }));
+    }
+    var prev = T.previous_indices && T.previous_indices[st.index];
+    if (prev && prev.valid) tr = tr.concat(OC.prevTraces([{ x: prev.valid.map(function (m) { return m + "-15"; }), y: prev.mean, name: (T.previous || "previous") + " issue" }]));
+    if (s.obs_tail) tr.push(OC.obsTrace(s.obs_tail.map(function (o) { return o[0] + "-15"; }), s.obs_tail.map(function (o) { return o[1]; }), "CPC observed", { digits: 1, signed: true }));
+    OC.react("soiSeasChart", tr, { title: (s.label || st.index.toUpperCase()) + " — SEAS5 " + (T.issue ? String(T.issue).slice(0, 4) + "-" + String(T.issue).slice(4) : "") + " issue", yunits: s.units || "σ", includeZero: true });
+    var ns = (s.cal || []).map(function (c, i) { return c && c.no_skill ? s.valid[i] : null; }).filter(Boolean);
+    document.getElementById("soiSeasNote").textContent = (s.note ? s.note + " " : "") + (ns.length ? "No hindcast skill (r below " + (T.skill_min || 0.25) + ") for: " + ns.join(", ") + " — the calibrated band is climatology there." : "");
+  }
+  document.querySelectorAll("#dom-soi-seas .pill[data-ss-index]").forEach(function (b) { b.addEventListener("click", function () { st.index = b.dataset.ssIndex; document.querySelectorAll("#dom-soi-seas .pill[data-ss-index]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); }); });
+  document.querySelectorAll("#dom-soi-seas .pill[data-ss-view]").forEach(function (b) { b.addEventListener("click", function () { st.view = b.dataset.ssView; document.querySelectorAll("#dom-soi-seas .pill[data-ss-view]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); }); });
+  fetch("assets/sst/data/seas5_tele.json?v=202609071730").then(function (r) { return r.json(); }).then(function (j) { T = j; draw(); }).catch(function () { document.getElementById("soiSeasNote").textContent = "SEAS5 index file not available."; });
+  window.addEventListener("resize", function () { if (document.getElementById("soiSeasChart").offsetWidth) draw(); });
 })();
 </script>
 

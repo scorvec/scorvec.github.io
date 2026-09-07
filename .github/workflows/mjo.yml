@@ -249,6 +249,15 @@ jobs:
             --out ../../assets/sst/soi_forecast.webp \
             || echo "SOI build failed; continuing"
 
+      - name: Build the Equatorial SOI (CPC boxes, ensembles' daily forecast)
+        working-directory: scripts/mjo
+        run: |
+          python src/eqsoi_forecast.py \
+            --date "${{ needs.check.outputs.date }}" \
+            --time "${{ needs.check.outputs.time }}" \
+            --out ../../assets/sst/eqsoi_forecast.webp \
+            || echo "EQSOI build failed; continuing"
+
       - name: Build 200 hPa velocity potential (El Niño page)
         working-directory: scripts/mjo
         run: |
@@ -335,7 +344,7 @@ jobs:
       - name: Cache-bust the rebuilt figures
         run: |
           CB=$(date -u +%Y%m%d%H%M)
-          perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html circulation.html
+          perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|eqsoi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html circulation.html
           perl -0pi -e "s/((?:mmsf_anom|walker_anom|hadley_timeseries)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
 
       # The loop frames are gitignored on main; without this they never leave
@@ -361,6 +370,7 @@ jobs:
                scripts/mjo/data/reference/wind_map120.nc scripts/mjo/data/reference/arco_uwind_cache.nc \
                scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
                assets/sst/eq_wind_hovmoller.webp assets/sst/soi_forecast.webp assets/sst/soi_history.webp \
+               assets/sst/eqsoi_forecast.webp assets/sst/data/eqsoi_forecast.json scripts/mjo/data/reference/eqsoi_history.json \
                assets/sst/anim/wind200 assets/sst/anim/wind200_manifest.json assets/sst/wind200.webp \
                assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
                assets/sst/anim/mslp_wind_manifest.json \
