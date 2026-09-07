@@ -34,8 +34,15 @@
 /* ── Header ──────────────────────────────────────────────────────────── */
 .sh {
   position: sticky; top: 0; z-index: 1000;
-  background: var(--c-bg);
+  background: color-mix(in srgb, var(--c-bg) 88%, transparent);
+  backdrop-filter: saturate(1.2) blur(10px); -webkit-backdrop-filter: saturate(1.2) blur(10px);
   border-bottom: 1px solid var(--c-rule);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 6px 22px -18px rgba(20, 30, 45, 0.5);
+}
+/* a thin accent thread along the top edge: the one flourish the header carries */
+.sh::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+  background: linear-gradient(90deg, var(--c-accent) 0%, color-mix(in srgb, var(--c-accent) 55%, #7fb2a3) 45%, transparent 100%);
 }
 .sh-in {
   max-width: 1500px; margin: 0 auto;
@@ -44,11 +51,17 @@
   display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
 }
 .sh-brand {
-  font-family: var(--f-serif); font-size: 1.45rem; font-weight: 500;
-  color: var(--c-ink); text-decoration: none; letter-spacing: 0.005em;
-  white-space: nowrap;
+  font-family: var(--f-serif); font-size: 1.6rem; font-weight: 500;
+  color: var(--c-ink); text-decoration: none; letter-spacing: 0.01em;
+  white-space: nowrap; display: inline-flex; align-items: baseline; gap: 0.55rem;
+  font-variation-settings: 'opsz' 36;
+}
+.sh-brand::after {
+  content: 'weather & climate diagnostics'; font-family: var(--f-sans); font-size: 0.72rem; font-weight: 400;
+  letter-spacing: 0.04em; color: var(--c-muted); white-space: nowrap;
 }
 .sh-brand:hover { color: var(--c-accent); }
+@media (max-width: 1180px) { .sh-brand::after { display: none; } }
 
 /* the page's own `nav { position: fixed … }` rules must not reach this nav */
 .sh nav.sh-nav {
@@ -65,7 +78,14 @@
   font: inherit; font-size: 1.05rem; color: var(--c-ink); text-decoration: none;
   background: none; border: 0; cursor: pointer; white-space: nowrap;
 }
+.sh-link { position: relative; }
+.sh-link::before {
+  content: ''; position: absolute; left: 1rem; right: 1rem; bottom: 0.42rem; height: 1.5px;
+  background: var(--c-accent); transform: scaleX(0); transform-origin: left; transition: transform 0.18s ease;
+}
 .sh-link:hover { background: var(--c-accent-soft); }
+.sh-item:hover > .sh-link::before, .sh-link[aria-current="page"]::before { transform: scaleX(1); }
+.sh-has-menu > .sh-menubtn::before { right: 1.9rem; }
 .sh-link:focus-visible, .sh-toggle:focus-visible, .sh-menu a:focus-visible, .st a:focus-visible, .sf a:focus-visible, .button:focus-visible {
   outline: 2px solid var(--c-accent); outline-offset: 2px;
 }
@@ -171,7 +191,9 @@
 .sh--overlay .sh-in { min-height: 84px; justify-content: flex-end; }
 .sh--overlay .sh-brand { display: none; }   /* the hero carries the name; the header would repeat it */
 .sh--overlay .sh-brand { font-size: 1.7rem; }
-.sh--overlay .sh-link { font-size: 1.06rem; padding: 0.75rem 0.85rem; }
+.sh--overlay .sh-link { font-size: 1.06rem; padding: 0.75rem 0.85rem; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.sh--overlay { backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; }
+.sh--overlay .sh-link::before { background: #fff; }
 .sh--overlay .sh-link:hover, .sh--overlay .sh-has-menu.is-open > .sh-menubtn { background: rgba(255, 255, 255, 0.18); }
 .sh--overlay .sh-toggle { font-size: 1.1rem; padding: 0.65rem 1.1rem; }
 .sh--overlay .sh-menu { --c-ink: #29321f; --c-accent: #274b7a; --c-muted: #5c6b73; --c-rule: #dfe3dc; text-shadow: none; }
