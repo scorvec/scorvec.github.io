@@ -173,8 +173,7 @@ PAGES = [
 HEAD_SNIPPET = (
     '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
     '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
-    '<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400'
-    '&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">\n'
+    '<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">\n'
     '<link rel="stylesheet" href="/assets/site.css">\n'
     '<script src="/assets/site.js" defer></script>\n'
 )
@@ -293,7 +292,7 @@ def stamp(cfg: dict) -> tuple[str, str]:
 
     if "/assets/site.css" not in html:
         snippet = HEAD_SNIPPET
-        if "family=Newsreader" in html:                    # the page already loads the fonts
+        if "family=Source+Serif+4" in html:                # the page already loads the fonts
             snippet = "\n".join(l for l in snippet.splitlines() if "fonts.g" not in l) + "\n"
         if "</head>" in html:
             html = html.replace("</head>", snippet + "</head>", 1)

@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap");
 /* Site chrome shared by every page: header, section tabs, footer, buttons.
    Stamped into the pages by scripts/site/apply_chrome.py; edit the markup
    there, the look here. Every rule is scoped under .sh / .st / .sf / .button
@@ -12,8 +13,8 @@
   --c-rule: #dfe3dc;
   --c-accent: #274b7a;
   --c-accent-soft: rgba(39, 75, 122, 0.09);
-  --f-sans: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif;
-  --f-serif: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --f-sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
+  --f-serif: 'Source Serif 4', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
   font-family: var(--f-sans);
   font-size: 16px;
   line-height: 1.4;
@@ -249,7 +250,7 @@
 .button {
   display: inline-flex; align-items: center; gap: 0.45rem;
   padding: 0.6rem 1.1rem; border-radius: 6px;
-  font-family: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif; font-size: 0.95rem; font-weight: 500; line-height: 1.2;
+  font-family: var(--f-sans, 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif); font-size: 0.95rem; font-weight: 500; line-height: 1.2;
   background: #274b7a; color: #fff; border: 1px solid #274b7a;
   text-decoration: none; cursor: pointer;
 }
@@ -260,3 +261,41 @@
 @media (prefers-reduced-motion: reduce) {
   .sh-menubtn::after { transition: none; }
 }
+
+
+/* ═══ Site type system (2026-09-07) ═══════════════════════════════════════════════
+   One serif for titles (Source Serif 4) and one sans for text and controls (Source Sans 3),
+   loaded by the @import at the top of this file, so every page gets them. The rules are
+   html-prefixed so they outrank each page's own :root / body / h1 declarations without
+   editing every page; a page can still override with a class. Data-dense boards opt into a
+   smaller base with <body class="dense">. Nothing on the site should render below 0.9rem. */
+html:root {
+  --f-serif: 'Source Serif 4', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --f-sans: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
+  --serif: var(--f-serif);
+  --sans: var(--f-sans);
+}
+html body {
+  font-family: var(--f-sans);
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'kern' 1, 'liga' 1;
+}
+html body.dense { font-size: 15.5px; line-height: 1.45; }
+html h1, html h2 {
+  font-family: var(--f-serif);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  font-variation-settings: 'opsz' 40;
+}
+html h1 { font-size: clamp(2rem, 1.4rem + 1.6vw, 2.7rem); margin-bottom: 0.35em; }
+html h2 { font-size: clamp(1.4rem, 1.15rem + 0.6vw, 1.75rem); font-weight: 500; }
+html h3 { font-family: var(--f-sans); font-size: 1.12rem; font-weight: 600; line-height: 1.3; }
+html .lede, html .intro { font-size: 1.15rem; line-height: 1.55; max-width: 70ch; }
+html .note, html .hint, html .sub, html .cap, html .when, html .meta,
+html .chart-sources, html .chart-updated, html small, html figcaption { font-size: 0.9rem; line-height: 1.5; }
+html table, html th, html td, html select, html input, html button { font-family: var(--f-sans); }
+html td, html th { font-variant-numeric: tabular-nums; }
