@@ -37,8 +37,9 @@
   #map path.state { fill: none; stroke: #fff; stroke-width: 0.6; pointer-events: none; }
   #map path.county.sig { stroke: none; }
   .legend { display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; color: #444; margin: 0.4rem 0 0; flex-wrap: wrap; }
-  .legend .bar { display: flex; height: 12px; }
-  .legend .bar span { width: 24px; height: 12px; }
+  .legend .bar { display: flex; height: 12px; max-width: 100%; }
+  .legend .bar span { flex: 1 1 0; min-width: 0; max-width: 24px; height: 12px; }
+  .bar { display: flex; max-width: 100%; } .bar span { flex: 1 1 0; min-width: 0; max-width: 24px; }
   .tip { position: absolute; pointer-events: none; background: #fff; border: 1px solid var(--rule); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.82rem; box-shadow: 0 6px 18px rgba(0,0,0,0.08); display: none; z-index: 20; max-width: 22rem; }
   table.hm { border-collapse: collapse; font-size: 0.78rem; }
   table.hm th, table.hm td { padding: 0.15rem 0.3rem; text-align: center; border-bottom: 1px solid #f1efe9; }

@@ -392,7 +392,7 @@ def cpc_published() -> dict:
 THR = 0.5          # phase threshold in index units (σ)
 CPC_CALIBRATED = {"soi"}   # indices whose observed reference for skill and calibration is CPC's own series
 SKILL_MIN = 0.25   # below this hindcast correlation the calibrated probabilities are climatology and the cell is hatched
-TAIL_MONTHS = 18
+TAIL_MONTHS = 4    # observed months drawn before the issue (user 2026-09-07: "I mainly care about the forecasts")
 
 
 def _phi(x):

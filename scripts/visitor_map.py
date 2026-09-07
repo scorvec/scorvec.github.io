@@ -113,7 +113,7 @@ def main() -> int:
     ax2 = fig.add_subplot(1, 2, 2, projection=ccrs.Robinson())
     draw_panel(ax1, loc30, "Last 30 days")
     sm = draw_panel(ax2, loc_all, "All time")
-    cax = fig.add_axes([0.35, 0.06, 0.3, 0.03])
+    cax = fig.add_axes([0.35, 0.12, 0.3, 0.03])            # above the source line, which sits at y=0.005
     cb = fig.colorbar(sm, cax=cax, orientation="horizontal")
     cb.set_label("unique visitors (log scale)", fontsize=8)
     cb.ax.tick_params(labelsize=7)

@@ -384,7 +384,11 @@
 
   @media (max-width: 700px) {
     h1 { font-size: 1.55rem; }
-    .chip { min-width: 44%; }
+    .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }   /* equal two-up chips instead of ragged content-width boxes */
+    .chip { min-width: 0; }
+  }
+  @media (max-width: 480px) {
+    .chart-updated { white-space: normal; }                                  /* a long build stamp must not widen the page */
   }
 
 /* outlook-charts additions */

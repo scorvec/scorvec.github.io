@@ -357,7 +357,7 @@
     vortex (the SSW-side reading); a low cap is a strong, cold one. The hindcast &plusmn;1&sigma; band
     shows how far a seasonal model normally strays, which at these levels is not far &mdash; read
     the sign of the tilt and whether the members agree, not the amplitude. Both hemispheres;
-    the southern vortex is in its spring breakdown season at a September start.</p>
+    the 60°S twin shows the southern vortex&rsquo;s own cycle at the same leads.</p>
     <div class="controls" id="polarPills"></div>
     <div id="polarChart" class="plot" style="height:460px"></div>
     <div class="chart-card-footer">
@@ -546,13 +546,13 @@
         var R = S[st.s], months = Object.keys(R.months).sort(), thrs = R.thresholds.map(String), cold = R.stat === "tn";
         if (thrs.indexOf(st.t) < 0) st.t = thrs[Math.min(1, thrs.length - 1)];
         if (months.indexOf(st.m) < 0) st.m = months[0];
-        var rows = ['<tr><th>Month</th>' + thrs.map(function (t) { return "<th>" + R.kind + " " + t + " °C<br><span style=\"font-weight:400\">days · normal · % · p10–p90</span></th>"; }).join("") + "</tr>"];
+        var rows = ['<tr><th>Month</th>' + thrs.map(function (t) { return "<th>" + t + " °C<br><span style=\"font-weight:400\">days · normal · %</span></th>"; }).join("") + "</tr>"];
         months.forEach(function (mo) {
           rows.push("<tr><td>" + mmm(mo) + "</td>" + thrs.map(function (t) {
             var e = R.months[mo][t]; if (!e) return "<td>–</td>";
             var rare = e.normal != null && e.normal < 0.1;                       // a % of a near-zero normal is noise
             var cls = e.pct == null || rare ? "flat" : e.pct > 115 ? (cold ? "down" : "up") : e.pct < 85 ? (cold ? "up" : "down") : "flat";
-            return '<td class="' + cls + '"><b>' + d1(e.days) + "</b> · " + (e.normal == null ? "–" : d1(e.normal)) + " · " + (e.pct == null ? "–" : rare ? "rare" : Math.round(e.pct) + "%") + ' <span style="color:var(--muted);font-weight:400">' + d1(e.p10) + "–" + d1(e.p90) + "</span></td>";
+            return '<td class="' + cls + '" title="members p10–p90: ' + d1(e.p10) + "–" + d1(e.p90) + ' days"><b>' + d1(e.days) + "</b> · " + (e.normal == null ? "–" : d1(e.normal)) + " · " + (e.pct == null ? "–" : rare ? "rare" : Math.round(e.pct) + "%") + "</td>";
           }).join("") + "</tr>");
         });
         document.getElementById("xdTable").innerHTML = rows.join("");

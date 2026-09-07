@@ -75,6 +75,8 @@ KINDS = {
     # t2m, precipitation and SST together, z500 separately (pressure-level dataset)
     "gl": dict(dataset="seasonal-monthly-single-levels",
                variable=["2m_temperature", "total_precipitation", "sea_surface_temperature"], area=[90, -180, -90, 180], grid=[1.0, 1.0]),
+    "gl_u850": dict(dataset="seasonal-monthly-pressure-levels",
+                    variable=["u_component_of_wind"], pressure_level=["850"], area=[90, -180, -90, 180], grid=[1.0, 1.0]),
     "gl_z500": dict(dataset="seasonal-monthly-pressure-levels",
                     variable=["geopotential"], pressure_level=["500"], area=[90, -180, -90, 180], grid=[1.0, 1.0]),
     # North America monthly snowfall (m of water equivalent per day, monthly mean rate) for the

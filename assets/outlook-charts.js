@@ -40,7 +40,7 @@
     cpc: "#8b1a1a"
   };
   var W = { mean: 4, member: 1.0, obs: 3, prev: 2.6, ref: 2.4, hind: 1.4 };
-  var HISTORY_MONTHS = 6, PAD = 0.08;
+  var HISTORY_MONTHS = 4, PAD = 0.08;   // observed months before the issue (user 2026-09-07: "I mainly care about the forecasts")
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   // ── small utilities ────────────────────────────────────────────────────────────
