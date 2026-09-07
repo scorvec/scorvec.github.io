@@ -22,36 +22,45 @@ REPO = Path(__file__).resolve().parents[2]
 
 # ── the navigation, as data ──────────────────────────────────────────────────
 PRODUCTS = [
-    # Each group is a top-level menu with a short flat list — nothing sits more than one
-    # click deep. Grouped by what a forecaster is looking for: the El Niño set (shared tab
-    # row), the next two weeks, beyond that, raw observations, and model checks.
-    ("El Niño", "The event as it stands: ocean, subsurface, model forecasts and the atmosphere's response", [
+    # Three groups (user, 2026-09-06): what is measured, what the models say, how the models score.
+    # A group's items may be a flat list or a list of (subtitle, items) columns.
+    ("Observations", "What the instruments say, as it comes in", [
         ("/sst.html", "El Niño monitor"),
         ("/enso-subsurface.html", "Subsurface temperature"),
-        ("/enso-forecasts.html", "ENSO forecasts"),
-        ("/enso-atmosphere.html", "Atmospheric response"),
-    ]),
-    ("Days 1–15", "Short and medium range, refreshed with every model cycle", [
-        ("/ar.html", "Atmospheric rivers"),
-        ("/ecape.html", "Entraining CAPE"),
-        ("/columbia/", "Columbia River basin precipitation"),
-        ("/mjo.html", "MJO forecast"),
-    ]),
-    ("Beyond two weeks", "Subseasonal to seasonal", [
-        ("/subseasonal.html", "Subseasonal outlook, weeks 1–5"),
-        ("/seas5.html", "ECMWF SEAS5 outlook"),
-        ("/sfs.html", "NOAA SFS outlook"),
-    ]),
-    ("Observations", "Measured, not modelled", [
         ("/skewt/", "Sounding explorer"),
         ("/asos5.html", "Five-minute airport observations"),
         ("/qbo/", "QBO tracker"),
     ]),
-    ("Model checks", "How the models are doing against observations", [
+    ("Model forecasts", "From the next two weeks to the coming seasons", [
+        ("Days 1–15", [
+            ("/ar.html", "Atmospheric rivers"),
+            ("/cities/", "City temperature forecasts"),
+            ("/ecape.html", "Entraining CAPE"),
+            ("/columbia/", "Columbia River basin precipitation"),
+            ("/mjo.html", "MJO forecast"),
+            ("/enso-atmosphere.html", "Global circulation and jets"),
+        ]),
+        ("Beyond two weeks", [
+            ("/subseasonal.html", "Subseasonal outlook, weeks 1–5"),
+            ("/enso-forecasts.html", "ENSO forecasts"),
+            ("/seas5.html", "ECMWF SEAS5 outlook"),
+            ("/sfs.html", "NOAA SFS outlook"),
+        ]),
+    ]),
+    ("Model verification", "How the models are doing against observations", [
+        ("/cities/verify.html", "City temperature forecast verification"),
         ("/aifs-verify.html", "AIFS single versus ensemble control"),
         ("/spectra.html", "HRRR and RRFS kinetic-energy spectra"),
     ]),
 ]
+
+
+def group_items(items):
+    """Flatten a group's items whether it is a flat list or (subtitle, items) columns."""
+    if items and isinstance(items[0][1], list):
+        return [it for _, sub in items for it in sub]
+    return list(items)
+
 PRIMARY = [("/research.html", "Research"), ("/resume.html", "Resume")]
 
 # Tab rows for page families. Keys are referenced from PAGES.
@@ -147,6 +156,8 @@ PAGES = [
     dict(path="skewt/methodology.html", mode="nav", tabs="skewt"),
     dict(path="skewt/gaps.html", mode="nav", tabs="skewt"),
     dict(path="qbo/index.html", mode="nav"),
+    dict(path="cities/index.html", mode="nav"),
+    dict(path="cities/verify.html", mode="nav"),
     dict(path="columbia/index.html", mode="before", anchor='<header class="top">',
          drop=r'<p class="pagelinks"><a href="\.\./index\.html">&larr; scorvec\.com</a>\s*&nbsp;·&nbsp; '),
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
@@ -178,15 +189,25 @@ def header_html(page: str, skin: str) -> str:
            '    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>',
            '    <nav class="sh-nav" id="sh-menu" aria-label="Site">\n      <ul class="sh-list">']
     for n, (title, _blurb, items) in enumerate(PRODUCTS):
-        in_group = any(h == page for h, _ in items)
+        in_group = any(h == page for h, _ in group_items(items))
         mid = f"sh-g{n}"
+        columns = bool(items) and isinstance(items[0][1], list)
         out.append('        <li class="sh-item sh-has-menu">')
         out.append(f'          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="{mid}"'
                    f'{" aria-current=page" if in_group else ""}>{title}</button>')
-        out.append(f'          <div class="sh-menu sh-menu--list" id="{mid}">\n            <ul>')
-        for href, label in items:
-            out.append(f'              <li><a href="{href}"{_current(href, page)}>{label}</a></li>')
-        out.append('            </ul>\n          </div>\n        </li>')
+        if columns:
+            out.append(f'          <div class="sh-menu sh-menu--cols" id="{mid}">')
+            for sub, its in items:
+                out.append(f'            <div>\n              <h3>{sub}</h3>\n              <ul>')
+                for href, label in its:
+                    out.append(f'                <li><a href="{href}"{_current(href, page)}>{label}</a></li>')
+                out.append('              </ul>\n            </div>')
+            out.append('          </div>\n        </li>')
+        else:
+            out.append(f'          <div class="sh-menu sh-menu--list" id="{mid}">\n            <ul>')
+            for href, label in items:
+                out.append(f'              <li><a href="{href}"{_current(href, page)}>{label}</a></li>')
+            out.append('            </ul>\n          </div>\n        </li>')
     for href, label in PRIMARY:
         out.append(f'        <li class="sh-item"><a class="sh-link" href="{href}"{_current(href, page)}>{label}</a></li>')
     out.append('      </ul>\n    </nav>\n  </div>\n</header>')
@@ -262,7 +283,9 @@ def stamp(cfg: dict) -> tuple[str, str]:
         if n != 1:
             raise SystemExit(f"{cfg['path']}: anchor for mode {mode} not found")
     for old, new in cfg.get("fixes", []):
-        if old not in html and new not in html:
+        if new in html:                                   # already applied: never re-apply
+            continue
+        if old not in html:
             print(f"  warning: {cfg['path']}: fix not found: {old[:50]!r}", file=sys.stderr)
         html = html.replace(old, new)
 

@@ -127,6 +127,14 @@ jobs:
             --anim-dir ../../assets/sst/anim/jets --manifest ../../assets/sst/anim/jets_manifest.json \
             || echo "jets failed; continuing"
 
+      - name: Dynamic tropopause (control member)
+        working-directory: scripts/mjo
+        run: |
+          mkdir -p ../../assets/sst/anim/dt ../../assets/sst/anim/dt_pv330 ../../assets/sst/anim/dt_pv350
+          python src/dt_charts.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
+            --anim-dir ../../assets/sst/anim --manifest ../../assets/sst/anim/dt_manifest.json \
+            --out ../../assets/sst/dt_now.webp || echo "dynamic tropopause failed; continuing"
+
       # North Pacific jet (extension/shift/terminus) + the 500 hPa downstream test; reads the
       # torque series written above and the pacjet_* reference built on the laptop.
       - name: Pacific jet and torque
@@ -139,12 +147,12 @@ jobs:
       - name: Cache-bust the rebuilt figures
         run: |
           CB=$(date -u +%Y%m%d%H%M)
-          perl -0pi -e "s/((?:aam|aam_trend|aam_phase|jets|torque_timeseries|torque_ranges|pacjet|pacjet_z500)\.webp)\?v=\w+/\${1}?v=$CB/g" enso-atmosphere.html
+          perl -0pi -e "s/((?:aam|aam_trend|aam_phase|jets|torque_timeseries|torque_ranges|pacjet|pacjet_z500|dt_now)\.webp)\?v=\w+/\${1}?v=$CB/g" enso-atmosphere.html
 
       - name: Publish loop frames to the frames branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/aam_zonal assets/sst/anim/torque assets/sst/anim/jets
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/aam_zonal assets/sst/anim/torque assets/sst/anim/jets assets/sst/anim/dt assets/sst/anim/dt_pv330 assets/sst/anim/dt_pv350
 
       - name: Commit & push
         run: |
@@ -157,6 +165,7 @@ jobs:
                assets/sst/anim/aam_zonal_manifest.json assets/sst/anim/torque_manifest.json assets/sst/anim/jets_manifest.json \
                assets/sst/torque_timeseries.webp assets/sst/torque_ranges.webp assets/sst/jets.webp \
                assets/sst/pacjet.webp assets/sst/pacjet_z500.webp assets/sst/data/pacjet.json assets/sst/data/torque_ranges.json \
+               assets/sst/dt_now.webp assets/sst/anim/dt_manifest.json \
                scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
                scripts/mjo/data/reference/aam_latband_history.nc scripts/mjo/data/reference/pacjet_history.nc"
           SNAP=$(mktemp -d)

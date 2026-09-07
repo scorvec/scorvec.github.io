@@ -34,6 +34,8 @@
   .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 1.2rem 1.3rem 1rem; margin: 1.4rem 0; }
   .card p.note { color: #444; font-size: 0.95rem; max-width: 70rem; margin: 0.2rem 0 0.9rem; }
   .card img { display: block; width: 100%; height: auto; border-radius: 6px; }
+  .anim-embed { display: block; width: 100%; border: 0; border-radius: 6px; background: var(--bg); }
+  .anim-embed.ar { aspect-ratio: 1200 / 730; }   /* image 1200×630 + controls and the region picker */
   .chart-card-footer { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 0.7rem; font-size: 0.8rem; color: var(--muted); }
   table.ar { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
   table.ar th, table.ar td { padding: 0.4rem 0.55rem; border-bottom: 1px solid var(--rule); text-align: center; }
@@ -59,41 +61,11 @@
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">El Niño</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
               <li><a href="/sst.html">El Niño monitor</a></li>
               <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
-              <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
-              <li><a href="/enso-atmosphere.html">Atmospheric response</a></li>
-            </ul>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Days 1–15</button>
-          <div class="sh-menu sh-menu--list" id="sh-g1">
-            <ul>
-              <li><a href="/ar.html" aria-current="page">Atmospheric rivers</a></li>
-              <li><a href="/ecape.html">Entraining CAPE</a></li>
-              <li><a href="/columbia/">Columbia River basin precipitation</a></li>
-              <li><a href="/mjo.html">MJO forecast</a></li>
-            </ul>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Beyond two weeks</button>
-          <div class="sh-menu sh-menu--list" id="sh-g2">
-            <ul>
-              <li><a href="/subseasonal.html">Subseasonal outlook, weeks 1–5</a></li>
-              <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
-              <li><a href="/sfs.html">NOAA SFS outlook</a></li>
-            </ul>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Observations</button>
-          <div class="sh-menu sh-menu--list" id="sh-g3">
-            <ul>
               <li><a href="/skewt/">Sounding explorer</a></li>
               <li><a href="/asos5.html">Five-minute airport observations</a></li>
               <li><a href="/qbo/">QBO tracker</a></li>
@@ -101,9 +73,35 @@
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Model checks</button>
-          <div class="sh-menu sh-menu--list" id="sh-g4">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html" aria-current="page">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/enso-atmosphere.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">Subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
             <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
               <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
               <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
             </ul>
@@ -135,15 +133,9 @@
   </div>
 
   <div class="card">
-    <h2>Probability of AR conditions by day</h2>
-    <p class="note">The share of members whose IVT reaches 250 at some point during each forecast day, over the North Pacific and North America; the red contours are the ensemble-mean daily-maximum IVT at 250 and 500.</p>
-    <img id="imgProb" src="assets/ar/ar_prob.webp" alt="Probability of atmospheric river conditions (IVT at or above 250) for forecast days 1 to 10 from the AIFS ensemble" loading="lazy">
-  </div>
-
-  <div class="card">
-    <h2>Now and the next three days: exact IVT, control member</h2>
-    <p class="note">The full integral (1/g)&int;&thinsp;q&thinsp;V&thinsp;dp over 1000&ndash;300&nbsp;hPa for the control member at the analysis and at 24, 48 and 72 hours, with the IVT vector. This is also the field the ensemble proxy is calibrated against each cycle.</p>
-    <img id="imgNow" src="assets/ar/ar_now.webp" alt="Control-member integrated vapour transport magnitude and vectors at the analysis and days 1 to 3" loading="lazy">
+    <h2>The rivers, 12-hourly to day 15</h2>
+    <p class="note">Three loops on one player, switched with the buttons above the frame: the <b>ensemble-mean IVT</b> with its vector and the 50% and 80% probability contours; the <b>probability of AR conditions</b>, the share of members with IVT at or above 250 with the mean 250 and 500 contours; and the <b>control member&rsquo;s exact IVT</b>, the field the ensemble proxy is calibrated against each cycle. North Pacific to the Rockies, 0.25&deg;.</p>
+    <iframe class="anim-embed ar" src="sst_anim.html?embed=1&amp;base=assets/ar/anim&amp;manifest=ar_manifest.json&amp;region=ar_ivt" title="Atmospheric river loops: ensemble-mean IVT, probability of AR conditions, control-member exact IVT, 12-hourly to day 15" loading="lazy"></iframe>
   </div>
 
   <div class="card">
@@ -160,7 +152,7 @@
   fetch("assets/ar/ar_monitor.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
     if (!d) return;
     var v = "?v=" + encodeURIComponent(d.generated);
-    ["imgCoast", "imgProb", "imgNow"].forEach(function (id) { var el = document.getElementById(id); el.src = el.getAttribute("src").split("?")[0] + v; });
+    ["imgCoast"].forEach(function (id) { var el = document.getElementById(id); el.src = el.getAttribute("src").split("?")[0] + v; });
     document.getElementById("initLabel").textContent = "init " + d.init.replace("T", " ");
     document.getElementById("genLabel").textContent = "built " + d.generated + " · proxy k = " + d.proxy.k.toFixed(3) + ", r = " + d.proxy.r.toFixed(2) + " over " + d.proxy.n.toLocaleString() + " control points";
     var rows = ['<tr><th>Location</th><th>Any AR</th><th>≥ AR1</th><th>≥ AR2</th><th>≥ AR3</th><th>≥ AR4</th><th>AR5</th><th>Most likely</th><th>Median peak IVT</th><th>Median onset</th><th>Control</th></tr>'];

@@ -133,6 +133,9 @@
 .sh-menu--list { left: 0; right: auto; width: max-content; min-width: 15rem; max-width: 24rem; grid-template-columns: 1fr; padding: 0.7rem 1.1rem 0.75rem; }
 .sh-item:nth-last-child(-n + 4) > .sh-menu--list { left: auto; right: 0; }
 .sh-menu--list a { padding: 0.42rem 0; white-space: nowrap; }
+.sh-menu--cols { left: 0; right: auto; width: max-content; min-width: 30rem; max-width: 42rem; grid-template-columns: repeat(2, minmax(14rem, 1fr)); gap: 0.6rem 2rem; padding: 0.9rem 1.2rem 0.8rem; }
+.sh-menu--cols a { padding: 0.36rem 0; white-space: nowrap; }
+.sh-menu--cols h3 { font-size: 0.78rem; font-family: var(--f-sans); font-weight: 500; letter-spacing: 0.04em; color: var(--c-muted); margin: 0 0 0.25rem; }
 
 /* mobile toggle */
 .sh-toggle {
@@ -174,8 +177,9 @@
   .sh-menu h3 { margin-bottom: 0.15rem; }
   .sh-menu a { padding: 0.35rem 0; }
   /* phones: every group is shown open, so a page is one tap away — the group buttons are headings here */
-  .sh-menu--list { display: grid; min-width: 0; width: auto; max-width: none; padding: 0.15rem 0 0.7rem 0.9rem; }
-  .sh-menu--list a { white-space: normal; font-size: 1.02rem; }
+  .sh-menu--list, .sh-menu--cols { display: grid; min-width: 0; width: auto; max-width: none; padding: 0.15rem 0 0.7rem 0.9rem; grid-template-columns: 1fr; gap: 0.5rem; }
+  .sh-menu--cols h3 { margin-top: 0.4rem; }
+  .sh-menu--list a, .sh-menu--cols a { white-space: normal; font-size: 1.02rem; }
   .sh-has-menu > .sh-menubtn { pointer-events: none; color: var(--c-muted); font-size: 0.95rem; text-transform: none; padding-top: 1rem; padding-bottom: 0.3rem; border-bottom: 0; }
   .sh-has-menu > .sh-menubtn::after { display: none; }
 }

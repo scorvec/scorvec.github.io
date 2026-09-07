@@ -9,9 +9,9 @@ which for 51 members × 31 steps is ~12 GB per cycle — so:
     control's exact IVT (through the origin, where IVT > 100) and the fit quality printed on the
     figure. Total column water is in the open data; the 850 hPa wind is already pulled.
 Products (assets/ar/):
-  ar_prob.webp    P(IVT ≥ 250) for days 1–10 (daily max of the two 12-h steps), ensemble-mean 250 contour
+  anim/ar_ivt, ar_prob, ar_ctrl + ar_manifest.json   12-hourly loops to day 15 (ensemble-mean IVT with vectors;
+                                                      P(IVT ≥ 250); the control's exact IVT) for the site viewer
   ar_coast.webp   West-coast landfall tool: coast latitude × forecast time, ensemble-mean IVT and P(≥250/500)
-  ar_now.webp     control-member exact IVT at the analysis and days 1–3 (vectors + magnitude)
   ar_monitor.json AR-scale probabilities at the named coastal points, the calibration, the coast arrays
     python scripts/ar/ar_monitor.py --date 20260906 --time 00
 """
@@ -108,37 +108,78 @@ def ar_rank(series: np.ndarray, dt_h: float = 12.0) -> tuple[int, float, float]:
 
 
 # ── figures ──────────────────────────────────────────────────────────────────
-def maps_prob(ivt, lat, lon, valid, init, k_fit, out: Path):
+def _frame_axes(fig):
+    import cartopy.crs as ccrs
+    ax = fig.add_axes([0.01, 0.11, 0.98, 0.82], projection=ccrs.PlateCarree(central_longitude=200))
+    ax.set_extent([130, 250, 15, 65], crs=ccrs.PlateCarree())
+    return ax
+
+
+def _coast(ax):
+    import cartopy.feature as cfeature
+    ax.coastlines(resolution="50m", lw=1.0, color="#000", zorder=6); ax.add_feature(cfeature.BORDERS, lw=0.5, edgecolor="#222", zorder=6); ax.add_feature(cfeature.STATES, lw=0.3, edgecolor="#555", zorder=6)
+
+
+def loops(ivt, ivte_m, ivtn_m, ivt_c, ivte, ivtn, lat, lon, valid, init, k_fit, anim: Path, manifest: Path) -> None:
+    """Three 12-hourly loops to day 15 on the viewer's manifest contract:
+    ar_ivt  ensemble-mean IVT magnitude and vector, P(≥250) contours
+    ar_prob probability of AR conditions (IVT ≥ 250) with the ensemble-mean 250/500 contours
+    ar_ctrl the control member's exact IVT with vectors (what the proxy is calibrated against)"""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.colors import BoundaryNorm
     import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    pc = ccrs.PlateCarree(central_longitude=200)
-    days = pd.DatetimeIndex(valid).normalize()
-    fig, axes = plt.subplots(2, 5, figsize=(16.5, 4.9), subplot_kw={"projection": pc})
-    levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    for d in range(1, 11):
-        ax = axes[(d - 1) // 5, (d - 1) % 5]
-        day = init.normalize() + pd.Timedelta(days=d)
-        sel = np.where(days == day)[0]
-        if sel.size == 0:
-            ax.axis("off"); continue
-        daymax = ivt[:, sel].max(axis=1)                               # (member, lat, lon)
-        prob = (daymax >= 250).mean(0)
-        mean = daymax.mean(0)
-        cf = ax.contourf(lon, lat, prob, levels=levels, cmap="YlGnBu", extend="max", transform=ccrs.PlateCarree())
-        ax.contour(lon, lat, mean, levels=[250, 500], colors=["#b4453c", "#6a0d0d"], linewidths=[0.9, 1.1], transform=ccrs.PlateCarree())
-        ax.coastlines(lw=0.6, color="#222"); ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#666"); ax.add_feature(cfeature.STATES, lw=0.2, edgecolor="#888")
-        ax.set_extent([130, 250, 20, 65], crs=ccrs.PlateCarree())
-        ax.set_title(f"Day {d} · {day:%a %d %b}", fontsize=9.5, loc="left", fontweight="bold")
-    cax = fig.add_axes([0.30, 0.085, 0.40, 0.022]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
-    cb.set_label("probability that IVT reaches 250 kg m⁻¹ s⁻¹ at some point in the day (51 members) · red contours: ensemble-mean daily-max IVT 250 and 500", fontsize=8.5)
-    fig.suptitle(f"Atmospheric rivers: probability of AR conditions by day — AIFS-ENS 51 members, init {init:%Y-%m-%d %HZ}", fontsize=13, fontweight="bold", x=0.02, ha="left", y=0.99)
-    fig.text(0.02, 0.925, f"IVT for the members is the proxy k·TCW·|V₈₅₀| with k = {k_fit['k']:.3f} fitted to the control member's exact IVT this cycle (r = {k_fit['r']:.2f} over {k_fit['n']:,} points with IVT > 100).", fontsize=8.5, color=MUTED)
-    fig.subplots_adjust(left=0.02, right=0.99, top=0.84, bottom=0.17, wspace=0.05, hspace=0.3)
-    fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
-    print(f"saved {out}", flush=True)
+    pc = ccrs.PlateCarree()
+    dirs = {k: anim / k for k in ("ar_ivt", "ar_prob", "ar_ctrl")}
+    for d in dirs.values():
+        d.mkdir(parents=True, exist_ok=True)
+        for old in d.glob("F*.webp"):
+            old.unlink()
+    entries = {k: [] for k in dirs}
+    lev_ivt = [250, 300, 400, 500, 600, 750, 1000, 1250, 1500]; cm_ivt = plt.get_cmap("YlGnBu", len(lev_ivt))
+    lev_p = np.arange(0.1, 1.01, 0.1); cm_p = plt.get_cmap("YlOrRd", len(lev_p) - 1)
+    sk = 14
+    mean_mag = ivt.mean(0)                                             # (step, lat, lon)
+    prob = (ivt >= 250).mean(0)
+    for k, t in enumerate(valid):
+        lab = ("analysis" if k == 0 else f"+{12 * k} h") + f" · {pd.Timestamp(t):%a %d %b %HZ}"
+        # 1. ensemble-mean IVT
+        fig = plt.figure(figsize=(12, 6.3)); ax = _frame_axes(fig)
+        cf = ax.pcolormesh(lon, lat, np.where(mean_mag[k] >= 250, mean_mag[k], np.nan), cmap=cm_ivt, norm=BoundaryNorm(lev_ivt, cm_ivt.N, extend="max"), transform=pc, shading="nearest", rasterized=True)
+        ue, un = ivte_m[k], ivtn_m[k]; m = mean_mag[k] >= 200
+        ax.quiver(lon[::sk], lat[::sk], np.where(m, ue, np.nan)[::sk, ::sk], np.where(m, un, np.nan)[::sk, ::sk], transform=pc, scale=12000, width=0.0022, color="#111", alpha=0.85)
+        ax.contour(lon, lat, prob[k], levels=[0.5, 0.8], colors=["#b4453c", "#6a0d0d"], linewidths=[0.8, 1.1], transform=pc)
+        _coast(ax); ax.set_title(f"Ensemble-mean IVT — AIFS-ENS 51 members, init {init:%d %b %HZ} · {lab}", fontsize=10.5, loc="left", fontweight="bold")
+        cax = fig.add_axes([0.25, 0.065, 0.5, 0.02]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
+        cb.set_label("IVT (kg m⁻¹ s⁻¹), proxy calibrated on the control (r = %.2f) · arrows where ≥ 200 · red: P(IVT ≥ 250) = 0.5 and 0.8" % k_fit["r"], fontsize=8)
+        fp = dirs["ar_ivt"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
+        entries["ar_ivt"].append({"idx": k, "file": fp.name, "date": pd.Timestamp(t).strftime("%Y-%m-%d"), "label": lab})
+        # 2. probability
+        fig = plt.figure(figsize=(12, 6.3)); ax = _frame_axes(fig)
+        cf = ax.pcolormesh(lon, lat, np.where(prob[k] >= 0.1, prob[k], np.nan), cmap=cm_p, norm=BoundaryNorm(lev_p, cm_p.N), transform=pc, shading="nearest", rasterized=True)
+        ax.contour(lon, lat, mean_mag[k], levels=[250, 500], colors=["#1b365d", "#08102a"], linewidths=[0.8, 1.1], transform=pc)
+        _coast(ax); ax.set_title(f"Probability of AR conditions, IVT ≥ 250 — AIFS-ENS 51 members, init {init:%d %b %HZ} · {lab}", fontsize=10.5, loc="left", fontweight="bold")
+        cax = fig.add_axes([0.25, 0.065, 0.5, 0.02]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
+        cb.set_label("fraction of members with IVT ≥ 250 kg m⁻¹ s⁻¹ · navy contours: ensemble-mean IVT 250 and 500", fontsize=8)
+        fp = dirs["ar_prob"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
+        entries["ar_prob"].append({"idx": k, "file": fp.name, "date": pd.Timestamp(t).strftime("%Y-%m-%d"), "label": lab})
+        # 3. control, exact
+        fig = plt.figure(figsize=(12, 6.3)); ax = _frame_axes(fig)
+        cf = ax.pcolormesh(lon, lat, np.where(ivt_c[k] >= 250, ivt_c[k], np.nan), cmap=cm_ivt, norm=BoundaryNorm(lev_ivt, cm_ivt.N, extend="max"), transform=pc, shading="nearest", rasterized=True)
+        m = ivt_c[k] >= 200
+        ax.quiver(lon[::sk], lat[::sk], np.where(m, ivte[k], np.nan)[::sk, ::sk], np.where(m, ivtn[k], np.nan)[::sk, ::sk], transform=pc, scale=12000, width=0.0022, color="#111", alpha=0.85)
+        _coast(ax); ax.set_title(f"Control member, exact IVT (1/g)∫q·V dp, 1000–300 hPa — init {init:%d %b %HZ} · {lab}", fontsize=10.5, loc="left", fontweight="bold")
+        cax = fig.add_axes([0.25, 0.065, 0.5, 0.02]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
+        cb.set_label("IVT (kg m⁻¹ s⁻¹) · arrows: IVT vector where ≥ 200", fontsize=8)
+        fp = dirs["ar_ctrl"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
+        entries["ar_ctrl"].append({"idx": k, "file": fp.name, "date": pd.Timestamp(t).strftime("%Y-%m-%d"), "label": lab})
+    mani = {"ver": int(pd.Timestamp.now().timestamp()), "default": "ar_ivt",
+            "regions": {"ar_ivt": {"label": "Ensemble-mean IVT", "frames": entries["ar_ivt"]},
+                        "ar_prob": {"label": "P(IVT ≥ 250)", "frames": entries["ar_prob"]},
+                        "ar_ctrl": {"label": "Control, exact IVT", "frames": entries["ar_ctrl"]}}}
+    manifest.parent.mkdir(parents=True, exist_ok=True); manifest.write_text(json.dumps(mani))
+    print(f"  wrote {len(valid)} frames × 3 loops → {manifest}", flush=True)
 
 
 def coast_tool(ivt, ivt_c, lat, lon, valid, init, out: Path) -> dict:
@@ -190,34 +231,6 @@ def coast_tool(ivt, ivt_c, lat, lon, valid, init, out: Path) -> dict:
     return {"lat": tl.tolist(), "mean": np.round(mean, 0).tolist(), "p250": np.round(p250, 2).tolist(), "p500": np.round(p500, 2).tolist(), "p750": np.round(p750, 2).tolist()}
 
 
-def now_maps(ivt_c, ivte, ivtn, lat, lon, valid, init, out: Path):
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
-    pc = ccrs.PlateCarree(central_longitude=200)
-    picks = [0, 2, 4, 6]                                                # analysis, +24, +48, +72 h (12-h steps)
-    fig, axes = plt.subplots(2, 2, figsize=(14, 7.2), subplot_kw={"projection": pc})
-    for k, s in enumerate(picks):
-        ax = axes[k // 2, k % 2]
-        cf = ax.contourf(lon, lat, ivt_c[s], levels=[250, 300, 400, 500, 600, 750, 1000, 1250, 1500], cmap="YlGnBu", extend="max", transform=ccrs.PlateCarree())
-        sk = 8
-        m = ivt_c[s] >= 200
-        qe = np.where(m, ivte[s], np.nan)[::sk, ::sk]; qn = np.where(m, ivtn[s], np.nan)[::sk, ::sk]
-        ax.quiver(lon[::sk], lat[::sk], qe, qn, transform=ccrs.PlateCarree(), scale=14000, width=0.002, color="#111", alpha=0.75)
-        ax.contour(lon, lat, ivt_c[s], levels=[250], colors="#6a0d0d", linewidths=0.6, transform=ccrs.PlateCarree())
-        ax.coastlines(lw=0.6, color="#222"); ax.add_feature(cfeature.BORDERS, lw=0.3, edgecolor="#666"); ax.add_feature(cfeature.STATES, lw=0.2, edgecolor="#888")
-        ax.set_extent([130, 250, 15, 65], crs=ccrs.PlateCarree())
-        ax.set_title(("0-h analysis" if s == 0 else f"+{12 * s} h") + f" · {pd.Timestamp(valid[s]):%a %d %b %HZ}", fontsize=10, loc="left", fontweight="bold")
-    cax = fig.add_axes([0.30, 0.06, 0.40, 0.018]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
-    cb.set_label("IVT (kg m⁻¹ s⁻¹), control member, exact: (1/g)∫ q·V dp over 1000–300 hPa · arrows: IVT vector where IVT ≥ 200", fontsize=8.5)
-    fig.suptitle(f"Atmospheric rivers now and the next three days — AIFS-ENS control, init {init:%Y-%m-%d %HZ}", fontsize=13, fontweight="bold", x=0.02, ha="left", y=0.985)
-    fig.subplots_adjust(left=0.02, right=0.99, top=0.93, bottom=0.13, wspace=0.04, hspace=0.16)
-    fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
-    print(f"saved {out}", flush=True)
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True); ap.add_argument("--time", default="00")
@@ -240,9 +253,11 @@ def main() -> int:
     print(f"  proxy: k = {k:.3f}, r = {r:.3f}, rmse {k_fit['rmse']:.0f} kg/m/s over {ok.sum():,} control points", flush=True)
     ivt = (k * tcw.values * spd).astype("float32")                      # (member, step, lat, lon)
     ivt[0] = ivt_c                                                       # the control keeps its exact field
-    maps_prob(ivt, lat, lon, valid, init, k_fit, ASSETS / "ar_prob.webp")
+    ivte_m = (k * tcw.values * u8.values).mean(0); ivtn_m = (k * tcw.values * v8.values).mean(0)   # ensemble-mean vector
+    ivte_m[:] = np.where(np.isfinite(ivte_m), ivte_m, 0); ivtn_m[:] = np.where(np.isfinite(ivtn_m), ivtn_m, 0)
+    del spd
     coast = coast_tool(ivt, ivt_c, lat, lon, valid, init, ASSETS / "ar_coast.webp")
-    now_maps(ivt_c, ivte, ivtn, lat, lon, valid, init, ASSETS / "ar_now.webp")
+    loops(ivt, ivte_m, ivtn_m, ivt_c, ivte, ivtn, lat, lon, valid, init, k_fit, ASSETS / "anim", ASSETS / "anim" / "ar_manifest.json")
     # AR scale at the named points
     table = []
     for nm in COAST["named"]:

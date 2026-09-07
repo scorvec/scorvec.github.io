@@ -65,11 +65,16 @@ jobs:
       - name: Build the AR products
         run: python scripts/ar/ar_monitor.py --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}"
 
+      - name: Publish loop frames to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/ar/anim/ar_ivt assets/ar/anim/ar_prob assets/ar/anim/ar_ctrl
+
       - name: Commit & push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          OUT="assets/ar/ar_prob.webp assets/ar/ar_coast.webp assets/ar/ar_now.webp assets/ar/ar_monitor.json"
+          OUT="assets/ar/ar_coast.webp assets/ar/ar_monitor.json assets/ar/anim/ar_manifest.json"
           SNAP=$(mktemp -d); tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
