@@ -176,6 +176,7 @@
   .anim-embed.walker { aspect-ratio: 1471 / 620; }  /* image 1471×566 + controls bar */
   .anim-embed.waf { aspect-ratio: 1400 / 760; }     /* image + controls bar */
   .anim-embed.jets { aspect-ratio: 1160 / 619; }    /* image 1160×569 + controls bar */
+  .anim-embed.dt { aspect-ratio: 960 / 1090; }       /* image 960×990 + controls + region picker */
   .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
   .anim-embed.wind200 { aspect-ratio: 1496 / 776; }   /* image 1496×726 + controls bar */
   /* Added 2026-08-31. These three loops shipped without a sizing rule, so their
@@ -1078,13 +1079,13 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=d1676b9f45b9").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=53c9ef529274").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=d1676b9f45b9").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=53c9ef529274").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=d1676b9f45b9").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=53c9ef529274").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=d1676b9f45b9").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=53c9ef529274").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
