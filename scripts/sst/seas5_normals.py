@@ -24,7 +24,7 @@ fractions. Monthly for the six lead months and seasonal for the three overlappin
 seasons, one 3 × 3 figure per (variable, reference, anomaly | tercile).
 
 Needs the ERA5 monthly means from seas5_era5.py (Americas, 1°, 1991–2025).
-Output: assets/sst/seas5_norm_{var}_{ref}_{anom|terc}.webp + data/seas5_normals.json.
+Output: assets/sst/seas5_norm_{var}_{ref}_{anom|std|terc}_{period}.webp (one map per period) + data/seas5_normals.json.
 """
 from __future__ import annotations
 
@@ -48,9 +48,12 @@ Z_TERC = 0.4307                                                       # ±0.4307
 
 VARS = {
     # key: (label, seas5 kind, seas5 var, era5 file, era5 shortName, factor to display units, units, multiplicative)
-    "t2m": ("2 m temperature", "sfc", "t2m", "am_sfc", "t2m", 1.0, "°C", False),
-    "tp": ("Precipitation", "sfc", "tprate", "am_sfc", "tp", 1.0, "mm/day", True),
-    "z500": ("500 hPa height", "z500", "z", "am_z500", "z", 1.0 / G0, "m", False),
+    # t2m / tp / z500 draw on the global 1° kinds (gl, gl_z500) when present, the Americas kinds otherwise
+    # (user 2026-09-07: "better to just show global"); their ERA5 references come from the global monthly
+    # files era5_gl_t / era5_gl_z (seas5_era5.py) or, until those land, the local store.
+    "t2m": ("2 m temperature", "gl", "t2m", "gl_t", "t2m", 1.0, "°C", False),
+    "tp": ("Precipitation", "gl", "tprate", "gl_t", "tp", 1.0, "mm/day", True),
+    "z500": ("500 hPa height", "gl_z500", "z", "gl_z", "z", 1.0 / G0, "m", False),
     "si10": ("10 m wind speed", "energy", "si10", "am_sfc", "si10", 1.0, "m/s", False),
     "ssrd": ("Surface solar radiation", "energy", "ssrd", "am_sfc", "ssrd", 1.0, "W/m²", True),
     # derived: precipitation minus evaporation, the surface water balance (mm/day; negative = net drying)
@@ -161,7 +164,12 @@ def model_fields(ym: str, var: str):
         return tp[0] + fe * 86400.0 * 1000, tp[1] + he * 86400.0 * 1000, lat, lon   # e is m/s (rate), negative upward
     f, h = fc_path(kind, ym), hc_path(kind, ym[4:])
     if not (f.exists() and h.exists()):
-        return None
+        alt = {"gl": "sfc", "gl_z500": "z500"}.get(kind)              # Americas fallback for the global kinds
+        if alt is None:
+            return None
+        f, h = fc_path(alt, ym), hc_path(alt, ym[4:])
+        if not (f.exists() and h.exists()):
+            return None
     fc, lat, lon = load_field(f, mvar); hc, _, _ = load_field(h, mvar)
     if var == "tp":
         fc, hc = fc * 86400.0 * 1000, hc * 86400.0 * 1000
@@ -264,55 +272,39 @@ def panels_for(ym: str, var: str, ref: str):
             return None, None, None
         if ref != "hc" and panels_for.last_span is None:
             panels_for.last_span = rl[0]["span"][ref]
-        out.append(one(fc[:, L], hc_mean[L], rl, f"{calendar.month_abbr[m]} {y}"))
+        pnl = one(fc[:, L], hc_mean[L], rl, f"{calendar.month_abbr[m]} {y}"); pnl["key"] = f"{y}_{m:02d}"; out.append(pnl)
     for leads in SEASON_LEADS:
         idx = [Lx - 1 for Lx in leads]
         hcs = hc[:, idx].mean(1); valid_year = int(vm[idx[1]][:4])
         rl = [] if ref == "hc" else [refs_cache[(int(vm[i][:4]), int(vm[i][5:]))] for i in idx]
         y0s, y1s = vm[idx[0]][:4], vm[idx[-1]][:4]
-        out.append(one(fc[:, idx].mean(1), hc_mean[idx].mean(0), rl, f"{season_label(ym, leads)} {y0s if y0s == y1s else y0s + '–' + y1s[2:]}"))
+        pnl = one(fc[:, idx].mean(1), hc_mean[idx].mean(0), rl, f"{season_label(ym, leads)} {y0s if y0s == y1s else y0s + '–' + y1s[2:]}")
+        pnl["key"] = f"{season_label(ym, leads)}_{y0s}"; out.append(pnl)
     return out, lat, lon
 
 
-def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Path) -> str:
+def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Path) -> dict:
+    """One image per period (single map, user 2026-09-07): global plate carrée for fields on a global
+    grid (cut at 40 °E), the Americas box otherwise. → {period_key: file}."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.colors import BoundaryNorm, ListedColormap
+    from matplotlib.patches import Patch
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
+    from cartopy.util import add_cyclic_point
+    import textwrap
 
     label, _, _, _, _, _, units, mult = VARS[var]
-    proj, pc = ccrs.PlateCarree(central_longitude=-90), ccrs.PlateCarree()
-    H, adj = map_layout(15.2, 3, 3, top_in=1.25, bottom_in=(0.72 if kind == "terc" else 1.05), hspace=0.12)
-    fig, axes = plt.subplots(3, 3, figsize=(15.2, H), subplot_kw={"projection": proj})
+    glob = (lon.max() - lon.min()) > 300
+    pc = ccrs.PlateCarree(); proj = ccrs.PlateCarree(central_longitude=-140.0 if glob else -90.0)
     bins = TERC_BINS
     warm, cool = TERC_PALETTES["warm"], TERC_PALETTES["cool"]
     if var in ("tp", "pme"):
         warm, cool = TERC_PALETTES["wet"], TERC_PALETTES["dry"]
     if var == "ssrd":
         warm, cool = TERC_PALETTES["sunny"], TERC_PALETTES["dull"]
-    mesh = None
-    for ax, pnl in zip(axes.ravel(), panels):
-        ax.set_extent([-170, -30, -60, 75], crs=pc)
-        ax.add_feature(cfeature.LAND, facecolor="#f4f4f1", zorder=0)
-        if kind == "anom":
-            lev = LEVELS[var]
-            mesh = ax.pcolormesh(lon, lat, pnl["anom"], cmap=plt.get_cmap(CMAPS[var], len(lev) - 1), norm=BoundaryNorm(lev, len(lev) - 1), transform=pc, shading="auto", zorder=1)
-        elif kind == "std":
-            lev = STD_LEVELS
-            mesh = ax.pcolormesh(lon, lat, pnl["std"], cmap=plt.get_cmap(CMAPS[var], len(lev) - 1), norm=BoundaryNorm(lev, len(lev) - 1), transform=pc, shading="auto", zorder=1)
-        else:
-            for arr, other, cols in ((pnl["above"], pnl["below"], warm), (pnl["below"], pnl["above"], cool)):
-                normal = 1.0 - pnl["above"] - pnl["below"]
-                show = np.where((arr >= 0.40) & (arr >= np.maximum(other, normal)), arr, np.nan)
-                mesh = ax.pcolormesh(lon, lat, show, cmap=ListedColormap(cols), norm=BoundaryNorm(bins, len(cols)), transform=pc, shading="auto", zorder=1)
-        if var in LAND_ONLY:
-            ax.add_feature(cfeature.OCEAN, facecolor="#fff", zorder=2); ax.add_feature(cfeature.LAKES, facecolor="#fff", zorder=2)
-        ax.coastlines(linewidth=0.5, color="#444", zorder=3)
-        ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="#777", zorder=3)
-        ax.add_feature(cfeature.STATES, linewidth=0.2, edgecolor="#999", zorder=3)
-        ax.set_title(pnl["title"], fontsize=12, loc="left")
     y0, m0 = ym[:4], int(ym[4:])
     what = {"anom": "anomaly", "terc": "most likely tercile", "std": "standardised anomaly"}[kind]
     if ref == "hc":
@@ -324,49 +316,86 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
     if kind == "terc":
         sub += "  White: no category reaches 40 %; near-normal not drawn."
     if kind == "std":
-        sub += "  Ensemble-mean anomaly divided by the reference's year-to-year standard deviation, so the shading is comparable across latitudes and variables (±1σ is a typical year's swing)."
-    if ref != "hc" and var == "tp" and not (ERA5 / "era5_am_sfc_1991-2025.grib").exists():
-        sub += "  ERA5 precipitation comes from the local store, which covers 0–90°N: south of the equator is blank until the CDS pull completes."
-    import textwrap
-    sub = "\n".join(textwrap.wrap(sub, 175))
-    head_text(fig, H, f"SEAS5 {label}: {what} vs {REFS[ref]}, {calendar.month_name[m0]} {y0} issue", sub)
-    if kind in ("anom", "std"):
-        cax = fig.add_axes([0.3, 0.5 / H, 0.4, 0.14 / H])
-        cb = fig.colorbar(mesh, cax=cax, orientation="horizontal", extend="both")
-        cb.set_label(("standardised anomaly (σ)" if kind == "std" else "% of reference" if mult else f"ensemble-mean anomaly ({units})"), fontsize=10)
+        sub += "  Ensemble-mean anomaly divided by the reference's year-to-year standard deviation (±1σ is a typical year's swing)."
+    sub = "\n".join(textwrap.wrap(sub, 190))
+    order = np.argsort(lon); lon_s = lon[order]
+    lat_a = lat; flip = lat[0] > lat[-1]
+    if flip: lat_a = lat[::-1]
+    if glob:
+        lat0, lat1 = -60, 85; lon_span = 360.0
     else:
-        from matplotlib.patches import Patch
-        h1 = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(warm)]
-        h2 = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(cool)]
-        l1 = fig.legend(handles=h1, loc="lower left", bbox_to_anchor=(0.04, 0.004), ncol=6, frameon=False, title="Above normal most likely", fontsize=9, title_fontsize=10)
-        fig.add_artist(l1)
-        fig.legend(handles=h2, loc="lower right", bbox_to_anchor=(0.96, 0.004), ncol=6, frameon=False, title="Below normal most likely", fontsize=9, title_fontsize=10)
-    fig.subplots_adjust(**adj)
-    out = out_dir / f"seas5_norm_{var}_{ref}_{kind}.webp"
-    fig.savefig(out, dpi=95, pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
-    return out.name
+        lat0, lat1, lon_span = -60, 75, 140.0
+    W = 14.0; map_h = W * (lat1 - lat0) / lon_span; top, bot = 1.0, (0.95 if kind != "terc" else 1.05); H = map_h + top + bot
+    files = {}
+    for pnl in panels:
+        def prep(a):
+            a = a[:, order]
+            if flip: a = a[::-1]
+            if glob:
+                a, lo = add_cyclic_point(a, coord=lon_s); return a, lo
+            return a, lon_s
+        fig = plt.figure(figsize=(W, H)); ax = fig.add_axes([0.03, bot / H, 0.94, map_h / H], projection=proj)
+        if glob: ax.set_extent([-180, 180, lat0, lat1], crs=proj)
+        else: ax.set_extent([-170, -30, lat0, lat1], crs=pc)
+        ax.add_feature(cfeature.LAND, facecolor="#f4f4f1", zorder=0)
+        if kind in ("anom", "std"):
+            lev = LEVELS[var] if kind == "anom" else STD_LEVELS
+            a, lo = prep(pnl["anom"] if kind == "anom" else pnl["std"])
+            mesh = ax.pcolormesh(lo, lat_a, a, cmap=plt.get_cmap(CMAPS[var], len(lev) - 1), norm=BoundaryNorm(lev, len(lev) - 1), transform=pc, shading="auto", zorder=1)
+        else:
+            normal = 1.0 - pnl["above"] - pnl["below"]
+            for arr, other, cols in ((pnl["above"], pnl["below"], warm), (pnl["below"], pnl["above"], cool)):
+                show = np.where((arr >= 0.40) & (arr >= np.maximum(other, normal)), arr, np.nan)
+                a, lo = prep(show)
+                mesh = ax.pcolormesh(lo, lat_a, a, cmap=ListedColormap(cols), norm=BoundaryNorm(bins, len(cols)), transform=pc, shading="auto", zorder=1)
+        if var in LAND_ONLY:
+            ax.add_feature(cfeature.OCEAN, facecolor="#fff", zorder=2); ax.add_feature(cfeature.LAKES, facecolor="#fff", zorder=2)
+        ax.coastlines(resolution="50m", linewidth=0.45, color="#222", zorder=3)
+        ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.25, edgecolor="#666", zorder=3)
+        ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.15, edgecolor="#999", zorder=3)
+        gl_ = ax.gridlines(draw_labels=True, linewidth=0.3, color="#888", alpha=0.5, xlocs=range(-180, 181, 30), ylocs=range(-60, 91, 30), zorder=4)
+        gl_.top_labels = gl_.right_labels = False; gl_.xlabel_style = gl_.ylabel_style = {"size": 7, "color": "#555"}
+        fig.text(0.03, 1 - 0.14 / H, f"SEAS5 {label}: {what} vs {REFS[ref]} · {pnl['title']} · {calendar.month_name[m0]} {y0} issue", fontsize=13, fontweight="bold", va="top")
+        fig.text(0.03, 1 - 0.50 / H, sub, fontsize=8.4, color="#444", va="top")
+        if kind in ("anom", "std"):
+            cax = fig.add_axes([0.3, 0.42 / H, 0.4, 0.14 / H]); cb = fig.colorbar(mesh, cax=cax, orientation="horizontal", extend="both")
+            cb.set_label(("standardised anomaly (σ)" if kind == "std" else "% of reference" if mult else f"ensemble-mean anomaly ({units})"), fontsize=8.5); cb.ax.tick_params(labelsize=7)
+        else:
+            h1 = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(warm)]
+            h2 = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(cool)]
+            l1 = fig.legend(handles=h1, loc="lower left", bbox_to_anchor=(0.04, 0.004), ncol=6, frameon=False, title="Above normal most likely", fontsize=8, title_fontsize=8.5)
+            fig.add_artist(l1)
+            fig.legend(handles=h2, loc="lower right", bbox_to_anchor=(0.96, 0.004), ncol=6, frameon=False, title="Below normal most likely", fontsize=8, title_fontsize=8.5)
+        out = out_dir / f"seas5_norm_{var}_{ref}_{kind}_{pnl['key']}.webp"
+        fig.savefig(out, dpi=110, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
+        files[pnl["key"]] = out.name
+    return files
 
 
 def build(ym: str, only_vars=None, only_refs=None) -> None:
     t0 = time.time()
     ASSETS.mkdir(parents=True, exist_ok=True)
     man = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "refs": REFS,
-           "vars": {k: dict(label=v[0], units=v[6]) for k, v in VARS.items()}, "figures": {}}
+           "vars": {k: dict(label=v[0], units=v[6]) for k, v in VARS.items()}, "figures": {}, "periods": [], "extent": {}}
     for var in (only_vars or VARS):
         for ref in (only_refs or REFS):
             panels, lat, lon = panels_for(ym, var, ref)
             if panels is None:
                 print(f"  {var} vs {ref}: fields not on disk — skipped", flush=True); continue
+            if not man["periods"]:
+                man["periods"] = [dict(key=p["key"], label=p["title"], kind="season" if "_" in p["key"] and not p["key"][0].isdigit() else "month") for p in panels]
+            man["extent"][var] = "global" if (lon.max() - lon.min()) > 300 else "americas"
             for kind in ("anom", "std", "terc"):
-                name = render(ym, var, ref, kind, panels, lat, lon, ASSETS)
-                man["figures"][f"{var}|{ref}|{kind}"] = name
-                print(f"  wrote {name}", flush=True)
-    if OUT_JSON.exists():                                            # keep figures from a partial earlier run
+                files = render(ym, var, ref, kind, panels, lat, lon, ASSETS)
+                man["figures"][f"{var}|{ref}|{kind}"] = files
+                print(f"  wrote {len(files)} maps: {var} {ref} {kind}", flush=True)
+    if OUT_JSON.exists():                                            # keep figure sets from a partial earlier run of the same issue
         old = json.loads(OUT_JSON.read_text())
-        if old.get("issue") == ym:
+        if old.get("issue") == ym and isinstance(next(iter(old.get("figures", {}).values()), None), dict):
             old["figures"].update(man["figures"]); man["figures"] = old["figures"]
+            man["extent"] = {**old.get("extent", {}), **man["extent"]}
     OUT_JSON.write_text(json.dumps(man, separators=(",", ":")))
-    print(f"wrote {OUT_JSON} ({len(man['figures'])} figures) in {(time.time() - t0) / 60:.1f} min", flush=True)
+    print(f"wrote {OUT_JSON} ({len(man['figures'])} figure sets) in {(time.time() - t0) / 60:.1f} min", flush=True)
 
 
 if __name__ == "__main__":

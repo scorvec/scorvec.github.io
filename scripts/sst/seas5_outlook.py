@@ -71,6 +71,16 @@ KINDS = {
     "sst": dict(dataset="seasonal-monthly-single-levels",
                 variable=["sea_surface_temperature"], area=[70, -180, -70, 180], grid=[2.0, 2.0]),
     # the Americas at 1°: 75°N–60°S, 170°W–30°W
+    # global 1° fields for the single-map viewer (anomaly and change per month / season):
+    # t2m, precipitation and SST together, z500 separately (pressure-level dataset)
+    "gl": dict(dataset="seasonal-monthly-single-levels",
+               variable=["2m_temperature", "total_precipitation", "sea_surface_temperature"], area=[90, -180, -90, 180], grid=[1.0, 1.0]),
+    "gl_z500": dict(dataset="seasonal-monthly-pressure-levels",
+                    variable=["geopotential"], pressure_level=["500"], area=[90, -180, -90, 180], grid=[1.0, 1.0]),
+    # North America monthly snowfall (m of water equivalent per day, monthly mean rate) for the
+    # snowfall-anomaly maps (user 2026-09-07)
+    "na_snow": dict(dataset="seasonal-monthly-single-levels",
+                    variable=["snowfall"], area=[75, -170, 25, -50], grid=[1.0, 1.0]),
     "sfc": dict(dataset="seasonal-monthly-single-levels",
                 variable=["2m_temperature", "total_precipitation"], area=[75, -170, -60, -30], grid=[1.0, 1.0]),
     "z500": dict(dataset="seasonal-monthly-pressure-levels",

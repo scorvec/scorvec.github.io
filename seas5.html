@@ -344,6 +344,7 @@
     <div class="controls" id="normVar"></div>
     <div class="controls" id="normRef"></div>
     <div class="controls" id="normKind"></div>
+    <div class="controls" id="normPeriod"></div>
     <div class="map-grid" id="normGrid"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 monthly means, 1&deg; &middot; ERA5 monthly means 1991&ndash;2025, 1&deg; &middot; bias correction per grid point and calendar month</span>
@@ -665,18 +666,29 @@
   function normView(N) {
     var card = document.getElementById("normCard");
     if (!N || !N.figures || !Object.keys(N.figures).length) { card.hidden = true; return; }
-    var st = {v: "t2m", r: "obs30", k: "anom"};
+    var st = {v: "t2m", r: "obs30", k: "anom", p: null};
     var vars = Object.keys(N.vars).filter(function (v) { return Object.keys(N.figures).some(function (f) { return f.indexOf(v + "|") === 0; }); });
-    var refs = Object.keys(N.refs);
+    var refs = Object.keys(N.refs), P = N.periods || [];
     function show() {
-      var f = N.figures[st.v + "|" + st.r + "|" + st.k], g = document.getElementById("normGrid");
-      if (!f) { g.innerHTML = "<p class='note'>Not built for this combination yet.</p>"; return; }
-      g.innerHTML = '<figure><a href="assets/sst/' + f + '?v=' + encodeURIComponent(N.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + f + '?v=' + encodeURIComponent(N.generated) + '" alt="SEAS5 ' + N.vars[st.v].label + ' ' + ({anom: "anomaly", std: "standardised anomaly", terc: "most likely tercile"}[st.k]) + ' vs ' + N.refs[st.r] + '"></a>' +
-        '<figcaption><b>' + N.vars[st.v].label + '</b>, ' + ({anom: "ensemble-mean anomaly", std: "standardised anomaly (σ of the reference's year-to-year spread)", terc: "most likely tercile"}[st.k]) + ' against <b>' + N.refs[st.r] + '</b>. Six lead months on the first two rows, the three overlapping seasons on the last.</figcaption></figure>';
+      var f = N.figures[st.v + "|" + st.r + "|" + st.k], g = document.getElementById("normGrid"), pb = document.getElementById("normPeriod");
+      if (!f) { g.innerHTML = "<p class='note'>Not built for this combination yet.</p>"; pb.innerHTML = ""; return; }
+      var file, per = "";
+      if (typeof f === "string") { file = f; pb.innerHTML = ""; }                       // pre-2026-09-07 multi-panel figure
+      else {
+        var keys = P.filter(function (q) { return f[q.key]; });
+        if (!keys.some(function (q) { return q.key === st.p; })) st.p = keys.length ? keys[0].key : null;
+        pb.innerHTML = '<span class="ctlsep">Period</span>' + keys.map(function (q) { return '<button class="pill' + (q.key === st.p ? " on" : "") + '" data-p="' + q.key + '">' + q.label + "</button>"; }).join("");
+        file = st.p ? f[st.p] : null; per = st.p ? ", " + keys.filter(function (q) { return q.key === st.p; })[0].label : "";
+      }
+      if (!file) { g.innerHTML = "<p class='note'>No map for this period.</p>"; return; }
+      var ext = N.extent && N.extent[st.v] === "global" ? " Global view, cut at 40°E." : " Americas view.";
+      g.innerHTML = '<figure><a href="assets/sst/' + file + '?v=' + encodeURIComponent(N.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + file + '?v=' + encodeURIComponent(N.generated) + '" alt="SEAS5 ' + N.vars[st.v].label + ' ' + ({anom: "anomaly", std: "standardised anomaly", terc: "most likely tercile"}[st.k]) + ' vs ' + N.refs[st.r] + per + '"></a>' +
+        '<figcaption><b>' + N.vars[st.v].label + '</b>' + per + ', ' + ({anom: "ensemble-mean anomaly", std: "standardised anomaly (σ of the reference's year-to-year spread)", terc: "most likely tercile"}[st.k]) + ' against <b>' + N.refs[st.r] + '</b>.' + ext + '</figcaption></figure>';
     }
     pills("normVar", vars.map(function (v) { return {key: v, label: N.vars[v].label}; }), st.v, function (k) { st.v = k; show(); });
     pills("normRef", refs.map(function (r) { return {key: r, label: N.refs[r]}; }), st.r, function (k) { st.r = k; show(); });
     pills("normKind", [{key: "anom", label: "Anomaly"}, {key: "std", label: "Standardised anomaly"}, {key: "terc", label: "Most likely tercile"}], st.k, function (k) { st.k = k; show(); });
+    document.getElementById("normPeriod").addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.p = b.dataset.p; show(); });
     show();
     document.getElementById("normUpdated").textContent = "built " + N.generated;
   }

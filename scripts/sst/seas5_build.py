@@ -426,6 +426,159 @@ def render_changes(ym: str, prev: str, now: dict, before: dict, out_dir: Path) -
     return meta
 
 
+# ── global single-map viewer: anomaly and change per month / season ─────────
+MAP_SPEC = {
+    # var: (label, units, anomaly levels, change levels, cmap, contour step anom, contour step chg)
+    "t2m": ("2 m temperature", "°C", [-4, -3, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 3, 4],
+            [-2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2], "RdBu_r", None, None),
+    "tp": ("Precipitation", "mm/day", [-3, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 3],
+           [-2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2], "BrBG", None, None),
+    "z500": ("500 hPa height", "m", [-60, -45, -30, -20, -10, -5, 5, 10, 20, 30, 45, 60],
+             [-40, -30, -20, -10, -5, 5, 10, 20, 30, 40], "RdBu_r", None, None),
+    # SST: fine steps and labelled isolines (user 2026-09-07: "make it highly detailed")
+    "sst": ("Sea surface temperature", "°C", [round(x, 2) for x in np.arange(-3.0, 3.01, 0.2)],
+            [round(x, 2) for x in np.arange(-1.5, 1.51, 0.1)], "RdBu_r", 0.5, 0.25),
+    # North America snowfall (monthly mean rate, mm of water equivalent per day; ×10 ≈ cm of snow)
+    "sf": ("Snowfall, water equivalent", "mm/day", [-3, -2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2, 3],
+           [-2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2], "BrBG", None, None),
+}
+MAP_CENTRAL = {"sst": -160.0, "sf": -110.0}   # SST cut at 20°E (Africa); everything else at 40°E; snow is a NA box
+MAP_CENTRAL_DEFAULT = -140.0
+MAP_EXTENT = {"sf": [-170, -50, 25, 75]}      # [W, E, S, N] for regional variables
+
+
+def load_global(ym: str) -> dict:
+    """{var: (fc[sample, lead, lat, lon], hc_mean[lead, lat, lon], lat, lon)} from the global 1° kinds.
+    The hindcast (600 samples × 6 leads × 181 × 360) is reduced to its mean on load."""
+    out = {}
+    if fc_path("gl", ym).exists() and hc_path("gl", ym[4:]).exists():
+        for var, short, fac in (("t2m", "t2m", 1.0), ("tp", "tprate", 86400.0 * 1000), ("sst", "sst", 1.0)):
+            try:
+                fc, lat, lon = load_field(fc_path("gl", ym), short)
+                hc, _, _ = load_field(hc_path("gl", ym[4:]), short)
+            except Exception as e:                                          # noqa: BLE001
+                print(f"  global {var} {ym}: {str(e)[:100]}", flush=True); continue
+            out[var] = (fc * fac, np.nanmean(hc, axis=0) * fac, lat, lon); del hc
+    if fc_path("gl_z500", ym).exists() and hc_path("gl_z500", ym[4:]).exists():
+        fc, lat, lon = load_field(fc_path("gl_z500", ym), "z")
+        hc, _, _ = load_field(hc_path("gl_z500", ym[4:]), "z")
+        out["z500"] = (fc / G0, np.nanmean(hc, axis=0) / G0, lat, lon); del hc
+    if fc_path("na_snow", ym).exists() and hc_path("na_snow", ym[4:]).exists():
+        fac = 86400.0 * 1000                                                  # m w.e. s⁻¹ → mm/day
+        fc, lat, lon = load_field(fc_path("na_snow", ym), "mtsfr")
+        hc, _, _ = load_field(hc_path("na_snow", ym[4:]), "mtsfr")
+        out["sf"] = (fc * fac, np.nanmean(hc, axis=0) * fac, lat, lon); del hc
+    return out
+
+
+def _period_sets(ym: str, prev: str | None):
+    """[(key, label, leads_now, leads_prev|None)] — six months then the three seasons; leads_prev is
+    None where the previous issue has no counterpart."""
+    import calendar
+    vm_now = valid_months(ym); vm_prev = valid_months(prev) if prev else []
+    out = []
+    for L, v in enumerate(vm_now, start=1):
+        lp = (vm_prev.index(v) + 1,) if v in vm_prev else None
+        out.append((v.replace("-", "_"), f"{calendar.month_abbr[int(v[5:])]} {v[:4]}", (L,), lp))
+    for leads in SEASON_LEADS:
+        months = [vm_now[L - 1] for L in leads]
+        lp = tuple(vm_prev.index(m) + 1 for m in months) if all(m in vm_prev for m in months) else None
+        y0, y1 = months[0][:4], months[-1][:4]
+        out.append((f"{season_label(ym, leads)}_{y0}", f"{season_label(ym, leads)} {y0 if y0 == y1 else y0 + '–' + y1[2:]}", leads, lp))
+    return out
+
+
+def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label, out):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import BoundaryNorm
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    from cartopy.util import add_cyclic_point
+    pc = ccrs.PlateCarree(); proj = ccrs.PlateCarree(central_longitude=MAP_CENTRAL.get(var, MAP_CENTRAL_DEFAULT))
+    ext = MAP_EXTENT.get(var)
+    lat0, lat1 = (ext[2], ext[3]) if ext else ((-70, 70) if var == "sst" else (-60, 85))
+    order = np.argsort(lon); lon_s = lon[order]; d = field[:, order]
+    if lat[0] > lat[-1]:
+        lat = lat[::-1]; d = d[::-1]
+    if ext:
+        d_c, lon_c = d, lon_s
+    else:
+        d_c, lon_c = add_cyclic_point(d, coord=lon_s)
+    lon_span = (ext[1] - ext[0]) if ext else 360.0
+    W = 14.0; map_h = W * (lat1 - lat0) / lon_span; top, bot = 0.95, 0.85; H = map_h + top + bot
+    fig = plt.figure(figsize=(W, H))
+    ax = fig.add_axes([0.03, bot / H, 0.94, map_h / H], projection=proj)
+    if ext:
+        ax.set_extent([ext[0], ext[1], lat0, lat1], crs=pc)
+    else:
+        ax.set_extent([-180, 180, lat0, lat1], crs=proj)
+    ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
+    norm = BoundaryNorm(levels, len(levels) - 1)
+    m = ax.contourf(lon_c, lat, np.ma.masked_invalid(d_c), levels=levels, cmap=plt.get_cmap(cmap, len(levels) - 1), norm=norm,
+                    extend="both", transform=pc, zorder=1)
+    if cstep:
+        cl = [x for x in np.arange(-6, 6.01, cstep) if abs(x) > 1e-9]
+        cs = ax.contour(lon_c, lat, np.ma.masked_invalid(d_c), levels=cl, colors="#333", linewidths=0.35, transform=pc, zorder=2)
+        ax.clabel(cs, fontsize=5.5, fmt=lambda v: f"{v:+.2g}", inline=True, inline_spacing=2)
+    if var in ("t2m", "tp", "sf"):
+        ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2); ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
+    ax.coastlines(resolution="50m", linewidth=0.45, color="#222", zorder=3)
+    ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.25, edgecolor="#666", zorder=3)
+    if var != "sst":
+        ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.15, edgecolor="#999", zorder=3)
+    gl = ax.gridlines(draw_labels=True, linewidth=0.3, color="#888", alpha=0.5, xlocs=range(-180, 181, 30), ylocs=range(-60, 91, 30), zorder=4)
+    gl.top_labels = gl.right_labels = False; gl.xlabel_style = gl.ylabel_style = {"size": 7, "color": "#555"}
+    fig.text(0.03, 1 - 0.14 / H, title, fontsize=13.5, fontweight="bold", va="top")
+    fig.text(0.03, 1 - 0.50 / H, sub, fontsize=8.6, color="#444", va="top")
+    cax = fig.add_axes([0.25, 0.42 / H, 0.50, 0.14 / H])
+    cb = fig.colorbar(m, cax=cax, orientation="horizontal", extend="both"); cb.set_label(cb_label, fontsize=8.5)
+    cb.ax.tick_params(labelsize=7)
+    if len(levels) > 16:
+        cb.set_ticks([x for x in levels if abs(round(x / (cstep or 0.5)) * (cstep or 0.5) - x) < 1e-6])
+    fig.savefig(out, dpi=125, pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
+
+
+def render_global_maps(ym: str, prev: str | None, out_dir: Path) -> dict:
+    """One image per (variable, period, kind): the ensemble-mean anomaly of this issue against its
+    own hindcast, and the change against the previous issue (each anomalised against its own
+    start-month hindcast). Plate carrée, most of the world. Files: seas5_map_{var}_{anom|chg}_{period}.webp."""
+    import calendar
+    now = load_global(ym)
+    if not now:
+        return {}
+    before = load_global(prev) if prev else {}
+    issue_lbl = f"{calendar.month_name[int(ym[4:])]} {ym[:4]} issue"
+    prev_lbl = f"{calendar.month_name[int(prev[4:])]} issue" if prev else ""
+    periods = _period_sets(ym, prev if before else None)
+    meta = {"periods": [dict(key=k, label=l, kind="month" if len(ln) == 1 else "season") for k, l, ln, _ in periods], "vars": {}}
+    for var, (fc, hcm, lat, lon) in now.items():
+        label, units, lv_a, lv_c, cmap, cs_a, cs_c = MAP_SPEC[var]
+        fcm = np.nanmean(fc, axis=0)                                            # [lead, lat, lon]
+        entry = {"label": label, "units": units, "anom": {}, "chg": {}}
+        pb = before.get(var)
+        for key, plabel, ln, lp in periods:
+            idx = [L - 1 for L in ln]
+            a = fcm[idx].mean(0) - hcm[idx].mean(0)
+            out = out_dir / f"seas5_map_{var}_anom_{key}.webp"
+            _global_map(a, lat, lon, var, lv_a, cmap, cs_a, f"SEAS5 {label} anomaly · {plabel} · {issue_lbl}",
+                        "Ensemble mean of 51 members minus the 1993–2016 start-month hindcast mean (25 members × 24 years), 1° grid.",
+                        f"anomaly ({units})", out)
+            entry["anom"][key] = dict(file=out.name, mean=float(np.nanmean(a)))
+            if pb is not None and lp is not None:
+                fcp, hcp, _, _ = pb; ip = [L - 1 for L in lp]
+                c = a - (np.nanmean(fcp, axis=0)[ip].mean(0) - hcp[ip].mean(0))
+                out = out_dir / f"seas5_map_{var}_chg_{key}.webp"
+                _global_map(c, lat, lon, var, lv_c, cmap, cs_c, f"SEAS5 {label}: change since the {prev_lbl} · {plabel} · {issue_lbl}",
+                            "Each issue's ensemble mean anomalised against its own start-month hindcast, so this is the shift in the forecast, not drift. Periods the earlier issue does not cover are not drawn.",
+                            f"change in ensemble-mean anomaly ({units}), {issue_lbl} minus {prev_lbl}", out)
+                entry["chg"][key] = dict(file=out.name, mean=float(np.nanmean(c)))
+        meta["vars"][var] = entry
+        print(f"  global maps {var}: {len(entry['anom'])} anomaly, {len(entry['chg'])} change", flush=True)
+    return meta
+
+
 # ── polar caps ───────────────────────────────────────────────────────────────
 def hindcast_years(n_samples: int, n_years: int = 24):
     """Year index of each hindcast sample: xarray stacks (number, time) with time fastest."""
@@ -515,9 +668,10 @@ def build(ym: str, n_prev: int = 3) -> None:
 
     prev = previous_issues(ym, 1)[0]
     before = load_fields(prev)
-    changes = render_changes(ym, prev, fields, before, ASSETS) if fields and before else {}
-    if not changes:
-        print(f"  change maps skipped: previous issue {prev} fields not on disk", flush=True)
+    changes = {}                                                    # multi-panel change figures retired 2026-09-07 (single-map viewer below)
+    maps = render_global_maps(ym, prev, ASSETS)
+    if not maps:
+        print(f"  global maps skipped: gl fields for {ym} not on disk", flush=True)
 
     polar = polar_caps(ym)
     polar_prev = polar_caps(prev, members=False)
@@ -532,6 +686,7 @@ def build(ym: str, n_prev: int = 3) -> None:
         "observed": observed_indices(),
         "terciles": terc,
         "changes": changes,
+        "maps": maps,
         "previous": prev,
         "polar": polar,
         "polar_previous": polar_prev,

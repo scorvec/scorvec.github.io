@@ -39,6 +39,10 @@ fi
 "$PY" seas5_normals.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  normals FAILED" >> "$LOG"
 # population-weighted temperature distributions from the 6-hourly members (US, Brazil); best-effort
 "$PY" seas5_popT.py all --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  popT FAILED (main products still publish)" >> "$LOG"
+# threshold days (US cold days, Brazil hot days) from the daily extremes; CPC normals are cached after the first run
+"$PY" seas5_extremes.py cpc >> "$LOG" 2>&1 || echo "  CPC normals incomplete (threshold days degrade to a partial normal)" >> "$LOG"
+"$PY" seas5_extremes.py fetch --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  extremes fetch incomplete" >> "$LOG"
+"$PY" seas5_extremes_build.py "$ISSUE" >> "$LOG" 2>&1 || echo "  threshold days FAILED (main products still publish)" >> "$LOG"
 # P − E distributions by region (Brazil ONS subsystems, Colombia); best-effort
 "$PY" seas5_pme_regions.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  pme regions FAILED (main products still publish)" >> "$LOG"
 
