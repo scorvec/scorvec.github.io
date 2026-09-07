@@ -1,0 +1,248 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>City temperature forecast verification — Shawn Corvec</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="How the city temperature forecasts are doing: every model and the consensus scored against observed daily highs and lows at US airport stations — error by lead day, CRPS, quantiles and per-station bias.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/sst.html">El Niño monitor</a></li>
+              <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/enso-atmosphere.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">Subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2" aria-current="page">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html" aria-current="page">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+              <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<style>
+:root{--bg:#f7f8fa;--ink:#10203a;--mut:#5b6a80;--line:#d7dee8;--card:#fff;--ink3:#8a96a8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Schibsted Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+header.pg{padding:12px 18px 8px;border-bottom:1px solid var(--line);background:var(--card)}
+h1{margin:0;font-family:Newsreader,Georgia,serif;font-weight:500;font-size:22px;letter-spacing:-.01em}
+.sub{color:var(--mut);font-size:12.5px;margin-top:2px}
+.pagelinks{margin:0;padding:7px 18px;background:var(--card);border-bottom:1px solid var(--line);font-size:12.5px}
+.pagelinks a{color:#2668a8;text-decoration:none}.pagelinks a:hover{text-decoration:underline}
+.bar{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;padding:9px 18px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.grp{display:flex;align-items:center;gap:6px}
+.grp>span{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+select,input[type=text],button{font:inherit;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+main{padding:12px 18px 28px;max-width:1720px;margin:0 auto;display:grid;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px 8px;min-width:0}
+.ttl{font-weight:600;font-size:14px;margin:0 0 2px}
+.hint{color:var(--mut);font-size:12px;margin:0 0 6px}
+.howto{margin:0;padding:10px 18px;font-size:13px;color:var(--mut);max-width:1720px;background:var(--card);border-bottom:1px solid var(--line)}
+.howto b{color:var(--ink)}
+.wrap{overflow:auto;max-height:72vh}
+table.heat{border-collapse:separate;border-spacing:0;font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.heat th{position:sticky;top:0;background:var(--card);font-weight:500;color:var(--mut);text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);z-index:2}
+table.heat th.k{left:0;z-index:3}
+table.heat th .d{display:block;font-size:10.5px;color:var(--ink3);height:13px}
+table.heat th.grp{border-left:1px solid var(--line)}
+table.heat td{padding:3px 7px;text-align:center;border-bottom:1px solid #eef1f6;min-width:54px}
+table.heat td.k{position:sticky;left:0;background:var(--card);text-align:left;font-weight:500;z-index:1;border-right:1px solid var(--line)}
+table.heat tr.cons td.k{font-weight:600}
+table.heat td.v small{display:block;font-size:10.5px;opacity:.82;line-height:1.1}
+table.heat td.x{color:var(--mut)}table.heat td.x.tot{color:var(--ink);font-weight:600}
+table.heat td.none{color:var(--ink3)}
+.lg i{display:inline-block;width:15px;height:10px;margin:0 1px;vertical-align:-1px;border-radius:2px}
+.lg b{font-weight:600}
+.tip{position:fixed;pointer-events:none;background:#10203a;color:#fff;padding:6px 9px;border-radius:6px;font-size:12px;line-height:1.35;opacity:0;transition:opacity .08s;z-index:30;font-variant-numeric:tabular-nums;max-width:440px;white-space:pre-line}
+.err{color:#b23;padding:20px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:1100px){.two{grid-template-columns:1fr}}
+</style>
+<header class="pg">
+  <h1>City temperature forecast verification</h1>
+  <div class="sub" id="badge">loading…</div>
+</header>
+<p class="pagelinks"><a href="/cities/">&larr; city temperature forecasts</a></p>
+<p class="howto"><b>How to read this page.</b> Every issue of every model shown on the <a href="/cities/">city page</a> is compared with the observed daily high and low at ASOS airport stations across the lower 48 (Iowa Environmental Mesonet daily summaries), once the day is complete. Errors are <b>model minus observed</b> in °F: red is a warm forecast, blue a cold one. Every model is scored on exactly the station-days the consensus covers, so the comparison is like for like. <b>MAE</b> is the mean absolute error, <b>bias</b> the mean signed error, <b>CRPS</b> the continuous ranked probability score of an ensemble's daily-mean distribution (lower is better; for a single run it equals the absolute error). The consensus is the value the city page quotes.</p>
+<div class="bar">
+  <div class="grp"><span>window</span><select id="win"><option value="30">last 30 days</option><option value="7">last 7 days</option></select></div>
+  <div class="grp"><span>station table</span><select id="model"></select><select id="band"></select><input type="text" id="find" placeholder="city or ICAO" size="14"></div>
+</div>
+<main id="main">
+  <div class="card"><p class="ttl">Daily high — MAE by lead day</p><p class="hint" id="h_hi"></p><div class="wrap"><table class="heat" id="t_hi"></table></div></div>
+  <div class="card"><p class="ttl">Daily low — MAE by lead day</p><p class="hint" id="h_lo"></p><div class="wrap"><table class="heat" id="t_lo"></table></div></div>
+  <div class="card"><p class="ttl">Daily mean — MAE by lead day</p><p class="hint" id="h_mean"></p><div class="wrap"><table class="heat" id="t_mean"></table></div></div>
+  <div class="two">
+    <div class="card"><p class="ttl">Consensus advantage — MAE</p><p class="hint" id="h_sk"></p><div class="wrap"><table class="heat" id="t_sk"></table></div></div>
+    <div class="card"><p class="ttl">Consensus advantage — CRPS</p><p class="hint" id="h_skc"></p><div class="wrap"><table class="heat" id="t_skc"></table></div></div>
+  </div>
+  <div class="card"><p class="ttl">CRPS by lead day</p><p class="hint" id="h_crps"></p><div class="wrap"><table class="heat" id="t_crps"></table></div></div>
+  <div class="card"><p class="ttl">Day by day — MAE of the daily mean at leads 1–3, by valid date</p><p class="hint" id="h_daily"></p><div class="wrap"><table class="heat" id="t_daily"></table></div></div>
+  <div class="card"><p class="ttl">Forecast minus observed quantiles of the daily mean</p><p class="hint" id="h_qq"></p><div class="wrap"><table class="heat" id="t_qq"></table></div></div>
+  <div class="card"><p class="ttl">By station</p><p class="hint" id="h_stn"></p><div class="wrap"><table class="heat" id="t_stn"></table></div></div>
+  <p class="hint" id="foot"></p>
+</main>
+<div class="tip" id="tip"></div>
+<script src="heat.js"></script>
+<script>
+const S = { v: null, win: '30', model: 'cons', band: 'd1-3', find: '' };
+const $ = (id) => document.getElementById(id);
+const LABEL = { cons: 'Consensus', nbm: 'NBM', ndfd: 'NDFD', ecmwf: 'ECMWF IFS', ecmwf_ens: 'ECMWF ENS', gfs: 'GFS', gefs: 'GEFS', aifs: 'AIFS', aifs_ens: 'AIFS ENS', gdps: 'GDPS', geps: 'GEPS', climo: 'Climatology' };
+const BAND = { 'd1-3': 'days 1–3', 'd4-7': 'days 4–7', 'd8-15': 'days 8–15' };
+const QTY = { hi: 'daily high', lo: 'daily low', mean: 'daily mean' };
+const lab = (m) => (S.v && S.v.model_labels && S.v.model_labels[m]) || LABEL[m] || m;
+const sgn = (v, n = 1) => (v === null || v === undefined || !Number.isFinite(v) ? '–' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(n));
+const limb = (v) => (v > 0 ? 'warm' : 'cold');
+const gl = (v) => (v > 0 ? 'green' : 'amber');
+const byLead = () => (S.win === '7' ? S.v.by_lead7 : S.v.by_lead);
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+function leads(bl, ms, key) {
+  const set = new Set();
+  ms.forEach((m) => Object.keys(bl[m] || {}).forEach((l) => { if (!key || (bl[m][l] || {})[key]) set.add(+l); }));
+  return [...set].sort((a, b) => a - b);
+}
+function models(bl) { return S.v.models.filter((m) => bl[m] && Object.keys(bl[m]).length); }
+function rowsOf(ms) { return ms.map((m) => ({ key: m, label: lab(m), cls: m === 'cons' ? 'cons' : '' })); }
+function colsOf(ls) { return ls.map((l) => ({ key: String(l), label: `day ${l}` })); }
+
+function leadTable(q) {
+  const bl = byLead(); const ms = models(bl); const ls = leads(bl, ms);
+  const s = HEAT.table($('t_' + q), rowsOf(ms), colsOf(ls), (m, l) => {
+    const v = (bl[m][l] || {})[q]; if (!v) return null;
+    const e = bl[m][l];
+    return { v: v.bias, text: `${v.mae.toFixed(2)}${e.lfl ? '' : ''}<small>${sgn(v.bias, 2)}${e.lfl && m !== 'cons' ? ' ·' : ''}</small>`,
+      tip: `${lab(m)} · day ${l} · ${QTY[q]}\nMAE ${v.mae.toFixed(2)} °F · bias ${sgn(v.bias, 2)} °F · ${v.n.toLocaleString()} station-days${m !== 'cons' ? (e.lfl ? '\nscored on the consensus\'s station-days' : '\nscored on all of its station-days') : ''}` };
+  }, [{ label: 'day 1–3', value: (m) => { const a = [1, 2, 3].map((l) => (bl[m][l] || {})[q]).filter(Boolean); if (!a.length) return { text: '' };
+      const n = a.reduce((x, y) => x + y.n, 0); return { text: (a.reduce((x, y) => x + y.mae * y.n, 0) / n).toFixed(2), cls: 'tot', tip: `${lab(m)} · days 1–3 pooled · MAE` }; } },
+    { label: 'day 4–7', value: (m) => { const a = [4, 5, 6, 7].map((l) => (bl[m][l] || {})[q]).filter(Boolean); if (!a.length) return { text: '' };
+      const n = a.reduce((x, y) => x + y.n, 0); return { text: (a.reduce((x, y) => x + y.mae * y.n, 0) / n).toFixed(2), cls: 'tot', tip: `${lab(m)} · days 4–7 pooled · MAE` }; } },
+    { label: 'day 8–15', value: (m) => { const a = [8, 9, 10, 11, 12, 13, 14, 15].map((l) => (bl[m][l] || {})[q]).filter(Boolean); if (!a.length) return { text: '' };
+      const n = a.reduce((x, y) => x + y.n, 0); return { text: (a.reduce((x, y) => x + y.mae * y.n, 0) / n).toFixed(2), cls: 'tot', tip: `${lab(m)} · days 8–15 pooled · MAE` }; } }],
+    { limb, fmt: (v) => sgn(v, 2), nice: [0.5, 1, 2, 3, 5] });
+  $('h_' + q).innerHTML = `MAE in °F, large type · bias in small type and colour (model minus observed) · last ${S.win} days · ` + HEAT.legend(s, limb, 'cold', 'warm', (x) => `${x} °F`);
+}
+function skillTable(kind) {
+  const bl = byLead(); const ms = models(bl).filter((m) => m !== 'cons'); if (!bl.cons) return;
+  const key = kind === 'crps' ? 'crps' : 'mean', fld = kind === 'crps' ? 'crps' : 'mae';
+  const ls = leads(bl, ms.concat(['cons']), key);
+  const val = (m, l) => { const x = (bl[m][l] || {})[key], c = (bl.cons[l] || {})[key]; if (!x || !c || !(x[fld] > 0)) return null; return { v: 100 * (x[fld] - c[fld]) / x[fld], x, c }; };
+  const rows = rowsOf(ms.filter((m) => ls.some((l) => val(m, l))));
+  const s = HEAT.table($('t_' + (kind === 'crps' ? 'skc' : 'sk')), rows, colsOf(ls), (m, l) => { const r = val(m, l); if (!r) return null;
+    return { v: r.v, text: `${sgn(r.v, 0)}%`, tip: `${lab(m)} · day ${l}\n${fld.toUpperCase()} ${r.x[fld].toFixed(2)} vs consensus ${r.c[fld].toFixed(2)} °F\n${r.v > 0 ? 'consensus better' : 'model better'} by ${Math.abs(r.v).toFixed(0)}% · n ${r.x.n.toLocaleString()}` }; },
+    [], { limb: gl, fmt: (v) => `${sgn(v, 0)}%`, nice: [5, 10, 20, 30, 50] });
+  $(kind === 'crps' ? 'h_skc' : 'h_sk').innerHTML = `${fld.toUpperCase()} improvement of the consensus over each model, ${kind === 'crps' ? 'daily-mean distribution' : 'daily mean'} · last ${S.win} days · ` + HEAT.legend(s, gl, 'model better', 'consensus better', (x) => `${x}%`);
+}
+function crpsTable() {
+  const bl = byLead(); const ms = models(bl).filter((m) => Object.values(bl[m]).some((x) => x.crps)); const ls = leads(bl, ms, 'crps');
+  const s = HEAT.table($('t_crps'), rowsOf(ms), colsOf(ls), (m, l) => { const c = (bl[m][l] || {}).crps; if (!c) return null;
+    const k = (bl.cons && bl.cons[l] || {}).crps; const rel = k && m !== 'cons' && c.crps > 0 ? 100 * (c.crps - k.crps) / c.crps : 0;
+    return { v: rel, text: c.crps.toFixed(2), tip: `${lab(m)} · day ${l}\nCRPS ${c.crps.toFixed(2)} °F · n ${c.n.toLocaleString()}${k && m !== 'cons' ? `\nconsensus ${k.crps.toFixed(2)}: ${rel > 0 ? 'consensus better' : 'model better'} by ${Math.abs(rel).toFixed(0)}%` : ''}` }; },
+    [], { limb: gl, fmt: (v) => `${sgn(v, 0)}%`, nice: [5, 10, 20, 30, 50] });
+  $('h_crps').innerHTML = `CRPS of the daily mean in °F · colour: how much the consensus beats the model at that lead (green) or trails it (amber) · last ${S.win} days · ` + HEAT.legend(s, gl, 'model better', 'consensus better', (x) => `${x}%`);
+}
+function dailyTable() {
+  const dl = S.v.daily || {}; const ms = S.v.models.filter((m) => dl[m] && Object.keys(dl[m]).length);
+  const dates = [...new Set(ms.flatMap((m) => Object.keys(dl[m])))].sort().slice(-(S.win === '7' ? 7 : 30));
+  const rows = dates.map((d) => { const t = new Date(d + 'T00:00:00'); return { key: d, label: `${d.slice(5)} ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][t.getDay()]}` }; });
+  const cols = ms.map((m) => ({ key: m, label: lab(m) }));
+  const s = HEAT.table($('t_daily'), rows, cols, (d, m) => { const v = dl[m][d]; if (!v) return null; const c = (dl.cons || {})[d];
+    const rel = c && m !== 'cons' && v.mae > 0 ? 100 * (v.mae - c.mae) / v.mae : 0;
+    return { v: rel, text: `${v.mae.toFixed(2)}<small>${sgn(v.bias, 1)}</small>`, tip: `${lab(m)} · ${d}\nMAE ${v.mae.toFixed(2)} °F · bias ${sgn(v.bias, 2)} °F · n ${v.n.toLocaleString()}${c && m !== 'cons' ? `\nconsensus ${c.mae.toFixed(2)}: ${rel > 0 ? 'consensus better' : 'model better'} by ${Math.abs(rel).toFixed(0)}%` : ''}` }; },
+    [], { limb: gl, fmt: (v) => `${sgn(v, 0)}%`, nice: [5, 10, 20, 30, 50] });
+  $('h_daily').innerHTML = `each cell pools every issue that verified on that date at leads 1–3, every station · MAE large, bias small · colour: consensus advantage on the day · ` + HEAT.legend(s, gl, 'model better', 'consensus better', (x) => `${x}%`);
+}
+function qqTable() {
+  const qq = S.v.qq || {}; const bands = Object.keys(BAND);
+  const rows = []; const ms = S.v.models.filter((m) => qq[m] && Object.keys(qq[m]).length);
+  bands.forEach((b) => ms.forEach((m) => { if (qq[m][b]) rows.push({ key: `${m}|${b}`, label: `${lab(m)} · ${BAND[b]}`, cls: m === 'cons' ? 'cons' : '' }); }));
+  const first = ms.map((m) => Object.values(qq[m])[0]).find(Boolean);
+  const qs = (first || {}).q || [];
+  const cols = qs.map((q) => ({ key: String(q), label: `p${q}` }));
+  const s = HEAT.table($('t_qq'), rows, cols, (rk, q) => { const [m, b] = rk.split('|'); const r = qq[m][b]; const i = r.q.indexOf(+q); if (i < 0 || r.f[i] === null || r.o[i] === null) return null;
+    return { v: r.f[i] - r.o[i], tip: `${lab(m)} · ${BAND[b]} · p${q}\nforecast ${r.f[i].toFixed(1)} °F · observed ${r.o[i].toFixed(1)} °F · n ${r.n.toLocaleString()}` }; },
+    [{ label: 'n', value: (rk) => { const [m, b] = rk.split('|'); return { text: qq[m][b].n.toLocaleString() }; } }],
+    { limb, fmt: (v) => sgn(v, 1), nice: [1, 2, 3, 5, 8] });
+  $('h_qq').innerHTML = `distribution check: the forecast quantile minus the observed quantile of the daily mean over the window, pooled over stations · a model that is right on average but warm at the warm tail shows red at p90–p99 · last ${S.v.window_days} days · ` + HEAT.legend(s, limb, 'forecast cooler', 'forecast warmer', (x) => `${x} °F`);
+}
+function stnTable() {
+  const errs = ((S.v.station || {})[S.model] || {})[S.band] || {}; const names = S.v.names || {};
+  const f = S.find.trim().toLowerCase();
+  const rows = S.v.stations.filter((s) => errs[s.icao] && (!f || s.icao.toLowerCase().includes(f) || (names[s.icao] || '').toLowerCase().includes(f)))
+    .sort((a, b) => Math.abs(errs[b.icao].mean) - Math.abs(errs[a.icao].mean)).map((s) => ({ key: s.icao, label: names[s.icao] ? `${names[s.icao]} <span style="color:var(--ink3)">${s.icao}</span>` : s.icao }));
+  const cols = [{ key: 'hi', label: 'high bias' }, { key: 'lo', label: 'low bias' }, { key: 'mean', label: 'mean bias' }];
+  const s = HEAT.table($('t_stn'), rows, cols, (icao, q) => { const e = errs[icao]; return { v: e[q], tip: `${names[icao] || icao} (${icao}) · ${lab(S.model)} · ${BAND[S.band]}\n${QTY[q]} error ${sgn(e[q])} °F · MAE ${e.mae.toFixed(1)} · n ${e.n}` }; },
+    [{ label: 'MAE', value: (icao) => ({ text: errs[icao].mae.toFixed(1), cls: 'tot' }) }, { label: 'n', value: (icao) => ({ text: String(errs[icao].n) }) }],
+    { limb, fmt: (v) => sgn(v, 1), nice: [1, 2, 3, 4, 5, 8, 10] });
+  $('h_stn').innerHTML = `${lab(S.model)} · ${BAND[S.band]} · mean error by station over the last ${S.v.window_days} days, largest first · ${rows.length} stations · ` + HEAT.legend(s, limb, 'cold', 'warm', (x) => `${x} °F`);
+}
+function fill(sel, items, value) { sel.innerHTML = items.map(([k, l]) => `<option value="${k}"${k === value ? ' selected' : ''}>${l}</option>`).join(''); }
+function render() {
+  const parts = [() => ['hi', 'lo', 'mean'].forEach(leadTable), () => skillTable('mae'), () => skillTable('crps'), crpsTable, dailyTable, qqTable, stnTable];
+  parts.forEach((f) => { try { f(); } catch (e) { console.error(e); } });
+  const c = S.v.cycles || {}; const tot = Object.values(c).reduce((a, b) => a + b, 0);
+  $('badge').textContent = `${S.v.n_stations} stations · observations through ${S.v.obs_through} · ${tot} issues scored over ${S.v.window[0]} → ${S.v.window[1]} · updated ${S.v.built.replace('T', ' ').slice(0, 16)} UTC`;
+  const since = S.v.cons_since ? `${S.v.cons_since.slice(0, 4)}-${S.v.cons_since.slice(4, 6)}-${S.v.cons_since.slice(6, 8)} ${S.v.cons_since.slice(8)}Z` : null;
+  $('foot').textContent = `Observations: IEM ASOS daily summaries (max and min of the local day) at ${S.v.n_stations} stations; the station table lists the stations on the city page. Issues scored: ${Object.entries(c).map(([m, n]) => `${lab(m)} ${n}`).join(', ')}.${since ? ` The consensus is scored for issues from ${since} onward.` : ''} Where the consensus has a score at a lead, every model is scored on the consensus's own station-days (marked · in the tables); elsewhere a model is scored on all of its pairs in the window. A lead with fewer than 30 pairs is left blank.`;
+}
+async function main() {
+  try { S.v = await (await fetch('data/verify.json?t=' + Math.floor(Date.now() / 6e5))).json(); }
+  catch (e) { $('main').innerHTML = '<p class="err">The verification file is not available.</p>'; return; }
+  fill($('model'), S.v.models.map((m) => [m, lab(m)]), S.model);
+  fill($('band'), Object.entries(BAND), S.band);
+  $('win').addEventListener('change', (e) => { S.win = e.target.value; render(); });
+  $('model').addEventListener('change', (e) => { S.model = e.target.value; stnTable(); });
+  $('band').addEventListener('change', (e) => { S.band = e.target.value; stnTable(); });
+  $('find').addEventListener('input', (e) => { S.find = e.target.value; stnTable(); });
+  render();
+}
+main();
+</script>
