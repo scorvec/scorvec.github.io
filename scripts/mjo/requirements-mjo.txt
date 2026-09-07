@@ -12,7 +12,7 @@ gcsfs            # build_*_clim.py builders read it. Without these the ERA5 tail
                  # observed history (seen on the 2026-08-29 Actions trial).
 cfgrib
 eccodes
-matplotlib==3.10.9  # 3.11 breaks cartopy GeoAxes tight-bbox/titles (2026-08-25)
+matplotlib==3.11.1  # 3.11 breaks cartopy GeoAxes tight-bbox/titles (2026-08-25)
 eofs
 requests
 ecmwf-opendata
