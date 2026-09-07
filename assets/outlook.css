@@ -386,3 +386,15 @@
     h1 { font-size: 1.55rem; }
     .chip { min-width: 44%; }
   }
+
+/* outlook-charts additions */
+/* SFS teleconnection table, the GEPS subseasonal page's table.tele look (user 2026-09-07:
+   "The SFS teleconnection charts should look the same as the GEPS/SEAS5") */
+table.tele-sfs { width: 100%; border-collapse: collapse; margin: 0.9rem 0 0.3rem; font-size: 0.78rem; }
+table.tele-sfs th, table.tele-sfs td { padding: 0.35rem 0.4rem; text-align: center; border-bottom: 1px solid var(--rule); }
+table.tele-sfs thead th { font-weight: 600; color: var(--ink); }
+table.tele-sfs tbody th { text-align: left; font-weight: 600; white-space: nowrap; }
+table.tele-sfs th span, table.tele-sfs td span { display: block; font-weight: 400; font-size: 0.7rem; color: var(--muted); }
+table.tele-sfs td i { font-style: normal; color: #4a4640; }
+table.tele-sfs td.flagged { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.55) 0 4px, rgba(140,136,128,0.35) 4px 6px) !important; }
+.tele-sfs-cap { font-size: 0.78rem; color: var(--ink2); margin-top: 0.6rem; max-width: 110ch; }

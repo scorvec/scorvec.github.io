@@ -105,6 +105,7 @@
 </header>
 <!-- sh:end -->
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
+<script src="/assets/outlook-charts.js"></script>
 <main data-rail=".card">
   <header>
     <div class="eyebrow">Monthly, from ECMWF SEAS5 with 51 members, <span id="issueLabel">latest issue</span></div>
@@ -119,8 +120,8 @@
   <div class="card" data-label="ENSO indices" data-group="ENSO &amp; oceans">
     <h2>ENSO indices &mdash; this issue against the last three</h2>
     <p class="note">The shaded fan is <b>this issue</b> (P10&ndash;P90 and P25&ndash;P75 of the 51 members) with its
-    mean in gold; the coloured lines are the ensemble means of the <b>previous issues</b>, oldest
-    darkest, each drawn over its own valid months, so the run-to-run shift is read directly.
+    mean in sienna; the coloured lines are the ensemble means of the <b>previous issues</b>, oldest
+    darkest and dotted, newest solid, each drawn over its own valid months, so the run-to-run shift is read directly.
     The grey band is the hindcast&rsquo;s year-to-year spread (&plusmn;1&sigma;), the model&rsquo;s own
     &ldquo;normal range&rdquo;. Black is observed (CPC ERSSTv5, 1991&ndash;2020 base) where an
     observed series exists. East-based indices matter this year: a warm Ni&ntilde;o-1+2 with a
@@ -152,7 +153,7 @@
     indices; the shape and the run-to-run change are what to read.</p>
     <div class="controls" id="otherPills"></div>
     <div class="idx-note" id="otherNote"></div>
-    <div id="otherChart" class="plot" style="height:440px"></div>
+    <div id="otherChart" class="plot" style="height:460px"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 SST, 2&deg; grid &middot; PDO pattern: EOF1 of ERSSTv5 North Pacific SSTA (reference/pdo_pattern.nc) &middot; hindcast &plusmn;1&sigma; band from the 24 hindcast years</span>
       <span class="chart-updated" id="otherUpdated">&mdash;</span>
@@ -233,7 +234,7 @@
     <div class="map-grid" id="teleFigs" style="margin-bottom:1rem"></div>
     <div class="controls" id="telePills"></div>
     <div class="idx-note" id="teleNote"></div>
-    <div id="teleChart" class="plot" style="height:440px"></div>
+    <div id="teleChart" class="plot" style="height:460px"></div>
     <div style="overflow-x:auto"><table class="chg" id="teleTable"></table></div>
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 500 hPa height and msl, 2&deg;, anomalies vs the 1993&ndash;2016 hindcast, interpolated to the 2.5&deg; NCEP grid of the patterns &middot; patterns: CPC-style regression maps (NCEP/NCAR R1, 1991&ndash;2020) &middot; skill: hindcast ensemble mean vs ERA5</span>
@@ -255,7 +256,7 @@
     <div class="map-grid" id="stratFigs" style="margin-bottom:1rem"></div>
     <div class="controls" id="stratPills"></div>
     <div class="idx-note" id="stratNote"></div>
-    <div id="stratChart" class="plot" style="height:440px"></div>
+    <div id="stratChart" class="plot" style="height:460px"></div>
     <div style="overflow-x:auto"><table class="chg" id="stratTable"></table></div>
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 u and z at 10&ndash;1000 hPa, 2&deg; &middot; anomalies and spreads vs the 1993&ndash;2016 hindcast &middot; skill: hindcast ensemble mean vs ERA5</span>
@@ -356,7 +357,7 @@
     the sign of the tilt and whether the members agree, not the amplitude. Both hemispheres;
     the southern vortex is in its spring breakdown season at a September start.</p>
     <div class="controls" id="polarPills"></div>
-    <div id="polarChart" class="plot" style="height:420px"></div>
+    <div id="polarChart" class="plot" style="height:460px"></div>
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 geopotential, 2&deg; grid, cosine-weighted 60&ndash;90&deg; cap mean &middot; anomalies vs the 1993&ndash;2016 hindcast&rsquo;s linear trend at the valid year</span>
       <span class="chart-updated" id="polarUpdated">&mdash;</span>
@@ -390,9 +391,7 @@
 
 <script>
 (function () {
-  var J = null;
-  var ORDER = ["#3b2a8c", "#3f7fbf", "#39b3b0"];           // previous issues, oldest first
-  var GOLD = "#b8860b", FAN = "rgba(184,134,11,", CLIM = "rgba(120,120,120,0.16)";
+  var J = null, OC = window.OutlookCharts;
   var state = { enso: "nino34", other: "pdo", members: false, sm: 0, hemi: "nh", lev: "100" };
   var OBS_KEY = { nino12: "nino12", nino3: "nino3", nino34: "nino34", nino4: "nino4", rnino34: "roni" };
 
@@ -403,86 +402,88 @@
   function fmt(v, d) { return v == null ? "—" : (v >= 0 ? "+" : "") + v.toFixed(d == null ? 2 : d); }
   function meta(key) { for (var i = 0; i < J.index_meta.length; i++) if (J.index_meta[i].key === key) return J.index_meta[i]; return {label: key, units: "", note: ""}; }
 
-  // Chart chrome (user 2026-09-07: "make the timeseries plots a bit more clear"): larger type, the legend
-  // above the plot in reading order, one tick per month, a firm zero line, thicker lines.
-  function layout(title, yunits, xr) {
-    return { margin: {l: 58, r: 24, t: 70, b: 46}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "#fff",
-      font: {family: "Inter, sans-serif", size: 14, color: "#1a1a1a"}, showlegend: true,
-      legend: {orientation: "h", y: 1.02, yanchor: "bottom", x: 0, font: {size: 12.5}, itemwidth: 30, traceorder: "normal"},
-      xaxis: {type: "date", range: xr, gridcolor: "#e8e6e0", tickformat: "%b\n%Y", dtick: "M1", zeroline: false, showspikes: true, spikecolor: "#bbb", spikethickness: 1, spikemode: "across", tickfont: {size: 12.5}},
-      yaxis: {title: {text: yunits, standoff: 8, font: {size: 13}}, gridcolor: "#e8e6e0", zeroline: true, zerolinecolor: "#666", zerolinewidth: 1.6, tickfont: {size: 12.5}},
-      hovermode: "x unified", hoverlabel: {font: {size: 12.5}}, title: {text: title, x: 0, xanchor: "left", y: 0.98, font: {size: 15}} };
-  }
+  // Chart chrome lives in /assets/outlook-charts.js (shared with sfs.html, 2026-09-07): the x-range shows at
+  // most six months of observed history, the y-range fits the visible data, members are drawn at a
+  // legible weight, the legend sits above the plot and the current mean / last observation carry end labels.
 
+  // 3-month running mean: bridged with the last two observed months where an observed series exists
+  // (so the smoothed fan starts at the first forecast month, as on the SFS page), else the first two
+  // months are undefined.
+  function smoother(entry, key) {
+    if (!state.sm) return function (a) { return a; };
+    var obs = obsFor(key), tail = [];
+    if (obs) {
+      var f0 = entry.valid[0];
+      for (var i = 0; i < obs.months.length; i++) if (obs.months[i] < f0 && OC.isNum(obs.y[i])) tail.push([obs.months[i], obs.y[i]]);
+      tail = tail.slice(-2);
+      if (tail.length && OC.shiftMonths(tail[tail.length - 1][0], 1) !== f0) tail = [];     // only a contiguous tail bridges
+    }
+    var lead = tail.map(function (r) { return r[1]; });
+    return function (a) { return run3(lead.concat(a)).slice(lead.length); };
+  }
   function seriesFor(entry, key) {
     var e = entry[key]; if (!e) return null;
-    var f = state.sm ? run3 : function (a) { return a; };
-    return { x: entry.valid.map(monthDate), mean: f(e.mean), p10: f(e.p10), p25: f(e.p25), p75: f(e.p75), p90: f(e.p90), sd: e.clim_sd, members: e.members };
+    var f = smoother(entry, key);
+    return { x: entry.valid.map(monthDate), mean: f(e.mean), p10: f(e.p10), p25: f(e.p25), p75: f(e.p75), p90: f(e.p90), sd: e.clim_sd, members: e.members, f: f };
   }
 
-  function indexTraces(key, withObs) {
+  function obsFor(key) {
+    if (!J.observed || !J.observed.months || !J.observed[OBS_KEY[key]]) return null;
+    return { months: J.observed.months, y: J.observed[OBS_KEY[key]] };
+  }
+
+  function indexTraces(key, withObs, units) {
     var cur = J.indices[J.issue], s = seriesFor(cur, key); if (!s) return [];
-    var tr = [];
-    // hindcast ±1σ band, on the current issue's valid months
-    tr.push({x: s.x.concat(s.x.slice().reverse()), y: s.sd.map(function (v) { return v; }).concat(s.sd.map(function (v) { return -v; }).reverse()),
-             mode: "lines", fill: "toself", fillcolor: CLIM, line: {width: 0}, hoverinfo: "skip", name: "hindcast ±1σ", showlegend: true});
-    // previous issues, oldest first
-    var prev = J.issues.filter(function (i) { return i !== J.issue; }).sort();
-    prev.forEach(function (iss, k) {
+    var tr = [], hv = { units: units, digits: 2 };
+    // hindcast ±1σ band, on the current issue's valid months (never sets the y-range)
+    tr = tr.concat(OC.climBand(s.x, s.sd, null, "hindcast ±1σ"));
+    // previous issues, oldest first: navy dotted → blue dashed → teal solid
+    var prev = J.issues.filter(function (i) { return i !== J.issue; }).sort(), plist = [];
+    prev.forEach(function (iss) {
       var p = seriesFor(J.indices[iss], key); if (!p) return;
-      tr.push({x: p.x, y: p.mean, mode: "lines", line: {color: ORDER[k % ORDER.length], width: 2.4, dash: ["dot", "dash", "solid"][Math.max(0, 3 - prev.length + k)] || "solid"},
-               name: issueLabel(iss) + " issue", hovertemplate: "%{y:.2f}<extra>" + issueLabel(iss) + "</extra>"});
+      plist.push({ x: p.x, y: p.mean, name: issueLabel(iss) + " issue" });
     });
+    tr = tr.concat(OC.prevTraces(plist, hv));
     // this issue: fans, members, mean
-    tr.push({x: s.x.concat(s.x.slice().reverse()), y: s.p10.concat(s.p90.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.16)", line: {width: 0}, hoverinfo: "skip", name: "P10–P90"});
-    tr.push({x: s.x.concat(s.x.slice().reverse()), y: s.p25.concat(s.p75.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.30)", line: {width: 0}, hoverinfo: "skip", name: "P25–P75"});
+    tr = tr.concat(OC.fanTraces(s.x, s));
     if (state.members && s.members) {
-      var f = state.sm ? run3 : function (a) { return a; };
-      // members are [lead][member]
-      var nm = s.members[0].length;
-      for (var m = 0; m < nm; m++) {
-        var y = f(s.members.map(function (row) { return row[m]; }));
-        tr.push({x: s.x, y: y, mode: "lines", line: {color: "rgba(184,134,11,0.25)", width: 0.7}, hoverinfo: "skip", showlegend: m === 0, name: "members"});
-      }
+      var rows = OC.memberRows(s.members, s.x.length).map(function (r) { return s.f(r); });
+      tr.push(OC.memberTrace(s.x, rows, { name: "members (" + rows.length + ")" }));
     }
-    tr.push({x: s.x, y: s.mean, mode: "lines+markers", line: {color: GOLD, width: 4}, marker: {size: 7, line: {color: "#fff", width: 1}}, name: issueLabel(J.issue) + " issue (this)", hovertemplate: "%{y:.2f}<extra>mean</extra>"});
-    if (withObs && J.observed && J.observed[OBS_KEY[key]]) {
-      var ox = J.observed.months.map(monthDate), oy = J.observed[OBS_KEY[key]];
-      tr.push({x: ox, y: oy, mode: "lines+markers", line: {color: "#111", width: 3}, marker: {size: 5}, name: "observed" + (key === "rnino34" ? " RONI (3-month)" : ""), hovertemplate: "%{y:.2f}<extra>observed</extra>"});
-    }
+    tr.push(OC.meanTrace(s.x, s.mean, issueLabel(J.issue) + " issue (this)", hv));
+    var obs = withObs ? obsFor(key) : null;
+    if (obs) tr.push(OC.obsTrace(obs.months.map(monthDate), obs.y, "observed" + (key === "rnino34" ? " RONI (3-month)" : ""), hv));
     return tr;
   }
 
-  function xrange() {
-    var v = J.indices[J.issue].valid; var obs = J.observed && J.observed.months ? J.observed.months : [];
-    var start = obs.length ? obs[Math.max(0, obs.length - 12)] : v[0];
-    return [monthDate(start), monthDate(v[v.length - 1])];
+  // x-range rule: ≤ 6 months of observed history before the issue month, then every forecast month;
+  // no observed series → start at the first forecast month
+  function xrange(key, withObs) {
+    var v = J.indices[J.issue].valid, obs = withObs ? obsFor(key) : null;
+    return OC.monthRange(v, obs ? obs.months : []);
   }
 
   function drawEnso() {
     var m = meta(state.enso);
     document.getElementById("ensoNote").textContent = m.note;
-    Plotly.react("ensoChart", indexTraces(state.enso, true), layout(m.label + " anomaly", m.units, xrange()), {displayModeBar: false, responsive: true});
+    OC.react("ensoChart", indexTraces(state.enso, true, m.units), { title: m.label + " anomaly" + (state.sm ? ", 3-month running mean" : ""), yunits: m.units, xrange: xrange(state.enso, true) });
   }
   function drawOther() {
     var m = meta(state.other);
     document.getElementById("otherNote").textContent = m.note;
-    Plotly.react("otherChart", indexTraces(state.other, false), layout(m.label, m.units, xrange()), {displayModeBar: false, responsive: true});
+    OC.react("otherChart", indexTraces(state.other, false, m.units), { title: m.label + (state.sm ? ", 3-month running mean" : ""), yunits: m.units, xrange: xrange(state.other, false) });
   }
   function drawPolar() {
     var key = state.hemi + "_z" + state.lev, e = J.polar[key]; if (!e) { document.getElementById("polarChart").textContent = "no data for " + key; return; }
-    var x = J.indices[J.issue].valid.map(monthDate), tr = [];
-    tr.push({x: x.concat(x.slice().reverse()), y: e.clim_sd.concat(e.clim_sd.map(function (v) { return -v; }).reverse()), mode: "lines", fill: "toself", fillcolor: CLIM, line: {width: 0}, hoverinfo: "skip", name: "hindcast ±1σ"});
-    tr.push({x: x.concat(x.slice().reverse()), y: e.p10.concat(e.p90.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.16)", line: {width: 0}, hoverinfo: "skip", name: "P10–P90"});
-    tr.push({x: x.concat(x.slice().reverse()), y: e.p25.concat(e.p75.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.30)", line: {width: 0}, hoverinfo: "skip", name: "P25–P75"});
-    var nm = e.members[0].length;
-    for (var m = 0; m < nm; m++) tr.push({x: x, y: e.members.map(function (r) { return r[m]; }), mode: "lines", line: {color: "rgba(184,134,11,0.22)", width: 0.7}, hoverinfo: "skip", showlegend: m === 0, name: "members"});
+    var valid = J.indices[J.issue].valid, x = valid.map(monthDate), tr = [], hv = { units: "m", digits: 0, signed: true };
+    tr = tr.concat(OC.climBand(x, e.clim_sd, null, "hindcast ±1σ"));
     var pe = J.polar_previous && J.polar_previous[key];
-    if (pe) tr.push({x: pe.valid.map(monthDate), y: pe.mean, mode: "lines", line: {color: "#3f7fbf", width: 2.4, dash: "dash"}, name: issueLabel(J.previous) + " issue mean", hovertemplate: "%{y:.0f} m<extra>" + issueLabel(J.previous) + "</extra>"});
-    tr.push({x: x, y: e.mean, mode: "lines+markers", line: {color: GOLD, width: 4}, marker: {size: 7, line: {color: "#fff", width: 1}}, name: issueLabel(J.issue) + " issue mean", hovertemplate: "%{y:.0f} m<extra>mean</extra>"});
+    if (pe) tr = tr.concat(OC.prevTraces([{ x: pe.valid.map(monthDate), y: pe.mean, name: issueLabel(J.previous) + " issue mean" }], hv));
+    tr = tr.concat(OC.fanTraces(x, e));
+    tr.push(OC.memberTrace(x, OC.memberRows(e.members, x.length)));
+    tr.push(OC.meanTrace(x, e.mean, issueLabel(J.issue) + " issue mean", hv));
     var title = (state.hemi === "nh" ? "Northern" : "Southern") + " polar cap, " + state.lev + " hPa height anomaly";
-    var x0 = pe ? monthDate(pe.valid[0]) : x[0];
-    Plotly.react("polarChart", tr, layout(title, "m", [x0, x[x.length - 1]]), {displayModeBar: false, responsive: true});
+    OC.react("polarChart", tr, { title: title, yunits: "m", xrange: OC.monthRange(valid, []) });
   }
 
   function pills(elId, keys, cur, onpick) {
@@ -638,19 +639,22 @@
   // generic member-index plume for the teleconnection / stratosphere JSON
   function idxTraces(T, key) {
     var e = T.indices[key], pe = T.previous_indices && T.previous_indices[key], x = e.valid.map(monthDate), tr = [];
-    var absolute = !!e.absolute, base = absolute ? e.clim_mean : e.clim_mean.map(function () { return 0; });
-    tr.push({x: x.concat(x.slice().reverse()), y: base.map(function (b, i) { return b + e.clim_sd[i]; }).concat(base.map(function (b, i) { return b - e.clim_sd[i]; }).reverse()),
-             mode: "lines", fill: "toself", fillcolor: CLIM, line: {width: 0}, hoverinfo: "skip", name: absolute ? "hindcast mean ±1σ" : "hindcast ±1σ"});
-    if (absolute) tr.push({x: x, y: e.clim_mean, mode: "lines", line: {color: "#888", width: 1, dash: "dash"}, name: "hindcast mean", hoverinfo: "skip"});
-    if (pe) tr.push({x: pe.valid.map(monthDate), y: pe.mean, mode: "lines", line: {color: "#3f7fbf", width: 2.4, dash: "dash"}, name: issueLabel(T.previous) + " issue mean"});
-    tr.push({x: x.concat(x.slice().reverse()), y: e.p10.concat(e.p90.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.16)", line: {width: 0}, hoverinfo: "skip", name: "P10–P90"});
-    tr.push({x: x.concat(x.slice().reverse()), y: e.p25.concat(e.p75.slice().reverse()), mode: "lines", fill: "toself", fillcolor: FAN + "0.30)", line: {width: 0}, hoverinfo: "skip", name: "P25–P75"});
-    if (e.members) { var nm = e.members[0].length; for (var m = 0; m < nm; m++) tr.push({x: x, y: e.members.map(function (r) { return r[m]; }), mode: "lines", line: {color: "rgba(184,134,11,0.18)", width: 0.6}, hoverinfo: "skip", showlegend: m === 0, name: "members"}); }
-    tr.push({x: x, y: e.mean, mode: "lines+markers", line: {color: GOLD, width: 4}, marker: {size: 7, line: {color: "#fff", width: 1}}, name: issueLabel(T.issue) + " issue mean"});
-    if (e.obs_tail && e.obs_tail.length) tr.push({x: e.obs_tail.map(function (r) { return monthDate(r[0]); }), y: e.obs_tail.map(function (r) { return r[1]; }), mode: "lines+markers", line: {color: "#111", width: 3}, marker: {size: 5}, name: "observed (ERA5, same projection)"});
-    if (e.cpc_tail && e.cpc_tail.length) tr.push({x: e.cpc_tail.map(function (r) { return monthDate(r[0]); }), y: e.cpc_tail.map(function (r) { return r[1]; }), mode: "markers", marker: {symbol: "x", size: 7, color: "#8b1a1a"}, name: "published index (CPC), its own scale"});
-    if (key.indexOf("u60") === 0) tr.push({x: [x[0], x[x.length - 1]], y: [0, 0], mode: "lines", line: {color: "#c2185b", width: 1.2, dash: "dash"}, name: "easterly below"});
+    var absolute = !!e.absolute, base = absolute ? e.clim_mean : null, hv = { units: e.units, digits: 2, signed: !absolute };
+    tr = tr.concat(OC.climBand(x, e.clim_sd, base, absolute ? "hindcast mean ±1σ" : "hindcast ±1σ"));
+    if (absolute) tr.push(OC.hindMeanTrace(x, e.clim_mean, "hindcast mean"));
+    if (pe) tr = tr.concat(OC.prevTraces([{ x: pe.valid.map(monthDate), y: pe.mean, name: issueLabel(T.previous) + " issue mean" }], hv));
+    tr = tr.concat(OC.fanTraces(x, e));
+    if (e.members) tr.push(OC.memberTrace(x, OC.memberRows(e.members, x.length)));
+    tr.push(OC.meanTrace(x, e.mean, issueLabel(T.issue) + " issue mean", hv));
+    if (e.obs_tail && e.obs_tail.length) tr.push(OC.obsTrace(e.obs_tail.map(function (r) { return monthDate(r[0]); }), e.obs_tail.map(function (r) { return r[1]; }), "observed (ERA5, same projection)", hv));
+    if (e.cpc_tail && e.cpc_tail.length) tr.push(OC.markerTrace(e.cpc_tail.map(function (r) { return monthDate(r[0]); }), e.cpc_tail.map(function (r) { return r[1]; }), "published index (CPC), its own scale", hv));
+    if (key.indexOf("u60") === 0) tr.push({x: [x[0], x[x.length - 1]], y: [0, 0], mode: "lines", line: {color: "#c2185b", width: 1.4, dash: "dash"}, name: "easterly below", hoverinfo: "skip"});
     return tr;
+  }
+  function idxRange(T, key) {
+    var e = T.indices[key];
+    var tails = [].concat(e.obs_tail || [], e.cpc_tail || []).map(function (r) { return r[0]; }).sort();
+    return OC.monthRange(e.valid, tails);
   }
   function idxTable(T, key) {
     var e = T.indices[key], pe = T.previous_indices && T.previous_indices[key];
@@ -674,10 +678,7 @@
     function draw(k) {
       var e = T.indices[k];
       document.getElementById(noteId).textContent = e.note + (T.skill_note ? "  Skill r: " + T.skill_note + "." : "");
-      var x0 = T.previous_indices && T.previous_indices[k] ? T.previous_indices[k].valid[0] : e.valid[0];
-      var tails = [].concat(e.obs_tail || [], e.cpc_tail || []).map(function (r) { return r[0]; }).sort();
-      if (tails.length && tails[0] < x0) x0 = tails[0];
-      Plotly.react(chartId, idxTraces(T, k), layout(e.label, e.units, [monthDate(x0), monthDate(e.valid[e.valid.length - 1])]), {displayModeBar: false, responsive: true});
+      OC.react(chartId, idxTraces(T, k), { title: e.label, yunits: e.units, xrange: idxRange(T, k), includeZero: !e.absolute || /^(u60|qbo)/.test(k) });
       document.getElementById(tableId).innerHTML = idxTable(T, k);
     }
     pills(pillsId, keys.map(function (k) { return {key: k, label: T.indices[k].label}; }), cur, draw);
