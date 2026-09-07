@@ -188,10 +188,20 @@ def _season_means(vals: np.ndarray, leads: tuple[int, ...]) -> np.ndarray:
     return vals[:, idx].mean(axis=1)                              # [sample, lat, lon]
 
 
-def tercile_probs(fc: np.ndarray, hc: np.ndarray, leads) -> dict:
+def tercile_probs(fc: np.ndarray, hc: np.ndarray, leads, detrend_ym: str | None = None) -> dict:
     """Model-climatology terciles: thresholds from the 600 hindcast seasonal means
-    per grid point, probabilities from the 51 forecast members."""
+    per grid point, probabilities from the 51 forecast members. With `detrend_ym` the
+    hindcast's linear trend (per grid point) is removed and the members are counted against
+    it extrapolated to the season's valid year — for temperature and heights, where a
+    1993–2016 base alone puts the whole tropics in the upper tercile (seen 2026-09-07)."""
     f = _season_means(fc, leads); h = _season_means(hc, leads)
+    if detrend_ym is not None:
+        yrs = 1993 + hindcast_years(h.shape[0]); x = (yrs - yrs.mean())[:, None, None]
+        hm = np.nanmean(h, axis=0, keepdims=True)
+        b = np.nansum(x * (h - hm), axis=0) / float((x[:, 0, 0] ** 2).sum())
+        target = int(valid_months(detrend_ym)[leads[len(leads) // 2] - 1][:4]) - yrs.mean()
+        h = h - b[None] * x
+        f = f - b[None] * target
     lo, hi = np.nanpercentile(h, [100 / 3, 200 / 3], axis=0)
     below = (f < lo[None]).mean(0); above = (f > hi[None]).mean(0)
     normal = 1.0 - below - above
@@ -239,71 +249,77 @@ def head_text(fig, h, title, sub, title_size=15, sub_size=9.5):
 
 
 def render_terciles(ym: str, fields: dict, out_dir: Path) -> dict:
-    """One figure per variable: three seasons side by side, most-likely tercile shaded
-    by its probability. Returns {var: {file, seasons}}."""
+    """One map per (variable, season): the most likely tercile against SEAS5's own hindcast, on the
+    global 1° fields where they exist (t2m, tp, z500, u850) and the Americas box otherwise
+    (user 2026-09-07: "single plot charts only"). Files seas5_terc_{var}_{SEASON_YYYY}.webp."""
+    import calendar
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.colors import ListedColormap, BoundaryNorm
-    import cartopy.crs as ccrs
-    import cartopy.feature as cfeature
+    from matplotlib.patches import Patch
+    from cartopy.util import add_cyclic_point
+    import mapstyle as MS
 
     bins = TERC_BINS
     palettes = {"t2m": (TERC_PALETTES["warm"], TERC_PALETTES["cool"]), "tp": (TERC_PALETTES["wet"], TERC_PALETTES["dry"]),
-                "z500": (TERC_PALETTES["warm"], TERC_PALETTES["cool"])}
-    titles = {"t2m": "2 m temperature", "tp": "Precipitation", "z500": "500 hPa height"}
-    proj = ccrs.PlateCarree(central_longitude=-90)
-    pc = ccrs.PlateCarree()
+                "z500": (TERC_PALETTES["warm"], TERC_PALETTES["cool"]), "u850": (TERC_PALETTES["warm"], TERC_PALETTES["cool"]),
+                "sst": (TERC_PALETTES["warm"], TERC_PALETTES["cool"])}
+    titles = {"t2m": "2 m temperature", "tp": "Precipitation", "z500": "500 hPa height", "u850": "850 hPa zonal wind", "sst": "Sea surface temperature"}
+    sides = {"u850": ("Westerly anomaly most likely", "Easterly anomaly most likely")}
+    # global members + FULL hindcast samples per variable (the tercile bounds need the 600 samples)
+    globals_ = {}
+    for var, kind, short, fac in (("t2m", "gl", "t2m", 1.0), ("tp", "gl", "tprate", 86400.0 * 1000), ("z500", "gl_z500", "z", 1.0 / G0), ("u850", "gl_u850", "u", 1.0)):
+        if fc_path(kind, ym).exists() and hc_path(kind, ym[4:]).exists():
+            globals_[var] = (kind, short, fac)
+    y0, m0 = ym[:4], int(ym[4:]); vm = valid_months(ym)
     meta = {}
-    for var, (fc, hc, lat, lon) in fields.items():
-        H, adj = map_layout(15.5, 3, 1, top_in=1.25, bottom_in=0.72)
-        fig, axes = plt.subplots(1, 3, figsize=(15.5, H), subplot_kw={"projection": proj})
+    for var in list(dict.fromkeys(list(globals_) + list(fields))):
+        if var in globals_:
+            kind, short, fac = globals_[var]
+            fc, lat, lon = load_field(fc_path(kind, ym), short); hc, _, _ = load_field(hc_path(kind, ym[4:]), short)
+            fc, hc = fc * fac, hc * fac; glob = True
+        elif var in fields and var in palettes:
+            fc, hc, lat, lon = fields[var]; glob = (lon.max() - lon.min()) > 300
+        else:
+            continue
+        above_c, below_c = palettes[var]
         seasons = []
-        for ax, leads in zip(axes, SEASON_LEADS):
-            pr = tercile_probs(fc, hc, leads)
-            above_c, below_c = palettes[var]
-            ax.set_extent([-170, -30, -60, 75], crs=pc)
-            ax.add_feature(cfeature.LAND, facecolor="#f4f4f1", zorder=0)
-            ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=0)
-            for arr, cols in ((pr["above"], above_c), (pr["below"], below_c)):
-                # only where this category is the most likely one AND clears 40 %
-                other = np.maximum(pr["normal"], pr["below"] if arr is pr["above"] else pr["above"])
-                show = np.where((arr >= 0.40) & (arr >= other), arr, np.nan)
-                ax.pcolormesh(lon, lat, show, cmap=ListedColormap(cols), norm=BoundaryNorm(bins, len(cols)),
-                              transform=pc, shading="auto", zorder=1)
-            if var in ("t2m", "tp"):                            # land products: paint the ocean back over
-                ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2)
-                ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
-            ax.coastlines(linewidth=0.5, color="#444", zorder=3)
-            ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="#777", zorder=3)
-            ax.add_feature(cfeature.STATES, linewidth=0.2, edgecolor="#999", zorder=3)
-            lab = season_label(ym, leads)
-            vm = valid_months(ym)
-            y0s, y1s = vm[leads[0] - 1][:4], vm[leads[-1] - 1][:4]
-            yv = y0s if y0s == y1s else f"{y0s}–{y1s[2:]}"
-            ax.set_title(f"{lab} {yv}", fontsize=13, loc="left")
-            seasons.append(dict(label=lab, leads=list(leads),
+        for leads in SEASON_LEADS:
+            pr = tercile_probs(fc, hc, leads, detrend_ym=ym if var in ("t2m", "z500") else None)
+            lab = season_label(ym, leads); y0s, y1s = vm[leads[0] - 1][:4], vm[leads[-1] - 1][:4]
+            yv = y0s if y0s == y1s else f"{y0s}–{y1s[2:]}"; key = f"{lab}_{y0s}"
+            fig, ax, H, pc = MS.open_map(kind="atm") if glob else MS.open_map(kind="atm", extent=[-170, -30, -60, 75], central=-90)
+            order = np.argsort(lon); lon_s = lon[order]; lat_a = lat[::-1] if lat[0] > lat[-1] else lat
+            def prep(a):
+                a = a[:, order]
+                if lat[0] > lat[-1]: a = a[::-1]
+                if glob:
+                    a, lo = add_cyclic_point(a, coord=lon_s); return a, lo
+                return a, lon_s
+            normal = 1.0 - pr["above"] - pr["below"]
+            for arr, other, cols in ((pr["above"], pr["below"], above_c), (pr["below"], pr["above"], below_c)):
+                show = np.where((arr >= 0.40) & (arr >= np.maximum(other, normal)), arr, np.nan)
+                a, lo = prep(show)
+                ax.pcolormesh(lo, lat_a, a, cmap=ListedColormap(cols), norm=BoundaryNorm(bins, len(cols)), transform=pc, shading="auto", zorder=1)
+            MS.features(ax, land_only=(var in ("t2m", "tp")))
+            top_lab, bot_lab = sides.get(var, ("Above normal most likely", "Below normal most likely"))
+            h1 = [Patch(color=c, label=f"{int(bins[k]*100)}–{int(min(bins[k+1],1)*100)}%") for k, c in enumerate(above_c)]
+            h2 = [Patch(color=c, label=f"{int(bins[k]*100)}–{int(min(bins[k+1],1)*100)}%") for k, c in enumerate(below_c)]
+            l1 = fig.legend(handles=h1, loc="lower left", bbox_to_anchor=(0.04, 0.004), ncol=6, frameon=False, title=top_lab, fontsize=8, title_fontsize=8.5)
+            fig.add_artist(l1)
+            fig.legend(handles=h2, loc="lower right", bbox_to_anchor=(0.96, 0.004), ncol=6, frameon=False, title=bot_lab, fontsize=8, title_fontsize=8.5)
+            MS.heading(fig, H, f"SEAS5 {titles[var]}: most likely tercile · {lab} {yv} · {calendar.month_name[m0]} {y0} issue",
+                       "Terciles from SEAS5's own 1993–2016 hindcast at each grid point (24 years × 25 members); the 51 members are counted against them, so bias and spread drift are removed first. "
+                       "White: no category reaches 40 %; near-normal is not drawn." + ("  Counted against the hindcast's linear trend extrapolated to the valid year, so the warming trend itself does not tilt the map." if var in ("t2m", "z500") else ""),
+                       wrap=190)
+            out = out_dir / f"seas5_terc_{var}_{key}.webp"
+            MS.save(fig, out, dpi=110)
+            seasons.append(dict(key=key, label=f"{lab} {yv}", leads=list(leads), file=out.name,
                                 frac_above=float(np.nanmean(pr["above"] >= 0.40)), frac_below=float(np.nanmean(pr["below"] >= 0.40))))
-        # legends: two rows of swatches
-        import calendar
-        y0, m0 = ym[:4], int(ym[4:])
-        from matplotlib.patches import Patch
-        handles = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(palettes[var][0])]
-        handles2 = [Patch(color=c, label=f"{int(bins[i]*100)}–{int(min(bins[i+1],1)*100)}%") for i, c in enumerate(palettes[var][1])]
-        l1 = fig.legend(handles=handles, loc="lower left", bbox_to_anchor=(0.04, 0.005), ncol=6, frameon=False,
-                        title="Above normal most likely", fontsize=9, title_fontsize=10)
-        fig.add_artist(l1)
-        fig.legend(handles=handles2, loc="lower right", bbox_to_anchor=(0.96, 0.005), ncol=6, frameon=False,
-                   title="Below normal most likely", fontsize=9, title_fontsize=10)
-        head_text(fig, H, f"SEAS5 {titles[var]}: most likely tercile, {calendar.month_name[m0]} {y0} issue (51 members)",
-                  "Terciles from SEAS5's own 1993–2016 hindcast at each grid point (24 years × 25 members), so bias and spread drift are removed before counting.\n"
-                  "White: no category reaches 40 %. Near-normal is rarely the most likely tercile in a well-spread ensemble and is not drawn."
-                  + ("  With a 1993–2016 base, the warming trend alone tilts temperature toward above normal." if var == "t2m" else ""))
-        fig.subplots_adjust(**adj)
-        out = out_dir / f"seas5_terciles_{var}.webp"
-        fig.savefig(out, dpi=105, pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
-        meta[var] = dict(file=out.name, seasons=seasons)
-        print(f"  wrote {out.name}", flush=True)
+        meta[var] = dict(label=titles[var], extent="global" if glob else "americas", seasons=seasons, detrended=var in ("t2m", "z500"))
+        print(f"  terciles {var}: {len(seasons)} maps ({'global' if glob else 'americas'})", flush=True)
+        del fc, hc
     return meta
 
 
@@ -441,6 +457,9 @@ MAP_SPEC = {
     # ±3 °C at 0.2 steps saturated on the 2026 El Niño (user 2026-09-07): 0.2 steps to ±3, then 0.5 steps to ±5
     "sst": ("Sea surface temperature", "°C", [-5, -4.5, -4, -3.5] + [round(x, 2) for x in np.arange(-3.0, 3.01, 0.2)] + [3.5, 4, 4.5, 5],
             [-2.5, -2] + [round(x, 2) for x in np.arange(-1.5, 1.51, 0.1)] + [2, 2.5], "RdBu_r", 0.5, 0.25),
+    # 850 hPa zonal wind (user 2026-09-07): positive = westerly anomaly; the trade-wind / jet signal of ENSO
+    "u850": ("850 hPa zonal wind", "m/s", [-8, -6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6, 8],
+             [-4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4], "PuOr_r", None, None),
     # North America snowfall (monthly mean rate, mm of water equivalent per day; ×10 ≈ cm of snow)
     "sf": ("Snowfall, water equivalent", "mm/day", [-3, -2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2, 3],
            [-2, -1.5, -1, -0.5, -0.2, 0.2, 0.5, 1, 1.5, 2], "BrBG", None, None),
@@ -470,6 +489,10 @@ def load_global(ym: str) -> dict:
         ny = 24 if hc.shape[0] % 24 == 0 else 1
         hc_ym = np.nanmean(hc.reshape(-1, ny, *hc.shape[1:]), axis=0) / G0 if ny > 1 else None
         out["z500"] = (fc / G0, np.nanmean(hc, axis=0) / G0, lat, lon, hc_ym); del hc
+    if fc_path("gl_u850", ym).exists() and hc_path("gl_u850", ym[4:]).exists():
+        fc, lat, lon = load_field(fc_path("gl_u850", ym), "u")
+        hc, _, _ = load_field(hc_path("gl_u850", ym[4:]), "u")
+        out["u850"] = (fc, np.nanmean(hc, axis=0), lat, lon); del hc
     if fc_path("na_snow", ym).exists() and hc_path("na_snow", ym[4:]).exists():
         fac = 86400.0 * 1000                                                  # m w.e. s⁻¹ → mm/day
         fc, lat, lon = load_field(fc_path("na_snow", ym), "mtsfr")

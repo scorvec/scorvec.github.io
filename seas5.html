@@ -54,7 +54,6 @@
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
               <li><a href="/enso.html">El Niño monitor</a></li>
-              <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
               <li><a href="/skewt/">Sounding explorer</a></li>
               <li><a href="/asos5.html">Five-minute airport observations</a></li>
               <li><a href="/qbo/">QBO tracker</a></li>
@@ -178,6 +177,7 @@
       <button class="pill" data-v="t2m">2 m temperature</button>
       <button class="pill" data-v="tp">Precipitation</button>
       <button class="pill" data-v="z500">500 hPa height</button>
+      <button class="pill" data-v="u850">850 hPa wind</button>
       <button class="pill" data-v="sf">Snowfall (N. America)</button>
     </div>
     <div class="controls" id="mapKind" style="margin-top:0.4rem">
@@ -195,7 +195,7 @@
 
   <!-- ── TERCILES ─────────────────────────────────────────────────────────── -->
   <div class="card" data-label="Calibrated terciles" data-group="Maps">
-    <h2>Calibrated terciles over the Americas</h2>
+    <h2>Calibrated terciles</h2>
     <p class="note">For each grid point, season and lead, the tercile boundaries come from SEAS5&rsquo;s
     <b>own hindcast</b> &mdash; 24 years &times; 25 members, 600 seasonal means &mdash; and the 51
     forecast members are counted against them. That removes the model&rsquo;s mean bias and its
@@ -203,16 +203,19 @@
     single-system tercile map. Shading is the most likely category and its probability; white
     means no category reaches 40&nbsp;%. Near-normal is not drawn: with a realistic spread it is
     almost never the most likely tercile, and where it is, the signal is weak anyway. Three
-    overlapping seasons follow the start month. One caveat for temperature and for 500&nbsp;hPa height: the hindcast base is
-    1993&ndash;2016, so two decades of warming (and the thickness rise that goes with it) sit
-    inside &ldquo;above normal&rdquo; before any El&nbsp;Ni&ntilde;o signal is added &mdash; read
-    those maps for their pattern and their below-normal exceptions, the subtropical jet trough
-    across the southern United States above all, rather than the sheer extent of warm shading; the
-    <a href="#normCard">normals card</a> below puts the same members against the 1991&ndash;2020 normal,
-    the last decade and today&rsquo;s trend, which is where the winter picture becomes discriminating.</p>
+    overlapping seasons follow the start month; pick the variable and the season. Temperature and
+    500&nbsp;hPa height are counted against the hindcast&rsquo;s <b>linear trend</b> extrapolated to
+    the valid year rather than its flat 1993&ndash;2016 mean: two decades of warming (and the
+    thickness rise that goes with it) would otherwise sit inside &ldquo;above normal&rdquo; before
+    any El&nbsp;Ni&ntilde;o signal is added, and the whole tropical belt read 90&ndash;100&nbsp;% warm by
+    construction. What remains is the departure from the trend, which is where the winter picture
+    becomes discriminating; the <a href="#normCard">normals card</a> below puts the same members
+    against the 1991&ndash;2020 normal, the last decade and today&rsquo;s trend.</p>
+    <div class="controls" id="tercVar"></div>
+    <div class="controls" id="tercSeason"></div>
     <div class="map-grid" id="mapGrid"></div>
     <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5 monthly means, 1&deg; grid, 75&deg;N&ndash;60&deg;S &middot; temperature and precipitation over land, 500 hPa height everywhere &middot; thresholds: 1993&ndash;2016 hindcast terciles</span>
+      <span class="chart-sources">ECMWF SEAS5 monthly means, 1&deg; grid &middot; temperature and precipitation over land, 500 hPa height and 850 hPa wind everywhere &middot; thresholds: 1993&ndash;2016 hindcast terciles</span>
       <span class="chart-updated" id="mapUpdated">&mdash;</span>
     </div>
   </div>
@@ -631,7 +634,7 @@
       var q = P.filter(function (x) { return x.key === state.p; })[0] || {}, vv = V[state.v];
       if (fr) fr.textContent = mi >= 0 ? q.label + " (" + (mi + 1) + "/" + ms.length + ")" : "";
       var what = state.k === "anom" ? "anomaly vs the 1993–2016 hindcast" : issueLabel(J.issue) + " issue minus " + issueLabel(prev) + " issue";
-      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "sf" ? "Green more snow (water equivalent; ×10 is roughly centimetres of snow), brown less." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing), in σ of the hindcast's year-to-year spread." : "Red warmer, blue cooler.";
+      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "u850" ? "Orange westerly anomaly, purple easterly." : state.v === "sf" ? "Green more snow (water equivalent; ×10 is roughly centimetres of snow), brown less." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing), in σ of the hindcast's year-to-year spread." : "Red warmer, blue cooler.";
       var old = g.querySelector("img");
       if (old && old.dataset.frame) { old.src = src(e); old.alt = "SEAS5 " + vv.label + " " + what + ", " + q.label; g.querySelector("a").href = src(e); g.querySelector("figcaption").innerHTML = "<b>" + vv.label + "</b> — " + what + ", " + q.label + ". Area mean " + (e.mean >= 0 ? "+" : "") + fmt(e.mean, 2) + " " + vv.units + ". " + read; return; }
       g.innerHTML = '<figure><a href="' + src(e) + '" target="_blank" rel="noopener"><img data-frame="1" src="' + src(e) + '" alt="SEAS5 ' + vv.label + ' ' + what + ', ' + q.label + '"></a>' +
@@ -733,7 +736,8 @@
     var vars = Object.keys(N.vars).filter(function (v) { return Object.keys(N.figures).some(function (f) { return f.indexOf(v + "|") === 0; }); });
     var refs = Object.keys(N.refs), P = N.periods || [];
     function show() {
-      var f = N.figures[st.v + "|" + st.r + "|" + st.k], g = document.getElementById("normGrid"), pb = document.getElementById("normPeriod");
+      var kk = (st.v === "z500" && st.k === "anom") ? "std" : st.k;                 // heights: anomalies in σ (user 2026-09-07)
+      var f = N.figures[st.v + "|" + st.r + "|" + kk], g = document.getElementById("normGrid"), pb = document.getElementById("normPeriod");
       if (!f) { g.innerHTML = "<p class='note'>Not built for this combination yet.</p>"; pb.innerHTML = ""; return; }
       var file, per = "";
       if (typeof f === "string") { file = f; pb.innerHTML = ""; }                       // pre-2026-09-07 multi-panel figure
@@ -802,14 +806,31 @@
   }
 
   function maps() {
-    var g = document.getElementById("mapGrid"), names = {t2m: "2 m temperature", tp: "Precipitation", z500: "500 hPa height"}, html = "";
-    ["t2m", "tp", "z500"].forEach(function (k) {
-      var t = J.terciles[k]; if (!t) return;
-      var seasons = t.seasons.map(function (s) { return s.label; }).join(", ");
-      html += '<figure><a href="assets/sst/' + t.file + '?v=' + encodeURIComponent(J.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + t.file + '?v=' + encodeURIComponent(J.generated) + '" alt="SEAS5 ' + names[k] + ' most-likely tercile over the Americas, ' + seasons + '" loading="lazy"></a>' +
-              '<figcaption><b>' + names[k] + '</b> — most likely tercile for ' + seasons + '. ' + (k === "z500" ? "Heights above normal shade warm colours; a ridge signal over the north and a trough to its south is the classic wintertime read." : k === "tp" ? "Greens wetter than the model's own normal, browns drier; over land only." : "Warm colours above normal, blues below; over land only.") + '</figcaption></figure>';
-    });
-    g.innerHTML = html || "<p class='note'>Tercile maps are not part of this issue.</p>";
+    var g = document.getElementById("mapGrid"), vb = document.getElementById("tercVar"), sb = document.getElementById("tercSeason");
+    var names = {t2m: "2 m temperature", tp: "Precipitation", z500: "500 hPa height", u850: "850 hPa zonal wind", sst: "Sea surface temperature"};
+    var T = J.terciles || {}, keys = ["t2m", "tp", "z500", "u850", "sst"].filter(function (k) { return T[k]; });
+    if (!keys.length) { g.innerHTML = "<p class='note'>Tercile maps are not part of this issue.</p>"; return; }
+    var st = { v: keys[0], s: null };
+    function draw() {
+      var t = T[st.v], seasons = t.seasons || [];
+      vb.innerHTML = keys.map(function (k) { return '<button class="pill' + (k === st.v ? " on" : "") + '" data-v="' + k + '">' + (t && T[k].label || names[k]) + "</button>"; }).join("");
+      if (typeof t.file === "string") {                                           // pre-2026-09-07 multi-panel figure
+        sb.innerHTML = "";
+        g.innerHTML = '<figure><a href="assets/sst/' + t.file + '?v=' + encodeURIComponent(J.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + t.file + '?v=' + encodeURIComponent(J.generated) + '" alt="SEAS5 ' + names[st.v] + ' terciles"></a></figure>';
+        return;
+      }
+      if (!seasons.some(function (q) { return q.key === st.s; })) st.s = seasons.length ? seasons[0].key : null;
+      sb.innerHTML = '<span class="ctlsep">Season</span>' + seasons.map(function (q) { return '<button class="pill' + (q.key === st.s ? " on" : "") + '" data-s="' + q.key + '">' + q.label + "</button>"; }).join("");
+      var e = seasons.filter(function (q) { return q.key === st.s; })[0];
+      if (!e) { g.innerHTML = "<p class='note'>No map for this season.</p>"; return; }
+      var src = "assets/sst/" + e.file + "?v=" + encodeURIComponent(J.generated);
+      var read = st.v === "tp" ? "Green: above-normal precipitation most likely; brown: below." : st.v === "u850" ? "Warm colours: westerly anomaly most likely (weaker trades, a stronger subtropical jet); cool: easterly." : st.v === "z500" ? "Warm colours: heights above normal most likely; cool: below. With a 1993–2016 base the thickness rise alone tilts heights up, so read the pattern and the below-normal exceptions." : "Warm colours: above normal most likely; cool: below.";
+      g.innerHTML = '<figure><a href="' + src + '" target="_blank" rel="noopener"><img src="' + src + '" alt="SEAS5 ' + (t.label || names[st.v]) + ' most likely tercile, ' + e.label + '"></a>' +
+        '<figcaption><b>' + (t.label || names[st.v]) + '</b>, ' + e.label + '. ' + Math.round(e.frac_above * 100) + '% of the map shows above normal at 40% or better, ' + Math.round(e.frac_below * 100) + '% below. ' + read + (t.extent === "global" ? " Global view, cut at 40°E." : " Americas view.") + "</figcaption></figure>";
+    }
+    vb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.v = b.dataset.v; draw(); });
+    sb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.s = b.dataset.s; draw(); });
+    draw();
   }
 
   var popP = fetch("assets/sst/data/seas5_popT.json?v=" + Date.now()).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
