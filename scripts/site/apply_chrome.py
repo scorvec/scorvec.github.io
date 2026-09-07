@@ -172,6 +172,7 @@ HEAD_SNIPPET = (
     '<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">\n'
     '<link rel="stylesheet" href="/assets/site.css">\n'
     '<script src="/assets/site.js" defer></script>\n'
+    '<script src="/assets/rail.js" defer></script>\n'
 )
 
 
@@ -301,6 +302,12 @@ def stamp(cfg: dict) -> tuple[str, str]:
             html = html.replace("</head>", snippet + "</head>", 1)
         else:                                              # bare HTML5 document without <head> tags
             html = html.replace("<!-- sh:start -->", snippet + "<!-- sh:start -->", 1)
+
+    # rail.js (one-figure-at-a-time viewer) rides with the chrome; it does nothing unless the page
+    # carries data-rail, so every page gets the include and pages opt in by markup alone.
+    if "/assets/rail.js" not in html and '<script src="/assets/site.js" defer></script>' in html:
+        html = html.replace('<script src="/assets/site.js" defer></script>',
+                            '<script src="/assets/site.js" defer></script>\n<script src="/assets/rail.js" defer></script>', 1)
 
     if cfg.get("footer", True):
         foot = footer_html(dark)

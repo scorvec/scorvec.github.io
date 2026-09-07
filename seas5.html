@@ -39,6 +39,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
 </head>
 <body>
 <!-- sh:start -->
@@ -104,7 +105,7 @@
 </header>
 <!-- sh:end -->
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
-<main>
+<main data-rail=".card">
   <header>
     <div class="eyebrow">Monthly, from ECMWF SEAS5 with 51 members, <span id="issueLabel">latest issue</span></div>
     <h1>SEAS5 outlook</h1>
@@ -124,7 +125,7 @@
   </header>
 
   <!-- ── ENSO INDICES ─────────────────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" data-label="ENSO indices" data-group="ENSO &amp; oceans">
     <h2>ENSO indices &mdash; this issue against the last three</h2>
     <p class="note">The shaded fan is <b>this issue</b> (P10&ndash;P90 and P25&ndash;P75 of the 51 members) with its
     mean in gold; the coloured lines are the ensemble means of the <b>previous issues</b>, oldest
@@ -149,7 +150,7 @@
   </div>
 
   <!-- ── OTHER INDICES ────────────────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" data-label="PDO, AMO, IOD, Atlantic Niño" data-group="ENSO &amp; oceans">
     <h2>PDO, AMO, Indian Ocean Dipole, Atlantic Ni&ntilde;o</h2>
     <p class="note">Same fields, same treatment. The <b>PDO</b> is the projection of each member&rsquo;s
     North Pacific anomaly onto the ERSST EOF pattern the daily monitor uses, with the global
@@ -168,7 +169,7 @@
   </div>
 
   <!-- ── CHANGE SINCE THE PREVIOUS ISSUE ──────────────────────────────────── -->
-  <div class="card" id="changeCard">
+  <div class="card" id="changeCard" data-label="Maps and changes" data-group="Maps">
     <h2>Maps: anomaly, and what changed since the <span class="prevName">previous</span> issue</h2>
     <p class="note">One map at a time, most of the world on a plate carr&eacute;e grid. <b>Anomaly</b> is this
     issue&rsquo;s ensemble mean against its own 1993&ndash;2016 start-month hindcast. <b>Change</b> is the
@@ -201,7 +202,7 @@
   </div>
 
   <!-- ── TERCILES ─────────────────────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" data-label="Calibrated terciles" data-group="Maps">
     <h2>Calibrated terciles over the Americas</h2>
     <p class="note">For each grid point, season and lead, the tercile boundaries come from SEAS5&rsquo;s
     <b>own hindcast</b> &mdash; 24 years &times; 25 members, 600 seasonal means &mdash; and the 51
@@ -225,7 +226,7 @@
   </div>
 
   <!-- ── TELECONNECTIONS ──────────────────────────────────────────────────── -->
-  <div class="card" id="teleCard">
+  <div class="card" id="teleCard" data-label="Teleconnection indices" data-group="Teleconnections &amp; stratosphere">
     <h2>Teleconnection indices, member by member</h2>
     <p class="note">The CPC patterns &mdash; NAO, PNA, AO, the East Atlantic, West Pacific and the rest &mdash;
     read from each member&rsquo;s monthly 500&nbsp;hPa height (sea-level pressure for the AO) with the same
@@ -250,7 +251,7 @@
   </div>
 
   <!-- ── STRATOSPHERE INDICES ─────────────────────────────────────────────── -->
-  <div class="card" id="stratCard">
+  <div class="card" id="stratCard" data-label="Vortex, QBO, annular mode" data-group="Teleconnections &amp; stratosphere">
     <h2>Vortex, QBO and annular mode</h2>
     <p class="note">The zonal-mean 10&nbsp;hPa wind at 60&deg;N is the standard vortex-strength measure
     (its 60&deg;S twin covers the southern spring breakdown); the probability of an easterly
@@ -272,7 +273,7 @@
   </div>
 
   <!-- ── POPULATION-WEIGHTED TEMPERATURE ──────────────────────────────────── -->
-  <div class="card" id="popCard">
+  <div class="card" id="popCard" data-label="Population-weighted temperature" data-group="Impacts">
     <h2>Population-weighted temperature: the forecast for each month, against normal and record</h2>
     <p class="note">For the United States and Brazil, each member&rsquo;s 6-hourly 2 m temperature is weighted by where
     people live (geonames places of 15,000 or more, on the 1&deg; grid) into one national series, and the
@@ -292,7 +293,7 @@
     </div>
   </div>
 
-  <div class="card" id="xdaysCard" hidden>
+  <div class="card" id="xdaysCard" hidden data-label="Threshold days" data-group="Impacts">
     <h2>Threshold days: cold days over the United States, hot days over Brazil</h2>
     <p class="note">From every member&rsquo;s daily extremes (6-hourly SEAS5 output, the &ldquo;in the last 24 hours&rdquo;
     maximum and minimum): the number of days a month with the minimum at or below 0, &minus;10 and &minus;20&nbsp;&deg;C
@@ -312,7 +313,7 @@
     </div>
   </div>
 
-  <div class="card" id="pmeCard">
+  <div class="card" id="pmeCard" data-label="P &minus; E by region" data-group="Impacts">
     <h2>Precipitation minus evaporation by region: Brazil and Colombia</h2>
     <p class="note">The drought-relevant water balance, month by month. For each region, every member&rsquo;s monthly
     precipitation minus evaporation is averaged over the region and the 51 values are drawn as a distribution:
@@ -330,7 +331,7 @@
   </div>
 
   <!-- ── NORMALS: ANOMALY AND TERCILE MAPS VS OBSERVED REFERENCES ─────────── -->
-  <div class="card" id="normCard">
+  <div class="card" id="normCard" data-label="Against observed normals" data-group="Maps">
     <h2>Anomalies and terciles against observed normals, monthly and seasonal</h2>
     <p class="note">The default terciles above are relative to the model&rsquo;s own 1993&ndash;2016 hindcast,
     which removes bias but answers a low-bar question in a warming climate. Here the same
@@ -353,7 +354,7 @@
   </div>
 
   <!-- ── STRATOSPHERE ─────────────────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" data-label="Polar stratosphere" data-group="Teleconnections &amp; stratosphere">
     <h2>Polar stratosphere &mdash; cap-mean heights</h2>
     <p class="note">The 60&ndash;90&deg; polar-cap mean geopotential height at 100, 50 and 10&nbsp;hPa, as an
     anomaly against the hindcast&rsquo;s <b>linear trend</b> at each lead, extrapolated to the forecast

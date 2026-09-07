@@ -346,3 +346,35 @@ html main > .lede.lede--wide, html .wrap > .lede.lede--wide {
 html img, html video, html canvas { max-width: 100%; height: auto; }
 html iframe { max-width: 100%; }
 html .img-wrap, html .table-wrap { max-width: 100%; overflow-x: auto; }
+
+/* ── Rail layout (assets/rail.js): one figure at a time behind a grouped product rail ── */
+.rail-layout { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); gap: 1.25rem; align-items: start; margin: 0.5rem 0 1.5rem; }
+.rail { position: sticky; top: 4.6rem; max-height: calc(100vh - 5.4rem); overflow: auto; padding: 0.7rem 0.55rem;
+        background: var(--card, var(--panel, #fff)); border: 1.5px solid var(--edge, var(--rule, #d9d5cc)); border-radius: 10px; }
+.rail-group { margin-bottom: 0.75rem; }
+.rail-title { font-size: 0.78rem; font-weight: 600; color: var(--muted, #6b6b6b); margin: 0.2rem 0.55rem 0.3rem; }
+.rail-group button { display: block; width: 100%; text-align: left; font: inherit; font-size: 0.95rem; line-height: 1.3;
+        padding: 0.42rem 0.6rem 0.42rem 0.75rem; border: 0; border-left: 3px solid transparent; border-radius: 0 6px 6px 0;
+        background: transparent; color: inherit; cursor: pointer; }
+.rail-group button:hover { background: var(--accent-light, rgba(0,0,0,0.05)); color: var(--accent, inherit); }
+.rail-group button.on { background: var(--accent-light, rgba(0,0,0,0.06)); color: var(--accent, inherit); border-left-color: var(--accent, currentColor); font-weight: 600; }
+.rail-group button small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted, #6b6b6b); }
+.rail-main { min-width: 0; background: var(--card, var(--panel, #fff)); border: 1.5px solid var(--edge, var(--rule, #d9d5cc)); border-radius: 10px; overflow: hidden; }
+.rail-crumb { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.7rem 1.2rem; border-bottom: 1px solid var(--rule, #e6e3dc); }
+.rail-crumb .path { font-family: var(--serif); font-size: 1.15rem; }
+.rail-crumb .path .g { color: var(--muted, #6b6b6b); } .rail-crumb .path .sep { color: var(--muted, #6b6b6b); margin: 0 0.2rem; }
+.rail-crumb .nav button { font: inherit; font-size: 0.85rem; padding: 0.3rem 0.7rem; border: 1px solid var(--rule, #d9d5cc); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; margin-left: 0.3rem; }
+.rail-crumb .nav button:hover { border-color: var(--accent, currentColor); color: var(--accent, inherit); }
+.rail-stage > .chart-card, .rail-stage > .deck-panel { border: 0; box-shadow: none; margin: 0; border-radius: 0; }
+.rail-hint { font-size: 0.85rem; color: var(--muted, #6b6b6b); padding: 0.5rem 1.2rem 0.8rem; margin: 0; }
+.rail-hint .kbd { display: inline-block; border: 1px solid var(--rule, #d9d5cc); border-radius: 4px; padding: 0 0.35rem; font-size: 0.8rem; }
+.has-rail nav.section-nav { display: none; }
+@media (max-width: 900px) {
+  .rail-layout { grid-template-columns: 1fr; }
+  .rail { position: static; max-height: none; display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; padding: 0.5rem 0.6rem; }
+  .rail-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; margin: 0.2rem 0; }
+  .rail-title { width: 100%; margin: 0.3rem 0.2rem 0.1rem; }
+  .rail-group button { width: auto; border: 1.5px solid var(--accent, #666); border-radius: 999px; padding: 0.28rem 0.75rem; font-size: 0.82rem; }
+  .rail-group button.on { background: var(--accent, #666); color: #fff; }
+  .rail-group button small { display: none; }
+}

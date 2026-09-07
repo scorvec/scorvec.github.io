@@ -53,6 +53,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Schibsted+Grotesk:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
 </head>
 <body>
 <!-- sh:start -->
@@ -117,7 +118,7 @@
   </div>
 </header>
 <!-- sh:end -->
-<main>
+<main data-rail=".card">
   <header>
     <div class="eyebrow">Monthly, from the NOAA SFS beta (UFS coupled, 31 members), <span id="issueLabel">latest issue</span></div>
     <h1>SFS beta seasonal outlook</h1>
@@ -134,7 +135,7 @@
   </header>
 
   <!-- ── NIÑO-3.4 PLUME ──────────────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" data-label="Niño-3.4 plume" data-group="ENSO &amp; indices">
     <h2>Ni&ntilde;o-3.4 &mdash; all 31 members</h2>
     <p class="note">Shaded fan: member percentile spread (10&ndash;90% and 25&ndash;75%).
     Bold sienna line: ensemble mean. The observed index leads in from the left in black
@@ -163,7 +164,7 @@
   </div>
 
   <!-- ── DERIVED INDICES ─────────────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" data-label="Climate indices" data-group="ENSO &amp; indices">
     <h2>Derived climate indices &mdash; member spread</h2>
     <p class="note">Beyond ENSO: box and pattern indices computed per member from the
     same anomaly fields. <b>IOD</b> (Saji DMI), the <b>South Atlantic Subtropical
@@ -184,7 +185,7 @@
   </div>
 
   <!-- ── DEGREE DAYS ─────────────────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" data-label="Degree days, Lower 48" data-group="North America">
     <h2>Subseasonal degree days &mdash; Lower-48, all 31 members</h2>
     <p class="note">Population-weighted (50 largest metros, base 65&thinsp;&deg;F) degree days
     over the <b>subseasonal window &mdash; days 16&ndash;46</b>, in the beta's 48-hour
@@ -212,7 +213,7 @@
   </div>
 
   <!-- ── TELECONNECTIONS ─────────────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" data-label="Teleconnections" data-group="North America">
     <h2>Subseasonal teleconnections &mdash; regime probabilities vs hindcast</h2>
     <p class="note">PNA and EPO computed per member across the day-16&ndash;46 window
     (48-hour steps) and standardized
@@ -241,7 +242,7 @@
   </div>
 
   <!-- ── SUBSEASONAL ANOMALY MAPS (deck) ─────────────────────────────────── -->
-  <div class="card plot-deck" data-deck="sfs-subseasonal">
+  <div class="card plot-deck" data-deck="sfs-subseasonal" data-label="Anomaly maps, subseasonal" data-group="Maps">
     <h2>Anomaly maps &mdash; step through the subseasonal window</h2>
     <p class="note">For each valid step (days 16&ndash;46): <b>left</b>, the 31-member mean
     <b>deviation from the model's own hindcast trend</b>, in detrended signal-&sigma;
@@ -296,7 +297,7 @@
   </div>
 
   <!-- ── MJO ─────────────────────────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" data-label="MJO phase space" data-group="Tropics &amp; stratosphere">
     <h2>MJO &mdash; 31-member RMM phase space to day 46</h2>
     <p class="note">The Wheeler&ndash;Hendon <b>RMM phase diagram</b> from every SFS
     member's tropical U850/U200, pushed through the exact same machinery as the
@@ -324,7 +325,7 @@
   </div>
 
   <!-- ── STRATOSPHERE ────────────────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" data-label="Stratosphere" data-group="Tropics &amp; stratosphere">
     <h2>Stratosphere &mdash; wave flux and the polar vortex, all members</h2>
     <p class="note">Two classic lower-stratosphere diagnostics from the daily members:
     the <b>100-hPa eddy heat flux</b> (45&ndash;75&deg;N zonal mean &mdash; proportional
@@ -348,7 +349,7 @@
   </div>
 
   <!-- ── 100 hPa POLAR VIEW ──────────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card" data-label="100 hPa polar view" data-group="Tropics &amp; stratosphere">
     <h2>100 hPa &mdash; daily polar view, first 46 days</h2>
     <p class="note">The lower stratosphere from above: ensemble-mean <b>100-hPa
     height anomaly</b> day by day (48-hour steps), with the absolute mean height
@@ -371,7 +372,7 @@
   </div>
 
   <!-- ── MONTHLY ANOMALY MAPS (deck) ─────────────────────────────────────── -->
-  <div class="card plot-deck" data-deck="sfs-monthly">
+  <div class="card plot-deck" data-deck="sfs-monthly" data-label="Anomaly maps, monthly" data-group="Maps">
     <h2>Monthly anomaly maps &mdash; step through every lead</h2>
     <p class="note">The same anomalies without seasonal averaging: one frame per
     forecast month, in the loop player &mdash; scrub or step to watch the pattern

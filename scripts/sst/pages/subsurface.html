@@ -1,4 +1,4 @@
-<main>
+<main data-rail>
   <div class="page-header">
     <h1>Equatorial Pacific subsurface temperature</h1>
     <p>Depth&ndash;longitude cross-sections along the equator from the TAO/TRITON moored-buoy array. The subsurface warm reservoir along the thermocline often leads the surface ENSO signal.</p>
@@ -7,7 +7,7 @@
   <div class="chart-stack">
 
     <!-- SUBSURFACE CROSS-SECTION -->
-    <div class="chart-card">
+    <div class="chart-card" data-label="Temperature section" data-group="Temperature">
       <div class="chart-card-header">
         <h2>Equatorial Pacific Subsurface Temperature</h2>
         <p>Depth&ndash;longitude cross-section along the equator (0&deg;N) from the TAO/TRITON moored-buoy array: temperature (top) and its anomaly versus the 1991&ndash;2020 average (bottom), 5-day smoothed. The thermocline (here the 26&deg;C and 28&deg;C isotherms, with the 20&deg;C isotherm &mdash; the standard thermocline proxy &mdash; in heavy solid black) tilts upward toward the east, and subsurface anomalies along it often lead the surface ENSO signal. The 10&deg;C isotherm is drawn dashed blue whenever it enters the section.</p>
@@ -34,7 +34,7 @@
         <button>Heat content vs analogs</button>
         <button>Cross-section vs analogs</button>
       </div>
-      <div class="deck-panel">
+      <div class="deck-panel" data-group="Currents">
       <div class="chart-card-header">
         <h2>Tropical Pacific Surface Currents</h2>
         <p>Daily surface-current fields over the last month for the equatorial Pacific (15&deg;S&ndash;15&deg;N, 130&deg;E&ndash;80&deg;W) from the Copernicus Marine 1/12&deg; ocean model: speed shaded (blue slow to red fast) with streamlines tracing the flow. The westward South Equatorial Current straddles the equator, the eastward North Equatorial Counter Current sits near 5&ndash;10&deg;N, and Tropical Instability Wave eddies ripple along the cold tongue.</p>
@@ -47,7 +47,7 @@
       </div>
       </div>
 
-      <div class="deck-panel" hidden>
+      <div class="deck-panel" hidden data-group="Currents">
       <div class="chart-card-header">
         <h2>Equatorial Zonal Current &amp; the Undercurrent</h2>
         <p>Depth&ndash;longitude slice along the equator (1.5&deg;S&ndash;1.5&deg;N), 160&deg;E&ndash;90&deg;W, from the Copernicus Marine 1/12&deg; global ocean model: zonal current (shaded, eastward in red) with the 20&deg;C isotherm (the thermocline) in black. It resolves the Equatorial Undercurrent, the eastward subsurface jet at about 50&ndash;200&nbsp;m, the surface-westward South Equatorial Current, and the east&ndash;west thermocline tilt. The loop is pinned to start 1&nbsp;March&nbsp;2026 and grows daily, so downwelling Kelvin waves (a deepening of the 20&deg;C isotherm with an eastward current pulse) can be followed across the basin.</p>
@@ -60,7 +60,7 @@
       </div>
       </div>
 
-      <div class="deck-panel" hidden>
+      <div class="deck-panel" hidden data-group="Currents">
       <div class="chart-card-header">
         <h2>Equatorial Surface Current: Strip / Hovm&ouml;ller</h2>
         <p>Longitude &times; time strip of the daily surface zonal current averaged 2&deg;S&ndash;2&deg;N, 150&deg;E&ndash;90&deg;W (same Copernicus Marine model). <span style="color:#c0392b">Red is eastward</span>, <span style="color:#2471a3">blue is westward</span>. The equatorial surface normally flows westward (the trade-driven South Equatorial Current); as El&nbsp;Ni&ntilde;o matures, downwelling Kelvin waves drive eastward surges into the east Pacific. Newest day at the bottom.</p>
@@ -72,7 +72,7 @@
       </div>
       </div>
 
-      <div class="deck-panel" hidden>
+      <div class="deck-panel" hidden data-group="Temperature">
       <div class="chart-card-header">
         <h2>Subsurface Heat Content vs. Analogs</h2>
         <p>Equatorial Pacific upper-ocean (0&ndash;300&nbsp;m) temperature anomaly &mdash; a heat-content proxy that leads the surface &mdash; through each event's development year and the next, current (bold red) over 1997, 2015 and 2023. The subsurface warm reservoir is the fuel for El&nbsp;Ni&ntilde;o. <b>De-trended</b> removes the 1991&ndash;2020 climate trend so the four events sit on a common baseline; the net 0&ndash;300&nbsp;m effect is modest because the subsurface warming and cooling trends largely cancel in the column average.</p>
@@ -85,7 +85,7 @@
       <div class="chart-card-footer"><span class="chart-sources">NOAA/PMEL TAO/TRITON moorings &middot; anomaly vs 1991&ndash;2020 &middot; coverage varies by year</span></div>
       </div>
 
-      <div class="deck-panel" hidden>
+      <div class="deck-panel" hidden data-group="Temperature">
       <div class="chart-card-header">
         <h2>Subsurface Cross-Section vs. Analogs</h2>
         <p>Equatorial depth&times;longitude temperature anomaly at the same phase (~the latest data week) of each event. The eastward-deepening warm anomaly along the thermocline is the classic El&nbsp;Ni&ntilde;o subsurface signature. <b>De-trended</b> reshapes the pattern more than it does the column-mean heat content above, because the trend itself has depth&times;longitude structure (west-Pacific subsurface warming, eastern-thermocline cooling). TAO coverage varies by year (triangles mark reporting moorings), so 1997 and 2023 have missing longitudes.</p>

@@ -1,4 +1,4 @@
-<main>
+<main data-rail>
   <div class="page-header">
     <h1>Atmospheric response</h1>
     <p>The atmospheric side of ENSO: observed and forecast equatorial Pacific surface winds, the Southern Oscillation, and westerly-wind-burst activity.</p>
@@ -153,7 +153,7 @@
 
     <!-- 200 hPa VELOCITY POTENTIAL + IRROTATIONAL WIND (AIFS-ENS ensemble mean) -->
     <h3 class="page-section" id="upper">Upper-level circulation</h3>
-    <div class="chart-card">
+    <div class="chart-card" data-label="Velocity potential">
       <div class="chart-card-header">
         <h2>200 hPa Velocity Potential &amp; Irrotational Wind</h2>
         <p>The large-scale divergent circulation aloft from the AIFS-ENS ensemble mean: the 200 hPa velocity-potential anomaly shaded, with the irrotational (divergent) wind as vectors. <b style="color:#2e7d32">Green</b> is upper-level divergence (the outflow above deep convection); <b style="color:#df6a1e">orange</b> is convergence (subsidence). The vectors point out of the divergence centres, tracing the rising and sinking branches of the Walker and Hadley circulations; in El&nbsp;Ni&ntilde;o the divergence shifts east over the central Pacific. Anomaly is versus the ERA5 1991&ndash;2020 climatology. The first frame is the analysis, the rest is the forecast to day&nbsp;14.</p>
@@ -164,7 +164,7 @@
     </div>
 
     <!-- WAVE ACTIVITY FLUX (Takaya–Nakamura 2001) — Rossby wave-packet radar -->
-    <div class="chart-card" id="wave-activity-flux">
+    <div class="chart-card" id="wave-activity-flux" data-label="Wave activity flux">
       <div class="chart-card-header">
         <h2>Wave Activity Flux: Where Rossby Wave Packets Are Heading</h2>
         <p>The <b>Takaya&ndash;Nakamura (2001) wave activity flux</b> is a phase-independent vector diagnostic of quasi-stationary <b>Rossby wave propagation</b>: unlike watching ridges and troughs move, the flux <b>W</b> points along the wave packet's <i>group velocity</i> &mdash; where the wave energy itself is travelling, ducted along the jet-stream waveguides &mdash; and its <b>convergence marks where the downstream flow will amplify</b> days later. That makes it a practical forecast tool for <b>downstream development, blocking onset, and teleconnection excitation</b>: watch packets radiate out of the tropical Pacific convection (the El&nbsp;Ni&ntilde;o&ndash;PNA pathway) or off a mountain-torque event, arc along the subtropical jet, and pile into an amplifying ridge.</p>
@@ -177,7 +177,7 @@
     </div>
 
     <!-- DYNAMIC TROPOPAUSE — PV-based view of the upper flow, control member only -->
-    <div class="chart-card" id="dynamic-tropopause">
+    <div class="chart-card" id="dynamic-tropopause" data-label="Dynamic tropopause">
       <div class="chart-card-header">
         <h2>Dynamic Tropopause: &theta; on the 2-PVU Surface and Isentropic PV</h2>
         <p>The upper-level flow as PV thinkers read it. Ertel potential vorticity is computed on the AIFS-ENS <b>control member&rsquo;s</b> temperature and wind on nine levels from 700 to 100&nbsp;hPa &mdash; the control alone, because PV does not survive ensemble averaging: a mean of fifty folds is a smear. The <b>dynamic tropopause</b> is the 2-PVU surface, found by searching upward from 700&nbsp;hPa; its potential temperature is shaded (low &theta;, blue, is stratospheric or polar air reaching down; high &theta;, red, is a tropical tropopause), its pressure contoured, and the wind on it drawn. Troughs, cut-off lows and ridges are the &theta; pattern itself; a tight gradient is the jet; a tongue of low &theta; wrapping up is a Rossby wave breaking. The other two loops give PV on the 330 and 350&nbsp;K isentropes with the 2-PVU line in dark red &mdash; 330&nbsp;K sits near the winter jet, 350&nbsp;K near the summer and subtropical one. 12-hourly to day 10, North Pacific to the Atlantic.</p>
