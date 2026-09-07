@@ -118,7 +118,7 @@
 <main>
   <p class="kicker">Twice daily &middot; ECMWF AIFS-ENS &middot; <span id="initLabel">&mdash;</span></p>
   <h1>Atmospheric River Monitor</h1>
-  <p class="lede">Integrated vapour transport from the 51-member ECMWF AIFS ensemble, read the way forecasters read atmospheric rivers: the probability that IVT reaches the 250&nbsp;kg&nbsp;m<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup> threshold on each day, a landfall tool along the West Coast from Baja California to southeast Alaska, exact control-member IVT for the next three days, and the chance of each Ralph-scale category at named coastal locations. Every member is carried to day 15 at 12-hour steps, so AR duration, not only intensity, enters the scale.</p>
+  <p class="lede">Integrated vapour transport from the 51-member ECMWF AIFS ensemble, read the way forecasters read atmospheric rivers: the probability that IVT reaches the 250&nbsp;kg&nbsp;m<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup> threshold at each 12-hourly step, a landfall tool along the West Coast from Baja California to southeast Alaska, exact control-member IVT for the next three days, and the chance of each Ralph-scale category at named coastal locations. Every member is carried to day 15 at 12-hour steps, so AR duration, not only intensity, enters the scale.</p>
 
   <div class="card">
     <h2>Where the rivers will make landfall, and how strong</h2>
@@ -128,7 +128,7 @@
 
   <div class="card">
     <h2>AR-scale probabilities at named locations</h2>
-    <p class="note">For each member, the strongest spell with IVT at or above 250 at the location sets a category on the Ralph et&nbsp;al. (2019) scale: a preliminary rank from the peak IVT (250, 500, 750, 1000, 1250 for AR1&ndash;AR5), lowered one step if the spell is shorter than 24&nbsp;hours and raised one if it lasts 48&nbsp;hours or more. The table gives the fraction of members reaching each category within the 15 days, the most likely category, the median peak IVT, and the median onset time.</p>
+    <p class="note">For each member, the strongest spell with IVT at or above 250 at the location sets a category on the Ralph et&nbsp;al. (2019) scale: a preliminary rank from the peak IVT (250, 500, 750, 1000, 1250 for AR1&ndash;AR5), lowered one step if the spell is shorter than 24&nbsp;hours &mdash; which drops a bare AR1 out of the count altogether &mdash; and raised one if it lasts 48&nbsp;hours or more. The table gives the fraction of members reaching each category within the 15 days, the most likely category, the median peak IVT, and the median onset time.</p>
     <div style="overflow-x:auto"><table class="ar" id="arTable"></table></div>
     <p class="scale" style="margin-top:0.7rem"><b>AR1</b> weak, primarily beneficial &middot; <b>AR2</b> moderate, mostly beneficial &middot; <b>AR3</b> strong, balance of beneficial and hazardous &middot; <b>AR4</b> extreme, mostly hazardous &middot; <b>AR5</b> exceptional, primarily hazardous. Duration is sampled at 12&nbsp;hours here, so a one-step spell counts as under 24&nbsp;hours.</p>
   </div>

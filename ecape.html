@@ -150,16 +150,16 @@
   <div class="chart-card">
     <div class="chart-card-header">
       <h2>48-hour forecast loop</h2>
-      <p>The full extended run, hourly through F18 and 3-hourly to F48. Use the buttons to switch between the two ECAPE fields and the two ratio fields; scrub or play to watch the entrainment environment evolve through the diurnal cycle. Each frame is labelled with its lead and valid time. Only the 00/06/12/18&nbsp;UTC cycles run this far &mdash; the loop is always from the newest one whose F48 has published.</p>
+      <p>The full extended run, hourly through F18 and 3-hourly to F48. Use the buttons to switch between the two ECAPE fields and the two ratio fields; scrub or play to watch the entrainment environment evolve through the diurnal cycle. Each frame is labelled with its lead and valid time. Only the 00/06/12/18&nbsp;UTC cycles run this far &mdash; the loop is always from the newest extended cycle that has started publishing, and fills in as later leads arrive.</p>
     </div>
     <div id="run-picker" class="run-picker" hidden><span class="run-label">Run</span></div>
     <iframe id="ecape-anim" class="anim-embed" title="HRRR ECAPE 48-hour forecast animation" loading="lazy"></iframe>
-    <div class="chart-card-footer">NOAA HRRR wrfnat (AWS Open Data) &middot; 50 hybrid levels &middot; SHARPlib &middot; 1,905,141 columns per frame</div>
+    <div class="chart-card-footer">NOAA HRRR wrfnat (AWS Open Data) &middot; lowest 42 of 50 hybrid levels &middot; SHARPlib &middot; 1,905,141 columns per frame</div>
   </div>
 
   <div class="colophon">
     <h3>What ECAPE is</h3>
-    <p>Ordinary CAPE integrates the buoyancy of a parcel lifted from some starting level to its equilibrium level, assuming the parcel keeps its own temperature and moisture the whole way up. That assumption is the reason CAPE is easy to compute and the reason it routinely overpromises: it describes an updraft of infinite width, which entrains nothing.</p>
+    <p>Ordinary CAPE integrates the positive buoyancy of a parcel from its level of free convection to its equilibrium level, assuming the parcel keeps its own temperature and moisture the whole way up. That assumption is the reason CAPE is easy to compute and the reason it routinely overpromises: it describes an updraft of infinite width, which entrains nothing.</p>
     <p>Real updrafts are finite. They pull environmental air in through their flanks, and if that air is drier or cooler than the parcel, the mixture is less buoyant than the parcel was. The narrower the updraft, the more surface-to-volume it has and the harder that dilution bites. <b>ECAPE</b> puts a number on it: Peters et al. (2023) derived an analytic form for the buoyancy an entraining updraft actually realises, given the environmental profile <i>and</i> the kinematics, because the storm-relative wind and shear are what set how wide the updraft can be and how much it must ingest.</p>
     <p>The practical consequence is that CAPE alone cannot distinguish two soundings with identical buoyancy profiles but different flow. ECAPE can, and it usually says the atmosphere is less loaded than CAPE implies.</p>
 
@@ -168,11 +168,11 @@
     <table>
       <tr><th>Ratio</th><th>Interpretation</th></tr>
       <tr><td><span class="swatch" style="background:#3c5a9a"></span>0.2&ndash;0.4</td><td>Entrainment-hostile. Plenty of CAPE on paper, little of it usable &mdash; typically deep moist layers with weak storm-relative flow, so updrafts stay narrow and dilute fast.</td></tr>
-      <tr><td><span class="swatch" style="background:#57b56d"></span>0.5&ndash;0.7</td><td>The common case. Roughly half to two-thirds of the buoyancy survives; the CONUS-wide mean sits near 0.56.</td></tr>
+      <tr><td><span class="swatch" style="background:#57b56d"></span>0.5&ndash;0.7</td><td>The common case. Roughly half to two-thirds of the buoyancy survives on a typical CONUS afternoon.</td></tr>
       <tr><td><span class="swatch" style="background:#f4e07a"></span>0.8&ndash;1.0</td><td>Efficient. Wide updrafts, moist surroundings, or strong enough inflow that mixing costs little.</td></tr>
       <tr><td><span class="swatch" style="background:#e8503a"></span>above 1.0</td><td><b>Inflow more than pays for the mixing.</b> Not an error &mdash; see below.</td></tr>
     </table>
-    <p>A ratio above 1 looks impossible if you think of entrainment as pure subtraction, but the formulation nets a <b>storm-relative kinetic-energy gain</b> against the entrainment loss. Where inflow is vigorous enough, that gain exceeds what mixing takes away and ECAPE exceeds CAPE. These are not rare curiosities: on a representative cycle the 99th percentile of the ratio is about <b>1.40</b>, and the high values organise coherently along strongly-sheared corridors rather than scattering as noise. The colour scale deliberately gives everything above 1.0 its own band instead of flattening it against a ceiling.</p>
+    <p>A ratio above 1 looks impossible if you think of entrainment as pure subtraction. In this implementation it is not clamped: the analytic form (Peters et&nbsp;al. 2023) carries a <b>storm-relative inflow term</b> alongside the entrainment loss, and where inflow is vigorous that term outweighs what mixing takes away, so ECAPE exceeds CAPE. These are not rare curiosities: on a representative cycle the top percentile of the ratio reaches well past 1.3, and the high values organise coherently along strongly-sheared corridors rather than scattering as noise. The colour scale deliberately gives everything above 1.0 its own band instead of flattening it against a ceiling.</p>
     <p>The ratio is masked below 100&nbsp;J&nbsp;kg&#8315;&sup1; of CAPE. There it is the quotient of two numbers that are both nearly zero, and it carries no meteorological signal.</p>
 
     <h3>Why native model levels</h3>
