@@ -50,7 +50,8 @@
   .ar-narrow { display: none; font-size: 0.78rem; color: var(--muted); margin: 0.4rem 0 0; }
   @media (max-width: 480px) {
     table.ar { font-size: 0.76rem; }
-    table.ar th, table.ar td { padding: 0.35rem 0.25rem; white-space: normal; overflow-wrap: anywhere; }
+    table.ar th, table.ar td { padding: 0.35rem 0.25rem; white-space: nowrap; }
+    table.ar th, table.ar td:first-child { white-space: normal; }   /* headers and place names wrap; numbers stay whole */
     table.ar th:nth-child(3), table.ar td:nth-child(3), table.ar th:nth-child(6), table.ar td:nth-child(6),
     table.ar th:nth-child(7), table.ar td:nth-child(7), table.ar th:nth-child(10), table.ar td:nth-child(10),
     table.ar th:nth-child(11), table.ar td:nth-child(11) { display: none; }

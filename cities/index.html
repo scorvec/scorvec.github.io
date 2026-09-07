@@ -75,9 +75,10 @@
 *{box-sizing:border-box}
 main{font-size:15.5px;line-height:1.45}   /* dense board: see the type system in assets/site.css */
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Schibsted Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
-header{padding:18px 22px 14px;border-bottom:1px solid var(--line);background:var(--card)}
-header h1{margin:0 0 .3rem}
-header .lede{margin:0 0 .5rem;color:var(--ink)}
+/* the page's own title block only — the bare `header` selector also hit the shared site header (#site-header) and added 32 px of padding to it */
+header.page{padding:18px 22px 14px;border-bottom:1px solid var(--line);background:var(--card)}
+header.page h1{margin:0 0 .3rem}
+header.page .lede{margin:0 0 .5rem;color:var(--ink)}
 .sub{color:var(--mut);margin:.15rem 0 0;max-width:80ch}
 .pagelinks{margin:0;padding:8px 22px;background:var(--card);border-bottom:1px solid var(--line);font-size:.95rem}
 .pagelinks a{color:#2668a8;text-decoration:none}.pagelinks a:hover{text-decoration:underline}
@@ -120,7 +121,7 @@ tr:hover td{background:#f3f6fa}tr.sel td{background:#e6eef8}
 .err{color:#b23;padding:20px}
 </style>
 
-<header>
+<header class="page">
   <h1>City temperature forecasts</h1>
   <p class="lede">Daily high and low temperatures for <span id="ncity">234</span> US cities, fourteen days ahead, from a calibrated blend of nine global and regional weather models and their <span id="nmem">152</span> ensemble members. Pick a day and a city to see the forecast, the spread and how each model differs.</p>
   <p class="sub" id="sub">loading…</p>

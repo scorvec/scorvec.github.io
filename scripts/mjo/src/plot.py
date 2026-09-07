@@ -148,6 +148,12 @@ def plot_rmm(
         color = cmap(norm(i))
         ax.plot(mean_rmm1[i:i+2], mean_rmm2[i:i+2],
                 color=color, lw=2.2, zorder=4)
+    # Legend handles for the lead-coloured members and mean (the segments above are unlabelled
+    # because each one carries its own colour): one proxy line each, in the mid-lead colour.
+    ens = name if name.upper().endswith("ENS") else f"{name}-ENS"
+    mid = cmap(norm((n_leads - 1) / 2))
+    ax.plot([], [], color=mid, lw=2.2, label=f"{ens} mean (colour = lead day)")
+    ax.plot([], [], color=mid, alpha=0.45, lw=0.9, label=f"{ens} members ({rmm1.shape[0]})")
 
     # Spread ellipses every 5 days
     from matplotlib.patches import Ellipse
@@ -176,9 +182,9 @@ def plot_rmm(
         icf = imem.index("cf") if "cf" in imem else 0
         im1[0], im2[0] = i1[icf, 0], i2[icf, 0]
         ax.plot(im1, im2, color="#1f5fb4", lw=2.4, zorder=4,
-                label="IFS-ENS mean")
+                label="IFS-ENS mean (comparison)")
         ax.scatter(im1[-1], im2[-1], marker="s", c="#1f5fb4", s=55, zorder=7,
-                   label=f"IFS day {int(ifs['lead_day'].values[-1])}")
+                   label=f"IFS-ENS day {int(ifs['lead_day'].values[-1])} (comparison)")
 
     # Observed history (AIFS analysis archive): faint connecting line, points
     # coloured by calendar month, with the start date marked and labelled.
@@ -206,7 +212,7 @@ def plot_rmm(
 
     # Mark day-0 and last day
     ax.scatter(mean_rmm1[0], mean_rmm2[0], c="green", s=60, zorder=7, label="Day 0 (analysis)")
-    ax.scatter(mean_rmm1[-1], mean_rmm2[-1], c="red", s=60, zorder=7, label=f"Day {int(lead_days[-1])} (mean)")
+    ax.scatter(mean_rmm1[-1], mean_rmm2[-1], c="red", s=60, zorder=7, label=f"Day {int(lead_days[-1])} ({ens} mean)")
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.Normalize(vmin=0, vmax=int(lead_days[-1])))
     plt.colorbar(sm, ax=ax, label="Forecast lead day", fraction=0.046, pad=0.02)
