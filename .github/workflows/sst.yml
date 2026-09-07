@@ -111,7 +111,7 @@ jobs:
       # is missing, and frames stopped arriving with the checkout when they
       # were taken off main.
       - name: Seed existing frames
-        run: scripts/lib/fetch_frames_ci.sh scripts/sst/data/cmems assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat
+        run: scripts/lib/fetch_frames_ci.sh scripts/sst/data/cmems assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat assets/sst/anim/walker
 
       - name: Build SST maps, RONI, and animation (OISST)
         run: |
@@ -128,6 +128,11 @@ jobs:
 
       - name: Walker circulation by ocean basin
         run: python scripts/sst/walker_basins.py || echo "walker_basins failed; continuing"
+
+      # Weekly departure of the tropical velocity potential from the Pacific-forced part (reads the
+      # χ history mjo.yml keeps in assets/sst/anim/walker on the frames branch, seeded above).
+      - name: Walker departure from Pacific forcing, weekly
+        run: python scripts/sst/walker_chi_weekly.py || echo "walker_chi_weekly failed; continuing"
 
       - name: Fetch TAO equatorial subsurface temperature (recent 120 days)
         run: |
@@ -238,7 +243,7 @@ jobs:
           fi
           CB=$(date -u +%Y%m%d%H%M)
           perl -0pi -e "s/((?:mei\/mei_nowcast|mei\/mei_analogs|mei\/mei_history)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../sst.html
-          perl -0pi -e "s/(walker_basins\.webp)\?v=\w+/\${1}?v=$CB/g" ../../enso-atmosphere.html
+          perl -0pi -e "s/((?:walker_basins|walker_chi_weekly)\.webp)\?v=\w+/\${1}?v=$CB/g" ../../enso-atmosphere.html
 
       # WITHOUT THIS THE ANIMATIONS NEVER LEAVE THE RUNNER. .gitignore keeps
       # frame webp off main, and this workflow had no frames-branch publisher

@@ -39,6 +39,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "ecmwf"))
 import store as ecmwf
 from wind200_vpot import velocity_potential, irrotational_wind
+import walker_chi as wc
 
 LEVELS = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]
 A = 6.371e6; G = 9.80665; SCALE = 1e10
@@ -66,7 +67,7 @@ def download_uv(date: str, time: str):
     return up, vp
 
 
-def equatorial_ud(upath: Path, vpath: Path):
+def equatorial_ud(upath: Path, vpath: Path, chis: dict | None = None):
     """5°S–5°N mean divergent zonal wind u_D(lev, lon) from the analysis u, v.
     χ is solved per level at LMAX on a pole-free grid; the returned longitude
     axis is the χ solver's own (DH2) grid."""
@@ -77,6 +78,9 @@ def equatorial_ud(upath: Path, vpath: Path):
     for lev in u.isobaricInhPa.values:
         chi, dlat, dlon = velocity_potential(u.sel(isobaricInhPa=lev),
                                              v.sel(isobaricInhPa=lev), lmax=LMAX)
+        if chis is not None and int(lev) in wc.LEVELS:              # tropical χ strip for the weekly departure maps
+            m = np.abs(dlat) <= wc.STRIP
+            chis[int(lev)] = chi[m].astype("float32"); chis["lat"] = dlat[m]; chis["lon"] = dlon
         uchi, _ = irrotational_wind(chi, dlat, dlon)
         band = np.abs(dlat) <= BAND
         # cosφ-weighted band mean (≈ unweighted at ±5°, but exact costs nothing)
@@ -339,9 +343,15 @@ def main() -> int:
     ap.add_argument("--out", default="assets/sst/walker_anom.webp")
     args = ap.parse_args()
     up, vp = download_uv(args.date, args.time)
-    ud, p_pa, lon = equatorial_ud(up, vp)
+    chis: dict = {}
+    ud, p_pa, lon = equatorial_ud(up, vp, chis)
     valid = datetime.strptime(f"{args.date}{args.time}", "%Y%m%d%H")
     hist = update_history(ud, p_pa, lon, valid)
+    try:                                                          # χ history rides on the frames branch with the loop frames
+        h = wc.update_history(Path(args.anim_dir) / wc.HIST_NAME, wc.record(chis, chis["lat"], chis["lon"], valid))
+        print(f"  χ history: {h.time.size} analyses", flush=True)
+    except Exception as ex:                                       # noqa: BLE001
+        print(f"  χ history not updated ({str(ex)[:80]})", flush=True)
     print(f"  history: {hist.time.size} cycles "
           f"({pd.to_datetime(hist.time.values[0]):%Y-%m-%d} … {valid:%Y-%m-%d %HZ})")
     return build_anim(hist, Path(args.anim_dir), Path(args.manifest), Path(args.out))
