@@ -60,6 +60,17 @@ FIGS = {
 # stay inside the scale instead of saturating whole regions
 VLIM = {"sst": 4.0, "t2m": 5.0, "precip": 6.0, "mslp": 6.0, "z500": 9.0,
         "wind850": 6.0, "wind200": 12.0, "chi200": 6.0}
+# discrete colour steps, the same construction as the SEAS5 maps (SST identical to seas5_build.MAP_SPEC)
+LEVELS = {
+    "sst": [-5, -4.5, -4, -3.5] + [round(x, 2) for x in np.arange(-3.0, 3.01, 0.2)] + [3.5, 4, 4.5, 5],
+    "t2m": [-5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5],
+    "precip": [-6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6],
+    "mslp": [-6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6],
+    "z500": [-9, -6, -4.5, -3, -1.5, -0.5, 0.5, 1.5, 3, 4.5, 6, 9],
+    "wind850": [-6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6],
+    "wind200": [-12, -8, -6, -4, -2, -1, 1, 2, 4, 6, 8, 12],
+    "chi200": [-6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6],
+}
 
 
 def _open(url):
@@ -154,58 +165,53 @@ def main():
     ASSETS.mkdir(parents=True, exist_ok=True)
     grids = {True: np.meshgrid(olon, olat), False: np.meshgrid(lon, lat)}
 
-    def render(key, vs, cmap, scale, units, title, panels, nrows, ncols,
-               fname, fs):
+    import sys as _sys
+    _sys.path.insert(0, str(REPO / "scripts" / "sst")); import mapstyle as MS       # the site's one map style
+    from matplotlib.colors import BoundaryNorm
+
+    def render(key, vs, cmap, scale, units, title, leads, fname, L):
+        """One map per lead in the SEAS5 style (user 2026-09-07: consistent maps across the outlook pages)."""
         vmax = VLIM[key]
         is_sst = vs[0] == "SST"
         LONg, LATg = grids[is_sst]
         out = ASSETS / fname
         out.parent.mkdir(parents=True, exist_ok=True)
-        fig, axes = plt.subplots(nrows, ncols, figsize=fs,
-                                 subplot_kw=dict(projection=ccrs.PlateCarree(central_longitude=180)))
-        for ax, leads in zip(np.atleast_1d(axes).ravel(), panels):
-            a = {v: (ens[v][leads].mean(0) - clim[v][leads].mean(0)) * scale
-                 for v in vs}
-            pm = ax.pcolormesh(LONg, LATg, a[vs[0]], cmap=cmap,
-                               vmin=-vmax, vmax=vmax,
-                               transform=ccrs.PlateCarree(), rasterized=True)
-            if key == "chi200":                    # chi contours + divergent wind
-                import sys as _sys
-                _sys.path.insert(0, str(REPO / "scripts" / "mjo" / "src"))
-                from wind200_vpot import irrotational_wind
-                ax.contour(LONg, LATg, a[vs[0]],
-                           levels=[l for l in np.arange(-12, 12.1, 1.5) if abs(l) > .1],
-                           colors="k", linewidths=0.45, alpha=0.6,
-                           transform=ccrs.PlateCarree())
-                lat1d = LATg[:, 0]; lon1d = LONg[0, :]
-                uchi, vchi = irrotational_wind(a[vs[0]] * 1e6, lat1d, lon1d)
-                st = 22
-                ax.quiver(LONg[::st, ::st], LATg[::st, ::st],
-                          uchi[::st, ::st], vchi[::st, ::st],
-                          transform=ccrs.PlateCarree(), color="k", scale=90,
-                          width=0.0015, alpha=0.8)
-            if len(vs) == 2:                       # wind vectors, subsampled
-                st = 18
-                ax.quiver(LONg[::st, ::st], LATg[::st, ::st],
-                          a[vs[0]][::st, ::st], a[vs[1]][::st, ::st],
-                          transform=ccrs.PlateCarree(), color="k",
-                          scale=vmax * 30, width=0.0016, alpha=0.75)
-            ax.coastlines(lw=0.5, color="0.25")
-            ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
-            ax.set_global()
-            ax.set_title(season_label(t0, leads), fontsize=10, loc="left",
-                         fontweight="bold")
-        for ax in np.atleast_1d(axes).ravel()[len(panels):]:
-            ax.axis("off")
-        cb = fig.colorbar(pm, ax=axes, orientation="horizontal",
-                          fraction=0.05, pad=0.02, aspect=50, extend="both")
-        cb.set_label(f"{title} ({units})", fontsize=10)
-        fig.suptitle(f"SFS beta — {title} · issue {t0:%b %Y} · 31-member mean "
-                     f"vs own reforecast {CLIM_Y0}–{CLIM_Y1}",
-                     fontsize=13, fontweight="bold", y=0.995)
-        fig.subplots_adjust(top=0.93, bottom=0.04, left=0.02, right=0.98)
-        fig.savefig(out, dpi=140, bbox_inches="tight", pad_inches=0.12)
-        plt.close(fig)
+        levels = LEVELS[key]
+        fig, ax, H, pc = MS.open_map(kind="sst" if is_sst else "atm")
+        a = {v: (ens[v][leads].mean(0) - clim[v][leads].mean(0)) * scale for v in vs}
+        if is_sst:                                                  # smooth filled contours with a cyclic column, as on the SEAS5 SST map
+            from cartopy.util import add_cyclic_point
+            lon1d = LONg[0, :]; order = np.argsort(lon1d); fld = a[vs[0]][:, order]
+            fld_c, lon_c = add_cyclic_point(fld, coord=lon1d[order])
+            pm = ax.contourf(lon_c, LATg[:, 0], np.ma.masked_invalid(fld_c), levels=levels, cmap=plt.get_cmap(cmap, len(levels) - 1),
+                             norm=BoundaryNorm(levels, len(levels) - 1), extend="both", transform=pc, zorder=1)
+            cl = [x for x in np.arange(-6, 6.01, 0.5) if abs(x) > 1e-9]
+            cs = ax.contour(lon_c, LATg[:, 0], np.ma.masked_invalid(fld_c), levels=cl, colors="#333", linewidths=0.35, transform=pc, zorder=2)
+            ax.clabel(cs, fontsize=5.5, fmt=lambda v: f"{v:+.2g}", inline=True, inline_spacing=2)
+        else:
+            pm = ax.pcolormesh(LONg, LATg, a[vs[0]], cmap=plt.get_cmap(cmap, len(levels) - 1), norm=BoundaryNorm(levels, len(levels) - 1),
+                               transform=pc, shading="auto", rasterized=True, zorder=1)
+        if key == "chi200":                    # chi contours + divergent wind
+            _sys.path.insert(0, str(REPO / "scripts" / "mjo" / "src"))
+            from wind200_vpot import irrotational_wind
+            ax.contour(LONg, LATg, a[vs[0]], levels=[l for l in np.arange(-12, 12.1, 1.5) if abs(l) > .1],
+                       colors="k", linewidths=0.45, alpha=0.6, transform=pc, zorder=2)
+            lat1d = LATg[:, 0]; lon1d = LONg[0, :]
+            uchi, vchi = irrotational_wind(a[vs[0]] * 1e6, lat1d, lon1d)
+            st = 22
+            ax.quiver(LONg[::st, ::st], LATg[::st, ::st], uchi[::st, ::st], vchi[::st, ::st],
+                      transform=pc, color="k", scale=90, width=0.0015, alpha=0.8, zorder=3)
+        if len(vs) == 2:                       # wind vectors, subsampled
+            st = 18
+            ax.quiver(LONg[::st, ::st], LATg[::st, ::st], a[vs[0]][::st, ::st], a[vs[1]][::st, ::st],
+                      transform=pc, color="k", scale=vmax * 30, width=0.0016, alpha=0.75, zorder=3)
+        MS.features(ax, land_only=(key == "t2m"), states=not is_sst)
+        mon = t0 + pd.DateOffset(months=L)
+        MS.heading(fig, H, f"SFS beta {title} · {mon:%b %Y} (lead {L}) · {t0:%B %Y} issue",
+                   f"Ensemble mean of 31 members minus the model's own {CLIM_Y0}–{CLIM_Y1} reforecast mean (11 members × 30 years) for the same start month and lead, "
+                   + ("1° grid." if is_sst else "0.5° grid."))
+        MS.colorbar(fig, H, pm, f"anomaly ({units})", levels)
+        MS.save(fig, out)
         print(f"wrote {out.relative_to(REPO)}", flush=True)
 
     import time as _time
@@ -215,8 +221,7 @@ def main():
         frames = []
         for L in LEADS:
             fn = f"F{L:02d}.webp"
-            render(key, vs, cmap, scale, units, title, [[L]], 1, 1,
-                   f"anim/{name}/{fn}", (13.5, 7.8))
+            render(key, vs, cmap, scale, units, title, [L], f"anim/{name}/{fn}", L)
             mon = (t0 + pd.DateOffset(months=L))
             frames.append({"idx": L, "file": fn, "date": f"{mon:%Y-%m}",
                            "label": f"{mon:%b %Y} · lead {L}"})

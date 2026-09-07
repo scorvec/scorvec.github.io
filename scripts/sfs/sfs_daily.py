@@ -285,31 +285,18 @@ def render_chi_loop(issue, t0, lead_days):
         anom_m2s = chi - eval_vp_clim(coef, int(valid.dayofyear))
         anom = anom_m2s / 1e6
         uchi, vchi = irrotational_wind(anom_m2s, dlat, dlon)
-        fig = plt.figure(figsize=(13.0, 5.6))
-        ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=180))
-        ax.set_extent([-180, 180, -75, 75], crs=ccrs.PlateCarree())
-        cf = ax.contourf(dlon, dlat, anom, levels=VP_LEVELS, cmap=VP_CMAP,
-                         extend="both", transform=ccrs.PlateCarree())
-        ax.contour(dlon, dlat, anom, levels=VP_LEVELS, colors="k",
-                   linewidths=0.45, alpha=0.6, transform=ccrs.PlateCarree())
+        _sys.path.insert(0, str(REPO / "scripts" / "sst")); import mapstyle as MS
+        fig, ax, H, pc = MS.open_map(kind="atm", extent=[-180, 180, -60, 75])
+        cf = ax.contourf(dlon, dlat, anom, levels=VP_LEVELS, cmap=VP_CMAP, extend="both", transform=pc, zorder=1)
+        ax.contour(dlon, dlat, anom, levels=VP_LEVELS, colors="k", linewidths=0.45, alpha=0.6, transform=pc, zorder=2)
         st = max(1, len(dlat) // 28)
-        ax.quiver(dlon[::st], dlat[::st], uchi[::st, ::st], vchi[::st, ::st],
-                  transform=ccrs.PlateCarree(), color="k", scale=140,
-                  width=0.0015, alpha=0.8)
-        ax.coastlines(lw=0.5, color="0.25")
-        ax.set_title("ens-mean 200-hPa χ anomaly (shading+contours, 10⁶ m²/s) · arrows: "
-                     "anomalous divergent wind · vs ERA5 1991–2020 harmonic normal · "
-                     "negative = outflow / enhanced convection",
-                     fontsize=10, loc="left")
-        fig.colorbar(cf, ax=ax, orientation="vertical", fraction=0.025,
-                     pad=0.015)
-        fig.suptitle(f"SFS beta — 200-hPa χ · {valid:%a %b %d %Y} "
-                     f"(day {int(lead_days[k])}) · 31-member mean · issue "
-                     f"{t0:%b %Y}", fontsize=12, fontweight="bold", y=0.99)
-        fig.subplots_adjust(top=0.92, bottom=0.03, left=0.02, right=0.99)
+        ax.quiver(dlon[::st], dlat[::st], uchi[::st, ::st], vchi[::st, ::st], transform=pc, color="k", scale=140, width=0.0015, alpha=0.8, zorder=3)
+        MS.features(ax, states=False)
+        MS.heading(fig, H, f"SFS beta 200 hPa velocity potential anomaly · {valid:%a %b %d %Y} (day {int(lead_days[k])}) · {t0:%B %Y} issue",
+                   "Ensemble mean of 31 members against the ERA5 1991–2020 harmonic normal; shading and contours in 10⁶ m² s⁻¹, arrows the anomalous divergent wind; negative = outflow, enhanced convection.")
+        MS.colorbar(fig, H, cf, "χ anomaly (10⁶ m² s⁻¹)")
         fn = f"F{i:02d}.webp"
-        fig.savefig(outdir / fn, dpi=130, bbox_inches="tight", pad_inches=0.1)
-        plt.close(fig)
+        MS.save(fig, outdir / fn)
         frames.append({"idx": i, "file": fn, "date": f"{valid:%Y-%m-%d}",
                        "label": f"{valid:%b %d} · day {int(lead_days[k])}"})
     (ANIM / f"{name}_manifest.json").write_text(json.dumps(
@@ -421,49 +408,28 @@ def render_daily_maps(issue, t0, sel, lead_days, t2, z5, F, lat, lon):
         frames = []
         for i in range(ens.shape[0]):
             valid = t0 + pd.Timedelta(days=int(lead_days[ksel][i]))
-            gproj = (ccrs.PlateCarree(central_longitude=180) if glob else proj)
-            fig, ax = plt.subplots(figsize=(13.0, 5.6 if glob else 3.9),
-                                   subplot_kw=dict(projection=gproj))
+            import sys as _sys2; _sys2.path.insert(0, str(REPO / "scripts" / "sst")); import mapstyle as MS
+            from matplotlib.colors import BoundaryNorm
             if glob:
-                pm0 = ax.pcolormesh(LONg, LATg, ens[i], cmap="BrBG",
-                                    vmin=-15, vmax=15,
-                                    transform=ccrs.PlateCarree(), rasterized=True)
+                fig, ax, H, pc = MS.open_map(kind="atm"); levels = MS.symmetric_levels(15, 6); cmap = "BrBG"
             else:
-                vmax0 = 10 if key == "t2md" else 24
-                pm0 = ax.pcolormesh(LONg, LATg, ens[i], cmap="RdBu_r",
-                                    vmin=-vmax0, vmax=vmax0,
-                                    transform=ccrs.PlateCarree(), rasterized=True)
+                fig, ax, H, pc = MS.open_map(kind="atm", extent=[-180, 180, 20, 90]); levels = MS.symmetric_levels(10 if key == "t2md" else 24, 6); cmap = "RdBu_r"
+            pm0 = ax.pcolormesh(LONg, LATg, ens[i], cmap=plt.get_cmap(cmap, len(levels) - 1), norm=BoundaryNorm(levels, len(levels) - 1),
+                                transform=pc, shading="auto", rasterized=True, zorder=1)
             if zabs is not None:
-                cs = ax.contour(LONg, LATg, zabs[i], levels=np.arange(480, 601, 6),
-                                colors="k", linewidths=0.7,
-                                transform=ccrs.PlateCarree())
-                ax.clabel(cs, levels=np.arange(480, 601, 12), fmt="%d",
-                          fontsize=7, inline=True)
-            ax.coastlines(lw=0.5, color="0.25")
-            ax.add_feature(cfeature.BORDERS, lw=0.25, edgecolor="0.45")
+                cs = ax.contour(LONg, LATg, zabs[i], levels=np.arange(480, 601, 6), colors="k", linewidths=0.6, transform=pc, zorder=2)
+                ax.clabel(cs, levels=np.arange(480, 601, 12), fmt="%d", fontsize=6.5, inline=True)
+            MS.features(ax, land_only=(key == "t2md"))
             if glob:
-                ax.set_global()
-            else:
-                ax.set_extent([-180, 180, 20, 90], ccrs.PlateCarree())
-            if glob:
-                ttl = "ens-mean precip anomaly vs own reforecast daily climatology (mm/day)"
+                sub = "Ensemble mean of 31 members minus the model's own reforecast daily climatology for the same lead day, mm/day."
+                unit0 = "mm/day"
             else:
                 unit0 = "°C" if key == "t2md" else "dam"
-                ttl = ("ens-mean anomaly vs ERA5 1991–2020 daily normal "
-                       f"({unit0})")
-                if zabs is not None:
-                    ttl += " · contours: ens-mean z500 (dam)"
-            ax.set_title(ttl, fontsize=10, loc="left")
-            fig.colorbar(pm0, ax=ax, orientation="vertical",
-                         fraction=0.025, pad=0.015, extend="both")
-            fig.suptitle(f"SFS beta — {label} · {valid:%a %b %d %Y} "
-                         f"(day {int(lead_days[ksel][i])}) · 31-member mean "
-                         f"· issue {t0:%b %Y}",
-                         fontsize=12, fontweight="bold", y=0.99)
-            fig.subplots_adjust(top=0.91, bottom=0.03, left=0.02, right=0.99)
+                sub = f"Ensemble mean of 31 members against the ERA5 1991–2020 daily normal ({unit0})" + (" · contours: ensemble-mean 500 hPa height (dam)." if zabs is not None else ".")
+            MS.heading(fig, H, f"SFS beta {label} anomaly · {valid:%a %b %d %Y} (day {int(lead_days[ksel][i])}) · {t0:%B %Y} issue", sub)
+            MS.colorbar(fig, H, pm0, f"anomaly ({unit0})", levels)
             fn = f"F{i:02d}.webp"
-            fig.savefig(outdir / fn, dpi=130, bbox_inches="tight", pad_inches=0.1)
-            plt.close(fig)
+            MS.save(fig, outdir / fn)
             frames.append({"idx": i, "file": fn, "date": f"{valid:%Y-%m-%d}",
                            "label": f"{valid:%b %d} · day {int(lead_days[ksel][i])}"})
         (ANIM / f"{name}_manifest.json").write_text(json.dumps(
