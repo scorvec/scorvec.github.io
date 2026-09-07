@@ -107,7 +107,7 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">NOAA OISST v2.1 &middot; NASA JPL MUR &middot; BoM SOI &middot; NOAA PSL MEI.v2 &middot; GMGSI infrared &middot; base 1991&ndash;2020 &middot; updated daily</span><span class="chart-updated">2026-09-05</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA OISST v2.1 &middot; NASA JPL MUR &middot; BoM SOI &middot; NOAA PSL MEI.v2 &middot; GMGSI infrared &middot; base 1991&ndash;2020 &middot; updated daily</span><span class="chart-updated">OISST 2026-09-06</span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -123,7 +123,7 @@
     </div>
     <div id="dailyChart" class="plot" style="height:440px"></div>
     <div class="img-wrap" id="dailyFallback" hidden>
-      <img src="assets/sst/daily_indices.webp?v=202609071500" alt="Daily Niño-3.4, tropical-mean and relative SST indices" loading="lazy">
+      <img src="assets/sst/daily_indices.webp?v=bf03878a85da" alt="Daily Niño-3.4, tropical-mean and relative SST indices" loading="lazy">
     </div>
     </div>
   </div>
@@ -250,21 +250,21 @@ window.STAGE = {
           cap: function (a) { return {anomaly: "NOAA OISST v2.1 daily anomaly against 1991–2020, global and tropical Pacific, animated over the last 90 days with each day's ONI, tropical-mean and RONI readout.", absolute: "The raw sea-surface temperature over the last 90 days.", relative: "The anomaly with the global mean removed: the ENSO pattern without the background warming.", tropical_rel: "30°S–30°N with the 20°S–20°N mean subtracted — RONI's arithmetic drawn as a map."}[a]; }},
   indices: {label: "Daily ENSO indices", dom: function () { return "dom-indices"; }, about: "about-indices",
           cap: function () { return "Daily area-weighted SST indices: Niño-3.4, the daily RONI and the 90-day running ONI estimate; toggle absolute values and the range, click legend entries for the other regions."; }},
-  onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=202609071500"; }, about: "about-onironi", fit: false,
+  onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=bf03878a85da"; }, about: "about-onironi", fit: false,
           cap: function () { return "The official 3-month ONI beside the relative index, by season; the newest season is preliminary."; }},
   beyond: {label: "Beyond ENSO", a: {label: "Index", items: [["pdo","PDO"],["iod","Indian Ocean Dipole"],["satl","South Atlantic dipole"]]},
-          img: function (a) { return "assets/sst/" + a + "_daily.webp?v=202609071500"; }, about: "about-beyond",
+          img: function (a) { return "assets/sst/" + a + "_daily.webp?v=bf03878a85da"; }, about: "about-beyond",
           cap: function (a) { return {pdo: "Daily PDO from the ERSST North Pacific EOF pattern projected on OISST, calibrated to NCEI over 1950–present.", iod: "Daily Dipole Mode Index, Saji boxes.", satl: "Daily South Atlantic subtropical dipole, Morioka poles."}[a]; }},
   mur: {label: "MUR 1 km cold tongue", frame: function () { return "sst_anim.html?embed=1&manifest=mur_manifest.json&region=mur_ct"; }, about: "about-mur",
           cap: function () { return "NASA JPL MUR 1 km SST, 160°E–79°W and 10°S–10°N, one frame a day since the event's onset, fixed colour range; the Niño boxes are drawn on each frame."; }},
-  mur34: {label: "MUR Niño-3.4 against OISST", img: function () { return "assets/sst/mur_nino34.webp?v=202609071500"; }, about: "about-mur34", fit: false,
+  mur34: {label: "MUR Niño-3.4 against OISST", img: function () { return "assets/sst/mur_nino34.webp?v=bf03878a85da"; }, about: "about-mur34", fit: false,
           cap: function () { return "Absolute Niño-3.4 from the 1 km analysis against OISST, and the offset between the two."; }},
   ir: {label: "Infrared satellite loop", frame: function () { return "sst_anim.html?embed=1&manifest=pacsat_manifest.json&region=pacsat"; }, about: "about-ir",
           cap: function () { return "Hourly infrared composite over the tropical Pacific: where the convection is."; }},
-  soirec: {label: "SOI against the record", img: function () { return "assets/sst/soi_history.webp?v=202609071500"; }, about: "about-soirec", fit: false,
+  soirec: {label: "SOI against the record", img: function () { return "assets/sst/soi_history.webp?v=bf03878a85da"; }, about: "about-soirec", fit: false,
           cap: function () { return "The daily Southern Oscillation Index of the current event against every event since 1887, BoM 1887–1989 base."; }},
   mei: {label: "MEI.v2 daily nowcast", a: {label: "View", items: [["nowcast","Nowcast"],["analogs","Analogs"],["history","History"],["validation","Validation"]]},
-          img: function (a) { return "assets/sst/mei/mei_" + a + ".webp?v=202609071500"; }, about: "about-mei", fit: false,
+          img: function (a) { return "assets/sst/mei/mei_" + a + ".webp?v=bf03878a85da"; }, about: "about-mei", fit: false,
           cap: function (a) { return {nowcast: "A daily estimate of NOAA's bi-monthly MEI.v2 from its five inputs, R = 0.94 against the published index, leave-one-year-out.", analogs: "Past events with the closest MEI trajectory.", history: "The nowcast against the full MEI record.", validation: "How the nowcast has verified against each published value."}[a]; }},
   olr: {label: "Synthetic OLR Hovmöller", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
           cap: function () { return "Equatorial convection against time from the infrared composite: enhanced (blue) and suppressed (brown) bands moving east."; }},
@@ -408,7 +408,7 @@ window.STAGE = {
       if (state.data) drawDaily();
     });
   });
-  fetch("assets/sst/data/enso_daily.json?v=202609071500")
+  fetch("assets/sst/data/enso_daily.json?v=bf03878a85da")
     .then(function (r) { if (!r.ok) throw 0; return r.json(); })
     .then(function (d) {
       state.data = d;
