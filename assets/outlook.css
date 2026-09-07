@@ -336,13 +336,16 @@
 
   /* stat chips */
   .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
+  .page-header .chips { justify-content: center; }
+  /* larger stat cards, centred under the title (user 2026-09-07: "a bit small ... bigger font
+     ... more centered") */
   .chip { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
-          padding: 0.55rem 0.85rem; min-width: 148px; }
-  .chip .l { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em;
+          padding: 0.7rem 1.05rem 0.65rem; min-width: 168px; text-align: center; }
+  .chip .l { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em;
              text-transform: uppercase; color: var(--muted); white-space: nowrap; }
-  .chip .v { font-size: 1.28rem; font-weight: 600; margin-top: 2px;
+  .chip .v { font-size: 1.6rem; font-weight: 600; margin-top: 3px; line-height: 1.2;
              font-variant-numeric: tabular-nums; }
-  .chip .s { font-size: 0.66rem; color: var(--ink2); }
+  .chip .s { font-size: 0.76rem; color: var(--ink2); margin-top: 2px; }
   .warm { color: var(--warm); } .cool { color: var(--cool); } .neut { color: var(--ink2); }
 
   /* the legacy plain `card` container — same box as .chart-card */

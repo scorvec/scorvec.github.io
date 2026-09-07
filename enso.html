@@ -328,7 +328,7 @@
 window.STAGE = {
   groups: [
   {label: "SST & indices", ico: "\u{1F321}", items: [["sstmaps","SST anomaly maps","global, tropics, relative"],["indices","Daily indices, interactive","Niño-3.4, RONI, ONI estimate"],["onironi","ONI vs RONI","the official 3-month convention"],["beyond","PDO, IOD, South Atlantic","daily, beyond ENSO"]]},
-  {label: "Satellite & MUR", ico: "\u{1F6F0}", items: [["mur","MUR 1 km loop","cold tongue since onset"],["mur34","MUR Niño-3.4","1 km against OISST"],["ir","Infrared loop","live GOES/Himawari composite"]]},
+  {label: "Satellite & MUR", ico: "\u{1F6F0}", items: [["mur","MUR 1 km loop","cold tongue since onset"],["mur34","MUR Niño-3.4","1 km against OISST"],["ir","Infrared loops","Pacific · South & Central America"]]},
   {label: "SOI & MEI", ico: "\u{1F4C8}", items: [["soirec","SOI against the record","daily, since 1887"],["mei","MEI.v2 nowcast","daily, analogs, history"]]},
   {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"]]},
   {label: "Winds & SOI", ico: "\u{1F32C}", items: [["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS, to day 15"]]},
@@ -349,8 +349,10 @@ window.STAGE = {
           cap: function () { return "NASA JPL MUR 1 km SST, 160°E–79°W and 10°S–10°N, one frame a day since the event's onset, fixed colour range; the Niño boxes are drawn on each frame."; }},
   mur34: {label: "MUR Niño-3.4 against OISST", img: function () { return "assets/sst/mur_nino34.webp?v=202609071730"; }, about: "about-mur34", fit: false,
           cap: function () { return "Absolute Niño-3.4 from the 1 km analysis against OISST, and the offset between the two."; }},
-  ir: {label: "Infrared satellite loop", frame: function () { return "sst_anim.html?embed=1&manifest=pacsat_manifest.json&region=pacsat"; }, about: "about-ir",
-          cap: function () { return "Hourly infrared composite over the tropical Pacific: where the convection is."; }},
+  ir: {label: "Infrared satellite loop", a: {label: "Region", items: [["pacsat","Tropical Pacific"],["samsat","South & Central America"]]},
+          frame: function (a) { return "sst_anim.html?embed=1&manifest=" + a + "_manifest.json&region=" + a; },
+          ratio: function (a) { return a === "samsat" ? "1454/1587" : "1259/700"; }, about: "about-ir",
+          cap: function (a) { return a === "samsat" ? "Hourly infrared composite over South and Central America: the Amazon convection, the SACZ and the Andes." : "Hourly infrared composite over the tropical Pacific: where the convection is."; }},
   soirec: {label: "SOI against the record", img: function () { return "assets/sst/soi_history.webp?v=202609071730"; }, about: "about-soirec", fit: false,
           cap: function () { return "The daily Southern Oscillation Index of the current event against every event since 1887, BoM 1887–1989 base."; }},
   mei: {label: "MEI.v2 daily nowcast", a: {label: "View", items: [["nowcast","Nowcast"],["analogs","Analogs"],["history","History"],["validation","Validation"]]},
@@ -438,6 +440,9 @@ window.STAGE = {
       { l: "Tropical mean 20S–20N", v: fmt(L.trop) + " °C", s: "the warming background" + arrow(L.trop_d7),
         cls: "neut" },
     ];
+    if (L.tni != null) chips.push(
+      { l: "Trans-Niño index", v: fmt(L.tni) + " σ", s: (L.tni >= 0 ? "east-loaded" : "west-loaded") + " · σ(1+2) − σ(4)" + arrow(L.tni_d7),
+        cls: "neut" });
     document.getElementById("chips").innerHTML = chips.map(function (c) {
       return '<div class="chip"><div class="l">' + c.l + '</div>' +
              '<div class="v ' + c.cls + '">' + c.v + '</div>' +

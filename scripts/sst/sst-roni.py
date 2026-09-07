@@ -1093,6 +1093,20 @@ def publish_enso_daily_json(mean_fields, la, lo, idx, valid, out_path):
     months = pd.DatetimeIndex(rel.index).month
     roni_d = rel * pd.Series([sc.get(int(m), 1.0) for m in months], index=rel.index)
     oni90 = a["nino34"].rolling(90, min_periods=90).mean()
+    # Trans-Niño index (Trenberth & Stepaniak 2001): standardised Niño-1+2 minus standardised
+    # Niño-4, positive = east-loaded. σ per region from the 1991–2020 monthly ERSST anomalies in
+    # nino_history.json (the same base as the OISST anomalies); daily values, unsmoothed.
+    tni = None
+    try:
+        nh = json.loads((ASSETS / "data" / "nino_history.json").read_text())
+        mo = np.asarray(nh["months"]); base = (mo >= "1991-01") & (mo <= "2020-12")
+        s12 = float(np.nanstd(np.asarray(nh["series"]["nino12"], float)[base]))
+        s4 = float(np.nanstd(np.asarray(nh["series"]["nino4"], float)[base]))
+        if s12 > 0 and s4 > 0:
+            tni = a["nino12"] / s12 - a["nino4"] / s4
+            print(f"  TNI σ(1991–2020, ERSST monthly): Niño-1+2 {s12:.2f} °C, Niño-4 {s4:.2f} °C")
+    except Exception as e:                                                       # noqa: BLE001
+        print(f"  TNI skipped: {e}")
 
     dates = pd.DatetimeIndex(a["nino34"].index)
     rnd = lambda s: [None if not np.isfinite(v) else round(float(v), 3)  # noqa: E731
@@ -1103,6 +1117,8 @@ def publish_enso_daily_json(mean_fields, la, lo, idx, valid, out_path):
     for k in NINO_REGIONS:
         daily[k] = rnd(a[k])
         daily[k + "_abs"] = rnd(b[k])
+    if tni is not None:
+        daily["tni"] = rnd(tni)
 
     def _delta(s, days):
         s = s.dropna()
@@ -1118,7 +1134,7 @@ def publish_enso_daily_json(mean_fields, la, lo, idx, valid, out_path):
     for key, ser in [("nino34", a["nino34"]), ("nino34_abs", b["nino34"]),
                      ("nino12", a["nino12"]), ("nino3", a["nino3"]),
                      ("nino4", a["nino4"]), ("trop", trop),
-                     ("roni_d", roni_d), ("oni90", oni90)]:
+                     ("roni_d", roni_d), ("oni90", oni90)] + ([("tni", tni)] if tni is not None else []):
         sv = ser.dropna()
         if sv.empty:
             continue
