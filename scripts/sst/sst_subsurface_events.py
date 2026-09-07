@@ -236,7 +236,7 @@ def heat_content(events: dict, cur_year: int, out: Path, detr: bool = False):
         title = "Subsurface heat content (eq. Pacific 0–300 m T anomaly): current vs. 1997, 2015, 2023"
         fs = 11.5
     ax.set_title(title, fontsize=fs, fontweight="bold", loc="left")
-    ax.legend(fontsize=9, loc="upper left", framealpha=0.9)
+    ax.legend(fontsize=9, loc="lower left", framealpha=0.9)    # lower left is empty: every event is positive in its first half-year
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
     fig.savefig(out, dpi=120, bbox_inches="tight")
