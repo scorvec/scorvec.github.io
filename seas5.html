@@ -331,11 +331,17 @@
      all four pages instead of two. */
 
   /* hero */
-  .eyebrow { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.22em;
-             text-transform: uppercase; color: var(--accent); }
+  .eyebrow { font-size: 0.9rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); }
   h1 { font-family: var(--serif); font-weight: 400; font-size: 2.1rem;
        letter-spacing: 0.01em; margin: 0.3rem 0 0.2rem; color: var(--ink); }
-  h1 em { font-style: italic; color: var(--accent); }
+  h1 em { font-style: normal; color: inherit; }
+  /* page title block: centred under the section tabs, no accent colour (user, 2026-09-07) */
+  main > header { text-align: center; }
+  main > header .sub { margin-left: auto; margin-right: auto; }
+  main > header .chips { justify-content: center; }
+  .page-header { text-align: center; }
+  .page-header p { margin-left: auto; margin-right: auto; max-width: 76ch; }
+
   .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 0.9rem; }
 
   /* stat chips */
@@ -494,7 +500,7 @@
 <main>
   <header>
     <div class="eyebrow">Monthly &middot; ECMWF SEAS5 &middot; <span id="issueLabel">latest issue</span> &middot; 51 members</div>
-    <h1>SEAS5 <em>Outlook</em></h1>
+    <h1>SEAS5 outlook</h1>
     <p class="sub">ECMWF&rsquo;s seasonal system, read in full and checked against observations: the ENSO
     indices from the coastal Ni&ntilde;o-1+2 to the central-Pacific Ni&ntilde;o-4, each against the
     previous three issues; the Pacific, Atlantic and Indian Ocean indices from the same fields;

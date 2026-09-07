@@ -49,11 +49,10 @@
   .nav-links a:hover { color: var(--ink); }
   main { flex: 1; max-width: min(94vw, 2000px); margin: 0 auto; width: 100%;
          padding: 2.6rem 1.8rem 4rem; }
-  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.22em;
-             text-transform: uppercase; color: var(--aqua-deep); }
+  .eyebrow { font-size: 0.9rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); }
   h1 { font-family: var(--serif); font-weight: 400; font-size: 38px;
        margin: 6px 0 4px; }
-  h1 em { font-style: italic; color: var(--aqua); }
+  h1 em { font-style: normal; color: inherit; }
   .sub { color: var(--ink2); max-width: 82ch; margin-bottom: 20px; }
   .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 26px; }
   .chip { background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
@@ -166,7 +165,7 @@
 <main>
   <header>
     <div class="eyebrow">Monthly &middot; NOAA SFS beta v1.0 &middot; UFS coupled &middot; 31 members</div>
-    <h1>SFS <em>Beta</em> Seasonal Outlook</h1>
+    <h1>SFS beta seasonal outlook</h1>
     <p class="sub">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based
     successor to CFSv2, running in near-real-time beta since March 2026 with open zarr
     output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the

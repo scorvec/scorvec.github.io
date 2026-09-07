@@ -372,11 +372,17 @@
      all four pages instead of two. */
 
   /* hero */
-  .eyebrow { font-size: 0.62rem; font-weight: 600; letter-spacing: 0.22em;
-             text-transform: uppercase; color: var(--accent); }
+  .eyebrow { font-size: 0.9rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); }
   h1 { font-family: var(--serif); font-weight: 400; font-size: 2.1rem;
        letter-spacing: 0.01em; margin: 0.3rem 0 0.2rem; color: var(--ink); }
-  h1 em { font-style: italic; color: var(--accent); }
+  h1 em { font-style: normal; color: inherit; }
+  /* page title block: centred under the section tabs, no accent colour (user, 2026-09-07) */
+  main > header { text-align: center; }
+  main > header .sub { margin-left: auto; margin-right: auto; }
+  main > header .chips { justify-content: center; }
+  .page-header { text-align: center; }
+  .page-header p { margin-left: auto; margin-right: auto; max-width: 76ch; }
+
   .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 0.9rem; }
 
   /* stat chips */
@@ -519,7 +525,7 @@
 <!-- sh:end -->
 <main>
   <div class="page-header">
-    <h1>Equatorial Pacific Subsurface Temperature</h1>
+    <h1>Equatorial Pacific subsurface temperature</h1>
     <p>Depth&ndash;longitude cross-sections along the equator from the TAO/TRITON moored-buoy array. The subsurface warm reservoir along the thermocline often leads the surface ENSO signal.</p>
   </div>
 
