@@ -122,9 +122,11 @@ def render_polar(lat, lon, z, anom, u, v, title, cbar_label, outpath,
     uc = np.concatenate([u, u[:, :1]], axis=1)
     vc = np.concatenate([v, v[:, :1]], axis=1)
 
+    import sys as _sys; _sys.path.insert(0, str(REPO / "scripts" / "sst")); import mapstyle as MS   # shared outlook map look
     proj = ccrs.NorthPolarStereo(central_longitude=-90)
-    fig = plt.figure(figsize=(7.0, 7.4))
-    ax = fig.add_subplot(projection=proj)
+    W, top, bot = 8.0, 1.05, 0.85; H = W + top + bot
+    fig = plt.figure(figsize=(W, H))
+    ax = fig.add_axes([0.02, bot / H, 0.96, W / H], projection=proj)
     ax.set_extent([-180, 180, LAT0, 90], ccrs.PlateCarree())
     th = np.linspace(0, 2 * np.pi, 200)
     circ = mpath.Path(np.column_stack([np.sin(th), np.cos(th)]) * 0.5 + 0.5)
@@ -139,18 +141,16 @@ def render_polar(lat, lon, z, anom, u, v, title, cbar_label, outpath,
     ax.quiver(lonc[::st], lat[::st], uc[::st, ::st], vc[::st, ::st],
               transform=ccrs.PlateCarree(), regrid_shape=28, color="0.1",
               width=0.0022, scale=700, alpha=0.75)
-    ax.coastlines(lw=0.6, color="0.45")
-    ax.add_feature(cfeature.LAND, facecolor="0.93", zorder=0)
-    ax.gridlines(lw=0.3, color="0.75", ylocs=[30, 45, 60, 75])
-
-    cb = fig.colorbar(cf, ax=ax, orientation="horizontal", fraction=0.045,
-                      pad=0.03, aspect=45)
-    cb.set_label(cbar_label, fontsize=8)
-    ax.set_title(title, fontsize=9, fontweight="bold", loc="left")
-    fig.subplots_adjust(top=0.93, bottom=0.05, left=0.02, right=0.98)
+    ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
+    ax.coastlines(resolution="50m", linewidth=0.45, color="#222", zorder=3)
+    ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.25, edgecolor="#666", zorder=3)
+    ax.gridlines(linewidth=0.3, color="#888", alpha=0.5, ylocs=[30, 45, 60, 75], zorder=4)
+    head, _, sub = title.partition("\n")
+    MS.heading(fig, H, head, sub or "Ensemble mean of 31 members; anomaly against the model's own 1991–2020 reforecast mean plus trend at the forecast year; contours the mean 100 hPa height (dam), arrows the mean wind.",
+               title_size=12, sub_size=8, wrap=118)
+    MS.colorbar(fig, H, cf, cbar_label)
     outpath.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(outpath, dpi=130, pad_inches=0.1)
-    plt.close(fig)
+    MS.save(fig, outpath)
 
 
 def main():
@@ -180,11 +180,9 @@ def main():
         anom = z[i] - base[i]
         render_polar(
             lat, lon, z[i], anom, u[i], v[i],
-            f"SFS beta — 100 hPa · {valid:%a %b %d %Y} (day {int(lead_days[k])}) "
-            f"· issue {t0:%b %Y}\n31-member ensemble mean · contours: mean height "
-            "(dam) · vectors: mean wind",
-            f"100-hPa height anomaly (dam) vs reforecast 1991–2020 per-lead mean "
-            f"+ trend evaluated at {t0.year}",
+            f"SFS beta 100 hPa height anomaly · {valid:%b %d %Y} (day {int(lead_days[k])}) · {t0:%b %Y} issue\n"
+            f"Ensemble mean of 31 members against the model's own 1991–2020 reforecast per-lead mean plus trend at {t0.year}; contours the mean 100 hPa height (dam), arrows the mean wind.",
+            "anomaly (dam)",
             outdir / f"F{i:02d}.webp", np.arange(-24, 24.1, 3.0))
         frames.append({"idx": i, "file": f"F{i:02d}.webp",
                        "date": f"{valid:%Y-%m-%d}",

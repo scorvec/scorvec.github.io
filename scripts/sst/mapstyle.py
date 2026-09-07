@@ -54,9 +54,13 @@ def features(ax, land_only: bool = False, states: bool = True, gridlines: bool =
         gl.top_labels = gl.right_labels = False; gl.xlabel_style = gl.ylabel_style = {"size": 7, "color": "#555"}
 
 
-def heading(fig, H: float, title: str, sub: str):
-    fig.text(0.03, 1 - 0.14 / H, title, fontsize=13.5, fontweight="bold", va="top")
-    fig.text(0.03, 1 - 0.50 / H, sub, fontsize=8.6, color="#444", va="top")
+def heading(fig, H: float, title: str, sub: str, title_size: float = 13.5, sub_size: float = 8.6, wrap: int | None = None):
+    """Bold title top-left, subtitle under it; `wrap` = characters per subtitle line for narrow figures."""
+    if wrap:
+        import textwrap
+        sub = "\n".join(textwrap.wrap(sub, wrap))
+    fig.text(0.03, 1 - 0.14 / H, title, fontsize=title_size, fontweight="bold", va="top")
+    fig.text(0.03, 1 - 0.50 / H, sub, fontsize=sub_size, color="#444", va="top", linespacing=1.3)
 
 
 def colorbar(fig, H: float, mappable, label: str, levels=None, extend: str = "both"):
