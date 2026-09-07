@@ -69,7 +69,7 @@
       var el = $(p.dom(sel.a, sel.b, sel.c));
       if (el) { mountedHome = { parent: el.parentNode, next: el.nextSibling }; mounted = el; st.appendChild(el); el.hidden = false;
         if (window.Plotly) Array.prototype.forEach.call(el.querySelectorAll(".js-plotly-plot"), function (g) { try { window.Plotly.Plots.resize(g); } catch (e) {} }); }
-    } else if (p.frame) {
+    } else if (p.frame && p.frame(sel.a, sel.b, sel.c)) {          // frame() may return null for an option that is a still
       var f = document.createElement("iframe"); f.src = p.frame(sel.a, sel.b, sel.c); f.title = p.label; f.loading = "lazy";
       f.style.aspectRatio = (p.ratio ? p.ratio(sel.a, sel.b, sel.c) : "1259/700"); st.appendChild(f);
     } else {

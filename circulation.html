@@ -94,7 +94,7 @@
   <div class="page-header">
     <p class="eyebrow">Daily, from the ECMWF AIFS ensemble and the ECCC GDPS, anomalies against ERA5 1991&ndash;2020</p>
     <h1>Global circulation and jets</h1>
-    <p class="sub">The atmosphere's response to the tropical ocean and what it does downstream: equatorial winds and the Southern Oscillation, the upper-level flow, angular momentum and its torques, the overturning cells, the jets and the stratosphere &mdash; one figure at a time, picked from the menu. Every figure carries its method and sources under the caption.</p>
+    <p class="sub">The atmosphere's response to the tropical ocean and what it does downstream: equatorial winds and the Southern Oscillation, the upper-level flow, angular momentum and its torques, the overturning cells, the jets and the stratosphere &mdash; one figure at a time, picked from the menu. Every figure carries its method and sources under the caption. Most diagnostics use the full 50-member AIFS-ENS or its control; the heavier ones (angular momentum, jets, E&ndash;P flux, wave activity flux) use a 25-member subset, and each About block says which.</p>
 
   </div>
   <div class="ss-layout">
@@ -158,7 +158,7 @@
 <template id="about-gdps_ir">
 <p>GDPS forecast top-of-atmosphere OLR converted to IR brightness temperature and
         rendered like the live GMGSI tropical Pacific loop on the
-        <a href="enso.html">Overview page</a> &mdash; a simulated satellite loop, 3-hourly
+        <a href="enso.html">El Ni&ntilde;o monitor page</a> &mdash; a simulated satellite loop, 3-hourly
         frames to day&nbsp;10. White and colour are cold cloud tops (deep convection).</p>
 <p class="chart-sources">ECCC GDPS top-of-atmosphere OLR (MSC Datamart) &middot; OLR &rarr; T<sub>b</sub> via inverse Ohring&ndash;Gruber &middot; 3-hourly frames, days 0&ndash;10 &middot; GMGSI enhanced-IR colortable &middot; daily</p>
 </template>
@@ -291,8 +291,8 @@
 <script>
 window.STAGE = {
   groups: [
-  {label: "Equatorial winds & SOI", ico: "\u{1F32C}", items: [["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["soi","Southern Oscillation Index","hourly estimate, forecast"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS"]]},
-  {label: "Forecast loops", ico: "\u{1F5FA}", items: [["mslp","MSLP and 10 m wind","ensemble mean, days 0–15"],["gdps_ir","GDPS simulated IR","forecast satellite loop"],["gdps150","GDPS 150 hPa","wind and height"]]},
+  {label: "Observations: equatorial winds & SOI", ico: "\u{1F32C}", items: [["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["soi","Southern Oscillation Index","hourly estimate, forecast"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"]]},
+  {label: "Forecast loops", ico: "\u{1F5FA}", items: [["wind10","Equatorial 10 m wind","AIFS-ENS and IFS-ENS, to day 15"],["mslp","MSLP and 10 m wind","ensemble mean, days 0–15"],["gdps_ir","GDPS simulated IR","forecast satellite loop"],["gdps150","GDPS 150 hPa","wind and height"]]},
   {label: "Upper-level dynamics", ico: "\u2699", items: [["vpot","Velocity potential","200 hPa, irrotational wind"],["waf","Wave activity flux","Rossby packets, 250 hPa"],["dt","Dynamic tropopause","θ on 2 PVU, isentropic PV"]]},
   {label: "Angular momentum & torques", ico: "\u2696", items: [["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]},
   {label: "Overturning & jets", ico: "\u{1F30D}", items: [["hadley","Hadley cells","meridional streamfunction"],["walker","Walker circulation","loop, by basin, weekly departure"],["jets","Subtropical jets","strength and position"],["pacjet","North Pacific jet","extension, shift, torque"]]},
@@ -304,12 +304,12 @@ window.STAGE = {
   eqwind: {label: "Equatorial zonal wind, Hovmöller", img: function () { return "assets/sst/eq_uwind_hov.webp"; }, bust: "hourly", about: "about-eqwind",
           cap: function () { return "Zonal wind anomaly along the equator against time: westerly bursts as red streaks moving east."; }},
   soi: {label: "Southern Oscillation Index", a: {label: "View", items: [["hourly","Hourly estimate"],["forecast","Ensemble forecast"]]},
-          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : "assets/sst/soi_forecast.webp?v=bf03878a85da"; }, bust: "hourly",
+          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : "assets/sst/soi_forecast.webp?v=202609071730"; }, bust: "hourly",
           about: "about-soi_h", cap: function (a) { return a === "hourly" ? "Darwin minus Tahiti pressure from hourly METARs, on the BoM 1887–1989 base, so the index exists today rather than at month end." : "The same index carried through the AIFS-ENS and IFS-ENS 15-day forecasts, member by member."; }},
   wwb: {label: "Westerly wind bursts", a: {label: "View", items: [["tarawa","Tarawa monitor"],["onsets","Against past onsets"]]},
           dom: function (a) { return a === "tarawa" ? "dom-wwb" : null; }, img: function () { return "assets/sst/kiribati_history.webp"; }, bust: "hourly",
           about: "about-wwb_t", cap: function (a) { return a === "tarawa" ? "Hourly surface wind at Tarawa and Kiritimati: westerlies at the dateline are the trigger for oceanic Kelvin waves. Live arrows below the chart." : "This year's westerly-burst activity against the onset years of past El Niños."; }},
-  wind10: {label: "Equatorial 10 m wind forecast", img: function () { return "assets/sst/eq_wind_hovmoller.webp?v=bf03878a85da"; }, about: "about-wind10",
+  wind10: {label: "Equatorial 10 m wind forecast", img: function () { return "assets/sst/eq_wind_hovmoller.webp?v=202609071730"; }, about: "about-wind10",
           cap: function () { return "Forecast zonal wind along the equator, ensemble mean and spread, out to day 15."; }},
   mslp: {label: "MSLP and 10 m wind", frame: function () { return "sst_anim.html?embed=1&manifest=mslp_wind_manifest.json&region=mslp_wind"; }, about: "about-mslp", cap: function () { return "Ensemble-mean sea-level pressure and 10 m wind, days 0–15."; }},
   gdps_ir: {label: "GDPS simulated infrared", frame: function () { return "sst_anim.html?embed=1&manifest=gdps_ir_manifest.json&region=gdps_ir"; }, about: "about-gdps_ir", cap: function () { return "Forecast top-of-atmosphere brightness temperature from the GDPS, read like a satellite loop."; }},
@@ -321,24 +321,24 @@ window.STAGE = {
           cap: function (a) { return a === "dt" ? "Potential temperature on the 2-PVU surface, AIFS-ENS control, 12-hourly to day 10: low θ is polar or stratospheric air reaching down." : "Ertel PV on the " + (a === "dt_pv330" ? "330" : "350") + " K isentrope, control member."; }},
   aam: {label: "Atmospheric angular momentum", a: {label: "View", items: [["series","Series and forecast"],["trend","Run-to-run trend"],["phase","Phase"],["zonal","By latitude (loop)"]]},
           frame: function (a) { return a === "zonal" ? "sst_anim.html?embed=1&manifest=aam_zonal_manifest.json&region=aam_zonal" : null; },
-          img: function (a) { return "assets/sst/aam" + (a === "trend" ? "_trend" : a === "phase" ? "_phase" : "") + ".webp?v=bf03878a85da"; },
+          img: function (a) { return "assets/sst/aam" + (a === "trend" ? "_trend" : a === "phase" ? "_phase" : "") + ".webp?v=202609071730"; },
           about: "about-aam", cap: function (a) { return {series: "Relative AAM, globe and hemispheres, on the 1991–2020 annual cycle with the 15-day forecast; GFZ's ESMGFZ series in green.", trend: "How successive runs have moved the AAM forecast.", phase: "AAM against its tendency: where the momentum is and where it is heading.", zonal: "Latitude–pressure cross-section of the AAM density and the forecast change."}[a]; }},
   torque: {label: "Surface torques", a: {label: "View", items: [["maps","Torque maps (loop)"],["series","Series"],["ranges","By mountain range"]]},
           frame: function (a) { return a === "maps" ? "sst_anim.html?embed=1&manifest=torque_manifest.json&region=torque" : null; },
-          img: function (a) { return "assets/sst/torque_" + (a === "series" ? "timeseries" : "ranges") + ".webp?v=bf03878a85da"; },
+          img: function (a) { return "assets/sst/torque_" + (a === "series" ? "timeseries" : "ranges") + ".webp?v=202609071730"; },
           about: "about-torque", cap: function (a) { return a === "maps" ? "Friction and mountain torque-density anomalies with the surface-pressure anomaly, days 0–15." : a === "series" ? "The two torques integrated over the globe and each hemisphere against the actual change in AAM." : "Which barriers are doing the work."; }},
   hadley: {label: "Hadley cells", frame: function () { return "sst_anim.html?embed=1&manifest=mmsf_manifest.json&region=mmsf"; }, about: "about-hadley", cap: function () { return "Meridional mass streamfunction anomaly, 7-day mean of the analyses, against ERA5 1991–2020."; }},
   walker: {label: "Walker circulation", a: {label: "View", items: [["loop","Streamfunction loop"],["basins","By ocean basin"],["weekly","Weekly departure from Pacific forcing"]]},
           frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=walker_manifest.json&region=walker" : null; }, fit: false,
-          img: function (a) { return "assets/sst/walker_" + (a === "basins" ? "basins" : "chi_weekly") + ".webp?v=bf03878a85da"; },
+          img: function (a) { return "assets/sst/walker_" + (a === "basins" ? "basins" : "chi_weekly") + ".webp?v=202609071730"; },
           about: "about-walker", cap: function (a) { return a === "loop" ? "Zonal overturning streamfunction along the equator, 7-day trailing mean, anomaly against ERA5." : a === "basins" ? "What the Indian and Atlantic Oceans are doing to the overturning once ENSO is removed: regression and Gill model side by side." : "Weekly χ200 departure from the Pacific-forced part, and how much of it the Indian and Atlantic SST can claim."; }},
   jets: {label: "Subtropical jets", a: {label: "View", items: [["loop","Cross-section loop"],["series","Strength and position"]]},
-          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=bf03878a85da"; },
+          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=202609071730"; },
           about: "about-jets", cap: function (a) { return a === "loop" ? "Zonal-mean zonal wind anomaly cross-section through the 15-day forecast, cores marked." : "Speed and latitude of each hemisphere's subtropical jet core, members and mean against the normal band."; }},
   pacjet: {label: "North Pacific jet", a: {label: "View", items: [["indices","Extension, shift, torque"],["z500","Downstream ridge maps"]]},
-          img: function (a) { return "assets/sst/pacjet" + (a === "z500" ? "_z500" : "") + ".webp?v=bf03878a85da"; }, fit: false,
+          img: function (a) { return "assets/sst/pacjet" + (a === "z500" ? "_z500" : "") + ".webp?v=202609071730"; }, fit: false,
           about: "about-pacjet", cap: function (a) { return a === "indices" ? "Jet extension and shift indices with the Himalayan mountain torque upstream: the observed tail, the ensemble forecast and the ERA5 lag relationships." : "500 hPa composites after strong torque days and the forecast, days 1–7 and 8–15."; }},
-  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=bf03878a85da"; }, about: "about-vortex", fit: false,
+  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=202609071730"; }, about: "about-vortex", fit: false,
           cap: function () { return "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height, members against the MERRA-2 percentile bands."; }},
   vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=" + a; }, about: "about-vwinds",

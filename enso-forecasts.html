@@ -229,6 +229,7 @@
   }
   .chart-sources { font-size: 0.68rem; color: var(--muted); }
   .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+  @media (max-width: 480px) { .chart-updated { white-space: normal; } }
 
   .colophon {
     margin-top: 4rem; padding-top: 2rem;
@@ -523,7 +524,7 @@
     <p class="sub">Every ensemble member from seven seasonal prediction systems, as one
     interactive outlook &mdash; percentile fans, individual models, ONI against RONI, and the
     whole thing measured against every ENSO event since 1970. Each model is anomalized against
-    its own 1993&ndash;2016 hindcast, so drift and bias are removed before anything is drawn.</p>
+    its own 1993&ndash;2016 hindcast, so drift and bias are removed before anything is drawn. Model anomalies are taken against each model&rsquo;s own 1993&ndash;2016 hindcast, while the observed lead-in and the ranking against past peaks use ERSSTv5 on the fixed 1991&ndash;2020 base, so the two can differ by a tenth or two of a degree.</p>
     <div class="chips" id="chips">
       <div class="chip"><div class="l">Loading forecast feed&hellip;</div><div class="v neut">&mdash;</div></div>
     </div>
@@ -1077,13 +1078,13 @@
   });
 
   Promise.all([
-    fetch("assets/sst/data/enso_forecast.json?v=bf03878a85da").then(function (r) {
+    fetch("assets/sst/data/enso_forecast.json?v=202609071730").then(function (r) {
       if (!r.ok) throw 0; return r.json(); }),
-    fetch("assets/sst/data/nino_history.json?v=bf03878a85da").then(function (r) {
+    fetch("assets/sst/data/nino_history.json?v=202609071730").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/enso_daily.json?v=bf03878a85da").then(function (r) {
+    fetch("assets/sst/data/enso_daily.json?v=202609071730").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
-    fetch("assets/sst/data/c3s_evolution.json?v=bf03878a85da").then(function (r) {
+    fetch("assets/sst/data/c3s_evolution.json?v=202609071730").then(function (r) {
       return r.ok ? r.json() : null; }).catch(function () { return null; }),
   ]).then(function (res) {
     state.fc = res[0]; state.hist = res[1]; state.dailyFeed = res[2];
