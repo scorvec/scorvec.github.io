@@ -134,11 +134,587 @@ tr:hover td{background:#f3f6fa}tr.sel td{background:#e6eef8}
     <b id="daylab"></b>
     <label style="font-size:12px;color:var(--mut);display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="win"> whole window</label>
   </div>
+  <div class="grp"><span>compare with</span><select id="prev"><option value="">— none —</option></select></div>
   <div class="grp"><span>metric</span>
     <select id="metric"><option value="hi">max temp</option><option value="lo">min temp</option><option value="tmean">mean temp</option><option value="hdd">HDD</option><option value="cdd">CDD</option></select></div>
   <div class="grp"><span>colour by</span>
     <select id="colour">
-      <option value="value">value</option><option value="vsnorm">vs normal</option><option value="dsess">Δ vs previous session</option>
+      <option value="value">value</option><option value="vsnorm">vs normal</option><option value="dsess">Δ vs the chosen run</option>
+      <option value="pthr">P(threshold)</option><option value="pnorm">P(above normal)</option><option value="lean">risk lean (up − down)</option>
+      <option value="spread">spread p90−p10</option><option value="conf">spread ÷ normal</option>
+    </select></div>
+  <div class="grp"><span>threshold</span><input type="text" id="thr" size="5" style="text-align:right"><span id="thrlab" style="text-transform:none;letter-spacing:0"></span></div>
+  <div class="grp"><span>state</span><select id="state"><option value="">all</option></select></div>
+  <div class="grp"><span>find</span><input type="text" id="find" placeholder="city or ICAO" size="13"></div>
+</div>
+
+<main>
+  <div class="card">
+    <p class="ttl" id="mt1">map</p>
+    <p class="hint">one dot per station · click a dot to drill down · hover for the numbers</p>
+    <canvas id="map"></canvas>
+    <div class="legend"><span id="lg0"></span><div class="sw" id="lgsw"></div><span id="lg1"></span><span id="lgt" style="margin-left:8px"></span></div>
+  </div>
+  <div class="card">
+    <p class="ttl" id="t2">select a city</p>
+    <p class="hint" id="h2"></p>
+    <canvas id="fan"></canvas>
+    <p class="ttl" style="margin-top:10px;font-size:12.5px" id="t3"></p>
+    <div class="mgrid"><div><canvas id="dpdf"></canvas></div><div><canvas id="dcdf"></canvas></div></div>
+    <div id="read"></div>
+  </div>
+  <div class="card full">
+    <p class="ttl" id="t1"></p>
+    <p class="hint" id="h1"></p>
+    <div class="wrap"><table id="tbl"></table></div>
+  </div>
+</main>
+
+<div class="tip" id="tip"></div>
+<div id="modal"><div id="mbox">
+  <button id="mclose">close ✕</button>
+  <p class="ttl" id="mtt"></p>
+  <p class="hint">distribution of the ensemble members' highs (red) and lows (blue) for this day · solid = consensus · dotted = normal · bars = histogram · hover the CDF for P(≤ x)</p>
+  <div class="mgrid"><div><p class="ttl" style="font-size:12.5px">PDF</p><canvas id="pdf"></canvas></div><div><p class="ttl" style="font-size:12.5px">CDF</p><canvas id="cdf"></canvas></div></div>
+  <div class="mrow" id="mstats"></div><div class="thr" id="mthr"></div>
+</div></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const tip = $('#tip');
+let D = null, GEO = null, PATHS = null, sel = null, DAYI = 0, sortKey = 'value', sortDir = -1;
+let MODELS = [];
+let PREV = null, PREVI = [];
+const DET = {};
+const LBL = { hi: 'max temp (°F)', lo: 'min temp (°F)', tmean: 'mean temp (°F)', hdd: 'HDD', cdd: 'CDD' };
+const isDD = m => m === 'hdd' || m === 'cdd';
+const isWin = () => $('#win').checked;
+const M = () => $('#metric').value;
+const fmt = (v, d = 1) => (v == null || !isFinite(v)) ? '' : v.toFixed(d);
+const sg = (v, d = 1) => v == null || !isFinite(v) ? '' : `<span style="color:${v > 0 ? 'var(--hi)' : v < 0 ? 'var(--lo)' : '#7b8798'}">${v > 0 ? '+' : ''}${v.toFixed(d)}</span>`;
+const consKey = m => m === 'tmean' ? 'mean' : m;
+const QI = { p5: 0, p10: 1, p25: 2, p50: 3, p75: 4, p90: 5, p95: 6 };
+const prevLabel = c => `${c.slice(4,6)}/${c.slice(6,8)} ${c.slice(8,10)}Z`;
+
+const QP = [.05, .10, .25, .50, .75, .90, .95];
+function pExceed(qs, x){
+  if (!qs || qs.some(v => v == null)) return null;
+  if (x <= qs[0]){ const s = (qs[1] - qs[0]) || 1e-6; return 1 - Math.max(0, Math.min(.05, .05 - (qs[0] - x) * (.05 / s))); }
+  if (x >= qs[6]){ const s = (qs[6] - qs[5]) || 1e-6; return Math.max(0, Math.min(.05, .05 - (x - qs[6]) * (.05 / s))); }
+  for (let i = 0; i < 6; i++) if (x >= qs[i] && x <= qs[i + 1]){ const f = (qs[i + 1] - qs[i]) ? (x - qs[i]) / (qs[i + 1] - qs[i]) : 0; return 1 - (QP[i] + f * (QP[i + 1] - QP[i])); }
+  return null;
+}
+const THR_DEFAULT = { hi: 95, lo: 32, tmean: 75, hdd: 10, cdd: 10 };
+function thrVal(){ const v = parseFloat($('#thr').value); return isFinite(v) ? v : THR_DEFAULT[M()]; }
+const thrIsBelow = () => M() === 'lo';
+
+const PREVC = {};
+async function loadPrev(cycle){
+  if (!cycle){ PREV = null; return; }
+  if (PREVC[cycle]){ PREV = PREVC[cycle]; return; }
+  const r = await fetch(`data/prev/${cycle}.json`, { cache: 'no-store' });
+  PREV = r.ok ? (PREVC[cycle] = await r.json()) : null;
+}
+function prevOf(icao){ return PREV && PREV.cities[icao] || null; }
+function dPrev(icao, kind, j, level){
+  const p = prevOf(icao); if (!p) return null;
+  const c = D.cities[icao], d = c.dates[j], k = p.dates.indexOf(d); if (k < 0) return null;
+  const ck = kind === 'tmean' ? 'mean' : kind;
+  const now = level == null ? c.cons[ck][j] : c.q[kind][level][j];
+  const was = level == null ? p.cons[ck][k] : p.q[kind][level][k];
+  return now == null || was == null ? null : now - was;
+}
+function dPrevWin(icao, kind, level){
+  const p = prevOf(icao); if (!p) return null;
+  const c = D.cities[icao], ck = kind === 'tmean' ? 'mean' : kind; let a = [], b = [];
+  c.dates.forEach((d, j) => { const k = p.dates.indexOf(d); if (k < 0) return;
+    const now = level == null ? c.cons[ck][j] : c.q[kind][level][j], was = level == null ? p.cons[ck][k] : p.q[kind][level][k];
+    if (now != null && was != null){ a.push(now); b.push(was); } });
+  if (a.length < 3) return null;
+  const agg = x => isDD(kind) ? x.reduce((s, v) => s + v, 0) : x.reduce((s, v) => s + v, 0) / x.length;
+  return agg(a) - agg(b);
+}
+
+function cityStats(icao){
+  const c = D.cities[icao], m = M(), ck = consKey(m);
+  const nm = c.normal && c.normal[m] ? c.normal[m] : null;
+  const ch = null, chm = null;
+  if (isWin()){
+    const qw = c.qwin[m] || {};
+    const normAgg = nm ? (isDD(m) ? nm.reduce((a, b) => a + b, 0) : nm.reduce((a, b) => a + b, 0) / nm.length) : null;
+    const cf = c.confidence && c.confidence.spread_norm_ratio ? c.confidence.spread_norm_ratio.filter(v => v != null) : null;
+    const tl = c.tail && c.tail[m];
+    const qs = [qw.p5, qw.p10, qw.p25 ?? (qw.p10 + qw.p50) / 2, qw.p50, qw.p75 ?? (qw.p50 + qw.p90) / 2, qw.p90, qw.p95];
+    const T = thrVal() * (isDD(m) ? c.dates.length : 1);
+    const pthr = thrIsBelow() ? (pExceed(qs, T) == null ? null : 1 - pExceed(qs, T)) : pExceed(qs, T);
+    const pnorm = normAgg == null ? null : pExceed(qs, normAgg);
+    const mv = {}; for (const mm of MODELS){ const mc = c.models && c.models[mm]; mv[mm] = mc && (m === 'hi' || m === 'lo') && mc[m].every(v => v != null) ? mc[m].reduce((a, b) => a + b, 0) / mc[m].length : null; }
+    return { icao, name: c.name, state: c.state, value: c.window[m], mv,
+             pthr, pnorm, lean: tl ? tl.p_up - tl.p_dn : null,
+             hi: c.window.hi, lo: c.window.lo,
+             p5: qw.p5, p10: qw.p10, p50: qw.p50, p90: qw.p90, p95: qw.p95,
+             dbase: dPrevWin(icao, m, null), dp5: dPrevWin(icao, m, 0), dp10: dPrevWin(icao, m, 1), dp50: dPrevWin(icao, m, 3), dp90: dPrevWin(icao, m, 5), dp95: dPrevWin(icao, m, 6),
+             vsnorm: normAgg == null ? null : c.window[m] - normAgg,
+             spread: qw.p90 != null ? qw.p90 - qw.p10 : null,
+             conf: cf && cf.length ? cf.reduce((a, b) => a + b, 0) / cf.length : null,
+             tail_up: tl ? tl.p_up : null, tail_dn: tl ? tl.p_dn : null };
+  }
+  const j = Math.min(DAYI, c.dates.length - 1), d = c.dates[j], q = c.q[m];
+  const dd = null, dq = null;
+  const td = c.tail_day && c.tail_day[m];
+  const qs = [0, 1, 2, 3, 4, 5, 6].map(i => q[i][j]);
+  const pthr = thrIsBelow() ? (pExceed(qs, thrVal()) == null ? null : 1 - pExceed(qs, thrVal())) : pExceed(qs, thrVal());
+  const pnorm = nm && nm[j] != null ? pExceed(qs, nm[j]) : null;
+  return { icao, name: c.name, state: c.state, value: c.cons[ck][j],
+           pthr, pnorm, lean: td ? td.p_up[j] - td.p_dn[j] : null,
+           hi: c.cons.hi[j], lo: c.cons.lo[j],
+           p5: q[0][j], p10: q[1][j], p50: q[3][j], p90: q[5][j], p95: q[6][j],
+           dbase: dPrev(icao, m, j, null), dp5: dPrev(icao, m, j, 0), dp10: dPrev(icao, m, j, 1),
+           dp50: dPrev(icao, m, j, 3), dp90: dPrev(icao, m, j, 5), dp95: dPrev(icao, m, j, 6),
+           vsnorm: nm && nm[j] != null ? c.cons[ck][j] - nm[j] : null,
+           spread: q[5][j] - q[1][j],
+           conf: c.confidence && c.confidence.spread_norm_ratio ? c.confidence.spread_norm_ratio[j] : null,
+           tail_up: td ? td.p_up[j] : null, tail_dn: td ? td.p_dn[j] : null };
+}
+function rows(){
+  const st = $('#state').value, q = $('#find').value.trim().toLowerCase();
+  let r = Object.keys(D.cities).map(cityStats);
+  if (st) r = r.filter(x => x.state === st);
+  if (q) r = r.filter(x => x.name.toLowerCase().includes(q) || x.icao.toLowerCase().includes(q));
+  const txt = k => k === 'name' || k === 'state' || k === 'icao';
+  const val = (x, k2) => k2.startsWith('m:') ? modelVal(x.icao, k2.slice(2), M()) : x[k2];
+  r.sort((a, b) => txt(sortKey) ? sortDir * String(a[sortKey]).localeCompare(String(b[sortKey]))
+                                : sortDir * ((val(a, sortKey) ?? -1e9) - (val(b, sortKey) ?? -1e9)));
+  return r;
+}
+function colourVal(x){
+  const c = $('#colour').value;
+  if (c === 'value') return x.value; if (c === 'vsnorm') return x.vsnorm; if (c === 'dsess') return x.dbase;
+  if (c === 'spread') return x.spread; if (c === 'conf') return x.conf;
+  if (c === 'pthr') return x.pthr; if (c === 'pnorm') return x.pnorm; if (c === 'lean') return x.lean;
+  return null;
+}
+
+const ramp = (stops, t) => { t = Math.max(0, Math.min(1, t)); const x = t * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(x)), f = x - i;
+  const a = stops[i], b = stops[i + 1]; return `rgb(${Math.round(a[0] + (b[0] - a[0]) * f)},${Math.round(a[1] + (b[1] - a[1]) * f)},${Math.round(a[2] + (b[2] - a[2]) * f)})`; };
+const SEQ = [[38, 78, 150], [92, 148, 200], [224, 224, 224], [221, 140, 90], [178, 45, 45]];
+const DIV = [[38, 78, 150], [130, 170, 215], [240, 240, 240], [225, 140, 130], [178, 45, 45]];
+const MAG = [[240, 244, 248], [200, 190, 220], [150, 100, 180], [110, 40, 120]];
+function scaleFor(vals){
+  const c = $('#colour').value, m = M(), v = vals.filter(x => x != null && isFinite(x));
+  if (!v.length) return { lo: 0, hi: 1, f: () => '#ccc', lab: ['', ''] };
+  if (c === 'value'){ const lo = Math.min(...v), hi = Math.max(...v);
+    return { lo, hi, f: x => ramp(SEQ, m === 'hdd' ? 1 - (x - lo) / (hi - lo || 1) : (x - lo) / (hi - lo || 1)), lab: [fmt(lo, 0), fmt(hi, 0)] }; }
+  if (c === 'vsnorm' || c === 'dsess'){ const a = Math.max(...v.map(Math.abs)) || 1;
+    return { lo: -a, hi: a, f: x => ramp(DIV, m === 'hdd' ? .5 - x / (2 * a) : .5 + x / (2 * a)), lab: [sgTxt(-a), sgTxt(a)] }; }
+  if (c === 'conf'){ return { lo: 0.4, hi: 1.6, f: x => ramp(DIV, (x - 0.4) / 1.2), lab: ['0.4 confident', '1.6 uncertain'] }; }
+  if (c === 'pthr' || c === 'pnorm'){ return { lo: 0, hi: 1, f: x => ramp(MAG, x), lab: ['0%', '100%'] }; }
+  if (c === 'lean'){ const a = Math.max(.05, ...v.map(Math.abs)); return { lo: -a, hi: a, f: x => ramp(DIV, .5 + x / (2 * a)), lab: [`${Math.round(-100 * a)} pp down`, `+${Math.round(100 * a)} pp up`] }; }
+  const hi = Math.max(...v) || 1; return { lo: 0, hi, f: x => ramp(MAG, x / hi), lab: ['0', fmt(hi, 1)] };
+}
+const sgTxt = v => (v > 0 ? '+' : '') + v.toFixed(1);
+
+function albers(lon, lat){ const d = Math.PI / 180, p1 = 29.5 * d, p2 = 45.5 * d, lam0 = -96 * d, phi0 = 37.5 * d;
+  const n = .5 * (Math.sin(p1) + Math.sin(p2)), C = Math.cos(p1) ** 2 + 2 * n * Math.sin(p1), rho0 = Math.sqrt(C - 2 * n * Math.sin(phi0)) / n;
+  const rho = Math.sqrt(Math.max(0, C - 2 * n * Math.sin(lat * d))) / n, th = n * (lon * d - lam0);
+  return [rho * Math.sin(th), rho * Math.cos(th) - rho0]; }
+function decodeTopo(topo){ const [sx, sy] = topo.transform.scale, [tx, ty] = topo.transform.translate;
+  return topo.arcs.map(arc => { let x = 0, y = 0; return arc.map(([dx, dy]) => { x += dx; y += dy; return albers(x * sx + tx, y * sy + ty); }); }); }
+function ringPts(arcs, idxs){ const out = []; for (const i of idxs){ const a = i < 0 ? arcs[~i].slice().reverse() : arcs[i]; if (out.length) out.push(...a.slice(1)); else out.push(...a); } return out; }
+let MAPG = null;
+function buildMap(W, H){
+  const arcs = decodeTopo(GEO); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (const a of arcs) for (const [x, y] of a){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  const pad = 6, k = Math.min((W - 2 * pad) / (x1 - x0), (H - 2 * pad) / (y1 - y0));
+  const ox = (W - k * (x1 - x0)) / 2 - k * x0, oy = (H - k * (y1 - y0)) / 2 - k * y0;
+  const P = p => [p[0] * k + ox, p[1] * k + oy];
+  const mk = geoms => geoms.map(g => { const path = new Path2D(); const polys = g.type === 'Polygon' ? [g.arcs] : g.arcs;
+    for (const poly of polys) for (const r of poly){ const pts = ringPts(arcs, r); if (pts.length < 2) continue; let p = P(pts[0]); path.moveTo(p[0], p[1]);
+      for (let i = 1; i < pts.length; i++){ p = P(pts[i]); path.lineTo(p[0], p[1]); } path.closePath(); } return path; });
+  MAPG = { states: mk(GEO.objects.states.geometries), proj: (lon, lat) => P(albers(lon, lat)), W, H };
+}
+let DOTS = [];
+function drawMap(){
+  const cv = $('#map'), dpr = window.devicePixelRatio || 1, W = cv.parentElement.clientWidth - 24, H = Math.round(W * 0.62);
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  if (!GEO) return;
+  if (!MAPG || MAPG.W !== W || MAPG.H !== H) buildMap(W, H);
+  g.fillStyle = '#f3f5f8'; g.strokeStyle = '#c9d2de'; g.lineWidth = .9;
+  for (const p of MAPG.states){ g.fill(p); g.stroke(p); }
+  const r = rows(), sc = scaleFor(r.map(colourVal));
+  DOTS = [];
+  const m = M();
+  for (const x of r){ const c = D.cities[x.icao]; if (c.lat == null || c.lon == null) continue;
+    const [px, py] = MAPG.proj(c.lon, c.lat), v = colourVal(x);
+    DOTS.push({ x: px, y: py, icao: x.icao, v });
+    g.beginPath(); g.arc(px, py, x.icao === sel ? 7 : 5, 0, 2 * Math.PI);
+    g.fillStyle = v == null ? '#d8dde5' : sc.f(v); g.fill();
+    g.lineWidth = x.icao === sel ? 2.2 : .8; g.strokeStyle = x.icao === sel ? '#10203a' : 'rgba(16,32,58,.45)'; g.stroke(); }
+  const lab = { value: LBL[m], vsnorm: `${LBL[m]} vs normal`, dsess: `${LBL[m]} change vs the ${PREV ? prevLabel(PREV.cycle) : 'chosen'} run`, spread: `${LBL[m]} p90−p10`, conf: 'spread ÷ normal spread',
+    pthr: `P(${LBL[m]} ${thrIsBelow() ? '≤' : '≥'} ${thrVal()}${isDD(m) ? '/day' : ''})`, pnorm: `P(${LBL[m]} above normal)`, lean: 'risk lean: P(up) − P(down)' }[$('#colour').value];
+  const dayTxt = isWin() ? `whole ${D.dates.length}-day window` : `${D.cities[Object.keys(D.cities)[0]].dates[DAYI]} · day ${DAYI + 1}`;
+  $('#mt1').textContent = `${lab} · ${dayTxt}`;
+  const cb = $('#colour').value, stops = cb === 'value' ? SEQ : (cb === 'vsnorm' || cb === 'dsess' || cb === 'conf' || cb === 'lean') ? DIV : MAG;
+  $('#lgsw').style.background = `linear-gradient(90deg,${[0, .25, .5, .75, 1].map(t => ramp(stops, m === 'hdd' && (cb === 'value' || cb === 'vsnorm' || cb === 'dsess') ? 1 - t : t)).join(',')})`;
+  $('#lg0').textContent = sc.lab[0]; $('#lg1').textContent = sc.lab[1]; $('#lgt').textContent = `${r.length} stations`;
+}
+$('#map').addEventListener('pointermove', e => {
+  const r = $('#map').getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bd = 100; for (const d of DOTS){ const dd = (d.x - mx) ** 2 + (d.y - my) ** 2; if (dd < bd){ bd = dd; best = d; } }
+  if (!best){ tip.style.opacity = 0; return; }
+  const x = cityStats(best.icao);
+  tip.innerHTML = `<b>${x.name}, ${x.state}</b> (${x.icao})<br>${LBL[M()]}: <b>${fmt(x.value)}</b> · p5 ${fmt(x.p5)} · p50 ${fmt(x.p50)} · p95 ${fmt(x.p95)}`
+    + `<br>vs normal ${sgTxt(x.vsnorm ?? 0)} · Δ vs run ${x.dbase == null ? '—' : sgTxt(x.dbase)} · spread÷normal ${x.conf == null ? '—' : x.conf.toFixed(2)}`
+    + `<br>P(${thrIsBelow() ? '≤' : '≥'} ${thrVal()}) <b>${x.pthr == null ? '—' : Math.round(100 * x.pthr) + '%'}</b> · P(&gt;normal) <b>${x.pnorm == null ? '—' : Math.round(100 * x.pnorm) + '%'}</b> · lean ${x.lean == null ? '—' : (x.lean > 0 ? '+' : '') + Math.round(100 * x.lean) + ' pp'}`;
+  tip.style.opacity = 1; tip.style.left = Math.min(innerWidth - 300, e.clientX + 14) + 'px'; tip.style.top = (e.clientY - 70) + 'px';
+});
+$('#map').addEventListener('pointerleave', () => { tip.style.opacity = 0; });
+$('#map').addEventListener('click', e => {
+  const r = $('#map').getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bd = 144; for (const d of DOTS){ const dd = (d.x - mx) ** 2 + (d.y - my) ** 2; if (dd < bd){ bd = dd; best = d; } }
+  if (best){ sel = best.icao; refresh(); }
+});
+
+function modelVal(icao, mm, m){
+  if (!(m === 'hi' || m === 'lo')) return null;
+  const c = D.cities[icao], mc = c.models && c.models[mm]; if (!mc) return null;
+  if (isWin()){ const a = mc[m].filter(v => v != null); return a.length === mc[m].length && a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; }
+  return mc[m][Math.min(DAYI, mc[m].length - 1)];
+}
+
+function table(){
+  const r = rows(), m = M(), unit = isWin() ? (isDD(m) ? 'window sum' : 'window mean') : LBL[m];
+  const cols = [['name', 'city', 'l'], ['state', 'st', 'l'], ['icao', 'ICAO', 'l'],
+    ['hi', 'max', ''], ['lo', 'min', ''], ['value', unit, ''], ['vsnorm', 'vs normal', ''], ['dbase', 'Δ base', ''],
+    ['p5', 'p5', ''], ['p10', 'p10', ''], ['p50', 'p50', ''], ['p90', 'p90', ''], ['p95', 'p95', ''],
+    ['dp5', 'Δp5', ''], ['dp10', 'Δp10', ''], ['dp50', 'Δp50', ''], ['dp90', 'Δp90', ''], ['dp95', 'Δp95', ''],
+    ['spread', 'p90−p10', ''], ['conf', 'spread÷normal', ''], ['pthr', `P(${thrIsBelow() ? '≤' : '≥'} ${thrVal()})`, ''], ['pnorm', 'P(>normal)', ''], ['lean', 'lean', '']]
+    .concat(MODELS.map(mm => [`m:${mm}`, (D.model_labels || {})[mm] || mm, '']));
+  let h = '<thead><tr><th class="grpH" colspan="3"></th><th class="grpH" colspan="5">consensus base case</th><th class="grpH" colspan="5">member quantiles</th><th class="grpH" colspan="5">change vs the run chosen above</th><th class="grpH" colspan="5">uncertainty &amp; probability</th>' + (MODELS.length ? `<th class="grpH" colspan="${MODELS.length}">individual models — value and difference from the consensus</th>` : '') + '</tr><tr>'
+    + cols.map(([k, l, c]) => `<th class="${c}${k === sortKey ? ' on' : ''}" data-k="${k}">${l}${k === sortKey ? (sortDir < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('') + '</tr></thead><tbody>';
+  const pc = v => v == null ? '' : `${Math.round(100 * v)}%`;
+  const cfc = v => v == null ? '' : `<span style="color:${v > 1.25 ? 'var(--hi)' : v < .8 ? '#2a7a4a' : 'inherit'}">${v.toFixed(2)}</span>`;
+  const d0 = isDD(m) && isWin() ? 1 : (isDD(m) ? 2 : 1);
+  for (const x of r){
+    h += `<tr data-i="${x.icao}"${x.icao === sel ? ' class="sel"' : ''}><td class="l">${x.name}</td><td class="l">${x.state}</td><td class="l">${x.icao}</td>`
+      + `<td style="color:var(--hi)">${fmt(x.hi, isWin() ? 1 : 0)}</td><td style="color:var(--lo)">${fmt(x.lo, isWin() ? 1 : 0)}</td><td><b>${fmt(x.value, d0)}</b></td><td>${sg(x.vsnorm, d0)}</td><td>${sg(x.dbase, d0)}</td>`
+      + `<td>${fmt(x.p5, d0)}</td><td>${fmt(x.p10, d0)}</td><td>${fmt(x.p50, d0)}</td><td>${fmt(x.p90, d0)}</td><td>${fmt(x.p95, d0)}</td>`
+      + `<td>${sg(x.dp5, d0)}</td><td>${sg(x.dp10, d0)}</td><td>${sg(x.dp50, d0)}</td><td>${sg(x.dp90, d0)}</td><td>${sg(x.dp95, d0)}</td>`
+      + `<td>${fmt(x.spread, d0)}</td><td>${cfc(x.conf)}</td><td><b>${pc(x.pthr)}</b></td><td>${pc(x.pnorm)}</td><td>${x.lean == null ? '' : sg(100 * x.lean, 0) + '<span style="color:#7b8798">pp</span>'}</td>`
+      + MODELS.map(mm => { const v = modelVal(x.icao, mm, m); return `<td>${fmt(v, 0)}${v != null && x.value != null && !isDD(m) ? `<span style="font-size:11px;color:#7b8798;margin-left:3px">${sg(v - x.value, 0)}</span>` : ''}</td>`; }).join('') + '</tr>';
+  }
+  $('#tbl').innerHTML = h + '</tbody>';
+  $('#tbl').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const k = th.dataset.k; if (k === sortKey) sortDir = -sortDir; else { sortKey = k; sortDir = ['name', 'state', 'icao'].includes(k) ? 1 : -1; } table(); });
+  $('#tbl').querySelectorAll('tr[data-i]').forEach(tr => tr.onclick = () => { sel = tr.dataset.i; refresh(); });
+  const dayTxt = isWin() ? `whole ${D.dates.length}-day window` : `${D.cities[Object.keys(D.cities)[0]].dates[DAYI]} (day ${DAYI + 1})`;
+  $('#t1').textContent = `${dayTxt} · ${LBL[m]} · ${r.length} cities`;
+  const cmpTxt = PREV ? `vs the ${prevLabel(PREV.cycle)} run` : 'vs the run chosen in "compare with"';
+  $('#h1').innerHTML = `<b>max/min</b> = consensus high/low for the day (window average when "whole window") · <b>vs normal</b> = departure from the 1991–2020 normal · <b>Δ base</b> and <b>Δp</b> = change ${PREV ? 'vs the ' + prevLabel(PREV.cycle) + ' run' : 'vs the run chosen in "compare with"'}, on the days both runs cover · <b>p5…p95</b> = ensemble quantiles · <b>spread÷normal</b> = today's ensemble spread relative to what is usual for the lead (&gt;1.25 unusually uncertain, &lt;0.8 unusually confident) · <b>P(${thrIsBelow() ? '≤' : '≥'} ${thrVal()})</b> = chance the ${LBL[m]} ${thrIsBelow() ? 'falls to or below' : 'reaches'} the threshold set in the bar · <b>P(&gt;normal)</b> = chance it ends up above the normal · <b>lean</b> = which way the risk leans, in percentage points`;
+}
+
+function fit(cv, h){ const r = window.devicePixelRatio || 1, w = cv.parentElement.clientWidth - 24; cv.width = Math.max(300, w) * r; cv.height = h * r; cv.style.height = h + 'px';
+  const g = cv.getContext('2d'); g.setTransform(r, 0, 0, r, 0, 0); return [g, Math.max(300, w), h]; }
+function fan(){
+  if (!sel) return;
+  const c = D.cities[sel], N = c.dates.length, [g, W, H] = fit($('#fan'), 290), L = 44, R = 12, T = 12, B = 30;
+  const all = c.q.hi.flat().concat(c.q.lo.flat(), c.cons.hi, c.cons.lo, (c.normal && c.normal.hi) || [], (c.normal && c.normal.lo) || []);
+  let lo = Math.min(...all), hi = Math.max(...all); const pad = (hi - lo) * .06 || 1; lo -= pad; hi += pad;
+  const X = i => L + i * (W - L - R) / (N - 1), Y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  g.clearRect(0, 0, W, H);
+  if (!isWin()){ g.fillStyle = 'rgba(16,32,58,.06)'; const w1 = (W - L - R) / (N - 1); g.fillRect(X(DAYI) - w1 / 2, T, w1, H - T - B); }
+  g.strokeStyle = '#eef1f6'; g.fillStyle = '#7b8798'; g.font = '11px system-ui'; g.textAlign = 'right';
+  const step = [1, 2, 5, 10, 20].find(s => (hi - lo) / s <= 8) || 20;
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step){ g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke(); g.fillText(v.toFixed(0), L - 6, Y(v) + 3.5); }
+  const band = (q, a, b, col) => { g.fillStyle = col; g.beginPath(); for (let i = 0; i < N; i++) g[i ? 'lineTo' : 'moveTo'](X(i), Y(q[a][i])); for (let i = N - 1; i >= 0; i--) g.lineTo(X(i), Y(q[b][i])); g.closePath(); g.fill(); };
+  band(c.q.hi, 0, 6, 'rgba(178,45,45,.09)'); band(c.q.hi, 1, 5, 'rgba(178,45,45,.14)'); band(c.q.hi, 2, 4, 'rgba(178,45,45,.22)');
+  band(c.q.lo, 0, 6, 'rgba(38,78,150,.09)'); band(c.q.lo, 1, 5, 'rgba(38,78,150,.14)'); band(c.q.lo, 2, 4, 'rgba(38,78,150,.22)');
+  const line = (arr, col, lw, dash) => { if (!arr) return; g.setLineDash(dash); g.strokeStyle = col; g.lineWidth = lw; g.lineJoin = 'round'; g.beginPath(); arr.forEach((v, i) => g[i ? 'lineTo' : 'moveTo'](X(i), Y(v))); g.stroke(); g.setLineDash([]); };
+  if (c.normal){ line(c.normal.hi, '#c98d8d', 1.3, [2, 3]); line(c.normal.lo, '#8fa3c9', 1.3, [2, 3]); }
+  line(c.cons.hi, '#b42d2d', 2.8, []); line(c.cons.lo, '#264e96', 2.8, []);
+  g.font = 'bold 11px system-ui'; g.textAlign = 'center';
+  c.cons.hi.forEach((v, i) => { g.fillStyle = '#b42d2d'; g.fillText(Math.round(v), X(i), Y(v) - 7); });
+  c.cons.lo.forEach((v, i) => { g.fillStyle = '#264e96'; g.fillText(Math.round(v), X(i), Y(v) + 15); });
+  g.fillStyle = '#5b6a80'; g.font = '11px system-ui';
+  c.dates.forEach((d, i) => { if (N <= 16 || i % 2 === 0) g.fillText(d.slice(5).replace('-', '/'), X(i), H - B + 18); });
+  $('#fan')._geo = { X, N, L, R, W };
+  $('#t2').textContent = `${c.name}, ${c.state} (${sel}) · max & min · ${c.n_members} members`;
+  $('#h2').textContent = 'red = consensus high, blue = consensus low, printed per day · bands = ensemble p5–p95, p10–p90, p25–p75 · dotted = normal · click a day for the full distribution';
+}
+$('#fan').addEventListener('pointermove', e => {
+  const g = $('#fan')._geo; if (!g || !sel) return; const r = $('#fan').getBoundingClientRect();
+  const j = Math.max(0, Math.min(g.N - 1, Math.round((e.clientX - r.left - g.L) / (g.W - g.L - g.R) * (g.N - 1))));
+  tip.innerHTML = dayStats(D.cities[sel], j); tip.style.opacity = 1;
+  tip.style.left = Math.min(innerWidth - 460, e.clientX + 14) + 'px'; tip.style.top = Math.max(8, e.clientY - 70) + 'px';
+});
+$('#fan').addEventListener('pointerleave', () => { tip.style.opacity = 0; });
+$('#fan').addEventListener('click', e => {
+  const g = $('#fan')._geo; if (!g || !sel) return; const r = $('#fan').getBoundingClientRect();
+  const j = Math.max(0, Math.min(g.N - 1, Math.round((e.clientX - r.left - g.L) / (g.W - g.L - g.R) * (g.N - 1))));
+  DAYI = j; $('#day').value = j; $('#win').checked = false; tip.style.opacity = 0; refresh(); openDay(sel, j);
+});
+function dayStats(c, j){
+  const q = k => c.q[k] ? [0, 1, 2, 3, 4, 5, 6].map(i => c.q[k][i][j]) : null, nm = k => c.normal && c.normal[k] ? c.normal[k][j] : null;
+  const cf = c.confidence && c.confidence.spread_norm_ratio ? c.confidence.spread_norm_ratio[j] : null;
+  const row = (lab, cons, qq, n) => qq ? `<div><b>${lab}</b> cons <b>${fmt(cons)}</b> · p5 ${fmt(qq[0])} · p10 ${fmt(qq[1])} · p25 ${fmt(qq[2])} · <b>p50 ${fmt(qq[3])}</b> · p75 ${fmt(qq[4])} · p90 ${fmt(qq[5])} · p95 ${fmt(qq[6])}${n != null ? ` · normal ${fmt(n)} (${sgTxt(cons - n)})` : ''}</div>` : '';
+  return `<div style="opacity:.8">${c.dates[j]} · day ${j + 1}${cf != null ? ` · spread/normal ${cf.toFixed(2)}` : ''}</div>` + row('max', c.cons.hi[j], q('hi'), nm('hi')) + row('min', c.cons.lo[j], q('lo'), nm('lo')) + row('mean', c.cons.mean[j], q('tmean'), nm('tmean'));
+}
+
+async function detailFor(icao){ if (DET[icao]) return DET[icao]; const r = await fetch(`data/cities/${icao}.json`, { cache: 'no-store' }); if (!r.ok) return null; return (DET[icao] = await r.json()); }
+function wsort(x, w){ const o = x.map((v, i) => i).sort((a, b) => x[a] - x[b]); return [o.map(i => x[i]), o.map(i => w[i])]; }
+function cdfAt(xs, ws, v){ let c = 0, t = 0; for (let i = 0; i < xs.length; i++){ t += ws[i]; if (xs[i] <= v) c += ws[i]; } return c / t; }
+function kde(xs, ws, grid){
+  const n = xs.length, t = ws.reduce((a, b) => a + b, 0), mu = xs.reduce((a, v, i) => a + v * ws[i], 0) / t;
+  const sd = Math.sqrt(xs.reduce((a, v, i) => a + ws[i] * (v - mu) ** 2, 0) / t) || 1, h0 = 1.06 * sd * Math.pow(n, -0.2);
+  let best = h0, bestLL = -Infinity;
+  for (let k = -12; k <= 8; k++){ const h = h0 * Math.pow(1.12, k); let ll = 0;
+    for (let i = 0; i < n; i++){ let d = 0; for (let j = 0; j < n; j++){ if (j === i) continue; d += ws[j] * Math.exp(-0.5 * ((xs[i] - xs[j]) / h) ** 2); }
+      d /= ((t - ws[i]) * h * Math.sqrt(2 * Math.PI)); ll += ws[i] * Math.log(Math.max(d, 1e-12)); }
+    if (ll > bestLL){ bestLL = ll; best = h; } }
+  const h = best, dens = grid.map(g => xs.reduce((a, v, i) => a + ws[i] * Math.exp(-0.5 * ((g - v) / h) ** 2), 0) / (t * h * Math.sqrt(2 * Math.PI)));
+  dens.h = h; dens.h0 = h0; return dens;
+}
+const wq = (xs, ws, k) => { let acc = 0, t = ws.reduce((a, b) => a + b, 0); for (let i = 0; i < xs.length; i++){ acc += ws[i]; if (acc - .5 * ws[i] >= k * t) return xs[i]; } return xs[xs.length - 1]; };
+let MD = null, ID = null;
+function drawDay(S, isModal){
+  const { c, hi, lo, w, j } = S, pdfCv = isModal ? $('#pdf') : $('#dpdf'), cdfCv = isModal ? $('#cdf') : $('#dcdf');
+  const [hs, hw] = wsort(hi, w), [ls, lw] = wsort(lo, w);
+  const lo0 = Math.min(ls[0], hs[0]) - 3, hi0 = Math.max(ls[ls.length - 1], hs[hs.length - 1]) + 3;
+  const grid = Array.from({ length: 160 }, (_, i) => lo0 + (hi0 - lo0) * i / 159);
+  const ph = kde(hs, hw, grid), pl = kde(ls, lw, grid);
+  const barPk = (xs, ws) => { const NB = 36, bw = (hi0 - lo0) / NB, t = ws.reduce((a, b) => a + b, 0), b = new Array(NB).fill(0); xs.forEach((v, i) => { b[Math.min(NB - 1, Math.floor((v - lo0) / bw))] += ws[i]; }); return Math.max(...b) / (t * bw); };
+  const pk = Math.max(...ph, ...pl, barPk(hs, hw), barPk(ls, lw));
+  const nH = c.normal && c.normal.hi ? c.normal.hi[j] : null, nL = c.normal && c.normal.lo ? c.normal.lo[j] : null, bH = c.cons.hi[j], bL = c.cons.lo[j];
+  const panel = (cv, ymax, ylab) => { const [g, W, H] = fit(cv, isModal ? 300 : 210), L = 42, R = 12, T = 14, B = 30;
+    const X = v => L + (v - lo0) / (hi0 - lo0) * (W - L - R), Y = p => T + (H - T - B) * (1 - p / ymax);
+    g.clearRect(0, 0, W, H); g.strokeStyle = '#eef1f6'; g.lineWidth = 1; g.fillStyle = '#7b8798'; g.font = '11px system-ui'; g.textAlign = 'right';
+    for (let k = 0; k <= 4; k++){ const p = ymax * k / 4; g.beginPath(); g.moveTo(L, Y(p)); g.lineTo(W - R, Y(p)); g.stroke(); g.fillText(ylab(p), L - 5, Y(p) + 3.5); }
+    g.textAlign = 'center'; const st = [1, 2, 5, 10].find(s => (hi0 - lo0) / s <= 12) || 10;
+    for (let v = Math.ceil(lo0 / st) * st; v <= hi0; v += st) g.fillText(v.toFixed(0), X(v), H - B + 16);
+    const curve = (ys, col, fill) => { g.beginPath(); ys.forEach((p, i) => g[i ? 'lineTo' : 'moveTo'](X(grid[i]), Y(p)));
+      if (fill){ g.lineTo(X(grid[grid.length - 1]), Y(0)); g.lineTo(X(grid[0]), Y(0)); g.closePath(); g.fillStyle = fill; g.fill(); }
+      g.beginPath(); ys.forEach((p, i) => g[i ? 'lineTo' : 'moveTo'](X(grid[i]), Y(p))); g.strokeStyle = col; g.lineWidth = 2.4; g.lineJoin = 'round'; g.stroke(); };
+    return { g, X, Y, W, H, T, B, curve }; };
+  const P = panel(pdfCv, pk * 1.08, p => (100 * p).toFixed(1) + '%');
+  const bars = (xs, ws, col) => { const NB = 36, bw = (hi0 - lo0) / NB, t = ws.reduce((a, b) => a + b, 0), b = new Array(NB).fill(0);
+    xs.forEach((v, i) => { b[Math.min(NB - 1, Math.floor((v - lo0) / bw))] += ws[i]; }); P.g.fillStyle = col;
+    for (let k = 0; k < NB; k++){ const dens = b[k] / (t * bw); if (!dens) continue; const x0 = P.X(lo0 + k * bw), x1 = P.X(lo0 + (k + 1) * bw); P.g.fillRect(x0 + .5, P.Y(dens), Math.max(1, x1 - x0 - 1), P.Y(0) - P.Y(dens)); } };
+  bars(ls, lw, 'rgba(38,78,150,.18)'); bars(hs, hw, 'rgba(178,45,45,.18)');
+  P.curve(pl, '#264e96', 'rgba(38,78,150,.10)'); P.curve(ph, '#b42d2d', 'rgba(178,45,45,.10)');
+  const vline = (Pn, v, col, dash, lab, top) => { if (v == null) return; Pn.g.setLineDash(dash); Pn.g.strokeStyle = col; Pn.g.lineWidth = 1.6; Pn.g.beginPath(); Pn.g.moveTo(Pn.X(v), Pn.T); Pn.g.lineTo(Pn.X(v), Pn.H - Pn.B); Pn.g.stroke(); Pn.g.setLineDash([]);
+    if (lab){ Pn.g.fillStyle = col; Pn.g.font = '10.5px system-ui'; Pn.g.textAlign = 'center'; Pn.g.fillText(lab, Pn.X(v), Pn.T + (top || 9)); } };
+  vline(P, nL, '#8fa3c9', [2, 3], 'normal low', 9); vline(P, nH, '#c98d8d', [2, 3], 'normal high', 9);
+  vline(P, bL, '#264e96', [], 'base ' + bL.toFixed(0), 21); vline(P, bH, '#b42d2d', [], 'base ' + bH.toFixed(0), 21);
+  const cH = grid.map(v => cdfAt(hs, hw, v)), cL = grid.map(v => cdfAt(ls, lw, v));
+  const C = panel(cdfCv, 1, p => (100 * p).toFixed(0) + '%'); C.curve(cL, '#264e96'); C.curve(cH, '#b42d2d');
+  vline(C, nL, '#8fa3c9', [2, 3]); vline(C, nH, '#c98d8d', [2, 3]); vline(C, bL, '#264e96', []); vline(C, bH, '#b42d2d', []);
+  Object.assign(S, { C, hs, hw, ls, lw, lo0, hi0 });
+  const sd = (xs, ws) => { const t = ws.reduce((a, b) => a + b, 0), mu = xs.reduce((a, v, i) => a + v * ws[i], 0) / t; return Math.sqrt(xs.reduce((a, v, i) => a + ws[i] * (v - mu) ** 2, 0) / t); };
+  const rowS = (lab, xs, ws, base, nm) => `<div><b>${lab}</b> base <b>${base.toFixed(1)}</b> · p5 ${wq(xs, ws, .05).toFixed(1)} · p10 ${wq(xs, ws, .1).toFixed(1)} · p25 ${wq(xs, ws, .25).toFixed(1)} · <b>p50 ${wq(xs, ws, .5).toFixed(1)}</b> · p75 ${wq(xs, ws, .75).toFixed(1)} · p90 ${wq(xs, ws, .9).toFixed(1)} · p95 ${wq(xs, ws, .95).toFixed(1)} · sd ${sd(xs, ws).toFixed(2)}${nm != null ? ` · normal ${nm.toFixed(1)} · P(above normal) <b>${Math.round(100 * (1 - cdfAt(xs, ws, nm)))}%</b>` : ''}</div>`;
+  const dd = c.change && c.change.daily, dh = dd && dd.hi && dd.hi.base[c.dates[j]], dl = dd && dd.lo && dd.lo.base[c.dates[j]];
+  const dq = (k, lv) => dd && dd[k] && dd[k].dq[lv] && dd[k].dq[lv][c.dates[j]] != null ? dd[k].dq[lv][c.dates[j]] : null;
+  const chgRow = PREV ? (() => { const ic = sel; const dh = dPrev(ic, 'hi', j, null), dl = dPrev(ic, 'lo', j, null); return `<div style="color:#7b8798">vs the ${prevLabel(PREV.cycle)} run on this day: max ${dh == null ? '—' : sgTxt(dh)} · min ${dl == null ? '—' : sgTxt(dl)}</div>`; })() : '';
+  if (isModal){
+    $('#mstats').innerHTML = rowS('high', hs, hw, bH, nH) + rowS('low', ls, lw, bL, nL) + chgRow;
+    const thrH = [80, 85, 90, 95, 100, 105, 110].filter(t => t > lo0 && t < hi0), thrL = [20, 32, 40, 50, 60, 70, 80].filter(t => t > lo0 && t < hi0);
+    $('#mthr').innerHTML = (thrH.length ? `<span>P(high ≥)</span>` + thrH.map(t => `<span>${t}° <b>${Math.round(100 * (1 - cdfAt(hs, hw, t - 1e-9)))}%</b></span>`).join('') : '')
+      + (thrL.length ? `<span style="margin-left:10px">P(low ≤)</span>` + thrL.map(t => `<span>${t}° <b>${Math.round(100 * cdfAt(ls, lw, t))}%</b></span>`).join('') : '');
+  } else {
+    $('#read').innerHTML = rowS('high', hs, hw, bH, nH) + rowS('low', ls, lw, bL, nL) + chgRow;
+  }
+}
+async function inlineDay(){
+  if (!sel) return; const c = D.cities[sel], det = await detailFor(sel); if (!det) return;
+  const j = Math.min(DAYI, det.dates.length - 1);
+  ID = { c, det, hi: det.hi.map(r => r[j]).filter(v => v != null), lo: det.lo.map(r => r[j]).filter(v => v != null), w: det.w, j };
+  $('#t3').textContent = `${det.dates[j]} · day ${j + 1} · PDF and CDF of the members' high and low (click the fan for the full-size view)`;
+  drawDay(ID, false);
+}
+async function openDay(icao, j){
+  const c = D.cities[icao], det = await detailFor(icao); if (!det){ return; }
+  MD = { c, det, hi: det.hi.map(r => r[j]).filter(v => v != null), lo: det.lo.map(r => r[j]).filter(v => v != null), w: det.w, j };
+  $('#mtt').textContent = `${c.name}, ${c.state} (${icao}) · ${det.dates[j]} · day ${j + 1} · ${MD.hi.length} members`;
+  $('#modal').classList.add('on'); drawDay(MD, true);
+}
+const cdfHover = (cvId, getS, off) => { $(cvId).addEventListener('pointermove', e => { const S = getS(); if (!S || !S.C) return; const r = $(cvId).getBoundingClientRect();
+  const v = S.lo0 + (e.clientX - r.left - 42) / (S.C.W - 42 - 12) * (S.hi0 - S.lo0); if (v < S.lo0 || v > S.hi0){ tip.style.opacity = 0; return; }
+  tip.innerHTML = `<b>${v.toFixed(1)}°F</b><br>P(high ≥ ${v.toFixed(0)}) <b>${Math.round(100 * (1 - cdfAt(S.hs, S.hw, v)))}%</b> · P(high ≤) <b>${Math.round(100 * cdfAt(S.hs, S.hw, v))}%</b><br>P(low ≤ ${v.toFixed(0)}) <b>${Math.round(100 * cdfAt(S.ls, S.lw, v))}%</b>`;
+  tip.style.opacity = 1; tip.style.left = Math.min(innerWidth - 240, e.clientX + 14) + 'px'; tip.style.top = (e.clientY - 56) + 'px'; });
+  $(cvId).addEventListener('pointerleave', () => { tip.style.opacity = 0; }); };
+cdfHover('#dcdf', () => ID); cdfHover('#cdf', () => MD);
+$('#mclose').onclick = () => { $('#modal').classList.remove('on'); MD = null; };
+$('#modal').addEventListener('click', e => { if (e.target === $('#modal')){ $('#modal').classList.remove('on'); MD = null; } });
+addEventListener('keydown', e => { if (e.key === 'Escape'){ $('#modal').classList.remove('on'); MD = null; } if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); });
+
+function step(d){ const n = D.dates.length; DAYI = Math.max(0, Math.min(n - 1, DAYI + d)); $('#day').value = DAYI; $('#win').checked = false; refresh(); }
+function refresh(){
+  const c0 = D.cities[Object.keys(D.cities)[0]];
+  $('#daylab').textContent = isWin() ? `whole window (${D.dates.length} days)` : `${c0.dates[Math.min(DAYI, c0.dates.length - 1)]} · day ${DAYI + 1}`;
+  $('#day').disabled = isWin();
+  drawMap(); table(); fan(); if (!isWin()) inlineDay();
+}
+$('#metric').addEventListener('change', () => { $('#thr').value = THR_DEFAULT[M()]; $('#thrlab').textContent = thrIsBelow() ? '°F, P(low ≤)' : isDD(M()) ? '/day, P(≥)' : '°F, P(≥)'; refresh(); });
+['#colour', '#state'].forEach(id => $(id).addEventListener('change', refresh));
+$('#thr').addEventListener('change', refresh); $('#thr').addEventListener('keyup', e => { if (e.key === 'Enter') refresh(); });
+$('#find').addEventListener('input', () => { drawMap(); table(); });
+$('#day').addEventListener('input', () => { DAYI = +$('#day').value; $('#win').checked = false; refresh(); });
+$('#win').addEventListener('change', refresh);
+$('#dprev').onclick = () => step(-1); $('#dnext').onclick = () => step(1);
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { MAPG = null; refresh(); if (MD) drawDay(MD, true); }, 120); });
+
+async function load(){
+  const [r, gr] = await Promise.all([fetch('data/cities.json', { cache: 'no-store' }), fetch('geo/states_l48.json')]);
+  if (!r.ok){ document.querySelector('main').innerHTML = '<p class="err">no cities.json — run src_build_cities.py</p>'; return; }
+  D = await r.json(); GEO = gr.ok ? await gr.json() : null;
+  try{ const ir = await fetch('data/prev/index.json', { cache: 'no-store' }); if (ir.ok){ PREVI = (await ir.json()).runs || []; } }catch(e){ PREVI = []; }
+  PREVI.sort((a, b) => b.cycle.localeCompare(a.cycle));
+  $('#prev').innerHTML = '<option value="">— none —</option>' + PREVI.map(r => `<option value="${r.cycle}">${prevLabel(r.cycle)}</option>`).join('');
+  const dflt = PREVI.find(r => r.cycle <= (function(){ const c = D.cycle; const d = new Date(Date.UTC(+c.slice(0,4), +c.slice(4,6)-1, +c.slice(6,8), +c.slice(8,10))); d.setUTCDate(d.getUTCDate()-1); return `${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}${String(d.getUTCDate()).padStart(2,'0')}${String(d.getUTCHours()).padStart(2,'0')}`; })());
+  if (dflt){ $('#prev').value = dflt.cycle; await loadPrev(dflt.cycle); }
+  const c0m = Object.values(D.cities).find(c => c.models); MODELS = c0m ? ['nbm','ecmwf','ecmwf_ens','aifs','aifs_ens','gfs','gefs','gdps','geps'].filter(k => k in c0m.models) : [];
+  const c0 = D.cities[Object.keys(D.cities)[0]];
+  $('#day').max = c0.dates.length - 1;
+  const states = [...new Set(Object.values(D.cities).map(c => c.state).filter(Boolean))].sort();
+  $('#state').innerHTML = '<option value="">all</option>' + states.map(s => `<option>${s}</option>`).join('');
+  $('#sub').textContent = `${D.n_cities} stations · ${D.n_members} ensemble members · models initialised ${D.init || D.cycle} · updated ${D.built.replace('T',' ').replace('Z',' UTC')}`;
+  sel = D.cities.KORD ? 'KORD' : Object.keys(D.cities)[0];
+  $('#thr').value = THR_DEFAULT[M()]; $('#thrlab').textContent = '°F, P(≥)';
+  refresh();
+}
+load();
+</script>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">El Niño</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/sst.html">El Niño monitor</a></li>
+              <li><a href="/enso-subsurface.html">Subsurface temperature</a></li>
+              <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              <li><a href="/enso-atmosphere.html">Atmospheric response</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Days 1–15</button>
+          <div class="sh-menu sh-menu--list" id="sh-g1">
+            <ul>
+              <li><a href="/ar.html">Atmospheric rivers</a></li>
+              <li><a href="/ecape.html">Entraining CAPE</a></li>
+              <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+              <li><a href="/mjo.html">MJO forecast</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Beyond two weeks</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/subseasonal.html">Subseasonal outlook, weeks 1–5</a></li>
+              <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
+              <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g3">
+            <ul>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Model checks</button>
+          <div class="sh-menu sh-menu--list" id="sh-g4">
+            <ul>
+              <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+              <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<style>
+:root{--bg:#f7f8fa;--ink:#10203a;--mut:#5b6a80;--line:#d7dee8;--card:#fff;--hi:#b42d2d;--lo:#264e96}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Schibsted Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:26px}
+header{padding:12px 18px 8px;border-bottom:1px solid var(--line);background:var(--card)}
+h1{margin:0;font-size:17px;letter-spacing:-.01em}
+.sub{color:var(--mut);font-size:12.5px;margin-top:2px}
+.pagelinks{margin:0;padding:7px 18px;background:var(--card);border-bottom:1px solid var(--line);font-size:12.5px}
+.pagelinks a{color:#2668a8;text-decoration:none}.pagelinks a:hover{text-decoration:underline}
+.bar{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;padding:9px 18px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.grp{display:flex;align-items:center;gap:6px}
+.grp>span{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+select,input[type=text],button{font:inherit;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+button{cursor:pointer}button:hover{background:#eef2f7}
+input[type=range]{width:180px}
+#daylab{font-variant-numeric:tabular-nums;min-width:150px;display:inline-block}
+main{padding:12px 18px 24px;max-width:1720px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px}
+@media (max-width:1100px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px 8px;min-width:0}
+.card.full{grid-column:1/-1}
+.ttl{font-weight:600;font-size:13.5px;margin:0 0 2px}
+.hint{color:var(--mut);font-size:12px;margin:0 0 6px}
+canvas{display:block;width:100%}
+.legend{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--mut);margin-top:4px;font-variant-numeric:tabular-nums}
+.legend .sw{height:9px;width:160px;border-radius:4px}
+.wrap{overflow:auto;max-height:60vh}
+table{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;width:100%}
+th{position:sticky;top:0;background:var(--card);font-weight:500;color:var(--mut);text-align:right;padding:6px 7px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none;z-index:1}
+th.l,td.l{text-align:left}th.on{color:var(--ink);font-weight:600}
+th.grpH{text-align:center;color:var(--ink);background:#f3f6fa;border-bottom:none;font-weight:600;font-size:11.5px;letter-spacing:.03em;cursor:default}
+td{padding:4px 7px;text-align:right;border-bottom:1px solid #eef1f6;cursor:pointer;white-space:nowrap}
+tr:hover td{background:#f3f6fa}tr.sel td{background:#e6eef8}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.mgrid{grid-template-columns:1fr}}
+#read{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--mut);padding:6px 2px 2px;border-top:1px solid var(--line);margin-top:6px;font-variant-numeric:tabular-nums}
+#read b{color:var(--ink)}
+.tip{position:fixed;pointer-events:none;background:#10203a;color:#fff;padding:6px 9px;border-radius:6px;font-size:12px;line-height:1.35;opacity:0;transition:opacity .08s;z-index:30;font-variant-numeric:tabular-nums;max-width:440px}
+#modal{position:fixed;inset:0;background:rgba(16,32,58,.45);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+#modal.on{display:flex}
+#mbox{background:var(--card);border-radius:12px;max-width:1040px;width:100%;max-height:94vh;overflow:auto;padding:14px 16px 12px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+#mbox .ttl{font-size:15px}
+#mclose{float:right}
+.mrow{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--mut);padding:6px 2px 2px;font-variant-numeric:tabular-nums}.mrow b{color:var(--ink)}
+.thr{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;padding:4px 2px 8px;font-variant-numeric:tabular-nums}.thr span{color:var(--mut)}.thr b{color:var(--ink)}
+.err{color:#b23;padding:20px}
+</style>
+
+<header>
+  <h1>City temperature forecasts</h1>
+  <div class="sub" id="sub">loading…</div>
+</header>
+
+<div class="bar">
+  <div class="grp"><span>day</span>
+    <button id="dprev" title="previous day">‹</button>
+    <input type="range" id="day" min="0" max="14" value="0">
+    <button id="dnext" title="next day">›</button>
+    <b id="daylab"></b>
+    <label style="font-size:12px;color:var(--mut);display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="win"> whole window</label>
+  </div>
+  <div class="grp"><span>compare with</span><select id="prev"><option value="">— none —</option></select></div>
+  <div class="grp"><span>metric</span>
+    <select id="metric"><option value="hi">max temp</option><option value="lo">min temp</option><option value="tmean">mean temp</option><option value="hdd">HDD</option><option value="cdd">CDD</option></select></div>
+  <div class="grp"><span>colour by</span>
+    <select id="colour">
+      <option value="value">value</option><option value="vsnorm">vs normal</option><option value="dsess">Δ vs the chosen run</option>
       <option value="pthr">P(threshold)</option><option value="pnorm">P(above normal)</option><option value="lean">risk lean (up − down)</option>
       <option value="spread">spread p90−p10</option><option value="conf">spread ÷ normal</option>
     </select></div>
@@ -183,6 +759,7 @@ const $ = s => document.querySelector(s);
 const tip = $('#tip');
 let D = null, GEO = null, PATHS = null, sel = null, DAYI = 0, sortKey = 'value', sortDir = -1;
 let MODELS = [];   // per-model comparison columns (public page)
+let PREV = null, PREVI = [];   // the run being compared against, and the index of available runs
 const DET = {};
 const LBL = { hi: 'max temp (°F)', lo: 'min temp (°F)', tmean: 'mean temp (°F)', hdd: 'HDD', cdd: 'CDD' };
 const isDD = m => m === 'hdd' || m === 'cdd';
@@ -192,6 +769,7 @@ const fmt = (v, d = 1) => (v == null || !isFinite(v)) ? '' : v.toFixed(d);
 const sg = (v, d = 1) => v == null || !isFinite(v) ? '' : `<span style="color:${v > 0 ? 'var(--hi)' : v < 0 ? 'var(--lo)' : '#7b8798'}">${v > 0 ? '+' : ''}${v.toFixed(d)}</span>`;
 const consKey = m => m === 'tmean' ? 'mean' : m;
 const QI = { p5: 0, p10: 1, p25: 2, p50: 3, p75: 4, p90: 5, p95: 6 };
+const prevLabel = c => `${c.slice(4,6)}/${c.slice(6,8)} ${c.slice(8,10)}Z`;
 
 
 /* Probability that the metric exceeds x, read off the seven stored quantiles.
@@ -211,13 +789,48 @@ const THR_DEFAULT = { hi: 95, lo: 32, tmean: 75, hdd: 10, cdd: 10 };
 function thrVal(){ const v = parseFloat($('#thr').value); return isFinite(v) ? v : THR_DEFAULT[M()]; }
 const thrIsBelow = () => M() === 'lo';               // freeze-type question for the low
 
+
+/* the run picked in "compare with": consensus and ensemble quantiles per
+   city per day, fetched on demand; changes are computed here on the dates
+   the two runs share, so a later run's extra days are never differenced
+   against nothing */
+const PREVC = {};
+async function loadPrev(cycle){
+  if (!cycle){ PREV = null; return; }
+  if (PREVC[cycle]){ PREV = PREVC[cycle]; return; }
+  const r = await fetch(`data/prev/${cycle}.json`, { cache: 'no-store' });
+  PREV = r.ok ? (PREVC[cycle] = await r.json()) : null;
+}
+function prevOf(icao){ return PREV && PREV.cities[icao] || null; }
+function dPrev(icao, kind, j, level){
+  // change on day j of the current run vs the same DATE in the chosen run;
+  // level null = consensus base, else a quantile index into QLEV
+  const p = prevOf(icao); if (!p) return null;
+  const c = D.cities[icao], d = c.dates[j], k = p.dates.indexOf(d); if (k < 0) return null;
+  const ck = kind === 'tmean' ? 'mean' : kind;
+  const now = level == null ? c.cons[ck][j] : c.q[kind][level][j];
+  const was = level == null ? p.cons[ck][k] : p.q[kind][level][k];
+  return now == null || was == null ? null : now - was;
+}
+function dPrevWin(icao, kind, level){
+  // window aggregate change on common dates only (sum for degree days, mean otherwise)
+  const p = prevOf(icao); if (!p) return null;
+  const c = D.cities[icao], ck = kind === 'tmean' ? 'mean' : kind; let a = [], b = [];
+  c.dates.forEach((d, j) => { const k = p.dates.indexOf(d); if (k < 0) return;
+    const now = level == null ? c.cons[ck][j] : c.q[kind][level][j], was = level == null ? p.cons[ck][k] : p.q[kind][level][k];
+    if (now != null && was != null){ a.push(now); b.push(was); } });
+  if (a.length < 3) return null;
+  const agg = x => isDD(kind) ? x.reduce((s, v) => s + v, 0) : x.reduce((s, v) => s + v, 0) / x.length;
+  return agg(a) - agg(b);
+}
+
 /* ---------- per-city numbers for the selected day (or the window) --------- */
 function cityStats(icao){
   const c = D.cities[icao], m = M(), ck = consKey(m);
   const nm = c.normal && c.normal[m] ? c.normal[m] : null;
-  const ch = c.change || null, chm = ch && ch[m];
+  const ch = null, chm = null;
   if (isWin()){
-    const qw = c.qwin[m] || {}, dq = (chm && chm.dq) || {};
+    const qw = c.qwin[m] || {};
     const normAgg = nm ? (isDD(m) ? nm.reduce((a, b) => a + b, 0) : nm.reduce((a, b) => a + b, 0) / nm.length) : null;
     const cf = c.confidence && c.confidence.spread_norm_ratio ? c.confidence.spread_norm_ratio.filter(v => v != null) : null;
     const tl = c.tail && c.tail[m];
@@ -230,15 +843,14 @@ function cityStats(icao){
              pthr, pnorm, lean: tl ? tl.p_up - tl.p_dn : null,
              hi: c.window.hi, lo: c.window.lo,
              p5: qw.p5, p10: qw.p10, p50: qw.p50, p90: qw.p90, p95: qw.p95,
-             dbase: chm ? chm.base : null, dp5: dq.p5, dp10: dq.p10, dp50: dq.p50, dp90: dq.p90, dp95: dq.p95,
+             dbase: dPrevWin(icao, m, null), dp5: dPrevWin(icao, m, 0), dp10: dPrevWin(icao, m, 1), dp50: dPrevWin(icao, m, 3), dp90: dPrevWin(icao, m, 5), dp95: dPrevWin(icao, m, 6),
              vsnorm: normAgg == null ? null : c.window[m] - normAgg,
              spread: qw.p90 != null ? qw.p90 - qw.p10 : null,
              conf: cf && cf.length ? cf.reduce((a, b) => a + b, 0) / cf.length : null,
              tail_up: tl ? tl.p_up : null, tail_dn: tl ? tl.p_dn : null };
   }
   const j = Math.min(DAYI, c.dates.length - 1), d = c.dates[j], q = c.q[m];
-  const dd = ch && ch.daily && ch.daily[m];
-  const dq = dd ? dd.dq : null;
+  const dd = null, dq = null;
   const td = c.tail_day && c.tail_day[m];
   const qs = [0, 1, 2, 3, 4, 5, 6].map(i => q[i][j]);
   const pthr = thrIsBelow() ? (pExceed(qs, thrVal()) == null ? null : 1 - pExceed(qs, thrVal())) : pExceed(qs, thrVal());
@@ -247,10 +859,8 @@ function cityStats(icao){
            pthr, pnorm, lean: td ? td.p_up[j] - td.p_dn[j] : null,
            hi: c.cons.hi[j], lo: c.cons.lo[j],
            p5: q[0][j], p10: q[1][j], p50: q[3][j], p90: q[5][j], p95: q[6][j],
-           dbase: dd && dd.base[d] != null ? dd.base[d] : null,
-           dp5: dq && dq.p5[d] != null ? dq.p5[d] : null, dp10: dq && dq.p10[d] != null ? dq.p10[d] : null,
-           dp50: dq && dq.p50[d] != null ? dq.p50[d] : null, dp90: dq && dq.p90[d] != null ? dq.p90[d] : null,
-           dp95: dq && dq.p95[d] != null ? dq.p95[d] : null,
+           dbase: dPrev(icao, m, j, null), dp5: dPrev(icao, m, j, 0), dp10: dPrev(icao, m, j, 1),
+           dp50: dPrev(icao, m, j, 3), dp90: dPrev(icao, m, j, 5), dp95: dPrev(icao, m, j, 6),
            vsnorm: nm && nm[j] != null ? c.cons[ck][j] - nm[j] : null,
            spread: q[5][j] - q[1][j],
            conf: c.confidence && c.confidence.spread_norm_ratio ? c.confidence.spread_norm_ratio[j] : null,
@@ -333,7 +943,7 @@ function drawMap(){
     g.beginPath(); g.arc(px, py, x.icao === sel ? 7 : 5, 0, 2 * Math.PI);
     g.fillStyle = v == null ? '#d8dde5' : sc.f(v); g.fill();
     g.lineWidth = x.icao === sel ? 2.2 : .8; g.strokeStyle = x.icao === sel ? '#10203a' : 'rgba(16,32,58,.45)'; g.stroke(); }
-  const lab = { value: LBL[m], vsnorm: `${LBL[m]} vs normal`, dsess: `${LBL[m]} Δ vs ${D.baseline_weekday} 00Z`, spread: `${LBL[m]} p90−p10`, conf: 'spread ÷ normal spread',
+  const lab = { value: LBL[m], vsnorm: `${LBL[m]} vs normal`, dsess: `${LBL[m]} change vs the ${PREV ? prevLabel(PREV.cycle) : 'chosen'} run`, spread: `${LBL[m]} p90−p10`, conf: 'spread ÷ normal spread',
     pthr: `P(${LBL[m]} ${thrIsBelow() ? '≤' : '≥'} ${thrVal()}${isDD(m) ? '/day' : ''})`, pnorm: `P(${LBL[m]} above normal)`, lean: 'risk lean: P(up) − P(down)' }[$('#colour').value];
   const dayTxt = isWin() ? `whole ${D.dates.length}-day window` : `${D.cities[Object.keys(D.cities)[0]].dates[DAYI]} · day ${DAYI + 1}`;
   $('#mt1').textContent = `${lab} · ${dayTxt}`;
@@ -347,7 +957,7 @@ $('#map').addEventListener('pointermove', e => {
   if (!best){ tip.style.opacity = 0; return; }
   const x = cityStats(best.icao);
   tip.innerHTML = `<b>${x.name}, ${x.state}</b> (${x.icao})<br>${LBL[M()]}: <b>${fmt(x.value)}</b> · p5 ${fmt(x.p5)} · p50 ${fmt(x.p50)} · p95 ${fmt(x.p95)}`
-    + `<br>vs normal ${sgTxt(x.vsnorm ?? 0)} · Δ session ${x.dbase == null ? '—' : sgTxt(x.dbase)} · spread÷normal ${x.conf == null ? '—' : x.conf.toFixed(2)}`
+    + `<br>vs normal ${sgTxt(x.vsnorm ?? 0)} · Δ vs run ${x.dbase == null ? '—' : sgTxt(x.dbase)} · spread÷normal ${x.conf == null ? '—' : x.conf.toFixed(2)}`
     + `<br>P(${thrIsBelow() ? '≤' : '≥'} ${thrVal()}) <b>${x.pthr == null ? '—' : Math.round(100 * x.pthr) + '%'}</b> · P(&gt;normal) <b>${x.pnorm == null ? '—' : Math.round(100 * x.pnorm) + '%'}</b> · lean ${x.lean == null ? '—' : (x.lean > 0 ? '+' : '') + Math.round(100 * x.lean) + ' pp'}`;
   tip.style.opacity = 1; tip.style.left = Math.min(innerWidth - 300, e.clientX + 14) + 'px'; tip.style.top = (e.clientY - 70) + 'px';
 });
@@ -371,12 +981,12 @@ function modelVal(icao, mm, m){
 function table(){
   const r = rows(), m = M(), unit = isWin() ? (isDD(m) ? 'window sum' : 'window mean') : LBL[m];
   const cols = [['name', 'city', 'l'], ['state', 'st', 'l'], ['icao', 'ICAO', 'l'],
-    ['hi', 'max', ''], ['lo', 'min', ''], ['value', unit, ''], ['vsnorm', 'vs normal', ''], ['dbase', 'Δ session', ''],
+    ['hi', 'max', ''], ['lo', 'min', ''], ['value', unit, ''], ['vsnorm', 'vs normal', ''], ['dbase', 'Δ base', ''],
     ['p5', 'p5', ''], ['p10', 'p10', ''], ['p50', 'p50', ''], ['p90', 'p90', ''], ['p95', 'p95', ''],
     ['dp5', 'Δp5', ''], ['dp10', 'Δp10', ''], ['dp50', 'Δp50', ''], ['dp90', 'Δp90', ''], ['dp95', 'Δp95', ''],
     ['spread', 'p90−p10', ''], ['conf', 'spread÷normal', ''], ['pthr', `P(${thrIsBelow() ? '≤' : '≥'} ${thrVal()})`, ''], ['pnorm', 'P(>normal)', ''], ['lean', 'lean', '']]
     .concat(MODELS.map(mm => [`m:${mm}`, (D.model_labels || {})[mm] || mm, '']));
-  let h = '<thead><tr><th class="grpH" colspan="3"></th><th class="grpH" colspan="5">consensus base case</th><th class="grpH" colspan="5">member quantiles</th><th class="grpH" colspan="5">Δ vs previous session</th><th class="grpH" colspan="5">uncertainty &amp; probability</th>' + (MODELS.length ? `<th class="grpH" colspan="${MODELS.length}">individual models — value and difference from the consensus</th>` : '') + '</tr><tr>'
+  let h = '<thead><tr><th class="grpH" colspan="3"></th><th class="grpH" colspan="5">consensus base case</th><th class="grpH" colspan="5">member quantiles</th><th class="grpH" colspan="5">change vs the run chosen above</th><th class="grpH" colspan="5">uncertainty &amp; probability</th>' + (MODELS.length ? `<th class="grpH" colspan="${MODELS.length}">individual models — value and difference from the consensus</th>` : '') + '</tr><tr>'
     + cols.map(([k, l, c]) => `<th class="${c}${k === sortKey ? ' on' : ''}" data-k="${k}">${l}${k === sortKey ? (sortDir < 0 ? ' ▾' : ' ▴') : ''}</th>`).join('') + '</tr></thead><tbody>';
   const pc = v => v == null ? '' : `${Math.round(100 * v)}%`;
   const cfc = v => v == null ? '' : `<span style="color:${v > 1.25 ? 'var(--hi)' : v < .8 ? '#2a7a4a' : 'inherit'}">${v.toFixed(2)}</span>`;
@@ -394,8 +1004,8 @@ function table(){
   $('#tbl').querySelectorAll('tr[data-i]').forEach(tr => tr.onclick = () => { sel = tr.dataset.i; refresh(); });
   const dayTxt = isWin() ? `whole ${D.dates.length}-day window` : `${D.cities[Object.keys(D.cities)[0]].dates[DAYI]} (day ${DAYI + 1})`;
   $('#t1').textContent = `${dayTxt} · ${LBL[m]} · ${r.length} cities`;
-  const shut = D.shut && D.shut.length ? ` (market shut: ${D.shut.slice().reverse().join(', ')})` : '';
-  $('#h1').innerHTML = `<b>max/min</b> = consensus high/low for the day (window average when "whole window") · <b>vs normal</b> = departure from the 1991–2020 normal · <b>Δ session</b> = vs ${D.baseline_weekday} ${D.baseline_date} 00Z${shut}, both runs on the same days · <b>p5…p95</b> = ensemble quantiles · <b>Δp</b> = change in each quantile since that session · <b>spread÷normal</b> = today's ensemble spread relative to what is usual for the lead (&gt;1.25 unusually uncertain, &lt;0.8 unusually confident) · <b>P(${thrIsBelow() ? '≤' : '≥'} ${thrVal()})</b> = chance the ${LBL[m]} ${thrIsBelow() ? 'falls to or below' : 'reaches'} the threshold you set in the bar${isDD(m) ? ' (per day; scaled to the window sum in window mode)' : ''}, from the ensemble · <b>P(&gt;normal)</b> = chance it ends up above the county normal · <b>lean</b> = which way the risk leans, in percentage points (chance of a much warmer outcome minus a much colder one)`;
+  const cmpTxt = PREV ? `vs the ${prevLabel(PREV.cycle)} run` : 'vs the run chosen in "compare with"';
+  $('#h1').innerHTML = `<b>max/min</b> = consensus high/low for the day (window average when "whole window") · <b>vs normal</b> = departure from the 1991–2020 normal · <b>Δ base</b> and <b>Δp</b> = change ${cmpTxt}, on the days both runs cover · <b>p5…p95</b> = ensemble quantiles · <b>spread÷normal</b> = today's ensemble spread relative to what is usual for the lead (&gt;1.25 unusually uncertain, &lt;0.8 unusually confident) · <b>P(${thrIsBelow() ? '≤' : '≥'} ${thrVal()})</b> = chance the ${LBL[m]} ${thrIsBelow() ? 'falls to or below' : 'reaches'} the threshold you set in the bar${isDD(m) ? ' (per day; scaled to the window sum in window mode)' : ''}, from the ensemble · <b>P(&gt;normal)</b> = chance it ends up above the county normal · <b>lean</b> = which way the risk leans, in percentage points (chance of a much warmer outcome minus a much colder one)`;
 }
 
 /* ---------- drill-down: fan + day PDF/CDF ---------- */
@@ -500,7 +1110,7 @@ function drawDay(S, isModal){
   const rowS = (lab, xs, ws, base, nm) => `<div><b>${lab}</b> base <b>${base.toFixed(1)}</b> · p5 ${wq(xs, ws, .05).toFixed(1)} · p10 ${wq(xs, ws, .1).toFixed(1)} · p25 ${wq(xs, ws, .25).toFixed(1)} · <b>p50 ${wq(xs, ws, .5).toFixed(1)}</b> · p75 ${wq(xs, ws, .75).toFixed(1)} · p90 ${wq(xs, ws, .9).toFixed(1)} · p95 ${wq(xs, ws, .95).toFixed(1)} · sd ${sd(xs, ws).toFixed(2)}${nm != null ? ` · normal ${nm.toFixed(1)} · P(above normal) <b>${Math.round(100 * (1 - cdfAt(xs, ws, nm)))}%</b>` : ''}</div>`;
   const dd = c.change && c.change.daily, dh = dd && dd.hi && dd.hi.base[c.dates[j]], dl = dd && dd.lo && dd.lo.base[c.dates[j]];
   const dq = (k, lv) => dd && dd[k] && dd[k].dq[lv] && dd[k].dq[lv][c.dates[j]] != null ? dd[k].dq[lv][c.dates[j]] : null;
-  const chgRow = `<div style="color:#7b8798">since ${D.baseline_weekday} 00Z on this day: max base ${dh == null ? '—' : sgTxt(dh)} (p5 ${dq('hi', 'p5') == null ? '—' : sgTxt(dq('hi', 'p5'))}, p95 ${dq('hi', 'p95') == null ? '—' : sgTxt(dq('hi', 'p95'))}) · min base ${dl == null ? '—' : sgTxt(dl)} (p5 ${dq('lo', 'p5') == null ? '—' : sgTxt(dq('lo', 'p5'))}, p95 ${dq('lo', 'p95') == null ? '—' : sgTxt(dq('lo', 'p95'))}) </div>`;
+  const chgRow = PREV ? (() => { const ic = sel; const dh = dPrev(ic, 'hi', j, null), dl = dPrev(ic, 'lo', j, null); return `<div style="color:#7b8798">vs the ${prevLabel(PREV.cycle)} run on this day: max ${dh == null ? '—' : sgTxt(dh)} · min ${dl == null ? '—' : sgTxt(dl)}</div>`; })() : '';
   if (isModal){
     $('#mstats').innerHTML = rowS('high', hs, hw, bH, nH) + rowS('low', ls, lw, bL, nL) + chgRow;
     const thrH = [80, 85, 90, 95, 100, 105, 110].filter(t => t > lo0 && t < hi0), thrL = [20, 32, 40, 50, 60, 70, 80].filter(t => t > lo0 && t < hi0);
@@ -554,16 +1164,20 @@ async function load(){
   const [r, gr] = await Promise.all([fetch('data/cities.json', { cache: 'no-store' }), fetch('geo/states_l48.json')]);
   if (!r.ok){ document.querySelector('main').innerHTML = '<p class="err">no cities.json — run src_build_cities.py</p>'; return; }
   D = await r.json(); GEO = gr.ok ? await gr.json() : null;
+  try{ const ir = await fetch('data/prev/index.json', { cache: 'no-store' }); if (ir.ok){ PREVI = (await ir.json()).runs || []; } }catch(e){ PREVI = []; }
+  PREVI.sort((a, b) => b.cycle.localeCompare(a.cycle));
+  $('#prev').innerHTML = '<option value="">— none —</option>' + PREVI.map(r => `<option value="${r.cycle}">${prevLabel(r.cycle)}</option>`).join('');
+  // default: the most recent earlier run that is at least a day old
+  const dflt = PREVI.find(r => r.cycle <= (function(){ const c = D.cycle; const d = new Date(Date.UTC(+c.slice(0,4), +c.slice(4,6)-1, +c.slice(6,8), +c.slice(8,10))); d.setUTCDate(d.getUTCDate()-1); return `${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}${String(d.getUTCDate()).padStart(2,'0')}${String(d.getUTCHours()).padStart(2,'0')}`; })());
+  if (dflt){ $('#prev').value = dflt.cycle; await loadPrev(dflt.cycle); }
   const c0m = Object.values(D.cities).find(c => c.models); MODELS = c0m ? ['nbm','ecmwf','ecmwf_ens','aifs','aifs_ens','gfs','gefs','gdps','geps'].filter(k => k in c0m.models) : [];
   const c0 = D.cities[Object.keys(D.cities)[0]];
   $('#day').max = c0.dates.length - 1;
   const states = [...new Set(Object.values(D.cities).map(c => c.state).filter(Boolean))].sort();
   $('#state').innerHTML = '<option value="">all</option>' + states.map(s => `<option>${s}</option>`).join('');
-  const shut = D.shut && D.shut.length ? ` · market shut: ${D.shut.slice().reverse().join(', ')}` : '';
-  $('#sub').textContent = `${D.n_cities} stations · ${D.n_members} ensemble members · models initialised ${D.init || D.cycle} · previous session ${D.baseline_weekday} ${D.baseline_date} 00Z${shut} · updated ${D.built.replace('T',' ').replace('Z',' UTC')}`;
+  $('#sub').textContent = `${D.n_cities} stations · ${D.n_members} ensemble members · models initialised ${D.init || D.cycle} · updated ${D.built.replace('T',' ').replace('Z',' UTC')}`;
   sel = D.cities.KORD ? 'KORD' : Object.keys(D.cities)[0];
   $('#thr').value = THR_DEFAULT[M()]; $('#thrlab').textContent = '°F, P(≥)';
   refresh();
 }
 load();
-</script>
