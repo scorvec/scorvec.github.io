@@ -102,7 +102,14 @@
   });
   function show(id, push) {
     var it = null; items.forEach(function (x) { if (x.id === id) it = x; }); if (!it) it = items[0];
-    if (cur && cur !== it) { if (cur.el.classList.contains("deck-panel")) cur.el.hidden = true; cur.home.parent.insertBefore(cur.el, cur.home.next); }
+    // The previous item goes back to the hidden park (its recorded home was its place in <main>
+    // BEFORE parking, so returning it there put it back on screen below the stage — seen on
+    // seas5.html 2026-09-07 as "stratosphere charts show up below"). Deck panels return to
+    // their deck, which is itself parked.
+    if (cur && cur !== it) {
+      if (cur.el.classList.contains("deck-panel")) { cur.el.hidden = true; if (cur.home.parent.contains(cur.home.next) || !cur.home.next) cur.home.parent.insertBefore(cur.el, cur.home.next); else cur.home.parent.appendChild(cur.el); }
+      else park.appendChild(cur.el);
+    }
     stage.appendChild(it.el); if (it.el.classList.contains("deck-panel")) it.el.hidden = false; reveal(it.el); cur = it;
     if (window.Plotly) Array.prototype.forEach.call(it.el.querySelectorAll(".js-plotly-plot"), function (g) { try { window.Plotly.Plots.resize(g); } catch (e) {} });
     items.forEach(function (x) { x.btn.classList.toggle("on", x === it); });
