@@ -57,9 +57,6 @@
                border: 1px solid var(--rule); border-radius: 6px; background: #0f0f0d;
                aspect-ratio: 1259 / 1210; max-height: 92vh; }
   @media (max-width: 768px) { .anim-embed { aspect-ratio: 1259 / 1330; } }
-  .card { background: #fff; border: 1px solid var(--rule); border-radius: 10px; padding: 0.9rem 0.9rem 0.7rem; margin: 0 0 0.6rem; }
-  .card .anim-embed { margin: 0 auto; }
-  .card figcaption { color: var(--muted); font-size: 0.8rem; line-height: 1.5; margin-top: 0.6rem; text-align: center; }
   .meta { color: var(--muted); font-size: 0.8rem; margin-top: 2.5rem;
           border-top: 1px solid var(--rule); padding-top: 1rem; }
   .empty { color: var(--muted); padding: 3rem 0; text-align: center; }
@@ -140,10 +137,7 @@
 <main>
   <h1>MJO forecast from the AIFS ensemble</h1>
     <p class="sub" style="margin-bottom:1rem">Latest init: <strong>2026-09-07 00Z</strong>. Drag the slider to step through successive forecast runs (oldest → latest) and watch the predicted MJO track evolve.</p>
-  <figure class="card">
-    <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>
-    <figcaption>AIFS-ENS RMM phase space, 51 members coloured by lead day with the ensemble mean bold and IFS-ENS in blue for comparison &middot; RMM1/RMM2 in standard-deviation units, amplitude = radius (rings at 1, 2, 3) &middot; ECMWF open data; observed track from AIFS analyses.</figcaption>
-  </figure>
+  <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>
 
   <p class="lede lede--wide" style="margin-top:1.4rem">Real-time Multivariate MJO (RMM) phase-space forecast from the
   ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
@@ -156,7 +150,7 @@
   Amplitude is the radial distance (rings at 1, 2, 3).
   Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
-  <p class="meta">Updated 2026-09-07 16:06Z · Auto-generated from the AIFS-ENS open-data
+  <p class="meta">Updated 2026-09-07 19:38Z · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
