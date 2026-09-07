@@ -122,27 +122,16 @@
   <header>
     <div class="eyebrow">Monthly, from the NOAA SFS beta (UFS coupled, 31 members), <span id="issueLabel">latest issue</span></div>
     <h1>SFS beta seasonal outlook</h1>
-    <p class="sub">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based
-    successor to CFSv2, running in near-real-time beta since March 2026 with open zarr
-    output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the
-    <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11
-    members &times; 30 years), so drift and bias are removed the same way the C3S models
-    are handled on the <a href="enso-forecasts.html">ENSO forecasts page</a>. The ECMWF
-    system gets the same treatment on the <a href="seas5.html">SEAS5 page</a>.</p>
+    <p class="sub">NOAA&rsquo;s next-generation seasonal system, every month: 31 members, 12 monthly leads, anomalised against its own 1991&ndash;2020 reforecast. Seasonal products first, then the day-16&ndash;46 subseasonal window. Pick a figure from the rail.</p>
     <div class="chips" id="chips">
       <div class="chip"><div class="l">Loading feed&hellip;</div><div class="v neut">&mdash;</div></div>
     </div>
   </header>
 
   <!-- ── NIÑO-3.4 PLUME ──────────────────────────────────────────────────── -->
-  <div class="card" data-label="Niño-3.4 plume" data-group="ENSO &amp; indices">
+  <div class="card" data-label="Niño-3.4 plume" data-group="Seasonal · 12 monthly leads">
     <h2>Ni&ntilde;o-3.4 &mdash; all 31 members</h2>
-    <p class="note">Shaded fan: member percentile spread (10&ndash;90% and 25&ndash;75%).
-    Bold sienna line: ensemble mean. The observed index leads in from the left in black
-    (ERSSTv5, 1991&ndash;2020 base), and the <b style="color:var(--cool)">blue dashes</b>
-    overlay the C3S seven-model multi-model mean from the same issue month for
-    comparison &mdash; two independent forecast systems on one chart. Monthly values,
-    anchored at the last observed month; toggle 3-month for the ONI convention.</p>
+    <p class="note">31 members against the model&rsquo;s own reforecast: fan = member 10&ndash;90% and 25&ndash;75%, sienna = ensemble mean, black = observed (ERSSTv5), blue dashes = the C3S seven-model mean for the same issue.</p>
     <div class="controls">
       <button class="pill on" data-idx="n34">Ni&ntilde;o-3.4 (&rarr; ONI)</button>
       <button class="pill" data-idx="roni">RONI</button>
@@ -164,15 +153,9 @@
   </div>
 
   <!-- ── DERIVED INDICES ─────────────────────────────────────────────────── -->
-  <div class="card" data-label="Climate indices" data-group="ENSO &amp; indices">
+  <div class="card" data-label="Climate indices" data-group="Seasonal · 12 monthly leads">
     <h2>Derived climate indices &mdash; member spread</h2>
-    <p class="note">Beyond ENSO: box and pattern indices computed per member from the
-    same anomaly fields. <b>IOD</b> (Saji DMI), the <b>South Atlantic Subtropical
-    Dipole</b> (Morioka convention, SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a
-    <b>PDO</b> built honestly for a forecast system: North Pacific SST anomalies
-    (global-mean removed) projected onto the <b>model's own reforecast EOF1</b> and
-    normalized by the reforecast PC spread, in &sigma; units. Fan: member 10&ndash;90%
-    and 25&ndash;75%; line: ensemble mean.</p>
+    <p class="note">IOD, South Atlantic dipole, the Ni&ntilde;o flavours and a reforecast-EOF PDO, per member, in &sigma;. Fan and mean as on the plume.</p>
     <div class="controls" id="idxPills"></div>
     <div id="idxChart" class="plot" style="height:420px"></div>
     <div class="chart-card-footer">
@@ -184,201 +167,12 @@
     </div>
   </div>
 
-  <!-- ── DEGREE DAYS ─────────────────────────────────────────────────────── -->
-  <div class="card" data-label="Degree days, Lower 48" data-group="North America">
-    <h2>Subseasonal degree days &mdash; Lower-48, all 31 members</h2>
-    <p class="note">Population-weighted (50 largest metros, base 65&thinsp;&deg;F) degree days
-    over the <b>subseasonal window &mdash; days 16&ndash;46</b>, in the beta's 48-hour
-    output steps, every member drawn. Weeks 1&ndash;2 are left to medium-range NWP;
-    this is the range only a seasonal system covers with members. The grey band is the
-    <b>model's own hindcast climatology</b> for the same init month and lead day
-    (30 years &times; 11 members = 330 samples per day) &mdash; so a member outside the
-    band is genuinely unusual, not just drifted. <b>Cumulative departure</b> runs the
-    running total of each member minus the hindcast mean: the number a heating/cooling
-    season actually settles on.</p>
-    <div class="controls" id="ddPills">
-      <button class="pill on" data-dd="hdd">HDD</button>
-      <button class="pill" data-dd="cdd">CDD</button>
-      <span class="ctlsep">&middot;</span>
-      <button class="pill on" data-ddv="daily">Daily</button>
-      <button class="pill" data-ddv="cum">Cumulative departure</button>
-    </div>
-    <div id="ddChart" class="plot" style="height:420px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), TMP 2 m daily means
-      &middot; metros nearest-gridpoint, population-weighted &middot; climatology: own
-      reforecast 1991&ndash;2020, same init month, per lead day</span>
-      <span class="chart-updated" id="dd-updated">&mdash;</span>
-    </div>
-  </div>
-
-  <!-- ── TELECONNECTIONS ─────────────────────────────────────────────────── -->
-  <div class="card" data-label="Teleconnections" data-group="North America">
-    <h2>Subseasonal teleconnections &mdash; regime probabilities vs hindcast</h2>
-    <p class="note">PNA and EPO computed per member across the day-16&ndash;46 window
-    (48-hour steps) and standardized
-    against the model's own reforecast for that exact lead day &mdash; values are in
-    hindcast-&sigma; units, so the climatological base rate of any threshold is fixed
-    and the member fraction is directly comparable to it. The <b>strip</b> shows the
-    ensemble-mean state at a glance (red positive, blue negative); hover for member
-    probabilities. Click a pill for the full member fan. PNA uses the
-    Wallace&ndash;Gutzler centers and EPO the mid-Pacific/Alaska 500-hPa dipole
-    &mdash; both are zero-sum center combinations, structurally immune to the uniform
-    part of the beta's daily-stream height artifact. <b>AO and NAO are withheld for
-    now</b>: the diagnosed artifact is polar-amplified (annular, a height excess
-    poleward of 60&deg;N several times the midlatitude one), which projects directly onto those indices and
-    cannot be separated from real signal; they return when NOAA reconciles the beta's
-    daily stream.</p>
-    <div id="teleStrip" class="plot" style="height:190px"></div>
-    <div class="controls" id="telePills" style="margin-top:0.5rem"></div>
-    <div id="teleChart" class="plot" style="height:380px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr &middot; standardization: own
-      reforecast 1991&ndash;2020, 330 samples per lead day &middot; probabilities are
-      member fractions; base rates by construction: P(&lt;0)=50%,
-      P(&gt;+1&sigma;)&asymp;16%</span>
-      <span class="chart-updated" id="tele-updated">&mdash;</span>
-    </div>
-  </div>
-
-  <!-- ── SUBSEASONAL ANOMALY MAPS (deck) ─────────────────────────────────── -->
-  <div class="card plot-deck" data-deck="sfs-subseasonal" data-label="Anomaly maps, subseasonal" data-group="Maps">
-    <h2>Anomaly maps &mdash; step through the subseasonal window</h2>
-    <p class="note">For each valid step (days 16&ndash;46): <b>left</b>, the 31-member mean
-    <b>deviation from the model's own hindcast trend</b>, in detrended signal-&sigma;
-    units: the reference is the 1991&ndash;2020 reforecast mean plus the model's own
-    linear trend extrapolated to the forecast date, so the background warming doesn't
-    paint the whole map red &mdash; what remains is genuine forecast signal. The
-    &sigma; is the variability of hindcast ensemble means about that trend line at the
-    same lead day; &plusmn;1 is a normal-strength signal, &plusmn;3+ exceptional.
-    <b>Right</b>, the member spread divided by the hindcast spread: below 1 (orange)
-    the ensemble is more confident than climatology, above 1 (purple) less. Scrub
-    through the window to watch where the signal holds and where it dissolves.</p>
-    <div class="deck-head">
-      <span class="deck-title">Select a field</span>
-      <span class="deck-hint">4 loops in this panel &middot; only the one you pick is loaded</span>
-    </div>
-    <div class="deck-tabs">
-      <button class="on">500 hPa height</button>
-      <button>2 m temperature</button>
-      <button>Precipitation</button>
-      <button>200 hPa &chi;</button>
-    </div>
-    <div class="deck-panel">
-      <div class="img-label">500 hPa height &middot; 20&ndash;90&deg;N &middot; signal (left) and spread ratio (right)</div>
-      <iframe class="anim-embed sfs-sub"
-        src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500d_manifest.json&amp;region=sfs_z500d&amp;autoplay=0"
-        title="SFS 500 hPa height anomaly and spread loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">2 m temperature &middot; 20&ndash;90&deg;N &middot; signal (left) and spread ratio (right)</div>
-      <iframe class="anim-embed sfs-sub"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2md_manifest.json&amp;region=sfs_t2md&amp;autoplay=0"
-        title="SFS 2 m temperature anomaly and spread loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">Precipitation &middot; global</div>
-      <iframe class="anim-embed sfs-trop"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_prcpd_manifest.json&amp;region=sfs_prcpd&amp;autoplay=0"
-        title="SFS global precipitation anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">200 hPa velocity potential (&chi;) &middot; global</div>
-      <iframe class="anim-embed sfs-trop"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chid_manifest.json&amp;region=sfs_chid&amp;autoplay=0"
-        title="SFS 200-hPa velocity potential anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;) &middot; anomaly = deviation from (hindcast mean + own linear trend evaluated at the forecast date), per lead day, physical units
-      &middot; spread ratio = member &sigma; / mean reforecast ensemble &sigma; at the same lead &middot;
-      20&ndash;90&deg;N</span>
-      <span class="chart-updated" id="maps-updated">&mdash;</span>
-    </div>
-  </div>
-
-  <!-- ── MJO ─────────────────────────────────────────────────────────────── -->
-  <div class="card" data-label="MJO phase space" data-group="Tropics &amp; stratosphere">
-    <h2>MJO &mdash; 31-member RMM phase space to day 46</h2>
-    <p class="note">The Wheeler&ndash;Hendon <b>RMM phase diagram</b> from every SFS
-    member's tropical U850/U200, pushed through the exact same machinery as the
-    <a href="mjo.html">AIFS-ENS MJO product</a> &mdash; same EOFs, same day-of-year
-    climatology, same 120-day low-frequency filter, same per-mode scaling &mdash; so
-    the two forecasts plot in the same coordinates and can be compared directly.
-    This is the full three-channel WH04 projection: the missing OLR channel is
-    built from &minus;standardized model precipitation (tropical rain and OLR
-    anticorrelate closely), standardized against the model's own 1991&ndash;2020
-    reforecast. The wind channels are raw &mdash; no bias or drift adjustment
-    &mdash; so at week-4+ leads model drift can read as slowly growing amplitude.
-    Teal spaghetti: members (every other day); red: ensemble mean (dashed grey:
-    wind-only reference); black: the observed track from the <em>official</em>
-    BoM RMM index.</p>
-    <div class="img-wrap sfs-mjo">
-      <img src="assets/sfs/mjo_rmm.webp?v=202608162" alt="SFS beta MJO RMM phase-space forecast, 31 members" loading="eager" fetchpriority="high">
-    </div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr, UGRD 850/200 hPa +
-      PRATE &middot; full WH04 RMM with precip pseudo-OLR &middot; raw winds, no
-      drift adjustment &middot; shared reference EOFs/climatology with the
-      AIFS-ENS product &middot; observed: BoM RMM</span>
-      <span class="chart-updated" id="mjo-updated">&mdash;</span>
-    </div>
-  </div>
-
-  <!-- ── STRATOSPHERE ────────────────────────────────────────────────────── -->
-  <div class="card" data-label="Stratosphere" data-group="Tropics &amp; stratosphere">
-    <h2>Stratosphere &mdash; wave flux and the polar vortex, all members</h2>
-    <p class="note">Two classic lower-stratosphere diagnostics from the daily members:
-    the <b>100-hPa eddy heat flux</b> (45&ndash;75&deg;N zonal mean &mdash; proportional
-    to the wave activity propagating up into the stratosphere) and the <b>50-hPa
-    zonal-mean wind at 60&deg;N</b> (the strength of the polar-night jet lower down; the standard
-    major-warming criterion is at 10&nbsp;hPa, so easterlies here mark an event that has already propagated well down). Every member against the model's own
-    hindcast climatology for the same init month and lead day. Shown for the day-16&ndash;46 subseasonal window (48-hour steps). These panels come
-    alive in the cold season, when pulses of wave flux and vortex swings set up
-    weeks-ahead pattern changes.</p>
-    <div class="controls" id="stratPills">
-      <button class="pill on" data-strat="vt100">100-hPa heat flux</button>
-      <button class="pill" data-strat="u50">50-hPa vortex wind</button>
-    </div>
-    <div id="stratChart" class="plot" style="height:400px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), VGRD/TMP 100 hPa
-      &amp; UGRD 50 hPa &middot; eddies = departures from the zonal mean &middot;
-      climatology: own reforecast 1991&ndash;2020, same init month, per lead day</span>
-      <span class="chart-updated" id="strat-updated">&mdash;</span>
-    </div>
-  </div>
-
-  <!-- ── 100 hPa POLAR VIEW ──────────────────────────────────────────────── -->
-  <div class="card" data-label="100 hPa polar view" data-group="Tropics &amp; stratosphere">
-    <h2>100 hPa &mdash; daily polar view, first 46 days</h2>
-    <p class="note">The lower stratosphere from above: ensemble-mean <b>100-hPa
-    height anomaly</b> day by day (48-hour steps), with the absolute mean height
-    contoured and the mean 100-hPa wind as vectors. Each frame is measured against
-    the model's own 1991&ndash;2020 reforecast <em>per-lead-day</em> mean plus its
-    linear trend evaluated at the forecast year, so the baseline evolves with the
-    forecast. The monthly store stops at 200 hPa, so this is built from the daily
-    members. Bias shared by forecast and reforecast cancels in the anomaly, but the
-    near-real-time daily stream carries a height offset of its own &mdash; read the
-    <em>pattern</em>, not the absolute magnitude.</p>
-    <iframe class="anim-embed sfs-polar"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z100d_manifest.json&amp;region=sfs_z100d&amp;autoplay=0"
-      title="SFS daily 100 hPa height anomaly polar loop" loading="lazy"></iframe>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), HGT/UGRD/VGRD
-      100 hPa &middot; 31-member mean &middot; baseline: own reforecast 1991&ndash;2020
-      mean + trend at forecast year, same init month and leads &middot; 20&ndash;90&deg;N</span>
-      <span class="chart-updated" id="polar-updated">&mdash;</span>
-    </div>
-  </div>
-
   <!-- ── MONTHLY ANOMALY MAPS (deck) ─────────────────────────────────────── -->
-  <div class="card plot-deck" data-deck="sfs-monthly" data-label="Anomaly maps, monthly" data-group="Maps">
+  <div class="card plot-deck" data-deck="sfs-monthly" data-label="Monthly anomaly maps" data-group="Seasonal · 12 monthly leads">
     <h2>Monthly anomaly maps &mdash; step through every lead</h2>
-    <p class="note">The same anomalies without seasonal averaging: one frame per
-    forecast month, in the loop player &mdash; scrub or step to watch the pattern
-    develop and decay month by month. Fixed color scale across all leads.</p>
+    <p class="note">One frame per forecast month against the model&rsquo;s own reforecast, fixed colour scale, in the loop player.</p>
     <div class="deck-head">
-      <span class="deck-title">Select a field</span>
+      <span class="deck-title">Field</span>
       <span class="deck-hint">8 loops in this panel &middot; only the one you pick is loaded</span>
     </div>
     <div class="deck-tabs">
@@ -508,6 +302,162 @@
     <p>SFS beta data: NOAA/OAR via NODD (public domain) &middot; C3S overlay: Copernicus
     Climate Change Service &middot; observed indices: NOAA CPC ERSSTv5, BoM RMM.</p>
   </div>
+
+  <!-- ── SUBSEASONAL ANOMALY MAPS (deck) ─────────────────────────────────── -->
+  <div class="card plot-deck" data-deck="sfs-subseasonal" data-label="Anomaly loops, days 16–46" data-group="Subseasonal · days 16–46">
+    <h2>Anomaly maps &mdash; step through the subseasonal window</h2>
+    <p class="note">Days 16&ndash;46, 48-hour steps. Left: the 31-member mean deviation from the model&rsquo;s own hindcast trend, in &sigma;. Right: member spread over hindcast spread &mdash; orange more confident than climatology, purple less.</p>
+    <div class="deck-head">
+      <span class="deck-title">Field</span>
+      <span class="deck-hint">4 loops in this panel &middot; only the one you pick is loaded</span>
+    </div>
+    <div class="deck-tabs">
+      <button class="on">500 hPa height</button>
+      <button>2 m temperature</button>
+      <button>Precipitation</button>
+      <button>200 hPa &chi;</button>
+    </div>
+    <div class="deck-panel">
+      <div class="img-label">500 hPa height &middot; 20&ndash;90&deg;N &middot; signal (left) and spread ratio (right)</div>
+      <iframe class="anim-embed sfs-sub"
+        src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500d_manifest.json&amp;region=sfs_z500d&amp;autoplay=0"
+        title="SFS 500 hPa height anomaly and spread loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">2 m temperature &middot; 20&ndash;90&deg;N &middot; signal (left) and spread ratio (right)</div>
+      <iframe class="anim-embed sfs-sub"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2md_manifest.json&amp;region=sfs_t2md&amp;autoplay=0"
+        title="SFS 2 m temperature anomaly and spread loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">Precipitation &middot; global</div>
+      <iframe class="anim-embed sfs-trop"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_prcpd_manifest.json&amp;region=sfs_prcpd&amp;autoplay=0"
+        title="SFS global precipitation anomaly loop" loading="lazy"></iframe>
+    </div>
+    <div class="deck-panel" hidden>
+      <div class="img-label">200 hPa velocity potential (&chi;) &middot; global</div>
+      <iframe class="anim-embed sfs-trop"
+        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chid_manifest.json&amp;region=sfs_chid&amp;autoplay=0"
+        title="SFS 200-hPa velocity potential anomaly loop" loading="lazy"></iframe>
+    </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;) &middot; anomaly = deviation from (hindcast mean + own linear trend evaluated at the forecast date), per lead day, physical units
+      &middot; spread ratio = member &sigma; / mean reforecast ensemble &sigma; at the same lead &middot;
+      20&ndash;90&deg;N</span>
+      <span class="chart-updated" id="maps-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── DEGREE DAYS ─────────────────────────────────────────────────────── -->
+  <div class="card" data-label="Degree days" data-group="Subseasonal · days 16–46">
+    <h2>Subseasonal degree days &mdash; Lower-48, all 31 members</h2>
+    <p class="note">Population-weighted Lower-48 degree days over days 16&ndash;46, every member; grey band = the model&rsquo;s own hindcast climatology for the same lead day.</p>
+    <div class="controls" id="ddPills">
+      <button class="pill on" data-dd="hdd">HDD</button>
+      <button class="pill" data-dd="cdd">CDD</button>
+      <span class="ctlsep">&middot;</span>
+      <button class="pill on" data-ddv="daily">Daily</button>
+      <button class="pill" data-ddv="cum">Cumulative departure</button>
+    </div>
+    <div id="ddChart" class="plot" style="height:420px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), TMP 2 m daily means
+      &middot; metros nearest-gridpoint, population-weighted &middot; climatology: own
+      reforecast 1991&ndash;2020, same init month, per lead day</span>
+      <span class="chart-updated" id="dd-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── TELECONNECTIONS ─────────────────────────────────────────────────── -->
+  <div class="card" data-label="Teleconnections" data-group="Subseasonal · days 16–46">
+    <h2>Subseasonal teleconnections &mdash; regime probabilities vs hindcast</h2>
+    <p class="note">PNA and EPO per member over days 16&ndash;46, in hindcast-&sigma; units. Strip = ensemble-mean state; hover for member odds; click a pill for the fan. AO and NAO are withheld while the beta&rsquo;s polar height artefact persists.</p>
+    <div id="teleStrip" class="plot" style="height:190px"></div>
+    <div class="controls" id="telePills" style="margin-top:0.5rem"></div>
+    <div id="teleChart" class="plot" style="height:380px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr &middot; standardization: own
+      reforecast 1991&ndash;2020, 330 samples per lead day &middot; probabilities are
+      member fractions; base rates by construction: P(&lt;0)=50%,
+      P(&gt;+1&sigma;)&asymp;16%</span>
+      <span class="chart-updated" id="tele-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── MJO ─────────────────────────────────────────────────────────────── -->
+  <div class="card" data-label="MJO" data-group="Subseasonal · days 16–46">
+    <h2>MJO &mdash; 31-member RMM phase space to day 46</h2>
+    <p class="note">Wheeler&ndash;Hendon RMM phase space from every member, the same projection as the AIFS-ENS product. Teal = members, red = ensemble mean, black = observed BoM RMM.</p>
+    <div class="img-wrap sfs-mjo">
+      <img src="assets/sfs/mjo_rmm.webp?v=202608162" alt="SFS beta MJO RMM phase-space forecast, 31 members" loading="eager" fetchpriority="high">
+    </div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr, UGRD 850/200 hPa +
+      PRATE &middot; full WH04 RMM with precip pseudo-OLR &middot; raw winds, no
+      drift adjustment &middot; shared reference EOFs/climatology with the
+      AIFS-ENS product &middot; observed: BoM RMM</span>
+      <span class="chart-updated" id="mjo-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── STRATOSPHERE ────────────────────────────────────────────────────── -->
+  <div class="card" data-label="Stratosphere" data-group="Subseasonal · days 16–46">
+    <h2>Stratosphere &mdash; wave flux and the polar vortex, all members</h2>
+    <p class="note">100 hPa eddy heat flux (45&ndash;75&deg;N) and 50 hPa zonal wind at 60&deg;N, every member against the model&rsquo;s own hindcast climatology, days 16&ndash;46.</p>
+    <div class="controls" id="stratPills">
+      <button class="pill on" data-strat="vt100">100-hPa heat flux</button>
+      <button class="pill" data-strat="u50">50-hPa vortex wind</button>
+    </div>
+    <div id="stratChart" class="plot" style="height:400px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), VGRD/TMP 100 hPa
+      &amp; UGRD 50 hPa &middot; eddies = departures from the zonal mean &middot;
+      climatology: own reforecast 1991&ndash;2020, same init month, per lead day</span>
+      <span class="chart-updated" id="strat-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── 100 hPa POLAR VIEW ──────────────────────────────────────────────── -->
+  <div class="card" data-label="100 hPa polar view" data-group="Subseasonal · days 16–46">
+    <h2>100 hPa &mdash; daily polar view, first 46 days</h2>
+    <p class="note">Ensemble-mean 100 hPa height anomaly day by day against the reforecast mean plus trend, with mean height contours and wind vectors. Read the pattern, not the absolute magnitude.</p>
+    <iframe class="anim-embed sfs-polar"
+      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z100d_manifest.json&amp;region=sfs_z100d&amp;autoplay=0"
+      title="SFS daily 100 hPa height anomaly polar loop" loading="lazy"></iframe>
+    <div class="chart-card-footer">
+      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), HGT/UGRD/VGRD
+      100 hPa &middot; 31-member mean &middot; baseline: own reforecast 1991&ndash;2020
+      mean + trend at forecast year, same init month and leads &middot; 20&ndash;90&deg;N</span>
+      <span class="chart-updated" id="polar-updated">&mdash;</span>
+    </div>
+  </div>
+
+  <!-- ── ABOUT ──────────────────────────────────────────────────────────── -->
+  <div class="card" id="aboutCard" data-label="About this page" data-group="About">
+    <h2>What this page reads, and how each figure is built</h2>
+    <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled on the <a href="enso-forecasts.html">ENSO forecasts page</a>. The ECMWF system gets the same treatment on the <a href="seas5.html">SEAS5 page</a>.</p>
+    <h3 style="font-family:var(--serif);font-weight:500;font-size:1rem;margin:0.9rem 0 0.2rem">Ni&ntilde;o-3.4 &mdash; all 31 members</h3>
+    <p class="note" style="max-width:80ch;font-size:0.86rem;line-height:1.6">Shaded fan: member percentile spread (10&ndash;90% and 25&ndash;75%). Bold sienna line: ensemble mean. The observed index leads in from the left in black (ERSSTv5, 1991&ndash;2020 base), and the <b style="color:var(--cool)">blue dashes</b> overlay the C3S seven-model multi-model mean from the same issue month for comparison &mdash; two independent forecast systems on one chart. Monthly values, anchored at the last observed month; toggle 3-month for the ONI convention.</p>
+    <h3 style="font-family:var(--serif);font-weight:500;font-size:1rem;margin:0.9rem 0 0.2rem">Derived climate indices &mdash; member spread</h3>
+    <p class="note" style="max-width:80ch;font-size:0.86rem;line-height:1.6">Beyond ENSO: box and pattern indices computed per member from the same anomaly fields. <b>IOD</b> (Saji DMI), the <b>South Atlantic Subtropical Dipole</b> (Morioka convention, SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a <b>PDO</b> built honestly for a forecast system: North Pacific SST anomalies (global-mean removed) projected onto the <b>model's own reforecast EOF1</b> and normalized by the reforecast PC spread, in &sigma; units. Fan: member 10&ndash;90% and 25&ndash;75%; line: ensemble mean.</p>
+    <h3 style="font-family:var(--serif);font-weight:500;font-size:1rem;margin:0.9rem 0 0.2rem">Monthly anomaly maps &mdash; step through every lead</h3>
+    <p class="note" style="max-width:80ch;font-size:0.86rem;line-height:1.6">The same anomalies without seasonal averaging: one frame per forecast month, in the loop player &mdash; scrub or step to watch the pattern develop and decay month by month. Fixed color scale across all leads.</p>
+    <h3 style="font-family:var(--serif);font-weight:500;font-size:1rem;margin:0.9rem 0 0.2rem">Anomaly maps &mdash; step through the subseasonal window</h3>
+    <p class="note" style="max-width:80ch;font-size:0.86rem;line-height:1.6">For each valid step (days 16&ndash;46): <b>left</b>, the 31-member mean <b>deviation from the model's own hindcast trend</b>, in detrended signal-&sigma; units: the reference is the 1991&ndash;2020 reforecast mean plus the model's own linear trend extrapolated to the forecast date, so the background warming doesn't paint the whole map red &mdash; what remains is genuine forecast signal. The &sigma; is the variability of hindcast ensemble means about that trend line at the same lead day; &plusmn;1 is a normal-strength signal, &plusmn;3+ exceptional. <b>Right</b>, the member spread divided by the hindcast spread: below 1 (orange) the ensemble is more confident than climatology, above 1 (purple) less. Scrub through the window to watch where the signal holds and where it dissolves.</p>
+    <h3 style="font-family:var(--serif);font-weight:500;font-size:1rem;margin:0.9rem 0 0.2rem">Subseasonal degree days &mdash; Lower-48, all 31 members</h3>
+    <p class="note" style="max-width:80ch;font-size:0.86rem;line-height:1.6">Population-weighted (50 largest metros, base 65&thinsp;&deg;F) degree days over the <b>subseasonal window &mdash; days 16&ndash;46</b>, in the beta's 48-hour output steps, every member drawn. Weeks 1&ndash;2 are left to medium-range NWP; this is the range only a seasonal system covers with members. The grey band is the <b>model's own hindcast climatology</b> for the same init month and lead day (30 years &times; 11 members = 330 samples per day) &mdash; so a member outside the band is genuinely unusual, not just drifted. <b>Cumulative departure</b> runs the running total of each member minus the hindcast mean: the number a heating/cooling season actually settles on.</p>
+    <h3 style="font-family:var(--serif);font-weight:500;font-size:1rem;margin:0.9rem 0 0.2rem">Subseasonal teleconnections &mdash; regime probabilities vs hindcast</h3>
+    <p class="note" style="max-width:80ch;font-size:0.86rem;line-height:1.6">PNA and EPO computed per member across the day-16&ndash;46 window (48-hour steps) and standardized against the model's own reforecast for that exact lead day &mdash; values are in hindcast-&sigma; units, so the climatological base rate of any threshold is fixed and the member fraction is directly comparable to it. The <b>strip</b> shows the ensemble-mean state at a glance (red positive, blue negative); hover for member probabilities. Click a pill for the full member fan. PNA uses the Wallace&ndash;Gutzler centers and EPO the mid-Pacific/Alaska 500-hPa dipole &mdash; both are zero-sum center combinations, structurally immune to the uniform part of the beta's daily-stream height artifact. <b>AO and NAO are withheld for now</b>: the diagnosed artifact is polar-amplified (annular, a height excess poleward of 60&deg;N several times the midlatitude one), which projects directly onto those indices and cannot be separated from real signal; they return when NOAA reconciles the beta's daily stream.</p>
+    <h3 style="font-family:var(--serif);font-weight:500;font-size:1rem;margin:0.9rem 0 0.2rem">MJO &mdash; 31-member RMM phase space to day 46</h3>
+    <p class="note" style="max-width:80ch;font-size:0.86rem;line-height:1.6">The Wheeler&ndash;Hendon <b>RMM phase diagram</b> from every SFS member's tropical U850/U200, pushed through the exact same machinery as the <a href="mjo.html">AIFS-ENS MJO product</a> &mdash; same EOFs, same day-of-year climatology, same 120-day low-frequency filter, same per-mode scaling &mdash; so the two forecasts plot in the same coordinates and can be compared directly. This is the full three-channel WH04 projection: the missing OLR channel is built from &minus;standardized model precipitation (tropical rain and OLR anticorrelate closely), standardized against the model's own 1991&ndash;2020 reforecast. The wind channels are raw &mdash; no bias or drift adjustment &mdash; so at week-4+ leads model drift can read as slowly growing amplitude. Teal spaghetti: members (every other day); red: ensemble mean (dashed grey: wind-only reference); black: the observed track from the <em>official</em> BoM RMM index.</p>
+    <h3 style="font-family:var(--serif);font-weight:500;font-size:1rem;margin:0.9rem 0 0.2rem">Stratosphere &mdash; wave flux and the polar vortex, all members</h3>
+    <p class="note" style="max-width:80ch;font-size:0.86rem;line-height:1.6">Two classic lower-stratosphere diagnostics from the daily members: the <b>100-hPa eddy heat flux</b> (45&ndash;75&deg;N zonal mean &mdash; proportional to the wave activity propagating up into the stratosphere) and the <b>50-hPa zonal-mean wind at 60&deg;N</b> (the strength of the polar-night jet lower down; the standard major-warming criterion is at 10&nbsp;hPa, so easterlies here mark an event that has already propagated well down). Every member against the model's own hindcast climatology for the same init month and lead day. Shown for the day-16&ndash;46 subseasonal window (48-hour steps). These panels come alive in the cold season, when pulses of wave flux and vortex swings set up weeks-ahead pattern changes.</p>
+    <h3 style="font-family:var(--serif);font-weight:500;font-size:1rem;margin:0.9rem 0 0.2rem">100 hPa &mdash; daily polar view, first 46 days</h3>
+    <p class="note" style="max-width:80ch;font-size:0.86rem;line-height:1.6">The lower stratosphere from above: ensemble-mean <b>100-hPa height anomaly</b> day by day (48-hour steps), with the absolute mean height contoured and the mean 100-hPa wind as vectors. Each frame is measured against the model's own 1991&ndash;2020 reforecast <em>per-lead-day</em> mean plus its linear trend evaluated at the forecast year, so the baseline evolves with the forecast. The monthly store stops at 200 hPa, so this is built from the daily members. Bias shared by forecast and reforecast cancels in the anomaly, but the near-real-time daily stream carries a height offset of its own &mdash; read the <em>pattern</em>, not the absolute magnitude.</p>
+    <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta on NODD (open zarr) &middot; own 1991&ndash;2020 reforecast &middot; ERSSTv5, BoM RMM, C3S</span><span class="chart-updated">built by scripts/sfs/*.py</span></div>
+  </div>
+
 </main>
 <script>
 (function () {
