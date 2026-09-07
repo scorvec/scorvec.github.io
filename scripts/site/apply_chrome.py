@@ -211,6 +211,9 @@ def header_html(page: str, skin: str) -> str:
     return "\n".join(out).replace(' aria-current=page', ' aria-current="page"')
 
 
+SECTION_TABS = False
+
+
 def tabs_html(key: str, page: str, dark: bool) -> str:
     cls = "st" + (" st--dark" if dark else "")
     links = "\n".join(f'    <a href="{h}"{_current(h, page)}>{l}</a>' for h, l in TABS[key])
@@ -257,7 +260,10 @@ def stamp(cfg: dict) -> tuple[str, str]:
     skin = cfg.get("skin") or ("dark" if dark else "")
 
     block = header_html(page, skin)
-    if cfg.get("tabs"):
+    # Section tab strips (the second banner under the header) were retired 2026-09-07 (user: "two
+    # top menus is confusing, keep the top one"); the dropdown menu already reaches every page.
+    # The `tabs` keys stay in PAGES so the strips can come back with one flag.
+    if cfg.get("tabs") and SECTION_TABS:
         block += "\n" + tabs_html(cfg["tabs"], page, dark)
     block += "\n<!-- sh:end -->"
 

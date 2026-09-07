@@ -15,391 +15,7 @@
 <meta name="twitter:title" content="ECMWF SEAS5 Seasonal Outlook">
 <meta name="twitter:description" content="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from seven centres, percentile fans, ONI vs RONI, and the forecast measured against every ENSO event since 1970.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #fcfcfa;
-    --ink: #1a1a1a;
-    --ink2: #4a4744;          /* body copy inside cards */
-    --muted: #8a8680;
-    --accent: #8a4b2a;        /* burnt sienna — links, active tab, selected button */
-    --accent-hi: #a85c33;
-    --accent-light: #f6efe9;  /* accent at ~8%, for hover fills */
-    --rule: #e2e0da;
-    --edge: #c9c5bb;      /* card outline — deliberately darker than --rule */
-    --surface: #ffffff;
-    --warm: #b4541f;          /* El Nino / positive anomaly */
-    --cool: #3f6f8f;          /* La Nina / negative anomaly (data only, muted) */
-    --serif: 'Lora', Georgia, serif;
-    --sans: 'Inter', sans-serif;
-  }
-  html { font-size: 17.5px; }   /* nudge the whole page up from the 16px default */
-  html, body { height: 100%; }
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: var(--sans);
-    -webkit-font-smoothing: antialiased;
-    display: flex; flex-direction: column;
-  }
-
-  main {
-    flex: 1;
-    /* scale with the monitor: ~94% of the viewport up to 2000px, so laptops
-       keep a visible frame and ultrawides get the full width */
-    max-width: min(94vw, 2000px);
-    margin: 0 auto;
-    padding: 2rem 2.2rem 2.5rem;
-    width: 100%;
-  }
-
-  .page-header {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--rule);
-  }
-  .page-header h1 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.9rem;
-    margin-bottom: 0.5rem;
-  }
-  .page-header p {
-    font-size: 0.88rem; color: var(--muted); line-height: 1.7;
-  }
-  .page-header p + p { margin-top: 0.8rem; }
-
-  /* Overview topic grid (links to the themed subpages) */
-  .topic-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem; margin-bottom: 1.5rem;
-  }
-  .topic-card {
-    display: block; border: 1.5px solid var(--edge); background: #fff;
-    padding: 1.2rem 1.3rem; text-decoration: none;
-    transition: border-color 0.2s, background 0.2s;
-  }
-  .topic-card:hover { border-color: var(--accent); background: var(--accent-light); }
-  .topic-card h3 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.02rem;
-    color: var(--ink); margin-bottom: 0.3rem;
-  }
-  .topic-card p { font-size: 0.78rem; color: var(--muted); line-height: 1.6; }
-
-  .chart-stack { display: flex; flex-direction: column; gap: 1.5rem; }
-
-  .chart-card {
-    border: 1.5px solid var(--edge);
-    background: #fff;
-    overflow: hidden;
-  }
-  /* a deck holds many figures, so give it a slightly heavier frame than a lone card */
-  .chart-card.plot-deck { border-width: 2px; border-color: #b8b3a8; }
-  .chart-card-header {
-    padding: 1rem 1.4rem 0.85rem;
-    border-bottom: 1px solid var(--rule);
-  }
-  .chart-card-header h2 {
-    font-family: var(--serif); font-weight: 400; font-size: 1.15rem;
-    margin-bottom: 0.6rem; color: var(--ink);
-  }
-  .chart-card-header p {
-    font-size: 0.85rem; color: var(--muted); line-height: 1.7;
-  }
-  .chart-card-header p + p { margin-top: 0.7rem; }
-  .chart-card-header b { color: var(--ink); font-weight: 500; }
-
-  .img-wrap { padding: 0.5rem 0.7rem; background: #fff; }
-  .img-wrap + .img-wrap { padding-top: 0; }
-  .img-wrap img { display: block; width: auto; max-width: 100%; max-height: 88vh; height: auto; margin: 0 auto; }
-  /* A deferred figure has no src until its tab is opened. Without this it paints
-     the browser's broken-image glyph and collapses to nothing, so the panel looks
-     broken and then jumps when the real image arrives. Hold the space, show a
-     neutral field, and let the swap fill it. */
-  .img-wrap img:not([src]) { min-height: 260px; background: #fafafa; border: 1px solid #f0f0f0; }
-  /* Pre-JS fallback aspect ratios ≈ image + controls bar; once loaded, each iframe is
-     sized to its exact content height via postMessage (see footer.html / sst_anim.html),
-     which fills the card with no letterboxing at any width. */
-  .anim-embed { width: 100%; border: 0; display: block; background: var(--bg);
-                margin: 0 auto; aspect-ratio: 1312 / 1080;   /* default = the OISST anomaly loop */
-                /* pre-JS ceiling: a tall placeholder (aam-zonal, torque, samsat) must not
-                   run past the viewport before the animator posts its real height */
-                max-height: 92vh; }
-  /* Once loaded, the animator also posts the width its frame actually renders at
-     (sizing is height-capped at 88vh, so a portrait or square loop is narrower than
-     the card). The host pins the iframe to that width and centres it, page-grey on
-     the sides, instead of leaving a full-width box with a small picture in the
-     middle. Per-loop caps below are only the pre-JS estimate of the same thing. */
-  .anim-embed.subsurface { aspect-ratio: 1084 / 835;   /* image 1084×783 + controls */
-    max-width: min(100%, calc((88vh - 40px) * 1084 / 783)); }
-  .anim-embed.torque { aspect-ratio: 1184 / 1030;      /* image 1184×975 + controls */
-    max-width: min(100%, calc((88vh - 40px) * 1184 / 975)); }
-  .anim-embed.mmsf { aspect-ratio: 1042 / 630; }
-  .anim-embed.walker { aspect-ratio: 1471 / 620; }  /* image 1471×566 + controls bar */
-  .anim-embed.waf { aspect-ratio: 1400 / 760; }     /* image + controls bar */
-  .anim-embed.jets { aspect-ratio: 1160 / 619; }    /* image 1160×569 + controls bar */
-  .anim-embed.mslp-wind { aspect-ratio: 1310 / 700; }
-  .anim-embed.wind200 { aspect-ratio: 1496 / 776; }   /* image 1496×726 + controls bar */
-  /* Added 2026-08-31. These three loops shipped without a sizing rule, so their
-     embeds had no reserved height at all: the panel collapsed to nothing and the
-     page jumped when the frames finally painted. Ratios measured off F00 of each
-     loop, plus ~50px for the controls bar, same as the rules above. */
-  .anim-embed.epflux { aspect-ratio: 1380 / 855; }        /* image 1380×805 + controls bar */
-  .anim-embed.vortex_winds { aspect-ratio: 1425 / 837; }  /* image 1425×787 + controls bar */
-  .anim-embed.wave1_maps { aspect-ratio: 1550 / 850; }    /* image 1550×800 + controls bar */
-  /* An animator that has not been pulled in yet still holds its space, but an
-     empty box the same colour as the page reads as broken rather than pending. */
-  .anim-embed[data-src] { background: #fafafa; border: 1px solid #f0f0f0; }
-  .anim-embed.aam-zonal { aspect-ratio: 1408 / 1000; }  /* image 1408×946 + controls bar */
-  .anim-embed.ascat { aspect-ratio: 1385 / 365; }   /* image 1385×311 + controls bar */
-  .anim-embed.mur { aspect-ratio: 3504 / 705; }     /* image 3504×650 + controls bar */
-  /* GMGSI loops re-rendered at 200 dpi on 2026-09-01: 2031×918 and 1454×1520 */
-  .anim-embed.pacsat { aspect-ratio: 2031 / 985; }  /* image 2031×918 + controls bar */
-  .anim-embed.gdps-ir { aspect-ratio: 1860 / 975; } /* image 1860×915 + controls bar */
-  .anim-embed.gdps-150 { aspect-ratio: 1456 / 700; } /* image 1456×644 + controls bar */
-  .anim-embed.samsat { aspect-ratio: 1454 / 1587;   /* image 1454×1520 + controls */
-    max-width: min(100%, calc((88vh - 40px) * 1454 / 1520)); }
-  .anim-embed.glmden { aspect-ratio: 591 / 677; }     /* image 591×622 (map + colourbar) + controls */
-  .anim-embed.precip { aspect-ratio: 771 / 823; }     /* image 771×768 (map + colourbar) + controls */
-  .anim-embed.precip-anom { aspect-ratio: 768 / 823; }  /* image 768×768 (map + colourbar) + controls */
-  /* near-square Americas maps: cap the whole CARD (image fills it) so it hugs the map and
-     doesn't stretch tall across the wide column — the card centers, page-gray on the sides. */
-  .chart-card.media-narrow { max-width: 640px; margin-inline: auto; }
-  .anim-embed.eq-cur-map { aspect-ratio: 1355 / 470; }      /* image 1355×417 + controls bar */
-  .anim-embed.eq-cur-section { aspect-ratio: 1209 / 658; }  /* image 1209×603 + controls bar */
-  .img-label {
-    font-size: 0.72rem; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.06em;
-    margin: 0 0 0.4rem 0.2rem;
-  }
-
-  /* live wind-arrow widget (Tarawa WWB monitor) */
-  .wwb-arrows {
-    display: flex; justify-content: center; align-items: center; gap: 2.6rem;
-    flex-wrap: wrap; padding: 1.3rem 1.2rem 0.4rem;
-  }
-  .wwb-stn { text-align: center; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
-  .wwb-stn svg { display: block; margin: 0 auto 0.35rem; }
-  .wwb-stn b { display: block; color: var(--ink); font-weight: 500; font-size: 0.92rem; }
-
-  .chart-card-footer {
-    padding: 0.6rem 1.4rem;
-    border-top: 1px solid var(--rule);
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 1rem; flex-wrap: wrap;
-  }
-  .chart-sources { font-size: 0.68rem; color: var(--muted); }
-  .chart-updated { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
-
-  .colophon {
-    margin-top: 4rem; padding-top: 2rem;
-    border-top: 1px solid var(--rule);
-    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
-  }
-  .colophon h3 {
-    font-family: var(--serif); font-weight: 400; font-size: 1rem;
-    color: var(--ink); margin-bottom: 0.5rem;
-  }
-  .colophon p + p { margin-top: 0.7rem; }
-  .colophon a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-light); }
-  .colophon a:hover { border-bottom-color: var(--accent); }
-
-  footer {
-    padding: 1.2rem 3rem; border-top: 1px solid var(--rule);
-    display: flex; justify-content: center;
-  }
-  .counter {
-    font-size: 0.72rem; letter-spacing: 0.08em;
-    color: var(--muted); text-transform: uppercase;
-  }
-  .counter span { color: var(--ink); font-weight: 500; }
-
-  @media (max-width: 768px) {
-    nav { padding: 1rem 1.5rem; }
-    .enso-subnav { padding: 0.5rem 1.5rem 0.6rem; gap: 1.1rem; }
-    main { padding: 1.5rem 1rem 2rem; max-width: 100%; }
-    .page-header { margin-bottom: 1.2rem; padding-bottom: 0.8rem; }
-    .page-header h1 { font-size: 1.6rem; }
-    .chart-stack { gap: 1.1rem; }
-    .chart-card-header { padding: 1.2rem 1.3rem 1rem; }
-    .chart-card-footer { padding: 0.75rem 1.3rem; }
-    footer { padding: 1rem 1.5rem; }
-  }
-  @media (max-width: 480px) {
-    nav { padding: 0.85rem 1.1rem; flex-wrap: wrap; gap: 0.5rem; }
-    .nav-name { font-size: 0.95rem; }
-    .nav-links { gap: 1rem; }
-    .nav-links a { font-size: 0.78rem; }
-    .enso-subnav { padding: 0.5rem 1.1rem 0.6rem; gap: 0.85rem; }
-    .enso-subnav a { font-size: 0.74rem; }
-    main { padding: 1.5rem 1rem 3rem; }
-    .page-header h1 { font-size: 1.4rem; line-height: 1.3; }
-    .chart-card-header h2 { font-size: 1.02rem; }
-    .chart-card-header p { font-size: 0.82rem; line-height: 1.6; }
-    .img-wrap { padding: 0.7rem 0.7rem; }
-    .chart-card-footer { padding: 0.7rem 1.1rem; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
-    footer { padding: 0.9rem 1.1rem; }
-  }
-  @media (max-width: 360px) {
-    .nav-links { gap: 0.8rem; }
-    .nav-links a { font-size: 0.72rem; }
-    .enso-subnav { gap: 0.7rem; }
-    .page-header h1 { font-size: 1.28rem; }
-  }
-
-  /* Figure toggles — one card, several versions of the same figure.
-     Pairs like raw/de-trended or the same field from two models were separate
-     cards; they are the same panel with one thing changed, so they share a card
-     and a switch instead of doubling the scroll length. */
-  .fig-toggle { display: flex; gap: 0.4rem; padding: 0 1.8rem 0.7rem; flex-wrap: wrap; }
-  .fig-toggle button {
-    font: inherit; font-size: 0.86rem; font-weight: 600; letter-spacing: 0.01em;
-    padding: 0.4rem 0.95rem; cursor: pointer; border-radius: 3px;
-    border: 1.5px solid var(--accent); background: var(--accent-light);
-    color: var(--accent);
-  }
-  .fig-toggle button:hover { background: #ecdfd4; }
-  .fig-toggle button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-
-  /* Section grouping. The Atmospheric Response page carries ~22 cards across
-     five quite different topics; grouping them in place (no reordering) plus a
-     jump nav makes it navigable without splitting it into more pages. */
-  .section-nav {
-    /* aligns with main's content box, like .page-header and .chart-card.
-       These were grey uppercase text with no border, which read as a caption
-       rather than as the jump links they are — same chip treatment as the
-       figure-selector buttons so the page has one visual language for controls. */
-    margin: 0 0 1.2rem; display: flex; flex-wrap: wrap; gap: 0.45rem;
-    font-size: 0.76rem; letter-spacing: 0.04em; text-transform: uppercase;
-  }
-  .section-nav a {
-    color: var(--accent); text-decoration: none; font-weight: 600;
-    background: var(--accent-light); border: 1.5px solid var(--accent);
-    border-radius: 999px; padding: 0.3rem 0.85rem;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-  }
-  .section-nav a:hover, .section-nav a:focus-visible {
-    background: var(--accent); border-color: var(--accent); color: #fff;
-  }
-  /* Plot deck — one card holding several figures behind a tab bar.
-     Pages had grown to 12-22 cards, most of them a caption plus one figure, so
-     the page was a long scroll and EVERY animator iframe loaded at once. A deck
-     shows one panel at a time and keeps the other iframes' src in data-src until
-     first opened, so a page now loads exactly one animator instead of a dozen. */
-  .plot-deck .deck-head {
-    display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.25rem 0.7rem;
-    padding: 0.85rem 1.4rem 0.45rem;
-  }
-  .plot-deck .deck-title {
-    font-size: 0.86rem; font-weight: 700; letter-spacing: 0.07em;
-    text-transform: uppercase; color: var(--accent);
-  }
-  .plot-deck .deck-hint { font-size: 0.8rem; color: var(--muted); }
-  .plot-deck .deck-tabs {
-    display: flex; flex-wrap: wrap; gap: 0.4rem;
-    padding: 0 1.4rem 0.7rem; border-bottom: 1px solid var(--rule, #e8e8e8);
-  }
-  .plot-deck .deck-tabs button {
-    /* the selector is the primary control on these pages now, so it is sized
-       like one: larger, semibold, with a border that reads at a glance */
-    font: inherit; font-size: 0.92rem; font-weight: 600; letter-spacing: 0.01em;
-    padding: 0.48rem 1.05rem; cursor: pointer; border-radius: 3px;
-    border: 1.5px solid var(--accent); background: var(--accent-light);
-    color: var(--accent);
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-  }
-  .plot-deck .deck-tabs button:hover { background: #ecdfd4; border-color: var(--accent-hi); color: var(--accent-hi); }
-  .plot-deck .deck-tabs button.on {
-    background: var(--accent); border-color: var(--accent); color: #fff;
-    box-shadow: 0 1px 5px rgba(138,75,42,0.38);
-  }
-  .plot-deck .deck-panel[hidden] { display: none; }
-  .plot-deck .deck-panel > .chart-card-header { padding-top: 0.9rem; }
-
-  .page-section {
-    width: 100%; margin: 0.7rem 0 -0.5rem;
-    font-family: var(--serif, Georgia, serif); font-weight: 400; font-size: 1.12rem;
-    color: var(--ink); scroll-margin-top: 5.5rem;
-  }
-  .page-section::after {
-    content: ""; display: block; margin-top: 0.5rem;
-    border-bottom: 1px solid var(--rule, #e2e2e2);
-  }
-
-  /* ── components ported from the retired dark chrome (2026-08-28) ──
-     Overview and Forecasts used to ship their own navy/cyan stylesheet. They now
-     use this one, so these are the classes only their markup uses, restyled to
-     the warm-white palette. Keeping one stylesheet means a chrome change lands on
-     all four pages instead of two. */
-
-  /* hero */
-  .eyebrow { font-size: 0.9rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); }
-  h1 { font-family: var(--serif); font-weight: 400; font-size: 2.1rem;
-       letter-spacing: 0.01em; margin: 0.3rem 0 0.2rem; color: var(--ink); }
-  h1 em { font-style: normal; color: inherit; }
-  /* page title block: centred under the section tabs, no accent colour (user, 2026-09-07) */
-  main > header { text-align: center; }
-  main > header .sub { margin-left: auto; margin-right: auto; }
-  main > header .chips { justify-content: center; }
-  .page-header { text-align: center; }
-  .page-header p { margin-left: auto; margin-right: auto; max-width: 76ch; }
-
-  .sub { color: var(--ink2); max-width: 76ch; margin-bottom: 0.9rem; }
-
-  /* stat chips */
-  .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.9rem; }
-  .chip { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
-          padding: 0.55rem 0.85rem; min-width: 148px; }
-  .chip .l { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.12em;
-             text-transform: uppercase; color: var(--muted); white-space: nowrap; }
-  .chip .v { font-size: 1.28rem; font-weight: 600; margin-top: 2px;
-             font-variant-numeric: tabular-nums; }
-  .chip .s { font-size: 0.66rem; color: var(--ink2); }
-  .warm { color: var(--warm); } .cool { color: var(--cool); } .neut { color: var(--ink2); }
-
-  /* the legacy plain `card` container — same box as .chart-card */
-  .card {
-    background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
-    padding: 1rem 1.4rem 0.6rem; margin-bottom: 1.5rem;
-  }
-  .card h2, .card-header h2 { font-family: var(--serif); font-weight: 500;
-    font-size: 1.2rem; margin-bottom: 0.2rem; color: var(--ink); }
-  .card .note, .card-header p { font-size: 0.76rem; color: var(--ink2);
-    margin-bottom: 0.7rem; max-width: 100ch; }
-  .card-header { padding: 1rem 1.4rem 0.85rem; }
-
-  /* controls */
-  .controls { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center;
-              margin-bottom: 0.5rem; }
-  .pill { font: 600 0.72rem var(--sans); letter-spacing: 0.02em; color: var(--accent);
-          background: var(--accent-light); border: 1.5px solid var(--accent); border-radius: 999px;
-          padding: 0.34rem 0.85rem; cursor: pointer; transition: all .15s; }
-  .pill:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
-  .pill.on { color: #fff; background: var(--accent); border-color: var(--accent); }
-  .pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .ctlsep { color: var(--muted); font-size: 0.66rem; margin: 0 2px; }
-
-  /* media */
-  .img-label { font-size: 0.7rem; color: var(--muted); margin: 0.55rem 0 0.2rem; }
-  .heromap { position: relative; }
-  .heromap img { width: auto; max-width: 100%; max-height: 88vh; height: auto;
-                 margin: 0 auto; display: block; cursor: zoom-in; }
-  .heromap .full { position: absolute; right: 10px; bottom: 10px; font-size: 0.64rem;
-                   color: var(--ink2); background: rgba(255,255,255,0.9);
-                   border: 1px solid var(--rule); border-radius: 999px;
-                   padding: 3px 9px; text-decoration: none; }
-  .plot { width: 100%; }
-
-  .colophon { color: var(--muted); font-size: 0.72rem; line-height: 1.7;
-              border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 0.5rem; }
-  .colophon h3 { font-family: var(--serif); font-weight: 500; font-size: 0.88rem;
-                 color: var(--ink2); margin-bottom: 0.35rem; }
-  .colophon p { margin-bottom: 0.45rem; max-width: 110ch; }
-  footer .counter { opacity: 0.8; }
-
-  @media (max-width: 700px) {
-    h1 { font-size: 1.55rem; }
-    .chip { min-width: 44%; }
-  }
-</style>
+<link rel="stylesheet" href="/assets/outlook.css">
 <style>
   .idx-note { font-size: 0.8rem; color: var(--ink2); margin: 0.2rem 0 0.6rem; min-height: 1.2em; }
   .map-grid { display: grid; gap: 1rem; }
@@ -486,15 +102,6 @@
     </nav>
   </div>
 </header>
-<nav class="st" aria-label="Section">
-  <div class="st-in">
-    <a href="/sst.html">Overview</a>
-    <a href="/enso-subsurface.html">Subsurface</a>
-    <a href="/enso-forecasts.html">Forecasts</a>
-    <a href="/seas5.html" aria-current="page">SEAS5</a>
-    <a href="/enso-atmosphere.html">Atmospheric response</a>
-  </div>
-</nav>
 <!-- sh:end -->
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js"></script>
 <main>
@@ -562,23 +169,32 @@
 
   <!-- ── CHANGE SINCE THE PREVIOUS ISSUE ──────────────────────────────────── -->
   <div class="card" id="changeCard">
-    <h2>What changed since the <span class="prevName">previous</span> issue</h2>
-    <p class="note">The same calendar months from both issues, each issue anomalised against its own
-    start-month hindcast, so a difference here is a real shift in the forecast rather than
-    drift. The table averages the ensemble means over the months both issues cover; the maps
-    show the shift in the ensemble-mean anomaly season by season. The newest season of this
-    issue has no counterpart in the earlier one and is left out.</p>
+    <h2>Maps: anomaly, and what changed since the <span class="prevName">previous</span> issue</h2>
+    <p class="note">One map at a time, most of the world on a plate carr&eacute;e grid. <b>Anomaly</b> is this
+    issue&rsquo;s ensemble mean against its own 1993&ndash;2016 start-month hindcast. <b>Change</b> is the
+    same anomaly minus the previous issue&rsquo;s, each anomalised against its own hindcast, so a
+    difference is a real shift in the forecast rather than drift; periods the earlier issue does not
+    cover have no change map. SST is drawn at 0.2&nbsp;&deg;C steps with labelled isolines.
+    The table averages the index ensemble means over the months both issues cover.</p>
     <div class="idx-note" id="changeMonths"></div>
     <div style="overflow-x:auto">
       <table class="chg" id="changeTable"></table>
     </div>
-    <div class="controls" id="changeKind" style="margin-top:0.8rem">
-      <button class="pill on" data-ck="seasonal">By season</button>
-      <button class="pill" data-ck="monthly">By month</button>
+    <div class="controls" id="mapVar" style="margin-top:0.8rem">
+      <button class="pill on" data-v="sst">SST</button>
+      <button class="pill" data-v="t2m">2 m temperature</button>
+      <button class="pill" data-v="tp">Precipitation</button>
+      <button class="pill" data-v="z500">500 hPa height</button>
     </div>
-    <div class="map-grid" id="changeGrid"></div>
+    <div class="controls" id="mapKind" style="margin-top:0.4rem">
+      <button class="pill on" data-k="anom">Anomaly</button>
+      <button class="pill" data-k="chg">Change since previous issue</button>
+      <label style="margin-left:0.8rem;font:600 0.72rem var(--sans);color:var(--ink2)">Period
+        <select id="mapPeriod" style="font:inherit;margin-left:0.3rem"></select></label>
+    </div>
+    <div class="map-grid" id="mapSingle"></div>
     <div class="chart-card-footer">
-      <span class="chart-sources">ECMWF SEAS5, consecutive monthly issues &middot; anomalies vs each issue&rsquo;s own 1993&ndash;2016 start-month hindcast</span>
+      <span class="chart-sources">ECMWF SEAS5, consecutive monthly issues &middot; anomalies vs each issue&rsquo;s own 1993&ndash;2016 start-month hindcast &middot; 1&deg; grid</span>
       <span class="chart-updated" id="changeUpdated">&mdash;</span>
     </div>
   </div>
@@ -898,21 +514,31 @@
       rows.push('<tr><td>' + m.label + '</td><td>' + fmt(a, d) + '</td><td>' + fmt(b, d) + '</td><td class="' + cls + '">' + fmt(dlt, d) + ' ' + m.units + '</td><td>' + mmm(last) + ': ' + fmt(lb, d) + '</td></tr>');
     });
     document.getElementById("changeTable").innerHTML = rows.join("");
-    var g = document.getElementById("changeGrid"), names = {t2m: "2 m temperature", tp: "Precipitation", z500: "500 hPa height"};
-    function drawChanges(kind) {
-      var html = "";
-      ["t2m", "tp", "z500"].forEach(function (k) {
-        var t = J.changes && J.changes[k]; if (!t) return;
-        var file = kind === "monthly" ? t.file_monthly : t.file; if (!file) return;
-        var span = kind === "monthly" ? (t.months || []).map(function (m) { return mmm(m.month); }).join(", ") : (t.seasons || []).map(function (s) { return s.label; }).join(" and ");
-        html += '<figure><a href="assets/sst/' + file + '?v=' + encodeURIComponent(J.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + file + '?v=' + encodeURIComponent(J.generated) + '" alt="Change in SEAS5 ' + names[k] + ' ensemble-mean anomaly since the previous issue, ' + span + '" loading="lazy"></a>' +
-                '<figcaption><b>' + names[k] + '</b> — ' + issueLabel(J.issue) + ' issue minus ' + issueLabel(prev) + ' issue, ' + span + '. ' + (k === "tp" ? "Green wetter than last month's forecast, brown drier." : "Red warmer or higher than last month's forecast, blue cooler or lower.") + '</figcaption></figure>';
-      });
-      g.innerHTML = html;
+    var M = J.maps || {}, V = M.vars || {}, P = M.periods || [];
+    var state = { v: V.sst ? "sst" : Object.keys(V)[0], k: "anom", p: null };
+    var vb = document.getElementById("mapVar"), kb = document.getElementById("mapKind"), sel = document.getElementById("mapPeriod"), g = document.getElementById("mapSingle");
+    Array.prototype.forEach.call(vb.children, function (b) { b.hidden = !V[b.dataset.v]; b.classList.toggle("on", b.dataset.v === state.v); });
+    function fillPeriods() {
+      var e = V[state.v] ? V[state.v][state.k] || {} : {};
+      var opts = P.filter(function (q) { return e[q.key]; });
+      sel.innerHTML = opts.map(function (q) { return '<option value="' + q.key + '">' + q.label + (q.kind === "season" ? " (season)" : "") + "</option>"; }).join("");
+      if (!opts.some(function (q) { return q.key === state.p; })) state.p = opts.length ? opts[0].key : null;
+      if (state.p) sel.value = state.p;
     }
-    var ck = document.getElementById("changeKind");
-    ck.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; Array.prototype.forEach.call(ck.children, function (c) { c.classList.toggle("on", c === b); }); drawChanges(b.dataset.ck); });
-    drawChanges("seasonal");
+    function drawMap() {
+      var e = V[state.v] && V[state.v][state.k] && state.p ? V[state.v][state.k][state.p] : null;
+      if (!e) { g.innerHTML = '<p class="note">No map for this selection.</p>'; return; }
+      var q = P.filter(function (x) { return x.key === state.p; })[0] || {}, vv = V[state.v];
+      var src = "assets/sst/" + e.file + "?v=" + encodeURIComponent(J.generated);
+      var what = state.k === "anom" ? "anomaly vs the 1993–2016 hindcast" : issueLabel(J.issue) + " issue minus " + issueLabel(prev) + " issue";
+      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing)." : "Red warmer, blue cooler.";
+      g.innerHTML = '<figure><a href="' + src + '" target="_blank" rel="noopener"><img src="' + src + '" alt="SEAS5 ' + vv.label + ' ' + what + ', ' + q.label + '"></a>' +
+        '<figcaption><b>' + vv.label + '</b> — ' + what + ', ' + q.label + '. Area mean ' + (e.mean >= 0 ? "+" : "") + fmt(e.mean, 2) + " " + vv.units + ". " + read + "</figcaption></figure>";
+    }
+    vb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; state.v = b.dataset.v; Array.prototype.forEach.call(vb.children, function (c) { c.classList.toggle("on", c === b); }); fillPeriods(); drawMap(); });
+    kb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; state.k = b.dataset.k; Array.prototype.forEach.call(kb.querySelectorAll("button"), function (c) { c.classList.toggle("on", c === b); }); fillPeriods(); drawMap(); });
+    sel.addEventListener("change", function () { state.p = sel.value; drawMap(); });
+    fillPeriods(); drawMap();
     document.getElementById("changeUpdated").textContent = "built " + J.generated;
   }
 
