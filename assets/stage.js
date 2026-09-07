@@ -51,13 +51,15 @@
   // One rendered width for every still (user, 2026-09-07: "make them look around the same size"):
   // the image always spans the stage; its height is capped to the viewport so a tall panel does
   // not tower over a wide one (object-fit: contain in stage.css letterboxes inside that box).
-  // height budget for the figure: the page-top state (stage top in document coordinates), so
-  // the whole figure and its caption fit the first screen without scrolling (user 2026-09-07:
-  // "minimal scrolling"); the floor keeps a short viewport from shrinking it to a stamp
+  // height budget for the figure = the viewport minus what sits above the figure once the panel
+  // is scrolled to the top (site header 74 px + crumb + option rows) and the caption below it, so
+  // the figure fills the screen after at most one scroll, at any window size (user 2026-09-07:
+  // "adjust properly to the screen size"); the page header above the panel is not charged
   function stageCap() {
-    var st = $("stage"), top0 = st.getBoundingClientRect().top + window.scrollY;
-    var avail = window.innerHeight - top0 - Math.max($("cap").offsetHeight, 40) - 34;
-    return Math.round(Math.max(360, Math.min(avail, window.innerHeight * 0.85)));
+    var st = $("stage"), main = document.querySelector(".ss-main");
+    var above = st.getBoundingClientRect().top - main.getBoundingClientRect().top + 74;
+    var avail = window.innerHeight - above - Math.max($("cap").offsetHeight, 40) - 30;
+    return Math.round(Math.max(360, avail));
   }
   function fitStage() {
     var st = $("stage"), img = st.querySelector("img"), fr = st.querySelector("iframe");
