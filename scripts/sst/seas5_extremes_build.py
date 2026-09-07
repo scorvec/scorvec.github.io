@@ -222,7 +222,15 @@ def build(ym: str) -> dict:
                     field = raw - (shift[None, None] if shift is not None else 0.0); corr = "mean shift" if shift is not None else "uncorrected"
                 normal, used = cpc_normal(region, stat, lat, lon); entry["normal_years"] = [min(used), max(used), len(used)] if used else None
                 mrec = {}
-                ci = [(name, int(np.abs(lat - la).argmin()), int(np.abs(lon - lo).argmin())) for name, la, lo, _ in (c[:4] for c in CITIES.get(region, []))]
+                ci = []
+                ref = normal[thrs[0]][mo - 1] if used else None                        # CPC is land-only: a coastal city whose
+                for name, la, lo, _ in (c[:4] for c in CITIES.get(region, [])):        # nearest cell is sea takes the nearest
+                    i, j = int(np.abs(lat - la).argmin()), int(np.abs(lon - lo).argmin())   # land cell within one step (Miami, Recife)
+                    if ref is not None and not np.isfinite(ref[i, j]):
+                        cand = [(abs(di) + abs(dj), i + di, j + dj) for di in (-1, 0, 1) for dj in (-1, 0, 1)
+                                if 0 <= i + di < ref.shape[0] and 0 <= j + dj < ref.shape[1] and np.isfinite(ref[i + di, j + dj])]
+                        if cand: _, i, j = min(cand)
+                    ci.append((name, i, j))
                 for t in thrs:
                     hit = (field <= t) if op == "le" else (field >= t)
                     cnt = hit.sum(1).astype(np.float32)                                # [member, lat, lon] days

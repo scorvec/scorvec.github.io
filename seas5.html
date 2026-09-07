@@ -326,6 +326,27 @@
     </div>
   </div>
 
+  <div class="card" id="runsCard" hidden data-label="Cold-snap risk" data-group="Impacts">
+    <h2>Cold-snap risk: runs of extreme days across the whole winter</h2>
+    <p class="note">The convex risk in one number: for every member and 1&deg; cell, the daily-mean temperature (the mean of
+    the day&rsquo;s maximum and minimum, quantile-mapped from SEAS5&rsquo;s hindcast onto the CPC record) is standardised
+    against the CPC 1991&ndash;2020 day-of-year climatology, and the whole season is scanned for <b>runs of three or more
+    consecutive days</b> beyond the threshold &mdash; November to February for United States cold, December to February for
+    Brazil heat &mdash; so a snap that straddles a month boundary counts once. Shown as the chance of at least one such run, as
+    that chance relative to the CPC record&rsquo;s own seasons, and as the expected number of days inside such runs relative to
+    normal. In the tropics a persistent 1.5&nbsp;&sigma; warmth is the El&nbsp;Ni&ntilde;o and trend background rather than a
+    heat wave; read Brazil at 2.5&nbsp;&sigma;. Click a city for its members.</p>
+    <div class="controls" id="rnRegion"></div>
+    <div class="controls" id="rnSig"></div>
+    <div class="controls" id="rnProd"></div>
+    <div class="map-grid" id="rnMap"></div>
+    <div id="rnCityWrap" hidden><p class="lead" id="rnCityLead"></p><div id="rnCity"></div></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 6-hourly members &middot; SEAS5 1993&ndash;2016 hindcast (bias) &middot; NOAA CPC Global Unified daily Tmax/Tmin 1991&ndash;2020 (climatology and normal)</span>
+      <span class="chart-updated" id="rnUpdated">&mdash;</span>
+    </div>
+  </div>
+
   <div class="card" id="snowCard" hidden data-label="Snowfall" data-group="Impacts">
     <h2>Snowfall: big days and monthly totals over North America</h2>
     <p class="note">Every member&rsquo;s daily snowfall from SEAS5&rsquo;s accumulated snowfall field (daily steps, 51 members,
@@ -634,6 +655,53 @@
       sb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.s = b.dataset.s; st.t = null; draw(); });
       tb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.t = b.dataset.t; draw(); });
       mb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.m = b.dataset.m; draw(); });
+      draw();
+    }).catch(function () {});
+  }
+
+  function runsView() {
+    fetch("assets/sst/data/seas5_runs.json?v=" + encodeURIComponent(J.generated)).then(function (r) { return r.ok ? r.json() : null; }).then(function (X) {
+      if (!X || !X.regions || !Object.keys(X.regions).length) return;
+      document.getElementById("runsCard").hidden = false;
+      var PRODS = [["pct", "Chance, % of normal"], ["prob", "Chance of a run"], ["days", "Run-days, % of normal"]];
+      var st = { r: X.regions.us ? "us" : Object.keys(X.regions)[0], s: "2", p: "pct", c: null };
+      var rb = document.getElementById("rnRegion"), sb = document.getElementById("rnSig"), pb = document.getElementById("rnProd");
+      rb.innerHTML = Object.keys(X.regions).map(function (k) { var e = X.regions[k]; return '<button class="pill' + (k === st.r ? " on" : "") + '" data-r="' + k + '">' + e.label + " · " + e.kind + " · " + e.season + "</button>"; }).join("");
+      function draw() {
+        var E = X.regions[st.r], sigs = Object.keys(E.sigmas);
+        if (sigs.indexOf(st.s) < 0) st.s = sigs[Math.min(1, sigs.length - 1)];
+        sb.innerHTML = '<span class="ctlsep">Threshold</span>' + sigs.map(function (k) { return '<button class="pill' + (k === st.s ? " on" : "") + '" data-s="' + k + '">' + (E.kind === "cold" ? "−" : "+") + k + " σ</button>"; }).join("");
+        pb.innerHTML = PRODS.map(function (q) { return '<button class="pill' + (q[0] === st.p ? " on" : "") + '" data-p="' + q[0] + '">' + q[1] + "</button>"; }).join("");
+        var S = E.sigmas[st.s], f = S[st.p], C = E.cities || {}, names = Object.keys(C).filter(function (n) { return C[n].x != null; });
+        if (names.length && names.indexOf(st.c) < 0) st.c = null;
+        var src = "assets/sst/" + f + "?v=" + encodeURIComponent(X.generated), what = E.kind === "cold" ? "cold snap" : "heat wave";
+        var cap = st.p === "prob" ? "share of members with at least one run of " + X.run_days + "+ days beyond " + st.s + " σ in " + E.season :
+                  st.p === "pct" ? "that chance as % of the same chance across the CPC record's " + E.normal_seasons + " seasons (hatched: normal chance under 5%)" :
+                  "expected days inside such runs as % of the CPC record's mean (hatched: normal under half a day)";
+        document.getElementById("rnMap").innerHTML = '<figure><div class="xd-map"><img src="' + src + '" alt="SEAS5 ' + what + ' runs, ' + cap + '" loading="lazy">' +
+          names.map(function (n) { var c = C[n]; return '<button type="button" class="xd-city ' + (c.side || "r") + (n === st.c ? " on" : "") + '" style="left:' + (100 * c.x).toFixed(2) + "%;top:" + (100 * c.y).toFixed(2) + '%" data-c="' + n.replace(/"/g, "&quot;") + '" title="' + n + '"><span class="dot"></span></button>'; }).join("") +
+          "</div><figcaption>" + cap.charAt(0).toUpperCase() + cap.slice(1) + ". Field mean: " + Math.round(100 * S.p_mean) + "% of members vs " + Math.round(100 * S.po_mean) + "% of CPC seasons. <b>Click a city</b> for its members. <a href=\"" + src + "\" target=\"_blank\" rel=\"noopener\">Full-size map</a>.</figcaption></figure>";
+        document.getElementById("rnUpdated").textContent = "built " + X.generated + " · issue " + issueLabel(X.issue) + " · " + E.months.join(", ");
+        drawCity();
+      }
+      function drawCity() {
+        var wrap = document.getElementById("rnCityWrap"), E = X.regions[st.r], C = E.cities || {}, c = st.c && C[st.c];
+        if (!c || !c.sigmas[st.s]) { wrap.hidden = true; return; }
+        var d = c.sigmas[st.s], bins = [[0, 0, "none"], [3, 5, "3–5"], [6, 9, "6–9"], [10, 14, "10–14"], [15, 1e9, "15+"]];
+        function hist(a) { return bins.map(function (b) { return 100 * a.filter(function (v) { return v >= b[0] && v <= b[1]; }).length / a.length; }); }
+        var hf = hist(d.rundays), ho = hist(d.obs_rundays), pf = 100 * d.nruns.filter(function (v) { return v >= 1; }).length / d.nruns.length, po = 100 * d.obs_nruns.filter(function (v) { return v >= 1; }).length / d.obs_nruns.length;
+        var mf = d.rundays.reduce(function (a, b) { return a + b; }, 0) / d.rundays.length, mo = d.obs_rundays.reduce(function (a, b) { return a + b; }, 0) / d.obs_rundays.length;
+        var traces = [{ type: "bar", x: bins.map(function (b) { return b[2]; }), y: hf, name: "SEAS5 members, " + E.season + " " + X.issue.slice(0, 4), marker: { color: OC.colors.accent }, hovertemplate: "%{y:.0f}% of members<extra>%{x} run-days</extra>" },
+                      { type: "bar", x: bins.map(function (b) { return b[2]; }), y: ho, name: "CPC seasons 1991–2020", marker: { color: "rgba(60,60,60,0.45)" }, hovertemplate: "%{y:.0f}% of seasons<extra>%{x} run-days</extra>" }];
+        document.getElementById("rnCityLead").innerHTML = "<b>" + st.c + "</b> · days inside runs of " + X.run_days + "+ consecutive days beyond " + (E.kind === "cold" ? "−" : "+") + st.s + " σ over " + E.season + ": at least one run in <b>" + Math.round(pf) + "%</b> of members against <b>" + Math.round(po) + "%</b> of the CPC record's seasons; mean run-days " + mf.toFixed(1) + " vs " + mo.toFixed(1) + ".";
+        wrap.hidden = false;
+        OC.react("rnCity", traces, { xtype: "linear", yunits: "% of members / seasons", yrange: [0, Math.max.apply(null, hf.concat(ho)) * 1.2 + 2], height: 300, endLabels: false,
+          layout: function (L) { L.xaxis.type = "category"; L.xaxis.title = { text: "days inside qualifying runs", font: { size: 12 } }; L.xaxis.showspikes = false; L.barmode = "group"; L.legend = { orientation: "h", y: 1.14, x: 0 }; } });
+      }
+      rb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.r = b.dataset.r; st.c = null; Array.prototype.forEach.call(rb.children, function (x) { x.classList.toggle("on", x === b); }); draw(); });
+      sb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.s = b.dataset.s; draw(); });
+      pb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.p = b.dataset.p; draw(); });
+      document.getElementById("rnMap").addEventListener("click", function (ev) { var b = ev.target.closest(".xd-city"); if (!b) return; st.c = st.c === b.dataset.c ? null : b.dataset.c; Array.prototype.forEach.call(document.querySelectorAll("#rnMap .xd-city"), function (x) { x.classList.toggle("on", x.dataset.c === st.c); }); drawCity(); });
       draw();
     }).catch(function () {});
   }
@@ -986,7 +1054,7 @@
     document.getElementById("membersPill").addEventListener("click", function () { state.members = !state.members; this.classList.toggle("on", state.members); drawEnso(); });
     document.getElementById("smMonthly").addEventListener("click", function () { state.sm = 0; this.classList.add("on"); document.getElementById("sm3").classList.remove("on"); drawEnso(); drawOther(); });
     document.getElementById("sm3").addEventListener("click", function () { state.sm = 1; this.classList.add("on"); document.getElementById("smMonthly").classList.remove("on"); drawEnso(); drawOther(); });
-    chips(); drawEnso(); drawOther(); changeView(); xdaysView(); snowView(); maps(); drawPolar();
+    chips(); drawEnso(); drawOther(); changeView(); xdaysView(); runsView(); snowView(); maps(); drawPolar();
   }).catch(function (e) {
     document.getElementById("chips").innerHTML = '<div class="chip"><div class="l">Forecast feed</div><div class="v neut">unavailable</div><div class="s">' + String(e).slice(0, 80) + '</div></div>';
   });
