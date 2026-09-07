@@ -343,8 +343,17 @@ html main > .lede.lede--wide, html .wrap > .lede.lede--wide {
 
 /* Every figure fits the viewport it is shown on (user rule, 2026-09-07): images, loops and
    embedded plots never exceed their container; wide tables scroll inside their wrapper. */
-html img, html video, html canvas { max-width: 100%; height: auto; }
+html img, html video { max-width: 100%; height: auto; }
+html canvas { max-width: 100%; }                                   /* no height:auto — canvases are sized by script */
 html iframe { max-width: 100%; }
+/* Leaflet sizes its tiles, markers and canvas layers itself; the fit rule must not touch them
+   (it blanked the sounding explorer's station markers on phones, 2026-09-07). */
+html .leaflet-container img, html .leaflet-container canvas, html .leaflet-container svg { max-width: none; height: auto; }
+html .leaflet-container canvas { height: initial; }
+@media (max-width: 700px) {
+  html h1 { font-size: 1.55rem; line-height: 1.2; overflow-wrap: anywhere; }
+  html h2 { font-size: 1.25rem; }
+}
 html .img-wrap, html .table-wrap { max-width: 100%; overflow-x: auto; }
 
 /* ── Rail layout (assets/rail.js): one figure at a time behind a grouped product rail ── */
