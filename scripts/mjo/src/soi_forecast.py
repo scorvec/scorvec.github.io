@@ -8,8 +8,10 @@ SOI (bold) and the raw daily Troup SOI (faint) are shown on one plot.
 The forecast SOI is Tahiti(17.5°S,149.6°W) − Darwin(12.4°S,130.9°E) MSL from the
 ensembles, standardized with the Troup monthly normals (mean pressure-difference
 and its SD) recovered by per-month regression from the LongPaddock daily file —
-so observed and forecast share one scale — then bias-corrected to the recent
-observed level (model gridpoint vs station). Negative SOI ⇒ El Niño-favorable.
+so observed and forecast share one scale. The model grid-point difference is mapped to the
+station difference by a FIXED per-month ERA5 calibration with the cycle-hour tide removed
+(data/reference/soi_clim.json, build_soi_clim.py) — no per-run offset, so the forecast level
+no longer jumps from cycle to cycle. Negative SOI ⇒ El Niño-favorable.
 
     python src/soi_forecast.py --date 20260601 --time 00 --out plots/soi.webp
 """
@@ -17,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import sys
 from pathlib import Path
 
@@ -42,6 +45,12 @@ MODELS = [dict(model="aifs-ens", types=["cf", "pf"], label="AIFS-ENS"),
           dict(model="ifs",      types=["pf"],        label="IFS-ENS")]
 PAST_DAYS = 75                                        # observed history shown
 WIN = 30                                              # 30-day running SOI window
+# Static grid-point → station calibration + tide offsets (build_soi_clim.py). With it the model
+# SOI needs NO per-run anchoring to the observed level: D_s = a_m + b_m·(D_g − tide[hour][m]),
+# then Troup's station normals — the same scale as the observed series, cycle after cycle
+# (user 2026-09-07: the forecast "keeps getting whipped around by the bias adjustment").
+CLIM_PATH = Path(__file__).resolve().parent.parent / "data" / "reference" / "soi_clim.json"
+CLIM = json.loads(CLIM_PATH.read_text()) if CLIM_PATH.exists() else None
 
 
 # ── observed SOI + Troup normals ──────────────────────────────────────────────
@@ -120,21 +129,32 @@ def plot(obs: pd.DataFrame, normals: dict, diff: xr.DataArray,
     steps_h = (diff.step / np.timedelta64(1, "h")).values.astype(int)
     init_d = init.normalize()                                    # calendar day (obs is daily)
     fdates = pd.to_datetime([(init + pd.Timedelta(hours=int(h))).normalize() for h in steps_h])
-    fc = np.vstack([soi_of(diff.isel(number=j).values, fdates.month.values, normals)
-                    for j in range(diff.sizes["number"])])      # (member, day)
-
-    # bias-correct forecast daily SOI to the recent observed level (gridpoint↔station).
-    # Anchor to the 30-day RUNNING-MEAN observed SOI (the bold black line we plot), not a
-    # raw 10-day median: the combined ensemble's raw SOI is essentially flat and heavily
-    # biased, so this constant offset sets the whole forecast LEVEL. A 10-day median gets
-    # yanked ~10 pts by a few-day daily swing (e.g. a transient +SOI spike), pushing the
-    # forecast spuriously positive; the 30-day mean ties it to the smoothed observed state.
     obs_soi = obs["SOI"]
-    recent = obs_soi.rolling(WIN, min_periods=WIN - 5).mean().loc[:init_d].iloc[-1]
-    # nan-robust: some ensemble members can have missing MSL at early steps (seen in
-    # AIFS-ENS open data), which would otherwise turn np.median → NaN and blank the run.
-    bias = np.nanmedian(fc[:, :5]) - recent
-    fc -= bias
+    months = fdates.month.values
+    if CLIM is not None and "calib" in CLIM:
+        # static calibration: grid difference at the cycle hour → tide-free daily-mean equivalent
+        # → station difference (per-month regression on ERA5 1991–2020) → Troup SOI. No anchor.
+        hour = str(int(init.hour)); tide_tab = (CLIM.get("tide") or {}).get(hour, {})
+        tide = np.array([tide_tab.get(str(m), 0.0) for m in months])
+        a = np.array([CLIM["calib"][str(m)]["a"] for m in months]); b = np.array([CLIM["calib"][str(m)]["b"] for m in months])
+        dg = diff.values                                              # (member, step) hPa
+        ds_ = a[None] + b[None] * (dg - tide[None])
+        fc = np.vstack([soi_of(ds_[j], months, normals) for j in range(ds_.shape[0])])
+        bias = 0.0; mode = "calibrated" + ("" if tide_tab else " (no tide table)")
+        # transparency: the model's analysis (0 h) against the observed daily SOI at init
+        if steps_h[0] == 0:
+            o0 = obs_soi.dropna(); o0 = o0.loc[:init_d]
+            if len(o0) and (init_d - o0.index[-1]).days <= 3:
+                print(f"  analysis check: model 0-h SOI {np.nanmean(fc[:, 0]):+.1f} vs observed {o0.iloc[-1]:+.1f} ({o0.index[-1]:%b %d})")
+    else:
+        # legacy: anchor the first days to the observed 30-day running mean (grid↔station offset
+        # unknown) — kept only for a cold checkout without soi_clim.json
+        fc = np.vstack([soi_of(diff.isel(number=j).values, months, normals)
+                        for j in range(diff.sizes["number"])])      # (member, day)
+        recent = obs_soi.rolling(WIN, min_periods=WIN - 5).mean().loc[:init_d].iloc[-1]
+        bias = np.nanmedian(fc[:, :5]) - recent
+        fc -= bias; mode = "anchored"
+    print(f"  SOI scale: {mode}; bias {bias:+.1f}", flush=True)
 
     # 30-day running SOI per member: observed tail (shared) + member forecast
     full = pd.date_range(init_d - pd.Timedelta(days=WIN - 1), fdates[-1], freq="D")
@@ -185,6 +205,9 @@ def plot(obs: pd.DataFrame, normals: dict, diff: xr.DataArray,
                  fontsize=11, fontweight="bold", loc="left")
     ax.legend(fontsize=8, loc="upper right", ncol=2, framealpha=0.92)
     ax.grid(True, alpha=0.2)
+    fig.text(0.01, -0.01, ("Model Tahiti−Darwin pressure mapped to the stations by a fixed per-month ERA5 1991–2020 calibration with the cycle-hour tide removed — no per-run offset, so the level is comparable from cycle to cycle."
+                           if mode.startswith("calibrated") else "Forecast anchored to the observed 30-day running SOI at initialisation."),
+             fontsize=7.5, color="0.35", va="top")
     fig.autofmt_xdate()
     fig.tight_layout()
     out.parent.mkdir(parents=True, exist_ok=True)
