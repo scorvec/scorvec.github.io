@@ -307,20 +307,33 @@ def stamp(cfg: dict) -> tuple[str, str]:
     return orig, html
 
 
+def stamp_all(check: bool = False, only: set | None = None, quiet: bool = False) -> int:
+    """Stamp every page in PAGES (or the subset in `only`, repo-relative paths). Idempotent.
+    Called by enso_site.render_all after it regenerates the ENSO pages from their partials —
+    those partials carry no header, so without this every SST run shipped the old raw nav."""
+    changed = 0
+    for cfg in PAGES:
+        if only is not None and cfg["path"] not in only:
+            continue
+        if not (REPO / cfg["path"]).exists():
+            continue
+        orig, new = stamp(cfg)
+        if orig != new:
+            changed += 1
+            if check:
+                print(f"out of date: {cfg['path']}")
+            else:
+                (REPO / cfg["path"]).write_text(new)
+                if not quiet:
+                    print(f"stamped {cfg['path']}")
+    return changed
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="report pages that would change; write nothing")
     args = ap.parse_args()
-    changed = 0
-    for cfg in PAGES:
-        orig, new = stamp(cfg)
-        if orig != new:
-            changed += 1
-            if args.check:
-                print(f"out of date: {cfg['path']}")
-            else:
-                (REPO / cfg["path"]).write_text(new)
-                print(f"stamped {cfg['path']}")
+    changed = stamp_all(check=args.check)
     if args.check:
         return 1 if changed else 0
     print(f"{changed} page(s) written")

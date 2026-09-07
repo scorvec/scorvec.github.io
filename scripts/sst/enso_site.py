@@ -95,6 +95,17 @@ def render_all(tokens: dict, site_root) -> list[Path]:
         out = site_root / page["out"]
         out.write_text(html, encoding="utf-8")
         written.append(out)
+    # The partials carry no site header/footer: re-apply the shared chrome to what was just
+    # written, or an SST run silently reverts these pages to the pre-2026-09-06 raw nav.
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("apply_chrome", Path(__file__).resolve().parents[1] / "site" / "apply_chrome.py")
+        chrome = importlib.util.module_from_spec(spec); spec.loader.exec_module(chrome)
+        rel = {str(p.relative_to(site_root)) for p in written}
+        n = chrome.stamp_all(only=rel, quiet=True)
+        print(f"  site chrome re-applied to {n} regenerated page(s)", flush=True)
+    except Exception as e:                                             # noqa: BLE001
+        print(f"  WARNING: site chrome not applied ({e!r}) — run scripts/site/apply_chrome.py", flush=True)
     return written
 
 

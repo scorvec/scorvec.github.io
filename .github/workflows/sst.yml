@@ -121,6 +121,11 @@ jobs:
 
       # Walker circulation by basin (Indian/Atlantic with ENSO removed): needs the OISST file the
       # step above just refreshed and walker_ud_history.nc that mjo.yml commits. Best-effort.
+      # sst-roni.py regenerates sst.html and enso-*.html from partials; the shared header,
+      # tabs and footer live in scripts/site/apply_chrome.py and must be stamped afterwards.
+      - name: Re-apply the site chrome to the regenerated pages
+        run: python scripts/site/apply_chrome.py
+
       - name: Walker circulation by ocean basin
         run: python scripts/sst/walker_basins.py || echo "walker_basins failed; continuing"
 
