@@ -58,10 +58,13 @@ def brazil_polygons() -> dict:
 
 
 def colombia_polygons() -> dict:
+    """One region: the union of the hydro basins. A seasonal model at 1° cannot separate them
+    (user, 2026-09-06: "just aggregate all basins and say Colombia hydro")."""
     from shapely.geometry import shape
+    from shapely.ops import unary_union
     g = json.loads((HERE / "colombia_hydro_regions.geojson").read_text())
-    polys = {ft["properties"]["name"]: shape(ft["geometry"]) for ft in g["features"]}
-    return {k: polys[k] for k in CO_ORDER if k in polys}
+    polys = [shape(ft["geometry"]) for ft in g["features"] if ft["properties"]["name"] in CO_ORDER]
+    return {"Colombia hydro": unary_union(polys)}
 
 
 def cell_weights(poly, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
@@ -182,7 +185,7 @@ def build(ym: str) -> None:
         raise SystemExit("P − E fields for this issue are not on disk")
     lat, lon = now[2], now[3]
     doc = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "previous": prev, "countries": {}}
-    for key, label, polys in (("br", "Brazil", brazil_polygons()), ("co", "Colombia", colombia_polygons())):
+    for key, label, polys in (("br", "Brazil", brazil_polygons()), ("co", "Colombia hydro", colombia_polygons())):
         print(f"  {label}: {len(polys)} regions", flush=True)
         weights = {name: cell_weights(poly, lat, lon) for name, poly in polys.items()}
         s_now = region_series(now, weights)

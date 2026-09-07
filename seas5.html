@@ -676,7 +676,7 @@
     the model&rsquo;s own normal for that month and the grey band its year-to-year range, so a gold curve sitting
     left of the band is a forecast drier than most years. Negative values mean the region loses more water to
     evaporation than it receives. Brazil is shown by ONS subsystem (Southeast/Centre-West, South, Northeast,
-    North). The table lists the months where three quarters or more of the members are drier than normal.</p>
+    North); Colombia is one aggregate, the hydro basins together, since a seasonal model at 1&deg; cannot tell them apart. The table lists the months where three quarters or more of the members are drier than normal.</p>
     <div style="overflow-x:auto"><table class="chg" id="pmeTable"></table></div>
     <div class="map-grid" id="pmeGrid" style="margin-top:1rem"></div>
     <div class="chart-card-footer">
@@ -1026,7 +1026,7 @@
         Object.keys(months).sort().forEach(function (mon) {
           var m = months[mon]; if (m.p_dry < 0.75) return;
           var d = m.mean - m.normal, cls = d < -0.25 ? "down" : d > 0.25 ? "up" : "flat";
-          rows.push('<tr><td>' + c.label + ' — ' + reg + '</td><td>' + mmm(mon) + '</td><td>' + m.normal.toFixed(2) + '</td><td>' + m.mean.toFixed(2) + '</td><td class="' + cls + '">' + fmt(d, 2) + '</td><td>' + (m.prev_mean == null ? "—" : fmt(m.mean - m.prev_mean, 2)) + '</td><td>' + Math.round(m.p_dry * 100) + '%</td></tr>');
+          rows.push('<tr><td>' + (reg === c.label ? reg : c.label + ' — ' + reg) + '</td><td>' + mmm(mon) + '</td><td>' + m.normal.toFixed(2) + '</td><td>' + m.mean.toFixed(2) + '</td><td class="' + cls + '">' + fmt(d, 2) + '</td><td>' + (m.prev_mean == null ? "—" : fmt(m.mean - m.prev_mean, 2)) + '</td><td>' + Math.round(m.p_dry * 100) + '%</td></tr>');
         });
       });
       html += '<figure><a href="assets/sst/' + c.file + '?v=' + encodeURIComponent(P.generated) + '" target="_blank" rel="noopener"><img src="assets/sst/' + c.file + '?v=' + encodeURIComponent(P.generated) + '" alt="SEAS5 forecast distributions of monthly precipitation minus evaporation by region, ' + c.label + '" loading="lazy"></a>' +
