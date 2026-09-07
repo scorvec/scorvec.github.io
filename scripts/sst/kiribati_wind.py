@@ -36,6 +36,7 @@ import matplotlib.dates as mdates
 HERE = Path(__file__).resolve().parent
 CSV = HERE / "metar" / "kiribati_wind.csv"
 API = "https://aviationweather.gov/api/data/metar?ids=NGTA,PLCH&format=json&hours={h}"
+WWB_THRESH = 5.0            # m/s daily-mean westerly: the usual burst criterion
 STN = {"NGTA": dict(key="tarawa", name="Tarawa", lat=1.4, lon=173.0),
        "PLCH": dict(key="christmas", name="Christmas Is.", lat=2.0, lon=-157.5)}
 KT2MS = 0.514444
@@ -118,49 +119,62 @@ def write_json(hist: pd.DataFrame, out: Path):
 
 
 def plot(hist: pd.DataFrame, out: Path):
+    """Two stacked panels in the site's figure framing (user 2026-09-07: "the Christmas Island stuff is
+    messy"): Tarawa on top, Christmas Island below, each as DAILY-MEAN zonal-wind bars (westerly red,
+    easterly blue) with the hourly obs as light dots rather than line fragments, the WWB threshold
+    (+5 m/s daily mean) dashed, and a thin barb row per station every 12 h."""
     t0 = hist.index.max() - pd.Timedelta(days=PLOT_DAYS)
     h = hist[hist.index >= t0]
-    uT = zonal(h["tarawa_dir"], h["tarawa_spd"])
-    uC = zonal(h["christmas_dir"], h["christmas_spd"])
-    if zonal(h["tarawa_dir"], h["tarawa_spd"]).dropna().empty:
+    series = {}
+    for key, name in (("tarawa", "Tarawa (NGTA, 1.4°N 173°E) — west-central Pacific"), ("christmas", "Christmas Island (PLCH, 2°N 157°W) — eastern Pacific")):
+        u = zonal(h[f"{key}_dir"], h[f"{key}_spd"])
+        series[key] = (name, u, u.resample("1D").mean(), u.resample("1D").count())
+    if series["tarawa"][1].dropna().empty:
         print("  no Tarawa wind in the plot window — skipping render", flush=True); return
-    fig, ax = plt.subplots(figsize=(12, 4.8))
-    ax.fill_between(uT.index, 0, uT.values, where=(uT.values > 0), interpolate=True,
-                    color="#d62728", alpha=0.25, lw=0)
-    ax.fill_between(uT.index, 0, uT.values, where=(uT.values <= 0), interpolate=True,
-                    color="#1f77b4", alpha=0.18, lw=0)
-    ax.plot(uC.index, uC.values, color="#888", lw=1.0, alpha=0.8, label="Christmas Is. (east)")
-    ax.plot(uT.index, uT.values, color="#222", lw=1.8, label="Tarawa zonal wind")
-    last = uT.dropna()
-    # y-limits first (we place the barb row relative to the final top), with headroom
-    # above the data so the wind-barb row sits INSIDE the axes, below the title.
-    both = np.concatenate([uT.values, uC.values])
-    dmin, dmax = np.nanmin(both), np.nanmax(both)
-    ax.set_ylim(min(-6, dmin - 1), max(8, dmax + 1) + 2.5)
-    # wind barbs (kt) along the top, just inside the axes (was overlapping the title), every ~6 h
-    yb = ax.get_ylim()[1] - 1.0
-    bb = h.iloc[::6].dropna(subset=["tarawa_dir", "tarawa_spd"])
-    ub = -bb["tarawa_spd"] * np.sin(np.deg2rad(bb["tarawa_dir"]))
-    vb = -bb["tarawa_spd"] * np.cos(np.deg2rad(bb["tarawa_dir"]))
-    ax.barbs(mdates.date2num(bb.index), np.full(len(bb), yb), ub.values, vb.values,
-             length=5.5, lw=0.5, color="#444", clip_on=True, zorder=5)
-    ax.scatter([last.index[-1]], [last.iloc[-1]], s=44, color="#d62728" if last.iloc[-1] > 0 else "#1f77b4", zorder=6)
-    ax.axhline(0, color="0.5", lw=0.8)
-    # x-axis: start where data actually begins (METAR history is short) to avoid weeks of
-    # leading whitespace; still capped at the PLOT_DAYS window.
-    valid = pd.concat([uT.dropna(), uC.dropna()])
+    W, top, bot = 14.0, 1.0, 0.55; ph = 2.6; gap = 0.35; H = top + 2 * ph + gap + bot
+    fig = plt.figure(figsize=(W, H))
+    valid = pd.concat([series["tarawa"][1].dropna(), series["christmas"][1].dropna()])
     x_start = max(valid.index.min(), t0) if not valid.empty else t0
-    ax.set_xlim(x_start - pd.Timedelta(hours=12), last.index[-1] + pd.Timedelta(hours=12))
-    ax.set_ylabel("zonal wind (m s⁻¹) · westerly +")
-    ax.set_title("Equatorial westerly-wind-burst monitor — Tarawa (NGTA) METAR  ·  "
-                 "westerly (red) ⇒ WWB / El Niño-favorable", fontsize=11)
-    ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %-d"))
-    ax.legend(loc="lower left", fontsize=8.5, framealpha=0.9); ax.grid(alpha=0.15)
-    fig.tight_layout()
+    x_end = hist.index.max() + pd.Timedelta(hours=12)
+    axes = []
+    allu = np.concatenate([series[k][1].dropna().values for k in ("tarawa", "christmas")] or [np.array([0.0])])
+    lo = min(-6.0, float(allu.min()) - 1) if allu.size else -6.0; hi = max(8.0, float(allu.max()) + 1) if allu.size else 8.0   # one scale for both islands
+    for k, key in enumerate(("tarawa", "christmas")):
+        name, u, ud, nd = series[key]
+        y0 = (bot + (ph + gap) * (1 - k)) / H
+        ax = fig.add_axes([0.06, y0, 0.905, ph / H]); axes.append(ax)
+        ok = nd >= 4                                                        # a daily mean needs a few obs
+        col = np.where(ud.values > 0, "#c0392b", "#3f6f8f")
+        ax.bar(ud.index[ok] + pd.Timedelta(hours=12), ud.values[ok], width=0.9, color=col[ok], alpha=0.55, lw=0, label="daily mean", zorder=2)
+        ax.scatter(u.index, u.values, s=5, color="#222", alpha=0.45, lw=0, label="hourly METAR", zorder=3)
+        ax.axhline(0, color="#666", lw=1.0, zorder=1)
+        ax.axhline(WWB_THRESH, color="#c0392b", lw=0.9, ls="--", zorder=1)
+        ax.text(x_start - pd.Timedelta(hours=6), WWB_THRESH + 0.25, "WWB threshold", color="#c0392b", fontsize=7.5, va="bottom", ha="left", zorder=4)
+        last = u.dropna()
+        if len(last):
+            ax.scatter([last.index[-1]], [last.iloc[-1]], s=46, color="#c0392b" if last.iloc[-1] > 0 else "#3f6f8f", zorder=6, edgecolor="#fff", lw=1)
+            ax.annotate(f"{last.iloc[-1]:+.1f}", (last.index[-1], last.iloc[-1]), xytext=(6, 0), textcoords="offset points", fontsize=8, va="center", color="#222")
+        ax.set_ylim(lo, hi + 2.2)
+        bb = h[h.index.minute == 0].iloc[::12].dropna(subset=[f"{key}_dir", f"{key}_spd"])   # barbs every 12 h
+        if len(bb):
+            ub = -bb[f"{key}_spd"] * np.sin(np.deg2rad(bb[f"{key}_dir"])); vb = -bb[f"{key}_spd"] * np.cos(np.deg2rad(bb[f"{key}_dir"]))
+            ax.barbs(mdates.date2num(bb.index), np.full(len(bb), hi + 1.2), ub.values, vb.values, length=5, lw=0.5, color="#444", clip_on=True, zorder=5)
+        ax.set_xlim(x_start - pd.Timedelta(hours=12), x_end)
+        ax.set_ylabel("zonal wind (m s⁻¹)\nwesterly +", fontsize=8.5)
+        ax.set_title(name, fontsize=9.5, loc="left", pad=3)
+        ax.xaxis.set_major_locator(mdates.DayLocator(interval=2)); ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %-d"))
+        ax.tick_params(labelsize=8); ax.grid(axis="y", color="#e8e6e0", lw=0.6); ax.set_axisbelow(True)
+        for sp in ("top", "right"): ax.spines[sp].set_visible(False)
+        if k == 0:
+            ax.tick_params(labelbottom=False)
+            ax.legend(loc="lower left", fontsize=7.5, frameon=False, ncol=2)
+    fig.text(0.02, 1 - 0.14 / H, "Equatorial westerly-wind-burst monitor · Tarawa and Christmas Island METAR", fontsize=13.5, fontweight="bold", va="top")
+    fig.text(0.02, 1 - 0.50 / H, f"Bars: daily-mean zonal wind (red westerly, blue easterly; days with fewer than 4 obs are left blank); dots: hourly reports; dashed: +{WWB_THRESH:.0f} m/s daily mean, the westerly-burst threshold; barbs: the reported wind every 12 h (kt). A westerly burst over Tarawa pushes warm water east and favours El Niño.",
+             fontsize=8.4, color="#444", va="top", wrap=True)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=120, bbox_inches="tight"); plt.close(fig)
-    print(f"  saved {out} (Tarawa u={last.iloc[-1]:+.1f} m/s {last.index[-1]:%b %-d %HZ})", flush=True)
+    fig.savefig(out, dpi=125, pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
+    lastT = series["tarawa"][1].dropna()
+    print(f"  saved {out} (Tarawa u={lastT.iloc[-1]:+.1f} m/s {lastT.index[-1]:%b %-d %HZ})", flush=True)
 
 
 def main(argv=None) -> int:
