@@ -326,7 +326,14 @@ def anim(argv_start: str | None = None) -> int:
         print(f"  {yday:%Y-%m-%d} frame already published; MUR has nothing newer yet — skipping the fetch", flush=True)
         return 0
 
-    latest = latest_time()
+    try:
+        latest = latest_time()
+    except Exception as e:                                       # noqa: BLE001
+        # ERDDAP unreachable from the runner (timeouts / resets on every attempt, 8 Sep 2026): the
+        # frames already seeded are republished unchanged and the next run appends the missing
+        # days, so an upstream outage is a skipped tick, not a failed job (and not an e-mail).
+        print(f"  animation: ERDDAP unreachable after retries ({repr(e)[:70]}) — frame skipped, next run catches up", flush=True)
+        return 0
     start = pd.Timestamp(argv_start or ANIM_START)
     days = pd.date_range(start, latest.normalize(), freq="D")
 
