@@ -77,6 +77,9 @@ KINDS = {
                variable=["2m_temperature", "total_precipitation", "sea_surface_temperature"], area=[90, -180, -90, 180], grid=[1.0, 1.0]),
     "gl_u850": dict(dataset="seasonal-monthly-pressure-levels",
                     variable=["u_component_of_wind"], pressure_level=["850"], area=[90, -180, -90, 180], grid=[1.0, 1.0]),
+    # 850 hPa meridional wind (user 2026-09-08: southerly-flow events on the US East Coast)
+    "gl_v850": dict(dataset="seasonal-monthly-pressure-levels",
+                    variable=["v_component_of_wind"], pressure_level=["850"], area=[90, -180, -90, 180], grid=[1.0, 1.0]),
     "gl_z500": dict(dataset="seasonal-monthly-pressure-levels",
                     variable=["geopotential"], pressure_level=["500"], area=[90, -180, -90, 180], grid=[1.0, 1.0]),
     # North America monthly snowfall (m of water equivalent per day, monthly mean rate) for the

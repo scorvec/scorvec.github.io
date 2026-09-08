@@ -460,6 +460,9 @@ MAP_SPEC = {
     # 850 hPa zonal wind (user 2026-09-07): positive = westerly anomaly; the trade-wind / jet signal of ENSO
     "u850": ("850 hPa zonal wind", "m/s", [-8, -6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6, 8],
              [-4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4], "PuOr_r", None, None),
+    # 850 hPa meridional wind (user 2026-09-08: southerly-flow events, US East Coast): green southerly, purple northerly
+    "v850": ("850 hPa meridional wind", "m/s, southerly +", [-6, -4, -3, -2, -1, -0.5, 0.5, 1, 2, 3, 4, 6],
+             [-3, -2, -1, -0.5, 0.5, 1, 2, 3], "PRGn", None, None),
     # North America snowfall as cm of snow per month at a 10:1 snow-to-liquid ratio (user 2026-09-07:
     # "instead of mm/day, estimate snowfall using 10:1 ratio")
     # shown as % of the hindcast normal (user: "% of normal might be a good choice"); change in % points
@@ -501,6 +504,10 @@ def load_global(ym: str) -> dict:
         fc, lat, lon = load_field(fc_path("gl_u850", ym), "u")
         hc, _, _ = load_field(hc_path("gl_u850", ym[4:]), "u")
         out["u850"] = (fc, np.nanmean(hc, axis=0), lat, lon); del hc
+    if fc_path("gl_v850", ym).exists() and hc_path("gl_v850", ym[4:]).exists():
+        fc, lat, lon = load_field(fc_path("gl_v850", ym), "v")
+        hc, _, _ = load_field(hc_path("gl_v850", ym[4:]), "v")
+        out["v850"] = (fc, np.nanmean(hc, axis=0), lat, lon); del hc
     if fc_path("na_snow", ym).exists() and hc_path("na_snow", ym[4:]).exists():
         import calendar as _cal
         days = np.array([_cal.monthrange(int(v[:4]), int(v[5:]))[1] for v in valid_months(ym)], dtype=np.float32)

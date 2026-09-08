@@ -192,7 +192,8 @@
       <button class="pill" data-v="t2m">2 m temperature</button>
       <button class="pill" data-v="tp">Precipitation</button>
       <button class="pill" data-v="z500">500 hPa height</button>
-      <button class="pill" data-v="u850">850 hPa wind</button>
+      <button class="pill" data-v="u850">850 hPa zonal wind</button>
+      <button class="pill" data-v="v850">850 hPa meridional wind</button>
       <button class="pill" data-v="sf">Snowfall, % of normal (N. America)</button>
       <button class="pill" data-v="sd">Snowpack SWE anomaly (N. America)</button>
       <button class="pill" data-v="sdp">Snowpack, % of normal (N. America)</button>
@@ -346,6 +347,24 @@
     <div class="chart-card-footer">
       <span class="chart-sources">ECMWF SEAS5 6-hourly members &middot; SEAS5 1993&ndash;2016 hindcast (bias) &middot; NOAA CPC Global Unified daily Tmax/Tmin 1991&ndash;2020 (climatology and normal)</span>
       <span class="chart-updated" id="rnUpdated">&mdash;</span>
+    </div>
+  </div>
+
+  <div class="card" id="windCard" hidden data-label="Wind events" data-group="Impacts">
+    <h2>Wind events: southerly surges and windy days over the United States</h2>
+    <p class="note">From every member&rsquo;s 6-hourly 10 m wind on 1&deg; cells: days whose <b>daily-mean southerly component</b> reaches
+    4, 6 or 8 m/s (the warm-advection surges ahead of East Coast lows), and days whose <b>daily-maximum wind speed</b> reaches 8, 10 or
+    12 m/s. Shown as the ensemble-mean count as a percentage of the same count in SEAS5&rsquo;s own 1993&ndash;2016 hindcast (the
+    bias-free read), as the raw share of members with at least one such day, and as the monthly-mean meridional-wind anomaly.
+    Click a city for its members by month.</p>
+    <div class="controls" id="wdProd"></div>
+    <div class="controls" id="wdThr"></div>
+    <div class="controls" id="wdMonth"></div>
+    <div class="map-grid" id="wdMap"></div>
+    <div id="wdCityWrap" hidden><p class="lead" id="wdCityLead"></p><div id="wdCity"></div></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">ECMWF SEAS5 6-hourly 10 m wind, 51 members &middot; SEAS5 1993&ndash;2016 hindcast (normal)</span>
+      <span class="chart-updated" id="wdUpdated">&mdash;</span>
     </div>
   </div>
 
@@ -708,6 +727,64 @@
     }).catch(function () {});
   }
 
+  function windView() {
+    fetch("assets/sst/data/seas5_wind.json?v=" + encodeURIComponent(J.generated)).then(function (r) { return r.ok ? r.json() : null; }).then(function (X) {
+      if (!X || !X.months || !Object.keys(X.months).length) return;
+      document.getElementById("windCard").hidden = false;
+      var months = Object.keys(X.months).sort();
+      var hasR = months.some(function (mo) { var m = X.months[mo]; return m.south && Object.keys(m.south).some(function (t) { return m.south[t].pct; }); });
+      var PRODS = (hasR ? [["south_pct", "Southerly days, vs normal"], ["speed_pct", "Windy days, vs normal"], ["vanom", "Meridional wind anomaly"]] : [])
+                  .concat([["south_prob", "Southerly days, raw chance"], ["speed_prob", "Windy days, raw chance"]]);
+      var st = { p: PRODS[0][0], t: null, m: null, c: null };
+      var pb = document.getElementById("wdProd"), tb = document.getElementById("wdThr"), mb = document.getElementById("wdMonth");
+      function kind() { return st.p.split("_")[0]; }
+      function thrs() { return kind() === "south" ? X.thr_south.map(String) : kind() === "speed" ? X.thr_speed.map(String) : []; }
+      function draw() {
+        pb.innerHTML = PRODS.map(function (q) { return '<button class="pill' + (q[0] === st.p ? " on" : "") + '" data-p="' + q[0] + '">' + q[1] + "</button>"; }).join("");
+        var T = thrs(); if (T.length && T.indexOf(st.t) < 0) st.t = T[1] || T[0];
+        tb.innerHTML = T.length ? '<span class="ctlsep">Threshold</span>' + T.map(function (t) { return '<button class="pill' + (t === st.t ? " on" : "") + '" data-t="' + t + '">' + t + " m/s</button>"; }).join("") : "";
+        if (months.indexOf(st.m) < 0) st.m = months[Math.min(3, months.length - 1)];
+        mb.innerHTML = '<span class="ctlsep">Month</span>' + months.map(function (mo) { return '<button class="pill' + (mo === st.m ? " on" : "") + '" data-m="' + mo + '">' + mmm(mo) + "</button>"; }).join("");
+        var R = X.months[st.m], f = st.p === "vanom" ? R.vanom : ((R[kind()] || {})[st.t] || {})[st.p.split("_")[1]];
+        var C = X.cities || {}, names = Object.keys(C).filter(function (n) { return C[n].x != null; });
+        var src = f ? "assets/sst/" + f + "?v=" + encodeURIComponent(X.generated) : null;
+        var what = kind() === "south" ? "daily-mean southerly 10 m wind of " + st.t + " m/s or more" : "daily-maximum 10 m wind of " + st.t + " m/s or more";
+        var cap = st.p === "vanom" ? "monthly-mean 10 m meridional wind anomaly in " + mmm(st.m) + " against the hindcast (green southerly, purple northerly)" :
+                  /pct$/.test(st.p) ? "days with " + what + " in " + mmm(st.m) + ", ensemble-mean count as % of the hindcast's count (hatched: normal under half a day)" :
+                  "share of members with at least one day of " + what + " in " + mmm(st.m);
+        document.getElementById("wdMap").innerHTML = src ? '<figure><div class="xd-map"><img src="' + src + '" alt="SEAS5 wind events, ' + cap + '" loading="lazy">' +
+          names.map(function (n) { var c = C[n]; return '<button type="button" class="xd-city ' + (c.side || "r") + (n === st.c ? " on" : "") + '" style="left:' + (100 * c.x).toFixed(2) + "%;top:" + (100 * c.y).toFixed(2) + '%" data-c="' + n.replace(/"/g, "&quot;") + '" title="' + n + '"><span class="dot"></span></button>'; }).join("") +
+          "</div><figcaption>" + cap.charAt(0).toUpperCase() + cap.slice(1) + ". <b>Click a city</b> for its members by month. <a href=\"" + src + "\" target=\"_blank\" rel=\"noopener\">Full-size map</a>.</figcaption></figure>" : '<p class="note">No map for this selection.</p>';
+        document.getElementById("wdUpdated").textContent = "built " + X.generated + " · issue " + issueLabel(X.issue);
+        drawCity();
+      }
+      function drawCity() {
+        var wrap = document.getElementById("wdCityWrap"), C = X.cities || {}, c = st.c && C[st.c], k = kind() === "speed" ? "speed" : "south", T = thrs().length ? st.t : String((k === "south" ? X.thr_south : X.thr_speed)[1]);
+        if (!c) { wrap.hidden = true; return; }
+        var acc = OC.colors.accent, traces = [], txt = [], nx = [], ny = [], ymax = 1, narrow = document.getElementById("wdCity").getBoundingClientRect().width < 640;
+        months.forEach(function (mo, i) {
+          var d = ((c.months[mo] || {})[k] || {})[T]; if (!d) return;
+          var m = d.m.slice().sort(function (a, b) { return a - b; }), q = function (p) { return m[Math.min(m.length - 1, Math.max(0, Math.round(p * (m.length - 1))))]; };
+          var mean = m.reduce(function (a, b) { return a + b; }, 0) / m.length; ymax = Math.max(ymax, q(0.9), d.n || 0);
+          traces.push({ type: "box", x: m.map(function () { return i; }), y: m, name: mmm(mo), boxpoints: false, whiskerwidth: 0.5, width: 0.55, marker: { color: acc }, line: { color: acc, width: 1.4 }, fillcolor: "rgba(138,75,42,0.18)", quartilemethod: "linear",
+                        hovertemplate: mmm(mo) + "<br>p10–p90 " + q(0.1) + "–" + q(0.9) + " d · median " + q(0.5) + " · mean " + mean.toFixed(1) + " d<extra></extra>", showlegend: false });
+          if (d.n != null) { nx.push(i); ny.push(d.n); }
+          txt.push({ x: i, y: q(0.9), text: narrow ? mean.toFixed(0) : mean.toFixed(1) + " d" + (d.n != null && d.n >= 0.5 ? " · " + Math.round(100 * mean / d.n) + "%" : ""), showarrow: false, yshift: 14, font: { size: narrow ? 9.5 : 11, color: OC.colors.ink2 } });
+        });
+        if (nx.length) traces.push({ type: "scatter", mode: "lines+markers", x: nx, y: ny, name: "hindcast normal (SEAS5 1993–2016)", line: { color: OC.colors.obs, width: 1.4, dash: "dot" }, marker: { symbol: "diamond", size: 9, color: OC.colors.obs }, hovertemplate: "normal %{y:.1f} d<extra></extra>" });
+        document.getElementById("wdCityLead").innerHTML = "<b>" + st.c + "</b> · days with " + (k === "south" ? "daily-mean southerly 10 m wind ≥ " : "daily-max 10 m wind ≥ ") + T + " m/s at the city's 1° cell: members (box p25–p75, whiskers p10–p90, label = mean and % of normal) against the model's own hindcast mean" + (c.months[st.m] && c.months[st.m].vanom != null ? "; " + mmm(st.m) + " meridional-wind anomaly " + (c.months[st.m].vanom >= 0 ? "+" : "") + c.months[st.m].vanom.toFixed(1) + " m/s" : "") + ".";
+        wrap.hidden = false;
+        OC.react("wdCity", traces, { xtype: "linear", yunits: "days a month", yrange: [0, ymax * 1.25 + 0.5], height: 320, endLabels: false, annotations: txt,
+          layout: function (L) { L.xaxis.tickmode = "array"; L.xaxis.tickvals = months.map(function (_, i) { return i; }); L.xaxis.ticktext = months.map(mmm); L.xaxis.range = [-0.6, months.length - 0.4]; L.xaxis.showspikes = false; L.legend = { orientation: "h", y: 1.12, x: 0 }; L.boxmode = "overlay"; } });
+      }
+      pb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.p = b.dataset.p; st.t = null; draw(); });
+      tb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.t = b.dataset.t; draw(); });
+      mb.addEventListener("click", function (ev) { var b = ev.target.closest("button"); if (!b) return; st.m = b.dataset.m; draw(); });
+      document.getElementById("wdMap").addEventListener("click", function (ev) { var b = ev.target.closest(".xd-city"); if (!b) return; st.c = st.c === b.dataset.c ? null : b.dataset.c; Array.prototype.forEach.call(document.querySelectorAll("#wdMap .xd-city"), function (x) { x.classList.toggle("on", x.dataset.c === st.c); }); drawCity(); });
+      draw();
+    }).catch(function () {});
+  }
+
   function snowView() {
     fetch("assets/sst/data/seas5_snow.json?v=" + encodeURIComponent(J.generated)).then(function (r) { return r.ok ? r.json() : null; }).then(function (X) {
       if (!X || !X.months || !Object.keys(X.months).length) return;
@@ -832,7 +909,7 @@
       var q = P.filter(function (x) { return x.key === state.p; })[0] || {}, vv = V[state.v];
       if (fr) fr.textContent = mi >= 0 ? q.label + " (" + (mi + 1) + "/" + ms.length + ")" : "";
       var what = state.k === "anom" ? "anomaly vs the 1993–2016 hindcast" : issueLabel(J.issue) + " issue minus " + issueLabel(prev) + " issue";
-      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "u850" ? "Orange westerly anomaly, purple easterly." : state.v === "sf" ? "Green more snow than the model\u2019s 1993\u20132016 normal, brown less, as % of that normal (10:1 snow-to-liquid ratio; blank where the normal is under 1 cm a month)." : state.v === "sd" ? "Green deeper snowpack than the model\u2019s 1993\u20132016 normal, brown shallower, in mm of water equivalent (monthly-mean snow depth)." : state.v === "sdp" ? "Green deeper snowpack, brown shallower, as % of the model\u2019s 1993\u20132016 normal (blank where the normal is under 10 mm of water equivalent)." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing), in σ of the hindcast's year-to-year spread." : "Red warmer, blue cooler.";
+      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "u850" ? "Orange westerly anomaly, purple easterly." : state.v === "v850" ? "Green southerly anomaly, purple northerly." : state.v === "sf" ? "Green more snow than the model\u2019s 1993\u20132016 normal, brown less, as % of that normal (10:1 snow-to-liquid ratio; blank where the normal is under 1 cm a month)." : state.v === "sd" ? "Green deeper snowpack than the model\u2019s 1993\u20132016 normal, brown shallower, in mm of water equivalent (monthly-mean snow depth)." : state.v === "sdp" ? "Green deeper snowpack, brown shallower, as % of the model\u2019s 1993\u20132016 normal (blank where the normal is under 10 mm of water equivalent)." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing), in σ of the hindcast's year-to-year spread." : "Red warmer, blue cooler.";
       var old = g.querySelector("img");
       if (old && old.dataset.frame) { old.src = src(e); old.alt = "SEAS5 " + vv.label + " " + what + ", " + q.label; g.querySelector("a").href = src(e); g.querySelector("figcaption").innerHTML = "<b>" + vv.label + "</b> — " + what + ", " + q.label + ". Area mean " + (e.mean >= 0 ? "+" : "") + fmt(e.mean, 2) + " " + vv.units + ". " + read; return; }
       g.innerHTML = '<figure><a href="' + src(e) + '" target="_blank" rel="noopener"><img data-frame="1" src="' + src(e) + '" alt="SEAS5 ' + vv.label + ' ' + what + ', ' + q.label + '"></a>' +
@@ -1056,7 +1133,7 @@
     document.getElementById("membersPill").addEventListener("click", function () { state.members = !state.members; this.classList.toggle("on", state.members); drawEnso(); });
     document.getElementById("smMonthly").addEventListener("click", function () { state.sm = 0; this.classList.add("on"); document.getElementById("sm3").classList.remove("on"); drawEnso(); drawOther(); });
     document.getElementById("sm3").addEventListener("click", function () { state.sm = 1; this.classList.add("on"); document.getElementById("smMonthly").classList.remove("on"); drawEnso(); drawOther(); });
-    chips(); drawEnso(); drawOther(); changeView(); xdaysView(); runsView(); snowView(); maps(); drawPolar();
+    chips(); drawEnso(); drawOther(); changeView(); xdaysView(); runsView(); windView(); snowView(); maps(); drawPolar();
   }).catch(function (e) {
     document.getElementById("chips").innerHTML = '<div class="chip"><div class="l">Forecast feed</div><div class="v neut">unavailable</div><div class="s">' + String(e).slice(0, 80) + '</div></div>';
   });
