@@ -198,5 +198,22 @@
   </div>
 </footer>
 <!-- sf:end -->
+<script>
+  // Size the loop iframe to the embedded player's real height (image + region picker + controls):
+  // a fixed aspect ratio clipped the controls on phones, where the buttons wrap (user 2026-09-07).
+  addEventListener('message', function (e) {
+    var d = e.data; if (!d || d.type !== 'sstAnimHeight') return;
+    var fr = document.querySelectorAll('iframe.anim-embed');
+    for (var i = 0; i < fr.length; i++) {
+      if (fr[i].contentWindow === e.source) {
+        fr[i].style.height = d.h + 'px'; fr[i].style.aspectRatio = 'auto'; fr[i].style.maxHeight = 'none';
+        fr[i].style.maxWidth = d.w ? d.w + 'px' : '';
+      }
+    }
+  });
+  addEventListener('resize', function () {
+    document.querySelectorAll('iframe.anim-embed').forEach(function (f) { f.style.maxWidth = ''; });
+  });
+</script>
 </body>
 </html>
