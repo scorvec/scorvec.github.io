@@ -83,6 +83,10 @@ KINDS = {
     # snowfall-anomaly maps (user 2026-09-07)
     "na_snow": dict(dataset="seasonal-monthly-single-levels",
                     variable=["snowfall"], area=[75, -170, 25, -50], grid=[1.0, 1.0]),
+    # North America snow depth (m of water equivalent, monthly mean) for the snowpack-anomaly maps
+    # (user 2026-09-07: "snow depth anomalies ... mainly for northwest/quebec hydro")
+    "na_snowdepth": dict(dataset="seasonal-monthly-single-levels",
+                         variable=["snow_depth"], area=[75, -170, 25, -50], grid=[1.0, 1.0]),
     "sfc": dict(dataset="seasonal-monthly-single-levels",
                 variable=["2m_temperature", "total_precipitation"], area=[75, -170, -60, -30], grid=[1.0, 1.0]),
     "z500": dict(dataset="seasonal-monthly-pressure-levels",

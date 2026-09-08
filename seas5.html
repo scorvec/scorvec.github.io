@@ -194,6 +194,8 @@
       <button class="pill" data-v="z500">500 hPa height</button>
       <button class="pill" data-v="u850">850 hPa wind</button>
       <button class="pill" data-v="sf">Snowfall, % of normal (N. America)</button>
+      <button class="pill" data-v="sd">Snowpack SWE anomaly (N. America)</button>
+      <button class="pill" data-v="sdp">Snowpack, % of normal (N. America)</button>
     </div>
     <div class="controls" id="mapKind" style="margin-top:0.4rem">
       <button class="pill on" data-k="anom">Anomaly</button>
@@ -830,7 +832,7 @@
       var q = P.filter(function (x) { return x.key === state.p; })[0] || {}, vv = V[state.v];
       if (fr) fr.textContent = mi >= 0 ? q.label + " (" + (mi + 1) + "/" + ms.length + ")" : "";
       var what = state.k === "anom" ? "anomaly vs the 1993–2016 hindcast" : issueLabel(J.issue) + " issue minus " + issueLabel(prev) + " issue";
-      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "u850" ? "Orange westerly anomaly, purple easterly." : state.v === "sf" ? "Green more snow than the model\u2019s 1993\u20132016 normal, brown less, as % of that normal (10:1 snow-to-liquid ratio; blank where the normal is under 1 cm a month)." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing), in σ of the hindcast's year-to-year spread." : "Red warmer, blue cooler.";
+      var read = state.v === "tp" ? "Green wetter, brown drier." : state.v === "u850" ? "Orange westerly anomaly, purple easterly." : state.v === "sf" ? "Green more snow than the model\u2019s 1993\u20132016 normal, brown less, as % of that normal (10:1 snow-to-liquid ratio; blank where the normal is under 1 cm a month)." : state.v === "sd" ? "Green deeper snowpack than the model\u2019s 1993\u20132016 normal, brown shallower, in mm of water equivalent (monthly-mean snow depth)." : state.v === "sdp" ? "Green deeper snowpack, brown shallower, as % of the model\u2019s 1993\u20132016 normal (blank where the normal is under 10 mm of water equivalent)." : state.v === "z500" ? "Red higher heights (ridging), blue lower (troughing), in σ of the hindcast's year-to-year spread." : "Red warmer, blue cooler.";
       var old = g.querySelector("img");
       if (old && old.dataset.frame) { old.src = src(e); old.alt = "SEAS5 " + vv.label + " " + what + ", " + q.label; g.querySelector("a").href = src(e); g.querySelector("figcaption").innerHTML = "<b>" + vv.label + "</b> — " + what + ", " + q.label + ". Area mean " + (e.mean >= 0 ? "+" : "") + fmt(e.mean, 2) + " " + vv.units + ". " + read; return; }
       g.innerHTML = '<figure><a href="' + src(e) + '" target="_blank" rel="noopener"><img data-frame="1" src="' + src(e) + '" alt="SEAS5 ' + vv.label + ' ' + what + ', ' + q.label + '"></a>' +

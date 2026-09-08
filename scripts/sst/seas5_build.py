@@ -465,10 +465,16 @@ MAP_SPEC = {
     # shown as % of the hindcast normal (user: "% of normal might be a good choice"); change in % points
     "sf": ("Snowfall, % of normal", "% of normal", [0, 25, 50, 75, 90, 110, 125, 150, 200, 300, 400],
            [-100, -50, -25, -10, 10, 25, 50, 100], "BrBG", None, None),
+    # snow depth (snowpack water equivalent, monthly mean) — absolute anomaly in mm and % of the hindcast
+    # normal (user 2026-09-07: "snow depth anomalies ... mainly for northwest/quebec hydro")
+    "sd": ("Snowpack water equivalent anomaly", "mm w.e.", [-150, -100, -60, -30, -15, -5, 5, 15, 30, 60, 100, 150],
+           [-60, -30, -15, -5, 5, 15, 30, 60], "BrBG", None, None),
+    "sdp": ("Snowpack, % of normal", "% of normal", [0, 25, 50, 75, 90, 110, 125, 150, 200, 300, 400],
+            [-100, -50, -25, -10, 10, 25, 50, 100], "BrBG", None, None),
 }
-MAP_CENTRAL = {"sst": -160.0, "sf": -110.0}   # SST cut at 20°E (Africa); everything else at 40°E; snow is a NA box
+MAP_CENTRAL = {"sst": -160.0, "sf": -110.0, "sd": -110.0, "sdp": -110.0}   # SST cut at 20°E (Africa); everything else at 40°E; snow is a NA box
 MAP_CENTRAL_DEFAULT = -140.0
-MAP_EXTENT = {"sf": [-170, -50, 25, 75]}      # [W, E, S, N] for regional variables
+MAP_EXTENT = {"sf": [-170, -50, 25, 75], "sd": [-170, -50, 25, 75], "sdp": [-170, -50, 25, 75]}      # [W, E, S, N] for regional variables
 
 
 def load_global(ym: str) -> dict:
@@ -502,6 +508,12 @@ def load_global(ym: str) -> dict:
         fc, lat, lon = load_field(fc_path("na_snow", ym), "mtsfr")
         hc, _, _ = load_field(hc_path("na_snow", ym[4:]), "mtsfr")
         out["sf"] = (fc * fac, np.nanmean(hc, axis=0) * fac[0], lat, lon); del hc
+    if fc_path("na_snowdepth", ym).exists() and hc_path("na_snowdepth", ym[4:]).exists():
+        fc, lat, lon = load_field(fc_path("na_snowdepth", ym), "sd")                   # m of water equivalent
+        hc, _, _ = load_field(hc_path("na_snowdepth", ym[4:]), "sd")
+        hcm = np.nanmean(hc, axis=0) * 1000.0; del hc
+        out["sd"] = (fc * 1000.0, hcm, lat, lon)                                     # mm w.e.
+        out["sdp"] = (fc * 1000.0, hcm, lat, lon)
     return out
 
 
@@ -556,7 +568,7 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
         cl = [x for x in np.arange(-6, 6.01, cstep) if abs(x) > 1e-9]
         cs = ax.contour(lon_c, lat, np.ma.masked_invalid(d_c), levels=cl, colors="#333", linewidths=0.35, transform=pc, zorder=2)
         ax.clabel(cs, fontsize=5.5, fmt=lambda v: f"{v:+.2g}", inline=True, inline_spacing=2)
-    if var in ("t2m", "tp", "sf"):
+    if var in ("t2m", "tp", "sf", "sd", "sdp"):
         ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2); ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
     ax.coastlines(resolution="50m", linewidth=0.45, color="#222", zorder=3)
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.25, edgecolor="#666", zorder=3)
@@ -598,8 +610,9 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
         for key, plabel, ln, lp in periods:
             idx = [L - 1 for L in ln]
             a = fcm[idx].mean(0) - hcm[idx].mean(0)
-            if var == "sf":                                                     # % of the hindcast normal, blank under 1 cm/month
-                nrm = hcm[idx].mean(0); a = np.where(nrm >= 1.0, 100.0 * fcm[idx].mean(0) / np.maximum(nrm, 1e-6), np.nan)
+            if var in ("sf", "sdp"):                                            # % of the hindcast normal, blank where it is tiny
+                nrm = hcm[idx].mean(0); floor = 1.0 if var == "sf" else 10.0     # 1 cm/month of snowfall, 10 mm w.e. of snowpack
+                a = np.where(nrm >= floor, 100.0 * fcm[idx].mean(0) / np.maximum(nrm, 1e-6), np.nan)
             if hc_ym is not None:
                 # heights carry the warming trend (+40–60 m over the tropics against a 1993–2016 mean, which is
                 # many σ where the year-to-year spread is small): the reference is the hindcast's linear trend
@@ -610,16 +623,19 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
                 ref = ym_.mean(0) + slope * target; sd = np.nanstd(ym_ - slope[None] * yr[:, None, None], axis=0)
                 a = (fcm[idx].mean(0) - ref) / np.where(sd > 0, sd, np.nan)
             out = out_dir / f"seas5_map_{var}_anom_{key}.webp"
-            _global_map(a, lat, lon, var, lv_a, cmap, cs_a, f"SEAS5 {label}{'' if var == 'sf' else ' anomaly'} · {plabel} · {issue_lbl}",
+            _global_map(a, lat, lon, var, lv_a, cmap, cs_a, f"SEAS5 {label}{'' if var in ('sf', 'sdp', 'sd') else ' anomaly'} · {plabel} · {issue_lbl}",
                         ("Ensemble-mean snowfall (10:1 snow-to-liquid ratio) as % of the 1993–2016 start-month hindcast mean for the same lead (25 members × 24 years), 1° grid; blank where the normal is under 1 cm a month." if var == "sf" else
+                         "Ensemble-mean monthly snowpack (snow depth in water equivalent) as % of the 1993–2016 start-month hindcast mean for the same lead (25 members × 24 years), 1° grid; blank where the normal is under 10 mm." if var == "sdp" else
+                         "Ensemble mean of 51 members minus the 1993–2016 start-month hindcast mean (25 members × 24 years): monthly-mean snowpack in mm of water equivalent, 1° grid." if var == "sd" else
                          "Ensemble mean of 51 members minus the 1993–2016 start-month hindcast mean (25 members × 24 years), 1° grid." + (" Heights: departure from the hindcast's linear trend at the valid year, in σ of the residual year-to-year spread; the whole tropical belt sits 3–4σ high in this El Niño." if hc_ym is not None else "")),
-                        ("% of the hindcast normal" if var == "sf" else f"anomaly ({units})"), out)
+                        ("% of the hindcast normal" if var in ("sf", "sdp") else f"anomaly ({units})"), out)
             entry["anom"][key] = dict(file=out.name, mean=float(np.nanmean(a)))
             if pb is not None and lp is not None:
                 fcp, hcp = pb[0], pb[1]; ip = [L - 1 for L in lp]
                 ap = np.nanmean(fcp, axis=0)[ip].mean(0) - hcp[ip].mean(0)
-                if var == "sf":
-                    nrmp = hcp[ip].mean(0); ap = np.where(nrmp >= 1.0, 100.0 * np.nanmean(fcp, axis=0)[ip].mean(0) / np.maximum(nrmp, 1e-6), np.nan)
+                if var in ("sf", "sdp"):
+                    nrmp = hcp[ip].mean(0); floorp = 1.0 if var == "sf" else 10.0
+                    ap = np.where(nrmp >= floorp, 100.0 * np.nanmean(fcp, axis=0)[ip].mean(0) / np.maximum(nrmp, 1e-6), np.nan)
                 if hc_ym is not None and len(pb) > 4 and pb[4] is not None:     # previous issue: its own trend reference, this σ
                     ymp = pb[4][:, ip].mean(1); nyp = ymp.shape[0]; yrp = np.arange(nyp) - (nyp - 1) / 2
                     slp = (yrp[:, None, None] * (ymp - ymp.mean(0))).sum(0) / (yrp ** 2).sum()
@@ -629,7 +645,7 @@ def render_global_maps(ym: str, prev: str | None, out_dir: Path, only=None) -> d
                 out = out_dir / f"seas5_map_{var}_chg_{key}.webp"
                 _global_map(c, lat, lon, var, lv_c, cmap, cs_c, f"SEAS5 {label}: change since the {prev_lbl} · {plabel} · {issue_lbl}",
                             "Each issue's ensemble mean anomalised against its own start-month hindcast, so this is the shift in the forecast, not drift. Periods the earlier issue does not cover are not drawn.",
-                            (f"change in % of normal (points), {issue_lbl} minus {prev_lbl}" if var == "sf" else f"change in ensemble-mean anomaly ({units}), {issue_lbl} minus {prev_lbl}"), out)
+                            (f"change in % of normal (points), {issue_lbl} minus {prev_lbl}" if var in ("sf", "sdp") else f"change in ensemble-mean anomaly ({units}), {issue_lbl} minus {prev_lbl}"), out)
                 entry["chg"][key] = dict(file=out.name, mean=float(np.nanmean(c)))
         meta["vars"][var] = entry
         print(f"  global maps {var}: {len(entry['anom'])} anomaly, {len(entry['chg'])} change", flush=True)
