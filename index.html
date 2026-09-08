@@ -202,6 +202,21 @@
   .row + .row { border-top: 1px solid var(--cloud-2); }
   .rows .sub { list-style: none; margin: 0; padding: 1.1rem 0 0.3rem; font-family: var(--sans); font-size: 0.8rem; letter-spacing: 0.05em; color: var(--storm); }
   .rows .sub + .row { border-top: 0; }
+  /* wide screens: the product list runs in two or three columns of compact cards (title, cadence,
+     description underneath) instead of one long ledger (user 2026-09-08: "too long ... make it
+     multi-column if screen size allows") */
+  @media (min-width: 1100px) {
+    /* the product ledger may run wider than the reading measure: up to 94 % of the viewport */
+    main.wrap { max-width: min(94vw, 1800px); }
+    .rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr)); gap: 0 2.5rem; align-items: start; }
+    .rows .sub { grid-column: 1 / -1; padding-top: 1.3rem; }
+    .row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title when" "what what"; gap: 0.3rem 1rem; padding: 0.9rem 0.6rem; }
+    .row a { grid-area: title; }
+    .row .when { grid-area: when; align-self: baseline; }
+    .row .what { grid-area: what; font-size: 0.94rem; line-height: 1.45; }
+    .row, .row + .row { border-top: 1px solid var(--cloud-2); }   /* every card has its own hairline in the grid */
+  }
+
   .row a {
     font-family: var(--serif); font-size: 1.28rem; font-weight: 400; line-height: 1.25;
     font-variation-settings: 'opsz' 24;
