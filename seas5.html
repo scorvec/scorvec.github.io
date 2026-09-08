@@ -741,7 +741,7 @@
       function thrs() { return kind() === "south" ? X.thr_south.map(String) : kind() === "speed" ? X.thr_speed.map(String) : []; }
       function draw() {
         pb.innerHTML = PRODS.map(function (q) { return '<button class="pill' + (q[0] === st.p ? " on" : "") + '" data-p="' + q[0] + '">' + q[1] + "</button>"; }).join("");
-        var T = thrs(); if (T.length && T.indexOf(st.t) < 0) st.t = T[1] || T[0];
+        var T = thrs(); if (T.length && T.indexOf(st.t) < 0) st.t = T[0];
         tb.innerHTML = T.length ? '<span class="ctlsep">Threshold</span>' + T.map(function (t) { return '<button class="pill' + (t === st.t ? " on" : "") + '" data-t="' + t + '">' + t + " m/s</button>"; }).join("") : "";
         if (months.indexOf(st.m) < 0) st.m = months[Math.min(3, months.length - 1)];
         mb.innerHTML = '<span class="ctlsep">Month</span>' + months.map(function (mo) { return '<button class="pill' + (mo === st.m ? " on" : "") + '" data-m="' + mo + '">' + mmm(mo) + "</button>"; }).join("");

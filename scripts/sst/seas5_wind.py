@@ -26,8 +26,8 @@ from seas5_extremes_build import CITIES, map_geometry, _CITY_PX                 
 from seas5_build import valid_months                                                       # noqa: E402
 
 REGION = "us"; AREA = REGIONS["us"][2]
-SOUTHERLY = [4, 6, 8]            # daily-mean v10 (m/s), positive = southerly
-SPEED = [8, 10, 12]              # daily-max 6-hourly 10 m speed (m/s)
+SOUTHERLY = [3, 4, 6]            # daily-mean v10 (m/s), positive = southerly; 10 m wind over land is weak, so start low
+SPEED = [6, 8, 10]               # daily-max 6-hourly 10 m speed (m/s)
 OUT_JSON = ASSETS / "data" / "seas5_wind.json"
 PCT_LEVELS = [0, 25, 50, 75, 90, 110, 125, 150, 200, 300, 400]
 PCT_COLORS = ["#8f2a0d", "#c8451c", "#e8703c", "#fbc39c", "#f4f4f1", "#dbe9f6", "#b7d2ec", "#8ab6df", "#5c95cd", "#3672b6"]
