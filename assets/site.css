@@ -46,7 +46,7 @@
   background: linear-gradient(90deg, var(--c-accent) 0%, color-mix(in srgb, var(--c-accent) 55%, #7fb2a3) 45%, transparent 100%);
 }
 .sh-in {
-  max-width: 1500px; margin: 0 auto;
+  max-width: min(94vw, 2000px); margin: 0 auto;
   padding: 0 clamp(1rem, 3vw, 2.5rem);
   min-height: 64px;
   display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
@@ -214,7 +214,7 @@
   border-bottom: 1px solid var(--c-rule);
 }
 .st-in {
-  max-width: 1500px; margin: 0 auto;
+  max-width: min(94vw, 2000px); margin: 0 auto;
   padding: 0 clamp(1rem, 3vw, 2.5rem);
   display: flex; gap: 0.25rem; overflow-x: auto; scrollbar-width: none;
 }
@@ -236,7 +236,7 @@
   font-size: 0.9rem;
 }
 .sf-in {
-  max-width: 1500px; margin: 0 auto;
+  max-width: min(94vw, 2000px); margin: 0 auto;
   padding: 1.5rem clamp(1rem, 3vw, 2.5rem) 2rem;
   display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.8rem 2rem;
 }

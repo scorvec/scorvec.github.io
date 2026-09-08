@@ -49,7 +49,7 @@ select:disabled{opacity:.45;cursor:not-allowed}
 .banner.warn{background:#fdf1f0;color:#8d3226;border-color:#f2d5d1}
 .banner b{font-family:var(--mono)}
 
-main{padding:16px 20px 56px;max-width:1560px}
+main{padding:16px 20px 56px;max-width:min(94vw, 2000px)}
 section{margin-bottom:26px}
 h2{font:600 12px/1 var(--sans);letter-spacing:.7px;text-transform:uppercase;
   color:var(--ink2);margin:0 0 10px;padding-bottom:7px;border-bottom:1px solid var(--line)}
@@ -121,7 +121,7 @@ table.grid td.k i.livetag{font-style:normal;font-size:9.5px;font-weight:700;colo
 svg rect.hit:hover{fill:rgba(15,41,66,.045)}
 
 /* --- period column groups ------------------------------------------------ */
-main{max-width:1880px}
+main{max-width:min(96vw, 2200px)}
 table.grid thead th.sub{font-size:9.5px;font-weight:600;color:#a6b2c2;padding:2px 9px 5px;
   letter-spacing:.4px;text-transform:none;border-bottom:1px solid var(--line)}
 table.grid thead tr:first-child th{border-bottom:0;padding-bottom:3px}
