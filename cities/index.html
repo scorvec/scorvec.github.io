@@ -582,7 +582,12 @@ async function load(){
     const day = d => d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
     const hm = d => `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')} UTC`;
     $('#ncity').textContent = D.n_cities; $('#nmem').textContent = D.n_members;
-    $('#sub').textContent = `Models initialised ${hm(ini)} on ${day(ini)}. Page built ${hm(blt)}${day(blt) === day(ini) ? '' : ' on ' + day(blt)}.`; }
+    // A run this page can no longer call current says so, in the one line everybody reads.
+    // Silence was the old failure mode: when the publisher stalled the page went on serving a
+    // two-day-old run and looked exactly like a fresh one (2026-09-09).
+    const ageH = (Date.now() - ini.getTime()) / 3.6e6;
+    $('#sub').innerHTML = `Models initialised ${hm(ini)} on ${day(ini)}. Page built ${hm(blt)}${day(blt) === day(ini) ? '' : ' on ' + day(blt)}.`
+      + (ageH > 26 ? ` <b style="color:#b4442b">Run is ${Math.round(ageH)} h old — newer cycles have not published.</b>` : ''); }
   sel = D.cities.KORD ? 'KORD' : Object.keys(D.cities)[0];
   $('#thr').value = THR_DEFAULT[M()]; $('#thrlab').textContent = '°F, P(≥)';
   refresh();
