@@ -139,6 +139,8 @@ tr:hover td{background:#f3f6fa}tr.sel td{background:#e6eef8}
   <div class="grp"><span>compare with</span><select id="prev"><option value="">— none —</option></select></div>
   <div class="grp"><span>metric</span>
     <select id="metric"><option value="hi">max temp</option><option value="lo">min temp</option><option value="tmean">mean temp</option><option value="hdd">HDD</option><option value="cdd">CDD</option></select></div>
+  <div class="grp" id="basisgrp" hidden><span>degree-day basis</span>
+    <select id="basis"><option value="mid">midpoint (market)</option><option value="hourly">hourly integral</option></select></div>
   <div class="grp"><span>colour by</span>
     <select id="colour">
       <option value="value">value</option><option value="vsnorm">vs normal</option><option value="dsess">Δ vs the chosen run</option>
@@ -188,10 +190,18 @@ let D = null, GEO = null, PATHS = null, sel = null, DAYI = 0, sortKey = 'value',
 let MODELS = [];
 let PREV = null, PREVI = [];
 const DET = {};
-const LBL = { hi: 'max temp (°F)', lo: 'min temp (°F)', tmean: 'mean temp (°F)', hdd: 'HDD', cdd: 'CDD' };
-const isDD = m => m === 'hdd' || m === 'cdd';
+const LBL = { hi: 'max temp (°F)', lo: 'min temp (°F)', tmean: 'mean temp (°F)', hdd: 'HDD', cdd: 'CDD',
+              hddh: 'HDD (hourly)', cddh: 'CDD (hourly)' };
+const isDD = m => m === 'hdd' || m === 'cdd' || m === 'hddh' || m === 'cddh';
+const isHDD = m => m === 'hdd' || m === 'hddh';
 const isWin = () => $('#win').checked;
-const M = () => $('#metric').value;
+// Two degree-day conventions, and they are different quantities rather than two
+// estimates of one: the market's midpoint of the day's extremes, and the integral
+// of the reconstructed hourly curve, which a cool dawn raises even when a warm
+// afternoon cancels it in the midpoint. 'hddh'/'cddh' are their own metric keys, so
+// every column, quantile and run-over-run change follows the basis automatically.
+const hourlyBasis = () => $('#basis') && $('#basis').value === 'hourly';
+const M = () => { const m = $('#metric').value; return (hourlyBasis() && (m === 'hdd' || m === 'cdd')) ? m + 'h' : m; };
 const fmt = (v, d = 1) => (v == null || !isFinite(v)) ? '' : v.toFixed(d);
 const sg = (v, d = 1) => v == null || !isFinite(v) ? '' : `<span style="color:${v > 0 ? 'var(--hi)' : v < 0 ? 'var(--lo)' : '#7b8798'}">${v > 0 ? '+' : ''}${v.toFixed(d)}</span>`;
 const consKey = m => m === 'tmean' ? 'mean' : m;
@@ -206,7 +216,7 @@ function pExceed(qs, x){
   for (let i = 0; i < 6; i++) if (x >= qs[i] && x <= qs[i + 1]){ const f = (qs[i + 1] - qs[i]) ? (x - qs[i]) / (qs[i + 1] - qs[i]) : 0; return 1 - (QP[i] + f * (QP[i + 1] - QP[i])); }
   return null;
 }
-const THR_DEFAULT = { hi: 95, lo: 32, tmean: 75, hdd: 10, cdd: 10 };
+const THR_DEFAULT = { hi: 95, lo: 32, tmean: 75, hdd: 10, cdd: 10, hddh: 10, cddh: 10 };
 function thrVal(){ const v = parseFloat($('#thr').value); return isFinite(v) ? v : THR_DEFAULT[M()]; }
 const thrIsBelow = () => M() === 'lo';
 
@@ -218,10 +228,17 @@ async function loadPrev(cycle){
   PREV = r.ok ? (PREVC[cycle] = await r.json()) : null;
 }
 function prevOf(icao){ return PREV && PREV.cities[icao] || null; }
+// A run archived before a metric existed simply has no series for it — the hourly
+// degree days start on 2026-09-09 — so every prior-run comparison checks that BOTH
+// documents carry the key before subtracting.
+function has(doc, kind, ck, level){
+  return level == null ? !!(doc.cons && doc.cons[ck]) : !!(doc.q && doc.q[kind] && doc.q[kind][level]);
+}
 function dPrev(icao, kind, j, level){
   const p = prevOf(icao); if (!p) return null;
   const c = D.cities[icao], d = c.dates[j], k = p.dates.indexOf(d); if (k < 0) return null;
   const ck = kind === 'tmean' ? 'mean' : kind;
+  if (!has(c, kind, ck, level) || !has(p, kind, ck, level)) return null;
   const now = level == null ? c.cons[ck][j] : c.q[kind][level][j];
   const was = level == null ? p.cons[ck][k] : p.q[kind][level][k];
   return now == null || was == null ? null : now - was;
@@ -229,6 +246,7 @@ function dPrev(icao, kind, j, level){
 function dPrevWin(icao, kind, level){
   const p = prevOf(icao); if (!p) return null;
   const c = D.cities[icao], ck = kind === 'tmean' ? 'mean' : kind; let a = [], b = [];
+  if (!has(c, kind, ck, level) || !has(p, kind, ck, level)) return null;
   c.dates.forEach((d, j) => { const k = p.dates.indexOf(d); if (k < 0) return;
     const now = level == null ? c.cons[ck][j] : c.q[kind][level][j], was = level == null ? p.cons[ck][k] : p.q[kind][level][k];
     if (now != null && was != null){ a.push(now); b.push(was); } });
@@ -306,9 +324,9 @@ function scaleFor(vals){
   const c = $('#colour').value, m = M(), v = vals.filter(x => x != null && isFinite(x));
   if (!v.length) return { lo: 0, hi: 1, f: () => '#ccc', lab: ['', ''] };
   if (c === 'value'){ const lo = Math.min(...v), hi = Math.max(...v);
-    return { lo, hi, f: x => ramp(SEQ, m === 'hdd' ? 1 - (x - lo) / (hi - lo || 1) : (x - lo) / (hi - lo || 1)), lab: [fmt(lo, 0), fmt(hi, 0)] }; }
+    return { lo, hi, f: x => ramp(SEQ, isHDD(m) ? 1 - (x - lo) / (hi - lo || 1) : (x - lo) / (hi - lo || 1)), lab: [fmt(lo, 0), fmt(hi, 0)] }; }
   if (c === 'vsnorm' || c === 'dsess'){ const a = Math.max(...v.map(Math.abs)) || 1;
-    return { lo: -a, hi: a, f: x => ramp(DIV, m === 'hdd' ? .5 - x / (2 * a) : .5 + x / (2 * a)), lab: [sgTxt(-a), sgTxt(a)] }; }
+    return { lo: -a, hi: a, f: x => ramp(DIV, isHDD(m) ? .5 - x / (2 * a) : .5 + x / (2 * a)), lab: [sgTxt(-a), sgTxt(a)] }; }
   if (c === 'conf'){ return { lo: 0.4, hi: 1.6, f: x => ramp(DIV, (x - 0.4) / 1.2), lab: ['0.4 confident', '1.6 uncertain'] }; }
   if (c === 'pthr' || c === 'pnorm'){ return { lo: 0, hi: 1, f: x => ramp(MAG, x), lab: ['0%', '100%'] }; }
   if (c === 'lean'){ const a = Math.max(.05, ...v.map(Math.abs)); return { lo: -a, hi: a, f: x => ramp(DIV, .5 + x / (2 * a)), lab: [`${Math.round(-100 * a)} pp down`, `+${Math.round(100 * a)} pp up`] }; }
@@ -358,7 +376,7 @@ function drawMap(){
   const dayTxt = isWin() ? `whole ${D.dates.length}-day window` : `${D.cities[Object.keys(D.cities)[0]].dates[DAYI]} · day ${DAYI + 1}`;
   $('#mt1').textContent = `${lab} · ${dayTxt}`;
   const cb = $('#colour').value, stops = cb === 'value' ? SEQ : (cb === 'vsnorm' || cb === 'dsess' || cb === 'conf' || cb === 'lean') ? DIV : MAG;
-  $('#lgsw').style.background = `linear-gradient(90deg,${[0, .25, .5, .75, 1].map(t => ramp(stops, m === 'hdd' && (cb === 'value' || cb === 'vsnorm' || cb === 'dsess') ? 1 - t : t)).join(',')})`;
+  $('#lgsw').style.background = `linear-gradient(90deg,${[0, .25, .5, .75, 1].map(t => ramp(stops, isHDD(m) && (cb === 'value' || cb === 'vsnorm' || cb === 'dsess') ? 1 - t : t)).join(',')})`;
   $('#lg0').textContent = sc.lab[0]; $('#lg1').textContent = sc.lab[1]; $('#lgt').textContent = `${r.length} stations`;
 }
 $('#map').addEventListener('pointermove', e => {
@@ -412,7 +430,10 @@ function table(){
   const dayTxt = isWin() ? `whole ${D.dates.length}-day window` : `${D.cities[Object.keys(D.cities)[0]].dates[DAYI]} (day ${DAYI + 1})`;
   $('#t1').textContent = `${dayTxt} · ${LBL[m]} · ${r.length} cities`;
   const cmpTxt = PREV ? `vs the ${prevLabel(PREV.cycle)} run` : 'vs the run chosen in "compare with"';
-  $('#h1').innerHTML = `<b>max/min</b> = consensus high/low for the day (window average when "whole window") · <b>vs normal</b> = departure from the 1991–2020 normal · <b>Δ base</b> and <b>Δp</b> = change ${PREV ? 'vs the ' + prevLabel(PREV.cycle) + ' run' : 'vs the run chosen in "compare with"'}, on the days both runs cover · <b>p5…p95</b> = ensemble quantiles · <b>spread÷normal</b> = today's ensemble spread relative to what is usual for the lead (&gt;1.25 unusually uncertain, &lt;0.8 unusually confident) · <b>P(${thrIsBelow() ? '≤' : '≥'} ${thrVal()})</b> = chance the ${LBL[m]} ${thrIsBelow() ? 'falls to or below' : 'reaches'} the threshold set in the bar · <b>P(&gt;normal)</b> = chance it ends up above the normal · <b>lean</b> = which way the risk leans, in percentage points`;
+  const basisNote = (M() === 'hddh' || M() === 'cddh')
+    ? `<b>hourly basis</b> = degree hours below/above 65 °F from each member's reconstructed diurnal curve, averaged over the day — a different quantity from the midpoint of the extremes the market trades, and larger in the shoulder season because a warm afternoon does not undo a cool dawn for a building. Cities whose last local day is not four full model samples carry that day blank, so their window total covers one day fewer. Normals and risk lean are published on the midpoint basis only. · `
+    : '';
+  $('#h1').innerHTML = basisNote + `<b>max/min</b> = consensus high/low for the day (window average when "whole window") · <b>vs normal</b> = departure from the 1991–2020 normal · <b>Δ base</b> and <b>Δp</b> = change ${PREV ? 'vs the ' + prevLabel(PREV.cycle) + ' run' : 'vs the run chosen in "compare with"'}, on the days both runs cover · <b>p5…p95</b> = ensemble quantiles · <b>spread÷normal</b> = today's ensemble spread relative to what is usual for the lead (&gt;1.25 unusually uncertain, &lt;0.8 unusually confident) · <b>P(${thrIsBelow() ? '≤' : '≥'} ${thrVal()})</b> = chance the ${LBL[m]} ${thrIsBelow() ? 'falls to or below' : 'reaches'} the threshold set in the bar · <b>P(&gt;normal)</b> = chance it ends up above the normal · <b>lean</b> = which way the risk leans, in percentage points`;
 }
 
 function fit(cv, h){ const r = window.devicePixelRatio || 1, w = cv.parentElement.clientWidth - 24; cv.width = Math.max(300, w) * r; cv.height = h * r; cv.style.height = h + 'px';
@@ -555,7 +576,16 @@ function refresh(){
   $('#day').disabled = isWin();
   drawMap(); table(); fan(); if (!isWin()) inlineDay();
 }
-$('#metric').addEventListener('change', () => { $('#thr').value = THR_DEFAULT[M()]; $('#thrlab').textContent = thrIsBelow() ? '°F, P(low ≤)' : isDD(M()) ? '/day, P(≥)' : '°F, P(≥)'; refresh(); });
+function syncBasis(){
+  const raw = $('#metric').value, dd = raw === 'hdd' || raw === 'cdd';
+  // the toggle only appears for the degree-day metrics, and only when the loaded run
+  // actually archived the hourly pair (runs before 2026-09-09 did not)
+  const have = D && Object.values(D.cities).some(c => c.basis_hourly);
+  $('#basisgrp').hidden = !(dd && have);
+  if (!dd || !have) $('#basis').value = 'mid';
+}
+$('#metric').addEventListener('change', () => { syncBasis(); $('#thr').value = THR_DEFAULT[M()]; $('#thrlab').textContent = thrIsBelow() ? '°F, P(low ≤)' : isDD(M()) ? '/day, P(≥)' : '°F, P(≥)'; refresh(); });
+$('#basis').addEventListener('change', refresh);
 ['#colour', '#state'].forEach(id => $(id).addEventListener('change', refresh));
 $('#thr').addEventListener('change', refresh); $('#thr').addEventListener('keyup', e => { if (e.key === 'Enter') refresh(); });
 $('#find').addEventListener('input', () => { drawMap(); table(); });
@@ -589,6 +619,7 @@ async function load(){
     $('#sub').innerHTML = `Models initialised ${hm(ini)} on ${day(ini)}. Page built ${hm(blt)}${day(blt) === day(ini) ? '' : ' on ' + day(blt)}.`
       + (ageH > 26 ? ` <b style="color:#b4442b">Run is ${Math.round(ageH)} h old — newer cycles have not published.</b>` : ''); }
   sel = D.cities.KORD ? 'KORD' : Object.keys(D.cities)[0];
+  syncBasis();
   $('#thr').value = THR_DEFAULT[M()]; $('#thrlab').textContent = '°F, P(≥)';
   refresh();
 }
