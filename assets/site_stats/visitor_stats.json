@@ -1,17 +1,17 @@
 {
- "updated": "2026-09-08",
- "total_30d": 471,
+ "updated": "2026-09-09",
+ "total_30d": 469,
  "countries_30d": 4,
  "total_all": 738,
  "countries_all": 9,
  "top_pages_30d": [
   {
    "path": "/",
-   "count": 87
+   "count": 86
   },
   {
    "path": "/sst.html",
-   "count": 69
+   "count": 68
   },
   {
    "path": "/enso-atmosphere.html",
@@ -22,11 +22,11 @@
    "count": 40
   },
   {
-   "path": "/asos5.html",
-   "count": 36
+   "path": "/enso-subsurface.html",
+   "count": 35
   },
   {
-   "path": "/enso-subsurface.html",
+   "path": "/asos5.html",
    "count": 35
   },
   {
