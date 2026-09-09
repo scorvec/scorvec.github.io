@@ -15,7 +15,7 @@
   var ORDER = []; GROUPS.forEach(function (g) { g.items.forEach(function (p) { ORDER.push(p[0]); }); });
   var sel = { p: ORDER[0], a: null, b: null, c: null };
   var $ = function (id) { return document.getElementById(id); };
-  var mounted = null, mountedHome = null;
+  var mounted = null, mountedHome = null, pinMax = 0;
 
   function buildRail() {
     var host = $("rail"); host.innerHTML = "";
@@ -48,27 +48,47 @@
     });
     return sel[key];
   }
-  // One rendered width for every still (user, 2026-09-07: "make them look around the same size"):
-  // the image always spans the stage; its height is capped to the viewport so a tall panel does
-  // not tower over a wide one (object-fit: contain in stage.css letterboxes inside that box).
-  // height budget for the figure = the viewport minus what sits above the figure once the panel
-  // is scrolled to the top (site header 74 px + crumb + option rows) and the caption below it, so
-  // the figure fills the screen after at most one scroll, at any window size (user 2026-09-07:
-  // "adjust properly to the screen size"); the page header above the panel is not charged
+  // SIZING (reworked 2026-09-09 after "the images are showing up way too small and not fitting
+  // properly" on a 1366x768 laptop). The width leads: a figure is drawn at the full stage width
+  // unless that would make it taller than tallCap(), and only then is it scaled down. The old rule
+  // capped every figure at the first-screen height and let object-fit letterbox the rest, which
+  // turned a portrait panel (e.g. the 1312x1025 SST loop) into a 307 px thumbnail in a 975 px stage.
+  function stageWidth() {
+    var st = $("stage"), cs = getComputedStyle(st);
+    return st.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  }
+  // height that fits on the first screen: the viewport minus what sits above the figure once the
+  // panel is scrolled to the top (site header 74 px + crumb + option rows) and the caption below it
   function stageCap() {
     var st = $("stage"), main = document.querySelector(".ss-main");
     var above = st.getBoundingClientRect().top - main.getBoundingClientRect().top + 74;
     var avail = window.innerHeight - above - Math.max($("cap").offsetHeight, 40) - 30;
     return Math.round(Math.max(360, avail));
   }
+  // …and the height a figure may take before it is shrunk at all: a full viewport. A tall panel is
+  // then whole on the screen after one scroll — much larger than the old first-screen cap allowed,
+  // without ever being taller than the window.
+  function tallCap() { return Math.round(Math.max(stageCap(), window.innerHeight * 0.98)); }
   function fitStage() {
     var st = $("stage"), img = st.querySelector("img"), fr = st.querySelector("iframe");
     if (!img && !fr) return;
-    var cap = stageCap();
-    if (img) { img.style.width = "100%"; img.style.maxHeight = cap + "px"; }
-    if (fr) {                                                   // embeds keep their aspect: cap the width instead
+    var w = stageWidth();
+    if (img) {
+      // span the stage; only a figure that would then be taller than the budget is narrowed, and it
+      // is narrowed by width (so the box always equals the picture — nothing is letterboxed)
+      img.style.width = "100%"; img.style.maxHeight = "";
+      if (img.naturalWidth && img.naturalHeight) {
+        var full = w * img.naturalHeight / img.naturalWidth;      // height at 100% of the stage width
+        var lim = w < 700 ? Infinity : tallCap();   // phones: width is the scarce axis — never narrow
+        if (full > lim) img.style.width = Math.round(lim * img.naturalWidth / img.naturalHeight) + "px";
+      }
+    }
+    if (fr) {                                     // placeholder box, before the embed posts its size
       var m = /^\s*([\d.]+)\s*\/\s*([\d.]+)/.exec(fr.style.aspectRatio || "");
-      if (m) fr.style.maxWidth = Math.round(cap * parseFloat(m[1]) / parseFloat(m[2])) + "px";
+      if (m) {
+        var fullf = w * parseFloat(m[2]) / parseFloat(m[1]);
+        fr.style.maxWidth = (w >= 700 && fullf > tallCap()) ? Math.round(tallCap() * parseFloat(m[1]) / parseFloat(m[2])) + "px" : "";
+      }
     }
   }
   addEventListener("resize", fitStage);
@@ -87,14 +107,14 @@
     var ga = typeof p.a === "function" ? p.a() : (p.a || null); buttons($("opts-a"), ga, "a");
     var gb = typeof p.b === "function" ? p.b(sel.a) : (p.b || null); buttons($("opts-b"), gb, "b");
     var gc = typeof p.c === "function" ? p.c(sel.a, sel.b) : (p.c || null); buttons($("opts-c"), gc, "c");
-    var st = $("stage"); unmount(); st.innerHTML = "";
+    var st = $("stage"); unmount(); st.innerHTML = ""; pinMax = 0;
     if (p.dom) {
       var el = $(p.dom(sel.a, sel.b, sel.c));
       if (el) { mountedHome = { parent: el.parentNode, next: el.nextSibling }; mounted = el; st.appendChild(el); el.hidden = false;
         if (window.Plotly) Array.prototype.forEach.call(el.querySelectorAll(".js-plotly-plot"), function (g) { try { window.Plotly.Plots.resize(g); } catch (e) {} }); }
     } else if (p.frame && p.frame(sel.a, sel.b, sel.c)) {          // frame() may return null for an option that is a still
       var f = document.createElement("iframe"); f.title = p.label; f.loading = "lazy";
-      var fsrc = p.frame(sel.a, sel.b, sel.c); f.src = fsrc + (fsrc.indexOf("?") < 0 ? "?" : "&") + "maxh=" + stageCap();   // the embed caps its picture to the same budget
+      var fsrc = p.frame(sel.a, sel.b, sel.c); f.src = fsrc + (fsrc.indexOf("?") < 0 ? "?" : "&") + "maxh=" + (stageWidth() < 700 ? 4000 : tallCap());  // the embed caps its picture to the same budget
       f.style.aspectRatio = (p.ratio ? p.ratio(sel.a, sel.b, sel.c) : "1259/700"); st.appendChild(f); fitStage();
     } else {
       var src = p.img(sel.a, sel.b, sel.c); if (p.bust === "hourly") src += (src.indexOf("?") < 0 ? "?" : "&") + "v=" + hourKey();
@@ -131,7 +151,19 @@
   addEventListener("message", function (e) {
     var x = e.data; if (!x || x.type !== "sstAnimHeight") return;
     var f = document.querySelector("#stage iframe");
-    if (f && f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; f.style.maxWidth = x.w ? x.w + "px" : ""; }
+    if (f && f.contentWindow === e.source) {
+      f.style.height = x.h + "px"; f.style.aspectRatio = "auto";
+      // pin the iframe to the picture's width only when that is close to the stage width (a portrait
+      // loop hugging its figure). A much narrower ask means the embed shrank itself, and honouring it
+      // would wrap its region bar and shrink it again — leave the frame full width and let it re-measure.
+      var sw = stageWidth();
+      // Only ever WIDEN the pin within one render: honouring a smaller ask can wrap the embed's
+      // region bar, which shrinks its picture, which posts a smaller width again — a downward
+      // ratchet that once left a 1312x1025 loop 307 px wide. An ask under half the stage is that
+      // pathology, not a portrait figure, so it is ignored outright.
+      if (x.w > pinMax) pinMax = x.w;
+      f.style.maxWidth = (sw >= 700 && pinMax > sw * 0.5 && pinMax < sw * 0.98) ? pinMax + "px" : "";
+    }
   });
   addEventListener("hashchange", function () { var h = location.hash.replace(/^#/, "").split("/"); if (h[0] && P[h[0]]) { sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null }; render(); } });
   buildRail();

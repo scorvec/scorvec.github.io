@@ -273,10 +273,12 @@ function capHeight() {
       if (el === wrap || !el.offsetHeight) continue;
       extra += el.getBoundingClientRect().height;
     }
-    // an embedding page may pass its own height budget (?maxh=, the stage viewer's first-screen fit)
-    let lim = window.top.innerHeight * 0.88;
+    // An embedding page may pass its own height budget (?maxh=). It WINS outright, including over
+    // the 88vh default: the host has already measured its own layout and decided how much scrolling
+    // a tall figure is worth. Taking the min of the two capped the stage viewer's portrait loops at
+    // roughly half the width they had room for (fixed 2026-09-09).
     const mh = parseFloat(new URLSearchParams(location.search).get("maxh")) || 0;
-    if (mh > 0) lim = Math.min(lim, mh);
+    const lim = mh > 0 ? mh : window.top.innerHeight * 0.88;
     imgEl.style.maxHeight = Math.max(240, Math.round(lim - extra)) + "px";
   } catch (e) {}
 }
