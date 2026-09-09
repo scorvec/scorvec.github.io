@@ -103,15 +103,35 @@ def on_isentrope(pv, th, U, V, theta):
 
 
 # ── rendering ────────────────────────────────────────────────────────────────
-def _polar_axes(fig, rect=None):
+# Canvas geometry (inches). The map is a CIRCLE inscribed in a square, and a GeoAxes keeps an equal
+# aspect, so any rect that is not itself square leaves the leftover as white margin: the old
+# 9.6x9.9 figure with a 0.96x0.87 rect drew the circle 851 px wide inside 960 px and put 61 px of
+# white above the title. The rect below is square by construction (MAP_S on both sides), which is
+# the whole trick — the title and colour bar get the only bands that are not map.
+FIG_W, MAP_S, PAD_TOP, PAD_BOT = 9.6, 9.40, 0.26, 0.52
+FIG_H = MAP_S + PAD_TOP + PAD_BOT
+
+
+def _frame():
+    """A figure with the polar map filling it, and the colour-bar axes under it."""
     import cartopy.crs as ccrs
     import matplotlib.path as mpath
+    import matplotlib.pyplot as plt
+    fig = plt.figure(figsize=(FIG_W, FIG_H))
     proj = ccrs.NorthPolarStereo(central_longitude=CENTRAL_LON)
-    ax = fig.add_axes(rect or [0.02, 0.05, 0.96, 0.87], projection=proj)
+    ax = fig.add_axes([(FIG_W - MAP_S) / 2 / FIG_W, PAD_BOT / FIG_H, MAP_S / FIG_W, MAP_S / FIG_H], projection=proj)
     ax.set_extent([-180, 180, 20, 90], crs=ccrs.PlateCarree())
     theta = np.linspace(0, 2 * np.pi, 200); circle = mpath.Path(np.vstack([np.sin(theta), np.cos(theta)]).T * 0.5 + 0.5)
     ax.set_boundary(circle, transform=ax.transAxes)
-    return ax
+    cax = fig.add_axes([0.22, 0.36 / FIG_H, 0.56, 0.115 / FIG_H])
+    return fig, ax, cax
+
+
+def _bar(fig, cf, cax, label):
+    cb = fig.colorbar(cf, cax=cax, orientation="horizontal")
+    cb.ax.tick_params(labelsize=7.6, pad=1.5)
+    cb.set_label(label, fontsize=7.6, labelpad=2)
+    return cb
 
 
 def _coarse(a, n=2):
@@ -203,18 +223,16 @@ def main() -> int:
         valid = init + pd.Timedelta(hours=int(h)); lab = ("analysis" if h == 0 else f"+{h} h") + f" · {valid:%a %d %b %HZ}"
         if h in (0, 48, 96, 144):
             keep[h] = dt
-        fig = plt.figure(figsize=(9.6, 9.9)); ax = _polar_axes(fig)
+        fig, ax, cax = _frame()
         cf = draw_dt(ax, lat, lon, dt, f"Dynamic tropopause θ (2 PVU) — AIFS-ENS control, init {init:%d %b %HZ} · {lab}")
-        cax = fig.add_axes([0.2, 0.035, 0.6, 0.014]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
-        cb.set_label("θ on the 2-PVU surface (K) · black contours: DT pressure 200/300/400/500 hPa · arrows: wind on the DT", fontsize=8)
+        _bar(fig, cf, cax, "θ on the 2-PVU surface (K) · black contours: DT pressure 200/300/400/500 hPa · arrows: wind on the DT")
         fp = dirs["dt"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
         entries["dt"].append({"idx": k, "file": fp.name, "date": valid.strftime("%Y-%m-%d"), "label": lab})
         for theta, key in zip(THETAS, ("dt_pv330", "dt_pv350")):
             iso = on_isentrope(pv, th, U, V, theta)
-            fig = plt.figure(figsize=(9.6, 9.9)); ax = _polar_axes(fig)
+            fig, ax, cax = _frame()
             cf = draw_pv(ax, lat, lon, iso, theta, f"PV on {theta:.0f} K — AIFS-ENS control, init {init:%d %b %HZ} · {lab}")
-            cax = fig.add_axes([0.2, 0.035, 0.6, 0.014]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
-            cb.set_label(f"PV on {theta:.0f} K (PVU) · dark red: 2 PVU (the dynamic tropopause on this surface) · arrows: wind on {theta:.0f} K", fontsize=8)
+            _bar(fig, cf, cax, f"PV on {theta:.0f} K (PVU) · dark red: 2 PVU (the dynamic tropopause on this surface) · arrows: wind on {theta:.0f} K")
             fp = dirs[key] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
             entries[key].append({"idx": k, "file": fp.name, "date": valid.strftime("%Y-%m-%d"), "label": lab})
         if k % 5 == 0:
