@@ -68,7 +68,12 @@ jobs:
           # dask is NOT optional: without it xarray.open_zarr loads eagerly and the 4.8 GB
           # reforecast variables OOM-kill the climatology step.
           pip install --quiet numpy pandas xarray 'dask[array]' zarr s3fs fsspec \
-            matplotlib cartopy pyshtools ecmwf-opendata multiurl requests cfgrib eccodes
+            matplotlib cartopy pyshtools ecmwf-opendata multiurl requests cfgrib eccodes \
+            netCDF4 h5netcdf scipy
+          # netCDF4/h5netcdf are xarray BACKEND PLUGINS: nothing imports them by name, so an
+          # import-closure scan cannot see them, and xr.open_dataset on a .nc dies with
+          # "found the following matches ... in xarray's IO backends". The chi200 daily loop
+          # reads a committed netCDF climatology, so they are required.
 
       # The hindcast pool is per calendar month and costs ~20 min to build; keep it between runs.
       - name: Cache the SFS hindcast climatology
