@@ -81,8 +81,12 @@ jobs:
       # only the monthly loops must therefore start from the branch's existing frames, or it
       # deletes every loop it did not rebuild — which is exactly what the first run did to the
       # five day-16-46 loops on 2026-09-10.
-      - name: Seed the existing SFS frames from the frames branch
-        run: scripts/lib/fetch_frames_ci.sh assets/sfs/anim || true
+      # Two seeds. The frames, because publish_frames_ci.sh swaps directories in wholesale.
+      # And scripts/sfs/data, which carries the ERA5 1991-2020 daily climatology sfs_daily.py
+      # needs: it derives that from ~/era5_store, a 103 GB local-only store, and caches it as
+      # a 31 MB npz — seeding the cache is what lets the subseasonal loops run off-laptop.
+      - name: Seed the SFS frames and the ERA5 climatology cache from the frames branch
+        run: scripts/lib/fetch_frames_ci.sh assets/sfs/anim scripts/sfs/data || true
 
       - name: Which stores has NOAA published for this issue?
         id: stores
@@ -121,15 +125,15 @@ jobs:
       # ── daily products: only once atm_daily/ocn_daily publish, days later ──
       - name: MJO phase space (newest issue with daily stores)
         if: steps.stores.outputs.daily_issue != ''
-        run: python scripts/sfs/sfs_mjo.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "SFS MJO failed; continuing"
+        run: python scripts/sfs/sfs_mjo.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "::warning::SFS MJO failed; continuing"
 
       - name: 100 hPa polar view (newest issue with daily stores)
         if: steps.stores.outputs.daily_issue != ''
-        run: python scripts/sfs/sfs_polar100.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "SFS polar view failed; continuing"
+        run: python scripts/sfs/sfs_polar100.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "::warning::SFS polar view failed; continuing"
 
       - name: Subseasonal daily loops (newest issue with daily stores)
         if: steps.stores.outputs.daily_issue != ''
-        run: python scripts/sfs/sfs_daily.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "SFS daily loops failed; continuing"
+        run: python scripts/sfs/sfs_daily.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "::warning::SFS daily loops failed; continuing"
 
       - name: Publish the loop frames to the frames branch
         env:
