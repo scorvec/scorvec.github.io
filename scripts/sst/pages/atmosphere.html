@@ -176,15 +176,15 @@
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 250 hPa u/v, 25 perturbed members (open data, CC&nbsp;BY&nbsp;4.0) &middot; Takaya &amp; Nakamura (2001, JAS) eq.&nbsp;38, member-mean flux &middot; basic state &amp; &psi; climatology: ERA5 1991&ndash;2020 &middot; updated each 00/12Z cycle</span></div>
     </div>
 
-    <!-- DYNAMIC TROPOPAUSE — PV-based view of the upper flow, control member only -->
+    <!-- DYNAMIC TROPOPAUSE — PV-based view of the upper flow, member 0 only -->
     <div class="chart-card" id="dynamic-tropopause" data-label="Dynamic tropopause">
       <div class="chart-card-header">
         <h2>Dynamic Tropopause: &theta; on the 2-PVU Surface and Isentropic PV</h2>
-        <p>The upper-level flow as PV thinkers read it. Ertel potential vorticity is computed on the AIFS-ENS <b>control member&rsquo;s</b> temperature and wind on nine levels from 700 to 100&nbsp;hPa &mdash; the control alone, because PV does not survive ensemble averaging: a mean of fifty folds is a smear. The <b>dynamic tropopause</b> is the 2-PVU surface, found by searching upward from 700&nbsp;hPa; its potential temperature is shaded (low &theta;, blue, is stratospheric or polar air reaching down; high &theta;, red, is a tropical tropopause), its pressure contoured, and the wind on it drawn. Troughs, cut-off lows and ridges are the &theta; pattern itself; a tight gradient is the jet; a tongue of low &theta; wrapping up is a Rossby wave breaking. The other two loops give PV on the 330 and 350&nbsp;K isentropes with the 2-PVU line in dark red &mdash; 330&nbsp;K sits near the winter jet, 350&nbsp;K near the summer and subtropical one. 12-hourly to day 10, North Pacific to the Atlantic.</p>
+        <p>The upper-level flow as PV thinkers read it. Ertel potential vorticity is computed on the AIFS-ENS <b>member 0&rsquo;s</b> temperature and wind on nine levels from 700 to 100&nbsp;hPa &mdash; member 0 alone, because PV does not survive ensemble averaging: a mean of fifty folds is a smear. The <b>dynamic tropopause</b> is the 2-PVU surface, found by searching upward from 700&nbsp;hPa; its potential temperature is shaded (low &theta;, blue, is stratospheric or polar air reaching down; high &theta;, red, is a tropical tropopause), its pressure contoured, and the wind on it drawn. Troughs, cut-off lows and ridges are the &theta; pattern itself; a tight gradient is the jet; a tongue of low &theta; wrapping up is a Rossby wave breaking. The other two loops give PV on the 330 and 350&nbsp;K isentropes with the 2-PVU line in dark red &mdash; 330&nbsp;K sits near the winter jet, 350&nbsp;K near the summer and subtropical one. 12-hourly to day 10, North Pacific to the Atlantic.</p>
       </div>
       <iframe data-deferred class="anim-embed dt" data-src="sst_anim.html?embed=1&amp;manifest=dt_manifest.json&amp;region=dt"
-              title="Dynamic tropopause potential temperature and isentropic PV loops from the AIFS-ENS control, 12-hourly to day 10" loading="lazy"></iframe>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control t/u/v on 700&ndash;100 hPa (open data, CC&nbsp;BY&nbsp;4.0), 0.25&deg; &middot; Ertel PV on pressure levels, 2-PVU surface by linear interpolation in PV, isentropic PV by interpolation in &theta; &middot; updated each 00/12Z cycle</span></div>
+              title="Dynamic tropopause potential temperature and isentropic PV loops from the AIFS-ENS member 0, 12-hourly to day 10" loading="lazy"></iframe>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS member 0 t/u/v on 700&ndash;100 hPa (open data, CC&nbsp;BY&nbsp;4.0), 0.25&deg; &middot; Ertel PV on pressure levels, 2-PVU surface by linear interpolation in PV, isentropic PV by interpolation in &theta; &middot; updated each 00/12Z cycle</span></div>
     </div>
     <script type="application/ld+json">
     {
@@ -273,7 +273,7 @@
       <div class="deck-panel" hidden>
       <div class="chart-card-header">
         <h2>Where the AAM Lives, and Where It&rsquo;s Changing</h2>
-        <p>The torques above change the global AAM; this shows where that angular momentum sits and how the forecast moves it, as a latitude&ndash;pressure cross-section of the relative-AAM density whose integral over latitude and pressure through the 50&ndash;1000&nbsp;hPa layer is essentially the global AAM. <b>Top panel, absolute</b>: where the AAM resides, dominated by the subtropical jets (the winter hemisphere&rsquo;s is strongest). <b>Bottom, change versus the 0-h analysis</b>: where the forecast is adding (red) or removing (blue) angular momentum, with the per-latitude breakdown of the global &Delta;AAM along the top strip. Black contours are the zonal-mean zonal wind (bold = zero). The bottom panel integrates to the &Delta;AAM in the title, tying it back to the torque budget above. AIFS-ENS ensemble mean over the control and 25 perturbed members; the slider steps the forecast Day&nbsp;0&ndash;15.</p>
+        <p>The torques above change the global AAM; this shows where that angular momentum sits and how the forecast moves it, as a latitude&ndash;pressure cross-section of the relative-AAM density whose integral over latitude and pressure through the 50&ndash;1000&nbsp;hPa layer is essentially the global AAM. <b>Top panel, absolute</b>: where the AAM resides, dominated by the subtropical jets (the winter hemisphere&rsquo;s is strongest). <b>Bottom, change versus the 0-h analysis</b>: where the forecast is adding (red) or removing (blue) angular momentum, with the per-latitude breakdown of the global &Delta;AAM along the top strip. Black contours are the zonal-mean zonal wind (bold = zero). The bottom panel integrates to the &Delta;AAM in the title, tying it back to the torque budget above. AIFS-ENS ensemble mean over member 0 and 25 perturbed members; the slider steps the forecast Day&nbsp;0&ndash;15.</p>
       </div>
       <iframe data-deferred class="anim-embed aam-zonal" data-src="sst_anim.html?embed=1&amp;manifest=aam_zonal_manifest.json&amp;region=aam_zonal"
               title="AIFS-ENS relative AAM anatomy: absolute and forecast change by latitude and pressure" loading="lazy"></iframe>
@@ -330,7 +330,7 @@
       <iframe data-deferred class="anim-embed jets" data-src="sst_anim.html?embed=1&amp;manifest=jets_manifest.json&amp;region=jets"
               title="Subtropical jet forecast animation: zonal-mean wind anomaly cross-section, day 0-15 from AIFS-ENS" loading="lazy"></iframe>
       <div class="img-wrap"><img src="assets/sst/jets.webp?v=__CACHE__" alt="Subtropical jet monitor: zonal-mean wind cross-section anomaly and jet-core strength/latitude forecast vs ERA5 climatology" loading="lazy"></div>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind, control + 25 perturbed members (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 harmonic day-of-year normal &plusmn;1&sigma; (WeatherBench2 / Copernicus C3S) &middot; updated daily</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS 13-level zonal wind, member 0 + 25 perturbed members (open data, CC BY 4.0) &middot; clim: ERA5 1991&ndash;2020 harmonic day-of-year normal &plusmn;1&sigma; (WeatherBench2 / Copernicus C3S) &middot; updated daily</span></div>
       </div>
 
       <div class="deck-panel" hidden>
@@ -365,7 +365,7 @@
       <div class="deck-panel">
       <div class="chart-card-header">
         <h2>Northern Polar Vortex: 60&deg;N Winds &amp; Polar-Cap Height</h2>
-        <p>The stratospheric vortex is the slow variable that sets the odds for the surface weeks later, so it is worth watching before it moves. <b>Top</b>: the zonal-mean zonal wind at <b>10&nbsp;hPa, 60&deg;N</b> &mdash; the standard sudden-stratospheric-warming diagnostic. A reversal to <i>easterly</i> here in winter is a major SSW (the original WMO definition also asked for a reversed 60&ndash;90&deg; temperature gradient), which is why the zero line is drawn heavy and the member fraction crossing it is called out. <b>Middle</b>: the same wind at <b>100&nbsp;hPa</b>. Anomalies that reach this far down are the ones with a path to the troposphere &mdash; a 10&nbsp;hPa event that never appears at 100&nbsp;hPa usually never reaches the surface. <b>Bottom</b>: the <b>100&nbsp;hPa polar-cap (65&ndash;90&deg;N) height anomaly</b>, positive for a weak or displaced vortex; this is the field that actually leads the AO/NAO response. Blue traces are AIFS-ENS members, orange their mean, dashed the control. The 100&nbsp;hPa height is control-only because ECMWF open data publishes no perturbed geopotential at that level.</p>
+        <p>The stratospheric vortex is the slow variable that sets the odds for the surface weeks later, so it is worth watching before it moves. <b>Top</b>: the zonal-mean zonal wind at <b>10&nbsp;hPa, 60&deg;N</b> &mdash; the standard sudden-stratospheric-warming diagnostic. A reversal to <i>easterly</i> here in winter is a major SSW (the original WMO definition also asked for a reversed 60&ndash;90&deg; temperature gradient), which is why the zero line is drawn heavy and the member fraction crossing it is called out. <b>Middle</b>: the same wind at <b>100&nbsp;hPa</b>. Anomalies that reach this far down are the ones with a path to the troposphere &mdash; a 10&nbsp;hPa event that never appears at 100&nbsp;hPa usually never reaches the surface. <b>Bottom</b>: the <b>100&nbsp;hPa polar-cap (65&ndash;90&deg;N) height anomaly</b>, positive for a weak or displaced vortex; this is the field that actually leads the AO/NAO response. Blue traces are AIFS-ENS members, orange their mean, dashed member 0. The 100&nbsp;hPa height is member-0-only because ECMWF open data publishes no perturbed geopotential at that level.</p>
       </div>
       <div class="img-wrap"><img src="assets/sst/nh_vortex.webp?v=__CACHE__" alt="Northern polar vortex monitor: AIFS-ENS 60N zonal-mean zonal wind at 10 and 100 hPa and 100 hPa polar-cap height anomaly vs MERRA-2 climatology" loading="lazy"></div>
       <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS zonal wind and geopotential at 10/100&nbsp;hPa (open data, CC BY 4.0) &middot; reference: MERRA-2 1980&ndash;2026 day-of-year 10th&ndash;90th percentiles (NASA GMAO) &middot; analysis tail: ERA5 &middot; updated daily</span></div>
@@ -391,7 +391,7 @@
       where an SSW is declared; the loop's <b>Level</b> selector switches to
       <b>100&nbsp;hPa</b>, which is what decides whether any of it reaches the surface &mdash;
       a 10&nbsp;hPa anomaly that never appears at 100&nbsp;hPa usually goes nowhere.</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS control (open data, CC&nbsp;BY&nbsp;4.0) &middot; 10&nbsp;hPa speed shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS member 0 (open data, CC&nbsp;BY&nbsp;4.0) &middot; 10&nbsp;hPa speed shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</span></div>
       </div>
 
             <div class="deck-panel" hidden>
@@ -434,7 +434,7 @@
       the SH's much weaker tropospheric wave forcing, is why major SH warmings are so rare, and why the seasonal windows for vortex
       disruption are early/late winter, when the jet sits inside the propagation range.
       The dashed magenta line above is exactly this criterion &mdash; $\bar{u} = U_c$ for wave-1 with the standard meridional scale &mdash; evaluated on the live flow.</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; control + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; member 0 + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</span></div>
 
     <!-- WAVE-1 MONITOR -->
       </div>

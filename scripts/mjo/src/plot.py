@@ -135,7 +135,7 @@ def plot_rmm(
     # Ensemble mean
     mean_rmm1 = rmm1.mean(axis=0)
     mean_rmm2 = rmm2.mean(axis=0)
-    # Day 0 IS the analysis, so pin the plotted day-0 to the control member's lead-0 —
+    # Day 0 IS the analysis, so pin the plotted day-0 to member 0's lead-0 —
     # the exact value run_rmm.append_truth() archives as observed 'truth'. The ensemble
     # MEAN at lead 0 differs slightly from the control analysis (members are perturbed
     # at t=0), so without this the green Day-0 dot wouldn't land on next run's orange
@@ -170,7 +170,7 @@ def plot_rmm(
 
     # IFS-ENS overlay: the SAME machinery applied to the physics model —
     # members as a faint blue haze, ensemble mean as one bold blue line
-    # (day-0 pinned to its control, mirroring the AIFS mean above).
+    # (day-0 pinned to member 0, mirroring the AIFS mean above).
     if ifs is not None:
         i1 = ifs["rmm1"].values
         i2 = ifs["rmm2"].values

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AIFS single vs AIFS-ENS control — side-by-side forecast animators.
+"""AIFS single vs AIFS-ENS member 0 — side-by-side forecast animators.
 
 Two loops per 00Z/12Z cycle, every 6 h through hour 360:
   * North America: MSLP + 1000-500 thickness + 6-h precip (TropicalTidbits style)
@@ -328,9 +328,9 @@ def publish(specpath: Path):
     t0 = time.time()
     for loop, outdir, mpath, key, label in (
             (spec["loops"][0], ANIM, MANIFEST, "aifs_compare",
-             "AIFS single vs AIFS-ENS control — MSLP/thickness/precip"),
+             "AIFS single vs AIFS-ENS member 0 — MSLP/thickness/precip"),
             (spec["loops"][1], ANIM_Z, MANIFEST_Z, "aifs_z500",
-             "AIFS single vs AIFS-ENS control — 500 hPa height (NH)")):
+             "AIFS single vs AIFS-ENS member 0 — 500 hPa height (NH)")):
         outdir.mkdir(parents=True, exist_ok=True)
         for old in outdir.glob("F*.webp"):
             old.unlink()
@@ -359,11 +359,11 @@ def publish(specpath: Path):
 Z500_CLIM = REPO / "scripts" / "verify" / "data" / "clim" / "clim_1p5.npz"
 LOOPS = {
     "compare": dict(anim=ANIM, manifest=MANIFEST, region="aifs_compare",
-                    label="AIFS single vs AIFS-ENS control — MSLP/thickness/precip"),
+                    label="AIFS single vs AIFS-ENS member 0 — MSLP/thickness/precip"),
     "z500": dict(anim=ANIM_Z, manifest=MANIFEST_Z, region="aifs_z500",
-                 label="AIFS single vs AIFS-ENS control — 500 hPa height anomaly + height (NH)"),
+                 label="AIFS single vs AIFS-ENS member 0 — 500 hPa height anomaly + height (NH)"),
     "t2m": dict(anim=ANIM_T, manifest=MANIFEST_T, region="aifs_t2m",
-                label="AIFS single vs AIFS-ENS control — 2 m temperature anomaly (North America)"),
+                label="AIFS single vs AIFS-ENS member 0 — 2 m temperature anomaly (North America)"),
 }
 _G = {}                                   # fields shared with forked workers
 
@@ -502,7 +502,7 @@ def _draw_frame_once(job):
         levels = np.arange(486, 601, 6)
         alev = np.arange(-27, 27.1, 3)
         clim = z500_clim_on(lat, lon, valid.dayofyear)
-        for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS control")):
+        for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS member 0")):
             z5 = F[mkey]["z"].sel(step=sd, isobaricInhPa=500).values / G / 10.0
             # polar view: subset to the hemisphere (the saving) but let cartopy
             # transform the contours (transform_first folds the grid at the
@@ -553,7 +553,7 @@ def _draw_frame_once(job):
         if clim is None:
             plt.close(fig)
             return None
-        for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS control")):
+        for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS member 0")):
             t2 = F[mkey]["t2m"].sel(step=sd).values - 273.15
             if hourly:
                 # hour-matched normal: the anomaly of THIS hour's temperature
@@ -588,7 +588,7 @@ def _draw_frame_once(job):
         proj = ccrs.LambertConformal(central_longitude=-97, central_latitude=39)
         fig, axes = plt.subplots(1, 2, figsize=(14.6, 6.1), constrained_layout=True,
                                  subplot_kw={"projection": proj})
-        for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS control")):
+        for ax, mkey, name in zip(axes, ("single", "ens"), ("AIFS single", "AIFS-ENS member 0")):
             d = F[mkey]
             msl = d["msl"].sel(step=sd).values / 100.0
             thk = ((d["z"].sel(step=sd, isobaricInhPa=500)

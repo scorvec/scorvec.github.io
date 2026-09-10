@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AIFS single vs AIFS-ENS control — spectrally fair, observation-based verification.
+"""AIFS single vs AIFS-ENS member 0 — spectrally fair, observation-based verification.
 
 Successor to aifs_det_verify.py (which scored 1.5° block means against ERA5).
 Two things it fixes, both raised on 2026-09-02:

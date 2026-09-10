@@ -1,4 +1,4 @@
-# AIFS single vs AIFS-ENS control — frame rasterizer.
+# AIFS single vs AIFS-ENS member 0 — frame rasterizer.
 # Specs + warped regular-grid fields staged by scripts/verify/aifs_compare_anim.py
 # (fields nearest-neighbour-warped onto projected grids in Python; Natural Earth
 # polylines pre-projected). Style-parity port of the matplotlib renderer, ~10x
@@ -100,7 +100,7 @@ function two_panel_figure(loop, suptitle)
     Label(fig[0, 1:2], suptitle, fontsize = 17, font = :bold, padding = (0, 0, 2, 2))
     # panel titles from the spec when present (geml loops); AIFS names otherwise
     t1 = hasproperty(loop, :titles) ? String(loop.titles[1]) : "AIFS single"
-    t2 = hasproperty(loop, :titles) ? String(loop.titles[2]) : "AIFS-ENS control"
+    t2 = hasproperty(loop, :titles) ? String(loop.titles[2]) : "AIFS-ENS member 0"
     axes = [Axis(fig[1, j], title = t, titlealign = :left, titlesize = 16,
                  titlefont = :bold, backgroundcolor = :white)
             for (j, t) in ((1, t1), (2, t2))]

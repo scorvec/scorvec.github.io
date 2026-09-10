@@ -4,7 +4,7 @@ Stratospheric vortex winds: 10 and 100 hPa, both hemispheres.
 
 Four polar panels — 10 hPa NH / SH on the top row, 100 hPa NH / SH on the
 bottom — showing wind SPEED (shaded) with STREAMLINES over it, from the
-AIFS-ENS control.
+AIFS-ENS member 0.
 
 Why these two levels, in this pairing:
 
@@ -240,7 +240,7 @@ def render(uv, lev, date, time, step_h, out_path: Path):
     fig.suptitle(f"Stratospheric vortex winds — {lev} hPa",
                  fontsize=15, fontweight="bold", x=0.02, ha="left", y=0.975)
     fig.text(0.02, 0.925,
-             f"ECMWF AIFS-ENS control · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z "
+             f"ECMWF AIFS-ENS member 0 · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z "
              f"{tag} · valid {valid:%a %d %b %HZ} · speed shaded, streamlines "
              f"overlaid · red: u = 0 (vortex edge) · dashed ring: 60°",
              fontsize=9, color="#555", ha="left")

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Running deterministic verification: AIFS single vs AIFS-ENS control.
+"""Running deterministic verification: AIFS single vs AIFS-ENS member 0.
 
-Hypothesis under test: the CRPS-trained ENS control — which keeps a realistic
+Hypothesis under test: the CRPS-trained member 0 — which keeps a realistic
 kinetic-energy spectrum at range while the MSE-trained single blurs — may be
 the better *deterministic* product, at the cost of arriving a few minutes
 later. Few have benchmarked this publicly.

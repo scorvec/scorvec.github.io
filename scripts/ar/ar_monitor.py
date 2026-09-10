@@ -10,7 +10,7 @@ which for 51 members × 31 steps is ~12 GB per cycle — so:
     figure. Total column water is in the open data; the 850 hPa wind is already pulled.
 Products (assets/ar/):
   anim/ar_ivt, ar_prob, ar_ctrl + ar_manifest.json   12-hourly loops to day 15 (ensemble-mean IVT with vectors;
-                                                      P(IVT ≥ 250); the control's exact IVT) for the site viewer
+                                                      P(IVT ≥ 250); member 0's exact IVT) for the site viewer
   ar_coast.webp   West-coast landfall tool: coast latitude × forecast time, ensemble-mean IVT and P(≥250/500)
   ar_monitor.json AR-scale probabilities at the named coastal points, the calibration, the coast arrays
     python scripts/ar/ar_monitor.py --date 20260906 --time 00
@@ -69,7 +69,7 @@ def members(cyc, param, levtype, levels=()):
 
 
 def control_ivt(cyc):
-    """Exact IVT (magnitude, east, north) for the control member, (step, lat, lon)."""
+    """Exact IVT (magnitude, east, north) for member 0, (step, lat, lon)."""
     q = _open(ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "q", "pl", LEVELS, S12)), "q", LEVELS).load()
     u = _open(ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "u", "pl", LEVELS, S12)), "u", LEVELS).load()
     v = _open(ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "v", "pl", LEVELS, S12)), "v", LEVELS).load()
@@ -124,7 +124,7 @@ def loops(ivt, ivte_m, ivtn_m, ivt_c, ivte, ivtn, lat, lon, valid, init, k_fit, 
     """Three 12-hourly loops to day 15 on the viewer's manifest contract:
     ar_ivt  ensemble-mean IVT magnitude and vector, P(≥250) contours
     ar_prob probability of AR conditions (IVT ≥ 250) with the ensemble-mean 250/500 contours
-    ar_ctrl the control member's exact IVT with vectors (what the proxy is calibrated against)"""
+    ar_ctrl member 0's exact IVT with vectors (what the proxy is calibrated against)"""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -152,7 +152,7 @@ def loops(ivt, ivte_m, ivtn_m, ivt_c, ivte, ivtn, lat, lon, valid, init, k_fit, 
         ax.contour(lon, lat, prob[k], levels=[0.5, 0.8], colors=["#b4453c", "#6a0d0d"], linewidths=[0.8, 1.1], transform=pc)
         _coast(ax); ax.set_title(f"Ensemble-mean IVT — AIFS-ENS 51 members, init {init:%d %b %HZ} · {lab}", fontsize=10.5, loc="left", fontweight="bold")
         cax = fig.add_axes([0.25, 0.065, 0.5, 0.02]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
-        cb.set_label("IVT (kg m⁻¹ s⁻¹), proxy calibrated on the control (r = %.2f) · arrows where ≥ 200 · red: P(IVT ≥ 250) = 0.5 and 0.8" % k_fit["r"], fontsize=8)
+        cb.set_label("IVT (kg m⁻¹ s⁻¹), proxy calibrated on member 0 (r = %.2f) · arrows where ≥ 200 · red: P(IVT ≥ 250) = 0.5 and 0.8" % k_fit["r"], fontsize=8)
         fp = dirs["ar_ivt"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
         entries["ar_ivt"].append({"idx": k, "file": fp.name, "date": pd.Timestamp(t).strftime("%Y-%m-%d"), "label": lab})
         # 2. probability
@@ -164,7 +164,7 @@ def loops(ivt, ivte_m, ivtn_m, ivt_c, ivte, ivtn, lat, lon, valid, init, k_fit, 
         cb.set_label("fraction of members with IVT ≥ 250 kg m⁻¹ s⁻¹ · navy contours: ensemble-mean IVT 250 and 500", fontsize=8)
         fp = dirs["ar_prob"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
         entries["ar_prob"].append({"idx": k, "file": fp.name, "date": pd.Timestamp(t).strftime("%Y-%m-%d"), "label": lab})
-        # 3. control, exact
+        # 3. member 0, exact
         fig = plt.figure(figsize=(12, 6.3)); ax = _frame_axes(fig)
         cf = ax.pcolormesh(lon, lat, np.where(ivt_c[k] >= 250, ivt_c[k], np.nan), cmap=cm_ivt, norm=BoundaryNorm(lev_ivt, cm_ivt.N, extend="max"), transform=pc, shading="nearest", rasterized=True)
         m = ivt_c[k] >= 200
@@ -199,7 +199,7 @@ def coast_tool(ivt, ivt_c, lat, lon, valid, init, out: Path) -> dict:
     ax = axes[0]
     cf = ax.contourf(t, tl, mean.T, levels=[100, 150, 200, 250, 300, 400, 500, 600, 750, 1000, 1250], cmap="YlGnBu", extend="max")
     ax.contour(t, tl, ctrl.T, levels=[250, 500], colors=["#b4453c", "#6a0d0d"], linewidths=[0.9, 1.1])
-    ax.set_title("Ensemble-mean IVT at the coast; red: control 250 / 500", fontsize=9.5, loc="left", fontweight="bold")
+    ax.set_title("Ensemble-mean IVT at the coast; red: member 0 250 / 500", fontsize=9.5, loc="left", fontweight="bold")
     cb = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.12, fraction=0.05); cb.ax.tick_params(labelsize=7.5)
     ax = axes[1]
     cf = ax.contourf(t, tl, p250.T, levels=np.arange(0.1, 1.01, 0.1), cmap="YlOrRd", extend="max")
@@ -224,7 +224,7 @@ def coast_tool(ivt, ivt_c, lat, lon, valid, init, out: Path) -> dict:
     axes[0].set_yticks(ticks); axes[0].set_yticklabels(labels, fontsize=7.5)
     axes[2].yaxis.tick_right(); axes[2].yaxis.set_label_position("right"); axes[2].set_yticks(range(25, 60, 5)); axes[2].set_yticklabels([f"{v}°N" for v in range(25, 60, 5)], fontsize=7.5)
     fig.suptitle(f"West-coast atmospheric-river landfall tool — AIFS-ENS 51 members, init {init:%Y-%m-%d %HZ}, 12-hourly to day 15", fontsize=13, fontweight="bold", x=0.02, ha="left", y=0.99)
-    fig.text(0.02, 0.945, "Read at the first ocean point west of the coast on each 0.25° latitude (Baja California to southeast Alaska). IVT from the calibrated proxy for the members, exact for the control.", fontsize=8.5, color=MUTED)
+    fig.text(0.02, 0.945, "Read at the first ocean point west of the coast on each 0.25° latitude (Baja California to southeast Alaska). IVT from the calibrated proxy for the members, exact for member 0.", fontsize=8.5, color=MUTED)
     fig.subplots_adjust(left=0.115, right=0.965, top=0.88, bottom=0.1, wspace=0.06)
     fig.savefig(out, dpi=105, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
     print(f"saved {out}", flush=True)
@@ -243,14 +243,14 @@ def main() -> int:
     lat, lon = tcw.latitude.values, tcw.longitude.values
     steps = (tcw.step / np.timedelta64(1, "h")).values.astype(int)
     valid = [init + pd.Timedelta(hours=int(h)) for h in steps]
-    ivt_c, ivte, ivtn, clat, clon, csteps = control_ivt(cyc); print(f"  control IVT ({time.time() - t0:.0f}s)", flush=True)
+    ivt_c, ivte, ivtn, clat, clon, csteps = control_ivt(cyc); print(f"  member 0 IVT ({time.time() - t0:.0f}s)", flush=True)
     assert clat.shape == lat.shape and clon.shape == lon.shape
-    # proxy calibration on the control: IVT ≈ k · tcw · |V850|
+    # proxy calibration on member 0: IVT ≈ k · tcw · |V850|
     spd = np.hypot(u8.values, v8.values)
     x = (tcw.values[0] * spd[0]).ravel(); y = ivt_c.ravel(); ok = np.isfinite(x) & np.isfinite(y) & (y > 100)
     k = float((x[ok] * y[ok]).sum() / (x[ok] ** 2).sum()); r = float(np.corrcoef(x[ok], y[ok])[0, 1])
     k_fit = {"k": k, "r": r, "n": int(ok.sum()), "rmse": float(np.sqrt(np.mean((k * x[ok] - y[ok]) ** 2)))}
-    print(f"  proxy: k = {k:.3f}, r = {r:.3f}, rmse {k_fit['rmse']:.0f} kg/m/s over {ok.sum():,} control points", flush=True)
+    print(f"  proxy: k = {k:.3f}, r = {r:.3f}, rmse {k_fit['rmse']:.0f} kg/m/s over {ok.sum():,} member-0 points", flush=True)
     ivt = (k * tcw.values * spd).astype("float32")                      # (member, step, lat, lon)
     ivt[0] = ivt_c                                                       # the control keeps its exact field
     ivte_m = (k * tcw.values * u8.values).mean(0); ivtn_m = (k * tcw.values * v8.values).mean(0)   # ensemble-mean vector

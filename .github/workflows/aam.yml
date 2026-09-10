@@ -127,7 +127,7 @@ jobs:
             --anim-dir ../../assets/sst/anim/jets --manifest ../../assets/sst/anim/jets_manifest.json \
             || echo "jets failed; continuing"
 
-      - name: Dynamic tropopause (control member)
+      - name: Dynamic tropopause (member 0)
         working-directory: scripts/mjo
         run: |
           mkdir -p ../../assets/sst/anim/dt ../../assets/sst/anim/dt_pv330 ../../assets/sst/anim/dt_pv350

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Atmospheric River Monitor &mdash; AIFS-ENS IVT, West Coast landfall probabilities &middot; Shawn Corvec</title>
-<meta name="description" content="Atmospheric river forecast monitor from the ECMWF AIFS ensemble: probability of AR conditions (IVT ≥ 250 kg/m/s) day by day over the North Pacific, a West Coast landfall tool from Baja California to southeast Alaska, exact control-member IVT maps, and AR-scale (Ralph et al. 2019) category probabilities at named coastal locations. Updated twice daily.">
+<meta name="description" content="Atmospheric river forecast monitor from the ECMWF AIFS ensemble: probability of AR conditions (IVT ≥ 250 kg/m/s) day by day over the North Pacific, a West Coast landfall tool from Baja California to southeast Alaska, exact member-0 IVT maps, and AR-scale (Ralph et al. 2019) category probabilities at named coastal locations. Updated twice daily.">
 <link rel="canonical" href="https://scorvec.com/ar.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Atmospheric River Monitor — AIFS-ENS IVT and West Coast landfall probabilities">
@@ -115,7 +115,7 @@
           <div class="sh-menu sh-menu--list" id="sh-g2">
             <ul>
               <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
-              <li><a href="/aifs-verify.html">AIFS single versus ensemble control</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
               <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
             </ul>
           </div>
@@ -130,11 +130,11 @@
 <main>
   <p class="kicker">Twice daily from the ECMWF AIFS ensemble, <span id="initLabel">&mdash;</span></p>
   <h1>Atmospheric river monitor</h1>
-  <p class="lede">Integrated vapour transport from the 51-member ECMWF AIFS ensemble, read the way forecasters read atmospheric rivers: the probability that IVT reaches the 250&nbsp;kg&nbsp;m<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup> threshold at each 12-hourly step, a landfall tool along the West Coast from Baja California to southeast Alaska, exact control-member IVT for the next three days, and the chance of each Ralph-scale category at named coastal locations. Every member is carried to day 15 at 12-hour steps, so AR duration, not only intensity, enters the scale.</p>
+  <p class="lede">Integrated vapour transport from the 51-member ECMWF AIFS ensemble, read the way forecasters read atmospheric rivers: the probability that IVT reaches the 250&nbsp;kg&nbsp;m<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup> threshold at each 12-hourly step, a landfall tool along the West Coast from Baja California to southeast Alaska, exact member-0 IVT for the next three days, and the chance of each Ralph-scale category at named coastal locations. Every member is carried to day 15 at 12-hour steps, so AR duration, not only intensity, enters the scale.</p>
 
   <div class="card">
     <h2>Where the rivers will make landfall, and how strong</h2>
-    <p class="note">Coast latitude against forecast time. Left: the ensemble-mean IVT at the first ocean point west of the coast, with the control member&rsquo;s 250 and 500 contours in red. Middle: the fraction of members at or above 250, the AR threshold, with the fraction above 500 contoured. Right: the 90th-percentile member, the strong-AR tail the mean hides. Named locations are marked along the left axis.</p>
+    <p class="note">Coast latitude against forecast time. Left: the ensemble-mean IVT at the first ocean point west of the coast, with the member 0&rsquo;s 250 and 500 contours in red. Middle: the fraction of members at or above 250, the AR threshold, with the fraction above 500 contoured. Right: the 90th-percentile member, the strong-AR tail the mean hides. Named locations are marked along the left axis.</p>
     <img id="imgCoast" src="assets/ar/ar_coast.webp" alt="West Coast atmospheric river landfall tool: ensemble-mean IVT, probability of AR conditions and the 90th-percentile member by coast latitude and forecast time" loading="lazy">
   </div>
 
@@ -142,21 +142,21 @@
     <h2>AR-scale probabilities at named locations</h2>
     <p class="note">For each member, the strongest spell with IVT at or above 250 at the location sets a category on the Ralph et&nbsp;al. (2019) scale: a preliminary rank from the peak IVT (250, 500, 750, 1000, 1250 for AR1&ndash;AR5), lowered one step if the spell is shorter than 24&nbsp;hours &mdash; which drops a bare AR1 out of the count altogether &mdash; and raised one if it lasts 48&nbsp;hours or more. The table gives the fraction of members reaching each category within the 15 days, the most likely category, the median peak IVT, and the median onset time.</p>
     <div style="overflow-x:auto"><table class="ar" id="arTable"></table></div>
-    <p class="ar-narrow">Narrow screen: the &ge;&nbsp;AR1, &ge;&nbsp;AR4, AR5, onset and control columns are hidden &mdash; turn the phone sideways for the full table.</p>
+    <p class="ar-narrow">Narrow screen: the &ge;&nbsp;AR1, &ge;&nbsp;AR4, AR5, onset and member-0 columns are hidden &mdash; turn the phone sideways for the full table.</p>
     <p class="scale" style="margin-top:0.7rem"><b>AR1</b> weak, primarily beneficial &middot; <b>AR2</b> moderate, mostly beneficial &middot; <b>AR3</b> strong, balance of beneficial and hazardous &middot; <b>AR4</b> extreme, mostly hazardous &middot; <b>AR5</b> exceptional, primarily hazardous. Duration is sampled at 12&nbsp;hours here, so a one-step spell counts as under 24&nbsp;hours.</p>
   </div>
 
   <div class="card">
     <h2>The rivers, 12-hourly to day 15</h2>
-    <p class="note">Three loops on one player, switched with the buttons above the frame: the <b>ensemble-mean IVT</b> with its vector and the 50% and 80% probability contours; the <b>probability of AR conditions</b>, the share of members with IVT at or above 250 with the mean 250 and 500 contours; and the <b>control member&rsquo;s exact IVT</b>, the field the ensemble proxy is calibrated against each cycle. North Pacific to the Rockies, 0.25&deg;.</p>
-    <iframe class="anim-embed ar" src="sst_anim.html?embed=1&amp;base=assets/ar/anim&amp;manifest=ar_manifest.json&amp;region=ar_ivt" title="Atmospheric river loops: ensemble-mean IVT, probability of AR conditions, control-member exact IVT, 12-hourly to day 15" loading="lazy"></iframe>
+    <p class="note">Three loops on one player, switched with the buttons above the frame: the <b>ensemble-mean IVT</b> with its vector and the 50% and 80% probability contours; the <b>probability of AR conditions</b>, the share of members with IVT at or above 250 with the mean 250 and 500 contours; and the <b>member 0&rsquo;s exact IVT</b>, the field the ensemble proxy is calibrated against each cycle. North Pacific to the Rockies, 0.25&deg;.</p>
+    <iframe class="anim-embed ar" src="sst_anim.html?embed=1&amp;base=assets/ar/anim&amp;manifest=ar_manifest.json&amp;region=ar_ivt" title="Atmospheric river loops: ensemble-mean IVT, probability of AR conditions, member-0 exact IVT, 12-hourly to day 15" loading="lazy"></iframe>
   </div>
 
   <div class="card">
     <h2>Method and honesty box</h2>
-    <p class="note" id="methodNote">Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the control member&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The control member itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p>
+    <p class="note" id="methodNote">Exact IVT for every member would need humidity and wind through the column for 51 members at 31 steps, about 12&nbsp;GB per cycle. The ensemble therefore uses a proxy, IVT &asymp; k&thinsp;&middot;&thinsp;TCW&thinsp;&middot;&thinsp;|V<sub>850</sub>|, with total column water from the open data and the 850&nbsp;hPa wind; k is refitted every cycle against the member 0&rsquo;s exact IVT through the origin over points with IVT above 100, and the fit is reported here and on the maps. The member 0 itself is always exact. Thresholds are absolute (250, 500, 750, 1000, 1250), following the Ralph et&nbsp;al. (2019) scale rather than percentile-based detection, so no climatology enters the categories.</p>
     <div class="chart-card-footer">
-      <span>ECMWF AIFS-ENS open data (CC BY 4.0): total column water, 850&nbsp;hPa wind, and q/u/v on six levels for the control &middot; 0.25&deg;, 12-hourly to day 15 &middot; coast transect from Natural Earth</span>
+      <span>ECMWF AIFS-ENS open data (CC BY 4.0): total column water, 850&nbsp;hPa wind, and q/u/v on six levels for member 0 &middot; 0.25&deg;, 12-hourly to day 15 &middot; coast transect from Natural Earth</span>
       <span id="genLabel">&mdash;</span>
     </div>
   </div>
@@ -168,8 +168,8 @@
     var v = "?v=" + encodeURIComponent(d.generated);
     ["imgCoast"].forEach(function (id) { var el = document.getElementById(id); el.src = el.getAttribute("src").split("?")[0] + v; });
     document.getElementById("initLabel").textContent = "run of " + d.init.replace("T", " ");
-    document.getElementById("genLabel").textContent = "built " + d.generated + " · proxy k = " + d.proxy.k.toFixed(3) + ", r = " + d.proxy.r.toFixed(2) + " over " + d.proxy.n.toLocaleString() + " control points";
-    var rows = ['<tr><th>Location</th><th>Any AR</th><th>≥ AR1</th><th>≥ AR2</th><th>≥ AR3</th><th>≥ AR4</th><th>AR5</th><th>Most likely</th><th>Median peak IVT</th><th>Median onset</th><th>Control</th></tr>'];
+    document.getElementById("genLabel").textContent = "built " + d.generated + " · proxy k = " + d.proxy.k.toFixed(3) + ", r = " + d.proxy.r.toFixed(2) + " over " + d.proxy.n.toLocaleString() + " member-0 points";
+    var rows = ['<tr><th>Location</th><th>Any AR</th><th>≥ AR1</th><th>≥ AR2</th><th>≥ AR3</th><th>≥ AR4</th><th>AR5</th><th>Most likely</th><th>Median peak IVT</th><th>Median onset</th><th>Member 0</th></tr>'];
     d.named.forEach(function (n) {
       var cls = function (c) { return c > 0 ? ' class="c' + c + '"' : ''; };
       var pct = function (x) { return Math.round(x * 100) + "%"; };

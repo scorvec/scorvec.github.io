@@ -2,7 +2,7 @@
 Observed-RMM history (the growing 'truth' record).
 
 Seeded from recent ERA5 analysis, then extended each run with the AIFS-ENS
-analysis (control member, lead-day 0) — a zero-lag, self-consistent observed
+analysis (member 0, lead-day 0) — a zero-lag, self-consistent observed
 value (same model as the forecast, so no ERA5→AIFS handoff jump).  Over time
 the AIFS-grown portion replaces the ~5-day-lagged ERA5 seed.
 

@@ -49,7 +49,7 @@ PRODUCTS = [
     ]),
     ("Model verification", "How the models are doing against observations", [
         ("/cities/verify.html", "City temperature forecast verification"),
-        ("/aifs-verify.html", "AIFS single versus ensemble control"),
+        ("/aifs-verify.html", "AIFS single versus member 0"),
         ("/spectra.html", "HRRR and RRFS kinetic-energy spectra"),
     ]),
 ]

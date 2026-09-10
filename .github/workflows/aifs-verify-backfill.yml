@@ -1,7 +1,7 @@
 name: AIFS verification backfill
 
 # One-off / occasional: archive past 00Z and 12Z cycles for the AIFS single vs
-# ENS-control verification (scripts/verify/aifs_station_verify.py) from the
+# member-0 verification (scripts/verify/aifs_station_verify.py) from the
 # ECMWF open-data mirrors, which keep every cycle (the Google mirror served
 # 422 cycles back to July 2025 for the Colombia backfill), then score them.
 #

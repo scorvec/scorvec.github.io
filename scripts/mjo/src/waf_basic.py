@@ -4,7 +4,7 @@
 TN01 linearises about a slowly varying flow. The ERA5 day-of-year climatology is the textbook
 choice, but in a year like 2026 the jet is displaced from the climatological waveguide, so the
 packets were being steered by a jet that was not there. This module keeps a rolling history of
-the AIFS-ENS 0-h CONTROL u, v and ψ at the WAF level on a 3° grid (assets/sst/anim/waf/
+the AIFS-ENS 0-h member-0 u, v and ψ at the WAF level on a 3° grid (assets/sst/anim/waf/
 waf_basic_history.nc on the frames branch, merged with a committed seed) and returns the
 30-day mean anomaly against the climatology. waf.py uses climatology + that anomaly as the
 basic state (U, V) and as the reference for ψ′, so perturbation and basic state are consistent.
@@ -55,7 +55,7 @@ def record(u3, v3, psi3, valid, level: int) -> xr.Dataset:
     t = [pd.Timestamp(valid)]
     return xr.Dataset({"u": (("time", "lat", "lon"), u3[None]), "v": (("time", "lat", "lon"), v3[None]), "psi": (("time", "lat", "lon"), psi3[None])},
                       coords={"time": t, "lat": LAT3, "lon": LON3},
-                      attrs={"level_hPa": level, "note": "AIFS-ENS 0-h control u, v (m/s) and streamfunction psi (m2/s) on a 3 deg grid"})
+                      attrs={"level_hPa": level, "note": "AIFS-ENS 0-h member-0 u, v (m/s) and streamfunction psi (m2/s) on a 3 deg grid"})
 
 
 def load_history(path: Path) -> xr.Dataset | None:

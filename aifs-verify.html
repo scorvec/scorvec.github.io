@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIFS single vs AIFS-ENS control — Live Verification · Shawn Corvec</title>
-<meta name="description" content="Live deterministic verification of ECMWF's AIFS single against the AIFS-ENS control: both models spectrally truncated to the same scale, scored against radiosonde 500 hPa heights and surface temperature and against ERA5, with the power spectra by lead.">
+<title>AIFS single vs AIFS-ENS member 0 — Live Verification · Shawn Corvec</title>
+<meta name="description" content="Live deterministic verification of ECMWF's AIFS single against the AIFS-ENS member 0: both models spectrally truncated to the same scale, scored against radiosonde 500 hPa heights and surface temperature and against ERA5, with the power spectra by lead.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -131,7 +131,7 @@
           <div class="sh-menu sh-menu--list" id="sh-g2">
             <ul>
               <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
-              <li><a href="/aifs-verify.html" aria-current="page">AIFS single versus ensemble control</a></li>
+              <li><a href="/aifs-verify.html" aria-current="page">AIFS single versus member 0</a></li>
               <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
             </ul>
           </div>
@@ -144,12 +144,12 @@
 </header>
 <!-- sh:end -->
 <main>
-  <h1>AIFS single versus AIFS-ENS control</h1>
+  <h1>AIFS single versus AIFS-ENS member 0</h1>
   <p class="lede"><b>The hypothesis:</b> ECMWF's deterministic AIFS is trained on an MSE-type objective, which
   rewards hedging &mdash; it blurs with lead time toward an ensemble-mean-like state. The AIFS-ENS members are
-  trained on a CRPS-type objective that punishes blurring, so the <b>control</b> keeps a realistic spectrum ten
-  days out. If the control matches the single on headline scores <i>when both are compared at the same
-  scale</i>, the control &mdash; published minutes later &mdash; is simply the better deterministic product.
+  trained on a CRPS-type objective that punishes blurring, so <b>member 0</b> keeps a realistic spectrum ten
+  days out. If member 0 matches the single on headline scores <i>when both are compared at the same
+  scale</i>, member 0 &mdash; published minutes later &mdash; is simply the better deterministic product.
   This page tests that on every 00Z and 12Z run: both models are truncated to the same spherical-harmonic degree
   before scoring, the truth is <b>independent radiosondes</b> from the <a href="skewt/">sounding explorer</a>
   (with ERA5 alongside), and the power spectra that motivate the whole question are shown by lead.</p>
@@ -171,7 +171,7 @@
       <span class="seg" id="regionSeg" title="radiosonde scores only">
         <button data-r="nh" class="on">NH 20&ndash;80&deg;N</button><button data-r="glb">global</button>
       </span>
-      <span class="legend"><span><i style="background:var(--single)"></i>AIFS single</span><span><i style="background:var(--control)"></i>ENS control</span></span>
+      <span class="legend"><span><i style="background:var(--single)"></i>AIFS single</span><span><i style="background:var(--control)"></i>member 0</span></span>
     </div>
     <div class="grid4" id="scoreGrid">
       <div id="c-rmse"></div><div id="c-acc"></div><div id="c-bias"></div><div id="c-act"></div>
@@ -184,13 +184,13 @@
     <div class="card-head">
       <h2>Power spectra by lead &mdash; the blurring, measured</h2>
       <p>Spherical-harmonic power of each model's global field against total wavenumber, averaged over the archived
-      runs. The single is expected to lose power at high wavenumber as lead grows; the control should not. The dotted
+      runs. The single is expected to lose power at high wavenumber as lead grows; member 0 should not. The dotted
       line is the common truncation applied before scoring: nothing to its right enters any score above.</p>
     </div>
     <div class="controls">
       <span class="seg" id="specVar"><button data-v="z500" class="on">z500</button><button data-v="t850">850 hPa T</button><button data-v="msl">MSLP</button><button data-v="t2m">2 m temperature</button></span>
       <span class="seg" id="specLead"><button data-l="24">day 1</button><button data-l="120" class="on">day 5</button><button data-l="240">day 10</button></span>
-      <span class="seg" id="specMode"><button data-m="abs" class="on">power</button><button data-m="ratio">control / single</button></span>
+      <span class="seg" id="specMode"><button data-m="abs" class="on">power</button><button data-m="ratio">member 0 / single</button></span>
     </div>
     <div id="c-spec" style="height:400px"></div>
     <div class="empty" id="specEmpty">no spectra yet</div>
@@ -201,9 +201,9 @@
     <div class="card-head">
       <h2>Side-by-side forecast loop &mdash; MSLP &middot; 1000&ndash;500 thickness &middot; 6-h precipitation</h2>
       <p>Every 6 hours through the run, refreshed each 00Z/12Z cycle. Watch the single's precipitation smear into
-      washes at range while the control keeps convective texture &mdash; same synoptic systems, different sharpness.</p>
+      washes at range while member 0 keeps convective texture &mdash; same synoptic systems, different sharpness.</p>
     </div>
-    <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single vs ENS control, North America loop"></iframe>
+    <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single vs member 0, North America loop"></iframe>
     <div class="card-foot">ECMWF AIFS &amp; AIFS-ENS open data (CC BY 4.0) &middot; North America &middot; 61 frames per run</div>
   </div>
 
@@ -213,7 +213,7 @@
       <p>Shading is the height anomaly against the 1991&ndash;2020 day-of-year climatology (ridges warm, troughs
       cool); the black contours are the actual heights every 6 dam, so the flow stays readable under the anomaly.</p>
     </div>
-    <iframe class="anim-embed" style="aspect-ratio: 1460 / 760" data-src="sst_anim.html?embed=1&amp;manifest=aifs_z500_manifest.json&amp;region=aifs_z500" title="AIFS single vs ENS control, 500 hPa height loop"></iframe>
+    <iframe class="anim-embed" style="aspect-ratio: 1460 / 760" data-src="sst_anim.html?embed=1&amp;manifest=aifs_z500_manifest.json&amp;region=aifs_z500" title="AIFS single vs member 0, 500 hPa height loop"></iframe>
     <div class="card-foot">anomaly shading + height contours, 6-hourly to hour 360 &middot; climatology: ERA5 via WeatherBench2</div>
   </div>
 
@@ -223,7 +223,7 @@
       <p>Shading is the 2 m temperature anomaly against the 1991&ndash;2020 day-of-year climatology; grey contours are
       the actual 2 m temperature every 5 &deg;C with the freezing line in blue. The same two runs, 6-hourly to hour 360.</p>
     </div>
-    <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_t2m_manifest.json&amp;region=aifs_t2m" title="AIFS single vs ENS control, 2 m temperature anomaly loop"></iframe>
+    <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_t2m_manifest.json&amp;region=aifs_t2m" title="AIFS single vs member 0, 2 m temperature anomaly loop"></iframe>
     <div class="card-foot">climatology: ERA5 via WeatherBench2 &middot; a radiosonde cannot verify 2 m temperature, so its scores above are against ERA5</div>
   </div>
 
@@ -248,8 +248,8 @@
     per anchor) &mdash; a baseline measured at the point itself. ERA5 anomalies use the ERA5 1991&ndash;2020
     &plusmn;7-day climatology (WeatherBench2), which covers the Northern Hemisphere; 850 hPa temperature has no
     ERA5 climatology here, so its ERA5 panel carries RMSE and bias only.</p>
-    <p><b>The stakes.</b> If the control matches the single on RMSE/ACC at the common scale while keeping an
-    activity ratio near 1, the deterministic AIFS is dominated: use the control, a few minutes later on the feed,
+    <p><b>The stakes.</b> If member 0 matches the single on RMSE/ACC at the common scale while keeping an
+    activity ratio near 1, the deterministic AIFS is dominated: use member 0, a few minutes later on the feed,
     and get realistic sharpness for free &mdash; plus 50 siblings quantifying its uncertainty.</p>
   </div>
 </main>
@@ -257,7 +257,7 @@
 (function () {
   "use strict";
   var COL = { single: "#b3372f", control: "#2c5f8a" };
-  var NAME = { single: "AIFS single", control: "ENS control" };
+  var NAME = { single: "AIFS single", control: "member 0" };
   var UNIT = { z500: "m", t850: "°C", msl: "hPa", t2m: "°C" };
   var state = { truth: "raob", var: "z500", region: "nh", specVar: "z500", specLead: 120, specMode: "abs", D: null };
 
@@ -359,9 +359,9 @@
       lay.yaxis = { title: { text: "power (" + UNIT[state.specVar] + "²)", font: { size: 10.5, color: "#888580" } }, type: "log", gridcolor: "#eeece6", zeroline: false };
     } else {
       var ratio = ks.control.mean.map(function (v, i) { return ks.single.mean[i] > 0 ? v / ks.single.mean[i] : null; }).slice(1);
-      traces.push({ x: l, y: ratio, name: "control / single", mode: "lines", line: { color: "#1c1c1a", width: 2.2 },
-                    hovertemplate: "control / single %{y:.2f}<extra></extra>" });
-      lay.yaxis = { title: { text: "power ratio, control / single", font: { size: 10.5, color: "#888580" } }, gridcolor: "#eeece6", zeroline: false };
+      traces.push({ x: l, y: ratio, name: "member 0 / single", mode: "lines", line: { color: "#1c1c1a", width: 2.2 },
+                    hovertemplate: "member 0 / single %{y:.2f}<extra></extra>" });
+      lay.yaxis = { title: { text: "power ratio, member 0 / single", font: { size: 10.5, color: "#888580" } }, gridcolor: "#eeece6", zeroline: false };
       lay.shapes = [{ type: "line", x0: 1, x1: 360, xref: "x", y0: 1, y1: 1, line: { color: "#888", dash: "dot", width: 1 } }];
     }
     // Plotly quirk: on a log axis SHAPES take raw data values, ANNOTATIONS take log10
@@ -389,11 +389,11 @@
     kpi("verified runs", Object.keys(inits).length, "", "00Z + 12Z");
     if (m("single", "rmse") != null) {
       kpi("day-5 z500 RMSE vs radiosondes", m("single", "rmse").toFixed(1) + " m", "single", "AIFS single");
-      kpi("day-5 z500 RMSE vs radiosondes", m("control", "rmse").toFixed(1) + " m", "control", "ENS control");
+      kpi("day-5 z500 RMSE vs radiosondes", m("control", "rmse").toFixed(1) + " m", "control", "member 0");
     }
     if (m("single", "act") != null) {
       kpi("day-5 z500 activity ratio", m("single", "act").toFixed(2), "single", "AIFS single");
-      kpi("day-5 z500 activity ratio", m("control", "act").toFixed(2), "control", "ENS control");
+      kpi("day-5 z500 activity ratio", m("control", "act").toFixed(2), "control", "member 0");
     }
   }
   fetch("assets/verify/aifs_scores_v2.json?v=" + Date.now()).then(function (r) { if (!r.ok) throw 0; return r.json(); })

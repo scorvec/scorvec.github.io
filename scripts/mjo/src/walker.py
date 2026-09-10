@@ -58,7 +58,7 @@ PAC = dict(lon=(140.0, 200.0), p=(300.0, 700.0))
 
 
 def download_uv(date: str, time: str):
-    """0-h analysis u and v on the 13 levels (control member), via the shared store.
+    """0-h analysis u and v on the 13 levels (member 0), via the shared store.
     The v file is the SAME spec mmsf.py pulls, so it is always a cache hit when the
     heavy-atmos cycle fetch ran; u@13lev step0 is a small one-off (~8 MB)."""
     cyc = ecmwf.Cycle(date, time)

@@ -10,7 +10,7 @@ is lowermost stratosphere poleward of ~50°N in winter; (3) ψ′ is low-passed 
 running mean along the lead before the flux (TN01 is a quasi-stationary theory; fast synoptic
 packets enter the phase-independent form with error); (4) the shading is hatched where
 members disagree on the sign; (5) the basic state is the ERA5 day-of-year climatology PLUS the
-30-day mean anomaly of the AIFS 0-h control analyses (waf_basic.py), and ψ′ is taken against the
+30-day mean anomaly of the AIFS 0-h member-0 analyses (waf_basic.py), and ψ′ is taken against the
 same low-passed flow, so perturbation and basic state are consistent — in a year with a displaced
 jet the packets are steered by the waveguide that is actually there.
 

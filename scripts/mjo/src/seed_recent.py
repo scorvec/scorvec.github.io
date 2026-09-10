@@ -13,7 +13,7 @@ stays OUT of CI — the daily Action only reads the committed map.
 Then commit wind_map120.nc.
 
 Note: the observed track is NOT seeded here — it is built purely going forward
-from each run's AIFS analysis (control day 0), archived by run_rmm.py into
+from each run's AIFS analysis (member 0, day 0), archived by run_rmm.py into
 data/reference/obs_history.nc.
 """
 

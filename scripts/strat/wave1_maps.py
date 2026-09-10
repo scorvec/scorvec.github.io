@@ -122,7 +122,7 @@ def fetch(date: str, time: str, members: int = MEMBERS):
     day 10 its wave-1 phase is largely noise. The ensemble mean is the part of
     the wave the forecast actually agrees on, which is the only part worth
     reading a phase off. The cost is real - one member per level per step, so
-    N members is N times the control - and AIFS-ENS publishes no `em` product
+    N members is N times member 0 - and AIFS-ENS publishes no `em` product
     to shortcut it (probed 2026-08-30: only cf and pf exist for z).
 
     ECMWF open data may not have every member at every step; if the perturbed

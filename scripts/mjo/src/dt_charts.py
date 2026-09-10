@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dynamic-tropopause charts from the AIFS-ENS CONTROL member (PV does not survive averaging).
+"""Dynamic-tropopause charts from the AIFS-ENS member 0 (PV does not survive averaging).
 
 From temperature and wind on nine pressure levels (700–100 hPa), 12-hourly to day 10:
   Ertel PV on the pressure grid    PV = −g [ (ζ + f) ∂θ/∂p − ∂v/∂p ∂θ/∂x + ∂u/∂p ∂θ/∂y ]   (PVU = 1e−6 K m² kg⁻¹ s⁻¹)
@@ -224,14 +224,14 @@ def main() -> int:
         if h in (0, 48, 96, 144):
             keep[h] = dt
         fig, ax, cax = _frame()
-        cf = draw_dt(ax, lat, lon, dt, f"Dynamic tropopause θ (2 PVU) — AIFS-ENS control, init {init:%d %b %HZ} · {lab}")
+        cf = draw_dt(ax, lat, lon, dt, f"Dynamic tropopause θ (2 PVU) — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}")
         _bar(fig, cf, cax, "θ on the 2-PVU surface (K) · black contours: DT pressure 200/300/400/500 hPa · arrows: wind on the DT")
         fp = dirs["dt"] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
         entries["dt"].append({"idx": k, "file": fp.name, "date": valid.strftime("%Y-%m-%d"), "label": lab})
         for theta, key in zip(THETAS, ("dt_pv330", "dt_pv350")):
             iso = on_isentrope(pv, th, U, V, theta)
             fig, ax, cax = _frame()
-            cf = draw_pv(ax, lat, lon, iso, theta, f"PV on {theta:.0f} K — AIFS-ENS control, init {init:%d %b %HZ} · {lab}")
+            cf = draw_pv(ax, lat, lon, iso, theta, f"PV on {theta:.0f} K — AIFS-ENS member 0, init {init:%d %b %HZ} · {lab}")
             _bar(fig, cf, cax, f"PV on {theta:.0f} K (PVU) · dark red: 2 PVU (the dynamic tropopause on this surface) · arrows: wind on {theta:.0f} K")
             fp = dirs[key] / f"F{k:02d}.webp"; fig.savefig(fp, dpi=100, facecolor="white", pil_kwargs={"quality": 82, "method": 6}); plt.close(fig)
             entries[key].append({"idx": k, "file": fp.name, "date": valid.strftime("%Y-%m-%d"), "label": lab})

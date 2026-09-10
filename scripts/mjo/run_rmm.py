@@ -118,7 +118,7 @@ def main() -> None:
         print(f"IFS RMM leg failed ({repr(e)[:80]}); plotting AIFS only")
         rmm_ifs = None
 
-    # 3. Extend the observed history with today's AIFS analysis (control, earliest
+    # 3. Extend the observed history with today's AIFS analysis (member 0, earliest
     #    lead). lead_day 0 if step 0 was downloaded, else the first forecast day —
     #    .isel keeps this robust to the daily-vs-6-hourly step choice.
     cf0 = rmm.sel(member="cf").isel(lead_day=0)
