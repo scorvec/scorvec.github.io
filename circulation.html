@@ -281,7 +281,7 @@ window.STAGE = {
           img: function (a) { return "assets/sst/walker_" + (a === "basins" ? "basins" : "chi_weekly") + ".webp?v=202609092300"; },
           about: "about-walker", cap: function (a) { return a === "loop" ? "Zonal overturning streamfunction along the equator, 7-day trailing mean, anomaly against ERA5." : a === "basins" ? "What the Indian and Atlantic Oceans are doing to the overturning once ENSO is removed: regression and Gill model side by side." : "Weekly χ200 departure from the Pacific-forced part, and how much of it the Indian and Atlantic SST can claim."; }},
   jets: {label: "Subtropical jets", a: {label: "View", items: [["loop","Cross-section loop"],["series","Strength and position"]]},
-          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=202609092300"; },
+          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=202609100958"; },
           about: "about-jets", cap: function (a) { return a === "loop" ? "Zonal-mean zonal wind anomaly cross-section through the 15-day forecast, cores marked." : "Speed and latitude of each hemisphere's subtropical jet core, members and mean against the normal band."; }},
   pacjet: {label: "North Pacific jet", a: {label: "View", items: [["indices","Extension, shift, torque"],["z500","Downstream ridge maps"]]},
           img: function (a) { return "assets/sst/pacjet" + (a === "z500" ? "_z500" : "") + ".webp?v=202609092300"; }, fit: false,
