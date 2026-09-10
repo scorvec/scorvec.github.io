@@ -431,7 +431,7 @@ function table(){
   $('#t1').textContent = `${dayTxt} · ${LBL[m]} · ${r.length} cities`;
   const cmpTxt = PREV ? `vs the ${prevLabel(PREV.cycle)} run` : 'vs the run chosen in "compare with"';
   const basisNote = (M() === 'hddh' || M() === 'cddh')
-    ? `<b>hourly basis</b> = degree hours below/above 65 °F from each member's reconstructed diurnal curve, averaged over the day — a different quantity from the midpoint of the extremes the market trades, and larger in the shoulder season because a warm afternoon does not undo a cool dawn for a building. Cities whose last local day is not four full model samples carry that day blank, so their window total covers one day fewer. Normals and risk lean are published on the midpoint basis only. · `
+    ? `<b>hourly basis</b> = degree hours below/above 65 °F from each member's reconstructed diurnal curve, averaged over the day — a different quantity from the midpoint of the extremes the market trades, and larger in the shoulder season because a warm afternoon does not undo a cool dawn for a building. Its <b>normal</b> is the county normal plus this city's own 1991–2020 basis difference, measured on the airport station's daily record through the same diurnal shape (so the two bases differ by convention, not by source). Cities whose last local day is not four full model samples carry that day blank, so their window total covers one day fewer. Risk lean stays on the midpoint basis. · `
     : '';
   $('#h1').innerHTML = basisNote + `<b>max/min</b> = consensus high/low for the day (window average when "whole window") · <b>vs normal</b> = departure from the 1991–2020 normal · <b>Δ base</b> and <b>Δp</b> = change ${PREV ? 'vs the ' + prevLabel(PREV.cycle) + ' run' : 'vs the run chosen in "compare with"'}, on the days both runs cover · <b>p5…p95</b> = ensemble quantiles · <b>spread÷normal</b> = today's ensemble spread relative to what is usual for the lead (&gt;1.25 unusually uncertain, &lt;0.8 unusually confident) · <b>P(${thrIsBelow() ? '≤' : '≥'} ${thrVal()})</b> = chance the ${LBL[m]} ${thrIsBelow() ? 'falls to or below' : 'reaches'} the threshold set in the bar · <b>P(&gt;normal)</b> = chance it ends up above the normal · <b>lean</b> = which way the risk leans, in percentage points`;
 }
@@ -537,13 +537,23 @@ function drawDay(S, isModal){
   const dd = c.change && c.change.daily, dh = dd && dd.hi && dd.hi.base[c.dates[j]], dl = dd && dd.lo && dd.lo.base[c.dates[j]];
   const dq = (k, lv) => dd && dd[k] && dd[k].dq[lv] && dd[k].dq[lv][c.dates[j]] != null ? dd[k].dq[lv][c.dates[j]] : null;
   const chgRow = PREV ? (() => { const ic = sel; const dh = dPrev(ic, 'hi', j, null), dl = dPrev(ic, 'lo', j, null); return `<div style="color:#7b8798">vs the ${prevLabel(PREV.cycle)} run on this day: max ${dh == null ? '—' : sgTxt(dh)} · min ${dl == null ? '—' : sgTxt(dl)}</div>`; })() : '';
+  // Station records for this calendar day, and the ensemble's odds of reaching them.
+  // GHCN-Daily at the matched airport (src_build_city_climo.py), full period of record.
+  const recRow = (() => {
+    const R = c.records; if (!R || R.hi[j] == null) return '';
+    const pH = Math.round(100 * (1 - cdfAt(hs, hw, R.hi[j] - 1e-9))), pL = Math.round(100 * cdfAt(ls, lw, R.lo[j]));
+    return `<div style="color:#7b8798">record for this date, ${R.years[0]}–${R.years[1]}: max <b>${R.hi[j].toFixed(1)}</b>`
+      + (R.hi_y[j] ? ` (${R.hi_y[j]})` : '') + ` · min <b>${R.lo[j].toFixed(1)}</b>` + (R.lo_y[j] ? ` (${R.lo_y[j]})` : '')
+      + ` · P(record max) ${pH}% · P(record min) ${pL}%`
+      + ` <span style="opacity:.7">· ${R.station}, ${R.km} km</span></div>`;
+  })();
   if (isModal){
-    $('#mstats').innerHTML = rowS('high', hs, hw, bH, nH) + rowS('low', ls, lw, bL, nL) + chgRow;
+    $('#mstats').innerHTML = rowS('high', hs, hw, bH, nH) + rowS('low', ls, lw, bL, nL) + chgRow + recRow;
     const thrH = [80, 85, 90, 95, 100, 105, 110].filter(t => t > lo0 && t < hi0), thrL = [20, 32, 40, 50, 60, 70, 80].filter(t => t > lo0 && t < hi0);
     $('#mthr').innerHTML = (thrH.length ? `<span>P(high ≥)</span>` + thrH.map(t => `<span>${t}° <b>${Math.round(100 * (1 - cdfAt(hs, hw, t - 1e-9)))}%</b></span>`).join('') : '')
       + (thrL.length ? `<span style="margin-left:10px">P(low ≤)</span>` + thrL.map(t => `<span>${t}° <b>${Math.round(100 * cdfAt(ls, lw, t))}%</b></span>`).join('') : '');
   } else {
-    $('#read').innerHTML = rowS('high', hs, hw, bH, nH) + rowS('low', ls, lw, bL, nL) + chgRow;
+    $('#read').innerHTML = rowS('high', hs, hw, bH, nH) + rowS('low', ls, lw, bL, nL) + chgRow + recRow;
   }
 }
 async function inlineDay(){
