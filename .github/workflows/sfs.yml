@@ -77,20 +77,36 @@ jobs:
           path: scripts/sfs/data
           key: sfs-clim-${{ steps.iss.outputs.month }}-v1
 
+      # publish_frames_ci.sh swaps the directories you hand it in WHOLESALE. A run that renders
+      # only the monthly loops must therefore start from the branch's existing frames, or it
+      # deletes every loop it did not rebuild — which is exactly what the first run did to the
+      # five day-16-46 loops on 2026-09-10.
+      - name: Seed the existing SFS frames from the frames branch
+        run: scripts/lib/fetch_frames_ci.sh assets/sfs/anim || true
+
       - name: Which stores has NOAA published for this issue?
         id: stores
         run: |
-          B="https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1/forecast/${{ steps.iss.outputs.issue }}"
+          ROOT="https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1/forecast"
+          B="$ROOT/${{ steps.iss.outputs.issue }}"
           # NB: a bare `[ x = y ] && echo ...` as the last statement returns 1 when the test is
           # false, and the step dies under `bash -e`. Use an if, not a short-circuit.
           for s in atm_monthly ocn_monthly atm_daily ocn_daily; do
             c=$(curl -s -o /dev/null -w '%{http_code}' "$B/$s.zarr/.zmetadata")
             echo "  $s -> $c"
-            if [ "$s" = "atm_daily" ]; then
-              if [ "$c" = "200" ]; then echo "daily=yes" >> "$GITHUB_OUTPUT"; else echo "daily=no" >> "$GITHUB_OUTPUT"; fi
-            fi
           done
-          echo "store probe done"
+          # The daily products follow the newest issue that actually HAS atm_daily, which lags
+          # the monthly stores by days. Without this the subseasonal loops would simply never
+          # render in the first half of a month.
+          D=""
+          for back in 0 1 2; do
+            I=$(date -u -d "${{ steps.iss.outputs.issue }}01 -$back month" +%Y%m)
+            c=$(curl -s -o /dev/null -w '%{http_code}' "$ROOT/$I/atm_daily.zarr/.zmetadata")
+            echo "  daily candidate $I -> $c"
+            if [ "$c" = "200" ]; then D="$I"; break; fi
+          done
+          echo "daily_issue=$D" >> "$GITHUB_OUTPUT"
+          echo "daily products will use: ${D:-none}"
 
       # ── monthly products: available as soon as the monthly stores land ──
       - name: Monthly anomaly maps (caches the field climatology indices needs)
@@ -103,17 +119,17 @@ jobs:
         run: python scripts/sfs/sfs_nino.py --issue "${{ steps.iss.outputs.issue }}"
 
       # ── daily products: only once atm_daily/ocn_daily publish, days later ──
-      - name: MJO phase space (needs atm_daily)
-        if: steps.stores.outputs.daily == 'yes'
-        run: python scripts/sfs/sfs_mjo.py --issue "${{ steps.iss.outputs.issue }}" || echo "SFS MJO failed; continuing"
+      - name: MJO phase space (newest issue with daily stores)
+        if: steps.stores.outputs.daily_issue != ''
+        run: python scripts/sfs/sfs_mjo.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "SFS MJO failed; continuing"
 
-      - name: 100 hPa polar view (needs atm_daily)
-        if: steps.stores.outputs.daily == 'yes'
-        run: python scripts/sfs/sfs_polar100.py --issue "${{ steps.iss.outputs.issue }}" || echo "SFS polar view failed; continuing"
+      - name: 100 hPa polar view (newest issue with daily stores)
+        if: steps.stores.outputs.daily_issue != ''
+        run: python scripts/sfs/sfs_polar100.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "SFS polar view failed; continuing"
 
-      - name: Subseasonal daily loops (needs atm_daily)
-        if: steps.stores.outputs.daily == 'yes'
-        run: python scripts/sfs/sfs_daily.py --issue "${{ steps.iss.outputs.issue }}" || echo "SFS daily loops failed; continuing"
+      - name: Subseasonal daily loops (newest issue with daily stores)
+        if: steps.stores.outputs.daily_issue != ''
+        run: python scripts/sfs/sfs_daily.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "SFS daily loops failed; continuing"
 
       - name: Publish the loop frames to the frames branch
         env:
@@ -154,5 +170,5 @@ jobs:
         if: always()
         run: |
           echo "### NOAA SFS ${{ steps.iss.outputs.issue }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- daily stores published: ${{ steps.stores.outputs.daily }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- daily products from issue: ${{ steps.stores.outputs.daily_issue }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Page: [/sfs.html](https://scorvec.com/sfs.html)" >> "$GITHUB_STEP_SUMMARY"
