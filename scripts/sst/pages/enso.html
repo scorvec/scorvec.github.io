@@ -285,7 +285,7 @@ window.STAGE = {
           cap: function () { return "ECMWF SEAS5's monthly Southern Oscillation and Equatorial SOI for the coming six months, calibrated against CPC's published series on the 1993–2016 hindcast; the raw ensemble mean is dotted, CPC's last four months in black."; }},
   wwb: {label: "Westerly wind bursts", a: {label: "View", items: [["tarawa","Tarawa monitor"],["onsets","Against past onsets"]]},
           dom: function (a) { return a === "tarawa" ? "dom-wwb" : null; }, img: function () { return "assets/sst/kiribati_history.webp"; }, bust: "hourly",
-          about: "about-wwb_t", cap: function (a) { return a === "tarawa" ? "Hourly surface wind at Tarawa and Kiritimati: westerlies at the dateline are the trigger for oceanic Kelvin waves. Live arrows below the chart." : "This year's westerly-burst activity against the onset years of past El Niños."; }},
+          about: function (a) { return a === "tarawa" ? "about-wwb_t" : "about-wwb_o"; }, cap: function (a) { return a === "tarawa" ? "Hourly surface wind at Tarawa and Kiritimati: westerlies at the dateline are the trigger for oceanic Kelvin waves. Live arrows below the chart." : "This year's westerly-burst activity against the onset years of past El Niños."; }},
   wind10: {label: "Equatorial 10 m wind forecast", img: function () { return "assets/sst/eq_wind_hovmoller.webp?v=__CACHE__"; }, about: "about-wind10",
           cap: function () { return "Forecast zonal wind along the equator, ensemble mean and spread, out to day 15."; }},
   subtemp: {label: "Subsurface temperature section", a: {label: "Field", items: [["equatorial","Temperature and anomaly"],["equatorial_dt","Anomaly, trend removed"]]},

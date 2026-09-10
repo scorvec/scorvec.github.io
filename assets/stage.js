@@ -108,8 +108,9 @@
     var gb = typeof p.b === "function" ? p.b(sel.a) : (p.b || null); buttons($("opts-b"), gb, "b");
     var gc = typeof p.c === "function" ? p.c(sel.a, sel.b) : (p.c || null); buttons($("opts-c"), gc, "c");
     var st = $("stage"); unmount(); st.innerHTML = ""; pinMax = 0;
-    if (p.dom) {
-      var el = $(p.dom(sel.a, sel.b, sel.c));
+    var domId = p.dom && p.dom(sel.a, sel.b, sel.c);   // dom() may return null for an option that is a still
+    if (domId) {
+      var el = $(domId);
       if (el) { mountedHome = { parent: el.parentNode, next: el.nextSibling }; mounted = el; st.appendChild(el); el.hidden = false;
         if (window.Plotly) Array.prototype.forEach.call(el.querySelectorAll(".js-plotly-plot"), function (g) { try { window.Plotly.Plots.resize(g); } catch (e) {} }); }
     } else if (p.frame && p.frame(sel.a, sel.b, sel.c)) {          // frame() may return null for an option that is a still
