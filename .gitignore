@@ -157,3 +157,7 @@ scripts/asos5/asos5.log
 # the tropical velocity-potential history rides on the frames branch, never on main
 assets/sst/anim/walker/*.nc
 assets/sst/anim/waf/*.nc
+
+# local build residue (untracked 2026-09-09; they carried absolute home paths)
+scripts/mjo/data/.julia_staging/
+scripts/mjo/data/*.log

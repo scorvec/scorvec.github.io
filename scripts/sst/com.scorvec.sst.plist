@@ -11,7 +11,10 @@
      under power-management/App-Nap even while awake) and passes --poll; run_local_sst then
      only actually checks during 09:00–13:59 ET (its own guard), so out-of-window fires exit
      instantly and in-window it HEAD-checks PSL and commits only when the OISST day changes.
-     GitHub Action (16:23 UTC) stays the laptop-off fallback. -->
+     GitHub Action (16:23 UTC) stays the laptop-off fallback.
+     Paths below are written as __REPO__ (the checkout) and __HOME__ (your home
+     directory): substitute them before installing, e.g.
+       sed "s#__REPO__#$PWD#g; s#__HOME__#$HOME#g" <this file> > ~/Library/LaunchAgents/<name>.plist -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -19,12 +22,12 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/shawn/scorvec.github.io/scripts/sst/run_local_sst.sh</string>
+    <string>__REPO__/scripts/sst/run_local_sst.sh</string>
     <string>--poll</string>
   </array>
   <key>StartInterval</key><integer>900</integer>
-  <key>StandardOutPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/launchd.out.log</string>
-  <key>StandardErrorPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/launchd.err.log</string>
+  <key>StandardOutPath</key><string>__REPO__/scripts/sst/launchd.out.log</string>
+  <key>StandardErrorPath</key><string>__REPO__/scripts/sst/launchd.err.log</string>
   <key>RunAtLoad</key><false/>
   <key>ProcessType</key><string>Background</string>
 </dict>

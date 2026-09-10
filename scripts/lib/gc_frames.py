@@ -42,16 +42,11 @@ BRANCH = os.environ.get("FRAMES_BRANCH", "frames")
 # products whose manifests are intentionally absent from main - the exact set
 # that a reference-only rule would have eaten.
 PROTECT_PREFIXES = (
-    "assets/cptec/anim",
-    "assets/brazil/anim",
+    # Live products whose manifests are not tracked on main, so a reference-only rule
+    # would eat them. The Gatun, CPTEC CO/BR, Brazil and IMERG-precip prefixes that used
+    # to be listed here were deleted from the branch in the 2026-09-09 security sweep:
+    # their pages were retired but their frames stayed publicly fetchable.
     "assets/sfs/anim",
-    "assets/sst/anim/gatun",
-    # The IMERG precip loops: rendered by imerg_precip.py / imerg_precip_anom.py
-    # / imerg_gatun.py and consumed by gatun/index.html, whose manifest is not
-    # tracked on main - so they look exactly like orphans and were reported as
-    # "needs a decision" (167 frames) on EVERY daily run. They are live; the
-    # recurring false positive was the only thing wrong with them.
-    "assets/sst/anim/precip",
 )
 
 

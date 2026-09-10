@@ -23,12 +23,15 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/shawn/scorvec.github.io/scripts/lib/dispatch_workflows.sh</string>
+    <string>__REPO__/scripts/lib/dispatch_workflows.sh</string>
   </array>
 
   <key>EnvironmentVariables</key>
   <dict>
-    <!-- launchd gives a minimal PATH; gh and git must be findable. -->
+    <!-- launchd gives a minimal PATH; gh and git must be findable.
+     Paths below are written as __REPO__ (the checkout) and __HOME__ (your home
+     directory): substitute them before installing, e.g.
+       sed "s#__REPO__#$PWD#g; s#__HOME__#$HOME#g" <this file> > ~/Library/LaunchAgents/<name>.plist -->
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
@@ -42,8 +45,8 @@
   <true/>
 
   <key>StandardOutPath</key>
-  <string>/Users/shawn/scorvec.github.io/scripts/lib/dispatch.log</string>
+  <string>__REPO__/scripts/lib/dispatch.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/shawn/scorvec.github.io/scripts/lib/dispatch.err.log</string>
+  <string>__REPO__/scripts/lib/dispatch.err.log</string>
 </dict>
 </plist>

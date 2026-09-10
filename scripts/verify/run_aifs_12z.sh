@@ -6,7 +6,7 @@
 set -u
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 PY=/opt/homebrew/Caskroom/miniconda/base/envs/mjo/bin/python
-REPO=/Users/shawn/scorvec.github.io
+REPO="${REPO:-$HOME/scorvec.github.io}"
 DATE=$(date -u +%Y%m%d)
 cd "$REPO" || exit 1
 "$PY" -u scripts/verify/aifs_compare_anim.py --date "$DATE" --time 12 || exit 1

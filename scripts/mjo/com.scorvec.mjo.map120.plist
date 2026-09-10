@@ -6,13 +6,13 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/shawn/scorvec.github.io/scripts/mjo/refresh_map120.sh</string>
+    <string>__REPO__/scripts/mjo/refresh_map120.sh</string>
   </array>
-  <key>WorkingDirectory</key><string>/Users/shawn/scorvec.github.io/scripts/mjo</string>
+  <key>WorkingDirectory</key><string>__REPO__/scripts/mjo</string>
   <key>StartCalendarInterval</key>
   <dict><key>Hour</key><integer>4</integer><key>Minute</key><integer>30</integer></dict>
-  <key>StandardOutPath</key><string>/Users/shawn/scorvec.github.io/scripts/mjo/map120.refresh.log</string>
-  <key>StandardErrorPath</key><string>/Users/shawn/scorvec.github.io/scripts/mjo/map120.refresh.log</string>
+  <key>StandardOutPath</key><string>__REPO__/scripts/mjo/map120.refresh.log</string>
+  <key>StandardErrorPath</key><string>__REPO__/scripts/mjo/map120.refresh.log</string>
   <key>RunAtLoad</key><false/>
   <key>ProcessType</key><string>Background</string>
 </dict>

@@ -5,7 +5,10 @@
        launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.aifsanim.plist
      Reload after edits:
        launchctl bootout gui/$(id -u)/com.scorvec.aifsanim 2>/dev/null
-       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.aifsanim.plist -->
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.scorvec.aifsanim.plist
+     Paths below are written as __REPO__ (the checkout) and __HOME__ (your home
+     directory): substitute them before installing, e.g.
+       sed "s#__REPO__#$PWD#g; s#__HOME__#$HOME#g" <this file> > ~/Library/LaunchAgents/<name>.plist -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -13,12 +16,12 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/shawn/scorvec.github.io/scripts/verify/run_aifs_12z.sh</string>
+    <string>__REPO__/scripts/verify/run_aifs_12z.sh</string>
   </array>
   <key>StartCalendarInterval</key>
   <dict><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
-  <key>StandardOutPath</key><string>/Users/shawn/scorvec.github.io/scripts/verify/launchd_aifs.log</string>
-  <key>StandardErrorPath</key><string>/Users/shawn/scorvec.github.io/scripts/verify/launchd_aifs.log</string>
+  <key>StandardOutPath</key><string>__REPO__/scripts/verify/launchd_aifs.log</string>
+  <key>StandardErrorPath</key><string>__REPO__/scripts/verify/launchd_aifs.log</string>
   <key>RunAtLoad</key><false/>
   <key>ProcessType</key><string>Background</string>
   <key>LowPriorityIO</key><true/>

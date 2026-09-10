@@ -12,7 +12,10 @@
      Fires every 6 h (StartInterval — macOS silently skips wall-clock StartCalendarInterval
      under power-management/App-Nap even while awake) and passes --poll; run_c3s_nino34.sh
      then only acts on days 6–16 (the C3S monthly release window), at most once per day, and
-     no-ops for the rest of the month once all 7 models are committed. -->
+     no-ops for the rest of the month once all 7 models are committed.
+     Paths below are written as __REPO__ (the checkout) and __HOME__ (your home
+     directory): substitute them before installing, e.g.
+       sed "s#__REPO__#$PWD#g; s#__HOME__#$HOME#g" <this file> > ~/Library/LaunchAgents/<name>.plist -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -20,12 +23,12 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/shawn/scorvec.github.io/scripts/sst/run_c3s_nino34.sh</string>
+    <string>__REPO__/scripts/sst/run_c3s_nino34.sh</string>
     <string>--poll</string>
   </array>
   <key>StartInterval</key><integer>21600</integer>
-  <key>StandardOutPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/c3s.launchd.out.log</string>
-  <key>StandardErrorPath</key><string>/Users/shawn/scorvec.github.io/scripts/sst/c3s.launchd.err.log</string>
+  <key>StandardOutPath</key><string>__REPO__/scripts/sst/c3s.launchd.out.log</string>
+  <key>StandardErrorPath</key><string>__REPO__/scripts/sst/c3s.launchd.err.log</string>
   <key>RunAtLoad</key><false/>
   <key>ProcessType</key><string>Background</string>
 </dict>
