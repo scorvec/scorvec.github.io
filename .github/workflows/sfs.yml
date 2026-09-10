@@ -72,11 +72,16 @@ jobs:
         id: stores
         run: |
           B="https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1/forecast/${{ steps.iss.outputs.issue }}"
+          # NB: a bare `[ x = y ] && echo ...` as the last statement returns 1 when the test is
+          # false, and the step dies under `bash -e`. Use an if, not a short-circuit.
           for s in atm_monthly ocn_monthly atm_daily ocn_daily; do
             c=$(curl -s -o /dev/null -w '%{http_code}' "$B/$s.zarr/.zmetadata")
             echo "  $s -> $c"
-            [ "$s" = "atm_daily" ] && echo "daily=$([ "$c" = "200" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+            if [ "$s" = "atm_daily" ]; then
+              if [ "$c" = "200" ]; then echo "daily=yes" >> "$GITHUB_OUTPUT"; else echo "daily=no" >> "$GITHUB_OUTPUT"; fi
+            fi
           done
+          echo "store probe done
 
       # ── monthly products: available as soon as the monthly stores land ──
       - name: Monthly anomaly maps (caches the field climatology indices needs)
