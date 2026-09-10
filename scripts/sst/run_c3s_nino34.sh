@@ -83,23 +83,17 @@ NMODELS=$(printf '%s\n' "$OUT" | sed -nE 's/.*\(([0-9]+) models\)/\1/p' | tail -
 # append/refresh this issue in the forecast-evolution store (cached GRIBs; cheap)
 "$PY" scripts/sst/c3s_evolution.py || echo "evolution store update failed; continuing"
 
-# NOAA SFS beta Niño-3.4 feed + global anomaly maps + derived indices
-# (NODD zarr; lands by the ~6th; indices need the maps' cached SST clim)
-"$PY" scripts/sfs/sfs_nino.py || echo "SFS beta feed failed; continuing"
-"$PY" scripts/sfs/sfs_maps.py || echo "SFS beta maps failed; continuing"
-"$PY" scripts/sfs/sfs_indices.py || echo "SFS beta indices failed; continuing"
-"$PY" scripts/sfs/sfs_daily.py || echo "SFS beta daily failed; continuing"
-"$PY" scripts/sfs/sfs_mjo.py || echo "SFS beta MJO failed; continuing"
-"$PY" scripts/sfs/sfs_polar100.py || echo "SFS beta polar100 failed; continuing"
+# NOAA SFS moved to GitHub Actions on 2026-09-10 (.github/workflows/sfs.yml): it needs no
+# credentials, unlike C3S. Rendering it here as well would push a second, competing copy over
+# whatever the workflow just published — and a partial local render would delete the loops it
+# did not rebuild, exactly the way the first workflow run did. Dispatch sfs.yml instead:
+#   gh workflow run sfs.yml -f issue=YYYYMM
 # PRIVATE strat gate product — writes only to gitignored paths
 "$PY" scripts/strat/sfs_gate100.py || echo "SFS gate failed; continuing"
 
-# cache-bust the static SFS images (loops self-bust via manifest ver)
-CB=$(date -u +%Y%m%d%H%M)
-perl -0pi -e "s/(mjo_rmm\.webp)\?v=\w+/\${1}?v=$CB/g" sfs.html 2>/dev/null || true
 
 git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json \
-        assets/sst/data/c3s_evolution.json assets/sfs scripts/sfs/data sfs.html
+        assets/sst/data/c3s_evolution.json
 if git diff --staged --quiet; then
   echo "no changes to commit"
   [ "${NMODELS:-0}" -ge 7 ] 2>/dev/null && touch "$DONE_STAMP"
