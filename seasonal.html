@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seasonal Outlook by Model &mdash; C3S Multi-System Anomaly Maps &middot; Shawn Corvec</title>
+<meta name="description" content="Eight C3S seasonal systems from seven centres, one at a time or averaged: global temperature, precipitation, pressure and SST anomaly maps against each model's own 1993-2016 hindcast, with the full-member Nino-3.4 plume alongside.">
+<link rel="canonical" href="https://scorvec.com/seasonal.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Seasonal Outlook by Model &mdash; C3S Multi-System Anomaly Maps &middot; Shawn Corvec">
+<meta property="og:description" content="Eight C3S seasonal systems from seven centres, one at a time or averaged: global temperature, precipitation, pressure and SST anomaly maps against each model's own 1993-2016 hindcast, with the full-member Nino-3.4 plume alongside.">
+<meta property="og:url" content="https://scorvec.com/seasonal.html">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Seasonal Outlook by Model &mdash; C3S Multi-System Anomaly Maps &middot; Shawn Corvec">
+<meta name="twitter:description" content="Eight C3S seasonal systems from seven centres, one at a time or averaged: global temperature, precipitation, pressure and SST anomaly maps against each model's own 1993-2016 hindcast, with the full-member Nino-3.4 plume alongside.">
+<link rel="stylesheet" href="/assets/outlook.css">
+<link rel="stylesheet" href="/assets/stage.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/columbia/">Columbia River basin precipitation</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html" aria-current="page">Seasonal outlook, model by model</a></li>
+                <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              <li><a href="/spectra.html">HRRR and RRFS kinetic-energy spectra</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+  <div class="page-header">
+    <p class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble</p>
+    <h1>Seasonal outlook by model</h1>
+    <p class="sub">Eight seasonal systems from seven centres, one at a time or averaged: global anomaly maps for
+    temperature, precipitation, pressure and sea-surface temperature, beside the Ni&ntilde;o-3.4 plume that carries
+    every one of their members. Each model is shown against <b>its own 1993&ndash;2016 hindcast</b>, so the systems
+    are comparable even though their biases are not. ECMWF SEAS5 is one of the models here; its member-level
+    products &mdash; calibrated terciles, threshold days, precipitation minus evaporation &mdash; live on the
+    <a href="seas5.html">SEAS5 page</a>, which is the only system whose full ensemble is held locally.</p>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+      <div class="chart-card-footer"><span class="chart-sources">Copernicus Climate Change Service (C3S) seasonal multi-system &middot; maps: <code>seasonal-postprocessed-single-levels</code>, ensemble-mean anomaly against each model's own 1993&ndash;2016 hindcast &middot; Ni&ntilde;o-3.4: <code>seasonal-monthly-single-levels</code>, every member &middot; rendered on issue</span><span class="chart-updated">C3S 2026-09</span></div>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder" id="dom-holder"></div>
+
+<template id="about-maps">
+<p>The map for each system is its <b>ensemble-mean anomaly</b>, taken by C3S against that system's own
+1993&ndash;2016 hindcast and published in the postprocessed seasonal collection. That matters twice over: it is
+the comparison you want, because a seasonal model's raw field is dominated by its own drift and bias, and it is
+what makes eight systems affordable &mdash; the members themselves are tens of gigabytes per system per issue,
+the ensemble-mean anomalies are about a megabyte.</p>
+<p>The <b>multi-model mean</b> weights every system equally rather than by member count, so NCEP's 124 members
+and ECCC's 20 count the same. That is the usual convention and it stops one large ensemble speaking for the
+group. Where systems disagree the mean is the wrong thing to read on its own; step through the models and see
+whether a feature survives.</p>
+<p><b>Periods.</b> Lead month 1 is the issue month itself, already partly observed by the time you read it.
+Months 2&ndash;4 and 5&ndash;7 are the seasonal ranges the systems are actually run for.</p>
+<p class="chart-sources">Copernicus Climate Change Service, <code>seasonal-postprocessed-single-levels</code> &middot; anomalies vs each model's 1993&ndash;2016 hindcast &middot; equal weight per system in the multi-model mean</p>
+</template>
+<template id="about-plume">
+<p>Every member of every system, on one axis. This is the same feed the <a href="enso-forecasts.html">ENSO
+forecasts page</a> draws, kept here so the maps and the index sit together: the Ni&ntilde;o-3.4 box is small
+enough that the full ensemble is cheap to hold, which is why the plume has hundreds of members while the maps
+are ensemble means.</p>
+<p>Anomalies are against each model's own 1993&ndash;2016 hindcast, while the observed lead-in uses ERSSTv5 on the
+fixed 1991&ndash;2020 base, so the two can differ by a tenth or two of a degree.</p>
+<p class="chart-sources">C3S seasonal multi-system, <code>seasonal-monthly-single-levels</code> &middot; observed: NOAA ERSSTv5</p>
+</template>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  fetch("assets/sst/data/c3s_maps.json?v=202609102100").then(function (r) { return r.json(); }).then(function (J) {
+    var models = J.models, fields = J.fields, periods = J.periods;
+    var FIELD_ITEMS = Object.keys(fields).map(function (k) { return [k, fields[k].label]; });
+    var PERIOD_ITEMS = Object.keys(periods).map(function (k) { return [k, periods[k]]; });
+    var MODEL_ITEMS = models.map(function (m) { return [m.id, m.label]; });
+
+    $("chips").innerHTML =
+      '<div class="chip"><div class="l">issue</div><div class="v">' + J.issue_label + '</div><div class="s">C3S multi-system</div></div>' +
+      '<div class="chip"><div class="l">systems</div><div class="v">' + (models.length - 1) + '</div><div class="s">seven centres, plus their mean</div></div>' +
+      '<div class="chip"><div class="l">anomaly base</div><div class="v">1993&ndash;2016</div><div class="s">each model vs its own hindcast</div></div>';
+
+    window.STAGE = {
+      groups: [
+        { label: "Maps by model", ico: "\u{1F5FA}", items: [["maps", "Anomaly maps", "pick the model and the field"]] },
+        { label: "ENSO", ico: "\u{1F30A}", items: [["plume", "Niño-3.4 plume", "every member of every system"]] }
+      ],
+      products: {
+        maps: {
+          label: "Seasonal anomaly maps",
+          a: { label: "Model", items: MODEL_ITEMS },
+          b: { label: "Field", items: FIELD_ITEMS },
+          c: { label: "Period", items: PERIOD_ITEMS },
+          fit: false,
+          img: function (a, b, c) { return "assets/sst/c3s/c3s_" + a + "_" + b + "_" + c + ".webp?v=202609102100"; },
+          about: "about-maps",
+          cap: function (a, b, c) {
+            var m = models.filter(function (x) { return x.id === a; })[0] || { label: a };
+            var base = (a === "mmm")
+              ? "Mean of the C3S systems, each weighted equally, "
+              : m.label + ", ensemble-mean anomaly against its own 1993–2016 hindcast, ";
+            return base + periods[c] + " of the " + J.issue_label + " issue. " + fields[b].label + " in " + fields[b].units + ".";
+          }
+        },
+        plume: {
+          label: "Niño-3.4 plume",
+          img: function () { return "assets/sst/c3s_nino34.webp?v=202609102100"; },
+          fit: false,
+          about: "about-plume",
+          cap: function () { return "Every member of every C3S system, with the percentile fan and each model's ensemble mean; the observed index leads in from the left."; }
+        }
+      }
+    };
+    var s = document.createElement("script"); s.src = "/assets/stage.js"; document.body.appendChild(s);
+  }).catch(function () {
+    $("crumb").textContent = "The C3S map set is not built yet.";
+  });
+})();
+</script>
+
+<script>
+  // hourly-updating images (committed by their own Actions jobs) take an hour-granular cache key
+  ['kiribati-wind'].forEach(function (id) {
+    var im = document.getElementById(id);
+    if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
+  });
+  // live wind-arrow widget for the Tarawa WWB monitor (arrow points the way the wind blows TO)
+  (function () {
+    var host = document.getElementById('wwb-arrows'); if (!host) return;
+    fetch('assets/sst/kiribati_wind.json?v=' + new Date().toISOString().slice(0, 13))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.stations) return;
+        var html = '';
+        Object.keys(d.stations).forEach(function (icao) {
+          var s = d.stations[icao], west = s.u_ms > 0, col = west ? '#d62728' : '#1f77b4';
+          var bearing = (s.dir + 180) % 360;
+          var lab = Math.abs(s.u_ms) < 0.5 ? 'calm' : (west ? 'westerly' : 'easterly');
+          html += '<div class="wwb-stn"><svg width="92" height="92" viewBox="0 0 100 100">'
+            + '<circle cx="50" cy="50" r="44" fill="none" stroke="#ddd"/>'
+            + '<text x="50" y="13" text-anchor="middle" font-size="9" fill="#bbb">N</text>'
+            + '<g transform="rotate(' + bearing + ' 50 50)">'
+            + '<line x1="50" y1="52" x2="50" y2="24" stroke="' + col + '" stroke-width="4"/>'
+            + '<path d="M50 12 L42 30 L50 25 L58 30 Z" fill="' + col + '"/></g>'
+            + '<circle cx="50" cy="50" r="3.5" fill="' + col + '"/></svg>'
+            + '<b>' + s.name + '</b><span style="color:' + col + '">' + s.dir + '° / '
+            + s.spd_kt + ' kt &middot; ' + lab + '</span></div>';
+        });
+        host.innerHTML = html + '<div class="wwb-stn" style="max-width:9em">updated<br>' + d.updated + '</div>';
+      }).catch(function () {});
+  })();
+</script>
+<script src="/assets/stage.js" defer></script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

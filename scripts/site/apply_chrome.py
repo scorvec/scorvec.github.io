@@ -43,6 +43,7 @@ PRODUCTS = [
         ("Beyond two weeks", [
             ("/subseasonal.html", "GEPS subseasonal outlook, weeks 1–5"),
             ("/enso-forecasts.html", "ENSO forecasts"),
+            ("/seasonal.html", "Seasonal outlook, model by model"),
             ("/seas5.html", "ECMWF SEAS5 outlook"),
             ("/sfs.html", "NOAA SFS outlook"),
         ]),
@@ -68,6 +69,7 @@ TABS = {
     "enso": [
         ("/enso.html", "Overview"),
         ("/enso-forecasts.html", "Forecasts"),
+        ("/seasonal.html", "Seasonal maps"),
         ("/seas5.html", "SEAS5"),
         ("/circulation.html", "Atmospheric response"),
     ],
@@ -93,6 +95,7 @@ PAGES = [
         ("main { padding: 9.5rem 1rem 3rem; }", "main { padding: 1.5rem 1rem 3rem; }"),
     ]),
     dict(path="seas5.html", mode="after-body", tabs="enso"),
+    dict(path="seasonal.html", mode="after-body", tabs="enso"),
     dict(path="enso.html", mode="after-body", tabs="enso"),
     dict(path="circulation.html", mode="after-body", tabs="enso"),
     dict(path="subseasonal.html", mode="site-header", fixes=[]),   # page restyled 2026-09-07 on /assets/outlook.css; no padding patches needed

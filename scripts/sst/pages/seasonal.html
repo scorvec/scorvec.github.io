@@ -1,0 +1,105 @@
+<main>
+  <div class="page-header">
+    <p class="eyebrow">Monthly, from the Copernicus C3S multi-system seasonal ensemble</p>
+    <h1>Seasonal outlook by model</h1>
+    <p class="sub">Eight seasonal systems from seven centres, one at a time or averaged: global anomaly maps for
+    temperature, precipitation, pressure and sea-surface temperature, beside the Ni&ntilde;o-3.4 plume that carries
+    every one of their members. Each model is shown against <b>its own 1993&ndash;2016 hindcast</b>, so the systems
+    are comparable even though their biases are not. ECMWF SEAS5 is one of the models here; its member-level
+    products &mdash; calibrated terciles, threshold days, precipitation minus evaporation &mdash; live on the
+    <a href="seas5.html">SEAS5 page</a>, which is the only system whose full ensemble is held locally.</p>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+      <div class="chart-card-footer"><span class="chart-sources">Copernicus Climate Change Service (C3S) seasonal multi-system &middot; maps: <code>seasonal-postprocessed-single-levels</code>, ensemble-mean anomaly against each model's own 1993&ndash;2016 hindcast &middot; Ni&ntilde;o-3.4: <code>seasonal-monthly-single-levels</code>, every member &middot; rendered on issue</span><span class="chart-updated">__SST_DAY__</span></div>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder" id="dom-holder"></div>
+
+<template id="about-maps">
+<p>The map for each system is its <b>ensemble-mean anomaly</b>, taken by C3S against that system's own
+1993&ndash;2016 hindcast and published in the postprocessed seasonal collection. That matters twice over: it is
+the comparison you want, because a seasonal model's raw field is dominated by its own drift and bias, and it is
+what makes eight systems affordable &mdash; the members themselves are tens of gigabytes per system per issue,
+the ensemble-mean anomalies are about a megabyte.</p>
+<p>The <b>multi-model mean</b> weights every system equally rather than by member count, so NCEP's 124 members
+and ECCC's 20 count the same. That is the usual convention and it stops one large ensemble speaking for the
+group. Where systems disagree the mean is the wrong thing to read on its own; step through the models and see
+whether a feature survives.</p>
+<p><b>Periods.</b> Lead month 1 is the issue month itself, already partly observed by the time you read it.
+Months 2&ndash;4 and 5&ndash;7 are the seasonal ranges the systems are actually run for.</p>
+<p class="chart-sources">Copernicus Climate Change Service, <code>seasonal-postprocessed-single-levels</code> &middot; anomalies vs each model's 1993&ndash;2016 hindcast &middot; equal weight per system in the multi-model mean</p>
+</template>
+<template id="about-plume">
+<p>Every member of every system, on one axis. This is the same feed the <a href="enso-forecasts.html">ENSO
+forecasts page</a> draws, kept here so the maps and the index sit together: the Ni&ntilde;o-3.4 box is small
+enough that the full ensemble is cheap to hold, which is why the plume has hundreds of members while the maps
+are ensemble means.</p>
+<p>Anomalies are against each model's own 1993&ndash;2016 hindcast, while the observed lead-in uses ERSSTv5 on the
+fixed 1991&ndash;2020 base, so the two can differ by a tenth or two of a degree.</p>
+<p class="chart-sources">C3S seasonal multi-system, <code>seasonal-monthly-single-levels</code> &middot; observed: NOAA ERSSTv5</p>
+</template>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  fetch("assets/sst/data/c3s_maps.json?v=__CACHE__").then(function (r) { return r.json(); }).then(function (J) {
+    var models = J.models, fields = J.fields, periods = J.periods;
+    var FIELD_ITEMS = Object.keys(fields).map(function (k) { return [k, fields[k].label]; });
+    var PERIOD_ITEMS = Object.keys(periods).map(function (k) { return [k, periods[k]]; });
+    var MODEL_ITEMS = models.map(function (m) { return [m.id, m.label]; });
+
+    $("chips").innerHTML =
+      '<div class="chip"><div class="l">issue</div><div class="v">' + J.issue_label + '</div><div class="s">C3S multi-system</div></div>' +
+      '<div class="chip"><div class="l">systems</div><div class="v">' + (models.length - 1) + '</div><div class="s">seven centres, plus their mean</div></div>' +
+      '<div class="chip"><div class="l">anomaly base</div><div class="v">1993&ndash;2016</div><div class="s">each model vs its own hindcast</div></div>';
+
+    window.STAGE = {
+      groups: [
+        { label: "Maps by model", ico: "\u{1F5FA}", items: [["maps", "Anomaly maps", "pick the model and the field"]] },
+        { label: "ENSO", ico: "\u{1F30A}", items: [["plume", "Niño-3.4 plume", "every member of every system"]] }
+      ],
+      products: {
+        maps: {
+          label: "Seasonal anomaly maps",
+          a: { label: "Model", items: MODEL_ITEMS },
+          b: { label: "Field", items: FIELD_ITEMS },
+          c: { label: "Period", items: PERIOD_ITEMS },
+          fit: false,
+          img: function (a, b, c) { return "assets/sst/c3s/c3s_" + a + "_" + b + "_" + c + ".webp?v=__CACHE__"; },
+          about: "about-maps",
+          cap: function (a, b, c) {
+            var m = models.filter(function (x) { return x.id === a; })[0] || { label: a };
+            var base = (a === "mmm")
+              ? "Mean of the C3S systems, each weighted equally, "
+              : m.label + ", ensemble-mean anomaly against its own 1993–2016 hindcast, ";
+            return base + periods[c] + " of the " + J.issue_label + " issue. " + fields[b].label + " in " + fields[b].units + ".";
+          }
+        },
+        plume: {
+          label: "Niño-3.4 plume",
+          img: function () { return "assets/sst/c3s_nino34.webp?v=__CACHE__"; },
+          fit: false,
+          about: "about-plume",
+          cap: function () { return "Every member of every C3S system, with the percentile fan and each model's ensemble mean; the observed index leads in from the left."; }
+        }
+      }
+    };
+    var s = document.createElement("script"); s.src = "/assets/stage.js"; document.body.appendChild(s);
+  }).catch(function () {
+    $("crumb").textContent = "The C3S map set is not built yet.";
+  });
+})();
+</script>
