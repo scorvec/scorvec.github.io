@@ -62,9 +62,13 @@ jobs:
           # dask is NOT optional: without it xarray.open_zarr loads eagerly, so each 4.8 GB
           # reforecast variable is materialised whole and the climatology step is OOM-killed
           # (exit 143 on z500, the fourth field, 2026-09-10). With dask it streams 11 MB chunks.
-          # pyshtools: the chi200 loop takes the irrotational wind through wind200_vpot's
-          # spherical-harmonic inversion (prebuilt wheels, so no Fortran build here).
-          pip install --quiet numpy pandas xarray 'dask[array]' zarr s3fs fsspec matplotlib cartopy pyshtools
+          # The full transitive import closure of scripts/sfs, computed with ast rather than
+          # discovered one failed run at a time: the chi200 loop reaches wind200_vpot (pyshtools)
+          # which reaches the shared ECMWF store (ecmwf-opendata, multiurl, cfgrib/eccodes).
+          # dask is NOT optional: without it xarray.open_zarr loads eagerly and the 4.8 GB
+          # reforecast variables OOM-kill the climatology step.
+          pip install --quiet numpy pandas xarray 'dask[array]' zarr s3fs fsspec \
+            matplotlib cartopy pyshtools ecmwf-opendata multiurl requests cfgrib eccodes
 
       # The hindcast pool is per calendar month and costs ~20 min to build; keep it between runs.
       - name: Cache the SFS hindcast climatology
