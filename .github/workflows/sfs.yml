@@ -1,0 +1,144 @@
+name: NOAA SFS seasonal outlook (monthly)
+
+# sfs.html: the NOAA SFS beta (UFS coupled, 31 members, 12 monthly leads) outlook.
+#
+# WHY THIS EXISTS. SFS was the last product still rendered by hand on the laptop and pushed
+# with ALLOW_LOCAL_ASSET_PUSH, because nobody had written it a workflow. Nothing about it
+# needs the laptop: the source is NOAA's public SFS beta zarr on S3, read anonymously, with
+# no credentials at all (unlike SEAS5, whose CDS key deliberately stays on the laptop). So it
+# runs here like every other product.
+#
+# WHAT IT BUILDS, AND IN WHICH ORDER. sfs_maps must run before sfs_indices: indices reads the
+# SST field climatology that maps caches. The daily products (MJO, 100 hPa polar view, the
+# subseasonal loops) read atm_daily/ocn_daily, which NOAA publishes DAYS AFTER the monthly
+# stores — in September 2026 the monthly stores were up while the daily ones were not. Those
+# steps are therefore allowed to fail without failing the run, and the monthly cron is paired
+# with a re-run later in the month to pick the daily products up when they land.
+#
+# THE CLIMATOLOGY. Each month needs its own 30-year x 11-member hindcast pool
+# (scripts/sfs/data/clim_*_{MM}.npy, ~10 MB per field, ~20 min to build). It is cached by
+# month so a re-run in the same month is quick, and it is never committed.
+
+on:
+  schedule:
+  - cron: '40 14 17 * *'    # the monthly stores land mid-month (Aug 2026 issue: the 16th)
+  - cron: '40 14 24 * *'    # second pass: pick up the daily stores once they publish
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: 'Issue month YYYYMM (empty = current UTC month)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sfs
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Resolve the issue month
+        id: iss
+        run: |
+          I="${{ inputs.issue }}"
+          [ -n "$I" ] || I=$(date -u +%Y%m)
+          echo "issue=$I" >> "$GITHUB_OUTPUT"
+          echo "month=${I:4:2}" >> "$GITHUB_OUTPUT"
+          echo "Issue $I"
+
+      - name: Install Python dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
+          pip install --quiet numpy pandas xarray zarr s3fs fsspec matplotlib cartopy
+
+      # The hindcast pool is per calendar month and costs ~20 min to build; keep it between runs.
+      - name: Cache the SFS hindcast climatology
+        uses: actions/cache@v4
+        with:
+          path: scripts/sfs/data
+          key: sfs-clim-${{ steps.iss.outputs.month }}-v1
+
+      - name: Which stores has NOAA published for this issue?
+        id: stores
+        run: |
+          B="https://noaa-oar-sfsdev-pds.s3.amazonaws.com/experiments/beta1/forecast/${{ steps.iss.outputs.issue }}"
+          for s in atm_monthly ocn_monthly atm_daily ocn_daily; do
+            c=$(curl -s -o /dev/null -w '%{http_code}' "$B/$s.zarr/.zmetadata")
+            echo "  $s -> $c"
+            [ "$s" = "atm_daily" ] && echo "daily=$([ "$c" = "200" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+          done
+
+      # ── monthly products: available as soon as the monthly stores land ──
+      - name: Monthly anomaly maps (caches the field climatology indices needs)
+        run: python scripts/sfs/sfs_maps.py --issue "${{ steps.iss.outputs.issue }}"
+
+      - name: Derived climate indices
+        run: python scripts/sfs/sfs_indices.py --issue "${{ steps.iss.outputs.issue }}"
+
+      - name: Niño-3.4 plume
+        run: python scripts/sfs/sfs_nino.py --issue "${{ steps.iss.outputs.issue }}"
+
+      # ── daily products: only once atm_daily/ocn_daily publish, days later ──
+      - name: MJO phase space (needs atm_daily)
+        if: steps.stores.outputs.daily == 'yes'
+        run: python scripts/sfs/sfs_mjo.py --issue "${{ steps.iss.outputs.issue }}" || echo "SFS MJO failed; continuing"
+
+      - name: 100 hPa polar view (needs atm_daily)
+        if: steps.stores.outputs.daily == 'yes'
+        run: python scripts/sfs/sfs_polar100.py --issue "${{ steps.iss.outputs.issue }}" || echo "SFS polar view failed; continuing"
+
+      - name: Subseasonal daily loops (needs atm_daily)
+        if: steps.stores.outputs.daily == 'yes'
+        run: python scripts/sfs/sfs_daily.py --issue "${{ steps.iss.outputs.issue }}" || echo "SFS daily loops failed; continuing"
+
+      - name: Publish the loop frames to the frames branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sfs/anim
+
+      - name: Commit & push (generated outputs)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt, the mjo.yml pattern: a rebase recovery that
+          # reset --hard could silently discard the render and still report success.
+          SNAP=$(mktemp -d)
+          git add -A assets/sfs 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A assets/sfs
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "data update: SFS ${{ steps.iss.outputs.issue }}"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          echo "ERROR: could not push after 5 attempts." >&2
+          exit 1
+
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### NOAA SFS ${{ steps.iss.outputs.issue }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- daily stores published: ${{ steps.stores.outputs.daily }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Page: [/sfs.html](https://scorvec.com/sfs.html)" >> "$GITHUB_STEP_SUMMARY"
