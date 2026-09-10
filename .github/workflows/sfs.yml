@@ -81,7 +81,7 @@ jobs:
               if [ "$c" = "200" ]; then echo "daily=yes" >> "$GITHUB_OUTPUT"; else echo "daily=no" >> "$GITHUB_OUTPUT"; fi
             fi
           done
-          echo "store probe done
+          echo "store probe done"
 
       # ── monthly products: available as soon as the monthly stores land ──
       - name: Monthly anomaly maps (caches the field climatology indices needs)
