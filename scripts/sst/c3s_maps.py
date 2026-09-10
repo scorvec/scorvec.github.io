@@ -19,6 +19,7 @@ you can select here.
 from __future__ import annotations
 
 import argparse
+import time
 import os
 import sys
 from pathlib import Path
@@ -68,7 +69,7 @@ def fetch(key: str, centre: str, system: int, issue: str, force: bool = False) -
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--issue", required=True, help="YYYYMM")
+    ap.add_argument("--issue", default=time.strftime("%Y%m", time.gmtime()), help="YYYYMM, default this month")
     ap.add_argument("--only", default="", help="centre_system, e.g. ecmwf_51")
     ap.add_argument("--fields", default="t2m,tp,mslp,sst")
     ap.add_argument("--force", action="store_true")
@@ -82,8 +83,11 @@ def main() -> int:
         for key in want:
             if fetch(key, centre, system, a.issue, a.force):
                 got += 1
-    print(f"{got} field(s) cached under {CACHE / a.issue}")
-    return 0
+    want_n = len(want) * (1 if a.only else len(MODELS))
+    print(f"{got}/{want_n} field(s) cached under {CACHE / a.issue}")
+    # a half-published issue must not reach the renderer: last month's complete
+    # set is better than this month's two systems.
+    return 0 if got >= 0.75 * want_n else 1
 
 
 if __name__ == "__main__":

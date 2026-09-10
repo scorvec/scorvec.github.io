@@ -88,12 +88,23 @@ NMODELS=$(printf '%s\n' "$OUT" | sed -nE 's/.*\(([0-9]+) models\)/\1/p' | tail -
 # whatever the workflow just published — and a partial local render would delete the loops it
 # did not rebuild, exactly the way the first workflow run did. Dispatch sfs.yml instead:
 #   gh workflow run sfs.yml -f issue=YYYYMM
+# seasonal.html: one anomaly-map set per system, from the postprocessed (ensemble-mean)
+# collection — ~27 MB an issue, so it runs every month beside the plume. The render is
+# skipped, not failed, when the download comes back short: an issue with two systems in it
+# would otherwise overwrite the full set from last month.
+if "$PY" scripts/sst/c3s_maps.py; then
+  "$PY" scripts/sst/c3s_maps_render.py || echo "c3s map render failed; keeping the previous issue"
+else
+  echo "c3s map download failed; keeping the previous issue"
+fi
+
 # PRIVATE strat gate product — writes only to gitignored paths
 "$PY" scripts/strat/sfs_gate100.py || echo "SFS gate failed; continuing"
 
 
 git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json \
-        assets/sst/data/c3s_evolution.json
+        assets/sst/data/c3s_evolution.json \
+        assets/sst/c3s assets/sst/data/c3s_maps.json
 if git diff --staged --quiet; then
   echo "no changes to commit"
   [ "${NMODELS:-0}" -ge 7 ] 2>/dev/null && touch "$DONE_STAMP"

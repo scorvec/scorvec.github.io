@@ -13,6 +13,7 @@ which names every model, field and period the page can offer.
 from __future__ import annotations
 
 import argparse
+import time
 import json
 import os
 import sys
@@ -88,7 +89,7 @@ def draw(v, lat, lon, key: str, title: str, sub: str, out: Path):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--issue", required=True)
+    ap.add_argument("--issue", default=time.strftime("%Y%m", time.gmtime()))
     ap.add_argument("--fields", default="t2m,tp,mslp,sst")
     a = ap.parse_args()
     issue = a.issue; y, mo = int(issue[:4]), int(issue[4:6])
