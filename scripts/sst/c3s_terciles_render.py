@@ -43,44 +43,87 @@ SIDES = {"t2m": ("Above normal most likely", "Below normal most likely"),
          "tp": ("Wetter than normal most likely", "Drier than normal most likely")}
 DETREND = ("t2m",)                    # precipitation has no trend worth extrapolating
 MIN_SPREAD = {"tp": 0.05}             # mm/day between the two boundaries, below which the terciles are noise
+# The CDS serves each system on its own 1 deg grid: ECMWF pole-inclusive on whole degrees,
+# UKMO cell-centred. Per-system maps are drawn on the native grid; the pooled map needs one.
+REF_LAT = np.arange(-89.5, 90.0, 1.0)
+REF_LON = np.arange(0.5, 360.0, 1.0)
 
 
-def load(path: Path, short: str):
-    """(values[sample, lead, lat, lon], lat, lon, year_of_sample or None), on a 1 deg grid."""
+def to_ref(a: np.ndarray, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
+    """Bilinear onto the reference grid, wrapping in longitude."""
+    if a.shape == (REF_LAT.size, REF_LON.size) and np.allclose(lat, REF_LAT) and np.allclose(lon, REF_LON):
+        return a
+    from scipy.interpolate import RegularGridInterpolator
+    lon_e = np.concatenate([lon, lon[:1] + 360.0])
+    a_e = np.concatenate([a, a[:, :1]], axis=1)
+    f = RegularGridInterpolator((lat, lon_e), a_e, bounds_error=False, fill_value=None)
+    la, lo = np.meshgrid(REF_LAT, REF_LON, indexing="ij")
+    return f((la, lo)).astype(np.float32)
+
+
+def period_means(path: Path, short: str, fac: float, periods: dict):
+    """{period: values[sample, lat, lon]}, lat, lon, year_of_sample.
+
+    Never materialises the whole (sample, lead, lat, lon) cube: NCEP's hindcast alone is
+    ~3,000 samples x 6 leads x 180 x 360, and holding a forecast and a hindcast cube at once
+    is what the first version of this script died of (exit 137). Each lead group is averaged
+    straight out of the file instead, which is all the terciles ever need."""
     import xarray as xr
-    ds = xr.open_dataset(path, engine="cfgrib",
+    ds = xr.open_dataset(path, engine="cfgrib", chunks={"forecastMonth": 1},
                          backend_kwargs={"indexpath": "", "time_dims": ("forecastMonth", "time")})
     name = short if short in ds.data_vars else list(ds.data_vars)[0]
     da = ds[name]
-    extra = [d for d in da.dims if d not in ("forecastMonth", "latitude", "longitude")]
-    years = None
-    if "time" in extra:
-        years = np.asarray([int(str(t)[:4]) for t in ds["time"].values])
-    da = da.expand_dims("sample") if not extra else da.stack(sample=extra)
-    da = da.transpose("sample", "forecastMonth", "latitude", "longitude")
-    vals = da.values.astype(np.float32)
+    dims = [d for d in ("number", "time") if d in da.dims]
+    da = da.transpose(*dims, "forecastMonth", "latitude", "longitude")
     lat, lon = da.latitude.values, da.longitude.values
-    if years is not None and "number" in extra:          # sample = number x time, in stack order
-        n_time = len(ds["time"]); n_num = vals.shape[0] // n_time
-        years = np.tile(years, n_num) if extra.index("time") > extra.index("number") else np.repeat(years, n_num)
+    years = None
+    if "time" in dims:
+        yr = np.asarray([int(str(t)[:4]) for t in ds["time"].values])
+        # sample index = the flattened leading dims in THIS order, so the repeat follows it
+        years = np.tile(yr, len(ds["number"])) if dims == ["number", "time"] else np.repeat(yr, len(ds["number"])) \
+            if "number" in dims else yr
+
+    def flat(a: np.ndarray) -> np.ndarray:
+        return a.reshape((-1,) + a.shape[-2:]) if dims else a[None]
+
+    # a lagged system (UKMO: 62 members x 31 start dates) does not fill its own hypercube, and
+    # cfgrib pads the combinations that never existed with NaN. Left in, they would count as
+    # members that are never above the tercile and quietly deflate every probability.
+    real = np.isfinite(flat(da.isel(forecastMonth=0).values)).any(axis=(1, 2))
+    out = {}
+    for pid, want in periods.items():
+        idx = [i for i in want if i < da.sizes["forecastMonth"]]
+        if not idx:
+            continue
+        m = flat(da.isel(forecastMonth=idx).mean("forecastMonth").values.astype(np.float32))[real]
+        if fac != 1.0:
+            m *= fac
+        out[pid] = m
     ds.close()
+    if years is not None:
+        years = years[real]
     # one convention for every system: latitude ascending, longitude 0..360 ascending
     lon = np.where(lon < 0, lon + 360, lon)
-    o = np.argsort(lon); lon, vals = lon[o], vals[..., o]
-    if lat[0] > lat[-1]:
-        lat, vals = lat[::-1], vals[..., ::-1, :]
-    return vals, lat, lon, years
+    o = np.argsort(lon)
+    lon = lon[o]
+    flip = lat[0] > lat[-1]
+    for pid in out:
+        out[pid] = out[pid][..., o]
+        if flip:
+            out[pid] = out[pid][..., ::-1, :]
+    if flip:
+        lat = lat[::-1]
+    return out, lat, lon, years
 
 
-def probs(fc: np.ndarray, hc: np.ndarray, idx: list[int], years: np.ndarray | None,
+def probs(f: np.ndarray, h: np.ndarray, years: np.ndarray | None,
           target_year: int | None, min_spread: float = 0.0) -> dict:
-    """Tercile probabilities for one lead group; `target_year` set = detrended.
+    """Tercile probabilities for one lead group, from the season means of the members (f)
+    and of the hindcast (h); `target_year` set = counted against the hindcast trend.
 
     Cells whose two boundaries sit within `min_spread` are dropped: in a desert, or in a
     dry season, a third of the hindcast can be the same near-zero number, and "below the
     lower tercile" then means nothing. Masking them is honest; drawing them is not."""
-    f = fc[:, idx].mean(axis=1)
-    h = hc[:, idx].mean(axis=1)
     if target_year is not None and years is not None:
         x = (years - years.mean()).astype("float32")[:, None, None]
         b = np.nansum(x * (h - np.nanmean(h, axis=0, keepdims=True)), axis=0) / float((x[:, 0, 0] ** 2).sum())
@@ -141,40 +184,42 @@ def main() -> int:
             if not (fp.exists() and hp.exists()):
                 continue
             try:
-                fc, lat, lon, _ = load(fp, short)
-                hc, lat_h, lon_h, years = load(hp, short)
+                fcm, lat, lon, _ = period_means(fp, short, fac, PERIODS)
+                hcm, lat_h, lon_h, years = period_means(hp, short, fac, PERIODS)
             except Exception as e:                                    # noqa: BLE001
                 print(f"  {label} {var}: unreadable ({str(e)[:70]})", file=sys.stderr); continue
-            if fc.shape[-2:] != hc.shape[-2:]:
+            if not fcm or next(iter(fcm.values())).shape[-2:] != next(iter(hcm.values())).shape[-2:]:
                 print(f"  {label} {var}: forecast and hindcast grids differ; skipped", file=sys.stderr); continue
-            fc, hc = fc * fac, hc * fac
-            for pid, wantidx in PERIODS.items():
-                idx = [i for i in wantidx if i < fc.shape[1] and i < hc.shape[1]]
-                if not idx:
+            for pid in PERIODS:
+                if pid not in fcm or pid not in hcm:
                     continue
+                idx = [i for i in PERIODS[pid]]
                 target = y + (mo - 1 + idx[len(idx) // 2]) // 12 if var in DETREND else None
-                pr = probs(fc, hc, idx, years, target, min_spread=MIN_SPREAD.get(var, 0.0))
+                pr = probs(fcm[pid], hcm[pid], years, target, min_spread=MIN_SPREAD.get(var, 0.0))
                 pname, lead = period_label(idx, y, mo), lead_note(idx)
-                nh = hc.shape[0] // max(len(set(years.tolist())) if years is not None else 1, 1)
-                sub = (f"{label} · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · {fc.shape[0]} members counted against "
-                       f"this system's own 1993–2016 hindcast ({hc.shape[0]} samples) at each grid point. "
+                sub = (f"{label} · {pname} ({lead}) · {MONTHS[mo - 1]} {y} issue · {fcm[pid].shape[0]} members counted "
+                       f"against this system's own 1993–2016 hindcast ({hcm[pid].shape[0]} samples) at each grid point. "
                        "White: no category reaches 40 %; near-normal is not drawn."
                        + ("  Counted against the hindcast's linear trend extrapolated to the valid year." if var in DETREND else ""))
                 draw(pr, lat, lon, var, f"{TITLES[var]}: most likely tercile — {label}",
                      sub, OUT / f"c3s_terc_{mid}_{var}_{pid}.webp")
-                pool.setdefault((var, pid), []).append((pr, lat, lon))
+                pool.setdefault((var, pid), []).append(
+                    {k: to_ref(pr[k], lat, lon) for k in ("above", "below", "normal")})
+            del fcm, hcm
             have.append(var)
-            del fc, hc
-        if have:
+        # every listed system must carry every field: the picker offers one field list for
+        # all of them, so a system with half the set would 404 on the other half
+        if have == want:
             models.append({"id": mid, "label": label, "fields": have})
             print(f"  {label}: {', '.join(have)}", flush=True)
+        elif have:
+            print(f"  {label}: only {', '.join(have)}; left off the picker", flush=True)
 
     made = 0
     for (var, pid), items in sorted(pool.items()):
         if len(items) < MIN_SYSTEMS:
             print(f"  pooled {var} {pid}: only {len(items)} system(s); skipped", flush=True); continue
-        lat, lon = items[0][1], items[0][2]
-        keep = [p for p, la, lo in items if p["above"].shape == items[0][0]["above"].shape]
+        keep = items
         pr = {k: np.nanmean(np.stack([p[k] for p in keep]), axis=0) for k in ("above", "below", "normal")}
         idx = PERIODS[pid]
         pname, lead = period_label(idx, y, mo), lead_note(idx)
@@ -182,7 +227,7 @@ def main() -> int:
                "every system counted against its own 1993–2016 hindcast first. "
                "White: no category reaches 40 %; near-normal is not drawn."
                + ("  Counted against the hindcast's linear trend extrapolated to the valid year." if var in DETREND else ""))
-        draw(pr, lat, lon, var, f"{TITLES[var]}: most likely tercile — multi-model", sub,
+        draw(pr, REF_LAT, REF_LON, var, f"{TITLES[var]}: most likely tercile — multi-model", sub,
              OUT / f"c3s_terc_mmm_{var}_{pid}.webp")
         made += 1
     if made:
