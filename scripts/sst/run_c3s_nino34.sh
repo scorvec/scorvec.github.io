@@ -98,6 +98,16 @@ else
   echo "c3s map download failed; keeping the previous issue"
 fi
 
+# Tercile probabilities need the members and the matching 1993-2016 hindcast, which is
+# gigabytes per system: the hindcast is cached per START MONTH and reused every year, so
+# only the first issue of a given month pays for it. ECMWF comes from the SEAS5 page's own
+# copy. Both steps are resumable, and the render skips any system whose files are short.
+if "$PY" scripts/sst/c3s_terciles.py; then
+  "$PY" scripts/sst/c3s_terciles_render.py || echo "c3s tercile render failed; keeping the previous issue"
+else
+  echo "c3s tercile inputs incomplete; keeping the previous issue"
+fi
+
 # PRIVATE strat gate product — writes only to gitignored paths
 "$PY" scripts/strat/sfs_gate100.py || echo "SFS gate failed; continuing"
 

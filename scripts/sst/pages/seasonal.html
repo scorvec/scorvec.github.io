@@ -30,15 +30,32 @@
 <p>The map for each system is its <b>ensemble-mean anomaly</b>, taken by C3S against that system's own
 1993&ndash;2016 hindcast and published in the postprocessed seasonal collection. That matters twice over: it is
 the comparison you want, because a seasonal model's raw field is dominated by its own drift and bias, and it is
-what makes eight systems affordable &mdash; the members themselves are tens of gigabytes per system per issue,
-the ensemble-mean anomalies are about a megabyte.</p>
+what makes eight systems affordable &mdash; a megabyte a field, against the gigabytes the members and their
+matching hindcast run to. (The tercile maps do pay that price, for two variables.)</p>
 <p>The <b>multi-model mean</b> weights every system equally rather than by member count, so NCEP's 124 members
 and ECCC's 20 count the same. That is the usual convention and it stops one large ensemble speaking for the
 group. Where systems disagree the mean is the wrong thing to read on its own; step through the models and see
 whether a feature survives.</p>
-<p><b>Periods.</b> Lead month 1 is the issue month itself, already partly observed by the time you read it.
-Months 2&ndash;4 and 5&ndash;7 are the seasonal ranges the systems are actually run for.</p>
+<p><b>Periods.</b> The first period is the issue month itself, already partly observed by the time you
+read it. The other two are the three months after it and the two months after those &mdash; the systems
+are run six months out, so that is where the record ends.</p>
 <p class="chart-sources">Copernicus Climate Change Service, <code>seasonal-postprocessed-single-levels</code> &middot; anomalies vs each model's 1993&ndash;2016 hindcast &middot; equal weight per system in the multi-model mean</p>
+</template>
+<template id="about-terc">
+<p>The anomaly maps say which way a system leans; these say how firmly. Each system's live members are counted
+against <b>its own 1993&ndash;2016 hindcast distribution at every grid point</b> &mdash; the 33rd and 67th
+percentiles of that model's own climate, from 24 years &times; its hindcast members. Bias and spread drift are
+removed by construction, which is the only reason eight systems can be shown on one page.</p>
+<p>Colour is the probability of the category that is most likely, and only where it reaches 40 %. Near-normal is
+never drawn: it is the category a model lands on when it has nothing to say, and shading it makes an empty
+forecast look confident. White therefore means no category stands out.</p>
+<p><b>Temperature is counted against the trend.</b> The hindcast's linear trend at each point is extrapolated to
+the valid year before the members are counted. Against a flat 1993&ndash;2016 base the warming alone puts most of
+the tropics in the upper tercile every month, and the map stops describing the season. Precipitation has no such
+trend and is counted as it is.</p>
+<p>The <b>multi-model</b> map averages the per-system probabilities with equal weight per system, which is what
+pooling their members would give if the ensembles were the same size.</p>
+<p class="chart-sources">C3S <code>seasonal-monthly-single-levels</code>: forecast members and the 1993&ndash;2016 hindcast, both on the 1&deg; grid &middot; ECMWF SEAS5 from the copy held for the SEAS5 page</p>
 </template>
 <template id="about-plume">
 <p>Every member of every system, on one axis. This is the same feed the <a href="enso-forecasts.html">ENSO
@@ -66,9 +83,13 @@ fixed 1991&ndash;2020 base, so the two can differ by a tenth or two of a degree.
       '<div class="chip"><div class="l">systems</div><div class="v">' + (models.length - 1) + '</div><div class="s">seven centres, plus their mean</div></div>' +
       '<div class="chip"><div class="l">anomaly base</div><div class="v">1993&ndash;2016</div><div class="s">each model vs its own hindcast</div></div>';
 
+    var T = J.terciles || null;
+    var mapItems = [["maps", "Anomaly maps", "pick the model and the field"]];
+    if (T) { mapItems.push(["terc", "Tercile probabilities", "how firmly, not just which way"]); }
+
     window.STAGE = {
       groups: [
-        { label: "Maps by model", ico: "\u{1F5FA}", items: [["maps", "Anomaly maps", "pick the model and the field"]] },
+        { label: "Maps by model", ico: "\u{1F5FA}", items: mapItems },
         { label: "ENSO", ico: "\u{1F30A}", items: [["plume", "Niño-3.4 plume", "every member of every system"]] }
       ],
       products: {
@@ -90,6 +111,22 @@ fixed 1991&ndash;2020 base, so the two can differ by a tenth or two of a degree.
                    ", from the " + J.issue_label + " issue. " + fields[b].label + " in " + fields[b].units + ".";
           }
         },
+        terc: T ? {
+          label: "Tercile probabilities",
+          a: { label: "Model", items: T.models.map(function (m) { return [m.id, m.label]; }) },
+          b: { label: "Field", items: Object.keys(T.fields).map(function (k) { return [k, T.fields[k]]; }) },
+          c: { label: "Period", items: Object.keys(T.periods).map(function (k) { return [k, T.periods[k]]; }) },
+          fit: false,
+          img: function (a, b, c) { return "assets/sst/c3s/c3s_terc_" + a + "_" + b + "_" + c + ".webp?v=__CACHE__"; },
+          about: "about-terc",
+          cap: function (a, b, c) {
+            var m = T.models.filter(function (x) { return x.id === a; })[0] || { label: a };
+            var who = (a === "mmm") ? "The C3S systems, each weighted equally, " : m.label + " ";
+            var det = (T.detrended || []).indexOf(b) >= 0 ? " Counted against the hindcast trend extrapolated to the valid year." : "";
+            return who + "against its own 1993–2016 hindcast, for " + T.periods[c] + ". " +
+                   T.fields[b] + ": the most likely tercile, drawn only where it reaches 40 %." + det;
+          }
+        } : null,
         plume: {
           label: "Niño-3.4 plume",
           img: function () { return "assets/sst/c3s_nino34.webp?v=__CACHE__"; },
@@ -99,6 +136,7 @@ fixed 1991&ndash;2020 base, so the two can differ by a tenth or two of a degree.
         }
       }
     };
+    if (!T) { delete window.STAGE.products.terc; }   // no tercile inputs this issue
     var s = document.createElement("script"); s.src = "/assets/stage.js"; document.body.appendChild(s);
   }).catch(function () {
     $("crumb").textContent = "The C3S map set is not built yet.";
