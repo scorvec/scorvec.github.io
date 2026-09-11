@@ -163,7 +163,12 @@
       // ratchet that once left a 1312x1025 loop 307 px wide. An ask under half the stage is that
       // pathology, not a portrait figure, so it is ignored outright.
       if (x.w > pinMax) pinMax = x.w;
-      f.style.maxWidth = (sw >= 700 && pinMax > sw * 0.5 && pinMax < sw * 0.98) ? pinMax + "px" : "";
+      // A LANDSCAPE figure always spans the stage. The pin exists for a portrait
+      // loop that hugs its own picture; honouring it for a wide map left a
+      // 3.6:1 flux chart at half the stage width on a laptop, with the rest of
+      // the row empty (user, 2026-09-11). Aspect decides, not width alone.
+      var wide = x.h > 0 && x.w / x.h > 1.4;
+      f.style.maxWidth = (!wide && sw >= 700 && pinMax > sw * 0.5 && pinMax < sw * 0.98) ? pinMax + "px" : "";
     }
   });
   addEventListener("hashchange", function () { var h = location.hash.replace(/^#/, "").split("/"); if (h[0] && P[h[0]]) { sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null }; render(); } });

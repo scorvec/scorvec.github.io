@@ -126,42 +126,56 @@ def eval_clim(coefs: np.ndarray, doy: float) -> np.ndarray:
 
 def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Path, vlim: float, agree=None,
            spd_fc=None):
-    fig = plt.figure(figsize=(12.8, 6.4))
+    """One row per hemisphere, 20-80 deg, sharing a colour bar.
+
+    A single global map spent a fifth of its height on the tropical band the
+    diagnostic masks by construction (no Rossby waveguide there) and more on
+    the polar caps the flux never reaches, so the waveguides themselves came
+    out small (user, 2026-09-11: "too small and has too much whitespace").
+    Cropping to the two mid-latitude belts is the same data at roughly 1.6x the
+    scale, and stacking them keeps one figure rather than the multi-panel decks
+    the pages moved away from.
+    """
+    from matplotlib.gridspec import GridSpec
     proj = ccrs.PlateCarree(central_longitude=180)
-    ax = plt.axes(projection=proj)
-    ax.set_global()
-    # shade CONVERGENCE (−∇·W, 10⁻⁶ m s⁻²): red = wave activity piling up →
-    # the downstream flow amplifies over the following days; blue = emission.
-    cf = ax.contourf(lon, lat, -divw * 1e6, levels=np.linspace(-vlim, vlim, 21),
-                     cmap="RdBu_r", extend="both", transform=ccrs.PlateCarree())
-    if agree is not None:                                   # hatch where members DISAGREE on the sign of ∇·W
-        ax.contourf(lon, lat, np.where(np.isfinite(agree), agree, 1.0), levels=[-0.01, 0.6], colors="none",
-                    hatches=["//"], transform=ccrs.PlateCarree(), zorder=2)
-    if spd_fc is not None:
-        # the REAL waveguide: the forecast's own 200 hPa jet at this lead
-        ax.contour(spd_fc[2], spd_fc[1], spd_fc[0], levels=[25, 35, 45],
-                   colors="#1b5e20", linewidths=[0.8, 1.1, 1.5], alpha=0.85,
-                   transform=ccrs.PlateCarree())
-    s = max(1, lat.size // 36)
-    Wm = np.hypot(wx, wy)
-    show = Wm > np.nanpercentile(Wm, 65)                  # hide the weak background flux
-    qx = np.where(show, wx, np.nan)[::s, ::s]
-    qy = np.where(show, wy, np.nan)[::s, ::s]
-    q = ax.quiver(lon[::s], lat[::s], qx, qy, transform=ccrs.PlateCarree(),
-                  color="#111", width=0.0016, scale=2200, headwidth=3.6, alpha=0.85,
-                  pivot="tail", zorder=6)
-    ax.quiverkey(q, 0.90, -0.045, 100, "W = 100 m²/s²", labelpos="E", fontproperties={"size": 7.5})
-    ax.coastlines(lw=0.45, color="0.62")
-    ax.set_title(title, fontsize=11.5, fontweight="bold", loc="left")
-    cb = fig.colorbar(cf, ax=ax, pad=0.012, fraction=0.032)
-    cb.set_label("−∇·W  (10⁻⁶ m s⁻²; red = convergence → amplification)", fontsize=8.5); cb.ax.tick_params(labelsize=7.5)
-    # anchor to the AXES, not the figure: the map shrinks to its forced 2:1 aspect
-    # inside the figure box, and figure-coord text pins the tight bbox to the full
-    # (mostly empty) figure height — axes-coord text collapses with the map instead.
-    ax.text(0.5, -0.085, sub, transform=ax.transAxes, ha="center", va="top",
-            fontsize=8, color="0.35")
+    pc = ccrs.PlateCarree()
+    fig = plt.figure(figsize=(13.6, 5.0))
+    gs = GridSpec(2, 1, figure=fig, hspace=0.08, left=0.012, right=0.93, top=0.90, bottom=0.10)
+    axes = []
+    for row, (la0, la1) in enumerate(((20, 80), (-80, -20))):
+        ax = fig.add_subplot(gs[row], projection=proj)
+        ax.set_extent([-180, 180, la0, la1], crs=pc)
+        cf = ax.contourf(lon, lat, -divw * 1e6, levels=np.linspace(-vlim, vlim, 21),
+                         cmap="RdBu_r", extend="both", transform=pc)
+        if agree is not None:                               # hatch where members DISAGREE on the sign of ∇·W
+            ax.contourf(lon, lat, np.where(np.isfinite(agree), agree, 1.0), levels=[-0.01, 0.6], colors="none",
+                        hatches=["//"], transform=pc, zorder=2)
+        if spd_fc is not None:
+            # the REAL waveguide: the forecast's own 200 hPa jet at this lead
+            ax.contour(spd_fc[2], spd_fc[1], spd_fc[0], levels=[25, 35, 45],
+                       colors="#1b5e20", linewidths=[0.8, 1.1, 1.5], alpha=0.85, transform=pc)
+        # Arrows: fewer and stronger than before. At 65% of the flux magnitude the
+        # field read as noise; the packets are the top quarter and they are what the
+        # chart is for.
+        s = max(1, lat.size // 30)
+        Wm = np.hypot(wx, wy)
+        show = Wm > np.nanpercentile(Wm, 75)
+        qx = np.where(show, wx, np.nan)[::s, ::s]
+        qy = np.where(show, wy, np.nan)[::s, ::s]
+        q = ax.quiver(lon[::s], lat[::s], qx, qy, transform=pc,
+                      color="#111", width=0.0016, scale=2200, headwidth=3.6, alpha=0.85,
+                      pivot="tail", zorder=6)
+        ax.coastlines(lw=0.45, color="0.62")
+        axes.append((ax, cf, q))
+    fig.suptitle(title, x=0.012, y=0.985, ha="left", fontsize=11.5, fontweight="bold")
+    cb = fig.colorbar(axes[0][1], ax=[a for a, _, _ in axes], pad=0.008, fraction=0.030, aspect=34)
+    cb.set_label("−∇·W  (10⁻⁶ m s⁻²; red = convergence → amplification)", fontsize=8.5)
+    cb.ax.tick_params(labelsize=7.5)
+    axes[1][0].quiverkey(axes[1][2], 0.88, -0.16, 100, "W = 100 m²/s²", labelpos="E",
+                         fontproperties={"size": 7.5})
+    fig.text(0.012, 0.012, sub, ha="left", va="bottom", fontsize=8, color="0.35")
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=112, bbox_inches="tight", facecolor="white")
+    fig.savefig(out, dpi=118, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
 
@@ -256,7 +270,7 @@ def main() -> int:
            f"({TSMOOTH}-day running mean of ψ′ along the lead) · shading = −∇·W at planetary scale (T15; red ⇒ downstream amplification), "
            "hatched where fewer than 60% of members agree on the sign\n"
            f"green = the ensemble-mean {LEVEL} hPa jet at this lead (25/35/45 m/s) — the waveguide the packets follow · "
-           "masked equatorward of 20° / basic-state wind < 3 m/s")
+           "masked equatorward of 20° / basic-state wind < 3 m/s · each row is one hemisphere's 20–80° belt")
     frames = []
     for i, (valid, sh, pa, wx, wy, divw, Uc, Vc, spd_fc, agree) in enumerate(fields):
         fp = anim / f"F{i:02d}.webp"

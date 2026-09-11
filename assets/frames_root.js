@@ -14,7 +14,7 @@
 (function () {
   var RAW = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
   var MIRROR = "https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@frames/";
-  var onMirror = false, dead = 0;
+  var onMirror = false, dead = 0, served = 0;
   try { onMirror = sessionStorage.getItem("frameHost") === "mirror"; } catch (e) {}
   window.FRAME_ROOT = onMirror ? MIRROR : RAW;
   window.FRAME_ROOT_RAW = RAW;
@@ -48,11 +48,18 @@
     im.onerror = function () {
       k++;
       if (k < tries.length) { im.src = tries[k]; return; }
-      // every host failed: after two such frames tell the page
-      if (++dead === 2) emit({ dead: true });
+      // Every host failed FOR THIS FRAME. That is only a network verdict if no
+      // frame has ever loaded: once a host has served one, a failure means that
+      // particular file is missing from the branch (a half-published loop), and
+      // saying "this network blocks GitHub" over a loop that is visibly playing
+      // is worse than saying nothing (user, 2026-09-11).
+      dead++;
+      if (dead === 2 && served === 0) emit({ dead: true });
+      else if (served) emit({ missing: true, n: dead });
       if (onFail) onFail(im);
     };
     im.addEventListener("load", function () {
+      served++;
       // RAW failed but the mirror served the very same file: RAW is blocked
       // here, not missing a frame. Route the rest of the session to the mirror.
       if (k === 1 && !onMirror && tries[1].indexOf(MIRROR) === 0) useMirror("raw failed, mirror served");
