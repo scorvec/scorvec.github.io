@@ -220,6 +220,10 @@ document.addEventListener("framehost", ev => {
     loadingEl.classList.remove("hidden");
     loadingEl.innerHTML = "Frames could not be loaded. This network appears to block GitHub content hosts " +
       "(raw.githubusercontent.com and cdn.jsdelivr.net) &mdash; try another connection.";
+  } else if (d.recovered) {
+    loadingEl.classList.add("hidden");           // a host answered after all
+    const n0 = document.getElementById("hostnote");
+    if (n0 && /could not be loaded/.test(n0.textContent)) n0.remove();
   } else if (d.missing) {
     // frames are arriving, but some file in this loop is not on the branch yet
     let n = document.getElementById("hostnote");

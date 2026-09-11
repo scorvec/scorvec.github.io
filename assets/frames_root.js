@@ -14,7 +14,7 @@
 (function () {
   var RAW = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
   var MIRROR = "https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@frames/";
-  var onMirror = false, dead = 0, served = 0;
+  var onMirror = false, dead = 0, served = 0, deadSaid = false;
   try { onMirror = sessionStorage.getItem("frameHost") === "mirror"; } catch (e) {}
   window.FRAME_ROOT = onMirror ? MIRROR : RAW;
   window.FRAME_ROOT_RAW = RAW;
@@ -54,12 +54,17 @@
       // saying "this network blocks GitHub" over a loop that is visibly playing
       // is worse than saying nothing (user, 2026-09-11).
       dead++;
-      if (dead === 2 && served === 0) emit({ dead: true });
+      if (dead >= 2 && served === 0) { deadSaid = true; emit({ dead: true }); }
       else if (served) emit({ missing: true, n: dead });
       if (onFail) onFail(im);
     };
     im.addEventListener("load", function () {
       served++;
+      // A host answering after the verdict retracts it. jsDelivr 404s a path it
+      // has not warmed yet, so the first frames of a freshly published loop can
+      // all fail and the rest arrive seconds later — which is precisely when the
+      // page was left accusing the network while the loop played (2026-09-11).
+      if (deadSaid) { deadSaid = false; emit({ recovered: true }); }
       // RAW failed but the mirror served the very same file: RAW is blocked
       // here, not missing a frame. Route the rest of the session to the mirror.
       if (k === 1 && !onMirror && tries[1].indexOf(MIRROR) === 0) useMirror("raw failed, mirror served");
