@@ -51,7 +51,6 @@ PRODUCTS = [
     ("Model verification", "How the models are doing against observations", [
         ("/cities/verify.html", "City temperature forecast verification"),
         ("/aifs-verify.html", "AIFS single versus member 0"),
-        ("/spectra.html", "HRRR and RRFS kinetic-energy spectra"),
     ]),
 ]
 
@@ -108,10 +107,6 @@ PAGES = [
     dict(path="aifs-verify.html", mode="nav", fixes=[
         ("padding: 7.2rem 2.5rem 5rem;", "padding: 2.5rem 2.5rem 5rem;"),
         ("main { padding: 6.3rem 1rem 3rem; max-width: 100%; }", "main { padding: 1.5rem 1rem 3rem; max-width: 100%; }"),
-    ]),
-    dict(path="spectra.html", mode="nav", fixes=[
-        ("padding: 7.5rem 2.5rem 5rem;", "padding: 2.5rem 2.5rem 5rem;"),
-        ("main { padding: 6.5rem 1.2rem 3rem; }", "main { padding: 1.5rem 1.2rem 3rem; }"),
     ]),
     dict(path="asos5.html", mode="site-header", fixes=[
         ("padding: 6.2rem 2rem 3rem;", "padding: 2rem 2rem 3rem;"),

@@ -1,4 +1,4 @@
-name: AIFS comparison loops + KE spectra
+name: AIFS comparison loops   # KE spectra retired 2026-09-11, see SPECTRA-OFF below
 
 # The slow, optional tail of the atmosphere products, kept OUT of mjo.yml so
 # a 30-minute ENS pull here can never hold the cycle's figures hostage (which
@@ -96,13 +96,17 @@ jobs:
             --date "${{ steps.cyc.outputs.date }}" --time "${{ steps.cyc.outputs.time }}" \
             || echo "AIFS comparison loops failed; continuing"
 
-      - name: KE spectra (HRRR vs RRFS)
-        timeout-minutes: 12
-        working-directory: scripts/spectra
-        run: |
-          mkdir -p ../../assets/spectra
-          python ke_spectra.py --date "${{ steps.cyc.outputs.date }}" --cycle "${{ steps.cyc.outputs.time }}" \
-            --fxx 0 6 24 48 --out ../../assets/spectra/ke_spectra.webp || echo "KE spectra failed; continuing"
+      # SPECTRA-OFF 2026-09-11 (user: "retire the HRRR vs RRFS power spectra plots
+      # for now"). The page is gone from the site; scripts/spectra/ke_spectra.py and
+      # this step are kept so it can be switched back on by deleting the comment
+      # markers and restoring spectra.html from git history.
+      # - name: KE spectra (HRRR vs RRFS)
+      #   timeout-minutes: 12
+      #   working-directory: scripts/spectra
+      #   run: |
+      #     mkdir -p ../../assets/spectra
+      #     python ke_spectra.py --date "${{ steps.cyc.outputs.date }}" --cycle "${{ steps.cyc.outputs.time }}" \
+      #       --fxx 0 6 24 48 --out ../../assets/spectra/ke_spectra.webp || echo "KE spectra failed; continuing"
 
       - name: Publish loop frames to the frames branch
         env:
@@ -116,7 +120,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           OUT="assets/verify/aifs_scores_v2.json assets/verify/aifs_det_scores.json assets/sst/anim/aifs_compare_manifest.json \
-               assets/sst/anim/aifs_z500_manifest.json assets/sst/anim/aifs_t2m_manifest.json assets/spectra/ke_spectra.webp"
+               assets/sst/anim/aifs_z500_manifest.json assets/sst/anim/aifs_t2m_manifest.json"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
