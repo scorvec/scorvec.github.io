@@ -242,10 +242,12 @@ GRP_V200=$!
 GRP_ANALYSIS=$!
 
 # group NODATA — no ECMWF dependency at all: run immediately
-( "$PY" ../spectra/ke_spectra.py --date "$DATE" --cycle "$TIME" --fxx 0 6 24 48 \
-    --out "$REPO/assets/spectra/ke_spectra.webp" || echo "KE spectra failed; continuing"
-  echo "group NODATA done" ) &
-GRP_NODATA=$!
+# SPECTRA-OFF 2026-09-11: the HRRR vs RRFS spectra page is retired, so nothing
+# consumes this figure. Restore with the workflow step of the same marker.
+# ( "$PY" ../spectra/ke_spectra.py --date "$DATE" --cycle "$TIME" --fxx 0 6 24 48 \
+#     --out "$REPO/assets/spectra/ke_spectra.webp" || echo "KE spectra failed; continuing"
+#   echo "group NODATA done" ) &
+# GRP_NODATA=$!
 
 # group HEAVY (foreground) — AAM suite + torque + jets need the 14-level pull.
 # MJO_HEAVY_ATMOS=1: this block was REVIVED 2026-07-18 after a full math audit
@@ -278,7 +280,7 @@ MJO_HEAVY_ATMOS=1 "$PY" src/ens_cycle.py --date "$DATE" --time "$TIME" || echo "
 
 # barrier: every parallel group must land before the page-wide cache-bust and
 # the consolidated commit below (SFC already waited above, harmless to repeat)
-wait "$GRP_V200" "$GRP_ANALYSIS" "$GRP_NODATA" 2>/dev/null
+wait "$GRP_V200" "$GRP_ANALYSIS" 2>/dev/null   # GRP_NODATA retired with the KE spectra
 echo "all product groups finished"
 
 # 850 hPa wind analog Hovmöllers (current developing year vs 1982/97/2015). Refresh the
@@ -344,7 +346,6 @@ perl -0pi -e "s/((?:aam|aam_trend|aam_phase|mmsf_anom|walker_anom|jets|torque_ti
     assets/sst/anim/walker assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
     assets/sst/jets.webp assets/sst/anim/jets assets/sst/anim/jets_manifest.json \
     assets/sst/anim/waf assets/sst/anim/waf_manifest.json assets/sst/waf.webp \
-    assets/spectra/ke_spectra.webp \
     scripts/mjo/data/reference/mmsf_vbar_history.nc scripts/mjo/data/reference/walker_ud_history.nc \
     scripts/mjo/data/reference/aam_history.nc scripts/mjo/data/reference/aam_forecast_archive.nc \
     scripts/mjo/data/reference/mei_fit.json \
