@@ -80,16 +80,24 @@ def assemble(page: dict) -> str:
     return head + nav + body + foot
 
 
-def render_all(tokens: dict, site_root) -> list[Path]:
+def render_all(tokens: dict, site_root, only: list[str] | None = None) -> list[Path]:
     """Write every page into site_root, stamping the non-TAO data tokens.
-    `tokens` = {cache, sst_day, roni_month} (pre-formatted strings)."""
+    `tokens` = {cache, sst_day, roni_month} (pre-formatted strings).
+
+    `only` restricts the write to those page slugs. A page not in the list keeps
+    whatever is on disk: the ENSO pages carry data tokens (the SST day, the RONI
+    month) that only the workflow that just fetched them knows, so a local render
+    of one page must not rewrite the others with stale ones.
+    Missing tokens are left as they are, for the same reason."""
     site_root = Path(site_root)
     written = []
     for page in PAGES:
-        html = (assemble(page)
-                .replace("__CACHE__", tokens["cache"])
-                .replace("__SST_DAY__", tokens["sst_day"])
-                .replace("__RONI_MONTH__", tokens["roni_month"]))
+        if only is not None and page["slug"] not in only:
+            continue
+        html = assemble(page)
+        for tok, key in (("__CACHE__", "cache"), ("__SST_DAY__", "sst_day"), ("__RONI_MONTH__", "roni_month")):
+            if key in tokens:
+                html = html.replace(tok, tokens[key])
         out = site_root / page["out"]
         out.write_text(html, encoding="utf-8")
         written.append(out)

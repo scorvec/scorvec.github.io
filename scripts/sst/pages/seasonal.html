@@ -85,7 +85,9 @@ fixed 1991&ndash;2020 base, so the two can differ by a tenth or two of a degree.
             var base = (a === "mmm")
               ? "Mean of the C3S systems, each weighted equally, "
               : m.label + ", ensemble-mean anomaly against its own 1993–2016 hindcast, ";
-            return base + periods[c] + " of the " + J.issue_label + " issue. " + fields[b].label + " in " + fields[b].units + ".";
+            var leads = (J.period_leads || {})[c];
+            return base + "for " + periods[c] + (leads ? " (" + leads + ")" : "") +
+                   ", from the " + J.issue_label + " issue. " + fields[b].label + " in " + fields[b].units + ".";
           }
         },
         plume: {

@@ -38,8 +38,27 @@ SPEC = {
     "mslp": ("Mean sea-level pressure", "hPa", "RdBu_r", 6.0, "atm"),
     "sst":  ("Sea-surface temperature", "°C", "RdBu_r", 2.0, "sst"),
 }
-# lead groups: month 1 is the start month itself, so 2-4 and 2-7 are the useful seasons
-PERIODS = {"m1": ("lead month 1", [0]), "s1": ("months 2–4", [1, 2, 3]), "s2": ("months 5–7", [4, 5])}
+# lead groups: month 1 is the start month itself, so the seasons run from lead 2.
+# The labels are the calendar months themselves — "lead month 1" tells a reader nothing
+# about when the map applies, and the lead number is kept only in the subtitle.
+PERIODS = {"m1": [0], "s1": [1, 2, 3], "s2": [4, 5]}
+
+
+def period_label(idx: list[int], y: int, mo: int) -> str:
+    """'Sep 2026', 'Oct–Dec 2026', 'Nov 2026–Jan 2027' for a group of lead indices."""
+    def ym(i: int) -> tuple[int, int]:
+        m = mo + i
+        return y + (m - 1) // 12, (m - 1) % 12 + 1
+    (ya, ma), (yb, mb) = ym(idx[0]), ym(idx[-1])
+    if idx[0] == idx[-1]:
+        return f"{MONTHS[ma - 1]} {ya}"
+    if ya == yb:
+        return f"{MONTHS[ma - 1]}–{MONTHS[mb - 1]} {ya}"
+    return f"{MONTHS[ma - 1]} {ya}–{MONTHS[mb - 1]} {yb}"
+
+
+def lead_note(idx: list[int]) -> str:
+    return f"lead month {idx[0] + 1}" if len(idx) == 1 else f"lead months {idx[0] + 1}–{idx[-1] + 1}"
 
 
 def read(key: str, centre: str, system: int, issue: str):
@@ -106,17 +125,18 @@ def main() -> int:
             if r is None:
                 continue
             v, lat, lon = r
-            for pid, (pname, idx) in PERIODS.items():
-                idx = [i for i in idx if i < v.shape[0]]
+            for pid, want in PERIODS.items():
+                idx = [i for i in want if i < v.shape[0]]
                 if not idx:
                     continue
+                pname = f"{period_label(idx, y, mo)} ({lead_note(idx)})"
                 field = v[idx].mean(axis=0)
                 sub = (f"{label} · {issue[:4]}-{issue[4:6]} issue · {pname} · ensemble-mean anomaly "
                        f"against the model's own 1993–2016 hindcast (C3S postprocessed)")
                 out = OUT / f"c3s_{mid}_{key}_{pid}.webp"
                 draw(field, lat, lon, key, f"{SPEC[key][0]} anomaly — {label}", sub, out)
                 made += 1
-                stack.setdefault((key, pid), []).append((field, lat, lon))
+                stack.setdefault((key, pid), []).append((field, lat, lon, idx))
             have.append(key)
         if have:
             models.append({"id": mid, "label": label, "fields": have})
@@ -127,9 +147,10 @@ def main() -> int:
         if len(items) < 2:
             continue
         base_lat, base_lon = items[0][1], items[0][2]
-        fields = [f for f, la, lo in items if f.shape == items[0][0].shape]
+        fields = [f for f, la, lo, ix in items if f.shape == items[0][0].shape]
         field = np.nanmean(np.stack(fields), axis=0)
-        pname = PERIODS[pid][0]
+        idx = items[0][3]
+        pname = f"{period_label(idx, y, mo)} ({lead_note(idx)})"
         sub = (f"Mean of {len(fields)} C3S systems, equally weighted · {issue[:4]}-{issue[4:6]} issue · {pname} "
                f"· each model's ensemble-mean anomaly against its own 1993–2016 hindcast")
         draw(field, base_lat, base_lon, key, f"{SPEC[key][0]} anomaly — multi-model mean", sub, OUT / f"c3s_mmm_{key}_{pid}.webp")
@@ -140,7 +161,8 @@ def main() -> int:
     doc = {"issue": f"{issue[:4]}-{issue[4:6]}", "issue_label": f"{MONTHS[mo-1]} {y}",
            "source": "C3S seasonal-postprocessed-single-levels (ensemble-mean anomaly vs each model's 1993-2016 hindcast)",
            "models": models, "fields": {k: {"label": SPEC[k][0], "units": SPEC[k][1]} for k in keys},
-           "periods": {p: PERIODS[p][0] for p in PERIODS}}
+           "periods": {p: period_label(PERIODS[p], y, mo) for p in PERIODS},
+           "period_leads": {p: lead_note(PERIODS[p]) for p in PERIODS}}
     (SITE / "assets" / "sst" / "data").mkdir(parents=True, exist_ok=True)
     (SITE / "assets" / "sst" / "data" / "c3s_maps.json").write_text(json.dumps(doc, separators=(",", ":")))
     print(f"wrote {made} maps + c3s_maps.json ({len(models)} models)")
