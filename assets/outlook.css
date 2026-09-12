@@ -346,24 +346,35 @@
   /* Footnote under the chip strip. The asterisked chips assert a state and a
      number; this is where the basis for both is written out, so the claim and
      its caveats travel together rather than living in a tooltip. */
-  .chipnote { max-width: 78ch; margin: 0.15rem auto 0.9rem; font-size: 0.78rem;
-              line-height: 1.5; color: var(--ink2, #52514e); text-align: left; }
-  .chipnote b { color: var(--ink, #1a1a1a); }
+  /* This note carries the caveats for every number above it, so it has to be
+     READ, not skimmed past. It was --ink2 on the page's own off-white ground:
+     low contrast, and with no edge of its own it floated between the chips and
+     the deck. Now it is a bounded block on white, at body-copy contrast. */
+  .chipnote { max-width: 82ch; margin: 0.5rem auto 1rem; font-size: 0.82rem;
+              line-height: 1.62; color: var(--ink, #1a1a1a); text-align: left;
+              background: var(--surface, #fff); border: 1px solid var(--edge, #c9c5bb);
+              border-left: 3px solid #c9a227; border-radius: 4px;
+              padding: 0.7rem 0.95rem; }
+  .chipnote b { color: #000; font-weight: 700; }
   .page-header .chipnote { margin-left: auto; margin-right: auto; }
-  .chip--prelim { border-style: dashed; }
-  .chip--prelim .v { opacity: 0.92; }
+  /* dashed edge + a warm ground, so "not final" is legible at a glance rather
+     than resting on a border-style nobody notices */
+  .chip--prelim { border-style: dashed; border-color: #d3a63a;
+                  background: #fffdf6; }
+  .chip--prelim .v { opacity: 1; }
   .pflag { display: inline-block; margin-left: 0.35em; padding: 0 0.3em;
            font-size: 0.85em; font-weight: 700; letter-spacing: 0.04em;
-           color: #8a5a00; background: rgba(237,161,0,0.16);
-           border: 1px solid rgba(237,161,0,0.45); border-radius: 3px;
+           color: #6d4600; background: rgba(237,161,0,0.24);
+           border: 1px solid rgba(184,126,0,0.7); border-radius: 3px;
            vertical-align: baseline; text-transform: uppercase; }
-  .chip { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
-          padding: 0.7rem 1.05rem 0.65rem; min-width: 168px; text-align: center; }
-  .chip .l { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em;
-             text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .chip { background: var(--surface); border: 1.5px solid #b3aea2; border-radius: 4px;
+          padding: 0.7rem 1.05rem 0.65rem; min-width: 168px; text-align: center;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .chip .l { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.09em;
+             text-transform: uppercase; color: #57534b; white-space: nowrap; }
   .chip .v { font-size: 1.6rem; font-weight: 600; margin-top: 3px; line-height: 1.2;
              font-variant-numeric: tabular-nums; }
-  .chip .s { font-size: 0.76rem; color: var(--ink2); margin-top: 2px; }
+  .chip .s { font-size: 0.76rem; color: #3f3c37; margin-top: 3px; }
   .warm { color: var(--warm); } .cool { color: var(--cool); } .neut { color: var(--ink2); }
 
   /* the legacy plain `card` container — same box as .chart-card */

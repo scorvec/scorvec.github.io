@@ -124,9 +124,14 @@ NCEI_BASE = ("https://www.ncei.noaa.gov/data/"
              "sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr")
 
 
-def _ncei_fetch_day(day) -> xr.DataArray | None:
-    """One day's sst field from NCEI (final, else preliminary); None if neither
-    is published yet. Transient errors retry once, then raise."""
+def _ncei_fetch_day(day):
+    """(field, is_final) for one day from NCEI; (None, False) if unpublished.
+
+    Tries the final file first, then `_preliminary`. The caller needs to know
+    WHICH it got: NCEI publishes the final about two weeks later, and this
+    assembly is append-only, so a day first written from a preliminary file
+    would keep its provisional value forever unless it is revisited.
+    """
     import shutil, time
     for suffix in ("", "_preliminary"):
         url = (f"{NCEI_BASE}/{day:%Y%m}/oisst-avhrr-v02r01.{day:%Y%m%d}{suffix}.nc")
@@ -138,7 +143,7 @@ def _ncei_fetch_day(day) -> xr.DataArray | None:
                 with xr.open_dataset(tmp) as ds:
                     da = ds["sst"].squeeze("zlev", drop=True).load()
                 tmp.unlink()
-                return da
+                return da, (suffix == "")
             except urllib.error.HTTPError as e:
                 if e.code in (403, 404):
                     break            # this variant not published → try next suffix
@@ -151,7 +156,92 @@ def _ncei_fetch_day(day) -> xr.DataArray | None:
                 time.sleep(10)
             finally:
                 tmp.unlink(missing_ok=True)
-    return None
+    return None, False
+
+
+_FINAL_THROUGH = "unset"
+
+
+def final_through(max_back: int = 45):
+    """Newest day NCEI has archived as FINAL, or None if the probe fails.
+
+    OISST v2.1 is produced at 1-day latency as a PRELIMINARY field and only
+    archived as final about two weeks later, revisable in between. Every plot of
+    the daily series therefore has a provisional tail, and this is where it
+    begins. Probed rather than assumed: the lag is "about two weeks", not
+    exactly fourteen days, and a fixed rule would mislabel points either way.
+
+    One HEAD request per day walked back from today-4; the answer is cached for
+    the life of the process.
+    """
+    global _FINAL_THROUGH
+    if _FINAL_THROUGH != "unset":
+        return _FINAL_THROUGH
+    today = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
+    _FINAL_THROUGH = None
+    for k in range(4, max_back):
+        d = today - pd.Timedelta(days=k)
+        url = f"{NCEI_BASE}/{d:%Y%m}/oisst-avhrr-v02r01.{d:%Y%m%d}.nc"
+        try:
+            req = urllib.request.Request(url, method="HEAD")
+            with urllib.request.urlopen(req, timeout=20):
+                _FINAL_THROUGH = d
+                break
+        except Exception:            # noqa: BLE001  (404 = not final yet)
+            continue
+    return _FINAL_THROUGH
+
+
+def _revisit_prelim(merged, dest, prelim_new, year):
+    """Re-fetch days that were stored from a `_preliminary` NCEI file.
+
+    The assembly above only ever appends (start = last cached day + 1), so
+    without this a day first seen as preliminary is frozen at its provisional
+    value. NCEI finalises after about two weeks; the pending list is kept in a
+    sidecar next to the cache and a day leaves it only once the final lands.
+    """
+    import json
+    side = dest.with_suffix(".prelim.json")
+    try:
+        pending = set(json.loads(side.read_text()))
+    except Exception:                                       # noqa: BLE001
+        pending = set()
+    pending |= set(prelim_new)
+    if not pending:
+        side.unlink(missing_ok=True)
+        return merged
+
+    merged = merged.transpose("time", "lat", "lon")
+    times = pd.to_datetime(merged["time"].values).normalize()
+    still, fixed = set(), 0
+    for key in sorted(pending):
+        d = pd.Timestamp(key).normalize()
+        if d.year != year:
+            still.add(key)                                  # another year's cache owns it
+            continue
+        if key in prelim_new:                               # just written, nothing newer yet
+            still.add(key)
+            continue
+        idx = np.nonzero(times == d)[0]
+        if len(idx) == 0:
+            continue                                        # no longer in this file
+        da, final = _ncei_fetch_day(d)
+        if da is None:
+            still.add(key)
+            continue
+        merged[int(idx[0]), :, :] = da.values
+        if final:
+            fixed += 1
+            print(f"    NCEI {key}: preliminary -> FINAL", flush=True)
+        else:
+            still.add(key)
+    if still:
+        side.write_text(json.dumps(sorted(still)))
+    else:
+        side.unlink(missing_ok=True)
+    if fixed or still:
+        print(f"  preliminary days: {fixed} finalised, {len(still)} still provisional", flush=True)
+    return merged
 
 
 def _ensure_mean_ncei(year: int, dest: Path) -> Path:
@@ -164,19 +254,22 @@ def _ensure_mean_ncei(year: int, dest: Path) -> Path:
     if dest.exists() and _nc_ok(dest):
         base = xr.open_dataset(dest)["sst"].load()
         start = pd.Timestamp(base["time"].values[-1]).normalize() + pd.Timedelta(days=1)
-    new = []
+    new, prelim_new = [], []
     for d in pd.date_range(start, end, freq="D"):
-        da = _ncei_fetch_day(d)
+        da, final = _ncei_fetch_day(d)
         if da is None:
             break                    # not yet published — nothing further exists
         new.append(da)
-        print(f"    NCEI {d:%Y-%m-%d} ok", flush=True)
+        if not final:
+            prelim_new.append(f"{d:%Y-%m-%d}")
+        print(f"    NCEI {d:%Y-%m-%d} ok{'' if final else ' (preliminary)'}", flush=True)
     if not new:
         if base is not None:
             print("  NCEI has nothing newer than the cache; using cached file")
             return dest
         raise RuntimeError("NCEI fallback: no daily files retrievable")
     merged = xr.concat(([base] if base is not None else []) + new, dim="time")
+    merged = _revisit_prelim(merged, dest, prelim_new, year)
     tmp = dest.with_suffix(".nc.ncei_tmp")
     merged.to_dataset(name="sst").to_netcdf(
         tmp, encoding={"sst": {"zlib": True, "complevel": 1, "dtype": "float32"}})

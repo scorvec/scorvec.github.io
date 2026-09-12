@@ -646,6 +646,39 @@ def daily_nino_readout(daily_anom, la, lo):
     return n34v, tropv, relv
 
 
+def mark_prelim(ax, label=True):
+    """Shade the PRELIMINARY tail of a daily series.
+
+    OISST v2.1 is published at 1-day latency as a preliminary field and only
+    archived as final about two weeks later, revisable in between. Every daily
+    chart here therefore ends in points that can still move, and that was not
+    visible anywhere. oisst9120.final_through() asks NCEI where the boundary
+    actually is rather than assuming a fixed fortnight.
+
+    No-op if the probe fails or the boundary is off the left of the axes, so a
+    chart never gains a band it cannot justify.
+    """
+    try:
+        ft = oisst9120.final_through()
+    except Exception:                                    # noqa: BLE001
+        return
+    if ft is None:
+        return
+    x0, x1 = ax.get_xlim()
+    import matplotlib.dates as mdates
+    xf = mdates.date2num(ft)
+    if not (x0 < xf < x1):
+        return
+    ax.axvspan(xf, x1, color="#c9a227", alpha=0.10, zorder=0, lw=0)
+    ax.axvline(xf, color="#a8871f", lw=0.9, ls=(0, (4, 3)), alpha=0.8, zorder=1)
+    if label:
+        ax.text(xf + (x1 - xf) / 2, ax.get_ylim()[1], "preliminary",
+                ha="center", va="top", fontsize=7.2, color="#7a6210", zorder=6,
+                bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
+                          edgecolor="none", alpha=0.75))
+    ax.set_xlim(x0, x1)
+
+
 def render_daily_three_metrics(n34, trop, out_path):
     """Daily time series of all three metrics on one chart: Nino-3.4 anomaly,
     tropical-mean anomaly, and relative (Nino-3.4 minus tropical-mean), from
@@ -678,6 +711,7 @@ def render_daily_three_metrics(n34, trop, out_path):
              "1991\u20132020. Daily \u2014 noisier than the 3-month running indices.",
              fontsize=7, color="#888")
 
+    mark_prelim(ax)
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
                 bbox_inches="tight", pad_inches=0.1,
                 pil_kwargs={"quality": 85, "method": 6})
@@ -738,6 +772,8 @@ def render_nino_region_series(a_ser, b_ser, out_path):
              "3 150–90°W · 1+2 90–80°W, 0–10°S · "
              "daily values (noisier than 3-month indices).",
              fontsize=7, color="#888")
+    for _a in (axA, axN):
+        mark_prelim(_a, label=(_a is axA))
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
                 bbox_inches="tight", pad_inches=0.1,
                 pil_kwargs={"quality": 85, "method": 6})
@@ -867,6 +903,7 @@ def render_pdo_daily(pdo, out_path):
              "ERSST v5 North Pacific EOF pattern, calibrated to NCEI's monthly PDO "
              "(r=0.96, 1950–present). Daily values are noisier than the published "
              "monthly index.", **_MODE_FOOTNOTE_KW)
+    mark_prelim(ax)
     fig.savefig(out_path, **_MODE_SAVE_KW)
     plt.close(fig)
     print(f"  wrote {out_path.name}")
@@ -902,6 +939,7 @@ def render_iod_daily(w_ser, e_ser, out_path):
              "1991–2020) · Saji DMI · ±0.4 °C dashed = BOM "
              "event threshold · daily values are noisier than weekly/monthly DMI.",
              **_MODE_FOOTNOTE_KW)
+    mark_prelim(ax)
     fig.savefig(out_path, **_MODE_SAVE_KW)
     plt.close(fig)
     print(f"  wrote {out_path.name}")
@@ -939,6 +977,7 @@ def render_satl_daily(atl3, tsa, sasd, tna, out_path):
              "1991–2020) · SASD = SW pole (30–10°W, 40–30°S) "
              "− NE pole (20°W–0°, 25–15°S), Morioka convention · "
              "TNA = Enfield/PSL box.", **_MODE_FOOTNOTE_KW)
+    mark_prelim(ax)
     fig.savefig(out_path, **_MODE_SAVE_KW)
     plt.close(fig)
     print(f"  wrote {out_path.name}")
@@ -1167,6 +1206,15 @@ def publish_enso_daily_json(mean_fields, la, lo, idx, valid, out_path):
     payload = {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "source": "NOAA OISST v2.1 daily means; anomalies vs 1991-2020 (oisst9120)",
+        # Where the PRELIMINARY tail begins. OISST is published at 1-day latency
+        # and archived as final about two weeks later, revisable in between, so
+        # every daily series here ends in points that can still move. Probed from
+        # NCEI rather than assumed, and null if the probe failed.
+        "final_through": (lambda d: f"{d:%Y-%m-%d}" if d is not None else None)(
+            oisst9120.final_through()),
+        "provisional_note": ("days after final_through are PRELIMINARY OISST: "
+                             "published at 1-day latency and revisable until NCEI "
+                             "archives the final, about two weeks later"),
         "regions": {k: {"label": r["label"], "color": r["color"]}
                     for k, r in NINO_REGIONS.items()},
         "daily": daily,
