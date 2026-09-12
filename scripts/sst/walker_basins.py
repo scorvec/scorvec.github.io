@@ -248,7 +248,7 @@ def main() -> int:
     # the 3-month-lag Niño-3.4 from ERSST (the training source), detrended the same way
     n34_lag = None
     try:
-        e = xr.open_dataset(HERE / "data" / "ersst_v5_mnmean.nc")["sst"]
+        e = xr.open_dataset(HERE / "data" / "ersst_v6_mnmean.nc")["sst"]
         tm = pd.Timestamp(window[1]) - pd.DateOffset(months=3)
         fld = e.sel(time=f"{tm.year}-{tm.month:02d}").isel(time=0).values.astype(float)
         m3 = tm.month

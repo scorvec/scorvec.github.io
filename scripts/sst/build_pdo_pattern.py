@@ -3,7 +3,8 @@
 One-time builder for the PDO spatial pattern used by the daily PDO monitor.
 
 Method (NCEI convention): leading EOF of monthly North Pacific (20–70°N,
-110°E–100°W) SST anomalies from ERSST v5, with the global-ocean-mean anomaly
+110°E–100°W) SST anomalies from ERSST v5 (see the note at ERSST below — v5 on purpose),
+with the global-ocean-mean anomaly
 (60°S–60°N) removed each month so the uniform warming trend does not project
 onto the pattern. Anomalies vs the site-wide 1991–2020 base; EOF era 1950–2024.
 
@@ -30,6 +31,14 @@ import pandas as pd
 import xarray as xr
 
 HERE = Path(__file__).resolve().parent
+# DELIBERATELY v5, while the rest of the site moved to ERSSTv6.
+# NCEI's published PDO index — the thing this pattern exists to reproduce, and
+# the series the script validates against below — is itself computed from
+# ERSSTv5 (ersst.v5.pdo.dat; no v6 equivalent is published). Rebuilding the EOF
+# on v6 and scoring it against that v5 index is a version mismatch, and it
+# measurably loses: r against NCEI 1950-present falls 0.956 -> 0.947 and the
+# recent months drift further (2026-07: -1.44 on v5, -1.06 on v6, NCEI -2.03).
+# Revisit when NCEI publishes a v6 PDO.
 ERSST = HERE / "data" / "ersst_v5_mnmean.nc"
 OUT = HERE / "reference" / "pdo_pattern.nc"
 
@@ -125,7 +134,7 @@ def main() -> int:
         calib_slope=float(slope), calib_intercept=float(intercept),
         calib_corr=float(corr),
         clim_base=f"{CLIM_Y0}-{CLIM_Y1}", eof_era=f"{EOF_Y0}-{EOF_Y1}",
-        source="ERSST v5 monthly", method=(
+        source="ERSST v5 monthly (matches NCEI's v5-based published PDO index)", method=(
             "EOF1 of North Pacific (20-70N, 110E-100W) SSTA, global-mean "
             "(60S-60N) removed; index = proj/pc_std"),
     )

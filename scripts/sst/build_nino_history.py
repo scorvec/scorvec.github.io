@@ -105,12 +105,12 @@ def build_events(oni: pd.Series) -> list[dict]:
     return events
 
 
-ERSST_GRID = ("https://downloads.psl.noaa.gov/Datasets/noaa.ersst.v5/"
+ERSST_GRID = ("https://downloads.psl.noaa.gov/Datasets/noaa.ersst.v6/"
               "sst.mnmean.nc")
 
 
 def tropical_anom(index: pd.DatetimeIndex) -> pd.Series:
-    """20°S–20°N ERSSTv5 SST anomaly vs the FIXED 1991–2020 base, monthly.
+    """20°S–20°N ERSST **v6** SST anomaly vs the FIXED 1991–2020 base, monthly.
 
     CPC's tabulated indices carry the Niño boxes but not the tropical mean, so
     the historical RONI needs the gridded field. Using the same dataset
@@ -120,7 +120,7 @@ def tropical_anom(index: pd.DatetimeIndex) -> pd.Series:
     """
     import urllib.request
     import xarray as xr
-    cache = HERE / "data" / "ersst_v5_mnmean.nc"
+    cache = HERE / "data" / "ersst_v6_mnmean.nc"
     cache.parent.mkdir(parents=True, exist_ok=True)
     if not cache.exists() or cache.stat().st_size < 1e6:
         print(f"fetching {ERSST_GRID} (~60 MB, cached once)")
@@ -158,8 +158,13 @@ def main() -> int:
     oni = df["n34a"].rolling(3, center=True, min_periods=2).mean()    # ONI = 3-mo running Niño-3.4 anom
 
     # Historical RONI on the same fixed footing: table Niño-3.4 anomaly minus
-    # the gridded tropical-mean anomaly (both ERSSTv5, both 1991–2020 base),
-    # σ-scaled per calendar month, 3-month running mean.
+    # the gridded tropical-mean anomaly, σ-scaled per calendar month, 3-month
+    # running mean. NOTE the two sides are now different ERSST versions — the
+    # table is v5 (frozen) and the grid is v6 — so this pair is a FALLBACK only:
+    # the official CPC values below overwrite it wherever CPC has published,
+    # which since 1950 is everywhere. Over 1991–2020 the version difference is
+    # +0.04 C on Niño-3.4 and +0.02 C on the tropical mean, so the residual
+    # fallback is not distorted by the mix either.
     try:
         trop = tropical_anom(df.index)
         sc = roni_scale()
@@ -295,7 +300,11 @@ def main() -> int:
     out = {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "provisional_after": provisional_from,
-        "source": "NOAA CPC ERSSTv5 monthly Niño indices, 1991–2020 base",
+        "source": ("ONI/RONI: CPC's published tables (official; RONI is ERSSTv6 and has "
+                   "been CPC's official ENSO index since Feb 2026). Regional Niño series: "
+                   "CPC ERSSTv5 monthly table, 1991–2020 base — that file froze on "
+                   "2026-08-05, so the regional series stop there. Months past "
+                   "provisional_after are bridged from OISST v2.1."),
         "latest_month": months[-1],
         "metrics": {
             "nino12": "Niño-1+2", "nino3": "Niño-3",

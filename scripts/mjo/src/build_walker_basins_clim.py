@@ -41,7 +41,7 @@ from gill_model import LAT2, LON2, C_WAVE, EPS   # noqa: E402
 REF = Path(__file__).resolve().parent.parent / "data" / "reference"
 OUT = REF / "walker_basins_clim.nc"
 STORE = Path.home() / "era5_store" / "wb2_1p5_daily_global"
-ERSST = Path(__file__).resolve().parents[2] / "sst" / "data" / "ersst_v5_mnmean.nc"
+ERSST = Path(__file__).resolve().parents[2] / "sst" / "data" / "ersst_v6_mnmean.nc"
 Y0, Y1 = 1991, 2020
 BAND = 5.0
 LMAX = 42

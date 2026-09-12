@@ -93,7 +93,7 @@ def indices_from(field, wref):
 def n34_lag3(wref: xr.Dataset, end: pd.Timestamp) -> float | None:
     """Niño-3.4 three months before the window end, from ERSST (the training source), detrended."""
     try:
-        e = xr.open_dataset(HERE / "data" / "ersst_v5_mnmean.nc")["sst"]
+        e = xr.open_dataset(HERE / "data" / "ersst_v6_mnmean.nc")["sst"]
         tm = pd.Timestamp(end) - pd.DateOffset(months=3)
         fld = e.sel(time=f"{tm.year}-{tm.month:02d}").isel(time=0).values.astype(float)
         an3 = fld - wref.sst_clim.sel(month=tm.month).values - wref.sst_slope.sel(month=tm.month).values * (tm.year + (tm.month - 0.5) / 12 - 2005.5)
@@ -236,7 +236,7 @@ def render(out: Path, weeks: list, month_sst: dict, gill: dict, lat, lon, clim_r
     cax = fig.add_axes([0.30, yb, 0.36, 0.09 / H]); cb = fig.colorbar(cf, cax=cax, orientation="horizontal", ticks=lev); cb.ax.tick_params(labelsize=6.5)
     cb.set_label("χ200 anomaly, 10⁶ m² s⁻¹  (green = upper-level divergence, enhanced deep convection)", fontsize=7)
     cax2 = fig.add_axes([0.05, yb, 0.16, 0.09 / H]); cb2 = fig.colorbar(cfs, cax=cax2, orientation="horizontal"); cb2.ax.tick_params(labelsize=6.5); cb2.set_label("SST anomaly, °C", fontsize=7)
-    fig.text(0.99, 0.05 / H, "AIFS-ENS 0-h analyses · ERA5 · ERSSTv5 · OISST v2.1 · Gill (1980)", fontsize=6.5, color=MUTED, ha="right")
+    fig.text(0.99, 0.05 / H, "AIFS-ENS 0-h analyses · ERA5 · ERSSTv6 · OISST v2.1 · Gill (1980)", fontsize=6.5, color=MUTED, ha="right")
     fig.suptitle("Tropical overturning: weekly departure from Pacific forcing — and how much of it the Indian and Atlantic Oceans can claim", fontsize=13, fontweight="bold", x=0.03, ha="left", y=1 - 0.12 / H)
     import textwrap
     blurb = ("7-day means of the AIFS-ENS 0-h analyses; anomalies against the ERA5 1991–2020 harmonic climatology with the 1991–2020 trend removed. Pacific part: the ERA5 + ERSST 1991–2020 regression of χ200 on Niño-3.4 "
