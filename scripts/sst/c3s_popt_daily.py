@@ -64,15 +64,14 @@ def daily_members(path: Path, region: str):
     if w.sum() <= 0:
         ds.close(); return None, None
     w = w / w.sum()
-    # valid time for every (start, step) pair
-    if "time" in da.dims:
-        da = da.transpose("number", "time", "step", "latitude", "longitude")
-        t0 = da["time"].values[:, None]
-    else:
-        da = da.transpose("number", "step", "latitude", "longitude")
-        da = da.expand_dims("time")
-        da = da.transpose("number", "time", "step", "latitude", "longitude")
-        t0 = np.atleast_1d(ds["time"].values)[:, None]
+    # valid time for every (start, step) pair. Both `number` and `time` are optional in a
+    # grib: a single-start system has no time dimension, and a system whose chunk holds one
+    # member per start has no number dimension. Give the array both, then transpose once.
+    for d in ("number", "time"):
+        if d not in da.dims:
+            da = da.expand_dims(d)
+    da = da.transpose("number", "time", "step", "latitude", "longitude")
+    t0 = np.atleast_1d(da["time"].values)[:, None]
     valid = t0 + da["step"].values[None, :]
     v = (da.values * w[None, None, None]).sum(axis=(3, 4))            # [member, start, step]
     ds.close()

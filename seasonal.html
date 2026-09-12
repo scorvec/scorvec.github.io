@@ -212,6 +212,28 @@
     </div>
   </div>
 
+  <!-- ── EVERY MODEL: DAILY POPULATION-WEIGHTED DISTRIBUTION ──────────────── -->
+  <div class="card" id="c3sDayCard" data-label="Population-weighted, daily" data-group="Every model">
+    <h2>Population-weighted temperature &mdash; the daily distribution, every system</h2>
+    <p class="note">Every member, <b>every day</b>, population-weighted into one national number and pooled by month:
+    1,500 member-days for a 50-member system, 3,600 for NCEP&rsquo;s 120. This is the distribution a cold snap lives in
+    &mdash; the monthly card above shows the spread of monthly MEANS, which is a different and much narrower thing.
+    Bands are P1&ndash;P99, P5&ndash;P95 and P25&ndash;P75 of the pooled member-days, with the median in sienna.</p>
+    <p class="note">Days are matched on <b>valid time, not lead</b>: UKMO, NCEP and BoM are lagged ensembles whose
+    members start on different days, so the same lead hour is a different calendar day for each of them. A day missing
+    more than one of its four 6-hourly samples is dropped rather than averaged into a false daily mean, which is why a
+    system shows slightly fewer members here than in its monthly ensemble. Anomalies use each system&rsquo;s monthly
+    hindcast mean at that lead; calibrating the tails themselves needs a daily hindcast, which has not been pulled.</p>
+    <div class="controls" id="c3sDayRegion" style="margin-top:0.8rem"></div>
+    <div class="controls" id="c3sDayModel" style="margin-top:0.4rem"></div>
+    <div class="controls" id="c3sDayKind" style="margin-top:0.4rem"></div>
+    <div id="c3sDayPlot" style="width:100%;min-height:380px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">C3S <code>seasonal-original-single-levels</code>, 6-hourly 2 m temperature members over the country box &middot; population: geonames cities15000 on the 1&deg; grid</span>
+      <span class="chart-updated" id="c3sDayUpdated">&mdash;</span>
+    </div>
+  </div>
+
   <!-- ── EVERY MODEL: NIÑO-3.4 PLUME ──────────────────────────────────────── -->
   <div class="card" data-label="Ni&ntilde;o-3.4, every member" data-group="Every model">
     <h2>Ni&ntilde;o-3.4 &mdash; every member of every system</h2>
@@ -1416,7 +1438,7 @@
    hidden, so a chart built off-screen comes back a few hundred pixels wide when its card
    is finally shown. Resize on the first reveal, once per plot. */
 (function () {
-  var ids = ["c3sIdxPlot", "c3sPopPlot"];
+  var ids = ["c3sIdxPlot", "c3sPopPlot", "c3sDayPlot"];
   function fix() {
     ids.forEach(function (id) {
       var el = document.getElementById(id);
@@ -1433,6 +1455,68 @@
   setInterval(fix, 1200);
 })();
 </script>
+
+<script>
+/* The daily distribution (assets/sst/data/c3s_popt_daily.json). Same controls as the
+   monthly card; three nested bands because the point of a daily pool is its tails. */
+(function () {
+  fetch("/assets/sst/data/c3s_popt_daily.json?t=" + Date.now()).then(function (r) { return r.json(); }).then(function (J) {
+    var host = document.getElementById("c3sDayPlot");
+    if (!host || !window.Plotly || !J.regions) { var c = document.getElementById("c3sDayCard"); if (c) c.hidden = true; return; }
+    var regions = Object.keys(J.regions);
+    var sel = { r: regions[0], m: "mmm", k: "anom" };
+    function band(x, lo, hi, col) {
+      return { x: x.concat(x.slice().reverse()), y: hi.concat(lo.slice().reverse()), fill: "toself",
+               fillcolor: col, line: { width: 0 }, hoverinfo: "skip", showlegend: false, type: "scatter" };
+    }
+    function pills(id, items, cur, set) {
+      var h = document.getElementById(id); h.innerHTML = "";
+      items.forEach(function (it) {
+        var b = document.createElement("button");
+        b.className = "pill" + (it[0] === cur ? " on" : "");
+        b.textContent = it[1];
+        b.onclick = function () { set(it[0]); draw(); };
+        h.appendChild(b);
+      });
+    }
+    function draw() {
+      var R = J.regions[sel.r], V = R.values[sel.m] || R.values.mmm, unit = R.unit;
+      var q = V[sel.k], x = R.months;
+      if (!q || !q.p50 || q.p50.every(function (v) { return v === null; })) { sel.k = "raw"; q = V.raw; }
+      var traces = [band(x, q.p1, q.p99, "rgba(176,110,60,0.10)"),
+                    band(x, q.p5, q.p95, "rgba(176,110,60,0.18)"),
+                    band(x, q.p25, q.p75, "rgba(176,110,60,0.32)"),
+                    { x: x, y: q.p50, type: "scatter", mode: "lines+markers", name: "median",
+                      line: { color: "#a0522d", width: 3 }, marker: { size: 6, color: "#a0522d" },
+                      hovertemplate: "%{y:.1f} " + unit + "<extra>median</extra>" }];
+      if (sel.m === "mmm") {
+        J.models.filter(function (m) { return m.id !== "mmm" && R.values[m.id]; }).forEach(function (m) {
+          traces.push({ x: x, y: R.values[m.id][sel.k].p50, type: "scatter", mode: "lines", name: m.label,
+                        line: { color: m.color || "#8a8378", width: 1.1 }, opacity: 0.75,
+                        hovertemplate: "%{y:.1f}<extra>" + m.label + " median</extra>" });
+        });
+      }
+      Plotly.react(host, traces, {
+        margin: { l: 54, r: 12, t: 8, b: 38 }, height: 400,
+        paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", hovermode: "x unified",
+        legend: { orientation: "h", y: 1.16, x: 0, font: { size: 10.5 } },
+        xaxis: { showgrid: false, tickfont: { size: 11 } },
+        yaxis: { title: { text: sel.k === "anom" ? "anomaly (" + unit + ")" : unit, font: { size: 11 } },
+                 zeroline: sel.k === "anom", zerolinecolor: "#b9b4aa", gridcolor: "#ece9e2", tickfont: { size: 11 } }
+      }, { displayModeBar: false, responsive: true });
+      pills("c3sDayRegion", regions.map(function (k) { return [k, J.regions[k].label]; }), sel.r, function (v) { sel.r = v; });
+      pills("c3sDayModel", J.models.filter(function (m) { return R.values[m.id]; })
+              .map(function (m) { var d = R.values[m.id].member_days; return [m.id, m.label + (d ? " (" + d[0].toLocaleString() + " member-days)" : "")]; }),
+            sel.m, function (v) { sel.m = v; });
+      pills("c3sDayKind", [["anom", "Anomaly vs own hindcast"], ["raw", "Raw temperature"]], sel.k, function (v) { sel.k = v; });
+      var u = document.getElementById("c3sDayUpdated");
+      if (u) u.textContent = J.issue_label + " issue";
+    }
+    draw();
+  }).catch(function () { var c = document.getElementById("c3sDayCard"); if (c) c.hidden = true; });
+})();
+</script>
+
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">
