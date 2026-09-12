@@ -4,14 +4,15 @@
     <h1>El Ni&ntilde;o monitor</h1>
     <p class="sub">Daily estimates of the Oceanic Ni&ntilde;o Index and its warming-era replacement, RONI, ahead of the official monthly numbers &mdash; with every Ni&ntilde;o region, the tropical background, the satellite view, the equatorial winds and the Southern Oscillation, and the subsurface ocean beneath it all. Computed from source data, updated every morning; one figure at a time, picked from the menu.</p>
     <div class="chips" id="chips"><div class="chip"><div class="l">Loading daily indices&hellip;</div><div class="v neut">&mdash;</div></div></div>
-    <p class="chipnote"><b>*</b> The ENSO state is graded on <b>RONI</b> &mdash; |RONI|&nbsp;&ge;&nbsp;0.5 El
-      Ni&ntilde;o or La Ni&ntilde;a, &ge;&nbsp;1.0 moderate, &ge;&nbsp;1.5 strong. That is this page's
-      convention, chosen because RONI removes the tropical background warming; <b>CPC grades strength on
-      ONI instead</b>, so the label here can differ from the official one. Both indices are computed from
-      <b>NOAA OISST v2.1</b> on a fixed 1991&ndash;2020 base &mdash; an <b>estimate</b> of what CPC's
-      ERSSTv5 will report, not that dataset (over the months ERSSTv5 has published, this estimate runs
-      about +0.07&nbsp;&deg;C warm). The newest month is <b>preliminary</b>: the 3-month convention is
-      <i>centred</i>, so it leans on a month that has not finished.</p>
+    <p class="chipnote"><b>*</b> Graded on <b>RONI</b>: |RONI|&nbsp;&ge;&nbsp;0.5 El Ni&ntilde;o or La
+      Ni&ntilde;a, &ge;&nbsp;1.0 moderate, &ge;&nbsp;1.5 strong, &ge;&nbsp;2.0 very strong.
+      <b>CPC adopted RONI as its official ENSO index in February 2026</b>, replacing ONI, whose fixed
+      30-year base cannot keep pace with tropical background warming &mdash; so grading on RONI follows
+      CPC. Two things here are still not CPC's: the value is computed from <b>NOAA OISST v2.1</b> on a
+      1991&ndash;2020 base, an <b>estimate</b> of CPC's official RONI, which uses ERSST; and a single
+      season is shown, where <b>CPC requires five consecutive overlapping seasons</b> past &plusmn;0.5
+      before declaring an episode. The newest season is <b>preliminary</b> &mdash; the 3-month
+      convention is <i>centred</i>, so it leans on a month that has not finished.</p>
   </div>
   <div class="ss-layout">
     <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
@@ -333,7 +334,8 @@ window.STAGE = {
   function ensoState(oni, roni) {
     var v = roni;                                       // RONI is the cleaner signal
     var name = v >= 0.5 ? "El Niño" : v <= -0.5 ? "La Niña" : "Neutral";
-    var strength = Math.abs(v) >= 1.5 ? "strong " : Math.abs(v) >= 1.0 ? "moderate " : "";
+    var strength = Math.abs(v) >= 2.0 ? "very strong " : Math.abs(v) >= 1.5 ? "strong "
+                 : Math.abs(v) >= 1.0 ? "moderate " : "";
     if (Math.abs(v) < 0.5 && Math.abs(oni) >= 0.5)
       return { name: "Neutral by RONI*", sub: "ONI says " + (oni > 0 ? "El Niño" : "La Niña") + " — background warming inflates it" };
     return { name: strength + name + "*", sub: "by RONI " + fmt(roni) + " · ONI " + fmt(oni) };

@@ -972,13 +972,14 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     # coloured) as the signal.
     #
     # NOT labelled "official": both bars are computed here from OISST v2.1 on a
-    # fixed 1991-2020 base. CPC's published ONI is ERSSTv5, and its operational
-    # value uses a base period that shifts every five years, so this is an
-    # ESTIMATE of what CPC will report rather than that number.
+    # fixed 1991-2020 base, while CPC computes these from ERSST. Note also that
+    # CPC ADOPTED RONI AS ITS OFFICIAL ENSO INDEX IN FEBRUARY 2026, replacing
+    # ONI -- so the blue series, not the gold one, is the one that now matches
+    # the official convention. Both remain estimates of CPC's published values.
     oni_vals = df["oni"].values if "oni" in df else None
     if oni_vals is not None:
         ax.bar(x - 0.20, oni_vals, width=0.38, color="#c9a227", edgecolor="#fff",
-               linewidth=0.5, zorder=2, label="ONI est. (OISST, not CPC ERSSTv5)")
+               linewidth=0.5, zorder=2, label="ONI est. (OISST, not CPC ERSST)")
         ax.bar(x + 0.20, roni_vals, width=0.38, color=colors, edgecolor="#fff",
                linewidth=0.5, zorder=2, label="RONI")
     else:
@@ -1034,7 +1035,7 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     ax.set_ylim(lo, hi)
 
     ax.set_ylabel("\u00b0C", fontsize=11)
-    ax.set_title("ONI vs RONI \u2014 the 3-month convention (OISST estimate, not the official CPC value) against the relative index\n"
+    ax.set_title("ONI vs RONI \u2014 the older convention against RONI, CPC's official ENSO index since February 2026 (both OISST estimates)\n"
                  "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean) SST anomaly, variance-rescaled to ONI per calendar month",
                  fontsize=10.5, loc="left", pad=8)
     ax.grid(axis="y", alpha=0.2)
@@ -1061,8 +1062,8 @@ def render_roni(df: pd.DataFrame, out_path: Path,
              "month (CPC/ECMWF), in \u00b0C, comparable to ONI (red >+0.5, blue <\u22120.5, grey neutral).\n"
              "Each bar is the centered 3-month season (e.g. May = AMJ); a hatched bar is provisional (its "
              "season includes the incomplete current month and is PRELIMINARY).\n"
-             "BOTH series are computed from NOAA OISST v2.1 (anomalies vs 1991\u20132020) \u2014 an ESTIMATE of CPC's "
-             "official ONI, which is ERSSTv5 on a base period that shifts every five years, not this dataset.",
+             "BOTH series are computed from NOAA OISST v2.1 (anomalies vs 1991\u20132020) \u2014 ESTIMATES of CPC's "
+             "published values, which use ERSST. CPC adopted RONI as its OFFICIAL ENSO index in February 2026, replacing ONI.",
              fontsize=7, color="#888")
 
     fig.subplots_adjust(bottom=0.20, top=0.86)   # room for the 2-line season ticks + footnote
