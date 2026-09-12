@@ -219,6 +219,10 @@
     1,500 member-days for a 50-member system, 3,600 for NCEP&rsquo;s 120. This is the distribution a cold snap lives in
     &mdash; the monthly card above shows the spread of monthly MEANS, which is a different and much narrower thing.
     Bands are P1&ndash;P99, P5&ndash;P95 and P25&ndash;P75 of the pooled member-days, with the median in sienna.</p>
+    <p class="note">The black line is <b>observed</b>: CPC Global Unified daily Tmax/Tmin, population-weighted on the
+    same cells and pooled the same way, with anomalies against the observed <b>1993&ndash;2016</b> mean &mdash; the models&rsquo;
+    hindcast period, not CPC&rsquo;s 1991&ndash;2020 normal &mdash; so history and forecast share one base. Its P10&ndash;P90 band is
+    drawn on the raw basis only.</p>
     <p class="note">Days are matched on <b>valid time, not lead</b>: UKMO, NCEP and BoM are lagged ensembles whose
     members start on different days, so the same lead hour is a different calendar day for each of them. A day missing
     more than one of its four 6-hourly samples is dropped rather than averaged into a false daily mean, which is why a
@@ -1491,6 +1495,21 @@
                     { x: x, y: q.p50, type: "scatter", mode: "lines+markers", name: "median",
                       line: { color: "#a0522d", width: 3 }, marker: { size: 6, color: "#a0522d" },
                       hovertemplate: "%{y:.1f} " + unit + "<extra>median</extra>" }];
+      // observed months, pooled the same way: CPC daily Tmax/Tmin on the same population
+      // cells, anomalies on the same 1993–2016 base. The band is only drawn on the raw
+      // basis — the stored anomaly is the median's, not a full observed distribution.
+      var O = R.observed;
+      var cats = ((O && O.months) ? O.months : []).concat(x);
+      if (O && O.months && O.months.length) {
+        var oy = sel.k === "anom" ? O.anom_p50 : O.p50;
+        if (sel.k !== "anom") traces.unshift(band(O.months, O.p10, O.p90, "rgba(40,40,40,0.10)"));
+        traces.push({ x: O.months, y: oy, type: "scatter", mode: "lines+markers", name: "observed (CPC)",
+                      line: { color: "#111", width: 2.2 }, marker: { size: 5, color: "#111" },
+                      hovertemplate: "%{y:.1f} " + unit + "<extra>observed</extra>" });
+        traces.push({ x: [O.months[O.months.length - 1], x[0]], y: [oy[oy.length - 1], q.p50[0]],
+                      type: "scatter", mode: "lines", line: { color: "#111", width: 1, dash: "dot" },
+                      hoverinfo: "skip", showlegend: false });
+      }
       if (sel.m === "mmm") {
         J.models.filter(function (m) { return m.id !== "mmm" && R.values[m.id]; }).forEach(function (m) {
           traces.push({ x: x, y: R.values[m.id][sel.k].p50, type: "scatter", mode: "lines", name: m.label,
@@ -1502,7 +1521,11 @@
         margin: { l: 54, r: 12, t: 8, b: 38 }, height: 400,
         paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", hovermode: "x unified",
         legend: { orientation: "h", y: 1.16, x: 0, font: { size: 10.5 } },
-        xaxis: { showgrid: false, tickfont: { size: 11 } },
+        // the axis is categorical, and Plotly orders categories by first appearance — the
+        // forecast traces are built first, so without this the observed months landed AFTER
+        // February 2027 instead of before September 2026
+        xaxis: { showgrid: false, tickfont: { size: 11 }, type: "category",
+                 categoryorder: "array", categoryarray: cats },
         yaxis: { title: { text: sel.k === "anom" ? "anomaly (" + unit + ")" : unit, font: { size: 11 } },
                  zeroline: sel.k === "anom", zerolinecolor: "#b9b4aa", gridcolor: "#ece9e2", tickfont: { size: 11 } }
       }, { displayModeBar: false, responsive: true });

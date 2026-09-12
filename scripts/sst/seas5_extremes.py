@@ -153,8 +153,26 @@ def fetch_cpc(regions=None, years=None, stats=None) -> dict:
                     try:
                         ds = xr.open_dataset(f"https://psl.noaa.gov/thredds/dodsC/Datasets/cpc_global_temp/{var}.{year}.nc")
                         da = ds[var].sel(lat=slice(n_, s_), lon=slice(w_ % 360, e_ % 360)).load(); ds.close()
-                        a = da.values; nan = float(np.isnan(a).mean()); mx = float(np.nanmax(a)); mn = float(np.nanmin(a))
-                        if a.shape[0] < 365 or nan > 0.95 or nan < 0.02 or mx > 60 or mn < -80 or not np.isfinite(mx):
+                        a = da.values
+                        # A handful of cells in a live CPC year carry an out-of-range value
+                        # (Brazil 2026 tmin held a -89 C cell). Mask them if they are a
+                        # rounding error's worth of the field, reject the file if they are
+                        # not: a fill value read as data would poison a normal silently.
+                        wild = np.isfinite(a) & ((a > 60) | (a < -80))
+                        if wild.any():
+                            frac = float(wild.mean())
+                            if frac > 1e-3:
+                                raise ValueError(f"{frac:.3%} of cells outside -80..60 C")
+                            a = np.where(wild, np.nan, a)
+                            da = da.copy(data=a)
+                            print(f"    CPC {var} {region} {year}: masked {int(wild.sum())} out-of-range cell(s)", flush=True)
+                        nan = float(np.isnan(a).mean()); mx = float(np.nanmax(a)); mn = float(np.nanmin(a))
+                        # The CURRENT year is legitimately short — CPC publishes it day by
+                        # day — and these files are used for history as well as for the
+                        # 1991-2020 normals, so only a completed year must be complete.
+                        import datetime as _dt_
+                        full = 365 if year < _dt_.date.today().year else 60
+                        if a.shape[0] < full or nan > 0.95 or nan < 0.02 or mx > 60 or mn < -80 or not np.isfinite(mx):
                             raise ValueError(f"implausible: shape {a.shape} nan {nan:.2f} range {mn:.0f}..{mx:.0f}")
                         da = da.assign_coords(lon=((da.lon + 180) % 360) - 180).sortby("lon")
                         da.to_dataset(name=var).to_netcdf(dest); ok = True

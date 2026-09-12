@@ -106,6 +106,72 @@ def hindcast_monthly(centre: str, system: str, region: str, issue: str, nmonth: 
     return {k: float((hcm[k] * w[None]).sum(axis=(1, 2)).mean()) for k in hcm}
 
 
+def observed_months(region: str, issue: str, n_back: int = 6) -> dict | None:
+    """The last months of OBSERVED population-weighted daily temperature, same pooling.
+
+    CPC Global Unified daily Tmax/Tmin on its 0.5 deg land grid, population-weighted on the
+    same geonames places, daily mean taken as (Tmax+Tmin)/2. Anomalies are against the
+    OBSERVED 1993-2016 mean for that calendar month -- the models' hindcast period, not
+    CPC's 1991-2020 normal -- so the observed months and the forecast months sit on one
+    base (the same correction the ENSO plume needed, 2026-09-12).
+    """
+    import xarray as xr
+    from seas5_extremes import CPC, cpc_path
+    y, mo = int(issue[:4]), int(issue[4:6])
+    want = []
+    for k in range(n_back, 0, -1):
+        m = mo - k
+        want.append((y + (m - 1) // 12, (m - 1) % 12 + 1))
+    years = sorted({yy for yy, _ in want} | set(range(1993, 2017)))
+    tx, tn, w = {}, {}, None
+    for yy in years:
+        px, pn = cpc_path("tx", region, yy), cpc_path("tn", region, yy)
+        if not (px.exists() and pn.exists()):
+            continue
+        dx = xr.open_dataset(px)["tmax"]; dn = xr.open_dataset(pn)["tmin"]
+        if w is None:
+            w = pop_grid(region, dx.lat.values, dx.lon.values)
+            if w.sum() <= 0:
+                return None
+            w = w / w.sum()
+        tx[yy] = (dx, dn)
+    if not tx:
+        return None
+    daily = {}                       # (year, month) -> array of daily national means, degC
+    for yy, (dx, dn) in tx.items():
+        mean = ((dx.values + dn.values) / 2.0)
+        # a cell with no observation must not drag the national mean: renormalise the weight
+        good = np.isfinite(mean)
+        num = np.nansum(np.where(good, mean, 0.0) * w[None], axis=(1, 2))
+        den = np.nansum(np.where(good, 1.0, 0.0) * w[None], axis=(1, 2))
+        nat = np.where(den > 0.6, num / np.maximum(den, 1e-9), np.nan)
+        mons = dx["time"].dt.month.values
+        for m in range(1, 13):
+            v = nat[mons == m]
+            v = v[np.isfinite(v)]
+            if v.size >= 20:
+                daily[(yy, m)] = v
+    clim = {}
+    for m in range(1, 13):
+        pool = [daily[(yy, m)].mean() for yy in range(1993, 2017) if (yy, m) in daily]
+        clim[m] = float(np.mean(pool)) if pool else np.nan
+    out = {"months": [], "p10": [], "p25": [], "p50": [], "p75": [], "p90": [],
+           "mean": [], "anom_p50": [], "anom_mean": []}
+    unit = REGIONS[region][3]
+    f = 9 / 5 if unit == "F" else 1.0
+    for yy, m in want:
+        v = daily.get((yy, m))
+        if v is None or not np.isfinite(clim[m]):
+            continue
+        out["months"].append(f"{MONTHS[m - 1]} {yy}")
+        for q in (10, 25, 50, 75, 90):
+            out[f"p{q}"].append(round(float(to_unit(np.percentile(v, q) + 273.15, unit)), 2))
+        out["mean"].append(round(float(to_unit(v.mean() + 273.15, unit)), 2))
+        out["anom_p50"].append(round(float((np.percentile(v, 50) - clim[m]) * f), 2))
+        out["anom_mean"].append(round(float((v.mean() - clim[m]) * f), 2))
+    return out if out["months"] else None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", default=time.strftime("%Y%m", time.gmtime()))
@@ -184,6 +250,13 @@ def main() -> int:
         per_model["mmm"] = mmm
         doc["regions"][region] = {"label": label, "unit": "°F" if unit == "F" else "°C",
                                   "months": months[:nmon], "values": per_model}
+        try:
+            obs = observed_months(region, issue)
+        except Exception as e:                                        # noqa: BLE001
+            print(f"  {region}: observed history unavailable ({str(e)[:70]})", file=sys.stderr); obs = None
+        if obs:
+            doc["regions"][region]["observed"] = obs
+            print(f"  {region} observed: {obs['months'][0]} → {obs['months'][-1]}", flush=True)
     if not doc["regions"]:
         raise SystemExit("no 6-hourly chunks on disk yet — run c3s_sixh.py")
     doc["models"] = [{"id": "mmm", "label": "Multi-model", "color": "#111111"}] + seen
