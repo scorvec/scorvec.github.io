@@ -1383,7 +1383,8 @@
     var sel = { r: regions[0], m: "mmm", k: "anom" };
     function band(x, lo, hi, col, name) {
       return { x: x.concat(x.slice().reverse()), y: hi.concat(lo.slice().reverse()), fill: "toself",
-               fillcolor: col, line: { width: 0 }, hoverinfo: "skip", showlegend: false, name: name, type: "scatter" };
+               fillcolor: col, line: { width: 0 }, mode: "lines", hoverinfo: "skip", showlegend: false,
+               name: name, type: "scatter" };
     }
     function draw() {
       var R = J.regions[sel.r], V = R.values[sel.m] || R.values.mmm, unit = R.unit;
@@ -1467,7 +1468,8 @@
     var sel = { r: regions[0], m: "mmm", k: "anom" };
     function band(x, lo, hi, col) {
       return { x: x.concat(x.slice().reverse()), y: hi.concat(lo.slice().reverse()), fill: "toself",
-               fillcolor: col, line: { width: 0 }, hoverinfo: "skip", showlegend: false, type: "scatter" };
+               fillcolor: col, line: { width: 0 }, mode: "lines", hoverinfo: "skip", showlegend: false,
+               type: "scatter" };
     }
     function pills(id, items, cur, set) {
       var h = document.getElementById(id); h.innerHTML = "";

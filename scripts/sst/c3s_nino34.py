@@ -349,6 +349,76 @@ OBS_HISTORY = ASSETS / "data" / "nino_history.json"      # written by the ENSO m
 OBS_MONTHS = 12
 
 
+OISST_MEAN = HERE / "data" / "sst.mon.mean.nc"      # the monthly OISST record (gitignored cache)
+REL_CACHE = HERE / "data" / "obs_relative_nino34.json"
+
+
+def observed_relative(months) -> "np.ndarray | None":
+    """Observed MONTHLY relative Niño-3.4, built the way the models' is.
+
+    CPC publishes RONI only as a 3-month mean, so the monthly panel had no observed line.
+    The construction is not a mystery, though: relative Niño-3.4 is the Niño-3.4 anomaly
+    minus the 20°S–20°N tropical-mean anomaly, scaled by the calendar month's σ — exactly
+    what model_members() does to every member. Done here on OISST v2.1 monthly, the record
+    that produced the σ table itself (build_roni_sigma.py), with both anomalies on the
+    OBSERVED 1993–2016 mean so the line sits on the same base as the hindcast anomalies
+    beside it.
+
+    Cached: the source file is 2.2 GB and this is a monthly product.
+    """
+    import numpy as _np
+    want = list(months)
+    if REL_CACHE.exists():
+        try:
+            c = json.loads(REL_CACHE.read_text())
+            if c.get("months") and c["months"][-1] >= want[-1]:
+                by = dict(zip(c["months"], c["values"]))
+                return _np.array([by.get(m, _np.nan) for m in want], dtype=float)
+        except Exception:                                             # noqa: BLE001
+            pass
+    if not OISST_MEAN.exists():
+        return None
+    try:
+        import xarray as xr
+        ds = xr.open_dataset(OISST_MEAN, chunks={"time": 120})
+        sst = ds["sst"]
+
+        def box(la0, la1, lo0, lo1):
+            sub = sst.sel(lat=slice(la0, la1), lon=slice(lo0, lo1))
+            w = _np.cos(_np.deg2rad(sub.lat))
+            return sub.weighted(w.fillna(0)).mean(("lat", "lon")).compute()
+
+        n34 = box(-5, 5, 190, 240)
+        trop = box(-20, 20, 0, 360)
+    except Exception as e:                                            # noqa: BLE001
+        print(f"  observed relative index unavailable ({str(e)[:70]})", flush=True)
+        return None
+    yr = n34.time.dt.year.values
+    mo_ = n34.time.dt.month.values
+
+    def anom(x):
+        v = _np.asarray(x.values, float)
+        out = _np.full_like(v, _np.nan)
+        for m in range(1, 13):
+            sel = mo_ == m
+            base = sel & (yr >= 1993) & (yr <= 2016)
+            if base.any():
+                out[sel] = v[sel] - _np.nanmean(v[base])
+        return out
+
+    tab = _roni_scale_table()
+    rel = (anom(n34) - anom(trop)) * _np.array([tab.get(int(m), 1.0) for m in mo_])
+    keys = [f"{y}-{m:02d}" for y, m in zip(yr, mo_)]
+    try:
+        REL_CACHE.write_text(json.dumps({"months": keys, "values": [None if not _np.isfinite(v) else round(float(v), 3) for v in rel],
+                                         "source": "NOAA OISST v2.1 monthly (PSL), anomalies on the observed 1993–2016 mean, "
+                                                   "σ-scaled by calendar month (roni_sigma.json)"}, separators=(",", ":")))
+    except Exception:                                                 # noqa: BLE001
+        pass
+    by = dict(zip(keys, rel))
+    return _np.array([by.get(m, _np.nan) for m in want], dtype=float)
+
+
 def observed_history(ym: str, months: int = OBS_MONTHS) -> dict | None:
     """The official observed indices for the months BEFORE the issue, on the models' base.
 
@@ -401,6 +471,7 @@ def observed_history(ym: str, months: int = OBS_MONTHS) -> dict | None:
         return _np.array(v if v else [_np.nan] * len(mo), dtype=float)
 
     roni = _ser("roni")
+    rel = observed_relative(mo)          # the monthly relative index CPC does not publish
     # The ONI panel gets CPC's OWN published ONI rather than a running mean of the regional
     # table -- that table lost 2026-07 entirely when it froze, and the official index is the
     # thing a reader recognises. Shifted onto the 1993-2016 base with the 3-month mean of the
@@ -424,6 +495,7 @@ def observed_history(ym: str, months: int = OBS_MONTHS) -> dict | None:
     keep = cut[-months:]
     return {"dates": [pd.Timestamp(int(mo[i][:4]), int(mo[i][5:]), 1) for i in keep],
             "n34": anom[keep], "oni": oni_obs[keep], "roni": roni[keep],
+            "rel": (rel[keep] if rel is not None else None),
             "source": d.get("source", ""), "last": mo[keep[-1]]}
 
 
@@ -458,13 +530,17 @@ def _panel(ax, results, key, valid, smooth3, title, ylab, want_labels=False, obs
     (h_mmm,) = ax.plot(valid, mmm, color="k", lw=2.8, zorder=5)
 
     h_obs = None
-    if obs is not None and obs_key and np.isfinite(np.asarray(obs[obs_key], float)).any():
+    if (obs is not None and obs_key and obs.get(obs_key) is not None
+            and np.isfinite(np.asarray(obs[obs_key], float)).any()):
         y = np.asarray(obs[obs_key], float)
         (h_obs,) = ax.plot(obs["dates"], y, color="k", lw=2.0, marker="o", ms=3.2, zorder=6)
-        # join the last observation to the first forecast month so the eye does not read a
-        # break where there is only a change of source
-        if np.isfinite(y[-1]):
-            ax.plot([obs["dates"][-1], valid[0]], [y[-1], mmm[0]], color="k", lw=1.0, ls=":", zorder=6)
+        # join the LAST OBSERVED month to the first forecast month so the eye does not read a
+        # break where there is only a change of source. Series end at different months —
+        # OISST's monthly file lags CPC's tables by one — so find the last real value.
+        fin = np.where(np.isfinite(y))[0]
+        if fin.size:
+            j = fin[-1]
+            ax.plot([obs["dates"][j], valid[0]], [y[j], mmm[0]], color="k", lw=1.0, ls=":", zorder=6)
         ax.axvline(valid[0] - pd.DateOffset(days=15), color="0.6", lw=0.8, ls="--", zorder=2)
 
     ax.axhline(0, color="0.5", lw=0.8)
@@ -499,8 +575,7 @@ def plot(ym: str, results, out: Path):
            "Niño-3.4 anomaly — 3-month running mean  (ONI)", "ONI (°C)",
            obs=obs, obs_key="oni")
     _panel(axes[1, 0], results, "rnino", valid, False,
-           "Relative Niño-3.4 — monthly", "rNiño-3.4 (°C)")
-    # only the 3-month relative index is published; there is no official monthly one
+           "Relative Niño-3.4 — monthly", "rNiño-3.4 (°C)", obs=obs, obs_key="rel")
     _panel(axes[1, 1], results, "rnino", valid, True,
            "Relative Niño-3.4 — 3-month running mean  (RONI)", "RONI (°C)",
            obs=obs, obs_key="roni")
@@ -525,9 +600,10 @@ def plot(ym: str, results, out: Path):
                      "Observed: CPC monthly indices through " + obs["last"] + ".",
                      "Niño-3.4 and ONI are re-based to the OBSERVED 1993–2016 mean, the same period as every model's hindcast;",
                      "CPC publishes them on 1991–2020, a shift of +0.05 °C in the annual mean and up to +0.10 in late winter.",
-                     "RONI is CPC's published ERSSTv6 series on its own base: re-basing a relative index needs the tropical-mean",
-                     "series, and the shift largely cancels in a difference of two anomalies. No official MONTHLY relative index",
-                     "exists, so that panel carries no observed line."]),
+                     "RONI is CPC's published ERSSTv6 series on its own base; the shift largely cancels in a difference of two",
+                     "anomalies. CPC publishes no MONTHLY relative index, so that panel's observed line is built the way the models'",
+                     "is: OISST v2.1 Niño-3.4 minus the 20°S–20°N mean, both on 1993–2016, σ-scaled by calendar month —",
+                     "that record's monthly file lags CPC's tables, so this line ends a month earlier."]),
                  ha="center", va="bottom", fontsize=7.4, color="0.35", linespacing=1.45)
     fig.tight_layout(rect=(0, 0.155, 1, 0.945))
     out.parent.mkdir(parents=True, exist_ok=True)
