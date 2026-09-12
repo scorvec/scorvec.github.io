@@ -190,6 +190,28 @@
     </div>
   </div>
 
+  <!-- ── EVERY MODEL: POPULATION-WEIGHTED MONTHLY TEMPERATURE ─────────────── -->
+  <div class="card" id="c3sPopCard" data-label="Population-weighted, monthly" data-group="Every model">
+    <h2>Population-weighted temperature &mdash; monthly means, every system</h2>
+    <p class="note">How warm the month is <b>for the people who feel it</b>: every member weighted by population on the
+    same geonames cells the SEAS5 card uses, for the United States and Brazil. Anomalies are each member minus that
+    system&rsquo;s own 1993&ndash;2016 hindcast mean at the same lead, so the systems are comparable; raw levels carry each
+    model&rsquo;s bias and are there for the read within one system. The band is P10&ndash;P90 across that system&rsquo;s
+    members, with P25&ndash;P75 darker; <b>Multi-model</b> pools every system&rsquo;s members with equal weight per system, so
+    NCEP&rsquo;s 124 and ECCC&rsquo;s 20 count the same.</p>
+    <p class="note"><b>This is a monthly distribution, not a daily one.</b> The width is the spread of monthly MEANS,
+    which is narrower than the day-to-day spread and says nothing about a cold snap &mdash; that question needs 6-hourly
+    members, which is why the daily version below exists for ECMWF alone.</p>
+    <div class="controls" id="c3sPopRegion" style="margin-top:0.8rem"></div>
+    <div class="controls" id="c3sPopModel" style="margin-top:0.4rem"></div>
+    <div class="controls" id="c3sPopKind" style="margin-top:0.4rem"></div>
+    <div id="c3sPopPlot" style="width:100%;min-height:380px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">C3S <code>seasonal-monthly-single-levels</code>, 2 m temperature members and the 1993&ndash;2016 hindcast &middot; population: geonames cities15000 on the 1&deg; grid</span>
+      <span class="chart-updated" id="c3sPopUpdated">&mdash;</span>
+    </div>
+  </div>
+
   <!-- ── EVERY MODEL: NIÑO-3.4 PLUME ──────────────────────────────────────── -->
   <div class="card" data-label="Ni&ntilde;o-3.4, every member" data-group="Every model">
     <h2>Ni&ntilde;o-3.4 &mdash; every member of every system</h2>
@@ -361,7 +383,7 @@
   </div>
 
   <!-- ── POPULATION-WEIGHTED TEMPERATURE ──────────────────────────────────── -->
-  <div class="card" id="popCard" data-label="Population-weighted temperature" data-group="SEAS5 &middot; Impacts">
+  <div class="card" id="popCard" data-label="Population-weighted, daily" data-group="SEAS5 &middot; Impacts">
     <h2>Population-weighted temperature: the forecast for each month, against normal and record</h2>
     <p class="note">For the United States and Brazil, each member&rsquo;s 6-hourly 2 m temperature is weighted by where
     people live (geonames places of 15,000 or more, on the 1&deg; grid) into one national series, and the
@@ -1325,6 +1347,92 @@
 })();
 </script>
 
+
+<script>
+/* Population-weighted monthly temperature for every system (assets/sst/data/c3s_popt.json).
+   One system at a time as a fan, because eight overlapping fans read as nothing; the
+   multi-model pool is the default and the per-system means are drawn behind it as thin
+   lines so the disagreement is still visible. */
+(function () {
+  fetch("/assets/sst/data/c3s_popt.json?t=" + Date.now()).then(function (r) { return r.json(); }).then(function (J) {
+    var host = document.getElementById("c3sPopPlot");
+    if (!host || !window.Plotly || !J.regions) { var c = document.getElementById("c3sPopCard"); if (c) c.hidden = true; return; }
+    var regions = Object.keys(J.regions);
+    var sel = { r: regions[0], m: "mmm", k: "anom" };
+    function band(x, lo, hi, col, name) {
+      return { x: x.concat(x.slice().reverse()), y: hi.concat(lo.slice().reverse()), fill: "toself",
+               fillcolor: col, line: { width: 0 }, hoverinfo: "skip", showlegend: false, name: name, type: "scatter" };
+    }
+    function draw() {
+      var R = J.regions[sel.r], V = R.values[sel.m] || R.values.mmm, unit = R.unit;
+      var kind = sel.k, x = R.months;
+      var q = V[kind], mean = V[kind === "anom" ? "mean_anom" : "mean_raw"];
+      var traces = [band(x, q.p10, q.p90, "rgba(176,110,60,0.16)", "P10–P90"),
+                    band(x, q.p25, q.p75, "rgba(176,110,60,0.30)", "P25–P75"),
+                    { x: x, y: mean, type: "scatter", mode: "lines+markers", name: (R.values[sel.m] ? "" : "") + "mean",
+                      line: { color: "#a0522d", width: 3 }, marker: { size: 6, color: "#a0522d" },
+                      hovertemplate: "%{y:.2f} " + unit + "<extra>mean</extra>" }];
+      if (sel.m === "mmm") {
+        J.models.filter(function (m) { return m.id !== "mmm" && R.values[m.id]; }).forEach(function (m) {
+          traces.push({ x: x, y: R.values[m.id][kind === "anom" ? "mean_anom" : "mean_raw"], type: "scatter",
+                        mode: "lines", name: m.label, line: { color: m.color || "#8a8378", width: 1.1 },
+                        opacity: 0.75, hovertemplate: "%{y:.2f}<extra>" + m.label + "</extra>" });
+        });
+      }
+      var lab = kind === "anom" ? "anomaly (" + unit + ")" : unit;
+      Plotly.react(host, traces, {
+        margin: { l: 54, r: 12, t: 8, b: 38 }, height: 400,
+        paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", hovermode: "x unified",
+        legend: { orientation: "h", y: 1.16, x: 0, font: { size: 10.5 } },
+        xaxis: { showgrid: false, tickfont: { size: 11 } },
+        yaxis: { title: { text: lab, font: { size: 11 } }, zeroline: kind === "anom",
+                 zerolinecolor: "#b9b4aa", gridcolor: "#ece9e2", tickfont: { size: 11 } }
+      }, { displayModeBar: false, responsive: true });
+      function pills(id, items, cur, set) {
+        var h = document.getElementById(id); h.innerHTML = "";
+        items.forEach(function (it) {
+          var b = document.createElement("button");
+          b.className = "pill" + (it[0] === cur ? " on" : "");
+          b.textContent = it[1];
+          b.onclick = function () { set(it[0]); draw(); };
+          h.appendChild(b);
+        });
+      }
+      pills("c3sPopRegion", regions.map(function (k) { return [k, J.regions[k].label]; }), sel.r, function (v) { sel.r = v; });
+      pills("c3sPopModel", J.models.filter(function (m) { return R.values[m.id]; })
+              .map(function (m) { return [m.id, m.label + (R.values[m.id].members ? " (" + R.values[m.id].members + ")" : "")]; }),
+            sel.m, function (v) { sel.m = v; });
+      pills("c3sPopKind", [["anom", "Anomaly vs own hindcast"], ["raw", "Raw temperature"]], sel.k, function (v) { sel.k = v; });
+      var u = document.getElementById("c3sPopUpdated");
+      if (u) u.textContent = J.issue_label + " issue";
+    }
+    draw();
+  }).catch(function () { var c = document.getElementById("c3sPopCard"); if (c) c.hidden = true; });
+})();
+</script>
+
+<script>
+/* Plotly measures its container when it draws, and the rail keeps every card but one
+   hidden, so a chart built off-screen comes back a few hundred pixels wide when its card
+   is finally shown. Resize on the first reveal, once per plot. */
+(function () {
+  var ids = ["c3sIdxPlot", "c3sPopPlot"];
+  function fix() {
+    ids.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && el.offsetParent !== null && el.clientWidth > 0 && window.Plotly && el.data) {
+        if (el.dataset.sized !== String(el.clientWidth)) {
+          el.dataset.sized = String(el.clientWidth);
+          Plotly.Plots.resize(el);
+        }
+      }
+    });
+  }
+  new MutationObserver(fix).observe(document.body, { attributes: true, subtree: true, attributeFilter: ["hidden", "style", "class"] });
+  addEventListener("resize", fix);
+  setInterval(fix, 1200);
+})();
+</script>
 <!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">

@@ -112,13 +112,17 @@ fi
 # download of its own, so it runs whenever those exist.
 "$PY" scripts/sst/c3s_indices.py || echo "c3s indices failed; keeping the previous issue"
 
+# Population-weighted monthly temperature for every system: reads the members the tercile
+# step already cached, so it costs nothing beyond the arithmetic.
+"$PY" scripts/sst/c3s_popt_monthly.py || echo "c3s population-weighted build failed; keeping the previous issue"
+
 # PRIVATE strat gate product — writes only to gitignored paths
 "$PY" scripts/strat/sfs_gate100.py || echo "SFS gate failed; continuing"
 
 
 git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json \
         assets/sst/data/c3s_evolution.json \
-        assets/sst/c3s assets/sst/data/c3s_maps.json assets/sst/data/c3s_indices.json
+        assets/sst/c3s assets/sst/data/c3s_maps.json assets/sst/data/c3s_indices.json assets/sst/data/c3s_popt.json
 if git diff --staged --quiet; then
   echo "no changes to commit"
   [ "${NMODELS:-0}" -ge 7 ] 2>/dev/null && touch "$DONE_STAMP"
