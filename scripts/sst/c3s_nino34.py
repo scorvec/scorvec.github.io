@@ -343,8 +343,92 @@ def resolve_issue(explicit):
     raise SystemExit("no recent C3S issue with data found on the CDS")
 
 
+
+# ── observed history ─────────────────────────────────────────────────────────
+OBS_HISTORY = ASSETS / "data" / "nino_history.json"      # written by the ENSO monitor
+OBS_MONTHS = 12
+
+
+def observed_history(ym: str, months: int = OBS_MONTHS) -> dict | None:
+    """The official observed indices for the months BEFORE the issue, on the models' base.
+
+    The models' anomalies are departures from their own 1993-2016 hindcast. CPC publishes
+    Niño-3.4 on a 1991-2020 base and RONI on ERSSTv6, so plotting either straight onto this
+    figure would put two different climatologies on one axis. The regional series carries
+    ABSOLUTE SST as well, so Niño-3.4 is re-based here exactly: anomaly = absolute minus the
+    OBSERVED 1993-2016 mean for that calendar month. The shift is +0.05 °C in the annual
+    mean and up to +0.10 in late winter -- small, and the wrong way to be sloppy about on a
+    chart whose whole subject is a tenth of a degree.
+
+    RONI is the exception and is drawn as CPC publishes it: a relative index needs the
+    tropical-mean series to re-base, that series is not in this file, and for a difference
+    of two anomalies the base shift very largely cancels anyway.
+    """
+    if not OBS_HISTORY.exists():
+        return None
+    import numpy as _np
+    d = json.loads(OBS_HISTORY.read_text())
+    mo = d.get("months") or []
+    ser = d.get("series") or {}
+    if not mo or "nino34" not in ser:
+        return None
+    n34 = ser["nino34"]
+    ab = _np.array(n34.get("abs") if isinstance(n34, dict) else n34, dtype=float)
+    yr = _np.array([int(m[:4]) for m in mo]); mm = _np.array([int(m[5:]) for m in mo])
+    clim = {}
+    for m in range(1, 13):
+        sel = (mm == m) & (yr >= 1993) & (yr <= 2016) & _np.isfinite(ab)
+        clim[m] = float(_np.nanmean(ab[sel])) if sel.any() else _np.nan
+    anom = _np.array([ab[i] - clim[mm[i]] for i in range(len(mo))])
+    # A month whose ABSOLUTE value is missing (CPC's regional table froze on 2026-08-05 and
+    # later months are bridged from OISST) still has a published anomaly: shift that onto the
+    # same base with the difference of the two climatologies, rather than leaving a hole in
+    # the middle of the observed line.
+    pub = _np.array((n34.get("anom") if isinstance(n34, dict) else None) or [_np.nan] * len(mo), dtype=float)
+    clim91 = {}
+    for m in range(1, 13):
+        sel = (mm == m) & (yr >= 1991) & (yr <= 2020) & _np.isfinite(ab)
+        clim91[m] = float(_np.nanmean(ab[sel])) if sel.any() else _np.nan
+    gap = ~_np.isfinite(anom) & _np.isfinite(pub)
+    for i in _np.where(gap)[0]:
+        shift = clim91[mm[i]] - clim[mm[i]]
+        if _np.isfinite(shift):
+            anom[i] = pub[i] + shift
+    def _ser(key):
+        v = ser.get(key)
+        if isinstance(v, dict):                       # {"abs": [...], "anom": [...]}
+            v = v.get("anom", v.get("abs"))
+        return _np.array(v if v else [_np.nan] * len(mo), dtype=float)
+
+    roni = _ser("roni")
+    # The ONI panel gets CPC's OWN published ONI rather than a running mean of the regional
+    # table -- that table lost 2026-07 entirely when it froze, and the official index is the
+    # thing a reader recognises. Shifted onto the 1993-2016 base with the 3-month mean of the
+    # monthly climatology differences, to match how the index itself is built.
+    oni_pub = _ser("oni")
+    shift = _np.array([clim91[m] - clim[m] if _np.isfinite(clim91[m] - clim[m]) else _np.nan
+                       for m in mm])
+    shift3 = pd.Series(shift).rolling(3, center=True, min_periods=1).mean().values
+    oni_obs = oni_pub + shift3
+    # and a lone missing month in the monthly series is bridged rather than left as a hole
+    fin = _np.isfinite(anom)
+    if (~fin).any() and fin.sum() > 2:
+        idx = _np.arange(len(anom))
+        anom = _np.where(fin, anom, _np.interp(idx, idx[fin], anom[fin]))
+        anom[: idx[fin][0]] = _np.nan
+        anom[idx[fin][-1] + 1:] = _np.nan
+    # the issue month is forecast, not history: keep strictly earlier months
+    cut = [i for i, m in enumerate(mo) if m < f"{ym[:4]}-{ym[4:6]}"]
+    if not cut:
+        return None
+    keep = cut[-months:]
+    return {"dates": [pd.Timestamp(int(mo[i][:4]), int(mo[i][5:]), 1) for i in keep],
+            "n34": anom[keep], "oni": oni_obs[keep], "roni": roni[keep],
+            "source": d.get("source", ""), "last": mo[keep[-1]]}
+
+
 # ── plotting ──────────────────────────────────────────────────────────────────
-def _panel(ax, results, key, valid, smooth3, title, ylab, want_labels=False):
+def _panel(ax, results, key, valid, smooth3, title, ylab, want_labels=False, obs=None, obs_key=None):
     """One panel: member plume + per-model means + multi-model mean.
     Returns (handles, labels) once, for a shared figure legend."""
     ident = lambda a: np.asarray(a, float)
@@ -373,6 +457,16 @@ def _panel(ax, results, key, valid, smooth3, title, ylab, want_labels=False):
         handles.append(hln); labels.append(label)
     (h_mmm,) = ax.plot(valid, mmm, color="k", lw=2.8, zorder=5)
 
+    h_obs = None
+    if obs is not None and obs_key and np.isfinite(np.asarray(obs[obs_key], float)).any():
+        y = np.asarray(obs[obs_key], float)
+        (h_obs,) = ax.plot(obs["dates"], y, color="k", lw=2.0, marker="o", ms=3.2, zorder=6)
+        # join the last observation to the first forecast month so the eye does not read a
+        # break where there is only a change of source
+        if np.isfinite(y[-1]):
+            ax.plot([obs["dates"][-1], valid[0]], [y[-1], mmm[0]], color="k", lw=1.0, ls=":", zorder=6)
+        ax.axvline(valid[0] - pd.DateOffset(days=15), color="0.6", lw=0.8, ls="--", zorder=2)
+
     ax.axhline(0, color="0.5", lw=0.8)
     for g in (0.5, 1.0, 1.5, -0.5, -1.0, -1.5):
         ax.axhline(g, color="0.75", lw=0.6, ls=":")
@@ -384,6 +478,8 @@ def _panel(ax, results, key, valid, smooth3, title, ylab, want_labels=False):
     if want_labels:
         handles += [h_mmm, h_25_75, h_10_90, h_range]
         labels += ["Multi-model mean", "All members 25–75%", "10–90%", "Full range"]
+        if h_obs is not None:
+            handles.append(h_obs); labels.append("Observed (CPC)")
         return handles, labels
     return None
 
@@ -394,15 +490,20 @@ def plot(ym: str, results, out: Path):
     issue = pd.Timestamp(int(ym[:4]), int(ym[4:]), 1)
     valid = [issue + pd.DateOffset(months=L - 1) for L in range(1, MAXLEAD + 1)]
 
+    obs = observed_history(ym)
     fig, axes = plt.subplots(2, 2, figsize=(12.6, 9.7), sharex=True)
     legend = _panel(axes[0, 0], results, "n34", valid, False,
-                    "Niño-3.4 anomaly — monthly", "Niño-3.4 (°C)", want_labels=True)
+                    "Niño-3.4 anomaly — monthly", "Niño-3.4 (°C)", want_labels=True,
+                    obs=obs, obs_key="n34")
     _panel(axes[0, 1], results, "n34", valid, True,
-           "Niño-3.4 anomaly — 3-month running mean  (ONI)", "ONI (°C)")
+           "Niño-3.4 anomaly — 3-month running mean  (ONI)", "ONI (°C)",
+           obs=obs, obs_key="oni")
     _panel(axes[1, 0], results, "rnino", valid, False,
            "Relative Niño-3.4 — monthly", "rNiño-3.4 (°C)")
+    # only the 3-month relative index is published; there is no official monthly one
     _panel(axes[1, 1], results, "rnino", valid, True,
-           "Relative Niño-3.4 — 3-month running mean  (RONI)", "RONI (°C)")
+           "Relative Niño-3.4 — 3-month running mean  (RONI)", "RONI (°C)",
+           obs=obs, obs_key="roni")
 
     for ax in axes[1, :]:
         ax.xaxis.set_major_locator(mdates.MonthLocator())
@@ -416,9 +517,19 @@ def plot(ym: str, results, out: Path):
                  f"{len(results)} systems · {nmem} members · Niño-3.4 and relative Niño-3.4 "
                  f"(monthly + 3-month) · anomaly vs each model's 1993–2016 hindcast",
                  fontsize=12.5, fontweight="bold")
-    fig.legend(handles, labels, loc="lower center", ncol=6, fontsize=8.5,
-               frameon=False, bbox_to_anchor=(0.5, 0.0))
-    fig.tight_layout(rect=(0, 0.055, 1, 0.945))
+    fig.legend(handles, labels, loc="lower center", ncol=7, fontsize=8.5,
+               frameon=False, bbox_to_anchor=(0.5, 0.098))
+    if obs is not None:
+        fig.text(0.5, 0.008,
+"\n".join([
+                     "Observed: CPC monthly indices through " + obs["last"] + ".",
+                     "Niño-3.4 and ONI are re-based to the OBSERVED 1993–2016 mean, the same period as every model's hindcast;",
+                     "CPC publishes them on 1991–2020, a shift of +0.05 °C in the annual mean and up to +0.10 in late winter.",
+                     "RONI is CPC's published ERSSTv6 series on its own base: re-basing a relative index needs the tropical-mean",
+                     "series, and the shift largely cancels in a difference of two anomalies. No official MONTHLY relative index",
+                     "exists, so that panel carries no observed line."]),
+                 ha="center", va="bottom", fontsize=7.4, color="0.35", linespacing=1.45)
+    fig.tight_layout(rect=(0, 0.155, 1, 0.945))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120)
     plt.close(fig)
