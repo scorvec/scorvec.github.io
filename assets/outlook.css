@@ -343,6 +343,13 @@
      Dashed edge + an explicit flag, because a number on a chip reads as
      authoritative and these two are an OISST estimate on a centred 3-month
      window whose newest month is still incomplete. */
+  /* Footnote under the chip strip. The asterisked chips assert a state and a
+     number; this is where the basis for both is written out, so the claim and
+     its caveats travel together rather than living in a tooltip. */
+  .chipnote { max-width: 78ch; margin: 0.15rem auto 0.9rem; font-size: 0.78rem;
+              line-height: 1.5; color: var(--ink2, #52514e); text-align: left; }
+  .chipnote b { color: var(--ink, #1a1a1a); }
+  .page-header .chipnote { margin-left: auto; margin-right: auto; }
   .chip--prelim { border-style: dashed; }
   .chip--prelim .v { opacity: 0.92; }
   .pflag { display: inline-block; margin-left: 0.35em; padding: 0 0.3em;

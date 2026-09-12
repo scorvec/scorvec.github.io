@@ -967,13 +967,18 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     colors = [bar_color(v) for v in roni_vals]
 
     # ONI alongside RONI: the card's whole point is the DISAGREEMENT between the
-    # official convention and the relative index, which one series cannot show. ONI is
+    # ONI convention and the relative index, which one series cannot show. ONI is
     # drawn in a flat gold so the eye reads it as the reference and RONI (threshold-
     # coloured) as the signal.
+    #
+    # NOT labelled "official": both bars are computed here from OISST v2.1 on a
+    # fixed 1991-2020 base. CPC's published ONI is ERSSTv5, and its operational
+    # value uses a base period that shifts every five years, so this is an
+    # ESTIMATE of what CPC will report rather than that number.
     oni_vals = df["oni"].values if "oni" in df else None
     if oni_vals is not None:
         ax.bar(x - 0.20, oni_vals, width=0.38, color="#c9a227", edgecolor="#fff",
-               linewidth=0.5, zorder=2, label="ONI (official)")
+               linewidth=0.5, zorder=2, label="ONI est. (OISST, not CPC ERSSTv5)")
         ax.bar(x + 0.20, roni_vals, width=0.38, color=colors, edgecolor="#fff",
                linewidth=0.5, zorder=2, label="RONI")
     else:
@@ -1055,7 +1060,9 @@ def render_roni(df: pd.DataFrame, out_path: Path,
              "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean 20\u00b0S\u201320\u00b0N) anomaly rescaled by \u03c3(ONI)/\u03c3(relative) per calendar "
              "month (CPC/ECMWF), in \u00b0C, comparable to ONI (red >+0.5, blue <\u22120.5, grey neutral).\n"
              "Each bar is the centered 3-month season (e.g. May = AMJ); a hatched bar is provisional (its "
-             "season includes the incomplete current month and is PRELIMINARY). NOAA OISST v2.1, anomalies vs 1991\u20132020.",
+             "season includes the incomplete current month and is PRELIMINARY).\n"
+             "BOTH series are computed from NOAA OISST v2.1 (anomalies vs 1991\u20132020) \u2014 an ESTIMATE of CPC's "
+             "official ONI, which is ERSSTv5 on a base period that shifts every five years, not this dataset.",
              fontsize=7, color="#888")
 
     fig.subplots_adjust(bottom=0.20, top=0.86)   # room for the 2-line season ticks + footnote

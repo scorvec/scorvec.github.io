@@ -94,6 +94,14 @@
     <h1>El Ni&ntilde;o monitor</h1>
     <p class="sub">Daily estimates of the Oceanic Ni&ntilde;o Index and its warming-era replacement, RONI, ahead of the official monthly numbers &mdash; with every Ni&ntilde;o region, the tropical background, the satellite view, the equatorial winds and the Southern Oscillation, and the subsurface ocean beneath it all. Computed from source data, updated every morning; one figure at a time, picked from the menu.</p>
     <div class="chips" id="chips"><div class="chip"><div class="l">Loading daily indices&hellip;</div><div class="v neut">&mdash;</div></div></div>
+    <p class="chipnote"><b>*</b> The ENSO state is graded on <b>RONI</b> &mdash; |RONI|&nbsp;&ge;&nbsp;0.5 El
+      Ni&ntilde;o or La Ni&ntilde;a, &ge;&nbsp;1.0 moderate, &ge;&nbsp;1.5 strong. That is this page's
+      convention, chosen because RONI removes the tropical background warming; <b>CPC grades strength on
+      ONI instead</b>, so the label here can differ from the official one. Both indices are computed from
+      <b>NOAA OISST v2.1</b> on a fixed 1991&ndash;2020 base &mdash; an <b>estimate</b> of what CPC's
+      ERSSTv5 will report, not that dataset (over the months ERSSTv5 has published, this estimate runs
+      about +0.07&nbsp;&deg;C warm). The newest month is <b>preliminary</b>: the 3-month convention is
+      <i>centred</i>, so it leans on a month that has not finished.</p>
   </div>
   <div class="ss-layout">
     <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
@@ -417,15 +425,18 @@ window.STAGE = {
     var name = v >= 0.5 ? "El Niño" : v <= -0.5 ? "La Niña" : "Neutral";
     var strength = Math.abs(v) >= 1.5 ? "strong " : Math.abs(v) >= 1.0 ? "moderate " : "";
     if (Math.abs(v) < 0.5 && Math.abs(oni) >= 0.5)
-      return { name: "Neutral by RONI", sub: "ONI says " + (oni > 0 ? "El Niño" : "La Niña") + " — background warming inflates it" };
-    return { name: strength + name, sub: "by RONI " + fmt(roni) + " · ONI " + fmt(oni) };
+      return { name: "Neutral by RONI*", sub: "ONI says " + (oni > 0 ? "El Niño" : "La Niña") + " — background warming inflates it" };
+    return { name: strength + name + "*", sub: "by RONI " + fmt(roni) + " · ONI " + fmt(oni) };
   }
 
   function buildChips(L) {
     var st = ensoState(L.oni, L.roni);
     var chips = [
+      // The asterisk is explained under the strip: the grading is on RONI (this
+      // site's convention, not CPC's, which grades strength on ONI) and both
+      // indices behind it are OISST estimates for a month that has not closed.
       { l: "ENSO state · " + L.oni_month, v: st.name, s: st.sub,
-        cls: tone(L.roni) },
+        cls: tone(L.roni), prelim: true },
       { l: "Daily Niño-3.4", v: fmt(L.nino34) + " °C", s: "single day, " + L.date + arrow(L.nino34_d7),
         cls: tone(L.nino34) },
       { l: "Daily RONI", v: fmt(L.roni_d) + " °C", s: "relative, σ-scaled" + arrow(L.roni_d_d7),
