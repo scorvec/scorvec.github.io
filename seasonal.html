@@ -199,6 +199,9 @@
     model&rsquo;s bias and are there for the read within one system. The band is P10&ndash;P90 across that system&rsquo;s
     members, with P25&ndash;P75 darker; <b>Multi-model</b> pools every system&rsquo;s members with equal weight per system, so
     NCEP&rsquo;s 124 and ECCC&rsquo;s 20 count the same.</p>
+    <p class="note">The black line is <b>observed</b> &mdash; CPC daily Tmax/Tmin on the same cells, averaged to a monthly
+    mean, with anomalies against the observed 1993&ndash;2016 mean so history and forecast share one base. It carries no band:
+    the width here is the spread across members, and an observed month has one realisation.</p>
     <p class="note"><b>This is a monthly distribution, not a daily one.</b> The width is the spread of monthly MEANS,
     which is narrower than the day-to-day spread and says nothing about a cold snap &mdash; that question needs 6-hourly
     members, which is why the daily version below exists for ECMWF alone.</p>
@@ -1396,9 +1399,21 @@
       var q = V[kind], mean = V[kind === "anom" ? "mean_anom" : "mean_raw"];
       var traces = [band(x, q.p10, q.p90, "rgba(176,110,60,0.16)", "P10–P90"),
                     band(x, q.p25, q.p75, "rgba(176,110,60,0.30)", "P25–P75"),
-                    { x: x, y: mean, type: "scatter", mode: "lines+markers", name: (R.values[sel.m] ? "" : "") + "mean",
+                    { x: x, y: mean, type: "scatter", mode: "lines+markers", name: "mean",
                       line: { color: "#a0522d", width: 3 }, marker: { size: 6, color: "#a0522d" },
                       hovertemplate: "%{y:.2f} " + unit + "<extra>mean</extra>" }];
+      // Observed months: the monthly MEAN only. This card's width is the spread across
+      // members, and an observed month has one realisation — there is no band to draw.
+      var O = R.observed, cats = ((O && O.months) ? O.months : []).concat(x);
+      if (O && O.months && O.months.length) {
+        var oy = kind === "anom" ? O.anom_mean : O.mean;
+        traces.push({ x: O.months, y: oy, type: "scatter", mode: "lines+markers", name: "observed (CPC)",
+                      line: { color: "#111", width: 2.2 }, marker: { size: 5, color: "#111" },
+                      hovertemplate: "%{y:.2f} " + unit + "<extra>observed</extra>" });
+        traces.push({ x: [O.months[O.months.length - 1], x[0]], y: [oy[oy.length - 1], mean[0]],
+                      type: "scatter", mode: "lines", line: { color: "#111", width: 1, dash: "dot" },
+                      hoverinfo: "skip", showlegend: false });
+      }
       if (sel.m === "mmm") {
         J.models.filter(function (m) { return m.id !== "mmm" && R.values[m.id]; }).forEach(function (m) {
           traces.push({ x: x, y: R.values[m.id][kind === "anom" ? "mean_anom" : "mean_raw"], type: "scatter",
@@ -1411,7 +1426,8 @@
         margin: { l: 54, r: 12, t: 8, b: 38 }, height: 400,
         paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)", hovermode: "x unified",
         legend: { orientation: "h", y: 1.16, x: 0, font: { size: 10.5 } },
-        xaxis: { showgrid: false, tickfont: { size: 11 } },
+        xaxis: { showgrid: false, tickfont: { size: 11 }, type: "category",
+                 categoryorder: "array", categoryarray: cats },
         yaxis: { title: { text: lab, font: { size: 11 } }, zeroline: kind === "anom",
                  zerolinecolor: "#b9b4aa", gridcolor: "#ece9e2", tickfont: { size: 11 } }
       }, { displayModeBar: false, responsive: true });

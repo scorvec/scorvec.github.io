@@ -37,6 +37,7 @@ sys.path.insert(0, str(HERE))
 from c3s_nino34 import MODELS
 from c3s_terciles import path_for
 from c3s_terciles_render import period_means
+from c3s_popt_daily import observed_months          # one definition of the observed series
 from seas5_popT import REGIONS, pop_grid
 
 SITE = Path(os.environ.get("SST_SITE_ROOT", HERE.parents[1]))
@@ -140,6 +141,17 @@ def main() -> int:
         }
         doc["regions"][region] = {"label": label, "unit": "°F" if unit == "F" else "°C",
                                   "months": months, "values": per_model}
+        # the observed months, same cells and same 1993-2016 base. Only the monthly MEAN is
+        # meaningful here: this card's spread is across members, and an observed month has
+        # exactly one realisation -- there is no observed band to draw.
+        try:
+            obs = observed_months(region, issue)
+        except Exception as e:                                        # noqa: BLE001
+            print(f"  {region}: observed history unavailable ({str(e)[:70]})", file=sys.stderr); obs = None
+        if obs:
+            doc["regions"][region]["observed"] = {"months": obs["months"], "mean": obs["mean"],
+                                                  "anom_mean": obs["anom_mean"]}
+            print(f"  {region} observed: {obs['months'][0]} → {obs['months'][-1]}", flush=True)
     doc["models"] = [{"id": "mmm", "label": "Multi-model", "color": "#111111"}] + seen
     if not doc["regions"]:
         raise SystemExit("no members on disk — run c3s_terciles.py first")
