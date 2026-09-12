@@ -1029,7 +1029,7 @@ def render_roni(df: pd.DataFrame, out_path: Path,
     ax.set_ylim(lo, hi)
 
     ax.set_ylabel("\u00b0C", fontsize=11)
-    ax.set_title("ONI vs RONI \u2014 the official 3-month convention against the relative index\n"
+    ax.set_title("ONI vs RONI \u2014 the 3-month convention (OISST estimate, not the official CPC value) against the relative index\n"
                  "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean) SST anomaly, variance-rescaled to ONI per calendar month",
                  fontsize=10.5, loc="left", pad=8)
     ax.grid(axis="y", alpha=0.2)

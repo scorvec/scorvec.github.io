@@ -236,7 +236,7 @@
 <script>
 window.STAGE = {
   groups: [
-  {label: "SST & indices", ico: "\u{1F321}", items: [["sstmaps","SST anomaly maps","global, tropics, relative"],["indices","Daily indices, interactive","Niño-3.4, RONI, ONI estimate"],["onironi","ONI vs RONI","the official 3-month convention"],["beyond","PDO, IOD, South Atlantic","daily, beyond ENSO"]]},
+  {label: "SST & indices", ico: "\u{1F321}", items: [["sstmaps","SST anomaly maps","global, tropics, relative"],["indices","Daily indices, interactive","Niño-3.4, RONI, ONI estimate"],["onironi","ONI vs RONI","3-month convention, OISST estimate"],["beyond","PDO, IOD, South Atlantic","daily, beyond ENSO"]]},
   {label: "Satellite & MUR", ico: "\u{1F6F0}", items: [["mur","MUR 1 km loop","cold tongue since onset"],["mur34","MUR Niño-3.4","1 km against OISST"],["ir","Infrared loops","Pacific · South & Central America"]]},
   {label: "SOI & MEI", ico: "\u{1F4C8}", items: [["soirec","SOI against the record","daily, since 1887"],["mei","MEI.v2 nowcast","daily, analogs, history"]]},
   {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"]]},
@@ -250,7 +250,7 @@ window.STAGE = {
   indices: {label: "Daily ENSO indices", dom: function () { return "dom-indices"; }, about: "about-indices",
           cap: function () { return "Daily area-weighted SST indices: Niño-3.4, the daily RONI and the 90-day running ONI estimate; toggle absolute values and the range, click legend entries for the other regions."; }},
   onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=__CACHE__"; }, about: "about-onironi", fit: false,
-          cap: function () { return "The official 3-month ONI beside the relative index, by season; the newest season is preliminary."; }},
+          cap: function () { return "The 3-month ONI convention applied to OISST \u2014 an estimate, NOT the official CPC ERSSTv5 value \u2014 beside the relative index, by season. The newest season is preliminary: the convention is a centred 3-month mean, so it leans on a month that has not closed."; }},
   beyond: {label: "Beyond ENSO", a: {label: "Index", items: [["pdo","PDO"],["iod","Indian Ocean Dipole"],["satl","South Atlantic dipole"]]},
           img: function (a) { return "assets/sst/" + a + "_daily.webp?v=__CACHE__"; }, about: "about-beyond",
           cap: function (a) { return {pdo: "Daily PDO from the ERSST North Pacific EOF pattern projected on OISST, calibrated to NCEI over 1950–present.", iod: "Daily Dipole Mode Index, Saji boxes.", satl: "Daily South Atlantic subtropical dipole, Morioka poles."}[a]; }},
@@ -342,10 +342,17 @@ window.STAGE = {
         cls: tone(L.roni_d) },
       { l: "ONI est. (90-day)", v: fmt(L.oni90) + " °C", s: "running daily estimate" + arrow(L.oni90_d7),
         cls: tone(L.oni90) },
-      { l: "ONI · " + L.oni_month, v: fmt(L.oni) + " °C", s: "official 3-month convention",
-        cls: tone(L.oni) },
-      { l: "RONI · " + L.oni_month, v: fmt(L.roni) + " °C", s: "3-month, σ-scaled",
-        cls: tone(L.roni) },
+      // NOT the official CPC ONI. CPC publishes ERSSTv5 against a base period that
+      // shifts every five years; this is the same 3-month convention applied to
+      // OISST v2.1 on a fixed 1991-2020 base, so it can differ from the official
+      // number. It is also PRELIMINARY: the convention is a CENTRED 3-month mean,
+      // so the month shown is built partly from the current, incomplete month.
+      { l: "ONI est. · " + L.oni_month, v: fmt(L.oni) + " °C",
+        s: "3-mo convention · OISST, not CPC official · preliminary",
+        cls: tone(L.oni), prelim: true },
+      { l: "RONI est. · " + L.oni_month, v: fmt(L.roni) + " °C",
+        s: "3-mo, σ-scaled · OISST, not CPC official · preliminary",
+        cls: tone(L.roni), prelim: true },
       { l: "Tropical mean 20S–20N", v: fmt(L.trop) + " °C", s: "the warming background" + arrow(L.trop_d7),
         cls: "neut" },
     ];
@@ -353,7 +360,8 @@ window.STAGE = {
       { l: "Trans-Niño index", v: fmt(L.tni) + " σ", s: (L.tni >= 0 ? "east-loaded" : "west-loaded") + " · σ(1+2) − σ(4)" + arrow(L.tni_d7),
         cls: "neut" });
     document.getElementById("chips").innerHTML = chips.map(function (c) {
-      return '<div class="chip"><div class="l">' + c.l + '</div>' +
+      return '<div class="chip' + (c.prelim ? ' chip--prelim' : '') + '">' +
+             '<div class="l">' + c.l + (c.prelim ? '<span class="pflag">prelim</span>' : '') + '</div>' +
              '<div class="v ' + c.cls + '">' + c.v + '</div>' +
              '<div class="s">' + c.s + "</div></div>";
     }).join("");

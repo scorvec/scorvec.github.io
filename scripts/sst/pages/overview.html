@@ -346,15 +346,23 @@
         cls: tone(L.roni_d) },
       { l: "ONI est. (90-day)", v: fmt(L.oni90) + " °C", s: "running daily estimate" + arrow(L.oni90_d7),
         cls: tone(L.oni90) },
-      { l: "ONI · " + L.oni_month, v: fmt(L.oni) + " °C", s: "official 3-month convention",
-        cls: tone(L.oni) },
-      { l: "RONI · " + L.oni_month, v: fmt(L.roni) + " °C", s: "3-month, σ-scaled",
-        cls: tone(L.roni) },
+      // NOT the official CPC ONI. CPC publishes ERSSTv5 against a base period that
+      // shifts every five years; this is the same 3-month convention applied to
+      // OISST v2.1 on a fixed 1991-2020 base, so it can differ from the official
+      // number. It is also PRELIMINARY: the convention is a CENTRED 3-month mean,
+      // so the month shown is built partly from the current, incomplete month.
+      { l: "ONI est. · " + L.oni_month, v: fmt(L.oni) + " °C",
+        s: "3-mo convention · OISST, not CPC official · preliminary",
+        cls: tone(L.oni), prelim: true },
+      { l: "RONI est. · " + L.oni_month, v: fmt(L.roni) + " °C",
+        s: "3-mo, σ-scaled · OISST, not CPC official · preliminary",
+        cls: tone(L.roni), prelim: true },
       { l: "Tropical mean 20S–20N", v: fmt(L.trop) + " °C", s: "the warming background" + arrow(L.trop_d7),
         cls: "neut" },
     ];
     document.getElementById("chips").innerHTML = chips.map(function (c) {
-      return '<div class="chip"><div class="l">' + c.l + '</div>' +
+      return '<div class="chip' + (c.prelim ? ' chip--prelim' : '') + '">' +
+             '<div class="l">' + c.l + (c.prelim ? '<span class="pflag">prelim</span>' : '') + '</div>' +
              '<div class="v ' + c.cls + '">' + c.v + '</div>' +
              '<div class="s">' + c.s + "</div></div>";
     }).join("");

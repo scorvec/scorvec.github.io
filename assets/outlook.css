@@ -339,6 +339,17 @@
   .page-header .chips { justify-content: center; }
   /* larger stat cards, centred under the title (user 2026-09-07: "a bit small ... bigger font
      ... more centered") */
+  /* A value that is NOT the official published index, or not yet final.
+     Dashed edge + an explicit flag, because a number on a chip reads as
+     authoritative and these two are an OISST estimate on a centred 3-month
+     window whose newest month is still incomplete. */
+  .chip--prelim { border-style: dashed; }
+  .chip--prelim .v { opacity: 0.92; }
+  .pflag { display: inline-block; margin-left: 0.35em; padding: 0 0.3em;
+           font-size: 0.85em; font-weight: 700; letter-spacing: 0.04em;
+           color: #8a5a00; background: rgba(237,161,0,0.16);
+           border: 1px solid rgba(237,161,0,0.45); border-radius: 3px;
+           vertical-align: baseline; text-transform: uppercase; }
   .chip { background: var(--surface); border: 1.5px solid var(--edge); border-radius: 4px;
           padding: 0.7rem 1.05rem 0.65rem; min-width: 168px; text-align: center; }
   .chip .l { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em;
