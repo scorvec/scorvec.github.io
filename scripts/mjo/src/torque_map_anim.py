@@ -547,7 +547,7 @@ def main() -> int:
              "Form-drag torque anomaly vs the ERA5 1991–2020 climatology, integrated over each barrier and sorted by peak. "
              "Shaded bands are that barrier's own ±1σ and ±2σ of day-to-day anomaly variability over 1991–2020,\n"
              "so the panels are comparable even though the Andes routinely swing five times harder than the Alps.",
-             ha="center", va="bottom", fontsize=8, color="#8a8680", linespacing=1.5)
+             ha="center", va="bottom", fontsize=8, color="#6f6b64", linespacing=1.5)
     Path(args.ranges_out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.ranges_out, dpi=120, bbox_inches="tight"); plt.close(fig)
     print(f"saved {args.ranges_out}")

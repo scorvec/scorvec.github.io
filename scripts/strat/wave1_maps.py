@@ -391,11 +391,11 @@ def render(levels_at_step, hemi, date, time, step_h, out_path: Path,
     fig.text(0.015, 0.038,
              "Compare the two panels: a ridge that leans WESTWARD with height is actively "
              "driving the vortex; one sitting over the same longitude at both levels is not.",
-             fontsize=8, color="#777", ha="left")
+             fontsize=8, color="#6f6b64", ha="left")
     fig.text(0.015, 0.014,
              "S is the linear-interference term Re(Za·conj(Zc))/|Zc|²  against the "
              "1991–2020 standing wave: + reinforcing, − cancelling, 0 in quadrature.",
-             fontsize=8, color="#777", ha="left")
+             fontsize=8, color="#6f6b64", ha="left")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=125, facecolor="white",

@@ -247,7 +247,7 @@ def render(uv, lev, date, time, step_h, out_path: Path):
     fig.text(0.02, 0.020,
              "Colour scales are fixed per level, so a colour means the same wind "
              "speed every day; NH and SH share the scale and are directly comparable.",
-             fontsize=8, color="#777", ha="left")
+             fontsize=8, color="#6f6b64", ha="left")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=125, facecolor="white",

@@ -555,7 +555,7 @@ def main() -> int:
         if key == "zcap":
             ax.axhline(0, color="#8a8680", lw=1, ls=":", zorder=4)
             ax.text(0.005, 0.93, "positive = weaker / displaced vortex",
-                    transform=ax.transAxes, fontsize=8, color="#8a8680", style="italic")
+                    transform=ax.transAxes, fontsize=8, color="#6f6b64", style="italic")
         if key == "u100" and obs.get("u100") is None:
             ax.text(0.5, 0.05, "no analysis tail at this level — the rolling ERA5 store "
                                "carries u only at 10 hPa",
@@ -570,7 +570,7 @@ def main() -> int:
              "AIFS-ENS and IFS-ENS to day 15, GEPS to day 16, GDPS to day 10. Reference: MERRA-2 1980–2026 day-of-year "
              "percentiles; the height climatology is detrended to the current year (+18.7 m/decade), the winds are not "
              "(<0.25 m/s/decade). Vertical line = analysis time.",
-             ha="center", va="bottom", fontsize=8, color="#8a8680", linespacing=1.5)
+             ha="center", va="bottom", fontsize=8, color="#6f6b64", linespacing=1.5)
     fig.autofmt_xdate()
     fig.tight_layout(rect=(0, 0.026, 1, 0.985))
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
