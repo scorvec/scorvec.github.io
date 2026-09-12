@@ -948,134 +948,145 @@ def render_satl_daily(atl3, tsa, sasd, tna, out_path):
 SEASONS = ["DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ", "JJA", "JAS", "ASO", "SON", "OND", "NDJ"]
 
 
+def _cpc_official():
+    """CPC's published ONI/RONI, or {} if the cache is absent.
+
+    Written by cpc_official_enso.py. Keyed by the centred month of each season.
+    """
+    try:
+        p = ASSETS / "data" / "cpc_official.json"
+        d = json.loads(p.read_text())
+        return {"oni": d.get("oni", {}), "roni": d.get("roni", {})}
+    except Exception as e:                                   # noqa: BLE001
+        print(f"  no CPC official cache ({repr(e)[:60]}); drawing estimates only")
+        return {}
+
+
 def render_roni(df: pd.DataFrame, out_path: Path,
                 latest_oni=None, latest_roni=None, latest_month=None,
                 last_partial=True):
-    fig, ax = plt.subplots(figsize=(11.5, 5.2), dpi=100)
-    roni_vals = df["roni"].values
+    """RONI and ONI by season: CPC's published values, then our OISST estimate.
+
+    The card used to draw two OISST series and label the gold one "ONI
+    (official)". It was not: on JJA 2026 it read +2.10 where CPC had published
+    +1.80. Now CPC's own numbers are drawn wherever CPC has published them, in
+    solid fill, and the OISST estimate appears ONLY for the seasons CPC has not
+    reached yet - hatched, dimmed, behind a divider that says so.
+
+    RONI leads. CPC adopted it as the official ENSO index in February 2026, so
+    ONI is the superseded reference and is drawn in a flat, muted gold.
+    """
+    off = _cpc_official()
     months = pd.to_datetime(df["month"])
-    n = len(roni_vals)
-    x = np.arange(n)   # categorical positions, one per month
+    keys = [f"{m:%Y-%m}" for m in months]
+    n = len(keys)
+    x = np.arange(n)
 
-    # Threshold colors: red if > +0.5, blue if < -0.5, grey otherwise.
+    est_roni = df["roni"].values.astype(float)
+    est_oni = (df["oni"].values.astype(float) if "oni" in df else np.full(n, np.nan))
+    o_roni = np.array([off.get("roni", {}).get(k, np.nan) for k in keys], float)
+    o_oni = np.array([off.get("oni", {}).get(k, np.nan) for k in keys], float)
+    has_off = np.isfinite(o_roni)
+    # Everything past CPC's last published season is ours, and is labelled so.
+    first_est = int(np.argmax(~has_off)) if (~has_off).any() else n
+
     def bar_color(v):
-        if v > 0.5:
-            return "#d9402a"
-        if v < -0.5:
-            return "#2b6fd6"
-        return "#9a9a96"
-    colors = [bar_color(v) for v in roni_vals]
+        if not np.isfinite(v):
+            return "#c8c8c4"
+        return "#d9402a" if v > 0.5 else "#2b6fd6" if v < -0.5 else "#9a9a96"
 
-    # ONI alongside RONI: the card's whole point is the DISAGREEMENT between the
-    # ONI convention and the relative index, which one series cannot show. ONI is
-    # drawn in a flat gold so the eye reads it as the reference and RONI (threshold-
-    # coloured) as the signal.
-    #
-    # NOT labelled "official": both bars are computed here from OISST v2.1 on a
-    # fixed 1991-2020 base, while CPC computes these from ERSST. Note also that
-    # CPC ADOPTED RONI AS ITS OFFICIAL ENSO INDEX IN FEBRUARY 2026, replacing
-    # ONI -- so the blue series, not the gold one, is the one that now matches
-    # the official convention. Both remain estimates of CPC's published values.
-    oni_vals = df["oni"].values if "oni" in df else None
-    if oni_vals is not None:
-        ax.bar(x - 0.20, oni_vals, width=0.38, color="#c9a227", edgecolor="#fff",
-               linewidth=0.5, zorder=2, label="ONI est. (OISST, not CPC ERSST)")
-        ax.bar(x + 0.20, roni_vals, width=0.38, color=colors, edgecolor="#fff",
-               linewidth=0.5, zorder=2, label="RONI")
-    else:
-        ax.bar(x, roni_vals, width=0.8, color=colors, edgecolor="#fff",
-               linewidth=0.5, zorder=2)
-    # Every bar is a true 3-month season (compute_oni_roni uses min_periods=3, with the
-    # prior year concatenated), so only the newest bar can be unsettled — hatch it while
-    # the current month is still partial (e.g. MJJ drawn mid-July).
-    prov = [last_partial and i == n - 1 for i in range(n)]
+    fig, ax = plt.subplots(figsize=(11.5, 5.0), dpi=100)
+    GOLD, W = "#c9a227", 0.38
+
+    # the estimate zone gets its own ground, so the eye never has to decode a hatch
+    if first_est < n:
+        ax.axvspan(first_est - 0.5, n - 0.5, color="#f2f0ea", zorder=0)
+        ax.axvline(first_est - 0.5, color="#8a8780", lw=1.0, ls=(0, (4, 3)), zorder=1)
+
     for i in range(n):
-        if not prov[i]:
-            continue
-        if oni_vals is not None:
-            ax.bar(x[i] - 0.20, oni_vals[i], width=0.38, color="#c9a227",
-                   edgecolor="#222", linewidth=0.9, hatch="////", zorder=3)
-            ax.bar(x[i] + 0.20, roni_vals[i], width=0.38, color=colors[i],
-                   edgecolor="#222", linewidth=0.9, hatch="////", zorder=3)
-        else:
-            ax.bar(x[i], roni_vals[i], width=0.8, color=colors[i], edgecolor="#222",
-                   linewidth=0.9, hatch="////", zorder=3)
-        # spell it out rather than leaving the hatch to be decoded
-        _top = max(oni_vals[i] if oni_vals is not None else roni_vals[i], roni_vals[i])
-        _bot = min(oni_vals[i] if oni_vals is not None else roni_vals[i], roni_vals[i])
-        # the provisional season is the LAST bar, so a centred label runs off the axes
-        _ha = "right" if i >= n - 2 else "center"
-        ax.annotate("PRELIMINARY", xy=(x[i] + (0.42 if _ha == "right" else 0),
-                                       _top if _top > 0 else _bot),
-                    xytext=(0, 7 if _top > 0 else -14), textcoords="offset points",
-                    ha=_ha, va="bottom" if _top > 0 else "top",
-                    fontsize=7.5, fontweight="bold", color="#222", zorder=7)
+        official = has_off[i]
+        rv = o_roni[i] if official else est_roni[i]
+        ov = o_oni[i] if official else est_oni[i]
+        kw = dict(zorder=3, linewidth=0.6, edgecolor="#ffffff")
+        if not official:                       # ours: hatched, dimmed, dark edge
+            kw.update(linewidth=1.0, edgecolor="#3a3a38", hatch="///", alpha=0.85)
+        if np.isfinite(ov):
+            ax.bar(i - 0.20, ov, width=W, color=GOLD, **kw)
+        if np.isfinite(rv):
+            ax.bar(i + 0.20, rv, width=W, color=bar_color(rv), **kw)
 
-    # ENSO threshold guides and zero line.
-    for y, c in [(0.5, "#d9402a"), (-0.5, "#2b6fd6")]:
-        ax.axhline(y, color=c, lw=0.8, ls="--", alpha=0.6)
-    ax.axhline(0, color="#333", lw=0.8)
+    # legend built by hand: four states, and "official vs ours" is the axis that matters
+    from matplotlib.patches import Patch
+    handles = [Patch(facecolor=GOLD, edgecolor="#fff", label="ONI — CPC published"),
+               Patch(facecolor="#d9402a", edgecolor="#fff", label="RONI — CPC published (official index)"),
+               Patch(facecolor=GOLD, edgecolor="#3a3a38", hatch="///", alpha=0.85,
+                     label="ONI — our OISST estimate (unofficial)"),
+               Patch(facecolor="#d9402a", edgecolor="#3a3a38", hatch="///", alpha=0.85,
+                     label="RONI — our OISST estimate (unofficial)")]
+    ax.legend(handles=handles, loc="upper left", fontsize=7.8, ncol=2,
+              framealpha=0.92, borderpad=0.45, columnspacing=1.0,
+              handlelength=1.5, handleheight=0.9, labelspacing=0.35)
 
-    # One labeled tick per month (e.g. "Jan", with year on January).
-    ax.set_xticks(x)
-    labels = []
-    for i, m in enumerate(months):
-        head = m.strftime("%b %Y") if (m.month == 1 or i == 0) else m.strftime("%b")
-        labels.append(f"{head}\n{SEASONS[m.month - 1]}")     # month over its centered 3-mo season, e.g. "May\nAMJ"
-    ax.set_xticklabels(labels, fontsize=8.5)
-    ax.set_xlim(-0.6, n - 0.4)
+    ax.axhline(0, color="#333", lw=1.0, zorder=2)
+    for lv, c in ((0.5, "#d9402a"), (-0.5, "#2b6fd6")):
+        ax.axhline(lv, color=c, lw=0.8, ls=(0, (5, 4)), alpha=0.55, zorder=1)
 
-    # Y-limits: include the data AND the +/-0.5 guides, with headroom, so
-    # small bars stay visible instead of being dwarfed by the guide lines.
-    _all = roni_vals if oni_vals is None else np.concatenate([roni_vals, oni_vals])
-    vmax = float(np.nanmax(_all))
-    vmin = float(np.nanmin(_all))
-    hi = max(vmax, 0.6) + 0.28          # headroom for the PRELIMINARY tag
-    lo = min(vmin, -0.6) - 0.20
-    ax.set_ylim(lo, hi)
+    lab = [f"{m:%b}\n{SEASONS[m.month - 1]}" if m.month != 1 else
+           f"{m:%b %Y}\n{SEASONS[m.month - 1]}" for m in months]
+    ax.set_xticks(x); ax.set_xticklabels(lab, fontsize=8.2)
+    ax.set_xlim(-0.7, n - 0.3)
+    vals = np.concatenate([v[np.isfinite(v)] for v in (o_roni, o_oni, est_roni, est_oni)])
+    ax.set_ylim(min(vals.min(), -0.6) - 0.22, max(vals.max(), 0.6) + 0.42)
+    ax.set_ylabel("°C", fontsize=11)
+    ax.grid(axis="y", alpha=0.18)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
 
-    ax.set_ylabel("\u00b0C", fontsize=11)
-    ax.set_title("ONI vs RONI \u2014 the older convention against RONI, CPC's official ENSO index since February 2026 (both OISST estimates)\n"
-                 "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean) SST anomaly, variance-rescaled to ONI per calendar month",
-                 fontsize=10.5, loc="left", pad=8)
-    ax.grid(axis="y", alpha=0.2)
-    if oni_vals is not None:
-        ax.legend(loc="upper left", fontsize=8.5, framealpha=0.9, ncol=2)
+    if first_est < n:
+        # Short, and inside the band: the long version collided with the legend
+        # whenever CPC was only one season behind (the usual case).
+        ax.annotate("not yet\npublished", xy=((first_est + n - 1) / 2, ax.get_ylim()[1]),
+                    xytext=(0, -8), textcoords="offset points", ha="center", va="top",
+                    fontsize=7.6, color="#6b6862", linespacing=1.25, zorder=6)
 
-    # Current-value readout box.
+    # the two numbers people actually quote, side by side, official first
+    lastk = keys[-1]
+    lo_ = off.get("oni", {}); lr_ = off.get("roni", {})
+    ok = max(lr_) if lr_ else None
+    box = []
+    if ok:
+        box.append(f"CPC official  {ok}  RONI {lr_[ok]:+.2f}  ONI {lo_.get(ok, float('nan')):+.2f}")
     if latest_roni is not None:
-        oni_line = (f"ONI  {latest_oni:+.2f} \u00b0C\n"
-                    if latest_oni is not None else "")
-        _tag = ", provisional" if last_partial else ""
-        txt = (f"latest: {latest_month:%b %Y} ({SEASONS[latest_month.month - 1]}{_tag})\n"
-               f"{oni_line}"
-               f"RONI {latest_roni:+.2f} \u00b0C")
-        ax.text(0.985, 0.05, txt, transform=ax.transAxes, fontsize=9,
-                va="bottom", ha="right", family="monospace", zorder=6,
-                bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
-                          edgecolor="#bbb", alpha=0.9))
+        box.append(f"OISST est.    {lastk}  RONI {latest_roni:+.2f}"
+                   + (f"  ONI {latest_oni:+.2f}" if latest_oni is not None else ""))
+    if box:
+        ax.text(0.988, 0.045, "\n".join(box), transform=ax.transAxes, fontsize=8.6,
+                va="bottom", ha="right", family="monospace", zorder=7,
+                bbox=dict(boxstyle="round,pad=0.45", facecolor="white",
+                          edgecolor="#bbb", alpha=0.94))
 
-    # Two lines: keep each within the plot width so bbox_inches="tight" doesn't stretch the canvas
-    # (a single long line ballooned the image to ~2000 px wide and shrank the chart in the card).
+    ax.set_title("RONI — CPC's official ENSO index since February 2026 — against the older ONI\n"
+                 "Solid = CPC's published values.  Hatched on grey = our unofficial OISST estimate, "
+                 "for seasons CPC has not reached.",
+                 fontsize=10.5, loc="left", pad=8)
     fig.text(0.005, 0.012,
-             "RONI = (Ni\u00f1o-3.4 \u2212 tropical-mean 20\u00b0S\u201320\u00b0N) anomaly rescaled by \u03c3(ONI)/\u03c3(relative) per calendar "
-             "month (CPC/ECMWF), in \u00b0C, comparable to ONI (red >+0.5, blue <\u22120.5, grey neutral).\n"
-             "Each bar is the centered 3-month season (e.g. May = AMJ); a hatched bar is provisional (its "
-             "season includes the incomplete current month and is PRELIMINARY).\n"
-             "BOTH series are computed from NOAA OISST v2.1 (anomalies vs 1991\u20132020) \u2014 ESTIMATES of CPC's "
-             "published values, which use ERSST. CPC adopted RONI as its OFFICIAL ENSO index in February 2026, replacing ONI.",
+             "CPC ONI is ERSST on its shifting 30-year base periods; CPC RONI is ERSSTv6 on 1991–2020 "
+             "and is updated by the 5th of each month.\n"
+             "Our estimate is NOAA OISST v2.1 vs 1991–2020 — same 3-month centred convention, available "
+             "now rather than after the month closes; its newest season is itself preliminary.\n"
+             "RONI = (Niño-3.4 − tropical-mean 20°S–20°N) anomaly rescaled to ONI's variance. "
+             "Red >+0.5, blue <−0.5, grey neutral. Each bar is a centred season (Jul = JJA).",
              fontsize=7, color="#888")
 
-    fig.subplots_adjust(bottom=0.20, top=0.86)   # room for the 2-line season ticks + footnote
+    fig.subplots_adjust(bottom=0.20, top=0.86)
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
                 bbox_inches="tight", pad_inches=0.1,
                 pil_kwargs={"quality": 85, "method": 6})
     plt.close(fig)
-    print(f"  wrote {out_path.name}")
+    print(f"  wrote {out_path.name}"
+          + (f"  (official through {max(lr_)})" if lr_ else "  (no official cache)"))
 
 
-# ----------------------------------------------------------------------
-# Main
 # ----------------------------------------------------------------------
 def publish_enso_daily_json(mean_fields, la, lo, idx, valid, out_path):
     """One JSON feed with every daily ENSO index series the interactive

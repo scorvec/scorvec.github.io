@@ -343,10 +343,19 @@ window.STAGE = {
 
   function buildChips(L) {
     var st = ensoState(L.oni, L.roni);
-    var chips = [
-      // The asterisk is explained under the strip: the grading is on RONI (this
-      // site's convention, not CPC's, which grades strength on ONI) and both
-      // indices behind it are OISST estimates for a month that has not closed.
+    var chips = [];
+    // CPC's own latest, first: the official record, ahead of our estimate of it.
+    var O = window.CPCOFF;
+    if (O && O.roni) {
+      var mk = Object.keys(O.roni).sort().pop();
+      if (mk) chips.push({ l: "CPC official · " + mk, v: fmt(O.roni[mk]) + " °C",
+        s: "RONI, CPC's official index" + (O.oni && O.oni[mk] != null
+            ? " · ONI " + fmt(O.oni[mk]) : ""), cls: tone(O.roni[mk]) });
+    }
+    chips = chips.concat([
+      // The asterisk is explained under the strip: CPC made RONI its official
+      // ENSO index in Feb 2026, so the grading follows CPC -- what is unofficial
+      // here is the DATASET (OISST, not CPC's ERSST) and the unclosed month.
       { l: "ENSO state · " + L.oni_month, v: st.name, s: st.sub,
         cls: tone(L.roni), prelim: true },
       { l: "Daily Niño-3.4", v: fmt(L.nino34) + " °C", s: "single day, " + L.date + arrow(L.nino34_d7),
@@ -368,7 +377,7 @@ window.STAGE = {
         cls: tone(L.roni), prelim: true },
       { l: "Tropical mean 20S–20N", v: fmt(L.trop) + " °C", s: "the warming background" + arrow(L.trop_d7),
         cls: "neut" },
-    ];
+    ]);
     if (L.tni != null) chips.push(
       { l: "Trans-Niño index", v: fmt(L.tni) + " σ", s: (L.tni >= 0 ? "east-loaded" : "west-loaded") + " · σ(1+2) − σ(4)" + arrow(L.tni_d7),
         cls: "neut" });
@@ -461,12 +470,20 @@ window.STAGE = {
       if (state.data) drawDaily();
     });
   });
-  fetch("assets/sst/data/enso_daily.json?v=__CACHE__")
-    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
-    .then(function (d) {
-      state.data = d;
-      buildChips(d.latest);
-      drawDaily();
+  // CPC's published values, so the strip can show the OFFICIAL number beside our
+  // estimate of it. Best-effort: the chips render without it.
+  fetch("assets/sst/data/cpc_official.json?v=__CACHE__")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .catch(function () { return null; })
+    .then(function (o) {
+      window.CPCOFF = o;
+      return fetch("assets/sst/data/enso_daily.json?v=__CACHE__")
+        .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+        .then(function (d) {
+          state.data = d;
+          buildChips(d.latest);
+          drawDaily();
+        });
     })
     .catch(function () {
       // feed not built yet (or fetch blocked): fall back to the static renders

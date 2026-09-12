@@ -113,6 +113,12 @@ jobs:
       - name: Seed existing frames
         run: scripts/lib/fetch_frames_ci.sh scripts/sst/data/cmems assets/sst/anim/equatorial assets/sst/anim/equatorial_dt assets/sst/anim/anomaly assets/sst/anim/relative assets/sst/anim/absolute assets/sst/anim/tropical_rel assets/sst/anim/eq_cur_map assets/sst/anim/eq_cur_section assets/sst/anim/ascat assets/sst/anim/walker
 
+      # CPC's OWN published ONI/RONI, which the RONI card draws as the official
+      # series. Best-effort: without it the card falls back to drawing the OISST
+      # estimate alone, which is what it did before this existed.
+      - name: CPC official ONI/RONI
+        run: python scripts/sst/cpc_official_enso.py || echo "::warning::CPC official fetch failed; RONI card will show estimates only"
+
       - name: Build SST maps, RONI, and animation (OISST)
         run: |
           FORCE=""

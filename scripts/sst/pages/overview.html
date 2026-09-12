@@ -348,9 +348,9 @@
   function buildChips(L) {
     var st = ensoState(L.oni, L.roni);
     var chips = [
-      // The asterisk is explained under the strip: the grading is on RONI (this
-      // site's convention, not CPC's, which grades strength on ONI) and both
-      // indices behind it are OISST estimates for a month that has not closed.
+      // The asterisk is explained under the strip: CPC made RONI its official
+      // ENSO index in Feb 2026, so the grading follows CPC -- what is unofficial
+      // here is the DATASET (OISST, not CPC's ERSST) and the unclosed month.
       { l: "ENSO state · " + L.oni_month, v: st.name, s: st.sub,
         cls: tone(L.roni), prelim: true },
       { l: "Daily Niño-3.4", v: fmt(L.nino34) + " °C", s: "single day, " + L.date + arrow(L.nino34_d7),
