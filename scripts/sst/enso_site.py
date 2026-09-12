@@ -38,12 +38,6 @@ PAGES = [
               "seven centres, percentile fans, ONI vs RONI, and the forecast measured "
               "against every ENSO event since 1970.",
          canonical="https://scorvec.com/enso-forecasts.html"),
-    dict(slug="seasonal", out="seasonal.html", active="A_FORECASTS", layout="stage",
-         title="Seasonal Outlook by Model &mdash; C3S Multi-System Anomaly Maps &middot; Shawn Corvec",
-         desc="Eight C3S seasonal systems from seven centres, one at a time or averaged: global "
-              "temperature, precipitation, pressure and SST anomaly maps against each model's own "
-              "1993-2016 hindcast, with the full-member Nino-3.4 plume alongside.",
-         canonical="https://scorvec.com/seasonal.html"),
     dict(slug="circulation", out="circulation.html", active="A_ATMOSPHERE", layout="stage",
          title="Global Circulation and Jets &mdash; Wave Activity Flux, Angular Momentum, Walker Cell "
                "and the Stratosphere &middot; Shawn Corvec",

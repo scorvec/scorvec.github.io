@@ -99,8 +99,7 @@
               <ul>
                 <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
                 <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
-                <li><a href="/seasonal.html">Seasonal outlook, model by model</a></li>
-                <li><a href="/seas5.html">ECMWF SEAS5 outlook</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
                 <li><a href="/sfs.html" aria-current="page">NOAA SFS outlook</a></li>
               </ul>
             </div>
@@ -440,7 +439,7 @@
   <!-- ── ABOUT ──────────────────────────────────────────────────────────── -->
   <div class="card" id="aboutCard" data-label="About this page" data-group="About">
     <h2>What this page reads, and how each figure is built</h2>
-    <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled on the <a href="enso-forecasts.html">ENSO forecasts page</a>. The ECMWF system gets the same treatment on the <a href="seas5.html">SEAS5 page</a>.</p>
+    <p class="note" style="max-width:80ch;font-size:0.9rem;line-height:1.65">NOAA's next-generation Seasonal Forecast System &mdash; the UFS-based successor to CFSv2, running in near-real-time beta since March 2026 with open zarr output. Every month: 31 members, 12 monthly leads. Anomalies are computed against the <b>model's own 1991&ndash;2020 reforecast</b> for the same init month and lead (11 members &times; 30 years), so drift and bias are removed the same way the C3S models are handled on the <a href="enso-forecasts.html">ENSO forecasts page</a>. The ECMWF system gets the same treatment on the <a href="seasonal.html">C3S seasonal models page</a>.</p>
     <h3 class="method-head">Method</h3>
     <ul class="method-list">
       <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, observed ERSSTv5 leads in, <b style="color:var(--cool)">blue dashes</b> = the C3S seven-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
