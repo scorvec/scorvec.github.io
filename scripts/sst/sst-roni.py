@@ -1060,6 +1060,8 @@ def render_roni(df: pd.DataFrame, out_path: Path,
         box.append(f"OISST est.    {lastk}  RONI {latest_roni:+.2f}"
                    + (f"  ONI {latest_oni:+.2f}" if latest_oni is not None else ""))
     if box:
+        # kept short deliberately: a wider box reaches left over the bars
+        box.append("both still subject to revision")
         ax.text(0.988, 0.045, "\n".join(box), transform=ax.transAxes, fontsize=8.6,
                 va="bottom", ha="right", family="monospace", zorder=7,
                 bbox=dict(boxstyle="round,pad=0.45", facecolor="white",
@@ -1070,12 +1072,13 @@ def render_roni(df: pd.DataFrame, out_path: Path,
                  "for seasons CPC has not reached.",
                  fontsize=10.5, loc="left", pad=8)
     fig.text(0.005, 0.012,
-             "CPC ONI is ERSST on its shifting 30-year base periods; CPC RONI is ERSSTv6 on 1991–2020 "
-             "and is updated by the 5th of each month.\n"
-             "Our estimate is NOAA OISST v2.1 vs 1991–2020 — same 3-month centred convention, available "
-             "now rather than after the month closes; its newest season is itself preliminary.\n"
+             "CPC ONI is ERSSTv6 on CENTRED 30-YEAR BASES THAT SHIFT EVERY 5 YEARS; CPC RONI is ERSSTv6 on "
+             "a fixed 1991–2020, updated by the 5th of each month. Ours is OISST v2.1 vs 1991–2020.\n"
+             "NOTHING on this chart is final. CPC revises its own ONI for up to TWO MONTHS after first "
+             "posting; our newest season leans on a month that has not closed; and OISST daily is itself\n"
+             "preliminary for about two weeks before it is archived as final. "
              "RONI = (Niño-3.4 − tropical-mean 20°S–20°N) anomaly rescaled to ONI's variance. "
-             "Red >+0.5, blue <−0.5, grey neutral. Each bar is a centred season (Jul = JJA).",
+             "Red >+0.5, blue <−0.5, grey neutral; each bar is a centred season (Jul = JJA).",
              fontsize=7, color="#888")
 
     fig.subplots_adjust(bottom=0.20, top=0.86)
