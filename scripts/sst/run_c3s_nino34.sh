@@ -108,13 +108,17 @@ else
   echo "c3s tercile inputs incomplete; keeping the previous issue"
 fi
 
+# Ocean indices for every system, off the anomaly fields c3s_maps.py just cached: no
+# download of its own, so it runs whenever those exist.
+"$PY" scripts/sst/c3s_indices.py || echo "c3s indices failed; keeping the previous issue"
+
 # PRIVATE strat gate product — writes only to gitignored paths
 "$PY" scripts/strat/sfs_gate100.py || echo "SFS gate failed; continuing"
 
 
 git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json \
         assets/sst/data/c3s_evolution.json \
-        assets/sst/c3s assets/sst/data/c3s_maps.json
+        assets/sst/c3s assets/sst/data/c3s_maps.json assets/sst/data/c3s_indices.json
 if git diff --staged --quiet; then
   echo "no changes to commit"
   [ "${NMODELS:-0}" -ge 7 ] 2>/dev/null && touch "$DONE_STAMP"

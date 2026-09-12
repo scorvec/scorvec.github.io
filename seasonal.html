@@ -173,6 +173,23 @@
     </div>
   </div>
 
+  <!-- ── EVERY MODEL: OCEAN INDICES ───────────────────────────────────────── -->
+  <div class="card" id="c3sIdxCard" data-label="Ocean indices" data-group="Every model">
+    <h2>Ocean indices &mdash; every system on one axis</h2>
+    <p class="note">The same boxes and the same PDO projection the SEAS5 card below uses, applied to each
+    system&rsquo;s <b>ensemble-mean anomaly</b> against its own 1993&ndash;2016 hindcast. That is what the
+    postprocessed collection carries for all eight, so all eight get a curve &mdash; but only a curve: there is
+    <b>no member spread on this basis</b>, and the fan for SEAS5 lives in the member-level card. The black line
+    is the multi-model mean, equal weight per system, drawn only where at least half of them have the index.</p>
+    <div class="controls" id="c3sIdxPick" style="margin-top:0.8rem"></div>
+    <p class="idx-note" id="c3sIdxNote"></p>
+    <div id="c3sIdxPlot" style="width:100%;min-height:380px"></div>
+    <div class="chart-card-footer">
+      <span class="chart-sources">C3S <code>seasonal-postprocessed-single-levels</code>, sea-surface temperature anomaly &middot; boxes and PDO calibration shared with the SEAS5 card</span>
+      <span class="chart-updated" id="c3sIdxUpdated">&mdash;</span>
+    </div>
+  </div>
+
   <!-- ── EVERY MODEL: NIÑO-3.4 PLUME ──────────────────────────────────────── -->
   <div class="card" data-label="Ni&ntilde;o-3.4, every member" data-group="Every model">
     <h2>Ni&ntilde;o-3.4 &mdash; every member of every system</h2>
@@ -505,6 +522,14 @@
 
   <div class="colophon">
     <h3>Data and method</h3>
+    <p><b>The multi-model cards</b> read three collections. Anomaly maps and the ocean indices come from
+    <code>seasonal-postprocessed-single-levels</code>, which publishes each system&rsquo;s ensemble-mean anomaly against
+    its own 1993&ndash;2016 hindcast &mdash; about a megabyte a field, which is what makes eight systems affordable, and the
+    reason those cards carry no spread. The tercile maps read <code>seasonal-monthly-single-levels</code>: this
+    issue&rsquo;s members and the matching 1993&ndash;2016 hindcast on the 1&deg; grid, per system, with the hindcast cached per
+    start month and reused every year; ECMWF is read from the copy already held for the member-level products. The
+    Ni&ntilde;o-3.4 plume is the full ensemble of every system, which is affordable because the box is small. Multi-model
+    means weight every SYSTEM equally, never every member, so a 124-member ensemble does not speak for the group.</p>
     <p>Forecast: ECMWF SEAS5 (C3S <code>originating_centre=ecmwf</code>, <code>system=51</code>), 51 members, monthly means for lead months 1&ndash;6 and the 6-hourly 2 m temperature, from the Copernicus Climate Data Store; hindcast: the same system&rsquo;s 1993&ndash;2016 re-forecasts, 25 members, for the same start month, and likewise for the previous issue. Sea-surface temperature, 500 and 1000 hPa height, sea-level pressure and stratospheric winds on a 2&deg; grid; 2 m temperature, precipitation, evaporation, 10 m wind, solar radiation and 500 hPa height on a 1&deg; grid over the Americas; geopotential at 10, 50 and 100 hPa poleward of 60&deg; in each hemisphere.</p>
     <p>Observations: ERA5 from a local archive (daily 1.5&deg; fields, 1959 or 1991 to the present depending on the field), monthly-meaned for normals, trends, records and skill; CPC ERSSTv5 for the observed Ni&ntilde;o indices. Teleconnection projectors are the CPC-style regression patterns built for the GEPS page on NCEP/NCAR R1 (1991&ndash;2020). Population weights: geonames places of 15,000 or more people.</p>
     <p>Method: indices are cosine-weighted box means; anomalies are member minus hindcast mean at the same lead (member minus the hindcast&rsquo;s linear trend for geopotential heights, which carry the warming signal). Relative Ni&ntilde;o-3.4 follows the CPC/ECMWF construction used elsewhere on this site; the Trans-Ni&ntilde;o index is Trenberth &amp; Stepaniak (2001), standardised by the hindcast spread. Terciles against the hindcast use the 33.3rd and 66.7th percentiles of the 600 hindcast samples per grid point; against observed references the members are first bias-corrected (member &minus; hindcast mean + ERA5 1993&ndash;2016 mean, multiplicatively for rain and sunshine) and the bounds are &plusmn;0.43&sigma; of the observed 1991&ndash;2020 spread around the reference (detrended for the trend reference; empirical percentiles for rain and sunshine). Standardised anomalies divide the ensemble-mean anomaly by the reference&rsquo;s year-to-year standard deviation. Skill is the correlation of the 24 hindcast years&rsquo; ensemble mean with ERA5 at the valid month. Teleconnection phase probabilities are calibrated by regressing the observed monthly index (ERA5, same projection) on the hindcast ensemble mean over those 24 years for each calendar month and lead, and reading the ±0.5&sigma; tail areas of a Gaussian centred on the regression prediction with the residual spread &mdash; an in-sample fit at n&nbsp;=&nbsp;24, so the quoted r is slightly optimistic; below r&nbsp;=&nbsp;0.25 the probabilities are treated as climatology. The AO, EPO, WPO and SOI, which have no built-in standardisation, are expressed in ERA5&rsquo;s 1991&ndash;2020 standard deviation for the calendar month, applied identically to model and observations. Built by <code>scripts/sst/seas5_outlook.py</code> and its companions; the JSON behind the charts: <a href="assets/sst/data/seas5_outlook.json">seas5_outlook.json</a>, <a href="assets/sst/data/seas5_tele.json">seas5_tele.json</a>, <a href="assets/sst/data/seas5_popT.json">seas5_popT.json</a>, <a href="assets/sst/data/seas5_pme_regions.json">seas5_pme_regions.json</a>, <a href="assets/sst/data/seas5_normals.json">seas5_normals.json</a>.</p>
@@ -1249,6 +1274,54 @@
   }).catch(function () {
     ["c3sMapCard", "c3sTercCard"].forEach(function (id) { var e = document.getElementById(id); if (e) e.hidden = true; });
   });
+})();
+</script>
+
+
+<script>
+/* Ocean indices for every system (assets/sst/data/c3s_indices.json). One line per model,
+   the multi-model mean in black and thicker; the picker chooses the index. Plotly is
+   already on the page for the member-level cards. */
+(function () {
+  var PAL = ["#d62728", "#1f77b4", "#2ca02c", "#9467bd", "#ff7f0e", "#8c564b", "#c49b3b", "#17becf"];
+  fetch("/assets/sst/data/c3s_indices.json?t=" + Date.now()).then(function (r) { return r.json(); }).then(function (J) {
+    var pick = document.getElementById("c3sIdxPick"), plot = document.getElementById("c3sIdxPlot");
+    if (!pick || !plot || !window.Plotly) { var c = document.getElementById("c3sIdxCard"); if (c) c.hidden = true; return; }
+    var cur = "nino34";
+    function draw() {
+      var meta = J.indices.filter(function (x) { return x.key === cur; })[0] || J.indices[0];
+      pick.innerHTML = "";
+      J.indices.forEach(function (ix) {
+        var b = document.createElement("button");
+        b.className = "pill" + (ix.key === cur ? " on" : "");
+        b.textContent = ix.label;
+        b.onclick = function () { cur = ix.key; draw(); };
+        pick.appendChild(b);
+      });
+      document.getElementById("c3sIdxNote").textContent = meta.note + " · " + J.basis;
+      var k = 0;
+      var traces = J.models.map(function (m) {
+        var y = (J.values[m.id] || {})[cur];
+        if (!y) return null;
+        var isMean = m.id === "mmm";
+        var col = isMean ? "#111111" : (m.color || PAL[k++ % PAL.length]);
+        return { x: J.months, y: y, name: m.label, type: "scatter", mode: "lines+markers",
+                 line: { color: col, width: isMean ? 3.4 : 1.6, dash: isMean ? "solid" : "solid" },
+                 marker: { size: isMean ? 7 : 4.5, color: col }, hovertemplate: "%{y:.2f}<extra>" + m.label + "</extra>" };
+      }).filter(Boolean);
+      var lay = { margin: { l: 52, r: 12, t: 8, b: 38 }, height: 400,
+                  paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+                  hovermode: "x unified",
+                  legend: { orientation: "h", y: 1.16, x: 0, font: { size: 11 } },
+                  xaxis: { showgrid: false, tickfont: { size: 11 } },
+                  yaxis: { title: { text: meta.units, font: { size: 11 } }, zeroline: true,
+                           zerolinecolor: "#b9b4aa", gridcolor: "#ece9e2", tickfont: { size: 11 } } };
+      Plotly.react(plot, traces, lay, { displayModeBar: false, responsive: true });
+      var u = document.getElementById("c3sIdxUpdated");
+      if (u) u.textContent = J.issue_label + " issue";
+    }
+    draw();
+  }).catch(function () { var c = document.getElementById("c3sIdxCard"); if (c) c.hidden = true; });
 })();
 </script>
 
