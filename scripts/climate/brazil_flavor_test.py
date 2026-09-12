@@ -193,7 +193,7 @@ def main() -> int:
     cb.set_label("NDJFM RONI (°C)", fontsize=9)
     bfit = np.polyfit(both.elean, res_r, 1)
     xs = np.linspace(both.elean.min() - 0.2, 3.1, 40)
-    ax1.plot(xs, np.polyval(bfit, xs), ls="--", color="#888",
+    ax1.plot(xs, np.polyval(bfit, xs), ls="--", color="#6f6b64",
              label=f"{bfit[0]:+.1f} CDD per east-lean °C")
     ax1.axvline(2.5, color="#7a0018", lw=1.4, ls=":",
                 label="2026/27 if event stays east-based (~+2.5)")
@@ -212,7 +212,7 @@ def main() -> int:
     ax2 = fig.add_subplot(1, 2, 2, projection=ccrs.PlateCarree())
     ax2.set_extent([-74.5, -34, -34.5, 5.8], crs=ccrs.PlateCarree())
     ax2.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.5, edgecolor="#555")
-    ax2.add_feature(cfeature.STATES.with_scale("50m"), lw=0.3, edgecolor="#999")
+    ax2.add_feature(cfeature.STATES.with_scale("50m"), lw=0.3, edgecolor="#6f6b64")
     ax2.coastlines("50m", lw=0.5, color="#555")
     sig = cf.elean_p < P_SIG
     vm = float(np.abs(cf.elean_coef).max())

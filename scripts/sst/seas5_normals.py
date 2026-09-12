@@ -354,8 +354,8 @@ def render(ym: str, var: str, ref: str, kind: str, panels, lat, lon, out_dir: Pa
             ax.add_feature(cfeature.OCEAN, facecolor="#fff", zorder=2); ax.add_feature(cfeature.LAKES, facecolor="#fff", zorder=2)
         ax.coastlines(resolution="50m", linewidth=0.45, color="#222", zorder=3)
         ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.25, edgecolor="#666", zorder=3)
-        ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.15, edgecolor="#999", zorder=3)
-        gl_ = ax.gridlines(draw_labels=True, linewidth=0.3, color="#888", alpha=0.5, xlocs=range(-180, 181, 30), ylocs=range(-60, 91, 30), zorder=4)
+        ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.15, edgecolor="#6f6b64", zorder=3)
+        gl_ = ax.gridlines(draw_labels=True, linewidth=0.3, color="#6f6b64", alpha=0.5, xlocs=range(-180, 181, 30), ylocs=range(-60, 91, 30), zorder=4)
         gl_.top_labels = gl_.right_labels = False; gl_.xlabel_style = gl_.ylabel_style = {"size": 7, "color": "#555"}
         fig.text(0.03, 1 - 0.14 / H, f"SEAS5 {label}: {what} vs {REFS[ref]} · {pnl['title']} · {calendar.month_name[m0]} {y0} issue", fontsize=13, fontweight="bold", va="top")
         fig.text(0.03, 1 - 0.50 / H, sub, fontsize=8.4, color="#444", va="top")

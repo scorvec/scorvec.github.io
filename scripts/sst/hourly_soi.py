@@ -159,7 +159,7 @@ def plot(raw, soi24, lp_soi, bias, hist, out: Path):
     t0 = soi24.index.max() - pd.Timedelta(days=PLOT_DAYS)
     fig, ax = plt.subplots(figsize=(12, 4.8))
     lp = lp_soi[lp_soi.index >= t0]
-    ax.plot(lp.index, lp.values, color="#888", lw=1.4, marker="o", ms=3,
+    ax.plot(lp.index, lp.values, color="#6f6b64", lw=1.4, marker="o", ms=3,
             label="LongPaddock daily SOI", zorder=2)
     r = raw[raw.index >= t0]
     ax.plot(r.index, r.values, color="#7aa6c2", lw=0.8, alpha=0.7,

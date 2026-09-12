@@ -344,7 +344,7 @@ def panel(ax, z, lev, hemi, valid=None):
         # in the summer hemisphere there is no standing wave to interfere with,
         # and the easterlies would stop planetary waves propagating anyway.
         ax.text(0.02, 0.99, "NO STANDING WAVE", transform=ax.transAxes,
-                ha="left", va="top", fontsize=8.5, color="#999999")
+                ha="left", va="top", fontsize=8.5, color="#6f6b64")
     return cf
 
 

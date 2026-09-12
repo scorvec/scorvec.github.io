@@ -282,9 +282,9 @@ def plot(info, daily: pd.DataFrame, years: list[int], fname="mei_nowcast.webp", 
     fig, ax = plt.subplots(figsize=(12, 5.2))
     t0 = pd.Timestamp(f"{min(years)}-01-01") - pd.Timedelta(days=120)
     msub = mei[mei.index >= t0]
-    ax.step(msub.index, msub.values, where="mid", color="#888", lw=1.6,
+    ax.step(msub.index, msub.values, where="mid", color="#6f6b64", lw=1.6,
             label="official MEI.v2 (bimonthly)", zorder=2)
-    ax.scatter(msub.index, msub.values, s=22, color="#888", zorder=3)
+    ax.scatter(msub.index, msub.values, s=22, color="#6f6b64", zorder=3)
     d = daily.dropna(subset=["mei30"], how="all")
     if d["mei30"].notna().sum() == 0:
         raise SystemExit("no valid daily nowcast rows — check predictor availability for "

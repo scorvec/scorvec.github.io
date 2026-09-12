@@ -167,7 +167,7 @@ def draw_dt(ax, lat, lon, dt, title):
     ax.contour(X, Y, _coarse(dt["p"]), levels=[200, 300, 400, 500], colors="k", linewidths=[0.5, 0.7, 0.9, 1.1], alpha=0.55)
     ax.quiver(_coarse(lon, 20)[:-1], _coarse(lat, 20), _coarse(dt["u"], 20)[:, :-1], _coarse(dt["v"], 20)[:, :-1], transform=pc, scale=1100, width=0.0022, color="#111", alpha=0.85)
     ax.coastlines(resolution="50m", lw=1.0, color="#000", zorder=6); ax.add_feature(cfeature.BORDERS, lw=0.45, edgecolor="#222", zorder=6)
-    ax.gridlines(lw=0.3, color="#888", alpha=0.6, ylocs=range(20, 90, 20), xlocs=range(-180, 181, 30))
+    ax.gridlines(lw=0.3, color="#6f6b64", alpha=0.6, ylocs=range(20, 90, 20), xlocs=range(-180, 181, 30))
     ax.set_title(title, fontsize=9.6, loc="left", fontweight="bold")
     return cf
 
@@ -186,7 +186,7 @@ def draw_pv(ax, lat, lon, iso, theta, title):
     ax.contour(X, Y, _coarse(iso["pv"]), levels=[2], colors="#7a0c0c", linewidths=1.2)
     ax.quiver(_coarse(lon, 20)[:-1], _coarse(lat, 20), _coarse(iso["u"], 20)[:, :-1], _coarse(iso["v"], 20)[:, :-1], transform=pc, scale=1100, width=0.0022, color="#111", alpha=0.85)
     ax.coastlines(resolution="50m", lw=1.0, color="#000", zorder=6); ax.add_feature(cfeature.BORDERS, lw=0.45, edgecolor="#222", zorder=6)
-    ax.gridlines(lw=0.3, color="#888", alpha=0.6, ylocs=range(20, 90, 20), xlocs=range(-180, 181, 30))
+    ax.gridlines(lw=0.3, color="#6f6b64", alpha=0.6, ylocs=range(20, 90, 20), xlocs=range(-180, 181, 30))
     ax.set_title(title, fontsize=9.6, loc="left", fontweight="bold")
     return cf
 

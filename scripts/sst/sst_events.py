@@ -188,7 +188,7 @@ def overlay_nino34(out: Path):
         fig.text(0.005, 0.002,
                  "RONI = (Niño-3.4 − tropical-mean 20°S–20°N) anomaly rescaled by σ(ONI)/σ(relative) "
                  "per calendar month (CPC/ECMWF) — in °C, comparable to ONI. NOAA OISST, 1991–2020.",
-                 fontsize=7, color="#888")
+                 fontsize=7, color="#6f6b64")
     fig.tight_layout()
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight")

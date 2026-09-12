@@ -709,7 +709,7 @@ def render_daily_three_metrics(n34, trop, out_path):
     fig.text(0.005, 0.005,
              "Daily values from NOAA OISST v2.1 daily means, anomalies vs "
              "1991\u20132020. Daily \u2014 noisier than the 3-month running indices.",
-             fontsize=7, color="#888")
+             fontsize=7, color="#6f6b64")
 
     mark_prelim(ax)
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
@@ -747,7 +747,7 @@ def render_nino_region_series(a_ser, b_ser, out_path):
         s = a_ser[k]
         axN.plot(s.index, s.values, color=r["color"], lw=1.6, label=r["label"])
     for y in (0.5, -0.5):
-        axN.axhline(y, color="#888", lw=0.8, ls="--", alpha=0.6)
+        axN.axhline(y, color="#6f6b64", lw=0.8, ls="--", alpha=0.6)
     axN.axhline(0, color="#333", lw=0.8)
     axN.set_ylabel("SST anomaly (°C)", fontsize=11)
     axN.grid(axis="y", alpha=0.2)
@@ -771,7 +771,7 @@ def render_nino_region_series(a_ser, b_ser, out_path):
              "Niño-4 160°E–150°W · 3.4 170–120°W · "
              "3 150–90°W · 1+2 90–80°W, 0–10°S · "
              "daily values (noisier than 3-month indices).",
-             fontsize=7, color="#888")
+             fontsize=7, color="#6f6b64")
     for _a in (axA, axN):
         mark_prelim(_a, label=(_a is axA))
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
@@ -867,7 +867,7 @@ def _style_mode_axes(ax, t):
     ax.set_xlim(t[0], t[-1])
 
 
-_MODE_FOOTNOTE_KW = dict(fontsize=7, color="#888")
+_MODE_FOOTNOTE_KW = dict(fontsize=7, color="#6f6b64")
 _MODE_SAVE_KW = dict(dpi=100, facecolor="white", edgecolor="none",
                      bbox_inches="tight", pad_inches=0.1,
                      pil_kwargs={"quality": 85, "method": 6})
@@ -921,7 +921,7 @@ def render_iod_daily(w_ser, e_ser, out_path):
             label="East pole (90–110°E, 10°S–0°)")
     ax.plot(t, dmi.values, color="#141414", lw=2.0, label="DMI = West − East")
     for y in (0.4, -0.4):
-        ax.axhline(y, color="#888", lw=0.8, ls="--", alpha=0.6)
+        ax.axhline(y, color="#6f6b64", lw=0.8, ls="--", alpha=0.6)
     _style_mode_axes(ax, t)
     ax.set_ylabel("SST anomaly (°C)", fontsize=11)
     span = f"{t[0]:%b %Y} – {t[-1]:%b %d, %Y}"
@@ -1118,7 +1118,7 @@ def render_roni(df: pd.DataFrame, out_path: Path,
              "preliminary for about two weeks before it is archived as final. "
              "RONI = (Niño-3.4 − tropical-mean 20°S–20°N) anomaly rescaled to ONI's variance. "
              "Red >+0.5, blue <−0.5, grey neutral; each bar is a centred season (Jul = JJA).",
-             fontsize=7, color="#888")
+             fontsize=7, color="#6f6b64")
 
     fig.subplots_adjust(bottom=0.20, top=0.86)
     fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",

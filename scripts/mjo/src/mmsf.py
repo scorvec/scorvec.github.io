@@ -418,7 +418,7 @@ def _stage_mmsf(jl, frame_id, out, psi_anom, psi_abs, p_hpa, lat, title, vlim,
                            dict(npz="zabs", levels=[c for c in clev if c > 0],
                                 color="#000000", width=1.0, dash=False),
                            dict(npz="zabs", levels=[0.0], color="#000000", width=0.9, dash=False),
-                           dict(npz="latf", levels=[0.0], color="#999999", width=0.6, dash=False)],
+                           dict(npz="latf", levels=[0.0], color="#6f6b64", width=0.6, dash=False)],
                  arrows=dict(x="ax", y="ay", u="au", v="av", scale=1.0),
                  texts=list(texts or [])))
 

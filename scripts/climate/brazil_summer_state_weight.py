@@ -136,7 +136,7 @@ def main() -> int:
     ax.scatter(histA.values, histB.values, s=14, color="#2b6fd6", alpha=0.7)
     lims = [min(histA.min(), histB.min()) - 0.2,
             max(histA.max(), histB.max()) + 0.2]
-    ax.plot(lims, lims, color="#999", lw=0.8)
+    ax.plot(lims, lims, color="#6f6b64", lw=0.8)
     ax.plot([fcA], [fcB], "*", ms=18, color="#d9402a")
     ax.text(fcA, fcB, "  2026/27", color="#d9402a", fontsize=9,
             fontweight="bold", va="center")
@@ -166,7 +166,7 @@ def main() -> int:
     cols = plt.cm.YlOrRd(0.25 + 0.75 * (tab["anom5"] - tab["anom5"].min())
                          / (tab["anom5"].max() - tab["anom5"].min()))
     ax.barh(np.arange(len(tab))[::-1], tab["anom5"], color=cols,
-            edgecolor="#888", lw=0.4)
+            edgecolor="#6f6b64", lw=0.4)
     ax.set_yticks(np.arange(len(tab))[::-1])
     ax.set_yticklabels([f"{uf} ({p:.1f}M)" for uf, p in
                         zip(tab.index, tab["pop"])], fontsize=6.6)

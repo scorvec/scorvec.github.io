@@ -246,7 +246,7 @@ def run_model(model: str) -> dict:
                 ax.text(0.02, 0.03, f"pattern r vs 20CR: {r:+.2f}",
                         transform=ax.transAxes, fontsize=9,
                         bbox=dict(facecolor="white", alpha=0.8,
-                                  edgecolor="#999"))
+                                  edgecolor="#6f6b64"))
     fig.suptitle(f"EP-flavor composites — {model} ({len(mems)} members)\n"
                  f"EP n={counts['EP']} · Modoki n={counts['CP']} · regular "
                  f"n={counts['REG']} · stippled p<0.10", fontsize=12,

@@ -91,7 +91,7 @@ def draw_map(field, lat, lon, levels, colors, label, title, sub, out: Path, exte
     if hatch is not None:
         ax.contourf(lon, lat, np.ma.masked_invalid(hatch), levels=[0.5, 1.5], colors="none", hatches=["////"], transform=pc, zorder=2)
     ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2); ax.coastlines(resolution="50m", linewidth=0.5, color="#333", zorder=3)
-    ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.3, edgecolor="#666", zorder=3); ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.2, edgecolor="#999", zorder=3)
+    ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.3, edgecolor="#666", zorder=3); ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.2, edgecolor="#6f6b64", zorder=3)
     halo = [pe.withStroke(linewidth=3.0, foreground="white")]; ax.apply_aspect()
     for c in CITIES[REGION]:
         name, la, lo, side = c[:4]; dy = c[4] if len(c) > 4 else 0.0

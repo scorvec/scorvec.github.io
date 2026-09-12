@@ -366,7 +366,7 @@ def render(vid: str, anom: xr.DataArray, month: int, avail: set,
             ax.set_facecolor("#f2f2f2")
             ax.text(0.5, 0.5, f"{yr_tag}\nnot yet available",
                     transform=ax.transAxes, ha="center", va="center",
-                    fontsize=13, color="#999")
+                    fontsize=13, color="#6f6b64")
             ax.coastlines(lw=0.4, color="#bbb")
             ax.set_title(f"{ev['label']} · {yr_tag}", fontsize=11, loc="left")
             continue
@@ -387,7 +387,7 @@ def render(vid: str, anom: xr.DataArray, month: int, avail: set,
             ax.text(0.012, 0.035, tt, transform=ax.transAxes, fontsize=7.8,
                     va="bottom", ha="left", color="#111", zorder=6,
                     bbox=dict(facecolor="white", alpha=0.82,
-                              edgecolor="#999", lw=0.4,
+                              edgecolor="#6f6b64", lw=0.4,
                               boxstyle="round,pad=0.25"))
 
     if cf is not None:

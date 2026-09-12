@@ -124,7 +124,7 @@ def main() -> int:
                 ax.text(0.02, 0.03, f"pattern r vs 20CR: {r:+.2f}",
                         transform=ax.transAxes, fontsize=9,
                         bbox=dict(facecolor="white", alpha=0.8,
-                                  edgecolor="#999"))
+                                  edgecolor="#6f6b64"))
                 print(f"pooled pattern r ({which}) = {r:+.3f}")
     cnt = {g: pool[g]["n"] for g in pool}
     fig.suptitle("EP-flavor composites — POOLED CMIP6 large ensembles "

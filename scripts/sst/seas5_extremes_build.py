@@ -179,7 +179,7 @@ def pct_map(ratio, lat, lon, normal, region, thr_label, plabel, issue_lbl, out: 
     ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2); ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
     ax.coastlines(resolution="50m", linewidth=0.5, color="#333", zorder=3)
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.3, edgecolor="#666", zorder=3)
-    ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.2, edgecolor="#999", zorder=3)
+    ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.2, edgecolor="#6f6b64", zorder=3)
     draw_cities(ax, region, pc)
     fig.text(0.03, 1 - 0.14 / H, f"SEAS5 {thr_label} · {plabel} · {issue_lbl}", fontsize=13, fontweight="bold", va="top")
     import textwrap

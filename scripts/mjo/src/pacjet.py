@@ -291,7 +291,7 @@ def render(init, valid, ix, u_mean_day0, ref, tail, torque, lag, out: Path) -> d
         M = ix[key]
         if key == "terminus":
             climv = harm_eval(ref.term_coef.values, valid.dayofyear.values); sdv = ref.term_sd.values[valid.dayofyear.values - 1]
-            ax.fill_between(x_fc, climv - sdv, climv + sdv, color="#000", alpha=0.05, lw=0); ax.plot(x_fc, climv, color="#888", lw=0.9, ls="--")
+            ax.fill_between(x_fc, climv - sdv, climv + sdv, color="#000", alpha=0.05, lw=0); ax.plot(x_fc, climv, color="#6f6b64", lw=0.9, ls="--")
             frac = ref.term_defined_frac.values[valid.dayofyear.values - 1]
         else:
             ax.axhspan(-1, 1, color="#000", alpha=0.05); ax.axhline(0, color="#555", lw=0.8)
@@ -306,7 +306,7 @@ def render(init, valid, ix, u_mean_day0, ref, tail, torque, lag, out: Path) -> d
                 t = tail[tail["source"] == src]
                 if len(t):
                     ax.plot(t.index, t[key].values, color=colr, lw=1.3, marker="o", ms=2.6, ls=("-" if src == "era5" else "none"))
-        ax.axvline(init, color="#999", lw=0.8, ls=":")
+        ax.axvline(init, color="#6f6b64", lw=0.8, ls=":")
         if key in ("extension", "exit"):
             overlay_composite(ax, torque_peak(torque), lag, season_for(init), key)
             if k == 0 and torque_peak(torque) is not None:
@@ -437,7 +437,7 @@ def render_z500(init, valid, zi, ref, tail, torque, lag, out: Path) -> dict:
         overlay_composite(ax, peak, lag, season, key)
         if peak is not None:
             ax.axvline(peak[0], color=BROWN, lw=1.2, ls="--"); ax.text(peak[0], 0.97, " torque peak", transform=ax.get_xaxis_transform(), fontsize=7, color=BROWN, va="top")
-        ax.axvline(init, color="#999", lw=0.8, ls=":")
+        ax.axvline(init, color="#6f6b64", lw=0.8, ls=":")
         ax.set_title(title, fontsize=9.2, loc="left", fontweight="bold", color=INK)
         if k == 0:
             ax.set_ylabel("σ", fontsize=8)

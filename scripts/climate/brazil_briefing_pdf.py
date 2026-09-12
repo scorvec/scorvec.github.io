@@ -208,7 +208,7 @@ def page2(pdf):
         ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.5,
                        edgecolor="#333")
         ax.add_feature(cfeature.STATES.with_scale("50m"), lw=0.2,
-                       edgecolor="#888")
+                       edgecolor="#6f6b64")
         ax.coastlines("50m", lw=0.5, color="#333")
         cb = fig.colorbar(cf, ax=ax, fraction=0.035, pad=0.02)
         cb.set_label(unit, fontsize=8)

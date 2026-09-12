@@ -339,9 +339,8 @@ window.STAGE = {
   groups: [
   {label: "SST & indices", ico: "\u{1F321}", items: [["sstmaps","SST anomaly maps","global, tropics, relative"],["indices","Daily indices, interactive","Niño-3.4, RONI, ONI estimate"],["onironi","ONI vs RONI","3-month convention, OISST estimate"],["beyond","PDO, IOD, South Atlantic","daily, beyond ENSO"]]},
   {label: "Satellite & MUR", ico: "\u{1F6F0}", items: [["mur","MUR 1 km loop","cold tongue since onset"],["mur34","MUR Niño-3.4","1 km against OISST"],["ir","Infrared loops","Pacific · South & Central America"]]},
-  {label: "SOI & MEI", ico: "\u{1F4C8}", items: [["soirec","SOI against the record","daily, since 1887"],["mei","MEI.v2 nowcast","daily, analogs, history"]]},
   {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"]]},
-  {label: "Winds & SOI", ico: "\u{1F32C}", items: [["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS, to day 15"]]},
+  {label: "Atmospheric response", ico: "\u{1F32C}", items: [["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soirec","SOI against the record","daily, since 1887"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["mei","MEI.v2 nowcast","daily, analogs, history"],["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS, to day 15"]]},
   {label: "Subsurface", ico: "\u{1F30A}", items: [["subtemp","Temperature section","TAO/TRITON, raw and detrended"],["hc","Heat content vs analogs","0–300 m, 1997 · 2015 · 2023"],["xsec","Cross-section vs analogs","same week of each event"],["cur_map","Surface currents","tropical Pacific"],["cur_sec","Undercurrent section","zonal current with depth"],["cur_hov","Current Hovmöller","equatorial strip"]]}
 ],
   products: {
@@ -507,6 +506,29 @@ window.STAGE = {
     });
   }
 
+  // The PRELIMINARY tail. OISST v2.1 is published at 1-day latency and only
+  // archived as final about two weeks later, revisable in between, so the right
+  // edge of every daily series here can still move. `final_through` is probed
+  // from NCEI by the build (sst-roni.py), not assumed, and is null if that
+  // probe failed — in which case nothing is drawn rather than a guessed band.
+  function prelimShapes(lastX) {
+    var ft = state.data && state.data.final_through;
+    if (!ft || ft >= lastX) return [];
+    return [{ type: "rect", xref: "x", yref: "paper", x0: ft, x1: lastX,
+              y0: 0, y1: 1, fillcolor: "#c9a227", opacity: 0.10,
+              line: { width: 0 }, layer: "below" },
+            { type: "line", xref: "x", yref: "paper", x0: ft, x1: ft,
+              y0: 0, y1: 1, line: { color: "#a8871f", width: 1, dash: "dash" },
+              layer: "below" }];
+  }
+  function prelimAnnotation(lastX) {
+    var ft = state.data && state.data.final_through;
+    if (!ft || ft >= lastX) return [];
+    return [{ xref: "x", yref: "paper", x: ft, y: 1, xanchor: "left", yanchor: "top",
+              text: " preliminary", showarrow: false,
+              font: { size: 10, color: "#7a6210" } }];
+  }
+
   function drawDaily() {
     var D = state.data.daily, dates = D.dates;
     var n = dates.length;
@@ -540,7 +562,9 @@ window.STAGE = {
         tr("nino4_abs", "Niño-4", C.nino4),
       ];
     }
-    var lay = layout({ shapes: shapes });
+    var lastX = x[x.length - 1];
+    var lay = layout({ shapes: shapes.concat(prelimShapes(lastX)),
+                       annotations: prelimAnnotation(lastX) });
     if (state.mode === "abs") lay.yaxis.title.text = "SST (°C)";
     Plotly.react("dailyChart", traces, lay, CONFIG);
   }

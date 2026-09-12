@@ -89,7 +89,7 @@ def draw_panel(ax, counts: dict[str, int], title: str):
         n = counts.get(iso, 0)
         face = cmap(norm(n)) if n > 0 else "#f2f0eb"
         ax.add_geometries([rec.geometry], ccrs.PlateCarree(),
-                          facecolor=face, edgecolor="#999", linewidth=0.25)
+                          facecolor=face, edgecolor="#6f6b64", linewidth=0.25)
     ax.set_global(); ax.set_frame_on(False)
     total = sum(counts.values())
     ax.set_title(f"{title} — {total:,} visitors · {len(counts)} countries",

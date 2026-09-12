@@ -164,7 +164,7 @@ def _style(ax, extent):
     ax.set_extent(extent, crs=ccrs.PlateCarree())
     ax.add_feature(cfeature.LAND, facecolor="#d9d4c8", zorder=3)
     ax.coastlines(resolution="10m", lw=0.5, color="#444", zorder=4)
-    gl = ax.gridlines(draw_labels=True, lw=0.25, color="#999", alpha=0.5)
+    gl = ax.gridlines(draw_labels=True, lw=0.25, color="#6f6b64", alpha=0.5)
     gl.top_labels = gl.right_labels = False
     gl.xlabel_style = gl.ylabel_style = {"size": 8}
 

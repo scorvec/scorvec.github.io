@@ -8,7 +8,7 @@
     --bg: #fcfcfa;
     --ink: #1a1a1a;
     --ink2: #4a4744;          /* body copy inside cards */
-    --muted: #8a8680;
+    --muted: #6f6b64;        /* was #8a8680 = 3.5:1, below WCAG AA for body text */
     --accent: #8a4b2a;        /* burnt sienna — links, active tab, selected button */
     --accent-hi: #a85c33;
     --accent-light: #f6efe9;  /* accent at ~8%, for hover fills */

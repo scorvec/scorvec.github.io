@@ -253,7 +253,7 @@ def main() -> int:
     b, a = np.polyfit(both.roni, both.cdd, 1)
     r = float(np.corrcoef(both.roni, both.cdd)[0, 1])
     xs = np.linspace(both.roni.min() - 0.3, max(both.roni.max(), args.roni) + 0.3, 50)
-    ax.plot(xs, a + b * xs, color="#888", lw=1.2, ls="--", zorder=2,
+    ax.plot(xs, a + b * xs, color="#6f6b64", lw=1.2, ls="--", zorder=2,
             label=f"OLS on detrended: {b:+.0f} CDD per RONI °C (r={r:.2f})")
     ax.axhline(0, color="#333", lw=0.8)
     ax.scatter([args.roni], [star_y], marker="*", s=560, color="#7a0018",

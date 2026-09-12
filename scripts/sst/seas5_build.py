@@ -366,7 +366,7 @@ def _change_panel(ax, d, lat, lon, var, levels, cmap, title, pc):
         ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
     ax.coastlines(linewidth=0.5, color="#444", zorder=3)
     ax.add_feature(cfeature.BORDERS, linewidth=0.3, edgecolor="#777", zorder=3)
-    ax.add_feature(cfeature.STATES, linewidth=0.2, edgecolor="#999", zorder=3)
+    ax.add_feature(cfeature.STATES, linewidth=0.2, edgecolor="#6f6b64", zorder=3)
     ax.set_title(title, fontsize=12, loc="left")
     return m
 
@@ -580,8 +580,8 @@ def _global_map(field, lat, lon, var, levels, cmap, cstep, title, sub, cb_label,
     ax.coastlines(resolution="50m", linewidth=0.45, color="#222", zorder=3)
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.25, edgecolor="#666", zorder=3)
     if var != "sst":
-        ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.15, edgecolor="#999", zorder=3)
-    gl = ax.gridlines(draw_labels=True, linewidth=0.3, color="#888", alpha=0.5, xlocs=range(-180, 181, 30), ylocs=range(-60, 91, 30), zorder=4)
+        ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.15, edgecolor="#6f6b64", zorder=3)
+    gl = ax.gridlines(draw_labels=True, linewidth=0.3, color="#6f6b64", alpha=0.5, xlocs=range(-180, 181, 30), ylocs=range(-60, 91, 30), zorder=4)
     gl.top_labels = gl.right_labels = False; gl.xlabel_style = gl.ylabel_style = {"size": 7, "color": "#555"}
     fig.text(0.03, 1 - 0.14 / H, title, fontsize=13.5, fontweight="bold", va="top")
     fig.text(0.03, 1 - 0.50 / H, sub, fontsize=8.6, color="#444", va="top")

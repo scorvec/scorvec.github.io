@@ -144,7 +144,7 @@ def render_polar(lat, lon, z, anom, u, v, title, cbar_label, outpath,
     ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
     ax.coastlines(resolution="50m", linewidth=0.45, color="#222", zorder=3)
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.25, edgecolor="#666", zorder=3)
-    ax.gridlines(linewidth=0.3, color="#888", alpha=0.5, ylocs=[30, 45, 60, 75], zorder=4)
+    ax.gridlines(linewidth=0.3, color="#6f6b64", alpha=0.5, ylocs=[30, 45, 60, 75], zorder=4)
     head, _, sub = title.partition("\n")
     MS.heading(fig, H, head, sub or "Ensemble mean of 31 members; anomaly against the model's own 1991–2020 reforecast mean plus trend at the forecast year; contours the mean 100 hPa height (dam), arrows the mean wind.",
                title_size=12, sub_size=8, wrap=118)

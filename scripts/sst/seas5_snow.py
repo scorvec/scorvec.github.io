@@ -151,7 +151,7 @@ def draw_map(field, lat, lon, levels, colors, label, title, sub, out: Path, exte
     ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2); ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
     ax.coastlines(resolution="50m", linewidth=0.5, color="#333", zorder=3)
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.3, edgecolor="#666", zorder=3)
-    ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.2, edgecolor="#999", zorder=3)
+    ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.2, edgecolor="#6f6b64", zorder=3)
     ax.apply_aspect()
     for city in CITIES["us"]:                        # no labels or dots on these maps (user: "not necessary here");
         name, la, lo, side = city[:4]                # the page overlays its own clickable markers at these fractions

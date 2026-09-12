@@ -516,7 +516,7 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
         band = np.array(e["clim_sd"], dtype=float) if absolute else np.full(len(xs), THR)
         if absolute:
             ax.fill_between(xs, cm - band, cm + band, color="#000", alpha=0.05, zorder=0)
-            ax.plot(xs, cm, color="#888", lw=0.9, ls="--", zorder=1)
+            ax.plot(xs, cm, color="#6f6b64", lw=0.9, ls="--", zorder=1)
         else:
             ax.axhspan(-THR, THR, color="#000", alpha=0.05, zorder=0)
             ax.axhline(0, color="#555", lw=0.8, zorder=1)
@@ -533,7 +533,7 @@ def plot_series(doc: dict, group: str, out: Path) -> None:
             ax.plot([_month_num(t) for t, _ in e["cpc_tail"]], [v for _, v in e["cpc_tail"]], ls="none", marker="x", ms=5, mew=1.2, color="#8b1a1a", zorder=7)
         if key.startswith("u60"):
             ax.axhline(0, color="#c2185b", lw=1.0, ls="--", zorder=3)
-        ax.axvline(xs[0] - 0.5, color="#999", lw=0.8, ls=":", zorder=3)
+        ax.axvline(xs[0] - 0.5, color="#6f6b64", lw=0.8, ls=":", zorder=3)
         if e.get("skill"):
             for xv, rr in zip(xs, e["skill"]):
                 if rr is not None:

@@ -93,7 +93,7 @@ def draw(field, lat, lon, region, levels, colors, label, title, sub, out, extend
     ax.add_feature(cfeature.OCEAN, facecolor="#ffffff", zorder=2); ax.add_feature(cfeature.LAKES, facecolor="#ffffff", zorder=2)
     ax.coastlines(resolution="50m", linewidth=0.5, color="#333", zorder=3)
     ax.add_feature(cfeature.BORDERS.with_scale("50m"), linewidth=0.3, edgecolor="#666", zorder=3)
-    ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.2, edgecolor="#999", zorder=3)
+    ax.add_feature(cfeature.STATES.with_scale("50m"), linewidth=0.2, edgecolor="#6f6b64", zorder=3)
     draw_cities(ax, region, pc)
     fig.text(0.03, 1 - 0.14 / H, title, fontsize=13, fontweight="bold", va="top")
     fig.text(0.03, 1 - 0.50 / H, "\n".join(textwrap.wrap(sub, int(W * 13))), fontsize=8.4, color="#444", va="top", linespacing=1.3)
