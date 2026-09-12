@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 """Monthly Niño-region history + El Niño event table → JSON for the interactive explorer.
 
-Source: NOAA CPC ERSSTv5 monthly Niño indices (1950–present, 1991–2020 base) —
+Sources, and which one wins:
+  REGIONAL series — NOAA CPC ERSSTv5 monthly Niño indices (1950–, 1991–2020 base),
   https://www.cpc.ncep.noaa.gov/data/indices/ersst5.nino.mth.91-20.ascii
-  columns: YR MON NINO1+2 ANOM NINO3 ANOM NINO4 ANOM NINO3.4 ANOM
-ERSSTv5 (not OISST) so the record reaches back past 1970; the 1991–2020 base matches
-the rest of the El Niño monitor. ONI = Niño-3.4 anomaly, 3-month running mean.
+  columns: YR MON NINO1+2 ANOM NINO3 ANOM NINO4 ANOM NINO3.4 ANOM.
+  ERSSTv5 (not OISST) so the record reaches back past 1970.
+
+  ONI and RONI — CPC's OWN PUBLISHED values (cpc_official_enso.py), because the
+  file above FROZE on 5 Aug 2026 with content through 2026-06 when CPC moved its
+  operational indices to ERSSTv6. Until this was noticed, every month after June
+  came from the OISST provisional bridge and was presented as ERSST: 2026-07 read
+  +2.10 where CPC had published +1.80. The official values are applied across the
+  whole record rather than spliced onto the end, so no step appears mid-series.
+
+  Anything CPC has not published yet is still bridged from the OISST daily feed
+  and flagged by `provisional_after`.
 
 Writes assets/sst/data/nino_history.json: the full monthly series for all four regions
 (absolute SST + anomaly) and ONI, plus an El Niño event table (onset year, DJF-peak
@@ -161,6 +171,43 @@ def main() -> int:
               "writing history without roni", file=sys.stderr)
         roni = None
 
+    # ── CPC's OWN published values take precedence over the table-derived pair ──
+    # ersst5.nino.mth.91-20.ascii FROZE on 5 Aug 2026 with content through
+    # 2026-06 (CPC moved its operational indices to ERSSTv6), so everything
+    # after June was being supplied by the OISST bridge below and presented as
+    # ERSST. CPC's oni.ascii.txt and the RONI product table are still current.
+    #
+    # Applied across the WHOLE record, not just the tail: the two differ by
+    # base period (official ONI uses 30-year bases that shift every five years,
+    # this table a fixed 1991-2020), so splicing only the recent end would put a
+    # step in the middle of the series. Measured over 1990+: ONI mean -0.06,
+    # sd 0.11; RONI mean +0.01, sd 0.08 -- smaller than the error being fixed
+    # (2026-07 read +2.10 against CPC's +1.80).
+    official_months = set()
+    try:
+        sys.path.insert(0, str(HERE))
+        import cpc_official_enso as CPC
+        off_oni, off_roni = CPC.fetch_oni(), CPC.fetch_roni()
+        official_months = set(off_oni) | set(off_roni)
+
+        def _override(ser, off):
+            if ser is None:
+                return 0
+            n = 0
+            for t in ser.index:
+                v = off.get(f"{t:%Y-%m}")
+                if v is not None:
+                    ser.loc[t] = v
+                    n += 1
+            return n
+
+        n_o, n_r = _override(oni, off_oni), _override(roni, off_roni)
+        print(f"  CPC official: {n_o} ONI and {n_r} RONI months from CPC's own tables")
+    except Exception as e:                                # noqa: BLE001
+        off_oni = off_roni = {}
+        print(f"  CPC official unavailable ({repr(e)[:70]}); using table-derived ONI/RONI",
+              file=sys.stderr)
+
     months = [f"{d:%Y-%m}" for d in df.index]
 
     def col(name):
@@ -176,6 +223,22 @@ def main() -> int:
     if roni is not None:
         series["roni"] = {"anom": [round(float(v), 2) if pd.notna(v) else None
                                    for v in roni.values]}
+
+    # Months CPC has published that the frozen table cannot reach. The regional
+    # series have no official counterpart, so they stay null there.
+    for m in sorted(official_months - set(months)):
+        if m <= months[-1]:
+            continue
+        months.append(m)
+        for k, sub in series.items():
+            for part in sub:
+                sub[part].append(None)
+        i = len(months) - 1
+        if m in off_oni:
+            series["oni"]["anom"][i] = round(float(off_oni[m]), 2)
+        if "roni" in series and m in off_roni:
+            series["roni"]["anom"][i] = round(float(off_roni[m]), 2)
+    official_through = max(official_months) if official_months else None
 
     events = build_events(oni)
     # Current developing event: align to its onset-year's climatological Dec peak so the
@@ -225,7 +288,7 @@ def main() -> int:
                     elif k in ("oni", "roni") and part == "anom" and                             m in mon.get("months", []):
                         val = mon[k][mon["months"].index(m)]
                     sub[part].append(val)
-            provisional_from = provisional_from or last_hist
+            provisional_from = provisional_from or (official_through or last_hist)
     except Exception as _e:                                # noqa: BLE001
         print(f"  provisional bridge skipped: {_e}")
 
