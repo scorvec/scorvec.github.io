@@ -434,6 +434,13 @@ window.STAGE = {
 
   function buildChips(L) {
     var st = ensoState(L.oni, L.roni);
+    // the three calendar months the centred convention actually averages, e.g. 2026-08 -> "Jul–Sep"
+    function centred(ym) {
+      if (!ym || ym.length < 7) return "3-month";
+      var M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      var m = parseInt(ym.slice(5, 7), 10) - 1;
+      return M[(m + 11) % 12] + "–" + M[(m + 1) % 12];
+    }
     var chips = [];
     // CPC's own latest, first: the official record, ahead of our estimate of it.
     var O = window.CPCOFF;
@@ -453,18 +460,23 @@ window.STAGE = {
         cls: tone(L.nino34) },
       { l: "Daily RONI", v: fmt(L.roni_d) + " °C", s: "relative, σ-scaled" + arrow(L.roni_d_d7),
         cls: tone(L.roni_d) },
-      { l: "ONI est. (90-day)", v: fmt(L.oni90) + " °C", s: "running daily estimate" + arrow(L.oni90_d7),
+      // Two ONI-like numbers sit next to each other and they are NOT the same window: this
+      // one is a ROLLING 90 days ending today, the one below is the calendar 3-month mean
+      // the index is defined on. Both said "ONI est." and read as duplicates (user,
+      // 2026-09-13), so each now names its own window.
+      { l: "ONI est. · rolling 90 days", v: fmt(L.oni90) + " °C",
+        s: "daily mean ending " + L.date + arrow(L.oni90_d7),
         cls: tone(L.oni90) },
       // NOT the official CPC ONI. CPC publishes ERSSTv5 against a base period that
       // shifts every five years; this is the same 3-month convention applied to
       // OISST v2.1 on a fixed 1991-2020 base, so it can differ from the official
       // number. It is also PRELIMINARY: the convention is a CENTRED 3-month mean,
       // so the month shown is built partly from the current, incomplete month.
-      { l: "ONI est. · " + L.oni_month, v: fmt(L.oni) + " °C",
-        s: "3-mo convention · OISST, not CPC official · preliminary",
+      { l: "ONI est. · " + L.oni_month + " (3-month)", v: fmt(L.oni) + " °C",
+        s: centred(L.oni_month) + " mean · OISST, not CPC official · preliminary",
         cls: tone(L.oni), prelim: true },
-      { l: "RONI est. · " + L.oni_month, v: fmt(L.roni) + " °C",
-        s: "3-mo, σ-scaled · OISST, not CPC official · preliminary",
+      { l: "RONI est. · " + L.oni_month + " (3-month)", v: fmt(L.roni) + " °C",
+        s: centred(L.oni_month) + " mean, σ-scaled · OISST, not CPC official · preliminary",
         cls: tone(L.roni), prelim: true },
       { l: "Tropical mean 20S–20N", v: fmt(L.trop) + " °C", s: "the warming background" + arrow(L.trop_d7),
         cls: "neut" },
