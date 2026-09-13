@@ -67,10 +67,12 @@
     <h2>Daily ENSO indices &mdash; interactive</h2>
     <p class="note">Every index is a daily area-weighted SST average, so today's value exists
     today &mdash; no waiting for the month to close. <b style="color:#1a1a1a">Ni&ntilde;o-3.4</b>
-    is the raw material of ONI; the <b style="color:var(--aqua)">daily RONI</b> subtracts the
-    20&deg;S&ndash;20&deg;N tropical mean and rescales by the CPC/ECMWF &sigma;-factor, so it reads on
-    ONI's &plusmn;0.5&thinsp;&deg;C thresholds; the <b style="color:#e8c04d">90-day mean</b> is the
-    running daily estimate of ONI itself. Click legend entries to add
+    is the raw material of ONI; the <b style="color:var(--aqua)">daily relative Ni&ntilde;o-3.4</b>
+    subtracts the same day's 20&deg;S&ndash;20&deg;N tropical mean and rescales by the CPC/ECMWF
+    &sigma;-factor, so it reads on ONI's &plusmn;0.5&thinsp;&deg;C thresholds. <b>There is no official
+    daily RONI</b>: RONI is a 3-month index, and what is drawn here is the daily quantity it is
+    built from &mdash; useful because it moves today, not a published number. The
+    <b style="color:#e8c04d">90-day mean</b> is likewise an estimate of ONI, not ONI itself. Click legend entries to add
     Ni&ntilde;o-1+2 / 3 / 4 and the tropical mean; drag to zoom, double-click to reset.</p>
     <div class="controls">
       <button class="pill on" data-mode="anom">Anomalies</button>
@@ -362,9 +364,14 @@
       // here is the DATASET (OISST, not CPC's ERSST) and the unclosed month.
       { l: "ENSO state · " + L.oni_month, v: st.name, s: st.sub,
         cls: tone(L.roni), prelim: true },
-      { l: "Daily Niño-3.4", v: fmt(L.nino34) + " °C", s: "single day, " + L.date + arrow(L.nino34_d7),
+      { l: "Daily Niño-3.4", v: fmt(L.nino34) + " °C",
+        s: "OISST anomaly vs 1991–2020 · single day, " + L.date + arrow(L.nino34_d7),
         cls: tone(L.nino34) },
-      { l: "Daily RONI", v: fmt(L.roni_d) + " °C", s: "relative, σ-scaled" + arrow(L.roni_d_d7),
+      // NOT the official RONI, which is a 3-month index: this is the day's Niño-3.4 anomaly
+      // minus the day's 20S-20N mean, on RONI's sigma scale. Calling it "daily RONI" implied
+      // an index that does not exist at daily resolution (user, 2026-09-13).
+      { l: "Daily relative Niño-3.4", v: fmt(L.roni_d) + " °C",
+        s: "Niño-3.4 − 20°S–20°N mean, σ-scaled · single day, " + L.date + arrow(L.roni_d_d7),
         cls: tone(L.roni_d) },
       // Two ONI-like numbers sit next to each other and they are NOT the same window: this
       // one is a ROLLING 90 days ending today, the one below is the calendar 3-month mean
@@ -442,7 +449,7 @@
         tr("trop", "Tropical mean", C.trop, { visible: "legendonly",
           line: { color: C.trop, width: 1.2, dash: "dot" } }),
         tr("nino34", "Niño-3.4 (daily)", C.nino34),
-        tr("roni_d", "Daily RONI", C.roni_d, { line: { color: C.roni_d, width: 2.4 } }),
+        tr("roni_d", "Daily relative Niño-3.4", C.roni_d, { line: { color: C.roni_d, width: 2.4 } }),
         tr("oni90", "ONI est. (90-d mean)", C.oni90, { line: { color: C.oni90, width: 2.2 } }),
       ];
       shapes = thresholdShapes(x[0], x[x.length - 1]);

@@ -78,20 +78,24 @@
 <template id="about-indices">
 <p class="note">Every index is a daily area-weighted SST average, so today's value exists
     today &mdash; no waiting for the month to close. <b style="color:#1a1a1a">Ni&ntilde;o-3.4</b>
-    is the raw material of ONI; the <b style="color:var(--aqua)">daily RONI</b> subtracts the
-    20&deg;S&ndash;20&deg;N tropical mean and rescales by the CPC/ECMWF &sigma;-factor, so it reads on
-    ONI's &plusmn;0.5&thinsp;&deg;C thresholds; the <b style="color:#e8c04d">90-day mean</b> is the
-    running daily estimate of ONI itself. Click legend entries to add
+    is the raw material of ONI; the <b style="color:var(--aqua)">daily relative Ni&ntilde;o-3.4</b>
+    subtracts the same day's 20&deg;S&ndash;20&deg;N tropical mean and rescales by the CPC/ECMWF
+    &sigma;-factor, so it reads on ONI's &plusmn;0.5&thinsp;&deg;C thresholds. <b>There is no official
+    daily RONI</b>: RONI is a 3-month index, and what is drawn here is the daily quantity it is
+    built from &mdash; useful because it moves today, not a published number. The
+    <b style="color:#e8c04d">90-day mean</b> is likewise an estimate of ONI, not ONI itself. Click legend entries to add
     Ni&ntilde;o-1+2 / 3 / 4 and the tropical mean; drag to zoom, double-click to reset.</p>
 <p class="chart-sources">NOAA OISST v2.1 daily &middot; cosine-weighted box means &middot; base 1991&ndash;2020 &middot; RONI scale: per-month &sigma;(ONI)/&sigma;(relative), CPC/ECMWF method</p>
 </template>
 <template id="about-onironi">
 <p class="note">Every index is a daily area-weighted SST average, so today's value exists
     today &mdash; no waiting for the month to close. <b style="color:#1a1a1a">Ni&ntilde;o-3.4</b>
-    is the raw material of ONI; the <b style="color:var(--aqua)">daily RONI</b> subtracts the
-    20&deg;S&ndash;20&deg;N tropical mean and rescales by the CPC/ECMWF &sigma;-factor, so it reads on
-    ONI's &plusmn;0.5&thinsp;&deg;C thresholds; the <b style="color:#e8c04d">90-day mean</b> is the
-    running daily estimate of ONI itself. Click legend entries to add
+    is the raw material of ONI; the <b style="color:var(--aqua)">daily relative Ni&ntilde;o-3.4</b>
+    subtracts the same day's 20&deg;S&ndash;20&deg;N tropical mean and rescales by the CPC/ECMWF
+    &sigma;-factor, so it reads on ONI's &plusmn;0.5&thinsp;&deg;C thresholds. <b>There is no official
+    daily RONI</b>: RONI is a 3-month index, and what is drawn here is the daily quantity it is
+    built from &mdash; useful because it moves today, not a published number. The
+    <b style="color:#e8c04d">90-day mean</b> is likewise an estimate of ONI, not ONI itself. Click legend entries to add
     Ni&ntilde;o-1+2 / 3 / 4 and the tropical mean; drag to zoom, double-click to reset.</p>
 <p class="chart-sources">NOAA OISST v2.1 daily &middot; cosine-weighted box means &middot; base 1991&ndash;2020 &middot; RONI scale: per-month &sigma;(ONI)/&sigma;(relative), CPC/ECMWF method</p>
 </template>
@@ -258,7 +262,7 @@ window.STAGE = {
           frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=anomaly,absolute,relative,tropical_rel"; }, about: "about-sstmaps",
           cap: function (a) { return {anomaly: "NOAA OISST v2.1 daily anomaly against 1991–2020, global and tropical Pacific, animated over the last 90 days with each day's ONI, tropical-mean and RONI readout.", absolute: "The raw sea-surface temperature over the last 90 days.", relative: "The anomaly with the global mean removed: the ENSO pattern without the background warming.", tropical_rel: "30°S–30°N with the 20°S–20°N mean subtracted — RONI's arithmetic drawn as a map."}[a]; }},
   indices: {label: "Daily ENSO indices", dom: function () { return "dom-indices"; }, about: "about-indices",
-          cap: function () { return "Daily area-weighted SST indices: Niño-3.4, the daily RONI and the 90-day running ONI estimate; toggle absolute values and the range, click legend entries for the other regions."; }},
+          cap: function () { return "Daily area-weighted SST indices: Niño-3.4, the daily relative Niño-3.4 (the quantity RONI is built from — there is no official daily RONI) and the 90-day running ONI estimate; toggle absolute values and the range, click legend entries for the other regions."; }},
   onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=__CACHE__"; }, about: "about-onironi", fit: false,
           cap: function () { return "The 3-month ONI convention applied to OISST \u2014 an estimate, NOT the official CPC ERSSTv5 value \u2014 beside the relative index, by season. The newest season is preliminary: the convention is a centred 3-month mean, so it leans on a month that has not closed."; }},
   beyond: {label: "Beyond ENSO", a: {label: "Index", items: [["pdo","PDO"],["iod","Indian Ocean Dipole"],["satl","South Atlantic dipole"]]},
@@ -344,6 +348,21 @@ window.STAGE = {
 
   function buildChips(L) {
     var st = ensoState(L.oni, L.roni);
+    // CPC's thresholds on |index|: 0.5 weak, 1.0 moderate, 1.5 strong, 2.0 very strong.
+    // The official chip is shaded by the STRENGTH of the event, not just its sign, because
+    // that is the number a reader anchors on (user, 2026-09-13).
+    function strengthStep(v) {
+      var a = Math.abs(v == null ? 0 : v);
+      return a >= 2.0 ? 4 : a >= 1.5 ? 3 : a >= 1.0 ? 2 : a >= 0.5 ? 1 : 0;
+    }
+    function strengthClass(v) {
+      var k = strengthStep(v);
+      return k === 0 ? "" : "chip--strength chip--s" + k + (v > 0 ? "e" : "l");
+    }
+    function strengthName(v) {
+      var k = strengthStep(v), side = v > 0 ? "El Niño" : "La Niña";
+      return ["neutral", "weak " + side, "moderate " + side, "strong " + side, "very strong " + side][k];
+    }
     var chips = [];
     // CPC's own latest, first: the official record, ahead of our estimate of it.
     var O = window.CPCOFF;
@@ -351,7 +370,8 @@ window.STAGE = {
       var mk = Object.keys(O.roni).sort().pop();
       if (mk) chips.push({ l: "CPC official · " + mk, v: fmt(O.roni[mk]) + " °C",
         s: "RONI, CPC's official index" + (O.oni && O.oni[mk] != null
-            ? " · ONI " + fmt(O.oni[mk]) : ""), cls: tone(O.roni[mk]) });
+            ? " · ONI " + fmt(O.oni[mk]) : "") + " · " + strengthName(O.roni[mk]),
+        cls: tone(O.roni[mk]), strength: strengthClass(O.roni[mk]) });
     }
     chips = chips.concat([
       // The asterisk is explained under the strip: CPC made RONI its official
@@ -383,7 +403,8 @@ window.STAGE = {
       { l: "Trans-Niño index", v: fmt(L.tni) + " σ", s: (L.tni >= 0 ? "east-loaded" : "west-loaded") + " · σ(1+2) − σ(4)" + arrow(L.tni_d7),
         cls: "neut" });
     document.getElementById("chips").innerHTML = chips.map(function (c) {
-      return '<div class="chip' + (c.prelim ? ' chip--prelim' : '') + '">' +
+      return '<div class="chip' + (c.prelim ? ' chip--prelim' : '') +
+                    (c.strength ? ' ' + c.strength : '') + '">' +
              '<div class="l">' + c.l + (c.prelim ? '<span class="pflag">prelim</span>' : '') + '</div>' +
              '<div class="v ' + c.cls + '">' + c.v + '</div>' +
              '<div class="s">' + c.s + "</div></div>";

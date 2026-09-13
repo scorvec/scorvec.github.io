@@ -437,3 +437,23 @@ table.tele-sfs th span, table.tele-sfs td span { display: block; font-weight: 40
 table.tele-sfs td i { font-style: normal; color: #4a4640; }
 table.tele-sfs td.flagged { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.55) 0 4px, rgba(140,136,128,0.35) 4px 6px) !important; }
 .tele-sfs-cap { font-size: 0.78rem; color: var(--ink2); margin-top: 0.6rem; max-width: 110ch; }
+
+/* ── ENSO strength shading on the official CPC chip ──────────────────────────
+   The official number is the one a reader anchors on, so it carries the event's
+   STRENGTH as colour rather than only its sign: CPC's own thresholds on |index|
+   (0.5 weak, 1.0 moderate, 1.5 strong, 2.0 very strong), deepening red for El
+   Nino and blue for La Nina. Text stays on a light tint at the weak end and
+   flips to white once the tint is dark enough to need it. */
+.chip--s1e { background: #fbe9df; border-color: #f0c3a6; }
+.chip--s2e { background: #f6cdb2; border-color: #e39d6f; }
+.chip--s3e { background: #e58f5a; border-color: #c9702f; }
+.chip--s3e .l, .chip--s3e .s { color: #4a2410; }
+.chip--s4e { background: #b4541f; border-color: #8d3f14; }
+.chip--s4e .v, .chip--s4e .l, .chip--s4e .s { color: #fff; }
+.chip--s1l { background: #e4eef7; border-color: #b9d2e8; }
+.chip--s2l { background: #c3dbef; border-color: #8fb6d8; }
+.chip--s3l { background: #7fa9cf; border-color: #5182b0; }
+.chip--s3l .l, .chip--s3l .s { color: #13293d; }
+.chip--s4l { background: #2f6ea5; border-color: #24557e; }
+.chip--s4l .v, .chip--s4l .l, .chip--s4l .s { color: #fff; }
+.chip--strength .v { color: inherit; }
