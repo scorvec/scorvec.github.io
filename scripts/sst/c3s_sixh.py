@@ -131,8 +131,13 @@ def fetch_hindcast(centre: str, system: str, region: str, issue: str, k: int) ->
 
 
 def fetch_chunk(centre: str, system: str, region: str, issue: str, k: int, var: str = "t2m") -> bool:
+    if var == "x" and centre == "ncep":
+        return False                      # no daily extremes in this collection (see fetch_hindcast)
     dest = path_for(centre, system, region, issue, k, var)
     if dest.exists() and dest.stat().st_size > 0:
+        return True
+    parts = sorted(dest.parent.glob(dest.stem + "_p*" + dest.suffix))
+    if parts and all(f.stat().st_size > 0 for f in parts):
         return True
     STORE.mkdir(parents=True, exist_ok=True)
     hours = month_hours(issue, k)
@@ -149,26 +154,45 @@ def fetch_chunk(centre: str, system: str, region: str, issue: str, k: int, var: 
         hours = [str(h) for h in range(max(lo - 744, 6), hi + 1, 6)]
     else:
         ym, days = issue, ["01"]
+    if var == "x":
+        # the extremes are 24-hour quantities and exist only at daily steps; asking for the
+        # 6-hourly grid quadruples the request for nothing and is part of what tipped the
+        # lagged systems over the size the collection will serve
+        hours = [h for h in hours if int(h) % 24 == 0]
     req = {"originating_centre": centre, "system": str(system), "variable": VARS[var],
            "year": [ym[:4]], "month": [ym[4:6]], "day": days, "leadtime_hour": hours,
            "area": REGIONS[region][2], "grid": [1.0, 1.0], "data_format": "grib"}
-    tmp = dest.with_suffix(".part")
-    t0 = time.time()
-    try:
-        _client().retrieve(DATASET, req, str(tmp))
-    except Exception as e:                                            # noqa: BLE001
-        msg = str(e).replace("\n", " ")
-        print(f"  {centre}/{system} {region} m{k} {var}: FAILED {msg[:110]}", flush=True)
-        tmp.unlink(missing_ok=True)
-        return False
-    if not (tmp.exists() and tmp.stat().st_size > 0):
-        return False
-    os.replace(tmp, dest)
-    print(f"  {centre}/{system} {region} m{k} {var}: {dest.stat().st_size / 1e6:.0f} MB "
-          f"in {(time.time() - t0) / 60:.1f} min", flush=True)
-    return True
-
-
+    # Two daily-extremes variables across 31 start days is more than this collection will
+    # serve in one request -- it answers 403 Forbidden, not a size error -- so a lagged
+    # system's extremes are fetched in groups of start days and read back as a set.
+    groups = [days]
+    if var == "x" and len(days) > 8:
+        groups = [days[i:i + 8] for i in range(0, len(days), 8)]
+    ok_all = True
+    for gi, grp in enumerate(groups):
+        out = dest if len(groups) == 1 else dest.with_name(dest.stem + f"_p{gi}" + dest.suffix)
+        if out.exists() and out.stat().st_size > 0:
+            continue
+        rq = dict(req, day=grp)
+        tmp = out.with_suffix(".part")
+        t0 = time.time()
+        try:
+            _client().retrieve(DATASET, rq, str(tmp))
+        except Exception as e:                                        # noqa: BLE001
+            msg = str(e).replace("\n", " ")
+            print(f"  {centre}/{system} {region} m{k} {var}"
+                  f"{'' if len(groups) == 1 else f' part {gi + 1}/{len(groups)}'}: FAILED {msg[:100]}", flush=True)
+            tmp.unlink(missing_ok=True)
+            ok_all = False
+            continue
+        if not (tmp.exists() and tmp.stat().st_size > 0):
+            ok_all = False
+            continue
+        os.replace(tmp, out)
+        print(f"  {centre}/{system} {region} m{k} {var}"
+              f"{'' if len(groups) == 1 else f' part {gi + 1}/{len(groups)}'}: "
+              f"{out.stat().st_size / 1e6:.0f} MB in {(time.time() - t0) / 60:.1f} min", flush=True)
+    return ok_all
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--issue", default=time.strftime("%Y%m", time.gmtime()))
