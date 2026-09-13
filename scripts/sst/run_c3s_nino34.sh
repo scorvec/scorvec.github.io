@@ -124,6 +124,14 @@ fi
 "$PY" scripts/sst/c3s_sixh.py || echo "c3s 6-hourly pull incomplete; building on what landed"
 "$PY" scripts/sst/c3s_popt_daily.py || echo "c3s daily distribution build failed; keeping the previous issue"
 
+# Threshold days need two more things: this issue's daily max/min (small, one year) and the
+# 24-year extremes climatology to quantile-map against. The climatology is keyed on the START
+# MONTH, so it is paid for once per calendar month and is free in the same month next year --
+# about 14 GB the first time a month comes round, nothing after. NCEP is skipped inside the
+# fetcher: it publishes no daily extremes to this collection at all.
+"$PY" scripts/sst/c3s_sixh.py --var x || echo "c3s forecast extremes incomplete; building on what landed"
+"$PY" scripts/sst/c3s_sixh.py --hindcast || echo "c3s extremes climatology incomplete; building on what landed"
+
 # PRIVATE strat gate product — writes only to gitignored paths
 "$PY" scripts/strat/sfs_gate100.py || echo "SFS gate failed; continuing"
 

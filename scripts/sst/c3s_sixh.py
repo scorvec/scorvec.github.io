@@ -42,7 +42,11 @@ MONTHS = 6
 # is where this starts. Winds and snowfall are their own (equally large) pulls.
 VARS = {"t2m": ["2m_temperature"],
         "wind": ["10m_u_component_of_wind", "10m_v_component_of_wind"],
-        "snow": ["snowfall"]}
+        "snow": ["snowfall"],
+        # the threshold-day pair: daily extremes, which is what a "cold day" is counted on
+        "x": ["maximum_2m_temperature_in_the_last_24_hours",
+              "minimum_2m_temperature_in_the_last_24_hours"]}
+CLIM_YEARS = [str(y) for y in range(1993, 2017)]     # the C3S common hindcast period
 
 
 def path_for(centre: str, system: str, region: str, issue: str, k: int, var: str = "t2m") -> Path:
@@ -77,6 +81,53 @@ def start_dates(centre: str, system: str, issue: str):
     out = sorted({str(t)[:10] for t in np.atleast_1d(ds["time"].values)})
     ds.close()
     return out
+
+
+def hc_path(centre: str, system: str, region: str, month: str, k: int) -> Path:
+    """Hindcast extremes are a function of the START MONTH, not the year: one pull serves
+    every September issue there will ever be."""
+    return STORE / f"hc_{centre}_{system}_{region}_{month}_m{k}_x.grib"
+
+
+def fetch_hindcast(centre: str, system: str, region: str, issue: str, k: int) -> bool:
+    """24 years of daily max/min for forecast month k — the model's own extremes climatology.
+
+    The threshold-day products quantile-map against this: a mean-bias correction is not
+    enough, because a seasonal model's diurnal range is too small and its Tmin bias is the
+    larger of the two. Unlike the real-time pull, day 01 is right for every system here:
+    a lagged system's HINDCAST is published as many members on one start per year, not as
+    members spread over start days.
+    """
+    from seas5_extremes import day_hours
+    # NCEP CFSv2 publishes no daily max/min to this collection: every hindcast request for
+    # its extremes comes back MarsNoDataError (checked 2026-09-13). Its threshold days would
+    # have to be derived from 6-hourly instantaneous temperature, which is a far larger pull,
+    # so the product leaves NCEP out and says so rather than fetching 12 chunks of nothing.
+    if centre == "ncep":
+        return False
+    month = issue[4:6]
+    dest = hc_path(centre, system, region, month, k)
+    if dest.exists() and dest.stat().st_size > 0:
+        return True
+    STORE.mkdir(parents=True, exist_ok=True)
+    req = {"originating_centre": centre, "system": str(system), "variable": VARS["x"],
+           "year": CLIM_YEARS, "month": [month], "day": ["01"],
+           "leadtime_hour": day_hours(issue, k),
+           "area": REGIONS[region][2], "grid": [1.0, 1.0], "data_format": "grib"}
+    tmp = dest.with_suffix(".part")
+    t0 = time.time()
+    try:
+        _client().retrieve(DATASET, req, str(tmp))
+    except Exception as e:                                            # noqa: BLE001
+        print(f"  {centre}/{system} {region} m{k} hindcast: FAILED {str(e)[:110]}", flush=True)
+        tmp.unlink(missing_ok=True)
+        return False
+    if not (tmp.exists() and tmp.stat().st_size > 0):
+        return False
+    os.replace(tmp, dest)
+    print(f"  {centre}/{system} {region} m{k} hindcast: {dest.stat().st_size / 1e6:.0f} MB "
+          f"in {(time.time() - t0) / 60:.1f} min", flush=True)
+    return True
 
 
 def fetch_chunk(centre: str, system: str, region: str, issue: str, k: int, var: str = "t2m") -> bool:
@@ -126,18 +177,26 @@ def main() -> int:
     ap.add_argument("--var", default="t2m", choices=sorted(VARS))
     ap.add_argument("--months", type=int, default=MONTHS)
     ap.add_argument("--probe", action="store_true", help="one chunk only, to measure the cost")
+    ap.add_argument("--hindcast", action="store_true",
+                    help="fetch the 24-year daily extremes instead (threshold days); keyed on start month")
+    ap.add_argument("--order", default="", help="comma list of centre_system, fetched in this order")
     a = ap.parse_args()
     regions = [r for r in a.regions.split(",") if r in REGIONS]
     got = need = 0
     t0 = time.time()
-    for entry in MODELS:
+    order = [x.strip() for x in a.order.split(",") if x.strip()]
+    entries = list(MODELS)
+    if order:                                    # cheapest systems first, so value accrues early
+        entries.sort(key=lambda e: order.index(f"{e[0]}_{e[1]}") if f"{e[0]}_{e[1]}" in order else len(order))
+    for entry in entries:
         centre, system = entry[0], str(entry[1])
         if a.only and f"{centre}_{system}" != a.only:
             continue
         for region in regions:
             for k in range(1, a.months + 1):
                 need += 1
-                got += bool(fetch_chunk(centre, system, region, a.issue, k, a.var))
+                got += bool(fetch_hindcast(centre, system, region, a.issue, k) if a.hindcast
+                            else fetch_chunk(centre, system, region, a.issue, k, a.var))
                 if a.probe:
                     print(f"probe: {got}/{need} chunk(s) in {(time.time() - t0) / 60:.1f} min")
                     return 0 if got else 1
