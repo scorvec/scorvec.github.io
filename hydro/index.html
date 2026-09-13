@@ -9,285 +9,205 @@
   Generic loader. This file is the only public part of the board: it holds no
   data, no place names and no description of the content. Everything shown is
   fetched at runtime from a PRIVATE repository through the GitHub API using a
-  read-only token the viewer supplies, so without that token this page renders
-  nothing and a crawler that finds the URL learns nothing.
+  read-only token the viewer supplies; without that token this page renders
+  nothing, and a crawler that finds the URL learns nothing.
 
   The token is sent to api.github.com and nowhere else, and is kept only in
-  this browser's localStorage. Use a FINE-GRAINED personal access token
-  scoped to the single repository with Contents: Read and a short expiry --
-  never a classic token, which is account-wide.
+  this browser's localStorage. Use a FINE-GRAINED personal access token scoped
+  to the single repository with Contents: Read and a short expiry.
 -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Source+Sans+3:wght@400;500;600&display=swap">
 <style>
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
-    --bg:#fcfcfa; --ink:#1a1a1a; --ink2:#4a4744; --muted:#8a8680;
-    --accent:#2f5d7c; --rule:#e2e0da; --edge:#c9c5bb; --surface:#fff;
-    --warn:#8a5b1a; --warnbg:#fdf6e8;
-    --serif:'Lora',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+    --bg:#f5f6f3; --panel:#ffffff; --ink:#29321f; --ink2:#43503a; --muted:#5c6b73;
+    --rule:#dfe3dc; --edge:#c9d0c5; --accent:#274b7a; --accent-soft:rgba(39,75,122,.09);
+    --warn-ink:#6b4a12; --warn-bg:#fbf4e4; --warn-edge:#d9b96a; --err:#a33a2a;
+    --serif:'Source Serif 4','Iowan Old Style','Palatino Linotype',Georgia,serif;
+    --sans:'Source Sans 3','Helvetica Neue',Arial,sans-serif;
   }
-  @media (prefers-color-scheme:dark){
-    :root:not([data-theme="light"]){
-      --bg:#14171a; --ink:#e8eaec; --ink2:#b9bec3; --muted:#8b9298;
-      --accent:#7fb3d5; --rule:#272c31; --edge:#343a40; --surface:#1b1f23;
-      --warn:#d8b871; --warnbg:#241f16;
-    }
-  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#11111c; --panel:#171724; --ink:#e8e8f0; --ink2:#c9c9d6; --muted:#8b8ba3;
+    --rule:#23233a; --edge:#33334d; --accent:#64d2ff; --accent-soft:rgba(100,210,255,.12);
+    --warn-ink:#e3cf95; --warn-bg:#24211a; --warn-edge:#8c7a3d; --err:#f08a80}}
   :root[data-theme="dark"]{
-    --bg:#14171a; --ink:#e8eaec; --ink2:#b9bec3; --muted:#8b9298;
-    --accent:#7fb3d5; --rule:#272c31; --edge:#343a40; --surface:#1b1f23;
-    --warn:#d8b871; --warnbg:#241f16;
-  }
-  html{font-size:17px}
-  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
-    -webkit-font-smoothing:antialiased;line-height:1.5}
-  .wrap{max-width:min(1560px,96vw);margin:0 auto;padding:1.6rem 1.1rem 3rem}
-  h1{font-family:var(--serif);font-weight:500;font-size:1.55rem;letter-spacing:-.01em}
-  .sub{color:var(--muted);font-size:.93rem;margin:.3rem 0 1.3rem}
-  /* ---- gate ---- */
-  #gate{max-width:33rem;margin:3.5rem auto;background:var(--surface);
-    border:1px solid var(--edge);border-radius:8px;padding:1.5rem 1.6rem}
-  #gate h2{font-family:var(--serif);font-weight:500;font-size:1.2rem;margin-bottom:.5rem}
-  #gate p{color:var(--ink2);font-size:.9rem;margin-bottom:1rem}
-  label{display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;
-    color:var(--muted);margin:.9rem 0 .28rem}
-  input{width:100%;padding:.52rem .6rem;font:inherit;font-size:.9rem;
-    background:var(--bg);color:var(--ink);border:1px solid var(--edge);border-radius:5px}
-  input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-  button{font:inherit;font-size:.88rem;padding:.5rem .95rem;border-radius:5px;
-    border:1px solid var(--edge);background:var(--surface);color:var(--ink);cursor:pointer}
+    --bg:#11111c; --panel:#171724; --ink:#e8e8f0; --ink2:#c9c9d6; --muted:#8b8ba3;
+    --rule:#23233a; --edge:#33334d; --accent:#64d2ff; --accent-soft:rgba(100,210,255,.12);
+    --warn-ink:#e3cf95; --warn-bg:#24211a; --warn-edge:#8c7a3d; --err:#f08a80}
+  *,*::before,*::after{box-sizing:border-box}
+  html{font-size:15px}
+  body{margin:0;background:var(--bg);color:var(--ink);font:400 1rem/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+  h1,h2{font-family:var(--serif);font-weight:500;margin:0;line-height:1.25}
+  button,input{font:inherit;color:var(--ink)}
+  button{background:var(--panel);border:1px solid var(--edge);border-radius:4px;padding:.3rem .7rem;cursor:pointer;line-height:1.3}
   button:hover{border-color:var(--accent)}
+  button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
-  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button.primary{color:#0e1216}}
   :root[data-theme="dark"] button.primary{color:#0e1216}
-  .row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:1.2rem}
-  .caution{margin-top:1.1rem;padding:.6rem .7rem;border-left:2px solid var(--warn);
-    background:var(--warnbg);color:var(--warn);font-size:.8rem;line-height:1.45}
-  .err{color:#b3261e;font-size:.85rem;margin-top:.8rem;min-height:1.2em}
-  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .err{color:#f08a80}}
-  /* ---- board ---- */
-  #board{display:none}
-  .bar{display:flex;gap:.4rem;align-items:baseline;flex-wrap:wrap;
-    padding-bottom:.7rem;border-bottom:1px solid var(--rule);margin-bottom:1rem}
-  .bar .meta{color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
-  .bar .sp{margin-left:auto;display:flex;gap:.4rem}
-  .tabs{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.9rem}
-  .tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
-  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tabs button.on{color:#0e1216}}
-  :root[data-theme="dark"] .tabs button.on{color:#0e1216}
-  .blurb{color:var(--ink2);font-size:.88rem;margin-bottom:.7rem}
-  #stage{border:1px solid var(--edge);border-radius:7px;overflow:hidden;
-    background:var(--surface)}
-  #stage iframe{width:100%;height:min(84vh,1000px);border:0;display:block}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button.primary{color:#0e1216}}
+  /* gate */
+  #gate{max-width:32rem;margin:4rem auto;background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:1.5rem 1.7rem}
+  #gate h1{font-size:1.35rem;margin-bottom:.4rem}
+  #gate p{color:var(--ink2);margin:0 0 1rem}
+  #gate label{display:block;font-size:.9rem;color:var(--muted);margin:.9rem 0 .25rem}
+  #gate input{width:100%;padding:.5rem .6rem;background:var(--bg);border:1px solid var(--edge);border-radius:4px}
+  .row{display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;margin-top:1.1rem}
+  .row label{display:flex;align-items:center;gap:.4rem;margin:0;font-size:.92rem;color:var(--ink2)}
+  .row input[type=checkbox]{width:auto}
+  .caution{margin-top:1.1rem;padding:.55rem .75rem;border-left:3px solid var(--warn-edge);background:var(--warn-bg);color:var(--warn-ink);font-size:.88rem;line-height:1.45;border-radius:0 4px 4px 0}
+  .err{color:var(--err);font-size:.9rem;margin-top:.7rem;min-height:1.2em}
+  /* board: rail + stage */
+  #board{display:none;grid-template-columns:15rem 1fr;min-height:100vh}
+  #rail{background:var(--panel);border-right:1px solid var(--rule);padding:1rem 0 1.5rem;position:sticky;top:0;height:100vh;overflow:auto}
+  #rail h1{font-size:1.15rem;padding:0 1.1rem .15rem}
+  #rail .meta{color:var(--muted);font-size:.84rem;padding:0 1.1rem .9rem;line-height:1.4}
+  #rail h2{font-family:var(--sans);font-size:.84rem;font-weight:500;color:var(--muted);padding:.8rem 1.1rem .25rem}
+  #rail button.item{display:block;width:100%;text-align:left;border:0;border-left:3px solid transparent;border-radius:0;background:none;padding:.42rem 1.1rem .42rem calc(1.1rem - 3px);color:var(--ink2)}
+  #rail button.item:hover{background:var(--accent-soft)}
+  #rail button.item.on{border-left-color:var(--accent);color:var(--ink);font-weight:500;background:var(--accent-soft)}
+  #rail .foot{padding:1.2rem 1.1rem 0;display:flex;gap:.4rem;flex-wrap:wrap}
+  #rail .foot button{font-size:.88rem;padding:.22rem .55rem}
+  #stage{min-width:0;display:flex;flex-direction:column}
+  #blurb{color:var(--muted);font-size:.9rem;padding:.55rem 1.2rem;border-bottom:1px solid var(--rule);background:var(--panel)}
+  #stage iframe{width:100%;height:calc(100vh - 2.6rem);border:0;display:block;background:var(--bg)}
   #stage img{width:100%;height:auto;display:block}
-  #stage .fwrap{position:relative;background:#0e1216}
-  #stage .fwrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
-  #stage .fwrap img.off{visibility:hidden}
-  .player{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;
-    padding:.5rem .6rem;border-top:1px solid var(--rule);background:var(--surface)}
-  .player button{padding:.28rem .5rem;font-size:.85rem;min-width:2rem}
-  .player input[type=range]{flex:1;min-width:8rem;accent-color:var(--accent)}
-  .player .stamp{font:.78rem/1.3 ui-monospace,Menlo,monospace;color:var(--ink2);
-    font-variant-numeric:tabular-nums;white-space:nowrap}
-  .player .lbl{font-size:.75rem;color:var(--muted);margin-left:.3rem}
+  .fwrap{position:relative;background:var(--panel);max-height:calc(100vh - 6.4rem)}
+  .fwrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+  .fwrap img.off{visibility:hidden}
+  .player{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap;padding:.55rem 1rem;border-top:1px solid var(--rule);background:var(--panel)}
+  .player button{padding:.25rem .55rem;min-width:2.2rem}
   .player button.on{background:var(--accent);border-color:var(--accent);color:#fff}
-  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .player button.on{color:#0e1216}}
-  :root[data-theme="dark"] .player button.on{color:#0e1216}
-  .prog{color:var(--muted);font-size:.85rem;padding:2.2rem 1rem;text-align:center}
+  .player input[type=range]{flex:1;min-width:9rem;accent-color:var(--accent)}
+  .player .stamp{font-size:.88rem;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:16rem}
+  .player .lbl{font-size:.84rem;color:var(--muted);margin-left:.4rem}
+  .prog{color:var(--muted);padding:2.5rem 1.2rem}
+  @media (max-width:820px){#board{grid-template-columns:1fr}#rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--rule)}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <div id="gate">
-    <h2>Private board</h2>
-    <p>This page holds no content of its own. Give it a repository and a
-       read-only token and it will load the board from there.</p>
-    <label for="repo">Repository <span style="text-transform:none;letter-spacing:0">(owner/name)</span></label>
-    <input id="repo" autocomplete="off" spellcheck="false" placeholder="owner/repository">
-    <label for="tok">Access token</label>
-    <input id="tok" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
-    <div class="row">
-      <button class="primary" id="go">Unlock</button>
-      <label style="display:flex;align-items:center;gap:.4rem;margin:0;
-        text-transform:none;letter-spacing:0;font-size:.85rem;color:var(--ink2)">
-        <input type="checkbox" id="remember" checked style="width:auto"> remember on this device
-      </label>
-    </div>
-    <div class="err" id="err"></div>
-    <div class="caution">
-      Use a <b>fine-grained</b> token scoped to this one repository with
-      <b>Contents: Read</b> and a short expiry. The token is sent only to
-      api.github.com and, if remembered, stored in this browser alone —
-      not on the server, which is a static host and never sees it.
-    </div>
+<div id="gate">
+  <h1>Private board</h1>
+  <p>This page holds nothing of its own. Give it a repository and a read-only token and it loads the board from there.</p>
+  <label for="repo">Repository (owner/name)</label>
+  <input id="repo" autocomplete="off" spellcheck="false" placeholder="owner/repository">
+  <label for="tok">Access token</label>
+  <input id="tok" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
+  <div class="row">
+    <button class="primary" id="go">Unlock</button>
+    <label><input type="checkbox" id="remember" checked> Remember on this device</label>
   </div>
-
-  <div id="board">
-    <div class="bar">
-      <h1 id="btitle">Board</h1>
-      <span class="meta" id="bmeta"></span>
-      <span class="sp">
-        <button id="reload">Reload</button>
-        <button id="forget">Sign out</button>
-      </span>
-    </div>
-    <div class="tabs" id="tabs"></div>
-    <div class="blurb" id="blurb"></div>
-    <div id="stage"><div class="prog">loading…</div></div>
-  </div>
-
+  <div class="err" id="err"></div>
+  <div class="caution">Use a fine-grained token scoped to this one repository with Contents: Read and a short expiry.
+    The token is sent only to api.github.com and, if remembered, kept in this browser alone.</div>
 </div>
+
+<div id="board">
+  <nav id="rail">
+    <h1 id="btitle">Board</h1>
+    <div class="meta" id="bmeta"></div>
+    <div id="groups"></div>
+    <div class="foot"><button id="reload">Reload</button><button id="forget">Sign out</button></div>
+  </nav>
+  <div id="stage">
+    <div id="blurb"></div>
+    <div id="view"><div class="prog">Loading…</div></div>
+  </div>
+</div>
+
 <script>
 const $ = s => document.querySelector(s);
 const KEY = 'privboard';
-let CFG = null, MAN = null, cache = new Map(), cur = null;
+let CFG = null, MAN = null, cache = new Map(), cur = null, LOOP = null;
 
-function creds() {
-  try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; }
-}
+function creds(){ try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
 
-// Every call goes to api.github.com with the token in an Authorization header.
-// Nothing is ever appended to a URL, so the token cannot leak through a
-// referrer or a server log.
-async function gh(path, accept) {
-  const r = await fetch(
-    `https://api.github.com/repos/${CFG.repo}/contents/${path}?ref=${CFG.ref || 'main'}`,
-    { headers: { Authorization: `Bearer ${CFG.token}`, Accept: accept },
-      cache: 'no-store' });
+async function gh(path, accept){
+  const r = await fetch(`https://api.github.com/repos/${CFG.repo}/contents/${path}?ref=${CFG.ref || 'main'}`,
+    { headers: { Authorization: `Bearer ${CFG.token}`, Accept: accept }, cache: 'no-store' });
   if (!r.ok) {
-    // A private repo answers 404 for BOTH "no such path" and "your token may
-    // not see this", so the bare status cannot tell the viewer what to fix.
-    // Ask two cheaper questions to narrow it down.
-    const msg = (r.status === 404 || r.status === 403)
-      ? await diagnose(path) : r.status === 401
-      ? 'token rejected — it is invalid, revoked or expired'
-      : `${r.status} ${r.statusText}`;
+    const msg = (r.status === 404 || r.status === 403) ? await diagnose(path)
+      : r.status === 401 ? 'Token rejected: it is invalid, revoked or expired.' : `${r.status} ${r.statusText}`;
     throw new Error(msg);
   }
   return r;
 }
-
-async function probe(url) {
-  try {
-    const r = await fetch(url, { headers: {
-      Authorization: `Bearer ${CFG.token}`, Accept: 'application/vnd.github+json' } });
-    return { ok: r.ok, status: r.status, body: r.ok ? await r.json() : null };
-  } catch (e) { return { ok: false, status: 0, body: null }; }
+async function probe(url){
+  try { const r = await fetch(url, { headers: { Authorization: `Bearer ${CFG.token}`, Accept: 'application/vnd.github+json' } });
+        return { ok: r.ok, status: r.status, body: r.ok ? await r.json() : null }; }
+  catch (e) { return { ok: false, status: 0, body: null }; }
 }
-
-async function diagnose(path) {
+async function diagnose(path){
   const who = await probe('https://api.github.com/user');
-  if (!who.ok) return 'token rejected — it is invalid, revoked or expired';
+  if (!who.ok) return 'Token rejected: it is invalid, revoked or expired.';
   const repo = await probe(`https://api.github.com/repos/${CFG.repo}`);
-  if (!repo.ok) {
-    // The default for a NEW fine-grained token is "Public repositories only",
-    // which cannot read a private repo and returns exactly this.
-    return `signed in as ${who.body.login}, but this token cannot see `
-      + `${CFG.repo}. On the token's page set Resource owner to `
-      + `${CFG.repo.split('/')[0]}, Repository access to "Only select `
-      + `repositories" and pick this one — "Public repositories" (the default) `
-      + `cannot read a private repo. Check the owner/name spelling too.`;
-  }
+  if (!repo.ok) return `Signed in as ${who.body.login}, but this token cannot see ${CFG.repo}. On the token's page set `
+    + `Resource owner to ${CFG.repo.split('/')[0]} and Repository access to "Only select repositories" with this one chosen; `
+    + `the default, "Public repositories", cannot read a private repo. Check the owner/name spelling too.`;
   const br = repo.body.default_branch;
-  if (br && br !== (CFG.ref || 'main')) {
-    CFG.ref = br;
-    return `default branch is "${br}", not "main" — press Unlock again`;
-  }
-  return `signed in as ${who.body.login} and ${CFG.repo} is visible, but `
-    + `${path} could not be read. Grant the token Repository permissions → `
-    + `Contents: Read (Metadata alone is not enough), or the file is missing `
-    + `on branch "${br || 'main'}".`;
+  if (br && br !== (CFG.ref || 'main')) { CFG.ref = br; return `The default branch is "${br}", not "main". Press Unlock again.`; }
+  return `Signed in as ${who.body.login} and ${CFG.repo} is visible, but ${path} could not be read. `
+    + `Grant the token Repository permissions, Contents: Read (Metadata alone is not enough), or the file is missing on "${br || 'main'}".`;
 }
 
-// A loop is many small frames rather than one animated WebP, because the
-// point is the controls: an <img> of an animated WebP cannot be paused,
-// stepped or scrubbed. Frames are preloaded into their own <img> and toggled,
-// so stepping never re-decodes.
-let LOOP = null;
-
-function stampOf(name) {
-  const m = name.match(/_(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})Z/);
+// ---- loops: many small frames, so they can be paused, stepped and scrubbed
+function stampOf(name){
+  const m = name.match(/_(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?Z?/);
   if (!m) return name;
   const [, y, mo, d, h, mi] = m;
-  const loc = new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi))
-    .toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  return `${y}-${mo}-${d} ${h}:${mi}Z · ${loc}`;
+  if (h === undefined) return `${y}-${mo}-${d}`;
+  const loc = new Date(Date.UTC(+y, +mo-1, +d, +h, +mi)).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  return `${y}-${mo}-${d} ${h}:${mi} UTC, ${loc} local`;
 }
-
-function stopLoop() {
-  if (LOOP && LOOP.timer) clearInterval(LOOP.timer);
-  LOOP = null;
-}
-
-async function playLoop(it) {
+function stopLoop(){ if (LOOP && LOOP.timer) clearInterval(LOOP.timer); LOOP = null; }
+async function playLoop(it){
   stopLoop();
-  const host = $('#stage');
-  host.innerHTML = `<div class="fwrap" id="fwrap"></div>
+  $('#view').innerHTML = `<div class="fwrap" id="fwrap"></div>
     <div class="player">
-      <button id="pfirst" title="first">&#9198;</button>
-      <button id="pprev" title="step back">&#9664;</button>
-      <button id="pplay" class="on" title="play/pause">&#10074;&#10074;</button>
-      <button id="pnext" title="step forward">&#9654;</button>
-      <button id="plast" title="latest">&#9197;</button>
-      <input type="range" id="pscrub" min="0" max="0" value="0">
-      <span class="stamp" id="pstamp">loading…</span>
-      <span class="lbl">speed</span>
+      <button id="pfirst" title="First frame">|&lt;</button>
+      <button id="pprev" title="Step back">&lt;</button>
+      <button id="pplay" class="on" title="Pause">Pause</button>
+      <button id="pnext" title="Step forward">&gt;</button>
+      <button id="plast" title="Latest frame">&gt;|</button>
+      <input type="range" id="pscrub" min="0" max="0" value="0" aria-label="Frame">
+      <span class="stamp" id="pstamp">Loading frames…</span>
+      <span class="lbl">Speed</span>
       <button class="pspd" data-ms="700">slow</button>
       <button class="pspd on" data-ms="320">normal</button>
       <button class="pspd" data-ms="140">fast</button>
     </div>`;
   const wrap = $('#fwrap');
   LOOP = { i: 0, ms: 320, playing: true, timer: null, imgs: [], names: [] };
-
-  // fetch sequentially so the progress read-out is honest and the API is not
-  // hit with 24 parallel requests
   let done = 0;
   for (const f of it.frames) {
-    if (!LOOP) return;                                  // switched away mid-load
+    if (!LOOP) return;
     let url;
-    try {
-      url = URL.createObjectURL(new Blob(
-        [await (await gh(`${it.dir}/${f.name}`, 'application/vnd.github.raw')).blob()],
-        { type: 'image/webp' }));
-    } catch (e) { continue; }
+    try { url = URL.createObjectURL(new Blob([await (await gh(`${it.dir}/${f.name}`, 'application/vnd.github.raw')).blob()], { type: 'image/webp' })); }
+    catch (e) { continue; }
     const im = Object.assign(new Image(), { src: url, alt: f.name, className: 'off' });
-    wrap.appendChild(im);
-    LOOP.imgs.push(im); LOOP.names.push(f.name);
-    done++;
-    $('#pstamp').textContent = `loading ${done}/${it.frames.length}…`;
-    if (done === 1) {
-      im.onload = () => { if (LOOP) wrap.style.aspectRatio = `${im.naturalWidth}/${im.naturalHeight}`; };
-      showFrame(0);
-    }
+    wrap.appendChild(im); LOOP.imgs.push(im); LOOP.names.push(f.name); done++;
+    $('#pstamp').textContent = `Loading ${done} of ${it.frames.length}…`;
+    if (done === 1) { im.onload = () => { if (LOOP) wrap.style.aspectRatio = `${im.naturalWidth}/${im.naturalHeight}`; }; showFrame(0); }
   }
   if (!LOOP) return;
   $('#pscrub').max = Math.max(0, LOOP.imgs.length - 1);
-  showFrame(LOOP.imgs.length - 1);
-  wireLoop();
-  setPlaying(true);
+  showFrame(LOOP.imgs.length - 1); wireLoop(); setPlaying(true);
 }
-
-function showFrame(k) {
+function showFrame(k){
   if (!LOOP || !LOOP.imgs.length) return;
   LOOP.i = (k + LOOP.imgs.length) % LOOP.imgs.length;
   LOOP.imgs.forEach((el, n) => el.className = n === LOOP.i ? '' : 'off');
   const sc = $('#pscrub'); if (sc) sc.value = LOOP.i;
-  const st = $('#pstamp');
-  if (st) st.textContent = `${LOOP.i + 1}/${LOOP.imgs.length}  ${stampOf(LOOP.names[LOOP.i])}`;
+  const st = $('#pstamp'); if (st) st.textContent = `${LOOP.i + 1} of ${LOOP.imgs.length}: ${stampOf(LOOP.names[LOOP.i])}`;
 }
-
-function setPlaying(on) {
+function setPlaying(on){
   if (!LOOP) return;
   LOOP.playing = on;
   if (LOOP.timer) clearInterval(LOOP.timer);
   LOOP.timer = on ? setInterval(() => showFrame(LOOP.i + 1), LOOP.ms) : null;
-  const b = $('#pplay');
-  if (b) { b.innerHTML = on ? '&#10074;&#10074;' : '&#9654;'; b.classList.toggle('on', on); }
+  const b = $('#pplay'); if (b) { b.textContent = on ? 'Pause' : 'Play'; b.title = on ? 'Pause' : 'Play'; b.classList.toggle('on', on); }
 }
-
-function wireLoop() {
+function wireLoop(){
   $('#pplay').onclick = () => setPlaying(!LOOP.playing);
   $('#pprev').onclick = () => { setPlaying(false); showFrame(LOOP.i - 1); };
   $('#pnext').onclick = () => { setPlaying(false); showFrame(LOOP.i + 1); };
@@ -295,14 +215,11 @@ function wireLoop() {
   $('#plast').onclick = () => { setPlaying(false); showFrame(LOOP.imgs.length - 1); };
   $('#pscrub').oninput = e => { setPlaying(false); showFrame(+e.target.value); };
   document.querySelectorAll('.pspd').forEach(b => b.onclick = () => {
-    LOOP.ms = +b.dataset.ms;
-    document.querySelectorAll('.pspd').forEach(x => x.classList.toggle('on', x === b));
-    if (LOOP.playing) setPlaying(true);
-  });
+    LOOP.ms = +b.dataset.ms; document.querySelectorAll('.pspd').forEach(x => x.classList.toggle('on', x === b));
+    if (LOOP.playing) setPlaying(true); });
 }
-
 window.addEventListener('keydown', e => {
-  if (!LOOP || !LOOP.imgs.length) return;
+  if (!LOOP || !LOOP.imgs.length || e.target.tagName === 'INPUT') return;
   if (e.key === ' ') { e.preventDefault(); setPlaying(!LOOP.playing); }
   else if (e.key === 'ArrowLeft') { setPlaying(false); showFrame(LOOP.i - 1); }
   else if (e.key === 'ArrowRight') { setPlaying(false); showFrame(LOOP.i + 1); }
@@ -310,98 +227,58 @@ window.addEventListener('keydown', e => {
   else if (e.key === 'End') { setPlaying(false); showFrame(LOOP.imgs.length - 1); }
 });
 
-async function item(it) {
+async function item(it){
   if (cache.has(it.id)) return cache.get(it.id);
-  // raw serves up to 100 MB; the 1 MB figure people remember is the
-  // base64-JSON form, which returns an EMPTY body above it.
   const type = it.kind === 'page' ? 'text/html' : 'image/webp';
-  const blob = new Blob(
-    [await (await gh(it.path, 'application/vnd.github.raw')).blob()], { type });
-  const url = URL.createObjectURL(blob);
-  cache.set(it.id, url);
-  return url;
+  const blob = new Blob([await (await gh(it.path, 'application/vnd.github.raw')).blob()], { type });
+  const url = URL.createObjectURL(blob); cache.set(it.id, url); return url;
 }
-
-async function show(id) {
-  const it = MAN.items.find(x => x.id === id);
-  cur = id;
-  stopLoop();
-  [...$('#tabs').children].forEach(b => b.classList.toggle('on', b.dataset.id === id));
-  $('#blurb').textContent = it.blurb || '';
-  $('#stage').innerHTML = '<div class="prog">loading…</div>';
+async function show(id){
+  const it = MAN.items.find(x => x.id === id); if (!it) return;
+  cur = id; stopLoop();
+  document.querySelectorAll('#rail button.item').forEach(b => b.classList.toggle('on', b.dataset.id === id));
+  $('#blurb').textContent = it.blurb || it.title;
+  $('#view').innerHTML = '<div class="prog">Loading…</div>';
   try {
     if (it.kind === 'loop') { await playLoop(it); return; }
     const url = await item(it);
-    $('#stage').innerHTML = it.kind === 'page'
-      ? `<iframe src="${url}" title="${it.title}"></iframe>`
-      : `<img src="${url}" alt="${it.title}">`;
-    // A tall document sizes to its content so the page scrolls once instead of
-    // trapping a second scrollbar inside the frame. A viewport-filling app
-    // (fit unset) must keep the frame height -- its own 100vh is the frame.
+    $('#view').innerHTML = it.kind === 'page' ? `<iframe src="${url}" title="${it.title}"></iframe>` : `<img src="${url}" alt="${it.title}">`;
     if (it.kind === 'page' && it.fit === 'content') {
-      const f = $('#stage iframe');
-      const fit = () => {
-        try {
-          const h = f.contentDocument.body.scrollHeight;
-          if (h > 200) f.style.height = (h + 24) + 'px';
-        } catch (e) {}
-      };
-      f.addEventListener('load', () => { fit(); setTimeout(fit, 700); });
-      setTimeout(fit, 900);
+      const f = $('#view iframe');
+      const fit = () => { try { const h = f.contentDocument.body.scrollHeight; if (h > 200) f.style.height = (h + 24) + 'px'; } catch (e) {} };
+      f.addEventListener('load', () => { fit(); setTimeout(fit, 700); }); setTimeout(fit, 900);
     }
-  } catch (e) {
-    $('#stage').innerHTML = `<div class="prog">could not load: ${e.message}</div>`;
-  }
+  } catch (e) { $('#view').innerHTML = `<div class="prog">Could not load this product: ${e.message}</div>`; }
 }
-
-async function open_() {
-  $('#gate').style.display = 'none';
-  $('#board').style.display = 'block';
-  $('#stage').innerHTML = '<div class="prog">loading…</div>';
+async function open_(){
+  $('#gate').style.display = 'none'; $('#board').style.display = 'grid';
+  $('#view').innerHTML = '<div class="prog">Loading…</div>';
   MAN = JSON.parse(await (await gh('web/manifest.json', 'application/vnd.github.raw')).text());
-  $('#bmeta').textContent = `built ${MAN.built} · ${MAN.items.length} products`;
-  $('#tabs').innerHTML = MAN.items.map(it =>
-    `<button data-id="${it.id}">${it.title}</button>`).join('');
-  [...$('#tabs').children].forEach(b => b.onclick = () => show(b.dataset.id));
+  $('#bmeta').textContent = `Built ${MAN.built}`;
+  const groups = [['Boards', MAN.items.filter(i => i.kind === 'page')], ['Loops', MAN.items.filter(i => i.kind === 'loop')]];
+  $('#groups').innerHTML = groups.filter(g => g[1].length).map(([name, items]) =>
+    `<h2>${name}</h2>` + items.map(it => `<button class="item" data-id="${it.id}">${it.title}</button>`).join('')).join('');
+  document.querySelectorAll('#rail button.item').forEach(b => b.onclick = () => show(b.dataset.id));
   await show(cur && MAN.items.some(i => i.id === cur) ? cur : MAN.items[0].id);
 }
-
 $('#go').onclick = async () => {
   const repo = $('#repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
   const token = $('#tok').value.trim();
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { $('#err').textContent = 'expected owner/name'; return; }
-  if (!token) { $('#err').textContent = 'a token is required'; return; }
-  CFG = { repo, token };
-  $('#err').textContent = 'checking…';
-  try {
-    await gh('web/manifest.json', 'application/vnd.github.raw');
-  } catch (e) { $('#err').textContent = e.message; CFG = null; return; }
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { $('#err').textContent = 'Enter the repository as owner/name.'; return; }
+  if (!token) { $('#err').textContent = 'A token is required.'; return; }
+  CFG = { repo, token }; $('#err').textContent = 'Checking…';
+  try { await gh('web/manifest.json', 'application/vnd.github.raw'); }
+  catch (e) { $('#err').textContent = e.message; CFG = null; return; }
   if ($('#remember').checked) localStorage.setItem(KEY, JSON.stringify(CFG));
-  $('#err').textContent = '';
-  open_();
+  $('#err').textContent = ''; open_();
 };
 $('#tok').addEventListener('keydown', e => { if (e.key === 'Enter') $('#go').click(); });
-$('#forget').onclick = () => {
-  localStorage.removeItem(KEY);
-  cache.forEach(URL.revokeObjectURL); cache.clear();
-  CFG = null; MAN = null;
-  $('#board').style.display = 'none'; $('#gate').style.display = 'block';
-  $('#tok').value = '';
-};
-$('#reload').onclick = () => {
-  cache.forEach(URL.revokeObjectURL); cache.clear();
-  open_();
-};
-
+$('#forget').onclick = () => { localStorage.removeItem(KEY); cache.forEach(URL.revokeObjectURL); cache.clear(); stopLoop();
+  CFG = null; MAN = null; $('#board').style.display = 'none'; $('#gate').style.display = 'block'; $('#tok').value = ''; };
+$('#reload').onclick = () => { cache.forEach(URL.revokeObjectURL); cache.clear(); open_(); };
 const saved = creds();
-if (saved && saved.repo && saved.token) {
-  CFG = saved;
-  open_().catch(e => {
-    $('#board').style.display = 'none'; $('#gate').style.display = 'block';
-    $('#repo').value = saved.repo;
-    $('#err').textContent = e.message;
-  });
-}
+if (saved && saved.repo && saved.token) { CFG = saved; open_().catch(e => {
+  $('#board').style.display = 'none'; $('#gate').style.display = 'block'; $('#repo').value = saved.repo; $('#err').textContent = e.message; }); }
 </script>
 </body>
 </html>
