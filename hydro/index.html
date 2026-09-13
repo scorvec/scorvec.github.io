@@ -166,7 +166,7 @@ async function playLoop(it){
     <div class="player">
       <button id="pfirst" title="First frame">|&lt;</button>
       <button id="pprev" title="Step back">&lt;</button>
-      <button id="pplay" class="on" title="Pause">Pause</button>
+      <button id="pplay" title="Play">Play</button>
       <button id="pnext" title="Step forward">&gt;</button>
       <button id="plast" title="Latest frame">&gt;|</button>
       <input type="range" id="pscrub" min="0" max="0" value="0" aria-label="Frame">
@@ -177,7 +177,7 @@ async function playLoop(it){
       <button class="pspd" data-ms="140">fast</button>
     </div>`;
   const wrap = $('#fwrap');
-  LOOP = { i: 0, ms: 320, playing: true, timer: null, imgs: [], names: [] };
+  LOOP = { i: 0, ms: 320, playing: false, timer: null, imgs: [], names: [] };
   let done = 0;
   for (const f of it.frames) {
     if (!LOOP) return;
@@ -191,7 +191,9 @@ async function playLoop(it){
   }
   if (!LOOP) return;
   $('#pscrub').max = Math.max(0, LOOP.imgs.length - 1);
-  showFrame(LOOP.imgs.length - 1); wireLoop(); setPlaying(true);
+  // open on the newest frame, paused: a loop that starts by itself is a
+  // distraction on every tab switch, and the newest frame is what a glance wants
+  showFrame(LOOP.imgs.length - 1); wireLoop(); setPlaying(false);
 }
 function showFrame(k){
   if (!LOOP || !LOOP.imgs.length) return;
