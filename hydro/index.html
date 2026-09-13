@@ -188,24 +188,13 @@ async function diagnose(path) {
     + `on branch "${br || 'main'}".`;
 }
 
-// The Contents API caps a raw response at ~1 MB. Larger files come back
-// through the blobs API as base64, which allows up to 100 MB.
-async function bigBlob(path, type) {
-  const meta = await (await gh(path, 'application/vnd.github+json')).json();
-  const r = await fetch(`https://api.github.com/repos/${CFG.repo}/git/blobs/${meta.sha}`,
-    { headers: { Authorization: `Bearer ${CFG.token}`, Accept: 'application/vnd.github+json' } });
-  if (!r.ok) throw new Error(`blob ${r.status}`);
-  const b64 = (await r.json()).content.replace(/\s/g, '');
-  const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-  return new Blob([bin], { type });
-}
-
 async function item(it) {
   if (cache.has(it.id)) return cache.get(it.id);
+  // raw serves up to 100 MB; the 1 MB figure people remember is the
+  // base64-JSON form, which returns an EMPTY body above it.
   const type = it.kind === 'page' ? 'text/html' : 'image/webp';
-  const blob = it.bytes > (MAN.raw_cap || 1e6)
-    ? await bigBlob(it.path, type)
-    : new Blob([await (await gh(it.path, 'application/vnd.github.raw')).blob()], { type });
+  const blob = new Blob(
+    [await (await gh(it.path, 'application/vnd.github.raw')).blob()], { type });
   const url = URL.createObjectURL(blob);
   cache.set(it.id, url);
   return url;
@@ -229,7 +218,7 @@ async function show(id) {
 
 async function open_() {
   $('#gate').style.display = 'none';
-  $('#board').style.display = '';
+  $('#board').style.display = 'block';
   $('#stage').innerHTML = '<div class="prog">loading…</div>';
   MAN = JSON.parse(await (await gh('web/manifest.json', 'application/vnd.github.raw')).text());
   $('#bmeta').textContent = `built ${MAN.built} · ${MAN.items.length} products`;
@@ -258,7 +247,7 @@ $('#forget').onclick = () => {
   localStorage.removeItem(KEY);
   cache.forEach(URL.revokeObjectURL); cache.clear();
   CFG = null; MAN = null;
-  $('#board').style.display = 'none'; $('#gate').style.display = '';
+  $('#board').style.display = 'none'; $('#gate').style.display = 'block';
   $('#tok').value = '';
 };
 $('#reload').onclick = () => {
@@ -270,7 +259,7 @@ const saved = creds();
 if (saved && saved.repo && saved.token) {
   CFG = saved;
   open_().catch(e => {
-    $('#board').style.display = 'none'; $('#gate').style.display = '';
+    $('#board').style.display = 'none'; $('#gate').style.display = 'block';
     $('#repo').value = saved.repo;
     $('#err').textContent = e.message;
   });
