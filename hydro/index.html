@@ -143,10 +143,49 @@ async function gh(path, accept) {
     `https://api.github.com/repos/${CFG.repo}/contents/${path}?ref=${CFG.ref || 'main'}`,
     { headers: { Authorization: `Bearer ${CFG.token}`, Accept: accept },
       cache: 'no-store' });
-  if (!r.ok) throw new Error(`${r.status} ${r.status === 404
-    ? 'not found — check the repository name and that the token can read it'
-    : r.status === 401 ? 'token rejected' : r.statusText}`);
+  if (!r.ok) {
+    // A private repo answers 404 for BOTH "no such path" and "your token may
+    // not see this", so the bare status cannot tell the viewer what to fix.
+    // Ask two cheaper questions to narrow it down.
+    const msg = (r.status === 404 || r.status === 403)
+      ? await diagnose(path) : r.status === 401
+      ? 'token rejected — it is invalid, revoked or expired'
+      : `${r.status} ${r.statusText}`;
+    throw new Error(msg);
+  }
   return r;
+}
+
+async function probe(url) {
+  try {
+    const r = await fetch(url, { headers: {
+      Authorization: `Bearer ${CFG.token}`, Accept: 'application/vnd.github+json' } });
+    return { ok: r.ok, status: r.status, body: r.ok ? await r.json() : null };
+  } catch (e) { return { ok: false, status: 0, body: null }; }
+}
+
+async function diagnose(path) {
+  const who = await probe('https://api.github.com/user');
+  if (!who.ok) return 'token rejected — it is invalid, revoked or expired';
+  const repo = await probe(`https://api.github.com/repos/${CFG.repo}`);
+  if (!repo.ok) {
+    // The default for a NEW fine-grained token is "Public repositories only",
+    // which cannot read a private repo and returns exactly this.
+    return `signed in as ${who.body.login}, but this token cannot see `
+      + `${CFG.repo}. On the token's page set Resource owner to `
+      + `${CFG.repo.split('/')[0]}, Repository access to "Only select `
+      + `repositories" and pick this one — "Public repositories" (the default) `
+      + `cannot read a private repo. Check the owner/name spelling too.`;
+  }
+  const br = repo.body.default_branch;
+  if (br && br !== (CFG.ref || 'main')) {
+    CFG.ref = br;
+    return `default branch is "${br}", not "main" — press Unlock again`;
+  }
+  return `signed in as ${who.body.login} and ${CFG.repo} is visible, but `
+    + `${path} could not be read. Grant the token Repository permissions → `
+    + `Contents: Read (Metadata alone is not enough), or the file is missing `
+    + `on branch "${br || 'main'}".`;
 }
 
 // The Contents API caps a raw response at ~1 MB. Larger files come back
