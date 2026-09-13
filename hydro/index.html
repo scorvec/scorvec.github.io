@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Private research board</title>
+<!--
+  Generic loader. This file is the only public part of the board: it holds no
+  data, no place names and no description of the content. Everything shown is
+  fetched at runtime from a PRIVATE repository through the GitHub API using a
+  read-only token the viewer supplies, so without that token this page renders
+  nothing and a crawler that finds the URL learns nothing.
+
+  The token is sent to api.github.com and nowhere else, and is kept only in
+  this browser's localStorage. Use a FINE-GRAINED personal access token
+  scoped to the single repository with Contents: Read and a short expiry --
+  never a classic token, which is account-wide.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#fcfcfa; --ink:#1a1a1a; --ink2:#4a4744; --muted:#8a8680;
+    --accent:#2f5d7c; --rule:#e2e0da; --edge:#c9c5bb; --surface:#fff;
+    --warn:#8a5b1a; --warnbg:#fdf6e8;
+    --serif:'Lora',Georgia,serif; --sans:'Inter',system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#14171a; --ink:#e8eaec; --ink2:#b9bec3; --muted:#8b9298;
+      --accent:#7fb3d5; --rule:#272c31; --edge:#343a40; --surface:#1b1f23;
+      --warn:#d8b871; --warnbg:#241f16;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14171a; --ink:#e8eaec; --ink2:#b9bec3; --muted:#8b9298;
+    --accent:#7fb3d5; --rule:#272c31; --edge:#343a40; --surface:#1b1f23;
+    --warn:#d8b871; --warnbg:#241f16;
+  }
+  html{font-size:17px}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;line-height:1.5}
+  .wrap{max-width:min(1560px,96vw);margin:0 auto;padding:1.6rem 1.1rem 3rem}
+  h1{font-family:var(--serif);font-weight:500;font-size:1.55rem;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:.93rem;margin:.3rem 0 1.3rem}
+  /* ---- gate ---- */
+  #gate{max-width:33rem;margin:3.5rem auto;background:var(--surface);
+    border:1px solid var(--edge);border-radius:8px;padding:1.5rem 1.6rem}
+  #gate h2{font-family:var(--serif);font-weight:500;font-size:1.2rem;margin-bottom:.5rem}
+  #gate p{color:var(--ink2);font-size:.9rem;margin-bottom:1rem}
+  label{display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--muted);margin:.9rem 0 .28rem}
+  input{width:100%;padding:.52rem .6rem;font:inherit;font-size:.9rem;
+    background:var(--bg);color:var(--ink);border:1px solid var(--edge);border-radius:5px}
+  input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  button{font:inherit;font-size:.88rem;padding:.5rem .95rem;border-radius:5px;
+    border:1px solid var(--edge);background:var(--surface);color:var(--ink);cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button.primary{color:#0e1216}}
+  :root[data-theme="dark"] button.primary{color:#0e1216}
+  .row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:1.2rem}
+  .caution{margin-top:1.1rem;padding:.6rem .7rem;border-left:2px solid var(--warn);
+    background:var(--warnbg);color:var(--warn);font-size:.8rem;line-height:1.45}
+  .err{color:#b3261e;font-size:.85rem;margin-top:.8rem;min-height:1.2em}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .err{color:#f08a80}}
+  /* ---- board ---- */
+  #board{display:none}
+  .bar{display:flex;gap:.4rem;align-items:baseline;flex-wrap:wrap;
+    padding-bottom:.7rem;border-bottom:1px solid var(--rule);margin-bottom:1rem}
+  .bar .meta{color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
+  .bar .sp{margin-left:auto;display:flex;gap:.4rem}
+  .tabs{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.9rem}
+  .tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tabs button.on{color:#0e1216}}
+  :root[data-theme="dark"] .tabs button.on{color:#0e1216}
+  .blurb{color:var(--ink2);font-size:.88rem;margin-bottom:.7rem}
+  #stage{border:1px solid var(--edge);border-radius:7px;overflow:hidden;
+    background:var(--surface)}
+  #stage iframe{width:100%;height:min(84vh,1000px);border:0;display:block}
+  #stage img{width:100%;height:auto;display:block}
+  .prog{color:var(--muted);font-size:.85rem;padding:2.2rem 1rem;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="gate">
+    <h2>Private board</h2>
+    <p>This page holds no content of its own. Give it a repository and a
+       read-only token and it will load the board from there.</p>
+    <label for="repo">Repository <span style="text-transform:none;letter-spacing:0">(owner/name)</span></label>
+    <input id="repo" autocomplete="off" spellcheck="false" placeholder="owner/repository">
+    <label for="tok">Access token</label>
+    <input id="tok" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
+    <div class="row">
+      <button class="primary" id="go">Unlock</button>
+      <label style="display:flex;align-items:center;gap:.4rem;margin:0;
+        text-transform:none;letter-spacing:0;font-size:.85rem;color:var(--ink2)">
+        <input type="checkbox" id="remember" checked style="width:auto"> remember on this device
+      </label>
+    </div>
+    <div class="err" id="err"></div>
+    <div class="caution">
+      Use a <b>fine-grained</b> token scoped to this one repository with
+      <b>Contents: Read</b> and a short expiry. The token is sent only to
+      api.github.com and, if remembered, stored in this browser alone —
+      not on the server, which is a static host and never sees it.
+    </div>
+  </div>
+
+  <div id="board">
+    <div class="bar">
+      <h1 id="btitle">Board</h1>
+      <span class="meta" id="bmeta"></span>
+      <span class="sp">
+        <button id="reload">Reload</button>
+        <button id="forget">Sign out</button>
+      </span>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="blurb" id="blurb"></div>
+    <div id="stage"><div class="prog">loading…</div></div>
+  </div>
+
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const KEY = 'privboard';
+let CFG = null, MAN = null, cache = new Map(), cur = null;
+
+function creds() {
+  try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; }
+}
+
+// Every call goes to api.github.com with the token in an Authorization header.
+// Nothing is ever appended to a URL, so the token cannot leak through a
+// referrer or a server log.
+async function gh(path, accept) {
+  const r = await fetch(
+    `https://api.github.com/repos/${CFG.repo}/contents/${path}?ref=${CFG.ref || 'main'}`,
+    { headers: { Authorization: `Bearer ${CFG.token}`, Accept: accept },
+      cache: 'no-store' });
+  if (!r.ok) throw new Error(`${r.status} ${r.status === 404
+    ? 'not found — check the repository name and that the token can read it'
+    : r.status === 401 ? 'token rejected' : r.statusText}`);
+  return r;
+}
+
+// The Contents API caps a raw response at ~1 MB. Larger files come back
+// through the blobs API as base64, which allows up to 100 MB.
+async function bigBlob(path, type) {
+  const meta = await (await gh(path, 'application/vnd.github+json')).json();
+  const r = await fetch(`https://api.github.com/repos/${CFG.repo}/git/blobs/${meta.sha}`,
+    { headers: { Authorization: `Bearer ${CFG.token}`, Accept: 'application/vnd.github+json' } });
+  if (!r.ok) throw new Error(`blob ${r.status}`);
+  const b64 = (await r.json()).content.replace(/\s/g, '');
+  const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  return new Blob([bin], { type });
+}
+
+async function item(it) {
+  if (cache.has(it.id)) return cache.get(it.id);
+  const type = it.kind === 'page' ? 'text/html' : 'image/webp';
+  const blob = it.bytes > (MAN.raw_cap || 1e6)
+    ? await bigBlob(it.path, type)
+    : new Blob([await (await gh(it.path, 'application/vnd.github.raw')).blob()], { type });
+  const url = URL.createObjectURL(blob);
+  cache.set(it.id, url);
+  return url;
+}
+
+async function show(id) {
+  const it = MAN.items.find(x => x.id === id);
+  cur = id;
+  [...$('#tabs').children].forEach(b => b.classList.toggle('on', b.dataset.id === id));
+  $('#blurb').textContent = it.blurb || '';
+  $('#stage').innerHTML = '<div class="prog">loading…</div>';
+  try {
+    const url = await item(it);
+    $('#stage').innerHTML = it.kind === 'page'
+      ? `<iframe src="${url}" title="${it.title}"></iframe>`
+      : `<img src="${url}" alt="${it.title}">`;
+  } catch (e) {
+    $('#stage').innerHTML = `<div class="prog">could not load: ${e.message}</div>`;
+  }
+}
+
+async function open_() {
+  $('#gate').style.display = 'none';
+  $('#board').style.display = '';
+  $('#stage').innerHTML = '<div class="prog">loading…</div>';
+  MAN = JSON.parse(await (await gh('web/manifest.json', 'application/vnd.github.raw')).text());
+  $('#bmeta').textContent = `built ${MAN.built} · ${MAN.items.length} products`;
+  $('#tabs').innerHTML = MAN.items.map(it =>
+    `<button data-id="${it.id}">${it.title}</button>`).join('');
+  [...$('#tabs').children].forEach(b => b.onclick = () => show(b.dataset.id));
+  await show(cur && MAN.items.some(i => i.id === cur) ? cur : MAN.items[0].id);
+}
+
+$('#go').onclick = async () => {
+  const repo = $('#repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+  const token = $('#tok').value.trim();
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { $('#err').textContent = 'expected owner/name'; return; }
+  if (!token) { $('#err').textContent = 'a token is required'; return; }
+  CFG = { repo, token };
+  $('#err').textContent = 'checking…';
+  try {
+    await gh('web/manifest.json', 'application/vnd.github.raw');
+  } catch (e) { $('#err').textContent = e.message; CFG = null; return; }
+  if ($('#remember').checked) localStorage.setItem(KEY, JSON.stringify(CFG));
+  $('#err').textContent = '';
+  open_();
+};
+$('#tok').addEventListener('keydown', e => { if (e.key === 'Enter') $('#go').click(); });
+$('#forget').onclick = () => {
+  localStorage.removeItem(KEY);
+  cache.forEach(URL.revokeObjectURL); cache.clear();
+  CFG = null; MAN = null;
+  $('#board').style.display = 'none'; $('#gate').style.display = '';
+  $('#tok').value = '';
+};
+$('#reload').onclick = () => {
+  cache.forEach(URL.revokeObjectURL); cache.clear();
+  open_();
+};
+
+const saved = creds();
+if (saved && saved.repo && saved.token) {
+  CFG = saved;
+  open_().catch(e => {
+    $('#board').style.display = 'none'; $('#gate').style.display = '';
+    $('#repo').value = saved.repo;
+    $('#err').textContent = e.message;
+  });
+}
+</script>
+</body>
+</html>
