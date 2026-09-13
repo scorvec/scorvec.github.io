@@ -184,7 +184,8 @@ async function playLoop(it){
   let done = 0, lastErr = null;
   for (const f of it.frames) {
     let url;
-    try { url = URL.createObjectURL(new Blob([await (await gh(`${it.dir}/${f.name}`, 'application/vnd.github.raw')).blob()], { type: 'image/webp' })); }
+    try { url = URL.createObjectURL(new Blob([await (await gh(`${it.dir}/${f.name}`, 'application/vnd.github.raw')).blob()],
+                                         { type: f.name.endsWith('.png') ? 'image/png' : 'image/webp' })); }
     catch (e) { lastErr = e; if (LOOP !== me) return; continue; }
     if (LOOP !== me) return;
     const im = Object.assign(new Image(), { src: url, alt: f.name, className: 'off' });
