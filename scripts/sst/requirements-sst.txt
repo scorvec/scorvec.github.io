@@ -12,6 +12,6 @@ h5netcdf
 matplotlib==3.10.9
 cartopy>=0.22
 shapely>=2.1.2
-pyproj>=3.7.2
+pyproj>=3.8.0
 Pillow
 copernicusmarine>=2.0
