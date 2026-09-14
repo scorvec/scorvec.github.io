@@ -116,7 +116,7 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">NOAA OISST v2.1 &middot; NASA JPL MUR &middot; BoM SOI &middot; NOAA PSL MEI.v2 &middot; GMGSI infrared &middot; base 1991&ndash;2020 &middot; updated daily</span><span class="chart-updated">OISST 2026-09-11</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA OISST v2.1 &middot; NASA JPL MUR &middot; BoM SOI &middot; NOAA PSL MEI.v2 &middot; GMGSI infrared &middot; base 1991&ndash;2020 &middot; updated daily</span><span class="chart-updated">OISST 2026-09-12</span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -147,7 +147,7 @@
     </div>
     <div id="dailyChart" class="plot" style="height:440px"></div>
     <div class="img-wrap" id="dailyFallback" hidden>
-      <img src="assets/sst/daily_indices.webp?v=979535e55785" alt="Daily Niño-3.4, tropical-mean and relative SST indices" loading="lazy">
+      <img src="assets/sst/daily_indices.webp?v=94c1ab5650f3" alt="Daily Niño-3.4, tropical-mean and relative SST indices" loading="lazy">
     </div>
     </div>
   </div>
@@ -353,23 +353,23 @@ window.STAGE = {
           cap: function (a) { return {anomaly: "NOAA OISST v2.1 daily anomaly against 1991–2020, global and tropical Pacific, animated over the last 90 days with each day's ONI, tropical-mean and RONI readout.", absolute: "The raw sea-surface temperature over the last 90 days.", relative: "The anomaly with the global mean removed: the ENSO pattern without the background warming.", tropical_rel: "30°S–30°N with the 20°S–20°N mean subtracted — RONI's arithmetic drawn as a map."}[a]; }},
   indices: {label: "Daily ENSO indices", dom: function () { return "dom-indices"; }, about: "about-indices",
           cap: function () { return "Daily area-weighted SST indices: Niño-3.4, the daily relative Niño-3.4 (the quantity RONI is built from — there is no official daily RONI) and the 90-day running ONI estimate; toggle absolute values and the range, click legend entries for the other regions."; }},
-  onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=979535e55785"; }, about: "about-onironi", fit: false,
+  onironi: {label: "ONI vs RONI", img: function () { return "assets/sst/roni.webp?v=94c1ab5650f3"; }, about: "about-onironi", fit: false,
           cap: function () { return "The 3-month ONI convention applied to OISST \u2014 an estimate, NOT the official CPC ERSSTv5 value \u2014 beside the relative index, by season. The newest season is preliminary: the convention is a centred 3-month mean, so it leans on a month that has not closed."; }},
   beyond: {label: "Beyond ENSO", a: {label: "Index", items: [["pdo","PDO"],["iod","Indian Ocean Dipole"],["satl","South Atlantic dipole"]]},
-          img: function (a) { return "assets/sst/" + a + "_daily.webp?v=979535e55785"; }, about: "about-beyond",
+          img: function (a) { return "assets/sst/" + a + "_daily.webp?v=94c1ab5650f3"; }, about: "about-beyond",
           cap: function (a) { return {pdo: "Daily PDO from the ERSST North Pacific EOF pattern projected on OISST, calibrated to NCEI over 1950–present.", iod: "Daily Dipole Mode Index, Saji boxes.", satl: "Daily South Atlantic subtropical dipole, Morioka poles."}[a]; }},
   mur: {label: "MUR 1 km cold tongue", frame: function () { return "sst_anim.html?embed=1&manifest=mur_manifest.json&region=mur_ct"; }, about: "about-mur",
           cap: function () { return "NASA JPL MUR 1 km SST, 160°E–79°W and 10°S–10°N, one frame a day since the event's onset, fixed colour range; the Niño boxes are drawn on each frame."; }},
-  mur34: {label: "MUR Niño-3.4 against OISST", img: function () { return "assets/sst/mur_nino34.webp?v=979535e55785"; }, about: "about-mur34", fit: false,
+  mur34: {label: "MUR Niño-3.4 against OISST", img: function () { return "assets/sst/mur_nino34.webp?v=94c1ab5650f3"; }, about: "about-mur34", fit: false,
           cap: function () { return "Absolute Niño-3.4 from the 1 km analysis against OISST, and the offset between the two."; }},
   ir: {label: "Infrared satellite loop", a: {label: "Region", items: [["pacsat","Tropical Pacific"],["samsat","South & Central America"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=" + a + "_manifest.json&region=" + a; },
           ratio: function (a) { return a === "samsat" ? "1454/1587" : "1259/700"; }, about: "about-ir",
           cap: function (a) { return a === "samsat" ? "Hourly infrared composite over South and Central America: the Amazon convection, the SACZ and the Andes." : "Hourly infrared composite over the tropical Pacific: where the convection is."; }},
-  soirec: {label: "SOI against the record", img: function () { return "assets/sst/soi_history.webp?v=202609130907"; }, about: "about-soirec", fit: false,
+  soirec: {label: "SOI against the record", img: function () { return "assets/sst/soi_history.webp?v=202609141112"; }, about: "about-soirec", fit: false,
           cap: function () { return "The daily Southern Oscillation Index of the current event against every event since 1887, BoM 1887–1989 base."; }},
   mei: {label: "MEI.v2 daily nowcast", a: {label: "View", items: [["nowcast","Nowcast"],["analogs","Analogs"],["history","History"],["validation","Validation"]]},
-          img: function (a) { return "assets/sst/mei/mei_" + a + ".webp?v=979535e55785"; }, about: "about-mei", fit: false,
+          img: function (a) { return "assets/sst/mei/mei_" + a + ".webp?v=94c1ab5650f3"; }, about: "about-mei", fit: false,
           cap: function (a) { return {nowcast: "A daily estimate of NOAA's bi-monthly MEI.v2 from its five inputs, R = 0.94 against the published index, leave-one-year-out.", analogs: "Past events with the closest MEI trajectory.", history: "The nowcast against the full MEI record.", validation: "How the nowcast has verified against each published value."}[a]; }},
   olr: {label: "Synthetic OLR Hovmöller", img: function () { return "assets/sst/olr_hovmoller.webp"; }, bust: "hourly", about: "about-olr", fit: false,
           cap: function () { return "Equatorial convection against time from the infrared composite: enhanced (blue) and suppressed (brown) bands moving east."; }},
@@ -382,7 +382,7 @@ window.STAGE = {
   eqwind: {label: "Equatorial zonal wind, Hovmöller", img: function () { return "assets/sst/eq_uwind_hov.webp"; }, bust: "hourly", about: "about-eqwind",
           cap: function () { return "Zonal wind anomaly along the equator against time: westerly bursts as red streaks moving east."; }},
   soi: {label: "Southern Oscillation Index", a: {label: "View", items: [["hourly","SOI, hourly estimate"],["forecast","SOI, ensemble forecast"],["eqsoi","Equatorial SOI, observed and forecast"]]},
-          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : a === "forecast" ? "assets/sst/soi_forecast.webp?v=202609130907" : "assets/sst/eqsoi_forecast.webp?v=202609130907"; }, bust: "hourly",
+          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : a === "forecast" ? "assets/sst/soi_forecast.webp?v=202609141112" : "assets/sst/eqsoi_forecast.webp?v=202609141112"; }, bust: "hourly",
           about: function (a) { return a === "eqsoi" ? "about-eqsoi" : a === "forecast" ? "about-soi_f" : "about-soi_h"; },
           cap: function (a) { return a === "hourly" ? "Darwin minus Tahiti pressure from hourly METARs, on the BoM 1887–1989 base, so the index exists today rather than at month end." : a === "forecast" ? "The same index carried through the AIFS-ENS and IFS-ENS 15-day forecasts, member by member." : "CPC's Equatorial SOI — the east-minus-west equatorial Pacific box pressure difference, standardised — monthly to the last complete month, with the ensembles' daily 15-day forecast on the same scale; negative favours El Niño."; }},
   soi_seas: {label: "Seasonal SOI outlook", dom: function () { return "dom-soi-seas"; }, about: "about-soi_seas",
@@ -390,14 +390,14 @@ window.STAGE = {
   wwb: {label: "Westerly wind bursts", a: {label: "View", items: [["tarawa","Tarawa monitor"],["onsets","Against past onsets"]]},
           dom: function (a) { return a === "tarawa" ? "dom-wwb" : null; }, img: function () { return "assets/sst/kiribati_history.webp"; }, bust: "hourly",
           about: function (a) { return a === "tarawa" ? "about-wwb_t" : "about-wwb_o"; }, cap: function (a) { return a === "tarawa" ? "Hourly surface wind at Tarawa and Kiritimati: westerlies at the dateline are the trigger for oceanic Kelvin waves. Live arrows below the chart." : "This year's westerly-burst activity against the onset years of past El Niños."; }},
-  wind10: {label: "Equatorial 10 m wind forecast", img: function () { return "assets/sst/eq_wind_hovmoller.webp?v=202609130907"; }, about: "about-wind10",
+  wind10: {label: "Equatorial 10 m wind forecast", img: function () { return "assets/sst/eq_wind_hovmoller.webp?v=202609141112"; }, about: "about-wind10",
           cap: function () { return "Forecast zonal wind along the equator, ensemble mean and spread, out to day 15."; }},
   subtemp: {label: "Subsurface temperature section", a: {label: "Field", items: [["equatorial","Temperature and anomaly"],["equatorial_dt","Anomaly, trend removed"]]},
           frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=equatorial,equatorial_dt"; }, about: "about-subtemp",
           cap: function (a) { return a === "equatorial" ? "TAO/TRITON depth–longitude section along the equator, 5-day average: temperature on top, the anomaly against 1991–2020 below; the 20 °C isotherm is the thermocline proxy." : "The same anomaly with the 1991–2020 linear trend removed at each depth and longitude, so the warming ocean is not read as an event."; }},
-  hc: {label: "Heat content against analogs", img: function () { return "assets/sst/subsurface_events_hc.webp?v=979535e55785"; }, about: "about-hc", fit: false,
+  hc: {label: "Heat content against analogs", img: function () { return "assets/sst/subsurface_events_hc.webp?v=94c1ab5650f3"; }, about: "about-hc", fit: false,
           cap: function () { return "Equatorial 0–300 m temperature anomaly, fixed mooring weights, this event against 1997, 2015 and 2023 on a common calendar; hollow markers mark days a silent mooring was carried forward."; }},
-  xsec: {label: "Cross-section against analogs", img: function () { return "assets/sst/subsurface_events_xsec.webp?v=979535e55785"; }, about: "about-xsec", fit: false,
+  xsec: {label: "Cross-section against analogs", img: function () { return "assets/sst/subsurface_events_xsec.webp?v=94c1ab5650f3"; }, about: "about-xsec", fit: false,
           cap: function () { return "The depth–longitude anomaly this week beside the same week of the 1997, 2015 and 2023 events."; }},
   cur_map: {label: "Surface currents", frame: function () { return "sst_anim.html?embed=1&manifest=eq_cur_map_manifest.json&region=eq_cur_map"; }, about: "about-cur_map",
           cap: function () { return "Tropical Pacific surface current from the Copernicus Marine analysis: the South Equatorial Current, the counter-current and their anomalies."; }},
@@ -438,13 +438,6 @@ window.STAGE = {
 
   function buildChips(L) {
     var st = ensoState(L.oni, L.roni);
-    // the three calendar months the centred convention actually averages, e.g. 2026-08 -> "Jul–Sep"
-    function centred(ym) {
-      if (!ym || ym.length < 7) return "3-month";
-      var M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      var m = parseInt(ym.slice(5, 7), 10) - 1;
-      return M[(m + 11) % 12] + "–" + M[(m + 1) % 12];
-    }
     // CPC's thresholds on |index|: 0.5 weak, 1.0 moderate, 1.5 strong, 2.0 very strong.
     // The official chip is shaded by the STRENGTH of the event, not just its sign, because
     // that is the number a reader anchors on (user, 2026-09-13).
@@ -476,32 +469,22 @@ window.STAGE = {
       // here is the DATASET (OISST, not CPC's ERSST) and the unclosed month.
       { l: "ENSO state · " + L.oni_month, v: st.name, s: st.sub,
         cls: tone(L.roni), prelim: true },
-      { l: "Daily Niño-3.4", v: fmt(L.nino34) + " °C",
-        s: "OISST anomaly vs 1991–2020 · single day, " + L.date + arrow(L.nino34_d7),
+      { l: "Daily Niño-3.4", v: fmt(L.nino34) + " °C", s: "single day, " + L.date + arrow(L.nino34_d7),
         cls: tone(L.nino34) },
-      // NOT the official RONI, which is a 3-month index: this is the day's Niño-3.4 anomaly
-      // minus the day's 20S-20N mean, on RONI's sigma scale. Calling it "daily RONI" implied
-      // an index that does not exist at daily resolution (user, 2026-09-13).
-      { l: "Daily relative Niño-3.4", v: fmt(L.roni_d) + " °C",
-        s: "Niño-3.4 − 20°S–20°N mean, σ-scaled · single day, " + L.date + arrow(L.roni_d_d7),
+      { l: "Daily RONI", v: fmt(L.roni_d) + " °C", s: "relative, σ-scaled" + arrow(L.roni_d_d7),
         cls: tone(L.roni_d) },
-      // Two ONI-like numbers sit next to each other and they are NOT the same window: this
-      // one is a ROLLING 90 days ending today, the one below is the calendar 3-month mean
-      // the index is defined on. Both said "ONI est." and read as duplicates (user,
-      // 2026-09-13), so each now names its own window.
-      { l: "ONI est. · rolling 90 days", v: fmt(L.oni90) + " °C",
-        s: "daily mean ending " + L.date + arrow(L.oni90_d7),
+      { l: "ONI est. (90-day)", v: fmt(L.oni90) + " °C", s: "running daily estimate" + arrow(L.oni90_d7),
         cls: tone(L.oni90) },
       // NOT the official CPC ONI. CPC publishes ERSSTv5 against a base period that
       // shifts every five years; this is the same 3-month convention applied to
       // OISST v2.1 on a fixed 1991-2020 base, so it can differ from the official
       // number. It is also PRELIMINARY: the convention is a CENTRED 3-month mean,
       // so the month shown is built partly from the current, incomplete month.
-      { l: "ONI est. · " + L.oni_month + " (3-month)", v: fmt(L.oni) + " °C",
-        s: centred(L.oni_month) + " mean · OISST, not CPC official · preliminary",
+      { l: "ONI est. · " + L.oni_month, v: fmt(L.oni) + " °C",
+        s: "3-mo convention · OISST, not CPC official · preliminary",
         cls: tone(L.oni), prelim: true },
-      { l: "RONI est. · " + L.oni_month + " (3-month)", v: fmt(L.roni) + " °C",
-        s: centred(L.oni_month) + " mean, σ-scaled · OISST, not CPC official · preliminary",
+      { l: "RONI est. · " + L.oni_month, v: fmt(L.roni) + " °C",
+        s: "3-mo, σ-scaled · OISST, not CPC official · preliminary",
         cls: tone(L.roni), prelim: true },
       { l: "Tropical mean 20S–20N", v: fmt(L.trop) + " °C", s: "the warming background" + arrow(L.trop_d7),
         cls: "neut" },
@@ -588,7 +571,7 @@ window.STAGE = {
         tr("trop", "Tropical mean", C.trop, { visible: "legendonly",
           line: { color: C.trop, width: 1.2, dash: "dot" } }),
         tr("nino34", "Niño-3.4 (daily)", C.nino34),
-        tr("roni_d", "Daily relative Niño-3.4", C.roni_d, { line: { color: C.roni_d, width: 2.4 } }),
+        tr("roni_d", "Daily RONI", C.roni_d, { line: { color: C.roni_d, width: 2.4 } }),
         tr("oni90", "ONI est. (90-d mean)", C.oni90, { line: { color: C.oni90, width: 2.2 } }),
       ];
       shapes = thresholdShapes(x[0], x[x.length - 1]);
@@ -626,12 +609,12 @@ window.STAGE = {
   });
   // CPC's published values, so the strip can show the OFFICIAL number beside our
   // estimate of it. Best-effort: the chips render without it.
-  fetch("assets/sst/data/cpc_official.json?v=979535e55785")
+  fetch("assets/sst/data/cpc_official.json?v=94c1ab5650f3")
     .then(function (r) { return r.ok ? r.json() : null; })
     .catch(function () { return null; })
     .then(function (o) {
       window.CPCOFF = o;
-      return fetch("assets/sst/data/enso_daily.json?v=979535e55785")
+      return fetch("assets/sst/data/enso_daily.json?v=94c1ab5650f3")
         .then(function (r) { if (!r.ok) throw 0; return r.json(); })
         .then(function (d) {
           state.data = d;
@@ -678,7 +661,7 @@ window.STAGE = {
   }
   document.querySelectorAll("#dom-soi-seas .pill[data-ss-index]").forEach(function (b) { b.addEventListener("click", function () { st.index = b.dataset.ssIndex; document.querySelectorAll("#dom-soi-seas .pill[data-ss-index]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); }); });
   document.querySelectorAll("#dom-soi-seas .pill[data-ss-view]").forEach(function (b) { b.addEventListener("click", function () { st.view = b.dataset.ssView; document.querySelectorAll("#dom-soi-seas .pill[data-ss-view]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); }); });
-  fetch("assets/sst/data/seas5_tele.json?v=979535e55785").then(function (r) { return r.json(); }).then(function (j) { T = j; draw(); }).catch(function () { document.getElementById("soiSeasNote").textContent = "SEAS5 index file not available."; });
+  fetch("assets/sst/data/seas5_tele.json?v=94c1ab5650f3").then(function (r) { return r.json(); }).then(function (j) { T = j; draw(); }).catch(function () { document.getElementById("soiSeasNote").textContent = "SEAS5 index file not available."; });
   window.addEventListener("resize", function () { if (document.getElementById("soiSeasChart").offsetWidth) draw(); });
 })();
 </script>
