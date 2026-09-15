@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SEAS5 P − E by region, Brazil and Colombia: the forecast distribution against normal.
+"""SEAS5 P − E by region, Brazil: the forecast distribution against normal.
 
 For each region, every member's monthly precipitation minus evaporation (mm/day) is
 area-averaged over the region's polygon (fractional cell overlap on the 1° grid), and the
@@ -9,8 +9,8 @@ previous one — with the hindcast climatology as "normal" (its mean and the yea
 the previous issue, and the share of members drier than normal.
 
 Brazil regions are the four electrical subsystems as state groups (Southeast/Centre-West,
-South, Northeast, North); Colombia regions come from scripts/sst/colombia_hydro_regions.geojson.
-Output: assets/sst/seas5_pme_{br,co}.webp + data/seas5_pme_regions.json.
+South, Northeast, North).
+Output: assets/sst/seas5_pme_br.webp + data/seas5_pme_regions.json.
 
     python scripts/sst/seas5_pme_regions.py --issue 202609
 """
@@ -56,15 +56,6 @@ def brazil_polygons() -> dict:
         out[label] = unary_union([by_name[s] for s in states if s in by_name])
     return out
 
-
-def colombia_polygons() -> dict:
-    """One region: the union of the hydro basins. A seasonal model at 1° cannot separate them
-    (user, 2026-09-06: "just aggregate all basins and say Colombia hydro")."""
-    from shapely.geometry import shape
-    from shapely.ops import unary_union
-    g = json.loads((HERE / "colombia_hydro_regions.geojson").read_text())
-    polys = [shape(ft["geometry"]) for ft in g["features"] if ft["properties"]["name"] in CO_ORDER]
-    return {"Colombia hydro": unary_union(polys)}
 
 
 def cell_weights(poly, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
@@ -185,7 +176,7 @@ def build(ym: str) -> None:
         raise SystemExit("P − E fields for this issue are not on disk")
     lat, lon = now[2], now[3]
     doc = {"generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()), "issue": ym, "previous": prev, "countries": {}}
-    for key, label, polys in (("br", "Brazil", brazil_polygons()), ("co", "Colombia hydro", colombia_polygons())):
+    for key, label, polys in (("br", "Brazil", brazil_polygons()),):
         print(f"  {label}: {len(polys)} regions", flush=True)
         weights = {name: cell_weights(poly, lat, lon) for name, poly in polys.items()}
         s_now = region_series(now, weights)
