@@ -50,7 +50,7 @@ fi
 "$PY" seas5_snow.py fetch --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  snowfall fetch incomplete" >> "$LOG"
 "$PY" seas5_snow.py hindcast --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  snowfall hindcast incomplete (ratio maps skipped)" >> "$LOG"
 "$PY" seas5_snow.py build --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  snowfall products FAILED (main products still publish)" >> "$LOG"
-# P − E distributions by region (Brazil ONS subsystems, Colombia); best-effort
+# P − E distributions by region (Brazil ONS subsystems); best-effort
 "$PY" seas5_pme_regions.py --issue "$ISSUE" >> "$LOG" 2>&1 || echo "  pme regions FAILED (main products still publish)" >> "$LOG"
 
 # Publish: only the SEAS5 outputs. A concurrent CI data commit just shifts our base.
