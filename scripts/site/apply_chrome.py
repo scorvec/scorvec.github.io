@@ -36,7 +36,6 @@ PRODUCTS = [
             ("/ar.html", "Atmospheric rivers"),
             ("/cities/", "City temperature forecasts"),
             ("/ecape.html", "Entraining CAPE"),
-            ("/columbia/", "Columbia River basin precipitation"),
             ("/mjo.html", "MJO forecast"),
             ("/circulation.html", "Global circulation and jets"),
         ]),
@@ -136,8 +135,6 @@ PAGES = [
     dict(path="qbo/index.html", mode="nav"),
     dict(path="cities/index.html", mode="nav"),
     dict(path="cities/verify.html", mode="nav"),
-    dict(path="columbia/index.html", mode="before", anchor='<header class="top">',
-         drop=r'<p class="pagelinks"><a href="\.\./index\.html">&larr; scorvec\.com</a>\s*&nbsp;·&nbsp; '),
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
     dict(path="404.html", mode="after-body", footer=False, fixes=[
         ("display:flex;\nmin-height:100vh;align-items:center;justify-content:center;margin:0;",

@@ -168,7 +168,8 @@ function stampOf(name){
   return `${y}-${mo}-${d} ${h}:${mi} UTC, ${loc} local`;
 }
 function stopLoop(){ if (LOOP && LOOP.timer) clearInterval(LOOP.timer); LOOP = null; }
-async function playLoop(it, host){
+async function playLoop(it, host, keepIndex){
+  const prevI = (keepIndex && LOOP && LOOP.imgs.length) ? LOOP.i : null;
   stopLoop();
   (host || $('#view')).innerHTML = `<div class="fwrap" id="fwrap"></div>
     <div class="player">
@@ -205,7 +206,7 @@ async function playLoop(it, host){
   $('#pscrub').max = Math.max(0, LOOP.imgs.length - 1);
   // open on the newest frame, paused: a loop that starts by itself is a
   // distraction on every tab switch, and the newest frame is what a glance wants
-  showFrame(LOOP.imgs.length - 1); wireLoop(); setPlaying(false);
+  showFrame(prevI != null && prevI < LOOP.imgs.length ? prevI : LOOP.imgs.length - 1); wireLoop(); setPlaying(false);
 }
 function showFrame(k){
   if (!LOOP || !LOOP.imgs.length) return;
@@ -254,7 +255,7 @@ async function playSet(it){
   const v = it.variants.find(x => x.id === key);
   if (!v) { $('#setplayer').innerHTML = '<div class="prog">No frames for this choice yet.</div>'; return; }
   $('#blurb').textContent = v.blurb || it.blurb || it.title;
-  await playLoop(v, $('#setplayer'));
+  await playLoop(v, $('#setplayer'), true);   // flipping a field keeps the day
 }
 
 async function item(it){
