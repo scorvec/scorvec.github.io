@@ -129,7 +129,10 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--start", default="199709"); ap.add_argument("--season", default="DJF")
     ap.add_argument("--out", default=str(ROOT / "scripts" / "sst" / "data" / "seas5" / "case"))
     ap.add_argument("--render-only", action="store_true", help="redraw from the cached fields (npz) and summary")
-    ap.add_argument("--apply", default=None, help="YYYYMM of a real-time forecast: add the case's observed-minus-hindcast error field to it (same season)"); a = ap.parse_args()
+    ap.add_argument("--apply", default=None, help="YYYYMM of a real-time forecast: add the case's observed-minus-hindcast error field to it (same season)")
+    ap.add_argument("--composite", default=None, help="comma-separated case starts (YYYYMM, same month): composite of their observed / hindcast / error fields; with --apply, adds the composite error to that forecast"); a = ap.parse_args()
+    if a.composite:
+        return composite_mode(a)
     if a.apply:
         return apply_mode(a)
     year, mm, season = int(a.start[:4]), int(a.start[4:]), a.season.upper()
@@ -252,8 +255,117 @@ def apply_mode(a):
         print("   boxes:", {k: (v["raw_ens_mean"], v["error_1997"], v["adjusted"]) for k, v in boxes.items()}, flush=True)
         del mem, mem_i, adj_m
     astem = out / f"seas5_case_{a.start}_{season}_apply_{a.apply}"
+    np.savez_compressed(str(out / f"seas5_forecast_{a.apply}_{season}_fields.npz"), **{f"{v}_{k}": F[v][k] for v in F for k in ("raw", "olat", "olon")})
     json.dump(A, open(str(astem) + "_summary.json", "w"), indent=1)
     render_apply(A, F, astem); print("wrote", astem)
+
+
+def forecast_fields(a, season, mm, leads, out):
+    """Ensemble-mean anomaly of the real-time forecast on the ERA5 grid per variable, cached as npz."""
+    cache = out / f"seas5_forecast_{a.apply}_{season}_fields.npz"
+    if cache.exists():
+        z = np.load(cache); return {v: {k: z[f"{v}_{k}"] for k in ("raw", "olat", "olon")} for v in ("t2m", "tp", "z500")}
+    FC = str(ROOT / "scripts" / "sst" / "data" / "seas5" / "forecast"); F = {}
+    ref = np.load(str(out / f"seas5_case_{a.composite.split(',')[0]}_{season}_fields.npz"))
+    for var, fpath, hpath, short, fac in (("t2m", f"{FC}/fc_gl_{a.apply}.grib", HC / f"hc_gl_{mm:02d}.grib", "t2m", 1.0),
+                                         ("tp", f"{FC}/fc_gl_{a.apply}.grib", HC / f"hc_gl_{mm:02d}.grib", "tprate", 86400.0 * 1000),
+                                         ("z500", f"{FC}/fc_gl_z500_{a.apply}.grib", HC / f"hc_gl_z500_{mm:02d}.grib", "z", 1.0 / G0)):
+        print(f"  forecast {var} ...", flush=True)
+        mem, lat, lon = model_forecast_season(Path(fpath), hpath, short, leads, fac)
+        olat, olon = ref[f"{var}_olat"], ref[f"{var}_olon"]
+        F[var] = {"raw": to_grid(mem, lat, lon, olat, olon).mean(0), "olat": olat, "olon": olon}; del mem
+    np.savez_compressed(str(cache), **{f"{v}_{k}": F[v][k] for v in F for k in ("raw", "olat", "olon")})
+    return F
+
+
+def composite_mode(a):
+    """Composite of several September-start cases (same season): mean observed, mean hindcast ensemble
+    mean, mean error, and where the cases AGREE on the error's sign (the systematic part); with --apply,
+    the composite error added to this year's forecast."""
+    cases = a.composite.split(","); season = a.season.upper(); mm = int(cases[0][4:])
+    assert all(c[4:] == cases[0][4:] for c in cases), "composite cases must share the start month"
+    out = Path(a.out); leads = leads_for(mm, season)
+    Ss = {c: json.load(open(out / f"seas5_case_{c}_{season}_summary.json")) for c in cases}
+    Zs = {c: np.load(out / f"seas5_case_{c}_{season}_fields.npz") for c in cases}
+    C = {"cases": cases, "labels": {c: Ss[c]["label"] for c in cases}, "season": season}
+    F = {}
+    for var in ("t2m", "tp", "z500"):
+        obs = np.stack([Zs[c][f"{var}_obs"] for c in cases]); em = np.stack([Zs[c][f"{var}_em_i"] for c in cases]); err = obs - em
+        olat, olon = Zs[cases[0]][f"{var}_olat"], Zs[cases[0]][f"{var}_olon"]
+        agree = (np.sign(err) == np.sign(err.mean(0))[None]).all(0)             # every case's error has the composite's sign
+        F[var] = {"obs": obs.mean(0), "em": em.mean(0), "err": err.mean(0), "agree": agree, "olat": olat, "olon": olon, "err_cases": err}
+        C[var] = {"pattern_r_composite": {k: (None if v is None else round(v, 3)) for k, v in ((kk, pattern_r(em.mean(0), obs.mean(0), olat, olon, bb)) for kk, bb in REGIONS.items())},
+                  "pattern_r_cases": {c: Ss[c][var]["pattern_r"] for c in cases},
+                  "agree_frac": {k: round(float(agree[region_mask(olat, olon, b)].mean()), 3) for k, b in REGIONS.items()},
+                  "boxes": {k: {"obs": round(box_mean(obs.mean(0), olat, olon, b), 2), "hindcast": round(box_mean(em.mean(0), olat, olon, b), 2),
+                                "error": round(box_mean(err.mean(0), olat, olon, b), 2), "error_cases": [round(box_mean(e, olat, olon, b), 2) for e in err]}
+                            for k, b in BOXES.items() if b[0] >= olat.min() and b[1] <= olat.max()}}
+        print(var, "composite r", C[var]["pattern_r_composite"], "| agree", C[var]["agree_frac"], flush=True)
+    tag = "_".join(c[:4] for c in cases); cstem = out / f"seas5_composite_{tag}_{season}"
+    if a.apply:
+        fy = int(a.apply[:4]); i0 = MON.index(season[0]); y_f = fy if (i0 + 1) > mm else fy + 1
+        C["forecast"] = a.apply; C["forecast_label"] = f"{season} {y_f}/{str(y_f + 1)[2:]}" if (i0 + len(season) - 1) >= 12 else f"{season} {y_f}"
+        FF = forecast_fields(a, season, mm, leads, out)
+        for var in ("t2m", "tp", "z500"):
+            F[var]["raw"] = FF[var]["raw"]; F[var]["adj"] = FF[var]["raw"] + F[var]["err"]
+            F[var]["adj_agree"] = FF[var]["raw"] + np.where(F[var]["agree"], F[var]["err"], 0.0)
+            olat, olon = F[var]["olat"], F[var]["olon"]
+            C[var]["apply_boxes"] = {k: {"raw": round(box_mean(FF[var]["raw"], olat, olon, b), 2), "adjusted": round(box_mean(F[var]["adj"], olat, olon, b), 2),
+                                         "adjusted_agree_only": round(box_mean(F[var]["adj_agree"], olat, olon, b), 2)}
+                                     for k, b in BOXES.items() if b[0] >= olat.min() and b[1] <= olat.max()}
+            C[var]["pattern_r_raw_vs_composite_obs"] = {k: (None if v is None else round(v, 3)) for k, v in ((kk, pattern_r(FF[var]["raw"], F[var]["obs"], olat, olon, bb)) for kk, bb in REGIONS.items())}
+        cstem = out / f"seas5_composite_{tag}_{season}_apply_{a.apply}"
+    json.dump(C, open(str(cstem) + "_summary.json", "w"), indent=1)
+    render_composite(C, F, cstem); print("wrote", cstem)
+
+
+def render_composite(C, F, stem):
+    import matplotlib; matplotlib.use("Agg")
+    import matplotlib.pyplot as plt, matplotlib.colors as mcolors
+    import cartopy.crs as ccrs, cartopy.feature as cfeature
+    INK, MUTED = "#1a1a1a", "#6f6b64"
+    pc = ccrs.PlateCarree(); proj = ccrs.PlateCarree(central_longitude=-140)
+    spec = {"t2m": ("2 m temperature anomaly, K", [-6, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 6], "RdBu_r"),
+            "tp": ("Precipitation anomaly, mm/day", [-3, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 3], "BrBG"),
+            "z500": ("500 hPa height anomaly, m", [-120, -80, -60, -40, -20, -10, 10, 20, 40, 60, 80, 120], "RdBu_r")}
+    labs = " + ".join(C["labels"][c] for c in C["cases"]); n = len(C["cases"])
+    def draw(fig, gs, r, c, var, fld, title, bold, hatch=None, cbar=False):
+        lab, lev, cm = spec[var]; f = F[var]; norm = mcolors.BoundaryNorm(lev, 256, extend="both")
+        ax = fig.add_subplot(gs[r, c], projection=proj); ax.set_extent([-180, 180, 0 if var == "tp" else -60, 85], crs=pc)
+        lon = f["olon"]; lon_c = np.concatenate([lon, [lon[0] + 360]]); fld_c = np.concatenate([fld, fld[:, :1]], axis=1)
+        im = ax.pcolormesh(lon_c, f["olat"], fld_c, cmap=cm, norm=norm, transform=pc, shading="auto")
+        if hatch is not None:
+            h = np.concatenate([hatch, hatch[:, :1]], axis=1)
+            ax.contourf(lon_c, f["olat"], np.where(~h, 1, np.nan), levels=[0.5, 1.5], colors="none", hatches=["...."], transform=pc)
+        ax.add_feature(cfeature.COASTLINE.with_scale("50m"), lw=0.55, edgecolor="#333"); ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.3, edgecolor="#777")
+        ax.set_title(title, loc="left", fontsize=8.4, fontweight="bold" if bold else "normal", color=INK, pad=3)
+        if cbar:
+            cax = ax.inset_axes([1.012, 0.04, 0.016, 0.92]); cb = fig.colorbar(im, cax=cax, extend="both"); cb.ax.tick_params(labelsize=6.5, colors=MUTED, length=0, pad=1.5); cb.set_label(lab, fontsize=7.2, color=MUTED, labelpad=2)
+    # figure 1: composite hindcast | composite observed | composite error (dots: cases disagree on sign)
+    fig = plt.figure(figsize=(16, 8.2)); gs = fig.add_gridspec(3, 3, left=0.012, right=0.962, top=0.895, bottom=0.01, hspace=0.14, wspace=0.02, height_ratios=[145, 85, 145])
+    for r, var in enumerate(("t2m", "tp", "z500")):
+        rc = C[var]["pattern_r_composite"]; rcs = C[var]["pattern_r_cases"]
+        sub = "N America r " + " · ".join(f"{C['labels'][c][-5:]} {rcs[c]['North America']:+.2f}" for c in C["cases"]) + f" · comp {rc['North America']:+.2f}"
+        draw(fig, gs, r, 0, var, F[var]["em"], f"SEAS5 1 Sep hindcast ensemble mean, {n}-event composite\n{sub}", True)
+        draw(fig, gs, r, 1, var, F[var]["obs"], f"ERA5 observed, {n}-event composite\nEurope r composite {rc['Europe']:+.2f} · " + " · ".join(f"{C['labels'][c][-5:]} {rcs[c]['Europe']:+.2f}" for c in C["cases"]), False)
+        draw(fig, gs, r, 2, var, F[var]["err"], f"Composite error: observed − hindcast (dots: the {n} events disagree on the sign)", True, hatch=F[var]["agree"], cbar=True)
+    fig.text(0.012, 0.985, f"SEAS5 September-start hindcasts, strong El Niño composite: {labs}", fontsize=15.5, fontweight="bold", color=INK, va="top")
+    fig.text(0.012, 0.948, f"Each event: 25-member ensemble mean from the 1 September start, months 4–6, minus the 1993–2016 September-start hindcast mean; ERA5 minus its own 1993/94–2016/17 mean of the same season. The composite averages the {n} events on each side. "
+             "Where the dots are absent, every event's error had the composite's sign — the repeatable part of what the model gets wrong. ERA5 1.5° grid; precipitation 0–90 N only.", fontsize=8, color=MUTED, va="top", wrap=True)
+    base = str(stem).split("_apply_")[0]                      # the composite figure keeps its own name when --apply is on
+    fig.savefig(base + "_maps.png", dpi=120, facecolor="white"); plt.close(fig)
+    if "forecast" not in C: return
+    # figure 2: this year's forecast | composite error | forecast + error where the events agree
+    fig = plt.figure(figsize=(16, 8.2)); gs = fig.add_gridspec(3, 3, left=0.012, right=0.962, top=0.895, bottom=0.01, hspace=0.14, wspace=0.02, height_ratios=[145, 85, 145])
+    for r, var in enumerate(("t2m", "tp", "z500")):
+        rr = C[var]["pattern_r_raw_vs_composite_obs"]
+        draw(fig, gs, r, 0, var, F[var]["raw"], f"SEAS5 1 Sep {C['forecast'][:4]} forecast, 51 members: {C['forecast_label']}\nN America r vs the composite observed winter {rr['North America']:+.2f} · Europe {rr['Europe']:+.2f}", True)
+        draw(fig, gs, r, 1, var, F[var]["err"], f"Composite hindcast error of {n} strong El Niños (dots: sign not shared by all)", False, hatch=F[var]["agree"])
+        draw(fig, gs, r, 2, var, F[var]["adj_agree"], f"{C['forecast_label']} forecast + composite error where the {n} events agree", True, cbar=True)
+    fig.text(0.012, 0.985, f"This winter's SEAS5 forecast with the strong-El Niño composite error added: {C['forecast_label']}", fontsize=15.5, fontweight="bold", color=INK, va="top")
+    fig.text(0.012, 0.948, f"Left: ensemble-mean anomaly of the 1 Sep {C['forecast'][:4]} forecast against the 1993–2016 September-start hindcast (months 4–6). Middle: the average of what the same model got wrong from 1 September in {labs}. "
+             "Right: left plus middle, but only where all events erred the same way; elsewhere the forecast is left alone. That keeps the repeatable amplitude shortfall and drops each winter's own weather. ERA5 1.5° grid; precipitation 0–90 N only.", fontsize=8, color=MUTED, va="top", wrap=True)
+    fig.savefig(str(stem) + "_maps.png", dpi=120, facecolor="white"); plt.close(fig)
 
 
 def render_apply(A, F, stem):
