@@ -77,7 +77,7 @@ jobs:
 
       # The hindcast pool is per calendar month and costs ~20 min to build; keep it between runs.
       - name: Cache the SFS hindcast climatology
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: scripts/sfs/data
           key: sfs-clim-${{ steps.iss.outputs.month }}-v1
