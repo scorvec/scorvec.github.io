@@ -72,6 +72,12 @@ def model_season(path: Path, var: str, year: int, mm: int, leads: list[int], fac
     return (yr - clim)[:, :, order], clim[:, order], lat, lon360[order]
 
 
+def _f64(da):
+    """Coordinates as rounded float64. The store's 2023-2026 files carry float32 lat/lon; xarray
+    aligns on exact values and silently kept 40 of 121 latitudes (found 2026-09-16 on the 2023 case)."""
+    return da.assign_coords(latitude=np.round(da.latitude.values.astype(np.float64), 3), longitude=np.round(da.longitude.values.astype(np.float64), 3))
+
+
 def era5_season(var: str, sub: str, year0: int, season: str, years: tuple[int, int]):
     """Observed season mean for the target winter and the climatology over `years` (season starting in
     those years) → (anom[lat, lon], lat, lon). Handles the store's mixed dimension order by name."""
@@ -79,16 +85,38 @@ def era5_season(var: str, sub: str, year0: int, season: str, years: tuple[int, i
     cache = {}
     def yearfile(y):
         if y not in cache:
-            ds = xr.open_dataset(E5 / sub / var / f"{var}_{y}.nc"); cache[y] = ds[var].transpose("time", "latitude", "longitude").load(); ds.close()
+            fp = E5 / sub / var / f"{var}_{y}.nc"
+            if not fp.exists() and sub == "wb2_1p5_daily_global" and (E5 / "wb2_1p5_daily" / var / f"{var}_{y}.nc").exists():
+                fp = E5 / "wb2_1p5_daily" / var / f"{var}_{y}.nc"          # NH-only store (z500 runs to 2026 there, global to 2020)
+                print(f"    ERA5 {var} {y}: global file missing, using the 0-90N store", flush=True)
+            ds = xr.open_dataset(fp); cache[y] = _f64(ds[var].transpose("time", "latitude", "longitude").load()); ds.close()
         return cache[y]
+    def monthmean(y, m):
+        """One calendar month's mean: from the year file when it holds the month (>= 25 days), else from
+        the store's monthly tail piece (<var>/tail_pieces/<var>_YYYY-MM.nc; precipitation past 2023-01-10
+        lives only there, see scripts/era5/arco_prcp_months.py)."""
+        fp = E5 / sub / var / f"{var}_{y}.nc"; alt = E5 / "wb2_1p5_daily" / var / f"{var}_{y}.nc"
+        if fp.exists() or alt.exists():
+            x = yearfile(y); xm = x.sel(time=x.time.dt.month == m)
+            if xm.time.size >= 25: return xm.mean("time")
+        piece = E5 / "wb2_1p5_daily" / var / "tail_pieces" / f"{var}_{y}-{m:02d}.nc"
+        if piece.exists():
+            ds = xr.open_dataset(piece); xm = _f64(ds[var].transpose("time", "latitude", "longitude").load()); ds.close()
+            print(f"    ERA5 {var} {y}-{m:02d}: from the tail piece ({xm.time.size} days)", flush=True)
+            return xm.mean("time")
+        raise FileNotFoundError(f"ERA5 {var} {y}-{m:02d}: neither a year file with the month nor a tail piece")
     def smean(y0):
         parts = []
         for k, m in enumerate(months):
             y = y0 + (1 if (i0 + k) >= 12 else 0)
-            x = yearfile(y); parts.append(x.sel(time=x.time.dt.month == m).mean("time"))
-        return xr.concat(parts, "m").mean("m")
+            parts.append(monthmean(y, m))
+        lat_c = None
+        for q in parts: lat_c = q.latitude.values if lat_c is None else np.intersect1d(lat_c, q.latitude.values)
+        return xr.concat([q.sel(latitude=lat_c) for q in parts], "m").mean("m")
     tgt = smean(year0)
     clim = xr.concat([smean(y) for y in range(years[0], years[1] + 1)], "y").mean("y")
+    if tgt.latitude.size != clim.latitude.size:                    # mixed global / NH sources: compare on the common (NH) latitudes
+        lat_c = np.intersect1d(tgt.latitude.values, clim.latitude.values); tgt = tgt.sel(latitude=lat_c); clim = clim.sel(latitude=lat_c)
     a = (tgt - clim); return a.values.astype(np.float32), a.latitude.values, a.longitude.values
 
 
@@ -148,13 +176,20 @@ def main():
         F = {v: {k: z[f"{v}_{k}"] for k in ("em", "lat", "lon", "obs", "olat", "olon", "sign", "em_i")} for v in ("t2m", "tp", "z500")}
         render(S, F, stem); print("re-rendered", stem); return
 
-    S = {"start": a.start, "season": season, "label": label, "leads": leads, "members": 25, "hindcast_years": list(HC_YEARS)}
+    S = {"start": a.start, "season": season, "label": label, "leads": leads, "members": 25, "hindcast_years": list(HC_YEARS), "realtime": False}
     fields = {}
     for var, path, short, fac, e5var, e5sub in (("t2m", HC / f"hc_gl_{mm:02d}.grib", "t2m", 1.0, "t2m", "wb2_1p5_daily_global"),
                                                 ("tp", HC / f"hc_gl_{mm:02d}.grib", "tprate", 86400.0 * 1000, "prcp", "wb2_1p5_daily"),
                                                 ("z500", HC / f"hc_gl_z500_{mm:02d}.grib", "z", 1.0 / G0, "z500", "wb2_1p5_daily_global")):
         print(f"  model {var} ...", flush=True)
-        mem, clim, lat, lon = model_season(path, short, year, mm, leads, fac)
+        if HC_YEARS[0] <= year <= HC_YEARS[1]:
+            mem, clim, lat, lon = model_season(path, short, year, mm, leads, fac)
+        else:
+            # a REAL-TIME start outside the hindcast years (e.g. Sep 2023, 51 members): members from
+            # the archived forecast file, anomaly against the same 1993-2016 hindcast base.
+            fcp = ROOT / "scripts" / "sst" / "data" / "seas5" / "forecast" / (f"fc_gl_z500_{a.start}.grib" if var == "z500" else f"fc_gl_{a.start}.grib")
+            mem, lat, lon = model_forecast_season(fcp, path, short, leads, fac); clim = None
+            S["members"] = int(mem.shape[0]); S["realtime"] = True
         print(f"  ERA5 {e5var} ...", flush=True)
         obs, olat, olon = era5_season(e5var, e5sub, y_season, season, HC_YEARS)
         em = mem.mean(0)
@@ -185,7 +220,10 @@ def main():
     def bm(arr):  # arr (..., lat, lon)
         x = np.where(m & np.isfinite(arr), arr, np.nan); ww = np.where(m & np.isfinite(arr), w, 0)
         return np.nansum(x * ww, axis=(-2, -1)) / ww.sum(axis=(-2, -1))
-    yr = bm(sst.sel(time=f"{year}-{mm:02d}-01").values)            # (number, lead)
+    if S.get("realtime"):
+        fds = open_hc(ROOT / "scripts" / "sst" / "data" / "seas5" / "forecast" / f"fc_gl_{a.start}.grib"); yr = bm(fds["sst"].values); fds.close()   # (number, lead)
+    else:
+        yr = bm(sst.sel(time=f"{year}-{mm:02d}-01").values)        # (number, lead)
     clim = bm(sst.mean("number").values).mean(1)                    # bm → (lead, year); mean over the hindcast years
     ds.close()
     plume = yr - clim[None, :]
@@ -290,8 +328,18 @@ def composite_mode(a):
     C = {"cases": cases, "labels": {c: Ss[c]["label"] for c in cases}, "season": season}
     F = {}
     for var in ("t2m", "tp", "z500"):
-        obs = np.stack([Zs[c][f"{var}_obs"] for c in cases]); em = np.stack([Zs[c][f"{var}_em_i"] for c in cases]); err = obs - em
-        olat, olon = Zs[cases[0]][f"{var}_olat"], Zs[cases[0]][f"{var}_olon"]
+        # cases can sit on different latitude ranges (z500 after 2020 comes from the 0-90N store):
+        # composite on the latitudes every case has
+        # (rounded: older caches hold 1.5000000000000002-style floats, newer ones rounded values — an
+        # exact intersection kept 40 of 121 latitudes)
+        lats = {c: np.round(Zs[c][f"{var}_olat"].astype(np.float64), 3) for c in cases}
+        lat_c = None
+        for c in cases: lat_c = lats[c] if lat_c is None else np.intersect1d(lat_c, lats[c])
+        def crop(c, key):
+            la = lats[c]; idx = np.isin(la, lat_c); arr = Zs[c][key][idx]
+            return arr[np.argsort(la[idx])]
+        obs = np.stack([crop(c, f"{var}_obs") for c in cases]); em = np.stack([crop(c, f"{var}_em_i") for c in cases]); err = obs - em
+        olat, olon = np.sort(lat_c), np.round(Zs[cases[0]][f"{var}_olon"].astype(np.float64), 3)
         agree = (np.sign(err) == np.sign(err.mean(0))[None]).all(0)             # every case's error has the composite's sign
         F[var] = {"obs": obs.mean(0), "em": em.mean(0), "err": err.mean(0), "agree": agree, "olat": olat, "olon": olon, "err_cases": err}
         C[var] = {"pattern_r_composite": {k: (None if v is None else round(v, 3)) for k, v in ((kk, pattern_r(em.mean(0), obs.mean(0), olat, olon, bb)) for kk, bb in REGIONS.items())},
@@ -307,6 +355,8 @@ def composite_mode(a):
         C["forecast"] = a.apply; C["forecast_label"] = f"{season} {y_f}/{str(y_f + 1)[2:]}" if (i0 + len(season) - 1) >= 12 else f"{season} {y_f}"
         FF = forecast_fields(a, season, mm, leads, out)
         for var in ("t2m", "tp", "z500"):
+            if FF[var]["raw"].shape != F[var]["err"].shape:                 # forecast on the full grid, composite on the common latitudes
+                la = np.round(FF[var]["olat"].astype(np.float64), 3); idx = np.isin(la, F[var]["olat"]); FF[var]["raw"] = FF[var]["raw"][idx][np.argsort(la[idx])]
             F[var]["raw"] = FF[var]["raw"]; F[var]["adj"] = FF[var]["raw"] + F[var]["err"]
             F[var]["adj_agree"] = FF[var]["raw"] + np.where(F[var]["agree"], F[var]["err"], 0.0)
             olat, olon = F[var]["olat"], F[var]["olon"]
@@ -345,12 +395,12 @@ def render_composite(C, F, stem):
     fig = plt.figure(figsize=(16, 8.2)); gs = fig.add_gridspec(3, 3, left=0.012, right=0.962, top=0.895, bottom=0.01, hspace=0.14, wspace=0.02, height_ratios=[145, 85, 145])
     for r, var in enumerate(("t2m", "tp", "z500")):
         rc = C[var]["pattern_r_composite"]; rcs = C[var]["pattern_r_cases"]
-        sub = "N America r " + " · ".join(f"{C['labels'][c][-5:]} {rcs[c]['North America']:+.2f}" for c in C["cases"]) + f" · comp {rc['North America']:+.2f}"
-        draw(fig, gs, r, 0, var, F[var]["em"], f"SEAS5 1 Sep hindcast ensemble mean, {n}-event composite\n{sub}", True)
-        draw(fig, gs, r, 1, var, F[var]["obs"], f"ERA5 observed, {n}-event composite\nEurope r composite {rc['Europe']:+.2f} · " + " · ".join(f"{C['labels'][c][-5:]} {rcs[c]['Europe']:+.2f}" for c in C["cases"]), False)
+        sub = "N America r: " + " ".join(f"{C['labels'][c][-5:]} {rcs[c]['North America']:+.2f}" for c in C["cases"])
+        draw(fig, gs, r, 0, var, F[var]["em"], f"SEAS5 1 Sep ensemble mean, {n}-event composite (N America r {rc['North America']:+.2f}, Europe {rc['Europe']:+.2f})\n{sub}", True)
+        draw(fig, gs, r, 1, var, F[var]["obs"], f"ERA5 observed, {n}-event composite\nEurope r: " + " ".join(f"{C['labels'][c][-5:]} {rcs[c]['Europe']:+.2f}" for c in C["cases"]), False)
         draw(fig, gs, r, 2, var, F[var]["err"], f"Composite error: observed − hindcast (dots: the {n} events disagree on the sign)", True, hatch=F[var]["agree"], cbar=True)
     fig.text(0.012, 0.985, f"SEAS5 September-start hindcasts, strong El Niño composite: {labs}", fontsize=15.5, fontweight="bold", color=INK, va="top")
-    fig.text(0.012, 0.948, f"Each event: 25-member ensemble mean from the 1 September start, months 4–6, minus the 1993–2016 September-start hindcast mean; ERA5 minus its own 1993/94–2016/17 mean of the same season. The composite averages the {n} events on each side. "
+    fig.text(0.012, 0.948, f"Each event: ensemble mean from the 1 September start (25 hindcast members; 51 for a real-time year), months 4–6, minus the 1993–2016 September-start hindcast mean; ERA5 minus its own 1993/94–2016/17 mean of the same season. The composite averages the {n} events on each side. "
              "Where the dots are absent, every event's error had the composite's sign — the repeatable part of what the model gets wrong. ERA5 1.5° grid; precipitation 0–90 N only.", fontsize=8, color=MUTED, va="top", wrap=True)
     base = str(stem).split("_apply_")[0]                      # the composite figure keeps its own name when --apply is on
     fig.savefig(base + "_maps.png", dpi=120, facecolor="white"); plt.close(fig)
@@ -414,7 +464,7 @@ def render(S, F, stem):
     for r, var in enumerate(("t2m", "tp", "z500")):
         lab, lev, cm = spec[var]; f = F[var]
         norm = mcolors.BoundaryNorm(lev, 256, extend="both")
-        for c, (title, fld, lat, lon) in enumerate(((f"SEAS5 ensemble mean, 25 members, start 1 Sep {S['start'][:4]}", f["em"], f["lat"], f["lon"]),
+        for c, (title, fld, lat, lon) in enumerate(((f"SEAS5 ensemble mean, {S.get('members', 25)} members, start 1 Sep {S['start'][:4]}" + (" (real-time forecast)" if S.get("realtime") else ""), f["em"], f["lat"], f["lon"]),
                                                    ("ERA5 observed", f["obs"], f["olat"], f["olon"]))):
             ax = fig.add_subplot(gs[r, c], projection=proj)
             ax.set_extent([-180, 180, -60 if var != "tp" else 0, 85], crs=pc) if var != "tp" else ax.set_extent([-180, 180, 0, 85], crs=pc)
@@ -432,8 +482,8 @@ def render(S, F, stem):
             ax.set_title(title + (f"\n{sub}" if sub else ""), loc="left", fontsize=9.5, fontweight="bold" if c == 0 else "normal", color=INK, pad=3)
             if c == 1:
                 cax = ax.inset_axes([1.012, 0.04, 0.016, 0.92]); cb = fig.colorbar(im, cax=cax, extend="both"); cb.ax.tick_params(labelsize=6.8, colors=MUTED, length=0, pad=1.5); cb.set_label(lab, fontsize=7.5, color=MUTED, labelpad=2)
-    fig.text(0.015, 0.985, f"SEAS5 September {S['start'][:4]} hindcast vs what happened: {S['label']}", fontsize=16, fontweight="bold", color=INK, va="top")
-    fig.text(0.015, 0.952, "Model: ECMWF SEAS5 hindcast, 25 members, start 1 September, months 4–6 (Dec–Feb); anomaly = member mean minus the 1993–2016 September-start hindcast mean at the same leads. "
+    fig.text(0.015, 0.985, f"SEAS5 September {S['start'][:4]} {'forecast' if S.get('realtime') else 'hindcast'} vs what happened: {S['label']}", fontsize=16, fontweight="bold", color=INK, va="top")
+    fig.text(0.015, 0.952, f"Model: ECMWF SEAS5 {'real-time forecast, 51 members' if S.get('realtime') else 'hindcast, 25 members'}, start 1 September, months 4–6 (Dec–Feb); anomaly = member mean minus the 1993–2016 September-start hindcast mean at the same leads. "
              "Observed: ERA5 (1.5°), anomaly against ERA5's 1993/94–2016/17 season mean. Dots: fewer than 70 % of members share the observed sign. Precipitation is compared on 0–90 N only (ERA5 store coverage).",
              fontsize=8.2, color=MUTED, va="top", wrap=True)
     fig.savefig(str(stem) + "_maps.png", dpi=120, facecolor="white"); plt.close(fig)
