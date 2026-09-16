@@ -70,21 +70,44 @@
   #blurb{color:var(--muted);font-size:.9rem;padding:.55rem 1.2rem;border-bottom:1px solid var(--rule);background:var(--panel)}
   #stage iframe{width:100%;height:calc(100vh - 2.6rem);border:0;display:block;background:var(--bg)}
   #stage img{width:100%;height:auto;display:block;background:#fff}
-  .fwrap{position:relative;background:var(--panel);max-height:calc(100vh - 6.4rem)}
-  .fwrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
-  .opts{display:flex;flex-direction:column;gap:.35rem;margin:0 0 .6rem}
+  /* animation viewer: options row, canvas stage, thin load bar, player pinned below */
+  .viewer{display:flex;flex-direction:column;height:calc(100vh - 2.6rem);min-height:0}
+  .opts{display:flex;flex-direction:column;gap:.3rem;padding:.45rem 1rem;border-bottom:1px solid var(--rule);background:var(--panel);flex:0 0 auto}
   .optrow{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center}
-  .optrow .lbl{font-size:.85rem;color:var(--muted);margin-right:.3rem;min-width:4.5rem}
+  .optrow .lbl{font-size:.78rem;color:var(--muted);margin-right:.3rem;min-width:4.2rem;text-transform:uppercase;letter-spacing:.05em}
+  button.opt{padding:.18rem .6rem;font-size:.88rem}
   button.opt.on{background:var(--accent);border-color:var(--accent);color:#fff}
   :root[data-theme="dark"] button.opt.on{color:#0e1216}
   @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button.opt.on{color:#0e1216}}
-  .fwrap img.off{visibility:hidden}
-  .player{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap;padding:.55rem 1rem;border-top:1px solid var(--rule);background:var(--panel)}
-  .player button{padding:.25rem .55rem;min-width:2.2rem}
+  .load{height:3px;background:var(--rule);position:relative;flex:0 0 auto}
+  .load i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);width:0;transition:width .15s}
+  .load.done i{background:transparent}
+  .vstage{flex:1 1 auto;min-height:0;position:relative;background:var(--panel);overflow:hidden;cursor:grab;touch-action:none}
+  .vstage.drag{cursor:grabbing}
+  .vstage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .vstage .msg{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);padding:1rem;text-align:center;pointer-events:none}
+  .vstage .msg button{pointer-events:all;margin-left:.5rem}
+  .vstage .zoom{position:absolute;right:.6rem;top:.6rem;font-size:.78rem;color:var(--muted);background:var(--panel);border:1px solid var(--edge);border-radius:3px;padding:.05rem .4rem;opacity:.92}
+  .player{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:.45rem 1rem .5rem;border-top:1px solid var(--rule);background:var(--panel);flex:0 0 auto}
+  .player .grp{display:flex;gap:.25rem;align-items:center}
+  .player button{padding:.2rem .5rem;min-width:2.1rem;font-size:.9rem}
   .player button.on{background:var(--accent);border-color:var(--accent);color:#fff}
-  .player input[type=range]{flex:1;min-width:9rem;accent-color:var(--accent)}
-  .player .stamp{font-size:.88rem;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:16rem}
-  .player .lbl{font-size:.84rem;color:var(--muted);margin-left:.4rem}
+  :root[data-theme="dark"] .player button.on{color:#0e1216}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .player button.on{color:#0e1216}}
+  .tl{flex:1 1 14rem;min-width:11rem;position:relative;height:1.7rem;display:flex;align-items:center}
+  .tl input[type=range]{width:100%;margin:0;accent-color:var(--accent);position:relative;z-index:2;background:transparent}
+  .ticks{position:absolute;left:7px;right:7px;top:calc(50% + 8px);height:6px;display:flex;justify-content:space-between;pointer-events:none}
+  .ticks i{width:2px;height:4px;background:var(--edge);border-radius:1px;margin-top:2px}
+  .ticks i.ok{background:var(--accent);opacity:.55}
+  .ticks i.bad{background:var(--err);opacity:1}
+  .ticks i.now{height:6px;margin-top:0;background:var(--ink);opacity:1}
+  .stamp{font-size:.88rem;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .stamp small{color:var(--muted);margin-left:.45rem;font-size:.82rem}
+  .player .lbl{font-size:.76rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-left:.2rem}
+  .player select{font:inherit;font-size:.88rem;color:var(--ink);background:var(--panel);border:1px solid var(--edge);border-radius:4px;padding:.15rem .3rem}
+  .player label.chk{display:flex;align-items:center;gap:.3rem;font-size:.84rem;color:var(--ink2)}
+  .player .keys{font-size:.76rem;color:var(--muted);margin-left:auto}
+  @media (max-width:820px){.viewer{height:auto}.vstage{height:70vh}.player .keys{display:none}}
   .prog{color:var(--muted);padding:2.5rem 1.2rem}
   @media (max-width:820px){#board{grid-template-columns:1fr}#rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--rule)}}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -158,105 +181,260 @@ async function diagnose(path){
     + `Grant the token Repository permissions, Contents: Read (Metadata alone is not enough), or the file is missing on "${br || 'main'}".`;
 }
 
-// ---- loops: many small frames, so they can be paused, stepped and scrubbed
-function stampOf(name){
-  const m = name.match(/_(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?Z?/);
-  if (!m) return name;
-  const [, y, mo, d, h, mi] = m;
-  if (h === undefined) return `${y}-${mo}-${d}`;
-  const loc = new Date(Date.UTC(+y, +mo-1, +d, +h, +mi)).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
-  return `${y}-${mo}-${d} ${h}:${mi} UTC, ${loc} local`;
+// ---- animation viewer -----------------------------------------------------
+// Frames are fetched six at a time (the old player fetched them one by one,
+// so a 72-frame loop took a minute to appear), nearest-to-the-start first, and
+// every frame is kept in the browser's Cache API by name, so a loop already
+// seen opens instantly and costs the token nothing. The frame is drawn on a
+// canvas that fills the stage (wheel to zoom, drag to pan, double-click to
+// reset); the player bar stays under the stage instead of below the fold.
+// A loop opens on the newest frame that is not in the future; a pure forecast
+// loop opens at its first frame. Flipping a field keeps the timestamp.
+const FRAME_CACHE = 'privboard-frames-v1';
+const BLOBS = new Map();                       // path -> Blob, this session
+async function frameBlob(path){
+  if (BLOBS.has(path)) return BLOBS.get(path);
+  let cs = null; try { cs = await caches.open(FRAME_CACHE); } catch (e) {}
+  const key = 'https://frames.privboard.invalid/' + path;
+  if (cs) { try { const hit = await cs.match(key); if (hit) { const b = await hit.blob(); BLOBS.set(path, b); return b; } } catch (e) {} }
+  const r = await gh(path, 'application/vnd.github.raw');
+  const b = new Blob([await r.blob()], { type: path.endsWith('.png') ? 'image/png' : 'image/webp' });
+  if (cs) { try { await cs.put(key, new Response(b, { headers: { 'Content-Type': b.type } })); } catch (e) {} }
+  BLOBS.set(path, b); return b;
 }
-function stopLoop(){ if (LOOP && LOOP.timer) clearInterval(LOOP.timer); LOOP = null; }
-async function playLoop(it, host, keepIndex){
-  const prevI = (keepIndex && LOOP && LOOP.imgs.length) ? LOOP.i : null;
+const STAMP_RE = /_(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?Z?/;
+function stampOf(name){ const m = name.match(STAMP_RE); if (!m) return null;
+  const [, y, mo, d, h, mi] = m; return { t: Date.UTC(+y, +mo - 1, +d, +(h || 0), +(mi || 0)), daily: h === undefined }; }
+const FMT_D = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const FMT_T = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+const FMT_L = new Intl.DateTimeFormat([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+function utcMidnight(){ const n = new Date(); return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()); }
+function relText(st){
+  if (st.daily) { const dd = Math.round((st.t - utcMidnight()) / 864e5); return dd === 0 ? 'today' : dd > 0 ? `in ${dd} d` : `${-dd} d ago`; }
+  const h = (st.t - Date.now()) / 36e5, a = Math.abs(h);
+  const s = a < 1.5 ? `${Math.round(a * 60)} min` : a < 48 ? `${Math.round(a)} h` : `${Math.round(a / 24)} d`;
+  return h > 0 ? `in ${s}` : `${s} ago`;
+}
+function stampHTML(f){
+  if (!f.st) return f.name;
+  const d = new Date(f.st.t);
+  return f.st.daily ? `${FMT_D.format(d)}<small>${relText(f.st)}</small>`
+    : `${FMT_D.format(d)} ${FMT_T.format(d)} UTC<small>${FMT_L.format(d)} local · ${relText(f.st)}</small>`;
+}
+function startIndex(frames){
+  // newest frame that is not in the future; a daily frame stamped today counts as
+  // future (the day is not over, so an observed field for it is still empty)
+  const now = Date.now(), today = utcMidnight(); let k = -1;
+  frames.forEach((f, i) => { if (f.st && (f.st.daily ? f.st.t < today : f.st.t <= now)) k = i; });
+  return k >= 0 ? k : (frames.some(f => f.st) ? 0 : frames.length - 1);
+}
+
+let V = null;                                   // the open viewer
+const SPEEDS = [['slow', 700], ['normal', 320], ['fast', 140], ['very fast', 60]];
+const PREF = { ms: 320, mode: 'loop', dwell: true };
+function stopLoop(){
+  if (!V) return;
+  V.gen = -1; if (V.timer) clearTimeout(V.timer);
+  V.frames.forEach(f => { if (f.url) URL.revokeObjectURL(f.url); });
+  if (V.ro) V.ro.disconnect();
+  V = null;
+}
+function openLoop(variant, host, keep){
+  // keep: {t, playing, z} from the previous viewer, so a field flip lands on the same stamp
   stopLoop();
-  (host || $('#view')).innerHTML = `<div class="fwrap" id="fwrap"></div>
-    <div class="player">
-      <button id="pfirst" title="First frame">|&lt;</button>
-      <button id="pprev" title="Step back">&lt;</button>
-      <button id="pplay" title="Play">Play</button>
-      <button id="pnext" title="Step forward">&gt;</button>
-      <button id="plast" title="Latest frame">&gt;|</button>
-      <input type="range" id="pscrub" min="0" max="0" value="0" aria-label="Frame">
-      <span class="stamp" id="pstamp">Loading frames…</span>
-      <span class="lbl">Speed</span>
-      <button class="pspd" data-ms="700">slow</button>
-      <button class="pspd on" data-ms="320">normal</button>
-      <button class="pspd" data-ms="140">fast</button>
-    </div>`;
-  const wrap = $('#fwrap');
-  LOOP = { i: 0, ms: 320, playing: false, timer: null, imgs: [], names: [] };
-  const me = LOOP;                 // switching product mid-load must not leak frames into the new loop
-  let done = 0, lastErr = null;
-  for (const f of it.frames) {
-    let url;
-    try { url = URL.createObjectURL(new Blob([await (await gh(`${it.dir}/${f.name}`, 'application/vnd.github.raw')).blob()],
-                                         { type: f.name.endsWith('.png') ? 'image/png' : 'image/webp' })); }
-    catch (e) { lastErr = e; if (LOOP !== me) return; continue; }
-    if (LOOP !== me) return;
-    const im = Object.assign(new Image(), { src: url, alt: f.name, className: 'off' });
-    wrap.appendChild(im); LOOP.imgs.push(im); LOOP.names.push(f.name); done++;
-    $('#pstamp').textContent = `Loading ${done} of ${it.frames.length}…`;
-    if (done === 1) { im.onload = () => { if (LOOP) wrap.style.aspectRatio = `${im.naturalWidth}/${im.naturalHeight}`; }; showFrame(0); }
+  const frames = variant.frames.map(f => ({ name: f.name, path: `${variant.dir}/${f.name}`, bytes: f.bytes || 0, st: stampOf(f.name), img: null, url: null, ok: false, err: null }));
+  let i = startIndex(frames);
+  if (keep && keep.t != null && frames.some(f => f.st)) {
+    let best = -1, bd = Infinity;
+    frames.forEach((f, k) => { if (f.st) { const d = Math.abs(f.st.t - keep.t); if (d < bd) { bd = d; best = k; } } });
+    if (best >= 0) i = best;
   }
-  if (LOOP !== me) return;
-  if (!LOOP.imgs.length) { stopLoop(); $('#view').innerHTML =
-    `<div class="prog">Could not load this loop: ${lastErr ? lastErr.message : 'no frames were served'}</div>`; return; }
-  $('#pscrub').max = Math.max(0, LOOP.imgs.length - 1);
-  // open on the newest frame, paused: a loop that starts by itself is a
-  // distraction on every tab switch, and the newest frame is what a glance wants
-  showFrame(prevI != null && prevI < LOOP.imgs.length ? prevI : LOOP.imgs.length - 1); wireLoop(); setPlaying(false);
+  host.innerHTML = `
+    <div class="load" id="vload"><i></i></div>
+    <div class="vstage" id="vstage"><canvas id="vcanvas"></canvas><div class="msg" id="vmsg"></div><div class="zoom" id="vzoom" hidden></div></div>
+    <div class="player">
+      <div class="grp">
+        <button id="pfirst" title="First frame (Home)">|&lt;</button>
+        <button id="pprev" title="Step back (←)">&lt;</button>
+        <button id="pplay" title="Play / pause (space)">Play</button>
+        <button id="pnext" title="Step forward (→)">&gt;</button>
+        <button id="plast" title="Latest frame (End)">&gt;|</button>
+      </div>
+      <div class="tl"><input type="range" id="pscrub" min="0" max="${frames.length - 1}" value="${i}" aria-label="Frame"><div class="ticks" id="pticks">${frames.map(() => '<i></i>').join('')}</div></div>
+      <span class="stamp" id="pstamp"></span>
+      <span class="lbl">Speed</span>
+      <select id="pspeed">${SPEEDS.map(([n, ms]) => `<option value="${ms}"${ms === PREF.ms ? ' selected' : ''}>${n}</option>`).join('')}</select>
+      <span class="lbl">Mode</span>
+      <select id="pmode"><option value="loop">loop</option><option value="bounce">bounce</option><option value="once">to the end</option></select>
+      <label class="chk"><input type="checkbox" id="pdwell"> hold last</label>
+      <button id="pzoom" title="Reset zoom (R)" hidden>Reset zoom</button>
+      <span class="keys">space play · ← → step · ↑ ↓ flip field · wheel zoom · drag pan</span>
+    </div>`;
+  const canvas = $('#vcanvas');
+  V = { variant, frames, i, gen: Date.now(), playing: false, timer: null, dir: 1, ms: PREF.ms, mode: PREF.mode, dwell: PREF.dwell,
+        z: (keep && keep.z) ? { ...keep.z } : { s: 1, x: 0, y: 0 }, canvas, ctx: canvas.getContext('2d'), loaded: 0, bytes: 0, ro: null };
+  $('#pmode').value = V.mode; $('#pdwell').checked = V.dwell;
+  wireViewer();
+  V.ro = new ResizeObserver(() => draw()); V.ro.observe($('#vstage'));
+  showFrame(i); draw();
+  loadFrames(V);
+  if (keep && keep.playing) setPlaying(true);
+}
+async function loadFrames(v){
+  const gen = v.gen, total = v.frames.reduce((a, f) => a + f.bytes, 0);
+  const order = [...v.frames.keys()].sort((a, b) => Math.abs(a - v.i) - Math.abs(b - v.i) || a - b);
+  let next = 0;
+  const worker = async () => {
+    while (next < order.length) {
+      const k = order[next++], f = v.frames[k];
+      try {
+        const b = await frameBlob(f.path); if (v.gen !== gen) return;
+        f.url = URL.createObjectURL(b);
+        f.img = new Image(); f.img.src = f.url;
+        await new Promise((res, rej) => { f.img.onload = res; f.img.onerror = () => rej(new Error('undecodable image')); });
+        if (v.gen !== gen) return;
+        f.ok = true;
+      } catch (e) { if (v.gen !== gen) return; f.err = e.message || String(e); }
+      v.loaded++; v.bytes += f.bytes;
+      const bar = $('#vload'); if (bar) { bar.querySelector('i').style.width = `${100 * v.loaded / v.frames.length}%`; }
+      const t = $('#pticks'); if (t && t.children[k]) t.children[k].className = f.ok ? 'ok' : 'bad';
+      if (k === v.i) { draw(); } else if (v.playing && !v.frames[v.i].ok) { draw(); }
+      if (!v.playing) updateStamp(total);
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, worker));
+  if (v.gen !== gen) return;
+  const bar = $('#vload'); if (bar) bar.classList.add('done');
+  updateStamp(total);
+  markNow();
+}
+function markNow(){
+  if (!V) return; const now = Date.now(); let k = -1;
+  V.frames.forEach((f, i) => { if (f.st && f.st.t <= now) k = i; });
+  const t = $('#pticks'); if (t && k >= 0 && t.children[k]) t.children[k].classList.add('now');
+}
+function updateStamp(total){
+  if (!V) return; const f = V.frames[V.i]; const st = $('#pstamp'); if (!st) return;
+  const pending = V.loaded < V.frames.length ? ` · loading ${V.loaded} of ${V.frames.length}${total ? ` (${(V.bytes / 1e6).toFixed(1)} of ${(total / 1e6).toFixed(1)} MB)` : ''}` : '';
+  const failed = V.frames.filter(x => x.err).length;
+  st.innerHTML = `<b>${V.i + 1}</b>/${V.frames.length} ${stampHTML(f)}${pending ? `<small>${pending.slice(3)}</small>` : ''}${failed ? `<small style="color:var(--err)">${failed} frame${failed > 1 ? 's' : ''} failed</small>` : ''}`;
+}
+function draw(){
+  if (!V) return;
+  const c = V.canvas, ctx = V.ctx, host = c.parentElement;
+  const W = host.clientWidth, H = host.clientHeight, dpr = window.devicePixelRatio || 1;
+  if (!W || !H) return;
+  if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  const f = V.frames[V.i], msg = $('#vmsg');
+  if (!f.ok) {
+    msg.innerHTML = f.err ? `This frame could not be loaded: ${f.err} <button id="vretry">Retry</button>` : `Loading frame ${V.i + 1}…`;
+    const rb = $('#vretry'); if (rb) rb.onclick = () => retryFrame(V.i);
+    // keep the last good frame on screen behind the message so playback never blanks
+    const prev = V.lastGood; if (prev && prev.ok) blit(ctx, prev.img, W, H, .35);
+    return;
+  }
+  msg.innerHTML = ''; V.lastGood = f;
+  blit(ctx, f.img, W, H, 1);
+  const zi = $('#vzoom'), zb = $('#pzoom'); const zoomed = V.z.s !== 1 || V.z.x || V.z.y;
+  if (zi) { zi.hidden = !zoomed; zi.textContent = `${V.z.s.toFixed(1)}×`; } if (zb) zb.hidden = !zoomed;
+}
+function blit(ctx, img, W, H, alpha){
+  const iw = img.naturalWidth, ih = img.naturalHeight; if (!iw || !ih) return;
+  const s = Math.min(W / iw, H / ih) * V.z.s, dw = iw * s, dh = ih * s;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, (W - dw) / 2 + V.z.x, (H - dh) / 2 + V.z.y, dw, dh); ctx.restore();
+}
+async function retryFrame(k){
+  const f = V.frames[k]; f.err = null; BLOBS.delete(f.path); const gen = V.gen;
+  try { const b = await frameBlob(f.path); if (V.gen !== gen) return; f.url = URL.createObjectURL(b); f.img = new Image(); f.img.src = f.url;
+        await new Promise((res, rej) => { f.img.onload = res; f.img.onerror = rej; }); f.ok = true; }
+  catch (e) { f.err = e.message || String(e); }
+  const t = $('#pticks'); if (t && t.children[k]) t.children[k].className = f.ok ? 'ok' : 'bad';
+  if (V.i === k) draw(); updateStamp(V.frames.reduce((a, x) => a + x.bytes, 0));
 }
 function showFrame(k){
-  if (!LOOP || !LOOP.imgs.length) return;
-  LOOP.i = (k + LOOP.imgs.length) % LOOP.imgs.length;
-  LOOP.imgs.forEach((el, n) => el.className = n === LOOP.i ? '' : 'off');
-  const sc = $('#pscrub'); if (sc) sc.value = LOOP.i;
-  const st = $('#pstamp'); if (st) st.textContent = `${LOOP.i + 1} of ${LOOP.imgs.length}: ${stampOf(LOOP.names[LOOP.i])}`;
+  if (!V || !V.frames.length) return;
+  V.i = (k + V.frames.length) % V.frames.length;
+  const sc = $('#pscrub'); if (sc) sc.value = V.i;
+  updateStamp(V.frames.reduce((a, f) => a + f.bytes, 0)); draw();
+}
+function stepPlay(){
+  if (!V || !V.playing) return;
+  const n = V.frames.length, last = n - 1; let k = V.i + V.dir;
+  if (V.mode === 'bounce') { if (k > last) { V.dir = -1; k = last - 1; } else if (k < 0) { V.dir = 1; k = 1; } }
+  else if (V.mode === 'once') { if (k > last) { setPlaying(false); return; } }
+  showFrame(k);
+  const hold = (V.dwell && V.mode !== 'bounce' && V.i === last) ? 3 : 1;
+  V.timer = setTimeout(stepPlay, V.ms * hold);
 }
 function setPlaying(on){
-  if (!LOOP) return;
-  LOOP.playing = on;
-  if (LOOP.timer) clearInterval(LOOP.timer);
-  LOOP.timer = on ? setInterval(() => showFrame(LOOP.i + 1), LOOP.ms) : null;
-  const b = $('#pplay'); if (b) { b.textContent = on ? 'Pause' : 'Play'; b.title = on ? 'Pause' : 'Play'; b.classList.toggle('on', on); }
+  if (!V) return;
+  V.playing = on; if (V.timer) clearTimeout(V.timer); V.timer = null;
+  if (on) { V.dir = 1; if (V.mode === 'once' && V.i === V.frames.length - 1) V.i = -1; V.timer = setTimeout(stepPlay, 0); }
+  const b = $('#pplay'); if (b) { b.textContent = on ? 'Pause' : 'Play'; b.classList.toggle('on', on); }
 }
-function wireLoop(){
-  $('#pplay').onclick = () => setPlaying(!LOOP.playing);
-  $('#pprev').onclick = () => { setPlaying(false); showFrame(LOOP.i - 1); };
-  $('#pnext').onclick = () => { setPlaying(false); showFrame(LOOP.i + 1); };
+function wireViewer(){
+  $('#pplay').onclick = () => setPlaying(!V.playing);
+  $('#pprev').onclick = () => { setPlaying(false); showFrame(V.i - 1); };
+  $('#pnext').onclick = () => { setPlaying(false); showFrame(V.i + 1); };
   $('#pfirst').onclick = () => { setPlaying(false); showFrame(0); };
-  $('#plast').onclick = () => { setPlaying(false); showFrame(LOOP.imgs.length - 1); };
+  $('#plast').onclick = () => { setPlaying(false); showFrame(V.frames.length - 1); };
   $('#pscrub').oninput = e => { setPlaying(false); showFrame(+e.target.value); };
-  document.querySelectorAll('.pspd').forEach(b => b.onclick = () => {
-    LOOP.ms = +b.dataset.ms; document.querySelectorAll('.pspd').forEach(x => x.classList.toggle('on', x === b));
-    if (LOOP.playing) setPlaying(true); });
+  $('#pspeed').onchange = e => { V.ms = PREF.ms = +e.target.value; };
+  $('#pmode').onchange = e => { V.mode = PREF.mode = e.target.value; V.dir = 1; };
+  $('#pdwell').onchange = e => { V.dwell = PREF.dwell = e.target.checked; };
+  $('#pzoom').onclick = () => { V.z = { s: 1, x: 0, y: 0 }; draw(); };
+  // zoom and pan on the stage
+  const st = $('#vstage'); let drag = null;
+  st.addEventListener('wheel', e => {
+    e.preventDefault(); const r = st.getBoundingClientRect(), mx = e.clientX - r.left - r.width / 2, my = e.clientY - r.top - r.height / 2;
+    const f = Math.exp(-e.deltaY * 0.0015), s2 = Math.min(10, Math.max(1, V.z.s * f)), k = s2 / V.z.s;
+    V.z = { s: s2, x: mx - (mx - V.z.x) * k, y: my - (my - V.z.y) * k };
+    if (s2 === 1) V.z = { s: 1, x: 0, y: 0 }; draw();
+  }, { passive: false });
+  st.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, zx: V.z.x, zy: V.z.y }; st.classList.add('drag'); st.setPointerCapture(e.pointerId); });
+  st.addEventListener('pointermove', e => { if (!drag || V.z.s === 1) return; V.z.x = drag.zx + e.clientX - drag.x; V.z.y = drag.zy + e.clientY - drag.y; draw(); });
+  const up = () => { drag = null; st.classList.remove('drag'); };
+  st.addEventListener('pointerup', up); st.addEventListener('pointercancel', up);
+  st.addEventListener('dblclick', () => { V.z = { s: 1, x: 0, y: 0 }; draw(); });
 }
 window.addEventListener('keydown', e => {
-  if (!LOOP || !LOOP.imgs.length || e.target.tagName === 'INPUT') return;
-  if (e.key === ' ') { e.preventDefault(); setPlaying(!LOOP.playing); }
-  else if (e.key === 'ArrowLeft') { setPlaying(false); showFrame(LOOP.i - 1); }
-  else if (e.key === 'ArrowRight') { setPlaying(false); showFrame(LOOP.i + 1); }
+  if (!V || !V.frames.length || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.key === ' ') { e.preventDefault(); setPlaying(!V.playing); }
+  else if (e.key === 'ArrowLeft') { setPlaying(false); showFrame(V.i - 1); }
+  else if (e.key === 'ArrowRight') { setPlaying(false); showFrame(V.i + 1); }
   else if (e.key === 'Home') { setPlaying(false); showFrame(0); }
-  else if (e.key === 'End') { setPlaying(false); showFrame(LOOP.imgs.length - 1); }
+  else if (e.key === 'End') { setPlaying(false); showFrame(V.frames.length - 1); }
+  else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); flipField(e.key === 'ArrowUp' ? -1 : 1); }
+  else if (e.key === 'r' || e.key === 'R') { V.z = { s: 1, x: 0, y: 0 }; draw(); }
+  else if (e.key === '+' || e.key === '=') { bumpSpeed(1); } else if (e.key === '-') { bumpSpeed(-1); }
 });
+function bumpSpeed(d){ const k = Math.max(0, Math.min(SPEEDS.length - 1, SPEEDS.findIndex(s => s[1] === V.ms) + d)); V.ms = PREF.ms = SPEEDS[k][1]; const s = $('#pspeed'); if (s) s.value = V.ms; }
 
-// ---- loop sets: one rail entry, buttons for each parameter, the player below
-const SETSEL = {};
-async function playSet(it){
+// ---- loop sets: one rail entry, a button row per parameter, the viewer below
+const SETSEL = {}; let CURSET = null;
+function keepState(){ return V ? { t: V.frames[V.i].st ? V.frames[V.i].st.t : null, playing: V.playing, z: V.z } : null; }
+function playSet(it, keep){
+  CURSET = it;
   const sel = SETSEL[it.id] || (SETSEL[it.id] = Object.fromEntries(it.options.map(o => [o.key, o.values[0].id])));
   const rows = it.options.map(o => `<div class="optrow"><span class="lbl">${o.label}</span>` +
     o.values.map(v => `<button class="opt${sel[o.key] === v.id ? ' on' : ''}" data-k="${o.key}" data-v="${v.id}">${v.label}</button>`).join('') + `</div>`).join('');
-  $('#view').innerHTML = `<div class="opts">${rows}</div><div id="setplayer"></div>`;
-  document.querySelectorAll('#view button.opt').forEach(b => b.onclick = () => {
-    sel[b.dataset.k] = b.dataset.v; playSet(it); });
+  $('#view').innerHTML = `<div class="viewer"><div class="opts">${rows}</div><div id="setplayer" style="display:contents"></div></div>`;
+  document.querySelectorAll('#view button.opt').forEach(b => b.onclick = () => { const k = keepState(); sel[b.dataset.k] = b.dataset.v; playSet(it, k); });
   const key = it.options.map(o => sel[o.key]).join('|');
   const v = it.variants.find(x => x.id === key);
-  if (!v) { $('#setplayer').innerHTML = '<div class="prog">No frames for this choice yet.</div>'; return; }
+  if (!v) { stopLoop(); $('#setplayer').innerHTML = '<div class="prog">No frames for this choice yet.</div>'; return; }
   $('#blurb').textContent = v.blurb || it.blurb || it.title;
-  await playLoop(v, $('#setplayer'), true);   // flipping a field keeps the day
+  openLoop(v, $('#setplayer'), keep);
 }
+function flipField(d){
+  if (!CURSET || !CURSET.options.length) return;
+  const o = CURSET.options[0], sel = SETSEL[CURSET.id]; const ids = o.values.map(v => v.id);
+  const k = (ids.indexOf(sel[o.key]) + d + ids.length) % ids.length;
+  const keep = keepState(); sel[o.key] = ids[k]; playSet(CURSET, keep);
+}
+function playLoop(it){ CURSET = null; $('#view').innerHTML = `<div class="viewer"><div id="setplayer" style="display:contents"></div></div>`; openLoop(it, $('#setplayer'), null); }
 
 async function item(it){
   if (cache.has(it.id)) return cache.get(it.id);
@@ -271,8 +449,8 @@ async function show(id){
   $('#blurb').textContent = it.blurb || it.title;
   $('#view').innerHTML = '<div class="prog">Loading…</div>';
   try {
-    if (it.kind === 'loop') { await playLoop(it); return; }
-    if (it.kind === 'loopset') { await playSet(it); return; }
+    if (it.kind === 'loop') { playLoop(it); return; }
+    if (it.kind === 'loopset') { playSet(it); return; }
     const url = await item(it);
     $('#view').innerHTML = it.kind === 'page' ? `<iframe src="${url}" title="${it.title}"></iframe>` : `<img src="${url}" alt="${it.title}">`;
     if (it.kind === 'page' && it.fit === 'content') {
@@ -305,7 +483,7 @@ $('#go').onclick = async () => {
   $('#err').textContent = ''; open_();
 };
 $('#tok').addEventListener('keydown', e => { if (e.key === 'Enter') $('#go').click(); });
-$('#forget').onclick = () => { localStorage.removeItem(KEY); cache.forEach(URL.revokeObjectURL); cache.clear(); stopLoop();
+$('#forget').onclick = () => { localStorage.removeItem(KEY); cache.forEach(URL.revokeObjectURL); cache.clear(); stopLoop(); BLOBS.clear(); try { caches.delete(FRAME_CACHE); } catch (e) {}
   CFG = null; MAN = null; $('#board').style.display = 'none'; $('#gate').style.display = 'block'; $('#tok').value = ''; };
 $('#reload').onclick = () => { cache.forEach(URL.revokeObjectURL); cache.clear(); open_(); };
 const saved = creds();
