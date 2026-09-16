@@ -128,7 +128,10 @@ def box_mean(field, lat, lon, box):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--start", default="199709"); ap.add_argument("--season", default="DJF")
     ap.add_argument("--out", default=str(ROOT / "scripts" / "sst" / "data" / "seas5" / "case"))
-    ap.add_argument("--render-only", action="store_true", help="redraw from the cached fields (npz) and summary"); a = ap.parse_args()
+    ap.add_argument("--render-only", action="store_true", help="redraw from the cached fields (npz) and summary")
+    ap.add_argument("--apply", default=None, help="YYYYMM of a real-time forecast: add the case's observed-minus-hindcast error field to it (same season)"); a = ap.parse_args()
+    if a.apply:
+        return apply_mode(a)
     year, mm, season = int(a.start[:4]), int(a.start[4:]), a.season.upper()
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     leads = leads_for(mm, season); i0 = MON.index(season[0])
@@ -199,6 +202,90 @@ def main():
     np.savez_compressed(str(stem) + "_fields.npz", **{f"{v}_{k}": arr for v, d in fields.items() for k, arr in d.items()})
     render(S, fields, stem)
     print("wrote", out)
+
+
+def model_forecast_season(path: Path, hc_path: Path, var: str, leads: list[int], fac: float = 1.0):
+    """Real-time forecast members (51) for the season minus the start-month hindcast mean at the same leads."""
+    ds = open_hc(path); da = ds[var]
+    fc = da.sel(forecastMonth=leads).mean("forecastMonth").values.astype(np.float32) * fac        # (number, lat, lon)
+    lat, lon = da.latitude.values, da.longitude.values; ds.close()
+    hs = open_hc(hc_path); clim = hs[var].sel(forecastMonth=leads).mean(("number", "time", "forecastMonth")).values.astype(np.float32) * fac; hs.close()
+    lon360 = np.where(lon < 0, lon + 360, lon); order = np.argsort(lon360)
+    return (fc - clim)[:, :, order], lat, lon360[order]
+
+
+def apply_mode(a):
+    """The user's ask (2026-09-16): 'apply the same spatial pattern of errors from the hindcast to
+    this year's forecast'. Error = observed minus the hindcast ensemble mean for the case season,
+    on the ERA5 grid; adjusted = this year's ensemble-mean anomaly (same season, same leads,
+    against the same 1993-2016 hindcast base) plus that error. It is ONE case's error, so it
+    carries that winter's unforecastable weather (the 1997/98 NAO+ over Europe) as well as any
+    systematic amplitude shortfall; the figure shows all three so the reader can see which is which."""
+    year, mm, season = int(a.start[:4]), int(a.start[4:]), a.season.upper()
+    fy, fm = int(a.apply[:4]), int(a.apply[4:])
+    assert fm == mm, "the forecast must share the case's start month (same leads, same hindcast base)"
+    out = Path(a.out); stem = out / f"seas5_case_{a.start}_{season}"
+    S = json.load(open(str(stem) + "_summary.json")); z = np.load(str(stem) + "_fields.npz")
+    leads = leads_for(mm, season); i0 = MON.index(season[0])
+    y_f = fy if (i0 + 1) > mm else fy + 1
+    flabel = f"{season} {y_f}/{str(y_f + 1)[2:]}" if (i0 + len(season) - 1) >= 12 else f"{season} {y_f}"
+    FC = str(ROOT / "scripts" / "sst" / "data" / "seas5" / "forecast")
+    A = {"case": a.start, "forecast": a.apply, "season": season, "case_label": S["label"], "forecast_label": flabel, "leads": leads}
+    F = {}
+    for var, fpath, hpath, short, fac in (("t2m", f"{FC}/fc_gl_{a.apply}.grib", HC / f"hc_gl_{mm:02d}.grib", "t2m", 1.0),
+                                         ("tp", f"{FC}/fc_gl_{a.apply}.grib", HC / f"hc_gl_{mm:02d}.grib", "tprate", 86400.0 * 1000),
+                                         ("z500", f"{FC}/fc_gl_z500_{a.apply}.grib", HC / f"hc_gl_z500_{mm:02d}.grib", "z", 1.0 / G0)):
+        print(f"  forecast {var} ...", flush=True)
+        mem, lat, lon = model_forecast_season(Path(fpath), hpath, short, leads, fac)
+        olat, olon, obs, em_i = z[f"{var}_olat"], z[f"{var}_olon"], z[f"{var}_obs"], z[f"{var}_em_i"]
+        err = obs - em_i                                                    # 1997/98: observed minus hindcast ensemble mean
+        mem_i = to_grid(mem, lat, lon, olat, olon); em_f = mem_i.mean(0); adj = em_f + err; adj_m = mem_i + err[None]
+        boxes = {}
+        for k, b in BOXES.items():
+            if b[0] < olat.min() or b[1] > olat.max(): continue
+            raw_m = box_mean(mem_i, olat, olon, b); adj_mm = box_mean(adj_m, olat, olon, b)
+            boxes[k] = {"raw_ens_mean": round(float(raw_m.mean()), 2), "raw_p10": round(float(np.percentile(raw_m, 10)), 2), "raw_p90": round(float(np.percentile(raw_m, 90)), 2),
+                        "error_1997": round(box_mean(err, olat, olon, b), 2), "adjusted": round(float(adj_mm.mean()), 2),
+                        "adj_p10": round(float(np.percentile(adj_mm, 10)), 2), "adj_p90": round(float(np.percentile(adj_mm, 90)), 2)}
+        A[var] = {"boxes": boxes, "pattern_r_raw_vs_1997obs": {k: (None if v is None else round(v, 3)) for k, v in ((kk, pattern_r(em_f, obs, olat, olon, bb)) for kk, bb in REGIONS.items())}}
+        F[var] = {"raw": em_f, "err": err, "adj": adj, "olat": olat, "olon": olon}
+        print("   boxes:", {k: (v["raw_ens_mean"], v["error_1997"], v["adjusted"]) for k, v in boxes.items()}, flush=True)
+        del mem, mem_i, adj_m
+    astem = out / f"seas5_case_{a.start}_{season}_apply_{a.apply}"
+    json.dump(A, open(str(astem) + "_summary.json", "w"), indent=1)
+    render_apply(A, F, astem); print("wrote", astem)
+
+
+def render_apply(A, F, stem):
+    import matplotlib; matplotlib.use("Agg")
+    import matplotlib.pyplot as plt, matplotlib.colors as mcolors
+    import cartopy.crs as ccrs, cartopy.feature as cfeature
+    INK, MUTED = "#1a1a1a", "#6f6b64"
+    pc = ccrs.PlateCarree(); proj = ccrs.PlateCarree(central_longitude=-140)
+    spec = {"t2m": ("2 m temperature anomaly, K", [-6, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 6], "RdBu_r"),
+            "tp": ("Precipitation anomaly, mm/day", [-3, -2, -1.5, -1, -0.5, -0.25, 0.25, 0.5, 1, 1.5, 2, 3], "BrBG"),
+            "z500": ("500 hPa height anomaly, m", [-120, -80, -60, -40, -20, -10, 10, 20, 40, 60, 80, 120], "RdBu_r")}
+    fig = plt.figure(figsize=(16, 8.2))
+    gs = fig.add_gridspec(3, 3, left=0.012, right=0.962, top=0.895, bottom=0.01, hspace=0.14, wspace=0.02, height_ratios=[145, 85, 145])
+    cols = ((f"SEAS5 1 Sep {A['forecast'][:4]} forecast, 51 members: {A['forecast_label']}", "raw"),
+            (f"Error of the 1 Sep {A['case'][:4]} hindcast: observed − ensemble mean, {A['case_label']}", "err"),
+            (f"{A['forecast_label']} forecast + {A['case_label']} error", "adj"))
+    for r, var in enumerate(("t2m", "tp", "z500")):
+        lab, lev, cm = spec[var]; f = F[var]; norm = mcolors.BoundaryNorm(lev, 256, extend="both")
+        for c, (title, key) in enumerate(cols):
+            ax = fig.add_subplot(gs[r, c], projection=proj)
+            ax.set_extent([-180, 180, 0 if var == "tp" else -60, 85], crs=pc)
+            lon = f["olon"]; fld = f[key]; lon_c = np.concatenate([lon, [lon[0] + 360]]); fld_c = np.concatenate([fld, fld[:, :1]], axis=1)
+            im = ax.pcolormesh(lon_c, f["olat"], fld_c, cmap=cm, norm=norm, transform=pc, shading="auto")
+            ax.add_feature(cfeature.COASTLINE.with_scale("50m"), lw=0.55, edgecolor="#333"); ax.add_feature(cfeature.BORDERS.with_scale("50m"), lw=0.3, edgecolor="#777")
+            ax.set_title(title, loc="left", fontsize=8.6, fontweight="bold" if c != 1 else "normal", color=INK, pad=3)
+            if c == 2:
+                cax = ax.inset_axes([1.012, 0.04, 0.016, 0.92]); cb = fig.colorbar(im, cax=cax, extend="both"); cb.ax.tick_params(labelsize=6.5, colors=MUTED, length=0, pad=1.5); cb.set_label(lab, fontsize=7.2, color=MUTED, labelpad=2)
+    fig.text(0.012, 0.985, f"This winter's SEAS5 forecast with the {A['case_label']} hindcast error added", fontsize=16, fontweight="bold", color=INK, va="top")
+    fig.text(0.012, 0.948, f"Left: ensemble-mean anomaly of the 1 Sep {A['forecast'][:4]} forecast for {A['forecast_label']} against the 1993–2016 September-start hindcast (months 4–6). Middle: what the same model, from 1 Sep {A['case'][:4]}, "
+             f"got wrong for {A['case_label']} (ERA5 minus the 25-member hindcast mean, both against 1993–2016). Right: left plus middle. The error is ONE winter's, so it carries that winter's weather as well as any systematic shortfall — "
+             "read the middle column for what is being added. ERA5 1.5° grid; precipitation 0–90 N only.", fontsize=8, color=MUTED, va="top", wrap=True)
+    fig.savefig(str(stem) + "_maps.png", dpi=120, facecolor="white"); plt.close(fig)
 
 
 def render(S, F, stem):
