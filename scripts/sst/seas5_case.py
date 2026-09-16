@@ -396,7 +396,7 @@ def render_composite(C, F, stem):
     for r, var in enumerate(("t2m", "tp", "z500")):
         rc = C[var]["pattern_r_composite"]; rcs = C[var]["pattern_r_cases"]
         sub = "N America r: " + " ".join(f"{C['labels'][c][-5:]} {rcs[c]['North America']:+.2f}" for c in C["cases"])
-        draw(fig, gs, r, 0, var, F[var]["em"], f"SEAS5 1 Sep ensemble mean, {n}-event composite (N America r {rc['North America']:+.2f}, Europe {rc['Europe']:+.2f})\n{sub}", True)
+        draw(fig, gs, r, 0, var, F[var]["em"], f"SEAS5 1 Sep ensemble mean, {n}-event composite (r: NA {rc['North America']:+.2f}, EU {rc['Europe']:+.2f})\n{sub}", True)
         draw(fig, gs, r, 1, var, F[var]["obs"], f"ERA5 observed, {n}-event composite\nEurope r: " + " ".join(f"{C['labels'][c][-5:]} {rcs[c]['Europe']:+.2f}" for c in C["cases"]), False)
         draw(fig, gs, r, 2, var, F[var]["err"], f"Composite error: observed − hindcast (dots: the {n} events disagree on the sign)", True, hatch=F[var]["agree"], cbar=True)
     fig.text(0.012, 0.985, f"SEAS5 September-start hindcasts, strong El Niño composite: {labs}", fontsize=15.5, fontweight="bold", color=INK, va="top")
