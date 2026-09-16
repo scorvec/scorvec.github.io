@@ -274,7 +274,10 @@ class _ECMWF(Model):
             kw["number"] = int(member)
         # the Google mirror is 6x faster and does not throttle, but refuses
         # multi-range requests -- one (param, member) per request is fine
-        return self.one("google", **kw) or self.one("ecmwf", **kw)
+        # Google Cloud mirror ONLY: no fallback to the ECMWF origin (its per-request
+        # throttling punishes a whole run; a step the mirror has not replicated yet is
+        # simply left for the next pass).
+        return self.one("google", **kw)
     def available(self, init):
         return bool(self.fetch(init, self.steps[1], self.members[0]))
 
