@@ -104,7 +104,7 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0) &middot; ECCC GDPS (MSC Datamart) &middot; ERA5 1991&ndash;2020 normals &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-16</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS and IFS-ENS open data (CC BY 4.0) &middot; ECCC GDPS (MSC Datamart) &middot; ERA5 1991&ndash;2020 normals &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-17</span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -212,6 +212,23 @@
         through the full 15-day forecast.</p>
 <p class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; member 0 + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</p>
 </template>
+<template id="about-heatflux">
+<p>The wave-1 maps show how large the planetary wave is and where its ridge sits; they do not show
+        whether it <b>propagates upward</b>. That is the vertical component of the Eliassen&ndash;Palm
+        flux, which at 100&nbsp;hPa is proportional to the zonal-mean <b>poleward eddy heat flux
+        [v&prime;T&prime;]</b>. A large wave that is vertically stacked carries almost none; one that
+        tilts westward with height carries a lot. <b>Positive is poleward in both hemispheres</b>,
+        which is wave activity entering the stratosphere.</p>
+<p>The flux is quadratic, so it is computed <b>per member and then averaged</b>: the flux of the
+        ensemble-mean fields fades with lead as the members&rsquo; phases decorrelate. Top left: the daily
+        flux, members and the analysed record against the climatological 10&ndash;90&nbsp;% range. Top right: the
+        wave-1 and wave-2 parts. Bottom left is the panel to read for the vortex: the <b>trailing
+        40-day mean, standardised</b>. A few strong days do little; weeks above +1&sigma; weaken
+        the vortex, weeks below &minus;1&sigma; let it strengthen. In early autumn radiative cooling
+        dominates, so a burst slows the vortex&rsquo;s seasonal spin-up rather than reversing it.
+        Bottom right: the ensemble-mean flux by latitude through the forecast.</p>
+<p class="chart-sources">ECMWF AIFS-ENS, 25 perturbed members + control, v and T at 100&nbsp;hPa, daily to day 15 (open data, CC&nbsp;BY&nbsp;4.0) &middot; zonal wavenumbers 1&ndash;72 to match the climatology&rsquo;s resolution &middot; climatology: NCEP/NCAR Reanalysis&nbsp;1 (NOAA PSL), 1991&ndash;2020, &plusmn;15-day window &middot; analysed tail: the AIFS control&rsquo;s step-0 fields, 00 and 12&nbsp;UTC averaged (PSL&rsquo;s R1 stopped in March 2026) &middot; updated each 00/12Z cycle</p>
+</template>
 <template id="about-wave1">
 <p>The <b>zonal wavenumber-1 component</b> of geopotential height, <b>100&nbsp;hPa beside
         500&nbsp;hPa</b> for one hemisphere at a time &mdash; the <b>Hemisphere</b> selector switches
@@ -254,7 +271,7 @@ window.STAGE = {
   {label: "Upper-level dynamics", ico: "\u2699", items: [["vpot","Velocity potential","200 hPa, irrotational wind"],["waf","Wave activity flux","Rossby packets, 250 hPa"],["dt","Dynamic tropopause","θ on 2 PVU, isentropic PV"]]},
   {label: "Angular momentum & torques", ico: "\u2696", items: [["aam","Atmospheric angular momentum","series, trend, phase, by latitude"],["torque","Surface torques","friction and mountain"]]},
   {label: "Overturning & jets", ico: "\u{1F30D}", items: [["hadley","Hadley cells","meridional streamfunction"],["walker","Walker circulation","loop, by basin, weekly departure"],["jets","Subtropical jets","strength and position"],["pacjet","North Pacific jet","extension, shift, torque"]]},
-  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"]]}
+  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"]]}
 ],
   products: {
   mslp: {label: "MSLP and 10 m wind", frame: function () { return "sst_anim.html?embed=1&manifest=mslp_wind_manifest.json&region=mslp_wind"; }, about: "about-mslp", cap: function () { return "Ensemble-mean sea-level pressure and 10 m wind, days 0–15."; }},
@@ -267,24 +284,24 @@ window.STAGE = {
           cap: function (a) { return a === "dt" ? "Potential temperature on the 2-PVU surface, AIFS-ENS member 0, 12-hourly to day 10: low θ is polar or stratospheric air reaching down." : "Ertel PV on the " + (a === "dt_pv330" ? "330" : "350") + " K isentrope, member 0."; }},
   aam: {label: "Atmospheric angular momentum", a: {label: "View", items: [["series","Series and forecast"],["trend","Run-to-run trend"],["phase","Phase"],["zonal","By latitude (loop)"]]},
           frame: function (a) { return a === "zonal" ? "sst_anim.html?embed=1&manifest=aam_zonal_manifest.json&region=aam_zonal" : null; },
-          img: function (a) { return "assets/sst/aam" + (a === "trend" ? "_trend" : a === "phase" ? "_phase" : "") + ".webp?v=cffcd475fd9f"; },
+          img: function (a) { return "assets/sst/aam" + (a === "trend" ? "_trend" : a === "phase" ? "_phase" : "") + ".webp?v=21c5def3c636"; },
           about: "about-aam", cap: function (a) { return {series: "Relative AAM, globe and hemispheres, on the 1991–2020 annual cycle with the 15-day forecast; GFZ's ESMGFZ series in green.", trend: "How successive runs have moved the AAM forecast.", phase: "AAM against its tendency: where the momentum is and where it is heading.", zonal: "Latitude–pressure cross-section of the AAM density and the forecast change."}[a]; }},
   torque: {label: "Surface torques", a: {label: "View", items: [["maps","Torque maps (loop)"],["series","Series"],["ranges","By mountain range"]]},
           frame: function (a) { return a === "maps" ? "sst_anim.html?embed=1&manifest=torque_manifest.json&region=torque" : null; },
-          img: function (a) { return "assets/sst/torque_" + (a === "series" ? "timeseries" : "ranges") + ".webp?v=cffcd475fd9f"; },
+          img: function (a) { return "assets/sst/torque_" + (a === "series" ? "timeseries" : "ranges") + ".webp?v=21c5def3c636"; },
           about: "about-torque", cap: function (a) { return a === "maps" ? "Friction and mountain torque-density anomalies with the surface-pressure anomaly, days 0–15." : a === "series" ? "The two torques integrated over the globe and each hemisphere against the actual change in AAM." : "Which barriers are doing the work."; }},
   hadley: {label: "Hadley cells", frame: function () { return "sst_anim.html?embed=1&manifest=mmsf_manifest.json&region=mmsf"; }, about: "about-hadley", cap: function () { return "Meridional mass streamfunction anomaly, 7-day mean of the analyses, against ERA5 1991–2020."; }},
   walker: {label: "Walker circulation", a: {label: "View", items: [["loop","Streamfunction loop"],["basins","By ocean basin"],["weekly","Weekly departure from Pacific forcing"]]},
           frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=walker_manifest.json&region=walker" : null; }, fit: false,
-          img: function (a) { return "assets/sst/walker_" + (a === "basins" ? "basins" : "chi_weekly") + ".webp?v=cffcd475fd9f"; },
+          img: function (a) { return "assets/sst/walker_" + (a === "basins" ? "basins" : "chi_weekly") + ".webp?v=21c5def3c636"; },
           about: "about-walker", cap: function (a) { return a === "loop" ? "Zonal overturning streamfunction along the equator, 7-day trailing mean, anomaly against ERA5." : a === "basins" ? "What the Indian and Atlantic Oceans are doing to the overturning once ENSO is removed: regression and Gill model side by side." : "Weekly χ200 departure from the Pacific-forced part, and how much of it the Indian and Atlantic SST can claim."; }},
   jets: {label: "Subtropical jets", a: {label: "View", items: [["loop","Cross-section loop"],["series","Strength and position"]]},
-          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=202609180958"; },
+          frame: function (a) { return a === "loop" ? "sst_anim.html?embed=1&manifest=jets_manifest.json&region=jets" : null; }, img: function () { return "assets/sst/jets.webp?v=21c5def3c636"; },
           about: "about-jets", cap: function (a) { return a === "loop" ? "Zonal-mean zonal wind anomaly cross-section through the 15-day forecast, cores marked." : "Speed and latitude of each hemisphere's subtropical jet core, members and mean against the normal band."; }},
   pacjet: {label: "North Pacific jet", a: {label: "View", items: [["indices","Extension, shift, torque"],["z500","Downstream ridge maps"]]},
-          img: function (a) { return "assets/sst/pacjet" + (a === "z500" ? "_z500" : "") + ".webp?v=cffcd475fd9f"; }, fit: false,
+          img: function (a) { return "assets/sst/pacjet" + (a === "z500" ? "_z500" : "") + ".webp?v=21c5def3c636"; }, fit: false,
           about: "about-pacjet", cap: function (a) { return a === "indices" ? "Jet extension and shift indices with the Himalayan mountain torque upstream: the observed tail, the ensemble forecast and the ERA5 lag relationships." : "500 hPa composites after strong torque days and the forecast, days 1–7 and 8–15."; }},
-  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=cffcd475fd9f"; }, about: "about-vortex", fit: false,
+  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=21c5def3c636"; }, about: "about-vortex", fit: false,
           cap: function () { return "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height, members against the MERRA-2 percentile bands."; }},
   vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=" + a; }, about: "about-vwinds",
@@ -292,7 +309,10 @@ window.STAGE = {
   epflux: {label: "E–P flux and wave driving", frame: function () { return "sst_anim.html?embed=1&manifest=epflux_manifest.json&region=epflux"; }, about: "about-epflux", cap: function () { return "Eliassen–Palm flux for wavenumbers 1–3 and its divergence, per-member fluxes averaged."; }},
   wave1: {label: "Stationary wave-1", a: {label: "Hemisphere", items: [["wave1_nh","Northern"],["wave1_sh","Southern"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=wave1_maps_manifest.json&region=" + a; }, about: "about-wave1",
-          cap: function () { return "The wave-1 component of geopotential at 100 and 500 hPa, the forcing behind the wave driving above."; }}
+          cap: function () { return "The wave-1 component of geopotential at 100 and 500 hPa, the forcing behind the wave driving above."; }},
+  heatflux: {label: "100 hPa eddy heat flux", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
+          img: function (a) { return "assets/sst/heatflux100_" + (a === "sh" ? "sh" : "nh") + ".webp?v=21c5def3c636"; }, about: "about-heatflux", fit: false,
+          cap: function (a) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ": the upward wave-activity flux into the stratosphere, members against the 1991–2020 climatology."; }}
 }
 };
 </script>
