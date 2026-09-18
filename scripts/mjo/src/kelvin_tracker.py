@@ -304,4 +304,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    rc = main()
+    # outputs are written; skip interpreter teardown (a C-extension destructor segfaults at exit
+    # under the cartopy 0.25 pin, as in ar_monitor, and turned a complete run into a warning)
+    sys.stdout.flush(); sys.stderr.flush()
+    import os
+    os._exit(rc or 0)
