@@ -148,6 +148,17 @@ jobs:
             --manifest assets/sst/anim/wave1_maps_manifest.json \
             || echo "::warning::wave1_maps failed; keeping the previous loop"
 
+      # 100 hPa eddy heat flux: v and T for 25 members, daily steps, ~0.5 GB. Google mirror only.
+      - name: Eddy heat flux, 100 hPa
+        env:
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
+        run: |
+          python scripts/strat/heatflux100.py \
+            --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
+            --out-dir assets/sst \
+            || echo "::warning::heatflux100 failed; keeping the previous figure"
+
       - name: Vortex winds, 10 and 100 hPa
         run: |
           python scripts/strat/vortex_winds.py \
@@ -202,7 +213,7 @@ jobs:
         run: |
           set -euo pipefail
           : > /tmp/light.list
-          for p in assets/sst/vortex_10.webp \
+          for p in assets/sst/vortex_10.webp assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
                    assets/sst/anim/wave1_nh assets/sst/anim/wave1_sh \
                    assets/sst/anim/vortex_10 assets/sst/anim/vortex_100 \
                    assets/sst/anim/wave1_maps_manifest.json \
@@ -366,7 +377,7 @@ jobs:
 
       - name: What arrived
         run: |
-          for f in assets/sst/nh_vortex.webp assets/sst/vortex_10.webp; do
+          for f in assets/sst/nh_vortex.webp assets/sst/vortex_10.webp assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp; do
             if [ -f "$f" ]; then printf '  %-38s %s\n' "$f" "$(du -h "$f" | cut -f1)"
             else printf '  %-38s (not produced this run)\n' "$f"; fi
           done
@@ -392,6 +403,7 @@ jobs:
           git config user.name "Shawn Corvec"
           git config user.email "shawncorvec@hotmail.com"
           git add assets/sst/nh_vortex.webp assets/sst/vortex_10.webp \
+                  assets/sst/heatflux100_nh.webp assets/sst/heatflux100_sh.webp assets/sst/data/heatflux100.json assets/sst/data/heatflux100_history.json \
                   assets/sst/anim/*_manifest.json 2>/dev/null || true
           if git diff --staged --quiet; then echo "no changes"; exit 0; fi
           git commit -m "data update: $(date -u +%Y-%m-%dT%H:%MZ)"
