@@ -1,6 +1,16 @@
 {
   "cycles": [
     {
+      "cycle": "2026091800",
+      "init": "2026-09-18 00Z",
+      "manifest": "ecape_2026091800.json"
+    },
+    {
+      "cycle": "2026091718",
+      "init": "2026-09-17 18Z",
+      "manifest": "ecape_2026091718.json"
+    },
+    {
       "cycle": "2026091712",
       "init": "2026-09-17 12Z",
       "manifest": "ecape_2026091712.json"
@@ -49,17 +59,7 @@
       "cycle": "2026091506",
       "init": "2026-09-15 06Z",
       "manifest": "ecape_2026091506.json"
-    },
-    {
-      "cycle": "2026091500",
-      "init": "2026-09-15 00Z",
-      "manifest": "ecape_2026091500.json"
-    },
-    {
-      "cycle": "2026091418",
-      "init": "2026-09-14 18Z",
-      "manifest": "ecape_2026091418.json"
     }
   ],
-  "latest": "2026091712"
+  "latest": "2026091800"
 }
