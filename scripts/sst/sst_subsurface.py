@@ -415,6 +415,20 @@ def merge_region(frames, dates, label="Equatorial Pacific T(z) cross-section",
 
 def main() -> int:
     recent = to_depth_grid(xr.open_dataset(DATA / "tao_eq_recent.nc"))
+    # PMEL posts a day's moorings over a day or two, so the newest days arrive
+    # PARTIAL and the latest frame drew the late moorings as blank columns
+    # (2026-09-17: 165E, 180 and 95W empty). Trim trailing days that carry fewer
+    # moorings than the usual count over the previous two weeks - at most 3, so a
+    # genuine long outage still shows up rather than freezing the chart.
+    have = np.isfinite(recent).any([d for d in recent.dims if d not in ("time", "longitude")]).sum("longitude").values
+    usual = int(np.median(have[-17:-3])) if len(have) > 17 else int(have.max())
+    cut = 0
+    while cut < 3 and len(have) - cut > 1 and have[len(have) - 1 - cut] < usual:
+        cut += 1
+    if cut:
+        print(f"  dropping the last {cut} day(s): partial mooring coverage "
+              f"({list(have[-cut:])} of the usual {usual})")
+        recent = recent.isel(time=slice(0, len(have) - cut))
     lons = recent.longitude.values
     coeffs = load_or_build_coeffs(lons)
 
