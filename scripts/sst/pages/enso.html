@@ -154,6 +154,27 @@
 <p>Each overlaid component is isolated from that anomaly field and contoured at its convective (solid) and suppressed (dashed) phase. <b style="color:#1565c0">Kelvin</b>, <b>MJO</b> and <b style="color:#e6007e">equatorial&nbsp;Rossby</b> are Wheeler&ndash;Kiladis wavenumber&ndash;frequency bandpass filters of the anomaly (2-D FFT in longitude and time): Kelvin is eastward wavenumber&nbsp;1&ndash;14, period&nbsp;2.5&ndash;30&nbsp;d, equivalent depth&nbsp;8&ndash;90&nbsp;m; MJO is eastward wavenumber&nbsp;1&ndash;5, period&nbsp;30&ndash;96&nbsp;d; ER is westward wavenumber&nbsp;1&ndash;10, period&nbsp;9.7&ndash;48&nbsp;d. <b style="color:#7b1fa2">Low-frequency</b> is a 120-day Lanczos low-pass in time with the zonal mean removed.</p>
 <p class="chart-sources">GMGSI longwave-IR proxy &middot; Wheeler&ndash;Kiladis k&ndash;&omega; filtering (eq. depth 8&ndash;90&nbsp;m) &middot; climatology NOAA interp-OLR 1979&ndash;2022</p>
 </template>
+<template id="about-kelvin">
+<p>A <b>convectively coupled Kelvin wave</b> is an eastward-moving pulse of tropical convection, 10&ndash;20&nbsp;m/s
+        (roughly 1,000&ndash;1,700&nbsp;km a day), that crosses a basin in about a week. Its clearest large-scale footprint is in
+        <b>200&nbsp;hPa velocity potential</b>: upper-level divergence (green) over the active, rainy phase and convergence
+        (brown) over the suppressed phase. This tracker filters that field to the Kelvin band and draws where the waves are,
+        through the analysis and the AIFS-ENS forecast.</p>
+<p><b>Map, day by day</b>: the Kelvin-filtered anomaly, ten days of analyses then each forecast day to day&nbsp;15; a
+        <b>K</b> marks each active crest on the equator, and grey contours give the unfiltered anomaly (the MJO and the El Ni&ntilde;o
+        background) for context. <b>Along the equator</b>: the same field averaged 5&deg;S&ndash;5&deg;N as a Hovm&ouml;ller, time running
+        down; a Kelvin wave is a green streak tilting down to the right, and the forecast carries each streak across the
+        analysis line.</p>
+<p>The forecast is the <b>50-member ensemble mean</b>, so a wave the members place differently fades with lead rather
+        than being shown with false confidence. Filtering needs a record, so the forecast is joined to the analyses and the end
+        of the record is padded with a ramp to zero; the last forecast days therefore read weaker than they may be.
+        Poleward of 15&deg; the filtered field is faded out: Kelvin waves are trapped near the equator and what the filter
+        finds there is not one. The OLR-based trackers alongside it show the same waves in observed cloudiness.</p>
+<p class="chart-sources">ECMWF AIFS-ENS open data (CC&nbsp;BY&nbsp;4.0): 0-h analyses (00 and 12&nbsp;UTC, averaged per day) and the
+        ensemble-mean u, v at 200&nbsp;hPa to day 15 &middot; velocity potential by spherical harmonics (lmax&nbsp;42) &middot; anomalies against
+        ERA5 1991&ndash;2020 with its trend &middot; Kelvin band: eastward wavenumbers 1&ndash;14, periods 2.5&ndash;20 days, equivalent
+        depths 8&ndash;90&nbsp;m (Wheeler &amp; Kiladis 1999) &middot; updated each 00/12Z cycle</p>
+</template>
 <template id="about-trackers">
 <p>Each wave isolated in its own panel &mdash; the <b style="color:#1565c0">Kelvin</b>-filtered
       (5&deg;S&ndash;5&deg;N) and <b style="color:#e6007e">equatorial-Rossby</b>-filtered
@@ -253,7 +274,7 @@ window.STAGE = {
   groups: [
   {label: "SST & indices", ico: "\u{1F321}", items: [["sstmaps","SST anomaly maps","global, tropics, relative"],["indices","Daily indices, interactive","Niño-3.4, RONI, ONI estimate"],["onironi","ONI vs RONI","3-month convention, OISST estimate"],["beyond","PDO, IOD, South Atlantic","daily, beyond ENSO"]]},
   {label: "Satellite & MUR", ico: "\u{1F6F0}", items: [["mur","MUR 1 km loop","cold tongue since onset"],["mur34","MUR Niño-3.4","1 km against OISST"],["ir","Infrared loops","Pacific · South & Central America"]]},
-  {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"]]},
+  {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"]]},
   {label: "Atmospheric response", ico: "\u{1F32C}", items: [["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soirec","SOI against the record","daily, since 1887"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["mei","MEI.v2 nowcast","daily, analogs, history"],["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS, to day 15"]]},
   {label: "Subsurface", ico: "\u{1F30A}", items: [["subtemp","Temperature section","TAO/TRITON, raw and detrended"],["hc","Heat content vs analogs","0–300 m, 1997 · 2015 · 2023"],["xsec","Cross-section vs analogs","same week of each event"],["cur_map","Surface currents","tropical Pacific"],["cur_sec","Undercurrent section","zonal current with depth"],["cur_hov","Current Hovmöller","equatorial strip"]]}
 ],
@@ -285,6 +306,12 @@ window.STAGE = {
           cap: function () { return "Equatorial convection against time from the infrared composite: enhanced (blue) and suppressed (brown) bands moving east."; }},
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,
           cap: function () { return "The OLR anomaly filtered into the Wheeler–Kiladis bands: MJO, Kelvin, equatorial Rossby and the rest."; }},
+  kelvin: {label: "Kelvin wave tracker (AIFS-ENS)", a: {label: "View", items: [["map","Map, day by day"],["hov","Along the equator"]]},
+          frame: function (a) { return a === "hov" ? null : "sst_anim.html?embed=1&manifest=kelvin_manifest.json&region=kelvin"; },
+          img: function () { return "assets/sst/kelvin_hov.webp?v=__CACHE__"; }, ratio: function () { return "1652/560"; },
+          about: "about-kelvin", fit: false,
+          cap: function (a) { return a === "hov" ? "Kelvin-filtered 200 hPa velocity potential along the equator: the last 45 days of analyses, then the AIFS-ENS forecast to day 15."
+                                               : "Where the convectively coupled Kelvin waves are: Kelvin-filtered 200 hPa velocity potential, ten days of analyses then the AIFS-ENS forecast to day 15. K marks an active crest on the equator."; }},
   trackers: {label: "Kelvin and Rossby wave trackers", img: function () { return "assets/sst/wave_tracker.webp"; }, bust: "hourly", about: "about-trackers", fit: false,
           cap: function () { return "Where the active Kelvin and equatorial Rossby wave packets are along the equator, and where they are heading."; }},
   ascat: {label: "ASCAT equatorial Pacific wind", frame: function () { return "sst_anim.html?embed=1&manifest=ascat_manifest.json&region=ascat"; }, about: "about-ascat",
