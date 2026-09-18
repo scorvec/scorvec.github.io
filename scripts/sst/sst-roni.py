@@ -236,6 +236,20 @@ def _draw_nino_boxes(ax, label=True):
             color="black", zorder=6, fontweight="bold")
 
 
+def set_extent_safe(ax, extent):
+    """ax.set_extent that survives a full 360-degree span on a shifted projection.
+
+    cartopy 0.26 turns set_extent((-180, 180, ...), crs=PlateCarree()) on a
+    PlateCarree(central_longitude=180) axes into a 0.2-degree-wide strip (the
+    two ends map to the same projected x). A full span is therefore set in the
+    projection's OWN frame, where -180..180 is unambiguous on every version."""
+    x0, x1, y0, y1 = extent
+    if x1 - x0 >= 359.0:
+        ax.set_extent((-180, 180, y0, y1), crs=ax.projection)
+    else:
+        ax.set_extent(extent, crs=PC)
+
+
 def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
                    figsize, central_lon=0.0, vmin=-5.0, vmax=5.0,
                    annotation=None, nino_box=True,
@@ -248,7 +262,7 @@ def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
     # -180..180 span works regardless of the projection's central
     # longitude; the dateline-centering just rolls the Pacific to the
     # middle. For the near-global map we trim the polar caps for aspect.
-    ax.set_extent(extent, crs=PC)
+    set_extent_safe(ax, extent)
 
     lons = anom2d[lon_name].values
     lats = anom2d[lat_name].values
@@ -367,7 +381,7 @@ def _kind_style(kind):
 
 def _draw_map_ax(ax, field, la, lo, extent, style, nino_box,
                  isotherms=None, annotation=None):
-    ax.set_extent(extent, crs=PC)
+    set_extent_safe(ax, extent)
     im = ax.pcolormesh(field[lo].values, field[la].values, field.values,
                        cmap=style["cmap"], vmin=style["vmin"], vmax=style["vmax"],
                        transform=PC, shading="auto", rasterized=True, zorder=1)

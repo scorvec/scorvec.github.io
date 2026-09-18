@@ -16,7 +16,7 @@ matplotlib==3.10.9  # 3.11 breaks cartopy GeoAxes tight-bbox/titles (2026-08-25)
 eofs
 requests
 ecmwf-opendata
-cartopy>=0.22
+cartopy==0.25.0  # 0.26.0 collapses set_extent((-180, 180, ...)) on a dateline-centred PlateCarree to a 0.2-deg strip (blank global SST panel, 2026-09-18); pinned to the laptop's version
 shapely>=2.1.2
 pyproj>=3.7.2
 pyshtools>=4.13   # velocity-potential spherical-harmonic inversion (wind200_vpot.py); prebuilt wheels

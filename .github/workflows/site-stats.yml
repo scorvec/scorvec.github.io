@@ -28,7 +28,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends libgeos-dev libproj-dev proj-bin
-          pip install --quiet requests numpy matplotlib cartopy
+          pip install --quiet requests numpy matplotlib cartopy==0.25.0
       - name: Build visitor map
         env:
           GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
