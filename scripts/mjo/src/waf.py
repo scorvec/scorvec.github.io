@@ -136,16 +136,34 @@ def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Pat
     scale, and stacking them keeps one figure rather than the multi-panel decks
     the pages moved away from.
     """
+    import textwrap
     from matplotlib.gridspec import GridSpec
     proj = ccrs.PlateCarree(central_longitude=180)
     pc = ccrs.PlateCarree()
-    fig = plt.figure(figsize=(13.6, 5.0))
-    gs = GridSpec(2, 1, figure=fig, hspace=0.08, left=0.012, right=0.93, top=0.90, bottom=0.10)
+    # Size the figure to the maps. Each strip is 360 x 60 degrees (6:1); the old
+    # 13.6 x 5.0 figure plus a one-line 400-character footnote under
+    # bbox_inches="tight" came out 2481 x 597 px with the maps in the left half,
+    # and the page scaled that down until they were unreadable (user, 2026-09-18:
+    # "way too much whitespace and I can't even see the map").
+    W = 14.0
+    left, right, cbw = 0.045, 0.905, 0.012
+    map_w = (right - left) * W
+    strip_h = map_w / 6.0
+    top_in, gap_in, bot_in = 0.62, 0.30, 0.95
+    H = top_in + 2 * strip_h + gap_in + bot_in
+    fig = plt.figure(figsize=(W, H))
+    bottoms = [bot_in + strip_h + gap_in, bot_in]
+    # whole-number colour steps: vlim rounded up to a multiple of 10, ticks every 10
+    vtop = float(np.ceil(max(vlim, 10.0) / 10.0) * 10.0)
+    levels = np.linspace(-vtop, vtop, 21)
     axes = []
-    for row, (la0, la1) in enumerate(((20, 80), (-80, -20))):
-        ax = fig.add_subplot(gs[row], projection=proj)
-        ax.set_extent([-180, 180, la0, la1], crs=pc)
-        cf = ax.contourf(lon, lat, -divw * 1e6, levels=np.linspace(-vlim, vlim, 21),
+    for row, ((la0, la1), name) in enumerate((((20, 80), "Northern Hemisphere, 20–80°N"),
+                                               ((-80, -20), "Southern Hemisphere, 20–80°S"))):
+        ax = fig.add_axes([left, bottoms[row] / H, right - left, strip_h / H], projection=proj)
+        # a full 360 on a dateline-centred map is set in the projection's own frame:
+        # cartopy 0.26 collapses the PlateCarree(-180, 180) form to a 0.2-degree strip
+        ax.set_extent([-180, 180, la0, la1], crs=proj)
+        cf = ax.contourf(lon, lat, -divw * 1e6, levels=levels,
                          cmap="RdBu_r", extend="both", transform=pc)
         if agree is not None:                               # hatch where members DISAGREE on the sign of ∇·W
             ax.contourf(lon, lat, np.where(np.isfinite(agree), agree, 1.0), levels=[-0.01, 0.6], colors="none",
@@ -154,9 +172,7 @@ def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Pat
             # the REAL waveguide: the forecast's own 200 hPa jet at this lead
             ax.contour(spd_fc[2], spd_fc[1], spd_fc[0], levels=[25, 35, 45],
                        colors="#1b5e20", linewidths=[0.8, 1.1, 1.5], alpha=0.85, transform=pc)
-        # Arrows: fewer and stronger than before. At 65% of the flux magnitude the
-        # field read as noise; the packets are the top quarter and they are what the
-        # chart is for.
+        # Arrows: the packets are the top quarter of the flux magnitude
         s = max(1, lat.size // 30)
         Wm = np.hypot(wx, wy)
         show = Wm > np.nanpercentile(Wm, 75)
@@ -165,19 +181,29 @@ def render(psi_a, wx, wy, divw, Uc, Vc, lat, lon, title: str, sub: str, out: Pat
         q = ax.quiver(lon[::s], lat[::s], qx, qy, transform=pc,
                       color="#111", width=0.0016, scale=2200, headwidth=3.6, alpha=0.85,
                       pivot="tail", zorder=6)
-        ax.coastlines(lw=0.45, color="0.62")
+        ax.coastlines(resolution="50m", lw=0.8, color="#1a1a1a", zorder=5)
+        gl = ax.gridlines(crs=pc, draw_labels=True, linewidth=0.3, color="#8a8a8a", alpha=0.5,
+                          xlocs=range(-180, 181, 60), ylocs=[20, 40, 60, 80] if la0 > 0 else [-80, -60, -40, -20])
+        gl.top_labels = gl.right_labels = False
+        gl.bottom_labels = row == 1
+        gl.xlabel_style = gl.ylabel_style = {"size": 8, "color": "#333"}
+        ax.text(0.006, 0.965, name, transform=ax.transAxes, ha="left", va="top", fontsize=9.5,
+                fontweight="bold", color="#111", zorder=8,
+                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="none", alpha=0.85))
         axes.append((ax, cf, q))
-    fig.suptitle(title, x=0.012, y=0.985, ha="left", fontsize=11.5, fontweight="bold")
-    cb = fig.colorbar(axes[0][1], ax=[a for a, _, _ in axes], pad=0.008, fraction=0.030, aspect=34)
+    fig.text(left, 1 - 0.20 / H, title, ha="left", va="top", fontsize=12.5, fontweight="bold")
+    cax = fig.add_axes([right + 0.012, bot_in / H, cbw, (2 * strip_h + gap_in) / H])
+    cb = fig.colorbar(axes[0][1], cax=cax, ticks=np.arange(-vtop, vtop + 0.1, 10))
     cb.set_label("−∇·W  (10⁻⁶ m s⁻²; red = convergence → amplification)", fontsize=8.5)
-    cb.ax.tick_params(labelsize=7.5)
-    axes[1][0].quiverkey(axes[1][2], 0.88, -0.16, 100, "W = 100 m²/s²", labelpos="E",
-                         fontproperties={"size": 7.5})
-    fig.text(0.012, 0.012, sub, ha="left", va="bottom", fontsize=8, color="0.35")
+    cb.ax.tick_params(labelsize=8)
+    axes[1][0].quiverkey(axes[1][2], 0.93, -0.20, 100, "W = 100 m²/s²", labelpos="E",
+                         fontproperties={"size": 8})
+    # the footnote wraps to the figure width, so it can never widen the image
+    fig.text(left, 0.10 / H, textwrap.fill(sub, width=205), ha="left", va="bottom", fontsize=7.8,
+             color="#6f6b64", linespacing=1.35)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=118, bbox_inches="tight", facecolor="white")
+    fig.savefig(out, dpi=118, facecolor="white")
     plt.close(fig)
-
 
 def main() -> int:
     ap = argparse.ArgumentParser()
