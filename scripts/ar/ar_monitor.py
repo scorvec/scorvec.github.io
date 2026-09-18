@@ -281,4 +281,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    rc = main()
+    # Every output is written and flushed by now. Skip interpreter teardown: since the
+    # cartopy 0.25.0 pin (2026-09-18) a C-extension destructor segfaults at exit (139)
+    # AFTER the products are complete, which failed the step and skipped the publish.
+    sys.stdout.flush(); sys.stderr.flush()
+    os._exit(rc or 0)
