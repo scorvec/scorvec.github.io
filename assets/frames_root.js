@@ -15,7 +15,14 @@
   var RAW = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
   var MIRROR = "https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@frames/";
   var onMirror = false, dead = 0, served = 0, deadSaid = false;
-  try { onMirror = sessionStorage.getItem("frameHost") === "mirror"; } catch (e) {}
+  // The switch is remembered for 30 min, not the whole session: a tab parked on
+  // the mirror by a passing outage must come back to RAW once it is healthy.
+  try {
+    var saved = sessionStorage.getItem("frameHost") || "";
+    var at = +(saved.split(":")[1] || 0);
+    onMirror = saved.indexOf("mirror") === 0 && at > 0 && Date.now() - at < 30 * 60 * 1000;
+    if (!onMirror && saved) sessionStorage.removeItem("frameHost");
+  } catch (e) {}
   window.FRAME_ROOT = onMirror ? MIRROR : RAW;
   window.FRAME_ROOT_RAW = RAW;
   window.FRAME_ROOT_MIRROR = MIRROR;
@@ -27,7 +34,7 @@
     if (onMirror) return;
     onMirror = true;
     window.FRAME_ROOT = MIRROR;
-    try { sessionStorage.setItem("frameHost", "mirror"); } catch (e) {}
+    try { sessionStorage.setItem("frameHost", "mirror:" + Date.now()); } catch (e) {}
     emit({ mirror: true, why: why });
   }
   window.frameHostIsMirror = function () { return onMirror; };
@@ -75,10 +82,28 @@
   // One cheap reachability probe per tab so a blocked network switches before
   // the first loop starts rather than after each frame times out. HEAD, CORS
   // (both hosts send access-control-allow-origin: *), 4 s budget.
+  // A 5xx is GitHub's raw host hiccupping (it answers 503 for a moment while the
+  // frames branch is being republished), not a blocked network: switching on it
+  // parked the whole session on jsDelivr, whose edge holds a branch path for up
+  // to 12 h, so freshly republished loops sat on "Loading frames" or showed
+  // stale frames (2026-09-18). Retry a 5xx twice; switch only when RAW cannot be
+  // reached at all or keeps failing.
   if (!onMirror && typeof fetch === "function" && typeof AbortController === "function") {
-    var ctrl = new AbortController(), t = setTimeout(function () { ctrl.abort(); }, 4000);
-    fetch(RAW + "assets/sst/anim/anomaly/F00.webp", { method: "HEAD", signal: ctrl.signal })
-      .then(function (r) { clearTimeout(t); if (!r.ok && r.status !== 404) useMirror("probe status " + r.status); })
-      .catch(function () { clearTimeout(t); useMirror("probe failed"); });
+    var probe = function (left) {
+      var ctrl = new AbortController(), t = setTimeout(function () { ctrl.abort(); }, 4000);
+      fetch(RAW + "assets/sst/anim/anomaly/F00.webp?probe=" + Date.now(), { method: "HEAD", signal: ctrl.signal, cache: "no-store" })
+        .then(function (r) {
+          clearTimeout(t);
+          if (r.ok || r.status === 404) return;
+          if (r.status >= 500 && left > 0) { setTimeout(function () { probe(left - 1); }, 1500); return; }
+          useMirror("probe status " + r.status);
+        })
+        .catch(function () {
+          clearTimeout(t);
+          if (left > 0) { setTimeout(function () { probe(left - 1); }, 1500); return; }
+          useMirror("probe failed");
+        });
+    };
+    probe(2);
   }
 })();
