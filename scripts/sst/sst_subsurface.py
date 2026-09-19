@@ -191,8 +191,23 @@ def detrend(anom: xr.DataArray) -> xr.DataArray:
 
 
 # ── longitude interpolation for smooth contours ──────────────────────────────
-def interp_lon(field2d: np.ndarray, lons: np.ndarray) -> np.ndarray:
-    """field2d (depth, lon) on mooring lons -> (depth, LON_GRID)."""
+def missing_spans(lons: np.ndarray, missing) -> list[tuple[float, float]]:
+    """Longitude spans owned by the moorings flagged missing: out to halfway to
+    each neighbour (to the grid edge for the end moorings)."""
+    if missing is None:
+        return []
+    spans = []
+    for j in np.flatnonzero(missing):
+        lo = LON_GRID[0] if j == 0 else 0.5 * (lons[j - 1] + lons[j])
+        hi = LON_GRID[-1] if j == len(lons) - 1 else 0.5 * (lons[j] + lons[j + 1])
+        spans.append((float(lo), float(hi)))
+    return spans
+
+
+def interp_lon(field2d: np.ndarray, lons: np.ndarray, missing=None) -> np.ndarray:
+    """field2d (depth, lon) on mooring lons -> (depth, LON_GRID). Spans of
+    moorings flagged `missing` are left NaN rather than bridged by interpolation
+    between the reporting neighbours."""
     out = np.full((field2d.shape[0], LON_GRID.size), np.nan)
     for k in range(field2d.shape[0]):
         row = field2d[k]
@@ -200,7 +215,49 @@ def interp_lon(field2d: np.ndarray, lons: np.ndarray) -> np.ndarray:
         if m.sum() >= 2:
             out[k] = np.interp(LON_GRID, lons[m], row[m],
                                left=np.nan, right=np.nan)
+    for lo, hi in missing_spans(lons, missing):
+        out[:, (LON_GRID >= lo) & (LON_GRID <= hi)] = np.nan
     return out
+
+
+def mark_moorings(ax, lons, missing, grid=None) -> None:
+    """Mooring triangles along the top; missing ones hollow over a hatched
+    'no data yet' span, so a partial day reads as partial, not as a blank chart.
+    The hatch covers every empty column of the plotted `grid` (also the edge
+    past the outermost reporting mooring, which interpolation cannot reach)."""
+    miss = np.zeros(len(lons), bool) if missing is None else np.asarray(missing, bool)
+    if miss.any() and grid is not None:
+        # contourf leaves the cell next to an empty column unfilled, so each
+        # span reaches one grid step into the data (drawn beneath it).
+        empty = ~np.isfinite(grid).any(0)
+        j = 0
+        while j < empty.size:
+            if empty[j]:
+                k = j
+                while k + 1 < empty.size and empty[k + 1]:
+                    k += 1
+                ax.axvspan(LON_GRID[max(j - 1, 0)], LON_GRID[min(k + 1, empty.size - 1)],
+                           facecolor="#e6e4df",
+                           edgecolor="#8f8b84", hatch="//", linewidth=0, zorder=0.5)
+                j = k + 1
+            else:
+                j += 1
+        for lo in lons[miss]:
+            ax.text(np.clip(lo, LON_GRID[0] + 5, LON_GRID[-1] - 5), 150, "no data\nyet", ha="center", va="center", fontsize=8,
+                    color="#4a4741", zorder=6,
+                    bbox=dict(facecolor="#e6e4df", edgecolor="none", pad=1.5))
+    ax.scatter(lons[~miss], np.full((~miss).sum(), 4), marker="v", s=18,
+               color="k", clip_on=False, zorder=5)
+    ax.set_xlim(LON_GRID[0], LON_GRID[-1])
+    if miss.any():
+        ax.scatter(lons[miss], np.full(miss.sum(), 4), marker="v", s=18,
+                   facecolors="none", edgecolors="#6f6b64", clip_on=False, zorder=5)
+
+
+def _coverage_note(lons, missing) -> str:
+    if missing is None or not np.any(missing):
+        return ""
+    return f" — {len(lons) - int(np.sum(missing))} of {len(lons)} moorings reporting"
 
 
 # ── plotting ──────────────────────────────────────────────────────────────────
@@ -247,11 +304,12 @@ def set_anom_scale(anom, floor=12.0, step=2.0):
     return lim
 
 
-def plot_frame(temp2d, anom2d, lons, date, out_path):
-    Tg = interp_lon(temp2d, lons)
-    Ag = interp_lon(anom2d, lons)
+def plot_frame(temp2d, anom2d, lons, date, out_path, missing=None):
+    Tg = interp_lon(temp2d, lons, missing)
+    Ag = interp_lon(anom2d, lons, missing)
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7.2), sharex=True)
-    fig.suptitle(f"Equatorial Pacific (0°N) ocean temperature — {date:%d %b %Y}",
+    fig.suptitle(f"Equatorial Pacific (0°N) ocean temperature — {date:%d %b %Y}"
+                 f"{_coverage_note(lons, missing)}",
                  fontsize=12, fontweight="bold")
 
     cf1 = ax1.contourf(LON_GRID, DEPTH_GRID, Tg, levels=TEMP_LEVELS,
@@ -282,13 +340,12 @@ def plot_frame(temp2d, anom2d, lons, date, out_path):
     ax2.set_title("Anomaly (vs 1991–2020)", fontsize=10, loc="left")
     fig.colorbar(cf2, ax=ax2, label="°C", pad=0.02, fraction=0.046)
 
-    for ax in (ax1, ax2):
+    for ax, g in ((ax1, Tg), (ax2, Ag)):
         ax.set_ylim(300, 0)
         ax.set_ylabel("Depth (m)")
         ax.set_xticks(lons)
         ax.set_xticklabels([_lon_label(l) for l in lons], fontsize=8)
-        ax.scatter(lons, np.full_like(lons, 4), marker="v", s=18,
-                   color="k", clip_on=False, zorder=5)
+        mark_moorings(ax, lons, missing, g)
     ax2.set_xlabel("Longitude (mooring sites marked ▾)")
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -296,14 +353,15 @@ def plot_frame(temp2d, anom2d, lons, date, out_path):
     plt.close(fig)
 
 
-def plot_anom_pair(araw2d, adt2d, lons, date, out_path):
+def plot_anom_pair(araw2d, adt2d, lons, date, out_path, missing=None):
     """Companion frame: raw anomaly (top) vs the same with the 1991–2020 climate
     trend removed (bottom), so the secular signal's footprint is visible directly."""
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7.2), sharex=True)
-    fig.suptitle(f"Equatorial Pacific (0°N) temperature anomaly — {date:%d %b %Y}",
+    fig.suptitle(f"Equatorial Pacific (0°N) temperature anomaly — {date:%d %b %Y}"
+                 f"{_coverage_note(lons, missing)}",
                  fontsize=11.5, fontweight="bold")
-    panels = [(ax1, interp_lon(araw2d, lons), "Anomaly (vs 1991–2020)"),
-              (ax2, interp_lon(adt2d, lons), "Anomaly — detrended with data from 1991–2020")]
+    panels = [(ax1, interp_lon(araw2d, lons, missing), "Anomaly (vs 1991–2020)"),
+              (ax2, interp_lon(adt2d, lons, missing), "Anomaly — detrended with data from 1991–2020")]
     for ax, Ag, title in panels:
         cf = ax.contourf(LON_GRID, DEPTH_GRID, Ag, levels=ANOM_LEVELS, cmap="RdBu_r",
                          extend="both", norm=mcolors.TwoSlopeNorm(0, -ANOM_LIM, ANOM_LIM))
@@ -324,8 +382,7 @@ def plot_anom_pair(araw2d, adt2d, lons, date, out_path):
         ax.set_ylabel("Depth (m)")
         ax.set_xticks(lons)
         ax.set_xticklabels([_lon_label(l) for l in lons], fontsize=8)
-        ax.scatter(lons, np.full_like(lons, 4), marker="v", s=18,
-                   color="k", clip_on=False, zorder=5)
+        mark_moorings(ax, lons, missing, Ag)
     ax2.set_xlabel("Longitude (mooring sites marked ▾)")
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -343,9 +400,9 @@ JSON_DEPTHS = np.arange(0, 301, 10.0)
 JSON_LONS = np.arange(165.0, 265.01, 2.5)
 
 
-def _grid_json(field2d: np.ndarray, lons: np.ndarray) -> list:
+def _grid_json(field2d: np.ndarray, lons: np.ndarray, missing=None) -> list:
     """(depth, mooring-lon) field -> rounded nested lists on the JSON grid."""
-    g = interp_lon(field2d, lons)                        # (DEPTH_GRID, LON_GRID)
+    g = interp_lon(field2d, lons, missing)                        # (DEPTH_GRID, LON_GRID)
     ki = [int(np.argmin(np.abs(DEPTH_GRID - d))) for d in JSON_DEPTHS]
     ji = [int(np.argmin(np.abs(LON_GRID - l))) for l in JSON_LONS]
     sub = g[np.ix_(ki, ji)]
@@ -353,7 +410,7 @@ def _grid_json(field2d: np.ndarray, lons: np.ndarray) -> list:
             for row in sub]
 
 
-def publish_json(recent_s, anom, lons, times) -> None:
+def publish_json(recent_s, anom, lons, times, missing) -> None:
     raw = xr.open_dataset(DATA / "tao_eq_recent.nc")
     last7 = raw["temp"].isel(time=slice(-7, None))
     buoys = []
@@ -372,8 +429,9 @@ def publish_json(recent_s, anom, lons, times) -> None:
         snaps.append({
             "date": f"{times[i]:%Y-%m-%d}",
             "label": f"{times[i]:%b %d}",
-            "temp": _grid_json(recent_s.values[i], lons),
-            "anom": _grid_json(anom[i], lons),
+            "temp": _grid_json(recent_s.values[i], lons, missing[i]),
+            "anom": _grid_json(anom[i], lons, missing[i]),
+            "moorings_in": int(len(lons) - missing[i].sum()),
         })
     out = {
         "depths": [float(d) for d in JSON_DEPTHS],
@@ -416,31 +474,39 @@ def merge_region(frames, dates, label="Equatorial Pacific T(z) cross-section",
 def main() -> int:
     recent = to_depth_grid(xr.open_dataset(DATA / "tao_eq_recent.nc"))
     # PMEL posts a day's moorings over a day or two, so the newest days arrive
-    # PARTIAL and the latest frame drew the late moorings as blank columns
-    # (2026-09-17: 165E, 180 and 95W empty). Trim trailing days that carry fewer
-    # moorings than the usual count over the previous two weeks - at most 3, so a
-    # genuine long outage still shows up rather than freezing the chart.
-    have = np.isfinite(recent).any([d for d in recent.dims if d not in ("time", "longitude")]).sum("longitude").values
+    # PARTIAL. Trimming them (up to 3 days) froze the page for 5 days when four
+    # moorings went quiet on 2026-09-14, so the trailing partial days are now
+    # SHOWN: a mooring with no data on such a day is flagged missing, its span
+    # hatched "no data yet" in the frames and nulled in the JSON. The flag is
+    # per raw day - without it the centred 5-day mean would carry a silent
+    # mooring's older values forward for two more days.
+    rep_ = np.isfinite(recent).any([d for d in recent.dims if d not in ("time", "longitude")])
+    have = rep_.sum("longitude").values
     usual = int(np.median(have[-17:-3])) if len(have) > 17 else int(have.max())
-    cut = 0
-    while cut < 3 and len(have) - cut > 1 and have[len(have) - 1 - cut] < usual:
-        cut += 1
-    if cut:
-        print(f"  dropping the last {cut} day(s): partial mooring coverage "
-              f"({list(have[-cut:])} of the usual {usual})")
-        recent = recent.isel(time=slice(0, len(have) - cut))
+    missing = np.zeros(rep_.shape, bool)                # (time, longitude)
+    i = len(have) - 1
+    while i > 0 and have[i] < usual:
+        missing[i] = ~rep_.values[i]
+        i -= 1
+    if missing.any():
+        n = int(missing.any(1).sum())
+        print(f"  last {n} day(s) partial ({[int(h) for h in have[-n:]]} of the usual {usual} "
+              f"moorings) - drawn with the missing spans hatched")
     lons = recent.longitude.values
     coeffs = load_or_build_coeffs(lons)
 
     # 5-day smoothed recent fields + anomalies vs the harmonic climatology
     recent_s = recent.rolling(time=SMOOTH_DAYS, center=True, min_periods=1).mean()
+    recent_s = recent_s.where(~xr.DataArray(missing, dims=("time", "longitude"),
+                                            coords={"time": recent.time,
+                                                    "longitude": recent.longitude}))
     times = pd.to_datetime(recent_s.time.values)
     anom = recent_s.values - eval_climatology(coeffs, times.dayofyear.values)
     # de-trended companion anomaly (1991–2020 secular trend removed)
     anom_da = xr.DataArray(anom, dims=recent_s.dims, coords=recent_s.coords)
     anom_dt = detrend(anom_da).values
 
-    publish_json(recent_s, anom, lons, times)
+    publish_json(recent_s, anom, lons, times, missing)
 
     sel = np.arange(max(0, len(times) - ANIM_DAYS), len(times))
     anim_dir = ASSETS / "anim" / "equatorial"
@@ -458,10 +524,10 @@ def main() -> int:
     frames_dt = []
     for n, i in enumerate(sel):
         fp = anim_dir / f"F{n:02d}.webp"
-        plot_frame(recent_s.values[i], anom[i], lons, times[i], fp)
+        plot_frame(recent_s.values[i], anom[i], lons, times[i], fp, missing[i])
         frames.append(fp); dates.append(times[i])
         fpd = anim_dt_dir / f"F{n:02d}.webp"
-        plot_anom_pair(anom[i], anom_dt[i], lons, times[i], fpd)
+        plot_anom_pair(anom[i], anom_dt[i], lons, times[i], fpd, missing[i])
         frames_dt.append(fpd)
 
     ASSETS.mkdir(parents=True, exist_ok=True)
