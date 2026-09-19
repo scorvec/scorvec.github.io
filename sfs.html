@@ -717,10 +717,36 @@
       drawDD();
     });
   });
+  // NOAA publishes an issue's DAILY stores separately from the monthly ones, normally within ~3 days;
+  // when they are late the day-16-46 products still show the previous issue, whose days are then
+  // partly or wholly in the past (Sep 2026: September's monthly stores Sep 9, daily ones still missing
+  // on Sep 19). Say so on every card of the group instead of letting old days read as a forecast.
+  function staleDailyNotice(D) {
+    var now = new Date(), cur = now.getUTCFullYear() + "-" + String(now.getUTCMonth() + 1).padStart(2, "0");
+    var iss = String(D.issue || "").slice(0, 7);
+    if (!iss || iss >= cur) return;
+    var days = D.days || [], today = now.toISOString().slice(0, 10);
+    var past = days.filter(function (d) { return d < today; }).length;
+    var last = days.length ? days[days.length - 1] : "";
+    var monthName = function (ym) { var p = ym.split("-"); return new Date(Date.UTC(+p[0], +p[1] - 1, 1)).toLocaleString("en", { month: "long", year: "numeric", timeZone: "UTC" }); };
+    var msg = "<b>Not updated: these are from the " + monthName(iss) + " issue.</b> NOAA has published the " + monthName(cur) +
+      " issue's monthly data but not yet its daily data, which these day-16–46 products need (it usually follows within about three days). " +
+      (last && last < today ? "Every day shown here is now in the past, so read it as a record of that forecast, not a current one. "
+                            : (past ? past + " of the " + days.length + " days shown are already in the past. " : "")) +
+      "The page updates by itself when NOAA publishes (checked daily).";
+    document.querySelectorAll('[data-group^="Subseasonal"]').forEach(function (card) {
+      if (card.querySelector(".stale-daily")) return;
+      var n = document.createElement("div");
+      n.className = "stale-daily"; n.innerHTML = msg;
+      n.style.cssText = "margin:0 0 .7rem;padding:.55rem .75rem;border:1px solid #d9a441;border-left:4px solid #b7791f;background:#fdf6e7;color:#5a3d0c;font-size:.86rem;line-height:1.4;border-radius:4px";
+      card.insertBefore(n, card.firstChild);
+    });
+  }
   fetch("assets/sfs/data/sfs_daily.json?v=" + Date.now())
     .then(function (r) { if (!r.ok) throw 0; return r.json(); })
     .then(function (D) {
       dailyState.data = D;
+      staleDailyNotice(D);
       var host = document.getElementById("telePills");
       if (!D.telecons[dailyState.tele]) dailyState.tele = Object.keys(D.telecons)[0];
       teleOrder(D).forEach(function (k) {
