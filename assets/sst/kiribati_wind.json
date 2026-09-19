@@ -1,13 +1,13 @@
 {
-  "updated": "2026-09-19T04:39Z",
+  "updated": "2026-09-19T06:24Z",
   "stations": {
     "NGTA": {
       "name": "Tarawa",
       "lat": 1.4,
       "lon": 173.0,
-      "time": "2026-09-19T04:00Z",
-      "dir": 250,
-      "spd_kt": 11,
+      "time": "2026-09-19T06:00Z",
+      "dir": 240,
+      "spd_kt": 12,
       "u_ms": 5.3
     },
     "PLCH": {
