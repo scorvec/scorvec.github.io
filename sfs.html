@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NOAA SFS Model Plots &mdash; Seasonal Forecast System Maps &amp; Charts &middot; Shawn Corvec</title>
-<meta name="description" content="Interactive plots from NOAA's new SFS (Seasonal Forecast System, the CFSv2 successor): all 31 ensemble members — Niño-3.4 & RONI plumes, global SST/temperature/precipitation/500-hPa anomaly maps, subseasonal teleconnections (AO, NAO, PNA, EPO), US heating & cooling degree days, IOD/PDO indices and stratospheric wave flux — every product bias-corrected against the model's own 30-year reforecast.">
-<meta name="keywords" content="SFS model, NOAA SFS, Seasonal Forecast System, SFS plots, SFS maps, SFS forecast, CFSv2 replacement, seasonal forecast ensemble, ENSO forecast, El Nino forecast, Nino 3.4, RONI, teleconnection forecast, AO NAO PNA EPO, heating degree days forecast, PDO forecast, IOD forecast">
+<meta name="description" content="Interactive plots from NOAA's new SFS (Seasonal Forecast System, the CFSv2 successor): all 31 ensemble members — Niño-3.4 & RONI plumes, global SST/temperature/precipitation/500-hPa anomaly maps and IOD/PDO indices — every product bias-corrected against the model's own 30-year reforecast.">
+<meta name="keywords" content="SFS model, NOAA SFS, Seasonal Forecast System, SFS plots, SFS maps, SFS forecast, CFSv2 replacement, seasonal forecast ensemble, ENSO forecast, El Nino forecast, Nino 3.4, RONI, PDO forecast, IOD forecast">
 <link rel="canonical" href="https://scorvec.com/sfs.html">
 <meta property="og:type" content="website">
 <meta property="og:title" content="NOAA SFS Model Plots — Seasonal Forecast System Maps & Charts">
-<meta property="og:description" content="All 31 SFS ensemble members, visualized: ENSO plumes, global anomaly maps, subseasonal teleconnections, US degree days and stratospheric diagnostics — bias-corrected against the model's own reforecast.">
+<meta property="og:description" content="All 31 SFS ensemble members, visualized: ENSO plumes, global anomaly maps and climate indices — bias-corrected against the model's own reforecast.">
 <meta property="og:url" content="https://scorvec.com/sfs.html">
 <meta property="og:image" content="https://scorvec.com/assets/sfs/anim/sfs_sst/F04.webp">
 <meta name="twitter:card" content="summary_large_image">
@@ -19,7 +19,7 @@
 {"@context":"https://schema.org","@type":"WebPage",
  "name":"NOAA SFS Model Plots — Seasonal Forecast System Maps & Charts",
  "url":"https://scorvec.com/sfs.html",
- "description":"Interactive visualizations of NOAA's Seasonal Forecast System (SFS beta, the CFSv2 successor): 31-member ENSO plumes, global anomaly maps, subseasonal teleconnection and degree-day forecasts, all bias-corrected against the model's own 1991–2020 reforecast.",
+ "description":"Interactive visualizations of NOAA's Seasonal Forecast System (SFS beta, the CFSv2 successor): 31-member ENSO plumes, global anomaly maps and climate indices, all bias-corrected against the model's own 1991–2020 reforecast.",
  "author":{"@type":"Person","name":"Shawn Corvec","url":"https://scorvec.com/"},
  "about":[{"@type":"Thing","name":"NOAA Seasonal Forecast System (SFS)"},
           {"@type":"Thing","name":"ENSO forecasting"},
@@ -124,7 +124,7 @@
   <header>
     <div class="eyebrow">Monthly, from the NOAA SFS beta (UFS coupled, 31 members), <span id="issueLabel">latest issue</span></div>
     <h1>SFS beta seasonal outlook</h1>
-    <p class="sub">NOAA&rsquo;s next-generation seasonal system, every month: 31 members, 12 monthly leads, anomalised against its own 1991&ndash;2020 reforecast. Seasonal products first, then the day-16&ndash;46 subseasonal window. Pick a figure from the rail.</p>
+    <p class="sub">NOAA&rsquo;s next-generation seasonal system, every month: 31 members, 12 monthly leads, anomalised against its own 1991&ndash;2020 reforecast. Pick a figure from the rail.</p>
     <div class="chips" id="chips">
       <div class="chip"><div class="l">Loading feed&hellip;</div><div class="v neut">&mdash;</div></div>
     </div>
@@ -291,8 +291,7 @@
     replacement for CFSv2, running in near-real-time beta since March 2026. NOAA
     publishes the raw ensemble output openly but (as of now) few graphical products;
     everything here — the Ni&ntilde;o-3.4/RONI plumes, global anomaly maps, monthly map
-    loops, subseasonal AO/NAO/PNA/EPO teleconnection forecasts, Lower-48 heating and
-    cooling degree days, IOD/SASD/PDO indices and the stratospheric panels — is
+    loops and the IOD/SASD/PDO indices — is
     computed directly from the full 31-member zarr output and refreshed with each
     monthly issue.</p>
     <p><b>About the system.</b> SFS beta is a NOAA research prototype (published by the
@@ -305,136 +304,6 @@
     Climate Change Service &middot; observed indices: NOAA CPC ERSSTv5, BoM RMM.</p>
   </div>
 
-  <!-- ── SUBSEASONAL ANOMALY MAPS (deck) ─────────────────────────────────── -->
-  <div class="card plot-deck" data-deck="sfs-subseasonal" data-label="Anomaly loops, days 16–46" data-group="Subseasonal · days 16–46">
-    <h2>Anomaly maps &mdash; step through the subseasonal window</h2>
-    <p class="note">Days 16&ndash;46, 48-hour steps. Left: the 31-member mean deviation from the model&rsquo;s own hindcast trend, in &sigma;. Right: member spread over hindcast spread &mdash; orange more confident than climatology, purple less.</p>
-    <div class="deck-head">
-      <span class="deck-title">Field</span>
-      <span class="deck-hint">4 loops in this panel &middot; only the one you pick is loaded</span>
-    </div>
-    <div class="deck-tabs">
-      <button class="on">500 hPa height</button>
-      <button>2 m temperature</button>
-      <button>Precipitation</button>
-      <button>200 hPa &chi;</button>
-    </div>
-    <div class="deck-panel">
-      <div class="img-label">500 hPa height &middot; 20&ndash;90&deg;N &middot; signal (left) and spread ratio (right)</div>
-      <iframe class="anim-embed sfs-sub"
-        src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z500d_manifest.json&amp;region=sfs_z500d&amp;autoplay=0"
-        title="SFS 500 hPa height anomaly and spread loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">2 m temperature &middot; 20&ndash;90&deg;N &middot; signal (left) and spread ratio (right)</div>
-      <iframe class="anim-embed sfs-sub"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_t2md_manifest.json&amp;region=sfs_t2md&amp;autoplay=0"
-        title="SFS 2 m temperature anomaly and spread loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">Precipitation &middot; global</div>
-      <iframe class="anim-embed sfs-trop"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_prcpd_manifest.json&amp;region=sfs_prcpd&amp;autoplay=0"
-        title="SFS global precipitation anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="deck-panel" hidden>
-      <div class="img-label">200 hPa velocity potential (&chi;) &middot; global</div>
-      <iframe class="anim-embed sfs-trop"
-        data-src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_chid_manifest.json&amp;region=sfs_chid&amp;autoplay=0"
-        title="SFS 200-hPa velocity potential anomaly loop" loading="lazy"></iframe>
-    </div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;) &middot; anomaly = deviation from (hindcast mean + own linear trend evaluated at the forecast date), per lead day, physical units
-      &middot; spread ratio = member &sigma; / mean reforecast ensemble &sigma; at the same lead &middot;
-      20&ndash;90&deg;N</span>
-      <span class="chart-updated" id="maps-updated">&mdash;</span>
-    </div>
-  </div>
-
-  <!-- ── DEGREE DAYS ─────────────────────────────────────────────────────── -->
-  <div class="card" data-label="Degree days" data-group="Subseasonal · days 16–46">
-    <h2>Subseasonal degree days &mdash; Lower-48, all 31 members</h2>
-    <p class="note">Population-weighted Lower-48 degree days over days 16&ndash;46, every member; grey band = the model&rsquo;s own hindcast climatology for the same lead day.</p>
-    <div class="controls" id="ddPills">
-      <button class="pill on" data-dd="hdd">HDD</button>
-      <button class="pill" data-dd="cdd">CDD</button>
-      <span class="ctlsep">&middot;</span>
-      <button class="pill on" data-ddv="daily">Daily</button>
-      <button class="pill" data-ddv="cum">Cumulative departure</button>
-    </div>
-    <div id="ddChart" class="plot" style="height:460px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), TMP 2 m daily means
-      &middot; metros nearest-gridpoint, population-weighted &middot; climatology: own
-      reforecast 1991&ndash;2020, same init month, per lead day</span>
-      <span class="chart-updated" id="dd-updated">&mdash;</span>
-    </div>
-  </div>
-
-  <!-- ── TELECONNECTIONS ─────────────────────────────────────────────────── -->
-  <div class="card" data-label="Teleconnections" data-group="Subseasonal · days 16–46">
-    <h2>Subseasonal teleconnections &mdash; member by member, days 16&ndash;46</h2>
-    <p class="note">Each index per member over days 16&ndash;46, in hindcast-&sigma; units: fan, members and the ensemble mean, as on the SEAS5 page. The table below reads the window week by week. AO and NAO carry the beta&rsquo;s polar height artefact (an annular height excess poleward of 60&deg;N) and are hatched: read their sign with caution.</p>
-    <div class="controls" id="telePills"></div>
-    <div id="teleChart" class="plot" style="height:460px"></div>
-    <div style="overflow-x:auto" id="teleTable"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr &middot; standardization: own
-      reforecast 1991&ndash;2020, 330 samples per lead day &middot; probabilities are
-      member fractions; base rates by construction: P(&lt;0)=50%,
-      P(&gt;+1&sigma;)&asymp;16%</span>
-      <span class="chart-updated" id="tele-updated">&mdash;</span>
-    </div>
-  </div>
-
-  <!-- ── MJO ─────────────────────────────────────────────────────────────── -->
-  <div class="card" data-label="MJO" data-group="Subseasonal · days 16–46">
-    <h2>MJO &mdash; 31-member RMM phase space to day 46</h2>
-    <p class="note">Wheeler&ndash;Hendon RMM phase space from every member, the same projection as the AIFS-ENS product. Teal = members, red = ensemble mean, black = observed BoM RMM.</p>
-    <div class="img-wrap sfs-mjo">
-      <img src="assets/sfs/mjo_rmm.webp?v=202608162" alt="SFS beta MJO RMM phase-space forecast, 31 members" loading="eager" fetchpriority="high">
-    </div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr, UGRD 850/200 hPa +
-      PRATE &middot; full WH04 RMM with precip pseudo-OLR &middot; raw winds, no
-      drift adjustment &middot; shared reference EOFs/climatology with the
-      AIFS-ENS product &middot; observed: BoM RMM</span>
-      <span class="chart-updated" id="mjo-updated">&mdash;</span>
-    </div>
-  </div>
-
-  <!-- ── STRATOSPHERE ────────────────────────────────────────────────────── -->
-  <div class="card" data-label="Stratosphere" data-group="Subseasonal · days 16–46">
-    <h2>Stratosphere &mdash; wave flux and the polar vortex, all members</h2>
-    <p class="note">100 hPa eddy heat flux (45&ndash;75&deg;N) and 50 hPa zonal wind at 60&deg;N, every member against the model&rsquo;s own hindcast climatology, days 16&ndash;46.</p>
-    <div class="controls" id="stratPills">
-      <button class="pill on" data-strat="vt100">100-hPa heat flux</button>
-      <button class="pill" data-strat="u50">50-hPa vortex wind</button>
-    </div>
-    <div id="stratChart" class="plot" style="height:460px"></div>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), VGRD/TMP 100 hPa
-      &amp; UGRD 50 hPa &middot; eddies = departures from the zonal mean &middot;
-      climatology: own reforecast 1991&ndash;2020, same init month, per lead day</span>
-      <span class="chart-updated" id="strat-updated">&mdash;</span>
-    </div>
-  </div>
-
-  <!-- ── 100 hPa POLAR VIEW ──────────────────────────────────────────────── -->
-  <div class="card" data-label="100 hPa polar view" data-group="Subseasonal · days 16–46">
-    <h2>100 hPa &mdash; daily polar view, first 46 days</h2>
-    <p class="note">Ensemble-mean 100 hPa height anomaly day by day against the reforecast mean plus trend, with mean height contours and wind vectors. Read the pattern, not the absolute magnitude.</p>
-    <iframe class="anim-embed sfs-polar"
-      src="loop.html?base=assets/sfs/anim/&amp;manifest=sfs_z100d_manifest.json&amp;region=sfs_z100d&amp;autoplay=0"
-      title="SFS daily 100 hPa height anomaly polar loop" loading="lazy"></iframe>
-    <div class="chart-card-footer">
-      <span class="chart-sources">SFS beta atm_daily zarr (1&deg;), HGT/UGRD/VGRD
-      100 hPa &middot; 31-member mean &middot; baseline: own reforecast 1991&ndash;2020
-      mean + trend at forecast year, same init month and leads &middot; 20&ndash;90&deg;N</span>
-      <span class="chart-updated" id="polar-updated">&mdash;</span>
-    </div>
-  </div>
-
   <!-- ── ABOUT ──────────────────────────────────────────────────────────── -->
   <div class="card" id="aboutCard" data-label="About this page" data-group="About">
     <h2>What this page reads, and how each figure is built</h2>
@@ -444,12 +313,6 @@
       <li><b>Ni&ntilde;o-3.4.</b> Monthly index from all 31 members; fan = member 10&ndash;90% and 25&ndash;75%, sienna line = ensemble mean, observed ERSSTv5 leads in, <b style="color:var(--cool)">blue dashes</b> = the C3S seven-model mean from the same issue month. The 3-month toggle gives the ONI convention.</li>
       <li><b>Derived indices.</b> IOD (Saji DMI), the South Atlantic Subtropical Dipole (SW&nbsp;&minus;&nbsp;NE), the Ni&ntilde;o flavors, and a PDO from North Pacific SST anomalies (global mean removed) projected onto the model's own reforecast EOF1, in reforecast-&sigma; units; same fan and mean.</li>
       <li><b>Monthly anomaly maps.</b> One frame per forecast month against the reforecast for the same init month and lead; fixed color scale across leads.</li>
-      <li><b>Subseasonal anomaly maps, days 16&ndash;46.</b> Left: the 31-member mean deviation from the reforecast mean plus its own linear trend at the forecast date, in detrended signal-&sigma; units (&plusmn;1 normal, &plusmn;3+ exceptional). Right: member spread over hindcast spread &mdash; below 1 more confident than climatology, above 1 less.</li>
-      <li><b>Degree days.</b> Population-weighted Lower-48 HDD/CDD (50 largest metros, base 65&thinsp;&deg;F) for days 16&ndash;46 in 48-hour steps, every member, against the hindcast climatology for the same init month and lead day; cumulative departure = running total minus the hindcast mean.</li>
-      <li><b>Teleconnections.</b> Daily AO/NAO/PNA/EPO per member, standardized against the reforecast at the same lead day (hindcast-&sigma;); the weekly table gives the member share at or beyond &plusmn;0.5&sigma;. <b>Caveat:</b> AO and NAO are hatched &mdash; the beta daily stream's polar-amplified height offset projects straight onto them; PNA and EPO are zero-sum center combinations and immune.</li>
-      <li><b>MJO.</b> Wheeler&ndash;Hendon RMM from every member's U850/U200 plus a pseudo-OLR channel from &minus;standardized precipitation, through the same machinery as the <a href="mjo.html">AIFS-ENS product</a>; observed track from the official BoM RMM. <b>Caveat:</b> the wind channels are not drift-corrected, so week-4+ amplitude can be drift.</li>
-      <li><b>Stratosphere.</b> 100-hPa eddy heat flux (45&ndash;75&deg;N) and 50-hPa zonal-mean wind at 60&deg;N, every member against the hindcast climatology for the same init month and lead day, days 16&ndash;46.</li>
-      <li><b>100 hPa polar view.</b> Ensemble-mean height anomaly per lead day from the daily members, against the reforecast per-lead-day mean plus its trend at the forecast year. <b>Caveat:</b> the daily stream carries a height offset of its own &mdash; read the pattern, not the magnitude.</li>
     </ul>
     <div class="chart-card-footer"><span class="chart-sources">NOAA SFS beta on NODD (open zarr) &middot; own 1991&ndash;2020 reforecast &middot; ERSSTv5, BoM RMM, C3S</span><span class="chart-updated">built by scripts/sfs/*.py</span></div>
   </div>
@@ -591,184 +454,6 @@
       if (state.sfs) draw();
     });
   });
-
-  // ── daily cards (degree days + teleconnections + stratosphere): the day-16–46 window only ──────
-  var dailyState = { data: null, dd: "hdd", ddv: "daily", tele: "pna" };
-  var CLIM_OUTER = "rgba(120,120,120,0.16)", CLIM_INNER = "rgba(120,120,120,0.30)";
-  function dayOpts(D, extra) {                 // date axis over the window, ticks every other step (4 days)
-    var ax = OC.dayAxis(D.days, leadDay(D), 2), o = { xtype: "day", tickvals: ax.tickvals, ticktext: ax.ticktext, xrange: ax.range };
-    for (var k in (extra || {})) o[k] = extra[k];
-    return o;
-  }
-  function climoTraces(days, climo) {
-    return OC.band(days, climo.p10, climo.p90, "hindcast 10–90%", CLIM_OUTER, { _nofit: true })
-      .concat(OC.band(days, climo.p25, climo.p75, "hindcast 25–75%", CLIM_INNER, { _nofit: true }));
-  }
-  function drawDD() {
-    var D = dailyState.data; if (!D) return;
-    var d = D[dailyState.dd], cum = dailyState.ddv === "cum", days = D.days, cmean = d.climo.mean;
-    function xf(m) {                       // member series under current view
-      if (!cum) return m.slice();
-      var s = 0; return m.map(function (v, i) { s += v - cmean[i]; return s; });
-    }
-    var traces = [], hv = { units: "", digits: 1, signed: cum };
-    if (!cum) {
-      traces = climoTraces(days, d.climo);
-      traces.push(OC.refTrace(days, cmean, "hindcast mean", hv));
-    }
-    var rows = d.members.map(xf);
-    traces.push(OC.memberTrace(days, rows, { name: "members (" + rows.length + ")" }));
-    var mm = days.map(function (_, i) { return mean(rows.map(function (r) { return r[i]; })); });
-    traces.push(OC.meanTrace(days, mm, "ensemble mean", { units: "", digits: 1, signed: cum, marker: 5 }));
-    var label = dailyState.dd === "hdd" ? "Heating degree days" : "Cooling degree days";
-    OC.react("ddChart", traces, dayOpts(D, {
-      title: label + (cum ? " — cumulative departure from the hindcast mean" : " per day — Lower-48, population-weighted") + ", days " + leadDay(D) + "–" + (leadDay(D) + (days.length - 1) * 2),
-      yunits: (dailyState.dd === "hdd" ? "HDD" : "CDD") + (cum ? " departure (°F·day, cumulative)" : " per day (°F·day)")
-    }));
-    document.getElementById("dd-updated").textContent =
-      "issue " + D.issue + " · built " + D.generated;
-  }
-  // Teleconnection card, the SEAS5/GEPS pattern (user 2026-09-07: "should look the same as the
-  // GEPS/SEAS5"): pills → one shared-theme chart (hindcast ±1σ, fans, members, mean) → weekly table.
-  var TELE_THR = 0.5, TELE_FLAGGED = { ao: 1, nao: 1 };   // annular daily-stream artefact: shown, hatched
-  function teleWeeks(D) {                                  // consecutive 7-day bins of the lead-day window
-    var d0 = leadDay(D), lead = D.days.map(function (d) { return Math.round((Date.parse(d) - Date.parse(D.days[0])) / 86400000) + d0; });
-    var last = lead[lead.length - 1], out = [], w = 1;
-    for (var a = d0; a <= last; a += 7, w++) {
-      var b = Math.min(a + 6, last), idx = [];
-      lead.forEach(function (L, i) { if (L >= a && L <= b) idx.push(i); });
-      if (idx.length) out.push({ week: w, a: a, b: b, ndays: b - a + 1, idx: idx, d0: D.days[idx[0]], d1: D.days[idx[idx.length - 1]] });
-    }
-    return out;
-  }
-  function teleOrder(D) {                                  // PNA and EPO first, the artefact-prone pair after
-    return ["pna", "epo"].filter(function (k) { return D.telecons[k]; }).concat(Object.keys(D.telecons).filter(function (k) { return k !== "pna" && k !== "epo"; }));
-  }
-  function teleTable(D) {
-    var keys = teleOrder(D), weeks = teleWeeks(D);
-    function md(s) { var d = new Date(s + "T00:00:00Z"); return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getUTCMonth()] + " " + d.getUTCDate(); }
-    var h = '<table class="tele-sfs"><thead><tr><th>index</th>';
-    weeks.forEach(function (w) { h += "<th>days " + w.a + "–" + w.b + "<span>" + md(w.d0) + " – " + md(w.d1) + (w.ndays < 7 ? " (" + w.ndays + " d)" : "") + "</span></th>"; });
-    h += "</tr></thead><tbody>";
-    keys.forEach(function (k) {
-      var t = D.telecons[k];
-      h += "<tr><th>" + t.label + (TELE_FLAGGED[k] ? "<span>artefact-prone</span>" : "<span>hindcast σ</span>") + "</th>";
-      weeks.forEach(function (w) {
-        var wm = t.members.map(function (m) { return mean(w.idx.map(function (i) { return m[i]; })); }).filter(isFinite);
-        var n = wm.length, pNeg = wm.filter(function (v) { return v <= -TELE_THR; }).length / n, pPos = wm.filter(function (v) { return v >= TELE_THR; }).length / n;
-        var mu = mean(wm), tilt = pPos - pNeg;
-        var bg = tilt > 0 ? "rgba(180,69,60," + (0.08 + 0.55 * tilt) + ")" : "rgba(44,95,168," + (0.08 - 0.55 * tilt) + ")";
-        h += '<td' + (TELE_FLAGGED[k] ? ' class="flagged"' : "") + ' style="background:' + bg + '"><b>' + Math.round(pNeg * 100) + "% / " + Math.round(pPos * 100) + "%</b><span>mean " + (mu >= 0 ? "+" : "") + mu.toFixed(1) + "</span></td>";
-      });
-      h += "</tr>";
-    });
-    h += '</tbody></table><p class="tele-sfs-cap">P(weekly mean ≤ −' + TELE_THR + 'σ) / P(≥ +' + TELE_THR + 'σ) over ' + D.telecons[keys[0]].members.length + ' members, weekly means of each member over consecutive 7-day bins of the day-' + leadDay(D) + '–' + (leadDay(D) + (D.days.length - 1) * 2) + ' window (48-hour steps); cells tilt red toward the positive phase, blue toward the negative. σ is the model’s own reforecast spread for the same init month and lead day. Hatched rows are the indices the beta’s polar height artefact projects onto.</p>';
-    document.getElementById("teleTable").innerHTML = h;
-  }
-  function drawTele() {
-    var D = dailyState.data; if (!D) return;
-    var t = D.telecons[dailyState.tele], days = D.days;
-    var q = OC.quantiles(t.members, [10, 25, 75, 90]);
-    var ones = days.map(function () { return 1; });
-    var traces = OC.climBand(days, ones, null, "hindcast ±1σ");
-    traces = traces.concat(OC.fanTraces(days, q, { outerName: "members 10–90%", innerName: "members 25–75%" }));
-    traces.push(OC.memberTrace(days, t.members, { name: "members (" + t.members.length + ")" }));
-    traces.push(OC.meanTrace(days, q.mean, t.label + " ensemble mean", { units: "σ", digits: 2, marker: 5 }));
-    OC.react("teleChart", traces, dayOpts(D, {
-      title: t.label + " — members against the hindcast, days " + leadDay(D) + "–" + (leadDay(D) + (days.length - 1) * 2) + (TELE_FLAGGED[dailyState.tele] ? " (artefact-prone)" : ""),
-      yunits: t.label + " (hindcast σ)"
-    }));
-    teleTable(D);
-    document.getElementById("tele-updated").textContent =
-      "issue " + D.issue + " · built " + D.generated;
-  }
-  function drawStrat() {
-    var D = dailyState.data; if (!D || !D.strat) return;
-    var key = dailyState.strat || "vt100";
-    var d = D.strat[key], days = D.days, hv = { units: d.units, digits: 1, signed: false };
-    var traces = climoTraces(days, d.climo);
-    traces.push(OC.refTrace(days, d.climo.mean, "hindcast mean", hv));
-    traces.push(OC.memberTrace(days, d.members, { name: "members (" + d.members.length + ")" }));
-    var mm = days.map(function (_, i) { return mean(d.members.map(function (m) { return m[i]; })); });
-    traces.push(OC.meanTrace(days, mm, "ensemble mean", { units: d.units, digits: 1, signed: false, marker: 5 }));
-    OC.react("stratChart", traces, dayOpts(D, {
-      title: d.label + " — every member against the hindcast, days " + leadDay(D) + "–" + (leadDay(D) + (days.length - 1) * 2),
-      yunits: d.label + " (" + d.units + ")"
-    }));
-    document.getElementById("strat-updated").textContent =
-      "issue " + D.issue + " · built " + D.generated;
-  }
-  document.querySelectorAll("#stratPills .pill").forEach(function (b) {
-    b.addEventListener("click", function () {
-      dailyState.strat = b.dataset.strat;
-      document.querySelectorAll("#stratPills .pill").forEach(function (o) {
-        o.classList.toggle("on", o === b); });
-      drawStrat();
-    });
-  });
-  document.querySelectorAll("#ddPills .pill").forEach(function (b) {
-    b.addEventListener("click", function () {
-      if (b.dataset.dd) { dailyState.dd = b.dataset.dd;
-        document.querySelectorAll("#ddPills .pill[data-dd]").forEach(function (o) {
-          o.classList.toggle("on", o === b); }); }
-      if (b.dataset.ddv) { dailyState.ddv = b.dataset.ddv;
-        document.querySelectorAll("#ddPills .pill[data-ddv]").forEach(function (o) {
-          o.classList.toggle("on", o === b); }); }
-      drawDD();
-    });
-  });
-  // NOAA publishes an issue's DAILY stores separately from the monthly ones, normally within ~3 days;
-  // when they are late the day-16-46 products still show the previous issue, whose days are then
-  // partly or wholly in the past (Sep 2026: September's monthly stores Sep 9, daily ones still missing
-  // on Sep 19). Say so on every card of the group instead of letting old days read as a forecast.
-  function staleDailyNotice(D) {
-    var now = new Date(), cur = now.getUTCFullYear() + "-" + String(now.getUTCMonth() + 1).padStart(2, "0");
-    var iss = String(D.issue || "").slice(0, 7);
-    if (!iss || iss >= cur) return;
-    var days = D.days || [], today = now.toISOString().slice(0, 10);
-    var past = days.filter(function (d) { return d < today; }).length;
-    var last = days.length ? days[days.length - 1] : "";
-    var monthName = function (ym) { var p = ym.split("-"); return new Date(Date.UTC(+p[0], +p[1] - 1, 1)).toLocaleString("en", { month: "long", year: "numeric", timeZone: "UTC" }); };
-    var msg = "<b>Not updated: these are from the " + monthName(iss) + " issue.</b> NOAA has published the " + monthName(cur) +
-      " issue's monthly data but not yet its daily data, which these day-16–46 products need (it usually follows within about three days). " +
-      (last && last < today ? "Every day shown here is now in the past, so read it as a record of that forecast, not a current one. "
-                            : (past ? past + " of the " + days.length + " days shown are already in the past. " : "")) +
-      "The page updates by itself when NOAA publishes (checked daily).";
-    document.querySelectorAll('[data-group^="Subseasonal"]').forEach(function (card) {
-      if (card.querySelector(".stale-daily")) return;
-      var n = document.createElement("div");
-      n.className = "stale-daily"; n.innerHTML = msg;
-      n.style.cssText = "margin:0 0 .7rem;padding:.55rem .75rem;border:1px solid #d9a441;border-left:4px solid #b7791f;background:#fdf6e7;color:#5a3d0c;font-size:.86rem;line-height:1.4;border-radius:4px";
-      card.insertBefore(n, card.firstChild);
-    });
-  }
-  fetch("assets/sfs/data/sfs_daily.json?v=" + Date.now())
-    .then(function (r) { if (!r.ok) throw 0; return r.json(); })
-    .then(function (D) {
-      dailyState.data = D;
-      staleDailyNotice(D);
-      var host = document.getElementById("telePills");
-      if (!D.telecons[dailyState.tele]) dailyState.tele = Object.keys(D.telecons)[0];
-      teleOrder(D).forEach(function (k) {
-        var b = document.createElement("button");
-        b.className = "pill" + (k === dailyState.tele ? " on" : "");
-        b.textContent = D.telecons[k].label;
-        b.addEventListener("click", function () {
-          dailyState.tele = k;
-          host.querySelectorAll(".pill").forEach(function (o) {
-            o.classList.toggle("on", o === b); });
-          drawTele();
-        });
-        host.appendChild(b);
-      });
-      drawDD(); drawTele(); drawStrat();
-    })
-    .catch(function () {
-      ["ddChart", "teleChart", "stratChart"].forEach(function (id) {
-        document.getElementById(id).innerHTML =
-          '<div style="padding:1.6rem;color:var(--muted)">daily feed building — check back after the monthly build</div>';
-      });
-    });
 
   // ── derived indices card ─────────────────────────────────────────────────
   var idxState = { data: null, key: "dmi" };

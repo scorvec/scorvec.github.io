@@ -9,11 +9,10 @@ name: NOAA SFS seasonal outlook (monthly)
 # runs here like every other product.
 #
 # WHAT IT BUILDS, AND IN WHICH ORDER. sfs_maps must run before sfs_indices: indices reads the
-# SST field climatology that maps caches. The daily products (MJO, 100 hPa polar view, the
-# subseasonal loops) read atm_daily/ocn_daily, which NOAA publishes DAYS AFTER the monthly
-# stores — in September 2026 the monthly stores were up while the daily ones were not. Those
-# steps are therefore allowed to fail without failing the run, and the monthly cron is paired
-# with a re-run later in the month to pick the daily products up when they land.
+# SST field climatology that maps caches. The day-16-46 products (MJO, 100 hPa polar view,
+# subseasonal loops) were REMOVED 2026-09-19 (user: "that data is completely broken"): they read
+# atm_daily/ocn_daily, which NOAA had not published for the September 2026 issue ten days after the
+# monthly stores. Their scripts stay in scripts/sfs/ in case the feed is fixed.
 #
 # THE CLIMATOLOGY. Each month needs its own 30-year x 11-member hindcast pool
 # (scripts/sfs/data/clim_*_{MM}.npy, ~10 MB per field, ~20 min to build). It is cached by
@@ -22,7 +21,6 @@ name: NOAA SFS seasonal outlook (monthly)
 on:
   schedule:
   - cron: '40 14 17 * *'    # the monthly stores land mid-month (Aug 2026 issue: the 16th)
-  - cron: '40 14 24 * *'    # second pass: pick up the daily stores once they publish
   workflow_dispatch:
     inputs:
       issue:
@@ -100,22 +98,10 @@ jobs:
           B="$ROOT/${{ steps.iss.outputs.issue }}"
           # NB: a bare `[ x = y ] && echo ...` as the last statement returns 1 when the test is
           # false, and the step dies under `bash -e`. Use an if, not a short-circuit.
-          for s in atm_monthly ocn_monthly atm_daily ocn_daily; do
+          for s in atm_monthly ocn_monthly; do
             c=$(curl -s -o /dev/null -w '%{http_code}' "$B/$s.zarr/.zmetadata")
             echo "  $s -> $c"
           done
-          # The daily products follow the newest issue that actually HAS atm_daily, which lags
-          # the monthly stores by days. Without this the subseasonal loops would simply never
-          # render in the first half of a month.
-          D=""
-          for back in 0 1 2; do
-            I=$(date -u -d "${{ steps.iss.outputs.issue }}01 -$back month" +%Y%m)
-            c=$(curl -s -o /dev/null -w '%{http_code}' "$ROOT/$I/atm_daily.zarr/.zmetadata")
-            echo "  daily candidate $I -> $c"
-            if [ "$c" = "200" ]; then D="$I"; break; fi
-          done
-          echo "daily_issue=$D" >> "$GITHUB_OUTPUT"
-          echo "daily products will use: ${D:-none}"
 
       # ── monthly products: available as soon as the monthly stores land ──
       - name: Monthly anomaly maps (caches the field climatology indices needs)
@@ -127,23 +113,14 @@ jobs:
       - name: Niño-3.4 plume
         run: python scripts/sfs/sfs_nino.py --issue "${{ steps.iss.outputs.issue }}"
 
-      # ── daily products: only once atm_daily/ocn_daily publish, days later ──
-      - name: MJO phase space (newest issue with daily stores)
-        if: steps.stores.outputs.daily_issue != ''
-        run: python scripts/sfs/sfs_mjo.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "::warning::SFS MJO failed; continuing"
-
-      - name: 100 hPa polar view (newest issue with daily stores)
-        if: steps.stores.outputs.daily_issue != ''
-        run: python scripts/sfs/sfs_polar100.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "::warning::SFS polar view failed; continuing"
-
-      - name: Subseasonal daily loops (newest issue with daily stores)
-        if: steps.stores.outputs.daily_issue != ''
-        run: python scripts/sfs/sfs_daily.py --issue "${{ steps.stores.outputs.daily_issue }}" || echo "::warning::SFS daily loops failed; continuing"
-
       - name: Publish the loop frames to the frames branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/lib/publish_frames_ci.sh assets/sfs/anim
+        run: |
+          # the day-16-46 products were removed from the page (2026-09-19): their loop dirs came back
+          # with the seed step, so drop them before the directory is swapped in wholesale
+          rm -rf assets/sfs/anim/sfs_t2md assets/sfs/anim/sfs_z500d assets/sfs/anim/sfs_chid assets/sfs/anim/sfs_prcpd assets/sfs/anim/sfs_z100d
+          scripts/lib/publish_frames_ci.sh assets/sfs/anim
 
       - name: Commit & push (generated outputs)
         run: |
@@ -179,5 +156,4 @@ jobs:
         if: always()
         run: |
           echo "### NOAA SFS ${{ steps.iss.outputs.issue }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- daily products from issue: ${{ steps.stores.outputs.daily_issue }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Page: [/sfs.html](https://scorvec.com/sfs.html)" >> "$GITHUB_STEP_SUMMARY"
