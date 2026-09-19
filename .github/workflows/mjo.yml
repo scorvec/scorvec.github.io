@@ -238,6 +238,20 @@ jobs:
             --out ../../assets/sst/eq_wind_hovmoller.webp \
             || echo "Hovmöller build failed; continuing"
 
+      # Ocean Kelvin waves: altimetry sea level (NOAA CoastWatch ERDDAP, anonymous) + the equatorial 10 m wind
+      # the Hovmöller above just fetched (store cache) + the AIFS 0-h wind history it appends to.
+      - name: Ocean Kelvin wave tracker (sea level + equatorial wind)
+        timeout-minutes: 15
+        working-directory: scripts/mjo
+        env:
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
+        run: |
+          python src/ocean_kelvin.py --date "${{ needs.check.outputs.date }}" --time "${{ needs.check.outputs.time }}" \
+            --out ../../assets/sst/ocean_kelvin.webp --anim-dir ../../assets/sst/anim/okelvin \
+            --manifest ../../assets/sst/anim/okelvin_manifest.json --json ../../assets/sst/data/ocean_kelvin.json \
+            || echo "::warning::Ocean Kelvin tracker failed; keeping the previous figures"
+
       - name: Build SOI forecast (El Niño page)
         working-directory: scripts/mjo
         run: |
@@ -361,7 +375,7 @@ jobs:
           CB=$(date -u +%Y%m%d%H%M)
           perl -0pi -e "s/((?:eq_wind_hovmoller|soi_forecast|eqsoi_forecast|soi_history)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html circulation.html
           perl -0pi -e "s/((?:mmsf_anom|walker_anom|hadley_timeseries)\.webp)\?v=\w+/\${1}?v=$CB/g" circulation.html
-          perl -0pi -e "s/(kelvin_hov\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html
+          perl -0pi -e "s/((?:kelvin_hov|ocean_kelvin)\.webp)\?v=\w+/\${1}?v=$CB/g" enso.html
 
       # The loop frames are gitignored on main; without this they never leave
       # the runner (the laptop's publish_frames.sh used to carry them).
@@ -370,7 +384,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           scripts/lib/publish_frames_ci.sh assets/sst/anim/wind200 assets/sst/anim/waf assets/sst/anim/mslp_wind \
-            assets/sst/anim/walker assets/sst/anim/mmsf assets/sst/anim/kelvin
+            assets/sst/anim/walker assets/sst/anim/mmsf assets/sst/anim/kelvin assets/sst/anim/okelvin
 
       - name: Commit & push (generated outputs)
         run: |
@@ -393,7 +407,9 @@ jobs:
                assets/sst/anim/walker_manifest.json assets/sst/walker_anom.webp \
                assets/sst/anim/mmsf_manifest.json assets/sst/mmsf_anom.webp \
                assets/sst/hadley_timeseries.webp assets/sst/data/hadley_timeseries.json \
-               assets/sst/anim/kelvin_manifest.json assets/sst/kelvin_hov.webp assets/sst/data/kelvin_tracker.json"
+               assets/sst/anim/kelvin_manifest.json assets/sst/kelvin_hov.webp assets/sst/data/kelvin_tracker.json \
+               assets/sst/anim/okelvin_manifest.json assets/sst/ocean_kelvin.webp assets/sst/data/ocean_kelvin.json \
+               scripts/mjo/data/reference/eq_u10_analysis_history.nc"
           SNAP=$(mktemp -d)
           tar cf "$SNAP/outs.tar" --ignore-failed-read $OUT 2>/dev/null || true
           for i in 1 2 3 4 5; do
