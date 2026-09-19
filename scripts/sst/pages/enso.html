@@ -166,7 +166,7 @@
         (120&deg;W) and the coast (90&deg;W), with the arrival dates listed underneath. <b>Right panel</b>: the 10&nbsp;m zonal
         wind anomaly along the equator that launches them, observed then forecast. The broad red field is the El Ni&ntilde;o
         itself, which the filter removes; the Kelvin part is a few centimetres riding on it.</p>
-<p><b>Map</b>: the same sea level over 15&deg;S&ndash;15&deg;N every second day for 60 days, with each crest marked on the
+<p><b>Map</b>: the same sea level over 15&deg;S&ndash;15&deg;N every second day for the last 200 days, with each crest marked on the
         equator. The arrival dates assume a wave keeps its speed and strength; a new wind burst, or the wave reflecting and
         dispersing near the coast, changes them.</p>
 <p class="chart-sources">Sea level: NOAA CoastWatch blended altimetry (Sentinel-3A/B, CryoSat-2, Jason-3, SARAL), daily, sampled at
@@ -326,11 +326,11 @@ window.STAGE = {
           cap: function () { return "Equatorial convection against time from the infrared composite: enhanced (blue) and suppressed (brown) bands moving east."; }},
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,
           cap: function () { return "The OLR anomaly filtered into the Wheeler–Kiladis bands: MJO, Kelvin, equatorial Rossby and the rest."; }},
-  okelvin: {label: "Ocean Kelvin waves", a: {label: "View", items: [["hov","Along the equator, with arrivals"],["map","Map, last 60 days"]]},
+  okelvin: {label: "Ocean Kelvin waves", a: {label: "View", items: [["hov","Along the equator, with arrivals"],["map","Map, since March"]]},
           frame: function (a) { return a === "map" ? "sst_anim.html?embed=1&manifest=okelvin_manifest.json&region=okelvin" : null; },
           img: function () { return "assets/sst/ocean_kelvin.webp?v=__CACHE__"; }, ratio: function () { return "1652/560"; },
           about: "about-okelvin", fit: false,
-          cap: function (a) { return a === "map" ? "Equatorial Pacific sea level anomaly from satellite altimetry, every second day for 60 days; K marks each Kelvin wave crest (red warm, blue cold)."
+          cap: function (a) { return a === "map" ? "Equatorial Pacific sea level anomaly from satellite altimetry, every second day for the last 200 days; K marks each Kelvin wave crest (red warm, blue cold)."
                                                 : "Sea level along the equator with its Kelvin-wave part, the winds that launch the waves, and each current wave projected to Niño-3 and the coast at its measured speed."; }},
   kelvin: {label: "Kelvin wave tracker (AIFS-ENS)", a: {label: "View", items: [["map","Map, day by day"],["hov","Along the equator"]]},
           frame: function (a) { return a === "hov" ? null : "sst_anim.html?embed=1&manifest=kelvin_manifest.json&region=kelvin&start=10"; },

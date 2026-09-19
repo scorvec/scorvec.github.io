@@ -59,7 +59,7 @@ M_PER_DEG, DAY = 111320.0, 86400.0
 C_MIN, C_MAX, P_MIN, P_MAX = 1.5, 3.5, 15.0, 150.0
 FILT_LON = (130.0, 280.0)                     # Pacific interior used by the filter
 AMP = 0.015                                   # crest threshold, metres: ~1 sd of the Kelvin band (1.3-1.8 cm in 2026)
-DAYS_BACK, DAYS_AHEAD, MAP_DAYS = 180, 60, 60
+DAYS_BACK, DAYS_AHEAD, MAP_DAYS = 205, 60, 200    # the map loop runs back to early March (user, 2026-09-19), a frame every 2nd day
 TARGETS = ((240.0, "Niño-3 (120°W)"), (270.0, "the coast (90°W)"))
 U_LAT = 5.0
 
