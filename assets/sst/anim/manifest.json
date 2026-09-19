@@ -2187,7 +2187,7 @@
     },
     "equatorial": {
       "label": "Equatorial Pacific T(z) cross-section",
-      "n_frames": 116,
+      "n_frames": 119,
       "frames": [
         {
           "idx": 0,
@@ -2884,12 +2884,30 @@
           "file": "F115.webp",
           "date": "2026-09-14",
           "label": "Mon Sep 14, 2026"
+        },
+        {
+          "idx": 116,
+          "file": "F116.webp",
+          "date": "2026-09-15",
+          "label": "Tue Sep 15, 2026"
+        },
+        {
+          "idx": 117,
+          "file": "F117.webp",
+          "date": "2026-09-16",
+          "label": "Wed Sep 16, 2026"
+        },
+        {
+          "idx": 118,
+          "file": "F118.webp",
+          "date": "2026-09-17",
+          "label": "Thu Sep 17, 2026"
         }
       ]
     },
     "equatorial_dt": {
       "label": "Equatorial Pacific anomaly \u2014 raw vs de-trended",
-      "n_frames": 116,
+      "n_frames": 119,
       "frames": [
         {
           "idx": 0,
@@ -3586,6 +3604,24 @@
           "file": "F115.webp",
           "date": "2026-09-14",
           "label": "Mon Sep 14, 2026"
+        },
+        {
+          "idx": 116,
+          "file": "F116.webp",
+          "date": "2026-09-15",
+          "label": "Tue Sep 15, 2026"
+        },
+        {
+          "idx": 117,
+          "file": "F117.webp",
+          "date": "2026-09-16",
+          "label": "Wed Sep 16, 2026"
+        },
+        {
+          "idx": 118,
+          "file": "F118.webp",
+          "date": "2026-09-17",
+          "label": "Thu Sep 17, 2026"
         }
       ]
     }
