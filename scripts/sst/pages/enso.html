@@ -307,7 +307,7 @@ window.STAGE = {
   waves: {label: "Tropical wave decomposition", img: function () { return "assets/sst/olr_waves.webp"; }, bust: "hourly", about: "about-waves", fit: false,
           cap: function () { return "The OLR anomaly filtered into the Wheeler–Kiladis bands: MJO, Kelvin, equatorial Rossby and the rest."; }},
   kelvin: {label: "Kelvin wave tracker (AIFS-ENS)", a: {label: "View", items: [["map","Map, day by day"],["hov","Along the equator"]]},
-          frame: function (a) { return a === "hov" ? null : "sst_anim.html?embed=1&manifest=kelvin_manifest.json&region=kelvin"; },
+          frame: function (a) { return a === "hov" ? null : "sst_anim.html?embed=1&manifest=kelvin_manifest.json&region=kelvin&start=10"; },
           img: function () { return "assets/sst/kelvin_hov.webp?v=__CACHE__"; }, ratio: function () { return "1652/560"; },
           about: "about-kelvin", fit: false,
           cap: function (a) { return a === "hov" ? "Kelvin-filtered 200 hPa velocity potential along the equator: the last 45 days of analyses, then the AIFS-ENS forecast to day 15."
