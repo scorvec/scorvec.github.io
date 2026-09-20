@@ -43,6 +43,7 @@ import pandas as pd
 
 import matplotlib
 matplotlib.use("Agg")
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import cartopy.crs as ccrs
@@ -251,10 +252,14 @@ def set_extent_safe(ax, extent):
 
 
 def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
-                   figsize, central_lon=0.0, vmin=-5.0, vmax=5.0,
+                   figsize, central_lon=0.0, vmin=None, vmax=None,
                    annotation=None, nino_box=True,
-                   png_path=None, png_dpi=150):
-    cmap = sst_anom_cmap()
+                   png_path=None, png_dpi=180):
+    # Same scale as the animation frames (see _kind_style): asinh to +-7 unless a caller pins a range.
+    style = _kind_style("anom")
+    cmap = style["cmap"]
+    pc_kw = ({"norm": style["norm"]} if vmin is None and vmax is None
+             else {"vmin": -5.0 if vmin is None else vmin, "vmax": 5.0 if vmax is None else vmax})
     proj = ccrs.PlateCarree(central_longitude=central_lon)
     fig, ax = plt.subplots(figsize=figsize, dpi=100,
                            subplot_kw=dict(projection=proj))
@@ -268,9 +273,8 @@ def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
     lats = anom2d[lat_name].values
     vals = anom2d.values
 
-    im = ax.pcolormesh(lons, lats, vals, cmap=cmap, vmin=vmin, vmax=vmax,
-                       transform=PC, shading="auto", rasterized=True,
-                       zorder=1)
+    im = ax.pcolormesh(lons, lats, vals, cmap=cmap, transform=PC,
+                       shading="auto", rasterized=True, zorder=1, **pc_kw)
     ax.add_feature(cfeature.LAND.with_scale("110m"),
                    facecolor="#d9d6cf", zorder=2)
     ax.add_feature(cfeature.COASTLINE.with_scale("110m"),
@@ -282,6 +286,8 @@ def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
     cbar = plt.colorbar(im, ax=ax, orientation="vertical",
                         pad=0.015, shrink=0.85, fraction=0.030,
                         extend="both")
+    if "norm" in pc_kw and style.get("ticks"):
+        cbar.set_ticks(style["ticks"]); cbar.ax.set_yticklabels([f"{t:g}" for t in style["ticks"]])
     cbar.set_label("SST anomaly (\u00b0C)", fontsize=10)
     cbar.ax.tick_params(labelsize=9)
 
@@ -294,9 +300,9 @@ def render_sst_map(anom2d, lat_name, lon_name, extent, title, out_path,
                 bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
                           edgecolor="#bbb", alpha=0.85))
 
-    fig.savefig(out_path, dpi=100, facecolor="white", edgecolor="none",
+    fig.savefig(out_path, dpi=FRAME_DPI, facecolor="white", edgecolor="none",
                 bbox_inches="tight", pad_inches=0.08,
-                pil_kwargs={"quality": 82, "method": 6})
+                pil_kwargs={"quality": FRAME_QUALITY, "method": 6})
     if png_path is not None:                    # high-res PNG for the overview hero
         fig.savefig(png_path, dpi=png_dpi, facecolor="white", edgecolor="none",
                     bbox_inches="tight", pad_inches=0.08)
@@ -333,7 +339,7 @@ def render_anim_frames(full_anom, la, lo, region_id, extent, central_lon,
             day, la, lo, extent,
             f"SST Anomaly \u2014 {valid:%Y-%m-%d}",
             out_path, figsize=figsize, central_lon=central_lon,
-            vmin=-5.0, vmax=5.0, nino_box=True, annotation=None,
+            nino_box=True, annotation=None,
         )
         frames.append({
             "idx": i,
@@ -363,6 +369,11 @@ _KIND_TITLE = {"anom": "SST Anomaly", "abs": "Absolute SST",
                "trel": "Tropical SST Anomaly (tropical-mean removed)"}
 # Products drawn as one tropical-belt panel instead of the global+Pacific pair.
 _ONE_PANEL_KINDS = {"trel"}
+# Map-frame resolution. 125 dpi made the 10.5x8.2 in anomaly frame 1312x1025; 170 gives 1785x1394,
+# which is what the eye wants on a retina display. webp quality up with it so the extra pixels are
+# not spent on compression artefacts.
+FRAME_DPI = 170
+FRAME_QUALITY = 88
 
 
 def _kind_style(kind):
@@ -375,16 +386,24 @@ def _kind_style(kind):
         # products would wash the belt out again.
         return dict(cmap=sst_anom_cmap(), vmin=-4.0, vmax=4.0,
                     cbar="SST anomaly − tropical mean (°C)")
-    return dict(cmap=sst_anom_cmap(), vmin=-5.0, vmax=5.0,
+    # +-5 linear saturated the event: on 2026-09-18 Nino-1+2 averaged +4.8 with 44% of its cells
+    # above +5 (max +6.7), so its whole core drew as one flat dark red. The scale now runs to +-7
+    # through an asinh norm with a 3 degC linear core, which keeps the mid-range contrast of the old
+    # +-5 ramp (3 degC sits at 0.78 of the half-ramp vs 0.80 before) and spends the ends on the tail.
+    return dict(cmap=sst_anom_cmap(), vmin=-7.0, vmax=7.0,
+                norm=mcolors.AsinhNorm(linear_width=3.0, vmin=-7.0, vmax=7.0),
+                ticks=[-7, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 7],
                 cbar="SST anomaly (°C)")
 
 
 def _draw_map_ax(ax, field, la, lo, extent, style, nino_box,
                  isotherms=None, annotation=None):
     set_extent_safe(ax, extent)
+    kw = ({"norm": style["norm"]} if style.get("norm") is not None
+          else {"vmin": style["vmin"], "vmax": style["vmax"]})
     im = ax.pcolormesh(field[lo].values, field[la].values, field.values,
-                       cmap=style["cmap"], vmin=style["vmin"], vmax=style["vmax"],
-                       transform=PC, shading="auto", rasterized=True, zorder=1)
+                       cmap=style["cmap"], transform=PC, shading="auto",
+                       rasterized=True, zorder=1, **kw)
     ax.add_feature(cfeature.LAND.with_scale("110m"), facecolor="#d9d6cf", zorder=2)
     ax.add_feature(cfeature.COASTLINE.with_scale("110m"), edgecolor="#555",
                    linewidth=0.4, zorder=3)
@@ -412,7 +431,7 @@ def render_2panel_frame(field, la, lo, kind, title, out_path, annotation=None):
     anomaly product shows the ONI/tropical-mean/RONI readout on the tropical panel."""
     style = _kind_style(kind)
     isos = [26, 28, 30] if kind == "abs" else None
-    fig = plt.figure(figsize=(10.5, 8.2), dpi=125)
+    fig = plt.figure(figsize=(10.5, 8.2), dpi=FRAME_DPI)
     gs = fig.add_gridspec(2, 1, height_ratios=[1, 1], hspace=0.10,
                           left=0.02, right=0.9, top=0.92, bottom=0.03)
     ax1 = fig.add_subplot(gs[0], projection=ccrs.PlateCarree(central_longitude=GLOBAL_CENTRAL_LON))
@@ -426,13 +445,15 @@ def render_2panel_frame(field, la, lo, kind, title, out_path, annotation=None):
     fig.suptitle(title, fontsize=13, fontweight="bold", x=0.02, ha="left")
     cax = fig.add_axes([0.915, 0.12, 0.016, 0.74])
     cb = fig.colorbar(im, cax=cax, extend="both")
+    if style.get("ticks"):
+        cb.set_ticks(style["ticks"]); cb.ax.set_yticklabels([f"{t:g}" for t in style["ticks"]])
     cb.set_label(style["cbar"], fontsize=10)
     cb.ax.tick_params(labelsize=9)
     # defensive: a concurrent pipeline's `git reset --hard` can briefly remove the anim
     # dir mid-render — recreate it so the worker never dies with FileNotFoundError.
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=125, facecolor="white",
-                pil_kwargs={"quality": 82, "method": 6})
+    fig.savefig(out_path, dpi=FRAME_DPI, facecolor="white",
+                pil_kwargs={"quality": FRAME_QUALITY, "method": 6})
     plt.close(fig)
 
 
@@ -451,7 +472,7 @@ def render_1panel_frame(field, la, lo, kind, title, out_path, annotation=None):
     aspect = (TROPICS_BELT_EXTENT[1] - TROPICS_BELT_EXTENT[0]) / \
              (TROPICS_BELT_EXTENT[3] - TROPICS_BELT_EXTENT[2])
     ax_h = (gs_r - gs_l) * style_w / aspect
-    fig = plt.figure(figsize=(style_w, ax_h / (gs_t - gs_b)), dpi=125)
+    fig = plt.figure(figsize=(style_w, ax_h / (gs_t - gs_b)), dpi=FRAME_DPI)
     gs = fig.add_gridspec(1, 1, left=gs_l, right=gs_r, top=gs_t, bottom=gs_b)
     ax = fig.add_subplot(gs[0],
                          projection=ccrs.PlateCarree(central_longitude=GLOBAL_CENTRAL_LON))
@@ -460,14 +481,16 @@ def render_1panel_frame(field, la, lo, kind, title, out_path, annotation=None):
     fig.suptitle(title, fontsize=13, fontweight="bold", x=0.02, ha="left")
     cax = fig.add_axes([0.915, gs_b, 0.012, gs_t - gs_b])
     cb = fig.colorbar(im, cax=cax, extend="both")
+    if style.get("ticks"):
+        cb.set_ticks(style["ticks"]); cb.ax.set_yticklabels([f"{t:g}" for t in style["ticks"]])
     # The belt panel is only ~2.4 in tall, so the full "SST anomaly - tropical
     # mean (degC)" label overruns the figure. The title already names the field;
     # the bar only needs units.
     cb.set_label("°C", fontsize=10, rotation=0, labelpad=8, va="center")
     cb.ax.tick_params(labelsize=9)
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=125, facecolor="white",
-                pil_kwargs={"quality": 82, "method": 6})
+    fig.savefig(out_path, dpi=FRAME_DPI, facecolor="white",
+                pil_kwargs={"quality": FRAME_QUALITY, "method": 6})
     plt.close(fig)
 
 
@@ -1320,20 +1343,18 @@ def main(argv=None) -> int:
         f"Current Daily Relative Oceanic Ni\u00f1o Index: {day_roni:+.2f} \u00b0C"
     )
 
-    # --- Maps (dateline-centered, +/-5 degC scale) ---
+    # --- Maps (dateline-centered; asinh +/-7 degC scale, shared with the frames) ---
     render_sst_map(latest, la, lo, GLOBAL_EXTENT,
                    f"Global SST Anomaly \u2014 {valid:%Y-%m-%d} "
                    f"(OISST v2.1, anomalies vs {oisst9120.BASE_LABEL})",
                    ASSETS / "global_sst_anom.webp",
                    figsize=(14, 7), central_lon=GLOBAL_CENTRAL_LON,
-                   vmin=-5.0, vmax=5.0,
                    annotation=annotation)
 
     render_sst_map(latest, la, lo, TROPICAL_EXTENT,
                    f"Tropical Pacific SST Anomaly \u2014 {valid:%Y-%m-%d}",
                    ASSETS / "tropical_sst_anom.webp",
                    figsize=(14, 5.5), central_lon=TROPICAL_CENTRAL_LON,
-                   vmin=-5.0, vmax=5.0,
                    annotation=annotation)
 
     # --- RONI time series chart ---
