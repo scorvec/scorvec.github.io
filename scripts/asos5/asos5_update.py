@@ -254,8 +254,11 @@ def fetch_sixhr():
     try:
         metars = json.loads(http_get(url))
     except Exception as e:
+        # the caller unpacks two values: returning one crashed the whole job on an upstream hiccup
+        # (2026-09-20: aviationweather.gov served an EXPIRED certificate on some hosts, 4 runs failed;
+        # the MADIS path below supplies the 5-minute data, so this degrades to no 6-hour groups)
         print(f"  AWC METAR API: failed ({e})", file=sys.stderr)
-        return out
+        return out, {}
     seen = set()
     for o in metars:
         sid, mx, mn = o.get("icaoId"), o.get("maxT"), o.get("minT")
