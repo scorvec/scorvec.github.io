@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import urllib.request
 import urllib.error
+import os
 from pathlib import Path
 
 import numpy as np
@@ -103,15 +104,30 @@ def download(url: str, dest: Path, force: bool = False, tries: int = 4) -> Path:
 
 
 def ensure_mean(year: int, force: bool = False) -> Path:
+    """The yearly daily-mean file: PSL's copy, topped up from NCEI's daily files.
+
+    PSL rebuilds its yearly file once a day (~16:30 UTC) from the same NCEI dailies, so for part of
+    each day PSL is a day behind what exists. The top-up appends those days from NCEI directly (same
+    product, same grid) instead of waiting; when PSL republishes, its Last-Modified check refreshes
+    the whole file from PSL again and the appended days are simply superseded. Days taken from an
+    NCEI `_preliminary` file are tracked in the sidecar and revisited once the final lands.
+    Set OISST_NO_NCEI_TOPUP=1 to keep to PSL alone."""
     dest = DATA / f"sst.day.mean.{year}.nc"
     try:
-        return download(MEAN_URL.format(year=year), dest, force=force)
+        p = download(MEAN_URL.format(year=year), dest, force=force)
     except urllib.error.HTTPError as e:
         if e.code == 404:
             raise                    # genuinely absent year file → caller's previous-year fallback
         return _ensure_mean_ncei(year, dest)
     except Exception:                # PSL unreachable (outage) → NCEI day-file assembly
         return _ensure_mean_ncei(year, dest)
+    if os.environ.get("OISST_NO_NCEI_TOPUP") or year != pd.Timestamp.now(tz="UTC").year:
+        return p
+    try:
+        return _ensure_mean_ncei(year, dest, topup=True)
+    except Exception as e:           # a top-up must never cost us the PSL file we already have
+        print(f"  NCEI top-up skipped ({type(e).__name__}: {str(e)[:80]})", flush=True)
+        return p
 
 
 # ── NCEI fallback: assemble the PSL-style yearly file from NCEI daily files ──
@@ -244,8 +260,9 @@ def _revisit_prelim(merged, dest, prelim_new, year):
     return merged
 
 
-def _ensure_mean_ncei(year: int, dest: Path) -> Path:
-    print("  PSL unreachable → assembling from NCEI daily files", flush=True)
+def _ensure_mean_ncei(year: int, dest: Path, topup: bool = False) -> Path:
+    print("  checking NCEI for days past the PSL file" if topup
+          else "  PSL unreachable → assembling from NCEI daily files", flush=True)
     DATA.mkdir(parents=True, exist_ok=True)
     today = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
     end = min(pd.Timestamp(year=year, month=12, day=31), today)
@@ -265,7 +282,7 @@ def _ensure_mean_ncei(year: int, dest: Path) -> Path:
         print(f"    NCEI {d:%Y-%m-%d} ok{'' if final else ' (preliminary)'}", flush=True)
     if not new:
         if base is not None:
-            print("  NCEI has nothing newer than the cache; using cached file")
+            print("  NCEI has nothing newer" + (" than PSL" if topup else " than the cache"))
             return dest
         raise RuntimeError("NCEI fallback: no daily files retrievable")
     merged = xr.concat(([base] if base is not None else []) + new, dim="time")
@@ -274,7 +291,7 @@ def _ensure_mean_ncei(year: int, dest: Path) -> Path:
     merged.to_dataset(name="sst").to_netcdf(
         tmp, encoding={"sst": {"zlib": True, "complevel": 1, "dtype": "float32"}})
     tmp.replace(dest)
-    print(f"  NCEI-assembled {dest.name}: through "
+    print(f"  {'NCEI top-up' if topup else 'NCEI-assembled'} {dest.name}: through "
           f"{pd.Timestamp(merged['time'].values[-1]):%Y-%m-%d} "
           f"({dest.stat().st_size/1e6:.0f} MB)", flush=True)
     return dest

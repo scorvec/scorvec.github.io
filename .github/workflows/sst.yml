@@ -1,8 +1,14 @@
 name: SST anomalies & RONI (El Niño monitor)
 
-# NOAA OISST updates daily (1–2 day latency). We rebuild once a day; the script
+# NOAA OISST updates daily (1–2 day latency). We rebuild twice a day; the script
 # always uses the latest available day, so a late update is simply picked up by
 # the next run. Manual dispatch with --force re-downloads regardless.
+#
+# Two sources, same product: NCEI publishes each day's file (final, or `_preliminary`
+# for the recent window) at ~13:31 UTC, and PSL folds the same dailies into its yearly
+# file at ~16:30 UTC. ensure_mean() takes PSL's file and tops it up from NCEI's dailies,
+# so the 13:50 slot already has the newest day and the 19:23 slot picks up PSL's copy
+# plus any preliminary day that has since been finalised.
 #
 # Cron timing matters. Two constraints, both in UTC (GitHub cron is always UTC):
 #   1. PSL rewrites sst.day.anom.<YEAR>.nc with the previous day at ~16:30 UTC.
@@ -14,6 +20,7 @@ name: SST anomalies & RONI (El Niño monitor)
 # 1–2 h scheduling delay; an on-time dispatch would have committed stale maps.
 on:
   schedule:
+  - cron: '50 13 * * *'   # 13:50 UTC — right after NCEI posts the previous day's `_preliminary` daily file (~13:31 UTC). oisst9120.ensure_mean tops the PSL year file up from those dailies, so the monitor gets the new day ~3 h before PSL rebuilds its yearly file; the day is flagged provisional and is replaced when NCEI finalises (~2 weeks).
   - cron: '23 19 * * *'   # 19:23 UTC — after PSL publishes OISST (~16:30 UTC). Everything this job builds is daily at most (OISST, TAO, MUR, ASCAT; WWV is monthly-ish), so two firings a day is the right size — deliberately NOT more. The laptop's 15-min cadence was always over-serving it; com.scorvec.sst was unloaded 2026-08-29.
   # (The 23:23 retry slot was removed 2026-08-30. It existed because "the
   # cron fires once a day, so a runner-infra hang at 19:23 loses the whole
