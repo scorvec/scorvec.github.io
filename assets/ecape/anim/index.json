@@ -1,6 +1,11 @@
 {
   "cycles": [
     {
+      "cycle": "2026092118",
+      "init": "2026-09-21 18Z",
+      "manifest": "ecape_2026092118.json"
+    },
+    {
       "cycle": "2026092112",
       "init": "2026-09-21 12Z",
       "manifest": "ecape_2026092112.json"
@@ -54,12 +59,7 @@
       "cycle": "2026091900",
       "init": "2026-09-19 00Z",
       "manifest": "ecape_2026091900.json"
-    },
-    {
-      "cycle": "2026091818",
-      "init": "2026-09-18 18Z",
-      "manifest": "ecape_2026091818.json"
     }
   ],
-  "latest": "2026092112"
+  "latest": "2026092118"
 }
