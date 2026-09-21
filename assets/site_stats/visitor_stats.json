@@ -1,17 +1,17 @@
 {
- "updated": "2026-09-20",
- "total_30d": 389,
- "countries_30d": 4,
- "total_all": 800,
+ "updated": "2026-09-21",
+ "total_30d": 370,
+ "countries_30d": 3,
+ "total_all": 801,
  "countries_all": 10,
  "top_pages_30d": [
   {
    "path": "/",
-   "count": 53
+   "count": 51
   },
   {
    "path": "/sst.html",
-   "count": 46
+   "count": 43
   },
   {
    "path": "/asos5.html",
