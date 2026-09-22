@@ -147,14 +147,29 @@ jobs:
       - name: Walker departure from Pacific forcing, weekly
         run: python scripts/sst/walker_chi_weekly.py || echo "walker_chi_weekly failed; continuing"
 
+      # The subsurface page is owned by tao-subsurface.yml (3x a day). Here it is a courtesy refresh, so a PMEL DISDEL
+      # hiccup must not take the SST anomalies / RONI run down with it (2026-09-22 17:45Z did exactly that).
       - name: Fetch TAO equatorial subsurface temperature (recent 120 days)
+        id: tao
+        continue-on-error: true
         run: |
           python scripts/sst/tao_subsurface.py --days 120 \
             --out scripts/sst/data/tao_eq_recent.nc \
             --ascii scripts/sst/data/tao_eq_recent.ascii
 
       - name: Build equatorial subsurface cross-section + animation
+        if: steps.tao.outcome == 'success'
         run: python scripts/sst/sst_subsurface.py
+
+      - name: Note skipped subsurface refresh
+        if: steps.tao.outcome != 'success'
+        run: |
+          echo "::warning::TAO DISDEL fetch failed; subsurface left to tao-subsurface.yml"
+          # sst-roni re-rendered the pages with a __TAO_DAY__ placeholder that only sst_subsurface.py fills: keep the
+          # committed subsurface page (tao-subsurface.yml's) rather than ship the raw token
+          for f in $(grep -l "__TAO_DAY__" enso*.html sst.html circulation.html 2>/dev/null); do
+            git checkout HEAD -- "$f" && echo "restored $f"
+          done
 
       - name: Build daily ASCAT equatorial-Pacific wind map (Copernicus Marine)
         working-directory: scripts/sst

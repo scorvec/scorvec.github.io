@@ -27,6 +27,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
+import time
 import pandas as pd
 import xarray as xr
 
@@ -54,11 +55,23 @@ def deliver(start: datetime, end: datetime, dest: Path) -> Path:
     }
     url = CGI + "?" + urllib.parse.urlencode(params)
     print(f"requesting DISDEL delivery {start:%Y-%m-%d} -> {end:%Y-%m-%d} …")
-    html = _get(url).decode("latin-1", "replace")
-
-    m = re.search(r'href="\s*(/cache-tao/[^"]*?_xyzt_dy\.ascii)\s*"', html)
+    # DISDEL occasionally answers with a page that has no delivery link (2026-09-22 17:45Z sst.yml run; the same
+    # request succeeded an hour later). Retry before giving up, and show what came back.
+    m = None
+    for attempt in range(3):
+        try:
+            html = _get(url).decode("latin-1", "replace")
+            m = re.search(r'href="\s*(/cache-tao/[^"]*?_xyzt_dy\.ascii)\s*"', html)
+        except Exception as e:                      # noqa: BLE001
+            html = f"<request failed: {e}>"
+        if m:
+            break
+        snippet = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))[:300]
+        print(f"  attempt {attempt + 1}: no delivery link; response: {snippet!r}", flush=True)
+        if attempt < 2:
+            time.sleep(60)
     if not m:
-        raise RuntimeError("No t_xyzt_dy.ascii link in DISDEL response "
+        raise RuntimeError("No t_xyzt_dy.ascii link in DISDEL response after 3 attempts "
                            "(check date range / availability)")
     data_url = HOST + m.group(1).strip()
     print(f"  downloading {data_url.split('/')[-1]} …")
