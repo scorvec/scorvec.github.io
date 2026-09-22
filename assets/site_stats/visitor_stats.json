@@ -1,13 +1,13 @@
 {
- "updated": "2026-09-21",
+ "updated": "2026-09-22",
  "total_30d": 370,
  "countries_30d": 3,
- "total_all": 801,
+ "total_all": 807,
  "countries_all": 10,
  "top_pages_30d": [
   {
    "path": "/",
-   "count": 51
+   "count": 50
   },
   {
    "path": "/sst.html",
@@ -31,15 +31,15 @@
   },
   {
    "path": "/sfs.html",
-   "count": 21
+   "count": 22
   },
   {
    "path": "/subseasonal.html",
-   "count": 19
+   "count": 20
   },
   {
    "path": "/enso-forecasts.html",
-   "count": 19
+   "count": 20
   },
   {
    "path": "/mjo.html",
