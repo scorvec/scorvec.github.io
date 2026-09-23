@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2026 Midterm Forecast</title>
+<style>
+:root{--ink:#1a1a1a;--muted:#6f6b64;--rule:#e2e0da;--bg:#fcfcfa;--d:#2a78d6;--r:#d9402a;--acc:#8a4b2a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
+header.board{padding:18px 24px 10px;border-bottom:1px solid var(--rule)}h1{font-size:22px;margin:0 0 4px}.bsub{color:var(--muted);font-size:13px}
+.bwrap{padding:14px 24px 40px;max-width:1500px;margin:0 auto}
+.ctl{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:10px 0 18px;padding:12px 14px;border:1px solid var(--rule);border-radius:8px;background:#fff}
+.ctl label{font-weight:600}.ctl input[type=range]{width:420px}.ctl .val{font-variant-numeric:tabular-nums;font-weight:700;min-width:90px}.ctl .agg{color:var(--muted);font-size:13px}
+.ctl button{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit;font-size:13px}
+.row{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}@media(max-width:1000px){.row{grid-template-columns:1fr}}
+.card{border:1px solid var(--rule);border-radius:8px;background:#fff;padding:12px 14px}.card h2{font-size:16px;margin:0 0 6px}.card .bnote{color:var(--muted);font-size:12.5px}
+.tiles{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:flex-start}.bst{display:flex;flex-direction:column;align-items:flex-start}.bst .lab{font-size:10.5px;color:var(--muted);letter-spacing:.03em;margin-bottom:2px}
+.bst .bg{display:grid;grid-template-columns:repeat(auto-fill,14px);gap:2px;width:max-content;max-width:154px}
+.t{width:14px;height:14px;border-radius:2px;border:1px solid rgba(0,0,0,.08);cursor:default}.t.open{outline:1.5px solid #000;outline-offset:-1.5px}
+.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 10px}.kpi div{border:1px solid var(--rule);border-radius:6px;padding:6px 8px}.kpi b{display:block;font-size:20px;font-variant-numeric:tabular-nums}.kpi span{font-size:11.5px;color:var(--muted)}
+svg text{font-size:10.5px;fill:var(--muted)}
+.tip{position:fixed;pointer-events:none;background:#1a1a1a;color:#fff;font-size:12.5px;padding:6px 9px;border-radius:6px;display:none;max-width:320px;z-index:9}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:4px 6px;border-bottom:1px solid var(--rule);text-align:left}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.pd{font-weight:700}
+.leg{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-top:8px}.leg i{display:inline-block;width:14px;height:10px;border-radius:2px}
+.card{overflow-x:auto}
+@media(max-width:640px){.ctl input[type=range]{width:100%}.ctl{gap:8px}.bwrap{padding:10px 12px 30px}header.board{padding:14px 12px 8px}.kpi{grid-template-columns:repeat(2,1fr)}svg{max-width:100%;height:auto}}
+</style><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head><body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/" aria-current="page">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<header class="board"><h1>2026 Midterm Forecast</h1><p class="bsub" style="max-width:860px;margin:6px 0 2px;color:var(--ink)">A Monte Carlo forecast of the 2026 House, Senate and governor races, built from polls, fundamentals and fundraising. Drag the slider to change the national environment and every race updates. Refreshed weekly.</p><div class="bsub" id="sub">loading…</div></header>
+<div class="bwrap">
+<div class="ctl"><label for="E">National mood (D−R generic ballot, points)</label><input type="range" id="E" min="-10" max="14" step="0.5"><span class="val" id="Ev"></span><button id="reset">reset to today's polls</button><span class="agg" id="agg"></span></div>
+<div class="row">
+ <div>
+  <div class="card"><h2>House — every district, coloured by P(Democratic win)</h2><div class="bnote">Tile = district, grouped by state; black outline = open seat. Hover for the member, PVI, model margin and probability. The national mood shifts every simulated margin one-for-one.</div><div class="tiles" id="tiles"></div>
+   <div class="leg"><i style="background:#0b3d91"></i>≥90% D <i style="background:#7fa9e0"></i>70 <i style="background:#e6e6e6"></i>50 <i style="background:#f0a090"></i>30 <i style="background:#a32215"></i>≥90% R</div></div>
+  <div class="card" style="margin-top:14px" id="govcard"><h2>Governors — the 36 races</h2><div class="kpi"><div><b id="gmean">–</b><span>mean D governors</span></div><div><b id="grng">–</b><span>10–90%</span></div><div><b id="gmaj">–</b><span>P(D ≥ 26)</span></div></div><div class="bnote" id="gnote"></div><table id="gov"></table></div>
+  <div class="card" style="margin-top:14px"><h2>Senate — the 35 races</h2><div class="bnote">P(challenger) from the poll blend and fundamentals; the national mood enters the Senate at slope 0.8 (fitted on 326 races 2006-2024). Seats not up: <span id="notup"></span>. † independent challenger: hover for how the prior is set.</div><table id="sen"></table></div>
+ </div>
+ <div>
+  <div class="card"><h2>House seats</h2><div class="kpi"><div><b id="hmean">–</b><span>mean D seats</span></div><div><b id="hrng">–</b><span>10–90%</span></div><div><b id="hmaj">–</b><span>P(D majority)</span></div></div><svg id="hhist" width="330" height="150"></svg><div class="bnote">Distribution of Democratic seats from 20,000 correlated simulations at this mood.</div></div>
+  <div class="card" style="margin-top:14px"><h2>Senate seats</h2><div class="kpi"><div><b id="smean">–</b><span>mean D seats</span></div><div><b id="srng">–</b><span>10–90%</span></div><div><b id="smaj">–</b><span>P(D ≥ 51)</span></div><div><b id="srlose">–</b><span>P(R ≤ 49)</span></div></div><div class="bnote" id="sind"></div><svg id="shist" width="330" height="130"></svg></div>
+  <div class="card" style="margin-top:14px"><h2>Closest House races at this mood</h2><table id="close"></table></div>
+  <div class="card" style="margin-top:14px"><h2>The polls themselves</h2><div class="bnote" id="pnote"></div><svg id="ptrend" width="330" height="170"></svg><div class="bnote">Generic ballot (D−R): our trend (thick) from every individual poll with pollster house effects and LV/RV/adult offsets removed; the aggregators' current readings are the grey dots at the right edge.</div><table id="pshares"></table><div class="bnote" style="margin-top:6px">House effects, pollsters active in the last 120 days (points the pollster runs above/below the field, Democratic-positive):</div><table id="phouse"></table><svg id="atrend" width="330" height="120"></svg><div class="bnote">Presidential net approval, same method.</div></div>
+  <div class="card" style="margin-top:14px"><h2>Method</h2><div class="bnote" id="method"></div></div>
+ </div>
+</div></div>
+<div class="tip" id="tip"></div>
+<script>
+const $=s=>document.querySelector(s);let D,gi;
+const col=p=>{const t=Math.max(0,Math.min(1,p));if(t>=.5){const k=(t-.5)/.5;return mix('#e6e6e6','#0b3d91',k)}const k=(.5-t)/.5;return mix('#e6e6e6','#a32215',k)};
+function mix(a,b,k){const h=x=>[1,3,5].map(i=>parseInt(x.slice(i,i+2),16));const A=h(a),B=h(b);return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*k).toString(16).padStart(2,'0')).join('')}
+const ORDER=["WA","OR","CA","NV","ID","UT","AZ","MT","WY","CO","NM","ND","SD","NE","KS","OK","TX","MN","IA","MO","AR","LA","WI","IL","MS","MI","IN","KY","TN","AL","OH","WV","GA","FL","SC","NC","VA","PA","NY","VT","NH","ME","MA","RI","CT","NJ","DE","MD","AK","HI"];
+fetch('data/model.json').then(r=>r.json()).then(j=>{D=j;init()});
+function init(){const H=D.house;const g=H.grid;$('#E').value=H.E0;$('#sub').textContent=`Generated ${D.generated} · inputs as of ${D.asof} · House ${H.seats.length} seats on the 2026 maps · Senate ${D.senate.races.length} races`;
+ $('#agg').textContent='Generic-ballot aggregates today: '+D.generic.map(a=>`${a.source} D${a.margin>=0?'+':''}${a.margin}`).join(' · ')+` → our poll trend D+${D.polls?D.polls.generic_now.toFixed(1):'?'}${D.polls&&D.polls.bias?`, ${D.polls.bias} for self-reported turnout (likely-voter screens overstate young voters' turnout)`:''} = model environment D${H.E_now>=0?'+':''}${H.E_now} (slider starts at ${H.E0}): House ${H.now.mean} seats (${H.now.p10}–${H.now.p90}), P(majority) ${(100*H.now.p_maj).toFixed(0)}% · Senate P(D ≥ 51) ${(100*D.senate.now.p51plus).toFixed(0)}%, P(R loses majority) ${(100*D.senate.now.p_r_lose).toFixed(0)}%`;
+ $('#method').innerHTML=`<b>House:</b> ${D.notes.house}.<br><b>Senate:</b> ${D.notes.senate}.<br><b>Backtests:</b> ${D.notes.backtests}.`;
+ $('#notup').textContent=`D ${D.senate.now_d-D.senate.d_up}, R ${D.senate.now_r-D.senate.r_up}`;
+ const byst={};H.seats.forEach(s=>{(byst[s.state]=byst[s.state]||[]).push(s)});
+ const tiles=$('#tiles');ORDER.forEach(st=>{if(!byst[st])return;const seats=byst[st].sort((a,b)=>a.cd-b.cd);const box=document.createElement('div');box.className='bst';box.innerHTML=`<div class="lab">${st}</div><div class="bg"></div>`;const grid=box.querySelector('.bg');seats.forEach(s=>{const t=document.createElement('div');t.className='t'+(s.open?' open':'');t.dataset.seat=s.seat;t.addEventListener('mousemove',e=>tip(e,s));t.addEventListener('mouseleave',()=>{$('#tip').style.display='none'});grid.appendChild(t)});tiles.appendChild(box)});
+ if(D.fuel){const F=D.fuel;const n=document.createElement('div');n.className='bnote';n.id='fuel';n.innerHTML=`<b>Fuel-price scenarios</b> (EIA week of ${F.asof}): regular gasoline $${F.gas} (a year ago $${F.gas_yr_ago}), diesel $${F.diesel} (a year ago $${F.diesel_yr_ago}). Today's prices are already in the polls; each further $1 on gasoline by November has meant about ${F.approval_per_dollar} points of net approval, roughly D${F.per_dollar>=0?'+':''}${F.per_dollar} on the generic ballot (noisy: -0.2 to -2.9 per $1 across presidencies). Gasoline in November → slider: `+F.rows.map(r=>`$${r.gas.toFixed(2)} → D${r.E>=0?'+':''}${r.E}`).join(' · ')+'.';$('#agg').after(n)}
+ pollsCard();$('#E').addEventListener('input',render);$('#reset').addEventListener('click',()=>{$('#E').value=H.E0;render()});render()}
+function pollsCard(){const P=D.polls;if(!P)return;const g=P.generic_diag;
+ $('#pnote').innerHTML=`Our read: <b>D${g.now>=0?'+':''}${g.now.toFixed(1)}</b> (30 d ago ${g['30d_ago'].toFixed(1)}, 60 d ${g['60d_ago'].toFixed(1)}, 90 d ${g['90d_ago'].toFixed(1)}); the model runs at this read ${P.bias?`${P.bias>0?'+':''}${P.bias} (likely-voter screens rely on stated intent, and young voters, the most Democratic group, overstate their turnout; the historical generic-ballot miss of ~3 came mostly from registered-voter averages)`:'with no correction'}; the slider starts at the nearest half point. ${P.n_generic} polls to ${P.last_generic}. Last 30 d: raw change ${g.raw_change_30d>=0?'+':''}${g.raw_change_30d}, after removing pollster mix ${g.adj_change_30d>=0?'+':''}${g.adj_change_30d}.`;
+ line('#ptrend',P.generic_trend,D.generic.map(a=>({label:a.source,v:a.margin})),0);line('#atrend',P.approval_trend,[],0);
+ const sh=[['Democrats',g.dem_30d,g.dem_30d_ago],['Republicans',g.rep_30d,g.rep_30d_ago],['Undecided/other',g.und_30d,g.und_30d_ago]];
+ $('#pshares').innerHTML='<tr><th>30-day raw mean</th><th class="n">now</th><th class="n">30 d ago</th><th class="n">change</th></tr>'+sh.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1].toFixed(1)}</td><td class="n">${r[2]==null?'–':r[2].toFixed(1)}</td><td class="n">${r[2]==null?'–':((r[1]-r[2])>=0?'+':'')+(r[1]-r[2]).toFixed(1)}</td></tr>`).join('')+Object.entries(g.by_pop_90d).map(([k,v])=>`<tr><td>${k.toUpperCase()} polls, 90 d (${v.n})</td><td class="n">${v.raw>=0?'+':''}${v.raw.toFixed(1)}</td><td class="n">adj ${v.adj>=0?'+':''}${v.adj.toFixed(1)}</td><td></td></tr>`).join('');
+ const he=Object.entries(P.house_effects).sort((a,b)=>b[1].effect-a[1].effect);$('#phouse').innerHTML=he.map(([k,v])=>`<tr><td>${k}</td><td class="n" style="color:${v.effect>0?'#0b3d91':'#a32215'}">${v.effect>=0?'+':''}${v.effect.toFixed(1)}</td><td class="n" style="color:var(--muted)">${v.polls_120d} polls</td></tr>`).join('')}
+function line(sel,tr,marks,zero){const svg=$(sel);const W=+svg.getAttribute('width'),Hh=+svg.getAttribute('height');const pts=tr.map(([d,v])=>[new Date(d).getTime(),v]).filter(p=>p[0]>=Date.now()-400*864e5);if(!pts.length)return;const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]).concat(marks.map(m=>m.v));const x0=Math.min(...xs),x1=Math.max(...xs)+20*864e5;let y0=Math.min(...ys)-1,y1=Math.max(...ys)+1;if(zero!=null){y0=Math.min(y0,zero);y1=Math.max(y1,zero)}
+ const sx=v=>28+(v-x0)/(x1-x0)*(W-40),sy=v=>Hh-20-(v-y0)/(y1-y0)*(Hh-30);let s=`<line x1="28" x2="${W-12}" y1="${sy(0)}" y2="${sy(0)}" stroke="#c3c2b7"/>`;
+ s+=`<polyline fill="none" stroke="#2a78d6" stroke-width="2.2" points="${pts.map(p=>sx(p[0])+','+sy(p[1])).join(' ')}"/>`;const last=pts[pts.length-1];s+=`<text x="${sx(last[0])+3}" y="${sy(last[1])+4}" fill="#2a78d6" font-weight="700">${last[1]>=0?'+':''}${last[1].toFixed(1)}</text>`;
+ marks.forEach(m=>{s+=`<circle cx="${W-14}" cy="${sy(m.v)}" r="2.5" fill="#6f6b64"/>`});for(const yv of [Math.round(y0),Math.round((y0+y1)/2),Math.round(y1)]){s+=`<text x="2" y="${sy(yv)+3}">${yv>=0?'+':''}${yv}</text>`}
+ s+=`<text x="28" y="${Hh-6}">${new Date(x0).toLocaleDateString('en-US',{month:'short',year:'2-digit'})}</text><text x="${W-14}" y="${Hh-6}" text-anchor="end">${new Date(last[0]).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>`;svg.innerHTML=s}
+function tip(e,s){const p=s.p[gi];const t=$('#tip');t.style.display='block';t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+14)+'px';
+ t.innerHTML=`<b>${s.seat}</b> ${s.member||''}${s.open?' (open)':(s.inc>0?' (D inc.)':s.inc<0?' (R inc.)':'')}<br>Cook PVI ${s.cook_pvi>=0?'D+':'R+'}${Math.abs(s.cook_pvi)} · model margin D${(s.mu+(+$('#E').value-D.house.E_now)>=0?'+':'')}${(s.mu+(+$('#E').value-D.house.E_now)).toFixed(1)}<br><b>P(D) ${(100*p).toFixed(0)}%</b>${s.n_polls?` · ${s.n_polls} poll${s.n_polls>1?'s':''}, avg D${s.poll_margin>=0?'+':''}${s.poll_margin}`:' · no polls'}${s.rating!=null?` · raters' consensus ${(100*s.rating).toFixed(0)}%`:''}${s.money_d!=null?`<br>raised by June 30: D $${(s.money_d/1e6).toFixed(2)}M · R $${(s.money_r/1e6).toFixed(2)}M`:''}`}
+function render(){const E=+$('#E').value;const H=D.house;gi=H.grid.findIndex(x=>Math.abs(x-E)<1e-6);$('#Ev').textContent=(E>=0?'D+':'R+')+Math.abs(E).toFixed(1);
+ document.querySelectorAll('.t').forEach(t=>{const s=H.seats.find(x=>x.seat===t.dataset.seat);t.style.background=col(s.p[gi])});
+ const d=H.dist[E.toFixed(1)];$('#hmean').textContent=d.mean.toFixed(0);$('#hrng').textContent=`${d.p10}–${d.p90}`;$('#hmaj').textContent=(100*d.p_maj).toFixed(0)+'%';hist('#hhist',d.hist,218,150);
+ if(D.governor){const G=D.governor,gd=G.dist[E.toFixed(1)];$('#gmean').textContent=gd.mean.toFixed(1);$('#grng').textContent=`${gd.p10}–${gd.p90}`;$('#gmaj').textContent=(100*gd.p_d_majority).toFixed(0)+'%';
+ $('#gnote').textContent=`Now ${G.now.now_d} D / ${G.now.now_r} R; ${G.now.up_d} D and ${G.now.up_r} R seats up. Prior refit on every governor race 1998-2022: ${G.coef.lean} x state lean (half the Senate's), ${G.coef.inc} for an incumbent running, ${G.coef.E} x the national mood; polls from VoteHub with the Senate's corrections; Alaska's top-four ballot counts each party's candidates together.`;
+ const gr=G.races.map(r=>({...r,pp:r.p[gi]})).filter(r=>r.pp>0.03&&r.pp<0.97).sort((a,b)=>b.pp-a.pp);
+ $('#gov').innerHTML='<tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Poll avg</th><th class="n">Model margin</th><th class="n">P(D)</th></tr>'+gr.map(r=>`<tr><td><b>${r.state}</b></td><td>${r.dem||'?'} (D) v ${r.rep||'?'} (R)${r.inc?(r.inc>0?' · D inc.':' · R inc.'):' · open'}</td><td class="n">${r.n_polls}</td><td class="n">${r.poll_margin==null?'–':(r.poll_margin>=0?'+':'')+r.poll_margin.toFixed(1)}</td><td class="n">${(r.mu+(E-G.E_now)*G.slope>=0?'+':'')+(r.mu+(E-G.E_now)*G.slope).toFixed(1)}</td><td class="n pd" style="color:${r.pp>=.5?'#0b3d91':'#a32215'}">${(100*r.pp).toFixed(0)}%</td></tr>`).join('')+`<tr><td colspan="6" class="bnote">${G.races.length-gr.length} safe races not shown.</td></tr>`}
+ const S=D.senate,sd=S.dist[E.toFixed(1)];$('#smean').textContent=sd.mean.toFixed(1);$('#srng').textContent=`${sd.p10}–${sd.p90}`;$('#smaj').textContent=(100*sd.p51plus).toFixed(0)+'%';$('#srlose').textContent=sd.p_r_lose==null?'–':(100*sd.p_r_lose).toFixed(0)+'%';$('#sind').textContent=sd.ind_mean==null?'':`Independent challengers (NE, ID, SD, MT) win ${sd.ind_mean.toFixed(1)} seats on average; they are not counted as Democratic seats. P(R ≤ 49) = Republicans lose the majority, counting them.`+(S.joint?` Joint control (same national draw): D House + D Senate ${(100*S.joint[E.toFixed(1)].dd).toFixed(0)}% · D House + R Senate ${(100*S.joint[E.toFixed(1)].dr).toFixed(0)}% · R House + D Senate ${(100*S.joint[E.toFixed(1)].rd).toFixed(0)}% · R both ${(100*S.joint[E.toFixed(1)].rr).toFixed(0)}%.`:'');hist('#shist',sd.hist,51,130);
+ const rows=S.races.map(r=>({...r,pp:r.p[gi]})).sort((a,b)=>a.pp-b.pp);
+ $('#sen').innerHTML='<tr><th>State</th><th>Race</th><th class="n">PVI</th><th class="n">Polls</th><th class="n">Poll avg</th><th class="n">Model margin</th><th class="n" title="P(the challenger wins): the Democrat, or the independent where marked (I)">P(D/I)</th><th>Cook</th></tr>'+rows.map(r=>`<tr><td><b>${r.state}</b>${r.special?' (sp.)':''}</td><td title="${r.prior_note||''}">${r.dem||'?'} (${r.dem_party||'D'}) v ${r.rep||'?'} (R)${r.inc?'':' · open'}${r.prior_note?' †':''}</td><td class="n">${r.cook_pvi==null?'':(r.cook_pvi>=0?'D+':'R+')+Math.abs(r.cook_pvi)}</td><td class="n">${r.n_polls}</td><td class="n">${r.poll_margin==null?'–':(r.poll_margin>=0?'+':'')+r.poll_margin.toFixed(1)}</td><td class="n">${(r.mu+(E-S.E_now)*S.nat_slope>=0?'+':'')+(r.mu+(E-S.E_now)*S.nat_slope).toFixed(1)}</td><td class="n pd" style="color:${r.pp>=.5?'#0b3d91':'#a32215'}">${(100*r.pp).toFixed(0)}%</td><td>${r.cook||''}</td></tr>`).join('');
+ const close=H.seats.map(s=>({...s,pp:s.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)).slice(0,18);
+ $('#close').innerHTML='<tr><th>Seat</th><th>Member</th><th class="n">PVI</th><th class="n">P(D)</th><th class="n">raters</th></tr>'+close.map(s=>`<tr><td><b>${s.seat}</b>${s.open?' · open':''}</td><td>${(s.member||'').slice(0,26)}</td><td class="n">${(s.cook_pvi>=0?'D+':'R+')+Math.abs(s.cook_pvi)}</td><td class="n pd" style="color:${s.pp>=.5?'#0b3d91':'#a32215'}">${(100*s.pp).toFixed(0)}%</td><td class="n">${s.rating!=null?(100*s.rating).toFixed(0)+'%':'–'}</td></tr>`).join('')}
+function hist(sel,h,thr,height){const svg=$(sel);const W=+svg.getAttribute('width'),Hh=height;const ks=Object.keys(h).map(Number).sort((a,b)=>a-b);const tot=Object.values(h).reduce((a,b)=>a+b,0);const x0=ks[0]-1,x1=ks[ks.length-1]+1;const mx=Math.max(...Object.values(h));
+ const sx=v=>20+(v-x0)/(x1-x0)*(W-30),sy=v=>Hh-22-(v/mx)*(Hh-34);let s='';ks.forEach(k=>{const v=h[k];s+=`<rect x="${sx(k)-((W-30)/(x1-x0))/2+.5}" y="${sy(v)}" width="${Math.max(1,(W-30)/(x1-x0)-1)}" height="${Hh-22-sy(v)}" fill="${k>=thr?'#2a78d6':'#d9402a'}" opacity=".85"/>`});
+ s+=`<line x1="${sx(thr)}" x2="${sx(thr)}" y1="8" y2="${Hh-22}" stroke="#1a1a1a" stroke-dasharray="3 2"/><text x="${sx(thr)+3}" y="16">${thr}</text>`;const ticks=[x0,Math.round((x0+x1)/2),x1];ticks.forEach(t=>{s+=`<text x="${sx(t)}" y="${Hh-8}" text-anchor="middle">${t}</text>`});svg.innerHTML=s}
+</script><!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body></html>

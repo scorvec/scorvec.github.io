@@ -387,3 +387,19 @@ html .img-wrap, html .table-wrap { max-width: 100%; overflow-x: auto; }
   .rail-group button.on { background: var(--accent, #666); color: #fff; }
   .rail-group button small { display: none; }
 }
+
+/* 2026 Midterms: the highlighted header button (apply_chrome.SPECIAL) */
+.sh-item--special { margin-left: 0.35rem; }
+.sh-special {
+  display: inline-flex; align-items: center; padding: 0.45rem 0.9rem; border-radius: 999px;
+  font: inherit; font-size: 0.98rem; font-weight: 600; white-space: nowrap; text-decoration: none;
+  color: #fff; background: #274b7a; border: 1px solid #274b7a; transition: background 0.15s, transform 0.15s;
+}
+.sh-special:hover { background: #1d3a60; transform: translateY(-1px); }
+.sh-special[aria-current="page"] { background: #fff; color: #274b7a; }
+.sh-special:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+.sh--dark .sh-special { color: #11111c; background: #64d2ff; border-color: #64d2ff; }
+.sh--dark .sh-special:hover { background: #8fdfff; }
+.sh--overlay .sh-special { color: #1d2a1a; background: #fff; border-color: #fff; text-shadow: none; }
+.sh--overlay .sh-special:hover { background: #eef2f7; }
+@media (max-width: 900px) { .sh-item--special { margin: 0.4rem 0 0.2rem; } .sh-special { justify-content: center; } }

@@ -60,6 +60,8 @@ def group_items(items):
     return list(items)
 
 PRIMARY = [("/research.html", "Research"), ("/resume.html", "Resume")]
+# A highlighted button, apart from the menus, on every page (2026-09-23, user: "put this on my site as a special button").
+SPECIAL = ("/midterms/", "2026 Midterms")
 
 # Tab rows for page families. Keys are referenced from PAGES.
 TABS = {
@@ -133,6 +135,7 @@ PAGES = [
     dict(path="skewt/methodology.html", mode="nav", tabs="skewt"),
     dict(path="skewt/gaps.html", mode="nav", tabs="skewt"),
     dict(path="qbo/index.html", mode="nav"),
+    dict(path="midterms/index.html", mode="after-body", footer=True),   # 2026 midterm forecast (published from ~/midterms, weekly)
     dict(path="cities/index.html", mode="nav"),
     dict(path="cities/verify.html", mode="nav"),
     # the 404 body is a centring flexbox: stack it so the header spans the top and the message centres below
@@ -185,6 +188,9 @@ def header_html(page: str, skin: str) -> str:
             out.append('            </ul>\n          </div>\n        </li>')
     for href, label in PRIMARY:
         out.append(f'        <li class="sh-item"><a class="sh-link" href="{href}"{_current(href, page)}>{label}</a></li>')
+    if SPECIAL:
+        href, label = SPECIAL; cur = ' aria-current="page"' if href.strip("/") + "/" in "/" + page.lstrip("/") else ""
+        out.append(f'        <li class="sh-item sh-item--special"><a class="sh-special" href="{href}"{cur}>{label}</a></li>')
     out.append('      </ul>\n    </nav>\n  </div>\n</header>')
     return "\n".join(out).replace(' aria-current=page', ' aria-current="page"')
 
