@@ -12,6 +12,6 @@ h5netcdf
 matplotlib==3.10.9
 cartopy==0.25.0  # 0.26.0 collapses set_extent((-180, 180, ...)) on a dateline-centred PlateCarree to a 0.2-deg strip (blank global SST panel, 2026-09-18); pinned to the laptop's version
 shapely>=2.1.2
-pyproj>=3.7.2
+pyproj>=3.8.0
 Pillow
 copernicusmarine>=2.0
