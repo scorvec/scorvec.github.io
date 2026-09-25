@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2026 Midterm Forecast: Polls and Weights</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--d:#1f5fbf;--dd:#0b3d91;--rd:#a32215}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
+.pw{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
+.pw h1{font:600 30px/1.2 "Source Serif 4",Georgia,serif;margin:0 0 4px}
+.pw a{color:var(--d)}
+.back{font-size:15px}
+.steps{margin:14px 0 6px;padding:0;list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--rule);border-radius:10px;background:#fff}
+.steps li{padding:12px 14px;font-size:14.5px;line-height:1.45}
+.steps li+li{border-left:1px solid var(--rule)}
+.steps b{display:block;font:600 16px/1.3 "Source Serif 4",Georgia,serif;margin-bottom:3px}
+.steps .k{color:var(--muted);font-variant-numeric:tabular-nums}
+@media(max-width:900px){.steps{grid-template-columns:1fr 1fr}.steps li:nth-child(3){border-left:0}.steps li:nth-child(n+3){border-top:1px solid var(--rule)}}
+@media(max-width:520px){.steps{grid-template-columns:1fr}.steps li+li{border-left:0;border-top:1px solid var(--rule)}}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);margin:22px 0 12px;flex-wrap:wrap}
+.tabs button{border:0;background:none;font:inherit;font-size:16px;padding:8px 14px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.bar input{font:inherit;font-size:15px;padding:6px 10px;border:1px solid var(--rule);border-radius:6px;width:280px;max-width:100%}
+.bar .muted{color:var(--muted);font-size:14px}
+.pane{display:none}.pane.on{display:block}
+details.race{background:#fff;border:1px solid var(--rule);border-radius:8px;margin:0 0 8px}
+details.race>summary{cursor:pointer;padding:10px 14px;list-style:none;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;align-items:baseline}
+details.race>summary::-webkit-details-marker{display:none}
+details.race>summary .t{font-weight:600}
+details.race>summary .t small{font-weight:400;color:var(--muted)}
+details.race>summary .r{color:var(--muted);font-size:14px;text-align:right;font-variant-numeric:tabular-nums}
+details.race[open]>summary{border-bottom:1px solid var(--rule)}
+.inner{padding:8px 14px 12px;overflow-x:auto}
+.flow{font-size:14.5px;margin:4px 0 8px}
+.flow b{font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:4px 6px;border-bottom:1px solid var(--rule);text-align:left;white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:12.5px;vertical-align:bottom;white-space:normal}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+td.pol{white-space:normal;min-width:160px}
+.wbar{display:inline-block;height:9px;background:var(--d);border-radius:2px;vertical-align:middle;margin-left:6px;opacity:.75}
+.dim{color:var(--muted)}
+.hi{color:var(--rd);font-weight:600}
+.key{font-size:13.5px;color:var(--muted);margin:0 0 10px;line-height:1.5}
+.key b{color:var(--ink);font-weight:600}
+a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--d);outline-offset:2px}
+@media(max-width:640px){.pw{padding:12px 14px 40px}.pw h1{font-size:25px}}
+</style><link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head><body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/" aria-current="page">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main class="pw">
+<p class="back"><a href="./">Back to the forecast</a> &nbsp;·&nbsp; <a href="about.html">How the forecast works</a></p>
+<h1>Every poll, and how much it counts</h1>
+<p id="lede" class="dim">loading…</p>
+<ol class="steps">
+ <li><b>1. Checked</b>Only polls naming the candidates actually on the ballot. The same poll reported by two sources is kept once.</li>
+ <li><b>2. Corrected</b>For the pollster's measured lean (or its campaign sponsor's), and for the state's persistent polling miss in the last two elections.</li>
+ <li><b>3. Weighted</b>By precision: fewer undecideds, no strong third candidate, an experienced pollster and a recent field date all count for more. Campaign polls count for <span id="kspon">0.58</span>.</li>
+ <li><b>4. Blended</b>With the race's fundamentals. A poll far from the others is partly discounted as a likely outlier, and every race keeps a shared polling-miss floor.</li>
+</ol>
+<div class="tabs" role="tablist"><button role="tab" aria-selected="true" data-p="senate">Senate</button><button role="tab" aria-selected="false" data-p="governor">Governors</button><button role="tab" aria-selected="false" data-p="house">House</button><button role="tab" aria-selected="false" data-p="national">National</button></div>
+
+<section class="pane on" id="p-senate"><div class="bar"><input type="search" placeholder="Filter by state or candidate" data-f="senate" aria-label="Filter Senate races"><span class="muted" id="c-senate"></span></div>
+ <p class="key" id="key-race"></p><div id="l-senate"></div></section>
+<section class="pane" id="p-governor"><div class="bar"><input type="search" placeholder="Filter by state or candidate" data-f="governor" aria-label="Filter governor races"><span class="muted" id="c-governor"></span></div><div id="l-governor"></div></section>
+<section class="pane" id="p-house"><div class="bar"><input type="search" placeholder="Filter by district or member, e.g. PA-7" data-f="house" aria-label="Filter House races"><span class="muted" id="c-house"></span></div><div id="l-house"></div></section>
+<section class="pane" id="p-national">
+ <p class="key">The national generic ballot and presidential approval are fitted as one smooth trend through every poll, with each pollster's lean and the gap between likely voters, registered voters and all adults estimated at the same time. <b>Weight</b> is what the poll brings into the fit: the square root of its sample size (100–3,000), halved for partisan or internal polls, reduced when a tracking poll's field overlaps its previous release, and split between versions of the same survey. <b>Influence on today</b> is how much the poll moves today's trend value: recent, large polls carry the estimate, and polls from months ago contribute almost nothing even at full weight. Polls from the last 150 days.</p>
+ <h2 style="font:600 20px 'Source Serif 4',Georgia,serif;margin:16px 0 6px">Generic ballot <small class="dim" id="gnow"></small></h2><div class="inner" style="padding:0"><table id="t-generic"></table></div>
+ <h2 style="font:600 20px 'Source Serif 4',Georgia,serif;margin:22px 0 6px">Presidential approval <small class="dim" id="anow"></small></h2><div class="inner" style="padding:0"><table id="t-approval"></table></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const NAMES={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
+const mg=v=>v==null?'–':(v>=0?'D+':'R+')+Math.abs(v).toFixed(1);
+const sg=v=>v==null||Math.abs(v)<0.05?'–':(v>0?'+':'−')+Math.abs(v).toFixed(1);
+const pc=v=>(100*v).toFixed(0)+'%';
+const PN={yougov:'YouGov','yougov/cbs':'CBS News/YouGov','yougov/yahoo':'Yahoo News/YouGov','ft/yougov':'Financial Times/YouGov','cnn/ssrs':'CNN/SSRS',nbc:'NBC News',rmg:'RMG Research',ppp:'Public Policy Polling',harrisx:'HarrisX','ipsos/wapo':'Washington Post/Ipsos',tipp:'TIPP',siena:'New York Times/Siena','jl partners':'J.L. Partners',atlasintel:'AtlasIntel',quantus:'Quantus Insights',echelon:'Echelon Insights',bullfinch:'The Bullfinch Group',marquette:'Marquette Law School',verasight:'Strength in Numbers/Verasight','big data poll':'Big Data Poll','morning consult':'Morning Consult','fox news':'Fox News'};
+const pname=k=>PN[k]||String(k).replace(/\b([a-z])/g,c=>c.toUpperCase());
+fetch('data/polls.json').then(r=>r.json()).then(D=>{
+ const d=new Date(D.asof+'T12:00:00');
+ const n={senate:0,governor:0,house:0};D.races.forEach(r=>n[r.office]=(n[r.office]||0)+r.polls.length);
+ $('#lede').textContent=`Updated ${d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}. ${n.senate} Senate, ${n.governor} governor and ${n.house} House polls are in the forecast, plus ${D.national.generic.polls.length} national generic-ballot polls from the last 150 days.`;
+ $('#kspon').textContent=D.constants.sponsor_weight;
+ $('#key-race').innerHTML=`<b>Published</b>: the poll's Democratic (or independent) minus Republican margin. <b>Lean fix</b> and <b>state fix</b>: the change made for the pollster's or sponsor's measured lean, and for the state's persistent polling miss; <b>Adjusted</b> is the published margin after both. <b>Precision</b>: the poll's quality and freshness together (1 = a fresh, clean poll; it halves every ${D.constants.half_life_days} days). <b>Outlier discount</b>: below 1 when the poll sits far from the others and the fundamentals. <b>Share</b>: the poll's part of the race's poll weight. On each race line, <b>polls carry</b> is how much of the final estimate comes from the polls rather than the fundamentals; the rest of the uncertainty is a polling miss every poll in the race shares.`;
+ for(const off of ['senate','governor','house']){
+  const rs=D.races.filter(r=>r.office===off).sort((a,b)=>Math.abs(a.posterior)-Math.abs(b.posterior));
+  $('#l-'+off).innerHTML=rs.map(r=>raceHTML(r,off)).join('');
+  $('#c-'+off).textContent=`${rs.length} races with polls, closest first`;
+ }
+ $$('.bar input').forEach(inp=>inp.addEventListener('input',()=>{const q=inp.value.trim().toLowerCase();
+  $$(`#l-${inp.dataset.f} details.race`).forEach(el=>{el.style.display=!q||el.dataset.s.includes(q)?'':'none'})}));
+ natTable('#t-generic',D.national.generic.polls,'Democrat minus Republican');natTable('#t-approval',D.national.approval.polls,'approve minus disapprove');
+ if(D.national.generic.now!=null)$('#gnow').textContent=`· trend today ${mg(D.national.generic.now)}; the forecast runs at ${mg(D.E_now)} after the ${D.bias} turnout adjustment`;
+ if(D.national.approval.now!=null)$('#anow').textContent=`· trend today ${sg(D.national.approval.now)}`;
+ $$('.tabs button').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.p)));
+ const h=decodeURIComponent(location.hash.slice(1)), [ho,hs]=h.split(':');
+ if(['senate','governor','house','national'].includes(ho)){tab(ho); if(hs){const el=document.getElementById(ho+':'+hs); if(el){el.open=true; setTimeout(()=>el.scrollIntoView({block:'start'}),50);}}}
+});
+function tab(p){$$('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));$$('.pane').forEach(x=>x.classList.toggle('on',x.id==='p-'+p));if(!location.hash.startsWith('#'+p+':'))history.replaceState(null,'','#'+p)}
+function title(r,off){if(off==='house')return `${r.seat} <small>${r.label||''}</small>`;return `${NAMES[r.seat]||r.seat} <small>${r.label||''}</small>`}
+function raceHTML(r,off){
+ const P=r.polls.slice().sort((a,b)=>b.share-a.share), mx=Math.max(...P.map(p=>p.share),0.01);
+ const s=(r.seat+' '+(NAMES[r.seat]||'')+' '+(r.label||'')).toLowerCase();
+ const rows=P.map(p=>`<tr><td class="pol">${p.pollster}${p.sponsor?` <span class="dim">(${p.sponsor}-sponsored)</span>`:''}</td><td>${p.end}</td>
+  <td class="n">${mg(p.published)}</td><td class="n">${sg(-p.lean)}</td><td class="n">${sg(-p.state_corr)}</td><td class="n"><b>${mg(p.adjusted)}</b></td>
+  <td class="n">${p.und==null?'–':p.und.toFixed(0)+'%'}</td><td class="n">${p.age} d</td><td class="n">${p.precision.toFixed(2)}</td>
+  <td class="n ${p.discount<0.8?'hi':''}">${p.discount.toFixed(2)}</td><td class="n">${pc(p.share)}<span class="wbar" style="width:${Math.round(46*p.share/mx)}px"></span></td></tr>`).join('');
+ return `<details class="race" id="${off}:${r.seat}" data-s="${s}"><summary><span class="t">${title(r,off)}</span><span class="r">${r.polls.length} poll${r.polls.length>1?'s':''} · polls carry ${pc(r.polls_share)} · ${mg(r.posterior)}</span></summary>
+ <div class="inner"><p class="flow">Fundamentals alone: <b>${mg(r.prior)}</b> (±${r.prior_sd.toFixed(1)}). With the polls: <b>${mg(r.posterior)}</b> (±${r.posterior_sd.toFixed(1)}). The polls carry ${pc(r.polls_share)} of the estimate${Math.abs(r.shared_miss)>=0.5?`; together they read ${sg(r.shared_miss)} away from where the blend lands, treated as a polling miss they share`:''}.</p>
+ <table><thead><tr><th>Pollster</th><th>Field ended</th><th class="n">Published</th><th class="n">Lean fix</th><th class="n">State fix</th><th class="n">Adjusted</th><th class="n">Undecided</th><th class="n">Age</th><th class="n">Precision</th><th class="n">Outlier discount</th><th class="n">Share</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+}
+function natTable(sel,P,what){
+ const mx=Math.max(...P.map(p=>Math.abs(p.influence)),0.001);
+ $(sel).innerHTML=`<thead><tr><th>Pollster</th><th>Field (mid)</th><th>Population</th><th class="n">Sample</th><th class="n">Result (${what})</th><th class="n">Pollster lean</th><th class="n">Weight</th><th class="n">Influence on today</th></tr></thead><tbody>`+
+ P.map(p=>`<tr><td class="pol">${pname(p.pollster)}${p.partisan?' <span class="dim">(partisan)</span>':''}</td><td>${p.date}</td><td>${({lv:'likely voters',rv:'registered voters',a:'adults',v:'voters'})[p.pop]||p.pop}</td><td class="n">${p.n==null?'–':p.n.toLocaleString()}</td>
+  <td class="n">${sg(p.value)}</td><td class="n">${sg(p.house)}</td><td class="n">${p.w.toFixed(2)}${p.overlap_w<0.999||p.variant_w<0.999?' <span class="dim">*</span>':''}</td>
+  <td class="n">${(100*p.influence).toFixed(1)}%<span class="wbar" style="width:${Math.round(46*Math.max(0,p.influence)/mx)}px"></span></td></tr>`).join('')+
+ `</tbody>`+(P.some(p=>p.overlap_w<0.999||p.variant_w<0.999)?`<caption style="caption-side:bottom;text-align:left" class="dim">* reduced: a tracking release overlapping the previous one, or one of several versions of the same survey.</caption>`:'');
+}
+</script><!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body></html>

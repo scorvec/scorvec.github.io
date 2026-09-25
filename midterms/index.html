@@ -26,13 +26,14 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .mt-tick.today::before{width:2px;background:var(--ink)}
 .mt-ends{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:-2px}
 .mt-reset{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:4px 10px;font:inherit;font-size:14px;cursor:pointer;margin-left:8px;vertical-align:middle}
-.mt-out{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:14px;border-top:1px solid var(--rule)}
+.mt-out{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-top:14px;border-top:1px solid var(--rule)}
 .mt-out>div{padding:12px 14px 4px 0}
 .mt-out>div+div{padding-left:14px;border-left:1px solid var(--rule)}
 .mt-out b{display:block;font:600 34px/1.05 "Source Serif 4",Georgia,serif;font-variant-numeric:tabular-nums}
 .mt-out span{display:block;font-size:14.5px;line-height:1.35}
 .mt-out small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
-@media(max-width:760px){.mt-out{grid-template-columns:1fr 1fr}.mt-out>div:nth-child(3){padding-left:0;border-left:0}.mt-out>div{border-top:1px solid var(--rule)}}
+@media(max-width:980px){.mt-out b{font-size:30px}}
+@media(max-width:760px){.mt-out{grid-template-columns:1fr 1fr}.mt-out>div:nth-child(odd){padding-left:0;border-left:0}.mt-out>div{border-top:1px solid var(--rule)}}
 /* tabs */
 .mt-bar2{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:22px 0 10px}
 .mt-tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule)}
@@ -154,7 +155,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
 <!-- sh:end -->
 <div class="mt-wrap">
 <header class="mt-head"><h1>2026 Midterm Forecast</h1>
- <div><span class="upd" id="upd">loading…</span> &nbsp;<a href="about.html">How the forecast works</a></div></header>
+ <div><span class="upd" id="upd">loading…</span> &nbsp;<a href="polls.html">Every poll and its weight</a> &nbsp;<a href="about.html">How the forecast works</a></div></header>
 
 <section class="mt-mood" aria-label="National mood and outcomes">
  <p class="q">If Democrats lead the national House vote by <output id="Ev" for="E">…</output><button class="mt-reset" id="reset" type="button">Back to today's polls</button></p>
@@ -164,6 +165,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
  <div class="mt-out">
   <div><b id="oH">–</b><span>chance Democrats win the House</span><small id="oHs"></small></div>
   <div><b id="oS">–</b><span>chance Democrats win the Senate</span><small id="oSs"></small></div>
+  <div><b id="oR">–</b><span>chance Republicans lose Senate control</span><small id="oRs"></small></div>
   <div><b id="oB">–</b><span>chance Democrats win both</span><small id="oBs"></small></div>
   <div><b id="oG">–</b><span>Democratic governors, of 50</span><small id="oGs"></small></div>
  </div>
@@ -214,7 +216,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
  <div class="mt-card"><h2>National polls</h2>
   <div class="charts2"><div><p class="ci" id="gci"></p><svg id="gchart" class="tsc" viewBox="0 0 640 320" aria-label="Generic ballot trend"></svg><p class="mt-note">Generic ballot, Democrats minus Republicans. Dots are single polls, adjusted for pollster lean; diamonds are published averages.</p></div>
   <div><p class="ci" id="aci"></p><svg id="achart" class="tsc" viewBox="0 0 640 320" aria-label="Presidential approval trend"></svg><p class="mt-note">Trump's net job approval, approve minus disapprove.</p></div></div>
-  <p class="mt-note"><a href="about.html#polls">How the poll trend is built</a></p></div>
+  <p class="mt-note"><a href="polls.html#national">Every national poll and its weight</a> · <a href="about.html#polls">How the poll trend is built</a></p></div>
  <div class="mt-card" style="margin-top:16px"><h2>How each pollster leans</h2><p class="mt-note" style="margin:0 0 8px">Points each pollster runs above (Democratic) or below (Republican) the field, pollsters active in the last 120 days.</p><div class="mt-tw"><table id="phouse"></table></div></div>
 </section>
 
@@ -263,11 +265,11 @@ function pick(sec,key){SEL[sec]=key;$$(sec==='house'?'path.t':`#${sec==='senate'
 function panel(sec){const el=$('#race-'+sec);const key=SEL[sec];if(!key)return;
  if(sec==='house'){const s=D.house.seats.find(x=>x.seat===key);if(!s)return;const p=s.p[gi],m=s.mu+(E-D.house.E_now);
   el.innerHTML=`<h3>${s.seat}</h3><p class="who">${who(s)}${s.open?'':(s.inc>0?' · Democratic incumbent':s.inc<0?' · Republican incumbent':'')}</p>${bar(p,'Democrat','Republican')}
-  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd><dt>Partisan lean</dt><dd>${pvi(s.cook_pvi)} (Cook PVI)</dd><dt>Polls</dt><dd>${pollTxt(s)}</dd>${s.rating!=null?`<dt>Race raters</dt><dd>${pct(s.rating)} Democratic</dd>`:''}${s.money_d!=null?`<dt>Raised by June 30</dt><dd>D $${(s.money_d/1e6).toFixed(1)}M · R $${(s.money_r/1e6).toFixed(1)}M</dd>`:''}</dl>`;return}
+  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd><dt>Partisan lean</dt><dd>${pvi(s.cook_pvi)} (Cook PVI)</dd><dt>Polls</dt><dd>${pollTxt(s)}${s.n_polls?` · <a href="polls.html#house:${s.seat}">see them</a>`:''}</dd>${s.rating!=null?`<dt>Race raters</dt><dd>${pct(s.rating)} Democratic</dd>`:''}${s.money_d!=null?`<dt>Raised by June 30</dt><dd>D $${(s.money_d/1e6).toFixed(1)}M · R $${(s.money_r/1e6).toFixed(1)}M</dd>`:''}</dl>`;return}
  const S=sec==='senate'?D.senate:D.governor,[st,sp]=String(key).split('|');const r=S.races.find(x=>x.state===st&&(!!x.special)===(sp==='sp'))||S.races.find(x=>x.state===st);if(!r)return;
  const slope=sec==='senate'?S.nat_slope:S.slope,m=r.mu+(E-S.E_now)*slope,p=r.p[gi],ind=r.dem_party&&r.dem_party!=='D';
  el.innerHTML=`<h3>${NAMES[r.state]||r.state} ${sec==='senate'?'Senate':'Governor'}${r.special?' (special)':''}</h3><p class="who">${r.dem||'?'} (${r.dem_party||'D'}) v ${r.rep||'?'} (R)${r.inc?'':' · open seat'}</p>${bar(p,ind?'Independent':'Democrat','Republican')}
-  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd>${r.cook_pvi!=null?`<dt>Partisan lean</dt><dd>${pvi(r.cook_pvi)} (Cook PVI)</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}</dd>${r.cook?`<dt>Cook rating</dt><dd>${r.cook}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${r.prior_note}</p>`:''}`}
+  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd>${r.cook_pvi!=null?`<dt>Partisan lean</dt><dd>${pvi(r.cook_pvi)} (Cook PVI)</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}${r.n_polls?` · <a href="polls.html#${sec==='senate'?'senate':'governor'}:${r.state}">see them</a>`:''}</dd>${r.cook?`<dt>Cook rating</dt><dd>${r.cook}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${r.prior_note}</p>`:''}`}
 function bar(p,a,b){return `<div class="pp"><span style="color:var(--dd)">${a} ${pct(p)}</span><span style="color:var(--rd)">${pct(1-p)} ${b}</span></div><div class="pbar" role="img" aria-label="${a} ${pct(p)}, ${b} ${pct(1-p)}"><i style="width:${100*p}%"></i><i style="width:${100*(1-p)}%"></i></div>`}
 
 function buildMaps(){fetch('data/districts_2026.topo.json').then(r=>r.json()).then(topo=>{
@@ -295,7 +297,8 @@ function render(){const H=D.house;E=+$('#E').value;gi=H.grid.findIndex(x=>Math.a
  $('#reset').style.visibility=Math.abs(E-H.E0)<1e-6?'hidden':'visible';
  const k=E.toFixed(1),hd=H.dist[k],sd=D.senate.dist[k],gd=D.governor?D.governor.dist[k]:null,jt=D.senate.joint?D.senate.joint[k]:null;
  $('#oH').textContent=pct(hd.p_maj);$('#oHs').textContent=`${hd.mean.toFixed(0)} seats expected (${hd.p10}–${hd.p90}); 218 needed`;
- $('#oS').textContent=pct(sd.p51plus);$('#oSs').textContent=sd.p_r_lose!=null?`Republicans lose the majority: ${pct(sd.p_r_lose)}, counting independents`:'';
+ $('#oS').textContent=pct(sd.p51plus);$('#oSs').textContent=`51 or more Democratic seats; ${sd.mean.toFixed(1)} expected`;
+ $('#oR').textContent=sd.p_r_lose!=null?pct(sd.p_r_lose):'–';$('#oRs').textContent=`Republicans at 49 seats or fewer (a 50–50 Senate stays Republican)${sd.ind_mean?`; independents win ${sd.ind_mean.toFixed(1)} on average`:''}`;
  $('#oB').textContent=jt?pct(jt.dd):'–';$('#oBs').textContent=jt?`Republicans keep both: ${pct(jt.rr)}`:'';
  if(gd){$('#oG').textContent=gd.mean.toFixed(0);$('#oGs').textContent=`likely ${gd.p10}–${gd.p90}; now ${D.governor.now.now_d}`}
  $$('path.t').forEach(t=>{const s=H.seats.find(x=>x.seat===t.dataset.seat);if(s)t.style.fill=col(s.p[gi])});
