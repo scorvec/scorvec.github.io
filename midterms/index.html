@@ -27,7 +27,8 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .mt-tick.today::before{width:2px;background:var(--ink)}
 .mt-ends{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:-2px}
 .mt-reset{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:4px 10px;font:inherit;font-size:14px;cursor:pointer;margin-left:8px;vertical-align:middle}
-.mt-out{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-top:14px;border-top:1px solid var(--rule)}
+.mt-cap{margin:14px 0 0;padding-top:10px;border-top:1px solid var(--rule);font-size:14px;color:var(--muted)}
+.mt-out{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-top:0}
 .mt-out>div{padding:12px 14px 4px 0}
 .mt-out>div+div{padding-left:14px;border-left:1px solid var(--rule)}
 .mt-out b{display:block;font:600 34px/1.05 "Source Serif 4",Georgia,serif;font-variant-numeric:tabular-nums}
@@ -159,11 +160,12 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
  <div><span class="upd" id="upd">loading…</span> &nbsp;<a href="polls.html">Every poll and its weight</a> &nbsp;<a href="about.html">How the forecast works</a></div></header>
 
 <section class="mt-mood" aria-label="National mood and outcomes">
- <p class="q">National mood: <output id="Ev" for="E">…</output><button class="mt-reset" id="reset" type="button">Back to today's polls</button></p>
+ <p class="q">National mood simulation: <output id="Ev" for="E">…</output><button class="mt-reset" id="reset" type="button">Back to today's polls</button></p>
  <p class="qs" id="Evs"></p>
  <div class="mt-bar"><input type="range" id="E" min="-10" max="14" step="0.5" aria-label="National mood: Democratic lead in the generic ballot, points">
   <span class="mt-tick" id="tick0">Even</span><span class="mt-tick today" id="tickT">Today's polls</span></div>
  <div class="mt-ends"><span>Republicans +10</span><span>Democrats +14</span></div>
+ <p class="mt-cap">Across the 20,000 simulated elections at this setting:</p>
  <div class="mt-out">
   <div><b id="oH">–</b><span>chance Democrats win the House</span><small id="oHs"></small></div>
   <div><b id="oS">–</b><span>chance Democrats win the Senate</span><small id="oSs"></small></div>
@@ -296,10 +298,11 @@ function tipAt(e,h){const t=$('#tip');t.style.display='block';t.style.left=(e.cl
 
 function render(){const H=D.house;E=+$('#E').value;gi=H.grid.findIndex(x=>Math.abs(x-E)<1e-6);
  $('#Ev').textContent=Math.abs(E)<0.05?'Even':(E>0?`Democrats +${E.toFixed(1)}`:`Republicans +${Math.abs(E).toFixed(1)}`);
- $('#Evs').textContent=(Math.abs(E)<0.05?'Voters nationwide are split evenly between Democratic and Republican House candidates.':
-   `Voters nationwide prefer ${E>0?'Democratic':'Republican'} House candidates by ${Math.abs(E).toFixed(1)} points.`)+
-   (Math.abs(E-H.E0)<1e-6?" That's where today's polls put it.":" Today's polls put it at "+(H.E0>=0?'Democrats +':'Republicans +')+Math.abs(H.E0).toFixed(1)+'.')+
-   ' Drag the bar to see a better or worse year for either party.';document.documentElement.style.setProperty('--ev',E>=0?'#0b3d91':'#a32215');
+ $('#Evs').textContent='20,000 simulated elections centred on '+(Math.abs(E)<0.05?'an evenly split national vote for the House':
+   `voters nationwide preferring ${E>0?'Democratic':'Republican'} House candidates by ${Math.abs(E).toFixed(1)} points`)+
+   ', each with its own national polling miss, typically about ±4 points.'+
+   (Math.abs(E-H.E0)<1e-6?" This is where today's polls put it.":" Today's polls put it at "+(H.E0>=0?'Democrats +':'Republicans +')+Math.abs(H.E0).toFixed(1)+'.')+
+   ' Drag the bar to simulate a better or worse year for either party.';document.documentElement.style.setProperty('--ev',E>=0?'#0b3d91':'#a32215');
  $('#reset').style.visibility=Math.abs(E-H.E0)<1e-6?'hidden':'visible';
  const k=E.toFixed(1),hd=H.dist[k],sd=D.senate.dist[k],gd=D.governor?D.governor.dist[k]:null,jt=D.senate.joint?D.senate.joint[k]:null;
  $('#oH').textContent=pct(hd.p_maj);$('#oHs').textContent=`${hd.mean.toFixed(0)} seats expected (${hd.p10}–${hd.p90}); 218 needed`;

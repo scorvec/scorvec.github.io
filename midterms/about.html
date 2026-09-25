@@ -94,6 +94,7 @@ a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
 
 <h2 id="mood">The national mood slider</h2>
 <p>The slider sets the national mood: how much more voters across the country prefer one party's House candidates over the other's (pollsters ask this as the "generic ballot": would you vote for the Democratic or the Republican candidate for Congress in your district?). Moving it shifts every simulated race at once: House margins move one point for each point on the slider, Senate races by <span id="sslope">0.8</span> points (fitted on 326 Senate races from 2006 to 2024), and governor races by <span id="gslope">about half a point</span>. The rest of each race, its polls, lean and candidates, stays fixed, so the slider answers "what if the national environment were different?".</p>
+<p>The slider sets the <b>centre</b> of the national mood, not an exact result. Each of the 20,000 simulated elections still draws its own national polling miss around that setting (a standard deviation of 4.1 points, the size of the generic-ballot estimate's own misses in 2018–2024), so the chances shown include the possibility that the real national margin ends up several points away from it.</p>
 <p>It starts at today's polls, adjusted for one known bias: likely-voter screens rely on people saying they will vote, and young voters, the most Democratic group, overstate their turnout. The historical generic-ballot miss of about three points came mostly from registered-voter averages.</p>
 <div class="dyn" id="agg">…</div>
 
