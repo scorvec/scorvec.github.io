@@ -15,6 +15,7 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .mt-mood{overflow:hidden;background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:16px 18px 14px}
 .mt-mood .q{font:600 19px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 10px}
 .mt-mood .q output{font-variant-numeric:tabular-nums;color:var(--ev,var(--d))}
+.mt-mood .qs{margin:-4px 0 12px;color:var(--muted);font-size:14.5px;max-width:760px}
 .mt-bar{position:relative;padding:4px 0 26px}
 .mt-bar input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:7px;margin:0;
   background:linear-gradient(90deg,#a32215 0%,#e8a597 32%,#ebe9e4 41.7%,#9dbbe6 55%,#0b3d91 100%);cursor:pointer}
@@ -158,7 +159,8 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
  <div><span class="upd" id="upd">loading…</span> &nbsp;<a href="polls.html">Every poll and its weight</a> &nbsp;<a href="about.html">How the forecast works</a></div></header>
 
 <section class="mt-mood" aria-label="National mood and outcomes">
- <p class="q">If Democrats lead the national House vote by <output id="Ev" for="E">…</output><button class="mt-reset" id="reset" type="button">Back to today's polls</button></p>
+ <p class="q">National mood: <output id="Ev" for="E">…</output><button class="mt-reset" id="reset" type="button">Back to today's polls</button></p>
+ <p class="qs" id="Evs"></p>
  <div class="mt-bar"><input type="range" id="E" min="-10" max="14" step="0.5" aria-label="National mood: Democratic lead in the generic ballot, points">
   <span class="mt-tick" id="tick0">Even</span><span class="mt-tick today" id="tickT">Today's polls</span></div>
  <div class="mt-ends"><span>Republicans +10</span><span>Democrats +14</span></div>
@@ -293,7 +295,11 @@ function buildMaps(){fetch('data/districts_2026.topo.json').then(r=>r.json()).th
 function tipAt(e,h){const t=$('#tip');t.style.display='block';t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+14)+'px';t.innerHTML=h}
 
 function render(){const H=D.house;E=+$('#E').value;gi=H.grid.findIndex(x=>Math.abs(x-E)<1e-6);
- $('#Ev').textContent=E>=0?`${E.toFixed(1)} points`:`−${Math.abs(E).toFixed(1)} points (a Republican lead)`;document.documentElement.style.setProperty('--ev',E>=0?'#0b3d91':'#a32215');
+ $('#Ev').textContent=Math.abs(E)<0.05?'Even':(E>0?`Democrats +${E.toFixed(1)}`:`Republicans +${Math.abs(E).toFixed(1)}`);
+ $('#Evs').textContent=(Math.abs(E)<0.05?'Voters nationwide are split evenly between Democratic and Republican House candidates.':
+   `Voters nationwide prefer ${E>0?'Democratic':'Republican'} House candidates by ${Math.abs(E).toFixed(1)} points.`)+
+   (Math.abs(E-H.E0)<1e-6?" That's where today's polls put it.":" Today's polls put it at "+(H.E0>=0?'Democrats +':'Republicans +')+Math.abs(H.E0).toFixed(1)+'.')+
+   ' Drag the bar to see a better or worse year for either party.';document.documentElement.style.setProperty('--ev',E>=0?'#0b3d91':'#a32215');
  $('#reset').style.visibility=Math.abs(E-H.E0)<1e-6?'hidden':'visible';
  const k=E.toFixed(1),hd=H.dist[k],sd=D.senate.dist[k],gd=D.governor?D.governor.dist[k]:null,jt=D.senate.joint?D.senate.joint[k]:null;
  $('#oH').textContent=pct(hd.p_maj);$('#oHs').textContent=`${hd.mean.toFixed(0)} seats expected (${hd.p10}–${hd.p90}); 218 needed`;
