@@ -64,7 +64,7 @@
      first screen, which is the figure's height */
   .page-header .chips { margin-bottom: 0.5rem; gap: 0.3rem; }
   .chip { padding: 0.45rem 0.7rem 0.4rem; min-width: 124px; }
-  .chip .l { font-size: 0.62rem; letter-spacing: 0.06em; }
+  .chip .l { font-size: 0.66rem; letter-spacing: 0.05em; }
   .chip .s { font-size: 0.68rem; }
   .chip .v { font-size: 1.35rem; }
   .chip .s { font-size: 0.72rem; }

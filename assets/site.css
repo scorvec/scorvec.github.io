@@ -185,6 +185,30 @@
   .sh-has-menu > .sh-menubtn::after { display: none; }
 }
 
+/* Compact header (2026-09-25 site sweep): the same collapsed menu as phones, switched on by site.js whenever the full
+   menu does not fit on one line. A fixed breakpoint cannot know: the header is sized in rem, so pages with a larger base
+   font (the El Nino monitor, the sounding explorer) overflowed the right edge anywhere from ~900 to ~1360 px wide. */
+.sh.sh--compact .sh-toggle { display: inline-flex; }
+.sh.sh--compact .sh-brand::after { display: none; }
+.sh.sh--compact nav.sh-nav {
+  display: none; position: absolute; left: 0; right: 0; top: 100%;
+  background: var(--c-bg); border-bottom: 1px solid var(--c-rule);
+  padding: 0.4rem clamp(1rem, 3vw, 2.5rem) 1rem;
+  max-height: calc(100vh - 64px); overflow: auto;
+  box-shadow: 0 14px 30px rgba(20, 30, 45, 0.12);
+}
+.sh.sh--compact.is-open nav.sh-nav { display: block; }
+.sh--compact .sh-list { flex-direction: column; align-items: stretch; gap: 0; }
+.sh--compact .sh-link { width: 100%; padding: 0.95rem 0.25rem; border-radius: 0; border-bottom: 1px solid var(--c-rule); justify-content: space-between; font-size: 1.1rem; }
+.sh--compact .sh-link:hover { background: none; color: var(--c-accent); }
+.sh--compact .sh-menu { position: static; width: auto; grid-template-columns: 1fr; gap: 0.9rem; padding: 0.5rem 0.25rem 0.9rem; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.sh--compact .sh-menu--list, .sh--compact .sh-menu--cols { display: grid; min-width: 0; width: auto; max-width: none; padding: 0.15rem 0 0.7rem 0.9rem; grid-template-columns: 1fr; gap: 0.5rem; }
+.sh--compact .sh-menu--list a, .sh--compact .sh-menu--cols a { white-space: normal; font-size: 1.02rem; }
+.sh--compact .sh-has-menu > .sh-menubtn { pointer-events: none; color: var(--c-muted); font-size: 0.95rem; padding-top: 1rem; padding-bottom: 0.3rem; border-bottom: 0; }
+.sh--compact .sh-has-menu > .sh-menubtn::after { display: none; }
+.sh--compact .sh-item--special { margin: 0.4rem 0 0.2rem; }
+.sh--compact .sh-special { justify-content: center; }
+
 /* Overlay skin: the homepage hero. Transparent, white type, sits on the photograph. */
 .sh--overlay {
   position: absolute; top: 0; left: 0; right: 0;

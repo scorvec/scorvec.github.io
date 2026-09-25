@@ -1019,7 +1019,7 @@
       if (!all.some(function (q) { return q.key === state.p; })) state.p = all.length ? all[0].key : null;
       // month animator: play/pause, step, a slider over the months, speed
       pb.innerHTML = ms.length ? '<span class="ctlsep">Months</span><button class="pill" id="mapPlay" type="button">▶ Play</button><button class="pill" id="mapPrev" type="button" title="previous month">‹</button>' +
-        '<input type="range" id="mapSlider" min="0" max="' + (ms.length - 1) + '" step="1" value="0" style="width:min(320px,40vw);vertical-align:middle;accent-color:var(--accent)">' +
+        '<input aria-label="Forecast month" type="range" id="mapSlider" min="0" max="' + (ms.length - 1) + '" step="1" value="0" style="width:min(320px,40vw);vertical-align:middle;accent-color:var(--accent)">' +
         '<button class="pill" id="mapNext" type="button" title="next month">›</button><span id="mapFrame" style="font:600 0.8rem var(--sans);color:var(--ink);min-width:6rem"></span>' +
         '<button class="pill" id="mapSpeed" type="button" title="frame time">' + (state.delay >= 900 ? "slow" : "fast") + '</button>' : "";
       sb.innerHTML = ss.length ? '<span class="ctlsep">Seasons</span>' + ss.map(function (q) { return '<button class="pill' + (q.key === state.p ? " on" : "") + '" data-p="' + q.key + '">' + q.label + "</button>"; }).join("") : "";

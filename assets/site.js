@@ -6,6 +6,21 @@
 
   var toggle = header.querySelector('.sh-toggle');
   var nav = header.querySelector('.sh-nav');
+  // Collapse to the compact menu whenever the full one does not fit on one line (2026-09-25). Measured, not a
+  // breakpoint: the header scales with each page's own root font size. Phones (<= 860 px) use the CSS rule.
+  function fitHeader() {
+    header.classList.remove('sh--compact');
+    if (window.innerWidth <= 860 || !nav) return;
+    var items = header.querySelectorAll('.sh-brand, .sh-list > li');
+    var right = 0;
+    for (var i = 0; i < items.length; i++) right = Math.max(right, items[i].getBoundingClientRect().right);
+    if (right > document.documentElement.clientWidth - 4) header.classList.add('sh--compact');
+  }
+  var fitT; window.addEventListener('resize', function () { clearTimeout(fitT); fitT = setTimeout(fitHeader, 80); });
+  fitHeader();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeader);
+  window.addEventListener('load', fitHeader);
+  var wide = function () { return window.matchMedia('(min-width: 861px)').matches && !header.classList.contains('sh--compact'); };
   if (toggle && nav) {
     toggle.addEventListener('click', function () {
       var open = header.classList.toggle('is-open');
@@ -23,8 +38,8 @@
     }
     btn.addEventListener('click', function () { setOpen(!item.classList.contains('is-open')); });
     // desktop: open on hover, close when the pointer leaves the item
-    item.addEventListener('mouseenter', function () { if (window.matchMedia('(min-width: 861px)').matches) setOpen(true); });
-    item.addEventListener('mouseleave', function () { if (window.matchMedia('(min-width: 861px)').matches) setOpen(false); });
+    item.addEventListener('mouseenter', function () { if (wide()) setOpen(true); });
+    item.addEventListener('mouseleave', function () { if (wide()) setOpen(false); });
     // keyboard: close when focus leaves the item
     item.addEventListener('focusout', function (e) { if (!item.contains(e.relatedTarget)) setOpen(false); });
   });

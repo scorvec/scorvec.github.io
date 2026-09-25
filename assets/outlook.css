@@ -421,6 +421,7 @@
     h1 { font-size: 1.55rem; }
     .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }   /* equal two-up chips instead of ragged content-width boxes */
     .chip { min-width: 0; }
+    .chip .l { white-space: normal; overflow-wrap: anywhere; }   /* two-up on phones: long labels ("RELATIVE NIÑO-3.4 · DJF 2026-27") wrap instead of being clipped */
   }
   @media (max-width: 480px) {
     .chart-updated { white-space: normal; }                                  /* a long build stamp must not widen the page */

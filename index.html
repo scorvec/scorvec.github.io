@@ -86,7 +86,8 @@
     --cloud-2: #e3e6df;
     --storm: #5c6b73;
     --prairie: #29321f;
-    --grass: #9a8342;
+    --grass: #9a8342;       /* outline / underline accent (non-text, 3:1 is enough) */
+    --grass-ink: #74622f;   /* the same gold as TEXT: 5.2:1 on the row background (was #9a8342, 3.2:1) */
     --serif: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
     --sans: 'Schibsted Grotesk', 'Helvetica Neue', Arial, sans-serif;
     --measure: 66rem;
@@ -224,7 +225,7 @@
   }
   .row:hover a { text-decoration: underline; text-underline-offset: 0.18em; text-decoration-color: var(--grass); }
   .row .what { color: var(--storm); font-size: 0.98rem; }
-  .row .when { color: var(--grass); font-size: 0.9rem; text-align: right; white-space: nowrap; }
+  .row .when { color: var(--grass-ink); font-size: 0.9rem; text-align: right; white-space: nowrap; }
 
   /* ── About ───────────────────────────────────────────────────────────── */
   .about {

@@ -115,8 +115,8 @@ table.heat td.none{color:var(--ink3)}
 <p class="pagelinks"><a href="/cities/">&larr; city temperature forecasts</a></p>
 <p class="howto"><b>How to read this page.</b> Every issue of every model shown on the <a href="/cities/">city page</a> is compared with the observed daily high and low at ASOS airport stations across the lower 48 (Iowa Environmental Mesonet daily summaries), once the day is complete. Errors are <b>model minus observed</b> in °F: red is a warm forecast, blue a cold one. Every model is scored on exactly the station-days the consensus covers, so the comparison is like for like. <b>MAE</b> is the mean absolute error, <b>bias</b> the mean signed error, <b>CRPS</b> the continuous ranked probability score of an ensemble's daily-mean distribution (lower is better; for a single run it equals the absolute error). The consensus is the value the city page quotes.</p>
 <div class="bar">
-  <div class="grp"><span>window</span><select id="win"><option value="30">last 30 days</option><option value="7">last 7 days</option></select></div>
-  <div class="grp"><span>station table</span><select id="model"></select><select id="band"></select><input type="text" id="find" placeholder="city or ICAO" size="14"></div>
+  <div class="grp"><span>window</span><select aria-label="Verification window" id="win"><option value="30">last 30 days</option><option value="7">last 7 days</option></select></div>
+  <div class="grp"><span>station table</span><select aria-label="Model" id="model"></select><select aria-label="Lead-day band" id="band"></select><input aria-label="Find a city or airport code" type="text" id="find" placeholder="city or ICAO" size="14"></div>
 </div>
 <main id="main">
   <div class="card"><p class="ttl">Daily high — MAE by lead day</p><p class="hint" id="h_hi"></p><div class="wrap"><table class="heat" id="t_hi"></table></div></div>

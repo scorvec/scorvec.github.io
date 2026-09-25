@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Loop player</title>
 <style>
-  :root { --bg: #0f1626; --bar: #131c30; --rule: rgba(148,184,225,0.16);
-          --ink: #1a1a1a; --muted: #8296ad; --aqua: #8a4b2a; }
+  /* the bar is dark navy: controls need LIGHT ink (they were #1a1a1a, ~1.1:1, invisible - fixed 2026-09-25) */
+  :root { --bg: #0f1626; --bar: #131c30; --rule: rgba(148,184,225,0.30);
+          --ink: #e6edf6; --muted: #9fb0c4; --aqua: #8a4b2a; --hover: #f0b27a; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); font-family: Inter, -apple-system, sans-serif;
          color: var(--ink); overflow: hidden; }
@@ -17,7 +18,8 @@
   button { background: transparent; border: 1px solid var(--rule); color: var(--ink);
            border-radius: 6px; font-size: 13px; line-height: 1; padding: 5px 9px;
            cursor: pointer; font-family: inherit; }
-  button:hover { border-color: var(--aqua); color: var(--aqua); }
+  button:hover { border-color: var(--hover); color: var(--hover); }
+  button:focus-visible, select:focus-visible, #scrub:focus-visible { outline: 2px solid var(--hover); outline-offset: 2px; }
   /* prominent scrubber: thick filled track + large ringed thumb */
   #scrub { flex: 1; height: 26px; cursor: pointer; -webkit-appearance: none;
            appearance: none; background: transparent; min-width: 120px; }
@@ -53,11 +55,11 @@
   <div id="loadtxt">loading&hellip;</div></div>
 <img id="frame" alt="forecast loop frame">
 <div id="bar">
-  <button id="play" title="space">&#9654;</button>
-  <button id="back" title="&larr;">&#9198;</button>
-  <button id="fwd" title="&rarr;">&#9197;</button>
-  <input id="scrub" type="range" min="0" max="0" value="0" step="1">
-  <select id="speed">
+  <button id="play" title="space" aria-label="Play or pause">&#9654;</button>
+  <button id="back" title="&larr;" aria-label="Previous frame">&#9198;</button>
+  <button id="fwd" title="&rarr;" aria-label="Next frame">&#9197;</button>
+  <input id="scrub" type="range" min="0" max="0" value="0" step="1" aria-label="Frame">
+  <select id="speed" aria-label="Playback speed">
     <option value="600">slow</option>
     <option value="330" selected>normal</option>
     <option value="180">fast</option>
@@ -81,7 +83,7 @@
   // caller-supplied absolute base, so this root is a constant, never user input.
   var img = document.getElementById("frame"), scrub = document.getElementById("scrub");
   var playBtn = document.getElementById("play"), label = document.getElementById("label");
-  var frames = [], imgs = [], okFrame = [], cur = 0, playing = false, timer = null;
+  var frames = [], imgs = [], okFrame = [], doneFrame = [], nDone = 0, cur = 0, playing = false, timer = null;
   var DWELL = 4;                                   // extra ticks on the last frame
 
   function postH() {
@@ -105,14 +107,18 @@
     scrub.value = i;
     scrub.style.setProperty("--fill",
       (frames.length > 1 ? 100 * i / (frames.length - 1) : 0) + "%");
-    var miss = okFrame.filter(function (o) { return !o; }).length;
+    var miss = 0;                                  // failed for good, not merely still loading
+    for (var k = 0; k < frames.length; k++) if (doneFrame[k] && !okFrame[k]) miss++;
     label.textContent = frames[i].label + " · " + (i + 1) + "/" + frames.length
+      + (nDone < frames.length ? " · loading " + nDone + "/" + frames.length : "")
       + (miss ? " · " + miss + " missing" : "");
   }
   function tick() {
     var last = frames.length - 1;
     if (cur >= last) { dwell = (dwell + 1) % DWELL; if (dwell) return; }
-    show(cur >= last ? 0 : cur + 1, true);
+    var nxt = cur >= last ? 0 : cur + 1;
+    if (!doneFrame[nxt]) return;                   // still downloading: hold here rather than skip ahead
+    show(nxt, true);
   }
   var dwell = 0;
   function setPlaying(p) {
@@ -168,32 +174,48 @@
       scrub.max = frames.length - 1;
       // short loops (monthly leads) read better at a slower default pace
       if (frames.length <= 15) document.getElementById("speed").value = "600";
-      var ver = man.ver || 0, loaded = 0;
+      var ver = man.ver || 0;
+      // PROGRESSIVE (2026-09-25, user: "the frames are super slow on some connections"). This used to fetch every frame
+      // at once and show nothing until the last arrived: a 90-frame loop is ~23 MB, ~40 s on a 5 Mbit/s phone, all spent
+      // on a progress bar. Now frames are requested IN PLAY ORDER a few at a time, the first frame shows as soon as it
+      // arrives, playback starts after the first START frames and waits for a frame that is still downloading.
+      var cn = navigator.connection || {}, slow = !!(cn.saveData || /(^|-)2g|3g/.test(cn.effectiveType || ""));
+      var LANES = slow ? 4 : 6, START = Math.min(frames.length, 8), next = 0, started = false;
       okFrame = frames.map(function () { return false; });
-      imgs = frames.map(function (fr, i) {
-        var im = new Image();
-        im.onload = function () { okFrame[i] = true; done(); };
-        // raw.githubusercontent.com -> jsDelivr mirror -> copy on main, then
-        // count the frame as done either way so the progress bar completes
-        // (assets/frames_root.js). The old code assigned onerror twice, so the
-        // retry never ran and a missing frame stalled the loader for good.
+      doneFrame = frames.map(function () { return false; });
+      imgs = frames.map(function () { return new Image(); });
+      function lane() {
+        if (next >= frames.length) return;
+        var i = next++, im = imgs[i], fr = frames[i];
+        im.onload = function () { okFrame[i] = true; done(i); };
+        // raw.githubusercontent.com -> jsDelivr mirror -> copy on main (assets/frames_root.js); a frame every host
+        // failed still counts as done so the loader cannot stall on it
         window.frameLoad(im, base + regionKey + "/" + fr.file, "?v=" + ver,
-                         base + regionKey + "/" + fr.file, function () { done(); });
-        return im;
-      });
-      function done() {
-        loaded++;
-        var pc = Math.round(100 * loaded / frames.length);
-        document.getElementById("loadfill").style.width = pc + "%";
-        document.getElementById("loadtxt").textContent =
-          "loading frames · " + loaded + "/" + frames.length;
-        if (loaded === frames.length) {
+                         base + regionKey + "/" + fr.file, function () { done(i); });
+      }
+      function done(i) {
+        if (doneFrame[i]) return;
+        doneFrame[i] = true; nDone++;
+        document.getElementById("loadfill").style.width = Math.round(100 * nDone / frames.length) + "%";
+        document.getElementById("loadtxt").textContent = "loading frames · " + nDone + "/" + frames.length;
+        if (!started && okFrame[0]) {               // the first frame is in: show it, drop the overlay
+          started = true;
           document.getElementById("load").style.display = "none";
           show(0, true);
           img.onload = function () { postH(); img.onload = postH; };
-          setPlaying(q.get("autoplay") !== "0");
         }
+        var head = 0; while (head < frames.length && doneFrame[head]) head++;
+        if (started && !playing && head >= START && !autoStarted) {
+          autoStarted = true; setPlaying(q.get("autoplay") !== "0");
+        }
+        if (nDone === frames.length && !started) {   // frame 0 itself failed: show whatever loaded
+          started = true; document.getElementById("load").style.display = "none"; show(0, true);
+        }
+        if (started) show(cur, true);                // refresh the "loading n/N" note
+        lane();
       }
+      var autoStarted = false;
+      for (var l = 0; l < LANES; l++) lane();
     })
     .catch(function () { fail("loop manifest unavailable — check back shortly"); });
 })();

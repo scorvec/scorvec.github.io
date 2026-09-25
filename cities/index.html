@@ -132,25 +132,25 @@ tr:hover td{background:#f3f6fa}tr.sel td{background:#e6eef8}
 <div class="bar">
   <div class="grp"><span>day</span>
     <button id="dprev" title="previous day">‹</button>
-    <input type="range" id="day" min="0" max="14" value="0">
+    <input aria-label="Forecast day" type="range" id="day" min="0" max="14" value="0">
     <button id="dnext" title="next day">›</button>
     <b id="daylab"></b>
-    <label style="font-size:12px;color:var(--mut);display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="win"> whole window</label>
+    <label style="font-size:12px;color:var(--mut);display:flex;gap:5px;align-items:center;cursor:pointer"><input aria-label="Whole forecast window" type="checkbox" id="win"> whole window</label>
   </div>
-  <div class="grp"><span>compare with</span><select id="prev"><option value="">— none —</option></select></div>
+  <div class="grp"><span>compare with</span><select aria-label="Compare with an earlier run" id="prev"><option value="">— none —</option></select></div>
   <div class="grp"><span>metric</span>
-    <select id="metric"><option value="hi">max temp</option><option value="lo">min temp</option><option value="tmean">mean temp</option><option value="hdd">HDD</option><option value="cdd">CDD</option></select></div>
+    <select aria-label="Metric" id="metric"><option value="hi">max temp</option><option value="lo">min temp</option><option value="tmean">mean temp</option><option value="hdd">HDD</option><option value="cdd">CDD</option></select></div>
   <div class="grp" id="basisgrp" hidden><span>degree-day basis</span>
-    <select id="basis"><option value="mid">midpoint (market)</option><option value="hourly">hourly integral</option></select></div>
+    <select aria-label="Degree-day basis" id="basis"><option value="mid">midpoint (market)</option><option value="hourly">hourly integral</option></select></div>
   <div class="grp"><span>colour by</span>
-    <select id="colour">
+    <select aria-label="Colour the map by" id="colour">
       <option value="value">value</option><option value="vsnorm">vs normal</option><option value="dsess">Δ vs the chosen run</option>
       <option value="pthr">P(threshold)</option><option value="pnorm">P(above normal)</option><option value="lean">risk lean (up − down)</option>
       <option value="spread">spread p90−p10</option><option value="conf">spread ÷ normal</option>
     </select></div>
-  <div class="grp"><span>threshold</span><input type="text" id="thr" size="5" style="text-align:right"><span id="thrlab" style="text-transform:none;letter-spacing:0"></span></div>
+  <div class="grp"><span>threshold</span><input aria-label="Threshold, °F" type="text" id="thr" size="5" style="text-align:right"><span id="thrlab" style="text-transform:none;letter-spacing:0"></span></div>
   <div class="grp"><span>state</span><select id="state"><option value="">all</option></select></div>
-  <div class="grp"><span>find</span><input type="text" id="find" placeholder="city or ICAO" size="13"></div>
+  <div class="grp"><span>find</span><input aria-label="Find a city or airport code" type="text" id="find" placeholder="city or ICAO" size="13"></div>
 </div>
 
 <main>
@@ -204,7 +204,7 @@ const isWin = () => $('#win').checked;
 const hourlyBasis = () => $('#basis') && $('#basis').value === 'hourly';
 const M = () => { const m = $('#metric').value; return (hourlyBasis() && (m === 'hdd' || m === 'cdd')) ? m + 'h' : m; };
 const fmt = (v, d = 1) => (v == null || !isFinite(v)) ? '' : v.toFixed(d);
-const sg = (v, d = 1) => v == null || !isFinite(v) ? '' : `<span style="color:${v > 0 ? 'var(--hi)' : v < 0 ? 'var(--lo)' : '#7b8798'}">${v > 0 ? '+' : ''}${v.toFixed(d)}</span>`;
+const sg = (v, d = 1) => v == null || !isFinite(v) ? '' : `<span style="color:${v > 0 ? 'var(--hi)' : v < 0 ? 'var(--lo)' : '#5f6b7d'}">${v > 0 ? '+' : ''}${v.toFixed(d)}</span>`;
 const consKey = m => m === 'tmean' ? 'mean' : m;
 const QI = { p5: 0, p10: 1, p25: 2, p50: 3, p75: 4, p90: 5, p95: 6 };
 const prevLabel = c => `${c.slice(4,6)}/${c.slice(6,8)} ${c.slice(8,10)}Z`;
@@ -422,8 +422,8 @@ function table(){
       + `<td style="color:var(--hi)">${fmt(x.hi, isWin() ? 1 : 0)}</td><td style="color:var(--lo)">${fmt(x.lo, isWin() ? 1 : 0)}</td><td><b>${fmt(x.value, d0)}</b></td><td>${sg(x.vsnorm, d0)}</td><td>${sg(x.dbase, d0)}</td>`
       + `<td>${fmt(x.p5, d0)}</td><td>${fmt(x.p10, d0)}</td><td>${fmt(x.p50, d0)}</td><td>${fmt(x.p90, d0)}</td><td>${fmt(x.p95, d0)}</td>`
       + `<td>${sg(x.dp5, d0)}</td><td>${sg(x.dp10, d0)}</td><td>${sg(x.dp50, d0)}</td><td>${sg(x.dp90, d0)}</td><td>${sg(x.dp95, d0)}</td>`
-      + `<td>${fmt(x.spread, d0)}</td><td>${cfc(x.conf)}</td><td><b>${pc(x.pthr)}</b></td><td>${pc(x.pnorm)}</td><td>${x.lean == null ? '' : sg(100 * x.lean, 0) + '<span style="color:#7b8798">pp</span>'}</td>`
-      + MODELS.map(mm => { const v = modelVal(x.icao, mm, m); return `<td>${fmt(v, 0)}${v != null && x.value != null && !isDD(m) ? `<span style="font-size:11px;color:#7b8798;margin-left:3px">${sg(v - x.value, 0)}</span>` : ''}</td>`; }).join('') + '</tr>';
+      + `<td>${fmt(x.spread, d0)}</td><td>${cfc(x.conf)}</td><td><b>${pc(x.pthr)}</b></td><td>${pc(x.pnorm)}</td><td>${x.lean == null ? '' : sg(100 * x.lean, 0) + '<span style="color:#5f6b7d">pp</span>'}</td>`
+      + MODELS.map(mm => { const v = modelVal(x.icao, mm, m); return `<td>${fmt(v, 0)}${v != null && x.value != null && !isDD(m) ? `<span style="font-size:11px;color:#5f6b7d;margin-left:3px">${sg(v - x.value, 0)}</span>` : ''}</td>`; }).join('') + '</tr>';
   }
   $('#tbl').innerHTML = h + '</tbody>';
   $('#tbl').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const k = th.dataset.k; if (k === sortKey) sortDir = -sortDir; else { sortKey = k; sortDir = ['name', 'state', 'icao'].includes(k) ? 1 : -1; } table(); });
@@ -447,7 +447,7 @@ function fan(){
   const X = i => L + i * (W - L - R) / (N - 1), Y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
   g.clearRect(0, 0, W, H);
   if (!isWin()){ g.fillStyle = 'rgba(16,32,58,.06)'; const w1 = (W - L - R) / (N - 1); g.fillRect(X(DAYI) - w1 / 2, T, w1, H - T - B); }
-  g.strokeStyle = '#eef1f6'; g.fillStyle = '#7b8798'; g.font = '11px system-ui'; g.textAlign = 'right';
+  g.strokeStyle = '#eef1f6'; g.fillStyle = '#5f6b7d'; g.font = '11px system-ui'; g.textAlign = 'right';
   const step = [1, 2, 5, 10, 20].find(s => (hi - lo) / s <= 8) || 20;
   for (let v = Math.ceil(lo / step) * step; v <= hi; v += step){ g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(W - R, Y(v)); g.stroke(); g.fillText(v.toFixed(0), L - 6, Y(v) + 3.5); }
   const band = (q, a, b, col) => { g.fillStyle = col; g.beginPath(); for (let i = 0; i < N; i++) g[i ? 'lineTo' : 'moveTo'](X(i), Y(q[a][i])); for (let i = N - 1; i >= 0; i--) g.lineTo(X(i), Y(q[b][i])); g.closePath(); g.fill(); };
@@ -511,7 +511,7 @@ function drawDay(S, isModal){
   const nH = c.normal && c.normal.hi ? c.normal.hi[j] : null, nL = c.normal && c.normal.lo ? c.normal.lo[j] : null, bH = c.cons.hi[j], bL = c.cons.lo[j];
   const panel = (cv, ymax, ylab) => { const [g, W, H] = fit(cv, isModal ? 300 : 210), L = 42, R = 12, T = 14, B = 30;
     const X = v => L + (v - lo0) / (hi0 - lo0) * (W - L - R), Y = p => T + (H - T - B) * (1 - p / ymax);
-    g.clearRect(0, 0, W, H); g.strokeStyle = '#eef1f6'; g.lineWidth = 1; g.fillStyle = '#7b8798'; g.font = '11px system-ui'; g.textAlign = 'right';
+    g.clearRect(0, 0, W, H); g.strokeStyle = '#eef1f6'; g.lineWidth = 1; g.fillStyle = '#5f6b7d'; g.font = '11px system-ui'; g.textAlign = 'right';
     for (let k = 0; k <= 4; k++){ const p = ymax * k / 4; g.beginPath(); g.moveTo(L, Y(p)); g.lineTo(W - R, Y(p)); g.stroke(); g.fillText(ylab(p), L - 5, Y(p) + 3.5); }
     g.textAlign = 'center'; const st = [1, 2, 5, 10].find(s => (hi0 - lo0) / s <= 12) || 10;
     for (let v = Math.ceil(lo0 / st) * st; v <= hi0; v += st) g.fillText(v.toFixed(0), X(v), H - B + 16);
@@ -537,13 +537,13 @@ function drawDay(S, isModal){
   const rowS = (lab, xs, ws, base, nm) => `<div><b>${lab}</b> base <b>${base.toFixed(1)}</b> · p5 ${wq(xs, ws, .05).toFixed(1)} · p10 ${wq(xs, ws, .1).toFixed(1)} · p25 ${wq(xs, ws, .25).toFixed(1)} · <b>p50 ${wq(xs, ws, .5).toFixed(1)}</b> · p75 ${wq(xs, ws, .75).toFixed(1)} · p90 ${wq(xs, ws, .9).toFixed(1)} · p95 ${wq(xs, ws, .95).toFixed(1)} · sd ${sd(xs, ws).toFixed(2)}${nm != null ? ` · normal ${nm.toFixed(1)} · P(above normal) <b>${Math.round(100 * (1 - cdfAt(xs, ws, nm)))}%</b>` : ''}</div>`;
   const dd = c.change && c.change.daily, dh = dd && dd.hi && dd.hi.base[c.dates[j]], dl = dd && dd.lo && dd.lo.base[c.dates[j]];
   const dq = (k, lv) => dd && dd[k] && dd[k].dq[lv] && dd[k].dq[lv][c.dates[j]] != null ? dd[k].dq[lv][c.dates[j]] : null;
-  const chgRow = PREV ? (() => { const ic = sel; const dh = dPrev(ic, 'hi', j, null), dl = dPrev(ic, 'lo', j, null); return `<div style="color:#7b8798">vs the ${prevLabel(PREV.cycle)} run on this day: max ${dh == null ? '—' : sgTxt(dh)} · min ${dl == null ? '—' : sgTxt(dl)}</div>`; })() : '';
+  const chgRow = PREV ? (() => { const ic = sel; const dh = dPrev(ic, 'hi', j, null), dl = dPrev(ic, 'lo', j, null); return `<div style="color:#5f6b7d">vs the ${prevLabel(PREV.cycle)} run on this day: max ${dh == null ? '—' : sgTxt(dh)} · min ${dl == null ? '—' : sgTxt(dl)}</div>`; })() : '';
   // Station records for this calendar day, and the ensemble's odds of reaching them.
   // GHCN-Daily at the matched airport (src_build_city_climo.py), full period of record.
   const recRow = (() => {
     const R = c.records; if (!R || R.hi[j] == null) return '';
     const pH = Math.round(100 * (1 - cdfAt(hs, hw, R.hi[j] - 1e-9))), pL = Math.round(100 * cdfAt(ls, lw, R.lo[j]));
-    return `<div style="color:#7b8798">record for this date, ${R.years[0]}–${R.years[1]}: max <b>${R.hi[j].toFixed(1)}</b>`
+    return `<div style="color:#5f6b7d">record for this date, ${R.years[0]}–${R.years[1]}: max <b>${R.hi[j].toFixed(1)}</b>`
       + (R.hi_y[j] ? ` (${R.hi_y[j]})` : '') + ` · min <b>${R.lo[j].toFixed(1)}</b>` + (R.lo_y[j] ? ` (${R.lo_y[j]})` : '')
       + ` · P(record max) ${pH}% · P(record min) ${pL}%`
       + ` <span style="opacity:.7">· ${R.station}, ${R.km} km</span></div>`;
@@ -582,6 +582,7 @@ addEventListener('keydown', e => { if (e.key === 'Escape'){ $('#modal').classLis
 
 function step(d){ const n = D.dates.length; DAYI = Math.max(0, Math.min(n - 1, DAYI + d)); $('#day').value = DAYI; $('#win').checked = false; refresh(); }
 function refresh(){
+  if (!D) return;                       // resize fires on phones before cities.json has loaded (2026-09-25)
   const c0 = D.cities[Object.keys(D.cities)[0]];
   $('#daylab').textContent = isWin() ? `whole window (${D.dates.length} days)` : `${c0.dates[Math.min(DAYI, c0.dates.length - 1)]} · day ${DAYI + 1}`;
   $('#day').disabled = isWin();
@@ -609,7 +610,7 @@ $('#find').addEventListener('input', () => { drawMap(); table(); });
 $('#day').addEventListener('input', () => { DAYI = +$('#day').value; $('#win').checked = false; refresh(); });
 $('#win').addEventListener('change', refresh);
 $('#dprev').onclick = () => step(-1); $('#dnext').onclick = () => step(1);
-let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { MAPG = null; refresh(); if (MD) drawDay(MD, true); }, 120); });
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (!D) return; MAPG = null; refresh(); if (MD) drawDay(MD, true); }, 120); });
 
 async function load(){
   const [r, gr] = await Promise.all([fetch('data/cities.json', { cache: 'no-store' }), fetch('geo/states_l48.json')]);

@@ -402,7 +402,7 @@
   <span class="seg"><button data-act="latest" class="mctl on">Latest</button><button data-act="archive" class="mctl">Archive</button></span>
   <span class="arch-controls" style="display:none">
     <button data-act="dprev" title="previous launch">◀</button>
-    <input type="date" class="datectl" min="1905-01-01">
+    <input type="date" class="datectl" min="1905-01-01" aria-label="Sounding date">
     <button data-act="dnext" title="next launch">▶</button>
     <span class="hours"></span>
   </span>
@@ -498,7 +498,7 @@
   <div class="dialog" style="height:auto; max-height:92vh; width:min(1160px,96vw)">
     <div class="dlg-head controls">
       <span class="station" id="climo-title">—</span>
-      <select id="climo-var" style="font:500 0.85rem var(--sans); background:var(--panel);
+      <select id="climo-var" aria-label="Climatology variable" style="font:500 0.85rem var(--sans); background:var(--panel);
         color:var(--ink); border:1px solid var(--rule); border-radius:7px; padding:5px 9px;
         color-scheme:dark"></select>
       <span id="climo-sub" style="font-size:0.82rem; color:var(--muted)"></span>
@@ -524,7 +524,7 @@
       <span class="seg"><button data-act="latest" class="mctl on">Latest</button><button data-act="archive" class="mctl">Archive</button></span>
       <span class="arch-controls" style="display:none">
         <button data-act="dprev" title="previous launch">◀</button>
-        <input type="date" class="datectl" min="1905-01-01">
+        <input type="date" class="datectl" min="1905-01-01" aria-label="Sounding date">
         <button data-act="dnext" title="next launch">▶</button>
         <span class="hours"></span>
       </span>
