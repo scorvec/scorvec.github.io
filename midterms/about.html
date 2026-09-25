@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How the 2026 Midterm Forecast Works</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--d:#1f5fbf}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 "Source Serif 4",Georgia,serif}
+.ab{max-width:760px;margin:0 auto;padding:22px 20px 60px}
+.ab h1{font:600 30px/1.2 "Source Serif 4",Georgia,serif;margin:0 0 6px}
+.ab .back{font:15px "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
+.ab a{color:var(--d)}
+.ab nav{display:flex;flex-wrap:wrap;gap:2px 14px;font:15px/1.7 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif;margin:16px 0 8px;padding:10px 14px;border:1px solid var(--rule);border-radius:8px;background:#fff}
+.ab nav a{white-space:nowrap}
+.ab h2{font:600 22px/1.3 "Source Serif 4",Georgia,serif;margin:36px 0 8px;padding-top:6px;border-top:1px solid var(--rule)}
+.ab p{margin:10px 0}
+.ab .dyn{font-family:"Source Sans 3",-apple-system,Helvetica,Arial,sans-serif;font-size:15.5px;background:#fff;border:1px solid var(--rule);border-radius:8px;padding:10px 14px}
+.ab table{border-collapse:collapse;width:100%;font:14.5px "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif;margin:8px 0}
+.ab th,.ab td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:left}.ab td.n,.ab th.n{text-align:right;font-variant-numeric:tabular-nums}
+.ab th{color:var(--muted);font-weight:600}
+.ab .src p{font-size:15.5px;line-height:1.55}
+.ab details summary{cursor:pointer;color:var(--d);font-weight:600}.ab details p{font-size:14.5px;line-height:1.5}
+.ab small{color:var(--muted)}
+a:focus-visible{outline:2px solid var(--d);outline-offset:2px}
+@media(max-width:640px){.ab{padding:14px 14px 40px}.ab h1{font-size:25px}}
+</style><link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head><body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/" aria-current="page">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main class="ab">
+<p class="back"><a href="./">Back to the forecast</a></p>
+<h1>How the forecast works</h1>
+<p id="lede">The forecast simulates the 2026 House, Senate and governor elections 20,000 times. Each simulation draws a national polling miss shared by every race, regional and demographic swings shared by similar places, and each race's own uncertainty, so close races tend to break together, as they do in real elections.</p>
+<nav><a href="#mood">The national mood</a><a href="#polls">Polls</a><a href="#house">House</a><a href="#senate">Senate</a><a href="#gov">Governors</a><a href="#fuel">Fuel prices</a><a href="#tests">Track record</a><a href="#sources">Sources</a></nav>
+
+<h2 id="mood">The national mood slider</h2>
+<p>The slider sets how far Democrats lead the national House vote (the generic ballot). Moving it shifts every simulated race at once: House margins move one point for each point on the slider, Senate races by <span id="sslope">0.8</span> points (fitted on 326 Senate races from 2006 to 2024), and governor races by <span id="gslope">about half a point</span>. The rest of each race, its polls, lean and candidates, stays fixed, so the slider answers "what if the national environment were different?".</p>
+<p>It starts at today's polls, adjusted for one known bias: likely-voter screens rely on people saying they will vote, and young voters, the most Democratic group, overstate their turnout. The historical generic-ballot miss of about three points came mostly from registered-voter averages.</p>
+<div class="dyn" id="agg">…</div>
+
+<h2 id="polls">How the poll trend is built</h2>
+<p>The line on the poll charts is fitted to every individual poll, not to other people's averages. Each pollster's house effect (how far it runs from the field) is estimated and removed, as are the offsets between likely voters, registered voters and all adults. Polls fielded over several days are dated at their midpoint, and several versions of one survey (for example likely and registered voters) share one poll's weight.</p>
+<p>The shaded band is the 95% range for where the polling average stands today: sampling error plus uncertainty in the house effects. It is not an Election Day range. Polls can miss the result by much more, and the model carries that separately: <span id="snat">4.1</span> points, one standard deviation, for the national environment.</p>
+<div class="dyn" id="pnote">…</div>
+<table id="pshares"></table>
+
+<h2 id="house">House</h2>
+<p>Every district is on its 2026 map, including the mid-decade redraws. A district's expected margin starts from its partisan lean, incumbency and the candidates' fundraising, then blends in district polls in proportion to how informative they are. Polls from campaigns and party committees are corrected for their typical lean, and polls that disagree with each other count for less than their number suggests. On the map, outlined districts are open seats.</p>
+<div class="dyn" id="mhouse">…</div>
+
+<h2 id="senate">Senate</h2>
+<p>Senate races use the same approach with a prior refitted on every Senate race since 2006. Only polls naming the candidates actually on the ballot are used; three-way races use polls of the full field. Where an independent is the main challenger (for example in Nebraska), the chance shown is the independent's, and an independent win is not counted as a Democratic seat. That is why the forecast shows both "Democrats win the Senate" (51 Democratic seats) and "Republicans lose the majority" (counting independents).</p>
+<div class="dyn" id="msen">…</div>
+
+<h2 id="gov">Governors</h2>
+<div class="dyn" id="mgov">…</div>
+
+<h2 id="fuel">Fuel prices</h2>
+<div class="dyn" id="mfuel">No fuel-price scenarios in this update.</div>
+
+<h2 id="tests">Track record</h2>
+<p>The same code was run as if it were September of past election years, using only the information available then.</p>
+<div class="dyn" id="mtests">…</div>
+
+<h2 id="sources">Sources and credits</h2>
+<div class="src">
+<p><b>Polls.</b> <a href="https://en.wikipedia.org/wiki/2026_United_States_elections">Wikipedia</a> race and polling tables (CC BY-SA 4.0); the <a href="https://votehub.com/">VoteHub</a> open polling API; <a href="https://www.realclearpolling.com/">RealClearPolling</a> poll listings; <a href="https://bsky.app/profile/usapolling.bsky.social">Polling USA</a> and <a href="https://bsky.app/profile/pollresults.org">Political Poll Bot</a> on Bluesky; individual pollster releases entered directly (for example the <a href="https://maristpoll.marist.edu/">Marist Poll</a> and <a href="https://www.gelliottmorris.com/">Strength in Numbers / Verasight</a>); a leaked Texas internal poll as reported by the <a href="https://www.quorumreport.com/">Quorum Report</a>. Every poll belongs to its pollster.</p>
+<p><b>Poll history and calibration.</b> <a href="https://github.com/fivethirtyeight/data">538 / ABC News</a> archived polling averages, rated-poll history, pollster ratings and partisan-lean data (CC BY 4.0), used to measure poll error, house effects, sponsor effects and state polling misses.</p>
+<p><b>Election results and fundamentals.</b> <a href="https://electionlab.mit.edu/data">MIT Election Data and Science Lab</a> (Senate and presidential returns); the <a href="https://www.fec.gov/">Federal Election Commission</a> (official House results and candidate fundraising through the <a href="https://api.open.fec.gov/developers/">OpenFEC API</a>); Wikipedia yearly results for governors and the national House vote; <a href="https://www.cookpolitical.com/">Cook Political Report</a> PVI; race ratings from Cook, <a href="https://centerforpolitics.org/crystalball/">Sabato's Crystal Ball</a>, <a href="https://insideelections.com/">Inside Elections</a> and others, shown for comparison only; county presidential results compiled by <a href="https://github.com/tonmcg/US_County_Level_Election_Results_08-24">Tony McGovern</a>.</p>
+<p><b>Approval and special elections.</b> Gallup presidential approval via <a href="https://www.presidency.ucsb.edu/statistics/data/presidential-job-approval-all-data">The American Presidency Project (UC Santa Barbara)</a>; <a href="https://www.the-downballot.com/">The Downballot</a> special-elections Big Board.</p>
+<p><b>Demographics and maps.</b> <a href="https://www.census.gov/">U.S. Census Bureau</a>: American Community Survey 2020-2024 5-year estimates (citizen voting-age population, education, age, home heating fuel), 2020 cartographic block groups, and block equivalency files for the 119th and 120th Congresses. District shapes are the 2020 block groups assigned to the 2026 (120th Congress) districts. This site is not endorsed or certified by the Census Bureau.</p>
+<p><b>Prices.</b> <a href="https://www.eia.gov/">U.S. Energy Information Administration</a> retail gasoline and diesel; <a href="https://www.maine.gov/energy/">Maine Department of Energy Resources</a> heating fuel survey; <a href="https://www.gethomeheat.com/">HomeHeat</a> supplier prices; heating oil futures (ICE / NYMEX via Yahoo Finance).</p>
+<p><b>Software.</b> <a href="https://d3js.org/">D3</a> (ISC), <a href="https://github.com/topojson/topojson-client">TopoJSON client</a> (ISC), <a href="https://github.com/mbloch/mapshaper">mapshaper</a> (MPL 2.0), pandas, NumPy, SciPy and GeoPandas.</p>
+<p><small>Model, code and any errors: Shawn Corvec. Not affiliated with or endorsed by any of the sources above.</small></p>
+</div>
+</main>
+<script>
+const $=s=>document.querySelector(s);const mg=v=>(v>=0?'D+':'R+')+Math.abs(v).toFixed(1);const sg=v=>(v>=0?'+':'')+(+v).toFixed(1);
+fetch('data/model.json').then(r=>r.json()).then(D=>{const H=D.house,P=D.polls;
+ $('#sslope').textContent=D.senate.nat_slope;if(D.governor)$('#gslope').textContent=`about ${(+D.governor.slope).toFixed(2)} points`;
+ $('#agg').innerHTML=`Published generic-ballot averages: ${D.generic.filter(a=>!/^average$/i.test(a.source)).map(a=>`${a.source} ${mg(a.margin)}`).join('; ')}. Our poll trend: <b>${P?mg(P.generic_now):'?'}</b>${P&&P.bias?`, adjusted ${sg(P.bias)} for self-reported turnout`:''}, giving a model environment of <b>${mg(H.E_now)}</b> (the slider starts at the nearest half point, ${mg(H.E0)}).`;
+ if(P){const g=P.generic_diag;
+  $('#pnote').innerHTML=`Generic ballot today <b>${mg(g.now)}</b>; 30 days ago ${mg(g['30d_ago'])}, 60 days ${mg(g['60d_ago'])}, 90 days ${mg(g['90d_ago'])}. ${P.n_generic} polls through ${P.last_generic}. Over the last 30 days the raw average moved ${sg(g.raw_change_30d)}, and ${sg(g.adj_change_30d)} after removing changes in which pollsters were in the field.`;
+  const sh=[['Democrats',g.dem_30d,g.dem_30d_ago],['Republicans',g.rep_30d,g.rep_30d_ago],['Undecided or other',g.und_30d,g.und_30d_ago]];
+  $('#pshares').innerHTML='<tr><th>Share of the vote, raw 30-day mean</th><th class="n">Now</th><th class="n">30 days ago</th><th class="n">Change</th></tr>'+sh.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1].toFixed(1)}</td><td class="n">${r[2]==null?'–':r[2].toFixed(1)}</td><td class="n">${r[2]==null?'–':sg(r[1]-r[2])}</td></tr>`).join('')
+   +Object.entries(g.by_pop_90d).map(([k,v])=>`<tr><td>${({lv:'Likely-voter',rv:'Registered-voter',a:'All-adult',v:'Voter'})[k]||k} polls, last 90 days (${v.n})</td><td class="n">${mg(v.raw)}</td><td class="n">adjusted ${mg(v.adj)}</td><td></td></tr>`).join('')}
+ const S=D.senate;
+ $('#mhouse').innerHTML=`<details><summary>Technical notes</summary><p>${D.notes.house}.</p></details>`;
+ $('#msen').innerHTML=`Seats not up this year: ${S.now_d-S.d_up} Democratic, ${S.now_r-S.r_up} Republican. <details><summary>Technical notes</summary><p>${D.notes.senate}.</p></details>`;
+ if(D.governor){const G=D.governor;$('#mgov').innerHTML=`Today ${G.now.now_d} governors are Democrats and ${G.now.now_r} Republicans; ${G.now.up_d} Democratic and ${G.now.up_r} Republican seats are up. The prior is refitted on every governor race from 1998 to 2022: ${G.coef.lean} times the state's lean (about half the Senate's weight, since governors cross party lines more easily), ${G.coef.inc} points for an incumbent running, and ${G.coef.E} times the national mood. Polls get the same corrections as in the Senate. Alaska's top-four ballot counts each party's candidates together.`}
+ if(D.fuel){const F=D.fuel;$('#mfuel').innerHTML=`Retail prices (EIA, week of ${F.asof}): regular gasoline $${F.gas} (a year ago $${F.gas_yr_ago}), diesel $${F.diesel} (a year ago $${F.diesel_yr_ago}). Today's prices are already in the polls. Historically each further $1 on gasoline by November has cost the president's party about ${F.approval_per_dollar} points of net approval, roughly ${sg(F.per_dollar)} on the generic ballot (a noisy estimate: from −0.2 to −2.9 per dollar across presidencies). Gasoline in November and the slider position it implies: `+F.rows.map(r=>`$${r.gas.toFixed(2)} → ${mg(r.E)}`).join('; ')+'.'}
+ $('#mtests').innerHTML=D.notes.backtests+'.';
+});
+</script><!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body></html>

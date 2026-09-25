@@ -1,40 +1,93 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>2026 Midterm Forecast</title>
+<title>2026 Midterm Forecast</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
 <style>
-:root{--ink:#1a1a1a;--muted:#6f6b64;--rule:#e2e0da;--bg:#fcfcfa;--d:#2a78d6;--r:#d9402a;--acc:#8a4b2a}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
-header.board{padding:18px 24px 10px;border-bottom:1px solid var(--rule)}h1{font-size:22px;margin:0 0 4px}.bsub{color:var(--muted);font-size:13px}
-.bwrap{padding:14px 24px 40px;max-width:1500px;margin:0 auto}
-.ctl{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:10px 0 18px;padding:12px 14px;border:1px solid var(--rule);border-radius:8px;background:#fff}
-.ctl label{font-weight:600}.ctl input[type=range]{width:420px}.ctl .val{font-variant-numeric:tabular-nums;font-weight:700;min-width:90px}.ctl .agg{color:var(--muted);font-size:13px}
-.ctl button{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit;font-size:13px}
-.row{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}@media(max-width:1000px){.row{grid-template-columns:1fr}}
-.card{border:1px solid var(--rule);border-radius:8px;background:#fff;padding:12px 14px}.card h2{font-size:16px;margin:0 0 6px}.card .bnote{color:var(--muted);font-size:12.5px}
-.tiles{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:flex-start}.bst{display:flex;flex-direction:column;align-items:flex-start}.bst .lab{font-size:10.5px;color:var(--muted);letter-spacing:.03em;margin-bottom:2px}
-.bst .bg{display:grid;grid-template-columns:repeat(auto-fill,14px);gap:2px;width:max-content;max-width:154px}
-.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 10px}.kpi div{border:1px solid var(--rule);border-radius:6px;padding:6px 8px}.kpi b{display:block;font-size:20px;font-variant-numeric:tabular-nums}.kpi span{font-size:11.5px;color:var(--muted)}
-svg text{font-size:10.5px;fill:var(--muted)}
-.tip{position:fixed;pointer-events:none;background:#1a1a1a;color:#fff;font-size:12.5px;padding:6px 9px;border-radius:6px;display:none;max-width:320px;z-index:9}
-table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:4px 6px;border-bottom:1px solid var(--rule);text-align:left}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.pd{font-weight:700}
-.leg{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-top:8px}.leg i{display:inline-block;width:14px;height:10px;border-radius:2px}
-.card{overflow-x:auto}
-@media(max-width:640px){.ctl input[type=range]{width:100%}.ctl{gap:8px}.bwrap{padding:10px 12px 30px}header.board{padding:14px 12px 8px}.kpi{grid-template-columns:repeat(2,1fr)}svg{max-width:100%;height:auto}}
-#hmap{position:relative}#hmapsvg,.smap{width:100%;height:auto;display:block;background:#fff;touch-action:none}
-.zbtn{position:absolute;right:6px;top:6px;border:1px solid var(--rule);background:#fff;border-radius:6px;padding:3px 8px;font:inherit;font-size:12px;cursor:pointer}
-path.t{stroke:#fff;stroke-width:.35;vector-effect:non-scaling-stroke;cursor:pointer}path.t.open{stroke:#111;stroke-width:1.1}path.t:hover{stroke:#000;stroke-width:1.6}
+:root{--ink:#1b1d22;--muted:#6f6b64;--rule:#e3e1db;--bg:#fcfcfa;--card:#fff;--d:#1f5fbf;--dd:#0b3d91;--r:#b3261e;--rd:#a32215;--focus:#1f5fbf}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Sans 3",-apple-system,Helvetica,Arial,sans-serif}
+.mt-wrap{max-width:1180px;margin:0 auto;padding:18px 20px 48px}
+.mt-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.mt-head h1{font:600 30px/1.15 "Source Serif 4",Georgia,serif;margin:0}
+.mt-head .upd{color:var(--muted);font-size:14px}
+.mt-head a{color:var(--d);font-size:15px}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+/* the mood bar: the one bold element */
+.mt-mood{overflow:hidden;background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:16px 18px 14px}
+.mt-mood .q{font:600 19px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 10px}
+.mt-mood .q output{font-variant-numeric:tabular-nums;color:var(--ev,var(--d))}
+.mt-bar{position:relative;padding:4px 0 26px}
+.mt-bar input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:7px;margin:0;
+  background:linear-gradient(90deg,#a32215 0%,#e8a597 32%,#ebe9e4 41.7%,#9dbbe6 55%,#0b3d91 100%);cursor:pointer}
+.mt-bar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.mt-bar input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--ink)}
+.mt-tick{position:absolute;top:22px;transform:translateX(var(--tx,-50%));font-size:12.5px;color:var(--muted);white-space:nowrap;pointer-events:none}
+.mt-tick::before{content:"";display:block;width:1px;height:7px;background:var(--muted);margin:0 auto 1px}
+.mt-tick.today{color:var(--ink);font-weight:600}
+.mt-tick.today::before{width:2px;background:var(--ink)}
+.mt-ends{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:-2px}
+.mt-reset{border:1px solid var(--rule);background:#fff;border-radius:6px;padding:4px 10px;font:inherit;font-size:14px;cursor:pointer;margin-left:8px;vertical-align:middle}
+.mt-out{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:14px;border-top:1px solid var(--rule)}
+.mt-out>div{padding:12px 14px 4px 0}
+.mt-out>div+div{padding-left:14px;border-left:1px solid var(--rule)}
+.mt-out b{display:block;font:600 34px/1.05 "Source Serif 4",Georgia,serif;font-variant-numeric:tabular-nums}
+.mt-out span{display:block;font-size:14.5px;line-height:1.35}
+.mt-out small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+@media(max-width:760px){.mt-out{grid-template-columns:1fr 1fr}.mt-out>div:nth-child(3){padding-left:0;border-left:0}.mt-out>div{border-top:1px solid var(--rule)}}
+/* tabs */
+.mt-bar2{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:22px 0 10px}
+.mt-tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule)}
+.mt-tabs button{border:0;background:none;font:inherit;font-size:16px;padding:8px 14px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+.mt-tabs button[aria-selected=true]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.mt-find input{font:inherit;font-size:15px;padding:6px 10px;border:1px solid var(--rule);border-radius:6px;width:260px;max-width:100%}
+.mt-pane{display:none}.mt-pane.on{display:block}
+.mt-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:20px;align-items:start}
+@media(max-width:940px){.mt-grid{grid-template-columns:1fr}}
+.mt-card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px 16px}
+.mt-card h2{font:600 18px/1.3 "Source Serif 4",Georgia,serif;margin:0 0 8px}
+.mt-note{color:var(--muted);font-size:13.5px;margin:6px 0 0}
+.mt-map{position:relative}
+.mt-map svg{width:100%;height:auto;display:block;touch-action:none}
+.mt-zoom{position:absolute;right:6px;top:6px;border:1px solid var(--rule);background:#fff;border-radius:6px;padding:3px 9px;font:inherit;font-size:13px;cursor:pointer}
+.mt-leg{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.mt-leg i{display:inline-block;width:34px;height:10px;border-radius:2px}
+path.t{stroke:#fff;stroke-width:.35;vector-effect:non-scaling-stroke;cursor:pointer}
+path.t.open{stroke:#1b1d22;stroke-width:1}
+path.t:hover,path.t.sel{stroke:#000;stroke-width:2}
 path.stb{fill:none;stroke:#5c5a55;stroke-width:.9;vector-effect:non-scaling-stroke;pointer-events:none}
-path.sp{stroke:#fff;stroke-width:.8;cursor:pointer}path.sp.none{fill:#eceae4;cursor:default}
+path.sp{stroke:#fff;stroke-width:.8;cursor:pointer}path.sp.none{fill:#eceae4;cursor:default}path.sp:hover,path.sp.sel{stroke:#000;stroke-width:2}
+/* race panel */
+.mt-race{min-height:120px}
+.mt-race .empty{color:var(--muted);font-size:14.5px}
+.mt-race h3{font:600 20px/1.25 "Source Serif 4",Georgia,serif;margin:0}
+.mt-race .who{margin:2px 0 10px;font-size:15px}
+.mt-race .pbar{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:6px 0 4px}
+.mt-race .pbar i:first-child{background:var(--d)}.mt-race .pbar i:last-child{background:var(--r)}
+.mt-race .pp{display:flex;justify-content:space-between;font-weight:600;font-variant-numeric:tabular-nums}
+.mt-race dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:12px 0 0;font-size:14.5px}
+.mt-race dt{color:var(--muted)}.mt-race dd{margin:0;font-variant-numeric:tabular-nums}
+/* tables */
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:left}
+th{font-weight:600;color:var(--muted);font-size:13px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
+.pd{font-weight:700}
+.mt-more{border:0;background:none;color:var(--d);font:inherit;font-size:14.5px;padding:6px 0;cursor:pointer}
+.mt-tw{overflow-x:auto}
+.mt-hist{width:100%;height:auto;display:block}
+.mt-hist text{font-size:11px;fill:var(--muted)}
+.mt-sum{font-size:15px;margin:0 0 6px}
 .charts2{display:grid;grid-template-columns:1fr 1fr;gap:22px}@media(max-width:900px){.charts2{grid-template-columns:1fr}}
-.ch3{font-size:14px;margin:4px 0 2px}.ci{font-size:13.5px;margin:0 0 4px}.ci b{font-size:18px}
+.ci{font-size:14.5px;margin:0 0 4px}.ci b{font-size:19px}
 .tsc{width:100%;height:auto;display:block;overflow:visible}.tsc text{font-size:12px;fill:#6f6b64}.tsc .ax line,.tsc .ax path{stroke:#d8d6cf}.tsc .grid line{stroke:#eeece6}
-.srcs p{margin:6px 0;font-size:13.5px;line-height:1.5}.srcs a{color:#274b7a}
+.tip{position:fixed;pointer-events:none;background:#1b1d22;color:#fff;font-size:13px;padding:6px 9px;border-radius:6px;display:none;max-width:320px;z-index:9}
+.mt-foot{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule);font-size:15px}
+.mt-foot a{color:var(--d)}
+@media(max-width:640px){.mt-wrap{padding:12px 14px 36px}.mt-head h1{font-size:25px}.mt-out b{font-size:28px}.mt-find input{width:100%}.mt-find{width:100%}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 <script src="/assets/site.js" defer></script>
 <script src="/assets/rail.js" defer></script>
@@ -99,79 +152,194 @@ path.sp{stroke:#fff;stroke-width:.8;cursor:pointer}path.sp.none{fill:#eceae4;cur
   </div>
 </header>
 <!-- sh:end -->
-<header class="board"><h1>2026 Midterm Forecast</h1><p class="bsub" style="max-width:860px;margin:6px 0 2px;color:var(--ink)">A Monte Carlo forecast of the 2026 House, Senate and governor races, built from polls, fundamentals and fundraising. Drag the slider to change the national environment and every race updates. Refreshed weekly.</p><div class="bsub" id="sub">loading…</div></header>
-<div class="bwrap">
-<div class="ctl"><label for="E">National mood (D−R generic ballot, points)</label><input type="range" id="E" min="-10" max="14" step="0.5"><span class="val" id="Ev"></span><button id="reset">reset to today's polls</button><span class="agg" id="agg"></span></div>
-<div class="card" id="natcard" style="margin-bottom:18px"><h2>National environment</h2>
- <div class="charts2"><div><h3 class="ch3">Generic congressional ballot (Democratic minus Republican)</h3><div class="ci" id="gci"></div><svg id="gchart" class="tsc" viewBox="0 0 640 320"></svg></div>
- <div><h3 class="ch3">Trump net job approval (approve minus disapprove)</h3><div class="ci" id="aci"></div><svg id="achart" class="tsc" viewBox="0 0 640 320"></svg></div></div>
- <div class="bnote">Line: our trend fitted to every individual poll, with each pollster's house effect and the likely-voter / registered-voter / adult offsets removed. Shaded band: 95% interval for where the polling average stands (sampling error plus uncertainty in the house effects). This is not an Election Day range: how far polls can miss the result is much wider, and the model carries that separately (4.1 points, one standard deviation). Dots: individual polls adjusted to the same scale; hover for the pollster. Diamonds at the right edge of the generic-ballot chart: the published averages. Polls from VoteHub, RealClearPolling, Polling USA and pollster releases; see Sources below.</div></div>
-<div class="row">
- <div>
-  <div class="card"><h2>House — every district, coloured by P(Democratic win)</h2><div class="bnote">Each district on the 2026 maps, shaded by the chance a Democrat wins; black outline = open seat. Hover for the member, PVI, model margin and probability; scroll or pinch to zoom, drag to pan. The national mood shifts every simulated margin one-for-one.</div><div id="hmap"><svg id="hmapsvg" viewBox="0 0 960 600"></svg><button class="zbtn" id="zreset">reset zoom</button></div><div class="bnote" style="margin-top:4px">District boundaries: U.S. Census Bureau 2020 block groups assigned to the 2026 (120th Congress) districts with the Census block equivalency file; drawn with D3 and TopoJSON.</div>
-   <div class="leg"><i style="background:#0b3d91"></i>≥90% D <i style="background:#7fa9e0"></i>70 <i style="background:#e6e6e6"></i>50 <i style="background:#f0a090"></i>30 <i style="background:#a32215"></i>≥90% R</div></div>
-  <div class="card" style="margin-top:14px" id="govcard"><h2>Governors — the 36 races</h2><svg class="smap" id="gmap" viewBox="0 0 960 600"></svg><div class="kpi"><div><b id="gmean">–</b><span>mean D governors</span></div><div><b id="grng">–</b><span>10–90%</span></div><div><b id="gmaj">–</b><span>P(D ≥ 26)</span></div></div><div class="bnote" id="gnote"></div><table id="gov"></table></div>
-  <div class="card" style="margin-top:14px"><h2>Senate — the 35 races</h2><svg class="smap" id="smap" viewBox="0 0 960 600"></svg><div class="bnote">P(challenger) from the poll blend and fundamentals; the national mood enters the Senate at slope 0.8 (fitted on 326 races 2006-2024). Seats not up: <span id="notup"></span>. † independent challenger: hover for how the prior is set.</div><table id="sen"></table></div>
+<div class="mt-wrap">
+<header class="mt-head"><h1>2026 Midterm Forecast</h1>
+ <div><span class="upd" id="upd">loading…</span> &nbsp;<a href="about.html">How the forecast works</a></div></header>
+
+<section class="mt-mood" aria-label="National mood and outcomes">
+ <p class="q">If Democrats lead the national House vote by <output id="Ev" for="E">…</output><button class="mt-reset" id="reset" type="button">Back to today's polls</button></p>
+ <div class="mt-bar"><input type="range" id="E" min="-10" max="14" step="0.5" aria-label="National mood: Democratic lead in the generic ballot, points">
+  <span class="mt-tick" id="tick0">Even</span><span class="mt-tick today" id="tickT">Today's polls</span></div>
+ <div class="mt-ends"><span>Republicans +10</span><span>Democrats +14</span></div>
+ <div class="mt-out">
+  <div><b id="oH">–</b><span>chance Democrats win the House</span><small id="oHs"></small></div>
+  <div><b id="oS">–</b><span>chance Democrats win the Senate</span><small id="oSs"></small></div>
+  <div><b id="oB">–</b><span>chance Democrats win both</span><small id="oBs"></small></div>
+  <div><b id="oG">–</b><span>Democratic governors, of 50</span><small id="oGs"></small></div>
  </div>
- <div>
-  <div class="card"><h2>House seats</h2><div class="kpi"><div><b id="hmean">–</b><span>mean D seats</span></div><div><b id="hrng">–</b><span>10–90%</span></div><div><b id="hmaj">–</b><span>P(D majority)</span></div></div><svg id="hhist" width="330" height="150"></svg><div class="bnote">Distribution of Democratic seats from 20,000 correlated simulations at this mood.</div></div>
-  <div class="card" style="margin-top:14px"><h2>Senate seats</h2><div class="kpi"><div><b id="smean">–</b><span>mean D seats</span></div><div><b id="srng">–</b><span>10–90%</span></div><div><b id="smaj">–</b><span>P(D ≥ 51)</span></div><div><b id="srlose">–</b><span>P(R ≤ 49)</span></div></div><div class="bnote" id="sind"></div><svg id="shist" width="330" height="130"></svg></div>
-  <div class="card" style="margin-top:14px"><h2>Closest House races at this mood</h2><table id="close"></table></div>
-  <div class="card" style="margin-top:14px"><h2>The polls themselves</h2><div class="bnote" id="pnote"></div><table id="pshares"></table><div class="bnote" style="margin-top:6px">House effects, pollsters active in the last 120 days (points the pollster runs above/below the field, Democratic-positive):</div><table id="phouse"></table></div>
-  <div class="card" style="margin-top:14px"><h2>Method</h2><div class="bnote" id="method"></div></div>
+</section>
+
+<div class="mt-bar2">
+ <div class="mt-tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-p="house">House</button><button role="tab" aria-selected="false" data-p="senate">Senate</button>
+  <button role="tab" aria-selected="false" data-p="gov">Governors</button><button role="tab" aria-selected="false" data-p="polls">Polls</button></div>
+ <div class="mt-find"><input id="find" list="places" placeholder="Find a district or state, e.g. TX-28, Maine" aria-label="Find a district or state"><datalist id="places"></datalist></div>
+</div>
+
+<section class="mt-pane on" id="p-house" role="tabpanel">
+ <div class="mt-grid">
+  <div class="mt-card"><div class="mt-map"><svg id="hmapsvg" viewBox="0 0 960 600" aria-label="House districts by chance of a Democratic win"></svg><button class="mt-zoom" id="zreset" type="button">Reset zoom</button></div>
+   <div class="mt-leg"><span>Republican</span><i style="background:linear-gradient(90deg,#a32215,#e6e6e6,#0b3d91)"></i><span>Democratic</span>&nbsp;·&nbsp;outlined: open seat &nbsp;·&nbsp;scroll or pinch to zoom, click a district for details</div></div>
+  <div>
+   <div class="mt-card mt-race" id="race-house"><p class="empty">Click a district on the map, or search above.</p></div>
+   <div class="mt-card" style="margin-top:14px"><h2>House seats</h2><p class="mt-sum" id="hsum"></p><svg class="mt-hist" id="hhist" viewBox="0 0 360 140"></svg></div>
+  </div>
  </div>
-<div class="card" id="sources" style="margin-top:18px"><h2>Sources and credits</h2><div class="srcs">
-<p><b>Polls.</b> <a href="https://en.wikipedia.org/wiki/2026_United_States_elections">Wikipedia</a> race and polling tables (CC BY-SA 4.0); the <a href="https://votehub.com/">VoteHub</a> open polling API; <a href="https://www.realclearpolling.com/">RealClearPolling</a> poll listings; <a href="https://bsky.app/profile/usapolling.bsky.social">Polling USA</a> on Bluesky; individual pollster releases entered directly (for example the <a href="https://maristpoll.marist.edu/">Marist Poll</a> and <a href="https://www.gelliottmorris.com/">Strength in Numbers / Verasight</a>); a leaked Texas internal poll as reported by the <a href="https://www.quorumreport.com/">Quorum Report</a>. Every poll belongs to its pollster.</p>
-<p><b>Poll history and calibration.</b> <a href="https://github.com/fivethirtyeight/data">538 / ABC News</a> archived polling averages, rated-poll history, pollster ratings and partisan-lean data (CC BY 4.0), used to measure poll error, house effects, sponsor effects and state polling misses.</p>
-<p><b>Election results and fundamentals.</b> <a href="https://electionlab.mit.edu/data">MIT Election Data and Science Lab</a> (Senate and presidential returns); the <a href="https://www.fec.gov/">Federal Election Commission</a> (official House results and candidate fundraising through the <a href="https://api.open.fec.gov/developers/">OpenFEC API</a>); Wikipedia yearly results for governors and the national House vote; <a href="https://www.cookpolitical.com/">Cook Political Report</a> PVI; race ratings from Cook, <a href="https://centerforpolitics.org/crystalball/">Sabato's Crystal Ball</a>, <a href="https://insideelections.com/">Inside Elections</a> and others, shown for comparison only; county presidential results compiled by <a href="https://github.com/tonmcg/US_County_Level_Election_Results_08-24">Tony McGovern</a>.</p>
-<p><b>Approval and special elections.</b> Gallup presidential approval via <a href="https://www.presidency.ucsb.edu/statistics/data/presidential-job-approval-all-data">The American Presidency Project (UC Santa Barbara)</a>; <a href="https://www.the-downballot.com/">The Downballot</a> special-elections Big Board.</p>
-<p><b>Demographics and maps.</b> <a href="https://www.census.gov/">U.S. Census Bureau</a>: American Community Survey 2020-2024 5-year estimates (citizen voting-age population, education, age, home heating fuel), 2020 cartographic block groups, and block equivalency files for the 119th and 120th Congresses. This site is not endorsed or certified by the Census Bureau.</p>
-<p><b>Prices.</b> <a href="https://www.eia.gov/">U.S. Energy Information Administration</a> retail gasoline and diesel; <a href="https://www.maine.gov/energy/">Maine Department of Energy Resources</a> heating fuel survey; <a href="https://www.gethomeheat.com/">HomeHeat</a> supplier prices; heating oil futures (ICE / NYMEX via Yahoo Finance).</p>
-<p><b>Software.</b> <a href="https://d3js.org/">D3</a> (ISC), <a href="https://github.com/topojson/topojson-client">TopoJSON client</a> (ISC), <a href="https://github.com/mbloch/mapshaper">mapshaper</a> (MPL 2.0), pandas, NumPy, SciPy and GeoPandas.</p>
-<p class="bnote">Model, code and any errors: Shawn Corvec. Not affiliated with or endorsed by any of the sources above.</p>
-</div></div>
-</div></div>
+ <div class="mt-card" style="margin-top:16px"><h2>Closest House races</h2><div class="mt-tw"><table id="close"></table></div><button class="mt-more" id="closeMore" type="button">Show 30 more</button></div>
+</section>
+
+<section class="mt-pane" id="p-senate" role="tabpanel">
+ <div class="mt-grid">
+  <div class="mt-card"><div class="mt-map"><svg class="smap" id="smap" viewBox="0 0 960 600" aria-label="Senate races by chance of a Democratic win"></svg></div>
+   <div class="mt-leg"><span>Republican</span><i style="background:linear-gradient(90deg,#a32215,#e6e6e6,#0b3d91)"></i><span>Democratic or independent</span>&nbsp;·&nbsp;grey: no race</div></div>
+  <div>
+   <div class="mt-card mt-race" id="race-senate"><p class="empty">Click a state on the map, or a race below.</p></div>
+   <div class="mt-card" style="margin-top:14px"><h2>Senate seats</h2><p class="mt-sum" id="ssum"></p><svg class="mt-hist" id="shist" viewBox="0 0 360 130"></svg></div>
+  </div>
+ </div>
+ <div class="mt-card" style="margin-top:16px"><h2>Senate races</h2><div class="mt-tw"><table id="sen"></table></div><button class="mt-more" id="senMore" type="button"></button></div>
+</section>
+
+<section class="mt-pane" id="p-gov" role="tabpanel">
+ <div class="mt-grid">
+  <div class="mt-card"><div class="mt-map"><svg class="smap" id="gmap" viewBox="0 0 960 600" aria-label="Governor races by chance of a Democratic win"></svg></div>
+   <div class="mt-leg"><span>Republican</span><i style="background:linear-gradient(90deg,#a32215,#e6e6e6,#0b3d91)"></i><span>Democratic</span>&nbsp;·&nbsp;grey: no race</div></div>
+  <div><div class="mt-card mt-race" id="race-gov"><p class="empty">Click a state on the map, or a race below.</p></div>
+   <div class="mt-card" style="margin-top:14px"><h2>Governors</h2><p class="mt-sum" id="gsum"></p></div></div>
+ </div>
+ <div class="mt-card" style="margin-top:16px"><h2>Governor races</h2><div class="mt-tw"><table id="gov"></table></div><button class="mt-more" id="govMore" type="button"></button></div>
+</section>
+
+<section class="mt-pane" id="p-polls" role="tabpanel">
+ <div class="mt-card"><h2>National polls</h2>
+  <div class="charts2"><div><p class="ci" id="gci"></p><svg id="gchart" class="tsc" viewBox="0 0 640 320" aria-label="Generic ballot trend"></svg><p class="mt-note">Generic ballot, Democrats minus Republicans. Dots are single polls, adjusted for pollster lean; diamonds are published averages.</p></div>
+  <div><p class="ci" id="aci"></p><svg id="achart" class="tsc" viewBox="0 0 640 320" aria-label="Presidential approval trend"></svg><p class="mt-note">Trump's net job approval, approve minus disapprove.</p></div></div>
+  <p class="mt-note"><a href="about.html#polls">How the poll trend is built</a></p></div>
+ <div class="mt-card" style="margin-top:16px"><h2>How each pollster leans</h2><p class="mt-note" style="margin:0 0 8px">Points each pollster runs above (Democratic) or below (Republican) the field, pollsters active in the last 120 days.</p><div class="mt-tw"><table id="phouse"></table></div></div>
+</section>
+
+<footer class="mt-foot"><a href="about.html">How the forecast works, and sources</a></footer>
+</div>
 <div class="tip" id="tip"></div>
 <script>
-const $=s=>document.querySelector(s);let D,gi,STATES=[],SPATH=null;
-const col=p=>{const t=Math.max(0,Math.min(1,p));if(t>=.5){const k=(t-.5)/.5;return mix('#e6e6e6','#0b3d91',k)}const k=(.5-t)/.5;return mix('#e6e6e6','#a32215',k)};
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];let D,gi,E=0,STATES=[],SEL={house:null,senate:null,gov:null},SHOW={close:18,sen:false,gov:false};
+const col=p=>{const t=Math.max(0,Math.min(1,p));if(t>=.5)return mix('#e6e6e6','#0b3d91',(t-.5)/.5);return mix('#e6e6e6','#a32215',(.5-t)/.5)};
 function mix(a,b,k){const h=x=>[1,3,5].map(i=>parseInt(x.slice(i,i+2),16));const A=h(a),B=h(b);return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*k).toString(16).padStart(2,'0')).join('')}
-const ORDER=["WA","OR","CA","NV","ID","UT","AZ","MT","WY","CO","NM","ND","SD","NE","KS","OK","TX","MN","IA","MO","AR","LA","WI","IL","MS","MI","IN","KY","TN","AL","OH","WV","GA","FL","SC","NC","VA","PA","NY","VT","NH","ME","MA","RI","CT","NJ","DE","MD","AK","HI"];
+const pct=p=>p>=.995?'>99%':p<=.005?'<1%':(100*p).toFixed(0)+'%';
+const mg=v=>v==null?'–':(v>=0?'D+':'R+')+Math.abs(v).toFixed(1);
+const pvi=v=>v==null?'':(v>=0?'D+':'R+')+Math.abs(v);
+const pc=p=>`<td class="n pd" style="color:${p>=.5?'#0b3d91':'#a32215'}">${pct(p)}</td>`;
+const who=s=>/^none|new seat/i.test(s.member||'')||!s.member?'New seat':s.open?`Open seat (${s.member} not running)`:s.member;
+const pollTxt=r=>r.n_polls?`${r.n_polls} poll${r.n_polls>1?'s':''}, average ${mg(r.poll_margin)}`:'no polls';
 fetch('data/model.json').then(r=>r.json()).then(j=>{D=j;init()});
-function init(){const H=D.house;const g=H.grid;$('#E').value=H.E0;$('#sub').textContent=`Generated ${D.generated} · inputs as of ${D.asof} · House ${H.seats.length} seats on the 2026 maps · Senate ${D.senate.races.length} races`;
- $('#agg').textContent='Generic-ballot aggregates today: '+D.generic.map(a=>`${a.source} D${a.margin>=0?'+':''}${a.margin}`).join(' · ')+` → our poll trend D+${D.polls?D.polls.generic_now.toFixed(1):'?'}${D.polls&&D.polls.bias?`, ${D.polls.bias} for self-reported turnout (likely-voter screens overstate young voters' turnout)`:''} = model environment D${H.E_now>=0?'+':''}${H.E_now} (slider starts at ${H.E0}): House ${H.now.mean} seats (${H.now.p10}–${H.now.p90}), P(majority) ${(100*H.now.p_maj).toFixed(0)}% · Senate P(D ≥ 51) ${(100*D.senate.now.p51plus).toFixed(0)}%, P(R loses majority) ${(100*D.senate.now.p_r_lose).toFixed(0)}%`;
- $('#method').innerHTML=`<b>House:</b> ${D.notes.house}.<br><b>Senate:</b> ${D.notes.senate}.<br><b>Backtests:</b> ${D.notes.backtests}.`;
- $('#notup').textContent=`D ${D.senate.now_d-D.senate.d_up}, R ${D.senate.now_r-D.senate.r_up}`;
- const byst={};H.seats.forEach(s=>{(byst[s.state]=byst[s.state]||[]).push(s)});
- buildMaps();
- if(D.fuel){const F=D.fuel;const n=document.createElement('div');n.className='bnote';n.id='fuel';n.innerHTML=`<b>Fuel-price scenarios</b> (EIA week of ${F.asof}): regular gasoline $${F.gas} (a year ago $${F.gas_yr_ago}), diesel $${F.diesel} (a year ago $${F.diesel_yr_ago}). Today's prices are already in the polls; each further $1 on gasoline by November has meant about ${F.approval_per_dollar} points of net approval, roughly D${F.per_dollar>=0?'+':''}${F.per_dollar} on the generic ballot (noisy: -0.2 to -2.9 per $1 across presidencies). Gasoline in November → slider: `+F.rows.map(r=>`$${r.gas.toFixed(2)} → D${r.E>=0?'+':''}${r.E}`).join(' · ')+'.';$('#agg').after(n)}
- pollsCard();$('#E').addEventListener('input',render);$('#reset').addEventListener('click',()=>{$('#E').value=H.E0;render()});render()}
+
+function init(){const H=D.house;
+ const d=new Date(D.asof+'T12:00:00');$('#upd').textContent='Updated '+d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+ $('#E').value=H.E0;const pos=v=>`${(v+10)/24*100}%`;$('#tick0').style.left=pos(0);$('#tickT').style.left=pos(H.E0);const f=(H.E0+10)/24;$('#tickT').style.setProperty('--tx',f>.8?'-85%':f<.2?'-15%':'-50%');$('#tickT').textContent=`Today's polls ${mg(H.E0).replace('.0','')}`;
+ $('#E').addEventListener('input',render);$('#reset').addEventListener('click',()=>{$('#E').value=H.E0;render()});
+ $$('.mt-tabs button').forEach(b=>b.addEventListener('click',()=>tab(b.dataset.p)));
+ const opts=[...H.seats.map(s=>`${s.seat} · ${s.member||'open seat'}`),...D.senate.races.map(r=>`${r.state} Senate${r.special?' (special)':''} · ${r.dem||'?'} v ${r.rep||'?'}`),...(D.governor?D.governor.races.map(r=>`${r.state} Governor · ${r.dem||'?'} v ${r.rep||'?'}`):[])];
+ $('#places').innerHTML=opts.map(o=>`<option value="${o}">`).join('');
+ $('#find').addEventListener('change',e=>find(e.target.value));$('#find').addEventListener('keydown',e=>{if(e.key==='Enter')find(e.target.value)});
+ $('#closeMore').addEventListener('click',()=>{SHOW.close+=30;render()});$('#senMore').addEventListener('click',()=>{SHOW.sen=!SHOW.sen;render()});$('#govMore').addEventListener('click',()=>{SHOW.gov=!SHOW.gov;render()});
+ const hash=location.hash.slice(1);if(['house','senate','gov','polls'].includes(hash))tab(hash);
+ buildMaps();pollsTab();render();preselect()}
+function preselect(){const near=a=>a.slice().sort((x,y)=>Math.abs(x.p[gi]-.5)-Math.abs(y.p[gi]-.5))[0];
+ SEL.house=near(D.house.seats).seat;const s=near(D.senate.races);SEL.senate=s.state+(s.special?'|sp':'');if(D.governor)SEL.gov=near(D.governor.races).state;for(const k of ['house','senate','gov'])if(SEL[k])panel(k)}
+
+function tab(p){$$('.mt-tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.p===p));$$('.mt-pane').forEach(x=>x.classList.toggle('on',x.id==='p-'+p));history.replaceState(null,'','#'+p)}
+
+const NAMES={AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
+function find(v){v=(v||'').trim();if(!v)return;const H=D.house;
+ let m=v.match(/^([A-Za-z]{2})-(\d+)/);if(m){const s=H.seats.find(x=>x.seat.toUpperCase()===(m[1]+'-'+(+m[2])).toUpperCase());if(s){tab('house');pick('house',s.seat);return}}
+ m=v.match(/^([A-Za-z]{2}) (Senate|Governor)/i);let st=m?m[1].toUpperCase():null,kind=m?m[2].toLowerCase():null;
+ if(!st){const n=Object.entries(NAMES).find(([k,nm])=>nm.toLowerCase().startsWith(v.toLowerCase())||k.toLowerCase()===v.toLowerCase());if(n)st=n[0]}
+ if(!st)return;if(!kind)kind=D.senate.races.some(r=>r.state===st)?'senate':(D.governor&&D.governor.races.some(r=>r.state===st))?'governor':'house';
+ if(kind==='senate'){tab('senate');pick('senate',st+(/special/i.test(v)?'|sp':''))}else if(kind==='governor'){tab('gov');pick('gov',st)}
+ else{tab('house');const s=H.seats.find(x=>x.state===st);if(s)pick('house',s.seat)}}
+
+function pick(sec,key){SEL[sec]=key;$$(sec==='house'?'path.t':`#${sec==='senate'?'smap':'gmap'} path.sp`).forEach(p=>p.classList.toggle('sel',(p.dataset.seat||p.dataset.st)===String(key).split('|')[0]));panel(sec)}
+
+function panel(sec){const el=$('#race-'+sec);const key=SEL[sec];if(!key)return;
+ if(sec==='house'){const s=D.house.seats.find(x=>x.seat===key);if(!s)return;const p=s.p[gi],m=s.mu+(E-D.house.E_now);
+  el.innerHTML=`<h3>${s.seat}</h3><p class="who">${who(s)}${s.open?'':(s.inc>0?' · Democratic incumbent':s.inc<0?' · Republican incumbent':'')}</p>${bar(p,'Democrat','Republican')}
+  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd><dt>Partisan lean</dt><dd>${pvi(s.cook_pvi)} (Cook PVI)</dd><dt>Polls</dt><dd>${pollTxt(s)}</dd>${s.rating!=null?`<dt>Race raters</dt><dd>${pct(s.rating)} Democratic</dd>`:''}${s.money_d!=null?`<dt>Raised by June 30</dt><dd>D $${(s.money_d/1e6).toFixed(1)}M · R $${(s.money_r/1e6).toFixed(1)}M</dd>`:''}</dl>`;return}
+ const S=sec==='senate'?D.senate:D.governor,[st,sp]=String(key).split('|');const r=S.races.find(x=>x.state===st&&(!!x.special)===(sp==='sp'))||S.races.find(x=>x.state===st);if(!r)return;
+ const slope=sec==='senate'?S.nat_slope:S.slope,m=r.mu+(E-S.E_now)*slope,p=r.p[gi],ind=r.dem_party&&r.dem_party!=='D';
+ el.innerHTML=`<h3>${NAMES[r.state]||r.state} ${sec==='senate'?'Senate':'Governor'}${r.special?' (special)':''}</h3><p class="who">${r.dem||'?'} (${r.dem_party||'D'}) v ${r.rep||'?'} (R)${r.inc?'':' · open seat'}</p>${bar(p,ind?'Independent':'Democrat','Republican')}
+  <dl><dt>Expected margin</dt><dd>${mg(m)}</dd>${r.cook_pvi!=null?`<dt>Partisan lean</dt><dd>${pvi(r.cook_pvi)} (Cook PVI)</dd>`:''}<dt>Polls</dt><dd>${pollTxt(r)}</dd>${r.cook?`<dt>Cook rating</dt><dd>${r.cook}</dd>`:''}</dl>${r.prior_note?`<p class="mt-note">${r.prior_note}</p>`:''}`}
+function bar(p,a,b){return `<div class="pp"><span style="color:var(--dd)">${a} ${pct(p)}</span><span style="color:var(--rd)">${pct(1-p)} ${b}</span></div><div class="pbar" role="img" aria-label="${a} ${pct(p)}, ${b} ${pct(1-p)}"><i style="width:${100*p}%"></i><i style="width:${100*(1-p)}%"></i></div>`}
+
 function buildMaps(){fetch('data/districts_2026.topo.json').then(r=>r.json()).then(topo=>{
  const H=D.house,obj=topo.objects[Object.keys(topo.objects)[0]],fc=topojson.feature(topo,obj);
  const proj=d3.geoAlbersUsa().fitSize([960,600],fc),path=d3.geoPath(proj),bySeat=Object.fromEntries(H.seats.map(s=>[s.seat,s]));
  const svg=d3.select('#hmapsvg'),g=svg.append('g');
- g.selectAll('path.t').data(fc.features).join('path').attr('class',f=>'t'+((bySeat[f.properties.seat]||{}).open?' open':'')).attr('d',path)
-  .attr('data-seat',f=>f.properties.seat).on('mousemove',(e,f)=>{const s=bySeat[f.properties.seat];if(s)tip(e,s)}).on('mouseleave',()=>{$('#tip').style.display='none'});
+ g.selectAll('path.t').data(fc.features).join('path').attr('class',f=>'t'+((bySeat[f.properties.seat]||{}).open?' open':'')).attr('d',path).attr('data-seat',f=>f.properties.seat)
+  .on('mousemove',(e,f)=>{const s=bySeat[f.properties.seat];if(s)tipAt(e,`<b>${s.seat}</b> ${who(s)}<br>Democrat ${pct(s.p[gi])}`)}).on('mouseleave',()=>{$('#tip').style.display='none'})
+  .on('click',(e,f)=>pick('house',f.properties.seat));
  const st=f=>f.properties.seat.split('-')[0];
  g.append('path').attr('class','stb').attr('d',path(topojson.mesh(topo,obj,(a,b)=>a===b||st(a)!==st(b))));
  const zoom=d3.zoom().scaleExtent([1,24]).translateExtent([[0,0],[960,600]]).on('zoom',e=>g.attr('transform',e.transform));
  svg.call(zoom);$('#zreset').addEventListener('click',()=>svg.transition().duration(400).call(zoom.transform,d3.zoomIdentity));
- // state shapes for the Senate and governor maps, merged from the districts
- const states={};obj.geometries.forEach(gm=>{(states[gm.properties.seat.split('-')[0]]=states[gm.properties.seat.split('-')[0]]||[]).push(gm)});
- STATES=Object.entries(states).map(([k,gs])=>({st:k,f:topojson.merge(topo,gs)}));SPATH=path;
- for(const [id,sec] of [['#smap','senate'],['#gmap','governor']]){if(!D[sec])continue;const races=Object.fromEntries(D[sec].races.map(r=>[r.state,r]));
+ const states={};obj.geometries.forEach(gm=>{const k=gm.properties.seat.split('-')[0];(states[k]=states[k]||[]).push(gm)});
+ STATES=Object.entries(states).map(([k,gs])=>({st:k,f:topojson.merge(topo,gs)}));
+ for(const [id,sec,key] of [['#smap','senate','senate'],['#gmap','governor','gov']]){if(!D[sec])continue;const races=Object.fromEntries(D[sec].races.map(r=>[r.state,r]));
   d3.select(id).selectAll('path.sp').data(STATES).join('path').attr('class',d=>'sp'+(races[d.st]?'':' none')).attr('d',d=>path(d.f)).attr('data-st',d=>d.st).attr('data-sec',sec)
-   .on('mousemove',(e,d)=>{const r=races[d.st];if(!r)return;const t=$('#tip');t.style.display='block';t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+14)+'px';
-     t.innerHTML=`<b>${d.st}${r.special?' (special)':''}</b> ${r.dem||'?'} (${r.dem_party||'D'}) v ${r.rep||'?'} (R)<br><b>P(D${r.dem_party&&r.dem_party!=='D'?'/I':''}) ${(100*r.p[gi]).toFixed(0)}%</b> · ${r.n_polls} polls${r.poll_margin!=null?`, avg ${r.poll_margin>=0?'+':''}${r.poll_margin}`:''}`})
-   .on('mouseleave',()=>{$('#tip').style.display='none'})}
- render()})}
-function tsChart(sel,ciSel,tr,band,polls,ci,nowPt,marks,o){if(!tr||!tr.length)return;const W=640,Hh=320,m={l:44,r:marks.length?112:18,t:10,b:30};marks=marks.filter(k=>!/^average$/i.test(k.label));
+   .on('mousemove',(e,d)=>{const r=races[d.st];if(r)tipAt(e,`<b>${NAMES[d.st]||d.st}</b><br>${r.dem||'?'} v ${r.rep||'?'}<br>${r.dem_party&&r.dem_party!=='D'?'Independent':'Democrat'} ${pct(r.p[gi])}`)})
+   .on('mouseleave',()=>{$('#tip').style.display='none'}).on('click',(e,d)=>{if(races[d.st])pick(key,d.st)})}
+ render();for(const k of ['house','senate','gov'])if(SEL[k])pick(k,SEL[k])})}
+function tipAt(e,h){const t=$('#tip');t.style.display='block';t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+14)+'px';t.innerHTML=h}
+
+function render(){const H=D.house;E=+$('#E').value;gi=H.grid.findIndex(x=>Math.abs(x-E)<1e-6);
+ $('#Ev').textContent=E>=0?`${E.toFixed(1)} points`:`−${Math.abs(E).toFixed(1)} points (a Republican lead)`;document.documentElement.style.setProperty('--ev',E>=0?'#0b3d91':'#a32215');
+ $('#reset').style.visibility=Math.abs(E-H.E0)<1e-6?'hidden':'visible';
+ const k=E.toFixed(1),hd=H.dist[k],sd=D.senate.dist[k],gd=D.governor?D.governor.dist[k]:null,jt=D.senate.joint?D.senate.joint[k]:null;
+ $('#oH').textContent=pct(hd.p_maj);$('#oHs').textContent=`${hd.mean.toFixed(0)} seats expected (${hd.p10}–${hd.p90}); 218 needed`;
+ $('#oS').textContent=pct(sd.p51plus);$('#oSs').textContent=sd.p_r_lose!=null?`Republicans lose the majority: ${pct(sd.p_r_lose)}, counting independents`:'';
+ $('#oB').textContent=jt?pct(jt.dd):'–';$('#oBs').textContent=jt?`Republicans keep both: ${pct(jt.rr)}`:'';
+ if(gd){$('#oG').textContent=gd.mean.toFixed(0);$('#oGs').textContent=`likely ${gd.p10}–${gd.p90}; now ${D.governor.now.now_d}`}
+ $$('path.t').forEach(t=>{const s=H.seats.find(x=>x.seat===t.dataset.seat);if(s)t.style.fill=col(s.p[gi])});
+ $$('path.sp').forEach(p=>{const sec=D[p.dataset.sec];if(!sec)return;const r=sec.races.find(x=>x.state===p.dataset.st&&!x.special)||sec.races.find(x=>x.state===p.dataset.st);if(r)p.style.fill=col(r.p[gi])});
+ $('#hsum').innerHTML=`Democrats win <b>${hd.mean.toFixed(0)}</b> seats in the average simulation; 8 in 10 land between ${hd.p10} and ${hd.p90}.`;hist('#hhist',hd.hist,218,140);
+ $('#ssum').innerHTML=`Democrats hold <b>${sd.mean.toFixed(1)}</b> seats on average (${sd.p10}–${sd.p90})${sd.ind_mean?`; independents win ${sd.ind_mean.toFixed(1)} more`:''}.`;hist('#shist',sd.hist,51,130);
+ // closest House races
+ const close=H.seats.map(s=>({...s,pp:s.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)).slice(0,SHOW.close);
+ $('#close').innerHTML='<thead><tr><th>District</th><th>Member</th><th class="n">Lean</th><th class="n">Polls</th><th class="n">Chance D</th></tr></thead><tbody>'+close.map(s=>`<tr data-k="${s.seat}"><td><b>${s.seat}</b></td><td>${who(s)}</td><td class="n">${pvi(s.cook_pvi)}</td><td class="n">${s.n_polls?mg(s.poll_margin):'–'}</td>${pc(s.pp)}</tr>`).join('')+'</tbody>';
+ $$('#close tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('house',tr.dataset.k);$('#race-house').scrollIntoView({block:'nearest',behavior:'smooth'})}));
+ // Senate
+ const S=D.senate,sr=S.races.map(r=>({...r,pp:r.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)),scomp=sr.filter(r=>r.pp>0.03&&r.pp<0.97),sshow=SHOW.sen?sr:scomp;
+ $('#sen').innerHTML='<thead><tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Expected</th><th class="n">Chance D/I</th></tr></thead><tbody>'+sshow.map(r=>`<tr data-k="${r.state}${r.special?'|sp':''}"><td><b>${NAMES[r.state]||r.state}</b>${r.special?' (special)':''}</td><td>${r.dem||'?'}${r.dem_party&&r.dem_party!=='D'?' (I)':''} v ${r.rep||'?'}</td><td class="n">${r.n_polls?mg(r.poll_margin):'–'}</td><td class="n">${mg(r.mu+(E-S.E_now)*S.nat_slope)}</td>${pc(r.pp)}</tr>`).join('')+'</tbody>';
+ $('#senMore').textContent=SHOW.sen?`Show competitive races only`:`Show all ${sr.length} races (${sr.length-scomp.length} safe)`;
+ $$('#sen tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('senate',tr.dataset.k);$('#race-senate').scrollIntoView({block:'nearest',behavior:'smooth'})}));
+ // governors
+ if(D.governor){const G=D.governor,gr=G.races.map(r=>({...r,pp:r.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)),gc=gr.filter(r=>r.pp>0.03&&r.pp<0.97),gs=SHOW.gov?gr:gc;
+  $('#gsum').innerHTML=`Democrats hold <b>${gd.mean.toFixed(1)}</b> governorships on average (${gd.p10}–${gd.p90}); a majority of 26 or more: ${pct(gd.p_d_majority)}. Today ${G.now.now_d} Democratic, ${G.now.now_r} Republican.`;
+  $('#gov').innerHTML='<thead><tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Expected</th><th class="n">Chance D</th></tr></thead><tbody>'+gs.map(r=>`<tr data-k="${r.state}"><td><b>${NAMES[r.state]||r.state}</b></td><td>${r.dem||'?'} v ${r.rep||'?'}${r.inc?'':' · open'}</td><td class="n">${r.n_polls?mg(r.poll_margin):'–'}</td><td class="n">${mg(r.mu+(E-G.E_now)*G.slope)}</td>${pc(r.pp)}</tr>`).join('')+'</tbody>';
+  $('#govMore').textContent=SHOW.gov?`Show competitive races only`:`Show all ${gr.length} races (${gr.length-gc.length} safe)`;
+  $$('#gov tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('gov',tr.dataset.k);$('#race-gov').scrollIntoView({block:'nearest',behavior:'smooth'})}))}
+ for(const s of ['house','senate','gov'])if(SEL[s])panel(s)}
+
+function hist(sel,h,thr,Hh){const svg=$(sel),W=360;const ks=Object.keys(h).map(Number).sort((a,b)=>a-b);const tot=Object.values(h).reduce((a,b)=>a+b,0);
+ // trim the far tails (<0.5% of simulations) so the body is readable
+ let c=0,lo=ks[0],hi=ks[ks.length-1];for(const k of ks){c+=h[k];if(c/tot>0.005){lo=k;break}}c=0;for(const k of [...ks].reverse()){c+=h[k];if(c/tot>0.005){hi=k;break}}
+ const x0=lo-1,x1=hi+1,mx=Math.max(...ks.filter(k=>k>=lo&&k<=hi).map(k=>h[k]));const sx=v=>12+(v-x0)/(x1-x0)*(W-24),sy=v=>Hh-22-(v/mx)*(Hh-44),bw=Math.max(1,(W-24)/(x1-x0)-1);
+ let s='';ks.filter(k=>k>=lo&&k<=hi).forEach(k=>{s+=`<rect x="${sx(k)-bw/2}" y="${sy(h[k])}" width="${bw}" height="${Hh-22-sy(h[k])}" fill="${k>=thr?'#1f5fbf':'#b3261e'}" opacity=".85"/>`});
+ s+=`<line x1="${sx(thr-.5)}" x2="${sx(thr-.5)}" y1="16" y2="${Hh-22}" stroke="#1b1d22" stroke-dasharray="3 2"/><text x="${sx(thr-.5)+4}" y="12">${thr} seats for control</text>`;
+ [lo,Math.round((lo+hi)/2),hi].forEach(t=>{s+=`<text x="${sx(t)}" y="${Hh-6}" text-anchor="middle">${t}</text>`});svg.innerHTML=s}
+
+function pollsTab(){const P=D.polls;if(!P)return;
+ tsChart('#gchart','#gci',P.generic_trend,P.generic_band,P.generic_polls,P.generic_ci,P.generic_t1,D.generic.map(a=>({label:a.source,v:a.margin})),{col:'#1f5fbf'},'Generic ballot');
+ tsChart('#achart','#aci',P.approval_trend,P.approval_band,P.approval_polls,P.approval_ci,P.approval_t1,[],{col:'#8a2d1c'},'Net approval');
+ const he=Object.entries(P.house_effects).sort((a,b)=>b[1].effect-a[1].effect);
+ $('#phouse').innerHTML='<thead><tr><th>Pollster</th><th class="n">Lean</th><th class="n">Polls, 120 days</th></tr></thead><tbody>'+he.map(([k,v])=>`<tr><td>${k}</td><td class="n" style="color:${v.effect>0?'#0b3d91':'#a32215'}">${mg(v.effect)}</td><td class="n" style="color:var(--muted)">${v.polls_120d}</td></tr>`).join('')+'</tbody>'}
+
+function tsChart(sel,ciSel,tr,band,polls,ci,nowPt,marks,o,name){if(!tr||!tr.length)return;const W=640,Hh=320,m={l:44,r:marks.length?112:18,t:10,b:30};marks=marks.filter(k=>!/^average$/i.test(k.label));
  const t0=Date.now()-365*864e5,P=d=>new Date(d+'T12:00:00'),tr2=tr.map(([d,v])=>[P(d),v]).filter(p=>p[0]>=t0),bd=(band||[]).map(([d,lo,hi])=>[P(d),lo,hi]).filter(p=>p[0]>=t0),pl=(polls||[]).map(p=>({d:P(p[0]),a:p[1],r:p[2],who:p[3],pop:p[4],n:p[5]})).filter(p=>p.d>=t0);
  if(nowPt){const nd=P(nowPt[0]);const cut=a=>a.filter(p=>p[0]<=nd);const bi=d3.bisector(p=>p[0]).left(bd,nd);
   const itp=(a,b,k)=>a[k]+(b[k]-a[k])*((nd-a[0])/((b[0]-a[0])||1));const b0=bd[Math.max(bi-1,0)],b1=bd[Math.min(bi,bd.length-1)];
-  tr2.splice(0,tr2.length,...cut(tr2),[nd,nowPt[1]]);if(bd.length){const lo_=itp(b0,b1,1),hi_=itp(b0,b1,2);bd.splice(0,bd.length,...cut(bd),[nd,lo_,hi_])}}
+  tr2.splice(0,tr2.length,...cut(tr2),[nd,nowPt[1]]);if(bd.length){bd.splice(0,bd.length,...cut(bd),[nd,itp(b0,b1,1),itp(b0,b1,2)])}}
  const last=tr2[tr2.length-1];const xs=d3.scaleTime().domain([new Date(t0),new Date(Math.max(last[0],Date.now()))]).range([m.l,W-m.r]);
- const vals=bd.flatMap(b=>[b[1],b[2]]).concat(tr2.map(p=>p[1]),marks.map(k=>k.v),pl.map(p=>p.a));let lo=d3.quantile(vals.slice().sort(d3.ascending),0.01),hi=d3.quantile(vals.slice().sort(d3.ascending),0.99);lo=Math.min(lo,d3.min(tr2,p=>p[1])-2,0);hi=Math.max(hi,d3.max(tr2,p=>p[1])+2);
+ const vals=bd.flatMap(b=>[b[1],b[2]]).concat(tr2.map(p=>p[1]),marks.map(k=>k.v),pl.map(p=>p.a)).sort(d3.ascending);let lo=d3.quantile(vals,0.01),hi=d3.quantile(vals,0.99);lo=Math.min(lo,d3.min(tr2,p=>p[1])-2,0);hi=Math.max(hi,d3.max(tr2,p=>p[1])+2);
  const ys=d3.scaleLinear().domain([lo,hi]).nice().range([Hh-m.b,m.t]);const svg=d3.select(sel);svg.selectAll('*').remove();const fmt=v=>(v>=0?'+':'')+v.toFixed(1);
  svg.append('g').attr('class','grid').selectAll('line').data(ys.ticks(6)).join('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',ys).attr('y2',ys);
  svg.append('line').attr('x1',m.l).attr('x2',W-m.r).attr('y1',ys(0)).attr('y2',ys(0)).attr('stroke','#9a978e').attr('stroke-dasharray','3,3');
@@ -181,49 +349,20 @@ function tsChart(sel,ciSel,tr,band,polls,ci,nowPt,marks,o){if(!tr||!tr.length)re
  svg.append('g').selectAll('circle').data(pl).join('circle').attr('cx',p=>xs(p.d)).attr('cy',p=>ys(Math.max(lo,Math.min(hi,p.a)))).attr('r',2.6).attr('fill',o.col).attr('opacity',0.28);
  svg.append('path').attr('d',d3.line().x(p=>xs(p[0])).y(p=>ys(p[1])).curve(d3.curveMonotoneX)(tr2)).attr('fill','none').attr('stroke',o.col).attr('stroke-width',2.6);
  svg.append('circle').attr('cx',xs(last[0])).attr('cy',ys(last[1])).attr('r',4).attr('fill',o.col);
- {const short=l=>l.replace('RealClearPolitics','RCP').replace('Decision Desk HQ','DDHQ').replace('Silver Bulletin','Silver Bulletin').replace('FiftyPlusOne','50+1');
+ {const short=l=>l.replace('RealClearPolitics','RCP').replace('Decision Desk HQ','DDHQ').replace('FiftyPlusOne','50+1');
   const ms=marks.map(k=>({...k,y:ys(k.v)})).sort((a,b)=>a.y-b.y);for(let i=1;i<ms.length;i++)ms[i].ly=Math.max(ms[i].y,(ms[i-1].ly??ms[i-1].y)+14);if(ms.length)ms[0].ly=ms[0].ly??ms[0].y;
   const over=(ms.length?ms[ms.length-1].ly:0)-(Hh-m.b);if(over>0)ms.forEach(k=>k.ly-=over);
   ms.forEach(k=>{svg.append('path').attr('d',d3.symbol(d3.symbolDiamond,34)()).attr('transform',`translate(${W-m.r+8},${k.y})`).attr('fill','#6f6b64');
    svg.append('line').attr('x1',W-m.r+13).attr('x2',W-m.r+20).attr('y1',k.y).attr('y2',k.ly).attr('stroke','#b9b6ad');
    svg.append('text').attr('x',W-m.r+22).attr('y',k.ly+4).text(short(k.label)+' '+fmt(k.v))})}
- if(ci)$(ciSel).innerHTML=`Today: <b style="color:${o.col}">${fmt(last[1])}</b> &nbsp;95% interval ${fmt(ci[0])} to ${fmt(ci[1])}`;
- const g=svg.append('g').style('display','none');g.append('line').attr('y1',m.t).attr('y2',Hh-m.b).attr('stroke','#9a978e');const tb=g.append('text').attr('y',m.t+12).attr('font-weight',600).attr('fill','#1a1a1a');
+ $(ciSel).innerHTML=`${name}: <b style="color:${o.col}">${fmt(last[1])}</b>${ci?` <span style="color:var(--muted)">(likely range ${fmt(ci[0])} to ${fmt(ci[1])})</span>`:''}`;
+ const g=svg.append('g').style('display','none');g.append('line').attr('y1',m.t).attr('y2',Hh-m.b).attr('stroke','#9a978e');const tb=g.append('text').attr('y',m.t+12).attr('font-weight',600).attr('fill','#1b1d22');
  svg.append('rect').attr('x',m.l).attr('y',m.t).attr('width',W-m.l-m.r).attr('height',Hh-m.t-m.b).attr('fill','transparent')
-  .on('mousemove',e=>{const [mx]=d3.pointer(e);const d=xs.invert(mx);const i=d3.bisector(p=>p[0]).center(tr2,d);const p=tr2[i];const b=bd[d3.bisector(q=>q[0]).center(bd,d)];
+  .on('mousemove',e=>{const [mx]=d3.pointer(e);const d=xs.invert(mx);const i=d3.bisector(p=>p[0]).center(tr2,d);const p=tr2[i];
    g.style('display',null).attr('transform',`translate(${xs(p[0])},0)`);const near=pl.filter(q=>Math.abs(q.d-p[0])<3.5*864e5);
-   tb.attr('x',xs(p[0])>W/2?-6:6).attr('text-anchor',xs(p[0])>W/2?'end':'start').text(`${d3.timeFormat('%b %-d, %Y')(p[0])}: ${fmt(p[1])}${b?` (${fmt(b[1])} to ${fmt(b[2])})`:''}`);
-   const t=$('#tip');if(near.length){t.style.display='block';t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+14)+'px';t.innerHTML=near.slice(0,8).map(q=>`${q.who} (${q.pop.toUpperCase()}${q.n?', n='+q.n:''}): ${fmt(q.r)} as published, ${fmt(q.a)} adjusted`).join('<br>')}else t.style.display='none'})
+   tb.attr('x',xs(p[0])>W/2?-6:6).attr('text-anchor',xs(p[0])>W/2?'end':'start').text(`${d3.timeFormat('%b %-d')(p[0])}: ${fmt(p[1])}`);
+   if(near.length)tipAt(e,near.slice(0,8).map(q=>`${q.who} (${q.pop.toUpperCase()}): ${fmt(q.r)}`).join('<br>'));else $('#tip').style.display='none'})
   .on('mouseleave',()=>{g.style('display','none');$('#tip').style.display='none'})}
-function pollsCard(){const P=D.polls;if(!P)return;const g=P.generic_diag;
- $('#pnote').innerHTML=`Our read: <b>D${g.now>=0?'+':''}${g.now.toFixed(1)}</b> (30 d ago ${g['30d_ago'].toFixed(1)}, 60 d ${g['60d_ago'].toFixed(1)}, 90 d ${g['90d_ago'].toFixed(1)}); the model runs at this read ${P.bias?`${P.bias>0?'+':''}${P.bias} (likely-voter screens rely on stated intent, and young voters, the most Democratic group, overstate their turnout; the historical generic-ballot miss of ~3 came mostly from registered-voter averages)`:'with no correction'}; the slider starts at the nearest half point. ${P.n_generic} polls to ${P.last_generic}. Last 30 d: raw change ${g.raw_change_30d>=0?'+':''}${g.raw_change_30d}, after removing pollster mix ${g.adj_change_30d>=0?'+':''}${g.adj_change_30d}.`;
- tsChart('#gchart','#gci',P.generic_trend,P.generic_band,P.generic_polls,P.generic_ci,P.generic_t1,D.generic.map(a=>({label:a.source,v:a.margin})),{col:'#1f5fbf',lab:'D−R',sign:true});tsChart('#achart','#aci',P.approval_trend,P.approval_band,P.approval_polls,P.approval_ci,P.approval_t1,[],{col:'#8a2d1c',lab:'net',sign:true});
- const sh=[['Democrats',g.dem_30d,g.dem_30d_ago],['Republicans',g.rep_30d,g.rep_30d_ago],['Undecided/other',g.und_30d,g.und_30d_ago]];
- $('#pshares').innerHTML='<tr><th>30-day raw mean</th><th class="n">now</th><th class="n">30 d ago</th><th class="n">change</th></tr>'+sh.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[1].toFixed(1)}</td><td class="n">${r[2]==null?'–':r[2].toFixed(1)}</td><td class="n">${r[2]==null?'–':((r[1]-r[2])>=0?'+':'')+(r[1]-r[2]).toFixed(1)}</td></tr>`).join('')+Object.entries(g.by_pop_90d).map(([k,v])=>`<tr><td>${k.toUpperCase()} polls, 90 d (${v.n})</td><td class="n">${v.raw>=0?'+':''}${v.raw.toFixed(1)}</td><td class="n">adj ${v.adj>=0?'+':''}${v.adj.toFixed(1)}</td><td></td></tr>`).join('');
- const he=Object.entries(P.house_effects).sort((a,b)=>b[1].effect-a[1].effect);$('#phouse').innerHTML=he.map(([k,v])=>`<tr><td>${k}</td><td class="n" style="color:${v.effect>0?'#0b3d91':'#a32215'}">${v.effect>=0?'+':''}${v.effect.toFixed(1)}</td><td class="n" style="color:var(--muted)">${v.polls_120d} polls</td></tr>`).join('')}
-function line(sel,tr,marks,zero){const svg=$(sel);const W=+svg.getAttribute('width'),Hh=+svg.getAttribute('height');const pts=tr.map(([d,v])=>[new Date(d).getTime(),v]).filter(p=>p[0]>=Date.now()-400*864e5);if(!pts.length)return;const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]).concat(marks.map(m=>m.v));const x0=Math.min(...xs),x1=Math.max(...xs)+20*864e5;let y0=Math.min(...ys)-1,y1=Math.max(...ys)+1;if(zero!=null){y0=Math.min(y0,zero);y1=Math.max(y1,zero)}
- const sx=v=>28+(v-x0)/(x1-x0)*(W-40),sy=v=>Hh-20-(v-y0)/(y1-y0)*(Hh-30);let s=`<line x1="28" x2="${W-12}" y1="${sy(0)}" y2="${sy(0)}" stroke="#c3c2b7"/>`;
- s+=`<polyline fill="none" stroke="#2a78d6" stroke-width="2.2" points="${pts.map(p=>sx(p[0])+','+sy(p[1])).join(' ')}"/>`;const last=pts[pts.length-1];s+=`<text x="${sx(last[0])+3}" y="${sy(last[1])+4}" fill="#2a78d6" font-weight="700">${last[1]>=0?'+':''}${last[1].toFixed(1)}</text>`;
- marks.forEach(m=>{s+=`<circle cx="${W-14}" cy="${sy(m.v)}" r="2.5" fill="#6f6b64"/>`});for(const yv of [Math.round(y0),Math.round((y0+y1)/2),Math.round(y1)]){s+=`<text x="2" y="${sy(yv)+3}">${yv>=0?'+':''}${yv}</text>`}
- s+=`<text x="28" y="${Hh-6}">${new Date(x0).toLocaleDateString('en-US',{month:'short',year:'2-digit'})}</text><text x="${W-14}" y="${Hh-6}" text-anchor="end">${new Date(last[0]).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</text>`;svg.innerHTML=s}
-function tip(e,s){const p=s.p[gi];const t=$('#tip');t.style.display='block';t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY+14)+'px';
- t.innerHTML=`<b>${s.seat}</b> ${s.member||''}${s.open?' (open)':(s.inc>0?' (D inc.)':s.inc<0?' (R inc.)':'')}<br>Cook PVI ${s.cook_pvi>=0?'D+':'R+'}${Math.abs(s.cook_pvi)} · model margin D${(s.mu+(+$('#E').value-D.house.E_now)>=0?'+':'')}${(s.mu+(+$('#E').value-D.house.E_now)).toFixed(1)}<br><b>P(D) ${(100*p).toFixed(0)}%</b>${s.n_polls?` · ${s.n_polls} poll${s.n_polls>1?'s':''}, avg D${s.poll_margin>=0?'+':''}${s.poll_margin}`:' · no polls'}${s.rating!=null?` · raters' consensus ${(100*s.rating).toFixed(0)}%`:''}${s.money_d!=null?`<br>raised by June 30: D $${(s.money_d/1e6).toFixed(2)}M · R $${(s.money_r/1e6).toFixed(2)}M`:''}`}
-function render(){const E=+$('#E').value;const H=D.house;gi=H.grid.findIndex(x=>Math.abs(x-E)<1e-6);$('#Ev').textContent=(E>=0?'D+':'R+')+Math.abs(E).toFixed(1);
- document.querySelectorAll('.t').forEach(t=>{const s=H.seats.find(x=>x.seat===t.dataset.seat);if(!s)return;if(t.tagName==='path')t.style.fill=col(s.p[gi]);else t.style.background=col(s.p[gi])});
- document.querySelectorAll('path.sp').forEach(p=>{const sec=D[p.dataset.sec];if(!sec)return;const r=sec.races.find(x=>x.state===p.dataset.st&&!x.special)||sec.races.find(x=>x.state===p.dataset.st);if(r)p.style.fill=col(r.p[gi])});
- const d=H.dist[E.toFixed(1)];$('#hmean').textContent=d.mean.toFixed(0);$('#hrng').textContent=`${d.p10}–${d.p90}`;$('#hmaj').textContent=(100*d.p_maj).toFixed(0)+'%';hist('#hhist',d.hist,218,150);
- if(D.governor){const G=D.governor,gd=G.dist[E.toFixed(1)];$('#gmean').textContent=gd.mean.toFixed(1);$('#grng').textContent=`${gd.p10}–${gd.p90}`;$('#gmaj').textContent=(100*gd.p_d_majority).toFixed(0)+'%';
- $('#gnote').textContent=`Now ${G.now.now_d} D / ${G.now.now_r} R; ${G.now.up_d} D and ${G.now.up_r} R seats up. Prior refit on every governor race 1998-2022: ${G.coef.lean} x state lean (half the Senate's), ${G.coef.inc} for an incumbent running, ${G.coef.E} x the national mood; polls from VoteHub with the Senate's corrections; Alaska's top-four ballot counts each party's candidates together.`;
- const gr=G.races.map(r=>({...r,pp:r.p[gi]})).filter(r=>r.pp>0.03&&r.pp<0.97).sort((a,b)=>b.pp-a.pp);
- $('#gov').innerHTML='<tr><th>State</th><th>Race</th><th class="n">Polls</th><th class="n">Poll avg</th><th class="n">Model margin</th><th class="n">P(D)</th></tr>'+gr.map(r=>`<tr><td><b>${r.state}</b></td><td>${r.dem||'?'} (D) v ${r.rep||'?'} (R)${r.inc?(r.inc>0?' · D inc.':' · R inc.'):' · open'}</td><td class="n">${r.n_polls}</td><td class="n">${r.poll_margin==null?'–':(r.poll_margin>=0?'+':'')+r.poll_margin.toFixed(1)}</td><td class="n">${(r.mu+(E-G.E_now)*G.slope>=0?'+':'')+(r.mu+(E-G.E_now)*G.slope).toFixed(1)}</td><td class="n pd" style="color:${r.pp>=.5?'#0b3d91':'#a32215'}">${(100*r.pp).toFixed(0)}%</td></tr>`).join('')+`<tr><td colspan="6" class="bnote">${G.races.length-gr.length} safe races not shown.</td></tr>`}
- const S=D.senate,sd=S.dist[E.toFixed(1)];$('#smean').textContent=sd.mean.toFixed(1);$('#srng').textContent=`${sd.p10}–${sd.p90}`;$('#smaj').textContent=(100*sd.p51plus).toFixed(0)+'%';$('#srlose').textContent=sd.p_r_lose==null?'–':(100*sd.p_r_lose).toFixed(0)+'%';$('#sind').textContent=sd.ind_mean==null?'':`Independent challengers (NE, ID, SD, MT) win ${sd.ind_mean.toFixed(1)} seats on average; they are not counted as Democratic seats. P(R ≤ 49) = Republicans lose the majority, counting them.`+(S.joint?` Joint control (same national draw): D House + D Senate ${(100*S.joint[E.toFixed(1)].dd).toFixed(0)}% · D House + R Senate ${(100*S.joint[E.toFixed(1)].dr).toFixed(0)}% · R House + D Senate ${(100*S.joint[E.toFixed(1)].rd).toFixed(0)}% · R both ${(100*S.joint[E.toFixed(1)].rr).toFixed(0)}%.`:'');hist('#shist',sd.hist,51,130);
- const rows=S.races.map(r=>({...r,pp:r.p[gi]})).sort((a,b)=>a.pp-b.pp);
- $('#sen').innerHTML='<tr><th>State</th><th>Race</th><th class="n">PVI</th><th class="n">Polls</th><th class="n">Poll avg</th><th class="n">Model margin</th><th class="n" title="P(the challenger wins): the Democrat, or the independent where marked (I)">P(D/I)</th><th>Cook</th></tr>'+rows.map(r=>`<tr><td><b>${r.state}</b>${r.special?' (sp.)':''}</td><td title="${r.prior_note||''}">${r.dem||'?'} (${r.dem_party||'D'}) v ${r.rep||'?'} (R)${r.inc?'':' · open'}${r.prior_note?' †':''}</td><td class="n">${r.cook_pvi==null?'':(r.cook_pvi>=0?'D+':'R+')+Math.abs(r.cook_pvi)}</td><td class="n">${r.n_polls}</td><td class="n">${r.poll_margin==null?'–':(r.poll_margin>=0?'+':'')+r.poll_margin.toFixed(1)}</td><td class="n">${(r.mu+(E-S.E_now)*S.nat_slope>=0?'+':'')+(r.mu+(E-S.E_now)*S.nat_slope).toFixed(1)}</td><td class="n pd" style="color:${r.pp>=.5?'#0b3d91':'#a32215'}">${(100*r.pp).toFixed(0)}%</td><td>${r.cook||''}</td></tr>`).join('');
- const close=H.seats.map(s=>({...s,pp:s.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)).slice(0,18);
- $('#close').innerHTML='<tr><th>Seat</th><th>Member</th><th class="n">PVI</th><th class="n">P(D)</th><th class="n">raters</th></tr>'+close.map(s=>`<tr><td><b>${s.seat}</b>${s.open?' · open':''}</td><td>${(s.member||'').slice(0,26)}</td><td class="n">${(s.cook_pvi>=0?'D+':'R+')+Math.abs(s.cook_pvi)}</td><td class="n pd" style="color:${s.pp>=.5?'#0b3d91':'#a32215'}">${(100*s.pp).toFixed(0)}%</td><td class="n">${s.rating!=null?(100*s.rating).toFixed(0)+'%':'–'}</td></tr>`).join('')}
-function hist(sel,h,thr,height){const svg=$(sel);const W=+svg.getAttribute('width'),Hh=height;const ks=Object.keys(h).map(Number).sort((a,b)=>a-b);const tot=Object.values(h).reduce((a,b)=>a+b,0);const x0=ks[0]-1,x1=ks[ks.length-1]+1;const mx=Math.max(...Object.values(h));
- const sx=v=>20+(v-x0)/(x1-x0)*(W-30),sy=v=>Hh-22-(v/mx)*(Hh-34);let s='';ks.forEach(k=>{const v=h[k];s+=`<rect x="${sx(k)-((W-30)/(x1-x0))/2+.5}" y="${sy(v)}" width="${Math.max(1,(W-30)/(x1-x0)-1)}" height="${Hh-22-sy(v)}" fill="${k>=thr?'#2a78d6':'#d9402a'}" opacity=".85"/>`});
- s+=`<line x1="${sx(thr)}" x2="${sx(thr)}" y1="8" y2="${Hh-22}" stroke="#1a1a1a" stroke-dasharray="3 2"/><text x="${sx(thr)+3}" y="16">${thr}</text>`;const ticks=[x0,Math.round((x0+x1)/2),x1];ticks.forEach(t=>{s+=`<text x="${sx(t)}" y="${Hh-8}" text-anchor="middle">${t}</text>`});svg.innerHTML=s}
 </script><!-- sf:start -->
 <footer class="sf">
   <div class="sf-in">
