@@ -127,4 +127,8 @@
     <loc>https://scorvec.com/midterms/about.html</loc>
     <changefreq>weekly</changefreq>
   </url>
+  <url>
+    <loc>https://scorvec.com/midterms/polls.html</loc>
+    <changefreq>weekly</changefreq>
+  </url>
 </urlset>
