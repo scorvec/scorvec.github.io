@@ -43,6 +43,9 @@
     background: rgba(255,255,255,0.75);
   }
   .frame-loading.hidden { display: none; }
+  .buffering { position: absolute; top: 6px; right: 6px; font-size: 0.72rem; color: var(--muted);
+               background: rgba(255,255,255,0.85); border-radius: 4px; padding: 2px 7px; pointer-events: none; }
+  .buffering.hidden { display: none; }
   .hostnote { font-size: 0.72rem; color: var(--muted); padding: 2px 6px; }
 
   /* ONE slim row: transport · slider · pickers · date. It wraps on narrow
@@ -151,6 +154,7 @@
 <div class="frame-wrap">
   <img id="frame" alt="SST anomaly animation frame">
   <div class="frame-loading" id="loading">Loading frames&hellip;</div>
+  <div class="buffering hidden" id="buffering"></div>
 </div>
 
 <div class="regbar" id="regionBar">
@@ -443,8 +447,15 @@ function setupRegion() {
   const s = P.get("start");
   idx = s !== null ? Math.min(Math.max(parseInt(s) || 0, 0), frames.length - 1)
                    : frames.length - 1;     // default: most recent
-  preload(region);
+  // The frame on screen first, alone. The eight-frame window used to start WITH it, so a slow link was
+  // split nine ways and nothing appeared for a long time - it looked broken (user, 2026-09-26). The
+  // window follows once that frame is in (or after 3 s regardless).
   showFrame(idx);
+  let windowStarted = false;
+  const startWindow = () => { if (windowStarted) return; windowStarted = true; preload(region); };
+  if (imgEl.complete && imgEl.naturalWidth) startWindow();
+  else { imgEl.addEventListener("load", startWindow, { once: true }); setTimeout(startWindow, 3000); }
+  slowNote();
   if (P.get("autoplay") === "1" && !playing) play();
 }
 
@@ -463,6 +474,7 @@ function preloadWindow(rid, center) {
   for (let d = 0; d <= span; d++) {
     const k = (center + d) % fr.length;
     const im = new Image();
+    try { im.fetchPriority = "low"; } catch (e) {}
     frameSrc(im, rid, fr[k], manifest.ver);
     if (d === 0) {
       if (im.complete) loadingEl.classList.add("hidden");
@@ -492,6 +504,7 @@ function preloadAll(rid) {
   if (preloaded[rid]) return;
   preloaded[rid] = manifest.regions[rid].frames.map(f => {
     const im = new Image();
+    try { im.fetchPriority = "low"; } catch (e) {}
     frameSrc(im, rid, f, manifest.ver);   // bust cache when sliding-window content changes
     return im;
   });
@@ -505,11 +518,25 @@ function showFrame(i) {
   // Top up the window as the reader moves, until the full set has been
   // fetched. Was gated on !EAGER (mobile only); now that every device starts
   // windowed, desktop needs it too or scrubbing outruns the preloaded frames.
-  if (!preloaded[region] && idx % 4 === 0) preloadWindow(region, idx);
   const f = frames[idx];
-  frameSrc(imgEl, region, f, manifest.ver);
+  try { imgEl.fetchPriority = "high"; } catch (e) {}
+  frameSrc(imgEl, region, f, manifest.ver);          // the visible frame goes out first
+  if (!preloaded[region] && idx % 4 === 0) preloadWindow(region, idx);
   dateEl.textContent = f.label;
   slider.value = idx;
+}
+
+// Say what is happening on a slow link instead of a silent "Loading frames..." (2026-09-26).
+function slowNote() {
+  setTimeout(() => {
+    if (loadingEl.classList.contains("hidden") || /could not be loaded/.test(loadingEl.textContent)) return;
+    loadingEl.innerHTML = "Still loading&hellip; the frame host is slow on this connection. Frames will appear as they arrive.";
+  }, 5000);
+}
+const bufEl = $("buffering");
+function framesReady() {
+  const p = preloaded[region];
+  return p ? p.filter(im => im.complete && im.naturalWidth).length : 0;
 }
 
 function step(d) { showFrame(idx + d); }
@@ -519,10 +546,23 @@ function play() {
   preloadAll(region);          // they want the loop: fetch the rest now
   playing = true;
   $("play").innerHTML = "&#x23F8;";   // pause glyph
+  let waited = 0;
   const tick = () => {
     if (!playing) return;
     // loop back to start at the end
-    showFrame(idx + 1 >= frames.length ? 0 : idx + 1);
+    const nx = idx + 1 >= frames.length ? 0 : idx + 1;
+    const pre = preloaded[region] && preloaded[region][nx];
+    // on a slow link, hold the current frame until the next one has arrived rather than showing a
+    // half-drawn or blank image (up to 10 s, then move on so one missing file cannot stall the loop)
+    if (pre && !(pre.complete && pre.naturalWidth) && waited < 40) {
+      waited++;
+      bufEl.textContent = `Loading frames: ${framesReady()} of ${frames.length}`;
+      bufEl.classList.remove("hidden");
+      timer = setTimeout(tick, 250);
+      return;
+    }
+    waited = 0; bufEl.classList.add("hidden");
+    showFrame(nx);
     timer = setTimeout(tick, baseDelay / speed);
   };
   timer = setTimeout(tick, baseDelay / speed);
@@ -530,6 +570,7 @@ function play() {
 
 function stop() {
   playing = false;
+  if (bufEl) bufEl.classList.add("hidden");
   $("play").innerHTML = "&#x25B6;";
   if (timer) clearTimeout(timer);
 }

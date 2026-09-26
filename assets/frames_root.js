@@ -15,6 +15,9 @@
   var RAW = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/";
   var MIRROR = "https://cdn.jsdelivr.net/gh/scorvec/scorvec.github.io@frames/";
   var onMirror = false, dead = 0, served = 0, deadSaid = false;
+  // rawOk: RAW has answered (the probe, or any frame) - slowness after that is bandwidth, not a block.
+  // pending: frames still waiting on their first host, re-pointed at once if the tab switches hosts.
+  var rawOk = false, stalls = 0, pending = [], STALL_MS = 4500;
   // The switch is remembered for 30 min, not the whole session: a tab parked on
   // the mirror by a passing outage must come back to RAW once it is healthy.
   try {
@@ -35,6 +38,8 @@
     onMirror = true;
     window.FRAME_ROOT = MIRROR;
     try { sessionStorage.setItem("frameHost", "mirror:" + Date.now()); } catch (e) {}
+    var p = pending; pending = [];
+    for (var i = 0; i < p.length; i++) { try { p[i](); } catch (e) {} }
     emit({ mirror: true, why: why });
   }
   window.frameHostIsMirror = function () { return onMirror; };
@@ -51,10 +56,32 @@
     var first = onMirror ? MIRROR : RAW, second = onMirror ? RAW : MIRROR;
     var tries = [first + rel + q, second + rel + q];
     if (local) tries.push(local + q);
-    var k = 0;
+    var k = 0, done = false, tok = {};
+    im._frameTok = tok;                       // a later frameLoad on the same element retires this one
+    var live = function () { return im._frameTok === tok && !done; };
+    var hop = function () { if (live() && k === 0 && tries[1].indexOf(MIRROR) === 0) { k = 1; im.src = tries[1]; } };
+    if (!onMirror) { pending.push(hop); if (pending.length > 400) pending = pending.slice(-200); }   // old entries are long settled
+    // A host that neither answers nor refuses (a web filter silently dropping the connection) would hold
+    // the frame until the browser's own timeout, a minute or more, before onerror walks the chain - that
+    // is the "page looks broken" case (user, 2026-09-26). Until RAW has proved reachable, race the next
+    // host after STALL_MS; whichever arrives first is shown. Once RAW has answered, a slow frame is
+    // bandwidth and a race would only halve it, so no race.
+    setTimeout(function () {
+      if (!live() || k !== 0 || rawOk || onMirror) return;
+      stalls++;
+      var racer = new Image();
+      racer.onload = function () {
+        if (!live() || k !== 0) return;
+        if (tries[1].indexOf(MIRROR) === 0 && stalls >= 2) useMirror("raw stalled");
+        k = 1; im.src = tries[1];           // already in the cache: instant
+      };
+      racer.src = tries[1];
+    }, STALL_MS);
     im.onerror = function () {
+      if (im._frameTok !== tok) return;
       k++;
       if (k < tries.length) { im.src = tries[k]; return; }
+      done = true;
       // Every host failed FOR THIS FRAME. That is only a network verdict if no
       // frame has ever loaded: once a host has served one, a failure means that
       // particular file is missing from the branch (a half-published loop), and
@@ -66,7 +93,10 @@
       if (onFail) onFail(im);
     };
     im.addEventListener("load", function () {
+      if (im._frameTok !== tok) return;
+      done = true;
       served++;
+      if (k === 0 && tries[0].indexOf(RAW) === 0) rawOk = true;
       // A host answering after the verdict retracts it. jsDelivr 404s a path it
       // has not warmed yet, so the first frames of a freshly published loop can
       // all fail and the rest arrive seconds later — which is precisely when the
@@ -75,7 +105,7 @@
       // RAW failed but the mirror served the very same file: RAW is blocked
       // here, not missing a frame. Route the rest of the session to the mirror.
       if (k === 1 && !onMirror && tries[1].indexOf(MIRROR) === 0) useMirror("raw failed, mirror served");
-    });
+    }, { once: true });
     im.src = tries[0];
   };
 
@@ -94,13 +124,16 @@
       fetch(RAW + "assets/sst/anim/anomaly/F00.webp?probe=" + Date.now(), { method: "HEAD", signal: ctrl.signal, cache: "no-store" })
         .then(function (r) {
           clearTimeout(t);
-          if (r.ok || r.status === 404) return;
+          if (r.ok || r.status === 404) { rawOk = true; return; }
           if (r.status >= 500 && left > 0) { setTimeout(function () { probe(left - 1); }, 1500); return; }
           useMirror("probe status " + r.status);
         })
-        .catch(function () {
+        .catch(function (err) {
           clearTimeout(t);
-          if (left > 0) { setTimeout(function () { probe(left - 1); }, 1500); return; }
+          // a 4 s silence on a HEAD request is a blocked or dropped host, not a slow one: switch now (the
+          // retries below cost ~15 s during which every frame sat on RAW). A fast refusal may be a blip.
+          if (err && err.name === "AbortError") { useMirror("probe timed out"); return; }
+          if (left > 0) { setTimeout(function () { probe(left - 1); }, 1000); return; }
           useMirror("probe failed");
         });
     };
