@@ -58,6 +58,13 @@ D2 = {
     "u100":  ("ugrd_pres_abv700mb", "ugrd_pres",  "100 mb",            "inst", "UGRD"),
     "u10":   ("ugrd_pres_abv700mb", "ugrd_pres",  "10 mb",             "inst", "UGRD"),
 }
+# Live-only fields: the vortex loop's total wind needs v at 10/100 hPa, an absolute quantity with no climatology, so
+# the reforecast never fetches them (and D2, which the reforecast and combine iterate, must not list them).
+LIVE_EXTRA = {
+    "v100":  (None, None, "100 mb", "inst", "VGRD"),
+    "v10":   (None, None, "10 mb",  "inst", "VGRD"),
+}
+TABLE = {**D2, **LIVE_EXTRA}
 MAPS = ("t2m", "pr", "mslp", "zg500", "olr", "u850", "u200", "v850", "v200")     # the GEPS page's nine map fields
 VORTEX = ("zg10", "zg100", "t10", "t100", "u10", "u100")                         # the vortex loop's fields
 MEMBER25 = ("zg500", "mslp", "zg100")                                            # per-member, 2.5 deg
@@ -148,10 +155,10 @@ class Acc:
         for t in self.tags:
             if (self.n[t] == 0).any():
                 return None
-            f = self.d[t] if D2[t][3] == "acc" else self.d[t] / self.n[t][:, None, None]
+            f = self.d[t] if TABLE[t][3] == "acc" else self.d[t] / self.n[t][:, None, None]
             out[f"d_{t}"] = f
             if t in self.m:
-                out[f"m_{t}"] = self.m[t] if D2[t][3] == "acc" else self.m[t] / self.n[t][:, None, None]
+                out[f"m_{t}"] = self.m[t] if TABLE[t][3] == "acc" else self.m[t] / self.n[t][:, None, None]
         want = [k for k, sc in enumerate(SCALARS) if sc[1] in self.tags]
         if want:
             if (self.sn[want] == 0).any():

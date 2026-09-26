@@ -31,25 +31,81 @@ concurrency:
 jobs:
   gefs:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
         with:
           sparse-checkout: |
             scripts/gefs
+            scripts/lib
             assets/gefs
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - run: pip install --quiet numpy scipy eccodes matplotlib cartopy
+      # yesterday's anomalies for the change maps and the previous-run overlays live on the frames branch, not main
+      - name: Seed the run archive
+        run: scripts/lib/fetch_frames_ci.sh assets/gefs/anim/runs || true
+      # the reforecast climatology centres, the GEFS control-analysis caches (vortex tail, MJO observed track) and
+      # the reference files carry over between runs; a cold cache only costs downloads
+      - uses: actions/cache@v6
+        with:
+          path: /tmp/gefs_work/clim
+          key: gefs-cache-${{ github.run_id }}
+          restore-keys: gefs-cache-
+      - name: Reference files (release gefs-ref-v1)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download gefs-ref-v1 --repo "$GITHUB_REPOSITORY" -D /tmp/gefs_work/ref --clobber && ls -la /tmp/gefs_work/ref
       - name: GEFS extended run
+        id: run
         run: |
-          python scripts/gefs/gefs_live.py --site . --procs 4 ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
+          python scripts/gefs/gefs_live.py --site . --procs 4 --ref /tmp/gefs_work/ref ${{ inputs.date && format('--date {0}', inputs.date) || '' }} | tee /tmp/gefs.log
+          if ls /tmp/gefs_work/gefs2_*.npz >/dev/null 2>&1; then
+            echo "new=1" >> "$GITHUB_OUTPUT"
+            # the operational drift correction gefs_live just estimated; every product below applies it
+            echo "drift=$(ls assets/gefs/anim/runs/gefs_drift_*.npz 2>/dev/null | tail -1)" >> "$GITHUB_OUTPUT"
+            echo "npz=$(ls /tmp/gefs_work/gefs2_*.npz | tail -1)" >> "$GITHUB_OUTPUT"
+            echo "date=$(ls /tmp/gefs_work/gefs2_*.npz | tail -1 | sed 's/.*gefs2_\([0-9]*\).npz/\1/')" >> "$GITHUB_OUTPUT"
+          fi
+      # the products ported from the GEPS page; each warns rather than failing the run
+      - name: MJO (RMM plume, propagation, hindcast skill)
+        if: steps.run.outputs.new == '1'
+        env:
+          GEFS_DRIFT: ${{ steps.run.outputs.drift }}
+        run: |
+          python scripts/gefs/gefs_mjo.py --npz "${{ steps.run.outputs.npz }}" --date "${{ steps.run.outputs.date }}" --site . \
+            --cache /tmp/gefs_work/clim --ref /tmp/gefs_work/ref || echo "::warning::GEFS MJO failed"
+      - name: Weekly terciles, raw and hindcast-calibrated
+        if: steps.run.outputs.new == '1'
+        env:
+          GEFS_DRIFT: ${{ steps.run.outputs.drift }}
+        run: |
+          python scripts/gefs/gefs_probs.py --npz "${{ steps.run.outputs.npz }}" --date "${{ steps.run.outputs.date }}" --site . \
+            --cache /tmp/gefs_work/clim --ref /tmp/gefs_work/ref || echo "::warning::GEFS terciles failed"
+      - name: Teleconnections, weather regimes, 500 hPa scenarios
+        if: steps.run.outputs.new == '1'
+        env:
+          GEFS_DRIFT: ${{ steps.run.outputs.drift }}
+        run: |
+          for p in telecon regimes clusters; do
+            python scripts/gefs/gefs_$p.py --npz "${{ steps.run.outputs.npz }}" --date "${{ steps.run.outputs.date }}" --site . \
+              --cache /tmp/gefs_work/clim || echo "::warning::GEFS $p failed"
+          done
+      - name: Publish the loops and the run archive (frames branch)
+        if: steps.run.outputs.new == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          dirs=$(find assets/gefs/anim -mindepth 1 -maxdepth 1 -type d | sort | tr '\n' ' ')
+          echo "publishing: $dirs"
+          scripts/lib/publish_frames_ci.sh $dirs
       - name: Commit & push
+        if: steps.run.outputs.new == '1'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # snapshot + clean resync each attempt (strat-history.yml pattern)
+          # snapshot + clean resync each attempt (strat-history.yml pattern); frames and the run archive are gitignored
           SNAP=$(mktemp -d)
           git add -A assets/gefs 2>/dev/null || true
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
@@ -67,7 +123,7 @@ jobs:
           done
           exit 1
       - name: Deploy the site
-        if: success()
+        if: success() && steps.run.outputs.new == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
