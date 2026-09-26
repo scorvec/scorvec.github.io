@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atmospheric dynamics explainers, with live forecasts · Shawn Corvec</title>
+<meta name="description" content="Plain explanations of E–P flux, mountain torque, atmospheric angular momentum, wave activity flux, eddy heat flux, sudden stratospheric warmings, the Hadley cell and the dynamic tropopause, each with a live AIFS-ENS forecast.">
+<link rel="canonical" href="https://scorvec.com/topics/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Atmospheric dynamics explainers, with live forecasts">
+<meta property="og:description" content="Plain explanations of E–P flux, mountain torque, atmospheric angular momentum, wave activity flux, eddy heat flux, sudden stratospheric warmings, the Hadley cell and the dynamic tropopause, each with a live AIFS-ENS forecast.">
+<meta property="og:url" content="https://scorvec.com/topics/">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "CollectionPage",
+ "url": "https://scorvec.com/topics/",
+ "name": "Atmospheric dynamics explainers, with live forecasts",
+ "description": "Plain explanations of E–P flux, mountain torque, atmospheric angular momentum, wave activity flux, eddy heat flux, sudden stratospheric warmings, the Hadley cell and the dynamic tropopause, each with a live AIFS-ENS forecast.",
+ "author": {
+  "@id": "https://scorvec.com/#person"
+ },
+ "mainEntity": {
+  "@type": "ItemList",
+  "itemListElement": [
+   {
+    "@type": "ListItem",
+    "position": 1,
+    "url": "https://scorvec.com/topics/ep-flux.html",
+    "name": "Eliassen–Palm flux and E–P flux divergence"
+   },
+   {
+    "@type": "ListItem",
+    "position": 2,
+    "url": "https://scorvec.com/topics/mountain-torque.html",
+    "name": "Mountain torque and friction torque"
+   },
+   {
+    "@type": "ListItem",
+    "position": 3,
+    "url": "https://scorvec.com/topics/atmospheric-angular-momentum.html",
+    "name": "Atmospheric angular momentum (AAM)"
+   },
+   {
+    "@type": "ListItem",
+    "position": 4,
+    "url": "https://scorvec.com/topics/wave-activity-flux.html",
+    "name": "Wave activity flux (Takaya–Nakamura)"
+   },
+   {
+    "@type": "ListItem",
+    "position": 5,
+    "url": "https://scorvec.com/topics/eddy-heat-flux.html",
+    "name": "100 hPa eddy heat flux"
+   },
+   {
+    "@type": "ListItem",
+    "position": 6,
+    "url": "https://scorvec.com/topics/sudden-stratospheric-warming.html",
+    "name": "Sudden stratospheric warmings and the polar vortex"
+   },
+   {
+    "@type": "ListItem",
+    "position": 7,
+    "url": "https://scorvec.com/topics/hadley-cell.html",
+    "name": "Hadley cell and the mean meridional mass streamfunction"
+   },
+   {
+    "@type": "ListItem",
+    "position": 8,
+    "url": "https://scorvec.com/topics/dynamic-tropopause.html",
+    "name": "Dynamic tropopause and potential vorticity (2 PVU)"
+   }
+  ]
+ }
+}
+</script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .topic { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .topic .crumbs { font-size: 0.92rem; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--c-muted, #5c6b73); font-size: 0.95rem; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: 64rem; margin: 1.6rem auto 0; padding: 0 1.25rem; }
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs figcaption { color: var(--c-muted, #5c6b73); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--c-rule, #dfe3dc); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95rem; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--c-muted, #5c6b73); font-size: 0.92rem; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--c-rule, #dfe3dc); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3rem; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--c-muted, #5c6b73); }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+<article class="topic">
+  <p class="crumbs"><a href="/">Home</a> › Explainers</p>
+  <h1>Atmospheric dynamics explainers, with live forecasts</h1>
+  <p>The diagnostics behind this site's circulation and stratosphere products, each explained with its equations and
+  shown with its current forecast. They are written for meteorologists and students who want to know what a chart is
+  measuring before trusting it.</p>
+  <ul class="hub-list"><li><a href="/topics/ep-flux.html">Eliassen–Palm flux and E–P flux divergence</a><p>What the Eliassen–Palm (E–P) flux and its divergence measure, how to read an E–P cross-section, and a live 15-day AIFS-ENS forecast of E–P flux and wave driving of the zonal-mean flow.</p></li><li><a href="/topics/mountain-torque.html">Mountain torque and friction torque</a><p>How mountain and friction torques exchange angular momentum between the solid Earth and the atmosphere, the equations, how to read torque maps, and live AIFS-ENS forecasts of both torques by mountain range.</p></li><li><a href="/topics/atmospheric-angular-momentum.html">Atmospheric angular momentum (AAM)</a><p>What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the Global Wind Oscillation phase space, and a live AIFS-ENS forecast of relative AAM for the globe and each hemisphere.</p></li><li><a href="/topics/wave-activity-flux.html">Wave activity flux (Takaya–Nakamura)</a><p>What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and blocking, the equation, and a live member-averaged AIFS-ENS forecast at 250 hPa.</p></li><li><a href="/topics/eddy-heat-flux.html">100 hPa eddy heat flux</a><p>Why the zonal-mean poleward eddy heat flux at 100 hPa measures planetary waves entering the stratosphere, how its 40-day mean leads the polar vortex, and a live member-by-member AIFS-ENS forecast for both hemispheres.</p></li><li><a href="/topics/sudden-stratospheric-warming.html">Sudden stratospheric warmings and the polar vortex</a><p>What a sudden stratospheric warming is, split and displacement events, how SSWs reach the surface, a catalogue of every major SSW since 1980 from MERRA-2, and a live AIFS-ENS polar vortex forecast.</p></li><li><a href="/topics/hadley-cell.html">Hadley cell and the mean meridional mass streamfunction</a><p>How the zonal-mean meridional mass streamfunction describes the Hadley, Ferrel and polar cells, how cell strength and edges are measured, and a live AIFS analysis of the overturning against ERA5 1991–2020.</p></li><li><a href="/topics/dynamic-tropopause.html">Dynamic tropopause and potential vorticity (2 PVU)</a><p>What the dynamic tropopause is, how to read potential temperature on the 2-PVU surface, isentropic potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.</p></li></ul>
+  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. Last revised 2026-09-26.</p>
+</article>
+</main>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

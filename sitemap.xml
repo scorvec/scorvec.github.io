@@ -131,4 +131,49 @@
     <loc>https://scorvec.com/midterms/polls.html</loc>
     <changefreq>weekly</changefreq>
   </url>
+  <url>
+    <loc>https://scorvec.com/topics/</loc>
+    <lastmod>2026-09-26</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://scorvec.com/topics/ep-flux.html</loc>
+    <lastmod>2026-09-26</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://scorvec.com/topics/mountain-torque.html</loc>
+    <lastmod>2026-09-26</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://scorvec.com/topics/atmospheric-angular-momentum.html</loc>
+    <lastmod>2026-09-26</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://scorvec.com/topics/wave-activity-flux.html</loc>
+    <lastmod>2026-09-26</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://scorvec.com/topics/eddy-heat-flux.html</loc>
+    <lastmod>2026-09-26</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://scorvec.com/topics/sudden-stratospheric-warming.html</loc>
+    <lastmod>2026-09-26</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://scorvec.com/topics/hadley-cell.html</loc>
+    <lastmod>2026-09-26</lastmod>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://scorvec.com/topics/dynamic-tropopause.html</loc>
+    <lastmod>2026-09-26</lastmod>
+    <priority>0.6</priority>
+  </url>
 </urlset>

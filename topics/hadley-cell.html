@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hadley cell and the mean meridional mass streamfunction: explainer and live analysis · Shawn Corvec</title>
+<meta name="description" content="How the zonal-mean meridional mass streamfunction describes the Hadley, Ferrel and polar cells, how cell strength and edges are measured, and a live AIFS analysis of the overturning against ERA5 1991–2020.">
+<link rel="canonical" href="https://scorvec.com/topics/hadley-cell.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Hadley cell and the mean meridional mass streamfunction: explainer and live analysis">
+<meta property="og:description" content="How the zonal-mean meridional mass streamfunction describes the Hadley, Ferrel and polar cells, how cell strength and edges are measured, and a live AIFS analysis of the overturning against ERA5 1991–2020.">
+<meta property="og:url" content="https://scorvec.com/topics/hadley-cell.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "TechArticle",
+   "@id": "https://scorvec.com/topics/hadley-cell.html#article",
+   "headline": "Hadley cell and the mean meridional mass streamfunction",
+   "name": "Hadley cell and the mean meridional mass streamfunction: explainer and live analysis",
+   "description": "How the zonal-mean meridional mass streamfunction describes the Hadley, Ferrel and polar cells, how cell strength and edges are measured, and a live AIFS analysis of the overturning against ERA5 1991–2020.",
+   "url": "https://scorvec.com/topics/hadley-cell.html",
+   "mainEntityOfPage": "https://scorvec.com/topics/hadley-cell.html",
+   "inLanguage": "en",
+   "author": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "publisher": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "dateModified": "2026-09-26",
+   "about": {
+    "@type": "DefinedTerm",
+    "name": "Hadley cell",
+    "alternateName": [
+     "Hadley circulation",
+     "mean meridional streamfunction",
+     "meridional mass streamfunction",
+     "MMSF",
+     "Ferrel cell",
+     "Hadley cell strength",
+     "Hadley cell edge"
+    ]
+   },
+   "keywords": "Hadley cell, Hadley circulation, mean meridional streamfunction, meridional mass streamfunction, MMSF, Ferrel cell, Hadley cell strength, Hadley cell edge",
+   "image": "https://scorvec.com/hero-supercell-1280.webp",
+   "citation": [
+    "Held, I. M., and A. Y. Hou, 1980: Nonlinear axially symmetric circulations in a nearly inviscid atmosphere. J. Atmos. Sci., 37, 515–533.",
+    "Oort, A. H., and J. J. Yienger, 1996: Observed interannual variability in the Hadley circulation and its connection to ENSO. J. Climate, 9, 2751–2767.",
+    "Dima, I. M., and J. M. Wallace, 2003: On the seasonality of the Hadley cell. J. Atmos. Sci., 60, 1522–1527."
+   ]
+  },
+  {
+   "@type": "BreadcrumbList",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Home",
+     "item": "https://scorvec.com/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Explainers",
+     "item": "https://scorvec.com/topics/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 3,
+     "name": "Hadley cell",
+     "item": "https://scorvec.com/topics/hadley-cell.html"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .topic { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .topic .crumbs { font-size: 0.92rem; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--c-muted, #5c6b73); font-size: 0.95rem; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: 64rem; margin: 1.6rem auto 0; padding: 0 1.25rem; }
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs figcaption { color: var(--c-muted, #5c6b73); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--c-rule, #dfe3dc); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95rem; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--c-muted, #5c6b73); font-size: 0.92rem; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--c-rule, #dfe3dc); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3rem; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--c-muted, #5c6b73); }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+<article class="topic">
+  <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › Hadley cell</p>
+  <h1>Hadley cell and the mean meridional mass streamfunction</h1>
+  <p class="aka">Also called: Hadley circulation, mean meridional streamfunction, meridional mass streamfunction, MMSF, Ferrel cell, Hadley cell strength</p>
+<p>The <b>Hadley cell</b> is the tropical overturning circulation: air rises near the equator, flows poleward aloft,
+sinks in the subtropics and returns toward the equator in the trade winds. It and the weaker Ferrel and polar cells
+are described by the zonal-mean <b>meridional mass streamfunction</b></p>
+<p>$$\Psi(\phi,p)=\frac{2\pi a\cos\phi}{g}\int_0^{p}[v]\,dp'$$</p>
+<p>where $[v]$ is the zonal-mean meridional wind. The mass flowing northward between two pressure levels is the
+difference of $\Psi$ between them, and the streamlines are its contours. With this convention $\Psi>0$ is a clockwise
+cell when latitude runs north to the right and pressure increases downward, which is the Northern Hemisphere Hadley
+cell.</p>
+
+<h2>Strength and edges</h2>
+<ul>
+<li><b>Strength</b> is usually the maximum of $|\Psi|$ near 500 hPa, of order 10<sup>11</sup> kg s<sup>−1</sup> in
+the winter hemisphere's cell.</li>
+<li><b>The edge</b> is the latitude where $\Psi$ at 500 hPa crosses zero on the poleward side of the cell. It marks
+the subtropical dry zones, and its poleward drift in a warming climate is one of the clearest circulation trends.</li>
+<li>The cells follow the sun: the winter hemisphere's cell dominates and extends across the equator, while the summer
+cell nearly vanishes.</li>
+<li>El Niño strengthens the Hadley circulation and pulls its edges equatorward (Oort and Yienger, 1996).</li>
+</ul>
+
+<h2>The live analysis</h2>
+<p>$\Psi$ is computed from the ECMWF AIFS analysis and shown as the anomaly from the ERA5 1991–2020 climatology for the
+same day of year, with the absolute cells contoured and vertical motion drawn as arrows. Each frame is a 7-day running
+mean, so the evolution of the cells is legible through the day-to-day noise.</p>
+  <a class="live" href="/circulation.html#hadley">Open the Hadley cell product in the circulation viewer</a>
+</article>
+<div class="figs">
+<figure><iframe src="/sst_anim.html?embed=1&manifest=mmsf_manifest.json&region=mmsf" title="Meridional mass streamfunction anomaly, 7-day mean, AIFS analysis against ERA5 1991–2020" loading="lazy"></iframe><figcaption>Meridional mass streamfunction anomaly, 7-day mean, AIFS analysis against ERA5 1991–2020. Use the controls to step through the forecast.</figcaption></figure>
+</div>
+<div class="topic" style="padding-top:0">
+  <section class="related"><h2>Related</h2><ul><li><a href="/topics/atmospheric-angular-momentum.html">Atmospheric angular momentum</a></li><li><a href="/topics/ep-flux.html">E–P flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
+  <section><h2>References</h2><ol class="refs"><li>Held, I. M., and A. Y. Hou, 1980: Nonlinear axially symmetric circulations in a nearly inviscid atmosphere. <i>J. Atmos. Sci.</i>, 37, 515–533.</li><li>Oort, A. H., and J. J. Yienger, 1996: Observed interannual variability in the Hadley circulation and its connection to ENSO. <i>J. Climate</i>, 9, 2751–2767.</li><li>Dima, I. M., and J. M. Wallace, 2003: On the seasonality of the Hadley cell. <i>J. Atmos. Sci.</i>, 60, 1522–1527.</li></ol></section>
+  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-09-26.</p>
+</div>
+</main>
+<script>
+addEventListener("message", function (e) {
+  var x = e.data; if (!x || x.type !== "sstAnimHeight") return;
+  document.querySelectorAll(".figs iframe").forEach(function (f) {
+    if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
+  });
+});
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

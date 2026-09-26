@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic tropopause (2 PVU) maps: potential vorticity explainer and live forecast · Shawn Corvec</title>
+<meta name="description" content="What the dynamic tropopause is, how to read potential temperature on the 2-PVU surface, isentropic potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.">
+<link rel="canonical" href="https://scorvec.com/topics/dynamic-tropopause.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Dynamic tropopause (2 PVU) maps: potential vorticity explainer and live forecast">
+<meta property="og:description" content="What the dynamic tropopause is, how to read potential temperature on the 2-PVU surface, isentropic potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.">
+<meta property="og:url" content="https://scorvec.com/topics/dynamic-tropopause.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "TechArticle",
+   "@id": "https://scorvec.com/topics/dynamic-tropopause.html#article",
+   "headline": "Dynamic tropopause and potential vorticity (2 PVU)",
+   "name": "Dynamic tropopause (2 PVU) maps: potential vorticity explainer and live forecast",
+   "description": "What the dynamic tropopause is, how to read potential temperature on the 2-PVU surface, isentropic potential vorticity on 330 and 350 K, and live AIFS forecast maps to day 10.",
+   "url": "https://scorvec.com/topics/dynamic-tropopause.html",
+   "mainEntityOfPage": "https://scorvec.com/topics/dynamic-tropopause.html",
+   "inLanguage": "en",
+   "author": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "publisher": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "dateModified": "2026-09-26",
+   "about": {
+    "@type": "DefinedTerm",
+    "name": "Dynamic tropopause",
+    "alternateName": [
+     "dynamic tropopause map",
+     "DT map",
+     "theta on 2 PVU",
+     "potential temperature on the dynamic tropopause",
+     "potential vorticity",
+     "PV",
+     "isentropic potential vorticity",
+     "PV thinking",
+     "Rossby wave breaking"
+    ]
+   },
+   "keywords": "Dynamic tropopause, dynamic tropopause map, DT map, theta on 2 PVU, potential temperature on the dynamic tropopause, potential vorticity, PV, isentropic potential vorticity, PV thinking, Rossby wave breaking",
+   "image": "https://scorvec.com/hero-supercell-1280.webp",
+   "citation": [
+    "Hoskins, B. J., M. E. McIntyre, and A. W. Robertson, 1985: On the use and significance of isentropic potential vorticity maps. Q. J. R. Meteorol. Soc., 111, 877–946.",
+    "Morgan, M. C., and J. W. Nielsen-Gammon, 1998: Using tropopause maps to diagnose midlatitude weather systems. Mon. Wea. Rev., 126, 2555–2579."
+   ]
+  },
+  {
+   "@type": "BreadcrumbList",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Home",
+     "item": "https://scorvec.com/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Explainers",
+     "item": "https://scorvec.com/topics/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 3,
+     "name": "Dynamic tropopause",
+     "item": "https://scorvec.com/topics/dynamic-tropopause.html"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .topic { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .topic .crumbs { font-size: 0.92rem; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--c-muted, #5c6b73); font-size: 0.95rem; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: 64rem; margin: 1.6rem auto 0; padding: 0 1.25rem; }
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs figcaption { color: var(--c-muted, #5c6b73); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--c-rule, #dfe3dc); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95rem; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--c-muted, #5c6b73); font-size: 0.92rem; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--c-rule, #dfe3dc); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3rem; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--c-muted, #5c6b73); }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+<article class="topic">
+  <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › Dynamic tropopause</p>
+  <h1>Dynamic tropopause and potential vorticity (2 PVU)</h1>
+  <p class="aka">Also called: dynamic tropopause map, DT map, theta on 2 PVU, potential temperature on the dynamic tropopause, potential vorticity, PV</p>
+<p>The <b>dynamic tropopause</b> is the surface of constant <b>potential vorticity (PV)</b> that separates
+stratospheric air (high PV) from tropospheric air (low PV), conventionally the 2-PVU surface, where
+1 PVU = 10<sup>−6</sup> K m<sup>2</sup> kg<sup>−1</sup> s<sup>−1</sup>. In isentropic coordinates Ertel's PV is</p>
+<p>$$P = -g\,(\zeta_\theta + f)\,\frac{\partial\theta}{\partial p}$$</p>
+<p>It is conserved following the flow in the absence of heating and friction and, given a balance condition, the
+whole balanced flow can be recovered from it. A map of the dynamic tropopause therefore shows the upper-level
+circulation in a single field.</p>
+
+<h2>How to read a dynamic tropopause map</h2>
+<ul>
+<li><b>Potential temperature on 2 PVU</b> is the usual variable. Low values (cold colours) are the stratosphere
+reaching down: troughs and cut-off lows. High values (warm colours) are tropical air lifting the tropopause: ridges.</li>
+<li>A tight gradient of θ on the tropopause is the jet stream.</li>
+<li>A tongue of low θ that thins and wraps up is a Rossby wave breaking; cyclonic and anticyclonic breaking lead to
+different downstream weather.</li>
+<li>PV on the 330 K and 350 K isentropes shows the same structure on surfaces near the winter jet and near the summer
+and subtropical jet.</li>
+</ul>
+
+<h2>The live forecast</h2>
+<p>Ertel PV is computed from the temperature and wind of AIFS ensemble member 0 on nine levels from 700 to 100 hPa,
+every 12 hours to day 10. A single member is used on purpose: potential vorticity does not survive ensemble averaging,
+because the mean of fifty differently placed folds is a smear. The 2-PVU surface is found by searching upward from
+700 hPa, and isentropic PV by interpolation in θ.</p>
+  <a class="live" href="/circulation.html#dt">Open the dynamic tropopause maps in the circulation viewer</a>
+</article>
+<div class="figs">
+<figure><iframe src="/sst_anim.html?embed=1&manifest=dt_manifest.json&region=dt" title="Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 12-hourly to day 10" loading="lazy"></iframe><figcaption>Potential temperature on the 2-PVU dynamic tropopause, AIFS member 0, 12-hourly to day 10. Use the controls to step through the forecast.</figcaption></figure>
+</div>
+<div class="topic" style="padding-top:0">
+  <section class="related"><h2>Related</h2><ul><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/ep-flux.html">E–P flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
+  <section><h2>References</h2><ol class="refs"><li>Hoskins, B. J., M. E. McIntyre, and A. W. Robertson, 1985: On the use and significance of isentropic potential vorticity maps. <i>Q. J. R. Meteorol. Soc.</i>, 111, 877–946.</li><li>Morgan, M. C., and J. W. Nielsen-Gammon, 1998: Using tropopause maps to diagnose midlatitude weather systems. <i>Mon. Wea. Rev.</i>, 126, 2555–2579.</li></ol></section>
+  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-09-26.</p>
+</div>
+</main>
+<script>
+addEventListener("message", function (e) {
+  var x = e.data; if (!x || x.type !== "sstAnimHeight") return;
+  document.querySelectorAll(".figs iframe").forEach(function (f) {
+    if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
+  });
+});
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

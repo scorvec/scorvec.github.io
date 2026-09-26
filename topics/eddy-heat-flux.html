@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>100 hPa eddy heat flux: the upward wave activity into the stratosphere, with a live forecast · Shawn Corvec</title>
+<meta name="description" content="Why the zonal-mean poleward eddy heat flux at 100 hPa measures planetary waves entering the stratosphere, how its 40-day mean leads the polar vortex, and a live member-by-member AIFS-ENS forecast for both hemispheres.">
+<link rel="canonical" href="https://scorvec.com/topics/eddy-heat-flux.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="100 hPa eddy heat flux: the upward wave activity into the stratosphere, with a live forecast">
+<meta property="og:description" content="Why the zonal-mean poleward eddy heat flux at 100 hPa measures planetary waves entering the stratosphere, how its 40-day mean leads the polar vortex, and a live member-by-member AIFS-ENS forecast for both hemispheres.">
+<meta property="og:url" content="https://scorvec.com/topics/eddy-heat-flux.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "TechArticle",
+   "@id": "https://scorvec.com/topics/eddy-heat-flux.html#article",
+   "headline": "100 hPa eddy heat flux",
+   "name": "100 hPa eddy heat flux: the upward wave activity into the stratosphere, with a live forecast",
+   "description": "Why the zonal-mean poleward eddy heat flux at 100 hPa measures planetary waves entering the stratosphere, how its 40-day mean leads the polar vortex, and a live member-by-member AIFS-ENS forecast for both hemispheres.",
+   "url": "https://scorvec.com/topics/eddy-heat-flux.html",
+   "mainEntityOfPage": "https://scorvec.com/topics/eddy-heat-flux.html",
+   "inLanguage": "en",
+   "author": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "publisher": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "dateModified": "2026-09-26",
+   "about": {
+    "@type": "DefinedTerm",
+    "name": "Eddy heat flux",
+    "alternateName": [
+     "eddy heat flux",
+     "meridional eddy heat flux",
+     "v'T'",
+     "vT 100 hPa",
+     "upward wave activity",
+     "vertical E-P flux",
+     "wave-1 heat flux"
+    ]
+   },
+   "keywords": "Eddy heat flux, eddy heat flux, meridional eddy heat flux, v'T', vT 100 hPa, upward wave activity, vertical E-P flux, wave-1 heat flux",
+   "image": [
+    "https://scorvec.com/assets/sst/heatflux100_nh.webp"
+   ],
+   "citation": [
+    "Newman, P. A., E. R. Nash, and J. E. Rosenfield, 2001: What controls the temperature of the Arctic stratosphere during the spring? J. Geophys. Res., 106, 19999–20010.",
+    "Polvani, L. M., and D. W. Waugh, 2004: Upward wave activity flux as a precursor to extreme stratospheric events and subsequent anomalous surface weather regimes. J. Climate, 17, 3548–3554.",
+    "Andrews, D. G., J. R. Holton, and C. B. Leovy, 1987: Middle Atmosphere Dynamics. Academic Press."
+   ]
+  },
+  {
+   "@type": "BreadcrumbList",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Home",
+     "item": "https://scorvec.com/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Explainers",
+     "item": "https://scorvec.com/topics/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 3,
+     "name": "Eddy heat flux",
+     "item": "https://scorvec.com/topics/eddy-heat-flux.html"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .topic { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .topic .crumbs { font-size: 0.92rem; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--c-muted, #5c6b73); font-size: 0.95rem; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: 64rem; margin: 1.6rem auto 0; padding: 0 1.25rem; }
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs figcaption { color: var(--c-muted, #5c6b73); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--c-rule, #dfe3dc); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95rem; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--c-muted, #5c6b73); font-size: 0.92rem; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--c-rule, #dfe3dc); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3rem; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--c-muted, #5c6b73); }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+<article class="topic">
+  <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › Eddy heat flux</p>
+  <h1>100 hPa eddy heat flux</h1>
+  <p class="aka">Also called: eddy heat flux, meridional eddy heat flux, v&#x27;T&#x27;, vT 100 hPa, upward wave activity, vertical E-P flux</p>
+<p>The zonal-mean poleward <b>eddy heat flux</b> $[v'T']$ at 100 hPa is the most direct measure of how much
+planetary-wave activity is leaving the troposphere for the stratosphere. It is proportional to the vertical component
+of the <a href="/topics/ep-flux.html">Eliassen–Palm flux</a>, $F^{(z)}\propto f\,\overline{v'\theta'}/\bar\theta_z$,
+so a large positive value means waves are propagating upward into the polar vortex.</p>
+
+<h2>Why amplitude is not enough</h2>
+<p>A large planetary wave is not necessarily moving upward. A wave that is vertically stacked carries almost no heat
+flux; one whose ridges and troughs tilt westward with height carries a lot. Maps of wave amplitude show where the wave
+sits, and the heat flux shows whether it is going up.</p>
+
+<h2>How it leads the vortex</h2>
+<ul>
+<li>The vortex responds to the accumulated flux, not to single days. Polvani and Waugh (2004) showed that extremes of
+the 40-day mean 100 hPa heat flux precede extreme stratospheric events: weeks above normal weaken the vortex, and
+weeks below normal let it strengthen.</li>
+<li>Averaged over January and February, the 45–75°N heat flux predicts the Arctic stratosphere's temperature in March
+(Newman et al., 2001), and with it how much ozone survives into spring.</li>
+<li>In early autumn radiative cooling still dominates, so a burst of heat flux slows the vortex's seasonal spin-up
+rather than reversing it.</li>
+</ul>
+
+<h2>The live forecast</h2>
+<p>The flux is averaged over 45–75° in each hemisphere (positive is poleward in both), computed for the AIFS control
+and 25 perturbed members and then averaged: like every quadratic diagnostic, the flux of the ensemble-mean fields
+would fade with lead time. Zonal wavenumbers 1–72 are kept so that the forecast resolves the same eddies as the
+1991–2020 NCEP/NCAR reanalysis climatology it is compared with. The panels show the daily flux, its wave-1 and wave-2
+parts, the trailing 40-day mean standardized, and the flux by latitude through the forecast.</p>
+  <a class="live" href="/circulation.html#heatflux">Open the eddy heat flux in the circulation viewer</a>
+</article>
+<div class="figs">
+<figure><img src="/assets/sst/heatflux100_nh.webp" alt="100 hPa zonal-mean eddy heat flux 45–75°N: AIFS-ENS members against the 1991–2020 climatology, wave-1 and wave-2 parts, 40-day mean" loading="lazy"><figcaption>Northern Hemisphere, 45–75°N. The Southern Hemisphere version is in the circulation viewer.</figcaption></figure>
+</div>
+<div class="topic" style="padding-top:0">
+  <section class="related"><h2>Related</h2><ul><li><a href="/topics/ep-flux.html">E–P flux</a></li><li><a href="/topics/sudden-stratospheric-warming.html">Sudden stratospheric warmings</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
+  <section><h2>References</h2><ol class="refs"><li>Newman, P. A., E. R. Nash, and J. E. Rosenfield, 2001: What controls the temperature of the Arctic stratosphere during the spring? <i>J. Geophys. Res.</i>, 106, 19999–20010.</li><li>Polvani, L. M., and D. W. Waugh, 2004: Upward wave activity flux as a precursor to extreme stratospheric events and subsequent anomalous surface weather regimes. <i>J. Climate</i>, 17, 3548–3554.</li><li>Andrews, D. G., J. R. Holton, and C. B. Leovy, 1987: <i>Middle Atmosphere Dynamics</i>. Academic Press.</li></ol></section>
+  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-09-26.</p>
+</div>
+</main>
+<script>
+addEventListener("message", function (e) {
+  var x = e.data; if (!x || x.type !== "sstAnimHeight") return;
+  document.querySelectorAll(".figs iframe").forEach(function (f) {
+    if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
+  });
+});
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

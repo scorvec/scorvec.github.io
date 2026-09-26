@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E–P flux and E–P flux divergence: explainer and live forecast · Shawn Corvec</title>
+<meta name="description" content="What the Eliassen–Palm (E–P) flux and its divergence measure, how to read an E–P cross-section, and a live 15-day AIFS-ENS forecast of E–P flux and wave driving of the zonal-mean flow.">
+<link rel="canonical" href="https://scorvec.com/topics/ep-flux.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="E–P flux and E–P flux divergence: explainer and live forecast">
+<meta property="og:description" content="What the Eliassen–Palm (E–P) flux and its divergence measure, how to read an E–P cross-section, and a live 15-day AIFS-ENS forecast of E–P flux and wave driving of the zonal-mean flow.">
+<meta property="og:url" content="https://scorvec.com/topics/ep-flux.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "TechArticle",
+   "@id": "https://scorvec.com/topics/ep-flux.html#article",
+   "headline": "Eliassen–Palm flux and E–P flux divergence",
+   "name": "E–P flux and E–P flux divergence: explainer and live forecast",
+   "description": "What the Eliassen–Palm (E–P) flux and its divergence measure, how to read an E–P cross-section, and a live 15-day AIFS-ENS forecast of E–P flux and wave driving of the zonal-mean flow.",
+   "url": "https://scorvec.com/topics/ep-flux.html",
+   "mainEntityOfPage": "https://scorvec.com/topics/ep-flux.html",
+   "inLanguage": "en",
+   "author": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "publisher": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "dateModified": "2026-09-26",
+   "about": {
+    "@type": "DefinedTerm",
+    "name": "E–P flux",
+    "alternateName": [
+     "E-P flux",
+     "EP flux",
+     "Eliassen-Palm flux",
+     "E-P flux divergence",
+     "EP flux divergence",
+     "wave driving",
+     "transformed Eulerian mean"
+    ]
+   },
+   "keywords": "E–P flux, E-P flux, EP flux, Eliassen-Palm flux, E-P flux divergence, EP flux divergence, wave driving, transformed Eulerian mean",
+   "image": "https://scorvec.com/hero-supercell-1280.webp",
+   "citation": [
+    "Eliassen, A., and E. Palm, 1961: On the transfer of energy in stationary mountain waves. Geofysiske Publikasjoner, 22(3), 1–23.",
+    "Charney, J. G., and P. G. Drazin, 1961: Propagation of planetary-scale disturbances from the lower into the upper atmosphere. J. Geophys. Res., 66, 83–109.",
+    "Andrews, D. G., and M. E. McIntyre, 1976: Planetary waves in horizontal and vertical shear: the generalized Eliassen–Palm relation and the mean zonal acceleration. J. Atmos. Sci., 33, 2031–2048.",
+    "Edmon, H. J., B. J. Hoskins, and M. E. McIntyre, 1980: Eliassen–Palm cross sections for the troposphere. J. Atmos. Sci., 37, 2600–2616.",
+    "Andrews, D. G., J. R. Holton, and C. B. Leovy, 1987: Middle Atmosphere Dynamics. Academic Press."
+   ]
+  },
+  {
+   "@type": "BreadcrumbList",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Home",
+     "item": "https://scorvec.com/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Explainers",
+     "item": "https://scorvec.com/topics/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 3,
+     "name": "E–P flux",
+     "item": "https://scorvec.com/topics/ep-flux.html"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .topic { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .topic .crumbs { font-size: 0.92rem; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--c-muted, #5c6b73); font-size: 0.95rem; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: 64rem; margin: 1.6rem auto 0; padding: 0 1.25rem; }
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs figcaption { color: var(--c-muted, #5c6b73); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--c-rule, #dfe3dc); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95rem; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--c-muted, #5c6b73); font-size: 0.92rem; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--c-rule, #dfe3dc); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3rem; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--c-muted, #5c6b73); }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+<article class="topic">
+  <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › E–P flux</p>
+  <h1>Eliassen–Palm flux and E–P flux divergence</h1>
+  <p class="aka">Also called: E-P flux, EP flux, Eliassen-Palm flux, E-P flux divergence, EP flux divergence, wave driving</p>
+<p>The <b>Eliassen–Palm (E–P) flux</b> is a vector in the latitude–height plane that shows where atmospheric waves
+carry their activity, and its <b>divergence</b> is the force those waves exert on the zonal-mean westerlies. It is the
+standard diagnostic of wave–mean-flow interaction: of how baroclinic eddies maintain the jet stream, and of how
+planetary waves rising out of the troposphere decelerate the stratospheric polar vortex before a sudden warming.</p>
+
+<h2>The equations</h2>
+<p>In the transformed Eulerian mean (TEM) form of the zonal-mean momentum equation, the eddies enter only through the
+divergence of the E–P flux $\mathbf{F}$:</p>
+<p>$$\frac{\partial \bar u}{\partial t} - f\,\bar v^{*} = \frac{\nabla\cdot\mathbf{F}}{\rho_0\,a\cos\phi} + \bar X,
+\qquad \nabla\cdot\mathbf{F} = \frac{1}{a\cos\phi}\frac{\partial}{\partial\phi}\!\left(F^{(\phi)}\cos\phi\right) + \frac{\partial F^{(z)}}{\partial z}$$</p>
+<p>where $\bar v^{*}$ is the residual meridional circulation and $\bar X$ is any other force, such as gravity-wave drag.
+In the quasi-geostrophic approximation the two components are</p>
+<p>$$F^{(\phi)} = -\rho_0\,a\cos\phi\;\overline{u'v'}, \qquad F^{(z)} = \rho_0\,a\cos\phi\;f\,\frac{\overline{v'\theta'}}{\partial\bar\theta/\partial z}$$</p>
+<p>The meridional component is the eddy momentum flux with its sign reversed; the vertical component is proportional
+to the <a href="/topics/eddy-heat-flux.html">eddy heat flux</a>. Waves that tilt westward with height carry heat
+poleward and therefore carry E–P flux upward.</p>
+
+<h2>How to read it</h2>
+<ul>
+<li><b>The arrows</b> point where wave activity is going, along the waves' group velocity. Upward arrows at the
+tropopause in winter are planetary waves entering the stratosphere; equatorward arrows in the upper troposphere are
+baroclinic waves propagating toward their critical lines in the subtropics.</li>
+<li><b>Convergence</b> ($\nabla\cdot\mathbf{F}<0$) is an easterly force: the waves decelerate the westerlies there.
+Sustained convergence in the polar stratosphere is what weakens, and in a sudden warming reverses, the polar vortex.
+The same wave drag, integrated, drives the Brewer–Dobson circulation.</li>
+<li><b>Divergence</b> ($\nabla\cdot\mathbf{F}>0$) is a westerly force.</li>
+<li>Only the longest planetary waves (zonal wavenumbers 1–3) can propagate into the winter stratospheric westerlies
+(Charney and Drazin, 1961), which is why stratospheric E–P diagnostics are usually restricted to them.</li>
+</ul>
+
+<h2>The live forecast</h2>
+<p>The loop below is the E–P flux for zonal wavenumbers 1–3 and its divergence, computed from every member of the
+ECMWF AIFS ensemble (the control and 25 perturbed members, 14 pressure levels) and stepped through the 15-day forecast.
+The flux is quadratic in the wave amplitude, so it is computed for each member and then averaged; the flux of the
+ensemble-mean fields would fade with lead time as the members' wave phases drift apart. The quasi-geostrophic form is
+used with a global-mean static stability, and latitudes poleward of 82° are masked. It is recomputed every 00 and
+12 UTC cycle.</p>
+  <a class="live" href="/circulation.html#epflux">Open the E–P flux product in the circulation viewer</a>
+</article>
+<div class="figs">
+<figure><iframe src="/sst_anim.html?embed=1&manifest=epflux_manifest.json&region=epflux" title="E–P flux and wave driving, wavenumbers 1–3, AIFS-ENS 15-day forecast" loading="lazy"></iframe><figcaption>E–P flux and wave driving, wavenumbers 1–3, AIFS-ENS 15-day forecast. Use the controls to step through the forecast.</figcaption></figure>
+</div>
+<div class="topic" style="padding-top:0">
+  <section class="related"><h2>Related</h2><ul><li><a href="/topics/eddy-heat-flux.html">Eddy heat flux</a></li><li><a href="/topics/sudden-stratospheric-warming.html">Sudden stratospheric warmings</a></li><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/mountain-torque.html">Mountain torque</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
+  <section><h2>References</h2><ol class="refs"><li>Eliassen, A., and E. Palm, 1961: On the transfer of energy in stationary mountain waves. <i>Geofysiske Publikasjoner</i>, 22(3), 1–23.</li><li>Charney, J. G., and P. G. Drazin, 1961: Propagation of planetary-scale disturbances from the lower into the upper atmosphere. <i>J. Geophys. Res.</i>, 66, 83–109.</li><li>Andrews, D. G., and M. E. McIntyre, 1976: Planetary waves in horizontal and vertical shear: the generalized Eliassen–Palm relation and the mean zonal acceleration. <i>J. Atmos. Sci.</i>, 33, 2031–2048.</li><li>Edmon, H. J., B. J. Hoskins, and M. E. McIntyre, 1980: Eliassen–Palm cross sections for the troposphere. <i>J. Atmos. Sci.</i>, 37, 2600–2616.</li><li>Andrews, D. G., J. R. Holton, and C. B. Leovy, 1987: <i>Middle Atmosphere Dynamics</i>. Academic Press.</li></ol></section>
+  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-09-26.</p>
+</div>
+</main>
+<script>
+addEventListener("message", function (e) {
+  var x = e.data; if (!x || x.type !== "sstAnimHeight") return;
+  document.querySelectorAll(".figs iframe").forEach(function (f) {
+    if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
+  });
+});
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

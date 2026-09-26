@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atmospheric angular momentum (AAM): explainer and live forecast · Shawn Corvec</title>
+<meta name="description" content="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the Global Wind Oscillation phase space, and a live AIFS-ENS forecast of relative AAM for the globe and each hemisphere.">
+<link rel="canonical" href="https://scorvec.com/topics/atmospheric-angular-momentum.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Atmospheric angular momentum (AAM): explainer and live forecast">
+<meta property="og:description" content="What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the Global Wind Oscillation phase space, and a live AIFS-ENS forecast of relative AAM for the globe and each hemisphere.">
+<meta property="og:url" content="https://scorvec.com/topics/atmospheric-angular-momentum.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "TechArticle",
+   "@id": "https://scorvec.com/topics/atmospheric-angular-momentum.html#article",
+   "headline": "Atmospheric angular momentum (AAM)",
+   "name": "Atmospheric angular momentum (AAM): explainer and live forecast",
+   "description": "What atmospheric angular momentum measures, why it tracks El Niño and the length of day, the Global Wind Oscillation phase space, and a live AIFS-ENS forecast of relative AAM for the globe and each hemisphere.",
+   "url": "https://scorvec.com/topics/atmospheric-angular-momentum.html",
+   "mainEntityOfPage": "https://scorvec.com/topics/atmospheric-angular-momentum.html",
+   "inLanguage": "en",
+   "author": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "publisher": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "dateModified": "2026-09-26",
+   "about": {
+    "@type": "DefinedTerm",
+    "name": "Atmospheric angular momentum",
+    "alternateName": [
+     "AAM",
+     "relative AAM",
+     "global atmospheric angular momentum",
+     "Global Wind Oscillation",
+     "GWO",
+     "length of day",
+     "AAM tendency"
+    ]
+   },
+   "keywords": "Atmospheric angular momentum, AAM, relative AAM, global atmospheric angular momentum, Global Wind Oscillation, GWO, length of day, AAM tendency",
+   "image": [
+    "https://scorvec.com/assets/sst/aam.webp",
+    "https://scorvec.com/assets/sst/aam_phase.webp"
+   ],
+   "citation": [
+    "Rosen, R. D., and D. A. Salstein, 1983: Variations in atmospheric angular momentum on global and regional scales and the length of day. J. Geophys. Res., 88, 5451–5470.",
+    "Weickmann, K. M., and P. D. Sardeshmukh, 1994: The atmospheric angular momentum cycle associated with a Madden–Julian oscillation. J. Atmos. Sci., 51, 3194–3208.",
+    "Egger, J., K. Weickmann, and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. Rev. Geophys., 45, RG4007.",
+    "Weickmann, K., and E. Berry, 2009: The tropical Madden–Julian oscillation and the global wind oscillation. Mon. Wea. Rev., 137, 1601–1614."
+   ]
+  },
+  {
+   "@type": "BreadcrumbList",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Home",
+     "item": "https://scorvec.com/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Explainers",
+     "item": "https://scorvec.com/topics/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 3,
+     "name": "Atmospheric angular momentum",
+     "item": "https://scorvec.com/topics/atmospheric-angular-momentum.html"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .topic { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .topic .crumbs { font-size: 0.92rem; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--c-muted, #5c6b73); font-size: 0.95rem; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: 64rem; margin: 1.6rem auto 0; padding: 0 1.25rem; }
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs figcaption { color: var(--c-muted, #5c6b73); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--c-rule, #dfe3dc); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95rem; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--c-muted, #5c6b73); font-size: 0.92rem; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--c-rule, #dfe3dc); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3rem; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--c-muted, #5c6b73); }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+<article class="topic">
+  <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › Atmospheric angular momentum</p>
+  <h1>Atmospheric angular momentum (AAM)</h1>
+  <p class="aka">Also called: AAM, relative AAM, global atmospheric angular momentum, Global Wind Oscillation, GWO, length of day</p>
+<p><b>Atmospheric angular momentum (AAM)</b> is the atmosphere's total spin about the Earth's axis. Its <i>relative</i>
+part, the one carried by the winds, is</p>
+<p>$$M_r = \frac{a^3}{g}\iiint u\,\cos^2\!\phi\;d\lambda\,d\phi\,dp$$</p>
+<p>the mass-weighted westerly wind, weighted again by the distance from the axis. The <i>mass</i> term,
+$\Omega a^4 g^{-1}\iint p_s\cos^3\!\phi\,d\lambda\,d\phi$, is the angular momentum the atmosphere carries by
+rotating with the Earth, and shifts only as air mass moves between latitudes.</p>
+
+<h2>What moves it</h2>
+<ul>
+<li><b>The subtropical jets dominate the total.</b> The $\cos^2\phi$ weight is largest at the equator, but the deep
+tropics hold weak or easterly winds, so they add little to the total while dominating its variability: a small change
+in the trades acts over a huge area at the largest weight.</li>
+<li><b>El Niño raises AAM.</b> It strengthens the subtropical jets and weakens the trades, so the atmosphere holds
+more westerly momentum. Conservation then requires the solid Earth to slow down: AAM anomalies appear as changes of a
+fraction of a millisecond in the length of day, and about 6×10<sup>25</sup> kg m<sup>2</sup> s<sup>−1</sup> of AAM
+corresponds to one millisecond.</li>
+<li><b>It can change only through surface torques</b>, the <a href="/topics/mountain-torque.html">mountain and
+friction torques</a>. Mountain torque works within days; friction over weeks.</li>
+<li><b>The Global Wind Oscillation</b> (Weickmann and Berry, 2009) follows the global AAM anomaly against its
+tendency in a two-dimensional phase space, much as the MJO index follows tropical convection. Orbits through it pass
+through the same sequence of jet and torque patterns in each subseasonal cycle.</li>
+</ul>
+
+<h2>The live forecast</h2>
+<p>Relative AAM is integrated for the globe and each hemisphere from the ECMWF AIFS ensemble's winds on 14 pressure
+levels from 10 to 1000 hPa, which is effectively the whole column. It is shown on the ERA5 1991–2020 annual cycle
+together with the 15-day forecast. GFZ's ESMGFZ series, computed from ECMWF analyses for the Earth-rotation community,
+is drawn alongside as an independent check. The phase plot follows each hemisphere through AAM anomaly against
+tendency: the hemispheric version of the Global Wind Oscillation.</p>
+  <a class="live" href="/circulation.html#aam">Open the AAM product in the circulation viewer</a>
+</article>
+<div class="figs">
+<figure><img src="/assets/sst/aam.webp" alt="Global and hemispheric relative atmospheric angular momentum: observed and AIFS-ENS 15-day forecast, absolute and anomaly" loading="lazy"><figcaption>Relative AAM for the globe and each hemisphere on its 1991–2020 annual cycle, with the 15-day forecast.</figcaption></figure>
+<figure><img src="/assets/sst/aam_phase.webp" alt="Atmospheric angular momentum anomaly against its tendency: hemispheric Global Wind Oscillation phase space with the AIFS-ENS forecast" loading="lazy"><figcaption>Each hemisphere&#x27;s path through AAM anomaly and tendency, the last 75 days and the forecast.</figcaption></figure>
+</div>
+<div class="topic" style="padding-top:0">
+  <section class="related"><h2>Related</h2><ul><li><a href="/topics/mountain-torque.html">Mountain torque</a></li><li><a href="/topics/hadley-cell.html">Hadley cell</a></li><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
+  <section><h2>References</h2><ol class="refs"><li>Rosen, R. D., and D. A. Salstein, 1983: Variations in atmospheric angular momentum on global and regional scales and the length of day. <i>J. Geophys. Res.</i>, 88, 5451–5470.</li><li>Weickmann, K. M., and P. D. Sardeshmukh, 1994: The atmospheric angular momentum cycle associated with a Madden–Julian oscillation. <i>J. Atmos. Sci.</i>, 51, 3194–3208.</li><li>Egger, J., K. Weickmann, and K.-P. Hoinka, 2007: Angular momentum in the global atmospheric circulation. <i>Rev. Geophys.</i>, 45, RG4007.</li><li>Weickmann, K., and E. Berry, 2009: The tropical Madden–Julian oscillation and the global wind oscillation. <i>Mon. Wea. Rev.</i>, 137, 1601–1614.</li></ol></section>
+  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-09-26.</p>
+</div>
+</main>
+<script>
+addEventListener("message", function (e) {
+  var x = e.data; if (!x || x.type !== "sstAnimHeight") return;
+  document.querySelectorAll(".figs iframe").forEach(function (f) {
+    if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
+  });
+});
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sudden stratospheric warmings (SSW): definition, every event since 1980, and a live polar vortex forecast · Shawn Corvec</title>
+<meta name="description" content="What a sudden stratospheric warming is, split and displacement events, how SSWs reach the surface, a catalogue of every major SSW since 1980 from MERRA-2, and a live AIFS-ENS polar vortex forecast.">
+<link rel="canonical" href="https://scorvec.com/topics/sudden-stratospheric-warming.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Sudden stratospheric warmings (SSW): definition, every event since 1980, and a live polar vortex forecast">
+<meta property="og:description" content="What a sudden stratospheric warming is, split and displacement events, how SSWs reach the surface, a catalogue of every major SSW since 1980 from MERRA-2, and a live AIFS-ENS polar vortex forecast.">
+<meta property="og:url" content="https://scorvec.com/topics/sudden-stratospheric-warming.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "TechArticle",
+   "@id": "https://scorvec.com/topics/sudden-stratospheric-warming.html#article",
+   "headline": "Sudden stratospheric warmings and the polar vortex",
+   "name": "Sudden stratospheric warmings (SSW): definition, every event since 1980, and a live polar vortex forecast",
+   "description": "What a sudden stratospheric warming is, split and displacement events, how SSWs reach the surface, a catalogue of every major SSW since 1980 from MERRA-2, and a live AIFS-ENS polar vortex forecast.",
+   "url": "https://scorvec.com/topics/sudden-stratospheric-warming.html",
+   "mainEntityOfPage": "https://scorvec.com/topics/sudden-stratospheric-warming.html",
+   "inLanguage": "en",
+   "author": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "publisher": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "dateModified": "2026-09-26",
+   "about": {
+    "@type": "DefinedTerm",
+    "name": "Sudden stratospheric warmings",
+    "alternateName": [
+     "SSW",
+     "sudden stratospheric warming",
+     "major SSW",
+     "polar vortex",
+     "polar vortex split",
+     "vortex displacement",
+     "Charlton-Polvani",
+     "stratosphere-troposphere coupling",
+     "dripping paint"
+    ]
+   },
+   "keywords": "Sudden stratospheric warmings, SSW, sudden stratospheric warming, major SSW, polar vortex, polar vortex split, vortex displacement, Charlton-Polvani, stratosphere-troposphere coupling, dripping paint",
+   "image": [
+    "https://scorvec.com/assets/sst/nh_vortex.webp",
+    "https://scorvec.com/assets/sst/strat_hist_timeline.webp",
+    "https://scorvec.com/assets/sst/strat_hist_drip_ssw_deep.webp"
+   ],
+   "citation": [
+    "Baldwin, M. P., and T. J. Dunkerton, 2001: Stratospheric harbingers of anomalous weather regimes. Science, 294, 581–584.",
+    "Charlton, A. J., and L. M. Polvani, 2007: A new look at stratospheric sudden warmings. Part I: Climatology and modeling benchmarks. J. Climate, 20, 449–469.",
+    "Butler, A. H., J. P. Sjoberg, D. J. Seidel, and K. H. Rosenlof, 2017: A sudden stratospheric warming compendium. Earth Syst. Sci. Data, 9, 63–76.",
+    "Baldwin, M. P., et al., 2021: Sudden stratospheric warmings. Rev. Geophys., 59, e2020RG000708."
+   ]
+  },
+  {
+   "@type": "BreadcrumbList",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Home",
+     "item": "https://scorvec.com/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Explainers",
+     "item": "https://scorvec.com/topics/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 3,
+     "name": "Sudden stratospheric warmings",
+     "item": "https://scorvec.com/topics/sudden-stratospheric-warming.html"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .topic { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .topic .crumbs { font-size: 0.92rem; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--c-muted, #5c6b73); font-size: 0.95rem; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: 64rem; margin: 1.6rem auto 0; padding: 0 1.25rem; }
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs figcaption { color: var(--c-muted, #5c6b73); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--c-rule, #dfe3dc); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95rem; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--c-muted, #5c6b73); font-size: 0.92rem; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--c-rule, #dfe3dc); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3rem; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--c-muted, #5c6b73); }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+<article class="topic">
+  <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › Sudden stratospheric warmings</p>
+  <h1>Sudden stratospheric warmings and the polar vortex</h1>
+  <p class="aka">Also called: SSW, sudden stratospheric warming, major SSW, polar vortex, polar vortex split, vortex displacement</p>
+<p>A <b>sudden stratospheric warming (SSW)</b> is the collapse of the winter polar vortex: planetary waves rising from
+the troposphere decelerate the stratospheric westerlies until they reverse, and the polar stratosphere warms by tens of
+degrees within days. The usual definition (Charlton and Polvani, 2007) is the first day in November–March on which the
+zonal-mean zonal wind at 60°N and 10 hPa turns easterly. A second event in the same winter must be separated by 20
+consecutive westerly days, and a reversal that never recovers before spring is the final warming, not an SSW.</p>
+
+<h2>Splits and displacements</h2>
+<p>Seen from above, the vortex either shifts off the pole (a <b>displacement</b>, driven mostly by zonal wavenumber 1)
+or breaks into two separate lows (a <b>split</b>, driven by wavenumber 2). Splits tend to be more abrupt and to reach
+deeper into the lower stratosphere.</p>
+
+<h2>How they reach the surface</h2>
+<p>Baldwin and Dunkerton (2001) showed that large stratospheric anomalies work their way down over a few weeks and then
+hold the surface in the same state for one to two months. Drawn against time and height the composite looks like paint
+dripping down a wall. After a warming that reaches the lower stratosphere, the Arctic Oscillation and North Atlantic
+Oscillation tend to turn negative, bringing cold air into northern Eurasia and eastern North America.</p>
+
+<h2>Every warming since 1980</h2>
+<p>This site's catalogue, built from NASA's MERRA-2 reanalysis, finds 28 major warmings in 24 of the 46 winters since
+1980, 10 of them splits. The events are split into deep and shallow by how strong the anomaly is at 100–150 hPa over the
+following month. After the 14 deep events the Arctic Oscillation averaged 1.42 below the same dates in other years over
+days 1–30, and 0.69 below over days 31–60. Both differences are significant (t-test, false-discovery rate 10 %).
+After the 14 shallow events there was no significant change.</p>
+
+<h2>The live forecast</h2>
+<p>The vortex chart tracks the zonal-mean wind at 60°N at 10 and 100 hPa and the polar-cap height at 100 hPa for every
+AIFS ensemble member against the MERRA-2 percentile bands, so that the fraction of members reversing the wind (a
+forecast major warming) can be read directly.</p>
+  <a class="live" href="/circulation.html#vortex">Open the polar vortex forecast and the SSW history in the circulation viewer</a>
+</article>
+<div class="figs">
+<figure><img src="/assets/sst/nh_vortex.webp" alt="Northern polar vortex forecast: zonal-mean wind at 60°N at 10 and 100 hPa and 100 hPa polar-cap height, AIFS-ENS members against MERRA-2 percentiles" loading="lazy"><figcaption>The live vortex forecast: every AIFS-ENS member against the MERRA-2 1980–2026 range.</figcaption></figure>
+<figure><img src="/assets/sst/strat_hist_timeline.webp" alt="Timeline of every major sudden stratospheric warming and strong-vortex event since 1980 from MERRA-2, with ENSO and the QBO" loading="lazy"><figcaption>Every major warming and strong-vortex event since 1980, winter by winter.</figcaption></figure>
+<figure><img src="/assets/sst/strat_hist_drip_ssw_deep.webp" alt="Dripping-paint composite of polar-cap height from the surface to 1 hPa around deep sudden stratospheric warmings, with the Arctic Oscillation" loading="lazy"><figcaption>The dripping-paint composite for the deep events: colour only where significant.</figcaption></figure>
+</div>
+<div class="topic" style="padding-top:0">
+  <section class="related"><h2>Related</h2><ul><li><a href="/topics/eddy-heat-flux.html">Eddy heat flux</a></li><li><a href="/topics/ep-flux.html">E–P flux</a></li><li><a href="/topics/wave-activity-flux.html">Wave activity flux</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
+  <section><h2>References</h2><ol class="refs"><li>Baldwin, M. P., and T. J. Dunkerton, 2001: Stratospheric harbingers of anomalous weather regimes. <i>Science</i>, 294, 581–584.</li><li>Charlton, A. J., and L. M. Polvani, 2007: A new look at stratospheric sudden warmings. Part I: Climatology and modeling benchmarks. <i>J. Climate</i>, 20, 449–469.</li><li>Butler, A. H., J. P. Sjoberg, D. J. Seidel, and K. H. Rosenlof, 2017: A sudden stratospheric warming compendium. <i>Earth Syst. Sci. Data</i>, 9, 63–76.</li><li>Baldwin, M. P., et al., 2021: Sudden stratospheric warmings. <i>Rev. Geophys.</i>, 59, e2020RG000708.</li></ol></section>
+  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-09-26.</p>
+</div>
+</main>
+<script>
+addEventListener("message", function (e) {
+  var x = e.data; if (!x || x.type !== "sstAnimHeight") return;
+  document.querySelectorAll(".figs iframe").forEach(function (f) {
+    if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
+  });
+});
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Takaya–Nakamura wave activity flux: explainer and live 250 hPa forecast · Shawn Corvec</title>
+<meta name="description" content="What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and blocking, the equation, and a live member-averaged AIFS-ENS forecast at 250 hPa.">
+<link rel="canonical" href="https://scorvec.com/topics/wave-activity-flux.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="author" content="Shawn Corvec">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Takaya–Nakamura wave activity flux: explainer and live 250 hPa forecast">
+<meta property="og:description" content="What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and blocking, the equation, and a live member-averaged AIFS-ENS forecast at 250 hPa.">
+<meta property="og:url" content="https://scorvec.com/topics/wave-activity-flux.html">
+<meta property="og:image" content="https://scorvec.com/hero-supercell-1280.webp">
+<meta property="og:site_name" content="Shawn Corvec">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "TechArticle",
+   "@id": "https://scorvec.com/topics/wave-activity-flux.html#article",
+   "headline": "Wave activity flux (Takaya–Nakamura)",
+   "name": "Takaya–Nakamura wave activity flux: explainer and live 250 hPa forecast",
+   "description": "What the Takaya–Nakamura wave activity flux shows about Rossby wave packets, downstream development and blocking, the equation, and a live member-averaged AIFS-ENS forecast at 250 hPa.",
+   "url": "https://scorvec.com/topics/wave-activity-flux.html",
+   "mainEntityOfPage": "https://scorvec.com/topics/wave-activity-flux.html",
+   "inLanguage": "en",
+   "author": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "publisher": {
+    "@id": "https://scorvec.com/#person"
+   },
+   "dateModified": "2026-09-26",
+   "about": {
+    "@type": "DefinedTerm",
+    "name": "Wave activity flux",
+    "alternateName": [
+     "Takaya-Nakamura flux",
+     "Takaya-Nakamura wave activity flux",
+     "TN01",
+     "Plumb flux",
+     "Rossby wave packet",
+     "Rossby wave propagation",
+     "WAF"
+    ]
+   },
+   "keywords": "Wave activity flux, Takaya-Nakamura flux, Takaya-Nakamura wave activity flux, TN01, Plumb flux, Rossby wave packet, Rossby wave propagation, WAF",
+   "image": "https://scorvec.com/hero-supercell-1280.webp",
+   "citation": [
+    "Hoskins, B. J., and D. J. Karoly, 1981: The steady linear response of a spherical atmosphere to thermal and orographic forcing. J. Atmos. Sci., 38, 1179–1196.",
+    "Plumb, R. A., 1985: On the three-dimensional propagation of stationary waves. J. Atmos. Sci., 42, 217–229.",
+    "Takaya, K., and H. Nakamura, 2001: A formulation of a phase-independent wave-activity flux for stationary and migratory quasigeostrophic eddies on a zonally varying basic flow. J. Atmos. Sci., 58, 608–627."
+   ]
+  },
+  {
+   "@type": "BreadcrumbList",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Home",
+     "item": "https://scorvec.com/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Explainers",
+     "item": "https://scorvec.com/topics/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 3,
+     "name": "Wave activity flux",
+     "item": "https://scorvec.com/topics/wave-activity-flux.html"
+    }
+   ]
+  }
+ ]
+}
+</script>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+  body { background: var(--c-bg, #f5f6f3); color: var(--c-ink, #29321f); margin: 0; }
+  .topic { max-width: 46rem; margin: 0 auto; padding: 2rem 1.25rem 3.5rem; }
+  .topic .crumbs { font-size: 0.92rem; color: var(--c-muted, #5c6b73); margin-bottom: 1.2rem; }
+  .topic .crumbs a { color: inherit; }
+  .topic h1 { text-align: left; margin: 0 0 0.4rem; }
+  .topic .aka { color: var(--c-muted, #5c6b73); font-size: 0.95rem; margin: 0 0 1.6rem; }
+  .topic h2 { margin: 2.2rem 0 0.7rem; text-align: left; }
+  .topic p, .topic li { line-height: 1.6; }
+  .topic ul { padding-left: 1.2rem; }
+  .topic li { margin: 0.45rem 0; }
+  .topic a { color: var(--c-accent, #274b7a); text-underline-offset: 0.2em; }
+  .topic .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+  .figs { max-width: 64rem; margin: 1.6rem auto 0; padding: 0 1.25rem; }
+  .figs figure { margin: 0 0 2rem; }
+  .figs img { display: block; width: 100%; height: auto; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs iframe { display: block; width: 100%; aspect-ratio: 16 / 10; border: 1px solid var(--c-rule, #dfe3dc); background: #fff; }
+  .figs figcaption { color: var(--c-muted, #5c6b73); margin-top: 0.5rem; }
+  .live { display: inline-block; margin: 0.6rem 0 0; font-weight: 600; }
+  .related { border-top: 1px solid var(--c-rule, #dfe3dc); margin-top: 2.6rem; padding-top: 1.2rem; }
+  .related ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .refs { font-size: 0.95rem; }
+  .refs li { margin: 0.4rem 0; }
+  .byline { color: var(--c-muted, #5c6b73); font-size: 0.92rem; margin-top: 2.2rem; }
+  .hub-list { list-style: none; padding: 0; }
+  .hub-list li { border-top: 1px solid var(--c-rule, #dfe3dc); padding: 1rem 0; margin: 0; }
+  .hub-list a { font-family: var(--f-serif); font-size: 1.3rem; text-decoration: none; }
+  .hub-list a:hover { text-decoration: underline; }
+  .hub-list p { margin: 0.3rem 0 0; color: var(--c-muted, #5c6b73); }
+</style>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS subseasonal outlook, weeks 1–5</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+                <li><a href="/seasonal.html">C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS outlook</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+<article class="topic">
+  <p class="crumbs"><a href="/">Home</a> › <a href="/topics/">Explainers</a> › Wave activity flux</p>
+  <h1>Wave activity flux (Takaya–Nakamura)</h1>
+  <p class="aka">Also called: Takaya-Nakamura flux, Takaya-Nakamura wave activity flux, TN01, Plumb flux, Rossby wave packet, Rossby wave propagation</p>
+<p>The <b>wave activity flux</b> of Takaya and Nakamura (2001) is a vector that points along the group velocity of
+quasi-stationary Rossby waves: where wave energy is travelling, rather than where the ridges and troughs are. Its
+divergence marks a wave source, such as tropical convection or flow over a mountain range, and its convergence marks
+where the waves are depositing activity and the downstream flow will amplify days later. That makes it a practical tool
+for downstream development, blocking onset and the teleconnections that radiate from the tropics, such as the El
+Niño–PNA pathway.</p>
+
+<h2>The equation</h2>
+<p>For a basic state with horizontal wind $\mathbf{U}=(U,V)$ and a streamfunction anomaly $\psi'$, the horizontal
+flux on a pressure surface is</p>
+<p>$$\mathbf{W}=\frac{p\cos\phi}{2\,|\mathbf{U}|}\begin{pmatrix}U(\psi_x'^2-\psi'\psi_{xx}')+V(\psi_x'\psi_y'-\psi'\psi_{xy}')\\[2pt]U(\psi_x'\psi_y'-\psi'\psi_{xy}')+V(\psi_y'^2-\psi'\psi_{yy}')\end{pmatrix}$$</p>
+<p>It generalizes Plumb's (1985) flux for stationary waves on a zonal flow to a zonally varying basic state and to
+slowly migrating waves. It is <i>phase-independent</i>: it does not oscillate between ridge and trough, so packets
+can be followed without averaging over a wavelength.</p>
+
+<h2>How to read it</h2>
+<ul>
+<li>Arrows arcing along the jet are a wave train; follow them to see where a disturbance will be felt next.</li>
+<li>Where the arrows converge and slow down, the wave amplifies: that is where ridges build and blocks form.</li>
+<li>A packet leaving the tropical Pacific toward North America is the tropical heating reaching the extratropics.</li>
+</ul>
+
+<h2>The live forecast</h2>
+<p>The flux is computed at 250 hPa, the level of the jet core and the stationary-wave maximum, for each of 25 AIFS
+ensemble members at every day to day 15, and then averaged. Because the flux is quadratic in $\psi'$, the flux of the
+ensemble mean would fade with lead time as the members decorrelate, while the mean of the members' fluxes keeps the
+packets that are actually forecast. Each member's $\psi'$ is smoothed with a 5-day running mean along the forecast,
+because the theory is for quasi-stationary waves. The basic state is the ERA5 1991–2020 climatology plus the 30-day
+mean anomaly of the AIFS analyses, and shading is hatched where fewer than 60 % of members agree on the sign of the
+divergence.</p>
+  <a class="live" href="/circulation.html#waf">Open the wave activity flux in the circulation viewer</a>
+</article>
+<div class="figs">
+<figure><iframe src="/sst_anim.html?embed=1&manifest=waf_manifest.json&region=waf" title="Takaya–Nakamura wave activity flux at 250 hPa, AIFS-ENS member mean, days 0–15" loading="lazy"></iframe><figcaption>Takaya–Nakamura wave activity flux at 250 hPa, AIFS-ENS member mean, days 0–15. Use the controls to step through the forecast.</figcaption></figure>
+</div>
+<div class="topic" style="padding-top:0">
+  <section class="related"><h2>Related</h2><ul><li><a href="/topics/ep-flux.html">E–P flux</a></li><li><a href="/topics/mountain-torque.html">Mountain torque</a></li><li><a href="/topics/dynamic-tropopause.html">Dynamic tropopause</a></li><li><a href="/topics/">All explainers</a></li></ul></section>
+  <section><h2>References</h2><ol class="refs"><li>Hoskins, B. J., and D. J. Karoly, 1981: The steady linear response of a spherical atmosphere to thermal and orographic forcing. <i>J. Atmos. Sci.</i>, 38, 1179–1196.</li><li>Plumb, R. A., 1985: On the three-dimensional propagation of stationary waves. <i>J. Atmos. Sci.</i>, 42, 217–229.</li><li>Takaya, K., and H. Nakamura, 2001: A formulation of a phase-independent wave-activity flux for stationary and migratory quasigeostrophic eddies on a zonally varying basic flow. <i>J. Atmos. Sci.</i>, 58, 608–627.</li></ol></section>
+  <p class="byline">By <a href="/">Shawn Corvec</a>, meteorologist. The figures on this page are live and update with each forecast cycle; the text was last revised 2026-09-26.</p>
+</div>
+</main>
+<script>
+addEventListener("message", function (e) {
+  var x = e.data; if (!x || x.type !== "sstAnimHeight") return;
+  document.querySelectorAll(".figs iframe").forEach(function (f) {
+    if (f.contentWindow === e.source) { f.style.height = x.h + "px"; f.style.aspectRatio = "auto"; }
+  });
+});
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

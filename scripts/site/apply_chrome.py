@@ -147,6 +147,8 @@ PAGES = [
         ("p{color:#8b8ba3}a{color:#64d2ff}", "p{color:#8b8ba3}a{color:#64d2ff}body>div{margin:auto;padding:2rem}"),
     ]),
 ]
+# topic explainers (written by scripts/site/topics.py, 2026-09-26): every page in topics/ gets the header and footer
+PAGES += [dict(path=f"topics/{p.name}", mode="after-body", footer=True) for p in sorted((REPO / "topics").glob("*.html"))]
 
 HEAD_SNIPPET = (
     '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
