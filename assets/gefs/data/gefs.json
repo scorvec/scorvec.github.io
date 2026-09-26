@@ -1,0 +1,32 @@
+{
+ "cycle": "20260918",
+ "init": "2026-09-18 00Z",
+ "valid": "Sep 19 \u2013 Oct 23",
+ "members": 31,
+ "change_vs": null,
+ "generated": "2026-09-26T16:52Z",
+ "figures": [
+  "gefs_na_t2m_weekly.webp",
+  "gefs_sa_t2m_weekly.webp",
+  "gefs_glb_t2m_weekly.webp",
+  "gefs_na_zg500_weekly.webp",
+  "gefs_sa_zg500_weekly.webp",
+  "gefs_glb_zg500_weekly.webp",
+  "gefs_na_mslp_weekly.webp",
+  "gefs_sa_mslp_weekly.webp",
+  "gefs_glb_mslp_weekly.webp",
+  "gefs_na_u200_weekly.webp",
+  "gefs_sa_u200_weekly.webp",
+  "gefs_glb_u200_weekly.webp",
+  "gefs_na_u850_weekly.webp",
+  "gefs_sa_u850_weekly.webp",
+  "gefs_glb_u850_weekly.webp",
+  "gefs_na_pr_weekly.webp",
+  "gefs_sa_pr_weekly.webp",
+  "gefs_glb_pr_weekly.webp",
+  "gefs_na_olr_weekly.webp",
+  "gefs_sa_olr_weekly.webp",
+  "gefs_glb_olr_weekly.webp",
+  "gefs_strat_vortex.webp"
+ ]
+}
