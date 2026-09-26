@@ -1,0 +1,73 @@
+name: GEFS extended outlook
+
+# The GEFS extended page (gefs.html, 2026-09-26): every day's 00Z GEFS run to 35 days (user: daily, once the 00Z
+# run comes in. Its days 17-35 are published the FOLLOWING day, 03:00-04:00 UTC every day in the week to
+# 2026-09-26, so the first slot is 04:40 UTC), anomalies
+# against the GEFSv12 reforecast climatology (release gefs-clim-v1, gefs-reforecast.yml), weekly and change maps and
+# the bias-corrected polar-vortex panel, all by scripts/gefs/gefs_live.py. Byte-ranged from NOAA's S3 (us-east-1).
+# Several schedule slots because Actions honours only some cron firings; the script exits early once the cycle is
+# already rendered.
+
+on:
+  schedule:
+    - cron: "40 4 * * *"
+    - cron: "40 6 * * *"
+    - cron: "40 9 * * *"
+    - cron: "40 13 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "cycle YYYYMMDD (default: the newest 00Z run that reached day 35)"
+        required: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: gefs
+  cancel-in-progress: false
+
+jobs:
+  gefs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/gefs
+            assets/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy eccodes matplotlib cartopy
+      - name: GEFS extended run
+        run: |
+          python scripts/gefs/gefs_live.py --site . --procs 4 ${{ inputs.date && format('--date {0}', inputs.date) || '' }}
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (strat-history.yml pattern)
+          SNAP=$(mktemp -d)
+          git add -A assets/gefs 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A assets/gefs
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "gefs: extended outlook $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          exit 1
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"

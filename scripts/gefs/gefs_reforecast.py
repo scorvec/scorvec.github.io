@@ -83,13 +83,14 @@ def get(url: str, rng: tuple[int, int] | None = None, tries: int = 4) -> bytes:
             time.sleep(2 * (k + 1))
 
 
-def index(url: str) -> list[tuple[int, int, str, str]]:
-    """(start, end, level, step text) per message from a .idx."""
+def index(url: str) -> list[tuple[int, int, str, str, str]]:
+    """(start, end, level, step text, variable) per message from a .idx. The live files hold every variable in one
+    file, so a match must use the variable too: "10 mb" alone finds the geopotential height first."""
     lines = [l.split(":") for l in get(url + ".idx").decode().splitlines() if l.strip()]
     out = []
     for i, p in enumerate(lines):
         end = int(lines[i + 1][1]) - 1 if i + 1 < len(lines) else -1
-        out.append((int(p[1]), end, p[4], p[5]))
+        out.append((int(p[1]), end, p[4], p[5], p[3]))
     return out
 
 
