@@ -256,17 +256,22 @@ def cmd_combine(a) -> int:
         dd = np.abs(doy - c); dd = np.minimum(dd, 365 - dd)
         sel = [f for f, x in zip(files, dd) if x <= 15]
         acc = {t: np.zeros((DAYS, len(R.LAT), len(R.LON))) for t in D2}
+        a25 = {t: np.zeros((DAYS, len(LAT25), len(LON25))) for t in MEMBER25}
         s = np.zeros((len(SCALARS), DAYS)); n = 0
         for f in sel:
             z = np.load(f); k = len(z["members"])
             for t in D2:
                 acc[t] += k * unpack(t, z[f"d_{t}"])
+            for t in MEMBER25:
+                a25[t] += unpack(t, z[f"m_{t}"]).sum(0)
             s += z["s"].astype("float64").sum(0); n += k
         if n == 0:
             continue
+        # c25_<tag>: the same climatology on the 2.5 deg grid of the per-member fields (teleconnections, regimes)
         np.savez_compressed(Path(a.out) / f"gefs_clim2_{c:03d}.npz", n=n, n_starts=len(sel),
                             scalars=np.array([x[0] for x in SCALARS]), s=(s / n).astype("float32"),
-                            **{f"d_{t}": pack(t, acc[t] / n) for t in D2})
+                            **{f"d_{t}": pack(t, acc[t] / n) for t in D2},
+                            **{f"c25_{t}": pack(t, a25[t] / n) for t in MEMBER25})
         print(f"doy {c:3d}: {len(sel)} starts, {n} member-runs", flush=True)
     # the per-member hindcast fields of this month's own starts, for the calibrations (teleconnection and regime
     # hindcasts, vortex spread): one compact file per month, keyed by start
