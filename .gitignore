@@ -90,8 +90,8 @@ scripts/telecon/data/merra2_gwd_events/
 scripts/telecon/data/outcomes/
 scripts/strat/data/
 
-# private research — kept local only (2026-07-28)
-stratosphere.html
+# private research — kept local only (2026-07-28). stratosphere.html was un-ignored 2026-09-26: the name now
+# belongs to the public page split out of circulation.html (public products only); the research stays in assets/strat/.
 assets/strat/
 scripts/telecon/
 scripts/verify/data/

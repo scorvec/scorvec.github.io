@@ -295,14 +295,14 @@ jobs:
           # (2026-09-07 03:03Z: a rendered walker_basins.webp never reached main).
           DAY=$(python -c "import json; print(json.load(open('assets/sst/manifest.json'))['sst_valid_day'])" 2>/dev/null || date -u +%Y-%m-%d)
           SNAP=$(mktemp -d)
-          git add -A enso.html circulation.html sst.html enso-*.html assets/sst/ 2>/dev/null || true
+          git add -A enso.html circulation.html stratosphere.html sst.html enso-*.html assets/sst/ 2>/dev/null || true
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
-            git add -A enso.html circulation.html sst.html enso-*.html assets/sst/
+            git add -A enso.html circulation.html stratosphere.html sst.html enso-*.html assets/sst/
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
             git commit -q -m "data update: ${DAY}"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi

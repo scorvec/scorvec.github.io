@@ -1,6 +1,6 @@
 name: Stratosphere history (static MERRA-2 reference)
 
-# The "Stratosphere history" items on circulation.html: every winter since 1980, the SSW
+# The "Stratosphere history" items on stratosphere.html: every winter since 1980, the SSW
 # catalogue, dripping-paint composites, what follows at the surface, and the base rates.
 # STATIC products (user 2026-09-25: "the best type of stuff for this site are things that
 # don't need to be updated every day"). The analysis is done once on the laptop by

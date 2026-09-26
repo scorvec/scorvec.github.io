@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stratosphere and the Polar Vortex &mdash; SSW Forecast, E&ndash;P Flux, Heat Flux and Every Sudden Warming Since 1980 &middot; Shawn Corvec</title>
+<meta name="description" content="Daily AIFS-ENS polar vortex forecast (60N zonal wind at 10 and 100 hPa, polar-cap height), E-P flux and wave driving, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 catalogue of every major sudden stratospheric warming since 1980 and what followed at the surface.">
+<link rel="canonical" href="https://scorvec.com/stratosphere.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Stratosphere and the Polar Vortex &mdash; SSW Forecast, E&ndash;P Flux, Heat Flux and Every Sudden Warming Since 1980 &middot; Shawn Corvec">
+<meta property="og:description" content="Daily AIFS-ENS polar vortex forecast (60N zonal wind at 10 and 100 hPa, polar-cap height), E-P flux and wave driving, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 catalogue of every major sudden stratospheric warming since 1980 and what followed at the surface.">
+<meta property="og:url" content="https://scorvec.com/stratosphere.html">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Stratosphere and the Polar Vortex &mdash; SSW Forecast, E&ndash;P Flux, Heat Flux and Every Sudden Warming Since 1980 &middot; Shawn Corvec">
+<meta name="twitter:description" content="Daily AIFS-ENS polar vortex forecast (60N zonal wind at 10 and 100 hPa, polar-cap height), E-P flux and wave driving, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 catalogue of every major sudden stratospheric warming since 1980 and what followed at the surface.">
+<link rel="stylesheet" href="/assets/outlook.css">
+<link rel="stylesheet" href="/assets/stage.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false}],throwOnError:false});"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+                <li><a href="/stratosphere.html" aria-current="page">Stratosphere and polar vortex</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">Subseasonal outlook (GEPS, weeks 1–5)</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts (seven centres)</a></li>
+                <li><a href="/seasonal.html">Seasonal outlook (eight C3S models)</a></li>
+                <li><a href="/sfs.html">Seasonal outlook (NOAA SFS)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/topics/">Explainers</a></li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+  <div class="page-header">
+    <p class="eyebrow">Daily from the ECMWF AIFS ensemble, against MERRA-2 and ERA5; the history from MERRA-2, 1980&ndash;2026</p>
+    <h1>Stratosphere and the polar vortex</h1>
+    <p class="sub">Whether the winter polar vortex is about to weaken, and what that has meant at the surface before. The forecast side follows the vortex winds, the planetary waves driving them and the heat flux carrying those waves upward, member by member through the 15-day AIFS ensemble. The history side is every winter and every major sudden warming since 1980 from MERRA-2, with only the statistically significant results shown. Background on each diagnostic is in the <a href="/topics/sudden-stratospheric-warming.html">sudden stratospheric warming</a>, <a href="/topics/ep-flux.html">E&ndash;P flux</a> and <a href="/topics/eddy-heat-flux.html">eddy heat flux</a> explainers. The tropospheric circulation is on <a href="/circulation.html">Global circulation and jets</a>.</p>
+
+  </div>
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS open data (CC BY 4.0) &middot; NASA GMAO MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-24</span></div>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder" id="dom-holder">
+    <div id="dom-shwinters" class="card sh-hist" hidden>
+      <div class="controls" role="group" aria-label="Variable">
+        <span class="seg-label">Show</span>
+        <button type="button" class="pill on" data-shv="u10">Wind, 60°N 10 hPa</button>
+        <button type="button" class="pill" data-shv="t10">Polar-cap temperature, 10 hPa</button>
+        <button type="button" class="pill" data-shv="z100s">Polar-cap height, 100 hPa</button>
+      </div>
+      <div class="controls" role="group" aria-label="Highlight">
+        <span class="seg-label">Highlight</span>
+        <button type="button" class="pill on" data-shh="analogs">Strong El Niño analogs</button>
+        <button type="button" class="pill" data-shh="nino">El Niño</button>
+        <button type="button" class="pill" data-shh="nina">La Niña</button>
+        <button type="button" class="pill" data-shh="qboe">QBO east</button>
+        <button type="button" class="pill" data-shh="qbow">QBO west</button>
+        <button type="button" class="pill" data-shh="none">None</button>
+        <label class="sh-pick">Winter <select id="shw-pick" aria-label="Pick a winter to draw in black"><option value="">none</option></select></label>
+      </div>
+      <div id="shw-plot" class="plot" style="height:560px"></div>
+      <p class="note" id="shw-note"></p>
+    </div>
+    <div id="dom-shssw" class="card sh-hist" hidden>
+      <div class="sh-tablewrap"><table class="sh-table" id="shs-table">
+        <caption>Major sudden warmings on MERRA-2, 1980–2026</caption>
+        <thead><tr><th scope="col">Central date</th><th scope="col">Shape</th><th scope="col">Depth</th><th scope="col">Lowest wind<br><small>m/s, days 0–30</small></th><th scope="col">Easterly spell<br><small>days from day 0</small></th><th scope="col">Cap warming<br><small>10 hPa, K</small></th><th scope="col">AO before → after<br><small>days −20…−1, +1…+45</small></th><th scope="col">ENSO</th><th scope="col">QBO</th></tr></thead>
+        <tbody></tbody></table></div>
+      <details class="sh-sv"><summary>Strong-vortex events (the opposite extreme)</summary>
+        <div class="sh-tablewrap"><table class="sh-table" id="shs-sv"><thead><tr><th scope="col">Date</th><th scope="col">Peak 10 hPa index</th><th scope="col">Strongest wind<br><small>m/s, days 0–30</small></th><th scope="col">AO before → after</th></tr></thead><tbody></tbody></table></div>
+      </details>
+      <p class="note" id="shs-note"></p>
+    </div>
+  </div>
+<template id="about-vortex">
+<p><a href="/topics/sudden-stratospheric-warming.html">The explainer</a>: what sudden stratospheric warmings measures, the equations and how to read the chart.</p>
+<p>The stratospheric vortex is the slow variable that sets the odds for the surface weeks later, so it is worth watching before it moves. <b>Top</b>: the zonal-mean zonal wind at <b>10&nbsp;hPa, 60&deg;N</b> &mdash; the standard sudden-stratospheric-warming diagnostic. A reversal to <i>easterly</i> here in winter is a major SSW (the original WMO definition also asked for a reversed 60&ndash;90&deg; temperature gradient), which is why the zero line is drawn heavy and the member fraction crossing it is called out. <b>Middle</b>: the same wind at <b>100&nbsp;hPa</b>. Anomalies that reach this far down are the ones with a path to the troposphere &mdash; a 10&nbsp;hPa event that never appears at 100&nbsp;hPa usually never reaches the surface. <b>Bottom</b>: the <b>100&nbsp;hPa polar-cap (65&ndash;90&deg;N) height anomaly</b>, positive for a weak or displaced vortex; this is the field that actually leads the AO/NAO response. Blue traces are AIFS-ENS members, orange their mean, dashed member 0. The 100&nbsp;hPa height is member-0-only because ECMWF open data publishes no perturbed geopotential at that level.</p>
+<p class="chart-sources">ECMWF AIFS-ENS zonal wind and geopotential at 10/100&nbsp;hPa (open data, CC BY 4.0) &middot; reference: MERRA-2 1980&ndash;2026 day-of-year 10th&ndash;90th percentiles (NASA GMAO) &middot; analysis tail: ERA5 &middot; updated daily</p>
+</template>
+<template id="about-vwinds">
+<p>The vortex as it actually looks, rather than as an index. Wind <b>speed</b> is
+        shaded with <b>streamlines</b> over it at <b>10&nbsp;hPa</b>. This is where the vortex lives and where an SSW is declared &mdash; the level the WMO diagnostic is evaluated on. The red contour
+        is <b>u&nbsp;=&nbsp;0</b>: where the westerlies end in the zonal sense (not the PV-gradient
+        vortex edge), and the outer bound of the corridor $0<\bar{u}<U_c$ in which planetary waves can propagate vertically; outside it they cannot. The dashed ring is
+        60&deg;, the latitude the SSW diagnostic is evaluated at. Speeds below the first contour
+        are left white, which is why the summer hemisphere is largely blank &mdash; there is no
+        vortex there to draw. Both hemispheres share the colour scale, so they are directly
+        comparable.</p>
+<p class="chart-sources">ECMWF AIFS-ENS member 0 (open data, CC&nbsp;BY&nbsp;4.0) &middot; 10&nbsp;hPa speed shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-epflux">
+<p><a href="/topics/ep-flux.html">The explainer</a>: what the E–P flux and its divergence measures, the equations and how to read the chart.</p>
+<p>Where the torque budget shows how the Earth exchanges angular momentum with the
+        atmosphere at the surface, the <b>Eliassen&ndash;Palm flux</b> shows how the waves
+        redistribute it internally &mdash; the same quasi-geostrophic diagnostic used to
+        diagnose sudden stratospheric warmings, computed live from AIFS-ENS and stepped
+        through the full 15-day forecast.</p>
+<p class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; member 0 + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-wave1">
+<p>The <b>zonal wavenumber-1 component</b> of geopotential height, <b>100&nbsp;hPa beside
+        500&nbsp;hPa</b> for one hemisphere at a time &mdash; the <b>Hemisphere</b> selector switches
+        between them, and the loop opens on whichever one currently carries the larger wave. The two
+        levels share a frame because that is the comparison that carries the physics:
+        <b>100&nbsp;hPa</b> is what the vortex feels, <b>500&nbsp;hPa</b> is the tropospheric source,
+        and a ridge that <b>leans westward with height</b> is actively driving the vortex while one
+        sitting over the same longitude at both levels is not. Each level keeps its own colourbar
+        &mdash; wave amplitude grows with height, so a shared scale would flatten the lower one.
+        Because only k&nbsp;=&nbsp;1 is retained the field is an anomaly by construction: red is a
+        ridge, blue a trough, the zonal mean already removed. Thin contours are the <b>full</b>
+        height field; values inside the deadband are left white. The map is the <b>ensemble
+        mean</b> &mdash; the part of the wave the forecast agrees on, which is the only part whose
+        phase is worth reading.</p>
+<p class="chart-sources">ECMWF AIFS-ENS <b>ensemble mean</b> (open data, CC&nbsp;BY&nbsp;4.0), 100 and 500&nbsp;hPa, analysis to day&nbsp;15 &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; superposition index vs ERA5 1991&ndash;2020 (WeatherBench2) &middot; polar stereographic &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-heatflux">
+<p><a href="/topics/eddy-heat-flux.html">The explainer</a>: what the 100 hPa eddy heat flux measures, the equations and how to read the chart.</p>
+<p>The wave-1 maps show how large the planetary wave is and where its ridge sits; they do not show
+        whether it <b>propagates upward</b>. That is the vertical component of the Eliassen&ndash;Palm
+        flux, which at 100&nbsp;hPa is proportional to the zonal-mean <b>poleward eddy heat flux
+        [v&prime;T&prime;]</b>. A large wave that is vertically stacked carries almost none; one that
+        tilts westward with height carries a lot. <b>Positive is poleward in both hemispheres</b>,
+        which is wave activity entering the stratosphere.</p>
+<p>The flux is quadratic, so it is computed <b>per member and then averaged</b>: the flux of the
+        ensemble-mean fields fades with lead as the members&rsquo; phases decorrelate. Top left: the daily
+        flux, members and the analysed record against the climatological 10&ndash;90&nbsp;% range. Top right: the
+        wave-1 and wave-2 parts. Bottom left is the panel to read for the vortex: the <b>trailing
+        40-day mean, standardised</b>. A few strong days do little; weeks above +1&sigma; weaken
+        the vortex, weeks below &minus;1&sigma; let it strengthen. In early autumn radiative cooling
+        dominates, so a burst slows the vortex&rsquo;s seasonal spin-up rather than reversing it.
+        Bottom right: the ensemble-mean flux by latitude through the forecast.</p>
+<p class="chart-sources">ECMWF AIFS-ENS, 25 perturbed members + control, v and T at 100&nbsp;hPa, daily to day 15 (open data, CC&nbsp;BY&nbsp;4.0) &middot; zonal wavenumbers 1&ndash;72 to match the climatology&rsquo;s resolution &middot; climatology: NCEP/NCAR Reanalysis&nbsp;1 (NOAA PSL), 1991&ndash;2020, &plusmn;15-day window &middot; analysed tail: the AIFS control&rsquo;s step-0 fields, 00 and 12&nbsp;UTC averaged (PSL&rsquo;s R1 stopped in March 2026) &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-shwinters">
+<p>Each grey line is one northern winter, 1980/81 to 2025/26, October to May, from NASA&rsquo;s MERRA-2 reanalysis; the band is the 10&ndash;90&nbsp;% range of those 46 winters and the dashed line the median winter. Three views:</p>
+<ul>
+<li><b>Wind at 60&deg;N, 10&nbsp;hPa</b>, the textbook measure of the polar vortex. Below zero is a major sudden warming.</li>
+<li><b>Polar-cap temperature at 10&nbsp;hPa</b>, the warming itself: often 30&ndash;50&nbsp;K in a week.</li>
+<li><b>Polar-cap height at 100&nbsp;hPa</b>, standardised, positive = weak vortex. This is the lower stratosphere, the level that couples to the troposphere: an event that never shows here rarely reaches the ground.</li>
+</ul>
+<p>The highlight buttons draw a set of winters in colour: the five strong El Ni&ntilde;o winters that are the usual analogs for 2026/27 (1982/83, 1997/98, 2009/10, 2015/16, 2023/24), all El Ni&ntilde;o or La Ni&ntilde;a winters (CPC&rsquo;s RONI in DJF at or beyond &plusmn;0.5), or the QBO phase at 50&nbsp;hPa in October&ndash;November. Dots mark each sudden warming&rsquo;s central date (a diamond for a split). The menu draws any single winter in black. Three of the five strong El Ni&ntilde;o analogs had no sudden warming at all (a description of those winters, not a tested result: five winters cannot establish a rate).</p>
+<p>Our MERRA-2 pull is missing 299 of 16,979 days, scattered and at most nine in a row (one of them a corrupted all-zero record). The 10&nbsp;hPa wind is filled from NCEP R1 plus the local MERRA-2 minus R1 offset (the two correlate at 0.998); everything else is interpolated.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 (M2I3NPASM; daily means of the 0/6/12/18Z analyses, zonal means at 42 levels to 0.1&nbsp;hPa, polar cap 65&ndash;90&deg;N cos-weighted) &middot; NCEP/NCAR R1 10&nbsp;hPa height maps (NOAA PSL) &middot; ERA5 2&nbsp;m temperature and 500&nbsp;hPa height (WeatherBench2, 1.5&deg;) &middot; CPC daily AO, RONI and QBO 50&nbsp;hPa index &middot; SILSO sunspot number &middot; static reference, built 2026-09-25</p>
+</template>
+<template id="about-shssw">
+<p><a href="/topics/sudden-stratospheric-warming.html">The explainer</a>: what sudden stratospheric warmings measures, the equations and how to read the chart.</p>
+<p>A <b>major sudden stratospheric warming</b> (SSW) follows Charlton and Polvani (2007): the first day the zonal-mean wind at 60&deg;N and 10&nbsp;hPa turns easterly, November to March. A second event in the same winter needs 20 straight westerly days in between, and a reversal that never recovers (at least 10 westerly days before 30 April) is the spring final warming, not an SSW. On MERRA-2 that finds 30 reversals since 1980. Two of them, 17 February 2002 and 28 November 2025, were one day of easterlies weaker than 0.2&nbsp;m/s that NCEP R1 never shows; they are listed as <i>unconfirmed</i> and left out of every composite and rate. That leaves 28 events in 24 of 46 winters.</p>
+<p><b>Deep or shallow</b>: the mean standardised polar-cap height at 100&ndash;150&nbsp;hPa over the 30 days after, split at the median. It was the best single predictor of the surface response in our earlier tests, better than how warm the stratosphere got or how far down the warming reached. After the 14 deep events the AO averaged 1.42 below the same dates in other years over days 1&ndash;30 and 0.69 below over days 31&ndash;60, both significant (t-test, false-discovery rate 10&nbsp;%). After the 14 shallow events there is no significant change. Against dates in the same season with the same AO over the previous 20 days and no warming, deep events ran 1.2 lower over the next 45 days, also significant (95&nbsp;% interval 0.7&ndash;1.7); shallow events were no different. Blocking before an event does not predict its depth (r = 0.03). Depth is measured over the same weeks as the surface response, so this is association, not proof of direction. Depth is also only known two to three weeks in: it tells you what an event is doing once it has happened, not whether one is coming.</p>
+<p><b>Split or displacement</b>, from the 10&nbsp;hPa height maps (MERRA-2 here is zonal-mean only, so the maps are NCEP R1): a split if, on any day from &minus;3 to +7, two separate low centres lie below the vortex edge (the DJFM mean 10&nbsp;hPa height at 60&deg;N, minus 150&nbsp;m), the smaller at least a quarter the size of the larger; otherwise a displacement. It matches the type usually given in the literature for all 20 events that have an established one (Charlton and Polvani 1981&ndash;2002, plus the well-studied later events), but it was tuned on them. The moment method&rsquo;s aspect-ratio threshold of 2.4 (Seviour et al. 2013) got 17 of 20 on this 2.5&deg; grid. 10 of the 28 are splits.</p>
+<p><b>Strong-vortex events</b> are the opposite extreme: the 10&nbsp;hPa annular index (the standardised polar-cap height anomaly with its sign flipped) first crossing +1.5, November to March, at least 60 days apart, after Baldwin and Dunkerton (2001). There were 27. The AO averaged 0.76 above normal over the 30 days after them, which is significant, and was back to normal by days 31&ndash;60.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 (M2I3NPASM; daily means of the 0/6/12/18Z analyses, zonal means at 42 levels to 0.1&nbsp;hPa, polar cap 65&ndash;90&deg;N cos-weighted) &middot; NCEP/NCAR R1 10&nbsp;hPa height maps (NOAA PSL) &middot; ERA5 2&nbsp;m temperature and 500&nbsp;hPa height (WeatherBench2, 1.5&deg;) &middot; CPC daily AO, RONI and QBO 50&nbsp;hPa index &middot; SILSO sunspot number &middot; static reference, built 2026-09-25</p>
+</template>
+<template id="about-shdrip">
+<p>Baldwin and Dunkerton (2001) showed that large stratospheric anomalies tend to work their way down over a few weeks and then hold the surface in the same state for a month or two. Drawn against time and height, the composite looks like paint dripping down a wall. This is that chart from MERRA-2: the polar-cap (65&ndash;90&deg;N) geopotential height anomaly at 42 levels from 1000 to 1&nbsp;hPa, standardised for each level and day of year, with each level&rsquo;s linear trend removed. Above 5&nbsp;hPa a step at August 2004 is removed too, when MERRA-2 began assimilating Aura MLS; that is a data change, not climate. The standard deviation is floored at a third of its winter peak, so late-spring days do not blow up.</p>
+<p>Colour appears only where the composite passes a significance test: a t-test across events at every level and day, with the false-discovery rate held at 10&nbsp;% over the whole chart. With spatially correlated fields that keeps the chance of any false signal near 5&nbsp;% (Wilks 2016). Grey is not significant. Read it for three things. First, how fast the red reaches 100&nbsp;hPa. Second, whether it <b>lingers</b> there: significantly, to about day 60 after the deep events and the splits, to day 39 after displacements, and never after the shallow events. Third, whether the surface AO below turns negative. Day by day that passes only after the deep events (days 5&ndash;26) and, with the opposite sign, after strong-vortex events (days 3&ndash;9). The box gives 30-day means, a more powerful test that also passes for all warmings pooled. The blue that follows aloft is the vortex re-forming. The dashed line is the same calendar days averaged over every other year, the baseline every test is against.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 (M2I3NPASM; daily means of the 0/6/12/18Z analyses, zonal means at 42 levels to 0.1&nbsp;hPa, polar cap 65&ndash;90&deg;N cos-weighted) &middot; NCEP/NCAR R1 10&nbsp;hPa height maps (NOAA PSL) &middot; ERA5 2&nbsp;m temperature and 500&nbsp;hPa height (WeatherBench2, 1.5&deg;) &middot; CPC daily AO, RONI and QBO 50&nbsp;hPa index &middot; SILSO sunspot number &middot; static reference, built 2026-09-25</p>
+</template>
+<template id="about-shfollow">
+<p>What happened at the surface after each kind of event, averaged over every event since 1980, <b>showing only what is statistically significant</b>. Temperatures and heights are ERA5 anomalies against each grid point&rsquo;s own seasonal cycle and linear trend (1979&ndash;2026), so the warming climate does not count as a signal.</p>
+<p>The <b>map</b> shades 2&nbsp;m temperature, and contours 500&nbsp;hPa height, only where the mean over days 1&ndash;30 or 31&ndash;60 passes a t-test across events with the false-discovery rate held at 10&nbsp;% over the map (Wilks 2016). The count of significant cells is printed under each map. Shallow events have none in either window, and neither do days 31&ndash;60 after splits or displacements; those maps say so. After deep events the significant part in days 1&ndash;30 is the familiar negative-AO pattern: warm over Greenland and north-east Canada, cold over northern Siberia, high heights over Greenland.</p>
+<p>The <b>Arctic Oscillation</b> view compares 30-day means with the same calendar days in other years, with the false-discovery rate held at 10&nbsp;% over the 12 tests. Significant: after all warmings &minus;0.60 (days 1&ndash;30) and &minus;0.34 (31&ndash;60); after deep ones &minus;1.42 and &minus;0.69; after splits &minus;0.98 (days 1&ndash;30 only); after strong-vortex events +0.76 (days 1&ndash;30 only). Not significant: shallow events and displacements in either window.</p>
+<p>The <b>by region</b> table uses land-only box means: Eastern US 32&ndash;45&deg;N 95&ndash;70&deg;W, Central Canada 48&ndash;60&deg;N 105&ndash;85&deg;W, NW Europe 47&ndash;60&deg;N 10&deg;W&ndash;15&deg;E, Scandinavia 58&ndash;70&deg;N 5&ndash;30&deg;E, Siberia 50&ndash;65&deg;N 70&ndash;120&deg;E and East Asia 30&ndash;45&deg;N 105&ndash;135&deg;E. Each cell tests the share of events that ran cold against the region&rsquo;s normal chance of a cold 30-day window (binomial test, false-discovery rate 10&nbsp;% over all 72 cells). <b>One cell passes</b>: Scandinavia, days 1&ndash;30 after deep events, cold 13 times in 14 (&minus;1.7&nbsp;K) against a normal 44&nbsp;%. Nothing else is significant, including the eastern US and northwest Europe.</p>
+<p class="chart-sources">NASA GMAO MERRA-2 (M2I3NPASM; daily means of the 0/6/12/18Z analyses, zonal means at 42 levels to 0.1&nbsp;hPa, polar cap 65&ndash;90&deg;N cos-weighted) &middot; NCEP/NCAR R1 10&nbsp;hPa height maps (NOAA PSL) &middot; ERA5 2&nbsp;m temperature and 500&nbsp;hPa height (WeatherBench2, 1.5&deg;) &middot; CPC daily AO, RONI and QBO 50&nbsp;hPa index &middot; SILSO sunspot number &middot; static reference, built 2026-09-25</p>
+</template>
+</main>
+<script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Stratosphere and the polar vortex: sudden stratospheric warming forecast, E-P flux, eddy heat flux and every warming since 1980",
+      "url": "https://scorvec.com/stratosphere.html",
+      "description": "Daily AIFS-ENS forecasts of the stratospheric polar vortex (zonal-mean wind at 60N 10 and 100 hPa, polar-cap height), E-P flux and wave driving, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 catalogue of every major sudden stratospheric warming since 1980, dripping-paint composites and their surface impacts.",
+      "isPartOf": {"@type": "WebSite", "name": "Shawn Corvec", "url": "https://scorvec.com/"},
+      "author": {"@id": "https://scorvec.com/#person"},
+      "about": [
+        {"@type": "Thing", "name": "Sudden stratospheric warming", "sameAs": "https://en.wikipedia.org/wiki/Sudden_stratospheric_warming"},
+        {"@type": "Thing", "name": "Polar vortex", "sameAs": "https://en.wikipedia.org/wiki/Polar_vortex"},
+        {"@type": "Thing", "name": "Eliassen-Palm flux", "sameAs": "https://en.wikipedia.org/wiki/Eliassen%E2%80%93Palm_flux"}
+      ]
+    }
+    </script>
+<script>
+window.STAGE = {
+  groups: [
+  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"]]},
+  {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, temperature, by region"]]}
+],
+  products: {
+  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=221ef3dd4d2e"; }, about: "about-vortex", fit: false,
+          cap: function () { return "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height, members against the MERRA-2 percentile bands."; }},
+  vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
+          frame: function (a) { return "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=" + a; }, about: "about-vwinds",
+          cap: function (a) { return "Wind speed and streamlines at " + (a === "vortex_10" ? "10" : "100") + " hPa, both hemispheres; the red contour is u = 0."; }},
+  epflux: {label: "E–P flux and wave driving", frame: function () { return "sst_anim.html?embed=1&manifest=epflux_manifest.json&region=epflux"; }, about: "about-epflux", cap: function () { return "Eliassen–Palm flux for wavenumbers 1–3 and its divergence, per-member fluxes averaged."; }},
+  wave1: {label: "Stationary wave-1", a: {label: "Hemisphere", items: [["wave1_nh","Northern"],["wave1_sh","Southern"]]},
+          frame: function (a) { return "sst_anim.html?embed=1&manifest=wave1_maps_manifest.json&region=" + a; }, about: "about-wave1",
+          cap: function () { return "The wave-1 component of geopotential at 100 and 500 hPa, the forcing behind the wave driving above."; }},
+  heatflux: {label: "100 hPa eddy heat flux", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
+          img: function (a) { return "assets/sst/heatflux100_" + (a === "sh" ? "sh" : "nh") + ".webp?v=221ef3dd4d2e"; }, about: "about-heatflux", fit: false,
+          cap: function (a) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ": the upward wave-activity flux into the stratosphere, members against the 1991–2020 climatology."; }},
+  shwinters: {label: "Every winter since 1980", dom: function () { return "dom-shwinters"; }, about: "about-shwinters",
+          cap: function () { return "Every northern winter in MERRA-2, October to May, against the 1980–2026 range. Hover a line to name the winter; pick one to draw it in black."; }},
+  shssw: {label: "Sudden warmings since 1980", a: {label: "View", items: [["timeline","Timeline"],["table","Catalogue"],["gallery","Vortex at each warming"]]},
+          dom: function (a) { return a === "table" ? "dom-shssw" : null; }, fit: false,
+          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=221ef3dd4d2e"; }, about: "about-shssw",
+          cap: function (a) { return a === "timeline" ? "Every major sudden warming (Charlton–Polvani, MERRA-2) and strong-vortex event, winter by winter, with ENSO and the QBO." : a === "table" ? "The catalogue: when, how deep, what shape, and what the Arctic Oscillation did before and after." : "What the 10 hPa vortex looked like at each warming: two pieces for a split, one pushed off the pole for a displacement."; }},
+  shdrip: {label: "Dripping paint", a: {label: "Events", items: [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]},
+          img: function (a) { return "assets/sst/strat_hist_drip_" + a + ".webp?v=221ef3dd4d2e"; }, fit: false, about: "about-shdrip",
+          cap: function (a) { return a === "sv" ? "Polar-cap height from the ground to 1 hPa around strong-vortex events, with the surface Arctic Oscillation below." : "Polar-cap height from the ground to 1 hPa around the warmings, with the surface Arctic Oscillation below: red dripping down to the ground is a weak vortex reaching the surface."; }},
+  shfollow: {label: "What usually follows", a: {label: "View", items: [["map","Temperature map"],["ao","Arctic Oscillation"],["regions","By region"]]},
+          b: function (a) { return a === "map" ? {label: "Events", items: [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]} : null; },
+          c: function (a) { return a === "map" ? {label: "Window", items: [["d1_30","Days 1–30"],["d31_60","Days 31–60"]]} : null; },
+          img: function (a, b, c) { return "assets/sst/strat_hist_" + (a === "map" ? "follows_" + b + "_" + c : a) + ".webp?v=221ef3dd4d2e"; }, fit: false, about: "about-shfollow",
+          cap: function (a) { return a === "map" ? "ERA5 2 m temperature and 500 hPa height after each kind of event: the mean over every event since 1980, shown only where significant." : a === "ao" ? "The Arctic Oscillation after sudden warmings and after strong-vortex events, and how often it went negative." : "Six land regions: how often each kind of event was followed by a cold month, printed only where that differs significantly from normal."; }}
+}
+};
+</script>
+<style>
+.sh-hist .controls { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-bottom: 0.45rem; }
+.sh-pick { margin-left: auto; font-size: 0.85rem; color: var(--muted); display: inline-flex; gap: 0.4rem; align-items: center; }
+.sh-pick select { font: inherit; color: var(--ink, #1c2430); padding: 0.22rem 0.4rem; border: 1px solid #c9c5bb; border-radius: 4px; background: #fff; }
+.sh-tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.sh-table { border-collapse: collapse; width: 100%; font-size: 0.84rem; font-variant-numeric: tabular-nums; }
+.sh-table caption { text-align: left; font-weight: 600; padding: 0.2rem 0 0.5rem; }
+.sh-table th { text-align: left; font-weight: 600; border-bottom: 1.5px solid #333; padding: 0.35rem 0.45rem; vertical-align: bottom; white-space: nowrap; }
+.sh-table th button { all: unset; cursor: pointer; }
+.sh-table th button:focus-visible { outline: 2px solid #2b5f8a; outline-offset: 2px; }
+.sh-table th small { font-weight: 400; color: var(--muted); }
+.sh-table td { padding: 0.3rem 0.45rem; border-bottom: 1px solid #e6e3dc; white-space: nowrap; }
+.sh-table tr.marginal td { color: var(--muted); font-style: italic; }
+.sh-table .neg { color: #2b5f8a; } .sh-table .pos { color: #a33a26; }
+.sh-sv { margin-top: 1rem; } .sh-sv summary { cursor: pointer; font-weight: 600; padding: 0.3rem 0; }
+@media (max-width: 640px) { .sh-pick { margin-left: 0; } }
+</style>
+<script>
+(function () {
+  "use strict";
+  var J = null, st = { v: "u10", h: "analogs", pick: "" }, sortKey = null, sortDir = 1;
+  var PAL = ["#b0402a", "#2b5f8a", "#1c8f85", "#8a5a14", "#7b4fb3", "#c0507f", "#3a7d44", "#5a6b8c", "#a0522d", "#2f8fb0", "#8f7a1c", "#6b3fa0"];
+  var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function $(id) { return document.getElementById(id); }
+  function fmt(d) { var p = d.split("-"); return +p[2] + " " + MON[+p[1] - 1] + " " + p[0]; }
+  function loadPlotly(cb) {
+    if (window.Plotly) return cb();
+    if (loadPlotly.q) { loadPlotly.q.push(cb); return; }
+    loadPlotly.q = [cb];
+    var sc = document.createElement("script");
+    sc.src = "https://cdn.jsdelivr.net/npm/plotly.js-cartesian-dist-min@2.35.2/plotly-cartesian.min.js";
+    sc.onload = function () { loadPlotly.q.forEach(function (f) { f(); }); };
+    document.head.appendChild(sc);
+  }
+  function winter(w) { for (var i = 0; i < J.winters.length; i++) if (J.winters[i].winter === w) return J.winters[i]; return null; }
+  function xs() { return J.days.map(function (md) { return (md >= "07" ? "2001-" : "2002-") + md; }); }
+  function xOf(date) { var md = date.slice(5); return (md >= "07" ? "2001-" : "2002-") + md; }
+  function hiSet() {
+    var W = J.winters, f = null;
+    if (st.h === "analogs") return J.analogs.slice();
+    if (st.h === "nino") f = function (w) { return w.enso === "El Niño"; };
+    if (st.h === "nina") f = function (w) { return w.enso === "La Niña"; };
+    if (st.h === "qboe") f = function (w) { return w.qbo === "E"; };
+    if (st.h === "qbow") f = function (w) { return w.qbo === "W"; };
+    return f ? W.filter(f).map(function (w) { return w.winter; }) : [];
+  }
+  function draw() {
+    var el = $("dom-shwinters");
+    if (!J || el.hidden || !el.offsetWidth) return;
+    loadPlotly(function () {
+      var V = J.vars[st.v], x = xs(), tr = [], units = V.units, hi = hiSet(), dig = st.v === "z100s" ? 2 : 1;
+      var c = V.clim;
+      tr.push({ x: x, y: c.p90, mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
+      tr.push({ x: x, y: c.p10, mode: "lines", line: { width: 0 }, fill: "tonexty", fillcolor: "rgba(120,120,120,0.16)", hoverinfo: "skip", name: "10–90 % range" });
+      tr.push({ x: x, y: c.p50, mode: "lines", line: { color: "#555", width: 1.4, dash: "dash" }, hoverinfo: "skip", name: "median winter" });
+      Object.keys(V.winters).forEach(function (w) {
+        if (hi.indexOf(w) >= 0 || w === st.pick) return;
+        tr.push({ x: x, y: V.winters[w], mode: "lines", line: { color: "rgba(80,90,105,0.26)", width: 0.9 }, name: w, showlegend: false,
+                  hovertemplate: "<b>" + w + "</b> %{x|%-d %b}: %{y:." + dig + "f} " + units + "<extra></extra>" });
+      });
+      var marks = { x: [], y: [], text: [], symbol: [], color: [] };
+      function addMarks(w, col) {
+        var W = winter(w); if (!W) return;
+        J.ssw.forEach(function (e) {
+          if (e.winter !== w || e.marginal) return;
+          var i = J.days.indexOf(e.date.slice(5)); if (i < 0) return;
+          marks.x.push(xOf(e.date)); marks.y.push(V.winters[w][i]); marks.text.push(w + ": SSW " + fmt(e.date) + " (" + e.type + ", " + e.depth + ")");
+          marks.symbol.push(e.type === "split" ? "diamond" : "circle"); marks.color.push(col);
+        });
+      }
+      hi.forEach(function (w, k) {
+        var col = PAL[k % PAL.length];
+        if (!V.winters[w] || w === st.pick) return;
+        tr.push({ x: x, y: V.winters[w], mode: "lines", line: { color: col, width: 2.3 }, name: w,
+                  hovertemplate: "<b>" + w + "</b> %{x|%-d %b}: %{y:." + dig + "f} " + units + "<extra></extra>" });
+        addMarks(w, col);
+      });
+      if (st.pick && V.winters[st.pick]) {
+        tr.push({ x: x, y: V.winters[st.pick], mode: "lines", line: { color: "#111", width: 3.2 }, name: st.pick,
+                  hovertemplate: "<b>" + st.pick + "</b> %{x|%-d %b}: %{y:." + dig + "f} " + units + "<extra></extra>" });
+        addMarks(st.pick, "#111");
+      }
+      if (marks.x.length) tr.push({ x: marks.x, y: marks.y, mode: "markers", name: "SSW central date", text: marks.text,
+        marker: { size: 11, symbol: marks.symbol, color: marks.color, line: { color: "#fff", width: 1.5 } }, hovertemplate: "%{text}<extra></extra>" });
+      var narrow = el.offsetWidth < 640;
+      $("shw-plot").style.height = (narrow ? 480 : 580) + "px";
+      var lay = {
+        margin: { l: 58, r: 14, t: 40, b: narrow ? 120 : 84 }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+        font: { family: "Source Sans 3, Inter, system-ui, sans-serif", size: 13, color: "#1c2430" },
+        title: { text: "<b>" + V.label + "</b>", x: 0.01, xanchor: "left", y: 0.985, yanchor: "top", font: { size: narrow ? 13 : 15 } },
+        legend: { orientation: "h", x: 0, y: -0.09, yanchor: "top", font: { size: 12 } },
+        hovermode: "closest", hoverlabel: { bgcolor: "#fff", font: { size: 12 } },
+        xaxis: { type: "date", range: ["2001-10-01", "2002-05-31"], tickformat: "%b", dtick: "M1", gridcolor: "#e8e6e0", ticks: "outside", ticklen: 4 },
+        yaxis: { title: { text: units }, gridcolor: "#e8e6e0", zeroline: !!V.zero, zerolinecolor: "#333", zerolinewidth: 1.6 }
+      };
+      Plotly.react("shw-plot", tr, lay, { displayModeBar: false, responsive: true });
+      var parts = hi.concat(st.pick && hi.indexOf(st.pick) < 0 ? [st.pick] : []).map(function (w) {
+        var W = winter(w); if (!W) return w;
+        return w + (W.ssw.length ? " (SSW " + W.ssw.map(fmt).join(", ") + ")" : " (no SSW)");
+      });
+      $("shw-note").textContent = parts.length ? "Drawn: " + parts.join("; ") + "." : "";
+    });
+  }
+  function cls(v) { return v < 0 ? "neg" : v > 0 ? "pos" : ""; }
+  function table() {
+    if (!J) return;
+    var rows = J.ssw.map(function (e) { var W = winter(e.winter) || {}; return { e: e, W: W }; });
+    if (sortKey) rows.sort(function (a, b) { var p = sortKey(a), q = sortKey(b); return (p < q ? -1 : p > q ? 1 : 0) * sortDir; });
+    $("shs-table").tBodies[0].innerHTML = rows.map(function (r) {
+      var e = r.e, W = r.W;
+      return "<tr" + (e.marginal ? ' class="marginal"' : "") + "><td>" + fmt(e.date) + "</td><td>" + (e.marginal ? "unconfirmed, not used" : e.type) +
+        "</td><td>" + (e.marginal ? "" : e.depth) + "</td><td>" + e.u_min.toFixed(1) + "</td><td>" + e.spell + "</td><td>+" + e.T10_peak.toFixed(0) +
+        '</td><td><span class="' + cls(e.ao_pre) + '">' + (e.ao_pre > 0 ? "+" : "") + e.ao_pre.toFixed(1) + '</span> → <span class="' + cls(e.ao_post) + '">' + (e.ao_post > 0 ? "+" : "") + e.ao_post.toFixed(1) +
+        "</span></td><td>" + (W.enso || "") + (W.roni_djf != null ? " (" + (W.roni_djf > 0 ? "+" : "") + W.roni_djf.toFixed(1) + ")" : "") + "</td><td>" + (W.qbo || "") + (W.qbo50_on != null ? " (" + (W.qbo50_on > 0 ? "+" : "") + W.qbo50_on.toFixed(0) + ")" : "") + "</td></tr>";
+    }).join("");
+    $("shs-sv").tBodies[0].innerHTML = J.strong_vortex.map(function (s) {
+      return "<tr><td>" + fmt(s.date) + "</td><td>+" + s.nam10_peak.toFixed(1) + "</td><td>" + s.u_max.toFixed(0) + '</td><td><span class="' + cls(s.ao_pre) + '">' + (s.ao_pre > 0 ? "+" : "") + s.ao_pre.toFixed(1) + '</span> → <span class="' + cls(s.ao_post) + '">' + (s.ao_post > 0 ? "+" : "") + s.ao_post.toFixed(1) + "</span></td></tr>";
+    }).join("");
+    $("shs-note").textContent = "Descriptive list; the tests are under What usually follows. Over days 1–30 the AO averaged 0.60 below the same dates in other years after these warmings, 1.42 below after the deep ones (both significant, t-test with false-discovery rate 10 %), with no significant change after the shallow ones. Click a column heading to sort. ENSO = CPC RONI (DJF); QBO = CPC 50 hPa index, Oct–Nov mean, m/s.";
+  }
+  var KEYS = [function (r) { return r.e.date; }, function (r) { return r.e.type; }, function (r) { return r.e.depth; }, function (r) { return r.e.u_min; },
+              function (r) { return r.e.spell; }, function (r) { return r.e.T10_peak; }, function (r) { return r.e.ao_post; },
+              function (r) { return r.W.roni_djf; }, function (r) { return r.W.qbo50_on; }];
+  Array.prototype.forEach.call(document.querySelectorAll("#shs-table thead th"), function (th, i) {
+    var b = document.createElement("button"); b.type = "button"; while (th.firstChild) b.appendChild(th.firstChild); th.appendChild(b);
+    b.addEventListener("click", function () { if (sortKey === KEYS[i]) sortDir = -sortDir; else { sortKey = KEYS[i]; sortDir = 1; } table(); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("#dom-shwinters .pill[data-shv]"), function (b) {
+    b.addEventListener("click", function () { st.v = b.dataset.shv; document.querySelectorAll("#dom-shwinters .pill[data-shv]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("#dom-shwinters .pill[data-shh]"), function (b) {
+    b.addEventListener("click", function () { st.h = b.dataset.shh; document.querySelectorAll("#dom-shwinters .pill[data-shh]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); });
+  });
+  $("shw-pick").addEventListener("change", function () { st.pick = this.value; draw(); });
+  fetch("assets/sst/data/strat_history.json?v=221ef3dd4d2e").then(function (r) { return r.json(); }).then(function (j) {
+    J = j;
+    var sel = $("shw-pick");
+    J.winters.slice().reverse().forEach(function (w) { var o = document.createElement("option"); o.value = w.winter; o.textContent = w.winter; sel.appendChild(o); });
+    table(); draw();
+  }).catch(function () { $("shw-note").textContent = "The history file is not available."; $("shs-note").textContent = "The history file is not available."; });
+  window.addEventListener("resize", function () { clearTimeout(draw.t); draw.t = setTimeout(draw, 60); });
+})();
+</script>
+
+<script>
+  // hourly-updating images (committed by their own Actions jobs) take an hour-granular cache key
+  ['kiribati-wind'].forEach(function (id) {
+    var im = document.getElementById(id);
+    if (im && im.dataset.src) im.src = im.dataset.src + '?v=' + new Date().toISOString().slice(0, 13);
+  });
+  // live wind-arrow widget for the Tarawa WWB monitor (arrow points the way the wind blows TO)
+  (function () {
+    var host = document.getElementById('wwb-arrows'); if (!host) return;
+    fetch('assets/sst/kiribati_wind.json?v=' + new Date().toISOString().slice(0, 13))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.stations) return;
+        var html = '';
+        Object.keys(d.stations).forEach(function (icao) {
+          var s = d.stations[icao], west = s.u_ms > 0, col = west ? '#d62728' : '#1f77b4';
+          var bearing = (s.dir + 180) % 360;
+          var lab = Math.abs(s.u_ms) < 0.5 ? 'calm' : (west ? 'westerly' : 'easterly');
+          html += '<div class="wwb-stn"><svg width="92" height="92" viewBox="0 0 100 100">'
+            + '<circle cx="50" cy="50" r="44" fill="none" stroke="#ddd"/>'
+            + '<text x="50" y="13" text-anchor="middle" font-size="9" fill="#bbb">N</text>'
+            + '<g transform="rotate(' + bearing + ' 50 50)">'
+            + '<line x1="50" y1="52" x2="50" y2="24" stroke="' + col + '" stroke-width="4"/>'
+            + '<path d="M50 12 L42 30 L50 25 L58 30 Z" fill="' + col + '"/></g>'
+            + '<circle cx="50" cy="50" r="3.5" fill="' + col + '"/></svg>'
+            + '<b>' + s.name + '</b><span style="color:' + col + '">' + s.dir + '° / '
+            + s.spd_kt + ' kt &middot; ' + lab + '</span></div>';
+        });
+        host.innerHTML = html + '<div class="wwb-stn" style="max-width:9em">updated<br>' + d.updated + '</div>';
+      }).catch(function () {});
+  })();
+</script>
+<script src="/assets/stage.js" defer></script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

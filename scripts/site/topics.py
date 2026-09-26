@@ -87,7 +87,7 @@ used with a global-mean static stability, and latitudes poleward of 82° are mas
 12 UTC cycle.</p>
 """,
         figures=[loop("epflux_manifest.json", "epflux", "E–P flux and wave driving, wavenumbers 1–3, AIFS-ENS 15-day forecast")],
-        live=("/circulation.html#epflux", "Open the E–P flux product in the circulation viewer"),
+        live=("/stratosphere.html#epflux", "Open the E–P flux product on the stratosphere page"),
         related=["eddy-heat-flux", "sudden-stratospheric-warming", "wave-activity-flux", "mountain-torque"],
         refs=[
             "Eliassen, A., and E. Palm, 1961: On the transfer of energy in stationary mountain waves. <i>Geofysiske Publikasjoner</i>, 22(3), 1–23.",
@@ -306,9 +306,9 @@ parts, the trailing 40-day mean standardized, and the flux by latitude through t
 """,
         figures=[
             img("/assets/sst/heatflux100_nh.webp", "100 hPa zonal-mean eddy heat flux 45–75°N: AIFS-ENS members against the 1991–2020 climatology, wave-1 and wave-2 parts, 40-day mean",
-                "Northern Hemisphere, 45–75°N. The Southern Hemisphere version is in the circulation viewer."),
+                "Northern Hemisphere, 45–75°N. The Southern Hemisphere version is on the stratosphere page."),
         ],
-        live=("/circulation.html#heatflux", "Open the eddy heat flux in the circulation viewer"),
+        live=("/stratosphere.html#heatflux", "Open the eddy heat flux on the stratosphere page"),
         related=["ep-flux", "sudden-stratospheric-warming"],
         refs=[
             "Newman, P. A., E. R. Nash, and J. E. Rosenfield, 2001: What controls the temperature of the Arctic stratosphere during the spring? <i>J. Geophys. Res.</i>, 106, 19999–20010.",
@@ -363,7 +363,7 @@ forecast major warming) can be read directly.</p>
             img("/assets/sst/strat_hist_drip_ssw_deep.webp", "Dripping-paint composite of polar-cap height from the surface to 1 hPa around deep sudden stratospheric warmings, with the Arctic Oscillation",
                 "The dripping-paint composite for the deep events: colour only where significant."),
         ],
-        live=("/circulation.html#vortex", "Open the polar vortex forecast and the SSW history in the circulation viewer"),
+        live=("/stratosphere.html#vortex", "Open the polar vortex forecast and the SSW history on the stratosphere page"),
         related=["eddy-heat-flux", "ep-flux", "wave-activity-flux"],
         refs=[
             "Baldwin, M. P., and T. J. Dunkerton, 2001: Stratospheric harbingers of anomalous weather regimes. <i>Science</i>, 294, 581–584.",

@@ -98,6 +98,8 @@
   function unmount() {
     if (mounted) { mountedHome.parent.insertBefore(mounted, mountedHome.next && mountedHome.parent.contains(mountedHome.next) ? mountedHome.next : null); mounted = null; }
   }
+  var PAGE_NAME = ((document.querySelector(".page-header h1") || {}).textContent || "").trim() || document.title;
+  var titled = !!location.hash.replace(/^#/, "");
   function render() {
     var p = P[sel.p]; if (!p) { sel.p = ORDER[0]; p = P[sel.p]; }
     Array.prototype.forEach.call(document.querySelectorAll("#rail button[data-p]"), function (b) { b.classList.toggle("on", b.dataset.p === sel.p); });
@@ -133,6 +135,11 @@
     var g = groupOf(sel.p), parts = [g[0], g[1]];
     [[ga, sel.a], [gb, sel.b], [gc, sel.c]].forEach(function (x) { var l = labelOf(x[0], x[1]); if (l && x[0].items.length > 1) parts.push(l); });
     $("crumb").innerHTML = parts.map(function (t) { return "<b>" + t + "</b>"; }).join("<span>›</span>");
+    // Name the tab after the figure so bookmarks, history and shared links say what they are (2026-09-26).
+    // Not on a hash-less first load: that is how a search crawler sees the page, and it must keep the page's
+    // own <title> rather than the first product's.
+    if (titled) document.title = g[1] + " · " + PAGE_NAME + " · Shawn Corvec";
+    titled = true;
     fitStage();
     var h = "#" + [sel.p, sel.a, sel.b, sel.c].filter(function (x) { return x; }).join("/");
     if (location.hash !== h) history.replaceState(null, "", h);

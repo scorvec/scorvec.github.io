@@ -39,13 +39,20 @@ PAGES = [
               "against every ENSO event since 1970.",
          canonical="https://scorvec.com/enso-forecasts.html"),
     dict(slug="circulation", out="circulation.html", active="A_ATMOSPHERE", layout="stage",
-         title="Global Circulation and Jets &mdash; Wave Activity Flux, Angular Momentum, Walker Cell "
-               "and the Stratosphere &middot; Shawn Corvec",
+         title="Global Circulation and Jets &mdash; Wave Activity Flux, Angular Momentum, Mountain Torque, "
+               "Hadley and Walker Cells &middot; Shawn Corvec",
          desc="Daily global circulation diagnostics from ECMWF AIFS-ENS: Takaya-Nakamura wave "
-              "activity flux, dynamic tropopause, atmospheric angular momentum and its torque "
-              "budget, Hadley and Walker cells, subtropical and North Pacific jets, polar vortex "
-              "and E-P flux, plus equatorial winds and the Southern Oscillation.",
+              "activity flux, dynamic tropopause, atmospheric angular momentum and its mountain and "
+              "friction torque budget, Hadley and Walker cells, and the subtropical and North Pacific jets.",
          canonical="https://scorvec.com/circulation.html"),
+    # split out of circulation.html 2026-09-26 (user agreed): the vortex forecast and the SSW history
+    dict(slug="stratosphere", out="stratosphere.html", active="A_ATMOSPHERE", layout="stage",
+         title="Stratosphere and the Polar Vortex &mdash; SSW Forecast, E&ndash;P Flux, Heat Flux and "
+               "Every Sudden Warming Since 1980 &middot; Shawn Corvec",
+         desc="Daily AIFS-ENS polar vortex forecast (60N zonal wind at 10 and 100 hPa, polar-cap height), "
+              "E-P flux and wave driving, stationary wave-1 and the 100 hPa eddy heat flux, with a MERRA-2 "
+              "catalogue of every major sudden stratospheric warming since 1980 and what followed at the surface.",
+         canonical="https://scorvec.com/stratosphere.html"),
 ]
 
 

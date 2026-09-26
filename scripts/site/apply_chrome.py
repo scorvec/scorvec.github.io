@@ -38,12 +38,13 @@ PRODUCTS = [
             ("/ecape.html", "Entraining CAPE"),
             ("/mjo.html", "MJO forecast"),
             ("/circulation.html", "Global circulation and jets"),
+            ("/stratosphere.html", "Stratosphere and polar vortex"),
         ]),
         ("Beyond two weeks", [
-            ("/subseasonal.html", "GEPS subseasonal outlook, weeks 1–5"),
-            ("/enso-forecasts.html", "ENSO forecasts"),
-            ("/seasonal.html", "C3S seasonal models"),
-            ("/sfs.html", "NOAA SFS outlook"),
+            ("/subseasonal.html", "Subseasonal outlook (GEPS, weeks 1–5)"),
+            ("/enso-forecasts.html", "ENSO forecasts (seven centres)"),
+            ("/seasonal.html", "Seasonal outlook (eight C3S models)"),
+            ("/sfs.html", "Seasonal outlook (NOAA SFS)"),
         ]),
     ]),
     ("Model verification", "How the models are doing against observations", [
@@ -59,7 +60,7 @@ def group_items(items):
         return [it for _, sub in items for it in sub]
     return list(items)
 
-PRIMARY = [("/research.html", "Research"), ("/resume.html", "Resume")]
+PRIMARY = [("/topics/", "Explainers"), ("/research.html", "Research"), ("/resume.html", "Resume")]   # Explainers 2026-09-26
 # A highlighted button, apart from the menus, on every page (2026-09-23, user: "put this on my site as a special button").
 SPECIAL = ("/midterms/", "2026 Midterms")
 
@@ -95,6 +96,7 @@ PAGES = [
     dict(path="seasonal.html", mode="after-body", tabs="enso"),   # the merged C3S page (was seas5.html)
     dict(path="enso.html", mode="after-body", tabs="enso"),
     dict(path="circulation.html", mode="after-body", tabs="enso"),
+    dict(path="stratosphere.html", mode="after-body", tabs="enso"),   # split out of circulation.html 2026-09-26
     dict(path="subseasonal.html", mode="site-header", fixes=[]),   # page restyled 2026-09-07 on /assets/outlook.css; no padding patches needed
     dict(path="subseasonal-method.html", mode="site-header"),      # methodology note split out of subseasonal.html; linked from there only, not in PRODUCTS
     dict(path="mjo.html", mode="nav"),
