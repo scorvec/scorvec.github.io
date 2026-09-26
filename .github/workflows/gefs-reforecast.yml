@@ -60,7 +60,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install --quiet numpy scipy eccodes
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: rf-*
           path: out
