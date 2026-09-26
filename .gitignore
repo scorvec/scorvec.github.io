@@ -111,6 +111,8 @@ scripts/strat/*
 !scripts/strat/build_wave1_clim.py
 !scripts/strat/heatflux100.py
 !scripts/strat/build_vt100_clim.py
+!scripts/strat/build_strat_history.py
+!scripts/strat/strat_history.py
 # The MERRA-2 reference cache (282 KB) that replaces the 690 MB laptop-only
 # archive for nh_vortex on a runner. The directory itself must be re-included
 # first - git will not descend into an excluded directory to find the file.
@@ -119,6 +121,8 @@ scripts/strat/*
 !scripts/strat/reference/vt100_clim.nc
 !scripts/strat/reference/heatflux100_history_seed.json
 !scripts/strat/reference/strat_obs_daily.nc
+!scripts/strat/reference/strat_history.nc
+!scripts/strat/reference/strat_history_events.json
 
 # removed-project local archive (ERCOT page + C3S winter analysis, restorable)
 local_archive/

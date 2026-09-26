@@ -1,0 +1,75 @@
+name: Stratosphere history (static MERRA-2 reference)
+
+# The "Stratosphere history" items on circulation.html: every winter since 1980, the SSW
+# catalogue, dripping-paint composites, what follows at the surface, and the base rates.
+# STATIC products (user 2026-09-25: "the best type of stuff for this site are things that
+# don't need to be updated every day"). The analysis is done once on the laptop by
+# scripts/strat/build_strat_history.py, which needs the 690 MB MERRA-2 archive and the
+# local ERA5 store, and commits two small reference files; this job only draws them. It
+# runs when the renderer or the reference changes, or on dispatch - never on a schedule.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/strat/strat_history.py
+      - scripts/strat/reference/strat_history.nc
+      - scripts/strat/reference/strat_history_events.json
+      - .github/workflows/strat-history.yml
+
+env:
+  MPLBACKEND: Agg
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: strat-history
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/pip
+          key: pip-sst-${{ runner.os }}-${{ hashFiles('scripts/sst/requirements-sst.txt') }}
+          restore-keys: |
+            pip-sst-${{ runner.os }}-
+      - name: Install
+        run: pip install -r scripts/sst/requirements-sst.txt
+      - name: Render the stratosphere history figures
+        run: python scripts/strat/strat_history.py
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (tao-subsurface.yml / sst.yml pattern)
+          SNAP=$(mktemp -d)
+          git add -A assets/sst/strat_hist_*.webp assets/sst/data/strat_history.json 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A assets/sst/strat_hist_*.webp assets/sst/data/strat_history.json
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "stratosphere history: render $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          exit 1
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
