@@ -108,7 +108,7 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS open data (CC BY 4.0) &middot; NASA GMAO MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-24</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS open data (CC BY 4.0) &middot; NASA GMAO MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-25</span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -146,7 +146,7 @@
   </div>
 <template id="about-vortex">
 <p><a href="/topics/sudden-stratospheric-warming.html">The explainer</a>: what sudden stratospheric warmings measures, the equations and how to read the chart.</p>
-<p>The stratospheric vortex is the slow variable that sets the odds for the surface weeks later, so it is worth watching before it moves. <b>Top</b>: the zonal-mean zonal wind at <b>10&nbsp;hPa, 60&deg;N</b> &mdash; the standard sudden-stratospheric-warming diagnostic. A reversal to <i>easterly</i> here in winter is a major SSW (the original WMO definition also asked for a reversed 60&ndash;90&deg; temperature gradient), which is why the zero line is drawn heavy and the member fraction crossing it is called out. <b>Middle</b>: the same wind at <b>100&nbsp;hPa</b>. Anomalies that reach this far down are the ones with a path to the troposphere &mdash; a 10&nbsp;hPa event that never appears at 100&nbsp;hPa usually never reaches the surface. <b>Bottom</b>: the <b>100&nbsp;hPa polar-cap (65&ndash;90&deg;N) height anomaly</b>, positive for a weak or displaced vortex; this is the field that actually leads the AO/NAO response. Each model&rsquo;s band is its members&rsquo; 10th&ndash;90th percentile and the solid line their mean; dashed lines are deterministic runs. The AIFS-ENS polar-cap height uses the same 25 perturbed members plus the control as the winds.</p>
+<p>The stratospheric vortex is the slow variable that sets the odds for the surface weeks later, so it is worth watching before it moves. <b>Top</b>: the zonal-mean zonal wind at <b>10&nbsp;hPa, 60&deg;N</b> &mdash; the standard sudden-stratospheric-warming diagnostic. A reversal to <i>easterly</i> here in winter is a major SSW (the original WMO definition also asked for a reversed 60&ndash;90&deg; temperature gradient), which is why the zero line is drawn heavy and the member fraction crossing it is called out. <b>Middle</b>: the same wind at <b>100&nbsp;hPa</b>. Anomalies that reach this far down are the ones with a path to the troposphere &mdash; a 10&nbsp;hPa event that never appears at 100&nbsp;hPa usually never reaches the surface. <b>Bottom</b>: the <b>100&nbsp;hPa polar-cap (65&ndash;90&deg;N) height anomaly</b>, positive for a weak or displaced vortex; this is the field that actually leads the AO/NAO response. Blue traces are AIFS-ENS members, orange their mean, dashed member 0. The 100&nbsp;hPa height is member-0-only because ECMWF open data publishes no perturbed geopotential at that level.</p>
 <p class="chart-sources">ECMWF AIFS-ENS zonal wind and geopotential at 10/100&nbsp;hPa (open data, CC BY 4.0) &middot; reference: MERRA-2 1980&ndash;2026 day-of-year 10th&ndash;90th percentiles (NASA GMAO) &middot; analysis tail: ERA5 &middot; updated daily</p>
 </template>
 <template id="about-vwinds">
@@ -158,8 +158,7 @@
         are left white, which is why the summer hemisphere is largely blank &mdash; there is no
         vortex there to draw. Both hemispheres share the colour scale, so they are directly
         comparable.</p>
-<p>Every forecast frame is the <b>ensemble mean</b> of 25 AIFS-ENS members (the analysis frame is the control, which is the analysis). The mean shows the part of the flow the members agree on. It is also smoother and weaker than any one member wherever they disagree, so a split that only a few members carry appears here as a stretched, slackened vortex rather than two centres. The eddy heat flux chart shows how far the members spread in wave-2, the component that splits the vortex.</p>
-<p class="chart-sources">ECMWF AIFS-ENS, mean of 25 perturbed members; analysis frame from the control (open data, CC&nbsp;BY&nbsp;4.0) &middot; 10&nbsp;hPa speed of the mean wind shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</p>
+<p class="chart-sources">ECMWF AIFS-ENS member 0 (open data, CC&nbsp;BY&nbsp;4.0) &middot; 10&nbsp;hPa speed shaded, streamlines overlaid, red contour u&nbsp;=&nbsp;0 &middot; fixed colour scale &middot; analysis plus 12-hourly steps to day&nbsp;15 &middot; updated each 00/12Z cycle</p>
 </template>
 <template id="about-epflux">
 <p><a href="/topics/ep-flux.html">The explainer</a>: what the E–P flux and its divergence measures, the equations and how to read the chart.</p>
@@ -259,31 +258,31 @@ window.STAGE = {
   {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, temperature, by region"]]}
 ],
   products: {
-  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=221ef3dd4d2e"; }, about: "about-vortex", fit: false,
+  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=c78372de219b"; }, about: "about-vortex", fit: false,
           cap: function () { return "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height, members against the MERRA-2 percentile bands."; }},
   vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=" + a; }, about: "about-vwinds",
-          cap: function (a) { return "Ensemble-mean wind speed and streamlines at " + (a === "vortex_10" ? "10" : "100") + " hPa, both hemispheres; the red contour is u = 0."; }},
+          cap: function (a) { return "Wind speed and streamlines at " + (a === "vortex_10" ? "10" : "100") + " hPa, both hemispheres; the red contour is u = 0."; }},
   epflux: {label: "E–P flux and wave driving", frame: function () { return "sst_anim.html?embed=1&manifest=epflux_manifest.json&region=epflux"; }, about: "about-epflux", cap: function () { return "Eliassen–Palm flux for wavenumbers 1–3 and its divergence, per-member fluxes averaged."; }},
   wave1: {label: "Stationary wave-1", a: {label: "Hemisphere", items: [["wave1_nh","Northern"],["wave1_sh","Southern"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=wave1_maps_manifest.json&region=" + a; }, about: "about-wave1",
           cap: function () { return "The wave-1 component of geopotential at 100 and 500 hPa, the forcing behind the wave driving above."; }},
   heatflux: {label: "100 hPa eddy heat flux", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
-          img: function (a) { return "assets/sst/heatflux100_" + (a === "sh" ? "sh" : "nh") + ".webp?v=221ef3dd4d2e"; }, about: "about-heatflux", fit: false,
+          img: function (a) { return "assets/sst/heatflux100_" + (a === "sh" ? "sh" : "nh") + ".webp?v=c78372de219b"; }, about: "about-heatflux", fit: false,
           cap: function (a) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ": the upward wave-activity flux into the stratosphere, members against the 1991–2020 climatology."; }},
   shwinters: {label: "Every winter since 1980", dom: function () { return "dom-shwinters"; }, about: "about-shwinters",
           cap: function () { return "Every northern winter in MERRA-2, October to May, against the 1980–2026 range. Hover a line to name the winter; pick one to draw it in black."; }},
   shssw: {label: "Sudden warmings since 1980", a: {label: "View", items: [["timeline","Timeline"],["table","Catalogue"],["gallery","Vortex at each warming"]]},
           dom: function (a) { return a === "table" ? "dom-shssw" : null; }, fit: false,
-          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=221ef3dd4d2e"; }, about: "about-shssw",
+          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=c78372de219b"; }, about: "about-shssw",
           cap: function (a) { return a === "timeline" ? "Every major sudden warming (Charlton–Polvani, MERRA-2) and strong-vortex event, winter by winter, with ENSO and the QBO." : a === "table" ? "The catalogue: when, how deep, what shape, and what the Arctic Oscillation did before and after." : "What the 10 hPa vortex looked like at each warming: two pieces for a split, one pushed off the pole for a displacement."; }},
   shdrip: {label: "Dripping paint", a: {label: "Events", items: [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]},
-          img: function (a) { return "assets/sst/strat_hist_drip_" + a + ".webp?v=221ef3dd4d2e"; }, fit: false, about: "about-shdrip",
+          img: function (a) { return "assets/sst/strat_hist_drip_" + a + ".webp?v=c78372de219b"; }, fit: false, about: "about-shdrip",
           cap: function (a) { return a === "sv" ? "Polar-cap height from the ground to 1 hPa around strong-vortex events, with the surface Arctic Oscillation below." : "Polar-cap height from the ground to 1 hPa around the warmings, with the surface Arctic Oscillation below: red dripping down to the ground is a weak vortex reaching the surface."; }},
   shfollow: {label: "What usually follows", a: {label: "View", items: [["map","Temperature map"],["ao","Arctic Oscillation"],["regions","By region"]]},
           b: function (a) { return a === "map" ? {label: "Events", items: [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]} : null; },
           c: function (a) { return a === "map" ? {label: "Window", items: [["d1_30","Days 1–30"],["d31_60","Days 31–60"]]} : null; },
-          img: function (a, b, c) { return "assets/sst/strat_hist_" + (a === "map" ? "follows_" + b + "_" + c : a) + ".webp?v=221ef3dd4d2e"; }, fit: false, about: "about-shfollow",
+          img: function (a, b, c) { return "assets/sst/strat_hist_" + (a === "map" ? "follows_" + b + "_" + c : a) + ".webp?v=c78372de219b"; }, fit: false, about: "about-shfollow",
           cap: function (a) { return a === "map" ? "ERA5 2 m temperature and 500 hPa height after each kind of event: the mean over every event since 1980, shown only where significant." : a === "ao" ? "The Arctic Oscillation after sudden warmings and after strong-vortex events, and how often it went negative." : "Six land regions: how often each kind of event was followed by a cold month, printed only where that differs significantly from normal."; }}
 }
 };
@@ -422,7 +421,7 @@ window.STAGE = {
     b.addEventListener("click", function () { st.h = b.dataset.shh; document.querySelectorAll("#dom-shwinters .pill[data-shh]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); });
   });
   $("shw-pick").addEventListener("change", function () { st.pick = this.value; draw(); });
-  fetch("assets/sst/data/strat_history.json?v=221ef3dd4d2e").then(function (r) { return r.json(); }).then(function (j) {
+  fetch("assets/sst/data/strat_history.json?v=c78372de219b").then(function (r) { return r.json(); }).then(function (j) {
     J = j;
     var sel = $("shw-pick");
     J.winters.slice().reverse().forEach(function (w) { var o = document.createElement("option"); o.value = w.winter; o.textContent = w.winter; sel.appendChild(o); });
