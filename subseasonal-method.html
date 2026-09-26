@@ -283,11 +283,18 @@
     category with its probability as intensity. The terciles are those of the <b>2016&ndash;2025</b>
     weekly anomaly for that week of the year, not 1991&ndash;2020: against the older base the 2026
     maps read &ldquo;above&rdquo; nearly everywhere before the forecast says anything, which is the
-    warming since the base period, not weather. The calibration is applied to the departure from the
-    recent median, using the hindcast slope but not its intercept &mdash; the intercept is the
-    2001&ndash;2020 mean state, and a no-skill regression that returned it printed the hindcast-era
-    climate as &ldquo;below normal&rdquo; against a recent threshold. With no skill the three
-    probabilities go to a third each. Near-normal is the tercile models forecast worst; its
+    warming since the base period, not weather. The calibration works in standardised units: the
+    ensemble mean's departure from the <b>recent-decade mean</b>, divided by the hindcast ensemble
+    mean's own spread, predicts the observed category with the hindcast correlation <i>r</i> as the
+    weight, against the standard normal's terciles &mdash; the hindcast slope but not its intercept,
+    which is the 2001&ndash;2020 mean state and printed the hindcast-era climate as &ldquo;below
+    normal&rdquo; against a recent threshold. With no skill the three probabilities are exactly a
+    third each. (Until 2026-09-26 the calibration was centred on the recent <i>median</i> against the
+    observed terciles; weekly precipitation's terciles sit unevenly about its median, so that form
+    gave &ldquo;below&rdquo; about 40% wherever there was no skill and the week 3&ndash;5 precipitation
+    maps read below normal almost everywhere. Hindcast lead days were also paired with observations
+    one day late until then &mdash; day 1 is the start date's own UTC day &mdash; and every
+    calibration was refitted on the corrected pairing.) Near-normal is the tercile models forecast worst; its
     probability rarely clears 40% beyond week 1, and with 21 members its raw fraction is noisy.
     Precipitation terciles are undefined where the climatological week is dry, so those cells are
     masked as CPC masks them. The raw member fraction is shown beside the calibrated map: where the
