@@ -199,7 +199,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
    <div class="mt-leg"><span>Republican</span><i style="background:linear-gradient(90deg,#a32215,#e6e6e6,#0b3d91)"></i><span>Democratic or independent</span>&nbsp;·&nbsp;grey: no race</div></div>
   <div>
    <div class="mt-card mt-race" id="race-senate"><p class="empty">Click a state on the map, or a race below.</p></div>
-   <div class="mt-card" style="margin-top:14px"><h2>Senate seats</h2><p class="mt-sum" id="ssum"></p><svg class="mt-hist" id="shist" viewBox="0 0 360 130"></svg></div>
+   <div class="mt-card" style="margin-top:14px"><h2>Senate seats</h2><p class="mt-sum" id="ssum"></p><svg class="mt-hist" id="shist" viewBox="0 0 360 170"></svg></div>
   </div>
  </div>
  <div class="mt-card" style="margin-top:16px"><h2>Senate races</h2><div class="mt-tw"><table id="sen"></table></div><button class="mt-more" id="senMore" type="button"></button></div>
@@ -312,7 +312,7 @@ function render(){const H=D.house;E=+$('#E').value;gi=H.grid.findIndex(x=>Math.a
  $$('path.t').forEach(t=>{const s=H.seats.find(x=>x.seat===t.dataset.seat);if(s)t.style.fill=col(s.p[gi])});
  $$('path.sp').forEach(p=>{const sec=D[p.dataset.sec];if(!sec)return;const r=sec.races.find(x=>x.state===p.dataset.st&&!x.special)||sec.races.find(x=>x.state===p.dataset.st);if(r)p.style.fill=col(r.p[gi])});
  $('#hsum').innerHTML=`Democrats win <b>${hd.mean.toFixed(0)}</b> seats in the average simulation; 8 in 10 land between ${hd.p10} and ${hd.p90}.`;hist('#hhist',hd.hist,218,140);
- $('#ssum').innerHTML=`Democrats hold <b>${sd.mean.toFixed(1)}</b> seats on average (${sd.p10}–${sd.p90})${sd.ind_mean?`; independents win ${sd.ind_mean.toFixed(1)} more`:''}.`;hist('#shist',sd.hist,51,130);
+ $('#ssum').innerHTML=`Democrats hold <b>${sd.mean.toFixed(1)}</b> seats on average (${sd.p10}–${sd.p90})${sd.ind_mean?`; independents win ${sd.ind_mean.toFixed(1)} more on average, stacked on each bar (x-axis: Democratic seats)`:''}.`;(sd.hist2?shist('#shist',sd.hist2,170):hist('#shist',sd.hist,51,130));
  // closest House races
  const close=H.seats.map(s=>({...s,pp:s.p[gi]})).sort((a,b)=>Math.abs(a.pp-.5)-Math.abs(b.pp-.5)).slice(0,SHOW.close);
  $('#close').innerHTML='<thead><tr><th>District</th><th>Member</th><th class="n">Lean</th><th class="n">Polls</th><th class="n">Chance D</th></tr></thead><tbody>'+close.map(s=>`<tr data-k="${s.seat}"><td><b>${s.seat}</b></td><td>${who(s)}</td><td class="n">${pvi(s.cook_pvi)}</td><td class="n">${s.n_polls?mg(s.poll_margin):'–'}</td>${pc(s.pp)}</tr>`).join('')+'</tbody>';
@@ -330,6 +330,21 @@ function render(){const H=D.house;E=+$('#E').value;gi=H.grid.findIndex(x=>Math.a
   $$('#gov tbody tr').forEach(tr=>tr.addEventListener('click',()=>{pick('gov',tr.dataset.k);$('#race-gov').scrollIntoView({block:'nearest',behavior:'smooth'})}))}
  for(const s of ['house','senate','gov'])if(SEL[s])panel(s)}
 
+// Senate: one bar per Democratic seat count, stacked by independent wins (0 at the bottom). Each segment is coloured by who
+// organises the Senate (pro tem; the VP breaks a tie for the Republicans): blue Democrats whatever the independents do,
+// red Republicans whatever they do, purple where the independents decide.
+function shist(sel,h2,Hh){const svg=$(sel),W=360;const P=Object.entries(h2).map(([k,v])=>{const[d,i]=k.split('|').map(Number);return{d,i,v}});
+ const tot=P.reduce((a,p)=>a+p.v,0),byD={};P.forEach(p=>{(byD[p.d]=byD[p.d]||[]).push(p)});const ks=Object.keys(byD).map(Number).sort((a,b)=>a-b);
+ const sum=k=>byD[k].reduce((a,p)=>a+p.v,0);let c=0,lo=ks[0],hi=ks[ks.length-1];for(const k of ks){c+=sum(k);if(c/tot>0.005){lo=k;break}}c=0;for(const k of [...ks].reverse()){c+=sum(k);if(c/tot>0.005){hi=k;break}}
+ const who=(d,i)=>{const r=100-d-i;return d>r+i?'d':(d+i>r?'x':'r')},fill={d:'#1f5fbf',r:'#b3261e',x:'#7b4fa6'};
+ const x0=lo-1,x1=hi+1,mx=Math.max(...ks.filter(k=>k>=lo&&k<=hi).map(sum)),base=Hh-52,sx=v=>12+(v-x0)/(x1-x0)*(W-24),sy=v=>(v/mx)*(base-24),bw=Math.max(1,(W-24)/(x1-x0)-1);
+ let s='',share={d:0,r:0,x:0};P.forEach(p=>share[who(p.d,p.i)]+=p.v/tot);
+ ks.filter(k=>k>=lo&&k<=hi).forEach(k=>{let y=base;byD[k].sort((a,b)=>a.i-b.i).forEach(p=>{const hgt=sy(p.v);y-=hgt;
+  s+=`<rect x="${sx(k)-bw/2}" y="${y}" width="${bw}" height="${hgt}" fill="${fill[who(p.d,p.i)]}" opacity="${p.i?.95:.85}" stroke="${p.i?'#fff':'none'}" stroke-width=".6"><title>${k} Democrats, ${p.i} independent${p.i==1?'':'s'}, ${100-k-p.i} Republicans: ${(100*p.v/tot).toFixed(1)}% of simulations</title></rect>`})});
+ s+=`<line x1="${sx(50.5)}" x2="${sx(50.5)}" y1="16" y2="${base}" stroke="#1b1d22" stroke-dasharray="3 2"/><text x="${sx(50.5)+4}" y="12">51 Democratic seats</text>`;
+ [lo,Math.round((lo+hi)/2),hi].forEach(t=>{s+=`<text x="${sx(t)}" y="${base+14}" text-anchor="middle">${t}</text>`});
+ [['d','Democrats control',12,Hh-26],['r','Republicans control',190,Hh-26],['x','independents decide who controls',12,Hh-10]].forEach(([k,l,lx,ly])=>{s+=`<rect x="${lx}" y="${ly-8}" width="9" height="9" fill="${fill[k]}"/><text x="${lx+13}" y="${ly}">${l} ${Math.round(100*share[k])}%</text>`});
+ svg.innerHTML=s}
 function hist(sel,h,thr,Hh){const svg=$(sel),W=360;const ks=Object.keys(h).map(Number).sort((a,b)=>a-b);const tot=Object.values(h).reduce((a,b)=>a+b,0);
  // trim the far tails (<0.5% of simulations) so the body is readable
  let c=0,lo=ks[0],hi=ks[ks.length-1];for(const k of ks){c+=h[k];if(c/tot>0.005){lo=k;break}}c=0;for(const k of [...ks].reverse()){c+=h[k];if(c/tot>0.005){hi=k;break}}
