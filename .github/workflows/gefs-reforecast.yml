@@ -1,0 +1,79 @@
+name: GEFS reforecast climatology (one-off backfill)
+
+# The lead-dependent model climatology behind the GEFS extended page (2026-09-26): the GEFSv12 reforecast's 35-day
+# Wednesday runs, 2000-2019, four members each, byte-ranged from NOAA's S3 bucket (next door to these runners in
+# us-east-1) and reduced on the fly to weekly means at 1.5 deg (scripts/gefs/gefs_reforecast.py). One job per year,
+# then a combine job that averages every start within +-15 days of each 5-day day-of-year centre and publishes the
+# result as assets of the release `gefs-clim-v1` - never committed: the live runs download the two centres they need.
+# Run by hand, once; rerun a failed year alone with the `years` input.
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "JSON list of reforecast years"
+        default: "[2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019]"
+      combine:
+        description: "build and publish the climatology after the years"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  year:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        year: ${{ fromJSON(inputs.years) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy eccodes
+      - name: Reforecast starts of ${{ matrix.year }}
+        run: python scripts/gefs/gefs_reforecast.py year ${{ matrix.year }} --out out --procs 4
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rf-${{ matrix.year }}
+          path: out/
+          retention-days: 30
+
+  combine:
+    needs: year
+    if: ${{ always() && inputs.combine }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy eccodes
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: rf-*
+          path: out
+          merge-multiple: true
+      - name: Climatology by day of year
+        run: python scripts/gefs/gefs_reforecast.py combine --inp out --out clim
+      - name: Publish as release assets (gefs-clim-v1)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(ls clim/gefs_clim_*.npz | wc -l)
+          echo "$n climatology files"
+          test "$n" -ge 70
+          gh release view gefs-clim-v1 >/dev/null 2>&1 || gh release create gefs-clim-v1 --title "GEFS reforecast climatology v1" \
+            --notes "Lead-dependent GEFSv12 climatology (reforecast 2000-2019, Wednesday 35-day starts, 4 members), weekly means at 1.5 deg plus daily u60 10 hPa and the 15S-15N MJO band, one file per 5-day day-of-year centre (+-15 d pooling). Built by .github/workflows/gefs-reforecast.yml from scripts/gefs/gefs_reforecast.py. Not a site page; the GEFS extended pipeline downloads it."
+          gh release upload gefs-clim-v1 clim/gefs_clim_*.npz --clobber
