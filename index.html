@@ -37,9 +37,17 @@
       "@type": "Person",
       "@id": "https://scorvec.com/#person",
       "name": "Shawn Corvec",
+      "givenName": "Shawn",
+      "familyName": "Corvec",
+      "alternateName": "S. Corvec",
       "url": "https://scorvec.com/",
       "image": "https://scorvec.com/profile.jpg",
       "jobTitle": "Meteorologist & Atmospheric Scientist",
+      "worksFor": { "@type": "Organization", "name": "bp", "url": "https://www.bp.com/" },
+      "alumniOf": [
+        { "@type": "CollegeOrUniversity", "name": "University of Waterloo", "url": "https://uwaterloo.ca/" },
+        { "@type": "CollegeOrUniversity", "name": "Dalhousie University", "url": "https://www.dal.ca/" }
+      ],
       "description": "Quantitative meteorologist with experience in numerical weather prediction, operational forecasting, and energy markets.",
       "knowsAbout": [
         "Numerical weather prediction",
@@ -54,8 +62,17 @@
         "https://www.linkedin.com/in/shawn-corvec-35895b231/",
         "https://www.researchgate.net/profile/Shawn-Corvec",
         "https://scholar.google.com/citations?user=EYLRCJIAAAAJ&hl=en",
-        "https://github.com/scorvec"
+        "https://github.com/scorvec",
+        "https://orcid.org/0000-0002-6948-5697"
       ]
+    },
+    {
+      "@type": "ProfilePage",
+      "@id": "https://scorvec.com/#profilepage",
+      "url": "https://scorvec.com/",
+      "name": "Shawn Corvec — Meteorologist & Atmospheric Scientist",
+      "mainEntity": { "@id": "https://scorvec.com/#person" },
+      "isPartOf": { "@id": "https://scorvec.com/#website" }
     },
     {
       "@type": "WebSite",
@@ -227,6 +244,53 @@
   .row .what { color: var(--storm); font-size: 0.98rem; }
   .row .when { color: var(--grass-ink); font-size: 0.9rem; text-align: right; white-space: nowrap; }
 
+  /* ── Featured: the 2026 midterm forecast (user 2026-09-26: "feature more prominently on my homepage").
+     Headline numbers come from /midterms/data/summary.json (written by ~/midterms publish_site.py); without it the
+     panel still reads and links, it just shows dashes. ── */
+  .feature {
+    position: relative;
+    margin-top: clamp(2rem, 5vw, 3.5rem);
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+    gap: 1.5rem clamp(2rem, 4vw, 4rem); align-items: center;
+    padding: clamp(1.4rem, 3.2vw, 2.4rem) clamp(1.25rem, 3.2vw, 2.6rem);
+    background: #fff;
+    border: 1px solid var(--cloud-2); border-left: 5px solid var(--sky-deep);
+    border-radius: 10px;
+  }
+  .feature:hover { box-shadow: 0 2px 14px rgba(39, 75, 122, 0.12); }
+  .feature:focus-within { outline: 2px solid var(--sky); outline-offset: 2px; }
+  .feature h2 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: clamp(1.9rem, 3.4vw, 2.6rem); line-height: 1.08; letter-spacing: -0.01em;
+    font-variation-settings: 'opsz' 60; color: var(--sky-deep);
+    margin-bottom: 0.6rem;
+  }
+  .feature h2 a { text-decoration: none; }
+  .feature h2 a::after { content: ''; position: absolute; inset: 0; border-radius: 10px; }   /* the whole panel is the link */
+  .feature p { color: var(--storm); max-width: 34rem; }
+  .feature .go { display: inline-block; margin-top: 0.9rem; font-weight: 500; color: var(--sky-deep);
+                 text-decoration: underline; text-underline-offset: 0.22em; text-decoration-color: rgba(39, 75, 122, 0.4); }
+  .feature:hover .go { text-decoration-color: var(--sky-deep); }
+  .feature .asof { display: block; margin-top: 0.5rem; font-size: 0.86rem; color: var(--storm); }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem 1.5rem; }
+  .stats div { border-top: 1px solid var(--cloud-2); padding-top: 0.8rem; }
+  .stats b {
+    display: block; font-family: var(--serif); font-weight: 400;
+    font-size: clamp(2.3rem, 4.4vw, 3.4rem); line-height: 1; font-variation-settings: 'opsz' 72;
+    color: var(--sky-deep); font-variant-numeric: tabular-nums;
+  }
+  .stats span { display: block; margin-top: 0.45rem; font-size: 0.96rem; line-height: 1.35; color: var(--prairie); }
+  .stats small { display: block; margin-top: 0.3rem; font-size: 0.86rem; color: var(--storm); }
+  @media (max-width: 860px) {
+    .feature { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) {
+    .stats { grid-template-columns: 1fr; }
+    .stats div { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); column-gap: 0.9rem; align-items: baseline; }
+    .stats b { font-size: 2.4rem; grid-row: span 2; }
+    .stats span { margin-top: 0; }
+  }
+
   /* ── About ───────────────────────────────────────────────────────────── */
   .about {
     border-top: 1px solid var(--cloud-2);
@@ -340,6 +404,20 @@
 </header>
 
 <main class="wrap">
+  <section class="feature" id="midterms" aria-labelledby="mt-title">
+    <div>
+      <h2 id="mt-title"><a href="/midterms/">2026 midterm forecast</a></h2>
+      <p>Every House, Senate and governor race, simulated thousands of times from the polls, fundraising and the national mood. Drag the mood slider to see what a different national environment does to each chamber.</p>
+      <span class="go">Open the forecast</span>
+      <small class="asof" id="mt-asof">Updated weekly</small>
+    </div>
+    <div class="stats" aria-live="polite">
+      <div><b id="mt-h">–</b><span>chance Democrats win the House</span><small id="mt-hs"></small></div>
+      <div><b id="mt-s">–</b><span>chance Democrats control the Senate</span><small id="mt-ss"></small></div>
+      <div><b id="mt-g">–</b><span>Democratic governors, of 50</span><small id="mt-gs"></small></div>
+    </div>
+  </section>
+
   <section class="index" id="products">
     <div class="index-head">
       <h2>Live products, rebuilt automatically as new model runs and observations arrive.</h2>
@@ -411,6 +489,19 @@
 </footer>
 
 <script>
+  // headline numbers for the midterm panel; on any failure the dashes stay and the panel still links
+  fetch('/midterms/data/summary.json', { cache: 'no-cache' })
+    .then(res => res.ok ? res.json() : Promise.reject(res.status))
+    .then(s => {
+      const pct = p => Math.round(100 * p) + '%', set = (id, t) => { document.getElementById(id).textContent = t; };
+      set('mt-h', pct(s.house.p)); set('mt-hs', `${Math.round(s.house.mean)} seats expected (${s.house.p10}–${s.house.p90}); 218 needed`);
+      set('mt-s', pct(s.senate.p)); set('mt-ss', `${s.senate.mean.toFixed(1)} Democratic seats expected; a 50–50 split stays Republican`);
+      set('mt-g', Math.round(s.governors.mean)); set('mt-gs', `likely ${s.governors.p10}–${s.governors.p90}`);
+      const d = new Date(s.asof + 'T12:00:00Z');
+      set('mt-asof', 'Updated weekly, most recently ' + d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' }));
+    })
+    .catch(() => {});
+
   fetch('https://scorvec.goatcounter.com/counter/TOTAL.json')
     .then(res => res.json())
     .then(data => {
