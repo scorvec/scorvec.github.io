@@ -4,7 +4,18 @@ Stratospheric vortex winds: 10 and 100 hPa, both hemispheres.
 
 Four polar panels — 10 hPa NH / SH on the top row, 100 hPa NH / SH on the
 bottom — showing wind SPEED (shaded) with STREAMLINES over it, from the
-AIFS-ENS member 0.
+AIFS-ENS ENSEMBLE MEAN (25 perturbed members; the analysis frame is the control).
+
+Why the mean and not member 0 (changed 2026-09-26, user). Member 0 is one
+realisation, and by the second week its vortex shape is largely its own: on the
+Sep 26 00Z run it pinched into a near-split at day 13-15 on a wave-2 heat-flux
+burst above the members' 90th percentile, while the mean wave-2 flux stayed near
+normal. Shown alone it reads as a forecast of a split. The mean is the part of
+the flow the members agree on. It is also SMOOTHER and WEAKER than any single
+member wherever they disagree, so a split carried by a few members appears as a
+stretched, slackened vortex rather than two centres - that is the honest
+reading of such an ensemble. u and v are averaged (linear), and the speed shaded
+is the speed of the mean wind, the same field the streamlines follow.
 
 Why these two levels, in this pairing:
 
@@ -30,9 +41,10 @@ stronger than 100 hPa, so a shared scale would flatten the lower level into a
 single colour, while a per-panel scale would make NH and SH incomparable at a
 glance - which is exactly the comparison the figure exists to support.
 
-Data rides the pull the rest of the stratosphere pipeline already makes: u at
-10/100 comes from the AAM levels (LEVELS_AAM includes both), and v is ensured
-through the shared ECMWF store, control only. No new download of consequence.
+Data: u and v at 10 and 100 hPa for 25 perturbed members every 12 h (~1.9 GB a
+cycle through the shared ECMWF store, Google mirror), plus the control at step 0.
+Opened with dask one step at a time so the 25-member mean never holds more than
+one step's members in memory.
 
 Usage:
   python vortex_winds.py --date 20260829 --time 12 --out assets/sst/vortex_winds.webp
@@ -115,13 +127,61 @@ def at_step(da, step_h: int):
     return da.isel(step=int(np.where(steps == step_h)[0][0]))
 
 
-def fetch(date: str, time: str):
-    """u and v at both levels, every 12 h step, control only."""
+# Perturbed members averaged. 25, as for the wave-1 maps, the heat flux and the
+# WAF: the mean of u and v converges well before 50, and the pull scales with N.
+MEMBERS = 25
+
+
+def _mean_field(path, short: str, lev: int):
+    """The member mean for one shortName/level, every step, one step in memory at a time."""
+    ds = xr.open_dataset(path, engine="cfgrib", chunks={"step": 1}, backend_kwargs=dict(
+        filter_by_keys={"shortName": short, "level": lev}, indexpath=""))
+    da = ds[short] if short in ds else ds[list(ds.data_vars)[0]]
+    if "number" in da.dims:
+        da = da.mean("number")
+    return da.compute()
+
+
+def _with_step(da, step_h: int):
+    """A single-step field as a 1-step array, member and level coordinates dropped."""
+    if "step" not in da.dims:
+        da = da.expand_dims(step=[np.timedelta64(step_h, "h").astype("timedelta64[ns]")])
+    return da.drop_vars([c for c in da.coords if c not in ("step", "latitude", "longitude")])
+
+
+def fetch(date: str, time: str, members: int = MEMBERS):
+    """u and v at both levels, every 12 h step: the analysis from the CONTROL, every
+    forecast step as the mean of `members` perturbed members.
+
+    Step 0 is the control because the perturbed members differ from the analysis
+    only by their perturbations - averaging them smooths the very state the
+    analysis is (same reasoning as wave1_maps.fetch_analysis). If the perturbed
+    pull fails outright, the control stands in and the subtitle says so.
+    """
     cyc = ecmwf.Cycle(date, time)
-    upath = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "u", "pl", LEVELS, STEPS_12H))
-    vpath = ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", "v", "pl", LEVELS, STEPS_12H))
-    return {lev: (open_field(upath, "u", lev), open_field(vpath, "v", lev))
-            for lev in LEVELS}
+    fc_steps = tuple(s for s in STEPS_12H if s)
+    ana = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, (0,)))
+           for sh in ("u", "v")}
+    try:
+        pf = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "pf", sh, "pl", LEVELS, fc_steps, members))
+              for sh in ("u", "v")}
+        source = f"ensemble mean of {members} members"
+    except Exception as e:                                   # noqa: BLE001
+        print(f"  perturbed pull failed ({type(e).__name__}: {e}); falling back to the control",
+              flush=True)
+        pf = {sh: ecmwf.ensure(cyc, ecmwf.Spec("aifs-ens", "cf", sh, "pl", LEVELS, fc_steps))
+              for sh in ("u", "v")}
+        source = "control (member 0) - the perturbed pull failed"
+    out = {}
+    for lev in LEVELS:
+        pair = []
+        for sh in ("u", "v"):
+            a = _with_step(_mean_field(ana[sh], sh, lev), 0)
+            f = _mean_field(pf[sh], sh, lev)
+            f = f.drop_vars([c for c in f.coords if c not in ("step", "latitude", "longitude")])
+            pair.append(xr.concat([a, f], dim="step"))
+        out[lev] = tuple(pair)
+    return out, source
 
 
 def circular_boundary(ax):
@@ -210,7 +270,7 @@ def panel(ax, u, v, lev, hemi):
     return cf
 
 
-def render(uv, lev, date, time, step_h, out_path: Path):
+def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control"):
     """ONE level, both hemispheres, side by side.
 
     Unstacked for the same reason wave1_maps was: 10 and 100 hPa shared a 2x2
@@ -220,7 +280,7 @@ def render(uv, lev, date, time, step_h, out_path: Path):
     """
     fig = plt.figure(figsize=(11.4, 6.3), dpi=125)
     gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 0.045],
-                          left=0.02, right=0.93, top=0.83, bottom=0.085,
+                          left=0.02, right=0.93, top=0.82, bottom=0.095,
                           wspace=0.06)
     cf = None
     for c, hemi in enumerate(("NH", "SH")):
@@ -239,15 +299,18 @@ def render(uv, lev, date, time, step_h, out_path: Path):
     tag = f"F{step_h:03d}" if step_h else "analysis"
     fig.suptitle(f"Stratospheric vortex winds — {lev} hPa",
                  fontsize=15, fontweight="bold", x=0.02, ha="left", y=0.975)
+    what = "control (the analysis)" if step_h == 0 else source
     fig.text(0.02, 0.925,
-             f"ECMWF AIFS-ENS member 0 · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z "
-             f"{tag} · valid {valid:%a %d %b %HZ} · speed shaded, streamlines "
-             f"overlaid · red: u = 0 (vortex edge) · dashed ring: 60°",
-             fontsize=9, color="#555", ha="left")
-    fig.text(0.02, 0.020,
-             "Colour scales are fixed per level, so a colour means the same wind "
-             "speed every day; NH and SH share the scale and are directly comparable.",
-             fontsize=8, color="#6f6b64", ha="left")
+             f"ECMWF AIFS-ENS {what} · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z {tag} · "
+             f"valid {valid:%a %d %b %HZ}\n"
+             f"speed of the mean wind shaded, its streamlines over · red: u = 0 (vortex edge) · "
+             f"dashed ring: 60°",
+             fontsize=9, color="#555", ha="left", va="top", linespacing=1.45)
+    fig.text(0.02, 0.012,
+             "Where the members disagree the mean is weaker and smoother than any one of them: a split "
+             "carried by a few members\nshows as a stretched, slackened vortex, not two centres. "
+             "Colour scales are fixed per level; NH and SH share the scale.",
+             fontsize=8, color="#6f6b64", ha="left", va="bottom", linespacing=1.4)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=125, facecolor="white",
@@ -256,7 +319,7 @@ def render(uv, lev, date, time, step_h, out_path: Path):
     return out_path
 
 
-def build_loop(full, date, time, anim_root: Path, manifest: Path) -> int:
+def build_loop(full, date, time, anim_root: Path, manifest: Path, source: str = "control") -> int:
     """One frame per 12 h step PER LEVEL, and a manifest with a level selector.
 
     anim_root is the animation ROOT (assets/sst/anim); this writes
@@ -274,14 +337,14 @@ def build_loop(full, date, time, anim_root: Path, manifest: Path) -> int:
         for i, step_h in enumerate(STEPS_12H):
             u, v = full[lev]
             render((at_step(u, step_h), at_step(v, step_h)), lev, date, time,
-                   step_h, d / f"F{i:02d}.webp")
+                   step_h, d / f"F{i:02d}.webp", source)
             valid = init + pd.Timedelta(hours=step_h)
             frames.append({"idx": i, "file": f"F{i:02d}.webp",
                            "date": f"{valid:%Y-%m-%d}",
                            "label": f"F{step_h:03d} · valid {valid:%a %d %b %HZ}"})
             print(f"    {lev} hPa  F{step_h:03d}", flush=True)
         regions[f"vortex_{lev}"] = {
-            "label": f"Vortex winds — {lev} hPa, both hemispheres",
+            "label": f"Vortex winds — {lev} hPa, both hemispheres, ensemble mean",
             "n_frames": len(frames), "frames": frames}
         print(f"  {lev} hPa: {len(frames)} frames -> {d}")
     man = {"ver": f"{date}{time}", "days": len(STEPS_12H),
@@ -304,15 +367,15 @@ def main(argv=None) -> int:
     ap.add_argument("--manifest", help="animator manifest path")
     a = ap.parse_args(argv)
 
-    full = fetch(a.date, a.time)
+    full, source = fetch(a.date, a.time)
     # ONE still, at STILL_LEVEL - the loop carries both levels as regions and
     # the animator switches between them, so a second still would just be an
     # unused file committed every cycle.
     outd = Path(a.out_dir)
     u, v = full[STILL_LEVEL]
-    print(f"  wrote {render((at_step(u, a.step), at_step(v, a.step)), STILL_LEVEL, a.date, a.time, a.step, outd / f'vortex_{STILL_LEVEL}.webp')}")
+    print(f"  wrote {render((at_step(u, a.step), at_step(v, a.step)), STILL_LEVEL, a.date, a.time, a.step, outd / f'vortex_{STILL_LEVEL}.webp', source)}")
     if a.anim_dir and a.manifest:
-        build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest))
+        build_loop(full, a.date, a.time, Path(a.anim_dir), Path(a.manifest), source)
     return 0
 
 

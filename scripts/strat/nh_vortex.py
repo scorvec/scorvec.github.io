@@ -15,8 +15,10 @@ model that publishes the stratosphere):
 Models (probed 2026-08-28; all four publish u AND height at 10 and 100 hPa):
 
   aifs  AIFS-ENS  25 pf + cf, 0.25 deg, day 15.  FREE -- the AAM task already
-                  caches pf_u_10-50-100-... every cycle. Height is control-only:
-                  open data publishes no perturbed z at these levels.
+                  caches pf_u_10-50-100-... every cycle. Height: 25 pf z at 100 hPa
+                  pulled through the shared store (~0.35 GB) plus the control. (It
+                  was control-only until 2026-09-26 on a mistaken belief that open
+                  data carries no perturbed z there.)
   geps  GEPS      20 members, 0.5 deg, day 16. One `allmbrs` GRIB per
                   variable/level/step (~2.4 MB UGRD, ~1.3 MB HGT) -> ~98 MB/cycle.
   gdps  GDPS      deterministic, 0.15 deg, day 10 -> ~31 MB/cycle.
@@ -85,6 +87,7 @@ PHI = 60.0                 # WMO 60N for the SSW criterion
 CAP = (65.0, 90.0)         # polar cap for the 100 hPa height anomaly
 TAIL_DAYS = 21             # short analysis tail: this is a forecast product
 G = 9.80665                # ECMWF `z` is geopotential; `gh` / HGT are already gpm
+AIFS_Z_MEMBERS = 25        # perturbed members for the AIFS polar-cap height (as for the winds)
 UA = {"User-Agent": "scorvec-enso/1.0"}
 DETREND = {"zcap"}         # see the module docstring for why only this one
 
@@ -151,8 +154,27 @@ def load_aifs(cdir, base):
         d["cf"] = _frame(_grib(cf[0], shortName="u", level=lev)["u"], zonal_at, base)[0]
         out[key] = d
     zf = glob.glob(f"{cdir}/aifs-ens/cf_z_10-*.grib2")
-    out["zcap"] = (_frame(_grib(zf[0], shortName="z", level=100)["z"], cap_mean,
-                          base, 1.0 / G) if zf else None)
+    zc = (_frame(_grib(zf[0], shortName="z", level=100)["z"], cap_mean, base, 1.0 / G)
+          if zf else None)
+    # The height used to be control-only on the belief that open data carries no
+    # perturbed z at 100 hPa. It does (index probed 2026-09-26: pf z at 10/50/100,
+    # all 50 members, ~0.85 MB a field), so the panel gets members like the winds.
+    # ~0.35 GB through the shared store; a failed pull leaves the control alone.
+    zp = None
+    try:
+        import sys
+        sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
+        import store as ecmwf
+        zpath = ecmwf.ensure(ecmwf.Cycle(f"{base:%Y%m%d}", f"{base:%H}"),
+                             ecmwf.Spec("aifs-ens", "pf", "z", "pl", (100,),
+                                        tuple(ecmwf.STEPS), AIFS_Z_MEMBERS))
+        zp = _frame(_grib(zpath, shortName="z", level=100)["z"], cap_mean, base, 1.0 / G)
+    except Exception as e:                                     # noqa: BLE001
+        print(f"  AIFS-ENS perturbed z100 unavailable ({type(e).__name__}: {str(e)[:80]}); "
+              "polar-cap height stays control-only", flush=True)
+    if zp is not None and zc is not None:
+        zp["cf"] = zc[0].reindex(zp.index)
+    out["zcap"] = zp if zp is not None else zc
     return out
 
 

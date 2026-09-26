@@ -159,7 +159,12 @@ jobs:
             --out-dir assets/sst \
             || echo "::warning::heatflux100 failed; keeping the previous figure"
 
+      # 25 perturbed members of u and v at 10/100 hPa every 12 h (~1.9 GB) for the
+      # ensemble-mean maps (member 0 until 2026-09-26). Google mirror only.
       - name: Vortex winds, 10 and 100 hPa
+        env:
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
         run: |
           python scripts/strat/vortex_winds.py \
             --date "${{ needs.cycle.outputs.date }}" --time "${{ needs.cycle.outputs.time }}" \
@@ -286,7 +291,11 @@ jobs:
 
       # --cycle is matched against the cache directory name, which carries a
       # trailing "z"; nh_vortex accepts it with or without.
+      # Also pulls 25 perturbed z at 100 hPa for the polar-cap height. Google mirror only.
       - name: NH polar vortex
+        env:
+          ECMWF_SOURCES: google
+          ECMWF_MULTISOURCE: "0"
         run: |
           python scripts/strat/nh_vortex.py --models aifs,geps,gdps,ifs --ifs-members 5 \
             --cycle "${{ needs.cycle.outputs.date }}${{ needs.cycle.outputs.time }}" \
