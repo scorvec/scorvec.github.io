@@ -489,7 +489,8 @@ def main():
             tw = np.stack([T.sel(time=slice(c + pd.Timedelta(days=a), c + pd.Timedelta(days=b))).mean("time").values for c in sets[s]])
             zw = np.stack([Z.sel(time=slice(c + pd.Timedelta(days=a), c + pd.Timedelta(days=b))).mean("time").values for c in sets[s]])
             m, tstat = mean_t(tw)
-            surf[(s, wk)] = (m, tstat, np.nanmean(zw, 0))
+            zm, zt = mean_t(zw)
+            surf[(s, wk)] = (m, tstat, zm, zt)
             for rn, (la0, la1, lo0, lo1) in REGIONS.items():
                 msk = lm & (lat[:, None] >= la0) & (lat[:, None] <= la1) & (
                     ((lon[None, :] >= lo0) & (lon[None, :] <= lo1)) if lo0 < lo1 else ((lon[None, :] >= lo0) | (lon[None, :] <= lo1)))
@@ -522,6 +523,7 @@ def main():
          "t2m_mean": (("set", "window", "lat", "lon"), np.stack([[surf[(s, w)][0] for w in SURF_WIN] for s in SETS]).astype("float32")),
          "t2m_t": (("set", "window", "lat", "lon"), np.stack([[surf[(s, w)][1] for w in SURF_WIN] for s in SETS]).astype("float32")),
          "z500_mean": (("set", "window", "lat", "lon"), np.stack([[surf[(s, w)][2] for w in SURF_WIN] for s in SETS]).astype("float32")),
+         "z500_t": (("set", "window", "lat", "lon"), np.stack([[surf[(s, w)][3] for w in SURF_WIN] for s in SETS]).astype("float32")),
          "z10_map": (("ssw", "mlat", "mlon"), np.stack(maps).astype("float32"))},
         coords={"time": t, "set": SETS, "lag": LAGS, "lev": lev, "window": list(SURF_WIN), "lat": lat, "lon": lon,
                 "ssw": [e["date"] for e in events], "ssw_used": ("ssw_used", [e["date"] for e in used]), "sv": [s["date"] for s in sv_events],

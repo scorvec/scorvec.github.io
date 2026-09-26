@@ -226,55 +226,114 @@ def ao_rows(D, E, s):
     return D.ao_ssw.values[idx], D.ao_base_ssw.values
 
 
+SIG_NOTE = "Coloured only where significant: t-test across events, false-discovery rate 10 % over the whole chart (Wilks 2016, about 5 % overall)"
+
+
+def pval(t, n):
+    from scipy import stats
+    return 2 * stats.t.sf(np.abs(np.asarray(t, float)), max(n - 1, 1))
+
+
+def fdr(p, alpha=0.10):
+    """Benjamini-Hochberg over every cell; alpha_FDR 0.10 holds the chance of any false positive in a spatially
+    correlated field near 0.05 (Wilks 2016). Returns a boolean mask of the significant cells."""
+    q = np.asarray(p, float); ok = np.isfinite(q); v = np.sort(q[ok]); n = v.size
+    if not n:
+        return np.zeros(q.shape, bool)
+    passed = v[v <= alpha * np.arange(1, n + 1) / n]
+    return ok & (q <= passed.max()) if passed.size else np.zeros(q.shape, bool)
+
+
+def ao_sig(A, base, win=7):
+    """Event AO paths (7-day means), their mean, 95 % interval and an FDR-significance mask of mean - baseline."""
+    sm = pd.DataFrame(A.T).rolling(win, center=True, min_periods=4).mean().values.T
+    bs = pd.Series(base).rolling(win, center=True, min_periods=4).mean().values
+    n = np.isfinite(sm).sum(0); m = np.nanmean(sm, 0); se = np.nanstd(sm, 0, ddof=1) / np.sqrt(n)
+    from scipy import stats
+    tcrit = stats.t.ppf(0.975, np.maximum(n - 1, 1))
+    sig = fdr(pval((m - bs) / se, int(np.median(n))))
+    return sm, m, m - tcrit * se, m + tcrit * se, bs, sig
+
+
+_WT = {}
+
+
+def window_tests(D, E):
+    """AO mean over days 1-30 and 31-60 minus the same calendar days in other years, per event set: one-sample t-test,
+    Benjamini-Hochberg at 10 % over all 12 (set, window) tests. Cached; {(set, win): (mean, p, significant)}."""
+    if _WT:
+        return _WT
+    from scipy import stats
+    lag = D.lag.values; keys, vals = [], []
+    for s in SET_LABEL:
+        A, base = ao_rows(D, E, s)
+        for w, (a, b) in (("d1_30", (1, 30)), ("d31_60", (31, 60))):
+            k = (lag >= a) & (lag <= b); x = np.nanmean(A[:, k], 1) - np.nanmean(base[k])
+            keys.append((s, w)); vals.append((float(x.mean()), float(stats.ttest_1samp(x, 0).pvalue)))
+    sig = fdr([v[1] for v in vals])
+    _WT.update({k: (v[0], v[1], bool(g)) for k, v, g in zip(keys, vals, sig)})
+    return _WT
+
+
+def wt_text(D, E, s):
+    W = window_tests(D, E)
+    return "   ".join(f"days {w[1:].replace('_', '–')}: {W[(s, w)][0]:+.2f} " + (f"(p = {W[(s, w)][1]:.3f}, significant)" if W[(s, w)][2]
+                     else "(not significant)") for w in ("d1_30", "d31_60"))
+
+
+def draw_sig_line(ax, x, y, sig, col, label, lw=2.8):
+    ax.plot(x, y, color=col, lw=1.1, ls=(0, (2, 2)), alpha=0.8)
+    ys = np.where(sig, y, np.nan)
+    ax.plot(x, ys, color=col, lw=lw, label=label)
+
+
 def drip(D, E, s, out):
     n = E["sets"][s]
     lag = D.lag.values
     lev = D.lev.values
     keep = lev >= 1.0
     m = D.drip_mean.sel(set=s).values[:, keep].T
-    tt = D.drip_t.sel(set=s).values[:, keep].T
+    sig = fdr(pval(D.drip_t.sel(set=s).values[:, keep].T, n))
     p = lev[keep]
-    fig = plt.figure(figsize=(13.4, 8.4), dpi=125)
-    ev = "sudden warmings" if s != "sv" else "strong-vortex events"
-    fig_header(fig, f"Dripping paint: polar-cap height around the {n} {SET_LABEL[s]} since 1980",
-               f"Standardised 65–90°N geopotential height anomaly, mean of {n} events, day 0 = "
+    fig = plt.figure(figsize=(13.4, 8.6), dpi=125)
+    below = fig_header(fig, f"Dripping paint: polar-cap height around the {n} {SET_LABEL[s]} since 1980",
+               f"Standardised 65–90°N geopotential height anomaly, mean of {n} events; day 0 = "
                f"{'the first easterly day at 60°N, 10 hPa' if s != 'sv' else 'the 10 hPa annular index first crossing +1.5'}. "
-               f"Red = high cap heights (weak vortex, negative AO), blue = low. Hatched where |t| < 2. {SRC}.")
-    ax = fig.add_axes([0.07, 0.36, 0.84, 0.47])
+               f"Red = high cap heights (weak vortex, negative AO), blue = low. {SIG_NOTE}; grey = not significant. {SRC}.")
+    ax = fig.add_axes([0.07, 0.36, 0.84, below - 0.42])
+    ax.set_facecolor("#eceef1")
     lv = np.arange(-2.4, 2.41, 0.3)
-    cf = ax.contourf(lag, p, m, levels=lv, cmap="RdBu_r", extend="both")
-    ax.contour(lag, p, m, levels=[x for x in lv if abs(x) > 1e-6], colors="#333", linewidths=0.35)
-    ax.contourf(lag, p, np.abs(tt), levels=[0, 2], colors="none", hatches=[".."])
+    mm = np.where(sig, m, np.nan)
+    cf = ax.contourf(lag, p, mm, levels=lv, cmap="RdBu_r", extend="both")
+    ax.contour(lag, p, np.where(sig, m, np.nan), levels=[x for x in lv if abs(x) > 1e-6], colors="#333", linewidths=0.35)
+    if not sig.any():
+        ax.text(0.5, 0.5, "No significant anomaly anywhere on this chart", transform=ax.transAxes, ha="center", fontsize=13, color=INK)
     ax.set_yscale("log"); ax.set_ylim(1000, 1)
     ax.set_yticks([1000, 500, 300, 100, 50, 30, 10, 5, 3, 1]); ax.set_yticklabels(["1000", "500", "300", "100", "50", "30", "10", "5", "3", "1"])
     ax.axvline(0, color=INK, lw=1.0)
     for L in (100, 10):
         ax.axhline(L, color="#555", lw=0.5, ls=":")
     ax.set_ylabel("pressure, hPa", fontsize=10, color=INK)
-    ax.set_xlim(lag[0], lag[-1])
-    ax.tick_params(labelbottom=False)
+    ax.set_xlim(lag[0], lag[-1]); ax.tick_params(labelbottom=False)
     style(ax); ax.grid(False)
-    ax.text(0.005, 1.01, "stratosphere above ~250 hPa, troposphere below", transform=ax.transAxes, fontsize=8.5, color=MUTED, va="bottom")
-    cax = fig.add_axes([0.925, 0.36, 0.012, 0.47])
+    cax = fig.add_axes([0.925, 0.36, 0.012, below - 0.42])
     cb = fig.colorbar(cf, cax=cax); cb.set_label("standard deviations", fontsize=9); cb.ax.tick_params(labelsize=8)
-    # AO underneath
     A, base = ao_rows(D, E, s)
-    ax2 = fig.add_axes([0.07, 0.08, 0.84, 0.23])
-    sm = pd.DataFrame(A.T).rolling(7, center=True, min_periods=4).mean().values.T
-    for r in sm:
-        ax2.plot(lag, r, color="#9aa3ad", lw=0.6, alpha=0.55)
-    q25, q75 = np.nanpercentile(sm, 25, 0), np.nanpercentile(sm, 75, 0)
+    sm, mean, lo, hi, bs, sg = ao_sig(A, base)
     col = WARM if s != "sv" else COOL
-    ax2.fill_between(lag, q25, q75, color=col, alpha=0.18, lw=0, label="middle half of events")
-    ax2.plot(lag, np.nanmean(sm, 0), color=col, lw=2.6, label=f"mean of {len(sm)} events")
-    ax2.plot(lag, pd.Series(base).rolling(7, center=True, min_periods=4).mean(), color=INK, lw=1.2, ls="--", label="same dates, other years")
+    ax2 = fig.add_axes([0.07, 0.08, 0.84, 0.23])
+    ax2.fill_between(lag, lo, hi, color=col, alpha=0.16, lw=0, label="95 % interval of the mean")
+    draw_sig_line(ax2, lag, mean, sg, col, f"mean of {len(sm)} events, solid where significant")
+    ax2.plot(lag, bs, color=INK, lw=1.1, ls="--", label="same dates, other years")
     ax2.axhline(0, color="#555", lw=0.8); ax2.axvline(0, color=INK, lw=1.0)
-    ax2.set_xlim(lag[0], lag[-1]); ax2.set_ylim(-4, 3)
+    ax2.set_xlim(lag[0], lag[-1]); ax2.set_ylim(-2.2, 1.6)
     ax2.set_xlabel("days from the event", fontsize=10, color=INK); ax2.set_ylabel("AO, 7-day mean", fontsize=10, color=INK)
-    style(ax2)
-    ax2.legend(fontsize=8.5, frameon=False, ncol=3, loc="lower left")
-    ax2.set_title("Arctic Oscillation at the surface (CPC daily index)", loc="left", fontsize=10.5, fontweight="bold", color=INK)
+    style(ax2); ax2.legend(fontsize=8.5, frameon=False, ncol=3, loc="lower left")
+    ax2.set_title("Arctic Oscillation at the surface (CPC daily index); dotted = not significant day by day", loc="left", fontsize=10.5, fontweight="bold", color=INK)
+    ax2.text(0.995, 0.96, "30-day means vs other years: " + wt_text(D, E, s), transform=ax2.transAxes, ha="right", va="top",
+             fontsize=8.6, color=INK, bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=2))
     save(fig, out)
+    return bool(sig.any()), bool(sg[(lag > 0)].any())
 
 
 # ---------------------------------------------------------------- surface maps
@@ -284,52 +343,67 @@ def follows_map(D, E, s, w, out):
     n = E["sets"][s]
     lat, lon = D.lat.values, D.lon.values
     m = D.t2m_mean.sel(set=s, window=w).values
-    tt = D.t2m_t.sel(set=s, window=w).values
+    sig = fdr(pval(D.t2m_t.sel(set=s, window=w).values, n))
     z = D.z500_mean.sel(set=s, window=w).values
-    fig = plt.figure(figsize=(10.4, 11.0), dpi=120)
-    fig_header(fig, f"2 m temperature, {WIN_LABEL[w]} after {SET_LABEL[s]}",
+    zsig = fdr(pval(D.z500_t.sel(set=s, window=w).values, n))
+    fig = plt.figure(figsize=(10.4, 11.2), dpi=120)
+    below = fig_header(fig, f"2 m temperature, {WIN_LABEL[w]} after {SET_LABEL[s]}",
                f"Mean anomaly over {n} events (ERA5, against each point's seasonal cycle and trend); contours: 500 hPa height "
-               f"anomaly every 20 m (dashed negative). Dots: |t| ≥ 2 across events. North America at the bottom.", x=0.05)
-    ax = polar_axes(fig, [0.03, 0.1, 0.94, 0.78], lat0=20, central=-80)
+               f"anomaly every 20 m (dashed negative). {SIG_NOTE}; both fields are blank where not significant. "
+               f"North America at the bottom.", x=0.05)
+    ax = polar_axes(fig, [0.03, 0.1, 0.94, below - 0.14], lat0=20, central=-80)
     pc = ccrs.PlateCarree()
     lv = np.arange(-3.5, 3.51, 0.5)
-    mc, lc = cyclic(m, lon)
+    mc, lc = cyclic(np.where(sig, m, np.nan), lon)
     cf = ax.contourf(lc, lat, mc, levels=lv, cmap="RdBu_r", extend="both", transform=pc)
-    zc, _ = cyclic(z, lon)
+    zc, _ = cyclic(np.where(zsig, z, np.nan), lon)
     zl = [x for x in np.arange(-200, 201, 20) if x != 0]
-    cs = ax.contour(lc, lat, zc, levels=zl, colors=INK, linewidths=0.8, transform=pc)
-    ax.clabel(cs, fmt="%d", fontsize=7)
-    sig = np.abs(tt) >= 2
-    LA, LO = np.meshgrid(lat, lon, indexing="ij")
-    pick = sig & (np.arange(len(lat))[:, None] % 2 == 0) & (np.arange(len(lon))[None, :] % 2 == 0)
-    ax.scatter(LO[pick], LA[pick], s=1.2, color="#222", transform=pc, zorder=4)
+    if zsig.any():
+        cs = ax.contour(lc, lat, zc, levels=zl, colors=INK, linewidths=0.9, transform=pc)
+        ax.clabel(cs, fmt="%d", fontsize=7)
     ax.add_feature(cfeature.COASTLINE.with_scale("110m"), lw=0.6, edgecolor="#333")
     ax.gridlines(lw=0.4, color="#999", ylocs=[30, 45, 60, 75], xlocs=np.arange(-180, 181, 45))
+    if not sig.any():
+        ax.text(0.5, 0.5, "No significant temperature signal", transform=ax.transAxes, ha="center", va="center", fontsize=15,
+                color=INK, bbox=dict(facecolor="white", edgecolor="#9aa3ad", boxstyle="round,pad=0.5"))
     cax = fig.add_axes([0.2, 0.065, 0.6, 0.013])
     cb = fig.colorbar(cf, cax=cax, orientation="horizontal"); cb.ax.tick_params(labelsize=8)
-    cb.ax.set_title("2 m temperature anomaly, K", fontsize=9, color=INK, pad=3)
-    fig.text(0.05, 0.018, "Composites of so few events are noisy: read the large, dotted patterns, not single spots.",
+    cb.ax.set_title("2 m temperature anomaly, K (significant cells only)", fontsize=9, color=INK, pad=3)
+    fig.text(0.05, 0.018, f"{int(sig.sum())} of {sig.size} grid cells significant for temperature, {int(zsig.sum())} for 500 hPa height.",
              fontsize=8.8, color=MUTED)
     save(fig, out)
+    return int(sig.sum()), int(zsig.sum())
 
 
 def ao_figure(D, E, out):
-    fig = plt.figure(figsize=(13.4, 7.6), dpi=125)
-    fig_header(fig, "The Arctic Oscillation after sudden warmings and strong-vortex events",
+    from scipy import stats
+    fig = plt.figure(figsize=(13.4, 7.8), dpi=125)
+    below = fig_header(fig, "The Arctic Oscillation after sudden warmings and strong-vortex events",
                f"CPC daily AO, 7-day running mean, around {E['sets']['ssw_all']} SSWs and {E['sets']['sv']} strong-vortex events "
-               f"(MERRA-2 dates, 1980–2026). Lower panel: share of events with a negative AO, against the same calendar days in every other year.")
+               f"(MERRA-2 dates, 1980–2026). Lines are solid on days where the mean differs from the same calendar days in other years "
+               f"(t-test, false-discovery rate 10 % across days), dotted where it does not; shading = 95 % interval of the mean. "
+               f"30-day means are the more powerful test (box). "
+               f"Lower panel: share of events with a negative AO, solid where a binomial test against 50 % is significant.")
     lag = D.lag.values
-    ax = fig.add_axes([0.07, 0.42, 0.9, 0.42])
+    ax = fig.add_axes([0.07, 0.42, 0.9, below - 0.47])
     ax2 = fig.add_axes([0.07, 0.08, 0.9, 0.27])
     for s, col, lab in (("ssw_all", WARM, "after SSWs"), ("sv", COOL, "after strong-vortex events")):
         A, base = ao_rows(D, E, s)
-        sm = pd.DataFrame(A.T).rolling(7, center=True, min_periods=4).mean().values.T
-        ax.fill_between(lag, np.nanpercentile(sm, 25, 0), np.nanpercentile(sm, 75, 0), color=col, alpha=0.16, lw=0)
-        ax.plot(lag, np.nanmean(sm, 0), color=col, lw=2.8, label=f"mean {lab} (n={len(sm)}), shading = middle half")
-        neg = np.mean(sm < 0, 0) * 100
-        ax2.plot(lag, neg, color=col, lw=2.2, label=lab)
+        sm, mean, lo, hi, bs, sg = ao_sig(A, base)
+        ax.fill_between(lag, lo, hi, color=col, alpha=0.14, lw=0)
+        draw_sig_line(ax, lag, mean, sg, col, f"mean {lab} (n={len(sm)})")
+        k = np.isfinite(sm).sum(0); neg = (sm < 0).sum(0)
+        pb = np.array([stats.binomtest(int(a), int(b), 0.5).pvalue if b else np.nan for a, b in zip(neg, k)])
+        draw_sig_line(ax2, lag, 100 * neg / np.maximum(k, 1), fdr(pb), col, lab, lw=2.4)
+    W = window_tests(D, E)
+    rows = [f"{'30-day means vs other years':<30s}{'days 1–30':>16s}{'days 31–60':>16s}"]
+    for s_ in SET_LABEL:
+        cell = lambda w: (f"{W[(s_, w)][0]:+.2f}" + (" *" if W[(s_, w)][2] else "  n.s.")).rjust(16)
+        rows.append(f"{SET_SHORT[s_] + ' (n=' + str(E['sets'][s_]) + ')':<30s}{cell('d1_30')}{cell('d31_60')}")
+    ax.text(0.995, 0.97, "\n".join(rows) + "\n* significant (t-test, false-discovery rate 10 % over the 12 tests)", transform=ax.transAxes,
+            ha="right", va="top", fontsize=8.2, family="monospace", color=INK, bbox=dict(facecolor="white", edgecolor="#c9ccd1", pad=4))
     ax.axhline(0, color="#555", lw=0.8); ax.axvline(0, color=INK, lw=1)
-    ax.set_xlim(-40, 90); ax.set_ylim(-3.2, 2.4); ax.set_ylabel("AO, 7-day mean", fontsize=10, color=INK)
+    ax.set_xlim(-40, 90); ax.set_ylim(-1.8, 1.8); ax.set_ylabel("AO, 7-day mean", fontsize=10, color=INK)
     ax.tick_params(labelbottom=False); style(ax); ax.legend(frameon=False, fontsize=9, loc="lower left")
     ax2.axhline(50, color=INK, lw=1, ls="--"); ax2.axvline(0, color=INK, lw=1)
     ax2.set_xlim(-40, 90); ax2.set_ylim(0, 100); ax2.set_ylabel("% of events AO < 0", fontsize=10, color=INK)
@@ -339,23 +413,35 @@ def ao_figure(D, E, out):
 
 
 def regions_figure(E, out):
+    from scipy import stats
     R = list(E["regions"])
     S = ["ssw_all", "ssw_deep", "ssw_shallow", "ssw_split", "ssw_disp", "sv"]
-    fig = plt.figure(figsize=(13.4, 6.6), dpi=125)
-    fig_header(fig, "Did it turn cold? Regional 2 m temperature after each kind of event",
-               "Land-only box means, ERA5, against each point's seasonal cycle and trend. Each cell: the mean anomaly and the share "
-               "of events that ran colder than normal. Under each region: how often any 30-day window starting in Dec–Mar runs cold. "
-               "With 10–28 events, a share within about 15 points of that is indistinguishable from chance.")
-    for k, w in enumerate(("d1_30", "d31_60")):
-        ax = fig.add_axes([0.13 + k * 0.44, 0.06, 0.4, 0.66])
-        M = np.array([[np.mean(E["region_values"][f"{s}|{w}|{r}"]) for s in S] for r in R])
-        P = np.array([[np.mean(np.array(E["region_values"][f"{s}|{w}|{r}"]) < 0) * 100 for s in S] for r in R])
-        ax.imshow(M, cmap="RdBu_r", vmin=-2, vmax=2, aspect="auto")
-        for i in range(len(R)):
-            for j in range(len(S)):
-                ax.text(j, i, f"{M[i, j]:+.1f} K\n{P[i, j]:.0f}% cold", ha="center", va="center", fontsize=8.6,
-                        color="white" if abs(M[i, j]) > 1.3 else INK, linespacing=1.2)
-        ax.set_xticks(range(len(S))); ax.set_xticklabels([f"{SET_SHORT[s]}\n(n={E['sets'][s]})" for s in S], fontsize=8.6)
+    Ws = ("d1_30", "d31_60")
+    cells = {(w, r, s): np.array(E["region_values"][f"{s}|{w}|{r}"]) for w in Ws for r in R for s in S}
+    keys = list(cells)
+    # the question is "did it turn cold": a binomial test of the share of events colder than normal against the region's
+    # own chance of a cold 30-day window, two-sided
+    p = np.array([stats.binomtest(int((cells[k] < 0).sum()), len(cells[k]), E["region_base_pcold"][f"{k[0]}|{k[1]}"]).pvalue for k in keys])
+    sig = dict(zip(keys, fdr(p)))
+    fig = plt.figure(figsize=(13.4, 6.8), dpi=125)
+    below = fig_header(fig, "Did it turn cold? Regional 2 m temperature after each kind of event",
+               "Land-only box means, ERA5, against each point's seasonal cycle and trend. A cell shows the mean anomaly and the share "
+               "of events colder than normal only where that share differs significantly from the region's normal chance of a cold "
+               "30-day window (under each region; binomial test, false-discovery rate 10 % over all 72 cells). n.s. = not significant.")
+    for k, w in enumerate(Ws):
+        ax = fig.add_axes([0.13 + k * 0.44, 0.06, 0.4, below - 0.2])
+        M = np.array([[cells[(w, r, s)].mean() if sig[(w, r, s)] else np.nan for s in S] for r in R])
+        ax.imshow(np.ma.masked_invalid(M), cmap="RdBu_r", vmin=-2, vmax=2, aspect="auto")
+        ax.set_facecolor("#f4f5f7")
+        for i, r in enumerate(R):
+            for j, s_ in enumerate(S):
+                v = cells[(w, r, s_)]
+                if sig[(w, r, s_)]:
+                    ax.text(j, i, f"{v.mean():+.1f} K\n{100 * np.mean(v < 0):.0f}% cold", ha="center", va="center", fontsize=8.8,
+                            color="white" if abs(v.mean()) > 1.3 else INK, linespacing=1.2, fontweight="bold")
+                else:
+                    ax.text(j, i, "n.s.", ha="center", va="center", fontsize=8.5, color="#8a8f96")
+        ax.set_xticks(range(len(S))); ax.set_xticklabels([f"{SET_SHORT[s_]}\n(n={E['sets'][s_]})" for s_ in S], fontsize=8.6)
         ax.xaxis.tick_top()
         ax.set_yticks(range(len(R)))
         ax.set_yticklabels([f"{r}\n{E['region_base_pcold'][f'{w}|{r}'] * 100:.0f}% normally" for r in R] if k == 0 else [], fontsize=8.8)
@@ -364,49 +450,7 @@ def regions_figure(E, out):
             sp.set_visible(False)
         ax.tick_params(length=0)
     save(fig, out)
-
-
-# ---------------------------------------------------------------- base rates
-def rates(E, out):
-    W = pd.DataFrame(E["winters"])
-    W["any"] = W.n_ssw > 0
-    cur = E.get("current") or {}
-    fig = plt.figure(figsize=(13.4, 6.6), dpi=125)
-    below = fig_header(fig, "How often does a winter get a sudden warming? By ENSO, QBO and the solar cycle",
-               f"{len(W)} winters 1980/81–2025/26, {int(W.n_ssw.sum())} major SSWs (Nov–Mar, MERRA-2). Bars: share of winters "
-               f"with at least one; under the percentage, SSWs per winter and the number of winters. Sunspots split at the "
-               f"median winter ({E['ssn_median']:.0f}). With 5–30 winters per bar, one winter moves a bar by 3–20 points.")
-    groups = [("ENSO (RONI, DJF)", lambda c: W[W.enso == c], ["El Niño", "neutral", "La Niña"], cur.get("enso")),
-              ("QBO at 50 hPa, Oct–Nov", lambda c: W[W.qbo == c], ["E", "W"], cur.get("qbo")),
-              ("Sunspots, Oct–Feb", lambda c: W[W.sun == c], ["high", "low"], cur.get("sun")),
-              ("ENSO and QBO together", lambda c: W[(W.enso == c[0]) & (W.qbo == c[1])],
-               [(e, q) for e in ["El Niño", "neutral", "La Niña"] for q in ["E", "W"]], (cur.get("enso"), cur.get("qbo")))]
-    gs = fig.add_gridspec(1, 4, width_ratios=[3, 2, 2, 6], left=0.06, right=0.99, bottom=0.2, top=below - 0.1, wspace=0.28)
-    for k, (title, sub, cats, hl) in enumerate(groups):
-        ax = fig.add_subplot(gs[0, k])
-        v = [sub(c) for c in cats]
-        pct = [100 * x["any"].mean() if len(x) else 0 for x in v]
-        cols = [WARM if c == hl else "#d9b8a8" for c in cats]
-        ax.bar(range(len(cats)), pct, color=cols, width=0.72)
-        for i, (p_, x) in enumerate(zip(pct, v)):
-            ax.text(i, p_ + 9.5, f"{p_:.0f}%", ha="center", va="bottom", fontsize=10.5, fontweight="bold", color=INK)
-            ax.text(i, p_ + 1.5, f"{x.n_ssw.sum() / max(len(x), 1):.2f}/winter\nn = {len(x)}", ha="center", va="bottom", fontsize=7.8,
-                    color=MUTED, linespacing=1.1)
-        lab = [c if isinstance(c, str) else f"{c[0]}\nQBO {c[1]}" for c in cats]
-        ax.set_xticks(range(len(cats))); ax.set_xticklabels(lab, fontsize=9.2)
-        ax.tick_params(axis="x", length=0)
-        ax.set_ylim(0, 122); ax.set_yticks([0, 25, 50, 75, 100])
-        if k:
-            ax.set_yticklabels([])
-        ax.axhline(100 * W["any"].mean(), color=INK, lw=0.9, ls="--")
-        ax.set_title(title, fontsize=10.5, fontweight="bold", color=INK, loc="left")
-        style(ax); ax.grid(axis="x", visible=False)
-    fig.axes[0].set_ylabel("% of winters with an SSW", fontsize=10, color=INK)
-    fig.axes[0].text(2.45, 100 * W["any"].mean() + 1.5, f"all winters {100 * W['any'].mean():.0f}%", ha="right", va="bottom", fontsize=8.3, color=MUTED)
-    if cur:
-        fig.text(0.06, 0.03, f"Dark bars = where 2026/27 sits as of {cur.get('as_of', '')}: {cur.get('text', '')}",
-                 fontsize=9.2, color=INK)
-    save(fig, out)
+    return {f"{w}|{r}|{s_}": round(float(cells[(w, r, s_)].mean()), 2) for (w, r, s_), v in sig.items() if v}
 
 
 def main():
@@ -420,13 +464,15 @@ def main():
     write_json(D, E, A / "data" / "strat_history.json")
     timeline(E, A / "strat_hist_timeline.webp")
     gallery(D, E, A / "strat_hist_gallery.webp")
+    summary = {"drip": {}, "maps": {}}
     for s in D.set.values:
-        drip(D, E, str(s), A / f"strat_hist_drip_{s}.webp")
+        summary["drip"][str(s)] = drip(D, E, str(s), A / f"strat_hist_drip_{s}.webp")
         for w in D.window.values:
-            follows_map(D, E, str(s), str(w), A / f"strat_hist_follows_{s}_{w}.webp")
+            summary["maps"][f"{s}|{w}"] = follows_map(D, E, str(s), str(w), A / f"strat_hist_follows_{s}_{w}.webp")
     ao_figure(D, E, A / "strat_hist_ao.webp")
-    regions_figure(E, A / "strat_hist_regions.webp")
-    rates(E, A / "strat_hist_rates.webp")
+    summary["regions"] = regions_figure(E, A / "strat_hist_regions.webp")
+    summary["windows"] = {f"{k[0]}|{k[1]}": [round(v[0], 2), round(v[1], 4), v[2]] for k, v in window_tests(D, E).items()}
+    print(json.dumps(summary, indent=1))
 
 
 if __name__ == "__main__":
