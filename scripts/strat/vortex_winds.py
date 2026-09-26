@@ -303,7 +303,8 @@ def render(uv, lev, date, time, step_h, out_path: Path, source: str = "control")
     fig.text(0.02, 0.925,
              f"ECMWF AIFS-ENS {what} · {date[:4]}-{date[4:6]}-{date[6:]} {time}Z {tag} · "
              f"valid {valid:%a %d %b %HZ}\n"
-             f"speed of the mean wind shaded, its streamlines over · red: u = 0 (vortex edge) · "
+             f"{'speed' if step_h == 0 else 'speed of the mean wind'} shaded, "
+             f"{'streamlines' if step_h == 0 else 'its streamlines'} over · red: u = 0 (vortex edge) · "
              f"dashed ring: 60°",
              fontsize=9, color="#555", ha="left", va="top", linespacing=1.45)
     fig.text(0.02, 0.012,
