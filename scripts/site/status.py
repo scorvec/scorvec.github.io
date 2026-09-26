@@ -42,6 +42,7 @@ PRODUCTS = {
     "/circulation.html":     (24,  {"path": "assets/sst/aam.webp"}),
     "/stratosphere.html":    (12,  {"path": "assets/sst/nh_vortex.webp"}),
     "/subseasonal.html":     (96,  {"path": "assets/geps/telecon.json"}),
+    "/gefs.html":            (24,  {"path": "assets/gefs/data/gefs.json"}),
     "/enso-forecasts.html":  (744, {"path": "assets/sst/data/enso_forecast.json"}),
     "/seasonal.html":        (744, {"path": "assets/sst/data/c3s_indices.json"}),
     "/sfs.html":             (744, {"path": "assets/sfs/data/sfs_indices.json"}),

@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas, with MJO Tracking</title>
-<meta name="description" content="Days 1-35 anomaly forecasts for North and South America from the ECCC GEPS extended ensemble, taken against a purpose-built 2001-2020 GEPS hindcast climatology at matching lead so model drift is removed. Daily animations and weekly means for eight fields, plus run-over-run change panels, a full three-field Wheeler-Hendon RMM phase diagram, a tropical convection Hovmoller, polar-vortex diagnostics and probabilistic teleconnection indices (AO, NAO, PNA, AAO and the CPC set) from all 21 members.">
-<link rel="canonical" href="https://scorvec.com/subseasonal.html">
+<title>GEFS Subseasonal Outlook &mdash; NOAA GEFS Weeks 1&ndash;5, Anomalies Against Its Own Reforecast &middot; Shawn Corvec</title>
+<meta name="description" content="NOAA GEFS extended ensemble, weeks 1 to 5: weekly anomaly maps of temperature, precipitation, pressure, 500 hPa height, OLR and winds for North America, South America and the globe, taken against the GEFSv12 reforecast so the model drift is removed, the change since the run a week earlier, and a bias-corrected polar vortex forecast.">
+<link rel="canonical" href="https://scorvec.com/gefs.html">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
+<meta property="og:title" content="GEFS subseasonal outlook, weeks 1–5">
 <meta property="og:description" content="Days 1-35 anomalies for the Americas from the GEPS extended ensemble, expressed against the 1991-2020 normal, with model drift removed using a 2001-2020 GEPS hindcast.">
-<meta property="og:url" content="https://scorvec.com/subseasonal.html">
+<meta property="og:url" content="https://scorvec.com/gefs.html">
 <meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Subseasonal Outlook &mdash; GEPS Weeks 1&ndash;5 for the Americas">
@@ -125,8 +125,8 @@
             <div>
               <h3>Beyond two weeks</h3>
               <ul>
-                <li><a href="/subseasonal.html" aria-current="page">Subseasonal outlook (GEPS, weeks 1–5)</a></li>
-                <li><a href="/gefs.html">Subseasonal outlook (GEFS, weeks 1–5)</a></li>
+                <li><a href="/subseasonal.html">Subseasonal outlook (GEPS, weeks 1–5)</a></li>
+                <li><a href="/gefs.html" aria-current="page">Subseasonal outlook (GEFS, weeks 1–5)</a></li>
                 <li><a href="/enso-forecasts.html">ENSO forecasts (seven centres)</a></li>
                 <li><a href="/seasonal.html">Seasonal outlook (eight C3S models)</a></li>
                 <li><a href="/sfs.html">Seasonal outlook (NOAA SFS)</a></li>
@@ -155,19 +155,19 @@
 
 <main>
   <div class="page-header">
-    <p class="eyebrow">Days 1 to 35, from the ECCC GEPS extended ensemble, twice a week</p>
-    <h1>GEPS subseasonal outlook</h1>
-    <p class="sub">Anomalies against the <b>1991&ndash;2020 normal</b>, with the model's own drift removed first using a
-    purpose-built GEPS8 hindcast. Weekly maps, tercile odds, the change since the last run, teleconnection
-    plumes, weather regimes, MJO and the polar vortex &mdash; one figure at a time, picked from the menu.</p>
+    <p class="eyebrow">Days 1 to 35, from the NOAA GEFS extended ensemble, every day</p>
+    <h1>GEFS subseasonal outlook</h1>
+    <p class="sub">Anomalies against <b>GEFS's own 2000&ndash;2019 reforecast</b> at the same lead and time of year, so the
+    model's drift is removed rather than read as a forecast. Weekly maps, the change since the run a week earlier and the
+    polar vortex &mdash; one figure at a time, picked from the menu. The same layout as the
+    <a href="/subseasonal.html">GEPS subseasonal outlook</a>, for comparing the two models.</p>
     <div class="chips">
-      <div class="chip"><div class="l">cycle</div><div class="v">2026-09-24 00Z</div><div class="s">extended run</div></div>
-      <div class="chip"><div class="l">valid</div><div class="v"><b data-valid>Sep 25 &ndash; Oct 29</b></div><div class="s">days 1&ndash;35</div></div>
-      <div class="chip"><div class="l">members</div><div class="v">21</div><div class="s">GEPS extended</div></div>
-      <div class="chip"><div class="l">anomaly base</div><div class="v">1991&ndash;2020</div><div class="s">via the 2001&ndash;2020 GEPS8 hindcast</div></div>
+      <div class="chip"><div class="l">cycle</div><div class="v" id="g-cycle">&ndash;</div><div class="s">extended run</div></div>
+      <div class="chip"><div class="l">valid</div><div class="v"><b id="g-valid">&ndash;</b></div><div class="s">days 1&ndash;35</div></div>
+      <div class="chip"><div class="l">members</div><div class="v" id="g-members">31</div><div class="s">GEFS extended</div></div>
+      <div class="chip"><div class="l">anomaly base</div><div class="v">2000&ndash;2019</div><div class="s">GEFSv12 reforecast</div></div>
     </div>
   </div>
-
   <div class="ss-layout">
     <aside class="ss-rail" id="rail" aria-label="Products"></aside>
     <section class="ss-main">
@@ -188,8 +188,8 @@
       </div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the last option row &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change product &middot; click a map to enlarge &middot; the address bar carries the selection, so a view can be linked.</p>
       <div class="chart-card-footer">
-        <span class="chart-sources">ECCC GEPS extended ensemble (MSC Datamart) &middot; GEPS8 hindcast 2001&ndash;2020 &middot; ERA5 1991&ndash;2020</span>
-        <span class="chart-updated">init 2026-09-24 00Z</span>
+        <span class="chart-sources">NOAA GEFS extended ensemble (AWS open data) &middot; GEFSv12 reforecast 2000&ndash;2019 &middot; MERRA-2</span>
+        <span class="chart-updated" id="g-updated">&ndash;</span>
       </div>
     </section>
   </div>
@@ -197,107 +197,51 @@
 
   <section class="method-note">
     <h2>How it is built</h2>
-    <p>Anomalies are against the <b>1991&ndash;2020 normal</b>. Each forecast is differenced from a
-    lead-dependent GEPS8 hindcast climatology (2001&ndash;2020, read at the init day-of-year), which
-    removes the model's drift and its mean bias together; the reference is then moved to
-    1991&ndash;2020 by the observed ERA5 shift between the two periods, with no model in that step.
-    The stratosphere, which the hindcast does not cover, is taken against ERA5 with the model bias
-    measured rather than assumed. Teleconnection probabilities, tercile maps and the MJO score are
-    calibrated on the same hindcast, and the skill masks hatch wherever its anomaly correlation
-    falls below 0.25. <a href="/subseasonal-method.html">Read the full method &rarr;</a></p>
+    <p>Each day's 00Z GEFS run is read member by member, once it reaches day 35, from NOAA's open-data bucket. Daily values
+    are the mean of the 12Z and 00Z fields ending each day (precipitation summed and outgoing longwave averaged over the
+    four six-hour windows), box-averaged to 1.5&deg; and meaned by week. Exactly the same arithmetic is applied to the
+    GEFSv12 reforecast &mdash; the 35-day Wednesday runs of 2000&ndash;2019, four members each, pooled within
+    &plusmn;15 days of the start date &mdash; and each week of the forecast is differenced from the reforecast's mean at the
+    same week of lead. That removes the model's drift and its mean bias together, which a comparison with a reanalysis
+    would not. The anomalies are therefore against GEFS's 2000&ndash;2019 climate: 500 hPa height has its global mean
+    removed each week so the circulation shows rather than two decades of warming; temperature and precipitation keep
+    theirs. The change maps compare with the run exactly seven days earlier, whose weeks 2&ndash;5 cover the same dates
+    as this run's weeks 1&ndash;4. The polar vortex is corrected the same way against MERRA-2.</p>
   </section>
 </main>
 
-<footer><span class="counter">GEPS days 1&ndash;35</span></footer>
+<footer><span class="counter">GEFS days 1&ndash;35</span></footer>
 
 <script>
 // A menu rail picks the product; the option rows pick that product's settings. Only one
 // figure is ever in the DOM. The selection lives in the URL hash (#product/a/b/c) so any
 // view can be linked; arrow keys step through options and products.
 var FIELDS = [["t2m","2 m temp"],["pr","Precip"],["mslp","MSLP"],["zg500","500 hPa Z"],
-              ["olr","OLR"],["u850","850 u"],["u200","200 u"],["v850","850 v"],
-              ["v200","200 v"]];
+              ["olr","OLR"],["u850","850 u"],["u200","200 u"]];
+var DOMAINS = {label:"Domain", items:[["na","North America"],["sa","South America"],["glb","Global (Mercator)"]]};
 var P = {
-  mjo: {label: "MJO", a: {label:"View", items:[["phase","Phase diagram"],["hov","Propagation"],["skill","Hindcast skill"]]},
-        img: function (a) { return a==="skill" ? "assets/geps/geps_mjo_skill.webp"
-                                  : "assets/geps/geps_mjo_" + (a==="phase"?"phase":"hovmoller") + ".webp"; },
-        cap: function (a) { return a==="phase"
-          ? "Three-field RMM (OLR + U850 + U200), 21-member plume, days 1\u201335."
-          : (a==="hov" ? "OLR and 850 hPa zonal wind anomaly, 15\u00B0S\u201315\u00B0N, lead \u00D7 longitude."
-                       : "Bivariate RMM correlation, RMSE and amplitude ratio of the 2001\u20132020 GEPS8 hindcasts against BoM\u2019s RMM, by lead: all starts, by season, strong initial MJO, and the starts within \u00B145 days of today. Red marks: ECMWF\u2019s published extended-range values for reference."); }},
-  weekly: {label: "Weekly means, weeks 1\u20135", fit: false,
-        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
-                                   ["glb","Global (Mercator)"]]},
-        b: {label:"Field", items: FIELDS},
-        c: function (a,b) { return MASKABLE.indexOf(b) >= 0 ? {label:"Skill mask", items:[["off","Off"],["on","On"]]} : null; },
-        img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_weekly" + (c==="on" ? "_masked" : "") + ".webp"; },
-        cap: function (a,b,c) { return "Five seven-day means, anomaly vs the lead-matched GEPS hindcast."
-          + (c==="on" ? " Hatched where the 2001\u20132020 hindcast has anomaly correlation below 0.25 for this week and season; cross-hatched where there is no verification data." : ""); }},
-  probs: {label: "Weekly terciles \u2014 temperature & precipitation", fit: false,
-        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
-                                   ["glb","Global (Mercator)"]]},
-        b: {label:"Field", items:[["t2m","2 m temp"],["pr","Precip"]]},
-        c: {label:"Probability", items:[["raw","Raw members"],["cal","Hindcast-calibrated"]]},
-        img: function (a,b,c) { return "assets/geps/geps_" + a + "_" + b + "_prob_" + c + ".webp"; },
-        cap: function (a,b,c) { return (c==="raw"
-          ? "Most likely tercile by week: colour is the category (blue below, grey near, red above normal), intensity its probability, from the fraction of the 21 members in each tercile of the 2016\u20132025 weekly anomaly \u2014 a recent-decade normal, so the warming since 1991\u20132020 is not counted as a forecast."
-          : "Most likely tercile by week, calibrated: the ensemble-mean departure from the 2016\u20132025 median scaled by the gridpoint regression slope fitted on 2001\u20132020 hindcasts for this month and week, the residual spread giving the three tercile probabilities \u2014 one third each where the model has no skill, amplitude restored where it has some.")
-          + " Hatched: hindcast skill below 0.25." + (b==="pr" ? " Cross-hatched: no gauge truth over the ocean, or a dry climatological week where terciles are undefined." : ""); }},
-  change: {label: "Change vs previous run, weeks 1\u20135", fit: false,
-        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
-                                   ["glb","Global (Mercator)"]]},
-        b: {label:"Field", items: FIELDS},
-        img: function (a,b) { return "assets/geps/geps_" + a + "_" + b + "_change.webp"; },
-        cap: function () { return "This run minus the previous extended run (3\u20134 days earlier), weekly means over the valid days both forecast. Week 5 is a partial week and says so."; }},
-  telecon: {label: "Teleconnections \u2014 AO, NAO, PNA, EPO, WPO, NAM \u2026", fit: false,
-        a: {label:"View", items:[["series","Index plumes"],["probs","Weekly probabilities"],["patterns","Loading patterns"]]},
-        b: function (a) { return a === "series" ? {label:"Index", items: TELE_IDS} : null; },
-        img: function (a,b) { return a === "series" && b && b !== "board"
-          ? "assets/geps/geps_telecon_plume_" + b + ".webp" : "assets/geps/geps_telecon_" + a + ".webp"; },
-        cap: function (a) { return a==="series"
-          ? "Every member projected on CPC-style loading patterns (EPO/WPO on PSL\u2019s box definitions, NAM at 100 hPa as the annular EOF); the tail is GEPS\u2019s own day-0 analyses on the same projection, the published daily index as crosses, previous run dashed. Pick one index for a full-size plume. Units: seasonal standard deviations of the daily index, i.e. relative to this time of year."
-          : (a==="probs" ? "Upper bar: member fractions of the weekly-mean index at or beyond \u00B10.5 seasonal sd. Thin lower bar: the same probabilities calibrated on 20 years of GEPS8 hindcasts, with the hindcast skill (anomaly correlation) for that index and week. Hatched cells: skill below 0.25 \u2014 the members\u2019 opinion is shown but should not be trusted."
-                         : "Regression of the monthly field on each index (m or hPa per +1 sd), NCEP/NCAR R1 1991\u20132020, with the correlation of this reproduction against CPC\u2019s own index."); }},
-  regimes: {label: "Weather regimes \u2014 Euro-Atlantic & North America", fit: false,
-        a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},
-        b: {label:"View", items:[["fc","Forecast"],["centroids","Regime patterns"]]},
-        img: function (a,b) { return b==="fc" ? "assets/geps/geps_regimes_" + a + "_fc.webp" : "assets/geps/geps_regimes_" + a + ".webp"; },
-        cap: function (a,b) { return b==="fc"
-          ? "Each member-day assigned to the nearest of four k-means regimes (or to none when its pattern correlation is below 0.25): the fraction of members in each regime by day, the observed regime from GEPS analyses, the previous run\u2019s boundaries dashed, and the 2001\u20132020 hindcast hit rate by lead against persistence and climatology."
-          : "The four cold-season and four warm-season regimes: k-means on 5-day-mean 500 hPa anomalies, NCEP/NCAR R1 1991\u20132020, named by inspection. Frequencies are the share of days in the base period."; }},
-  clusters: {label: "500 hPa scenarios \u2014 ensemble clusters by week", fit: false,
-        a: {label:"Sector", items:[["ea","Euro-Atlantic"],["na","North America / Pacific"]]},
-        img: function (a) { return "assets/geps/geps_clusters_" + a + ".webp"; },
-        cap: function () { return "For each week the 21 members\u2019 weekly 500 hPa patterns are clustered with k = 2, 3 and 4, each tested against random rotations of the same members; the k that beats its null by most is shown as scenario means with member counts and nearest regime. If none does, the ensemble is one scenario with spread and the two-way split is drawn faded."; }},
-  daily: {label: "Daily animation",
-        a: {label:"Domain", items:[["na","North America"],["sa","South America"],
-                                   ["glb","Global (Mercator)"]]},
-        frame: function (a) { return "sst_anim.html?base=assets/geps/anim&manifest=geps_" + a + "_manifest.json&embed=1"; },
-        ratio: function (a) { return a==="na" ? "760/640"
-                             : (a==="sa" ? "760/1041" : "1191/700"); },
-        cap: function () { return "One frame per forecast day, eight fields. 24-hour means."; }},
-  vortex: {label: "Polar vortex \u2014 diagnostics",
-        a: {label:"Hemisphere", items:[["nh","Northern"],["sh","Southern"]]},
-        img: function (a) { return "assets/geps/strat_" + a + "_series.webp"; },
-        cap: function () { return "u(60\u00B0) at 10 and 100 hPa, polar-cap T and height. Ensemble spread, 14-day analysis tail, previous run\u2019s mean dashed on the common days."; }},
-  vloop: {label: "Polar vortex \u2014 daily loop",
-        a: {label:"", items:[["all","10 and 100 hPa"]]},
-        frame: function () { return "sst_anim.html?base=assets/geps/anim&manifest=geps_strat_manifest.json&embed=1"; },
-        ratio: function () { return "1139/610"; },
-        cap: function () { return "Analysis to day 35, both hemispheres and levels."; }}
+  weekly: {label: "Weekly means, weeks 1–5", fit: false, a: DOMAINS, b: {label:"Field", items: FIELDS},
+        img: function (a,b) { return "assets/gefs/gefs_" + a + "_" + b + "_weekly.webp"; },
+        cap: function (a,b) { return "Five seven-day means, anomaly vs the lead-matched GEFSv12 reforecast (2000–2019)."
+          + (b==="zg500" ? " Global mean removed per week." : ""); }},
+  change: {label: "Change vs the run a week earlier, weeks 1–4", fit: false, a: DOMAINS, b: {label:"Field", items: FIELDS},
+        img: function (a,b) { return "assets/gefs/gefs_" + a + "_" + b + "_change.webp"; },
+        cap: function () { return "This run minus the run seven days earlier, on the same valid weeks (that run's weeks 2–5). Appears once a run a week older exists."; }},
+  vortex: {label: "Polar vortex — 60°N 10 hPa wind",
+        a: {label:"", items:[["nh","Northern"]]},
+        img: function () { return "assets/gefs/gefs_strat_vortex.webp"; },
+        cap: function () { return "Every member bias-corrected for GEFS's drift with lead against its 2000–2019 reforecast and MERRA-2; the raw mean dotted, the previous run's mean dashed."; }}
 };
-var MASKABLE = ["t2m","pr","zg500","mslp"];   // fields with a hindcast skill file
-var TELE_IDS = [["board","All indices (board)"],["ao","AO \u2014 Arctic Oscillation"],["nao","NAO \u2014 North Atlantic Oscillation"],
-  ["pna","PNA \u2014 Pacific / North American"],["epo","EPO \u2014 Eastern Pacific Oscillation"],["wpo","WPO \u2014 Western Pacific Oscillation"],
-  ["soi","SOI \u2014 Southern Oscillation Index"],["eqsoi","EQSOI \u2014 Equatorial SOI"],
-  ["ea","EA \u2014 East Atlantic"],["wp","WP \u2014 West Pacific"],["epnp","EP/NP \u2014 East Pacific / North Pacific"],
-  ["eawr","EA/WR \u2014 East Atlantic / West Russia"],["sca","SCA \u2014 Scandinavia"],["tnh","TNH \u2014 Tropical / N. Hemisphere (Dec\u2013Feb)"],
-  ["pol","POL \u2014 Polar / Eurasia"],["nam100","NAM 100 hPa \u2014 Northern Annular Mode"],["aao","AAO \u2014 Antarctic Oscillation (SAM)"]];
-var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1\u20135, nine fields"],["probs","Weekly terciles","temperature and precipitation"],["change","Change vs previous run","this run minus the last"],["daily","Daily animation","eight fields, day by day"]]],
-              ["Patterns", "\u2699", [["telecon","Teleconnections","AO, NAO, PNA, EPO \u2026"],["regimes","Weather regimes","Euro-Atlantic, N. America"],["clusters","500 hPa scenarios","ensemble clusters by week"]]],
-              ["Tropics", "\u{1F30A}", [["mjo","MJO","RMM plume, propagation, skill"]]],
-              ["Stratosphere", "\u2744", [["vortex","Polar vortex diagnostics","u(60\u00B0), cap T and Z"],["vloop","Polar vortex loop","10 and 100 hPa, daily"]]]];
+var MASKABLE = [];
+var TELE_IDS = [];
+var GROUPS = [["Maps", "\u{1F5FA}", [["weekly","Weekly means","weeks 1–5, seven fields"],["change","Change vs a week earlier","this run minus the run 7 days before"]]],
+              ["Stratosphere", "❄", [["vortex","Polar vortex","60°N 10 hPa, bias-corrected"]]]];
 var ORDER = []; GROUPS.forEach(function (g) { g[2].forEach(function (p) { ORDER.push(p[0]); }); });
+// header chips and the footer date from the run's own metadata
+fetch("assets/gefs/data/gefs.json", {cache: "no-cache"}).then(function (r) { return r.json(); }).then(function (m) {
+  var set = function (id, t) { var e = document.getElementById(id); if (e) e.textContent = t; };
+  set("g-cycle", m.init); set("g-valid", m.valid); set("g-members", m.members); set("g-updated", "init " + m.init);
+}).catch(function () {});
 var sel = {p: "weekly", a: null, b: null, c: null};
 var $ = function (id) { return document.getElementById(id); };
 

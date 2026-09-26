@@ -42,6 +42,7 @@ PRODUCTS = [
         ]),
         ("Beyond two weeks", [
             ("/subseasonal.html", "Subseasonal outlook (GEPS, weeks 1–5)"),
+            ("/gefs.html", "Subseasonal outlook (GEFS, weeks 1–5)"),
             ("/enso-forecasts.html", "ENSO forecasts (seven centres)"),
             ("/seasonal.html", "Seasonal outlook (eight C3S models)"),
             ("/sfs.html", "Seasonal outlook (NOAA SFS)"),
@@ -98,6 +99,7 @@ PAGES = [
     dict(path="circulation.html", mode="after-body", tabs="enso"),
     dict(path="stratosphere.html", mode="after-body", tabs="enso"),   # split out of circulation.html 2026-09-26
     dict(path="subseasonal.html", mode="site-header", fixes=[]),   # page restyled 2026-09-07 on /assets/outlook.css; no padding patches needed
+    dict(path="gefs.html", mode="site-header"),                    # GEFS extended page (scripts/gefs, gefs.yml), GEPS layout
     dict(path="subseasonal-method.html", mode="site-header"),      # methodology note split out of subseasonal.html; linked from there only, not in PRODUCTS
     dict(path="mjo.html", mode="nav"),
     dict(path="ecape.html", mode="nav", fixes=[
