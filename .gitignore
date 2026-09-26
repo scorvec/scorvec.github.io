@@ -172,3 +172,6 @@ scripts/mjo/data/*.log
 
 # ocean Kelvin tracker: yearly altimetry downloads behind build_sla_clim.py (~60 MB each; only sla_clim.nc is committed)
 scripts/mjo/data/sla_raw/
+
+# product freshness, generated at deploy time by scripts/site/status.py (pages.yml)
+/status.json

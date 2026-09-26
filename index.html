@@ -243,6 +243,9 @@
   .row:hover a { text-decoration: underline; text-underline-offset: 0.18em; text-decoration-color: var(--grass); }
   .row .what { color: var(--storm); font-size: 0.98rem; }
   .row .when { color: var(--grass-ink); font-size: 0.9rem; text-align: right; white-space: nowrap; }
+  /* freshness (status.json, built at deploy): when the product last published; late = past 2 x its interval + 6 h */
+  .row .when .age { display: block; color: var(--storm); }
+  .row .when .age.late { color: #9a3412; font-weight: 500; }
 
   /* ── Featured: the 2026 midterm forecast (user 2026-09-26: "feature more prominently on my homepage").
      Headline numbers come from /midterms/data/summary.json (written by ~/midterms publish_site.py); without it the
@@ -503,6 +506,30 @@
       set('mt-g', Math.round(s.governors.mean)); set('mt-gs', `likely ${s.governors.p10}–${s.governors.p90}`);
       const d = new Date(s.asof + 'T12:00:00Z');
       set('mt-asof', 'Updated weekly, most recently ' + d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' }));
+    })
+    .catch(() => {});
+
+  // "updated 3 h ago" under each product's cadence, from /status.json (built by the deploy); a product past
+  // twice its normal interval plus 6 h is flagged, since that is a pipeline that has stopped, not a slow run
+  fetch('/status.json', { cache: 'no-cache' })
+    .then(res => res.ok ? res.json() : Promise.reject(res.status))
+    .then(st => {
+      const now = Date.now();
+      const ago = h => h < 1.5 ? Math.max(1, Math.round(h * 60)) + ' min ago'
+                     : h < 48 ? Math.round(h) + ' h ago' : Math.round(h / 24) + ' days ago';
+      document.querySelectorAll('.row').forEach(row => {
+        const a = row.querySelector('a[href]'), when = row.querySelector('.when');
+        const p = a && when && st.products[a.getAttribute('href')];
+        if (!p) return;
+        const h = (now - Date.parse(p.updated)) / 3.6e6;
+        if (!(h >= 0)) return;
+        const late = h > 2 * p.every_h + 6;
+        const el = document.createElement('span');
+        el.className = 'age' + (late ? ' late' : '');
+        el.textContent = (late ? 'last updated ' : 'updated ') + ago(h);
+        if (late) el.title = 'Later than its usual schedule: the pipeline behind it may have stopped.';
+        when.appendChild(el);
+      });
     })
     .catch(() => {});
 

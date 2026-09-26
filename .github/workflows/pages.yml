@@ -33,6 +33,13 @@ jobs:
         uses: actions/checkout@v7
       - name: Configure Pages
         uses: actions/configure-pages@v6
+      # Product freshness for the homepage (scripts/site/status.py): when each product last published, from
+      # its own data file's last commit. Written into the artifact only, never committed; a failure leaves the
+      # homepage without "updated ... ago" lines rather than failing the deploy.
+      - name: Product freshness (status.json)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/site/status.py --out status.json || echo "::warning::status.json not built"
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v5
         with:
