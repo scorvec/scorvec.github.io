@@ -168,8 +168,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:#f3f2ee}
  <p class="mt-cap">Across the 20,000 simulated elections at this setting:</p>
  <div class="mt-out">
   <div><b id="oH">–</b><span>chance Democrats win the House</span><small id="oHs"></small></div>
-  <div><b id="oS">–</b><span>chance Democrats win the Senate</span><small id="oSs"></small></div>
-  <div><b id="oR">–</b><span>chance Republicans lose Senate control</span><small id="oRs"></small></div>
+  <div><b id="oS">–</b><span>chance Democrats control the Senate</span><small id="oSs"></small></div>
   <div><b id="oB">–</b><span>chance Democrats win both</span><small id="oBs"></small></div>
   <div><b id="oG">–</b><span>Democratic governors, of 50</span><small id="oGs"></small></div>
  </div>
@@ -306,8 +305,8 @@ function render(){const H=D.house;E=+$('#E').value;gi=H.grid.findIndex(x=>Math.a
  $('#reset').style.visibility=Math.abs(E-H.E0)<1e-6?'hidden':'visible';
  const k=E.toFixed(1),hd=H.dist[k],sd=D.senate.dist[k],gd=D.governor?D.governor.dist[k]:null,jt=D.senate.joint?D.senate.joint[k]:null;
  $('#oH').textContent=pct(hd.p_maj);$('#oHs').textContent=`${hd.mean.toFixed(0)} seats expected (${hd.p10}–${hd.p90}); 218 needed`;
- $('#oS').textContent=pct(sd.p51plus);$('#oSs').textContent=`51 or more Democratic seats; ${sd.mean.toFixed(1)} expected`;
- $('#oR').textContent=sd.p_r_lose!=null?pct(sd.p_r_lose):'–';$('#oRs').textContent=`Republicans at 49 seats or fewer (a 50–50 Senate stays Republican)${sd.ind_mean?`; independents win ${sd.ind_mean.toFixed(1)} on average`:''}`;
+ if(sd.p_ctrl!=null){$('#oS').textContent=pct(sd.p_ctrl);$('#oSs').textContent=`Organise it (50–50 stays Republican). If independents side with Republicans ${pct(sd.p_ctrl_ir)}, with Democrats ${pct(sd.p_ctrl_id)}; ${sd.mean.toFixed(1)} Democratic seats expected`}
+ else{$('#oS').textContent=pct(sd.p51plus);$('#oSs').textContent=`51 or more Democratic seats; ${sd.mean.toFixed(1)} expected`}
  $('#oB').textContent=jt?pct(jt.dd):'–';$('#oBs').textContent=jt?`Republicans keep both: ${pct(jt.rr)}`:'';
  if(gd){$('#oG').textContent=gd.mean.toFixed(0);$('#oGs').textContent=`likely ${gd.p10}–${gd.p90}; now ${D.governor.now.now_d}`}
  $$('path.t').forEach(t=>{const s=H.seats.find(x=>x.seat===t.dataset.seat);if(s)t.style.fill=col(s.p[gi])});
