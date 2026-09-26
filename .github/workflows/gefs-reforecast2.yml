@@ -1,0 +1,104 @@
+name: GEFS reforecast daily climatology v2 (one-off backfill)
+
+# The DAILY lead-dependent GEFS climatology behind the GEFS page's daily products (2026-09-26; user: "the GEFS pages
+# should have all the same maps/charts the GEPS one does"): the daily animation, index plumes, regimes and vortex
+# diagnostics need a daily model climate, and gefs-clim-v1 holds weekly means only. scripts/gefs/gefs_daily.py:
+# every Wednesday 35-day reforecast start 2000-2019, four members, 15 fields, byte-ranged from NOAA's S3 (us-east-1).
+# One job per (year, month) so each combine job downloads only the three months its day-of-year centres draw on.
+# Output: release gefs-clim-v2 (gefs_clim2_DDD.npz per 5-day centre + gefs_hind2_MM.npz per-member hindcast fields).
+# Run by hand, once.
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "first,last reforecast year"
+        default: "2000,2019"
+      combine:
+        description: "build and publish the climatology after the months"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          IFS=, read y0 y1 <<< "${{ inputs.years }}"
+          python3 -c "import json; print('matrix=' + json.dumps({'include': [{'y': y, 'm': m} for y in range($y0, $y1 + 1) for m in range(1, 13)]}))" >> "$GITHUB_OUTPUT"
+
+  month:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy eccodes
+      - name: Reforecast starts of ${{ matrix.y }}-${{ matrix.m }}
+        run: python scripts/gefs/gefs_daily.py month ${{ matrix.y }} ${{ matrix.m }} --out out --procs 4
+      - name: Name
+        id: n
+        run: echo "name=rf2-${{ matrix.y }}-$(printf %02d ${{ matrix.m }})" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.n.outputs.name }}
+          path: out/
+          retention-days: 7
+          compression-level: 0
+
+  combine:
+    needs: month
+    if: ${{ always() && inputs.combine }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        m: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    steps:
+      - name: Room for three months of starts
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL; df -h / | tail -1
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: scripts/gefs
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy eccodes
+      - name: Download months ${{ matrix.m }} +- 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          m=${{ matrix.m }}
+          for k in $(( (m + 10) % 12 + 1 )) $m $(( m % 12 + 1 )); do
+            mm=$(printf %02d $k)
+            gh run download ${{ github.run_id }} -R "$GITHUB_REPOSITORY" -p "rf2-*-$mm" -D "in/$mm"
+          done
+          find in -name 'rf2_*.npz' | wc -l; du -sh in
+      - name: Climatology for the centres in month ${{ matrix.m }}
+        run: python scripts/gefs/gefs_daily.py combine ${{ matrix.m }} --inp in --out clim
+      - name: Publish (release gefs-clim-v2)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls clim
+          gh release view gefs-clim-v2 >/dev/null 2>&1 || gh release create gefs-clim-v2 --title "GEFS reforecast daily climatology v2" \
+            --notes "Daily lead-dependent GEFSv12 climatology (reforecast 2000-2019, Wednesday 35-day starts, 4 members): member-mean daily fields at 1.5 deg for 15 fields incl. 10/100 hPa, and vortex scalars, one file per 5-day day-of-year centre (+-15 d pooling); plus per-member daily 2.5 deg z500/mslp/z100 and vortex scalars per month (gefs_hind2_MM) for calibration. Built by .github/workflows/gefs-reforecast2.yml from scripts/gefs/gefs_daily.py. Not a site page." || true
+          gh release upload gefs-clim-v2 clim/*.npz --clobber
