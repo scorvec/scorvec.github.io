@@ -113,6 +113,15 @@ snowband.yml|08:50|
 snowband.yml|14:50|
 snowband.yml|17:30|
 snowband.yml|20:50|
+# Brewer-Dobson downward control + GEOS FP PV loop (2026-09-27): cron-only until now, and Actions honours ~31 % of
+# firings, so today's arrows and PV frames sat waiting. Same slots as bdc.yml's crons (GEOS FP 00Z is up by then).
+bdc.yml|12:30|
+bdc.yml|18:30|
+# GEFS extended (gefs.yml): the same four slots as its crons; a run with no new day-35 cycle exits in ~2 min.
+gefs.yml|04:40|
+gefs.yml|06:40|
+gefs.yml|09:40|
+gefs.yml|13:40|
 aam.yml|09:20|
 aam.yml|21:20|
 ar.yml|09:05|
