@@ -1,0 +1,75 @@
+name: Stratosphere history, warming study (static + seasonal card)
+
+# The warming-study items of the "Stratosphere history" group on stratosphere.html: who moves first around a
+# sudden warming, the QBO and the vortex, El Nino and sudden warmings in CMIP6, and the seasonal-odds card.
+# The analysis is done once on the laptop (scripts/strat/build_ssw_precursors.py -> the small committed
+# reference/ssw_precursors.json); this job only draws it. The three static figures are redrawn when the
+# renderer or the reference changes; the scheduled run redraws only the seasonal card, whose inputs (the
+# KIT/FU Berlin monthly QBO, CPC's ONI/RONI) change about once a month - it commits only when they did.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 10 * * *"
+  push:
+    branches: [main]
+    paths:
+      - scripts/strat/ssw_precursors.py
+      - scripts/strat/reference/ssw_precursors.json
+      - .github/workflows/ssw-precursors.yml
+
+env:
+  MPLBACKEND: Agg
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: ssw-precursors
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: pip install -q numpy pandas matplotlib pillow
+      - name: Render
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            python scripts/strat/ssw_precursors.py --card-only
+          else
+            python scripts/strat/ssw_precursors.py
+          fi
+      - name: Commit & push
+        id: push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (strat-history.yml pattern); merge-free, never a rebase
+          SNAP=$(mktemp -d)
+          git add -A assets/sst/ssw_*.webp assets/sst/data/ssw_odds.json 2>/dev/null || true
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -A assets/sst/ssw_*.webp assets/sst/data/ssw_odds.json
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; echo "changed=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+            git commit -q -m "stratosphere history, warming study: render $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; echo "changed=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          exit 1
+      - name: Deploy the site
+        if: success() && steps.push.outputs.changed == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"

@@ -126,6 +126,8 @@ scripts/strat/*
 !scripts/strat/upperstrat.py
 !scripts/strat/upperstrat_data.py
 !scripts/strat/build_upperstrat_clim.py
+!scripts/strat/build_ssw_precursors.py
+!scripts/strat/ssw_precursors.py
 # The MERRA-2 reference cache (282 KB) that replaces the 690 MB laptop-only
 # archive for nh_vortex on a runner. The directory itself must be re-included
 # first - git will not descend into an excluded directory to find the file.
@@ -143,6 +145,7 @@ scripts/strat/*
 !scripts/strat/reference/geosfp_cap_offset.json
 !scripts/strat/reference/geosfp_cap_seed.json
 !scripts/strat/reference/aifs_capdrift.json
+!scripts/strat/reference/ssw_precursors.json
 
 # removed-project local archive (ERCOT page + C3S winter analysis, restorable)
 local_archive/
