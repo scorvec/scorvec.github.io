@@ -9,6 +9,8 @@ Outputs (assets/sst/):
   strat_hist_timeline.webp           SSWs and strong-vortex events, winter by winter, with ENSO and QBO
   strat_hist_gallery.webp            the 10 hPa vortex at every SSW (NCEP R1 height)
   strat_hist_drip_<set>.webp         polar-cap height anomaly, time-height, around each kind of event
+  strat_hist_drip_{cmip6,m2u}_<set>.webp  the same in u(60N): thousands of CMIP6 events, and MERRA-2 drawn alike
+                                     (reference/cmip6_drip.nc from build_cmip6_drip.py)
   strat_hist_follows_<set>_<win>.webp  ERA5 2 m temperature and 500 hPa height after each kind of event
   strat_hist_ao.webp                 the Arctic Oscillation after SSWs and strong-vortex events
   strat_hist_regions.webp            how often each region ran cold after each kind of event
@@ -336,6 +338,135 @@ def drip(D, E, s, out):
     return bool(sig.any()), bool(sg[(lag > 0)].any())
 
 
+# ---------------------------------------------------------------- dripping paint in u(60N): CMIP6 and MERRA-2
+REF_DRIP = HERE / "reference" / "cmip6_drip.nc"      # build_cmip6_drip.py (laptop, once)
+U_SETS = ["ssw_all", "ssw_deep", "ssw_shallow", "sv"]
+U_SRC = {"cmip6": "CMIP6", "m2u": "MERRA-2"}
+
+
+def robust(X, agree=0.8, min_models=5):
+    """Across-model test on X (model, ...): mean, and robust = one-sample t-test passing Benjamini-Hochberg FDR 10 %
+    over every cell AND >= `agree` of the models on the sign (the house CMIP6 rule)."""
+    from scipy import stats
+    n = np.isfinite(X).sum(0)
+    m = np.nanmean(X, 0); sd = np.nanstd(X, 0, ddof=1)
+    t = m / (sd / np.sqrt(np.maximum(n, 1)))
+    p = np.where(n >= min_models, 2 * stats.t.sf(np.abs(t), np.maximum(n - 1, 1)), np.nan)
+    same = np.maximum((X > 0).sum(0), (X < 0).sum(0)) / np.maximum(n, 1)
+    return m, fdr(p) & (same >= agree), n, same
+
+
+def smooth7(a):
+    return pd.DataFrame(np.atleast_2d(a).T).rolling(7, center=True, min_periods=4).mean().values.T
+
+
+_UWT = {}
+
+
+def u_window_tests(R):
+    """Strip (700 hPa u') means over days 1-30 and 31-60 per set and source, tested against zero: CMIP6 across models
+    (t-test + 80 % sign agreement), MERRA-2 across events (t-test); Benjamini-Hochberg 10 % within each source's 8 tests."""
+    if _UWT:
+        return _UWT
+    from scipy import stats
+    lag = R.lag.values
+    for src in U_SRC:
+        keys, vals = [], []
+        for s in U_SETS:
+            X = R.cmip6_strip.sel(set=s).values if src == "cmip6" else R[f"m2_strip_{s.replace('ssw_all', 'ssw').replace('ssw_', '')}"].values
+            for w, (a, b) in (("d1_30", (1, 30)), ("d31_60", (31, 60))):
+                k = (lag >= a) & (lag <= b); x = np.nanmean(X[:, k], 1); x = x[np.isfinite(x)]
+                same = max((x > 0).sum(), (x < 0).sum()) / len(x)
+                keys.append((s, w)); vals.append((float(x.mean()), float(stats.ttest_1samp(x, 0).pvalue), same, len(x)))
+        sig = fdr([v[1] for v in vals])
+        for k, v, g in zip(keys, vals, sig):
+            _UWT[(src, k[0], k[1])] = (v[0], v[1], bool(g) and (src != "cmip6" or v[2] >= 0.8), v[2], v[3])
+    return _UWT
+
+
+def drip_u(R, src, s, out):
+    lag = R.lag.values
+    if src == "cmip6":
+        p = R.plev.values
+        m, sig, nmod, _ = robust(R.cmip6_comp.sel(set=s).values)
+        m, sig = m.T, sig.T
+        nev, nm, yrs = int(R.cmip6_n.sel(set=s).sum()), int(R.sizes["model"]), int(R.cmip6_years.sum())
+        who = (f"mean of {nm} CMIP6 models' composites, models weighted equally ({yrs:,} model-years of control, historical, "
+               f"scenario and AMIP runs)")
+        test = ("Coloured only where robust: across-model t-test, false-discovery rate 10 % over the chart, and at least 80 % "
+                "of the models agree on the sign")
+        title = f"Dripping paint in {nev:,} model {SET_LABEL[s]}: u(60°N) in {nm} CMIP6 models"
+    else:
+        p = R.m2lev.values
+        n = int(R.m2_n.sel(set=s))
+        m = R.m2_mean.sel(set=s).values.T
+        sig = fdr(pval(R.m2_t.sel(set=s).values.T, n))
+        nev = n
+        who = f"mean of {n} events, MERRA-2 zonal means 1980–2026 (NASA GMAO)"
+        test = SIG_NOTE
+        title = f"Dripping paint: u(60°N) around the {n} {SET_LABEL[s]} since 1980, MERRA-2"
+    d0 = ("the first easterly day at 60°N, 10 hPa" if s != "sv" else "u(60°N, 10 hPa) first 1.5 standard deviations above normal")
+    fig = plt.figure(figsize=(13.4, 8.6), dpi=125)
+    below = fig_header(fig, title,
+               f"Zonal-mean wind at 60°N, standardised, sign flipped so a weaker vortex is red, as in the polar-cap height charts; "
+               f"{who}; day 0 = {d0}. {test}; grey = not significant.")
+    ax = fig.add_axes([0.07, 0.36, 0.84, below - 0.42])
+    ax.set_facecolor("#eceef1")
+    lv = np.arange(-2.4, 2.41, 0.3)
+    cf = ax.contourf(lag, p, np.where(sig, m, np.nan), levels=lv, cmap="RdBu_r", extend="both")
+    ax.contour(lag, p, np.where(sig, m, np.nan), levels=[x for x in lv if abs(x) > 1e-6], colors="#333", linewidths=0.35)
+    if not sig.any():
+        ax.text(0.5, 0.5, "No significant anomaly anywhere on this chart", transform=ax.transAxes, ha="center", fontsize=13, color=INK)
+    ax.set_yscale("log"); ax.set_ylim(1000, 1)
+    ax.set_yticks([1000, 500, 300, 100, 50, 30, 10, 5, 3, 1]); ax.set_yticklabels(["1000", "500", "300", "100", "50", "30", "10", "5", "3", "1"])
+    ax.axvline(0, color=INK, lw=1.0)
+    for L in (100, 10):
+        ax.axhline(L, color="#555", lw=0.5, ls=":")
+    ax.axhline(float(R.attrs.get("strip_hpa", 700)), color="#555", lw=0.5, ls=(0, (1, 3)))
+    ax.set_ylabel("pressure, hPa", fontsize=10, color=INK)
+    ax.set_xlim(lag[0], lag[-1]); ax.tick_params(labelbottom=False)
+    style(ax); ax.grid(False)
+    cax = fig.add_axes([0.925, 0.36, 0.012, below - 0.42])
+    cb = fig.colorbar(cf, cax=cax); cb.set_label("standard deviations (−u′)", fontsize=9); cb.ax.tick_params(labelsize=8)
+    col = WARM if s != "sv" else COOL
+    ax2 = fig.add_axes([0.07, 0.08, 0.84, 0.23])
+    sp = int(R.attrs.get("strip_hpa", 700))
+    if src == "cmip6":
+        X = smooth7(R.cmip6_strip.sel(set=s).values)
+        for x in X:
+            ax2.plot(lag, x, color="#9aa3ad", lw=0.7, alpha=0.9)
+        mean, sg, _, _ = robust(X)
+        ax2.plot([], [], color="#9aa3ad", lw=0.7, label="each model")
+        draw_sig_line(ax2, lag, mean, sg, col, "mean of the models, solid where robust")
+        lo_hi = X
+    else:
+        key = {"ssw_all": "ssw", "ssw_deep": "deep", "ssw_shallow": "shallow", "sv": "sv"}[s]
+        X = smooth7(R[f"m2_strip_{key}"].values)
+        from scipy import stats
+        nn = np.isfinite(X).sum(0); mean = np.nanmean(X, 0); se = np.nanstd(X, 0, ddof=1) / np.sqrt(nn)
+        tc = stats.t.ppf(0.975, np.maximum(nn - 1, 1))
+        sg = fdr(pval(mean / se, int(np.median(nn))))
+        ax2.fill_between(lag, mean - tc * se, mean + tc * se, color=col, alpha=0.16, lw=0, label="95 % interval of the mean")
+        draw_sig_line(ax2, lag, mean, sg, col, f"mean of {len(X)} events, solid where significant")
+        lo_hi = np.vstack([mean - tc * se, mean + tc * se])
+    ax2.axhline(0, color="#555", lw=0.8); ax2.axvline(0, color=INK, lw=1.0)
+    top = float(np.nanmax(np.abs(lo_hi))) if np.isfinite(lo_hi).any() else 1.0
+    ax2.set_xlim(lag[0], lag[-1]); ax2.set_ylim(-max(0.6, 1.15 * top), max(0.6, 1.15 * top))
+    ax2.set_xlabel("days from the event", fontsize=10, color=INK); ax2.set_ylabel(f"u′ {sp} hPa, 7-day mean", fontsize=10, color=INK)
+    style(ax2); ax2.legend(fontsize=8.5, frameon=False, ncol=3, loc="lower left")
+    ax2.set_title(f"u(60°N) at {sp} hPa, standardised: a daily annular-mode proxy (negative ≈ negative AO); dotted = not significant",
+                  loc="left", fontsize=10.2, fontweight="bold", color=INK)
+    W = u_window_tests(R)
+    txt = "   ".join(f"days {w[1:].replace('_', '–')}: {W[(src, s, w)][0]:+.2f} "
+                     + (f"({int(round(W[(src, s, w)][3] * W[(src, s, w)][4]))}/{W[(src, s, w)][4]} models, " if src == "cmip6" else "(")
+                     + (f"p = {W[(src, s, w)][1]:.1g}, significant)" if W[(src, s, w)][2] else "not significant)")
+                     for w in ("d1_30", "d31_60"))
+    ax2.text(0.995, 0.96, "30-day means vs normal: " + txt, transform=ax2.transAxes, ha="right", va="top",
+             fontsize=8.6, color=INK, bbox=dict(facecolor="white", edgecolor="none", alpha=0.85, pad=2))
+    save(fig, out)
+    return {"n": nev, "cells_sig": int(sig.sum()), "strip_sig_after_0": bool(sg[lag > 0].any())}
+
+
 # ---------------------------------------------------------------- surface maps
 def follows_map(D, E, s, w, out):
     import cartopy.crs as ccrs
@@ -469,6 +600,9 @@ def main():
         summary["drip"][str(s)] = drip(D, E, str(s), A / f"strat_hist_drip_{s}.webp")
         for w in D.window.values:
             summary["maps"][f"{s}|{w}"] = follows_map(D, E, str(s), str(w), A / f"strat_hist_follows_{s}_{w}.webp")
+    if REF_DRIP.exists():                                   # u(60N) drips: CMIP6 and MERRA-2 (build_cmip6_drip.py)
+        R = xr.open_dataset(REF_DRIP).load()
+        summary["drip_u"] = {f"{src}|{s}": drip_u(R, src, s, A / f"strat_hist_drip_{src}_{s}.webp") for src in U_SRC for s in U_SETS}
     ao_figure(D, E, A / "strat_hist_ao.webp")
     summary["regions"] = regions_figure(E, A / "strat_hist_regions.webp")
     summary["windows"] = {f"{k[0]}|{k[1]}": [round(v[0], 2), round(v[1], 4), v[2]] for k, v in window_tests(D, E).items()}
