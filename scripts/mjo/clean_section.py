@@ -62,11 +62,11 @@ def clean_section() -> str:
     d, h, _ = items[-1]
     return f"""
   <h2>MJO with the El Ni&ntilde;o signal removed</h2>
-  <p class="lede lede--wide">Since 2014 the standard RMM no longer removes ENSO; in a strong El Ni&ntilde;o its standing
+  <p class="sub" style="max-width:80ch;margin:0.4rem 0 0.8rem">Since 2014 the standard RMM no longer removes ENSO; in a strong El Ni&ntilde;o its standing
   convection projects onto phases 7&ndash;8 and masquerades as a stalled MJO. This is the same AIFS-ENS forecast
   (wind-only), observed track and IFS overlay with the part tied to the Ni&ntilde;o-3.4 change removed. Latest init:
   <strong>{_label(d, h)}</strong>.</p>
-  {f'<p class="lede lede--wide">{status}</p>' if status else ''}
+  {f'<p class="sub" style="max-width:80ch;margin:0 0 1rem">{status}</p>' if status else ''}
   <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets&amp;manifest=mjo/rmmclean_manifest.json&amp;region=mjo"
     title="ENSO-removed wind-only RMM — successive runs animation" loading="lazy"></iframe>
   <details style="margin-top:1rem;max-width:80ch;font-size:0.92rem"><summary style="cursor:pointer;color:var(--accent)">How the El Ni&ntilde;o signal is removed</summary>
