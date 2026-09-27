@@ -32,93 +32,59 @@
 <header class="sh" id="site-header">
   <div class="sh-in">
     <a class="sh-brand" href="/">Shawn Corvec</a>
-    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M12.6 12.6 17 17"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
     <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Weather</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0" aria-current="page">Observations</button>
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
-              <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
-              <li><a href="/ar.html">Atmospheric rivers</a></li>
-              <li><a href="/ecape.html">Entraining CAPE</a></li>
-              <li><a href="/cities/">City temperature forecasts</a></li>
-            </ul>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Climate drivers</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g1">
-            <div>
-              <h3>Tropics</h3>
-              <ul>
-                <li><a href="/enso.html" aria-current="page">El Niño monitor</a></li>
-                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
-                <li><a href="/mjo.html">MJO forecast</a></li>
-                <li><a href="/qbo/">QBO tracker</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Circulation</h3>
-              <ul>
-                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
-                <li><a href="/circulation.html">Jets, Walker and Hadley cells</a></li>
-              </ul>
-            </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Outlooks</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g2">
-            <div>
-              <h3>Weeks 1–5</h3>
-              <ul>
-                <li><a href="/subseasonal.html">GEPS weeks 1–5</a></li>
-                <li><a href="/gefs.html">GEFS weeks 1–5</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Seasons</h3>
-              <ul>
-                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
-                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
-              </ul>
-            </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Research</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g3">
-            <div>
-              <h3>Studies</h3>
-              <ul>
-                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
-                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
-                <li><a href="/topics/">Explainers</a></li>
-                <li><a href="/research.html">Publications</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Verification</h3>
-              <ul>
-                <li><a href="/cities/verify.html">City forecast verification</a></li>
-                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
-              </ul>
-            </div>
-          </div>
-        </li>
-        <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Tools</button>
-          <div class="sh-menu sh-menu--list" id="sh-g4">
-            <ul>
-              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/enso.html" aria-current="page">El Niño monitor</a></li>
               <li><a href="/skewt/">Sounding explorer</a></li>
               <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
               <li><a href="/climate.html">US climate trends</a></li>
             </ul>
           </div>
         </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">Subseasonal outlook (GEPS, weeks 1–5)</a></li>
+                <li><a href="/gefs.html">Subseasonal outlook (GEFS, weeks 1–5)</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts (seven centres)</a></li>
+                <li><a href="/seasonal.html">Seasonal outlook (eight C3S models)</a></li>
+                <li><a href="/sfs.html">Seasonal outlook (NOAA SFS)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/topics/">Explainers</a></li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
         <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
         <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
       </ul>
@@ -696,7 +662,7 @@ window.STAGE = {
           frame: function (a) { return "sst_anim.html?embed=1&manifest=" + a + "_manifest.json&region=" + a; },
           ratio: function (a) { return a === "samsat" ? "1454/1587" : "1259/700"; }, about: "about-ir",
           cap: function (a) { return a === "samsat" ? "Hourly infrared composite over South and Central America: the Amazon convection, the SACZ and the Andes." : "Hourly infrared composite over the tropical Pacific: where the convection is."; }},
-  soirec: {label: "SOI against the record", img: function () { return "assets/sst/soi_history.webp?v=202609270921"; }, about: "about-soirec", fit: false,
+  soirec: {label: "SOI against the record", img: function () { return "assets/sst/soi_history.webp?v=202609271742"; }, about: "about-soirec", fit: false,
           cap: function () { return "The daily Southern Oscillation Index of the current event against every event since 1887, BoM 1887–1989 base."; }},
   mei: {label: "MEI.v2 daily nowcast", a: {label: "View", items: [["nowcast","Nowcast"],["analogs","Analogs"],["history","History"],["validation","Validation"]]},
           img: function (a) { return "assets/sst/mei/mei_" + a + ".webp?v=985b7076fde6"; }, about: "about-mei", fit: false,
@@ -707,13 +673,13 @@ window.STAGE = {
           cap: function () { return "The OLR anomaly filtered into the Wheeler–Kiladis bands: MJO, Kelvin, equatorial Rossby and the rest."; }},
   okelvin: {label: "Ocean Kelvin waves", a: {label: "View", items: [["hov","Along the equator, with arrivals"],["map","Map, since March"]]},
           frame: function (a) { return a === "map" ? "sst_anim.html?embed=1&manifest=okelvin_manifest.json&region=okelvin" : null; },
-          img: function () { return "assets/sst/ocean_kelvin.webp?v=202609270921"; }, ratio: function () { return "1652/560"; },
+          img: function () { return "assets/sst/ocean_kelvin.webp?v=202609271742"; }, ratio: function () { return "1652/560"; },
           about: "about-okelvin", fit: false,
           cap: function (a) { return a === "map" ? "Equatorial Pacific sea level anomaly from satellite altimetry, every second day for the last 200 days; K marks each Kelvin wave crest (red warm, blue cold)."
                                                 : "Sea level along the equator with its Kelvin-wave part, the winds that launch the waves, and each current wave projected to Niño-3 and the coast at its measured speed."; }},
   kelvin: {label: "Kelvin wave tracker (AIFS-ENS)", a: {label: "View", items: [["map","Map, day by day"],["hov","Along the equator"]]},
           frame: function (a) { return a === "hov" ? null : "sst_anim.html?embed=1&manifest=kelvin_manifest.json&region=kelvin&start=10"; },
-          img: function () { return "assets/sst/kelvin_hov.webp?v=202609270921"; }, ratio: function () { return "1652/560"; },
+          img: function () { return "assets/sst/kelvin_hov.webp?v=202609271742"; }, ratio: function () { return "1652/560"; },
           about: "about-kelvin", fit: false,
           cap: function (a) { return a === "hov" ? "Kelvin-filtered 200 hPa velocity potential along the equator: the last 45 days of analyses, then the AIFS-ENS forecast to day 15."
                                                : "Where the convectively coupled Kelvin waves are: Kelvin-filtered 200 hPa velocity potential, ten days of analyses then the AIFS-ENS forecast to day 15. K marks an active crest on the equator."; }},
@@ -724,7 +690,7 @@ window.STAGE = {
   eqwind: {label: "Equatorial zonal wind, Hovmöller", img: function () { return "assets/sst/eq_uwind_hov.webp"; }, bust: "hourly", about: "about-eqwind",
           cap: function () { return "Zonal wind anomaly along the equator against time: westerly bursts as red streaks moving east."; }},
   soi: {label: "Southern Oscillation Index", a: {label: "View", items: [["hourly","SOI, hourly estimate"],["forecast","SOI, ensemble forecast"],["eqsoi","Equatorial SOI, observed and forecast"]]},
-          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : a === "forecast" ? "assets/sst/soi_forecast.webp?v=202609270921" : "assets/sst/eqsoi_forecast.webp?v=202609270921"; }, bust: "hourly",
+          img: function (a) { return a === "hourly" ? "assets/sst/soi_hourly.webp" : a === "forecast" ? "assets/sst/soi_forecast.webp?v=202609271742" : "assets/sst/eqsoi_forecast.webp?v=202609271742"; }, bust: "hourly",
           about: function (a) { return a === "eqsoi" ? "about-eqsoi" : a === "forecast" ? "about-soi_f" : "about-soi_h"; },
           cap: function (a) { return a === "hourly" ? "Darwin minus Tahiti pressure from hourly METARs, on the BoM 1887–1989 base, so the index exists today rather than at month end." : a === "forecast" ? "The same index carried through the AIFS-ENS and IFS-ENS 15-day forecasts, member by member." : "CPC's Equatorial SOI — the east-minus-west equatorial Pacific box pressure difference, standardised — monthly to the last complete month, with the ensembles' daily 15-day forecast on the same scale; negative favours El Niño."; }},
   soi_seas: {label: "Seasonal SOI outlook", dom: function () { return "dom-soi-seas"; }, about: "about-soi_seas",
@@ -732,7 +698,7 @@ window.STAGE = {
   wwb: {label: "Westerly wind bursts", a: {label: "View", items: [["tarawa","Tarawa monitor"],["onsets","Against past onsets"]]},
           dom: function (a) { return a === "tarawa" ? "dom-wwb" : null; }, img: function () { return "assets/sst/kiribati_history.webp"; }, bust: "hourly",
           about: function (a) { return a === "tarawa" ? "about-wwb_t" : "about-wwb_o"; }, cap: function (a) { return a === "tarawa" ? "Hourly surface wind at Tarawa and Kiritimati: westerlies at the dateline are the trigger for oceanic Kelvin waves. Live arrows below the chart." : "This year's westerly-burst activity against the onset years of past El Niños."; }},
-  wind10: {label: "Equatorial 10 m wind forecast", img: function () { return "assets/sst/eq_wind_hovmoller.webp?v=202609270921"; }, about: "about-wind10",
+  wind10: {label: "Equatorial 10 m wind forecast", img: function () { return "assets/sst/eq_wind_hovmoller.webp?v=202609271742"; }, about: "about-wind10",
           cap: function () { return "Forecast zonal wind along the equator, ensemble mean and spread, out to day 15."; }},
   subtemp: {label: "Subsurface temperature section", a: {label: "Field", items: [["equatorial","Temperature and anomaly"],["equatorial_dt","Anomaly, trend removed"]]},
           frame: function (a) { return "sst_anim.html?embed=1&region=" + a + "&regions=equatorial,equatorial_dt"; }, about: "about-subtemp",
