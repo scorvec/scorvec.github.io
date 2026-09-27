@@ -157,7 +157,7 @@ def impacts_section():
       var f = el["mi-f"].value, d = el["mi-d"].value, mo = el["mi-m"].value, l = ("0" + el["mi-l"].value).slice(-2);
       var rid = "mi_" + f + "_" + d + "_m" + mo + "_l" + l + (el["mi-v"].value === "strip" ? "_s" : "");
       document.getElementById("mi-frame").src = "sst_anim.html?embed=1&base=assets/mjo/impacts/anim&manifest=mjo_impacts_manifest.json&region="
-        + rid + "&regions=" + rid;
+        + rid + "&regions=" + rid + "&start=0";
       if (push) history.replaceState(null, "", "#mi/" + ids.map(function (k) {{ return el[k].value; }}).join("/"));
     }}
     ids.forEach(function (k) {{ el[k].addEventListener("change", function () {{ go(true); }}); }});
