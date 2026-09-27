@@ -117,7 +117,7 @@ def _fill_row(x2: np.ndarray, valid: np.ndarray) -> np.ndarray:
 
 def _window(an, sel, lat, lon, grid, eof, final_through) -> dict:
     """Mean anomaly over the days `sel`, projected: E, C, centre, boxes, profile, dates."""
-    t = pd.DatetimeIndex(an["time"].values)
+    t = pd.DatetimeIndex(an["time"].values).normalize()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)                # land cells: all-NaN by design
         f = np.nanmean(an.values[sel], axis=0)
@@ -142,7 +142,9 @@ def observed(today: pd.Timestamp) -> tuple[list[dict], list[dict]]:
     months = _month_keys(today)
     an = _daily_anoms(months)
     lat, lon = an["lat"].values.astype(float), an["lon"].values.astype(float)
-    t = pd.DatetimeIndex(an["time"].values)
+    # calendar days: the NCEI top-up days and PSL's own carry different times of day, and a 7-day window
+    # compared on raw timestamps silently lost one day a week in Actions (2026-09-27)
+    t = pd.DatetimeIndex(an["time"].values).normalize()
     final_through = None
     if DAILY_JSON.exists():
         final_through = json.loads(DAILY_JSON.read_text()).get("final_through")
