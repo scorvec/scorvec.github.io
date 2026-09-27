@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import sys
 import time
 import urllib.request
@@ -761,13 +762,23 @@ def main():
     ap.add_argument("--date", default=pd.Timestamp.utcnow().strftime("%Y%m%d"))
     ap.add_argument("--time", default="00", choices=("00", "12"))
     a = ap.parse_args()
+    ok = True
     if a.collect:
-        collect(a.date, a.time)
+        ok = collect(a.date, a.time)
     if a.verify:
         verify()
     if not (a.collect or a.verify):
-        collect(a.date, a.time); verify()
+        ok = collect(a.date, a.time); verify()
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
-    main()
+    import faulthandler
+    faulthandler.enable()
+    rc = main()
+    # Exit without interpreter teardown. On the Actions runner (glibc) every --collect that opened the 25-member
+    # GRIBs aborted AFTER its archive was written ("double free or corruption", 2026-09-27 backfill, 96 of 96
+    # cycles; not reproducible on macOS), so the loop counted good archives as failures. Every output is closed
+    # by now (np.savez_compressed / write_text), so skipping the C-extension finalizers loses nothing.
+    sys.stdout.flush(); sys.stderr.flush()
+    os._exit(rc)
