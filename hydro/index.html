@@ -59,6 +59,8 @@
   #board{display:none;grid-template-columns:15rem 1fr;min-height:100vh}
   #rail{background:var(--panel);border-right:1px solid var(--rule);padding:1rem 0 1.5rem;position:sticky;top:0;height:100vh;overflow:auto}
   #rail h1{font-size:1.15rem;padding:0 1.1rem .15rem}
+  #bswitch{display:block;width:calc(100% - 2.2rem);margin:.1rem 1.1rem .3rem;font:inherit;font-size:.9rem;color:var(--ink);background:var(--panel);border:1px solid var(--edge);border-radius:4px;padding:.25rem .35rem}
+  #gate h2.add{font-size:1rem;margin:1.4rem 0 0}
   #rail .meta{color:var(--muted);font-size:.84rem;padding:0 1.1rem .9rem;line-height:1.4}
   #rail h2{font-family:var(--sans);font-size:.84rem;font-weight:500;color:var(--muted);padding:.8rem 1.1rem .25rem}
   #rail button.item{display:block;width:100%;text-align:left;border:0;border-left:3px solid transparent;border-radius:0;background:none;padding:.42rem 1.1rem .42rem calc(1.1rem - 3px);color:var(--ink2)}
@@ -123,22 +125,25 @@
     <div class="row" style="margin-top:.2rem"><select id="saved"></select><button class="primary" id="opensaved">Open</button>
       <button id="dropsaved">Forget</button></div>
   </div>
+  <h2 class="add" id="addhead" style="display:none">Add a board</h2>
   <label for="repo">Repository (owner/name)</label>
   <input id="repo" autocomplete="off" spellcheck="false" placeholder="owner/repository">
-  <label for="tok">Access token</label>
+  <label for="tok">Access token <span id="tokhint"></span></label>
   <input id="tok" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
   <div class="row">
     <button class="primary" id="go">Unlock</button>
     <label><input type="checkbox" id="remember" checked> Remember on this device</label>
   </div>
   <div class="err" id="err"></div>
-  <div class="caution">Use a fine-grained token scoped to this one repository with Contents: Read and a short expiry.
+  <div class="caution">Use a fine-grained token with Contents: Read on the repositories you want to open ("Only select
+    repositories"; one token can cover several boards) and a short expiry.
     The token is sent only to api.github.com and, if remembered, kept in this browser alone.</div>
 </div>
 
 <div id="board">
   <nav id="rail">
-    <h1 id="btitle">Board</h1>
+    <label for="bswitch" class="meta" style="padding:0 1.1rem">Board</label>
+    <select id="bswitch" aria-label="Switch board"></select>
     <div class="meta" id="bmeta"></div>
     <div id="groups"></div>
     <div class="foot"><button id="reload">Reload</button><button id="switch">Switch board</button><button id="forget">Sign out</button></div>
@@ -166,8 +171,21 @@ function saveBoards(L){ try { localStorage.setItem(KEYS, JSON.stringify(L)); loc
 function remember(c){ const L = boards().filter(b => b.repo !== c.repo); L.unshift({ repo: c.repo, token: c.token, ref: c.ref }); saveBoards(L); }
 function creds(){ const L = boards(); return L.length ? L[0] : null; }
 function fillSaved(){
-  const L = boards(); $('#savedrow').style.display = L.length ? 'block' : 'none';
-  $('#saved').innerHTML = L.map((b, i) => `<option value="${i}">${b.repo.replace(/[<>&"]/g, '')}</option>`).join('');
+  const L = boards(), esc = t => t.replace(/[<>&"]/g, '');
+  $('#savedrow').style.display = L.length ? 'block' : 'none';
+  $('#addhead').style.display = L.length ? 'block' : 'none';
+  $('#tokhint').textContent = L.length ? '(leave blank to try your saved tokens)' : '';
+  $('#saved').innerHTML = L.map((b, i) => `<option value="${i}">${esc(b.repo)}</option>`).join('');
+  // rail switcher: every saved board, the open one selected, then "Add a board…"
+  $('#bswitch').innerHTML = L.map((b, i) => `<option value="${i}"${CFG && b.repo === CFG.repo ? ' selected' : ''}>${esc(b.repo)}</option>`).join('')
+    + (CFG && !L.some(b => b.repo === CFG.repo) ? `<option value="cur" selected>${esc(CFG.repo)}</option>` : '')
+    + '<option value="add">Add a board…</option>';
+}
+function toGate(){ clearSession(); CFG = null; MAN = null; $('#board').style.display = 'none'; $('#gate').style.display = 'block';
+  $('#tok').value = ''; $('#repo').value = ''; $('#err').textContent = ''; fillSaved(); }
+function openBoard(b){
+  CFG = { repo: b.repo, token: b.token, ref: b.ref }; remember(CFG); clearSession(); cur = null; $('#err').textContent = ''; fillSaved();
+  open_().catch(e => { $('#board').style.display = 'none'; $('#gate').style.display = 'block'; $('#repo').value = b.repo; $('#err').textContent = e.message; });
 }
 function clearSession(){ cache.forEach(URL.revokeObjectURL); cache.clear(); stopLoop(); BLOBS.clear(); }
 
@@ -484,7 +502,7 @@ async function open_(){
   $('#gate').style.display = 'none'; $('#board').style.display = 'grid';
   $('#view').innerHTML = '<div class="prog">Loading…</div>';
   MAN = JSON.parse(await (await gh('web/manifest.json', 'application/vnd.github.raw')).text());
-  $('#bmeta').textContent = `Built ${MAN.built}`;
+  $('#bmeta').textContent = `Built ${MAN.built}`; fillSaved();
   const groups = [['Boards', MAN.items.filter(i => i.kind === 'page')], ['Figures', MAN.items.filter(i => i.kind === 'image')], ['Loops', MAN.items.filter(i => i.kind === 'loopset' || i.kind === 'loop')]];
   $('#groups').innerHTML = groups.filter(g => g[1].length).map(([name, items]) =>
     `<h2>${name}</h2>` + items.map(it => `<button class="item" data-id="${it.id}">${it.title}</button>`).join('')).join('');
@@ -495,19 +513,29 @@ $('#go').onclick = async () => {
   const repo = $('#repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
   const token = $('#tok').value.trim();
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { $('#err').textContent = 'Enter the repository as owner/name.'; return; }
-  if (!token) { $('#err').textContent = 'A token is required.'; return; }
-  CFG = { repo, token }; $('#err').textContent = 'Checking…';
-  try { await gh('web/manifest.json', 'application/vnd.github.raw'); }
-  catch (e) { $('#err').textContent = e.message; CFG = null; return; }
+  const tries = token ? [token] : [...new Set(boards().map(b => b.token))];
+  if (!tries.length) { $('#err').textContent = 'A token is required.'; return; }
+  $('#err').textContent = 'Checking…';
+  let last = null;
+  for (const t of tries) {
+    CFG = { repo, token: t };
+    try { await gh('web/manifest.json', 'application/vnd.github.raw'); last = null; break; }
+    catch (e) { last = e; }
+  }
+  if (last) {
+    $('#err').textContent = token ? last.message
+      : `None of your saved tokens can read ${repo}. Paste a token whose repository access includes it (a single token can cover several boards).`;
+    CFG = null; return;
+  }
   if ($('#remember').checked) remember(CFG);
   $('#err').textContent = ''; clearSession(); open_();
 };
-$('#opensaved').onclick = () => { const b = boards()[+$('#saved').value]; if (!b) return;
-  CFG = { repo: b.repo, token: b.token, ref: b.ref }; remember(CFG); clearSession(); $('#err').textContent = '';
-  open_().catch(e => { $('#board').style.display = 'none'; $('#gate').style.display = 'block'; $('#err').textContent = e.message; }); };
+$('#opensaved').onclick = () => { const b = boards()[+$('#saved').value]; if (b) openBoard(b); };
+$('#bswitch').onchange = () => { const v = $('#bswitch').value;
+  if (v === 'add') { toGate(); $('#repo').focus(); return; }
+  const b = boards()[+v]; if (b && (!CFG || b.repo !== CFG.repo)) openBoard(b); };
 $('#dropsaved').onclick = () => { const L = boards(), i = +$('#saved').value; L.splice(i, 1); saveBoards(L); fillSaved(); };
-$('#switch').onclick = () => { clearSession(); CFG = null; MAN = null; $('#board').style.display = 'none'; $('#gate').style.display = 'block';
-  $('#tok').value = ''; $('#repo').value = ''; $('#err').textContent = ''; fillSaved(); };
+$('#switch').onclick = toGate;
 $('#tok').addEventListener('keydown', e => { if (e.key === 'Enter') $('#go').click(); });
 $('#forget').onclick = () => { if (CFG) saveBoards(boards().filter(b => b.repo !== CFG.repo)); clearSession();
   try { caches.delete(FRAME_CACHE); } catch (e) {}
