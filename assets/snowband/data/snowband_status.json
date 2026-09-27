@@ -1,0 +1,101 @@
+{
+ "models": {
+  "hrrr": {
+   "cycle": "2026092706",
+   "checked": "2026-09-27T12:16Z",
+   "regions": [
+    "ne",
+    "nec",
+    "ma",
+    "gl",
+    "mw",
+    "pl",
+    "fr",
+    "on"
+   ],
+   "gate": {
+    "ne": 0.0,
+    "nec": 0.0,
+    "ma": 0.0,
+    "gl": 0.0,
+    "mw": 0.0,
+    "pl": 0.0,
+    "fr": 0.0005,
+    "on": 0.0
+   },
+   "forced": true,
+   "state": "error",
+   "note": "error: unpack requires a buffer of 3280 bytes"
+  },
+  "rrfs": {
+   "state": "error",
+   "note": "NOMADS rate limit; skipped this cycle (NOMADS RRFS: HTTP 403)",
+   "checked": "2026-09-27T12:16Z"
+  },
+  "rdps": {
+   "cycle": "2026092700",
+   "checked": "2026-09-27T12:18Z",
+   "regions": [
+    "ne",
+    "nec",
+    "ma",
+    "gl",
+    "mw",
+    "pl",
+    "fr",
+    "on"
+   ],
+   "gate": {
+    "ne": 0.0,
+    "nec": 0.0,
+    "ma": 0.0,
+    "gl": 0.0,
+    "mw": 0.0,
+    "pl": 0.0,
+    "fr": 0.0002,
+    "on": 0.0
+   },
+   "forced": true,
+   "state": "rendered",
+   "rendered": [
+    "ne",
+    "nec",
+    "ma",
+    "gl",
+    "mw",
+    "pl",
+    "fr",
+    "on"
+   ],
+   "note": "",
+   "seconds": 403,
+   "mb": 580,
+   "requests": 944,
+   "leads": [
+    "f03",
+    "f06",
+    "f09",
+    "f12",
+    "f15",
+    "f18",
+    "f21",
+    "f24",
+    "f27",
+    "f30",
+    "f33",
+    "f36",
+    "f39",
+    "f42",
+    "f45",
+    "f48"
+   ]
+  }
+ },
+ "season": {
+  "active": false,
+  "window": "1 November \u2013 15 April",
+  "next_start": "2026-11-01"
+ },
+ "forced": true,
+ "updated": "2026-09-27T12:16Z"
+}
