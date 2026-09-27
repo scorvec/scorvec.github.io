@@ -7,6 +7,9 @@
        dom(a,b,c)   -> id of a hidden element to mount (interactive blocks, widgets)
      cap(a,b,c) -> caption text; about -> id of a <template> whose HTML goes under the caption
      (the vetted explanatory text and sources, collapsed); bust:"hourly" appends an hour cache key.
+     gated:true (dom) -> the block's own script shows/hides it and a hidden one leaves the rail;
+     ownHash:true (dom) -> the block keeps its own state after "#id/" in the hash and the stage leaves it.
+   STAGE.aliases maps old ids to products; STAGE.related = false drops the related-plots strip.
    Selection lives in the hash (#product/a/b/c); ← → step the deepest option row, ↑ ↓ the product. */
 (function () {
   "use strict";
@@ -149,7 +152,9 @@
     fitStage();
     var h = "#" + [sel.p, sel.a, sel.b, sel.c].filter(function (x) { return x; }).join("/");
     if (wanted && Date.now() > wanted.until) wanted = null;
-    if (location.hash !== h && !wanted) history.replaceState(null, "", h);   // a link still waiting keeps its hash
+    // ownHash: a mounted block that keeps its own state in the hash after the product id (mjo.html's #mi/f/d/m/l/v)
+    var own = p.ownHash && location.hash.indexOf("#" + sel.p + "/") === 0;
+    if (location.hash !== h && !wanted && !own) history.replaceState(null, "", h);   // a link still waiting keeps its hash
     related();
     window.dispatchEvent(new Event("resize"));
   }

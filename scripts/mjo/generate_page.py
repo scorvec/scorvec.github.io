@@ -226,7 +226,7 @@ def impacts_section():
       if (!h2 || h2.length !== 5) return;
       apply(h2);                                 // same validation as on load: stale values fall back to the defaults
       go(false);
-      document.getElementById("mjo-impacts").scrollIntoView({{ block: "start" }});
+      var st = document.getElementById("stage"); if (st) st.scrollIntoView({{ block: "start" }});
     }});
   }})();
   </script>"""
@@ -243,19 +243,30 @@ def main():
         # Animator only (with the slider) — no separate static hero image. The iframe auto-sizes
         # to fit the plot + slider via the sstAnimHeight postMessage listener below.
         body = (f'  <p class="sub" style="margin-bottom:1rem">Latest init: <strong>{label(d, h)}</strong>.'
-                ' Drag the slider to step through successive forecast runs (oldest → latest) and watch the'
-                ' predicted MJO track evolve.</p>\n'
-                '  <iframe class="anim-embed" src="sst_anim.html?embed=1&amp;base=assets'
-                '&amp;manifest=mjo/rmm_manifest.json&amp;region=mjo" '
-                'title="AIFS-ENS RMM forecast — successive runs animation" loading="lazy"></iframe>\n')
+                ' Pick a figure from the rail: the AIFS-ENS forecast, the same forecast with the El Ni&ntilde;o'
+                ' signal removed, and what each phase has meant for temperature, rain and the flow.</p>\n')
     else:
         body = '<p class="empty">No forecasts yet — the first scheduled run will populate this page.</p>'
 
+    # One figure at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2): the
+    # forecast animator is a frame product; the ENSO-removed and impacts sections mount whole, with their own
+    # controls (the impacts keep their #mi/f/d/m/l/v hash: ownHash). Old links #mjo-clean / #mjo-impacts are
+    # aliases. The rail replaces the "Jump to" line.
     clean, impacts = clean_section(), impacts_section()
-    # "Jump to" line (2026-09-27): the two sections below the forecast were being missed entirely
-    jumps = [f'<a href="#{i}">{t}</a>' for i, t, sec in (("mjo-clean", "ENSO-removed index", clean),
-                                                         ("mjo-impacts", "Impacts by phase and season", impacts)) if sec]
-    jump = f'  <p class="jump">Jump to: {" &middot; ".join(jumps)}</p>\n' if jumps else ""
+    groups = [{"label": "Forecast", "items": [["rmm", "RMM forecast", "AIFS-ENS against IFS-ENS, 15 days"]]
+               + ([["clean", "ENSO-removed index", "the El Ni\u00f1o signal taken out"]] if clean else [])}]
+    if impacts:
+        groups.append({"label": "Impacts", "items": [["mi", "Impacts by phase and season", "CMIP6 and observed composites"]]})
+    stage_spec = ("window.STAGE = { groups: " + json.dumps(groups) + ",\n"
+                  "  aliases: { \"mjo-clean\": \"clean\", \"mjo-impacts\": \"mi\" },\n"
+                  "  products: {\n"
+                  "    rmm: { label: \"AIFS-ENS RMM forecast, successive runs\", about: \"about-rmm\",\n"
+                  "           frame: function () { return \"sst_anim.html?embed=1&base=assets&manifest=mjo/rmm_manifest.json&region=mjo\"; },\n"
+                  "           ratio: function () { return \"1259/1210\"; },\n"
+                  "           cap: function () { return \"Drag the slider to step through successive forecast runs (oldest to latest) and watch the predicted MJO track evolve.\"; } },\n"
+                  "    clean: { label: \"MJO with the El Ni\u00f1o signal removed\", dom: function () { return \"mjo-clean\"; } },\n"
+                  "    mi: { label: \"MJO impacts by phase and season\", ownHash: true, dom: function () { return \"mjo-impacts\"; } }\n"
+                  "  }\n};")
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -330,9 +341,13 @@ def main():
   .mi-about p {{ margin: 0.6rem 0; font-size: 0.92rem; }}
   .chart-sources {{ color: var(--muted); font-size: 0.82rem; }}
   a {{ color: var(--accent); }}
-  main > p.jump {{ text-align: center; color: var(--muted); font-size: 0.95rem; margin: -0.1rem 0 1.1rem; }}
-  #mjo-clean, #mjo-impacts {{ scroll-margin-top: 84px; }}
+  /* the stage viewer (assets/stage.css) on this page's palette */
+  :root {{ --surface: #ffffff; --edge: #d9d5cc; --ink2: #444; --accent-light: rgba(44, 74, 114, 0.08); }}
+  .page-header {{ margin-bottom: 1rem; }}
+  .stage section h2 {{ margin-top: 0.2rem; }}
+  .stage #mjo-clean {{ margin-top: 0 !important; }}
 </style>
+<link rel="stylesheet" href="/assets/stage.css">
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="stylesheet" href="/assets/lightbox.css">
 <script src="/assets/lightbox.js" defer></script>
@@ -340,10 +355,29 @@ def main():
 <body>
 {NAV}
 <main>
+  <div class="page-header">
   <h1>MJO forecast from the AIFS ensemble</h1>
-{jump}  {body}
+  {body}
+  </div>
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; the impacts keep their own selectors</p>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
 {clean}
-  <p class="lede lede--wide" style="margin-top:1.4rem">Real-time Multivariate MJO (RMM) phase-space forecast from the
+{impacts}
+  </div>
+  <template id="about-rmm">
+  <p>Real-time Multivariate MJO (RMM) phase-space forecast from the
   ECMWF <strong>AIFS-ENS</strong> ensemble (51 members to day 15), following
   Wheeler &amp; Hendon (2004). Full three-channel projection: U850/U200 plus a
   pseudo-OLR channel built from &minus;standardized tropical precipitation (tropical
@@ -354,12 +388,17 @@ def main():
   Amplitude is the radial distance (rings at 1, 2, 3).
   Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
-  <p class="meta">Updated {updated} · Auto-generated from the AIFS-ENS open-data
+  <p class="chart-sources">Updated {updated} · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
-{impacts}
+  </template>
+  <p class="meta">Updated {updated} · Auto-generated from the AIFS-ENS open-data feed.</p>
 </main>
+<script>
+{stage_spec}
+</script>
+<script src="/assets/stage.js" defer></script>
 <script>
   // Size the animator iframe to its exact content height (plot + slider) so the slider is
   // never clipped — sst_anim.html posts its height; we match it and drop the fixed aspect-ratio.
@@ -377,23 +416,6 @@ def main():
     var fr = document.querySelectorAll('iframe.anim-embed');
     for (var i = 0; i < fr.length; i++) fr[i].style.maxWidth = '';
   }});
-  // #mi/... (an impacts view) and #mjo-clean land on their section. The page used to open at the top: the
-  // animator iframes above size themselves after load (sstAnimHeight), which moves everything below them, so
-  // the section is followed for a few seconds - until the reader scrolls.
-  (function () {{
-    var h = location.hash, id = h.indexOf("#mi/") === 0 || h === "#mjo-impacts" ? "mjo-impacts"
-      : h.indexOf("#mjo-clean") === 0 ? "mjo-clean" : null;
-    var el = id && document.getElementById(id);
-    if (!el) return;
-    var stop = false, n = 0;
-    ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (ev) {{
-      addEventListener(ev, function () {{ stop = true; }}, {{ once: true, passive: true }});
-    }});
-    function go() {{ if (!stop) el.scrollIntoView({{ block: "start" }}); }}
-    go();
-    var t = setInterval(function () {{ go(); if (++n >= 16) clearInterval(t); }}, 250);
-    addEventListener("load", go);
-  }})();
 </script>
 </body>
 </html>
