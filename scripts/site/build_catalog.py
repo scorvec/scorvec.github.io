@@ -462,7 +462,8 @@ def mjo_items() -> list:
         default = variants[0] if variants else None
         shows = " ".join([head, lead, " ".join(fl for _, fl in F), " ".join(dl for _, dl in D)])
         items.append(dict(
-            id="/mjo.html#mjo-impacts", page="/mjo.html", page_title="MJO forecast", group="Impacts by phase and month",
+            id="/mjo.html#mjo-impacts", page="/mjo.html", page_title="MJO forecast",
+            group=re.sub(r"^MJO i", "I", head) if head.startswith("MJO impacts") else "Impacts",
             label=head, sub="Composites by MJO phase, season or month and lag: CMIP6 and observed",
             url="/mjo.html" + (default[1] if default else "#mjo-impacts"), topic="research", horizon="Climate record",
             models=tags(MODEL_RX, shows, ["CMIP6", "ERA5"]), regions=regions_of(shows, ["North America"]),
