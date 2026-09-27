@@ -1,0 +1,74 @@
+name: Age of stratospheric air (static MERRA-2 GMI reference)
+
+# The "Age of stratospheric air" item on stratosphere.html: the latitude-height mean age by season, its seasonal cycle,
+# the trend and the ENSO and QBO signals, from the MERRA-2 GMI replay's age-of-air clock tracer, 1980-2019.
+# STATIC (user 2026-09-25: the best products for the site are ones that do not need updating every day). The data pull
+# (scripts/strat/fetch_m2gmi_aoa.py, NCCS OPeNDAP) and the statistics (build_age_of_air.py) run once on the laptop and
+# commit one small reference file; this job only draws it. It runs when the renderer or the reference changes, or on
+# dispatch - never on a schedule.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/strat/age_of_air.py
+      - scripts/strat/reference/age_of_air.nc
+      - .github/workflows/age-of-air.yml
+
+env:
+  MPLBACKEND: Agg
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: age-of-air
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/age_of_air.py
+            scripts/strat/reference/age_of_air.nc
+            assets/sst/data/age_of_air.json
+            assets/sst/aoa_*.webp
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy pandas xarray netCDF4 matplotlib
+      - name: Render the age-of-air figures
+        run: python scripts/strat/age_of_air.py
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # snapshot + clean resync each attempt (sst.yml / bdc.yml pattern); never rebase
+          SNAP=$(mktemp -d)
+          OUTS="assets/sst/data/age_of_air.json $(ls assets/sst/aoa_*.webp | tr '\n' ' ')"
+          for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "age of air: render $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            echo "Push $i rejected; resyncing and retrying…"
+            sleep 5
+          done
+          exit 1
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
