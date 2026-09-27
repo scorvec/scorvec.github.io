@@ -112,6 +112,7 @@ scripts/strat/*
 !scripts/strat/heatflux100.py
 !scripts/strat/heatflux100_ext.py
 !scripts/strat/bdc_dc.py
+!scripts/strat/geos_pv.py
 !scripts/strat/build_vt100_clim.py
 !scripts/strat/build_strat_history.py
 !scripts/strat/strat_history.py

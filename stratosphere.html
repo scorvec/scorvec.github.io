@@ -108,7 +108,7 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS open data (CC BY 4.0) &middot; ECCC GEPS &middot; NOAA GEFS &middot; NASA GMAO MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-25</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS open data (CC BY 4.0) &middot; ECCC GEPS &middot; NOAA GEFS &middot; NASA GMAO GEOS FP and MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-25</span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -169,6 +169,35 @@
         diagnose sudden stratospheric warmings, computed live from AIFS-ENS and stepped
         through the full 15-day forecast.</p>
 <p class="chart-sources">ECMWF AIFS-ENS ensemble &mdash; member 0 + 25 perturbed members, per-member fluxes averaged (open data, CC&nbsp;BY&nbsp;4.0), 14 levels, day 0&ndash;15 &middot; QG E&ndash;P flux, wavenumbers 1&ndash;3, global-mean static stability &middot; poleward of 82&deg; masked &middot; rendered in Julia (CairoMakie) &middot; updated each 00/12Z cycle</p>
+</template>
+<template id="about-pv">
+<p><b>Potential vorticity</b> on a surface of constant potential temperature (an <b>isentrope</b>) is the
+        clearest single picture of the polar vortex. Away from heating and friction, air keeps both its potential
+        temperature and its PV, so on an isentrope PV moves with the flow like dye: tongues of low-PV air drawn
+        poleward and filaments peeled off the vortex are real parcels of air, not just a shape in a height field.
+        The vortex is the cap of high PV over the pole, and its <b>edge</b> is where PV changes most sharply,
+        which is also where the polar-night jet blows. A <b>displacement</b> shows as the cap pushed off the pole;
+        a <b>split</b> as the cap pinched into two separate pieces.</p>
+<p>Two levels, side by side. <b>475&nbsp;K</b> is the lower stratosphere, roughly 60&ndash;70&nbsp;hPa over the
+        winter pole, the part of the vortex that couples down to the weather. <b>850&nbsp;K</b> is about
+        10&nbsp;hPa, where a sudden warming is defined and where a split or displacement usually shows first. The
+        pressure each surface sits at over the cap is printed in its title. PV grows steeply with height, so each
+        level has its own fixed scale in PVU (1&nbsp;PVU = 10<sup>&minus;6</sup>&nbsp;K&nbsp;m<sup>2</sup>&nbsp;kg<sup>&minus;1</sup>&nbsp;s<sup>&minus;1</sup>),
+        kept the same through the loop and the seasons. Southern PV is negative. It is sign-flipped here so the vortex
+        reads positive in both hemispheres.</p>
+<p>The <b>red line</b> is the vortex edge by the <b>Nash et&nbsp;al. (1996)</b> method. Each point is given an
+        equivalent latitude, the latitude of a polar cap with the same area as all the air of higher PV. The edge is
+        where the PV gradient in equivalent latitude, times the mean wind along the contour, peaks (searched between
+        45&deg; and 85&deg;). It is drawn only when that wind reaches <b>15.2&nbsp;m/s</b>, their threshold for a vortex
+        to exist. A hemisphere with no vortex shows no line rather than a meaningless one. The note under each map
+        gives the edge&rsquo;s PV, its equivalent latitude, the jet along it and the area it encloses. Pieces of the
+        contour shorter than 2,500&nbsp;km are not drawn. The PV field is lightly smoothed (about 80&nbsp;km) before
+        shading, to remove grid-scale noise in the analysed PV.</p>
+<p class="chart-sources">NASA GMAO GEOS FP (NCCS OPeNDAP), analysis + 10-day forecast, 00Z (<code>inst3_3d_asm_Np</code>:
+        Ertel PV, u, v and T on 200&ndash;3&nbsp;hPa, read at 0.5&deg;&nbsp;&times;&nbsp;0.625&deg;) &middot; interpolated to
+        475 and 850&nbsp;K linearly in ln&nbsp;&theta; &middot; vortex edge after Nash, Newman, Rosenfield and Schoeberl
+        (1996), <i>J.&nbsp;Geophys. Res.</i> 101, 9471&ndash;9478 &middot; polar stereographic, 20&ndash;90&deg; &middot;
+        updated daily once the 00Z forecast is posted</p>
 </template>
 <template id="about-wave1">
 <p>The <b>zonal wavenumber-1 component</b> of geopotential height, <b>100&nbsp;hPa beside
@@ -284,7 +313,7 @@ and of the GEOS FP offset; section shaded only where the false-discovery rate is
 <script>
 window.STAGE = {
   groups: [
-  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"]]},
+  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["pv","Potential vorticity","GEOS FP, 475 and 850 K"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"]]},
   {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, temperature, by region"]]}
 ],
   products: {
@@ -293,6 +322,9 @@ window.STAGE = {
   vwinds: {label: "Vortex winds", a: {label: "Level", items: [["vortex_10","10 hPa"],["vortex_100","100 hPa"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=vortex_winds_manifest.json&region=" + a; }, about: "about-vwinds",
           cap: function (a) { return "Ensemble-mean wind speed and streamlines at " + (a === "vortex_10" ? "10" : "100") + " hPa, both hemispheres; the red contour is u = 0."; }},
+  pv: {label: "Potential vorticity (GEOS FP)", a: {label: "Hemisphere", items: [["geos_pv_nh","Northern"],["geos_pv_sh","Southern"]]},
+          frame: function (a) { return "sst_anim.html?embed=1&manifest=geos_pv_manifest.json&region=" + a; }, ratio: function () { return "924/572"; }, about: "about-pv",
+          cap: function (a) { return "Ertel potential vorticity on the 475 K (lower stratosphere) and 850 K (about 10 hPa) surfaces, GEOS FP analysis and 10-day forecast; the red line is the vortex edge." + (a === "geos_pv_sh" ? " Southern values are sign-flipped so the vortex reads positive." : ""); }},
   epflux: {label: "E–P flux and wave driving", frame: function () { return "sst_anim.html?embed=1&manifest=epflux_manifest.json&region=epflux"; }, about: "about-epflux", cap: function () { return "Eliassen–Palm flux for wavenumbers 1–3 and its divergence, per-member fluxes averaged."; }},
   wave1: {label: "Stationary wave-1", a: {label: "Hemisphere", items: [["wave1_nh","Northern"],["wave1_sh","Southern"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=wave1_maps_manifest.json&region=" + a; }, about: "about-wave1",

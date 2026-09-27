@@ -6,6 +6,9 @@ name: Brewer-Dobson upwelling (downward control)
 # 00Z forecast from NASA NCCS OPeNDAP; the MERRA-2 climatology and the 2018-19 GEOS FP-MERRA-2 offset from release
 # bdc-ref-v1; the rolling analysis cache (one small npz a day) on the frames branch. ~6 minutes a run.
 # NCCS posts the 00Z forecast late (not there by 06:35 UTC on 2026-09-27), hence the afternoon slots.
+# Same source, same slots: the stratosphere page's isentropic PV loop (scripts/strat/geos_pv.py, 475 K and 850 K, GEOS FP
+# analysis + 10-day forecast, ~7 minutes; frames to the frames branch, manifest on main). It runs first and on its own:
+# a BDC failure must not hold the PV loop back, nor the other way round.
 
 on:
   schedule:
@@ -30,7 +33,9 @@ jobs:
         with:
           sparse-checkout: |
             scripts/strat/bdc_dc.py
+            scripts/strat/geos_pv.py
             scripts/lib
+            assets/sst/anim/geos_pv_manifest.json
             assets/sst/data
             assets/sst/bdc_dc_upwelling.webp
             assets/sst/bdc_dc_section.webp
@@ -38,7 +43,17 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - run: pip install --quiet numpy scipy pandas xarray netCDF4 matplotlib
+      - run: pip install --quiet numpy scipy pandas xarray netCDF4 matplotlib cartopy==0.25.0
+      - name: Potential vorticity on 475 K and 850 K (GEOS FP)
+        id: pv
+        run: |
+          if python scripts/strat/geos_pv.py --out assets/sst; then echo "ok=1" >> "$GITHUB_OUTPUT"
+          else echo "::warning::GEOS FP PV failed; keeping the previous loop"; fi
+      - name: Publish the PV frames (frames branch)
+        if: steps.pv.outputs.ok == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/lib/publish_frames_ci.sh assets/sst/anim/geos_pv_nh assets/sst/anim/geos_pv_sh
       - name: Reference files and the analysis cache
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -69,26 +84,28 @@ jobs:
           PRUNE: ${{ steps.live.outputs.prune }}
         run: scripts/lib/publish_frames_ci.sh +assets/sst/anim/bdc_tail
       - name: Commit & push
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           SNAP=$(mktemp -d)
-          git add -f assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json
+          OUTS="assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json assets/sst/anim/geos_pv_manifest.json assets/sst/data/geos_pv.json"
+          for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
           for i in 1 2 3 4 5; do
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset --hard origin/main
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
-            git add -f assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json
+            for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-            git commit -q -m "bdc: Brewer-Dobson upwelling $(date -u +%Y-%m-%dT%H:%MZ)"
+            git commit -q -m "bdc: Brewer-Dobson upwelling + GEOS FP PV $(date -u +%Y-%m-%dT%H:%MZ)"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             sleep 5
           done
           exit 1
       - name: Deploy the site
-        if: success()
+        if: ${{ !cancelled() }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
