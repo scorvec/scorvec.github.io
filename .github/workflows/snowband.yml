@@ -36,6 +36,14 @@ on:
         description: "Models for a live run"
         required: false
         default: "hrrr,rrfs,rdps"
+      regions:
+        description: "Forced runs: only these regions (e.g. ne,nec,ma); empty = all"
+        required: false
+        default: ""
+      label:
+        description: "Forced runs: the label on every frame and on the page, e.g. Test run on the 27 Sep nor'easter (rain)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -83,12 +91,15 @@ jobs:
           FORCE: ${{ inputs.force }}
           MODELS: ${{ inputs.models || 'hrrr,rrfs,rdps' }}
           MODE: ${{ steps.plan.outputs.mode }}
+          REGIONS: ${{ inputs.regions }}
+          LABEL: ${{ inputs.label }}
         run: |
           mkdir -p "$RUNNER_TEMP/sb"
           if [ "$MODE" = "case" ]; then
             python scripts/snowband/snowband.py case --spec "$CASE" --site . --procs 4 --lists "$RUNNER_TEMP/sb"
           elif [ "$FORCE" = "true" ]; then
-            python scripts/snowband/snowband.py run --models "$MODELS" --force --site . --procs 4 --lists "$RUNNER_TEMP/sb"
+            python scripts/snowband/snowband.py run --models "$MODELS" --force --regions "$REGIONS" --label "$LABEL" \
+              --site . --procs 4 --lists "$RUNNER_TEMP/sb"
           else
             python scripts/snowband/snowband.py run --models "$MODELS" --site . --procs 4 --lists "$RUNNER_TEMP/sb"
           fi

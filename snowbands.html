@@ -281,6 +281,8 @@
     if (!ST) return "<b>No run status yet.</b> The first run of the season publishes it.";
     var md = (ST.models || {})[m] || {}, M = MODELS[m];
     if (md.state !== "rendered" && idle()) return idleText() + "<span class=\"when\">Out of season, nothing is fetched.</span>";
+    if (md.state === "rendered" && ST.forced) return "<b>Not drawn in this test run.</b> The forced " + M + " " + cyc(md.cycle) + " run covered "
+      + (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ") + ".<span class=\"when\">Checked " + when(md.checked) + ".</span>";
     if (md.state === "rendered") {
       var got = (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ");
       return "<b>No snow in " + REGIONS[r] + "</b> in the " + M + " " + cyc(md.cycle) + " run, so nothing is drawn there. Loops were drawn for: "
@@ -301,12 +303,12 @@
     if (idle()) { el.innerHTML = idleText(); return; }
     var parts = Object.keys(MODELS).map(function (m) {
       var md = (ST.models || {})[m] || {}, M = "<b>" + MODELS[m] + "</b> " + cyc(md.cycle);
-      if (md.state === "rendered") return M + ": snow in " + (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ");
+      if (md.state === "rendered") return M + (ST.forced ? ": drawn for " : ": snow in ") + (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ");
       if (md.state === "nosnow") return M + ": no snow in any region";
       if (md.state === "error") return M + ": not processed (" + (md.note || "error") + ")";
       return "<b>" + MODELS[m] + "</b>: waiting for its first run";
     });
-    el.innerHTML = (ST.forced ? "<b>Test render</b> (the season and snow gates were bypassed). " : "") + "Latest runs &mdash; "
+    el.innerHTML = (ST.forced ? "<b>" + (ST.test_label || "Test render") + ".</b> A forced run: the season and snow gates were bypassed, so every region is drawn whatever falls. " : "") + "Latest runs &mdash; "
       + parts.join("; ") + ". <span class=\"when\">Checked " + when(ST.updated) + ".</span>";
   }
   var CAP = {

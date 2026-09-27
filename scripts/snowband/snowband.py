@@ -120,6 +120,7 @@ CASES = {
 
 ONLY_LEADS: list[int] = []                       # --leads / --regions: testing overrides
 ONLY_REGIONS: list[str] = []
+TEST_LABEL = [""]                                # --label: printed on every frame and the page of a forced run
 
 
 class Throttled(RuntimeError):
@@ -166,7 +167,7 @@ class Fetcher:
             raise Throttled(f"{self.name}: {why}")
         time.sleep(90.0)
 
-    def get(self, url, rng=None, kind="grib", tries=3):
+    def get(self, url, rng=None, kind="grib", tries=3, missing=(404,)):
         for k in range(tries):
             self._pace()
             h = dict(UA)
@@ -179,7 +180,7 @@ class Fetcher:
                 self.nbytes += len(body)
             except urllib.error.HTTPError as e:
                 self.nreq += 1
-                if e.code == 404:
+                if e.code in missing:
                     raise Missing(url) from None
                 if e.code in (403, 429) and self.throttle_host:
                     self._throttled(f"HTTP {e.code}")
@@ -603,8 +604,10 @@ def newest_cycle(model, now=None):
                 f.get(f"{hrrr_base(date, cyc)}.wrfprsf{last:02d}.grib2.idx", kind="idx")
                 f.get(f"{hrrr_base(date, cyc)}.wrfsfcf{last:02d}.grib2.idx", kind="idx")
             elif model == "rrfs":
-                f.get(f"{rrfs_base(date, cyc)}.prslev.3km.f{last:03d}.conus.grib2.idx", kind="idx")
-                f.get(f"{rrfs_base(date, cyc)}.2dfld.3km.f{last:03d}.conus.grib2.idx", kind="idx")
+                # NOMADS answers a cycle directory that does not exist yet with 403, not 404 (checked 2026-09-27): while
+                # probing that means "not published", not throttling
+                f.get(f"{rrfs_base(date, cyc)}.prslev.3km.f{last:03d}.conus.grib2.idx", kind="idx", missing=(403, 404))
+                f.get(f"{rrfs_base(date, cyc)}.2dfld.3km.f{last:03d}.conus.grib2.idx", kind="idx", missing=(403, 404))
             else:
                 f.get(rdps_url(date, cyc, last, "AirTemp", "IsbL-0450"))
             return date, cyc
@@ -757,7 +760,7 @@ def panel_dgz(ax, c):
     m = ax.contourf(c.X, c.Y, d["dgz_lift"], levels=lv, cmap=cm, norm=BoundaryNorm(lv, cm.N), extend="max")
     cd = ax.contour(c.X, c.Y, d["dgz_depth"], levels=[50, 100, 150], colors="#7a5c00", linewidths=[0.6, 1.0, 1.4], linestyles="--")
     ax.clabel(cd, fmt="%d hPa", fontsize=6.5, inline=True)
-    lab = "strongest upward motion in the saturated −12 to −18 °C layer (−ω, µb/s); dashed: DGZ depth"
+    lab = "strongest upward motion through the saturated −12 to −18 °C layer aloft (−ω, µb/s); dashed: its depth"
     if c.model == "RDPS":
         lab += " (RDPS ω from 850/700/500 hPa only)"
     return m, lv, lab
@@ -773,8 +776,14 @@ def panel_bands(ax, c):
     snow_cm = ListedColormap(["#d7e7f7", "#a6c8ee", "#6fa2de", "#3f78c7", "#2352a8", "#4b2f9a", "#7b2aa0", "#b1209a", "#e0118b"])
     other_cm = ListedColormap(["#e9ecdf", "#d5dcc4", "#bdc8a6", "#a3b389", "#8a9d6d", "#728652", "#5b6f3b", "#445827", "#304215"])
     R, S = P["refc"], P["snow"]
+    wet = np.nan_to_num(R) >= (0.5 if c.model == "RDPS" else 20.0)
+    rainy = wet.sum() > 200 and float((S[wet] >= 0.5).mean()) < 0.5
     m = ax.contourf(c.XF, c.YF, np.where(S >= 0.5, R, np.nan), levels=lv, cmap=snow_cm, norm=BoundaryNorm(lv, snow_cm.N), extend="max")
-    ax.contourf(c.XF, c.YF, np.where(S < 0.5, R, np.nan), levels=lv, cmap=other_cm, norm=BoundaryNorm(lv, other_cm.N), extend="max")
+    mo = ax.contourf(c.XF, c.YF, np.where(S < 0.5, R, np.nan), levels=lv, cmap=other_cm, norm=BoundaryNorm(lv, other_cm.N), extend="max")
+    if rainy:                                    # a rain event: the scale shown is the rain one, and the label says so
+        c.rainy = True
+        lab = lab.split(" where ")[0] + ", all precipitation types (this is mostly rain): rain olive, snow blue–magenta"
+        return mo, lv, lab
     return m, lv, lab
 
 
@@ -801,7 +810,7 @@ def panel_ing(ax, c):
                        Line2D([], [], color="#1d3f8f", lw=1.2, label=("model snow ≥ 1 mm/h" if c.model == "RDPS" else "model snow ≥ 25 dBZ"))],
               loc="lower left", fontsize=7.5, framealpha=0.85)
     return None, None, (f"Ingredients: 700 hPa frontogenesis ≥ {ING['fg']:g}, EPV* ≤ {ING['epv']:g} PVU in saturated air, "
-                        f"DGZ lift ≥ {ING['lift']:g} µb/s. An overlap of ingredients, not a probability of a band.")
+                        f"DGZ lift ≥ {ING['lift']:g} µb/s. Banding potential only: precipitation type is not part of it.")
 
 
 def panel_radar(ax, c):
@@ -876,6 +885,8 @@ def figure(prod, P, meta, out):
         m, ticks, lab = fn(ax, c)
         if multi and key in SHORT:
             lab = SHORT[key] if not (key == "bands" and c.model == "RDPS") else SHORT["bands_rdps"]
+            if key == "bands" and getattr(c, "rainy", False):
+                lab = ("1-h precipitation (mm)" if c.model == "RDPS" else "reflectivity (dBZ)") + ", all types (mostly rain): rain olive, snow blue–magenta"
         if prod in ("ov", "radar"):
             ttl = TITLES.get(key, {"radar": "NEXRAD (observed)", "model": f"{meta['model_label']} (forecast)"}.get(key))
             ax.set_title(ttl, fontsize=10.5, fontweight="bold", pad=3)
@@ -898,7 +909,9 @@ def figure(prod, P, meta, out):
         fig.text(0.5, 1 - fy(0.40), when, ha="center", va="top", fontsize=11, fontweight="bold", color="#222")
     import textwrap
     note = sub if prod != "ing" else ("An overlap of ingredients, not a probability: it marks where the model's own atmosphere "
-                                      "is set up for banding, not where a band will form.")
+                                      "is set up for banding, not where a band will form, and says nothing about rain or snow.")
+    if meta.get("test_label"):
+        note = f"{meta['test_label']}. " + note
     fig.text(0.5, 1 - fy(0.43 if multi else 0.70), "\n".join(textwrap.wrap(note, int(figw / 0.066))), ha="center", va="top",
              fontsize=8.4, color=MUTED, linespacing=1.25)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -944,6 +957,9 @@ def load_json(p, default):
 
 
 def render_all(tasks, procs):
+    for f in _features().values():                   # fetch Natural Earth once, before the workers race to download it
+        for _ in f.geometries():
+            break
     if procs <= 1:
         for t in tasks:
             render_task(t)
@@ -1002,7 +1018,8 @@ def run_model(model, site: Path, status, force, procs, publish, prune):
         valid = init + dt.timedelta(hours=lead)
         tasks = []
         for r in todo:
-            meta = dict(model_label=MODELS[model]["label"], init=init, lead=lead, region=r, file=f"F{i:02d}.webp")
+            meta = dict(model_label=MODELS[model]["label"], init=init, lead=lead, region=r, file=f"F{i:02d}.webp",
+                        test_label=TEST_LABEL[0] if force else "")
             tasks.append((region_payload(L, r), meta, LIVE_PRODUCTS, {p: str(tmpdirs[(p, r)]) for p in LIVE_PRODUCTS}))
             for p in LIVE_PRODUCTS:
                 frames[(p, r)].append({"idx": i, "file": f"F{i:02d}.webp", "date": valid.strftime("%Y-%m-%d"),
@@ -1034,6 +1051,7 @@ def cmd_run(a):
     active = in_season(today)
     status["season"] = dict(active=active, window="1 November – 15 April", next_start=next_season_start(today).isoformat())
     status["forced"] = bool(a.force)
+    status["test_label"] = TEST_LABEL[0] if a.force else ""
     if not active and not a.force:
         # idle: prune whatever an earlier (forced or in-season) run left, write the status at most once a day
         changed = False
@@ -1139,6 +1157,7 @@ def main() -> int:
     r.add_argument("--force", action="store_true")
     r.add_argument("--leads", default="", help="testing: only these leads")
     r.add_argument("--regions", default="", help="testing: only these regions")
+    r.add_argument("--label", default="", help="a forced run's label, e.g. \"Test run on the 27 Sep nor'easter (rain)\"")
     c = sub.add_parser("case")
     c.add_argument("--spec", required=True)
     c.add_argument("--region")
@@ -1153,6 +1172,7 @@ def main() -> int:
     if a.cmd == "run":
         ONLY_LEADS[:] = [int(x) for x in a.leads.split(",") if x]
         ONLY_REGIONS[:] = [x for x in a.regions.split(",") if x]
+        TEST_LABEL[0] = a.label.strip()
     {"run": cmd_run, "case": cmd_case}[a.cmd](a)
     return 0
 
