@@ -523,8 +523,15 @@ def thumb_index(path: str | None) -> dict:
         with urllib.request.urlopen(THUMB_INDEX_URL + "?t=" + dt.datetime.now().strftime("%Y%m%d%H%M"), timeout=20) as r:
             return json.loads(r.read())
     except Exception as e:
-        print(f"  no thumbnail index ({e.__class__.__name__}); cards fall back to the full figures")
-        return {}
+        # the frames branch unreachable (or raw.githubusercontent still serving a cached 404): keep the thumbnails the
+        # committed index already points at, rather than a push-triggered rebuild dropping every one of them
+        try:
+            old = json.loads(OUT.read_text()).get("thumbs", {})
+            prev = {("f:" if r.get("f") else "m:") + r["s"]: {"t": r["t"]} for r in old.values() if r.get("t")}
+        except (OSError, ValueError):
+            prev = {}
+        print(f"  no thumbnail index ({e.__class__.__name__}); keeping the {len(prev)} thumbnails the current index names")
+        return prev
 
 
 def attach_thumbs(index: dict) -> int:
