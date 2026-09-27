@@ -483,7 +483,7 @@ window.STAGE = {
   {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, NAO, temperature, by region; CMIP6"]]}
 ],
   products: {
-  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=16581d400ac8"; }, about: "about-vortex", fit: false,
+  vortex: {label: "Northern polar vortex", img: function () { return "assets/sst/nh_vortex.webp?v=56941ba1e425"; }, about: "about-vortex", fit: false,
           cap: function () { return "Zonal-mean wind at 60°N at 10 and 100 hPa and the 100 hPa polar-cap height, members against the MERRA-2 percentile bands."; }},
   upperstrat: {label: "Upper stratosphere (GEFS, GFS, GEOS FP, GDPS)",
           a: {label: "Model", items: [["gefs","GEFS, 35 days"],["gfs","GFS, 16 days"],["geos","GEOS FP, 10 days"],["gdps","GDPS, 10 days"],["all","Compare all"]]},
@@ -540,12 +540,12 @@ window.STAGE = {
           cap: function () { return "Every northern winter in MERRA-2, October to May, against the 1980–2026 range. Hover a line to name the winter; pick one to draw it in black."; }},
   shssw: {label: "Sudden warmings since 1980", a: {label: "View", items: [["timeline","Timeline"],["table","Catalogue"],["gallery","Vortex at each warming"]]},
           dom: function (a) { return a === "table" ? "dom-shssw" : null; }, fit: false,
-          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=16581d400ac8"; }, about: "about-shssw",
+          img: function (a) { return "assets/sst/strat_hist_" + (a === "gallery" ? "gallery" : "timeline") + ".webp?v=56941ba1e425"; }, about: "about-shssw",
           cap: function (a) { return a === "timeline" ? "Every major sudden warming (Charlton–Polvani, MERRA-2) and strong-vortex event, winter by winter, with ENSO and the QBO." : a === "table" ? "The catalogue: when, how deep, what shape, and what the Arctic Oscillation did before and after." : "What the 10 hPa vortex looked like at each warming: two pieces for a split, one pushed off the pole for a displacement."; }},
   shdrip: {label: "Dripping paint", a: {label: "Events", items: [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]},
           b: function (a) { return {label: "Data", items: (a === "ssw_split" || a === "ssw_disp") ? [["m2z","MERRA-2 polar-cap height"]]
                                     : [["m2z","MERRA-2 polar-cap height"],["m2u","MERRA-2 u(60°N)"],["cmip6","CMIP6 u(60°N), 9 models"]]}; },
-          img: function (a, b) { return "assets/sst/strat_hist_drip_" + (b === "m2u" || b === "cmip6" ? b + "_" : "") + a + ".webp?v=16581d400ac8"; }, fit: false, about: "about-shdrip",
+          img: function (a, b) { return "assets/sst/strat_hist_drip_" + (b === "m2u" || b === "cmip6" ? b + "_" : "") + a + ".webp?v=56941ba1e425"; }, fit: false, about: "about-shdrip",
           cap: function (a, b) {
             if (b === "cmip6") return "Zonal-mean wind at 60°N from the ground to 1 hPa around " + (a === "sv" ? "strong-vortex events" : "sudden warmings") + " in 9 CMIP6 models (25,444 model-years), sign flipped so a weak vortex is red, with 700 hPa u(60°N) below. Shaded only where the models robustly agree.";
             if (b === "m2u") return "MERRA-2 drawn the way the CMIP6 chart is, events defined in wind terms as for the models: u(60°N) from the ground to 1 hPa, sign flipped, with 700 hPa u(60°N) below.";
@@ -556,7 +556,7 @@ window.STAGE = {
                                     ? [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["sv","Strong vortex"]]
                                     : [["ssw_all","All SSWs"],["ssw_deep","Deep"],["ssw_shallow","Shallow"],["ssw_split","Splits"],["ssw_disp","Displacements"],["sv","Strong vortex"]]} : null; },
           img: function (a, b, c) { var m = b === "cmip6" ? "cmip6_" : "", w = a === "map2" ? "d31_60" : "d1_30";
-                                    return "assets/sst/strat_hist_" + ((a === "map" || a === "map2") ? "follows_" + m + c + "_" + w : a + (b === "cmip6" ? "_cmip6" : "")) + ".webp?v=16581d400ac8"; },
+                                    return "assets/sst/strat_hist_" + ((a === "map" || a === "map2") ? "follows_" + m + c + "_" + w : a + (b === "cmip6" ? "_cmip6" : "")) + ".webp?v=56941ba1e425"; },
           fit: false, about: "about-shfollow",
           cap: function (a, b) {
             var cm = b === "cmip6";
@@ -705,7 +705,7 @@ window.STAGE = {
     b.addEventListener("click", function () { st.h = b.dataset.shh; document.querySelectorAll("#dom-shwinters .pill[data-shh]").forEach(function (o) { o.classList.toggle("on", o === b); }); draw(); });
   });
   $("shw-pick").addEventListener("change", function () { st.pick = this.value; draw(); });
-  fetch("assets/sst/data/strat_history.json?v=16581d400ac8").then(function (r) { return r.json(); }).then(function (j) {
+  fetch("assets/sst/data/strat_history.json?v=56941ba1e425").then(function (r) { return r.json(); }).then(function (j) {
     J = j;
     var sel = $("shw-pick");
     J.winters.slice().reverse().forEach(function (w) { var o = document.createElement("option"); o.value = w.winter; o.textContent = w.winter; sel.appendChild(o); });
