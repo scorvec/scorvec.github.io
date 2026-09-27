@@ -50,7 +50,17 @@
   footer { max-width:1150px; margin:0 auto; padding:0.8rem 1.2rem 2.5rem; color:var(--muted);
            font-size:0.75rem; border-top:1px solid var(--rule); }
   footer a { color:var(--accent); }
+  /* the stage viewer's variables on this page's dark palette (assets/stage.css reads them) */
+  :root { --surface:#11111c; --edge:#2c2c46; --ink2:#c3c3d4; --accent-light:rgba(100,210,255,0.12); }
+  .page-header { margin-bottom:1rem; }
+  .ss-layout .crumb { background:#15152a; }
+  .ss-layout .crumb .nav button:hover { color:#0b0b12; }
+  .stage img { border-radius:6px; }
+  .stage table { margin-top:0.3rem; }
+  @media (max-width: 1000px) { .ss-rail .rail-group button[data-p].on { color:#0b0b12; } }
+  @media (max-width: 600px) { .cards { gap:8px; } .card { min-width:0; flex:1 1 40%; padding:0.6rem 0.8rem; } .card .v { font-size:1.2rem; } }
 </style>
+<link rel="stylesheet" href="/assets/stage.css">
 <script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -181,62 +191,67 @@
 </header>
 <!-- sh:end -->
 <div class="wrap">
-  <div class="eyebrow">Updated weekly from IGRA radiosondes</div>
-  <h1>QBO tracker</h1>
-  <p class="lede">The Quasi-Biennial Oscillation — the ~28-month heartbeat of the equatorial
-  stratosphere — read directly from balloons. Within ~10° of the equator the annual cycle in
-  stratospheric zonal wind nearly vanishes, so a monthly multi-station mean of radiosonde winds
-  at 10–100 hPa <i>is</i> the QBO: westerly and easterly regimes descending about 1 km/month.
-  Built from 13 stations (Singapore, Kuala Lumpur, Bintulu, the Micronesia chain, six Amazon
-  stations, Nairobi) — the same raw archive behind the
-  <a href="../skewt/" style="color:var(--accent)">Sounding Explorer</a>.</p>
+  <!-- One figure at a time on the shared stage viewer (assets/stage.js), 2026-09-27 (navigation phase 2). The four
+       figures are static renders from scripts/qbo/render_qbo.py; the station table is a live block mounted into the
+       stage. Deep links: #section #phase #descent #cycles #stations. -->
+  <div class="page-header">
+    <div class="eyebrow">Updated weekly from IGRA radiosondes</div>
+    <h1>QBO tracker</h1>
+    <p class="lede">The Quasi-Biennial Oscillation — the ~28-month heartbeat of the equatorial
+    stratosphere — read directly from balloons. Within ~10° of the equator the annual cycle in
+    stratospheric zonal wind nearly vanishes, so a monthly multi-station mean of radiosonde winds
+    at 10–100 hPa <i>is</i> the QBO: westerly and easterly regimes descending about 1 km/month.
+    Built from 13 stations (Singapore, Kuala Lumpur, Bintulu, the Micronesia chain, six Amazon
+    stations, Nairobi) — the same raw archive behind the
+    <a href="../skewt/" style="color:var(--accent)">Sounding Explorer</a>.</p>
+  </div>
 
   <div class="cards" id="cards"></div>
 
-  <div class="panel">
-    <h2>Time–height section</h2>
-    <p class="cap">The QBO is a <em>descending</em> pattern, so this is the only honest primary
-    view: height against time, with the u&nbsp;=&nbsp;0 contour drawn heavy. Its downward slope
-    <em>is</em> the descent — read the rate straight off it. A flat stretch is a shear zone that
-    has stalled, which is how both the 2016 and 2020 disruptions announce themselves.</p>
-    <img src="../assets/qbo/qbo_section.webp" alt="Time-height section of tropical mean zonal wind, 10 to 100 hPa, showing the descending QBO regimes" loading="lazy">
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a figure to enlarge</p>
+    </section>
   </div>
-
-  <div class="panel">
-    <h2>Where the cycle is now</h2>
-    <p class="cap">The two leading EOFs of the wind profile, which between them carry most of the
-    variance. One full QBO cycle is one loop around the origin and the radius is the strength of
-    the oscillation — so a loop that shrinks toward the centre without closing is a
-    <em>disruption</em>, the QBO stalling mid-descent. That is visible here and almost nowhere
-    else.</p>
-    <img src="../assets/qbo/qbo_phase.webp" alt="QBO phase space: the two leading EOFs with the last 36 months traced and the current month marked" loading="lazy">
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder">
+    <div id="dom-stations" hidden>
+      <div style="overflow-x:auto"><table id="stns"></table></div>
+      <p class="note" id="method"></p>
+    </div>
   </div>
-
-  <div class="panel">
-    <h2>How fast it descends</h2>
-    <p class="cap">Every regime onset, followed level by level as it arrives lower and lower.
-    Tracking a single u&nbsp;=&nbsp;0 height per month does <em>not</em> work — the QBO carries
-    two or three crossings at once — but when each level changes regime is unambiguous, and
-    chaining those gives one line per onset whose slope is a real descent rate. A line that stops
-    before reaching 50–70&nbsp;hPa is an onset that never made it down.</p>
-    <img src="../assets/qbo/qbo_descent.webp" alt="Descent paths of each QBO regime onset by level, with a histogram of descent rates" loading="lazy">
-  </div>
-
-  <div class="panel">
-    <h2>This cycle against the record</h2>
-    <p class="cap">Every cycle since the record begins, aligned on the month the 30&nbsp;hPa wind
-    turned westerly, with the current one drawn over the top. "Unusually long" or "stalled"
-    becomes something you can see rather than something a caption asserts.</p>
-    <img src="../assets/qbo/qbo_cycles.webp" alt="All QBO cycles aligned on the 30 hPa westerly onset with the current cycle highlighted" loading="lazy">
-  </div>
-
-  <div class="panel">
-    <h2>Latest month by station</h2>
-    <div style="overflow-x:auto"><table id="stns"></table></div>
-  </div>
-
-  <p class="note" id="method"></p>
 </div>
+<script>
+window.STAGE = {
+  groups: [
+    { label: "The cycle", items: [["section", "Time–height section", "10–100 hPa, the whole record"],
+                                  ["phase", "Where the cycle is now", "the two leading EOFs"],
+                                  ["descent", "How fast it descends", "every regime onset, level by level"],
+                                  ["cycles", "This cycle against the record", "aligned on the 30 hPa onset"]] },
+    { label: "Stations", items: [["stations", "Latest month by station", "13 equatorial radiosondes"]] }
+  ],
+  products: {
+    section: { label: "Time–height section", img: function () { return "/assets/qbo/qbo_section.webp"; },
+               cap: function () { return "The QBO is a <em>descending</em> pattern, so this is the only honest primary view: height against time, with the u&nbsp;=&nbsp;0 contour drawn heavy. Its downward slope <em>is</em> the descent — read the rate straight off it. A flat stretch is a shear zone that has stalled, which is how both the 2016 and 2020 disruptions announce themselves."; } },
+    phase:   { label: "Where the cycle is now", img: function () { return "/assets/qbo/qbo_phase.webp"; },
+               cap: function () { return "The two leading EOFs of the wind profile, which between them carry most of the variance. One full QBO cycle is one loop around the origin and the radius is the strength of the oscillation — so a loop that shrinks toward the centre without closing is a <em>disruption</em>, the QBO stalling mid-descent. That is visible here and almost nowhere else."; } },
+    descent: { label: "How fast it descends", img: function () { return "/assets/qbo/qbo_descent.webp"; },
+               cap: function () { return "Every regime onset, followed level by level as it arrives lower and lower. Tracking a single u&nbsp;=&nbsp;0 height per month does <em>not</em> work — the QBO carries two or three crossings at once — but when each level changes regime is unambiguous, and chaining those gives one line per onset whose slope is a real descent rate. A line that stops before reaching 50–70&nbsp;hPa is an onset that never made it down."; } },
+    cycles:  { label: "This cycle against the record", img: function () { return "/assets/qbo/qbo_cycles.webp"; },
+               cap: function () { return "Every cycle since the record begins, aligned on the month the 30&nbsp;hPa wind turned westerly, with the current one drawn over the top. \"Unusually long\" or \"stalled\" becomes something you can see rather than something a caption asserts."; } },
+    stations: { label: "Latest month by station", dom: function () { return "dom-stations"; },
+                cap: function () { return "Monthly mean zonal wind at each station for its latest reported month; red westerly, blue easterly."; } }
+  }
+};
+</script>
+<script src="/assets/stage.js" defer></script>
 <footer>
   Data: NOAA <a href="https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive">IGRA v2</a>
   period-of-record + year-to-date files · monthly station means need ≥3 soundings per level;

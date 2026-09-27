@@ -101,8 +101,8 @@ PAGES = {
     "/ecape.html": dict(kind="page", topic="weather", tier=0, prio=7, models=["HRRR"], horizon="Days 1–15", region=["North America"],
                         thumb_ecape=True, variable=["Instability"]),
     # "/cities/" paused 2026-09-27 (city forecasts turned off); restore from git history
-    "/qbo/": dict(kind="page", topic="drivers", tier=0, prio=9, models=["Radiosondes"], horizon="Observed", region=["Tropics"],
-                  thumb="assets/qbo/qbo_section.webp", variable=["Stratosphere", "Wind"]),
+    "/qbo/": dict(kind="stage", file="qbo/index.html", topic="drivers", title="QBO tracker", tier=0, prio=9,
+                  models=["Radiosondes"], horizon="Observed", region=["Tropics"]),
     "/enso-forecasts.html": dict(kind="page", topic="outlooks", tier=2, prio=29, models=["Multi-model"], horizon="Seasons",
                                  region=["Tropical Pacific"], variable=["SST"]),
     # "/cities/verify.html" paused 2026-09-27
