@@ -9,6 +9,12 @@ name: Brewer-Dobson upwelling (downward control)
 # Same source, same slots: the stratosphere page's isentropic PV loop (scripts/strat/geos_pv.py, 475 K and 850 K, GEOS FP
 # analysis + 10-day forecast, ~7 minutes; frames to the frames branch, manifest on main). It runs first and on its own:
 # a BDC failure must not hold the PV loop back, nor the other way round.
+# Same source again: the stratosphere page's live MOMENTUM BUDGET (scripts/strat/momentum_budget.py, 2026-09-27): the TEM
+# zonal-momentum terms from GEOS FP's 3-hourly analyses plus its gravity-wave-drag and analysis-increment tendencies, and
+# the resolved terms of the 10-day forecast. It runs last, on its own; one new analysis day is ~3-4 min and a new forecast
+# cycle ~10-13 min (81 three-hourly steps), so the 12:30 run still ends before upperstrat.yml's 13:10 NCCS slot and the
+# 18:30 run finds the cycle already cached. Its analysis cache (one ~180 KB npz a day, pruned at 150 days) and the newest
+# forecast live on the frames branch; a cold cache is seeded from release mbudget-ref-v1 (the laptop backfill).
 
 on:
   schedule:
@@ -27,7 +33,7 @@ concurrency:
 jobs:
   bdc:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7
         with:
@@ -35,11 +41,14 @@ jobs:
             scripts/strat/bdc_dc.py
             scripts/strat/geos_pv.py
             scripts/strat/geosfp_cap.py
+            scripts/strat/momentum_budget.py
+            scripts/strat/reference/mbudget_clim.npz
             scripts/lib
             assets/sst/anim/geos_pv_manifest.json
             assets/sst/data
             assets/sst/bdc_dc_upwelling.webp
             assets/sst/bdc_dc_section.webp
+            assets/sst/mbudget_*.webp
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
         with:
@@ -91,13 +100,54 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRUNE: ${{ steps.live.outputs.prune }}
         run: scripts/lib/publish_frames_ci.sh +assets/sst/anim/bdc_tail
+      - name: Momentum budget (GEOS FP)
+        id: mb
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          D=scripts/strat/data/mbudget; C=assets/sst/anim/mbudget_tail
+          mkdir -p $D/tail $D/fcst
+          scripts/lib/fetch_frames_ci.sh $C || true
+          mkdir -p $C/fcst
+          cp $C/2*.npz $D/tail/ 2>/dev/null || true
+          cp $C/fcst/*.npz $D/fcst/ 2>/dev/null || true
+          # a short cache (first runs, or the frames copy lost) is topped up from the laptop backfill; files already in
+          # the cache are never overwritten (they may be newer), so a fuller seed on the release merges in on its own
+          if [ "$(ls $D/tail | wc -l)" -lt 90 ]; then
+            gh release download mbudget-ref-v1 --repo "$GITHUB_REPOSITORY" -p tail_seed.tar.gz -D $D --clobber \
+              && tar xzf $D/tail_seed.tar.gz -C $D --skip-old-files && echo "topped up from the release seed"
+          fi
+          echo "cached analysis days: $(ls $D/tail | wc -l)"
+          if python scripts/strat/momentum_budget.py live; then
+            mkdir -p assets/sst/data
+            cp $D/figs/mbudget_*.webp assets/sst/
+            cp $D/figs/mbudget.json assets/sst/data/mbudget.json
+            # back to the frames branch: new days merged in; days older than 150 d and superseded forecasts pruned
+            prune=""
+            for f in $C/fcst/*.npz; do [ -e "$f" ] || continue; [ -f "$D/fcst/$(basename $f)" ] || prune="$prune $f"; done
+            rm -f $C/fcst/*.npz; cp $D/fcst/*.npz $C/fcst/ 2>/dev/null || true
+            cp $D/tail/*.npz $C/
+            cut=$(date -u -d '150 days ago' +%Y%m%d)
+            for f in $C/2*.npz; do b=$(basename $f .npz); if [ "$b" \< "$cut" ]; then prune="$prune $f"; fi; done
+            echo "prune=$prune" >> "$GITHUB_OUTPUT"
+            echo "ok=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::momentum budget failed; keeping the previous figures"
+          fi
+      - name: Publish the momentum-budget cache (frames branch)
+        if: steps.mb.outputs.ok == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRUNE: ${{ steps.mb.outputs.prune }}
+        run: scripts/lib/publish_frames_ci.sh +assets/sst/anim/mbudget_tail
       - name: Commit & push
         if: ${{ !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           SNAP=$(mktemp -d)
-          OUTS="assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json assets/sst/anim/geos_pv_manifest.json assets/sst/data/geos_pv.json assets/sst/data/geosfp_cap_history.json"
+          OUTS="assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json assets/sst/anim/geos_pv_manifest.json assets/sst/data/geos_pv.json assets/sst/data/geosfp_cap_history.json assets/sst/data/mbudget.json $(ls assets/sst/mbudget_*.webp 2>/dev/null | tr '\n' ' ')"
           for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
           git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
           git reset -q
@@ -107,7 +157,7 @@ jobs:
             tar xf "$SNAP/outs.tar" 2>/dev/null || true
             for f in $OUTS; do [ -f "$f" ] && git add -f "$f"; done
             if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
-            git commit -q -m "bdc: Brewer-Dobson upwelling + GEOS FP PV $(date -u +%Y-%m-%dT%H:%MZ)"
+            git commit -q -m "bdc: Brewer-Dobson upwelling + GEOS FP PV + momentum budget $(date -u +%Y-%m-%dT%H:%MZ)"
             if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
             sleep 5
           done

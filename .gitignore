@@ -113,6 +113,7 @@ scripts/strat/*
 !scripts/strat/heatflux100_ext.py
 !scripts/strat/bdc_dc.py
 !scripts/strat/geos_pv.py
+!scripts/strat/momentum_budget.py
 !scripts/strat/build_vt100_clim.py
 !scripts/strat/build_strat_history.py
 !scripts/strat/strat_history.py
@@ -138,6 +139,7 @@ scripts/strat/*
 !scripts/strat/reference/cmip6_drip.nc
 !scripts/strat/reference/cmip6_follow.nc
 !scripts/strat/reference/drip_std.json
+!scripts/strat/reference/mbudget_clim.npz
 !scripts/strat/reference/geosfp_cap_offset.json
 !scripts/strat/reference/geosfp_cap_seed.json
 !scripts/strat/reference/aifs_capdrift.json
