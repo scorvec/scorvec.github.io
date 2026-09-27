@@ -427,25 +427,34 @@ def mjo_items() -> list:
         cur = f"{dt.date.today().month:02d}"
         Mo = sorted(Mo, key=lambda o: (int(o[0]) - int(cur)) % 12)          # this month first, as the page opens
         lag_l = {"10": "+10 days", "0": "same day"}
-        view_l = {"loop": "phase by phase", "strip": "all eight phases"}
+        view_l = {"loop": "phase by phase", "strip": "all eight phases", "compare": "CMIP6 above observed"}
         try:
             MI = json.loads((REPO / "assets/mjo/impacts/anim/mjo_impacts_manifest.json").read_text())["regions"]
         except Exception:
             MI = {}
-        def key_of(f, d, mo, l, v):
-            rid = f"mi_{f}_{d}_m{mo}_l{int(l):02d}" + ("_s" if v == "strip" else "")
+        def key_of(rid):
             R = MI.get(rid)
             if not R or not R.get("frames"):
                 return ""
             return thumb_key(f"assets/mjo/impacts/anim/{rid}/{R['frames'][0]['file']}", True) or ""
+        # the page's own region ids (mjo.html go()): _s = the eight-phase strip; "compare" stacks the CMIP6 strip over
+        # the observed one and ignores the Data choice, so it is listed once, figured by its CMIP6 half
         variants = []
         for f, fl in F:
-            for d, dl in D:
-                for mo, ml in Mo:
-                    for l, _ll in L:
+            for mo, ml in Mo:
+                for l, _ll in L:
+                    tail = f"_m{mo}_l{int(l):02d}"
+                    for d, dl in D:
+                        dshort = dl.split(" (")[0]
                         for v, _vl in V:
-                            variants.append([f"{fl} · {dl} · {ml} · {lag_l.get(l, l)} · {view_l.get(v, v)}",
-                                             f"#mi/{f}/{d}/{mo}/{l}/{v}", key_of(f, d, mo, l, v)])
+                            if v == "compare":
+                                continue
+                            variants.append([f"{fl} · {dshort} · {ml} · {lag_l.get(l, l)} · {view_l.get(v, v)}",
+                                             f"#mi/{f}/{d}/{mo}/{l}/{v}", key_of(f"mi_{f}_{d}{tail}" + ("_s" if v == "strip" else ""))])
+                    if any(v == "compare" for v, _ in V):
+                        d0 = D[0][0] if D else "cmip6"
+                        variants.append([f"{fl} · {ml} · {lag_l.get(l, l)} · {view_l['compare']}",
+                                         f"#mi/{f}/{d0}/{mo}/{l}/compare", key_of(f"mi_{f}_cmip6{tail}_s")])
         head = text_of((re.search(r"<h2>(.*?)</h2>", body, re.S) or [None, "MJO impacts by phase and month"])[1])
         lead = text_of((re.search(r'<p class="lede[^"]*">(.*?)</p>', body, re.S) or [None, ""])[1])
         default = variants[0] if variants else None
