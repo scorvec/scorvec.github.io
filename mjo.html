@@ -223,7 +223,7 @@
   Amplitude is the radial distance (rings at 1, 2, 3).
   Observed track is recent ERA5/AIFS analysis (wind-only, verified within a few
   degrees of the official BoM RMM phase).</p>
-  <p class="meta">Updated 2026-09-27 17:43Z · Auto-generated from the AIFS-ENS open-data
+  <p class="meta">Updated 2026-09-27 17:47Z · Auto-generated from the AIFS-ENS open-data
   feed. Methodology: NOAA CPC / Wheeler &amp; Hendon (2004), EOFs from NOAA OLR +
   NCEP wind with the 120-day low-frequency filter removed; pseudo-OLR from
   &minus;standardized daily precip vs an ERA5 1991&ndash;2020 band climatology.</p>
@@ -282,7 +282,7 @@
       var f = el["mi-f"].value, d = el["mi-d"].value, mo = el["mi-m"].value, l = ("0" + el["mi-l"].value).slice(-2);
       var rid = "mi_" + f + "_" + d + "_m" + mo + "_l" + l + (el["mi-v"].value === "strip" ? "_s" : "");
       document.getElementById("mi-frame").src = "sst_anim.html?embed=1&base=assets/mjo/impacts/anim&manifest=mjo_impacts_manifest.json&region="
-        + rid + "&regions=" + rid;
+        + rid + "&regions=" + rid + "&start=0";
       if (push) history.replaceState(null, "", "#mi/" + ids.map(function (k) { return el[k].value; }).join("/"));
     }
     ids.forEach(function (k) { el[k].addEventListener("change", function () { go(true); }); });
