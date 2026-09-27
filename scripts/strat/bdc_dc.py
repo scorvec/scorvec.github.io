@@ -921,6 +921,46 @@ def section_stats(C, S, an, PS_an, off, lat):
             "window": (an.index[w].min(), end), "inflation": infl}
 
 
+def flow_arrows(ax, lat, p, psi, css, min_px=110, avoid_lat=9.0):
+    """Arrowheads on the Psi* contours in the direction of the residual circulation (2026-09-27, user: "can we add arrows
+    to the residual circulation?"). With v* = (g / 2 pi a cos phi) dPsi/dp and w* ~ -(g / 2 pi a^2 cos phi) dPsi/dphi the
+    flow runs along the contours, clockwise round a positive (NH) cell and anticlockwise round a negative (SH) one in this
+    view (north right, height up): up in the tropics, poleward aloft, down at high latitude. The direction is taken on
+    the drawn axes (latitude against log pressure), so each head lies along its line as the eye sees it: in display
+    pixels, (u, w) = (-dPsi/dy, dPsi/dx). One head per contour piece, two on long ones; none inside |lat| < avoid_lat,
+    where the label sits."""
+    from scipy.interpolate import RegularGridInterpolator
+    T = ax.transData
+    o = np.argsort(p); pp, ps = p[o], psi[o]
+    xd = T.transform(np.c_[lat, np.full(len(lat), pp[0])])[:, 0]
+    yd = T.transform(np.c_[np.zeros(len(pp)), pp])[:, 1]
+    gy, gx = np.gradient(ps, yd, xd)
+    iu = RegularGridInterpolator((pp, lat), -gy, bounds_error=False, fill_value=np.nan)
+    iw = RegularGridInterpolator((pp, lat), gx, bounds_error=False, fill_value=np.nan)
+    for cs in css:
+        for segs in cs.allsegs:
+            for seg in segs:
+                if len(seg) < 4:
+                    continue
+                D = T.transform(seg)
+                arc = np.r_[0, np.cumsum(np.hypot(*np.diff(D, axis=0).T))]
+                if arc[-1] < min_px:
+                    continue
+                for frac in ((0.5,) if arc[-1] < 3 * min_px else (0.3, 0.7)):
+                    i = int(np.clip(np.searchsorted(arc, frac * arc[-1]), 1, len(seg) - 2))
+                    la, pr = seg[i]
+                    if abs(la) < avoid_lat or not (pp[0] < pr < pp[-1]):
+                        continue
+                    t = D[i + 1] - D[i - 1]
+                    v = np.array([float(iu([[pr, la]])[0]), float(iw([[pr, la]])[0])])
+                    if not np.isfinite(v).all() or np.hypot(*t) == 0:
+                        continue
+                    t = t / np.hypot(*t) * (1.0 if t @ v >= 0 else -1.0)
+                    a, b = T.inverted().transform(np.vstack([D[i] - 5 * t, D[i] + 5 * t]))
+                    ax.annotate("", xy=b, xytext=a, arrowprops=dict(arrowstyle="-|>", color=INK, lw=0.9,
+                                                                    mutation_scale=12, shrinkA=0, shrinkB=0), zorder=5)
+
+
 def fig_section(C, sec, lat, cyc, off, path):
     import matplotlib; matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -955,6 +995,7 @@ def fig_section(C, sec, lat, cyc, off, path):
     ax.set_xticks(np.arange(-80, 81, 20))
     ax.set_xticklabels([f"{abs(x)}°{'S' if x < 0 else ('N' if x > 0 else '')}" for x in range(-80, 81, 20)])
     _style(ax); ax.grid(False)
+    flow_arrows(ax, lat, p, mean, (cs1, cs2))
     ax.set_ylabel("hPa", fontsize=9.5, color=INK)
     ax.text(0, 0.975, "interpolated:\ndownward control\nundefined near\nthe equator", transform=ax.get_xaxis_transform(),
             ha="center", va="top", fontsize=7.8, color=MUTED, bbox=dict(fc="white", ec="none", pad=1.5))
@@ -962,7 +1003,7 @@ def fig_section(C, sec, lat, cyc, off, path):
     fig.suptitle(f"GEOS FP · Brewer–Dobson circulation Ψ* · {WIN}-day mean to {d1:%b %-d %Y}",
                  x=0.065, y=0.972, ha="left", fontsize=15, fontweight="bold", color=INK)
     fig.text(0.065, 0.922, f"Residual streamfunction by downward control, mean of {sec['n']} analyses {d0:%b %-d}–{d1:%b %-d}, "
-             "10⁹ kg s⁻¹ · solid: NH cell (clockwise) · dashed: SH cell", fontsize=10, color=MUTED, va="top")
+             "10⁹ kg s⁻¹ · solid: NH cell · dashed: SH cell · arrows: flow direction", fontsize=10, color=MUTED, va="top")
     nsig = int(sec["sig"].sum())
     cax = fig.add_axes([0.30, 0.155, 0.45, 0.023])
     cb = fig.colorbar(cf, cax=cax, orientation="horizontal", ticks=lv)
