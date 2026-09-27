@@ -139,6 +139,13 @@ jobs:
       - name: Re-apply the site chrome to the regenerated pages
         run: python scripts/site/apply_chrome.py
 
+      # ENSO forecasts page: this month's observed E and C so far (OISST, projected on the page's E/C
+      # patterns), each model's first-month check and the first-month-corrected view. Reads the
+      # laptop-built enso_flavour.json; needs no Copernicus key. Best-effort: on failure the page keeps
+      # the previous day's file.
+      - name: ENSO forecasts, observed E and C so far (OISST)
+        run: python scripts/sst/enso_flavour_obs.py || echo "::warning::enso_flavour_obs failed; keeping the previous observed E/C"
+
       - name: Walker circulation by ocean basin
         run: python scripts/sst/walker_basins.py || echo "walker_basins failed; continuing"
 

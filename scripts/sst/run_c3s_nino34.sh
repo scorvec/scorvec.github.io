@@ -87,6 +87,11 @@ NMODELS=$(printf '%s\n' "$OUT" | sed -nE 's/.*\(([0-9]+) models\)/\1/p' | tail -
 # anomalies, 10S-10N x 120E-70W at 1 degree, a few MB a system and no hindcast download),
 # projected on Takahashi's E and C modes from ERSSTv6 -> assets/sst/data/enso_flavour.json.
 # The CDS rejects parallel requests from one key, so the strips come one system at a time.
+# The hindcast strips for the start month (1993-2016, all systems, ~25-30 MB each) come first: cached per
+# start month, so only the first issue of a given calendar month pays; the build then runs the
+# first-month persistence test and writes scripts/sst/reference/enso_flavour_hindcast_MM.json, which the
+# daily Actions step (enso_flavour_obs.py) uses to weight the first-month correction.
+"$PY" scripts/sst/c3s_enso_flavour.py --fetch-hindcast || echo "hindcast strips incomplete; the test waits for them"
 "$PY" scripts/sst/c3s_enso_flavour.py || echo "east/central build failed; keeping the previous issue"
 
 # NOAA SFS moved to GitHub Actions on 2026-09-10 (.github/workflows/sfs.yml): it needs no
@@ -144,6 +149,7 @@ fi
 
 git add assets/sst/c3s_nino34.webp scripts/sst/c3s_nino34_clim.csv assets/sst/data/enso_forecast.json \
         assets/sst/data/c3s_evolution.json assets/sst/data/enso_flavour.json \
+        scripts/sst/reference/enso_flavour_eof.npz scripts/sst/reference/enso_flavour_hindcast_*.json \
         assets/sst/c3s assets/sst/data/c3s_maps.json assets/sst/data/c3s_indices.json assets/sst/data/c3s_popt.json assets/sst/data/c3s_popt_daily.json
 if git diff --staged --quiet; then
   echo "no changes to commit"

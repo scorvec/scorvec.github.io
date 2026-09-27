@@ -64,6 +64,9 @@ HIST_JSON = ASSETS / "data" / "nino_history.json"
 ERSST = HERE / "data" / "ersst_v6_mnmean.nc"
 ERSST_URL = "https://downloads.psl.noaa.gov/Datasets/noaa.ersst.v6/sst.mnmean.nc"
 CACHE = HERE / "data" / "c3s" / "strip"
+# The observed patterns, committed so the daily OISST step in Actions (enso_flavour_obs.py)
+# projects on exactly the same EOFs without needing ERSST.
+EOF_REF = HERE / "reference" / "enso_flavour_eof.npz"
 
 DATASET = "seasonal-postprocessed-single-levels"
 AREA = [10, 120, -10, -70]                 # N, W, S, E  → 120°E … 290°E (70°W)
@@ -118,6 +121,52 @@ def fetch_strip(centre: str, system: str, issue: str) -> Path | None:
             print(f"  {centre}/{system} {issue}: attempt {attempt + 1} failed ({msg[:100]})",
                   file=sys.stderr, flush=True)
             time.sleep(8)
+    return None
+
+
+# ── hindcasts (raw SST, 1993–2016, one start month) for the calibration ───────────
+HINDCAST_YEARS = [str(y) for y in range(1993, 2017)]
+HC_CACHE = HERE / "data" / "c3s" / "strip" / "hindcast"
+
+
+def hindcast_path(centre: str, system: str, month: int) -> Path:
+    return HC_CACHE / f"{centre}_{system}_{month:02d}.grib"
+
+
+def fetch_hindcast(centre: str, system: str, month: int, patience: int = 90) -> Path | None:
+    """Raw monthly-mean SST, every hindcast member, 1993–2016, the same strip and grid.
+
+    The postprocessed anomaly product carries no hindcast years, so these come from
+    `seasonal-monthly-single-levels` and are anomalised here against their own mean. The CDS
+    rejects a request outright while too many are queued for a dataset from one key; that is
+    waited out (up to `patience` tries, 2 minutes apart), never run in parallel. Resumable:
+    a file on disk is never re-fetched."""
+    dest = hindcast_path(centre, system, month)
+    if dest.exists() and dest.stat().st_size > 0:
+        return dest
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    req = {
+        "originating_centre": centre, "system": system,
+        "variable": "sea_surface_temperature", "product_type": "monthly_mean",
+        "year": HINDCAST_YEARS, "month": f"{month:02d}", "leadtime_month": LEADS,
+        "area": AREA, "grid": GRID, "data_format": "grib",
+    }
+    tmp = dest.with_suffix(".part")
+    for attempt in range(patience):
+        try:
+            _client().retrieve("seasonal-monthly-single-levels", req, str(tmp))
+            os.replace(tmp, dest)
+            print(f"  hindcast {centre}/{system} {month:02d}: {dest.stat().st_size / 1e6:.1f} MB", flush=True)
+            return dest
+        except Exception as e:                                        # noqa: BLE001
+            msg = str(e).replace("\n", " ")
+            tmp.unlink(missing_ok=True)
+            if "no data" in msg.lower():
+                print(f"  hindcast {centre}/{system} {month:02d}: no data on the CDS", file=sys.stderr, flush=True)
+                return None
+            print(f"  hindcast {centre}/{system} {month:02d}: attempt {attempt + 1} failed ({msg[:90]})",
+                  file=sys.stderr, flush=True)
+            time.sleep(120)
     return None
 
 
@@ -233,6 +282,19 @@ def fit_eofs(obs: dict) -> dict:
     s1, s2 = float(pc1.std()), float(pc2.std())
     return dict(valid=valid, w=w, e1=e1, e2=e2, s1=s1, s2=s2, var=var[:4],
                 pat1=as_map(e1) * s1, pat2=as_map(e2) * s2)          # °C per standard deviation
+
+
+def save_eof_reference(obs: dict, eof: dict) -> None:
+    np.savez_compressed(EOF_REF, lat=obs["lat"], lon=obs["lon"], valid=eof["valid"], w=eof["w"],
+                        e1=eof["e1"], e2=eof["e2"], s1=eof["s1"], s2=eof["s2"], var=eof["var"],
+                        train=np.array(TRAIN), base=np.array(BASE))
+
+
+def load_eof_reference() -> tuple[dict, dict]:
+    """(grid, eof) as fit_eofs returns them, from the committed reference."""
+    z = np.load(EOF_REF)
+    eof = dict(valid=z["valid"], w=z["w"], e1=z["e1"], e2=z["e2"], s1=float(z["s1"]), s2=float(z["s2"]), var=z["var"])
+    return dict(lat=z["lat"], lon=z["lon"]), eof
 
 
 def project(field: np.ndarray, eof: dict) -> tuple[np.ndarray, np.ndarray]:
@@ -427,6 +489,313 @@ def collect(issue: str, obs: dict, eof: dict) -> dict:
     return out
 
 
+# ─────────────────────────────────────────────────────────────────────────── hindcast test
+def load_hindcast(path: Path) -> tuple[dict, np.ndarray, np.ndarray]:
+    """{year: (member, lead, lat, lon) raw SST in °C}, lat, lon — members are (start date, number)
+    pairs, grouped by the year of the start (September starts: lagged dates fall in Aug/Sep)."""
+    import eccodes
+    fields, grid = {}, None
+    with open(path, "rb") as fh:
+        while True:
+            h = eccodes.codes_grib_new_from_file(fh)
+            if h is None:
+                break
+            try:
+                if grid is None:
+                    grid = dict(ni=eccodes.codes_get(h, "Ni"), nj=eccodes.codes_get(h, "Nj"),
+                                la1=eccodes.codes_get(h, "latitudeOfFirstGridPointInDegrees"),
+                                la2=eccodes.codes_get(h, "latitudeOfLastGridPointInDegrees"),
+                                lo1=eccodes.codes_get(h, "longitudeOfFirstGridPointInDegrees"),
+                                lo2=eccodes.codes_get(h, "longitudeOfLastGridPointInDegrees"),
+                                miss=eccodes.codes_get(h, "missingValue"))
+                dd = int(eccodes.codes_get(h, "dataDate"))
+                key = (dd, int(eccodes.codes_get(h, "number")))
+                v = eccodes.codes_get_values(h).astype("float64")
+                v[v == grid["miss"]] = np.nan
+                fields.setdefault(key, {})[int(eccodes.codes_get(h, "forecastMonth"))] = \
+                    v.reshape(grid["nj"], grid["ni"]) - 273.15
+            finally:
+                eccodes.codes_release(h)
+    nl = len(LEADS)
+    by_year = {}
+    for k in sorted(fields):
+        if all(L in fields[k] for L in range(1, nl + 1)):
+            by_year.setdefault(k[0] // 10000, []).append(np.stack([fields[k][L] for L in range(1, nl + 1)]))
+    lat = np.linspace(grid["la1"], grid["la2"], grid["nj"])
+    lo2 = grid["lo2"] if grid["lo2"] > grid["lo1"] else grid["lo2"] + 360
+    lon = np.linspace(grid["lo1"], lo2, grid["ni"]) % 360
+    order = np.argsort(lat)
+    return ({y: np.stack(v)[:, :, order] for y, v in by_year.items()}, lat[order], lon)
+
+
+def hindcast_indices(centre: str, system: str, month: int, obs: dict, eof: dict) -> dict | None:
+    """Per hindcast year: ensemble-mean E, C, centre by lead and season, with the anomaly taken the
+    way C3S takes it for the forecast (minus the 1993–2016 mean over all years and members, per
+    lead and grid point) and the same move onto the 1991–2020 base."""
+    p = hindcast_path(centre, system, month)
+    if not p.exists():
+        return None
+    by_year, lat, lon = load_hindcast(p)
+    allm = np.concatenate(list(by_year.values()), 0)
+    clim = np.nanmean(allm, axis=0)                                     # (lead, lat, lon)
+    out = {}
+    for y, x in sorted(by_year.items()):
+        da = xr.DataArray(x - clim[None], dims=("member", "lead", "latitude", "longitude"),
+                          coords=dict(member=np.arange(len(x)), lead=np.arange(1, len(LEADS) + 1),
+                                      latitude=np.round(lat, 3), longitude=np.round(lon, 3)))
+        r = model_indices(da, f"{y}{month:02d}", obs, eof)
+        out[y] = dict(n=int(len(x)),
+                      lead={q: np.nanmean(r["lead"][q], 0) for q in ("E", "C", "n12", "n4")},
+                      lon=np.nanmedian(r["lead"]["lon"], 0),
+                      season={s: {q: float(np.nanmean(v[q])) for q in ("E", "C")} for s, v in r["season"].items()},
+                      members_lead={q: r["lead"][q] for q in ("E", "C")},
+                      members_season={s: {q: v[q] for q in ("E", "C")} for s, v in r["season"].items()})
+    return out
+
+
+def _beta(x: np.ndarray, y: np.ndarray) -> float:
+    """Least-squares slope through the origin (both errors have zero mean by construction)."""
+    return float(np.dot(x, y) / np.dot(x, x)) if np.dot(x, x) > 0 else 0.0
+
+
+def _loyo_fit_predict(X: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Leave-one-year-out least squares y ~ 1 + X, returning the out-of-sample predictions."""
+    n = len(y)
+    A = np.column_stack([np.ones(n), X])
+    pred = np.full(n, np.nan)
+    for i in range(n):
+        k = np.arange(n) != i
+        coef, *_ = np.linalg.lstsq(A[k], y[k], rcond=None)
+        pred[i] = A[i] @ coef
+    return pred
+
+
+def hindcast_test(month: int, obs: dict, eof: dict, mon: pd.DataFrame, seas: dict) -> dict:
+    """Does each model's first-month E/C error persist, and does a hindcast calibration beat the raw
+    forecast out of sample? Verification: ERSSTv6 E and C (same patterns, same base)."""
+    from scipy import stats
+    res = {}
+    for centre, system, label, _c in MODELS:
+        h = hindcast_indices(centre, system, month, obs, eof)
+        if h:
+            res[(centre, system, label)] = h
+    # merge the two ECCC components member-weighted into CanSIPS, as the forecast does
+    merged = {}
+    for (c, s_, label), h in res.items():
+        tgt = next((m for m, parts in MERGE.items() if label in parts), label)
+        merged.setdefault(tgt, []).append(h)
+    models = {}
+    for label, hs in merged.items():
+        years = sorted(set.intersection(*[set(h) for h in hs]))
+        def comb(get):
+            return np.array([np.average([get(h[y]) for h in hs], axis=0, weights=[h[y]["n"] for h in hs]) for y in years])
+        models[label] = dict(years=years,
+                             E=comb(lambda d: d["lead"]["E"]), C=comb(lambda d: d["lead"]["C"]),
+                             sE={s: comb(lambda d, s=s: d["season"][s]["E"]) for s in SEASONS},
+                             sC={s: comb(lambda d, s=s: d["season"][s]["C"]) for s in SEASONS},
+                             n=[sum(h[y]["n"] for h in hs) for y in years])
+    if not models:
+        return {}
+    years = sorted(set.intersection(*[set(m["years"]) for m in models.values()]))
+    vm = lambda y, L: f"{y + (month - 1 + L) // 12}-{((month - 1 + L) % 12) + 1:02d}"   # noqa: E731  L 0-based
+    oE = np.array([[mon.loc[vm(y, L), "E"] for L in range(len(LEADS))] for y in years])
+    oC = np.array([[mon.loc[vm(y, L), "C"] for L in range(len(LEADS))] for y in years])
+    soE = {s: np.array([seas[s].loc[y, "E"] for y in years]) for s in SEASONS}
+    soC = {s: np.array([seas[s].loc[y, "C"] for y in years]) for s in SEASONS}
+    rmse = lambda a: float(np.sqrt(np.nanmean(np.asarray(a) ** 2)))     # noqa: E731
+    out = {"years": years, "month": month, "models": {}, "verification": "ERSSTv6 monthly E and C, 1991–2020 base"}
+    keep = {}
+    for label, m in models.items():
+        ix = [m["years"].index(y) for y in years]
+        E, C = m["E"][ix], m["C"][ix]
+        e1E, e1C = oE[:, 0] - E[:, 0], oC[:, 0] - C[:, 0]              # the first-month error
+        row = {"n_members": int(np.median([m["n"][i] for i in ix])), "lead": {}, "season": {}}
+        for L in range(len(LEADS)):
+            eE, eC = oE[:, L] - E[:, L], oC[:, L] - C[:, L]
+            d = dict(mean_err_E=round(float(eE.mean()), 3), mean_err_C=round(float(eC.mean()), 3),
+                     r_E=round(float(np.corrcoef(E[:, L], oE[:, L])[0, 1]), 3),
+                     r_C=round(float(np.corrcoef(C[:, L], oC[:, L])[0, 1]), 3),
+                     rmse_E=round(rmse(eE), 3), rmse_C=round(rmse(eC), 3))
+            if L > 0:
+                d["persist_r_C"] = round(float(np.corrcoef(e1C, eC)[0, 1]), 3)
+                d["persist_r_E"] = round(float(np.corrcoef(e1E, eE)[0, 1]), 3)
+                d["persist_slope_C"] = round(float(np.polyfit(e1C, eC, 1)[0]), 3)
+                d["persist_slope_E"] = round(float(np.polyfit(e1E, eE, 1)[0]), 3)
+                d["fm_rmse_E"] = round(rmse(eE - e1E), 3)                 # model_L + first-month error
+                d["fm_rmse_C"] = round(rmse(eC - e1C), 3)
+            row["lead"][L + 1] = d
+        for s in SEASONS:
+            sE, sC = m["sE"][s][ix], m["sC"][s][ix]
+            eE, eC = soE[s] - sE, soC[s] - sC
+            B, oB = sE - sC, soE[s] - soC[s]
+            fmB = (sE + e1E) - (sC + e1C)
+            # LOYO regressions: observed on the model's own (E, C); and on (E, C, first-month error)
+            pE = _loyo_fit_predict(np.column_stack([sE, sC]), soE[s])
+            pC = _loyo_fit_predict(np.column_stack([sE, sC]), soC[s])
+            qE = _loyo_fit_predict(np.column_stack([sE, sC, e1E, e1C]), soE[s])
+            qC = _loyo_fit_predict(np.column_stack([sE, sC, e1E, e1C]), soC[s])
+            row["season"][s] = dict(
+                rmse_E=round(rmse(eE), 3), rmse_C=round(rmse(eC), 3), rmse_B=round(rmse(oB - B), 3),
+                fm_rmse_E=round(rmse(eE - e1E), 3), fm_rmse_C=round(rmse(eC - e1C), 3), fm_rmse_B=round(rmse(oB - fmB), 3),
+                reg_rmse_E=round(rmse(soE[s] - pE), 3), reg_rmse_C=round(rmse(soC[s] - pC), 3),
+                reg_rmse_B=round(rmse(oB - (pE - pC)), 3),
+                regfm_rmse_E=round(rmse(soE[s] - qE), 3), regfm_rmse_C=round(rmse(soC[s] - qC), 3),
+                regfm_rmse_B=round(rmse(oB - (qE - qC)), 3),
+                r_B=round(float(np.corrcoef(B, oB)[0, 1]), 3),
+                persist_r_C=round(float(np.corrcoef(e1C, eC)[0, 1]), 3),
+                persist_r_E=round(float(np.corrcoef(e1E, eE)[0, 1]), 3),
+                sq_raw_B=((oB - B) ** 2).tolist(), sq_fm_B=((oB - fmB) ** 2).tolist(),
+                sq_reg_B=((oB - (pE - pC)) ** 2).tolist())
+        keep[label] = dict(e1E=e1E, e1C=e1C, sE={q: m["sE"][q][ix] for q in SEASONS}, sC={q: m["sC"][q][ix] for q in SEASONS},
+                           eE=oE - E, eC=oC - C)
+        row["first_month_err"] = {str(y): dict(E=round(float(e1E[i]), 2), C=round(float(e1C[i]), 2)) for i, y in enumerate(years)}
+        row["by_year_season"] = {s: {str(y): dict(E=round(float(m["sE"][s][ix][i]), 2), C=round(float(m["sC"][s][ix][i]), 2))
+                                     for i, y in enumerate(years)} for s in SEASONS}
+        out["models"][label] = row
+    # the DAMPED first-month correction: model + beta * first-month error, with beta for E and for C
+    # fitted through the origin on all models pooled, leaving the verified year out (LOYO)
+    damp = {}
+    for s in SEASONS:
+        betas = {"E": [], "C": []}
+        sq = {k: np.zeros(len(years)) for k in keep}
+        for i in range(len(years)):
+            k_ = np.arange(len(years)) != i
+            bE = _beta(np.concatenate([keep[k]["e1E"][k_] for k in keep]),
+                       np.concatenate([(soE[s] - keep[k]["sE"][s])[k_] for k in keep]))
+            bC = _beta(np.concatenate([keep[k]["e1C"][k_] for k in keep]),
+                       np.concatenate([(soC[s] - keep[k]["sC"][s])[k_] for k in keep]))
+            betas["E"].append(bE); betas["C"].append(bC)
+            for k in keep:
+                cE = keep[k]["sE"][s][i] + bE * keep[k]["e1E"][i]
+                cC = keep[k]["sC"][s][i] + bC * keep[k]["e1C"][i]
+                sq[k][i] = ((soE[s][i] - soC[s][i]) - (cE - cC)) ** 2
+        allE = np.concatenate([keep[k]["e1E"] for k in keep])
+        allC = np.concatenate([keep[k]["e1C"] for k in keep])
+        damp[s] = dict(beta_E=round(_beta(allE, np.concatenate([soE[s] - keep[k]["sE"][s] for k in keep])), 3),
+                       beta_C=round(_beta(allC, np.concatenate([soC[s] - keep[k]["sC"][s] for k in keep])), 3),
+                       beta_E_loyo_range=[round(min(betas["E"]), 3), round(max(betas["E"]), 3)],
+                       beta_C_loyo_range=[round(min(betas["C"]), 3), round(max(betas["C"]), 3)],
+                       sq=np.mean([sq[k] for k in keep], 0))
+    out["damped"] = {s: {q: v for q, v in d.items() if q != "sq"} for s, d in damp.items()}
+    # the same pooled persistence by monthly lead, for the month-by-month strips
+    allE = np.concatenate([keep[k]["e1E"] for k in keep]); allC = np.concatenate([keep[k]["e1C"] for k in keep])
+    out["damped_lead"] = {str(L + 1): dict(beta_E=round(_beta(allE, np.concatenate([keep[k]["eE"][:, L] for k in keep])), 3),
+                                          beta_C=round(_beta(allC, np.concatenate([keep[k]["eC"][:, L] for k in keep])), 3))
+                          for L in range(len(LEADS))}
+    # multi-model: each model's error treated as one sample; paired tests of squared E − C errors
+    # (raw against first-month-corrected, raw against the LOYO regression), years x models pooled
+    # by averaging over models first so each YEAR is one sample (Wilcoxon signed-rank)
+    out["multi_model"] = {}
+    labs = list(out["models"])
+    for s in SEASONS:
+        raw = np.mean([out["models"][k]["season"][s]["sq_raw_B"] for k in labs], 0)
+        fm = np.mean([out["models"][k]["season"][s]["sq_fm_B"] for k in labs], 0)
+        reg = np.mean([out["models"][k]["season"][s]["sq_reg_B"] for k in labs], 0)
+        dmp = damp[s]["sq"]
+        w_fm = stats.wilcoxon(raw, fm)
+        w_reg = stats.wilcoxon(raw, reg)
+        w_dmp = stats.wilcoxon(raw, dmp)
+        out["multi_model"][s] = dict(rmse_B_raw=round(float(np.sqrt(raw.mean())), 3),
+                                     rmse_B_fm=round(float(np.sqrt(fm.mean())), 3),
+                                     rmse_B_reg=round(float(np.sqrt(reg.mean())), 3),
+                                     p_fm=float(f"{w_fm.pvalue:.2g}"), p_reg=float(f"{w_reg.pvalue:.2g}"),
+                                     rmse_B_damped=round(float(np.sqrt(dmp.mean())), 3), p_damped=float(f"{w_dmp.pvalue:.2g}"),
+                                     fm_better_years=int((fm < raw).sum()), reg_better_years=int((reg < raw).sum()),
+                                     damped_better_years=int((dmp < raw).sum()), n_years=len(years))
+    for k in labs:
+        for s in SEASONS:
+            for q in ("sq_raw_B", "sq_fm_B", "sq_reg_B"):
+                out["models"][k]["season"][s].pop(q)
+    # state dependence: is the models' C error (multi-model mean) larger when the ocean is east-based?
+    # Pearson r across years between that error and the observed E − C, lead 1 and each season
+    e1C_mm = np.mean([keep[k]["e1C"] for k in keep], 0)
+    oB1 = oE[:, 0] - oC[:, 0]
+    r1 = stats.pearsonr(e1C_mm, oB1)
+    out["state_dependence"] = {"lead1": dict(r=round(float(r1.statistic), 3), p=float(f"{r1.pvalue:.2g}"))}
+    for s in SEASONS:
+        eC_mm = np.mean([soC[s] - keep[k]["sC"][s] for k in keep], 0)
+        rs = stats.pearsonr(eC_mm, soE[s] - soC[s])
+        out["state_dependence"][s] = dict(r=round(float(rs.statistic), 3), p=float(f"{rs.pvalue:.2g}"))
+    out["first_month_err_mm"] = {str(y): dict(E=round(float(np.mean([keep[k]["e1E"][i] for k in keep])), 2),
+                                             C=round(float(e1C_mm[i]), 2)) for i, y in enumerate(years)}
+    out["observed"] = {s: {str(y): dict(E=round(float(soE[s][i]), 2), C=round(float(soC[s][i]), 2)) for i, y in enumerate(years)}
+                       for s in SEASONS}
+    out["observed_first_month"] = {str(y): dict(E=round(float(oE[i, 0]), 2), C=round(float(oC[i, 0]), 2)) for i, y in enumerate(years)}
+    return out
+
+
+HC_REF = HERE / "reference"
+
+
+def hindcast_ref_path(month: int) -> Path:
+    return HC_REF / f"enso_flavour_hindcast_{month:02d}.json"
+
+
+def hindcast_block(hc: dict, peak: str | None) -> dict:
+    """What the page needs from the hindcast test, and which view leads.
+
+    The rule was fixed before looking at the September numbers: the first-month-corrected view (the
+    first-month error weighted by its pooled, leave-one-year-out persistence) leads only if, in the
+    1993–2016 hindcasts, it lowers the multi-model error in E − C at the season of the forecast peak
+    with p < 0.05 (Wilcoxon signed-rank over years) and does not raise it in any of the four seasons.
+    The regression calibration is reported but leads only on the same terms."""
+    mm, dmp = hc["multi_model"], hc["damped"]
+    labs = list(hc["models"])
+    pers = {L: dict(r_C=round(float(np.mean([hc["models"][k]["lead"][L]["persist_r_C"] for k in labs])), 2),
+                    r_E=round(float(np.mean([hc["models"][k]["lead"][L]["persist_r_E"] for k in labs])), 2))
+            for L in list(hc["models"][labs[0]]["lead"])[1:]}
+    ok_peak = bool(peak and mm[peak]["p_damped"] < 0.05 and mm[peak]["rmse_B_damped"] < mm[peak]["rmse_B_raw"])
+    no_worse = all(mm[s]["rmse_B_damped"] <= mm[s]["rmse_B_raw"] for s in mm)
+    reg_ok = bool(peak and mm[peak]["p_reg"] < 0.05 and mm[peak]["rmse_B_reg"] < mm[peak]["rmse_B_raw"]
+                  and all(mm[s]["rmse_B_reg"] <= mm[s]["rmse_B_raw"] for s in mm))
+    headline = "fm" if (ok_peak and no_worse) else "raw"
+    y97 = {}
+    if "1997" in hc["observed"]["OND"]:
+        for s in ("OND", "DJF"):
+            y97[s] = dict(obs=hc["observed"][s]["1997"],
+                          models=dict(E=round(float(np.mean([hc["models"][k]["by_year_season"][s]["1997"]["E"] for k in labs])), 2),
+                                      C=round(float(np.mean([hc["models"][k]["by_year_season"][s]["1997"]["C"] for k in labs])), 2)))
+        y97["first_month"] = dict(E=round(float(np.mean([hc["models"][k]["first_month_err"]["1997"]["E"] for k in labs])), 2),
+                                  C=round(float(np.mean([hc["models"][k]["first_month_err"]["1997"]["C"] for k in labs])), 2))
+    fmt_p = lambda v: "< 0.001" if v < 0.001 else f"= {v:.2g}"                      # noqa: E731
+    sp = peak or "OND"
+    txt = (f"Tested on the models' own September hindcasts, {hc['years'][0]}–{hc['years'][-1]} ({len(hc['years'])} years, "
+           f"{len(labs)} systems): a model's first-month error in C carries forward almost fully for three months "
+           f"(pooled persistence {dmp['OND']['beta_C']:.2f} in Oct–Dec, {dmp['DJF']['beta_C']:.2f} in Dec–Feb), its error in E "
+           f"less so ({dmp['OND']['beta_E']:.2f}, {dmp['DJF']['beta_E']:.2f}); the correction here applies those weights. "
+           f"Out of sample it changes the multi-model error in E − C in {SEASON_WORDS[sp]} from {mm[sp]['rmse_B_raw']:.2f} to "
+           f"{mm[sp]['rmse_B_damped']:.2f} (Wilcoxon over years, p {fmt_p(mm[sp]['p_damped'])})"
+           + ("." if headline == "fm" else ", which is not enough to make it the headline.")
+           + ("" if reg_ok else f" A regression calibration of E and C on the hindcasts does not beat the forecast as issued "
+                                f"({mm[sp]['rmse_B_reg']:.2f} in {SEASON_WORDS[sp]})."))
+    return dict(start_month=hc["month"], years=[hc["years"][0], hc["years"][-1]], n_years=len(hc["years"]), models=labs,
+                multi_model=mm, damped=dmp, damped_lead=hc["damped_lead"], persistence=pers, year_1997=y97,
+                peak_season=peak, headline=headline, regression_ok=reg_ok, text=txt,
+                rule="first-month-corrected leads only if, in the hindcasts, it lowers the multi-model E − C error at the "
+                     "peak season with p < 0.05 (Wilcoxon over years) and raises it in no season")
+
+
+SEASON_WORDS = {"SON": "Sep–Nov", "OND": "Oct–Dec", "NDJ": "Nov–Jan", "DJF": "Dec–Feb"}
+
+
+def peak_season(fc_json: Path) -> str | None:
+    """Season of the multi-model-mean ONI peak (the plume's own members)."""
+    if not fc_json.exists():
+        return None
+    F_ = json.loads(fc_json.read_text())
+    labs = list(F_["models"])
+    mm = np.mean([[np.mean(x) for x in F_["models"][k]["n34"]] for k in labs], 0)
+    vm = F_["valid_months"]
+    best, bs = -99, None
+    for L in range(1, len(vm) - 1):
+        v = mm[L - 1:L + 2].mean()
+        m = int(vm[L][5:7])
+        code = {10: "SON", 11: "OND", 12: "NDJ", 1: "DJF"}.get(m)
+        if code and v > best:
+            best, bs = v, code
+    return bs
+
+
 # ─────────────────────────────────────────────────────────────────────────── summary
 EAST_MARGIN = 1.0      # E − C ≥ 1 σ: east-based; ≤ −1 σ: central; between: basin-wide
 
@@ -533,6 +902,7 @@ NAMED = {1957, 1965, 1972, 1982, 1986, 1987, 1991, 1994, 1997, 2002, 2004, 2006,
 def build(issue: str, prev_issue: str | None) -> dict:
     obs = load_obs()
     eof = fit_eofs(obs)
+    save_eof_reference(obs, eof)
     print(f"EOFs {TRAIN[0]}–{TRAIN[1]} (ERSSTv6, fixed {BASE[0]}–{BASE[1]} base): variance "
           f"{eof['var'][0]:.1%} / {eof['var'][1]:.1%}", flush=True)
     mon = obs_indices(obs, eof)
@@ -554,6 +924,19 @@ def build(issue: str, prev_issue: str | None) -> dict:
                     chk[k] = round(float(np.max(np.abs(a_ - b_))), 3)
             print("  Niño-3.4 vs the plume's own (max |Δ| of the model mean over 6 leads): " +
                   ", ".join(f"{k} {v:.3f}" for k, v in chk.items()), flush=True)
+
+    hc_doc = None
+    month = int(issue[4:6])
+    if all(hindcast_path(c, s_, month).exists() for c, s_, _l, _c in MODELS):
+        hc = hindcast_test(month, obs, eof, mon, seas)
+        if hc:
+            hindcast_ref_path(month).write_text(json.dumps(_clean(hc), separators=(",", ":"), ensure_ascii=False))
+            hc_doc = hindcast_block(_clean(hc), peak_season(FC_JSON))
+            print(f"  hindcast test ({len(hc['models'])} systems): headline {hc_doc['headline']}; "
+                  + "; ".join(f"{s} E−C rmse raw {v['rmse_B_raw']:.2f} damped {v['rmse_B_damped']:.2f} (p {v['p_damped']})"
+                              for s, v in hc["multi_model"].items()), flush=True)
+    else:
+        print(f"  hindcast strips for start month {month:02d} incomplete: run --fetch-hindcast", flush=True)
 
     per_season = {}
     for s in SEASONS:
@@ -578,7 +961,9 @@ def build(issue: str, prev_issue: str | None) -> dict:
     models = {}
     for k, (r, colour) in res.items():
         # per member: what the page draws (the box indices go into the summary as model means)
-        models[k] = {"color": colour, "n": int(r["n"]),
+        lm = {q: [r2(np.nanmean(r["lead"][q][:, L])) for L in range(len(LEADS))] for q in ("E", "C", "n12", "n3", "n34", "n4")}
+        lm["lon"] = [r0(np.nanmedian(r["lead"]["lon"][:, L])) for L in range(len(LEADS))]
+        models[k] = {"color": colour, "n": int(r["n"]), "lead_means": lm,
                      "lead": {q: [[r2(v) if q != "lon" else r0(v) for v in r["lead"][q][:, L]]
                                   for L in range(len(LEADS))] for q in ("E", "C", "lon")},
                      "season": {s: {q: [r2(v) if q != "lon" else r0(v) for v in r["season"][s][q]]
@@ -671,6 +1056,7 @@ def build(issue: str, prev_issue: str | None) -> dict:
         },
         "events": events,
         "profiles": profiles,
+        "hindcast": hc_doc,
         "summary": summaries,
         "previous": prev,
         "models": models,
@@ -722,9 +1108,15 @@ def main() -> int:
     ap.add_argument("--issue", help="YYYYMM (default: the plume's issue in enso_forecast.json)")
     ap.add_argument("--prev", help="YYYYMM of the issue to compare against (default: the month before)")
     ap.add_argument("--fetch-only", action="store_true")
+    ap.add_argument("--fetch-hindcast", action="store_true",
+                    help="fetch the 1993–2016 hindcast strips for the issue's start month, one system at a time")
     ap.add_argument("--out", default=str(OUT))
     a = ap.parse_args()
     issue = a.issue or json.loads(FC_JSON.read_text())["issue"].replace("-", "")
+    if a.fetch_hindcast:
+        got = [fetch_hindcast(c, s, int(issue[4:6])) for c, s, _l, _c in MODELS]
+        print(f"{sum(g is not None for g in got)}/{len(MODELS)} hindcast strips cached for start month {issue[4:6]}")
+        return 0 if all(got) else 1
     if a.fetch_only:
         got = fetch_all(issue)
         print(f"{len(got)}/{len(MODELS)} systems cached for {issue}")

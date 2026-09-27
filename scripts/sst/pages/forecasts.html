@@ -79,7 +79,9 @@
   .ef-stack { display: grid; gap: 1rem; align-content: start; }
   .ef-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .ef-ns { font-size: 0.82rem; color: var(--muted); margin-left: 0.3rem; }
-  .ef-tablewrap { overflow-x: auto; margin: 1rem 0 0; }
+  .ef-tablewrap { overflow-x: auto; margin: 0.6rem 0 0; }
+  .ef-h3gap { margin-top: 1.6rem; }
+  .ef-models td.neg { color: #4a3c75; } .ef-models td.pos { color: #8f3f14; }
   .ef-models { border-collapse: collapse; font-size: 0.95rem; font-variant-numeric: tabular-nums; min-width: 560px; width: 100%; }
   .ef-models th, .ef-models td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
   .ef-models thead th { color: var(--ink2); font-weight: 600; border-bottom: 1.5px solid var(--edge); }
@@ -199,7 +201,16 @@
             <button type="button" data-set="season" data-v="DJF" aria-pressed="true">Dec&ndash;Feb</button>
           </div>
         </div>
+        <div class="ef-seg" role="group" aria-label="Model output" id="viewSeg" hidden>
+          <span>Models</span>
+          <div class="grp" id="viewGrp">
+            <button type="button" data-set="view" data-v="raw" aria-pressed="true">As issued</button>
+            <button type="button" data-set="view" data-v="fm" aria-pressed="false">First-month-corrected</button>
+            <button type="button" data-set="view" data-v="cal" aria-pressed="false" hidden>Hindcast-calibrated</button>
+          </div>
+        </div>
       </div>
+      <p class="ef-cap" id="view-cap" hidden></p>
       <div class="ef-grid2">
         <figure class="ef-panel">
           <h3>This forecast among past El Ni&ntilde;os</h3>
@@ -218,6 +229,13 @@
         </div>
       </div>
       <p class="ef-cap" id="lead-cap"></p>
+      <div id="fm-block" hidden>
+        <h3 class="ef-h3gap" id="fm-title">First month: each model against the ocean so far</h3>
+        <p class="ef-intro" id="fm-lead"></p>
+        <div class="ef-tablewrap"><table class="ef-models" id="fm-table"></table></div>
+        <p class="ef-cap" id="fm-cap"></p>
+      </div>
+      <h3 class="ef-h3gap">Each model, season average</h3>
       <div class="ef-tablewrap">
         <table class="ef-models" id="ef-models"></table>
       </div>
@@ -315,6 +333,24 @@
       members fall in the class; and all models but at most one have their average in it. A significant lean that
       misses the other two tests is reported as a lean, and anything else as a split. How well the models forecast the
       east&ndash;central balance has not been verified here.</p>
+      <h3>The first month, and the hindcast test</h3>
+      <p>Every C3S forecast starts from the ocean on the first of its issue month, so its first month can be checked
+      against the ocean while the month is still running. Each day, NOAA OISST daily anomalies (1991&ndash;2020 base)
+      are averaged into the same 2&deg; cells, projected on the same two patterns, and compared with each model&rsquo;s
+      forecast for that month. The observed track on the charts switches from ERSSTv6 to OISST after ERSST&rsquo;s last
+      settled month, because ERSST&rsquo;s newest month is provisional; over 1982&ndash;2025 the two agree closely in
+      E and C (correlation 0.985 and 0.982, mean difference under 0.01), although in mid-2026 OISST reads the coastal
+      warming about 0.4&ndash;0.5 higher in E than ERSST&rsquo;s provisional months.</p>
+      <p><b>First-month-corrected</b> shifts each model&rsquo;s members in E and C by that model&rsquo;s first-month
+      error. Whether that error persists was tested on each model&rsquo;s own hindcasts for the same start month
+      (1993&ndash;2016, raw sea-surface temperature, anomalies against the hindcast mean exactly as C3S takes them for the
+      forecast), verified against ERSSTv6: the correction is weighted by how much of the first-month error carried
+      forward, pooled over the models and fitted with each verified year left out. <span id="m-hindcast">The hindcast
+      test has not been run for this start month yet.</span></p>
+      <p>Which view leads was fixed before the numbers were seen: the corrected view leads only if, in the hindcasts,
+      it lowers the multi-model error in E minus C at the season of the forecast peak (Wilcoxon signed-rank test over
+      years, p &lt; 0.05) and raises it in no season. A linear regression of the observed E and C on each model&rsquo;s
+      E and C, lead by lead and cross-validated the same way, was tested on the same terms.</p>
       <p><b>Caveat.</b> On the fixed base, the western Pacific&rsquo;s faster warming puts a slow upward drift into C
       (<span id="m-trendC">+0.16</span> standard deviations per decade since 1950) and very little into E
       (<span id="m-trendE">+0.03</span>), so events from the 1950s to 1970s sit a little lower on C than they would
@@ -355,7 +391,7 @@
   var REF_EVENTS = [["1997–98", "#6a3d9a"], ["2015–16", "#1f77b4"], ["2009–10", "#2e8b57"]];
 
   var state = { idx: "n34", smooth: true, members: false, evoIdx: "n34", evoSmooth: true,
-                evoSpread: true, histIdx: "oni", season: "DJF" };
+                evoSpread: true, histIdx: "oni", season: "DJF", view: "raw" };
   var D = {};
 
   // ── small helpers ─────────────────────────────────────────────────────────
@@ -607,10 +643,9 @@
     var facts = [];
     facts.push({ k: "Peak", v: "<b>" + seasonWords(pk.ym) + "</b> on the average of all models: " + sgn(pk.v, 1) +
                  " °C on the ONI and " + sgn(pr.v, 1) + " °C on RONI" + (pr.ym !== pk.ym ? " (RONI peaks in " + seasonWords(pr.ym) + ")" : ""), cls: "warm" });
-    var fl = D.fl && D.fl.issue === F.issue ? D.fl : null;
-    if (fl && fl.summary && fl.summary[state.season]) {
-      var S = fl.summary[state.season];
-      facts.push({ k: "Where the warmth sits (" + SEASON_SHORT[state.season] + ")", v: flavourShort(S), cls: "warm" });
+    if (flOK() && summaryFor(state.season)) {
+      facts.push({ k: "Where the warmth sits (" + SEASON_SHORT[state.season] + (state.view === "raw" ? "" : ", " + viewName(state.view)) + ")",
+                   v: flavourShort(summaryFor(state.season)) + (fmOK() ? ". " + driftText() : ""), cls: "warm" });
     }
     var ch = changeSinceLast(pk.ym);
     if (ch) facts.push({ k: "Since the " + monthLong(ch.prevIssue) + " issue", v: ch.text });
@@ -694,9 +729,15 @@
       if (pr) tr.push({ x: lon, y: pr, type: "scatter", mode: "lines", name: e[0] + " (observed)",
                         line: { color: e[1], width: 2, dash: "dash" }, hovertemplate: e[0] + " %{y:+.1f} °C<extra></extra>" });
     });
-    var om = Object.keys(P.obs).sort(), last = om[om.length - 1];
-    if (last) tr.push({ x: lon, y: P.obs[last], type: "scatter", mode: "lines", name: monLabel(last) + " observed" + (isProvMonth(last) ? " (provisional)" : ""),
-                        line: { color: INK, width: 1.6, dash: "dot" }, hovertemplate: monLabel(last) + " %{y:+.1f} °C<extra></extra>" });
+    var ol = floOK() ? D.flo.months.filter(function (o) { return o.days >= 10 && o.prof; }).pop() : null;
+    if (ol) {
+      tr.push({ x: lon, y: ol.prof, type: "scatter", mode: "lines", name: monLabel(ol.month) + (ol.complete ? "" : " so far") + " observed (OISST" + (ol.complete ? "" : ", " + ol.days + " days") + ")",
+                line: { color: INK, width: 1.8, dash: "dot" }, hovertemplate: monLabel(ol.month) + " %{y:+.1f} °C<extra></extra>" });
+    } else {
+      var om = Object.keys(P.obs).sort(), last = om[om.length - 1];
+      if (last) tr.push({ x: lon, y: P.obs[last], type: "scatter", mode: "lines", name: monLabel(last) + " observed" + (isProvMonth(last) ? " (provisional)" : ""),
+                          line: { color: INK, width: 1.6, dash: "dot" }, hovertemplate: monLabel(last) + " %{y:+.1f} °C<extra></extra>" });
+    }
     tr.push({ x: lon, y: fc.mmm, type: "scatter", mode: "lines", name: "Forecast, " + SEASON_SHORT[s] + ", all models",
               line: { color: ACCENT, width: 4 }, hovertemplate: "forecast %{y:+.1f} °C<extra></extra>" });
     var ymax = Math.max.apply(null, fc.p90.filter(fin).concat([1]));
@@ -721,7 +762,7 @@
     Plotly.react("eqChart", tr, lay, CONFIG);
     el("ef-eq-title").textContent = "Where along the equator the warm water sits, " + SEASON_NAME[s];
     el("ef-eq-cap").innerHTML = "Sea-surface temperature anomaly averaged over 2°S–2°N, from the western Pacific (left) to the coast of South America (right). " +
-      "The sienna line is the average of all models for " + SEASON_NAME[s] + "; dashed lines are the same season in three past El Niños (NOAA ERSSTv6). " +
+      "The sienna line is the average of all models for " + SEASON_NAME[s] + ", as issued; dashed lines are the same season in three past El Niños (NOAA ERSSTv6), and the dotted black line the ocean now. " +
       "All on the 1991–2020 base.";
   }
   function isProvMonth(m) {
@@ -811,21 +852,86 @@
 
   // ── 2. east or central ────────────────────────────────────────────────────
   function flOK() { return D.fl && D.fl.issue === D.fc.issue && D.fl.summary; }
+  // OISST, refreshed daily in Actions: the observed months after ERSST's provisional one, and the month so far
+  function floOK() { return !!(D.flo && D.flo.months && D.flo.months.length); }
+  function fmOK() { return floOK() && flOK() && D.flo.corrected && D.flo.issue === D.fc.issue && D.flo.first_month; }
+  function calOK() { return flOK() && D.fl.calibrated && D.fl.calibrated.summary; }
+  function viewOK(v) { return v === "raw" || (v === "fm" && fmOK()) || (v === "cal" && calOK()); }
+  var ZERO = { E: 0, C: 0 };
+  function offsetSeason(m, s) {         // shift applied to a model's season members in the current view
+    if (state.view !== "fm" || !fmOK()) return ZERO;
+    var o = D.flo.corrected.offsets; return (o.season && o.season[m] && o.season[m][s]) || ZERO;
+  }
+  function offsetLead(m, L) {
+    if (state.view !== "fm" || !fmOK()) return ZERO;
+    var o = D.flo.corrected.offsets; return (o.lead && o.lead[m] && o.lead[m][L]) || ZERO;
+  }
+  function fmWeighted() { return fmOK() && D.flo.corrected.offsets && D.flo.corrected.offsets.method === "hindcast-weighted"; }
+  function membersOf(m, s) {            // season members in the current view
+    var d = D.fl.models[m].season[s]; if (!d) return null;
+    if (state.view === "cal" && calOK() && D.fl.calibrated.models[m] && D.fl.calibrated.models[m][s]) return D.fl.calibrated.models[m][s];
+    var o = offsetSeason(m, s);
+    return { E: d.E.map(function (v) { return fin(v) ? v + o.E : v; }), C: d.C.map(function (v) { return fin(v) ? v + o.C : v; }) };
+  }
+  function summaryFor(s) {
+    if (state.view === "fm" && fmOK()) return D.flo.corrected.summary[s];
+    if (state.view === "cal" && calOK()) return D.fl.calibrated.summary[s];
+    return D.fl.summary[s];
+  }
+  function viewName(v) { return v === "fm" ? "first-month-corrected" : v === "cal" ? "hindcast-calibrated" : "as issued"; }
+  // The observed track: ERSSTv6 up to its last settled month, then OISST (dataset switch marked)
+  function obsTrack() {
+    var fl = D.fl, pa = floOK() ? fl.obs.provisional_after : null, out = [];
+    fl.obs.months.forEach(function (m, i) {
+      if (!pa || m <= pa) out.push({ m: m, E: fl.obs.E[i], C: fl.obs.C[i], lon: fl.obs.lon[i], src: "ERSST", prov: isProvMonth(m) });
+    });
+    if (floOK()) D.flo.months.forEach(function (o) {
+      if (pa && o.month > pa) out.push({ m: o.month, E: o.E, C: o.C, lon: o.lon, src: "OISST", partial: !o.complete,
+                                         days: o.days, prelim: o.preliminary_days });
+    });
+    return out;
+  }
+  function obsLabel(p) {
+    return p.partial ? monLabel(p.m) + " so far (" + p.days + " days, preliminary)" : monLabel(p.m) + (p.prov ? " (provisional)" : "");
+  }
   function drawFlavour() {
     if (!flOK()) {
       el("flavour-empty").hidden = false; el("flavour-body").hidden = true; return;
     }
     el("flavour-empty").hidden = true; el("flavour-body").hidden = false;
-    var fl = D.fl, s = state.season, S = fl.summary[s];
+    var fl = D.fl, s = state.season;
+    if (!viewOK(state.view)) state.view = "raw";
+    el("viewSeg").hidden = !(fmOK() || calOK());
+    document.querySelectorAll("#viewGrp button").forEach(function (b) {
+      b.hidden = !viewOK(b.dataset.v);
+      b.setAttribute("aria-pressed", b.dataset.v === state.view ? "true" : "false");
+    });
     document.querySelectorAll("#seasonGrp button").forEach(function (b) {
       var ok = !!fl.summary[b.dataset.v]; b.hidden = !ok;
     });
+    var S = summaryFor(s);
     if (!S) return;
     drawVerdict(S, s);
     drawEC(s, S);
     drawLead("E"); drawLead("lon");
+    drawFirstMonth();
     drawModelTable(S, s);
-    el("flavour-updated").textContent = "Issued " + monthLong(D.fc.issue) + ", built " + fl.generated;
+    el("flavour-updated").textContent = "Issued " + monthLong(D.fc.issue) + ", built " + fl.generated +
+      (floOK() ? "; observations to " + D.flo.months[D.flo.months.length - 1].last : "");
+  }
+  function driftText() {           // one plain sentence on the first-month error, from the OISST check
+    if (!fmOK()) return null;
+    var F1 = D.flo.first_month, ks = Object.keys(F1.models);
+    var dC = ks.map(function (k) { return F1.models[k].dC; }), dE = ks.map(function (k) { return F1.models[k].dE; });
+    var nCentral = dC.filter(function (v) { return v < 0; }).length, nLowE = dE.filter(function (v) { return v > 0; }).length;
+    var lo = Math.min.apply(null, dC.map(function (v) { return -v; })), hi = Math.max.apply(null, dC.map(function (v) { return -v; }));
+    var when = monthLong(F1.month) + (F1.complete ? "" : " so far, " + F1.days + " days");
+    if (nCentral === ks.length) {
+      return "In their first month (" + when + ") all " + ks.length + " models are already more central than the ocean: their C is " +
+        lo.toFixed(1) + " to " + hi.toFixed(1) + " higher than observed, and " + (nLowE === ks.length ? "all " : nLowE + " of them ") +
+        "have E lower than observed.";
+    }
+    return "In their first month (" + when + ") " + nCentral + " of " + ks.length + " models are more central than the ocean (C higher than observed).";
   }
   function drawVerdict(S, s) {
     var v = S.verdict, cls = S.klass, box = el("ef-verdict");
@@ -834,15 +940,16 @@
     var an = S.analogues.map(function (a) { return a.label; });
     var ref = refCentres(s), big, detail = [];
     var pTxt = "p " + (S.ttest.p < 0.001 ? "< 0.001" : "= " + S.ttest.p);
+    var vtag = state.view === "raw" ? "" : " (" + viewName(state.view) + ")";
     if (v === cls) {
-      big = cap(CLS_WORD[cls]) + " in " + SEASON_NAME[s] + ": " + share(cls) + " of members put the warming in the " +
+      big = cap(CLS_WORD[cls]) + " in " + SEASON_NAME[s] + vtag + ": " + share(cls) + " of members put the warming in the " +
             (cls === "east" ? "eastern Pacific" : cls === "central" ? "central Pacific" : "whole basin") +
             (cls === "east" ? ", like 1997–98." : cls === "central" ? ", like 2009–10." : ", like 2015–16.");
       detail.push(S.n_models_in_class + " of " + S.models + " models agree on average (E minus C: " + sgn(S.spread_E_minus_C.min, 1) +
                   " to " + sgn(S.spread_E_minus_C.max, 1) + " across models; t-test across models, " + pTxt + ").");
     } else if (v.indexOf("lean-") === 0) {
       var c = v.slice(5);
-      big = "Leaning " + CLS_WORD[c] + " in " + SEASON_NAME[s] + ", but not decisively.";
+      big = "Leaning " + CLS_WORD[c] + " in " + SEASON_NAME[s] + vtag + ", but not decisively.";
       detail.push("The models agree the warming is weighted " + (c === "east" ? "east" : "toward the central Pacific") +
                   " (t-test across models, " + pTxt + "), but only " + share(c) + " of members clear the " + CLS_WORD[c] +
                   " line and " + S.n_models_in_class + " of " + S.models + " models average there.");
@@ -854,21 +961,59 @@
         return n + " " + (n === 1 ? "model averages " : "models average ") + CLS_WORD[c] + (n <= 2 && byCls[c].length < S.models / 2 ? " (" + byCls[c].join(", ") + ")" : "");
       });
       var maj = cls !== "basin" && S.frac[cls] >= 0.5;
-      big = maj ? "Most members are " + CLS_WORD[cls] + " in " + SEASON_NAME[s] + ", but the models are divided, so this is not a settled call."
-                : "The models disagree on east versus central for " + SEASON_NAME[s] + ".";
+      big = maj ? "Most members are " + CLS_WORD[cls] + " in " + SEASON_NAME[s] + vtag + ", but the models are divided, so this is not a settled call."
+                : "The models disagree on east versus central for " + SEASON_NAME[s] + vtag + ".";
       detail.push(cap(parts.join(", ")) + ". Members: " + share("east") + " east-based, " + share("basin") + " basin-wide, " +
                   share("central") + " central (each model weighted equally). Across models E minus C runs from " + sgn(S.spread_E_minus_C.min, 1) + " to " +
                   sgn(S.spread_E_minus_C.max, 1) + "; the average lean is not statistically significant (t-test against zero, " + pTxt +
                   "), so this page names no class.");
     }
-    detail.push("Multi-model average: E " + sgn(S.mmm.E, 1) + ", C " + sgn(S.mmm.C, 1) + "; warming centred near " + lonLab(S.mmm.lon) +
-                " (" + Math.round(100 * S.frac_lon_east_of_120w) + "% of members east of 120°W)" +
-                (ref.length ? ", against " + ref.map(function (r) { return lonLab(r[1]) + " in " + r[0]; }).join(", ") : "") + ".");
-    var o = D.fl.obs, lm = o.months[o.months.length - 1], li = o.months.length - 1;
-    detail.push("Observed in " + monthLong(lm) + (isProvMonth(lm) ? " (provisional)" : "") + ": E " + sgn(o.E[li], 1) + ", C " + sgn(o.C[li], 1) +
-                ", centred near " + lonLab(o.lon[li]) + " (" + CLS_WORD[classOf(o.E[li], o.C[li])] + ", monthly).");
+    // the first-month drift, and what the other view says
+    var drift = driftText();
+    if (drift) {
+      var other = null;
+      if (state.view === "raw" && fmOK()) other = D.flo.corrected.summary[s];
+      if (state.view !== "raw") other = D.fl.summary[s];
+      var otherTxt = "";
+      if (other) {
+        otherTxt = state.view === "raw"
+          ? (fmWeighted() ? " Carrying each model&rsquo;s first-month error forward, weighted by how much of it persisted in the hindcasts, puts "
+                          : " Holding each model&rsquo;s first-month error constant at every lead puts ") + Math.round(100 * other.frac.east) + "% of members in the east-based class" +
+            (other.verdict === other.klass ? " (a significant call, t-test p " + (other.ttest.p < 0.001 ? "< 0.001" : "= " + other.ttest.p) + ")" : "") +
+            (fmWeighted() ? "; in the hindcasts, " + hindcastPhrase(s) + "." : "; that assumes the error persists, which " + hindcastPhrase(s) + ".")
+          : " The forecast as issued has " + Math.round(100 * other.frac.east) + "% of members east-based.";
+      }
+      detail.push("<b>" + drift + "</b>" + otherTxt);
+    }
+    detail.push("Multi-model average: E " + sgn(S.mmm.E, 1) + ", C " + sgn(S.mmm.C, 1) +
+                (state.view === "raw" ? "; warming centred near " + lonLab(S.mmm.lon) +
+                 " (" + Math.round(100 * S.frac_lon_east_of_120w) + "% of members east of 120°W)" +
+                 (ref.length ? ", against " + ref.map(function (r) { return lonLab(r[1]) + " in " + r[0]; }).join(", ") : "") : "") + ".");
+    var tr = obsTrack(), last = tr[tr.length - 1];
+    if (last) detail.push("Observed, " + obsLabel(last) + " (" + (last.src === "OISST" ? "NOAA OISST" : "ERSSTv6") + "): E " + sgn(last.E, 1) +
+                          ", C " + sgn(last.C, 1) + ", centred near " + lonLab(last.lon) + ", " + CLS_WORD[classOf(last.E, last.C)] + ".");
     if (an.length) detail.push("Closest past El Niños on this chart: " + an.join(", ") + ".");
     box.innerHTML = "<p class=\"big\">" + big + "</p>" + detail.map(function (d) { return "<p>" + d + "</p>"; }).join("");
+    el("view-cap").hidden = state.view === "raw";
+    el("view-cap").innerHTML = state.view === "fm"
+      ? "First-month-corrected: each model&rsquo;s members are shifted in E and C by that model&rsquo;s error in its first month against NOAA OISST so far" +
+        (fmWeighted() ? ", weighted season by season by how much of that error carried forward in the models&rsquo; hindcasts. " : ", the same shift at every lead (not yet tested against hindcasts). ") +
+        "The centre of the warming and the Niño boxes are not corrected. " + hindcastSentence()
+      : state.view === "cal" ? "Hindcast-calibrated: each model&rsquo;s E and C regressed on the observed values over its 1993–2016 hindcasts, lead by lead. " + hindcastSentence() : "";
+  }
+  // the hindcast summary: carried daily by the Actions step (from the committed reference), else the laptop JSON
+  function HC() { return (D.flo && D.flo.hindcast) || (D.fl && D.fl.hindcast) || null; }
+  function hindcastPhrase(s) {
+    var H = HC(), m = H && H.multi_model && H.multi_model[s];
+    if (!m) return "has not been tested against the models&rsquo; hindcasts yet";
+    var better = m.rmse_B_damped < m.rmse_B_raw, sig = m.p_damped < 0.05;
+    return "this correction " + (better && sig ? "significantly reduced" : better ? "reduced, but not significantly," : "did not reduce") +
+           " the error in E minus C for " + SEASON_SHORT[s] + " (" + m.rmse_B_raw.toFixed(2) + " as issued, " + m.rmse_B_damped.toFixed(2) +
+           " corrected; " + H.years[0] + "–" + H.years[1] + ", Wilcoxon test over " + m.n_years + " years, p " + (m.p_damped < 0.001 ? "< 0.001" : "= " + m.p_damped) + ")";
+  }
+  function hindcastSentence() {
+    var H = HC();
+    return H && H.text ? H.text : "Its skill has not been tested against the models&rsquo; hindcasts yet, so it is not the headline.";
   }
   function classOf(E, C) { var b = E - C; return b >= 1 ? "east" : b <= -1 ? "central" : "basin"; }
   function refCentres(s) {
@@ -894,7 +1039,7 @@
               hovertemplate: "<b>%{customdata[0]}</b> (%{customdata[1]}, peak ONI %{customdata[2]:+.1f})<br>E %{y:+.1f}, C %{x:+.1f}<br>centre %{customdata[3]}<extra></extra>" });
     // members, one trace per model so hover names them
     mdl.forEach(function (m) {
-      var d = fl.models[m].season[s]; if (!d) return;
+      var d = membersOf(m, s); if (!d) return;
       tr.push({ x: d.C, y: d.E, type: "scatter", mode: "markers", name: m, legendgroup: m, showlegend: false,
                 marker: { size: 4.5, color: colorOf(m), opacity: 0.35 }, hovertemplate: m + " member<br>E %{y:+.1f}, C %{x:+.1f}<extra></extra>" });
     });
@@ -904,14 +1049,25 @@
                 marker: { size: 13, color: colorOf(m), line: { color: "#ffffff", width: 1.8 } },
                 hovertemplate: "<b>" + m + "</b> average<br>E %{y:+.2f}, C %{x:+.2f}<extra></extra>" });
     });
-    // observed path this year (monthly)
-    var o = fl.obs, n = o.months.length, k0 = Math.max(0, n - 6);
-    var om = o.months.slice(k0);
-    tr.push({ x: o.C.slice(k0), y: o.E.slice(k0), type: "scatter", mode: "lines+markers+text", name: "Observed, " + monLabel(om[0]) + " to " + monLabel(om[om.length - 1]),
-              line: { color: INK, width: 1.8 }, marker: { size: om.map(function (m, i) { return i === om.length - 1 ? 9 : 5; }), color: om.map(function (m) { return isProvMonth(m) ? "#fff" : INK; }), line: { color: INK, width: 1.6 } },
-              text: om.map(function (m, i) { return i === om.length - 1 ? monLabel(m) : ""; }), textposition: "bottom right", textfont: { size: 12, color: INK },
-              hovertemplate: "%{text} E %{y:+.2f}, C %{x:+.2f}<extra>observed monthly</extra>", customdata: om });
-    tr[tr.length - 1].hovertemplate = "observed %{customdata}<br>E %{y:+.2f}, C %{x:+.2f}<extra></extra>";
+    // this year's observed path: ERSST circles, then OISST squares (dashed) through the month so far
+    var track = obsTrack().slice(-7), er = track.filter(function (p) { return p.src === "ERSST"; });
+    var oi = track.filter(function (p) { return p.src === "OISST"; });
+    function hov(p) { return obsLabel(p) + " · " + (p.src === "OISST" ? "NOAA OISST" : "ERSSTv6"); }
+    if (er.length) tr.push({ x: er.map(function (p) { return p.C; }), y: er.map(function (p) { return p.E; }), type: "scatter", mode: "lines+markers",
+      name: "Observed (ERSSTv6), monthly", line: { color: INK, width: 1.8 },
+      marker: { size: 6, color: er.map(function (p) { return p.prov ? "#fff" : INK; }), line: { color: INK, width: 1.6 } },
+      customdata: er.map(hov), hovertemplate: "%{customdata}<br>E %{y:+.2f}, C %{x:+.2f}<extra></extra>" });
+    if (oi.length) {
+      var ox = (er.length ? [er[er.length - 1]] : []).concat(oi);
+      tr.push({ x: ox.map(function (p) { return p.C; }), y: ox.map(function (p) { return p.E; }), type: "scatter", mode: "lines+markers+text",
+        name: "Observed (NOAA OISST), from " + monLabel(oi[0].m), line: { color: INK, width: 1.8, dash: "dot" },
+        marker: { symbol: ox.map(function (p) { return p.src === "OISST" ? "square" : "circle"; }),
+                  size: ox.map(function (p) { return p.partial ? 11 : p.src === "OISST" ? 7 : 6; }),
+                  color: ox.map(function (p) { return p.partial || p.prov ? "#fff" : INK; }), line: { color: INK, width: 1.8 } },
+        text: ox.map(function (p, i) { return i === ox.length - 1 ? (p.partial ? MONS[+p.m.slice(5, 7) - 1] + " so far" : monLabel(p.m)) : ""; }),
+        textposition: "bottom right", textfont: { size: 12, color: INK },
+        customdata: ox.map(hov), hovertemplate: "%{customdata}<br>E %{y:+.2f}, C %{x:+.2f}<extra></extra>" });
+    }
     tr.push({ x: [S.mmm.C], y: [S.mmm.E], type: "scatter", mode: "markers", name: "Average of all models, " + SEASON_SHORT[s],
               marker: { symbol: "diamond", size: 19, color: ACCENT, line: { color: "#fff", width: 2 } },
               hovertemplate: "<b>All models, " + SEASON_SHORT[s] + "</b><br>E %{y:+.2f}, C %{x:+.2f}<extra></extra>" });
@@ -941,34 +1097,41 @@
     lay.margin.b = 48;
     lay.legend = { orientation: "h", x: 0, y: -0.16, yanchor: "top", font: { size: 11.5 } };
     lay.showlegend = !narrow();          // on a phone the colours are keyed by the table below
-    el("ecChart").style.height = (narrow() ? 440 : 600) + "px";
+    el("ecChart").style.height = (narrow() ? 440 : 640) + "px";
     Plotly.react("ecChart", tr, lay, CONFIG);
-    el("ec-cap").innerHTML = "Each grey dot is one past El Niño in " + SEASON_NAME[s] + " (sized by its peak ONI); small coloured dots are model members, " +
-      "larger ones each model&rsquo;s average, and the diamond the average of all models. The shaded band is basin-wide (E and C within 1 of each other); " +
-      "above it is east-based, below it central. The black path is this year&rsquo;s observed monthly values" +
-      (narrow() ? "; model colours are keyed in the table below" : "") +
-      (isProvMonth(om[om.length - 1]) ? " (open circle: provisional)" : "") + ".";
+    var lastP = track[track.length - 1];
+    el("ec-cap").innerHTML = "Each grey dot is one past El Niño in " + SEASON_NAME[s] + " (sized by its peak ONI); small coloured dots are model members" +
+      (state.view === "raw" ? "" : " (" + viewName(state.view) + ")") + ", larger ones each model&rsquo;s average, and the diamond the average of all models. " +
+      "The shaded band is basin-wide (E and C within 1 of each other); above it is east-based, below it central. " +
+      "The black path is this year&rsquo;s observed monthly values: ERSSTv6 (circles)" +
+      (oi.length ? ", then NOAA OISST (squares, dotted) from " + monLabel(oi[0].m) + ", because ERSST&rsquo;s newest month is still provisional" +
+        (lastP && lastP.partial ? "; the large open square is " + obsLabel(lastP) : "") : "") +
+      (narrow() ? ". Model colours are keyed in the table below" : "") + ".";
   }
   function drawLead(q) {
     var fl = D.fl, mdl = Object.keys(fl.models), vm = fl.valid_months, nL = vm.length;
-    var o = fl.obs, k0 = Math.max(0, o.months.length - 8), om = o.months.slice(k0), ov = o[q].slice(k0);
+    var track = obsTrack(), before = track.filter(function (p) { return p.m < vm[0]; }).slice(-8);
+    var during = track.filter(function (p) { return vm.indexOf(p.m) >= 0; });
+    var om = before.map(function (p) { return p.m; });
     var x = om.concat(vm), pad = om.map(function () { return null; }), tr = [];
+    var shiftOf = function (m, L) { return q === "E" ? offsetLead(m, L).E : 0; };
     var p10 = [], p90 = [], mmm = [];
     for (var L = 0; L < nL; L++) {
       var pairs = [], means = [];
       mdl.forEach(function (m) {
-        var arr = fl.models[m].lead[q][L], w = 1 / (arr.length * mdl.length);
-        arr.forEach(function (v) { pairs.push([v, w]); });
-        means.push(q === "lon" ? median(arr) : mean(arr));
+        var arr = fl.models[m].lead[q][L], w = 1 / (arr.length * mdl.length), sh = shiftOf(m, L);
+        arr.forEach(function (v) { pairs.push([fin(v) ? v + sh : v, w]); });
+        means.push(q === "lon" ? median(arr) : mean(arr) + sh);
       });
       p10.push(wpct(pairs, 0.10)); p90.push(wpct(pairs, 0.90)); mmm.push(q === "lon" ? median(means) : mean(means));
     }
-    var bridge = pad.slice(); bridge[bridge.length - 1] = ov[ov.length - 1];
+    var lastBefore = before.length ? before[before.length - 1][q] : null;
+    var bridge = pad.slice(); if (bridge.length) bridge[bridge.length - 1] = lastBefore;
     tr.push({ x: x, y: pad.concat(p90), type: "scatter", mode: "lines", line: { width: 0 }, hoverinfo: "skip", showlegend: false });
     tr.push({ x: x, y: pad.concat(p10), type: "scatter", mode: "lines", line: { width: 0 }, fill: "tonexty",
               fillcolor: "rgba(138,75,42,0.14)", name: "Middle 80% of members", hoverinfo: "skip", showlegend: false });
     mdl.forEach(function (m) {
-      var arr = fl.models[m].lead[q].map(function (a) { return q === "lon" ? median(a) : mean(a); });
+      var arr = fl.models[m].lead[q].map(function (a, L) { return q === "lon" ? median(a) : mean(a) + shiftOf(m, L); });
       tr.push({ x: x, y: bridge.concat(arr), type: "scatter", mode: "lines", name: m, showlegend: false,
                 line: { color: colorOf(m), width: 1.4 }, opacity: 0.9,
                 hovertemplate: (q === "lon" ? "%{customdata}" : "%{y:+.1f}") + "<extra>" + m + "</extra>",
@@ -977,16 +1140,28 @@
     tr.push({ x: x, y: bridge.concat(mmm), type: "scatter", mode: "lines", name: "All models", showlegend: false,
               line: { color: ACCENT, width: 4 }, customdata: bridge.concat(mmm).map(lonLab),
               hovertemplate: "<b>" + (q === "lon" ? "%{customdata}" : "%{y:+.1f}") + "</b><extra>all models</extra>" });
-    tr.push({ x: om, y: ov, type: "scatter", mode: "lines+markers", name: "Observed", showlegend: false,
-              line: { color: INK, width: 2.2 }, customdata: ov.map(lonLab),
-              marker: { size: 6.5, color: om.map(function (m) { return isProvMonth(m) ? "#fff" : INK; }), line: { color: INK, width: 1.8 } },
-              hovertemplate: (q === "lon" ? "%{customdata}" : "%{y:+.2f}") + "<extra>observed</extra>" });
+    var er = before.filter(function (p) { return p.src === "ERSST"; });
+    var oiAll = before.filter(function (p) { return p.src === "OISST"; }).concat(during);
+    function val(p) { return p[q]; }
+    function hov(p) { return (q === "lon" ? lonLab(p[q]) : sgn(p[q], 2)) + " · " + obsLabel(p) + " · " + (p.src === "OISST" ? "OISST" : "ERSSTv6"); }
+    if (er.length) tr.push({ x: er.map(function (p) { return p.m; }), y: er.map(val), type: "scatter", mode: "lines+markers", showlegend: false,
+              line: { color: INK, width: 2.2 }, customdata: er.map(hov),
+              marker: { size: 6.5, color: er.map(function (p) { return p.prov ? "#fff" : INK; }), line: { color: INK, width: 1.8 } },
+              hovertemplate: "%{customdata}<extra>observed</extra>" });
+    if (oiAll.length) {
+      var ox = (er.length ? [er[er.length - 1]] : []).concat(oiAll);
+      tr.push({ x: ox.map(function (p) { return p.m; }), y: ox.map(val), type: "scatter", mode: "lines+markers", showlegend: false,
+                line: { color: INK, width: 2.2, dash: "dot" }, customdata: ox.map(hov),
+                marker: { symbol: ox.map(function (p) { return p.src === "OISST" ? "square" : "circle"; }),
+                          size: ox.map(function (p) { return p.partial ? 10 : 7; }),
+                          color: ox.map(function (p) { return p.partial ? "#fff" : INK; }), line: { color: INK, width: 1.8 } },
+                hovertemplate: "%{customdata}<extra>observed</extra>" });
+    }
     var shapes = [{ type: "rect", xref: "x", yref: "paper", x0: -0.5, x1: om.length - 0.5, y0: 0, y1: 1,
                     fillcolor: "rgba(26,26,26,0.04)", line: { width: 0 }, layer: "below" }];
     var ann = [];
     if (q === "E") {
-      // the highest observed month before this year, for scale
-      var best = o.record_E ? { v: o.record_E.value, m: o.record_E.month } : { m: null };
+      var o = fl.obs, best = o.record_E ? { v: o.record_E.value, m: o.record_E.month } : { m: null };
       if (best.m) {
         shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, y0: best.v, y1: best.v, line: { color: "#6a3d9a", width: 1.2, dash: "dash" } });
         ann.push({ xref: "paper", x: 0.01, y: best.v, yanchor: "bottom", xanchor: "left", showarrow: false,
@@ -1006,10 +1181,11 @@
     lay.xaxis.tickangle = 0;
     lay.xaxis.ticktext = x.map(function (m, i) { return i % 2 ? "" : MONS[+m.slice(5, 7) - 1] + (m.slice(5, 7) === "01" || i === 0 ? " " + m.slice(2, 4) : ""); });
     lay.margin.t = 10; lay.margin.b = 34;
+    var obsV = before.concat(during).map(val).filter(fin);
     if (q === "lon") {
       var t = lonTicks(160, 280, 20);
       lay.yaxis = Object.assign(lay.yaxis, t, { title: { text: "" }, zeroline: false });
-      var all = mmm.concat(p10, p90, ov).filter(fin);
+      var all = mmm.concat(p10, p90, obsV).filter(fin);
       lay.yaxis.range = [Math.min(170, Math.min.apply(null, all) - 5), Math.max(260, Math.max.apply(null, all) + 5)];
     } else {
       lay.yaxis.title.text = "E (standard deviations)";
@@ -1018,25 +1194,57 @@
     el(id).style.height = (narrow() ? 250 : 262) + "px";
     Plotly.react(id, tr, lay, CONFIG);
     if (q === "lon") {
-      el("lead-cap").innerHTML = "Month by month: observed (black, grey background) and forecast (sienna: all models; thin lines: each model; shading: middle 80% of members). " +
-        "The centre of the warming is where the warmest stretch of the equator lies; farther up is farther east.";
+      el("lead-cap").innerHTML = "Month by month: observed (black; circles ERSSTv6, squares NOAA OISST, the open square the month so far) and forecast " +
+        "(sienna: all models; thin lines: each model; shading: middle 80% of members" + (state.view === "fm" ? "; E shifted by each model&rsquo;s first-month error" : "") + "). " +
+        "The centre of the warming is where the warmest stretch of the equator lies; farther up is farther east" + (state.view === "raw" ? "" : ", and it is not corrected") + ".";
     }
   }
+  function drawFirstMonth() {
+    var blk = el("fm-block");
+    if (!fmOK()) { blk.hidden = true; return; }
+    blk.hidden = false;
+    var F1 = D.flo.first_month, O = F1.obs, ks = Object.keys(F1.models);
+    function cell(v, d) { return "<td>" + sgn(v, d == null ? 2 : d) + "</td>"; }
+    function err(v) { return "<td class=\"" + (v < -0.05 ? "neg" : v > 0.05 ? "pos" : "") + "\">" + sgn(v, 2) + "</td>"; }
+    var rows = ks.map(function (k) {
+      var r = F1.models[k];
+      return "<tr><td><span class=\"ef-swatch\" style=\"background:" + colorOf(k) + "\"></span>" + k + "</td>" + cell(r.E) + cell(r.C) +
+        "<td>" + lonLab(r.lon) + "</td>" + cell(r.n12, 1) + cell(r.n4, 1) + err(r.dE) + err(r.dC) + "</tr>";
+    });
+    rows.push("<tr class=\"mmm\"><td>Observed so far</td>" + cell(O.E) + cell(O.C) + "<td>" + lonLab(O.lon) + "</td>" + cell(O.n12, 1) + cell(O.n4, 1) + "<td></td><td></td></tr>");
+    var when = monthLong(F1.month);
+    el("fm-title").textContent = "First month: each model against the ocean so far (" + when + ")";
+    el("fm-table").innerHTML = "<caption class=\"ef-vh\">Each model&rsquo;s forecast for " + when + " against the observed month so far</caption>" +
+      "<thead><tr><th scope=\"col\">Model</th><th scope=\"col\">E</th><th scope=\"col\">C</th><th scope=\"col\">Centre</th>" +
+      "<th scope=\"col\">Niño-1+2</th><th scope=\"col\">Niño-4</th><th scope=\"col\">E: observed − model</th><th scope=\"col\">C: observed − model</th></tr></thead><tbody>" +
+      rows.join("") + "</tbody>";
+    var drift = driftText();
+    var n4m = ks.map(function (k) { return F1.models[k].n4; }).filter(fin);
+    var n4o = D.flo.months.filter(function (o) { return o.complete; }).slice(-3);
+    el("fm-lead").innerHTML = (drift || "") + " Every one of these forecasts started from the ocean on the first of " + MONTHS_LONG[+F1.month.slice(5, 7) - 1] +
+      ", so the gap opened within weeks. In the ocean, Niño-4 in the central Pacific has read " +
+      n4o.map(function (o) { return sgn(o.n4, 1); }).join(", ") + " °C over " + n4o.map(function (o) { return MONS[+o.month.slice(5, 7) - 1]; }).join(", ") +
+      " and " + sgn(O.n4, 1) + " so far this month; the models put it at " + sgn(Math.min.apply(null, n4m), 1) + " to " + sgn(Math.max.apply(null, n4m), 1) + " for the month.";
+    el("fm-cap").innerHTML = "Model values are each model&rsquo;s average for the whole of " + when + " (lead " + F1.lead + "); observed values are NOAA OISST over " +
+      F1.days + " days" + (F1.preliminary_days ? ", " + F1.preliminary_days + " of them still preliminary" : "") +
+      ", in the same E and C units. Negative C errors mean the model is more central than the ocean. Niño boxes in °C (1991–2020 base).";
+  }
   function drawModelTable(S, s) {
+    var raw = D.fl.summary[s];
     var rows = Object.keys(S.model_means).map(function (m) {
-      var q = S.model_means[m], c = S.model_class[m];
+      var q = S.model_means[m], c = S.model_class[m], r = raw.model_means[m] || q;
       return "<tr><td><span class=\"ef-swatch\" style=\"background:" + colorOf(m) + "\"></span>" + m + "</td>" +
         "<td>" + D.fl.models[m].n + "</td><td>" + sgn(q.E, 2) + "</td><td>" + sgn(q.C, 2) + "</td><td>" + sgn(q.E - q.C, 2) + "</td>" +
-        "<td>" + Math.round(100 * q.east_gt) + "%</td><td>" + lonLab(q.lon) + "</td><td>" + sgn(q.n12, 1) + " / " + sgn(q.n4, 1) + "</td>" +
+        "<td>" + Math.round(100 * q.east_gt) + "%</td><td>" + lonLab(r.lon) + "</td><td>" + sgn(r.n12, 1) + " / " + sgn(r.n4, 1) + "</td>" +
         "<td><span class=\"ef-cls " + c + "\">" + CLS_WORD[c] + "</span></td></tr>";
     });
-    var M = S.mmm;
+    var M = S.mmm, R = raw.mmm;
     rows.push("<tr class=\"mmm\"><td>All models (average)</td><td>" + Object.keys(S.model_means).reduce(function (a, m) { return a + D.fl.models[m].n; }, 0) +
       "</td><td>" + sgn(M.E, 2) + "</td><td>" + sgn(M.C, 2) + "</td><td>" + sgn(M.E - M.C, 2) + "</td><td>" + Math.round(100 * S.frac_e_gt_c) + "%</td><td>" +
-      lonLab(M.lon) + "</td><td>" + sgn(M.n12, 1) + " / " + sgn(M.n4, 1) + "</td><td><span class=\"ef-cls " + S.klass + "\">" + CLS_WORD[S.klass] + "</span>" +
+      lonLab(R.lon) + "</td><td>" + sgn(R.n12, 1) + " / " + sgn(R.n4, 1) + "</td><td><span class=\"ef-cls " + S.klass + "\">" + CLS_WORD[S.klass] + "</span>" +
       (S.verdict === S.klass ? "" : "<span class=\"ef-ns\">n.s.</span>") + "</td></tr>");
-    el("models-cap").innerHTML = SEASON_NAME[s] +
-      " averages. &ldquo;E &gt; C&rdquo; is the share of each model&rsquo;s members warmer in the east than in the centre; Niño-1+2 and Niño-4 are the far-eastern and western boxes, in °C on the 1991–2020 base." +
+    el("models-cap").innerHTML = SEASON_NAME[s] + " averages" + (state.view === "raw" ? "" : ", " + viewName(state.view) + " (E and C only; the centre and the Niño boxes are as issued)") +
+      ". &ldquo;E &gt; C&rdquo; is the share of each model&rsquo;s members warmer in the east than in the centre; Niño-1+2 and Niño-4 are the far-eastern and western boxes, in °C on the 1991–2020 base." +
       (S.verdict === S.klass ? "" : " n.s.: the models&rsquo; average lean is not statistically significant (see the verdict above).");
     el("ef-models").innerHTML = "<caption class=\"ef-vh\">Each model&rsquo;s " + SEASON_NAME[s] + " averages</caption><thead><tr><th scope=\"col\">Model</th><th scope=\"col\">Members</th><th scope=\"col\">E</th><th scope=\"col\">C</th><th scope=\"col\">E − C</th>" +
       "<th scope=\"col\">E &gt; C</th><th scope=\"col\">Centre</th><th scope=\"col\">Niño-1+2 / Niño-4</th><th scope=\"col\">Class</th></tr></thead><tbody>" + rows.join("") + "</tbody>";
@@ -1194,7 +1402,7 @@
     if (!which || which === "evo") drawEvo();
     if (!which || which === "hist") { if (D.hist) drawHist(); }
   }
-  var WHICH = { idx: "plume", smooth: "plume", season: "flavour", evoIdx: "evo", evoSmooth: "evo", histIdx: "hist" };
+  var WHICH = { idx: "plume", smooth: "plume", season: "flavour", view: "flavour", evoIdx: "evo", evoSmooth: "evo", histIdx: "hist" };
   document.querySelectorAll("main.ef button[data-set]").forEach(function (b) {
     b.addEventListener("click", function () {
       var k = b.dataset.set, v = b.dataset.v;
@@ -1230,13 +1438,16 @@
     get("assets/sst/data/c3s_evolution.json?v=__CACHE__", true),
     get("assets/sst/data/enso_flavour.json?v=__CACHE__", true),
     get("assets/sst/data/cpc_official.json?v=__CACHE__", true),
+    get("assets/sst/data/enso_flavour_obs.json?v=__CACHE__", true),
   ]).then(function (res) {
-    D.fc = res[0]; D.hist = res[1]; D.daily = res[2]; D.evo = res[3]; D.fl = res[4]; D.cpc = res[5];
+    D.fc = res[0]; D.hist = res[1]; D.daily = res[2]; D.evo = res[3]; D.fl = res[4]; D.cpc = res[5]; D.flo = res[6];
     if (!roniSeries()) {
       // no RONI anywhere: hide the history chart's RONI choice rather than relabel ONI
       document.querySelectorAll('button[data-set="histIdx"][data-v="roni"]').forEach(function (b) { b.hidden = true; });
       state.histIdx = "oni";
     }
+    if (HC() && HC().text) el("m-hindcast").innerHTML = HC().text +
+      (HC().headline === "fm" ? " The corrected view therefore leads." : " The forecast as issued therefore leads; the corrected view is offered alongside it.");
     if (D.fl && D.fl.method) {
       var M = D.fl.method;
       el("m-train").textContent = M.eof_training.replace(" to ", "–").replace(/-(\d\d)/g, "").replace(/(\d{4})–(\d{4})/, "$1–$2");
@@ -1251,6 +1462,7 @@
         document.querySelectorAll("#seasonGrp button").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.v === ps ? "true" : "false"); });
       }
     }
+    if (HC() && HC().headline && viewOK(HC().headline)) state.view = HC().headline;
     if (!D.evo) el("changes").hidden = true;
     if (!D.hist) el("history").hidden = true;
     redraw();
