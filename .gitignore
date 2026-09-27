@@ -110,6 +110,7 @@ scripts/strat/*
 !scripts/strat/build_m2_reference.py
 !scripts/strat/build_wave1_clim.py
 !scripts/strat/heatflux100.py
+!scripts/strat/bdc_dc.py
 !scripts/strat/build_vt100_clim.py
 !scripts/strat/build_strat_history.py
 !scripts/strat/strat_history.py

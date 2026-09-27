@@ -186,6 +186,27 @@
         phase is worth reading.</p>
 <p class="chart-sources">ECMWF AIFS-ENS <b>ensemble mean</b> (open data, CC&nbsp;BY&nbsp;4.0), 100 and 500&nbsp;hPa, analysis to day&nbsp;15 &middot; zonal wavenumber-1 Fourier component of geopotential height &middot; superposition index vs ERA5 1991&ndash;2020 (WeatherBench2) &middot; polar stereographic &middot; updated each 00/12Z cycle</p>
 </template>
+<template id="about-bdc">
+<p>The <b>Brewer–Dobson circulation</b> is the slow overturning of the stratosphere: air rises through the tropical
+tropopause, drifts poleward and sinks over the winter pole. It sets how fast air, water vapour and ozone move through the
+stratosphere, and it is driven from above &mdash; waves breaking in the extratropical stratosphere pull the circulation along.
+This product estimates it by <b>downward control</b> (Haynes et al. 1991): the zonal momentum forcing &mdash; the divergence
+of the Eliassen&ndash;Palm flux of the resolved waves plus the parameterized gravity-wave drag &mdash; divided by the
+Coriolis term gives the residual meridional wind, integrated from the top down into the residual streamfunction &Psi;*.
+The tropical upward mass flux is &Psi;* at the two subtropical turnaround latitudes (fixed for the day of year from the
+MERRA-2 mean circulation). Estimating it from the analysed mean meridional wind or vertical velocity directly does not
+work: in both GEOS FP and MERRA-2 that version shows no northern-winter maximum at all, because the tropical upwelling
+(~0.3&nbsp;mm/s) is buried in the noise of a daily zonal mean.</p>
+<p>The reference is MERRA-2 (15 years, 1991&ndash;2009): at 70&nbsp;hPa the annual mean is 6.4&times;10<sup>9</sup>&nbsp;kg/s
+with a December&ndash;January maximum 1.5&times; the July minimum, as in the published reanalysis estimates. GEOS FP is put on the
+MERRA-2 scale by the same-day difference measured on 38 days of 2018&ndash;19 (&minus;0.9 at 70&nbsp;hPa, most of it GEOS FP's
+weaker gravity-wave drag). The forecast holds the last five days' drag fixed, because GEOS FP publishes no forecast wind
+tendencies. Values are trailing 30-day means: a single day scatters by about &plusmn;4. The analysis increment, the
+reanalyses' own correction to the momentum budget, is left out.</p>
+<p class="chart-sources">NASA GMAO GEOS FP (assimilation and 00Z forecast, NCCS OPeNDAP) &middot; MERRA-2 GMI replay (NASA
+GMAO) &middot; test: z-test of the 30-day mean against MERRA-2's day-to-day and year-to-year variance plus the errors of the normal
+and of the GEOS FP offset; section shaded only where the false-discovery rate is below 10&nbsp;% &middot; updated daily</p>
+</template>
 <template id="about-heatflux">
 <p><a href="/topics/eddy-heat-flux.html">The explainer</a>: what the 100 hPa eddy heat flux measures, the equations and how to read the chart.</p>
 <p>The wave-1 maps show how large the planetary wave is and where its ridge sits; they do not show
@@ -255,7 +276,7 @@
 <script>
 window.STAGE = {
   groups: [
-  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"]]},
+  {label: "Stratosphere", ico: "\u2744", items: [["vortex","Polar vortex diagnostics","u(60°N), polar-cap height"],["vwinds","Vortex winds","10 and 100 hPa, both hemispheres"],["epflux","E–P flux","wave driving, k = 1–3"],["wave1","Stationary wave-1","100 and 500 hPa"],["heatflux","Eddy heat flux","100 hPa [v′T′], is it going up?"],["bdc","Brewer–Dobson circulation","tropical upwelling, downward control"]]},
   {label: "Stratosphere history", ico: "\u231B", items: [["shwinters","Every winter since 1980","pick any winter, compare"],["shssw","Sudden warmings since 1980","timeline, catalogue, vortex shapes"],["shdrip","Dripping paint","how an event reaches the surface"],["shfollow","What usually follows","AO, temperature, by region"]]}
 ],
   products: {
@@ -268,6 +289,10 @@ window.STAGE = {
   wave1: {label: "Stationary wave-1", a: {label: "Hemisphere", items: [["wave1_nh","Northern"],["wave1_sh","Southern"]]},
           frame: function (a) { return "sst_anim.html?embed=1&manifest=wave1_maps_manifest.json&region=" + a; }, about: "about-wave1",
           cap: function () { return "The wave-1 component of geopotential at 100 and 500 hPa, the forcing behind the wave driving above."; }},
+  bdc: {label: "Brewer–Dobson circulation", a: {label: "View", items: [["up","Tropical upwelling"],["sec","Residual streamfunction"]]},
+          img: function (a) { return "assets/sst/bdc_dc_" + (a === "sec" ? "section" : "upwelling") + ".webp"; }, bust: "hourly", about: "about-bdc", fit: false,
+          cap: function (a) { return a === "sec" ? "The residual (Brewer–Dobson) streamfunction by downward control, 30-day mean; shading only where the anomaly from MERRA-2 is significant (FDR 10 %)."
+                                                 : "Upward mass flux through 70 and 100 hPa between the turnaround latitudes, trailing 30-day mean: GEOS FP analyses and 10-day forecast against the MERRA-2 range."; }},
   heatflux: {label: "100 hPa eddy heat flux", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
           img: function (a) { return "assets/sst/heatflux100_" + (a === "sh" ? "sh" : "nh") + ".webp?v=985b7076fde6"; }, about: "about-heatflux", fit: false,
           cap: function (a) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ": the upward wave-activity flux into the stratosphere, members against the 1991–2020 climatology."; }},

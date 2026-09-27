@@ -1,0 +1,94 @@
+name: Brewer-Dobson upwelling (downward control)
+
+# The stratosphere page's Brewer-Dobson product (2026-09-27): tropical upward mass flux at 70/100 hPa and the residual
+# streamfunction, by DOWNWARD CONTROL from the EP-flux divergence and gravity-wave drag (scripts/strat/bdc_dc.py; the
+# continuity estimate was rejected - it gives no winter maximum in either GEOS FP or MERRA-2). GEOS FP analyses and the
+# 00Z forecast from NASA NCCS OPeNDAP; the MERRA-2 climatology and the 2018-19 GEOS FP-MERRA-2 offset from release
+# bdc-ref-v1; the rolling analysis cache (one small npz a day) on the frames branch. ~6 minutes a run.
+# NCCS posts the 00Z forecast late (not there by 06:35 UTC on 2026-09-27), hence the afternoon slots.
+
+on:
+  schedule:
+    - cron: "30 12 * * *"
+    - cron: "30 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: bdc
+  cancel-in-progress: false
+
+jobs:
+  bdc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/strat/bdc_dc.py
+            scripts/lib
+            assets/sst/data
+            assets/sst/bdc_dc_upwelling.webp
+            assets/sst/bdc_dc_section.webp
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy scipy pandas xarray netCDF4 matplotlib
+      - name: Reference files and the analysis cache
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          D=scripts/strat/data/bdc_dc; mkdir -p $D
+          gh release download bdc-ref-v1 --repo "$GITHUB_REPOSITORY" -D $D --clobber
+          scripts/lib/fetch_frames_ci.sh assets/sst/anim/bdc_tail || true
+          mkdir -p $D/fp_tail assets/sst/anim/bdc_tail
+          cp assets/sst/anim/bdc_tail/*.npz $D/fp_tail/ 2>/dev/null || true
+          # a cold cache (first run, or the frames copy lost) starts from the release's seed (Jun 12 - Sep 26 2026)
+          if [ "$(ls $D/fp_tail | wc -l)" -lt 60 ]; then tar xzf $D/fp_tail_seed.tar.gz -C $D && echo "seeded from the release"; fi
+          echo "cached analysis days: $(ls $D/fp_tail | wc -l)"
+      - name: Live update
+        id: live
+        run: |
+          python scripts/strat/bdc_dc.py live
+          D=scripts/strat/data/bdc_dc
+          mkdir -p assets/sst/data
+          cp $D/bdc_dc_upwelling.webp $D/bdc_dc_section.webp assets/sst/
+          cp $D/bdc_dc.json assets/sst/data/bdc_dc.json
+          # the cache back to the frames branch: new days merged in, days older than 150 d pruned
+          cp $D/fp_tail/*.npz assets/sst/anim/bdc_tail/
+          old=$(ls assets/sst/anim/bdc_tail/*.npz | xargs -n1 basename | sed 's/.npz//' | awk -v c=$(date -u -d '150 days ago' +%Y%m%d) '$1 < c' | sed 's#^#assets/sst/anim/bdc_tail/#; s#$#.npz#' | tr '\n' ' ')
+          echo "prune=$old" >> "$GITHUB_OUTPUT"
+      - name: Publish the cache (frames branch)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRUNE: ${{ steps.live.outputs.prune }}
+        run: scripts/lib/publish_frames_ci.sh +assets/sst/anim/bdc_tail
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          SNAP=$(mktemp -d)
+          git add -f assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            git add -f assets/sst/bdc_dc_upwelling.webp assets/sst/bdc_dc_section.webp assets/sst/data/bdc_dc.json
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "bdc: Brewer-Dobson upwelling $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Deploy the site
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "pages dispatch failed; the dispatcher will catch it"
