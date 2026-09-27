@@ -301,6 +301,12 @@
         Canada) and a cool, wet Gulf Coast and Southeast, warm northern South America and a dry Amazon and Venezuela. The observed
         record, a single realisation, passes its test over about half of the land for temperature (67 winters) and a third
         for rainfall (47): the same warm Alaska and Canada, cool Texas and Gulf Coast and warm tropical belt.</p>
+<p>The <b>500 hPa height</b> option draws a flat Northern Hemisphere map (0&ndash;90&deg;N, centred on the Pacific) from 147 of the members, up to 10 per model in all 16 models: every Pangeo <code>zg</code> store packs its 19 pressure levels into one chunk, so the level costs the full 3-D read (167&nbsp;GB here), and since the tests count each model once, 10 members pin each model&rsquo;s mean. ERA5 500&nbsp;hPa height 1959&ndash;2026 is the observed side; thin contours give the seasonal mean height every 100&nbsp;m for orientation. <b>The winter wave train is in the right place, a little west and weaker in the models.</b> The CMIP6 and ERA5
+        regression maps correlate 0.85 over 20&ndash;90&deg;N in December&ndash;February (0.71, 0.66 and 0.54 in the other
+        seasons). The Aleutian low is centred at 163&deg;W in the median model (172&ndash;145&deg;W across models) against
+        153&deg;W observed, and the Canadian ridge at 107&deg;W against 94&deg;W observed &mdash; the observed centres sit east
+        of 81&nbsp;% and 88&nbsp;% of the models, inside their spread &mdash; and the observed low is deeper (&minus;38 against
+        &minus;28&nbsp;gpm per K). See <i>Wave train position</i>.</p>
 <p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; static reference, redrawn only when the analysis changes</p>
 </template>
 <template id="about-imp_comp">
@@ -314,6 +320,9 @@
 <p>What the models agree on for a super El Ni&ntilde;o winter (regional means): Gulf Coast &minus;1.2&nbsp;K and the Southeast
         &minus;0.9&nbsp;K, Quebec/Labrador +1.5&nbsp;K, the Amazon +1.6&nbsp;K; rain +36&nbsp;% in the Southeast, +24&nbsp;% in
         California, +38&nbsp;% on the Peru/Ecuador coast, &minus;28&nbsp;% in Venezuela and &minus;23&nbsp;% in Central America.</p>
+<p>The <b>500 hPa height</b> option shows the same classes on a flat Northern Hemisphere map from 147 members (up to 10
+        per model; see the regression item). In a super El Ni&ntilde;o winter the models deepen the Aleutian low by about
+        80&nbsp;gpm near 147&deg;W and raise heights by about 50&nbsp;gpm over Hudson Bay.</p>
 <p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; static reference, redrawn only when the analysis changes</p>
 </template>
 <template id="about-imp_obs">
@@ -325,6 +334,7 @@
         stand in, and the <i>Observed vs the models</i> item asks whether the few real events are consistent with them.
         Where a class has fewer than 8 observed seasons in some season (La Ni&ntilde;a rainfall in June&ndash;August has 5), the
         map says so and draws nothing.</p>
+<p>The 500 hPa option uses ERA5 500&nbsp;hPa height (1959&ndash;2026) with the same test.</p>
 <p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; static reference, redrawn only when the analysis changes</p>
 </template>
 <template id="about-imp_super">
@@ -336,6 +346,11 @@
         Mexico. <b>North America by month:</b> November to March in the same super winters, each calendar month from the
         member&rsquo;s own trend.</p>
 <p><b>Only significant results are drawn.</b> A CMIP6 map is shaded where it is <i>robust</i>: an across-model t-test (each of the 16 models counts once) passes a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map <i>and</i> at least 80&nbsp;% of the models agree on the sign. Everything else is left blank. Precipitation is tested in mm/day and shown as a percentage of the normal; cells whose normal is under 0.3&nbsp;mm/day are hatched and not scored.</p>
+<p><b>500 hPa.</b> Beyond a scaled-up El Ni&ntilde;o, the strongest events move the Aleutian low east and north: heights
+        fall a further 35&nbsp;gpm over the Gulf of Alaska (52&deg;N 140&deg;W) and rise 33&nbsp;gpm near the dateline at
+        35&deg;N, with a stronger ridge over Quebec &mdash; the circulation behind the models&rsquo; colder Alaska and warmer
+        Great Lakes and Quebec in super winters. The models&rsquo; super El Ni&ntilde;o Aleutian low (150&deg;W on the mean map)
+        sits where the three observed events put it (152&deg;W).</p>
 <p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; static reference, redrawn only when the analysis changes</p>
 </template>
 <template id="about-imp_asym">
@@ -346,6 +361,7 @@
         Alaskan cold outweighs El Ni&ntilde;o&rsquo;s warmth, and strong La Ni&ntilde;a dries Mexico more than strong El
         Ni&ntilde;o wets it.</p>
 <p><b>Only significant results are drawn.</b> A CMIP6 map is shaded where it is <i>robust</i>: an across-model t-test (each of the 16 models counts once) passes a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map <i>and</i> at least 80&nbsp;% of the models agree on the sign. Everything else is left blank. Precipitation is tested in mm/day and shown as a percentage of the normal; cells whose normal is under 0.3&nbsp;mm/day are hatched and not scored.</p>
+<p>The 500 hPa option shows the same sum for height on a flat Northern Hemisphere map.</p>
 <p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, via the Pangeo archive on Google Cloud: ACCESS-ESM1-5, CanESM5, CESM2, CNRM-CM6-1, CNRM-ESM2-1, EC-Earth3, GISS-E2-1-G, GISS-E2-1-H, INM-CM5-0, IPSL-CM6A-LR, MIROC6, MIROC-ES2L, MPI-ESM1-2-HR, MPI-ESM1-2-LR, MRI-ESM2-0, NorCPM1 (429 members) &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 monthly precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC Oceanic Ni&ntilde;o Index &middot; all on a 2.5&deg; grid, 60&deg;S&ndash;75&deg;N, 170&ndash;30&deg;W &middot; static reference, redrawn only when the analysis changes</p>
 </template>
 <template id="about-imp_ovm">
@@ -390,6 +406,11 @@
         move to E +2.5, C +1.6: the placement does not depend on the trend. The observed record has 5 east-based and 17
         central El Ni&ntilde;o winters since 1960 &mdash; too few east-based ones to test the difference directly, so the
         observed side is the E/C regression. A CMIP6 map is shaded only where it is <i>robust</i>: an across-model t-test (each of the 16 models counts once) passes a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map <i>and</i> at least 80&nbsp;% of the models agree on the sign. Observed maps are shaded where the regression coefficient&rsquo;s t-test passes the same false-discovery rate. Blank = not significant.</p>
+<p><b>500 hPa.</b> The two indices place the ridge differently. East-based warming (E) puts the Canadian ridge over
+        eastern Canada (78&deg;W in the models, 82&deg;W observed); central-Pacific warming (C) puts it over western Canada
+        (117&deg;W and 112&deg;W) with the Aleutian low further south. East minus central at matched strength: +16&nbsp;gpm over
+        Labrador and &minus;14&nbsp;gpm over the southern US, robust over 20&nbsp;% of 20&ndash;90&deg;N in winter &mdash; the
+        height pattern behind the warmer Quebec and cooler south of east-based events.</p>
 <p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, 16 models, 429 members, via the Pangeo archive on Google Cloud (Amon <code>ts</code>, <code>tas</code>, <code>pr</code>) &middot; ERSST v6 (NOAA NCEI) &middot; NCEI PDO index &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC ONI &middot; static reference, redrawn only when the analysis changes</p>
 </template>
 <template id="about-imp_pdo">
@@ -415,6 +436,18 @@
         nowhere.</p>
 <p><b>This winter.</b> The ENSO-free PDO was &minus;1.8 standard deviations in July 2026 (NCEI PDO &minus;2.0) &mdash;
         strongly negative while El Ni&ntilde;o grows. A CMIP6 map is shaded only where it is <i>robust</i>: an across-model t-test (each of the 16 models counts once) passes a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map <i>and</i> at least 80&nbsp;% of the models agree on the sign. Observed maps are shaded where the regression coefficient&rsquo;s t-test passes the same false-discovery rate. Blank = not significant.</p>
+<p><b>500 hPa.</b> The ENSO-free PDO carries its own North Pacific low: &minus;32&nbsp;gpm per standard deviation at
+        47&deg;N 170&deg;W in the models (robust over 71&nbsp;% of 20&ndash;90&deg;N in winter), with ERA5 in the same place
+        (&minus;37&nbsp;gpm at 43&deg;N 163&deg;W, significant over 10&nbsp;%) &mdash; west of ENSO&rsquo;s Aleutian low
+        (160&deg;W), with a ridge over western Canada.</p>
+<p><b>Was ENSO fully removed?</b> A stronger removal was tested and changed little. Letting the ENSO forcing vary by calendar
+        month (and the persistence too), or driving it with the east-based and central-Pacific indices plus
+        Ni&ntilde;o-3.4&middot;|Ni&ntilde;o-3.4| for the El Ni&ntilde;o/La Ni&ntilde;a asymmetry, removes 36&ndash;39&nbsp;% of
+        the monthly PDO variance in the models instead of 33&nbsp;% (observed 24&nbsp;% instead of 22&nbsp;%); the new
+        ENSO-free PDO correlates 0.95&ndash;0.99 with the published one (observed 0.97&ndash;0.99). The winter temperature maps
+        are the same pattern (r 1.00 over land; &ge; 0.955 for every variable and season), the robust land share stays
+        57&ndash;59&nbsp;%, and Alaska (+0.91 &rarr; +0.85&nbsp;K per standard deviation), the Pacific Northwest (+0.48
+        &rarr; +0.46) and the Southeast (&minus;0.32 &rarr; &minus;0.33) move by at most 6&nbsp;%.</p>
 <p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, 16 models, 429 members, via the Pangeo archive on Google Cloud (Amon <code>ts</code>, <code>tas</code>, <code>pr</code>) &middot; ERSST v6 (NOAA NCEI) &middot; NCEI PDO index &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC ONI &middot; static reference, redrawn only when the analysis changes</p>
 </template>
 <template id="about-imp_pdoph">
@@ -436,7 +469,30 @@
         colder than usual for El Ni&ntilde;o over Alaska and the Northwest and milder over the Southeast. The observed record
         has 6 El Ni&ntilde;o winters under a positive and 5 under a negative ENSO-free PDO since 1960 &mdash; too few to test.
         A CMIP6 map is shaded only where it is <i>robust</i>: an across-model t-test (each of the 16 models counts once) passes a Benjamini&ndash;Hochberg false-discovery rate of 10&nbsp;% over the map <i>and</i> at least 80&nbsp;% of the models agree on the sign. Observed maps are shaded where the regression coefficient&rsquo;s t-test passes the same false-discovery rate. Blank = not significant.</p>
+<p><b>500 hPa:</b> the interaction passes the test over no part of 20&ndash;90&deg;N in any season &mdash; the PDO
+        shifts El Ni&ntilde;o&rsquo;s wave train by adding its own North Pacific low, it does not deepen El Ni&ntilde;o&rsquo;s.
+        The stronger ENSO removal (see <i>PDO without ENSO</i>) leaves this unchanged: the temperature interaction stays at
+        2&ndash;10&nbsp;% of the land in winter in every variant.</p>
 <p class="chart-sources">CMIP6 historical runs, 1950&ndash;2014, 16 models, 429 members, via the Pangeo archive on Google Cloud (Amon <code>ts</code>, <code>tas</code>, <code>pr</code>) &middot; ERSST v6 (NOAA NCEI) &middot; NCEI PDO index &middot; ERA5 2&nbsp;m temperature (Copernicus C3S), 1960&ndash;2026 &middot; GPCP v2.3 precipitation (NOAA NCEI), 1980&ndash;2026 &middot; CPC ONI &middot; static reference, redrawn only when the analysis changes</p>
+</template>
+<template id="about-imp_wave">
+<p><b>Do the models put the ENSO wave train in the right place?</b> Two centres are tracked on the 500 hPa height maps: the
+        <b>Aleutian low</b> (the minimum over 30&ndash;65&deg;N, 150&deg;E&ndash;130&deg;W) and the <b>Canadian ridge</b> (the
+        maximum over 40&ndash;70&deg;N, 130&ndash;60&deg;W), each as the area-weighted centroid of the strongest 20&nbsp;% of the
+        anomaly, on the regression per K of Ni&ntilde;o-3.4 for ERA5 (1959&ndash;2026, CPC&rsquo;s ONI) and for each CMIP6 model,
+        and on the super El Ni&ntilde;o composites. The positions are descriptive: ERA5 is one realisation and the CMIP6 range
+        is the spread between models, so no test is implied.</p>
+<p><b>Result.</b> In winter the patterns correlate 0.85; the models&rsquo; Aleutian low (median 163&deg;W) and Canadian ridge
+        (107&deg;W) sit 10&ndash;13&deg; west of the observed ones (153&deg;W, 94&deg;W), and their low is weaker (&minus;28
+        against &minus;38&nbsp;gpm per K). That is the same direction as the models&rsquo; El Ni&ntilde;o rainfall, which sits
+        13&deg; west of the observed in every model. <b>But across models the two are not significantly linked:</b> a
+        model&rsquo;s super El Ni&ntilde;o Aleutian low moves only 0.45&deg; per degree of its rain centroid (r&nbsp;=&nbsp;+0.33
+        across 14 models, p&nbsp;=&nbsp;0.25). The spread in where models put the low is mostly not about where they rain, and
+        in the super El Ni&ntilde;o composite the models&rsquo; low (150&deg;W) sits where the three observed events put it
+        (152&deg;W). The westward offset is a feature of the models&rsquo; ordinary, linear El Ni&ntilde;o response.</p>
+<p class="chart-sources">CMIP6 historical, 16 models, 147 members (Amon <code>zg</code> 500&nbsp;hPa, up to 10 per model) via
+        the Pangeo archive on Google Cloud &middot; ERA5 500&nbsp;hPa height (Copernicus C3S) &middot; GPCP v2.3 (NOAA NCEI) and
+        CMIP6 <code>pr</code> for the rain centroids &middot; CPC ONI</p>
 </template>
 <template id="about-imp_regions">
 <p>Land-weighted means over 20 regions (land fraction from Natural Earth &times; cos&nbsp;latitude), for each class minus
@@ -450,10 +506,11 @@
 </main>
 
 <script>
-var IMP_V = {label: "Variable", items: [["tas","Temperature"],["pr","Precipitation"]]},
+var IMP_V = {label: "Variable", items: [["tas","Temperature"],["pr","Precipitation"],["z500","500 hPa height"]]},
+    IMP_VT = {label: "Variable", items: [["tas","Temperature"],["pr","Precipitation"]]},
     IMP_S = {label: "Season", items: [["DJF","DJF"],["MAM","MAM"],["JJA","JJA"],["SON","SON"]]},
     IMP_PH = {label: "Phase", items: [["JJA0","JJA before"],["SON0","SON before"],["DJF","DJF peak"],["MAM1","MAM after"]]},
-    IMP_VN = {tas: "temperature", pr: "precipitation"};
+    IMP_VN = {tas: "temperature", pr: "precipitation", z500: "500 hPa height"};
 window.STAGE = {
   groups: [
   {label: "SST & indices", ico: "\u{1F321}", items: [["sstmaps","SST anomaly maps","global, tropics, relative"],["indices","Daily indices, interactive","Niño-3.4, RONI, ONI estimate"],["onironi","ONI vs RONI","3-month convention, OISST estimate"],["beyond","PDO, IOD, South Atlantic","daily, beyond ENSO"]]},
@@ -461,7 +518,7 @@ window.STAGE = {
   {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"]]},
   {label: "Atmospheric response", ico: "\u{1F32C}", items: [["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soirec","SOI against the record","daily, since 1887"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["mei","MEI.v2 nowcast","daily, analogs, history"],["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS, to day 15"]]},
   {label: "Subsurface", ico: "\u{1F30A}", items: [["subtemp","Temperature section","TAO/TRITON, raw and detrended"],["hc","Heat content vs analogs","0–300 m, 1997 · 2015 · 2023"],["okelvin","Ocean Kelvin waves","sea level, arrival dates"],["xsec","Cross-section vs analogs","same week of each event"],["cur_map","Surface currents","tropical Pacific"],["cur_sec","Undercurrent section","zonal current with depth"],["cur_hov","Current Hovmöller","equatorial strip"]]},
-  {label: "Impacts on the Americas", ico: "\u{1F30E}", items: [["imp_reg","Regression on Niño-3.4","CMIP6 and observed, per K"],["imp_comp","Composites by event class","CMIP6, El Niño to strong La Niña"],["imp_obs","Observed composites","ERA5 and GPCP"],["imp_super","Super El Niño","lifecycle, beyond linear, by month"],["imp_asym","Asymmetry","what does not flip sign"],["imp_ovm","Observed vs the models","where the real world differs"],["imp_regions","By region","20 regions, significant values only"],["imp_ec","East-based vs central","Takahashi E and C, 2026 placed"],["imp_pdo","PDO without ENSO","reddened ENSO removed"],["imp_pdoph","El Niño by PDO phase","does +PDO amplify it?"]]}
+  {label: "Impacts on the Americas", ico: "\u{1F30E}", items: [["imp_reg","Regression on Niño-3.4","CMIP6 and observed, per K"],["imp_comp","Composites by event class","CMIP6, El Niño to strong La Niña"],["imp_obs","Observed composites","ERA5 and GPCP"],["imp_super","Super El Niño","lifecycle, beyond linear, by month"],["imp_asym","Asymmetry","what does not flip sign"],["imp_ovm","Observed vs the models","where the real world differs"],["imp_regions","By region","20 regions, significant values only"],["imp_ec","East-based vs central","Takahashi E and C, 2026 placed"],["imp_pdo","PDO without ENSO","reddened ENSO removed"],["imp_pdoph","El Niño by PDO phase","does +PDO amplify it?"],["imp_wave","Wave train position","500 hPa, models vs observed"]]}
 ],
   products: {
   sstmaps: {label: "SST anomaly maps", a: {label: "Field", items: [["anomaly","Anomaly"],["absolute","Absolute SST"],["relative","Global mean removed"],["tropical_rel","Tropics, tropical mean removed"]]},
@@ -535,14 +592,14 @@ window.STAGE = {
           cap: function () { return "Equatorial surface zonal current against time: eastward pulses follow westerly wind bursts."; }},
   imp_reg: {label: "ENSO regression maps", a: IMP_V, b: IMP_S, c: {label: "Source", items: [["cmip6","CMIP6, 16 models"],["obs","Observed"]]},
           img: function (a, b, c) { return "assets/sst/enso_imp_reg_" + a + "_" + b + "_" + c + ".webp?v=__CACHE__"; }, about: "about-imp_reg", fit: false,
-          cap: function (a, b, c) { return b + " " + IMP_VN[a] + " change per 1 K of Niño-3.4, " + (c === "obs" ? (a === "tas" ? "ERA5 1960–2026" : "GPCP 1980–2026") + " on CPC’s ONI" : "CMIP6 multi-model, 429 historical members") + ", shaded only where significant."; }},
+          cap: function (a, b, c) { return b + " " + IMP_VN[a] + " change per 1 K of Niño-3.4, " + (c === "obs" ? (a === "pr" ? "GPCP 1980–2026" : "ERA5 1960–2026") + " on CPC’s ONI" : "CMIP6 multi-model, 429 historical members") + ", shaded only where significant."; }},
   imp_comp: {label: "ENSO composites by event class (CMIP6)", a: IMP_V, b: IMP_S,
           c: {label: "Class", items: [["en","El Niño"],["sen","Strong"],["super","Super"],["ln","La Niña"],["sln","Strong La Niña"]]},
           img: function (a, b, c) { return "assets/sst/enso_imp_comp_" + a + "_" + b + "_" + c + ".webp?v=__CACHE__"; }, about: "about-imp_comp", fit: false,
           cap: function (a, b) { return b + " " + IMP_VN[a] + " in each event class minus neutral seasons, thousands of CMIP6 events, shaded only where the models robustly agree."; }},
   imp_obs: {label: "Observed ENSO composites", a: IMP_V, b: IMP_S, c: {label: "Class", items: [["en","El Niño"],["ln","La Niña"]]},
           img: function (a, b, c) { return "assets/sst/enso_imp_obs_" + a + "_" + b + "_" + c + ".webp?v=__CACHE__"; }, about: "about-imp_obs", fit: false,
-          cap: function (a, b) { return b + " " + IMP_VN[a] + " in observed El Niño and La Niña seasons minus neutral ones (" + (a === "tas" ? "ERA5" : "GPCP") + "), shaded only where significant."; }},
+          cap: function (a, b) { return b + " " + IMP_VN[a] + " in observed El Niño and La Niña seasons minus neutral ones (" + (a === "pr" ? "GPCP" : "ERA5") + "), shaded only where significant."; }},
   imp_super: {label: "Super El Niño over the Americas", a: {label: "View", items: [["life","Lifecycle"],["nonlin","Beyond linear"],["namon","North America by month"]]},
           b: function (a) { return a === "namon" ? {label: "Month", items: [["Nov","Nov"],["Dec","Dec"],["Jan","Jan"],["Feb","Feb"],["Mar","Mar"]]} : IMP_V; },
           c: function (a) { return a === "namon" ? null : IMP_PH; },
@@ -555,7 +612,7 @@ window.STAGE = {
           img: function (a, b, c) { return "assets/sst/enso_imp_asym_" + a + "_" + b + "_" + c + ".webp?v=__CACHE__"; }, about: "about-imp_asym", fit: false,
           cap: function (a, b) { return b + " " + IMP_VN[a] + ": El Niño plus La Niña at equal strength. Zero for a mirror-image response; shaded only where robust."; }},
   imp_ovm: {label: "Observed ENSO impacts against the models", a: {label: "View", items: [["map","Super El Niño, mapped"],["table","Every class, by region"]]},
-          b: function (a) { return a === "map" ? IMP_V : null; }, c: function (a) { return a === "map" ? IMP_PH : null; },
+          b: function (a) { return a === "map" ? IMP_VT : null; }, c: function (a) { return a === "map" ? IMP_PH : null; },
           img: function (a, b, c) { return (a === "map" ? "assets/sst/enso_imp_ovm_" + b + "_" + c : "assets/sst/enso_imp_ovmtab_tas") + ".webp?v=__CACHE__"; },
           about: "about-imp_ovm", fit: false,
           cap: function (a) { return a === "map" ? "The three observed super El Niños, shown only where they fall outside the spread of the CMIP6 models."
@@ -580,7 +637,10 @@ window.STAGE = {
           img: function (a, b, c) { return "assets/sst/enso_imp_pdoph_" + b + "_" + c + "_" + a + ".webp?v=__CACHE__"; }, about: "about-imp_pdoph", fit: false,
           cap: function (a, b, c) { return a === "int" ? c + " " + IMP_VN[b] + ": what a positive PDO adds to El Niño beyond what it adds to a neutral season, CMIP6, shaded only where robust."
                                   : c + " " + IMP_VN[b] + ": " + (a === "en" ? "El Niño" : "La Niña") + " seasons of the same strength under a positive minus a negative ENSO-free PDO, CMIP6, shaded only where robust."; }},
-  imp_regions: {label: "ENSO impacts by region", a: IMP_V, b: IMP_S,
+  imp_wave: {label: "Where the ENSO wave train sits", img: function () { return "assets/sst/enso_imp_wave_position.webp?v=__CACHE__"; },
+          about: "about-imp_wave", fit: false,
+          cap: function () { return "The Aleutian low and Canadian ridge of the ENSO wave train at 500 hPa in ERA5 and the CMIP6 models, season by season, and whether the models' super El Niño Aleutian low moves with where they rain."; }},
+  imp_regions: {label: "ENSO impacts by region", a: IMP_VT, b: IMP_S,
           img: function (a, b) { return "assets/sst/enso_imp_regions_" + a + "_" + b + ".webp?v=__CACHE__"; }, about: "about-imp_regions", fit: false,
           cap: function (a, b) { return b + " " + IMP_VN[a] + " for 20 regions of the Americas, CMIP6 and observed; values printed only where significant."; }}
 }

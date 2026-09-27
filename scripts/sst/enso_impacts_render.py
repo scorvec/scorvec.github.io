@@ -272,6 +272,8 @@ def main() -> int:
     table_figs(meta, made, index)
     if (REF / "enso_modes_site.npz").exists():
         render_modes(made, index)
+    if (REF / "enso_z500_site.npz").exists():
+        render_z500(made, index)
     import datetime as dt
     index["made"] = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     index["models"], index["members"] = nmod, nmem
@@ -279,6 +281,251 @@ def main() -> int:
     (OUT / "data" / "enso_impacts.json").write_text(json.dumps(index, separators=(",", ":")))
     print(f"{len(made)} figures -> {OUT}/enso_imp_*.webp")
     return 0
+
+
+ZLEV = {"reg": [-60, -40, -30, -20, -15, -10, -5, -2, 2, 5, 10, 15, 20, 30, 40, 60],
+        "comp": [-150, -100, -75, -50, -35, -20, -10, -5, 5, 10, 20, 35, 50, 75, 100, 150]}
+
+
+def lonlab(x):
+    x = ((x + 180) % 360) - 180
+    return f"{abs(x):.0f}°{'W' if x < 0 else 'E'}" if abs(x) not in (0, 180) else f"{abs(x):.0f}°"
+
+
+def draw_nh(path, field, sig, clim, lat, lon, levels, unit, title, sub, foot, note_empty=None):
+    """Flat Northern Hemisphere map (plate carree centred on 180, 0-90N): the field shaded only where `sig`, the seasonal
+    climatological 500 hPa height as thin contours for orientation."""
+    plt = _plt()
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    import textwrap
+    from cartopy.util import add_cyclic_point
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    from scipy.ndimage import zoom
+    pc = ccrs.PlateCarree(); proj = ccrs.PlateCarree(central_longitude=180)
+    W = 11.0; AX0, AXW = 0.05, 0.93
+    mh = W * AXW * 90 / 360
+    titl = textwrap.wrap(title, 100); subl = textwrap.wrap(sub, 135); footl = textwrap.wrap(foot, 170)
+    top = 0.42 + 0.24 * (len(titl) - 1) + 0.19 * len(subl) + 0.08
+    fh = 0.14 * len(footl) + 0.1; bar_y = fh + 0.46; bot = bar_y + 0.12 + 0.3
+    H = mh + top + bot
+    fig = plt.figure(figsize=(W, H))
+    ax = fig.add_axes([AX0, bot / H, AXW, mh / H], projection=proj)
+    ax.set_extent([-180, 180, 0, 90], crs=proj)
+    ax.add_feature(cfeature.LAND, facecolor="#f1f0eb", zorder=0)
+    base = plt.get_cmap("RdBu_r")(np.linspace(0.06, 0.94, 256)); cm = ListedColormap(base)
+    norm = BoundaryNorm(levels, cm.N, extend="both")
+    ok = sig & np.isfinite(field)
+    f_c, lon_c = add_cyclic_point(np.where(np.isfinite(field), field, 0.0), coord=lon)
+    m_c, _ = add_cyclic_point(ok.astype(float), coord=lon)
+    fz = zoom(f_c, 3, order=1); mz = zoom(m_c, 3, order=1)
+    la = np.linspace(lat[0], lat[-1], fz.shape[0]); lz = np.linspace(lon_c[0], lon_c[-1], fz.shape[1])
+    mappable = ax.contourf(lz, la, np.where(mz >= 0.5, fz, np.nan), levels=levels, cmap=cm, norm=norm, extend="both",
+                           transform=pc, zorder=1)
+    if clim is not None:
+        c_c, _ = add_cyclic_point(clim, coord=lon)
+        cs = ax.contour(lon_c, lat, c_c, levels=np.arange(5000, 6000, 100), colors="#555", linewidths=0.45, alpha=0.75,
+                        transform=pc, zorder=2)
+        ax.clabel(cs, levels=[5200, 5500, 5800], fmt="%d", fontsize=6.5, inline=True)
+    ax.coastlines(resolution="110m", linewidth=0.45, color="#222", zorder=3)
+    gl = ax.gridlines(crs=pc, draw_labels=True, linewidth=0.3, color=MUTED, alpha=0.45, xlocs=range(-180, 181, 60),
+                      ylocs=[0, 30, 60, 90], zorder=4)
+    gl.top_labels = gl.right_labels = False; gl.xlabel_style = gl.ylabel_style = {"size": 7, "color": "#555"}
+    if not ok.any():
+        ax.text(0.5, 0.5, note_empty or "No significant signal", transform=ax.transAxes, ha="center", va="center",
+                fontsize=11, color="#333", zorder=6, bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="#bbb", lw=0.6))
+    fig.text(0.03, 1 - 0.12 / H, "\n".join(titl), fontsize=12.5, fontweight="bold", va="top", linespacing=1.15)
+    fig.text(0.03, 1 - (0.44 + 0.24 * (len(titl) - 1)) / H, "\n".join(subl), fontsize=8.6, color="#3d3a36", va="top", linespacing=1.3)
+    cax = fig.add_axes([0.25, bar_y / H, 0.5, 0.12 / H])
+    cb = fig.colorbar(mappable, cax=cax, orientation="horizontal", extend="both", spacing="uniform", ticks=levels)
+    cb.set_label(unit, fontsize=8.4, labelpad=2); cb.ax.tick_params(labelsize=6.8, pad=1.5)
+    cb.ax.set_xticklabels([f"{t:g}" for t in levels])
+    fig.text(0.03, fh / H, "\n".join(footl), fontsize=7.2, color=MUTED, va="top", linespacing=1.35)
+    fig.savefig(path, dpi=100, facecolor="white", pil_kwargs={"quality": 84, "method": 6})
+    plt.close(fig)
+
+
+def render_z500(made, index):
+    """500 hPa height, flat Northern Hemisphere, for every view that has a temperature and precipitation map, from
+    reference/enso_z500_site.{npz,json} (cmip6_z500_impacts.py)."""
+    z = np.load(REF / "enso_z500_site.npz")
+    meta = json.loads((REF / "enso_z500_site.json").read_text())
+    M = meta["maps"]; lat, lon = z["lat"], z["lon"]
+    nm_, nmem = meta["models"], meta["members"]
+    OBS_T = ("Shaded only where significant: t-test per grid point, Benjamini–Hochberg FDR 10 % over the map (0–90°N); "
+             "blank = not significant. ERA5 500 hPa height, quadratic trend removed; contours: ERA5 1959–2026 seasonal mean "
+             "height every 100 m.")
+    MOD_T = (f"Shaded only where robust: across-model t-test passes Benjamini–Hochberg FDR 10 % over the map (0–90°N) and "
+             f"≥ 80 % of the models agree on the sign; blank = not significant. {nm_} CMIP6 models, {nmem} historical members "
+             f"(up to 10 per model), 1950–2014, each member's own quadratic trend removed; contours: ERA5 seasonal mean height "
+             f"every 100 m.")
+
+    def get(key):
+        return (z[key + "|f"], z[key + "|s"]) if key + "|f" in z else (None, None)
+
+    def out(name, key, field, sig, s, lev, unit, title, sub, foot, note=None):
+        draw_nh(OUT / f"{name}.webp", field, sig, z[f"clim_obs|{s}"] if f"clim_obs|{s}" in z else None, lat, lon, ZLEV[lev],
+                unit, title, sub, foot, note_empty=note)
+        index["maps"][name] = dict(M.get(key, {})); made.append(name)
+
+    def blank(name, key, s, lev, title, sub, foot, note):
+        out(name, key, np.full((len(lat), len(lon)), np.nan), np.zeros((len(lat), len(lon)), bool), s, lev, "gpm", title, sub, foot, note)
+
+    pos = meta["position"]
+    for s in SEASONS:
+        ps = pos[s]
+        for src in ("cmip6", "obs"):
+            key = f"cmip6|reg|{s}" if src == "cmip6" else f"obs|reg|{s}"; f, sg = get(key); e = M.get(key, {})
+            if src == "cmip6":
+                sub = (f"Height change per 1 K of the same season's Niño-3.4 · {e['models']} models · {100 * e['sig_frac']:.0f} % of "
+                       f"20–90°N robust · Aleutian low centre {lonlab(ps['aleutian_low']['cmip6_mean_map'])}, Canadian ridge "
+                       f"{lonlab(ps['canadian_ridge']['cmip6_mean_map'])}; pattern r with ERA5 {ps['pattern_r']:+.2f}")
+                title = f"CMIP6 · {s} 500 hPa height regressed on Niño-3.4"; foot = MOD_T
+            else:
+                sub = (f"Height change per 1 K of CPC's ONI · {e['n']} seasons, {e['span'][0]}–{e['span'][1]} · {100 * e['sig_frac']:.0f} % "
+                       f"of 20–90°N significant · Aleutian low centre {lonlab(ps['aleutian_low']['obs'])}, Canadian ridge "
+                       f"{lonlab(ps['canadian_ridge']['obs'])}")
+                title = f"ERA5 · {s} 500 hPa height regressed on Niño-3.4"; foot = OBS_T
+            out(f"enso_imp_reg_z500_{s}_{src}", key, f, sg, s, "reg", "gpm per K of Niño-3.4", title, sub, foot)
+        for c in CLASS:
+            key = f"cmip6|x|{s}|{c}"; f, sg = get(key); e = M.get(key, {})
+            if f is None:
+                continue
+            out(f"enso_imp_comp_z500_{s}_{c}", key, f, sg, s, "comp", "500 hPa height anomaly (gpm)",
+                f"CMIP6 · {s} 500 hPa height in {CLASS[c]} seasons",
+                f"{CLASS[c]} ({THR[c]} same-season Niño-3.4) minus neutral seasons · {e['events']:,} events, {e['models']} models · "
+                f"{100 * e['sig_frac']:.0f} % of 20–90°N robust", MOD_T + " Members event-weighted within a model.")
+        for c in ("en", "ln"):
+            key = f"obs|x|{s}|{c}"; f, sg = get(key); e = M.get(key, {})
+            name = f"enso_imp_obs_z500_{s}_{c}"
+            if f is None:
+                blank(name, key, s, "comp", f"ERA5 · {s} 500 hPa height in {CLASS[c]} seasons", f"{e.get('n', 0)} observed seasons",
+                      "Classes with fewer than 8 observed seasons are not tested, so nothing is drawn.", f"Not tested: only {e.get('n', 0)} observed seasons")
+                continue
+            out(name, key, f, sg, s, "comp", "500 hPa height anomaly (gpm)", f"ERA5 · {s} 500 hPa height in {CLASS[c]} seasons",
+                f"{CLASS[c]} ({THR[c]} ONI) minus neutral seasons · {e['n']} seasons, {e['span'][0]}–{e['span'][1]} · "
+                f"{100 * e['sig_frac']:.0f} % of 20–90°N significant",
+                "Shaded only where significant: Welch t-test of the class against neutral seasons per grid point, Benjamini–Hochberg "
+                "FDR 10 % over the map; blank = not significant. Contours: ERA5 seasonal mean height every 100 m.")
+        for c, lab in (("asym", "|index| ≥ 0.5 K"), ("asym_strong", "|index| ≥ 1.5 K")):
+            key = f"cmip6|x|{s}|{c}"; f, sg = get(key); e = M.get(key, {})
+            if f is None:
+                continue
+            out(f"enso_imp_asym_z500_{s}_{c}", key, f, sg, s, "comp", "500 hPa height (gpm)",
+                f"CMIP6 · {s} 500 hPa height: what does not flip sign",
+                f"El Niño plus La Niña, each rescaled to the same index size ({lab}) · zero for a symmetric response · {e['models']} models",
+                MOD_T, note="No significant signal")
+        for nm in ("E", "C"):
+            lab = "east-based (E)" if nm == "E" else "central-Pacific (C)"
+            for src in ("cmip6", "obs"):
+                key = f"cmip6|{nm}|{s}" if src == "cmip6" else f"obs|{nm}|{s}"; f, sg = get(key); e = M.get(key, {})
+                who = "CMIP6" if src == "cmip6" else "ERA5"
+                out(f"enso_imp_ec_z500_{s}_{nm}_{src}", key, f, sg, s, "reg", "gpm per standard deviation",
+                    f"{who} · {s} 500 hPa height and the {lab} ENSO index",
+                    f"Partial regression on Takahashi's E and C together, per 1 sd of {nm} · "
+                    + (f"{e['models']} models" if src == "cmip6" else f"{e['n']} seasons, {e['span'][0]}–{e['span'][1]}")
+                    + f" · {100 * e['sig_frac']:.0f} % of 20–90°N " + ("robust" if src == "cmip6" else "significant"),
+                    MOD_T if src == "cmip6" else OBS_T, note="No significant signal")
+        key = f"cmip6|cmp|{s}|epcp"; f, sg = get(key); e = M.get(key, {})
+        out(f"enso_imp_ec_z500_{s}_diff", key, f, sg, s, "comp", "500 hPa height (gpm)",
+            f"CMIP6 · {s} 500 hPa height: east-based minus central-Pacific El Niño",
+            f"Same-strength events: Niño-3.4 {e['x_a']:+.2f} K (east, E > C) vs {e['x_b']:+.2f} K (central) · {e['n_a']:,} vs "
+            f"{e['n_b']:,} events, {e['models']} models · {100 * e['sig_frac']:.0f} % of 20–90°N robust",
+            MOD_T + " Events matched in Niño-3.4 bins (0.5–1, 1–1.5, 1.5–2, ≥ 2 K).", note="No significant difference")
+        for nm in ("free", "raw"):
+            for src in ("cmip6", "obs"):
+                key = f"cmip6|{nm}|{s}" if src == "cmip6" else f"obs|{nm}|{s}"; f, sg = get(key); e = M.get(key, {})
+                who = "CMIP6" if src == "cmip6" else "ERA5"
+                ttl = f"{who} · {s} 500 hPa height and the " + ("PDO without ENSO" if nm == "free" else "raw PDO index")
+                sub = (("Partial regression on the ENSO-free PDO with same-season Niño-3.4 alongside, per 1 sd" if nm == "free"
+                        else "Simple regression on the PDO index, ENSO left in, per 1 sd") + " · "
+                       + (f"{e['models']} models" if src == "cmip6" else f"{e['n']} seasons, {e['span'][0]}–{e['span'][1]}")
+                       + f" · {100 * e['sig_frac']:.0f} % of 20–90°N " + ("robust" if src == "cmip6" else "significant"))
+                out(f"enso_imp_pdo_z500_{s}_{nm}_{src}", key, f, sg, s, "reg", "gpm per standard deviation", ttl, sub,
+                    MOD_T if src == "cmip6" else OBS_T, note="No significant signal")
+        for nm, lab in (("en", "El Niño"), ("ln", "La Niña"), ("int", "El Niño")):
+            key = f"cmip6|cmp|{s}|{'en_pdo' if nm == 'en' else 'ln_pdo' if nm == 'ln' else 'int'}"; f, sg = get(key); e = M.get(key, {})
+            ttl = (f"CMIP6 · {s} 500 hPa height: {lab} under +PDO minus −PDO" if nm != "int"
+                   else f"CMIP6 · {s} 500 hPa height: does a +PDO amplify El Niño?")
+            sub = ((f"{lab} seasons with the ENSO-free PDO ≥ +0.5 sd minus ≤ −0.5 sd, Niño-3.4 matched ({e['x_a']:+.2f} vs "
+                    f"{e['x_b']:+.2f} K) · {e['n_a']:,} vs {e['n_b']:,} events" if nm != "int"
+                    else "(El Niño, +PDO − −PDO) − (neutral, +PDO − −PDO), per model")
+                   + f" · {e['models']} models · {100 * e['sig_frac']:.0f} % of 20–90°N robust")
+            out(f"enso_imp_pdoph_z500_{s}_{nm}", key, f, sg, s, "comp", "500 hPa height (gpm)", ttl, sub, MOD_T,
+                note="No significant difference")
+    for ph in PHASE:
+        s = PHSEA[ph]
+        for kind in ("super", "nonlin"):
+            key = f"cmip6|life|{ph}|{kind}"; f, sg = get(key); e = M.get(key, {})
+            if f is None:
+                continue
+            ttl = (f"CMIP6 · super El Niño, 500 hPa height, {PHASE[ph]}" if kind == "super"
+                   else f"CMIP6 · super El Niño beyond a scaled-up El Niño, 500 hPa height, {PHASE[ph]}")
+            out(f"enso_imp_life_z500_{ph}_{kind}", key, f, sg, s, "comp", "500 hPa height (gpm)", ttl,
+                (f"Winters with DJF Niño-3.4 ≥ +2.0 K minus neutral winters · " if kind == "super" else
+                 "Super composite minus the linear regression on the index × the mean super index · ")
+                + f"{e['events']:,} events, {e['models']} models · {100 * e['sig_frac']:.0f} % of 20–90°N robust", MOD_T,
+                note="No significant signal")
+    wave_fig(meta, made, index)
+
+
+def wave_fig(meta, made, index):
+    """Wave-train position: observed vs CMIP6 per season (regression per K) and for the super El Nino composite, and the
+    super El Nino Aleutian low against the models' equatorial rain centroid."""
+    plt = _plt()
+    import textwrap
+    pos = meta["position"]; sd = pos["super_DJF"]
+    fig = plt.figure(figsize=(12.4, 5.0))
+    H = 5.0
+    fig.text(0.02, 1 - 0.12 / H, "Where the ENSO wave train sits: CMIP6 against ERA5", fontsize=13, fontweight="bold", va="top")
+    fig.text(0.02, 1 - 0.44 / H, "\n".join(textwrap.wrap(
+        "500 hPa height regressed on Niño-3.4 per season, and the super El Niño composite; centres are the area-weighted "
+        "centroid of the strongest 20 % of the anomaly. Right: each model's super El Niño Aleutian low against where it rains "
+        "along the equator.", 150)), fontsize=8.6, color="#3d3a36", va="top", linespacing=1.3)
+    hdr = ["", "pattern r", "Aleutian low\nERA5", "Aleutian low, CMIP6\nmedian (10–90 %)", "strength (gpm/K)\nERA5 · CMIP6",
+           "Canadian\nridge, ERA5", "Canadian ridge, CMIP6\nmedian (10–90 %)"]
+    xs = [0.02, 0.07, 0.13, 0.205, 0.335, 0.44, 0.515]
+    y0 = 1 - 1.02 / H
+    for x, h in zip(xs, hdr):
+        fig.text(x, y0, h, fontsize=7.8, fontweight="bold", va="top", linespacing=1.1)
+    rng = lambda d: "–" if not d["models_p10_50_90"] else (f"{lonlab(d['models_p10_50_90'][1])} "
+                                                           f"({lonlab(d['models_p10_50_90'][0])}–{lonlab(d['models_p10_50_90'][2])})")
+    for i, s_ in enumerate(SEASONS):
+        p_ = pos[s_]; y = y0 - (0.52 + 0.32 * i) / H
+        al, cr = p_["aleutian_low"], p_["canadian_ridge"]
+        vals = [s_, f"{p_['pattern_r']:+.2f}", lonlab(al["obs"]) if al["obs"] else "–", rng(al),
+                f"{al['obs_extreme']:+.0f} · {al['cmip6_extreme']:+.0f}", lonlab(cr["obs"]) if cr["obs"] else "–", rng(cr)]
+        for x, t in zip(xs, vals):
+            fig.text(x, y, t, fontsize=8.3, va="top")
+    y = y0 - (0.52 + 0.32 * 4 + 0.12) / H
+    vals = ["super\nDJF", f"{sd['pattern_r_obs_vs_cmip6']:+.2f}", lonlab(sd["obs_aleutian_low"]) if sd.get("obs_aleutian_low") else "–",
+            f"{lonlab(sd['cmip6_aleutian_low_mean_map'])} (mean map)", "composite", lonlab(sd["obs_canadian_ridge"]) if sd.get("obs_canadian_ridge") else "–",
+            f"{lonlab(sd['cmip6_canadian_ridge_mean_map'])} (mean map)"]
+    for x, t in zip(xs, vals):
+        fig.text(x, y, t, fontsize=8.3, va="top", color="#7a3b12", linespacing=1.1)
+    ax = fig.add_axes([0.715, 0.17, 0.265, 0.58])
+    rain, alv = np.array(sd["rain_centroid_models"]), np.array(sd["aleutian_low_models"])
+    ax.scatter(rain, alv, s=26, c="#7f95ad", edgecolors="white", linewidths=0.5, label="CMIP6 models")
+    if sd.get("obs_aleutian_low") is not None:
+        ax.scatter([sd["obs_rain_centroid"]], [sd["obs_aleutian_low"]], s=120, marker="*", c="#c0392b", edgecolors="white",
+                   linewidths=0.6, label="observed (3 events)", zorder=5)
+    k = np.polyfit(rain, alv, 1); xx = np.linspace(rain.min() - 2, max(rain.max(), sd["obs_rain_centroid"]) + 2, 10)
+    ax.plot(xx, np.polyval(k, xx), color="#1f4e79", lw=0.9, ls="--")
+    ax.set_xlabel("equatorial rain centroid (°E)", fontsize=8.2); ax.set_ylabel("Aleutian low centre (°E)", fontsize=8.2)
+    ax.tick_params(labelsize=7.5); ax.grid(lw=0.3, color="#ddd"); ax.legend(fontsize=7.0, frameon=False, loc="upper left")
+    sig = "significant" if sd["p_rain_vs_aleutian_low"] < 0.05 else "not significant"
+    ax.set_title(f"Super El Niño: r = {sd['r_rain_vs_aleutian_low']:+.2f}, {sd['models']} models\n"
+                 f"(p = {sd['p_rain_vs_aleutian_low']:.2f}, {sig})", fontsize=8.4, loc="left")
+    fig.text(0.02, 0.025, "\n".join(textwrap.wrap(
+        "Aleutian low: minimum, 30–65°N 150°E–130°W; Canadian ridge: maximum, 40–70°N 130–60°W; strength: the extreme of the "
+        "map (gpm per K). Pattern r over 20–90°N, cos-weighted, on the unmasked maps. CMIP6: 16 models, 147 members; ERA5 "
+        "1959–2026 on CPC's ONI. The positions are descriptive: the ERA5 value is one realisation and the CMIP6 range is the "
+        "spread between models, so no test is implied. Super El Niño row: the observed composite is 3 winters (1982/83, "
+        "1997/98, 2015/16). Rain centroid: longitude centroid of the positive equatorial (5°S–5°N) DJF rain anomaly, 150°E–90°W; "
+        "observed from GPCP. p: two-sided Pearson test across models.", 175)), fontsize=7.0, color=MUTED, va="bottom", linespacing=1.3)
+    name = "enso_imp_wave_position"
+    fig.savefig(OUT / f"{name}.webp", dpi=110, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
+    made.append(name); index["maps"][name] = {"position": pos}
 
 
 def render_modes(made, index):

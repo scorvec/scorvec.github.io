@@ -374,6 +374,139 @@ def obs_part(ref, W):
     return out, sea
 
 
+# ------------------------------------------------------------------------------------------------ PDO robustness
+VARIANTS = {"V0": ("n34", False, False), "V1": ("n34", False, True), "V2": ("n34", True, True), "V3": ("ecq", True, True)}
+VLABEL = {"V0": "a, b constant, N34 (published)", "V1": "b by calendar month", "V2": "a and b by calendar month",
+          "V3": "monthly a; monthly b on E, C and N34*|N34|"}
+
+
+def enso_part(pdo, X, mon, monthly_a, monthly_b):
+    """Reddened-ENSO part of the PDO with optionally month-dependent persistence a(m) and forcing b_k(m) on several
+    predictors X (T, k): fit PDO_t = a(m_t) PDO_{t-1} + sum_k b_k(m_t) X_k(t) by OLS, then run the recursion driven by
+    the X alone. Returns (P_E, variance share of the PDO it carries)."""
+    T, K = X.shape
+    oh = np.eye(12)[mon]                                                   # (T, 12)
+    cols = [(pdo[:-1, None] * oh[1:]) if monthly_a else pdo[:-1, None]]
+    for k in range(K):
+        cols.append(X[1:, k:k + 1] * oh[1:] if monthly_b else X[1:, k:k + 1])
+    D = np.hstack(cols); ok = np.isfinite(D).all(1) & np.isfinite(pdo[1:])
+    c = np.linalg.lstsq(D[ok], pdo[1:][ok], rcond=None)[0]
+    na = 12 if monthly_a else 1; nb = 12 if monthly_b else 1
+    a = c[:na]; B = c[na:].reshape(K, nb)
+    pe = np.zeros(T)
+    for t in range(T):
+        m = mon[t]
+        f = sum(B[k, m if monthly_b else 0] * (X[t, k] if np.isfinite(X[t, k]) else 0.0) for k in range(K))
+        pe[t] = (a[m if monthly_a else 0] * pe[t - 1] if t else 0.0) + f
+    ok = np.isfinite(pdo)
+    return pe, float(1 - np.var(pdo[ok] - pe[ok]) / np.var(pdo[ok]))
+
+
+def variant_free(pdo, n34, E_, C_, months):
+    mon = np.array([int(m[5:7]) - 1 for m in months])
+    out = {}
+    for v, (pred, ma, mb) in VARIANTS.items():
+        X = n34[:, None] if pred == "n34" else np.column_stack([E_, C_, n34 * np.abs(n34)])
+        pe, share = enso_part(pdo, X, mon, ma, mb)
+        f = pdo - pe; ok = np.isfinite(f)
+        f = (f - np.nanmean(f[ok])) / np.nanstd(f[ok])
+        out[v] = (f, share)
+    return out
+
+
+def robust_pdo() -> int:
+    """Does a stronger ENSO removal change the ENSO-free PDO results? Per member, the four VARIANTS; per season the
+    partial regression on [same-season N34, ENSO-free PDO] (tas, pr), the robust land share, the pattern r against V0,
+    regional values, and the El Nino x PDO-phase interaction. Observed variance shares from NCEI PDO + ERSST v6."""
+    t0 = time.time()
+    st = pickle.load(open(E.STATE, "rb"))
+    W, land = st["W"], st["lf"] >= 0.5
+    ref = obs_indices()
+    names = sorted(Path(f).stem for f in glob.glob(str(E.SRC / "*.nc")) if ".part" not in f)
+    names = [n for n in names if (PAC / f"{n}.npz").exists()]
+    R = defaultdict(dict); Sm = Sums(); info = defaultdict(list)
+    for i, name in enumerate(names):
+        ds = xr.open_dataset(E.SRC / f"{name}.nc"); model = ds.attrs["source_id"]
+        years = ds["year"].values.astype(int); F = {v: ds[v].values.astype("float32") for v in E.VARS}
+        idx34, _ = E.season_index(ds); ds.close()
+        mi = member_indices(PAC / f"{name}.npz", ref)
+        vf = variant_free(mi["pdo"], mi["n34"], mi["E"], mi["C"], mi["months"])
+        for v_, (f, share) in vf.items():
+            info[v_].append(dict(model=model, share=share, r_v0=float(np.corrcoef(f, vf["V0"][0])[0, 1])))
+        sea = {v_: seasonal(f, mi["months"]) for v_, (f, _) in vf.items()}
+        for si, s in enumerate(SEAS):
+            ok = np.array([y in idx34[s] and all(y in sea[v_][s] for v_ in sea) for y in years])
+            for v in E.VARS:
+                ok &= np.isfinite(F[v][si]).all(axis=(1, 2))
+            yrs = years[ok]
+            if len(yrs) < 30:
+                continue
+            x = E.detrend(np.array([idx34[s][y] for y in yrs]), yrs.astype(float)).astype(float)
+            neu, en = np.abs(x) < E.NEUTRAL, x >= 0.5
+            b = bin_of(x)
+            for v in E.VARS:
+                A = E.detrend(F[v][si][ok], yrs.astype(float)).astype("float64")
+                An = A - A[neu].mean(0)
+                for v_ in sea:
+                    P = np.array([sea[v_][s][y] for y in yrs])
+                    B = ols(np.column_stack([x, P]), A)[0][1]
+                    acc = R[(v, s, v_)].setdefault(model, [0.0, 0]); acc[0] = acc[0] + B; acc[1] += 1
+                    pp, pm = P >= PHASE, P <= -PHASE
+                    for k in range(4):
+                        Sm.add(model, (v, s, f"{v_}en+{k}"), An[en & pp & (b == k)], x[en & pp & (b == k)])
+                        Sm.add(model, (v, s, f"{v_}en-{k}"), An[en & pm & (b == k)], x[en & pm & (b == k)])
+                    Sm.add(model, (v, s, f"{v_}neu+0"), An[neu & pp], x[neu & pp]); Sm.add(model, (v, s, f"{v_}neu-0"), An[neu & pm], x[neu & pm])
+        if (i + 1) % 100 == 0:
+            print(f"  {i + 1}/{len(names)} members, {time.time() - t0:.0f} s", flush=True)
+    # observed variance shares
+    omon = [m for m, p in zip(ref["months"], ref["pdo"]) if np.isfinite(p)]
+    nobs = len(omon)
+    ovf = variant_free(ref["pdo"][:nobs], ref["n34"][:nobs], ref["E"][:nobs], ref["C"][:nobs], omon)
+    res = {"variants": VLABEL, "models": {}, "observed": {}, "maps": {}}
+    for v_, rows in info.items():
+        sh = np.array([r["share"] for r in rows]); rr = np.array([r["r_v0"] for r in rows])
+        res["models"][v_] = dict(share_p10_50_90=np.round(np.percentile(sh, [10, 50, 90]), 3).tolist(),
+                                 r_with_V0_p10_50_90=np.round(np.percentile(rr, [10, 50, 90]), 3).tolist())
+        f, share = ovf[v_]
+        res["observed"][v_] = dict(share=round(share, 3), r_with_V0=round(float(np.corrcoef(f, ovf["V0"][0])[0, 1]), 3))
+    wl = np.cos(np.deg2rad(st["lat"]))[:, None] * land
+    REG = {r: k for k, r in enumerate(E.RNAMES)}
+    for v in E.VARS:
+        for s in SEAS:
+            base = None
+            for v_ in VARIANTS:
+                d = R[(v, s, v_)]; mn = sorted(d)
+                S = np.stack([d[m][0] / d[m][1] for m in mn])
+                mm, sg, _, _ = E.robust(S)
+                if v_ == "V0":
+                    base = mm
+                r_land = float(np.sum(wl * mm * base) / np.sqrt(np.sum(wl * mm ** 2) * np.sum(wl * base ** 2)))
+                Rg = E.regional(S, W)
+                if v == "pr":
+                    cl = E.regional(st["clim"][s][1].mean(0), W); Rg = 100 * Rg / cl
+                _, p = stats.ttest_1samp(Rg, 0, axis=0); ag = np.maximum((Rg > 0).mean(0), (Rg < 0).mean(0))
+                okr = E.fdr(p) & (ag >= 0.8)
+                regs = {r: (round(float(Rg[:, REG[r]].mean()), 3) if okr[REG[r]] else "n.s.")
+                        for r in ("Alaska", "Pacific Northwest", "Southeast US", "Gulf Coast", "N Plains / Prairies", "Ohio Valley")}
+                # interaction (El Nino, +PDO - -PDO) - (neutral, +PDO - -PDO), matched
+                ints = []
+                for m in mn:
+                    e_ = matched(Sm, m, v, s, f"{v_}en+{{k}}", f"{v_}en-{{k}}")
+                    n_ = matched(Sm, m, v, s, f"{v_}neu+0", f"{v_}neu-0", bins=(0,))
+                    if e_ and n_:
+                        ints.append(e_["diff"] - n_["diff"])
+                imm, isg, _, _ = E.robust(np.stack(ints))
+                res["maps"][f"{v}|{s}|{v_}"] = dict(land_robust=round(float(sg[land].mean()), 3), pattern_r_vs_V0=round(r_land, 3),
+                                                    regions=regs, interaction_land_robust=round(float(isg[land].mean()), 3))
+    out = E.OUT / "pdo_robustness.json"
+    out.write_text(json.dumps(res, indent=1))
+    print(json.dumps({k: res[k] for k in ("models", "observed")}, indent=1))
+    for k, e in res["maps"].items():
+        print(k, e)
+    print(f"wrote {out} ({time.time() - t0:.0f} s)")
+    return 0
+
+
 def site() -> int:
     """Compact reference for the site renderer: reference/enso_modes_site.{npz,json}. CMIP6 maps are tested in the
     study's units (mm/day for rain) and shown as % of the multi-model normal (cells under 0.3 mm/day unscored)."""
@@ -504,6 +637,8 @@ def site() -> int:
 def main() -> int:
     if "--site" in sys.argv:
         return site()
+    if "--pdo-robust" in sys.argv:
+        return robust_pdo()
     t0 = time.time()
     st = pickle.load(open(E.STATE, "rb"))
     E.STATE_LAT, E.STATE_LON = st["lat"], st["lon"]

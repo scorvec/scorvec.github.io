@@ -5,7 +5,8 @@ name: ENSO impacts on the Americas (static CMIP6 reference)
 # regional table, east-based vs central (Takahashi E/C), the PDO without ENSO and El Nino by PDO phase. STATIC products (user 2026-09-25: "the best type of stuff for this site are
 # things that don't need to be updated every day"). The analysis runs once on the laptop
 # (scripts/sst/cmip6_enso_impacts.py over 429 CMIP6 members, then scripts/sst/cmip6_enso_site.py; and
-# cmip6_pacific_ts_extract.py + cmip6_enso_modes.py [--site] for the E/C and PDO views), which commits two
+# cmip6_pacific_ts_extract.py + cmip6_enso_modes.py [--site] for the E/C and PDO views; cmip6_z500_extract.py +
+# cmip6_z500_impacts.py for the 500 hPa views), which commits three
 # small references; this job only draws them. It runs when the renderer or the
 # reference changes, or on dispatch - never on a schedule.
 on:
@@ -18,6 +19,8 @@ on:
       - scripts/sst/reference/enso_impacts_site.json
       - scripts/sst/reference/enso_modes_site.npz
       - scripts/sst/reference/enso_modes_site.json
+      - scripts/sst/reference/enso_z500_site.npz
+      - scripts/sst/reference/enso_z500_site.json
       - .github/workflows/enso-impacts.yml
 
 env:
