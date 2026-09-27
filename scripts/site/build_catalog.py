@@ -34,6 +34,7 @@ import fnmatch
 import hashlib
 import html as H
 import json
+import os
 import re
 import subprocess
 import sys
@@ -45,7 +46,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import apply_chrome as A                                                       # noqa: E402
 
-OUT = REPO / "assets" / "site" / "catalog.json"
+# CATALOG_OUT redirects a local test build (the committed copy is built only in catalog.yml)
+OUT = Path(os.environ["CATALOG_OUT"]) if os.environ.get("CATALOG_OUT") else REPO / "assets" / "site" / "catalog.json"
 EVAL = Path(__file__).resolve().parent / "catalog_eval.js"
 THUMB_DIR = "assets/site/thumbs"                       # on the frames branch
 THUMB_INDEX_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/" + THUMB_DIR + "/index.json"
@@ -652,7 +654,7 @@ def main() -> int:
         pass
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(cat, ensure_ascii=False, separators=(",", ":")))
-    print(f"wrote {OUT.relative_to(REPO)} ({OUT.stat().st_size // 1024} KB)")
+    print(f"wrote {OUT} ({OUT.stat().st_size // 1024} KB)")
     return 0
 
 
