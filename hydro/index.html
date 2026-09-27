@@ -118,6 +118,11 @@
 <div id="gate">
   <h1>Private board</h1>
   <p>This page holds nothing of its own. Give it a repository and a read-only token and it loads the board from there.</p>
+  <div id="savedrow" style="display:none">
+    <label for="saved">Saved boards</label>
+    <div class="row" style="margin-top:.2rem"><select id="saved"></select><button class="primary" id="opensaved">Open</button>
+      <button id="dropsaved">Forget</button></div>
+  </div>
   <label for="repo">Repository (owner/name)</label>
   <input id="repo" autocomplete="off" spellcheck="false" placeholder="owner/repository">
   <label for="tok">Access token</label>
@@ -136,7 +141,7 @@
     <h1 id="btitle">Board</h1>
     <div class="meta" id="bmeta"></div>
     <div id="groups"></div>
-    <div class="foot"><button id="reload">Reload</button><button id="forget">Sign out</button></div>
+    <div class="foot"><button id="reload">Reload</button><button id="switch">Switch board</button><button id="forget">Sign out</button></div>
   </nav>
   <div id="stage">
     <div id="blurb"></div>
@@ -146,10 +151,25 @@
 
 <script>
 const $ = s => document.querySelector(s);
-const KEY = 'privboard';
+const KEY = 'privboard', KEYS = 'privboards';
 let CFG = null, MAN = null, cache = new Map(), cur = null, LOOP = null;
 
-function creds(){ try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+// Several boards can be remembered on one device: a list of {repo, token}, the last one opened first. (Before
+// 2026-09-27 one board was kept under KEY; it is folded into the list on first load.)
+function boards(){
+  let L = []; try { L = JSON.parse(localStorage.getItem(KEYS) || '[]'); } catch (e) {}
+  try { const one = JSON.parse(localStorage.getItem(KEY) || 'null');
+        if (one && one.repo && one.token && !L.some(b => b.repo === one.repo)) L.unshift(one); } catch (e) {}
+  return L.filter(b => b && b.repo && b.token);
+}
+function saveBoards(L){ try { localStorage.setItem(KEYS, JSON.stringify(L)); localStorage.removeItem(KEY); } catch (e) {} }
+function remember(c){ const L = boards().filter(b => b.repo !== c.repo); L.unshift({ repo: c.repo, token: c.token, ref: c.ref }); saveBoards(L); }
+function creds(){ const L = boards(); return L.length ? L[0] : null; }
+function fillSaved(){
+  const L = boards(); $('#savedrow').style.display = L.length ? 'block' : 'none';
+  $('#saved').innerHTML = L.map((b, i) => `<option value="${i}">${b.repo.replace(/[<>&"]/g, '')}</option>`).join('');
+}
+function clearSession(){ cache.forEach(URL.revokeObjectURL); cache.clear(); stopLoop(); BLOBS.clear(); }
 
 async function gh(path, accept){
   const r = await fetch(`https://api.github.com/repos/${CFG.repo}/contents/${path}?ref=${CFG.ref || 'main'}`,
@@ -195,7 +215,7 @@ const BLOBS = new Map();                       // path -> Blob, this session
 async function frameBlob(path){
   if (BLOBS.has(path)) return BLOBS.get(path);
   let cs = null; try { cs = await caches.open(FRAME_CACHE); } catch (e) {}
-  const key = 'https://frames.privboard.invalid/' + path;
+  const key = 'https://frames.privboard.invalid/' + CFG.repo + '/' + path;     // per board: two boards may share a path
   if (cs) { try { const hit = await cs.match(key); if (hit) { const b = await hit.blob(); BLOBS.set(path, b); return b; } } catch (e) {} }
   const r = await gh(path, 'application/vnd.github.raw');
   const b = new Blob([await r.blob()], { type: path.endsWith('.png') ? 'image/png' : 'image/webp' });
@@ -479,15 +499,23 @@ $('#go').onclick = async () => {
   CFG = { repo, token }; $('#err').textContent = 'Checking…';
   try { await gh('web/manifest.json', 'application/vnd.github.raw'); }
   catch (e) { $('#err').textContent = e.message; CFG = null; return; }
-  if ($('#remember').checked) localStorage.setItem(KEY, JSON.stringify(CFG));
-  $('#err').textContent = ''; open_();
+  if ($('#remember').checked) remember(CFG);
+  $('#err').textContent = ''; clearSession(); open_();
 };
+$('#opensaved').onclick = () => { const b = boards()[+$('#saved').value]; if (!b) return;
+  CFG = { repo: b.repo, token: b.token, ref: b.ref }; remember(CFG); clearSession(); $('#err').textContent = '';
+  open_().catch(e => { $('#board').style.display = 'none'; $('#gate').style.display = 'block'; $('#err').textContent = e.message; }); };
+$('#dropsaved').onclick = () => { const L = boards(), i = +$('#saved').value; L.splice(i, 1); saveBoards(L); fillSaved(); };
+$('#switch').onclick = () => { clearSession(); CFG = null; MAN = null; $('#board').style.display = 'none'; $('#gate').style.display = 'block';
+  $('#tok').value = ''; $('#repo').value = ''; $('#err').textContent = ''; fillSaved(); };
 $('#tok').addEventListener('keydown', e => { if (e.key === 'Enter') $('#go').click(); });
-$('#forget').onclick = () => { localStorage.removeItem(KEY); cache.forEach(URL.revokeObjectURL); cache.clear(); stopLoop(); BLOBS.clear(); try { caches.delete(FRAME_CACHE); } catch (e) {}
-  CFG = null; MAN = null; $('#board').style.display = 'none'; $('#gate').style.display = 'block'; $('#tok').value = ''; };
+$('#forget').onclick = () => { if (CFG) saveBoards(boards().filter(b => b.repo !== CFG.repo)); clearSession();
+  try { caches.delete(FRAME_CACHE); } catch (e) {}
+  CFG = null; MAN = null; $('#board').style.display = 'none'; $('#gate').style.display = 'block'; $('#tok').value = ''; fillSaved(); };
 $('#reload').onclick = () => { cache.forEach(URL.revokeObjectURL); cache.clear(); open_(); };
+fillSaved();
 const saved = creds();
-if (saved && saved.repo && saved.token) { CFG = saved; open_().catch(e => {
+if (saved && saved.repo && saved.token) { CFG = { repo: saved.repo, token: saved.token, ref: saved.ref }; open_().catch(e => {
   $('#board').style.display = 'none'; $('#gate').style.display = 'block'; $('#repo').value = saved.repo; $('#err').textContent = e.message; }); }
 </script>
 </body>
