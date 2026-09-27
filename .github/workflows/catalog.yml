@@ -65,6 +65,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /*.html
+            /*/index.html
             /scripts/site/
             /scripts/lib/
             /assets/**/*.json
