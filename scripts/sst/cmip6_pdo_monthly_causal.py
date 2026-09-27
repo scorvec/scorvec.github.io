@@ -361,8 +361,43 @@ def observed(ref):
     return res, maps
 
 
+SITE_KEYS = {"cpl_coast": ("coupled|coast1s", ("tas", "pr")), "cpl_pdo": ("coupled|lag1s", ("tas", "pr", "z500")),
+             "amip_coast": ("amip|amipcoast", ("tas", "pr")), "amip_pdo": ("amip|amip0", ("tas", "pr", "z500")),
+             "obs": ("obs|lag1", ("tas", "pr", "z500")), "covar": ("coupled|covar", ("tas", "pr", "z500"))}
+
+
+def site() -> int:
+    """Compact reference for enso.html "PDO: forced effects by month": reference/enso_pdo_monthly_site.{npz,json}."""
+    res = json.loads(OUTJ.read_text()); mp = dict(np.load(OUTN))
+    npz = {"latn": LATN.astype("float32"), "lonn": LONN.astype("float32"), "latz": LATZ.astype("float32"), "lonz": LONZ.astype("float32")}
+    meta = {"regions": RN, "maps": {}}
+    for tag, (src, vars_) in SITE_KEYS.items():
+        for var in vars_:
+            for m in range(1, 13):
+                k = f"{src}|{var}|{m:02d}"
+                if k + "|mm" not in mp:
+                    continue
+                key = f"{tag}|{var}|{m:02d}"
+                npz[key + "|f"] = mp[k + "|mm"].astype("float32"); npz[key + "|s"] = mp[k + "|sig"].astype(bool)
+                meta["maps"][key] = res[k]
+    for model, tag in (("IPSL-CM6A-LR", "ipsl"), ("HadGEM3-GC31-MM", "hadgem")):
+        for var in ("tas", "pr", "z500"):
+            for sea in E.SEASONS:
+                k = f"dcpp|{model}|{var}|{sea}"
+                key = f"{tag}|{var}|{sea}"
+                npz[key + "|f"] = mp[k + "|mm"].astype("float32"); npz[key + "|s"] = mp[k + "|sig"].astype(bool)
+                meta["maps"][key] = res[k]
+    out = HERE / "reference"
+    np.savez_compressed(out / "enso_pdo_monthly_site.npz", **npz)
+    (out / "enso_pdo_monthly_site.json").write_text(json.dumps(meta, separators=(",", ":"), default=float))
+    print(f"wrote enso_pdo_monthly_site.npz ({(out / 'enso_pdo_monthly_site.npz').stat().st_size / 1e6:.1f} MB, {len(meta['maps'])} maps)")
+    return 0
+
+
 def main() -> int:
     mode = sys.argv[1] if len(sys.argv) > 1 else "all"
+    if mode == "site":
+        return site()
     ref = MO.obs_indices()
     res = json.loads(OUTJ.read_text()) if OUTJ.exists() else {}
     mp = dict(np.load(OUTN)) if OUTN.exists() else {}

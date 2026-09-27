@@ -281,6 +281,8 @@ def main() -> int:
         render_z500(made, index)
     if (REF / "enso_pdo_causal_site.npz").exists():
         render_pdo_causal(made, index)
+    if (REF / "enso_pdo_monthly_site.npz").exists():
+        render_pdo_monthly(made, index)
     import datetime as dt
     index["made"] = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     index["models"], index["members"] = nmod, nmem
@@ -494,6 +496,141 @@ def causal_table(meta, made, index):
         "co-variability, so not a clean estimate.", 165)), fontsize=7.2, color=MUTED, va="bottom", linespacing=1.3)
     fig.savefig(OUT / "enso_imp_pdocause_table.webp", dpi=110, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
     made.append("enso_imp_pdocause_table"); index["maps"]["enso_imp_pdocause_table"] = {"granger": G}
+
+
+MON3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+MONF = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+PMLEV = {"tas": [-1.0, -0.6, -0.4, -0.3, -0.2, -0.1, -0.05, 0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 1.0],
+         "pr": [-0.5, -0.3, -0.2, -0.15, -0.1, -0.05, -0.02, 0.02, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5]}
+PMUNIT = {"tas": "2 m temperature, K per sd", "pr": "precipitation, mm/day per sd", "z500": "500 hPa height, gpm per sd"}
+NA_EXT = [-170, -50, 15, 75]
+PMETH = {
+    "cpl_coast": ("CMIP6 coupled · forced response to the coastal SST",
+                  "Month-m field on the coastal NE Pacific SST (30–55°N, 135–120°W; 1 sd ≈ 0.53 K) of the month before, with the "
+                  "month-before Pacific–North America z500 (3 PCs), Niño-3.4 and each cell's own previous month held fixed · 147 members, 16 models"),
+    "cpl_pdo": ("CMIP6 coupled · forced response to the ENSO-free PDO",
+                "Month-m field on the ENSO-free PDO of the month before, with the month-before Pacific–North America z500 (3 PCs), "
+                "Niño-3.4 and each cell's own previous month held fixed · 147 members, 16 models"),
+    "amip_coast": ("AMIP · forced response to the observed coastal SST",
+                   "Observed SST prescribed, so the atmosphere cannot drive it: month-m field on the same month's coastal SST, "
+                   "Niño-3.4, Indian Ocean and warm pool alongside · 26 members, 14 models, 1979–2014"),
+    "amip_pdo": ("AMIP · forced response to the observed ENSO-free PDO",
+                 "Observed SST prescribed: month-m field on the same month's ENSO-free PDO, Niño-3.4, Indian Ocean and warm pool "
+                 "alongside · 26 members, 14 models, 1979–2014"),
+    "obs": ("ERA5 / GPCP · lagged forced-response estimate",
+            "Month-m field on the ENSO-free PDO of the month before, with ERA5's month-before North Pacific z500 (2 PCs) and "
+            "Niño-3.4 held fixed · ERA5 1959–2026, GPCP 1979–2026"),
+    "covar": ("NOT the PDO's effect · same-month co-variability (contrast)",
+              "Month-m field on the SAME month's ENSO-free PDO: mostly the atmosphere driving the ocean, shown only as the contrast · "
+              "147 members, 16 models"),
+    "ipsl": ("IPSL-CM6A-LR pacemaker · forced response",
+             "DCPP-C NexTrop: the Pacific decadal SST pattern imposed north of the tropics only, (pos − neg) / 2 per sd of the "
+             "imposed PDO · 10 runs a side"),
+    "hadgem": ("HadGEM3-GC31-MM pacemaker · forced response",
+               "DCPP-C NexTrop: the Pacific decadal SST pattern imposed north of the tropics only, (pos − neg) / 2 per sd of the "
+               "imposed PDO · 12 and 11 runs"),
+}
+PMTEST = {"cpl_coast": "across-model t-test, FDR 10 % over North American land (20–90°N for height) and ≥ 80 % sign agreement",
+          "cpl_pdo": "across-model t-test, FDR 10 % over North American land (20–90°N for height) and ≥ 80 % sign agreement",
+          "amip_coast": "across-model t-test, FDR 10 % over North American land and ≥ 80 % sign agreement",
+          "amip_pdo": "across-model t-test, FDR 10 % over North American land (20–90°N for height) and ≥ 80 % sign agreement",
+          "obs": "OLS t-test per grid point, FDR 10 % over North American land (20–90°N for height)",
+          "covar": "across-model t-test, FDR 10 % and ≥ 80 % sign agreement",
+          "ipsl": "Welch t-test of pos against neg seasons per grid point, FDR 10 %",
+          "hadgem": "Welch t-test of pos against neg seasons per grid point, FDR 10 %"}
+
+
+def render_pdo_monthly(made, index):
+    """PDO forced effects by month over North America (reference/enso_pdo_monthly_site.*, cmip6_pdo_monthly_causal.py site)."""
+    z = np.load(REF / "enso_pdo_monthly_site.npz")
+    meta = json.loads((REF / "enso_pdo_monthly_site.json").read_text())
+    M = meta["maps"]
+    latn, lonn, latz, lonz = z["latn"], z["lonn"], z["latz"], z["lonz"]
+    zc = np.load(REF / "enso_z500_site.npz") if (REF / "enso_z500_site.npz").exists() else None
+    for key in M:
+        tag, var, t = key.split("|")
+        if f"{key}|f" not in z.files:
+            continue
+        f, sg = z[f"{key}|f"], z[f"{key}|s"]
+        title0, sub0 = PMETH[tag]
+        when = MONF[int(t) - 1] if t.isdigit() else t
+        name = f"enso_imp_pdomon_{tag}_{var}_{t}"
+        vname = {"tas": "2 m temperature", "pr": "precipitation", "z500": "500 hPa height"}[var]
+        title = f"{title0} · {when} {vname}"
+        empty = "No significant forced response" if tag != "covar" else "No significant co-variability"
+        foot = (f"Shaded only where significant ({PMTEST[tag]}); blank = not significant. "
+                + ("This is NOT the PDO's effect: a same-month regression mostly shows the atmosphere building the SST anomaly."
+                   if tag == "covar" else "Per standard deviation of the index."))
+        if var == "z500":
+            sea = {1: "DJF", 2: "DJF", 12: "DJF", 3: "MAM", 4: "MAM", 5: "MAM", 6: "JJA", 7: "JJA", 8: "JJA"}.get(int(t) if t.isdigit() else 0, "SON")
+            sea = t if not t.isdigit() else sea
+            clim = zc[f"clim_obs|{sea}"] if zc is not None and f"clim_obs|{sea}" in zc.files else None
+            draw_nh(OUT / f"{name}.webp", f, sg, clim, latz, lonz, CLEV, PMUNIT[var], title, sub0, foot, note_empty=empty)
+        else:
+            draw_map(OUT / f"{name}.webp", f, sg, latn, lonn, PMLEV[var], "RdBu_r" if var == "tas" else "BrBG", PMUNIT[var],
+                     title, sub0, foot, extent=NA_EXT, note_empty=empty)
+        made.append(name); index["maps"][name] = M[key]
+    pdomonth_summary(meta, made, index)
+
+
+def pdomonth_summary(meta, made, index):
+    """Region x month heat tables of the significant forced temperature response, one per causal method: the coastal
+    warming leads."""
+    plt = _plt()
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    M = meta["maps"]; R = meta["regions"]
+    lv = PMLEV["tas"]; cm = ListedColormap(plt.get_cmap("RdBu_r")(np.linspace(0.06, 0.94, 256))); norm = BoundaryNorm(lv, cm.N, extend="both")
+    panels = [("cpl_coast", "CMIP6 coupled · coastal SST (per 0.53 K)", MON3, [f"{m:02d}" for m in range(1, 13)]),
+              ("amip_coast", "AMIP · observed coastal SST", MON3, [f"{m:02d}" for m in range(1, 13)]),
+              ("cpl_pdo", "CMIP6 coupled · ENSO-free PDO", MON3, [f"{m:02d}" for m in range(1, 13)]),
+              ("amip_pdo", "AMIP · observed ENSO-free PDO", MON3, [f"{m:02d}" for m in range(1, 13)]),
+              ("ipsl", "IPSL pacemaker · per sd of imposed PDO", SEASONS, list(SEASONS)),
+              ("hadgem", "HadGEM3 pacemaker · per sd of imposed PDO", SEASONS, list(SEASONS))]
+    W, H = 13.0, 11.6
+    fig = plt.figure(figsize=(W, H))
+    fig.text(0.02, 1 - 0.12 / H, "The North Pacific's forced effect on North American temperature, month by month", fontsize=14,
+             fontweight="bold", va="top")
+    fig.text(0.02, 1 - 0.44 / H, "Regional 2 m temperature response, K per sd of the index · coloured only where the house test passes; "
+             "blank = no significant forced response\nThe one effect every method agrees on: warmer COASTAL air (Alaska's south coast, "
+             "the Pacific Northwest and California coasts) when the nearby ocean is warm", fontsize=9, color="#3d3a36", va="top",
+             linespacing=1.35)
+    rl = [r.replace(" / Southwest", "/SW").replace("Northern Plains / Prairies", "N Plains") for r in R]
+    for i, (tag, ttl, cols, keys) in enumerate(panels):
+        r_, c_ = divmod(i, 2)
+        x0 = 1.45 + c_ * 5.95; w = 4.6 if len(cols) == 12 else 2.2
+        y0 = H - 1.05 - (r_ + 1) * 3.35 + 0.35; h = 2.65
+        ax = fig.add_axes([x0 / W, y0 / H, w / W, h / H])
+        V = np.full((len(R), len(cols)), np.nan)
+        for j, k in enumerate(keys):
+            e = M.get(f"{tag}|tas|{k}")
+            if e:
+                for ri, r in enumerate(R):
+                    v = e["regions"].get(r)
+                    if isinstance(v, (int, float)):
+                        V[ri, j] = v
+        ax.imshow(np.ones_like(V), cmap=ListedColormap(["#f3f2ee"]), aspect="auto")
+        ax.imshow(np.ma.masked_invalid(V), cmap=cm, norm=norm, aspect="auto")
+        for ri in range(len(R)):
+            for j in range(len(cols)):
+                if np.isfinite(V[ri, j]):
+                    col = cm(norm(V[ri, j])); lum = 0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2]
+                    ax.text(j, ri, f"{V[ri, j]:+.2f}".replace("0.", "."), ha="center", va="center", fontsize=6.4,
+                            color="white" if lum < 0.45 else "#111")
+        ax.set_xticks(range(len(cols))); ax.set_xticklabels(cols, fontsize=7.5)
+        ax.set_yticks(range(len(R))); ax.set_yticklabels(rl if c_ == 0 else [], fontsize=7.8)
+        ax.tick_params(length=0); [sp.set_visible(False) for sp in ax.spines.values()]
+        ax.set_xticks(np.arange(-0.5, len(cols)), minor=True); ax.set_yticks(np.arange(-0.5, len(R)), minor=True)
+        ax.grid(which="minor", color="white", lw=1.2); ax.tick_params(which="minor", length=0)
+        ax.set_title(ttl, fontsize=9.6, fontweight="bold", loc="left")
+        for ri, r in enumerate(R):
+            if "coast" in r:
+                ax.get_yticklabels()[ri].set_fontweight("bold") if c_ == 0 else None
+    fig.text(0.02, 0.012, "Tests: CMIP6 and AMIP across-model t-test, FDR 10 % over the 12 regions, ≥ 80 % of models agreeing; pacemakers "
+             "Welch t-test of pos against neg seasons, FDR 10 %. ERA5/GPCP (lagged): no region passes in any month. Coupled estimates hold "
+             "the month-before atmosphere and each cell's own previous month fixed; AMIP prescribes the observed SST.", fontsize=7.2,
+             color=MUTED, va="bottom", wrap=True)
+    fig.savefig(OUT / "enso_imp_pdomon_summary.webp", dpi=100, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
+    made.append("enso_imp_pdomon_summary"); index["maps"]["enso_imp_pdomon_summary"] = {"summary": True}
 
 
 def render_z500(made, index):

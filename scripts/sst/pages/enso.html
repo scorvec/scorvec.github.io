@@ -480,6 +480,48 @@
         &middot; Frankignoul, Czaja &amp; L&rsquo;Heveder 1998, J.&nbsp;Climate 11, 2310&ndash;2324 &middot; Kushnir et al. 2002,
         J.&nbsp;Climate 15, 2233&ndash;2256 &middot; Boer et al. 2016, Geosci. Model Dev. 9, 3751&ndash;3777</p>
 </template>
+<template id="about-imp_pdomonth">
+<p><b>The one forced effect every method agrees on is warmer coastal air.</b> When the North Pacific next to North America is
+        warm, the air over Alaska&rsquo;s south coast and the Pacific Northwest and California coasts is warmer in the following
+        month: per standard deviation of the coastal sea-surface temperature (about 0.53&nbsp;K, 30&ndash;55&deg;N,
+        135&ndash;120&deg;W), +0.09 to +0.19&nbsp;K on the Pacific Northwest coast in every month, +0.06 to +0.13&nbsp;K on the
+        California coast in most months and +0.08 to +0.17&nbsp;K on Alaska&rsquo;s south coast from March to October in the coupled
+        models; +0.25 to +0.38&nbsp;K on the West Coast from September to December and +0.17 to +0.32&nbsp;K on the Alaska coast from
+        March to September when the observed SST is prescribed (AMIP); and the same sign in both pacemaker models (up to +0.5 to
+        +0.9&nbsp;K per standard deviation of the imposed pattern). The physics is local and direct: onshore winds carry air that
+        has just crossed the warm or cold water. Through the ENSO-free PDO, whose pattern is warm along the coast when positive,
+        the signal is the Alaska coast: +0.07 to +0.17&nbsp;K from March to September in the coupled models, +0.14 to +0.24 in
+        AMIP.</p>
+<p><b>Everything else: no significant forced response, or no agreement.</b> Precipitation has no forced response that AMIP
+        confirms (the coupled models give a little more winter rain on the California and Pacific Northwest coasts with a warm
+        coastal ocean, +0.1 to +0.2&nbsp;mm/day per standard deviation, but AMIP passes only in scattered months: the coast in
+        April, inland California and the Pacific Northwest in January). Inland, the coupled models
+        warm the Plains, Great Lakes and the South slightly in winter and spring with a warm coastal ocean, while AMIP cools the
+        Great Lakes and Northeast in March (&minus;0.3 to &minus;0.4&nbsp;K) and the Southeast and Gulf in early summer: the
+        methods disagree, so no inland effect is claimed. The 500&nbsp;hPa height response is under 6&nbsp;m per standard deviation in the Aleutian box in every month and method. The
+        observed record (ERA5 and GPCP with the same lagged design) passes its test in no region, and over at most 1&nbsp;% of the
+        land in any month.</p>
+<p><b>Why not the familiar maps.</b> The same month&rsquo;s co-variability (the last option, labelled NOT the effect) shows a
+        warm Alaska by up to +1.2&nbsp;K per standard deviation and cool eastern states &mdash; five to ten times the forced coastal
+        signal. That map is mostly the atmosphere building the sea-surface pattern (see <i>The PDO&rsquo;s forced effect</i>).</p>
+<p><b>Methods.</b> <i>Coupled</i> (147 CMIP6 members, 16 models, 1950&ndash;2014): each month&rsquo;s field regressed on the
+        coastal SST or the ENSO-free PDO of the month before, holding fixed the month-before atmosphere (the three leading
+        Pacific&ndash;North America 500&nbsp;hPa height patterns), Ni&ntilde;o-3.4 (both months) and each grid cell&rsquo;s own value
+        the month before, so neither atmospheric nor land-surface persistence counts as a response. <i>AMIP</i> (26 members, 14
+        models, 1979&ndash;2014): the observed SST is prescribed, so the atmosphere cannot drive it; each month regressed on the
+        same month&rsquo;s observed index with Ni&ntilde;o-3.4, Indian Ocean and west-Pacific warm-pool indices alongside.
+        <i>Pacemakers</i> (DCPP-C NexTrop, IPSL-CM6A-LR and HadGEM3-GC31-MM): positive minus negative runs by season, per standard
+        deviation of the PDO their imposed SST projects onto. <i>Observed</i>: ERA5 2&nbsp;m temperature and 500&nbsp;hPa height
+        (1959&ndash;2026) and GPCP (1979&ndash;2026) with the coupled lagged design.</p>
+<p><b>Tests.</b> Maps are shaded only where significant: CMIP6 and AMIP an across-model t-test with a Benjamini&ndash;Hochberg
+        false-discovery rate of 10&nbsp;% over North American land (20&ndash;90&deg;N for height) and &ge;&nbsp;80&nbsp;% of models
+        agreeing on the sign; pacemakers a Welch t-test of positive against negative seasons, 10&nbsp;%; observed an OLS t-test,
+        10&nbsp;%. Regional numbers use the same tests over 12 regions.</p>
+<p class="chart-sources">CMIP6 historical and amip (Amon <code>ts</code>, <code>tas</code>, <code>pr</code>, <code>zg</code>)
+        via the Pangeo archive on Google Cloud &middot; DCPP-C dcppC-ipv-NexTrop via ESGF (CEDA) &middot; ERA5 (Copernicus C3S)
+        &middot; GPCP v2.3 and ERSST v6 (NOAA NCEI) &middot; NCEI PDO index &middot; see <i>The PDO&rsquo;s forced effect</i> for the
+        causal method and references</p>
+</template>
 <template id="about-imp_regions">
 <p>Land-weighted means over 20 regions (land fraction from Natural Earth &times; cos&nbsp;latitude), for each class minus
         neutral seasons: the five CMIP6 classes and the observed El Ni&ntilde;o and La Ni&ntilde;a. A CMIP6 value is printed only
@@ -505,7 +547,7 @@ window.STAGE = {
   {label: "Convection & waves", ico: "\u{1F30A}", items: [["olr","OLR Hovmöller","synthetic, equatorial"],["waves","Wave decomposition","Kelvin, Rossby, MJO bands"],["trackers","Kelvin and Rossby trackers","along the equator"],["kelvin","Kelvin wave tracker, AIFS-ENS","map + 15-day forecast"]]},
   {label: "Atmospheric response", ico: "\u{1F32C}", items: [["soi","Southern Oscillation Index","hourly, forecast, equatorial"],["soirec","SOI against the record","daily, since 1887"],["soi_seas","Seasonal SOI outlook","SEAS5, SOI and Equatorial SOI"],["mei","MEI.v2 nowcast","daily, analogs, history"],["ascat","ASCAT wind map","scatterometer, daily"],["eqwind","Zonal wind Hovmöller","equatorial strip, 90 days"],["wwb","Westerly wind bursts","Tarawa monitor, past onsets"],["wind10","10 m wind forecast","AIFS-ENS and IFS-ENS, to day 15"]]},
   {label: "Subsurface", ico: "\u{1F30A}", items: [["subtemp","Temperature section","TAO/TRITON, raw and detrended"],["hc","Heat content vs analogs","0–300 m, 1997 · 2015 · 2023"],["okelvin","Ocean Kelvin waves","sea level, arrival dates"],["xsec","Cross-section vs analogs","same week of each event"],["cur_map","Surface currents","tropical Pacific"],["cur_sec","Undercurrent section","zonal current with depth"],["cur_hov","Current Hovmöller","equatorial strip"]]},
-  {label: "Impacts on the Americas", ico: "\u{1F30E}", items: [["imp_reg","Regression on Niño-3.4","CMIP6 and observed, per K"],["imp_comp","Composites by event class","CMIP6, El Niño to strong La Niña"],["imp_obs","Observed composites","ERA5 and GPCP"],["imp_super","Super El Niño","lifecycle, beyond linear, by month"],["imp_asym","Asymmetry","what does not flip sign"],["imp_ovm","Observed vs the models","where the real world differs"],["imp_regions","By region","20 regions, significant values only"],["imp_ec","East-based vs central","Takahashi E and C, 2026 placed"],["imp_wave","Wave train position","500 hPa, models vs observed"],["imp_pdocause","The PDO\u2019s forced effect","what survives causality tests"]]}
+  {label: "Impacts on the Americas", ico: "\u{1F30E}", items: [["imp_reg","Regression on Niño-3.4","CMIP6 and observed, per K"],["imp_comp","Composites by event class","CMIP6, El Niño to strong La Niña"],["imp_obs","Observed composites","ERA5 and GPCP"],["imp_super","Super El Niño","lifecycle, beyond linear, by month"],["imp_asym","Asymmetry","what does not flip sign"],["imp_ovm","Observed vs the models","where the real world differs"],["imp_regions","By region","20 regions, significant values only"],["imp_ec","East-based vs central","Takahashi E and C, 2026 placed"],["imp_wave","Wave train position","500 hPa, models vs observed"],["imp_pdocause","The PDO\u2019s forced effect","what survives causality tests"],["imp_pdomonth","PDO: forced effects by month","North America, coastal warming"]]}
 ],
   products: {
   sstmaps: {label: "SST anomaly maps", a: {label: "Field", items: [["anomaly","Anomaly"],["absolute","Absolute SST"],["relative","Global mean removed"],["tropical_rel","Tropics, tropical mean removed"]]},
@@ -620,6 +662,17 @@ window.STAGE = {
                                   : a === "table" ? "The Aleutian-low box under each estimate, with the Granger tests of which way the influence runs."
                                   : a === "all" ? "Same-winter co-variability (top) against four estimates of the forced response. Shaded only where significant."
                                   : "An estimate of the forced response of winter 500 hPa height to the ENSO-free PDO, per standard deviation, shaded only where significant."; }},
+  imp_pdomonth: {label: "PDO: forced effects by month (North America)",
+          a: {label: "Method", items: [["summary","Summary"],["cpl_coast","Coastal SST, coupled"],["amip_coast","Coastal SST, AMIP"],["cpl_pdo","PDO, coupled"],["amip_pdo","PDO, AMIP"],["ipsl","IPSL pacemaker"],["hadgem","HadGEM3 pacemaker"],["obs","Observed"],["covar","Co-variability (NOT the effect)"]]},
+          b: function (a) { return a === "summary" ? null : (a.indexOf("coast") >= 0 ? IMP_VT : IMP_V); },
+          c: function (a) { return a === "summary" ? null : (a === "ipsl" || a === "hadgem") ? IMP_S
+                                   : {label: "Month", items: [["01","Jan"],["02","Feb"],["03","Mar"],["04","Apr"],["05","May"],["06","Jun"],["07","Jul"],["08","Aug"],["09","Sep"],["10","Oct"],["11","Nov"],["12","Dec"]]}; },
+          img: function (a, b, c) { return a === "summary" ? "assets/sst/enso_imp_pdomon_summary.webp?v=__CACHE__"
+                                  : "assets/sst/enso_imp_pdomon_" + a + "_" + b + "_" + c + ".webp?v=__CACHE__"; },
+          about: "about-imp_pdomonth", fit: false,
+          cap: function (a, b, c) { return a === "summary" ? "The North Pacific's forced effect on North American temperature by month and region, coloured only where significant: warmer coastal air is the one agreed signal."
+                                  : a === "covar" ? "NOT the PDO's effect: the same month's co-variability, mostly the atmosphere driving the ocean, shown as the contrast."
+                                  : "Forced response of " + IMP_VN[b] + " to the " + (a.indexOf("coast") >= 0 ? "coastal North Pacific SST" : "ENSO-free PDO") + ", shaded only where significant; blank = no significant forced response."; }},
   imp_wave: {label: "Where the ENSO wave train sits", img: function () { return "assets/sst/enso_imp_wave_position.webp?v=__CACHE__"; },
           about: "about-imp_wave", fit: false,
           cap: function () { return "The Aleutian low and Canadian ridge of the ENSO wave train at 500 hPa in ERA5 and the CMIP6 models, season by season, and whether the models' super El Niño Aleutian low moves with where they rain."; }},
