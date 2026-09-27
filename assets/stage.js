@@ -100,8 +100,13 @@
   }
   var PAGE_NAME = ((document.querySelector(".page-header h1") || {}).textContent || "").trim() || document.title;
   var titled = !!location.hash.replace(/^#/, "");
+  // gated products (2026-09-27, navigation phase 2): a page whose cards hide themselves when their data is missing
+  // (seasonal.html) marks them gated; a hidden one drops out of the rail and is never put on the stage
+  function available(id) { var q = P[id]; if (!q || !q.gated || !q.dom) return !!q; var el = $(q.dom()); return !!el && !el.hidden; }
+  function firstAvailable() { for (var i = 0; i < ORDER.length; i++) if (available(ORDER[i])) return ORDER[i]; return ORDER[0]; }
   function render() {
-    var p = P[sel.p]; if (!p) { sel.p = ORDER[0]; p = P[sel.p]; }
+    if (!available(sel.p)) sel = { p: firstAvailable(), a: null, b: null, c: null };
+    var p = P[sel.p];
     Array.prototype.forEach.call(document.querySelectorAll("#rail button[data-p]"), function (b) { b.classList.toggle("on", b.dataset.p === sel.p); });
     Array.prototype.forEach.call(document.querySelectorAll("#rail .rail-group"), function (d) {
       var mine = !!d.querySelector('button[data-p="' + sel.p + '"]'); d.classList.toggle("has", mine); if (mine) d.classList.add("open"); else d.classList.remove("open");
@@ -113,7 +118,8 @@
     var domId = p.dom && p.dom(sel.a, sel.b, sel.c);   // dom() may return null for an option that is a still
     if (domId) {
       var el = $(domId);
-      if (el) { mountedHome = { parent: el.parentNode, next: el.nextSibling }; mounted = el; st.appendChild(el); el.hidden = false;
+      // a gated block's own script decides whether it has anything to show (its hidden attribute); others are shown
+      if (el) { mountedHome = { parent: el.parentNode, next: el.nextSibling }; mounted = el; st.appendChild(el); if (!p.gated) el.hidden = false;
         if (window.Plotly) Array.prototype.forEach.call(el.querySelectorAll(".js-plotly-plot"), function (g) { try { window.Plotly.Plots.resize(g); } catch (e) {} }); }
     } else if (p.frame && p.frame(sel.a, sel.b, sel.c)) {          // frame() may return null for an option that is a still
       var f = document.createElement("iframe"); f.title = p.label; f.loading = "lazy";
@@ -143,11 +149,77 @@
     fitStage();
     var h = "#" + [sel.p, sel.a, sel.b, sel.c].filter(function (x) { return x; }).join("/");
     if (location.hash !== h) history.replaceState(null, "", h);
+    related();
     window.dispatchEvent(new Event("resize"));
+  }
+
+  // "Related plots" (2026-09-27, navigation phase 2): a strip under the figure of products elsewhere on the site
+  // that share its variables, regions and models, from the finder's index (assets/site/catalog.json via
+  // window.SiteFind). The index is fetched only once the strip scrolls into view.
+  var relBox = null, relWanted = false, relCat = null;
+  function pagePath() { return location.pathname.replace(/index\.html$/, ""); }
+  function related() {
+    if (!window.SiteFind || S.related === false) return;
+    if (!relBox) {
+      relBox = document.createElement("div"); relBox.className = "ss-related"; relBox.hidden = true;
+      var anchor = $("about"); anchor.parentNode.insertBefore(relBox, anchor.nextSibling);
+      if ("IntersectionObserver" in window) {
+        new IntersectionObserver(function (es, obs) {
+          if (es.some(function (e) { return e.isIntersecting; })) { obs.disconnect(); relWanted = true; fillRelated(); }
+        }, { rootMargin: "300px 0px" }).observe(relBox);
+        relBox.hidden = false; relBox.style.minHeight = "1px";
+      } else { relWanted = true; }
+    }
+    fillRelated();
+  }
+  function fillRelated() {
+    if (!relWanted) return;
+    if (!relCat) { window.SiteFind.load().then(function (c) { relCat = c; fillRelated(); }, function () {}); return; }
+    var here = pagePath(), me = null;
+    relCat.items.forEach(function (it) { if (it.page === here && it.id === here + "#" + sel.p) me = it; });
+    if (!me) { relBox.hidden = true; return; }
+    var set = function (a) { var o = {}; (a || []).forEach(function (x) { o[x] = 1; }); return o; };
+    var V = set(me.variables), R = set(me.regions), M = set(me.models);
+    var scored = relCat.items.filter(function (it) { return it.page !== here && it.page !== "/catalog.html"; }).map(function (it) {
+      var sc = 0;
+      (it.variables || []).forEach(function (x) { if (V[x]) sc += 3; });
+      (it.regions || []).forEach(function (x) { if (R[x]) sc += 1.5; });
+      (it.models || []).forEach(function (x) { if (M[x]) sc += 1; });
+      if (it.topic === me.topic) sc += 1.5;
+      if (it.horizon && me.horizon) sc += it.horizon === me.horizon ? 2 : -1.5;   // a forecast next to a forecast
+      if (it.thumb) sc += 0.5;
+      return { it: it, sc: sc };
+    }).filter(function (x) { return x.sc >= 5; }).sort(function (a, b) { return b.sc - a.sc; });
+    var seenPage = {}, pick = [];                     // at most two from any one page, six in all
+    scored.forEach(function (x) { if (pick.length < 6 && (seenPage[x.it.page] || 0) < 2) { seenPage[x.it.page] = (seenPage[x.it.page] || 0) + 1; pick.push(x.it); } });
+    if (!pick.length) { relBox.hidden = true; return; }
+    var esc = window.SiteFind.esc;
+    relBox.hidden = false;
+    relBox.innerHTML = '<div class="ss-related-h">Related plots elsewhere on the site</div><div class="ss-related-row">' + pick.map(function (it, i) {
+      return '<a class="ss-rel" href="' + esc(it.url) + '"><span class="ss-rel-th" data-i="' + i + '"></span><b>' + esc(it.label) + '</b><small>' + esc(it.page_title) + '</small></a>';
+    }).join("") + "</div>";
+    pick.forEach(function (it, i) {
+      var box = relBox.querySelector('.ss-rel-th[data-i="' + i + '"]');
+      if (!it.thumb) { box.classList.add("none"); return; }
+      var im = new Image(); im.alt = "";
+      im.onload = function () { box.appendChild(im); };
+      window.SiteFind.thumbInto(im, it.thumb, function () { box.classList.add("none"); });
+    });
   }
   function lastRow() { var rows = ["c", "b", "a"]; for (var i = 0; i < rows.length; i++) { var bs = document.querySelectorAll("#opts-" + rows[i] + " button"); if (bs.length > 1) return bs; } return null; }
   function step(dir) { var bs = lastRow(); if (!bs) return stepProduct(dir); var i = -1; for (var k = 0; k < bs.length; k++) if (bs[k].classList.contains("on")) i = k; bs[(i + dir + bs.length) % bs.length].click(); }
-  function stepProduct(dir) { var i = ORDER.indexOf(sel.p); sel = { p: ORDER[(i + dir + ORDER.length) % ORDER.length], a: null, b: null, c: null }; render(); }
+  function stepProduct(dir) {
+    var i = ORDER.indexOf(sel.p);
+    for (var k = 1; k <= ORDER.length; k++) { var q = ORDER[(i + dir * k + ORDER.length * k) % ORDER.length]; if (available(q)) { sel = { p: q, a: null, b: null, c: null }; break; } }
+    render();
+  }
+  function syncRail() {
+    Array.prototype.forEach.call(document.querySelectorAll("#rail button[data-p]"), function (b) { b.hidden = !available(b.dataset.p); });
+    Array.prototype.forEach.call(document.querySelectorAll("#rail .rail-group"), function (d) {
+      var n = d.querySelectorAll("button[data-p]:not([hidden])").length; d.hidden = !n;
+      var c = d.querySelector(".rail-title .n"); if (c) c.textContent = n;
+    });
+  }
   $("prevBtn").onclick = function () { step(-1); }; $("nextBtn").onclick = function () { step(1); };
   addEventListener("keydown", function (e) {
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
@@ -183,6 +255,13 @@
   function hashParts() { var h = location.hash.replace(/^#/, "").split("/"); return (h[0] && !P[h[0]] && AL[h[0]]) ? [AL[h[0]]] : h; }
   addEventListener("hashchange", function () { var h = hashParts(); if (h[0] && P[h[0]]) { sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null }; render(); } });
   buildRail();
+  // watch the gated blocks: a card that shows or hides itself updates the rail, and leaves the stage if it hid
+  var gatedEls = ORDER.filter(function (id) { return P[id].gated && P[id].dom; }).map(function (id) { return $(P[id].dom()); }).filter(Boolean);
+  if (gatedEls.length && window.MutationObserver) {
+    var mo = new MutationObserver(function () { syncRail(); if (!available(sel.p)) render(); });
+    gatedEls.forEach(function (el) { mo.observe(el, { attributes: true, attributeFilter: ["hidden"] }); });
+  }
+  syncRail();
   var h = hashParts();
   if (h[0] && P[h[0]]) sel = { p: h[0], a: h[1] || null, b: h[2] || null, c: h[3] || null };
   render();

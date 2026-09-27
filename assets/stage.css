@@ -94,3 +94,16 @@
 .opts .pill:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
 .opts .pill.on { color: #fff; background: var(--accent); border-color: var(--accent); }
 .opts .pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* "Related plots" strip under the figure (stage.js related(), from the finder's catalogue) */
+.ss-related { margin: 0.4rem 1.2rem 0.9rem; padding-top: 0.6rem; border-top: 1px solid var(--rule); }
+.ss-related-h { font: 600 0.9rem var(--sans); color: var(--muted); margin-bottom: 0.5rem; }
+.ss-related-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); gap: 0.8rem; overflow-x: auto; padding-bottom: 0.3rem; scrollbar-width: thin; }
+.ss-rel { display: block; min-width: 0; color: var(--ink); text-decoration: none; }
+.ss-rel-th { display: block; aspect-ratio: 4 / 3; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; background: var(--surface); }
+.ss-rel-th img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.ss-rel-th.none { background: var(--accent-light) repeating-linear-gradient(135deg, rgba(40,50,30,0.045) 0 1px, transparent 1px 10px); }
+.ss-rel b { display: block; font: 600 0.92rem/1.3 var(--sans); margin-top: 0.35rem; }
+.ss-rel small { display: block; font-size: 0.9rem; color: var(--muted); }
+.ss-rel:hover b { color: var(--accent); }
+.ss-rel:hover .ss-rel-th { border-color: var(--accent); }
+@media (max-width: 700px) { .ss-related-row { grid-auto-columns: 42%; } }
