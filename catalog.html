@@ -27,10 +27,8 @@
   main > .lede { max-width: 64ch; }
   .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-  /* the filter bar: sticky under the site header */
-  .cf { position: sticky; top: 64px; z-index: 20; margin: 1.2rem 0 0.4rem; padding: 0.8rem 0 0.7rem;
-        background: color-mix(in srgb, var(--bg) 94%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-        border-bottom: 1px solid var(--rule); }
+  /* the filter bar scrolls with the page: pinned, its chip rows held a third of the screen over the sheet */
+  .cf { margin: 1.2rem 0 0.4rem; padding: 0.8rem 0 0.7rem; border-bottom: 1px solid var(--rule); }
   .cf-q { display: flex; align-items: center; gap: 0.6rem; max-width: 40rem; margin: 0 auto 0.7rem;
           border: 1px solid var(--rule); border-radius: 999px; background: var(--panel); padding: 0.45rem 0.6rem 0.45rem 1rem; }
   .cf-q:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -84,7 +82,7 @@
   .none button { font: inherit; color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; }
   @media (max-width: 700px) {
     main { padding-top: 1rem; }
-    .cf { position: static; padding: 0.6rem 0 0.5rem; }      /* sticky would hold half a phone screen */
+    .cf { padding: 0.6rem 0 0.5rem; }
     .cf-rows { gap: 0.25rem; }
     .cf-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.1rem; }
     .cf-row::-webkit-scrollbar { display: none; }
@@ -228,6 +226,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var qEl = document.getElementById('q'), qx = document.getElementById('qx'), sum = document.getElementById('sum'), reset = document.getElementById('reset');
   if (!F) { sum.textContent = 'The index could not be loaded.'; return; }
   var MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
+  var TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   var kb = document.querySelector('#lede kbd'); if (kb) kb.textContent = MAC ? '⌘K' : 'Ctrl K';
 
   // facets: key in the URL, label, how to read an item's values
@@ -257,6 +256,9 @@ document.addEventListener('DOMContentLoaded', function () {
       items.length + ' plots on ' + Object.keys(pages).length + ' pages, ' + nv + ' views counting every option, gathered from the pages themselves and rebuilt whenever one changes. Each card opens the exact view. Filter below, or press ';
     var lede = document.getElementById('lede');
     lede.lastChild.nodeValue = ' on any page to search from anywhere.';
+    if (TOUCH) {                                   // no keyboard: point at the header's search button instead
+      lede.innerHTML = F.esc(lede.firstChild.nodeValue.replace(/, or press $/, '.')) + ' The search button in the header does the same from any page.';
+    }
 
     // the values each facet offers, most used first (models and regions), in the site's order otherwise
     var values = {};
