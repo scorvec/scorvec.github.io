@@ -1262,9 +1262,18 @@ def cmd_run(a):
     publish, prune = [], []
     active = in_season(today)
     status["season"] = dict(active=active, window="1 November – 15 April", next_start=next_season_start(today).isoformat())
-    status["forced"] = bool(a.force)
-    status["test_label"] = TEST_LABEL[0] if a.force else ""
-    if not active and not a.force:
+    keep_test = not active and not a.force and bool(status.get("forced"))
+    if not keep_test:
+        status["forced"] = bool(a.force)
+        status["test_label"] = TEST_LABEL[0] if a.force else ""
+    if keep_test:
+        # out of season with a labelled forced test on show: keep it (a showcase until 1 November, clearly labelled)
+        # and only stamp the season check once a day; the first in-season run replaces it
+        if status.get("updated", "")[:10] != now.strftime("%Y-%m-%d"):
+            status["updated"] = now.strftime("%Y-%m-%dT%H:%MZ")
+            sp.write_text(json.dumps(status, indent=1))
+        print(f"out of season - keeping the forced test run on show ({status.get('test_label') or 'test'})")
+    elif not active and not a.force:
         # idle: prune whatever an earlier (forced or in-season) run left, write the status at most once a day
         changed = False
         for m in MODELS:

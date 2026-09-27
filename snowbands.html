@@ -341,7 +341,9 @@
       if (md.state === "error") return B + ": " + plain(md.note, "not available right now");
       return B + ": waiting for its first run";
     });
-    el.innerHTML = (ST.forced ? "<b>" + (ST.test_label || "Test run") + ".</b> A forced run: the season and snow gates were bypassed, so the chosen regions are drawn whatever falls. " : "")
+    var off = ST.season && !ST.season.active;
+    el.innerHTML = (off && ST.forced ? "<b>Idle until 1 November.</b> The loops below are a labelled test, not a forecast in season. " : "")
+      + (ST.forced ? "<b>" + (ST.test_label || "Test run") + ".</b> A forced run: the season and snow gates were bypassed, so the chosen regions are drawn whatever falls. " : "")
       + "Latest runs &mdash; " + parts.join("; ") + ". <span class=\"when\">Checked " + when(ST.updated) + ".</span>";
   }
   function ratioOf(reg, p) {
