@@ -1,0 +1,132 @@
+name: Snow-band diagnostics
+
+# snowbands.html (2026-09-27; user: "For the snowbands, build the page now. And use NOMADS if you need to"): frontogenesis,
+# deformation, EPV*/CSI, dendritic-growth-zone lift, the model's own bands and their overlap, from HRRR (AWS S3, byte-ranged
+# via the .idx), RRFS v1.0 (NOMADS - no S3 copy exists; <= 1 request/s, <= 6 at once, gives up on a cycle when throttled)
+# and RDPS (MSC Datamart). scripts/snowband/snowband.py does everything; this file only sequences it.
+#
+# Gates, in order: the season (1 Nov - 15 Apr; outside it a run only writes the idle status and prunes old loops, with
+# numpy alone installed), then per model cycle a cheap snow pre-check (reflectivity + categorical snow) - the pressure
+# levels are fetched only for regions with model snow. Each run takes the newest complete cycle of every model that has
+# not been processed yet, so a skipped cron firing (Actions honours about a third of them) loses nothing but latency;
+# the laptop dispatcher (scripts/lib/dispatch_workflows.sh) fires the same slots.
+#
+# Frames go to the frames branch (seeded first, published per loop directory, stale loops pruned), THEN the manifests and
+# the status JSON are committed to main - never the other way round, or the page points at frames that do not exist yet.
+
+on:
+  schedule:
+    - cron: "50 2 * * *"     # HRRR 00Z
+    - cron: "30 5 * * *"     # RRFS + RDPS 00Z
+    - cron: "50 8 * * *"     # HRRR 06Z
+    - cron: "50 14 * * *"    # HRRR 12Z
+    - cron: "30 17 * * *"    # RRFS + RDPS 12Z
+    - cron: "50 20 * * *"    # HRRR 18Z
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Bypass the season and snow gates (testing): render every region of the newest cycles"
+        type: boolean
+        default: false
+      case:
+        description: "Render a case study instead, e.g. hrrr01:2020121613-2020121706 (HRRR f01 each hour) or hrrr:2020121612"
+        required: false
+        default: ""
+      models:
+        description: "Models for a live run"
+        required: false
+        default: "hrrr,rrfs,rdps"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: snowband
+  cancel-in-progress: false
+
+jobs:
+  snowband:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/snowband
+            scripts/lib
+            assets/snowband
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet numpy
+      - name: Plan (season, force, case)
+        id: plan
+        env:
+          CASE: ${{ inputs.case }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ -n "$CASE" ]; then mode=case
+          elif [ "$FORCE" = "true" ] || python scripts/snowband/snowband.py season; then mode=live
+          else mode=idle; fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"; echo "mode: $mode"
+      - name: Dependencies
+        if: steps.plan.outputs.mode != 'idle'
+        run: pip install --quiet scipy matplotlib cartopy==0.25.0 eccodes pillow
+      - name: Seed the loops from the frames branch
+        if: steps.plan.outputs.mode != 'idle'
+        run: scripts/lib/fetch_frames_ci.sh assets/snowband/anim || echo "::warning::frames seed failed"
+      - name: Snow-band diagnostics
+        id: run
+        env:
+          CASE: ${{ inputs.case }}
+          FORCE: ${{ inputs.force }}
+          MODELS: ${{ inputs.models || 'hrrr,rrfs,rdps' }}
+          MODE: ${{ steps.plan.outputs.mode }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/sb"
+          if [ "$MODE" = "case" ]; then
+            python scripts/snowband/snowband.py case --spec "$CASE" --site . --procs 4 --lists "$RUNNER_TEMP/sb"
+          elif [ "$FORCE" = "true" ]; then
+            python scripts/snowband/snowband.py run --models "$MODELS" --force --site . --procs 4 --lists "$RUNNER_TEMP/sb"
+          else
+            python scripts/snowband/snowband.py run --models "$MODELS" --site . --procs 4 --lists "$RUNNER_TEMP/sb"
+          fi
+          du -sh assets/snowband/anim 2>/dev/null || true
+      - name: Publish the loops (frames branch)
+        id: frames
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DIRS=$(cat "$RUNNER_TEMP/sb/publish.txt" 2>/dev/null || true)
+          PR=$(cat "$RUNNER_TEMP/sb/prune.txt" 2>/dev/null || true)
+          if [ -z "$DIRS$PR" ]; then echo "nothing to publish or prune"; exit 0; fi
+          # shellcheck disable=SC2086
+          PRUNE="$PR" scripts/lib/publish_frames_ci.sh $DIRS
+      - name: Commit & push the manifests and status
+        id: commit
+        if: steps.frames.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          SNAP=$(mktemp -d)
+          outs() { ls assets/snowband/anim/*_manifest.json assets/snowband/data/snowband_status.json 2>/dev/null; }
+          for f in $(outs); do git add -f "$f"; done
+          git diff --staged --name-only -z | tar cf "$SNAP/outs.tar" --null -T - 2>/dev/null || true
+          git reset -q
+          for i in 1 2 3 4 5; do
+            if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
+            git reset --hard origin/main
+            tar xf "$SNAP/outs.tar" 2>/dev/null || true
+            for f in $(outs); do git add -f "$f"; done
+            if git diff --staged --quiet; then echo "No changes; skipping commit."; exit 0; fi
+            git commit -q -m "snowband: ${{ steps.plan.outputs.mode }} $(date -u +%Y-%m-%dT%H:%MZ)"
+            if timeout 180 git push; then echo "Pushed on attempt $i."; echo "pushed=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Deploy the site
+        if: steps.commit.outputs.pushed == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" || echo "::warning::pages dispatch failed; the dispatcher will catch it"

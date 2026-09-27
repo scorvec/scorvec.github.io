@@ -39,6 +39,7 @@ PRODUCTS = [
             ("/mjo.html", "MJO forecast"),
             ("/circulation.html", "Global circulation and jets"),
             ("/stratosphere.html", "Stratosphere and polar vortex"),
+            ("/snowbands.html", "Snow-band diagnostics"),
         ]),
         ("Beyond two weeks", [
             ("/subseasonal.html", "Subseasonal outlook (GEPS, weeks 1–5)"),
@@ -116,6 +117,7 @@ PAGES = [
     ]),
     dict(path="sfs.html", mode="nav"),
     dict(path="ar.html", mode="after-body"),
+    dict(path="snowbands.html", mode="after-body"),                # snow-band diagnostics (scripts/snowband, snowband.yml), stage viewer
     dict(path="climate.html", mode="after-body"),
     dict(path="research.html", mode="nav", fixes=[
         ("padding: 7.5rem 2rem 5rem;", "padding: 2.5rem 2rem 5rem;"),

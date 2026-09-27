@@ -105,6 +105,14 @@ kiribati-wind.yml|*/6:18|
 # not scheduling.
 mjo.yml|08:37|
 mjo.yml|20:37|
+# Snow-band diagnostics (2026-09-27): the same six slots as snowband.yml's crons. Each run takes the newest unprocessed
+# cycle of HRRR / RRFS / RDPS; out of season (16 Apr - 31 Oct) a run is ~30 s and changes nothing but a daily stamp.
+snowband.yml|02:50|
+snowband.yml|05:30|
+snowband.yml|08:50|
+snowband.yml|14:50|
+snowband.yml|17:30|
+snowband.yml|20:50|
 aam.yml|09:20|
 aam.yml|21:20|
 ar.yml|09:05|

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snow-Band Diagnostics &mdash; Frontogenesis, EPV* and Dendritic-Zone Lift from HRRR, RRFS and RDPS &middot; Shawn Corvec</title>
+<meta name="description" content="Mesoscale snow-band potential from the HRRR, RRFS and RDPS: 700 hPa frontogenesis and deformation, saturated equivalent potential vorticity (CSI), lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. Every run, 1 November to 15 April, with a case study against NEXRAD.">
+<link rel="canonical" href="https://scorvec.com/snowbands.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Snow-band diagnostics from HRRR, RRFS and RDPS">
+<meta property="og:description" content="Frontogenesis, EPV*, dendritic-growth-zone lift and the model's own bands, every run from November to mid-April.">
+<meta property="og:url" content="https://scorvec.com/snowbands.html">
+<meta property="og:site_name" content="Shawn Corvec &mdash; Weather &amp; Climate Monitors">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Snow-band diagnostics from HRRR, RRFS and RDPS">
+<meta name="twitter:description" content="Frontogenesis, EPV*, dendritic-growth-zone lift and the model's own bands, every run from November to mid-April.">
+<link rel="stylesheet" href="/assets/outlook.css">
+<link rel="stylesheet" href="/assets/stage.css">
+<style>
+  /* snowbands.html: the stage viewer (assets/stage.js) with a live status line; loops come from the frames branch
+     through sst_anim.html, manifests and assets/snowband/data/snowband_status.json from main */
+  .sb-status { margin: 0.9rem 0 1.1rem; padding: 0.7rem 1rem; border: 1.5px solid var(--edge); border-left: 4px solid var(--accent);
+               border-radius: 4px; background: var(--surface); font-size: 0.95rem; color: var(--ink2); line-height: 1.6; max-width: 72rem; }
+  .sb-status b { color: var(--ink); font-weight: 600; }
+  .sb-status .when { color: var(--muted); }
+  .sb-msg { margin: 0.4rem 0 0.8rem; padding: 2.2rem 1.6rem; border: 1.5px dashed var(--edge); border-radius: 4px; background: #fbfaf7;
+            font-size: 1rem; color: var(--ink2); line-height: 1.65; text-align: center; }
+  .sb-msg b { color: var(--ink); }
+  .sb-msg .when { display: block; margin-top: 0.4rem; font-size: 0.88rem; color: var(--muted); }
+  .sb-msg a, .sb-status a { color: var(--accent); }
+  .ss-main .about ol { font-size: 0.9rem; color: var(--ink2); line-height: 1.6; margin: 0.4rem 0 0.6rem 1.2rem; max-width: 90ch; }
+</style>
+<script data-goatcounter="https://scorvec.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Observations</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1" aria-current="page">Model forecasts</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Days 1–15</h3>
+              <ul>
+                <li><a href="/ar.html">Atmospheric rivers</a></li>
+                <li><a href="/cities/">City temperature forecasts</a></li>
+                <li><a href="/ecape.html">Entraining CAPE</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/circulation.html">Global circulation and jets</a></li>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li><a href="/snowbands.html" aria-current="page">Snow-band diagnostics</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Beyond two weeks</h3>
+              <ul>
+                <li><a href="/subseasonal.html">Subseasonal outlook (GEPS, weeks 1–5)</a></li>
+                <li><a href="/gefs.html">Subseasonal outlook (GEFS, weeks 1–5)</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts (seven centres)</a></li>
+                <li><a href="/seasonal.html">Seasonal outlook (eight C3S models)</a></li>
+                <li><a href="/sfs.html">Seasonal outlook (NOAA SFS)</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Model verification</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/cities/verify.html">City temperature forecast verification</a></li>
+              <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item"><a class="sh-link" href="/topics/">Explainers</a></li>
+        <li class="sh-item"><a class="sh-link" href="/research.html">Research</a></li>
+        <li class="sh-item"><a class="sh-link" href="/resume.html">Resume</a></li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+  <div class="page-header">
+    <p class="eyebrow">HRRR, RRFS and RDPS, every run from 1 November to 15 April</p>
+    <h1>Snow-band diagnostics</h1>
+    <p class="sub">Where each model&rsquo;s atmosphere is set up for a mesoscale snow band: frontogenesis and
+      deformation in the middle troposphere, weak or negative saturated equivalent potential vorticity above it, and
+      strong lift through the dendritic growth zone. Beside them, what the model actually does with it, and where the
+      ingredients overlap.</p>
+  </div>
+  <p class="sb-status" id="sb-status">Reading the latest run status&hellip;</p>
+  <div class="ss-layout">
+    <aside class="ss-rail" id="rail" aria-label="Figures"></aside>
+    <section class="ss-main">
+      <div class="crumb"><div class="path" id="crumb"></div>
+        <div class="nav"><button type="button" id="prevBtn" title="previous (←)">&larr; prev</button><button type="button" id="nextBtn" title="next (→)">next &rarr;</button></div></div>
+      <div class="opts"><div class="controls" id="opts-a"></div><div class="controls" id="opts-b"></div><div class="controls" id="opts-c"></div></div>
+      <div class="stage" id="stage"></div>
+      <p class="cap" id="cap"></p>
+      <div id="about"></div>
+      <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; the loop controls sit under each animation</p>
+      <div class="chart-card-footer"><span class="chart-sources">NOAA/NCEP HRRR via NOAA Open Data Dissemination on AWS &middot; NOAA/NCEP RRFS v1.0 via NOMADS &middot; ECCC RDPS via the MSC Datamart (Open Government Licence &ndash; Canada) &middot; NEXRAD mosaic: Iowa Environmental Mesonet &middot; boundaries: Natural Earth</span><span class="chart-updated" id="sb-updated"></span></div>
+    </section>
+  </div>
+  <div class="lightbox" id="lightbox"><img alt=""></div>
+  <div class="dom-holder" id="dom-holder">
+    <div id="sb-msg" class="sb-msg" hidden></div>
+  </div>
+
+<template id="about-ov">
+<p>A <b>mesoscale snow band</b> is a stripe of heavy snow, typically 20&ndash;100&nbsp;km wide and hundreds of
+  kilometres long, that can drop 2&ndash;4&nbsp;inches an hour for several hours while places 50&nbsp;km away get a
+  fraction of that. Most bands in the cold season form on the poleward side of a cyclone, where the middle troposphere is
+  <b>frontogenetic</b> (the flow is packing the temperature gradient together), the air above is <b>weakly stable to
+  slantwise motion</b>, and the column is saturated through the <b>dendritic growth zone</b> (Nicosia and Grumm 1999;
+  Novak et al. 2004). The overview puts the four views side by side; each has its own figure in the rail with the
+  details.</p>
+<p><b>What the panels are.</b> Top left: 700&nbsp;hPa frontogenesis with potential temperature, height and the axes
+  of dilatation. Top right: saturated equivalent potential vorticity (EPV*) in the 750&ndash;500&nbsp;hPa layer where it is
+  saturated, with 800&ndash;600&nbsp;hPa frontogenesis over it. Bottom left: the strongest lift in the saturated
+  &minus;12 to &minus;18&nbsp;&deg;C layer. Bottom right: the model&rsquo;s own precipitation and type.</p>
+<p><b>How it is computed.</b> Every field is smoothed with a Gaussian filter (&sigma;&nbsp;=&nbsp;18&nbsp;km) on the
+  model&rsquo;s own grid before any derivative, and the diagnostics are evaluated on a 12&nbsp;km grid (10&nbsp;km for
+  RDPS). Frontogenesis and EPV are second-order in the wind and temperature; on a raw 3&nbsp;km grid they are dominated by
+  convective-scale noise, and the band-forcing circulation lives at the scale the smoothing keeps. Derivatives are taken
+  on the native grid with grid-relative winds and the true grid spacing. Levels within 25&nbsp;hPa of the ground are
+  masked (700&nbsp;hPa is underground over the Rockies).</p>
+<p><b>Known limits.</b> These diagnostics are only as good as the model&rsquo;s placement of the system, and band
+  placement errors of <b>50&ndash;100&nbsp;km</b> are normal: in the Binghamton case study the HRRR&rsquo;s own f01
+  frontogenesis and lift axis sat 35&ndash;75&nbsp;km south of the observed band, and the 12Z run&rsquo;s reflectivity
+  band was 80&ndash;150&nbsp;km south 14&ndash;16 hours out. RDPS publishes vertical velocity at only four levels
+  (850, 700, 500 and 250&nbsp;hPa), so its dendritic-zone lift is interpolated from three; it publishes no reflectivity,
+  so its own bands are shown as 1-hour precipitation. The HRRR&rsquo;s analysis hour carries no usable vertical motion,
+  so its loops start at f01.</p>
+<p><b>When it runs.</b> 1&nbsp;November to 15&nbsp;April. HRRR 00, 06, 12 and 18Z to 24&nbsp;hours; RRFS and RDPS 00
+  and 12Z to 48&nbsp;hours; every 3&nbsp;hours of forecast. A cheap check comes first: only regions where the model has
+  snow at 20&nbsp;dBZ or more (RDPS: 1&nbsp;mm/h) over at least 2&nbsp;% of their area at some hour are drawn.</p>
+<p class="chart-sources">NOAA/NCEP HRRR (AWS, byte-ranged) &middot; NOAA/NCEP RRFS v1.0 (NOMADS) &middot; ECCC RDPS 10&nbsp;km (MSC Datamart) &middot; Nicosia, D. J., and R. H. Grumm, 1999, Wea. Forecasting 14, 346&ndash;368 &middot; Novak, D. R., L. F. Bosart, D. Keyser and J. S. Waldstreicher, 2004, Wea. Forecasting 19, 993&ndash;1010</p>
+</template>
+<template id="about-fg">
+<p><b>Frontogenesis</b> is the rate at which the flow tightens the horizontal temperature gradient. The shading is the
+  2-D kinematic (Petterssen 1936) frontogenesis of potential temperature at 700&nbsp;hPa,
+  $F = \frac{d}{dt}|\nabla\theta|$, in kelvin per 100&nbsp;km per 3&nbsp;hours. Where it is positive the atmosphere
+  responds with a thermally direct circulation across the zone, and its rising branch, on the warm side of the
+  frontogenesis maximum, is where bands form. Values of 2&ndash;10 are typical of banded snowstorms; the strongest bands in
+  Novak et al. (2004) sat under maxima well above that.</p>
+<p>Most mid-level frontogenesis comes from <b>deformation</b>: a flow that stretches along one axis and squeezes
+  along the other. The short blue segments are the <b>axes of dilatation</b> where the total deformation is in the top
+  15&nbsp;%: when isentropes (dashed) lie at a small angle to them, the flow is packing them together. The black
+  contours are 700&nbsp;hPa height in decametres. Grey is where 700&nbsp;hPa is within 25&nbsp;hPa of the ground.</p>
+<p class="chart-sources">Petterssen, S., 1936, Geofys. Publ. 11(6), 1&ndash;27 &middot; Novak, D. R., et al., 2004, Wea. Forecasting 19, 993&ndash;1010 &middot; fields smoothed &sigma;&nbsp;=&nbsp;18&nbsp;km, 12&nbsp;km grid (RDPS 10&nbsp;km)</p>
+</template>
+<template id="about-epv">
+<p>Frontogenesis forces a circulation; how narrow and intense its rising branch becomes depends on the stability of the
+  air it rises through. Air that is stable when lifted vertically can still be unstable when lifted along a slanted path,
+  up the sloping isentropes of a front. That is <b>conditional symmetric instability (CSI)</b>, and its usual measure is
+  the saturated equivalent potential vorticity, EPV*. EPV* below zero in saturated air means a slantwise parcel would
+  keep accelerating, and a frontal circulation over such air collapses into a narrow, strong updraft: a band.</p>
+<p>The shading is EPV* averaged over 750&ndash;500&nbsp;hPa, drawn only where that layer&rsquo;s relative humidity (over ice below
+  0&nbsp;&deg;C) is 80&nbsp;% or more. Magenta contours are the 800&ndash;600&nbsp;hPa frontogenesis. <b>Hatching</b> marks
+  columns where &theta;<sub>es</sub> falls with height: there the negative EPV* is ordinary upright conditional
+  instability, not CSI, and upright convection will usually win.</p>
+<p><b>The caveat, and it matters.</b> Schultz and Schumacher (1999) showed how easily EPV* over-diagnoses CSI:
+  negative EPV* is necessary but not sufficient, it also flags upright and inertial instability, it means nothing in
+  unsaturated air, and it measures potential that a circulation must release. Read purple as &ldquo;the atmosphere would
+  not resist a band here&rdquo;, never as &ldquo;a band is here&rdquo;. Weakly positive EPV* (0 to 0.25&nbsp;PVU) under strong
+  frontogenesis bands just as readily, which is why the ingredients figure uses that threshold.</p>
+<p class="chart-sources">Schultz, D. M., and P. N. Schumacher, 1999, Mon. Wea. Rev. 127, 2709&ndash;2732 &middot; &theta;<sub>es</sub> from Bolton, D., 1980, Mon. Wea. Rev. 108, 1046&ndash;1053 &middot; EPV* in pressure coordinates with the full wind &middot; fields smoothed &sigma;&nbsp;=&nbsp;18&nbsp;km</p>
+</template>
+<template id="about-dgz">
+<p>Ice crystals grow fastest, and into the branching dendrites that aggregate into big, slow-falling, low-density
+  snowflakes, between about <b>&minus;12 and &minus;18&nbsp;&deg;C</b>. When a band&rsquo;s strongest lift passes through a
+  deep, saturated layer at those temperatures the snow-to-liquid ratio climbs and snowfall rates jump; this alignment is
+  the <b>&ldquo;crosshair&rdquo;</b> forecasters look for (Waldstreicher 2001). Lift that peaks below or above the zone
+  makes smaller, denser flakes and less snow for the same water.</p>
+<p>The shading is the strongest upward motion (&minus;&omega;, microbars per second; 10&nbsp;&micro;b/s is about
+  10&nbsp;cm/s) anywhere in the column where the temperature is between &minus;12 and &minus;18&nbsp;&deg;C and the air is
+  saturated with respect to ice (80&nbsp;% or more). Dashed contours are the depth of that layer, in hPa. RDPS publishes
+  vertical velocity only at 850, 700 and 500&nbsp;hPa, so its lift here is interpolated linearly in pressure between
+  them and cannot show a narrow lift maximum between levels.</p>
+<p class="chart-sources">Waldstreicher, J. S., 2001, The importance of snow microphysics for large snowfalls, Third Northeast Operational Workshop, Albany NY &middot; column sampled every 5&nbsp;hPa from the model levels (25&nbsp;hPa HRRR and RRFS, 50&nbsp;hPa RDPS)</p>
+</template>
+<template id="about-bands">
+<p>What the model itself makes of the set-up. For the HRRR and RRFS: <b>composite reflectivity</b>, coloured blue to
+  magenta where the model&rsquo;s precipitation type is snow and olive where it is anything else. RDPS publishes no
+  reflectivity, so its panel shows <b>1-hour precipitation</b> in the same colours, snow taken from its instantaneous
+  precipitation type (code 5; the Datamart labels the field with WMO table 4.201 but its codes do not follow it).</p>
+<p>A convection-allowing model that draws a band where the diagnostics line up is the strongest signal on this page.
+  The diagnostics without a modelled band are worth watching too: a coarser model (RDPS) can resolve the forcing but not the
+  band itself. Bands the model draws where the diagnostics are weak are often convective or orographic rather than
+  frontal.</p>
+<p class="chart-sources">NOAA/NCEP HRRR composite reflectivity and categorical snow &middot; RRFS v1.0 composite reflectivity and categorical snow &middot; ECCC RDPS 1-h precipitation and precipitation type</p>
+</template>
+<template id="about-ing">
+<p>Where the three ingredients overlap: 700&nbsp;hPa frontogenesis of at least <b>4&nbsp;K per 100&nbsp;km per
+  3&nbsp;h</b>, EPV* of <b>0.25&nbsp;PVU or less</b> in saturated air (750&ndash;500&nbsp;hPa), and lift of at least
+  <b>10&nbsp;&micro;b/s</b> in the saturated dendritic growth zone. Pale orange is two of the three; dark orange is all
+  three. The navy outline is the model&rsquo;s own snow at 25&nbsp;dBZ or more (RDPS: 1&nbsp;mm/h).</p>
+<p><b>This is an overlap of ingredients, not a probability.</b> It says where one model run&rsquo;s atmosphere is set up
+  for banding; it has not been calibrated against observed bands, and a band can form at the edge of the overlap or not
+  at all. The thresholds are round numbers in the range reported for northeast US banded storms (Novak et al. 2004),
+  chosen to be loose enough to keep the weakly stable cases Schultz and Schumacher (1999) warn a strict EPV*&nbsp;&lt;&nbsp;0 rule
+  would miss. Placement errors of 50&ndash;100&nbsp;km apply to the overlap as much as to any single field.</p>
+<p class="chart-sources">thresholds: frontogenesis 4&nbsp;K/100&nbsp;km/3&nbsp;h, EPV* 0.25&nbsp;PVU, DGZ lift 10&nbsp;&micro;b/s &middot; Novak, D. R., et al., 2004, Wea. Forecasting 19, 993&ndash;1010 &middot; Schultz, D. M., and P. N. Schumacher, 1999, Mon. Wea. Rev. 127, 2709&ndash;2732</p>
+</template>
+<template id="about-case">
+<p>The page between seasons, and a check on the method: every diagnostic on a documented band, with the NEXRAD mosaic
+  at the same hour. The <b>16&ndash;17 December 2020</b> nor&rsquo;easter put a nearly stationary band over the Southern
+  Tier of New York for about ten hours; Binghamton recorded <b>40.2 inches</b>, its biggest snowstorm on record, while
+  places 60&nbsp;km south got under a foot.</p>
+<p>The loop is the HRRR&rsquo;s one-hour forecast from each hourly cycle (f01, the first hour with usable vertical
+  motion), so it shows the diagnostics against reality with almost no forecast error in the large-scale pattern. Read it
+  as a verification: the frontogenesis maximum, the weakly stable EPV* and the dendritic-zone lift line up along a
+  southwest&ndash;northeast axis about 35&ndash;75&nbsp;km south of the observed band, and the HRRR&rsquo;s own reflectivity band
+  sits with them. The NEXRAD view puts the observed and modelled reflectivity side by side with the full overlap of
+  ingredients outlined in black. In the 12Z run of the same day, the HRRR&rsquo;s band was 80&ndash;150&nbsp;km south of the
+  observed one 14&ndash;16 hours ahead, which is the practical limit on everything in the live loops.</p>
+<p class="chart-sources">NOAA/NCEP HRRR (AWS archive) &middot; NEXRAD base-reflectivity mosaic n0q, Iowa Environmental Mesonet</p>
+</template>
+</main>
+<script>
+(function () {
+  "use strict";
+  var MODELS = { hrrr: "HRRR", rrfs: "RRFS", rdps: "RDPS" };
+  var MODEL_ITEMS = [["hrrr", "HRRR · 3 km, 24 h"], ["rrfs", "RRFS · 3 km, 48 h"], ["rdps", "RDPS · 10 km, 48 h"]];
+  var REGIONS = { ne: "Interior Northeast", nec: "New England and coast", ma: "Mid-Atlantic", gl: "Great Lakes",
+    mw: "Upper Midwest", pl: "Central Plains", fr: "Front Range and High Plains", on: "Southern Ontario and Quebec" };
+  var DEFAULT_REGIONS = { hrrr: ["ne", "nec", "ma", "gl", "mw", "pl", "fr"], rrfs: ["ne", "nec", "ma", "gl", "mw", "pl", "fr"],
+    rdps: ["ne", "nec", "ma", "gl", "mw", "pl", "fr", "on"] };
+  var ST = null;
+  var DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function cyc(c) {   // "2026092712" -> "12Z Sun 27 Sep"
+    if (!c) return "";
+    var d = new Date(Date.UTC(+c.slice(0, 4), +c.slice(4, 6) - 1, +c.slice(6, 8)));
+    return c.slice(8, 10) + "Z " + DAYS[d.getUTCDay()] + " " + d.getUTCDate() + " " + MON[d.getUTCMonth()];
+  }
+  function when(iso) {   // "2026-09-27T14:50Z" -> "27 Sep 14:50 UTC"
+    if (!iso) return "";
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso); if (!m) return iso;
+    return (+m[3]) + " " + MON[+m[2] - 1] + " " + m[4] + ":" + m[5] + " UTC";
+  }
+  function day(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? (+m[3]) + " " + MON[+m[2] - 1] : ""; }
+  function regionsOf(m) {
+    var md = ST && ST.models && ST.models[m];
+    return (md && md.regions && md.regions.length) ? md.regions : DEFAULT_REGIONS[m];
+  }
+  function hasLoop(m, r) {
+    var md = ST && ST.models && ST.models[m];
+    return !!(md && md.state === "rendered" && (md.rendered || []).indexOf(r) >= 0);
+  }
+  function idle() { return ST && ST.season && !ST.season.active && !ST.forced; }
+  function idleText() {
+    return "<b>Idle until 1 November.</b> The snow-band diagnostics run from 1 November to 15 April; the season check last ran "
+      + when(ST.updated) + ". Meanwhile the <a href=\"#case\">case study</a> shows every diagnostic on the Binghamton band of December 2020 against the radar.";
+  }
+  function message(m, r) {
+    if (!ST) return "<b>No run status yet.</b> The first run of the season publishes it.";
+    var md = (ST.models || {})[m] || {}, M = MODELS[m];
+    if (md.state !== "rendered" && idle()) return idleText() + "<span class=\"when\">Out of season, nothing is fetched.</span>";
+    if (md.state === "rendered") {
+      var got = (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ");
+      return "<b>No snow in " + REGIONS[r] + "</b> in the " + M + " " + cyc(md.cycle) + " run, so nothing is drawn there. Loops were drawn for: "
+        + got + ".<span class=\"when\">A region is drawn when the model has snow at 20 dBZ or more (RDPS: 1 mm/h) over 2 % of it at some hour. Checked "
+        + when(md.checked) + ".</span>";
+    }
+    if (md.state === "nosnow") return "<b>No snow in any region</b> in the latest " + M + " run (" + cyc(md.cycle) + "), so no loops were drawn."
+      + "<span class=\"when\">Checked " + when(md.checked) + ". The next cycle is checked automatically.</span>";
+    if (md.state === "error") return "<b>The latest " + M + " run could not be processed</b> (" + (md.note || "unknown error") + ")."
+      + "<span class=\"when\">Checked " + when(md.checked) + "; the loop returns with the next cycle.</span>";
+    if (md.state === "idle") return idleText();
+    return "<b>" + M + " has not been processed yet.</b>";
+  }
+  function statusLine() {
+    var el = document.getElementById("sb-status");
+    if (!ST) { el.innerHTML = "<b>No run status yet.</b> The status appears after the first run of the workflow."; return; }
+    document.getElementById("sb-updated").textContent = ST.updated ? "checked " + when(ST.updated) : "";
+    if (idle()) { el.innerHTML = idleText(); return; }
+    var parts = Object.keys(MODELS).map(function (m) {
+      var md = (ST.models || {})[m] || {}, M = "<b>" + MODELS[m] + "</b> " + cyc(md.cycle);
+      if (md.state === "rendered") return M + ": snow in " + (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ");
+      if (md.state === "nosnow") return M + ": no snow in any region";
+      if (md.state === "error") return M + ": not processed (" + (md.note || "error") + ")";
+      return "<b>" + MODELS[m] + "</b>: waiting for its first run";
+    });
+    el.innerHTML = (ST.forced ? "<b>Test render</b> (the season and snow gates were bypassed). " : "") + "Latest runs &mdash; "
+      + parts.join("; ") + ". <span class=\"when\">Checked " + when(ST.updated) + ".</span>";
+  }
+  var CAP = {
+    ov: "Frontogenesis, EPV*, dendritic-zone lift and the model's own precipitation, side by side.",
+    fg: "700 hPa Petterssen frontogenesis with θ, height and the axes of dilatation where deformation is strongest.",
+    epv: "Saturated equivalent PV in the 750–500 hPa layer where it is saturated; hatching separates upright CI from CSI.",
+    dgz: "The strongest upward motion in the saturated −12 to −18 °C layer, where snowflakes grow fastest.",
+    bands: "The model's own reflectivity (RDPS: 1-h precipitation), coloured by its precipitation type.",
+    ing: "Where frontogenesis ≥ 4, EPV* ≤ 0.25 PVU and DGZ lift ≥ 10 µb/s overlap. An overlap of ingredients, not a probability."
+  };
+  function live(p, label) {
+    return {
+      label: label,
+      a: { label: "Model", items: MODEL_ITEMS },
+      b: function (a) { return { label: "Region", items: regionsOf(a).map(function (r) { return [r, REGIONS[r]]; }) }; },
+      dom: function (a, b) {
+        if (hasLoop(a, b)) return null;
+        var el = document.getElementById("sb-msg"); el.innerHTML = message(a, b); return "sb-msg";
+      },
+      frame: function (a, b) {
+        var id = a + "_" + p + "_" + b;
+        return "sst_anim.html?embed=1&base=assets/snowband/anim&manifest=snowband_" + a + "_manifest.json&region=" + id + "&regions=" + id + "&start=0";
+      },
+      ratio: function () { return p === "ov" ? "1166/1150" : "964/860"; },
+      about: "about-" + p,
+      cap: function (a, b) {
+        var md = ST && ST.models && ST.models[a];
+        var run = md && md.state === "rendered" ? " " + MODELS[a] + " " + cyc(md.cycle) + " run, " + (md.leads || []).join(" ").replace(/^(\S+).* (\S+)$/, "$1 to $2") + " every 3 hours." : "";
+        return CAP[p] + run;
+      }
+    };
+  }
+  var CASE_VIEWS = [["ov", "Overview"], ["radar", "Against NEXRAD"], ["ing", "Band ingredients"], ["fg", "Frontogenesis"],
+    ["epv", "EPV* and CSI"], ["dgz", "Lift in the DGZ"], ["bands", "HRRR's own bands"]];
+  function start() {
+    window.STAGE = {
+      groups: [
+        { label: "Latest runs", ico: "❄", items: [["ov", "Overview", "the four diagnostics"], ["ing", "Band ingredients", "where they overlap"],
+          ["fg", "Frontogenesis", "700 hPa, with deformation"], ["epv", "EPV* and CSI", "750–500 hPa, saturated"],
+          ["dgz", "Lift in the DGZ", "−12 to −18 °C"], ["bands", "The model's own bands", "reflectivity and type"]] },
+        { label: "Case study", ico: "❄", items: [["case", "Case study", ST && ST.case ? ST.case.label.split(",")[0] : "a documented band against the radar"]] }
+      ],
+      products: {
+        ov: live("ov", "Overview"), ing: live("ing", "Band ingredients"), fg: live("fg", "Frontogenesis and deformation"),
+        epv: live("epv", "EPV* and CSI"), dgz: live("dgz", "Lift in the dendritic growth zone"), bands: live("bands", "The model's own bands"),
+        "case": {
+          label: "Case study",
+          a: { label: "View", items: CASE_VIEWS },
+          dom: function () {
+            if (ST && ST.case) return null;
+            var el = document.getElementById("sb-msg"); el.innerHTML = "<b>No case study has been rendered yet.</b>"; return "sb-msg";
+          },
+          frame: function (a) {
+            return "sst_anim.html?embed=1&base=assets/snowband/anim&manifest=snowband_case_manifest.json&region=case_" + a + "&regions=case_" + a + "&start=0";
+          },
+          ratio: function (a) { return a === "ov" || a === "radar" ? "1166/1150" : "964/860"; },
+          about: "about-case",
+          cap: function () {
+            return ST && ST.case ? ST.case.label + ". Step through the hours with the loop controls." : "";
+          }
+        }
+      }
+    };
+    var s = document.createElement("script"); s.src = "/assets/stage.js"; document.body.appendChild(s);
+  }
+  fetch("assets/snowband/data/snowband_status.json?v=" + new Date().toISOString().slice(0, 13))
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .catch(function () { return null; })
+    .then(function (j) { ST = j; statusLine(); start(); });
+})();
+</script>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/#products">Products</a></li>
+      <li><a href="/research.html">Research</a></li>
+      <li><a href="/resume.html">Resume</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="/stats.html">Visitor stats</a></li>
+    </ul>
+    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>
+    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>
