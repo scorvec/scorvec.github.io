@@ -21,12 +21,15 @@ on:
       hours:
         description: 'cycles per day: "00 12" or "00"'
         default: '00 12'
+      budget:
+        description: 'minutes of archiving before stopping to score and publish (re-dispatch to continue)'
+        default: '270'
 
 permissions:
   contents: write
 
 concurrency:
-  group: aifs-backfill         # the regular run MERGES into the shared archive, so both may run
+  group: aifs-verify-state     # shared with aifs-compare.yml: see the note there (2026-09-27)
   cancel-in-progress: false
 
 jobs:
@@ -35,6 +38,7 @@ jobs:
     timeout-minutes: 350
     env:
       MPLBACKEND: Agg
+      ECMWF_SOURCES: google     # user rule: ECMWF open data from the Google mirror only
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -56,6 +60,19 @@ jobs:
       - name: Seed verification state from the frames branch
         run: scripts/lib/fetch_frames_ci.sh scripts/verify/data/clim scripts/verify/data/truth scripts/verify/data/truth_st scripts/verify/data/st_archive
 
+      # The ERA5 t850 climatology (build_t850_clim.py, laptop, 2026-09-27) arrives as a release asset once;
+      # the publish step below merges it into the frames branch, where aifs-compare.yml seeds it from.
+      - name: t850 climatology
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          f=scripts/verify/data/clim/clim_1p5_t850.npz
+          if [ ! -s "$f" ]; then
+            gh release download verify-clim-t850-v1 --repo "$GITHUB_REPOSITORY" --pattern clim_1p5_t850.npz \
+              --dir scripts/verify/data/clim || echo "::warning::t850 climatology unavailable; ERA5 t850 stays RMSE/bias"
+          fi
+          ls -la scripts/verify/data/clim
+
       - name: Archive the cycles
         timeout-minutes: 300
         run: |
@@ -63,10 +80,13 @@ jobs:
           START="${{ github.event.inputs.start }}"
           END="${{ github.event.inputs.end }}"
           [ -z "$END" ] && END=$(date -u -d 'yesterday' +%Y%m%d)
+          BUDGET=$(( ${{ github.event.inputs.budget || 270 }} * 60 ))
           d="$START"; n=0; fail=0
           while [ "$d" -le "$END" ]; do
             for hh in ${{ github.event.inputs.hours }}; do
-              if [ -f "scripts/verify/data/st_archive/${d}${hh}.npz" ]; then continue; fi
+              # an archive that already has the matched and ensemble-mean series returns at once; an older one is
+              # upgraded in place (re-fetched), so this loop is resumable: re-dispatch to carry on
+              if [ "$SECONDS" -ge "$BUDGET" ]; then echo "::notice::time budget used at $d ${hh}Z - re-dispatch to continue"; break 2; fi
               if python scripts/verify/aifs_station_verify.py --collect --date "$d" --time "$hh"; then
                 n=$((n + 1))
               else

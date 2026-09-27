@@ -4,15 +4,15 @@
 <meta charset="UTF-8">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIFS single vs AIFS-ENS member 0 — Live Verification · Shawn Corvec</title>
-<meta name="description" content="Live deterministic verification of ECMWF's AIFS single against the AIFS-ENS member 0: both models spectrally truncated to the same scale, scored against radiosonde 500 hPa heights and surface temperature and against ERA5, with the power spectra by lead.">
+<title>AIFS single vs AIFS-ENS member 0, spectrally matched — Live Verification · Shawn Corvec</title>
+<meta name="description" content="Live deterministic verification of ECMWF's AIFS single against AIFS-ENS member 0 with member 0 filtered to the single's power spectrum, so neither model gains from smoothing: scored against radiosondes and ERA5, with bootstrap confidence intervals, the ensemble mean as a reference and the power spectra by lead.">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --bg: #fafaf8; --ink: #1c1c1a; --muted: #6f6b64; --accent: #2c4a72;
     --accent-light: #e8eef5; --rule: #e4e2dc;
-    --single: #b3372f; --control: #2c5f8a;
+    --single: #b3372f; --control: #2c5f8a; --raw: #8fb0cc; --ensmean: #5c5a55;
     --serif: 'Lora', Georgia, serif; --sans: 'Inter', sans-serif;
   }
   @media (min-width: 768px) { html { font-size: 108%; } }
@@ -147,34 +147,52 @@
 </header>
 <!-- sh:end -->
 <main>
-  <h1>AIFS single versus AIFS-ENS member 0</h1>
-  <p class="lede"><b>The hypothesis:</b> ECMWF's deterministic AIFS is trained on an MSE-type objective, which
-  rewards hedging &mdash; it blurs with lead time toward an ensemble-mean-like state. The AIFS-ENS members are
-  trained on a CRPS-type objective that punishes blurring, so <b>member 0</b> keeps a realistic spectrum ten
-  days out. If member 0 matches the single on headline scores <i>when both are compared at the same
-  scale</i>, member 0 &mdash; published minutes later &mdash; is simply the better deterministic product.
-  This page tests that on every 00Z and 12Z run: both models are truncated to the same spherical-harmonic degree
-  before scoring, the truth is <b>independent radiosondes</b> from the <a href="skewt/">sounding explorer</a>
-  (with ERA5 alongside), and the power spectra that motivate the whole question are shown by lead.</p>
-
+  <h1>AIFS single versus AIFS-ENS member 0, spectrally matched</h1>
+  <p class="lede"><b>The question:</b> as deterministic forecasts, how does ECMWF's AIFS single compare with
+  member&nbsp;0 of AIFS-ENS? The two are trained differently. The single is trained to minimise squared error, which
+  rewards hedging: it blurs what it is unsure about as lead time grows. The ensemble members are trained on a
+  CRPS-type objective that keeps each run sharp. <b>RMSE and anomaly correlation reward smoothing</b>, so a raw
+  comparison would partly measure blur rather than forecast quality. Here member&nbsp;0 is first passed through a
+  <b>spectral filter that gives it the single's power spectrum</b> at each lead, then both are truncated at T120 and
+  scored against <b>independent radiosondes</b> from the <a href="skewt/">sounding explorer</a>, with ERA5 alongside.
+  Member&nbsp;0 as published and the <b>ensemble mean</b> are shown as references; the ensemble mean averages 26 runs,
+  so it is not a single model run.</p>
   <div class="verdict" id="verdict"></div>
-
   <div class="card">
     <div class="card-head">
-      <h2>Scores by lead</h2>
-      <p>Mean over verified runs with a &plusmn;1 standard-error band. Station anomalies are against each station's
-      <b>own</b> day-of-year median from its full radiosonde record; ERA5 anomalies against the ERA5 1991&ndash;2020
-      climatology. The <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly) &mdash; the smoothness
-      police. A model can buy RMSE by damping variance; the ratio shows the purchase.</p>
+      <h2>Difference from the single, with 95&nbsp;% intervals</h2>
+      <p>Each line is the mean over paired runs of <b>(model &minus; AIFS single)</b>; the shading is a 95&nbsp;%
+      paired moving-block bootstrap interval (blocks of four consecutive runs, two days, to allow for correlation
+      between neighbouring runs; 2,000 resamples). Filled markers: the interval excludes zero, a significant
+      difference. Open markers: no significant difference. For RMSE, above zero means worse than the single; for
+      anomaly correlation, above zero means better.</p>
     </div>
     <div class="controls">
       <span class="seg" id="truthSeg">
-        <button data-t="raob:z500:nh" class="on">z500 &middot; radiosondes</button><button data-t="raob:t850:nh">850 hPa T &middot; radiosondes</button><button data-t="era5:z500:nh">z500 &middot; ERA5</button><button data-t="era5:t850:nh">850 hPa T &middot; ERA5</button><button data-t="era5:msl:nh">MSLP &middot; ERA5</button><button data-t="era5:t2m:nh">2 m T &middot; ERA5</button><button data-t="era5-block:z500:nh">z500 &middot; ERA5, old block-mean method</button>
+        <button data-t="raob:z500:nh" class="on">z500 &middot; radiosondes</button><button data-t="raob:t850:nh">850 hPa T &middot; radiosondes</button><button data-t="era5:z500:nh">z500 &middot; ERA5</button><button data-t="era5:t850:nh">850 hPa T &middot; ERA5</button><button data-t="era5:msl:nh">MSLP &middot; ERA5</button><button data-t="era5:t2m:nh">2 m T &middot; ERA5</button>
       </span>
       <span class="seg" id="regionSeg" title="radiosonde scores only">
         <button data-r="nh" class="on">NH 20&ndash;80&deg;N</button><button data-r="glb">global</button>
       </span>
-      <span class="legend"><span><i style="background:var(--single)"></i>AIFS single</span><span><i style="background:var(--control)"></i>member 0</span></span>
+    </div>
+    <div class="grid4" id="diffGrid"><div id="d-rmse"></div><div id="d-acc"></div></div>
+    <div class="empty" id="diffEmpty" style="display:none">Not enough paired runs yet (at least 20 per lead).</div>
+    <div class="card-foot" id="diffNote"></div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <h2>Scores by lead</h2>
+      <p>Mean over verified runs; the shading is &plusmn;1 standard error, descriptive only. Whether two lines differ
+      significantly is tested in the panel above. Station anomalies are against each station's <b>own</b>
+      day-of-year median from its full radiosonde record; ERA5 anomalies against the ERA5 1991&ndash;2020
+      climatology. The <b>activity ratio</b> is std(forecast anomaly) / std(observed anomaly): a model can buy RMSE
+      by damping variance, and this ratio shows the purchase.</p>
+    </div>
+    <div class="controls">
+      <span class="seg" id="showSeg" title="reference series">
+        <button data-s="ctl" class="on">member 0 as published</button><button data-s="ens" class="on">ensemble mean</button>
+      </span>
+      <span class="legend"><span><i style="background:var(--single)"></i>AIFS single</span><span><i style="background:var(--control)"></i>member 0, matched</span><span><i style="background:var(--raw)"></i>member 0, as published</span><span><i style="background:var(--ensmean)"></i>ensemble mean</span></span>
     </div>
     <div class="grid4" id="scoreGrid">
       <div id="c-rmse"></div><div id="c-acc"></div><div id="c-bias"></div><div id="c-act"></div>
@@ -182,24 +200,23 @@
     <div class="empty" id="scoreEmpty">Collecting &mdash; every 00Z and 12Z run is archived and verified as its radiosondes and ERA5 arrive.</div>
     <div class="card-foot" id="scoreNote">no verified runs yet</div>
   </div>
-
   <div class="card">
     <div class="card-head">
-      <h2>Power spectra by lead &mdash; the blurring, measured</h2>
+      <h2>Power spectra by lead &mdash; the blurring, and the matching</h2>
       <p>Spherical-harmonic power of each model's global field against total wavenumber, averaged over the archived
-      runs. The single is expected to lose power at high wavenumber as lead grows; member 0 should not. The dotted
-      line is the common truncation applied before scoring: nothing to its right enters any score above.</p>
+      runs. The single loses power as lead grows; member&nbsp;0 as published does not. The matched member&nbsp;0
+      should lie on the single's curve: that is what the filter is for. The dotted line is the common truncation
+      applied before scoring; nothing to its right enters any score.</p>
     </div>
     <div class="controls">
       <span class="seg" id="specVar"><button data-v="z500" class="on">z500</button><button data-v="t850">850 hPa T</button><button data-v="msl">MSLP</button><button data-v="t2m">2 m temperature</button></span>
       <span class="seg" id="specLead"><button data-l="24">day 1</button><button data-l="120" class="on">day 5</button><button data-l="240">day 10</button></span>
-      <span class="seg" id="specMode"><button data-m="abs" class="on">power</button><button data-m="ratio">member 0 / single</button></span>
+      <span class="seg" id="specMode"><button data-m="abs" class="on">power</button><button data-m="ratio">ratio to the single</button></span>
     </div>
     <div id="c-spec" style="height:400px"></div>
     <div class="empty" id="specEmpty">no spectra yet</div>
     <div class="card-foot" id="specNote"></div>
   </div>
-
   <div class="card">
     <div class="card-head">
       <h2>Side-by-side forecast loop &mdash; MSLP &middot; 1000&ndash;500 thickness &middot; 6-h precipitation</h2>
@@ -209,7 +226,6 @@
     <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_compare_manifest.json&amp;region=aifs_compare" title="AIFS single vs member 0, North America loop"></iframe>
     <div class="card-foot">ECMWF AIFS &amp; AIFS-ENS open data (CC BY 4.0) &middot; North America &middot; 61 frames per run</div>
   </div>
-
   <div class="card">
     <div class="card-head">
       <h2>500 hPa height anomaly &mdash; Northern Hemisphere loop</h2>
@@ -219,7 +235,6 @@
     <iframe class="anim-embed" style="aspect-ratio: 1460 / 760" data-src="sst_anim.html?embed=1&amp;manifest=aifs_z500_manifest.json&amp;region=aifs_z500" title="AIFS single vs member 0, 500 hPa height loop"></iframe>
     <div class="card-foot">anomaly shading + height contours, 6-hourly to hour 360 &middot; climatology: ERA5 via WeatherBench2</div>
   </div>
-
   <div class="card">
     <div class="card-head">
       <h2>2 m temperature anomaly &mdash; North America loop</h2>
@@ -229,104 +244,116 @@
     <iframe class="anim-embed" data-src="sst_anim.html?embed=1&amp;manifest=aifs_t2m_manifest.json&amp;region=aifs_t2m" title="AIFS single vs member 0, 2 m temperature anomaly loop"></iframe>
     <div class="card-foot">climatology: ERA5 via WeatherBench2 &middot; a radiosonde cannot verify 2 m temperature, so its scores above are against ERA5</div>
   </div>
-
   <div class="colophon">
     <h3>Method</h3>
-    <p><b>Same spectrum, not just same grid.</b> Each 0.25&deg; global field is expanded in spherical harmonics
-    (pyshtools). Its power spectrum is kept, and <b>both</b> models are truncated at the same degree
-    (T120, about 1.5&deg;) before anything is scored &mdash; the blurred model is not punished at scales the
-    sharp one carries, and the sharp model is not punished for realistic small-scale displacement. A 1.5&deg;
-    block mean, which this page used until September 2026, still passed much of the 300&ndash;600 km power; the
-    old method is kept as a selectable ERA5 series so the change is visible.</p>
-    <p><b>Independent truth.</b> ERA5 is an IFS analysis with its own smoothness, and both models were trained
-    on it. The primary truth here is the radiosonde network the <a href="skewt/">sounding explorer</a> mirrors
-    every hour: 500 hPa height and 850 hPa temperature are interpolated in log-pressure from each station's own
-    sounding. A radiosonde cannot verify 2 m temperature, so that is scored against ERA5 only. Stations are sampled
-    from the truncated fields by bilinear interpolation. ERA5 scores (NH 20&ndash;80&deg;N, cosine-weighted,
-    1.5&deg;) are kept alongside from the same truncated fields, and are the only truth for MSLP and 2 m temperature.
-    Radiosonde scores arrive within hours of the valid time; ERA5's lag ~6 days.</p>
-    <p><b>Scores.</b> RMSE, bias, anomaly correlation and activity ratio, leads 24&ndash;240 h, per run; the page
-    shows the mean across runs with a &plusmn;1 standard-error band. Station anomalies use each station's own
-    day-of-year median from its full IGRA record (the explorer's climatology, 5-day anchors, at least 30 soundings
-    per anchor) &mdash; a baseline measured at the point itself. ERA5 anomalies use the ERA5 1991&ndash;2020
-    &plusmn;7-day climatology (WeatherBench2), which covers the Northern Hemisphere; 850 hPa temperature has no
-    ERA5 climatology here, so its ERA5 panel carries RMSE and bias only.</p>
-    <p><b>The stakes.</b> If member 0 matches the single on RMSE/ACC at the common scale while keeping an
-    activity ratio near 1, the deterministic AIFS is dominated: use member 0, a few minutes later on the feed,
-    and get realistic sharpness for free &mdash; plus 50 siblings quantifying its uncertainty.</p>
+    <p><b>Why the matching.</b> The AIFS single minimises squared error, so as its forecast loses predictability it
+    damps the features it cannot place; that lowers RMSE whether or not the forecast is better. Member&nbsp;0 of
+    AIFS-ENS is trained to stay sharp. To compare them as deterministic forecasts on equal terms, member&nbsp;0's
+    spherical-harmonic coefficients are multiplied, degree by degree, by
+    f(l)&nbsp;=&nbsp;min(1,&nbsp;&radic;(P<sub>single</sub>(l)&nbsp;/&nbsp;P<sub>member&nbsp;0</sub>(l))), where P
+    are the two models' mean power spectra at the same lead over the <b>previous 40 runs</b> (a 5-degree running
+    mean of the ratio; the global mean, l&nbsp;=&nbsp;0, is left alone). The filter uses only past forecasts, never
+    the verifying data, so it is a transformation the forecaster could apply in real time. It only removes power
+    (f&nbsp;&le;&nbsp;1). The spectra panel shows how closely the filtered member&nbsp;0 reproduces the single.</p>
+    <p><b>Same scale.</b> Every 0.25&deg; global field is expanded in spherical harmonics (pyshtools) and all series
+    are truncated at T120 (about 1.5&deg;) before scoring, so no model is judged at scales it does not share with
+    the others. A 1.5&deg; block mean, which this page used until September 2026, still passed much of the
+    300&ndash;600 km power.</p>
+    <p><b>Independent truth.</b> ERA5 is an IFS analysis that both models were trained on. The primary truth is the
+    radiosonde network the <a href="skewt/">sounding explorer</a> mirrors every hour: 500 hPa height and 850 hPa
+    temperature are interpolated in log-pressure from each station's sounding, and the forecasts are sampled at the
+    stations by bilinear interpolation. ERA5 scores (NH 20&ndash;80&deg;N, cosine-weighted, 1.5&deg;) come from the
+    same truncated fields and are the only truth for MSLP and 2 m temperature. Radiosonde scores arrive within
+    hours; ERA5 lags about 6 days.</p>
+    <p><b>Scores and tests.</b> RMSE, bias, anomaly correlation and activity ratio at leads 24&ndash;240 h, per run.
+    Station anomalies use each station's own day-of-year median from its full IGRA record; ERA5 anomalies use the
+    ERA5 1991&ndash;2020 &plusmn;7-day climatology (WeatherBench2), including 850 hPa temperature since
+    September&nbsp;2026. Differences from the single are tested with a paired moving-block bootstrap: runs are
+    paired by start time and resampled in blocks of four consecutive runs (two days) to allow for serial
+    correlation, 2,000 times; the 95&nbsp;% percentile interval is shown and a difference is called significant only
+    when it excludes zero.</p>
+    <p><b>The ensemble mean.</b> The mean of the control and 25 perturbed AIFS-ENS members is shown for reference.
+    Averaging removes the unpredictable part of the forecast, so it usually wins on RMSE at longer leads while
+    having much less variance than the atmosphere; it is not a single model run and is not the page's question.</p>
   </div>
 </main>
 <script>
 (function () {
   "use strict";
-  var COL = { single: "#b3372f", control: "#2c5f8a" };
-  var NAME = { single: "AIFS single", control: "member 0" };
+  var COL = { single: "#b3372f", matched: "#2c5f8a", control: "#8fb0cc", ensmean: "#5c5a55" };
+  var DASH = { single: "solid", matched: "solid", control: "dash", ensmean: "dot" };
+  var NAME = { single: "AIFS single", matched: "member 0, matched", control: "member 0, as published",
+               ensmean: "ensemble mean" };
   var UNIT = { z500: "m", t850: "°C", msl: "hPa", t2m: "°C" };
-  var state = { truth: "raob", var: "z500", region: "nh", specVar: "z500", specLead: 120, specMode: "abs", D: null };
-
-  function seg(id, key, cb) {
+  var state = { truth: "raob", var: "z500", region: "nh", specVar: "z500", specLead: 120, specMode: "abs",
+                show: { ctl: true, ens: true }, D: null };
+  function seg(id, key, cb, multi) {
     var el = document.getElementById(id);
     el.addEventListener("click", function (ev) {
       var b = ev.target.closest("button"); if (!b) return;
+      if (multi) { b.classList.toggle("on"); cb(b.dataset[key], b.classList.contains("on")); return; }
       el.querySelectorAll("button").forEach(function (x) { x.classList.remove("on"); });
       b.classList.add("on"); cb(b.dataset[key]);
     });
   }
   seg("truthSeg", "t", function (v) { var p = v.split(":"); state.truth = p[0]; state.var = p[1];
-    document.getElementById("regionSeg").style.opacity = state.truth === "raob" ? 1 : 0.4; drawScores(); });
-  seg("regionSeg", "r", function (v) { state.region = v; drawScores(); });
+    document.getElementById("regionSeg").style.opacity = state.truth === "raob" ? 1 : 0.4; drawAll(); });
+  seg("regionSeg", "r", function (v) { state.region = v; drawAll(); });
+  seg("showSeg", "s", function (v, on) { state.show[v] = on; drawScores(); }, true);
   seg("specVar", "v", function (v) { state.specVar = v; drawSpec(); });
   seg("specLead", "l", function (v) { state.specLead = +v; drawSpec(); });
   seg("specMode", "m", function (v) { state.specMode = v; drawSpec(); });
-
   var BASE = { paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
                font: { family: "Inter, sans-serif", size: 11.5, color: "#1c1c1a" },
                margin: { l: 52, r: 16, t: 34, b: 38 }, showlegend: false, hovermode: "x unified",
-               xaxis: { title: { text: "lead (days)", font: { size: 10.5, color: "#888580" } }, gridcolor: "#eeece6",
+               xaxis: { title: { text: "lead (days)", font: { size: 10.5, color: "#6f6b64" } }, gridcolor: "#eeece6",
                         zeroline: false, dtick: 1, range: [0.6, 10.4] },
                yaxis: { gridcolor: "#eeece6", zeroline: false } };
-  function stat(recs) {           // -> {leads, mean, se, n} for one (model) series
+  function region() { return state.truth === "raob" ? state.region : "nh"; }
+  function models() {
+    var m = ["single", "matched"]; if (state.show.ctl) m.push("control"); if (state.show.ens) m.push("ensmean"); return m;
+  }
+  function stat(recs) {
     var by = {};
     recs.forEach(function (r) { (by[r.lead] = by[r.lead] || []).push(r); });
-    var leads = Object.keys(by).map(Number).sort(function (a, b) { return a - b; });
-    return leads.map(function (L) {
-      var vals = by[L]; return { lead: L, n: vals.length,
-        mean: function (k) { var a = vals.map(function (r) { return r[k]; }).filter(function (v) { return v != null; });
-          if (!a.length) return null; var m = a.reduce(function (s, v) { return s + v; }, 0) / a.length; return m; },
-        se: function (k) { var a = vals.map(function (r) { return r[k]; }).filter(function (v) { return v != null; });
-          if (a.length < 2) return 0; var m = a.reduce(function (s, v) { return s + v; }, 0) / a.length;
+    return Object.keys(by).map(Number).sort(function (a, b) { return a - b; }).map(function (L) {
+      var vals = by[L];
+      function arr(k) { return vals.map(function (r) { return r[k]; }).filter(function (v) { return v != null; }); }
+      return { lead: L, n: vals.length,
+        mean: function (k) { var a = arr(k); return a.length ? a.reduce(function (s, v) { return s + v; }, 0) / a.length : null; },
+        se: function (k) { var a = arr(k); if (a.length < 2) return 0; var m = a.reduce(function (s, v) { return s + v; }, 0) / a.length;
           var v = a.reduce(function (s, x) { return s + (x - m) * (x - m); }, 0) / (a.length - 1); return Math.sqrt(v / a.length); } };
     });
   }
+  function hexA(c, a) { return c + a; }
   function series(model, metric, S, unit) {
     var x = S.map(function (p) { return p.lead / 24; });
     var y = S.map(function (p) { return p.mean(metric); });
     var e = S.map(function (p) { return p.se(metric); });
     var band = { x: x.concat(x.slice().reverse()),
                  y: y.map(function (v, i) { return v == null ? null : v + e[i]; }).concat(y.map(function (v, i) { return v == null ? null : v - e[i]; }).reverse()),
-                 fill: "toself", fillcolor: COL[model] + "22", line: { width: 0 }, hoverinfo: "skip", showlegend: false, type: "scatter" };
+                 fill: "toself", fillcolor: hexA(COL[model], "22"), line: { width: 0 }, hoverinfo: "skip", showlegend: false, type: "scatter" };
     var line = { x: x, y: y, name: NAME[model], mode: "lines+markers", type: "scatter",
-                 line: { color: COL[model], width: 2.2 }, marker: { size: 5.5, color: COL[model] },
-                 hovertemplate: NAME[model] + " %{y:.3~f}" + unit + "<extra></extra>",
-                 customdata: S.map(function (p) { return p.n; }) };
+                 line: { color: COL[model], width: model === "single" || model === "matched" ? 2.3 : 1.6, dash: DASH[model] },
+                 marker: { size: 5, color: COL[model] },
+                 hovertemplate: NAME[model] + " %{y:.3~f}" + unit + "<extra></extra>" };
     return [band, line];
   }
   function panel(id, title, metric, R, unit, ref) {
     var traces = [];
-    ["single", "control"].forEach(function (m) {
+    models().forEach(function (m) {
       var S = stat(R.filter(function (r) { return r.model === m; }));
       if (S.length) traces = traces.concat(series(m, metric, S, unit));
     });
     var lay = JSON.parse(JSON.stringify(BASE));
     lay.title = { text: title, font: { family: "Lora, serif", size: 13.5 }, x: 0.02, xanchor: "left" };
     if (ref != null) lay.shapes = [{ type: "line", x0: 0.6, x1: 10.4, y0: ref, y1: ref, line: { color: "#888", dash: "dot", width: 1 } }];
-    if (metric === "acc") lay.yaxis.range = [0.5, 1.005];
+    if (metric === "acc") lay.yaxis.range = [0.4, 1.005];
     Plotly.react(id, traces, lay, { displayModeBar: false, responsive: true });
   }
   function drawScores() {
     var D = state.D; if (!D) return;
-    var region = state.truth === "raob" ? state.region : "nh";
-    var R = D.records.filter(function (r) { return r.truth === state.truth && r.var === state.var && r.region === region; });
+    var R = D.records.filter(function (r) { return r.truth === state.truth && r.var === state.var && r.region === region(); });
     var grid = document.getElementById("scoreGrid"), empty = document.getElementById("scoreEmpty");
     if (!R.length) { grid.style.display = "none"; empty.style.display = ""; empty.textContent = "no verified runs yet for this combination"; return; }
     grid.style.display = ""; empty.style.display = "none";
@@ -335,36 +362,90 @@
     panel("c-acc", "Anomaly correlation", "acc", R, "", null);
     panel("c-bias", "Bias, forecast − observed (" + UNIT[state.var] + ")", "bias", R, u, 0);
     panel("c-act", "Activity ratio (1 = observed variance)", "act", R, "", 1);
-    var inits = {}; R.forEach(function (r) { inits[r.init] = 1; });
-    var nst = R.filter(function (r) { return r.lead === 24; }).map(function (r) { return r.n; });
+    var inits = {}; R.forEach(function (r) { if (r.model === "single") inits[r.init] = 1; });
+    var matched = {}; R.forEach(function (r) { if (r.model === "matched") matched[r.init] = 1; });
+    var nst = R.filter(function (r) { return r.lead === 24 && r.model === "single"; }).map(function (r) { return r.n; });
     var meanN = nst.length ? Math.round(nst.reduce(function (s, v) { return s + v; }, 0) / nst.length) : null;
     document.getElementById("scoreNote").textContent =
-      Object.keys(inits).length + " verified runs · " + (state.truth === "raob" ? (meanN + " stations per lead · truth: radiosondes (explorer mirror)") : "truth: ERA5, NH 20–80°N, 1.5°") +
-      " · both models truncated at T" + D.lmax_t + " · updated " + D.generated;
+      Object.keys(inits).length + " verified runs (" + Object.keys(matched).length + " with the matched and ensemble-mean series) · " +
+      (state.truth === "raob" ? (meanN + " stations per lead · truth: radiosondes (explorer mirror)") : "truth: ERA5, NH 20–80°N, 1.5°") +
+      " · all series truncated at T" + D.lmax_t + " · updated " + D.generated;
+  }
+  function diffPanel(id, title, metric, E, unit) {
+    var traces = [], x0 = 0.6, x1 = 10.4;
+    ["matched", "control", "ensmean"].forEach(function (m) {
+      var rows = (E[m] || {})[metric]; if (!rows || !rows.length) return;
+      var x = rows.map(function (r) { return r.lead / 24; });
+      traces.push({ x: x.concat(x.slice().reverse()), y: rows.map(function (r) { return r.hi; }).concat(rows.map(function (r) { return r.lo; }).reverse()),
+                    fill: "toself", fillcolor: hexA(COL[m], m === "matched" ? "33" : "1f"), line: { width: 0 }, hoverinfo: "skip", type: "scatter" });
+      traces.push({ x: x, y: rows.map(function (r) { return r.mean; }), mode: "lines+markers", type: "scatter", name: NAME[m],
+                    line: { color: COL[m], width: m === "matched" ? 2.4 : 1.5, dash: DASH[m] },
+                    marker: { size: 7, color: rows.map(function (r) { return r.sig ? COL[m] : "#fff"; }), line: { color: COL[m], width: 1.5 } },
+                    customdata: rows.map(function (r) { return [r.lo, r.hi, r.n, r.sig ? "significant" : "not significant"]; }),
+                    hovertemplate: NAME[m] + " %{y:.3~f}" + unit + " [%{customdata[0]:.3~f}, %{customdata[1]:.3~f}] · %{customdata[3]} · n %{customdata[2]}<extra></extra>" });
+    });
+    var lay = JSON.parse(JSON.stringify(BASE));
+    lay.title = { text: title, font: { family: "Lora, serif", size: 13.5 }, x: 0.02, xanchor: "left" };
+    lay.shapes = [{ type: "line", x0: x0, x1: x1, y0: 0, y1: 0, line: { color: "#1c1c1a", width: 1 } }];
+    Plotly.react(id, traces, lay, { displayModeBar: false, responsive: true });
+    return traces.length > 0;
+  }
+  function sigText(rows, metric) {
+    if (!rows || !rows.length) return null;
+    var worse = [], better = [], ns = [];
+    rows.forEach(function (r) {
+      var d = r.lead / 24; if (!r.sig) { ns.push(d); return; }
+      var isWorse = metric === "acc" ? r.mean < 0 : r.mean > 0; (isWorse ? worse : better).push(d);
+    });
+    function fmt(a) { return a.length ? "day " + a.join(", ") : null; }
+    var out = [];
+    if (worse.length) out.push("significantly worse than the single at " + fmt(worse));
+    if (better.length) out.push("significantly better at " + fmt(better));
+    if (ns.length) out.push("no significant difference at " + fmt(ns));
+    return out.join("; ");
+  }
+  function drawDiffs() {
+    var D = state.D; if (!D || !D.diffs) return;
+    var E = D.diffs[state.truth + ":" + state.var + ":" + region()] || {};
+    var u = " " + UNIT[state.var];
+    var ok1 = diffPanel("d-rmse", "RMSE, model − single (" + UNIT[state.var] + ")", "rmse", E, u);
+    var ok2 = diffPanel("d-acc", "Anomaly correlation, model − single", "acc", E, "");
+    var grid = document.getElementById("diffGrid"), empty = document.getElementById("diffEmpty");
+    grid.style.display = (ok1 || ok2) ? "" : "none"; empty.style.display = (ok1 || ok2) ? "none" : "";
+    var m = E.matched || {}, t = sigText(m.rmse, "rmse"), a = sigText(m.acc, "acc");
+    var n = m.rmse && m.rmse.length ? m.rmse[0].n : 0;
+    document.getElementById("diffNote").textContent = (t || a) ?
+      "Matched member 0 on RMSE: " + (t || "n/a") + ". On anomaly correlation: " + (a || "n/a") + ". " + n + " paired runs at day 1. " + (D.diff_test ? D.diff_test.method : "") :
+      "Not enough paired runs with the matched series yet.";
   }
   function drawSpec() {
     var D = state.D; if (!D || !D.spectra) return;
-    var ks = { single: D.spectra["single_" + state.specVar + "_" + state.specLead], control: D.spectra["control_" + state.specVar + "_" + state.specLead] };
+    var k = "_" + state.specVar + "_" + state.specLead;
+    var ks = { single: D.spectra["single" + k], control: D.spectra["control" + k], matched: D.spectra["matched" + k], ensmean: D.spectra["ensmean" + k] };
     var el = document.getElementById("c-spec"), empty = document.getElementById("specEmpty");
     if (!ks.single || !ks.control) { el.style.display = "none"; empty.style.display = ""; return; }
     el.style.display = ""; empty.style.display = "none";
     var l = ks.single.mean.map(function (_, i) { return i; }).slice(1);
-    var traces = [];
+    var traces = [], order = ["single", "matched", "control", "ensmean"];
     var lay = JSON.parse(JSON.stringify(BASE));
     lay.hovermode = "x";
-    lay.xaxis = { title: { text: "total wavenumber (spherical-harmonic degree)", font: { size: 10.5, color: "#888580" } },
+    lay.xaxis = { title: { text: "total wavenumber (spherical-harmonic degree)", font: { size: 10.5, color: "#6f6b64" } },
                   type: "log", gridcolor: "#eeece6", zeroline: false, range: [0, Math.log10(360)] };
     if (state.specMode === "abs") {
-      ["single", "control"].forEach(function (m) {
-        traces.push({ x: l, y: ks[m].mean.slice(1), name: NAME[m], mode: "lines", line: { color: COL[m], width: 2.2 },
+      order.forEach(function (m) {
+        if (!ks[m]) return;
+        traces.push({ x: l, y: ks[m].mean.slice(1), name: NAME[m], mode: "lines", line: { color: COL[m], width: m === "single" ? 2.6 : 1.8, dash: DASH[m] },
                       hovertemplate: NAME[m] + " %{y:.3~g}<extra></extra>" });
       });
-      lay.yaxis = { title: { text: "power (" + UNIT[state.specVar] + "²)", font: { size: 10.5, color: "#888580" } }, type: "log", gridcolor: "#eeece6", zeroline: false };
+      lay.yaxis = { title: { text: "power (" + UNIT[state.specVar] + "²)", font: { size: 10.5, color: "#6f6b64" } }, type: "log", gridcolor: "#eeece6", zeroline: false };
     } else {
-      var ratio = ks.control.mean.map(function (v, i) { return ks.single.mean[i] > 0 ? v / ks.single.mean[i] : null; }).slice(1);
-      traces.push({ x: l, y: ratio, name: "member 0 / single", mode: "lines", line: { color: "#1c1c1a", width: 2.2 },
-                    hovertemplate: "member 0 / single %{y:.2f}<extra></extra>" });
-      lay.yaxis = { title: { text: "power ratio, member 0 / single", font: { size: 10.5, color: "#888580" } }, gridcolor: "#eeece6", zeroline: false };
+      order.slice(1).forEach(function (m) {
+        if (!ks[m]) return;
+        var ratio = ks[m].mean.map(function (v, i) { return ks.single.mean[i] > 0 ? v / ks.single.mean[i] : null; }).slice(1);
+        traces.push({ x: l, y: ratio, name: NAME[m] + " / single", mode: "lines", line: { color: COL[m], width: 2, dash: DASH[m] },
+                      hovertemplate: NAME[m] + " / single %{y:.2f}<extra></extra>" });
+      });
+      lay.yaxis = { title: { text: "power ratio to the single", font: { size: 10.5, color: "#6f6b64" } }, gridcolor: "#eeece6", zeroline: false };
       lay.shapes = [{ type: "line", x0: 1, x1: 360, xref: "x", y0: 1, y1: 1, line: { color: "#888", dash: "dot", width: 1 } }];
     }
     // Plotly quirk: on a log axis SHAPES take raw data values, ANNOTATIONS take log10
@@ -374,8 +455,15 @@
                          xanchor: "right", yanchor: "top", font: { size: 10, color: "#2c4a72" }, xshift: -4 }];
     lay.margin.t = 18;
     Plotly.react(el, traces, lay, { displayModeBar: false, responsive: true });
-    document.getElementById("specNote").textContent = "mean over " + ks.single.n + " runs · day " + (state.specLead / 24) +
-      " · last run " + (ks.single.last_init || "");
+    var nm = ks.matched ? ks.matched.n : 0, match = "";
+    if (ks.matched) {
+      var r = ks.matched.mean.slice(1, D.lmax_t + 1).map(function (v, i) { return v / ks.single.mean[i + 1]; });
+      var dev = r.map(function (x) { return Math.abs(x - 1); }); var mx = Math.max.apply(null, dev);
+      var med = r.slice().sort(function (a, b) { return a - b; })[Math.floor(r.length / 2)];
+      match = " · matched member 0 / single, l 1–" + D.lmax_t + ": median " + med.toFixed(2) + ", largest departure " + (100 * mx).toFixed(0) + " %";
+    }
+    document.getElementById("specNote").textContent = "mean over " + ks.single.n + " runs (" + nm + " for the matched and ensemble-mean series) · day " +
+      (state.specLead / 24) + match + " · last run " + (ks.single.last_init || "");
   }
   function verdict(D) {
     var host = document.getElementById("verdict"); host.innerHTML = "";
@@ -386,21 +474,24 @@
     }
     var R = D.records.filter(function (r) { return r.truth === "raob" && r.var === "z500" && r.region === "nh" && r.lead === 120; });
     var byM = {}; R.forEach(function (r) { (byM[r.model] = byM[r.model] || []).push(r); });
-    function m(model, k) { var a = (byM[model] || []).map(function (r) { return r[k]; }).filter(function (v) { return v != null; });
+    var paired = {}; (byM.matched || []).forEach(function (r) { paired[r.init] = 1; });
+    function m(model, k, onlyPaired) { var a = (byM[model] || []).filter(function (r) { return !onlyPaired || paired[r.init]; })
+      .map(function (r) { return r[k]; }).filter(function (v) { return v != null; });
       return a.length ? a.reduce(function (s, v) { return s + v; }, 0) / a.length : null; }
     var inits = {}; D.records.forEach(function (r) { inits[r.init] = 1; });
     kpi("verified runs", Object.keys(inits).length, "", "00Z + 12Z");
-    if (m("single", "rmse") != null) {
-      kpi("day-5 z500 RMSE vs radiosondes", m("single", "rmse").toFixed(1) + " m", "single", "AIFS single");
-      kpi("day-5 z500 RMSE vs radiosondes", m("control", "rmse").toFixed(1) + " m", "control", "member 0");
-    }
-    if (m("single", "act") != null) {
-      kpi("day-5 z500 activity ratio", m("single", "act").toFixed(2), "single", "AIFS single");
-      kpi("day-5 z500 activity ratio", m("control", "act").toFixed(2), "control", "member 0");
-    }
+    var P = Object.keys(paired).length > 0;
+    if (m("single", "rmse", P) != null) kpi("day-5 z500 RMSE vs radiosondes", m("single", "rmse", P).toFixed(1) + " m", "single", "AIFS single");
+    if (m("matched", "rmse") != null) kpi("day-5 z500 RMSE vs radiosondes", m("matched", "rmse", true).toFixed(1) + " m", "control", "member 0, matched");
+    var E = ((D.diffs || {})["raob:z500:nh"] || {}).matched;
+    var row = E && E.rmse ? E.rmse.filter(function (r) { return r.lead === 120; })[0] : null;
+    if (row) kpi("day-5 difference, matched − single", (row.mean > 0 ? "+" : "") + row.mean.toFixed(1) + " m", "",
+                 "95 % " + row.lo.toFixed(1) + " to " + row.hi.toFixed(1) + (row.sig ? " · significant" : " · not significant"));
+    if (m("ensmean", "rmse") != null) kpi("day-5 z500 RMSE vs radiosondes", m("ensmean", "rmse", true).toFixed(1) + " m", "", "ensemble mean (26 runs)");
   }
+  function drawAll() { drawDiffs(); drawScores(); }
   fetch("assets/verify/aifs_scores_v2.json?v=" + Date.now()).then(function (r) { if (!r.ok) throw 0; return r.json(); })
-    .then(function (D) { state.D = D; verdict(D); drawScores(); drawSpec(); })
+    .then(function (D) { state.D = D; verdict(D); drawAll(); drawSpec(); })
     .catch(function () { /* the empty states stand */ });
 })();
 </script>

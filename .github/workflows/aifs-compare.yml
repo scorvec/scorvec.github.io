@@ -26,7 +26,10 @@ permissions:
   actions: write   # dispatch pages.yml after committing
 
 concurrency:
-  group: aifs-loops            # the backfill has its own group: both MERGE the shared archive
+  # SAME group as aifs-verify-backfill.yml (2026-09-27). Both seed the verification archive at the start and
+  # publish every seeded file back at the end, so an overlap let the twice-daily run overwrite the backfill's
+  # upgraded archives (and its scores JSON) with the copies it had seeded hours earlier. One at a time.
+  group: aifs-verify-state
   cancel-in-progress: false
 
 jobs:
@@ -35,6 +38,7 @@ jobs:
     timeout-minutes: 110
     env:
       MPLBACKEND: Agg
+      ECMWF_SOURCES: google     # user rule: ECMWF open data from the Google mirror only
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -79,7 +83,7 @@ jobs:
         run: scripts/lib/fetch_frames_ci.sh scripts/verify/data/clim scripts/verify/data/truth scripts/verify/data/truth_st scripts/verify/data/st_archive
 
       - name: Spectrally fair verification (radiosondes + ERA5)
-        timeout-minutes: 25
+        timeout-minutes: 45     # + the 25-member ensemble mean and the spectrally matched member 0 (2026-09-27)
         run: |
           mkdir -p assets/verify
           python scripts/verify/aifs_station_verify.py --collect \

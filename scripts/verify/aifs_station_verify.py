@@ -73,6 +73,15 @@ LEADS = list(range(24, 241, 24))
 G = 9.80665
 LMAX_T = 120                      # common truncation: T120 ≈ 1.5° (matches the legacy grid)
 MODELS = {"single": ("aifs-single", "fc"), "control": ("aifs-ens", "cf")}
+# Scored series. "matched" is member 0 passed through a spectral filter that gives it the single's power spectrum
+# (see matching_filters); "ensmean" is the AIFS-ENS mean of the control + ENS_MEMBERS perturbed members - a reference,
+# not a single model run. Added 2026-09-27 (user: "the main point of the page is to see how they compare as
+# deterministic models ... we need to make sure we account for the smoothing correctly - we may need to run the
+# AIFS-ENS member 0 through a spectral filter that matches the power spectrum of the AIFS single").
+SCORE_MODELS = ("single", "control", "matched", "ensmean")
+ENS_MEMBERS = 25
+FILT_WINDOW = 40                  # trailing cycles whose spectra define the matching filter
+FILT_MIN = 8                      # below this many past cycles, the current cycle's own spectra are pooled in
 VARS = ("z500", "t850", "msl", "t2m")
 RAOB_VARS = ("z500", "t850")      # what a radiosonde can verify (2 m temperature it cannot)
 CLIMO_ST = DATA / "clim" / "station_climo.npz"
@@ -110,16 +119,60 @@ def to_dh(da):
     return v
 
 
-def spectrum_and_truncate(v, lmax_t=LMAX_T):
-    """Power spectrum per degree (0..359) and the field truncated at lmax_t,
-    back on the same 720×1440 grid."""
+def expand(v):
     import pyshtools as sh
-    g = sh.SHGrid.from_array(v, grid="DH")
-    c = g.expand()
+    return sh.SHGrid.from_array(v, grid="DH").expand()
+
+
+def spectrum_and_truncate(v, lmax_t=LMAX_T, filt=None, coeffs=None):
+    """Power spectrum per degree (0..359) and the field truncated at lmax_t,
+    back on the same 720×1440 grid. With `filt` (a per-degree gain, length ≥ lmax+1 or shorter) the coefficients
+    are multiplied by it first and the spectrum returned is the FILTERED one. `coeffs` reuses an expansion."""
+    c = (coeffs if coeffs is not None else expand(v)).copy()
+    if filt is not None:
+        n = min(len(filt), c.coeffs.shape[1])
+        c.coeffs[:, :n, :] *= np.asarray(filt[:n], dtype=float)[None, :, None]
     spec = c.spectrum().astype(np.float32)
     c.coeffs[:, lmax_t + 1:, :] = 0.0
     vt = c.expand(grid="DH2", extend=False).to_array()          # 720×1440, no -90 row / 360° column
     return spec, vt
+
+
+def matching_filters(stem, cur=None):
+    """Per (var, lead): the gain f(l) = min(1, sqrt(P_single(l) / P_control(l))) that gives member 0 the single's
+    power spectrum. P are MEAN spectra of the two models' forecasts at that lead over the FILT_WINDOW cycles before
+    this one - forecast-side only, no truth involved - lightly smoothed in l (5-degree running mean of the ratio,
+    l >= 3). f(0) = 1: the global mean is not touched. With fewer than FILT_MIN past cycles the current cycle's own
+    spectra (`cur`, {(model, var, lead): spec}) are pooled in so the first runs of a backfill still get a filter.
+    Returns ({(var, lead): f}, {(var, lead): n_cycles})."""
+    past = sorted(p for p in ST_ARCHIVE.glob("*.npz") if p.stem < stem)[-FILT_WINDOW:]
+    acc = {}
+    for p in past:
+        try:
+            d = np.load(p, allow_pickle=False)
+        except Exception:                                  # noqa: BLE001
+            continue
+        for var in VARS:
+            for lead in LEADS:
+                ks, kc = f"spec_single_{var}_{lead}", f"spec_control_{var}_{lead}"
+                if ks in d.files and kc in d.files:
+                    acc.setdefault((var, lead), []).append((d[ks].astype(float), d[kc].astype(float)))
+    out, used = {}, {}
+    for var in VARS:
+        for lead in LEADS:
+            pairs = list(acc.get((var, lead), []))
+            if len(pairs) < FILT_MIN and cur is not None and ("single", var, lead) in cur and ("control", var, lead) in cur:
+                pairs.append((cur[("single", var, lead)].astype(float), cur[("control", var, lead)].astype(float)))
+            if not pairs:
+                continue
+            ps = np.mean([a for a, _ in pairs], axis=0); pc = np.mean([b for _, b in pairs], axis=0)
+            r = np.where(pc > 0, ps / np.where(pc > 0, pc, 1.0), 1.0)
+            rs = r.copy()
+            rs[3:-2] = np.convolve(r, np.ones(5) / 5.0, mode="same")[3:-2]
+            f = np.minimum(1.0, np.sqrt(np.clip(rs, 0.0, None)))
+            f[0] = 1.0
+            out[(var, lead)] = f.astype(np.float32); used[(var, lead)] = len(pairs)
+    return out, used
 
 
 def sample_points(v, lats, lons):
@@ -145,61 +198,118 @@ def load_stations():
 
 
 # ──────────────────────────────────────────────────────────────── collect
-def collect(date: str, hh: str) -> bool:
+CONVERT = {"z500": lambda v: v / G, "t850": lambda v: v - 273.15, "msl": lambda v: v / 100.0, "t2m": lambda v: v - 273.15}
+
+
+def _open_model(cyc, model, typ, nmembers=0):
+    """A getter (var, step) -> 720×1440 field in page units for one model stream; perturbed-member streams return
+    the MEAN over their members (nmembers of them)."""
     import store as ecmwf
-    out = ST_ARCHIVE / f"{date}{hh}.npz"
-    if out.exists():
-        print(f"{date} {hh}Z: archived"); return True
-    ST_ARCHIVE.mkdir(parents=True, exist_ok=True)
-    ids, lats, lons = load_stations()
-    cyc = ecmwf.Cycle(date, hh)
     S = tuple(LEADS)
-    stash, specs = {}, {}
-    for mkey, (model, typ) in MODELS.items():
-        try:
-            ppl = ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "z", "pl", (500,), S))
-            pt8 = ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "t", "pl", (850,), S))
-            pms = ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "msl", "sfc", (), S))
-            p2t = ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "2t", "sfc", (), S))
-        except Exception as e:                            # noqa: BLE001
-            print(f"{date} {mkey}: fetch failed ({str(e)[:80]})", file=sys.stderr)
-            return False
-        kw = dict(engine="cfgrib", backend_kwargs={"indexpath": ""})
-        dz = xr.open_dataset(ppl, **kw); dm = xr.open_dataset(pms, **kw); dt = xr.open_dataset(p2t, **kw)
-        d8 = xr.open_dataset(pt8, **kw)
-        t0 = time.time()
+    extra = {"nmembers": nmembers} if typ == "pf" else {}
+    kw = dict(engine="cfgrib", backend_kwargs={"indexpath": ""})
+    files = {"z500": ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "z", "pl", (500,), S, **extra)),
+             "t850": ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "t", "pl", (850,), S, **extra)),
+             "msl": ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "msl", "sfc", (), S, **extra)),
+             "t2m": ecmwf.ensure(cyc, ecmwf.Spec(model, typ, "2t", "sfc", (), S, **extra))}
+    dss = {v: xr.open_dataset(f, **kw) for v, f in files.items()}
+    name = {"z500": "z", "t850": "t", "msl": "msl", "t2m": "t2m"}
+
+    def get(var, step):
+        a = dss[var][name[var]].sel(step=pd.Timedelta(hours=step))
+        if "isobaricInhPa" in a.dims:                    # scalar coord when one level was fetched
+            a = a.sel(isobaricInhPa=500 if var == "z500" else 850)
+        if "number" in a.dims:
+            a = a.mean("number")
+        return CONVERT[var](to_dh(a))
+    get.close = lambda: [d.close() for d in dss.values()]
+    return get
+
+
+def collect(date: str, hh: str) -> bool:
+    """Archive one cycle: station samples, 1.5° truncated grids and spectra for the single, member 0, the
+    spectrally matched member 0 and the ensemble mean. An archive made before 2026-09-27 (single + control only)
+    is UPGRADED in place: everything is recomputed from re-fetched forecasts on the archive's own station list,
+    which also restores the 1.5° grids the new t850 climatology needs for ERA5 t850 anomaly correlation."""
+    out = ST_ARCHIVE / f"{date}{hh}.npz"
+    have = {}
+    if out.exists():
+        d = np.load(out, allow_pickle=False)
+        if all(f"st_{m}_z500_{LEADS[-1]}" in d.files for m in ("matched", "ensmean")):
+            print(f"{date} {hh}Z: archived"); return True
+        have = {k: d[k] for k in d.files}
+    ST_ARCHIVE.mkdir(parents=True, exist_ok=True)
+    import store as ecmwf
+    cyc = ecmwf.Cycle(date, hh)
+    if have:
+        ids, lats, lons = list(have["ids"]), have["lats"].astype(float), have["lons"].astype(float)
+    else:
+        ids, lats, lons = load_stations()
+    t0 = time.time()
+    try:
+        g_single = _open_model(cyc, "aifs-single", "fc")
+        g_ctl = _open_model(cyc, "aifs-ens", "cf")
+    except Exception as e:                                # noqa: BLE001
+        print(f"{date} {hh}Z: fetch failed ({str(e)[:80]})", file=sys.stderr)
+        return False
+    try:
+        g_pf = _open_model(cyc, "aifs-ens", "pf", ENS_MEMBERS)
+    except Exception as e:                                # noqa: BLE001
+        print(f"{date} {hh}Z: perturbed members unavailable ({str(e)[:80]}); no ensemble mean this cycle",
+              file=sys.stderr)
+        g_pf = None
+    t_fetch = time.time() - t0
+    stash, specs, cur, coeffs = {}, {}, {}, {}
+
+    def put(mkey, var, step, spec, vt, v=None):
+        specs[(mkey, var, step)] = spec
+        stash[(mkey, var, step)] = (sample_points(vt, lats, lons), coarsen(vt).astype(np.float32),
+                                    None if v is None else coarsen(v).astype(np.float32))
+    for step in LEADS:
+        for var in VARS:
+            v = g_single(var, step)
+            spec, vt = spectrum_and_truncate(v)
+            put("single", var, step, spec, vt, v)
+            cur[("single", var, step)] = spec
+            v = g_ctl(var, step)
+            c = expand(v)
+            coeffs[(var, step)] = c
+            spec, vt = spectrum_and_truncate(v, coeffs=c)
+            cur[("control", var, step)] = spec
+            put("control", var, step, spec, vt, v)
+    filt, nused = matching_filters(f"{date}{hh}", cur)
+    for (var, step), c in coeffs.items():
+        f = filt.get((var, step))
+        if f is None:
+            continue
+        spec, vt = spectrum_and_truncate(None, filt=f, coeffs=c)
+        put("matched", var, step, spec, vt)
+    coeffs.clear()
+    if g_pf is not None:
         for step in LEADS:
-            sd = pd.Timedelta(hours=step)
-            zsel = dz["z"].sel(step=sd)
-            if "isobaricInhPa" in zsel.dims:                  # scalar coord when one level was fetched
-                zsel = zsel.sel(isobaricInhPa=500)
-            tsel = d8["t"].sel(step=sd)
-            if "isobaricInhPa" in tsel.dims:
-                tsel = tsel.sel(isobaricInhPa=850)
-            fields = {
-                "z500": to_dh(zsel) / G,
-                "t850": to_dh(tsel) - 273.15,
-                "msl": to_dh(dm["msl"].sel(step=sd)) / 100.0,
-                "t2m": to_dh(dt["t2m"].sel(step=sd)) - 273.15,
-            }
-            for var, v in fields.items():
+            for var in VARS:
+                v = (g_ctl(var, step) + ENS_MEMBERS * g_pf(var, step)) / (ENS_MEMBERS + 1)
                 spec, vt = spectrum_and_truncate(v)
-                specs[(mkey, var, step)] = spec
-                stash[(mkey, var, step)] = (sample_points(vt, lats, lons),
-                                            coarsen(vt).astype(np.float32),
-                                            coarsen(v).astype(np.float32))
-        dz.close(); dm.close(); dt.close(); d8.close()
-        print(f"{date} {hh}Z {mkey}: {len(LEADS)} leads, spectra + T{LMAX_T} in {time.time() - t0:.0f} s",
-              flush=True)
-    payload = {"ids": np.array(ids), "lats": lats.astype(np.float32), "lons": lons.astype(np.float32),
-               "lmax_t": np.int32(LMAX_T)}
+                put("ensmean", var, step, spec, vt)
+    for g in (g_single, g_ctl, g_pf):
+        if g is not None:
+            g.close()
+    payload = dict(have) if have else {"ids": np.array(ids), "lats": lats.astype(np.float32),
+                                        "lons": lons.astype(np.float32), "lmax_t": np.int32(LMAX_T)}
     for (m, v, st), (pts, g_t, g_raw) in stash.items():
         payload[f"st_{m}_{v}_{st}"] = pts
         payload[f"gt_{m}_{v}_{st}"] = g_t          # truncated, 1.5°
-        payload[f"gr_{m}_{v}_{st}"] = g_raw        # untruncated block mean (legacy method)
+        if g_raw is not None:
+            payload[f"gr_{m}_{v}_{st}"] = g_raw    # untruncated block mean (legacy method)
     for (m, v, st), sp in specs.items():
         payload[f"spec_{m}_{v}_{st}"] = sp
+    for (v, st), f in filt.items():
+        payload[f"filt_{v}_{st}"] = f
+        payload[f"filtn_{v}_{st}"] = np.int32(nused[(v, st)])
     np.savez_compressed(out, **payload)
+    print(f"{date} {hh}Z: {'upgraded' if have else 'archived'} in {time.time() - t0:.0f} s (fetch {t_fetch:.0f} s); "
+          f"filter from {min(nused.values()) if nused else 0}-{max(nused.values()) if nused else 0} cycles; "
+          f"ensemble mean {'yes' if g_pf is not None else 'NO'}", flush=True)
     return True
 
 
@@ -339,6 +449,7 @@ def truth_era5(valid: pd.Timestamp) -> bool:
 
 # ────────────────────────────────────────────────────────────────── scoring
 CLIM_T2M_6H = DATA / "clim" / "clim_1p5_t2m6h.npz"
+CLIM_T850 = DATA / "clim" / "clim_1p5_t850.npz"          # build_t850_clim.py (2026-09-27): ERA5 t850 ACC
 
 
 def load_clim():
@@ -356,6 +467,11 @@ def load_clim():
                 full = np.full((366, 120, 240), np.nan, np.float32)
                 full[:, :h[k].shape[1]] = h[k].astype(np.float32) - 273.15
                 out[k] = full
+    if CLIM_T850.exists():                               # NH only, float16 K → full grid °C, SH NaN
+        h = np.load(CLIM_T850)
+        full = np.full((366, 120, 240), np.nan, np.float32)
+        full[:, :h["t850"].shape[1]] = h["t850"].astype(np.float32) - 273.15
+        out["t850"] = full
     if "t2m" in out and np.nanmean(out["t2m"]) > 100:      # stored in K → °C
         out["t2m"] = out["t2m"] - 273.15
     for k, c in out.items():                              # WB2 ends at 358.5E: the last
@@ -442,6 +558,42 @@ def _scores(f, o, fa=None, oa=None, w=None):
     return rec
 
 
+def paired_diffs(recs, B=2000, block=4, seed=20260927):
+    """Per truth:var:region, comparison model and metric: the mean over runs of (other - single) at each lead,
+    with a 95 % moving-block bootstrap interval. Runs are paired (same init) and taken in time order; blocks of
+    4 consecutive runs (2 days of 00Z + 12Z) carry the serial correlation between neighbouring runs."""
+    by = {}
+    for r in recs:
+        by.setdefault((r["truth"], r["var"], r["region"], r["lead"], r["model"]), {})[r["init"]] = r
+    rng = np.random.default_rng(seed)
+    out = {}
+    combos = sorted({k[:3] for k in by})
+    for tr, var, reg in combos:
+        ent = {}
+        for other in ("matched", "control", "ensmean"):
+            for metric in ("rmse", "acc", "bias"):
+                rows = []
+                for L in LEADS:
+                    a = by.get((tr, var, reg, L, "single"), {}); b = by.get((tr, var, reg, L, other), {})
+                    inits = sorted(i for i in a if i in b and a[i].get(metric) is not None and b[i].get(metric) is not None)
+                    n = len(inits)
+                    if n < 20:
+                        continue
+                    d = np.array([b[i][metric] - a[i][metric] for i in inits], float)
+                    nb = int(np.ceil(n / block))
+                    starts = rng.integers(0, n, size=(B, nb))
+                    idx = (starts[:, :, None] + np.arange(block)[None, None, :]) % n
+                    bm = d[idx.reshape(B, -1)[:, :n]].mean(axis=1)
+                    lo, hi = np.percentile(bm, [2.5, 97.5])
+                    rows.append({"lead": L, "n": n, "mean": round(float(d.mean()), 4), "lo": round(float(lo), 4),
+                                 "hi": round(float(hi), 4), "sig": bool(lo > 0 or hi < 0)})
+                if rows:
+                    ent.setdefault(other, {})[metric] = rows
+        if ent:
+            out[f"{tr}:{var}:{reg}"] = ent
+    return out
+
+
 def verify() -> int:
     clim = load_clim()
     lat, lon = grid_1p5()
@@ -452,6 +604,23 @@ def verify() -> int:
     if SCORES.exists():
         old = json.loads(SCORES.read_text())
         recs = old.get("records", []); spectra = old.get("spectra", {})
+    if "t850" in clim:
+        # ERA5 t850 had no climatology until 2026-09-27: its records carry RMSE/bias only. Drop those whose
+        # archive holds the 1.5° grids again (new or upgraded cycles) so they are rescored with anomaly correlation.
+        files = {}
+        def _has(stem, key):
+            if stem not in files:
+                pth = ST_ARCHIVE / f"{stem}.npz"
+                try:
+                    files[stem] = set(np.load(pth, allow_pickle=False).files) if pth.exists() else set()
+                except Exception:                           # noqa: BLE001
+                    files[stem] = set()
+            return key in files[stem]
+        before = len(recs)
+        recs = [r for r in recs if not (r["var"] == "t850" and r["truth"] in ("era5", "era5-block") and "acc" not in r
+                                        and _has(r["init"], f"{'gt' if r['truth'] == 'era5' else 'gr'}_{r['model']}_t850_{r['lead']}"))]
+        if len(recs) < before:
+            print(f"  {before - len(recs)} ERA5 t850 records queued for rescoring with the t850 climatology", flush=True)
     done = {(r["init"], r["lead"], r["var"], r["model"], r["truth"], r["region"]) for r in recs}
     n_new = 0
     for arch in sorted(ST_ARCHIVE.glob("*.npz"))[-KEEP_CYCLES:]:
@@ -461,7 +630,7 @@ def verify() -> int:
         # archived, unlike scores, which wait for the valid time and its truth
         for lead in LEADS:
             for var in VARS:
-                for mkey in MODELS:
+                for mkey in SCORE_MODELS:
                     k = f"{mkey}_{var}_{lead}"
                     ent = spectra.get(k)
                     if ent and arch.stem in ent.get("inits", []):
@@ -483,45 +652,49 @@ def verify() -> int:
             valid = init + pd.Timedelta(hours=lead)
             if valid > pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(hours=3):
                 continue
-            key = (arch.stem, lead, "z500", "single", "raob", "nh")
-            if key in done and (arch.stem, lead, "z500", "single", "era5", "nh") in done:
-                continue
             if A is None:
                 A = np.load(arch, allow_pickle=False)
                 ids = list(A["ids"]); lats = A["lats"].astype(float); lons = A["lons"].astype(float)
+            # per model and truth, only what is not scored yet: an archive upgraded with the matched and
+            # ensemble-mean series (2026-09-27) gets those scored without re-scoring the single and member 0
+            want_r = [(var, reg, m) for var in RAOB_VARS for reg in ("nh", "glb") for m in SCORE_MODELS
+                      if f"st_{m}_{var}_{lead}" in A.files and (arch.stem, lead, var, m, "raob", reg) not in done]
+            want_e = [(var, m, meth, pref) for var in VARS for m in SCORE_MODELS
+                      for meth, pref in (("era5", "gt"), ("era5-block", "gr"))
+                      if f"{pref}_{m}_{var}_{lead}" in A.files and (arch.stem, lead, var, m, meth, "nh") not in done]
+            if not want_r and not want_e:
+                continue
             doy = min(valid.dayofyear, 366)
             # ── radiosonde truth ──
-            if key not in done and truth_raob(valid):
+            if want_r and truth_raob(valid):
                 T = np.load(TRUTH_ST / f"{valid:%Y%m%d%H}.npz", allow_pickle=False)
                 tid = list(T["ids"]); pos = {s: i for i, s in enumerate(tid)}
                 sel = np.array([pos.get(s, -1) for s in ids])
                 has = sel >= 0
                 if sclim is None:
                     sclim = station_climo(ids)
-                for var in RAOB_VARS:
-                    if var not in T.files or f"st_single_{var}_{lead}" not in A.files:
+                masks = {"nh": (lats >= 20) & (lats <= 80), "glb": np.ones(len(ids), bool)}
+                for var, region, mkey in want_r:
+                    if var not in T.files:
                         continue
                     o = np.full(len(ids), np.nan, np.float32); o[has] = T[var][sel[has]]
                     ca = station_clim_at(sclim, var, doy)
                     oa = o - ca
-                    for region, msk in (("nh", (lats >= 20) & (lats <= 80)), ("glb", np.ones(len(ids), bool))):
-                        for mkey in MODELS:
-                            f = A[f"st_{mkey}_{var}_{lead}"].astype(float)
-                            fa = f - ca
-                            fm = f.copy(); om = o.copy(); fm[~msk] = np.nan; om[~msk] = np.nan
-                            fam = None if fa is None else np.where(msk, fa, np.nan)
-                            oam = None if oa is None else np.where(msk, oa, np.nan)
-                            sc = _scores(fm, om, fam, oam)
-                            if sc is None:
-                                continue
-                            recs.append(dict(init=arch.stem, lead=lead, var=var, model=mkey,
-                                             truth="raob", region=region, **sc)); n_new += 1
+                    msk = masks[region]
+                    f = A[f"st_{mkey}_{var}_{lead}"].astype(float)
+                    fa = f - ca
+                    fm = f.copy(); om = o.copy(); fm[~msk] = np.nan; om[~msk] = np.nan
+                    sc = _scores(fm, om, np.where(msk, fa, np.nan), np.where(msk, oa, np.nan))
+                    if sc is None:
+                        continue
+                    recs.append(dict(init=arch.stem, lead=lead, var=var, model=mkey,
+                                     truth="raob", region=region, **sc)); n_new += 1
+                    done.add((arch.stem, lead, var, mkey, "raob", region))
             # ── ERA5 truth (1.5°, NH extratropics), truncated and legacy fields ──
-            ekey = (arch.stem, lead, "z500", "single", "era5", "nh")
-            if ekey not in done and truth_era5(valid):
+            if want_e and truth_era5(valid):
                 E = np.load(TRUTH / f"{valid:%Y%m%d%H}.npz")
-                for var in VARS:
-                    if var not in E.files or f"gt_single_{var}_{lead}" not in A.files:
+                for var, mkey, method, pref in want_e:
+                    if var not in E.files:
                         continue
                     o = E[var][band]
                     cv = clim.get(var)
@@ -529,17 +702,16 @@ def verify() -> int:
                         cv = clim.get(f"t2m_h{valid.hour:02d}", cv)
                     ca = None if cv is None else cv[doy - 1][band]
                     oa = None if ca is None else o - ca
-                    for mkey in MODELS:
-                        for method, pref in (("era5", "gt"), ("era5-block", "gr")):
-                            f = A[f"{pref}_{mkey}_{var}_{lead}"][band]
-                            fa = None if ca is None else f - ca
-                            sc = _scores(f.ravel(), o.ravel(),
-                                         None if fa is None else fa.ravel(),
-                                         None if oa is None else oa.ravel(), wg.ravel())
-                            if sc is None:
-                                continue
-                            recs.append(dict(init=arch.stem, lead=lead, var=var, model=mkey,
-                                             truth=method, region="nh", **sc)); n_new += 1
+                    f = A[f"{pref}_{mkey}_{var}_{lead}"][band]
+                    fa = None if ca is None else f - ca
+                    sc = _scores(f.ravel(), o.ravel(),
+                                 None if fa is None else fa.ravel(),
+                                 None if oa is None else oa.ravel(), wg.ravel())
+                    if sc is None:
+                        continue
+                    recs.append(dict(init=arch.stem, lead=lead, var=var, model=mkey,
+                                     truth=method, region="nh", **sc)); n_new += 1
+                    done.add((arch.stem, lead, var, mkey, method, "nh"))
     if n_new:
         SCORES.parent.mkdir(parents=True, exist_ok=True)
         SCORES.write_text(json.dumps(
@@ -549,9 +721,18 @@ def verify() -> int:
                         "era5": "ERA5 (ARCO) 1.5° block means of the truncated fields, NH 20-80N",
                         "era5-block": "legacy: 1.5° block means of the raw 0.25° fields"},
              "acc_base": {"raob": "each station's own IGRA day-of-year median (skewt-climo)",
-                          "era5": "ERA5 1991-2020 ±7d day-of-year climatology (WB2), NH; none for t850"},
+                          "era5": "ERA5 1991-2020 ±7d day-of-year climatology (WB2), NH; t850 from 00/12Z"},
+             "models": {"single": "AIFS single (deterministic)", "control": "AIFS-ENS member 0, as published",
+                        "matched": "AIFS-ENS member 0, spectrally matched to the single",
+                        "ensmean": f"AIFS-ENS mean, control + {ENS_MEMBERS} members (not a single model run)"},
+             "matching": {"window": FILT_WINDOW, "min": FILT_MIN,
+                          "gain": "f(l) = min(1, sqrt(P_single(l) / P_member0(l))), mean spectra of the previous "
+                                  f"{FILT_WINDOW} runs at the same lead, 5-degree running mean of the ratio, f(0) = 1"},
+             "diff_test": {"method": "paired moving-block bootstrap over runs, 4-run (2-day) blocks, 2000 resamples, "
+                                     "95 % percentile interval; significant = interval excludes 0",
+                           "sign": "other minus single"},
              "lmax_t": LMAX_T, "leads": LEADS,
-             "records": recs, "spectra": spectra}, separators=(",", ":")))
+             "records": recs, "spectra": spectra, "diffs": paired_diffs(recs)}, separators=(",", ":")))
         print(f"scores: +{n_new} records → {len(recs)} total; spectra keys {len(spectra)}")
     else:
         print("no newly verifiable cycles")
