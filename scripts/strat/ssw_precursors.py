@@ -9,6 +9,8 @@ Outputs (assets/sst/):
   ssw_qbo.webp        the QBO and the vortex (observed) and the QBO and sudden warmings (CMIP6 QBO models)
   ssw_enso.webp       El Nino and sudden warmings in CMIP6: frequency by Nino-3.4 and the month of the event
   ssw_odds.webp       seasonal-odds card: this winter's QBO and ENSO on the tested relations (model-based)
+  ssw_mbudget_<lev>_<set>.webp  momentum budget of past warmings, 55-65N at 50/10/1 hPa, all events or the deepest third
+                      (reference/mbudget_history.json from build_mbudget_history.py, the live momentum_budget.py operator)
   data/ssw_odds.json  the card's inputs and numbers
 
 Card inputs: QBO = KIT/FU Berlin monthly equatorial wind (https://www.atmohub.kit.edu/data/qbo.dat), falling back to the
@@ -334,6 +336,76 @@ def card(R, out, out_json, repo):
     print("  ssw_odds.json", d["cmip6_share"], d["enso_bin"], d["qbo_phase"])
 
 
+# ---------------------------------------------------------------- 5. momentum budget of past warmings
+MB_REF = HERE / "reference" / "mbudget_history.json"
+MB_TERMS = (("dudt", "observed ∂ū/∂t", INK), ("epd", "resolved waves (EP-flux divergence)", "#eb6834"),
+            ("cor", "Coriolis on the residual flow  f̂ v̄*", "#2a78d6"), ("vad", "vertical advection  −w̄* ∂ū/∂z", "#eda100"),
+            ("gwd", "gravity-wave drag", "#1baf7a"), ("resid", "residual", "#8a8f96"))
+MB_WAVES = (("epd_k1", "wave 1", "#4a3aa7"), ("epd_k2", "wave 2", "#e87ba4"), ("epd_k3p", "waves 3+", "#eda100"),
+            ("oro", "orographic GWD", "#1baf7a"), ("nog", "non-orographic GWD", "#008300"))
+
+
+def _arr(x):
+    return np.array([np.nan if v is None else v for v in x], float)
+
+
+def fig_mbudget(M, L, st, out):
+    S = M["sets"][st][str(L)]; lags = np.array(M["lags"]); n = M["sets"][st]["n"]
+    fig = plt.figure(figsize=(13.4, 9.6), dpi=125)
+    nall = M["sets"]["all"]["n"]
+    lab = f"all {n}" if st == "all" else f"the {n} deepest (the top third by depth) of the {nall}"
+    top = fig_header(fig, f"Momentum budget of past sudden warmings: 55–65°N, {L} hPa" + ("" if st == "all" else ", deepest events"),
+                     f"Every term of the transformed-Eulerian-mean budget (the live Momentum budget item's operator) composited over {lab} "
+                     "major warmings of 1980–2019 in MERRA-2 (GMI replay), as departures from the same calendar days in other winters, 5-day means. "
+                     "Thick where the departure is significant against 2,000 season-matched random dates (p < 0.05), thin where it is not. "
+                     "A negative term slows the westerly vortex.")
+    gs = fig.add_gridspec(3, 1, left=0.075, right=0.73, top=top - 0.02, bottom=0.115, hspace=0.3, height_ratios=[0.8, 1.35, 1])
+    ax = fig.add_subplot(gs[0])
+    u = S["u"]; c = _arr(u["comp"]); nl = _arr(u["null"]); p = _arr(u["p"])
+    ax.plot(lags, nl, color=MUTED, lw=1.2, ls="--", label="normal (same days, other winters)")
+    ax.plot(lags, c, color=NS, lw=1.6); ax.plot(lags, np.where(p < 0.05, c, np.nan), color=C["u"], lw=2.6, label="composite")
+    ax.axhline(0, color="#9aa3ad", lw=0.8); ax.axvline(0, color="#9aa3ad", lw=0.9, ls=":")
+    ax.set_ylabel("m/s", fontsize=9); ax.set_title(f"Zonal-mean wind, 55–65°N, {L} hPa", loc="left", fontsize=10, color=INK)
+    ax.legend(frameon=False, fontsize=8, loc="lower left"); style(ax); plt.setp(ax.get_xticklabels(), visible=False)
+    for gi, terms, title in ((1, MB_TERMS, "Budget terms, departure from normal"), (2, MB_WAVES, "Resolved waves by wavenumber and gravity-wave drag by kind, departure from normal")):
+        ax2 = fig.add_subplot(gs[gi], sharex=ax)
+        for key, name, col in terms:
+            if key not in S:
+                continue
+            a = _arr(S[key]["comp"]) - _arr(S[key]["null"]); pp = _arr(S[key]["p"])
+            ax2.plot(lags, a, color=col, lw=1.0, alpha=0.45)
+            ax2.plot(lags, np.where(pp < 0.05, a, np.nan), color=col, lw=2.6, label=name)
+            ax2.plot([], [], color=col, lw=2.6) if False else None
+        ax2.axhline(0, color="#9aa3ad", lw=0.8); ax2.axvline(0, color="#9aa3ad", lw=0.9, ls=":")
+        ax2.set_ylabel("m/s per day", fontsize=9); ax2.set_title(title, loc="left", fontsize=10, color=INK)
+        from matplotlib.lines import Line2D
+        hs = [Line2D([], [], color=col, lw=2.4, label=name) for key, name, col in terms if key in S]
+        if gi == 1:
+            ax2.legend(handles=hs, frameon=False, fontsize=8, loc="upper left", bbox_to_anchor=(1.01, 1.0))
+        else:
+            ax2.legend(handles=hs, frameon=False, fontsize=7.8, loc="lower left", ncol=3)
+        style(ax2)
+        if gi == 1:
+            plt.setp(ax2.get_xticklabels(), visible=False)
+    ax2.set_xlabel("days from the central date", fontsize=9.5); ax2.set_xlim(lags[0], lags[-1])
+    # numbers box
+    w = "-20..-1"; rows = []
+    for key, name, _ in MB_TERMS:
+        W = S[key]["windows"][w]; d = W["comp"] - W["null"]
+        short = {"dudt": "observed du/dt", "epd": "resolved waves", "cor": "Coriolis", "vad": "vertical advection", "gwd": "gravity-wave drag", "resid": "residual"}[key]
+        rows.append(f"{short:19s} {d:+5.2f}  {'p ' + format(W['p'], '.3f') if W['p'] >= 0.001 else 'p<0.001'}")
+    off = S["offset"]
+    txt = ("Days −20 to −1, departure (m/s per day)\n\n" + "\n".join(rows) +
+           f"\n\nCoriolis offsets {off['fraction']:.0%} of the extra\nwave drag, days −20 to +5\n(90 % interval {off['ci90'][0]:.0%} to {off['ci90'][1]:.0%})")
+    fig.text(0.748, 0.40, txt, fontsize=8.2, family="DejaVu Sans Mono", color=INK, va="top")
+    footer(fig, "MERRA-2 GMI replay (NASA GMAO, NCCS): 00Z states, 2 × 2.5°, and daily-mean gravity-wave drag (total and orographic). Single 00Z "
+                "snapshots scatter by 2–7 m/s per day about the daily mean, and a fixed analysis hour biases the absolute Coriolis term, so every "
+                "term is shown as a departure from the same hour on the same calendar days in other winters, which cancels that bias. The replay "
+                "has no analysis-increment term: its residual holds the assimilation's push. Events 1980–2019; static reference, built "
+                f"{M['built']}.")
+    save(fig, out)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-root", default=str(REPO)); ap.add_argument("--card-only", action="store_true")
@@ -344,6 +416,11 @@ def main():
         fig_timing(R, A / "ssw_timing.webp")
         fig_qbo(R, A / "ssw_qbo.webp")
         fig_enso(R, A / "ssw_enso.webp")
+        if MB_REF.exists():
+            Mb = json.loads(MB_REF.read_text())
+            for L in Mb["levels"]:
+                for st in ("all", "strong"):
+                    fig_mbudget(Mb, L, st, A / f"ssw_mbudget_{L}_{st}.webp")
     card(R, A / "ssw_odds.webp", A / "data" / "ssw_odds.json", REPO)
 
 

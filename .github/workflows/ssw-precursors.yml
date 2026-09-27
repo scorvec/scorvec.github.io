@@ -15,6 +15,7 @@ on:
     paths:
       - scripts/strat/ssw_precursors.py
       - scripts/strat/reference/ssw_precursors.json
+      - scripts/strat/reference/mbudget_history.json
       - .github/workflows/ssw-precursors.yml
 
 env:

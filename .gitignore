@@ -128,6 +128,7 @@ scripts/strat/*
 !scripts/strat/build_upperstrat_clim.py
 !scripts/strat/build_ssw_precursors.py
 !scripts/strat/ssw_precursors.py
+!scripts/strat/build_mbudget_history.py
 !scripts/strat/fetch_m2gmi_aoa.py
 !scripts/strat/build_age_of_air.py
 !scripts/strat/age_of_air.py
@@ -151,6 +152,7 @@ scripts/strat/*
 !scripts/strat/reference/geosfp_cap_seed.json
 !scripts/strat/reference/aifs_capdrift.json
 !scripts/strat/reference/ssw_precursors.json
+!scripts/strat/reference/mbudget_history.json
 !scripts/strat/reference/age_of_air.nc
 !scripts/strat/reference/tape_mls.npz
 !scripts/strat/reference/tape_geosfp_seed.npz
