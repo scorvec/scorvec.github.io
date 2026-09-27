@@ -47,7 +47,10 @@ import xarray as xr
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts" / "ecmwf"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import store as ecmwf                                   # noqa: E402
+try:                                                    # only the AIFS fetch needs it; the GEPS/GEFS versions
+    import store as ecmwf                               # noqa: E402  (heatflux100_ext.py) import this module without it
+except Exception:                                       # noqa: BLE001
+    ecmwf = None
 
 CLIM = Path(__file__).resolve().parent / "reference" / "vt100_clim.nc"
 MEMBERS = 25
@@ -143,11 +146,11 @@ def style(ax):
     ax.tick_params(colors=INK, labelsize=9)
 
 
-def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out):
+def render(hemi, north, valid, mem, ctrl, lat, hov, obs, clim, init, n_mem, out, model="AIFS-ENS"):
     H = "Northern" if north else "Southern"
     fig = plt.figure(figsize=(13.2, 8.6), dpi=130)
     gs = fig.add_gridspec(2, 2, width_ratios=[1.55, 1], hspace=0.30, wspace=0.16, left=0.055, right=0.985, top=0.885, bottom=0.07)
-    fig.suptitle(f"AIFS-ENS · 100 hPa eddy heat flux [v′T′], {int(BAND[0])}–{int(BAND[1])}°{'N' if north else 'S'} · {H} Hemisphere",
+    fig.suptitle(f"{model} · 100 hPa eddy heat flux [v′T′], {int(BAND[0])}–{int(BAND[1])}°{'N' if north else 'S'} · {H} Hemisphere",
                  x=0.055, y=0.975, ha="left", fontsize=15, fontweight="bold", color=INK)
     sub_obs = "" if obs is not None else " · no analysed tail yet"
     fig.text(0.055, 0.938, f"init {init:%Y-%m-%d %H} UTC · {n_mem} members, flux per member then averaged · positive = poleward = wave activity going up · "

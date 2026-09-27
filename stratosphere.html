@@ -108,7 +108,7 @@
       <p class="cap" id="cap"></p>
       <div id="about"></div>
       <p class="hint"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span> step through the options &middot; <span class="kbd">&uarr;</span> <span class="kbd">&darr;</span> change figure &middot; click a still to enlarge</p>
-      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS open data (CC BY 4.0) &middot; NASA GMAO MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-25</span></div>
+      <div class="chart-card-footer"><span class="chart-sources">ECMWF AIFS-ENS open data (CC BY 4.0) &middot; ECCC GEPS &middot; NOAA GEFS &middot; NASA GMAO MERRA-2 &middot; NCEP/NCAR Reanalysis 1 (NOAA PSL) &middot; ERA5 (Copernicus C3S) &middot; updated each 00/12Z cycle</span><span class="chart-updated">OISST 2026-09-25</span></div>
     </section>
   </div>
   <div class="lightbox" id="lightbox"><img alt=""></div>
@@ -223,7 +223,15 @@ and of the GEOS FP offset; section shaded only where the false-discovery rate is
         the vortex, weeks below &minus;1&sigma; let it strengthen. In early autumn radiative cooling
         dominates, so a burst slows the vortex&rsquo;s seasonal spin-up rather than reversing it.
         Bottom right: the ensemble-mean flux by latitude through the forecast.</p>
-<p class="chart-sources">ECMWF AIFS-ENS, 25 perturbed members + control, v and T at 100&nbsp;hPa, daily to day 15 (open data, CC&nbsp;BY&nbsp;4.0) &middot; zonal wavenumbers 1&ndash;72 to match the climatology&rsquo;s resolution &middot; climatology: NCEP/NCAR Reanalysis&nbsp;1 (NOAA PSL), 1991&ndash;2020, &plusmn;15-day window &middot; analysed tail: the AIFS control&rsquo;s step-0 fields, 00 and 12&nbsp;UTC averaged (PSL&rsquo;s R1 stopped in March 2026) &middot; updated each 00/12Z cycle</p>
+<p>The <b>GEPS</b> and <b>GEFS</b> versions carry the same calculation to day 35 (one 00Z field a day, as for
+        AIFS-ENS), against the same climatology and the same analysed record, so the three read on one scale. The
+        flux is the models&rsquo; own, <b>not bias-corrected</b>: GEPS&rsquo;s reforecasts run the 10&nbsp;hPa vortex
+        progressively too weak with lead (about 4&ndash;6&nbsp;m/s by day 35), GEFS drifts with lead as well (the drift
+        the GEFS page removes from its own products), and a systematic flux error could sit behind either. Read week 3 onward as the model&rsquo;s tendency, not a calibrated
+        probability. The 40-day mean at the end of a 35-day forecast is almost all forecast.</p>
+<p class="chart-sources">ECMWF AIFS-ENS, 25 perturbed members + control, v and T at 100&nbsp;hPa, daily to day 15 (open data, CC&nbsp;BY&nbsp;4.0)
+        &middot; ECCC GEPS 00Z extended run, 20 perturbed members + control, 0.5&deg;, days 1&ndash;35 (MSC Datamart)
+        &middot; NOAA GEFS 00Z, 30 perturbed members + control, 0.5&deg;, days 1&ndash;35 (NOAA Open Data Dissemination, AWS) &middot; zonal wavenumbers 1&ndash;72 to match the climatology&rsquo;s resolution &middot; climatology: NCEP/NCAR Reanalysis&nbsp;1 (NOAA PSL), 1991&ndash;2020, &plusmn;15-day window &middot; analysed tail: the AIFS control&rsquo;s step-0 fields, 00 and 12&nbsp;UTC averaged (PSL&rsquo;s R1 stopped in March 2026) &middot; updated each AIFS-ENS 00/12Z cycle, each GEPS extended run and each GEFS 00Z run</p>
 </template>
 <template id="about-shwinters">
 <p>Each grey line is one northern winter, 1980/81 to 2025/26, October to May, from NASA&rsquo;s MERRA-2 reanalysis; the band is the 10&ndash;90&nbsp;% range of those 46 winters and the dashed line the median winter. Three views:</p>
@@ -294,8 +302,13 @@ window.STAGE = {
           cap: function (a) { return a === "sec" ? "The residual (Brewer–Dobson) streamfunction by downward control, 30-day mean; shading only where the anomaly from MERRA-2 is significant (FDR 10 %)."
                                                  : "Upward mass flux through 70 and 100 hPa between the turnaround latitudes, trailing 30-day mean: GEOS FP analyses and 10-day forecast against the MERRA-2 range."; }},
   heatflux: {label: "100 hPa eddy heat flux", a: {label: "Hemisphere", items: [["nh","Northern"],["sh","Southern"]]},
-          img: function (a) { return "assets/sst/heatflux100_" + (a === "sh" ? "sh" : "nh") + ".webp?v=985b7076fde6"; }, about: "about-heatflux", fit: false,
-          cap: function (a) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ": the upward wave-activity flux into the stratosphere, members against the 1991–2020 climatology."; }},
+          b: {label: "Model", items: [["aifs","AIFS-ENS, days 1–15"],["geps","GEPS, days 1–35"],["gefs","GEFS, days 1–35"]]},
+          img: function (a, b) { var h = a === "sh" ? "sh" : "nh";
+                                 return b === "geps" ? "assets/geps/geps_heatflux100_" + h + ".webp" : b === "gefs" ? "assets/gefs/gefs_heatflux100_" + h + ".webp"
+                                      : "assets/sst/heatflux100_" + h + ".webp"; }, bust: "hourly", about: "about-heatflux", fit: false,
+          cap: function (a, b) { return "Poleward eddy heat flux at 100 hPa, 45–75°" + (a === "sh" ? "S" : "N") + ", total and its wave-1 and wave-2 parts: the upward wave-activity flux into the stratosphere, "
+                                        + (b === "geps" ? "GEPS extended run (Mon/Thu, 21 members) to day 35" : b === "gefs" ? "GEFS (31 members) to day 35" : "AIFS-ENS (51 members) to day 15")
+                                        + ", members against the 1991–2020 climatology."; }},
   shwinters: {label: "Every winter since 1980", dom: function () { return "dom-shwinters"; }, about: "about-shwinters",
           cap: function () { return "Every northern winter in MERRA-2, October to May, against the 1980–2026 range. Hover a line to name the winter; pick one to draw it in black."; }},
   shssw: {label: "Sudden warmings since 1980", a: {label: "View", items: [["timeline","Timeline"],["table","Catalogue"],["gallery","Vortex at each warming"]]},

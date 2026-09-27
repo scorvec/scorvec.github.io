@@ -39,10 +39,12 @@ jobs:
             scripts/gefs
             scripts/lib
             assets/gefs
+            scripts/strat
+            assets/sst/data
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - run: pip install --quiet numpy scipy eccodes matplotlib cartopy
+      - run: pip install --quiet numpy scipy eccodes matplotlib cartopy pandas xarray netCDF4
       # yesterday's anomalies for the change maps and the previous-run overlays live on the frames branch, not main
       - name: Seed the run archive
         run: scripts/lib/fetch_frames_ci.sh assets/gefs/anim/runs || true
@@ -83,6 +85,12 @@ jobs:
         run: |
           python scripts/gefs/gefs_probs.py --npz "${{ steps.run.outputs.npz }}" --date "${{ steps.run.outputs.date }}" --site . \
             --cache /tmp/gefs_work/clim --ref /tmp/gefs_work/ref || echo "::warning::GEFS terciles failed"
+      # the stratosphere page's eddy heat flux, GEFS days 1-35 (heatflux100.py's product, same climatology and analysed tail)
+      - name: 100 hPa eddy heat flux (wave-1 / wave-2)
+        if: steps.run.outputs.new == '1'
+        run: |
+          python scripts/strat/heatflux100_ext.py --model gefs --date "${{ steps.run.outputs.date }}" --out-dir assets/gefs \
+            || echo "::warning::GEFS heat flux failed"
       - name: Teleconnections, weather regimes, 500 hPa scenarios
         if: steps.run.outputs.new == '1'
         env:
