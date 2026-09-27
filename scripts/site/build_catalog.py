@@ -98,8 +98,8 @@ PAGES = {
                       thumb_manifest=("assets/mjo", "rmm_manifest.json", "mjo", "last"), variable=["Convection"]),
     "/ar.html": dict(kind="stage", file="ar.html", topic="weather", title="Atmospheric rivers", tier=0, prio=6,
                      models=["AIFS-ENS"], horizon="Days 1–15", region=["North America", "Pacific"]),
-    "/ecape.html": dict(kind="page", topic="weather", tier=0, prio=7, models=["HRRR"], horizon="Days 1–15", region=["North America"],
-                        thumb_ecape=True, variable=["Instability"]),
+    "/ecape.html": dict(kind="stage", file="ecape.html", topic="weather", title="Entraining CAPE", tier=0, prio=7,
+                        models=["HRRR"], horizon="Days 1–15", region=["North America"], no_variants=True),
     # "/cities/" paused 2026-09-27 (city forecasts turned off); restore from git history
     "/qbo/": dict(kind="stage", file="qbo/index.html", topic="drivers", title="QBO tracker", tier=0, prio=9,
                   models=["Radiosondes"], horizon="Observed", region=["Tropics"]),
@@ -315,6 +315,8 @@ def stage_items(href: str, cfg: dict) -> list:
                             k = fig_key(figs.get(f"{js(av)}|{js(bv)}|{js(cv)}"), path.parent)
                             variants.append([" · ".join(text_of(str(x)) for x in labs),
                                              "#" + "/".join([pid] + [str(x) for x in parts]), k])
+            if cfg.get("no_variants"):                   # options that only rotate (dated runs): not worth indexing
+                variants = []
             if len(variants) > 80:                       # huge option grids: keep the first axis and the defaults
                 seen, keep = set(), []
                 for v in variants:
