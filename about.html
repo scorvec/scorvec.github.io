@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About · Shawn Corvec</title>
+<meta name="description" content="Shawn Corvec, meteorologist and atmospheric scientist: numerical weather prediction, operational forecasting and the weather behind energy markets. Resume, publications and profiles.">
+<link rel="canonical" href="https://scorvec.com/about.html">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="profile">
+<meta property="og:title" content="About · Shawn Corvec">
+<meta property="og:description" content="Meteorologist and atmospheric scientist: numerical weather prediction, operational forecasting and the weather behind energy markets.">
+<meta property="og:url" content="https://scorvec.com/about.html">
+<meta property="og:image" content="https://scorvec.com/profile.jpg">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"ProfilePage","url":"https://scorvec.com/about.html",
+ "mainEntity":{"@type":"Person","@id":"https://scorvec.com/#person","name":"Shawn Corvec","url":"https://scorvec.com/",
+  "jobTitle":"Meteorologist and atmospheric scientist","image":"https://scorvec.com/profile.jpg",
+  "sameAs":["https://www.linkedin.com/in/shawn-corvec-35895b231/","https://scholar.google.com/citations?user=EYLRCJIAAAAJ&hl=en",
+            "https://www.researchgate.net/profile/Shawn-Corvec","https://github.com/scorvec"]}}
+</script>
+<!-- The person, apart from the products (2026-09-27, user: "separate my personal info and resume from the rest of the
+     site"). The homepage's hero introduction and About panel moved here unchanged; the header's About menu and the
+     footer's second group link to it. -->
+<style>
+  :root { --bg: #fcfcfa; --ink: #29321f; --muted: #6f6b64; --rule: #e3e1da; --accent: #274b7a; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); }
+  main { max-width: 50rem; margin: 0 auto; padding: 2.5rem clamp(1rem, 4vw, 2rem) 3rem; }
+  .me { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 1.6rem 2.2rem; align-items: start; }
+  .me img { width: 8.5rem; height: 8.5rem; border-radius: 50%; object-fit: cover; display: block; border: 1px solid var(--rule); }
+  .me h1 { margin: 0.2rem 0 0.2rem; text-align: left; }
+  .role { margin: 0 0 1.2rem; color: var(--muted); font-size: 1.1rem; }
+  .me p { max-width: 62ch; }
+  .go { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1.6rem 0 0; }
+  .profiles { margin: 2.4rem 0 0; padding-top: 1.2rem; border-top: 1px solid var(--rule); }
+  .profiles h2 { font-size: 1.15rem; margin: 0 0 0.6rem; }
+  .profiles ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; }
+  .profiles a { color: var(--accent); }
+  @media (max-width: 600px) {
+    .me { grid-template-columns: 1fr; gap: 1rem; }
+    .me img { width: 6rem; height: 6rem; }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js" defer></script>
+<script src="/assets/rail.js" defer></script>
+</head>
+<body>
+<!-- sh:start -->
+<header class="sh" id="site-header">
+  <div class="sh-in">
+    <a class="sh-brand" href="/">Shawn Corvec</a>
+    <button class="sh-find" type="button" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Find a plot (Ctrl K)"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="8.5" cy="8.5" r="5.5" style="fill:none;stroke:currentColor"/><path d="M12.6 12.6 17 17" style="fill:none;stroke:currentColor"/></svg><span class="sh-find-t">Find a plot</span><kbd>Ctrl K</kbd></button>
+    <button class="sh-toggle" type="button" aria-expanded="false" aria-controls="sh-menu">Menu</button>
+    <nav class="sh-nav" id="sh-menu" aria-label="Site">
+      <ul class="sh-list">
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Short and medium range</button>
+          <div class="sh-menu sh-menu--list" id="sh-g0">
+            <ul>
+              <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
+              <li><a href="/ar.html">Atmospheric rivers</a></li>
+              <li><a href="/ecape.html">Entraining CAPE</a></li>
+              <li><a href="/cities/">City temperature forecasts</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Subseasonal and seasonal</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g1">
+            <div>
+              <h3>Weeks 2–5</h3>
+              <ul>
+                <li><a href="/subseasonal.html">GEPS extended ensemble</a></li>
+                <li><a href="/gefs.html">GEFS extended ensemble</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Seasons</h3>
+              <ul>
+                <li><a href="/seasonal.html">Eight C3S seasonal models</a></li>
+                <li><a href="/sfs.html">NOAA SFS seasonal</a></li>
+                <li><a href="/enso-forecasts.html">ENSO forecasts</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Climate drivers</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g2">
+            <div>
+              <h3>Tropics</h3>
+              <ul>
+                <li><a href="/enso.html">El Niño monitor</a></li>
+                <li><a href="/mjo.html">MJO forecast</a></li>
+                <li><a href="/qbo/">QBO tracker</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Circulation</h3>
+              <ul>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li><a href="/circulation.html">Jets, Walker and Hadley cells</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Studies and verification</button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
+            <div>
+              <h3>Studies</h3>
+              <ul>
+                <li><a href="/enso.html#imp_reg">ENSO impacts on the Americas</a></li>
+                <li><a href="/stratosphere.html#shwinters">Stratosphere history</a></li>
+                <li><a href="/topics/">Explainers</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3>Verification</h3>
+              <ul>
+                <li><a href="/cities/verify.html">City forecast verification</a></li>
+                <li><a href="/aifs-verify.html">AIFS single versus member 0</a></li>
+              </ul>
+            </div>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g4">
+            <ul>
+              <li><a href="/catalog.html">Every plot on the site</a></li>
+              <li><a href="/skewt/">Sounding explorer</a></li>
+              <li><a href="/asos5.html">Five-minute airport observations</a></li>
+              <li><a href="/climate.html">US climate trends</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-item--special"><a class="sh-special" href="/midterms/">2026 Midterms</a></li>
+        <li class="sh-item sh-has-menu sh-item--me">
+          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me" aria-current="page">About</button>
+          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">
+            <ul>
+              <li><a href="/about.html" aria-current="page">About me</a></li>
+              <li><a href="/resume.html">Resume</a></li>
+              <li><a href="/research.html">Publications</a></li>
+              <li class="sh-me-ext"><a href="https://github.com/scorvec">GitHub</a></li>
+              <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en">Google Scholar</a></li>
+              <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/">LinkedIn</a></li>
+            </ul>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<!-- sh:end -->
+<main>
+  <section class="me">
+    <img src="/profile.jpg" alt="Shawn Corvec" width="136" height="136">
+    <div>
+      <h1>Shawn Corvec</h1>
+      <p class="role">Meteorologist and atmospheric scientist</p>
+      <p>Numerical weather prediction, operational forecasting, and the weather behind energy markets.</p>
+      <p>I am a US-based meteorologist with significant experience across research and operations.</p>
+      <p>I built this site as a fun project using Claude. The idea was to create some useful tools for the broader met community: a set of live diagnostics built from open model and observation data.</p>
+      <div class="go">
+        <a class="button" href="/resume.html">Resume</a>
+        <a class="button button--secondary" href="/research.html">Publications</a>
+        <a class="button button--secondary" href="/">The products</a>
+      </div>
+    </div>
+  </section>
+  <section class="profiles">
+    <h2>Elsewhere</h2>
+    <ul>
+      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      <li><a href="https://www.researchgate.net/profile/Shawn-Corvec" rel="noopener">ResearchGate</a></li>
+      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+    </ul>
+  </section>
+</main>
+<!-- sf:start -->
+<footer class="sf">
+  <div class="sf-in">
+    <div class="sf-group">
+      <p class="sf-h" role="heading" aria-level="2">This site</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/catalog.html">Every plot</a></li>
+        <li><a href="/topics/">Explainers</a></li>
+        <li><a href="/stats.html">Visitor stats</a></li>
+      </ul>
+      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>
+    </div>
+    <div class="sf-group sf-group--me">
+      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>
+      <ul>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/resume.html">Resume</a></li>
+        <li><a href="/research.html">Publications</a></li>
+        <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!-- sf:end -->
+</body>
+</html>

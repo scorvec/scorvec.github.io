@@ -16,11 +16,13 @@
     return right > document.documentElement.clientWidth - 4;
   }
   function fitHeader() {
-    header.classList.remove('sh--compact', 'sh--tight');
+    header.classList.remove('sh--compact', 'sh--tight', 'sh--tighter');
     if (window.innerWidth <= 860 || !nav || !overflows()) return;
     header.classList.add('sh--tight');
     if (!overflows()) return;
-    header.classList.remove('sh--tight');
+    header.classList.add('sh--tighter');                 // then closer-set menu buttons (down to ~1280 px)
+    if (!overflows()) return;
+    header.classList.remove('sh--tight', 'sh--tighter');
     header.classList.add('sh--compact');
   }
   var fitT; window.addEventListener('resize', function () { clearTimeout(fitT); fitT = setTimeout(fitHeader, 80); });

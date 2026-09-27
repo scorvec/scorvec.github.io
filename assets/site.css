@@ -338,7 +338,11 @@ html main > header:not(.sh) { text-align: center; }
 html main > :is(.lede, .sub, .kicker, .eyebrow), html .wrap > :is(.lede, .kicker, .eyebrow), html .page-header > p,
 html body > header:not(.sh) > :is(.lede, .sub), html main > header:not(.sh) > :is(.lede, .sub, p) { margin-left: auto; margin-right: auto; }
 
-.sf .sf-disclaimer { font-size: 0.85rem; color: var(--c-muted); max-width: 80ch; margin-top: 0.5rem; }
+.sf .sf-disclaimer { font-size: 0.9rem; color: var(--c-muted); max-width: 80ch; margin-top: 0.7rem; }
+/* two groups since 2026-09-27: the site, and the person */
+.sf-group { flex: 1 1 24rem; min-width: 0; }
+.sf-group--me { flex: 0 1 22rem; }
+.sf .sf-h { margin: 0 0 0.45rem; font-size: 0.9rem; font-weight: 600; color: var(--c-ink); }
 
 /* Lede paragraphs (the descriptor under a page title): left-aligned text in a quiet box, centred
    as a block — a long paragraph set centred is hard to read (user, 2026-09-07, MJO page). Colours
@@ -430,7 +434,7 @@ html .img-wrap, html .table-wrap { max-width: 100%; overflow-x: auto; }
 
 /* ── The finder (2026-09-27): the header's search button and the Ctrl/Cmd-K palette (assets/site.js) ── */
 .sh-find {
-  display: inline-flex; align-items: center; gap: 0.55rem; margin-right: auto; min-width: 13.5rem;
+  display: inline-flex; align-items: center; gap: 0.55rem; margin-right: auto; min-width: 13.5rem; flex: none;
   font: inherit; font-size: 0.95rem; line-height: 1.2; color: var(--c-muted); white-space: nowrap; cursor: pointer;
   background: color-mix(in srgb, var(--c-panel) 72%, transparent);
   border: 1px solid var(--c-rule); border-radius: 999px; padding: 0.44rem 0.5rem 0.44rem 0.85rem;
@@ -567,3 +571,46 @@ html.fp-lock { overflow: hidden; }
   .fp-foot { padding: 0.8rem 1rem calc(0.8rem + env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) { .fp-scrim, .fp-box { animation: none; } }
+
+/* The person's menu (2026-09-27, user: "separate my personal info and resume from the rest of the site"): after a
+   divider at the far right, quieter than the product menus, and its profiles set apart inside it */
+.sh-item--me { margin-left: 0.5rem; padding-left: 0.75rem; }
+.sh-item--me::before { content: ''; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: var(--c-rule); }
+.sh .sh-me { color: var(--c-muted); font-size: 0.98rem; }
+.sh .sh-me:hover, .sh-item--me.is-open > .sh-me { color: var(--c-ink); }
+.sh-link.sh-me[aria-current="page"] { color: var(--c-accent); }
+.sh-menu--me { left: auto; right: 0; min-width: 12rem; }
+.sh-menu--me .sh-me-ext { margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px solid var(--c-rule); }
+.sh--overlay .sh-item--me::before { background: rgba(255, 255, 255, 0.45); }
+.sh--overlay .sh .sh-me, .sh--overlay .sh-me { color: rgba(255, 255, 255, 0.92); }
+@media (max-width: 860px) {
+  .sh-item--me { margin: 0.6rem 0 0; padding: 0.3rem 0 0; border-top: 1px solid var(--c-rule); }
+  .sh-item--me::before { display: none; }
+}
+.sh--compact .sh-item--me { margin: 0.6rem 0 0; padding: 0.3rem 0 0; border-top: 1px solid var(--c-rule); }
+.sh--compact .sh-item--me::before { display: none; }
+
+/* The top row in px (2026-09-27). Sized in rem it grew with each page's own root font (16 px on most pages,
+   17.5 on the ENSO and GEPS/GEFS pages, 18.4 on the sounding explorer), so the same menu fitted on one page and
+   collapsed to "Menu" on the next at the same window width. The dropdown panels keep their rem sizes. */
+@media (min-width: 861px) {
+  .sh:not(.sh--compact) .sh-in { gap: 20px; }
+  .sh:not(.sh--compact) .sh-brand { font-size: 25px; }
+  .sh:not(.sh--compact) .sh-list { gap: 2px; }
+  .sh:not(.sh--compact) .sh-link { font-size: 16px; padding: 10px 11px; }
+  .sh:not(.sh--compact) .sh-link::before { left: 11px; right: 11px; bottom: 6px; }
+  .sh:not(.sh--compact) .sh-has-menu > .sh-menubtn::before { right: 26px; }
+  .sh:not(.sh--compact) .sh-me { font-size: 15px; }
+  .sh:not(.sh--compact) .sh-special { font-size: 15px; padding: 7px 14px; }
+  .sh:not(.sh--compact) .sh-item--special { margin-left: 6px; }
+  .sh:not(.sh--compact) .sh-item--me { margin-left: 6px; padding-left: 8px; }
+  .sh:not(.sh--compact) .sh-find { font-size: 15px; min-width: 205px; padding: 7px 8px 7px 13px; }
+  .sh.sh--tight .sh-find { min-width: 0; padding: 7px 8px 7px 11px; }
+  .sh:not(.sh--compact) .sh-find kbd { font-size: 12.5px; }
+  .sh.sh--tighter .sh-in { padding: 0 20px; gap: 14px; }
+  .sh.sh--tighter .sh-link { padding: 10px 7px; }
+  .sh.sh--tighter .sh-link::before { left: 7px; right: 7px; }
+  .sh.sh--tighter .sh-has-menu > .sh-menubtn::before { right: 22px; }
+  .sh.sh--tighter .sh-find kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .sh.sh--tighter .sh-find { padding: 8px; }
+}

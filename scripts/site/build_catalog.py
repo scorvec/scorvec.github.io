@@ -50,11 +50,12 @@ EVAL = Path(__file__).resolve().parent / "catalog_eval.js"
 THUMB_DIR = "assets/site/thumbs"                       # on the frames branch
 THUMB_INDEX_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/frames/" + THUMB_DIR + "/index.json"
 
+# ids stay stable (they are in catalogue URLs, ?topic=...); labels are the menu group titles in apply_chrome.PRODUCTS
 TOPICS = [
-    ("weather", "Weather", "The next two weeks, from single storms to the cities"),
-    ("drivers", "Climate drivers", "ENSO, the MJO, the QBO, the stratosphere and the jets"),
-    ("outlooks", "Outlooks", "From weeks two to five out to the coming seasons"),
-    ("research", "Research", "What the record and the models say, and how the forecasts score"),
+    ("weather", "Short and medium range", "Days 1 to 15: storms, hazards and the temperature forecast"),
+    ("outlooks", "Subseasonal and seasonal", "From weeks two to five out to the coming seasons"),
+    ("drivers", "Climate drivers", "ENSO, the MJO, the QBO, the stratosphere and the jets, as they stand now"),
+    ("research", "Studies and verification", "What the record and the models say, and how the forecasts score"),
     ("tools", "Tools", "Explore the data yourself"),
 ]
 HORIZONS = ["Observed", "Days 1–15", "Weeks 1–5", "Seasons", "Climate record"]
@@ -102,7 +103,7 @@ PAGES = {
                      horizon="Days 1–15", region=["North America"], variable=["Temperature"]),
     "/qbo/": dict(kind="page", topic="drivers", tier=0, prio=9, models=["Radiosondes"], horizon="Observed", region=["Tropics"],
                   thumb="assets/qbo/qbo_section.webp", variable=["Stratosphere", "Wind"]),
-    "/enso-forecasts.html": dict(kind="page", topic="drivers", tier=2, prio=29, models=["Multi-model"], horizon="Seasons",
+    "/enso-forecasts.html": dict(kind="page", topic="outlooks", tier=2, prio=29, models=["Multi-model"], horizon="Seasons",
                                  region=["Tropical Pacific"], variable=["SST"]),
     "/cities/verify.html": dict(kind="page", topic="research", tier=1, prio=22, models=["Consensus", "NBM", "AIFS"],
                                 horizon="Days 1–15", region=["North America"], variable=["Temperature"]),
@@ -455,7 +456,7 @@ def mjo_items() -> list:
                         d0 = D[0][0] if D else "cmip6"
                         variants.append([f"{fl} · {ml} · {lag_l.get(l, l)} · {view_l['compare']}",
                                          f"#mi/{f}/{d0}/{mo}/{l}/compare", key_of(f"mi_{f}_cmip6{tail}_s")])
-        head = text_of((re.search(r"<h2>(.*?)</h2>", body, re.S) or [None, "MJO impacts by phase and month"])[1])
+        head = text_of((re.search(r"<h2>(.*?)</h2>", body, re.S) or [None, "MJO impacts by phase and month"])[1]).split(":")[0].strip()
         lead = text_of((re.search(r'<p class="lede[^"]*">(.*?)</p>', body, re.S) or [None, ""])[1])
         default = variants[0] if variants else None
         shows = " ".join([head, lead, " ".join(fl for _, fl in F), " ".join(dl for _, dl in D)])

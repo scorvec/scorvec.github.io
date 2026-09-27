@@ -23,11 +23,15 @@ REPO = Path(__file__).resolve().parents[2]
 # ── the navigation, as data ──────────────────────────────────────────────────
 # BY TOPIC since 2026-09-27 (user: "another site navigation redesign as it is getting quite large ... reorganize
 # things and change the interface for finding certain plots"; chose topic menus + a ⌘K finder + a catalogue).
+# Renamed the same day (user: "separate my personal info and resume from the rest of the site ... 'weather' is not
+# very descriptive, short/medium range, subseasonal/seasonal forecast groups would make more sense"): the product
+# menus hold products only; the person (about, resume, publications, profiles) lives in PERSONAL, apart.
 # A page lives under its topic whatever model it comes from. Items are (href, label, what, when): the menus use
 # the first two, the homepage rows (between <!-- hp:start --> and <!-- hp:end --> in index.html) all four.
-# A group's items may be a flat list or a list of (subtitle, items) columns.
+# A group's items may be a flat list or a list of (subtitle, items) columns. Group titles are also the catalogue's
+# topic labels (scripts/site/build_catalog.py TOPICS) - rename both together.
 PRODUCTS = [
-    ("Weather", "The next two weeks, from single storms to the cities", [
+    ("Short and medium range", "Days 1 to 15: storms, hazards and the temperature forecast", [
         ("/snowbands.html", "Snow-band diagnostics",
          "Where HRRR, RRFS and RDPS set up mesoscale snow bands: 700 hPa frontogenesis and deformation, EPV* and slantwise instability, lift through the dendritic growth zone, the model's own bands and where the ingredients overlap. November to mid-April, with case studies against the radar.",
          "Every run in season"),
@@ -41,16 +45,34 @@ PRODUCTS = [
          "Forecast highs and lows for 234 US cities from 892 stations, the consensus alongside NBM, ECMWF, AIFS, GFS, GEFS, GDPS and GEPS, day by day for two weeks.",
          "Four times daily"),
     ]),
-    ("Climate drivers", "ENSO, the MJO, the QBO, the stratosphere and the jets", [
+    ("Subseasonal and seasonal", "From weeks two to five out to the coming seasons", [
+        ("Weeks 2–5", [
+            ("/subseasonal.html", "GEPS extended ensemble",
+             "Environment Canada's extended ensemble to day 35 for the Americas, the tropics and the polar vortex: weekly anomalies against its own reforecast, terciles, teleconnections, regimes and change since the previous run.",
+             "Mondays and Thursdays"),
+            ("/gefs.html", "GEFS extended ensemble",
+             "NOAA's GEFS extended ensemble to day 35 in the same layout: weekly anomalies against its own reforecast, the change since a week earlier, and a drift-corrected polar vortex.",
+             "Daily"),
+        ]),
+        ("Seasons", [
+            ("/seasonal.html", "Eight C3S seasonal models",
+             "Eight seasonal systems from seven centres: anomaly maps and tercile probabilities for every model and their mean, plus the member-level ECMWF SEAS5 outlook: indices, teleconnections, the stratosphere and impacts.",
+             "Monthly"),
+            ("/sfs.html", "NOAA SFS seasonal",
+             "Maps from NOAA's new Seasonal Forecast System, 31 members, for the months ahead.",
+             "Monthly"),
+            ("/enso-forecasts.html", "ENSO forecasts",
+             "Every member of seven centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.",
+             "Monthly"),
+        ]),
+    ]),
+    ("Climate drivers", "ENSO, the MJO, the QBO, the stratosphere and the jets, as they stand now", [
         ("Tropics", [
             ("/enso.html", "El Niño monitor",
              "Daily ONI and RONI, Niño-region sea surface temperatures, the subsurface, winds and convection, with SST anomaly maps and animation.",
              "Daily"),
-            ("/enso-forecasts.html", "ENSO forecasts",
-             "Every member of seven centres' seasonal models for Niño-3.4, with percentile fans and a record of how past forecasts did.",
-             "Monthly"),
             ("/mjo.html", "MJO forecast",
-             "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track.",
+             "Real-time multivariate MJO index from the ECMWF AIFS ensemble, with the observed phase-space track, an ENSO-removed version, and what each phase has meant for temperature and rain.",
              "Twice daily"),
             ("/qbo/", "QBO tracker",
              "Equatorial stratospheric winds at 10 to 100 hPa from radiosondes, 1950 to the present.",
@@ -65,25 +87,7 @@ PRODUCTS = [
              "Daily"),
         ]),
     ]),
-    ("Outlooks", "From weeks two to five out to the coming seasons", [
-        ("Weeks 1–5", [
-            ("/subseasonal.html", "GEPS weeks 1–5",
-             "Environment Canada's extended ensemble for the Americas, the tropics and the polar vortex: weekly anomalies against its own reforecast, terciles, teleconnections, regimes and change since the previous run.",
-             "Mondays and Thursdays"),
-            ("/gefs.html", "GEFS weeks 1–5",
-             "NOAA's GEFS extended ensemble in the same layout: weekly anomalies against its own reforecast, the change since a week earlier, and a drift-corrected polar vortex.",
-             "Daily"),
-        ]),
-        ("Seasons", [
-            ("/seasonal.html", "Eight C3S seasonal models",
-             "Eight seasonal systems from seven centres: anomaly maps and tercile probabilities for every model and their mean, plus the member-level ECMWF SEAS5 outlook: indices, teleconnections, the stratosphere and impacts.",
-             "Monthly"),
-            ("/sfs.html", "NOAA SFS seasonal",
-             "Maps from NOAA's new Seasonal Forecast System, 31 members, for the months ahead.",
-             "Monthly"),
-        ]),
-    ]),
-    ("Research", "What the record and the models say, and how the forecasts score", [
+    ("Studies and verification", "What the record and the models say, and how the forecasts score", [
         ("Studies", [
             ("/enso.html#imp_reg", "ENSO impacts on the Americas",
              "Thousands of El Niño and La Niña events in 16 CMIP6 models against the observed record: regressions, composites, super and east-based El Niños, 500 hPa wave trains, and what the PDO does once ENSO is removed. Significant results only.",
@@ -94,9 +98,6 @@ PRODUCTS = [
             ("/topics/", "Explainers",
              "How to read the products: the equations and the physics behind each diagnostic.",
              "As written"),
-            ("/research.html", "Publications",
-             "Papers and presentations.",
-             "As published"),
         ]),
         ("Verification", [
             ("/cities/verify.html", "City forecast verification",
@@ -123,6 +124,15 @@ PRODUCTS = [
     ]),
 ]
 
+# The person, kept apart from the products (user, 2026-09-27): one "About" item at the far right of the header,
+# behind a divider, and its own footer group. External profiles open in the same tab like every other link.
+PROFILES = [
+    ("https://github.com/scorvec", "GitHub"),
+    ("https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en", "Google Scholar"),
+    ("https://www.linkedin.com/in/shawn-corvec-35895b231/", "LinkedIn"),
+]
+PERSONAL = [("/about.html", "About me"), ("/resume.html", "Resume"), ("/research.html", "Publications")] + PROFILES
+
 
 def group_items(items):
     """Flatten a group's items whether it is a flat list or (subtitle, items) columns."""
@@ -130,8 +140,8 @@ def group_items(items):
         return [it for _, sub in items for it in sub]
     return list(items)
 
-# Explainers and Research moved into the Research menu with the topic redesign (2026-09-27).
-PRIMARY = [("/resume.html", "Resume")]
+# Plain header links between the product menus and the special button (none since the About menu took Resume).
+PRIMARY: list = []
 # A highlighted button, apart from the menus, on every page (2026-09-23, user: "put this on my site as a special button").
 SPECIAL = ("/midterms/", "2026 Midterms")
 
@@ -187,7 +197,8 @@ PAGES = [
     dict(path="sfs.html", mode="nav"),
     dict(path="ar.html", mode="after-body"),
     dict(path="snowbands.html", mode="after-body"),                # snow-band diagnostics (scripts/snowband, snowband.yml), stage viewer
-    dict(path="catalog.html", mode="after-body"),                  # every plot on the site (scripts/site/build_catalog.py)
+    dict(path="catalog.html", mode="after-body"),
+    dict(path="about.html", mode="after-body"),                    # the person: bio, resume, publications, profiles                  # every plot on the site (scripts/site/build_catalog.py)
     dict(path="climate.html", mode="after-body"),
     dict(path="research.html", mode="nav", fixes=[
         ("padding: 7.5rem 2rem 5rem;", "padding: 2.5rem 2rem 5rem;"),
@@ -281,6 +292,16 @@ def header_html(page: str, skin: str) -> str:
     if SPECIAL:
         href, label = SPECIAL; cur = ' aria-current="page"' if href.strip("/") + "/" in "/" + page.lstrip("/") else ""
         out.append(f'        <li class="sh-item sh-item--special"><a class="sh-special" href="{href}"{cur}>{label}</a></li>')
+    # the person, after a divider: a small quiet menu that does not read as one of the products
+    mine = any(h == page for h, _ in PERSONAL)
+    out.append('        <li class="sh-item sh-has-menu sh-item--me">')
+    out.append(f'          <button class="sh-link sh-menubtn sh-me" type="button" aria-expanded="false" aria-controls="sh-me"'
+               f'{" aria-current=page" if mine else ""}>About</button>')
+    out.append('          <div class="sh-menu sh-menu--list sh-menu--me" id="sh-me">\n            <ul>')
+    for i, (href, label) in enumerate(PERSONAL):
+        sep = ' class="sh-me-ext"' if i == len(PERSONAL) - len(PROFILES) else ""
+        out.append(f'              <li{sep}><a href="{href}"{_current(href, page)}>{label}</a></li>')
+    out.append('            </ul>\n          </div>\n        </li>')
     out.append('      </ul>\n    </nav>\n  </div>\n</header>')
     return "\n".join(out).replace(' aria-current=page', ' aria-current="page"')
 
@@ -335,16 +356,18 @@ def tabs_html(key: str, page: str, dark: bool) -> str:
 
 def footer_html(dark: bool) -> str:
     cls = "sf" + (" sf--dark" if dark else "")
+    site = [("/", "Home"), ("/catalog.html", "Every plot"), ("/topics/", "Explainers"), ("/stats.html", "Visitor stats")]
+    me = [("/about.html", "About"), ("/resume.html", "Resume"), ("/research.html", "Publications"),
+          ("https://github.com/scorvec", "GitHub"), ("https://www.linkedin.com/in/shawn-corvec-35895b231/", "LinkedIn"),
+          ("https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en", "Google Scholar")]
+    ext = ' rel="noopener"'
+    li = lambda xs: "\n".join(f'        <li><a href="{h}"{ext if h.startswith("http") else ""}>{l}</a></li>' for h, l in xs)
     return (
         f'<!-- sf:start -->\n<footer class="{cls}">\n  <div class="sf-in">\n'
-        '    <ul>\n      <li><a href="/">Home</a></li>\n      <li><a href="/#products">Products</a></li>\n'
-        '      <li><a href="/research.html">Research</a></li>\n      <li><a href="/resume.html">Resume</a></li>\n'
-        '      <li><a href="https://github.com/scorvec" rel="noopener">GitHub</a></li>\n'
-        '      <li><a href="https://www.linkedin.com/in/shawn-corvec-35895b231/" rel="noopener">LinkedIn</a></li>\n'
-        '      <li><a href="https://scholar.google.com/citations?user=EYLRCJIAAAAJ&amp;hl=en" rel="noopener">Google Scholar</a></li>\n'
-        '      <li><a href="/stats.html">Visitor stats</a></li>\n    </ul>\n'
-        '    <p>Shawn Corvec. Built from open data; sources are credited on each page.</p>\n'
-        '    <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions.</p>\n'
+        '    <div class="sf-group">\n      <p class="sf-h" role="heading" aria-level="2">This site</p>\n      <ul>\n' + li(site) + '\n      </ul>\n'
+        '      <p class="sf-disclaimer">This site is under constant development. Nothing here is checked before publication and there is no expectation of accuracy, completeness or availability; do not rely on it for decisions. Built from open data; sources are credited on each page.</p>\n'
+        '    </div>\n'
+        '    <div class="sf-group sf-group--me">\n      <p class="sf-h" role="heading" aria-level="2">Shawn Corvec</p>\n      <ul>\n' + li(me) + '\n      </ul>\n    </div>\n'
         '  </div>\n</footer>\n<!-- sf:end -->'
     )
 
