@@ -62,6 +62,7 @@ jobs:
             assets/sst/anim/upperstrat_maps_manifest.json
             assets/sst/data/upperstrat.json
             assets/sst/data/upperstrat_tail.json
+            assets/sst/upperstrat_*.webp
           sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v7
         with:
@@ -168,7 +169,8 @@ jobs:
             if ! timeout 120 git fetch origin main; then echo "fetch $i failed"; sleep 5; continue; fi
             git reset -q --hard origin/main
             tar xf "$SNAP/outs.tar"
-            while read -r f; do git add -f "$f"; done < "$SNAP/list"
+            # --sparse: the outputs sit outside the (file-list) sparse checkout, and a plain add refuses them
+            while read -r f; do git add --sparse -f "$f"; done < "$SNAP/list"
             if git diff --staged --quiet; then echo "no changes"; exit 0; fi
             git commit -q -m "upperstrat: GEFS/GFS/GEOS FP/GDPS upper stratosphere $(date -u +%Y-%m-%dT%H:%MZ)"
             if timeout 180 git push origin HEAD:main; then echo "pushed (attempt $i)"; exit 0; fi
