@@ -33,10 +33,11 @@ PAGES = [
               "one figure at a time.",
          canonical="https://scorvec.com/enso.html"),
     dict(slug="forecasts", out="enso-forecasts.html", active="A_FORECASTS",
-         title="ENSO Forecasts &mdash; Interactive Multi-Model Outlook &middot; El Ni&ntilde;o Monitor",
-         desc="Interactive C3S multi-model Niño-3.4 outlook: every ensemble member from "
-              "seven centres, percentile fans, ONI vs RONI, and the forecast measured "
-              "against every ENSO event since 1970.",
+         title="ENSO Forecasts &mdash; Peak Strength, Timing and How East-Based &middot; El Ni&ntilde;o Monitor",
+         desc="The C3S multi-model El Niño outlook in plain language: seven seasonal models and "
+              "every ensemble member, the chance of each peak strength on ONI and RONI, how "
+              "east-based the event will be (Takahashi E and C indices), how the forecast has "
+              "changed issue to issue, and how it compares with every El Niño since 1950.",
          canonical="https://scorvec.com/enso-forecasts.html"),
     dict(slug="circulation", out="circulation.html", active="A_ATMOSPHERE", layout="stage",
          title="Global Circulation and Jets &mdash; Wave Activity Flux, Angular Momentum, Mountain Torque, "
