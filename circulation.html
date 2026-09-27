@@ -37,7 +37,7 @@
     <nav class="sh-nav" id="sh-menu" aria-label="Site">
       <ul class="sh-list">
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0">Short and medium range</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g0"><span class="sh-lf">Short and medium range</span><span class="sh-ls">Short/medium range</span></button>
           <div class="sh-menu sh-menu--list" id="sh-g0">
             <ul>
               <li><a href="/snowbands.html">Snow-band diagnostics</a></li>
@@ -48,7 +48,7 @@
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1">Subseasonal and seasonal</button>
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g1"><span class="sh-lf">Subseasonal and seasonal</span><span class="sh-ls">Subseasonal/seasonal</span></button>
           <div class="sh-menu sh-menu--cols" id="sh-g1">
             <div>
               <h3>Weeks 2–5</h3>
@@ -68,28 +68,41 @@
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2" aria-current="page">Climate drivers</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g2">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g2">Climate drivers</button>
+          <div class="sh-menu sh-menu--list" id="sh-g2">
+            <ul>
+              <li><a href="/enso.html">El Niño monitor</a></li>
+              <li><a href="/mjo.html">MJO forecast</a></li>
+              <li><a href="/qbo/">QBO tracker</a></li>
+            </ul>
+          </div>
+        </li>
+        <li class="sh-item sh-has-menu">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3" aria-current="page"><span class="sh-lf">Atmospheric circulation</span><span class="sh-ls">Circulation</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g3">
             <div>
-              <h3>Tropics</h3>
+              <h3>Stratosphere</h3>
               <ul>
-                <li><a href="/enso.html">El Niño monitor</a></li>
-                <li><a href="/mjo.html">MJO forecast</a></li>
-                <li><a href="/qbo/">QBO tracker</a></li>
+                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#heatflux">Eddy heat flux</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#pv">Potential vorticity</a></li>
+                <li class="sh-subitem"><a href="/stratosphere.html#bdc">Brewer–Dobson circulation</a></li>
               </ul>
             </div>
             <div>
-              <h3>Circulation</h3>
+              <h3>Troposphere</h3>
               <ul>
-                <li><a href="/stratosphere.html">Stratosphere and polar vortex</a></li>
                 <li><a href="/circulation.html" aria-current="page">Jets, Walker and Hadley cells</a></li>
+                <li class="sh-subitem"><a href="/circulation.html#waf">Wave activity flux</a></li>
+                <li class="sh-subitem"><a href="/circulation.html#aam">Angular momentum and torques</a></li>
+                <li class="sh-subitem"><a href="/circulation.html#dt">Dynamic tropopause</a></li>
               </ul>
             </div>
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g3">Studies and verification</button>
-          <div class="sh-menu sh-menu--cols" id="sh-g3">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4"><span class="sh-lf">Studies and verification</span><span class="sh-ls">Studies/verification</span></button>
+          <div class="sh-menu sh-menu--cols" id="sh-g4">
             <div>
               <h3>Studies</h3>
               <ul>
@@ -108,8 +121,8 @@
           </div>
         </li>
         <li class="sh-item sh-has-menu">
-          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g4">Tools</button>
-          <div class="sh-menu sh-menu--list" id="sh-g4">
+          <button class="sh-link sh-menubtn" type="button" aria-expanded="false" aria-controls="sh-g5">Tools</button>
+          <div class="sh-menu sh-menu--list" id="sh-g5">
             <ul>
               <li><a href="/catalog.html">Every plot on the site</a></li>
               <li><a href="/skewt/">Sounding explorer</a></li>

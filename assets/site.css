@@ -607,10 +607,19 @@ html.fp-lock { overflow: hidden; }
   .sh:not(.sh--compact) .sh-find { font-size: 15px; min-width: 205px; padding: 7px 8px 7px 13px; }
   .sh.sh--tight .sh-find { min-width: 0; padding: 7px 8px 7px 11px; }
   .sh:not(.sh--compact) .sh-find kbd { font-size: 12.5px; }
-  .sh.sh--tighter .sh-in { padding: 0 20px; gap: 14px; }
-  .sh.sh--tighter .sh-link { padding: 10px 7px; }
-  .sh.sh--tighter .sh-link::before { left: 7px; right: 7px; }
+  .sh.sh--tighter .sh-in { padding: 0 20px; gap: 12px; }
+  .sh.sh--tighter .sh-link { padding: 10px 6px; }
+  .sh.sh--tighter .sh-link::before { left: 6px; right: 6px; }
   .sh.sh--tighter .sh-has-menu > .sh-menubtn::before { right: 22px; }
   .sh.sh--tighter .sh-find kbd { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .sh.sh--tighter .sh-find { padding: 8px; }
 }
+/* a deep link under its own page in a menu column (Atmospheric circulation): indented and quieter */
+.sh-menu li.sh-subitem a { padding-left: 0.95rem; font-size: 0.95rem; color: var(--c-muted); }
+.sh-menu li.sh-subitem a:hover { color: var(--c-accent); }
+.sh--overlay .sh-menu li.sh-subitem a { color: #5c6b73; }
+/* a menu's full title in the stacked phone / compact menu, its short label on the one-line desktop row */
+.sh .sh-lf { display: none; }
+@media (max-width: 860px) { .sh .sh-lf { display: inline; } .sh .sh-ls { display: none; } }
+.sh.sh--compact .sh-lf { display: inline; }
+.sh.sh--compact .sh-ls { display: none; }

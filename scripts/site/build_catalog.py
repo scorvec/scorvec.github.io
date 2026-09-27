@@ -54,7 +54,8 @@ THUMB_INDEX_URL = "https://raw.githubusercontent.com/scorvec/scorvec.github.io/f
 TOPICS = [
     ("weather", "Short and medium range", "Days 1 to 15: storms, hazards and the temperature forecast"),
     ("outlooks", "Subseasonal and seasonal", "From weeks two to five out to the coming seasons"),
-    ("drivers", "Climate drivers", "ENSO, the MJO, the QBO, the stratosphere and the jets, as they stand now"),
+    ("drivers", "Climate drivers", "The modes: ENSO, the MJO and the QBO, as they stand now"),
+    ("circulation", "Atmospheric circulation", "The stratosphere and the troposphere's jets, waves and overturning cells"),
     ("research", "Studies and verification", "What the record and the models say, and how the forecasts score"),
     ("tools", "Tools", "Explore the data yourself"),
 ]
@@ -75,11 +76,11 @@ PAGES = {
                        models=["OISST"], horizon="Observed", region=["Tropical Pacific"],
                        groups={"Impacts on the Americas": dict(topic="research", horizon="Climate record", models=["CMIP6", "ERA5"],
                                                                region=["North America", "South America"], tier=1, prio=20)}),
-    "/stratosphere.html": dict(kind="stage", file="stratosphere.html", topic="drivers", title="Stratosphere and polar vortex",
+    "/stratosphere.html": dict(kind="stage", file="stratosphere.html", topic="circulation", title="Stratosphere and polar vortex",
                                tier=0, prio=1, models=["AIFS-ENS"], horizon="Days 1–15", region=["Northern Hemisphere"],
                                groups={"Stratosphere history": dict(topic="research", horizon="Climate record", models=["MERRA-2"],
                                                                     tier=1, prio=21)}),
-    "/circulation.html": dict(kind="stage", file="circulation.html", topic="drivers", title="Jets, Walker and Hadley cells",
+    "/circulation.html": dict(kind="stage", file="circulation.html", topic="circulation", title="Jets, Walker and Hadley cells",
                               tier=0, prio=4, models=["AIFS-ENS"], horizon="Days 1–15", region=["Global"]),
     "/snowbands.html": dict(kind="stage", file="snowbands.html", topic="weather", title="Snow-band diagnostics",
                             tier=0 if snow_season() else 2, prio=5 if snow_season() else 40,
@@ -423,11 +424,10 @@ def mjo_items() -> list:
         body = sec.group(0)
         def opts(sid):
             m = re.search(rf'<select id="{sid}">(.*?)</select>', body, re.S)
-            return [(v, text_of(l)) for v, l in re.findall(r'<option value="([^"]*)">(.*?)</option>', m.group(1))] if m else []
+            return [(v, text_of(l)) for _q, v, l in re.findall(r'<option value=(["\'])([^"\']*)\1>(.*?)</option>', m.group(1))] if m else []
+        # page order: the first option of each selector is the page's own default (DJF / CMIP6 / strip since v2)
         F, D, Mo, L, V = (opts(x) for x in ("mi-f", "mi-d", "mi-m", "mi-l", "mi-v"))
-        cur = f"{dt.date.today().month:02d}"
-        Mo = sorted(Mo, key=lambda o: (int(o[0]) - int(cur)) % 12)          # this month first, as the page opens
-        lag_l = {"10": "+10 days", "0": "same day"}
+        lag_l = {"10": "days +8 to +12", "0": "days \u22122 to +2"}
         view_l = {"loop": "phase by phase", "strip": "all eight phases", "compare": "CMIP6 above observed"}
         try:
             MI = json.loads((REPO / "assets/mjo/impacts/anim/mjo_impacts_manifest.json").read_text())["regions"]
@@ -444,7 +444,8 @@ def mjo_items() -> list:
         for f, fl in F:
             for mo, ml in Mo:
                 for l, _ll in L:
-                    tail = f"_m{mo}_l{int(l):02d}"
+                    # region ids as mjo.html's go() builds them: "_djf_l10", "_m01_l10" (v2); plain month numbers were v1
+                    tail = (f"_m{mo}" if mo.isdigit() else f"_{mo}") + f"_l{int(l):02d}"
                     for d, dl in D:
                         dshort = dl.split(" (")[0]
                         for v, _vl in V:
@@ -462,7 +463,7 @@ def mjo_items() -> list:
         shows = " ".join([head, lead, " ".join(fl for _, fl in F), " ".join(dl for _, dl in D)])
         items.append(dict(
             id="/mjo.html#mjo-impacts", page="/mjo.html", page_title="MJO forecast", group="Impacts by phase and month",
-            label=head, sub="Composites by MJO phase, month and lag: observed and CMIP6",
+            label=head, sub="Composites by MJO phase, season or month and lag: CMIP6 and observed",
             url="/mjo.html" + (default[1] if default else "#mjo-impacts"), topic="research", horizon="Climate record",
             models=tags(MODEL_RX, shows, ["CMIP6", "ERA5"]), regions=regions_of(shows, ["North America"]),
             variables=tags(VAR_RX, shows + " convection MJO"), thumb=default[2] if default else "",
@@ -474,7 +475,7 @@ def mjo_items() -> list:
 def page_items() -> list:
     """Single-figure / app pages, described from the chrome's PRODUCTS table."""
     items = []
-    for title, _blurb, grp in A.PRODUCTS:
+    for title, _blurb, grp, *_ in A.PRODUCTS:
         for href, label, what, _when in A.group_items(grp):
             cfg = PAGES.get(href)
             if not cfg or cfg["kind"] != "page":
@@ -592,7 +593,7 @@ def build(index_path: str | None = None) -> dict:
     # the menus' pages in menu order, for the finder's opening list (a site map in the palette)
     tid = {l: t for t, l, _ in TOPICS}
     pages = [dict(href=href, label=label, what=what, when=when, topic=tid[title])
-             for title, _b, grp in A.PRODUCTS for href, label, what, when in A.group_items(grp)]
+             for title, _b, grp, *_ in A.PRODUCTS for href, label, what, when in A.group_items(grp)]
     for pg in pages:
         if PRIVATE.search(pg["label"] + " " + pg["what"]):
             raise SystemExit(f"private name in a menu page: {pg['href']}")
