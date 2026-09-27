@@ -279,6 +279,8 @@ def main() -> int:
         render_modes(made, index)
     if (REF / "enso_z500_site.npz").exists():
         render_z500(made, index)
+    if (REF / "enso_pdo_causal_site.npz").exists():
+        render_pdo_causal(made, index)
     import datetime as dt
     index["made"] = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     index["models"], index["members"] = nmod, nmem
@@ -348,6 +350,150 @@ def draw_nh(path, field, sig, clim, lat, lon, levels, unit, title, sub, foot, no
     fig.text(0.03, fh / H, "\n".join(footl), fontsize=7.2, color=MUTED, va="top", linespacing=1.35)
     fig.savefig(path, dpi=100, facecolor="white", pil_kwargs={"quality": 84, "method": 6})
     plt.close(fig)
+
+
+CLEV = [-40, -30, -20, -15, -10, -6, -3, -1, 1, 3, 6, 10, 15, 20, 30, 40]
+CAUSAL = [("covar_cmip6", "CMIP6: same-winter co-variability (not a PDO effect)",
+           "DJF 500 hPa height on the same winter's ENSO-free PDO, Niño-3.4 alongside · 147 members, 16 models"),
+          ("covar_era5", "ERA5: same-winter co-variability (not a PDO effect)",
+           "DJF 500 hPa height on the same winter's ENSO-free PDO, Niño-3.4 alongside · 1960–2026"),
+          ("lag", "CMIP6: forced response, lagged",
+           "DJF on the preceding SON's ENSO-free PDO, with SON Aleutian low and SON/DJF Niño-3.4 held fixed"),
+          ("frank2", "CMIP6: forced response, Frankignoul lagged covariance",
+           "cov(Z in DJF, PDO two months earlier) / cov(PDO, PDO two months earlier), same-month Niño-3.4 removed"),
+          ("amip", "AMIP: forced response with observed SST prescribed",
+           "DJF on the observed ENSO-free PDO, Niño-3.4, Indian Ocean and warm-pool indices alongside · 1980–2014"),
+          ("dcpp_ipsl", "IPSL-CM6A-LR pacemaker: forced response",
+           "DCPP-C NexTrop: the Pacific pattern imposed north of the tropics only, (pos − neg) / 2 per sd of the imposed PDO"),
+          ("dcpp_hadgem", "HadGEM3-GC31-MM pacemaker: forced response",
+           "DCPP-C NexTrop: the Pacific pattern imposed north of the tropics only, (pos − neg) / 2 per sd of the imposed PDO")]
+CAUSAL_TEST = {"covar_cmip6": "robust: across-model t-test FDR 10 % and ≥ 80 % sign agreement",
+               "covar_era5": "OLS t-test per grid point, FDR 10 %", "lag": "robust: across-model t-test FDR 10 % and ≥ 80 % sign agreement",
+               "frank2": "robust: across-model t-test FDR 10 % and ≥ 80 % sign agreement",
+               "amip": "robust: across-model t-test FDR 10 % and ≥ 80 % sign agreement",
+               "dcpp_ipsl": "Welch t-test of pos vs neg winters per grid point, FDR 10 %",
+               "dcpp_hadgem": "Welch t-test of pos vs neg winters per grid point, FDR 10 %"}
+
+
+def render_pdo_causal(made, index):
+    """The PDO's forced effect: same-winter co-variability against four causal estimates (lagged, Frankignoul, AMIP,
+    DCPP-C pacemakers), from reference/enso_pdo_causal_site.{npz,json} (cmip6_pdo_causality.py site)."""
+    z = np.load(REF / "enso_pdo_causal_site.npz")
+    meta = json.loads((REF / "enso_pdo_causal_site.json").read_text())
+    lat, lon = z["lat"], z["lon"]; R = meta["rows"]
+    zc = np.load(REF / "enso_z500_site.npz") if (REF / "enso_z500_site.npz").exists() else None
+    clim = zc["clim_obs|DJF"] if zc is not None and "clim_obs|DJF" in zc.files else None
+    for k, title, sub in CAUSAL:
+        r = R[k]
+        extra = f" · Aleutian box {r['AL_box']:+.1f} gpm per sd" + (f" (95 % CI {r['ci95'][0]:+.1f} to {r['ci95'][1]:+.1f})" if "ci95" in r else "")
+        draw_nh(OUT / f"enso_imp_pdocause_{k}.webp", z[f"{k}|f"], z[f"{k}|s"], clim, lat, lon, CLEV, "500 hPa height, gpm per sd of the ENSO-free PDO",
+                f"{title} · DJF 500 hPa height", sub + extra,
+                f"Shaded only where significant ({CAUSAL_TEST[k]}); blank = not significant. One colour scale for every view so the "
+                "amplitudes compare. Contours: ERA5 DJF mean height every 100 m.", note_empty="No significant forced response")
+        made.append(f"enso_imp_pdocause_{k}"); index["maps"][f"enso_imp_pdocause_{k}"] = r
+    causal_panels(z, meta, clim, made, index)
+    causal_table(meta, made, index)
+
+
+def causal_panels(z, meta, clim, made, index):
+    plt = _plt()
+    import cartopy.crs as ccrs
+    import textwrap
+    from cartopy.util import add_cyclic_point
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    lat, lon = z["lat"], z["lon"]; R = meta["rows"]
+    pc = ccrs.PlateCarree(); proj = ccrs.PlateCarree(central_longitude=180)
+    cm = ListedColormap(plt.get_cmap("RdBu_r")(np.linspace(0.06, 0.94, 256))); norm = BoundaryNorm(CLEV, cm.N, extend="both")
+    W = 13.0; pw = 6.1; ph = pw * 80 / 360; gap = 0.5
+    top = 0.78; bot = 1.0; H = top + 4 * (ph + gap) + bot
+    SHORT = {"covar_cmip6": "CMIP6 · co-variability", "covar_era5": "ERA5 · co-variability", "lag": "CMIP6 lagged · forced",
+             "frank2": "CMIP6 Frankignoul, 2 months · forced", "amip": "AMIP · forced", "dcpp_ipsl": "IPSL pacemaker · forced",
+             "dcpp_hadgem": "HadGEM3 pacemaker · forced"}
+    fig = plt.figure(figsize=(W, H))
+    for i, (k, title, _) in enumerate(CAUSAL):
+        r_, c_ = divmod(i, 2)
+        x0 = 0.25 + c_ * (pw + 0.35); y0 = H - top - (r_ + 1) * (ph + gap) + 0.08
+        ax = fig.add_axes([x0 / W, y0 / H, pw / W, ph / H], projection=proj)
+        ax.set_extent([-180, 180, 10, 90], crs=proj)
+        f, s_ = z[f"{k}|f"], z[f"{k}|s"]
+        fc, lc = add_cyclic_point(np.where(s_, f, np.nan), coord=lon)
+        mappable = ax.contourf(lc, lat, fc, levels=CLEV, cmap=cm, norm=norm, extend="both", transform=pc)
+        if clim is not None:
+            cc, _ = add_cyclic_point(clim, coord=lon)
+            ax.contour(lc, lat, cc, levels=np.arange(5000, 6000, 100), colors="#666", linewidths=0.35, alpha=0.7, transform=pc)
+        ax.coastlines(resolution="110m", linewidth=0.4, color="#222")
+        r = R[k]
+        ax.text(0, 1.03, SHORT[k], transform=ax.transAxes, fontsize=9.6, fontweight="bold", va="bottom")
+        ci = f", 95 % CI {r['ci95'][0]:+.1f} to {r['ci95'][1]:+.1f}" if "ci95" in r else ""
+        ax.text(1, 1.03, f"Aleutian box {r['AL_box']:+.1f}{ci}", transform=ax.transAxes, fontsize=8.2, color="#3d3a36", ha="right", va="bottom")
+        if not s_[lat >= 20].any():
+            ax.text(0.5, 0.5, "no significant cell", transform=ax.transAxes, ha="center", va="center", fontsize=9, color="#333",
+                    bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#bbb", lw=0.5))
+    # the eighth slot: the verdict
+    x0 = 0.25 + (pw + 0.35); y0 = H - top - 4 * (ph + gap) + 0.08
+    fig.text(x0 / W, (y0 + ph) / H, "\n".join(textwrap.wrap(
+        "Verdict: no significant forced response in the lagged or AMIP analyses; the pacemaker runs bound it at about 20 gpm per "
+        "sd or less. The familiar PDO maps (top row) are mostly the atmosphere driving the ocean.", 70)),
+        fontsize=10, fontweight="bold", va="top", color="#1f3b57", linespacing=1.35)
+    fig.text(0.25 / W, 1 - 0.12 / H, "The PDO's forced effect on the winter atmosphere: what survives causality tests", fontsize=14, fontweight="bold", va="top")
+    fig.text(0.25 / W, 1 - 0.44 / H, "DJF 500 hPa height per standard deviation of the ENSO-free PDO · top row: same-winter co-variability, "
+             "for contrast only · the rest: four estimates of the forced response · shaded only where significant", fontsize=9, color="#3d3a36", va="top")
+    cax = fig.add_axes([0.3, 0.62 / H, 0.4, 0.12 / H])
+    cb = fig.colorbar(mappable, cax=cax, orientation="horizontal", extend="both", spacing="uniform", ticks=CLEV)
+    cb.set_label("gpm per sd of the ENSO-free PDO", fontsize=8.5, labelpad=1); cb.ax.tick_params(labelsize=7, pad=1)
+    fig.text(0.25 / W, 0.1 / H, "Tests: CMIP6 across-model t-test FDR 10 % and ≥ 80 % sign agreement; ERA5 OLS t-test FDR 10 %; pacemakers "
+             "Welch t-test of pos vs neg winters FDR 10 %. Contours: ERA5 DJF mean height every 100 m.", fontsize=7.4, color=MUTED, va="bottom")
+    fig.savefig(OUT / "enso_imp_pdocause_all.webp", dpi=95, facecolor="white", pil_kwargs={"quality": 84, "method": 6}); plt.close(fig)
+    made.append("enso_imp_pdocause_all"); index["maps"]["enso_imp_pdocause_all"] = {"panels": [k for k, *_ in CAUSAL]}
+
+
+def causal_table(meta, made, index):
+    plt = _plt()
+    import textwrap
+    R = meta["rows"]; G = meta["granger"]
+    pf = lambda p: ("p < 0.001" if p < 0.001 else f"p = {p:.2f}" if p >= 0.01 else f"p = {p:.3f}")
+    rows = [("Same-winter co-variability, CMIP6", f"{R['covar_cmip6']['AL_box']:+.1f}", f"{R['covar_cmip6']['agree']} models, {pf(R['covar_cmip6']['p'])}", "the contrast, not an effect"),
+            ("Same-winter co-variability, ERA5", f"{R['covar_era5']['AL_box']:+.1f}", f"{pf(R['covar_era5']['p'])}, 1960–2026", "the contrast, not an effect"),
+            ("Lagged: SON PDO → DJF, atmosphere held fixed", f"{R['lag']['AL_box']:+.1f}", f"{R['lag']['agree']} models, {pf(R['lag']['p'])}", "not significant"),
+            ("Frankignoul lagged covariance, 2 months", f"{R['frank2']['AL_box']:+.1f}", f"{R['frank2']['agree']} models, {pf(R['frank2']['p'])}", "not significant"),
+            ("Frankignoul lagged covariance, 3 months", f"{R['frank2']['tau3']:+.1f}", f"{pf(R['frank2']['tau3_p'])}", "not significant"),
+            ("AMIP, observed SST prescribed", f"{R['amip']['AL_box']:+.1f}", f"{R['amip']['agree']} models, {pf(R['amip']['p'])}", "not significant"),
+            ("Pacemaker IPSL-CM6A-LR", f"{R['dcpp_ipsl']['AL_box']:+.1f}", f"95 % CI {R['dcpp_ipsl']['ci95'][0]:+.1f} to {R['dcpp_ipsl']['ci95'][1]:+.1f}, {pf(R['dcpp_ipsl']['p'])}", "box only; no grid point passes"),
+            ("Pacemaker HadGEM3-GC31-MM", f"{R['dcpp_hadgem']['AL_box']:+.1f}", f"95 % CI {R['dcpp_hadgem']['ci95'][0]:+.1f} to {R['dcpp_hadgem']['ci95'][1]:+.1f}, {pf(R['dcpp_hadgem']['p'])}", "not significant")]
+    fig = plt.figure(figsize=(10.4, 6.2)); H = 6.2
+    fig.text(0.02, 1 - 0.12 / H, "The PDO and the Aleutian low: co-variability against the forced response", fontsize=12.5, fontweight="bold", va="top")
+    fig.text(0.02, 1 - 0.44 / H, "DJF 500 hPa height averaged over 30–65°N, 160°E–140°W, gpm per standard deviation of the ENSO-free PDO",
+             fontsize=8.8, color="#3d3a36", va="top")
+    xs = [0.02, 0.47, 0.57, 0.82]
+    y = 1 - 0.85 / H
+    for x, h in zip(xs, ["estimate", "gpm / sd", "test", "reading"]):
+        fig.text(x, y, h, fontsize=8.6, fontweight="bold", va="top")
+    for i, row in enumerate(rows):
+        yy = y - (0.34 + 0.3 * i) / H
+        for j, (x, t) in enumerate(zip(xs, row)):
+            fig.text(x, yy, t, fontsize=8.4, va="top", color="#7a3b12" if i < 2 else "#111", fontweight="bold" if (j == 1 and i < 2) else "normal")
+    yg = y - (0.34 + 0.3 * len(rows) + 0.25) / H
+    fig.text(0.02, yg, "Which way does the influence run? (Granger tests, 16 CMIP6 models, nested regressions)", fontsize=10, fontweight="bold", va="top")
+    a, b = G["p_to_al"], G["al_to_p"]
+    lines = [f"PDO → atmosphere: adding the autumn PDO does not improve the winter Aleutian low out of sample (median gain "
+             f"{100 * a['cv_gain_median']:+.1f} %, negative in {a['cv_negative']} models); a median {100 * a['members_p05']:.0f} % of members pass "
+             f"F-test p < 0.05, which is chance. ERA5: p = {a['era5']['p']:.2f}.",
+             f"Atmosphere → PDO: a deeper autumn Aleutian low predicts a more positive winter PDO beyond the PDO's own persistence in "
+             f"{b['agree']} models ({pf(b['p'])}); a median {100 * b['members_p05']:.0f} % of members pass p < 0.05 (up to "
+             f"{100 * b['members_p05_range'][1]:.0f} %). ERA5, one 67-winter record: p = {b['era5']['p']:.2f}."]
+    yy = yg - 0.34 / H
+    for ln in lines:
+        w = textwrap.wrap(ln, 150)
+        fig.text(0.02, yy, "\n".join(w), fontsize=8.4, va="top", linespacing=1.3); yy -= (0.2 * len(w) + 0.12) / H
+    fig.text(0.02, 0.02, "\n".join(textwrap.wrap(
+        f"Scale: one sd of the ENSO-free PDO is about {abs(meta['K_per_sd']):.2f} K of SST at the pattern's centre (35–45°N, 170°E–150°W) "
+        "in the models, so a 20 gpm per sd bound is roughly 45 gpm per K there; atmospheric models have given 10–20 gpm per K for "
+        "extratropical SST anomalies (Kushnir et al. 2002). Tests: CMIP6 across-model one-sample t-test; ERA5 OLS t-test; pacemakers "
+        "Welch t-test of the Aleutian-box mean, pos against neg winters. Frankignoul lagged covariance at 1 month: "
+        f"{R['frank2']['tau1']:+.1f} ({pf(R['frank2']['tau1_p'])}) but inside the atmosphere's own persistence and shaped like the "
+        "co-variability, so not a clean estimate.", 165)), fontsize=7.2, color=MUTED, va="bottom", linespacing=1.3)
+    fig.savefig(OUT / "enso_imp_pdocause_table.webp", dpi=110, facecolor="white", pil_kwargs={"quality": 86, "method": 6}); plt.close(fig)
+    made.append("enso_imp_pdocause_table"); index["maps"]["enso_imp_pdocause_table"] = {"granger": G}
 
 
 def render_z500(made, index):

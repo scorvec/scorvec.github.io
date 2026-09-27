@@ -21,6 +21,8 @@ on:
       - scripts/sst/reference/enso_modes_site.json
       - scripts/sst/reference/enso_z500_site.npz
       - scripts/sst/reference/enso_z500_site.json
+      - scripts/sst/reference/enso_pdo_causal_site.npz
+      - scripts/sst/reference/enso_pdo_causal_site.json
       - .github/workflows/enso-impacts.yml
 
 env:

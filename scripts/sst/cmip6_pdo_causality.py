@@ -458,7 +458,66 @@ def phase_prev(ref, lead="SON"):
     return out, maps
 
 
+def site_ref() -> int:
+    """Compact reference for the enso.html view "The PDO's forced effect" (reference/enso_pdo_causal_site.{npz,json}):
+    seven z500 maps (per sd of the ENSO-free PDO, significance masks) and the Aleutian-box / Granger numbers."""
+    res = json.loads((RES / "pdo_causality.json").read_text())
+    mp = dict(np.load(RES / "pdo_causality_maps.npz"))
+    npz = {"lat": LAT.astype("float32"), "lon": LON.astype("float32")}
+    rows = {}
+
+    def put(k, key, scale=1.0, info=None):
+        npz[f"{k}|f"] = (mp[f"{key}|mm"] * scale).astype("float32"); npz[f"{k}|s"] = mp[f"{key}|sig"].astype(bool)
+        rows[k] = dict(info or {}, AL_box=round(float(boxmean(npz[f"{k}|f"], AL_BOX)), 2),
+                       sig_frac=round(float(npz[f"{k}|s"][LAT >= 20].mean()), 3))
+    c, cm = res["coupled"], res["coupled_maps"]
+    put("covar_cmip6", "coupled|same_DJF", info=dict(p=c["same_AL_on_P"]["p"], agree=f"{c['same_AL_on_P']['same_sign']}/{c['same_AL_on_P']['models']}"))
+    # ERA5 co-variability p (not stored by observed()): redo the index regression
+    ref = MO.obs_indices()
+    em = ZI.era5_monthly(); keys = sorted(em); months = [f"{y:04d}-{m:02d}" for y, m in keys]
+    Za = mon_anom(np.stack([em[k] for k in keys]), months); AL = boxmean(Za, AL_BOX)
+    ri = {m: i for i, m in enumerate(ref["months"])}
+    P = np.array([ref["pdo_free"][ri[m]] if m in ri else np.nan for m in months]); N = np.array([ref["n34"][ri[m]] if m in ri else np.nan for m in months])
+    D = {k: _seasonal_fields_any(v, months, "DJF") for k, v in (("AL", AL), ("P", P), ("N", N))}
+    yrs = [y for y in sorted(D["AL"]) if y in D["P"] and np.isfinite(D["P"][y]) and y in D["N"]]
+    tt = np.array(yrs, float); al = np.array([D["AL"][y] for y in yrs]); al = al - np.polyval(np.polyfit(tt, al, 1), tt)
+    B, t, _, dof = ols_full(np.column_stack([[D["N"][y] for y in yrs], [D["P"][y] for y in yrs]]), al)
+    put("covar_era5", "obs|same_DJF", info=dict(p=float(2 * stats.t.sf(abs(t[1]), dof)), n=len(yrs), span=[yrs[0], yrs[-1]]))
+    g = c["granger_P_to_AL_coef"]
+    put("lag", "coupled|lag_SON", info=dict(p=g["p"], agree=f"{g['same_sign']}/{g['models']}", range=g["range"]))
+    f2 = c["frank_AL_tau2"]; f3 = c["frank_AL_tau3"]
+    put("frank2", "coupled|frank_tau2", info=dict(p=f2["p"], agree=f"{f2['same_sign']}/{f2['models']}", tau3=f3["mean"], tau3_p=f3["p"],
+                                                  tau1=c["frank_AL_tau1"]["mean"], tau1_p=c["frank_AL_tau1"]["p"]))
+    a = res["amip"]["zg|main"]["AL_box_models"]
+    put("amip", "amip|zg|main", info=dict(p=a["p"], agree=f"{a['same_sign']}/{res['amip']['zg|main']['models']}", range=a["range"],
+                                          members=res["amip"]["zg|main"]["members"], models=res["amip"]["zg|main"]["models"],
+                                          psl=res["amip"]["psl|main"]["AL_box_models"]))
+    for tag, m in (("dcpp_ipsl", "IPSL-CM6A-LR"), ("dcpp_hadgem", "HadGEM3-GC31-MM")):
+        d = res["dcpp"][f"{m}|NexTrop"]
+        put(tag, f"dcpp|{m}|NexTrop|zg", 1.0 / d["imposed_pdo_index"],
+            info=dict(p=d["zg"]["AL_box_p"], ci95=d["zg"]["AL_box_per_pdo_sd_ci95"], imposed_pdo=d["imposed_pdo_index"],
+                      imposed_K=d["imposed_npc_K"], members=d["members"], winters=d["winters"], per_K=d["zg"]["AL_box_per_K_npc"]))
+    base = npz["covar_cmip6|f"]
+    for k in rows:
+        rows[k]["pattern_r_vs_covar"] = round(ZI.pattern_r(npz[f"{k}|f"], base), 3)
+    meta = dict(rows=rows, granger=dict(
+        p_to_al=dict(cv_gain_median=c["granger_P_to_AL_cv"]["median"], cv_negative=f"{c['granger_P_to_AL_cv']['same_sign']}/{c['granger_P_to_AL_cv']['models']}",
+                     members_p05=c["granger_P_to_AL_F_p"]["share_members_p05_median_model"], era5=res["observed"]["granger_P_to_AL"]),
+        al_to_p=dict(coef=c["granger_AL_to_P_coef"]["mean"], agree=f"{c['granger_AL_to_P_coef']['same_sign']}/{c['granger_AL_to_P_coef']['models']}",
+                     p=c["granger_AL_to_P_coef"]["p"], cv_gain_median=c["granger_AL_to_P_cv"]["median"], cv_p=c["granger_AL_to_P_cv"]["p"],
+                     members_p05=c["granger_AL_to_P_F_p"]["share_members_p05_median_model"],
+                     members_p05_range=c["granger_AL_to_P_F_p"]["share_members_p05_range"], era5=res["observed"]["granger_AL_to_P"])),
+        K_per_sd=c["K_per_sd"]["median"], coupled_members=147, coupled_models=16)
+    out = HERE / "reference"
+    np.savez_compressed(out / "enso_pdo_causal_site.npz", **npz)
+    (out / "enso_pdo_causal_site.json").write_text(json.dumps(meta, indent=1, default=float))
+    print(json.dumps(meta, indent=1, default=float)[:4000])
+    return 0
+
+
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "site":
+        return site_ref()
     mode = sys.argv[1] if len(sys.argv) > 1 else "coupled"
     ref = MO.obs_indices()
     res_f = RES / "pdo_causality.json"
