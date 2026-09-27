@@ -185,6 +185,11 @@ def main() -> int:
     jobs = [(n, d, m, li, lag) for n in names for d in DATA if f"{d}_{n}" in z.files
             for m in range(12) for li, lag in enumerate(lags)]
     t0 = time.time()
+    # Natural Earth is downloaded on first use: fetch it HERE, once, before the pool, or the workers race to write
+    # the same shapefiles and read each other's half-written copies (struct.error on the first Actions run).
+    import cartopy.feature as cf
+    for feat in (cf.COASTLINE, cf.BORDERS, cf.STATES):
+        list(feat.with_scale("110m").geometries())
     regions = {}
     with ProcessPoolExecutor(a.procs) as ex:
         for name, data, m, lag, frames in ex.map(render_one, jobs, chunksize=4):
