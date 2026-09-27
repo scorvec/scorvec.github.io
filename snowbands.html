@@ -23,6 +23,7 @@
                border-radius: 4px; background: var(--surface); font-size: 0.95rem; color: var(--ink2); line-height: 1.6; max-width: 72rem; }
   .sb-status b { color: var(--ink); font-weight: 600; }
   .sb-status .when { color: var(--muted); }
+  .stage:has(> .sb-msg) { min-height: 0; }      /* a message, not a figure: no empty block under it */
   .sb-msg { margin: 0.4rem 0 0.8rem; padding: 2.2rem 1.6rem; border: 1.5px dashed var(--edge); border-radius: 4px; background: #fbfaf7;
             font-size: 1rem; color: var(--ink2); line-height: 1.65; text-align: center; }
   .sb-msg b { color: var(--ink); }
@@ -261,11 +262,14 @@
 <script>
 (function () {
   "use strict";
+  // Everything shown is derived from what exists: the run status (assets/snowband/data/snowband_status.json) and each
+  // model's manifest. Region keys the page does not know are ignored, ranges come from the frames, sizes from the
+  // manifest, and a note that reads like an error message is never shown to a reader.
   var MODELS = { hrrr: "HRRR", rrfs: "RRFS", rdps: "RDPS" };
-  var MODEL_ITEMS = [["hrrr", "HRRR · 3 km, 48 h"], ["rrfs", "RRFS · 3 km, 84 h"], ["rdps", "RDPS · 10 km, 84 h"]];
+  var GRID = { hrrr: "3 km", rrfs: "3 km", rdps: "10 km" };
   var REGIONS = { nema: "Northeast and Mid-Atlantic", atl: "Atlantic Canada", onq: "Ontario and Quebec", mw: "Midwest", rk: "Rockies" };
   var DEFAULT_REGIONS = { hrrr: ["nema", "onq", "mw", "rk"], rrfs: ["nema", "atl", "onq", "mw", "rk"], rdps: ["nema", "atl", "onq", "mw", "rk"] };
-  var ST = null;
+  var ST = null, MAN = {}, CASEMAN = null;
   var DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   function cyc(c) {   // "2026092712" -> "12Z Sun 27 Sep"
     if (!c) return "";
@@ -277,37 +281,52 @@
     var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso); if (!m) return iso;
     return (+m[3]) + " " + MON[+m[2] - 1] + " " + m[4] + ":" + m[5] + " UTC";
   }
-  function day(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? (+m[3]) + " " + MON[+m[2] - 1] : ""; }
-  function regionsOf(m) {
-    var md = ST && ST.models && ST.models[m];
-    return (md && md.regions && md.regions.length) ? md.regions : DEFAULT_REGIONS[m];
+  function known(list) { return (list || []).filter(function (r) { return REGIONS.hasOwnProperty(r); }); }
+  function names(list) { return known(list).map(function (r) { return REGIONS[r]; }).join(", "); }
+  function mdOf(m) { return (ST && ST.models && ST.models[m]) || {}; }
+  // a note is shown only when it reads like a sentence for people, never an exception string
+  var TECH = /(error|errno|exception|traceback|unpack|buffer|http\s*\d{3}|rate limit\)|\bat 0x)/i;
+  function plain(note, fallback) { return note && !TECH.test(note) ? note : fallback; }
+  function loopOf(m, p, r) {
+    var man = MAN[m], id = m + "_" + p + "_" + r;
+    return man && man.regions && man.regions[id] && man.regions[id].frames && man.regions[id].frames.length ? man.regions[id] : null;
   }
-  function hasLoop(m, r) {
-    var md = ST && ST.models && ST.models[m];
-    return !!(md && md.state === "rendered" && (md.rendered || []).indexOf(r) >= 0);
+  function regionsOf(m) {
+    var md = mdOf(m), mine = known(md.regions);
+    Object.keys((MAN[m] && MAN[m].regions) || {}).forEach(function (id) {   // anything actually drawn is offered too
+      var r = id.split("_").slice(2).join("_"); if (REGIONS.hasOwnProperty(r) && mine.indexOf(r) < 0) mine.push(r);
+    });
+    return mine.length ? Object.keys(REGIONS).filter(function (r) { return mine.indexOf(r) >= 0; }) : DEFAULT_REGIONS[m];
+  }
+  function rangeOf(m) {   // "to f48" from the frames that exist
+    var man = MAN[m], best = 0;
+    Object.keys((man && man.regions) || {}).forEach(function (id) {
+      (man.regions[id].frames || []).forEach(function (f) { var x = /^f(\d+)/.exec(f.label || ""); if (x) best = Math.max(best, +x[1]); });
+    });
+    return best ? "f" + (best < 10 ? "0" : "") + best : "";
+  }
+  function modelItems() {
+    return Object.keys(MODELS).map(function (m) { var r = rangeOf(m); return [m, MODELS[m] + " · " + GRID[m] + (r ? ", to " + r : "")]; });
   }
   function idle() { return ST && ST.season && !ST.season.active && !ST.forced; }
   function idleText() {
     return "<b>Idle until 1 November.</b> The snow-band diagnostics run from 1 November to 15 April; the season check last ran "
-      + when(ST.updated) + ". Meanwhile the <a href=\"#case\">case study</a> shows every diagnostic on the Binghamton band of December 2020 against the radar.";
+      + when(ST.updated) + "." + (caseList().length ? " Meanwhile the <a href=\"#case\">case study</a> shows every diagnostic on a documented band against the radar." : "");
   }
   function message(m, r) {
-    if (!ST) return "<b>No run status yet.</b> The first run of the season publishes it.";
-    var md = (ST.models || {})[m] || {}, M = MODELS[m];
-    if (md.state !== "rendered" && idle()) return idleText() + "<span class=\"when\">Out of season, nothing is fetched.</span>";
-    if (md.state === "rendered" && ST.forced) return "<b>Not drawn in this test run.</b> The forced " + M + " " + cyc(md.cycle) + " run covered "
-      + (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ") + ".<span class=\"when\">Checked " + when(md.checked) + ".</span>";
+    if (!ST) return "<b>No run status yet.</b> The first run publishes it.";
+    var md = mdOf(m), M = MODELS[m];
+    if (idle()) return idleText() + "<span class=\"when\">Out of season, nothing is fetched.</span>";
     if (md.state === "rendered") {
-      var got = (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ");
-      return "<b>No snow in " + REGIONS[r] + "</b> in the " + M + " " + cyc(md.cycle) + " run, so nothing is drawn there. Loops were drawn for: "
-        + got + ".<span class=\"when\">A region is drawn when the model has snow at 20 dBZ or more (RDPS: 1 mm/h) over 2 % of it at some hour. Checked "
-        + when(md.checked) + ".</span>";
+      var drawn = names(md.rendered);
+      return "<b>Nothing drawn for " + REGIONS[r] + "</b> in the " + M + " " + cyc(md.cycle) + " run" + (drawn ? "; loops exist for " + drawn : "") + "."
+        + "<span class=\"when\">" + (ST.forced ? "This test run covered only those regions." : "A region is drawn when the model has snow at 20 dBZ or more (RDPS: 1 mm/h) over 2 % of it at some hour.")
+        + " Checked " + when(md.checked) + ".</span>";
     }
     if (md.state === "nosnow") return "<b>No snow in any region</b> in the latest " + M + " run (" + cyc(md.cycle) + "), so no loops were drawn."
       + "<span class=\"when\">Checked " + when(md.checked) + ". The next cycle is checked automatically.</span>";
-    if (md.state === "error") return "<b>" + M + " is not available right now.</b> " + (md.note ? md.note + "." : "")
+    if (md.state === "error") return "<b>" + M + " is not available right now.</b> " + plain(md.note, "The latest run could not be fetched; the next one is tried automatically") + "."
       + "<span class=\"when\">Tried " + when(md.failed_at || md.checked) + ".</span>";
-    if (md.state === "idle") return idleText();
     return "<b>" + M + " has not been processed yet.</b>";
   }
   function statusLine() {
@@ -316,92 +335,94 @@
     document.getElementById("sb-updated").textContent = ST.updated ? "checked " + when(ST.updated) : "";
     if (idle()) { el.innerHTML = idleText(); return; }
     var parts = Object.keys(MODELS).map(function (m) {
-      var md = (ST.models || {})[m] || {}, M = "<b>" + MODELS[m] + "</b> " + cyc(md.cycle);
-      var nt = md.note ? " (" + md.note + ")" : "";
-      if (md.state === "rendered") return M + (ST.forced ? ": drawn for " : ": snow in ") + (md.rendered || []).map(function (x) { return REGIONS[x]; }).join(", ") + nt;
-      if (md.state === "nosnow") return M + ": no snow in any region" + nt;
-      if (md.state === "error") return "<b>" + MODELS[m] + "</b>: " + (md.note || "not available right now");
-      return "<b>" + MODELS[m] + "</b>: waiting for its first run";
+      var md = mdOf(m), B = "<b>" + MODELS[m] + "</b> ";
+      if (md.state === "rendered") return B + cyc(md.cycle) + (ST.forced ? ": drawn for " : ": snow in ") + (names(md.rendered) || "no region") + (md.note && !TECH.test(md.note) ? " (" + md.note + ")" : "");
+      if (md.state === "nosnow") return B + cyc(md.cycle) + ": no snow in any region" + (md.note && !TECH.test(md.note) ? " (" + md.note + ")" : "");
+      if (md.state === "error") return B + ": " + plain(md.note, "not available right now");
+      return B + ": waiting for its first run";
     });
-    el.innerHTML = (ST.forced ? "<b>" + (ST.test_label || "Test render") + ".</b> A forced run: the season and snow gates were bypassed, so every region is drawn whatever falls. " : "") + "Latest runs &mdash; "
-      + parts.join("; ") + ". <span class=\"when\">Checked " + when(ST.updated) + ".</span>";
+    el.innerHTML = (ST.forced ? "<b>" + (ST.test_label || "Test run") + ".</b> A forced run: the season and snow gates were bypassed, so the chosen regions are drawn whatever falls. " : "")
+      + "Latest runs &mdash; " + parts.join("; ") + ". <span class=\"when\">Checked " + when(ST.updated) + ".</span>";
+  }
+  function ratioOf(reg, p) {
+    if (reg && reg.w && reg.h) return reg.w + "/" + reg.h;
+    return p === "ov" || p === "radar" ? "1166/1215" : "964/1000";
   }
   var CAP = {
     ov: "Frontogenesis, EPV*, dendritic-zone lift and the model's own precipitation, side by side.",
     fg: "700 hPa Petterssen frontogenesis with θ, height and the axes of dilatation where deformation is strongest.",
     epv: "Saturated equivalent PV in the 750–500 hPa layer where it is saturated; hatching separates upright CI from CSI.",
-    dgz: "The strongest upward motion in the saturated −12 to −18 °C layer, where snowflakes grow fastest.",
+    dgz: "The strongest upward motion through the saturated −12 to −18 °C layer aloft, where snowflakes grow fastest.",
     bands: "The model's own reflectivity (RDPS: 1-h precipitation), coloured by its precipitation type.",
-    ing: "Where frontogenesis ≥ 4, EPV* ≤ 0.25 PVU and DGZ lift ≥ 10 µb/s overlap. An overlap of ingredients, not a probability."
+    ing: "Where frontogenesis ≥ 4, EPV* ≤ 0.25 PVU and DGZ lift ≥ 10 µb/s overlap: banding potential, not a probability, and not a precipitation type."
   };
+  function msgEl(html) { var el = document.getElementById("sb-msg"); el.innerHTML = html; return "sb-msg"; }
   function live(p, label) {
     return {
       label: label,
-      a: { label: "Model", items: MODEL_ITEMS },
+      a: function () { return { label: "Model", items: modelItems() }; },
       b: function (a) { return { label: "Region", items: regionsOf(a).map(function (r) { return [r, REGIONS[r]]; }) }; },
-      dom: function (a, b) {
-        if (hasLoop(a, b)) return null;
-        var el = document.getElementById("sb-msg"); el.innerHTML = message(a, b); return "sb-msg";
-      },
+      dom: function (a, b) { return loopOf(a, p, b) && !idle() ? null : msgEl(message(a, b)); },
       frame: function (a, b) {
         var id = a + "_" + p + "_" + b;
         return "sst_anim.html?embed=1&base=assets/snowband/anim&manifest=snowband_" + a + "_manifest.json&region=" + id + "&regions=" + id + "&start=0";
       },
-      ratio: function () { return p === "ov" ? "1166/1150" : "964/860"; },
+      ratio: function (a, b) { return ratioOf(loopOf(a, p, b), p); },
       about: "about-" + p,
       cap: function (a, b) {
-        var md = ST && ST.models && ST.models[a];
-        var grid = a !== "rrfs" ? "" : ((md && (md.bands_3km || []).indexOf(b) >= 0)
+        var md = mdOf(a), reg = loopOf(a, p, b);
+        if (!reg || idle()) return "";
+        var fr = reg.frames, span = (fr[0].label || "").split(" ")[0] + " to " + (fr[fr.length - 1].label || "").split(" ")[0];
+        var grid = a !== "rrfs" ? "" : ((md.bands_3km || []).indexOf(b) >= 0
           ? " RRFS diagnostics come from its 13 km North American output; its own bands are drawn from the 3 km grid."
           : " RRFS diagnostics and bands both come from its 13 km North American output here: the 3 km grid does not reach this region.");
-        var run = md && md.state === "rendered" ? " " + MODELS[a] + " " + cyc(md.cycle) + " run, " + (md.leads || []).join(" ").replace(/^(\S+).* (\S+)$/, "$1 to $2") + " every 3 hours." : "";
-        return CAP[p] + run + grid;
+        return CAP[p] + " " + MODELS[a] + " " + cyc(md.cycle) + " run, " + span + " every 3 hours." + grid;
       }
     };
   }
   var CASE_VIEWS = [["ov", "Overview"], ["radar", "Against NEXRAD"], ["ing", "Band ingredients"], ["fg", "Frontogenesis"],
     ["epv", "EPV* and CSI"], ["dgz", "Lift in the DGZ"], ["bands", "HRRR's own bands"]];
-  function caseList() {   // every rendered case, the Binghamton showcase first
-    var cs = (ST && ST.cases) || {};
-    return Object.keys(cs).sort(function (x, y) { return (cs[x].about === "binghamton" ? -1 : 0) - (cs[y].about === "binghamton" ? -1 : 0) || (x < y ? 1 : -1); })
-      .map(function (k) { var c = cs[k]; return { id: k, label: c.label || c.spec, about: c.about, when: "" }; });
+  function caseList() {   // cases that have loops in the case manifest, the Binghamton showcase first
+    var ids = {}, cs = (ST && ST.cases) || {};
+    Object.keys((CASEMAN && CASEMAN.regions) || {}).forEach(function (k) { var m = /^case_(c\d{10})_/.exec(k); if (m) ids[m[1]] = 1; });
+    return Object.keys(ids).map(function (k) {
+      var c = cs[k] || {}, d = k.slice(1);
+      return { id: k, about: c.about || "", label: c.label || ("HRRR case, " + (+d.slice(6, 8)) + " " + MON[+d.slice(4, 6) - 1] + " " + d.slice(0, 4)) };
+    }).sort(function (x, y) { return (x.about === "binghamton" ? -1 : 0) - (y.about === "binghamton" ? -1 : 0) || (x.id < y.id ? 1 : -1); });
   }
   function caseOf(id) { var l = caseList(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
   function start() {
-    window.STAGE = {
-      groups: [
-        { label: "Latest runs", ico: "❄", items: [["ov", "Overview", "the four diagnostics"], ["ing", "Band ingredients", "where they overlap"],
-          ["fg", "Frontogenesis", "700 hPa, with deformation"], ["epv", "EPV* and CSI", "750–500 hPa, saturated"],
-          ["dgz", "Lift in the DGZ", "−12 to −18 °C"], ["bands", "The model's own bands", "reflectivity and type"]] },
-        { label: "Case study", ico: "❄", items: [["case", "Case study", caseList().length > 1 ? caseList().length + " events against the radar" : (caseList()[0] ? caseList()[0].label.split(",")[0] : "a documented band against the radar")]] }
-      ],
-      products: {
-        ov: live("ov", "Overview"), ing: live("ing", "Band ingredients"), fg: live("fg", "Frontogenesis and deformation"),
-        epv: live("epv", "EPV* and CSI"), dgz: live("dgz", "Lift in the dendritic growth zone"), bands: live("bands", "The model's own bands"),
-        "case": {
-          label: "Case study",
-          a: function () { return { label: "Case", items: caseList().map(function (c) { return [c.id, c.label.split(",")[0] + (c.when ? ", " + c.when : "")]; }) }; },
-          b: { label: "View", items: CASE_VIEWS },
-          dom: function (a) {
-            if (caseList().length) return null;
-            var el = document.getElementById("sb-msg"); el.innerHTML = "<b>No case study has been rendered yet.</b>"; return "sb-msg";
-          },
-          frame: function (a, b) {
-            var id = "case_" + a + "_" + b;
-            return "sst_anim.html?embed=1&base=assets/snowband/anim&manifest=snowband_case_manifest.json&region=" + id + "&regions=" + id + "&start=0";
-          },
-          ratio: function (a, b) { return b === "ov" || b === "radar" ? "1166/1150" : "964/860"; },
-          about: function (a) { var c = caseOf(a); return c && c.about === "binghamton" ? "about-case" : "about-case-generic"; },
-          cap: function (a) { var c = caseOf(a); return c ? c.label + ". Step through the hours with the loop controls." : ""; }
-        }
-      }
+    var groups = [{ label: "Latest runs", ico: "❄", items: [["ov", "Overview", "the four diagnostics"], ["ing", "Band ingredients", "where they overlap"],
+      ["fg", "Frontogenesis", "700 hPa, with deformation"], ["epv", "EPV* and CSI", "750–500 hPa, saturated"],
+      ["dgz", "Lift in the DGZ", "−12 to −18 °C"], ["bands", "The model's own bands", "reflectivity and type"]] }];
+    var cases = caseList();
+    if (cases.length) groups.push({ label: "Case study", ico: "❄", items: [["case", "Case study", cases.length > 1 ? cases.length + " events against the radar" : cases[0].label.split(",")[0]]] });
+    var products = { ov: live("ov", "Overview"), ing: live("ing", "Band ingredients"), fg: live("fg", "Frontogenesis and deformation"),
+      epv: live("epv", "EPV* and CSI"), dgz: live("dgz", "Lift in the dendritic growth zone"), bands: live("bands", "The model's own bands") };
+    if (cases.length) products["case"] = {
+      label: "Case study",
+      a: function () { return { label: "Case", items: caseList().map(function (c) { return [c.id, c.label.split(",")[0]]; }) }; },
+      b: { label: "View", items: CASE_VIEWS },
+      frame: function (a, b) {
+        var id = "case_" + a + "_" + b;
+        return "sst_anim.html?embed=1&base=assets/snowband/anim&manifest=snowband_case_manifest.json&region=" + id + "&regions=" + id + "&start=0";
+      },
+      ratio: function (a, b) { return ratioOf(CASEMAN.regions["case_" + a + "_" + b], b); },
+      about: function (a) { var c = caseOf(a); return c && c.about === "binghamton" ? "about-case" : "about-case-generic"; },
+      cap: function (a) { var c = caseOf(a); return c ? c.label + ". Step through the hours with the loop controls." : ""; }
     };
-    var s = document.createElement("script"); s.src = "/assets/stage.js"; document.body.appendChild(s);
+    window.STAGE = { groups: groups, products: products };
+    var sc = document.createElement("script"); sc.src = "/assets/stage.js"; document.body.appendChild(sc);
   }
-  fetch("assets/snowband/data/snowband_status.json?v=" + new Date().toISOString().slice(0, 13))
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .catch(function () { return null; })
-    .then(function (j) { ST = j; statusLine(); start(); });
+  function getJSON(u) {
+    return fetch(u + "?v=" + new Date().toISOString().slice(0, 13)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  }
+  Promise.all([getJSON("assets/snowband/data/snowband_status.json"), getJSON("assets/snowband/anim/snowband_hrrr_manifest.json"),
+    getJSON("assets/snowband/anim/snowband_rrfs_manifest.json"), getJSON("assets/snowband/anim/snowband_rdps_manifest.json"),
+    getJSON("assets/snowband/anim/snowband_case_manifest.json")]).then(function (x) {
+    ST = x[0]; MAN = { hrrr: x[1], rrfs: x[2], rdps: x[3] }; CASEMAN = x[4];
+    statusLine(); start();
+  });
 })();
 </script>
 <!-- sf:start -->

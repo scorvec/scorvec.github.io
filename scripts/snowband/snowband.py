@@ -1233,6 +1233,9 @@ def _run_cycle(model, nc, anim, mf, old, st, now, force, procs, publish, prune, 
     regions = {}
     for (p, r), fr in frames.items():
         regions[f"{model}_{p}_{r}"] = {"label": f"{SRC_LABEL[assign[r]]} {PRODUCTS[p]} · {REGIONS[r][0]}", "frames": fr}
+        sz = frame_size(tmpdirs[(p, r)])
+        if sz:
+            regions[f"{model}_{p}_{r}"].update(w=sz[0], h=sz[1])
     mf.write_text(json.dumps({"ver": int(time.time()), "selectorLabel": "Region", "regions": regions}))
     publish.extend(f"assets/snowband/anim/{d}" for d in sorted(regions))
     prune.extend(f"assets/snowband/anim/{d}" for d in sorted(old_dirs - set(regions)))
@@ -1306,6 +1309,16 @@ def cmd_run(a):
     write_lists(a, publish, prune)
 
 
+def frame_size(d: Path):
+    """(width, height) of a loop's first frame, stored in the manifest so the page can size the embed before it loads."""
+    try:
+        from PIL import Image
+        with Image.open(sorted(Path(d).glob("F*.webp"))[0]) as im:
+            return im.size
+    except Exception:                                                  # noqa: BLE001
+        return None
+
+
 def write_lists(a, publish, prune):
     if a.lists:
         Path(a.lists).mkdir(parents=True, exist_ok=True)
@@ -1363,6 +1376,10 @@ def cmd_case(a):
     legacy = [k for k in man.get("regions", {}) if not re.match(r"^case_c\d{10}_", k)]
     keep = {k: v for k, v in man.get("regions", {}).items() if k not in legacy and not k.startswith(f"case_{cid}_")}
     keep.update({f"case_{cid}_{p}": {"label": PRODUCTS[p], "frames": frames[p]} for p in prods})
+    for p_ in prods:
+        sz = frame_size(dirs[p_])
+        if sz:
+            keep[f"case_{cid}_{p_}"].update(w=sz[0], h=sz[1])
     mfp.write_text(json.dumps({"ver": int(time.time()), "selectorLabel": "View", "regions": keep}))
     sp = site / "assets" / "snowband" / "data" / "snowband_status.json"
     sp.parent.mkdir(parents=True, exist_ok=True)
