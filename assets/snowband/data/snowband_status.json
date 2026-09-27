@@ -227,5 +227,17 @@
  },
  "forced": true,
  "updated": "2026-09-27T14:19Z",
- "test_label": "Test run on the 27 Sep nor'easter (rain)"
+ "test_label": "Test run on the 27 Sep nor'easter (rain)",
+ "cases": {
+  "c2020121613": {
+   "spec": "hrrr01:2020121613-2020121706",
+   "region": "sny",
+   "label": "Binghamton band, 16\u201317 December 2020 (40.2 in), HRRR f01 each hour",
+   "rendered": "2026-09-27T14:55Z",
+   "frames": 18,
+   "mb": 1446,
+   "seconds": 202,
+   "about": "binghamton"
+  }
+ }
 }
