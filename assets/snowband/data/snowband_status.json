@@ -238,6 +238,16 @@
    "mb": 1446,
    "seconds": 202,
    "about": "binghamton"
+  },
+  "c2026092700": {
+   "spec": "hrrr01:2026092700-2026092712@nema",
+   "region": "nema",
+   "label": "Nor'easter, 27 September 2026 (rain), HRRR f01 each hour against the radar",
+   "rendered": "2026-09-27T15:00Z",
+   "frames": 13,
+   "mb": 1066,
+   "seconds": 166,
+   "about": "generic"
   }
  }
 }
